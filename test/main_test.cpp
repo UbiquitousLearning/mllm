@@ -1,4 +1,4 @@
-// #include <iostream>
+#include <iostream>
 // #include "Graph.hpp"
 // #include "Tensor.hpp"
 // #include "backends/cpu/CPUMatmul.hpp"
