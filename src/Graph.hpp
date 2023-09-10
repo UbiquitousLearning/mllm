@@ -2,8 +2,8 @@
 // Created by yirongjie.
 //
 
-#ifndef MLLM_NET_H
-#define MLLM_NET_H
+#ifndef MLLM_GRAPH_H
+#define MLLM_GRAPH_H
 #include<map>
 #include<unordered_map>
 #include "NetParameter.hpp"
@@ -37,7 +37,7 @@ namespace mllm {
         // const  vector<shared_ptr<Tensor<Dtype>>>& Forward();
         const  vector<shared_ptr<Tensor<Dtype>>>& Forward(Dtype* loss = NULL);
         // set input blobs then use Forward() instead.
-        const  vector<shared_ptr<Tensor<Dtype>>>& Forward(const  vector<shared_ptr<Tensor<Dtype>>> & bottom,
+        const  vector<shared_ptr<Tensor<Dtype>>>& Forward(const  vector<shared_ptr<Tensor<Dtype>>> & inTensors,
                                             Dtype* loss = NULL);
 
         /**
@@ -57,20 +57,17 @@ namespace mllm {
         vector<string> layer_names_;
 
         // tensor indices for the input and the output of the net
-        vector<int> net_input_tensor_indices_;
-        vector<int> net_output_tensor_indices_;
-        vector<Tensor<Dtype>*> net_input_tensors_;
-        vector<Tensor<Dtype>*> net_output_tensors_;
+        vector<int> input_tensor_indices_;
+        vector<int> output_tensor_indices_;
+        vector<Tensor<Dtype>*> input_tensors_;
+        vector<Tensor<Dtype>*> output_tensors_;
 
-        // vector<vector<Tensor<Dtype>*>> ops_input_tensors_;
-        // vector<vector<Tensor<Dtype>*>> ops_output_tensors_;
-        // vector<Op<Dtype>> net_ops_;
         vector <string> op_names_;
         vector<vector<string>> op_in_names_;
 	    unordered_map<string, vector<shared_ptr<Tensor<Dtype>>>> tensors_;   
-        unordered_map<string, shared_ptr<Op<Dtype>>> net_ops_;
+        unordered_map<string, shared_ptr<Op<Dtype>>> ops_;
     };
 
 }
 
-#endif //MLLM_NET_H
+#endif //MLLM_GRAPH_H

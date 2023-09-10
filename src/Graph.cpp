@@ -4,6 +4,7 @@
 #include "Graph.hpp"
 namespace mllm {
     template class Graph<float>;
+    template class Graph<int8_t>;
 
 
 
@@ -56,8 +57,8 @@ namespace mllm {
             for (auto name: inames){
                 inTensors.push_back(tensors_[name][0]);
             }
-		    net_ops_[lname] = myOp;
-            net_ops_[lname]->Setup(inTensors, tensors_[lname]);//tensors_[lname]:1.Reshape 2.malloc&memset 0 //TODO: 加入Bachend后改成不同Device的malloc
+		    ops_[lname] = myOp;
+            ops_[lname]->Setup(inTensors, tensors_[lname]);//tensors_[lname]:1.Reshape 2.malloc&memset 0 //TODO: 加入Bachend后改成不同Device的malloc
         }
 
     }
@@ -82,7 +83,7 @@ namespace mllm {
             for (auto name: inames){
                 inTensors.push_back(tensors_[name][0]);
             }
-            net_ops_[lname]->Execute(inTensors, tensors_[lname]);
+            ops_[lname]->Execute(inTensors, tensors_[lname]);
         }
         //TODO
         return tensors_[op_names_[op_names_.size()-1]];
@@ -92,7 +93,7 @@ namespace mllm {
     const vector<shared_ptr<Tensor<Dtype>>> &Graph<Dtype>::Forward(const  vector<shared_ptr<Tensor<Dtype>>> &inTensors, Dtype *loss) {
         // Copy 
         for (int i = 0; i < inTensors.size(); ++i) {
-            net_input_tensors_[i]->CopyFrom(*inTensors[i]);
+            input_tensors_[i]->CopyFrom(*inTensors[i]);
         }
         return Forward(loss);
     }

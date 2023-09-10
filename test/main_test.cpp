@@ -1,7 +1,8 @@
-#include <iostream>
-#include "Graph.hpp"
-#include "Tensor.hpp"
-#include "backends/cpu/CPUMatmul.hpp"
+// #include <iostream>
+// #include "Graph.hpp"
+// #include "Tensor.hpp"
+// #include "backends/cpu/CPUMatmul.hpp"
+#include "Net.hpp"
 
 using namespace mllm;
 
@@ -16,13 +17,6 @@ int main()
 
 
     // CPUMatmul<float> mm_op(mllm_CPU,true,true,true,true);
-    // vector<Tensor<float>*> inTensors;
-    // inTensors.push_back(&tensor_);
-    // inTensors.push_back(&tensor_);
-    // vector<Tensor<float>*> outTensors;
-    // outTensors.push_back(&tensor_);
-    // mm_op.Setup(inTensors, outTensors);
-    // mm_op.Execute(inTensors, outTensors);
 
 
     NetParameter param;
@@ -32,8 +26,8 @@ int main()
     vector<vector<string>> io_name_ = { {"input", "input"}, {"input", "mm1"}};
     param.op_in_names_ = io_name_;
 
-    Net<float> net(param);
-    net.Setup();
-    net.Forward();
+    Net net(param);
+    net.Convert();
+    net.Run();
     return 0;
 }

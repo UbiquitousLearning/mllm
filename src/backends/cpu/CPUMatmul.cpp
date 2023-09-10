@@ -4,6 +4,7 @@
 namespace mllm{
     
     template class CPUMatmul<float>;
+    template class CPUMatmul<int8_t>;
     template <typename Dtype>
     inline CPUMatmul<Dtype>::CPUMatmul(const BackendType betype, bool transposeA, bool transposeB, bool transposeC, bool multiThread)
     {

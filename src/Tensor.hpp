@@ -28,6 +28,7 @@ template <typename Dtype>
 
         void Update();
 
+/*
         //TODO 针对data的计算，或者加一个参数is_diff来支持data&diff
 	    Tensor& operator[] (int i);//??
         Tensor& operator= (double val);
@@ -40,7 +41,7 @@ template <typename Dtype>
         friend Tensor operator+(Tensor A, double val);
         friend Tensor sqrt(Tensor A);
         friend Tensor square(Tensor A);
-
+*/
 
         // Deprecated legacy shape accessor num: use shape(0) instead.
         inline int num() const { return LegacyShape(0); }
@@ -149,9 +150,9 @@ template <typename Dtype>
 
         void PrintData();
     private:
-        shared_ptr<AlignedMemory> data_; //存放数据
-        shared_ptr<AlignedMemory> diff_; //存放梯度  //TODO: not need for "inference"; only define; do not use. DELITE
-        shared_ptr<AlignedMemory> shape_data_; //Tensor形状，N K H W //4*sizeofint
+        shared_ptr<MemoryManager> data_; //存放数据
+        shared_ptr<MemoryManager> diff_; //存放梯度  //TODO: not need for "inference"; only define; do not use. DELITE
+        shared_ptr<MemoryManager> shape_data_; //Tensor形状，N K H W //4*sizeofint
         vector<int> shape_; //保存 N K H W
         int capacity_; //元素个数 申请内存的总长度相关
         int count_; //当前元素数

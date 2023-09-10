@@ -2,7 +2,7 @@
 
 
 ### 主要文件
-1.AlignedMemory: 负责memory的malloc/free等。to_cpu函数负责malloc&memset（TODO需要考虑Backend，AlignedMemory应被移除相关功能移至Backend的子类中，负责该backend的内存管理）。
+1.MemoryManager: 负责memory的malloc/free等。to_cpu函数负责malloc&memset（TODO需要考虑Backend，MemoryManager应被移除相关功能移至Backend的子类中，负责该backend的内存管理）。
 
 2.Tensor: 基础数据类型，包含NCHW四个为维度。数据存储在私有变量data_（vector类型，TODO需要考虑Backend）。
 构造函数不进行malloc, 通过cpu_data函数进行malloc(现阶段只考虑cpu，TODO该函数需要考虑Backend)。
@@ -27,8 +27,8 @@
 5. 自己初始化一个简单的有两层Matmul算子构成的NetParamter, 来初始化Net并跑通，检查Setup/Forward功能。
 
 第二阶段：考虑Backend
-1. 构建Backend类，将AlignedMemory中功能移入并删除AlignedMemory类。
-2. 修改Tensor/Op中的AlignedMemory相关函数。
+1. 构建Backend类，将MemoryManager中功能移入并删除MemoryManager类。
+2. 修改Tensor/Op中的MemoryManager相关函数。
 3. 构建CPUBackend类继承Backend类。
 4. 实现CPUxxop.c/hpp，实现CPU的算子。
 
@@ -47,7 +47,7 @@
 convert()函数：将根据Netparam得到多个subgraph(Graph类)。 需要用到backend：SupportOp
 run()函数：调用每一个subgraph的Setup&Forward函数。（先setup后forward//pipline）可用户重构。
 
-3.删除AlignedMemory.h/cpp，构建MemoryManager.h/cpp。
+3.删除MemoryManager.h/cpp，构建MemoryManager.h/cpp。
 MemoryManager中管理CPU内存。包含函数malloc/memset/memfree。类似memorypool的功能。、
 删除CPUMemory.h/cpp。
 不同的backend的Op.Setup调用MemoryManager的malloc/memset/memfree。

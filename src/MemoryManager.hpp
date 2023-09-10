@@ -35,11 +35,11 @@ namespace mllm {
         free(ptr);
     }
 
-    class AlignedMemory {
+    class MemoryManager {
     public:
-        AlignedMemory();
-        explicit AlignedMemory(size_t size);
-        ~AlignedMemory();
+        MemoryManager();
+        explicit MemoryManager(size_t size);
+        ~MemoryManager();
         enum MemoryState{UNINIT, CPUSTATE, GPUSTATE, SYNCED};
         // MemoryState state() { return state_; }
         size_t size() const { return size_; }
