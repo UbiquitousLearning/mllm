@@ -9,17 +9,21 @@ namespace mllm
         Backend()= default;
         virtual ~Backend() = default;
 
-        bool testOperator(shared_ptr<Op<float>> op) {
+        bool CheckSupport(shared_ptr<Op<float>> op) {
             // return OPMap.contains(op->type);
+            return true;
         }
         
-        bool testOperator(shared_ptr<Op<int8_t>> op) {
+        bool CheckSupport(shared_ptr<Op<int8_t>> op) {
             // return OPMap.contains(op->type);
+            return true;
         }
 
         void Execute() {
 
         }
+
+        bool CPUTensorConvert(shared_ptr<Tensor<float>> src_tensor, shared_ptr<Tensor<float>> dst_tensor, int type_); //NCHW --> NHWC ..., TODO type_:enum
     private:
         //
 

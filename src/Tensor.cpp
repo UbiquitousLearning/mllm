@@ -9,6 +9,7 @@ namespace mllm{
     Tensor<Dtype>::Tensor(const int num, const int channels, const int height, const int width)
     :capacity_(0){
         Reshape(num, channels, height, width);
+        //TODO
     }
 
     template<typename Dtype>
@@ -33,7 +34,7 @@ namespace mllm{
         count_ = 1; //num*channels*height*width 赋值为1，为了相乘
         shape_.resize(shape.size());
         if (!shape_data_ || shape_data_->size() < shape.size() * sizeof(int)) {
-            shape_data_.reset(new MemoryManager(shape.size() * sizeof(int)));
+            shape_data_.reset(new HostMemory(shape.size() * sizeof(int)));
         }
         for(int i=0; i<shape.size(); ++i){
             CHECK_GE(shape[i], 0);
@@ -45,8 +46,8 @@ namespace mllm{
         }
         if(count_ > capacity_){ //capactity不小于count
             capacity_ = count_;
-            data_.reset(new  MemoryManager(capacity_ * sizeof(Dtype)));
-            diff_.reset(new  MemoryManager(capacity_ * sizeof(Dtype)));
+            data_.reset(new  HostMemory(capacity_ * sizeof(Dtype)));
+            diff_.reset(new  HostMemory(capacity_ * sizeof(Dtype)));
             return true;
         } else{
             return false;
@@ -71,8 +72,8 @@ namespace mllm{
         CHECK(data);
         size_t size = count_ * sizeof(Dtype);
         if(size != data_->size()){
-            data_.reset(new MemoryManager(size));
-            diff_.reset(new MemoryManager(size));
+            data_.reset(new HostMemory(size));
+            diff_.reset(new HostMemory(size));
         }
         data_->set_cpu_data(data);
     }

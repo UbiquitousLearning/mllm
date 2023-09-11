@@ -14,7 +14,7 @@ template <typename Dtype>
     class Tensor {
     public:
         Tensor():data_(), diff_(), capacity_(0){}
-        explicit Tensor(const int num, const int channels, const int height, const int width); //N C H W like Caffe
+        explicit Tensor(const int num, const int channels, const int height, const int width); //N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
         explicit Tensor(const vector<int>& shape);
 
         bool Reshape(const int num, const int channels, const int height,const int width);
@@ -150,9 +150,12 @@ template <typename Dtype>
 
         void PrintData();
     private:
-        shared_ptr<MemoryManager> data_; //存放数据
-        shared_ptr<MemoryManager> diff_; //存放梯度  //TODO: not need for "inference"; only define; do not use. DELITE
-        shared_ptr<MemoryManager> shape_data_; //Tensor形状，N K H W //4*sizeofint
+        shared_ptr<HostMemory> data_; //存放数据 
+        shared_ptr<HostMemory> diff_; //存放梯度  //TODO: not need for "inference"; only define; do not use. DELITE
+        shared_ptr<HostMemory> shape_data_; //Tensor形状，N K H W //4*sizeofint
+
+        //TODO device_data_?
+
         vector<int> shape_; //保存 N K H W
         int capacity_; //元素个数 申请内存的总长度相关
         int count_; //当前元素数
