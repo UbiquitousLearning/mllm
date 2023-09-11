@@ -4,7 +4,7 @@
 
 
 
-
+#include <climits>
 #include "MemoryManager.hpp"
 
 const int kMaxAxes = 32;
