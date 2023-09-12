@@ -6,6 +6,7 @@
 
 #include <climits>
 #include "MemoryManager.hpp"
+#include "Backend.hpp"
 
 const int kMaxAxes = 32;
 
@@ -13,18 +14,24 @@ namespace mllm {
 template <typename Dtype>
     class Tensor {
     public:
-        Tensor():data_(), diff_(), capacity_(0){}
+        // Tensor():data_(), diff_(), capacity_(0){}
+        Tensor():capacity_(0){}
         explicit Tensor(const int num, const int channels, const int height, const int width); //N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
         explicit Tensor(const vector<int>& shape);
+        void SetBackend(shared_ptr<Backend> bn){
+            backend_= bn;
+        };
 
         bool Reshape(const int num, const int channels, const int height,const int width);
         bool Reshape(const vector<int>& shape);
 
-        const Dtype* cpu_data() const; //静态访问
-        const Dtype* cpu_diff() const;
+        void Alloc();
 
-        void set_cpu_data(Dtype* data);
-        void set_cpu_diff(Dtype* diff);
+        const Dtype* cpu_data() const; //静态访问
+        // const Dtype* cpu_diff() const;
+
+        // void set_cpu_data(Dtype* data);
+        // void set_cpu_diff(Dtype* diff);
 
         void Update();
 
@@ -134,25 +141,29 @@ template <typename Dtype>
             return cpu_data()[offset(n, c, h, w)];
         }
 
-        inline Dtype diff_at(const int n, const int c, const int h,
-                             const int w) const {
-            return cpu_diff()[offset(n, c, h, w)];
-        }
+        // inline Dtype diff_at(const int n, const int c, const int h,
+        //                      const int w) const {
+        //     return cpu_diff()[offset(n, c, h, w)];
+        // }
 
         inline Dtype data_at(const vector<int>& index) const {
             return cpu_data()[offset(index)];
         }
 
-        inline Dtype diff_at(const vector<int>& index) const {
-            return cpu_diff()[offset(index)];
-        }
+        // inline Dtype diff_at(const vector<int>& index) const {
+        //     return cpu_diff()[offset(index)];
+        // }
 
 
         void PrintData();
     private:
-        shared_ptr<HostMemory> data_; //存放数据 
-        shared_ptr<HostMemory> diff_; //存放梯度  //TODO: not need for "inference"; only define; do not use. DELITE
-        shared_ptr<HostMemory> shape_data_; //Tensor形状，N K H W //4*sizeofint
+        shared_ptr<Backend> backend_;
+        void* host_ptr_;
+        void* device_ptr_;
+
+        // shared_ptr<HostMemory> data_; //存放数据 
+        // shared_ptr<HostMemory> diff_; //存放梯度  //TODO: not need for "inference"; only define; do not use. DELITE
+        // shared_ptr<HostMemory> shape_data_; //Tensor形状，N K H W //4*sizeofint
 
         //TODO device_data_?
 

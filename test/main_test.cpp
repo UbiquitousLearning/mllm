@@ -3,6 +3,7 @@
 // #include "Tensor.hpp"
 // #include "backends/cpu/CPUMatmul.hpp"
 #include "Net.hpp"
+#include "Executor.hpp"
 
 using namespace mllm;
 
@@ -28,6 +29,11 @@ int main()
 
     Net net(param);
     net.Convert();
-    net.Run();
+    // net.Run();
+
+    Executor ex(&net);
+    ex.Execute();
+    // ex.GraphSetup("fp1");
+    // auto result = ex.GraphForward("fp1");
     return 0;
 }

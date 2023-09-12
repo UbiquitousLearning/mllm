@@ -12,7 +12,11 @@ namespace mllm {
          * @param backend   backend that exection will running on.
          */
         Op(){};
-        Op(const BackendType betype): backend_type_(betype) {};
+        // Op(const BackendType betype): backend_type_(betype) {};
+        // Op() = delete;
+        Op(shared_ptr<Backend> bn) : backend_(bn) {
+            // nothing to do
+        }
         virtual ~Op() = default;
 
         /**
@@ -35,10 +39,17 @@ namespace mllm {
          * @return execution result
          */
         virtual ErrorCode Execute(vector<shared_ptr<Tensor<Dtype>>> &inputs, vector<shared_ptr<Tensor<Dtype>>> &outputs) = 0;
+        /**
+         * @brief get backend.
+         * @return backend.
+         */
+        shared_ptr<Backend> backend() const {
+            return backend_;
+        }
     
     private:
-        // Backend *backend_;
-        BackendType backend_type_;
+        shared_ptr<Backend> backend_;
+        // BackendType backend_type_;
         //tensor w
     };
 }

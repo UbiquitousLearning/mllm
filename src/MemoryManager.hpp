@@ -72,25 +72,26 @@ namespace mllm {
     /**
      * CPU内存  ABANDEN OR接入MemoryManager? ... 
     */
-    class HostMemory {
-    public:
-        HostMemory(): cpu_ptr_(nullptr), size_(0){};
-        explicit HostMemory(size_t size): cpu_ptr_(nullptr), size_(size){};
-        ~HostMemory();
-        // enum MemoryState{UNINIT, CPUSTATE, GPUSTATE, SYNCED};
-        // MemoryState state() { return state_; }
-        size_t size() const { return size_; }
-        void set_cpu_data(void* data);
-        const void* cpu_data(); //当你想读取数据的时候请使用cpu_data （X） malloc here.
+    // class HostMemory {
+    // public:
+    //     HostMemory(): host_ptr_(nullptr), size_(0){};
+    //     explicit HostMemory(size_t size): host_ptr_(nullptr), size_(size){};
+    //     ~HostMemory();
+    //     // enum MemoryState{UNINIT, CPUSTATE, GPUSTATE, SYNCED};
+    //     // MemoryState state() { return state_; }
+    //     size_t size() const { return size_; }
+    //     void set_cpu_data(void* data);
+    //     const void* cpu_data(); //当你想读取数据的时候请使用cpu_data （X） malloc here.
 
-    private:
-        size_t size_; //数据大小
-        // MemoryState state_; //数据状态，有四种：UNINIT, CPUSTATE, GPUSTATE, SYNCED
-        void *cpu_ptr_;//another name: host_ptr
-        void to_cpu(); // malloc here. 
-        bool own_cpu_data_;
+    // private:
+    //     size_t size_; //数据大小
+    //     // MemoryState state_; //数据状态，有四种：UNINIT, CPUSTATE, GPUSTATE, SYNCED
+    //     void *host_ptr_;//another name: host_ptr
+    //     void *device_ptr;
+    //     void to_cpu(); // malloc here. 
+    //     bool own_cpu_data_;
 
-    };
+    // };
 
     
     /**
@@ -99,7 +100,15 @@ namespace mllm {
     class MemoryManager {
     public:
         MemoryManager();
-        ~MemoryManager();
+        ~MemoryManager();//release
+
+        void Alloc(void** ptr, size_t size){
+            mllmMallocHost(ptr, size);
+        }
+
+        void Free(void** ptr){
+            mllmFreeHost(ptr);
+        }
     };
 
     

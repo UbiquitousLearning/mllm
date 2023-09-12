@@ -17,6 +17,12 @@ namespace mllm
          * @brief 执行，用户可重构
          */
         const vector<shared_ptr<Tensor<float>>>& Run();
+
+
+        unordered_map<string, shared_ptr<Graph<float>>>& subGraphFP() {
+            return subgraphs_fp_;
+        }
+
     private:
         NetParameter net_param_;
         unordered_map<string, shared_ptr<Graph<float>>> subgraphs_fp_;

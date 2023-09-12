@@ -1,31 +1,46 @@
 #ifndef MLLM_BACKEND_H
 #define MLLM_BACKEND_H
 
-#include "Graph.hpp"
+#include "MemoryManager.hpp"
 namespace mllm
 {
     class Backend {
     public:
-        Backend()= default;
+        Backend(){};
+        Backend(shared_ptr<MemoryManager> mm) : mem_manager_(mm) {
+            // nothing to do
+        }
         virtual ~Backend() = default;
 
-        bool CheckSupport(shared_ptr<Op<float>> op) {
-            // return OPMap.contains(op->type);
-            return true;
-        }
+        // bool CheckSupport(shared_ptr<Op<float>> op) {
+        //     // return OPMap.contains(op->type);
+        //     return true;
+        // }
         
-        bool CheckSupport(shared_ptr<Op<int8_t>> op) {
-            // return OPMap.contains(op->type);
-            return true;
+        // bool CheckSupport(shared_ptr<Op<int8_t>> op) {
+        //     // return OPMap.contains(op->type);
+        //     return true;
+        // }
+        void Init(); //TODO: Config
+
+        void Release();
+
+        void Alloc(void** ptr, size_t size){
+            mem_manager_->Alloc(ptr, size);
         }
 
-        void Execute() {
-
+        void Free(void** ptr){
+            mem_manager_->Free(ptr);
         }
 
-        bool CPUTensorConvert(shared_ptr<Tensor<float>> src_tensor, shared_ptr<Tensor<float>> dst_tensor, int type_); //NCHW --> NHWC ..., TODO type_:enum
+        // void Execute() {
+
+        // }
+
+        // bool CPUTensorConvert(shared_ptr<Tensor<float>> src_tensor, shared_ptr<Tensor<float>> dst_tensor, int type_); //NCHW --> NHWC ..., TODO type_:enum
     private:
         //
+        shared_ptr<MemoryManager> mem_manager_;
 
     };
     
