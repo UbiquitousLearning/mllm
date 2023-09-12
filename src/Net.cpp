@@ -15,15 +15,15 @@ namespace mllm
         subgraphs_fp_["fp1"] = subg_fp1;
     }
 
-    const vector<shared_ptr<Tensor<float>>> &Net::Run()
-    {
-        // TODO
-        for(auto& kv:subgraphs_fp_){
-            kv.second->Setup();
-            kv.second->Forward();
-        }
-        // TODO: 在此处插入 return 语句 
-        //return;
-    }
+    // const vector<shared_ptr<Tensor<float>>> &Net::Run()
+    // {
+    //     // TODO
+    //     for(auto& kv:subgraphs_fp_){
+    //         kv.second->Setup();
+    //         kv.second->Forward();
+    //     }
+    //     // TODO: 在此处插入 return 语句 
+    //     //return;
+    // }
 
 } // namespace mllm
