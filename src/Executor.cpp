@@ -20,12 +20,11 @@ namespace mllm
 
     void Executor::Execute()
     {
-            for(auto kv: net_->subGraphFP()){
-                std::cout<<kv.first<<std::endl;
-                // string name_ = "fp1";
-                GraphSetup(kv.second);
-                auto result = GraphForward(kv.second);
-            }
+        for(auto kv: net_->subGraphFP()){
+            std::cout<<kv.first<<std::endl;
+            GraphSetup(kv.second);
+            auto result = GraphForward(kv.second);
+        }
         
     }
 

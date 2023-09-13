@@ -1,7 +1,7 @@
 #include "CPUBackend.hpp"
 namespace mllm
 {
-    CPUBackend::CPUBackend()
+    CPUBackend::CPUBackend(shared_ptr<MemoryManager> mm): Backend(mm)
     {
     }
 

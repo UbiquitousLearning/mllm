@@ -100,7 +100,9 @@ namespace mllm {
     class MemoryManager {
     public:
         MemoryManager();
-        ~MemoryManager();//release
+        ~MemoryManager(){
+            
+        }//release
 
         void Alloc(void** ptr, size_t size){
             mllmMallocHost(ptr, size);

@@ -36,5 +36,8 @@ namespace mllm{
     //     return (const void*)host_ptr_;
     // }
 
+    MemoryManager::MemoryManager()
+    {
+    }
 
 }

@@ -11,7 +11,7 @@ namespace mllm
         explicit Net(const NetParameter& param);
         virtual ~Net() = default;
 
-        void Convert();
+        void Convert(shared_ptr<MemoryManager> p_mm);
 
         // /**
         //  * @brief 执行，用户可重构
@@ -27,6 +27,9 @@ namespace mllm
         NetParameter net_param_;
         unordered_map<string, shared_ptr<Graph<float>>> subgraphs_fp_;
         unordered_map<string, shared_ptr<Graph<int8_t>>> subgraphs_int8_;
+
+        
+        unordered_map<string, Backend*> backends_;
     };
     
 } // namespace mllm

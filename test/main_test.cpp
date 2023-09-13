@@ -27,8 +27,10 @@ int main()
     vector<vector<string>> io_name_ = { {"input", "input"}, {"input", "mm1"}};
     param.op_in_names_ = io_name_;
 
+    shared_ptr<MemoryManager> p_mm(new MemoryManager());
+
     Net net(param);
-    net.Convert();
+    net.Convert(p_mm);
     // net.Run();
 
     Executor ex(&net);

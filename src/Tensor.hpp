@@ -16,6 +16,7 @@ template <typename Dtype>
     public:
         // Tensor():data_(), diff_(), capacity_(0){}
         Tensor():capacity_(0){}
+        Tensor(Backend* bn):backend_(bn), capacity_(0){}
         explicit Tensor(const int num, const int channels, const int height, const int width); //N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
         explicit Tensor(const vector<int>& shape);
         // void SetBackend(shared_ptr<Backend> bn){
