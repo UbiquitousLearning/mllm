@@ -61,9 +61,10 @@ namespace mllm{
     }
 
     
-    const float *Tensor::cpu_data() const {
-        return (const float*)host_ptr_;
-    }
+    // const float *Tensor::cpu_data() const {
+    //     return (const float*)host_ptr_;
+    // }
+
 
     // 
     // const Dtype *Tensor::cpu_diff() const {

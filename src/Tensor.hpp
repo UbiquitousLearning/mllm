@@ -31,8 +31,13 @@ namespace mllm {
 
         void Alloc();
 
-        const float* cpu_data() const; //静态访问
+        // const float* cpu_data() const; //静态访问
         // const Dtype* cpu_diff() const;
+
+        template <typename Dtype>
+        const Dtype* cpu_data() const{
+            return (const Dtype*)host_ptr_;
+        }
 
         // void set_cpu_data(Dtype* data);
         // void set_cpu_diff(Dtype* diff);
@@ -140,9 +145,10 @@ namespace mllm {
         void CopyFrom(const Tensor& source, bool copy_diff = false,
                       bool reshape = false);
 
-        inline float data_at(const int n, const int c, const int h,
+        template <typename Dtype>
+        inline Dtype data_at(const int n, const int c, const int h,
                              const int w) const {
-            return cpu_data()[offset(n, c, h, w)];
+            return cpu_data<Dtype>()[offset(n, c, h, w)];
         }
 
         // inline Dtype diff_at(const int n, const int c, const int h,
@@ -150,8 +156,9 @@ namespace mllm {
         //     return cpu_diff()[offset(n, c, h, w)];
         // }
 
-        inline float data_at(const vector<int>& index) const {
-            return cpu_data()[offset(index)];
+        template <typename Dtype>
+        inline Dtype data_at(const vector<int>& index) const {
+            return cpu_data<Dtype>()[offset(index)];
         }
 
         // inline Dtype diff_at(const vector<int>& index) const {
