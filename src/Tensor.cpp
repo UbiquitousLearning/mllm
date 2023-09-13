@@ -57,7 +57,7 @@ namespace mllm{
     
     void Tensor::Alloc()
     {
-        backend_->Alloc(&host_ptr_, capacity_* bitwitdh_);
+        backend_->Alloc(&host_ptr_, capacity_* bytewidth_);
     }
 
     

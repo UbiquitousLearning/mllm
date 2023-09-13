@@ -15,8 +15,8 @@ namespace mllm {
     class Tensor {
     public:
         // Tensor():data_(), diff_(), capacity_(0){}
-        Tensor():capacity_(0), bitwitdh_(sizeof(float)){}
-        Tensor(Backend* bn):backend_(bn), capacity_(0), bitwitdh_(sizeof(float)){}
+        Tensor():capacity_(0), bytewidth_(sizeof(float)){}
+        Tensor(Backend* bn):backend_(bn), capacity_(0), bytewidth_(sizeof(float)){}
         explicit Tensor(const int num, const int channels, const int height, const int width); //N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
         explicit Tensor(const vector<int>& shape);
         // void SetBackend(shared_ptr<Backend> bn){
@@ -167,9 +167,14 @@ namespace mllm {
 
 
         void PrintData();
+
+        int ByteWidth() const {
+            return bytewidth_;
+        }
+        
     private:
         // shared_ptr<Backend> backend_;
-        int bitwitdh_;//32/16/8/4 //enum
+        int bytewidth_;//32/16/8/4 //enum
         Backend* backend_;
         void* host_ptr_;
         void* device_ptr_;
