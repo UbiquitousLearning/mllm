@@ -18,7 +18,10 @@ template <typename Dtype>
         Tensor():capacity_(0){}
         explicit Tensor(const int num, const int channels, const int height, const int width); //N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
         explicit Tensor(const vector<int>& shape);
-        void SetBackend(shared_ptr<Backend> bn){
+        // void SetBackend(shared_ptr<Backend> bn){
+        //     backend_= bn;
+        // };
+        void SetBackend(Backend* bn){
             backend_= bn;
         };
 
@@ -157,7 +160,8 @@ template <typename Dtype>
 
         void PrintData();
     private:
-        shared_ptr<Backend> backend_;
+        // shared_ptr<Backend> backend_;
+        Backend* backend_;
         void* host_ptr_;
         void* device_ptr_;
 

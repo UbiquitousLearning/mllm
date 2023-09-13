@@ -14,7 +14,10 @@ namespace mllm {
         Op(){};
         // Op(const BackendType betype): backend_type_(betype) {};
         // Op() = delete;
-        Op(shared_ptr<Backend> bn) : backend_(bn) {
+        // Op(shared_ptr<Backend> bn) : backend_(bn) {
+        //     // nothing to do
+        // }
+        Op(Backend* bn) : backend_(bn) {
             // nothing to do
         }
         virtual ~Op() = default;
@@ -43,12 +46,16 @@ namespace mllm {
          * @brief get backend.
          * @return backend.
          */
-        shared_ptr<Backend> backend() const {
+        // shared_ptr<Backend> backend() const {
+        //     return backend_;
+        // }
+        Backend* backend() const {
             return backend_;
         }
     
     private:
-        shared_ptr<Backend> backend_;
+        // shared_ptr<Backend> backend_;
+        Backend* backend_;
         // BackendType backend_type_;
         //tensor w
     };

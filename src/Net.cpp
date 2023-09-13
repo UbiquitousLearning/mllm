@@ -9,9 +9,11 @@ namespace mllm
     void Net::Convert()
     {
         // TODO
+        auto bn = new Backend();
+        // TODO
         auto sub_param_ = net_param_;
         shared_ptr<Graph<float>> subg_fp1;
-        subg_fp1.reset(new Graph<float>(sub_param_));
+        subg_fp1.reset(new Graph<float>(sub_param_, bn));
         subgraphs_fp_["fp1"] = subg_fp1;
     }
 

@@ -8,7 +8,7 @@ namespace mllm
     template <typename Dtype>
     class CPUMatmul : public Op<Dtype> {
     public:
-        CPUMatmul(const BackendType betype, bool transposeA, bool transposeB, bool transposeC, bool multiThread);
+        CPUMatmul(Backend *bn, bool transposeA, bool transposeB, bool transposeC, bool multiThread);
         virtual ~CPUMatmul() = default;
         virtual ErrorCode Setup(vector<shared_ptr<Tensor<Dtype>>> &inputs, vector<shared_ptr<Tensor<Dtype>>> &outputs) override;
         virtual ErrorCode Execute(vector<shared_ptr<Tensor<Dtype>>> &inputs, vector<shared_ptr<Tensor<Dtype>>> &outputs) override;

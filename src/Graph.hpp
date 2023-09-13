@@ -17,7 +17,7 @@ namespace mllm {
     template <typename Dtype>
     class Graph {
     public:
-        explicit Graph(const NetParameter& param);
+        explicit Graph(const NetParameter& param, Backend* bn);
         virtual ~Graph() = default;
 
         /**
@@ -47,6 +47,7 @@ namespace mllm {
 
 
     protected:
+        Backend* backend_;
         // The network name
         string name_;
         // The phase: TRAIN or TEST

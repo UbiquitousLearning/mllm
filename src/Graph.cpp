@@ -14,8 +14,9 @@ namespace mllm {
      * @param in_param
      */
     template <typename Dtype>
-    Graph<Dtype>::Graph(const NetParameter &param)
+    Graph<Dtype>::Graph(const NetParameter &param,  Backend* bn)
     {
+        backend_ = bn;
         Init(param);
     }
     template <typename Dtype>
@@ -30,12 +31,12 @@ namespace mllm {
     template <typename Dtype>
     void Graph<Dtype>::Setup()
     {
-        auto bn = std::shared_ptr<Backend>(new Backend());
+        // auto bn = new Backend();
         tensors_["input"] = vector<shared_ptr<Tensor<Dtype>>>(1, NULL);
         for (auto& t: tensors_["input"]){
             std::shared_ptr<Tensor<Dtype>> tensor1 = std::make_shared<Tensor<Dtype>>(); 
             t = tensor1;
-            t->SetBackend(bn);
+            t->SetBackend(backend_);
             t->Reshape(1,3,5,5);//TODO Reshape  tensors_["input"] 
             t->Alloc();//to_cpu//malloc&memset 0 TODO
         }        
@@ -46,12 +47,13 @@ namespace mllm {
             for (auto& t: tensors_[op_names_[i]]){
                 std::shared_ptr<Tensor<Dtype>> tensor1 = std::make_shared<Tensor<Dtype>>(); 
                 t = tensor1;
+                t->SetBackend(backend_);
             }
         }
         for (int i = 0; i < (int)op_names_.size(); ++i)
         {
             shared_ptr<Op<Dtype>> myOp(NULL);
-            myOp.reset(new CPUMatmul<Dtype>(mllm_CPU,true,true,true,true));	//TODO
+            myOp.reset(new CPUMatmul<Dtype>(backend_,true,true,true,true));	//TODO
             string lname = op_names_[i];
             vector<string> inames = op_in_names_[i];
             //TODO: CHECK一下 inTensors 尤其是[0]
