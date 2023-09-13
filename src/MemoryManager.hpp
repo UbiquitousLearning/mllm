@@ -111,6 +111,8 @@ namespace mllm {
         void Free(void** ptr){
             mllmFreeHost(ptr);
         }
+    private:
+        
     };
 
     
