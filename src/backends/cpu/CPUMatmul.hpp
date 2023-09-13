@@ -5,13 +5,13 @@
 
 namespace mllm
 {   
-    template <typename Dtype>
-    class CPUMatmul : public Op<Dtype> {
+    
+    class CPUMatmul : public Op {
     public:
         CPUMatmul(Backend *bn, bool transposeA, bool transposeB, bool transposeC, bool multiThread);
         virtual ~CPUMatmul() = default;
-        virtual ErrorCode Setup(vector<shared_ptr<Tensor<Dtype>>> &inputs, vector<shared_ptr<Tensor<Dtype>>> &outputs) override;
-        virtual ErrorCode Execute(vector<shared_ptr<Tensor<Dtype>>> &inputs, vector<shared_ptr<Tensor<Dtype>>> &outputs) override;
+        virtual ErrorCode Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+        virtual ErrorCode Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
 
     private:        
         bool transposeA_;

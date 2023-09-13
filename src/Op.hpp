@@ -4,7 +4,7 @@
 #include "Types.hpp"
 #include "Tensor.hpp"
 namespace mllm {    
-    template <typename Dtype>
+    
     class Op {
     public:
         /**
@@ -28,7 +28,7 @@ namespace mllm {
          * @param outputs   output tensors
          * @return resize result
          */
-        virtual ErrorCode Setup(vector<shared_ptr<Tensor<Dtype>>> &inputs, vector<shared_ptr<Tensor<Dtype>>> &outputs) {
+        virtual ErrorCode Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
             //check inputs shape
             //Reshape outputs
             //Weight malloc set
@@ -41,7 +41,7 @@ namespace mllm {
          * @param outputs   output tensors
          * @return execution result
          */
-        virtual ErrorCode Execute(vector<shared_ptr<Tensor<Dtype>>> &inputs, vector<shared_ptr<Tensor<Dtype>>> &outputs) = 0;
+        virtual ErrorCode Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) = 0;
         /**
          * @brief get backend.
          * @return backend.

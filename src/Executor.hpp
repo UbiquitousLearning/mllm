@@ -19,7 +19,7 @@ namespace mllm {
         void Init();
 
 
-        void GraphSetup(shared_ptr<Graph<float>> subGraph)
+        void GraphSetup(shared_ptr<Graph> subGraph)
         {
             // auto subGraph = net_.subGraphFP()[graph_name];
             subGraph->Setup();
@@ -28,16 +28,12 @@ namespace mllm {
         /**
          * @brief 前行传播
          */
-        const vector<shared_ptr<Tensor<float>>>& GraphForward(shared_ptr<Graph<float>> subGraph)
+        const vector<shared_ptr<Tensor>>& GraphForward(shared_ptr<Graph> subGraph)
         {
             // auto subGraph = net_.subGraphFP()[graph_name];
             return subGraph->Forward();
             // TODO: 在此处插入 return 语句
         }
-        // const  vector<shared_ptr<Tensor<Dtype>>>& Forward(Dtype* loss = NULL);
-        // set input blobs then use Forward() instead.
-        // const  vector<shared_ptr<Tensor<Dtype>>>& Forward(const  vector<shared_ptr<Tensor<Dtype>>> & inTensors,
-        //                                     Dtype* loss = NULL);
 
         void Execute();
     private:

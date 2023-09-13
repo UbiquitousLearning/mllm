@@ -14,7 +14,7 @@
 using std::unordered_map;
 // #include "layer.h"
 namespace mllm {
-    template <typename Dtype>
+    
     class Graph {
     public:
         explicit Graph(const NetParameter& param, Backend* bn);
@@ -34,11 +34,10 @@ namespace mllm {
         /**
          * @brief 前行传播
          */
-        // const  vector<shared_ptr<Tensor<Dtype>>>& Forward();
-        const  vector<shared_ptr<Tensor<Dtype>>>& Forward(Dtype* loss = NULL);
+        // const  vector<shared_ptr<Tensor>>& Forward();
+        const  vector<shared_ptr<Tensor>>& Forward();
         // set input blobs then use Forward() instead.
-        const  vector<shared_ptr<Tensor<Dtype>>>& Forward(const  vector<shared_ptr<Tensor<Dtype>>> & inTensors,
-                                            Dtype* loss = NULL);
+        const  vector<shared_ptr<Tensor>>& Forward(const  vector<shared_ptr<Tensor>> & inTensors);
 
         /**
          * @brief 反向传播
@@ -54,19 +53,19 @@ namespace mllm {
         // Phase phase_;
 
         // Individual layers in the net
-        // vector<shared_ptr<Layer<Dtype> > > layers_;
+        // vector<shared_ptr<Layer > > layers_;
         vector<string> layer_names_;
 
         // tensor indices for the input and the output of the net
         vector<int> input_tensor_indices_;
         vector<int> output_tensor_indices_;
-        vector<Tensor<Dtype>*> input_tensors_;
-        vector<Tensor<Dtype>*> output_tensors_;
+        vector<Tensor*> input_tensors_;
+        vector<Tensor*> output_tensors_;
 
         vector <string> op_names_;
         vector<vector<string>> op_in_names_;
-	    unordered_map<string, vector<shared_ptr<Tensor<Dtype>>>> tensors_;   
-        unordered_map<string, shared_ptr<Op<Dtype>>> ops_;
+	    unordered_map<string, vector<shared_ptr<Tensor>>> tensors_;   
+        unordered_map<string, shared_ptr<Op>> ops_;
     };
 
 }

@@ -3,8 +3,8 @@
 //
 #include "Graph.hpp"
 namespace mllm {
-    template class Graph<float>;
-    template class Graph<int8_t>;
+    // template class Graph;
+    // template class Graph;
 
 
 
@@ -13,14 +13,14 @@ namespace mllm {
      * @tparam Dtype
      * @param in_param
      */
-    template <typename Dtype>
-    Graph<Dtype>::Graph(const NetParameter &param,  Backend* bn)
+    
+    Graph::Graph(const NetParameter &param,  Backend* bn)
     {
         backend_ = bn;
         Init(param);
     }
-    template <typename Dtype>
-    void Graph<Dtype>::Init(const NetParameter &in_param)
+    
+    void Graph::Init(const NetParameter &in_param)
     {
         //init from files
         //init from code
@@ -28,13 +28,13 @@ namespace mllm {
         op_in_names_ = in_param.op_in_names_;
     }
 
-    template <typename Dtype>
-    void Graph<Dtype>::Setup()
+    
+    void Graph::Setup()
     {
         // auto bn = new Backend();
-        tensors_["input"] = vector<shared_ptr<Tensor<Dtype>>>(1, NULL);
+        tensors_["input"] = vector<shared_ptr<Tensor>>(1, NULL);
         for (auto& t: tensors_["input"]){
-            std::shared_ptr<Tensor<Dtype>> tensor1 = std::make_shared<Tensor<Dtype>>(); 
+            std::shared_ptr<Tensor> tensor1 = std::make_shared<Tensor>(); 
             t = tensor1;
             t->SetBackend(backend_);
             t->Reshape(1,3,5,5);//TODO Reshape  tensors_["input"] 
@@ -43,21 +43,21 @@ namespace mllm {
         for (int i = 0; i < (int)op_names_.size(); ++i)
         {
             //TODO: 3改成不同的数
-            tensors_[op_names_[i]] = vector<shared_ptr<Tensor<Dtype>>>(3, NULL);
+            tensors_[op_names_[i]] = vector<shared_ptr<Tensor>>(3, NULL);
             for (auto& t: tensors_[op_names_[i]]){
-                std::shared_ptr<Tensor<Dtype>> tensor1 = std::make_shared<Tensor<Dtype>>(); 
+                std::shared_ptr<Tensor> tensor1 = std::make_shared<Tensor>(); 
                 t = tensor1;
                 t->SetBackend(backend_);
             }
         }
         for (int i = 0; i < (int)op_names_.size(); ++i)
         {
-            shared_ptr<Op<Dtype>> myOp(NULL);
-            myOp.reset(new CPUMatmul<Dtype>(backend_,true,true,true,true));	//TODO
+            shared_ptr<Op> myOp(NULL);
+            myOp.reset(new CPUMatmul(backend_,true,true,true,true));	//TODO
             string lname = op_names_[i];
             vector<string> inames = op_in_names_[i];
             //TODO: CHECK一下 inTensors 尤其是[0]
-            vector<shared_ptr<Tensor<Dtype>>> inTensors;
+            vector<shared_ptr<Tensor>> inTensors;
             for (auto name: inames){
                 inTensors.push_back(tensors_[name][0]);
             }
@@ -73,8 +73,8 @@ namespace mllm {
      * @param loss
      * @return
      */
-    template <typename Dtype>
-    const vector<shared_ptr<Tensor<Dtype>>> &Graph<Dtype>::Forward(Dtype *loss)
+    
+    const vector<shared_ptr<Tensor>> &Graph::Forward()
     {
         //TODO 改为递归
 
@@ -83,7 +83,7 @@ namespace mllm {
             string lname = op_names_[i];
             vector<string> inames = op_in_names_[i];
             //TODO: CHECK一下 inTensors 尤其是[0]
-            vector<shared_ptr<Tensor<Dtype>>> inTensors;
+            vector<shared_ptr<Tensor>> inTensors;
             for (auto name: inames){
                 inTensors.push_back(tensors_[name][0]);
             }
@@ -93,21 +93,21 @@ namespace mllm {
         return tensors_[op_names_[op_names_.size()-1]];
     }
 
-    template<typename Dtype>
-    const vector<shared_ptr<Tensor<Dtype>>> &Graph<Dtype>::Forward(const  vector<shared_ptr<Tensor<Dtype>>> &inTensors, Dtype *loss) {
+    
+    const vector<shared_ptr<Tensor>> &Graph::Forward(const vector<shared_ptr<Tensor>> &inTensors) {
         // Copy 
         for (int i = 0; i < inTensors.size(); ++i) {
             input_tensors_[i]->CopyFrom(*inTensors[i]);
         }
-        return Forward(loss);
+        return Forward();
     }
 
     /**
      * @brief 反向传播
      * @tparam Dtype
      */
-    template<typename Dtype>
-    void Graph<Dtype>::Backward() {
+    
+    void Graph::Backward() {
 
     }
 

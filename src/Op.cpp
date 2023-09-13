@@ -3,6 +3,6 @@
 
 namespace mllm {
     
-    template class Op<float>;
-    template class Op<int8_t>;
+    // template class Op;
+    // template class Op;
 }

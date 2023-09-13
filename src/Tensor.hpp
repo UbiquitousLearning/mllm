@@ -11,12 +11,12 @@
 const int kMaxAxes = 32;
 
 namespace mllm {
-template <typename Dtype>
+
     class Tensor {
     public:
         // Tensor():data_(), diff_(), capacity_(0){}
-        Tensor():capacity_(0){}
-        Tensor(Backend* bn):backend_(bn), capacity_(0){}
+        Tensor():capacity_(0), bitwitdh_(sizeof(float)){}
+        Tensor(Backend* bn):backend_(bn), capacity_(0), bitwitdh_(sizeof(float)){}
         explicit Tensor(const int num, const int channels, const int height, const int width); //N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
         explicit Tensor(const vector<int>& shape);
         // void SetBackend(shared_ptr<Backend> bn){
@@ -31,7 +31,7 @@ template <typename Dtype>
 
         void Alloc();
 
-        const Dtype* cpu_data() const; //静态访问
+        const float* cpu_data() const; //静态访问
         // const Dtype* cpu_diff() const;
 
         // void set_cpu_data(Dtype* data);
@@ -137,10 +137,10 @@ template <typename Dtype>
          *        of other (and die otherwise); if true, Reshape this Tensor to other's
          *        shape if necessary
          */
-        void CopyFrom(const Tensor<Dtype>& source, bool copy_diff = false,
+        void CopyFrom(const Tensor& source, bool copy_diff = false,
                       bool reshape = false);
 
-        inline Dtype data_at(const int n, const int c, const int h,
+        inline float data_at(const int n, const int c, const int h,
                              const int w) const {
             return cpu_data()[offset(n, c, h, w)];
         }
@@ -150,7 +150,7 @@ template <typename Dtype>
         //     return cpu_diff()[offset(n, c, h, w)];
         // }
 
-        inline Dtype data_at(const vector<int>& index) const {
+        inline float data_at(const vector<int>& index) const {
             return cpu_data()[offset(index)];
         }
 
@@ -162,6 +162,7 @@ template <typename Dtype>
         void PrintData();
     private:
         // shared_ptr<Backend> backend_;
+        int bitwitdh_;//32/16/8/4 //enum
         Backend* backend_;
         void* host_ptr_;
         void* device_ptr_;

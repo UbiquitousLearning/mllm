@@ -12,12 +12,12 @@ namespace mllm
         }
         virtual ~Backend() = default;
 
-        // bool CheckSupport(shared_ptr<Op<float>> op) {
+        // bool CheckSupport(shared_ptr<Op> op) {
         //     // return OPMap.contains(op->type);
         //     return true;
         // }
         
-        // bool CheckSupport(shared_ptr<Op<int8_t>> op) {
+        // bool CheckSupport(shared_ptr<Op> op) {
         //     // return OPMap.contains(op->type);
         //     return true;
         // }
@@ -37,7 +37,7 @@ namespace mllm
 
         // }
 
-        // bool CPUTensorConvert(shared_ptr<Tensor<float>> src_tensor, shared_ptr<Tensor<float>> dst_tensor, int type_); //NCHW --> NHWC ..., TODO type_:enum
+        // bool CPUTensorConvert(shared_ptr<Tensor> src_tensor, shared_ptr<Tensor> dst_tensor, int type_); //NCHW --> NHWC ..., TODO type_:enum
     private:
         //
         shared_ptr<MemoryManager> mem_manager_;

@@ -5,13 +5,13 @@
 
 namespace mllm
 {   
-    template <typename Dtype>
-    class CPUSiLU : public Op<Dtype> {
+    
+    class CPUSiLU : public Op {
     public:
         CPUSiLU(Backend *bn, bool multiThread);
         virtual ~CPUSiLU() = default;
-        virtual ErrorCode Setup(vector<shared_ptr<Tensor<Dtype>>> &inputs, vector<shared_ptr<Tensor<Dtype>>> &outputs) override;
-        virtual ErrorCode Execute(vector<shared_ptr<Tensor<Dtype>>> &inputs, vector<shared_ptr<Tensor<Dtype>>> &outputs) override;
+        virtual ErrorCode Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+        virtual ErrorCode Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
 
     private:
         bool support_multi_thread_ = false;

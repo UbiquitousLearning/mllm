@@ -9,7 +9,7 @@ using namespace mllm;
 
 int main()
 {
-    // Tensor<float> tensor_(1,3,5,5);
+    // Tensor tensor_(1,3,5,5);
     // std::cout << "Init Tensor" << std::endl;
     // tensor_.Reshape(1,5,6,6);
     // std::cout<<"Shape: ["<<tensor_.num()<<", "<<tensor_.channels()<<", "<<tensor_.height()<<", "<<tensor_.width()<<"]"<<std::endl;
@@ -17,7 +17,7 @@ int main()
     // std::cout<<pTensor_<<":data[0]:"<<pTensor_[0]<<std::endl;
 
 
-    // CPUMatmul<float> mm_op(mllm_CPU,true,true,true,true);
+    // CPUMatmul mm_op(mllm_CPU,true,true,true,true);
 
 
     NetParameter param;

@@ -18,8 +18,9 @@ using std::string;
 namespace mllm {
     typedef struct{
         BackendType bntype;
-        vector<string> op_names_;
-        vector<vector<string>> op_in_names_;
+        vector<string> op_names_;//{o1,o2,o3}
+        vector<vector<string>> op_in_names_;//{{in}, {op1}. {in,op2}}
+        // vector<optype>;
     }NetParameter;
 }
 

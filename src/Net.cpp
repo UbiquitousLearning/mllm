@@ -17,12 +17,12 @@ namespace mllm
         backends_["cpu"] = bn;
         // TODO
         auto sub_param_ = net_param_;
-        shared_ptr<Graph<float>> subg_fp1;
-        subg_fp1.reset(new Graph<float>(sub_param_, backends_["cpu"]));
+        shared_ptr<Graph> subg_fp1;
+        subg_fp1.reset(new Graph(sub_param_, backends_["cpu"]));
         subgraphs_fp_["fp1"] = subg_fp1;
     }
 
-    // const vector<shared_ptr<Tensor<float>>> &Net::Run()
+    // const vector<shared_ptr<Tensor>> &Net::Run()
     // {
     //     // TODO
     //     for(auto& kv:subgraphs_fp_){

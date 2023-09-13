@@ -2,24 +2,24 @@
 
 namespace mllm{
 
-    template class Tensor<float>;
-    template class Tensor<int8_t>;
+    // template class Tensor;
+    // template class Tensor;
 
-    template<typename Dtype>
-    Tensor<Dtype>::Tensor(const int num, const int channels, const int height, const int width)
+    
+    Tensor::Tensor(const int num, const int channels, const int height, const int width)
     :capacity_(0){
         Reshape(num, channels, height, width);
         //TODO
     }
 
-    template<typename Dtype>
-    Tensor<Dtype>::Tensor(const vector<int> &shape)
+    
+    Tensor::Tensor(const vector<int> &shape)
     :capacity_(0){
         Reshape(shape);
     }
 
-    template<typename Dtype>
-    bool Tensor<Dtype>::Reshape(const int num, const int channels, const int height,const int width) {
+    
+    bool Tensor::Reshape(const int num, const int channels, const int height,const int width) {
         vector<int> shape(4);
         shape[0] = num;
         shape[1] = channels;
@@ -28,8 +28,8 @@ namespace mllm{
         return Reshape(shape);
     }
     
-    template<typename Dtype>
-    bool Tensor<Dtype>::Reshape(const vector<int> &shape) {
+    
+    bool Tensor::Reshape(const vector<int> &shape) {
         CHECK_LE(shape.size(), kMaxAxes); //维数不能超过kMaxBlobAxes
         count_ = 1; //num*channels*height*width 赋值为1，为了相乘
         shape_.resize(shape.size());
@@ -54,25 +54,25 @@ namespace mllm{
         }
     }
 
-    template <typename Dtype>
-    void Tensor<Dtype>::Alloc()
+    
+    void Tensor::Alloc()
     {
-        backend_->Alloc(&host_ptr_, capacity_* sizeof(Dtype));
+        backend_->Alloc(&host_ptr_, capacity_* bitwitdh_);
     }
 
-    template<typename Dtype>
-    const Dtype *Tensor<Dtype>::cpu_data() const {
-        return (const Dtype*)host_ptr_;
+    
+    const float *Tensor::cpu_data() const {
+        return (const float*)host_ptr_;
     }
 
-    // template<typename Dtype>
-    // const Dtype *Tensor<Dtype>::cpu_diff() const {
+    // 
+    // const Dtype *Tensor::cpu_diff() const {
     //     CHECK(diff_);
     //     return (const Dtype*)diff_->cpu_data();
     // }
 
-    // template<typename Dtype>
-    // void Tensor<Dtype>::set_cpu_data(Dtype *data) { //外部指针
+    // 
+    // void Tensor::set_cpu_data(Dtype *data) { //外部指针
     //     CHECK(data);
     //     size_t size = count_ * sizeof(Dtype);
     //     if(size != data_->size()){
@@ -82,14 +82,14 @@ namespace mllm{
     //     data_->set_cpu_data(data);
     // }
 
-    // template<typename Dtype>
-    // void Tensor<Dtype>::set_cpu_diff(Dtype *diff) { //外部指针
+    // 
+    // void Tensor::set_cpu_diff(Dtype *diff) { //外部指针
     //     CHECK(diff);
     //     diff_->set_cpu_data(diff);
     // }
 
-    template <typename Dtype>
-    void Tensor<Dtype>::CopyFrom(const Tensor<Dtype> &source, bool copy_diff, bool reshape)
+    
+    void Tensor::CopyFrom(const Tensor &source, bool copy_diff, bool reshape)
     {
     }
 }
