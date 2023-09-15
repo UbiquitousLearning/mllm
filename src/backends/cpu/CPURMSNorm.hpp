@@ -2,6 +2,7 @@
 #define MLLM_CPURMSNORM_H
 
 #include "Op.hpp"
+#include "CPUBackend.hpp"
 
 namespace mllm
 {   
@@ -17,7 +18,13 @@ namespace mllm
         bool support_multi_thread_ = false;
     };
 
+    class CPURMSNormCreator : public CPUBackend::Creator {
+    public:
+        virtual Op *Create(OpType optype, Backend* bn) const  {
+            return new CPURMSNorm(bn, false);
+        }
 
+    };
 } // namespace mllm
 
 #endif //MLLM_CPURMSNORM_H

@@ -2,6 +2,7 @@
 #define MLLM_CPUSCALE_H
 
 #include "Op.hpp"
+#include "CPUBackend.hpp"
 
 namespace mllm
 {   
@@ -17,6 +18,12 @@ namespace mllm
         bool support_multi_thread_ = false;
     };
 
+    class CPUScaleCreator : public CPUBackend::Creator {
+    public:
+        virtual Op *Create(OpType optype, Backend* bn) const  {
+            return new CPUScale(bn, false);
+        }
+    };
 
 } // namespace mllm
 

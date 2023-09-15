@@ -2,6 +2,7 @@
 #define MLLM_CPUADD_H
 
 #include "Op.hpp"
+#include "CPUBackend.hpp"
 
 namespace mllm
 {   
@@ -15,6 +16,14 @@ namespace mllm
 
     private:
         bool support_multi_thread_ = false;
+    };
+
+    class CPUAddCreator : public CPUBackend::Creator {
+    public:
+        virtual Op *Create(OpType optype, Backend* bn) const  {
+            return new CPUAdd(bn, false);
+        }
+
     };
 
 

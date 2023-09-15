@@ -28,8 +28,8 @@ class Tensor;
         //                                 OpType optype, Backend* backend) const  {
         //     return new CPUMatmul(backend, false, false, false, false);
         // }
-        virtual Op *Create(OpType optype, Backend* backend) const  {
-            return new CPUMatmul(backend, false, false, false, false);
+        virtual Op *Create(OpType optype, Backend* bn) const  {
+            return new CPUMatmul(bn, false, false, false, false);
         }
 
     };

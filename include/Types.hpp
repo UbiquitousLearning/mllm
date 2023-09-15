@@ -61,7 +61,13 @@ namespace mllm {
     // 定义枚举类型
     enum OpType {
         ADD,
-        MATMUL
+        CAUSALMASK,
+        MATMUL,
+        RMSNORM,
+        ROPE,
+        SCALE,
+        SILU,
+        SOFTMAX
     };
 }
 #endif //__cplusplus

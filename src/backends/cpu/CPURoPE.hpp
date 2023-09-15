@@ -2,6 +2,7 @@
 #define MLLM_CPUROPE_H
 
 #include "Op.hpp"
+#include "CPUBackend.hpp"
 
 namespace mllm
 {   
@@ -18,6 +19,12 @@ namespace mllm
     };
 
 
+    class CPURoPECreator : public CPUBackend::Creator {
+    public:
+        virtual Op *Create(OpType optype, Backend* bn) const  {
+            return new CPURoPE(bn, false);
+        }
+    };
 } // namespace mllm
 
 #endif //MLLM_CPUROPE_H

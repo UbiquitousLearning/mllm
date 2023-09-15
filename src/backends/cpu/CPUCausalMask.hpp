@@ -2,6 +2,7 @@
 #define MLLM_CPUCAUSULMASK_H
 
 #include "Op.hpp"
+#include "CPUBackend.hpp"
 
 namespace mllm
 {   
@@ -18,6 +19,13 @@ namespace mllm
     };
 
 
+    class CPUCausalMaskCreator : public CPUBackend::Creator {
+    public:
+        virtual Op *Create(OpType optype, Backend* bn) const  {
+            return new CPUCausalMask(bn, false);
+        }
+
+    };
 } // namespace mllm
 
 #endif //MLLM_CPUCAUSULMASK_H
