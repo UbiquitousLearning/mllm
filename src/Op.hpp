@@ -3,7 +3,12 @@
 
 #include "Types.hpp"
 #include "Tensor.hpp"
-namespace mllm {    
+#include <functional>
+using std::function;
+namespace mllm {   
+ 
+    class Backend;
+class Tensor;
     
     class Op {
     public:
@@ -59,6 +64,9 @@ namespace mllm {
         // BackendType backend_type_;
         //tensor w
     };
+
+
+    // unordered_map<OpType, function<shared_ptr<Op>(Backend*)>> opMap;
 }
 
 

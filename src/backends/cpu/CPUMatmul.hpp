@@ -2,10 +2,12 @@
 #define MLLM_CPUMATMUL_H
 
 #include "Op.hpp"
+#include "CPUBackend.hpp"
 
 namespace mllm
 {   
     
+class Tensor;
     class CPUMatmul : public Op {
     public:
         CPUMatmul(Backend *bn, bool transposeA, bool transposeB, bool transposeC, bool multiThread);
@@ -19,6 +21,21 @@ namespace mllm
         bool transposeC_;
         bool support_multi_thread_ = false;
     };
+
+    class CPUMatmulCreator : public CPUBackend::Creator {
+    public:
+        // virtual Op *Create(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
+        //                                 OpType optype, Backend* backend) const  {
+        //     return new CPUMatmul(backend, false, false, false, false);
+        // }
+        virtual Op *Create(OpType optype, Backend* backend) const  {
+            return new CPUMatmul(backend, false, false, false, false);
+        }
+
+    };
+
+
+
 
 
 } // namespace mllm

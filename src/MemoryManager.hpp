@@ -14,10 +14,15 @@
 #include <iostream> 
 #include <memory>
 #include <sstream>
+#include<map>
+#include<unordered_map>
+#include "Types.hpp"
+
 using std::vector;
 using std::string;
 using std::shared_ptr;
 using std::ostringstream;
+using std::unordered_map;
 
 #include "Check.hpp"
 //TODO:  aliganed_malloc

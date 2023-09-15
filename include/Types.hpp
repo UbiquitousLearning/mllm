@@ -56,6 +56,13 @@ namespace mllm {
     /** user defined context */
     void* sharedContext = nullptr;
     };
+
+
+    // 定义枚举类型
+    enum OpType {
+        ADD,
+        MATMUL
+    };
 }
 #endif //__cplusplus
 #endif //MLLM_TYPES_H

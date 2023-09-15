@@ -15,6 +15,7 @@ namespace mllm
         // shared_ptr<MemoryManager> p_mm(new MemoryManager());
         auto bn = new CPUBackend(p_mm);	//TODO
         backends_["cpu"] = bn;
+        backends_["cpu"]->registerOps();
         // TODO
         auto sub_param_ = net_param_;
         shared_ptr<Graph> subg_fp1;

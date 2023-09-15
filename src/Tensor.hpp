@@ -11,6 +11,7 @@
 const int kMaxAxes = 32;
 
 namespace mllm {
+    class Backend;
 
     class Tensor {
     public:
@@ -170,6 +171,10 @@ namespace mllm {
 
         int ByteWidth() const {
             return bytewidth_;
+        }
+
+        void SetByteWidth(int bw){
+            bytewidth_ = bw;
         }
         
     private:

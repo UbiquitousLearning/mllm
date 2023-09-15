@@ -36,6 +36,7 @@ namespace mllm {
         for (auto& t: tensors_["input"]){
             std::shared_ptr<Tensor> tensor1 = std::make_shared<Tensor>(); 
             t = tensor1;
+            t->SetByteWidth(sizeof(float));
             t->SetBackend(backend_);
             t->Reshape(1,3,5,5);//TODO Reshape  tensors_["input"] 
             t->Alloc();//to_cpu//malloc&memset 0 TODO
@@ -47,13 +48,16 @@ namespace mllm {
             for (auto& t: tensors_[op_names_[i]]){
                 std::shared_ptr<Tensor> tensor1 = std::make_shared<Tensor>(); 
                 t = tensor1;
+                t->SetByteWidth(sizeof(float));
                 t->SetBackend(backend_);
             }
         }
         for (int i = 0; i < (int)op_names_.size(); ++i)
         {
             shared_ptr<Op> myOp(NULL);
-            myOp.reset(new CPUMatmul(backend_,true,true,true,true));	//TODO
+            auto newOp = backend_->OpCreate(MATMUL);
+            myOp.reset(newOp);
+            // myOp.reset(new CPUMatmul(backend_,true,true,true,true));	//TODO
             string lname = op_names_[i];
             vector<string> inames = op_in_names_[i];
             //TODO: CHECK一下 inTensors 尤其是[0]
