@@ -25,10 +25,10 @@ class Tensor;
     class CPUMatmulCreator : public CPUBackend::Creator {
     public:
         // virtual Op *Create(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
-        //                                 OpType optype, Backend* backend) const  {
+        //                                 OpParam op_param, Backend* backend) const  {
         //     return new CPUMatmul(backend, false, false, false, false);
         // }
-        virtual Op *Create(OpType optype, Backend* bn) const  {
+        virtual Op *Create(OpParam op_param, Backend* bn) const  {
             return new CPUMatmul(bn, false, false, false, false);
         }
 

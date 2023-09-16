@@ -55,7 +55,9 @@ namespace mllm {
         for (int i = 0; i < (int)op_names_.size(); ++i)
         {
             shared_ptr<Op> myOp(NULL);
-            auto newOp = backend_->OpCreate(MATMUL);
+            OpParam op_param;
+            op_param["type"] = MATMUL;
+            auto newOp = backend_->OpCreate(op_param);
             myOp.reset(newOp);
             // myOp.reset(new CPUMatmul(backend_,true,true,true,true));	//TODO
             string lname = op_names_[i];

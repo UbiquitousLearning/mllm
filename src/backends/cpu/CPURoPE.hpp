@@ -21,7 +21,7 @@ namespace mllm
 
     class CPURoPECreator : public CPUBackend::Creator {
     public:
-        virtual Op *Create(OpType optype, Backend* bn) const  {
+        virtual Op *Create(OpParam op_param, Backend* bn) const  {
             return new CPURoPE(bn, false);
         }
     };

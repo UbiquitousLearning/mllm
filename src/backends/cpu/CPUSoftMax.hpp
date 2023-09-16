@@ -20,7 +20,7 @@ namespace mllm
 
     class CPUSoftMaxCreator : public CPUBackend::Creator {
     public:
-        virtual Op *Create(OpType optype, Backend* bn) const  {
+        virtual Op *Create(OpParam op_param, Backend* bn) const  {
             return new CPUSoftMax(bn, false);
         }
     };

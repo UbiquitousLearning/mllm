@@ -10,10 +10,11 @@
 #include <iostream>
 #include <string>  
 #include <iostream> 
-#include <memory>
+#include <map>
 #include <sstream>
 using std::vector;
 using std::string;
+using std::map;
 
 namespace mllm {
     typedef struct{
@@ -22,6 +23,10 @@ namespace mllm {
         vector<vector<string>> op_in_names_;//{{in}, {op1}. {in,op2}}
         // vector<optype>;
     }NetParameter;
+
+    typedef map<std::string, int> OpParam;
+
+
 }
 
 #endif //MLLM_NETPARAMETER_H

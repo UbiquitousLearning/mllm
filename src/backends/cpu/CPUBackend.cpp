@@ -14,14 +14,14 @@ namespace mllm
     {
         initCreatorMap();
     }
-    // Op *CPUBackend::OpCreate(const vector<shared_ptr<Tensor>> &inputs, const vector<shared_ptr<Tensor>> &outputs,OpType optype)
+    // Op *CPUBackend::OpCreate(const vector<shared_ptr<Tensor>> &inputs, const vector<shared_ptr<Tensor>> &outputs,OpParam op_param)
     // {
     //     return map_creator_->find(optype)->second->Create(inputs, outputs, optype, this);
     //     // return nullptr;
     // }
-    Op *CPUBackend::OpCreate(OpType optype)
+    Op *CPUBackend::OpCreate(const OpParam& op_param)
     {
-
+        OpType optype = OpType(op_param.find("type")->second);
         auto map  = map_creator_;
         auto iter = map->find(optype);
         if (iter == map->end()) {
@@ -30,7 +30,7 @@ namespace mllm
         }
         Op* exe = nullptr;
         if (exe == nullptr) {
-            exe = iter->second->Create(optype, this);
+            exe = iter->second->Create(op_param, this);
         }
         return exe;
         // return nullptr;

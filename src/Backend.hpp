@@ -3,6 +3,7 @@
 
 #include "MemoryManager.hpp"
 #include "Op.hpp"
+#include "NetParameter.hpp"
 namespace mllm
 {
 class Op;
@@ -56,10 +57,10 @@ class Backend;
          * @return created execution if op is supported, nullptr otherwise.
          */
         // virtual Op* OpCreate(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
-        //                             OpType optype) = 0;
-        virtual Op* OpCreate(OpType optype) = 0;
+        //                             OpParam op_param) = 0;
+        virtual Op* OpCreate(const OpParam & op_param) = 0;
         virtual void registerOps() = 0;
-        // virtual void* OpCreater(OpType optype);
+        // virtual void* OpCreater(OpParam op_param);
     private:
         //
         shared_ptr<MemoryManager> mem_manager_;

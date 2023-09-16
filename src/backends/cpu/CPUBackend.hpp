@@ -14,8 +14,8 @@ namespace mllm
         class Creator {
         public:
             // virtual Op* Create(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
-            //                             OpType optype, Backend* backend) const = 0;
-            virtual Op* Create(OpType optype, Backend* bn) const = 0;
+            //                             OpParam op_param, Backend* backend) const = 0;
+            virtual Op* Create(OpParam op_param, Backend* bn) const = 0;
         };
         void initCreatorMap(){
             map_creator_ = new std::map<OpType, CPUBackend::Creator*>;
@@ -31,9 +31,9 @@ namespace mllm
         }
 
         // virtual Op* OpCreate(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
-        //                             OpType optype) override;
+        //                             OpParam op_param) override;
 
-        virtual Op* OpCreate(OpType optype) override;
+        virtual Op* OpCreate(const OpParam& op_param) override;
 
 
         virtual void registerOps() override;
