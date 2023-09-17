@@ -1,6 +1,7 @@
 
 #ifndef MLLM_TYPES_H
 #define MLLM_TYPES_H
+#include "OP_defined.h"
 typedef enum {
     mllm_CPU,
     mllm_OPENCL,
@@ -59,16 +60,11 @@ namespace mllm {
 
 
     // 定义枚举类型
-    enum OpType {
-        ADD,
-        CAUSALMASK,
-        MATMUL,
-        RMSNORM,
-        ROPE,
-        SCALE,
-        SILU,
-        SOFTMAX
+    enum DataType{
+        Float32=0,
+        Float16,
     };
+
 }
 #endif //__cplusplus
 #endif //MLLM_TYPES_H

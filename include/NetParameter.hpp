@@ -4,29 +4,45 @@
 
 #include "Types.hpp"
 #include <algorithm>
-#include<string.h>
-#include <string>
-#include <vector>
 #include <iostream>
-#include <string>  
-#include <iostream> 
+#include <iostream>
 #include <map>
 #include <sstream>
-using std::vector;
+#include <string.h>
+#include <string>
+#include <string>
+#include <vector>
 using std::string;
+using std::vector;
 using std::map;
 
 namespace mllm {
-    typedef struct{
-        BackendType bntype;
-        vector<string> op_names_;//{o1,o2,o3}
-        vector<vector<string>> op_in_names_;//{{in}, {op1}. {in,op2}}
-        // vector<optype>;
-    }NetParameter;
+typedef struct {
+  struct NetOp {
+    OpType type;
+    vector<int> in;
+    vector<int> out;
+    string name;
+  };
+  struct NetTensor {
+    string name;
+    vector<int> shape;
+    DataType type;
+    vector<int> in;
+    vector<int> out;
+  };
+  string weights_path;
+  string model_path;
+  string input_name;
+  string output_name;
+  vector<NetOp> net_ops;
+  vector<NetTensor> net_tensors;
 
-    typedef map<std::string, int> OpParam;
+} NetParameter;
+
+typedef map<std::string, int> OpParam;
 
 
-}
+} // namespace mllm
 
-#endif //MLLM_NETPARAMETER_H
+#endif // MLLM_NETPARAMETER_H

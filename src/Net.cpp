@@ -1,37 +1,28 @@
 #include "Net.hpp"
+#include "MemoryManager.hpp"
+#include "Op.hpp"
+#include "Types.hpp"
+#include "backends/cpu/CPUAdd.hpp"
 #include "backends/cpu/CPUBackend.hpp"
-namespace mllm
-{
-    Net::Net(const NetParameter &param)
-    {
-        net_param_ = param;
-    }
+namespace mllm {
+Net::Net(const NetParameter &param, BackendConfig config): net_param_(param), config_(config) {
+  shared_ptr<MemoryManager> mm = nullptr;
+  switch (config.memory) {
+  case BackendConfig::Memory_High:
+    mm = shared_ptr<MemoryManager>(new MemoryManager());
+    break;
+  default:
+    mm = shared_ptr<MemoryManager>(new MemoryManager());
+    break;
+  }
+  backends_.emplace(BackendType::mllm_CPU, new CPUBackend(mm));
+}
 
-    void Net::Convert(shared_ptr<MemoryManager> p_mm)
-    {
-        // TODO
-        // auto bn = new Backend();
+void Net::Convert() {
+    
+    for(auto op:this->net_param_.net_ops){
         
-        // shared_ptr<MemoryManager> p_mm(new MemoryManager());
-        auto bn = new CPUBackend(p_mm);	//TODO
-        backends_["cpu"] = bn;
-        backends_["cpu"]->registerOps();
-        // TODO
-        auto sub_param_ = net_param_;
-        shared_ptr<Graph> subg_fp1;
-        subg_fp1.reset(new Graph(sub_param_, backends_["cpu"]));
-        subgraphs_fp_["fp1"] = subg_fp1;
     }
 
-    // const vector<shared_ptr<Tensor>> &Net::Run()
-    // {
-    //     // TODO
-    //     for(auto& kv:subgraphs_fp_){
-    //         kv.second->Setup();
-    //         kv.second->Forward();
-    //     }
-    //     // TODO: 在此处插入 return 语句 
-    //     //return;
-    // }
-
+  }
 } // namespace mllm

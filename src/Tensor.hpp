@@ -5,6 +5,7 @@
 
 
 #include <climits>
+#include <string>
 #include "MemoryManager.hpp"
 #include "Backend.hpp"
 
@@ -176,6 +177,9 @@ namespace mllm {
         void SetByteWidth(int bw){
             bytewidth_ = bw;
         }
+        //TODO:Name?
+        string name_;
+
         
     private:
         // shared_ptr<Backend> backend_;

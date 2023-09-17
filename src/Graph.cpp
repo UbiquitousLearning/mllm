@@ -2,6 +2,7 @@
 // Created by 30500 on 2020/12/2 0002.
 //
 #include "Graph.hpp"
+#include "OP_defined.h"
 namespace mllm {
     // template class Graph;
     // template class Graph;
@@ -24,8 +25,8 @@ namespace mllm {
     {
         //init from files
         //init from code
-        op_names_ = in_param.op_names_;
-        op_in_names_ = in_param.op_in_names_;
+        // op_names_ = in_param.op_names_;
+        // op_in_names_ = in_param.op_in_names_;
     }
 
     
@@ -56,7 +57,7 @@ namespace mllm {
         {
             shared_ptr<Op> myOp(NULL);
             OpParam op_param;
-            op_param["type"] = MATMUL;
+            op_param["type"] = Matmul;
             auto newOp = backend_->OpCreate(op_param);
             myOp.reset(newOp);
             // myOp.reset(new CPUMatmul(backend_,true,true,true,true));	//TODO
