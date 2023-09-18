@@ -1,7 +1,7 @@
 #include "ParamLoader.hpp"
 #include "NetParameter.hpp"
 #include "Tensor.hpp"
-#include <bits/stdint-uintn.h>
+// #include <bits/stdint-uintn.h>
 #include <cstdio>
 #include <string>
 #include <utility>
