@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include "Express.hpp"
+#include <algorithm>  // 包含 reverse 函数的头文件
 
 
 
@@ -14,7 +15,7 @@ ETENSOR _EOP_(std::string name, OpType type,std::vector<ETENSOR> inputs) {
 }
 
 // 函数实现 createNetParem
-void createNetParem(ETENSOR endT, NetParameter& net_param_) {
+void loopNetParem(ETENSOR endT, NetParameter& net_param_) {
     NetOp net_op_;
     // std::cout <<endT.op.name<<": ";// << ", Connected ETensors: ";
     net_op_.name = endT.op.name;
@@ -31,8 +32,12 @@ void createNetParem(ETENSOR endT, NetParameter& net_param_) {
 
     // 递归调用，继续打印连接的 op
     for (const auto& ETENSOR : endT.op.connectedETensors) {
-        createNetParem(ETENSOR, net_param_);
+        loopNetParem(ETENSOR, net_param_);
     }
+}
+void createNetParem(ETENSOR endT, NetParameter& net_param_){
+    loopNetParem(endT, net_param_);
+    std::reverse( net_param_.net_ops.begin(),  net_param_.net_ops.end());
 }
 
 int express_test() {
