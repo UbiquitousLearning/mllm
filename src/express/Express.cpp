@@ -7,8 +7,8 @@
 
 
 // 函数实现 _EOP_
-ETENSOR _EOP_(std::string name, OpType type,std::vector<ETENSOR> inputs) {
-    EOP op(name, type);
+ETENSOR _EOP_(std::string name, OpType type,std::vector<ETENSOR> inputs, OpParam op_param) {
+    EOP op(name, type, op_param);
     for (auto& input : inputs)
         op.connectedETensors.push_back(input);
     return ETENSOR( op);
@@ -20,6 +20,7 @@ void loopNetParem(ETENSOR endT, NetParameter& net_param_) {
     // std::cout <<endT.op.name<<": ";// << ", Connected ETensors: ";
     net_op_.name = endT.op.name;
     net_op_.type = endT.op.type;
+    net_op_.param = endT.op.op_param;
     for (const auto& ETensor : endT.op.connectedETensors) {
         // std::cout << ""<<ETensor.op.name << "&";
         net_op_.inOp.push_back(ETensor.op.name);
@@ -40,47 +41,57 @@ void createNetParem(ETENSOR endT, NetParameter& net_param_){
     std::reverse( net_param_.net_ops.begin(),  net_param_.net_ops.end());
 }
 
-int express_test() {
-    ETENSOR x(EOP("input1", Input));
-    // ETENSOR x("ETENSOR0");
-    auto y = _EOP_("silu1", Silu,{x});
-    x = _EOP_("matmul1", Matmul, {x, y});
-    x = _EOP_("scale1", Scale,{x});
+// int express_test() {
+//     ETENSOR x(EOP("input1", Input));
+//     // ETENSOR x("ETENSOR0");
+//     auto y = _EOP_("silu1", Silu,{x});
+//     x = _EOP_("matmul1", Matmul, {x, y});
+//     x = _EOP_("scale1", Scale,{x});
 
-    // 输出连接的 EOP
-    NetParameter net_param_;
-    createNetParem(x, net_param_);
-
-
-    return 0;
-}
+//     // 输出连接的 EOP
+//     NetParameter net_param_;
+//     createNetParem(x, net_param_);
 
 
-ETENSOR _Input(){
-    ETENSOR x(EOP("input1", Input));
+//     return 0;
+// }
+
+
+ETENSOR _Input(vector<int> shape){
+    OpParam opparam;
+    ETENSOR x(EOP("input1", Input, opparam));
     return x;
 }
 ETENSOR _Add(std::string name, std::vector<ETENSOR> inputs){
-    return _EOP_(name, Add, inputs);
+    OpParam opparam;
+    return _EOP_(name, Add, inputs, opparam);
 }
 ETENSOR _CausalMask(std::string name, std::vector<ETENSOR> inputs){
-    return _EOP_(name, CausalMask, inputs);
+    OpParam opparam;
+    return _EOP_(name, CausalMask, inputs, opparam);
 }
 ETENSOR _MatMul(std::string name, std::vector<ETENSOR> inputs){
-    return _EOP_(name, Matmul, inputs);
+    OpParam opparam;
+    return _EOP_(name, Matmul, inputs, opparam);
 }
 ETENSOR _RMSNorm(std::string name, std::vector<ETENSOR> inputs){
-    return _EOP_(name, RMSNorm, inputs);
+    OpParam opparam;
+    return _EOP_(name, RMSNorm, inputs, opparam);
 }
 ETENSOR _RoPE(std::string name, std::vector<ETENSOR> inputs){
-    return _EOP_(name, RoPE, inputs);
+    OpParam opparam;
+    return _EOP_(name, RoPE, inputs, opparam);
 }
 ETENSOR _Scale(std::string name, std::vector<ETENSOR> inputs){
-    return _EOP_(name, Scale, inputs);
+    OpParam opparam;
+    return _EOP_(name, Scale, inputs, opparam);
 }
 ETENSOR _SiLU(std::string name, std::vector<ETENSOR> inputs){
-    return _EOP_(name, Silu, inputs);
+    OpParam opparam;
+    return _EOP_(name, Silu, inputs, opparam);
 }
-ETENSOR _SoftMax(std::string name, std::vector<ETENSOR> inputs){
-    return _EOP_(name, SoftMax, inputs);
+ETENSOR _SoftMax(std::string name, std::vector<ETENSOR> inputs, int axis){
+    OpParam opparam;
+    opparam["axis"] = axis;
+    return _EOP_(name, SoftMax, inputs, opparam);
 }

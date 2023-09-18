@@ -20,10 +20,11 @@ int main()
     // std::cout<<pTensor_<<":data[0]:"<<pTensor_[0]<<std::endl;
 
 
-    auto x = _Input();
+    auto x = _Input({1,3,3,3});
     auto y = _SiLU("silu1",{x});
     x = _MatMul("matmul1", {x, y});
     x = _Scale("scale1",{x});
+    x = _SoftMax("softmax1",{x}, -1);
 
     // 输出连接的 EOP
     NetParameter netParam;
