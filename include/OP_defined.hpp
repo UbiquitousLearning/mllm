@@ -11,7 +11,8 @@ enum OpType{
     RoPE,
     RMSNorm,
     CausalMask,
-    OP_NUM
+    OP_NUM,
+    Input
 };
 }
 #endif
