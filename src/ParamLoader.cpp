@@ -38,6 +38,8 @@ static std::string read_string(FILE *fp) {
   delete[] tmp;
   return str;
 }
+namespace mllm
+{
 bool ParamLoader::load_data(mllm::Tensor* tenor) {
   string name = tenor->name_;
 #ifndef USE_MMAP
@@ -102,4 +104,5 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap)
 //     len+=length; //Align?
 // }
 #endif
+}
 }

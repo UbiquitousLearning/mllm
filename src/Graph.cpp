@@ -11,7 +11,6 @@ namespace mllm {
 
     /**
      * @brief 初始化
-     * @tparam Dtype
      * @param in_param
      */
     
@@ -23,6 +22,7 @@ namespace mllm {
     
     void Graph::Init(const NetParameter &in_param)
     {
+        param_ = in_param;
         //init from files
         //init from code
         // op_names_ = in_param.op_names_;
@@ -33,8 +33,8 @@ namespace mllm {
     void Graph::Setup()
     {
         // auto bn = new Backend();
-        tensors_["input"] = vector<shared_ptr<Tensor>>(1, NULL);
-        for (auto& t: tensors_["input"]){
+        tensors_["input1"] = vector<shared_ptr<Tensor>>(1, NULL);
+        for (auto& t: tensors_["input1"]){
             std::shared_ptr<Tensor> tensor1 = std::make_shared<Tensor>(); 
             t = tensor1;
             t->SetByteWidth(sizeof(float));
@@ -42,27 +42,32 @@ namespace mllm {
             t->Reshape(1,3,5,5);//TODO Reshape  tensors_["input"] 
             t->Alloc();//to_cpu//malloc&memset 0 TODO
         }        
-        for (int i = 0; i < (int)op_names_.size(); ++i)
+        for (int i = 0; i < (int)param_.net_ops.size(); ++i)
         {
             //TODO: 3改成不同的数
-            tensors_[op_names_[i]] = vector<shared_ptr<Tensor>>(3, NULL);
-            for (auto& t: tensors_[op_names_[i]]){
+            auto net_op = param_.net_ops[i];
+            auto op_name_ = net_op.name;
+            tensors_[op_name_] = vector<shared_ptr<Tensor>>(3, NULL);
+            for (auto& t: tensors_[op_name_]){
                 std::shared_ptr<Tensor> tensor1 = std::make_shared<Tensor>(); 
                 t = tensor1;
                 t->SetByteWidth(sizeof(float));
                 t->SetBackend(backend_);
             }
         }
-        for (int i = 0; i < (int)op_names_.size(); ++i)
+
+        
+        for (int i = 0; i < (int)param_.net_ops.size(); ++i)
         {
+            auto net_op = param_.net_ops[i];
             shared_ptr<Op> myOp(NULL);
             OpParam op_param;
-            op_param["type"] = Matmul;
+            op_param["type"] = net_op.type;
             auto newOp = backend_->OpCreate(op_param);
             myOp.reset(newOp);
             // myOp.reset(new CPUMatmul(backend_,true,true,true,true));	//TODO
-            string lname = op_names_[i];
-            vector<string> inames = op_in_names_[i];
+            string lname = net_op.name;//op_names_[i];
+            vector<string> inames = net_op.inOp;//op_in_names_[i];
             //TODO: CHECK一下 inTensors 尤其是[0]
             vector<shared_ptr<Tensor>> inTensors;
             for (auto name: inames){
@@ -76,7 +81,6 @@ namespace mllm {
     
     /**
      * @brief 前向传播
-     * @tparam Dtype
      * @param loss
      * @return
      */
@@ -85,10 +89,11 @@ namespace mllm {
     {
         //TODO 改为递归
 
-        for (int i = 0; i < (int)op_names_.size(); ++i) 
+        for (int i = 0; i < (int)param_.net_ops.size(); ++i) 
         {
-            string lname = op_names_[i];
-            vector<string> inames = op_in_names_[i];
+            auto net_op = param_.net_ops[i];
+            string lname = net_op.name;//op_names_[i];
+            vector<string> inames = net_op.inOp;//op_in_names_[i];
             //TODO: CHECK一下 inTensors 尤其是[0]
             vector<shared_ptr<Tensor>> inTensors;
             for (auto name: inames){
@@ -97,7 +102,7 @@ namespace mllm {
             ops_[lname]->Execute(inTensors, tensors_[lname]);
         }
         //TODO
-        return tensors_[op_names_[op_names_.size()-1]];
+        return tensors_[param_.net_ops[param_.net_ops.size()-1].name];
     }
 
     
@@ -111,7 +116,6 @@ namespace mllm {
 
     /**
      * @brief 反向传播
-     * @tparam Dtype
      */
     
     void Graph::Backward() {

@@ -8,6 +8,8 @@
 #include <vector>
 #include "Op.hpp"
 #include "iostream"
+namespace mllm
+{
 #define MAGIC_NUMBER 20012
 class ParamLoader {
 public:
@@ -26,3 +28,6 @@ private:
   bool use_mmap;
 };
 #endif
+  
+} // namespace mllm
+

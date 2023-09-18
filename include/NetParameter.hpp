@@ -17,20 +17,28 @@ using std::vector;
 using std::map;
 
 namespace mllm {
-typedef struct {
-  struct NetOp {
+
+
+typedef map<std::string, int> OpParam;
+
+
+typedef struct  {
     OpType type;
     vector<int> in;
     vector<int> out;
+    vector<string> inOp; // input ops' names;
     string name;
-  };
-  struct NetTensor {
+    // OpParam param;
+  }NetOp;
+typedef struct  {
     string name;
     vector<int> shape;
     DataType type;
     vector<int> in;
     vector<int> out;
-  };
+  }NetTensor;
+
+typedef struct {
   string weights_path;
   string model_path;
   string input_name;
@@ -40,7 +48,6 @@ typedef struct {
 
 } NetParameter;
 
-typedef map<std::string, int> OpParam;
 
 
 } // namespace mllm

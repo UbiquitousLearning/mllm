@@ -24,5 +24,14 @@ void Net::Convert() {
         
     }
 
+    // auto bn = new CPUBackend(mm);	//TODO
+    // backends_["cpu"] = bn;
+    // backends_["cpu"]->registerOps();
+    // TODO
+    auto sub_param_ = net_param_;
+    shared_ptr<Graph> subg_1;
+    subg_1.reset(new Graph(sub_param_, backends_[BackendType::mllm_CPU]));
+    subgraphs_["fp1"] = subg_1;
+
   }
 } // namespace mllm

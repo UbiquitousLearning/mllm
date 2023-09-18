@@ -1,5 +1,6 @@
 #ifndef MLLM_OP_DEFINED
 #define MLLM_OP_DEFINED
+namespace mllm {
 enum OpType{
     None=0,
     Add,
@@ -12,4 +13,5 @@ enum OpType{
     CausalMask,
     OP_NUM
 };
+}
 #endif

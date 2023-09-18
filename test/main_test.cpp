@@ -20,16 +20,32 @@ int main()
     // CPUMatmul mm_op(mllm_CPU,true,true,true,true);
 
 
-    NetParameter param;
+    // NetParameter param;
     // vector < string > name_ = {"mm1", "mm2"};
     // param.op_names_ = name_;
     // vector<vector<string>> io_name_ = { {"input", "input"}, {"input", "mm1"}};
     // param.op_in_names_ = io_name_;
+
+    NetParameter netParam;
+
+    // 初始化 netParam 的成员变量
+    netParam.input_name = "input";
+    netParam.output_name = "output";
+
+    NetOp op1 = {OpType::Silu, {0}, {0},{"input1"}, "silu1"};
+    NetOp op2 = {OpType::Add, {0}, {0}, {"input1", "silu1"}, "add1"};
+    NetOp op3 = {OpType::Matmul, {0}, {0}, {"add1", "input1"}, "matmul1"};
+
+    netParam.net_ops.push_back(op1);
+    netParam.net_ops.push_back(op2);
+    netParam.net_ops.push_back(op3);
+
+
     BackendConfig bn;
 
     // shared_ptr<MemoryManager> p_mm(new MemoryManager());
 
-    Net net(param, bn);
+    Net net(netParam, bn);
     net.Convert();
     // net.Run();
 

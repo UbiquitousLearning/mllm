@@ -44,6 +44,7 @@ namespace mllm {
 
 
     protected:
+        NetParameter param_;
         Backend* backend_;
         // The network name
         string name_;
@@ -60,10 +61,10 @@ namespace mllm {
         vector<Tensor*> input_tensors_;
         vector<Tensor*> output_tensors_;
 
-        vector <string> op_names_;
-        vector<vector<string>> op_in_names_;
-	    unordered_map<string, vector<shared_ptr<Tensor>>> tensors_;   
-        unordered_map<string, shared_ptr<Op>> ops_;
+        // vector <string> op_names_;
+        // vector<vector<string>> op_in_names_;
+	    unordered_map<string, vector<shared_ptr<Tensor>>> tensors_;  //opname: op's output Tensors 
+        unordered_map<string, shared_ptr<Op>> ops_; //opname: op
     };
 
 }
