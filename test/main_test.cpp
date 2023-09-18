@@ -21,10 +21,10 @@ int main()
 
 
     auto x = _Input({1,3,3,3});
-    auto y = _SiLU("silu1",{x});
-    x = _MatMul("matmul1", {x, y});
-    x = _Scale("scale1",{x});
-    x = _SoftMax("softmax1",{x}, -1);
+    auto y = _SiLU({x});
+    x = _MatMul({x, y});
+    x = _Scale({x});
+    x = _SoftMax({x}, -1);
 
     // 输出连接的 EOP
     NetParameter netParam;
@@ -38,9 +38,9 @@ int main()
     // netParam.input_name = "input";
     // netParam.output_name = "output";
 
-    // NetOp op1 = {OpType::Silu, {0}, {0},{"input1"}, "silu1"};
-    // NetOp op2 = {OpType::Add, {0}, {0}, {"input1", "silu1"}, "add1"};
-    // NetOp op3 = {OpType::Matmul, {0}, {0}, {"add1", "input1"}, "matmul1"};
+    // NetOp op1 = {OpType::Silu, {0}, {0},{"Input0"}, "silu1"};
+    // NetOp op2 = {OpType::Add, {0}, {0}, {"Input0", "silu1"}, "add1"};
+    // NetOp op3 = {OpType::Matmul, {0}, {0}, {"add1", "Input0"}, "matmul1"};
 
     // netParam.net_ops.push_back(op1);
     // netParam.net_ops.push_back(op2);

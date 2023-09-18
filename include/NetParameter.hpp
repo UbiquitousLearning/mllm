@@ -10,7 +10,6 @@
 #include <sstream>
 #include <string.h>
 #include <string>
-#include <string>
 #include <vector>
 using std::string;
 using std::vector;

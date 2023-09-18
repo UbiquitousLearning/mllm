@@ -33,8 +33,8 @@ namespace mllm {
     void Graph::Setup()
     {
         // auto bn = new Backend();
-        tensors_["input1"] = vector<shared_ptr<Tensor>>(1, NULL);
-        for (auto& t: tensors_["input1"]){
+        tensors_["Input0"] = vector<shared_ptr<Tensor>>(1, NULL);
+        for (auto& t: tensors_["Input0"]){
             std::shared_ptr<Tensor> tensor1 = std::make_shared<Tensor>(); 
             t = tensor1;
             t->SetByteWidth(sizeof(float));

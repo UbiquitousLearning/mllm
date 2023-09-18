@@ -32,14 +32,14 @@ struct ETENSOR {
 ETENSOR _EOP_(std::string name, OpType type,std::vector<ETENSOR> inputs, OpParam op_param);
 
 ETENSOR _Input(vector<int> shape);
-ETENSOR _Add(std::string name, std::vector<ETENSOR> inputs);
-ETENSOR _CausalMask(std::string name, std::vector<ETENSOR> inputs);
-ETENSOR _MatMul(std::string name, std::vector<ETENSOR> inputs);
-ETENSOR _RMSNorm(std::string name, std::vector<ETENSOR> inputs);
-ETENSOR _RoPE(std::string name, std::vector<ETENSOR> inputs);
-ETENSOR _Scale(std::string name, std::vector<ETENSOR> inputs);
-ETENSOR _SiLU(std::string name, std::vector<ETENSOR> inputs);
-ETENSOR _SoftMax(std::string name, std::vector<ETENSOR> inputs, int axis);
+ETENSOR _Add(std::vector<ETENSOR> inputs);
+ETENSOR _CausalMask(std::vector<ETENSOR> inputs);
+ETENSOR _MatMul(std::vector<ETENSOR> inputs);
+ETENSOR _RMSNorm(std::vector<ETENSOR> inputs);
+ETENSOR _RoPE(std::vector<ETENSOR> inputs);
+ETENSOR _Scale(std::vector<ETENSOR> inputs);
+ETENSOR _SiLU(std::vector<ETENSOR> inputs);
+ETENSOR _SoftMax(std::vector<ETENSOR> inputs, int axis);
 
 void createNetParem(ETENSOR endT, NetParameter& net_param_) ;
 #endif //MLLM_EXPRESS_H
