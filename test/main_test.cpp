@@ -21,16 +21,16 @@ int main()
 
 
     NetParameter param;
-    param.bntype = mllm_CPU;
-    vector < string > name_ = {"mm1", "mm2"};
-    param.op_names_ = name_;
-    vector<vector<string>> io_name_ = { {"input", "input"}, {"input", "mm1"}};
-    param.op_in_names_ = io_name_;
+    // vector < string > name_ = {"mm1", "mm2"};
+    // param.op_names_ = name_;
+    // vector<vector<string>> io_name_ = { {"input", "input"}, {"input", "mm1"}};
+    // param.op_in_names_ = io_name_;
+    BackendConfig bn;
 
-    shared_ptr<MemoryManager> p_mm(new MemoryManager());
+    // shared_ptr<MemoryManager> p_mm(new MemoryManager());
 
-    Net net(param);
-    net.Convert(p_mm);
+    Net net(param, bn);
+    net.Convert();
     // net.Run();
 
     Executor ex(&net);

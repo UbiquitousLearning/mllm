@@ -19,12 +19,12 @@ namespace mllm
         void Convert();
 
         unordered_map<string, shared_ptr<Graph>>& subGraphFP() {
-            return subgraphs_fp_;
+            return subgraphs_;
         }
 
     private:
         NetParameter net_param_;
-        unordered_map<string, shared_ptr<Graph>> subgraphs_fp_;
+        unordered_map<string, shared_ptr<Graph>> subgraphs_;
         // unordered_map<string, shared_ptr<Graph>> subgraphs_int8_;
         BackendConfig config_;
         vector<Tensor*> tensors_;

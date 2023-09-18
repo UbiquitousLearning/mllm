@@ -52,14 +52,14 @@ namespace mllm
         // static CPUMatmulCreator _temp;
         // addCreator(MATMUL, &_temp);
         
-        addCreator(ADD, (CPUBackend::Creator*)(new CPUAddCreator()));
-        addCreator(CAUSALMASK, (CPUBackend::Creator*)(new CPUCausalMaskCreator()));
-        addCreator(MATMUL, (CPUBackend::Creator*)(new CPUMatmulCreator()));
-        addCreator(RMSNORM, (CPUBackend::Creator*)(new CPURMSNormCreator()));
-        addCreator(ROPE, (CPUBackend::Creator*)(new CPURoPECreator()));
-        addCreator(SCALE, (CPUBackend::Creator*)(new CPUScaleCreator()));
-        addCreator(SILU, (CPUBackend::Creator*)(new CPUSiLUCreator()));
-        addCreator(SOFTMAX, (CPUBackend::Creator*)(new CPUSoftMaxCreator()));
+        addCreator(Add, (CPUBackend::Creator*)(new CPUAddCreator()));
+        addCreator(CausalMask, (CPUBackend::Creator*)(new CPUCausalMaskCreator()));
+        addCreator(Matmul, (CPUBackend::Creator*)(new CPUMatmulCreator()));
+        addCreator(RMSNorm, (CPUBackend::Creator*)(new CPURMSNormCreator()));
+        addCreator(RoPE, (CPUBackend::Creator*)(new CPURoPECreator()));
+        addCreator(Scale, (CPUBackend::Creator*)(new CPUScaleCreator()));
+        addCreator(Silu, (CPUBackend::Creator*)(new CPUSiLUCreator()));
+        addCreator(SoftMax, (CPUBackend::Creator*)(new CPUSoftMaxCreator()));
         
 
 

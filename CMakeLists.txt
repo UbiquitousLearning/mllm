@@ -14,4 +14,4 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/thirdpartys/include)
 # include_directories(${PROJECT_SOURCE_DIR}/src/backends/cpu)
 
-add_executable(main_test ${TEST_SRC} ${DIR_SRC_CPU} ${DIR_SRC})
+add_executable(main_test ${PROJECT_SOURCE_DIR}/test/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC})
