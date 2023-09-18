@@ -28,7 +28,7 @@ typedef struct  {
     vector<int> out;
     vector<string> inOp; // input ops' names;
     string name;
-    // OpParam param;
+    OpParam param;
   }NetOp;
 typedef struct  {
     string name;
