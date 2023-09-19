@@ -1,0 +1,17 @@
+{
+    "name": "mllm Development Container",
+    "dockerFile": "Dockerfile",
+  
+    "customizations": {
+      "vscode": {
+        "extensions": [
+          "llvm-vs-code-extensions.vscode-clangd",
+          "ms-vscode.cmake-tools",
+          "xaver.clang-format",
+          
+        ]
+      }
+    },
+    "runArgs": ["--privileged"]
+  }
+  
