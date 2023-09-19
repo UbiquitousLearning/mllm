@@ -2,7 +2,7 @@
 // Created by 30500 on 2020/12/2 0002.
 //
 #include "Graph.hpp"
-#include "OP_defined.hpp"
+#include "OpDefined.hpp"
 namespace mllm {
 // template class Graph;
 // template class Graph;
@@ -47,7 +47,7 @@ void Graph::Init() {
         auto newOp = backend_->OpCreate(net_op.param);
         myOp.reset(newOp);
         string lname = net_op.name;
-        vector<string> inames = net_op.inOp;
+        vector<string> inames = net_op.in_op;
         // TODO: CHECK一下 inTensors 尤其是[0]
         vector<shared_ptr<Tensor>> inTensors;
         for (auto name : inames) {
@@ -65,8 +65,8 @@ void Graph::Setup() {
     }
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto net_op = param_.net_ops[i];
-        string lname = net_op.name;          // op_names_[i];
-        vector<string> inames = net_op.inOp; // op_in_names_[i];
+        string lname = net_op.name;           // op_names_[i];
+        vector<string> inames = net_op.in_op; // op_in_names_[i];
         // TODO: CHECK一下 inTensors 尤其是[0]
         vector<shared_ptr<Tensor>> inTensors;
         for (auto name : inames) {
@@ -96,8 +96,8 @@ const vector<shared_ptr<Tensor>> &Graph::Forward() {
 
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto net_op = param_.net_ops[i];
-        string lname = net_op.name;          // op_names_[i];
-        vector<string> inames = net_op.inOp; // op_in_names_[i];
+        string lname = net_op.name;           // op_names_[i];
+        vector<string> inames = net_op.in_op; // op_in_names_[i];
         // TODO: CHECK一下 inTensors 尤其是[0]
         vector<shared_ptr<Tensor>> inTensors;
         for (auto name : inames) {

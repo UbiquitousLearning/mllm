@@ -1,5 +1,5 @@
-#ifndef MLLM_OP_DEFINED
-#define MLLM_OP_DEFINED
+#ifndef MLLM_OPDEFINED_H
+#define MLLM_OPDEFINED_H
 
 #include <string>
 #include <vector>
@@ -8,15 +8,15 @@ using std::vector;
 
 namespace mllm {
 enum OpType {
-    Input = 0,
-    Add,
-    SoftMax,
-    Silu,
-    Matmul,
-    Scale,
-    RoPE,
-    RMSNorm,
-    CausalMask,
+    INPUT = 0,
+    ADD,
+    SOFTMAX,
+    SILU,
+    MAUMUL,
+    SCALE,
+    ROPE,
+    RMSNORM,
+    CAUSALMASK,
     OP_NUM
 };
 

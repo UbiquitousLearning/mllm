@@ -2,8 +2,8 @@
 #define MLLM_CHECK_H
 
 #include <iostream>
-#define likely(x) __builtin_expect(!!(x), 1)   // x很可能为真
-#define unlikely(x) __builtin_expect(!!(x), 0) // x很可能为假
+// #define likely(x) __builtin_expect(!!(x), 1)   // x很可能为真
+// #define unlikely(x) __builtin_expect(!!(x), 0) // x很可能为假
 // #define COMPACT_GOOGLE_LOG_FATAL google::LogMessageFatal( \
 //       __FILE__, __LINE__)
 

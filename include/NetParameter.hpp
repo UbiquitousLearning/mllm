@@ -23,7 +23,7 @@ typedef struct {
     OpType type;
     vector<int> in;
     vector<int> out;
-    vector<string> inOp; // input ops' names;
+    vector<string> in_op; // input ops' names;
     string name;
     OpParam param;
 } NetOp;

@@ -43,5 +43,5 @@ ETENSOR _Scale(std::vector<ETENSOR> inputs);
 ETENSOR _SiLU(std::vector<ETENSOR> inputs);
 ETENSOR _SoftMax(std::vector<ETENSOR> inputs, int axis);
 
-void createNetParem(ETENSOR endT, NetParameter &net_param_);
+void createNetParem(ETENSOR end_t, NetParameter &net_param);
 #endif // MLLM_EXPRESS_H
