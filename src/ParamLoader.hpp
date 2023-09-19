@@ -1,7 +1,6 @@
 #ifndef MLLM_ParamLoader_H
 #define MLLM_ParamLoader_H
-#include <bits/stdint-uintn.h>
-#include <bits/types/FILE.h>
+#include <cstdint>
 #include <map>
 #include <string>
 #include <utility>
