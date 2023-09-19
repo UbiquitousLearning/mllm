@@ -30,6 +30,12 @@ namespace mllm{
         std::cout<<"CPUScale()"<<std::endl;
         return NO_ERROR;
     }
+
+    ErrorCode CPUScale::Load(ParamLoader& loader)
+    {
+        std::cout<<"CPUScale load"<<std::endl;
+        return NO_ERROR;
+    }
 } // namespace mllm
 
 

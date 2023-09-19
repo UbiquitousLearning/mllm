@@ -7,10 +7,13 @@
 #include <utility>
 #include <vector>
 #include <iostream>
-#include "Op.hpp"
+#include "Tensor.hpp"
 
 namespace mllm
 {
+class Tensor;
+
+
 #define MAGIC_NUMBER 20012
 class ParamLoader {
 public:
@@ -28,7 +31,7 @@ private:
   std::map<std::string, std::pair<uint8_t, uint8_t>> offsets; //offsets,length
   bool use_mmap;
 };
-#endif
   
 } // namespace mllm
+#endif
 

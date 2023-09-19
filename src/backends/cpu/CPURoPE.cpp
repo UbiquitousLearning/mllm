@@ -29,6 +29,13 @@ namespace mllm{
         std::cout<<"CPURoPE()"<<std::endl;
         return NO_ERROR;
     }
+
+
+    ErrorCode CPURoPE::Load(ParamLoader& loader)
+    {
+        std::cout<<"CPURoPE load"<<std::endl;
+        return NO_ERROR;
+    }
 } // namespace mllm
 
 

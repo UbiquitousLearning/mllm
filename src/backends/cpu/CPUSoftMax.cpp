@@ -29,6 +29,13 @@ namespace mllm{
         std::cout<<"CPUSoftMax()"<<std::endl;
         return NO_ERROR;
     }
+
+
+    ErrorCode CPUSoftMax::Load(ParamLoader& loader)
+    {
+        std::cout<<"CPUSoftMax load"<<std::endl;
+        return NO_ERROR;
+    }
 } // namespace mllm
 
 

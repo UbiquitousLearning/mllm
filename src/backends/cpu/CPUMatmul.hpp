@@ -16,6 +16,8 @@ class Tensor;
         virtual ErrorCode Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
         virtual ErrorCode Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
 
+        virtual ErrorCode Load(ParamLoader& loader) override;
+
     private:        
         bool transposeA_;
         bool transposeB_;

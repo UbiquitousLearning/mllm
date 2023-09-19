@@ -29,6 +29,12 @@ namespace mllm{
         std::cout<<"CPUCausalMask()"<<std::endl;
         return NO_ERROR;
     }
+
+    ErrorCode CPUCausalMask::Load(ParamLoader& loader)
+    {
+        std::cout<<"CPUCausalMask load"<<std::endl;
+        return NO_ERROR;
+    }
 } // namespace mllm
 
 

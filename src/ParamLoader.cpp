@@ -1,6 +1,5 @@
 #include "ParamLoader.hpp"
 #include "NetParameter.hpp"
-#include "Tensor.hpp"
 // #include <bits/stdint-uintn.h>
 #include <cstdio>
 #include <string>
@@ -41,7 +40,7 @@ static std::string read_string(FILE *fp) {
 namespace mllm
 {
 bool ParamLoader::load_data(mllm::Tensor* tenor) {
-  string name = tenor->name_;
+  string name = tenor->Name();
 #ifndef USE_MMAP
   if (offsets.find(name) == offsets.end()) {
     return false;

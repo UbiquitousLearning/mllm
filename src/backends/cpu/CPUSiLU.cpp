@@ -29,6 +29,13 @@ namespace mllm{
         std::cout<<"CPUSiLU()"<<std::endl;
         return NO_ERROR;
     }
+
+
+    ErrorCode CPUSiLU::Load(ParamLoader& loader)
+    {
+        std::cout<<"CPUSiLU load"<<std::endl;
+        return NO_ERROR;
+    }
 } // namespace mllm
 
 

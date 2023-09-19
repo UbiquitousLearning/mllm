@@ -15,6 +15,8 @@ namespace mllm
         virtual ErrorCode Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
         virtual ErrorCode Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
 
+        virtual ErrorCode Load(ParamLoader& loader) override;
+
     private:
         bool support_multi_thread_ = false;
     };

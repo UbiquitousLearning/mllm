@@ -29,6 +29,13 @@ namespace mllm{
         std::cout<<"CPURMSNorm()"<<std::endl;
         return NO_ERROR;
     }
+
+
+    ErrorCode CPURMSNorm::Load(ParamLoader& loader)
+    {
+        std::cout<<"CPURMSNorm load"<<std::endl;
+        return NO_ERROR;
+    }
 } // namespace mllm
 
 

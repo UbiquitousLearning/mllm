@@ -7,7 +7,7 @@
 #include "NetParameter.hpp"
 #include "Tensor.hpp"
 #include "Op.hpp"
-#include "backends/cpu/CPUMatmul.hpp" //TODO
+#include "ParamLoader.hpp"
 
 // using std::unordered_map;
 // #include "layer.h"
@@ -28,6 +28,8 @@ namespace mllm {
          * @brief 初始化
          */
         void Setup();
+
+        void Load(ParamLoader& loader);
 
         /**
          * @brief 前行传播

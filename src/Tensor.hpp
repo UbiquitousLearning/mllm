@@ -178,10 +178,18 @@ namespace mllm {
             bytewidth_ = bw;
         }
         //TODO:Name?
-        string name_;
+
+        void SetName(string name){
+            name_ = name;
+        }
+
+        const string Name() const {
+            return name_;
+        }
 
         
     private:
+        string name_;
         // shared_ptr<Backend> backend_;
         int bytewidth_;//32/16/8/4 //enum
         Backend* backend_;

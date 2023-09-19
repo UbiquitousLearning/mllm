@@ -18,16 +18,24 @@ namespace mllm{
 
 
     
-     ErrorCode CPUMatmul::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
+    ErrorCode CPUMatmul::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
     {
         std::cout<<"CPUMatmul  Setup"<<std::endl;
         return NO_ERROR;
     }
 
     
-     ErrorCode CPUMatmul::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
+    ErrorCode CPUMatmul::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
     {
         std::cout<<"CPUMatmul()"<<std::endl;
+        return NO_ERROR;
+    }
+
+
+
+    ErrorCode CPUMatmul::Load(ParamLoader& loader)
+    {
+        std::cout<<"CPUMatmul load"<<std::endl;
         return NO_ERROR;
     }
 

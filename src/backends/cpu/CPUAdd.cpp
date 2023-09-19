@@ -29,6 +29,13 @@ namespace mllm{
         std::cout<<"CPUAdd()"<<std::endl;
         return NO_ERROR;
     }
+
+
+    ErrorCode CPUAdd::Load(ParamLoader& loader)
+    {
+        std::cout<<"CPUAdd load"<<std::endl;
+        return NO_ERROR;
+    }
 } // namespace mllm
 
 

@@ -71,6 +71,7 @@ namespace mllm {
     {
         for (auto& t: tensors_["Input0"]){
             t->Alloc();//to_cpu//malloc&memset 0 TODO
+            t->SetName("Input0_");
         }        
         for (int i = 0; i < (int)param_.net_ops.size(); ++i)
         {
@@ -84,6 +85,18 @@ namespace mllm {
             }
             ops_[lname]->Setup(inTensors, tensors_[lname]);//tensors_[lname]:malloc&memset 0 //TODO: 加入Bachend后改成不同Device的malloc
         }
+
+    }
+
+    void Graph::Load(ParamLoader& loader)
+    {
+        for (int i = 0; i < (int)param_.net_ops.size(); ++i)
+        {
+            auto net_op = param_.net_ops[i];
+            ops_[net_op.name]->Load(loader);
+        }
+
+        // if(loader.load_data())
 
     }
     
@@ -117,7 +130,7 @@ namespace mllm {
     const vector<shared_ptr<Tensor>> &Graph::Forward(const vector<shared_ptr<Tensor>> &inTensors) {
         // Copy 
         for (int i = 0; i < inTensors.size(); ++i) {
-            input_tensors_[i]->CopyFrom(*inTensors[i]);
+             tensors_["Input0"][i]->CopyFrom(*inTensors[i]);
         }
         return Forward();
     }

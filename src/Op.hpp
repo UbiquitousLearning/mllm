@@ -4,11 +4,13 @@
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include <functional>
+#include "ParamLoader.hpp"
 using std::function;
 namespace mllm {
 
 class Backend;
 class Tensor;
+class ParamLoader;
 
 class Op {
 public:
@@ -50,7 +52,16 @@ public:
    */
   virtual ErrorCode Setup(vector<shared_ptr<Tensor>> &inputs,
                           vector<shared_ptr<Tensor>> &outputs) {
+    for (auto& t: outputs){
+      // t->SetName("Input0"+"_out");
+    }
     // Weight malloc set
+    return NO_ERROR;
+  }
+
+  virtual ErrorCode Load(ParamLoader& loader) {
+    // check inputs shape
+    // Reshape outputs
     return NO_ERROR;
   }
 
