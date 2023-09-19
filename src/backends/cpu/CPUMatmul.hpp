@@ -12,6 +12,7 @@ class Tensor;
     public:
         CPUMatmul(Backend *bn, bool transposeA, bool transposeB, bool transposeC, bool multiThread);
         virtual ~CPUMatmul() = default;
+        virtual ErrorCode Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
         virtual ErrorCode Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
         virtual ErrorCode Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
 

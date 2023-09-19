@@ -9,16 +9,22 @@ namespace mllm{
     CPURoPE::CPURoPE(Backend *bn, bool multiThread) : Op(bn)
     {
     }
+    
+    ErrorCode CPURoPE::Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
+    {
+        std::cout<<"CPURoPE  Reshape"<<std::endl;
+        return NO_ERROR;
+    }
 
     
-    inline ErrorCode CPURoPE::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
+    ErrorCode CPURoPE::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
     {
         std::cout<<"CPURoPE  Setup"<<std::endl;
         return NO_ERROR;
     }
 
     
-    inline ErrorCode CPURoPE::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
+    ErrorCode CPURoPE::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
     {
         std::cout<<"CPURoPE()"<<std::endl;
         return NO_ERROR;

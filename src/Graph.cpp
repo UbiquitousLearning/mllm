@@ -23,16 +23,8 @@ namespace mllm {
     void Graph::Init(const NetParameter &in_param)
     {
         param_ = in_param;
-        //init from files
-        //init from code
-        // op_names_ = in_param.op_names_;
-        // op_in_names_ = in_param.op_in_names_;
-    }
-
-    
-    void Graph::Setup()
-    {
-        // auto bn = new Backend();
+        
+        //RESHAPE
         tensors_["Input0"] = vector<shared_ptr<Tensor>>(1, NULL);
         for (auto& t: tensors_["Input0"]){
             std::shared_ptr<Tensor> tensor1 = std::make_shared<Tensor>(); 
@@ -40,7 +32,6 @@ namespace mllm {
             t->SetByteWidth(sizeof(float));
             t->SetBackend(backend_);
             t->Reshape(1,3,5,5);//TODO Reshape  tensors_["input"] 
-            t->Alloc();//to_cpu//malloc&memset 0 TODO
         }        
         for (int i = 0; i < (int)param_.net_ops.size(); ++i)
         {
@@ -61,11 +52,29 @@ namespace mllm {
         {
             auto net_op = param_.net_ops[i];
             shared_ptr<Op> myOp(NULL);
-            OpParam op_param;
-            op_param["type"] = net_op.type;
-            auto newOp = backend_->OpCreate(op_param);
+            auto newOp = backend_->OpCreate(net_op.param);
             myOp.reset(newOp);
-            // myOp.reset(new CPUMatmul(backend_,true,true,true,true));	//TODO
+            string lname = net_op.name;
+            vector<string> inames = net_op.inOp;
+            //TODO: CHECK一下 inTensors 尤其是[0]
+            vector<shared_ptr<Tensor>> inTensors;
+            for (auto name: inames){
+                inTensors.push_back(tensors_[name][0]);
+            }
+		    ops_[lname] = myOp;
+            ops_[lname]->Reshape(inTensors, tensors_[lname]);//tensors_[lname]:1.Reshape
+        }
+    }
+
+    
+    void Graph::Setup()
+    {
+        for (auto& t: tensors_["Input0"]){
+            t->Alloc();//to_cpu//malloc&memset 0 TODO
+        }        
+        for (int i = 0; i < (int)param_.net_ops.size(); ++i)
+        {
+            auto net_op = param_.net_ops[i];
             string lname = net_op.name;//op_names_[i];
             vector<string> inames = net_op.inOp;//op_in_names_[i];
             //TODO: CHECK一下 inTensors 尤其是[0]
@@ -73,8 +82,7 @@ namespace mllm {
             for (auto name: inames){
                 inTensors.push_back(tensors_[name][0]);
             }
-		    ops_[lname] = myOp;
-            ops_[lname]->Setup(inTensors, tensors_[lname]);//tensors_[lname]:1.Reshape 2.malloc&memset 0 //TODO: 加入Bachend后改成不同Device的malloc
+            ops_[lname]->Setup(inTensors, tensors_[lname]);//tensors_[lname]:malloc&memset 0 //TODO: 加入Bachend后改成不同Device的malloc
         }
 
     }

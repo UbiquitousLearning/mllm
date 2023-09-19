@@ -10,15 +10,21 @@ namespace mllm{
     {
     }
 
+    ErrorCode CPUCausalMask::Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
+    {
+        std::cout<<"CPUCausalMask  Reshape"<<std::endl;
+        return NO_ERROR;
+    }
+
     
-    inline ErrorCode CPUCausalMask::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
+    ErrorCode CPUCausalMask::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
     {
         std::cout<<"CPUCausalMask  Setup"<<std::endl;
         return NO_ERROR;
     }
 
     
-    inline ErrorCode CPUCausalMask::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
+    ErrorCode CPUCausalMask::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
     {
         std::cout<<"CPUCausalMask()"<<std::endl;
         return NO_ERROR;

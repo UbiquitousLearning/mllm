@@ -60,47 +60,56 @@ void createNetParem(ETENSOR endT, NetParameter& net_param_){
 
 ETENSOR _Input(vector<int> shape){
     OpParam opparam;
+    opparam["type"] = Input;
     ETENSOR x(EOP(OpNames[Input]+std::to_string(op_idx), Input, opparam));
     return x;
 }
 ETENSOR _Add(std::vector<ETENSOR> inputs){
     op_idx++;
     OpParam opparam;
+    opparam["type"] = Add;
     return _EOP_(OpNames[Add]+std::to_string(op_idx), Add, inputs, opparam);
 }
 ETENSOR _CausalMask(std::vector<ETENSOR> inputs){
     op_idx++;
     OpParam opparam;
+    opparam["type"] = CausalMask;
     return _EOP_(OpNames[CausalMask]+std::to_string(op_idx), CausalMask, inputs, opparam);
 }
 ETENSOR _MatMul(std::vector<ETENSOR> inputs){
     op_idx++;
     OpParam opparam;
+    opparam["type"] = Matmul;
     return _EOP_(OpNames[Matmul]+std::to_string(op_idx), Matmul, inputs, opparam);
 }
 ETENSOR _RMSNorm(std::vector<ETENSOR> inputs){
     op_idx++;
     OpParam opparam;
+    opparam["type"] = RMSNorm;
     return _EOP_(OpNames[RMSNorm]+std::to_string(op_idx), RMSNorm, inputs, opparam);
 }
 ETENSOR _RoPE(std::vector<ETENSOR> inputs){
     op_idx++;
     OpParam opparam;
+    opparam["type"] = RoPE;
     return _EOP_(OpNames[RoPE]+std::to_string(op_idx), RoPE, inputs, opparam);
 }
 ETENSOR _Scale(std::vector<ETENSOR> inputs){
     op_idx++;
     OpParam opparam;
+    opparam["type"] = Scale;
     return _EOP_(OpNames[Scale]+std::to_string(op_idx), Scale, inputs, opparam);
 }
 ETENSOR _SiLU(std::vector<ETENSOR> inputs){
     op_idx++;
     OpParam opparam;
+    opparam["type"] = Silu;
     return _EOP_(OpNames[Silu]+std::to_string(op_idx), Silu, inputs, opparam);
 }
 ETENSOR _SoftMax(std::vector<ETENSOR> inputs, int axis){
     op_idx++;
     OpParam opparam;
+    opparam["type"] = SoftMax;
     opparam["axis"] = axis;
     return _EOP_(OpNames[SoftMax]+std::to_string(op_idx), SoftMax, inputs, opparam);
 }

@@ -34,10 +34,22 @@ public:
    * @param outputs   output tensors
    * @return resize result
    */
-  virtual ErrorCode Setup(vector<shared_ptr<Tensor>> &inputs,
+  virtual ErrorCode Reshape(vector<shared_ptr<Tensor>> &inputs,
                           vector<shared_ptr<Tensor>> &outputs) {
     // check inputs shape
     // Reshape outputs
+    return NO_ERROR;
+  }
+
+  /**
+   * @brief response shape change of input or output tensors.
+   * 设定输入输出的tensor(已经to_cpu)
+   * @param inputs    input tensors
+   * @param outputs   output tensors
+   * @return resize result
+   */
+  virtual ErrorCode Setup(vector<shared_ptr<Tensor>> &inputs,
+                          vector<shared_ptr<Tensor>> &outputs) {
     // Weight malloc set
     return NO_ERROR;
   }

@@ -10,15 +10,21 @@ namespace mllm{
     {
     }
 
+    ErrorCode CPUAdd::Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
+    {
+        std::cout<<"CPUAdd  Reshape"<<std::endl;
+        return NO_ERROR;
+    }
+
     
-    inline ErrorCode CPUAdd::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
+    ErrorCode CPUAdd::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
     {
         std::cout<<"CPUAdd  Setup"<<std::endl;
         return NO_ERROR;
     }
 
     
-    inline ErrorCode CPUAdd::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
+    ErrorCode CPUAdd::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
     {
         std::cout<<"CPUAdd()"<<std::endl;
         return NO_ERROR;

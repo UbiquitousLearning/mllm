@@ -9,16 +9,23 @@ namespace mllm{
     CPUScale::CPUScale(Backend *bn, bool multiThread) : Op(bn)
     {
     }
+    
+    ErrorCode CPUScale::Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
+    {
+        std::cout<<"CPUScale  Reshape"<<std::endl;
+        return NO_ERROR;
+    }
+
 
     
-    inline ErrorCode CPUScale::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
+    ErrorCode CPUScale::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
     {
         std::cout<<"CPUScale  Setup"<<std::endl;
         return NO_ERROR;
     }
 
     
-    inline ErrorCode CPUScale::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
+    ErrorCode CPUScale::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs)
     {
         std::cout<<"CPUScale()"<<std::endl;
         return NO_ERROR;
