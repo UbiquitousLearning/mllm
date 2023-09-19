@@ -50,6 +50,8 @@ bool ParamLoader::Load(mllm::Tensor *tenor) {
     fread(data, sizeof(uint8_t), offset.second, fp_);
     // TODO:Data?
     //  tenor. = data;
+    void *tensorPtr = tenor->HostPtr<char>();
+    memcpy(tensorPtr, data, offset.second);
     return true;
 #endif
 }
