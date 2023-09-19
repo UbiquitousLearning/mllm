@@ -1,7 +1,6 @@
-#ifndef MLLM_OP_DEFINED
-#define MLLM_OP_DEFINED
+#ifndef MLLM_OPDEFINED_H
+#define MLLM_OPDEFINED_H
 
-#include "Types.hpp"
 #include <string>
 #include <vector>
 using std::string;
@@ -10,19 +9,19 @@ using std::vector;
 namespace mllm {
 enum OpType {
     INVALID_VALUE = 0,
-    Add,
-    SoftMax,
-    Silu,
-    Matmul,
-    Scale,
-    RoPE,
-    RMSNorm,
-    CausalMask,
+    ADD,
+    SOFTMAX,
+    SILU,
+    MAUMUL,
+    SCALE,
+    ROPE,
+    RMSNORM,
+    CAUSALMASK,
     OP_NUM
 };
 
 static const vector<string> OpNames = {
-    "Input",
+    "INVALID_VALUE",
     "Add",
     "SoftMax",
     "SiLU",

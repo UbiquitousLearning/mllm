@@ -59,5 +59,5 @@ NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, string name = 
 // ETENSOR _SiLU(std::string name, std::vector<ETENSOR> inputs);
 // ETENSOR _SoftMax(std::string name, std::vector<ETENSOR> inputs);
 
-void createNetParem(ETENSOR endT, NetParameter &net_param_);
+void createNetParem(ETENSOR end_t, NetParameter &net_param);
 #endif // MLLM_EXPRESS_H

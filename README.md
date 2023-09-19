@@ -1,70 +1,160 @@
-# 08.30~09.08 初期构思
+# 代码规范
+
+##  1. 文件命名
+
+### **总述**
+
+文件名的每个单词首字母均大写, 不可以包含下划线（ `_` ）或连字符（ `-` ）如：`FileName.cpp`。
+
+### **说明**
+
+文件命名示例: 
+* `Tensor.cpp`
+* `CPUAdd.cpp`
+
+通常应尽量让文件名更加明确。 `NetParameter.hpp` 就比 `Parameter.hpp` 要好。\
+定义类时文件名一般成对出现, 如 `CPUAdd.hpp` 和 `CPUAdd.cpp`, 对应于类 `CPUAdd`。\
+内联函数定义必须放在 `.hpp` 文件中。 如果函数比较短, 就直接将实现也放在 `.hpp` 中。
+
+通常实现类的`.cpp`和`.hpp`文件存放在`/src`及其子目录下。一些表示状态的结构体/枚举定义的`.hpp`文件存放在`/include`目录下。
 
 
-### 主要文件
-1. MemoryManager: 负责memory的malloc/free等。to_cpu函数负责malloc&memset（TODO需要考虑Backend，MemoryManager应被移除相关功能移至Backend的子类中，负责该backend的内存管理）。
+## 2.类型命名
 
-2. Tensor: 基础数据类型，包含NCHW四个为维度。数据存储在私有变量data_（vector类型，TODO需要考虑Backend）。
-构造函数不进行malloc, 通过cpu_data函数进行malloc(现阶段只考虑cpu，TODO该函数需要考虑Backend)。
+### **总述**
 
-3. Op: 算子基础，作为不同backend的op的父类。Setup函数负责1）输入输出Tensor的malloc；2）输出Tensor的reshape；3）该算子的weight的malloc。Execute负责执行。（TODO考虑Backend，Setup/Execute函数利用Tensor的malloc功能的函数）。
+类型名称的每个单词首字母均大写, 不可以包含下划线（ `_` ）或连字符（ `-` ） 如：`ClassName`。
 
-4. Graph: 网络图？，根据NetParamter参数构建（TODO通过文件构建NetParamter，通过类似MNN的方式构建Net）。Setup函数调用Op的Setup同时对tensors进行malloc&memeset（TODO从文件读取weights并memset）。Forward调用Op的Execute。
+### **说明**
 
-5. Net:convert()将NetParamter转成多个Graph。 Run()利用Graph.Setup/Forward进行pipeline，交给用户。
+所有类型命名 —— **类, 结构体, 类型定义 (`typedef`), 枚举, 类型模板参数** —— 均使用相同约定, 即以大写字母开始, 每个单词首字母均大写, 不包含下划线. 例如:
 
-6. Backend（TODO）: 需要负责管理后端设备（CPU/OPENCL/NNAPI等）。~~主要函数应有:aligend_malloc, memset, mem_free。Backend需要作为不同backend的父类。~~
+```C++
+// 类和结构体
+class Tensor { ...}
+struct NetParameter { ...}
 
-### 文件夹
-1. src/backends（TODO）:XX表示backend名（CPU等） 包含1）对应的XXBackend.h/cpp; 2）每个Op的XXOp.c/hpp；3）对应的Tensor的常见计算（待决定？）
+// 类型定义
+typedef map<string, int> OpParam;
 
-2. ~~src/nets（TODO）:负责不同模型（llama等），继承自Net。~~
+// using 别名
+using OpParam = map<string, int>;
 
-### TODO
-~~第一阶段：不考虑Backend~~
-1. ~~实现Tensor/Op中的主要函数（能满足基础功能，tensor计算的相关函数待定）。~~
-2. ~~完善NetParamter。~~
-3. ~~Net中Init/Setup/Execute实现。~~
-4. ~~完善backends/cpu/CPUMatmul.cpp。~~
-5. ~~自己初始化一个简单的有两层Matmul算子构成的NetParamter, 来初始化Net并跑通，检查Setup/Forward功能。~~
+// 枚举
+enum OpType { ...}
+```
 
-~~第二阶段：考虑Backend~~
-1. ~~构建Backend类，将MemoryManager中功能移入并删除MemoryManager类。~~
-2. ~~修改Tensor/Op中的MemoryManager相关函数。~~
-3. ~~构建CPUBackend类继承Backend类。~~
-4. ~~实现CPUxxop.c/hpp，实现CPU的算子。~~
+## 3.变量命名
 
-~~第三阶段：构建transformer.~~
+### **总述**
 
-1. ~~利用CPU算子跑通llama.~~
+变量 (包括函数参数) 和数据成员名一律小写, 单词之间用下划线连接。 \
+类的成员变量以下划线结尾, 如：`a_class_data_member_`。 \
+结构体和普通变量不用以下划线结尾, 如: `a_local_variable`，`a_struct_data_member`。
+
+### **说明**
+
+#### **普通变量命名**
+
+举例:
+```C++
+string op_name;  // 用下划线.
+```
+#### **类数据成员**
+不管是静态的还是非静态的, 类数据成员都要小写并以下划线（ `_` ）结尾.
+
+举例:
+```C++
+class Tensor {
+    ...
+ private:
+    string name_; // 用下划线并以下划线结尾.
+    void *host_ptr_;
+    static int idx_;
+};
+```
+
+#### **结构体变量**
+不管是静态的还是非静态的, 结构体数据成员都可以和普通变量一样, 不用像类那样以下划线结尾
+
+举例:
+```C++
+struct NetOp{
+    ...
+    vector<string> in_op; 
+    string name;
+    static int idx;
+} ;
+```
+
+## 4.函数命名
+
+### **总述**
+
+常规函数使用驼峰命名法, `myFuction()`。 \
+类/结构体的成员函数使用帕斯卡命名法，即每个单词首字母均大写。`MyClassFunction()`。
+
+### **说明**
+常规函数名除首单词外每个单词首字母大写（即“驼峰变量名”）。 类的函数名的每个单词首字母大写 (即“帕斯卡变量名”)。 没有下划线. 对于首字母缩写的单词, 更倾向于将它们视作一个单词进行首字母大写 (例如, 写作`StartRpc()` 而非 `StartRPC()`)。
+
+函数的参数与普通变量命名规则相同。
+```C++
+//常规函数：驼峰命名法
+void createNetParem(ETENSOR end_t, NetParameter &net_param);
+
+class Tensor {
+public:
+    ...
+    //类的成员函数：帕斯卡命名法
+    bool Reshape(const vector<int> &shape);
+    ...
+};
+```
 
 
 
+类的成员函数中取值和设值函数则要求与变量名匹:
+```C++
+class Tensor {
+public:
+    ...
+    //赋值
+    void SetName(string name) {
+        name_ = name;
+    }
+    //取值
+    const string Name() const {
+        return name_;
+    }
+ private:
+    string name_;
+};
+```
 
-# 09.08 会议决定
+## 4.枚举/宏命名
 
-1. 把Net.h/cpp改为Graph.h/cpp. 
+### **总述**
 
-2. 构建Net.h/cpp
-convert()函数：将根据Netparam得到多个subgraph(Graph类)。 需要用到backend：CheckSupportOp
-run()函数：调用每一个subgraph的Setup&Forward函数。（先setup后forward//pipline）可用户重构。
+全部字母为大写，并且单词之间用下划线（ `_` ）连接，如`MY_ENUM`，`MY_DEFINE`。
 
-3. 删除MemoryManager.h/cpp，构建MemoryManager.h/cpp。
-MemoryManager中管理CPU内存。包含函数malloc/memset/memfree。类似memorypool的功能。
-删除CPUMemory.h/cpp。
-不同的backend的Op.Setup调用MemoryManager的malloc/memset/memfree。
+### **说明**
 
-4. Backend中添加CheckSupport：检查该backend支持的算子，用于Net.convert()。
+举例：
+```C++
+//枚举
+enum OpType {
+    INPUT = 0,
+    ADD,
+    ...，
+    OP_NUM
+};
 
-# 09.08~09.12 疑问
+//宏定义
+#define PREDICT(x) !!(x)
 
-1. 全局的MemoryManager，所有backend需要host(cpu)内存时向该全局MemoryManager申请。（考虑到需要用到多个backend）
-Tensor类初始化时加入参数MemoryManager,将全局MemoryManager的指针传入Tensor类中负责内存.
-Op类同上.
-
-2. ModelConverter添加到Net类的Init(), 模型的load是否可以使用protobuf(like MNN)。
- 
-
-# 09.12 会议决定
-
+//宏定义
+#ifndef MLLM_CHECK_H
+#define MLLM_CHECK_H
+#endif
+```
 

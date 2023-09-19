@@ -53,8 +53,8 @@ bool ParamLoader::Load(mllm::Tensor *tensor) {
     // TODO:Data?
     //  tenor. = data;
     auto p = tensor->HostPtr<char>();
-    memcpy(static_cast<void*>(p), static_cast<void*>(data), offset.second); // Cast pointers to void*
-    delete[] data; // Free the memory allocated by new
+    memcpy(static_cast<void *>(p), static_cast<void *>(data), offset.second); // Cast pointers to void*
+    delete[] data;                                                            // Free the memory allocated by new
     return true;
 #endif
 }
