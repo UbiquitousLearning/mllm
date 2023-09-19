@@ -82,7 +82,7 @@ void Graph::Load(ParamLoader &loader) {
         ops_[net_op.name]->Load(loader);
     }
 
-    // if(loader.load_data())
+    // if(loader.Load())
 }
 
 /**

@@ -39,7 +39,7 @@ public:
     // const Dtype* cpu_diff() const;
 
     template <typename Dtype>
-    const Dtype *cpu_data() const {
+    const Dtype *HostPtr() const {
         return (const Dtype *)host_ptr_;
     }
 
@@ -64,29 +64,29 @@ public:
     */
 
     // Deprecated legacy shape accessor num: use shape(0) instead.
-    inline int num() const {
+    inline int Num() const {
         return LegacyShape(0);
     }
     // Deprecated legacy shape accessor channels: use shape(1) instead.
-    inline int channels() const {
+    inline int Channels() const {
         return LegacyShape(1);
     }
     // Deprecated legacy shape accessor height: use shape(2) instead.
-    inline int height() const {
+    inline int Height() const {
         return LegacyShape(2);
     }
     // Deprecated legacy shape accessor width: use shape(3) instead.
-    inline int width() const {
+    inline int Width() const {
         return LegacyShape(3);
     }
 
-    inline int count() const {
+    inline int Count() const {
         return count_;
     }
-    inline int num_axes() const {
+    inline int NumAxes() const {
         return shape_.size();
     }
-    inline string shape_string() const {
+    inline string ShapeString() const {
         ostringstream stream;
         for (int i : shape_) {
             stream << i << " ";
@@ -95,58 +95,58 @@ public:
         return stream.str();
     }
     inline int CanonicalAxisIndex(int axis_index) const {
-        CHECK_GE(axis_index, -num_axes())
-            << "axis " << axis_index << " out of range for " << num_axes()
-            << "-D Tensor with shape " << shape_string();
-        CHECK_LT(axis_index, num_axes())
-            << "axis " << axis_index << " out of range for " << num_axes()
-            << "-D Tensor with shape " << shape_string();
+        CHECK_GE(axis_index, -NumAxes())
+            << "axis " << axis_index << " out of range for " << NumAxes()
+            << "-D Tensor with shape " << ShapeString();
+        CHECK_LT(axis_index, NumAxes())
+            << "axis " << axis_index << " out of range for " << NumAxes()
+            << "-D Tensor with shape " << ShapeString();
         if (axis_index < 0) {
-            return axis_index + num_axes();
+            return axis_index + NumAxes();
         }
         return axis_index;
     }
-    inline const vector<int> &shape() const {
+    inline const vector<int> &Shape() const {
         return shape_;
     }
-    inline int shape(int index) const {
+    inline int Shape(int index) const {
         return shape_[CanonicalAxisIndex(index)];
     }
     inline int LegacyShape(int index) const {
-        CHECK_LE(num_axes(), 4)
+        CHECK_LE(NumAxes(), 4)
             << "Cannot use legacy accessors on Tensors with > 4 axes.";
         CHECK_LT(index, 4);
         CHECK_GE(index, -4);
-        if (index >= num_axes() || index < -num_axes()) {
+        if (index >= NumAxes() || index < -NumAxes()) {
             // Axis is out of range, but still in [0, 3] (or [-4, -1] for reverse
             // indexing) -- this special case simulates the one-padding used to fill
             // extraneous axes of legacy Tensors.
             return 1;
         }
-        return shape(index);
+        return Shape(index);
     }
 
-    inline int offset(const int n, const int c = 0, const int h = 0,
+    inline int Offset(const int n, const int c = 0, const int h = 0,
                       const int w = 0) const {
         CHECK_GE(n, 0);
-        CHECK_LE(n, num());
-        CHECK_GE(channels(), 0);
-        CHECK_LE(c, channels());
-        CHECK_GE(height(), 0);
-        CHECK_LE(h, height());
-        CHECK_GE(width(), 0);
-        CHECK_LE(w, width());
-        return ((n * channels() + c) * height() + h) * width() + w;
+        CHECK_LE(n, Num());
+        CHECK_GE(Channels(), 0);
+        CHECK_LE(c, Channels());
+        CHECK_GE(Height(), 0);
+        CHECK_LE(h, Height());
+        CHECK_GE(Width(), 0);
+        CHECK_LE(w, Width());
+        return ((n * Channels() + c) * Height() + h) * Width() + w;
     }
 
     inline int offset(const vector<int> &indices) const {
-        CHECK_LE(indices.size(), num_axes());
+        CHECK_LE(indices.size(), NumAxes());
         int offset = 0;
-        for (int i = 0; i < num_axes(); ++i) {
-            offset *= shape(i);
+        for (int i = 0; i < NumAxes(); ++i) {
+            offset *= Shape(i);
             if (indices.size() > i) {
                 CHECK_GE(indices[i], 0);
-                CHECK_LT(indices[i], shape(i));
+                CHECK_LT(indices[i], Shape(i));
                 offset += indices[i];
             }
         }
@@ -164,9 +164,9 @@ public:
                   bool reshape = false);
 
     template <typename Dtype>
-    inline Dtype data_at(const int n, const int c, const int h,
-                         const int w) const {
-        return cpu_data<Dtype>()[offset(n, c, h, w)];
+    inline Dtype DataAt(const int n, const int c, const int h,
+                        const int w) const {
+        return HostPtr<Dtype>()[Offset(n, c, h, w)];
     }
 
     // inline Dtype diff_at(const int n, const int c, const int h,
@@ -175,8 +175,8 @@ public:
     // }
 
     template <typename Dtype>
-    inline Dtype data_at(const vector<int> &index) const {
-        return cpu_data<Dtype>()[offset(index)];
+    inline Dtype DataAt(const vector<int> &index) const {
+        return HostPtr<Dtype>()[offset(index)];
     }
 
     // inline Dtype diff_at(const vector<int>& index) const {

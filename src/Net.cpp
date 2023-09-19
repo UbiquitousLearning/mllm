@@ -25,7 +25,7 @@ void Net::Convert() {
 
     // auto bn = new CPUBackend(mm);	//TODO
     // backends_["cpu"] = bn;
-    // backends_["cpu"]->registerOps();
+    // backends_["cpu"]->RegisterOps();
     // TODO
     auto sub_param_ = net_param_;
     shared_ptr<Graph> subg_1;

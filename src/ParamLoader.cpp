@@ -24,80 +24,80 @@
  *  Weights File Structure
  */
 
-static int read_int(FILE *fp) {
+static int read_int(FILE *fp_) {
     int tmp;
-    fread(&tmp, sizeof(int), 1, fp);
+    fread(&tmp, sizeof(int), 1, fp_);
     return tmp;
 }
-static std::string read_string(FILE *fp) {
-    int len = read_int(fp);
+static std::string read_string(FILE *fp_) {
+    int len = read_int(fp_);
     char *tmp = new char[len];
-    fread(tmp, sizeof(char), len, fp);
+    fread(tmp, sizeof(char), len, fp_);
     std::string str(tmp);
     delete[] tmp;
     return str;
 }
 namespace mllm {
-bool ParamLoader::load_data(mllm::Tensor *tenor) {
+bool ParamLoader::Load(mllm::Tensor *tenor) {
     string name = tenor->Name();
 #ifndef USE_MMAP
-    if (offsets.find(name) == offsets.end()) {
+    if (offsets_.find(name) == offsets_.end()) {
         return false;
     }
-    std::pair<uint8_t, uint8_t> offset = offsets[name];
+    std::pair<uint8_t, uint8_t> offset = offsets_[name];
     uint8_t *data = new uint8_t[offset.second];
-    fseek(fp, offset.first, SEEK_SET);
-    fread(data, sizeof(uint8_t), offset.second, fp);
+    fseek(fp_, offset.first, SEEK_SET);
+    fread(data, sizeof(uint8_t), offset.second, fp_);
     // TODO:Data?
     //  tenor. = data;
     return true;
 #endif
 }
 ParamLoader::~ParamLoader() {
-    if (fp != nullptr) {
-        fclose(fp);
+    if (fp_ != nullptr) {
+        fclose(fp_);
     }
 }
 ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
-    path(std::move(filename)), use_mmap(use_mmap) {
-    this->fp = fopen(filename.c_str(), "rb");
-    if (fp == nullptr) {
+    path_(std::move(filename)), use_mmap_(use_mmap) {
+    this->fp_ = fopen(filename.c_str(), "rb");
+    if (fp_ == nullptr) {
         std::cout << "open file failed" << std::endl;
         exit(1);
     }
 #ifndef USE_MMAP
-    use_mmap = false;
+    use_mmap_ = false;
 #endif
-    fseek(fp, 0, SEEK_SET);
+    fseek(fp_, 0, SEEK_SET);
 #ifndef USE_MMAP
-    int magic = read_int(fp);
+    int magic = read_int(fp_);
     if (magic != MAGIC_NUMBER) {
         std::cout << "magic number error" << std::endl;
         exit(1);
     }
-    fseek(fp, 0, SEEK_END);
-    this->size = ftell(fp);
-    fseek(fp, this->size - sizeof(int), SEEK_CUR);
-    int table_len = read_int(fp);
-    fseek(fp, this->size - table_len - sizeof(int), SEEK_SET);
-    int table_offset = ftell(fp);
-    while (table_offset < this->size - sizeof(int)) {
-        std::string name = read_string(fp);
-        int length = read_int(fp);
-        int offset = read_int(fp);
-        offsets[name] = std::make_pair(offset, length);
+    fseek(fp_, 0, SEEK_END);
+    this->size_ = ftell(fp_);
+    fseek(fp_, this->size_ - sizeof(int), SEEK_CUR);
+    int table_len = read_int(fp_);
+    fseek(fp_, this->size_ - table_len - sizeof(int), SEEK_SET);
+    int table_offset = ftell(fp_);
+    while (table_offset < this->size_ - sizeof(int)) {
+        std::string name = read_string(fp_);
+        int length = read_int(fp_);
+        int offset = read_int(fp_);
+        offsets_[name] = std::make_pair(offset, length);
         // table_offset+=name.size()+sizeof(int)+sizeof(int);
-        table_offset = ftell(fp);
+        table_offset = ftell(fp_);
     }
 
 // int len = sizeof(int);
 // while (len<size) {
-//     int index = read_int(fp);
+//     int index = read_int(fp_);
 //     len+=sizeof(int);
-//     std::string name = read_string(fp);
-//     int length = read_int(fp);
+//     std::string name = read_string(fp_);
+//     int length = read_int(fp_);
 //     len+=name.size()+sizeof(int)+sizeof(int);
-//     offsets[name] = std::make_pair(len,length);
+//     offsets_[name] = std::make_pair(len,length);
 //     len+=length; //Align?
 // }
 #endif

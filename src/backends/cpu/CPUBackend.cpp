@@ -12,7 +12,7 @@ namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager> mm) :
     Backend(mm) {
     initCreatorMap();
-    registerOps();
+    RegisterOps();
 }
 // Op *CPUBackend::OpCreate(const vector<shared_ptr<Tensor>> &inputs, const vector<shared_ptr<Tensor>> &outputs,OpParam op_param)
 // {
@@ -34,7 +34,7 @@ Op *CPUBackend::OpCreate(const OpParam &op_param) {
     return exe;
     // return nullptr;
 }
-void CPUBackend::registerOps() {
+void CPUBackend::RegisterOps() {
     // ADD,
     // CAUSALMASK,
     // MATMUL,

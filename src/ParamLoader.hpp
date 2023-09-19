@@ -20,15 +20,15 @@ public:
     ParamLoader(void *buffer);
 #endif
     ~ParamLoader();
-    bool load_data(mllm::Tensor *tensor);
+    bool Load(mllm::Tensor *tensor);
 
 private:
-    FILE *fp;
-    uint8_t *buffer;
-    std::string path;
-    std::uint8_t size;
-    std::map<std::string, std::pair<uint8_t, uint8_t>> offsets; // offsets,length
-    bool use_mmap;
+    FILE *fp_;
+    uint8_t *buffer_;
+    std::string path_;
+    std::uint8_t size_;
+    std::map<std::string, std::pair<uint8_t, uint8_t>> offsets_; // offsets,length
+    bool use_mmap_;
 };
 
 } // namespace mllm

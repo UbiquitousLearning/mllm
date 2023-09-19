@@ -35,7 +35,7 @@ public:
 
     virtual Op *OpCreate(const OpParam &op_param) override;
 
-    virtual void registerOps() override;
+    virtual void RegisterOps() override;
 
 private:
     std::map<OpType, CPUBackend::Creator *> *map_creator_;
