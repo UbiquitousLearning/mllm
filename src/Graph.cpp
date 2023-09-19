@@ -31,7 +31,7 @@ void Graph::Init() {
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         // TODO: 3改成不同的数
         auto net_op = param_.net_ops[i];
-        auto op_name_ = net_op.name;
+        auto op_name_ = net_op->name;
         tensors_[op_name_] = vector<shared_ptr<Tensor>>(3, NULL);
         for (auto &t : tensors_[op_name_]) {
             std::shared_ptr<Tensor> tensor1 = std::make_shared<Tensor>();
@@ -44,10 +44,10 @@ void Graph::Init() {
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto net_op = param_.net_ops[i];
         shared_ptr<Op> myOp(NULL);
-        auto newOp = backend_->OpCreate(net_op.param);
+        auto newOp = backend_->OpCreate(net_op->param);
         myOp.reset(newOp);
-        string lname = net_op.name;
-        vector<string> inames = net_op.inOp;
+        string lname = net_op->name;
+        vector<string> inames = net_op->inOp;
         // TODO: CHECK一下 inTensors 尤其是[0]
         vector<shared_ptr<Tensor>> inTensors;
         for (auto name : inames) {
@@ -65,8 +65,8 @@ void Graph::Setup() {
     }
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto net_op = param_.net_ops[i];
-        string lname = net_op.name;          // op_names_[i];
-        vector<string> inames = net_op.inOp; // op_in_names_[i];
+        string lname = net_op->name;          // op_names_[i];
+        vector<string> inames = net_op->inOp; // op_in_names_[i];
         // TODO: CHECK一下 inTensors 尤其是[0]
         vector<shared_ptr<Tensor>> inTensors;
         for (auto name : inames) {
@@ -79,7 +79,7 @@ void Graph::Setup() {
 void Graph::Load(ParamLoader &loader) {
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto net_op = param_.net_ops[i];
-        ops_[net_op.name]->Load(loader);
+        ops_[net_op->name]->Load(loader);
     }
 
     // if(loader.Load())
@@ -96,8 +96,8 @@ const vector<shared_ptr<Tensor>> &Graph::Forward() {
 
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto net_op = param_.net_ops[i];
-        string lname = net_op.name;          // op_names_[i];
-        vector<string> inames = net_op.inOp; // op_in_names_[i];
+        string lname = net_op->name;          // op_names_[i];
+        vector<string> inames = net_op->inOp; // op_in_names_[i];
         // TODO: CHECK一下 inTensors 尤其是[0]
         vector<shared_ptr<Tensor>> inTensors;
         for (auto name : inames) {
@@ -106,7 +106,7 @@ const vector<shared_ptr<Tensor>> &Graph::Forward() {
         ops_[lname]->Execute(inTensors, tensors_[lname]);
     }
     // TODO
-    return tensors_[param_.net_ops[param_.net_ops.size() - 1].name];
+    return tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
 }
 
 const vector<shared_ptr<Tensor>> &Graph::Forward(const vector<shared_ptr<Tensor>> &inTensors) {

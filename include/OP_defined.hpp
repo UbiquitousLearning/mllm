@@ -1,6 +1,7 @@
 #ifndef MLLM_OP_DEFINED
 #define MLLM_OP_DEFINED
 
+#include "Types.hpp"
 #include <string>
 #include <vector>
 using std::string;
@@ -8,7 +9,7 @@ using std::vector;
 
 namespace mllm {
 enum OpType {
-    Input = 0,
+    INVALID_VALUE = 0,
     Add,
     SoftMax,
     Silu,

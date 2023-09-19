@@ -2,8 +2,10 @@
 #include "NetParameter.hpp"
 // #include <bits/stdint-uintn.h>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <utility>
+
 /*
  * ┌───────┬──────────────────────────┬──────────────────────────┬────────┬──────┬─────────┬───────────┬─────────┬─────────┐
  * │       │                          │                          │        │      │         │           │         │         │
@@ -38,8 +40,8 @@ static std::string read_string(FILE *fp_) {
     return str;
 }
 namespace mllm {
-bool ParamLoader::Load(mllm::Tensor *tenor) {
-    string name = tenor->Name();
+bool ParamLoader::Load(mllm::Tensor *tensor) {
+    string name = tensor->Name();
 #ifndef USE_MMAP
     if (offsets_.find(name) == offsets_.end()) {
         return false;
@@ -50,6 +52,9 @@ bool ParamLoader::Load(mllm::Tensor *tenor) {
     fread(data, sizeof(uint8_t), offset.second, fp_);
     // TODO:Data?
     //  tenor. = data;
+    auto p = tensor->HostPtr<char>();
+    memcpy(static_cast<void*>(p), static_cast<void*>(data), offset.second); // Cast pointers to void*
+    delete[] data; // Free the memory allocated by new
     return true;
 #endif
 }

@@ -4,8 +4,10 @@
 #include "Types.hpp"
 #include "backends/cpu/CPUAdd.hpp"
 #include "backends/cpu/CPUBackend.hpp"
+#include <map>
+#include <vector>
 namespace mllm {
-Net::Net(const NetParameter &param, BackendConfig config) :
+Net::Net(const vector<NetParameter> &param, BackendConfig config) :
     net_param_(param), config_(config) {
     shared_ptr<MemoryManager> mm = nullptr;
     switch (config.memory) {
@@ -20,16 +22,13 @@ Net::Net(const NetParameter &param, BackendConfig config) :
 }
 
 void Net::Convert() {
-    for (auto op : this->net_param_.net_ops) {
-    }
-
     // auto bn = new CPUBackend(mm);	//TODO
     // backends_["cpu"] = bn;
     // backends_["cpu"]->RegisterOps();
     // TODO
-    auto sub_param_ = net_param_;
-    shared_ptr<Graph> subg_1;
-    subg_1.reset(new Graph(sub_param_, backends_[BackendType::mllm_CPU]));
-    subgraphs_["fp1"] = subg_1;
+    // auto sub_param_ = net_param_;
+    // shared_ptr<Graph> subg_1;
+    // subg_1.reset(new Graph(sub_param_, backends_[BackendType::mllm_CPU]));
+    // subgraphs_["fp1"] = subg_1;
 }
 } // namespace mllm

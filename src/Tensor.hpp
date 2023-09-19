@@ -39,8 +39,8 @@ public:
     // const Dtype* cpu_diff() const;
 
     template <typename Dtype>
-    const Dtype *HostPtr() const {
-        return (const Dtype *)host_ptr_;
+    Dtype *HostPtr() {
+        return (Dtype *)host_ptr_;
     }
 
     // void set_cpu_data(Dtype* data);
