@@ -17,12 +17,12 @@ namespace mllm {
     Graph::Graph(const NetParameter &param,  Backend* bn)
     {
         backend_ = bn;
-        Init(param);
+        param_ = param;
+        Init();
     }
     
-    void Graph::Init(const NetParameter &in_param)
+    void Graph::Init()
     {
-        param_ = in_param;
         
         //RESHAPE
         tensors_["Input0"] = vector<shared_ptr<Tensor>>(1, NULL);

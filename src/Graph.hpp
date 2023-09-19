@@ -21,7 +21,7 @@ namespace mllm {
         /**
          * @brief 初始化
          */
-        void Init(const NetParameter& in_param);//TODO?
+        void Init();
 
         
         /**
