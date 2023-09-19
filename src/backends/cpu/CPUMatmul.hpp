@@ -4,43 +4,37 @@
 #include "Op.hpp"
 #include "CPUBackend.hpp"
 
-namespace mllm
-{   
-    
+namespace mllm {
+
 class Tensor;
-    class CPUMatmul : public Op {
-    public:
-        CPUMatmul(Backend *bn, bool transposeA, bool transposeB, bool transposeC, bool multiThread);
-        virtual ~CPUMatmul() = default;
-        virtual ErrorCode Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
-        virtual ErrorCode Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
-        virtual ErrorCode Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+class CPUMatmul : public Op {
+public:
+    CPUMatmul(Backend *bn, bool transposeA, bool transposeB, bool transposeC, bool multiThread);
+    virtual ~CPUMatmul() = default;
+    virtual ErrorCode Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+    virtual ErrorCode Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+    virtual ErrorCode Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
 
-        virtual ErrorCode Load(ParamLoader& loader) override;
+    virtual ErrorCode Load(ParamLoader &loader) override;
 
-    private:        
-        bool transposeA_;
-        bool transposeB_;
-        bool transposeC_;
-        bool support_multi_thread_ = false;
-    };
+private:
+    bool transposeA_;
+    bool transposeB_;
+    bool transposeC_;
+    bool support_multi_thread_ = false;
+};
 
-    class CPUMatmulCreator : public CPUBackend::Creator {
-    public:
-        // virtual Op *Create(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
-        //                                 OpParam op_param, Backend* backend) const  {
-        //     return new CPUMatmul(backend, false, false, false, false);
-        // }
-        virtual Op *Create(OpParam op_param, Backend* bn) const  {
-            return new CPUMatmul(bn, false, false, false, false);
-        }
-
-    };
-
-
-
-
+class CPUMatmulCreator : public CPUBackend::Creator {
+public:
+    // virtual Op *Create(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
+    //                                 OpParam op_param, Backend* backend) const  {
+    //     return new CPUMatmul(backend, false, false, false, false);
+    // }
+    virtual Op *Create(OpParam op_param, Backend *bn) const {
+        return new CPUMatmul(bn, false, false, false, false);
+    }
+};
 
 } // namespace mllm
 
-#endif //MLLM_CPUMATMUL_H
+#endif // MLLM_CPUMATMUL_H

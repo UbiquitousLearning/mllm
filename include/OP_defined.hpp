@@ -1,15 +1,14 @@
 #ifndef MLLM_OP_DEFINED
 #define MLLM_OP_DEFINED
 
-
 #include <string>
 #include <vector>
 using std::string;
 using std::vector;
 
 namespace mllm {
-enum OpType{
-    Input=0,
+enum OpType {
+    Input = 0,
     Add,
     SoftMax,
     Silu,
@@ -21,8 +20,7 @@ enum OpType{
     OP_NUM
 };
 
-
-static const vector<string> OpNames={ 
+static const vector<string> OpNames = {
     "Input",
     "Add",
     "SoftMax",
@@ -32,7 +30,6 @@ static const vector<string> OpNames={
     "RoPE",
     "RMSNorm",
     "CausalMask",
-    "OP_NUM"    
-    };
-}
+    "OP_NUM"};
+} // namespace mllm
 #endif

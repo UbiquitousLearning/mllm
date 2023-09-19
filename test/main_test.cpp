@@ -1,17 +1,12 @@
 #include <iostream>
-// #include "Graph.hpp"
-// #include "Tensor.hpp"
-// #include "backends/cpu/CPUMatmul.hpp"
 #include "Net.hpp"
 #include "Executor.hpp"
-
 
 #include "express/Express.hpp"
 
 using namespace mllm;
 
-int main()
-{
+int main() {
     // Tensor tensor_(1,3,5,5);
     // std::cout << "Init Tensor" << std::endl;
     // tensor_.Reshape(1,5,6,6);
@@ -19,8 +14,7 @@ int main()
     // auto pTensor_ = tensor_.cpu_data();
     // std::cout<<pTensor_<<":data[0]:"<<pTensor_[0]<<std::endl;
 
-
-    auto x = _Input({1,3,3,3});
+    auto x = _Input({1, 3, 3, 3});
     auto y = _SiLU({x});
     x = _MatMul({x, y});
     x = _Scale({x});
@@ -29,8 +23,6 @@ int main()
     // 输出连接的 EOP
     NetParameter netParam;
     createNetParem(x, netParam);
-
-
 
     // NetParameter netParam;
 
@@ -45,7 +37,6 @@ int main()
     // netParam.net_ops.push_back(op1);
     // netParam.net_ops.push_back(op2);
     // netParam.net_ops.push_back(op3);
-
 
     BackendConfig bn;
 
