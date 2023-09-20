@@ -10,7 +10,7 @@ using namespace mllm;
 // 前置声明
 struct ETENSOR;
 struct Context {
-    vector<NetParameter *> sub_param_;
+    vector<NetParameter> sub_param_;
     vector<NetOp *> net_ops;
     std::set<NetTensor *> net_tensors;
     int idx = 0;

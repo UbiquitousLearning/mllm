@@ -44,6 +44,7 @@ void Net::Convert() {
     // for (auto &sub_param : net_param_) {
     for (int i = 0; i < (int)net_param_.size(); ++i) {
         auto &sub_param = net_param_[i];
+        sub_param.TopologySort();
         shared_ptr<Graph> subg_1;
         subg_1.reset(new Graph(sub_param, backends_[BackendType::mllm_CPU], tensors_));
         subgraphs_["G" + std::to_string(i)] = subg_1;

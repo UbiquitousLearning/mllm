@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include "unordered_map"
 #include "Express.hpp"
 #include "NetParameter.hpp"
 #include "OpDefined.hpp"
@@ -37,12 +38,37 @@ using namespace mllm;
             }                                                                                                                 \
         }                                                                                                                     \
     }
+static void topology(const NetParameter *net, vector<NetOp *> &result, NetOp *op, std::unordered_map<NetOp *, bool> &visited) {
+    if (visited[op]) {
+        return;
+    }
+    visited[op] = true;
+    for (auto input : op->in) {
+        if (input->in && std::find(net->net_inputs.begin(), net->net_inputs.end(), input) == net->net_inputs.end()) {
+            topology(net, result, input->in, visited);
+        }
+    }
+    result.push_back(op);
+}
+void NetParameter::TopologySort() {
+    vector<NetOp *> *result = new vector<NetOp *>();
+    std::unordered_map<NetOp *, bool> visited;
+    result->reserve(net_ops.size());
+    visited.reserve(net_ops.size());
+    for (auto op : net_ops) {
+        topology(this, *result, op, visited);
+    }
+    for (auto op : *result) {
+        std::cout << op->name << std::endl;
+    }
+    net_ops = *result;
+}
 // get active subgraph
 NetParameter *get_active_subgraph(Context *ctx) {
     if (ctx->active_sub >= ctx->sub_param_.size()) {
-        ctx->sub_param_.push_back(new NetParameter());
+        ctx->sub_param_.emplace_back();
     }
-    return ctx->sub_param_[ctx->active_sub];
+    return &ctx->sub_param_[ctx->active_sub];
 }
 NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
     // Ref Count?
@@ -125,38 +151,6 @@ NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, string name) {
 
 void Subgraph_begin(Context *ctx) {
     ctx->active_sub++;
-}
-
-void Display(NetParameter *net) {
-    std::cout << "===NetParameter===" << std::endl;
-    for (auto op : net->net_ops) {
-        std::cout << "===NetOP===" << std::endl;
-        std::cout << "op->name:" << op->name << std::endl;
-        std::cout << "op->type:" << op->type << std::endl;
-        std::cout << "op input" << op->in.size() << std::endl;
-        for (auto input : op->in) {
-            std::cout << "==Input==\ninput.name:" << input->name << std::endl;
-            if (input->in) {
-                std::cout << "input op:" << input->in->name << std::endl;
-            }
-            std::cout << "input in subgraph:" << (input->subgraph == net) << std::endl;
-            std::cout << std::endl;
-        }
-        std::cout << "op output" << op->out.size() << std::endl;
-        for (auto output : op->out) {
-            std::cout << "output.name:" << output->name << std::endl;
-            std::cout << "output op:" << output->out.size() << std::endl;
-            if (output->out.size() > 0) {
-                std::cout << "output op:" << output->out[0]->name << std::endl;
-            }
-        }
-        std::cout << std::endl;
-    }
-}
-void Display(Context *c) {
-    for (auto sub : c->sub_param_) {
-        Display(sub);
-    }
 }
 
 /***

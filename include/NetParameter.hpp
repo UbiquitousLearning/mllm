@@ -31,9 +31,7 @@ typedef struct TNetOp {
     string name;
     OpParam param;
     int out_size = 1; // output tensor size
-    // ~TNetOp() {
-    //     std::cout << "delete op: " << name << std::endl;
-    // }
+
 } NetOp;
 typedef struct TNetTensor {
     string name;
@@ -53,6 +51,7 @@ typedef struct TNetParameter {
     vector<NetTensor *> net_tensors;
     std::set<NetTensor *> net_inputs;
     std::set<NetTensor *> net_outputs;
+    void TopologySort();
 
 } NetParameter;
 
