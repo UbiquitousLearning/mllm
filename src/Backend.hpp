@@ -2,7 +2,6 @@
 #define MLLM_BACKEND_H
 
 #include "MemoryManager.hpp"
-#include "Op.hpp"
 #include "NetParameter.hpp"
 namespace mllm {
 class Op;
