@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include "unordered_map"
 #include "Express.hpp"
 #include "NetParameter.hpp"
 #include "OpDefined.hpp"
@@ -37,6 +38,31 @@ using namespace mllm;
             }                                                                                                                 \
         }                                                                                                                     \
     }
+static void topology(const NetParameter *net, vector<NetOp *> &result, NetOp *op, std::unordered_map<NetOp *, bool> &visited) {
+    if (visited[op]) {
+        return;
+    }
+    visited[op] = true;
+    for (auto input : op->in) {
+        if (input->in && std::find(net->net_inputs.begin(), net->net_inputs.end(), input) == net->net_inputs.end()) {
+            topology(net, result, input->in, visited);
+        }
+    }
+    result.push_back(op);
+}
+void NetParameter::TopologySort() {
+    vector<NetOp *> *result = new vector<NetOp *>();
+    std::unordered_map<NetOp *, bool> visited;
+    result->reserve(net_ops.size());
+    visited.reserve(net_ops.size());
+    for (auto op : net_ops) {
+        topology(this, *result, op, visited);
+    }
+    for (auto op : *result) {
+        std::cout << op->name << std::endl;
+    }
+    net_ops = *result;
+}
 // get active subgraph
 NetParameter *get_active_subgraph(Context *ctx) {
     if (ctx->active_sub >= ctx->sub_param_.size()) {
