@@ -24,6 +24,8 @@ NetTensor *_SiLU(Context *ctx, std::vector<NetTensor *> inputs, string name = ""
 NetTensor *_Softmax(Context *ctx, std::vector<NetTensor *> inputs, int axis, string name = "");
 NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 
+void Display(Context *c);
+
 /*
 // OLD VERSION
 struct EOP {
