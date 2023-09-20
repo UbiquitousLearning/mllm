@@ -19,6 +19,21 @@ Net::Net(const vector<NetParameter> &param, BackendConfig config) :
         break;
     }
     backends_.emplace(BackendType::mllm_CPU, new CPUBackend(mm));
+
+    auto in_tensor = net_param_[0].net_tensors[0];
+    tensors_[in_tensor->name] = std::make_shared<Tensor>();
+    tensors_[in_tensor->name]->SetName(in_tensor->name);
+    tensors_[in_tensor->name]->SetByteWidth(sizeof(float));
+    // tensors_[in_tensor->name]->SetBackend(backends_[BackendType::mllm_CPU]);
+    tensors_[in_tensor->name]->Reshape(in_tensor->shape[0], in_tensor->shape[1], in_tensor->shape[2], in_tensor->shape[3]);
+    for (auto &sub_param : net_param_) {
+        auto out_tensor = sub_param.net_outputs;
+        for (auto &out_t : out_tensor) {
+            tensors_[out_t->name] = std::make_shared<Tensor>();
+            tensors_[out_t->name]->SetName(out_t->name);
+            // tensors_[in_tensor->name]->SetByteWidth(sizeof(float));
+        }
+    }
 }
 
 void Net::Convert() {
@@ -26,9 +41,12 @@ void Net::Convert() {
     // backends_["cpu"] = bn;
     // backends_["cpu"]->RegisterOps();
     // TODO
-    // auto sub_param_ = net_param_;
-    // shared_ptr<Graph> subg_1;
-    // subg_1.reset(new Graph(sub_param_, backends_[BackendType::mllm_CPU]));
-    // subgraphs_["fp1"] = subg_1;
+    // for (auto &sub_param : net_param_) {
+    for (int i = 0; i < (int)net_param_.size(); ++i) {
+        auto &sub_param = net_param_[i];
+        shared_ptr<Graph> subg_1;
+        subg_1.reset(new Graph(sub_param, backends_[BackendType::mllm_CPU], tensors_));
+        subgraphs_["G" + std::to_string(i)] = subg_1;
+    }
 }
 } // namespace mllm

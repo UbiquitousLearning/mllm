@@ -16,13 +16,13 @@ namespace mllm {
 
 class Graph {
 public:
-    explicit Graph(const NetParameter &param, Backend *bn);
+    explicit Graph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors);
     virtual ~Graph() = default;
 
     /**
      * @brief 初始化
      */
-    void Init();
+    void Init(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
     /**
      * @brief 初始化
@@ -64,8 +64,10 @@ protected:
 
     // vector <string> op_names_;
     // vector<vector<string>> op_in_names_;
-    unordered_map<string, vector<shared_ptr<Tensor>>> tensors_; // opname: op's output Tensors
-    unordered_map<string, shared_ptr<Op>> ops_;                 // opname: op
+    unordered_map<string, vector<shared_ptr<Tensor>>> ops_input_tensors_;  // opname: op's output Tensors
+    unordered_map<string, vector<shared_ptr<Tensor>>> ops_output_tensors_; // opname: op's output Tensors
+    unordered_map<string, shared_ptr<Tensor>> tensors_;                    // opname: Tensors
+    unordered_map<string, shared_ptr<Op>> ops_;                            // opname: op
 };
 
 } // namespace mllm

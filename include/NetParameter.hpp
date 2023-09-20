@@ -27,7 +27,7 @@ typedef struct TNetOp {
     OpType type;
     vector<NetTensor *> in;
     vector<NetTensor *> out;
-    vector<string> inOp; // input ops' names;
+    vector<string> in_op; // input ops' names;
     string name;
     OpParam param;
     // ~TNetOp() {

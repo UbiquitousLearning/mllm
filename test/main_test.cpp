@@ -32,54 +32,46 @@ void Display(NetParameter *net) {
         std::cout << std::endl;
     }
 }
-void Display(Context *ctx) {
-    for (auto sub : ctx->sub_param_) {
+void Display(Context *c) {
+    for (auto sub : c->sub_param_) {
         Display(sub);
     }
 }
 
 int main() {
-    // Tensor tensor_(1,3,5,5);
-    // std::cout << "Init Tensor" << std::endl;
-    // tensor_.Reshape(1,5,6,6);
-    // std::cout<<"Shape: ["<<tensor_.num()<<", "<<tensor_.channels()<<", "<<tensor_.height()<<", "<<tensor_.width()<<"]"<<std::endl;
-    // auto pTensor_ = tensor_.cpu_data();
-    // std::cout<<pTensor_<<":data[0]:"<<pTensor_[0]<<std::endl;
-    Context *ctx = new Context();
-    auto x = _Input(ctx, {1, 3, 3, 3});
-    x = _Softmax(ctx, {x}, -1);
-    auto z = _SiLU(ctx, {x});
-    Subgraph_begin(ctx);
-    auto y = _SiLU(ctx, {x});
-    x = _Matmul(ctx, {z, y});
-    x = _Softmax(ctx, {x}, -1);
+    Context *c = new Context();
+    auto x = _Input(c, {1, 3, 3, 3});
+    x = _Softmax(c, {x}, -1);
+    auto z = _SiLU(c, {x});
+    Subgraph_begin(c);
+    auto y = _SiLU(c, {x});
+    x = _Matmul(c, {z, y});
+    x = _Softmax(c, {x}, -1);
 
-    Display(ctx);
-    // 输出连接的 EOP
-    // NetParameter netParam;
-    // createNetParem(x, netParam);
+    // Display(c);
 
-    // NetParameter netParam;
+    // auto x = _Input({1, 3, 3, 3});
+    // auto y = _SiLU({x});
+    // x = _MatMul({x, y});
+    // x = _Scale({x});
+    // x = _SoftMax({x}, -1);
 
-    // 初始化 netParam 的成员变量
-    // netParam.input_name = "input";
-    // netParam.output_name = "output";
+    // // 输出连接的 EOP
+    // NetParameter net_param;
+    // createNetParem(x, net_param);
 
-    // NetOp op1 = {OpType::Silu, {0}, {0},{"Input0"}, "silu1"};
-    // NetOp op2 = {OpType::Add, {0}, {0}, {"Input0", "silu1"}, "add1"};
-    // NetOp op3 = {OpType::Matmul, {0}, {0}, {"add1", "Input0"}, "matmul1"};
+    std::vector<NetParameter> net_params;
 
-    // netParam.net_ops.push_back(op1);
-    // netParam.net_ops.push_back(op2);
-    // netParam.net_ops.push_back(op3);
+    for (auto ptr : c->sub_param_) {
+        net_params.push_back(*ptr); // 解引用并加入到新的 vector 中
+    }
+    BackendConfig bn;
 
-    // BackendConfig bn;
-
-    // Net net(netParam, bn);
-    // net.Convert();
+    Net net(net_params, bn);
+    net.Convert();
     // net.Run();
 
-    // Executor ex(&net);
-    // ex.Execute();
+    Executor ex(&net);
+    ex.Execute();
     return 0;
 }

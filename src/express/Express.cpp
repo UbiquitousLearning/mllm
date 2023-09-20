@@ -22,6 +22,7 @@ using namespace mllm;
     net_op_->name = name;                         \
     net_op_->type = type_;                        \
     net_op_->param = OpParam();                   \
+    net_op_->param["type"] = type_;               \
     ctx->net_ops.push_back(net_op_);
 
 #define _UPDATE_INPUT_TENSORS                                                                                                 \
@@ -35,34 +36,7 @@ using namespace mllm;
                 sub_param->net_inputs.insert(input);                                                                          \
             }                                                                                                                 \
         }                                                                                                                     \
-    } // 函数实现 _EOP_
-ETENSOR _EOP_(std::string name, OpType type, std::vector<ETENSOR> inputs, OpParam op_param) {
-    EOP op(name, type, op_param);
-    for (auto &input : inputs)
-        op.connectedETensors.push_back(input);
-    return ETENSOR(op);
-}
-
-// 函数实现 createNetParem
-//
-// void createNetParem(ETENSOR endT, NetParameter &net_param_) {
-//     loopNetParem(endT, net_param_);
-//     std::reverse(net_param_.net_ops.begin(), net_param_.net_ops.end());
-// }
-
-// int express_test() {
-//     ETENSOR x(EOP("input1", Input));
-//     // ETENSOR x("ETENSOR0");
-//     auto y = _EOP_("silu1", Silu,{x});
-//     x = _EOP_("matmul1", Matmul, {x, y});
-//     x = _EOP_("scale1", Scale,{x});
-
-// //     // 输出连接的 EOP
-// //     NetParameter net_param_;
-// //     createNetParem(x, net_param_);
-
-//     return 0;
-// }
+    }
 // get active subgraph
 NetParameter *get_active_subgraph(Context *ctx) {
     if (ctx->active_sub >= ctx->sub_param_.size()) {
@@ -71,12 +45,12 @@ NetParameter *get_active_subgraph(Context *ctx) {
     return ctx->sub_param_[ctx->active_sub];
 }
 NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
-    //Ref Count?
+    // Ref Count?
     NetTensor *net_tensor = new NetTensor();
     if (name.empty()) {
         name = "input" + std::to_string(ctx->idx);
     }
-    net_tensor->name = name;
+    net_tensor->name = name + "-00";
     net_tensor->shape = dims;
     net_tensor->type = type;
     net_tensor->subgraph = get_active_subgraph(ctx);
@@ -87,17 +61,17 @@ NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
     return net_tensor;
 }
 NetTensor *_Add(Context *ctx, std::vector<NetTensor *> inputs, string name) {
-    //TODO:Check
+    // TODO:Check
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "Add" + std::to_string(ctx->idx);
     }
-    out_tensor->name = name;
-    //TODO: check Type
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
-    _NEW_OP(mllm::SoftMax)
+    _NEW_OP(mllm::SOFTMAX)
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;
@@ -107,22 +81,12 @@ NetTensor *_SiLU(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     if (name.empty()) {
         name = "Silu" + std::to_string(ctx->idx);
     }
-    out_tensor->name = name;
-    //TODO: check Type
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
-    _NEW_OP(mllm::Silu)
-    // sub_param->net_ops.emplace_back();
-    // auto net_op_ = &(sub_param->net_ops.back());
-    // if (name.empty()) {
-    //     name = "Silu" + std::to_string(ctx->idx);
-    // }
-    // std::cout << net_op_ << std::endl;
-    // net_op_->name = name;
-    // net_op_->type = mllm::Silu;
-    // net_op_->param = OpParam();
-    // ctx->net_ops.push_back(net_op_);
+    _NEW_OP(mllm::SILU)
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;
@@ -132,12 +96,12 @@ NetTensor *_Softmax(Context *ctx, std::vector<NetTensor *> inputs, int axis, str
     if (name.empty()) {
         name = "Softmax" + std::to_string(ctx->idx);
     }
-    out_tensor->name = name;
-    //TODO: check Type
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
-    _NEW_OP(mllm::SoftMax)
+    _NEW_OP(mllm::SOFTMAX)
     net_op_->param["axis"] = axis;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
@@ -148,12 +112,12 @@ NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     if (name.empty()) {
         name = "Matmul" + std::to_string(ctx->idx);
     }
-    out_tensor->name = name;
-    //TODO: check Type
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
-    _NEW_OP(mllm::Matmul)
+    _NEW_OP(mllm::MATMUL)
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;
@@ -163,31 +127,102 @@ void Subgraph_begin(Context *ctx) {
     ctx->active_sub++;
 }
 
-// ETENSOR _Input(){
-//     ETENSOR x(EOP("input1", Input));
-//     return x;
-// }
-// ETENSOR _Add(std::string name, std::vector<ETENSOR> inputs){
-//     return _EOP_(name, Add, inputs);
-// }
-// ETENSOR _CausalMask(std::string name, std::vector<ETENSOR> inputs){
-//     return _EOP_(name, CausalMask, inputs);
-// }
-// ETENSOR _MatMul(std::string name, std::vector<ETENSOR> inputs){
-//     return _EOP_(name, Matmul, inputs);
-// }
-// ETENSOR _RMSNorm(std::string name, std::vector<ETENSOR> inputs){
-//     return _EOP_(name, RMSNorm, inputs);
-// }
-// ETENSOR _RoPE(std::string name, std::vector<ETENSOR> inputs){
-//     return _EOP_(name, RoPE, inputs);
-// }
-// ETENSOR _Scale(std::string name, std::vector<ETENSOR> inputs){
-//     return _EOP_(name, Scale, inputs);
-// }
-// ETENSOR _SiLU(std::string name, std::vector<ETENSOR> inputs){
-//     return _EOP_(name, Silu, inputs);
-// }
-// ETENSOR _SoftMax(std::string name, std::vector<ETENSOR> inputs){
-//     return _EOP_(name, SoftMax, inputs);
-// }
+/***
+ *
+ * OLD VERSION
+ *
+
+static int op_idx = 0;
+
+// 函数实现 _EOP_
+ETENSOR _EOP_(std::string name, OpType type, std::vector<ETENSOR> inputs, OpParam op_param) {
+    EOP op(name, type, op_param);
+    for (auto &input : inputs)
+        op.connectedETensors.push_back(input);
+    return ETENSOR(op);
+}
+
+ETENSOR _Input(vector<int> shape) {
+    OpParam opparam;
+    opparam["type"] = INPUT;
+    ETENSOR x(EOP(OpNames[INPUT] + std::to_string(op_idx), INPUT, opparam));
+    return x;
+}
+ETENSOR _Add(std::vector<ETENSOR> inputs) {
+    op_idx++;
+    OpParam opparam;
+    opparam["type"] = ADD;
+    return _EOP_(OpNames[ADD] + std::to_string(op_idx), ADD, inputs, opparam);
+}
+ETENSOR _CausalMask(std::vector<ETENSOR> inputs) {
+    op_idx++;
+    OpParam opparam;
+    opparam["type"] = CAUSALMASK;
+    return _EOP_(OpNames[CAUSALMASK] + std::to_string(op_idx), CAUSALMASK, inputs, opparam);
+}
+ETENSOR _MatMul(std::vector<ETENSOR> inputs) {
+    op_idx++;
+    OpParam opparam;
+    opparam["type"] = MATMUL;
+    return _EOP_(OpNames[MATMUL] + std::to_string(op_idx), MATMUL, inputs, opparam);
+}
+ETENSOR _RMSNorm(std::vector<ETENSOR> inputs) {
+    op_idx++;
+    OpParam opparam;
+    opparam["type"] = RMSNORM;
+    return _EOP_(OpNames[RMSNORM] + std::to_string(op_idx), RMSNORM, inputs, opparam);
+}
+ETENSOR _RoPE(std::vector<ETENSOR> inputs) {
+    op_idx++;
+    OpParam opparam;
+    opparam["type"] = ROPE;
+    return _EOP_(OpNames[ROPE] + std::to_string(op_idx), ROPE, inputs, opparam);
+}
+ETENSOR _Scale(std::vector<ETENSOR> inputs) {
+    op_idx++;
+    OpParam opparam;
+    opparam["type"] = SCALE;
+    return _EOP_(OpNames[SCALE] + std::to_string(op_idx), SCALE, inputs, opparam);
+}
+ETENSOR _SiLU(std::vector<ETENSOR> inputs) {
+    op_idx++;
+    OpParam opparam;
+    opparam["type"] = SILU;
+    return _EOP_(OpNames[SILU] + std::to_string(op_idx), SILU, inputs, opparam);
+}
+ETENSOR _SoftMax(std::vector<ETENSOR> inputs, int axis) {
+    op_idx++;
+    OpParam opparam;
+    opparam["type"] = SOFTMAX;
+    opparam["axis"] = axis;
+    return _EOP_(OpNames[SOFTMAX] + std::to_string(op_idx), SOFTMAX, inputs, opparam);
+}
+
+// 函数实现 createNetParem
+void loopNetParem(ETENSOR end_t, NetParameter &net_param) {
+    auto net_op_ = new NetOp();
+    net_op_->name = end_t.op.name;
+    net_op_->type = end_t.op.type;
+    net_op_->param = end_t.op.op_param;
+    for (const auto &ETensor : end_t.op.connectedETensors) {
+        net_op_->in_op.push_back(ETensor.op.name);
+        auto nt = new NetTensor();
+        nt->name = "outtensor-" + ETensor.op.name + "-00";
+        net_op_->in.push_back(nt);
+    }
+    // std::cout << std::endl;
+    if (net_op_->in_op.size() || net_op_->in.size()) {
+        net_param.net_ops.push_back(net_op_);
+    }
+
+    // 递归调用，继续打印连接的 op
+    for (const auto &ETENSOR : end_t.op.connectedETensors) {
+        loopNetParem(ETENSOR, net_param);
+    }
+}
+void createNetParem(ETENSOR end_t, NetParameter &net_param) {
+    loopNetParem(end_t, net_param);
+    std::reverse(net_param.net_ops.begin(), net_param.net_ops.end());
+}
+
+ */

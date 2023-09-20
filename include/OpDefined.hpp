@@ -12,7 +12,7 @@ enum OpType {
     ADD,
     SOFTMAX,
     SILU,
-    MAUMUL,
+    MATMUL,
     SCALE,
     ROPE,
     RMSNORM,

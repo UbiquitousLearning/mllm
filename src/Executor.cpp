@@ -4,10 +4,13 @@ void Executor::Init() {
 }
 
 void Executor::Execute() {
-    for (auto kv : net_->subGraphFP()) {
-        std::cout << kv.first << std::endl;
-        GraphSetup(kv.second);
-        auto result = GraphForward(kv.second);
+    // for (auto kv : net_->subGraphFP()) {
+    for (int i = 0; i < (int)net_->subGraphFP().size(); ++i) {
+        string name = "G" + std::to_string(i);
+        auto &g = net_->subGraphFP()[name];
+        std::cout << name << std::endl;
+        GraphSetup(g);
+        auto result = GraphForward(g);
     }
 }
 
