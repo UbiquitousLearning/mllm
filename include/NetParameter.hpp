@@ -30,6 +30,7 @@ typedef struct TNetOp {
     vector<string> in_op; // input ops' names;
     string name;
     OpParam param;
+    int out_size = 1; // output tensor size
     // ~TNetOp() {
     //     std::cout << "delete op: " << name << std::endl;
     // }

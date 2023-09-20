@@ -4,18 +4,11 @@
 #include "Graph.hpp"
 #include "OpDefined.hpp"
 
-void splitTensorName(std::string input) {
-    std::vector<std::string> result;
-    std::stringstream ss(input);
-    std::string segment;
-
-    while (std::getline(ss, segment, '-')) {
-        result.push_back(segment);
-    }
-
-    // 输出拆分后的字符串
-    for (const auto &str : result) {
-        std::cout << str << std::endl;
+std::string intToStringWithLeadingZero(int num) {
+    if (num < 10) {
+        return "0" + std::to_string(num);
+    } else {
+        return std::to_string(num);
     }
 }
 
@@ -92,16 +85,15 @@ void Graph::Init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
             }
         }
         vector<shared_ptr<Tensor>> outTensors;
-        auto out_t_name = "outtensor-" + lname + "-00";
-        auto it = tensors_.find(out_t_name);
-        if (it != tensors_.end()) {
-            outTensors.push_back(tensors_[out_t_name]);
-        } else {
-            outTensors.push_back(external_tensors[out_t_name]);
+        for (int i = 0; i < net_op->out_size; i++) {
+            auto out_t_name = "outtensor-" + lname + "-" + intToStringWithLeadingZero(i);
+            auto it = tensors_.find(out_t_name);
+            if (it != tensors_.end()) {
+                outTensors.push_back(tensors_[out_t_name]);
+            } else {
+                outTensors.push_back(external_tensors[out_t_name]);
+            }
         }
-
-        // splitTensorName(in_t_name);
-        // std::cout << lname << std::endl;
         ops_input_tensors_[lname] = inTensors;
         ops_output_tensors_[lname] = outTensors;
         ops_[lname] = myOp;

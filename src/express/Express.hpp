@@ -25,7 +25,7 @@ NetTensor *_Softmax(Context *ctx, std::vector<NetTensor *> inputs, int axis, str
 NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 
 /*
-// 定义 EOP 结构体
+// OLD VERSION
 struct EOP {
     std::string name;
     std::vector<ETENSOR> connectedETensors;
