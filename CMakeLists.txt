@@ -9,6 +9,9 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
 # temp executable name
 set(TEST_EXE main_test)
 
+# backend options
+option(NNAPI "Enable NNAPI" OFF)
+
 aux_source_directory(${PROJECT_SOURCE_DIR}/src  DIR_SRC)
 # aux_source_directory(${PROJECT_SOURCE_DIR}/src/backends/cpu  DIR_SRC_CPU)
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/express  DIR_SRC_EXP)
@@ -24,3 +27,8 @@ add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/test/main_test.cpp ${DIR_SRC_CP
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 target_link_libraries(${TEST_EXE} MLLM_CPU)
+
+if(NNAPI)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/nnapi)
+    target_link_libraries(${TEST_EXE} MLLM_NNAPI)
+endif()

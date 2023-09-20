@@ -1,0 +1,1 @@
+// this file should copy from Android NDK
