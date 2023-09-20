@@ -1,13 +1,17 @@
 #ifndef NNAPIDefine_h
 #define NNAPIDefine_h
 
-#ifdef MNN_NNAPI_ENABLED
+// for development
+#include "NNAPINeuralNetworks.h"
+#define ANDROID_API_LEVEL (android_get_device_api_level())
+
+#ifdef NNAPI_ENABLED
 #ifdef __ANDROID__
 #include "NNAPINeuralNetworks.h"
 #define ANDROID_API_LEVEL (android_get_device_api_level())
 #else
-#undef MNN_NNAPI_ENABLED
-#define MNN_NNAPI_ENABLED 0
+#undef NNAPI_ENABLED
+#define NNAPI_ENABLED 0
 #define ANDROID_API_LEVEL (0)
 #endif
 #endif
