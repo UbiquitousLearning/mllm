@@ -17,6 +17,7 @@ enum OpType {
     ROPE,
     RMSNORM,
     CAUSALMASK,
+    LINEAR,
     OP_NUM
 };
 
@@ -30,6 +31,7 @@ static const vector<string> OpNames = {
     "RoPE",
     "RMSNorm",
     "CausalMask",
+    "Linear",
     "OP_NUM"};
 } // namespace mllm
 #endif

@@ -38,26 +38,35 @@ void Display(Context *c) {
     }
 }
 int main() {
+    // test model sample
+    // Context *c = new Context();
+    // auto x = _Input(c, {1, 3, 3, 3});
+    // x = _Softmax(c, {x}, -1);
+    // auto z = _SiLU(c, {x});
+    // Subgraph_begin(c);
+    // auto y = _SiLU(c, {x});
+    // x = _Matmul(c, {z, y});
+    // x = _Softmax(c, {x}, -1);
+
+    // decoder blk sample
     Context *c = new Context();
-    auto x = _Input(c, {1, 3, 3, 3});
-    x = _Softmax(c, {x}, -1);
-    auto z = _SiLU(c, {x});
+    auto in = _Input(c, {1, 1, 1, 1});
+    auto x = _RMSNorm(c, {in});
+    auto q = _Linear(c, {x}, 1, 1, false);
+    auto k = _Linear(c, {x}, 1, 1, false);
+    auto v = _Linear(c, {x}, 1, 1, false);
+    auto o = _Matmul(c, {q, k});
+    o = _Softmax(c, {o}, -1);
+    o = _Matmul(c, {o, v});
+    o = _Linear(c, {o}, 1, 1, false);
+    o = _Add(c, {o, in});
     Subgraph_begin(c);
-    auto y = _SiLU(c, {x});
-    x = _Matmul(c, {z, y});
-    x = _Softmax(c, {x}, -1);
+    x = _RMSNorm(c, {o});
+    x = _Linear(c, {x}, 1, 1, false);
+    x = _Linear(c, {x}, 1, 1, false);
+    o = _Add(c, {o, x});
 
     // Display(c);
-
-    // auto x = _Input({1, 3, 3, 3});
-    // auto y = _SiLU({x});
-    // x = _MatMul({x, y});
-    // x = _Scale({x});
-    // x = _SoftMax({x}, -1);
-
-    // // 输出连接的 EOP
-    // NetParameter net_param;
-    // createNetParem(x, net_param);
 
     BackendConfig bn;
 

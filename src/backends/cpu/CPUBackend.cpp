@@ -8,6 +8,7 @@
 #include "CPUScale.hpp"
 #include "CPUSiLU.hpp"
 #include "CPUSoftMax.hpp"
+#include "CPULinear.hpp"
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager> mm) :
     Backend(mm) {
@@ -58,6 +59,7 @@ void CPUBackend::RegisterOps() {
     addCreator(SCALE, (CPUBackend::Creator *)(new CPUScaleCreator()));
     addCreator(SILU, (CPUBackend::Creator *)(new CPUSiLUCreator()));
     addCreator(SOFTMAX, (CPUBackend::Creator *)(new CPUSoftMaxCreator()));
+    addCreator(LINEAR, (CPUBackend::Creator *)(new CPULinearCreator()));
 }
 
 } // namespace mllm
