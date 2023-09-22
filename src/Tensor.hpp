@@ -3,9 +3,8 @@
 #define MLLM_TENSOR_H
 
 #include <climits>
-#include <string>
-#include "MemoryManager.hpp"
 #include "Backend.hpp"
+#include "Check.hpp"
 
 const auto KMaxAxes = 32;
 
@@ -78,8 +77,8 @@ public:
     inline int numAxes() const {
         return shape_.size();
     }
-    inline string shapeString() const {
-        ostringstream stream;
+    inline string ShapeString() const {
+        std::ostringstream stream;
         for (int i : shape_) {
             stream << i << " ";
         }

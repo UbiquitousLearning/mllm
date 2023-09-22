@@ -1,11 +1,7 @@
 #include "Net.hpp"
-#include "MemoryManager.hpp"
-#include "Op.hpp"
-#include "Types.hpp"
-#include "backends/cpu/CPUAdd.hpp"
 #include "backends/cpu/CPUBackend.hpp"
-#include <map>
-#include <vector>
+#include "memory/SystemMemoryManager.hpp"
+#include "Types.hpp"
 namespace mllm {
 Net::Net(const vector<NetParameter> &param, BackendConfig config) :
     net_param_(param), config_(config) {

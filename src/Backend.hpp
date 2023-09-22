@@ -3,6 +3,9 @@
 
 #include "MemoryManager.hpp"
 #include "NetParameter.hpp"
+#include <memory>
+using std::shared_ptr;
+
 namespace mllm {
 class Op;
 

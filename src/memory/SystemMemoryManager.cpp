@@ -1,6 +1,8 @@
 
-#include "MemoryManager.hpp"
+#include "memory/SystemMemoryManager.hpp"
 #include <cassert>
+#include <cstdint>
+#include <cstdlib>
 
 namespace mllm {
 
