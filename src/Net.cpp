@@ -27,8 +27,8 @@ Net::Net(const vector<NetParameter> &param, BackendConfig config) :
     // tensors_[in_tensor->name]->SetBackend(backends_[BackendType::mllm_CPU]);
     tensors_[in_tensor->name]->Reshape(in_tensor->shape[0], in_tensor->shape[1], in_tensor->shape[2], in_tensor->shape[3]);
     for (auto &sub_param : net_param_) {
-        auto out_tensor = sub_param.net_outputs;
-        for (const auto &out_t : out_tensor) {
+        auto in_tensor = sub_param.net_inputs;
+        for (const auto &out_t : in_tensor) {
             tensors_[out_t->name] = std::make_shared<Tensor>();
             tensors_[out_t->name]->SetName(out_t->name);
             // tensors_[in_tensor->name]->SetByteWidth(sizeof(float));

@@ -26,6 +26,18 @@ using namespace mllm;
     net_op_->param["type"] = type_;               \
     ctx->net_ops.push_back(net_op_);
 
+// #define _UPDATE_INPUT_TENSORS                                                                                                 \
+//     for (auto &input : inputs) {                                                                                              \
+//         net_op_->in.push_back(input);                                                                                         \
+//         input->out.push_back(net_op_);                                                                                        \
+//         if (std::find(sub_param->net_tensors.begin(), sub_param->net_tensors.end(), input) == sub_param->net_tensors.end()) { \
+//             sub_param->net_tensors.push_back(input);                                                                          \
+//             if (input->subgraph != nullptr) {                                                                                 \
+//                 input->subgraph->net_outputs.insert(input);                                                                   \
+//                 sub_param->net_inputs.insert(input);                                                                          \
+//             }                                                                                                                 \
+//         }                                                                                                                     \
+//     }
 #define _UPDATE_INPUT_TENSORS                                                                                                 \
     for (auto &input : inputs) {                                                                                              \
         net_op_->in.push_back(input);                                                                                         \
@@ -33,7 +45,6 @@ using namespace mllm;
         if (std::find(sub_param->net_tensors.begin(), sub_param->net_tensors.end(), input) == sub_param->net_tensors.end()) { \
             sub_param->net_tensors.push_back(input);                                                                          \
             if (input->subgraph != nullptr) {                                                                                 \
-                input->subgraph->net_outputs.insert(input);                                                                   \
                 sub_param->net_inputs.insert(input);                                                                          \
             }                                                                                                                 \
         }                                                                                                                     \
