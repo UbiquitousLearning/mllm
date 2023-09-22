@@ -1,13 +1,20 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.7.2)
 
 project(mllm)
 
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" "-ggdb3")
+
 # temp executable name
 set(TEST_EXE main_test)
+
+
+
+# SET(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
+# find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
+set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++14 -stdlib=libc++")
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/src  DIR_SRC)
 # aux_source_directory(${PROJECT_SOURCE_DIR}/src/backends/cpu  DIR_SRC_CPU)

@@ -22,7 +22,7 @@ CPUBackend::CPUBackend(shared_ptr<MemoryManager> mm) :
 // }
 Op *CPUBackend::OpCreate(const OpParam &op_param) {
     OpType optype = OpType(op_param.find("type")->second);
-    auto map = map_creator_;
+    auto *map = map_creator_;
     auto iter = map->find(optype);
     if (iter == map->end()) {
         printf("Don't support type \n");

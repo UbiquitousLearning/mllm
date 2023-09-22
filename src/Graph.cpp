@@ -7,9 +7,8 @@
 std::string intToStringWithLeadingZero(int num) {
     if (num < 10) {
         return "0" + std::to_string(num);
-    } else {
-        return std::to_string(num);
     }
+    return std::to_string(num);
 }
 
 namespace mllm {
@@ -51,20 +50,20 @@ void Graph::Init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
     // }
 
     for (int i = 0; i < (int)param_.net_tensors.size(); ++i) {
-        auto net_tensor = param_.net_tensors[i];
+        auto *net_tensor = param_.net_tensors[i];
         auto it = external_tensors.find(net_tensor->name);
         if (it == tensors_.end()) { // not in external_tensors
-            auto net_tensor = param_.net_tensors[i];
+            auto *net_tensor = param_.net_tensors[i];
             tensors_[net_tensor->name] = std::make_shared<Tensor>();
             tensors_[net_tensor->name]->SetName(net_tensor->name);
         }
     }
 
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto net_op = param_.net_ops[i];
-        shared_ptr<Op> myOp(NULL);
-        auto newOp = backend_->OpCreate(net_op->param);
-        myOp.reset(newOp);
+        auto *net_op = param_.net_ops[i];
+        shared_ptr<Op> my_op(NULL);
+        auto *new_op = backend_->OpCreate(net_op->param);
+        my_op.reset(new_op);
         string lname = net_op->name;
 
         // TODO: CHECK一下 inTensors 尤其是[0]
@@ -75,7 +74,7 @@ void Graph::Init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
         // }
         auto in_tensors = net_op->in;
         vector<shared_ptr<Tensor>> inTensors;
-        for (auto in_t : in_tensors) {
+        for (auto *in_t : in_tensors) {
             auto in_t_name = in_t->name;
             auto it = tensors_.find(in_t_name);
             if (it != tensors_.end()) {
@@ -96,7 +95,7 @@ void Graph::Init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
         }
         ops_input_tensors_[lname] = inTensors;
         ops_output_tensors_[lname] = outTensors;
-        ops_[lname] = myOp;
+        ops_[lname] = my_op;
         ops_[lname]->Reshape(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:1.Reshape
     }
 }
@@ -107,7 +106,7 @@ void Graph::Setup() {
     //     t->SetName("Input0_");
     // }
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto net_op = param_.net_ops[i];
+        auto *net_op = param_.net_ops[i];
         string lname = net_op->name; // op_names_[i];
         // TODO: CHECK一下 inTensors 尤其是[0]
         // vector<string> inames = net_op->in_op; // op_in_names_[i];
@@ -126,7 +125,7 @@ void Graph::Setup() {
 
 void Graph::Load(ParamLoader &loader) {
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto net_op = param_.net_ops[i];
+        auto *net_op = param_.net_ops[i];
         ops_[net_op->name]->Load(loader);
     }
 
@@ -143,7 +142,7 @@ const vector<shared_ptr<Tensor>> &Graph::Forward() {
     // TODO 改为递归
 
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto net_op = param_.net_ops[i];
+        auto *net_op = param_.net_ops[i];
         string lname = net_op->name;
         // TODO: CHECK一下 inTensors 尤其是[0]
         // vector<string> inames = net_op->in_op; // op_in_names_[i];

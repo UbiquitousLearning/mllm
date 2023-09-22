@@ -1,0 +1,35 @@
+# currently disable:
+# misc-*,
+# -misc-non-private-member-variables-in-classes,
+  #   bugprone-*,
+  # modernize-*,
+  #,
+  # performance-*,
+  # portability-*,
+Checks: >
+  -*,
+  readability-*,
+  -readability-convert-member-functions-to-static,
+  -readability-named-parameter,
+  -readability-braces-around-statements,
+  -readability-magic-numbers,
+  -readability-identifier-length
+
+
+# Turn all the warnings from the checks above into errors.
+WarningsAsErrors: "*"
+
+CheckOptions:
+  # see https://clang.llvm.org/extra/clang-tidy/checks/readability/identifier-naming.html for detail
+  - { key: readability-identifier-naming.NamespaceCase,          value: lower_case }
+  - { key: readability-identifier-naming.ClassCase,              value: CamelCase  }
+  - { key: readability-identifier-naming.StructCase,             value: CamelCase  }
+  - { key: readability-identifier-naming.TemplateParameterCase,  value: CamelCase  }
+  - { key: readability-identifier-naming.FunctionCase,           value: camelBack  }
+  - { key: readability-identifier-naming.PublicMethodCase,       value: CamelCase }
+  - { key: readability-identifier-naming.PrivateMethodCase,       value: CamelCase }
+  - { key: readability-identifier-naming.EnumConstantCase,         value: CamelCase }
+  - { key: readability-identifier-naming.ConstexprVariableCase,    value: CamelCase }
+  - { key: readability-identifier-naming.GlobalConstantCase,       value: CamelCase }
+  - { key: readability-identifier-naming.MemberConstantCase,       value: CamelCase }
+  - { key: readability-identifier-naming.StaticConstantCase,       value: CamelCase }

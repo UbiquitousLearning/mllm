@@ -42,9 +42,8 @@ bool Tensor::Reshape(const vector<int> &shape) {
         // data_.reset(new  HostMemory(capacity_ * sizeof(Dtype)));
         // diff_.reset(new  HostMemory(capacity_ * sizeof(Dtype)));
         return true;
-    } else {
-        return false;
     }
+    return false;
 }
 
 void Tensor::Alloc() {

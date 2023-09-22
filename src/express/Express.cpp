@@ -6,7 +6,7 @@
 #include "NetParameter.hpp"
 #include "OpDefined.hpp"
 #include <algorithm> // 包含 reverse 函数的头文件
-#include <iostream>
+
 using namespace mllm;
 #define _STORE_OUT_TENSOR                      \
     ctx->net_tensors.insert(out_tensor);       \
@@ -43,8 +43,8 @@ static void topology(const NetParameter *net, vector<NetOp *> &result, NetOp *op
         return;
     }
     visited[op] = true;
-    for (auto input : op->in) {
-        if (input->in && std::find(net->net_inputs.begin(), net->net_inputs.end(), input) == net->net_inputs.end()) {
+    for (auto *input : op->in) {
+        if (input->in != nullptr && std::find(net->net_inputs.begin(), net->net_inputs.end(), input) == net->net_inputs.end()) {
             topology(net, result, input->in, visited);
         }
     }
@@ -55,10 +55,10 @@ void NetParameter::TopologySort() {
     std::unordered_map<NetOp *, bool> visited;
     result->reserve(net_ops.size());
     visited.reserve(net_ops.size());
-    for (auto op : net_ops) {
+    for (auto *op : net_ops) {
         topology(this, *result, op, visited);
     }
-    for (auto op : *result) {
+    for (auto *op : *result) {
         std::cout << op->name << std::endl;
     }
     net_ops = *result;
@@ -81,7 +81,7 @@ NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
     net_tensor->type = type;
     net_tensor->subgraph = get_active_subgraph(ctx);
     ctx->idx++;
-    auto sub_param = get_active_subgraph(ctx);
+    auto *sub_param = get_active_subgraph(ctx);
     sub_param->net_tensors.push_back(net_tensor);
     ctx->net_tensors.insert(net_tensor);
     return net_tensor;
