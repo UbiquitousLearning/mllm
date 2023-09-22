@@ -1,40 +1,29 @@
 
 #include "MemoryManager.hpp"
+#include <cassert>
 
 namespace mllm {
 
-// HostMemory::HostMemory()
-// : host_ptr_(nullptr), size_(0){}
+static inline void **alignPointer(void **ptr, size_t alignment) {
+    return (void **)((intptr_t)((unsigned char *)ptr + alignment - 1) & -alignment);
+}
 
-// HostMemory::HostMemory(size_t size)
-// : host_ptr_(nullptr), size_(size){}
+void SystemMemoryManager::Alloc(void **ptr, size_t size,size_t alignment){
+    assert(size > 0);
 
-// HostMemory::~HostMemory() {
-//     if (host_ptr_ ) {
-//         mllmFreeHost(host_ptr_);
-//     }
-// }
+    void **origin = (void **)malloc(size + sizeof(void *) + alignment);
+    assert(origin != NULL);
+    if (!origin) {
+        *ptr = NULL;
+    }
 
-// void HostMemory::to_cpu() {
-//     mllmMallocHost(&host_ptr_, size_);
-//     mllmMemset(host_ptr_, 0, size_);
-// }
+    void **aligned = alignPointer(origin + 1, alignment);
+    aligned[-1]    = origin;
+    *ptr = aligned;
+}
 
-// void HostMemory::set_cpu_data(void *data) {
-//     CHECK(data);
-//     if (own_cpu_data_) {
-//         mllmFreeHost(host_ptr_);
-//     }
-//     host_ptr_ = data;
-//     own_cpu_data_ = false;//外部的数据，不是自己的指针，所以是false
-// }
-
-// const void *HostMemory::cpu_data() {
-//     to_cpu();
-//     return (const void*)host_ptr_;
-// }
-
-MemoryManager::MemoryManager() {
+void SystemMemoryManager::Free(void **ptr){
+    free(*ptr);
 }
 
 } // namespace mllm

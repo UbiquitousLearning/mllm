@@ -26,8 +26,8 @@ public:
 
     void release(){};
 
-    void alloc(void **ptr, size_t size) {
-        mem_manager_->alloc(ptr, size);
+    void Alloc(void **ptr, size_t size,size_t alignment) {
+        mem_manager_->Alloc(ptr, size, alignment);
     }
 
     void free(void **ptr) {
