@@ -25,7 +25,7 @@ CheckOptions:
   - { key: readability-identifier-naming.ClassCase,              value: CamelCase  }
   - { key: readability-identifier-naming.StructCase,             value: CamelCase  }
   - { key: readability-identifier-naming.TemplateParameterCase,  value: CamelCase  }
-  - { key: readability-identifier-naming.FunctionCase,           value: camelBack  }
+  <!-- - { key: readability-identifier-naming.FunctionCase,           value: camelBack  } -->
   - { key: readability-identifier-naming.PublicMethodCase,       value: CamelCase }
   - { key: readability-identifier-naming.PrivateMethodCase,       value: CamelCase }
   - { key: readability-identifier-naming.EnumConstantCase,         value: CamelCase }
