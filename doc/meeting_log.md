@@ -70,3 +70,8 @@ Op类同上.
 1. 类图见<https://bwlvw7nk5ty.feishu.cn/wiki/JVZFwtfKBin09lkOtq5cQqaHnef>
 
 
+# 09.22 会议决定
+
+1. 使用clang-tidy
+
+2. subgraph后续改成自动划分
