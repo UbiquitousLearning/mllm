@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.7.2)
+cmake_minimum_required(VERSION 3.10)
 
 project(mllm)
 
@@ -35,6 +35,8 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/thirdpartys/include)
 
 add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/test/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER})
+add_executable(test_memory_SystemMemoryManager ${PROJECT_SOURCE_DIR}/test/test_memory_SystemMemoryManager.cpp ${DIR_SRC_MEM_MANAGER})
+
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 target_link_libraries(${TEST_EXE} MLLM_CPU)
