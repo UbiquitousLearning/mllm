@@ -7,22 +7,22 @@ CPULinear::CPULinear(Backend *bn, int in_features, int out_features, bool bias, 
     Op(bn) {
 }
 
-ErrorCode CPULinear::Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPULinear  Reshape" << std::endl;
+ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPULinear  reshape" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPULinear::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPULinear  Setup" << std::endl;
+ErrorCode CPULinear::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPULinear  setUp" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPULinear::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     std::cout << "CPULinear()" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPULinear::Load(ParamLoader &loader) {
+ErrorCode CPULinear::load(ParamLoader &loader) {
     std::cout << "CPULinear load" << std::endl;
     return NO_ERROR;
 }

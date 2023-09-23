@@ -22,27 +22,23 @@ public:
     //     return true;
     // }
 
-    // bool CheckSupport(shared_ptr<Op> op) {
-    //     // return OPMap.contains(op->type);
-    //     return true;
-    // }
-    void Init(); // TODO: Config
+    void init(){}; // TODO: Config
 
-    void Release();
+    void release(){};
 
-    void Alloc(void **ptr, size_t size) {
-        mem_manager_->Alloc(ptr, size);
+    void alloc(void **ptr, size_t size) {
+        mem_manager_->alloc(ptr, size);
     }
 
-    void Free(void **ptr) {
-        mem_manager_->Free(ptr);
+    void free(void **ptr) {
+        mem_manager_->free(ptr);
     }
 
     // unordered_map<OpType, Op*(*)(Backend*)> OpMap(){
     //     return op_map_;
     // }
 
-    // void Execute() {
+    // void execute() {
 
     // }
 
@@ -57,8 +53,8 @@ public:
      */
     // virtual Op* OpCreate(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
     //                             OpParam op_param) = 0;
-    virtual Op *OpCreate(const OpParam &op_param) = 0;
-    virtual void RegisterOps() = 0;
+    virtual Op *opCreate(const OpParam &op_param) = 0;
+    virtual void registerOps() = 0;
     // virtual void* OpCreater(OpParam op_param);
 private:
     //

@@ -15,13 +15,13 @@ public:
     public:
         // virtual Op* Create(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
         //                             OpParam op_param, Backend* backend) const = 0;
-        virtual Op *Create(OpParam op_param, Backend *bn) const = 0;
+        virtual Op *create(OpParam op_param, Backend *bn) const = 0;
     };
     void initCreatorMap() {
         map_creator_ = new std::map<OpType, CPUBackend::Creator *>;
     }
     bool addCreator(OpType t, Creator *c) {
-        auto map = map_creator_;
+        auto *map = map_creator_;
         if (map->find(t) != map->end()) {
             printf("Error: %d type has be added\n", t);
             return false;
@@ -33,9 +33,9 @@ public:
     // virtual Op* OpCreate(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
     //                             OpParam op_param) override;
 
-    virtual Op *OpCreate(const OpParam &op_param) override;
+    virtual Op *opCreate(const OpParam &op_param) override;
 
-    virtual void RegisterOps() override;
+    virtual void registerOps() override;
 
 private:
     std::map<OpType, CPUBackend::Creator *> *map_creator_;

@@ -43,7 +43,7 @@ int main() {
     // auto* x = _Input(c, {1, 3, 3, 3});
     // x = _Softmax(c, {x}, -1);
     // auto* z = _SiLU(c, {x});
-    // Subgraph_begin(c);
+    // _SubgraphBegin(c);
     // auto* y = _SiLU(c, {x});
     // x = _Matmul(c, {z, y});
     // x = _Softmax(c, {x}, -1);
@@ -60,7 +60,7 @@ int main() {
     o = _Matmul(c, {o, v});
     o = _Linear(c, {o}, 1, 1, false);
     o = _Add(c, {o, in});
-    Subgraph_begin(c);
+    _SubgraphBegin(c);
     x = _RMSNorm(c, {o});
     x = _Linear(c, {x}, 1, 1, false);
     x = _Linear(c, {x}, 1, 1, false);
@@ -71,10 +71,10 @@ int main() {
     BackendConfig bn;
 
     Net net(c->sub_param_, bn);
-    net.Convert();
+    net.convert();
     // net.Run();
 
     Executor ex(&net);
-    ex.Execute();
+    ex.execute();
     return 0;
 }

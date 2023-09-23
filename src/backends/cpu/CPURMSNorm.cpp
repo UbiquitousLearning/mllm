@@ -10,22 +10,22 @@ CPURMSNorm::CPURMSNorm(Backend *bn, bool multiThread) :
     Op(bn) {
 }
 
-ErrorCode CPURMSNorm::Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPURMSNorm  Reshape" << std::endl;
+ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPURMSNorm  reshape" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPURMSNorm::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPURMSNorm  Setup" << std::endl;
+ErrorCode CPURMSNorm::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPURMSNorm  setUp" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPURMSNorm::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     std::cout << "CPURMSNorm()" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPURMSNorm::Load(ParamLoader &loader) {
+ErrorCode CPURMSNorm::load(ParamLoader &loader) {
     std::cout << "CPURMSNorm load" << std::endl;
     return NO_ERROR;
 }

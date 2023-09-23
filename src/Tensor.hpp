@@ -7,7 +7,7 @@
 #include "MemoryManager.hpp"
 #include "Backend.hpp"
 
-const int kMaxAxes = 32;
+const auto KMaxAxes = 32;
 
 namespace mllm {
 class Backend;
@@ -16,37 +16,35 @@ class Tensor {
 public:
     // Tensor():data_(), diff_(), capacity_(0){}
     Tensor() :
-        capacity_(0), bytewidth_(sizeof(float)) {
+        capacity_(0), byte_width_(sizeof(float)) {
     }
     Tensor(Backend *bn) :
-        backend_(bn), capacity_(0), bytewidth_(sizeof(float)) {
+        backend_(bn), capacity_(0), byte_width_(sizeof(float)) {
     }
     explicit Tensor(const int num, const int channels, const int height, const int width); // N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
     explicit Tensor(const vector<int> &shape);
     // void SetBackend(shared_ptr<Backend> bn){
     //     backend_= bn;
     // };
-    void SetBackend(Backend *bn) {
+    void setBackend(Backend *bn) {
         backend_ = bn;
     };
 
-    bool Reshape(const int num, const int channels, const int height, const int width);
-    bool Reshape(const vector<int> &shape);
+    bool reshape(const int num, const int channels, const int height, const int width);
+    bool reshape(const vector<int> &shape);
 
-    void Alloc();
+    void alloc();
 
     // const float* cpu_data() const; //静态访问
     // const Dtype* cpu_diff() const;
 
     template <typename Dtype>
-    Dtype *HostPtr() {
+    Dtype *hostPtr() {
         return (Dtype *)host_ptr_;
     }
 
-    // void set_cpu_data(Dtype* data);
-    // void set_cpu_diff(Dtype* diff);
 
-    void Update();
+    void update();
 
     /*
             //TODO 针对data的计算，或者加一个参数is_diff来支持data&diff
@@ -64,29 +62,29 @@ public:
     */
 
     // Deprecated legacy shape accessor num: use shape(0) instead.
-    inline int Num() const {
-        return LegacyShape(0);
+    inline int num() const {
+        return legacyShape(0);
     }
     // Deprecated legacy shape accessor channels: use shape(1) instead.
-    inline int Channels() const {
-        return LegacyShape(1);
+    inline int channels() const {
+        return legacyShape(1);
     }
     // Deprecated legacy shape accessor height: use shape(2) instead.
-    inline int Height() const {
-        return LegacyShape(2);
+    inline int height() const {
+        return legacyShape(2);
     }
     // Deprecated legacy shape accessor width: use shape(3) instead.
-    inline int Width() const {
-        return LegacyShape(3);
+    inline int width() const {
+        return legacyShape(3);
     }
 
-    inline int Count() const {
+    inline int count() const {
         return count_;
     }
-    inline int NumAxes() const {
+    inline int numAxes() const {
         return shape_.size();
     }
-    inline string ShapeString() const {
+    inline string shapeString() const {
         ostringstream stream;
         for (int i : shape_) {
             stream << i << " ";
@@ -94,59 +92,59 @@ public:
         stream << "(" << count_ << ")";
         return stream.str();
     }
-    inline int CanonicalAxisIndex(int axis_index) const {
-        CHECK_GE(axis_index, -NumAxes())
-            << "axis " << axis_index << " out of range for " << NumAxes()
-            << "-D Tensor with shape " << ShapeString();
-        CHECK_LT(axis_index, NumAxes())
-            << "axis " << axis_index << " out of range for " << NumAxes()
-            << "-D Tensor with shape " << ShapeString();
+    inline int canonicalAxisIndex(int axis_index) const {
+        CHECK_GE(axis_index, -numAxes())
+            << "axis " << axis_index << " out of range for " << numAxes()
+            << "-D Tensor with shape " << shapeString();
+        CHECK_LT(axis_index, numAxes())
+            << "axis " << axis_index << " out of range for " << numAxes()
+            << "-D Tensor with shape " << shapeString();
         if (axis_index < 0) {
-            return axis_index + NumAxes();
+            return axis_index + numAxes();
         }
         return axis_index;
     }
-    inline const vector<int> &Shape() const {
+    inline const vector<int> &shape() const {
         return shape_;
     }
-    inline int Shape(int index) const {
-        return shape_[CanonicalAxisIndex(index)];
+    inline int shape(int index) const {
+        return shape_[canonicalAxisIndex(index)];
     }
-    inline int LegacyShape(int index) const {
-        CHECK_LE(NumAxes(), 4)
+    inline int legacyShape(int index) const {
+        CHECK_LE(numAxes(), 4)
             << "Cannot use legacy accessors on Tensors with > 4 axes.";
         CHECK_LT(index, 4);
         CHECK_GE(index, -4);
-        if (index >= NumAxes() || index < -NumAxes()) {
+        if (index >= numAxes() || index < -numAxes()) {
             // Axis is out of range, but still in [0, 3] (or [-4, -1] for reverse
             // indexing) -- this special case simulates the one-padding used to fill
             // extraneous axes of legacy Tensors.
             return 1;
         }
-        return Shape(index);
+        return shape(index);
     }
 
-    inline int Offset(const int n, const int c = 0, const int h = 0,
+    inline int offset(const int n, const int c = 0, const int h = 0,
                       const int w = 0) const {
         CHECK_GE(n, 0);
-        CHECK_LE(n, Num());
-        CHECK_GE(Channels(), 0);
-        CHECK_LE(c, Channels());
-        CHECK_GE(Height(), 0);
-        CHECK_LE(h, Height());
-        CHECK_GE(Width(), 0);
-        CHECK_LE(w, Width());
-        return ((n * Channels() + c) * Height() + h) * Width() + w;
+        CHECK_LE(n, num());
+        CHECK_GE(channels(), 0);
+        CHECK_LE(c, channels());
+        CHECK_GE(height(), 0);
+        CHECK_LE(h, height());
+        CHECK_GE(width(), 0);
+        CHECK_LE(w, width());
+        return ((n * channels() + c) * height() + h) * width() + w;
     }
 
     inline int offset(const vector<int> &indices) const {
-        CHECK_LE(indices.size(), NumAxes());
+        CHECK_LE(indices.size(), numAxes());
         int offset = 0;
-        for (int i = 0; i < NumAxes(); ++i) {
-            offset *= Shape(i);
+        for (int i = 0; i < numAxes(); ++i) {
+            offset *= shape(i);
             if (indices.size() > i) {
                 CHECK_GE(indices[i], 0);
-                CHECK_LT(indices[i], Shape(i));
+                CHECK_LT(indices[i], shape(i));
                 offset += indices[i];
             }
         }
@@ -157,16 +155,16 @@ public:
      * @param source the Tensor to copy from
      * @param copy_diff if false, copy the data; if true, copy the diff
      * @param reshape if false, require this Tensor to be pre-shaped to the shape
-     *        of other (and die otherwise); if true, Reshape this Tensor to other's
+     *        of other (and die otherwise); if true, reshape this Tensor to other's
      *        shape if necessary
      */
-    void CopyFrom(const Tensor &source, bool copy_diff = false,
+    void copyFrom(const Tensor &source, bool copy_diff = false,
                   bool reshape = false);
 
     template <typename Dtype>
-    inline Dtype DataAt(const int n, const int c, const int h,
+    inline Dtype dataAt(const int n, const int c, const int h,
                         const int w) const {
-        return HostPtr<Dtype>()[Offset(n, c, h, w)];
+        return hostPtr<Dtype>()[offset(n, c, h, w)];
     }
 
     // inline Dtype diff_at(const int n, const int c, const int h,
@@ -175,37 +173,37 @@ public:
     // }
 
     template <typename Dtype>
-    inline Dtype DataAt(const vector<int> &index) const {
-        return HostPtr<Dtype>()[offset(index)];
+    inline Dtype dataAt(const vector<int> &index) const {
+        return hostPtr<Dtype>()[offset(index)];
     }
 
     // inline Dtype diff_at(const vector<int>& index) const {
     //     return cpu_diff()[offset(index)];
     // }
 
-    void PrintData();
+    void printData();
 
-    int ByteWidth() const {
-        return bytewidth_;
+    int byteWidth() const {
+        return byte_width_;
     }
 
-    void SetByteWidth(int bw) {
-        bytewidth_ = bw;
+    void setByteWidth(int bw) {
+        byte_width_ = bw;
     }
     // TODO:Name?
 
-    void SetName(string name) {
+    void setName(string name) {
         name_ = name;
     }
 
-    const string Name() const {
+    string name() const {
         return name_;
     }
 
 private:
     string name_;
     // shared_ptr<Backend> backend_;
-    int bytewidth_; // 32/16/8/4 //enum
+    int byte_width_; // 32/16/8/4 //enum
     Backend *backend_;
     void *host_ptr_;
     void *device_ptr_;
