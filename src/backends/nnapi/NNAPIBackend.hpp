@@ -1,14 +1,14 @@
-#ifndef MLLM_CPUBACKEND_H
-#define MLLM_CPUBACKEND_H
+#ifndef MLLM_NNAPIBACKEND_H
+#define MLLM_NNAPIBACKEND_H
 
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "Types.hpp"
 namespace mllm {
-class CPUBackend : public Backend {
+class NNAPIBackend : public Backend {
 public:
-    CPUBackend(shared_ptr<MemoryManager> mm);
-    ~CPUBackend() = default;
+    NNAPIBackend(shared_ptr<MemoryManager> mm);
+    ~NNAPIBackend() = default;
 
     class Creator {
     public:
@@ -17,7 +17,7 @@ public:
         virtual Op *create(OpParam op_param, Backend *bn) const = 0;
     };
     void initCreatorMap() {
-        map_creator_ = new std::map<OpType, CPUBackend::Creator *>;
+        map_creator_ = new std::map<OpType, NNAPIBackend::Creator *>;
     }
     bool addCreator(OpType t, Creator *c) {
         auto *map = map_creator_;
@@ -37,9 +37,9 @@ public:
     virtual void registerOps() override;
 
 private:
-    std::map<OpType, CPUBackend::Creator *> *map_creator_;
+    std::map<OpType, NNAPIBackend::Creator *> *map_creator_;
 };
 
 } // namespace mllm
 
-#endif // MLLM_CPUBACKEND_H
+#endif // MLLM_NNAPIBACKEND_H
