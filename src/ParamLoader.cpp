@@ -1,29 +1,27 @@
 #include "ParamLoader.hpp"
 #include "NetParameter.hpp"
-// #include <bits/stdint-uintn.h>
 #include <cstdio>
 #include <cstring>
 #include <string>
 #include <utility>
-
+// TODO:
 /*
- * ┌───────┬──────────────────────────┬──────────────────────────┬────────┬──────┬─────────┬───────────┬─────────┬─────────┐
- * │       │                          │                          │        │      │         │           │         │         │
- * │       │                          │                          │        │      │         │           │         │         │
- * │       │                          │                          │        │      │         │           │         │         │
- * │       │                          │                          │        │      │         │           │         │         │
- * │       │                          │                          │        │      │         │           │         │         │
- * │       │                          │                          │        │      │         │           │         │         │
- * │ Magic │     Weights Contents 1   │      Weights Contents 2  │ .....  │ Name │ Name    │   Weights │ Offsets │ Weights │
- * │       │                          │                          │        │ Length String  │   Length  │   INT   │  Index  │
- * │       │                          │                          │        │ INT  │         │    INT    │         │  Length │
- * │       │                          │                          │        │      │         │           │         │   INT   │
- * │       │                          │                          │        │      │         │           │         │         │
- * │       │                          │                          │        │      │         │           │         │         │
- * │       │                          │                          │        │      │         │           │         │         │
- * │       │                          │                          │        │      │         │           │         │         │
- * └───────┴──────────────────────────┴──────────────────────────┴────────┴──────┴─────────┴───────────┴─────────┴─────────┘
- *  Weights File Structure
+ * ┌───────┬──────┬───────┬────────┬───────────┬─────────┬─────────┬──────┬──────────────────────┬─────────────────────────┐
+ * │       │      │       │        │           │         │         │      │                      │                         │
+ * │       │      │       │        │           │         │         │      │                      │                         │
+ * │       │      │       │        │           │         │         │      │                      │                         │
+ * │       │      │       │        │           │         │         │      │                      │                         │
+ * │       │ Index│       │        │           │         │         │      │                      │                         │
+ * │       │ Len  │       │        │           │         │         │      │                      │                         │
+ * │ Magic │ INT  │ Name  │Name    │ Weights   │ Offset  │ DataType│....  │   Weights Contents   │   Weights Content       │
+ * │       │      │ Length│String  │ Length    │  INT    │  INT    │      │                      │                         │
+ * │       │      │ INT   │        │  INT      │         │         │      │                      │                         │
+ * │       │      │       │        │           │         │         │      │                      │                         │
+ * │       │      │       │        │           │         │         │      │                      │                         │
+ * │       │      │       │        │           │         │         │      │                      │                         │
+ * │       │      │       │        │           │         │         │      │                      │                         │
+ * └───────┴──────┴───────┴────────┴───────────┴─────────┴─────────┴──────┴──────────────────────┴─────────────────────────┘
+ * Weights File Structure
  */
 
 static int readInt(FILE *fp_) {
@@ -80,21 +78,15 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
         std::cout << "magic number error" << std::endl;
         exit(1);
     }
-    fseek(fp_, 0, SEEK_END);
-    this->size_ = ftell(fp_);
-    fseek(fp_, this->size_ - sizeof(int), SEEK_CUR);
-    int table_len = readInt(fp_);
-    fseek(fp_, this->size_ - table_len - sizeof(int), SEEK_SET);
-    int table_offset = ftell(fp_);
-    while (table_offset < this->size_ - sizeof(int)) {
+    int index_size = readInt(fp_);
+    int index_offset = index_size + ftell(fp_);
+    while (ftell(fp_) < index_offset) {
         std::string name = readString(fp_);
         int length = readInt(fp_);
         int offset = readInt(fp_);
         offsets_[name] = std::make_pair(offset, length);
-        // table_offset+=name.size()+sizeof(int)+sizeof(int);
-        table_offset = ftell(fp_);
+        data_type_[name] = readInt(fp_);
     }
-
 // int len = sizeof(int);
 // while (len<size) {
 //     int index = readInt(fp_);
