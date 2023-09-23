@@ -10,11 +10,11 @@ class CPUSiLU : public Op {
 public:
     CPUSiLU(Backend *bn, bool multiThread);
     virtual ~CPUSiLU() = default;
-    virtual ErrorCode Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
-    virtual ErrorCode Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
-    virtual ErrorCode Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+    virtual ErrorCode execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
 
-    virtual ErrorCode Load(ParamLoader &loader) override;
+    virtual ErrorCode load(ParamLoader &loader) override;
 
 private:
     bool support_multi_thread_ = false;
@@ -22,7 +22,7 @@ private:
 
 class CPUSiLUCreator : public CPUBackend::Creator {
 public:
-    virtual Op *Create(OpParam op_param, Backend *bn) const {
+    virtual Op *create(OpParam op_param, Backend *bn) const {
         return new CPUSiLU(bn, false);
     }
 };

@@ -8,33 +8,32 @@
 #include "CPUScale.hpp"
 #include "CPUSiLU.hpp"
 #include "CPUSoftMax.hpp"
+#include "CPULinear.hpp"
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager> mm) :
     Backend(mm) {
     initCreatorMap();
-    RegisterOps();
+    registerOps();
 }
 // Op *CPUBackend::OpCreate(const vector<shared_ptr<Tensor>> &inputs, const vector<shared_ptr<Tensor>> &outputs,OpParam op_param)
 // {
 //     return map_creator_->find(optype)->second->Create(inputs, outputs, optype, this);
 //     // return nullptr;
 // }
-Op *CPUBackend::OpCreate(const OpParam &op_param) {
+Op *CPUBackend::opCreate(const OpParam &op_param) {
     OpType optype = OpType(op_param.find("type")->second);
-    auto map = map_creator_;
+    auto *map = map_creator_;
     auto iter = map->find(optype);
     if (iter == map->end()) {
         printf("Don't support type \n");
         return nullptr;
     }
     Op *exe = nullptr;
-    if (exe == nullptr) {
-        exe = iter->second->Create(op_param, this);
-    }
+    exe = iter->second->create(op_param, this);
     return exe;
     // return nullptr;
 }
-void CPUBackend::RegisterOps() {
+void CPUBackend::registerOps() {
     // ADD,
     // CAUSALMASK,
     // MATMUL,
@@ -58,6 +57,7 @@ void CPUBackend::RegisterOps() {
     addCreator(SCALE, (CPUBackend::Creator *)(new CPUScaleCreator()));
     addCreator(SILU, (CPUBackend::Creator *)(new CPUSiLUCreator()));
     addCreator(SOFTMAX, (CPUBackend::Creator *)(new CPUSoftMaxCreator()));
+    addCreator(LINEAR, (CPUBackend::Creator *)(new CPULinearCreator()));
 }
 
 } // namespace mllm

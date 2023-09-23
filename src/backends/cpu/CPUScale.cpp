@@ -10,22 +10,22 @@ CPUScale::CPUScale(Backend *bn, bool multiThread) :
     Op(bn) {
 }
 
-ErrorCode CPUScale::Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUScale  Reshape" << std::endl;
+ErrorCode CPUScale::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPUScale  reshape" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUScale::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUScale  Setup" << std::endl;
+ErrorCode CPUScale::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPUScale  setUp" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUScale::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUScale::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     std::cout << "CPUScale()" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUScale::Load(ParamLoader &loader) {
+ErrorCode CPUScale::load(ParamLoader &loader) {
     std::cout << "CPUScale load" << std::endl;
     return NO_ERROR;
 }

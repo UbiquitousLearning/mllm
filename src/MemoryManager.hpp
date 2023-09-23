@@ -5,12 +5,10 @@
 
 // #include "common.h"
 
-#include <algorithm>
+// #include <algorithm>
 #include <string.h>
 #include <string>
 #include <vector>
-#include <iostream>
-#include <string>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -107,11 +105,11 @@ public:
     ~MemoryManager() {
     } // release
 
-    void Alloc(void **ptr, size_t size) {
+    void alloc(void **ptr, size_t size) {
         mllmMallocHost(ptr, size);
     }
 
-    void Free(void **ptr) {
+    void free(void **ptr) {
         mllmFreeHost(ptr);
     }
 

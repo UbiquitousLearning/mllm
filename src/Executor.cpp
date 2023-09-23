@@ -1,16 +1,16 @@
 #include "Executor.hpp"
 namespace mllm {
-void Executor::Init() {
+void Executor::init() {
 }
 
-void Executor::Execute() {
-    // for (auto kv : net_->subGraphFP()) {
-    for (int i = 0; i < (int)net_->subGraphFP().size(); ++i) {
+void Executor::execute() {
+    // for (auto kv : net_->subGraph()) {
+    for (int i = 0; i < (int)net_->subGraph().size(); ++i) {
         string name = "G" + std::to_string(i);
-        auto &g = net_->subGraphFP()[name];
+        auto &g = net_->subGraph()[name];
         std::cout << name << std::endl;
-        GraphSetup(g);
-        auto result = GraphForward(g);
+        graphSetUp(g);
+        auto result = graphForward(g);
     }
 }
 

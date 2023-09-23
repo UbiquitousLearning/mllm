@@ -4,26 +4,26 @@ namespace mllm {
 
 Tensor::Tensor(const int num, const int channels, const int height, const int width) :
     capacity_(0) {
-    Reshape(num, channels, height, width);
+    reshape(num, channels, height, width);
     // TODO
 }
 
 Tensor::Tensor(const vector<int> &shape) :
     capacity_(0) {
-    Reshape(shape);
+    reshape(shape);
 }
 
-bool Tensor::Reshape(const int num, const int channels, const int height, const int width) {
+bool Tensor::reshape(const int num, const int channels, const int height, const int width) {
     vector<int> shape(4);
     shape[0] = num;
     shape[1] = channels;
     shape[2] = height;
     shape[3] = width;
-    return Reshape(shape);
+    return reshape(shape);
 }
 
-bool Tensor::Reshape(const vector<int> &shape) {
-    CHECK_LE(shape.size(), kMaxAxes); // 维数不能超过kMaxBlobAxes
+bool Tensor::reshape(const vector<int> &shape) {
+    CHECK_LE(shape.size(), KMaxAxes); // 维数不能超过kMaxBlobAxes
     count_ = 1;                       // num*channels*height*width 赋值为1，为了相乘
     shape_.resize(shape.size());
     // if (!shape_data_ || shape_data_->size() < shape.size() * sizeof(int)) {
@@ -42,13 +42,12 @@ bool Tensor::Reshape(const vector<int> &shape) {
         // data_.reset(new  HostMemory(capacity_ * sizeof(Dtype)));
         // diff_.reset(new  HostMemory(capacity_ * sizeof(Dtype)));
         return true;
-    } else {
-        return false;
     }
+    return false;
 }
 
-void Tensor::Alloc() {
-    backend_->Alloc(&host_ptr_, capacity_ * bytewidth_);
+void Tensor::alloc() {
+    backend_->alloc(&host_ptr_, capacity_ * byte_width_);
 }
 
 // const float *Tensor::cpu_data() const {
@@ -78,6 +77,6 @@ void Tensor::Alloc() {
 //     diff_->set_cpu_data(diff);
 // }
 
-void Tensor::CopyFrom(const Tensor &source, bool copy_diff, bool reshape) {
+void Tensor::copyFrom(const Tensor &source, bool copy_diff, bool reshape) {
 }
 } // namespace mllm

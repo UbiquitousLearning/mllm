@@ -8,7 +8,6 @@
 
 using namespace mllm;
 // 前置声明
-struct ETENSOR;
 struct Context {
     vector<NetParameter> sub_param_;
     vector<NetOp *> net_ops;
@@ -17,14 +16,18 @@ struct Context {
     int active_sub = 0;
 };
 
-void Subgraph_begin(Context *ctx);
+void _SubgraphBegin(Context *ctx);
 NetTensor *_Input(Context *ctx, vector<int> dims, string name = "", DataType type = Float32);
 NetTensor *_Add(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_Causalmask(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_SiLU(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Softmax(Context *ctx, std::vector<NetTensor *> inputs, int axis, string name = "");
 NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_RMSNorm(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_RoPE(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
 
-void Display(Context *c);
 
 /*
 // OLD VERSION

@@ -14,17 +14,15 @@ public:
     explicit Net(const vector<NetParameter> &param, BackendConfig config);
     virtual ~Net() = default;
 
-    void Convert();
+    void convert();
 
-    unordered_map<string, shared_ptr<Graph>> &subGraphFP() {
-        return subgraphs_;
+    unordered_map<string, shared_ptr<Graph>> &subGraph() {
+        return subGraphs_;
     }
 
 private:
-    void Sort();
     vector<NetParameter> net_param_;
-    unordered_map<string, shared_ptr<Graph>> subgraphs_;
-    // unordered_map<string, shared_ptr<Graph>> subgraphs_int8_;
+    unordered_map<string, shared_ptr<Graph>> subGraphs_;
     BackendConfig config_;
     // vector<Tensor *> tensors_;
     unordered_map<string, shared_ptr<Tensor>> tensors_;

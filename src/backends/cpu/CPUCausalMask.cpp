@@ -10,22 +10,22 @@ CPUCausalMask::CPUCausalMask(Backend *bn, bool multiThread) :
     Op(bn) {
 }
 
-ErrorCode CPUCausalMask::Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUCausalMask  Reshape" << std::endl;
+ErrorCode CPUCausalMask::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPUCausalMask  reshape" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUCausalMask::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUCausalMask  Setup" << std::endl;
+ErrorCode CPUCausalMask::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPUCausalMask  setUp" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUCausalMask::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     std::cout << "CPUCausalMask()" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUCausalMask::Load(ParamLoader &loader) {
+ErrorCode CPUCausalMask::load(ParamLoader &loader) {
     std::cout << "CPUCausalMask load" << std::endl;
     return NO_ERROR;
 }

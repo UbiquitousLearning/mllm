@@ -26,13 +26,13 @@
  *  Weights File Structure
  */
 
-static int read_int(FILE *fp_) {
+static int readInt(FILE *fp_) {
     int tmp;
     fread(&tmp, sizeof(int), 1, fp_);
     return tmp;
 }
-static std::string read_string(FILE *fp_) {
-    int len = read_int(fp_);
+static std::string readString(FILE *fp_) {
+    int len = readInt(fp_);
     char *tmp = new char[len];
     fread(tmp, sizeof(char), len, fp_);
     std::string str(tmp);
@@ -40,8 +40,8 @@ static std::string read_string(FILE *fp_) {
     return str;
 }
 namespace mllm {
-bool ParamLoader::Load(mllm::Tensor *tensor) {
-    string name = tensor->Name();
+bool ParamLoader::load(mllm::Tensor *tensor) {
+    string name = tensor->name();
 #ifndef USE_MMAP
     if (offsets_.find(name) == offsets_.end()) {
         return false;
@@ -52,7 +52,7 @@ bool ParamLoader::Load(mllm::Tensor *tensor) {
     fread(data, sizeof(uint8_t), offset.second, fp_);
     // TODO:Data?
     //  tenor. = data;
-    auto p = tensor->HostPtr<char>();
+    auto *p = tensor->hostPtr<char>();
     memcpy(static_cast<void *>(p), static_cast<void *>(data), offset.second); // Cast pointers to void*
     delete[] data;                                                            // Free the memory allocated by new
     return true;
@@ -75,7 +75,7 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
 #endif
     fseek(fp_, 0, SEEK_SET);
 #ifndef USE_MMAP
-    int magic = read_int(fp_);
+    int magic = readInt(fp_);
     if (magic != MAGIC_NUMBER) {
         std::cout << "magic number error" << std::endl;
         exit(1);
@@ -83,13 +83,13 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
     fseek(fp_, 0, SEEK_END);
     this->size_ = ftell(fp_);
     fseek(fp_, this->size_ - sizeof(int), SEEK_CUR);
-    int table_len = read_int(fp_);
+    int table_len = readInt(fp_);
     fseek(fp_, this->size_ - table_len - sizeof(int), SEEK_SET);
     int table_offset = ftell(fp_);
     while (table_offset < this->size_ - sizeof(int)) {
-        std::string name = read_string(fp_);
-        int length = read_int(fp_);
-        int offset = read_int(fp_);
+        std::string name = readString(fp_);
+        int length = readInt(fp_);
+        int offset = readInt(fp_);
         offsets_[name] = std::make_pair(offset, length);
         // table_offset+=name.size()+sizeof(int)+sizeof(int);
         table_offset = ftell(fp_);
@@ -97,10 +97,10 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
 
 // int len = sizeof(int);
 // while (len<size) {
-//     int index = read_int(fp_);
+//     int index = readInt(fp_);
 //     len+=sizeof(int);
-//     std::string name = read_string(fp_);
-//     int length = read_int(fp_);
+//     std::string name = readString(fp_);
+//     int length = readInt(fp_);
 //     len+=name.size()+sizeof(int)+sizeof(int);
 //     offsets_[name] = std::make_pair(len,length);
 //     len+=length; //Align?

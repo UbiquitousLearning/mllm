@@ -20,23 +20,23 @@ Net::Net(const vector<NetParameter> &param, BackendConfig config) :
     }
     backends_.emplace(BackendType::mllm_CPU, new CPUBackend(mm));
 
-    auto in_tensor = net_param_[0].net_tensors[0];
+    auto *in_tensor = net_param_[0].net_tensors[0];
     tensors_[in_tensor->name] = std::make_shared<Tensor>();
-    tensors_[in_tensor->name]->SetName(in_tensor->name);
-    tensors_[in_tensor->name]->SetByteWidth(sizeof(float));
-    // tensors_[in_tensor->name]->SetBackend(backends_[BackendType::mllm_CPU]);
-    tensors_[in_tensor->name]->Reshape(in_tensor->shape[0], in_tensor->shape[1], in_tensor->shape[2], in_tensor->shape[3]);
+    tensors_[in_tensor->name]->setName(in_tensor->name);
+    tensors_[in_tensor->name]->setByteWidth(sizeof(float));
+    // tensors_[in_tensor->name]->setBackend(backends_[BackendType::mllm_CPU]);
+    tensors_[in_tensor->name]->reshape(in_tensor->shape[0], in_tensor->shape[1], in_tensor->shape[2], in_tensor->shape[3]);
     for (auto &sub_param : net_param_) {
-        auto out_tensor = sub_param.net_outputs;
-        for (auto &out_t : out_tensor) {
+        auto net_in_tensor = sub_param.net_inputs;
+        for (const auto &out_t : net_in_tensor) {
             tensors_[out_t->name] = std::make_shared<Tensor>();
-            tensors_[out_t->name]->SetName(out_t->name);
+            tensors_[out_t->name]->setName(out_t->name);
             // tensors_[in_tensor->name]->SetByteWidth(sizeof(float));
         }
     }
 }
 
-void Net::Convert() {
+void Net::convert() {
     // auto bn = new CPUBackend(mm);	//TODO
     // backends_["cpu"] = bn;
     // backends_["cpu"]->RegisterOps();
@@ -47,7 +47,7 @@ void Net::Convert() {
         sub_param.TopologySort();
         shared_ptr<Graph> subg_1;
         subg_1.reset(new Graph(sub_param, backends_[BackendType::mllm_CPU], tensors_));
-        subgraphs_["G" + std::to_string(i)] = subg_1;
+        subGraphs_["G" + std::to_string(i)] = subg_1;
     }
 }
 } // namespace mllm

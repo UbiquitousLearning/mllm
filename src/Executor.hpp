@@ -16,23 +16,23 @@ public:
      * @brief 初始化
      * 使用几个线程，什么策略？
      */
-    void Init();
+    void init();
 
-    void GraphSetup(shared_ptr<Graph> subGraph) {
-        // auto subGraph = net_.subGraphFP()[graph_name];
-        subGraph->Setup();
+    void graphSetUp(shared_ptr<Graph> subGraph) {
+        // auto subGraph = net_.subGraph()[graph_name];
+        subGraph->setUp();
     }
 
     /**
      * @brief 前行传播
      */
-    const vector<shared_ptr<Tensor>> &GraphForward(shared_ptr<Graph> subGraph) {
-        // auto subGraph = net_.subGraphFP()[graph_name];
-        return subGraph->Forward();
+    const vector<shared_ptr<Tensor>> &graphForward(shared_ptr<Graph> subGraph) {
+        // auto subGraph = net_.subGraph()[graph_name];
+        return subGraph->forward();
         // TODO: 在此处插入 return 语句
     }
 
-    void Execute();
+    void execute();
 
 private:
     Net *net_;

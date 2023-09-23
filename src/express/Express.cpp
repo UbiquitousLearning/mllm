@@ -4,9 +4,8 @@
 #include "unordered_map"
 #include "Express.hpp"
 #include "NetParameter.hpp"
-#include "OpDefined.hpp"
 #include <algorithm> // 包含 reverse 函数的头文件
-#include <iostream>
+
 using namespace mllm;
 #define _STORE_OUT_TENSOR                      \
     ctx->net_tensors.insert(out_tensor);       \
@@ -26,6 +25,18 @@ using namespace mllm;
     net_op_->param["type"] = type_;               \
     ctx->net_ops.push_back(net_op_);
 
+// #define _UPDATE_INPUT_TENSORS                                                                                                 \
+//     for (auto &input : inputs) {                                                                                              \
+//         net_op_->in.push_back(input);                                                                                         \
+//         input->out.push_back(net_op_);                                                                                        \
+//         if (std::find(sub_param->net_tensors.begin(), sub_param->net_tensors.end(), input) == sub_param->net_tensors.end()) { \
+//             sub_param->net_tensors.push_back(input);                                                                          \
+//             if (input->subgraph != nullptr) {                                                                                 \
+//                 input->subgraph->net_outputs.insert(input);                                                                   \
+//                 sub_param->net_inputs.insert(input);                                                                          \
+//             }                                                                                                                 \
+//         }                                                                                                                     \
+//     }
 #define _UPDATE_INPUT_TENSORS                                                                                                 \
     for (auto &input : inputs) {                                                                                              \
         net_op_->in.push_back(input);                                                                                         \
@@ -33,7 +44,6 @@ using namespace mllm;
         if (std::find(sub_param->net_tensors.begin(), sub_param->net_tensors.end(), input) == sub_param->net_tensors.end()) { \
             sub_param->net_tensors.push_back(input);                                                                          \
             if (input->subgraph != nullptr) {                                                                                 \
-                input->subgraph->net_outputs.insert(input);                                                                   \
                 sub_param->net_inputs.insert(input);                                                                          \
             }                                                                                                                 \
         }                                                                                                                     \
@@ -43,8 +53,8 @@ static void topology(const NetParameter *net, vector<NetOp *> &result, NetOp *op
         return;
     }
     visited[op] = true;
-    for (auto input : op->in) {
-        if (input->in && std::find(net->net_inputs.begin(), net->net_inputs.end(), input) == net->net_inputs.end()) {
+    for (auto *input : op->in) {
+        if (input->in != nullptr && std::find(net->net_inputs.begin(), net->net_inputs.end(), input) == net->net_inputs.end()) {
             topology(net, result, input->in, visited);
         }
     }
@@ -55,10 +65,10 @@ void NetParameter::TopologySort() {
     std::unordered_map<NetOp *, bool> visited;
     result->reserve(net_ops.size());
     visited.reserve(net_ops.size());
-    for (auto op : net_ops) {
+    for (auto *op : net_ops) {
         topology(this, *result, op, visited);
     }
-    for (auto op : *result) {
+    for (auto *op : *result) {
         std::cout << op->name << std::endl;
     }
     net_ops = *result;
@@ -81,7 +91,7 @@ NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
     net_tensor->type = type;
     net_tensor->subgraph = get_active_subgraph(ctx);
     ctx->idx++;
-    auto sub_param = get_active_subgraph(ctx);
+    auto *sub_param = get_active_subgraph(ctx);
     sub_param->net_tensors.push_back(net_tensor);
     ctx->net_tensors.insert(net_tensor);
     return net_tensor;
@@ -97,7 +107,22 @@ NetTensor *_Add(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
-    _NEW_OP(mllm::SOFTMAX)
+    _NEW_OP(mllm::ADD)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+NetTensor *_Causalmask(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Causalmask" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::CAUSALMASK)
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;
@@ -149,7 +174,71 @@ NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     return out_tensor;
 }
 
-void Subgraph_begin(Context *ctx) {
+NetTensor *_RMSNorm(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "RMSNorm" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::RMSNORM)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+
+NetTensor *_RoPE(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "RoPE" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::ROPE)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+
+NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Scale" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::SCALE)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+
+NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Linear" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::LINEAR)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+
+void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }
 
