@@ -105,11 +105,11 @@ public:
     ~MemoryManager() {
     } // release
 
-    void Alloc(void **ptr, size_t size) {
+    void alloc(void **ptr, size_t size) {
         mllmMallocHost(ptr, size);
     }
 
-    void Free(void **ptr) {
+    void free(void **ptr) {
         mllmFreeHost(ptr);
     }
 

@@ -1,5 +1,8 @@
 
 .vscode/
+.idea/
+.cache/
+build*/
 build/
 bin/
 .clangd/

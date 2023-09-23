@@ -4,7 +4,6 @@
 #include "unordered_map"
 #include "Express.hpp"
 #include "NetParameter.hpp"
-#include "OpDefined.hpp"
 #include <algorithm> // 包含 reverse 函数的头文件
 
 using namespace mllm;
@@ -239,7 +238,7 @@ NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_feature
     return out_tensor;
 }
 
-void Subgraph_begin(Context *ctx) {
+void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }
 

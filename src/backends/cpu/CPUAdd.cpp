@@ -10,22 +10,22 @@ CPUAdd::CPUAdd(Backend *bn, bool multiThread) :
     Op(bn) {
 }
 
-ErrorCode CPUAdd::Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUAdd  Reshape" << std::endl;
+ErrorCode CPUAdd::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPUAdd  reshape" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUAdd::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUAdd  Setup" << std::endl;
+ErrorCode CPUAdd::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPUAdd  setUp" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUAdd::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUAdd::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     std::cout << "CPUAdd()" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUAdd::Load(ParamLoader &loader) {
+ErrorCode CPUAdd::load(ParamLoader &loader) {
     std::cout << "CPUAdd load" << std::endl;
     return NO_ERROR;
 }

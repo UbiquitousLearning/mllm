@@ -19,7 +19,7 @@ public:
     ParamLoader(void *buffer);
 #endif
     ~ParamLoader();
-    bool Load(mllm::Tensor *tensor);
+    bool load(mllm::Tensor *tensor);
 
 private:
     FILE *fp_;

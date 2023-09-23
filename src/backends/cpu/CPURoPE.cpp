@@ -10,22 +10,22 @@ CPURoPE::CPURoPE(Backend *bn, bool multiThread) :
     Op(bn) {
 }
 
-ErrorCode CPURoPE::Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPURoPE  Reshape" << std::endl;
+ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPURoPE  reshape" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPURoPE::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPURoPE  Setup" << std::endl;
+ErrorCode CPURoPE::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPURoPE  setUp" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPURoPE::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     std::cout << "CPURoPE()" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPURoPE::Load(ParamLoader &loader) {
+ErrorCode CPURoPE::load(ParamLoader &loader) {
     std::cout << "CPURoPE load" << std::endl;
     return NO_ERROR;
 }

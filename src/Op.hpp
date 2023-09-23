@@ -37,10 +37,10 @@ public:
      * @param outputs   output tensors
      * @return resize result
      */
-    virtual ErrorCode Reshape(vector<shared_ptr<Tensor>> &inputs,
+    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> &inputs,
                               vector<shared_ptr<Tensor>> &outputs) {
         // check inputs shape
-        // Reshape outputs
+        // reshape outputs
         return NO_ERROR;
     }
 
@@ -51,18 +51,18 @@ public:
      * @param outputs   output tensors
      * @return resize result
      */
-    virtual ErrorCode Setup(vector<shared_ptr<Tensor>> &inputs,
+    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> &inputs,
                             vector<shared_ptr<Tensor>> &outputs) {
-        for (auto &t : outputs) {
+//        for (auto &t : outputs) {
             // t->SetName("Input0"+"_out");
-        }
+//        }
         // Weight malloc set
         return NO_ERROR;
     }
 
-    virtual ErrorCode Load(ParamLoader &loader) {
+    virtual ErrorCode load(ParamLoader &loader) {
         // check inputs shape
-        // Reshape outputs
+        // reshape outputs
         return NO_ERROR;
     }
 
@@ -72,7 +72,7 @@ public:
      * @param outputs   output tensors
      * @return execution result
      */
-    virtual ErrorCode Execute(vector<shared_ptr<Tensor>> &inputs,
+    virtual ErrorCode execute(vector<shared_ptr<Tensor>> &inputs,
                               vector<shared_ptr<Tensor>> &outputs) = 0;
     /**
      * @brief get backend.

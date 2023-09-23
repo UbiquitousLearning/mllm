@@ -10,22 +10,22 @@ CPUSiLU::CPUSiLU(Backend *bn, bool multiThread) :
     Op(bn) {
 }
 
-ErrorCode CPUSiLU::Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUSiLU  Reshape" << std::endl;
+ErrorCode CPUSiLU::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPUSiLU  reshape" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUSiLU::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUSiLU  Setup" << std::endl;
+ErrorCode CPUSiLU::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPUSiLU  setUp" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUSiLU::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUSiLU::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     std::cout << "CPUSiLU()" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUSiLU::Load(ParamLoader &loader) {
+ErrorCode CPUSiLU::load(ParamLoader &loader) {
     std::cout << "CPUSiLU load" << std::endl;
     return NO_ERROR;
 }

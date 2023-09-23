@@ -91,11 +91,10 @@ struct NetOp{
 
 ### **总述**
 
-常规函数使用驼峰命名法, `myFuction()`。 \
-类/结构体的成员函数使用帕斯卡命名法，即每个单词首字母均大写。`MyClassFunction()`。
+常规函数和类/结构体的成员函数使用驼峰命名法, `myFuction()`。 
 
 ### **说明**
-常规函数名除首单词外每个单词首字母大写（即“驼峰变量名”）。 类的函数名的每个单词首字母大写 (即“帕斯卡变量名”)。 没有下划线. 对于首字母缩写的单词, 更倾向于将它们视作一个单词进行首字母大写 (例如, 写作`StartRpc()` 而非 `StartRPC()`)。
+常规函数名和类的函数名除首单词外每个单词首字母大写（即“驼峰变量名”）。 没有下划线. 对于首字母缩写的单词, 更倾向于将它们视作一个单词进行首字母大写 (例如, 写作`startRpc()` 而非 `startRPC()`)。
 
 函数的参数与普通变量命名规则相同。
 ```C++
@@ -105,8 +104,8 @@ void createNetParem(ETENSOR end_t, NetParameter &net_param);
 class Tensor {
 public:
     ...
-    //类的成员函数：帕斯卡命名法
-    bool Reshape(const vector<int> &shape);
+    //类的成员函数：驼峰命名法
+    bool reshape(const vector<int> &shape);
     ...
 };
 ```
@@ -119,11 +118,11 @@ class Tensor {
 public:
     ...
     //赋值
-    void SetName(string name) {
+    void setName(string name) {
         name_ = name;
     }
     //取值
-    const string Name() const {
+    const string name() const {
         return name_;
     }
  private:

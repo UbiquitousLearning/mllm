@@ -40,8 +40,8 @@ static std::string readString(FILE *fp_) {
     return str;
 }
 namespace mllm {
-bool ParamLoader::Load(mllm::Tensor *tensor) {
-    string name = tensor->Name();
+bool ParamLoader::load(mllm::Tensor *tensor) {
+    string name = tensor->name();
 #ifndef USE_MMAP
     if (offsets_.find(name) == offsets_.end()) {
         return false;
@@ -52,7 +52,7 @@ bool ParamLoader::Load(mllm::Tensor *tensor) {
     fread(data, sizeof(uint8_t), offset.second, fp_);
     // TODO:Data?
     //  tenor. = data;
-    auto *p = tensor->HostPtr<char>();
+    auto *p = tensor->hostPtr<char>();
     memcpy(static_cast<void *>(p), static_cast<void *>(data), offset.second); // Cast pointers to void*
     delete[] data;                                                            // Free the memory allocated by new
     return true;

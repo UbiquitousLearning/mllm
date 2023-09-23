@@ -22,27 +22,27 @@ public:
     /**
      * @brief 初始化
      */
-    void Init(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+    void init(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
     /**
      * @brief 初始化
      */
-    void Setup();
+    void setUp();
 
-    void Load(ParamLoader &loader);
+    void load(ParamLoader &loader);
 
     /**
      * @brief 前行传播
      */
-    // const  vector<shared_ptr<Tensor>>& Forward();
-    const vector<shared_ptr<Tensor>> &Forward();
-    // set input blobs then use Forward() instead.
-    const vector<shared_ptr<Tensor>> &Forward(const vector<shared_ptr<Tensor>> &inTensors);
+    // const  vector<shared_ptr<Tensor>>& forward();
+    const vector<shared_ptr<Tensor>> &forward();
+    // set input blobs then use forward() instead.
+    const vector<shared_ptr<Tensor>> &forward(const vector<shared_ptr<Tensor>> &inTensors);
 
     /**
      * @brief 反向传播
      */
-    void Backward();
+    void backward();
 
 protected:
     NetParameter param_;

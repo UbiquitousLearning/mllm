@@ -11,10 +11,17 @@ set(TEST_EXE main_test)
 
 
 
-# SET(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
 # find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
 set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++14 -stdlib=libc++")
+
+if(CMAKE_HOST_UNIX)
+    message("current platform: Linux ")
+    set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++14 -stdlib=libc++")
+elseif(CMAKE_HOST_WIN32)
+    message("current platform: Windows ")
+else()
+    message("current platform: unkonw ")
+endif()
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/src  DIR_SRC)
 # aux_source_directory(${PROJECT_SOURCE_DIR}/src/backends/cpu  DIR_SRC_CPU)

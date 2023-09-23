@@ -10,22 +10,22 @@ CPUSoftMax::CPUSoftMax(Backend *bn, bool multiThread) :
     Op(bn) {
 }
 
-ErrorCode CPUSoftMax::Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUSoftMax  Reshape" << std::endl;
+ErrorCode CPUSoftMax::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPUSoftMax  reshape" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUSoftMax::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUSoftMax  Setup" << std::endl;
+ErrorCode CPUSoftMax::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPUSoftMax  setUp" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUSoftMax::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     std::cout << "CPUSoftMax()" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUSoftMax::Load(ParamLoader &loader) {
+ErrorCode CPUSoftMax::load(ParamLoader &loader) {
     std::cout << "CPUSoftMax load" << std::endl;
     return NO_ERROR;
 }

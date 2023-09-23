@@ -23,10 +23,10 @@ namespace mllm {
 Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
     backend_ = bn;
     param_ = param;
-    Init(external_tensors);
+    init(external_tensors);
 }
 
-void Graph::Init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
+void Graph::init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
     // RESHAPE
     // tensors_["Input0"] = vector<shared_ptr<Tensor>>(1, NULL);
     // for (auto &t : tensors_["Input0"]) {
@@ -34,7 +34,7 @@ void Graph::Init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
     //     t = tensor1;
     //     t->SetByteWidth(sizeof(float));
     //     t->SetBackend(backend_);
-    //     t->Reshape(1, 3, 5, 5); // TODO Reshape  tensors_["input"]
+    //     t->reshape(1, 3, 5, 5); // TODO reshape  tensors_["input"]
     // }
     // for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
     //     // TODO: 3改成不同的数
@@ -53,16 +53,15 @@ void Graph::Init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
         auto *net_tensor = param_.net_tensors[i];
         auto it = external_tensors.find(net_tensor->name);
         if (it == tensors_.end()) { // not in external_tensors
-            auto *net_tensor = param_.net_tensors[i];
             tensors_[net_tensor->name] = std::make_shared<Tensor>();
-            tensors_[net_tensor->name]->SetName(net_tensor->name);
+            tensors_[net_tensor->name]->setName(net_tensor->name);
         }
     }
 
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto *net_op = param_.net_ops[i];
         shared_ptr<Op> my_op(NULL);
-        auto *new_op = backend_->OpCreate(net_op->param);
+        auto *new_op = backend_->opCreate(net_op->param);
         my_op.reset(new_op);
         string lname = net_op->name;
 
@@ -96,11 +95,11 @@ void Graph::Init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
         ops_input_tensors_[lname] = inTensors;
         ops_output_tensors_[lname] = outTensors;
         ops_[lname] = my_op;
-        ops_[lname]->Reshape(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:1.Reshape
+        ops_[lname]->reshape(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:1.reshape
     }
 }
 
-void Graph::Setup() {
+void Graph::setUp() {
     // for (auto &t : tensors_["Input0"]) {
     //     t->Alloc(); // to_cpu//malloc&memset 0 TODO
     //     t->SetName("Input0_");
@@ -119,17 +118,17 @@ void Graph::Setup() {
         // for (auto in_t : in_tensors) {
         //     inTensors.push_back(tensors_[in_t->in->name][0]);
         // }
-        ops_[lname]->Setup(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:malloc&memset 0 //TODO: 加入Bachend后改成不同Device的malloc
+        ops_[lname]->setUp(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:malloc&memset 0 //TODO: 加入Bachend后改成不同Device的malloc
     }
 }
 
-void Graph::Load(ParamLoader &loader) {
+void Graph::load(ParamLoader &loader) {
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto *net_op = param_.net_ops[i];
-        ops_[net_op->name]->Load(loader);
+        ops_[net_op->name]->load(loader);
     }
 
-    // if(loader.Load())
+    // if(loader.load())
 }
 
 /**
@@ -138,7 +137,7 @@ void Graph::Load(ParamLoader &loader) {
  * @return
  */
 
-const vector<shared_ptr<Tensor>> &Graph::Forward() {
+const vector<shared_ptr<Tensor>> &Graph::forward() {
     // TODO 改为递归
 
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
@@ -155,26 +154,26 @@ const vector<shared_ptr<Tensor>> &Graph::Forward() {
         // for (auto in_t : in_tensors) {
         //     inTensors.push_back(tensors_[in_t->in->name][0]);
         // }
-        // ops_[lname]->Execute(inTensors, tensors_[lname]);
-        ops_[lname]->Execute(ops_input_tensors_[lname], ops_output_tensors_[lname]);
+        // ops_[lname]->execute(inTensors, tensors_[lname]);
+        ops_[lname]->execute(ops_input_tensors_[lname], ops_output_tensors_[lname]);
     }
     // TODO
     return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
 }
 
-const vector<shared_ptr<Tensor>> &Graph::Forward(const vector<shared_ptr<Tensor>> &inTensors) {
+const vector<shared_ptr<Tensor>> &Graph::forward(const vector<shared_ptr<Tensor>> &inTensors) {
     // Copy
     // for (int i = 0; i < inTensors.size(); ++i) {
     //     tensors_["Input0"][i]->CopyFrom(*inTensors[i]);
     // }
-    return Forward();
+    return forward();
 }
 
 /**
  * @brief 反向传播
  */
 
-void Graph::Backward() {
+void Graph::backward() {
 }
 
 } // namespace mllm

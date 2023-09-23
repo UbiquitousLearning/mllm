@@ -11,11 +11,11 @@ class CPULinear : public Op {
 public:
     CPULinear(Backend *bn, int in_features, int out_features, bool bias, bool multiThread);
     virtual ~CPULinear() = default;
-    virtual ErrorCode Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
-    virtual ErrorCode Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
-    virtual ErrorCode Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+    virtual ErrorCode execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
 
-    virtual ErrorCode Load(ParamLoader &loader) override;
+    virtual ErrorCode load(ParamLoader &loader) override;
 
 private:
     bool support_multi_thread_ = false;
@@ -23,7 +23,7 @@ private:
 
 class CPULinearCreator : public CPUBackend::Creator {
 public:
-    virtual Op *Create(OpParam op_param, Backend *bn) const {
+    virtual Op *create(OpParam op_param, Backend *bn) const {
         int in_features = 1;
         int out_features = 1;
         return new CPULinear(bn, in_features, out_features, false, false);

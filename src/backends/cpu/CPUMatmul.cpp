@@ -10,22 +10,22 @@ CPUMatmul::CPUMatmul(Backend *bn, bool transposeA, bool transposeB, bool transpo
     Op(bn) {
 }
 
-ErrorCode CPUMatmul::Reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUMatmul  Reshape" << std::endl;
+ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPUMatmul  reshape" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUMatmul::Setup(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUMatmul  Setup" << std::endl;
+ErrorCode CPUMatmul::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    std::cout << "CPUMatmul  setUp" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUMatmul::Execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     std::cout << "CPUMatmul()" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUMatmul::Load(ParamLoader &loader) {
+ErrorCode CPUMatmul::load(ParamLoader &loader) {
     std::cout << "CPUMatmul load" << std::endl;
     return NO_ERROR;
 }
