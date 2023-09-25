@@ -1,5 +1,5 @@
-#ifndef NNAPIDefine_h
-#define NNAPIDefine_h
+#ifndef MLLM_NNAPIDEFINE_H
+#define MLLM_NNAPIDEFINE_H
 
 // for development
 #include "NNAPINeuralNetworks.h"
@@ -16,4 +16,4 @@
 #endif
 #endif
 
-#endif /* NNAPIDefine_h */
+#endif // MLLM_NNAPIDEFINE_H

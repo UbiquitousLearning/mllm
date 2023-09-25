@@ -4,11 +4,14 @@
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "Types.hpp"
+#include "NNAPIDefine.hpp"
+#include "NNAPISymbol.hpp"
+
 namespace mllm {
 class NNAPIBackend : public Backend {
 public:
     NNAPIBackend(shared_ptr<MemoryManager> mm);
-    ~NNAPIBackend() = default;
+    ~NNAPIBackend();
 
     class Creator {
     public:
@@ -38,6 +41,16 @@ public:
 
 private:
     std::map<OpType, NNAPIBackend::Creator *> *map_creator_;
+    // NNAPI resource
+    struct NNAPIDevice {
+        ANeuralNetworksDevice *device;
+        const char *name;
+        int32_t type;
+    };
+    std::vector<NNAPIDevice> mNNAPIDevices_;
+    ANeuralNetworksModel *mNNAPIModel_ = nullptr;
+    ANeuralNetworksCompilation *mNNAPICompilation_ = nullptr;
+    ANeuralNetworksBurst *mNNAPIBurst_ = NULL;
 };
 
 } // namespace mllm

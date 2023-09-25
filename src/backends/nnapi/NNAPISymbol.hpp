@@ -1,5 +1,6 @@
-#ifndef NNAPISymbols_h
-#define NNAPISymbols_h
+#ifndef MLLM_NNAPISYMBOLS_H
+#define MLLM_NNAPISYMBOLS_H
+
 #include "NNAPIDefine.hpp"
 
 namespace mllm {
@@ -82,4 +83,4 @@ extern ANeuralNetworksMemory_free *ANeuralNetworksMemory_free_27;
 extern ANeuralNetworksExecution_setMeasureTiming *ANeuralNetworksExecution_setMeasureTiming_29;
 extern ANeuralNetworksExecution_getDuration *ANeuralNetworksExecution_getDuration_29;
 } // namespace mllm
-#endif // NNAPISymbol_h
+#endif // MLLM_NNAPISYMBOLS_H
