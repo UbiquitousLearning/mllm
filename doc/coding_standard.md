@@ -91,7 +91,9 @@ struct NetOp{
 
 ### **总述**
 
-常规函数和类/结构体的成员函数使用驼峰命名法, `myFuction()`。 
+类/结构体的成员函数使用驼峰命名法, `myFuction()`。 \
+常规函数一般使用驼峰命名法, `myFuction()`。 \
+某些常规函数例如虚拟算子可以使用首字母为`_`， 例如`_Add()`。
 
 ### **说明**
 常规函数名和类的函数名除首单词外每个单词首字母大写（即“驼峰变量名”）。 没有下划线. 对于首字母缩写的单词, 更倾向于将它们视作一个单词进行首字母大写 (例如, 写作`startRpc()` 而非 `startRPC()`)。
@@ -100,6 +102,8 @@ struct NetOp{
 ```C++
 //常规函数：驼峰命名法
 void createNetParem(ETENSOR end_t, NetParameter &net_param);
+//常规函数：_为首字母
+NetTensor *_Add(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 
 class Tensor {
 public:
