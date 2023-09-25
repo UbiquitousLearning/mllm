@@ -14,7 +14,7 @@
 namespace mllm {
 
 #define NNAPI_PRINT(format, ...) printf(format, ##__VA_ARGS__)
-#define _LOAD_SYM(NAME, API_LEVEL)                                                           \
+#define LOAD_SYM(NAME, API_LEVEL)                                                           \
     NAME##_##API_LEVEL = reinterpret_cast<decltype(NAME##_##API_LEVEL)>(dlsym(lib, #NAME)); \
     if (NAME##_##API_LEVEL == nullptr) {                                                    \
         NNAPI_PRINT("[NNAPI] Load symbol %s failed.", #NAME);                                 \
@@ -29,43 +29,43 @@ bool loadNNAPISymbol() {
     if (lib == nullptr) {
         return false;
     }
-    _LOAD_SYM(ANeuralNetworksModel_getSupportedOperationsForDevices, 29);
-    _LOAD_SYM(ANeuralNetworks_getDeviceCount, 29);
-    _LOAD_SYM(ANeuralNetworks_getDevice, 29);
-    _LOAD_SYM(ANeuralNetworksDevice_getName, 29);
-    _LOAD_SYM(ANeuralNetworksDevice_getType, 29);
-    _LOAD_SYM(ANeuralNetworksCompilation_createForDevices, 29);
-    _LOAD_SYM(ANeuralNetworksExecution_compute, 29);
-    _LOAD_SYM(ANeuralNetworksBurst_create, 29);
-    _LOAD_SYM(ANeuralNetworksBurst_free, 29);
-    _LOAD_SYM(ANeuralNetworksExecution_burstCompute, 29);
-    _LOAD_SYM(ANeuralNetworksModel_create, 27);
-    _LOAD_SYM(ANeuralNetworksModel_free, 27);
-    _LOAD_SYM(ANeuralNetworksModel_finish, 27);
-    _LOAD_SYM(ANeuralNetworksModel_addOperand, 27);
-    _LOAD_SYM(ANeuralNetworksModel_setOperandValue, 27);
-    _LOAD_SYM(ANeuralNetworksModel_setOperandSymmPerChannelQuantParams, 29);
-    _LOAD_SYM(ANeuralNetworksModel_addOperation, 27);
-    _LOAD_SYM(ANeuralNetworksModel_identifyInputsAndOutputs, 27);
-    _LOAD_SYM(ANeuralNetworksCompilation_create, 27);
-    _LOAD_SYM(ANeuralNetworksCompilation_free, 27);
-    _LOAD_SYM(ANeuralNetworksCompilation_setPreference, 27);
-    _LOAD_SYM(ANeuralNetworksCompilation_finish, 27);
-    _LOAD_SYM(ANeuralNetworksExecution_create, 27);
-    _LOAD_SYM(ANeuralNetworksExecution_free, 27);
-    _LOAD_SYM(ANeuralNetworksExecution_setInput, 27);
-    _LOAD_SYM(ANeuralNetworksExecution_setInputFromMemory, 27);
-    _LOAD_SYM(ANeuralNetworksExecution_setOutput, 27);
-    _LOAD_SYM(ANeuralNetworksExecution_setOutputFromMemory, 27);
-    _LOAD_SYM(ANeuralNetworksExecution_startCompute, 27);
-    _LOAD_SYM(ANeuralNetworksEvent_wait, 27);
-    _LOAD_SYM(ANeuralNetworksEvent_free, 27);
-    _LOAD_SYM(ANeuralNetworksDevice_getVersion, 29);
-    _LOAD_SYM(ANeuralNetworksMemory_createFromAHardwareBuffer, 29);
-    _LOAD_SYM(ANeuralNetworksMemory_createFromFd, 27);
-    _LOAD_SYM(ANeuralNetworksMemory_free, 27);
-    _LOAD_SYM(ANeuralNetworksExecution_setMeasureTiming, 29);
-    _LOAD_SYM(ANeuralNetworksExecution_getDuration, 29);
+    LOAD_SYM(ANeuralNetworksModel_getSupportedOperationsForDevices, 29);
+    LOAD_SYM(ANeuralNetworks_getDeviceCount, 29);
+    LOAD_SYM(ANeuralNetworks_getDevice, 29);
+    LOAD_SYM(ANeuralNetworksDevice_getName, 29);
+    LOAD_SYM(ANeuralNetworksDevice_getType, 29);
+    LOAD_SYM(ANeuralNetworksCompilation_createForDevices, 29);
+    LOAD_SYM(ANeuralNetworksExecution_compute, 29);
+    LOAD_SYM(ANeuralNetworksBurst_create, 29);
+    LOAD_SYM(ANeuralNetworksBurst_free, 29);
+    LOAD_SYM(ANeuralNetworksExecution_burstCompute, 29);
+    LOAD_SYM(ANeuralNetworksModel_create, 27);
+    LOAD_SYM(ANeuralNetworksModel_free, 27);
+    LOAD_SYM(ANeuralNetworksModel_finish, 27);
+    LOAD_SYM(ANeuralNetworksModel_addOperand, 27);
+    LOAD_SYM(ANeuralNetworksModel_setOperandValue, 27);
+    LOAD_SYM(ANeuralNetworksModel_setOperandSymmPerChannelQuantParams, 29);
+    LOAD_SYM(ANeuralNetworksModel_addOperation, 27);
+    LOAD_SYM(ANeuralNetworksModel_identifyInputsAndOutputs, 27);
+    LOAD_SYM(ANeuralNetworksCompilation_create, 27);
+    LOAD_SYM(ANeuralNetworksCompilation_free, 27);
+    LOAD_SYM(ANeuralNetworksCompilation_setPreference, 27);
+    LOAD_SYM(ANeuralNetworksCompilation_finish, 27);
+    LOAD_SYM(ANeuralNetworksExecution_create, 27);
+    LOAD_SYM(ANeuralNetworksExecution_free, 27);
+    LOAD_SYM(ANeuralNetworksExecution_setInput, 27);
+    LOAD_SYM(ANeuralNetworksExecution_setInputFromMemory, 27);
+    LOAD_SYM(ANeuralNetworksExecution_setOutput, 27);
+    LOAD_SYM(ANeuralNetworksExecution_setOutputFromMemory, 27);
+    LOAD_SYM(ANeuralNetworksExecution_startCompute, 27);
+    LOAD_SYM(ANeuralNetworksEvent_wait, 27);
+    LOAD_SYM(ANeuralNetworksEvent_free, 27);
+    LOAD_SYM(ANeuralNetworksDevice_getVersion, 29);
+    LOAD_SYM(ANeuralNetworksMemory_createFromAHardwareBuffer, 29);
+    LOAD_SYM(ANeuralNetworksMemory_createFromFd, 27);
+    LOAD_SYM(ANeuralNetworksMemory_free, 27);
+    LOAD_SYM(ANeuralNetworksExecution_setMeasureTiming, 29);
+    LOAD_SYM(ANeuralNetworksExecution_getDuration, 29);
     return true;
 }
 MLLM_ANeuralNetworksModel_getSupportedOperationsForDevices *ANeuralNetworksModel_getSupportedOperationsForDevices_29 = nullptr;
