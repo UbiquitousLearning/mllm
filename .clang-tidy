@@ -39,12 +39,10 @@ CheckOptions:
     value: _
   - key: readability-identifier-naming.ProtectedMemberSuffix
     value: _
-  - key: readability-identifier-naming.MacroDefinitionPrefix
-    value: _
   - key: readability-identifier-naming.MacroDefinition
     value: UPPER_CASE
   - key: readability-identifier-naming.EnumConstantCase
-    value: CamelCase
+    value: _
   - key: readability-identifier-naming.ConstexprVariableCase
     value: CamelCase
   - key: readability-identifier-naming.GlobalConstantCase

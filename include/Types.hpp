@@ -3,9 +3,9 @@
 #define MLLM_TYPES_H
 #include "OpDefined.hpp"
 typedef enum {
-    mllm_CPU,
-    mllm_OPENCL,
-    mllm_NNAPI
+    MLLM_CPU,
+    MLLM_OPENCL,
+    MLLM_NNAPI
 } BackendType;
 
 enum ErrorCode {
@@ -59,8 +59,8 @@ struct BackendConfig {
 
 // 定义枚举类型
 enum DataType {
-    Float32 = 0,
-    Float16,
+    FP32 = 0,
+    FP16,
 };
 
 } // namespace mllm
