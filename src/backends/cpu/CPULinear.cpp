@@ -25,6 +25,9 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
 
 ErrorCode CPULinear::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     std::cout << "CPULinear  setUp" << std::endl;
+    if(!inputs[0]->allocted()){
+        inputs[0]->alloc(); //TODO remove
+    }
     outputs[0]->alloc();
     weight_.alloc();
     return NO_ERROR;
@@ -32,6 +35,22 @@ ErrorCode CPULinear::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr
 
 ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     std::cout << "CPULinear()" << std::endl;
+    // INPUT: M.K
+    // W:K,N
+    // OUTPUT:M.N
+    int M = inputs[0]->height();
+    int K = in_features_;
+    int N = out_features_;
+    for (int m = 0; m < M; m++) {
+        for (int n = 0; n < N; n++) {
+            outputs[0]->setDataAt<float>(1, 1, m, n, 0.0);
+            for (int k = 0; k < K; k++) {
+                auto mm_v = inputs[0]->dataAt<float>(1, 1, m, k) * weight_.dataAt<float>(1, 1, k, n);
+                outputs[0]->setDataAt<float>(1, 1, m, n, outputs[0]->dataAt<float>(1, 1, m, n) + mm_v);
+            }
+        }
+    }
+
     return NO_ERROR;
 }
 

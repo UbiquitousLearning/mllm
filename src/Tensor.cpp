@@ -48,6 +48,7 @@ bool Tensor::reshape(const vector<int> &shape) {
 
 void Tensor::alloc() {
     backend_->alloc(&host_ptr_, capacity_ * byte_width_);
+    allocated_ = true;
 }
 
 // const float *Tensor::cpu_data() const {

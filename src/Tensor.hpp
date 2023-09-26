@@ -38,11 +38,6 @@ public:
     // const float* cpu_data() const; //静态访问
     // const Dtype* cpu_diff() const;
 
-    template <typename Dtype>
-    Dtype *hostPtr() {
-        return (Dtype *)host_ptr_;
-    }
-
     void update();
 
     /*
@@ -161,24 +156,28 @@ public:
                   bool reshape = false);
 
     template <typename Dtype>
-    inline Dtype dataAt(const int n, const int c, const int h,
-                        const int w) const {
-        return hostPtr<Dtype>()[offset(n, c, h, w)];
+    Dtype *hostPtr() {
+        return (Dtype *)host_ptr_;
     }
-
-    // inline Dtype diff_at(const int n, const int c, const int h,
-    //                      const int w) const {
-    //     return cpu_diff()[offset(n, c, h, w)];
-    // }
 
     template <typename Dtype>
-    inline Dtype dataAt(const vector<int> &index) const {
-        return hostPtr<Dtype>()[offset(index)];
+    Dtype dataAt(const int n, const int c, const int h,
+                 const int w) const {
+        //        return hostPtr<Dtype>()[offset(n, c, h, w)];
+        return ((Dtype *)host_ptr_)[offset(n, c, h, w)];
     }
 
-    // inline Dtype diff_at(const vector<int>& index) const {
-    //     return cpu_diff()[offset(index)];
-    // }
+    template <typename Dtype>
+    Dtype dataAt(const vector<int> &index) const {
+        //        return hostPtr<Dtype>()[offset(index)];
+        return ((Dtype *)host_ptr_)[offset(index)];
+    }
+
+    template <typename Dtype>
+    void setDataAt(const int n, const int c, const int h, const int w, Dtype value) {
+        Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
+        typed_ptr[offset(n, c, h, w)] = value;
+    }
 
     void printData();
 
@@ -199,6 +198,10 @@ public:
         return name_;
     }
 
+    bool allocted() const{
+        return allocated_;
+    }
+
 private:
     string name_;
     // shared_ptr<Backend> backend_;
@@ -216,6 +219,9 @@ private:
     vector<int> shape_; // 保存 N K H W
     int capacity_;      // 元素个数 申请内存的总长度相关
     int count_;         // 当前元素数
+
+
+    bool allocated_ = false;
     // bn
 };
 } // namespace mllm
