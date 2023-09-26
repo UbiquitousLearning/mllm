@@ -7,9 +7,10 @@ CPULinear::CPULinear(Backend *bn, int in_features, int out_features, bool bias, 
     Op(bn) {
     in_features_ = in_features;
     out_features_ = out_features;
-    bias_ = bias;
+    support_bias_ = bias;
     support_multi_thread_ = multiThread;
     weight_.setBackend(bn);
+    bias_.setBackend(bn);
 }
 
 ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
@@ -19,14 +20,15 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     CHECK_EQ(inputs[0]->channels(), 1);
     CHECK_EQ(inputs[0]->width(), in_features_);
     weight_.reshape(inputs[0]->num(), 1, in_features_, out_features_);
+    bias_.reshape(inputs[0]->num(), 1, 1, out_features_);
     outputs[0]->reshape(inputs[0]->num(), 1, inputs[0]->height(), out_features_);
     return NO_ERROR;
 }
 
 ErrorCode CPULinear::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     std::cout << "CPULinear  setUp" << std::endl;
-    if(!inputs[0]->allocted()){
-        inputs[0]->alloc(); //TODO remove
+    if (!inputs[0]->allocted()) {
+        inputs[0]->alloc(); // TODO remove
     }
     outputs[0]->alloc();
     weight_.alloc();
@@ -48,6 +50,12 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
                 auto mm_v = inputs[0]->dataAt<float>(1, 1, m, k) * weight_.dataAt<float>(1, 1, k, n);
                 outputs[0]->setDataAt<float>(1, 1, m, n, outputs[0]->dataAt<float>(1, 1, m, n) + mm_v);
             }
+        }
+    }
+
+    for (int m = 0; m < M; m++) {
+        for (int n = 0; n < N; n++) {
+            outputs[0]->setDataAt<float>(1, 1, m, n, outputs[0]->dataAt<float>(1, 1, m, n) + bias_.dataAt<float>(1, 1, 1, n));
         }
     }
 
