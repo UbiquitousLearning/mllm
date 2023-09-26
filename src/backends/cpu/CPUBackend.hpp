@@ -7,7 +7,7 @@
 namespace mllm {
 class CPUBackend : public Backend {
 public:
-    CPUBackend(shared_ptr<MemoryManager> mm);
+    CPUBackend(shared_ptr<MemoryManager>& mm);
     ~CPUBackend() = default;
 
 public:

@@ -53,7 +53,7 @@ void Graph::init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
         auto *net_tensor = param_.net_tensors[i];
         auto it = external_tensors.find(net_tensor->name);
         if (it == tensors_.end()) { // not in external_tensors
-            tensors_[net_tensor->name] = std::make_shared<Tensor>();
+            tensors_[net_tensor->name] = std::make_shared<Tensor>(backend_);
             tensors_[net_tensor->name]->setName(net_tensor->name);
         }
     }

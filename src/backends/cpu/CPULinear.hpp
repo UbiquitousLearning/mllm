@@ -18,7 +18,11 @@ public:
     virtual ErrorCode load(ParamLoader &loader) override;
 
 private:
+    int in_features_;
+    int out_features_;
+    bool bias_;
     bool support_multi_thread_ = false;
+    Tensor weight_;
 };
 
 class CPULinearCreator : public CPUBackend::Creator {

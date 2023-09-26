@@ -16,10 +16,10 @@ class Tensor {
 public:
     // Tensor():data_(), diff_(), capacity_(0){}
     Tensor() :
-        capacity_(0), byte_width_(sizeof(float)) {
+        host_ptr_(), capacity_(0), byte_width_(sizeof(float)) {
     }
     Tensor(Backend *bn) :
-        backend_(bn), capacity_(0), byte_width_(sizeof(float)) {
+        backend_(bn), host_ptr_(), capacity_(0), byte_width_(sizeof(float)) {
     }
     explicit Tensor(const int num, const int channels, const int height, const int width); // N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
     explicit Tensor(const vector<int> &shape);
@@ -42,7 +42,6 @@ public:
     Dtype *hostPtr() {
         return (Dtype *)host_ptr_;
     }
-
 
     void update();
 
