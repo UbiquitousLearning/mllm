@@ -64,6 +64,7 @@ void Graph::init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
         auto *new_op = backend_->opCreate(net_op->param);
         my_op.reset(new_op);
         string lname = net_op->name;
+        my_op->setName(lname);
 
         // TODO: CHECK一下 inTensors 尤其是[0]
         // vector<string> inames = net_op->in_op;

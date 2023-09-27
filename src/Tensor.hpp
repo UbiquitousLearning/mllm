@@ -179,7 +179,37 @@ public:
         typed_ptr[offset(n, c, h, w)] = value;
     }
 
-    void printData();
+    template <typename Dtype>
+    void printData() {
+        std::cout<<"----------------------------------------"<<std::endl;
+        std::cout<<name()<<": shape:["<<num()<<" "<<channels()<<" "<<height()<<" "<<width()<<"]"<<std::endl;
+        // n c h w
+        int N = num();
+        int C = channels();
+        int H = height();
+        int W = width();
+        if (H == 1 && W == 1) {
+            for (int n = 0; n < N; ++n) {
+                for (int c = 0; c < C; ++c) {
+                    std::cout << dataAt<Dtype>(n, c, 1, 1) << " ";
+                }
+                std::cout << std::endl;
+            }
+        } else {
+            for (int n = 0; n < N; ++n) {
+                for (int c = 0; c < C; ++c) {
+                    for (int h = 0; h < H; ++h) {
+                        for (int w = 0; w < W; ++w) {
+                            std::cout << dataAt<Dtype>(n, c, h, w) << " ";
+                        }
+                        std::cout << std::endl;
+                    }
+                    std::cout << std::endl;
+                }
+                std::cout << std::endl;
+            }
+        }
+    }
 
     int byteWidth() const {
         return byte_width_;
@@ -198,7 +228,7 @@ public:
         return name_;
     }
 
-    bool allocted() const{
+    bool allocted() const {
         return allocated_;
     }
 
@@ -219,7 +249,6 @@ private:
     vector<int> shape_; // 保存 N K H W
     int capacity_;      // 元素个数 申请内存的总长度相关
     int count_;         // 当前元素数
-
 
     bool allocated_ = false;
     // bn

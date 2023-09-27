@@ -61,6 +61,15 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
         }
     }
 
+#ifdef DEBUG
+    inputs[0]->printData<float>();
+    weight_.printData<float>();
+    bias_.printData<float>();
+    outputs[0]->printData<float>();
+
+    return NO_ERROR;
+#endif
+
     return NO_ERROR;
 }
 
