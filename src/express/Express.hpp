@@ -15,7 +15,7 @@ struct Context {
     int idx = 0;
     int active_sub = 0;
 };
-
+// NOLINTBEGIN(readability-identifier-naming)
 void _SubgraphBegin(Context *ctx);
 NetTensor *_Input(Context *ctx, vector<int> dims, string name = "", DataType type = FP32);
 NetTensor *_Add(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
@@ -27,7 +27,7 @@ NetTensor *_RMSNorm(Context *ctx, std::vector<NetTensor *> inputs, string name =
 NetTensor *_RoPE(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
-
+// NOLINTEND(readability-identifier-naming)
 
 /*
 // OLD VERSION

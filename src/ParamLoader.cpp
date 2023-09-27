@@ -1,7 +1,9 @@
 #include "ParamLoader.hpp"
 #include "NetParameter.hpp"
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <iostream>
 #include <string>
 #include <utility>
 // TODO:
@@ -11,9 +13,9 @@
  * │       │      │       │        │           │         │         │      │                      │                         │
  * │       │      │       │        │           │         │         │      │                      │                         │
  * │       │      │       │        │           │         │         │      │                      │                         │
- * │       │ Index│       │        │           │         │         │      │                      │                         │
+ * │       │Index │       │        │           │         │         │      │                      │                         │
  * │       │ Len  │       │        │           │         │         │      │                      │                         │
- * │ Magic │ INT  │ Name  │Name    │ Weights   │ Offset  │ DataType│....  │   Weights Contents   │   Weights Content       │
+ * │ Magic │ INT  │ Name  │Name    │ Weights   │ Offset  │ DataType│....  │   Weights Contents   │   Weights Contents      │
  * │       │      │ Length│String  │ Length    │  INT    │  INT    │      │                      │                         │
  * │       │      │ INT   │        │  INT      │         │         │      │                      │                         │
  * │       │      │       │        │           │         │         │      │                      │                         │
@@ -27,6 +29,11 @@
 static int readInt(FILE *fp_) {
     int tmp;
     fread(&tmp, sizeof(int), 1, fp_);
+    return tmp;
+}
+static uint64_t readu64(FILE *fp_) {
+    uint64_t tmp;
+    fread(&tmp, sizeof(uint64_t), 1, fp_);
     return tmp;
 }
 static std::string readString(FILE *fp_) {
@@ -63,9 +70,12 @@ ParamLoader::~ParamLoader() {
 }
 ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
     path_(std::move(filename)), use_mmap_(use_mmap) {
-    this->fp_ = fopen(filename.c_str(), "rb");
-    if (fp_ == nullptr) {
+    this->fp_ = fopen(this->path_.c_str(), "rb");
+    if (this->fp_ == nullptr) {
         std::cout << "open file failed" << std::endl;
+        int errorCode = errno;
+        char *errorMsg = strerror(errorCode);
+        printf("Open file fail, errorCode:%d, errorMsg:%s\n", errorCode, errorMsg);
         exit(1);
     }
 #ifndef USE_MMAP
@@ -74,16 +84,16 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
     fseek(fp_, 0, SEEK_SET);
 #ifndef USE_MMAP
     int magic = readInt(fp_);
-    if (magic != MAGIC_NUMBER) {
+    if (magic != _MAGIC_NUMBER) {
         std::cout << "magic number error" << std::endl;
         exit(1);
     }
-    int index_size = readInt(fp_);
-    int index_offset = index_size + ftell(fp_);
+    uint64_t index_size = readu64(fp_);
+    uint64_t index_offset = index_size + ftell(fp_);
     while (ftell(fp_) < index_offset) {
         std::string name = readString(fp_);
-        int length = readInt(fp_);
-        int offset = readInt(fp_);
+        uint64_t length = readu64(fp_);
+        uint64_t offset = readu64(fp_);
         offsets_[name] = std::make_pair(offset, length);
         data_type_[name] = readInt(fp_);
     }
@@ -98,5 +108,6 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
 //     len+=length; //Align?
 // }
 #endif
+    // std::cout << "load param file success" << std::endl;
 }
 } // namespace mllm

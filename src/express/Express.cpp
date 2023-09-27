@@ -60,7 +60,7 @@ static void topology(const NetParameter *net, vector<NetOp *> &result, NetOp *op
     }
     result.push_back(op);
 }
-void NetParameter::TopologySort() {
+void NetParameter::topologySort() {
     vector<NetOp *> *result = new vector<NetOp *>();
     std::unordered_map<NetOp *, bool> visited;
     result->reserve(net_ops.size());
@@ -80,6 +80,7 @@ NetParameter *get_active_subgraph(Context *ctx) {
     }
     return &ctx->sub_param_[ctx->active_sub];
 }
+// NOLINTBEGIN (readability-identifier-naming)
 NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
     // Ref Count?
     NetTensor *net_tensor = new NetTensor();
@@ -244,6 +245,7 @@ NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_feature
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }
+// NOLINTEND (readability-identifier-naming)
 
 /***
  *
