@@ -25,8 +25,8 @@ private:
     FILE *fp_;
     uint8_t *buffer_;
     std::string path_;
-    std::uint8_t size_;
-    std::map<std::string, std::pair<uint8_t, uint8_t>> offsets_; // offsets,length
+    std::uint64_t size_;
+    std::map<std::string, std::pair<uint64_t, uint64_t>> offsets_; // offsets,length
     std::map<std::string, int> data_type_;
     bool use_mmap_;
 };
