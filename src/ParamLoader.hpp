@@ -11,7 +11,7 @@
 namespace mllm {
 class Tensor;
 
-#define MAGIC_NUMBER 20012
+#define _MAGIC_NUMBER 20012
 class ParamLoader {
 public:
     ParamLoader(std::string filename, bool use_mmap = false);

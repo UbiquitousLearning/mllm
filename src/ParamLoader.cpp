@@ -11,9 +11,9 @@
  * │       │      │       │        │           │         │         │      │                      │                         │
  * │       │      │       │        │           │         │         │      │                      │                         │
  * │       │      │       │        │           │         │         │      │                      │                         │
- * │       │ Index│       │        │           │         │         │      │                      │                         │
+ * │       │Index │       │        │           │         │         │      │                      │                         │
  * │       │ Len  │       │        │           │         │         │      │                      │                         │
- * │ Magic │ INT  │ Name  │Name    │ Weights   │ Offset  │ DataType│....  │   Weights Contents   │   Weights Content       │
+ * │ Magic │ INT  │ Name  │Name    │ Weights   │ Offset  │ DataType│....  │   Weights Contents   │   Weights Contents      │
  * │       │      │ Length│String  │ Length    │  INT    │  INT    │      │                      │                         │
  * │       │      │ INT   │        │  INT      │         │         │      │                      │                         │
  * │       │      │       │        │           │         │         │      │                      │                         │
@@ -74,7 +74,7 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
     fseek(fp_, 0, SEEK_SET);
 #ifndef USE_MMAP
     int magic = readInt(fp_);
-    if (magic != MAGIC_NUMBER) {
+    if (magic != _MAGIC_NUMBER) {
         std::cout << "magic number error" << std::endl;
         exit(1);
     }
@@ -98,5 +98,6 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
 //     len+=length; //Align?
 // }
 #endif
+    return;
 }
 } // namespace mllm

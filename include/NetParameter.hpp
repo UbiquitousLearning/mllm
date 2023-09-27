@@ -5,14 +5,12 @@
 #include "Types.hpp"
 #include <algorithm>
 #include <iostream>
-#include <iostream>
 #include <map>
 #include <set>
 #include <sstream>
 #include <string.h>
 #include <string>
 #include <vector>
-#include "set"
 using std::string;
 using std::vector;
 using std::map;
@@ -51,7 +49,7 @@ typedef struct TNetParameter {
     vector<NetTensor *> net_tensors;
     std::set<NetTensor *> net_inputs;
     std::set<NetTensor *> net_outputs;
-    void TopologySort();
+    void topologySort();
 
 } NetParameter;
 
