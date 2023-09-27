@@ -234,6 +234,9 @@ NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_feature
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::LINEAR)
+    net_op_->param["in_features"] = in_features;
+    net_op_->param["out_features"] = out_features;
+    net_op_->param["bias"] = (int)bias;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;

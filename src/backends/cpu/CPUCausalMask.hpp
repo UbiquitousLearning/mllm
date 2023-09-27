@@ -6,7 +6,7 @@
 
 namespace mllm {
 
-class CPUCausalMask : public Op {
+class CPUCausalMask final : public Op {
 public:
     CPUCausalMask(Backend *bn, bool multiThread);
     virtual ~CPUCausalMask() = default;

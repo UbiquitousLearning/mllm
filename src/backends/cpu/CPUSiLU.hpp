@@ -6,7 +6,7 @@
 
 namespace mllm {
 
-class CPUSiLU : public Op {
+class CPUSiLU final : public Op {
 public:
     CPUSiLU(Backend *bn, bool multiThread);
     virtual ~CPUSiLU() = default;

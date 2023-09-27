@@ -3,13 +3,13 @@
 namespace mllm {
 
 Tensor::Tensor(const int num, const int channels, const int height, const int width) :
-    capacity_(0) {
+    host_ptr_(), capacity_(0) {
     reshape(num, channels, height, width);
     // TODO
 }
 
 Tensor::Tensor(const vector<int> &shape) :
-    capacity_(0) {
+    host_ptr_(), capacity_(0) {
     reshape(shape);
 }
 
@@ -48,6 +48,7 @@ bool Tensor::reshape(const vector<int> &shape) {
 
 void Tensor::alloc() {
     backend_->alloc(&host_ptr_, capacity_ * byte_width_);
+    allocated_ = true;
 }
 
 // const float *Tensor::cpu_data() const {

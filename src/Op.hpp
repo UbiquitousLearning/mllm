@@ -84,12 +84,19 @@ public:
     Backend *backend() const {
         return backend_;
     }
+    string name() const {
+        return name_;
+    }
+    void setName(string name) {
+        name_ = name;
+    }
 
 private:
     // shared_ptr<Backend> backend_;
     Backend *backend_;
     vector<Tensor *> inputs_;
     vector<Tensor *> outputs_;
+    string name_;
     // BackendType backend_type_;
     // tensor w
     // vector<>
