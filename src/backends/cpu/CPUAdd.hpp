@@ -6,7 +6,7 @@
 
 namespace mllm {
 
-class CPUAdd : public Op {
+class CPUAdd final : public Op {
 public:
     CPUAdd(Backend *bn, bool multiThread);
     virtual ~CPUAdd() = default;

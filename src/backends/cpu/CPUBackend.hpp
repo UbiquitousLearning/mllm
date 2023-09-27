@@ -5,12 +5,11 @@
 #include "Op.hpp"
 #include "Types.hpp"
 namespace mllm {
-class CPUBackend : public Backend {
+class CPUBackend final : public Backend {
 public:
-    CPUBackend(shared_ptr<MemoryManager>& mm);
+    CPUBackend(shared_ptr<MemoryManager> &mm);
     ~CPUBackend() = default;
 
-public:
     class Creator {
     public:
         // virtual Op* Create(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,

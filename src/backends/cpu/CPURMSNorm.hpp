@@ -6,7 +6,7 @@
 
 namespace mllm {
 
-class CPURMSNorm : public Op {
+class CPURMSNorm final : public Op {
 public:
     CPURMSNorm(Backend *bn, bool multiThread);
     virtual ~CPURMSNorm() = default;

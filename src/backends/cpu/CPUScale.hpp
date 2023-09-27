@@ -6,7 +6,7 @@
 
 namespace mllm {
 
-class CPUScale : public Op {
+class CPUScale final : public Op {
 public:
     CPUScale(Backend *bn, bool multiThread);
     virtual ~CPUScale() = default;

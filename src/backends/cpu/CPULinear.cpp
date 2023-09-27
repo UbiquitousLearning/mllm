@@ -32,6 +32,7 @@ ErrorCode CPULinear::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr
     }
     outputs[0]->alloc();
     weight_.alloc();
+    bias_.alloc();
     return NO_ERROR;
 }
 
