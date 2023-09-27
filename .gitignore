@@ -7,3 +7,5 @@ build/
 bin/
 .clangd/
 compile_commands.json
+*.bin
+*.safetensors
