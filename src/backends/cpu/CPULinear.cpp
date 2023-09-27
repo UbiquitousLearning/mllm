@@ -76,6 +76,8 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
 ErrorCode CPULinear::load(ParamLoader &loader) {
     std::cout << "CPULinear load" << std::endl;
     loader.load(&weight_);
+    if (support_bias_)
+        loader.load(&bias_);
     return NO_ERROR;
 }
 
