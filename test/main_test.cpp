@@ -38,15 +38,18 @@ void display(Context *c) {
     }
 }
 int main() {
-    // test model sample
-    // Context *c = new Context();
-    // auto* x = _Input(c, {1, 3, 3, 3});
-    // x = _Softmax(c, {x}, -1);
-    // auto* z = _SiLU(c, {x});
-    // _SubgraphBegin(c);
-    // auto* y = _SiLU(c, {x});
-    // x = _Matmul(c, {z, y});
-    // x = _Softmax(c, {x}, -1);
+    /*
+    //  test model sample
+     Context *c = new Context();
+     auto* x = _Input(c, {1, 3, 3, 3});
+     x = _Softmax(c, {x}, -1);
+     auto* z = _SiLU(c, {x});
+     _SubgraphBegin(c);
+     auto* y = _SiLU(c, {x});
+     x = _Matmul(c, {z, y});
+     x = _Softmax(c, {x}, -1);
+     */
+
 
     // decoder blk sample
     Context *c = new Context();
@@ -65,6 +68,12 @@ int main() {
     x = _Linear(c, {x}, 1, 1, false);
     x = _Linear(c, {x}, 1, 1, false);
     o = _Add(c, {o, x});
+
+    /*
+    Context *c = new Context();
+    auto *x = _Input(c, {1, 32, 1, 1});
+    x = _Linear(c, {x}, 32, 16, false);
+     */
 
     // display(c);
 

@@ -6,7 +6,7 @@
 
 namespace mllm {
 
-class CPURoPE : public Op {
+class CPURoPE final : public Op {
 public:
     CPURoPE(Backend *bn, bool multiThread);
     virtual ~CPURoPE() = default;

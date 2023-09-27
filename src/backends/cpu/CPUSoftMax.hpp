@@ -6,7 +6,7 @@
 
 namespace mllm {
 
-class CPUSoftMax : public Op {
+class CPUSoftMax final : public Op {
 public:
     CPUSoftMax(Backend *bn, bool multiThread);
     virtual ~CPUSoftMax() = default;

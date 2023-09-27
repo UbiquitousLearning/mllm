@@ -5,9 +5,9 @@
 #include "Op.hpp"
 #include "Types.hpp"
 namespace mllm {
-class CPUBackend : public Backend {
+class CPUBackend final : public Backend {
 public:
-    CPUBackend(shared_ptr<MemoryManager> mm);
+    CPUBackend(shared_ptr<MemoryManager> &mm);
     ~CPUBackend() = default;
 
     class Creator {

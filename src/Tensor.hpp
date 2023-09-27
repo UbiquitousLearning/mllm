@@ -16,10 +16,10 @@ class Tensor {
 public:
     // Tensor():data_(), diff_(), capacity_(0){}
     Tensor() :
-        capacity_(0), byte_width_(sizeof(float)) {
+        host_ptr_(), capacity_(0), byte_width_(sizeof(float)) {
     }
     Tensor(Backend *bn) :
-        backend_(bn), capacity_(0), byte_width_(sizeof(float)) {
+        backend_(bn), host_ptr_(), capacity_(0), byte_width_(sizeof(float)) {
     }
     explicit Tensor(const int num, const int channels, const int height, const int width); // N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
     explicit Tensor(const vector<int> &shape);
@@ -37,12 +37,6 @@ public:
 
     // const float* cpu_data() const; //静态访问
     // const Dtype* cpu_diff() const;
-
-    template <typename Dtype>
-    Dtype *hostPtr() {
-        return (Dtype *)host_ptr_;
-    }
-
 
     void update();
 
@@ -162,26 +156,60 @@ public:
                   bool reshape = false);
 
     template <typename Dtype>
-    inline Dtype dataAt(const int n, const int c, const int h,
-                        const int w) const {
-        return hostPtr<Dtype>()[offset(n, c, h, w)];
+    Dtype *hostPtr() {
+        return (Dtype *)host_ptr_;
     }
-
-    // inline Dtype diff_at(const int n, const int c, const int h,
-    //                      const int w) const {
-    //     return cpu_diff()[offset(n, c, h, w)];
-    // }
 
     template <typename Dtype>
-    inline Dtype dataAt(const vector<int> &index) const {
-        return hostPtr<Dtype>()[offset(index)];
+    Dtype dataAt(const int n, const int c, const int h,
+                 const int w) const {
+        //        return hostPtr<Dtype>()[offset(n, c, h, w)];
+        return ((Dtype *)host_ptr_)[offset(n, c, h, w)];
     }
 
-    // inline Dtype diff_at(const vector<int>& index) const {
-    //     return cpu_diff()[offset(index)];
-    // }
+    template <typename Dtype>
+    Dtype dataAt(const vector<int> &index) const {
+        //        return hostPtr<Dtype>()[offset(index)];
+        return ((Dtype *)host_ptr_)[offset(index)];
+    }
 
-    void printData();
+    template <typename Dtype>
+    void setDataAt(const int n, const int c, const int h, const int w, Dtype value) {
+        Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
+        typed_ptr[offset(n, c, h, w)] = value;
+    }
+
+    template <typename Dtype>
+    void printData() {
+        std::cout<<"----------------------------------------"<<std::endl;
+        std::cout<<name()<<": shape:["<<num()<<" "<<channels()<<" "<<height()<<" "<<width()<<"]"<<std::endl;
+        // n c h w
+        int N = num();
+        int C = channels();
+        int H = height();
+        int W = width();
+        if (H == 1 && W == 1) {
+            for (int n = 0; n < N; ++n) {
+                for (int c = 0; c < C; ++c) {
+                    std::cout << dataAt<Dtype>(n, c, 1, 1) << " ";
+                }
+                std::cout << std::endl;
+            }
+        } else {
+            for (int n = 0; n < N; ++n) {
+                for (int c = 0; c < C; ++c) {
+                    for (int h = 0; h < H; ++h) {
+                        for (int w = 0; w < W; ++w) {
+                            std::cout << dataAt<Dtype>(n, c, h, w) << " ";
+                        }
+                        std::cout << std::endl;
+                    }
+                    std::cout << std::endl;
+                }
+                std::cout << std::endl;
+            }
+        }
+    }
 
     int byteWidth() const {
         return byte_width_;
@@ -198,6 +226,10 @@ public:
 
     string name() const {
         return name_;
+    }
+
+    bool allocted() const {
+        return allocated_;
     }
 
 private:
@@ -217,6 +249,8 @@ private:
     vector<int> shape_; // 保存 N K H W
     int capacity_;      // 元素个数 申请内存的总长度相关
     int count_;         // 当前元素数
+
+    bool allocated_ = false;
     // bn
 };
 } // namespace mllm

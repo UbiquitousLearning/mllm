@@ -11,7 +11,7 @@ class Backend;
 class Backend {
 public:
     Backend(){};
-    Backend(shared_ptr<MemoryManager> mm) :
+    Backend(shared_ptr<MemoryManager>& mm) :
         mem_manager_(mm) {
         // nothing to do
     }

@@ -14,7 +14,8 @@ Checks: >
   -readability-named-parameter,
   -readability-braces-around-statements,
   -readability-magic-numbers,
-  -readability-identifier-length
+  -readability-identifier-length,
+  -readability-avoid-const-params-in-decls
 
 
 # Turn all the warnings from the checks above into errors.
@@ -29,8 +30,8 @@ CheckOptions:
     value: CamelCase
   - key: readability-identifier-naming.TemplateParameterCase
     value: CamelCase
-  - key: readability-identifier-naming.FunctionCase
-    value: _
+  # - key: readability-identifier-naming.FunctionCase
+  #   value: _
   - key: readability-identifier-naming.PublicMethodCase
     value:  camelBack
   - key: readability-identifier-naming.PrivateMethodCase
@@ -41,8 +42,8 @@ CheckOptions:
     value: _
   - key: readability-identifier-naming.MacroDefinition
     value: UPPER_CASE
-  - key: readability-identifier-naming.EnumConstantCase
-    value: _
+  # - key: readability-identifier-naming.EnumConstantCase
+  #   value: _
   - key: readability-identifier-naming.ConstexprVariableCase
     value: CamelCase
   - key: readability-identifier-naming.GlobalConstantCase

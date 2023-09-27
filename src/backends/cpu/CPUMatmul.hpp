@@ -7,7 +7,7 @@
 namespace mllm {
 
 class Tensor;
-class CPUMatmul : public Op {
+class CPUMatmul final : public Op {
 public:
     CPUMatmul(Backend *bn, bool transposeA, bool transposeB, bool transposeC, bool multiThread);
     virtual ~CPUMatmul() = default;

@@ -7,7 +7,7 @@
 namespace mllm {
 
 class Tensor;
-class CPULinear : public Op {
+class CPULinear final : public Op {
 public:
     CPULinear(Backend *bn, int in_features, int out_features, bool bias, bool multiThread);
     virtual ~CPULinear() = default;
@@ -18,15 +18,21 @@ public:
     virtual ErrorCode load(ParamLoader &loader) override;
 
 private:
+    int in_features_;
+    int out_features_;
+    bool support_bias_;
     bool support_multi_thread_ = false;
+    Tensor weight_;
+    Tensor bias_;
 };
 
 class CPULinearCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn) const {
-        int in_features = 1;
-        int out_features = 1;
-        return new CPULinear(bn, in_features, out_features, false, false);
+        int in_features = op_param["in_features"];
+        int out_features = op_param["out_features"];
+        int bias = op_param["bias"];
+        return new CPULinear(bn, in_features, out_features, (bool)bias, false);
     }
 };
 

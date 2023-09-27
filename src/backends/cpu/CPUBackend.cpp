@@ -10,7 +10,7 @@
 #include "CPUSoftMax.hpp"
 #include "CPULinear.hpp"
 namespace mllm {
-CPUBackend::CPUBackend(shared_ptr<MemoryManager> mm) :
+CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
     Backend(mm) {
     initCreatorMap();
     registerOps();
