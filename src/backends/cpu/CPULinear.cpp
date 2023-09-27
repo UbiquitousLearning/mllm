@@ -19,7 +19,9 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     CHECK_EQ(outputs.size(), 1);
     CHECK_EQ(inputs[0]->channels(), in_features_);
     weight_.reshape(in_features_, out_features_, 1, 1);
+    weight_.setName(name()+".weight");
     bias_.reshape(1, out_features_, 1, 1);
+    bias_.setName(name()+".bias");
     outputs[0]->reshape(inputs[0]->num(), out_features_, inputs[0]->height(), inputs[0]->width());
     return NO_ERROR;
 }
@@ -66,8 +68,6 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     weight_.printData<float>();
     bias_.printData<float>();
     outputs[0]->printData<float>();
-
-    return NO_ERROR;
 #endif
 
     return NO_ERROR;
