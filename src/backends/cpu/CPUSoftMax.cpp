@@ -36,25 +36,28 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     int height = input->height();
     int width = input->width();
     for (int n = 0; n < num; ++n) {
-        for (int h = 0; h < height; ++h) {
-            for (int w = 0; w < width; ++w) {
-                for (int c = 0; c < channels; ++c) {
-                    float max_val = -std::numeric_limits<float>::infinity();
-                    for (int i = 0; i < channels; ++i) {
-                        max_val = std::max(max_val, input->dataAt<float>(n, i, h, w));
-                    }
-
+        for (int c = 0; c < channels; ++c) {
+            for (int h = 0; h < height; ++h) {
+                for (int w = 0; w < width; ++w) {
+                    std::vector<int> index = {n, c, h, w};
+                    int num_classes = input->shape(axis_); // 获取类别数量
+                    // 计算指定类别的 softmax
                     float sum_exp = 0.0;
-                    for (int i = 0; i < channels; ++i) {
-                        sum_exp += std::exp(input->dataAt<float>(n, i, h, w) - max_val);
+                    for (int j = 0; j < num_classes; j++) {
+                        index[axis_] = j;
+                        sum_exp += std::exp(input->dataAt<float>(index));
                     }
-
-                    float softmax_val = std::exp(input->dataAt<float>(n, c, h, w) - max_val) / sum_exp;
-                    output->setDataAt<float>(n, c, h, w, softmax_val);
+                    // 将 softmax 结果写入输出Tensor
+                    for (int j = 0; j < num_classes; j++) {
+                        index[axis_] = j;
+                        float softmax_value = std::exp(input->dataAt<float>(index)) / sum_exp;
+                        output->setDataAt<float>(index, softmax_value);
+                    }
                 }
             }
         }
     }
+
 #ifdef DEBUG
     inputs[0]->printData<float>();
     outputs[0]->printData<float>();

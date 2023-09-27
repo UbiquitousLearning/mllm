@@ -180,6 +180,12 @@ public:
     }
 
     template <typename Dtype>
+    void setDataAt(const vector<int> &index, Dtype value) {
+        Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
+        typed_ptr[offset(index)] = value;
+    }
+
+    template <typename Dtype>
     void printData() {
         std::cout<<"----------------------------------------"<<std::endl;
         std::cout<<name()<<": shape:["<<num()<<" "<<channels()<<" "<<height()<<" "<<width()<<"]"<<std::endl;
