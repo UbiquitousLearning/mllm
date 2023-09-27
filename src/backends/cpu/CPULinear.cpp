@@ -17,11 +17,10 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     std::cout << "CPULinear  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
-    CHECK_EQ(inputs[0]->channels(), 1);
-    CHECK_EQ(inputs[0]->width(), in_features_);
-    weight_.reshape(inputs[0]->num(), 1, in_features_, out_features_);
-    bias_.reshape(inputs[0]->num(), 1, 1, out_features_);
-    outputs[0]->reshape(inputs[0]->num(), 1, inputs[0]->height(), out_features_);
+    CHECK_EQ(inputs[0]->channels(), in_features_);
+    weight_.reshape(in_features_, out_features_, 1, 1);
+    bias_.reshape(1, out_features_, 1, 1);
+    outputs[0]->reshape(inputs[0]->num(), out_features_, inputs[0]->height(), inputs[0]->width());
     return NO_ERROR;
 }
 
@@ -41,22 +40,24 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     // INPUT: M.K
     // W:K,N
     // OUTPUT:M.N
-    int M = inputs[0]->height();
+    int M = inputs[0]->num();
     int K = in_features_;
     int N = out_features_;
-    for (int m = 0; m < M; m++) {
-        for (int n = 0; n < N; n++) {
-            outputs[0]->setDataAt<float>(1, 1, m, n, 0.0);
-            for (int k = 0; k < K; k++) {
-                auto mm_v = inputs[0]->dataAt<float>(1, 1, m, k) * weight_.dataAt<float>(1, 1, k, n);
-                outputs[0]->setDataAt<float>(1, 1, m, n, outputs[0]->dataAt<float>(1, 1, m, n) + mm_v);
+    int H = inputs[0]->height();
+    int W = inputs[0]->width();
+    for (int h = 0; h < H; h++) {
+        for (int w = 0; w < W; w++) {
+            for (int m = 0; m < M; m++) {
+                for (int n = 0; n < N; n++) {
+                    float value = 0;
+                    for (int k = 0; k < K; k++) {
+                        value += inputs[0]->dataAt<float>(m, k, h, w) * weight_.dataAt<float>(k, n, h, w);
+                    }
+                    if (support_bias_)
+                        value += bias_.dataAt<float>(1, n, 1, 1);
+                    outputs[0]->setDataAt<float>(m, n, h, w, value);
+                }
             }
-        }
-    }
-
-    for (int m = 0; m < M; m++) {
-        for (int n = 0; n < N; n++) {
-            outputs[0]->setDataAt<float>(1, 1, m, n, outputs[0]->dataAt<float>(1, 1, m, n) + bias_.dataAt<float>(1, 1, 1, n));
         }
     }
 
