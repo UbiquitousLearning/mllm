@@ -191,7 +191,7 @@ public:
         if (H == 1 && W == 1) {
             for (int n = 0; n < N; ++n) {
                 for (int c = 0; c < C; ++c) {
-                    std::cout << dataAt<Dtype>(n, c, 1, 1) << " ";
+                    std::cout << dataAt<Dtype>(n, c, 0, 0) << " ";
                 }
                 std::cout << std::endl;
             }
