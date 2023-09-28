@@ -75,7 +75,7 @@ int main() {
     auto *x = _Input(c, {1, 32, 1, 1});
     x = _Linear(c, {x}, 32, 16, false);
     x = _Softmax(c, {x}, 1);
-//    x = _SelfAttention(c, {x}, 16, 16);
+//    x = _SelfAttention(c, {x}, 32, 32);
 
 
     // display(c);

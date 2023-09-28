@@ -18,6 +18,12 @@ CPUSelfAttention::CPUSelfAttention(Backend *bn,int embedding_size, int hidden_si
     V_proj_->setName(name()+".V_proj");
     O_proj_.reset(new CPULinear(bn, hidden_size_, hidden_size_, false, false));
     O_proj_->setName(name()+".O_proj");
+    kq_matmul_.reset(new CPUMatmul(bn, false, true, false));
+    kq_matmul_->setName(name()+".kq_matmul");
+    softmax_.reset(new CPUSoftMax(bn, 1, false));
+    softmax_->setName(name()+".softmax");
+    s_v_matmul_.reset(new CPUMatmul(bn, false, false, false));
+    s_v_matmul_->setName(name()+".s_v_matmul");
 
     q_.reset(new Tensor(bn));
     k_.reset(new Tensor(bn));
@@ -123,6 +129,7 @@ ErrorCode CPUSelfAttention::execute(vector<shared_ptr<Tensor>> &inputs, vector<s
 
     vector<shared_ptr<Tensor>> kq_softmax_v_O_input = {kq_softmax_v_};
     O_proj_->execute(kq_softmax_v_O_input, outputs);
+//    outputs[0]->printData<float>();
 
     return NO_ERROR;
 }
