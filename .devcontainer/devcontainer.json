@@ -7,11 +7,15 @@
         "extensions": [
           "llvm-vs-code-extensions.vscode-clangd",
           "ms-vscode.cmake-tools",
-          "xaver.clang-format",
-          
+          "xaver.clang-format"
         ]
       }
     },
-    "runArgs": ["--privileged"]
+    "runArgs": [
+      "--privileged",
+      "--network=host"
+    ],
+    
+    "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}"
   }
   

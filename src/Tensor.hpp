@@ -1,7 +1,6 @@
 
 #ifndef MLLM_TENSOR_H
 #define MLLM_TENSOR_H
-
 #include <climits>
 #include "Backend.hpp"
 #include "Check.hpp"
@@ -88,10 +87,10 @@ public:
     inline int canonicalAxisIndex(int axis_index) const {
         CHECK_GE(axis_index, -numAxes())
             << "axis " << axis_index << " out of range for " << numAxes()
-            << "-D Tensor with shape " << shapeString();
+            << "-D Tensor with shape " << ShapeString();
         CHECK_LT(axis_index, numAxes())
             << "axis " << axis_index << " out of range for " << numAxes()
-            << "-D Tensor with shape " << shapeString();
+            << "-D Tensor with shape " << ShapeString();
         if (axis_index < 0) {
             return axis_index + numAxes();
         }

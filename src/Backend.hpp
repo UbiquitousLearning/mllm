@@ -34,7 +34,7 @@ public:
     }
 
     void free(void **ptr) {
-        mem_manager_->free(ptr);
+        mem_manager_->Free(ptr);
     }
 
     // unordered_map<OpType, Op*(*)(Backend*)> OpMap(){
