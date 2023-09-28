@@ -14,9 +14,9 @@ public:
     MemoryManager(){}
     virtual ~MemoryManager(){}
 
-    virtual void Alloc(void **ptr, size_t size,size_t alignment) = 0;
+    virtual void alloc(void **ptr, size_t size,size_t alignment) = 0;
 
-    virtual void Free(void **ptr) = 0;
+    virtual void free(void **ptr) = 0;
 
 };
 

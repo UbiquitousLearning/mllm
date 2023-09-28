@@ -29,12 +29,12 @@ public:
 
     void release(){};
 
-    void Alloc(void **ptr, size_t size,size_t alignment) {
-        mem_manager_->Alloc(ptr, size, alignment);
+    void alloc(void **ptr, size_t size,size_t alignment) {
+        mem_manager_->alloc(ptr, size, alignment);
     }
 
     void free(void **ptr) {
-        mem_manager_->Free(ptr);
+        mem_manager_->free(ptr);
     }
 
     // unordered_map<OpType, Op*(*)(Backend*)> OpMap(){

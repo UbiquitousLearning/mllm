@@ -47,7 +47,7 @@ bool Tensor::reshape(const vector<int> &shape) {
 }
 
 void Tensor::alloc() {
-    backend_->Alloc(&host_ptr_, capacity_ * byte_width_, 8); // TODO: alignment
+    backend_->alloc(&host_ptr_, capacity_ * byte_width_, 8); // TODO: alignment
 }
 
 // const float *Tensor::cpu_data() const {

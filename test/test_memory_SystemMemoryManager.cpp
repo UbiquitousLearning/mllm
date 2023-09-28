@@ -8,13 +8,13 @@ void test_batch_allocate(size_t alloc_times,size_t size,size_t alignment){
     SystemMemoryManager manager;
     void* pointers[alloc_times];
     for (int i=0;i<alloc_times;i++){
-        manager.Alloc(&pointers[i], size, alignment);
+        manager.alloc(&pointers[i], size, alignment);
         assert(pointers[i] != nullptr);
         assert(((long long)pointers[i] & (alignment - 1)) == 0);
     }
 
     for (int i=0;i<alloc_times;i++){
-        manager.Free(&pointers[i]);
+        manager.free(&pointers[i]);
     }
     printf("pass test_batch_allocate,size=%ld,times=%ld,alignment=%ld\n",size,alloc_times,alignment);
 

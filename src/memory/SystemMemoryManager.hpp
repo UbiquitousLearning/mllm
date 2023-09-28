@@ -8,9 +8,9 @@ namespace mllm {
         SystemMemoryManager(){}
         ~SystemMemoryManager(){}
 
-        void Alloc(void **ptr, size_t size,size_t alignment) override ;
+        void alloc(void **ptr, size_t size,size_t alignment) override ;
 
-        void Free(void **ptr) override;
+        void free(void **ptr) override;
 
     };
 }
