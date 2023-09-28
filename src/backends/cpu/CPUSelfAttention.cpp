@@ -18,6 +18,12 @@ CPUSelfAttention::CPUSelfAttention(Backend *bn,int embedding_size, int hidden_si
     V_proj_->setName(name()+".V_proj");
     O_proj_.reset(new CPULinear(bn, hidden_size_, hidden_size_, false, false));
     O_proj_->setName(name()+".O_proj");
+    kq_matmul_.reset(new CPUMatmul(bn, false, true, false));
+    kq_matmul_->setName(name()+".kq_matmul");
+    softmax_.reset(new CPUSoftMax(bn, 1, false));
+    softmax_->setName(name()+".softmax");
+    s_v_matmul_.reset(new CPUMatmul(bn, false, false, false));
+    s_v_matmul_->setName(name()+".s_v_matmul");
 
     q_.reset(new Tensor(bn));
     k_.reset(new Tensor(bn));
@@ -39,7 +45,8 @@ ErrorCode CPUSelfAttention::reshape(vector<shared_ptr<Tensor>> &inputs, vector<s
     vector<shared_ptr<Tensor>> v__ = {v_};
     V_proj_->reshape(inputs, v__);
     //TODO q_permute
-    vector<shared_ptr<Tensor>> kq_input  = {k_, q_};
+//    q_->permute(0, 2, 1, 3, false);// TODO 产生新的
+    vector<shared_ptr<Tensor>> kq_input  = {k_,q_};
     vector<shared_ptr<Tensor>> kq__ = {kq_};
     kq_matmul_->reshape(kq_input, kq__);
 
@@ -48,6 +55,7 @@ ErrorCode CPUSelfAttention::reshape(vector<shared_ptr<Tensor>> &inputs, vector<s
     softmax_->reshape(kq__, kq_softmax__);
 
     //TODO v_permute
+//    v_->permute(0, 2, 1, 3, false);
     vector<shared_ptr<Tensor>> kq_softmax_v_input = {kq_softmax_, v_};
     vector<shared_ptr<Tensor>> kq_softmax_v__ = {kq_softmax_v_};
     s_v_matmul_->reshape(kq_softmax_v_input, kq_softmax_v__);
@@ -109,6 +117,7 @@ ErrorCode CPUSelfAttention::execute(vector<shared_ptr<Tensor>> &inputs, vector<s
     vector<shared_ptr<Tensor>> v__ = {v_};
     V_proj_->execute(inputs, v__);
 
+//    q_->permute(0, 2, 1, 3);
     vector<shared_ptr<Tensor>> kq_input  = {k_, q_};
     vector<shared_ptr<Tensor>> kq__ = {kq_};
     kq_matmul_->execute(kq_input, kq__);
@@ -117,12 +126,14 @@ ErrorCode CPUSelfAttention::execute(vector<shared_ptr<Tensor>> &inputs, vector<s
     vector<shared_ptr<Tensor>> kq_softmax__ = {kq_softmax_};
     softmax_->execute(kq__, kq_softmax__);
 
+//    v_->permute(0, 2, 1, 3);
     vector<shared_ptr<Tensor>> kq_softmax_v_input = {kq_softmax_, v_};
     vector<shared_ptr<Tensor>> kq_softmax_v__ = {kq_softmax_v_};
     s_v_matmul_->execute(kq_softmax_v_input, kq_softmax_v__);
 
     vector<shared_ptr<Tensor>> kq_softmax_v_O_input = {kq_softmax_v_};
     O_proj_->execute(kq_softmax_v_O_input, outputs);
+//    outputs[0]->printData<float>();
 
     return NO_ERROR;
 }

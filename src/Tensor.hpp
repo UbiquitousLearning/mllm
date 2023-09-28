@@ -187,8 +187,8 @@ public:
 
     template <typename Dtype>
     void printData() {
-        std::cout<<"----------------------------------------"<<std::endl;
-        std::cout<<name()<<": shape:["<<num()<<" "<<channels()<<" "<<height()<<" "<<width()<<"]"<<std::endl;
+        std::cout << "----------------------------------------" << std::endl;
+        std::cout << name() << ": shape:[" << num() << " " << channels() << " " << height() << " " << width() << "]" << std::endl;
         // n c h w
         int N = num();
         int C = channels();
@@ -237,6 +237,8 @@ public:
     bool allocted() const {
         return allocated_;
     }
+
+    void permute(int axis0, int axis1, int axis2, int axis3, bool copy=true);
 
 private:
     string name_;
