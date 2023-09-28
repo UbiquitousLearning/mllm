@@ -18,6 +18,7 @@ enum OpType {
     RMSNORM,
     CAUSALMASK,
     LINEAR,
+    SELFATTENTION,
     OP_NUM
 };
 
@@ -32,6 +33,7 @@ static const vector<string> OpNames = {
     "RMSNorm",
     "CausalMask",
     "Linear",
+    "SelfAttention",
     "OP_NUM"};
 } // namespace mllm
 #endif

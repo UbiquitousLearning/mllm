@@ -12,11 +12,11 @@ set(TEST_EXE main_test)
 
 
 # find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
-set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
+#set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 
 if(CMAKE_HOST_UNIX)
     message("current platform: Linux ")
-    set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++14 -stdlib=libc++")
+#    set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++14 -stdlib=libc++")
 elseif(CMAKE_HOST_WIN32)
     message("current platform: Windows ")
 else()

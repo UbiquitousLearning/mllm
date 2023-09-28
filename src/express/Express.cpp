@@ -242,6 +242,24 @@ NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_feature
     return out_tensor;
 }
 
+NetTensor *_SelfAttention(Context *ctx, std::vector<NetTensor *> inputs, int embedding_size, int hidden_size, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "SelfAttention" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::SELFATTENTION)
+    net_op_->param["embedding_size"] = embedding_size;
+    net_op_->param["hidden_size"] = hidden_size;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }
