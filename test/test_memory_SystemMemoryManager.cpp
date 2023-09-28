@@ -1,5 +1,4 @@
 #include "memory/SystemMemoryManager.hpp"
-#include <gtest/gtest.h>
 #include <cassert>
 #include <cstddef>
 #include <cstdio>
