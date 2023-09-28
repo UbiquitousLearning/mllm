@@ -15,7 +15,7 @@ void SystemMemoryManager::Alloc(void **ptr, size_t size,size_t alignment){
     // 分配一块内存，void*用来存储原始指针
     void **origin = (void **)malloc(size + sizeof(void *) + alignment-1);
     assert(origin != nullptr);
-    if (!origin) {
+    if (origin == nullptr) {
         *ptr = nullptr;
     }
     void **aligned = (void**)(((size_t)(origin) + sizeof(void*) +  alignment - 1) & (~(alignment - 1)));
