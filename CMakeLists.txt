@@ -5,6 +5,7 @@ project(mllm)
 set(CMAKE_CXX_STANDARD 14)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # temp executable name
 set(TEST_EXE main_test)
