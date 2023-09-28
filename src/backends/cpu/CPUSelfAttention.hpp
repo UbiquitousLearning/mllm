@@ -11,6 +11,7 @@
 #include "CPULinear.hpp"
 #include "CPUMatmul.hpp"
 #include "CPUSoftMax.hpp"
+#include "CPUScale.hpp"
 
 namespace mllm {
 
@@ -38,6 +39,7 @@ private:
     shared_ptr<CPULinear> V_proj_;
     shared_ptr<CPULinear> O_proj_;
     shared_ptr<CPUMatmul> kq_matmul_;
+    shared_ptr<CPUScale> scale_;
     shared_ptr<CPUSoftMax> softmax_;
     shared_ptr<CPUMatmul> s_v_matmul_;
 
@@ -45,7 +47,7 @@ private:
     shared_ptr<Tensor>  k_;
     shared_ptr<Tensor>  v_;
     shared_ptr<Tensor>  kq_;
-//    shared_ptr<Tensor>  kq_scale_;
+    shared_ptr<Tensor>  kq_scale_;
     shared_ptr<Tensor>  kq_softmax_;
     shared_ptr<Tensor>  kq_softmax_v_;
 //    shared_ptr<Tensor>  kq_softmax_v_O_;

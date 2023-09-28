@@ -207,7 +207,7 @@ NetTensor *_RoPE(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     return out_tensor;
 }
 
-NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale,string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "Scale" + std::to_string(ctx->idx);
@@ -218,6 +218,9 @@ NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::SCALE)
+    net_op_->param["scale"] = scale;
+    net_op_->param["bias"] = bias;
+    net_op_->param["bias_after_scale"] = (int)bias_after_scale;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;

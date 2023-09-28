@@ -62,10 +62,10 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
                 for (int n = 0; n < N; n++) {
                     float value = 0;
                     for (int k = 0; k < K; k++) {
-                        value += weight_.dataAt<float>(1, m, k, w) * inputs[0]->dataAt<float>(b, k, n, w);
+                        value += weight_.dataAt<float>(0, m, k, w) * inputs[0]->dataAt<float>(b, k, n, w);
                     }
                     if (support_bias_)
-                        value += bias_.dataAt<float>(1, m, 1, w);
+                        value += bias_.dataAt<float>(0, m, 0, w);
                     outputs[0]->setDataAt<float>(b, m, n, w, value);
                 }
             }
