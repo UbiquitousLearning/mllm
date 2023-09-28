@@ -17,11 +17,22 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     std::cout << "CPULinear  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
-    CHECK_EQ(inputs[0]->channels(), in_features_);
-    weight_.reshape(in_features_, out_features_, 1, 1);
-    weight_.setName(name()+".weight");
+    // N     |    C       |   H                   |  W
+    // -----------------------------------------------
+    // 1     |out_channel | in_channel            |  1
+    //       |out_features| in_features           |
+    // -----------------------------------------------
+    // batch |in_channel  | seq_len               |  1
+    //       |in_features | inputs[0]->height()   |
+    // -----------------------------------------------
+    // batch |out_channel | seq_len               |  1
+    //       |out_features|  inputs[0]->height()  |
+    CHECK_EQ(inputs[0]->width(), 1);
+    CHECK_EQ(in_features_, inputs[0]->channels());
+    weight_.reshape(1, out_features_, in_features_, 1);
+    weight_.setName(name() + ".weight");
     bias_.reshape(1, out_features_, 1, 1);
-    bias_.setName(name()+".bias");
+    bias_.setName(name() + ".bias");
     outputs[0]->reshape(inputs[0]->num(), out_features_, inputs[0]->height(), inputs[0]->width());
     return NO_ERROR;
 }
@@ -42,22 +53,20 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     // INPUT: M.K
     // W:K,N
     // OUTPUT:M.N
-    int M = inputs[0]->num();
+    int M = out_features_;
     int K = in_features_;
-    int N = out_features_;
-    int H = inputs[0]->height();
-    int W = inputs[0]->width();
-    for (int h = 0; h < H; h++) {
-        for (int w = 0; w < W; w++) {
+    int N = inputs[0]->height();
+    for (int b = 0; b < inputs[0]->num(); b++) {
+        for (int w = 0; w < inputs[0]->width(); w++) {
             for (int m = 0; m < M; m++) {
                 for (int n = 0; n < N; n++) {
                     float value = 0;
                     for (int k = 0; k < K; k++) {
-                        value += inputs[0]->dataAt<float>(m, k, h, w) * weight_.dataAt<float>(k, n, h, w);
+                        value += weight_.dataAt<float>(1, m, k, w) * inputs[0]->dataAt<float>(b, k, n, w);
                     }
                     if (support_bias_)
-                        value += bias_.dataAt<float>(1, n, 1, 1);
-                    outputs[0]->setDataAt<float>(m, n, h, w, value);
+                        value += bias_.dataAt<float>(1, m, 1, w);
+                    outputs[0]->setDataAt<float>(b, m, n, w, value);
                 }
             }
         }
