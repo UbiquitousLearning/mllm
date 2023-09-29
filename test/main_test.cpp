@@ -72,10 +72,15 @@ int main() {
 
 
     Context *c = new Context();
-    auto *x = _Input(c, {1, 32, 1, 1});
-    x = _Linear(c, {x}, 32, 16, false);
-    x = _Softmax(c, {x}, 1);
+//    auto *x = _Input(c, {1, 32, 1, 1});
+//    x = _Linear(c, {x}, 32, 16, false);
+//    x = _Softmax(c, {x}, 1);
 //    x = _SelfAttention(c, {x}, 32, 32);
+
+
+
+    auto *x = _Input(c, {1, 10, 1, 1});
+    x = _RMSNorm(c, {x});
 
 
     // display(c);

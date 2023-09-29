@@ -238,6 +238,30 @@ public:
         return allocated_;
     }
 
+    void fullData(float value){
+        for (int n = 0; n < num(); ++n) {
+            for (int c = 0; c < channels(); ++c) {
+                for (int h = 0; h < height(); ++h) {
+                    for (int w = 0; w < width(); ++w) {
+                        setDataAt<float>(n, c, h, w, value);
+                    }
+                }
+            }
+        }
+    }
+
+    void fullDataTest(){
+        for (int n = 0; n < num(); ++n) {
+            for (int c = 0; c < channels(); ++c) {
+                for (int h = 0; h < height(); ++h) {
+                    for (int w = 0; w < width(); ++w) {
+                        setDataAt<float>(n, c, h, w, offset(n,c,h,w));
+                    }
+                }
+            }
+        }
+    }
+
     void permute(int axis0, int axis1, int axis2, int axis3, bool copy=true);
 
 private:
