@@ -207,7 +207,7 @@ NetTensor *_RoPE(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     return out_tensor;
 }
 
-NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale,string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "Scale" + std::to_string(ctx->idx);
@@ -218,6 +218,9 @@ NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::SCALE)
+    net_op_->param["scale"] = scale;
+    net_op_->param["bias"] = bias;
+    net_op_->param["bias_after_scale"] = (int)bias_after_scale;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;
@@ -237,6 +240,24 @@ NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_feature
     net_op_->param["in_features"] = in_features;
     net_op_->param["out_features"] = out_features;
     net_op_->param["bias"] = (int)bias;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+
+NetTensor *_SelfAttention(Context *ctx, std::vector<NetTensor *> inputs, int embedding_size, int hidden_size, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "SelfAttention" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::SELFATTENTION)
+    net_op_->param["embedding_size"] = embedding_size;
+    net_op_->param["hidden_size"] = hidden_size;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;

@@ -1,5 +1,6 @@
 
 #include "CPUSoftMax.hpp"
+#include <math.h>
 
 namespace mllm {
 
