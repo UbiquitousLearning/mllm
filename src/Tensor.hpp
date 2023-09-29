@@ -71,6 +71,18 @@ public:
     inline int width() const {
         return legacyShape(3);
     }
+    inline int batch() const {
+        return legacyShape(0);
+    }
+    // Deprecated legacy shape accessor channels: use shape(1) instead.
+    inline int hidden() const {
+        return legacyShape(1);
+    }
+    // Deprecated legacy shape accessor height: use shape(2) instead.
+    inline int seqLen() const {
+        return legacyShape(2);
+    }
+
 
     inline int count() const {
         return count_;
