@@ -1,5 +1,6 @@
 
 #include "CPUSiLU.hpp"
+#include <cmath>
 
 namespace mllm {
 
