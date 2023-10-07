@@ -71,6 +71,18 @@ public:
     inline int width() const {
         return legacyShape(3);
     }
+    inline int batch() const {
+        return legacyShape(0);
+    }
+    // Deprecated legacy shape accessor channels: use shape(1) instead.
+    inline int hidden() const {
+        return legacyShape(1);
+    }
+    // Deprecated legacy shape accessor height: use shape(2) instead.
+    inline int seqLen() const {
+        return legacyShape(2);
+    }
+
 
     inline int count() const {
         return count_;
@@ -180,18 +192,24 @@ public:
     }
 
     template <typename Dtype>
+    void setDataAt(const vector<int> &index, Dtype value) {
+        Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
+        typed_ptr[offset(index)] = value;
+    }
+
+    template <typename Dtype>
     void printData() {
-        std::cout<<"----------------------------------------"<<std::endl;
-        std::cout<<name()<<": shape:["<<num()<<" "<<channels()<<" "<<height()<<" "<<width()<<"]"<<std::endl;
+        std::cout << "----------------------------------------" << std::endl;
+        std::cout << name() << ": shape:[" << num() << " " << channels() << " " << height() << " " << width() << "]" << std::endl;
         // n c h w
         int N = num();
         int C = channels();
         int H = height();
         int W = width();
-        if (H == 1 && W == 1) {
-            for (int n = 0; n < N; ++n) {
+        if (N == 1 && W == 1) {
+            for (int h = 0; h < H; ++h) {
                 for (int c = 0; c < C; ++c) {
-                    std::cout << dataAt<Dtype>(n, c, 1, 1) << " ";
+                    std::cout << dataAt<Dtype>(0, c, h, 0) << " ";
                 }
                 std::cout << std::endl;
             }
@@ -231,6 +249,32 @@ public:
     bool allocted() const {
         return allocated_;
     }
+
+    void fullData(float value){
+        for (int n = 0; n < num(); ++n) {
+            for (int c = 0; c < channels(); ++c) {
+                for (int h = 0; h < height(); ++h) {
+                    for (int w = 0; w < width(); ++w) {
+                        setDataAt<float>(n, c, h, w, value);
+                    }
+                }
+            }
+        }
+    }
+
+    void fullDataTest(){
+        for (int n = 0; n < num(); ++n) {
+            for (int c = 0; c < channels(); ++c) {
+                for (int h = 0; h < height(); ++h) {
+                    for (int w = 0; w < width(); ++w) {
+                        setDataAt<float>(n, c, h, w, offset(n,c,h,w));
+                    }
+                }
+            }
+        }
+    }
+
+    void permute(int axis0, int axis1, int axis2, int axis3, bool copy=true);
 
 private:
     string name_;

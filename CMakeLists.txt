@@ -5,19 +5,20 @@ project(mllm)
 set(CMAKE_CXX_STANDARD 14)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # temp executable name
 set(TEST_EXE main_test)
 
 # find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
-set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
+#set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 
 # backend options
 option(NNAPI "Enable NNAPI" OFF)
 
 if(CMAKE_HOST_UNIX)
     message("current platform: Linux ")
-    set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++14 -stdlib=libc++")
+#    set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++14 -stdlib=libc++")
 elseif(CMAKE_HOST_WIN32)
     message("current platform: Windows ")
 else()

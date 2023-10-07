@@ -101,24 +101,13 @@ void Graph::init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
 }
 
 void Graph::setUp() {
-    // for (auto &t : tensors_["Input0"]) {
-    //     t->Alloc(); // to_cpu//malloc&memset 0 TODO
-    //     t->SetName("Input0_");
-    // }
+    auto &graph_in_tensors = ops_input_tensors_[param_.net_ops[0]->name];
+    for (auto &t : graph_in_tensors) {
+        t->alloc();
+    }
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto *net_op = param_.net_ops[i];
-        string lname = net_op->name; // op_names_[i];
-        // TODO: CHECK一下 inTensors 尤其是[0]
-        // vector<string> inames = net_op->in_op; // op_in_names_[i];
-        // vector<shared_ptr<Tensor>> inTensors;
-        // for (auto name : inames) {
-        //     inTensors.push_back(tensors_[name][0]);
-        // }
-        // auto in_tensors = net_op->in;
-        // vector<shared_ptr<Tensor>> inTensors;
-        // for (auto in_t : in_tensors) {
-        //     inTensors.push_back(tensors_[in_t->in->name][0]);
-        // }
+        string lname = net_op->name;                                               // op_names_[i];
         ops_[lname]->setUp(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:malloc&memset 0 //TODO: 加入Bachend后改成不同Device的malloc
     }
 }

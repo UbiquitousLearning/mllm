@@ -80,4 +80,49 @@ void Tensor::alloc() {
 
 void Tensor::copyFrom(const Tensor &source, bool copy_diff, bool reshape) {
 }
+void Tensor::permute(int axis0, int axis1, int axis2, int axis3, bool copy) {
+    // 检查轴的合法性
+    CHECK_GE(axis0, 0);
+    CHECK_LT(axis0, 4);
+    CHECK_GE(axis1, 0);
+    CHECK_LT(axis1, 4);
+    CHECK_GE(axis2, 0);
+    CHECK_LT(axis2, 4);
+    CHECK_GE(axis3, 0);
+    CHECK_LT(axis3, 4);
+
+    // 计算新的形状
+    vector<int> new_shape = {shape_[axis0], shape_[axis1], shape_[axis2], shape_[axis3]};
+    // 使用临时存储来保存重新排列后的数据
+    vector<float> temp_data(count_);
+    if (copy) {
+        // 对数据进行重新排列
+        for (int n = 0; n < num(); ++n) {
+            for (int c = 0; c < channels(); ++c) {
+                for (int h = 0; h < height(); ++h) {
+                    for (int w = 0; w < width(); ++w) {
+                        int old_idx = offset(n, c, h, w);
+                        int new_idx = ((n * new_shape[1] + c) * new_shape[2] + h) * new_shape[3] + w;
+                        temp_data[new_idx] = dataAt<float>(n, c, h, w);
+                    }
+                }
+            }
+        }
+    }
+
+    // 更新形状和数据
+    shape_ = new_shape;
+    if (copy) {
+        for (int n = 0; n < num(); ++n) {
+            for (int c = 0; c < channels(); ++c) {
+                for (int h = 0; h < height(); ++h) {
+                    for (int w = 0; w < width(); ++w) {
+                        int new_idx = ((n * new_shape[1] + c) * new_shape[2] + h) * new_shape[3] + w;
+                        setDataAt<float>(n, c, h, w, temp_data[new_idx]);
+                    }
+                }
+            }
+        }
+    }
+}
 } // namespace mllm

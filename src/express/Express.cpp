@@ -60,7 +60,7 @@ static void topology(const NetParameter *net, vector<NetOp *> &result, NetOp *op
     }
     result.push_back(op);
 }
-void NetParameter::TopologySort() {
+void NetParameter::topologySort() {
     vector<NetOp *> *result = new vector<NetOp *>();
     std::unordered_map<NetOp *, bool> visited;
     result->reserve(net_ops.size());
@@ -80,6 +80,7 @@ NetParameter *get_active_subgraph(Context *ctx) {
     }
     return &ctx->sub_param_[ctx->active_sub];
 }
+// NOLINTBEGIN (readability-identifier-naming)
 NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
     // Ref Count?
     NetTensor *net_tensor = new NetTensor();
@@ -206,7 +207,7 @@ NetTensor *_RoPE(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     return out_tensor;
 }
 
-NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale,string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "Scale" + std::to_string(ctx->idx);
@@ -217,6 +218,9 @@ NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::SCALE)
+    net_op_->param["scale"] = scale;
+    net_op_->param["bias"] = bias;
+    net_op_->param["bias_after_scale"] = (int)bias_after_scale;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;
@@ -241,9 +245,28 @@ NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_feature
     return out_tensor;
 }
 
+NetTensor *_SelfAttention(Context *ctx, std::vector<NetTensor *> inputs, int embedding_size, int hidden_size, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "SelfAttention" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::SELFATTENTION)
+    net_op_->param["embedding_size"] = embedding_size;
+    net_op_->param["hidden_size"] = hidden_size;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }
+// NOLINTEND (readability-identifier-naming)
 
 /***
  *
