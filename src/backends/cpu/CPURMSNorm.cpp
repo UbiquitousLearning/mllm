@@ -1,7 +1,6 @@
 #include <cmath>
 #include "CPURMSNorm.hpp"
 #include "Tensor.hpp"
-#include "Tensor.hpp"
 
 namespace mllm {
 
@@ -11,13 +10,10 @@ namespace mllm {
 CPURMSNorm::CPURMSNorm(Backend *bn, bool multiThread, float epsilon) :
     Op(bn), epsilon_(epsilon), support_multi_thread_(multiThread) {
     weight_.setBackend(bn);
-    CPURMSNorm::CPURMSNorm(Backend * bn, bool multiThread, float epsilon) :
-        Op(bn), epsilon_(epsilon), support_multi_thread_(multiThread) {
-        weight_.setBackend(bn);
-    }
+}
 
-    ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> & inputs, vector<shared_ptr<Tensor>> & outputs) {
-        // RMSNorm 类似于LayerNorm作用于channel维度
+ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    // RMSNorm 类似于LayerNorm作用于channel维度
         weight_.reshape(1, inputs[0]->channels(), 1, 1); // (C, 1, 1, 1)
         weight_.setName(name() + ".weight");
         outputs[0]->reshape(inputs[0]->num(), inputs[0]->channels(), inputs[0]->height(), inputs[0]->width());

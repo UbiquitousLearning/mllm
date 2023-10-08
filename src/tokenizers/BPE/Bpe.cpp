@@ -9,17 +9,24 @@ static size_t utf8_len(char src) {
     return lookup[highbits];
 }
 void mllm::BPE::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool unk_byte_token = false) {
+    if (text.empty()) {
+        return;
+    }
+    if (this->vocab_map_.empty() || this->id_token_.empty()) {
+        std::cout << "The vocab map is empty!" << std::endl;
+        return;
+    }
     size_t offset = 0;
     int idx = 0;
     while (offset < text.size()) {
-        CharSymbol symbol;
+        symbols_.emplace_back();
+        CharSymbol symbol = symbols_.back();
         symbol.ch = text.c_str() + offset;
         symbol.length = std::min(text.size() - offset, utf8_len(text[offset]));
         symbol.last = idx - 1;
         symbol.next = text.size() - offset - symbol.length > 0 ? idx + 1 : -1;
         offset += symbol.length;
         idx++;
-        symbols_.emplace_back(symbol);
     }
     for (int i = 1; i < symbols_.size(); ++i) {
         //        std::cout<<symbols_[i].ch<<std::endl;
@@ -60,7 +67,7 @@ void mllm::BPE::tokenize(const std::string &text, std::vector<token_id_t> &token
                 } else {
                     for (int j = 0; j < (int)symbols_[i].length; ++j) {
                         token_id_t token_id = static_cast<uint8_t>(symbols_[i].ch[j]) + 3;
-                        tokens.push_back(token_id);
+                        tokens.emplace_back(token_id);
                     }
                 }
             }

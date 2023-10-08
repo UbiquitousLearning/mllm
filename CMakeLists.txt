@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.7.2)
 
 project(mllm)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -38,8 +38,6 @@ include_directories(${PROJECT_SOURCE_DIR}/thirdpartys/include)
 add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/test/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/Tokenizer.hpp
-        src/tokenizers/unigram/Unigram.cpp
-        src/tokenizers/unigram/Unigram.hpp
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp)
 
