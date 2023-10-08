@@ -52,6 +52,14 @@ private:
     shared_ptr<Tensor>  kq_softmax_v_;
 //    shared_ptr<Tensor>  kq_softmax_v_O_;
 
+    shared_ptr<Tensor>  k_cached_;
+    shared_ptr<Tensor>  v_cached_;
+
+    shared_ptr<Tensor>  k_merged_;
+    shared_ptr<Tensor>  v_merged_;
+
+    bool kvcached_ = true;
+
     int embedding_size_;
     int hidden_size_;
     bool support_multi_thread_ = false;

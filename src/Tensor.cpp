@@ -80,6 +80,10 @@ void Tensor::alloc() {
 
 void Tensor::copyFrom(const Tensor &source, bool copy_diff, bool reshape) {
 }
+void Tensor::copyFrom(const shared_ptr<Tensor> &source, bool reshape) {
+    // copy
+    memccpy(host_ptr_, source->host_ptr_, 0, count_ * byte_width_);
+}
 void Tensor::permute(int axis0, int axis1, int axis2, int axis3, bool copy) {
     // 检查轴的合法性
     CHECK_GE(axis0, 0);

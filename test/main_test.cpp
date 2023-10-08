@@ -80,8 +80,8 @@ int main() {
 
 
     auto *x = _Input(c, {1, 10, 1, 1});
-    x = _RMSNorm(c, {x});
-
+//    x = _RMSNorm(c, {x});
+    x = _SelfAttention(c, {x}, 10, 10);
 
     // display(c);
 
@@ -92,6 +92,7 @@ int main() {
     // net.Run();
 
     Executor ex(&net);
+    ex.execute();
     ex.execute();
     return 0;
 }

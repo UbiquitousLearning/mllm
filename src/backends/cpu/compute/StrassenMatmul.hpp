@@ -5,6 +5,7 @@
 #ifndef MLLM_STRASSENMATMUL_H
 #define MLLM_STRASSENMATMUL_H
 #include "Backend.hpp"
+#include "Tensor.hpp"
 namespace mllm {
 class StrassenMatmul {
 public:
@@ -53,5 +54,9 @@ public:
 private:
     Backend *backend_;
 };
+
+
+
+void strassenMatMul(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, shared_ptr<Tensor> &C, vector<int> A_offsets, vector<int> B_offsets, vector<int> C_offsets, int batch = 0);
 } // namespace mllm
 #endif // MLLM_STRASSENMATMUL_H

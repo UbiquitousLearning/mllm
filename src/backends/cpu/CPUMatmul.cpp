@@ -27,8 +27,8 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
          -----------------------------------------------
          batch |out_channel | seq_len               |  1
          */
-        CHECK_EQ(inputs[0]->height(), inputs[1]->channels());
-        outputs[0]->reshape(inputs[0]->num(), inputs[0]->channels(), inputs[1]->height(), inputs[0]->width());
+        CHECK_EQ(inputs[0]->seqLen(), inputs[1]->hidden());
+        outputs[0]->reshape(inputs[0]->num(), inputs[0]->hidden(), inputs[1]->seqLen(), inputs[0]->width());
     } else if (transpose0_) {
         /*
          N     |    C       |   H                   |  W
@@ -39,8 +39,8 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
          -----------------------------------------------
          batch |out_channel | seq_len               |  1
          */
-        CHECK_EQ(inputs[0]->channels(), inputs[1]->channels());
-        outputs[0]->reshape(inputs[0]->num(), inputs[0]->height(), inputs[1]->height(), inputs[0]->width());
+        CHECK_EQ(inputs[0]->hidden(), inputs[1]->hidden());
+        outputs[0]->reshape(inputs[0]->num(), inputs[0]->seqLen(), inputs[1]->seqLen(), inputs[0]->width());
     } else {
         /*
          N     |    C       |   H                   |  W
@@ -51,8 +51,8 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
          -----------------------------------------------
          batch |out_channel | seq_len               |  1
          */
-        CHECK_EQ(inputs[0]->height(), inputs[1]->height());
-        outputs[0]->reshape(inputs[0]->num(), inputs[0]->channels(), inputs[1]->channels(), inputs[0]->width());
+        CHECK_EQ(inputs[0]->seqLen(), inputs[1]->seqLen());
+        outputs[0]->reshape(inputs[0]->num(), inputs[0]->hidden(), inputs[1]->hidden(), inputs[0]->width());
     }
     return NO_ERROR;
 }
@@ -78,17 +78,17 @@ ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     int K = 0;
     int N = 0;
     if (!transpose0_ && !transpose1_) {
-        M = inputs[0]->channels();
-        K = inputs[0]->height();
-        N = inputs[1]->height();
+        M = inputs[0]->hidden();
+        K = inputs[0]->seqLen();
+        N = inputs[1]->seqLen();
     } else if (transpose0_){
-        M = inputs[0]->height();
-        K = inputs[0]->channels();
-        N = inputs[1]->height();
+        M = inputs[0]->seqLen();
+        K = inputs[0]->hidden();
+        N = inputs[1]->seqLen();
     } else {
-        M = inputs[0]->channels();
-        K = inputs[0]->height();
-        N = inputs[1]->channels();
+        M = inputs[0]->hidden();
+        K = inputs[0]->seqLen();
+        N = inputs[1]->hidden();
     }
     for (int b = 0; b < inputs[0]->num(); b++) {
         for (int w = 0; w < inputs[0]->width(); w++) {

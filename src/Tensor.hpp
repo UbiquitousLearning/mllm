@@ -166,6 +166,7 @@ public:
      */
     void copyFrom(const Tensor &source, bool copy_diff = false,
                   bool reshape = false);
+    void copyFrom(const shared_ptr<Tensor> &source, bool reshape = false);
 
     template <typename Dtype>
     Dtype *hostPtr() {
