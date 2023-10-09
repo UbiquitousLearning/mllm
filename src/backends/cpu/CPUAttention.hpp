@@ -2,8 +2,8 @@
 // Created by ey on 23-9-28.
 //
 
-#ifndef MLLM_CPUSELFATTENTION_HPP
-#define MLLM_CPUSELFATTENTION_HPP
+#ifndef MLLM_CPUATTENTION_HPP
+#define MLLM_CPUATTENTION_HPP
 
 #include "Op.hpp"
 #include "CPUBackend.hpp"
@@ -15,10 +15,10 @@
 
 namespace mllm {
 
-class CPUSelfAttention  final : public Op {
+class CPUAttention final : public Op {
 public:
-    CPUSelfAttention(Backend *bn, int embedding_size, int hidden_size, bool multiThread);
-    virtual ~CPUSelfAttention() = default;
+    CPUAttention(Backend *bn, int embedding_size, int hidden_size, int head_size, bool multiThread);
+    virtual ~CPUAttention() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
@@ -46,26 +46,40 @@ private:
     shared_ptr<Tensor>  q_;
     shared_ptr<Tensor>  k_;
     shared_ptr<Tensor>  v_;
+    shared_ptr<Tensor>  q_state_;
+    shared_ptr<Tensor>  k_state_;
+    shared_ptr<Tensor>  v_state_;
     shared_ptr<Tensor>  kq_;
     shared_ptr<Tensor>  kq_scale_;
     shared_ptr<Tensor>  kq_softmax_;
     shared_ptr<Tensor>  kq_softmax_v_;
+    shared_ptr<Tensor>  kqv_state_;
 //    shared_ptr<Tensor>  kq_softmax_v_O_;
+
+    shared_ptr<Tensor>  k_cached_;
+    shared_ptr<Tensor>  v_cached_;
+
+    shared_ptr<Tensor>  k_merged_;
+    shared_ptr<Tensor>  v_merged_;
+
+    bool past_key_value_ = true;
 
     int embedding_size_;
     int hidden_size_;
+    int head_size_;
     bool support_multi_thread_ = false;
 };
 
-class CPUSelfAttentionCreator : public CPUBackend::Creator {
+class CPUAttentionCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn) const {
         int embedding_size = op_param["embedding_size"];
         int hidden_size = op_param["hidden_size"];
-        return new CPUSelfAttention(bn, embedding_size, hidden_size, false);
+        int head_size = op_param["head_size"];
+        return new CPUAttention(bn, embedding_size, hidden_size, head_size, false);
     }
 };
 
 } // namespace mllm
 
-#endif // MLLM_CPUSELFATTENTION_HPP
+#endif // MLLM_CPUATTENTION_HPP

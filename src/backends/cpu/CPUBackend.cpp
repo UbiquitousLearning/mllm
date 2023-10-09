@@ -9,7 +9,7 @@
 #include "CPUSiLU.hpp"
 #include "CPUSoftMax.hpp"
 #include "CPULinear.hpp"
-#include "CPUSelfAttention.hpp"
+#include "CPUAttention.hpp"
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
     Backend(mm) {
@@ -59,7 +59,7 @@ void CPUBackend::registerOps() {
     addCreator(SILU, (CPUBackend::Creator *)(new CPUSiLUCreator()));
     addCreator(SOFTMAX, (CPUBackend::Creator *)(new CPUSoftMaxCreator()));
     addCreator(LINEAR, (CPUBackend::Creator *)(new CPULinearCreator()));
-    addCreator(SELFATTENTION, (CPUBackend::Creator *)(new CPUSelfAttentionCreator()));
+    addCreator(ATTENTION, (CPUBackend::Creator *)(new CPUAttentionCreator()));
 }
 
 } // namespace mllm
