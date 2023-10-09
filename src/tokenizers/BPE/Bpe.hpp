@@ -8,7 +8,7 @@
 #include "tokenizers/Tokenizer.hpp"
 
 namespace mllm {
-class BPE final : public Tokenizer {
+class BPETokenizer final : public Tokenizer {
     struct TokenItem {
         struct Compare {
             bool operator()(const TokenItem &lhs, const TokenItem &rhs) const {
@@ -23,16 +23,17 @@ class BPE final : public Tokenizer {
     struct CharSymbol {
         const char *ch;
         int length;
-        size_t last;
-        size_t next;
+        int last;
+        int next;
     };
     std::vector<CharSymbol> symbols_;
     std::priority_queue<TokenItem, std::vector<TokenItem>, TokenItem::Compare> queue_;
     void tryMergeSymbol(size_t start, size_t end);
 
 public:
-    void tokenize(const std::string &text, std::vector<token_id_t> &tokens) override;
-    void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool unk_byte_token);
+    void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) override;
+    void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, bool byte_fallback);
+    explicit BPETokenizer(const std::string &vocab_file);
 };
 } // namespace mllm
 
