@@ -35,25 +35,9 @@ public:
 
     void alloc();
 
-    // const float* cpu_data() const; //静态访问
-    // const Dtype* cpu_diff() const;
 
     void update();
 
-    /*
-            //TODO 针对data的计算，或者加一个参数is_diff来支持data&diff
-            Tensor& operator[] (int i);//??
-            Tensor& operator= (double val);
-            Tensor& operator*= (const double i);
-            friend Tensor operator*(Tensor A, Tensor B);
-            friend Tensor operator/(Tensor A, Tensor B);
-            friend Tensor operator/(Tensor A, double val);
-            friend Tensor operator*(double num, Tensor B);
-            friend Tensor operator+(Tensor A, Tensor B);
-            friend Tensor operator+(Tensor A, double val);
-            friend Tensor sqrt(Tensor A);
-            friend Tensor square(Tensor A);
-    */
 
     // Deprecated legacy shape accessor num: use shape(0) instead.
     inline int num() const {
@@ -71,16 +55,19 @@ public:
     inline int width() const {
         return legacyShape(3);
     }
+
+
     inline int batch() const {
         return legacyShape(0);
     }
-    // Deprecated legacy shape accessor channels: use shape(1) instead.
-    inline int hidden() const {
+    inline int head() const {
         return legacyShape(1);
     }
-    // Deprecated legacy shape accessor height: use shape(2) instead.
-    inline int seqLen() const {
+    inline int sequence() const {
         return legacyShape(2);
+    }
+    inline int dimension() const {
+        return legacyShape(3);
     }
 
 
@@ -166,6 +153,7 @@ public:
      */
     void copyFrom(const Tensor &source, bool copy_diff = false,
                   bool reshape = false);
+    void copyFrom(const shared_ptr<Tensor> &source, bool reshape = false);
 
     template <typename Dtype>
     Dtype *hostPtr() {

@@ -19,7 +19,7 @@ ErrorCode CPUScale::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     std::cout << "CPUScale  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
-    outputs[0]->reshape(inputs[0]->num(), inputs[0]->channels(), inputs[0]->height(), inputs[0]->width());
+    outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
     return NO_ERROR;
 }
 
@@ -36,10 +36,10 @@ ErrorCode CPUScale::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     std::cout << "CPUScale()" << std::endl;
     auto & input = inputs[0];
     auto & output = outputs[0];
-    for(int n = 0; n<input->num(); ++n){
-        for(int c = 0; c<input->channels(); ++c){
-            for(int h = 0; h<input->height(); ++h){
-                for(int w = 0; w<input->width(); ++w){
+    for(int n = 0; n<input->shape(0); ++n){
+        for(int c = 0; c<input->shape(1); ++c){
+            for(int h = 0; h<input->shape(2); ++h){
+                for(int w = 0; w<input->shape(3); ++w){
                     float value = input->dataAt<float>(n, c, h, w);
                     if(bias_after_scale_){
                         value = value * scale_ + bias_;
