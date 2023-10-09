@@ -42,6 +42,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 target_link_libraries(${TEST_EXE} MLLM_CPU)
 
 if(NNAPI)
+    add_definitions(-DNNAPI_ENABLED=1)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/nnapi)
     target_link_libraries(${TEST_EXE} MLLM_NNAPI)
 endif()
