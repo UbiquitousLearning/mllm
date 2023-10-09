@@ -55,8 +55,6 @@ private:
     Backend *backend_;
 };
 
-
-
-void strassenMatMul(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, shared_ptr<Tensor> &C, vector<int> A_offsets, vector<int> B_offsets, vector<int> C_offsets, int batch = 0);
+void strassenMatMul(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, shared_ptr<Tensor> &C, vector<int> A_offsets, vector<int> B_offsets, vector<int> C_offsets);
 } // namespace mllm
 #endif // MLLM_STRASSENMATMUL_H
