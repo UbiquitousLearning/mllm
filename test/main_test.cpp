@@ -70,16 +70,13 @@ int main() {
     o = _Add(c, {o, x});
     */
 
-
     Context *c = new Context();
-//    auto *x = _Input(c, {1, 32, 1, 1});
-//    x = _Linear(c, {x}, 32, 16, false);
-//    x = _Softmax(c, {x}, 1);
-//    x = _SelfAttention(c, {x}, 32, 32);
 
-
-
-    auto *x = _Input(c, {1, 10, 1, 1});
+    auto *x = _Input(c, {1, 1, 1, 10});
+    //    x = _Linear(c, {x}, 10, 10, false);
+    //    x = _Softmax(c, {x}, 1);
+    //    x = _RMSNorm(c, {x});
+    x = _Attention(c, {x}, 10, 10, 8);
     x = _RMSNorm(c, {x});
     auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
     auto tokens_id = vector<token_id_t>();
@@ -99,6 +96,7 @@ int main() {
     // net.Run();
 
     Executor ex(&net);
+    ex.execute();
     ex.execute();
     return 0;
 }
