@@ -10,13 +10,43 @@ void mutilHeadReshape(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, int head_num
     B->reshape(A->batch(), head_num, A->sequence(), A->dimension() / head_num);
 }
 void mutilHeadReshapeExe(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, int head_num) {
-    ;
+    // 获取 A 的相关维度信息
+    int batch = A->batch();
+    int sequence = A->sequence();
+    int dimension = A->dimension();
+    // 计算新的维度信息
+    int new_dimension = dimension / head_num;
+    // 从 A 复制数据到 B
+    for (int n = 0; n < batch; ++n) {
+        for (int h = 0; h < head_num; ++h) {
+            for (int s = 0; s < sequence; ++s) {
+                for (int d = 0; d < new_dimension; ++d) {
+                    float value = A->dataAt<float>(n, 0, s, h * new_dimension + d);
+                    B->setDataAt<float>(n, h, s, d, value);
+                }
+            }
+        }
+    }
+
 }
 void mutilHeadDeReshape(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, int head_num) {
     B->reshape(A->batch(), 1, A->sequence(), A->dimension() * head_num);
 }
 void mutilHeadDeReshapeExe(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, int head_num) {
-    ;
+    int batch_size = A->batch();
+    int sequence = A->sequence();
+    int dimension = A->dimension();
+
+    for (int n = 0; n < batch_size; ++n) {
+        for (int s = 0; s < sequence; ++s) {
+            for (int d = 0; d < dimension; ++d) {
+                for (int h = 0; h < head_num; ++h) {
+                    float value = A->dataAt<float>(n, h, s, d);
+                    B->setDataAt<float>(n, 0, s, h * dimension + d, value);
+                }
+            }
+        }
+    }
 }
 void mergeCacheReshape(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, shared_ptr<Tensor> &C) {
     int a_dim = A->dimension();
@@ -69,7 +99,7 @@ CPUAttention::CPUAttention(Backend *bn, int embedding_size, int hidden_size, int
     softmax_->setName(name() + ".softmax");
     s_v_matmul_.reset(new CPUMatmul(bn, true, false, false));
     s_v_matmul_->setName(name() + ".s_v_matmul");
-    O_proj_.reset(new CPULinear(bn, hidden_size_ * head_size_, hidden_size_, false, false));
+    O_proj_.reset(new CPULinear(bn, hidden_size_ * head_size_, embedding_size_, false, false));
     O_proj_->setName(name() + ".O_proj");
 
     q_.reset(new Tensor(bn));
@@ -253,7 +283,7 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> &inputs, vector<share
         v_cached_->alloc();
         v_cached_->copyFrom(v_merged_);
     }
-
+    std::cout<<"["<<outputs[0]->shape(0)<<","<<outputs[0]->shape(1)<<","<<outputs[0]->shape(2)<<","<<outputs[0]->shape(3)<<"]"<<std::endl;
     return NO_ERROR;
 }
 ErrorCode CPUAttention::load(ParamLoader &loader) {
