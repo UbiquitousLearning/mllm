@@ -15,7 +15,7 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     CHECK_EQ(inputs.size(), 2);
     CHECK_EQ(outputs.size(), 1);
     CHECK_EQ(inputs[0]->head(), inputs[1]->head());
-    CHECK_EQ(inputs[0]->head(), 1);
+    //    CHECK_EQ(inputs[0]->head(), 1);
     CHECK_EQ(inputs[0]->batch(), inputs[1]->batch());
     if (!transpose0_ && !transpose1_) {
         /*
@@ -27,9 +27,9 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
          -----------------------------------------------
          batch |out_channel | seq_len               |  1
          */
-        CHECK_EQ(inputs[0]->sequence(), inputs[1]->dimension());
-        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->dimension(), inputs[1]->sequence(), inputs[0]->head());
-    } else if (transpose0_) {
+        CHECK_EQ(inputs[0]->dimension(), inputs[1]->sequence());
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[1]->dimension());
+    } else if (transpose1_) {
         /*
          N     |    C       |   H                   |  W
          -----------------------------------------------
@@ -40,7 +40,7 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
          batch |out_channel | seq_len               |  1
          */
         CHECK_EQ(inputs[0]->dimension(), inputs[1]->dimension());
-        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->sequence(), inputs[1]->sequence(), inputs[0]->head());
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[1]->sequence());
     } else {
         /*
          N     |    C       |   H                   |  W
@@ -52,7 +52,7 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
          batch |out_channel | seq_len               |  1
          */
         CHECK_EQ(inputs[0]->sequence(), inputs[1]->sequence());
-        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->dimension(), inputs[1]->dimension(), inputs[0]->head());
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[1]->dimension());
     }
     return NO_ERROR;
 }
@@ -78,14 +78,26 @@ ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     int K = 0;
     int N = 0;
     if (!transpose0_ && !transpose1_) {
-        M = inputs[0]->dimension();
-        K = inputs[0]->sequence();
-        N = inputs[1]->sequence();
-    } else if (transpose0_){
+        //        M = inputs[0]->dimension();
+        //        K = inputs[0]->sequence();
+        //        N = inputs[1]->sequence();
+
+        M = inputs[0]->sequence();
+        K = inputs[0]->dimension();
+        N = inputs[1]->dimension();
+    } else if (transpose1_) {
+        //        M = inputs[0]->sequence();
+        //        K = inputs[0]->dimension();
+        //        N = inputs[1]->sequence();
+
         M = inputs[0]->sequence();
         K = inputs[0]->dimension();
         N = inputs[1]->sequence();
     } else {
+        //        M = inputs[0]->dimension();
+        //        K = inputs[0]->sequence();
+        //        N = inputs[1]->dimension();
+
         M = inputs[0]->dimension();
         K = inputs[0]->sequence();
         N = inputs[1]->dimension();
@@ -97,15 +109,14 @@ ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
                     float value = 0;
                     for (int k = 0; k < K; k++) {
                         if (!transpose0_ && !transpose1_) {
-                            value += inputs[0]->dataAt<float>(b, m, k, w) * inputs[1]->dataAt<float>(b, k, n, w);
-
-                        } else if (transpose0_) {
-                            value += inputs[0]->dataAt<float>(b, k, m, w) * inputs[1]->dataAt<float>(b, k, n, w);
-
+                            value += inputs[0]->dataAt<float>(b, w, m, k) * inputs[1]->dataAt<float>(b, w, k, n);
+                        } else if (transpose1_) {
+                            value += inputs[0]->dataAt<float>(b, w, m, k) * inputs[1]->dataAt<float>(b, w, n, k);
                         } else {
-                            value += inputs[0]->dataAt<float>(b, m, k, w) * inputs[1]->dataAt<float>(b, n, k, w);}
+                            value += inputs[0]->dataAt<float>(b, w, k, m) * inputs[1]->dataAt<float>(b, w, k, n);
+                        }
                     }
-                    outputs[0]->setDataAt<float>(b, m, n, w, value);
+                    outputs[0]->setDataAt<float>(b, w, m, n, value);
                 }
             }
         }

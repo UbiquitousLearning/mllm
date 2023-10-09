@@ -79,7 +79,7 @@ int main() {
 
 
 
-    auto *x = _Input(c, {1, 10, 1, 1});
+    auto *x = _Input(c, {1, 1, 1, 10});
 //    x = _RMSNorm(c, {x});
     x = _SelfAttention(c, {x}, 10, 10);
 

@@ -58,7 +58,7 @@ private:
     shared_ptr<Tensor>  k_merged_;
     shared_ptr<Tensor>  v_merged_;
 
-    bool kvcached_ = true;
+    bool past_key_value_ = true;
 
     int embedding_size_;
     int hidden_size_;

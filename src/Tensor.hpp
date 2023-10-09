@@ -56,20 +56,17 @@ public:
         return legacyShape(3);
     }
 
-    // Deprecated legacy shape accessor num: use shape(0) instead.
+
     inline int batch() const {
         return legacyShape(0);
     }
-    // Deprecated legacy shape accessor channels: use shape(1) instead.
-    inline int dimension() const {
+    inline int head() const {
         return legacyShape(1);
     }
-    // Deprecated legacy shape accessor height: use shape(2) instead.
     inline int sequence() const {
         return legacyShape(2);
     }
-    // Deprecated legacy shape accessor width: use shape(3) instead.
-    inline int head() const {
+    inline int dimension() const {
         return legacyShape(3);
     }
 
