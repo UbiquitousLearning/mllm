@@ -35,6 +35,9 @@ static std::string readString(FILE *fp_) {
     char *tmp = new char[len];
     fread(tmp, sizeof(char), len, fp_);
     std::string str(tmp);
+    if (len == 0) {
+        str = "";
+    }
     delete[] tmp;
     return str;
 }

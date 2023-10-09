@@ -30,8 +30,9 @@ protected:
     bool load_vocab(const std::string &vocab_file);
 
 public:
-    virtual void tokenize(const std::string &text, std::vector<token_id_t> &tokens) = 0;
-    Tokenizer(const std::string &vocab_file);
+    virtual void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) = 0;
+    std::string detokenize(const std::vector<token_id_t> &tokens);
+    explicit Tokenizer(const std::string &vocab_file);
 };
 
 } // namespace mllm

@@ -8,7 +8,7 @@ static size_t utf8_len(char src) {
     uint8_t highbits = static_cast<uint8_t>(src) >> 4;
     return lookup[highbits];
 }
-void mllm::BPE::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool unk_byte_token = false) {
+void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, bool byte_fallback = false) {
     if (text.empty()) {
         return;
     }
@@ -19,13 +19,13 @@ void mllm::BPE::tokenize(const std::string &text, std::vector<token_id_t> &token
     size_t offset = 0;
     int idx = 0;
     while (offset < text.size()) {
-        symbols_.emplace_back();
-        CharSymbol symbol = symbols_.back();
+        CharSymbol symbol;
         symbol.ch = text.c_str() + offset;
         symbol.length = std::min(text.size() - offset, utf8_len(text[offset]));
         symbol.last = idx - 1;
         symbol.next = text.size() - offset - symbol.length > 0 ? idx + 1 : -1;
         offset += symbol.length;
+        symbols_.emplace_back(symbol);
         idx++;
     }
     for (int i = 1; i < symbols_.size(); ++i) {
@@ -36,8 +36,8 @@ void mllm::BPE::tokenize(const std::string &text, std::vector<token_id_t> &token
     while (!queue_.empty()) {
         auto item = queue_.top();
         queue_.pop();
-        auto first = symbols_[item.start];
-        auto last = symbols_[item.end];
+        auto &first = symbols_[item.start];
+        auto &last = symbols_[item.end];
         if (first.length == 0 || last.length == 0) {
             continue;
         }
@@ -56,14 +56,18 @@ void mllm::BPE::tokenize(const std::string &text, std::vector<token_id_t> &token
         tryMergeSymbol(first.last, item.start);
         tryMergeSymbol(item.start, first.next);
     }
+    if (bos) {
+        tokens.emplace_back(mllm::BPETokenizer::TokenBos);
+    }
     for (int i = 0; i < symbols_.size(); ++i) {
         if (symbols_[i].length > 0) {
-            auto result = this->vocab_map_.find(std::string(symbols_[i].ch, symbols_[i].length));
+            auto token_text = std::string(symbols_[i].ch, symbols_[i].length);
+            auto result = this->vocab_map_.find(token_text);
             if (result != this->vocab_map_.end()) {
                 tokens.emplace_back(result->second);
             } else {
-                if (!unk_byte_token) {
-                    tokens.emplace_back(mllm::BPE::TokenUnk);
+                if (!byte_fallback) {
+                    tokens.emplace_back(mllm::BPETokenizer::TokenUnk);
                 } else {
                     for (int j = 0; j < (int)symbols_[i].length; ++j) {
                         token_id_t token_id = static_cast<uint8_t>(symbols_[i].ch[j]) + 3;
@@ -74,7 +78,7 @@ void mllm::BPE::tokenize(const std::string &text, std::vector<token_id_t> &token
         }
     }
 }
-void mllm::BPE::tryMergeSymbol(size_t start, size_t end) {
+void mllm::BPETokenizer::tryMergeSymbol(size_t start, size_t end) {
     if (start == -1 || end == -1) {
         return;
     }
@@ -90,6 +94,9 @@ void mllm::BPE::tryMergeSymbol(size_t start, size_t end) {
         queue_.emplace(item);
     }
 }
-void mllm::BPE::tokenize(const std::string &text, std::vector<token_id_t> &tokens) {
-    this->tokenize(std::move(text), tokens, false);
+void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) {
+    this->tokenize(std::move(text), tokens, bos, true);
+}
+mllm::BPETokenizer::BPETokenizer(const std::string &vocab_file) :
+    Tokenizer(vocab_file) {
 }
