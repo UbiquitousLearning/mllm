@@ -83,11 +83,12 @@ int main() {
     x = _RMSNorm(c, {x});
     auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
     auto tokens_id = vector<token_id_t>();
-    tokenizer.tokenize(string(" hello world!"), tokens_id);
+    //    tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
+    tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);
     for (auto idx : tokens_id) {
         std::cout << idx << ",";
     }
-    std::cout << tokenizer.detokenize(tokens_id) << std::endl;
+    //    std::cout << tokenizer.detokenize(tokens_id) << std::endl;
 
     // display(c);
 

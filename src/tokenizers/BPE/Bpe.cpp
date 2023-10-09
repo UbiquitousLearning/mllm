@@ -8,7 +8,7 @@ static size_t utf8_len(char src) {
     uint8_t highbits = static_cast<uint8_t>(src) >> 4;
     return lookup[highbits];
 }
-void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool byte_fallback = false) {
+void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, bool byte_fallback = false) {
     if (text.empty()) {
         return;
     }
@@ -56,6 +56,9 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         tryMergeSymbol(first.last, item.start);
         tryMergeSymbol(item.start, first.next);
     }
+    if (bos) {
+        tokens.emplace_back(mllm::BPETokenizer::TokenBos);
+    }
     for (int i = 0; i < symbols_.size(); ++i) {
         if (symbols_[i].length > 0) {
             auto token_text = std::string(symbols_[i].ch, symbols_[i].length);
@@ -91,8 +94,8 @@ void mllm::BPETokenizer::tryMergeSymbol(size_t start, size_t end) {
         queue_.emplace(item);
     }
 }
-void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens) {
-    this->tokenize(std::move(text), tokens, false);
+void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) {
+    this->tokenize(std::move(text), tokens, bos, true);
 }
 mllm::BPETokenizer::BPETokenizer(const std::string &vocab_file) :
     Tokenizer(vocab_file) {

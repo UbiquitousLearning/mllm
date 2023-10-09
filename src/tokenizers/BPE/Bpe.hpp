@@ -31,8 +31,8 @@ class BPETokenizer final : public Tokenizer {
     void tryMergeSymbol(size_t start, size_t end);
 
 public:
-    void tokenize(const std::string &text, std::vector<token_id_t> &tokens) override;
-    void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool byte_fallback);
+    void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) override;
+    void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, bool byte_fallback);
     explicit BPETokenizer(const std::string &vocab_file);
 };
 } // namespace mllm
