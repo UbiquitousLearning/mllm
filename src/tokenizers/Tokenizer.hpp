@@ -31,7 +31,8 @@ protected:
 
 public:
     virtual void tokenize(const std::string &text, std::vector<token_id_t> &tokens) = 0;
-    Tokenizer(const std::string &vocab_file);
+    std::string detokenize(const std::vector<token_id_t> &tokens);
+    explicit Tokenizer(const std::string &vocab_file);
 };
 
 } // namespace mllm

@@ -3,7 +3,7 @@
 #include "Executor.hpp"
 #include "NetParameter.hpp"
 #include "express/Express.hpp"
-
+#include "tokenizers/BPE/Bpe.hpp"
 using namespace mllm;
 // For Visualization and Debug
 void display(NetParameter *net) {
@@ -81,7 +81,13 @@ int main() {
 
     auto *x = _Input(c, {1, 10, 1, 1});
     x = _RMSNorm(c, {x});
-
+    auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
+    auto tokens_id = vector<token_id_t>();
+    tokenizer.tokenize(string(" hello world!"), tokens_id);
+    for (auto idx : tokens_id) {
+        std::cout << idx << ",";
+    }
+    std::cout << tokenizer.detokenize(tokens_id) << std::endl;
 
     // display(c);
 
