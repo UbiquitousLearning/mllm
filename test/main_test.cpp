@@ -71,11 +71,11 @@ int main() {
     */
 
     Context *c = new Context();
-    auto *x = _Input(c, {1, 1, 1, 10});
+    auto *x = _Input(c, {1, 1, 1, 80});
     //    x = _Linear(c, {x}, 10, 10, false);
     //    x = _Softmax(c, {x}, 1);
     //    x = _RMSNorm(c, {x});
-    x = _Attention(c, {x}, 10, 10, 8);
+    x = _Attention(c, {x}, 80, 10, 8);
 
     // display(c);
 
