@@ -14,9 +14,9 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     std::cout << "CPUMatmul  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 2);
     CHECK_EQ(outputs.size(), 1);
-    CHECK_EQ(inputs[0]->width(), inputs[1]->width());
-    CHECK_EQ(inputs[0]->width(), 1);
-    CHECK_EQ(inputs[0]->num(), inputs[1]->num());
+    CHECK_EQ(inputs[0]->head(), inputs[1]->head());
+    CHECK_EQ(inputs[0]->head(), 1);
+    CHECK_EQ(inputs[0]->batch(), inputs[1]->batch());
     if (!transpose0_ && !transpose1_) {
         /*
          N     |    C       |   H                   |  W
@@ -27,8 +27,8 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
          -----------------------------------------------
          batch |out_channel | seq_len               |  1
          */
-        CHECK_EQ(inputs[0]->seqLen(), inputs[1]->hidden());
-        outputs[0]->reshape(inputs[0]->num(), inputs[0]->hidden(), inputs[1]->seqLen(), inputs[0]->width());
+        CHECK_EQ(inputs[0]->sequence(), inputs[1]->dimension());
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->dimension(), inputs[1]->sequence(), inputs[0]->head());
     } else if (transpose0_) {
         /*
          N     |    C       |   H                   |  W
@@ -39,8 +39,8 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
          -----------------------------------------------
          batch |out_channel | seq_len               |  1
          */
-        CHECK_EQ(inputs[0]->hidden(), inputs[1]->hidden());
-        outputs[0]->reshape(inputs[0]->num(), inputs[0]->seqLen(), inputs[1]->seqLen(), inputs[0]->width());
+        CHECK_EQ(inputs[0]->dimension(), inputs[1]->dimension());
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->sequence(), inputs[1]->sequence(), inputs[0]->head());
     } else {
         /*
          N     |    C       |   H                   |  W
@@ -51,8 +51,8 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
          -----------------------------------------------
          batch |out_channel | seq_len               |  1
          */
-        CHECK_EQ(inputs[0]->seqLen(), inputs[1]->seqLen());
-        outputs[0]->reshape(inputs[0]->num(), inputs[0]->hidden(), inputs[1]->hidden(), inputs[0]->width());
+        CHECK_EQ(inputs[0]->sequence(), inputs[1]->sequence());
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->dimension(), inputs[1]->dimension(), inputs[0]->head());
     }
     return NO_ERROR;
 }
@@ -78,20 +78,20 @@ ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     int K = 0;
     int N = 0;
     if (!transpose0_ && !transpose1_) {
-        M = inputs[0]->hidden();
-        K = inputs[0]->seqLen();
-        N = inputs[1]->seqLen();
+        M = inputs[0]->dimension();
+        K = inputs[0]->sequence();
+        N = inputs[1]->sequence();
     } else if (transpose0_){
-        M = inputs[0]->seqLen();
-        K = inputs[0]->hidden();
-        N = inputs[1]->seqLen();
+        M = inputs[0]->sequence();
+        K = inputs[0]->dimension();
+        N = inputs[1]->sequence();
     } else {
-        M = inputs[0]->hidden();
-        K = inputs[0]->seqLen();
-        N = inputs[1]->hidden();
+        M = inputs[0]->dimension();
+        K = inputs[0]->sequence();
+        N = inputs[1]->dimension();
     }
-    for (int b = 0; b < inputs[0]->num(); b++) {
-        for (int w = 0; w < inputs[0]->width(); w++) {
+    for (int b = 0; b < inputs[0]->batch(); b++) {
+        for (int w = 0; w < inputs[0]->head(); w++) {
             for (int m = 0; m < M; m++) {
                 for (int n = 0; n < N; n++) {
                     float value = 0;

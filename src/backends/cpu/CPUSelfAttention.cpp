@@ -41,27 +41,16 @@ CPUSelfAttention::CPUSelfAttention(Backend *bn, int embedding_size, int hidden_s
     k_merged_.reset(new Tensor(bn));
     v_merged_.reset(new Tensor(bn));
 
-    //    int maxDepth = 5;
-    //    matmul_.reset(new StrassenMatmul(backend(), false, maxDepth));
 }
 ErrorCode CPUSelfAttention::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     vector<shared_ptr<Tensor>> q__ = {q_};
     Q_proj_->reshape(inputs, q__);
-    // add KVcache
     vector<shared_ptr<Tensor>> k__ = {k_};
     K_proj_->reshape(inputs, k__);
-    // k_ = k_ + k_cached_
-    //  add KVcache
     vector<shared_ptr<Tensor>> v__ = {v_};
     V_proj_->reshape(inputs, v__);
-    // v_ = v_ + v_cached_
-//    if (kvcache_) {
-//        if(!k_cached_->allocted()){
-//            kvcache_ = false;
-//        }
-//    }
     kvcached_ = k_cached_->allocted();
-    if (!kvcached_){
+    if (!kvcached_){//第一次
         // KQ
         vector<shared_ptr<Tensor>> kq_input = {k_, q_};
         vector<shared_ptr<Tensor>> kq__ = {kq_};
@@ -85,13 +74,6 @@ ErrorCode CPUSelfAttention::reshape(vector<shared_ptr<Tensor>> &inputs, vector<s
 }
 ErrorCode CPUSelfAttention::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     kvcached_ = k_cached_->allocted();
-    //    Q_weight_.alloc();
-    //    Q_bias_.alloc();
-    //    K_weight_.alloc();
-    //    K_bias_.alloc();
-    //    V_weight_.alloc();
-    //    V_bias_.alloc();
-    //    matmul_->encode(inputs, outputs);
 
     vector<shared_ptr<Tensor>> q__ = {q_};
     Q_proj_->setUp(inputs, q__);
@@ -104,7 +86,7 @@ ErrorCode CPUSelfAttention::setUp(vector<shared_ptr<Tensor>> &inputs, vector<sha
     V_proj_->setUp(inputs, v__);
     // v_ = v_ + v_cached_
 
-    if (!kvcached_) {
+    if (!kvcached_) {//第一次
         vector<shared_ptr<Tensor>> kq_input = {k_, q_};
         vector<shared_ptr<Tensor>> kq__ = {kq_};
         kq_matmul_->setUp(kq_input, kq__);
@@ -127,19 +109,19 @@ ErrorCode CPUSelfAttention::setUp(vector<shared_ptr<Tensor>> &inputs, vector<sha
 }
 
 void mergeCacheReshape(shared_ptr<Tensor> &a, shared_ptr<Tensor> &b, shared_ptr<Tensor> &c) {
-    int a_channel = a->channels();
-    int a_senLen = a->seqLen();
-    int b_channel = b->channels();
-    int b_senLen = b->seqLen();
+    int a_channel = a->dimension();
+    int a_senLen = a->sequence();
+    int b_channel = b->dimension();
+    int b_senLen = b->sequence();
     c->reshape(a->batch(), a_channel, a_senLen + b_senLen, a->width());
     c->alloc();
 }
 void mergeCache(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, shared_ptr<Tensor> &C) {
     // merge a b to c
-    int a_hidden = A->channels();
-    int a_senLen = A->seqLen();
-    int b_senLen = B->seqLen();
-    int c_senLen = C->seqLen();
+    int a_hidden = A->dimension();
+    int a_senLen = A->sequence();
+    int b_senLen = B->sequence();
+    int c_senLen = C->sequence();
     for (int b = 0; b < A->batch(); ++b) {
         for (int h = 0; h < a_hidden; ++h) {
             for (int s = 0; s < c_senLen; ++s) {
@@ -155,17 +137,6 @@ void mergeCache(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, shared_ptr<Tensor>
     }
 }
 
-//void copyTensor(shared_ptr<Tensor>& A, shared_ptr<Tensor>& B){
-//    for (int n = 0; n < A->num(); ++n) {
-//        for (int c = 0; c < A->channels(); ++c) {
-//            for (int h = 0; h < A->height(); ++h) {
-//                for (int w = 0; w < A->width(); ++w) {
-//                    B->setDataAt<float>(n,c,h,w,A->dataAt<float>(n,c,h,w));
-//                }
-//            }
-//        }
-//    }
-//}
 ErrorCode CPUSelfAttention::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     kvcached_ = k_cached_->allocted();
     if (kvcached_) {
@@ -232,23 +203,19 @@ ErrorCode CPUSelfAttention::execute(vector<shared_ptr<Tensor>> &inputs, vector<s
     O_proj_->execute(kq_softmax_v__, outputs);
     //    outputs[0]->printData<float>();
 
-    if(!k_cached_->allocted()){
+    if(!k_cached_->allocted()){//第一次
         k_cached_->reshape(k_->shape());
         k_cached_->alloc();
-//        copyTensor(k_, k_cached_);
         k_cached_->copyFrom(k_);
         v_cached_->reshape(v_->shape());
         v_cached_->alloc();
-//        copyTensor(v_, v_cached_);
         v_cached_->copyFrom(v_);
     }else{
         k_cached_->reshape(k_merged_->shape());
         k_cached_->alloc();
-//        copyTensor(k_merged_, k_cached_);
         k_cached_->copyFrom(k_merged_);
         v_cached_->reshape(v_merged_->shape());
         v_cached_->alloc();
-//        copyTensor(v_merged_, v_cached_);
         v_cached_->copyFrom(v_merged_);
     }
 
