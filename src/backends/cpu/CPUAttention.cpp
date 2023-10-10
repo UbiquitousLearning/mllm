@@ -79,8 +79,9 @@ void mergeCache(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, shared_ptr<Tensor>
     }
 }
 
-CPUAttention::CPUAttention(Backend *bn, int embedding_size, int hidden_size, int head_size, bool multiThread) :
+CPUAttention::CPUAttention(Backend *bn, int embedding_size, int hidden_size, int head_size, string names, bool multiThread) :
     Op(bn) {
+    setName(names);
     embedding_size_ = embedding_size;
     hidden_size_ = hidden_size;
     head_size_ = head_size;
@@ -101,7 +102,7 @@ CPUAttention::CPUAttention(Backend *bn, int embedding_size, int hidden_size, int
     scale_->setName(name() + ".scale");
     softmax_.reset(new CPUSoftMax(bn, 3, false));
     softmax_->setName(name() + ".softmax");
-    s_v_matmul_.reset(new CPUMatmul(bn, true, false, false));
+    s_v_matmul_.reset(new CPUMatmul(bn, false, false, false));
     s_v_matmul_->setName(name() + ".s_v_matmul");
     O_proj_.reset(new CPULinear(bn, hidden_size_ * head_size_, embedding_size_, false, false));
     O_proj_->setName(name() + ".O_proj");
@@ -212,7 +213,7 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> &inputs, vector<share
         // v_cached
         mergeCacheReshape(v_state_, v_cached_, v_merged_);
         // KQ
-        vector<shared_ptr<Tensor>> kq_input = {k_merged_, q_state_};
+        vector<shared_ptr<Tensor>> kq_input = {q_state_, k_merged_};
         vector<shared_ptr<Tensor>> kq__ = {kq_};
         kq_matmul_->reshape(kq_input, kq__);
         kq_matmul_->setUp(kq_input, kq__);

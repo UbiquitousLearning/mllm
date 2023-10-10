@@ -16,7 +16,7 @@ CPUScale::CPUScale(Backend *bn, float scale, float bias, bool bias_after_scale, 
 }
 
 ErrorCode CPUScale::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUScale  reshape" << std::endl;
+    std::cout<<name() << "  CPUScale  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
     outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
@@ -24,7 +24,7 @@ ErrorCode CPUScale::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
 }
 
 ErrorCode CPUScale::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUScale  setUp" << std::endl;
+    std::cout<<name() << "  CPUScale  setUp" << std::endl;
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
     }
@@ -33,7 +33,7 @@ ErrorCode CPUScale::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<
 }
 
 ErrorCode CPUScale::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUScale()" << std::endl;
+    std::cout<<name() << "  CPUScale()" << std::endl;
     auto & input = inputs[0];
     auto & output = outputs[0];
     for(int n = 0; n<input->shape(0); ++n){
@@ -55,7 +55,7 @@ ErrorCode CPUScale::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
 }
 
 ErrorCode CPUScale::load(ParamLoader &loader) {
-    std::cout << "CPUScale load" << std::endl;
+    std::cout<<name() << "  CPUScale load" << std::endl;
     return NO_ERROR;
 }
 } // namespace mllm

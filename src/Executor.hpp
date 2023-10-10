@@ -18,6 +18,11 @@ public:
      */
     void init();
 
+    void graphReshape(shared_ptr<Graph> subGraph, unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
+        // auto subGraph = net_.subGraph()[graph_name];
+        subGraph->reshape(external_tensors);
+    }
+
     void graphSetUp(shared_ptr<Graph> subGraph) {
         // auto subGraph = net_.subGraph()[graph_name];
         subGraph->setUp();
@@ -32,10 +37,11 @@ public:
         // TODO: 在此处插入 return 语句
     }
 
-    void execute();
+    void execute(vector<int> input_size ={});
 
 private:
     Net *net_;
+    vector<int> input_size_;
 };
 
 } // namespace mllm

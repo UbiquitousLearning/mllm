@@ -11,7 +11,7 @@ CPUAdd::CPUAdd(Backend *bn, bool multiThread) :
 }
 
 ErrorCode CPUAdd::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUAdd  reshape" << std::endl;
+    std::cout<<name() << "  CPUAdd  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 2);
     CHECK_EQ(outputs.size(), 1);
     CHECK_EQ(inputs[0]->shape(0), inputs[1]->shape(0));
@@ -23,7 +23,7 @@ ErrorCode CPUAdd::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<
 }
 
 ErrorCode CPUAdd::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUAdd  setUp" << std::endl;
+    std::cout<<name() << "  CPUAdd  setUp" << std::endl;
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
     }
@@ -35,7 +35,7 @@ ErrorCode CPUAdd::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Te
 }
 
 ErrorCode CPUAdd::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUAdd()" << std::endl;
+    std::cout<<name() << "  CPUAdd()" << std::endl;
     int N = inputs[0]->shape(0);
     int C = inputs[0]->shape(1);
     int H = inputs[0]->shape(2);
@@ -53,7 +53,7 @@ ErrorCode CPUAdd::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<
 }
 
 ErrorCode CPUAdd::load(ParamLoader &loader) {
-    std::cout << "CPUAdd load" << std::endl;
+    std::cout<<name() << "  CPUAdd load" << std::endl;
     return NO_ERROR;
 }
 } // namespace mllm

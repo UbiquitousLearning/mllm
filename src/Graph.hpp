@@ -22,7 +22,7 @@ public:
     /**
      * @brief 初始化
      */
-    void init(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+    void reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
     /**
      * @brief 初始化
@@ -68,6 +68,7 @@ protected:
     unordered_map<string, vector<shared_ptr<Tensor>>> ops_output_tensors_; // opname: op's output Tensors
     unordered_map<string, shared_ptr<Tensor>> tensors_;                    // opname: Tensors
     unordered_map<string, shared_ptr<Op>> ops_;                            // opname: op
+//    unordered_map<string, shared_ptr<Tensor>> external_tensors_;
 };
 
 } // namespace mllm

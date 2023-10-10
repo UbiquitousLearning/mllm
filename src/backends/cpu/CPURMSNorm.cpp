@@ -17,7 +17,7 @@ ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     weight_.reshape(1, 1,1,inputs[0]->dimension()); // (C, 1, 1, 1)
     weight_.setName(name() + ".weight");
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
-    std::cout << "CPURMSNorm  reshape" << std::endl;
+    std::cout<<name() << "  CPURMSNorm  reshape" << std::endl;
     return NO_ERROR;
 }
 
@@ -32,7 +32,7 @@ ErrorCode CPURMSNorm::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     //    weight_.fullData(1.0);
     //    inputs[0]->fullDataTest();
 
-    std::cout << "CPURMSNorm  setUp" << std::endl;
+    std::cout<<name() << "  CPURMSNorm  setUp" << std::endl;
     return NO_ERROR;
 }
 
@@ -64,7 +64,7 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     //    weight_.printData<float>();
     //    outputs[0]->printData<float>();
 
-    std::cout << "CPURMSNorm()" << std::endl;
+    std::cout<<name() << "  CPURMSNorm()" << std::endl;
     return NO_ERROR;
 }
 ErrorCode CPURMSNorm::load(ParamLoader &loader) {

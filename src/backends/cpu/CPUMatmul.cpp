@@ -11,7 +11,7 @@ CPUMatmul::CPUMatmul(Backend *bn, bool transpose0, bool transpose1, bool multiTh
 }
 
 ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUMatmul  reshape" << std::endl;
+    std::cout<<name() << "  CPUMatmul  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 2);
     CHECK_EQ(outputs.size(), 1);
     CHECK_EQ(inputs[0]->head(), inputs[1]->head());
@@ -58,7 +58,7 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
 }
 
 ErrorCode CPUMatmul::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUMatmul  setUp" << std::endl;
+    std::cout<<name() << "  CPUMatmul  setUp" << std::endl;
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
     }
@@ -70,7 +70,7 @@ ErrorCode CPUMatmul::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr
 }
 
 ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUMatmul()" << std::endl;
+    std::cout<<name() << "  CPUMatmul()" << std::endl;
     // INPUT: M.K
     // W:K,N
     // OUTPUT:M.N
@@ -125,7 +125,7 @@ ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
 }
 
 ErrorCode CPUMatmul::load(ParamLoader &loader) {
-    std::cout << "CPUMatmul load" << std::endl;
+    std::cout<<name() << "  CPUMatmul load" << std::endl;
     return NO_ERROR;
 }
 

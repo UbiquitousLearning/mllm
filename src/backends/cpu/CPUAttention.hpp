@@ -18,7 +18,7 @@ namespace mllm {
 
 class CPUAttention final : public Op {
 public:
-    CPUAttention(Backend *bn, int embedding_size, int hidden_size, int head_size, bool multiThread);
+    CPUAttention(Backend *bn, int embedding_size, int hidden_size, int head_size, string names, bool multiThread);
     virtual ~CPUAttention() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
@@ -78,10 +78,11 @@ private:
 class CPUAttentionCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn) const {
+        string names = "Attention" + std::to_string(op_param["name_idx"]);
         int embedding_size = op_param["embedding_size"];
         int hidden_size = op_param["hidden_size"];
         int head_size = op_param["head_size"];
-        return new CPUAttention(bn, embedding_size, hidden_size, head_size, false);
+        return new CPUAttention(bn, embedding_size, hidden_size, head_size, names, false);
     }
 };
 

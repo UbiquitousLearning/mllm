@@ -71,12 +71,14 @@ int main() {
     */
 
     Context *c = new Context();
-    auto *x = _Input(c, {1, 1, 1, 80});
+//    auto *x = _Input(c, {1, 1, 1, 80});
     //x = _Linear(c, {x}, 10, 10, false);
     //x = _Softmax(c, {x}, 1);
     //x = _RMSNorm(c, {x});
     //x = _RoPE(c, {x});
-    x = _Attention(c, {x}, 80, 10, 8);
+
+
+//    auto *x = _Input(c, {2, 1, 10, 80});
 
 
 
@@ -92,14 +94,20 @@ int main() {
 
     // display(c);
 
+
+    auto *x = _Input(c);
+    x = _Attention(c, {x}, 80, 10, 8);
+    vector<int> input_size = {1, 8, 10, 80};
+    vector<int> autoregressive_input_size = {1, 8, 1, 80};
+
     BackendConfig bn;
 
     Net net(c->sub_param_, bn);
     net.convert();
     // net.Run();
-
     Executor ex(&net);
-    ex.execute();
-    ex.execute();
+    ex.execute(input_size);
+    ex.execute(autoregressive_input_size);
+    ex.execute(autoregressive_input_size);
     return 0;
 }

@@ -23,31 +23,6 @@ namespace mllm {
 Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
     backend_ = bn;
     param_ = param;
-    init(external_tensors);
-}
-
-void Graph::init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
-    // RESHAPE
-    // tensors_["Input0"] = vector<shared_ptr<Tensor>>(1, NULL);
-    // for (auto &t : tensors_["Input0"]) {
-    //     std::shared_ptr<Tensor> tensor1 = std::make_shared<Tensor>();
-    //     t = tensor1;
-    //     t->SetByteWidth(sizeof(float));
-    //     t->SetBackend(backend_);
-    //     t->reshape(1, 3, 5, 5); // TODO reshape  tensors_["input"]
-    // }
-    // for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-    //     // TODO: 3改成不同的数
-    //     auto net_op = param_.net_ops[i];
-    //     auto op_name_ = net_op->name;
-    //     tensors_[op_name_] = vector<shared_ptr<Tensor>>(3, NULL);
-    //     for (auto &t : tensors_[op_name_]) {
-    //         std::shared_ptr<Tensor> tensor1 = std::make_shared<Tensor>();
-    //         t = tensor1;
-    //         t->SetByteWidth(sizeof(float));
-    //         t->SetBackend(backend_);
-    //     }
-    // }
 
     for (int i = 0; i < (int)param_.net_tensors.size(); ++i) {
         auto *net_tensor = param_.net_tensors[i];
@@ -57,7 +32,6 @@ void Graph::init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
             tensors_[net_tensor->name]->setName(net_tensor->name);
         }
     }
-
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto *net_op = param_.net_ops[i];
         shared_ptr<Op> my_op(NULL);
@@ -65,13 +39,22 @@ void Graph::init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
         my_op.reset(new_op);
         string lname = net_op->name;
         my_op->setName(lname);
+        ops_[lname] = my_op;
+    }
+//    reshape(external_tensors);
+}
 
-        // TODO: CHECK一下 inTensors 尤其是[0]
-        // vector<string> inames = net_op->in_op;
-        // vector<shared_ptr<Tensor>> inTensors;
-        // for (auto name : inames) {
-        //     inTensors.push_back(tensors_[name][0]);
-        // }
+void Graph::reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
+
+    // RESHAPE
+    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
+        auto *net_op = param_.net_ops[i];
+//        shared_ptr<Op> my_op(NULL);
+//        auto *new_op = backend_->opCreate(net_op->param);
+//        my_op.reset(new_op);
+        string lname = net_op->name;
+//        my_op->setName(lname);
+
         auto in_tensors = net_op->in;
         vector<shared_ptr<Tensor>> inTensors;
         for (auto *in_t : in_tensors) {
@@ -95,7 +78,7 @@ void Graph::init(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
         }
         ops_input_tensors_[lname] = inTensors;
         ops_output_tensors_[lname] = outTensors;
-        ops_[lname] = my_op;
+//        ops_[lname] = my_op;
         ops_[lname]->reshape(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:1.reshape
     }
 }

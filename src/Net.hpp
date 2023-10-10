@@ -16,8 +16,14 @@ public:
 
     void convert();
 
+    void reshapeInput();
+    void reshapeInput(int n, int c, int h, int w);
+
     unordered_map<string, shared_ptr<Graph>> &subGraph() {
         return subGraphs_;
+    }
+    unordered_map<string, shared_ptr<Tensor>> &tensors() {
+        return tensors_;
     }
 
 private:
