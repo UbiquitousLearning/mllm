@@ -237,13 +237,13 @@ public:
     bool allocted() const {
         return allocated_;
     }
-
-    void fullData(float value){
+    template <class Dtype>
+    void fullData(Dtype value) {
         for (int n = 0; n < num(); ++n) {
             for (int c = 0; c < channels(); ++c) {
                 for (int h = 0; h < height(); ++h) {
                     for (int w = 0; w < width(); ++w) {
-                        setDataAt<float>(n, c, h, w, value);
+                        setDataAt<Dtype>(n, c, h, w, value);
                     }
                 }
             }

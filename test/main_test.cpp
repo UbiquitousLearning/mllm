@@ -96,9 +96,10 @@ int main() {
 
 
     auto *x = _Input(c);
-    x = _Attention(c, {x}, 80, 10, 8);
-    vector<int> input_size = {1, 8, 10, 80};
-    vector<int> autoregressive_input_size = {1, 8, 1, 80};
+    x = _Embedding(c, {x}, 128, 1000);
+    //    x = _Attention(c, {x}, 80, 10, 8);
+    vector<int> input_size = {1, 1, 128, 1};
+    //    vector<int> autoregressive_input_size = {1, 8, 1, 80};
 
     BackendConfig bn;
 
@@ -107,7 +108,7 @@ int main() {
     // net.Run();
     Executor ex(&net);
     ex.execute(input_size);
-    ex.execute(autoregressive_input_size);
-    ex.execute(autoregressive_input_size);
+    //    ex.execute(autoregressive_input_size);
+    //    ex.execute(autoregressive_input_size);
     return 0;
 }

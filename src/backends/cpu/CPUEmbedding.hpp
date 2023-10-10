@@ -1,6 +1,7 @@
 #ifndef MLLM_CPUEMBEDDING_HPP
 #define MLLM_CPUEMBEDDING_HPP
 #include "Op.hpp"
+#include "CPUBackend.hpp"
 namespace mllm {
 class CPUEmbedding final : public Op {
 public:
@@ -15,6 +16,14 @@ private:
     Tensor weight_;
     int hiddenSize_;
     int vocabSize_;
+};
+class CPUEmbeddingCreator : public CPUBackend::Creator {
+public:
+    virtual Op *create(OpParam op_param, Backend *bn) const {
+        auto hiddenSize = op_param["hidden_size"];
+        auto vocabSize = op_param["vocab_size"];
+        return new CPUEmbedding(bn, hiddenSize, vocabSize);
+    }
 };
 
 } // namespace mllm

@@ -10,6 +10,7 @@
 #include "CPUSoftMax.hpp"
 #include "CPULinear.hpp"
 #include "CPUAttention.hpp"
+#include "CPUEmbedding.hpp"
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
     Backend(mm) {
@@ -60,6 +61,7 @@ void CPUBackend::registerOps() {
     addCreator(SOFTMAX, (CPUBackend::Creator *)(new CPUSoftMaxCreator()));
     addCreator(LINEAR, (CPUBackend::Creator *)(new CPULinearCreator()));
     addCreator(ATTENTION, (CPUBackend::Creator *)(new CPUAttentionCreator()));
+    addCreator(EMBEDDING, (CPUBackend::Creator *)(new CPUEmbeddingCreator()));
 }
 
 } // namespace mllm

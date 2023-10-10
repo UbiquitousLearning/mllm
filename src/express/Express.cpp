@@ -264,7 +264,23 @@ NetTensor *_Attention(Context *ctx, std::vector<NetTensor *> inputs, int embeddi
     out_tensor->in = net_op_;
     return out_tensor;
 }
-
+NetTensor *_Embedding(Context *ctx, std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Embedding" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::EMBEDDING)
+    net_op_->param["hidden_size"] = hidden_size;
+    net_op_->param["vocab_size"] = vocab_size;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }
