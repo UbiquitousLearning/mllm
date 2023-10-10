@@ -1,11 +1,9 @@
-from io import BufferedWriter
-from typing_extensions import OrderedDict
-import torch
-import pickle
-import struct
-import numpy as np
-from functools import reduce
 import argparse
+import struct
+from functools import reduce
+from io import BufferedWriter
+
+import torch
 
 MAGIC_NUMBER = 20012
 
@@ -34,7 +32,7 @@ class Writer:
     def __init__(self, path: str):
         self.tensors_map = {}
         self.tensors_name = []
-        self.writer = open(path, "wb")
+        self.writer = open(path, "wb+")
         self.writer.seek(0)
         self.write_int(MAGIC_NUMBER)
 
@@ -123,30 +121,43 @@ class Writer:
         self.writer.close()
 
 
+def get_tensor(model: dict, key: str):
+    if key in model.keys():
+        if args.type == "torch":
+            return model[key]
+        if args.type == "safetensor":
+            return model.get_tensor(key)
+    else:
+        raise Exception(f"Tensor {key} not found in model")
+
+
 if __name__ == "__main__":
+    global args
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--input_model", type=argparse.FileType("r"), required=True, default="model.bin"
+        "--input_model", type=argparse.FileType("r"), default="model.bin"
     )
-    parser.add_argument("--output_model", type=str, required=True, default="model.mllm")
+    parser.add_argument("--output_model", type=str, default="model.mllm")
     parser.add_argument(
         "--type",
-        choices=[
-            "torch",
-        ],
-        required=True,
+        choices=["torch", "safetensor"],
         default="torch",
     )
     args = parser.parse_args()
     if args.type == "torch":
         model = torch.load(args.input_model)
+    elif args.type == "safetensor":
+        from safetensors import safe_open
+
+        args.input_model.close()
+        model = safe_open(args.input_model.name, framework="pt")
     else:
         raise Exception("Unknown type")
     writer = Writer(args.output_model)
     model_keys = [key for key in model.keys() if not key.startswith("_")]
     writer.write_tensor_index_padding(model_keys)
     for key in model_keys:
-        tensor = model[key]
+        tensor = get_tensor(model, key)
         offset, size = writer.write_tensor(tensor, key)
         print(f"Write tensor {key} to {offset} with size {size}")
     writer.write_tensor_index()
