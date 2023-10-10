@@ -216,26 +216,26 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> &inputs, vector<share
         vector<shared_ptr<Tensor>> kq_input = {q_state_, k_merged_};
         vector<shared_ptr<Tensor>> kq__ = {kq_};
         kq_matmul_->reshape(kq_input, kq__);
-        kq_matmul_->setUp(kq_input, kq__);
+        kq_->alloc();
         // scale
         vector<shared_ptr<Tensor>> kq_scale__ = {kq_scale_};
         scale_->reshape(kq__, kq_scale__);
-        scale_->setUp(kq__, kq_scale__);
+        kq_scale_->alloc();
         // softmax
         vector<shared_ptr<Tensor>> kq_softmax__ = {kq_softmax_};
         softmax_->reshape(kq_scale__, kq_softmax__);
-        softmax_->setUp(kq_scale__, kq_softmax__);
+        kq_scale_->alloc();
         // kqv
         vector<shared_ptr<Tensor>> kq_softmax_v_input = {kq_softmax_, v_merged_};
         vector<shared_ptr<Tensor>> kq_softmax_v__ = {kq_softmax_v_};
         s_v_matmul_->reshape(kq_softmax_v_input, kq_softmax_v__);
-        s_v_matmul_->setUp(kq_softmax_v_input, kq_softmax_v__);
+        kq_softmax_v_->alloc();
         // out
         mutilHeadDeReshape(kq_softmax_v_, kqv_state_, head_size_);
         kqv_state_->alloc();
         vector<shared_ptr<Tensor>> O_input__ = {kqv_state_};
         O_proj_->reshape(O_input__, outputs);
-        O_proj_->setUp(O_input__, outputs);
+        outputs[0]->alloc();
     }
 
     vector<shared_ptr<Tensor>> q__ = {q_};

@@ -30,7 +30,7 @@ public:
         mem_manager_->alloc(ptr, size);
     }
 
-    void free(void **ptr) {
+    void free(void *ptr) {
         mem_manager_->free(ptr);
     }
 

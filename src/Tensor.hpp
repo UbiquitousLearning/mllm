@@ -21,6 +21,11 @@ public:
     Tensor(Backend *bn) :
         backend_(bn), host_ptr_(), capacity_(0), byte_width_(sizeof(float)) {
     }
+    ~Tensor() {
+        if (host_ptr_ != nullptr) {
+            backend_->free(host_ptr_);
+        }
+    }
     explicit Tensor(const int num, const int channels, const int height, const int width); // N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
     explicit Tensor(const vector<int> &shape);
     // void SetBackend(shared_ptr<Backend> bn){
