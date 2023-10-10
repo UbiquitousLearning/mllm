@@ -12,7 +12,7 @@ ErrorCode mllm::CPUEmbedding::reshape(vector<shared_ptr<Tensor>> &inputs, vector
     auto input = inputs[0];
     auto output = outputs[0];
     CHECK_EQ(input->width(), 1);
-    output->reshape(input->batch(), input->seqLen(), hiddenSize_, 1);
+    output->reshape(input->batch(), input->sequence(), hiddenSize_, 1);
     weight_.reshape(vocabSize_, hiddenSize_, 1, 1);
     return NO_ERROR;
 }

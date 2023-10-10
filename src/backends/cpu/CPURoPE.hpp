@@ -17,6 +17,8 @@ public:
     virtual ErrorCode load(ParamLoader &loader) override;
 
 private:
+    Tensor sin_;
+    Tensor cos_;
     bool support_multi_thread_ = false;
 };
 

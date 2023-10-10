@@ -86,11 +86,15 @@ CPUAttention::CPUAttention(Backend *bn, int embedding_size, int hidden_size, int
     head_size_ = head_size;
     support_multi_thread_ = multiThread;
     Q_proj_.reset(new CPULinear(bn, embedding_size_, hidden_size_ * head_size_, false, false));
-    Q_proj_->setName(name() + ".Q_proj");
+    Q_proj_->setName(name() + ".q_proj");
     K_proj_.reset(new CPULinear(bn, embedding_size_, hidden_size_ * head_size_, false, false));
-    K_proj_->setName(name() + ".K_proj");
+    K_proj_->setName(name() + ".k_proj");
     V_proj_.reset(new CPULinear(bn, embedding_size_, hidden_size_ * head_size_, false, false));
-    V_proj_->setName(name() + ".V_proj");
+    V_proj_->setName(name() + ".v_proj");
+    q_rope_.reset(new CPURoPE(bn, false));
+    q_rope_->setName(name() + ".q_rope");
+    k_rope_.reset(new CPURoPE(bn, false));
+    k_rope_->setName(name() + ".k_rope");
     kq_matmul_.reset(new CPUMatmul(bn, false, true, false));
     kq_matmul_->setName(name() + ".kq_matmul");
     scale_.reset(new CPUScale(bn, 1.0, 0.0, true, false));
@@ -105,6 +109,8 @@ CPUAttention::CPUAttention(Backend *bn, int embedding_size, int hidden_size, int
     q_.reset(new Tensor(bn));
     k_.reset(new Tensor(bn));
     v_.reset(new Tensor(bn));
+    q_pos_.reset(new Tensor(bn));
+    k_pos_.reset(new Tensor(bn));
     q_state_.reset(new Tensor(bn));
     k_state_.reset(new Tensor(bn));
     v_state_.reset(new Tensor(bn));
@@ -127,9 +133,13 @@ ErrorCode CPUAttention::reshape(vector<shared_ptr<Tensor>> &inputs, vector<share
     K_proj_->reshape(inputs, k__);
     vector<shared_ptr<Tensor>> v__ = {v_};
     V_proj_->reshape(inputs, v__);
+    vector<shared_ptr<Tensor>> q_pos__ = {q_pos_};
+    q_rope_->reshape(q__, q_pos__);
+    vector<shared_ptr<Tensor>> k_pos__ = {k_pos_};
+    k_rope_->reshape(k__, k_pos__);
     past_key_value_ = k_cached_->allocted();
-    mutilHeadReshape(q_, q_state_, head_size_);
-    mutilHeadReshape(k_, k_state_, head_size_);
+    mutilHeadReshape(q_pos_, q_state_, head_size_);
+    mutilHeadReshape(k_pos_, k_state_, head_size_);
     mutilHeadReshape(v_, v_state_, head_size_);
     if (!past_key_value_) { // 第一次
         // KQ
@@ -159,13 +169,14 @@ ErrorCode CPUAttention::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_
 
     vector<shared_ptr<Tensor>> q__ = {q_};
     Q_proj_->setUp(inputs, q__);
-    // add KVcache
     vector<shared_ptr<Tensor>> k__ = {k_};
     K_proj_->setUp(inputs, k__);
-    // k_ = k_ + k_cached_
-    //  add KVcache
     vector<shared_ptr<Tensor>> v__ = {v_};
     V_proj_->setUp(inputs, v__);
+    vector<shared_ptr<Tensor>> q_pos__ = {q_pos_};
+    q_rope_->setUp(q__, q_pos__);
+    vector<shared_ptr<Tensor>> k_pos__ = {k_pos_};
+    k_rope_->setUp(k__, k_pos__);
     // v_ = v_ + v_cached_
     q_state_->alloc();
     k_state_->alloc();
@@ -235,8 +246,13 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> &inputs, vector<share
     vector<shared_ptr<Tensor>> v__ = {v_};
     V_proj_->execute(inputs, v__);
 
-    mutilHeadReshapeExe(q_, q_state_, head_size_);
-    mutilHeadReshapeExe(k_, k_state_, head_size_);
+    vector<shared_ptr<Tensor>> q_pos__ = {q_pos_};
+    q_rope_->execute(q__, q_pos__);
+    vector<shared_ptr<Tensor>> k_pos__ = {k_pos_};
+    k_rope_->execute(k__, k_pos__);
+
+    mutilHeadReshapeExe(q_pos_, q_state_, head_size_);
+    mutilHeadReshapeExe(k_pos_, k_state_, head_size_);
     mutilHeadReshapeExe(v_, v_state_, head_size_);
 
     vector<shared_ptr<Tensor>> kq_input = {q_state_, k_state_};
