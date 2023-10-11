@@ -105,7 +105,7 @@ int main() {
     // net.Run();
     Executor ex(&net);
     ex.execute(input_size);
-    ex.execute(autoregressive_input_size);
-    ex.execute(autoregressive_input_size);
+//    ex.execute(autoregressive_input_size);
+//    ex.execute(autoregressive_input_size);
     return 0;
 }

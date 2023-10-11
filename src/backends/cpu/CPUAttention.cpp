@@ -88,8 +88,8 @@ CPUAttention::CPUAttention(Backend *bn, string opName, int embedding_size, int h
     Q_proj_.reset(new CPULinear(bn, name() + ".q_proj",embedding_size_, hidden_size_ * head_size_, false, false));
     K_proj_.reset(new CPULinear(bn, name() + ".k_proj", embedding_size_, hidden_size_ * head_size_, false, false));
     V_proj_.reset(new CPULinear(bn, name() + ".v_proj", embedding_size_, hidden_size_ * head_size_, false, false));
-    q_rope_.reset(new CPURoPE(bn,name() + ".q_rope", false));
-    k_rope_.reset(new CPURoPE(bn, name() + ".k_rope", false));
+    q_rope_.reset(new CPURoPE(bn,name() + ".q_rope", true, false));
+    k_rope_.reset(new CPURoPE(bn, name() + ".k_rope", true, false));
     kq_matmul_.reset(new CPUMatmul(bn, name() + ".kq_matmul", false, true, false));
     scale_.reset(new CPUScale(bn, name() + ".scale", 1.0, 0.0, true, false));
     softmax_.reset(new CPUSoftMax(bn, name() + ".softmax", 3, false));
@@ -122,14 +122,14 @@ ErrorCode CPUAttention::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
     Q_proj_->reshape(inputs, {q_});
     K_proj_->reshape(inputs, {k_});
     V_proj_->reshape(inputs, {v_});
-    q_rope_->reshape({q_}, {q_pos_});
-    k_rope_->reshape({k_}, {k_pos_});
-    mutilHeadReshape(q_pos_, q_state_, head_size_);
-    mutilHeadReshape(k_pos_, k_state_, head_size_);
+    mutilHeadReshape(q_, q_state_, head_size_);
+    mutilHeadReshape(k_, k_state_, head_size_);
     mutilHeadReshape(v_, v_state_, head_size_);
+    q_rope_->reshape({q_state_}, {q_pos_});
+    k_rope_->reshape({k_state_}, {k_pos_});
     if (!past_key_value_) { // 第一次
         // kq
-        kq_matmul_->reshape({q_state_, k_state_}, {kq_});
+        kq_matmul_->reshape({q_pos_, k_pos_}, {kq_});
         // scale
         scale_->reshape({kq_}, {kq_scale_});
         // softmax
@@ -148,15 +148,15 @@ ErrorCode CPUAttention::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     Q_proj_->setUp(inputs, {q_});
     K_proj_->setUp(inputs, {k_});
     V_proj_->setUp(inputs, {v_});
-    q_rope_->setUp({q_}, {q_pos_});
-    k_rope_->setUp({k_}, {k_pos_});
-    // v_ = v_ + v_cached_
     q_state_->alloc();
     k_state_->alloc();
     v_state_->alloc();
+    q_rope_->setUp({q_state_}, {q_pos_});
+    k_rope_->setUp({k_state_}, {k_pos_});
+    // v_ = v_ + v_cached_
     if (!past_key_value_) { // 第一次
         // kq
-        kq_matmul_->setUp({q_state_, k_state_}, {kq_});
+        kq_matmul_->setUp({q_pos_, k_pos_}, {kq_});
         // scale
         scale_->setUp({kq_}, {kq_scale_});
         // softmax
@@ -175,7 +175,7 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
 
     if (past_key_value_) {
         // k_cached
-        mergeCacheReshape(k_state_, k_cached_, k_merged_);
+        mergeCacheReshape(k_pos_, k_cached_, k_merged_);
         // v_cached
         mergeCacheReshape(v_state_, v_cached_, v_merged_);
         // kq
@@ -193,23 +193,24 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
         O_proj_->reshapeOutputs({kqv_state_}, outputs);
     }
     // forward
-//    inputs[0]->fullData<float>(1);
+    inputs[0]->fullData<float>(1);
 //    inputs[0]->printData<float>();
     // qkv proj
     Q_proj_->execute(inputs, {q_});
     K_proj_->execute(inputs, {k_});
     V_proj_->execute(inputs, {v_});
-    // rope
-    q_rope_->execute({q_}, {q_pos_});
-    k_rope_->execute({k_}, {k_pos_});
-    mutilHeadReshapeExe(q_pos_, q_state_, head_size_);
-    mutilHeadReshapeExe(k_pos_, k_state_, head_size_);
+    mutilHeadReshapeExe(q_, q_state_, head_size_);
+    mutilHeadReshapeExe(k_, k_state_, head_size_);
     mutilHeadReshapeExe(v_, v_state_, head_size_);
+    // rope
+    q_rope_->execute({q_state_}, {q_pos_});
+    k_rope_->execute({k_state_}, {k_pos_});
+    q_pos_->printData<float>();
     // k cache
-    vector<shared_ptr<Tensor>> kq_input = {q_state_, k_state_};
+    vector<shared_ptr<Tensor>> kq_input = {q_pos_, k_pos_};
     if (past_key_value_) {
         mergeCache(k_state_, k_cached_, k_merged_);
-        kq_input = {q_state_, k_merged_};
+        kq_input = {q_pos_, k_merged_};
     }
     // kq
     kq_matmul_->execute(kq_input, {kq_});
