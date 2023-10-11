@@ -92,8 +92,8 @@ int main() {
 
     auto *x = _Input(c);
     x = _Attention(c, {x}, 80, 10, 8);
-    vector<int> input_size = {1, 8, 10, 80};
-    vector<int> autoregressive_input_size = {1, 8, 1, 80};
+    vector<int> input_size = {1, 1, 10, 80};
+    vector<int> autoregressive_input_size = {1, 1, 1, 80};
 
     //    x = _Embedding(c, {x}, 128, 1000);
     //    vector<int> input_size = {1, 1, 128, 1};

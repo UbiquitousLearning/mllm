@@ -193,6 +193,8 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
         O_proj_->reshapeOutputs({kqv_state_}, outputs);
     }
     // forward
+//    inputs[0]->fullData<float>(1);
+//    inputs[0]->printData<float>();
     // qkv proj
     Q_proj_->execute(inputs, {q_});
     K_proj_->execute(inputs, {k_});
