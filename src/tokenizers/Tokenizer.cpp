@@ -70,5 +70,6 @@ string Tokenizer::detokenize(const vector<token_id_t> &tokens) {
         }
         result += this->id_token_[token_id].token;
     }
+    return result;
 }
 } // namespace mllm

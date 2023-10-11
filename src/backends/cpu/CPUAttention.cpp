@@ -27,7 +27,6 @@ void mutilHeadReshapeExe(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, int head_
             }
         }
     }
-
 }
 void mutilHeadDeReshape(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, int head_num) {
     B->reshape(A->batch(), 1, A->sequence(), A->dimension() * head_num);
@@ -129,39 +128,39 @@ CPUAttention::CPUAttention(Backend *bn, int embedding_size, int hidden_size, int
 }
 ErrorCode CPUAttention::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     vector<shared_ptr<Tensor>> q__ = {q_};
-    Q_proj_->reshape(inputs, q__);
     vector<shared_ptr<Tensor>> k__ = {k_};
-    K_proj_->reshape(inputs, k__);
     vector<shared_ptr<Tensor>> v__ = {v_};
-    V_proj_->reshape(inputs, v__);
     vector<shared_ptr<Tensor>> q_pos__ = {q_pos_};
-    q_rope_->reshape(q__, q_pos__);
     vector<shared_ptr<Tensor>> k_pos__ = {k_pos_};
+    vector<shared_ptr<Tensor>> kq_input = {q_state_, k_state_};
+    vector<shared_ptr<Tensor>> kq__ = {kq_};
+    vector<shared_ptr<Tensor>> kq_scale__ = {kq_scale_};
+    vector<shared_ptr<Tensor>> kq_softmax__ = {kq_softmax_};
+    vector<shared_ptr<Tensor>> kq_softmax_v_input = {kq_softmax_, v_state_};
+    vector<shared_ptr<Tensor>> kq_softmax_v__ = {kq_softmax_v_};
+    vector<shared_ptr<Tensor>> O_input__ = {kqv_state_};
+
+    Q_proj_->reshape(inputs, q__);
+    K_proj_->reshape(inputs, k__);
+    V_proj_->reshape(inputs, v__);
+    q_rope_->reshape(q__, q_pos__);
     k_rope_->reshape(k__, k_pos__);
     past_key_value_ = k_cached_->allocted();
     mutilHeadReshape(q_pos_, q_state_, head_size_);
     mutilHeadReshape(k_pos_, k_state_, head_size_);
     mutilHeadReshape(v_, v_state_, head_size_);
     if (!past_key_value_) { // 第一次
-        // KQ
-        vector<shared_ptr<Tensor>> kq_input = {q_state_, k_state_};
-        vector<shared_ptr<Tensor>> kq__ = {kq_};
+        // kq
         kq_matmul_->reshape(kq_input, kq__);
         // scale
-        vector<shared_ptr<Tensor>> kq_scale__ = {kq_scale_};
         scale_->reshape(kq__, kq_scale__);
         // softmax
-        vector<shared_ptr<Tensor>> kq_softmax__ = {kq_softmax_};
         softmax_->reshape(kq_scale__, kq_softmax__);
-
         // kqv
-        vector<shared_ptr<Tensor>> kq_softmax_v_input = {kq_softmax_, v_state_};
-        vector<shared_ptr<Tensor>> kq_softmax_v__ = {kq_softmax_v_};
         s_v_matmul_->reshape(kq_softmax_v_input, kq_softmax_v__);
-
+        // out
         mutilHeadDeReshape(kq_softmax_v_, kqv_state_, head_size_);
-        vector<shared_ptr<Tensor>> O_input = {kqv_state_};
-        O_proj_->reshape(O_input, outputs);
+        O_proj_->reshape(O_input__, outputs);
     }
     return NO_ERROR;
 }
@@ -169,121 +168,110 @@ ErrorCode CPUAttention::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     past_key_value_ = k_cached_->allocted();
 
     vector<shared_ptr<Tensor>> q__ = {q_};
-    Q_proj_->setUp(inputs, q__);
     vector<shared_ptr<Tensor>> k__ = {k_};
-    K_proj_->setUp(inputs, k__);
     vector<shared_ptr<Tensor>> v__ = {v_};
-    V_proj_->setUp(inputs, v__);
     vector<shared_ptr<Tensor>> q_pos__ = {q_pos_};
-    q_rope_->setUp(q__, q_pos__);
     vector<shared_ptr<Tensor>> k_pos__ = {k_pos_};
+    vector<shared_ptr<Tensor>> kq_input = {q_state_, k_state_};
+    vector<shared_ptr<Tensor>> kq__ = {kq_};
+    vector<shared_ptr<Tensor>> kq_scale__ = {kq_scale_};
+    vector<shared_ptr<Tensor>> kq_softmax__ = {kq_softmax_};
+    vector<shared_ptr<Tensor>> kq_softmax_v_input = {kq_softmax_, v_state_};
+    vector<shared_ptr<Tensor>> kq_softmax_v__ = {kq_softmax_v_};
+    vector<shared_ptr<Tensor>> O_input__ = {kqv_state_};
+
+    Q_proj_->setUp(inputs, q__);
+    K_proj_->setUp(inputs, k__);
+    V_proj_->setUp(inputs, v__);
+    q_rope_->setUp(q__, q_pos__);
     k_rope_->setUp(k__, k_pos__);
     // v_ = v_ + v_cached_
     q_state_->alloc();
     k_state_->alloc();
     v_state_->alloc();
     if (!past_key_value_) { // 第一次
-        vector<shared_ptr<Tensor>> kq_input = {q_state_, k_state_};
-        vector<shared_ptr<Tensor>> kq__ = {kq_};
+        // kq
         kq_matmul_->setUp(kq_input, kq__);
-
         // scale
-        vector<shared_ptr<Tensor>> kq_scale__ = {kq_scale_};
         scale_->setUp(kq__, kq_scale__);
         // softmax
-        vector<shared_ptr<Tensor>> kq_softmax__ = {kq_softmax_};
         softmax_->setUp(kq_scale__, kq_softmax__);
-
-        vector<shared_ptr<Tensor>> kq_softmax_v_input = {kq_softmax_, v_state_};
-        vector<shared_ptr<Tensor>> kq_softmax_v__ = {kq_softmax_v_};
+        // kqv
         s_v_matmul_->setUp(kq_softmax_v_input, kq_softmax_v__);
-
+        // out
         kqv_state_->alloc();
-        vector<shared_ptr<Tensor>> O_input = {kqv_state_};
-        O_proj_->setUp(O_input, outputs);
+        O_proj_->setUp(O_input__, outputs);
     }
     return NO_ERROR;
 }
 
 ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     past_key_value_ = k_cached_->allocted();
+
+    vector<shared_ptr<Tensor>> q__ = {q_};
+    vector<shared_ptr<Tensor>> k__ = {k_};
+    vector<shared_ptr<Tensor>> v__ = {v_};
+    vector<shared_ptr<Tensor>> q_pos__ = {q_pos_};
+    vector<shared_ptr<Tensor>> k_pos__ = {k_pos_};
+    vector<shared_ptr<Tensor>> kq_input = {q_state_, k_state_};
+    vector<shared_ptr<Tensor>> kq__ = {kq_};
+    vector<shared_ptr<Tensor>> kq_scale__ = {kq_scale_};
+    vector<shared_ptr<Tensor>> kq_softmax__ = {kq_softmax_};
+    vector<shared_ptr<Tensor>> kq_softmax_v_input = {kq_softmax_, v_state_};
+    vector<shared_ptr<Tensor>> kq_softmax_v__ = {kq_softmax_v_};
+    vector<shared_ptr<Tensor>> O_input__ = {kqv_state_};
+
     if (past_key_value_) {
         // k_cached
         mergeCacheReshape(k_state_, k_cached_, k_merged_);
         // v_cached
         mergeCacheReshape(v_state_, v_cached_, v_merged_);
-        // KQ
-        vector<shared_ptr<Tensor>> kq_input = {q_state_, k_merged_};
-        vector<shared_ptr<Tensor>> kq__ = {kq_};
-        kq_matmul_->reshape(kq_input, kq__);
-        kq_->alloc();
+        // kq
+        kq_input = {q_state_, k_merged_};
+        kq_matmul_->resize(kq_input, kq__);
         // scale
-        vector<shared_ptr<Tensor>> kq_scale__ = {kq_scale_};
-        scale_->reshape(kq__, kq_scale__);
-        kq_scale_->alloc();
+        scale_->resize(kq__, kq_scale__);
         // softmax
-        vector<shared_ptr<Tensor>> kq_softmax__ = {kq_softmax_};
-        softmax_->reshape(kq_scale__, kq_softmax__);
-        kq_scale_->alloc();
+        softmax_->resize(kq_scale__, kq_softmax__);
         // kqv
-        vector<shared_ptr<Tensor>> kq_softmax_v_input = {kq_softmax_, v_merged_};
-        vector<shared_ptr<Tensor>> kq_softmax_v__ = {kq_softmax_v_};
-        s_v_matmul_->reshape(kq_softmax_v_input, kq_softmax_v__);
-        kq_softmax_v_->alloc();
+        kq_softmax_v_input = {kq_softmax_, v_merged_};
+        s_v_matmul_->resize(kq_softmax_v_input, kq_softmax_v__);
         // out
         mutilHeadDeReshape(kq_softmax_v_, kqv_state_, head_size_);
         kqv_state_->alloc();
-        vector<shared_ptr<Tensor>> O_input__ = {kqv_state_};
-        O_proj_->reshape(O_input__, outputs);
-        outputs[0]->alloc();
+        O_proj_->resize(O_input__, outputs);
     }
-
-    vector<shared_ptr<Tensor>> q__ = {q_};
+    // qkv proj
     Q_proj_->execute(inputs, q__);
-    // add KVcache
-    vector<shared_ptr<Tensor>> k__ = {k_};
     K_proj_->execute(inputs, k__);
-    // add KVcache
-    vector<shared_ptr<Tensor>> v__ = {v_};
     V_proj_->execute(inputs, v__);
-
-    vector<shared_ptr<Tensor>> q_pos__ = {q_pos_};
+    // rope
     q_rope_->execute(q__, q_pos__);
-    vector<shared_ptr<Tensor>> k_pos__ = {k_pos_};
     k_rope_->execute(k__, k_pos__);
-
     mutilHeadReshapeExe(q_pos_, q_state_, head_size_);
     mutilHeadReshapeExe(k_pos_, k_state_, head_size_);
     mutilHeadReshapeExe(v_, v_state_, head_size_);
-
-    vector<shared_ptr<Tensor>> kq_input = {q_state_, k_state_};
+    // k cache
     if (past_key_value_) {
         mergeCache(k_state_, k_cached_, k_merged_);
         kq_input = {q_state_, k_merged_};
     }
-    vector<shared_ptr<Tensor>> kq__ = {kq_};
+    // kq
     kq_matmul_->execute(kq_input, kq__);
-
     // scale
-    vector<shared_ptr<Tensor>> kq_scale__ = {kq_scale_};
     scale_->execute(kq__, kq_scale__);
     // softmax
-    vector<shared_ptr<Tensor>> kq_softmax__ = {kq_softmax_};
     softmax_->execute(kq_scale__, kq_softmax__);
-
-    vector<shared_ptr<Tensor>> kq_softmax_v_input = {kq_softmax_, v_state_};
+    // v cache
     if (past_key_value_) {
         mergeCache(v_state_, v_cached_, v_merged_);
         kq_softmax_v_input = {kq_softmax_, v_merged_};
     }
-    vector<shared_ptr<Tensor>> kq_softmax_v__ = {kq_softmax_v_};
+    // kqv
     s_v_matmul_->execute(kq_softmax_v_input, kq_softmax_v__);
-
-    //    vector<shared_ptr<Tensor>> kq_softmax_v_O_input = {kq_softmax_v_};
+    // out
     mutilHeadDeReshapeExe(kq_softmax_v_, kqv_state_, head_size_);
-    vector<shared_ptr<Tensor>> O_input__ = {kqv_state_};
     O_proj_->execute(O_input__, outputs);
-    //    outputs[0]->printData<float>();
 
     if (!k_cached_->allocted()) { // 第一次
         k_cached_->reshape(k_state_->shape());
@@ -300,7 +288,8 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> &inputs, vector<share
         v_cached_->alloc();
         v_cached_->copyFrom(v_merged_);
     }
-    std::cout<<"["<<outputs[0]->shape(0)<<","<<outputs[0]->shape(1)<<","<<outputs[0]->shape(2)<<","<<outputs[0]->shape(3)<<"]"<<std::endl;
+    std::cout << "[" << outputs[0]->shape(0) << "," << outputs[0]->shape(1) << "," << outputs[0]->shape(2) << "," << outputs[0]->shape(3) << "]" << std::endl;
+    //    outputs[0]->printData<float>();
     return NO_ERROR;
 }
 ErrorCode CPUAttention::load(ParamLoader &loader) {
