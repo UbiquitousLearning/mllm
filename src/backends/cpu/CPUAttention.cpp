@@ -2,6 +2,7 @@
 // Created by ey on 23-9-28.
 //
 
+#include <cmath>
 #include "CPUAttention.hpp"
 
 namespace mllm {
@@ -91,7 +92,7 @@ CPUAttention::CPUAttention(Backend *bn, string opName, int embedding_size, int h
     q_rope_.reset(new CPURoPE(bn,name() + ".q_rope", true, false));
     k_rope_.reset(new CPURoPE(bn, name() + ".k_rope", true, false));
     kq_matmul_.reset(new CPUMatmul(bn, name() + ".kq_matmul", false, true, false));
-    scale_.reset(new CPUScale(bn, name() + ".scale", 1.0, 0.0, true, false));
+    scale_.reset(new CPUScale(bn, name() + ".scale", 1/std::sqrt(hidden_size), 0.0, true, false));
     softmax_.reset(new CPUSoftMax(bn, name() + ".softmax", 3, false));
     s_v_matmul_.reset(new CPUMatmul(bn, name() + ".s_v_matmul", false, false, false));
     O_proj_.reset(new CPULinear(bn, name() + ".o_proj", hidden_size_ * head_size_, embedding_size_, false, false));
@@ -205,7 +206,6 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     // rope
     q_rope_->execute({q_state_}, {q_pos_});
     k_rope_->execute({k_state_}, {k_pos_});
-    q_pos_->printData<float>();
     // k cache
     vector<shared_ptr<Tensor>> kq_input = {q_pos_, k_pos_};
     if (past_key_value_) {
