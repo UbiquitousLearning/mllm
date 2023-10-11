@@ -6,8 +6,8 @@ namespace mllm {
 // template class CPUAdd;
 // template class CPUAdd;
 
-CPUAdd::CPUAdd(Backend *bn, bool multiThread) :
-    Op(bn) {
+CPUAdd::CPUAdd(Backend *bn,  string opName, bool multiThread) :
+    Op(bn, opName) {
 }
 
 ErrorCode CPUAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

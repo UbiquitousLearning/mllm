@@ -7,8 +7,8 @@ namespace mllm {
 // template class CPUSoftMax;
 // template class CPUSoftMax;
 
-CPUSoftMax::CPUSoftMax(Backend *bn, int axis, bool multiThread) :
-    Op(bn) {
+CPUSoftMax::CPUSoftMax(Backend *bn,  string opName, int axis, bool multiThread) :
+    Op(bn, opName) {
     axis_ = axis;
 }
 

@@ -22,7 +22,7 @@ CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
 //     return map_creator_->find(optype)->second->Create(inputs, outputs, optype, this);
 //     // return nullptr;
 // }
-Op *CPUBackend::opCreate(const OpParam &op_param) {
+Op *CPUBackend::opCreate(const OpParam &op_param, string name) {
     OpType optype = OpType(op_param.find("type")->second);
     auto *map = map_creator_;
     auto iter = map->find(optype);
@@ -31,7 +31,7 @@ Op *CPUBackend::opCreate(const OpParam &op_param) {
         return nullptr;
     }
     Op *exe = nullptr;
-    exe = iter->second->create(op_param, this);
+    exe = iter->second->create(op_param, this, name);
     return exe;
     // return nullptr;
 }

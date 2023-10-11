@@ -3,8 +3,8 @@
 
 namespace mllm {
 
-CPULinear::CPULinear(Backend *bn, int in_features, int out_features, bool bias, bool multiThread) :
-    Op(bn) {
+CPULinear::CPULinear(Backend *bn, string opName, int in_features, int out_features, bool bias, bool multiThread) :
+    Op(bn, opName) {
     in_features_ = in_features;
     out_features_ = out_features;
     support_bias_ = bias;

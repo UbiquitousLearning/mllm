@@ -7,8 +7,8 @@ namespace mllm {
 // template class CPUScale;
 
 
-CPUScale::CPUScale(Backend *bn, float scale, float bias, bool bias_after_scale, bool multiThread)  :
-    Op(bn) {
+CPUScale::CPUScale(Backend *bn, string opName, float scale, float bias, bool bias_after_scale, bool multiThread)  :
+    Op(bn, opName) {
     scale_ = scale;
     bias_ = bias;
     bias_after_scale_ = bias_after_scale;

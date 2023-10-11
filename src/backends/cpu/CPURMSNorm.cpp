@@ -7,8 +7,8 @@ namespace mllm {
 // template class CPURMSNorm;
 // template class CPURMSNorm;
 
-CPURMSNorm::CPURMSNorm(Backend *bn, bool multiThread, float epsilon) :
-    Op(bn), epsilon_(epsilon), support_multi_thread_(multiThread) {
+CPURMSNorm::CPURMSNorm(Backend *bn, string opName, bool multiThread, float epsilon) :
+    Op(bn, opName), epsilon_(epsilon), support_multi_thread_(multiThread) {
     weight_.setBackend(bn);
 }
 

@@ -24,8 +24,8 @@ public:
     // Op(shared_ptr<Backend> bn) : backend_(bn) {
     //     // nothing to do
     // }
-    Op(Backend *bn) :
-        backend_(bn) {
+    Op(Backend *bn, string name = "") :
+        backend_(bn) , name_(name) {
         // nothing to do
     }
     virtual ~Op() = default;

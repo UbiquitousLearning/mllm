@@ -31,8 +31,8 @@ void sinusoidal_position_embedding(int batch_size, int nums_head, int seq_len, i
 }
 
 
-CPURoPE::CPURoPE(Backend *bn, bool multiThread) :
-    Op(bn) {
+CPURoPE::CPURoPE(Backend *bn, string opName, bool multiThread) :
+    Op(bn, opName) {
     cos_.setBackend(bn);
     sin_.setBackend(bn);
 }

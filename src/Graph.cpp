@@ -35,11 +35,11 @@ Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, share
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto *net_op = param_.net_ops[i];
         shared_ptr<Op> my_op(NULL);
-        auto *new_op = backend_->opCreate(net_op->param);
+        auto *new_op = backend_->opCreate(net_op->param, net_op->name);
         my_op.reset(new_op);
-        string lname = net_op->name;
-        my_op->setName(lname);
-        ops_[lname] = my_op;
+//        string lname = net_op->name;
+//        my_op->setName(lname);
+        ops_[net_op->name] = my_op;
     }
 //    shapeInit(external_tensors);
 }

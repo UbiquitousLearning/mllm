@@ -6,8 +6,8 @@ namespace mllm {
 // template class CPUCausalMask;
 // template class CPUCausalMask;
 
-CPUCausalMask::CPUCausalMask(Backend *bn, bool multiThread) :
-    Op(bn) {
+CPUCausalMask::CPUCausalMask(Backend *bn, string opName, bool multiThread) :
+    Op(bn, opName) {
 }
 
 ErrorCode CPUCausalMask::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

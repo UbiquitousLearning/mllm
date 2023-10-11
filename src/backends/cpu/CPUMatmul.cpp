@@ -3,8 +3,8 @@
 
 namespace mllm {
 
-CPUMatmul::CPUMatmul(Backend *bn, bool transpose0, bool transpose1, bool multiThread) :
-    Op(bn) {
+CPUMatmul::CPUMatmul(Backend *bn, string opName, bool transpose0, bool transpose1, bool multiThread) :
+    Op(bn, opName) {
     transpose0_ = transpose0;
     transpose1_ = transpose1;
     support_multi_thread_ = multiThread;

@@ -5,7 +5,7 @@
 namespace mllm {
 class CPUEmbedding final : public Op {
 public:
-    explicit CPUEmbedding(Backend *bn, int hiddenSize, int vocabSize);
+    explicit CPUEmbedding(Backend *bn,  string opName, int hiddenSize, int vocabSize);
     ~CPUEmbedding() override = default;
     ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
@@ -19,10 +19,10 @@ private:
 };
 class CPUEmbeddingCreator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
         auto hiddenSize = op_param["hidden_size"];
         auto vocabSize = op_param["vocab_size"];
-        return new CPUEmbedding(bn, hiddenSize, vocabSize);
+        return new CPUEmbedding(bn, name, hiddenSize, vocabSize);
     }
 };
 

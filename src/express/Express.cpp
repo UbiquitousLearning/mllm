@@ -256,7 +256,6 @@ NetTensor *_Attention(Context *ctx, std::vector<NetTensor *> inputs, int embeddi
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::ATTENTION)
-    net_op_->param["name_idx"] = ctx->idx-1;
     net_op_->param["embedding_size"] = embedding_size;
     net_op_->param["hidden_size"] = hidden_size;
     net_op_->param["head_size"] = head_size;

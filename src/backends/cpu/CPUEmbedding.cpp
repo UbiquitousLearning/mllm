@@ -1,6 +1,6 @@
 #include "CPUEmbedding.hpp"
-mllm::CPUEmbedding::CPUEmbedding(mllm::Backend *bn, int hiddenSize, int vocabSize) :
-    Op(bn), hiddenSize_(hiddenSize), vocabSize_(vocabSize) {
+mllm::CPUEmbedding::CPUEmbedding(mllm::Backend *bn,  string opName, int hiddenSize, int vocabSize) :
+    Op(bn, opName), hiddenSize_(hiddenSize), vocabSize_(vocabSize) {
     CHECK_GT(hiddenSize_, 0);
     CHECK_GT(vocabSize_, 0);
     weight_.setBackend(bn);
