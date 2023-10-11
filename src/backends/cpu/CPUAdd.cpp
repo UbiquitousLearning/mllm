@@ -10,7 +10,7 @@ CPUAdd::CPUAdd(Backend *bn, bool multiThread) :
     Op(bn) {
 }
 
-ErrorCode CPUAdd::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUAdd  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 2);
     CHECK_EQ(outputs.size(), 1);
@@ -22,7 +22,7 @@ ErrorCode CPUAdd::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<
     return NO_ERROR;
 }
 
-ErrorCode CPUAdd::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUAdd  setUp" << std::endl;
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
@@ -34,7 +34,7 @@ ErrorCode CPUAdd::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Te
     return NO_ERROR;
 }
 
-ErrorCode CPUAdd::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUAdd::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUAdd()" << std::endl;
     int N = inputs[0]->shape(0);
     int C = inputs[0]->shape(1);

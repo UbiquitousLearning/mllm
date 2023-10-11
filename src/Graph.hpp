@@ -22,7 +22,7 @@ public:
     /**
      * @brief 初始化
      */
-    void reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+    void shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
     /**
      * @brief 初始化
@@ -30,6 +30,8 @@ public:
     void setUp();
 
     void load(ParamLoader &loader);
+
+    void reshapeOutputs(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
     /**
      * @brief 前行传播

@@ -37,7 +37,7 @@ CPURoPE::CPURoPE(Backend *bn, bool multiThread) :
     sin_.setBackend(bn);
 }
 
-ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPURoPE  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
@@ -46,7 +46,7 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr
     return NO_ERROR;
 }
 
-ErrorCode CPURoPE::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPURoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPURoPE  setUp" << std::endl;
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
@@ -55,7 +55,7 @@ ErrorCode CPURoPE::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<T
     return NO_ERROR;
 }
 
-ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPURoPE()" << std::endl;
 //    auto sin_ = std::make_shared<Tensor>();
 //    auto cos_ = std::make_shared<Tensor>();

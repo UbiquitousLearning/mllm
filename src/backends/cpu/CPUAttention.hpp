@@ -20,21 +20,13 @@ class CPUAttention final : public Op {
 public:
     CPUAttention(Backend *bn, int embedding_size, int hidden_size, int head_size, string names, bool multiThread);
     virtual ~CPUAttention() = default;
-    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
-    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
-    virtual ErrorCode execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     
     virtual ErrorCode load(ParamLoader &loader) override;
 
 private:
-//    Tensor Q_weight_;
-//    Tensor Q_bias_;
-//    Tensor K_weight_;
-//    Tensor K_bias_;
-//    Tensor V_weight_;
-//    Tensor V_bias_;
-//    std::shared_ptr<StrassenMatmul> matmul_;
-
     shared_ptr<CPULinear> Q_proj_;
     shared_ptr<CPULinear> K_proj_;
     shared_ptr<CPULinear> V_proj_;
@@ -59,7 +51,6 @@ private:
     shared_ptr<Tensor>  kq_softmax_;
     shared_ptr<Tensor>  kq_softmax_v_;
     shared_ptr<Tensor>  kqv_state_;
-//    shared_ptr<Tensor>  kq_softmax_v_O_;
 
     shared_ptr<Tensor>  k_cached_;
     shared_ptr<Tensor>  v_cached_;

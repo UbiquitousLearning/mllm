@@ -35,14 +35,14 @@ public:
      * 设定输入输出的tensor(已经to_cpu)
      * @param inputs    input tensors
      * @param outputs   output tensors
-     * @return resize result
+     * @return reshapeOutputs result
      */
-    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
         // check inputs shape
         // reshape outputs
         return NO_ERROR;
     }
-    ErrorCode resize(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    virtual ErrorCode reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
         // check inputs shape
         // reshape outputs
         reshape(inputs, outputs);
@@ -59,9 +59,9 @@ public:
      * 设定输入输出的tensor(已经to_cpu)
      * @param inputs    input tensors
      * @param outputs   output tensors
-     * @return resize result
+     * @return reshapeOutputs result
      */
-    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
         //        for (auto &t : outputs) {
         // t->SetName("Input0"+"_out");
         //        }
@@ -81,7 +81,7 @@ public:
      * @param outputs   output tensors
      * @return execution result
      */
-    virtual ErrorCode execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) = 0;
+    virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) = 0;
     /**
      * @brief get backend.
      * @return backend.

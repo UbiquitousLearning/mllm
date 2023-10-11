@@ -5,7 +5,7 @@ mllm::CPUEmbedding::CPUEmbedding(mllm::Backend *bn, int hiddenSize, int vocabSiz
     CHECK_GT(vocabSize_, 0);
     weight_.setBackend(bn);
 }
-ErrorCode mllm::CPUEmbedding::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode mllm::CPUEmbedding::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUEmbedding  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
@@ -18,7 +18,7 @@ ErrorCode mllm::CPUEmbedding::reshape(vector<shared_ptr<Tensor>> &inputs, vector
     weight_.setName(name() + "_weight");
     return NO_ERROR;
 }
-ErrorCode mllm::CPUEmbedding::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode mllm::CPUEmbedding::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUEmbedding  setUp" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
@@ -37,7 +37,7 @@ ErrorCode mllm::CPUEmbedding::load(mllm::ParamLoader &loader) {
     loader.load(&weight_);
     return NO_ERROR;
 }
-ErrorCode mllm::CPUEmbedding::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode mllm::CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUEmbedding  execute" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);

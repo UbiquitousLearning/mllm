@@ -12,14 +12,14 @@ CPUSoftMax::CPUSoftMax(Backend *bn, int axis, bool multiThread) :
     axis_ = axis;
 }
 
-ErrorCode CPUSoftMax::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUSoftMax::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUSoftMax  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
     return NO_ERROR;
 }
 
-ErrorCode CPUSoftMax::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUSoftMax::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUSoftMax  setUp" << std::endl;
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
@@ -28,7 +28,7 @@ ErrorCode CPUSoftMax::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     return NO_ERROR;
 }
 
-ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUSoftMax()" << std::endl;
     auto &input = inputs[0];
     auto &output = outputs[0];

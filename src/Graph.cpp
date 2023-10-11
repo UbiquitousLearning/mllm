@@ -41,10 +41,10 @@ Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, share
         my_op->setName(lname);
         ops_[lname] = my_op;
     }
-//    reshape(external_tensors);
+//    shapeInit(external_tensors);
 }
 
-void Graph::reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
+void Graph::shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
 
     // RESHAPE
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
@@ -67,8 +67,8 @@ void Graph::reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors)
             }
         }
         vector<shared_ptr<Tensor>> outTensors;
-        for (int i = 0; i < net_op->out_size; i++) {
-            auto out_t_name = "outtensor-" + lname + "-" + intToStringWithLeadingZero(i);
+        for (int oz = 0; oz < net_op->out_size; oz++) {
+            auto out_t_name = "outtensor-" + lname + "-" + intToStringWithLeadingZero(oz);
             auto it = tensors_.find(out_t_name);
             if (it != tensors_.end()) {
                 outTensors.push_back(tensors_[out_t_name]);
@@ -79,7 +79,7 @@ void Graph::reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors)
         ops_input_tensors_[lname] = inTensors;
         ops_output_tensors_[lname] = outTensors;
 //        ops_[lname] = my_op;
-        ops_[lname]->reshape(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:1.reshape
+        ops_[lname]->reshape(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:1.shapeInit
     }
 }
 
@@ -104,6 +104,14 @@ void Graph::load(ParamLoader &loader) {
     // if(loader.load())
 }
 
+void Graph::reshapeOutputs(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
+    // RESHAPE
+    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
+        auto *net_op = param_.net_ops[i];
+        string lname = net_op->name;
+        ops_[lname]->reshapeOutputs(ops_input_tensors_[lname], ops_output_tensors_[lname]);
+    }
+}
 /**
  * @brief 前向传播
  * @param loss

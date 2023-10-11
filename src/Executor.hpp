@@ -18,14 +18,19 @@ public:
      */
     void init();
 
-    void graphReshape(shared_ptr<Graph> subGraph, unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
+    void graphShapeInit(shared_ptr<Graph> subGraph, unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
         // auto subGraph = net_.subGraph()[graph_name];
-        subGraph->reshape(external_tensors);
+        subGraph->shapeInit(external_tensors);
     }
 
     void graphSetUp(shared_ptr<Graph> subGraph) {
         // auto subGraph = net_.subGraph()[graph_name];
         subGraph->setUp();
+    }
+
+    void graphReshapeOutputs(shared_ptr<Graph> subGraph, unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
+        // auto subGraph = net_.subGraph()[graph_name];
+        subGraph->reshapeOutputs(external_tensors);
     }
 
     /**

@@ -12,7 +12,7 @@ CPURMSNorm::CPURMSNorm(Backend *bn, bool multiThread, float epsilon) :
     weight_.setBackend(bn);
 }
 
-ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // RMSNorm 类似于LayerNorm作用于channel维度
     weight_.reshape(1, 1,1,inputs[0]->dimension()); // (C, 1, 1, 1)
     weight_.setName(name() + ".weight");
@@ -21,7 +21,7 @@ ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     return NO_ERROR;
 }
 
-ErrorCode CPURMSNorm::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPURMSNorm::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
     }
@@ -36,7 +36,7 @@ ErrorCode CPURMSNorm::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     return NO_ERROR;
 }
 
-ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto input = inputs[0];
     int batch = input->batch();
     int dim = input->dimension();

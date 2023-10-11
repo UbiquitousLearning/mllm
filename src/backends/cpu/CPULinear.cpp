@@ -13,7 +13,7 @@ CPULinear::CPULinear(Backend *bn, int in_features, int out_features, bool bias, 
     bias_.setBackend(bn);
 }
 
-ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPULinear  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
@@ -27,7 +27,6 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     // -----------------------------------------------
     // batch |out_channel | seq_len               |  1
     //       |out_features|  inputs[0]->sequence()  |
-//    CHECK_EQ(inputs[0]->head(), 1);
     CHECK_EQ(in_features_, inputs[0]->dimension());
     weight_.reshape(1, inputs[0]->head(), in_features_, out_features_);
     weight_.setName(name() + ".weight");
@@ -37,7 +36,7 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     return NO_ERROR;
 }
 
-ErrorCode CPULinear::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPULinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPULinear  setUp" << std::endl;
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
@@ -48,7 +47,7 @@ ErrorCode CPULinear::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr
     return NO_ERROR;
 }
 
-ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPULinear()" << std::endl;
     // INPUT: M.K
     // W:K,N
@@ -88,6 +87,25 @@ ErrorCode CPULinear::load(ParamLoader &loader) {
     loader.load(&weight_);
     if (support_bias_)
         loader.load(&bias_);
+    return NO_ERROR;
+}
+ErrorCode CPULinear::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout<<name() << "  CPULinear  reshape" << std::endl;
+    CHECK_EQ(inputs.size(), 1);
+    CHECK_EQ(outputs.size(), 1);
+    // N     |    C       |   H                   |  W
+    // -----------------------------------------------
+    // 1     |out_channel | in_channel            |  1
+    //       |out_features| in_features           |
+    // -----------------------------------------------
+    // batch |in_channel  | seq_len               |  1
+    //       |in_features | inputs[0]->sequence()   |
+    // -----------------------------------------------
+    // batch |out_channel | seq_len               |  1
+    //       |out_features|  inputs[0]->sequence()  |
+    CHECK_EQ(in_features_, inputs[0]->dimension());
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
+    outputs[0]->alloc();
     return NO_ERROR;
 }
 

@@ -199,7 +199,14 @@ public:
         int C = channels();
         int H = height();
         int W = width();
-        if (N == 1 && W == 1) {
+        if (N == 1 && C == 1) {
+            for (int h = 0; h < H; ++h) {
+                for (int c = 0; c < W; ++c) {
+                    std::cout << dataAt<Dtype>(0, 0, h, c) << " ";
+                }
+                std::cout << std::endl;
+            }
+        } else if (N == 1 && W == 1) {
             for (int h = 0; h < H; ++h) {
                 for (int c = 0; c < C; ++c) {
                     std::cout << dataAt<Dtype>(0, c, h, 0) << " ";

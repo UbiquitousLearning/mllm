@@ -15,7 +15,7 @@ CPUScale::CPUScale(Backend *bn, float scale, float bias, bool bias_after_scale, 
     support_multi_thread_ = multiThread;
 }
 
-ErrorCode CPUScale::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUScale::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUScale  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
@@ -23,7 +23,7 @@ ErrorCode CPUScale::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     return NO_ERROR;
 }
 
-ErrorCode CPUScale::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUScale  setUp" << std::endl;
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
@@ -32,7 +32,7 @@ ErrorCode CPUScale::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<
     return NO_ERROR;
 }
 
-ErrorCode CPUScale::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUScale::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUScale()" << std::endl;
     auto & input = inputs[0];
     auto & output = outputs[0];
