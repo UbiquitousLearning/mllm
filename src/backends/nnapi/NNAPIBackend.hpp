@@ -6,6 +6,7 @@
 #include "Types.hpp"
 #include "NNAPIDefine.hpp"
 #include "NNAPISymbol.hpp"
+#include <cstdint>
 
 namespace mllm {
 class NNAPIBackend : public Backend {
@@ -39,8 +40,32 @@ public:
 
     virtual void registerOps() override;
 
+    // NNAPI
+    int bytes() const {
+#ifdef USE_ARMV82
+        return precision_ >= BackendConfig::PrecisionMode::Precision_Low ? 2 : 4;
+#else
+        return 4;
+#endif
+    }
+    uint32_t getTensorIdx(const Tensor *t, bool dequant = false);
+    uint32_t buildOperand(const void *data, size_t size, OperandCode code, std::vector<uint32_t> dims = {}, const float *scales = nullptr, int zero = 0);
+    ErrorCode buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs, const char *name = nullptr);
+    ErrorCode buildModel();
+    void invokeModel() const;
+
 private:
+    // TODO: precision config
+    BackendConfig::PrecisionMode precision_ = BackendConfig::PrecisionMode::Precision_Normal;
     std::map<OpType, NNAPIBackend::Creator *> *map_creator_;
+    std::vector<shared_ptr<Tensor>> inputTensors_, outputTensors_;
+    std::vector<std::unique_ptr<Tensor>> inputContentTensors_, outputContentTensors_;
+    // tensor idx map
+    std::map<const Tensor *, uint32_t> tensorIdxMap_, dequantIdxMap_;
+    std::map<uint32_t, const Tensor *> dequantMap_;
+    uint32_t tensorIdx_ = 0;
+    // fp16 buffer
+    std::vector<std::unique_ptr<int16_t[]>> halfBuffer_;
     // NNAPI resource
     struct NNAPIDevice {
         ANeuralNetworksDevice *device;
