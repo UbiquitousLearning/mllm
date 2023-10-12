@@ -14,7 +14,7 @@ CPULinear::CPULinear(Backend *bn, string opName, int in_features, int out_featur
 }
 
 ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPULinear  reshape" << std::endl;
+    std::cout << name() << "  CPULinear  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
     // N     |    C       |   H                   |  W
@@ -37,36 +37,37 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 }
 
 ErrorCode CPULinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPULinear  setUp" << std::endl;
+    std::cout << name() << "  CPULinear  setUp" << std::endl;
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
     }
     outputs[0]->alloc();
     weight_.alloc();
+    //    weight_.fullData<float>(1);
     bias_.alloc();
     return NO_ERROR;
 }
 
 ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPULinear()" << std::endl;
+    std::cout << name() << "  CPULinear()" << std::endl;
     // INPUT: M.K
     // W:K,N
     // OUTPUT:M.N
     int M = inputs[0]->sequence();
-    int K = in_features_;//inputs[0]->dimension()
-    int N = out_features_;//inputs[1]->dimension()
+    int K = in_features_;  // inputs[0]->dimension()
+    int N = out_features_; // inputs[1]->dimension()
     for (int b = 0; b < inputs[0]->batch(); b++) {
         for (int h = 0; h < inputs[0]->head(); h++) {
             for (int m = 0; m < M; m++) {
                 for (int n = 0; n < N; n++) {
                     float value = 0;
                     for (int k = 0; k < K; k++) {
-                        value += inputs[0]->dataAt<float>(0,h, m, k) * weight_.dataAt<float>(b,h, k, n);
+                        value += inputs[0]->dataAt<float>(0, h, m, k) * weight_.dataAt<float>(b, h, k, n);
                     }
                     if (support_bias_) {
                         value += bias_.dataAt<float>(0, h, 0, n);
                     }
-                    outputs[0]->setDataAt<float>(b,h,  m, n,  value);
+                    outputs[0]->setDataAt<float>(b, h, m, n, value);
                 }
             }
         }
@@ -83,14 +84,14 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 }
 
 ErrorCode CPULinear::load(ParamLoader &loader) {
-    std::cout<<name() << "  CPULinear load" << std::endl;
+    std::cout << name() << "  CPULinear load" << std::endl;
     loader.load(&weight_);
     if (support_bias_)
         loader.load(&bias_);
     return NO_ERROR;
 }
 ErrorCode CPULinear::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPULinear  reshape" << std::endl;
+    std::cout << name() << "  CPULinear  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
     // N     |    C       |   H                   |  W

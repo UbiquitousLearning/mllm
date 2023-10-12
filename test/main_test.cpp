@@ -91,19 +91,16 @@ int main() {
     // display(c);
 
     auto *i = _Input(c);
-    i = _RMSNorm(c, {i});
-    auto *x = _Attention(c, {i}, 80, 10, 8);
-    i = _Add(c, {x, i});
-    i = _RMSNorm(c, {i});
+    auto *x = _RMSNorm(c, {i});
+    x = _Attention(c, {x}, 80, 10, 8);
+    auto *j = _Add(c, {x, i});
+    i = _RMSNorm(c, {j});
     x = _Linear(c, {i}, 80, 80*4, false);
     x = _SiLU(c,{x});
     auto *y = _Linear(c, {i}, 80, 80*4, false);
-    x = _Dot(c, {x, y}); //Dotproduct
+    x = _Dot(c, {x, y});
     x = _Linear(c, {x}, 80*4, 80, false);
-    x = _Add(c, {x, i});
-
-    vector<int> input_size = {1, 1, 10, 80};
-    vector<int> autoregressive_input_size = {1, 1, 1, 80};
+    x = _Add(c, {x, j});
 
     //    x = _Embedding(c, {x}, 128, 1000);
     //    vector<int> input_size = {1, 1, 128, 1};
@@ -114,8 +111,8 @@ int main() {
     net.convert();
     // net.Run();
     Executor ex(&net);
-    ex.execute(input_size);
-    ex.execute(autoregressive_input_size);
-    ex.execute(autoregressive_input_size);
+    ex.execute({1, 1, 10, 80});
+    ex.execute({1, 1, 1, 80});
+    ex.execute({1, 1, 1, 80});
     return 0;
 }

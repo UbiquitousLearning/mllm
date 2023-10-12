@@ -245,7 +245,7 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
         v_cached_->alloc();
         v_cached_->copyFrom(v_merged_);
     }
-    std::cout << "[" << outputs[0]->shape(0) << "," << outputs[0]->shape(1) << "," << outputs[0]->shape(2) << "," << outputs[0]->shape(3) << "]" << std::endl;
+//    std::cout << "[" << outputs[0]->shape(0) << "," << outputs[0]->shape(1) << "," << outputs[0]->shape(2) << "," << outputs[0]->shape(3) << "]" << std::endl;
 //    outputs[0]->fullDataTest();
 //    outputs[0]->printData<float>();
     return NO_ERROR;

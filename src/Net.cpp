@@ -58,4 +58,8 @@ void Net::reshapeInput(int n, int c, int h, int w) {
     auto *in_tensor = net_param_[0].net_tensors[0];
     tensors_[in_tensor->name]->reshape(n, c, h, w);
 }
+void Net::setInput() {
+    auto *in_tensor = net_param_[0].net_tensors[0];
+    tensors_[in_tensor->name]->fullData<float>(1);
+}
 } // namespace mllm

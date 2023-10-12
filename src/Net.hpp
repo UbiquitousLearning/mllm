@@ -18,6 +18,8 @@ public:
 
     void reshapeInput();
     void reshapeInput(int n, int c, int h, int w);
+    //TODO
+    void setInput();
 
     unordered_map<string, shared_ptr<Graph>> &subGraph() {
         return subGraphs_;

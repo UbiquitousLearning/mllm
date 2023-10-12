@@ -124,18 +124,6 @@ const vector<shared_ptr<Tensor>> &Graph::forward() {
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto *net_op = param_.net_ops[i];
         string lname = net_op->name;
-        // TODO: CHECK一下 inTensors 尤其是[0]
-        // vector<string> inames = net_op->in_op; // op_in_names_[i];
-        // vector<shared_ptr<Tensor>> inTensors;
-        // for (auto name : inames) {
-        //     inTensors.push_back(tensors_[name][0]);
-        // }
-        // auto in_tensors = net_op->in;
-        // vector<shared_ptr<Tensor>> inTensors;
-        // for (auto in_t : in_tensors) {
-        //     inTensors.push_back(tensors_[in_t->in->name][0]);
-        // }
-        // ops_[lname]->execute(inTensors, tensors_[lname]);
         ops_[lname]->execute(ops_input_tensors_[lname], ops_output_tensors_[lname]);
     }
     // TODO

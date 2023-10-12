@@ -21,16 +21,23 @@ void Executor::execute(vector<int> input_size ) {
     for (int i = 0; i < (int)net_->subGraph().size(); ++i) {
         string name = "G" + std::to_string(i);
         auto &g = net_->subGraph()[name];
-        std::cout << name << std::endl;
-        if(init) {
-            std::cout<<"EXE:: Init"<<std::endl;
-            graphShapeInit(g, net_->tensors());
-            graphSetUp(g);
+        std::cout << name <<" Reshape"<< std::endl;
+        if (init) {
+            std::cout << "EXE:: Init" << std::endl;
+            g->shapeInit(net_->tensors());
+            g->setUp();
         } else if (reshape) {
-            std::cout<<"EXE:: Reshape"<<std::endl;
-            graphReshapeOutputs(g, net_->tensors());
+            std::cout << "EXE:: Reshape" << std::endl;
+            g->reshapeOutputs(net_->tensors());
         }
-        auto result = graphForward(g);
+    }
+
+    net_->setInput();
+    for (int i = 0; i < (int)net_->subGraph().size(); ++i) {
+        string name = "G" + std::to_string(i);
+        auto &g = net_->subGraph()[name];
+        std::cout << name <<"execute"<< std::endl;
+        auto result = g->forward();
 //        result[0]->printData<float>();
         std::cout<<result[0]->name()<<"'s shape:  ["<<result[0]->shape(0)<<","<<result[0]->shape(1)<<","<<result[0]->shape(2)<<","<<result[0]->shape(3)<<"]"<<std::endl;
     }
