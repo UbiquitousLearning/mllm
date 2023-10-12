@@ -90,8 +90,18 @@ int main() {
 
     // display(c);
 
-    auto *x = _Input(c);
-    x = _Attention(c, {x}, 80, 10, 8);
+    auto *i = _Input(c);
+    i = _RMSNorm(c, {i});
+    auto *x = _Attention(c, {i}, 80, 10, 8);
+    i = _Add(c, {x, i});
+    i = _RMSNorm(c, {i});
+    x = _Linear(c, {i}, 80, 80*4, false);
+    x = _SiLU(c,{x});
+    auto *y = _Linear(c, {i}, 80, 80*4, false);
+    x = _Dot(c, {x, y}); //Dotproduct
+    x = _Linear(c, {x}, 80*4, 80, false);
+    x = _Add(c, {x, i});
+
     vector<int> input_size = {1, 1, 10, 80};
     vector<int> autoregressive_input_size = {1, 1, 1, 80};
 
@@ -105,7 +115,7 @@ int main() {
     // net.Run();
     Executor ex(&net);
     ex.execute(input_size);
-//    ex.execute(autoregressive_input_size);
-//    ex.execute(autoregressive_input_size);
+    ex.execute(autoregressive_input_size);
+    ex.execute(autoregressive_input_size);
     return 0;
 }

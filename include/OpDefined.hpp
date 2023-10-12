@@ -20,6 +20,7 @@ enum OpType {
     LINEAR,
     ATTENTION,
     EMBEDDING,
+    DOT,
     OP_NUM
 };
 
@@ -36,6 +37,7 @@ static const vector<string> OpNames = {
     "Linear",
     "Attention",
     "Embedding",
+    "Dot",
     "OP_NUM"};
 } // namespace mllm
 #endif

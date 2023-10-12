@@ -32,6 +32,7 @@ void Executor::execute(vector<int> input_size ) {
         }
         auto result = graphForward(g);
 //        result[0]->printData<float>();
+        std::cout<<result[0]->name()<<"'s shape:  ["<<result[0]->shape(0)<<","<<result[0]->shape(1)<<","<<result[0]->shape(2)<<","<<result[0]->shape(3)<<"]"<<std::endl;
     }
 }
 

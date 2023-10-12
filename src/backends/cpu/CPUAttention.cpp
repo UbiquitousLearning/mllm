@@ -191,10 +191,10 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
         mutilHeadDeReshape(kq_softmax_v_, kqv_state_, head_size_);
         kqv_state_->alloc();
 
-        O_proj_->reshapeOutputs({kqv_state_}, outputs);
+//        O_proj_->reshapeOutputs({kqv_state_}, outputs);
     }
     // forward
-    inputs[0]->fullData<float>(1);
+//    inputs[0]->fullData<float>(1);
 //    inputs[0]->printData<float>();
     // qkv proj
     Q_proj_->execute(inputs, {q_});
@@ -252,5 +252,22 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
 }
 ErrorCode CPUAttention::load(ParamLoader &loader) {
     return Op::load(loader);
+}
+ErrorCode CPUAttention::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout<<name() << "  CPUAttention  reshape" << std::endl;
+    Q_proj_->reshapeOutputs(inputs, {q_});
+    K_proj_->reshapeOutputs(inputs, {k_});
+    V_proj_->reshapeOutputs(inputs, {v_});
+    mutilHeadReshape(q_, q_state_, head_size_);
+    mutilHeadReshape(k_, k_state_, head_size_);
+    mutilHeadReshape(v_, v_state_, head_size_);
+    q_state_->alloc();
+    k_state_->alloc();
+    v_state_->alloc();
+    q_rope_->reshapeOutputs({q_state_}, {q_pos_});
+    k_rope_->reshapeOutputs({k_state_}, {k_pos_});
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+    outputs[0]->alloc();
+    return NO_ERROR;
 }
 } // namespace mllm

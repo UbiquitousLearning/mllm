@@ -280,6 +280,22 @@ NetTensor *_Embedding(Context *ctx, std::vector<NetTensor *> inputs, int vocab_s
     out_tensor->in = net_op_;
     return out_tensor;
 }
+NetTensor *_Dot(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+    // TODO:Check
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Dot" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::DOT)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }

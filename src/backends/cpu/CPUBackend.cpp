@@ -11,6 +11,7 @@
 #include "CPULinear.hpp"
 #include "CPUAttention.hpp"
 #include "CPUEmbedding.hpp"
+#include "CPUDot.hpp"
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
     Backend(mm) {
@@ -62,6 +63,7 @@ void CPUBackend::registerOps() {
     addCreator(LINEAR, (CPUBackend::Creator *)(new CPULinearCreator()));
     addCreator(ATTENTION, (CPUBackend::Creator *)(new CPUAttentionCreator()));
     addCreator(EMBEDDING, (CPUBackend::Creator *)(new CPUEmbeddingCreator()));
+    addCreator(DOT, (CPUBackend::Creator *)(new CPUDotCreator()));
 }
 
 } // namespace mllm
