@@ -39,30 +39,36 @@ std::string NNAPIEnumToString(int code) {
     }
 }
 
+static uint16_t fp32to16(float val) {
+    uint32_t x = *((uint32_t *)&val);
+    uint16_t h = ((x >> 16) & 0x8000) | ((((x & 0x7f800000) - 0x38000000) >> 13) & 0x7c00) | ((x >> 13) & 0x03ff);
+    return h;
+}
+
 NNAPIBackend::NNAPIBackend(shared_ptr<MemoryManager> mm) :
     Backend(mm) {
     initCreatorMap();
     registerOps();
 
-    if (mNNAPIModel_ == nullptr) {
-        NNAPI_CHECK(ANeuralNetworksModel_create_27, &mNNAPIModel_);
+    if (nnapiModel_ == nullptr) {
+        NNAPI_CHECK(ANeuralNetworksModel_create_27, &nnapiModel_);
     }
-    if (mNNAPIDevices_.empty()) {
+    if (nnapiDevices_.empty()) {
         uint32_t numDevices = 0;
         NNAPI_CHECK(ANeuralNetworks_getDeviceCount_29, &numDevices);
-        mNNAPIDevices_.resize(numDevices);
+        nnapiDevices_.resize(numDevices);
         // NNAPI_DEVICE_LOG("[NNAPI] numDevices = %d\n", numDevices);
         for (int i = 0; i < numDevices; i++) {
-            NNAPI_CHECK(ANeuralNetworks_getDevice_29, i, &mNNAPIDevices_[i].device);
-            NNAPI_CHECK(ANeuralNetworksDevice_getName_29, mNNAPIDevices_[i].device, &mNNAPIDevices_[i].name);
-            NNAPI_CHECK(ANeuralNetworksDevice_getType_29, mNNAPIDevices_[i].device, &mNNAPIDevices_[i].type);
+            NNAPI_CHECK(ANeuralNetworks_getDevice_29, i, &nnapiDevices_[i].device);
+            NNAPI_CHECK(ANeuralNetworksDevice_getName_29, nnapiDevices_[i].device, &nnapiDevices_[i].name);
+            NNAPI_CHECK(ANeuralNetworksDevice_getType_29, nnapiDevices_[i].device, &nnapiDevices_[i].type);
         }
     }
 }
 
 NNAPIBackend::~NNAPIBackend() {
-    ANeuralNetworksCompilation_free_27(mNNAPICompilation_);
-    ANeuralNetworksModel_free_27(mNNAPIModel_);
+    ANeuralNetworksCompilation_free_27(nnapiCompilation_);
+    ANeuralNetworksModel_free_27(nnapiModel_);
 }
 
 Op *NNAPIBackend::opCreate(const OpParam &op_param) {
@@ -130,8 +136,45 @@ uint32_t NNAPIBackend::getTensorIdx(const Tensor *t, bool dequant) {
     return idx;
 }
 
+uint32_t NNAPIBackend::buildScalar(int scalar) {
+    auto iter = scalarIntMap_.find(scalar);
+    if (iter != scalarIntMap_.end()) {
+        return iter->second;
+    }
+    auto scalarIdx = buildOperand(&scalar, 4, ANEURALNETWORKS_INT32);
+    scalarIntMap_.insert(std::make_pair(scalar, scalarIdx));
+    return scalarIdx;
+}
+
+uint32_t NNAPIBackend::buildScalar(bool scalar) {
+    auto iter = scalarBoolMap_.find(scalar);
+    if (iter != scalarBoolMap_.end()) {
+        return iter->second;
+    }
+    uint8_t value = static_cast<uint8_t>(scalar);
+    auto scalarIdx = buildOperand(&value, 1, ANEURALNETWORKS_BOOL);
+    scalarBoolMap_.insert(std::make_pair(scalar, scalarIdx));
+    return scalarIdx;
+}
+
+uint32_t NNAPIBackend::buildScalar(float scalar) {
+    auto iter = scalarFloatMap_.find(scalar);
+    if (iter != scalarFloatMap_.end()) {
+        return iter->second;
+    }
+    uint32_t scalarIdx = -1;
+    if (bytes() == 2) {
+        uint16_t value = fp32to16(scalar);
+        scalarIdx = buildOperand(&value, 2, ANEURALNETWORKS_FLOAT16);
+    } else {
+        scalarIdx = buildOperand(&scalar, 4, ANEURALNETWORKS_FLOAT32);
+    }
+    scalarFloatMap_.insert(std::make_pair(scalar, scalarIdx));
+    return scalarIdx;
+}
+
 uint32_t NNAPIBackend::buildOperand(const void *data, size_t size, OperandCode code, std::vector<uint32_t> dims, const float *scales, int zero) {
-    // TODO: check if determined by byteWidth in tensor
+    // TODO: fp16 and quant8 support
     bool useFP16 = (bytes() == 2 && code == ANEURALNETWORKS_TENSOR_FLOAT32);
     if (useFP16) {
         code = ANEURALNETWORKS_TENSOR_FLOAT16;
@@ -160,8 +203,9 @@ uint32_t NNAPIBackend::buildOperand(const void *data, size_t size, OperandCode c
         std::cout << "]\n}\n";
     }
 #endif
-    NNAPI_CHECK(ANeuralNetworksModel_addOperand_27, mNNAPIModel_, &operandType);
+    NNAPI_CHECK(ANeuralNetworksModel_addOperand_27, nnapiModel_, &operandType);
     if ((data != nullptr) && (size != 0U)) {
+        // TODO: fp16 and quant8 support
         if (useFP16) {
             halfBuffer_.emplace_back(new int16_t[size / 2]);
             FLOAT_TO_HALF(reinterpret_cast<const float *>(data), halfBuffer_.back().get(), size / 2);
@@ -174,29 +218,29 @@ uint32_t NNAPIBackend::buildOperand(const void *data, size_t size, OperandCode c
             quantParam.channelDim = 0;
             quantParam.scaleCount = dims[0];
             quantParam.scales = scales;
-            ANeuralNetworksModel_setOperandSymmPerChannelQuantParams_29(mNNAPIModel_, operandIdx, &quantParam);
+            ANeuralNetworksModel_setOperandSymmPerChannelQuantParams_29(nnapiModel_, operandIdx, &quantParam);
         }
-        NNAPI_CHECK(ANeuralNetworksModel_setOperandValue_27, mNNAPIModel_, operandIdx, data, size);
+        NNAPI_CHECK(ANeuralNetworksModel_setOperandValue_27, nnapiModel_, operandIdx, data, size);
     }
     return operandIdx;
 }
 
 ErrorCode NNAPIBackend::buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs) {
-    NNAPI_CHECK(ANeuralNetworksModel_addOperation_27, mNNAPIModel_, op, inputs.size(), inputs.data(), outputs.size(), outputs.data());
+    NNAPI_CHECK(ANeuralNetworksModel_addOperation_27, nnapiModel_, op, inputs.size(), inputs.data(), outputs.size(), outputs.data());
     return NO_ERROR;
 }
 
 ErrorCode NNAPIBackend::buildModel() {
     // TODO: add input and output
-    NNAPI_CHECK(ANeuralNetworksModel_finish_27, mNNAPIModel_);
-    NNAPI_CHECK(ANeuralNetworksCompilation_create_27, mNNAPIModel_, &mNNAPICompilation_);
-    NNAPI_CHECK(ANeuralNetworksCompilation_finish_27, mNNAPICompilation_);
+    NNAPI_CHECK(ANeuralNetworksModel_finish_27, nnapiModel_);
+    NNAPI_CHECK(ANeuralNetworksCompilation_create_27, nnapiModel_, &nnapiCompilation_);
+    NNAPI_CHECK(ANeuralNetworksCompilation_finish_27, nnapiCompilation_);
     return NO_ERROR;
 }
 
 void NNAPIBackend::invokeModel() const {
     ANeuralNetworksExecution *execution;
-    NNAPI_CHECK(ANeuralNetworksExecution_create_27, mNNAPICompilation_, &execution);
+    NNAPI_CHECK(ANeuralNetworksExecution_create_27, nnapiCompilation_, &execution);
 
     for (int i = 0; i < inputTensors_.size(); i++) {
         // const void *data = inputContentTensors_[i]->hostPtr();

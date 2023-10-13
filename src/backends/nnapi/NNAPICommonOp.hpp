@@ -18,6 +18,10 @@ public:
 protected:
     NNAPIBackend *nnapiBackend_;
     std::vector<uint32_t> getTensorIdxs(const vector<shared_ptr<Tensor>> &tensors);
+    template <typename T>
+    inline uint32_t buildScalar(T scalar) {
+        return nnapiBackend_->buildScalar(scalar);
+    }
     ErrorCode buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs);
     int formatAxis(int axis, const Tensor *t);
 };

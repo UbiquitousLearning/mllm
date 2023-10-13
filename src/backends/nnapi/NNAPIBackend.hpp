@@ -49,6 +49,9 @@ public:
 #endif
     }
     uint32_t getTensorIdx(const Tensor *t, bool dequant = false);
+    uint32_t buildScalar(int scalar);
+    uint32_t buildScalar(bool scalar);
+    uint32_t buildScalar(float scalar);
     uint32_t buildOperand(const void *data, size_t size, OperandCode code, std::vector<uint32_t> dims = {}, const float *scales = nullptr, int zero = 0);
     ErrorCode buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs);
     ErrorCode buildModel();
@@ -64,6 +67,10 @@ private:
     std::map<const Tensor *, uint32_t> tensorIdxMap_, dequantIdxMap_;
     std::map<uint32_t, const Tensor *> dequantMap_;
     uint32_t tensorIdx_ = 0;
+    // scalar idx map
+    std::map<int, uint32_t> scalarIntMap_;
+    std::map<bool, uint32_t> scalarBoolMap_;
+    std::map<float, uint32_t> scalarFloatMap_;
     // fp16 buffer
     std::vector<std::unique_ptr<int16_t[]>> halfBuffer_;
     // NNAPI resource
@@ -72,10 +79,10 @@ private:
         const char *name;
         int32_t type;
     };
-    std::vector<NNAPIDevice> mNNAPIDevices_;
-    ANeuralNetworksModel *mNNAPIModel_ = nullptr;
-    ANeuralNetworksCompilation *mNNAPICompilation_ = nullptr;
-    ANeuralNetworksBurst *mNNAPIBurst_ = NULL;
+    std::vector<NNAPIDevice> nnapiDevices_;
+    ANeuralNetworksModel *nnapiModel_ = nullptr;
+    ANeuralNetworksCompilation *nnapiCompilation_ = nullptr;
+    ANeuralNetworksBurst *nnapiBurst_ = NULL;
 };
 
 } // namespace mllm
