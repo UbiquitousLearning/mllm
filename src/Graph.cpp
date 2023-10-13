@@ -144,5 +144,28 @@ const vector<shared_ptr<Tensor>> &Graph::forward(const vector<shared_ptr<Tensor>
 
 void Graph::backward() {
 }
+const vector<shared_ptr<Tensor>> &Graph::inputTensors() {
+    return ops_input_tensors_[param_.net_ops[0]->name];
+}
+const vector<shared_ptr<Tensor>> &Graph::outputTensors() {
+    return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
+}
 
+
+
+
+void Graph::reFlashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors){
+    auto in_tensors = param_.net_ops[0]->in;
+    vector<shared_ptr<Tensor>> inTensors;
+    for (auto *in_t : in_tensors) {
+        auto in_t_name = in_t->name;
+        auto it = tensors_.find(in_t_name);
+        if (it != tensors_.end()) {
+            inTensors.push_back(tensors_[in_t_name]);
+        } else {
+            inTensors.push_back(external_tensors[in_t_name]);
+        }
+    }
+    ops_input_tensors_[param_.net_ops[0]->name] = inTensors;
+}
 } // namespace mllm

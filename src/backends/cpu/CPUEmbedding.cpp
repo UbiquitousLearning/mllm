@@ -12,7 +12,7 @@ ErrorCode mllm::CPUEmbedding::reshape(vector<shared_ptr<Tensor>> inputs, vector<
     auto input = inputs[0];
     auto output = outputs[0];
     // Input: [batch, 1, sequence, 1]
-    CHECK_EQ(input->width(), 1);
+//    CHECK_EQ(input->width(), 1);
     output->reshape(input->batch(), 1, input->sequence(), hiddenSize_);
     weight_.reshape(1, 1, vocabSize_, hiddenSize_);
     weight_.setName(name() + "_weight");
@@ -27,8 +27,8 @@ ErrorCode mllm::CPUEmbedding::setUp(vector<shared_ptr<Tensor>> inputs, vector<sh
     }
     outputs[0]->alloc();
     weight_.alloc();
-    //    inputs[0]->fullData<int>(1);
-    //    weight_.fullDataTest();
+//        inputs[0]->fullData<float>(1);
+//        weight_.fullDataTest();
     //    inputs[0]->printData<int>();
     //    weight_.printData<float>();
     return NO_ERROR;
@@ -51,11 +51,16 @@ ErrorCode mllm::CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<
 
                 // Set the seq
                 memcpy(output->hostPtr<float>() + output->offset(batch, head, seq, 0),
-                       weight_.hostPtr<float>() + weight_.offset(0, 0, input->dataAt<int>(batch, head, seq, 0), 0),
+                       weight_.hostPtr<float>() + weight_.offset(0, 0, (int)input->dataAt<float>(batch, head, seq, 0), 0),
                        weight_.byteWidth() * hiddenSize_);
             }
         }
     }
     //    output->printData<float>();
+    return NO_ERROR;
+}
+ErrorCode mllm::CPUEmbedding::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    outputs[0]->reshape(inputs[0]->batch(), 1, inputs[0]->sequence(), hiddenSize_);
+    outputs[0]->alloc();
     return NO_ERROR;
 }

@@ -54,9 +54,9 @@ void Net::reshapeInput() {
     auto *in_tensor = net_param_[0].net_tensors[0];
     tensors_[in_tensor->name]->reshape(in_tensor->shape[0], in_tensor->shape[1], in_tensor->shape[2], in_tensor->shape[3]);
 }
-void Net::reshapeInput(int n, int c, int h, int w) {
+void Net::reshapeInput(vector<int> shape) {
     auto *in_tensor = net_param_[0].net_tensors[0];
-    tensors_[in_tensor->name]->reshape(n, c, h, w);
+    tensors_[in_tensor->name]->reshape(shape[0], shape[1], shape[2], shape[3]);
 }
 void Net::setInput() {
     auto *in_tensor = net_param_[0].net_tensors[0];

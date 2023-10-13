@@ -41,10 +41,19 @@ public:
     // set input blobs then use forward() instead.
     const vector<shared_ptr<Tensor>> &forward(const vector<shared_ptr<Tensor>> &inTensors);
 
+    const vector<shared_ptr<Tensor>> &inputTensors();
+    const vector<shared_ptr<Tensor>> &outputTensors();
+
     /**
      * @brief 反向传播
      */
     void backward();
+
+    NetParameter &param() {
+        return param_;
+    }
+
+    void reFlashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
 protected:
     NetParameter param_;
@@ -70,7 +79,7 @@ protected:
     unordered_map<string, vector<shared_ptr<Tensor>>> ops_output_tensors_; // opname: op's output Tensors
     unordered_map<string, shared_ptr<Tensor>> tensors_;                    // opname: Tensors
     unordered_map<string, shared_ptr<Op>> ops_;                            // opname: op
-//    unordered_map<string, shared_ptr<Tensor>> external_tensors_;
+    //    unordered_map<string, shared_ptr<Tensor>> external_tensors_;
 };
 
 } // namespace mllm

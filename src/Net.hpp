@@ -17,8 +17,7 @@ public:
     void convert();
 
     void reshapeInput();
-    void reshapeInput(int n, int c, int h, int w);
-    //TODO
+    void reshapeInput(vector<int> shape);
     void setInput();
 
     unordered_map<string, shared_ptr<Graph>> &subGraph() {
@@ -27,7 +26,12 @@ public:
     unordered_map<string, shared_ptr<Tensor>> &tensors() {
         return tensors_;
     }
-
+    vector<NetParameter> &netParam() {
+        return net_param_;
+    }
+    unordered_map<BackendType, Backend *> &backends() {
+        return backends_;
+    }
 private:
     vector<NetParameter> net_param_;
     unordered_map<string, shared_ptr<Graph>> subGraphs_;

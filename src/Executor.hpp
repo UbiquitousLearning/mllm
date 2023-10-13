@@ -40,11 +40,19 @@ public:
     }
     */
 
-    void execute(vector<int> input_size ={});
+    void execute(vector<int> input_size = {});
+
+    void execute(shared_ptr<Tensor> input_tensor);
+
+    vector<shared_ptr<Tensor>> &result() {
+        return result_;
+    }
 
 private:
     Net *net_;
     vector<int> input_size_;
+    //map<string, map<string,vector<int>>> graph_input_shapes_;
+    vector<shared_ptr<Tensor>> result_;
 };
 
 } // namespace mllm
