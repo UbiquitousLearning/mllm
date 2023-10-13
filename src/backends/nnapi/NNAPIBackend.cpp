@@ -181,7 +181,7 @@ uint32_t NNAPIBackend::buildOperand(const void *data, size_t size, OperandCode c
     return operandIdx;
 }
 
-ErrorCode NNAPIBackend::buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs, const char *name) {
+ErrorCode NNAPIBackend::buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs) {
     NNAPI_CHECK(ANeuralNetworksModel_addOperation_27, mNNAPIModel_, op, inputs.size(), inputs.data(), outputs.size(), outputs.data());
     return NO_ERROR;
 }

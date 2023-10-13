@@ -50,7 +50,7 @@ public:
     }
     uint32_t getTensorIdx(const Tensor *t, bool dequant = false);
     uint32_t buildOperand(const void *data, size_t size, OperandCode code, std::vector<uint32_t> dims = {}, const float *scales = nullptr, int zero = 0);
-    ErrorCode buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs, const char *name = nullptr);
+    ErrorCode buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs);
     ErrorCode buildModel();
     void invokeModel() const;
 
