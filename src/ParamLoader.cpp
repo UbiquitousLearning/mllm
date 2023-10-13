@@ -92,4 +92,7 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
 #endif
     // std::cout << "load param file success" << std::endl;
 }
+bool ParamLoader::load(std::shared_ptr<mllm::Tensor> tensor) {
+    return load(tensor.get());
+}
 } // namespace mllm

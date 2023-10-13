@@ -50,6 +50,7 @@ public:
 #endif
     ~ParamLoader();
     bool load(mllm::Tensor *tensor);
+    bool load(std::shared_ptr<mllm::Tensor> tensor);
 
 private:
     FILE *fp_;

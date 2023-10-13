@@ -9,7 +9,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # temp executable name
 set(TEST_EXE main_test)
+option(TEST "test mode" ON)
 
+include(FetchContent)
+FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+)
 
 
 # find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
@@ -35,11 +41,16 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/thirdpartys/include)
 # include_directories(${PROJECT_SOURCE_DIR}/src/backends/cpu)
 
-add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/test/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/Tokenizer.hpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/tokenizers/BPE/Bpe.hpp)
-
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
-target_link_libraries(${TEST_EXE} MLLM_CPU)
+if (TEST)
+    add_definitions(-DTEST)
+    FetchContent_MakeAvailable(googletest)
+    enable_testing()
+    add_subdirectory(test)
+else ()
+    #    No Unit Test.
+    add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/test/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}
+           )
+    target_link_libraries(${TEST_EXE} MLLM_CPU)
+endif ()
+
