@@ -44,14 +44,14 @@ ErrorCode mllm::CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<
     auto input = inputs[0];
     auto output = outputs[0];
     for (int batch = 0; batch < input->batch(); ++batch) {
-        for (int channel = 0; channel < input->head(); ++channel) {
+        for (int head = 0; head < input->head(); ++head) {
             for (int seq = 0; seq < input->sequence(); ++seq) {
                 //                std::cout<<"batch: "<<batch<<" channel: "<<channel<<" seq: "<<seq<<std::endl;
                 //                std::cout<<"input->dataAt<int>(batch, channel, seq, 0): "<<input->dataAt<int>(batch, channel, seq, 0)<<std::endl;
 
                 // Set the seq
-                memcpy(output->hostPtr<float>() + output->offset(batch, channel, seq, 0),
-                       weight_.hostPtr<float>() + weight_.offset(0, 0, input->dataAt<int>(batch, channel, seq, 0), 0),
+                memcpy(output->hostPtr<float>() + output->offset(batch, head, seq, 0),
+                       weight_.hostPtr<float>() + weight_.offset(0, 0, input->dataAt<int>(batch, head, seq, 0), 0),
                        weight_.byteWidth() * hiddenSize_);
             }
         }

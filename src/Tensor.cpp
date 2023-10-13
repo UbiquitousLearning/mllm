@@ -13,12 +13,20 @@ Tensor::Tensor(const vector<int> &shape) :
     reshape(shape);
 }
 
-bool Tensor::reshape(const int num, const int channels, const int height, const int width) {
+//bool Tensor::reshape(const int num, const int channels, const int height, const int width) {
+//    vector<int> shape(4);
+//    shape[0] = num;
+//    shape[1] = channels;
+//    shape[2] = height;
+//    shape[3] = width;
+//    return reshape(shape);
+//}
+bool Tensor::reshape(const int batch, const int head, const int sequence, const int dimension){
     vector<int> shape(4);
-    shape[0] = num;
-    shape[1] = channels;
-    shape[2] = height;
-    shape[3] = width;
+    shape[0] = batch;
+    shape[1] = head;
+    shape[2] = sequence;
+    shape[3] = dimension;
     return reshape(shape);
 }
 
