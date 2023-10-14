@@ -28,7 +28,7 @@ TEST_F(CPUTest, CPUAdd1) {
     loader.load(input2);
     op->execute({input1, input2}, {output});
     //TODO: check output?
-    output->printData<float>();
+    //    Tensor* torch_output = new Tensor(bn_);
 }
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
