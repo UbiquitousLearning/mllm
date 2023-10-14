@@ -1,5 +1,4 @@
 import struct
-from functools import reduce
 from typing import BinaryIO
 
 import torch
@@ -11,7 +10,7 @@ class TestIO:
     def __init__(self, filename: str, read_mode: bool):
         self.filename = filename
         mode = 'rb' if read_mode else 'wb'
-        self.file = open(filename, mode)
+        self.file = open(f"test_{filename}.mllm", mode)
 
     def __enter__(self):
         return self
@@ -38,26 +37,10 @@ class TestIO:
     def write_dim(self, n: int, c: int, h: int, w: int):
         self.file.write(struct.pack("<iiii", n, c, h, w))
 
-
-class Tensor:
-    name: str
-    offset: int
-    size: int
-    dtype: int
-    dims: list[int]
-
-    def __init__(self, name: str, dtype: int):
-        self.name = name
-        self.dtype = dtype
-
-
 class TestSaver(TestIO):
-    tensors: dict[str, Tensor]
-
     def __init__(self, filename: str, ):
         super().__init__(filename, False)
-        self.tensors = {}
-
+        self.write_int(2233)
     def __torch_dtype_to_int(self, dtype: torch.dtype) -> int:
         if dtype == torch.float32:
             return 0
@@ -88,50 +71,52 @@ class TestSaver(TestIO):
         else:
             raise Exception("Unknown dtype: " + str(dtype))
 
-    def write_tensor(self, tensor: torch.Tensor, name: str) -> tuple[int, int]:
-        tensor_idx = Tensor(name=name, dtype=self.__torch_dtype_to_int(tensor.dtype))
-        self.tensors[name] = tensor_idx
-        offset = self.file.tell()
+    def write_tensor(self, tensor: torch.Tensor, name: str):
+        self.write_string(name)
+        self.write_int(self.__torch_dtype_to_int(tensor.dtype))
         dims = list(tensor.shape)
         if len(dims) > 4:
             raise Exception("Tensor dims should be less than 4")
         dims = dims + [1] * (4 - len(dims))
-        tensor_idx.dims = dims
-        tensor_numpy = tensor.numpy()
-        tensor_numpy.tofile(self.file)
-        size = self.file.tell() - offset
-        tensor_idx.size = size
-        tensor_idx.offset = offset
-        return offset, size
+        self.write_dim(*dims)
+        self.write_u64(0)
+        offset = self.file.tell()
+        tensor.numpy().tofile(self.file)
+        end = self.file.tell()
+        print(end - offset)
+        print(offset)
+        self.file.seek(offset - 8)
+        self.write_u64(end - offset)
+        self.file.seek(end)
 
-    # One Tensor Index Item Contains: Name_Len(Int)+Name(str)+Int[4]+Weights_Len(UInt64)+Offset(UInt64)+DataType(Int)
-    def calc_tensors_index_table_size(name: str):
-        return 4 + len(name) + 4 * 4 + 8 + 8 + 4
+    # # One Tensor Index Item Contains: Name_Len(Int)+Name(str)+Int[4]+Weights_Len(UInt64)+Offset(UInt64)+DataType(Int)
+    # def calc_tensors_index_table_size(name: str):
+    #     return 4 + len(name) + 4 * 4 + 8 + 8 + 4
 
-    def write_tensor_index(
-            self,
-    ):
-        self.file.seek(4 + 8)
-        for tensor_name in self.tensors_name:
-            tensor = self.tensors[tensor_name]
-            # self.write_int(len(tensor.name))
-            self.write_string(tensor.name)
-            self.write_int(tensor.dtype)
-            self.write_dim(*tensor.dims)
-            self.write_u64(tensor.size)
-            self.write_u64(tensor.offset)
-
-    def write_tensor_index_padding(self, tensors_name: list[str]):
-        if len(tensors_name) > 0:
-            self.tensors_name = tensors_name
-            padding_size = reduce(
-                lambda x, y: x + y, map(self.calc_tensors_index_table_size, tensors_name)
-            )
-            self.writer.seek(4)
-            self.write_u64(padding_size)
-            print(f"Padding size: {padding_size}")
-            self.writer.write(b"\x00" * padding_size)
-            self.writer.flush()
-            return
-        else:
-            raise Exception("No tensors to write")
+    # def write_tensor_index(
+    #         self,
+    # ):
+    #     self.file.seek(4 + 8)
+    #     for tensor_name in self.tensors_name:
+    #         tensor = self.tensors[tensor_name]
+    #         # self.write_int(len(tensor.name))
+    #         self.write_string(tensor.name)
+    #         self.write_int(tensor.dtype)
+    #         self.write_dim(*tensor.dims)
+    #         self.write_u64(tensor.size)
+    #         self.write_u64(tensor.offset)
+    #
+    # def write_tensor_index_padding(self, tensors_name: list[str]):
+    #     if len(tensors_name) > 0:
+    #         self.tensors_name = tensors_name
+    #         padding_size = reduce(
+    #             lambda x, y: x + y, map(self.calc_tensors_index_table_size, tensors_name)
+    #         )
+    #         self.writer.seek(4)
+    #         self.write_u64(padding_size)
+    #         print(f"Padding size: {padding_size}")
+    #         self.writer.write(b"\x00" * padding_size)
+    #         self.writer.flush()
+    #         return
+    #     else:
+    #         raise Exception("No tensors to write")

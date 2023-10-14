@@ -44,6 +44,7 @@ static bool isSame(Tensor *a, Tensor *b) {
             }
         }
     }
+    return true;
 }
 
 #endif // MLLM_CPUTEST_HPP

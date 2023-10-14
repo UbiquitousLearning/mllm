@@ -4,33 +4,33 @@
 
 #include "CPUTest.hpp"
 #include "backends/cpu/CPUAdd.hpp"
-#include "ParamLoader.hpp"
-
+#include "TestLoader.hpp"
 #define SETUP_OP(type_)                     \
     auto op = new type_(bn_, #type_, false); \
-    auto loader = ParamLoader(#type_ +std::string(".mllm"))
+    auto loader = TestLoader(::testing::UnitTest::GetInstance()->current_test_info()->name())
 #define TENSOR(name_) auto name_ = std::make_shared<Tensor>(bn_); name_->setName(#name_);
 using namespace mllm;
 TEST_F(CPUTest, CPUAdd1) {
     SETUP_OP(CPUAdd);
+    TENSOR(input0);
     TENSOR(input1);
-    TENSOR(input2);
     TENSOR(output);
-    input1->reshape({2, 2});
-    input2->reshape({2, 2});
-    op->reshape({input1, input2}, {output});
+    input0->reshape({2, 2, 1, 1});
+    input1->reshape({2, 2, 1, 1});
+    op->reshape({input0, input1}, {output});
     EXPECT_EQ(output->shape(0), 2);
     EXPECT_EQ(output->shape(1), 2);
     EXPECT_EQ(output->shape(2), 1);
     EXPECT_EQ(output->shape(3), 1);
-    op->setUp({input1, input2}, {output});
+    op->setUp({input0, input1}, {output});
+    loader.load(input0);
     loader.load(input1);
-    loader.load(input2);
-    op->execute({input1, input2}, {output});
+    input0->printData<float>();
+    input1->printData<float>();
+    op->execute({input0, input1}, {output});
     //TODO: check output?
-    //    Tensor* torch_output = new Tensor(bn_);
-}
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    Tensor *torch_output = new Tensor(bn_);
+    torch_output->setName("output");
+    loader.load(torch_output);
+    EXPECT_TRUE(isSame(output.get(), torch_output));
 }

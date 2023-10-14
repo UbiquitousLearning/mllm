@@ -19,17 +19,22 @@ TestLoader::TestLoader(string filename) :
         fp_ = nullptr;
         return;
     }
-    uint64_t index_size = readu64(fp_);
-    uint64_t index_offset = index_size + ftell(fp_);
-    while (ftell(fp_) < index_offset) {
-        std::string name = read_string();
-        tensor_map_.insert({name, new TensorIndex});
-        TensorIndex *index = tensor_map_[name];
+    fseek(fp_, 0, SEEK_END);
+    uint64_t end = ftell(fp_);
+    fseek(fp_, 4, SEEK_SET);
+    while (ftell(fp_) != end) {
+        string name = read_string();
+        int type = read_int();
+        vector<int> shape = read_shape();
+        uint64_t length = read_u64();
+        TensorIndex *index = new TensorIndex();
         index->name = name;
-        index->type = read_int();
-        index->dims = read_shape();
-        index->len = read_u64();
-        index->offset = read_u64();
+        index->type = type;
+        index->dims = shape;
+        index->len = length;
+        index->offset = ftell(fp_);
+        tensor_map_[name] = index;
+        fseek(fp_, length, SEEK_CUR);
     }
 }
 bool TestLoader::load(Tensor *tensor) {
@@ -40,10 +45,18 @@ bool TestLoader::load(Tensor *tensor) {
     if (index == nullptr) {
         return false;
     }
+    if (tensor->shape().empty()) {
+        // Get shape from TensorIndex
+        tensor->reshape(index->dims);
+        if (!tensor->allocted()) {
+            tensor->alloc();
+        }
+    }
     if (!index->checkDim(tensor->shape())) {
         return false;
     }
     fseek(fp_, index->offset, SEEK_SET);
+
     fread((void *)tensor->hostPtr<char>(), sizeof(uint8_t), index->len, fp_);
     return true;
 }
@@ -124,6 +137,7 @@ bool TestIO::write_int(int val) {
 
 bool TensorIndex::checkDim(vector<int> dims_) {
     if (dims_.size() != this->dims.size()) {
+        std::cout << "dims size not match at " << this->name << " Expected: " << DimDesc(this->dims) << " Actual: " << DimDesc(dims_) << std::endl;
         return false;
     }
     for (int i = 0; i < 4; ++i) {
@@ -142,7 +156,7 @@ string DimDesc(vector<int> dim) {
 }
 TestIO::TestIO(string filename, bool read_mode) :
     read_mode_(read_mode) {
-    filename = "test_" + filename;
+    filename = "test_" + filename + ".mllm";
     if (read_mode) {
         fp_ = fopen(filename.c_str(), "rb");
     } else {

@@ -10,11 +10,10 @@
 using std::string;
 namespace mllm {
 // For serialize and deserialize Tensor in test.
-// Separate from ParamLoader.
+// Separate from ParamLoader, since we do not use Index here.
 /*
  *  Format:
  *  Magic Number: Int
- *  Index length: u64
  *  -- Tensor 1 --
  *  Name: String(Len:Int + Char[])
  *  DataType: Int
