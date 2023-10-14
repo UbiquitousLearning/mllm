@@ -225,16 +225,85 @@ uint32_t NNAPIBackend::buildOperand(const void *data, size_t size, OperandCode c
     return operandIdx;
 }
 
-ErrorCode NNAPIBackend::buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs) {
+ErrorCode NNAPIBackend::buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs, std::string name) {
+#ifdef DEBUG
+    {
+        std::cout << "build operation : {\n";
+        std::cout << "\tname : " << name << "\n";
+        std::cout << "\ttype : " << op << "\n";
+        std::cout << "\tinputs : [ ";
+        for (auto i : inputs) std::cout << i << ", ";
+        std::cout << "]\n\toutputs : [ ";
+        for (auto i : outputs) std::cout << i << ", ";
+        std::cout << "]\n}\n";
+    }
+#endif
+    opNames_.push_back(name);
     NNAPI_CHECK(ANeuralNetworksModel_addOperation_27, nnapiModel_, op, inputs.size(), inputs.data(), outputs.size(), outputs.data());
     return NO_ERROR;
 }
 
 ErrorCode NNAPIBackend::buildModel() {
-    // TODO: add input and output
+    // set input and output of model
+    std::vector<uint32_t> inputOperands(inputTensors_.size());
+    std::vector<uint32_t> outputOperands(outputTensors_.size());
+    for (int i = 0; i < inputTensors_.size(); i++) {
+        inputOperands[i] = getTensorIdx(inputTensors_[i].get());
+    }
+    for (int i = 0; i < outputTensors_.size(); i++) {
+        auto output = outputTensors_[i];
+        outputOperands[i] = getTensorIdx(outputTensors_[i].get());
+    }
+#ifdef DEBUG
+    {
+        std::cout << "set model's inputs & outputs : {\n";
+        std::cout << "\tinputs : [ ";
+        for (auto i : inputOperands) std::cout << i << ", ";
+        std::cout << "]\n\toutputs : [ ";
+        for (auto i : outputOperands) std::cout << i << ", ";
+        std::cout << "]\n}\n";
+    }
+#endif
+    NNAPI_CHECK(ANeuralNetworksModel_identifyInputsAndOutputs_27,
+                nnapiModel_,
+                inputOperands.size(),
+                inputOperands.data(),
+                outputOperands.size(),
+                outputOperands.data());
     NNAPI_CHECK(ANeuralNetworksModel_finish_27, nnapiModel_);
-    NNAPI_CHECK(ANeuralNetworksCompilation_create_27, nnapiModel_, &nnapiCompilation_);
+    std::unique_ptr<bool[]> supports(new bool[opNames_.size()]);
+    int selectDeviceIdx = -1;
+    for (int i = 0; i < nnapiDevices_.size(); i++) {
+        auto *device = nnapiDevices_[i].device;
+        const auto *name = nnapiDevices_[i].name;
+        auto type = nnapiDevices_[i].type;
+        NNAPI_CHECK(ANeuralNetworksModel_getSupportedOperationsForDevices_29, nnapiModel_, &device, 1, supports.get());
+#ifdef DEBUG
+        std::cout << "device [" << i << " : " << name << "] supportOps = {\n";
+#endif
+        bool allsupport = true;
+        for (int i = 0; i < opNames_.size(); i++) {
+            allsupport &= supports[i];
+#ifdef DEBUG
+            std::cout << "\t" << mOpNames[i] << " : " << supports[i] << "\n";
+#endif
+        }
+#ifdef DEBUG
+        std::cout << "}\n";
+#endif
+        if (allsupport) {
+            selectDeviceIdx = i;
+#ifdef DEBUG
+            std::cout << "[NNAPI] using device [" << i << " : " << name << " : " << type << "].\n";
+#endif
+            break;
+        }
+    }
+    std::cout << "[NNAPI] using device [" << selectDeviceIdx << " : " << nnapiDevices_[selectDeviceIdx].name << "].\n";
+    NNAPI_CHECK(ANeuralNetworksCompilation_createForDevices_29, nnapiModel_, &nnapiDevices_[selectDeviceIdx].device, 1, &nnapiCompilation_);
+    NNAPI_CHECK(ANeuralNetworksCompilation_setPreference_27, nnapiCompilation_, ANEURALNETWORKS_PREFER_SUSTAINED_SPEED);
     NNAPI_CHECK(ANeuralNetworksCompilation_finish_27, nnapiCompilation_);
+    NNAPI_CHECK(ANeuralNetworksBurst_create_29, nnapiCompilation_, &nnapiBurst_);
     return NO_ERROR;
 }
 

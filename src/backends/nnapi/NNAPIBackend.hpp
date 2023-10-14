@@ -53,7 +53,7 @@ public:
     uint32_t buildScalar(bool scalar);
     uint32_t buildScalar(float scalar);
     uint32_t buildOperand(const void *data, size_t size, OperandCode code, std::vector<uint32_t> dims = {}, const float *scales = nullptr, int zero = 0);
-    ErrorCode buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs);
+    ErrorCode buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs, std::string name);
     ErrorCode buildModel();
     void invokeModel() const;
 
@@ -63,6 +63,7 @@ private:
     std::map<OpType, NNAPIBackend::Creator *> *map_creator_;
     std::vector<shared_ptr<Tensor>> inputTensors_, outputTensors_;
     std::vector<std::unique_ptr<Tensor>> inputContentTensors_, outputContentTensors_;
+    std::vector<std::string> opNames_;
     // tensor idx map
     std::map<const Tensor *, uint32_t> tensorIdxMap_, dequantIdxMap_;
     std::map<uint32_t, const Tensor *> dequantMap_;

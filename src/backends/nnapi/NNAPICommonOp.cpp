@@ -37,7 +37,8 @@ std::vector<uint32_t> NNAPICommonOp::getTensorIdxs(const vector<shared_ptr<Tenso
 }
 
 ErrorCode NNAPICommonOp::buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs) {
-    return nnapiBackend_->buildOperation(op, inputs, outputs);
+    auto name = this->name();
+    return nnapiBackend_->buildOperation(op, inputs, outputs, name);
 }
 
 int NNAPICommonOp::formatAxis(int axis, const Tensor *t) {
