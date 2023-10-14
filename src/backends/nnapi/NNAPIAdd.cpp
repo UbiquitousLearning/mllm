@@ -32,7 +32,7 @@ ErrorCode NNAPIAdd::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
 ErrorCode NNAPIAdd::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     std::cout << "NNAPIAdd setUp" << std::endl;
     // TODO: bulid nnapi operation
-    this->nnapiBackend_->buildOperation(ANEURALNETWORKS_ADD, getTensorIdxs(inputs), getTensorIdxs(outputs));
+    buildOperation(ANEURALNETWORKS_ADD, getTensorIdxs(inputs), getTensorIdxs(outputs));
     return NO_ERROR;
 }
 } // namespace mllm

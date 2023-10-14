@@ -1,4 +1,5 @@
 #include "NNAPIBackend.hpp"
+#include "NNAPIAdd.hpp"
 #include "Types.hpp"
 #include <cstdint>
 
@@ -94,7 +95,7 @@ void NNAPIBackend::registerOps() {
     // SCALE,
     // SILU,
     // SOFTMAX
-    // addCreator(ADD, (NNAPIBackend::Creator *)(new NNAPIAddCreator()));
+    addCreator(ADD, (NNAPIBackend::Creator *)(new NNAPIAddCreator()));
     // addCreator(CAUSALMASK, (NNAPIBackend::Creator *)(new NNAPICausalMaskCreator()));
     // addCreator(MATMUL, (NNAPIBackend::Creator *)(new NNAPIMatmulCreator()));
     // addCreator(RMSNORM, (NNAPIBackend::Creator *)(new NNAPIRMSNormCreator()));
