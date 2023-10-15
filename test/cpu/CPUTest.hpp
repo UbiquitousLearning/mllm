@@ -6,7 +6,16 @@
 #define MLLM_CPUTEST_HPP
 #include "gtest/gtest.h"
 #include "backends/cpu/CPUBackend.hpp"
+#include "TestLoader.hpp"
 using namespace mllm;
+#define SETUP_OP(type_)                      \
+    auto op = new type_(bn_, #type_, false); \
+    auto loader = TestLoader(::testing::UnitTest::GetInstance()->current_test_info()->name())
+#define TENSOR(name_)                           \
+    auto name_ = std::make_shared<Tensor>(bn_); \
+    name_->setName(#name_);
+#define SETUP_LOADER \
+    auto loader = TestLoader(::testing::UnitTest::GetInstance()->current_test_info()->name())
 class CPUTest: public ::testing::Test {
 public:
     CPUTest() {

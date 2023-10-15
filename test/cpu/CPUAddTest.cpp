@@ -5,10 +5,7 @@
 #include "CPUTest.hpp"
 #include "backends/cpu/CPUAdd.hpp"
 #include "TestLoader.hpp"
-#define SETUP_OP(type_)                     \
-    auto op = new type_(bn_, #type_, false); \
-    auto loader = TestLoader(::testing::UnitTest::GetInstance()->current_test_info()->name())
-#define TENSOR(name_) auto name_ = std::make_shared<Tensor>(bn_); name_->setName(#name_);
+
 using namespace mllm;
 TEST_F(CPUTest, CPUAdd1) {
     SETUP_OP(CPUAdd);
@@ -27,7 +24,7 @@ TEST_F(CPUTest, CPUAdd1) {
     //TODO: check output?
     Tensor *torch_output = new Tensor(bn_);
     torch_output->setName("output");
-    loader.load(torch_output);
+    loader.load(torch_output, true);
     //    output->printData<float>();
     EXPECT_TRUE(isSame(output.get(), torch_output));
 }

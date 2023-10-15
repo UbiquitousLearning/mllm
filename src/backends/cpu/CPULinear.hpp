@@ -19,8 +19,7 @@ public:
 
     virtual ErrorCode load(ParamLoader &loader) override;
 
-private:
-    int in_features_;
+    OP_PRIVATE : int in_features_;
     int out_features_;
     bool support_bias_;
     bool support_multi_thread_ = false;

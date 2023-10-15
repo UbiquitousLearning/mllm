@@ -37,7 +37,7 @@ TestLoader::TestLoader(string filename) :
         fseek(fp_, length, SEEK_CUR);
     }
 }
-bool TestLoader::load(Tensor *tensor) {
+bool TestLoader::load(Tensor *tensor, bool strict) {
     if (fp_ == nullptr) {
         return false;
     }
@@ -52,16 +52,17 @@ bool TestLoader::load(Tensor *tensor) {
             tensor->alloc();
         }
     }
-    if (!index->checkDim(tensor->shape())) {
+    if ((!index->checkDim(tensor->shape(), strict))) {
         return false;
     }
+
     fseek(fp_, index->offset, SEEK_SET);
 
     fread((void *)tensor->hostPtr<char>(), sizeof(uint8_t), index->len, fp_);
     return true;
 }
-bool TestLoader::load(shared_ptr<Tensor> tensor) {
-    return load(tensor.get());
+bool TestLoader::load(shared_ptr<Tensor> tensor, bool strict) {
+    return load(tensor.get(), strict);
 }
 uint64_t TestIO::read_u64() {
     uint64_t ret;
@@ -135,10 +136,13 @@ bool TestIO::write_int(int val) {
     return fwrite(&val, sizeof(int), 1, fp_) >= 0;
 }
 
-bool TensorIndex::checkDim(vector<int> dims_) {
+bool TensorIndex::checkDim(vector<int> dims_, bool strict) {
     if (dims_.size() != this->dims.size()) {
         std::cout << "dims size not match at " << this->name << " Expected: " << DimDesc(this->dims) << " Actual: " << DimDesc(dims_) << std::endl;
         return false;
+    }
+    if (!strict) {
+        return dims[0] * dims[1] * dims[2] * dims[3] == dims_[0] * dims_[1] * dims_[2] * dims_[3];
     }
     for (int i = 0; i < 4; ++i) {
         if (dims_[i] != this->dims[i]) {

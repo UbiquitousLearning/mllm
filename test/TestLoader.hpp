@@ -27,7 +27,7 @@ struct TensorIndex {
     vector<int> dims;
     uint64_t len;
     uint64_t offset;
-    bool checkDim(vector<int> dims_);
+    bool checkDim(vector<int> dims_, bool strict);
 };
 static string DimDesc(vector<int> dim);
 
@@ -51,8 +51,8 @@ class TestLoader : public TestIO {
 public:
     explicit TestLoader(string filename);
     ~TestLoader();
-    bool load(Tensor *tensor);
-    bool load(shared_ptr<Tensor> tensor);
+    bool load(Tensor *tensor, bool strict = true);
+    bool load(shared_ptr<Tensor> tensor, bool strict = true);
 
 private:
     unordered_map<string, TensorIndex *> tensor_map_;

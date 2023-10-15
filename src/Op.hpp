@@ -12,9 +12,9 @@ class Backend;
 class Tensor;
 class ParamLoader;
 #ifdef TEST
-#define FINAL
+#define OP_PRIVATE public
 #else
-#define FINAL final
+#define OP_PRIVATE private
 #endif
 class Op {
 public:

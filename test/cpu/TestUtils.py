@@ -83,7 +83,8 @@ class TestSaver(TestIO):
         self.write_dim(*dims)
         self.write_u64(0)
         offset = self.file.tell()
-        tensor.numpy().tofile(self.file)
+        with torch.no_grad():
+            tensor.numpy().tofile(self.file)
         end = self.file.tell()
         print(end - offset)
         print(offset)
