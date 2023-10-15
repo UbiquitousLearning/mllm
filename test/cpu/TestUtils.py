@@ -37,10 +37,12 @@ class TestIO:
     def write_dim(self, n: int, c: int, h: int, w: int):
         self.file.write(struct.pack("<iiii", n, c, h, w))
 
+
 class TestSaver(TestIO):
     def __init__(self, filename: str, ):
         super().__init__(filename, False)
         self.write_int(2233)
+
     def __torch_dtype_to_int(self, dtype: torch.dtype) -> int:
         if dtype == torch.float32:
             return 0
@@ -120,3 +122,40 @@ class TestSaver(TestIO):
     #         return
     #     else:
     #         raise Exception("No tensors to write")
+
+
+class TestBase:
+    tensors_map: dict[str, torch.Tensor]
+
+    def __init__(self):
+        print(self.__class__.__name__)
+        self.saver = TestSaver(self.__class__.__name__)
+        self.tensors_map = {}
+
+    def add_tensor(self, tensor: torch.Tensor, name: str = None):
+        if name is None:
+            name = tensor.name
+        print("Add", name)
+        self.tensors_map[name] = tensor
+
+    def save(self):
+        for name, tensor in self.tensors_map.items():
+            self.saver.write_tensor(tensor, name)
+        self.saver.file.flush()
+        self.saver.file.close()
+
+    def test(self):
+        pass
+
+    def test_done(self, captrue_tensors: bool = False):
+        if captrue_tensors:
+            import inspect
+            frame = inspect.currentframe()
+            try:
+                local_ = frame.f_back.f_locals
+                for key, value in local_.items():
+                    if isinstance(value, torch.Tensor):
+                        self.add_tensor(value, key)
+            finally:
+                del frame
+        self.save()

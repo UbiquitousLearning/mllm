@@ -15,22 +15,19 @@ TEST_F(CPUTest, CPUAdd1) {
     TENSOR(input0);
     TENSOR(input1);
     TENSOR(output);
-    input0->reshape({2, 2, 1, 1});
-    input1->reshape({2, 2, 1, 1});
-    op->reshape({input0, input1}, {output});
-    EXPECT_EQ(output->shape(0), 2);
-    EXPECT_EQ(output->shape(1), 2);
-    EXPECT_EQ(output->shape(2), 1);
-    EXPECT_EQ(output->shape(3), 1);
-    op->setUp({input0, input1}, {output});
     loader.load(input0);
     loader.load(input1);
-    input0->printData<float>();
-    input1->printData<float>();
+    op->reshape({input0, input1}, {output});
+    EXPECT_GE(output->shape(0), 1);
+    EXPECT_GE(output->shape(1), 1);
+    EXPECT_GE(output->shape(2), 1);
+    EXPECT_GE(output->shape(3), 1);
+    op->setUp({input0, input1}, {output});
     op->execute({input0, input1}, {output});
     //TODO: check output?
     Tensor *torch_output = new Tensor(bn_);
     torch_output->setName("output");
     loader.load(torch_output);
+    //    output->printData<float>();
     EXPECT_TRUE(isSame(output.get(), torch_output));
 }
