@@ -13,6 +13,7 @@ set(TEST_EXE main_test)
 # find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
 #set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 
+option(DEBUG "debug print" OFF)
 # backend options
 option(NNAPI "Enable NNAPI" OFF)
 
@@ -50,4 +51,8 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/nnapi)
 if(NNAPI)
     add_definitions(-DNNAPI_ENABLED=1)
     target_link_libraries(${TEST_EXE} MLLM_NNAPI)
+    # for nnapi test
+    add_executable(nnapi ${PROJECT_SOURCE_DIR}/test/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC})
+    target_link_libraries(nnapi MLLM_CPU)
+    target_link_libraries(nnapi MLLM_NNAPI)
 endif()
