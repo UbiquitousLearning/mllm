@@ -52,6 +52,8 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                     sum_squares += value * value;
                 }
                 float rms = std::sqrt(sum_squares / dim); //+ epsilon_);
+                                                          //                double rms = std::sqrt((sum_squares / dim)+ epsilon_);
+                                                          //                std::cout<< std::setprecision(8)<< setiosflags(std::ios::fixed | std::ios::showpoint)<< "rms "<<rms<<std::endl;
                 // use memset to set the value of the memory block
                 for (int d = 0; d < dim; d++) {
                     float value = input->dataAt<float>(n, h, s, d);

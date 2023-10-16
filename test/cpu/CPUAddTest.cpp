@@ -8,7 +8,7 @@
 
 using namespace mllm;
 TEST_F(CPUTest, CPUAdd1) {
-    SETUP_OP(CPUAdd);
+    SETUP_OP(CPUAdd, false);
     TENSOR(input0);
     TENSOR(input1);
     TENSOR(output);

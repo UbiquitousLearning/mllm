@@ -79,7 +79,7 @@ class TestSaver(TestIO):
         dims = list(tensor.shape)
         if len(dims) > 4:
             raise Exception("Tensor dims should be less than 4")
-        dims = dims + [1] * (4 - len(dims))
+        dims = [1] * (4 - len(dims)) + dims
         self.write_dim(*dims)
         self.write_u64(0)
         offset = self.file.tell()

@@ -41,9 +41,17 @@ bool TestLoader::load(Tensor *tensor, bool strict) {
     if (fp_ == nullptr) {
         return false;
     }
-    TensorIndex *index = tensor_map_[tensor->name()];
+    auto name = tensor->name();
+    TensorIndex *index = tensor_map_[name];
     if (index == nullptr) {
-        return false;
+        // Replace  all '.' with '_' in name
+        string name_ = name;
+        std::replace(name_.begin(), name_.end(), '.', '_');
+        index = tensor_map_[name_];
+        if (index == nullptr) {
+            std::cout << "Tensor " << name << " not found" << std::endl;
+            return false;
+        }
     }
     if (tensor->shape().empty()) {
         // Get shape from TensorIndex
@@ -107,17 +115,13 @@ bool TestIO::write_string(string str) {
         return false;
     }
     ret = fwrite(str.c_str(), sizeof(char), len, fp_);
-    if (ret < 0) {
-        return false;
-    }
-    return true;
+    return ret >= 0;
 }
 bool TestIO::write_shape(vector<int> shape) {
     if (read_mode_) return false;
     int len = shape.size();
-    int ret = -1;
     for (int i = 0; i < len; ++i) {
-        ret = fwrite(&shape[i], sizeof(int), 1, fp_);
+        int ret = fwrite(&shape[i], sizeof(int), 1, fp_);
         if (ret < 0) {
             return false;
         }
@@ -127,8 +131,7 @@ bool TestIO::write_shape(vector<int> shape) {
 bool TestIO::write_u64(uint64_t val) {
     if (read_mode_) return false;
 
-    int ret = -1;
-    ret = fwrite(&val, sizeof(uint64_t), 1, fp_);
+    int ret = fwrite(&val, sizeof(uint64_t), 1, fp_);
     return ret >= 0;
 }
 bool TestIO::write_int(int val) {
@@ -142,7 +145,13 @@ bool TensorIndex::checkDim(vector<int> dims_, bool strict) {
         return false;
     }
     if (!strict) {
-        return dims[0] * dims[1] * dims[2] * dims[3] == dims_[0] * dims_[1] * dims_[2] * dims_[3];
+        auto a_dim_num = dims[0] * dims[1] * dims[2] * dims[3];
+        auto b_dim_num = dims_[0] * dims_[1] * dims_[2] * dims_[3];
+        if (a_dim_num != b_dim_num) {
+            std::cout << "dim num not match at " << this->name << " Expected: " << DimDesc(this->dims) << " Actual: " << DimDesc(dims_) << std::endl;
+            return false;
+        }
+        return true;
     }
     for (int i = 0; i < 4; ++i) {
         if (dims_[i] != this->dims[i]) {
@@ -172,7 +181,7 @@ TestIO::~TestIO() {
         fclose(fp_);
     }
 }
-bool TestWriter::Write(Tensor *tensor) {
+[[maybe_unused]] bool TestWriter::Write(Tensor *tensor) {
     if (fp_ == nullptr || read_mode_ || tensor == nullptr) {
         return false;
     }
@@ -189,11 +198,11 @@ bool TestWriter::Write(Tensor *tensor) {
     if (!write_u64(length)) {
         return false;
     }
-    fwrite(tensor->hostPtr<char>(), sizeof(uint8_t), length, fp_);
+    return fwrite(tensor->hostPtr<char>(), sizeof(uint8_t), length, fp_) > 0;
 }
 TestWriter::~TestWriter() {
 }
-TestWriter::TestWriter(string filename) :
+[[maybe_unused]] TestWriter::TestWriter(string filename) :
     TestIO(filename, false) {
     if (fp_ == nullptr) {
         return;

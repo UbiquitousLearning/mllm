@@ -59,9 +59,9 @@ private:
 };
 class TestWriter : public TestIO {
 public:
-    explicit TestWriter(string filename);
+    [[maybe_unused]] explicit TestWriter(string filename);
     ~TestWriter();
-    bool Write(Tensor *tensor);
+    [[maybe_unused]] bool Write(Tensor *tensor);
 };
 
 } // namespace mllm
