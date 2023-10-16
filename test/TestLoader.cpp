@@ -10,6 +10,7 @@ TestLoader::~TestLoader() {
 TestLoader::TestLoader(string filename) :
     TestIO(filename, true) {
     if (fp_ == nullptr) {
+        std::cout << "File not found" << std::endl;
         return;
     }
     int magic = read_int();
@@ -84,12 +85,12 @@ int TestIO::read_int() {
 }
 string TestIO::read_string() {
     int len = read_int();
-    std::cout << "len:" << len << std::endl;
+    //    std::cout << "len:" << len << std::endl;
 
     char *buf = new char[len + 1];
     fread(buf, sizeof(char), len, fp_);
     buf[len] = '\0';
-    std::cout << "buf:" << buf << std::endl;
+    //    std::cout << "buf:" << buf << std::endl;
     string ret(buf);
     delete[] buf;
     return ret;

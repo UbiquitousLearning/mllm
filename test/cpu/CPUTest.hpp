@@ -8,11 +8,11 @@
 #include "backends/cpu/CPUBackend.hpp"
 #include "TestLoader.hpp"
 using namespace mllm;
-#define COMPARE_TENSOR(...) EXPECT_TRUE(isSame(__VA_ARGS__))
-#define TEST_LOAD(...) EXPECT_TRUE(loader.load(__VA_ARGS__)) << "TestLoader load failed"
-#define TEST_SETUP(...) EXPECT_FALSE(op->setUp(__VA_ARGS__))
-#define TEST_RESHAPE(...) EXPECT_FALSE(op->reshape(__VA_ARGS__))
-#define TEST_EXCUTE(...) EXPECT_FALSE(op->execute(__VA_ARGS__))
+#define COMPARE_TENSOR(...) ASSERT_TRUE(isSame(__VA_ARGS__))
+#define TEST_LOAD(...) ASSERT_TRUE(loader.load(__VA_ARGS__)) << "TestLoader load failed"
+#define TEST_SETUP(...) ASSERT_FALSE(op->setUp(__VA_ARGS__))
+#define TEST_RESHAPE(...) ASSERT_FALSE(op->reshape(__VA_ARGS__))
+#define TEST_EXCUTE(...) ASSERT_FALSE(op->execute(__VA_ARGS__))
 #define SETUP_OP(type_, ...)                       \
     auto op = new type_(bn_, #type_, __VA_ARGS__); \
     auto loader = TestLoader(::testing::UnitTest::GetInstance()->current_test_info()->name())
@@ -21,6 +21,13 @@ using namespace mllm;
     name_->setName(#name_);
 #define SETUP_LOADER \
     auto loader = TestLoader(::testing::UnitTest::GetInstance()->current_test_info()->name())
+#define PRINT_TENSOR_SHAPES(...)                                                                            \
+    do {                                                                                                    \
+        auto __tensors__ = {__VA_ARGS__};                                                                   \
+        for (const auto &tensor : __tensors__) {                                                            \
+            std::cout << "Tensor " << tensor->name() << ": [" << tensor->shapeString() << "]" << std::endl; \
+        }                                                                                                   \
+    } while (false)
 class CPUTest : public ::testing::Test {
 public:
     CPUTest() {
@@ -68,5 +75,7 @@ static bool isSame(Tensor *a, Tensor *b, bool unstrict = false) {
     }
     return true;
 }
-
+static bool isSame(shared_ptr<Tensor> a, shared_ptr<Tensor> b, bool unstrict = false) {
+    return isSame(a.get(), b.get(), unstrict);
+}
 #endif // MLLM_CPUTEST_HPP
