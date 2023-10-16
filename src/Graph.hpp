@@ -24,14 +24,13 @@ public:
      */
     void shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
-    /**
-     * @brief 初始化
-     */
     void setUp();
 
-    void load(ParamLoader &loader);
-
     void reshapeOutputs(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+
+    void reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape);
+
+    void load(ParamLoader &loader);
 
     /**
      * @brief 前行传播

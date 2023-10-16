@@ -42,7 +42,16 @@ void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, flo
     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU]);
     input_tensor->reshape(shape);
     input_tensor->alloc();
+    input_tensor->fullData<float>(value);
+}
+void token2Tensor(shared_ptr<Tensor> input_tensor, Net net, vector<token_id_t> tokens){
+    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU]);
+    input_tensor->reshape({1,1,static_cast<int>(tokens.size()),1});
+    input_tensor->alloc();
     input_tensor->fullData<float>(1);
+    for (int idx = 0; idx < tokens.size(); ++idx) {
+        input_tensor->setDataAt<float>(0,0,idx,0,tokens[idx]);
+    }
 }
 int main() {
     /*
@@ -76,7 +85,7 @@ int main() {
     x = _Linear(c, {x}, 1, 1, false);
     o = _Add(c, {o, x});
     */
-    /*
+
     auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
     auto tokens_id = vector<token_id_t>();
     //    tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
@@ -84,8 +93,9 @@ int main() {
     for (auto idx : tokens_id) {
         std::cout << idx << ",";
     }
-    std::cout << tokenizer.detokenize(tokens_id) << std::endl;
-    */
+    std::cout << std::endl;
+//    std::cout << tokenizer.detokenize(tokens_id) << std::endl;
+
     int vocab_size = 128;
     int hidden_dim = 80;
     int mutil_head_size = 8;
@@ -103,22 +113,28 @@ int main() {
     x = _Dot(c, {x, y});
     x = _Linear(c, {x}, hidden_dim * 4, hidden_dim, false);
     x = _Add(c, {x, j});
+    x = _Linear(c, {x}, hidden_dim, vocab_size, false);
     // display(c);
     BackendConfig bn;
     Net net(c->sub_param_, bn);
     net.convert();
     // net.Run();
     Executor ex(&net);
+    //ParamLoader param_loader("str_name");
     //ex.execute({1, 1, 10, vocab_size});
     //ex.execute({1, 1, 1, vocab_size});
     //ex.execute({1, 1, 1, vocab_size});
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    fullTensor(input, net, {1, 1, 10, vocab_size}, 1);
+    //fullTensor(input, net, {1, 1, 10, 1}, 1);
+    token2Tensor(input, net, tokens_id);
     ex.execute(input);
+    return 0;
     shared_ptr<Tensor> input_2 = std::make_shared<Tensor>();
-    fullTensor(input_2, net, {1, 1, 1, vocab_size}, 1);
+    //fullTensor(input_2, net, {1, 1, 1, 1}, 1);
+    token2Tensor(input_2, net, {1});
     ex.execute(input_2);
-    fullTensor(input_2, net, {1, 1, 1, vocab_size}, 1);
+    //fullTensor(input_2, net, {1, 1, 1, 1}, 1);
+    token2Tensor(input_2, net, {1});
     ex.execute(input_2);
 
     auto result = ex.result();

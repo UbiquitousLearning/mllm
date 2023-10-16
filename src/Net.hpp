@@ -40,7 +40,7 @@ private:
     unordered_map<string, shared_ptr<Tensor>> tensors_;
     vector<NetOp *> ops_;
     unordered_map<BackendType, Backend *> backends_;
-    ParamLoader *data_loader_;
+//    ParamLoader *data_loader_;
 };
 
 } // namespace mllm
