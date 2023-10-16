@@ -3,15 +3,15 @@
 
 namespace mllm {
 
-CPUMatmul::CPUMatmul(Backend *bn, bool transpose0, bool transpose1, bool multiThread) :
-    Op(bn) {
+CPUMatmul::CPUMatmul(Backend *bn, string opName, bool transpose0, bool transpose1, bool multiThread) :
+    Op(bn, opName) {
     transpose0_ = transpose0;
     transpose1_ = transpose1;
     support_multi_thread_ = multiThread;
 }
 
-ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUMatmul  reshape" << std::endl;
+ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout<<name() << "  CPUMatmul  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 2);
     CHECK_EQ(outputs.size(), 1);
     CHECK_EQ(inputs[0]->head(), inputs[1]->head());
@@ -57,8 +57,8 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     return NO_ERROR;
 }
 
-ErrorCode CPUMatmul::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUMatmul  setUp" << std::endl;
+ErrorCode CPUMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout<<name() << "  CPUMatmul  setUp" << std::endl;
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
     }
@@ -69,8 +69,8 @@ ErrorCode CPUMatmul::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr
     return NO_ERROR;
 }
 
-ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    std::cout << "CPUMatmul()" << std::endl;
+ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout<<name() << "  CPUMatmul()" << std::endl;
     // INPUT: M.K
     // W:K,N
     // OUTPUT:M.N
@@ -78,26 +78,14 @@ ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
     int K = 0;
     int N = 0;
     if (!transpose0_ && !transpose1_) {
-        //        M = inputs[0]->dimension();
-        //        K = inputs[0]->sequence();
-        //        N = inputs[1]->sequence();
-
         M = inputs[0]->sequence();
         K = inputs[0]->dimension();
         N = inputs[1]->dimension();
     } else if (transpose1_) {
-        //        M = inputs[0]->sequence();
-        //        K = inputs[0]->dimension();
-        //        N = inputs[1]->sequence();
-
         M = inputs[0]->sequence();
         K = inputs[0]->dimension();
         N = inputs[1]->sequence();
     } else {
-        //        M = inputs[0]->dimension();
-        //        K = inputs[0]->sequence();
-        //        N = inputs[1]->dimension();
-
         M = inputs[0]->dimension();
         K = inputs[0]->sequence();
         N = inputs[1]->dimension();
@@ -125,7 +113,7 @@ ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_p
 }
 
 ErrorCode CPUMatmul::load(ParamLoader &loader) {
-    std::cout << "CPUMatmul load" << std::endl;
+    std::cout<<name() << "  CPUMatmul load" << std::endl;
     return NO_ERROR;
 }
 

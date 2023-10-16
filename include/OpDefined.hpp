@@ -19,6 +19,8 @@ enum OpType {
     CAUSALMASK,
     LINEAR,
     ATTENTION,
+    EMBEDDING,
+    DOT,
     OP_NUM
 };
 
@@ -34,6 +36,8 @@ static const vector<string> OpNames = {
     "CausalMask",
     "Linear",
     "Attention",
+    "Embedding",
+    "Dot",
     "OP_NUM"};
 } // namespace mllm
 #endif

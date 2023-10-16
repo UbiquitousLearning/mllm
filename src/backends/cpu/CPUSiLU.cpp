@@ -7,26 +7,26 @@ namespace mllm {
 // template class CPUSiLU;
 // template class CPUSiLU;
 
-CPUSiLU::CPUSiLU(Backend *bn, bool multiThread) :
-    Op(bn) {
+CPUSiLU::CPUSiLU(Backend *bn, string opName, bool multiThread) :
+    Op(bn, opName) {
 }
 
-ErrorCode CPUSiLU::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUSiLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     outputs[0]->reshape(inputs[0]->num(), inputs[0]->channels(), inputs[0]->height(), inputs[0]->width());
-    std::cout << "CPUSiLU  reshape" << std::endl;
+    std::cout<<name() << "  CPUSiLU  reshape" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUSiLU::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUSiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc();
     }
     outputs[0]->alloc();
-    std::cout << "CPUSiLU  setUp" << std::endl;
+    std::cout<<name() << "  CPUSiLU  setUp" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUSiLU::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPUSiLU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto input = inputs[0];
     int batch = input->num();
     int n1 = input->shape(1);
@@ -42,12 +42,12 @@ ErrorCode CPUSiLU::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr
             }
         }
     }
-    std::cout << "CPUSiLU()" << std::endl;
+    std::cout<<name() << "  CPUSiLU()" << std::endl;
     return NO_ERROR;
 }
 
 ErrorCode CPUSiLU::load(ParamLoader &loader) {
-    std::cout << "CPUSiLU load" << std::endl;
+    std::cout<<name() << "  CPUSiLU load" << std::endl;
     return NO_ERROR;
 }
 } // namespace mllm

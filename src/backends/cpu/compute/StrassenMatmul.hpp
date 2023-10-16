@@ -9,7 +9,7 @@
 namespace mllm {
 class StrassenMatmul {
 public:
-    StrassenMatmul(Backend *bn, bool multithread, int maxDepth);
+    StrassenMatmul(Backend *bn, string opName, bool multiThread, int maxDepth);
     //    StrassenMatmul();
     virtual ~StrassenMatmul();
 

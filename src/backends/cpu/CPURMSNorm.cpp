@@ -7,21 +7,21 @@ namespace mllm {
 // template class CPURMSNorm;
 // template class CPURMSNorm;
 
-CPURMSNorm::CPURMSNorm(Backend *bn, bool multiThread, float epsilon) :
-    Op(bn), epsilon_(epsilon), support_multi_thread_(multiThread) {
+CPURMSNorm::CPURMSNorm(Backend *bn, string opName, bool multiThread, float epsilon) :
+    Op(bn, opName), epsilon_(epsilon), support_multi_thread_(multiThread) {
     weight_.setBackend(bn);
 }
 
-ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // RMSNorm 类似于LayerNorm作用于channel维度
-    weight_.reshape(1, 1,1,inputs[0]->dimension()); // (C, 1, 1, 1)
+    weight_.reshape(1, 1, 1, inputs[0]->dimension()); // (C, 1, 1, 1)
     weight_.setName(name() + ".weight");
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
-    std::cout << "CPURMSNorm  reshape" << std::endl;
+    std::cout << name() << "  CPURMSNorm  reshape" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPURMSNorm::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPURMSNorm::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
     }
@@ -29,14 +29,14 @@ ErrorCode CPURMSNorm::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     weight_.alloc();
 
     // TEST
-    //    weight_.fullData(1.0);
+    //    weight_.fullData<float>(2.0);
     //    inputs[0]->fullDataTest();
 
-    std::cout << "CPURMSNorm  setUp" << std::endl;
+    std::cout << name() << "  CPURMSNorm  setUp" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto input = inputs[0];
     int batch = input->batch();
     int dim = input->dimension();
@@ -48,14 +48,14 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_
                 float sum_squares = 0.0F;
                 // sum
                 for (int d = 0; d < dim; d++) {
-                    float value = input->dataAt<float>(n, h,s,d);
+                    float value = input->dataAt<float>(n, h, s, d);
                     sum_squares += value * value;
                 }
                 float rms = std::sqrt(sum_squares / dim); //+ epsilon_);
                 // use memset to set the value of the memory block
                 for (int d = 0; d < dim; d++) {
-                    float value = input->dataAt<float>(n, h,s,d);
-                    outputs[0]->setDataAt<float>(n, h,s,d, weight_.dataAt<float>(0, 0, 0, d) * value / rms);
+                    float value = input->dataAt<float>(n, h, s, d);
+                    outputs[0]->setDataAt<float>(n, h, s, d, weight_.dataAt<float>(0, 0, 0, d) * value / rms);
                 }
             }
         }
@@ -64,7 +64,7 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     //    weight_.printData<float>();
     //    outputs[0]->printData<float>();
 
-    std::cout << "CPURMSNorm()" << std::endl;
+    std::cout << name() << "  CPURMSNorm()" << std::endl;
     return NO_ERROR;
 }
 ErrorCode CPURMSNorm::load(ParamLoader &loader) {

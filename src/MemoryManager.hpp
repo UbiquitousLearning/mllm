@@ -108,7 +108,7 @@ public:
         mllmMallocHost(ptr, size);
     }
 
-    void free(void **ptr) {
+    void free(void *ptr) {
         mllmFreeHost(ptr);
     }
 

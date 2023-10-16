@@ -37,6 +37,13 @@ void display(Context *c) {
         display(&sub);
     }
 }
+
+void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, float value) {
+    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU]);
+    input_tensor->reshape(shape);
+    input_tensor->alloc();
+    input_tensor->fullData<float>(1);
+}
 int main() {
     /*
     //  test model sample
@@ -69,13 +76,7 @@ int main() {
     x = _Linear(c, {x}, 1, 1, false);
     o = _Add(c, {o, x});
     */
-
-    Context *c = new Context();
-    auto *x = _Input(c, {1, 1, 1, 80});
-    //    x = _Linear(c, {x}, 10, 10, false);
-    //    x = _Softmax(c, {x}, 1);
-    //    x = _RMSNorm(c, {x});
-    x = _Attention(c, {x}, 80, 10, 8);
+    /*
     auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
     auto tokens_id = vector<token_id_t>();
     //    tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
@@ -83,18 +84,56 @@ int main() {
     for (auto idx : tokens_id) {
         std::cout << idx << ",";
     }
-    //    std::cout << tokenizer.detokenize(tokens_id) << std::endl;
-
+    std::cout << tokenizer.detokenize(tokens_id) << std::endl;
+    */
+    int vocab_size = 128;
+    int hidden_dim = 80;
+    int mutil_head_size = 8;
+    Context *c = new Context();
+    auto *i = _Input(c);
+    i = _Embedding(c, {i}, vocab_size, hidden_dim);
+    _SubgraphBegin(c);
+    auto *x = _RMSNorm(c, {i});
+    x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size);
+    auto *j = _Add(c, {x, i});
+    i = _RMSNorm(c, {j});
+    x = _Linear(c, {i}, hidden_dim, hidden_dim * 4, false);
+    x = _SiLU(c, {x});
+    auto *y = _Linear(c, {i}, hidden_dim, hidden_dim * 4, false);
+    x = _Dot(c, {x, y});
+    x = _Linear(c, {x}, hidden_dim * 4, hidden_dim, false);
+    x = _Add(c, {x, j});
     // display(c);
+    BackendConfig bn;
+    Net net(c->sub_param_, bn);
+    net.convert();
+    // net.Run();
+    Executor ex(&net);
+    //ex.execute({1, 1, 10, vocab_size});
+    //ex.execute({1, 1, 1, vocab_size});
+    //ex.execute({1, 1, 1, vocab_size});
+    shared_ptr<Tensor> input = std::make_shared<Tensor>();
+    fullTensor(input, net, {1, 1, 10, vocab_size}, 1);
+    ex.execute(input);
+    shared_ptr<Tensor> input_2 = std::make_shared<Tensor>();
+    fullTensor(input_2, net, {1, 1, 1, vocab_size}, 1);
+    ex.execute(input_2);
+    fullTensor(input_2, net, {1, 1, 1, vocab_size}, 1);
+    ex.execute(input_2);
 
+    auto result = ex.result();
+    //result[0]->printData<float>();
+
+    /*
+    auto *x = _Input(c);
+    x = _Embedding(c, {x}, 128, 1000);
     BackendConfig bn;
 
     Net net(c->sub_param_, bn);
     net.convert();
     // net.Run();
-
     Executor ex(&net);
-    ex.execute();
-    ex.execute();
+    ex.execute({1, 1, 128, 1});
+    */
     return 0;
 }

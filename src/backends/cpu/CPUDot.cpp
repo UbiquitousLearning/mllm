@@ -1,17 +1,15 @@
 
-#include "CPUAdd.hpp"
+#include "CPUDot.hpp"
 
 namespace mllm {
 
-// template class CPUAdd;
-// template class CPUAdd;
 
-CPUAdd::CPUAdd(Backend *bn,  string opName, bool multiThread) :
+CPUDot::CPUDot(Backend *bn,  string opName, bool multiThread) :
     Op(bn, opName) {
 }
 
-ErrorCode CPUAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUAdd  reshape" << std::endl;
+ErrorCode CPUDot::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout<<name() << "  CPUDot  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 2);
     CHECK_EQ(outputs.size(), 1);
     CHECK_EQ(inputs[0]->shape(0), inputs[1]->shape(0));
@@ -22,8 +20,8 @@ ErrorCode CPUAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     return NO_ERROR;
 }
 
-ErrorCode CPUAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUAdd  setUp" << std::endl;
+ErrorCode CPUDot::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout<<name() << "  CPUDot  setUp" << std::endl;
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
     }
@@ -34,8 +32,8 @@ ErrorCode CPUAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Ten
     return NO_ERROR;
 }
 
-ErrorCode CPUAdd::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUAdd()" << std::endl;
+ErrorCode CPUDot::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout<<name() << "  CPUDot()" << std::endl;
     int N = inputs[0]->shape(0);
     int C = inputs[0]->shape(1);
     int H = inputs[0]->shape(2);
@@ -44,7 +42,7 @@ ErrorCode CPUAdd::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         for (int c = 0; c < C; ++c) {
             for (int h = 0; h < H; ++h) {
                 for (int w = 0; w < W; ++w) {
-                    outputs[0]->setDataAt<float>(n, c, h, w, inputs[0]->dataAt<float>(n, c, h, w) + inputs[1]->dataAt<float>(n, c, h, w));
+                    outputs[0]->setDataAt<float>(n, c, h, w, inputs[0]->dataAt<float>(n, c, h, w) * inputs[1]->dataAt<float>(n, c, h, w));
                 }
             }
         }
@@ -52,8 +50,8 @@ ErrorCode CPUAdd::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     return NO_ERROR;
 }
 
-ErrorCode CPUAdd::load(ParamLoader &loader) {
-    std::cout<<name() << "  CPUAdd load" << std::endl;
+ErrorCode CPUDot::load(ParamLoader &loader) {
+    std::cout<<name() << "  CPUDot load" << std::endl;
     return NO_ERROR;
 }
 } // namespace mllm

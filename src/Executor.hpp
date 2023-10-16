@@ -18,24 +18,41 @@ public:
      */
     void init();
 
+    /*
+    void graphShapeInit(shared_ptr<Graph> subGraph, unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
+        // auto subGraph = net_.subGraph()[graph_name];
+        subGraph->shapeInit(external_tensors);
+    }
+
     void graphSetUp(shared_ptr<Graph> subGraph) {
         // auto subGraph = net_.subGraph()[graph_name];
         subGraph->setUp();
     }
 
-    /**
-     * @brief 前行传播
-     */
+    void graphReshapeOutputs(shared_ptr<Graph> subGraph, unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
+        // auto subGraph = net_.subGraph()[graph_name];
+        subGraph->reshapeOutputs(external_tensors);
+    }
+
     const vector<shared_ptr<Tensor>> &graphForward(shared_ptr<Graph> subGraph) {
         // auto subGraph = net_.subGraph()[graph_name];
         return subGraph->forward();
-        // TODO: 在此处插入 return 语句
     }
+    */
 
-    void execute();
+    void execute(vector<int> input_size = {});
+
+    void execute(shared_ptr<Tensor> input_tensor);
+
+    vector<shared_ptr<Tensor>> &result() {
+        return result_;
+    }
 
 private:
     Net *net_;
+    vector<int> input_size_;
+    //map<string, map<string,vector<int>>> graph_input_shapes_;
+    vector<shared_ptr<Tensor>> result_;
 };
 
 } // namespace mllm

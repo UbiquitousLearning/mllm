@@ -8,11 +8,11 @@ namespace mllm {
 
 class CPUSoftMax final : public Op {
 public:
-    CPUSoftMax(Backend *bn, int axis, bool multiThread);
+    CPUSoftMax(Backend *bn, string opName, int axis, bool multiThread);
     virtual ~CPUSoftMax() = default;
-    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
-    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
-    virtual ErrorCode execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
     virtual ErrorCode load(ParamLoader &loader) override;
 
@@ -23,9 +23,9 @@ private:
 
 class CPUSoftMaxCreator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
         int axis = op_param["axis"];
-        return new CPUSoftMax(bn, axis,false);
+        return new CPUSoftMax(bn, name, axis, false);
     }
 };
 } // namespace mllm

@@ -75,3 +75,10 @@ Op类同上.
 1. 使用clang-tidy
 
 2. subgraph后续改成自动划分
+
+# 10.13 会议决定
+
+1. 测试LLama
+2. CI
+3. logger
+

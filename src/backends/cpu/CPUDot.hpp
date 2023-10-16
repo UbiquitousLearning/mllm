@@ -1,35 +1,34 @@
-#ifndef MLLM_CPURMSNORM_H
-#define MLLM_CPURMSNORM_H
+//
+// Created by 30500 on 2023/10/12 0012.
+//
+
+#ifndef MLLM_CPUDOT_HPP
+#define MLLM_CPUDOT_HPP
 
 #include "Op.hpp"
 #include "CPUBackend.hpp"
 
 namespace mllm {
-
-class CPURMSNorm final : public Op {
+class CPUDot final : public Op {
 public:
-    CPURMSNorm(Backend *bn, string opName, bool multiThread, float epsilon = 1e-6);
-    virtual ~CPURMSNorm() = default;
+    CPUDot(Backend *bn, string opName, bool multiThread);
+    virtual ~CPUDot() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-
+    
     virtual ErrorCode load(ParamLoader &loader) override;
 
 private:
     bool support_multi_thread_ = false;
-    float epsilon_ = 1e-6;
-    int axis_ = 1;
-    Tensor weight_;
-    // Tensor bias_;
 };
 
-class CPURMSNormCreator : public CPUBackend::Creator {
+class CPUDotCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new CPURMSNorm(bn, name, false);
+        return new CPUDot(bn, name, false);
     }
 };
 } // namespace mllm
 
-#endif // MLLM_CPURMSNORM_H
+#endif // MLLM_CPUDOT_HPP
