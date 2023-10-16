@@ -5,14 +5,35 @@ from TestUtils import TestBase
 
 class CPULinear1(TestBase):
     def test(self):
-        input0 = torch.randn(3, 1, 3, 3)
-        output = torch.nn.Linear(in_features=3, out_features=4, bias=True)(input0)
-        CPUlinear_weight = torch.nn.Linear(in_features=3, out_features=4, bias=True).weight
-        print(CPUlinear_weight.shape)
-        CPUlinear_bias = torch.nn.Linear(in_features=3, out_features=4, bias=True).bias
-        print(CPUlinear_bias.shape)
+        input0 = torch.randn(1, 2, 3)
+        linear = torch.nn.Linear(in_features=3, out_features=4, bias=True)
+        output = linear(input0)
+        CPULinear_weight = torch.transpose(linear.weight, -1, -2)
+        print(CPULinear_weight.shape)
+        CPULinear_bias = linear.bias
+        print(CPULinear_bias.shape)
+        self.test_done(True)
+
+
+class CPULinear2(TestBase):
+    def test(self):
+        input0 = torch.randn(1, 2, 3)
+        linear = torch.nn.Linear(in_features=3, out_features=4, bias=False)
+        output = linear(input0)
+        CPULinear_weight = torch.transpose(linear.weight, -1, -2)
+        print(CPULinear_weight.shape)
+        self.test_done(True)
+
+
+class CPULinear3(TestBase):
+    def test(self):
+        input0 = torch.randn(2, 2, 3)
+        linear = torch.nn.Linear(in_features=3, out_features=4, bias=False)
+        output = linear(input0)
+        CPULinear_weight = torch.transpose(linear.weight, -1, -2)
+        print(CPULinear_weight.shape)
         self.test_done(True)
 
 
 if __name__ == '__main__':
-    CPULinear1().test()
+    [instance().test() for instance in TestBase.__subclasses__()]

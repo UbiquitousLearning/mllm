@@ -9,7 +9,7 @@
 #include "TestLoader.hpp"
 using namespace mllm;
 #define COMPARE_TENSOR(...) EXPECT_TRUE(isSame(__VA_ARGS__))
-#define TEST_LOAD(...) EXPECT_TRUE(loader.load(__VA_ARGS__))
+#define TEST_LOAD(...) EXPECT_TRUE(loader.load(__VA_ARGS__)) << "TestLoader load failed"
 #define TEST_SETUP(...) EXPECT_FALSE(op->setUp(__VA_ARGS__))
 #define TEST_RESHAPE(...) EXPECT_FALSE(op->reshape(__VA_ARGS__))
 #define TEST_EXCUTE(...) EXPECT_FALSE(op->execute(__VA_ARGS__))
@@ -57,7 +57,7 @@ static bool isSame(Tensor *a, Tensor *b, bool unstrict = false) {
                 for (int l = 0; l < a->legacyShape(3); ++l) {
                     double a_ = a->dataAt<float>({i, j, k, l});
                     double b_ = b->dataAt<float>({i, j, k, l});
-                    // if ((a_ < b_) || (a_ > b_)) {
+                    //                     if ((a_ < b_) || (a_ > b_)) {
                     if (abs(a_ - b_) / std::max(a_, b_) > eps) {
                         std::cout << std::setprecision(8) << setiosflags(std::ios::fixed | std::ios::showpoint) << "a[" << i << "," << j << "," << k << "," << l << "]: " << (double)a->dataAt<float>(i, j, k, l) << "!= b[" << i << "," << j << "," << k << "," << l << "]: " << (double)b->dataAt<float>(i, j, k, l) << std::endl;
                         return false;

@@ -10,5 +10,9 @@ class CPUEmbedding1(TestBase):
         self.saver.write_tensor(embedding.weight, "CPUEmbedding.weight")
         output = embedding(input0)
         input0 = input0.to(torch.float32)
-        print(output)
+        print(output.shape)
         self.test_done(True)
+
+
+if __name__ == '__main__':
+    CPUEmbedding1().test()

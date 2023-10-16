@@ -84,8 +84,12 @@ int TestIO::read_int() {
 }
 string TestIO::read_string() {
     int len = read_int();
-    char *buf = new char[len];
+    std::cout << "len:" << len << std::endl;
+
+    char *buf = new char[len + 1];
     fread(buf, sizeof(char), len, fp_);
+    buf[len] = '\0';
+    std::cout << "buf:" << buf << std::endl;
     string ret(buf);
     delete[] buf;
     return ret;

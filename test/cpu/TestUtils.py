@@ -19,8 +19,11 @@ class TestIO:
         self.file.close()
 
     def write_string(self, string: str):
-        self.file.write(struct.pack("<i", len(string)))
-        self.file.write(string.encode('utf-8'))
+        name = string.encode('utf-8')
+        self.file.write(struct.pack("<i", len(name)))
+        print("Len:", len(name))
+        # print(string.encode('utf-8'))
+        self.file.write(name)
 
     def write_int(self, integer: int):
         self.file.write(struct.pack("<i", integer))
