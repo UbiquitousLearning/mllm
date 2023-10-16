@@ -13,7 +13,7 @@ NNAPIAdd::NNAPIAdd(Backend *bn) :
     NNAPICommonOp(bn) {
 }
 
-ErrorCode NNAPIAdd::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode NNAPIAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout << "NNAPIAdd reshape" << std::endl;
     CHECK_EQ(inputs.size(), 2);
     CHECK_EQ(outputs.size(), 1);
@@ -29,7 +29,7 @@ ErrorCode NNAPIAdd::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     return buildOperation(ANEURALNETWORKS_ADD, inputIdxs, getTensorIdxs(outputs));
 }
 
-ErrorCode NNAPIAdd::setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode NNAPIAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout << "NNAPIAdd setUp" << std::endl;
     // TODO: bulid nnapi operation
     buildOperation(ANEURALNETWORKS_ADD, getTensorIdxs(inputs), getTensorIdxs(outputs));

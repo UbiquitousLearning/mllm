@@ -72,7 +72,7 @@ NNAPIBackend::~NNAPIBackend() {
     ANeuralNetworksModel_free_27(nnapiModel_);
 }
 
-Op *NNAPIBackend::opCreate(const OpParam &op_param) {
+Op *NNAPIBackend::opCreate(const OpParam &op_param, string name) {
     OpType optype = OpType(op_param.find("type")->second);
     auto *map = map_creator_;
     auto iter = map->find(optype);

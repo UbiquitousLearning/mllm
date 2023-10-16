@@ -12,12 +12,12 @@ NNAPICommonOp::NNAPICommonOp(Backend *bn) :
     nnapiBackend_ = dynamic_cast<NNAPIBackend *>(bn);
 }
 
-ErrorCode NNAPICommonOp::reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode NNAPICommonOp::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout << "NNAPICommonOp reshape" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode NNAPICommonOp::execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+ErrorCode NNAPICommonOp::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout << "NNAPICommonOp()" << std::endl;
     // do nothing, should be implemented by NNAPI
     return NO_ERROR;

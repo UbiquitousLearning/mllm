@@ -36,7 +36,7 @@ public:
     // virtual Op* OpCreate(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
     //                             OpParam op_param) override;
 
-    virtual Op *opCreate(const OpParam &op_param) override;
+    virtual Op *opCreate(const OpParam &op_param, string name = "") override;
 
     virtual void registerOps() override;
 
