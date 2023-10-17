@@ -13,6 +13,10 @@ public:
     ErrorCode reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
+    Tensor& weight() {
+        return weight_;
+    }
+
 private:
     Tensor weight_;
     int hiddenSize_;

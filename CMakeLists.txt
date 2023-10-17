@@ -29,13 +29,14 @@ aux_source_directory(${PROJECT_SOURCE_DIR}/src  DIR_SRC)
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/express  DIR_SRC_EXP)
 aux_source_directory(${PROJECT_SOURCE_DIR}/examples  EMP_SRC)
 aux_source_directory(${PROJECT_SOURCE_DIR}/test  TEST_SRC)
+aux_source_directory(${PROJECT_SOURCE_DIR}/demo  DEMO_SRC)
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/thirdpartys/include)
 # include_directories(${PROJECT_SOURCE_DIR}/src/backends/cpu)
 
-add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/test/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}
+add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/Tokenizer.hpp
         src/tokenizers/BPE/Bpe.cpp

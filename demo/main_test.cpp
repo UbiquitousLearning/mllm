@@ -58,28 +58,29 @@ int main() {
     auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
     auto tokens_id = vector<token_id_t>();
     // tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
-    tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);
+    // tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);
+    tokenizer.tokenize(string(" I believe the meaning of life is"), tokens_id, true);
     for (auto idx : tokens_id) {
         std::cout << idx << ",";
     }
     std::cout << std::endl;
     // std::cout << tokenizer.detokenize(tokens_id) << std::endl;
-    int vocab_size = 128;
-    int hidden_dim = 80;
+    int vocab_size = 32000;
+    int hidden_dim = 4096;
     int mutil_head_size = 8;
     Context *c = new Context();
     auto *i = _Input(c);
-    i = _Embedding(c, {i}, vocab_size, hidden_dim);
+    i = _Embedding(c, {i}, vocab_size, hidden_dim, "tok_embeddings");
     _SubgraphBegin(c);
-    auto *x = _RMSNorm(c, {i});
-    x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size);
+    auto *x = _RMSNorm(c, {i}, "layers.0.attention_norm");
+    x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "layers.0.attention");
     auto *j = _Add(c, {x, i});
     i = _RMSNorm(c, {j});
-    x = _Linear(c, {i}, hidden_dim, hidden_dim * 4, false);
+    x = _Linear(c, {i}, hidden_dim, hidden_dim * 4, false, "layers.0.feed_forward.w1");
     x = _SiLU(c, {x});
-    auto *y = _Linear(c, {i}, hidden_dim, hidden_dim * 4, false);
+    auto *y = _Linear(c, {i}, hidden_dim, hidden_dim * 4, false, "layers.0.feed_forward.w2");
     x = _Dot(c, {x, y});
-    x = _Linear(c, {x}, hidden_dim * 4, hidden_dim, false);
+    x = _Linear(c, {x}, hidden_dim * 4, hidden_dim, false, "layers.0.feed_forward.w3");
     x = _Add(c, {x, j});
     x = _Linear(c, {x}, hidden_dim, vocab_size, false);
     // display(c);
@@ -87,13 +88,14 @@ int main() {
     Net net(c->sub_param_, bn);
     net.convert();
     // net.Run();
-    Executor ex(&net);
-    // ParamLoader param_loader("../models/llama-7b.mllm");
+    ParamLoader param_loader("../models/llama-7b-fp32.mllm");
+    Executor ex(&net, &param_loader);
+    // Executor ex(&net);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
     // fullTensor(input, net, {1, 1, 10, 1}, 1);
     token2Tensor(input, net, tokens_id);
     ex.execute(input);
-    return 0;
+
     shared_ptr<Tensor> input_2 = std::make_shared<Tensor>();
     // fullTensor(input_2, net, {1, 1, 1, 1}, 1);
     token2Tensor(input_2, net, {1});
@@ -109,21 +111,35 @@ int main() {
     // ex.execute({1, 1, 1, vocab_size});
     */
 
-
-
+    auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
+    auto tokens_id = vector<token_id_t>();
+    // tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
+    // tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);
+    tokenizer.tokenize(string(" I believe the meaning of life is"), tokens_id, true);
+    for (auto idx : tokens_id) {
+        std::cout << idx << ",";
+    }
+    std::cout << std::endl;
+    // std::cout << tokenizer.detokenize(tokens_id) << std::endl;
+    int vocab_size = 32000;
     int hidden_dim = 4096;
+    int mutil_head_size = 8;
     Context *c = new Context();
-    auto *x = _Input(c);
-    x = _Linear(c, {x}, hidden_dim, hidden_dim, false, "layers.0.attention.wq");
+    auto *i = _Input(c);
+    i = _Embedding(c, {i}, vocab_size, hidden_dim, "tok_embeddings");
+    auto *x = _RMSNorm(c, {i}, "layers.0.attention_norm");
+    //x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "layers.0.attention");
+
     BackendConfig bn;
     Net net(c->sub_param_, bn);
     net.convert();
     // net.Run();
-    ParamLoader param_loader("../models/llama-7b-fp32.mllm");
+    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");
     Executor ex(&net, &param_loader);
-    //Executor ex(&net);
+    // Executor ex(&net);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    fullTensor(input, net, {1, 1, 10, hidden_dim}, 2);
+    // fullTensor(input, net, {1, 1, 10, 1}, 1);
+    token2Tensor(input, net, tokens_id);
     ex.execute(input);
 
     return 0;

@@ -86,16 +86,16 @@ CPUAttention::CPUAttention(Backend *bn, string opName, int embedding_size, int h
     hidden_size_ = hidden_size;
     head_size_ = head_size;
     support_multi_thread_ = multiThread;
-    Q_proj_.reset(new CPULinear(bn, name() + ".q_proj",embedding_size_, hidden_size_ * head_size_, false, false));
-    K_proj_.reset(new CPULinear(bn, name() + ".k_proj", embedding_size_, hidden_size_ * head_size_, false, false));
-    V_proj_.reset(new CPULinear(bn, name() + ".v_proj", embedding_size_, hidden_size_ * head_size_, false, false));
+    Q_proj_.reset(new CPULinear(bn, name() + ".wq",embedding_size_, hidden_size_ * head_size_, false, false));
+    K_proj_.reset(new CPULinear(bn, name() + ".wk", embedding_size_, hidden_size_ * head_size_, false, false));
+    V_proj_.reset(new CPULinear(bn, name() + ".wv", embedding_size_, hidden_size_ * head_size_, false, false));
     q_rope_.reset(new CPURoPE(bn,name() + ".q_rope", true, false));
     k_rope_.reset(new CPURoPE(bn, name() + ".k_rope", true, false));
     kq_matmul_.reset(new CPUMatmul(bn, name() + ".kq_matmul", false, true, false));
     scale_.reset(new CPUScale(bn, name() + ".scale", 1/std::sqrt(hidden_size), 0.0, true, false));
     softmax_.reset(new CPUSoftMax(bn, name() + ".softmax", 3, false));
     s_v_matmul_.reset(new CPUMatmul(bn, name() + ".s_v_matmul", false, false, false));
-    O_proj_.reset(new CPULinear(bn, name() + ".o_proj", hidden_size_ * head_size_, embedding_size_, false, false));
+    O_proj_.reset(new CPULinear(bn, name() + ".wo", hidden_size_ * head_size_, embedding_size_, false, false));
 
     q_.reset(new Tensor(bn));
     k_.reset(new Tensor(bn));
