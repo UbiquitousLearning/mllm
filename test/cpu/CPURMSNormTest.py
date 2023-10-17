@@ -29,7 +29,7 @@ class CPURMSNorm1(TestBase):
         torch.set_printoptions(precision=20)
         bs, seq_len, embedding_dim = 1, 128, 10
         input0 = torch.randn(bs, seq_len, embedding_dim).float()
-        rms = RMSNorm(embedding_dim, )
+        rms = RMSNorm(embedding_dim, 0)
         output = rms(input0)
         CPURMSNorm_weight = rms.weight
         # print(CPURMSNorm_weight)
