@@ -28,7 +28,7 @@ TEST_F(CPUTest, CPULinear2) {
 
     TEST_RESHAPE({input0}, {test_output});
     TEST_SETUP({input0}, {test_output});
-    TEST_LOAD(&op->weight_);
+    TEST_LOAD(op->);
     //    TEST_LOAD(&op->bias_);
     TEST_EXCUTE({input0}, {test_output});
     COMPARE_TENSOR(output.get(), test_output.get());

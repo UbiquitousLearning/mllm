@@ -33,7 +33,7 @@ bool ParamLoader::load(mllm::Tensor *tensor) {
     if (offsets_.find(name) == offsets_.end()) {
         return false;
     }
-    std::pair<uint8_t, uint8_t> offset = offsets_[name];
+    std::pair<uint64_t, uint64_t> offset = offsets_[name];
     uint8_t *data = new uint8_t[offset.second];
     fseek(fp_, offset.first, SEEK_SET);
     fread(data, sizeof(uint8_t), offset.second, fp_);
@@ -77,6 +77,7 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
         uint64_t length = readu64(fp_);
         uint64_t offset = readu64(fp_);
         offsets_[name] = std::make_pair(offset, length);
+        // std::cout<<name<<"   length:"<<length<<std::endl;
         data_type_[name] = readInt(fp_);
     }
 // int len = sizeof(int);

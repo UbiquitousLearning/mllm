@@ -16,7 +16,8 @@ public:
 
     virtual ErrorCode load(ParamLoader &loader) override;
 
-    OP_PRIVATE : Tensor sin_;
+private:
+    Tensor sin_;
     Tensor cos_;
     bool hf_;
     bool support_multi_thread_ = false;
@@ -25,7 +26,7 @@ public:
 class CPURoPECreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new CPURoPE(bn, name,true, false);
+        return new CPURoPE(bn, name, true, false);
     }
 };
 } // namespace mllm

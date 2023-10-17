@@ -16,7 +16,8 @@ public:
 
     virtual ErrorCode load(ParamLoader &loader) override;
 
-    OP_PRIVATE : bool support_multi_thread_ = false;
+private:
+    bool support_multi_thread_ = false;
     float epsilon_ = 1e-6;
     int axis_ = 1;
     Tensor weight_;

@@ -11,11 +11,7 @@ namespace mllm {
 class Backend;
 class Tensor;
 class ParamLoader;
-#ifdef TEST
-#define OP_PRIVATE public
-#else
-#define OP_PRIVATE private
-#endif
+
 class Op {
 public:
     /**
