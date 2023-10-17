@@ -28,7 +28,7 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     // batch |out_channel | seq_len               |  1
     //       |out_features|  inputs[0]->sequence()  |
     CHECK_EQ(in_features_, inputs[0]->dimension());
-    weight_.reshape(1, inputs[0]->head(), in_features_, out_features_);
+    weight_.reshape(1, inputs[0]->head(), out_features_, in_features_);
     weight_.setName(name() + ".weight");
     bias_.reshape(1, inputs[0]->head(), 1, out_features_);
     bias_.setName(name() + ".bias");
@@ -62,7 +62,7 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
                 for (int n = 0; n < N; n++) {
                     float value = 0;
                     for (int k = 0; k < K; k++) {
-                        value += inputs[0]->dataAt<float>(0, h, m, k) * weight_.dataAt<float>(b, h, k, n);
+                        value += inputs[0]->dataAt<float>(0, h, m, k) * weight_.dataAt<float>(b, h, n, k);
                     }
                     if (support_bias_) {
                         value += bias_.dataAt<float>(0, h, 0, n);
@@ -88,6 +88,7 @@ ErrorCode CPULinear::load(ParamLoader &loader) {
     loader.load(&weight_);
     if (support_bias_)
         loader.load(&bias_);
+    // weight_.printData<float>();
     return NO_ERROR;
 }
 ErrorCode CPULinear::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

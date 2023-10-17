@@ -32,8 +32,9 @@ static double readf64(FILE *fp_) {
 }
 static std::string readString(FILE *fp_) {
     int len = readInt(fp_);
-    char *tmp = new char[len];
+    char *tmp = new char[len + 1];
     fread(tmp, sizeof(char), len, fp_);
+    tmp[len] = '\0';
     std::string str(tmp);
     if (len == 0) {
         str = "";
@@ -50,6 +51,7 @@ public:
 #endif
     ~ParamLoader();
     bool load(mllm::Tensor *tensor);
+    bool load(std::shared_ptr<mllm::Tensor> tensor);
 
 private:
     FILE *fp_;

@@ -40,6 +40,16 @@ public:
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
         // check inputs shape
         // reshape outputs
+#ifdef TEST
+        std::cout << "*Op reshape*" << std::endl;
+        for (auto input:inputs) {
+            std::cout << "Input "<< input->name() <<" shape: " << input->shapeString() << std::endl;
+        }
+        for (auto output:outputs) {
+            std::cout << "Output "<< output->name() <<" shape: " << output->shapeString() << std::endl;
+        }
+        std::cout << "*Op reshape*" << std::endl;
+#endif
         return NO_ERROR;
     }
     virtual ErrorCode reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

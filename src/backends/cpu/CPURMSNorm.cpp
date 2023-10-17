@@ -51,7 +51,7 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                     float value = input->dataAt<float>(n, h, s, d);
                     sum_squares += value * value;
                 }
-                float rms = std::sqrt(sum_squares / dim); //+ epsilon_);
+                float rms = std::sqrt(sum_squares / dim + epsilon_);
                 // use memset to set the value of the memory block
                 for (int d = 0; d < dim; d++) {
                     float value = input->dataAt<float>(n, h, s, d);
@@ -68,6 +68,7 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     return NO_ERROR;
 }
 ErrorCode CPURMSNorm::load(ParamLoader &loader) {
+    loader.load(&weight_);
     return Op::load(loader);
 }
 } // namespace mllm
