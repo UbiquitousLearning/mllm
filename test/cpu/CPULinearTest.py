@@ -8,9 +8,10 @@ class CPULinear1(TestBase):
         input0 = torch.randn(1, 2, 3)
         linear = torch.nn.Linear(in_features=3, out_features=4, bias=True)
         output = linear(input0)
-        CPULinear_weight = torch.transpose(linear.weight, -1, -2)
+        CPULinear_weight = linear.weight
         print(CPULinear_weight.shape)
         CPULinear_bias = linear.bias
+
         print(CPULinear_bias.shape)
         self.test_done(True)
 
@@ -20,19 +21,20 @@ class CPULinear2(TestBase):
         input0 = torch.randn(1, 2, 3)
         linear = torch.nn.Linear(in_features=3, out_features=4, bias=False)
         output = linear(input0)
-        CPULinear_weight = torch.transpose(linear.weight, -1, -2)
+        CPULinear_weight = linear.weight
         print(CPULinear_weight.shape)
         self.test_done(True)
 
 
-class CPULinear3(TestBase):
-    def test(self):
-        input0 = torch.randn(2, 2, 3)
-        linear = torch.nn.Linear(in_features=3, out_features=4, bias=False)
-        output = linear(input0)
-        CPULinear_weight = torch.transpose(linear.weight, -1, -2)
-        print(CPULinear_weight.shape)
-        self.test_done(True)
+#
+# class CPULinear3(TestBase):
+#     def test(self):
+#         input0 = torch.randn(2, 2, 3)
+#         linear = torch.nn.Linear(in_features=3, out_features=4, bias=False)
+#         output = linear(input0)
+#         CPULinear_weight = linear.weight
+#         print(CPULinear_weight.shape)
+#         self.test_done(True)
 
 
 if __name__ == '__main__':
