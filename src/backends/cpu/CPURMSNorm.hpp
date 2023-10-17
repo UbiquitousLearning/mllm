@@ -8,7 +8,7 @@ namespace mllm {
 
 class CPURMSNorm final : public Op {
 public:
-    CPURMSNorm(Backend *bn, string opName, bool multiThread, float epsilon = 1e-6);
+    CPURMSNorm(Backend *bn, string opName, bool multiThread, float epsilon = 1e-5);
     virtual ~CPURMSNorm() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
@@ -21,7 +21,7 @@ public:
 
 private:
     bool support_multi_thread_ = false;
-    float epsilon_ = 1e-6;
+    float epsilon_;
     int axis_ = 1;
     Tensor weight_;
     // Tensor bias_;

@@ -68,6 +68,7 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     return NO_ERROR;
 }
 ErrorCode CPURMSNorm::load(ParamLoader &loader) {
+    loader.load(&weight_);
     return Op::load(loader);
 }
 } // namespace mllm
