@@ -86,7 +86,7 @@ void Graph::shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensor
 void Graph::setUp() {
     auto &graph_in_tensors = ops_input_tensors_[param_.net_ops[0]->name];
     for (auto &t : graph_in_tensors) {
-        if(!t->allocted()) {
+        if (!t->allocted()) {
             t->alloc();
         }
     }
@@ -106,7 +106,6 @@ void Graph::reshapeOutputs(unordered_map<string, shared_ptr<Tensor>> &external_t
     }
 }
 
-
 void Graph::reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0) {
     if (init) {
         std::cout << "EXE:: Init" << std::endl;
@@ -114,7 +113,7 @@ void Graph::reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors,
         this->setUp();
     } else if (reshape) {
         std::cout << "EXE:: Reshape" << std::endl;
-        if(graph0) {
+        if (graph0) {
             this->reFlashInput(external_tensors);
         }
         this->reshapeOutputs(external_tensors);
@@ -170,7 +169,7 @@ const vector<shared_ptr<Tensor>> &Graph::outputTensors() {
 void Graph::reFlashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors){
     ops_input_tensors_[param_.net_ops[0]->name].clear();
     auto in_tensors = param_.net_ops[0]->in;
-//    vector<shared_ptr<Tensor>> inTensors;
+    //    vector<shared_ptr<Tensor>> inTensors;
     for (auto *in_t : in_tensors) {
         auto in_t_name = in_t->name;
         auto it = tensors_.find(in_t_name);
@@ -181,7 +180,7 @@ void Graph::reFlashInput(unordered_map<string, shared_ptr<Tensor>> &external_ten
         }
     }
     ops_input_tensors_[param_.net_ops[0]->name][0]->printData<float>();
-    std::cout<<param_.net_ops[0]->name<<std::endl;
-//    ops_input_tensors_[param_.net_ops[0]->name] = inTensors;
+    std::cout << param_.net_ops[0]->name << std::endl;
+    //    ops_input_tensors_[param_.net_ops[0]->name] = inTensors;
 }
 } // namespace mllm

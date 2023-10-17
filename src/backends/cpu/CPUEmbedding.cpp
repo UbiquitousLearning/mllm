@@ -15,7 +15,7 @@ ErrorCode mllm::CPUEmbedding::reshape(vector<shared_ptr<Tensor>> inputs, vector<
 //    CHECK_EQ(input->width(), 1);
     output->reshape(input->batch(), 1, input->sequence(), hiddenSize_);
     weight_.reshape(1, 1, vocabSize_, hiddenSize_);
-    weight_.setName(name() + "_weight");
+    weight_.setName(name() + ".weight");
     return NO_ERROR;
 }
 ErrorCode mllm::CPUEmbedding::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

@@ -18,6 +18,12 @@ public:
     virtual ErrorCode reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
     virtual ErrorCode load(ParamLoader &loader) override;
+    Tensor &weight() {
+        return weight_;
+    }
+    Tensor &bias() {
+        return bias_;
+    }
 
 private:
     int in_features_;

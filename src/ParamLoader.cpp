@@ -77,7 +77,7 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
         uint64_t length = readu64(fp_);
         uint64_t offset = readu64(fp_);
         offsets_[name] = std::make_pair(offset, length);
-        //std::cout<<name<<"   length:"<<length<<std::endl;
+        // std::cout<<name<<"   length:"<<length<<std::endl;
         data_type_[name] = readInt(fp_);
     }
 // int len = sizeof(int);
@@ -92,5 +92,8 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
 // }
 #endif
     // std::cout << "load param file success" << std::endl;
+}
+bool ParamLoader::load(std::shared_ptr<mllm::Tensor> tensor) {
+    return load(tensor.get());
 }
 } // namespace mllm

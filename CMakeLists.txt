@@ -9,7 +9,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # temp executable name
 set(TEST_EXE main_test)
-
+option(TEST "test mode" ON)
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+    cmake_policy(SET CMP0135 NEW)
+endif ()
+include(FetchContent)
+FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+)
 
 
 # find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
@@ -35,11 +43,37 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/thirdpartys/include)
 # include_directories(${PROJECT_SOURCE_DIR}/src/backends/cpu)
 
-add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/test/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/Tokenizer.hpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/tokenizers/BPE/Bpe.hpp)
-
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
-target_link_libraries(${TEST_EXE} MLLM_CPU)
+if (TEST)
+    add_definitions(-DTEST)
+    FetchContent_MakeAvailable(googletest)
+    enable_testing()
+    include_directories(${PROJECT_SOURCE_DIR}/test)
+    # MLLM Tests
+    file(GLOB_RECURSE MLLM_TEST
+            ${CMAKE_CURRENT_LIST_DIR}/test/*.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/test/*.hpp
+
+    )
+    message(STATUS "MLLM_TEST: ${MLLM_TEST}")
+    add_executable(
+            MLLM_TEST
+            ${PROJECT_SOURCE_DIR}/test/main.cpp
+            ${MLLM_TEST}
+            ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}
+    )
+    target_link_libraries(
+            MLLM_TEST
+            GTest::gtest_main
+            MLLM_CPU
+    )
+
+    include(GoogleTest)
+    gtest_discover_tests(MLLM_TEST)
+else ()
+    #    No Unit Test.
+    add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}
+           )
+    target_link_libraries(${TEST_EXE} MLLM_CPU)
+endif ()
+
