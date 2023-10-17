@@ -2,10 +2,11 @@
 #define MLLM_CPUEMBEDDING_HPP
 #include "Op.hpp"
 #include "CPUBackend.hpp"
+#include "Tensor.hpp"
 namespace mllm {
 class CPUEmbedding final : public Op {
 public:
-    explicit CPUEmbedding(Backend *bn,  string opName, int hiddenSize, int vocabSize);
+    explicit CPUEmbedding(Backend *bn, string opName, int hiddenSize, int vocabSize);
     ~CPUEmbedding() override = default;
     ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;

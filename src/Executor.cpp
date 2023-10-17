@@ -5,7 +5,8 @@ void Executor::init() {
 
 void Executor::execute(vector<int> input_size) {
     bool init = false;
-    bool reshape = false;    ;
+    bool reshape = false;
+    ;
     if (checkReshape(init, reshape, input_size)) {
         net_->reshapeInput(input_size);
     }
@@ -32,14 +33,14 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
     checkReshape(init, reshape, input_size);
     input_tensor->setName(net_->netParam()[0].net_tensors[0]->name);
     net_->tensors()[net_->netParam()[0].net_tensors[0]->name] = input_tensor;
-//    net_->subGraph()["G0"]->reFlashInput(net_->tensors());
+    //    net_->subGraph()["G0"]->reFlashInput(net_->tensors());
     for (int i = 0; i < (int)net_->subGraph().size(); ++i) {
         bool grapg0 = (i == 0);
         string name = "G" + std::to_string(i);
         auto &g = net_->subGraph()[name];
         std::cout << name << " Reshape" << std::endl;
         g->reshape(net_->tensors(), init, reshape, grapg0);
-        if(data_loader_ != nullptr) {
+        if (data_loader_ != nullptr) {
             g->load(*data_loader_);
         }
     }

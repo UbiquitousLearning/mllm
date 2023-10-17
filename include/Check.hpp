@@ -14,7 +14,6 @@
         !(condition) ? (void)0 : COMPACT_GOOGLE_LOG_FATAL
 #define COUT_ERROR(condition) \
     std::cout << "Check failed: " #condition " " << std::endl
-
 #define CHECK(condition)     \
     if (!PREDICT(condition)) \
     COUT_ERROR(condition)

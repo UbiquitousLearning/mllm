@@ -15,6 +15,9 @@ public:
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
     virtual ErrorCode load(ParamLoader &loader) override;
+    Tensor &weight() {
+        return weight_;
+    }
 
 private:
     bool support_multi_thread_ = false;
