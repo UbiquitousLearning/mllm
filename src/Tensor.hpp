@@ -229,6 +229,7 @@ public:
                     std::cout << dataAt<Dtype>(0, 0, h, c) << " ";
                 }
                 std::cout << std::endl;
+                std::cout << "---------" << std::endl;
             }
         } else if (N == 1 && W == 1) {
             for (int h = 0; h < H; ++h) {

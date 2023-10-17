@@ -28,7 +28,7 @@ public:
 
     void reshapeOutputs(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
-    void reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape);
+    void reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0);
 
     void load(ParamLoader &loader);
 
