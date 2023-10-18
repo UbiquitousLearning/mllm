@@ -27,6 +27,9 @@ jobs:
           cd test && bash test.sh
       - name: Test
         uses: gacts/run-and-post-run@v1
+        env:
+          FEISHU_TOKEN: ${{ secrets.FEISHU_TOKEN }}
+          FEISHU_AT: ${{ secrets.FEISHU_AT }}
         with:
           working-directory: bin
           run: ls && ./MLLM_TEST --gtest_output=json
