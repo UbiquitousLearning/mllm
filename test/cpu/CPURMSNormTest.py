@@ -11,10 +11,12 @@ class RMSNorm(torch.nn.Module):
 
     def _norm(self, x):
         y = x.pow(2).mean(-1, keepdim=True) + self.eps
-        # print("y1", y)
+        print("y1", y)
         y = torch.sqrt(y)
-        # print("y2", y)
-        return x / y
+        print("y2", y)
+        y = 1 / y
+        print("y3", y)
+        return x * y
 
     def forward(self, x):
         output = self._norm(x.float()).type_as(x)
@@ -24,12 +26,12 @@ class RMSNorm(torch.nn.Module):
 
 class CPURMSNorm1(TestBase):
     def test(self):
-        # seed = 1234
-        # torch.manual_seed(seed)
-        torch.set_printoptions(precision=20)
-        bs, seq_len, embedding_dim = 1, 128, 10
-        input0 = torch.randn(bs, seq_len, embedding_dim).float()
-        rms = RMSNorm(embedding_dim, 0)
+        seed = 1234
+        torch.manual_seed(seed)
+        torch.set_printoptions(precision=7)
+        bs, seq_len, embedding_dim = 1, 10, 32000
+        input0 = torch.randn(bs, seq_len, embedding_dim).float() * 1e-5
+        rms = RMSNorm(embedding_dim, )
         output = rms(input0)
         CPURMSNorm_weight = rms.weight
         # print(CPURMSNorm_weight)

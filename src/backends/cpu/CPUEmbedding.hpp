@@ -14,7 +14,7 @@ public:
     ErrorCode reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
-    Tensor& weight() {
+    Tensor &weight() {
         return weight_;
     }
 

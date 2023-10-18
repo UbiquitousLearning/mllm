@@ -1,7 +1,14 @@
+import os
 import struct
 from typing import BinaryIO
 
 import torch
+
+
+def change_dir():
+    dir_name = os.path.basename(os.getcwd())
+    if dir_name != "bin":
+        os.chdir("../../bin")
 
 
 class TestIO:
@@ -10,6 +17,7 @@ class TestIO:
     def __init__(self, filename: str, read_mode: bool):
         self.filename = filename
         mode = 'rb' if read_mode else 'wb'
+        change_dir()
         self.file = open(f"test_{filename}.mllm", mode)
 
     def __enter__(self):
