@@ -22,8 +22,8 @@ if __name__ == '__main__':
             exit(0)
         else:
             message = template + f" ❌ Test Failed! \n 📊 {test_success}/{test_nums} \n"
-            for test in report.get("testsuites", []):
-                if len(test.get("failures", [])) > 0:
-                    failures = test.get("failures", [])
-                    message += f"❌ {test.get('classname', 'unknown')}.{test.get('name', 'unknown')} \n"
-            fs.notify(message)
+            for ts in report.get("testsuites", []):
+                for test in ts.get("testsuite", []):
+                    if len(test.get("failures", [])) > 0:
+                        failures = test.get("failures", [])
+                        message += f"❌ {test.get('classname', 'unknown')}.{test.get('name', 'unknown')} \n"

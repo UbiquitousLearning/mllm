@@ -16,5 +16,5 @@ TEST_F(CPUTest, CPURMSNorm1) {
     TEST_LOAD(&op->weight(), false);
     //    op->weight().printData<float>();
     TEST_EXCUTE({input0}, {c_output});
-    COMPARE_TENSOR(c_output.get(), output.get(), false);
+    COMPARE_TENSOR(c_output.get(), output.get(), true);
 }
