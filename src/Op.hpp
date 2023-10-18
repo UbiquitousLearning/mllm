@@ -92,6 +92,19 @@ public:
      * @return execution result
      */
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) = 0;
+
+    /**
+     * @brief perform free.
+     * @param inputs    input tensors
+     * @param outputs   output tensors
+     * @return execution result
+     */
+    virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+        for (auto &t : inputs) {
+            t->free();
+        }
+        return NO_ERROR;
+    }
     /**
      * @brief get backend.
      * @return backend.

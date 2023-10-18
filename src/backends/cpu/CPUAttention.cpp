@@ -296,4 +296,21 @@ ErrorCode CPUAttention::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector
     outputs[0]->alloc();
     return NO_ERROR;
 }
+ErrorCode CPUAttention::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    Q_proj_->free(inputs, {q_});
+    K_proj_->free(inputs, {k_});
+    V_proj_->free(inputs, {v_});
+    q_state_->free();
+    k_state_->free();
+    v_state_->free();
+    q_rope_->free({q_state_}, {q_pos_});
+    k_rope_->free({k_state_}, {k_pos_});
+    kq_matmul_->free({q_pos_, k_pos_}, {kq_});
+    scale_->free({kq_}, {kq_scale_});
+    softmax_->free({kq_scale_}, {kq_softmax_});
+    s_v_matmul_->free({kq_softmax_, v_state_}, {kq_softmax_v_});
+    kqv_state_->free();
+    O_proj_->free({kqv_state_}, outputs);
+    return Op::free(inputs, outputs);
+}
 } // namespace mllm

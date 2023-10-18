@@ -25,8 +25,9 @@ public:
         backend_(bn), host_ptr_(), capacity_(0), byte_width_(sizeof(float)) {
     }
     ~Tensor() {
-        if (host_ptr_ != nullptr) {
+        if (host_ptr_ != nullptr  && allocated_) {
             backend_->free(host_ptr_);
+            allocated_ = false;
         }
     }
     explicit Tensor(const int num, const int channels, const int height, const int width); // N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
@@ -43,6 +44,13 @@ public:
     bool reshape(const vector<int> &shape);
 
     void alloc();
+
+    void free(){
+        if (host_ptr_ != nullptr && allocated_) {
+            backend_->free(host_ptr_);
+            allocated_ = false;
+        }
+    }
 
     void update();
 
