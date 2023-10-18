@@ -78,7 +78,25 @@ void mergeCache(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, shared_ptr<Tensor>
         }
     }
 }
-
+void mask(shared_ptr<Tensor>& A){
+    int batch_size = A->batch();
+    int head_num = A->head();
+    int sequence = A->sequence();
+    int dimension = A->dimension();
+    for (int n = 0; n < batch_size; ++n) {
+        for (int h = 0; h < head_num; ++h) {
+            for (int s = 0; s < sequence; ++s) {
+                for (int d = 0; d < dimension; ++d) {
+                    double inf =  0;
+                    if(d > s) {
+                        inf = -std::numeric_limits<double>::infinity();
+                    }
+                    A->setDataAt<float>({n, h, s, d}, A->dataAt<float>({n,h,s,d})+inf);
+                }
+            }
+        }
+    }
+}
 CPUAttention::CPUAttention(Backend *bn, string opName, int embedding_size, int hidden_size, int head_size, bool multiThread) :
     Op(bn, opName) {
     // embedding_size == hidden_size *head_size !!
@@ -89,8 +107,8 @@ CPUAttention::CPUAttention(Backend *bn, string opName, int embedding_size, int h
     Q_proj_.reset(new CPULinear(bn, name() + ".wq", embedding_size_, hidden_size_ * head_size_, false, false));
     K_proj_.reset(new CPULinear(bn, name() + ".wk", embedding_size_, hidden_size_ * head_size_, false, false));
     V_proj_.reset(new CPULinear(bn, name() + ".wv", embedding_size_, hidden_size_ * head_size_, false, false));
-    q_rope_.reset(new CPURoPE(bn,name() + ".q_rope", true, false));
-    k_rope_.reset(new CPURoPE(bn, name() + ".k_rope", true, false));
+    q_rope_.reset(new CPURoPE(bn,name() + ".q_rope", false, false));
+    k_rope_.reset(new CPURoPE(bn, name() + ".k_rope", false, false));
     kq_matmul_.reset(new CPUMatmul(bn, name() + ".kq_matmul", false, true, false));
     scale_.reset(new CPUScale(bn, name() + ".scale", 1/std::sqrt(hidden_size), 0.0, true, false));
     softmax_.reset(new CPUSoftMax(bn, name() + ".softmax", 3, false));
@@ -216,6 +234,10 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     kq_matmul_->execute(kq_input, {kq_});
     // scale
     scale_->execute({kq_}, {kq_scale_});
+    //Mask
+    if(inputs[0]->sequence()>1){
+        mask(kq_scale_);
+    }
     // softmax
     softmax_->execute({kq_scale_}, {kq_softmax_});
     // v cache
@@ -251,6 +273,10 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     return NO_ERROR;
 }
 ErrorCode CPUAttention::load(ParamLoader &loader) {
+    Q_proj_->load(loader);
+    K_proj_->load(loader);
+    V_proj_->load(loader);
+    O_proj_->load(loader);
     return Op::load(loader);
 }
 ErrorCode CPUAttention::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

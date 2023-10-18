@@ -49,7 +49,7 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
         auto &g = net_->subGraph()[name];
         std::cout << name << " execute" << std::endl;
         result_ = g->forward();
-        result_[0]->printData<float>();
+        //result_[0]->printData<float>();
         std::cout << result_[0]->name() << "'s shape:  [" << result_[0]->shape(0) << "," << result_[0]->shape(1) << "," << result_[0]->shape(2) << "," << result_[0]->shape(3) << "]" << std::endl;
     }
 }
