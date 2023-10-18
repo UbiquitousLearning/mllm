@@ -21,7 +21,7 @@ jobs:
       - run: cd test && pip install -r requirements.txt
       - name: Build
         run: |
-          cmake -DTEST=on . && cmake  --build .
+          cmake -DTEST=on -Bbuild && cmake --build build --target all
       - name: Make Data
         run:
           cd test && bash test.sh
