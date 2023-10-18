@@ -29,7 +29,7 @@ jobs:
         uses: gacts/run-and-post-run@v1
         with:
           working-directory: bin
-          run: ./MLLM_TEST --gtest_output=json
+          run: ls && ./MLLM_TEST --gtest_output=json
           post: |
             COMMIT_MESSAGE="$(git show -s --format=%s)" python3 ../tools/ci/report.py
           
