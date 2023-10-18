@@ -8,22 +8,29 @@ namespace mllm {
 
 class CPURMSNorm final : public Op {
 public:
-    CPURMSNorm(Backend *bn, bool multiThread);
+    CPURMSNorm(Backend *bn, string opName, bool multiThread, float epsilon = 1e-5);
     virtual ~CPURMSNorm() = default;
-    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
-    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
-    virtual ErrorCode execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
     virtual ErrorCode load(ParamLoader &loader) override;
+    Tensor &weight() {
+        return weight_;
+    }
 
 private:
     bool support_multi_thread_ = false;
+    float epsilon_;
+    int axis_ = 1;
+    Tensor weight_;
+    // Tensor bias_;
 };
 
 class CPURMSNormCreator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn) const {
-        return new CPURMSNorm(bn, false);
+    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+        return new CPURMSNorm(bn, name, false);
     }
 };
 } // namespace mllm

@@ -9,18 +9,17 @@ namespace mllm {
 class Tensor;
 class CPUMatmul final : public Op {
 public:
-    CPUMatmul(Backend *bn, bool transposeA, bool transposeB, bool transposeC, bool multiThread);
+    CPUMatmul(Backend *bn, string opName, bool transpose0, bool transpose1, bool multiThread);
     virtual ~CPUMatmul() = default;
-    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
-    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
-    virtual ErrorCode execute(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
     virtual ErrorCode load(ParamLoader &loader) override;
 
 private:
-    bool transposeA_;
-    bool transposeB_;
-    bool transposeC_;
+    bool transpose0_;
+    bool transpose1_;
     bool support_multi_thread_ = false;
 };
 
@@ -30,8 +29,8 @@ public:
     //                                 OpParam op_param, Backend* backend) const  {
     //     return new CPUMatmul(backend, false, false, false, false);
     // }
-    virtual Op *create(OpParam op_param, Backend *bn) const {
-        return new CPUMatmul(bn, false, false, false, false);
+    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+        return new CPUMatmul(bn, name, false, false, false);
     }
 };
 

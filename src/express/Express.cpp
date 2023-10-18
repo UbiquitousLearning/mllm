@@ -207,7 +207,7 @@ NetTensor *_RoPE(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     return out_tensor;
 }
 
-NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale,string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "Scale" + std::to_string(ctx->idx);
@@ -218,6 +218,9 @@ NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::SCALE)
+    net_op_->param["scale"] = scale;
+    net_op_->param["bias"] = bias;
+    net_op_->param["bias_after_scale"] = (int)bias_after_scale;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;
@@ -242,6 +245,57 @@ NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_feature
     return out_tensor;
 }
 
+NetTensor *_Attention(Context *ctx, std::vector<NetTensor *> inputs, int embedding_size, int hidden_size, int head_size, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Attention" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::ATTENTION)
+    net_op_->param["embedding_size"] = embedding_size;
+    net_op_->param["hidden_size"] = hidden_size;
+    net_op_->param["head_size"] = head_size;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+NetTensor *_Embedding(Context *ctx, std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Embedding" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::EMBEDDING)
+    net_op_->param["hidden_size"] = hidden_size;
+    net_op_->param["vocab_size"] = vocab_size;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+NetTensor *_Dot(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+    // TODO:Check
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Dot" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::DOT)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }

@@ -26,24 +26,6 @@
  * Weights File Structure
  */
 
-static int readInt(FILE *fp_) {
-    int tmp;
-    fread(&tmp, sizeof(int), 1, fp_);
-    return tmp;
-}
-static uint64_t readu64(FILE *fp_) {
-    uint64_t tmp;
-    fread(&tmp, sizeof(uint64_t), 1, fp_);
-    return tmp;
-}
-static std::string readString(FILE *fp_) {
-    int len = readInt(fp_);
-    char *tmp = new char[len];
-    fread(tmp, sizeof(char), len, fp_);
-    std::string str(tmp);
-    delete[] tmp;
-    return str;
-}
 namespace mllm {
 bool ParamLoader::load(mllm::Tensor *tensor) {
     string name = tensor->name();
@@ -51,7 +33,7 @@ bool ParamLoader::load(mllm::Tensor *tensor) {
     if (offsets_.find(name) == offsets_.end()) {
         return false;
     }
-    std::pair<uint8_t, uint8_t> offset = offsets_[name];
+    std::pair<uint64_t, uint64_t> offset = offsets_[name];
     uint8_t *data = new uint8_t[offset.second];
     fseek(fp_, offset.first, SEEK_SET);
     fread(data, sizeof(uint8_t), offset.second, fp_);
@@ -95,6 +77,7 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
         uint64_t length = readu64(fp_);
         uint64_t offset = readu64(fp_);
         offsets_[name] = std::make_pair(offset, length);
+        // std::cout<<name<<"   length:"<<length<<std::endl;
         data_type_[name] = readInt(fp_);
     }
 // int len = sizeof(int);
@@ -109,5 +92,8 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
 // }
 #endif
     // std::cout << "load param file success" << std::endl;
+}
+bool ParamLoader::load(std::shared_ptr<mllm::Tensor> tensor) {
+    return load(tensor.get());
 }
 } // namespace mllm

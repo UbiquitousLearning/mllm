@@ -14,7 +14,7 @@ public:
     public:
         // virtual Op* Create(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
         //                             OpParam op_param, Backend* backend) const = 0;
-        virtual Op *create(OpParam op_param, Backend *bn) const = 0;
+        virtual Op *create(OpParam op_param, Backend *bn, string name) const = 0;
     };
     void initCreatorMap() {
         map_creator_ = new std::map<OpType, CPUBackend::Creator *>;
@@ -32,7 +32,7 @@ public:
     // virtual Op* OpCreate(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
     //                             OpParam op_param) override;
 
-    virtual Op *opCreate(const OpParam &op_param) override;
+    virtual Op *opCreate(const OpParam &op_param, string name) override;
 
     virtual void registerOps() override;
 

@@ -15,7 +15,8 @@ Checks: >
   -readability-braces-around-statements,
   -readability-magic-numbers,
   -readability-identifier-length,
-  -readability-avoid-const-params-in-decls
+  -readability-avoid-const-params-in-,
+  -readability-function-cognitive-complexity
 
 
 # Turn all the warnings from the checks above into errors.

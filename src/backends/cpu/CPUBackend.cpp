@@ -9,6 +9,9 @@
 #include "CPUSiLU.hpp"
 #include "CPUSoftMax.hpp"
 #include "CPULinear.hpp"
+#include "CPUAttention.hpp"
+#include "CPUEmbedding.hpp"
+#include "CPUDot.hpp"
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
     Backend(mm) {
@@ -20,7 +23,7 @@ CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
 //     return map_creator_->find(optype)->second->Create(inputs, outputs, optype, this);
 //     // return nullptr;
 // }
-Op *CPUBackend::opCreate(const OpParam &op_param) {
+Op *CPUBackend::opCreate(const OpParam &op_param, string name) {
     OpType optype = OpType(op_param.find("type")->second);
     auto *map = map_creator_;
     auto iter = map->find(optype);
@@ -29,7 +32,7 @@ Op *CPUBackend::opCreate(const OpParam &op_param) {
         return nullptr;
     }
     Op *exe = nullptr;
-    exe = iter->second->create(op_param, this);
+    exe = iter->second->create(op_param, this, name);
     return exe;
     // return nullptr;
 }
@@ -58,6 +61,9 @@ void CPUBackend::registerOps() {
     addCreator(SILU, (CPUBackend::Creator *)(new CPUSiLUCreator()));
     addCreator(SOFTMAX, (CPUBackend::Creator *)(new CPUSoftMaxCreator()));
     addCreator(LINEAR, (CPUBackend::Creator *)(new CPULinearCreator()));
+    addCreator(ATTENTION, (CPUBackend::Creator *)(new CPUAttentionCreator()));
+    addCreator(EMBEDDING, (CPUBackend::Creator *)(new CPUEmbeddingCreator()));
+    addCreator(DOT, (CPUBackend::Creator *)(new CPUDotCreator()));
 }
 
 } // namespace mllm

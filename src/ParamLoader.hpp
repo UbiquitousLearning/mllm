@@ -10,7 +10,38 @@
 
 namespace mllm {
 class Tensor;
-
+static int readInt(FILE *fp_) {
+    int tmp;
+    fread(&tmp, sizeof(int), 1, fp_);
+    return tmp;
+}
+static uint64_t readu64(FILE *fp_) {
+    uint64_t tmp;
+    fread(&tmp, sizeof(uint64_t), 1, fp_);
+    return tmp;
+}
+static float readf32(FILE *fp_) {
+    float tmp;
+    fread(&tmp, sizeof(float), 1, fp_);
+    return tmp;
+}
+static double readf64(FILE *fp_) {
+    double tmp;
+    fread(&tmp, sizeof(double), 1, fp_);
+    return tmp;
+}
+static std::string readString(FILE *fp_) {
+    int len = readInt(fp_);
+    char *tmp = new char[len + 1];
+    fread(tmp, sizeof(char), len, fp_);
+    tmp[len] = '\0';
+    std::string str(tmp);
+    if (len == 0) {
+        str = "";
+    }
+    delete[] tmp;
+    return str;
+}
 #define _MAGIC_NUMBER 20012
 class ParamLoader {
 public:
@@ -20,6 +51,7 @@ public:
 #endif
     ~ParamLoader();
     bool load(mllm::Tensor *tensor);
+    bool load(std::shared_ptr<mllm::Tensor> tensor);
 
 private:
     FILE *fp_;

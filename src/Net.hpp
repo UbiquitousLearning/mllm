@@ -16,10 +16,22 @@ public:
 
     void convert();
 
+    void reshapeInput();
+    void reshapeInput(vector<int> shape);
+    void setInput();
+
     unordered_map<string, shared_ptr<Graph>> &subGraph() {
         return subGraphs_;
     }
-
+    unordered_map<string, shared_ptr<Tensor>> &tensors() {
+        return tensors_;
+    }
+    vector<NetParameter> &netParam() {
+        return net_param_;
+    }
+    unordered_map<BackendType, Backend *> &backends() {
+        return backends_;
+    }
 private:
     vector<NetParameter> net_param_;
     unordered_map<string, shared_ptr<Graph>> subGraphs_;
@@ -28,7 +40,7 @@ private:
     unordered_map<string, shared_ptr<Tensor>> tensors_;
     vector<NetOp *> ops_;
     unordered_map<BackendType, Backend *> backends_;
-    ParamLoader *data_loader_;
+    //    ParamLoader *data_loader_;
 };
 
 } // namespace mllm

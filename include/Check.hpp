@@ -12,10 +12,13 @@
 #define LOG_IF(condition) \
     static_cast<void>(0), \
         !(condition) ? (void)0 : COMPACT_GOOGLE_LOG_FATAL
-
+#define COUT_ERROR(condition) \
+    std::cout << "Check failed: " #condition " " << std::endl
 #define CHECK(condition)     \
     if (!PREDICT(condition)) \
-    std::cout << "Check failed: " #condition " " << std::endl
+    COUT_ERROR(condition)
+
+//    std::cout << "Check failed: " #condition " " << std::endl
 
 // void CHECK(condition)  \
 //     //   LOG_IF(GOOGLE_PREDICT_BRANCH_NOT_TAKEN(!(condition))) \
