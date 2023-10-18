@@ -27,3 +27,4 @@ if __name__ == '__main__':
                     if len(test.get("failures", [])) > 0:
                         failures = test.get("failures", [])
                         message += f"❌ {test.get('classname', 'unknown')}.{test.get('name', 'unknown')} \n"
+            fs.notify(message)
