@@ -70,10 +70,13 @@ if (TEST)
 
     include(GoogleTest)
     gtest_discover_tests(MLLM_TEST)
-else ()
+    #else ()
     #    No Unit Test.
     add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}
-           )
+            src/tokenizers/Tokenizer.cpp
+            src/tokenizers/Tokenizer.hpp
+            src/tokenizers/BPE/Bpe.cpp
+            src/tokenizers/BPE/Bpe.hpp)
     target_link_libraries(${TEST_EXE} MLLM_CPU)
 endif ()
 

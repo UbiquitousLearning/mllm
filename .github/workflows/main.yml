@@ -1,0 +1,38 @@
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop-lx
+name: "Tests"
+jobs:
+  gtest:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+        with:
+          submodules: true
+      - name: Prepare Env
+        run: |
+          cd test
+          pip -r requirements.txt
+      - name: Build
+        run: |
+          cmake -DTEST=on . && cmake  --build .
+      - name: Make Data
+        run:
+          cd test
+          python3 Test.py
+      - name: Test
+        uses: gacts/run-and-post-run@v1
+        with:
+          working-directory: bin
+          run: ./MLLM_TEST --gtest_output=json
+          post: |
+            COMMIT_MESSAGE="$(git show -s --format=%s)" python3 ../tools/ci/report.py
+          
+        
+
+    

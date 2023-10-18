@@ -1,3 +1,4 @@
+import json
 import os
 
 import requests
@@ -14,6 +15,14 @@ class Feishu:
             return
         url = f'https://open.feishu.cn/open-apis/bot/v2/hook/{self.env_token}'
         if self.at_ is not None:
-            self.pre_str += f'@{self.at_} \n'
+            try:
+                at_s = json.loads(self.at_)
+                commit_user = os.environ.get("GITHUB_ACTOR", "")
+                if commit_user != "":
+                    print("Actor: ", commit_user)
+                    user_id = at_s[commit_user]
+                    self.pre_str += f' <at user_id="{user_id}">{commit_user}</at> '
+            except:
+                pass
         print(message)
         requests.post(url, json={"msg_type": "text", "content": {"text": self.pre_str + message}}, )
