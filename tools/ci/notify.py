@@ -11,6 +11,7 @@ class Feishu:
         self.pre_str = "#MLLM_CI# "
 
     def notify(self, message: str):
+        print(message)
         if self.env_token is None:
             return
         url = f'https://open.feishu.cn/open-apis/bot/v2/hook/{self.env_token}'
@@ -22,7 +23,7 @@ class Feishu:
                     print("Actor: ", commit_user)
                     user_id = at_s[commit_user]
                     self.pre_str += f' <at user_id="{user_id}">{commit_user}</at> '
-            except:
-                pass
-        print(message)
-        requests.post(url, json={"msg_type": "text", "content": {"text": self.pre_str + message}}, )
+            except Exception as e:
+                print(e)
+        text = requests.post(url, json={"msg_type": "text", "content": {"text": self.pre_str + message}}, ).text
+        print(text)
