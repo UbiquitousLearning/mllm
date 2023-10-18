@@ -55,7 +55,7 @@ static bool isSame(Tensor *a, Tensor *b, bool unstrict = false) {
         return false;
     }
     double eps = 0.0000001;
-    bool flag = true;
+    int flag = 0;
     if (unstrict) {
         eps = 1e-5;
     }
@@ -69,13 +69,16 @@ static bool isSame(Tensor *a, Tensor *b, bool unstrict = false) {
                     if (abs(a_ - b_) / std::max(a_, b_) > eps) {
                         std::cout << std::setprecision(8) << setiosflags(std::ios::fixed | std::ios::showpoint) << "a[" << i << "," << j << "," << k << "," << l << "]: " << (double)a->dataAt<float>(i, j, k, l) << "!= b[" << i << "," << j << "," << k << "," << l << "]: " << (double)b->dataAt<float>(i, j, k, l) << std::endl;
                         //                        return false;
-                        flag = false;
+                        flag += 1;
+                        if (flag > 10) {
+                            return false;
+                        }
                     }
                 }
             }
         }
     }
-    return flag;
+    return flag == 0;
 }
 static bool isSame(shared_ptr<Tensor> a, shared_ptr<Tensor> b, bool unstrict = false) {
     return isSame(a.get(), b.get(), unstrict);

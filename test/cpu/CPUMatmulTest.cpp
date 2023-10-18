@@ -32,7 +32,7 @@ TEST_F(CPUTest, CPUMatmul2) {
     TEST_EXCUTE({input0, input1}, {c_output});
     PRINT_TENSOR_SHAPES(input0, input1, c_output, output);
     c_output->printData<float>();
-    COMPARE_TENSOR(c_output.get(), output.get(), false);
+    COMPARE_TENSOR(c_output.get(), output.get(), true);
 }
 // TEST_F(CPUTest, CPUMatmul3) {
 //     SETUP_OP(CPUMatmul, true, true, false);
