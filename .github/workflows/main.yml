@@ -1,7 +1,7 @@
 on:
   pull_request:
   workflow_dispatch:
-
+name: "Tests"
 jobs:
   gtest:
     name: Unit Tests
