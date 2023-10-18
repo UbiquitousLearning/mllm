@@ -14,5 +14,5 @@ TEST_F(CPUTest, CPUSoftMax1) {
     TEST_SETUP({input0}, {c_output});
     PRINT_TENSOR_SHAPES(input0, output, c_output);
     TEST_EXCUTE({input0}, {c_output});
-    COMPARE_TENSOR(output, c_output, false);
+    COMPARE_TENSOR(output, c_output, true);
 }

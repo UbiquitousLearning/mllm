@@ -104,7 +104,7 @@ CPUAttention::CPUAttention(Backend *bn, string opName, int embedding_size, int h
     hidden_size_ = hidden_size;
     head_size_ = head_size;
     support_multi_thread_ = multiThread;
-    Q_proj_.reset(new CPULinear(bn, name() + ".wq",embedding_size_, hidden_size_ * head_size_, false, false));
+    Q_proj_.reset(new CPULinear(bn, name() + ".wq", embedding_size_, hidden_size_ * head_size_, false, false));
     K_proj_.reset(new CPULinear(bn, name() + ".wk", embedding_size_, hidden_size_ * head_size_, false, false));
     V_proj_.reset(new CPULinear(bn, name() + ".wv", embedding_size_, hidden_size_ * head_size_, false, false));
     q_rope_.reset(new CPURoPE(bn,name() + ".q_rope", false, false));
