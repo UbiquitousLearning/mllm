@@ -24,7 +24,7 @@ jobs:
           cmake -DTEST=on . && cmake  --build .
       - name: Make Data
         run:
-          cd test && python3 Test.py
+          cd test && bash test.sh
       - name: Test
         uses: gacts/run-and-post-run@v1
         with:
