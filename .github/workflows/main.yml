@@ -1,9 +1,9 @@
 on:
   pull_request:
   workflow_dispatch:
-  push:
-    branches:
-      - develop-lx
+#  push:
+#    branches:
+#      - develop-lx
 name: "Tests"
 jobs:
   gtest:
