@@ -26,4 +26,4 @@ class Feishu:
             except Exception as e:
                 print(e)
         text = requests.post(url, json={"msg_type": "text", "content": {"text": self.pre_str + message}}, ).text
-        print(text)
+        # print(text)

@@ -5,7 +5,7 @@ from notify import Feishu
 
 commit_user = os.environ.get("GITHUB_ACTOR", "unknown")
 commit_message = os.environ.get("COMMIT_MESSAGE", "unknown")
-template = f'''\n 👶 {commit_user} \n 📝 {commit_message} \n 📦 {os.environ.get("RUNNER_NAME", "unknown")}_{os.environ.get("RUNNER_OS", 'unknown')}_{os.environ.get("RUNNER_ARCH", 'unknown')} \n 🚀 https://{os.environ.get("GITHUB_SERVER_URL", )}/{os.environ.get("GITHUB_REPOSITORY", )}/actions/runs/{os.environ.get("GITHUB_RUN_ID", )} \n'''
+template = f'''\n 👶 {commit_user} \n 📝 {commit_message} \n 📦 {os.environ.get("RUNNER_NAME", "unknown")}_{os.environ.get("RUNNER_OS", 'unknown')}_{os.environ.get("RUNNER_ARCH", 'unknown')} \n 🚀 {os.environ.get("GITHUB_SERVER_URL", )}/{os.environ.get("GITHUB_REPOSITORY", )}/actions/runs/{os.environ.get("GITHUB_RUN_ID", )} \n'''
 
 if __name__ == '__main__':
     fs = Feishu()
