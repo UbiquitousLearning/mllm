@@ -55,7 +55,7 @@ bool Tensor::reshape(const vector<int> &shape) {
 }
 
 void Tensor::alloc() {
-    if (host_ptr_ != nullptr) {
+    if (host_ptr_ != nullptr && allocated_) {
         // 如果原有内存已经分配，则释放它
         backend_->free(host_ptr_);
     }

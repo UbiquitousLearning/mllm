@@ -64,3 +64,7 @@ ErrorCode mllm::CPUEmbedding::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, 
     outputs[0]->alloc();
     return NO_ERROR;
 }
+ErrorCode mllm::CPUEmbedding::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    weight_.free();
+    return Op::free(inputs, outputs);
+}

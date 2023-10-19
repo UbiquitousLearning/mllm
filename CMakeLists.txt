@@ -74,7 +74,7 @@ if (TEST)
 
     include(GoogleTest)
     gtest_discover_tests(MLLM_TEST)
-#else ()
+    #else ()
     #    No Unit Test.
     add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}
             src/tokenizers/Tokenizer.cpp

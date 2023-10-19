@@ -6,6 +6,9 @@
 #include <string>
 #include "MemoryManager.hpp"
 #include "Backend.hpp"
+#include <iostream>
+#include <cstdio>
+#include <iomanip>
 
 const auto KMaxAxes = 32;
 
@@ -22,8 +25,9 @@ public:
         backend_(bn), host_ptr_(), capacity_(0), byte_width_(sizeof(float)) {
     }
     ~Tensor() {
-        if (host_ptr_ != nullptr) {
+        if (host_ptr_ != nullptr  && allocated_) {
             backend_->free(host_ptr_);
+            allocated_ = false;
         }
     }
     explicit Tensor(const int num, const int channels, const int height, const int width); // N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
@@ -35,15 +39,20 @@ public:
         backend_ = bn;
     };
 
-//    bool reshape(const int num, const int channels, const int height, const int width);
+    //    bool reshape(const int num, const int channels, const int height, const int width);
     bool reshape(const int batch, const int head, const int sequence, const int dimension);
     bool reshape(const vector<int> &shape);
 
     void alloc();
 
+    void free(){
+        if (host_ptr_ != nullptr && allocated_) {
+            backend_->free(host_ptr_);
+            allocated_ = false;
+        }
+    }
 
     void update();
-
 
     // Deprecated legacy shape accessor num: use shape(0) instead.
     inline int num() const {
@@ -62,7 +71,6 @@ public:
         return legacyShape(3);
     }
 
-
     inline int batch() const {
         return legacyShape(0);
     }
@@ -75,7 +83,6 @@ public:
     inline int dimension() const {
         return legacyShape(3);
     }
-
 
     inline int count() const {
         return count_;
@@ -123,21 +130,21 @@ public:
         return shape(index);
     }
 
-//    inline int offset(const int n, const int c = 0, const int h = 0,
-//                      const int w = 0) const {
-//        CHECK_GE(n, 0);
-//        CHECK_LE(n, num());
-//        CHECK_GE(channels(), 0);
-//        CHECK_LE(c, channels());
-//        CHECK_GE(height(), 0);
-//        CHECK_LE(h, height());
-//        CHECK_GE(width(), 0);
-//        CHECK_LE(w, width());
-//        return ((n * channels() + c) * height() + h) * width() + w;
-//    }
+    //    inline int offset(const int n, const int c = 0, const int h = 0,
+    //                      const int w = 0) const {
+    //        CHECK_GE(n, 0);
+    //        CHECK_LE(n, num());
+    //        CHECK_GE(channels(), 0);
+    //        CHECK_LE(c, channels());
+    //        CHECK_GE(height(), 0);
+    //        CHECK_LE(h, height());
+    //        CHECK_GE(width(), 0);
+    //        CHECK_LE(w, width());
+    //        return ((n * channels() + c) * height() + h) * width() + w;
+    //    }
     inline int offset(const int batch, const int head = 0, const int sequence = 0,
                       const int dimension = 0) const {
-        //batch, head, sequence, dimension
+        // batch, head, sequence, dimension
         CHECK_GE(batch, 0);
         CHECK_LE(batch, num());
         CHECK_GE(channels(), 0);
@@ -179,17 +186,16 @@ public:
         return (Dtype *)host_ptr_;
     }
 
-//    template <typename Dtype>
-//    Dtype dataAt(const int n, const int c, const int h, const int w) const {
-//        //        return hostPtr<Dtype>()[offset(n, c, h, w)];
-//        return ((Dtype *)host_ptr_)[offset(n, c, h, w)];
-//    }
+    //    template <typename Dtype>
+    //    Dtype dataAt(const int n, const int c, const int h, const int w) const {
+    //        //        return hostPtr<Dtype>()[offset(n, c, h, w)];
+    //        return ((Dtype *)host_ptr_)[offset(n, c, h, w)];
+    //    }
     template <typename Dtype>
     Dtype dataAt(const int batch, const int head, const int sequence, const int dimension) const {
         //        return hostPtr<Dtype>()[offset(n, c, h, w)];
         return ((Dtype *)host_ptr_)[offset(batch, head, sequence, dimension)];
     }
-
 
     template <typename Dtype>
     Dtype dataAt(const vector<int> &index) const {
@@ -197,11 +203,11 @@ public:
         return ((Dtype *)host_ptr_)[offset(index)];
     }
 
-//    template <typename Dtype>
-//    void setDataAt(const int n, const int c, const int h, const int w, Dtype value) {
-//        Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
-//        typed_ptr[offset(n, c, h, w)] = value;
-//    }
+    //    template <typename Dtype>
+    //    void setDataAt(const int n, const int c, const int h, const int w, Dtype value) {
+    //        Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
+    //        typed_ptr[offset(n, c, h, w)] = value;
+    //    }
     template <typename Dtype>
     void setDataAt(const int batch, const int head, const int sequence, const int dimension, Dtype value) {
         Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
@@ -226,7 +232,7 @@ public:
         if (N == 1 && C == 1) {
             for (int h = 0; h < H; ++h) {
                 for (int c = 0; c < W; ++c) {
-                    std::cout << dataAt<Dtype>(0, 0, h, c) << " ";
+                    std::cout << std::fixed << std::setprecision(7) << dataAt<Dtype>(0, 0, h, c) << " ";
                 }
                 std::cout << std::endl;
                 std::cout << "---------" << std::endl;
@@ -234,7 +240,7 @@ public:
         } else if (N == 1 && W == 1) {
             for (int h = 0; h < H; ++h) {
                 for (int c = 0; c < C; ++c) {
-                    std::cout << dataAt<Dtype>(0, c, h, 0) << " ";
+                    std::cout << std::fixed << std::setprecision(7) << dataAt<Dtype>(0, c, h, 0) << " ";
                 }
                 std::cout << std::endl;
             }
@@ -243,7 +249,7 @@ public:
                 for (int c = 0; c < C; ++c) {
                     for (int h = 0; h < H; ++h) {
                         for (int w = 0; w < W; ++w) {
-                            std::cout << dataAt<Dtype>(n, c, h, w) << " ";
+                            std::cout << std::fixed << std::setprecision(7) << dataAt<Dtype>(n, c, h, w) << " ";
                         }
                         std::cout << std::endl;
                     }
@@ -287,19 +293,19 @@ public:
         }
     }
 
-    void fullDataTest(){
+    void fullDataTest() {
         for (int n = 0; n < num(); ++n) {
             for (int c = 0; c < channels(); ++c) {
                 for (int h = 0; h < height(); ++h) {
                     for (int w = 0; w < width(); ++w) {
-                        setDataAt<float>(n, c, h, w, offset(n,c,h,w));
+                        setDataAt<float>(n, c, h, w, offset(n, c, h, w));
                     }
                 }
             }
         }
     }
 
-    void permute(int axis0, int axis1, int axis2, int axis3, bool copy=true);
+    void permute(int axis0, int axis1, int axis2, int axis3, bool copy = true);
 
 private:
     string name_;

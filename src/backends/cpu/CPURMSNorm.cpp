@@ -71,4 +71,8 @@ ErrorCode CPURMSNorm::load(ParamLoader &loader) {
     loader.load(&weight_);
     return Op::load(loader);
 }
+ErrorCode CPURMSNorm::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    weight_.free();
+    return Op::free(inputs, outputs);
+}
 } // namespace mllm

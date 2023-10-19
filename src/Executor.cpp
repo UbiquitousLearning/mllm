@@ -21,7 +21,7 @@ void Executor::execute(vector<int> input_size) {
         string name = "G" + std::to_string(i);
         auto &g = net_->subGraph()[name];
         std::cout << name << "execute" << std::endl;
-        result_ = g->forward();
+        result_ = g->forward(true);
         //result_[0]->printData<float>();
         std::cout << result_[0]->name() << "'s shape:  [" << result_[0]->shape(0) << "," << result_[0]->shape(1) << "," << result_[0]->shape(2) << "," << result_[0]->shape(3) << "]" << std::endl;
     }
@@ -43,13 +43,14 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
         if (data_loader_ != nullptr) {
             g->load(*data_loader_);
         }
-    }
-    for (int i = 0; i < (int)net_->subGraph().size(); ++i) {
-        string name = "G" + std::to_string(i);
-        auto &g = net_->subGraph()[name];
+//    }
+//    for (int i = 0; i < (int)net_->subGraph().size(); ++i) {
+//        string name = "G" + std::to_string(i);
+//        auto &g = net_->subGraph()[name];
         std::cout << name << " execute" << std::endl;
         result_ = g->forward();
-        result_[0]->printData<float>();
+        g->free();
+        //result_[0]->printData<float>();
         std::cout << result_[0]->name() << "'s shape:  [" << result_[0]->shape(0) << "," << result_[0]->shape(1) << "," << result_[0]->shape(2) << "," << result_[0]->shape(3) << "]" << std::endl;
     }
 }
