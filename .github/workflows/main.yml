@@ -5,6 +5,10 @@ on:
 #    branches:
 #      - develop-lx
 name: "Tests"
+permissions:
+  pull-requests: write
+  contents: read
+  id-token: write
 jobs:
   gtest:
     name: Unit Tests
