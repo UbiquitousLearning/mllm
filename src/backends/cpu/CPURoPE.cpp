@@ -121,4 +121,9 @@ ErrorCode CPURoPE::load(ParamLoader &loader) {
     std::cout << name() << "  CPURoPE load" << std::endl;
     return NO_ERROR;
 }
+ErrorCode CPURoPE::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    sin_.free();
+    cos_.free();
+    return Op::free(inputs, outputs);
+}
 } // namespace mllm

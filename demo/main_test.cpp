@@ -100,7 +100,7 @@ int main() {
     auto *i = _Input(c);
     i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"tok_embeddings");
     // loop
-    for(int layer=0; layer<1; ++layer) {
+    for(int layer=0; layer<32; ++layer) {
         auto *x = _RMSNorm(c, {i}, (string)"layers."+std::to_string(layer)+".attention_norm");
         x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
         auto *j = _Add(c, {x, i});
@@ -111,6 +111,7 @@ int main() {
         x = _Dot(c, {x, y});
         x = _Linear(c, {x}, ffn_hidden_dim, hidden_dim, false, (string)"layers."+std::to_string(layer)+".feed_forward.w2");
         i = _Add(c, {x, j});
+        _SubgraphBegin(c);
     }
     // end loop
     i = _RMSNorm(c, {i}, (string)"norm");
@@ -128,7 +129,7 @@ int main() {
     token2Tensor(input, net, tokens_id);
     ex.execute(input);
     auto result = ex.result();
-    //result[0]->printData<float>();
+//    result[0]->printData<float>();
     auto token_idx = postProcessing(result[0], input);
     std::cout<<"OUT TOKEN: "<<token_idx<<"|    "<< tokenizer.detokenize({token_idx}) << std::endl;
     /*

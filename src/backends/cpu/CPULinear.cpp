@@ -110,5 +110,10 @@ ErrorCode CPULinear::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<sh
     outputs[0]->alloc();
     return NO_ERROR;
 }
+ErrorCode CPULinear::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    weight_.free();
+    bias_.free();
+    return Op::free(inputs, outputs);
+}
 
 } // namespace mllm

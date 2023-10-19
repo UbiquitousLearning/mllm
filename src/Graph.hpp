@@ -36,9 +36,11 @@ public:
      * @brief 前行传播
      */
     // const  vector<shared_ptr<Tensor>>& forward();
-    const vector<shared_ptr<Tensor>> &forward();
+    const vector<shared_ptr<Tensor>> &forward(bool autofree = false);
     // set input blobs then use forward() instead.
     const vector<shared_ptr<Tensor>> &forward(const vector<shared_ptr<Tensor>> &inTensors);
+
+    void free();
 
     const vector<shared_ptr<Tensor>> &inputTensors();
     const vector<shared_ptr<Tensor>> &outputTensors();
