@@ -16,5 +16,5 @@ TEST_F(CPUTest, CPURoPE1) {
     TEST_SETUP({input0}, {c_output});
     TEST_EXCUTE({input0}, {c_output});
     PRINT_TENSOR_SHAPES(input0, c_output, output);
-    COMPARE_TENSOR(output, c_output);
+    COMPARE_TENSOR(output, c_output, true);
 }
