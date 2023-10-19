@@ -1,4 +1,5 @@
 #include "MemoryManager.hpp"
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <unordered_map>
@@ -7,9 +8,9 @@
 using std::unordered_map;
 using std::uint64_t;
 using std::list;
-
 #ifndef MLLM_MEMORY_POOL_H
 #define MLLM_MEMORY_POOL_H
+#define MLLM_ALLOCATOR_DEBUG
 
 
 namespace mllm {
@@ -35,7 +36,9 @@ public:
     void free(void *ptr) override;
 
 #ifdef MLLM_ALLOCATOR_DEBUG
-    unordered_map<void*,size_t>& allocate_pointers;
+    void display();
+    unordered_map<uint64_t,size_t> debug_free_blocks;
+    unordered_map<uint64_t,size_t> debug_allocate_blocks;
 #endif
 
 private:
@@ -46,6 +49,12 @@ private:
     list<struct FreeBlock> free_blocks_;
     unordered_map<uint64_t, size_t> block_size_;
 };
+
+inline size_t aligned_offset(size_t offset,size_t alignment){
+    assert(alignment && !(alignment & (alignment - 1)));
+    auto align = ((alignment - ( offset % alignment))) % alignment;
+    return offset + align;
+}
 
 } // namespace mllm
 #endif // MLLM_MEMORY_POOL_H

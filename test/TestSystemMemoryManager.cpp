@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdio>
+
 using mllm::SystemMemoryManager;
 
 void test_batch_allocate(size_t alloc_times,size_t size,size_t alignment){
@@ -20,23 +21,23 @@ void test_batch_allocate(size_t alloc_times,size_t size,size_t alignment){
 
 }
 
-// int main(){
-//     void* ptr ;
+int main(){
+    void* ptr ;
 
-//     /**
-//     * test allocate
-//     */
+    /**
+    * test allocate
+    */
     
-//     test_batch_allocate(100,256,16);
-//     test_batch_allocate(100,256,4);
-//     test_batch_allocate(100,256,8);
-//     test_batch_allocate(100,256,32);
+    test_batch_allocate(100,256,16);
+    test_batch_allocate(100,256,4);
+    test_batch_allocate(100,256,8);
+    test_batch_allocate(100,256,32);
 
-//     test_batch_allocate(100,257,8);
-//     test_batch_allocate(100,257,16);
-//     test_batch_allocate(100,257,4);
-//     test_batch_allocate(100,257,8);
-//     test_batch_allocate(100,257,32);
+    test_batch_allocate(100,257,8);
+    test_batch_allocate(100,257,16);
+    test_batch_allocate(100,257,4);
+    test_batch_allocate(100,257,8);
+    test_batch_allocate(100,257,32);
 
-//     return 0;
-// }
+    return 0;
+}

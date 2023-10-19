@@ -54,6 +54,10 @@ if (TEST)
             ${CMAKE_CURRENT_LIST_DIR}/test/*.cpp
             ${CMAKE_CURRENT_LIST_DIR}/test/*.hpp
     )
+    list(REMOVE_ITEM MLLM_TEST ${CMAKE_CURRENT_LIST_DIR}/test/TestSystemMemoryManager.cpp)
+    list(REMOVE_ITEM MLLM_TEST ${CMAKE_CURRENT_LIST_DIR}/test/TestMemoryPoolManager.cpp)
+
+    
     message(STATUS "MLLM_TEST: ${MLLM_TEST}")
     add_executable(
             MLLM_TEST
@@ -67,7 +71,11 @@ if (TEST)
             GTest::gtest_main
             MLLM_CPU
     )
-
+    add_executable(
+        memoryPoolTest
+        ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp
+        ${DIR_SRC_MEM_MANAGER}  ${PROJECT_SOURCE_DIR}/src/MemoryManager.hpp
+    )
     include(GoogleTest)
     gtest_discover_tests(MLLM_TEST)
 # else ()
