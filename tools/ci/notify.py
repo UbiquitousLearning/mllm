@@ -35,7 +35,7 @@ class PRComment:
         self.enable = "request" in os.environ.get('GITHUB_EVENT_NAME', "")
         self.pr_number = os.environ.get('PR_NUMBER', None)
         self.repo = os.environ.get('GITHUB_REPOSITORY', None)
-        self.endpoint = os.environ.get('GITHUB_SERVER_URL', None)
+        self.endpoint = os.environ.get('GITHUB_API_URL', None)
 
     def notify(self, message: str):
         if self.token is None or self.enable is False or self.pr_number is None:
