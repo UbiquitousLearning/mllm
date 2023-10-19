@@ -18,10 +18,11 @@ namespace mllm {
 struct FreeBlock{
     void* addr;
     size_t size;
+    FreeBlock(void*addr,size_t size):addr(addr),size(size){}
 };
 
 /**
- * 内存管理类 mem pool ... TODO 管理HostMemory
+ * 内存管理类 mem pool .
  */
 class MemoryPoolManager : public MemoryManager{
 public:
@@ -31,7 +32,11 @@ public:
 
     void alloc(void **ptr, size_t size,size_t alignment) override;
 
-    void free(void **ptr) override;
+    void free(void *ptr) override;
+
+#ifdef MLLM_ALLOCATOR_DEBUG
+    unordered_map<void*,size_t>& allocate_pointers;
+#endif
 
 private:
     // memory buffer
@@ -40,10 +45,6 @@ private:
     size_t base_alignment_;
     list<struct FreeBlock> free_blocks_;
     unordered_map<uint64_t, size_t> block_size_;
-
-    #ifdef MLLM_ALLOCATOR_DEBUG
-
-    #endif
 };
 
 } // namespace mllm

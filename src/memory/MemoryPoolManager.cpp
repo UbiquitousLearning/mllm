@@ -1,4 +1,5 @@
 #include "MemoryPoolManager.hpp"
+#include "MemoryManager.hpp"
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -17,6 +18,9 @@ namespace mllm {
         data_(nullptr),
         n_free_blocks_(0),
         base_alignment_(base_alignment)
+        #ifdef MLLM_ALLOCATOR_DEBUG
+        ,allocate_pointers(block_size_)
+        #endif
     {
         data_ = std::aligned_alloc(base_alignment,pool_size);
         n_free_blocks_ += 1;
@@ -64,10 +68,10 @@ namespace mllm {
         }
     }
 
-    void MemoryPoolManager::free(void **ptr){
+    void MemoryPoolManager::free(void *ptr){
         size_t size = 0;
         assert(ptr != nullptr);
-        auto ptr_addr = (uint64_t)*ptr;
+        auto ptr_addr = (uint64_t)ptr;
 
         if (auto iter = block_size_.find(ptr_addr);iter != block_size_.end()){
             size = iter->second;
@@ -113,14 +117,17 @@ namespace mllm {
         bool inserted = false;
         for(auto iter = free_blocks_.begin();iter!=free_blocks_.end();iter++){
             if((uint64_t)iter->addr >= ptr_addr){
-                free_blocks_.insert(iter,FreeBlock{*ptr,size});
+                free_blocks_.insert(iter,FreeBlock{ptr,size});
                 inserted = true;
                 break;
             }
         }
         if (!inserted){
-            free_blocks_.emplace_back(*ptr,size);
+            free_blocks_.emplace_back(ptr,size);
         }
         n_free_blocks_++;
+    }
+    MemoryPoolManager::~MemoryPoolManager(){
+        free(data_);
     }
 }

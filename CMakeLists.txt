@@ -53,15 +53,15 @@ if (TEST)
     file(GLOB_RECURSE MLLM_TEST
             ${CMAKE_CURRENT_LIST_DIR}/test/*.cpp
             ${CMAKE_CURRENT_LIST_DIR}/test/*.hpp
-
     )
     message(STATUS "MLLM_TEST: ${MLLM_TEST}")
     add_executable(
             MLLM_TEST
             ${PROJECT_SOURCE_DIR}/test/main.cpp
             ${MLLM_TEST}
-            ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}
+            ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP}  ${DIR_SRC} 
     )
+
     target_link_libraries(
             MLLM_TEST
             GTest::gtest_main
@@ -70,9 +70,9 @@ if (TEST)
 
     include(GoogleTest)
     gtest_discover_tests(MLLM_TEST)
-#else ()
+# else ()
     #    No Unit Test.
-    add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}
+    add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
             src/tokenizers/Tokenizer.cpp
             src/tokenizers/Tokenizer.hpp
             src/tokenizers/BPE/Bpe.cpp

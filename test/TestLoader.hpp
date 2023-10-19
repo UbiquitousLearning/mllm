@@ -8,6 +8,7 @@
 #include "Op.hpp"
 #include "gtest/gtest.h"
 using std::string;
+using namespace std;
 namespace mllm {
 // For serialize and deserialize Tensor in test.
 // Separate from ParamLoader, since we do not use Index here.

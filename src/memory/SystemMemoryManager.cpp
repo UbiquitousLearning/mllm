@@ -24,9 +24,8 @@ void SystemMemoryManager::alloc(void **ptr, size_t size,size_t alignment){
     *ptr = aligned;
 }
 
-void SystemMemoryManager::free(void **ptr){
-    ::free(((void**)(*ptr))[-1]);
-    *ptr = nullptr;
+void SystemMemoryManager::free(void *ptr){
+    ::free(((void**)ptr)[-1]);
 }
 
 } // namespace mllm

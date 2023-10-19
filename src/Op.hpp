@@ -43,10 +43,10 @@ public:
 #ifdef TEST
         std::cout << "*Op reshape*" << std::endl;
         for (auto input:inputs) {
-            std::cout << "Input "<< input->name() <<" shape: " << input->shapeString() << std::endl;
+            std::cout << "Input "<< input->name() <<" shape: " << input->ShapeString() << std::endl;
         }
         for (auto output:outputs) {
-            std::cout << "Output "<< output->name() <<" shape: " << output->shapeString() << std::endl;
+            std::cout << "Output "<< output->name() <<" shape: " << output->ShapeString() << std::endl;
         }
         std::cout << "*Op reshape*" << std::endl;
 #endif

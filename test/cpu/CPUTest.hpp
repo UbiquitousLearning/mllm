@@ -7,6 +7,7 @@
 #include "gtest/gtest.h"
 #include "backends/cpu/CPUBackend.hpp"
 #include "TestLoader.hpp"
+#include "memory/SystemMemoryManager.hpp"
 using namespace mllm;
 #define COMPARE_TENSOR(...) ASSERT_TRUE(isSame(__VA_ARGS__))
 #define TEST_LOAD(...) ASSERT_TRUE(loader.load(__VA_ARGS__)) << "TestLoader load failed"
@@ -25,13 +26,13 @@ using namespace mllm;
     do {                                                                                                    \
         auto __tensors__ = {__VA_ARGS__};                                                                   \
         for (const auto &tensor : __tensors__) {                                                            \
-            std::cout << "Tensor " << tensor->name() << ": [" << tensor->shapeString() << "]" << std::endl; \
+            std::cout << "Tensor " << tensor->name() << ": [" << tensor->ShapeString() << "]" << std::endl; \
         }                                                                                                   \
     } while (false)
 class CPUTest : public ::testing::Test {
 public:
     CPUTest() {
-        mm_ = shared_ptr<MemoryManager>(new MemoryManager());
+        mm_ = shared_ptr<MemoryManager>(new SystemMemoryManager());
     }
     ~CPUTest() {
         std::cout << "~CPUTest()" << std::endl;
@@ -51,7 +52,7 @@ protected:
 };
 static bool isSame(Tensor *a, Tensor *b, bool unstrict = false) {
     if (a->legacyShape(0) != b->legacyShape(0) || a->legacyShape(1) != b->legacyShape(1) || a->legacyShape(2) != b->legacyShape(2) || a->legacyShape(3) != b->legacyShape(3)) {
-        std::cout << "Shape a: " << a->shapeString() << " Shape b: " << b->shapeString() << std::endl;
+        std::cout << "Shape a: " << a->ShapeString() << " Shape b: " << b->ShapeString() << std::endl;
         return false;
     }
     double eps = 0.0000001;
