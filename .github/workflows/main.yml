@@ -30,6 +30,7 @@ jobs:
         env:
           FEISHU_TOKEN: ${{ secrets.FEISHU_TOKEN }}
           FEISHU_AT: ${{ secrets.FEISHU_AT }}
+          PR_NUMBER: ${{ github.event.number }}
         with:
           working-directory: bin
           run: ls && ./MLLM_TEST --gtest_output=json

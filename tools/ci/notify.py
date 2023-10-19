@@ -27,3 +27,18 @@ class Feishu:
                 print(e)
         text = requests.post(url, json={"msg_type": "text", "content": {"text": self.pre_str + message}}, ).text
         # print(text)
+
+
+class PRComment:
+    def __init__(self):
+        self.token = os.environ.get('GITHUB_TOKEN', None)
+        self.enable = "request" in os.environ.get('GITHUB_EVENT_NAME', "")
+        self.pr_number = os.environ.get('PR_NUMBER', None)
+        self.repo = os.environ.get('GITHUB_REPOSITORY', None)
+        self.endpoint = os.environ.get('GITHUB_SERVER_URL', None)
+
+    def notify(self, message: str):
+        if self.token is None or self.enable is False or self.pr_number is None:
+            return
+        url = f'{self.endpoint}/repos/{self.repo}/pulls/{self.pr_number}/comments'
+        requests.post(url, json={"body": message}, headers={"Authorization": f"token {self.token}"}, )
