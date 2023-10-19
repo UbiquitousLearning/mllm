@@ -21,9 +21,6 @@ def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
     Returns:
         torch.Tensor: Precomputed frequency tensor with complex exponentials.
 
-
-
-
     """
     freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
     t = torch.arange(end, device=freqs.device)  # type: ignore
@@ -80,15 +77,15 @@ def apply_rotary_emb(
         Tuple[torch.Tensor, torch.Tensor]: Tuple of modified query tensor and key tensor with rotary embeddings.
     """
     xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
-    xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
+    # xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
     print(xq_.shape)
     freqs_cis = reshape_for_broadcast(freqs_cis, xq_)
     print(freqs_cis.shape)
     xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(3)
-    xk_out = torch.view_as_real(xk_ * freqs_cis).flatten(3)
-    print(xk_out.shape)
+    # xk_out = torch.view_as_real(xk_ * freqs_cis).flatten(3)
+    # print(xk_out.shape)
 
-    return xq_out.type_as(xq), xk_out.type_as(xk)
+    return xq_out.type_as(xq)
 
 
 class RoPE(torch.nn.Module):
@@ -98,10 +95,9 @@ class RoPE(torch.nn.Module):
     def forward(self, out):
         seq_len = out.shape[1]
         dim = out.shape[-1]
-        start_pos = 0
-        freqs_cis = precompute_freqs_cis(dim, seq_len * 2)
-        freqs_cis = freqs_cis[start_pos: start_pos + seq_len]
-        out, _ = apply_rotary_emb(out, out, freqs_cis)
+        freqs_cis = precompute_freqs_cis(dim, seq_len)
+        # freqs_cis = freqs_cis[start_pos: start_pos + seq_len]
+        out = apply_rotary_emb(out, out, freqs_cis)
         return out
 
 
@@ -111,6 +107,8 @@ class CPURoPE1(TestBase):
         model = RoPE()
         output = model(input0)
         print(output.shape)
+        input0 = input0.transpose(1, 2)
+        output = output.transpose(1, 2)
         self.test_done(True)
 
 

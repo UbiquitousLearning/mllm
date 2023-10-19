@@ -12,12 +12,16 @@ void sinusoidal_position_embedding(int batch_size, int nums_head, int seq_len, i
     for (int n = 0; n < batch_size; ++n) {
         for (int h = 0; h < nums_head; ++h) {
             for (int s = 0; s < seq_len; ++s) {
-                for (int d = 0; d < output_dim; ++d) {
+                for (int d = 0; d < output_dim; d += 2) {
                     int i = (int)d / 2;
                     float sin_value = std::sin(s / std::pow(10000, 2.0 * i / output_dim));
                     float cos_value = std::cos(s / std::pow(10000, 2.0 * i / output_dim));
                     sin.setDataAt<float>(n, h, s, d, sin_value);
                     cos.setDataAt<float>(n, h, s, d, cos_value);
+                    if (d + 1 < output_dim) {
+                        sin.setDataAt<float>(n, h, s, d + 1, sin_value);
+                        cos.setDataAt<float>(n, h, s, d + 1, cos_value);
+                    }
                 }
             }
         }
@@ -31,7 +35,7 @@ void sinusoidal_position_embedding_hf(int batch_size, int nums_head, int seq_len
     for (int n = 0; n < batch_size; ++n) {
         for (int h = 0; h < nums_head; ++h) {
             for (int s = 0; s < seq_len; ++s) {
-                for (int d = 0; d < output_dim; ++d) {
+                for (int d = 0; d < output_dim; d += 2) {
                     int i = (int)d;
                     if (d >= (int)output_dim / 2) {
                         i = (int)(d - output_dim / 2);
@@ -40,6 +44,10 @@ void sinusoidal_position_embedding_hf(int batch_size, int nums_head, int seq_len
                     float cos_value = std::cos(s / std::pow(10000, 2.0 * i / output_dim));
                     sin.setDataAt<float>(n, h, s, d, sin_value);
                     cos.setDataAt<float>(n, h, s, d, cos_value);
+                    if (d + 1 < output_dim) {
+                        sin.setDataAt<float>(n, h, s, d + 1, sin_value);
+                        cos.setDataAt<float>(n, h, s, d + 1, cos_value);
+                    }
                 }
             }
         }

@@ -66,9 +66,10 @@ static bool isSame(Tensor *a, Tensor *b, bool unstrict = false) {
                     double a_ = a->dataAt<float>({i, j, k, l});
                     double b_ = b->dataAt<float>({i, j, k, l});
                     //                     if ((a_ < b_) || (a_ > b_)) {
-                    if (abs(a_ - b_) / std::max(a_, b_) > eps) {
+                    if ((abs(a_ - b_) / std::max(a_, b_)) > eps) {
                         std::cout << std::setprecision(8) << setiosflags(std::ios::fixed | std::ios::showpoint) << "a[" << i << "," << j << "," << k << "," << l << "]: " << (double)a->dataAt<float>(i, j, k, l) << "!= b[" << i << "," << j << "," << k << "," << l << "]: " << (double)b->dataAt<float>(i, j, k, l) << std::endl;
                         //                        return false;
+                        std::cout << std::setprecision(8) << setiosflags(std::ios::fixed | std::ios::showpoint) << "Diff:" << abs(a_ - b_) / std::max(a_, b_) << std::endl;
                         flag += 1;
                         if (flag > 10) {
                             return false;
