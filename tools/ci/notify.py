@@ -40,5 +40,5 @@ class PRComment:
     def notify(self, message: str):
         if self.token is None or self.enable is False or self.pr_number is None:
             return
-        url = f'{self.endpoint}/repos/{self.repo}/pulls/{self.pr_number}/comments'
-        requests.post(url, json={"body": message}, headers={"Authorization": f"token {self.token}"}, )
+        url = f'{self.endpoint}/repos/{self.repo}/issues/{self.pr_number}/comments'
+        print(requests.post(url, json={"body": message}, headers={"Authorization": f"token {self.token}"}, ).text)
