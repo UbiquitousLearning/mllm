@@ -100,9 +100,9 @@ public:
      * @return execution result
      */
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-        for (auto &t : inputs) {
-            t->free();
-        }
+//        for (auto &t : inputs) {
+//            t->free();
+//        }
         return NO_ERROR;
     }
     /**

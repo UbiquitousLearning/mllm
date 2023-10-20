@@ -193,5 +193,8 @@ void Graph::free() {
         string lname = net_op->name;
         ops_[lname]->free(ops_input_tensors_[lname], ops_output_tensors_[lname]);
     }
+    for(auto& t: tensors_){
+        t.second->free();
+    }
 }
 } // namespace mllm
