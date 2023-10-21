@@ -1,7 +1,7 @@
 import json
 import os
 
-from notify import Feishu
+from notify import Feishu, PRComment
 
 commit_user = os.environ.get("GITHUB_ACTOR", "unknown")
 commit_message = os.environ.get("COMMIT_MESSAGE", "unknown")
@@ -28,3 +28,4 @@ if __name__ == '__main__':
                         failures = test.get("failures", [])
                         message += f"   ❌ {test.get('classname', 'unknown')}.{test.get('name', 'unknown')} \n"
             fs.notify(message)
+            PRComment().notify(message)

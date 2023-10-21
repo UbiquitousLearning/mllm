@@ -25,15 +25,24 @@ Net::Net(const vector<NetParameter> &param, BackendConfig config) :
     tensors_[in_tensor->name]->setName(in_tensor->name);
     tensors_[in_tensor->name]->setByteWidth(sizeof(float));
     // tensors_[in_tensor->name]->setBackend(backends_[BackendType::MLLM_CPU]);
-//    tensors_[in_tensor->name]->reshape(in_tensor->shape[0], in_tensor->shape[1], in_tensor->shape[2], in_tensor->shape[3]);
+    //    tensors_[in_tensor->name]->reshape(in_tensor->shape[0], in_tensor->shape[1], in_tensor->shape[2], in_tensor->shape[3]);
     for (auto &sub_param : net_param_) {
+        vector<string> names = {};
         auto net_in_tensor = sub_param.net_inputs;
         for (const auto &out_t : net_in_tensor) {
             tensors_[out_t->name] = std::make_shared<Tensor>(backends_[BackendType::MLLM_CPU]);
             tensors_[out_t->name]->setName(out_t->name);
-            // tensors_[in_tensor->name]->SetByteWidth(sizeof(float));
+            tensors_[out_t->name]->setByteWidth(sizeof(float));
+            for (auto &tensor_name : tensor_names_) {
+                tensor_name.erase(std::remove(tensor_name.begin(), tensor_name.end(), out_t->name), tensor_name.end());
+
+            }
+            names.push_back(out_t->name);
         }
+        tensor_names_.push_back(names);
     }
+    tensor_names_[0].push_back(in_tensor->name);
+    printf("Net init\n");
 }
 
 void Net::convert() {
@@ -61,5 +70,11 @@ void Net::reshapeInput(vector<int> shape) {
 void Net::setInput() {
     auto *in_tensor = net_param_[0].net_tensors[0];
     tensors_[in_tensor->name]->fullData<float>(1);
+}
+void Net::freeTensors(int graph_idx) {
+    auto &graph_ex_tensor = tensor_names_[graph_idx];
+    for (auto &name : graph_ex_tensor) {
+        tensors_[name]->free();
+    }
 }
 } // namespace mllm
