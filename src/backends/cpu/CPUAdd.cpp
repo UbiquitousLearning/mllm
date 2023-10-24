@@ -19,7 +19,7 @@ ErrorCode CPUAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     CHECK_EQ(inputs[0]->shape(2), inputs[1]->shape(2));
     CHECK_EQ(inputs[0]->shape(3), inputs[1]->shape(3));
     outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
-
+    outputs[0]->setDtype(activationDtype());
     return Op::reshape(inputs, outputs);
 }
 

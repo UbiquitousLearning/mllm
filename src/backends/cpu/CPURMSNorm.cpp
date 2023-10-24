@@ -16,7 +16,9 @@ ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     // RMSNorm 类似于LayerNorm作用于channel维度
     weight_.reshape(1, 1, 1, inputs[0]->dimension()); // (C, 1, 1, 1)
     weight_.setName(name() + ".weight");
+    weight_.setDtype(weightsDtype());
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
+    outputs[0]->setDtype(activationDtype());
     std::cout << name() << "  CPURMSNorm  reshape" << std::endl;
     return NO_ERROR;
 }

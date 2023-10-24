@@ -9,10 +9,12 @@ public:
     Executor(Net *net) :
         net_(net), data_loader_(nullptr) {
         // nothing to do
+        init();
     }
     Executor(Net *net, ParamLoader *data_loader) :
         net_(net), data_loader_(data_loader) {
         // nothing to do
+        init();
     }
     ~Executor() = default;
 
@@ -73,6 +75,9 @@ private:
     // map<string, map<string,vector<int>>> graph_input_shapes_;
     vector<shared_ptr<Tensor>> result_;
     ParamLoader *data_loader_;
+
+    mllm_dtype weights_dtype_;
+    mllm_dtype activation_dtype_;
 };
 
 } // namespace mllm

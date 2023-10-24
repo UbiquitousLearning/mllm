@@ -9,6 +9,7 @@
 #include <iostream>
 #include <cstdio>
 #include <iomanip>
+#include "quantize/Quantize.hpp"
 
 const auto KMaxAxes = 32;
 
@@ -19,10 +20,10 @@ class Tensor {
 public:
     // Tensor():data_(), diff_(), capacity_(0){}
     Tensor() :
-        host_ptr_(), capacity_(0), byte_width_(sizeof(float)) {
+        host_ptr_(), capacity_(0), dtype_(MLLM_TYPE_F32) {
     }
     Tensor(Backend *bn) :
-        backend_(bn), host_ptr_(), capacity_(0), byte_width_(sizeof(float)) {
+        backend_(bn), host_ptr_(), capacity_(0), dtype_(MLLM_TYPE_F32) {
     }
     ~Tensor() {
         if (host_ptr_ != nullptr  && allocated_) {
@@ -38,12 +39,19 @@ public:
     void setBackend(Backend *bn) {
         backend_ = bn;
     };
+    void setDtype(mllm_dtype dtype) {
+        dtype_ = dtype;
+    }
 
     //    bool reshape(const int num, const int channels, const int height, const int width);
     bool reshape(const int batch, const int head, const int sequence, const int dimension);
     bool reshape(const vector<int> &shape);
 
     void alloc();
+    void alloc(mllm_dtype dtype) {
+        dtype_ = dtype;
+        alloc();
+    }
 
     void free(){
         if (host_ptr_ != nullptr && allocated_) {
@@ -260,13 +268,31 @@ public:
         }
     }
 
-    int byteWidth() const {
-        return byte_width_;
+    mllm_dtype dtype() const {
+        return dtype_;
     }
 
-    void setByteWidth(int bw) {
-        byte_width_ = bw;
+    int dtypeSize() const {
+        switch (dtype_) {
+        case MLLM_TYPE_F32:
+            return sizeof(float);
+        case MLLM_TYPE_F16:
+            return sizeof(short);
+        case MLLM_TYPE_I32:
+            return sizeof(int);
+        case MLLM_TYPE_I16:
+            return sizeof(short);
+        case MLLM_TYPE_I8:
+            return sizeof(char);
+        case MLLM_TYPE_Q4_0:
+            return sizeof(block_q4_0)/ QK4_0;
+        }
+//        return sizeof(float);
     }
+//
+//    void setByteWidth(int bw) {
+//        byte_width_ = bw;
+//    }
     // TODO:Name?
 
     void setName(string name) {
@@ -310,7 +336,7 @@ public:
 private:
     string name_;
     // shared_ptr<Backend> backend_;
-    int byte_width_; // 32/16/8/4 //enum
+//    int byte_width_; // 32/16/8/4 //enum
     mllm_dtype dtype_;
     Backend *backend_;
     void *host_ptr_;
