@@ -311,6 +311,7 @@ private:
     string name_;
     // shared_ptr<Backend> backend_;
     int byte_width_; // 32/16/8/4 //enum
+    mllm_dtype dtype_;
     Backend *backend_;
     void *host_ptr_;
     void *device_ptr_;
