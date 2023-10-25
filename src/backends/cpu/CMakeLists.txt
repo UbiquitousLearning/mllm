@@ -15,6 +15,8 @@ if(OpenMP_FOUND)
 else()
     message(FATAL_ERROR "openmp not found!")
 endif()
+add_compile_options(-mavx2)
+add_compile_options(-march=native)
 add_library(
     MLLM_CPU
     OBJECT

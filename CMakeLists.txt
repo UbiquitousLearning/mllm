@@ -46,7 +46,7 @@ include_directories(${PROJECT_SOURCE_DIR}/thirdpartys/include)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 add_compile_options(-mf16c)
-#add_compile_options(-mavx2)
+add_compile_options(-mavx2)
 
 if (TEST)
     add_definitions(-DTEST)
