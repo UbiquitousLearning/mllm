@@ -199,7 +199,7 @@ TestIO::~TestIO() {
     if (!write_shape(tensor->shape())) {
         return false;
     }
-    uint64_t length = tensor->count() * tensor->byteWidth();
+    uint64_t length = tensor->count() * tensor->dtypeSize();
     if (!write_u64(length)) {
         return false;
     }

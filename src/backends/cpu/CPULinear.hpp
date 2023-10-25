@@ -4,6 +4,7 @@
 #include "Op.hpp"
 #include "CPUBackend.hpp"
 #include "compute/StrassenMatmul.hpp"
+#include "compute/Matmul.hpp"
 
 namespace mllm {
 

@@ -23,7 +23,7 @@ Net::Net(const vector<NetParameter> &param, BackendConfig config) :
     auto *in_tensor = net_param_[0].net_tensors[0];
     tensors_[in_tensor->name] = std::make_shared<Tensor>(backends_[BackendType::MLLM_CPU]);
     tensors_[in_tensor->name]->setName(in_tensor->name);
-    tensors_[in_tensor->name]->setByteWidth(sizeof(float));
+//    tensors_[in_tensor->name]->setByteWidth(sizeof(float));
     // tensors_[in_tensor->name]->setBackend(backends_[BackendType::MLLM_CPU]);
     //    tensors_[in_tensor->name]->reshape(in_tensor->shape[0], in_tensor->shape[1], in_tensor->shape[2], in_tensor->shape[3]);
     for (auto &sub_param : net_param_) {
@@ -32,7 +32,7 @@ Net::Net(const vector<NetParameter> &param, BackendConfig config) :
         for (const auto &out_t : net_in_tensor) {
             tensors_[out_t->name] = std::make_shared<Tensor>(backends_[BackendType::MLLM_CPU]);
             tensors_[out_t->name]->setName(out_t->name);
-            tensors_[out_t->name]->setByteWidth(sizeof(float));
+//            tensors_[out_t->name]->setByteWidth(sizeof(float));
             for (auto &tensor_name : tensor_names_) {
                 tensor_name.erase(std::remove(tensor_name.begin(), tensor_name.end(), out_t->name), tensor_name.end());
 

@@ -59,7 +59,7 @@ void Tensor::alloc() {
         // 如果原有内存已经分配，则释放它
         backend_->free(host_ptr_);
     }
-    backend_->alloc(&host_ptr_, capacity_ * byte_width_);
+    backend_->alloc(&host_ptr_, count_ * dtypeSize());
     allocated_ = true;
 }
 
@@ -91,10 +91,16 @@ void Tensor::alloc() {
 // }
 
 void Tensor::copyFrom(const Tensor &source, bool copy_diff, bool reshape) {
+    CHECK_EQ(source.dtype(), dtype());
+    CHECK_EQ(source.count(), count());
+    // copy
+    memcpy(host_ptr_, source.host_ptr_, count_ * dtypeSize());
 }
 void Tensor::copyFrom(const shared_ptr<Tensor> &source, bool reshape) {
+    CHECK_EQ(source->dtype(), dtype());
+    CHECK_EQ(source->count(), count());
     // copy
-    memccpy(host_ptr_, source->host_ptr_, 0, count_ * byte_width_);
+    memcpy(host_ptr_, source->host_ptr_, count_ * dtypeSize());
 }
 void Tensor::permute(int axis0, int axis1, int axis2, int axis3, bool copy) {
     // 检查轴的合法性
