@@ -2,6 +2,7 @@
 #include "Net.hpp"
 #include "Executor.hpp"
 #include "NetParameter.hpp"
+#include "Types.hpp"
 #include "express/Express.hpp"
 
 using namespace mllm;
@@ -55,7 +56,7 @@ int main() {
 
     BackendConfig bn;
     Net net(c->sub_param_, bn);
-    net.convert();
+    net.convert(BackendType::MLLM_NNAPI);
 
     Executor ex(&net);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
