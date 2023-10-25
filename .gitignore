@@ -9,3 +9,11 @@ bin/
 compile_commands.json
 *.bin
 *.safetensors
+cmake-build-debug/
+cmake-build-release/
+cmake-build-*/
+CMakeFiles/
+lib/
+__pycache__/
+*.log
+_deps

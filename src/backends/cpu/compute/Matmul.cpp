@@ -3,9 +3,12 @@
 //
 
 #include "Matmul.hpp"
-#include <omp.h>
 #include <chrono>
+#ifdef __ARM_NEON
+#include "../neon/Neon.hpp"
+#endif
 
+#ifdef __AVX2__
 //  COPY FROM GGML
 #define MLLM_AVX2_
 #define __FMA__
@@ -81,6 +84,7 @@ static void vec_dot_f32_AVX2__(const int n, float * s, const float * x, const fl
 
     *s = sumf;
 }
+#endif
 
 void vec_dot_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, bool transpose0, bool transpose1, int batch, int head, int src0_inf, int sec1_outf) {
     float value = 0;
@@ -88,11 +92,14 @@ void vec_dot_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     if (transpose1 && !transpose0) {
 #ifdef MLLM_AVX2_
         vec_dot_f32_AVX2__(hid_len, &value, src0->ptrAt<float>(batch, head, src0_inf, 0), src1->ptrAt<float>(batch, head, sec1_outf, 0));
+#elif defined(__ARM_NEON)
+        vec_dot_f32_arm(hid_len, &value, src0->ptrAt<float>(batch, head, src0_inf, 0), src1->ptrAt<float>(batch, head, sec1_outf, 0));
 #else
+
         for (int k = 0; k < hid_len; k++) {
             value += src0->dataAt<float>({batch, head, src0_inf, k}) * src1->dataAt<float>({batch, head, sec1_outf, k});
         }
-        std::cout<<value1<< ", "<<value<<std::endl;
+        std::cout << value << ", " << value << std::endl;
 #endif
     } else if (transpose0 && !transpose1) {
         for (int k = 0; k < hid_len; k++) {
