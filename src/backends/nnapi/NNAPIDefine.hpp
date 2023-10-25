@@ -1,10 +1,6 @@
 #ifndef MLLM_NNAPIDEFINE_H
 #define MLLM_NNAPIDEFINE_H
 
-// for development
-#include "NNAPINeuralNetworks.h"
-#define ANDROID_API_LEVEL (android_get_device_api_level())
-
 #ifdef NNAPI_ENABLED
 #ifdef __ANDROID__
 #include "NNAPINeuralNetworks.h"

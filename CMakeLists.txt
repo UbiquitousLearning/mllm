@@ -90,6 +90,7 @@ endif ()
 
 # nnapi temp test
 if(NNAPI)
+    include(/Users/luis/Library/Android/sdk/ndk/25.1.8937393/build/cmake/android.toolchain.cmake)
     add_definitions(-DNNAPI_ENABLED)
     # TODO: better debug log
     add_definitions(-DDEBUG)

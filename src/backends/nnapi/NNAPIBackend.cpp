@@ -1,7 +1,9 @@
 #include "NNAPIBackend.hpp"
 #include "NNAPIAdd.hpp"
+#include "NNAPISymbol.hpp"
 #include "Types.hpp"
 #include <cstdint>
+#include <iostream>
 
 // TODO: float <--> half convert for armv82
 #define FLOAT_TO_HALF(...)
@@ -48,6 +50,7 @@ static uint16_t fp32to16(float val) {
 
 NNAPIBackend::NNAPIBackend(shared_ptr<MemoryManager> mm) :
     Backend(mm) {
+    loadNNAPISymbol();
     initCreatorMap();
     registerOps();
 
@@ -58,7 +61,9 @@ NNAPIBackend::NNAPIBackend(shared_ptr<MemoryManager> mm) :
         uint32_t numDevices = 0;
         NNAPI_CHECK(ANeuralNetworks_getDeviceCount_29, &numDevices);
         nnapiDevices_.resize(numDevices);
-        // NNAPI_DEVICE_LOG("[NNAPI] numDevices = %d\n", numDevices);
+#ifdef DEBUG
+        std::cout << "NNAPI numDevices :" << numDevices << "\n";
+#endif
         for (int i = 0; i < numDevices; i++) {
             NNAPI_CHECK(ANeuralNetworks_getDevice_29, i, &nnapiDevices_[i].device);
             NNAPI_CHECK(ANeuralNetworksDevice_getName_29, nnapiDevices_[i].device, &nnapiDevices_[i].name);
