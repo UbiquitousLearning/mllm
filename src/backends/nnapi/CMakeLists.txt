@@ -2,6 +2,7 @@
 file(GLOB MLLM_NNAPI_SRC
     ${CMAKE_CURRENT_LIST_DIR}/*.cpp
     ${CMAKE_CURRENT_LIST_DIR}/*.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/*.h
 )
 
 # import android ndk cmake toolchain

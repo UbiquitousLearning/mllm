@@ -4,9 +4,6 @@
 
 namespace mllm {
 
-// template class NNAPICommonOp;
-// template class NNAPICommonOp;
-
 NNAPICommonOp::NNAPICommonOp(Backend *bn) :
     Op(bn) {
     nnapiBackend_ = dynamic_cast<NNAPIBackend *>(bn);

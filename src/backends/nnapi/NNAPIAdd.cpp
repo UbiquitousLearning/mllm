@@ -1,8 +1,5 @@
-
 #include "NNAPIAdd.hpp"
 #include "NNAPICommonOp.hpp"
-#include "NNAPINeuralNetworks.h"
-#include <sys/types.h>
 
 namespace mllm {
 
