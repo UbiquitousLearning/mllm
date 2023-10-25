@@ -88,3 +88,12 @@ if (TEST)
 
 endif ()
 
+# nnapi temp test
+if(NNAPI)
+    add_definitions(-DNNAPI_ENABLED)
+    # TODO: better debug log
+    add_definitions(-DDEBUG)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/nnapi)
+    add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/demo/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_QUANT})
+    target_link_libraries(nnapi_test MLLM_CPU MLLM_NNAPI)
+endif()

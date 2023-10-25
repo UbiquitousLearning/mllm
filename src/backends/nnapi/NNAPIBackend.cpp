@@ -127,7 +127,6 @@ uint32_t NNAPIBackend::getTensorIdx(const Tensor *t, bool dequant) {
     }
     float scale = 0.F;
     int zero = 0;
-    auto byteWidth = t->byteWidth();
     // TODO: ANEURALNETWORKS_TENSOR_INT32 and ANEURALNETWORKS_TENSOR_QUANT8_ASYMM
     auto code = ANEURALNETWORKS_TENSOR_FLOAT32;
     uint32_t idx = -1;
@@ -286,7 +285,7 @@ ErrorCode NNAPIBackend::buildModel() {
         for (int i = 0; i < opNames_.size(); i++) {
             allsupport &= supports[i];
 #ifdef DEBUG
-            std::cout << "\t" << mOpNames[i] << " : " << supports[i] << "\n";
+            std::cout << "\t" << opNames_[i] << " : " << supports[i] << "\n";
 #endif
         }
 #ifdef DEBUG
