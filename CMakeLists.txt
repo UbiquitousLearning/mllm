@@ -46,7 +46,8 @@ include_directories(${PROJECT_SOURCE_DIR}/thirdpartys/include)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 add_compile_options(-mf16c)
-add_compile_options(-mavx2)
+#add_compile_options(-mavx2)
+
 if (TEST)
     add_definitions(-DTEST)
     FetchContent_MakeAvailable(googletest)
@@ -80,7 +81,7 @@ if (TEST)
             src/tokenizers/Tokenizer.hpp
             src/tokenizers/BPE/Bpe.cpp
             src/tokenizers/BPE/Bpe.hpp)
-    target_link_libraries(${TEST_EXE} MLLM_CPU)
+    target_link_libraries(${TEST_EXE} MLLM_CPU )
 
 endif ()
 

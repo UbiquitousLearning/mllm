@@ -4,6 +4,7 @@
 #include "NetParameter.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
+#include "backends/cpu/CPUBackend.hpp"
 using namespace mllm;
 // For Visualization and Debug
 void display(NetParameter *net) {

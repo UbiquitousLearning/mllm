@@ -330,6 +330,12 @@ public:
             }
         }
     }
+    void fullDataTest2() {
+        for (int i = 0; i < count_; ++i) {
+            float *typed_ptr = static_cast<float *>(host_ptr_);
+            typed_ptr[i] = i;
+        }
+    }
 
     void permute(int axis0, int axis1, int axis2, int axis3, bool copy = true);
 

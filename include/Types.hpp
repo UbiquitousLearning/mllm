@@ -2,6 +2,7 @@
 #ifndef MLLM_TYPES_H
 #define MLLM_TYPES_H
 #include "OpDefined.hpp"
+
 typedef enum {
     MLLM_CPU,
     MLLM_OPENCL,
