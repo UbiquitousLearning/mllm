@@ -39,6 +39,7 @@ Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, share
         my_op.reset(new_op);
 //        string lname = net_op->name;
 //        my_op->setName(lname);
+        my_op->setDtype(weights_dtype_, activation_dtype_);
         ops_[net_op->name] = my_op;
     }
 //    shapeInit(external_tensors);

@@ -30,9 +30,14 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     CHECK_EQ(in_features_, inputs[0]->dimension());
     weight_.reshape(1, inputs[0]->head(), out_features_, in_features_);
     weight_.setName(name() + ".weight");
-    bias_.reshape(1, inputs[0]->head(), 1, out_features_);
-    bias_.setName(name() + ".bias");
+    weight_.setDtype(weightsDtype());
+    if (support_bias_) {
+        bias_.reshape(1, inputs[0]->head(), 1, out_features_);
+        bias_.setName(name() + ".bias");
+        bias_.setDtype(weightsDtype());
+    }
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
+    outputs[0]->setDtype(activationDtype());
     return NO_ERROR;
 }
 
@@ -44,42 +49,9 @@ ErrorCode CPULinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     outputs[0]->alloc();
     weight_.alloc();
     //    weight_.fullData<float>(1);
-    bias_.alloc();
-    return NO_ERROR;
-}
-
-ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "  CPULinear()" << std::endl;
-    // INPUT: M.K
-    // W:K,N
-    // OUTPUT:M.N
-    int M = inputs[0]->sequence();
-    int K = in_features_;  // inputs[0]->dimension()
-    int N = out_features_; // inputs[1]->dimension()
-    for (int b = 0; b < inputs[0]->batch(); b++) {
-        for (int h = 0; h < inputs[0]->head(); h++) {
-            for (int m = 0; m < M; m++) {
-                for (int n = 0; n < N; n++) {
-                    float value = 0;
-                    for (int k = 0; k < K; k++) {
-                        value += inputs[0]->dataAt<float>(0, h, m, k) * weight_.dataAt<float>(b, h, n, k);
-                    }
-                    if (support_bias_) {
-                        value += bias_.dataAt<float>(0, h, 0, n);
-                    }
-                    outputs[0]->setDataAt<float>(b, h, m, n, value);
-                }
-            }
-        }
+    if (support_bias_) {
+        bias_.alloc();
     }
-
-#ifdef DEBUG
-    inputs[0]->printData<float>();
-    weight_.printData<float>();
-    bias_.printData<float>();
-    outputs[0]->printData<float>();
-#endif
-
     return NO_ERROR;
 }
 
@@ -110,9 +82,29 @@ ErrorCode CPULinear::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<sh
     outputs[0]->alloc();
     return NO_ERROR;
 }
+
+ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout << name() << "  CPULinear()" << std::endl;
+    switch (weightsDtype()) {
+    case MLLM_TYPE_F32: {
+        mat_mul_fp32(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true);
+        break;
+    }
+    case MLLM_TYPE_F16: break;
+    case MLLM_TYPE_Q4_0: {
+        mat_mul_fp32_q4_0(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true);
+        break;
+    }
+    default:
+        break;
+    }
+    return NO_ERROR;
+}
 ErrorCode CPULinear::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     weight_.free();
-    bias_.free();
+    if (support_bias_) {
+        bias_.free();
+    }
     return Op::free(inputs, outputs);
 }
 
