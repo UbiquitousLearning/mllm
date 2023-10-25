@@ -1,10 +1,8 @@
 #include "NNAPIAdd.hpp"
 #include "NNAPICommonOp.hpp"
+#include "Types.hpp"
 
 namespace mllm {
-
-// template class NNAPIAdd;
-// template class NNAPIAdd;
 
 NNAPIAdd::NNAPIAdd(Backend *bn) :
     NNAPICommonOp(bn) {
@@ -30,6 +28,11 @@ ErrorCode NNAPIAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     std::cout << "NNAPIAdd setUp" << std::endl;
     // TODO: bulid nnapi operation
     buildOperation(ANEURALNETWORKS_ADD, getTensorIdxs(inputs), getTensorIdxs(outputs));
+    return NO_ERROR;
+}
+
+ErrorCode NNAPIAdd::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout << "NNAPIAdd execute do nothing" << std::endl;
     return NO_ERROR;
 }
 } // namespace mllm

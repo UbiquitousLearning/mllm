@@ -49,6 +49,7 @@ void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, flo
 }
 
 int main() {
+    std::cout << "===NNAPI Test===" << std::endl;
     Context *c = new Context();
 
     auto *a = _Input(c);
@@ -57,6 +58,7 @@ int main() {
     BackendConfig bn;
     Net net(c->sub_param_, bn);
     net.convert(BackendType::MLLM_NNAPI);
+    display(c);
 
     Executor ex(&net);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
