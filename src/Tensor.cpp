@@ -91,12 +91,16 @@ void Tensor::alloc() {
 // }
 
 void Tensor::copyFrom(const Tensor &source, bool copy_diff, bool reshape) {
+    CHECK_EQ(source.dtype(), dtype());
+    CHECK_EQ(source.count(), count());
+    // copy
+    memcpy(host_ptr_, source.host_ptr_, count_ * dtypeSize());
 }
 void Tensor::copyFrom(const shared_ptr<Tensor> &source, bool reshape) {
     CHECK_EQ(source->dtype(), dtype());
     CHECK_EQ(source->count(), count());
     // copy
-    memccpy(host_ptr_, source->host_ptr_, 0, count_ * dtypeSize());
+    memcpy(host_ptr_, source->host_ptr_, count_ * dtypeSize());
 }
 void Tensor::permute(int axis0, int axis1, int axis2, int axis3, bool copy) {
     // 检查轴的合法性

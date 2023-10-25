@@ -207,9 +207,20 @@ public:
 
     template <typename Dtype>
     Dtype dataAt(const vector<int> &index) const {
-        //        return hostPtr<Dtype>()[offset(index)];
+            //        return hostPtr<Dtype>()[offset(index)];
         return ((Dtype *)host_ptr_)[offset(index)];
     }
+
+    template <typename Dtype>
+    Dtype* ptrAt(const vector<int> &index) const {
+        return ((Dtype *)host_ptr_ + offset(index));
+    }
+
+    template <typename Dtype>
+    Dtype* ptrAt(const int batch, const int head, const int sequence, const int dimension) const {
+        return ((Dtype *)host_ptr_ + offset(batch, head, sequence, dimension));
+    }
+
 
     //    template <typename Dtype>
     //    void setDataAt(const int n, const int c, const int h, const int w, Dtype value) {
@@ -328,6 +339,12 @@ public:
                     }
                 }
             }
+        }
+    }
+    void fullDataTest2() {
+        for (int i = 0; i < count_; ++i) {
+            float *typed_ptr = static_cast<float *>(host_ptr_);
+            typed_ptr[i] = i;
         }
     }
 
