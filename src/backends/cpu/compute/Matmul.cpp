@@ -4,6 +4,24 @@
 
 #include "Matmul.hpp"
 
+void vec_dot_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias_m, Tensor *bias, int hid_len, bool transpose0, bool transpose1, int batch, int head, int src0_inf, int sec1_outf){
+    float value = 0;
+    for (int k = 0; k < hid_len; k++) {
+        // value += src0->dataAt<float>(0, h, m, k) * src1->dataAt<float>(b, h, n, k);
+        if (!transpose0 && !transpose1) {
+            value += src0->dataAt<float>(batch, head, src0_inf, k) * src1->dataAt<float>(batch, head, k, sec1_outf);
+        } else if (transpose1) {
+            value += src0->dataAt<float>(batch, head, src0_inf, k) * src1->dataAt<float>(batch, head, sec1_outf, k);
+        } else {
+            value += src0->dataAt<float>(batch, head, k, src0_inf) * src1->dataAt<float>(batch, head, k, sec1_outf);
+        }
+    }
+    if (support_bias_m) {
+        value += bias->dataAt<float>(0, head, 0, sec1_outf);
+    }
+    dst->setDataAt<float>(batch, head, src0_inf, sec1_outf, value);
+}
+
 ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias_m, Tensor *bias, bool transpose0, bool transpose1) {
     // INPUT: M.K
     // W:K,N
@@ -31,21 +49,22 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
         for (int h = 0; h < src0->head(); h++) {
             for (int m = 0; m < M; m++) {
                 for (int n = 0; n < N; n++) {
-                    float value = 0;
-                    for (int k = 0; k < K; k++) {
-                        // value += src0->dataAt<float>(0, h, m, k) * src1->dataAt<float>(b, h, n, k);
-                        if (!transpose0 && !transpose1) {
-                            value += src0->dataAt<float>(b, h, m, k) * src1->dataAt<float>(b, h, k, n);
-                        } else if (transpose1) {
-                            value += src0->dataAt<float>(b, h, m, k) * src1->dataAt<float>(b, h, n, k);
-                        } else {
-                            value += src0->dataAt<float>(b, h, k, m) * src1->dataAt<float>(b, h, k, n);
-                        }
-                    }
-                    if (support_bias_m) {
-                        value += bias->dataAt<float>(0, h, 0, n);
-                    }
-                    src0->setDataAt<float>(b, h, m, n, value);
+                    vec_dot_fp32(src0, src1, dst, support_bias_m, bias, K, transpose0, transpose1, b, h, m, n);
+//                    float value = 0;
+//                    for (int k = 0; k < K; k++) {
+//                        // value += src0->dataAt<float>(0, h, m, k) * src1->dataAt<float>(b, h, n, k);
+//                        if (!transpose0 && !transpose1) {
+//                            value += src0->dataAt<float>(b, h, m, k) * src1->dataAt<float>(b, h, k, n);
+//                        } else if (transpose1) {
+//                            value += src0->dataAt<float>(b, h, m, k) * src1->dataAt<float>(b, h, n, k);
+//                        } else {
+//                            value += src0->dataAt<float>(b, h, k, m) * src1->dataAt<float>(b, h, k, n);
+//                        }
+//                    }
+//                    if (support_bias_m) {
+//                        value += bias->dataAt<float>(0, h, 0, n);
+//                    }
+//                    dst->setDataAt<float>(b, h, m, n, value);
                 }
             }
         }
