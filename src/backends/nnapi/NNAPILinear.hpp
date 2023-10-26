@@ -8,7 +8,7 @@ namespace mllm {
 
 class NNAPILinear final : public NNAPICommonOp {
 public:
-    NNAPILinear(Backend *bn, int in_features, int out_features, bool bias);
+    NNAPILinear(Backend *bn, string opName, int in_features, int out_features, bool bias);
     virtual ~NNAPILinear() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
@@ -32,11 +32,11 @@ private:
 
 class NNAPIAddCreator : public NNAPIBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
         int in_features = op_param["in_features"];
         int out_features = op_param["out_features"];
         int bias = op_param["bias"];
-        return new NNAPILinear(bn, in_features, out_features, (bool)bias);
+        return new NNAPILinear(bn, name, in_features, out_features, (bool)bias);
     }
 };
 

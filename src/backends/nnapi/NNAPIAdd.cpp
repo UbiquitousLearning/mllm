@@ -4,8 +4,8 @@
 
 namespace mllm {
 
-NNAPIAdd::NNAPIAdd(Backend *bn) :
-    NNAPICommonOp(bn) {
+NNAPIAdd::NNAPIAdd(Backend *bn, string opName) :
+    NNAPICommonOp(bn, opName) {
 }
 
 ErrorCode NNAPIAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

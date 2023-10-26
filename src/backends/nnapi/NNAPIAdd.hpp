@@ -8,7 +8,7 @@ namespace mllm {
 
 class NNAPIAdd final : public NNAPICommonOp {
 public:
-    NNAPIAdd(Backend *bn);
+    NNAPIAdd(Backend *bn, string opName);
     virtual ~NNAPIAdd() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
@@ -17,8 +17,8 @@ public:
 
 class NNAPIAddCreator : public NNAPIBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn) const {
-        return new NNAPIAdd(bn);
+    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+        return new NNAPIAdd(bn, name);
     }
 };
 

@@ -8,7 +8,7 @@ namespace mllm {
 
 class NNAPICommonOp : public Op {
 public:
-    NNAPICommonOp(Backend *bn);
+    NNAPICommonOp(Backend *bn, string name);
     virtual ~NNAPICommonOp() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override = 0;

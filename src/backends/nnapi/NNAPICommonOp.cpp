@@ -4,8 +4,8 @@
 
 namespace mllm {
 
-NNAPICommonOp::NNAPICommonOp(Backend *bn) :
-    Op(bn) {
+NNAPICommonOp::NNAPICommonOp(Backend *bn, string name) :
+    Op(bn, name) {
     nnapiBackend_ = dynamic_cast<NNAPIBackend *>(bn);
 }
 

@@ -16,7 +16,7 @@ public:
 
     class Creator {
     public:
-        virtual Op *create(OpParam op_param, Backend *bn) const = 0;
+        virtual Op *create(OpParam op_param, Backend *bn, string name) const = 0;
     };
     void initCreatorMap() {
         map_creator_ = new std::map<OpType, NNAPIBackend::Creator *>;

@@ -5,8 +5,8 @@
 
 namespace mllm {
 
-NNAPILinear::NNAPILinear(Backend *bn, int in_features, int out_features, bool bias) :
-    NNAPICommonOp(bn) {
+NNAPILinear::NNAPILinear(Backend *bn, string opName, int in_features, int out_features, bool bias) :
+    NNAPICommonOp(bn, opName) {
     in_features_ = in_features;
     out_features_ = out_features;
     support_bias_ = bias;
