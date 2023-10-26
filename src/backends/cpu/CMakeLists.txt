@@ -1,9 +1,13 @@
 # CPU Backend
 file(GLOB MLLM_CPU_SRC
-    ${CMAKE_CURRENT_LIST_DIR}/*.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/*.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/compute/*.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/compute/*.hpp
+        ${CMAKE_CURRENT_LIST_DIR}/*.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/*.hpp
+        ${CMAKE_CURRENT_LIST_DIR}/compute/*.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/compute/*.hpp
+        ${CMAKE_CURRENT_LIST_DIR}/neon/*.hpp
+        ${CMAKE_CURRENT_LIST_DIR}/neon/*.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/quantize/*.hpp
+        ${CMAKE_CURRENT_LIST_DIR}/quantize/*.cpp
 )
 
 
@@ -15,20 +19,22 @@ if(OpenMP_FOUND)
 else()
     message(FATAL_ERROR "openmp not found!")
 endif()
+if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
+    message(STATUS "ARM detected")
+elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$")
+    message(STATUS "x86_64 detected")
 add_compile_options(-mavx2)
 add_compile_options(-march=native)
+endif()
+
 add_library(
-    MLLM_CPU
-    OBJECT
-    ${MLLM_CPU_SRC}
+        MLLM_CPU
+        OBJECT
+        ${MLLM_CPU_SRC}
 )
 
 target_include_directories(
-    MLLM_CPU
-    PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}
+        MLLM_CPU
+        PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}
 )
-
-target_link_libraries(MLLM_CPU
-        PUBLIC
-        OpenMP::OpenMP_CXX )
