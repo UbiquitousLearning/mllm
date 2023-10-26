@@ -15,6 +15,9 @@ public:
     virtual ~Net() = default;
 
     void convert();
+    // TODO: remove
+    // convert all subgraph to specified backend, just for develop
+    void convert(BackendType backend_type);
 
     void reshapeInput();
     void reshapeInput(vector<int> shape);

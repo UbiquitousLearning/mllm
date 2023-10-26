@@ -8,7 +8,11 @@
 #include "stdint.h"
 #include "assert.h"
 #include "math.h"
+// TODO: better arch define macro
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 #include <x86intrin.h>
+#endif
+
 
 #undef MIN
 #undef MAX

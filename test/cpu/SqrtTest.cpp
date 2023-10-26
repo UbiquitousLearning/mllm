@@ -19,7 +19,7 @@ TEST_F(CPUTest, Sqrt1) {
         // float
         if (abs(std::sqrt(*(input->hostPtr<float>() + i)) - *(output->hostPtr<float>() + i)) > 1e-6) {
             std::cout << std::setprecision(10)
-                      << setiosflags(std::ios::fixed | std::ios::showpoint)
+                      << std::setiosflags(std::ios::fixed | std::ios::showpoint)
                       << "a[" << i << "]: " << (double)std::sqrt(*(input->hostPtr<float>() + i)) << "!= b[" << i << "]: " << (double)*(output->hostPtr<float>() + i) << std::endl;
         }
     }

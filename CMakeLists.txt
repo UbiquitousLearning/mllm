@@ -23,6 +23,10 @@ FetchContent_Declare(
 # find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
 #set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 
+option(DEBUG "debug print" OFF)
+# backend options
+option(NNAPI "Enable NNAPI" OFF)
+
 if(CMAKE_HOST_UNIX)
     message("current platform: Linux ")
 #    set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++14 -stdlib=libc++")
@@ -85,3 +89,13 @@ if (TEST)
 
 endif ()
 
+# nnapi temp test
+if(NNAPI)
+    include(/Users/luis/Library/Android/sdk/ndk/25.1.8937393/build/cmake/android.toolchain.cmake)
+    add_definitions(-DNNAPI_ENABLED)
+    # TODO: better debug log
+    add_definitions(-DDEBUG)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/nnapi)
+    add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/demo/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_QUANT})
+    target_link_libraries(nnapi_test MLLM_CPU MLLM_NNAPI)
+endif()
