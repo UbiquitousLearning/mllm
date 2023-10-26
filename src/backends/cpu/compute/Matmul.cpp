@@ -89,7 +89,7 @@ static void vec_dot_fp32_AVX2__(const int n, float * s, const float * x, const f
 void vec_dot_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf) {
     float value = 0;
 #ifdef MLLM_AVX2_
-        vec_dot_f32_AVX2__(hid_len, &value, src0->ptrAt<float>(batch, head, src0_inf, 0), src1->ptrAt<float>(batch, head, sec1_outf, 0));
+    vec_dot_fp32_AVX2__(hid_len, &value, src0->ptrAt<float>(batch, head, src0_inf, 0), src1->ptrAt<float>(batch, head, sec1_outf, 0));
 #elif defined(__ARM_NEON)
         vec_dot_f32_arm(hid_len, &value, src0->ptrAt<float>(batch, head, src0_inf, 0), src1->ptrAt<float>(batch, head, sec1_outf, 0));
 #else
