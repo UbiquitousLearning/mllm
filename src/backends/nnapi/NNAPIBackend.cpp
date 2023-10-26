@@ -87,7 +87,7 @@ Op *NNAPIBackend::opCreate(const OpParam &op_param, string name) {
         return nullptr;
     }
     Op *exe = nullptr;
-    exe = iter->second->create(op_param, this);
+    exe = iter->second->create(op_param, this, name);
     return exe;
 }
 
