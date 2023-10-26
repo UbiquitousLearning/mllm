@@ -49,8 +49,14 @@ include_directories(${PROJECT_SOURCE_DIR}/thirdpartys/include)
 # include_directories(${PROJECT_SOURCE_DIR}/src/backends/cpu)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
+# if compile to x86_64
+if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$")
+message(STATUS "x86_64 detected")
 add_compile_options(-mf16c)
 add_compile_options(-mavx2)
+elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
+    message(STATUS "ARM detected")
+endif()
 
 if (TEST)
     add_definitions(-DTEST)

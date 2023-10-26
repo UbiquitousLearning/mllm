@@ -14,8 +14,8 @@ void quantize_row_q4_0_reference(const float *x, block_q4_0 *y, int k) {
     const int nb = k / Qk;
 
     for (int i = 0; i < nb; i++) {
-        float amax = 0.0f; // absolute max
-        float max = 0.0f;
+        float amax = 0.0F; // absolute max
+        float max = 0.0F;
 
         for (int j = 0; j < Qk; j++) {
             const float v = x[i * Qk + j];
@@ -26,7 +26,7 @@ void quantize_row_q4_0_reference(const float *x, block_q4_0 *y, int k) {
         }
 
         const float d = max / -8;
-        const float id = d ? 1.0f / d : 0.0f;
+        const float id = d ? 1.0F / d : 0.0F;
 
         //        y[i].d = _cvtss_sh(d, 0);
         y[i].d = d;
@@ -35,8 +35,8 @@ void quantize_row_q4_0_reference(const float *x, block_q4_0 *y, int k) {
             const float x0 = x[i * Qk + 0 + j] * id;
             const float x1 = x[i * Qk + Qk / 2 + j] * id;
 
-            const uint8_t xi0 = MIN(15, (int8_t)(x0 + 8.5f));
-            const uint8_t xi1 = MIN(15, (int8_t)(x1 + 8.5f));
+            const uint8_t xi0 = MIN(15, (int8_t)(x0 + 8.5F));
+            const uint8_t xi1 = MIN(15, (int8_t)(x1 + 8.5F));
 
             y[i].qs[j] = xi0;
             y[i].qs[j] |= xi1 << 4;
