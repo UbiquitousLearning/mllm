@@ -56,7 +56,7 @@
 #define GGML_F32_VEC_ADD    GGML_F32x8_ADD
 #define GGML_F32_VEC_MUL    GGML_F32x8_MUL
 #define GGML_F32_VEC_REDUCE GGML_F32x8_REDUCE
-static void vec_dot_f32_AVX2__(const int n, float * s, const float * x, const float * y) {
+static void vec_dot_fp32_AVX2__(const int n, float * s, const float * x, const float * y) {
     float sumf = 0.0f;
     const int np = (n & ~(GGML_F32_STEP - 1));
 
@@ -86,10 +86,8 @@ static void vec_dot_f32_AVX2__(const int n, float * s, const float * x, const fl
 }
 #endif
 
-void vec_dot_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, bool transpose0, bool transpose1, int batch, int head, int src0_inf, int sec1_outf) {
+void vec_dot_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf) {
     float value = 0;
-    // value += src0->dataAt<float>(0, h, m, k) * src1->dataAt<float>(b, h, n, k);
-    if (transpose1 && !transpose0) {
 #ifdef MLLM_AVX2_
         vec_dot_f32_AVX2__(hid_len, &value, src0->ptrAt<float>(batch, head, src0_inf, 0), src1->ptrAt<float>(batch, head, sec1_outf, 0));
 #elif defined(__ARM_NEON)
@@ -101,19 +99,28 @@ void vec_dot_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
         }
         std::cout << value << ", " << value << std::endl;
 #endif
-    } else if (transpose0 && !transpose1) {
-        for (int k = 0; k < hid_len; k++) {
-            value += src0->dataAt<float>({batch, head, k, src0_inf}) * src1->dataAt<float>({batch, head, k, sec1_outf});
-        }
-    }else if (!transpose0 && !transpose1) {
-        for (int k = 0; k < hid_len; k++) {
-            value += src0->dataAt<float>({batch, head, src0_inf, k}) * src1->dataAt<float>({batch, head, k, sec1_outf});
-        }
-    } else {}
     if (support_bias) {
         value += bias->dataAt<float>({0, head, 0, sec1_outf});
     }
     dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, value);
+}
+
+Tensor *tensor_trans(Tensor *src){
+    Tensor *dst = new Tensor();
+    dst->setBackend(src->backend());
+    dst->reshape({src->batch(), src->head(), src->dimension(), src->sequence()});
+    dst->setDtype(src->dtype());
+    dst->alloc();
+    for (int b = 0; b < src->batch(); b++) {
+        for (int h = 0; h < src->head(); h++) {
+            for (int n = 0; n < src->sequence(); n++) {
+                for (int m = 0; m < src->dimension(); m++) {
+                    dst->setDataAt<float>({b, h, m, n}, src->dataAt<float>({b, h, n, m}));
+                }
+            }
+        }
+    }
+    return dst;
 }
 
 ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1) {
@@ -126,12 +133,14 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
     int M = transpose0 ? src0->dimension() : src0->sequence();
     int K = transpose0 ? src0->sequence() : src0->dimension();
     int N = transpose1 ? src1->sequence() : src1->dimension();
+    Tensor *src0_cal = (transpose1 && !transpose0) ? src0 : (transpose0 && !transpose1) ? tensor_trans(src0) : src0;
+    Tensor *src1_cal = (transpose1 && !transpose0) ? src1 : (!transpose0 && !transpose1) ? tensor_trans(src1) : src1;
     for (int b = 0; b < src0->batch(); b++) {
         for (int h = 0; h < src0->head(); h++) {
             #pragma omp parallel for num_threads(8)
             for (int n = 0; n < N; n++) {
                 for (int m = 0; m < M; m++) {
-                    vec_dot_fp32(src0, src1, dst, support_bias, bias, K, transpose0, transpose1, b, h, m, n);
+                    vec_dot_fp32(src0_cal, src1_cal, dst, support_bias, bias, K, b, h, m, n);
                 }
             }
         }

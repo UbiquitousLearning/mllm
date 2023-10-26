@@ -36,6 +36,9 @@ public:
     // void SetBackend(shared_ptr<Backend> bn){
     //     backend_= bn;
     // };
+    Backend *backend() const {
+        return backend_;
+    }
     void setBackend(Backend *bn) {
         backend_ = bn;
     };
