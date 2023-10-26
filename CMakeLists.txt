@@ -39,7 +39,7 @@ endif()
 aux_source_directory(${PROJECT_SOURCE_DIR}/src  DIR_SRC)
 # aux_source_directory(${PROJECT_SOURCE_DIR}/src/backends/cpu  DIR_SRC_CPU)
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/express  DIR_SRC_EXP)
-aux_source_directory(${PROJECT_SOURCE_DIR}/src/quantize  DIR_SRC_QUANT)
+#aux_source_directory(${PROJECT_SOURCE_DIR}/src/quantize  DIR_SRC_QUANT)
 aux_source_directory(${PROJECT_SOURCE_DIR}/examples  EMP_SRC)
 aux_source_directory(${PROJECT_SOURCE_DIR}/test  TEST_SRC)
 
@@ -74,7 +74,7 @@ if (TEST)
             MLLM_TEST
             ${PROJECT_SOURCE_DIR}/test/main.cpp
             ${MLLM_TEST}
-            ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_QUANT}
+            ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} #${DIR_SRC_QUANT}
     )
     target_link_libraries(
             MLLM_TEST
@@ -86,7 +86,7 @@ if (TEST)
     gtest_discover_tests(MLLM_TEST)
     #else ()
     #    No Unit Test.
-    add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_QUANT}
+    add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} #${DIR_SRC_QUANT}
             src/tokenizers/Tokenizer.cpp
             src/tokenizers/Tokenizer.hpp
             src/tokenizers/BPE/Bpe.cpp
@@ -102,6 +102,6 @@ if(NNAPI)
     # TODO: better debug log
     add_definitions(-DDEBUG)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/nnapi)
-    add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/demo/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_QUANT})
+    add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/demo/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} )#${DIR_SRC_QUANT})
     target_link_libraries(nnapi_test MLLM_CPU MLLM_NNAPI)
 endif()

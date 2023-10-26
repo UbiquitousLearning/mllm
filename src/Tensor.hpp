@@ -9,7 +9,6 @@
 #include <iostream>
 #include <cstdio>
 #include <iomanip>
-#include "quantize/Quantize.hpp"
 
 const auto KMaxAxes = 32;
 
@@ -286,7 +285,7 @@ public:
         return dtype_;
     }
 
-    int dtypeSize() const {
+    float dtypeSize() const {
         switch (dtype_) {
         case MLLM_TYPE_F32:
             return sizeof(float);
@@ -298,8 +297,11 @@ public:
             return sizeof(short);
         case MLLM_TYPE_I8:
             return sizeof(char);
+            //TODO WRONG
         case MLLM_TYPE_Q4_0:
-            return sizeof(block_q4_0)/ QK4_0;
+            return (sizeof(uint16_t) + 16*sizeof(int8_t))/32;
+        case MLLM_TYPE_Q8_0:
+            return (sizeof(uint16_t) + 32*sizeof(int8_t))/32;
         }
 //        return sizeof(float);
     }

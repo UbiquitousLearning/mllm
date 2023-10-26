@@ -5,8 +5,9 @@
 #include <cstring>
 #include "QuantizeQ4.hpp"
 
+
 // reference implementation for deterministic creation of model files
-void quantize_row_q4_0_reference(const float *x, block_q4_0 *y, int k) {
+void quantize_row_q4_0_reference(const float * __restrict x, block_q4_0  *__restrict y, int k) {
     static const int Qk = QK4_0;
 
     assert(k % Qk == 0);
@@ -28,8 +29,8 @@ void quantize_row_q4_0_reference(const float *x, block_q4_0 *y, int k) {
         const float d = max / -8;
         const float id = d ? 1.0F / d : 0.0F;
 
-        //        y[i].d = _cvtss_sh(d, 0);
-        y[i].d = d;
+//                y[i].d = _cvtss_sh(d, 0);
+        y[i].d = MLLM_FP32_TO_FP16(d);
 
         for (int j = 0; j < Qk / 2; ++j) {
             const float x0 = x[i * Qk + 0 + j] * id;
@@ -44,6 +45,9 @@ void quantize_row_q4_0_reference(const float *x, block_q4_0 *y, int k) {
     }
 }
 
+void quantize_row_q4_0(const float * __restrict x, void * __restrict y, int k) {
+    quantize_row_q4_0_reference(x, (block_q4_0 *)y, k);
+}
 // static float table_f32_f16[1 << 16];
 //
 // inline static float mllm_lookup_fp16_to_fp32(mllm_fp16_t f) {
@@ -60,8 +64,8 @@ void dequantize_row_q4_0(const block_q4_0 *x, float *y, int k) {
     const int nb = k / Qk;
 
     for (int i = 0; i < nb; i++) {
-        //        const float d = mllm_lookup_fp16_to_fp32(x[i].d);
-        const float d = x[i].d;
+        const float d = MLLM_FP16_TO_FP32(x[i].d);
+//        const float d = x[i].d;
 
         for (int j = 0; j < Qk / 2; ++j) {
             const int x0 = (x[i].qs[j] & 0x0F) - 8;
