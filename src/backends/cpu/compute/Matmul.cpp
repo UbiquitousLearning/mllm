@@ -53,7 +53,7 @@
 #define GGML_F32_VEC_ADD    GGML_F32x8_ADD
 #define GGML_F32_VEC_MUL    GGML_F32x8_MUL
 #define GGML_F32_VEC_REDUCE GGML_F32x8_REDUCE
-static void vec_dot_f32_AVX2__(const int n, float * s, const float * x, const float * y) {
+static void vec_dot_fp32_AVX2__(const int n, float * s, const float * x, const float * y) {
     float sumf = 0.0f;
     const int np = (n & ~(GGML_F32_STEP - 1));
 
@@ -87,7 +87,7 @@ void vec_dot_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     // value += src0->dataAt<float>(0, h, m, k) * src1->dataAt<float>(b, h, n, k);
     if (transpose1 && !transpose0) {
 #ifdef MLLM_AVX2_
-        vec_dot_f32_AVX2__(hid_len, &value, src0->ptrAt<float>(batch, head, src0_inf, 0), src1->ptrAt<float>(batch, head, sec1_outf, 0));
+        vec_dot_fp32_AVX2__(hid_len, &value, src0->ptrAt<float>(batch, head, src0_inf, 0), src1->ptrAt<float>(batch, head, sec1_outf, 0));
 #else
         for (int k = 0; k < hid_len; k++) {
             value += src0->dataAt<float>({batch, head, src0_inf, k}) * src1->dataAt<float>({batch, head, sec1_outf, k});
