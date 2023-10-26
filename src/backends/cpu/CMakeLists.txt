@@ -8,10 +8,7 @@ file(GLOB MLLM_CPU_SRC
         ${CMAKE_CURRENT_LIST_DIR}/neon/*.cpp
 )
 
-if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
-    message(STATUS "ARM detected")
-elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$")
-message(STATUS "x86_64 detected")
+
 find_package(OpenMP REQUIRED)
 if(OpenMP_FOUND)
     message(STATUS "found openmp")
@@ -20,6 +17,10 @@ if(OpenMP_FOUND)
 else()
     message(FATAL_ERROR "openmp not found!")
 endif()
+if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
+    message(STATUS "ARM detected")
+elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$")
+    message(STATUS "x86_64 detected")
 add_compile_options(-mavx2)
 add_compile_options(-march=native)
 endif()
