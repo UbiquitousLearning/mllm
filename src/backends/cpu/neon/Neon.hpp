@@ -5,6 +5,9 @@
 #ifndef MLLM_NEON_HPP
 #define MLLM_NEON_HPP
 #include "../quantize/Quantize.hpp"
+#include "../quantize/QuantizeQ4.hpp"
+#include "../quantize/QuantizeQ8.hpp"
+
 #include "assert.h"
 #ifdef __ARM_NEON
 #include <arm_neon.h>
@@ -69,15 +72,15 @@ static void vec_dot_q4_0_q8_0_arm(const int n, float * __restrict s, const void 
 
     const block_q4_0 *__restrict x = (block_q4_0 *)vx;
     const block_q8_0 *__restrict y = (block_q8_0 *)vy;
-    float32x4_t sumv0 = vdupq_n_f32(0.0f);
-    float32x4_t sumv1 = vdupq_n_f32(0.0f);
+    float32x4_t sumv0 = vdupq_n_f32(0.0F);
+    float32x4_t sumv1 = vdupq_n_f32(0.0F);
 
     assert(nb % 2 == 0); // TODO: handle odd nb
     for (int i = 0; i < nb; i += 2) {
-        const block_q4_0 * restrict x0 = &x[i + 0];
-        const block_q4_0 * restrict x1 = &x[i + 1];
-        const block_q8_0 * restrict y0 = &y[i + 0];
-        const block_q8_0 * restrict y1 = &y[i + 1];
+        const block_q4_0 *__restrict x0 = &x[i + 0];
+        const block_q4_0 *__restrict x1 = &x[i + 1];
+        const block_q8_0 *__restrict y0 = &y[i + 0];
+        const block_q8_0 *__restrict y1 = &y[i + 1];
 
         const uint8x16_t m4b = vdupq_n_u8(0x0F);
         const int8x16_t  s8b = vdupq_n_s8(0x8);
