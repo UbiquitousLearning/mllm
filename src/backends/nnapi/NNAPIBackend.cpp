@@ -77,6 +77,7 @@ NNAPIBackend::~NNAPIBackend() {
     ANeuralNetworksModel_free_27(nnapiModel_);
 }
 
+// don't pass name to op
 Op *NNAPIBackend::opCreate(const OpParam &op_param, string name) {
     OpType optype = OpType(op_param.find("type")->second);
     auto *map = map_creator_;
@@ -88,7 +89,6 @@ Op *NNAPIBackend::opCreate(const OpParam &op_param, string name) {
     Op *exe = nullptr;
     exe = iter->second->create(op_param, this);
     return exe;
-    // return nullptr;
 }
 
 void NNAPIBackend::registerOps() {
