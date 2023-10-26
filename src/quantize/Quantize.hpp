@@ -6,5 +6,6 @@
 #define MLLM_QUANTIZE_HPP
 
 #include "QuantizeQ4.hpp"
+#include "QuantizeQ8.hpp"
 
 #endif // MLLM_QUANTIZE_HPP

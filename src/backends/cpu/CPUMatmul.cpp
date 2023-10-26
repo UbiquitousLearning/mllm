@@ -86,44 +86,6 @@ ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     default:
         break;
     }
-    // INPUT: M.K
-    // W:K,N
-    // OUTPUT:M.N
-//    int M = 0;
-//    int K = 0;
-//    int N = 0;
-//    if (!transpose0_ && !transpose1_) {
-//        M = inputs[0]->sequence();
-//        K = inputs[0]->dimension();
-//        N = inputs[1]->dimension();
-//    } else if (transpose1_) {
-//        M = inputs[0]->sequence();
-//        K = inputs[0]->dimension();
-//        N = inputs[1]->sequence();
-//    } else {
-//        M = inputs[0]->dimension();
-//        K = inputs[0]->sequence();
-//        N = inputs[1]->dimension();
-//    }
-//    for (int b = 0; b < inputs[0]->batch(); b++) {
-//        for (int w = 0; w < inputs[0]->head(); w++) {
-//            for (int m = 0; m < M; m++) {
-//                for (int n = 0; n < N; n++) {
-//                    float value = 0;
-//                    for (int k = 0; k < K; k++) {
-//                        if (!transpose0_ && !transpose1_) {
-//                            value += inputs[0]->dataAt<float>(b, w, m, k) * inputs[1]->dataAt<float>(b, w, k, n);
-//                        } else if (transpose1_) {
-//                            value += inputs[0]->dataAt<float>(b, w, m, k) * inputs[1]->dataAt<float>(b, w, n, k);
-//                        } else {
-//                            value += inputs[0]->dataAt<float>(b, w, k, m) * inputs[1]->dataAt<float>(b, w, k, n);
-//                        }
-//                    }
-//                    outputs[0]->setDataAt<float>(b, w, m, n, value);
-//                }
-//            }
-//        }
-//    }
     return NO_ERROR;
 }
 
