@@ -7,6 +7,7 @@
 #ifdef __ARM_NEON
 #include "../neon/Neon.hpp"
 #endif
+#define F32_BLOCK 16
 
 #ifdef __AVX2__
 //  COPY FROM GGML
@@ -105,23 +106,13 @@ void vec_dot_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, value);
 }
 #ifdef MLLM_AVX2_
-inline void transpose_scalar_block(float *A, float *B, const int lda, const int ldb, const int block_size = 16) {
-    int i, j = 0;
-// Cache Aware Transpose
+inline void transpose_scalar_block(const float *A, float *B, const int lda, const int ldb, const int block_size = F32_BLOCK) {
+    int i;
+    int j = 0;
+    // Cache Aware Transpose
 #pragma omp parallel for num_threads(8)
     for (i = 0; i < block_size; i++) {
         for (j = 0; j < block_size; j++) {
-            B[j * ldb + i] = A[i * lda + j];
-        }
-    }
-    // for leftovers
-    for (i = block_size; i < lda; i++) {
-        for (j = 0; j < block_size; j++) {
-            B[j * ldb + i] = A[i * lda + j];
-        }
-    }
-    for (j = block_size; j < lda; j++) {
-        for (i = 0; i < block_size; i++) {
             B[j * ldb + i] = A[i * lda + j];
         }
     }
@@ -135,15 +126,31 @@ Tensor *tensor_trans(Tensor *src) {
     dst->alloc();
     for (int b = 0; b < src->batch(); b++) {
         for (int h = 0; h < src->head(); h++) {
+            int i = 0;
+            int j = 0;
+
             // #ifdef MLLM_AVX2_
-            //             transpose_scalar_block(src->ptrAt<float>(b, h, 0, 0), dst->ptrAt<float>(b, h, 0, 0), src->sequence(), src->dimension());
-            // #else
+            if (std::min(src->sequence(), src->dimension()) > F32_BLOCK) {
+#pragma omp parallel for num_threads(8)
+                for (i = 0; i < src->sequence(); i += F32_BLOCK) {
+                    for (j = 0; j < src->dimension(); j += F32_BLOCK) {
+                        transpose_scalar_block(src->ptrAt<float>(b, h, i, j), dst->ptrAt<float>(b, h, j, i), src->dimension(), src->sequence());
+                    }
+                }
+                // for leftovers
+                for (; i < src->sequence(); i++) {
+                    for (; j < src->dimension(); j++) {
+                        dst->setDataAt<float>({b, h, j, i}, src->dataAt<float>({b, h, i, j}));
+                    }
+                }
+                continue;
+            }
+            // #endif
             for (int n = 0; n < src->sequence(); n++) {
                 for (int m = 0; m < src->dimension(); m++) {
                     dst->setDataAt<float>({b, h, m, n}, src->dataAt<float>({b, h, n, m}));
                 }
             }
-            // #endif
         }
     }
     return dst;

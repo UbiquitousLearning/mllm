@@ -5,8 +5,8 @@ from TestUtils import TestBase
 
 class CPUMatmul1(TestBase):
     def test(self):
-        input0 = torch.randn(9, 3)
-        input1 = torch.randn(3, 1)
+        input0 = torch.randn(512, 128)
+        input1 = torch.randn(128, 256)
         output = torch.matmul(input0, input1)
         self.test_done(True)
 
