@@ -148,7 +148,7 @@ static void vec_dot_q4_0_q8_0_avx(const int n, float * __restrict s, const void 
     // Main loop
     for (int i = 0; i < nb; ++i) {
         /* Compute combined scale for the block */
-        const __m256 d = _mm256_set1_ps( x[i].d * y[i].d);
+        const __m256 d = _mm256_set1_ps( MLLM_FP16_TO_FP32(x[i].d) * MLLM_FP16_TO_FP32(y[i].d));
 
         __m256i bx = bytes_from_nibbles_32(x[i].qs);
 
@@ -184,13 +184,12 @@ void vec_dot_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     }
     dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, value);
 }
-//TODO THIS IS WRONG CODE
-void vec_dot_q4_0_q8_0(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf) {
+void vec_dot_q4_0_q8_0(const void * __restrict src0, const void * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf) {
     float value = 0;
 #ifdef __AVX2__
-    vec_dot_q4_0_q8_0_avx(hid_len, &value, src1->ptrAt<block_q8_0>(batch, head, src0_inf, 0), src0->ptrAt<block_q4_0>(batch, head, sec1_outf, 0));
+    vec_dot_q4_0_q8_0_avx(hid_len, &value, src1, src0);
 #elif defined(__ARM_NEON)
-    vec_dot_q4_0_q8_0_arm(hid_len, &value, src1->ptrAt<block_q8_0>(batch, head, src0_inf, 0), src0->ptrAt<block_q4_0>(batch, head, sec1_outf, 0));
+    vec_dot_q4_0_q8_0_arm(hid_len, &value, src1, src0);
 #endif
     if (support_bias) {
         value += bias->dataAt<float>({0, head, 0, sec1_outf});
@@ -272,31 +271,39 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
     //    std::cout<<duration.count()<<std::endl; // 返回秒数
     return NO_ERROR;
 }
-//TODO CHECK
+
 ErrorCode mat_mul_fp32_q4_0(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1) {
-//    Tensor src1_dequantize(src1->shape());
-//    src1_dequantize.setDtype(src0->dtype());
-//    src1_dequantize.alloc();
-//    dequantize_row_q4_0(src1->hostPtr<block_q4_0>(), src1_dequantize.hostPtr<float>(), src1_dequantize.count());
-//    mat_mul_fp32(src0, &src1_dequantize, dst, support_bias, bias, transpose0, transpose1);
 
-    Tensor src0_dequantize(src1->shape());
-    src0_dequantize.setDtype(MLLM_TYPE_Q8_0);
-    src0_dequantize.alloc();
-    quantize_row_q8_0(src0->hostPtr<float>(), src0_dequantize.hostPtr<block_q8_0>(), src0_dequantize.count());
+    assert(src1->dtype() == MLLM_TYPE_Q4_0);
+    //This is used for test : quantize Q4 here.
+    //Tensor src1_q4(src1->shape());
+    //src1_q4.setBackend(src1->backend());
+    //src1_q4.setDtype(MLLM_TYPE_Q4_0);
+    //src1_q4.alloc();
+    //quantize_row_q4_0(src1->hostPtr<float>(), src1_q4.hostPtr<block_q4_0>(), src1->count());
+    //src1 = &src1_q4;
 
+    assert (src0->dtype() == MLLM_TYPE_F32);
+    Tensor src0_q8(src0->shape());
+    src0_q8.setBackend(src0->backend());
+    src0_q8.setDtype(MLLM_TYPE_Q8_0);
+    src0_q8.alloc();
+    quantize_row_q8_0(src0->hostPtr<float>(), src0_q8.hostPtr<block_q8_0>(), src0->count());
+    src0 = &src0_q8;
+    assert(src0->dtype() == MLLM_TYPE_Q8_0);
     int M = transpose0 ? src0->dimension() : src0->sequence();
     int K = transpose0 ? src0->sequence() : src0->dimension();
     int N = transpose1 ? src1->sequence() : src1->dimension();
-    Tensor *src0_cal = (transpose1 && !transpose0) ? &src0_dequantize : (transpose0 && !transpose1) ? tensor_trans(&src0_dequantize) : &src0_dequantize;
+    Tensor *src0_cal = (transpose1 && !transpose0) ? src0 : (transpose0 && !transpose1) ? tensor_trans(src0) : src0;
     Tensor *src1_cal = (transpose1 && !transpose0) ? src1 : (!transpose0 && !transpose1) ? tensor_trans(src1) : src1;
     for (int b = 0; b < src0->batch(); b++) {
         for (int h = 0; h < src0->head(); h++) {
         #pragma omp parallel for num_threads(8)
             for (int n = 0; n < N; n++) {
                 for (int m = 0; m < M; m++) {
-                    //quantize_row_q8_0(src0->ptrAt<float>(b, h, m, 0), src0_dequantize.ptrAt<block_q8_0>(b, h, m, 0), K);
-                    vec_dot_q4_0_q8_0(src0_cal, src1_cal, dst, support_bias, bias, K, b, h, m, n);
+                    vec_dot_q4_0_q8_0(src0_cal->hostPtr<block_q8_0>() + src0_cal->offset(b, h, m, 0)/QK8_0,
+                                      src1_cal->hostPtr<block_q4_0>() + src1_cal->offset(b,h,n,0)/(QK4_0),
+                                      dst, support_bias, bias, K, b, h, m, n);
                 }
             }
         }

@@ -56,11 +56,12 @@ void quantize_row_q4_0(const float * __restrict x, void * __restrict y, int k) {
 //     return table_f32_f16[s];
 // }
 
-void dequantize_row_q4_0(const block_q4_0 *x, float *y, int k) {
+void dequantize_row_q4_0(const void * __restrict vx, float * __restrict y, int k) {
     static const int Qk = QK4_0;
 
     assert(k % Qk == 0);
 
+    block_q4_0 * __restrict x = (block_q4_0 *)vx;
     const int nb = k / Qk;
 
     for (int i = 0; i < nb; i++) {

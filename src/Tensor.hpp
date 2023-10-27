@@ -299,7 +299,7 @@ public:
             return sizeof(char);
             //TODO WRONG
         case MLLM_TYPE_Q4_0:
-            return (sizeof(uint16_t) + 16*sizeof(int8_t))/32;
+            return (sizeof(uint16_t) + 16*sizeof(int8_t))/16;
         case MLLM_TYPE_Q8_0:
             return (sizeof(uint16_t) + 32*sizeof(int8_t))/32;
         }
