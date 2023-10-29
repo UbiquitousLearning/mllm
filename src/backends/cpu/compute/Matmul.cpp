@@ -384,6 +384,410 @@ Tensor *tensor_trans(Tensor *src) {
     return dst;
 }
 
+#if QK_K == 256
+void vec_dot_q4_K_q8_K(const int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy) {
+    assert(n % QK_K == 0);
+
+    const block_q4_K * __restrict x = (block_q4_K*)vx;
+    const block_q8_K * __restrict y = (block_q8_K *)vy;
+
+    const int nb = n / QK_K;
+
+    static const uint32_t Kmask1 = 0x3f3f3f3f;
+    static const uint32_t Kmask2 = 0x0f0f0f0f;
+    static const uint32_t Kmask3 = 0x03030303;
+
+    uint32_t utmp[4];
+
+#ifdef __ARM_NEON
+
+    const uint8x16_t m4b = vdupq_n_u8(0xf);
+#ifdef __ARM_FEATURE_DOTPROD
+    const int32x4_t mzero = vdupq_n_s32(0);
+#endif
+
+    int8x16x2_t q4bytes;
+    int8x16x2_t q8bytes;
+
+    float sumf = 0;
+
+    for (int i = 0; i < nb; ++i) {
+
+        const float d = y[i].d * MLLM_FP16_TO_FP32(x[i].d);
+        const float dmin = y[i].d * MLLM_FP16_TO_FP32(x[i].dmin);
+
+        const int16x8_t q8sums = vpaddq_s16(vld1q_s16(y[i].bsums), vld1q_s16(y[i].bsums + 8));
+
+        memcpy(utmp, x[i].scales, 12);
+
+        const uint32x2_t mins8 = {utmp[1] & Kmask1, ((utmp[2] >> 4) & Kmask2) | (((utmp[1] >> 6) & Kmask3) << 4)};
+        utmp[1] = (utmp[2] & Kmask2) | (((utmp[0] >> 6) & Kmask3) << 4);
+        utmp[0] &= Kmask1;
+
+        const int16x8_t mins = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_u32(mins8)));
+        const int32x4_t prod = vaddq_s32(vmull_s16(vget_low_s16 (q8sums), vget_low_s16 (mins)),
+                                         vmull_s16(vget_high_s16(q8sums), vget_high_s16(mins)));
+        sumf -= dmin * vaddvq_s32(prod);
+
+        const uint8_t * scales = (const uint8_t *)utmp;
+
+        const uint8_t * restrict q4 = x[i].qs;
+        const int8_t  * restrict q8 = y[i].qs;
+
+        //int32x4_t isum = mzero;
+
+        int32_t sumi1 = 0;
+        int32_t sumi2 = 0;
+
+        for (int j = 0; j < QK_K/64; ++j) {
+
+            const uint8x16x2_t q4bits = vld1q_u8_x2(q4); q4 += 32;
+
+#ifdef __ARM_FEATURE_DOTPROD
+            q8bytes = vld1q_s8_x2(q8); q8 += 32;
+            q4bytes.val[0] = vreinterpretq_s8_u8(vandq_u8  (q4bits.val[0], m4b));
+            q4bytes.val[1] = vreinterpretq_s8_u8(vandq_u8  (q4bits.val[1], m4b));
+
+            const int32x4_t p1 = vdotq_s32(vdotq_s32(mzero, q4bytes.val[0], q8bytes.val[0]), q4bytes.val[1], q8bytes.val[1]);
+            sumi1 += vaddvq_s32(p1) * scales[2*j+0];
+
+            q8bytes = vld1q_s8_x2(q8); q8 += 32;
+            q4bytes.val[0] = vreinterpretq_s8_u8(vshrq_n_u8(q4bits.val[0], 4));
+            q4bytes.val[1] = vreinterpretq_s8_u8(vshrq_n_u8(q4bits.val[1], 4));
+
+            const int32x4_t p2 = vdotq_s32(vdotq_s32(mzero, q4bytes.val[0], q8bytes.val[0]), q4bytes.val[1], q8bytes.val[1]);
+
+            sumi2 += vaddvq_s32(p2) * scales[2*j+1];
+#else
+            q8bytes = vld1q_s8_x2(q8); q8 += 32;
+            q4bytes.val[0] = vreinterpretq_s8_u8(vandq_u8  (q4bits.val[0], m4b));
+            q4bytes.val[1] = vreinterpretq_s8_u8(vandq_u8  (q4bits.val[1], m4b));
+            const int16x8_t p0 = vaddq_s16(vmull_s8(vget_low_s8 (q4bytes.val[0]), vget_low_s8 (q8bytes.val[0])),
+                                           vmull_s8(vget_high_s8(q4bytes.val[0]), vget_high_s8(q8bytes.val[0])));
+            const int16x8_t p1 = vaddq_s16(vmull_s8(vget_low_s8 (q4bytes.val[1]), vget_low_s8 (q8bytes.val[1])),
+                                           vmull_s8(vget_high_s8(q4bytes.val[1]), vget_high_s8(q8bytes.val[1])));
+            sumi1 += vaddvq_s16(vaddq_s16(p0, p1)) * scales[2*j+0];
+
+            q8bytes = vld1q_s8_x2(q8); q8 += 32;
+            q4bytes.val[0] = vreinterpretq_s8_u8(vshrq_n_u8(q4bits.val[0], 4));
+            q4bytes.val[1] = vreinterpretq_s8_u8(vshrq_n_u8(q4bits.val[1], 4));
+            const int16x8_t p2 = vaddq_s16(vmull_s8(vget_low_s8 (q4bytes.val[0]), vget_low_s8 (q8bytes.val[0])),
+                                           vmull_s8(vget_high_s8(q4bytes.val[0]), vget_high_s8(q8bytes.val[0])));
+            const int16x8_t p3 = vaddq_s16(vmull_s8(vget_low_s8 (q4bytes.val[1]), vget_low_s8 (q8bytes.val[1])),
+                                           vmull_s8(vget_high_s8(q4bytes.val[1]), vget_high_s8(q8bytes.val[1])));
+            sumi2 += vaddvq_s16(vaddq_s16(p2, p3)) * scales[2*j+1];
+
+#endif
+        }
+
+        sumf += d * (sumi1 + sumi2);
+
+    }
+
+    *s = sumf;
+
+#elif defined __AVX2__
+
+    const __m256i m4 = _mm256_set1_epi8(0xF);
+
+    __m256 acc = _mm256_setzero_ps();
+    __m128 acc_m = _mm_setzero_ps();
+
+    for (int i = 0; i < nb; ++i) {
+
+        const float d = y[i].d * MLLM_FP16_TO_FP32(x[i].d);
+        const float dmin = -y[i].d * MLLM_FP16_TO_FP32(x[i].dmin);
+
+        memcpy(utmp, x[i].scales, 12);
+        utmp[3] = ((utmp[2] >> 4) & Kmask2) | (((utmp[1] >> 6) & Kmask3) << 4);
+        const uint32_t uaux = utmp[1] & Kmask1;
+        utmp[1] = (utmp[2] & Kmask2) | (((utmp[0] >> 6) & Kmask3) << 4);
+        utmp[2] = uaux;
+        utmp[0] &= Kmask1;
+
+        const uint8_t * __restrict q4 = x[i].qs;
+        const int8_t  * __restrict q8 = y[i].qs;
+
+        const __m256i mins_and_scales = _mm256_cvtepu8_epi16(_mm_set_epi32(utmp[3], utmp[2], utmp[1], utmp[0]));
+
+        const __m256i q8sums = _mm256_loadu_si256((const __m256i*)y[i].bsums);
+        const __m128i q8s = _mm_hadd_epi16(_mm256_extracti128_si256(q8sums, 0), _mm256_extracti128_si256(q8sums, 1));
+        const __m128i prod = _mm_madd_epi16(_mm256_extracti128_si256(mins_and_scales, 1), q8s);
+        acc_m = _mm_fmadd_ps(_mm_set1_ps(dmin), _mm_cvtepi32_ps(prod), acc_m);
+
+        const __m128i sc128  = _mm256_extracti128_si256(mins_and_scales, 0);
+        const __m256i scales = MM256_SET_M128I(sc128, sc128);
+
+        __m256i sumi = _mm256_setzero_si256();
+
+        for (int j = 0; j < QK_K/64; ++j) {
+
+            const __m256i scale_l = _mm256_shuffle_epi8(scales, get_scale_shuffle_k4(2*j+0));
+            const __m256i scale_h = _mm256_shuffle_epi8(scales, get_scale_shuffle_k4(2*j+1));
+
+            const __m256i q4bits = _mm256_loadu_si256((const __m256i*)q4); q4 += 32;
+            const __m256i q4l = _mm256_and_si256(q4bits, m4);
+            const __m256i q4h = _mm256_and_si256(_mm256_srli_epi16(q4bits, 4), m4);
+
+            const __m256i q8l = _mm256_loadu_si256((const __m256i*)q8); q8 += 32;
+            __m256i p16l = _mm256_maddubs_epi16(q4l, q8l);
+            p16l = _mm256_madd_epi16(scale_l, p16l);
+
+            const __m256i q8h = _mm256_loadu_si256((const __m256i*)q8); q8 += 32;
+            __m256i p16h = _mm256_maddubs_epi16(q4h, q8h);
+            p16h = _mm256_madd_epi16(scale_h, p16h);
+            const __m256i sumj = _mm256_add_epi32(p16l, p16h);
+
+            sumi = _mm256_add_epi32(sumi, sumj);
+        }
+
+        __m256 vd = _mm256_set1_ps(d);
+        acc = _mm256_fmadd_ps(vd, _mm256_cvtepi32_ps(sumi), acc);
+
+    }
+
+    acc_m = _mm_add_ps(acc_m, _mm_movehl_ps(acc_m, acc_m));
+    acc_m = _mm_add_ss(acc_m, _mm_movehdup_ps(acc_m));
+
+    *s = hsum_float_8(acc) + _mm_cvtss_f32(acc_m);
+
+#else
+    const uint8_t * scales = (const uint8_t*)&utmp[0];
+    const uint8_t * mins   = (const uint8_t*)&utmp[2];
+
+    int8_t  aux8[QK_K];
+    int16_t aux16[8];
+    float   sums [8];
+    int32_t aux32[8];
+    memset(sums, 0, 8*sizeof(float));
+
+    float sumf = 0;
+    for (int i = 0; i < nb; ++i) {
+        const uint8_t * restrict q4 = x[i].qs;
+        const  int8_t * restrict q8 = y[i].qs;
+        memset(aux32, 0, 8*sizeof(int32_t));
+        int8_t * restrict a = aux8;
+        for (int j = 0; j < QK_K/64; ++j) {
+            for (int l = 0; l < 32; ++l) a[l] = (int8_t)(q4[l] & 0xF);
+            a += 32;
+            for (int l = 0; l < 32; ++l) a[l] = (int8_t)(q4[l]  >> 4);
+            a += 32; q4 += 32;
+        }
+        memcpy(utmp, x[i].scales, 12);
+        utmp[3] = ((utmp[2] >> 4) & Kmask2) | (((utmp[1] >> 6) & Kmask3) << 4);
+        const uint32_t uaux = utmp[1] & Kmask1;
+        utmp[1] = (utmp[2] & Kmask2) | (((utmp[0] >> 6) & Kmask3) << 4);
+        utmp[2] = uaux;
+        utmp[0] &= Kmask1;
+
+        int sumi = 0;
+        for (int j = 0; j < QK_K/16; ++j) sumi += y[i].bsums[j] * mins[j/2];
+        a = aux8;
+        int is = 0;
+        for (int j = 0; j < QK_K/32; ++j) {
+            int32_t scale = scales[is++];
+            for (int l = 0; l < 8; ++l) aux16[l] = q8[l] * a[l];
+            for (int l = 0; l < 8; ++l) aux32[l] += scale * aux16[l];
+            q8 += 8; a += 8;
+            for (int l = 0; l < 8; ++l) aux16[l] = q8[l] * a[l];
+            for (int l = 0; l < 8; ++l) aux32[l] += scale * aux16[l];
+            q8 += 8; a += 8;
+            for (int l = 0; l < 8; ++l) aux16[l] = q8[l] * a[l];
+            for (int l = 0; l < 8; ++l) aux32[l] += scale * aux16[l];
+            q8 += 8; a += 8;
+            for (int l = 0; l < 8; ++l) aux16[l] = q8[l] * a[l];
+            for (int l = 0; l < 8; ++l) aux32[l] += scale * aux16[l];
+            q8 += 8; a += 8;
+        }
+        const float d = MLLM_FP16_TO_FP32(x[i].d) * y[i].d;
+        for (int l = 0; l < 8; ++l) sums[l] += d * aux32[l];
+        const float dmin = MLLM_FP16_TO_FP32(x[i].dmin) * y[i].d;
+        sumf -= dmin * sumi;
+    }
+    for (int l = 0; l < 8; ++l) sumf += sums[l];
+    *s = sumf;
+#endif
+}
+#else
+void vec_dot_q4_K_q8_K(const int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy) {
+    assert(n % QK_K == 0);
+
+    const block_q4_K * __restrict x = (block_q4_K *)vx;
+    const block_q8_K * __restrict y = (block_q8_K *)vy;
+
+    const int nb = n / QK_K;
+
+#ifdef __ARM_NEON
+
+    const uint8x16_t m4b = vdupq_n_u8(0xf);
+
+#ifdef __ARM_FEATURE_DOTPROD
+    const int32x4_t mzero = vdupq_n_s32(0);
+#endif
+
+    float sumf = 0;
+
+    int8x16x2_t q4bytes;
+    int8x16x4_t q8bytes;
+
+    float sum_mins = 0.f;
+
+    uint16_t aux16[2];
+    const uint8_t * restrict scales = (const uint8_t *)aux16;
+
+    for (int i = 0; i < nb; ++i) {
+
+        const uint8_t * restrict q4 = x[i].qs;
+        const int8_t  * restrict q8 = y[i].qs;
+
+        const uint16_t * restrict a = (const uint16_t *)x[i].scales;
+        aux16[0] = a[0] & 0x0f0f;
+        aux16[1] = (a[0] >> 4) & 0x0f0f;
+
+        const int32_t summi = scales[2] * (y[i].bsums[0] + y[i].bsums[1]) + scales[3] * (y[i].bsums[2] + y[i].bsums[3]);
+        sum_mins += y[i].d * (float)x[i].d[1] * summi;
+
+        const float d = y[i].d * (float)x[i].d[0];
+
+        const uint8x16x2_t q4bits = vld1q_u8_x2(q4);
+
+#ifdef __ARM_FEATURE_DOTPROD
+        q8bytes = vld1q_s8_x4(q8);
+        q4bytes.val[0] = vreinterpretq_s8_u8(vandq_u8  (q4bits.val[0], m4b));
+        q4bytes.val[1] = vreinterpretq_s8_u8(vandq_u8  (q4bits.val[1], m4b));
+
+        const int32x4_t p1 = vdotq_s32(vdotq_s32(mzero, q4bytes.val[0], q8bytes.val[0]), q4bytes.val[1], q8bytes.val[1]);
+        const int32_t sumi1 = vaddvq_s32(p1) * scales[0];
+
+        q4bytes.val[0] = vreinterpretq_s8_u8(vshrq_n_u8(q4bits.val[0], 4));
+        q4bytes.val[1] = vreinterpretq_s8_u8(vshrq_n_u8(q4bits.val[1], 4));
+
+        const int32x4_t p2 = vdotq_s32(vdotq_s32(mzero, q4bytes.val[0], q8bytes.val[2]), q4bytes.val[1], q8bytes.val[3]);
+        const int32_t sumi2 = vaddvq_s32(p2) * scales[1];
+
+#else
+        q8bytes = vld1q_s8_x4(q8);
+        q4bytes.val[0] = vreinterpretq_s8_u8(vandq_u8  (q4bits.val[0], m4b));
+        q4bytes.val[1] = vreinterpretq_s8_u8(vandq_u8  (q4bits.val[1], m4b));
+        const int16x8_t p0 = vaddq_s16(vmull_s8(vget_low_s8 (q4bytes.val[0]), vget_low_s8 (q8bytes.val[0])),
+                                       vmull_s8(vget_high_s8(q4bytes.val[0]), vget_high_s8(q8bytes.val[0])));
+        const int16x8_t p1 = vaddq_s16(vmull_s8(vget_low_s8 (q4bytes.val[1]), vget_low_s8 (q8bytes.val[1])),
+                                       vmull_s8(vget_high_s8(q4bytes.val[1]), vget_high_s8(q8bytes.val[1])));
+        int32_t sumi1 = vaddvq_s16(vaddq_s16(p0, p1)) * scales[0];
+
+        q4bytes.val[0] = vreinterpretq_s8_u8(vshrq_n_u8(q4bits.val[0], 4));
+        q4bytes.val[1] = vreinterpretq_s8_u8(vshrq_n_u8(q4bits.val[1], 4));
+        const int16x8_t p2 = vaddq_s16(vmull_s8(vget_low_s8 (q4bytes.val[0]), vget_low_s8 (q8bytes.val[2])),
+                                       vmull_s8(vget_high_s8(q4bytes.val[0]), vget_high_s8(q8bytes.val[2])));
+        const int16x8_t p3 = vaddq_s16(vmull_s8(vget_low_s8 (q4bytes.val[1]), vget_low_s8 (q8bytes.val[3])),
+                                       vmull_s8(vget_high_s8(q4bytes.val[1]), vget_high_s8(q8bytes.val[3])));
+        int32_t sumi2 = vaddvq_s16(vaddq_s16(p2, p3)) * scales[1];
+
+#endif
+        sumf += d * (sumi1 + sumi2);
+
+    }
+
+    *s = sumf - sum_mins;
+
+#elif defined __AVX2__
+
+    const __m256i m4 = _mm256_set1_epi8(0xF);
+
+    __m256 acc = _mm256_setzero_ps();
+
+    float summs = 0;
+
+    uint16_t aux16[2];
+    const uint8_t * scales = (const uint8_t *)aux16;
+
+    for (int i = 0; i < nb; ++i) {
+
+        const float d = MLLM_FP16_TO_FP32(x[i].d[0]) * y[i].d;
+        const float m = MLLM_FP16_TO_FP32(x[i].d[1]) * y[i].d;
+        const __m256 vd = _mm256_set1_ps(d);
+
+        const uint16_t * a = (const uint16_t *)x[i].scales;
+        aux16[0] = a[0] & 0x0f0f;
+        aux16[1] = (a[0] >> 4) & 0x0f0f;
+
+        summs += m * (scales[2] * (y[i].bsums[0] + y[i].bsums[1]) + scales[3] * (y[i].bsums[2] + y[i].bsums[3]));
+
+        const uint8_t * __restrict q4 = x[i].qs;
+        const int8_t  * __restrict q8 = y[i].qs;
+
+        const __m256i q4bits = _mm256_loadu_si256((const __m256i*)q4);
+        const __m256i q4l = _mm256_and_si256(q4bits, m4);
+        const __m256i q4h = _mm256_and_si256(_mm256_srli_epi16(q4bits, 4), m4);
+
+        const __m256i q8l = _mm256_loadu_si256((const __m256i*)(q8+ 0));
+        const __m256i q8h = _mm256_loadu_si256((const __m256i*)(q8+32));
+
+        const __m256i p16l = _mm256_maddubs_epi16(q4l, q8l);
+        const __m256i p16h = _mm256_maddubs_epi16(q4h, q8h);
+
+        const __m256i p32l = _mm256_madd_epi16(_mm256_set1_epi16(scales[0]), p16l);
+        acc = _mm256_fmadd_ps(vd, _mm256_cvtepi32_ps(p32l), acc);
+
+        const __m256i p32h = _mm256_madd_epi16(_mm256_set1_epi16(scales[1]), p16h);
+        acc = _mm256_fmadd_ps(vd, _mm256_cvtepi32_ps(p32h), acc);
+
+    }
+
+    *s = hsum_float_8(acc) - summs;
+
+#else
+
+    uint8_t aux8[QK_K];
+    int16_t aux16[16];
+    float   sums [8];
+    memset(sums, 0, 8*sizeof(float));
+
+    uint16_t s16[2];
+    const uint8_t * restrict scales = (const uint8_t *)s16;
+
+    float sumf = 0;
+    for (int i = 0; i < nb; ++i) {
+        const uint8_t * restrict q4 = x[i].qs;
+        const  int8_t * restrict q8 = y[i].qs;
+        uint8_t * restrict a = aux8;
+        for (int l = 0; l < 32; ++l) a[l+ 0] = q4[l] & 0xF;
+        for (int l = 0; l < 32; ++l) a[l+32] = q4[l]  >> 4;
+
+        const uint16_t * restrict b = (const uint16_t *)x[i].scales;
+        s16[0] = b[0] & 0x0f0f;
+        s16[1] = (b[0] >> 4) & 0x0f0f;
+
+        sumf -= y[i].d * MLLM_FP16_TO_FP32(x[i].d[1]) * (scales[2] * (y[i].bsums[0] + y[i].bsums[1]) + scales[3] * (y[i].bsums[2] + y[i].bsums[3]));
+
+        const float d = y[i].d * MLLM_FP16_TO_FP32(x[i].d[0]);
+
+        for (int j = 0; j < QK_K/32; ++j) {
+            for (int l = 0; l < 16; ++l) aux16[l] = q8[l] * a[l];
+            q8 += 16; a += 16;
+            for (int l = 0; l < 16; ++l) aux16[l] += q8[l] * a[l];
+            q8 += 16; a += 16;
+            const float dl = d * scales[j];
+            for (int l = 0; l < 8; ++l) sums[l] += dl * (aux16[l] + aux16[l+8]);
+        }
+    }
+    for (int l = 0; l < 8; ++l) sumf += sums[l];
+    *s = sumf;
+#endif
+}
+#endif
+
+void vec_dot_q4_K_q8_K(const void * __restrict src0, const void * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf) {
+    float value = 0;
+
+    vec_dot_q4_K_q8_K(hid_len, &value, src1, src0);
+
+    if (support_bias) {
+        value += bias->dataAt<float>({0, head, 0, sec1_outf});
+    }
+    dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, value);
+}
+
 ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1) {
     // INPUT: M.K
     // W:K,N
@@ -443,6 +847,44 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0, Tensor *src1, Tensor *dst, bool suppor
             for (int n = 0; n < N; n++) {
                 for (int m = 0; m < M; m++) {
                     vec_dot_q4_0_q8_0(src0_cal->hostPtr<block_q8_0>() + src0_cal->offset(b, h, m, 0)/QK8_0,
+                                      src1_cal->hostPtr<block_q4_0>() + src1_cal->offset(b,h,n,0)/(QK4_0),
+                                      dst, support_bias, bias, K, b, h, m, n);
+                }
+            }
+        }
+    }
+    return NO_ERROR;
+}
+
+ErrorCode mat_mul_fp32_q4_K(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1) {
+    assert(src1->dtype() == MLLM_TYPE_Q4_0);
+    //This is used for test : quantize Q4 here.
+    //Tensor src1_q4(src1->shape());
+    //src1_q4.setBackend(src1->backend());
+    //src1_q4.setDtype(MLLM_TYPE_Q4_0);
+    //src1_q4.alloc();
+    //quantize_row_q4_K(src1->hostPtr<float>(), src1_q4.hostPtr<block_q4_0>(), src1->count());
+    //src1 = &src1_q4;
+
+    assert (src0->dtype() == MLLM_TYPE_F32);
+    Tensor src0_q8(src0->shape());
+    src0_q8.setBackend(src0->backend());
+    src0_q8.setDtype(MLLM_TYPE_Q8_0);
+    src0_q8.alloc();
+    quantize_row_q8_K(src0->hostPtr<float>(), src0_q8.hostPtr<block_q8_0>(), src0->count());
+    src0 = &src0_q8;
+    assert(src0->dtype() == MLLM_TYPE_Q8_0);
+    int M = transpose0 ? src0->dimension() : src0->sequence();
+    int K = transpose0 ? src0->sequence() : src0->dimension();
+    int N = transpose1 ? src1->sequence() : src1->dimension();
+    Tensor *src0_cal = (transpose1 && !transpose0) ? src0 : (transpose0 && !transpose1) ? tensor_trans(src0) : src0;
+    Tensor *src1_cal = (transpose1 && !transpose0) ? src1 : (!transpose0 && !transpose1) ? tensor_trans(src1) : src1;
+    for (int b = 0; b < src0->batch(); b++) {
+        for (int h = 0; h < src0->head(); h++) {
+            #pragma omp parallel for num_threads(8)
+            for (int n = 0; n < N; n++) {
+                for (int m = 0; m < M; m++) {
+                    vec_dot_q4_K_q8_K(src0_cal->hostPtr<block_q8_0>() + src0_cal->offset(b, h, m, 0)/QK8_0,
                                       src1_cal->hostPtr<block_q4_0>() + src1_cal->offset(b,h,n,0)/(QK4_0),
                                       dst, support_bias, bias, K, b, h, m, n);
                 }

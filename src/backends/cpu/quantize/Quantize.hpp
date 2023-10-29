@@ -19,6 +19,8 @@
 #endif
 
 
+//#define MLLM_QKK_64
+
 #undef MIN
 #undef MAX
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -43,8 +45,49 @@ inline static float lookup_fp16_to_fp32(uint16_t f) {
 }
 
 #define MLLM_FP16_TO_FP32(x) lookup_fp16_to_fp32(x)
+
+
 #define MLLM_FP32_TO_FP16(x)  _cvtss_sh(x, 0)
 
+
+
+//float MLLM_FP16_TO_FP32(uint16_t x) {
+//    return (float) MLLM_FP16_TO_FP32(x);
+//}
+
+//uint16_t MLLM_FP32_TO_FP16(float x) {
+//    return MLLM_FP32_TO_FP16(x);
+//}
+
+static inline __m256i get_scale_shuffle_k4(int i) {
+    static const uint8_t KShuffle[256] = {
+        0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+        2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3,
+        4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5,
+        6, 7, 6, 7, 6, 7, 6, 7, 6, 7, 6, 7, 6, 7, 6, 7, 6, 7, 6, 7, 6, 7, 6, 7, 6, 7, 6, 7, 6, 7, 6, 7,
+        8, 9, 8, 9, 8, 9, 8, 9, 8, 9, 8, 9, 8, 9, 8, 9, 8, 9, 8, 9, 8, 9, 8, 9, 8, 9, 8, 9, 8, 9, 8, 9,
+        10,11,10,11,10,11,10,11,10,11,10,11,10,11,10,11,10,11,10,11,10,11,10,11,10,11,10,11,10,11,10,11,
+        12,13,12,13,12,13,12,13,12,13,12,13,12,13,12,13,12,13,12,13,12,13,12,13,12,13,12,13,12,13,12,13,
+        14,15,14,15,14,15,14,15,14,15,14,15,14,15,14,15,14,15,14,15,14,15,14,15,14,15,14,15,14,15,14,15
+    };
+    return _mm256_loadu_si256((const __m256i*)KShuffle + i);
+}
+
+#ifdef MLLM_QKK_64
+#define QK_K 64
+#define K_SCALE_SIZE 4
+#else
+#define QK_K 256
+#define K_SCALE_SIZE 12
+#endif
+
+
+static inline int nearest_int(float fval) {
+    assert(fval <= 4194303.F);
+    float val = fval + 12582912.F;
+    int i; memcpy(&i, &val, sizeof(int));
+    return (i & 0x007fffff) - 0x00400000;
+}
 
 
 

@@ -175,3 +175,60 @@ void dequantize_row_q8_0(const void * __restrict vx, float * __restrict y, int k
         }
     }
 }
+
+
+
+
+//===================================== Q8_K ==============================================
+
+void quantize_row_q8_K_reference(const float * __restrict x, block_q8_K * __restrict y, int k) {
+    assert(k % QK_K == 0);
+    const int nb = k / QK_K;
+
+    for (int i = 0; i < nb; i++) {
+
+        float max = 0;
+        float amax = 0;
+        for (int j = 0; j < QK_K; ++j) {
+            float ax = fabsf(x[j]);
+            if (ax > amax) {
+                amax = ax; max = x[j];
+            }
+        }
+        if (amax == 0.0F) {
+            y[i].d = 0;
+            memset(y[i].qs, 0, QK_K);
+            x += QK_K;
+            continue;
+        }
+        const float iscale = -128.F/max;
+        for (int j = 0; j < QK_K; ++j) {
+            int v = nearest_int(iscale*x[j]);
+            y[i].qs[j] = MIN(127, v);
+        }
+        for (int j = 0; j < QK_K/16; ++j) {
+            int sum = 0;
+            for (int ii = 0; ii < 16; ++ii) {
+                sum += y[i].qs[j*16 + ii];
+            }
+            y[i].bsums[j] = sum;
+        }
+        y[i].d = 1/iscale;
+        x += QK_K;
+    }
+}
+
+void dequantize_row_q8_K(const block_q8_K * __restrict x, float * __restrict y, int k) {
+    assert(k % QK_K == 0);
+    const int nb = k / QK_K;
+
+    for (int i = 0; i < nb; i++) {
+        for (int j = 0; j < QK_K; ++j) {
+            *y++ = x[i].d * x[i].qs[j];
+        }
+    }
+}
+
+void quantize_row_q8_K(const float * __restrict x, void * __restrict y, int k) {
+    quantize_row_q8_K_reference(x, (block_q8_K  *)y, k);
+}
