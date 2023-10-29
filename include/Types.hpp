@@ -50,6 +50,62 @@ enum mllm_dtype {
     MLLM_TYPE_COUNT,
 };
 
+#ifdef MLLM_QKK_64
+#define QK_K 64
+#define K_SCALE_SIZE 4
+#else
+#define QK_K 256
+#define K_SCALE_SIZE 12
+#endif
+#define QK4_0 32
+//typedef uint16_t mllm_fp16_t;
+typedef struct {
+    uint16_t d;         // delta
+                           //    float d;         // delta
+    uint8_t qs[QK4_0 / 2]; // nibbles / quants
+} block_q4_0;
+
+//#define QK_K 64
+// 4-bit quantization
+// 16 blocks of 32 elements each
+// weight is represented as x = a * q + b
+// Effectively 4.5 bits per weight
+#ifdef MLLM_QKK_64
+typedef struct {
+    uint16_t d[2];          // super-block scales/mins
+    uint8_t scales[2];         // 4-bit block scales/mins
+    uint8_t qs[QK_K/2];        // 4--bit quants
+} block_q4_K;
+static_assert(sizeof(block_q4_K) == 2*sizeof(uint16_t) + QK_K/2 + 2, "wrong q4_K block size/padding");
+#else
+typedef struct {
+    uint16_t d;             // super-block scale for quantized scales
+    uint16_t dmin;          // super-block scale for quantized mins
+    uint8_t scales[K_SCALE_SIZE]; // scales and mins, quantized with 6 bits
+    uint8_t qs[QK_K/2];        // 4--bit quants
+} block_q4_K;
+static_assert(sizeof(block_q4_K) == 2*sizeof(uint16_t) + K_SCALE_SIZE + QK_K/2, "wrong q4_K block size/padding");
+#endif
+
+#define QK8_0 32
+typedef struct {
+    uint16_t d;         // delta
+                      //    float d;         // delta
+    int8_t  qs[QK8_0];     // quants
+} block_q8_0;
+
+// This is only used for intermediate quantization and dot products
+typedef struct {
+    float   d;              // delta
+    int8_t  qs[QK_K];       // quants
+    int16_t bsums[QK_K/16]; // sum of quants in groups of 16
+} block_q8_K;
+static_assert(sizeof(block_q8_K) == sizeof(float) + QK_K + QK_K/16*sizeof(int16_t), "wrong q8_K block size/padding");
+
+//
+
+
+
 #ifdef __cplusplus
 namespace mllm {
 // TODO: copy from MNN; need to recode

@@ -17,6 +17,7 @@
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 #include <x86intrin.h>
 #endif
+#include "Types.hpp"
 
 
 //#define MLLM_QKK_64
@@ -73,13 +74,13 @@ static inline __m256i get_scale_shuffle_k4(int i) {
     return _mm256_loadu_si256((const __m256i*)KShuffle + i);
 }
 
-#ifdef MLLM_QKK_64
-#define QK_K 64
-#define K_SCALE_SIZE 4
-#else
-#define QK_K 256
-#define K_SCALE_SIZE 12
-#endif
+//#ifdef MLLM_QKK_64
+//#define QK_K 64
+//#define K_SCALE_SIZE 4
+//#else
+//#define QK_K 256
+//#define K_SCALE_SIZE 12
+//#endif
 
 
 static inline int nearest_int(float fval) {

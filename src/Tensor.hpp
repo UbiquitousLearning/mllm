@@ -285,7 +285,7 @@ public:
         return dtype_;
     }
 
-    float dtypeSize() const {
+    float dtypeSize() {
         switch (dtype_) {
         case MLLM_TYPE_F32:
             return sizeof(float);
@@ -297,13 +297,16 @@ public:
             return sizeof(short);
         case MLLM_TYPE_I8:
             return sizeof(char);
-            //TODO WRONG
+            // TODO WRONG?
         case MLLM_TYPE_Q4_0:
-            return (sizeof(uint16_t) + 16*sizeof(int8_t))/16;
+            return (sizeof(block_q4_0)) / (QK4_0 / 2);
+        case MLLM_TYPE_Q4_K:
+            return (sizeof(block_q4_K)) / (QK_K / 2);
         case MLLM_TYPE_Q8_0:
-            return (sizeof(uint16_t) + 32*sizeof(int8_t))/32;
+            return (sizeof(block_q8_0)) / (QK8_0);
+        case MLLM_TYPE_Q8_K:
+            return (sizeof(block_q8_K)) / (QK_K);
         }
-//        return sizeof(float);
     }
 //
 //    void setByteWidth(int bw) {
