@@ -29,7 +29,6 @@ void quantize_row_q4_0_reference(const float * __restrict x, block_q4_0  *__rest
         const float d = max / -8;
         const float id = d ? 1.0F / d : 0.0F;
 
-//                y[i].d = _cvtss_sh(d, 0);
         y[i].d = MLLM_FP32_TO_FP16(d);
 
         for (int j = 0; j < Qk / 2; ++j) {
@@ -48,13 +47,6 @@ void quantize_row_q4_0_reference(const float * __restrict x, block_q4_0  *__rest
 void quantize_row_q4_0(const float * __restrict x, void * __restrict y, int k) {
     quantize_row_q4_0_reference(x, (block_q4_0 *)y, k);
 }
-// static float table_f32_f16[1 << 16];
-//
-// inline static float mllm_lookup_fp16_to_fp32(mllm_fp16_t f) {
-//     uint16_t s;
-//     memcpy(&s, &f, sizeof(uint16_t));
-//     return table_f32_f16[s];
-// }
 
 void dequantize_row_q4_0(const void * __restrict vx, float * __restrict y, int k) {
     static const int Qk = QK4_0;
@@ -66,7 +58,6 @@ void dequantize_row_q4_0(const void * __restrict vx, float * __restrict y, int k
 
     for (int i = 0; i < nb; i++) {
         const float d = MLLM_FP16_TO_FP32(x[i].d);
-//        const float d = x[i].d;
 
         for (int j = 0; j < Qk / 2; ++j) {
             const int x0 = (x[i].qs[j] & 0x0F) - 8;

@@ -5,7 +5,8 @@
 #include "Op.hpp"
 #include "Types.hpp"
 #ifdef __ARM_NEON
-#include "neon/Neon.hpp"
+//#include "neon/Neon.hpp"
+#include <arm_neon.h>
 #endif
 namespace mllm {
 class CPUBackend final : public Backend {

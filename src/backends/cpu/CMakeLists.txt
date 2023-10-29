@@ -4,8 +4,8 @@ file(GLOB MLLM_CPU_SRC
         ${CMAKE_CURRENT_LIST_DIR}/*.hpp
         ${CMAKE_CURRENT_LIST_DIR}/compute/*.cpp
         ${CMAKE_CURRENT_LIST_DIR}/compute/*.hpp
-        ${CMAKE_CURRENT_LIST_DIR}/neon/*.hpp
-        ${CMAKE_CURRENT_LIST_DIR}/neon/*.cpp
+#        ${CMAKE_CURRENT_LIST_DIR}/neon/*.hpp
+#        ${CMAKE_CURRENT_LIST_DIR}/neon/*.cpp
         ${CMAKE_CURRENT_LIST_DIR}/quantize/*.hpp
         ${CMAKE_CURRENT_LIST_DIR}/quantize/*.cpp
 )
