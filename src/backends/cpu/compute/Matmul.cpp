@@ -818,15 +818,16 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
 }
 
 ErrorCode mat_mul_fp32_q4_0(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1) {
-
-    assert(src1->dtype() == MLLM_TYPE_Q4_0);
+    /*
     //This is used for test : quantize Q4 here.
-    //Tensor src1_q4(src1->shape());
-    //src1_q4.setBackend(src1->backend());
-    //src1_q4.setDtype(MLLM_TYPE_Q4_0);
-    //src1_q4.alloc();
-    //quantize_row_q4_0(src1->hostPtr<float>(), src1_q4.hostPtr<block_q4_0>(), src1->count());
-    //src1 = &src1_q4;
+    Tensor src1_q4(src1->shape());
+    src1_q4.setBackend(src1->backend());
+    src1_q4.setDtype(MLLM_TYPE_Q4_0);
+    src1_q4.alloc();
+    quantize_row_q4_0(src1->hostPtr<float>(), src1_q4.hostPtr<block_q4_0>(), src1->count());
+    src1 = &src1_q4;
+     */
+    assert(src1->dtype() == MLLM_TYPE_Q4_0);
 
     assert (src0->dtype() == MLLM_TYPE_F32);
     Tensor src0_q8(src0->shape());
@@ -847,7 +848,7 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0, Tensor *src1, Tensor *dst, bool suppor
             for (int n = 0; n < N; n++) {
                 for (int m = 0; m < M; m++) {
                     vec_dot_q4_0_q8_0(src0_cal->hostPtr<block_q8_0>() + src0_cal->offset(b, h, m, 0)/QK8_0,
-                                      src1_cal->hostPtr<block_q4_0>() + src1_cal->offset(b,h,n,0)/(QK4_0),
+                                      src1_cal->hostPtr<block_q4_0>() + src1_cal->offset(b, h, n, 0)/(QK4_0),
                                       dst, support_bias, bias, K, b, h, m, n);
                 }
             }
@@ -857,23 +858,26 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0, Tensor *src1, Tensor *dst, bool suppor
 }
 
 ErrorCode mat_mul_fp32_q4_K(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1) {
-    assert(src1->dtype() == MLLM_TYPE_Q4_0);
+
     //This is used for test : quantize Q4 here.
-    //Tensor src1_q4(src1->shape());
-    //src1_q4.setBackend(src1->backend());
-    //src1_q4.setDtype(MLLM_TYPE_Q4_0);
-    //src1_q4.alloc();
-    //quantize_row_q4_K(src1->hostPtr<float>(), src1_q4.hostPtr<block_q4_0>(), src1->count());
-    //src1 = &src1_q4;
+    /*
+    Tensor src1_q4(src1->shape());
+    src1_q4.setBackend(src1->backend());
+    src1_q4.setDtype(MLLM_TYPE_Q4_K);
+    src1_q4.alloc();
+    quantize_row_q4_K(src1->hostPtr<float>(), src1_q4.hostPtr<block_q4_K>(), src1->count());
+    src1 = &src1_q4;
+    */
+    assert(src1->dtype() == MLLM_TYPE_Q4_K);
 
     assert (src0->dtype() == MLLM_TYPE_F32);
     Tensor src0_q8(src0->shape());
     src0_q8.setBackend(src0->backend());
-    src0_q8.setDtype(MLLM_TYPE_Q8_0);
+    src0_q8.setDtype(MLLM_TYPE_Q8_K);
     src0_q8.alloc();
-    quantize_row_q8_K(src0->hostPtr<float>(), src0_q8.hostPtr<block_q8_0>(), src0->count());
+    quantize_row_q8_K(src0->hostPtr<float>(), src0_q8.hostPtr<block_q8_K>(), src0->count());
     src0 = &src0_q8;
-    assert(src0->dtype() == MLLM_TYPE_Q8_0);
+    assert(src0->dtype() == MLLM_TYPE_Q8_K);
     int M = transpose0 ? src0->dimension() : src0->sequence();
     int K = transpose0 ? src0->sequence() : src0->dimension();
     int N = transpose1 ? src1->sequence() : src1->dimension();
@@ -884,8 +888,8 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0, Tensor *src1, Tensor *dst, bool suppor
             #pragma omp parallel for num_threads(8)
             for (int n = 0; n < N; n++) {
                 for (int m = 0; m < M; m++) {
-                    vec_dot_q4_K_q8_K(src0_cal->hostPtr<block_q8_0>() + src0_cal->offset(b, h, m, 0)/QK8_0,
-                                      src1_cal->hostPtr<block_q4_0>() + src1_cal->offset(b,h,n,0)/(QK4_0),
+                    vec_dot_q4_K_q8_K(src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0)/QK_K,
+                                      src1_cal->hostPtr<block_q4_K>() + src1_cal->offset(b,h,n,0)/(QK_K),
                                       dst, support_bias, bias, K, b, h, m, n);
                 }
             }
