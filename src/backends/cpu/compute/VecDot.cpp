@@ -7,7 +7,6 @@
 
 #include <chrono>
 #ifdef __ARM_NEON
-//#include "../neon/Neon.hpp"
 #include <arm_neon.h>
 #endif
 
@@ -169,7 +168,7 @@ static void vec_dot_fp32_avx2(const int n, float *__restrict s, const float *__r
 #endif
 
 #ifdef __ARM_NEON
-static void vec_dot_f32_arm(const int n, float *__restrict s, const float *__restrict x, const float *__restrict y) {
+static void vec_dot_fp32_arm(const int n, float *__restrict s, const float *__restrict x, const float *__restrict y) {
     float sumf = 0.0F;
     const int np = (n & ~(4 - 1));
 
@@ -182,7 +181,7 @@ static void vec_dot_f32_arm(const int n, float *__restrict s, const float *__res
         for (int j = 0; j < F32_ARR; j++) {
             ax[j] = vld1q_f32(x + i + j * F32_REG);
             ay[j] = vld1q_f32(y + i + j * F32_REG);
-            sum[j] = vmlaq_f32(sum[j], ax[j], ay[j]);
+            sum[j] = vfmaq_f32(sum[j], ax[j], ay[j]);
             // sum[j] = vmlaq_lane_f32(sum[j], ax[j], ay[0],
         }
     }
@@ -194,6 +193,8 @@ static void vec_dot_f32_arm(const int n, float *__restrict s, const float *__res
     for (int i = np; i < n; ++i) {
         sumf += x[i] * y[i];
     }
+
+    *s = sumf;
 }
 #endif
 
@@ -386,8 +387,8 @@ void vec_dot_q4_K_q8_K(const int n, float * __restrict s, const void * __restric
 
         const uint8_t * scales = (const uint8_t *)utmp;
 
-        const uint8_t * restrict q4 = x[i].qs;
-        const int8_t  * restrict q8 = y[i].qs;
+        const uint8_t *__restrict q4 = x[i].qs;
+        const int8_t *__restrict q8 = y[i].qs;
 
         //int32x4_t isum = mzero;
 
