@@ -2,9 +2,9 @@
 // Created by lx on 23-10-16.
 //
 #include "CPUTest.hpp"
-#include "backends/cpu/CPUDot.hpp"
-TEST_F(CPUTest, CPUDot1) {
-    SETUP_OP(CPUDot, false);
+#include "backends/cpu/CPUMul.hpp"
+TEST_F(CPUTest, CPUMul1) {
+    SETUP_OP(CPUMul, false);
     TENSOR(input0);
     TENSOR(input1);
     TENSOR(output);

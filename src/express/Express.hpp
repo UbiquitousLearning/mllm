@@ -29,7 +29,7 @@ NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, float scale, fl
 NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
 NetTensor *_Attention(Context *ctx, std::vector<NetTensor *> inputs, int embedding_size, int hidden_size, int head_size=1, string name = "");
 NetTensor *_Embedding(Context *ctx, std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name = "");
-NetTensor *_Dot(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_Mul(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 // NOLINTEND(readability-identifier-naming)
 
 /*

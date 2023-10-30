@@ -1,15 +1,14 @@
 
-#include "CPUDot.hpp"
+#include "CPUMul.hpp"
 
 namespace mllm {
 
-
-CPUDot::CPUDot(Backend *bn,  string opName, bool multiThread) :
+CPUMul::CPUMul(Backend *bn,  string opName, bool multiThread) :
     Op(bn, opName) {
 }
 
-ErrorCode CPUDot::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUDot  reshape" << std::endl;
+ErrorCode CPUMul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout<<name() << "  CPUMul  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 2);
     CHECK_EQ(outputs.size(), 1);
     CHECK_EQ(inputs[0]->shape(0), inputs[1]->shape(0));
@@ -21,8 +20,8 @@ ErrorCode CPUDot::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     return NO_ERROR;
 }
 
-ErrorCode CPUDot::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUDot  setUp" << std::endl;
+ErrorCode CPUMul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout<<name() << "  CPUMul  setUp" << std::endl;
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
     }
@@ -33,8 +32,8 @@ ErrorCode CPUDot::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Ten
     return NO_ERROR;
 }
 
-ErrorCode CPUDot::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUDot()" << std::endl;
+ErrorCode CPUMul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout<<name() << "  CPUMul()" << std::endl;
     int N = inputs[0]->shape(0);
     int C = inputs[0]->shape(1);
     int H = inputs[0]->shape(2);
@@ -51,8 +50,8 @@ ErrorCode CPUDot::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     return NO_ERROR;
 }
 
-ErrorCode CPUDot::load(ParamLoader &loader) {
-    std::cout<<name() << "  CPUDot load" << std::endl;
+ErrorCode CPUMul::load(ParamLoader &loader) {
+    std::cout<<name() << "  CPUMul load" << std::endl;
     return NO_ERROR;
 }
 } // namespace mllm
