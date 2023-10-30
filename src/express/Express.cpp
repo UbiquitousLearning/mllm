@@ -280,7 +280,7 @@ NetTensor *_Embedding(Context *ctx, std::vector<NetTensor *> inputs, int vocab_s
     out_tensor->in = net_op_;
     return out_tensor;
 }
-NetTensor *_Dot(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+NetTensor *_Mul(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     // TODO:Check
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -291,7 +291,7 @@ NetTensor *_Dot(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
-    _NEW_OP(mllm::DOT)
+    _NEW_OP(mllm::MUL)
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;

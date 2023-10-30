@@ -26,7 +26,7 @@
 #undef MAX
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
-#define GGML_COMPUTE_FP16_TO_FP32(x) _cvtsh_ss(x)
+#define MLLM_COMPUTE_FP16_TO_FP32(x) _cvtsh_ss(x)
 static float table_f32_f16[1 << 16];
 static bool table_f32_f16_init = false;
 
@@ -36,7 +36,7 @@ inline static float lookup_fp16_to_fp32(uint16_t f) {
         for (int i = 0; i < (1 << 16); ++i) {
             uint16_t ui = i;
             memcpy(&ii, &ui, sizeof(ii));
-            table_f32_f16[i] = GGML_COMPUTE_FP16_TO_FP32(ii);
+            table_f32_f16[i] = MLLM_COMPUTE_FP16_TO_FP32(ii);
         }
         table_f32_f16_init = true;
     }

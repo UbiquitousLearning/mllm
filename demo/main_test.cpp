@@ -109,7 +109,7 @@ int main() {
         x = _Linear(c, {i}, hidden_dim, ffn_hidden_dim, false, (string)"layers."+std::to_string(layer)+".feed_forward.w1");
         x = _SiLU(c, {x});
         auto *y = _Linear(c, {i}, hidden_dim, ffn_hidden_dim, false, (string)"layers."+std::to_string(layer)+".feed_forward.w3");
-        x = _Dot(c, {x, y});
+        x = _Mul(c, {x, y});
         x = _Linear(c, {x}, ffn_hidden_dim, hidden_dim, false, (string)"layers."+std::to_string(layer)+".feed_forward.w2");
         i = _Add(c, {x, j});
         _SubgraphBegin(c);
