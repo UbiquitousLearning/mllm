@@ -187,15 +187,22 @@ void Graph::reFlashInput(unordered_map<string, shared_ptr<Tensor>> &external_ten
     std::cout << param_.net_ops[0]->name << std::endl;
     //    ops_input_tensors_[param_.net_ops[0]->name] = inTensors;
 }
-void Graph::free() {
-    //TODO not right
+
+void Graph::freeOps(){
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto *net_op = param_.net_ops[i];
         string lname = net_op->name;
         ops_[lname]->free(ops_input_tensors_[lname], ops_output_tensors_[lname]);
     }
+}
+void Graph::freeTensors(){
     for(auto& t: tensors_){
         t.second->free();
     }
+}
+void Graph::free() {
+    //TODO update
+    freeOps();
+    freeTensors();
 }
 } // namespace mllm

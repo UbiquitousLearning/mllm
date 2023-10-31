@@ -188,6 +188,7 @@ static void vec_dot_fp32_arm(const int n, float *__restrict s, const float *__re
     }
 
     // reduce sum0..sum3 to sum0
+    F32_VEC_REDUCE(sumf, sum);
 
     // leftovers
     for (int i = np; i < n; ++i) {
@@ -203,7 +204,6 @@ void vec_dot_fp32(const float * __restrict src0, const float * __restrict src1, 
 #ifdef __AVX2__
     vec_dot_fp32_avx2(hid_len, &value, src1, src0);
 #elif defined(__ARM_NEON)
-
     vec_dot_fp32_arm(hid_len, &value, src1, src0);
 #else
     for (int k = 0; k < hid_len; k++) {

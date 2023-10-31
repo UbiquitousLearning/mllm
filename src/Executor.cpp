@@ -50,9 +50,11 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
         result_ = g->forward();
         //free
         std::cout << name << " free" << std::endl;
-        g->free();
+        g->freeOps();
+        if( i < (int)net_->subGraph().size()-1) {
+            g->freeTensors();
+        }
         net_->freeTensors(i);
-        //result_[0]->printData<float>();
         std::cout << result_[0]->name() << "'s shape:  [" << result_[0]->shape(0) << "," << result_[0]->shape(1) << "," << result_[0]->shape(2) << "," << result_[0]->shape(3) << "]" << std::endl;
     }
 }
