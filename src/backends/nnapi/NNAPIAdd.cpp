@@ -17,18 +17,22 @@ ErrorCode NNAPIAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     CHECK_EQ(inputs[0]->shape(2), inputs[1]->shape(2));
     CHECK_EQ(inputs[0]->shape(3), inputs[1]->shape(3));
 
-    outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
+    outputs[0]->reshape(inputs[0]->shape(0),
+                        inputs[0]->shape(1),
+                        inputs[0]->shape(2),
+                        inputs[0]->shape(3));
 
-    auto inputIdxs = getTensorIdxs(inputs);
-    inputIdxs.push_back(buildScalar(ANEURALNETWORKS_FUSED_NONE));
-    return buildOperation(ANEURALNETWORKS_ADD, inputIdxs, getTensorIdxs(outputs));
+    return NO_ERROR;
 }
 
 ErrorCode NNAPIAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout << "NNAPIAdd setUp" << std::endl;
-    // TODO: bulid nnapi operation
-    buildOperation(ANEURALNETWORKS_ADD, getTensorIdxs(inputs), getTensorIdxs(outputs));
-    return NO_ERROR;
+    // TODO: whether to alloc memory here?
+    // outputs[0]->alloc();
+
+    auto inputIdxs = getTensorIdxs(inputs);
+    inputIdxs.push_back(buildScalar(ANEURALNETWORKS_FUSED_NONE));
+    return buildOperation(ANEURALNETWORKS_ADD, inputIdxs, getTensorIdxs(outputs));
 }
 
 ErrorCode NNAPIAdd::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

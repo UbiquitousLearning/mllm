@@ -144,6 +144,12 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
         if(autofree){
             ops_[lname]->free(ops_input_tensors_[lname], ops_output_tensors_[lname]);
         }
+        #ifdef NNAPI_ENABLED
+        std::cout << "NNAPI invoke model" << std::endl;
+        auto *nnapiBackend = dynamic_cast<NNAPIBackend *>(backend_);
+        nnapiBackend->buildModel();
+        nnapiBackend->invokeModel();
+        #endif
     }
     // TODO
     return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];

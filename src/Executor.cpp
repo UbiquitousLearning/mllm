@@ -33,6 +33,7 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
     auto input_size = input_tensor->shape();
     bool init = false;
     bool reshape = false;
+    // TODO: when reshape begin
     checkReshape(init, reshape, input_size);
     input_tensor->setName(net_->netParam()[0].net_tensors[0]->name);
     net_->tensors()[net_->netParam()[0].net_tensors[0]->name] = input_tensor;

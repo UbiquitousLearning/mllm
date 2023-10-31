@@ -51,6 +51,7 @@ public:
     ErrorCode buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs, std::string name);
     ErrorCode buildModel();
     void invokeModel() const;
+    ErrorCode identifyInputsAndOutputs(std::vector<shared_ptr<Tensor>> inputs, std::vector<shared_ptr<Tensor>> outputs);
 
 private:
     // TODO: precision config

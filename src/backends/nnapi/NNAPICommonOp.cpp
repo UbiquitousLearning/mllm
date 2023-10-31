@@ -28,7 +28,7 @@ ErrorCode NNAPICommonOp::load(ParamLoader &loader) {
 std::vector<uint32_t> NNAPICommonOp::getTensorIdxs(const vector<shared_ptr<Tensor>> &tensors) {
     std::vector<uint32_t> idxs(tensors.size());
     for (int i = 0; i < tensors.size(); i++) {
-        idxs[i] = nnapiBackend_->getTensorIdx(tensors[i].get(), true);
+        idxs[i] = nnapiBackend_->getTensorIdx(tensors[i].get(), false);
     }
     return idxs;
 }
