@@ -150,6 +150,9 @@ struct BackendConfig {
 enum DataType {
     FP32 = 0,
     FP16,
+    INT8,
+    INT4,
+    DATA_TYPE_COUNT,
 };
 
 } // namespace mllm

@@ -63,6 +63,7 @@ private:
     std::uint64_t size_;
     std::map<std::string, std::pair<uint64_t, uint64_t>> offsets_; // offsets,length
     std::map<std::string, int> data_type_;
+    uint8_t *load(string name);
     bool use_mmap_;
 };
 
