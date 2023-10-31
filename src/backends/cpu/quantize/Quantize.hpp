@@ -5,14 +5,12 @@
 #ifndef MLLM_QUANTIZE_HPP
 #define MLLM_QUANTIZE_HPP
 
-//#include "QuantizeQ4.hpp"
-//#include "QuantizeQ8.hpp"
 
 #include "stdint.h"
 #include "assert.h"
 #include "math.h"
-#include<string.h>
-#include<iostream>
+#include <string.h>
+#include <iostream>
 // TODO: better arch define macro
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 #include <x86intrin.h>
@@ -20,13 +18,34 @@
 #include "Types.hpp"
 
 
-//#define MLLM_QKK_64
 
 #undef MIN
 #undef MAX
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+
+ // 16-bit float
+// on Arm, we use __fp16
+// on x86, we use uint16_t
+#if defined(__ARM_NEON) && !defined(_MSC_VER)
+#include <arm_neon.h>
+
+#define MLLM_COMPUTE_FP16_TO_FP32(x) ((float) (x))
+#define MLLM_COMPUTE_FP32_TO_FP16(x) (x)
+
+#define MLLM_FP16_TO_FP32(x) ((float) (x))
+#define MLLM_FP32_TO_FP16(x) (x)
+
+#else
+#ifdef _MSC_VER
+#define MLLM_COMPUTE_FP16_TO_FP32(x) _mm_cvtss_f32(_mm_cvtph_ps(_mm_cvtsi32_si128(x)))
+#define MLLM_COMPUTE_FP32_TO_FP16(x) _mm_extract_epi16(_mm_cvtps_ph(_mm_set_ss(x), 0), 0)
+#else
 #define MLLM_COMPUTE_FP16_TO_FP32(x) _cvtsh_ss(x)
+#define MLLM_COMPUTE_FP32_TO_FP16(x) _cvtss_sh(x, 0)
+#endif
+
 static float table_f32_f16[1 << 16];
 static bool table_f32_f16_init = false;
 
@@ -46,20 +65,11 @@ inline static float lookup_fp16_to_fp32(uint16_t f) {
 }
 
 #define MLLM_FP16_TO_FP32(x) lookup_fp16_to_fp32(x)
+#define MLLM_FP32_TO_FP16(x)  MLLM_COMPUTE_FP32_TO_FP16(x)
+#endif
 
 
-#define MLLM_FP32_TO_FP16(x)  _cvtss_sh(x, 0)
-
-
-
-//float MLLM_FP16_TO_FP32(uint16_t x) {
-//    return (float) MLLM_FP16_TO_FP32(x);
-//}
-
-//uint16_t MLLM_FP32_TO_FP16(float x) {
-//    return MLLM_FP32_TO_FP16(x);
-//}
-
+#if  __AVX2__
 static inline __m256i get_scale_shuffle_k4(int i) {
     static const uint8_t KShuffle[256] = {
         0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
@@ -73,15 +83,7 @@ static inline __m256i get_scale_shuffle_k4(int i) {
     };
     return _mm256_loadu_si256((const __m256i*)KShuffle + i);
 }
-
-//#ifdef MLLM_QKK_64
-//#define QK_K 64
-//#define K_SCALE_SIZE 4
-//#else
-//#define QK_K 256
-//#define K_SCALE_SIZE 12
-//#endif
-
+#endif
 
 static inline int nearest_int(float fval) {
     assert(fval <= 4194303.F);

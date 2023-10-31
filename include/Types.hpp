@@ -33,16 +33,16 @@ enum mllm_dtype {
     MLLM_TYPE_Q4_1 = 3,
     // MLLM_TYPE_Q4_2 = 4, support has been removed
     // MLLM_TYPE_Q4_3 (5) support has been removed
-    MLLM_TYPE_Q5_0 = 6,
-    MLLM_TYPE_Q5_1 = 7,
+    //MLLM_TYPE_Q5_0 = 6,
+    //MLLM_TYPE_Q5_1 = 7,
     MLLM_TYPE_Q8_0 = 8,
     MLLM_TYPE_Q8_1 = 9,
     // k-quantizations
-    MLLM_TYPE_Q2_K = 10,
-    MLLM_TYPE_Q3_K = 11,
+    //MLLM_TYPE_Q2_K = 10,
+    //MLLM_TYPE_Q3_K = 11,
     MLLM_TYPE_Q4_K = 12,
-    MLLM_TYPE_Q5_K = 13,
-    MLLM_TYPE_Q6_K = 14,
+    //MLLM_TYPE_Q5_K = 13,
+    //MLLM_TYPE_Q6_K = 14,
     MLLM_TYPE_Q8_K = 15,
     MLLM_TYPE_I8,
     MLLM_TYPE_I16,
@@ -59,11 +59,12 @@ enum mllm_dtype {
 #endif
 #define QK4_0 32
 //typedef uint16_t mllm_fp16_t;
+#pragma pack(1)
 typedef struct {
     uint16_t d;         // delta
-                           //    float d;         // delta
     uint8_t qs[QK4_0 / 2]; // nibbles / quants
 } block_q4_0;
+#pragma pack()
 
 //#define QK_K 64
 // 4-bit quantization
@@ -71,35 +72,42 @@ typedef struct {
 // weight is represented as x = a * q + b
 // Effectively 4.5 bits per weight
 #ifdef MLLM_QKK_64
+#pragma pack(1)
 typedef struct {
     uint16_t d[2];          // super-block scales/mins
     uint8_t scales[2];         // 4-bit block scales/mins
     uint8_t qs[QK_K/2];        // 4--bit quants
 } block_q4_K;
+#pragma pack()
 static_assert(sizeof(block_q4_K) == 2*sizeof(uint16_t) + QK_K/2 + 2, "wrong q4_K block size/padding");
 #else
+#pragma pack(1)
 typedef struct {
     uint16_t d;             // super-block scale for quantized scales
     uint16_t dmin;          // super-block scale for quantized mins
     uint8_t scales[K_SCALE_SIZE]; // scales and mins, quantized with 6 bits
     uint8_t qs[QK_K/2];        // 4--bit quants
 } block_q4_K;
+#pragma pack()
 static_assert(sizeof(block_q4_K) == 2*sizeof(uint16_t) + K_SCALE_SIZE + QK_K/2, "wrong q4_K block size/padding");
 #endif
 
 #define QK8_0 32
+#pragma pack(1)
 typedef struct {
     uint16_t d;         // delta
-                      //    float d;         // delta
     int8_t  qs[QK8_0];     // quants
 } block_q8_0;
+#pragma pack()
 
 // This is only used for intermediate quantization and dot products
+#pragma pack(1)
 typedef struct {
     float   d;              // delta
     int8_t  qs[QK_K];       // quants
     int16_t bsums[QK_K/16]; // sum of quants in groups of 16
 } block_q8_K;
+#pragma pack()
 static_assert(sizeof(block_q8_K) == sizeof(float) + QK_K + QK_K/16*sizeof(int16_t), "wrong q8_K block size/padding");
 
 //
