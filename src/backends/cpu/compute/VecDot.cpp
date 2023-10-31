@@ -170,7 +170,7 @@ static void vec_dot_fp32_avx2(const int n, float *__restrict s, const float *__r
 #ifdef __ARM_NEON
 static void vec_dot_fp32_arm(const int n, float *__restrict s, const float *__restrict x, const float *__restrict y) {
     float sumf = 0.0F;
-    const int np = (n & ~(4 - 1));
+    const int np = (n & ~(16 - 1));
 
     F32_VEC sum[4] = {vdupq_n_f32(0.0F)};
 
@@ -184,10 +184,10 @@ static void vec_dot_fp32_arm(const int n, float *__restrict s, const float *__re
             sum[j] = vfmaq_f32(sum[j], ax[j], ay[j]);
             // sum[j] = vmlaq_lane_f32(sum[j], ax[j], ay[0],
         }
+
     }
 
     // reduce sum0..sum3 to sum0
-    F32_VEC_REDUCE(sumf, sum);
 
     // leftovers
     for (int i = np; i < n; ++i) {
@@ -203,6 +203,7 @@ void vec_dot_fp32(const float * __restrict src0, const float * __restrict src1, 
 #ifdef __AVX2__
     vec_dot_fp32_avx2(hid_len, &value, src1, src0);
 #elif defined(__ARM_NEON)
+
     vec_dot_fp32_arm(hid_len, &value, src1, src0);
 #else
     for (int k = 0; k < hid_len; k++) {

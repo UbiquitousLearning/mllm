@@ -4,7 +4,7 @@
 #include "CPUTest.hpp"
 #include "backends/cpu/CPULinear.hpp"
 TEST_F(CPUTest, CPULinear1) {
-    SETUP_OP(CPULinear, 3, 4, true, false);
+    SETUP_OP(CPULinear, 128, 128, true, false);
     TENSOR(input0)
     TENSOR(output)
     TENSOR(test_output);
