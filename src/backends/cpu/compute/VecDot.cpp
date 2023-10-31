@@ -206,9 +206,8 @@ void vec_dot_fp32(const float * __restrict src0, const float * __restrict src1, 
     vec_dot_fp32_arm(hid_len, &value, src1, src0);
 #else
     for (int k = 0; k < hid_len; k++) {
-        value += src0->dataAt<float>({batch, head, src0_inf, k}) * src1->dataAt<float>({batch, head, sec1_outf, k});
+        value += src0[k]* src1[k];
     }
-    std::cout << value << ", " << value << std::endl;
 #endif
     if (support_bias) {
         value += bias->dataAt<float>({0, head, 0, sec1_outf});
