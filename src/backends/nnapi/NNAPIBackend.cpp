@@ -233,7 +233,11 @@ uint32_t NNAPIBackend::buildOperand(const void *data, size_t size, OperandCode c
             std::cout << "\tidx : " << operandIdx << "\n";
             std::cout << "\tdata : " << data << "\n";
             std::cout << "\tsize : " << size << "\n";
-            std::cout << "}\n";
+            if (code == ANEURALNETWORKS_TENSOR_FLOAT32) {
+                float *data_float = static_cast<float *>(const_cast<void *>(data));
+                std::cout << "data_float: " << data_float[0] << std::endl;
+            }
+            std::cout << "}\n";        
         }
         #endif
     }

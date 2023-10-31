@@ -82,6 +82,10 @@ void Graph::shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensor
 //        ops_[lname] = my_op;
         ops_[lname]->reshape(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:1.shapeInit
     }
+#ifdef NNAPI_ENABLED
+    auto *nnapiBackend = dynamic_cast<NNAPIBackend *>(backend_);
+    nnapiBackend->identifyInputsAndOutputs(inputTensors(), outputTensors());
+#endif
 }
 
 void Graph::setUp() {
