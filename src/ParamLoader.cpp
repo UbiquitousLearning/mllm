@@ -96,4 +96,12 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
 bool ParamLoader::load(std::shared_ptr<mllm::Tensor> tensor) {
     return load(tensor.get());
 }
+vector<std::string> ParamLoader::getParamNames() {
+    // get keys of data_type_
+    vector<std::string> keys;
+    for (auto &iter : data_type_) {
+        keys.push_back(iter.first);
+    }
+    return keys;
+}
 } // namespace mllm

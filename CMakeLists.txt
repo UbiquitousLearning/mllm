@@ -10,6 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # temp executable name
 set(TEST_EXE main_test)
 option(TEST "test mode" ON)
+option(QUANT "quantize tools" ON)
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)
 endif ()
@@ -42,6 +43,8 @@ aux_source_directory(${PROJECT_SOURCE_DIR}/src/express  DIR_SRC_EXP)
 #aux_source_directory(${PROJECT_SOURCE_DIR}/src/quantize  DIR_SRC_QUANT)
 aux_source_directory(${PROJECT_SOURCE_DIR}/examples  EMP_SRC)
 aux_source_directory(${PROJECT_SOURCE_DIR}/test  TEST_SRC)
+aux_source_directory(${PROJECT_SOURCE_DIR}/src/quantizer QUANT_SRC)
+
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${PROJECT_SOURCE_DIR}/include)
@@ -105,3 +108,24 @@ if(NNAPI)
     add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/demo/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} )#${DIR_SRC_QUANT})
     target_link_libraries(nnapi_test MLLM_CPU MLLM_NNAPI)
 endif()
+
+if (QUANT)
+    include_directories(${PROJECT_SOURCE_DIR}/src/quantizer)
+    file(GLOB_RECURSE MLLM_QUANT
+            ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp
+            ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.hpp
+            ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
+    )
+
+    message(STATUS "MLLM_Quant: ${MLLM_QUANT}")
+    add_executable(
+            MLLM_QUANT
+            ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
+            ${MLLM_QUANT}
+            ${DIR_SRC}
+
+    )
+
+
+endif ()
