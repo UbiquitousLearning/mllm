@@ -9,7 +9,10 @@ ParamWriter::ParamWriter(std::string filename) :
     fp_ = fopen(path_.c_str(), "wb");
     writeInt(fp_, _MAGIC_NUMBER);
 }
-
+ParamWriter::~ParamWriter() {
+    if (fp_)
+        fclose(fp_);
+}
 int ParamWriter::calcIndexSize(const vector<string> names) {
     int size = 0;
     for (const auto &name : names) {
@@ -28,12 +31,12 @@ void ParamWriter::writeIndex() {
     }
 }
 
-void ParamWriter::writeParam(string name, mllm_dtype type, void *data, uint64_t size) {
+void ParamWriter::writeParam(string name, DataType type, void *data, uint64_t size) {
     auto param = param_info_[index_];
     param.name = std::move(name);
     param.type = type;
     param.offset = ftell(fp_);
-    fwrite(data, 1, size, fp_);
+    fwrite(data, sizeof(char), size, fp_);
     param.size = ftell(fp_) - param.offset;
     index_++;
 }

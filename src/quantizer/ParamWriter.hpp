@@ -15,22 +15,23 @@ static void writeString(FILE *fp, const std::string &str) {
     writeInt(fp, str.size());
     fwrite(str.c_str(), str.size(), 1, fp);
 }
-static void write_dtype(FILE *fp, mllm_dtype dtype) {
+static void write_dtype(FILE *fp, DataType dtype) {
     writeInt(fp, dtype);
 }
 
 struct ParmInfo {
     std::string name;
-    mllm_dtype type;
+    DataType type;
     uint64_t offset;
     uint64_t size;
 };
 class ParamWriter {
 public:
+    ~ParamWriter();
     ParamWriter(std::string filename);
     int calcIndexSize(vector<string> names);
     void writeIndex();
-    void writeParam(string name, mllm_dtype type, void *data, uint64_t size);
+    void writeParam(string name, DataType type, void *data, uint64_t size);
 
 private:
     uint64_t index_ = 0;

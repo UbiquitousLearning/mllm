@@ -106,15 +106,15 @@ public:
         return NO_ERROR;
     }
 
-    virtual ErrorCode setDtype(mllm_dtype weight_dtype, mllm_dtype activation_dtype) {
+    virtual ErrorCode setDtype(DataType weight_dtype, DataType activation_dtype) {
         weights_dtype_ = weight_dtype;
         activation_dtype_ = activation_dtype;
         return NO_ERROR;
     }
-    mllm_dtype weightsDtype() const {
+    DataType weightsDtype() const {
         return weights_dtype_;
     }
-    mllm_dtype activationDtype() const {
+    DataType activationDtype() const {
         return activation_dtype_;
     }
     /**
@@ -143,8 +143,8 @@ private:
     // BackendType backend_type_;
     // tensor w
     // vector<>
-    mllm_dtype weights_dtype_ = MLLM_TYPE_F32;
-    mllm_dtype activation_dtype_ = MLLM_TYPE_F32;
+    DataType weights_dtype_ = MLLM_TYPE_F32;
+    DataType activation_dtype_ = MLLM_TYPE_F32;
 };
 
 // unordered_map<OpType, function<shared_ptr<Op>(Backend*)>> opMap;

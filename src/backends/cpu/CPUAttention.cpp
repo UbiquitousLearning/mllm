@@ -313,7 +313,7 @@ ErrorCode CPUAttention::free(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     O_proj_->free({kqv_state_}, outputs);
     return Op::free(inputs, outputs);
 }
-ErrorCode CPUAttention::setDtype(mllm_dtype weight_dtype, mllm_dtype activation_dtype) {
+ErrorCode CPUAttention::setDtype(DataType weight_dtype, DataType activation_dtype) {
     Q_proj_->setDtype(weight_dtype, activation_dtype);
     K_proj_->setDtype(weight_dtype, activation_dtype);
     V_proj_->setDtype(weight_dtype, activation_dtype);

@@ -84,9 +84,8 @@ protected:
     unordered_map<string, shared_ptr<Op>> ops_;                            // opname: op
     //    unordered_map<string, shared_ptr<Tensor>> external_tensors_;
 
-
-    mllm_dtype weights_dtype_ = MLLM_TYPE_F32;
-    mllm_dtype activation_dtype_ = MLLM_TYPE_F32;
+    DataType weights_dtype_ = MLLM_TYPE_F32;
+    DataType activation_dtype_ = MLLM_TYPE_F32;
 };
 
 } // namespace mllm

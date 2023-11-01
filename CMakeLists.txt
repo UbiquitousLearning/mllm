@@ -124,7 +124,7 @@ if (QUANT)
 
     message(STATUS "MLLM_Quant: ${MLLM_QUANT}")
     add_executable(
-            MLLM_QUANT
+            quantize
             ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
             ${MLLM_QUANT}
             ${DIR_SRC}
