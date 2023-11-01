@@ -109,5 +109,6 @@ uint8_t *ParamLoader::load(string name) {
     uint8_t *data = new uint8_t[offset.second];
     fseek(fp_, offset.first, SEEK_SET);
     fread(data, sizeof(uint8_t), offset.second, fp_);
+    return data;
 }
 } // namespace mllm

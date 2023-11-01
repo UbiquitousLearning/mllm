@@ -45,6 +45,6 @@ void ParamWriter::paddingIndex(const vector<string> names) {
     // write 0 padding to preserve space for index
     int index_size = calcIndexSize(names);
     write_u64(fp_, index_size);
-    char i = '\0';
-    fwrite(&i, 1, index_size, fp_);
+    char i[index_size];
+    fwrite(&i, sizeof(char), index_size, fp_);
 }

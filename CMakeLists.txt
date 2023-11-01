@@ -127,7 +127,8 @@ if (QUANT)
             quantize
             ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
             ${MLLM_QUANT}
-            ${DIR_SRC}
+#            ${DIR_SRC}
+            ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
 
     )
 
