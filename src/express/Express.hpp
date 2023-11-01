@@ -17,7 +17,7 @@ struct Context {
 };
 // NOLINTBEGIN(readability-identifier-naming)
 void _SubgraphBegin(Context *ctx);
-NetTensor *_Input(Context *ctx, vector<int> dims={}, string name = "", DataType type = FP32);
+NetTensor *_Input(Context *ctx, vector<int> dims={}, string name = "", DataType type = MLLM_TYPE_F32);
 NetTensor *_Add(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Causalmask(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_SiLU(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
