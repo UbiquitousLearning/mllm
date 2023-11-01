@@ -57,8 +57,8 @@ private:
     // TODO: precision config
     BackendConfig::PrecisionMode precision_ = BackendConfig::PrecisionMode::Precision_Normal;
     std::map<OpType, NNAPIBackend::Creator *> *map_creator_;
-    std::vector<shared_ptr<Tensor>> inputTensors_, outputTensors_;
-    std::vector<std::unique_ptr<Tensor>> inputContentTensors_, outputContentTensors_;
+    std::vector<const Tensor *> inputTensors_, outputTensors_;
+    // std::vector<std::unique_ptr<Tensor>> inputContentTensors_, outputContentTensors_;
     std::vector<std::string> opNames_;
     // tensor idx map
     std::map<const Tensor *, uint32_t> tensorIdxMap_, dequantIdxMap_;
