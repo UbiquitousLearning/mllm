@@ -25,8 +25,8 @@ public:
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-    virtual ErrorCode setDtype(mllm_dtype weight_dtype, mllm_dtype activation_dtype) override;
-    
+    virtual ErrorCode setDtype(DataType weight_dtype, DataType activation_dtype) override;
+
     virtual ErrorCode load(ParamLoader &loader) override;
 
 private:

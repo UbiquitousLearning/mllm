@@ -41,7 +41,7 @@ public:
     void setBackend(Backend *bn) {
         backend_ = bn;
     };
-    void setDtype(mllm_dtype dtype) {
+    void setDtype(DataType dtype) {
         dtype_ = dtype;
     }
 
@@ -50,7 +50,7 @@ public:
     bool reshape(const vector<int> &shape);
 
     void alloc();
-    void alloc(mllm_dtype dtype) {
+    void alloc(DataType dtype) {
         dtype_ = dtype;
         alloc();
     }
@@ -281,32 +281,12 @@ public:
         }
     }
 
-    mllm_dtype dtype() const {
+    DataType dtype() const {
         return dtype_;
     }
 
     float dtypeSize() {
-        switch (dtype_) {
-        case MLLM_TYPE_F32:
-            return sizeof(float);
-        case MLLM_TYPE_F16:
-            return sizeof(short);
-        case MLLM_TYPE_I32:
-            return sizeof(int);
-        case MLLM_TYPE_I16:
-            return sizeof(short);
-        case MLLM_TYPE_I8:
-            return sizeof(char);
-            // TODO WRONG?
-        case MLLM_TYPE_Q4_0:
-            return (sizeof(block_q4_0)) / (QK4_0 / 2);
-        case MLLM_TYPE_Q4_K:
-            return (sizeof(block_q4_K)) / (QK_K / 2);
-        case MLLM_TYPE_Q8_0:
-            return (sizeof(block_q8_0)) / (QK8_0);
-        case MLLM_TYPE_Q8_K:
-            return (sizeof(block_q8_K)) / (QK_K);
-        }
+        return DataTypeSize(dtype_);
     }
 //
 //    void setByteWidth(int bw) {
@@ -362,7 +342,7 @@ private:
     string name_;
     // shared_ptr<Backend> backend_;
 //    int byte_width_; // 32/16/8/4 //enum
-    mllm_dtype dtype_;
+    DataType dtype_;
     Backend *backend_;
     void *host_ptr_;
     void *device_ptr_;

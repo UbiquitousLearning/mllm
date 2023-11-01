@@ -96,4 +96,18 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
 bool ParamLoader::load(std::shared_ptr<mllm::Tensor> tensor) {
     return load(tensor.get());
 }
+vector<std::string> ParamLoader::getParamNames() {
+    // get keys of data_type_
+    vector<std::string> keys;
+    for (auto &iter : data_type_) {
+        keys.push_back(iter.first);
+    }
+    return keys;
+}
+uint8_t *ParamLoader::load(string name) {
+    std::pair<uint64_t, uint64_t> offset = offsets_[name];
+    uint8_t *data = new uint8_t[offset.second];
+    fseek(fp_, offset.first, SEEK_SET);
+    fread(data, sizeof(uint8_t), offset.second, fp_);
+}
 } // namespace mllm
