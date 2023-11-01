@@ -28,7 +28,7 @@ ErrorCode NNAPIAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 ErrorCode NNAPIAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout << "NNAPIAdd setUp" << std::endl;
     // TODO: whether to alloc memory here?
-    // outputs[0]->alloc();
+    outputs[0]->alloc();
 
     auto inputIdxs = getTensorIdxs(inputs);
     inputIdxs.push_back(buildScalar(ANEURALNETWORKS_FUSED_NONE));

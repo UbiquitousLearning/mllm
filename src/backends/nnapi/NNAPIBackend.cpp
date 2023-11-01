@@ -281,7 +281,7 @@ ErrorCode NNAPIBackend::buildModel() {
         inputOperands[i] = getTensorIdx(inputTensors_[i]);
     }
     for (int i = 0; i < outputTensors_.size(); i++) {
-        const auto* output = outputTensors_[i];
+        const auto *output = outputTensors_[i];
         outputOperands[i] = getTensorIdx(outputTensors_[i]);
     }
 #ifdef DEBUG
@@ -301,7 +301,7 @@ ErrorCode NNAPIBackend::buildModel() {
                 outputOperands.size(),
                 outputOperands.data());
     NNAPI_CHECK(ANeuralNetworksModel_finish_27, nnapiModel_);
-    std::cout << "should finish" << std::endl;
+
     std::unique_ptr<bool[]> supports(new bool[opNames_.size()]);
     int selectDeviceIdx = -1;
     for (int i = 0; i < nnapiDevices_.size(); i++) {
@@ -339,38 +339,36 @@ ErrorCode NNAPIBackend::buildModel() {
 }
 
 void NNAPIBackend::invokeModel() const {
+#ifdef DEBUG
     std::cout << "[NNAPI] invoke model.\n";
+#endif
     ANeuralNetworksExecution *execution;
     NNAPI_CHECK(ANeuralNetworksExecution_create_27, nnapiCompilation_, &execution);
-    std::cout << "[NNAPI] invoke model.\n";
+
     for (int i = 0; i < inputTensors_.size(); i++) {
-        // const void *data = inputContentTensors_[i]->hostPtr();
-        // size_t size = inputContentTensors_[i]
-        const void *data = nullptr;
-        size_t size = 0;
+        const void *data = inputTensors_[i]->hostPtr<void>();
+        size_t size = inputTensors_[i]->size();
         NNAPI_CHECK(ANeuralNetworksExecution_setInput_27, execution, i, nullptr, data, size);
     }
-    std::cout << "[NNAPI] invoke model.\n";
+
     for (int i = 0; i < outputTensors_.size(); i++) {
-        // void *data = outputContentTensors_[i]->host<void>();
-        // size_t size = outputContentTensors_[i]->size();
-        void *data = nullptr;
-        size_t size = 0;
+        void *data = outputTensors_[i]->hostPtr<void>();
+        size_t size = outputTensors_[i]->size();
         NNAPI_CHECK(ANeuralNetworksExecution_setOutput_27, execution, i, nullptr, data, size);
     }
-    std::cout << "[NNAPI] invoke model.\n";
+
     NNAPI_CHECK(ANeuralNetworksExecution_compute_29, execution);
-    std::cout << "[NNAPI] invoke model.\n";
     ANeuralNetworksExecution_free_27(execution);
 }
 
 ErrorCode NNAPIBackend::identifyInputsAndOutputs(std::vector<shared_ptr<Tensor>> inputs, std::vector<shared_ptr<Tensor>> outputs) {
     // in case of inputs passed from graph have two same value, inputTensors_ should dynamically resize
+    // TODO: better solution(tensor description)
     // inputTensors_.resize(inputs.size());
     outputTensors_.resize(outputs.size());
     for (int i = 0; i < inputs.size(); i++) {
         // inputTensors should not have same value
-        if (i > 0 && inputTensors_[i-1] == inputs[i].get()) {
+        if (i > 0 && inputTensors_[i - 1] == inputs[i].get()) {
             continue;
         }
         inputTensors_.emplace_back(inputs[i].get());
