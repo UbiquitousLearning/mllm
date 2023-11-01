@@ -40,6 +40,8 @@ public:
     // set input blobs then use forward() instead.
     const vector<shared_ptr<Tensor>> &forward(const vector<shared_ptr<Tensor>> &inTensors);
 
+    void freeOps();
+    void freeTensors();
     void free();
 
     const vector<shared_ptr<Tensor>> &inputTensors();

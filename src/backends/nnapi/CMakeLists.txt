@@ -6,7 +6,8 @@ file(GLOB MLLM_NNAPI_SRC
 )
 
 # import android ndk cmake toolchain
-include(/Users/luis/Library/Android/sdk/ndk/25.1.8937393/build/cmake/android.toolchain.cmake)
+#include(/Users/luis/Library/Android/sdk/ndk/25.1.8937393/build/cmake/android.toolchain.cmake)
+include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
 
 add_library(
     MLLM_NNAPI

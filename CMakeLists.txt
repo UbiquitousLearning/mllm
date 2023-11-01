@@ -3,8 +3,11 @@ cmake_minimum_required(VERSION 3.7.2)
 project(mllm)
 cmake_policy(SET CMP0074 NEW) 
 set(CMAKE_CXX_STANDARD 17)
-
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
+if (ARM)
+    set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin-arm)
+else()
+    set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
+endif ()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # temp executable name
@@ -87,20 +90,21 @@ if (TEST)
 
     include(GoogleTest)
     gtest_discover_tests(MLLM_TEST)
-    #else ()
-    #    No Unit Test.
-    add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} #${DIR_SRC_QUANT}
-            src/tokenizers/Tokenizer.cpp
-            src/tokenizers/Tokenizer.hpp
-            src/tokenizers/BPE/Bpe.cpp
-            src/tokenizers/BPE/Bpe.hpp)
-    target_link_libraries(${TEST_EXE} MLLM_CPU )
-
 endif ()
+
+#else ()
+#    No Unit Test.
+add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} #${DIR_SRC_QUANT}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp)
+target_link_libraries(${TEST_EXE} MLLM_CPU )
 
 # nnapi temp test
 if(NNAPI)
-    include(/Users/luis/Library/Android/sdk/ndk/25.1.8937393/build/cmake/android.toolchain.cmake)
+#    include(/Users/luis/Library/Android/sdk/ndk/25.1.8937393/build/cmake/android.toolchain.cmake)
+    include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
     add_definitions(-DNNAPI_ENABLED)
     # TODO: better debug log
     add_definitions(-DDEBUG)
