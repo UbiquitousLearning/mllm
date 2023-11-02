@@ -33,8 +33,8 @@ namespace mllm {
 class QuantWriter : public ParamWriter {
 public:
     explicit QuantWriter(std::string output_path, std::string input_path);
-    int ReadParams();
-    void QuantParams(DataType dataType);
+    int readParams();
+    void quantParams(DataType dataType);
 
 private:
     string output_path_;
@@ -50,7 +50,7 @@ QuantWriter::QuantWriter(std::string output_path, std::string input_path) :
         __exit(-1);
     }
 }
-int QuantWriter::ReadParams() {
+int QuantWriter::readParams() {
     param_names_ = param_loader_->getParamNames();
     paddingIndex(param_names_);
     return param_names_.size();
@@ -60,10 +60,10 @@ float *QuantWriter::getParam(std::string param_name) {
     if (type != DataType::MLLM_TYPE_F32) {
         return nullptr;
     }
-    void *data = param_loader_->load(param_name);
-    return static_cast<float *>(data);
+    auto [data, size] = param_loader_->load(param_name);
+    return static_cast<float *>((void *)data);
 }
-void QuantWriter::QuantParams(DataType dataType) {
+void QuantWriter::quantParams(DataType dataType) {
     quant_type_ = dataType;
     for (const auto &name : param_names_) {
         //        int force_quant_type = -1;
@@ -71,6 +71,7 @@ void QuantWriter::QuantParams(DataType dataType) {
         if (param == nullptr) {
             __exit(-1);
         }
+        std::cout << "Quantize param " << name << " to " << DataTypeName(dataType) << "\n";
         auto size = param_loader_->offsets_[name].second / sizeof(float);
         void *quant_ptr = nullptr;
         std::pair<void *, uint64_t> block_t;
@@ -148,20 +149,20 @@ int main(int argc, char **argv) {
     auto output_path = std::string(argv[2]);
     auto quant_type = std::string(argv[3]);
     mllm::QuantWriter quant_writer(output_path, input_path);
-    int param_count = quant_writer.ReadParams();
+    int param_count = quant_writer.readParams();
     if (param_count <= 0) {
         std::cout << "No params to quantize\n";
         return -1;
     }
     std::cout << "Quantize " << param_count << " params to " << quant_type << "\n";
     if (quant_type == "Q4_0") {
-        quant_writer.QuantParams(MLLM_TYPE_Q4_0);
+        quant_writer.quantParams(MLLM_TYPE_Q4_0);
     } else if (quant_type == "Q8_0") {
-        quant_writer.QuantParams(MLLM_TYPE_Q8_0);
+        quant_writer.quantParams(MLLM_TYPE_Q8_0);
     } else if (quant_type == "Q4_K") {
-        quant_writer.QuantParams(MLLM_TYPE_Q4_K);
+        quant_writer.quantParams(MLLM_TYPE_Q4_K);
     } else if (quant_type == "Q8_K") {
-        quant_writer.QuantParams(MLLM_TYPE_Q8_K);
+        quant_writer.quantParams(MLLM_TYPE_Q8_K);
     } else {
         std::cout << "Quant type " << quant_type << " is not supported\n";
         return -1;

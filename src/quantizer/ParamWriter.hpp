@@ -32,15 +32,13 @@ public:
     int calcIndexSize(vector<string> names);
     void writeIndex();
     void writeParam(string name, DataType type, void *data, uint64_t size);
+    void paddingIndex(vector<string> names);
 
 private:
     uint64_t index_ = 0;
     FILE *fp_;
     std::string path_;
     std::vector<ParmInfo> param_info_;
-
-protected:
-    void paddingIndex(vector<string> names);
 };
 
 #endif // MLLM_PARAMWRITER_HPP

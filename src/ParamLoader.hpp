@@ -7,6 +7,7 @@
 #include <vector>
 #include <iostream>
 #include "Tensor.hpp"
+#include "Types.hpp"
 
 namespace mllm {
 class Tensor;
@@ -55,6 +56,8 @@ public:
     bool load(mllm::Tensor *tensor);
     bool load(std::shared_ptr<mllm::Tensor> tensor);
     vector<std::string> getParamNames();
+    std::tuple<uint8_t *, uint64_t> load(string name);
+    DataType getDataType(string name);
 
 private:
     FILE *fp_;
@@ -63,7 +66,6 @@ private:
     std::uint64_t size_;
     std::map<std::string, std::pair<uint64_t, uint64_t>> offsets_; // offsets,length
     std::map<std::string, int> data_type_;
-    uint8_t *load(string name);
     bool use_mmap_;
 };
 

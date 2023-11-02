@@ -63,6 +63,28 @@ add_compile_options(-mavx2)
 elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
     message(STATUS "ARM detected")
 endif()
+if (QUANT)
+    include_directories(${PROJECT_SOURCE_DIR}/src/quantizer)
+    file(GLOB_RECURSE MLLM_QUANT
+            ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp
+            ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.hpp
+            ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
+    )
+
+    message(STATUS "MLLM_Quant: ${MLLM_QUANT}")
+    add_executable(
+            quantize
+            ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
+            ${MLLM_QUANT}
+            #            ${DIR_SRC}
+            ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
+
+    )
+
+
+endif ()
+
 
 if (TEST)
     add_definitions(-DTEST)
@@ -113,24 +135,3 @@ if(NNAPI)
     target_link_libraries(nnapi_test MLLM_CPU MLLM_NNAPI)
 endif()
 
-if (QUANT)
-    include_directories(${PROJECT_SOURCE_DIR}/src/quantizer)
-    file(GLOB_RECURSE MLLM_QUANT
-            ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
-            ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp
-            ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.hpp
-            ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
-    )
-
-    message(STATUS "MLLM_Quant: ${MLLM_QUANT}")
-    add_executable(
-            quantize
-            ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
-            ${MLLM_QUANT}
-#            ${DIR_SRC}
-            ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
-
-    )
-
-
-endif ()

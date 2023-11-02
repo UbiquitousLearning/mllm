@@ -1,10 +1,12 @@
 #include "ParamLoader.hpp"
 #include "NetParameter.hpp"
+#include "Types.hpp"
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <tuple>
 #include <utility>
 // TODO:
 /*
@@ -104,11 +106,19 @@ vector<std::string> ParamLoader::getParamNames() {
     }
     return keys;
 }
-uint8_t *ParamLoader::load(string name) {
-    std::pair<uint64_t, uint64_t> offset = offsets_[name];
-    uint8_t *data = new uint8_t[offset.second];
-    fseek(fp_, offset.first, SEEK_SET);
-    fread(data, sizeof(uint8_t), offset.second, fp_);
-    return data;
+std::tuple<uint8_t *, uint64_t> ParamLoader::load(string name) {
+    auto [offset, length] = offsets_[name];
+    uint8_t *data = new uint8_t[length];
+    fseek(fp_, offset, SEEK_SET);
+    fread(data, sizeof(uint8_t), length, fp_);
+    return std::make_tuple(data, length);
+}
+DataType ParamLoader::getDataType(string name) {
+    if (data_type_.count(name) != 1) {
+        return DataType::MLLM_TYPE_COUNT;
+    }
+    int type = data_type_[name];
+    // check if exists
+    return static_cast<DataType>(type);
 }
 } // namespace mllm
