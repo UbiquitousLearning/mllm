@@ -6,6 +6,7 @@
 #include <vector>
 #include "NNAPIAdd.hpp"
 #include "NNAPIMatmul.hpp"
+#include "NNAPISoftMax.hpp"
 
 // TODO: float <--> half convert for armv82
 #define FLOAT_TO_HALF(...)
@@ -110,7 +111,7 @@ void NNAPIBackend::registerOps() {
     // addCreator(ROPE, (NNAPIBackend::Creator *)(new NNAPIRoPECreator()));
     // addCreator(SCALE, (NNAPIBackend::Creator *)(new NNAPIScaleCreator()));
     // addCreator(SILU, (NNAPIBackend::Creator *)(new NNAPISiLUCreator()));
-    // addCreator(SOFTMAX, (NNAPIBackend::Creator *)(new NNAPISoftMaxCreator()));
+    addCreator(SOFTMAX, (NNAPIBackend::Creator *)(new NNAPISoftMaxCreator()));
     // addCreator(LINEAR, (NNAPIBackend::Creator *)(new NNAPILinearCreator()));
 }
 

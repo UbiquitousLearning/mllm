@@ -1,4 +1,3 @@
-
 #include "NNAPIMatmul.hpp"
 #include "NNAPICommonOp.hpp"
 #include "NNAPINeuralNetworks.h"

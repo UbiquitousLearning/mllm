@@ -53,7 +53,7 @@ int main() {
     Context *ctx = new Context();
 
     auto *a = _Input(ctx);
-    auto *b = _Add(ctx, {a, a});
+    auto *b = _Softmax(ctx, {a}, 0);
 
 
     BackendConfig bn;
