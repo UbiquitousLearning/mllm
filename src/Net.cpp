@@ -50,7 +50,7 @@ Net::Net(const vector<NetParameter> &param, BackendConfig config) :
     tensor_names_[0].push_back(in_tensor->name);
     printf("Net init\n");
 }
-
+/*
 void Net::convert() {
     // auto bn = new CPUBackend(mm);	//TODO
     // backends_["cpu"] = bn;
@@ -64,7 +64,7 @@ void Net::convert() {
         subg_1.reset(new Graph(sub_param, backends_[BackendType::MLLM_CPU], tensors_));
         subGraphs_["G" + std::to_string(i)] = subg_1;
     }
-}
+}*/
 
 void Net::convert(BackendType backend_type) {
     for (int i = 0; i < (int)net_param_.size(); ++i) {

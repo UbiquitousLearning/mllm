@@ -2,8 +2,8 @@
 namespace mllm {
 void Executor::init() {
     //
-    weights_dtype_ = MLLM_TYPE_F32;
-    activation_dtype_ = MLLM_TYPE_F32;
+//    weights_dtype_ = MLLM_TYPE_F32;
+//    activation_dtype_ = MLLM_TYPE_F32;
 }
 
 void Executor::execute(vector<int> input_size) {

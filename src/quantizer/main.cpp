@@ -8,6 +8,7 @@
 #include <string>
 #include "QuantWriter.hpp"
 
+
 int main(int argc, char **argv) {
     if (argc != 4) {
         std::cout << "Usage: ./quantize <input_path> <output_path> <quant_type>\n";

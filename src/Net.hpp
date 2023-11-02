@@ -14,10 +14,10 @@ public:
     explicit Net(const vector<NetParameter> &param, BackendConfig config);
     virtual ~Net() = default;
 
-    void convert();
+    //void convert();
     // TODO: remove
     // convert all subgraph to specified backend, just for develop
-    void convert(BackendType backend_type);
+    void convert(BackendType backend_type = BackendType::MLLM_CPU);
 
     void reshapeInput();
     void reshapeInput(vector<int> shape);
