@@ -13,7 +13,7 @@ static void writeInt(FILE *fp, int32_t val) {
 }
 static void writeString(FILE *fp, const std::string &str) {
     writeInt(fp, str.size());
-    fwrite(str.c_str(), str.size(), 1, fp);
+    fwrite(str.c_str(), sizeof(char ), str.size(), fp);
 }
 static void write_dtype(FILE *fp, DataType dtype) {
     writeInt(fp, dtype);

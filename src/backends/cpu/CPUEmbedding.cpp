@@ -17,7 +17,7 @@ ErrorCode mllm::CPUEmbedding::reshape(vector<shared_ptr<Tensor>> inputs, vector<
     outputs[0]->setDtype(activationDtype());
     weight_.reshape(1, 1, vocabSize_, hiddenSize_);
     weight_.setName(name() + ".weight");
-    weight_.setDtype(weightsDtype());
+    weight_.setDtype(MLLM_TYPE_F32);
     return NO_ERROR;
 }
 ErrorCode mllm::CPUEmbedding::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
