@@ -3,6 +3,7 @@
 //
 
 #include "ParamWriter.hpp"
+#include <cstdio>
 
 ParamWriter::ParamWriter(std::string filename) :
     path_(std::move(filename)) {
@@ -29,6 +30,7 @@ void ParamWriter::writeIndex() {
         write_u64(fp_, param.offset);
         writeInt(fp_, param.type);
     }
+    fflush(fp_);
 }
 
 void ParamWriter::writeParam(string name, DataType type, void *data, uint64_t size) {
