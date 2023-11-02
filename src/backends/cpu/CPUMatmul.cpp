@@ -73,7 +73,7 @@ ErrorCode CPUMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUMatmul()" << std::endl;
 
-    switch (weightsDtype()) {
+    switch (activationDtype()) {
     case MLLM_TYPE_F32: {
         mat_mul_fp32(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_);
         break;

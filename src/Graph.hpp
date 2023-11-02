@@ -85,6 +85,7 @@ protected:
     //    unordered_map<string, shared_ptr<Tensor>> external_tensors_;
 
     DataType weights_dtype_ = MLLM_TYPE_Q4_0;//MLLM_TYPE_F32;
+//    DataType weights_dtype_ = MLLM_TYPE_F32;
     DataType activation_dtype_ = MLLM_TYPE_F32;
 };
 
