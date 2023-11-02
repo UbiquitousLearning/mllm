@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.7.2)
+cmake_minimum_required(VERSION 3.10)
 
 project(mllm)
 cmake_policy(SET CMP0074 NEW) 
@@ -44,6 +44,7 @@ aux_source_directory(${PROJECT_SOURCE_DIR}/src  DIR_SRC)
 # aux_source_directory(${PROJECT_SOURCE_DIR}/src/backends/cpu  DIR_SRC_CPU)
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/express  DIR_SRC_EXP)
 #aux_source_directory(${PROJECT_SOURCE_DIR}/src/quantize  DIR_SRC_QUANT)
+aux_source_directory(${PROJECT_SOURCE_DIR}/src/memory  DIR_SRC_MEM_MANAGER)
 aux_source_directory(${PROJECT_SOURCE_DIR}/examples  EMP_SRC)
 aux_source_directory(${PROJECT_SOURCE_DIR}/test  TEST_SRC)
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/quantizer QUANT_SRC)
@@ -52,7 +53,6 @@ aux_source_directory(${PROJECT_SOURCE_DIR}/src/quantizer QUANT_SRC)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/thirdpartys/include)
-# include_directories(${PROJECT_SOURCE_DIR}/src/backends/cpu)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 # if compile to x86_64
@@ -66,7 +66,7 @@ endif()
 if (QUANT)
     include_directories(${PROJECT_SOURCE_DIR}/src/quantizer)
     file(GLOB_RECURSE MLLM_QUANT
- 
+
             ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.hpp
             ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
     )
@@ -100,30 +100,38 @@ if (TEST)
     file(GLOB_RECURSE MLLM_TEST
             ${CMAKE_CURRENT_LIST_DIR}/test/*.cpp
             ${CMAKE_CURRENT_LIST_DIR}/test/*.hpp
-
     )
+    list(REMOVE_ITEM MLLM_TEST ${CMAKE_CURRENT_LIST_DIR}/test/TestSystemMemoryManager.cpp)
+    list(REMOVE_ITEM MLLM_TEST ${CMAKE_CURRENT_LIST_DIR}/test/TestMemoryPoolManager.cpp)
+
+
     message(STATUS "MLLM_TEST: ${MLLM_TEST}")
-    # Add ${DIR_SRC_QUANT} to ${DIR_SRC} 
+    # Add ${DIR_SRC_QUANT} to ${DIR_SRC}
     # if ()
     add_executable(
             MLLM_TEST
             ${PROJECT_SOURCE_DIR}/test/main.cpp
             ${MLLM_TEST}
-            ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER}
+            ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER}
     )
+
     target_link_libraries(
             MLLM_TEST
             GTest::gtest_main
             MLLM_CPU
     )
-
+    add_executable(
+        memoryPoolTest
+        ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp
+        ${DIR_SRC_MEM_MANAGER}  ${PROJECT_SOURCE_DIR}/src/MemoryManager.hpp
+    )
     include(GoogleTest)
     gtest_discover_tests(MLLM_TEST)
 endif ()
 
 #else ()
 #    No Unit Test.
-add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} #${DIR_SRC_QUANT}
+add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} #${DIR_SRC_QUANT}
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/Tokenizer.hpp
         src/tokenizers/BPE/Bpe.cpp

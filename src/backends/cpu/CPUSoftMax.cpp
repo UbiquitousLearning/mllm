@@ -1,7 +1,6 @@
 
 #include "CPUSoftMax.hpp"
-#include <math.h>
-
+#include <cmath>
 namespace mllm {
 
 // template class CPUSoftMax;

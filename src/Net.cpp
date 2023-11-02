@@ -1,5 +1,5 @@
 #include "Net.hpp"
-#include "MemoryManager.hpp"
+#include "memory/SystemMemoryManager.hpp"
 #include "Op.hpp"
 #include "Types.hpp"
 #include "backends/cpu/CPUBackend.hpp"
@@ -15,10 +15,10 @@ Net::Net(const vector<NetParameter> &param, BackendConfig config) :
     shared_ptr<MemoryManager> mm = nullptr;
     switch (config.memory) {
     case BackendConfig::Memory_High:
-        mm = shared_ptr<MemoryManager>(new MemoryManager());
+        mm = shared_ptr<MemoryManager>(new SystemMemoryManager());
         break;
     default:
-        mm = shared_ptr<MemoryManager>(new MemoryManager());
+        mm = shared_ptr<MemoryManager>(new SystemMemoryManager());
         break;
     }
     backends_.emplace(BackendType::MLLM_CPU, new CPUBackend(mm));

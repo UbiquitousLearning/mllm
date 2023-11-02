@@ -59,7 +59,7 @@ void Tensor::alloc() {
         // 如果原有内存已经分配，则释放它
         backend_->free(host_ptr_);
     }
-    backend_->alloc(&host_ptr_, cntSize());
+    backend_->alloc(&host_ptr_, cntSize(), 8);
     allocated_ = true;
 }
 
