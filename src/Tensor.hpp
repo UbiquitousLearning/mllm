@@ -285,7 +285,11 @@ public:
         return dtype_;
     }
 
-    float dtypeSize() {
+    int CntSize() {
+        return DataTypeSize(dtype_, count_);
+    }
+
+    int dtypeSize() {
         return DataTypeSize(dtype_);
     }
 //

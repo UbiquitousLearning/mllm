@@ -2,6 +2,7 @@
 #ifndef MLLM_TYPES_H
 #define MLLM_TYPES_H
 #include "OpDefined.hpp"
+#include <iostream>
 // #define MLLM_QKK_64
 typedef enum {
     MLLM_CPU,
@@ -139,27 +140,27 @@ static string DataTypeName(DataType dataType) {
     case MLLM_TYPE_COUNT: return "COUNT";
     }
 }
-static float DataTypeSize(DataType dtype) {
+static float DataTypeSize(DataType dtype, int count=1) {
     switch (dtype) {
     case MLLM_TYPE_F32:
-        return sizeof(float);
+        return sizeof(float) *count;
     case MLLM_TYPE_F16:
-        return sizeof(short);
+        return sizeof(short)*count;
     case MLLM_TYPE_I32:
-        return sizeof(int);
+        return sizeof(int)*count;
     case MLLM_TYPE_I16:
-        return sizeof(short);
+        return sizeof(short)*count;
     case MLLM_TYPE_I8:
-        return sizeof(char);
+        return sizeof(char)*count;
         // TODO WRONG?
     case MLLM_TYPE_Q4_0:
-        return (sizeof(block_q4_0)) / (QK4_0 / 2);
+        return (sizeof(block_q4_0))*count / (QK4_0 / 2);
     case MLLM_TYPE_Q4_K:
-        return (sizeof(block_q4_K)) / (QK_K / 2);
+        return (sizeof(block_q4_K))*count / (QK_K / 2);
     case MLLM_TYPE_Q8_0:
-        return (sizeof(block_q8_0)) / (QK8_0);
+        return (sizeof(block_q8_0))*count / (QK8_0);
     case MLLM_TYPE_Q8_K:
-        return (sizeof(block_q8_K)) / (QK_K);
+        return (sizeof(block_q8_K))*count / (QK_K);
     case MLLM_TYPE_Q4_1:
     case MLLM_TYPE_Q8_1:
     case MLLM_TYPE_COUNT: return 0;

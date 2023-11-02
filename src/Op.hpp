@@ -114,6 +114,9 @@ public:
     DataType weightsDtype() const {
         return weights_dtype_;
     }
+    void setWeightsDtype(DataType dtype) {
+         weights_dtype_ = dtype;
+    }
     DataType activationDtype() const {
         return activation_dtype_;
     }

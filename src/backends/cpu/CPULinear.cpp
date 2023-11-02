@@ -14,6 +14,7 @@ CPULinear::CPULinear(Backend *bn, string opName, int in_features, int out_featur
 }
 
 ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    //setWeightsDtype(MLLM_TYPE_Q4_0) ;
     std::cout << name() << "  CPULinear  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
