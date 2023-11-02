@@ -1,10 +1,11 @@
 #include "NNAPIBackend.hpp"
-#include "NNAPIAdd.hpp"
 #include "NNAPISymbol.hpp"
 #include "Types.hpp"
 #include <cstdint>
 #include <iostream>
 #include <vector>
+#include "NNAPIAdd.hpp"
+#include "NNAPIMatmul.hpp"
 
 // TODO: float <--> half convert for armv82
 #define FLOAT_TO_HALF(...)
@@ -104,7 +105,7 @@ void NNAPIBackend::registerOps() {
     // SOFTMAX
     addCreator(ADD, (NNAPIBackend::Creator *)(new NNAPIAddCreator()));
     // addCreator(CAUSALMASK, (NNAPIBackend::Creator *)(new NNAPICausalMaskCreator()));
-    // addCreator(MATMUL, (NNAPIBackend::Creator *)(new NNAPIMatmulCreator()));
+    addCreator(MATMUL, (NNAPIBackend::Creator *)(new NNAPIMatmulCreator()));
     // addCreator(RMSNORM, (NNAPIBackend::Creator *)(new NNAPIRMSNormCreator()));
     // addCreator(ROPE, (NNAPIBackend::Creator *)(new NNAPIRoPECreator()));
     // addCreator(SCALE, (NNAPIBackend::Creator *)(new NNAPIScaleCreator()));

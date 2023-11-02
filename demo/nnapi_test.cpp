@@ -50,19 +50,20 @@ void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, flo
 
 int main() {
     std::cout << "===NNAPI Test===" << std::endl;
-    Context *c = new Context();
+    Context *ctx = new Context();
 
-    auto *a = _Input(c);
-    auto *b = _Add(c, {a, a});
+    auto *a = _Input(ctx);
+    auto *b = _Add(ctx, {a, a});
+
 
     BackendConfig bn;
-    Net net(c->sub_param_, bn);
+    Net net(ctx->sub_param_, bn);
     net.convert(BackendType::MLLM_NNAPI);
-    display(c);
+    display(ctx);
 
     Executor ex(&net);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    fullTensor(input, net, {1, 1, 1, 1}, 1);
+    fullTensor(input, net, {1, 1, 1, 1}, 2);
     std::cout << "===NNAPI Execute===" << std::endl;
     ex.execute(input);
     std::cout << "===print result===" << std::endl;
