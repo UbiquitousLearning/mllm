@@ -50,6 +50,13 @@ enum DataType {
     MLLM_TYPE_I32,
     MLLM_TYPE_COUNT,
 };
+#if defined(__ARM_NEON) && defined(__CUDACC__)
+typedef half mllm_fp16_t;
+#elif defined(__ARM_NEON) && !defined(_MSC_VER)
+typedef __fp16 mllm_fp16_t;
+#else
+typedef uint16_t mllm_fp16_t;
+#endif
 
 #ifdef MLLM_QKK_64
 #define QK_K 64
@@ -62,7 +69,7 @@ enum DataType {
 // typedef uint16_t mllm_fp16_t;
 #pragma pack(1)
 typedef struct {
-    uint16_t d;            // delta
+    mllm_fp16_t d;            // delta
     uint8_t qs[QK4_0 / 2]; // nibbles / quants
 } block_q4_0;
 #pragma pack()
@@ -75,7 +82,7 @@ typedef struct {
 #ifdef MLLM_QKK_64
 #pragma pack(1)
 typedef struct {
-    uint16_t d[2];        // super-block scales/mins
+    mllm_fp16_t d[2];        // super-block scales/mins
     uint8_t scales[2];    // 4-bit block scales/mins
     uint8_t qs[QK_K / 2]; // 4--bit quants
 } block_q4_K;
@@ -84,19 +91,19 @@ static_assert(sizeof(block_q4_K) == 2 * sizeof(uint16_t) + QK_K / 2 + 2, "wrong 
 #else
 #pragma pack(1)
 typedef struct {
-    uint16_t d;                   // super-block scale for quantized scales
-    uint16_t dmin;                // super-block scale for quantized mins
+    mllm_fp16_t d;                   // super-block scale for quantized scales
+    mllm_fp16_t dmin;                // super-block scale for quantized mins
     uint8_t scales[K_SCALE_SIZE]; // scales and mins, quantized with 6 bits
     uint8_t qs[QK_K / 2];         // 4--bit quants
 } block_q4_K;
 #pragma pack()
-static_assert(sizeof(block_q4_K) == 2 * sizeof(uint16_t) + K_SCALE_SIZE + QK_K / 2, "wrong q4_K block size/padding");
+static_assert(sizeof(block_q4_K) == 2 * sizeof(mllm_fp16_t) + K_SCALE_SIZE + QK_K / 2, "wrong q4_K block size/padding");
 #endif
 
 #define QK8_0 32
 #pragma pack(1)
 typedef struct {
-    uint16_t d;       // delta
+    mllm_fp16_t d;       // delta
     int8_t qs[QK8_0]; // quants
 } block_q8_0;
 #pragma pack()
