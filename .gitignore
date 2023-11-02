@@ -17,3 +17,6 @@ lib/
 __pycache__/
 *.log
 _deps
+.uuid
+*.cmake
+Makefile

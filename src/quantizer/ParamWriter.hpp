@@ -13,7 +13,8 @@ static void writeInt(FILE *fp, int32_t val) {
 }
 static void writeString(FILE *fp, const std::string &str) {
     writeInt(fp, str.size());
-    fwrite(str.c_str(), sizeof(char ), str.size(), fp);
+    fwrite(str.c_str(), sizeof(char), str.size(), fp);
+
 }
 static void write_dtype(FILE *fp, DataType dtype) {
     writeInt(fp, dtype);
@@ -31,16 +32,14 @@ public:
     ParamWriter(std::string filename);
     int calcIndexSize(vector<string> names);
     void writeIndex();
-    void writeParam(string name, DataType type, void *data, uint64_t size);
+    virtual void writeParam(string name, DataType type, void *data, uint64_t size);
+    void paddingIndex(vector<string> names);
 
 private:
     uint64_t index_ = 0;
     FILE *fp_;
     std::string path_;
     std::vector<ParmInfo> param_info_;
-
-protected:
-    void paddingIndex(vector<string> names);
 };
 
 #endif // MLLM_PARAMWRITER_HPP

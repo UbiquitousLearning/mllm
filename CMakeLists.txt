@@ -63,6 +63,33 @@ add_compile_options(-mavx2)
 elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
     message(STATUS "ARM detected")
 endif()
+if (QUANT)
+    include_directories(${PROJECT_SOURCE_DIR}/src/quantizer)
+    file(GLOB_RECURSE MLLM_QUANT
+ 
+            ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.hpp
+            ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
+    )
+    # MLLM Quantizer is /src/quantizer/*.cpp but except main.cpp
+
+    file(GLOB_RECURSE MLLM_QUANTIZER
+            ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp)
+list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/main.cpp)
+    message(STATUS "MLLM_Quant: ${MLLM_QUANT}")
+    add_executable(
+            quantize
+            ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
+            ${MLLM_QUANT}
+            ${MLLM_QUANTIZER}
+            #            ${DIR_SRC}
+            ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
+
+    )
+
+
+endif ()
+
 
 if (TEST)
     add_definitions(-DTEST)
@@ -76,11 +103,13 @@ if (TEST)
 
     )
     message(STATUS "MLLM_TEST: ${MLLM_TEST}")
+    # Add ${DIR_SRC_QUANT} to ${DIR_SRC} 
+    # if ()
     add_executable(
             MLLM_TEST
             ${PROJECT_SOURCE_DIR}/test/main.cpp
             ${MLLM_TEST}
-            ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} #${DIR_SRC_QUANT}
+            ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER}
     )
     target_link_libraries(
             MLLM_TEST
@@ -113,24 +142,3 @@ if(NNAPI)
     target_link_libraries(nnapi_test MLLM_CPU MLLM_NNAPI)
 endif()
 
-if (QUANT)
-    include_directories(${PROJECT_SOURCE_DIR}/src/quantizer)
-    file(GLOB_RECURSE MLLM_QUANT
-            ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
-            ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp
-            ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.hpp
-            ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
-    )
-
-    message(STATUS "MLLM_Quant: ${MLLM_QUANT}")
-    add_executable(
-            quantize
-            ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
-            ${MLLM_QUANT}
-#            ${DIR_SRC}
-            ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
-
-    )
-
-
-endif ()

@@ -3,6 +3,7 @@
 //
 
 #include "ParamWriter.hpp"
+#include <cstdio>
 
 ParamWriter::ParamWriter(std::string filename) :
     path_(std::move(filename)) {
@@ -10,7 +11,7 @@ ParamWriter::ParamWriter(std::string filename) :
     writeInt(fp_, _MAGIC_NUMBER);
 }
 ParamWriter::~ParamWriter() {
-    if (fp_)
+    if (fp_ != nullptr)
         fclose(fp_);
 }
 int ParamWriter::calcIndexSize(const vector<string> names) {
@@ -29,10 +30,11 @@ void ParamWriter::writeIndex() {
         write_u64(fp_, param.offset);
         writeInt(fp_, param.type);
     }
+    fflush(fp_);
 }
 
 void ParamWriter::writeParam(string name, DataType type, void *data, uint64_t size) {
-    auto param = param_info_[index_];
+    auto &param = param_info_[index_];
     param.name = std::move(name);
     param.type = type;
     param.offset = ftell(fp_);
