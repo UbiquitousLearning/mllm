@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include "ParamLoader.hpp"
 #include "ParamWriter.hpp"
+#include "QuantWriter.hpp"
 #include "QuantTest.hpp"
 #include "Types.hpp"
 namespace mllm {
@@ -43,5 +44,19 @@ TEST_F(QuantTest, WriteTest) {
     }
 }
 TEST_F(QuantTest, QuantTest) {
+    auto *quant = new QuantWriter("quant_result.mllm", "quant_test.mllm");
+    ASSERT_EQ(quant->readParams(), 2);
+    quant->quantParams(DataType::MLLM_TYPE_Q4_0);
+    ASSERT_EQ(quant->data_.size(), 2);
+    delete quant;
+    auto loader = ParamLoader("quant_result.mllm");
+    auto tensor_name = loader.getParamNames();
+    ASSERT_EQ(tensor_name.size(), 2);
+    ASSERT_EQ(loader.getDataType(tensor_name[0]), DataType::MLLM_TYPE_Q4_0);
+    auto [data, size] = loader.load("weight_f1");
+    auto *ori_data = quant->data_["weight_f1"];
+    for (int i = 0; i < size; i++) {
+        ASSERT_EQ(data[i], ori_data[i]);
+    }
 }
 } // namespace mllm

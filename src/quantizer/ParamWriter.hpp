@@ -13,7 +13,7 @@ static void writeInt(FILE *fp, int32_t val) {
 }
 static void writeString(FILE *fp, const std::string &str) {
     writeInt(fp, str.size());
-    fwrite(str.c_str(), str.size(), 1, fp);
+    fwrite(str.c_str(), sizeof(char), str.size(), fp);
 }
 static void write_dtype(FILE *fp, DataType dtype) {
     writeInt(fp, dtype);
@@ -31,7 +31,7 @@ public:
     ParamWriter(std::string filename);
     int calcIndexSize(vector<string> names);
     void writeIndex();
-    void writeParam(string name, DataType type, void *data, uint64_t size);
+    virtual void writeParam(string name, DataType type, void *data, uint64_t size);
     void paddingIndex(vector<string> names);
 
 private:
