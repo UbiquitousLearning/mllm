@@ -3,7 +3,7 @@ import torch
 from TestUtils import TestBase
 
 
-class CPUDot1(TestBase):
+class CPUMul1(TestBase):
     def test(self):
         input0 = torch.randn(1, 2, 3, 4)
         input1 = torch.randn(1, 2, 3, 4)

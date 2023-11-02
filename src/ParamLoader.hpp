@@ -12,7 +12,7 @@ namespace mllm {
 class Tensor;
 static int readInt(FILE *fp_) {
     int tmp;
-    fread(&tmp, sizeof(int), 1, fp_);
+    fread(&tmp, sizeof(int32_t), 1, fp_);
     return tmp;
 }
 static uint64_t readu64(FILE *fp_) {
@@ -44,6 +44,8 @@ static std::string readString(FILE *fp_) {
 }
 #define _MAGIC_NUMBER 20012
 class ParamLoader {
+    friend class QuantWriter;
+
 public:
     ParamLoader(std::string filename, bool use_mmap = false);
 #ifdef USE_MMAP
@@ -52,6 +54,7 @@ public:
     ~ParamLoader();
     bool load(mllm::Tensor *tensor);
     bool load(std::shared_ptr<mllm::Tensor> tensor);
+    vector<std::string> getParamNames();
 
 private:
     FILE *fp_;
@@ -60,6 +63,7 @@ private:
     std::uint64_t size_;
     std::map<std::string, std::pair<uint64_t, uint64_t>> offsets_; // offsets,length
     std::map<std::string, int> data_type_;
+    uint8_t *load(string name);
     bool use_mmap_;
 };
 

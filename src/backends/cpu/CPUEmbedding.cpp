@@ -14,8 +14,10 @@ ErrorCode mllm::CPUEmbedding::reshape(vector<shared_ptr<Tensor>> inputs, vector<
     // Input: [batch, 1, sequence, 1]
 //    CHECK_EQ(input->width(), 1);
     output->reshape(input->batch(), 1, input->sequence(), hiddenSize_);
+    outputs[0]->setDtype(activationDtype());
     weight_.reshape(1, 1, vocabSize_, hiddenSize_);
     weight_.setName(name() + ".weight");
+    weight_.setDtype(weightsDtype());
     return NO_ERROR;
 }
 ErrorCode mllm::CPUEmbedding::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -52,7 +54,7 @@ ErrorCode mllm::CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<
                 // Set the seq
                 memcpy(output->hostPtr<float>() + output->offset(batch, head, seq, 0),
                        weight_.hostPtr<float>() + weight_.offset(0, 0, (int)input->dataAt<float>(batch, head, seq, 0), 0),
-                       weight_.byteWidth() * hiddenSize_);
+                       weight_.dtypeSize() * hiddenSize_);
             }
         }
     }
@@ -63,4 +65,8 @@ ErrorCode mllm::CPUEmbedding::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, 
     outputs[0]->reshape(inputs[0]->batch(), 1, inputs[0]->sequence(), hiddenSize_);
     outputs[0]->alloc();
     return NO_ERROR;
+}
+ErrorCode mllm::CPUEmbedding::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    weight_.free();
+    return Op::free(inputs, outputs);
 }

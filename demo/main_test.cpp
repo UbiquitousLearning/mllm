@@ -4,6 +4,7 @@
 #include "NetParameter.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
+#include "backends/cpu/CPUBackend.hpp"
 using namespace mllm;
 // For Visualization and Debug
 void display(NetParameter *net) {
@@ -53,6 +54,34 @@ void token2Tensor(shared_ptr<Tensor> input_tensor, Net net, vector<token_id_t> t
         input_tensor->setDataAt<float>(0, 0, idx, 0, tokens[idx]);
     }
 }
+unsigned int argmax(const std::vector<float>& scores) {
+    if(scores.empty()) {
+        throw std::invalid_argument("Input vector is empty");
+    }
+    unsigned int maxIndex = 0;
+    float maxValue = scores[0];
+    for(size_t i = 1; i < scores.size(); ++i) {
+        if(scores[i] > maxValue) {
+            maxIndex = i;
+            maxValue = scores[i];
+        }
+    }
+    return maxIndex;
+}
+unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> out_result){
+    CHECK_EQ(result->shape(0), 1);
+    CHECK_EQ(result->shape(1), 1);
+    out_result->reshape({1, 1, 1, 1});
+    out_result->alloc();
+    vector<float> scores;
+    for (int i = 0; i < result->shape(3); ++i) {
+        auto value = result->dataAt<float>(0, 0, result->shape(2)-1, i);
+        scores.push_back(value);
+    }
+    auto token_idx =  argmax(scores);
+    out_result->setDataAt(0, 0, 0, 0, token_idx);
+    return token_idx;
+}
 int main() {
     auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
     auto tokens_id = vector<token_id_t>();
@@ -66,20 +95,29 @@ int main() {
     // std::cout << tokenizer.detokenize(tokens_id) << std::endl;
     int vocab_size = 32000;
     int hidden_dim = 4096;
+    int ffn_hidden_dim = 11008;
     int mutil_head_size = 32;
     Context *c = new Context();
     auto *i = _Input(c);
-    i = _Embedding(c, {i}, vocab_size, hidden_dim, "tok_embeddings");
-    auto *x = _RMSNorm(c, {i}, "layers.0.attention_norm");
-    x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "layers.0.attention");
-    auto *j = _Add(c, {x, i});
-    i = _RMSNorm(c, {j}, "layers.0.ffn_norm");
-    x = _Linear(c, {i}, hidden_dim, hidden_dim * 4, false, "layers.0.feed_forward.w1");
-    x = _SiLU(c, {x});
-    auto *y = _Linear(c, {i}, hidden_dim, hidden_dim * 4, false, "layers.0.feed_forward.w3");
-    x = _Dot(c, {x, y});
-    x = _Linear(c, {x}, hidden_dim * 4, hidden_dim, false, "layers.0.feed_forward.w2");
-    x = _Add(c, {x, j});
+    i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"tok_embeddings");
+    // loop
+    for(int layer=0; layer<32; ++layer) {
+        auto *x = _RMSNorm(c, {i}, (string)"layers."+std::to_string(layer)+".attention_norm");
+        x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
+        auto *j = _Add(c, {x, i});
+        i = _RMSNorm(c, {j}, (string)"layers."+std::to_string(layer)+".ffn_norm");
+        x = _Linear(c, {i}, hidden_dim, ffn_hidden_dim, false, (string)"layers."+std::to_string(layer)+".feed_forward.w1");
+        x = _SiLU(c, {x});
+        auto *y = _Linear(c, {i}, hidden_dim, ffn_hidden_dim, false, (string)"layers."+std::to_string(layer)+".feed_forward.w3");
+        x = _Mul(c, {x, y});
+        x = _Linear(c, {x}, ffn_hidden_dim, hidden_dim, false, (string)"layers."+std::to_string(layer)+".feed_forward.w2");
+        i = _Add(c, {x, j});
+        _SubgraphBegin(c);
+    }
+    // end loop
+    i = _RMSNorm(c, {i}, (string)"norm");
+    i = _Linear(c, {i}, hidden_dim, vocab_size, false, "output");
+
     BackendConfig bn;
     Net net(c->sub_param_, bn);
     net.convert();
@@ -92,7 +130,9 @@ int main() {
     token2Tensor(input, net, tokens_id);
     ex.execute(input);
     auto result = ex.result();
-    result[0]->printData<float>();
+//    result[0]->printData<float>();
+    auto token_idx = postProcessing(result[0], input);
+    std::cout<<"OUT TOKEN: "<<token_idx<<"|    "<< tokenizer.detokenize({token_idx}) << std::endl;
     /*
     shared_ptr<Tensor> input_2 = std::make_shared<Tensor>();
     // fullTensor(input_2, net, {1, 1, 1, 1}, 1);
@@ -107,6 +147,7 @@ int main() {
     // ex.execute({1, 1, 10, vocab_size});
     // ex.execute({1, 1, 1, vocab_size});
     // ex.execute({1, 1, 1, vocab_size});
+
      */
 
     return 0;

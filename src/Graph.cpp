@@ -39,6 +39,7 @@ Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, share
         my_op.reset(new_op);
 //        string lname = net_op->name;
 //        my_op->setName(lname);
+        my_op->setDtype(weights_dtype_, activation_dtype_);
         ops_[net_op->name] = my_op;
     }
 //    shapeInit(external_tensors);
@@ -133,13 +134,16 @@ void Graph::load(ParamLoader &loader) {
  * @return
  */
 
-const vector<shared_ptr<Tensor>> &Graph::forward() {
+const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
     // TODO 改为递归
 
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto *net_op = param_.net_ops[i];
         string lname = net_op->name;
         ops_[lname]->execute(ops_input_tensors_[lname], ops_output_tensors_[lname]);
+        if(autofree){
+            ops_[lname]->free(ops_input_tensors_[lname], ops_output_tensors_[lname]);
+        }
     }
     // TODO
     return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
@@ -182,5 +186,23 @@ void Graph::reFlashInput(unordered_map<string, shared_ptr<Tensor>> &external_ten
     ops_input_tensors_[param_.net_ops[0]->name][0]->printData<float>();
     std::cout << param_.net_ops[0]->name << std::endl;
     //    ops_input_tensors_[param_.net_ops[0]->name] = inTensors;
+}
+
+void Graph::freeOps(){
+    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
+        auto *net_op = param_.net_ops[i];
+        string lname = net_op->name;
+        ops_[lname]->free(ops_input_tensors_[lname], ops_output_tensors_[lname]);
+    }
+}
+void Graph::freeTensors(){
+    for(auto& t: tensors_){
+        t.second->free();
+    }
+}
+void Graph::free() {
+    //TODO update
+    freeOps();
+    freeTensors();
 }
 } // namespace mllm

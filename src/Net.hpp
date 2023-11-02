@@ -15,6 +15,9 @@ public:
     virtual ~Net() = default;
 
     void convert();
+    // TODO: remove
+    // convert all subgraph to specified backend, just for develop
+    void convert(BackendType backend_type);
 
     void reshapeInput();
     void reshapeInput(vector<int> shape);
@@ -32,12 +35,18 @@ public:
     unordered_map<BackendType, Backend *> &backends() {
         return backends_;
     }
+    vector<vector<string>> &tensorNames() {
+        return tensor_names_;
+    }
+    void freeTensors(int graph_idx);
+
 private:
     vector<NetParameter> net_param_;
     unordered_map<string, shared_ptr<Graph>> subGraphs_;
     BackendConfig config_;
     // vector<Tensor *> tensors_;
     unordered_map<string, shared_ptr<Tensor>> tensors_;
+    vector<vector<string>> tensor_names_;
     vector<NetOp *> ops_;
     unordered_map<BackendType, Backend *> backends_;
     //    ParamLoader *data_loader_;

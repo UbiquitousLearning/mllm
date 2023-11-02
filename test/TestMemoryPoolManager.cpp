@@ -75,7 +75,6 @@ void batch_allocate_but_odd_free(size_t pool_size,size_t block_size,size_t align
     for (int i=0;i<n_blocks;i++){
         if (i%2 ==1){
             manager.free(ptrs[i]);
-            cout<<i<<endl;
             counter--;
             if (i!=n_blocks - 1){
                 assert(counter == manager.debug_free_blocks.size());

@@ -38,9 +38,13 @@ public:
      * @brief 前行传播
      */
     // const  vector<shared_ptr<Tensor>>& forward();
-    const vector<shared_ptr<Tensor>> &forward();
+    const vector<shared_ptr<Tensor>> &forward(bool autofree = false);
     // set input blobs then use forward() instead.
     const vector<shared_ptr<Tensor>> &forward(const vector<shared_ptr<Tensor>> &inTensors);
+
+    void freeOps();
+    void freeTensors();
+    void free();
 
     const vector<shared_ptr<Tensor>> &inputTensors();
     const vector<shared_ptr<Tensor>> &outputTensors();
@@ -81,6 +85,9 @@ protected:
     unordered_map<string, shared_ptr<Tensor>> tensors_;                    // opname: Tensors
     unordered_map<string, shared_ptr<Op>> ops_;                            // opname: op
     //    unordered_map<string, shared_ptr<Tensor>> external_tensors_;
+
+    DataType weights_dtype_ = MLLM_TYPE_F32;
+    DataType activation_dtype_ = MLLM_TYPE_F32;
 };
 
 } // namespace mllm

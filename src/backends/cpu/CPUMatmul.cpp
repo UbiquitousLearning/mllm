@@ -54,6 +54,7 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         CHECK_EQ(inputs[0]->sequence(), inputs[1]->sequence());
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[1]->dimension());
     }
+    outputs[0]->setDtype(activationDtype());
     return NO_ERROR;
 }
 
@@ -71,43 +72,25 @@ ErrorCode CPUMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 
 ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUMatmul()" << std::endl;
-    // INPUT: M.K
-    // W:K,N
-    // OUTPUT:M.N
-    int M = 0;
-    int K = 0;
-    int N = 0;
-    if (!transpose0_ && !transpose1_) {
-        M = inputs[0]->sequence();
-        K = inputs[0]->dimension();
-        N = inputs[1]->dimension();
-    } else if (transpose1_) {
-        M = inputs[0]->sequence();
-        K = inputs[0]->dimension();
-        N = inputs[1]->sequence();
-    } else {
-        M = inputs[0]->dimension();
-        K = inputs[0]->sequence();
-        N = inputs[1]->dimension();
+
+    switch (weightsDtype()) {
+    case MLLM_TYPE_F32: {
+        mat_mul_fp32(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_);
+        break;
     }
-    for (int b = 0; b < inputs[0]->batch(); b++) {
-        for (int w = 0; w < inputs[0]->head(); w++) {
-            for (int m = 0; m < M; m++) {
-                for (int n = 0; n < N; n++) {
-                    float value = 0;
-                    for (int k = 0; k < K; k++) {
-                        if (!transpose0_ && !transpose1_) {
-                            value += inputs[0]->dataAt<float>(b, w, m, k) * inputs[1]->dataAt<float>(b, w, k, n);
-                        } else if (transpose1_) {
-                            value += inputs[0]->dataAt<float>(b, w, m, k) * inputs[1]->dataAt<float>(b, w, n, k);
-                        } else {
-                            value += inputs[0]->dataAt<float>(b, w, k, m) * inputs[1]->dataAt<float>(b, w, k, n);
-                        }
-                    }
-                    outputs[0]->setDataAt<float>(b, w, m, n, value);
-                }
-            }
-        }
+    // matmul only fp32
+    /*
+    case MLLM_TYPE_F16: break;
+    case MLLM_TYPE_Q4_0: {
+        mat_mul_fp32_q4_0(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_);
+        break;
+    }
+    case MLLM_TYPE_Q4_K: {
+        mat_mul_fp32_q4_K(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_);
+        break;
+    }*/
+    default:
+        break;
     }
     return NO_ERROR;
 }

@@ -92,6 +92,31 @@ public:
      * @return execution result
      */
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) = 0;
+
+    /**
+     * @brief perform free.
+     * @param inputs    input tensors
+     * @param outputs   output tensors
+     * @return execution result
+     */
+    virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+//        for (auto &t : inputs) {
+//            t->free();
+//        }
+        return NO_ERROR;
+    }
+
+    virtual ErrorCode setDtype(DataType weight_dtype, DataType activation_dtype) {
+        weights_dtype_ = weight_dtype;
+        activation_dtype_ = activation_dtype;
+        return NO_ERROR;
+    }
+    DataType weightsDtype() const {
+        return weights_dtype_;
+    }
+    DataType activationDtype() const {
+        return activation_dtype_;
+    }
     /**
      * @brief get backend.
      * @return backend.
@@ -118,6 +143,8 @@ private:
     // BackendType backend_type_;
     // tensor w
     // vector<>
+    DataType weights_dtype_ = MLLM_TYPE_F32;
+    DataType activation_dtype_ = MLLM_TYPE_F32;
 };
 
 // unordered_map<OpType, function<shared_ptr<Op>(Backend*)>> opMap;

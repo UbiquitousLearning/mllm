@@ -1,0 +1,86 @@
+#ifndef MLLM_NNAPISYMBOLS_H
+#define MLLM_NNAPISYMBOLS_H
+
+#include "NNAPIDefine.hpp"
+
+namespace mllm {
+// typedef the function in nnapi will be used
+typedef int(MLLM_ANeuralNetworksModel_getSupportedOperationsForDevices)(const ANeuralNetworksModel *model, const ANeuralNetworksDevice *const *devices, uint32_t numDevices, bool *supportedOps);
+typedef int(MLLM_ANeuralNetworks_getDeviceCount)(uint32_t *numDevices);
+typedef int(MLLM_ANeuralNetworks_getDevice)(uint32_t devIndex, ANeuralNetworksDevice **device);
+typedef int(MLLM_ANeuralNetworksDevice_getName)(const ANeuralNetworksDevice *device, const char **name);
+typedef int(MLLM_ANeuralNetworksDevice_getType)(const ANeuralNetworksDevice *device, int32_t *type);
+typedef int(MLLM_ANeuralNetworksCompilation_createForDevices)(ANeuralNetworksModel *model, const ANeuralNetworksDevice *const *devices, uint32_t numDevices, ANeuralNetworksCompilation **compilation);
+typedef int(MLLM_ANeuralNetworksExecution_compute)(ANeuralNetworksExecution *execution);
+typedef int(MLLM_ANeuralNetworksBurst_create)(ANeuralNetworksCompilation *compilation, ANeuralNetworksBurst **MLLM_burst);
+typedef void(MLLM_ANeuralNetworksBurst_free)(ANeuralNetworksBurst *burst);
+typedef int(MLLM_ANeuralNetworksExecution_burstCompute)(ANeuralNetworksExecution *execution, ANeuralNetworksBurst *burst);
+typedef int(MLLM_ANeuralNetworksModel_create)(ANeuralNetworksModel **model);
+typedef void(MLLM_ANeuralNetworksModel_free)(ANeuralNetworksModel *model);
+typedef int(MLLM_ANeuralNetworksModel_finish)(ANeuralNetworksModel *model);
+typedef int(MLLM_ANeuralNetworksModel_addOperand)(ANeuralNetworksModel *model, const ANeuralNetworksOperandType *type);
+typedef int(MLLM_ANeuralNetworksModel_setOperandValue)(ANeuralNetworksModel *model, int32_t index, const void *buffer, size_t length);
+typedef int(MLLM_ANeuralNetworksModel_setOperandSymmPerChannelQuantParams)(ANeuralNetworksModel *model, int32_t index, const ANeuralNetworksSymmPerChannelQuantParams *channelQuant);
+typedef int(MLLM_ANeuralNetworksModel_addOperation)(ANeuralNetworksModel *model, ANeuralNetworksOperationType type, uint32_t inputCount, const uint32_t *inputs, uint32_t outputCount, const uint32_t *outputs);
+typedef int(MLLM_ANeuralNetworksModel_identifyInputsAndOutputs)(ANeuralNetworksModel *model, uint32_t inputCount, const uint32_t *inputs, uint32_t outputCount, const uint32_t *outputs);
+typedef int(MLLM_ANeuralNetworksCompilation_create)(ANeuralNetworksModel *model, ANeuralNetworksCompilation **compilation);
+typedef void(MLLM_ANeuralNetworksCompilation_free)(ANeuralNetworksCompilation *compilation);
+typedef int(MLLM_ANeuralNetworksCompilation_setPreference)(ANeuralNetworksCompilation *compilation, int32_t preference);
+typedef int(MLLM_ANeuralNetworksCompilation_finish)(ANeuralNetworksCompilation *compilation);
+typedef int(MLLM_ANeuralNetworksExecution_create)(ANeuralNetworksCompilation *compilation, ANeuralNetworksExecution **execution);
+typedef void(MLLM_ANeuralNetworksExecution_free)(ANeuralNetworksExecution *execution);
+typedef int(MLLM_ANeuralNetworksExecution_setInput)(ANeuralNetworksExecution *execution, int32_t index, const ANeuralNetworksOperandType *type, const void *buffer, size_t length);
+typedef int(MLLM_ANeuralNetworksExecution_setInputFromMemory)(ANeuralNetworksExecution *execution, int32_t index, const ANeuralNetworksOperandType *type, const ANeuralNetworksMemory *memory, size_t offset, size_t length);
+typedef int(MLLM_ANeuralNetworksExecution_setOutput)(ANeuralNetworksExecution *execution, int32_t index, const ANeuralNetworksOperandType *type, void *buffer, size_t length);
+typedef int(MLLM_ANeuralNetworksExecution_setOutputFromMemory)(ANeuralNetworksExecution *execution, int32_t index, const ANeuralNetworksOperandType *type, const ANeuralNetworksMemory *memory, size_t offset, size_t length);
+typedef int(MLLM_ANeuralNetworksExecution_startCompute)(ANeuralNetworksExecution *execution, ANeuralNetworksEvent **event);
+typedef int(MLLM_ANeuralNetworksEvent_wait)(ANeuralNetworksEvent *event);
+typedef void(MLLM_ANeuralNetworksEvent_free)(ANeuralNetworksEvent *event);
+typedef int(MLLM_ANeuralNetworksDevice_getVersion)(const ANeuralNetworksDevice *device, const char **version);
+typedef int(MLLM_ANeuralNetworksMemory_createFromAHardwareBuffer)(const AHardwareBuffer *ahwb, ANeuralNetworksMemory **memory);
+typedef int(MLLM_ANeuralNetworksMemory_createFromFd)(size_t size, int protect, int fd, size_t offset, ANeuralNetworksMemory **memory);
+typedef void(MLLM_ANeuralNetworksMemory_free)(ANeuralNetworksMemory *memory);
+typedef void(MLLM_ANeuralNetworksExecution_setMeasureTiming)(ANeuralNetworksExecution *execution, bool measure);
+typedef void(MLLM_ANeuralNetworksExecution_getDuration)(const ANeuralNetworksExecution *execution, int32_t durationCode, uint64_t *duration);
+
+// symbols
+bool loadNNAPISymbol();
+extern MLLM_ANeuralNetworksModel_getSupportedOperationsForDevices *ANeuralNetworksModel_getSupportedOperationsForDevices_29;
+extern MLLM_ANeuralNetworks_getDeviceCount *ANeuralNetworks_getDeviceCount_29;
+extern MLLM_ANeuralNetworks_getDevice *ANeuralNetworks_getDevice_29;
+extern MLLM_ANeuralNetworksDevice_getName *ANeuralNetworksDevice_getName_29;
+extern MLLM_ANeuralNetworksDevice_getType *ANeuralNetworksDevice_getType_29;
+extern MLLM_ANeuralNetworksCompilation_createForDevices *ANeuralNetworksCompilation_createForDevices_29;
+extern MLLM_ANeuralNetworksExecution_compute *ANeuralNetworksExecution_compute_29;
+extern MLLM_ANeuralNetworksBurst_create *ANeuralNetworksBurst_create_29;
+extern MLLM_ANeuralNetworksBurst_free *ANeuralNetworksBurst_free_29;
+extern MLLM_ANeuralNetworksExecution_burstCompute *ANeuralNetworksExecution_burstCompute_29;
+extern MLLM_ANeuralNetworksModel_create *ANeuralNetworksModel_create_27;
+extern MLLM_ANeuralNetworksModel_free *ANeuralNetworksModel_free_27;
+extern MLLM_ANeuralNetworksModel_finish *ANeuralNetworksModel_finish_27;
+extern MLLM_ANeuralNetworksModel_addOperand *ANeuralNetworksModel_addOperand_27;
+extern MLLM_ANeuralNetworksModel_setOperandValue *ANeuralNetworksModel_setOperandValue_27;
+extern MLLM_ANeuralNetworksModel_setOperandSymmPerChannelQuantParams *ANeuralNetworksModel_setOperandSymmPerChannelQuantParams_29;
+extern MLLM_ANeuralNetworksModel_addOperation *ANeuralNetworksModel_addOperation_27;
+extern MLLM_ANeuralNetworksModel_identifyInputsAndOutputs *ANeuralNetworksModel_identifyInputsAndOutputs_27;
+extern MLLM_ANeuralNetworksCompilation_create *ANeuralNetworksCompilation_create_27;
+extern MLLM_ANeuralNetworksCompilation_free *ANeuralNetworksCompilation_free_27;
+extern MLLM_ANeuralNetworksCompilation_setPreference *ANeuralNetworksCompilation_setPreference_27;
+extern MLLM_ANeuralNetworksCompilation_finish *ANeuralNetworksCompilation_finish_27;
+extern MLLM_ANeuralNetworksExecution_create *ANeuralNetworksExecution_create_27;
+extern MLLM_ANeuralNetworksExecution_free *ANeuralNetworksExecution_free_27;
+extern MLLM_ANeuralNetworksExecution_setInput *ANeuralNetworksExecution_setInput_27;
+extern MLLM_ANeuralNetworksExecution_setInputFromMemory *ANeuralNetworksExecution_setInputFromMemory_27;
+extern MLLM_ANeuralNetworksExecution_setOutput *ANeuralNetworksExecution_setOutput_27;
+extern MLLM_ANeuralNetworksExecution_setOutputFromMemory *ANeuralNetworksExecution_setOutputFromMemory_27;
+extern MLLM_ANeuralNetworksExecution_startCompute *ANeuralNetworksExecution_startCompute_27;
+extern MLLM_ANeuralNetworksEvent_wait *ANeuralNetworksEvent_wait_27;
+extern MLLM_ANeuralNetworksEvent_free *ANeuralNetworksEvent_free_27;
+extern MLLM_ANeuralNetworksDevice_getVersion *ANeuralNetworksDevice_getVersion_29;
+extern MLLM_ANeuralNetworksMemory_createFromAHardwareBuffer *ANeuralNetworksMemory_createFromAHardwareBuffer_29;
+extern MLLM_ANeuralNetworksMemory_createFromFd *ANeuralNetworksMemory_createFromFd_27;
+extern MLLM_ANeuralNetworksMemory_free *ANeuralNetworksMemory_free_27;
+extern MLLM_ANeuralNetworksExecution_setMeasureTiming *ANeuralNetworksExecution_setMeasureTiming_29;
+extern MLLM_ANeuralNetworksExecution_getDuration *ANeuralNetworksExecution_getDuration_29;
+} // namespace mllm
+#endif // MLLM_NNAPISYMBOLS_H

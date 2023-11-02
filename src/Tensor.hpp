@@ -17,14 +17,15 @@ class Tensor {
 public:
     // Tensor():data_(), diff_(), capacity_(0){}
     Tensor() :
-        host_ptr_(), capacity_(0), byte_width_(sizeof(float)) {
+        host_ptr_(), capacity_(0), dtype_(MLLM_TYPE_F32) {
     }
     Tensor(Backend *bn) :
-        backend_(bn), host_ptr_(), capacity_(0), byte_width_(sizeof(float)) {
+        backend_(bn), host_ptr_(), capacity_(0), dtype_(MLLM_TYPE_F32) {
     }
     ~Tensor() {
-        if (host_ptr_ != nullptr) {
+        if (host_ptr_ != nullptr  && allocated_) {
             backend_->free(host_ptr_);
+            allocated_ = false;
         }
     }
     explicit Tensor(const int num, const int channels, const int height, const int width); // N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
@@ -32,15 +33,32 @@ public:
     // void SetBackend(shared_ptr<Backend> bn){
     //     backend_= bn;
     // };
+    Backend *backend() const {
+        return backend_;
+    }
     void setBackend(Backend *bn) {
         backend_ = bn;
     };
+    void setDtype(DataType dtype) {
+        dtype_ = dtype;
+    }
 
     //    bool reshape(const int num, const int channels, const int height, const int width);
     bool reshape(const int batch, const int head, const int sequence, const int dimension);
     bool reshape(const vector<int> &shape);
 
     void alloc();
+    void alloc(DataType dtype) {
+        dtype_ = dtype;
+        alloc();
+    }
+
+    void free(){
+        if (host_ptr_ != nullptr && allocated_) {
+            backend_->free(host_ptr_);
+            allocated_ = false;
+        }
+    }
 
     void update();
 
@@ -189,9 +207,20 @@ public:
 
     template <typename Dtype>
     Dtype dataAt(const vector<int> &index) const {
-        //        return hostPtr<Dtype>()[offset(index)];
+            //        return hostPtr<Dtype>()[offset(index)];
         return ((Dtype *)host_ptr_)[offset(index)];
     }
+
+    template <typename Dtype>
+    Dtype* ptrAt(const vector<int> &index) const {
+        return ((Dtype *)host_ptr_ + offset(index));
+    }
+
+    template <typename Dtype>
+    Dtype* ptrAt(const int batch, const int head, const int sequence, const int dimension) const {
+        return ((Dtype *)host_ptr_ + offset(batch, head, sequence, dimension));
+    }
+
 
     //    template <typename Dtype>
     //    void setDataAt(const int n, const int c, const int h, const int w, Dtype value) {
@@ -250,13 +279,17 @@ public:
         }
     }
 
-    int byteWidth() const {
-        return byte_width_;
+    DataType dtype() const {
+        return dtype_;
     }
 
-    void setByteWidth(int bw) {
-        byte_width_ = bw;
+    float dtypeSize() {
+        return DataTypeSize(dtype_);
     }
+//
+//    void setByteWidth(int bw) {
+//        byte_width_ = bw;
+//    }
     // TODO:Name?
 
     void setName(string name) {
@@ -294,13 +327,20 @@ public:
             }
         }
     }
+    void fullDataTest2() {
+        for (int i = 0; i < count_; ++i) {
+            float *typed_ptr = static_cast<float *>(host_ptr_);
+            typed_ptr[i] = i;
+        }
+    }
 
     void permute(int axis0, int axis1, int axis2, int axis3, bool copy = true);
 
 private:
     string name_;
     // shared_ptr<Backend> backend_;
-    int byte_width_; // 32/16/8/4 //enum
+//    int byte_width_; // 32/16/8/4 //enum
+    DataType dtype_;
     Backend *backend_;
     void *host_ptr_;
     void *device_ptr_;
