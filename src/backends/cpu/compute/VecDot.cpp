@@ -519,10 +519,10 @@ void vec_dot_q4_K_q8_K(const int n, float * __restrict s, const void * __restric
 
     float sumf = 0;
     for (int i = 0; i < nb; ++i) {
-        const uint8_t * restrict q4 = x[i].qs;
-        const  int8_t * restrict q8 = y[i].qs;
+        const uint8_t * __restrict q4 = x[i].qs;
+        const  int8_t * __restrict q8 = y[i].qs;
         memset(aux32, 0, 8*sizeof(int32_t));
-        int8_t * restrict a = aux8;
+        int8_t * __restrict a = aux8;
         for (int j = 0; j < QK_K/64; ++j) {
             for (int l = 0; l < 32; ++l) a[l] = (int8_t)(q4[l] & 0xF);
             a += 32;
@@ -589,14 +589,14 @@ void vec_dot_q4_K_q8_K(const int n, float * __restrict s, const void * __restric
     float sum_mins = 0.f;
 
     uint16_t aux16[2];
-    const uint8_t * restrict scales = (const uint8_t *)aux16;
+    const uint8_t * __restrict scales = (const uint8_t *)aux16;
 
     for (int i = 0; i < nb; ++i) {
 
-        const uint8_t * restrict q4 = x[i].qs;
-        const int8_t  * restrict q8 = y[i].qs;
+        const uint8_t * __restrict q4 = x[i].qs;
+        const int8_t  * __restrict q8 = y[i].qs;
 
-        const uint16_t * restrict a = (const uint16_t *)x[i].scales;
+        const uint16_t * __restrict a = (const uint16_t *)x[i].scales;
         aux16[0] = a[0] & 0x0f0f;
         aux16[1] = (a[0] >> 4) & 0x0f0f;
 
@@ -700,17 +700,17 @@ void vec_dot_q4_K_q8_K(const int n, float * __restrict s, const void * __restric
     memset(sums, 0, 8*sizeof(float));
 
     uint16_t s16[2];
-    const uint8_t * restrict scales = (const uint8_t *)s16;
+    const uint8_t * __restrict scales = (const uint8_t *)s16;
 
     float sumf = 0;
     for (int i = 0; i < nb; ++i) {
-        const uint8_t * restrict q4 = x[i].qs;
-        const  int8_t * restrict q8 = y[i].qs;
-        uint8_t * restrict a = aux8;
+        const uint8_t * __restrict q4 = x[i].qs;
+        const  int8_t * __restrict q8 = y[i].qs;
+        uint8_t * __restrict a = aux8;
         for (int l = 0; l < 32; ++l) a[l+ 0] = q4[l] & 0xF;
         for (int l = 0; l < 32; ++l) a[l+32] = q4[l]  >> 4;
 
-        const uint16_t * restrict b = (const uint16_t *)x[i].scales;
+        const uint16_t * __restrict b = (const uint16_t *)x[i].scales;
         s16[0] = b[0] & 0x0f0f;
         s16[1] = (b[0] >> 4) & 0x0f0f;
 

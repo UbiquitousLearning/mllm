@@ -3,7 +3,7 @@
 #define MLLM_TYPES_H
 #include "OpDefined.hpp"
 #include <iostream>
-// #define MLLM_QKK_64
+
 typedef enum {
     MLLM_CPU,
     MLLM_OPENCL,
@@ -58,6 +58,7 @@ typedef __fp16 mllm_fp16_t;
 typedef uint16_t mllm_fp16_t;
 #endif
 
+#define MLLM_QKK_64
 #ifdef MLLM_QKK_64
 #define QK_K 64
 #define K_SCALE_SIZE 4
@@ -66,7 +67,7 @@ typedef uint16_t mllm_fp16_t;
 #define K_SCALE_SIZE 12
 #endif
 #define QK4_0 32
-// typedef uint16_t mllm_fp16_t;
+
 #pragma pack(1)
 typedef struct {
     mllm_fp16_t d;            // delta
@@ -74,7 +75,6 @@ typedef struct {
 } block_q4_0;
 #pragma pack()
 
-// #define QK_K 64
 //  4-bit quantization
 //  16 blocks of 32 elements each
 //  weight is represented as x = a * q + b

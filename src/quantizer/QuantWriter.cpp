@@ -86,19 +86,19 @@ void QuantWriter::quantParams(DataType dataType) {
             break;
         }
         if (quant_ptr != nullptr) {
-            std::cout << name << std::endl;
             if (name.find("norm") != std::string::npos) {
                 auto s = param_loader_->offsets_[name].second / sizeof(float);
                 auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
                 writeParam(name, MLLM_TYPE_F32, param, tsize);
-                std::cout << "-----has norm-----" << tsize << std::endl;
+                std::cout << name <<"  size:"<<tsize << std::endl;
             } else if (name.find("tok_embeddings") != std::string::npos) {
                 auto s = param_loader_->offsets_[name].second / sizeof(float);
                 auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
                 writeParam(name, MLLM_TYPE_F32, param, tsize);
-                std::cout << "-----has ebd-----" << tsize << std::endl;
+                std::cout << name <<"  size:"<<tsize << std::endl;
             } else {
                 writeParam(name, quant_type_, quant_ptr, size);
+                std::cout << name <<"  size:"<<size << std::endl;
             }
             // writeParam(name, quant_type_, quant_ptr, size);
 #ifndef TEST
