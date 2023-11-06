@@ -24,15 +24,6 @@ ErrorCode CPUScale::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     return NO_ERROR;
 }
 
-ErrorCode CPUScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUScale  setUp" << std::endl;
-    if (!inputs[0]->allocted()) {
-        inputs[0]->alloc(); // TODO remove
-    }
-    outputs[0]->alloc();
-    return NO_ERROR;
-}
-
 ErrorCode CPUScale::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUScale()" << std::endl;
     auto & input = inputs[0];

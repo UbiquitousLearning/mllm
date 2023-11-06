@@ -18,15 +18,6 @@ ErrorCode CPUSiLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     return NO_ERROR;
 }
 
-ErrorCode CPUSiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    if (!inputs[0]->allocted()) {
-        inputs[0]->alloc();
-    }
-    outputs[0]->alloc();
-    std::cout<<name() << "  CPUSiLU  setUp" << std::endl;
-    return NO_ERROR;
-}
-
 ErrorCode CPUSiLU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto input = inputs[0];
     int batch = input->num();

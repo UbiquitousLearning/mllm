@@ -17,25 +17,13 @@ ErrorCode mllm::CPUEmbedding::reshape(vector<shared_ptr<Tensor>> inputs, vector<
     outputs[0]->setDtype(activationDtype());
     weight_.reshape(1, 1, vocabSize_, hiddenSize_);
     weight_.setName(name() + ".weight");
-    weight_.setDtype(MLLM_TYPE_F32);
     return NO_ERROR;
 }
-ErrorCode mllm::CPUEmbedding::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUEmbedding  setUp" << std::endl;
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
-    if (!inputs[0]->allocted()) {
-        inputs[0]->alloc();
-    }
-    outputs[0]->alloc();
-    weight_.alloc();
-//        inputs[0]->fullData<float>(1);
-//        weight_.fullDataTest();
-    //    inputs[0]->printData<int>();
-    //    weight_.printData<float>();
-    return NO_ERROR;
-}
+
 ErrorCode mllm::CPUEmbedding::load(mllm::ParamLoader &loader) {
+    weight_.setDtype(MLLM_TYPE_F32);
+    weight_.alloc();
+    //        weight_.fullDataTest();
     loader.load(&weight_);
     return NO_ERROR;
 }

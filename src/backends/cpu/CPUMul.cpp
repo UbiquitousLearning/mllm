@@ -20,18 +20,6 @@ ErrorCode CPUMul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     return NO_ERROR;
 }
 
-ErrorCode CPUMul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUMul  setUp" << std::endl;
-    if (!inputs[0]->allocted()) {
-        inputs[0]->alloc(); // TODO remove
-    }
-    if (!inputs[1]->allocted()) {
-        inputs[1]->alloc(); // TODO remove
-    }
-    outputs[0]->alloc();
-    return NO_ERROR;
-}
-
 ErrorCode CPUMul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUMul()" << std::endl;
     int N = inputs[0]->shape(0);

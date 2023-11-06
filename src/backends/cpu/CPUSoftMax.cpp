@@ -19,15 +19,6 @@ ErrorCode CPUSoftMax::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     return NO_ERROR;
 }
 
-ErrorCode CPUSoftMax::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "  CPUSoftMax  setUp" << std::endl;
-    if (!inputs[0]->allocted()) {
-        inputs[0]->alloc(); // TODO remove
-    }
-    outputs[0]->alloc();
-    return NO_ERROR;
-}
-
 ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout << name() << "  CPUSoftMax()" << std::endl;
     auto &input = inputs[0];

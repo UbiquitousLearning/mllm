@@ -23,17 +23,6 @@ ErrorCode CPUAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     return Op::reshape(inputs, outputs);
 }
 
-ErrorCode CPUAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUAdd  setUp" << std::endl;
-    if (!inputs[0]->allocted()) {
-        inputs[0]->alloc(); // TODO remove
-    }
-    if (!inputs[1]->allocted()) {
-        inputs[1]->alloc(); // TODO remove
-    }
-    outputs[0]->alloc();
-    return NO_ERROR;
-}
 
 ErrorCode CPUAdd::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUAdd()" << std::endl;

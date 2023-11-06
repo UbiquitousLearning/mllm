@@ -5,7 +5,7 @@ void Executor::init() {
 //    weights_dtype_ = MLLM_TYPE_F32;
 //    activation_dtype_ = MLLM_TYPE_F32;
 }
-
+/*
 void Executor::execute(vector<int> input_size) {
     bool init = false;
     bool reshape = false;
@@ -29,6 +29,7 @@ void Executor::execute(vector<int> input_size) {
         std::cout << result_[0]->name() << "'s shape:  [" << result_[0]->shape(0) << "," << result_[0]->shape(1) << "," << result_[0]->shape(2) << "," << result_[0]->shape(3) << "]" << std::endl;
     }
 }
+ */
 void Executor::execute(shared_ptr<Tensor> input_tensor) {
     auto input_size = input_tensor->shape();
     bool init = false;
@@ -41,10 +42,10 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
         string name = "G" + std::to_string(i);
         auto &g = net_->subGraph()[name];
         std::cout << name << " Reshape" << std::endl;
-        g->reshape(net_->tensors(), init, reshape, (i == 0));
-        if (data_loader_ != nullptr) {
-            g->load(*data_loader_);
-        }
+        g->reshape(net_->tensors(), init, reshape, (i == 0), *data_loader_);
+//        if (data_loader_ != nullptr) {
+//            g->load(*data_loader_);
+//        }
         //exe
         std::cout << name << " execute" << std::endl;
         result_ = g->forward();

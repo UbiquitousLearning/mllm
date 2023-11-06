@@ -31,33 +31,25 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     CHECK_EQ(in_features_, inputs[0]->dimension());
     weight_.reshape(1, inputs[0]->head(), out_features_, in_features_);
     weight_.setName(name() + ".weight");
-    weight_.setDtype(weightsDtype());
     if (support_bias_) {
         bias_.reshape(1, inputs[0]->head(), 1, out_features_);
         bias_.setName(name() + ".bias");
-        bias_.setDtype(weightsDtype());
     }
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
     outputs[0]->setDtype(activationDtype());
     return NO_ERROR;
 }
 
-ErrorCode CPULinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "  CPULinear  setUp" << std::endl;
-    if (!inputs[0]->allocted()) {
-        inputs[0]->alloc(); // TODO remove
-    }
-    outputs[0]->alloc();
-    weight_.alloc();
-    //    weight_.fullData<float>(1);
-    if (support_bias_) {
-        bias_.alloc();
-    }
-    return NO_ERROR;
-}
 
 ErrorCode CPULinear::load(ParamLoader &loader) {
     std::cout << name() << "  CPULinear load" << std::endl;
+    weight_.setDtype(weightsDtype());
+    weight_.alloc();
+    //    weight_.fullData<float>(1);
+    if (support_bias_) {
+        bias_.setDtype(weightsDtype());
+        bias_.alloc();
+    }
     loader.load(&weight_);
     if (support_bias_)
         loader.load(&bias_);

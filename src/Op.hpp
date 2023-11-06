@@ -72,16 +72,30 @@ public:
      * @return reshapeOutputs result
      */
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-        //        for (auto &t : outputs) {
-        // t->SetName("Input0"+"_out");
-        //        }
-        // Weight malloc set
+        for (auto &input :inputs) {
+            if (!input->allocted()) {
+                input->alloc(); // TODO remove
+            }
+        }
+        for (auto &output :outputs) {
+            output->alloc();
+        }
         return NO_ERROR;
     }
 
     virtual ErrorCode load(ParamLoader &loader) {
         // check inputs shape
         // reshape outputs
+        return NO_ERROR;
+    }
+
+    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, ParamLoader &loader) {
+        //        for (auto &t : outputs) {
+        // t->SetName("Input0"+"_out");
+        //        }
+        // Weight malloc set
+        setUp(inputs, outputs);
+        load(loader);
         return NO_ERROR;
     }
 
