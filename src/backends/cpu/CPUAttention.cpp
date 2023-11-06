@@ -7,47 +7,6 @@
 
 namespace mllm {
 
-void mutilHeadReshape(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, int head_num) {
-    B->reshape(A->batch(), head_num, A->sequence(), A->dimension() / head_num);
-}
-void mutilHeadReshapeExe(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, int head_num) {
-    // 获取 A 的相关维度信息
-    int batch = A->batch();
-    int sequence = A->sequence();
-    int dimension = A->dimension();
-    // 计算新的维度信息
-    int new_dimension = dimension / head_num;
-    // 从 A 复制数据到 B
-    for (int n = 0; n < batch; ++n) {
-        for (int h = 0; h < head_num; ++h) {
-            for (int s = 0; s < sequence; ++s) {
-                for (int d = 0; d < new_dimension; ++d) {
-                    float value = A->dataAt<float>(n, 0, s, h * new_dimension + d);
-                    B->setDataAt<float>(n, h, s, d, value);
-                }
-            }
-        }
-    }
-}
-void mutilHeadDeReshape(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, int head_num) {
-    B->reshape(A->batch(), 1, A->sequence(), A->dimension() * head_num);
-}
-void mutilHeadDeReshapeExe(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, int head_num) {
-    int batch_size = A->batch();
-    int sequence = A->sequence();
-    int dimension = A->dimension();
-
-    for (int n = 0; n < batch_size; ++n) {
-        for (int s = 0; s < sequence; ++s) {
-            for (int d = 0; d < dimension; ++d) {
-                for (int h = 0; h < head_num; ++h) {
-                    float value = A->dataAt<float>(n, h, s, d);
-                    B->setDataAt<float>(n, 0, s, h * dimension + d, value);
-                }
-            }
-        }
-    }
-}
 void mergeCacheReshape(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, shared_ptr<Tensor> &C) {
     int a_dim = A->dimension();
     int a_sen = A->sequence();
@@ -60,7 +19,6 @@ void mergeCache(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, shared_ptr<Tensor>
     // merge a b to c
     int a_dim = A->dimension();
     int a_sen = A->sequence();
-    int b_sen = B->sequence();
     int c_sen = C->sequence();
     for (int h = 0; h < A->head(); ++h) {
         for (int b = 0; b < A->batch(); ++b) {
@@ -107,12 +65,16 @@ CPUAttention::CPUAttention(Backend *bn, string opName, int embedding_size, int h
     Q_proj_.reset(new CPULinear(bn, name() + ".wq", embedding_size_, hidden_size_ * head_size_, false, false));
     K_proj_.reset(new CPULinear(bn, name() + ".wk", embedding_size_, hidden_size_ * head_size_, false, false));
     V_proj_.reset(new CPULinear(bn, name() + ".wv", embedding_size_, hidden_size_ * head_size_, false, false));
+    q_view_.reset(new CPUView(bn, name() + ".q_view", {-1, head_size_, -1, -1}, {0, 3, 2, 3}, false));
+    k_view_.reset(new CPUView(bn, name() + ".k_view", {-1, head_size_, -1, -1}, {0, 3, 2, 3}, false));
+    v_view_.reset(new CPUView(bn, name() + ".v_view", {-1, head_size_, -1, -1}, {0, 3, 2, 3}, false));
     q_rope_.reset(new CPURoPE(bn,name() + ".q_rope", false, false));
     k_rope_.reset(new CPURoPE(bn, name() + ".k_rope", false, false));
     kq_matmul_.reset(new CPUMatmul(bn, name() + ".kq_matmul", false, true, false));
     scale_.reset(new CPUScale(bn, name() + ".scale", 1/std::sqrt(hidden_size), 0.0, true, false));
     softmax_.reset(new CPUSoftMax(bn, name() + ".softmax", 3, false));
     s_v_matmul_.reset(new CPUMatmul(bn, name() + ".s_v_matmul", false, false, false));
+    s_v_view_.reset(new CPUView(bn, name() + ".s_v_view", {-1, -1, -1, -1}, {0, -1, 2, 1+3}, false));
     O_proj_.reset(new CPULinear(bn, name() + ".wo", hidden_size_ * head_size_, embedding_size_, false, false));
 
     q_.reset(new Tensor(bn));
@@ -141,9 +103,9 @@ ErrorCode CPUAttention::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
     Q_proj_->reshape(inputs, {q_});
     K_proj_->reshape(inputs, {k_});
     V_proj_->reshape(inputs, {v_});
-    mutilHeadReshape(q_, q_state_, head_size_);
-    mutilHeadReshape(k_, k_state_, head_size_);
-    mutilHeadReshape(v_, v_state_, head_size_);
+    q_view_->reshape({q_}, {q_state_});
+    k_view_->reshape({k_}, {k_state_});
+    v_view_->reshape({v_}, {v_state_});
     q_rope_->reshape({q_state_}, {q_pos_});
     k_rope_->reshape({k_state_}, {k_pos_});
     if (!past_key_value_) { // 第一次
@@ -156,7 +118,7 @@ ErrorCode CPUAttention::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
         // kqv
         s_v_matmul_->reshape({kq_softmax_, v_state_}, {kq_softmax_v_});
         // out
-        mutilHeadDeReshape(kq_softmax_v_, kqv_state_, head_size_);
+        s_v_view_->reshape({kq_softmax_v_}, {kqv_state_});
         O_proj_->reshape({kqv_state_}, outputs);
     }
     return NO_ERROR;
@@ -167,9 +129,9 @@ ErrorCode CPUAttention::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     Q_proj_->setUp(inputs, {q_});
     K_proj_->setUp(inputs, {k_});
     V_proj_->setUp(inputs, {v_});
-    q_state_->alloc();
-    k_state_->alloc();
-    v_state_->alloc();
+    q_view_->setUp({q_}, {q_state_});
+    k_view_->setUp({k_}, {k_state_});
+    v_view_->setUp({v_}, {v_state_});
     q_rope_->setUp({q_state_}, {q_pos_});
     k_rope_->setUp({k_state_}, {k_pos_});
     // v_ = v_ + v_cached_
@@ -183,7 +145,7 @@ ErrorCode CPUAttention::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
         // kqv
         s_v_matmul_->setUp({kq_softmax_, v_state_}, {kq_softmax_v_});
         // out
-        kqv_state_->alloc();
+        s_v_view_->setUp({kq_softmax_v_}, {kqv_state_});
         O_proj_->setUp({kqv_state_}, outputs);
     }
     return NO_ERROR;
@@ -206,21 +168,18 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
         // kqv
         s_v_matmul_->reshapeOutputs({kq_softmax_, v_merged_}, {kq_softmax_v_});
         // out
-        mutilHeadDeReshape(kq_softmax_v_, kqv_state_, head_size_);
-        kqv_state_->alloc();
+        s_v_view_->reshapeOutputs({kq_softmax_v_}, {kqv_state_});
 
 //        O_proj_->reshapeOutputs({kqv_state_}, outputs);
     }
     // forward
-//    inputs[0]->fullData<float>(1);
-//    inputs[0]->printData<float>();
     // qkv proj
     Q_proj_->execute(inputs, {q_});
     K_proj_->execute(inputs, {k_});
     V_proj_->execute(inputs, {v_});
-    mutilHeadReshapeExe(q_, q_state_, head_size_);
-    mutilHeadReshapeExe(k_, k_state_, head_size_);
-    mutilHeadReshapeExe(v_, v_state_, head_size_);
+    q_view_->execute({q_}, {q_state_});
+    k_view_->execute({k_}, {k_state_});
+    v_view_->execute({v_}, {v_state_});
     // rope
     q_rope_->execute({q_state_}, {q_pos_});
     k_rope_->execute({k_state_}, {k_pos_});
@@ -249,7 +208,7 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     // kqv
     s_v_matmul_->execute(kq_softmax_v_input, {kq_softmax_v_});
     // out
-    mutilHeadDeReshapeExe(kq_softmax_v_, kqv_state_, head_size_);
+    s_v_view_->execute({kq_softmax_v_}, {kqv_state_});
     O_proj_->execute({kqv_state_}, outputs);
 
     if (!k_cached_->allocted()) { // 第一次
@@ -284,12 +243,9 @@ ErrorCode CPUAttention::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector
     Q_proj_->reshapeOutputs(inputs, {q_});
     K_proj_->reshapeOutputs(inputs, {k_});
     V_proj_->reshapeOutputs(inputs, {v_});
-    mutilHeadReshape(q_, q_state_, head_size_);
-    mutilHeadReshape(k_, k_state_, head_size_);
-    mutilHeadReshape(v_, v_state_, head_size_);
-    q_state_->alloc();
-    k_state_->alloc();
-    v_state_->alloc();
+    q_view_->reshapeOutputs({q_}, {q_state_});
+    k_view_->reshapeOutputs({k_}, {k_state_});
+    v_view_->reshapeOutputs({v_}, {v_state_});
     q_rope_->reshapeOutputs({q_state_}, {q_pos_});
     k_rope_->reshapeOutputs({k_state_}, {k_pos_});
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
@@ -300,16 +256,17 @@ ErrorCode CPUAttention::free(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     Q_proj_->free(inputs, {q_});
     K_proj_->free(inputs, {k_});
     V_proj_->free(inputs, {v_});
-    q_state_->free();
-    k_state_->free();
-    v_state_->free();
+    q_view_->free({q_}, {q_state_});
+    k_view_->free({k_}, {k_state_});
+    v_view_->free({v_}, {v_state_});
     q_rope_->free({q_state_}, {q_pos_});
     k_rope_->free({k_state_}, {k_pos_});
     kq_matmul_->free({q_pos_, k_pos_}, {kq_});
     scale_->free({kq_}, {kq_scale_});
     softmax_->free({kq_scale_}, {kq_softmax_});
     s_v_matmul_->free({kq_softmax_, v_state_}, {kq_softmax_v_});
-    kqv_state_->free();
+//    kqv_state_->free();
+    s_v_view_->free({kq_softmax_v_}, {kqv_state_});
     O_proj_->free({kqv_state_}, outputs);
     return Op::free(inputs, outputs);
 }

@@ -93,7 +93,7 @@ Op *NNAPIBackend::opCreate(const OpParam &op_param, string name) {
 
 void NNAPIBackend::registerOps() {
     // ADD,
-    // CAUSALMASK,
+    // MASK,
     // MATMUL,
     // RMSNORM,
     // ROPE,
@@ -101,7 +101,7 @@ void NNAPIBackend::registerOps() {
     // SILU,
     // SOFTMAX
     addCreator(ADD, (NNAPIBackend::Creator *)(new NNAPIAddCreator()));
-    // addCreator(CAUSALMASK, (NNAPIBackend::Creator *)(new NNAPICausalMaskCreator()));
+    // addCreator(MASK, (NNAPIBackend::Creator *)(new NNAPIMaskCreator()));
     // addCreator(MATMUL, (NNAPIBackend::Creator *)(new NNAPIMatmulCreator()));
     // addCreator(RMSNORM, (NNAPIBackend::Creator *)(new NNAPIRMSNormCreator()));
     // addCreator(ROPE, (NNAPIBackend::Creator *)(new NNAPIRoPECreator()));

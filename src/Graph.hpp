@@ -26,13 +26,14 @@ public:
      */
     void shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
-    void setUp(ParamLoader &paramLoader);
+    void setUpTensors();
+
+    void setUpOps(ParamLoader &loader);
 
     void reshapeOutputs(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
-    void reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0, ParamLoader &paramLoader);
+    void setUp(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0);
 
-    void load(ParamLoader &loader);
 
     /**
      * @brief 前行传播

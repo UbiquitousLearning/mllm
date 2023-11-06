@@ -60,7 +60,12 @@ bool TestLoader::load(Tensor *tensor, bool strict) {
         if (!tensor->allocted()) {
             tensor->alloc();
         }
+    } else{
+        if (!tensor->allocted()) {
+            tensor->alloc();
+        }
     }
+
     if ((!index->checkDim(tensor->shape(), strict))) {
         return false;
     }

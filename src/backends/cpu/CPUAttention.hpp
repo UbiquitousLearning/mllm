@@ -13,6 +13,7 @@
 #include "CPUSoftMax.hpp"
 #include "CPUScale.hpp"
 #include "CPURoPE.hpp"
+#include "CPUView.hpp"
 
 namespace mllm {
 
@@ -33,12 +34,16 @@ private:
     shared_ptr<CPULinear> Q_proj_;
     shared_ptr<CPULinear> K_proj_;
     shared_ptr<CPULinear> V_proj_;
+    shared_ptr<CPUView> q_view_;
+    shared_ptr<CPUView> k_view_;
+    shared_ptr<CPUView> v_view_;
     shared_ptr<CPURoPE> q_rope_;
     shared_ptr<CPURoPE> k_rope_;
     shared_ptr<CPUMatmul> kq_matmul_;
     shared_ptr<CPUScale> scale_;
     shared_ptr<CPUSoftMax> softmax_;
     shared_ptr<CPUMatmul> s_v_matmul_;
+    shared_ptr<CPUView> s_v_view_;
     shared_ptr<CPULinear> O_proj_;
 
     shared_ptr<Tensor>  q_;

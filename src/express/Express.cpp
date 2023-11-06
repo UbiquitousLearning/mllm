@@ -123,7 +123,7 @@ NetTensor *_Causalmask(Context *ctx, std::vector<NetTensor *> inputs, string nam
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
-    _NEW_OP(mllm::CAUSALMASK)
+    _NEW_OP(mllm::MASK)
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;
@@ -296,6 +296,29 @@ NetTensor *_Mul(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     out_tensor->in = net_op_;
     return out_tensor;
 }
+NetTensor *_View(Context *ctx, std::vector<NetTensor *> inputs, vector<int> dims, vector<int>data_dims, string name){
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "View" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::VIEW)
+    net_op_->param["dim0"] = dims[0];
+    net_op_->param["dim1"] = dims[1];
+    net_op_->param["dim2"] = dims[2];
+    net_op_->param["dim3"] = dims[3];
+    net_op_->param["data_dim0"] = data_dims[0];
+    net_op_->param["data_dim1"] = data_dims[1];
+    net_op_->param["data_dim2"] = data_dims[2];
+    net_op_->param["data_dim3"] = data_dims[3];
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }
@@ -328,11 +351,11 @@ ETENSOR _Add(std::vector<ETENSOR> inputs) {
     opparam["type"] = ADD;
     return _EOP_(OpNames[ADD] + std::to_string(op_idx), ADD, inputs, opparam);
 }
-ETENSOR _CausalMask(std::vector<ETENSOR> inputs) {
+ETENSOR _Mask(std::vector<ETENSOR> inputs) {
     op_idx++;
     OpParam opparam;
-    opparam["type"] = CAUSALMASK;
-    return _EOP_(OpNames[CAUSALMASK] + std::to_string(op_idx), CAUSALMASK, inputs, opparam);
+    opparam["type"] = MASK;
+    return _EOP_(OpNames[MASK] + std::to_string(op_idx), MASK, inputs, opparam);
 }
 ETENSOR _MatMul(std::vector<ETENSOR> inputs) {
     op_idx++;

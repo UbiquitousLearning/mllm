@@ -26,6 +26,7 @@ void Executor::execute(vector<int> input_size) {
     }
 }
  */
+bool freeGraph = true;
 void Executor::execute(shared_ptr<Tensor> input_tensor) {
     auto input_size = input_tensor->shape();
     bool init = false;
@@ -38,20 +39,26 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
         string name = "G" + std::to_string(i);
         auto &g = net_->subGraph()[name];
         std::cout << name << " Reshape" << std::endl;
-        g->reshape(net_->tensors(), init, reshape, (i == 0), *data_loader_);
-//        if (data_loader_ != nullptr) {
-//            g->load(*data_loader_);
-//        }
+        //load params
+        if (init || freeGraph) {
+            std::cout << "EXE:: Weights Init" << std::endl;
+            g->shapeInit(net_->tensors());
+            g->setUpOps(*data_loader_);
+        }
+        //alloc tensors memory
+        g->setUp(net_->tensors(), init, reshape, (i == 0));
         //exe
         std::cout << name << " execute" << std::endl;
         result_ = g->forward();
         //free
-        std::cout << name << " free" << std::endl;
-        g->freeOps();
-        if( i < (int)net_->subGraph().size()-1) {
-            g->freeTensors();
+        if(freeGraph) {
+            std::cout << name << " free" << std::endl;
+            g->freeOps();
+            if (i < (int)net_->subGraph().size() - 1) {
+                g->freeTensors();
+            }
+            net_->freeTensors(i);
         }
-        net_->freeTensors(i);
         std::cout << result_[0]->name() << "'s shape:  [" << result_[0]->shape(0) << "," << result_[0]->shape(1) << "," << result_[0]->shape(2) << "," << result_[0]->shape(3) << "]" << std::endl;
     }
 }

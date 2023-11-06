@@ -80,7 +80,7 @@ void Graph::shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensor
     }
 }
 
-void Graph::setUp(ParamLoader &paramLoader) {
+void Graph::setUpTensors() {
     auto &graph_in_tensors = ops_input_tensors_[param_.net_ops[0]->name];
     for (auto &t : graph_in_tensors) {
         if (!t->allocted()) {
@@ -89,8 +89,15 @@ void Graph::setUp(ParamLoader &paramLoader) {
     }
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto *net_op = param_.net_ops[i];
-        string lname = net_op->name;                                               // op_names_[i];
-        ops_[lname]->setUp(ops_input_tensors_[lname], ops_output_tensors_[lname], paramLoader); // tensors_[lname]:malloc&memset 0 //TODO: 加入Bachend后改成不同Device的malloc
+        string lname = net_op->name;
+        ops_[lname]->setUp(ops_input_tensors_[lname], ops_output_tensors_[lname]);
+    }
+}
+
+void Graph::setUpOps(ParamLoader &loader) {
+    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
+        auto *net_op = param_.net_ops[i];
+        ops_[net_op->name]->load(loader);
     }
 }
 
@@ -103,14 +110,10 @@ void Graph::reshapeOutputs(unordered_map<string, shared_ptr<Tensor>> &external_t
     }
 }
 
-void Graph::reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0, ParamLoader &paramLoader) {
+void Graph::setUp(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0) {
     if (init) {
         std::cout << "EXE:: Init" << std::endl;
-        this->shapeInit(external_tensors);
-        this->setUp(paramLoader);
-//        if (paramloader != nullptr) {
-//            this->load(*paramloader);
-//        }
+        this->setUpTensors();
     } else if (reshape) {
         std::cout << "EXE:: Reshape" << std::endl;
         if (graph0) {
@@ -120,12 +123,6 @@ void Graph::reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors,
     }
 }
 
-void Graph::load(ParamLoader &loader) {
-    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto *net_op = param_.net_ops[i];
-        ops_[net_op->name]->load(loader);
-    }
-}
 
 /**
  * @brief 前向传播
