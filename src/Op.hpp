@@ -78,7 +78,7 @@ public:
             }
         }
         for (auto &output :outputs) {
-            output->setDtype(activationDtype());
+            output->setDtype(activation_dtype_);
             output->alloc();
         }
         return NO_ERROR;
@@ -121,20 +121,13 @@ public:
         return NO_ERROR;
     }
 
-    virtual ErrorCode setDtype(DataType weight_dtype, DataType activation_dtype) {
-        weights_dtype_ = weight_dtype;
-        activation_dtype_ = activation_dtype;
-        return NO_ERROR;
-    }
-    DataType weightsDtype() const {
-        return weights_dtype_;
-    }
-    void setWeightsDtype(DataType dtype) {
-         weights_dtype_ = dtype;
-    }
-    DataType activationDtype() const {
-        return activation_dtype_;
-    }
+//    virtual ErrorCode setDtype(DataType activation_dtype) {
+//        activation_dtype_ = activation_dtype;
+//        return NO_ERROR;
+//    }
+//    DataType activationDtype() const {
+//        return activation_dtype_;
+//    }
     /**
      * @brief get backend.
      * @return backend.
@@ -158,10 +151,6 @@ private:
     vector<Tensor *> inputs_;
     vector<Tensor *> outputs_;
     string name_;
-    // BackendType backend_type_;
-    // tensor w
-    // vector<>
-    DataType weights_dtype_ = MLLM_TYPE_F32;
     DataType activation_dtype_ = MLLM_TYPE_F32;
 };
 

@@ -37,17 +37,8 @@ Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, share
         shared_ptr<Op> my_op(NULL);
         auto *new_op = backend_->opCreate(net_op->param, net_op->name);
         my_op.reset(new_op);
-//        string lname = net_op->name;
-//        my_op->setName(lname);
-        auto op_type = net_op->type;
-        if(op_type ==LINEAR || op_type == ATTENTION){
-            my_op->setDtype(weights_dtype_, activation_dtype_);
-        } else{
-            my_op->setDtype(MLLM_TYPE_F32, activation_dtype_);
-        }
         ops_[net_op->name] = my_op;
     }
-//    shapeInit(external_tensors);
 }
 
 void Graph::shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {

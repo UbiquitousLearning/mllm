@@ -76,8 +76,6 @@ private:
     vector<shared_ptr<Tensor>> result_;
     ParamLoader *data_loader_;
 
-//    DataType weights_dtype_;
-//    DataType activation_dtype_;
 };
 
 } // namespace mllm

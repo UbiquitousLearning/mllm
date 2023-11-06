@@ -43,17 +43,14 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 
 ErrorCode CPULinear::load(ParamLoader &loader) {
     std::cout << name() << "  CPULinear load" << std::endl;
-    weight_.setDtype(weightsDtype());
+    weight_.setDtype(loader.getDataType(weight_.name()));
     weight_.alloc();
-    //    weight_.fullData<float>(1);
-    if (support_bias_) {
-        bias_.setDtype(weightsDtype());
-        bias_.alloc();
-    }
     loader.load(&weight_);
-    if (support_bias_)
+    if (support_bias_) {
+        bias_.setDtype(loader.getDataType(bias_.name()));
+        bias_.alloc();
         loader.load(&bias_);
-    // weight_.printData<float>();
+    }
     return NO_ERROR;
 }
 ErrorCode CPULinear::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -78,7 +75,7 @@ ErrorCode CPULinear::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<sh
 
 ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout << name() << "  CPULinear()" << std::endl;
-    switch (weightsDtype()) {
+    switch (weight_.dtype()) {
     case MLLM_TYPE_F32: {
         mat_mul_fp32(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true);
         break;

@@ -313,17 +313,17 @@ ErrorCode CPUAttention::free(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     O_proj_->free({kqv_state_}, outputs);
     return Op::free(inputs, outputs);
 }
-ErrorCode CPUAttention::setDtype(DataType weight_dtype, DataType activation_dtype) {
-    Q_proj_->setDtype(weight_dtype, activation_dtype);
-    K_proj_->setDtype(weight_dtype, activation_dtype);
-    V_proj_->setDtype(weight_dtype, activation_dtype);
-    O_proj_->setDtype(weight_dtype, activation_dtype);
-    q_rope_->setDtype(weight_dtype, activation_dtype);
-    k_rope_->setDtype(weight_dtype, activation_dtype);
-    kq_matmul_->setDtype(weight_dtype, activation_dtype);
-    scale_->setDtype(weight_dtype, activation_dtype);
-    softmax_->setDtype(weight_dtype, activation_dtype);
-    s_v_matmul_->setDtype(weight_dtype, activation_dtype);
-    return Op::setDtype(weight_dtype, activation_dtype);
-}
+//ErrorCode CPUAttention::setDtype(DataType activation_dtype) {
+//    Q_proj_->setDtype(activation_dtype);
+//    K_proj_->setDtype(activation_dtype);
+//    V_proj_->setDtype(activation_dtype);
+//    O_proj_->setDtype(activation_dtype);
+//    q_rope_->setDtype(activation_dtype);
+//    k_rope_->setDtype(activation_dtype);
+//    kq_matmul_->setDtype(activation_dtype);
+//    scale_->setDtype(activation_dtype);
+//    softmax_->setDtype(activation_dtype);
+//    s_v_matmul_->setDtype(activation_dtype);
+//    return Op::setDtype(activation_dtype);
+//}
 } // namespace mllm

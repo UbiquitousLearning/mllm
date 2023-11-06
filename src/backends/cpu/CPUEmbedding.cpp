@@ -21,7 +21,7 @@ ErrorCode mllm::CPUEmbedding::reshape(vector<shared_ptr<Tensor>> inputs, vector<
 }
 
 ErrorCode mllm::CPUEmbedding::load(mllm::ParamLoader &loader) {
-    weight_.setDtype(MLLM_TYPE_F32);
+    weight_.setDtype(loader.getDataType(weight_.name()));
     weight_.alloc();
     //        weight_.fullDataTest();
     loader.load(&weight_);

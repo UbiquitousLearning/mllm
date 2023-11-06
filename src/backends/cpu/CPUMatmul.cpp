@@ -60,14 +60,16 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 
 ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUMatmul()" << std::endl;
-
+    assert(inputs[0]->dtype() == MLLM_TYPE_F32);
+    assert(inputs[1]->dtype() == MLLM_TYPE_F32);
+    mat_mul_fp32(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_);
+    /*
     switch (activationDtype()) {
     case MLLM_TYPE_F32: {
         mat_mul_fp32(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_);
         break;
     }
     // matmul only fp32
-    /*
     case MLLM_TYPE_F16: break;
     case MLLM_TYPE_Q4_0: {
         mat_mul_fp32_q4_0(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_);
@@ -76,10 +78,10 @@ ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     case MLLM_TYPE_Q4_K: {
         mat_mul_fp32_q4_K(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_);
         break;
-    }*/
+    }
     default:
         break;
-    }
+    }*/
     return NO_ERROR;
 }
 

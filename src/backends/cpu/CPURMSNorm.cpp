@@ -54,7 +54,7 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     return NO_ERROR;
 }
 ErrorCode CPURMSNorm::load(ParamLoader &loader) {
-    weight_.setDtype(MLLM_TYPE_F32);
+    weight_.setDtype(loader.getDataType(weight_.name()));
     weight_.alloc();
     // TEST
     //    weight_.fullData<float>(2.0);

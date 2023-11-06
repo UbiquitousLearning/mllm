@@ -1,10 +1,6 @@
 #include "Executor.hpp"
 namespace mllm {
-void Executor::init() {
-    //
-//    weights_dtype_ = MLLM_TYPE_F32;
-//    activation_dtype_ = MLLM_TYPE_F32;
-}
+void Executor::init() {}
 /*
 void Executor::execute(vector<int> input_size) {
     bool init = false;
