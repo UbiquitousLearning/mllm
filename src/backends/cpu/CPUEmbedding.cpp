@@ -14,7 +14,7 @@ ErrorCode mllm::CPUEmbedding::reshape(vector<shared_ptr<Tensor>> inputs, vector<
     // Input: [batch, 1, sequence, 1]
 //    CHECK_EQ(input->width(), 1);
     output->reshape(input->batch(), 1, input->sequence(), hiddenSize_);
-    outputs[0]->setDtype(activationDtype());
+    //outputs[0]->setDtype(activationDtype());
     weight_.reshape(1, 1, vocabSize_, hiddenSize_);
     weight_.setName(name() + ".weight");
     return NO_ERROR;

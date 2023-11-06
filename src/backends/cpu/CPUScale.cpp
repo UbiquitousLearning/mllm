@@ -20,7 +20,7 @@ ErrorCode CPUScale::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
     outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
-    outputs[0]->setDtype(activationDtype());
+    //outputs[0]->setDtype(activationDtype());
     return NO_ERROR;
 }
 

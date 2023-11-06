@@ -13,7 +13,7 @@ CPUSiLU::CPUSiLU(Backend *bn, string opName, bool multiThread) :
 
 ErrorCode CPUSiLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     outputs[0]->reshape(inputs[0]->num(), inputs[0]->channels(), inputs[0]->height(), inputs[0]->width());
-    outputs[0]->setDtype(activationDtype());
+    //outputs[0]->setDtype(activationDtype());
     std::cout<<name() << "  CPUSiLU  reshape" << std::endl;
     return NO_ERROR;
 }

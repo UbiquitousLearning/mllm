@@ -78,6 +78,7 @@ public:
             }
         }
         for (auto &output :outputs) {
+            output->setDtype(activationDtype());
             output->alloc();
         }
         return NO_ERROR;

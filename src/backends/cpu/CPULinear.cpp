@@ -36,7 +36,7 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         bias_.setName(name() + ".bias");
     }
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
-    outputs[0]->setDtype(activationDtype());
+    //outputs[0]->setDtype(activationDtype());
     return NO_ERROR;
 }
 
