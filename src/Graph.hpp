@@ -24,7 +24,7 @@ public:
     /**
      * @brief 初始化
      */
-    void reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+    void reshape();
 
     void setUpTensors();
 
@@ -41,14 +41,18 @@ public:
     // const  vector<shared_ptr<Tensor>>& forward();
     const vector<shared_ptr<Tensor>> &forward(bool autofree = false);
     // set input blobs then use forward() instead.
-    const vector<shared_ptr<Tensor>> &forward(const vector<shared_ptr<Tensor>> &inTensors);
+    //const vector<shared_ptr<Tensor>> &forward(const vector<shared_ptr<Tensor>> &inTensors);
 
     void freeOps();
     void freeTensors();
     void free();
 
-    const vector<shared_ptr<Tensor>> &inputTensors();
-    const vector<shared_ptr<Tensor>> &outputTensors();
+    const vector<shared_ptr<Tensor>> &inputTensors(){
+        return ops_input_tensors_[param_.net_ops[0]->name];
+    }
+    const vector<shared_ptr<Tensor>> &outputTensors(){
+        return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
+    }
 
     /**
      * @brief 反向传播

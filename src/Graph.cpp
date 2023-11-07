@@ -39,19 +39,9 @@ Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, share
         my_op.reset(new_op);
         ops_[net_op->name] = my_op;
     }
-}
-
-void Graph::reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
-
-    // RESHAPE
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto *net_op = param_.net_ops[i];
-//        shared_ptr<Op> my_op(NULL);
-//        auto *new_op = backend_->opCreate(net_op->param);
-//        my_op.reset(new_op);
         string lname = net_op->name;
-//        my_op->setName(lname);
-
         auto in_tensors = net_op->in;
         vector<shared_ptr<Tensor>> inTensors;
         for (auto *in_t : in_tensors) {
@@ -75,7 +65,32 @@ void Graph::reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors)
         }
         ops_input_tensors_[lname] = inTensors;
         ops_output_tensors_[lname] = outTensors;
-//        ops_[lname] = my_op;
+    }
+}
+
+
+void Graph::reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors){
+    ops_input_tensors_[param_.net_ops[0]->name].clear();
+    auto in_tensors = param_.net_ops[0]->in;
+    //    vector<shared_ptr<Tensor>> inTensors;
+    for (auto *in_t : in_tensors) {
+        auto in_t_name = in_t->name;
+        auto it = tensors_.find(in_t_name);
+        if (it != tensors_.end()) {
+            ops_input_tensors_[param_.net_ops[0]->name].push_back(tensors_[in_t_name]);
+        } else {
+            ops_input_tensors_[param_.net_ops[0]->name].push_back(external_tensors[in_t_name]);
+        }
+    }
+    //ops_input_tensors_[param_.net_ops[0]->name][0]->printData<float>();
+    //std::cout << param_.net_ops[0]->name << std::endl;
+    //    ops_input_tensors_[param_.net_ops[0]->name] = inTensors;
+}
+void Graph::reshape() {
+    // RESHAPE
+    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
+        auto *net_op = param_.net_ops[i];
+        string lname = net_op->name;
         ops_[lname]->reshape(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:1.reshape
     }
 }
@@ -145,44 +160,13 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
     return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
 }
 
-const vector<shared_ptr<Tensor>> &Graph::forward(const vector<shared_ptr<Tensor>> &inTensors) {
-    // Copy
-    // for (int i = 0; i < inTensors.size(); ++i) {
-    //     tensors_["Input0"][i]->CopyFrom(*inTensors[i]);
-    // }
-    return forward();
-}
-
-/**
- * @brief 反向传播
- */
-
-void Graph::backward() {
-}
-const vector<shared_ptr<Tensor>> &Graph::inputTensors() {
-    return ops_input_tensors_[param_.net_ops[0]->name];
-}
-const vector<shared_ptr<Tensor>> &Graph::outputTensors() {
-    return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
-}
-
-void Graph::reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors){
-    ops_input_tensors_[param_.net_ops[0]->name].clear();
-    auto in_tensors = param_.net_ops[0]->in;
-    //    vector<shared_ptr<Tensor>> inTensors;
-    for (auto *in_t : in_tensors) {
-        auto in_t_name = in_t->name;
-        auto it = tensors_.find(in_t_name);
-        if (it != tensors_.end()) {
-            ops_input_tensors_[param_.net_ops[0]->name].push_back(tensors_[in_t_name]);
-        } else {
-            ops_input_tensors_[param_.net_ops[0]->name].push_back(external_tensors[in_t_name]);
-        }
-    }
-    ops_input_tensors_[param_.net_ops[0]->name][0]->printData<float>();
-    std::cout << param_.net_ops[0]->name << std::endl;
-    //    ops_input_tensors_[param_.net_ops[0]->name] = inTensors;
-}
+//const vector<shared_ptr<Tensor>> &Graph::forward(const vector<shared_ptr<Tensor>> &inTensors) {
+//    // Copy
+//    // for (int i = 0; i < inTensors.size(); ++i) {
+//    //     tensors_["Input0"][i]->CopyFrom(*inTensors[i]);
+//    // }
+//    return forward();
+//}
 
 void Graph::freeOps(){
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {

@@ -32,14 +32,16 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
     bool init = false;
     bool reshape = false;
     checkReshape(init, reshape, input_size);
+    //set Input tensor
     input_tensor->setName(net_->netParam()[0].net_tensors[0]->name);
     net_->tensors()[net_->netParam()[0].net_tensors[0]->name] = input_tensor;
+    net_->subGraph()["G0"]->reflashInput(net_->tensors());
     for (int i = 0; i < (int)net_->subGraph().size(); ++i) {
         string name = "G" + std::to_string(i);
         auto &g = net_->subGraph()[name];
         if (init || reshape) {
             std::cout << name << "==== Reshape" << std::endl;
-            g->reshape(net_->tensors());
+            g->reshape();
             g->setUpTensors();
         }
         //load params
