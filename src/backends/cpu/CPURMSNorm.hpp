@@ -24,6 +24,7 @@ private:
     float epsilon_;
     int axis_ = 1;
     Tensor weight_;
+    int normSize_;
     // Tensor bias_;
 };
 

@@ -41,7 +41,7 @@ Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, share
     }
 }
 
-void Graph::shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
+void Graph::reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
 
     // RESHAPE
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
@@ -76,7 +76,7 @@ void Graph::shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensor
         ops_input_tensors_[lname] = inTensors;
         ops_output_tensors_[lname] = outTensors;
 //        ops_[lname] = my_op;
-        ops_[lname]->reshape(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:1.shapeInit
+        ops_[lname]->reshape(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:1.reshape
     }
 }
 
@@ -101,27 +101,27 @@ void Graph::setUpOps(ParamLoader &loader) {
     }
 }
 
-void Graph::reshapeOutputs(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
-    // RESHAPE
-    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto *net_op = param_.net_ops[i];
-        string lname = net_op->name;
-        ops_[lname]->reshapeOutputs(ops_input_tensors_[lname], ops_output_tensors_[lname]);
-    }
-}
+//void Graph::reshapeOutputs() {
+//    // RESHAPE
+//    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
+//        auto *net_op = param_.net_ops[i];
+//        string lname = net_op->name;
+//        ops_[lname]->reshapeOutputs(ops_input_tensors_[lname], ops_output_tensors_[lname]);
+//    }
+//}
 
-void Graph::setUp(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0) {
-    if (init) {
-        std::cout << "EXE:: Init" << std::endl;
-        this->setUpTensors();
-    } else if (reshape) {
-        std::cout << "EXE:: Reshape" << std::endl;
-        if (graph0) {
-            this->reFlashInput(external_tensors);
-        }
-        this->reshapeOutputs(external_tensors);
-    }
-}
+//void Graph::setUp(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0) {
+//    if (init) {
+//        std::cout << "EXE:: Init" << std::endl;
+//        this->setUpTensors();
+//    } else if (reshape) {
+//        std::cout << "EXE:: Reshape" << std::endl;
+//        if (graph0) {
+//            this->reFlashInput(external_tensors);
+//        }
+//        this->reshapeOutputs();
+//    }
+//}
 
 
 /**
@@ -166,7 +166,7 @@ const vector<shared_ptr<Tensor>> &Graph::outputTensors() {
     return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
 }
 
-void Graph::reFlashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors){
+void Graph::reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors){
     ops_input_tensors_[param_.net_ops[0]->name].clear();
     auto in_tensors = param_.net_ops[0]->in;
     //    vector<shared_ptr<Tensor>> inTensors;

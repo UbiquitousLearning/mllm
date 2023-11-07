@@ -160,15 +160,20 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
         // v_cached
         mergeCacheReshape(v_state_, v_cached_, v_merged_);
         // kq
-        kq_matmul_->reshapeOutputs({q_state_, k_merged_}, {kq_});
+        kq_matmul_->reshape({q_state_, k_merged_}, {kq_});
+        kq_matmul_->setUp({q_state_, k_merged_}, {kq_});
         // scale
-        scale_->reshapeOutputs({kq_}, {kq_scale_});
+        scale_->reshape({kq_}, {kq_scale_});
+        scale_->setUp({kq_}, {kq_scale_});
         // softmax
-        softmax_->reshapeOutputs({kq_scale_}, {kq_softmax_});
+        softmax_->reshape({kq_scale_}, {kq_softmax_});
+        softmax_->setUp({kq_scale_}, {kq_softmax_});
         // kqv
-        s_v_matmul_->reshapeOutputs({kq_softmax_, v_merged_}, {kq_softmax_v_});
+        s_v_matmul_->reshape({kq_softmax_, v_merged_}, {kq_softmax_v_});
+        s_v_matmul_->setUp({kq_softmax_, v_merged_}, {kq_softmax_v_});
         // out
-        s_v_view_->reshapeOutputs({kq_softmax_v_}, {kqv_state_});
+        s_v_view_->reshape({kq_softmax_v_}, {kqv_state_});
+        s_v_view_->setUp({kq_softmax_v_}, {kqv_state_});
 
 //        O_proj_->reshapeOutputs({kqv_state_}, outputs);
     }
@@ -238,20 +243,6 @@ ErrorCode CPUAttention::load(ParamLoader &loader) {
     O_proj_->load(loader);
     return Op::load(loader);
 }
-ErrorCode CPUAttention::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUAttention  reshape" << std::endl;
-    Q_proj_->reshapeOutputs(inputs, {q_});
-    K_proj_->reshapeOutputs(inputs, {k_});
-    V_proj_->reshapeOutputs(inputs, {v_});
-    q_view_->reshapeOutputs({q_}, {q_state_});
-    k_view_->reshapeOutputs({k_}, {k_state_});
-    v_view_->reshapeOutputs({v_}, {v_state_});
-    q_rope_->reshapeOutputs({q_state_}, {q_pos_});
-    k_rope_->reshapeOutputs({k_state_}, {k_pos_});
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
-    outputs[0]->alloc();
-    return NO_ERROR;
-}
 ErrorCode CPUAttention::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     Q_proj_->free(inputs, {q_});
     K_proj_->free(inputs, {k_});
@@ -270,17 +261,4 @@ ErrorCode CPUAttention::free(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     O_proj_->free({kqv_state_}, outputs);
     return Op::free(inputs, outputs);
 }
-//ErrorCode CPUAttention::setDtype(DataType activation_dtype) {
-//    Q_proj_->setDtype(activation_dtype);
-//    K_proj_->setDtype(activation_dtype);
-//    V_proj_->setDtype(activation_dtype);
-//    O_proj_->setDtype(activation_dtype);
-//    q_rope_->setDtype(activation_dtype);
-//    k_rope_->setDtype(activation_dtype);
-//    kq_matmul_->setDtype(activation_dtype);
-//    scale_->setDtype(activation_dtype);
-//    softmax_->setDtype(activation_dtype);
-//    s_v_matmul_->setDtype(activation_dtype);
-//    return Op::setDtype(activation_dtype);
-//}
 } // namespace mllm

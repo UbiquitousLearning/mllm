@@ -24,15 +24,15 @@ public:
     /**
      * @brief 初始化
      */
-    void shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+    void reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
     void setUpTensors();
 
     void setUpOps(ParamLoader &loader);
 
-    void reshapeOutputs(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+    //void reshapeOutputs();
 
-    void setUp(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0);
+    //void setUp(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0);
 
 
     /**
@@ -59,7 +59,7 @@ public:
         return param_;
     }
 
-    void reFlashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+    void reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
 protected:
     NetParameter param_;

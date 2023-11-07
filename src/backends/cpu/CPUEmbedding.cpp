@@ -15,12 +15,12 @@ ErrorCode mllm::CPUEmbedding::reshape(vector<shared_ptr<Tensor>> inputs, vector<
 //    CHECK_EQ(input->width(), 1);
     output->reshape(input->batch(), 1, input->sequence(), hiddenSize_);
     //outputs[0]->setDtype(activationDtype());
-    weight_.reshape(1, 1, vocabSize_, hiddenSize_);
-    weight_.setName(name() + ".weight");
     return NO_ERROR;
 }
 
 ErrorCode mllm::CPUEmbedding::load(mllm::ParamLoader &loader) {
+    weight_.setName(name() + ".weight");
+    weight_.reshape(1, 1, vocabSize_, hiddenSize_);
     weight_.setDtype(loader.getDataType(weight_.name()));
     weight_.alloc();
     //        weight_.fullDataTest();
@@ -47,11 +47,6 @@ ErrorCode mllm::CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<
         }
     }
     //    output->printData<float>();
-    return NO_ERROR;
-}
-ErrorCode mllm::CPUEmbedding::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    outputs[0]->reshape(inputs[0]->batch(), 1, inputs[0]->sequence(), hiddenSize_);
-    outputs[0]->alloc();
     return NO_ERROR;
 }
 ErrorCode mllm::CPUEmbedding::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

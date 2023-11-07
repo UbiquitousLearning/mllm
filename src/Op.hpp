@@ -52,6 +52,7 @@ public:
 #endif
         return NO_ERROR;
     }
+    /*
     virtual ErrorCode reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
         // check inputs shape
         // reshape outputs
@@ -63,6 +64,7 @@ public:
         }
         return NO_ERROR;
     }
+     */
 
     /**
      * @brief response shape change of input or output tensors.

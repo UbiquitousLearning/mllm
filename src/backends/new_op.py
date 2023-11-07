@@ -19,6 +19,7 @@ public:
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(ParamLoader &loader) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
     bool support_multi_thread_ = false;
@@ -53,14 +54,18 @@ ErrorCode CPUAbc::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
 
 ErrorCode CPUAbc::load(ParamLoader &loader) {
     std::cout<<name() << "  CPUAbc load" << std::endl;
-    return NO_ERROR;
+    return Op::load(loader);
 }
 
 ErrorCode CPUAbc::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout<<name() << "  CPUAbc()" << std::endl;
-    return NO_ERROR;
+    return Op::execute(inputs, outputs);
 }
 
+ErrorCode CPUAbc::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout<<name() << "  CPUAbc() free" << std::endl;
+    return Op::free(inputs, outputs);
+}
 } // namespace mllm
 
 '''

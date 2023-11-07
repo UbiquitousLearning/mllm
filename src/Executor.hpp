@@ -27,7 +27,7 @@ public:
     /*
     void graphShapeInit(shared_ptr<Graph> subGraph, unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
         // auto subGraph = net_.subGraph()[graph_name];
-        subGraph->shapeInit(external_tensors);
+        subGraph->reshape(external_tensors);
     }
 
     void graphSetUp(shared_ptr<Graph> subGraph) {

@@ -28,13 +28,8 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     // -----------------------------------------------
     // batch |out_channel | seq_len               |  1
     //       |out_features|  inputs[0]->sequence()  |
+    CHECK_EQ(inputs[0]->head(), 1);
     CHECK_EQ(in_features_, inputs[0]->dimension());
-    weight_.reshape(1, inputs[0]->head(), out_features_, in_features_);
-    weight_.setName(name() + ".weight");
-    if (support_bias_) {
-        bias_.reshape(1, inputs[0]->head(), 1, out_features_);
-        bias_.setName(name() + ".bias");
-    }
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
     //outputs[0]->setDtype(activationDtype());
     return NO_ERROR;
@@ -43,33 +38,18 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 
 ErrorCode CPULinear::load(ParamLoader &loader) {
     std::cout << name() << "  CPULinear load" << std::endl;
+    weight_.setName(name() + ".weight");
+    weight_.reshape(1, 1, out_features_, in_features_);
     weight_.setDtype(loader.getDataType(weight_.name()));
     weight_.alloc();
     loader.load(&weight_);
     if (support_bias_) {
+        bias_.setName(name() + ".bias");
+        bias_.reshape(1, 1, 1, out_features_);
         bias_.setDtype(loader.getDataType(bias_.name()));
         bias_.alloc();
         loader.load(&bias_);
     }
-    return NO_ERROR;
-}
-ErrorCode CPULinear::reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "  CPULinear  reshape" << std::endl;
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
-    // N     |    C       |   H                   |  W
-    // -----------------------------------------------
-    // 1     |out_channel | in_channel            |  1
-    //       |out_features| in_features           |
-    // -----------------------------------------------
-    // batch |in_channel  | seq_len               |  1
-    //       |in_features | inputs[0]->sequence()   |
-    // -----------------------------------------------
-    // batch |out_channel | seq_len               |  1
-    //       |out_features|  inputs[0]->sequence()  |
-    CHECK_EQ(in_features_, inputs[0]->dimension());
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
-    outputs[0]->alloc();
     return NO_ERROR;
 }
 
