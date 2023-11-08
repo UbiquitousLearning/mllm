@@ -29,9 +29,8 @@ if __name__ == "__main__":
             shell=True,
         )
         subprocess.run(
-            f"adb -s {device.get('serial','')} shell \"cd /data/local/tmp/mllm && /data/local/tmp/mllm/MLLM_TEST --gtest_filter=* --gtest_output=json\"",
+            f"adb -s {device.get('serial','')} shell  -- cd /data/local/tmp/mllm \"&&\" /data/local/tmp/mllm/MLLM_TEST \"--gtest_filter=*\" \"--gtest_output=json\"",
             #    Output the stdout
-            stdout=subprocess.PIPE,
             shell=True,
         )
         subprocess.run(
