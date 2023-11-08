@@ -47,7 +47,7 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
             g->reshape();
             g->setUpTensors();
             t_end = mllm_time_us();
-            std::cout<<" ====  "<< (t_end - t_start)/1000.0F << " us" << std::endl;
+            std::cout<<" ====  "<< (t_end - t_start)/1000.0F << " ms" << std::endl;
         }
         //load params
         if (init || freeGraph) {
@@ -55,14 +55,14 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
             t_start = mllm_time_us();
             g->setUpOps(*data_loader_);
             t_end = mllm_time_us();
-            std::cout<<"    ====  "<< (t_end - t_start)/1000.0F << " us" << std::endl;
+            std::cout<<"    ====  "<< (t_end - t_start)/1000.0F << " ms" << std::endl;
         }
         //exe
         std::cout <<"["<< name << "]==== execute" ;
         t_start = mllm_time_us();
         result_ = g->forward();
         t_end = mllm_time_us();
-        std::cout<<" ====  "<< (t_end - t_start)/1000.0F << " us" << std::endl;
+        std::cout<<" ====  "<< (t_end - t_start)/1000.0F << " ms" << std::endl;
         //free
         if(freeGraph) {
             std::cout <<"["<< name << "]==== free";
@@ -73,7 +73,7 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
             }
             net_->freeTensors(i);
             t_end = mllm_time_us();
-            std::cout<<"    ====  "<< (t_end - t_start)/1000.0F << " us" << std::endl;
+            std::cout<<"    ====  "<< (t_end - t_start)/1000.0F << " ms" << std::endl;
         }
         std::cout <<"["<< name << "]==== end      === "<< result_[0]->name() << "'s shape:  [" << result_[0]->shape(0) << "," << result_[0]->shape(1) << "," << result_[0]->shape(2) << "," << result_[0]->shape(3) << "]" << std::endl;
     }
