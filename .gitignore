@@ -5,6 +5,7 @@
 build*/
 build/
 bin/
+bin*/
 .clangd/
 compile_commands.json
 *.bin
@@ -20,3 +21,5 @@ _deps
 .uuid
 *.cmake
 Makefile
+*.model
+*.mllm
