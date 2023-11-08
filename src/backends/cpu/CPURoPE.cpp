@@ -62,7 +62,7 @@ CPURoPE::CPURoPE(Backend *bn, string opName, bool hf, bool multiThread) :
 }
 
 ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "  CPURoPE  reshape" << std::endl;
+    //std::cout << name() << "  CPURoPE  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
     outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
@@ -72,11 +72,11 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     } else {
         sinusoidal_position_embedding(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3), sin_, cos_);
     }
-    return NO_ERROR;
+    return Op::reshape(inputs, outputs);
 }
 
 ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "  CPURoPE()" << std::endl;
+    //std::cout << name() << "  CPURoPE()" << std::endl;
     //    auto sin_ = std::make_shared<Tensor>();
     //    auto cos_ = std::make_shared<Tensor>();
     auto &input = inputs[0];
@@ -84,6 +84,7 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     for (int n = 0; n < input->shape(0); ++n) {
         for (int c = 0; c < input->shape(1); ++c) {
             for (int h = 0; h < input->shape(2); ++h) {
+                #pragma omp parallel for num_threads(8)
                 for (int w = 0; w < input->shape(3); ++w) {
                     if (hf_) {
                         float in_value = input->dataAt<float>(n, c, h, w);
@@ -114,12 +115,12 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
             }
         }
     }
-    return NO_ERROR;
+    return Op::execute(inputs, outputs);
 }
 
 ErrorCode CPURoPE::load(ParamLoader &loader) {
-    std::cout << name() << "  CPURoPE load" << std::endl;
-    return NO_ERROR;
+    //std::cout << name() << "  CPURoPE load" << std::endl;
+    return Op::load(loader);
 }
 ErrorCode CPURoPE::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     sin_.free();

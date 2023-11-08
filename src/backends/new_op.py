@@ -48,22 +48,22 @@ CPUAbc::CPUAbc(Backend *bn,  string opName, bool multiThread) :
 }
 
 ErrorCode CPUAbc::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUAbc  reshape" << std::endl;
+    //std::cout<<name() << "  CPUAbc  reshape" << std::endl;
     return Op::reshape(inputs, outputs);
 }
 
 ErrorCode CPUAbc::load(ParamLoader &loader) {
-    std::cout<<name() << "  CPUAbc load" << std::endl;
+    //std::cout<<name() << "  CPUAbc load" << std::endl;
     return Op::load(loader);
 }
 
 ErrorCode CPUAbc::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUAbc()" << std::endl;
+    //std::cout<<name() << "  CPUAbc()" << std::endl;
     return Op::execute(inputs, outputs);
 }
 
 ErrorCode CPUAbc::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUAbc() free" << std::endl;
+    //std::cout<<name() << "  CPUAbc() free" << std::endl;
     return Op::free(inputs, outputs);
 }
 } // namespace mllm

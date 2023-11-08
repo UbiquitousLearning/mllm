@@ -12,20 +12,15 @@ CPUCausalMask::CPUCausalMask(Backend *bn, string opName, bool multiThread) :
 }
 
 ErrorCode CPUCausalMask::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << "CPUMask  reshape" << std::endl;
+    //std::cout << "CPUMask  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
-    return NO_ERROR;
-}
-
-ErrorCode CPUCausalMask::load(ParamLoader &loader) {
-    std::cout << "CPUMask load" << std::endl;
-    return NO_ERROR;
+    return Op::reshape(inputs, outputs);
 }
 
 ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << "CPUMask()" << std::endl;
+    //std::cout << "CPUMask()" << std::endl;
     int batch_size = inputs[0]->batch();
     int head_num = inputs[0]->head();
     int sequence = inputs[0]->sequence();
@@ -33,6 +28,7 @@ ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<share
     for (int n = 0; n < batch_size; ++n) {
         for (int h = 0; h < head_num; ++h) {
             for (int s = 0; s < sequence; ++s) {
+                #pragma omp parallel for num_threads(8)
                 for (int d = 0; d < dimension; ++d) {
                     double inf =  0;
                     if(d > s) {
@@ -43,7 +39,7 @@ ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<share
             }
         }
     }
-    return NO_ERROR;
+    return Op::execute(inputs, outputs);
 }
 
 } // namespace mllm

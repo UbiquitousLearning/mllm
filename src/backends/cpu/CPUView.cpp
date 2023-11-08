@@ -21,7 +21,7 @@ ErrorCode CPUView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     int dim1;
     int dim2;
     int dim3;
-    std::cout<<name() << "  CPUView  reshape" << std::endl;
+    //std::cout<<name() << "  CPUView  reshape" << std::endl;
     if(data_dim0_ == 0 && data_dim1_ == 1 && data_dim2_ == 2 && data_dim3_ == 3) {
         dim0 = inputs[0]->batch();
         dim1 = inputs[0]->head();
@@ -42,13 +42,8 @@ ErrorCode CPUView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     return Op::reshape(inputs, outputs);
 }
 
-ErrorCode CPUView::load(ParamLoader &loader) {
-    std::cout<<name() << "  CPUView load" << std::endl;
-    return NO_ERROR;
-}
-
 ErrorCode CPUView::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUView()" << std::endl;
+    //std::cout<<name() << "  CPUView()" << std::endl;
     if(data_dim0_ == 0 && data_dim1_ == 1 && data_dim2_ == 2 && data_dim3_ == 3) {
         outputs[0]->copyFrom(inputs[0]);
     } else if(data_dim0_ == 0 && data_dim1_ == 3 && data_dim2_ == 2 && data_dim3_ == 3){
@@ -80,7 +75,7 @@ ErrorCode CPUView::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
             }
         }
     }
-    return NO_ERROR;
+    return Op::execute(inputs, outputs);
 }
 
 } // namespace mllm

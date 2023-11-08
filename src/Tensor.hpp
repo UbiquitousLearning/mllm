@@ -7,6 +7,7 @@
 #include <iostream>
 #include <cstdio>
 #include <iomanip>
+#include "Timing.hpp"
 
 const auto KMaxAxes = 32;
 

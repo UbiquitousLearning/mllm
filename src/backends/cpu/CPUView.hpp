@@ -12,7 +12,6 @@ public:
     CPUView(Backend *bn, string opName, vector<int> dims, vector<int>data_dims, bool multiThread);
     virtual ~CPUView() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-    virtual ErrorCode load(ParamLoader &loader) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:

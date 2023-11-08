@@ -65,7 +65,6 @@ void CPUBackend::registerOps() {
     addCreator(EMBEDDING, (CPUBackend::Creator *)(new CPUEmbeddingCreator()));
     addCreator(MUL, (CPUBackend::Creator *)(new CPUMulCreator()));
     addCreator(VIEW, (CPUBackend::Creator *)(new CPUViewCreator()));
-    addCreator(CAUSALMASK, (CPUBackend::Creator *)(new CPUCausalMaskCreator()));
 }
 
 } // namespace mllm

@@ -256,7 +256,6 @@ ErrorCode CPUAttention::free(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     scale_->free({kq_}, {kq_scale_});
     softmax_->free({kq_scale_}, {kq_softmax_});
     s_v_matmul_->free({kq_softmax_, v_state_}, {kq_softmax_v_});
-//    kqv_state_->free();
     s_v_view_->free({kq_softmax_v_}, {kqv_state_});
     O_proj_->free({kqv_state_}, outputs);
     return Op::free(inputs, outputs);
