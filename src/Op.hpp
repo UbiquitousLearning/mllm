@@ -41,14 +41,16 @@ public:
         // check inputs shape
         // reshape outputs
 #ifdef TEST
-        std::cout << "*Op reshape*" << std::endl;
+        std::cout << "*"<<name_<<" reshape*" << std::endl;
         for (auto input:inputs) {
             std::cout << "Input "<< input->name() <<" shape: " << input->ShapeString() << std::endl;
         }
         for (auto output:outputs) {
             std::cout << "Output "<< output->name() <<" shape: " << output->ShapeString() << std::endl;
         }
-        std::cout << "*Op reshape*" << std::endl;
+        //std::cout << "*"<<name_<<" reshape*" << std::endl;
+#elif DEBUG
+        std::cout << "*"<<name_<<" reshape*" << std::endl;
 #endif
         return NO_ERROR;
     }
@@ -83,12 +85,18 @@ public:
             output->setDtype(activation_dtype_);
             output->alloc();
         }
+#ifdef DEBUG
+        std::cout << "*"<<name_<<" setUp*" << std::endl;
+#endif
         return NO_ERROR;
     }
 
     virtual ErrorCode load(ParamLoader &loader) {
         // check inputs shape
         // reshape outputs
+#ifdef DEBUG
+        std::cout << "*"<<name_<<" load*" << std::endl;
+#endif
         return NO_ERROR;
     }
     /*
@@ -104,7 +112,12 @@ public:
      * @param outputs   output tensors
      * @return execution result
      */
-    virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) = 0;
+    virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+#ifdef DEBUG
+        std::cout << "*"<<name_<<" execute*" << std::endl;
+#endif
+        return NO_ERROR;
+    }
 
     /**
      * @brief perform free.
@@ -113,9 +126,9 @@ public:
      * @return execution result
      */
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-//        for (auto &t : inputs) {
-//            t->free();
-//        }
+#ifdef DEBUG
+        std::cout << "*"<<name_<<" free*" << std::endl;
+#endif
         return NO_ERROR;
     }
 

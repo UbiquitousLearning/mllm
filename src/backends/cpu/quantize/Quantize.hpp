@@ -92,6 +92,33 @@ static inline int nearest_int(float fval) {
     return (i & 0x007fffff) - 0x00400000;
 }
 
+inline mllm_fp16_t mllm_fp32_to_fp16(float x) {
+    return MLLM_FP32_TO_FP16(x);
+}
 
+inline void mllm_fp16_to_fp32_row(const mllm_fp16_t * x, float * y, int n) {
+    for (int i = 0; i < n; i++) {
+        y[i] = MLLM_FP16_TO_FP32(x[i]);
+    }
+}
+
+inline void mllm_fp32_to_fp16_row(const float * x, mllm_fp16_t * y, int n) {
+    int i = 0;
+#if defined(__F16C__)
+    for (; i + 7 < n; i += 8) {
+        __m256 x_vec = _mm256_loadu_ps(x + i);
+        __m128i y_vec = _mm256_cvtps_ph(x_vec, _MM_FROUND_TO_NEAREST_INT);
+        _mm_storeu_si128((__m128i *)(y + i), y_vec);
+    }
+    for(; i + 3 < n; i += 4) {
+        __m128 x_vec = _mm_loadu_ps(x + i);
+        __m128i y_vec = _mm_cvtps_ph(x_vec, _MM_FROUND_TO_NEAREST_INT);
+        _mm_storel_epi64((__m128i *)(y + i), y_vec);
+    }
+#endif
+    for (; i < n; i++) {
+        y[i] = MLLM_FP32_TO_FP16(x[i]);
+    }
+}
 
 #endif // MLLM_QUANTIZE_HPP

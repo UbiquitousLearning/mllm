@@ -17,8 +17,8 @@ ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     normSize_ = inputs[0]->dimension();
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
     //outputs[0]->setDtype(activationDtype());
-    std::cout << name() << "  CPURMSNorm  reshape" << std::endl;
-    return NO_ERROR;
+    //std::cout << name() << "  CPURMSNorm  reshape" << std::endl;
+    return Op::reshape(inputs, outputs);
 }
 
 ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -28,8 +28,9 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     int seq = input->sequence();
     int head = input->head();
     for (int h = 0; h < head; h++) {
-        for (int s = 0; s < seq; s++) {
-            for (int n = 0; n < batch; n++) {
+        for (int n = 0; n < batch; n++) {
+            #pragma omp parallel for num_threads(8)
+            for (int s = 0; s < seq; s++) {
                 float sum_squares = 0.0F;
                 // sum
                 for (int d = 0; d < dim; d++) {
@@ -49,8 +50,8 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     //    weight_.printData<float>();
     //    outputs[0]->printData<float>();
 
-    std::cout << name() << "  CPURMSNorm()" << std::endl;
-    return NO_ERROR;
+    //std::cout << name() << "  CPURMSNorm()" << std::endl;
+    return Op::execute(inputs, outputs);
 }
 ErrorCode CPURMSNorm::load(ParamLoader &loader) {
     weight_.setName(name() + ".weight");
