@@ -31,7 +31,7 @@ jobs:
         with:
           python-version: '3.9'
           cache: 'pip' # caching pip dependencies
-      - run: cd test && pip install -r requirements.txt
+      - run: cd test && pip install -r requirements.txt && pip install cmake
       - name: Build
         run: |
           cmake -DTEST=on -Bbuild && cmake --build build --target all
@@ -69,7 +69,7 @@ jobs:
         with:
           python-version: '3.9'
           cache: 'pip' # caching pip dependencies
-      - run: cd test && pip install -r requirements.txt
+      - run: cd test && pip install -r requirements.txt && pip install cmake
       - name: Prepare & Build
         run: |
           bash tools/ci/build_arm64.sh
