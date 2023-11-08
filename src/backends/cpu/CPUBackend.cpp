@@ -1,7 +1,7 @@
 #include "CPUBackend.hpp"
 #include "CPUView.hpp"
 #include "CPUAdd.hpp"
-#include "CPUMask.hpp"
+#include "CPUCausalMask.hpp"
 #include "CPUMatmul.hpp"
 #include "CPURMSNorm.hpp"
 #include "CPURoPE.hpp"
@@ -53,7 +53,7 @@ void CPUBackend::registerOps() {
     // addCreator(MATMUL, &_temp);
 
     addCreator(ADD, (CPUBackend::Creator *)(new CPUAddCreator()));
-    addCreator(MASK, (CPUBackend::Creator *)(new CPUMaskCreator()));
+    addCreator(CAUSALMASK, (CPUBackend::Creator *)(new CPUCausalMaskCreator()));
     addCreator(MATMUL, (CPUBackend::Creator *)(new CPUMatmulCreator()));
     addCreator(RMSNORM, (CPUBackend::Creator *)(new CPURMSNormCreator()));
     addCreator(ROPE, (CPUBackend::Creator *)(new CPURoPECreator()));
@@ -65,6 +65,7 @@ void CPUBackend::registerOps() {
     addCreator(EMBEDDING, (CPUBackend::Creator *)(new CPUEmbeddingCreator()));
     addCreator(MUL, (CPUBackend::Creator *)(new CPUMulCreator()));
     addCreator(VIEW, (CPUBackend::Creator *)(new CPUViewCreator()));
+    addCreator(CAUSALMASK, (CPUBackend::Creator *)(new CPUCausalMaskCreator()));
 }
 
 } // namespace mllm

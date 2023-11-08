@@ -123,7 +123,7 @@ NetTensor *_Causalmask(Context *ctx, std::vector<NetTensor *> inputs, string nam
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
-    _NEW_OP(mllm::MASK)
+    _NEW_OP(mllm::CAUSALMASK)
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;

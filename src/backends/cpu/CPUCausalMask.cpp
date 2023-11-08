@@ -1,5 +1,5 @@
 
-#include "CPUMask.hpp"
+#include "CPUCausalMask.hpp"
 #include <cmath>
 
 namespace mllm {
@@ -7,11 +7,11 @@ namespace mllm {
 // template class CPUMask;
 // template class CPUMask;
 
-CPUMask::CPUMask(Backend *bn, string opName, bool multiThread) :
+CPUCausalMask::CPUCausalMask(Backend *bn, string opName, bool multiThread) :
     Op(bn, opName) {
 }
 
-ErrorCode CPUMask::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+ErrorCode CPUCausalMask::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout << "CPUMask  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
@@ -19,12 +19,12 @@ ErrorCode CPUMask::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     return NO_ERROR;
 }
 
-ErrorCode CPUMask::load(ParamLoader &loader) {
+ErrorCode CPUCausalMask::load(ParamLoader &loader) {
     std::cout << "CPUMask load" << std::endl;
     return NO_ERROR;
 }
 
-ErrorCode CPUMask::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout << "CPUMask()" << std::endl;
     int batch_size = inputs[0]->batch();
     int head_num = inputs[0]->head();
