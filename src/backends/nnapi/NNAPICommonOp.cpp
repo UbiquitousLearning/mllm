@@ -33,6 +33,19 @@ std::vector<uint32_t> NNAPICommonOp::getTensorIdxs(const vector<shared_ptr<Tenso
     return idxs;
 }
 
+uint32_t NNAPICommonOp::getTensorIdx(const Tensor *t, bool isReshape, std::vector<uint32_t> dims) {
+    return nnapiBackend_->getTensorIdx(t, false, isReshape, dims);
+}
+
+uint32_t NNAPICommonOp::buildConstant(const void *data, size_t size, OperandCode dtype, std::vector<uint32_t> dims, const float *scales, int zero) {
+    return nnapiBackend_->buildOperand(data, size, dtype, dims, scales, zero);
+}
+
+uint32_t NNAPICommonOp::buildTensor(OperandCode dtype, std::vector<int> dims) {
+    std::vector<uint32_t> udims(dims.begin(), dims.end());
+    return nnapiBackend_->buildOperand(nullptr, 0, dtype, udims);
+}
+
 ErrorCode NNAPICommonOp::buildOperation(int op, const std::vector<uint32_t> &inputs, const std::vector<uint32_t> &outputs) {
     auto name = this->name();
     return nnapiBackend_->buildOperation(op, inputs, outputs, name);

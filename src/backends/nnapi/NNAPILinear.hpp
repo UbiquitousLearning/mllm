@@ -30,7 +30,7 @@ private:
     Tensor bias_;
 };
 
-class NNAPIAddCreator : public NNAPIBackend::Creator {
+class NNAPILinearCreator : public NNAPIBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
         int in_features = op_param["in_features"];

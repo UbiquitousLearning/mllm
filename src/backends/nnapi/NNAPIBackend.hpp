@@ -43,7 +43,7 @@ public:
         return 4;
 #endif
     }
-    uint32_t getTensorIdx(const Tensor *t, bool dequant = false);
+    uint32_t getTensorIdx(const Tensor *t, bool dequant = false, bool isReshape = false, std::vector<uint32_t> dims = {});
     uint32_t buildScalar(int scalar);
     uint32_t buildScalar(bool scalar);
     uint32_t buildScalar(float scalar);

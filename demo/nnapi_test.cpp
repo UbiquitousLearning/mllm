@@ -53,8 +53,7 @@ int main() {
     Context *ctx = new Context();
 
     auto *a = _Input(ctx);
-    auto *b = _Softmax(ctx, {a}, 0);
-
+    auto *b = _Linear(ctx, {a}, 4, 2, false);
 
     BackendConfig bn;
     Net net(ctx->sub_param_, bn);
@@ -63,7 +62,7 @@ int main() {
 
     Executor ex(&net);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    fullTensor(input, net, {1, 1, 1, 1}, 2);
+    fullTensor(input, net, {1, 2, 2, 4}, 2);
     std::cout << "===NNAPI Execute===" << std::endl;
     ex.execute(input);
     std::cout << "===print result===" << std::endl;

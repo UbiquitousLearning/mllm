@@ -6,7 +6,10 @@
 #include <vector>
 #include "NNAPIAdd.hpp"
 #include "NNAPIMatmul.hpp"
-#include "NNAPISoftMax.hpp"
+#include "NNAPIScale.hpp"
+#include "NNAPISiLU.hpp"
+#include "NNAPISoftmax.hpp"
+#include "NNAPILinear.hpp"
 
 // TODO: float <--> half convert for armv82
 #define FLOAT_TO_HALF(...)
@@ -109,13 +112,13 @@ void NNAPIBackend::registerOps() {
     addCreator(MATMUL, (NNAPIBackend::Creator *)(new NNAPIMatmulCreator()));
     // addCreator(RMSNORM, (NNAPIBackend::Creator *)(new NNAPIRMSNormCreator()));
     // addCreator(ROPE, (NNAPIBackend::Creator *)(new NNAPIRoPECreator()));
-    // addCreator(SCALE, (NNAPIBackend::Creator *)(new NNAPIScaleCreator()));
-    // addCreator(SILU, (NNAPIBackend::Creator *)(new NNAPISiLUCreator()));
+    addCreator(SCALE, (NNAPIBackend::Creator *)(new NNAPIScaleCreator()));
+    addCreator(SILU, (NNAPIBackend::Creator *)(new NNAPISiLUCreator()));
     addCreator(SOFTMAX, (NNAPIBackend::Creator *)(new NNAPISoftMaxCreator()));
-    // addCreator(LINEAR, (NNAPIBackend::Creator *)(new NNAPILinearCreator()));
+    addCreator(LINEAR, (NNAPIBackend::Creator *)(new NNAPILinearCreator()));
 }
 
-uint32_t NNAPIBackend::getTensorIdx(const Tensor *t, bool dequant) {
+uint32_t NNAPIBackend::getTensorIdx(const Tensor *t, bool dequant, bool isReshape, std::vector<uint32_t> dims) {
     // for input and output tensor, save them in inputTensors_ and outputTensors_
     // TODO: add INPUT and OUTPUT description in tensor for efficiency
     auto isInput = std::find(inputTensors_.begin(), inputTensors_.end(), t) != inputTensors_.end();
@@ -131,9 +134,14 @@ uint32_t NNAPIBackend::getTensorIdx(const Tensor *t, bool dequant) {
     if (iter != tensorIdxMap_.end()) {
         return iter->second;
     }
+
     std::vector<uint32_t> udims;
-    for (auto d : t->shape()) {
-        udims.push_back(d);
+    if (!isReshape) {
+        for (auto d : t->shape()) {
+            udims.push_back(d);
+        }
+    } else {
+        udims = dims;
     }
     // scalar shape is {1} in NNAPI
     if (udims.empty()) {
