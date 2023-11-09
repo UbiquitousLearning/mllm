@@ -42,12 +42,11 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
         string name = "G" + std::to_string(i);
         auto &g = net_->subGraph()[name];
         if (init || reshape) {
-            std::cout <<"["<< name << "]==== Reshape";
+            std::cout << "[" << name << "]==== Reshape";
             t_start = mllm_time_us();
             g->reshape();
-            g->setUpTensors();
             t_end = mllm_time_us();
-            std::cout<<" ====  "<< (t_end - t_start)/1000.0F << " ms" << std::endl;
+            std::cout << " ====  " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
         }
         //load params
         if (init || freeGraph) {
@@ -56,6 +55,17 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
             g->setUpOps(*data_loader_);
             t_end = mllm_time_us();
             std::cout<<"    ====  "<< (t_end - t_start)/1000.0F << " ms" << std::endl;
+        }
+//    }
+//    for (int i = 0; i < (int)net_->subGraph().size(); ++i) {
+//        string name = "G" + std::to_string(i);
+//        auto &g = net_->subGraph()[name];
+        if (init || reshape) {
+            std::cout <<"["<< name << "]==== setup";
+            t_start = mllm_time_us();
+            g->setUpTensors();
+            t_end = mllm_time_us();
+            std::cout<<" ====  "<< (t_end - t_start)/1000.0F << " ms" << std::endl;
         }
         //exe
         std::cout <<"["<< name << "]==== execute" ;

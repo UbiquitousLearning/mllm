@@ -36,6 +36,28 @@ void mergeCache(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, shared_ptr<Tensor>
         }
     }
 }
+
+/*
+void mergeCache(shared_ptr<Tensor> &A, shared_ptr<Tensor> &B, shared_ptr<Tensor> &C) {
+    int a_dim = A->dimension();
+    int a_sen = A->sequence();
+    int c_sen = C->sequence();
+
+    int num_elements_per_batch = A->head() * a_dim * c_sen;
+
+    for (int b = 0; b < A->batch(); ++b) {
+        for (int h = 0; h < A->head(); ++h) {
+            if (a_sen > 0) {
+                memcpy(C->ptrAt<float>(b, h, 0, 0), A->ptrAt<float>(b, h, 0, 0), a_sen * a_dim * sizeof(float));
+            }
+
+            if (c_sen > a_sen) {
+                memcpy(C->ptrAt<float>(b, h, a_sen, 0), B->ptrAt<float>(b, h, 0, 0), (c_sen - a_sen) * a_dim * sizeof(float));
+            }
+        }
+    }
+}
+ */
 void mask(shared_ptr<Tensor>& A){
     int batch_size = A->batch();
     int head_num = A->head();

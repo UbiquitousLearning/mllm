@@ -92,6 +92,7 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
     v = _View(ctx, {v}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + ".v_view");
     q = _RoPE(ctx, {q}, name + ".q_rope");
     k = _RoPE(ctx, {k}, name + ".k_rope");
+    //KV Cache
     auto *qk = _Matmul(ctx, {q, k}, false, true, name + ".qk");
     qk = _Scale(ctx, {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
     qk = _Causalmask(ctx, {qk}, name + ".mask");
@@ -147,12 +148,13 @@ int main() {
     net.convert();
     // net.Run();
 //    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");
-//    ParamLoader param_loader("../models/llama-2-7b-q4_0-LinearOnly.mllm");
-    ParamLoader param_loader("../models/llama-2-7b-q4_k-LinearOnly.mllm");
+//    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
+    ParamLoader param_loader("../models/llama-2-7b-q4_k.mllm");
     Executor ex(&net, &param_loader);
     // Executor ex(&net);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
     // fullTensor(input, net, {1, 1, 10, 1}, 1);
+    //tokens_id = {tokens_id[0]};
     token2Tensor(input, net, tokens_id);
     ex.execute(input);
     auto result = ex.result();
