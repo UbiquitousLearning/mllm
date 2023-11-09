@@ -28,7 +28,9 @@ public:
     //     return new CPUMatmul(backend, false, false, false, false);
     // }
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new CPUMatmul(bn, name, false, false, false);
+        bool transpose0 = (bool)op_param["transpose0"];
+        bool transpose1 = (bool)op_param["transpose1"];
+        return new CPUMatmul(bn, name, transpose0, transpose1, false);
     }
 };
 

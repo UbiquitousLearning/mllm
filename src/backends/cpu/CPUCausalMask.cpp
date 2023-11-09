@@ -34,7 +34,7 @@ ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<share
                     if(d > s) {
                         inf = -std::numeric_limits<double>::infinity();
                     }
-                    inputs[0]->setDataAt<float>({n, h, s, d}, outputs[0]->dataAt<float>({n,h,s,d})+inf);
+                    outputs[0]->setDataAt<float>({n, h, s, d}, inputs[0]->dataAt<float>({n,h,s,d})+inf);
                 }
             }
         }
