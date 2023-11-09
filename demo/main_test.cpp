@@ -87,11 +87,11 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
     auto *q =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wq");
     auto *k =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wk");
     auto *v =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wv");
-    q = _View(ctx, {q}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + "q_view");
-    k = _View(ctx, {k}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + "k_view");
-    v = _View(ctx, {v}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + "v_view");
-    q = _RoPE(ctx, {q}, name + "q_rope");
-    k = _RoPE(ctx, {k}, name + "k_rope");
+    q = _View(ctx, {q}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + ".q_view");
+    k = _View(ctx, {k}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + ".k_view");
+    v = _View(ctx, {v}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + ".v_view");
+    q = _RoPE(ctx, {q}, name + ".q_rope");
+    k = _RoPE(ctx, {k}, name + ".k_rope");
     auto *qk = _Matmul(ctx, {q, k}, false, true, name + ".qk");
     qk = _Scale(ctx, {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
     qk = _Causalmask(ctx, {qk}, name + ".mask");
