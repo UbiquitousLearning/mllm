@@ -159,7 +159,7 @@ NetTensor *_Softmax(Context *ctx, std::vector<NetTensor *> inputs, int axis, str
     out_tensor->in = net_op_;
     return out_tensor;
 }
-NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, bool transpose0, bool transpose1, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "Matmul" + std::to_string(ctx->idx);
@@ -170,6 +170,8 @@ NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::MATMUL)
+    net_op_->param["transpose0"] = transpose0;
+    net_op_->param["transpose1"] = transpose1;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;

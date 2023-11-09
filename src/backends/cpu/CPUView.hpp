@@ -31,7 +31,7 @@ public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
         vector<int> dims = {op_param["dim0"], op_param["dim1"], op_param["dim2"], op_param["dim3"]};
         vector<int> data_dims = {op_param["data_dim0"], op_param["data_dim1"], op_param["data_dim2"], op_param["data_dim3"]};
-        return new CPUView(bn, name, {}, {}, false);
+        return new CPUView(bn, name, dims, data_dims, false);
     }
 };
 

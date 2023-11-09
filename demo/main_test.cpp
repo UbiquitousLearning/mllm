@@ -1,4 +1,5 @@
 #include <iostream>
+#include <valarray>
 #include "Net.hpp"
 #include "Executor.hpp"
 #include "NetParameter.hpp"
@@ -82,6 +83,24 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> out_re
     out_result->setDataAt(0, 0, 0, 0, token_idx);
     return token_idx;
 }
+NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden_size, int head_size, string name){
+    auto *q =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wq");
+    auto *k =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wk");
+    auto *v =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wv");
+    q = _View(ctx, {q}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + "q_view");
+    k = _View(ctx, {k}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + "k_view");
+    v = _View(ctx, {v}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + "v_view");
+    q = _RoPE(ctx, {q}, name + "q_rope");
+    k = _RoPE(ctx, {k}, name + "k_rope");
+    auto *qk = _Matmul(ctx, {q, k}, false, true, name + ".qk");
+    qk = _Scale(ctx, {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
+    qk = _Causalmask(ctx, {qk}, name + ".mask");
+    qk = _Softmax(ctx, {qk}, 3, name + ".softmax");
+    auto *o = _Matmul(ctx, {qk, v}, false, false, name + ".qkv");
+    o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1+3}, name + ".qkv_view");
+    o = _Linear(ctx, {o}, hidden_size * head_size, embedding_size, false, name + ".wo");
+    return o;
+}
 int main() {
     auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
     auto tokens_id = vector<token_id_t>();
@@ -103,7 +122,8 @@ int main() {
     // loop
     for(int layer=0; layer<32; ++layer) {
         auto *x = _RMSNorm(c, {i}, (string)"layers."+std::to_string(layer)+".attention_norm");
-        x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
+        //x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
+        x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
         auto *j = _Add(c, {x, i});
         i = _RMSNorm(c, {j}, (string)"layers."+std::to_string(layer)+".ffn_norm");
         x = _Linear(c, {i}, hidden_dim, ffn_hidden_dim, false, (string)"layers."+std::to_string(layer)+".feed_forward.w1");

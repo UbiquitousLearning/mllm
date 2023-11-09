@@ -144,14 +144,21 @@ void Graph::setUpOps(ParamLoader &loader) {
  * @param loss
  * @return
  */
-
+//#define DEBUG
 const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
     // TODO 改为递归
 
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto *net_op = param_.net_ops[i];
         string lname = net_op->name;
+#ifdef DEBUG
+        uint64_t t_start = mllm_time_us();
+#endif
         ops_[lname]->execute(ops_input_tensors_[lname], ops_output_tensors_[lname]);
+#ifdef DEBUG
+        uint64_t t_end = mllm_time_us();
+        std::cout<<"\n ====  "<<lname<<" ====  "<< (t_end - t_start)/1000.0F << " ms" ;
+#endif
         if(autofree){
             ops_[lname]->free(ops_input_tensors_[lname], ops_output_tensors_[lname]);
         }
