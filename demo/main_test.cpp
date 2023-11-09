@@ -101,6 +101,14 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
     o = _Linear(ctx, {o}, hidden_size * head_size, embedding_size, false, name + ".wo");
     return o;
 }
+NetTensor *FFN(Context *ctx, NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
+    auto *x = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, name+".w1");
+    x = _SiLU(ctx, {x});
+    auto *y = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, name+".w3");
+    x = _Mul(ctx, {x, y});
+    x = _Linear(ctx, {x}, ffn_hidden_dim, hidden_dim, false, name+".w2");
+    return x;
+}
 int main() {
     auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
     auto tokens_id = vector<token_id_t>();
@@ -124,14 +132,10 @@ int main() {
         auto *x = _RMSNorm(c, {i}, (string)"layers."+std::to_string(layer)+".attention_norm");
         //x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
         x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
-        auto *j = _Add(c, {x, i});
-        i = _RMSNorm(c, {j}, (string)"layers."+std::to_string(layer)+".ffn_norm");
-        x = _Linear(c, {i}, hidden_dim, ffn_hidden_dim, false, (string)"layers."+std::to_string(layer)+".feed_forward.w1");
-        x = _SiLU(c, {x});
-        auto *y = _Linear(c, {i}, hidden_dim, ffn_hidden_dim, false, (string)"layers."+std::to_string(layer)+".feed_forward.w3");
-        x = _Mul(c, {x, y});
-        x = _Linear(c, {x}, ffn_hidden_dim, hidden_dim, false, (string)"layers."+std::to_string(layer)+".feed_forward.w2");
-        i = _Add(c, {x, j});
+        i = _Add(c, {x, i});
+        x = _RMSNorm(c, {i}, (string)"layers."+std::to_string(layer)+".ffn_norm");
+        x = FFN(c, x, hidden_dim, ffn_hidden_dim, (string)"layers."+std::to_string(layer) +".feed_forward");
+        i = _Add(c, {x, i});
         _SubgraphBegin(c);
     }
     // end loop
