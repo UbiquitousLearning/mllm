@@ -18,7 +18,7 @@ def mobile_test():
         if file.startswith("adb_") and file.endswith(".json"):
             # FileName: adb_<serial>.json
             serial = file[4:-5]
-            template = f"""\n 👶 {commit_user} \n 📝 {commit_message} \n 📦 {serial} \n"""
+            template = f"""\n 👶 {commit_user} \n 📝 {commit_message} \n 📦 {serial} (Mobile) \n"""
             handle_reports(filename=file, template=template)
 
 
