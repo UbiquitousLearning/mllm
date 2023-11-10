@@ -44,61 +44,66 @@ void QuantWriter::quantParams(DataType dataType) {
         auto size = param_loader_->offsets_[name].second / sizeof(float);
         void *quant_ptr = nullptr;
         std::pair<void *, uint64_t> block_t;
-        switch (dataType) {
-        case MLLM_TYPE_F32:
-            std::cout << "No need to quantize FP32 params\n";
-            __exit(-1);
-            break;
-        case MLLM_TYPE_Q4_0:
-            block_t = alloc_quant_block(size, dataType);
-            quant_ptr = block_t.first;
-            quantize_row_q4_0(param, quant_ptr, size);
-            size = block_t.second;
-            break;
-        case MLLM_TYPE_Q8_0:
-            block_t = alloc_quant_block(size, dataType);
-            quant_ptr = block_t.first;
-            quantize_row_q8_0(param, quant_ptr, size);
-            size = block_t.second;
-            break;
-        case MLLM_TYPE_Q4_K:
-            block_t = alloc_quant_block(size, dataType);
-            quant_ptr = block_t.first;
-            quantize_row_q4_K(param, quant_ptr, size);
-            size = block_t.second;
-            break;
-        case MLLM_TYPE_Q8_K:
-            block_t = alloc_quant_block(size, dataType);
-            quant_ptr = block_t.first;
-            quantize_row_q8_K(param, quant_ptr, size);
-            size = block_t.second;
-            break;
-        case MLLM_TYPE_I8:
-        case MLLM_TYPE_Q4_1:
-        case MLLM_TYPE_Q8_1:
-        case MLLM_TYPE_I16:
-        case MLLM_TYPE_I32:
-        case MLLM_TYPE_F16:
-            NOT_IMPLEMENTED(dataType);
-            break;
-        case MLLM_TYPE_COUNT:
-            UNREACHABLE()
-            break;
-        }
-        if (quant_ptr != nullptr) {
-            if (name.find("norm") != std::string::npos) {
-                auto s = param_loader_->offsets_[name].second / sizeof(float);
-                auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
-                writeParam(name, MLLM_TYPE_F32, param, tsize);
-                std::cout << name <<"  size:"<<tsize << std::endl;
-            } else if (name.find("tok_embeddings") != std::string::npos) {
-                auto s = param_loader_->offsets_[name].second / sizeof(float);
-                auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
-                writeParam(name, MLLM_TYPE_F32, param, tsize);
-                std::cout << name <<"  size:"<<tsize << std::endl;
-            } else {
+        if (name.find("norm") != std::string::npos) {
+            auto s = param_loader_->offsets_[name].second / sizeof(float);
+            auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
+            writeParam(name, MLLM_TYPE_F32, param, tsize);
+            std::cout << name << "  size:" << tsize << std::endl;
+        } else if (name.find("tok_embeddings") != std::string::npos) {
+            auto s = param_loader_->offsets_[name].second / sizeof(float);
+            auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
+            writeParam(name, MLLM_TYPE_F32, param, tsize);
+            std::cout << name << "  size:" << tsize << std::endl;
+        }  else if (name.find("rope") != std::string::npos) {
+            auto s = param_loader_->offsets_[name].second / sizeof(float);
+            auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
+            writeParam(name, MLLM_TYPE_F32, param, tsize);
+            std::cout << name << "  size:" << tsize << std::endl;
+        } else {
+            switch (dataType) {
+            case MLLM_TYPE_F32:
+                std::cout << "No need to quantize FP32 params\n";
+                __exit(-1);
+                break;
+            case MLLM_TYPE_Q4_0:
+                block_t = alloc_quant_block(size, dataType);
+                quant_ptr = block_t.first;
+                quantize_row_q4_0(param, quant_ptr, size);
+                size = block_t.second;
+                break;
+            case MLLM_TYPE_Q8_0:
+                block_t = alloc_quant_block(size, dataType);
+                quant_ptr = block_t.first;
+                quantize_row_q8_0(param, quant_ptr, size);
+                size = block_t.second;
+                break;
+            case MLLM_TYPE_Q4_K:
+                block_t = alloc_quant_block(size, dataType);
+                quant_ptr = block_t.first;
+                quantize_row_q4_K(param, quant_ptr, size);
+                size = block_t.second;
+                break;
+            case MLLM_TYPE_Q8_K:
+                block_t = alloc_quant_block(size, dataType);
+                quant_ptr = block_t.first;
+                quantize_row_q8_K(param, quant_ptr, size);
+                size = block_t.second;
+                break;
+            case MLLM_TYPE_I8:
+            case MLLM_TYPE_Q4_1:
+            case MLLM_TYPE_Q8_1:
+            case MLLM_TYPE_I16:
+            case MLLM_TYPE_I32:
+            case MLLM_TYPE_F16:
+                NOT_IMPLEMENTED(dataType);
+                break;
+            case MLLM_TYPE_COUNT:
+                UNREACHABLE()
+                break;
+            }
+            if (quant_ptr != nullptr) {
                 writeParam(name, quant_type_, quant_ptr, size);
-                std::cout << name <<"  size:"<<size << std::endl;
+                std::cout << name << "  size:" << size << std::endl;
             }
             // writeParam(name, quant_type_, quant_ptr, size);
 #ifndef TEST

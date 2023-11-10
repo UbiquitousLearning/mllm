@@ -58,7 +58,7 @@ typedef __fp16 mllm_fp16_t;
 typedef uint16_t mllm_fp16_t;
 #endif
 
-#define MLLM_QKK_64
+//#define MLLM_QKK_64
 #ifdef MLLM_QKK_64
 #define QK_K 64
 #define K_SCALE_SIZE 4
@@ -161,9 +161,9 @@ static float DataTypeSize(DataType dtype, int count=1) {
         return sizeof(char)*count;
         // TODO WRONG?
     case MLLM_TYPE_Q4_0:
-        return (sizeof(block_q4_0))*count / (QK4_0 / 2);
+        return (sizeof(block_q4_0))*count / (QK4_0);
     case MLLM_TYPE_Q4_K:
-        return (sizeof(block_q4_K))*count / (QK_K / 2);
+        return (sizeof(block_q4_K))*count / (QK_K);
     case MLLM_TYPE_Q8_0:
         return (sizeof(block_q8_0))*count / (QK8_0);
     case MLLM_TYPE_Q8_K:

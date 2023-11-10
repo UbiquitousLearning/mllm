@@ -126,6 +126,7 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
 
 ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1) {
 
+//    uint64_t t_start = mllm_time_us();
     //This is used for test : quantize Q4 here.
     /*
     Tensor src1_q4(src1->shape());
