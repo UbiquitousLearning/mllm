@@ -118,7 +118,7 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     return Op::execute(inputs, outputs);
 }
 
-ErrorCode CPURoPE::load(ParamLoader &loader) {
+ErrorCode CPURoPE::load(AbstructLoader &loader) {
     //std::cout << name() << "  CPURoPE load" << std::endl;
     return Op::load(loader);
 }

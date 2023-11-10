@@ -11,6 +11,7 @@
 using namespace mllm;
 #define COMPARE_TENSOR(...) ASSERT_TRUE(isSame(__VA_ARGS__))
 #define TEST_LOAD(...) ASSERT_TRUE(loader.load(__VA_ARGS__)) << "TestLoader load failed"
+#define TEST_WEIGHTS_LOAD(...) ASSERT_FALSE(op->load(__VA_ARGS__)) << "TestLoader load weights failed"
 #define TEST_SETUP(...) ASSERT_FALSE(op->setUp(__VA_ARGS__))
 #define TEST_RESHAPE(...) ASSERT_FALSE(op->reshape(__VA_ARGS__))
 #define TEST_EXCUTE(...) ASSERT_FALSE(op->execute(__VA_ARGS__))

@@ -53,7 +53,7 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     //std::cout << name() << "  CPURMSNorm()" << std::endl;
     return Op::execute(inputs, outputs);
 }
-ErrorCode CPURMSNorm::load(ParamLoader &loader) {
+ErrorCode CPURMSNorm::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, 1, normSize_); //
     weight_.setDtype(loader.getDataType(weight_.name()));

@@ -1,6 +1,7 @@
 
 
 #include "CPUKVCache.hpp"
+#include "ParamLoader.hpp"
 
 namespace mllm {
 
@@ -20,7 +21,7 @@ ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     return Op::reshape(inputs, outputs);
 }
 
-ErrorCode CPUKVCache::load(ParamLoader &loader) {
+ErrorCode CPUKVCache::load(AbstructLoader &loader) {
     //std::cout<<name() << "  CPUKVCache load" << std::endl;
     return Op::load(loader);
 }

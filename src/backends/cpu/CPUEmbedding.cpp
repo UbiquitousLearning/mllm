@@ -1,4 +1,5 @@
 #include "CPUEmbedding.hpp"
+#include "ParamLoader.hpp"
 mllm::CPUEmbedding::CPUEmbedding(mllm::Backend *bn,  string opName, int hiddenSize, int vocabSize) :
     Op(bn, opName), hiddenSize_(hiddenSize), vocabSize_(vocabSize) {
     CHECK_GT(hiddenSize_, 0);
@@ -18,7 +19,7 @@ ErrorCode mllm::CPUEmbedding::reshape(vector<shared_ptr<Tensor>> inputs, vector<
     return Op::reshape(inputs, outputs);
 }
 
-ErrorCode mllm::CPUEmbedding::load(mllm::ParamLoader &loader) {
+ErrorCode mllm::CPUEmbedding::load(mllm::AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, vocabSize_, hiddenSize_);
     weight_.setDtype(loader.getDataType(weight_.name()));
