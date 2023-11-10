@@ -91,7 +91,7 @@ public:
         return NO_ERROR;
     }
 
-    virtual ErrorCode load(ParamLoader &loader) {
+    virtual ErrorCode load(AbstructLoader &loader) {
         // check inputs shape
         // reshape outputs
 #ifdef DEBUG

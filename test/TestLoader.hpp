@@ -4,6 +4,7 @@
 
 #ifndef MLLM_TESTLOADER_HPP
 #define MLLM_TESTLOADER_HPP
+#include "ParamLoader.hpp"
 #include "string"
 #include "Op.hpp"
 #include "gtest/gtest.h"
@@ -48,12 +49,15 @@ protected:
     bool write_string(string str);
     ~TestIO();
 };
-class TestLoader : public TestIO {
+class TestLoader : public TestIO, public AbstructLoader {
 public:
     explicit TestLoader(string filename);
     ~TestLoader();
-    bool load(Tensor *tensor, bool strict = true);
-    bool load(shared_ptr<Tensor> tensor, bool strict = true);
+    DataType getDataType(string name) override;
+    bool load(Tensor *tensor) override;
+    bool load(shared_ptr<Tensor> tensor) override;
+    bool load(Tensor *tensor, bool strict);
+    bool load(shared_ptr<Tensor> tensor, bool strict);
 
 private:
     unordered_map<string, TensorIndex *> tensor_map_;
@@ -62,7 +66,7 @@ class TestWriter : public TestIO {
 public:
     [[maybe_unused]] explicit TestWriter(string filename);
     ~TestWriter();
-    [[maybe_unused]] bool Write(Tensor *tensor);
+    [[maybe_unused]] bool write(Tensor *tensor);
 };
 
 } // namespace mllm
