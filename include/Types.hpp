@@ -58,7 +58,7 @@ typedef __fp16 mllm_fp16_t;
 typedef uint16_t mllm_fp16_t;
 #endif
 
-#define MLLM_QKK_64
+//#define MLLM_QKK_64
 #ifdef MLLM_QKK_64
 #define QK_K 64
 #define K_SCALE_SIZE 4
