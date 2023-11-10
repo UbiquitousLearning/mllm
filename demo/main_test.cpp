@@ -1,5 +1,6 @@
 #include <iostream>
 #include <valarray>
+#include <csignal>
 #include "Net.hpp"
 #include "Executor.hpp"
 #include "NetParameter.hpp"
@@ -69,7 +70,7 @@ unsigned int argmax(const std::vector<float>& scores) {
     }
     return maxIndex;
 }
-unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> out_result){
+unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor>& out_result){
     CHECK_EQ(result->shape(0), 1);
     CHECK_EQ(result->shape(1), 1);
     out_result->reshape({1, 1, 1, 1});
@@ -80,7 +81,7 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> out_re
         scores.push_back(value);
     }
     auto token_idx =  argmax(scores);
-    out_result->setDataAt(0, 0, 0, 0, token_idx);
+    out_result->setDataAt<float>(0, 0, 0, 0, token_idx);
     return token_idx;
 }
 NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden_size, int head_size, string name){
@@ -92,7 +93,8 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
     v = _View(ctx, {v}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + ".v_view");
     q = _RoPE(ctx, {q}, name + ".q_rope");
     k = _RoPE(ctx, {k}, name + ".k_rope");
-    //KV Cache
+    k = _KVCache(ctx, {k}, name + ".k_cache");
+    v = _KVCache(ctx, {v}, name + ".v_cache");
     auto *qk = _Matmul(ctx, {q, k}, false, true, name + ".qk");
     qk = _Scale(ctx, {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
     qk = _Causalmask(ctx, {qk}, name + ".mask");
@@ -110,22 +112,7 @@ NetTensor *FFN(Context *ctx, NetTensor * i, int hidden_dim, int ffn_hidden_dim, 
     x = _Linear(ctx, {x}, ffn_hidden_dim, hidden_dim, false, name+".w2");
     return x;
 }
-int main() {
-    auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
-    auto tokens_id = vector<token_id_t>();
-    // tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
-    // tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);
-    tokenizer.tokenize(string(" I believe the meaning of life is"), tokens_id, true);
-    for (auto idx : tokens_id) {
-        std::cout << idx << ",";
-    }
-    std::cout << std::endl;
-    // std::cout << tokenizer.detokenize(tokens_id) << std::endl;
-    int vocab_size = 32000;
-    int hidden_dim = 4096;
-    int ffn_hidden_dim = 11008;
-    int mutil_head_size = 32;
-    Context *c = new Context();
+void llama2(Context* c, int vocab_size= 32000, int hidden_dim= 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32){
     auto *i = _Input(c);
     i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"tok_embeddings");
     // loop
@@ -142,6 +129,25 @@ int main() {
     // end loop
     i = _RMSNorm(c, {i}, (string)"norm");
     i = _Linear(c, {i}, hidden_dim, vocab_size, false, "output");
+}
+int main() {
+    auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
+    auto tokens_id = vector<token_id_t>();
+    // tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
+    // tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);
+    string in_str = " I believe the meaning of life is";
+    tokenizer.tokenize(in_str, tokens_id, true);
+    for (auto idx : tokens_id) {
+        std::cout << idx << ",";
+    }
+    std::cout << std::endl;
+    // std::cout << tokenizer.detokenize(tokens_id) << std::endl;
+    int vocab_size = 32000;
+    int hidden_dim = 4096;
+    int ffn_hidden_dim = 11008;
+    int mutil_head_size = 32;
+    Context *c = new Context();
+    llama2(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size);
 
     BackendConfig bn;
     Net net(c->sub_param_, bn);
@@ -156,27 +162,25 @@ int main() {
     // fullTensor(input, net, {1, 1, 10, 1}, 1);
     //tokens_id = {tokens_id[0]};
     token2Tensor(input, net, tokens_id);
-    ex.execute(input);
-    auto result = ex.result();
-//    result[0]->printData<float>();
-    auto token_idx = postProcessing(result[0], input);
-    std::cout<<"OUT TOKEN: "<<token_idx<<"|    "<< tokenizer.detokenize({token_idx}) << std::endl;
-    /*
-    shared_ptr<Tensor> input_2 = std::make_shared<Tensor>();
-    // fullTensor(input_2, net, {1, 1, 1, 1}, 1);
-    token2Tensor(input_2, net, {1});
-    ex.execute(input_2);
-    // fullTensor(input_2, net, {1, 1, 1, 1}, 1);
-    token2Tensor(input_2, net, {1});
-    ex.execute(input_2);
 
-    auto result = ex.result();
-    // result[0]->printData<float>();
-    // ex.execute({1, 1, 10, vocab_size});
-    // ex.execute({1, 1, 1, vocab_size});
-    // ex.execute({1, 1, 1, vocab_size});
+    std::cout << in_str << std::flush;
+    for(int step = 0; step<8; step++) {
+        ex.execute(input);
+        auto result = ex.result();
+        auto token_idx = postProcessing(result[0], input);
+        auto out_token = tokenizer.detokenize({token_idx});
+        std::cout << out_token << std::flush;
+    }
+    printf("\n");
+    ex.perf();
 
-     */
+//    shared_ptr<Tensor> input_2 = std::make_shared<Tensor>();
+//    token2Tensor(input_2, net, {token_idx});out_result
+//    ex.execute(input);
+//    result = ex.result();
+//    token_idx = postProcessing(result[0], input);
+//    out_token = tokenizer.detokenize({token_idx});
+//    std::cout<<"OUT TOKEN: "<<token_idx<<"|    "<< out_token << std::endl;
 
     return 0;
 }

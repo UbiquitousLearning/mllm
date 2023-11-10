@@ -17,16 +17,19 @@ public:
 
 
 private:
+//    Tensor freq_;
     Tensor sin_;
     Tensor cos_;
+    int h_cnt_ = 0;
     bool hf_;
+    int ishape;
     bool support_multi_thread_ = false;
 };
 
 class CPURoPECreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new CPURoPE(bn, name, true, false);
+        return new CPURoPE(bn, name, false, false);
     }
 };
 } // namespace mllm

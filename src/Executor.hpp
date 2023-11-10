@@ -69,12 +69,22 @@ public:
         return result_;
     }
 
+    void perf() const{
+        std::cout << "load time: " << load_time_ << " ms" << std::endl;
+        std::cout << "token time: " << run_time_ / run_times_<<run_times_ << " ms" << std::endl;
+    }
+
 private:
     Net *net_;
     vector<int> input_size_;
     // map<string, map<string,vector<int>>> graph_input_shapes_;
     vector<shared_ptr<Tensor>> result_;
     ParamLoader *data_loader_;
+
+
+    double load_time_ = 0;
+    double run_time_ = 0;
+    int run_times_ = 0;
 
 };
 

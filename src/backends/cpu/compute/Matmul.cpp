@@ -3,7 +3,7 @@
 //
 
 #include "Matmul.hpp"
-
+#include <pthread.h>
 
 #define F32_BLOCK 16
 inline void transpose_scalar_block(const float *A, float *B, const int lda, const int ldb, const int block_size = F32_BLOCK) {
@@ -157,7 +157,7 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
             for (int n = 0; n < N; n++) {
                 for (int m = 0; m < M; m++) {
                     vec_dot_q4_K_q8_K(src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0)/QK_K,
-                                      src1_cal->hostPtr<block_q4_K>() + src1_cal->offset(b,h,n,0)/(QK_K),
+                                      src1_cal->hostPtr<block_q4_K>() + src1_cal->offset(b, h, n, 0)/QK_K,
                                       dst, support_bias, bias, K, b, h, m, n);
                 }
             }

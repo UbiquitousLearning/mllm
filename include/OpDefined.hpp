@@ -22,6 +22,7 @@ enum OpType {
     EMBEDDING,
     MUL,
     VIEW,
+    KVCACHE,
     OP_NUM
 };
 
@@ -40,6 +41,7 @@ static const vector<string> OpNames = {
     "Embedding",
     "Mul",
     "VIEW",
+    "KVCACHE",
     "OP_NUM"};
 } // namespace mllm
 #endif

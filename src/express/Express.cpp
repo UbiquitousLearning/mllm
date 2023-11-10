@@ -321,6 +321,21 @@ NetTensor *_View(Context *ctx, std::vector<NetTensor *> inputs, vector<int> dims
     out_tensor->in = net_op_;
     return out_tensor;
 }
+NetTensor *_KVCache(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "KVCache" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::KVCACHE)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }

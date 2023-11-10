@@ -12,6 +12,7 @@
 #include "CPUAttention.hpp"
 #include "CPUEmbedding.hpp"
 #include "CPUMul.hpp"
+#include "CPUKVCache.hpp"
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
     Backend(mm) {
@@ -65,6 +66,7 @@ void CPUBackend::registerOps() {
     addCreator(EMBEDDING, (CPUBackend::Creator *)(new CPUEmbeddingCreator()));
     addCreator(MUL, (CPUBackend::Creator *)(new CPUMulCreator()));
     addCreator(VIEW, (CPUBackend::Creator *)(new CPUViewCreator()));
+    addCreator(KVCACHE, (CPUBackend::Creator *)(new CPUKVCacheCreator()));
 }
 
 } // namespace mllm
