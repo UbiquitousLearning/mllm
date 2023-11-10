@@ -34,8 +34,7 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     return Op::reshape(inputs, outputs);
 }
 
-
-ErrorCode CPULinear::load(ParamLoader &loader) {
+ErrorCode CPULinear::load(AbstructLoader &loader) {
     //std::cout << name() << "  CPULinear load" << std::endl;
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, out_features_, in_features_);

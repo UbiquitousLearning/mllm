@@ -258,7 +258,7 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
 //    outputs[0]->printData<float>();
     return NO_ERROR;
 }
-ErrorCode CPUAttention::load(ParamLoader &loader) {
+ErrorCode CPUAttention::load(AbstructLoader &loader) {
     Q_proj_->load(loader);
     K_proj_->load(loader);
     V_proj_->load(loader);

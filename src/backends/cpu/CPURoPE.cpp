@@ -119,7 +119,8 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     return Op::execute(inputs, outputs);
 }
 
-ErrorCode CPURoPE::load(ParamLoader &loader) {
+ErrorCode CPURoPE::load(AbstructLoader &loader) {
+    //std::cout << name() << "  CPURoPE load" << std::endl;
 //    freq_.setName("rope.freqs");
 //    freq_.reshape(1, 1, 1, 64);
 //    freq_.setDtype(loader.getDataType(freq_.name()));

@@ -43,8 +43,15 @@ static std::string readString(FILE *fp_) {
     delete[] tmp;
     return str;
 }
+
 #define _MAGIC_NUMBER 20012
-class ParamLoader {
+class AbstructLoader {
+public:
+    virtual bool load(mllm::Tensor *tensor) = 0;
+    virtual bool load(std::shared_ptr<mllm::Tensor> tensor) = 0;
+    virtual DataType getDataType(string name) = 0;
+};
+class ParamLoader : public AbstructLoader {
     friend class QuantWriter;
 
 public:
@@ -53,11 +60,11 @@ public:
     ParamLoader(void *buffer);
 #endif
     ~ParamLoader();
-    bool load(mllm::Tensor *tensor);
-    bool load(std::shared_ptr<mllm::Tensor> tensor);
+    bool load(mllm::Tensor *tensor) override;
+    bool load(std::shared_ptr<mllm::Tensor> tensor) override;
     vector<std::string> getParamNames();
     std::tuple<uint8_t *, uint64_t> load(string name);
-    DataType getDataType(string name);
+    DataType getDataType(string name) override;
 
 private:
     FILE *fp_;
