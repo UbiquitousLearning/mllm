@@ -13,7 +13,7 @@ if __name__ == "__main__":
     for device in Device_List:
         print(device)
         subprocess.run(
-            f"adb -s {device.get('serial','')} shell rm -rf /data/local/tmp/mllm",
+            f"adb -s {device.get('serial','')} shell -- rm -rf /data/local/tmp/mllm",
             shell=True,
         )
         subprocess.run(
@@ -25,7 +25,7 @@ if __name__ == "__main__":
             shell=True,
         )
         subprocess.run(
-            f"adb -s {device.get('serial','')} shell chmod +x /data/local/tmp/mllm/MLLM_TEST",
+            f"adb -s {device.get('serial','')} shell -- chmod +x /data/local/tmp/mllm/MLLM_TEST",
             shell=True,
         )
         subprocess.run(
