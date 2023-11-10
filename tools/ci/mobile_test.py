@@ -29,7 +29,7 @@ if __name__ == "__main__":
             shell=True,
         )
         subprocess.run(
-            f"adb -s {device.get('serial','')} shell  -- LD_LIBRARY_PATH=/data/local/tmp/:$LD_LIBRARY_PATH  cd /data/local/tmp/mllm \"&&\"  /data/local/tmp/mllm/MLLM_TEST \"--gtest_filter=*\" \"--gtest_output=json\"",
+            f"adb -s {device.get('serial','')} shell  -- cd /data/local/tmp/mllm \"&&\" LD_LIBRARY_PATH=/data/local/tmp/:$LD_LIBRARY_PATH /data/local/tmp/mllm/MLLM_TEST \"--gtest_filter=*\" \"--gtest_output=json\"",
             #    Output the stdout
             shell=True,
         )
