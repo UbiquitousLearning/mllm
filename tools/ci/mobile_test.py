@@ -34,6 +34,6 @@ if __name__ == "__main__":
             shell=True,
         )
         subprocess.run(
-            f"adb -s {device.get('serial','')} pull /data/local/tmp/test_detail.json ./adb_{device.get('device','')}.json",
+            f"adb -s {device.get('serial','')} pull /data/local/tmp/mllm/test_detail.json ./adb_{device.get('device','')}.json",
             shell=True,
         )
