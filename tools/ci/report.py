@@ -10,10 +10,10 @@ template = f"""\n 👶 {commit_user} \n 📝 {commit_message}
      os.environ.get("RUNNER_ARCH",
  'unknown')} \n 🚀 {os.environ.get("GITHUB_SERVER_URL", )}/{os.environ.get("GITHUB_REPOSITORY",
      )}/actions/runs/{os.environ.get("GITHUB_RUN_ID", )} \n"""  # noqa: '''
+fs = Feishu()
 
 
 def mobile_test():
-    fs = Feishu()
     for file in os.listdir("./"):
         if file.startswith("adb_") and file.endswith(".json"):
             # FileName: adb_<serial>.json
@@ -48,7 +48,6 @@ if __name__ == "__main__":
     if is_mobile:
         mobile_test()
         exit(0)
-    fs = Feishu()
     if not os.path.exists("test_detail.json"):
         print("No Test Report Found!")
         fs.notify(template + "⚠ Test Ended but No Test Report Found!")
