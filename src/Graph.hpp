@@ -14,6 +14,8 @@
 #endif
 
 // using std::unordered_map;
+#include <unordered_map>
+using std::unordered_map;
 // #include "layer.h"
 namespace mllm {
 
@@ -25,15 +27,16 @@ public:
     /**
      * @brief 初始化
      */
-    void shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+    void reshape();
 
-    void setUp();
+    void setUpTensors();
 
-    void reshapeOutputs(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+    void setUpOps(ParamLoader &loader);
 
-    void reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0);
+    //void reshapeOutputs();
 
-    void load(ParamLoader &loader);
+    //void setUp(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0);
+
 
     /**
      * @brief 前行传播
@@ -41,12 +44,18 @@ public:
     // const  vector<shared_ptr<Tensor>>& forward();
     const vector<shared_ptr<Tensor>> &forward(bool autofree = false);
     // set input blobs then use forward() instead.
-    const vector<shared_ptr<Tensor>> &forward(const vector<shared_ptr<Tensor>> &inTensors);
+    //const vector<shared_ptr<Tensor>> &forward(const vector<shared_ptr<Tensor>> &inTensors);
 
+    void freeOps();
+    void freeTensors();
     void free();
 
-    const vector<shared_ptr<Tensor>> &inputTensors();
-    const vector<shared_ptr<Tensor>> &outputTensors();
+    const vector<shared_ptr<Tensor>> &inputTensors(){
+        return ops_input_tensors_[param_.net_ops[0]->name];
+    }
+    const vector<shared_ptr<Tensor>> &outputTensors(){
+        return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
+    }
 
     /**
      * @brief 反向传播
@@ -57,7 +66,7 @@ public:
         return param_;
     }
 
-    void reFlashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+    void reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
 protected:
     NetParameter param_;
@@ -85,9 +94,6 @@ protected:
     unordered_map<string, shared_ptr<Op>> ops_;                            // opname: op
     //    unordered_map<string, shared_ptr<Tensor>> external_tensors_;
 
-
-    mllm_dtype weights_dtype_ = MLLM_TYPE_F32;
-    mllm_dtype activation_dtype_ = MLLM_TYPE_F32;
 };
 
 } // namespace mllm

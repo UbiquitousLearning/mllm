@@ -14,10 +14,7 @@ public:
     CPUMul(Backend *bn, string opName, bool multiThread);
     virtual ~CPUMul() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-    
-    virtual ErrorCode load(ParamLoader &loader) override;
 
 private:
     bool support_multi_thread_ = false;

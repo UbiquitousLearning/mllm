@@ -1,5 +1,5 @@
 #include "CPUBackend.hpp"
-
+#include "CPUView.hpp"
 #include "CPUAdd.hpp"
 #include "CPUCausalMask.hpp"
 #include "CPUMatmul.hpp"
@@ -12,6 +12,7 @@
 #include "CPUAttention.hpp"
 #include "CPUEmbedding.hpp"
 #include "CPUMul.hpp"
+#include "CPUKVCache.hpp"
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
     Backend(mm) {
@@ -38,7 +39,7 @@ Op *CPUBackend::opCreate(const OpParam &op_param, string name) {
 }
 void CPUBackend::registerOps() {
     // ADD,
-    // CAUSALMASK,
+    // MASK,
     // MATMUL,
     // RMSNORM,
     // ROPE,
@@ -64,6 +65,8 @@ void CPUBackend::registerOps() {
     addCreator(ATTENTION, (CPUBackend::Creator *)(new CPUAttentionCreator()));
     addCreator(EMBEDDING, (CPUBackend::Creator *)(new CPUEmbeddingCreator()));
     addCreator(MUL, (CPUBackend::Creator *)(new CPUMulCreator()));
+    addCreator(VIEW, (CPUBackend::Creator *)(new CPUViewCreator()));
+    addCreator(KVCACHE, (CPUBackend::Creator *)(new CPUKVCacheCreator()));
 }
 
 } // namespace mllm

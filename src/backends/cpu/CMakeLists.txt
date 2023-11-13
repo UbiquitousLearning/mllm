@@ -38,3 +38,11 @@ target_include_directories(
         PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
 )
+
+if(OpenMP_FOUND)
+    message(STATUS "found openmp")
+    target_link_libraries(MLLM_CPU
+            PUBLIC
+            OpenMP::OpenMP_CXX )
+    #target_link_libraries (MLLM_CPU -static-openmp -fopenmp)
+endif()

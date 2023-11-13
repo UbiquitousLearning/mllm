@@ -5,6 +5,7 @@
 build*/
 build/
 bin/
+bin*/
 .clangd/
 compile_commands.json
 *.bin
@@ -17,3 +18,8 @@ lib/
 __pycache__/
 *.log
 _deps
+.uuid
+*.cmake
+Makefile
+*.model
+*.mllm

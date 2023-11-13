@@ -20,7 +20,7 @@ ErrorCode NNAPICommonOp::execute(vector<shared_ptr<Tensor>> inputs, vector<share
     return NO_ERROR;
 }
 
-ErrorCode NNAPICommonOp::load(ParamLoader &loader) {
+ErrorCode NNAPICommonOp::load(AbstructLoader &loader) {
     std::cout << "NNAPICommonOp load" << std::endl;
     return NO_ERROR;
 }

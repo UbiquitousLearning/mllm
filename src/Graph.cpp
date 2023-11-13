@@ -37,25 +37,11 @@ Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, share
         shared_ptr<Op> my_op(NULL);
         auto *new_op = backend_->opCreate(net_op->param, net_op->name);
         my_op.reset(new_op);
-//        string lname = net_op->name;
-//        my_op->setName(lname);
-        my_op->setDtype(weights_dtype_, activation_dtype_);
         ops_[net_op->name] = my_op;
     }
-//    shapeInit(external_tensors);
-}
-
-void Graph::shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
-
-    // RESHAPE
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto *net_op = param_.net_ops[i];
-//        shared_ptr<Op> my_op(NULL);
-//        auto *new_op = backend_->opCreate(net_op->param);
-//        my_op.reset(new_op);
         string lname = net_op->name;
-//        my_op->setName(lname);
-
         auto in_tensors = net_op->in;
         vector<shared_ptr<Tensor>> inTensors;
         for (auto *in_t : in_tensors) {
@@ -79,8 +65,6 @@ void Graph::shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensor
         }
         ops_input_tensors_[lname] = inTensors;
         ops_output_tensors_[lname] = outTensors;
-//        ops_[lname] = my_op;
-        ops_[lname]->reshape(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:1.shapeInit
     }
 #ifdef NNAPI_ENABLED
     auto *nnapiBackend = dynamic_cast<NNAPIBackend *>(backend_);
@@ -88,99 +72,8 @@ void Graph::shapeInit(unordered_map<string, shared_ptr<Tensor>> &external_tensor
 #endif
 }
 
-void Graph::setUp() {
-    auto &graph_in_tensors = ops_input_tensors_[param_.net_ops[0]->name];
-    for (auto &t : graph_in_tensors) {
-        if (!t->allocted()) {
-            t->alloc();
-        }
-    }
-    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto *net_op = param_.net_ops[i];
-        string lname = net_op->name;                                               // op_names_[i];
-        ops_[lname]->setUp(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:malloc&memset 0 //TODO: 加入Bachend后改成不同Device的malloc
-    }
-}
 
-void Graph::reshapeOutputs(unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
-    // RESHAPE
-    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto *net_op = param_.net_ops[i];
-        string lname = net_op->name;
-        ops_[lname]->reshapeOutputs(ops_input_tensors_[lname], ops_output_tensors_[lname]);
-    }
-}
-
-void Graph::reshape(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0) {
-    if (init) {
-        std::cout << "EXE:: Init" << std::endl;
-        this->shapeInit(external_tensors);
-        this->setUp();
-    } else if (reshape) {
-        std::cout << "EXE:: Reshape" << std::endl;
-        if (graph0) {
-            this->reFlashInput(external_tensors);
-        }
-        this->reshapeOutputs(external_tensors);
-    }
-}
-
-void Graph::load(ParamLoader &loader) {
-    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto *net_op = param_.net_ops[i];
-        ops_[net_op->name]->load(loader);
-    }
-}
-
-/**
- * @brief 前向传播
- * @param loss
- * @return
- */
-
-const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
-    // TODO 改为递归
-
-    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto *net_op = param_.net_ops[i];
-        string lname = net_op->name;
-        ops_[lname]->execute(ops_input_tensors_[lname], ops_output_tensors_[lname]);
-        if(autofree){
-            ops_[lname]->free(ops_input_tensors_[lname], ops_output_tensors_[lname]);
-        }
-        #ifdef NNAPI_ENABLED
-        std::cout << "NNAPI invoke model" << std::endl;
-        auto *nnapiBackend = dynamic_cast<NNAPIBackend *>(backend_);
-        nnapiBackend->buildModel();
-        nnapiBackend->invokeModel();
-        #endif
-    }
-    // TODO
-    return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
-}
-
-const vector<shared_ptr<Tensor>> &Graph::forward(const vector<shared_ptr<Tensor>> &inTensors) {
-    // Copy
-    // for (int i = 0; i < inTensors.size(); ++i) {
-    //     tensors_["Input0"][i]->CopyFrom(*inTensors[i]);
-    // }
-    return forward();
-}
-
-/**
- * @brief 反向传播
- */
-
-void Graph::backward() {
-}
-const vector<shared_ptr<Tensor>> &Graph::inputTensors() {
-    return ops_input_tensors_[param_.net_ops[0]->name];
-}
-const vector<shared_ptr<Tensor>> &Graph::outputTensors() {
-    return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
-}
-
-void Graph::reFlashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors){
+void Graph::reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors){
     ops_input_tensors_[param_.net_ops[0]->name].clear();
     auto in_tensors = param_.net_ops[0]->in;
     //    vector<shared_ptr<Tensor>> inTensors;
@@ -193,19 +86,119 @@ void Graph::reFlashInput(unordered_map<string, shared_ptr<Tensor>> &external_ten
             ops_input_tensors_[param_.net_ops[0]->name].push_back(external_tensors[in_t_name]);
         }
     }
-    ops_input_tensors_[param_.net_ops[0]->name][0]->printData<float>();
-    std::cout << param_.net_ops[0]->name << std::endl;
+    //ops_input_tensors_[param_.net_ops[0]->name][0]->printData<float>();
+    //std::cout << param_.net_ops[0]->name << std::endl;
     //    ops_input_tensors_[param_.net_ops[0]->name] = inTensors;
 }
-void Graph::free() {
-    //TODO not right
+void Graph::reshape() {
+    // RESHAPE
+    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
+        auto *net_op = param_.net_ops[i];
+        string lname = net_op->name;
+        ops_[lname]->reshape(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:1.reshape
+    }
+}
+
+void Graph::setUpTensors() {
+    auto &graph_in_tensors = ops_input_tensors_[param_.net_ops[0]->name];
+    for (auto &t : graph_in_tensors) {
+            t->alloc();
+    }
+    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
+        auto *net_op = param_.net_ops[i];
+        string lname = net_op->name;
+        ops_[lname]->setUp(ops_input_tensors_[lname], ops_output_tensors_[lname]);
+    }
+}
+
+void Graph::setUpOps(ParamLoader &loader) {
+    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
+        auto *net_op = param_.net_ops[i];
+        ops_[net_op->name]->load(loader);
+    }
+}
+
+//void Graph::reshapeOutputs() {
+//    // RESHAPE
+//    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
+//        auto *net_op = param_.net_ops[i];
+//        string lname = net_op->name;
+//        ops_[lname]->reshapeOutputs(ops_input_tensors_[lname], ops_output_tensors_[lname]);
+//    }
+//}
+
+//void Graph::setUp(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0) {
+//    if (init) {
+//        std::cout << "EXE:: Init" << std::endl;
+//        this->setUpTensors();
+//    } else if (reshape) {
+//        std::cout << "EXE:: Reshape" << std::endl;
+//        if (graph0) {
+//            this->reFlashInput(external_tensors);
+//        }
+//        this->reshapeOutputs();
+//    }
+//}
+
+
+/**
+ * @brief 前向传播
+ * @param loss
+ * @return
+ */
+//#define DEBUG
+const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
+    // TODO 改为递归
+
+    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
+        auto *net_op = param_.net_ops[i];
+        string lname = net_op->name;
+#ifdef DEBUG
+        uint64_t t_start = mllm_time_us();
+#endif
+        ops_[lname]->execute(ops_input_tensors_[lname], ops_output_tensors_[lname]);
+#ifdef DEBUG
+        uint64_t t_end = mllm_time_us();
+        std::cout<<"\n ====  "<<lname<<" ====  "<< (t_end - t_start)/1000.0F << " ms" ;
+#endif
+        if(autofree){
+            ops_[lname]->free(ops_input_tensors_[lname], ops_output_tensors_[lname]);
+        }
+    }
+// invoke nnapi model
+#ifdef NNAPI_ENABLED
+    std::cout << "NNAPI invoke model" << std::endl;
+    auto *nnapiBackend = dynamic_cast<NNAPIBackend *>(backend_);
+    nnapiBackend->buildModel();
+    nnapiBackend->invokeModel();
+#endif
+    // TODO
+    return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
+}
+
+//const vector<shared_ptr<Tensor>> &Graph::forward(const vector<shared_ptr<Tensor>> &inTensors) {
+//    // Copy
+//    // for (int i = 0; i < inTensors.size(); ++i) {
+//    //     tensors_["Input0"][i]->CopyFrom(*inTensors[i]);
+//    // }
+//    return forward();
+//}
+
+void Graph::freeOps(){
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto *net_op = param_.net_ops[i];
         string lname = net_op->name;
         ops_[lname]->free(ops_input_tensors_[lname], ops_output_tensors_[lname]);
     }
+}
+void Graph::freeTensors(){
     for(auto& t: tensors_){
         t.second->free();
     }
+}
+void Graph::free() {
+    //TODO update
+    freeOps();
+    freeTensors();
 }
 } // namespace mllm

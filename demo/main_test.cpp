@@ -1,4 +1,6 @@
 #include <iostream>
+#include <valarray>
+#include <csignal>
 #include "Net.hpp"
 #include "Executor.hpp"
 #include "NetParameter.hpp"
@@ -68,7 +70,7 @@ unsigned int argmax(const std::vector<float>& scores) {
     }
     return maxIndex;
 }
-unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> out_result){
+unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor>& out_result){
     CHECK_EQ(result->shape(0), 1);
     CHECK_EQ(result->shape(1), 1);
     out_result->reshape({1, 1, 1, 1});
@@ -79,76 +81,107 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> out_re
         scores.push_back(value);
     }
     auto token_idx =  argmax(scores);
-    out_result->setDataAt(0, 0, 0, 0, token_idx);
+    out_result->setDataAt<float>(0, 0, 0, 0, token_idx);
     return token_idx;
+}
+NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden_size, int head_size, string name){
+    auto *q =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wq");
+    auto *k =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wk");
+    auto *v =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wv");
+    q = _View(ctx, {q}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + ".q_view");
+    k = _View(ctx, {k}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + ".k_view");
+    v = _View(ctx, {v}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + ".v_view");
+    q = _RoPE(ctx, {q}, name + ".q_rope");
+    k = _RoPE(ctx, {k}, name + ".k_rope");
+    k = _KVCache(ctx, {k}, name + ".k_cache");
+    v = _KVCache(ctx, {v}, name + ".v_cache");
+    auto *qk = _Matmul(ctx, {q, k}, false, true, name + ".qk");
+    qk = _Scale(ctx, {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
+    qk = _Causalmask(ctx, {qk}, name + ".mask");
+    qk = _Softmax(ctx, {qk}, 3, name + ".softmax");
+    auto *o = _Matmul(ctx, {qk, v}, false, false, name + ".qkv");
+    o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1+3}, name + ".qkv_view");
+    o = _Linear(ctx, {o}, hidden_size * head_size, embedding_size, false, name + ".wo");
+    return o;
+}
+NetTensor *FFN(Context *ctx, NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
+    auto *x = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, name+".w1");
+    x = _SiLU(ctx, {x});
+    auto *y = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, name+".w3");
+    x = _Mul(ctx, {x, y});
+    x = _Linear(ctx, {x}, ffn_hidden_dim, hidden_dim, false, name+".w2");
+    return x;
+}
+void llama2(Context* c, int vocab_size= 32000, int hidden_dim= 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32){
+    auto *i = _Input(c);
+    i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"tok_embeddings");
+    // loop
+    for(int layer=0; layer<32; ++layer) {
+        auto *x = _RMSNorm(c, {i}, (string)"layers."+std::to_string(layer)+".attention_norm");
+        //x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
+        x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
+        i = _Add(c, {x, i});
+        x = _RMSNorm(c, {i}, (string)"layers."+std::to_string(layer)+".ffn_norm");
+        x = FFN(c, x, hidden_dim, ffn_hidden_dim, (string)"layers."+std::to_string(layer) +".feed_forward");
+        i = _Add(c, {x, i});
+        _SubgraphBegin(c);
+    }
+    // end loop
+    i = _RMSNorm(c, {i}, (string)"norm");
+    i = _Linear(c, {i}, hidden_dim, vocab_size, false, "output");
 }
 int main() {
     auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
     auto tokens_id = vector<token_id_t>();
     // tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
     // tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);
-    tokenizer.tokenize(string(" I believe the meaning of life is"), tokens_id, true);
-    for (auto idx : tokens_id) {
-        std::cout << idx << ",";
-    }
-    std::cout << std::endl;
-    // std::cout << tokenizer.detokenize(tokens_id) << std::endl;
+    string in_str = " I believe the meaning of life is";
+    //string in_str = " Building a website can be done in 10 simple steps:\\nStep 1:";
+    tokenizer.tokenize(in_str, tokens_id, true);
+//    for (auto idx : tokens_id) {
+//        std::cout << idx << ",";
+//    }
+//    std::cout << std::endl;
     int vocab_size = 32000;
     int hidden_dim = 4096;
     int ffn_hidden_dim = 11008;
     int mutil_head_size = 32;
     Context *c = new Context();
-    auto *i = _Input(c);
-    i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"tok_embeddings");
-    // loop
-    for(int layer=0; layer<32; ++layer) {
-        auto *x = _RMSNorm(c, {i}, (string)"layers."+std::to_string(layer)+".attention_norm");
-        x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
-        auto *j = _Add(c, {x, i});
-        i = _RMSNorm(c, {j}, (string)"layers."+std::to_string(layer)+".ffn_norm");
-        x = _Linear(c, {i}, hidden_dim, ffn_hidden_dim, false, (string)"layers."+std::to_string(layer)+".feed_forward.w1");
-        x = _SiLU(c, {x});
-        auto *y = _Linear(c, {i}, hidden_dim, ffn_hidden_dim, false, (string)"layers."+std::to_string(layer)+".feed_forward.w3");
-        x = _Mul(c, {x, y});
-        x = _Linear(c, {x}, ffn_hidden_dim, hidden_dim, false, (string)"layers."+std::to_string(layer)+".feed_forward.w2");
-        i = _Add(c, {x, j});
-        _SubgraphBegin(c);
-    }
-    // end loop
-    i = _RMSNorm(c, {i}, (string)"norm");
-    i = _Linear(c, {i}, hidden_dim, vocab_size, false, "output");
+    llama2(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size);
 
     BackendConfig bn;
     Net net(c->sub_param_, bn);
     net.convert();
     // net.Run();
-    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");
+//    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");
+//    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
+//    ParamLoader param_loader("../models/llama-2-7b-q4_k-64.mllm");
+    ParamLoader param_loader("../models/llama-2-7b-q4_k.mllm");
     Executor ex(&net, &param_loader);
     // Executor ex(&net);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
     // fullTensor(input, net, {1, 1, 10, 1}, 1);
+    //tokens_id = {tokens_id[0]};
     token2Tensor(input, net, tokens_id);
-    ex.execute(input);
-    auto result = ex.result();
-//    result[0]->printData<float>();
-    auto token_idx = postProcessing(result[0], input);
-    std::cout<<"OUT TOKEN: "<<token_idx<<"|    "<< tokenizer.detokenize({token_idx}) << std::endl;
-    /*
-    shared_ptr<Tensor> input_2 = std::make_shared<Tensor>();
-    // fullTensor(input_2, net, {1, 1, 1, 1}, 1);
-    token2Tensor(input_2, net, {1});
-    ex.execute(input_2);
-    // fullTensor(input_2, net, {1, 1, 1, 1}, 1);
-    token2Tensor(input_2, net, {1});
-    ex.execute(input_2);
 
-    auto result = ex.result();
-    // result[0]->printData<float>();
-    // ex.execute({1, 1, 10, vocab_size});
-    // ex.execute({1, 1, 1, vocab_size});
-    // ex.execute({1, 1, 1, vocab_size});
+    std::cout << in_str << std::flush;
+    for(int step = 0; step<128; step++) {
+        ex.execute(input);
+        auto result = ex.result();
+        auto token_idx = postProcessing(result[0], input);
+        auto out_token = tokenizer.detokenize({token_idx});
+        std::cout << out_token << std::flush;
+    }
+    printf("\n");
+    ex.perf();
 
-     */
+//    shared_ptr<Tensor> input_2 = std::make_shared<Tensor>();
+//    token2Tensor(input_2, net, {token_idx});out_result
+//    ex.execute(input);
+//    result = ex.result();
+//    token_idx = postProcessing(result[0], input);
+//    out_token = tokenizer.detokenize({token_idx});
+//    std::cout<<"OUT TOKEN: "<<token_idx<<"|    "<< out_token << std::endl;
 
     return 0;
 }

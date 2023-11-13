@@ -3,6 +3,9 @@
 
 #include "MemoryManager.hpp"
 #include "NetParameter.hpp"
+#include <memory>
+using std::shared_ptr;
+
 namespace mllm {
 class Op;
 
@@ -26,8 +29,8 @@ public:
 
     void release(){};
 
-    void alloc(void **ptr, size_t size) {
-        mem_manager_->alloc(ptr, size);
+    void alloc(void **ptr, size_t size,size_t alignment) {
+        mem_manager_->alloc(ptr, size, alignment);
     }
 
     void free(void *ptr) {

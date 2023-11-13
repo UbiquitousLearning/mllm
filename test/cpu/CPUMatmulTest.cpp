@@ -33,11 +33,11 @@ TEST_F(CPUTest, CPUMatmul2) {
     TEST_SETUP({input0, input1}, {c_output});
     TEST_EXCUTE({input0, input1}, {c_output});
     PRINT_TENSOR_SHAPES(input0, input1, c_output, output);
-    c_output->printData<float>();
+//    c_output->printData<float>();
     COMPARE_TENSOR(c_output.get(), output.get(), true);
 }
 // TEST_F(CPUTest, CPUMatmul3) {
-//     SETUP_OP(CPUMatmul, true, true, false);
+//     SETUP_OP(CPUMatmul, true, false, false);
 //     TENSOR(input0);
 //     TENSOR(input1);
 //     TENSOR(output);
@@ -49,6 +49,6 @@ TEST_F(CPUTest, CPUMatmul2) {
 //     PRINT_TENSOR_SHAPES(input0, input1, c_output, output);
 //     TEST_SETUP({input0, input1}, {c_output});
 //     TEST_EXCUTE({input0, input1}, {c_output});
-//     c_output->printData<float>();
+////     c_output->printData<float>();
 //     COMPARE_TENSOR(c_output.get(), output.get(), true);
 // }

@@ -21,6 +21,8 @@ enum OpType {
     ATTENTION,
     EMBEDDING,
     MUL,
+    VIEW,
+    KVCACHE,
     OP_NUM
 };
 
@@ -33,11 +35,13 @@ static const vector<string> OpNames = {
     "Scale",
     "RoPE",
     "RMSNorm",
-    "CausalMask",
+    "CAUSALMASK",
     "Linear",
     "Attention",
     "Embedding",
     "Mul",
+    "VIEW",
+    "KVCACHE",
     "OP_NUM"};
 } // namespace mllm
 #endif

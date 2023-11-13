@@ -1,14 +1,13 @@
 
 #ifndef MLLM_TENSOR_H
 #define MLLM_TENSOR_H
-
 #include <climits>
-#include <string>
-#include "MemoryManager.hpp"
 #include "Backend.hpp"
+#include "Check.hpp"
 #include <iostream>
 #include <cstdio>
 #include <iomanip>
+#include "Timing.hpp"
 
 const auto KMaxAxes = 32;
 
@@ -25,9 +24,11 @@ public:
         backend_(bn), host_ptr_(), capacity_(0), dtype_(MLLM_TYPE_F32) {
     }
     ~Tensor() {
-        if (host_ptr_ != nullptr  && allocated_) {
+        if (host_ptr_ != nullptr) {
             backend_->free(host_ptr_);
-            allocated_ = false;
+            //allocated_ = false;
+//            ::free(host_ptr_);
+            host_ptr_ = nullptr;
         }
     }
     explicit Tensor(const int num, const int channels, const int height, const int width); // N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
@@ -41,7 +42,7 @@ public:
     void setBackend(Backend *bn) {
         backend_ = bn;
     };
-    void setDtype(mllm_dtype dtype) {
+    void setDtype(DataType dtype) {
         dtype_ = dtype;
     }
 
@@ -50,7 +51,7 @@ public:
     bool reshape(const vector<int> &shape);
 
     void alloc();
-    void alloc(mllm_dtype dtype) {
+    void alloc(DataType dtype) {
         dtype_ = dtype;
         alloc();
     }
@@ -58,7 +59,7 @@ public:
     void free(){
         if (host_ptr_ != nullptr && allocated_) {
             backend_->free(host_ptr_);
-            allocated_ = false;
+//            allocated_ = false;
         }
     }
 
@@ -104,8 +105,8 @@ public:
     inline int numAxes() const {
         return shape_.size();
     }
-    inline string shapeString() const {
-        ostringstream stream;
+    inline string ShapeString() const {
+        std::ostringstream stream;
         for (int i : shape_) {
             stream << i << " ";
         }
@@ -115,10 +116,10 @@ public:
     inline int canonicalAxisIndex(int axis_index) const {
         CHECK_GE(axis_index, -numAxes())
             << "axis " << axis_index << " out of range for " << numAxes()
-            << "-D Tensor with shape " << shapeString();
+            << "-D Tensor with shape " << ShapeString();
         CHECK_LT(axis_index, numAxes())
             << "axis " << axis_index << " out of range for " << numAxes()
-            << "-D Tensor with shape " << shapeString();
+            << "-D Tensor with shape " << ShapeString();
         if (axis_index < 0) {
             return axis_index + numAxes();
         }
@@ -244,6 +245,9 @@ public:
         Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
         typed_ptr[offset(index)] = value;
     }
+    void printShape(){
+        std::cout << name() << ": shape:[" << num() << " " << channels() << " " << height() << " " << width() << "]" << std::endl;
+    }
 
     template <typename Dtype>
     void printData() {
@@ -285,32 +289,16 @@ public:
         }
     }
 
-    mllm_dtype dtype() const {
+    DataType dtype() const {
         return dtype_;
     }
 
-    float dtypeSize() const {
-        switch (dtype_) {
-        case MLLM_TYPE_F32:
-            return sizeof(float);
-        case MLLM_TYPE_F16:
-            return sizeof(short);
-        case MLLM_TYPE_I32:
-            return sizeof(int);
-        case MLLM_TYPE_I16:
-            return sizeof(short);
-        case MLLM_TYPE_I8:
-            return sizeof(char);
-            // TODO WRONG?
-        case MLLM_TYPE_Q4_0:
-            return (sizeof(block_q4_0)) / (QK4_0 / 2);
-        case MLLM_TYPE_Q4_K:
-            return (sizeof(block_q4_K)) / (QK_K / 2);
-        case MLLM_TYPE_Q8_0:
-            return (sizeof(block_q8_0)) / (QK8_0);
-        case MLLM_TYPE_Q8_K:
-            return (sizeof(block_q8_K)) / (QK_K);
-        }
+    int cntSize() {
+        return DataTypeSize(dtype_, count_);
+    }
+
+    int dtypeSize() {
+        return DataTypeSize(dtype_);
     }
 //
 //    void setByteWidth(int bw) {
@@ -326,7 +314,7 @@ public:
         return name_;
     }
 
-    bool allocted() const {
+    int allocted() const {
         return allocated_;
     }
     template <class Dtype>
@@ -366,7 +354,7 @@ private:
     string name_;
     // shared_ptr<Backend> backend_;
 //    int byte_width_; // 32/16/8/4 //enum
-    mllm_dtype dtype_;
+    DataType dtype_;
     Backend *backend_;
     void *host_ptr_;
     void *device_ptr_;
@@ -381,7 +369,7 @@ private:
     int capacity_;      // 元素个数 申请内存的总长度相关
     int count_;         // 当前元素数
 
-    bool allocated_ = false;
+    int allocated_ = 0;
     // bn
 };
 } // namespace mllm

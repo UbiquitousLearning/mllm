@@ -39,32 +39,17 @@ class Writer:
     def __torch_dtype_to_int(self, dtype: torch.dtype) -> int:
         if dtype == torch.float32:
             return 0
-        elif dtype == torch.float64:
-            return 1
         elif dtype == torch.float16:
-            return 2
-        elif dtype == torch.uint8:
-            return 3
+            return 1
         elif dtype == torch.int8:
-            return 4
-        elif dtype == torch.int16:
-            return 5
+            return 16
+        elif dtype == torch.int8:
+            return 17
         elif dtype == torch.int32:
-            return 6
-        elif dtype == torch.int64:
-            return 7
-        elif dtype == torch.bool:
-            return 8
-        elif dtype == torch.qint8:
-            return 9
-        elif dtype == torch.quint8:
-            return 10
-        elif dtype == torch.qint32:
-            return 11
-        elif dtype == torch.bfloat16:
-            return 12
+            return 18
         else:
-            raise Exception("Unknown dtype: " + str(dtype))
+            raise Exception(f"Unknown dtype: {dtype}")
+
 
     def write_int(self, val: int):
         self.writer.write(struct.pack("<i", val))

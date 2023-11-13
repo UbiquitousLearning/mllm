@@ -11,7 +11,7 @@ CPUMatmul::CPUMatmul(Backend *bn, string opName, bool transpose0, bool transpose
 }
 
 ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUMatmul  reshape" << std::endl;
+    //std::cout<<name() << "  CPUMatmul  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 2);
     CHECK_EQ(outputs.size(), 1);
     CHECK_EQ(inputs[0]->head(), inputs[1]->head());
@@ -54,50 +54,16 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         CHECK_EQ(inputs[0]->sequence(), inputs[1]->sequence());
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[1]->dimension());
     }
-    outputs[0]->setDtype(activationDtype());
-    return NO_ERROR;
-}
-
-ErrorCode CPUMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUMatmul  setUp" << std::endl;
-    if (!inputs[0]->allocted()) {
-        inputs[0]->alloc(); // TODO remove
-    }
-    if (!inputs[1]->allocted()) {
-        inputs[1]->alloc(); // TODO remove
-    }
-    outputs[0]->alloc();
-    return NO_ERROR;
+    //outputs[0]->setDtype(activationDtype());
+    return Op::reshape(inputs, outputs);
 }
 
 ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout<<name() << "  CPUMatmul()" << std::endl;
-
-    switch (weightsDtype()) {
-    case MLLM_TYPE_F32: {
-        mat_mul_fp32(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_);
-        break;
-    }
-    // matmul only fp32
-    /*
-    case MLLM_TYPE_F16: break;
-    case MLLM_TYPE_Q4_0: {
-        mat_mul_fp32_q4_0(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_);
-        break;
-    }
-    case MLLM_TYPE_Q4_K: {
-        mat_mul_fp32_q4_K(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_);
-        break;
-    }*/
-    default:
-        break;
-    }
-    return NO_ERROR;
-}
-
-ErrorCode CPUMatmul::load(ParamLoader &loader) {
-    std::cout<<name() << "  CPUMatmul load" << std::endl;
-    return NO_ERROR;
+    //std::cout<<name() << "  CPUMatmul()" << std::endl;
+    assert(inputs[0]->dtype() == MLLM_TYPE_F32);
+    assert(inputs[1]->dtype() == MLLM_TYPE_F32);
+    mat_mul_fp32(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_);
+    return Op::execute(inputs, outputs);
 }
 
 } // namespace mllm

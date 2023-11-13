@@ -17,12 +17,12 @@ struct Context {
 };
 // NOLINTBEGIN(readability-identifier-naming)
 void _SubgraphBegin(Context *ctx);
-NetTensor *_Input(Context *ctx, vector<int> dims={}, string name = "", DataType type = FP32);
+NetTensor *_Input(Context *ctx, vector<int> dims={}, string name = "", DataType type = MLLM_TYPE_F32);
 NetTensor *_Add(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Causalmask(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_SiLU(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Softmax(Context *ctx, std::vector<NetTensor *> inputs, int axis, string name = "");
-NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs,  bool transpose0, bool transpose1, string name = "");
 NetTensor *_RMSNorm(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_RoPE(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale, string name);
@@ -30,6 +30,8 @@ NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_feature
 NetTensor *_Attention(Context *ctx, std::vector<NetTensor *> inputs, int embedding_size, int hidden_size, int head_size=1, string name = "");
 NetTensor *_Embedding(Context *ctx, std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name = "");
 NetTensor *_Mul(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_View(Context *ctx, std::vector<NetTensor *> inputs, vector<int> dims, vector<int>data_dims, string name = "");
+NetTensor *_KVCache(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 // NOLINTEND(readability-identifier-naming)
 
 /*
@@ -59,7 +61,7 @@ ETENSOR _EOP_(std::string name, OpType type, std::vector<ETENSOR> inputs, OpPara
 
 ETENSOR _Input(vector<int> shape);
 ETENSOR _Add(std::vector<ETENSOR> inputs);
-ETENSOR _CausalMask(std::vector<ETENSOR> inputs);
+ETENSOR _Mask(std::vector<ETENSOR> inputs);
 ETENSOR _MatMul(std::vector<ETENSOR> inputs);
 ETENSOR _RMSNorm(std::vector<ETENSOR> inputs);
 ETENSOR _RoPE(std::vector<ETENSOR> inputs);

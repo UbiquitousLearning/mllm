@@ -52,7 +52,8 @@ Tokenizer::Tokenizer(const std::string &vocab_file) {
     load_vocab(vocab_file);
 }
 string Tokenizer::detokenize(const vector<token_id_t> &tokens) {
-    int size = tokens.size() - 1;
+    //int size = tokens.size() - 1;
+    int size = tokens.size();
     string result;
     for (int i = 0; i < size; i++) {
         auto token_id = tokens[i];

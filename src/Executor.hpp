@@ -27,7 +27,7 @@ public:
     /*
     void graphShapeInit(shared_ptr<Graph> subGraph, unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
         // auto subGraph = net_.subGraph()[graph_name];
-        subGraph->shapeInit(external_tensors);
+        subGraph->reshape(external_tensors);
     }
 
     void graphSetUp(shared_ptr<Graph> subGraph) {
@@ -69,6 +69,12 @@ public:
         return result_;
     }
 
+    void perf() const{
+        std::cout << "load time: " << load_time_ << " ms" << std::endl;
+        std::cout << "token time: " << run_time_ / run_times_<< " ms"<<std::endl;
+        std::cout << "inference speed: " << 1000 * run_times_ /run_time_ << " tokens/s" << std::endl;
+    }
+
 private:
     Net *net_;
     vector<int> input_size_;
@@ -76,8 +82,11 @@ private:
     vector<shared_ptr<Tensor>> result_;
     ParamLoader *data_loader_;
 
-    mllm_dtype weights_dtype_;
-    mllm_dtype activation_dtype_;
+
+    double load_time_ = 0;
+    double run_time_ = 0;
+    int run_times_ = 0;
+
 };
 
 } // namespace mllm

@@ -60,7 +60,12 @@ bool TestLoader::load(Tensor *tensor, bool strict) {
         if (!tensor->allocted()) {
             tensor->alloc();
         }
+    } else{
+        if (!tensor->allocted()) {
+            tensor->alloc();
+        }
     }
+
     if ((!index->checkDim(tensor->shape(), strict))) {
         return false;
     }
@@ -72,6 +77,27 @@ bool TestLoader::load(Tensor *tensor, bool strict) {
 }
 bool TestLoader::load(shared_ptr<Tensor> tensor, bool strict) {
     return load(tensor.get(), strict);
+}
+DataType TestLoader::getDataType(string name) {
+    //    return MLLM_TYPE_Q4_1;
+    TensorIndex *index = tensor_map_[name];
+    if (index == nullptr) {
+        // Replace  all '.' with '_' in name
+        string name_ = name;
+        std::replace(name_.begin(), name_.end(), '.', '_');
+        index = tensor_map_[name_];
+        if (index == nullptr) {
+            std::cout << "Tensor " << name << " not found" << std::endl;
+            return DataType::MLLM_TYPE_COUNT;
+        }
+    }
+    return static_cast<DataType>(index->type);
+}
+bool TestLoader::load(Tensor *tensor) {
+    return load(tensor, false);
+}
+bool TestLoader::load(shared_ptr<Tensor> tensor) {
+    return load(tensor, true);
 }
 uint64_t TestIO::read_u64() {
     uint64_t ret;
@@ -186,7 +212,7 @@ TestIO::~TestIO() {
         fclose(fp_);
     }
 }
-[[maybe_unused]] bool TestWriter::Write(Tensor *tensor) {
+[[maybe_unused]] bool TestWriter::write(Tensor *tensor) {
     if (fp_ == nullptr || read_mode_ || tensor == nullptr) {
         return false;
     }

@@ -11,23 +11,25 @@ public:
     CPURoPE(Backend *bn, string opName, bool hf, bool multiThread);
     virtual ~CPURoPE() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-    virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode load(AbstructLoader &loader) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
-    virtual ErrorCode load(ParamLoader &loader) override;
 
 private:
+//    Tensor freq_;
     Tensor sin_;
     Tensor cos_;
+    int h_cnt_ = 0;
     bool hf_;
+    int ishape;
     bool support_multi_thread_ = false;
 };
 
 class CPURoPECreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new CPURoPE(bn, name, true, false);
+        return new CPURoPE(bn, name, false, false);
     }
 };
 } // namespace mllm

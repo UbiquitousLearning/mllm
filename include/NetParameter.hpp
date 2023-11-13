@@ -17,7 +17,7 @@ using std::map;
 
 namespace mllm {
 
-typedef map<std::string, int> OpParam;
+typedef map<std::string, float> OpParam;
 typedef struct TNetTensor NetTensor;
 typedef struct TNetParameter NetParameter;
 

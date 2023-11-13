@@ -100,7 +100,7 @@ Op *NNAPIBackend::opCreate(const OpParam &op_param, string name) {
 
 void NNAPIBackend::registerOps() {
     // ADD,
-    // CAUSALMASK,
+    // MASK,
     // MATMUL,
     // RMSNORM,
     // ROPE,

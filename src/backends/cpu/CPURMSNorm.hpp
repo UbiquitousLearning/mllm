@@ -11,11 +11,10 @@ public:
     CPURMSNorm(Backend *bn, string opName, bool multiThread, float epsilon = 1e-5);
     virtual ~CPURMSNorm() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode load(AbstructLoader &loader) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
-    virtual ErrorCode load(ParamLoader &loader) override;
     Tensor &weight() {
         return weight_;
     }
@@ -25,6 +24,7 @@ private:
     float epsilon_;
     int axis_ = 1;
     Tensor weight_;
+    int normSize_;
     // Tensor bias_;
 };
 

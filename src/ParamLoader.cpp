@@ -1,10 +1,12 @@
 #include "ParamLoader.hpp"
 #include "NetParameter.hpp"
+#include "Types.hpp"
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <tuple>
 #include <utility>
 // TODO:
 /*
@@ -95,5 +97,28 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
 }
 bool ParamLoader::load(std::shared_ptr<mllm::Tensor> tensor) {
     return load(tensor.get());
+}
+vector<std::string> ParamLoader::getParamNames() {
+    // get keys of data_type_
+    vector<std::string> keys;
+    for (auto &iter : data_type_) {
+        keys.push_back(iter.first);
+    }
+    return keys;
+}
+std::tuple<uint8_t *, uint64_t> ParamLoader::load(string name) {
+    auto [offset, length] = offsets_[name];
+    uint8_t *data = new uint8_t[length];
+    fseek(fp_, offset, SEEK_SET);
+    fread(data, sizeof(uint8_t), length, fp_);
+    return std::make_tuple(data, length);
+}
+DataType ParamLoader::getDataType(string name) {
+    if (data_type_.count(name) != 1) {
+        return DataType::MLLM_TYPE_COUNT;
+    }
+    int type = data_type_[name];
+    // check if exists
+    return static_cast<DataType>(type);
 }
 } // namespace mllm

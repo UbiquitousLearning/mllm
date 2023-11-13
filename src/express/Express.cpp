@@ -68,9 +68,11 @@ void NetParameter::topologySort() {
     for (auto *op : net_ops) {
         topology(this, *result, op, visited);
     }
+    /*
     for (auto *op : *result) {
         std::cout << op->name << std::endl;
     }
+    */
     net_ops = *result;
 }
 // get active subgraph
@@ -159,7 +161,7 @@ NetTensor *_Softmax(Context *ctx, std::vector<NetTensor *> inputs, int axis, str
     out_tensor->in = net_op_;
     return out_tensor;
 }
-NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, bool transpose0, bool transpose1, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "Matmul" + std::to_string(ctx->idx);
@@ -170,6 +172,8 @@ NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::MATMUL)
+    net_op_->param["transpose0"] = transpose0;
+    net_op_->param["transpose1"] = transpose1;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;
@@ -296,6 +300,44 @@ NetTensor *_Mul(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     out_tensor->in = net_op_;
     return out_tensor;
 }
+NetTensor *_View(Context *ctx, std::vector<NetTensor *> inputs, vector<int> dims, vector<int>data_dims, string name){
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "View" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::VIEW)
+    net_op_->param["dim0"] = dims[0];
+    net_op_->param["dim1"] = dims[1];
+    net_op_->param["dim2"] = dims[2];
+    net_op_->param["dim3"] = dims[3];
+    net_op_->param["data_dim0"] = data_dims[0];
+    net_op_->param["data_dim1"] = data_dims[1];
+    net_op_->param["data_dim2"] = data_dims[2];
+    net_op_->param["data_dim3"] = data_dims[3];
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+NetTensor *_KVCache(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "KVCache" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::KVCACHE)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }
@@ -328,11 +370,11 @@ ETENSOR _Add(std::vector<ETENSOR> inputs) {
     opparam["type"] = ADD;
     return _EOP_(OpNames[ADD] + std::to_string(op_idx), ADD, inputs, opparam);
 }
-ETENSOR _CausalMask(std::vector<ETENSOR> inputs) {
+ETENSOR _Mask(std::vector<ETENSOR> inputs) {
     op_idx++;
     OpParam opparam;
-    opparam["type"] = CAUSALMASK;
-    return _EOP_(OpNames[CAUSALMASK] + std::to_string(op_idx), CAUSALMASK, inputs, opparam);
+    opparam["type"] = MASK;
+    return _EOP_(OpNames[MASK] + std::to_string(op_idx), MASK, inputs, opparam);
 }
 ETENSOR _MatMul(std::vector<ETENSOR> inputs) {
     op_idx++;

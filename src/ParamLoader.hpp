@@ -7,12 +7,13 @@
 #include <vector>
 #include <iostream>
 #include "Tensor.hpp"
+#include "Types.hpp"
 
 namespace mllm {
 class Tensor;
 static int readInt(FILE *fp_) {
     int tmp;
-    fread(&tmp, sizeof(int), 1, fp_);
+    fread(&tmp, sizeof(int32_t), 1, fp_);
     return tmp;
 }
 static uint64_t readu64(FILE *fp_) {
@@ -42,16 +43,28 @@ static std::string readString(FILE *fp_) {
     delete[] tmp;
     return str;
 }
+
 #define _MAGIC_NUMBER 20012
-class ParamLoader {
+class AbstructLoader {
+public:
+    virtual bool load(mllm::Tensor *tensor) = 0;
+    virtual bool load(std::shared_ptr<mllm::Tensor> tensor) = 0;
+    virtual DataType getDataType(string name) = 0;
+};
+class ParamLoader : public AbstructLoader {
+    friend class QuantWriter;
+
 public:
     ParamLoader(std::string filename, bool use_mmap = false);
 #ifdef USE_MMAP
     ParamLoader(void *buffer);
 #endif
     ~ParamLoader();
-    bool load(mllm::Tensor *tensor);
-    bool load(std::shared_ptr<mllm::Tensor> tensor);
+    bool load(mllm::Tensor *tensor) override;
+    bool load(std::shared_ptr<mllm::Tensor> tensor) override;
+    vector<std::string> getParamNames();
+    std::tuple<uint8_t *, uint64_t> load(string name);
+    DataType getDataType(string name) override;
 
 private:
     FILE *fp_;
