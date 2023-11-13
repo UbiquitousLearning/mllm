@@ -48,7 +48,7 @@ Net::Net(const vector<NetParameter> &param, BackendConfig config) :
         tensor_names_.push_back(names);
     }
     tensor_names_[0].push_back(in_tensor->name);
-    printf("Net init\n");
+    //printf("Net init\n");
 }
 /*
 void Net::convert() {
@@ -74,7 +74,7 @@ void Net::convert(BackendType backend_type) {
         subg_1.reset(new Graph(sub_param, backends_[backend_type], tensors_));
         subGraphs_["G" + std::to_string(i)] = subg_1;
     }
-    printf("Net convert\n");
+    //printf("Net convert\n");
 }
 
 void Net::reshapeInput() {

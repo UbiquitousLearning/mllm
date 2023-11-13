@@ -71,7 +71,8 @@ public:
 
     void perf() const{
         std::cout << "load time: " << load_time_ << " ms" << std::endl;
-        std::cout << "token time: " << run_time_ / run_times_<<run_times_ << " ms" << std::endl;
+        std::cout << "token time: " << run_time_ / run_times_<< " ms"<<std::endl;
+        std::cout << "inference speed: " << 1000 * run_times_ /run_time_ << " tokens/s" << std::endl;
     }
 
 private:

@@ -1,7 +1,8 @@
 #include <csignal>
 #include "Executor.hpp"
 namespace mllm {
-void Executor::init() {}
+void Executor::init() {
+}
 /*
 void Executor::execute(vector<int> input_size) {
     bool init = false;
@@ -28,9 +29,8 @@ void Executor::execute(vector<int> input_size) {
 }
  */
 
-
-//#define DEBUG
-//#define DYNAMIC
+// #define DEBUG
+// #define DYNAMIC
 bool paramloaded = false;
 bool freeGraph = false;
 void Executor::execute(shared_ptr<Tensor> input_tensor) {
@@ -38,7 +38,7 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
     bool init = false;
     bool reshape = false;
     checkReshape(init, reshape, input_size);
-    //set Input tensor
+    // set Input tensor
 
     uint64_t t_start;
     uint64_t t_end;
@@ -62,27 +62,27 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
             std::cout << " ====  " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 #endif
         }
-        //load params
-        if (! paramloaded) {
+        // load params
+        if (!paramloaded) {
 #ifdef DEBUG
-            std::cout <<"["<< name << "]==== load" ;
+            std::cout << "[" << name << "]==== load";
             t_start = mllm_time_us();
 #endif
             g->setUpOps(*data_loader_);
 #ifdef DEBUG
             t_end = mllm_time_us();
-            std::cout<<"    ====  "<< (t_end - t_start)/1000.0F << " ms" << std::endl;
+            std::cout << "    ====  " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 #endif
         }
 #ifndef DYNAMIC
     }
     paramloaded = true;
     time_end = mllm_time_us();
-    if(load_time_ == 0) {
+    if (load_time_ == 0) {
         load_time_ = (time_end - time_start) / 1000.0F;
     }
 #ifdef DEBUG
-    std::cout<<"reshape&load ====  "<< (time_end - time_start)/1000.0F << " ms" << std::endl;
+    std::cout << "reshape&load ====  " << (time_end - time_start) / 1000.0F << " ms" << std::endl;
 #endif
     time_start = mllm_time_us();
 
@@ -90,31 +90,33 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
         string name = "G" + std::to_string(i);
         auto &g = net_->subGraph()[name];
 #endif
-        if (init || reshape) {
+        // if (init || reshape)
+//        {
 #ifdef DEBUG
-            std::cout <<"["<< name << "]==== setup";
-            t_start = mllm_time_us();
+        std::cout << "[" << name << "]==== setup";
+        t_start = mllm_time_us();
 #endif
-            g->setUpTensors();
+        g->reshape();
+        g->setUpTensors();
 #ifdef DEBUG
-            t_end = mllm_time_us();
-            std::cout<<" ====  "<< (t_end - t_start)/1000.0F << " ms" << std::endl;
+        t_end = mllm_time_us();
+        std::cout << " ====  " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 #endif
-        }
-        //exe
+//        }
+// exe
 #ifdef DEBUG
-        std::cout <<"["<< name << "]==== execute" ;
+        std::cout << "[" << name << "]==== execute";
         t_start = mllm_time_us();
 #endif
         result_ = g->forward();
 #ifdef DEBUG
         t_end = mllm_time_us();
-        std::cout<<" ====  "<< (t_end - t_start)/1000.0F << " ms" << std::endl;
+        std::cout << " ====  " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 #endif
-        //free
-        if(freeGraph) {
+        // free
+        if (freeGraph) {
 #ifdef DEBUG
-            std::cout <<"["<< name << "]==== free";
+            std::cout << "[" << name << "]==== free";
             t_start = mllm_time_us();
 #endif
 #ifdef DYNAMIC
@@ -127,21 +129,20 @@ void Executor::execute(shared_ptr<Tensor> input_tensor) {
             net_->freeTensors(i);
 #ifdef DEBUG
             t_end = mllm_time_us();
-            std::cout<<"    ====  "<< (t_end - t_start)/1000.0F << " ms" << std::endl;
+            std::cout << "    ====  " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 #endif
         }
-        //std::cout <<"["<< name << "]==== end      === "<< result_[0]->name() << "'s shape:  [" << result_[0]->shape(0) << "," << result_[0]->shape(1) << "," << result_[0]->shape(2) << "," << result_[0]->shape(3) << "]" << std::endl;
+        // std::cout <<"["<< name << "]==== end      === "<< result_[0]->name() << "'s shape:  [" << result_[0]->shape(0) << "," << result_[0]->shape(1) << "," << result_[0]->shape(2) << "," << result_[0]->shape(3) << "]" << std::endl;
     }
     time_end = mllm_time_us();
-    if(input_size[2] == 1) {
+    if (input_size[2] == 1) {
         auto token_run_time = (time_end - time_start) / 1000.0F;
         run_time_ += token_run_time;
-        run_times_ +=1;
+        run_times_ += 1;
     }
 #ifdef DEBUG
-    std::cout<<"exec ====  "<< (time_end - time_start)/1000.0F << " ms" << std::endl;
+    std::cout << "exec ====  " << (time_end - time_start) / 1000.0F << " ms" << std::endl;
 #endif
-
 }
 
 } // namespace mllm

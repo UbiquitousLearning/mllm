@@ -52,7 +52,6 @@ ErrorCode CPUKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                 }
             }
         }
-        //outputs[0]->printData<float>();
     } else {
         outputs[0]->copyFrom(inputs[0]);
     }

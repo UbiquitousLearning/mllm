@@ -76,11 +76,11 @@ public:
      * @return reshapeOutputs result
      */
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-        for (auto &input :inputs) {
-            if (!input->allocted()) {
-                input->alloc(); // TODO remove
-            }
-        }
+//        for (auto &input :inputs) {
+//            if (!input->allocted()) {
+//                input->alloc(); // TODO remove
+//            }
+//        }
         for (auto &output :outputs) {
             output->setDtype(activation_dtype_);
             output->alloc();

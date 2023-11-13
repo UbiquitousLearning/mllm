@@ -136,12 +136,12 @@ int main() {
     // tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
     // tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);
     string in_str = " I believe the meaning of life is";
+    //string in_str = " Building a website can be done in 10 simple steps:\\nStep 1:";
     tokenizer.tokenize(in_str, tokens_id, true);
-    for (auto idx : tokens_id) {
-        std::cout << idx << ",";
-    }
-    std::cout << std::endl;
-    // std::cout << tokenizer.detokenize(tokens_id) << std::endl;
+//    for (auto idx : tokens_id) {
+//        std::cout << idx << ",";
+//    }
+//    std::cout << std::endl;
     int vocab_size = 32000;
     int hidden_dim = 4096;
     int ffn_hidden_dim = 11008;
@@ -155,6 +155,7 @@ int main() {
     // net.Run();
 //    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");
 //    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
+//    ParamLoader param_loader("../models/llama-2-7b-q4_k-64.mllm");
     ParamLoader param_loader("../models/llama-2-7b-q4_k.mllm");
     Executor ex(&net, &param_loader);
     // Executor ex(&net);
@@ -164,7 +165,7 @@ int main() {
     token2Tensor(input, net, tokens_id);
 
     std::cout << in_str << std::flush;
-    for(int step = 0; step<8; step++) {
+    for(int step = 0; step<128; step++) {
         ex.execute(input);
         auto result = ex.result();
         auto token_idx = postProcessing(result[0], input);

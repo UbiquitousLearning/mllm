@@ -98,9 +98,7 @@ void Graph::reshape() {
 void Graph::setUpTensors() {
     auto &graph_in_tensors = ops_input_tensors_[param_.net_ops[0]->name];
     for (auto &t : graph_in_tensors) {
-        if (!t->allocted()) {
             t->alloc();
-        }
     }
     for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
         auto *net_op = param_.net_ops[i];

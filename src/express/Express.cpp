@@ -68,9 +68,11 @@ void NetParameter::topologySort() {
     for (auto *op : net_ops) {
         topology(this, *result, op, visited);
     }
+    /*
     for (auto *op : *result) {
         std::cout << op->name << std::endl;
     }
+    */
     net_ops = *result;
 }
 // get active subgraph

@@ -24,9 +24,11 @@ public:
         backend_(bn), host_ptr_(), capacity_(0), dtype_(MLLM_TYPE_F32) {
     }
     ~Tensor() {
-        if (host_ptr_ != nullptr  && allocated_) {
+        if (host_ptr_ != nullptr) {
             backend_->free(host_ptr_);
-            allocated_ = false;
+            //allocated_ = false;
+//            ::free(host_ptr_);
+            host_ptr_ = nullptr;
         }
     }
     explicit Tensor(const int num, const int channels, const int height, const int width); // N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
@@ -57,7 +59,7 @@ public:
     void free(){
         if (host_ptr_ != nullptr && allocated_) {
             backend_->free(host_ptr_);
-            allocated_ = false;
+//            allocated_ = false;
         }
     }
 
@@ -239,6 +241,9 @@ public:
         Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
         typed_ptr[offset(index)] = value;
     }
+    void printShape(){
+        std::cout << name() << ": shape:[" << num() << " " << channels() << " " << height() << " " << width() << "]" << std::endl;
+    }
 
     template <typename Dtype>
     void printData() {
@@ -305,7 +310,7 @@ public:
         return name_;
     }
 
-    bool allocted() const {
+    int allocted() const {
         return allocated_;
     }
     template <class Dtype>
@@ -360,7 +365,7 @@ private:
     int capacity_;      // 元素个数 申请内存的总长度相关
     int count_;         // 当前元素数
 
-    bool allocated_ = false;
+    int allocated_ = 0;
     // bn
 };
 } // namespace mllm
