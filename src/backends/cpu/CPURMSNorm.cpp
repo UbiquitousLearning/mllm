@@ -16,8 +16,8 @@ ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     // RMSNorm 类似于LayerNorm作用于channel维度
     normSize_ = inputs[0]->dimension();
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
-    //outputs[0]->setDtype(activationDtype());
-    //std::cout << name() << "  CPURMSNorm  reshape" << std::endl;
+    // outputs[0]->setDtype(activationDtype());
+    // std::cout << name() << "  CPURMSNorm  reshape" << std::endl;
     return Op::reshape(inputs, outputs);
 }
 
@@ -29,16 +29,18 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     int head = input->head();
     for (int h = 0; h < head; h++) {
         for (int n = 0; n < batch; n++) {
-            #pragma omp parallel for num_threads(4)
             for (int s = 0; s < seq; s++) {
                 float sum_squares = 0.0F;
                 // sum
+#pragma omp parallel for num_threads(4)
                 for (int d = 0; d < dim; d++) {
                     float value = input->dataAt<float>(n, h, s, d);
                     sum_squares += value * value;
                 }
                 float rms = std::sqrt(sum_squares / dim + epsilon_);
                 // use memset to set the value of the memory block
+                // memset(outputs[0]->ptrAt<float>(n, h, s, 0), 0, sizeof(float) * dim);
+#pragma omp parallel for num_threads(4)
                 for (int d = 0; d < dim; d++) {
                     float value = input->dataAt<float>(n, h, s, d);
                     outputs[0]->setDataAt<float>(n, h, s, d, weight_.dataAt<float>(0, 0, 0, d) * value / rms);
@@ -50,7 +52,7 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     //    weight_.printData<float>();
     //    outputs[0]->printData<float>();
 
-    //std::cout << name() << "  CPURMSNorm()" << std::endl;
+    // std::cout << name() << "  CPURMSNorm()" << std::endl;
     return Op::execute(inputs, outputs);
 }
 ErrorCode CPURMSNorm::load(AbstructLoader &loader) {
