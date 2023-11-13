@@ -27,7 +27,7 @@ ErrorCode CPUSiLU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     for (int n = 0; n < batch; n++) {
         for (int h = 0; h < n2; h++) {
             for (int c = 0; c < n1; c++) {
-                #pragma omp parallel for num_threads(8)
+                #pragma omp parallel for num_threads(4)
                 for (int w = 0; w < n3; w++) {
                     float value = input->dataAt<float>(n, c, h, w);
                     outputs[0]->setDataAt<float>(n, c, h, w, value / (1 + std::exp(-value)));

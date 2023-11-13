@@ -29,7 +29,7 @@ ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<share
         for (int n = 0; n < batch_size; ++n) {
             for (int h = 0; h < head_num; ++h) {
                 for (int s = 0; s < sequence; ++s) {
-                    #pragma omp parallel for num_threads(8)
+                    #pragma omp parallel for num_threads(4)
                     for (int d = 0; d < dimension; ++d) {
                         double inf = 0;
                         if (d > s) {

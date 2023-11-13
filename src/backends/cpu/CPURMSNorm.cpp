@@ -29,7 +29,7 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     int head = input->head();
     for (int h = 0; h < head; h++) {
         for (int n = 0; n < batch; n++) {
-            #pragma omp parallel for num_threads(8)
+            #pragma omp parallel for num_threads(4)
             for (int s = 0; s < seq; s++) {
                 float sum_squares = 0.0F;
                 // sum

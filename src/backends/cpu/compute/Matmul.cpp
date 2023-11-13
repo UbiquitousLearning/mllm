@@ -10,7 +10,7 @@ inline void transpose_scalar_block(const float *A, float *B, const int lda, cons
     int i;
     int j = 0;
 // Cache Aware Transpose
-#pragma omp parallel for num_threads(8)
+#pragma omp parallel for num_threads(4)
     for (i = 0; i < block_size; i++) {
         for (j = 0; j < block_size; j++) {
             B[j * ldb + i] = A[i * lda + j];
@@ -28,7 +28,7 @@ Tensor *tensor_trans(Tensor *src) {
             int i = 0;
             int j = 0;
             if (std::min(src->sequence(), src->dimension()) > F32_BLOCK) {
-                #pragma omp parallel for num_threads(8)
+                #pragma omp parallel for num_threads(4)
                 for (i = 0; i < src->sequence(); i += F32_BLOCK) {
                     for (j = 0; j < src->dimension(); j += F32_BLOCK) {
                         transpose_scalar_block(src->ptrAt<float>(b, h, i, j), dst->ptrAt<float>(b, h, j, i), src->dimension(), src->sequence());
@@ -43,6 +43,7 @@ Tensor *tensor_trans(Tensor *src) {
                 continue;
             }
             for (int n = 0; n < src->sequence(); n++) {
+                #pragma omp parallel for num_threads(4)
                 for (int m = 0; m < src->dimension(); m++) {
                     dst->setDataAt<float>({b, h, m, n}, src->dataAt<float>({b, h, n, m}));
                 }
@@ -67,7 +68,7 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
     Tensor *src1_cal = (transpose1 && !transpose0) ? src1 : (!transpose0 && !transpose1) ? tensor_trans(src1) : src1;
     for (int b = 0; b < src0->batch(); b++) {
         for (int h = 0; h < src0->head(); h++) {
-            #pragma omp parallel for num_threads(8)
+            #pragma omp parallel for num_threads(4)
             for (int n = 0; n < N; n++) {
                 for (int m = 0; m < M; m++) {
                     vec_dot_fp32(src0_cal->hostPtr<float>() + src0_cal->offset(b, h, m, 0),
@@ -111,7 +112,7 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     Tensor *src1_cal = (transpose1 && !transpose0) ? src1 : (!transpose0 && !transpose1) ? tensor_trans(src1) : src1;
     for (int b = 0; b < src0->batch(); b++) {
         for (int h = 0; h < src0->head(); h++) {
-        #pragma omp parallel for num_threads(8)
+        #pragma omp parallel for num_threads(4)
             for (int n = 0; n < N; n++) {
                 for (int m = 0; m < M; m++) {
                     vec_dot_q4_0_q8_0(src0_cal->hostPtr<block_q8_0>() + src0_cal->offset(b, h, m, 0)/QK8_0,
@@ -153,7 +154,7 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     Tensor *src1_cal = (transpose1 && !transpose0) ? src1 : (!transpose0 && !transpose1) ? tensor_trans(src1) : src1;
     for (int b = 0; b < src0->batch(); b++) {
         for (int h = 0; h < src0->head(); h++) {
-            #pragma omp parallel for num_threads(8)
+            #pragma omp parallel for num_threads(4)
             for (int n = 0; n < N; n++) {
                 for (int m = 0; m < M; m++) {
                     vec_dot_q4_K_q8_K(src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0)/QK_K,

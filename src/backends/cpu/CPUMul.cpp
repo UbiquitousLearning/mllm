@@ -29,7 +29,7 @@ ErrorCode CPUMul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     for (int n = 0; n < N; ++n) {
         for (int c = 0; c < C; ++c) {
             for (int h = 0; h < H; ++h) {
-                #pragma omp parallel for num_threads(8)
+                #pragma omp parallel for num_threads(4)
                 for (int w = 0; w < W; ++w) {
                     outputs[0]->setDataAt<float>(n, c, h, w, inputs[0]->dataAt<float>(n, c, h, w) * inputs[1]->dataAt<float>(n, c, h, w));
                 }

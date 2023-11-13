@@ -35,7 +35,7 @@ ErrorCode mllm::CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<
     auto output = outputs[0];
     for (int batch = 0; batch < input->batch(); ++batch) {
         for (int head = 0; head < input->head(); ++head) {
-            #pragma omp parallel for num_threads(8)
+            #pragma omp parallel for num_threads(4)
             for (int seq = 0; seq < input->sequence(); ++seq) {
                 //                std::cout<<"batch: "<<batch<<" channel: "<<channel<<" seq: "<<seq<<std::endl;
                 //                std::cout<<"input->dataAt<int>(batch, channel, seq, 0): "<<input->dataAt<int>(batch, channel, seq, 0)<<std::endl;

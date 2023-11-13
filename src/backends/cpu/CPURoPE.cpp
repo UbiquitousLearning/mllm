@@ -81,7 +81,7 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     for (int n = 0; n < input->shape(0); ++n) {
         for (int c = 0; c < input->shape(1); ++c) {
             for (int h = 0; h < input->shape(2); ++h) {//sequance
-                #pragma omp parallel for num_threads(8)
+                #pragma omp parallel for num_threads(4)
                 for (int w = 0; w < input->shape(3); ++w) {
                     if (hf_) {
                         float in_value = input->dataAt<float>(n, c, h, w);
