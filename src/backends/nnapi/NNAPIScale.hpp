@@ -14,7 +14,7 @@ public:
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
-    virtual ErrorCode load(ParamLoader &loader) override;
+    virtual ErrorCode load(AbstructLoader &loader) override;
 
 private:
     float scale_;
