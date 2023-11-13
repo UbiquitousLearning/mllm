@@ -5,7 +5,7 @@
 #include <iostream>
 #include <vector>
 #include "NNAPIAdd.hpp"
-#include "NNAPIMatmul.hpp"
+#include "NNAPIMul.hpp"
 #include "NNAPIScale.hpp"
 #include "NNAPISiLU.hpp"
 #include "NNAPISoftmax.hpp"
@@ -109,7 +109,7 @@ void NNAPIBackend::registerOps() {
     // SOFTMAX
     addCreator(ADD, (NNAPIBackend::Creator *)(new NNAPIAddCreator()));
     // addCreator(CAUSALMASK, (NNAPIBackend::Creator *)(new NNAPICausalMaskCreator()));
-    addCreator(MATMUL, (NNAPIBackend::Creator *)(new NNAPIMatmulCreator()));
+    addCreator(MUL, (NNAPIBackend::Creator *)(new NNAPIMulCreator()));
     // addCreator(RMSNORM, (NNAPIBackend::Creator *)(new NNAPIRMSNormCreator()));
     // addCreator(ROPE, (NNAPIBackend::Creator *)(new NNAPIRoPECreator()));
     addCreator(SCALE, (NNAPIBackend::Creator *)(new NNAPIScaleCreator()));
