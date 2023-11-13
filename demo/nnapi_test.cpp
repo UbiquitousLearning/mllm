@@ -62,7 +62,7 @@ int main() {
 
     Executor ex(&net);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    fullTensor(input, net, {1, 2, 2, 4}, 2);
+    fullTensor(input, net, {1, 1, 2, 4}, 2);
     std::cout << "===NNAPI Execute===" << std::endl;
     ex.execute(input);
     std::cout << "===print result===" << std::endl;

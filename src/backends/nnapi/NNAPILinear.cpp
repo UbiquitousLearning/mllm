@@ -33,16 +33,17 @@ ErrorCode NNAPILinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_
     // batch |out_channel | seq_len               |  1
     //       |out_features|  inputs[0]->sequence()  |
     CHECK_EQ(in_features_, inputs[0]->dimension());
+    // we assume that the input is 2D
+    CHECK_EQ(1, inputs[0]->head());
 
     weight_.reshape(1, inputs[0]->head(), out_features_, in_features_);
     weight_.setName(name() + ".weight");
     weight_.setDtype(weightsDtype());
 
-    if (support_bias_) {
-        bias_.reshape(1, inputs[0]->head(), 1, out_features_);
-        bias_.setName(name() + ".bias");
-        bias_.setDtype(weightsDtype());
-    }
+    // bias should be allocated even if it is not supported
+    bias_.reshape(1, inputs[0]->head(), 1, out_features_);
+    bias_.setName(name() + ".bias");
+    bias_.setDtype(weightsDtype());
 
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
     outputs[0]->setDtype(activationDtype());
@@ -61,12 +62,8 @@ ErrorCode NNAPILinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         bias_.fullData(0);
     }
 
-    // TODO: remove this, just for debug
-    weight_.fullData<float>(2);
-    bias_.fullData<float>(0);
-
     unsigned int batch_size = inputs[0]->batch() * inputs[0]->head() * inputs[0]->sequence();
-    unsigned int num_units = inputs[0]->head() * out_features_;
+    unsigned int num_units = out_features_;
     unsigned int input_size = in_features_;
 
     std::vector<uint32_t> inputIdxs;
