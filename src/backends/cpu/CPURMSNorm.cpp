@@ -32,15 +32,14 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
             for (int s = 0; s < seq; s++) {
                 float sum_squares = 0.0F;
                 // sum
-#pragma omp parallel for num_threads(4)
+                #pragma omp parallel for reduction(+ : sum_squares) num_threads(4)
                 for (int d = 0; d < dim; d++) {
                     float value = input->dataAt<float>(n, h, s, d);
                     sum_squares += value * value;
                 }
                 float rms = std::sqrt(sum_squares / dim + epsilon_);
                 // use memset to set the value of the memory block
-                // memset(outputs[0]->ptrAt<float>(n, h, s, 0), 0, sizeof(float) * dim);
-#pragma omp parallel for num_threads(4)
+                #pragma omp parallel for num_threads(4)
                 for (int d = 0; d < dim; d++) {
                     float value = input->dataAt<float>(n, h, s, d);
                     outputs[0]->setDataAt<float>(n, h, s, d, weight_.dataAt<float>(0, 0, 0, d) * value / rms);
