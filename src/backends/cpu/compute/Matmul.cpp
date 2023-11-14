@@ -18,6 +18,7 @@ inline void transpose_scalar_block(const float *A, float *B, const int lda, cons
     }
 }
 Tensor *tensor_trans(Tensor *src) {
+//    uint64_t t_start = mllm_time_us();
     Tensor *dst = new Tensor();
     dst->setBackend(src->backend());
     dst->reshape({src->batch(), src->head(), src->dimension(), src->sequence()});
@@ -33,6 +34,9 @@ Tensor *tensor_trans(Tensor *src) {
             }
         }
     }
+//    uint64_t t_end = mllm_time_us();
+//    std::cout<<"\n ====  "<<src->name()<<":["<<src->shape(0)<<","<<src->shape(1)<<","<<src->shape(2)<<","<<src->shape(3)<<"]"
+//        <<" ====  "<< (t_end - t_start)/1000.0F << " ms" << std::endl;
     return dst;
     /*
 //    src->reshape({src->batch(), src->head(), src->dimension(), src->sequence()});

@@ -323,7 +323,7 @@ NetTensor *_View(Context *ctx, std::vector<NetTensor *> inputs, vector<int> dims
     out_tensor->in = net_op_;
     return out_tensor;
 }
-NetTensor *_KVCache(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+NetTensor *_KVCache(Context *ctx, std::vector<NetTensor *> inputs, bool isK, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "KVCache" + std::to_string(ctx->idx);
@@ -334,6 +334,7 @@ NetTensor *_KVCache(Context *ctx, std::vector<NetTensor *> inputs, string name) 
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::KVCACHE)
+    net_op_->param["isK"] = isK;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;

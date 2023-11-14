@@ -142,7 +142,7 @@ void Graph::setUpOps(ParamLoader &loader) {
  * @param loss
  * @return
  */
-//#define DEBUG
+#define DEBUG
 const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
     // TODO 改为递归
 

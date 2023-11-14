@@ -93,13 +93,13 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
     v = _View(ctx, {v}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + ".v_view");
     q = _RoPE(ctx, {q}, name + ".q_rope");
     k = _RoPE(ctx, {k}, name + ".k_rope");
-    k = _KVCache(ctx, {k}, name + ".k_cache");
-    v = _KVCache(ctx, {v}, name + ".v_cache");
+    k = _KVCache(ctx, {k}, true, name + ".k_cache");
+    v = _KVCache(ctx, {v}, false, name + ".v_cache");
     auto *qk = _Matmul(ctx, {q, k}, false, true, name + ".qk");
     qk = _Scale(ctx, {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
     qk = _Causalmask(ctx, {qk}, name + ".mask");
     qk = _Softmax(ctx, {qk}, 3, name + ".softmax");
-    auto *o = _Matmul(ctx, {qk, v}, false, false, name + ".qkv");
+    auto *o = _Matmul(ctx, {qk, v}, false, true, name + ".qkv");
     o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1+3}, name + ".qkv_view");
     o = _Linear(ctx, {o}, hidden_size * head_size, embedding_size, false, name + ".wo");
     return o;
@@ -154,9 +154,9 @@ int main() {
     net.convert();
     // net.Run();
 //    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");
-    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
+//    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
 //    ParamLoader param_loader("../models/llama-2-7b-q4_k-64.mllm");
-//    ParamLoader param_loader("../models/llama-2-7b-q4_k.mllm");
+    ParamLoader param_loader("../models/llama-2-7b-q4_k.mllm");
     Executor ex(&net, &param_loader);
     // Executor ex(&net);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();

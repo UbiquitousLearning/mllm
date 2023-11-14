@@ -176,6 +176,9 @@ public:
             if (indices.size() > i) {
                 CHECK_GE(indices[i], 0);
                 CHECK_LT(indices[i], shape(i));
+                if(indices[i] >= shape(i)){
+                    std::cout<<indices[i]<< " "<<shape(i)<<std::endl;
+                }
                 offset += indices[i];
             }
         }
