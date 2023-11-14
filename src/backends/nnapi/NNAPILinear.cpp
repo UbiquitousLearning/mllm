@@ -19,7 +19,9 @@ NNAPILinear::NNAPILinear(Backend *bn, string opName, int in_features, int out_fe
 }
 
 ErrorCode NNAPILinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << "NNAPILinear reshape" << std::endl;
+#ifdef DEBUG
+    std::cout << "*NNAPI " << name() << " reshape*" << std::endl;
+#endif
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
     // N     |    C       |   H                   |  W
@@ -51,7 +53,9 @@ ErrorCode NNAPILinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_
 }
 
 ErrorCode NNAPILinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << "NNAPILinear setUp" << std::endl;
+#ifdef DEBUG
+    std::cout << "*NNAPI " << name() << " setUp*" << std::endl;
+#endif
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
     }
@@ -75,13 +79,10 @@ ErrorCode NNAPILinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     return buildOperation(ANEURALNETWORKS_FULLY_CONNECTED, inputIdxs, {getTensorIdx(outputs[0].get(), true, {batch_size, num_units})});
 }
 
-ErrorCode NNAPILinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << "NNAPILinear execute do nothing" << std::endl;
-    return NO_ERROR;
-}
-
-ErrorCode NNAPILinear::load(ParamLoader &loader) {
-    std::cout << "NNAPILinear load" << std::endl;
+ErrorCode NNAPILinear::load(AbstructLoader &loader) {
+#ifdef DEBUG
+    std::cout << "*" << name() << " load*" << std::endl;
+#endif
     loader.load(&weight_);
     if (support_bias_)
         loader.load(&bias_);

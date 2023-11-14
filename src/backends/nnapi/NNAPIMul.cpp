@@ -9,7 +9,9 @@ NNAPIMul::NNAPIMul(Backend *bn, string opName) :
 }
 
 ErrorCode NNAPIMul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "  NNAPIMul  reshape" << std::endl;
+#ifdef DEBUG
+    std::cout << "*NNAPI " << name() << " reshape*" << std::endl;
+#endif
     CHECK_EQ(inputs.size(), 2);
     CHECK_EQ(outputs.size(), 1);
     CHECK_EQ(inputs[0]->shape(0), inputs[1]->shape(0));
@@ -22,7 +24,7 @@ ErrorCode NNAPIMul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 }
 
 ErrorCode NNAPIMul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "  NNAPIMul  setUp" << std::endl;
+    std::cout << "*NNAPI " << name() << " setUp" << std::endl;
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
     }
@@ -35,15 +37,5 @@ ErrorCode NNAPIMul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     inputIdxs.push_back(buildScalar(ANEURALNETWORKS_FUSED_NONE));
 
     return buildOperation(ANEURALNETWORKS_MUL, inputIdxs, getTensorIdxs(outputs));
-}
-
-ErrorCode NNAPIMul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "  NNAPIMul do nothing" << std::endl;
-    return NO_ERROR;
-}
-
-ErrorCode NNAPIMul::load(ParamLoader &loader) {
-    std::cout << name() << "  NNAPIMul load" << std::endl;
-    return NO_ERROR;
 }
 } // namespace mllm

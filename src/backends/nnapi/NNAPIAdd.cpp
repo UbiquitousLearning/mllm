@@ -9,7 +9,9 @@ NNAPIAdd::NNAPIAdd(Backend *bn, string opName) :
 }
 
 ErrorCode NNAPIAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << "NNAPIAdd reshape" << std::endl;
+#ifdef DEBUG
+    std::cout << "*NNAPI " << name() << " reshape*" << std::endl;
+#endif
     CHECK_EQ(inputs.size(), 2);
     CHECK_EQ(outputs.size(), 1);
     CHECK_EQ(inputs[0]->shape(0), inputs[1]->shape(0));
@@ -26,16 +28,13 @@ ErrorCode NNAPIAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 }
 
 ErrorCode NNAPIAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << "NNAPIAdd setUp" << std::endl;
+#ifdef DEBUG
+    std::cout << "*NNAPI " << name() << " setUp*" << std::endl;
+#endif
     outputs[0]->alloc();
 
     auto inputIdxs = getTensorIdxs(inputs);
     inputIdxs.push_back(buildScalar(ANEURALNETWORKS_FUSED_NONE));
     return buildOperation(ANEURALNETWORKS_ADD, inputIdxs, getTensorIdxs(outputs));
-}
-
-ErrorCode NNAPIAdd::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << "NNAPIAdd execute do nothing" << std::endl;
-    return NO_ERROR;
 }
 } // namespace mllm

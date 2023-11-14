@@ -14,7 +14,9 @@ NNAPIScale::NNAPIScale(Backend *bn, string opName, float scale, float bias, bool
 }
 
 ErrorCode NNAPIScale::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "NNAPIScale  reshape" << std::endl;
+#ifdef DEBUG
+    std::cout << "*NNAPI " << name() << " reshape*" << std::endl;
+#endif
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
     outputs[0]->reshape(inputs[0]->shape(0),
@@ -26,7 +28,9 @@ ErrorCode NNAPIScale::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 }
 
 ErrorCode NNAPIScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "NNAPIScale setUp" << std::endl;
+#ifdef DEBUG
+    std::cout << "*NNAPI " << name() << " setUp*" << std::endl;
+#endif
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
     }
@@ -63,15 +67,5 @@ ErrorCode NNAPIScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
                                 getTensorIdxs(outputs));
     }
     return result;
-}
-
-ErrorCode NNAPIScale::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "NNAPIScale execute do nothing" << std::endl;
-    return NO_ERROR;
-}
-
-ErrorCode NNAPIScale::load(ParamLoader &loader) {
-    std::cout << name() << "NNAPIScale load" << std::endl;
-    return NO_ERROR;
 }
 } // namespace mllm

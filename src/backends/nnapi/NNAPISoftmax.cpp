@@ -13,7 +13,9 @@ NNAPISoftMax::NNAPISoftMax(Backend *bn, string opName, int axis) :
 }
 
 ErrorCode NNAPISoftMax::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "  NNAPISoftMax  reshape" << std::endl;
+#ifdef DEBUG
+    std::cout << "*NNAPI " << name() << " reshape*" << std::endl;
+#endif
     CHECK_EQ(inputs.size(), 1);
     outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
     outputs[0]->setDtype(activationDtype());
@@ -21,7 +23,9 @@ ErrorCode NNAPISoftMax::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
 }
 
 ErrorCode NNAPISoftMax::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "  NNAPISoftMax  setUp" << std::endl;
+#ifdef DEBUG
+    std::cout << "*NNAPI " << name() << " setUp*" << std::endl;
+#endif
     if (!inputs[0]->allocted()) {
         inputs[0]->alloc(); // TODO remove
     }
@@ -43,15 +47,5 @@ ErrorCode NNAPISoftMax::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
         inputIdxs.push_back(buildScalar(formatAxis(axis_, inputs[0].get())));
     }
     return buildOperation(ANEURALNETWORKS_SOFTMAX, inputIdxs, getTensorIdxs(outputs));
-}
-
-ErrorCode NNAPISoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << name() << "NNAPISoftMax execute do nothing" << std::endl;
-    return NO_ERROR;
-}
-
-ErrorCode NNAPISoftMax::load(ParamLoader &loader) {
-    std::cout << name() << "NNAPISoftMax load" << std::endl;
-    return NO_ERROR;
 }
 } // namespace mllm

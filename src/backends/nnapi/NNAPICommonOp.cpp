@@ -1,5 +1,6 @@
 #include "NNAPICommonOp.hpp"
 #include "NNAPINeuralNetworks.h"
+#include "Types.hpp"
 #include <sys/types.h>
 
 namespace mllm {
@@ -10,18 +11,38 @@ NNAPICommonOp::NNAPICommonOp(Backend *bn, string name) :
 }
 
 ErrorCode NNAPICommonOp::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << "NNAPICommonOp reshape" << std::endl;
+#ifdef DEBUG
+    std::cout << "*NNAPI " << name() << " reshape*" << std::endl;
+#endif
+    return NO_ERROR;
+}
+
+ErrorCode NNAPICommonOp::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+#ifdef DEBUG
+    std::cout << "*NNAPI " << name() << " setUp*" << std::endl;
+#endif
     return NO_ERROR;
 }
 
 ErrorCode NNAPICommonOp::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << "NNAPICommonOp()" << std::endl;
+#ifdef DEBUG
+    std::cout << "*NNAPI " << name() << " execute*" << std::endl;
+#endif
     // do nothing, should be implemented by NNAPI
     return NO_ERROR;
 }
 
 ErrorCode NNAPICommonOp::load(AbstructLoader &loader) {
-    std::cout << "NNAPICommonOp load" << std::endl;
+#ifdef DEBUG
+    std::cout << "*NNAPI " << name() << " load*" << std::endl;
+#endif
+    return NO_ERROR;
+}
+
+ErrorCode NNAPICommonOp::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+#ifdef DEBUG
+    std::cout << "*" << name() << " free*" << std::endl;
+#endif
     return NO_ERROR;
 }
 
