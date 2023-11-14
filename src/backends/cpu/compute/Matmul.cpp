@@ -25,6 +25,25 @@ Tensor *tensor_trans(Tensor *src) {
     dst->alloc();
     for (int b = 0; b < src->batch(); b++) {
         for (int h = 0; h < src->head(); h++) {
+            for (int n = 0; n < src->sequence(); n++) {
+#pragma omp parallel for num_threads(4)
+                for (int m = 0; m < src->dimension(); m++) {
+                    dst->setDataAt<float>({b, h, m, n}, src->dataAt<float>({b, h, n, m}));
+                }
+            }
+        }
+    }
+    return dst;
+    /*
+//    src->reshape({src->batch(), src->head(), src->dimension(), src->sequence()});
+//    return src;
+    Tensor *dst = new Tensor();
+    dst->setBackend(src->backend());
+    dst->reshape({src->batch(), src->head(), src->dimension(), src->sequence()});
+    dst->setDtype(src->dtype());
+    dst->alloc();
+    for (int b = 0; b < src->batch(); b++) {
+        for (int h = 0; h < src->head(); h++) {
             int i = 0;
             int j = 0;
             if (std::min(src->sequence(), src->dimension()) > F32_BLOCK) {
@@ -51,6 +70,8 @@ Tensor *tensor_trans(Tensor *src) {
         }
     }
     return dst;
+*/
+
 }
 
 
@@ -105,11 +126,11 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     quantize_row_q8_0(src0_->hostPtr<float>(), src0_q8.hostPtr<block_q8_0>(), src0_->count());
     auto *src0 = &src0_q8;
     assert(src0->dtype() == MLLM_TYPE_Q8_0);
-    int M = transpose0 ? src0->dimension() : src0->sequence();
-    int K = transpose0 ? src0->sequence() : src0->dimension();
-    int N = transpose1 ? src1->sequence() : src1->dimension();
-    Tensor *src0_cal = (transpose1 && !transpose0) ? src0 : (transpose0 && !transpose1) ? tensor_trans(src0) : src0;
-    Tensor *src1_cal = (transpose1 && !transpose0) ? src1 : (!transpose0 && !transpose1) ? tensor_trans(src1) : src1;
+    int M = src0->sequence();
+    int K = src0->dimension();
+    int N = src1->sequence();
+    Tensor *src0_cal = src0;
+    Tensor *src1_cal = src1;
     for (int b = 0; b < src0->batch(); b++) {
         for (int h = 0; h < src0->head(); h++) {
         #pragma omp parallel for num_threads(4)
@@ -147,11 +168,11 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     quantize_row_q8_K(src0_->hostPtr<float>(), src0_q8.hostPtr<block_q8_K>(), src0_->count());
     auto *src0 = &src0_q8;
     assert(src0->dtype() == MLLM_TYPE_Q8_K);
-    int M = transpose0 ? src0->dimension() : src0->sequence();
-    int K = transpose0 ? src0->sequence() : src0->dimension();
-    int N = transpose1 ? src1->sequence() : src1->dimension();
-    Tensor *src0_cal = (transpose1 && !transpose0) ? src0 : (transpose0 && !transpose1) ? tensor_trans(src0) : src0;
-    Tensor *src1_cal = (transpose1 && !transpose0) ? src1 : (!transpose0 && !transpose1) ? tensor_trans(src1) : src1;
+    int M = src0->sequence();
+    int K = src0->dimension();
+    int N = src1->sequence();
+    Tensor *src0_cal = src0;
+    Tensor *src1_cal = src1;
     for (int b = 0; b < src0->batch(); b++) {
         for (int h = 0; h < src0->head(); h++) {
             #pragma omp parallel for num_threads(4)

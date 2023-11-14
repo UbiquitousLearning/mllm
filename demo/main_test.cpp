@@ -154,9 +154,9 @@ int main() {
     net.convert();
     // net.Run();
 //    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");
-//    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
+    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
 //    ParamLoader param_loader("../models/llama-2-7b-q4_k-64.mllm");
-    ParamLoader param_loader("../models/llama-2-7b-q4_k.mllm");
+//    ParamLoader param_loader("../models/llama-2-7b-q4_k.mllm");
     Executor ex(&net, &param_loader);
     // Executor ex(&net);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
@@ -165,7 +165,7 @@ int main() {
     token2Tensor(input, net, tokens_id);
 
     std::cout << in_str << std::flush;
-    for(int step = 0; step<128; step++) {
+    for(int step = 0; step<64; step++) {
         ex.execute(input);
         auto result = ex.result();
         auto token_idx = postProcessing(result[0], input);

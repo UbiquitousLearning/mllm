@@ -57,8 +57,9 @@ public:
     }
 
     void free(){
-        if (host_ptr_ != nullptr && allocated_) {
+        if (host_ptr_ != nullptr) {
             backend_->free(host_ptr_);
+            host_ptr_ = nullptr;
 //            allocated_ = false;
         }
     }
@@ -294,7 +295,7 @@ public:
     }
 
     int dtypeSize() {
-        return DataTypeSize(dtype_);
+        return DataTypeSize(dtype_, 1);
     }
 //
 //    void setByteWidth(int bw) {
