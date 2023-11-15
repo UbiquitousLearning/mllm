@@ -69,8 +69,8 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 
     if (axis_ == 3) {
         for (int n = 0; n < input->batch(); ++n) {
+            #pragma omp parallel for num_threads(4)
             for (int h = 0; h < input->head(); ++h) {
-                #pragma omp parallel for num_threads(4)
                 for (int s = 0; s < input->sequence(); ++s) {
                     int num_classes = input->dimension(); // 获取类别数量
                     float max = -INFINITY;
