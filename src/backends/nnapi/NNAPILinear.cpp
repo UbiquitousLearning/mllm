@@ -38,17 +38,14 @@ ErrorCode NNAPILinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_
     // we assume that the input is 2D
     CHECK_EQ(1, inputs[0]->head());
 
+    // TODO: move weight and bias to load()
     weight_.reshape(1, inputs[0]->head(), out_features_, in_features_);
     weight_.setName(name() + ".weight");
-    weight_.setDtype(weightsDtype());
-
     // bias should be allocated even if it is not supported
     bias_.reshape(1, inputs[0]->head(), 1, out_features_);
     bias_.setName(name() + ".bias");
-    bias_.setDtype(weightsDtype());
 
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
-    outputs[0]->setDtype(activationDtype());
     return NO_ERROR;
 }
 
@@ -56,9 +53,6 @@ ErrorCode NNAPILinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 #ifdef DEBUG
     std::cout << "*NNAPI " << name() << " setUp*" << std::endl;
 #endif
-    if (!inputs[0]->allocted()) {
-        inputs[0]->alloc(); // TODO remove
-    }
     outputs[0]->alloc();
     weight_.alloc();
     bias_.alloc();
