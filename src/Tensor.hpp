@@ -180,9 +180,6 @@ public:
             if (indices.size() > i) {
                 CHECK_GE(indices[i], 0);
                 CHECK_LT(indices[i], shape(i));
-                if(indices[i] >= shape(i)){
-                    std::cout<<indices[i]<< " "<<shape(i)<<std::endl;
-                }
                 offset += indices[i];
             }
         }
@@ -215,6 +212,11 @@ public:
         //        return hostPtr<Dtype>()[offset(n, c, h, w)];
         return ((Dtype *)host_ptr_)[offset(batch, head, sequence, dimension)];
     }
+    template <typename Dtype>
+    Dtype dataAtDangerously(const int offset) const {
+        //        return hostPtr<Dtype>()[offset(n, c, h, w)];
+        return ((Dtype *)host_ptr_)[offset];
+    }
 
     template <typename Dtype>
     Dtype dataAt(const vector<int> &index) const {
@@ -232,7 +234,6 @@ public:
         return ((Dtype *)host_ptr_ + offset(batch, head, sequence, dimension));
     }
 
-
     //    template <typename Dtype>
     //    void setDataAt(const int n, const int c, const int h, const int w, Dtype value) {
     //        Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
@@ -242,6 +243,11 @@ public:
     void setDataAt(const int batch, const int head, const int sequence, const int dimension, Dtype value) {
         Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
         typed_ptr[offset(batch, head, sequence, dimension)] = value;
+    }
+    template <typename Dtype>
+    void setDataAtDangerously(const int offset, Dtype value) const {
+        //        return hostPtr<Dtype>()[offset(n, c, h, w)];
+        ((Dtype *)host_ptr_)[offset] = value;
     }
 
     template <typename Dtype>

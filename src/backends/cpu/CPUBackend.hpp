@@ -4,10 +4,8 @@
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "Types.hpp"
-#ifdef __ARM_NEON
-//#include "neon/Neon.hpp"
-#include <arm_neon.h>
-#endif
+#include "quantize/Quantize.hpp"
+
 namespace mllm {
 class CPUBackend final : public Backend {
 public:
@@ -20,6 +18,7 @@ public:
         //                             OpParam op_param, Backend* backend) const = 0;
         virtual Op *create(OpParam op_param, Backend *bn, string name) const = 0;
     };
+    void initTable();
     void initCreatorMap() {
         map_creator_ = new std::map<OpType, CPUBackend::Creator *>;
     }
@@ -39,9 +38,13 @@ public:
     virtual Op *opCreate(const OpParam &op_param, string name) override;
 
     virtual void registerOps() override;
+    const mllm_fp16_t *getSoftMaxTable() const {
+        return SOFT_MAX_TABLE_;
+    }
 
 private:
     std::map<OpType, CPUBackend::Creator *> *map_creator_;
+    mllm_fp16_t SOFT_MAX_TABLE_[1 << 16];
 };
 
 } // namespace mllm
