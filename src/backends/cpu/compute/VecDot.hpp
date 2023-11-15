@@ -4,7 +4,7 @@
 
 #ifndef MLLM_VECDOT_HPP
 #define MLLM_VECDOT_HPP
-
+#include "Neon.hpp"
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include <functional>
