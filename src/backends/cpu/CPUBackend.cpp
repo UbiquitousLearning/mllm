@@ -13,11 +13,17 @@
 #include "CPUEmbedding.hpp"
 #include "CPUMul.hpp"
 #include "CPUKVCache.hpp"
+#include <math.h>
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
     Backend(mm) {
     initCreatorMap();
     registerOps();
+}
+void CPUBackend::initTable() {
+    for (int i = 0; i < 1 << 16; i++) {
+        SOFT_MAX_TABLE_[i] = MLLM_FP32_TO_FP16(expf(i));
+    }
 }
 // Op *CPUBackend::OpCreate(const vector<shared_ptr<Tensor>> &inputs, const vector<shared_ptr<Tensor>> &outputs,OpParam op_param)
 // {

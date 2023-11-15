@@ -8,6 +8,7 @@
 #include "string"
 #include "Op.hpp"
 #include "gtest/gtest.h"
+#include <unordered_map>
 using std::string;
 using namespace std;
 namespace mllm {
