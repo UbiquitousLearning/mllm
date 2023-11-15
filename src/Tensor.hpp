@@ -57,8 +57,9 @@ public:
     }
 
     void free(){
-        if (host_ptr_ != nullptr && allocated_) {
+        if (host_ptr_ != nullptr) {
             backend_->free(host_ptr_);
+            host_ptr_ = nullptr;
 //            allocated_ = false;
         }
     }
@@ -179,6 +180,9 @@ public:
             if (indices.size() > i) {
                 CHECK_GE(indices[i], 0);
                 CHECK_LT(indices[i], shape(i));
+                if(indices[i] >= shape(i)){
+                    std::cout<<indices[i]<< " "<<shape(i)<<std::endl;
+                }
                 offset += indices[i];
             }
         }
@@ -298,7 +302,7 @@ public:
     }
 
     int dtypeSize() {
-        return DataTypeSize(dtype_);
+        return DataTypeSize(dtype_, 1);
     }
 //
 //    void setByteWidth(int bw) {
