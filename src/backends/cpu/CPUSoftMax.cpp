@@ -83,7 +83,7 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                     uint16_t scvt;
                     for (int i = 0; i < num_classes; i++) {
                         if (input->dataAt<float>({n, h, s, i}) == -INFINITY) {
-                            dp[i] = 0.0f;
+                            dp[i] = 0.0F;
                         } else {
                             mllm_fp16_t tmp = MLLM_FP32_TO_FP16(input->dataAt<float>({n, h, s, i}) - max);
                             memcpy(&scvt, &tmp, sizeof(scvt));
