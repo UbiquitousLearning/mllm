@@ -1,4 +1,4 @@
-#include "NNAPISoftMax.hpp"
+#include "NNAPISoftmax.hpp"
 #include "NNAPICommonOp.hpp"
 #include "NNAPINeuralNetworks.h"
 
@@ -18,7 +18,6 @@ ErrorCode NNAPISoftMax::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
 #endif
     CHECK_EQ(inputs.size(), 1);
     outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
-    outputs[0]->setDtype(activationDtype());
     return NO_ERROR;
 }
 
@@ -26,9 +25,6 @@ ErrorCode NNAPISoftMax::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 #ifdef DEBUG
     std::cout << "*NNAPI " << name() << " setUp*" << std::endl;
 #endif
-    if (!inputs[0]->allocted()) {
-        inputs[0]->alloc(); // TODO remove
-    }
     outputs[0]->alloc();
 
     // NNAPI Softmax inputs: [input, beta, axis]

@@ -19,18 +19,11 @@ ErrorCode NNAPIMul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     CHECK_EQ(inputs[0]->shape(2), inputs[1]->shape(2));
     CHECK_EQ(inputs[0]->shape(3), inputs[1]->shape(3));
     outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
-    outputs[0]->setDtype(activationDtype());
     return NO_ERROR;
 }
 
 ErrorCode NNAPIMul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     std::cout << "*NNAPI " << name() << " setUp" << std::endl;
-    if (!inputs[0]->allocted()) {
-        inputs[0]->alloc(); // TODO remove
-    }
-    if (!inputs[1]->allocted()) {
-        inputs[1]->alloc(); // TODO remove
-    }
     outputs[0]->alloc();
 
     auto inputIdxs = getTensorIdxs(inputs);

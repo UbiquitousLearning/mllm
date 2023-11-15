@@ -23,7 +23,6 @@ ErrorCode NNAPIScale::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                         inputs[0]->shape(1),
                         inputs[0]->shape(2),
                         inputs[0]->shape(3));
-    outputs[0]->setDtype(activationDtype());
     return NO_ERROR;
 }
 
@@ -31,9 +30,6 @@ ErrorCode NNAPIScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 #ifdef DEBUG
     std::cout << "*NNAPI " << name() << " setUp*" << std::endl;
 #endif
-    if (!inputs[0]->allocted()) {
-        inputs[0]->alloc(); // TODO remove
-    }
     outputs[0]->alloc();
 
     // uint32_t channel = scaleParam->channels();
