@@ -154,7 +154,7 @@ add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_CP
     src/tokenizers/Tokenizer.hpp
     src/tokenizers/BPE/Bpe.cpp
     src/tokenizers/BPE/Bpe.hpp)
-target_link_libraries(${TEST_EXE} MLLM_CPU)
+target_link_libraries(${TEST_EXE} MLLM_CPU MLLM_NNAPI)
 
 # nnapi temp test
 if(NNAPI)
@@ -164,6 +164,6 @@ if(NNAPI)
     # TODO: better debug log
     add_definitions(-DDEBUG)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/nnapi)
-    add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/demo/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}) # ${DIR_SRC_QUANT})
+    add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/demo/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER}) # ${DIR_SRC_QUANT})
     target_link_libraries(nnapi_test MLLM_CPU MLLM_NNAPI)
 endif()

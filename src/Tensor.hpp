@@ -307,7 +307,7 @@ public:
         return DataTypeSize(dtype_, count_);
     }
 
-    int dtypeSize() {
+    int dtypeSize() const {
         return DataTypeSize(dtype_, 1);
     }
 //
