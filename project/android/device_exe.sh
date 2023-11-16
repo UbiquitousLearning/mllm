@@ -1,6 +1,6 @@
 #!/bin/bash
 # NOTE: just for dev convinience
-adb push ../bin/nnapi_test /data/local/tmp
+adb push ../bin-arm/nnapi_test /data/local/tmp
 # if push failed, exit
 if [ $? -ne 0 ]; then
     echo "adb push failed"
