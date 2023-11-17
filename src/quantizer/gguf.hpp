@@ -150,7 +150,7 @@ static const ggml_type_traits_t type_traits[GGML_TYPE_COUNT] = {
         .blck_size = 0,
         .type_size = 0,
         .is_quantized = false,
-        .is_available = false,
+        // .is_available = false,
 
         // .to_float                 = NULL,
         // .from_float               = NULL,
@@ -272,11 +272,11 @@ static const ggml_type_traits_t type_traits[GGML_TYPE_COUNT] = {
     },
     [GGML_TYPE_Q6_K] = {
         .type_name = "q6_K",
-        .is_available = false,
+        // .is_available = false,
 
-        // .blck_size                = QK_K,
-        // .type_size                = sizeof(block_q6_K),
-        // .is_quantized             = true,
+        .blck_size = QK_K,
+        .type_size = sizeof(block_q6_K),
+        .is_quantized = true,
         // .to_float                 = (ggml_to_float_t) dequantize_row_q6_K,
         // .from_float               = quantize_row_q6_K,
         // .from_float_reference     = (ggml_from_float_t) quantize_row_q6_K_reference,
@@ -404,10 +404,10 @@ static size_t get_tensor_size(const struct gguf_tensor_info *info) {
     ggml_type_traits_t type = type_traits[info->type];
     if (!type.is_available) {
         fprintf(stderr, "%s: type %s is not available.\n", __func__, type.type_name);
-        exit(-1);
+        // exit(-1);
     }
     size_t size = type.type_size * (info->ne[0] / type.blck_size);
-    for (int i = 0; i < info->n_dims; ++i) {
+    for (int i = 1; i < info->n_dims; ++i) {
         size *= info->ne[i];
     }
     return size;
@@ -589,20 +589,21 @@ static void from_gguf(std::string fname, ParamWriter *writer) {
                 }
                 info_map.insert({std::string(info.name.data), info});
                 tensor_names.emplace_back(info.name.data);
-                printf("name: %s, type: %s, offset: %lu, size: %lu\n", info.name.data, GGUF_TYPE_NAME[info.type], info.offset, get_tensor_size(&info));
+                printf("name: %s, types:%d  offset: %lu, size: %lu\n", info.name.data, info.type, info.offset, get_tensor_size(&info));
             }
         }
         writer->paddingIndex(tensor_names);
 
         {
             auto align = get_kv(ALIGNMENT_KEY, kv_map);
+            auto alignment = 32;
             if (align != nullptr) {
                 auto alignment = align->value.uint32;
-                const size_t offset_pad = offset % alignment;
-                if (offset_pad != 0) {
-                    offset += alignment - offset_pad;
-                    fseek(file, offset, SEEK_SET);
-                }
+            }
+            const size_t offset_pad = offset % alignment;
+            if (offset_pad != 0) {
+                offset += alignment - offset_pad;
+                fseek(file, offset, SEEK_SET);
             }
         }
         {
@@ -610,14 +611,15 @@ static void from_gguf(std::string fname, ParamWriter *writer) {
                 gguf_tensor_info info = info_map[tensor_names[i]];
                 size_t size = get_tensor_size(&info);
                 void *data = malloc(size);
-                ok = ok && gguf_fread_el(file, data, size, &offset);
+                fseek(file, info.offset + offset, SEEK_SET);
+                ok = ok && fread(data, size, 1, file);
                 if (!ok) {
                     fprintf(stderr, "%s: failed to read tensor data.\n", __func__);
                     fclose(file);
                     exit(-1);
                 }
                 writer->writeParam(std::string(info.name.data), (DataType)info.type, data, size);
-                printf("name: %s, type: %s, offset: %lu, size: %lu\n", info.name.data, GGUF_TYPE_NAME[info.type], info.offset, size);
+                printf("name: %s,   types:%d  offset: %lu, size: %lu\n", info.name.data, info.type, info.offset, get_tensor_size(&info));
                 free(data);
             }
         }
