@@ -463,6 +463,12 @@ static void from_gguf(std::string fname, ParamWriter *writer) {
             ok = ok && gguf_fread_str(file, &kv.key, &offset);
             ok = ok && gguf_fread_el(file, &kv.type, sizeof(kv.type), &offset);
             kv.is_supported = true;
+            // key start with general
+            if (strncmp(kv.key.data, "general.", 7) == 0) {
+                kv.is_supported = false;
+                // continue;
+            }
+
             switch (kv.type) {
             case GGUF_TYPE_UINT8:
                 ok = ok && gguf_fread_el(file, &kv.value.uint8, sizeof(kv.value.uint8), &offset);
@@ -500,9 +506,48 @@ static void from_gguf(std::string fname, ParamWriter *writer) {
             case GGUF_TYPE_FLOAT64:
                 ok = ok && gguf_fread_el(file, &kv.value.float64, sizeof(kv.value.float64), &offset);
                 break;
+
+            case GGUF_TYPE_ARRAY:
+                ok = ok && gguf_fread_el(file, &kv.value.arr.type, sizeof(kv.value.arr.type), &offset);
+                ok = ok && gguf_fread_el(file, &kv.value.arr.n, sizeof(kv.value.arr.n), &offset);
+                printf("key: %s, type: %s, n: %lu\n", kv.key.data, GGUF_TYPE_NAME[kv.value.arr.type], kv.value.arr.n);
+                switch (kv.value.arr.type) {
+                case GGUF_TYPE_UINT8:
+                case GGUF_TYPE_INT8:
+                case GGUF_TYPE_UINT16:
+                case GGUF_TYPE_INT16:
+                case GGUF_TYPE_UINT32:
+                case GGUF_TYPE_INT32:
+                case GGUF_TYPE_FLOAT32:
+                case GGUF_TYPE_UINT64:
+                case GGUF_TYPE_INT64:
+                case GGUF_TYPE_FLOAT64:
+                case GGUF_TYPE_BOOL: {
+                    kv.value.arr.data = malloc(kv.value.arr.n * GGUF_TYPE_SIZE[kv.value.arr.type]);
+                    ok = ok && gguf_fread_el(file, kv.value.arr.data, kv.value.arr.n * GGUF_TYPE_SIZE[kv.value.arr.type], &offset);
+                } break;
+                case GGUF_TYPE_STRING: {
+                    kv.value.arr.data = malloc(kv.value.arr.n * sizeof(struct gguf_str));
+                    for (uint32_t j = 0; j < kv.value.arr.n; ++j) {
+                        ok = ok && gguf_fread_str(file, &((struct gguf_str *)kv.value.arr.data)[j], &offset);
+                    }
+                } break;
+                case GGUF_TYPE_ARRAY:
+                case GGUF_TYPE_COUNT:
+                    fprintf(stderr, "%s: invalid type %d.\n", __func__, kv.type);
+
+                    kv.is_supported = false;
+                    exit(-1);
+
+                    break;
+                }
+                break;
+
             default:
                 fprintf(stderr, "%s: invalid type %d.\n", __func__, kv.type);
+
                 kv.is_supported = false;
+                exit(-1);
             }
             if (!ok) {
                 fprintf(stderr, "%s: failed to read kv.\n", __func__);
@@ -514,12 +559,11 @@ static void from_gguf(std::string fname, ParamWriter *writer) {
     }
     // padding
     {
-        auto align = get_kv(ALIGNMENT_KEY, kv_map);
-        if (align == nullptr) {
-            fprintf(stderr, "%s: key %s not found.\n", __func__, ALIGNMENT_KEY);
-            fclose(file);
-            exit(-1);
-        }
+        // if (align == nullptr) {
+        //     fprintf(stderr, "%s: key %s not found.\n", __func__, ALIGNMENT_KEY);
+        //     fclose(file);
+        //     exit(-1);
+        // }
 
         std::unordered_map<std::string, gguf_tensor_info> info_map;
         info_map.reserve(header.n_tensors);
@@ -551,11 +595,14 @@ static void from_gguf(std::string fname, ParamWriter *writer) {
         writer->paddingIndex(tensor_names);
 
         {
-            auto alignment = align->value.uint32;
-            const size_t offset_pad = offset % alignment;
-            if (offset_pad != 0) {
-                offset += alignment - offset_pad;
-                fseek(file, offset, SEEK_SET);
+            auto align = get_kv(ALIGNMENT_KEY, kv_map);
+            if (align != nullptr) {
+                auto alignment = align->value.uint32;
+                const size_t offset_pad = offset % alignment;
+                if (offset_pad != 0) {
+                    offset += alignment - offset_pad;
+                    fseek(file, offset, SEEK_SET);
+                }
             }
         }
         {
