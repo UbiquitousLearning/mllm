@@ -153,6 +153,9 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
         uint64_t t_start = mllm_time_us();
 #endif
         ops_[lname]->execute(ops_input_tensors_[lname], ops_output_tensors_[lname]);
+        for(auto &t: ops_output_tensors_[lname]){
+            t->checkData<float>();
+        }
 #ifdef DEBUG
         uint64_t t_end = mllm_time_us();
         std::cout<<"\n ====  "<<lname<<" ====  "<< (t_end - t_start)/1000.0F << " ms" ;

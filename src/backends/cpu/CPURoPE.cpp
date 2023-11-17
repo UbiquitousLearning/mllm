@@ -69,6 +69,7 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
     ishape = inputs[0]->shape(3);
     // outputs[0]->setDtype(activationDtype());
+    pos_max_ = 128;
     return Op::reshape(inputs, outputs);
 }
 
@@ -113,7 +114,7 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         }
     }
     h_cnt_ += input->sequence();
-    if(h_cnt_ >64){
+    if(h_cnt_ >pos_max_){
         h_cnt_ = 0;
     }
     return Op::execute(inputs, outputs);
@@ -128,9 +129,9 @@ ErrorCode CPURoPE::load(AbstructLoader &loader) {
 //    loader.load(&freq_);
 //    freq_.printData<float>();
     if (hf_) {
-        sinusoidal_position_embedding_hf(1, 1, 64, ishape, sin_, cos_);
+        sinusoidal_position_embedding_hf(1, 1, pos_max_, ishape, sin_, cos_);
     } else {
-        sinusoidal_position_embedding(1, 1, 64, ishape, sin_, cos_);
+        sinusoidal_position_embedding(1, 1, pos_max_, ishape, sin_, cos_);
     }
     // std::cout << name() << "  CPURoPE load" << std::endl;
     return Op::load(loader);

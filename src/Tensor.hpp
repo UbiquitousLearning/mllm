@@ -7,6 +7,7 @@
 #include <iostream>
 #include <cstdio>
 #include <iomanip>
+#include <cmath>
 #include "Timing.hpp"
 
 const auto KMaxAxes = 32;
@@ -292,6 +293,33 @@ public:
                 }
                 std::cout << std::endl;
             }
+        }
+    }
+
+    template <typename Dtype>
+    void checkData() {
+        // n c h w
+        int N = num();
+        int C = channels();
+        int H = height();
+        int W = width();
+        bool ck = false;
+        for (int n = 0; n < N; ++n) {
+            for (int c = 0; c < C; ++c) {
+                for (int h = 0; h < H; ++h) {
+                    for (int w = 0; w < W; ++w) {
+                        float value = dataAt<Dtype>(n, c, h, w);
+                        if (std::isnan(value) || std::isnan(-value)) {
+                            // std::cout<<"["<<n<<","<<c<<","<<h<<","<<w<<"] ";//<<std::flush;
+                            ck = true;
+                        }
+                    }
+                }
+            }
+        }
+        if(ck) {
+            std::cout<<"\n[ERROR]:" << name() << ": shape:[" << num() << " " << channels() << " " << height() << " " << width() << "] has Nan" << std::endl;
+            //printData<Dtype>();
         }
     }
 

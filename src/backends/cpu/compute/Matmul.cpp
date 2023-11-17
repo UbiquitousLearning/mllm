@@ -127,7 +127,17 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     src0_q8.setBackend(src0_->backend());
     src0_q8.setDtype(MLLM_TYPE_Q8_0);
     src0_q8.alloc();
-    quantize_row_q8_0(src0_->hostPtr<float>(), src0_q8.hostPtr<block_q8_0>(), src0_->count());
+    //quantize_row_q8_0(src0_->hostPtr<float>(), src0_q8.hostPtr<block_q8_0>(), src0_->count());
+    for (int b = 0; b < src0_->batch(); b++) {
+        for (int h = 0; h < src0_->head(); h++) {
+            #pragma omp parallel for num_threads(4)
+            for (int s = 0; s < src0_->sequence(); s++) {
+                quantize_row_q8_0(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
+                                  src0_q8.hostPtr<block_q8_0>() + src0_q8.offset(b, h, s, 0) / QK8_0,
+                                  src0_->dimension());
+            }
+        }
+    }
     auto *src0 = &src0_q8;
     assert(src0->dtype() == MLLM_TYPE_Q8_0);
     int M = src0->sequence();
@@ -169,7 +179,17 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     src0_q8.setBackend(src0_->backend());
     src0_q8.setDtype(MLLM_TYPE_Q8_K);
     src0_q8.alloc();
-    quantize_row_q8_K(src0_->hostPtr<float>(), src0_q8.hostPtr<block_q8_K>(), src0_->count());
+//    quantize_row_q8_K(src0_->hostPtr<float>(), src0_q8.hostPtr<block_q8_K>(), src0_->count());
+    for (int b = 0; b < src0_->batch(); b++) {
+        for (int h = 0; h < src0_->head(); h++) {
+            #pragma omp parallel for num_threads(4)
+            for (int s = 0; s < src0_->sequence(); s++) {
+                quantize_row_q8_K(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
+                                  src0_q8.hostPtr<block_q8_K>() + src0_q8.offset(b, h, s, 0) / QK_K,
+                                  src0_->dimension());
+            }
+        }
+    }
     auto *src0 = &src0_q8;
     assert(src0->dtype() == MLLM_TYPE_Q8_K);
     int M = src0->sequence();
