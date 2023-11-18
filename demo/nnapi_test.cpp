@@ -23,7 +23,7 @@ void display(NetParameter *net) {
             std::cout << "input in subgraph:" << (input->subgraph == net) << std::endl;
             std::cout << std::endl;
         }
-        std::cout << "op output" << op->out.size() << std::endl;
+        std::cout << "==Output==" << op->out.size() << std::endl;
         for (auto *output : op->out) {
             std::cout << "output.name:" << output->name << std::endl;
             std::cout << "output op:" << output->out.size() << std::endl;
@@ -53,7 +53,8 @@ int main() {
     Context *ctx = new Context();
 
     auto *a = _Input(ctx);
-    auto *b = _Linear(ctx, {a}, 4, 2, false);
+    // auto *b = _Linear(ctx, {a}, 4, 2, false);
+    auto *b = _Add(ctx, {a, a});
 
     BackendConfig bn;
     Net net(ctx->sub_param_, bn);
