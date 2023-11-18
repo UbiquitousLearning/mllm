@@ -43,7 +43,7 @@ enum DataType {
     // MLLM_TYPE_Q3_K = 11,
     MLLM_TYPE_Q4_K = 12,
     // MLLM_TYPE_Q5_K = 13,
-    // MLLM_TYPE_Q6_K = 14,
+    MLLM_TYPE_Q6_K = 14,
     MLLM_TYPE_Q8_K = 15,
     MLLM_TYPE_I8,
     MLLM_TYPE_I16,
@@ -99,6 +99,15 @@ typedef struct {
 #pragma pack()
 static_assert(sizeof(block_q4_K) == 2 * sizeof(mllm_fp16_t) + K_SCALE_SIZE + QK_K / 2, "wrong q4_K block size/padding");
 #endif
+
+#pragma pack(1)
+typedef struct {
+    uint8_t ql[QK_K / 2];     // quants, lower 4 bits
+    uint8_t qh[QK_K / 4];     // quants, upper 2 bits
+    int8_t scales[QK_K / 16]; // scales, quantized with 8 bits
+    mllm_fp16_t d;            // super-block scale
+} block_q6_K;
+#pragma pack()
 
 #define QK8_0 32
 #pragma pack(1)

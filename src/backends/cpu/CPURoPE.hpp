@@ -21,6 +21,7 @@ private:
     Tensor sin_;
     Tensor cos_;
     int h_cnt_ = 0;
+    int pos_max_ ;
     bool hf_;
     int ishape;
     bool support_multi_thread_ = false;

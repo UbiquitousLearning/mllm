@@ -136,7 +136,7 @@ int main() {
     // tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
     // tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);
     string in_str = " I believe the meaning of life is";
-    //string in_str = " Building a website can be done in 10 simple steps:\\nStep 1:";
+//    string in_str = " Building a website can be done in 10 simple steps:\\nStep 1:";
     tokenizer.tokenize(in_str, tokens_id, true);
 //    for (auto idx : tokens_id) {
 //        std::cout << idx << ",";
@@ -154,9 +154,9 @@ int main() {
     net.convert();
     // net.Run();
 //    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");
-    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
+//    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
 //    ParamLoader param_loader("../models/llama-2-7b-q4_k-64.mllm");
-//    ParamLoader param_loader("../models/llama-2-7b-q4_k.mllm");
+    ParamLoader param_loader("../models/llama-2-7b-q4_k.mllm");
     Executor ex(&net, &param_loader);
     // Executor ex(&net);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
