@@ -39,8 +39,7 @@
 #define MLLM_FP16_TO_FP32(x) ((float) (x))
 #define MLLM_FP32_TO_FP16(x) (x)
 
-#else
-#ifdef _MSC_VER
+#elif defined _MSC_VER
 #define MLLM_COMPUTE_FP16_TO_FP32(x) _mm_cvtss_f32(_mm_cvtph_ps(_mm_cvtsi32_si128(x)))
 #define MLLM_COMPUTE_FP32_TO_FP16(x) _mm_extract_epi16(_mm_cvtps_ph(_mm_set_ss(x), 0), 0)
 #else
