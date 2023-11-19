@@ -37,7 +37,7 @@ class Writer:
         self.write_int(MAGIC_NUMBER)
 
     def __torch_dtype_to_int(self, dtype: torch.dtype) -> int:
-        if dtype == torch.float32:
+        if dtype == torch.float32 or dtype == torch.bfloat16:
             return 0
         elif dtype == torch.float16:
             return 1
@@ -68,7 +68,10 @@ class Writer:
         tensor_idx = Tensor(name=name, dtype=self.__torch_dtype_to_int(tensor.dtype))
         self.tensors_map[name] = tensor_idx
         offset = self.writer.tell()
-        tensor_numpy = tensor.numpy()
+        if tensor.dtype == torch.bfloat16: # to float 16
+            tensor_numpy = tensor.detach().to(torch.float32).numpy()
+        else:
+            tensor_numpy = tensor.numpy()
         tensor_numpy.tofile(self.writer)
         size = self.writer.tell() - offset
         tensor_idx.size = size
@@ -130,7 +133,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     if args.type == "torch":
-        model = torch.load(args.input_model)
+        model = torch.load(args.input_model.name)
     elif args.type == "safetensor":
         from safetensors import safe_open
 
