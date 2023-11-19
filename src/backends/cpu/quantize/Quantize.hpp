@@ -67,7 +67,6 @@ inline static float lookup_fp16_to_fp32(uint16_t f) {
 
 #define MLLM_FP16_TO_FP32(x) lookup_fp16_to_fp32(x)
 #define MLLM_FP32_TO_FP16(x)  MLLM_COMPUTE_FP32_TO_FP16(x)
-#endif
 
 
 #if  __AVX2__
