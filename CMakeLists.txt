@@ -55,14 +55,11 @@ endif()
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/src DIR_SRC)
 
-# aux_source_directory(${PROJECT_SOURCE_DIR}/src/backends/cpu  DIR_SRC_CPU)
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/express DIR_SRC_EXP)
 
-# aux_source_directory(${PROJECT_SOURCE_DIR}/src/quantize  DIR_SRC_QUANT)
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/memory DIR_SRC_MEM_MANAGER)
 aux_source_directory(${PROJECT_SOURCE_DIR}/examples EMP_SRC)
 aux_source_directory(${PROJECT_SOURCE_DIR}/test TEST_SRC)
-aux_source_directory(${PROJECT_SOURCE_DIR}/src/quantizer QUANT_SRC)
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${PROJECT_SOURCE_DIR}/include)
@@ -87,12 +84,16 @@ if(QUANT)
         ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
     )
 
-    # MLLM Quantizer is /src/quantizer/*.cpp but except main.cpp
+    # MLLM Quantizer is /src/quantizer/*.cpp but except main.cpp, gguf.cpp and gguf.hpp
     file(GLOB_RECURSE MLLM_QUANTIZER
         ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp)
     list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/main.cpp)
+    list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/gguf.hpp)
+    list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/gguf.cpp)
+
     message(STATUS "MLLM_Quant: ${MLLM_QUANT}")
+
     add_executable(
         quantize
         ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
@@ -171,9 +172,8 @@ if(NNAPI)
     include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
     add_definitions(-DNNAPI_ENABLED)
 
-    # TODO: better debug log
     add_definitions(-DDEBUG)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/nnapi)
-    add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/demo/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}) # ${DIR_SRC_QUANT})
-    target_link_libraries(nnapi_test MLLM_CPU MLLM_NNAPI)
+    add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/demo/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER})
+    target_link_libraries(nnapi_test MLLM_NNAPI)
 endif()

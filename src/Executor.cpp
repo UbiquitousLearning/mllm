@@ -12,6 +12,7 @@ void Executor::execute(Net *net, shared_ptr<Tensor> input_tensor) {
     auto input_size = input_tensor->shape();
     bool init = false;
     bool reshape = false;
+    // TODO: when reshape begin
     checkReshape(init, reshape, input_size);
     // set Input tensor
 

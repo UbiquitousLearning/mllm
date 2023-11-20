@@ -6,18 +6,22 @@
 
 namespace mllm {
 
-class NNAPIAdd final : public NNAPICommonOp {
+class NNAPIMatmul final : public NNAPICommonOp {
 public:
-    NNAPIAdd(Backend *bn, string opName);
-    virtual ~NNAPIAdd() = default;
+    NNAPIMatmul(Backend *bn, string opName);
+    virtual ~NNAPIMatmul() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+
+private:
+    // bias is always 0
+    Tensor bias_;
 };
 
-class NNAPIAddCreator : public NNAPIBackend::Creator {
+class NNAPIMatmulCreator : public NNAPIBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new NNAPIAdd(bn, name);
+        return new NNAPIMatmul(bn, name);
     }
 };
 

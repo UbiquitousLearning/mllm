@@ -1,21 +1,28 @@
 #include "NNAPIBackend.hpp"
-#include "NNAPIAdd.hpp"
 #include "NNAPISymbol.hpp"
 #include "Types.hpp"
 #include <cstdint>
 #include <iostream>
+#include <vector>
+#include "NNAPIAdd.hpp"
+#include "NNAPIMul.hpp"
+#include "NNAPIScale.hpp"
+#include "NNAPISiLU.hpp"
+#include "NNAPISoftmax.hpp"
+#include "NNAPILinear.hpp"
 
 // TODO: float <--> half convert for armv82
 #define FLOAT_TO_HALF(...)
 #define HALF_TO_FLOAT(...)
 
-#define NNAPI_CHECK(func, ...)                                   \
-    do {                                                         \
-        const auto _status = (func(__VA_ARGS__));                \
-        if (_status != ANEURALNETWORKS_NO_ERROR) {               \
-            const auto ENUM_TO_STR = NNAPIEnumToString(_status); \
-            exit(0);                                             \
-        }                                                        \
+#define NNAPI_CHECK(func, ...)                                    \
+    do {                                                          \
+        const auto _status = (func(__VA_ARGS__));                 \
+        if (_status != ANEURALNETWORKS_NO_ERROR) {                \
+            const auto ENUM_TO_STR = NNAPIEnumToString(_status);  \
+            std::cout << "NNAPI error : " << ENUM_TO_STR << "\n"; \
+            exit(0);                                              \
+        }                                                         \
     } while (0)
 
 namespace mllm {
@@ -77,6 +84,7 @@ NNAPIBackend::~NNAPIBackend() {
     ANeuralNetworksModel_free_27(nnapiModel_);
 }
 
+// don't pass name to op
 Op *NNAPIBackend::opCreate(const OpParam &op_param, string name) {
     OpType optype = OpType(op_param.find("type")->second);
     auto *map = map_creator_;
@@ -86,9 +94,8 @@ Op *NNAPIBackend::opCreate(const OpParam &op_param, string name) {
         return nullptr;
     }
     Op *exe = nullptr;
-    exe = iter->second->create(op_param, this);
+    exe = iter->second->create(op_param, this, name);
     return exe;
-    // return nullptr;
 }
 
 void NNAPIBackend::registerOps() {
@@ -101,17 +108,22 @@ void NNAPIBackend::registerOps() {
     // SILU,
     // SOFTMAX
     addCreator(ADD, (NNAPIBackend::Creator *)(new NNAPIAddCreator()));
-    // addCreator(MASK, (NNAPIBackend::Creator *)(new NNAPIMaskCreator()));
-    // addCreator(MATMUL, (NNAPIBackend::Creator *)(new NNAPIMatmulCreator()));
+    // addCreator(CAUSALMASK, (NNAPIBackend::Creator *)(new NNAPICausalMaskCreator()));
+    addCreator(MUL, (NNAPIBackend::Creator *)(new NNAPIMulCreator()));
     // addCreator(RMSNORM, (NNAPIBackend::Creator *)(new NNAPIRMSNormCreator()));
     // addCreator(ROPE, (NNAPIBackend::Creator *)(new NNAPIRoPECreator()));
-    // addCreator(SCALE, (NNAPIBackend::Creator *)(new NNAPIScaleCreator()));
-    // addCreator(SILU, (NNAPIBackend::Creator *)(new NNAPISiLUCreator()));
-    // addCreator(SOFTMAX, (NNAPIBackend::Creator *)(new NNAPISoftMaxCreator()));
-    // addCreator(LINEAR, (NNAPIBackend::Creator *)(new NNAPILinearCreator()));
+    addCreator(SCALE, (NNAPIBackend::Creator *)(new NNAPIScaleCreator()));
+    addCreator(SILU, (NNAPIBackend::Creator *)(new NNAPISiLUCreator()));
+    addCreator(SOFTMAX, (NNAPIBackend::Creator *)(new NNAPISoftMaxCreator()));
+    addCreator(LINEAR, (NNAPIBackend::Creator *)(new NNAPILinearCreator()));
 }
 
-uint32_t NNAPIBackend::getTensorIdx(const Tensor *t, bool dequant) {
+uint32_t NNAPIBackend::getTensorIdx(const Tensor *t, bool dequant, bool isReshape, std::vector<uint32_t> dims) {
+    // for input and output tensor, save them in inputTensors_ and outputTensors_
+    // TODO: add INPUT and OUTPUT description in tensor for efficiency
+    auto isInput = std::find(inputTensors_.begin(), inputTensors_.end(), t) != inputTensors_.end();
+    auto isOutput = std::find(outputTensors_.begin(), outputTensors_.end(), t) != outputTensors_.end();
+
     if (dequant) {
         const auto &qiter = dequantIdxMap_.find(t);
         if (qiter != dequantIdxMap_.end()) {
@@ -122,9 +134,14 @@ uint32_t NNAPIBackend::getTensorIdx(const Tensor *t, bool dequant) {
     if (iter != tensorIdxMap_.end()) {
         return iter->second;
     }
+
     std::vector<uint32_t> udims;
-    for (auto d : t->shape()) {
-        udims.push_back(d);
+    if (!isReshape) {
+        for (auto d : t->shape()) {
+            udims.push_back(d);
+        }
+    } else {
+        udims = dims;
     }
     // scalar shape is {1} in NNAPI
     if (udims.empty()) {
@@ -135,8 +152,13 @@ uint32_t NNAPIBackend::getTensorIdx(const Tensor *t, bool dequant) {
     // TODO: ANEURALNETWORKS_TENSOR_INT32 and ANEURALNETWORKS_TENSOR_QUANT8_ASYMM
     auto code = ANEURALNETWORKS_TENSOR_FLOAT32;
     uint32_t idx = -1;
-    // TODO: CONSTANT describe in tensor
-    idx = buildOperand(nullptr, 0, code, udims, &scale, zero);
+    // TODO: CONSTANT operand shoul have no size and nullptr data
+    if (isInput || isOutput) {
+        // for input and output tensor, don't set data when add operand for nnapi model
+        idx = buildOperand(nullptr, t->size(), code, udims, &scale, zero);
+    } else {
+        idx = buildOperand(t->hostPtr<void>(), t->size(), code, udims, &scale, zero);
+    }
     tensorIdxMap_.insert(std::make_pair(t, idx));
     return idx;
 }
@@ -226,6 +248,19 @@ uint32_t NNAPIBackend::buildOperand(const void *data, size_t size, OperandCode c
             ANeuralNetworksModel_setOperandSymmPerChannelQuantParams_29(nnapiModel_, operandIdx, &quantParam);
         }
         NNAPI_CHECK(ANeuralNetworksModel_setOperandValue_27, nnapiModel_, operandIdx, data, size);
+#ifdef DEBUG
+        {
+            std::cout << "set operand value : {\n";
+            std::cout << "\tidx : " << operandIdx << "\n";
+            std::cout << "\tdata : " << data << "\n";
+            std::cout << "\tsize : " << size << "\n";
+            if (code == ANEURALNETWORKS_TENSOR_FLOAT32) {
+                float *data_float = static_cast<float *>(const_cast<void *>(data));
+                std::cout << "data_float: " << data_float[0] << std::endl;
+            }
+            std::cout << "}\n";
+        }
+#endif
     }
     return operandIdx;
 }
@@ -253,11 +288,11 @@ ErrorCode NNAPIBackend::buildModel() {
     std::vector<uint32_t> inputOperands(inputTensors_.size());
     std::vector<uint32_t> outputOperands(outputTensors_.size());
     for (int i = 0; i < inputTensors_.size(); i++) {
-        inputOperands[i] = getTensorIdx(inputTensors_[i].get());
+        inputOperands[i] = getTensorIdx(inputTensors_[i]);
     }
     for (int i = 0; i < outputTensors_.size(); i++) {
-        auto output = outputTensors_[i];
-        outputOperands[i] = getTensorIdx(outputTensors_[i].get());
+        const auto *output = outputTensors_[i];
+        outputOperands[i] = getTensorIdx(outputTensors_[i]);
     }
 #ifdef DEBUG
     {
@@ -276,6 +311,7 @@ ErrorCode NNAPIBackend::buildModel() {
                 outputOperands.size(),
                 outputOperands.data());
     NNAPI_CHECK(ANeuralNetworksModel_finish_27, nnapiModel_);
+
     std::unique_ptr<bool[]> supports(new bool[opNames_.size()]);
     int selectDeviceIdx = -1;
     for (int i = 0; i < nnapiDevices_.size(); i++) {
@@ -313,26 +349,44 @@ ErrorCode NNAPIBackend::buildModel() {
 }
 
 void NNAPIBackend::invokeModel() const {
+#ifdef DEBUG
+    std::cout << "[NNAPI] invoke model.\n";
+#endif
     ANeuralNetworksExecution *execution;
     NNAPI_CHECK(ANeuralNetworksExecution_create_27, nnapiCompilation_, &execution);
 
     for (int i = 0; i < inputTensors_.size(); i++) {
-        // const void *data = inputContentTensors_[i]->hostPtr();
-        // size_t size = inputContentTensors_[i]
-        const void *data = nullptr;
-        size_t size = 0;
+        const void *data = inputTensors_[i]->hostPtr<void>();
+        size_t size = inputTensors_[i]->size();
         NNAPI_CHECK(ANeuralNetworksExecution_setInput_27, execution, i, nullptr, data, size);
     }
+
     for (int i = 0; i < outputTensors_.size(); i++) {
-        // void *data = outputContentTensors_[i]->host<void>();
-        // size_t size = outputContentTensors_[i]->size();
-        void *data = nullptr;
-        size_t size = 0;
+        void *data = outputTensors_[i]->hostPtr<void>();
+        size_t size = outputTensors_[i]->size();
         NNAPI_CHECK(ANeuralNetworksExecution_setOutput_27, execution, i, nullptr, data, size);
     }
 
     NNAPI_CHECK(ANeuralNetworksExecution_compute_29, execution);
     ANeuralNetworksExecution_free_27(execution);
+}
+
+ErrorCode NNAPIBackend::identifyInputsAndOutputs(std::vector<shared_ptr<Tensor>> inputs, std::vector<shared_ptr<Tensor>> outputs) {
+    // in case of inputs passed from graph have two same value, inputTensors_ should dynamically resize
+    // TODO: better solution(tensor description)
+    // inputTensors_.resize(inputs.size());
+    outputTensors_.resize(outputs.size());
+    for (int i = 0; i < inputs.size(); i++) {
+        // inputTensors should not have same value
+        if (i > 0 && inputTensors_[i - 1] == inputs[i].get()) {
+            continue;
+        }
+        inputTensors_.emplace_back(inputs[i].get());
+    }
+    for (int i = 0; i < outputs.size(); i++) {
+        outputTensors_[i] = outputs[i].get();
+    }
+    return NO_ERROR;
 }
 
 } // namespace mllm

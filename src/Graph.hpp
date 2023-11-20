@@ -9,6 +9,9 @@
 #include "Op.hpp"
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
+#ifdef NNAPI_ENABLED
+#include "backends/nnapi/NNAPIBackend.hpp"
+#endif
 
 // using std::unordered_map;
 #include <unordered_map>

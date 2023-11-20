@@ -64,6 +64,10 @@ public:
     }
 
     void update();
+    
+    size_t size() const {
+        return capacity_ * dtypeSize();
+    }
 
     // Deprecated legacy shape accessor num: use shape(0) instead.
     inline int num() const {
@@ -193,7 +197,7 @@ public:
     void copyFrom(const shared_ptr<Tensor> &source, bool reshape = false);
 
     template <typename Dtype>
-    Dtype *hostPtr() {
+    Dtype *hostPtr() const {
         return (Dtype *)host_ptr_;
     }
 
@@ -352,7 +356,7 @@ public:
         return DataTypeSize(dtype_, count_);
     }
 
-    int dtypeSize() {
+    int dtypeSize() const {
         return DataTypeSize(dtype_, 1);
     }
 //

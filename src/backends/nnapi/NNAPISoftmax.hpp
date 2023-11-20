@@ -1,26 +1,29 @@
-#ifndef MLLM_NNAPIADD_H
-#define MLLM_NNAPIADD_H
+#ifndef MLLM_NNAPISOFTMAX_H
+#define MLLM_NNAPISOFTMAX_H
 
 #include "NNAPICommonOp.hpp"
 #include "NNAPIBackend.hpp"
 
 namespace mllm {
 
-class NNAPIAdd final : public NNAPICommonOp {
+class NNAPISoftMax final : public NNAPICommonOp {
 public:
-    NNAPIAdd(Backend *bn, string opName);
-    virtual ~NNAPIAdd() = default;
+    NNAPISoftMax(Backend *bn, string opName, int axis);
+    virtual ~NNAPISoftMax() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+
+private:
+    int axis_ = 0;
 };
 
-class NNAPIAddCreator : public NNAPIBackend::Creator {
+class NNAPISoftMaxCreator : public NNAPIBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new NNAPIAdd(bn, name);
+        int axis = op_param["axis"];
+        return new NNAPISoftMax(bn, name, axis);
     }
 };
-
 } // namespace mllm
 
-#endif // MLLM_NNAPIADD_H
+#endif // MLLM_NNAPISOFTMAX_H
