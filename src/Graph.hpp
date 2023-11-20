@@ -63,7 +63,7 @@ public:
 //        return param_;
 //    }
 
-    void reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors, string input_tensor_name);
+    void reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors, const string& input_tensor_name);
 
 protected:
 //    NetParameter param_;

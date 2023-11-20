@@ -153,7 +153,7 @@ int main() {
     llama2(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size);
 
     BackendConfig bn;
-    Net net(c->sub_param_, bn);
+    Net net(bn);
     net.convert(c->sub_param_);
 
     //    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");

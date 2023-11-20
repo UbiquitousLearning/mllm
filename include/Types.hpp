@@ -145,6 +145,8 @@ static string DataTypeName(DataType dataType) {
         return "Q4_0";
     case MLLM_TYPE_Q4_K:
         return "Q4_K";
+    case MLLM_TYPE_Q6_K:
+        return "Q6_K";
     case MLLM_TYPE_Q8_0:
         return "Q8_0";
     case MLLM_TYPE_Q8_K:
@@ -153,7 +155,10 @@ static string DataTypeName(DataType dataType) {
         return "Q4_1";
     case MLLM_TYPE_Q8_1:
         return "Q8_1";
-    case MLLM_TYPE_COUNT: return "COUNT";
+    case MLLM_TYPE_COUNT:
+        return "COUNT";
+    default:
+        return "Unknown";
     }
 }
 static float DataTypeSize(DataType dtype, int count=1) {

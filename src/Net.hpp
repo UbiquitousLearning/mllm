@@ -11,7 +11,7 @@
 namespace mllm {
 class Net {
 public:
-    explicit Net(const vector<NetParameter> &param, BackendConfig config);
+    explicit Net(BackendConfig config);
     virtual ~Net() = default;
 
     // convert all subgraph to specified backend, just for develop
@@ -37,7 +37,7 @@ public:
 
 private:
     unordered_map<string, shared_ptr<Graph>> subGraphs_;
-    BackendConfig config_;
+    //BackendConfig config_;
     unordered_map<string, shared_ptr<Tensor>> tensors_;
     vector<vector<string>> tensor_names_;
     vector<NetOp *> ops_;
