@@ -17,7 +17,7 @@
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
     Backend(mm) {
-    initCreatorMap();
+    //initCreatorMap();
     registerOps();
 }
 void CPUBackend::initTable() {
@@ -32,9 +32,8 @@ void CPUBackend::initTable() {
 // }
 Op *CPUBackend::opCreate(const OpParam &op_param, string name) {
     OpType optype = OpType(op_param.find("type")->second);
-    auto *map = map_creator_;
-    auto iter = map->find(optype);
-    if (iter == map->end()) {
+    auto iter = map_creator_.find(optype);
+    if (iter == map_creator_.end()) {
         printf("Don't support type \n");
         return nullptr;
     }

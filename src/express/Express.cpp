@@ -5,6 +5,7 @@
 #include "Express.hpp"
 #include "NetParameter.hpp"
 #include <algorithm> // 包含 reverse 函数的头文件
+#include <memory>
 
 using namespace mllm;
 #define _STORE_OUT_TENSOR                      \
@@ -61,7 +62,7 @@ static void topology(const NetParameter *net, vector<NetOp *> &result, NetOp *op
     result.push_back(op);
 }
 void NetParameter::topologySort() {
-    vector<NetOp *> *result = new vector<NetOp *>();
+    std::unique_ptr<vector<NetOp *>> result(new vector<NetOp *>());
     std::unordered_map<NetOp *, bool> visited;
     result->reserve(net_ops.size());
     visited.reserve(net_ops.size());

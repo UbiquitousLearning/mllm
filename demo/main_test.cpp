@@ -42,13 +42,13 @@ void display(Context *c) {
 }
 
 void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, float value) {
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU]);
+    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape(shape);
     input_tensor->alloc();
     input_tensor->fullData<float>(value);
 }
-void token2Tensor(shared_ptr<Tensor> input_tensor, Net net, vector<token_id_t> tokens) {
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU]);
+void token2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<token_id_t> tokens) {
+    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape({1, 1, static_cast<int>(tokens.size()), 1});
     input_tensor->alloc();
     input_tensor->fullData<float>(1);
@@ -136,37 +136,37 @@ int main() {
     // tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
     // tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);
     string in_str = " I believe the meaning of life is";
-//    string in_str = " Building a website can be done in 10 simple steps:\\nStep 1:";
+    //    string in_str = " I believe the meaning of life is to be happy.";
+    //    string in_str = " Building a website can be done in 10 simple steps:\\nStep 1:";
     tokenizer.tokenize(in_str, tokens_id, true);
-//    for (auto idx : tokens_id) {
-//        std::cout << idx << ",";
-//    }
-//    std::cout << std::endl;
+    //    for (auto idx : tokens_id) {
+    //        std::cout << idx << ",";
+    //    }
+    //    std::cout << std::endl;
     int vocab_size = 32000;
     int hidden_dim = 4096;
     int ffn_hidden_dim = 11008;
     int mutil_head_size = 32;
-    Context *c = new Context();
+
+    std::unique_ptr<Context> c_ptr(new Context());
+    auto *c = c_ptr.get();
     llama2(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size);
 
     BackendConfig bn;
     Net net(c->sub_param_, bn);
-    net.convert();
-    // net.Run();
-//    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");
-//    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
-//    ParamLoader param_loader("../models/llama-2-7b-q4_k-64.mllm");
+    net.convert(c->sub_param_);
+
+    //    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");
+    //    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
+    //    ParamLoader param_loader("../models/llama-2-7b-q4_k-64.mllm");
     ParamLoader param_loader("../models/llama-2-7b-q4_k.mllm");
-    Executor ex(&net, &param_loader);
-    // Executor ex(&net);
+    Executor ex(&param_loader);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    // fullTensor(input, net, {1, 1, 10, 1}, 1);
-    //tokens_id = {tokens_id[0]};
     token2Tensor(input, net, tokens_id);
 
     std::cout << in_str << std::flush;
     for(int step = 0; step<64; step++) {
-        ex.execute(input);
+        ex.execute(&net, input);
         auto result = ex.result();
         auto token_idx = postProcessing(result[0], input);
         auto out_token = tokenizer.detokenize({token_idx});
@@ -175,13 +175,12 @@ int main() {
     printf("\n");
     ex.perf();
 
-//    shared_ptr<Tensor> input_2 = std::make_shared<Tensor>();
-//    token2Tensor(input_2, net, {token_idx});out_result
-//    ex.execute(input);
-//    result = ex.result();
-//    token_idx = postProcessing(result[0], input);
-//    out_token = tokenizer.detokenize({token_idx});
-//    std::cout<<"OUT TOKEN: "<<token_idx<<"|    "<< out_token << std::endl;
-
+    // free memory
+    for (auto *op : c->net_ops) {
+        delete op;
+    }
+    for (auto *tensor : c->net_tensors) {
+        delete tensor;
+    }
     return 0;
 }

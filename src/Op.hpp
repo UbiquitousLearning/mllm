@@ -19,11 +19,7 @@ public:
      * @param backend   backend that exection will running on.
      */
     Op(){};
-    // Op(const BackendType betype): backend_type_(betype) {};
-    // Op() = delete;
-    // Op(shared_ptr<Backend> bn) : backend_(bn) {
-    //     // nothing to do
-    // }
+
     Op(Backend *bn, string name = "") :
         backend_(bn) , name_(name) {
         // nothing to do
@@ -143,9 +139,6 @@ public:
      * @brief get backend.
      * @return backend.
      */
-    // shared_ptr<Backend> backend() const {
-    //     return backend_;
-    // }
     Backend *backend() const {
         return backend_;
     }
@@ -157,7 +150,6 @@ public:
     }
 
 private:
-    // shared_ptr<Backend> backend_;
     Backend *backend_;
     vector<Tensor *> inputs_;
     vector<Tensor *> outputs_;

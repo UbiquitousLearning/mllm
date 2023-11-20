@@ -22,26 +22,26 @@ namespace mllm {
 
 Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
     backend_ = bn;
-    param_ = param;
 
-    for (int i = 0; i < (int)param_.net_tensors.size(); ++i) {
-        auto *net_tensor = param_.net_tensors[i];
+    for (int i = 0; i < (int)param.net_tensors.size(); ++i) {
+        auto *net_tensor = param.net_tensors[i];
         auto it = external_tensors.find(net_tensor->name);
         if (it == tensors_.end()) { // not in external_tensors
             tensors_[net_tensor->name] = std::make_shared<Tensor>(backend_);
             tensors_[net_tensor->name]->setName(net_tensor->name);
         }
     }
-    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto *net_op = param_.net_ops[i];
+    for (int i = 0; i < (int)param.net_ops.size(); ++i) {
+        auto *net_op = param.net_ops[i];
         shared_ptr<Op> my_op(NULL);
         auto *new_op = backend_->opCreate(net_op->param, net_op->name);
         my_op.reset(new_op);
         ops_[net_op->name] = my_op;
     }
-    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto *net_op = param_.net_ops[i];
+    for (int i = 0; i < (int)param.net_ops.size(); ++i) {
+        auto *net_op = param.net_ops[i];
         string lname = net_op->name;
+        op_names_.push_back(lname);
         auto in_tensors = net_op->in;
         vector<shared_ptr<Tensor>> inTensors;
         for (auto *in_t : in_tensors) {
@@ -69,17 +69,18 @@ Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, share
 }
 
 
-void Graph::reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors){
-    ops_input_tensors_[param_.net_ops[0]->name].clear();
-    auto in_tensors = param_.net_ops[0]->in;
+void Graph::reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors, string input_tensor_name){
+    ops_input_tensors_[op_names_[0]].clear();
+//    auto in_tensors = param_.net_ops[0]->in;
     //    vector<shared_ptr<Tensor>> inTensors;
-    for (auto *in_t : in_tensors) {
-        auto in_t_name = in_t->name;
+//    for (auto *in_t : in_tensors)
+    {
+        auto in_t_name = input_tensor_name;
         auto it = tensors_.find(in_t_name);
         if (it != tensors_.end()) {
-            ops_input_tensors_[param_.net_ops[0]->name].push_back(tensors_[in_t_name]);
+            ops_input_tensors_[op_names_[0]].push_back(tensors_[in_t_name]);
         } else {
-            ops_input_tensors_[param_.net_ops[0]->name].push_back(external_tensors[in_t_name]);
+            ops_input_tensors_[op_names_[0]].push_back(external_tensors[in_t_name]);
         }
     }
     //ops_input_tensors_[param_.net_ops[0]->name][0]->printData<float>();
@@ -88,29 +89,27 @@ void Graph::reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_ten
 }
 void Graph::reshape() {
     // RESHAPE
-    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto *net_op = param_.net_ops[i];
-        string lname = net_op->name;
+    for (int i = 0; i < (int)op_names_.size(); ++i) {
+        string lname = op_names_[i];
         ops_[lname]->reshape(ops_input_tensors_[lname], ops_output_tensors_[lname]); // tensors_[lname]:1.reshape
     }
 }
 
 void Graph::setUpTensors() {
-    auto &graph_in_tensors = ops_input_tensors_[param_.net_ops[0]->name];
+    auto &graph_in_tensors = ops_input_tensors_[op_names_[0]];
     for (auto &t : graph_in_tensors) {
-            t->alloc();
+        t->alloc();
     }
-    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto *net_op = param_.net_ops[i];
-        string lname = net_op->name;
+    for (int i = 0; i < (int)op_names_.size(); ++i) {
+        string lname = op_names_[i];
         ops_[lname]->setUp(ops_input_tensors_[lname], ops_output_tensors_[lname]);
     }
 }
 
 void Graph::setUpOps(ParamLoader &loader) {
-    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto *net_op = param_.net_ops[i];
-        ops_[net_op->name]->load(loader);
+    for (int i = 0; i < (int)op_names_.size(); ++i) {
+        string lname = op_names_[i];
+        ops_[lname]->load(loader);
     }
 }
 
@@ -146,9 +145,8 @@ void Graph::setUpOps(ParamLoader &loader) {
 const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
     // TODO 改为递归
 
-    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto *net_op = param_.net_ops[i];
-        string lname = net_op->name;
+    for (int i = 0; i < (int)op_names_.size(); ++i) {
+        string lname = op_names_[i];
 #ifdef DEBUG
         uint64_t t_start = mllm_time_us();
 #endif
@@ -165,7 +163,7 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
         }
     }
     // TODO
-    return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
+    return ops_output_tensors_[op_names_[op_names_.size() - 1]];
 }
 
 //const vector<shared_ptr<Tensor>> &Graph::forward(const vector<shared_ptr<Tensor>> &inTensors) {
@@ -177,9 +175,8 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
 //}
 
 void Graph::freeOps(){
-    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-        auto *net_op = param_.net_ops[i];
-        string lname = net_op->name;
+    for (int i = 0; i < (int)op_names_.size(); ++i) {
+        string lname = op_names_[i];
         ops_[lname]->free(ops_input_tensors_[lname], ops_output_tensors_[lname]);
     }
 }

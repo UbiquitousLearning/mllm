@@ -34,9 +34,7 @@ public:
     }
     explicit Tensor(const int num, const int channels, const int height, const int width); // N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
     explicit Tensor(const vector<int> &shape);
-    // void SetBackend(shared_ptr<Backend> bn){
-    //     backend_= bn;
-    // };
+
     Backend *backend() const {
         return backend_;
     }
@@ -323,6 +321,29 @@ public:
         }
     }
 
+    template <typename Dtype>
+    void printAVG() {
+        float sum = 0;
+        // n c h w
+        int N = num();
+        int C = channels();
+        int H = height();
+        int W = width();
+        bool ck = false;
+        for (int n = 0; n < N; ++n) {
+            for (int c = 0; c < C; ++c) {
+                for (int h = 0; h < H; ++h) {
+                    for (int w = 0; w < W; ++w) {
+                        float value = dataAt<Dtype>(n, c, h, w);
+                        sum += value;
+                    }
+                }
+            }
+        }
+        std::cout << name() << " " << sum / count() << std::endl;
+//        std::cout << name() << ": shape:[" << num() << " " << channels() << " " << height() << " " << width() << "] AVG:" << sum / count() << std::endl;
+    }
+
     DataType dtype() const {
         return dtype_;
     }
@@ -386,7 +407,6 @@ public:
 
 private:
     string name_;
-    // shared_ptr<Backend> backend_;
 //    int byte_width_; // 32/16/8/4 //enum
     DataType dtype_;
     Backend *backend_;

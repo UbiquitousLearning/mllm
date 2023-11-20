@@ -47,26 +47,26 @@ public:
     void freeTensors();
     void free();
 
-    const vector<shared_ptr<Tensor>> &inputTensors(){
-        return ops_input_tensors_[param_.net_ops[0]->name];
-    }
-    const vector<shared_ptr<Tensor>> &outputTensors(){
-        return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
-    }
+//    const vector<shared_ptr<Tensor>> &inputTensors(){
+//        return ops_input_tensors_[param_.net_ops[0]->name];
+//    }
+//    const vector<shared_ptr<Tensor>> &outputTensors(){
+//        return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
+//    }
 
     /**
      * @brief 反向传播
      */
     void backward();
 
-    NetParameter &param() {
-        return param_;
-    }
+//    NetParameter &param() {
+//        return param_;
+//    }
 
-    void reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+    void reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors, string input_tensor_name);
 
 protected:
-    NetParameter param_;
+//    NetParameter param_;
     Backend *backend_;
     // The network name
     string name_;
@@ -90,6 +90,8 @@ protected:
     unordered_map<string, shared_ptr<Tensor>> tensors_;                    // opname: Tensors
     unordered_map<string, shared_ptr<Op>> ops_;                            // opname: op
     //    unordered_map<string, shared_ptr<Tensor>> external_tensors_;
+
+    vector<string> op_names_;
 
 };
 

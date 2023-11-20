@@ -22,6 +22,8 @@ bool Tokenizer::load_vocab(const std::string &vocab_file) {
         std::cout << "open file failed" << std::endl;
         return false;
     }
+    // Use a unique_ptr with a custom deleter to ensure the file is closed.
+    std::unique_ptr<FILE, decltype(&fclose)> fp_guard(fp, &fclose);
     fseek(fp, 0, SEEK_CUR);
     if (readInt(fp) != VocabMagicNumber) {
         std::cout << "magic number error" << std::endl;

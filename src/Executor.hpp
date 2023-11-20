@@ -5,14 +5,14 @@
 namespace mllm {
 class Executor {
 public:
-    Executor() = delete;
-    Executor(Net *net) :
-        net_(net), data_loader_(nullptr) {
+//    Executor() = delete;
+    Executor():
+        data_loader_(nullptr) {
         // nothing to do
         init();
     }
-    Executor(Net *net, ParamLoader *data_loader) :
-        net_(net), data_loader_(data_loader) {
+    Executor(ParamLoader *data_loader) :
+        data_loader_(data_loader) {
         // nothing to do
         init();
     }
@@ -63,7 +63,7 @@ public:
 
     void execute(vector<int> input_size = {});
 
-    void execute(shared_ptr<Tensor> input_tensor);
+    void execute(Net *net, shared_ptr<Tensor> input_tensor);
 
     vector<shared_ptr<Tensor>> &result() {
         return result_;
@@ -76,7 +76,6 @@ public:
     }
 
 private:
-    Net *net_;
     vector<int> input_size_;
     // map<string, map<string,vector<int>>> graph_input_shapes_;
     vector<shared_ptr<Tensor>> result_;
