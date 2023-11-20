@@ -102,6 +102,16 @@ if(QUANT)
         # ${DIR_SRC}
         ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
     )
+    add_executable(
+        from_gguf
+        ${PROJECT_SOURCE_DIR}/src/quantizer/gguf.cpp
+        ${MLLM_QUANT}
+        ${MLLM_QUANTIZER}
+
+        # ${DIR_SRC}
+        ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
+    )
+
 endif()
 
 if(TEST)
