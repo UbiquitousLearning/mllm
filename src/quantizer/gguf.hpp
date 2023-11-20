@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <regex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -423,6 +424,52 @@ static gguf_kv *get_kv(std::string key, std::unordered_map<std::string, gguf_kv>
     }
     return &it->second;
 }
+// token_embd => tok_embeddings
+// output_norm => norm
+// output => output
+// rope_freqs => language_model.encoder.layers.{bid}.self_attention.rotary_emb.inv_freq
+// blk.{bid}.attn_norm => layers.{bid}.attention_norm
+// blk.{bid}.attn_q => layers.{bid}.attention.wq
+// blk.{bid}.attn_k => layers.{bid}.attention.wk
+// blk.{bid}.attn_v => layers.{bid}.attention.wv
+// blk.{bid}.attn_output => layers.{bid}.attention.wo
+// blk.{bid}.attn_rot_embd => layers.{bid}.attention.inner_attention.rope.freqs
+// blk.{bid}.ffn_norm => layers.{bid}.ffn_norm
+// blk.{bid}.ffn_gate => layers.{bid}.feed_forward.w1
+// blk.{bid}.ffn_down => layers.{bid}.feed_forward.w2
+// blk.{bid}.ffn_up => layers.{bid}.feed_forward.w3
+const std::map<std::string, std::string> replace_map = {
+    {"blk.(\\d+).attn_output", "layers.$1.attention.wo"},
+    {"blk.(\\d+).attn_rot_embd", "layers.$1.attention.inner_attention.rope.freqs"},
+    {"blk.(\\d+).ffn_norm", "layers.$1.ffn_norm"},
+    {"blk.(\\d+).ffn_gate", "layers.$1.feed_forward.w1"},
+    {"blk.(\\d+).ffn_down", "layers.$1.feed_forward.w2"},
+    {"blk.(\\d+).ffn_up", "layers.$1.feed_forward.w3"}};
+static string convert_tensor_models(string name) {
+    if (name == "token_embd") {
+        return "tok_embeddings";
+    }
+    if (name == "output_norm") {
+        return "norm";
+    }
+    if (name == "output") {
+        return "output";
+    }
+    if (name == "rope_freqs") {
+        return "language_model.encoder.layers.{bid}.self_attention.rotary_emb.inv_freq";
+    }
+    // name start with blk
+    if (name.rfind("blk.", 0) == 0) {
+        for (const auto &pair : replace_map) {
+            std::regex r(pair.first);
+            std::smatch match;
+            if (std::regex_search(name, match, r)) {
+                return match.format(pair.second);
+            }
+        }
+    }
+    return name;
+}
 static size_t get_tensor_size(const struct gguf_tensor_info *info) {
     ggml_type_traits_t type = type_traits[info->type];
     if (!type.is_available) {
@@ -610,6 +657,10 @@ static void from_gguf(std::string fname, ParamWriter *writer) {
                     fclose(file);
                     exit(-1);
                 }
+                std::string converted_name = convert_tensor_models(info.name.data);
+                // info_map.insert({std::string(info.name.data), info});
+                info.name.data = new char[converted_name.size() + 1];
+                strcpy(info.name.data, converted_name.c_str());
                 info_map.insert({std::string(info.name.data), info});
                 tensor_names.emplace_back(info.name.data);
                 printf("name: %s, types:%d  offset: %lu, size: %lu\n", info.name.data, info.type, info.offset, get_tensor_size(&info));
