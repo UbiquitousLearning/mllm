@@ -17,29 +17,7 @@ struct gguf_str {
 #define GGUF_DEFAULT_ALIGNMENT 32
 #define GGUF_VERSION 3
 #define GGML_MAX_DIMS 4
-enum ggml_type {
-    GGML_TYPE_F32 = 0,
-    GGML_TYPE_F16 = 1,
-    GGML_TYPE_Q4_0 = 2,
-    GGML_TYPE_Q4_1 = 3,
-    // GGML_TYPE_Q4_2 = 4, support has been removed
-    // GGML_TYPE_Q4_3 (5) support has been removed
-    GGML_TYPE_Q5_0 = 6,
-    GGML_TYPE_Q5_1 = 7,
-    GGML_TYPE_Q8_0 = 8,
-    GGML_TYPE_Q8_1 = 9,
-    // k-quantizations
-    GGML_TYPE_Q2_K = 10,
-    GGML_TYPE_Q3_K = 11,
-    GGML_TYPE_Q4_K = 12,
-    GGML_TYPE_Q5_K = 13,
-    GGML_TYPE_Q6_K = 14,
-    GGML_TYPE_Q8_K = 15,
-    GGML_TYPE_I8,
-    GGML_TYPE_I16,
-    GGML_TYPE_I32,
-    GGML_TYPE_COUNT,
-};
+
 enum gguf_type {
     GGUF_TYPE_UINT8 = 0,
     GGUF_TYPE_INT8 = 1,
@@ -65,23 +43,46 @@ struct gguf_init_params {
     // if not NULL, create a ggml_context and allocate the tensor data in it
     struct ggml_context **ctx;
 };
-static const size_t GGUF_TYPE_SIZE[GGUF_TYPE_COUNT] = {
-    [GGUF_TYPE_UINT8] = sizeof(uint8_t),
-    [GGUF_TYPE_INT8] = sizeof(int8_t),
-    [GGUF_TYPE_UINT16] = sizeof(uint16_t),
-    [GGUF_TYPE_INT16] = sizeof(int16_t),
-    [GGUF_TYPE_UINT32] = sizeof(uint32_t),
-    [GGUF_TYPE_INT32] = sizeof(int32_t),
-    [GGUF_TYPE_FLOAT32] = sizeof(float),
-    [GGUF_TYPE_BOOL] = sizeof(bool),
-    [GGUF_TYPE_STRING] = sizeof(struct gguf_str),
-    [GGUF_TYPE_UINT64] = sizeof(uint64_t),
-    [GGUF_TYPE_INT64] = sizeof(int64_t),
-    [GGUF_TYPE_FLOAT64] = sizeof(double),
-    [GGUF_TYPE_ARRAY] = 0, // undefined
 
+static const size_t GGUF_TYPE_SIZE[GGUF_TYPE_COUNT] = {
+    sizeof(uint8_t),         // GGUF_TYPE_UINT8
+    sizeof(int8_t),          // GGUF_TYPE_INT8
+    sizeof(uint16_t),        // GGUF_TYPE_UINT16
+    sizeof(int16_t),         // GGUF_TYPE_INT16
+    sizeof(uint32_t),        // GGUF_TYPE_UINT32
+    sizeof(int32_t),         // GGUF_TYPE_INT32
+    sizeof(float),           // GGUF_TYPE_FLOAT32
+    sizeof(bool),            // GGUF_TYPE_BOOL
+    sizeof(struct gguf_str), // GGUF_TYPE_STRING
+    0,                       // GGUF_TYPE_ARRAY
+    sizeof(uint64_t),        // GGUF_TYPE_UINT64
+    sizeof(int64_t),         // GGUF_TYPE_INT64
+    sizeof(double),          // GGUF_TYPE_FLOAT64
 };
-typedef struct {
+enum ggml_type {
+    GGML_TYPE_F32 = 0,
+    GGML_TYPE_F16 = 1,
+    GGML_TYPE_Q4_0 = 2,
+    GGML_TYPE_Q4_1 = 3,
+    // GGML_TYPE_Q4_2 = 4, support has been removed
+    // GGML_TYPE_Q4_3 (5) support has been removed
+    GGML_TYPE_Q5_0 = 6,
+    GGML_TYPE_Q5_1 = 7,
+    GGML_TYPE_Q8_0 = 8,
+    GGML_TYPE_Q8_1 = 9,
+    // k-quantizations
+    GGML_TYPE_Q2_K = 10,
+    GGML_TYPE_Q3_K = 11,
+    GGML_TYPE_Q4_K = 12,
+    GGML_TYPE_Q5_K = 13,
+    GGML_TYPE_Q6_K = 14,
+    GGML_TYPE_Q8_K = 15,
+    GGML_TYPE_I8,
+    GGML_TYPE_I16,
+    GGML_TYPE_I32,
+    GGML_TYPE_COUNT,
+};
+typedef struct ggml_type_traits_t {
     const char *type_name;
     int blck_size = 1;
     size_t type_size;
@@ -90,206 +91,228 @@ typedef struct {
 } ggml_type_traits_t;
 static_assert(GGUF_TYPE_COUNT == 13, "GGUF_TYPE_COUNT != 13");
 static const ggml_type_traits_t type_traits[GGML_TYPE_COUNT] = {
-    [GGML_TYPE_I8] = {
-        .type_name = "i8",
-        .blck_size = 1,
-        .type_size = sizeof(int8_t),
-        .is_quantized = false,
-    },
-    [GGML_TYPE_I16] = {
-        .type_name = "i16",
-        .blck_size = 1,
-        .type_size = sizeof(int16_t),
-        .is_quantized = false,
-    },
-    [GGML_TYPE_I32] = {
-        .type_name = "i32",
-        .blck_size = 1,
-        .type_size = sizeof(int32_t),
-        .is_quantized = false,
-    },
-    [GGML_TYPE_F32] = {
-        .type_name = "f32",
-        .blck_size = 1,
-        .type_size = sizeof(float),
-        .is_quantized = false,
+    {"f32", 1, sizeof(float), false},          // GGML_TYPE_F32
+    {"f16", 1, sizeof(uint16_t), false},       // GGML_TYPE_F16
+    {"q4_0", QK4_0, sizeof(block_q4_0), true}, // GGML_TYPE_Q4_0
+    {"q4_1", 0, 0, false, false},   // GGML_TYPE_Q4_1
+    {"DEPRECATED", 0, 0, false, false},   // Placeholder for missing GGML_TYPE_4 and GGML_TYPE_5
+    {"DEPRECATED", 0, 0, false, false},   // Placeholder for missing GGML_TYPE_4 and GGML_TYPE_5
+    {"q5_0", 0, 0, false, false},   // GGML_TYPE_Q5_0
+    {"q5_1", 0, 0, false, false},   // GGML_TYPE_Q5_1
+    {"q8_0", QK8_0, sizeof(block_q8_0), true}, // GGML_TYPE_Q8_0
+    {"q8_1", 0, 0, false, false},   // GGML_TYPE_Q8_1
+    {"q2_K", 0, 0, false, false},   // GGML_TYPE_Q2_K
+    {"q3_K", 0, 0, false, false},   // GGML_TYPE_Q3_K
+    {"q4_K", QK_K, sizeof(block_q4_K), true},   // GGML_TYPE_Q4_K
+    {"q5_K", 0, 0, false, false},   // GGML_TYPE_Q5_K
+    {"q6_K", QK_K, sizeof(block_q6_K), true},   // GGML_TYPE_Q6_K
+    {"q8_K", QK_K, sizeof(block_q8_K), true},   // GGML_TYPE_Q8_K
+    {"i8", 1, sizeof(int8_t), false},   // GGML_TYPE_I8
+    {"i16", 1, sizeof(int16_t), false},   // GGML_TYPE_I16
+    {"i32", 1, sizeof(int32_t), false},   // GGML_TYPE_I32
+};
+// static const ggml_type_traits_t type_traits[GGML_TYPE_COUNT] = {
+// [GGML_TYPE_I8] = {
+//     .type_name = "i8",
+//     .blck_size = 1,
+//     .type_size = sizeof(int8_t),
+//     .is_quantized = false,
+// },
+// [GGML_TYPE_I16] = {
+//     .type_name = "i16",
+//     .blck_size = 1,
+//     .type_size = sizeof(int16_t),
+//     .is_quantized = false,
+// },
+// [GGML_TYPE_I32] = {
+//     .type_name = "i32",
+//     .blck_size = 1,
+//     .type_size = sizeof(int32_t),
+//     .is_quantized = false,
+// },
+// [GGML_TYPE_F32] = {
+//     .type_name = "f32",
+//     .blck_size = 1,
+//     .type_size = sizeof(float),
+//     .is_quantized = false,
 
-    },
-    [GGML_TYPE_F16] = {
-        .type_name = "f16",
-        .blck_size = 1,
-        .type_size = sizeof(uint16_t),
-        .is_quantized = false,
-    },
-    [GGML_TYPE_Q4_0] = {
-        .type_name = "q4_0",
-        .blck_size = QK4_0,
-        .type_size = sizeof(block_q4_0),
-        .is_quantized = true,
-        // .to_float                 = (ggml_to_float_t) dequantize_row_q4_0,
-        // .from_float               = quantize_row_q4_0,
-        // .from_float_reference     = (ggml_from_float_t) quantize_row_q4_0_reference,
-        // .vec_dot                  = ggml_vec_dot_q4_0_q8_0,
-        // .vec_dot_type             = GGML_TYPE_Q8_0,
-    },
-    [GGML_TYPE_Q4_1] = {
-        .type_name = "q4_1",
-        .is_available = false,
-        // .blck_size                = QK4_1,
-        // .type_size                = sizeof(block_q4_1),
-        // .is_quantized             = true,
-        // .to_float                 = (ggml_to_float_t) dequantize_row_q4_1,
-        // .from_float               = quantize_row_q4_1,
-        // .from_float_reference     = (ggml_from_float_t) quantize_row_q4_1_reference,
-        // .vec_dot                  = ggml_vec_dot_q4_1_q8_1,
-        // .vec_dot_type             = GGML_TYPE_Q8_1,
-    },
-    [4] = {
-        // GGML_TYPE_Q4_2
-        .type_name = "DEPRECATED",
-        .blck_size = 0,
-        .type_size = 0,
-        .is_quantized = false,
-        // .is_available = false,
+// },
+// [GGML_TYPE_F16] = {
+//     .type_name = "f16",
+//     .blck_size = 1,
+//     .type_size = sizeof(uint16_t),
+//     .is_quantized = false,
+// },
+// [GGML_TYPE_Q4_0] = {
+//     .type_name = "q4_0",
+//     .blck_size = QK4_0,
+//     .type_size = sizeof(block_q4_0),
+//     .is_quantized = true,
+//     // .to_float                 = (ggml_to_float_t) dequantize_row_q4_0,
+//     // .from_float               = quantize_row_q4_0,
+//     // .from_float_reference     = (ggml_from_float_t) quantize_row_q4_0_reference,
+//     // .vec_dot                  = ggml_vec_dot_q4_0_q8_0,
+//     // .vec_dot_type             = GGML_TYPE_Q8_0,
+// },
+// [GGML_TYPE_Q4_1] = {
+//     .type_name = "q4_1",
+//     .is_available = false,
+//     // .blck_size                = QK4_1,
+//     // .type_size                = sizeof(block_q4_1),
+//     // .is_quantized             = true,
+//     // .to_float                 = (ggml_to_float_t) dequantize_row_q4_1,
+//     // .from_float               = quantize_row_q4_1,
+//     // .from_float_reference     = (ggml_from_float_t) quantize_row_q4_1_reference,
+//     // .vec_dot                  = ggml_vec_dot_q4_1_q8_1,
+//     // .vec_dot_type             = GGML_TYPE_Q8_1,
+// },
+// [4] = {
+//     // GGML_TYPE_Q4_2
+//     .type_name = "DEPRECATED",
+//     .blck_size = 0,
+//     .type_size = 0,
+//     .is_quantized = false,
+//     // .is_available = false,
 
-        // .to_float                 = NULL,
-        // .from_float               = NULL,
-        // .from_float_reference     = NULL,
-        // .vec_dot                  = NULL,
-        // .vec_dot_type             = GGML_TYPE_COUNT,
-    },
-    [5] = {
-        // GGML_TYPE_Q4_3
-        .type_name = "DEPRECATED",
-        .blck_size = 0,
-        .type_size = 0,
-        .is_quantized = false,
-        .is_available = false,
+//     // .to_float                 = NULL,
+//     // .from_float               = NULL,
+//     // .from_float_reference     = NULL,
+//     // .vec_dot                  = NULL,
+//     // .vec_dot_type             = GGML_TYPE_COUNT,
+// },
+// [5] = {
+//     // GGML_TYPE_Q4_3
+//     .type_name = "DEPRECATED",
+//     .blck_size = 0,
+//     .type_size = 0,
+//     .is_quantized = false,
+//     .is_available = false,
 
-        // .to_float                 = NULL,
-        // .from_float               = NULL,
-        // .from_float_reference     = NULL,
-        // .vec_dot                  = NULL,
-        // .vec_dot_type             = GGML_TYPE_COUNT,
-    },
-    [GGML_TYPE_Q5_0] = {
-        .type_name = "q5_0",
-        // .blck_size                = QK5_0,
-        // .type_size                = sizeof(block_q5_0),
-        // .is_quantized             = true,
-        .is_available = false,
+//     // .to_float                 = NULL,
+//     // .from_float               = NULL,
+//     // .from_float_reference     = NULL,
+//     // .vec_dot                  = NULL,
+//     // .vec_dot_type             = GGML_TYPE_COUNT,
+// },
+// [GGML_TYPE_Q5_0] = {
+//     .type_name = "q5_0",
+//     // .blck_size                = QK5_0,
+//     // .type_size                = sizeof(block_q5_0),
+//     // .is_quantized             = true,
+//     .is_available = false,
 
-        // .to_float                 = (ggml_to_float_t) dequantize_row_q5_0,
-        // .from_float               = quantize_row_q5_0,
-        // .from_float_reference     = (ggml_from_float_t) quantize_row_q5_0_reference,
-        // .vec_dot                  = ggml_vec_dot_q5_0_q8_0,
-        // .vec_dot_type             = GGML_TYPE_Q8_0,
-    },
-    [GGML_TYPE_Q5_1] = {
-        .type_name = "q5_1",
-        .is_available = false,
+//     // .to_float                 = (ggml_to_float_t) dequantize_row_q5_0,
+//     // .from_float               = quantize_row_q5_0,
+//     // .from_float_reference     = (ggml_from_float_t) quantize_row_q5_0_reference,
+//     // .vec_dot                  = ggml_vec_dot_q5_0_q8_0,
+//     // .vec_dot_type             = GGML_TYPE_Q8_0,
+// },
+// [GGML_TYPE_Q5_1] = {
+//     .type_name = "q5_1",
+//     .is_available = false,
 
-        // .blck_size                = QK5_1,
-        // .type_size                = sizeof(block_q5_1),
-        // .is_quantized             = true,
-        // .to_float                 = (ggml_to_float_t) dequantize_row_q5_1,
-        // .from_float               = quantize_row_q5_1,
-        // .from_float_reference     = (ggml_from_float_t) quantize_row_q5_1_reference,
-        // .vec_dot                  = ggml_vec_dot_q5_1_q8_1,
-        // .vec_dot_type             = GGML_TYPE_Q8_1,
-    },
-    [GGML_TYPE_Q8_0] = {
-        .type_name = "q8_0",
-        .blck_size = QK8_0,
-        .type_size = sizeof(block_q8_0),
-        .is_quantized = true,
-        // .to_float                 = (ggml_to_float_t) dequantize_row_q8_0,
-        // .from_float               = quantize_row_q8_0,
-        // .from_float_reference     = (ggml_from_float_t) quantize_row_q8_0_reference,
-        // .vec_dot                  = ggml_vec_dot_q8_0_q8_0,
-        // .vec_dot_type             = GGML_TYPE_Q8_0,
-    },
-    [GGML_TYPE_Q8_1] = {
-        .type_name = "q8_1",
-        .is_available = false,
+//     // .blck_size                = QK5_1,
+//     // .type_size                = sizeof(block_q5_1),
+//     // .is_quantized             = true,
+//     // .to_float                 = (ggml_to_float_t) dequantize_row_q5_1,
+//     // .from_float               = quantize_row_q5_1,
+//     // .from_float_reference     = (ggml_from_float_t) quantize_row_q5_1_reference,
+//     // .vec_dot                  = ggml_vec_dot_q5_1_q8_1,
+//     // .vec_dot_type             = GGML_TYPE_Q8_1,
+// },
+// [GGML_TYPE_Q8_0] = {
+//     .type_name = "q8_0",
+//     .blck_size = QK8_0,
+//     .type_size = sizeof(block_q8_0),
+//     .is_quantized = true,
+//     // .to_float                 = (ggml_to_float_t) dequantize_row_q8_0,
+//     // .from_float               = quantize_row_q8_0,
+//     // .from_float_reference     = (ggml_from_float_t) quantize_row_q8_0_reference,
+//     // .vec_dot                  = ggml_vec_dot_q8_0_q8_0,
+//     // .vec_dot_type             = GGML_TYPE_Q8_0,
+// },
+// [GGML_TYPE_Q8_1] = {
+//     .type_name = "q8_1",
+//     .is_available = false,
 
-        // .blck_size                = QK8_1,
-        // .type_size                = sizeof(block_q8_1),
-        // .is_quantized             = true,
-        // .from_float               = quantize_row_q8_1,
-        // .from_float_reference     = (ggml_from_float_t) quantize_row_q8_1_reference,
-        // .vec_dot_type             = GGML_TYPE_Q8_1,
-    },
-    [GGML_TYPE_Q2_K] = {
-        .type_name = "q2_K",
-        .is_available = false,
+//     // .blck_size                = QK8_1,
+//     // .type_size                = sizeof(block_q8_1),
+//     // .is_quantized             = true,
+//     // .from_float               = quantize_row_q8_1,
+//     // .from_float_reference     = (ggml_from_float_t) quantize_row_q8_1_reference,
+//     // .vec_dot_type             = GGML_TYPE_Q8_1,
+// },
+// [GGML_TYPE_Q2_K] = {
+//     .type_name = "q2_K",
+//     .is_available = false,
 
-        // .blck_size                = QK_K,
-        // .type_size                = sizeof(block_q2_K),
-        // .is_quantized             = true,
-        // .to_float                 = (ggml_to_float_t) dequantize_row_q2_K,
-        // .from_float               = quantize_row_q2_K,
-        // .from_float_reference     = (ggml_from_float_t) quantize_row_q2_K_reference,
-        // .vec_dot                  = ggml_vec_dot_q2_K_q8_K,
-        // .vec_dot_type             = GGML_TYPE_Q8_K,
-    },
-    [GGML_TYPE_Q3_K] = {
-        .type_name = "q3_K",
-        .is_available = false,
+//     // .blck_size                = QK_K,
+//     // .type_size                = sizeof(block_q2_K),
+//     // .is_quantized             = true,
+//     // .to_float                 = (ggml_to_float_t) dequantize_row_q2_K,
+//     // .from_float               = quantize_row_q2_K,
+//     // .from_float_reference     = (ggml_from_float_t) quantize_row_q2_K_reference,
+//     // .vec_dot                  = ggml_vec_dot_q2_K_q8_K,
+//     // .vec_dot_type             = GGML_TYPE_Q8_K,
+// },
+// [GGML_TYPE_Q3_K] = {
+//     .type_name = "q3_K",
+//     .is_available = false,
 
-        // .blck_size                = QK_K,
-        // .type_size                = sizeof(block_q3_K),
-        // .is_quantized             = true,
-        // .to_float                 = (ggml_to_float_t) dequantize_row_q3_K,
-        // .from_float               = quantize_row_q3_K,
-        // .from_float_reference     = (ggml_from_float_t) quantize_row_q3_K_reference,
-        // .vec_dot                  = ggml_vec_dot_q3_K_q8_K,
-        // .vec_dot_type             = GGML_TYPE_Q8_K,
-    },
-    [GGML_TYPE_Q4_K] = {
-        .type_name = "q4_K",
-        .blck_size = QK_K,
-        .type_size = sizeof(block_q4_K),
-        .is_quantized = true,
-        // .to_float                 = (ggml_to_float_t) dequantize_row_q4_K,
-        // .from_float               = quantize_row_q4_K,
-        // .from_float_reference     = (ggml_from_float_t) quantize_row_q4_K_reference,
-        // .vec_dot                  = ggml_vec_dot_q4_K_q8_K,
-        // .vec_dot_type             = GGML_TYPE_Q8_K,
-    },
-    [GGML_TYPE_Q5_K] = {
-        .type_name = "q5_K",
-        .is_available = false,
+//     // .blck_size                = QK_K,
+//     // .type_size                = sizeof(block_q3_K),
+//     // .is_quantized             = true,
+//     // .to_float                 = (ggml_to_float_t) dequantize_row_q3_K,
+//     // .from_float               = quantize_row_q3_K,
+//     // .from_float_reference     = (ggml_from_float_t) quantize_row_q3_K_reference,
+//     // .vec_dot                  = ggml_vec_dot_q3_K_q8_K,
+//     // .vec_dot_type             = GGML_TYPE_Q8_K,
+// },
+// [GGML_TYPE_Q4_K] = {
+//     .type_name = "q4_K",
+//     .blck_size = QK_K,
+//     .type_size = sizeof(block_q4_K),
+//     .is_quantized = true,
+//     // .to_float                 = (ggml_to_float_t) dequantize_row_q4_K,
+//     // .from_float               = quantize_row_q4_K,
+//     // .from_float_reference     = (ggml_from_float_t) quantize_row_q4_K_reference,
+//     // .vec_dot                  = ggml_vec_dot_q4_K_q8_K,
+//     // .vec_dot_type             = GGML_TYPE_Q8_K,
+// },
+// [GGML_TYPE_Q5_K] = {
+//     .type_name = "q5_K",
+//     .is_available = false,
 
-        // .blck_size                = QK_K,
-        // .type_size                = sizeof(block_q5_K),
-        // .is_quantized             = true,
-        // .to_float                 = (ggml_to_float_t) dequantize_row_q5_K,
-        // .from_float               = quantize_row_q5_K,
-        // .from_float_reference     = (ggml_from_float_t) quantize_row_q5_K_reference,
-        // .vec_dot                  = ggml_vec_dot_q5_K_q8_K,
-        // .vec_dot_type             = GGML_TYPE_Q8_K,
-    },
-    [GGML_TYPE_Q6_K] = {
-        .type_name = "q6_K",
-        // .is_available = false,
+//     // .blck_size                = QK_K,
+//     // .type_size                = sizeof(block_q5_K),
+//     // .is_quantized             = true,
+//     // .to_float                 = (ggml_to_float_t) dequantize_row_q5_K,
+//     // .from_float               = quantize_row_q5_K,
+//     // .from_float_reference     = (ggml_from_float_t) quantize_row_q5_K_reference,
+//     // .vec_dot                  = ggml_vec_dot_q5_K_q8_K,
+//     // .vec_dot_type             = GGML_TYPE_Q8_K,
+// },
+// [GGML_TYPE_Q6_K] = {
+//     .type_name = "q6_K",
+//     // .is_available = false,
 
-        .blck_size = QK_K,
-        .type_size = sizeof(block_q6_K),
-        .is_quantized = true,
-        // .to_float                 = (ggml_to_float_t) dequantize_row_q6_K,
-        // .from_float               = quantize_row_q6_K,
-        // .from_float_reference     = (ggml_from_float_t) quantize_row_q6_K_reference,
-        // .vec_dot                  = ggml_vec_dot_q6_K_q8_K,
-        // .vec_dot_type             = GGML_TYPE_Q8_K,
-    },
-    [GGML_TYPE_Q8_K] = {
-        .type_name = "q8_K",
-        .blck_size = QK_K,
-        .type_size = sizeof(block_q8_K),
-        .is_quantized = true,
-        // .from_float               = quantize_row_q8_K,
-    }};
+//     .blck_size = QK_K,
+//     .type_size = sizeof(block_q6_K),
+//     .is_quantized = true,
+//     // .to_float                 = (ggml_to_float_t) dequantize_row_q6_K,
+//     // .from_float               = quantize_row_q6_K,
+//     // .from_float_reference     = (ggml_from_float_t) quantize_row_q6_K_reference,
+//     // .vec_dot                  = ggml_vec_dot_q6_K_q8_K,
+//     // .vec_dot_type             = GGML_TYPE_Q8_K,
+// },
+// [GGML_TYPE_Q8_K] = {
+//     .type_name = "q8_K",
+//     .blck_size = QK_K,
+//     .type_size = sizeof(block_q8_K),
+//     .is_quantized = true,
+//     // .from_float               = quantize_row_q8_K,
+// }};
+
 static const char *GGUF_TYPE_NAME[GGUF_TYPE_COUNT] = {
     [GGUF_TYPE_UINT8] = "u8",
     [GGUF_TYPE_INT8] = "i8",
