@@ -56,7 +56,7 @@ ErrorCode CPUKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 
             for (int b = 0; b < cache_.batch(); ++b) {
                 for (int h = 0; h < cache_.head(); ++h) {
-#pragma omp parallel for num_threads(4)
+                    #pragma omp parallel for num_threads(4)
                     for (int s = 0; s < c_sen; ++s) {
                         float *dest_ptr = outputs[0]->ptrAt<float>(b, h, s, 0);
                         if (s < a_sen) {
@@ -72,7 +72,7 @@ ErrorCode CPUKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
         } else {
             for (int b = 0; b < cache_.batch(); ++b) {
                 for (int h = 0; h < cache_.head(); ++h) {
-#pragma omp parallel for num_threads(4)
+                    #pragma omp parallel for num_threads(4)
                     for (int s = 0; s < outputs[0]->sequence(); ++s) {
                         float *output_ptr = outputs[0]->ptrAt<float>({b, h, s, 0});
                         if (cache_.dimension() > 0) {

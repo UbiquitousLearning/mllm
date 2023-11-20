@@ -359,6 +359,9 @@ public:
     int dtypeSize() const {
         return DataTypeSize(dtype_, 1);
     }
+    int dtypeSize(int size) {
+        return DataTypeSize(dtype_, size);
+    }
 //
 //    void setByteWidth(int bw) {
 //        byte_width_ = bw;

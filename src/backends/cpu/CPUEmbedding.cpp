@@ -1,5 +1,7 @@
 #include "CPUEmbedding.hpp"
 #include "ParamLoader.hpp"
+#include "quantize/QuantizeQ4.hpp"
+#include "quantize/QuantizeQ8.hpp"
 
 namespace mllm {
 CPUEmbedding::CPUEmbedding(Backend *bn,  string opName, int hiddenSize, int vocabSize) :
@@ -35,15 +37,76 @@ ErrorCode CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     CHECK_EQ(outputs.size(), 1);
     auto &input = inputs[0];
     auto &output = outputs[0];
-    for (int batch = 0; batch < input->batch(); ++batch) {
-        for (int head = 0; head < input->head(); ++head) {
-            #pragma omp parallel for num_threads(4)
-            for (int seq = 0; seq < input->sequence(); ++seq) {
-                memcpy(output->hostPtr<float>() + output->offset(batch, head, seq, 0),
-                       weight_.hostPtr<float>() + weight_.offset(0, 0, (int)input->dataAt<float>(batch, head, seq, 0), 0),
-                       weight_.dtypeSize() * hiddenSize_);
+    switch (weight_.dtype()) {
+    case MLLM_TYPE_F32: {
+        for (int batch = 0; batch < input->batch(); ++batch) {
+            for (int head = 0; head < input->head(); ++head) { // NOLINT(*-use-default-none)
+                #pragma omp parallel for num_threads(4)
+                for (int seq = 0; seq < input->sequence(); ++seq) {
+                    memcpy(output->hostPtr<float>() + output->offset(batch, head, seq, 0),
+                           weight_.hostPtr<float>() + weight_.offset(0, 0, (int)input->dataAt<float>(batch, head, seq, 0), 0),
+                           weight_.dtypeSize() * hiddenSize_);
+                }
             }
         }
+        break;
+    }
+    case MLLM_TYPE_Q4_0: {
+        for (int batch = 0; batch < input->batch(); ++batch) {
+            for (int head = 0; head < input->head(); ++head) {
+            #pragma omp parallel for num_threads(4)
+                for (int seq = 0; seq < input->sequence(); ++seq) {
+                    dequantize_row_q4_0(weight_.hostPtr<block_q4_0>() + weight_.offset(0, 0, (int)input->dataAt<float>(batch, head, seq, 0), 0)/(QK4_0),
+                                        output->hostPtr<float>() + output->offset(batch, head, seq, 0),
+                                        weight_.dtypeSize(hiddenSize_));
+                }
+            }
+        }
+    }
+    case MLLM_TYPE_Q4_K: {
+        for (int batch = 0; batch < input->batch(); ++batch) {
+            for (int head = 0; head < input->head(); ++head) {
+                #pragma omp parallel for num_threads(4)
+                for (int seq = 0; seq < input->sequence(); ++seq) {
+                    dequantize_row_q4_K(weight_.hostPtr<block_q4_K>() + weight_.offset(0, 0, (int)input->dataAt<float>(batch, head, seq, 0), 0)/(QK_K),
+                                        output->hostPtr<float>() + output->offset(batch, head, seq, 0),
+                                        weight_.dtypeSize(hiddenSize_));
+                }
+            }
+        }
+    }
+    case MLLM_TYPE_Q8_0: {
+        for (int batch = 0; batch < input->batch(); ++batch) {
+            for (int head = 0; head < input->head(); ++head) {
+                #pragma omp parallel for num_threads(4)
+                for (int seq = 0; seq < input->sequence(); ++seq) {
+                    dequantize_row_q8_0(weight_.hostPtr<block_q8_0>() + weight_.offset(0, 0, (int)input->dataAt<float>(batch, head, seq, 0), 0)/(QK8_0),
+                                        output->hostPtr<float>() + output->offset(batch, head, seq, 0),
+                                        weight_.dtypeSize(hiddenSize_));
+                }
+            }
+        }
+    }
+    case MLLM_TYPE_Q8_K: {
+        for (int batch = 0; batch < input->batch(); ++batch) {
+            for (int head = 0; head < input->head(); ++head) {
+                #pragma omp parallel for num_threads(4)
+                for (int seq = 0; seq < input->sequence(); ++seq) {
+                    dequantize_row_q8_K(weight_.hostPtr<block_q8_K>() + weight_.offset(0, 0, (int)input->dataAt<float>(batch, head, seq, 0), 0)/(QK_K),
+                                        output->hostPtr<float>() + output->offset(batch, head, seq, 0),
+                                        weight_.dtypeSize(hiddenSize_));
+                }
+            }
+        }
+    }
+    case MLLM_TYPE_F16: break;
+    case MLLM_TYPE_Q4_1: break;
+    case MLLM_TYPE_Q8_1: break;
+    case MLLM_TYPE_Q6_K: break;
+    case MLLM_TYPE_I8: break;
+    case MLLM_TYPE_I16: break;
+    case MLLM_TYPE_I32: break;
+    case MLLM_TYPE_COUNT: break;
     }
     //    output->printData<float>();
     return NO_ERROR;
@@ -53,3 +116,4 @@ ErrorCode CPUEmbedding::free(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     return Op::free(inputs, outputs);
 }
 } // namespace mllm
+#pragma clang diagnostic pop

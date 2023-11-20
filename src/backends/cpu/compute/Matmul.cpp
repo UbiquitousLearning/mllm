@@ -211,3 +211,57 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     }
     return NO_ERROR;
 }
+
+
+ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1) {
+
+    //    uint64_t t_start = mllm_time_us();
+    //This is used for test : quantize Q4 here.
+    /*
+    Tensor src1_q4(src1->shape());
+    src1_q4.setBackend(src1->backend());
+    src1_q4.setDtype(MLLM_TYPE_Q4_K);
+    src1_q4.alloc();
+    quantize_row_q4_K(src1->hostPtr<float>(), src1_q4.hostPtr<block_q4_K>(), src1->count());
+    src1 = &src1_q4;
+    */
+    assert(src1->dtype() == MLLM_TYPE_Q4_K);
+
+    assert (src0_->dtype() == MLLM_TYPE_F32);
+    Tensor src0_q8(src0_->shape());
+    src0_q8.setBackend(src0_->backend());
+    src0_q8.setDtype(MLLM_TYPE_Q8_K);
+    src0_q8.alloc();
+    //    quantize_row_q8_K(src0_->hostPtr<float>(), src0_q8.hostPtr<block_q8_K>(), src0_->count());
+    for (int b = 0; b < src0_->batch(); b++) {
+        for (int h = 0; h < src0_->head(); h++) {
+#pragma omp parallel for num_threads(4)
+            for (int s = 0; s < src0_->sequence(); s++) {
+                quantize_row_q8_K(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
+                                  src0_q8.hostPtr<block_q8_K>() + src0_q8.offset(b, h, s, 0) / QK_K,
+                                  src0_->dimension());
+            }
+        }
+    }
+    auto *src0 = &src0_q8;
+    assert(src0->dtype() == MLLM_TYPE_Q8_K);
+    int M = src0->sequence();
+    int K = src0->dimension();
+    int N = src1->sequence();
+    Tensor *src0_cal = src0;
+    Tensor *src1_cal = src1;
+    for (int b = 0; b < src0->batch(); b++) {
+        for (int h = 0; h < src0->head(); h++) {
+#pragma omp parallel for num_threads(4)
+            for (int n = 0; n < N; n++) {
+                for (int m = 0; m < M; m++) {
+                    vec_dot_q6_K_q8_K(src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0)/QK_K,
+                                      src1_cal->hostPtr<block_q6_K>() + src1_cal->offset(b, h, n, 0)/QK_K,
+                                      dst, support_bias, bias, K, b, h, m, n);
+                }
+            }
+        }
+    }
+    return NO_ERROR;
+}
+

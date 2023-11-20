@@ -108,6 +108,7 @@ typedef struct {
     mllm_fp16_t d;            // super-block scale
 } block_q6_K;
 #pragma pack()
+static_assert(sizeof(block_q6_K) == sizeof(mllm_fp16_t) + QK_K / 16 + 3*QK_K/4, "wrong q6_K block size/padding");
 
 #define QK8_0 32
 #pragma pack(1)
@@ -178,6 +179,8 @@ static float DataTypeSize(DataType dtype, int count=1) {
         return (sizeof(block_q4_0))*count / (QK4_0);
     case MLLM_TYPE_Q4_K:
         return (sizeof(block_q4_K))*count / (QK_K);
+    case MLLM_TYPE_Q6_K:
+        return (sizeof(block_q6_K))*count / (QK_K);
     case MLLM_TYPE_Q8_0:
         return (sizeof(block_q8_0))*count / (QK8_0);
     case MLLM_TYPE_Q8_K:
