@@ -225,7 +225,7 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     quantize_row_q4_K(src1->hostPtr<float>(), src1_q4.hostPtr<block_q4_K>(), src1->count());
     src1 = &src1_q4;
     */
-    assert(src1->dtype() == MLLM_TYPE_Q4_K);
+    assert(src1->dtype() == MLLM_TYPE_Q6_K);
 
     assert (src0_->dtype() == MLLM_TYPE_F32);
     Tensor src0_q8(src0_->shape());

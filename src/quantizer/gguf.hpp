@@ -439,24 +439,28 @@ static gguf_kv *get_kv(std::string key, std::unordered_map<std::string, gguf_kv>
 // blk.{bid}.ffn_down => layers.{bid}.feed_forward.w2
 // blk.{bid}.ffn_up => layers.{bid}.feed_forward.w3
 const std::map<std::string, std::string> replace_map = {
-    {"blk.(\\d+).attn_output", "layers.$1.attention.wo"},
-    {"blk.(\\d+).attn_rot_embd", "layers.$1.attention.inner_attention.rope.freqs"},
-    {"blk.(\\d+).ffn_norm", "layers.$1.ffn_norm"},
-    {"blk.(\\d+).ffn_gate", "layers.$1.feed_forward.w1"},
-    {"blk.(\\d+).ffn_down", "layers.$1.feed_forward.w2"},
-    {"blk.(\\d+).ffn_up", "layers.$1.feed_forward.w3"}};
+    {"blk.(\\d+).attn_norm", "layers.$1.attention_norm.weight"},
+    {"blk.(\\d+).attn_q", "layers.$1.attention.wq.weight"},
+    {"blk.(\\d+).attn_k", "layers.$1.attention.wk.weight"},
+    {"blk.(\\d+).attn_v", "layers.$1.attention.wv.weight"},
+    {"blk.(\\d+).attn_output", "layers.$1.attention.wo.weight"},
+    {"blk.(\\d+).attn_rot_embd", "layers.$1.attention.inner_attention.rope.freqs.weight"},
+    {"blk.(\\d+).ffn_norm", "layers.$1.ffn_norm.weight"},
+    {"blk.(\\d+).ffn_gate", "layers.$1.feed_forward.w1.weight"},
+    {"blk.(\\d+).ffn_down", "layers.$1.feed_forward.w2.weight"},
+    {"blk.(\\d+).ffn_up", "layers.$1.feed_forward.w3.weight"}};
 static string convert_tensor_models(string name) {
-    if (name == "token_embd") {
-        return "tok_embeddings";
+    if (name == "token_embd.weight") {
+        return "tok_embeddings.weight";
     }
-    if (name == "output_norm") {
-        return "norm";
+    if (name == "output_norm.weight") {
+        return "norm.weight";
     }
-    if (name == "output") {
-        return "output";
+    if (name == "output.weight") {
+        return "output.weight";
     }
-    if (name == "rope_freqs") {
-        return "language_model.encoder.layers.{bid}.self_attention.rotary_emb.inv_freq";
+    if (name == "rope_freqs.weight") {
+        return "language_model.encoder.layers.{bid}.self_attention.rotary_emb.inv_freq.weight";
     }
     // name start with blk
     if (name.rfind("blk.", 0) == 0) {
