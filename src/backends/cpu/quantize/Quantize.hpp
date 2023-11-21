@@ -24,11 +24,9 @@
 // 16-bit float
 // on Arm, we use __fp16
 // on x86, we use uint16_t
-#define mllm_fp16_t uint16_t
 
 #if defined(__ARM_NEON) && !defined(_MSC_VER)
 #include <arm_neon.h>
-//#define mllm_fp16_t __fp16
 #define MLLM_COMPUTE_FP16_TO_FP32(x) ((float)(x))
 #define MLLM_COMPUTE_FP32_TO_FP16(x) (x)
 
