@@ -50,9 +50,7 @@ enum DataType {
     MLLM_TYPE_I32,
     MLLM_TYPE_COUNT,
 };
-#if defined(__ARM_NEON) && defined(__CUDACC__)
-typedef half mllm_fp16_t;
-#elif defined(__ARM_NEON) && !defined(_MSC_VER)
+#if defined(__ARM_NEON) && !defined(_MSC_VER)
 typedef __fp16 mllm_fp16_t;
 #else
 typedef uint16_t mllm_fp16_t;

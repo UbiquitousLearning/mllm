@@ -20,7 +20,6 @@ ErrorCode CPUCausalMask::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 }
 
 ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout << "CPUMask()" << std::endl;
     if(inputs[0]->sequence() >1 ) {
         int batch_size = inputs[0]->batch();
         int head_num = inputs[0]->head();
@@ -31,11 +30,12 @@ ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<share
                 for (int s = 0; s < sequence; ++s) {
                     #pragma omp parallel for num_threads(4)
                     for (int d = 0; d < dimension; ++d) {
-                        double inf = 0;
                         if (d > s) {
-                            inf = -std::numeric_limits<double>::infinity();
+                            outputs[0]->setDataAt<float>({n, h, s, d}, -INFINITY);
                         }
-                        outputs[0]->setDataAt<float>({n, h, s, d}, inputs[0]->dataAt<float>({n, h, s, d}) + inf);
+                        else{
+                            outputs[0]->setDataAt<float>({n, h, s, d}, inputs[0]->dataAt<float>({n, h, s, d}));
+                        }
                     }
                 }
             }

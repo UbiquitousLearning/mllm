@@ -10,12 +10,13 @@ namespace mllm {
 class CPUBackend final : public Backend {
 public:
     CPUBackend(shared_ptr<MemoryManager> &mm);
-    ~CPUBackend(){
-        // free creaters in map_creator_
-        for (auto &iter : map_creator_) {
-            delete iter.second;
-        }
-    }
+    ~CPUBackend() = default;
+//    {
+//        // free creaters in map_creator_
+//        for (auto &iter : map_creator_) {
+//            delete iter.second;
+//        }
+//    }
 
     class Creator {
     public:

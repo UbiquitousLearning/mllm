@@ -159,7 +159,8 @@ int main() {
     //    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");
     //    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
     //    ParamLoader param_loader("../models/llama-2-7b-q4_k-64.mllm");
-    ParamLoader param_loader("../models/llama-2-7b-q4_k.mllm");
+//    ParamLoader param_loader("../models/llama-2-7b-q4_k.mllm");
+    ParamLoader param_loader("../models/llama-2-7b-q4_k-gguf.mllm");
     Executor ex(&param_loader);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
     token2Tensor(input, net, tokens_id);

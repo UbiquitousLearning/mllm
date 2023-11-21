@@ -28,7 +28,7 @@
 
 #if defined(__ARM_NEON) && !defined(_MSC_VER)
 #include <arm_neon.h>
-#define mllm_fp16_t __fp16
+//#define mllm_fp16_t __fp16
 #define MLLM_COMPUTE_FP16_TO_FP32(x) ((float)(x))
 #define MLLM_COMPUTE_FP32_TO_FP16(x) (x)
 
@@ -38,10 +38,6 @@
 #elif defined _MSC_VER
 #define MLLM_COMPUTE_FP16_TO_FP32(x) _mm_cvtss_f32(_mm_cvtph_ps(_mm_cvtsi32_si128(x)))
 #define MLLM_COMPUTE_FP32_TO_FP16(x) _mm_extract_epi16(_mm_cvtps_ph(_mm_set_ss(x), 0), 0)
-#else
-#define MLLM_COMPUTE_FP16_TO_FP32(x) _cvtsh_ss(x)
-#define MLLM_COMPUTE_FP32_TO_FP16(x) _cvtss_sh(x, 0)
-#endif
 
 static float table_f32_f16[1 << 16];
 static bool table_f32_f16_init = false;
@@ -63,6 +59,37 @@ inline static float lookup_fp16_to_fp32(uint16_t f) {
 
 #define MLLM_FP16_TO_FP32(x) lookup_fp16_to_fp32(x)
 #define MLLM_FP32_TO_FP16(x) MLLM_COMPUTE_FP32_TO_FP16(x)
+
+#else
+#define MLLM_COMPUTE_FP16_TO_FP32(x) _cvtsh_ss(x)
+#define MLLM_COMPUTE_FP32_TO_FP16(x) _cvtss_sh(x, 0)
+
+static float table_f32_f16[1 << 16];
+static bool table_f32_f16_init = false;
+
+inline static float lookup_fp16_to_fp32(uint16_t f) {
+    if (!table_f32_f16_init) {
+        uint16_t ii;
+        for (int i = 0; i < (1 << 16); ++i) {
+            uint16_t ui = i;
+            memcpy(&ii, &ui, sizeof(ii));
+            table_f32_f16[i] = MLLM_COMPUTE_FP16_TO_FP32(ii);
+        }
+        table_f32_f16_init = true;
+    }
+    uint16_t s;
+    memcpy(&s, &f, sizeof(uint16_t));
+    return table_f32_f16[s];
+}
+
+#define MLLM_FP16_TO_FP32(x) lookup_fp16_to_fp32(x)
+#define MLLM_FP32_TO_FP16(x) MLLM_COMPUTE_FP32_TO_FP16(x)
+#endif
+
+
+
+
+
 
 #if __AVX__ || __AVX2__ || defined(__AVX512F__)
 static inline __m256i get_scale_shuffle_k4(int i) {
@@ -102,6 +129,10 @@ static inline int nearest_int(float fval) {
 
 inline mllm_fp16_t mllm_fp32_to_fp16(float x) {
     return MLLM_FP32_TO_FP16(x);
+}
+
+inline float mllm_fp16_to_fp32(mllm_fp16_t x) {
+    return (float) MLLM_FP16_TO_FP32(x);
 }
 
 inline void mllm_fp16_to_fp32_row(const mllm_fp16_t *x, float *y, int n) {
