@@ -52,7 +52,7 @@ ErrorCode CPULinear::load(AbstructLoader &loader) {
 }
 
 ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout << name() << "  CPULinear()" << std::endl;
+    // std::cout << name() << "  CPULinear()" << std::endl;
     switch (weight_.dtype()) {
     case MLLM_TYPE_F32: {
         mat_mul_fp32(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true);
