@@ -23,6 +23,9 @@ enum OpType {
     MUL,
     VIEW,
     KVCACHE,
+    RELU,
+    RELU2,
+    LAYERNORM,
     OP_NUM
 };
 
@@ -42,6 +45,9 @@ static const vector<string> OpNames = {
     "Mul",
     "VIEW",
     "KVCACHE",
+    "ReLU",
+    "ReLUSquaredActivation",
+    "LayerNorm",
     "OP_NUM"};
 } // namespace mllm
 #endif

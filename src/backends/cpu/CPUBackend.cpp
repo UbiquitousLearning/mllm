@@ -13,6 +13,7 @@
 #include "CPUEmbedding.hpp"
 #include "CPUMul.hpp"
 #include "CPUKVCache.hpp"
+#include "CPUReLU.hpp"
 #include <math.h>
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
@@ -72,6 +73,8 @@ void CPUBackend::registerOps() {
     addCreator(MUL, (CPUBackend::Creator *)(new CPUMulCreator()));
     addCreator(VIEW, (CPUBackend::Creator *)(new CPUViewCreator()));
     addCreator(KVCACHE, (CPUBackend::Creator *)(new CPUKVCacheCreator()));
+    addCreator(RELU, (CPUBackend::Creator *)(new CPUReLUCreator()));
+    addCreator(RELU2, (CPUBackend::Creator *)(new CPUReLUCreator()));
 }
 
 } // namespace mllm
