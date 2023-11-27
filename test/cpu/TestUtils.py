@@ -3,12 +3,22 @@ import struct
 from typing import BinaryIO
 
 import torch
-
+import platform
 
 def change_dir():
+
     dir_name = os.path.basename(os.getcwd())
-    if dir_name != "bin":
-        os.chdir("../../bin")
+    arch = platform.machine()
+    # Check if running on ARM or X86
+    if arch == 'aarch64' or 'arm' in arch:
+        if dir_name != 'bin-arm':
+            os.chdir('../bin-arm')
+    else:
+        if dir_name != 'bin':
+            os.chdir('../bin')
+
+
+
 
 
 class TestIO:

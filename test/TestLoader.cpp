@@ -201,6 +201,7 @@ string DimDesc(vector<int> dim) {
 TestIO::TestIO(string filename, bool read_mode) :
     read_mode_(read_mode) {
     filename = "test_" + filename + ".mllm";
+
     if (read_mode) {
         fp_ = fopen(filename.c_str(), "rb");
     } else {
