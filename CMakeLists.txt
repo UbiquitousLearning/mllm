@@ -74,6 +74,7 @@ if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$")
     add_compile_options(-mavx2)
 elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
     message(STATUS "ARM detected")
+    add_definitions(-DARM)
 endif()
 
 if(QUANT)
