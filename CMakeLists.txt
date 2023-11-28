@@ -151,6 +151,11 @@ if(TEST)
         ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp
         ${DIR_SRC_MEM_MANAGER} ${PROJECT_SOURCE_DIR}/src/MemoryManager.hpp
     )
+    add_executable(
+            SystemMemoryTest
+            ${PROJECT_SOURCE_DIR}/test/TestSystemMemoryManager.cpp
+            ${DIR_SRC_MEM_MANAGER} ${PROJECT_SOURCE_DIR}/src/MemoryManager.hpp
+    )
     include(GoogleTest)
 
     # if not cross-compiling

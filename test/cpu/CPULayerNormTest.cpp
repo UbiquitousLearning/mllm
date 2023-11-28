@@ -18,5 +18,5 @@ TEST_F(CPUTest, CPULayerNorm1) {
     TEST_WEIGHTS_LOAD(loader);
     //    op->weight().printData<float>();
     TEST_EXCUTE({input0}, {c_output});
-    COMPARE_TENSOR(c_output.get(), output.get(), true);
+    COMPARE_TENSOR(c_output.get(), output.get(), false);
 }
