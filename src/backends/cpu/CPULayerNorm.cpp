@@ -5,7 +5,7 @@
 #include "CPULayerNorm.hpp"
 
 namespace mllm {
-CPULayerNorm::CPULayerNorm(Backend *bn, string opName, bool multiThread, float epsilon, bool bias) :
+CPULayerNorm::CPULayerNorm(Backend *bn, string opName, bool multiThread,bool bias, float epsilon ) :
     support_multi_thread_(multiThread), Op(bn, std::move(opName)), epsilon_(epsilon),bias(bias) {
     weight_.setBackend(bn);
     if (bias) {
