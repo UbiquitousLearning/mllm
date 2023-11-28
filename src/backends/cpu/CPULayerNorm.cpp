@@ -5,8 +5,13 @@
 #include "CPULayerNorm.hpp"
 
 namespace mllm {
-CPULayerNorm::CPULayerNorm(Backend *bn, string opName, bool multiThread, float epsilon) :
-    support_multi_thread_(multiThread), Op(bn, std::move(opName)), epsilon_(epsilon) {
+CPULayerNorm::CPULayerNorm(Backend *bn, string opName, bool multiThread,bool bias, float epsilon ) :
+    support_multi_thread_(multiThread), Op(bn, std::move(opName)), epsilon_(epsilon),bias(bias) {
+    weight_.setBackend(bn);
+    if (bias) {
+        bias_.setBackend(bn);
+    }
+
 }
 ErrorCode CPULayerNorm::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
@@ -14,11 +19,14 @@ ErrorCode CPULayerNorm::load(AbstructLoader &loader) {
     weight_.setDtype(loader.getDataType(weight_.name()));
     weight_.alloc();
     loader.load(&weight_);
-    bias_.setName(name() + ".bias");
-    bias_.reshape(1, 1, 1, normSize_); //
-    bias_.setDtype(loader.getDataType(bias_.name()));
-    bias_.alloc();
-    loader.load(&bias_);
+    if (bias) {
+        bias_.setName(name() + ".bias");
+        bias_.reshape(1, 1, 1, normSize_); //
+        bias_.setDtype(loader.getDataType(bias_.name()));
+        bias_.alloc();
+        loader.load(&bias_);
+    }
+
     return Op::load(loader);
 }
 ErrorCode CPULayerNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
