@@ -171,13 +171,14 @@ public:
         CHECK_GE(dimension(), 0);
         CHECK_LE(d, dimension());
         if (shape_offset_.size() == 4 & shape_base_.size() == 4) {
+            const int base_batch_ = shape_base_[0];
             const int base_head_ = shape_base_[1];
             const int base_sequence_ = shape_base_[2];
             const int base_dimension_ = shape_base_[3];
-            const int b_ = b + shape_offset_[0];
-            const int h_ = h + shape_offset_[1];
-            const int s_ = s + shape_offset_[2];
-            const int d_ = d + shape_offset_[3];
+            const int b_ = (b + shape_offset_[0])%base_batch_;
+            const int h_ = (h + shape_offset_[1])%base_head_;
+            const int s_ = (s + shape_offset_[2])%base_sequence_;
+            const int d_ = (d + shape_offset_[3])%base_dimension_;
             return ((b_ * base_head_ + h_) * base_sequence_ + s_) * base_dimension_ + d_;
         } else {
             return ((b * head() + h) * sequence() + s) * dimension() + d;

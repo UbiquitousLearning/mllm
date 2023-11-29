@@ -21,8 +21,10 @@ public:
 private:
     bool support_multi_thread_ = false;
     Tensor cache_;
-    vector<int> cache_shape_;
+    int cache_seq_len_= -INFINITY;
     bool isK_;
+
+    int cache_limit_ ;
 };
 
 class CPUKVCacheCreator : public CPUBackend::Creator {
