@@ -55,6 +55,10 @@ bool Tensor::reshape(const vector<int> &shape) {
 }
 
 void Tensor::alloc() {
+    assert(backend_ != nullptr);
+    if(!shape_offset_.empty() & !shape_base_.empty()) {
+        return;
+    }
     if (allocated_ != count_) {
         // 如果原有内存已经分配，则释放它
         if (host_ptr_ != nullptr) {

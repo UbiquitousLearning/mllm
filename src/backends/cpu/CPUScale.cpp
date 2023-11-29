@@ -47,4 +47,14 @@ ErrorCode CPUScale::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     return Op::execute(inputs, outputs);
 }
 
+ErrorCode CPUScale::  setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    CHECK_EQ(inputs.size(), 1);
+    CHECK_EQ(outputs.size(), 1);
+    outputs[0]->deepCopyFrom(inputs[0]);
+#ifdef DEBUG
+    std::cout << "*"<<name_<<" setUp*" << std::endl;
+#endif
+    return NO_ERROR;
+}
+
 } // namespace mllm

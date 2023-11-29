@@ -10,6 +10,8 @@
 #include <cmath>
 #include "Timing.hpp"
 
+#include <assert.h>
+
 const auto KMaxAxes = 32;
 
 namespace mllm {
@@ -59,7 +61,7 @@ public:
         if (host_ptr_ != nullptr) {
             backend_->free(host_ptr_);
             host_ptr_ = nullptr;
-//            allocated_ = false;
+            allocated_ = 0;
         }
     }
 
@@ -157,32 +159,47 @@ public:
     //        CHECK_LE(w, width());
     //        return ((n * channels() + c) * height() + h) * width() + w;
     //    }
-    inline int offset(const int batch, const int head = 0, const int sequence = 0,
-                      const int dimension = 0) const {
+    inline int offset(const int b, const int h = 0, const int s = 0,
+                      const int d = 0) const {
         // batch, head, sequence, dimension
-        CHECK_GE(batch, 0);
-        CHECK_LE(batch, num());
-        CHECK_GE(channels(), 0);
-        CHECK_LE(head, channels());
-        CHECK_GE(height(), 0);
-        CHECK_LE(sequence, height());
-        CHECK_GE(width(), 0);
-        CHECK_LE(dimension, width());
-        return ((batch * channels() + head) * height() + sequence) * width() + dimension;
+        CHECK_GE(b, 0);
+        CHECK_LE(b, batch());
+        CHECK_GE(head(), 0);
+        CHECK_LE(h, head());
+        CHECK_GE(sequence(), 0);
+        CHECK_LE(s, sequence());
+        CHECK_GE(dimension(), 0);
+        CHECK_LE(d, dimension());
+        if (shape_offset_.size() == 4 & shape_base_.size() == 4) {
+            const int base_head_ = shape_base_[1];
+            const int base_sequence_ = shape_base_[2];
+            const int base_dimension_ = shape_base_[3];
+            const int b_ = b + shape_offset_[0];
+            const int h_ = h + shape_offset_[1];
+            const int s_ = s + shape_offset_[2];
+            const int d_ = d + shape_offset_[3];
+            return ((b_ * base_head_ + h_) * base_sequence_ + s_) * base_dimension_ + d_;
+        } else {
+            return ((b * head() + h) * sequence() + s) * dimension() + d;
+        }
     }
 
     inline int offset(const vector<int> &indices) const {
-        CHECK_LE(indices.size(), numAxes());
-        int offset = 0;
-        for (int i = 0; i < numAxes(); ++i) {
-            offset *= shape(i);
-            if (indices.size() > i) {
-                CHECK_GE(indices[i], 0);
-                CHECK_LT(indices[i], shape(i));
-                offset += indices[i];
+        if (shape_offset_.size() == 4 & shape_base_.size() == 4) {
+            return offset(indices[0], indices[1], indices[2], indices[3]);
+        } else {
+            CHECK_LE(indices.size(), numAxes());
+            int offset = 0;
+            for (int i = 0; i < numAxes(); ++i) {
+                offset *= shape(i);
+                if (indices.size() > i) {
+                    CHECK_GE(indices[i], 0);
+                    CHECK_LT(indices[i], shape(i));
+                    offset += indices[i];
+                }
             }
+            return offset;
         }
-        return offset;
     }
     /**
      * @brief Copy from a source Tensor.
@@ -195,6 +212,31 @@ public:
     void copyFrom(const Tensor &source, bool copy_diff = false,
                   bool reshape = false);
     void copyFrom(const shared_ptr<Tensor> &source, bool reshape = false);
+
+    void deepCopyFrom(const shared_ptr<Tensor> &source, bool reshape = false) {
+        // deep Copy
+        host_ptr_ = source->hostPtr<void>();
+        capacity_ = source->capacity_;
+        count_ = source->count_;
+        shape_ = source->shape_;
+        allocated_ = source->allocated_;
+        dtype_ = source->dtype_;
+    }
+    /**
+     * \brief this Tensor is a DEEP COPY of source
+     * \param source
+     * \param shape_offset
+     */
+    void deepCopyOffsetFrom(Tensor &source, const vector<int> &shape_offset) {
+        assert(source.allocted());
+        // don't need alloc()
+        shape_offset_ = shape_offset;
+        shape_base_ = source.shape_;
+        // deep Copy
+        host_ptr_ = source.hostPtr<void>();
+        allocated_ = source.allocated_;
+        dtype_ = source.dtype_;
+    }
 
     template <typename Dtype>
     Dtype *hostPtr() const {
@@ -254,6 +296,73 @@ public:
         Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
         typed_ptr[offset(index)] = value;
     }
+
+    DataType dtype() const {
+        return dtype_;
+    }
+
+    int cntSize() {
+        return DataTypeSize(dtype_, count_);
+    }
+
+    int dtypeSize() const {
+        return DataTypeSize(dtype_, 1);
+    }
+    int dtypeSize(int size) {
+        return DataTypeSize(dtype_, size);
+    }
+
+    void setName(string name) {
+        name_ = name;
+    }
+
+    string name() const {
+        return name_;
+    }
+
+    int allocted() const {
+        return allocated_;
+    }
+
+    vector<int> shape_offset() const {
+        return shape_offset_;
+    }
+    vector<int> shape_base() const {
+        return shape_base_;
+    }
+
+    template <typename Dtype>
+    void checkData() {
+        // n c h w
+        int N = num();
+        int C = channels();
+        int H = height();
+        int W = width();
+        bool ck = false;
+        for (int n = 0; n < N; ++n) {
+            for (int c = 0; c < C; ++c) {
+                for (int h = 0; h < H; ++h) {
+                    for (int w = 0; w < W; ++w) {
+                        float value = dataAt<Dtype>(n, c, h, w);
+                        if (std::isnan(value) || std::isnan(-value)) {
+                            // std::cout<<"["<<n<<","<<c<<","<<h<<","<<w<<"] ";//<<std::flush;
+                            ck = true;
+                        }
+                    }
+                }
+            }
+        }
+        if(ck) {
+            std::cout<<"\n[ERROR]:" << name() << ": shape:[" << num() << " " << channels() << " " << height() << " " << width() << "] has Nan" << std::endl;
+            //printData<Dtype>();
+        }
+    }
+
+
+
+
+
+    /*TEST*/
     void printShape(){
         std::cout << name() << ": shape:[" << num() << " " << channels() << " " << height() << " " << width() << "]" << std::endl;
     }
@@ -299,33 +408,6 @@ public:
     }
 
     template <typename Dtype>
-    void checkData() {
-        // n c h w
-        int N = num();
-        int C = channels();
-        int H = height();
-        int W = width();
-        bool ck = false;
-        for (int n = 0; n < N; ++n) {
-            for (int c = 0; c < C; ++c) {
-                for (int h = 0; h < H; ++h) {
-                    for (int w = 0; w < W; ++w) {
-                        float value = dataAt<Dtype>(n, c, h, w);
-                        if (std::isnan(value) || std::isnan(-value)) {
-                            // std::cout<<"["<<n<<","<<c<<","<<h<<","<<w<<"] ";//<<std::flush;
-                            ck = true;
-                        }
-                    }
-                }
-            }
-        }
-        if(ck) {
-            std::cout<<"\n[ERROR]:" << name() << ": shape:[" << num() << " " << channels() << " " << height() << " " << width() << "] has Nan" << std::endl;
-            //printData<Dtype>();
-        }
-    }
-
-    template <typename Dtype>
     void printAVG() {
         float sum = 0;
         // n c h w
@@ -348,37 +430,6 @@ public:
 //        std::cout << name() << ": shape:[" << num() << " " << channels() << " " << height() << " " << width() << "] AVG:" << sum / count() << std::endl;
     }
 
-    DataType dtype() const {
-        return dtype_;
-    }
-
-    int cntSize() {
-        return DataTypeSize(dtype_, count_);
-    }
-
-    int dtypeSize() const {
-        return DataTypeSize(dtype_, 1);
-    }
-    int dtypeSize(int size) {
-        return DataTypeSize(dtype_, size);
-    }
-//
-//    void setByteWidth(int bw) {
-//        byte_width_ = bw;
-//    }
-    // TODO:Name?
-
-    void setName(string name) {
-        name_ = name;
-    }
-
-    string name() const {
-        return name_;
-    }
-
-    int allocted() const {
-        return allocated_;
-    }
     template <class Dtype>
     void fullData(Dtype value) {
         for (int n = 0; n < num(); ++n) {
@@ -412,6 +463,7 @@ public:
 
     void permute(int axis0, int axis1, int axis2, int axis3, bool copy = true);
 
+
 private:
     string name_;
 //    int byte_width_; // 32/16/8/4 //enum
@@ -431,7 +483,11 @@ private:
     int count_;         // 当前元素数
 
     int allocated_ = 0;
-    // bn
+
+
+    // shadow tensor if;
+    vector<int> shape_offset_;
+    vector<int> shape_base_;
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H

@@ -148,6 +148,9 @@ public:
     void setName(string name) {
         name_ = name;
     }
+    DataType activation_dtype() const {
+        return activation_dtype_;
+    }
 
 private:
     Backend *backend_;
