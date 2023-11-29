@@ -50,6 +50,17 @@ enum DataType {
     MLLM_TYPE_I32,
     MLLM_TYPE_COUNT,
 };
+enum ChlType {
+    BHSD = 0,
+    BSHD = 1,
+};
+
+enum Chl {
+    BATCH = 0,
+    HEAD = 1,
+    SEQUENCE = 2,
+    DIMENSION = 3,
+};
 #if defined(__ARM_NEON) && !defined(_MSC_VER)
 typedef __fp16 mllm_fp16_t;
 #else

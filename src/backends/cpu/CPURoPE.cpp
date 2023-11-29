@@ -5,8 +5,8 @@
 namespace mllm {
 
 void sinusoidal_position_embedding(int batch_size, int nums_head, int seq_len, int output_dim, Tensor &sin, Tensor &cos) {
-    sin.reshape({batch_size, nums_head, seq_len, output_dim});
-    cos.reshape({batch_size, nums_head, seq_len, output_dim});
+    sin.reshape(batch_size, nums_head, seq_len, output_dim);
+    cos.reshape(batch_size, nums_head, seq_len, output_dim);
     sin.alloc();
     cos.alloc();
     for (int n = 0; n < batch_size; ++n) {
@@ -28,8 +28,8 @@ void sinusoidal_position_embedding(int batch_size, int nums_head, int seq_len, i
     }
 }
 void sinusoidal_position_embedding_hf(int batch_size, int nums_head, int seq_len, int output_dim, Tensor &sin, Tensor &cos) {
-    sin.reshape({batch_size, nums_head, seq_len, output_dim});
-    cos.reshape({batch_size, nums_head, seq_len, output_dim});
+    sin.reshape(batch_size, nums_head, seq_len, output_dim);
+    cos.reshape(batch_size, nums_head, seq_len, output_dim);
     sin.alloc();
     cos.alloc();
     for (int n = 0; n < batch_size; ++n) {
@@ -66,8 +66,8 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     // std::cout << name() << "  CPURoPE  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
-    outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
-    ishape = inputs[0]->shape(3);
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+    ishape = inputs[0]->dimension();
     // outputs[0]->setDtype(activationDtype());
     pos_max_ = 128;
     return Op::reshape(inputs, outputs);
@@ -79,18 +79,18 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     //     auto cos_ = std::make_shared<Tensor>();
     auto &input = inputs[0];
     auto &output = outputs[0];
-    for (int n = 0; n < input->shape(0); ++n) {
-        for (int c = 0; c < input->shape(1); ++c) {
-            for (int h = 0; h < input->shape(2); ++h) {//sequance
+    for (int n = 0; n < input->batch(); ++n) {
+        for (int c = 0; c < input->head(); ++c) {
+            for (int h = 0; h < input->sequence(); ++h) {//sequance
                 #pragma omp parallel for num_threads(4)
-                for (int w = 0; w < input->shape(3); ++w) {
+                for (int w = 0; w < input->dimension(); ++w) {
                     if (hf_) {
                         float in_value = input->dataAt<float>(n, c, h, w);
                         float in_value_2;
-                        if (w < input->shape(3) / 2) { // 偶數 0,2,4
-                            in_value_2 = -input->dataAt<float>(n, c, h, w + input->shape(3) / 2);
+                        if (w < input->dimension() / 2) { // 偶數 0,2,4
+                            in_value_2 = -input->dataAt<float>(n, c, h, w + input->dimension() / 2);
                         } else {
-                            in_value_2 = input->dataAt<float>(n, c, h, w - input->shape(3) / 2);
+                            in_value_2 = input->dataAt<float>(n, c, h, w - input->dimension() / 2);
                         }
                         float sin_value = sin_.dataAt<float>(0, 0, h+h_cnt_, w);
                         float cos_value = cos_.dataAt<float>(0, 0, h+h_cnt_, w);

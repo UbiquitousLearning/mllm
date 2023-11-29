@@ -14,11 +14,11 @@ ErrorCode CPUAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     //std::cout<<name() << "  CPUAdd  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 2);
     CHECK_EQ(outputs.size(), 1);
-    CHECK_EQ(inputs[0]->shape(0), inputs[1]->shape(0));
-    CHECK_EQ(inputs[0]->shape(1), inputs[1]->shape(1));
-    CHECK_EQ(inputs[0]->shape(2), inputs[1]->shape(2));
-    CHECK_EQ(inputs[0]->shape(3), inputs[1]->shape(3));
-    outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
+    CHECK_EQ(inputs[0]->batch(), inputs[1]->batch());
+    CHECK_EQ(inputs[0]->head(), inputs[1]->head());
+    CHECK_EQ(inputs[0]->sequence(), inputs[1]->sequence());
+    CHECK_EQ(inputs[0]->dimension(), inputs[1]->dimension());
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     //outputs[0]->setDtype(activationDtype());
     return Op::reshape(inputs, outputs);
 }
@@ -26,10 +26,10 @@ ErrorCode CPUAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
 
 ErrorCode CPUAdd::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     //std::cout<<name() << "  CPUAdd()" << std::endl;
-    int N = inputs[0]->shape(0);
-    int C = inputs[0]->shape(1);
-    int H = inputs[0]->shape(2);
-    int W = inputs[0]->shape(3);
+    int N = inputs[0]->batch();
+    int C = inputs[0]->head();
+    int H = inputs[0]->sequence();
+    int W = inputs[0]->dimension();
     for (int n = 0; n < N; ++n) {
         for (int c = 0; c < C; ++c) {
             for (int h = 0; h < H; ++h) {

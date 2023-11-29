@@ -21,11 +21,16 @@ Tensor::Tensor(const vector<int> &shape) :
 //    shape[3] = width;
 //    return reshape(shape);
 //}
-bool Tensor::reshape(const int batch, const int head, const int sequence, const int dimension){
+bool Tensor::reshape(const int batch, const int head, const int sequence, const int dimension) {
     vector<int> shape(4);
     shape[0] = batch;
-    shape[1] = head;
-    shape[2] = sequence;
+    if (ctype_ == BHSD){
+        shape[1] = head;
+        shape[2] = sequence;
+    } else if (ctype_ == BSHD){
+        shape[1] = sequence;
+        shape[2] = head;
+    }
     shape[3] = dimension;
     return reshape(shape);
 }
@@ -56,6 +61,9 @@ bool Tensor::reshape(const vector<int> &shape) {
 
 void Tensor::alloc() {
     assert(backend_ != nullptr);
+    if(masterTensor() != nullptr) {
+        return;
+    }
     if(!shape_offset_.empty() & !shape_base_.empty()) {
         return;
     }
@@ -142,10 +150,10 @@ void Tensor::permute(int axis0, int axis1, int axis2, int axis3, bool copy) {
     vector<float> temp_data(count_);
     if (copy) {
         // 对数据进行重新排列
-        for (int n = 0; n < num(); ++n) {
-            for (int c = 0; c < channels(); ++c) {
-                for (int h = 0; h < height(); ++h) {
-                    for (int w = 0; w < width(); ++w) {
+        for (int n = 0; n < batch(); ++n) {
+            for (int c = 0; c < head(); ++c) {
+                for (int h = 0; h < sequence(); ++h) {
+                    for (int w = 0; w < dimension(); ++w) {
                         int old_idx = offset(n, c, h, w);
                         int new_idx = ((n * new_shape[1] + c) * new_shape[2] + h) * new_shape[3] + w;
                         temp_data[new_idx] = dataAt<float>(n, c, h, w);
@@ -158,10 +166,10 @@ void Tensor::permute(int axis0, int axis1, int axis2, int axis3, bool copy) {
     // 更新形状和数据
     shape_ = new_shape;
     if (copy) {
-        for (int n = 0; n < num(); ++n) {
-            for (int c = 0; c < channels(); ++c) {
-                for (int h = 0; h < height(); ++h) {
-                    for (int w = 0; w < width(); ++w) {
+        for (int n = 0; n < batch(); ++n) {
+            for (int c = 0; c < head(); ++c) {
+                for (int h = 0; h < sequence(); ++h) {
+                    for (int w = 0; w < dimension(); ++w) {
                         int new_idx = ((n * new_shape[1] + c) * new_shape[2] + h) * new_shape[3] + w;
                         setDataAt<float>(n, c, h, w, temp_data[new_idx]);
                     }

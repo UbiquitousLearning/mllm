@@ -15,7 +15,7 @@ CPURMSNorm::CPURMSNorm(Backend *bn, string opName, bool multiThread, float epsil
 ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // RMSNorm 类似于LayerNorm作用于channel维度
     normSize_ = inputs[0]->dimension();
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     // outputs[0]->setDtype(activationDtype());
     // std::cout << name() << "  CPURMSNorm  reshape" << std::endl;
     return Op::reshape(inputs, outputs);

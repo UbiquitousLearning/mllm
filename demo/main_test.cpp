@@ -43,13 +43,13 @@ void display(Context *c) {
 
 void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, float value) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
-    input_tensor->reshape(shape);
+    input_tensor->reshape(shape[0], shape[1], shape[2], shape[3]);
     input_tensor->alloc();
     input_tensor->fullData<float>(value);
 }
 void token2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<token_id_t> tokens) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
-    input_tensor->reshape({1, 1, static_cast<int>(tokens.size()), 1});
+    input_tensor->reshape(1, 1, static_cast<int>(tokens.size()), 1);
     input_tensor->alloc();
     input_tensor->fullData<float>(1);
     for (int idx = 0; idx < tokens.size(); ++idx) {
@@ -71,13 +71,13 @@ unsigned int argmax(const std::vector<float>& scores) {
     return maxIndex;
 }
 unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor>& out_result){
-    CHECK_EQ(result->shape(0), 1);
-    CHECK_EQ(result->shape(1), 1);
-    out_result->reshape({1, 1, 1, 1});
+    CHECK_EQ(result->batch(), 1);
+    CHECK_EQ(result->head(), 1);
+    out_result->reshape(1, 1, 1, 1);
     out_result->alloc();
     vector<float> scores;
-    for (int i = 0; i < result->shape(3); ++i) {
-        auto value = result->dataAt<float>(0, 0, result->shape(2)-1, i);
+    for (int i = 0; i < result->dimension(); ++i) {
+        auto value = result->dataAt<float>(0, 0, result->sequence()-1, i);
         scores.push_back(value);
     }
     auto token_idx =  argmax(scores);
@@ -98,7 +98,7 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
     auto *qk = _Matmul(ctx, {q, k}, false, true, name + ".qk");
     qk = _Scale(ctx, {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
     qk = _Causalmask(ctx, {qk}, name + ".mask");
-    qk = _Softmax(ctx, {qk}, 3, name + ".softmax");
+    qk = _Softmax(ctx, {qk}, SEQUENCE, name + ".softmax");
     auto *o = _Matmul(ctx, {qk, v}, false, false, name + ".qkv");
     o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1+3}, name + ".qkv_view");
     o = _Linear(ctx, {o}, hidden_size * head_size, embedding_size, false, name + ".wo");

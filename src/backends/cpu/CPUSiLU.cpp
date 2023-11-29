@@ -12,7 +12,7 @@ CPUSiLU::CPUSiLU(Backend *bn, string opName, bool multiThread) :
 }
 
 ErrorCode CPUSiLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    outputs[0]->reshape(inputs[0]->num(), inputs[0]->channels(), inputs[0]->height(), inputs[0]->width());
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     //outputs[0]->setDtype(activationDtype());
     //std::cout<<name() << "  CPUSiLU  reshape" << std::endl;
     return Op::reshape(inputs, outputs);
@@ -20,10 +20,10 @@ ErrorCode CPUSiLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 
 ErrorCode CPUSiLU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto input = inputs[0];
-    int batch = input->num();
-    int n1 = input->shape(1);
-    int n2 = input->shape(2);
-    int n3 = input->shape(3);
+    int batch = input->batch();
+    int n1 = input->head();
+    int n2 = input->sequence();
+    int n3 = input->dimension();
     for (int n = 0; n < batch; n++) {
         for (int h = 0; h < n2; h++) {
             for (int c = 0; c < n1; c++) {

@@ -79,7 +79,7 @@ void vec_dot_fp32(const float * __restrict src0, const float * __restrict src1, 
     }
 #endif
     if (support_bias) {
-        value += bias->dataAt<float>({0, head, 0, sec1_outf});
+        value += bias->dataAt<float>(0, head, 0, sec1_outf);
     }
     dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, value);
 }
@@ -203,7 +203,7 @@ void vec_dot_q4_0_q8_0(const void * __restrict src0, const void * __restrict src
     vec_dot_q4_0_q8_0_arm(hid_len, &value, src1, src0);
 #endif
     if (support_bias) {
-        value += bias->dataAt<float>({0, head, 0, sec1_outf});
+        value += bias->dataAt<float>(0, head, 0, sec1_outf);
     }
     dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, value);
 }
@@ -607,7 +607,7 @@ void vec_dot_q4_K_q8_K(const void * __restrict src0, const void * __restrict src
     vec_dot_q4_K_q8_K(hid_len, &value, src1, src0);
 
     if (support_bias) {
-        value += bias->dataAt<float>({0, head, 0, sec1_outf});
+        value += bias->dataAt<float>(0, head, 0, sec1_outf);
     }
     dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, value);
 }
@@ -1258,7 +1258,7 @@ void vec_dot_q6_K_q8_K(const void * __restrict src0, const void * __restrict src
     vec_dot_q6_K_q8_K(hid_len, &value, src1, src0);
 
     if (support_bias) {
-        value += bias->dataAt<float>({0, head, 0, sec1_outf});
+        value += bias->dataAt<float>(0, head, 0, sec1_outf);
     }
     dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, value);
 }

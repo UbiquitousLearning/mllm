@@ -34,7 +34,7 @@ ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<share
                             outputs[0]->setDataAt<float>({n, h, s, d}, -INFINITY);
                         }
                         else{
-                            outputs[0]->setDataAt<float>({n, h, s, d}, inputs[0]->dataAt<float>({n, h, s, d}));
+                            outputs[0]->setDataAt<float>({n, h, s, d}, inputs[0]->dataAt<float>(n, h, s, d));
                         }
                     }
                 }
