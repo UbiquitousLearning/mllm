@@ -1,6 +1,7 @@
 #ifndef MLLM_EXECUTOR_H
 #define MLLM_EXECUTOR_H
 #include "Net.hpp"
+#include<numeric>
 
 namespace mllm {
 class Executor {
@@ -71,8 +72,11 @@ public:
 
     void perf() const{
         std::cout << "load time: " << load_time_ << " ms" << std::endl;
-        std::cout << "token time: " << run_time_ / run_times_<< " ms"<<std::endl;
-        std::cout << "inference speed: " << 1000 * run_times_ /run_time_ << " tokens/s" << std::endl;
+        //average of run_time_
+        double sum_time = std::accumulate(std::begin(run_time_), std::end(run_time_), 0.0);
+        double mean_time =  sum_time / run_time_.size();
+        std::cout << "token time: " << mean_time<< " ms"<<std::endl;
+        std::cout << "inference speed: " << 1000 /mean_time << " tokens/s" << std::endl;
     }
 
 private:
@@ -83,8 +87,7 @@ private:
 
 
     double load_time_ = 0;
-    double run_time_ = 0;
-    int run_times_ = 0;
+    vector<double> run_time_;
 
 };
 

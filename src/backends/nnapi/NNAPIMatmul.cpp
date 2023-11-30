@@ -23,11 +23,11 @@ ErrorCode NNAPIMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_
     // different from cpu version, we assume that the input is 2D and already transposed
     CHECK_EQ(inputs[0]->width(), inputs[1]->height());
 
-    bias_.reshape(1, 1, 1, outputs[0]->shape(3));
-    outputs[0]->reshape(inputs[0]->shape(0),
-                        inputs[0]->shape(1),
-                        inputs[0]->shape(2),
-                        inputs[1]->shape(3));
+    bias_.reshape(1, 1, 1, outputs[0]->dimension());
+    outputs[0]->reshape(inputs[0]->batch(),
+                        inputs[0]->head(),
+                        inputs[0]->sequence(),
+                        inputs[1]->dimension());
 
     return NO_ERROR;
 }

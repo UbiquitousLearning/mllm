@@ -60,7 +60,8 @@ void Executor::execute(Net *net, shared_ptr<Tensor> input_tensor) {
 #ifdef DEBUG
     std::cout << "reshape&load ====  " << (time_end - time_start) / 1000.0F << " ms" << std::endl;
 #endif
-    time_start = mllm_time_us();
+    auto ex_time_start = mllm_time_us();
+    float exe_time = 0;
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         string name = "G" + std::to_string(i);
@@ -87,6 +88,7 @@ void Executor::execute(Net *net, shared_ptr<Tensor> input_tensor) {
         result_ = g->forward();
 #ifdef DEBUG
         t_end = mllm_time_us();
+        exe_time += (t_end - t_start) / 1000.0F;
         std::cout << " ====  " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 #endif
         // free
@@ -108,17 +110,16 @@ void Executor::execute(Net *net, shared_ptr<Tensor> input_tensor) {
             std::cout << "    ====  " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 #endif
         }
-        // std::cout <<"["<< name << "]==== end      === "<< result_[0]->name() << "'s shape:  [" << result_[0]->shape(0) << "," << result_[0]->shape(1) << "," << result_[0]->shape(2) << "," << result_[0]->shape(3) << "]" << std::endl;
+        // std::cout <<"["<< name << "]==== end      === "<< result_[0]->name() << "'s shape:  [" << result_[0]->batch() << "," << result_[0]->head() << "," << result_[0]->sequence() << "," << result_[0]->dimension() << "]" << std::endl;
     }
-    time_end = mllm_time_us();
-    if (input_size[2] == 1) {
-        auto token_run_time = (time_end - time_start) / 1000.0F;
-        run_time_ += token_run_time;
-        run_times_ += 1;
-    }
+    auto ex_time_end = mllm_time_us();
+    if (input_tensor->sequence() == 1) {
+        auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
+        run_time_.push_back(token_run_time);
 #ifdef DEBUG
-    std::cout << "exec ====  " << (time_end - time_start) / 1000.0F << " ms" << std::endl;
+        std::cout << "exec ====  "<<exe_time<<" ms ====="<< (ex_time_end - ex_time_start) / 1000.0F << " ms" << std::endl;
 #endif
+    }
 }
 
 } // namespace mllm

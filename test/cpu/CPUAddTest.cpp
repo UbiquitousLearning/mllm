@@ -15,10 +15,10 @@ TEST_F(CPUTest, CPUAdd1) {
     loader.load(input0);
     loader.load(input1);
     op->reshape({input0, input1}, {output});
-    EXPECT_GE(output->shape(0), 1);
-    EXPECT_GE(output->shape(1), 1);
-    EXPECT_GE(output->shape(2), 1);
-    EXPECT_GE(output->shape(3), 1);
+    EXPECT_GE(output->batch(), 1);
+    EXPECT_GE(output->head(), 1);
+    EXPECT_GE(output->sequence(), 1);
+    EXPECT_GE(output->dimension(), 1);
     op->setUp({input0, input1}, {output});
     op->execute({input0, input1}, {output});
     //TODO: check output?

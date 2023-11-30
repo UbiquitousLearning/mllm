@@ -21,7 +21,7 @@ Tensor *tensor_trans(Tensor *src) {
 //    uint64_t t_start = mllm_time_us();
     Tensor *dst = new Tensor();
     dst->setBackend(src->backend());
-    dst->reshape({src->batch(), src->head(), src->dimension(), src->sequence()});
+    dst->reshape(src->batch(), src->head(), src->dimension(), src->sequence());
     dst->setDtype(src->dtype());
     dst->alloc();
     for (int b = 0; b < src->batch(); b++) {
@@ -29,13 +29,13 @@ Tensor *tensor_trans(Tensor *src) {
             for (int n = 0; n < src->sequence(); n++) {
 #pragma omp parallel for num_threads(4)
                 for (int m = 0; m < src->dimension(); m++) {
-                    dst->setDataAt<float>({b, h, m, n}, src->dataAt<float>({b, h, n, m}));
+                    dst->setDataAt<float>({b, h, m, n}, src->dataAt<float>(b, h, n, m));
                 }
             }
         }
     }
 //    uint64_t t_end = mllm_time_us();
-//    std::cout<<"\n ====  "<<src->name()<<":["<<src->shape(0)<<","<<src->shape(1)<<","<<src->shape(2)<<","<<src->shape(3)<<"]"
+//    std::cout<<"\n ====  "<<src->name()<<":["<<src->batch()<<","<<src->head()<<","<<src->sequence()<<","<<src->dimension()<<"]"
 //        <<" ====  "<< (t_end - t_start)/1000.0F << " ms" << std::endl;
     return dst;
     /*
