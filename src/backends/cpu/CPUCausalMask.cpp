@@ -47,4 +47,19 @@ ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<share
     return Op::execute(inputs, outputs);
 }
 
+ErrorCode CPUCausalMask::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    CHECK_EQ(inputs.size(), 1);
+    CHECK_EQ(outputs.size(), 1);
+    // outputs[0]->deepCopyFrom(inputs[0]);
+    if(inputs[0]->masterTensor() == nullptr) {
+        inputs[0]->free(); // TODO remove
+    }
+    outputs[0]->setDtype(activation_dtype());
+    outputs[0]->alloc();
+    inputs[0]->deepCopyFrom(outputs[0], false);
+#ifdef DEBUG
+    std::cout << "*"<<name()<<" setUp*" << std::endl;
+#endif
+    return NO_ERROR;
+}
 } // namespace mllm

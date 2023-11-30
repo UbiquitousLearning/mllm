@@ -1,6 +1,6 @@
 #ifndef MLLM_OP_H
 #define MLLM_OP_H
-
+// #define DEBUG
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include <functional>
@@ -36,17 +36,17 @@ public:
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
         // check inputs shape
         // reshape outputs
-#ifdef TEST
-        std::cout << "*"<<name_<<" reshape*" << std::endl;
+#ifdef DEBUG
+        std::cout << "*"<<name()<<" reshape*" << std::endl;
         for (auto input:inputs) {
             std::cout << "Input "<< input->name() <<" shape: " << input->ShapeString() << std::endl;
         }
         for (auto output:outputs) {
             std::cout << "Output "<< output->name() <<" shape: " << output->ShapeString() << std::endl;
         }
-        //std::cout << "*"<<name_<<" reshape*" << std::endl;
-#elif DEBUG
-        std::cout << "*"<<name_<<" reshape*" << std::endl;
+        //std::cout << "*"<<name()<<" reshape*" << std::endl;
+// #elif DEBUG
+//         std::cout << "*"<<name()<<" reshape*" << std::endl;
 #endif
         return NO_ERROR;
     }
@@ -82,7 +82,7 @@ public:
             output->alloc();
         }
 #ifdef DEBUG
-        std::cout << "*"<<name_<<" setUp*" << std::endl;
+        std::cout << "*"<<name()<<" setUp*" << std::endl;
 #endif
         return NO_ERROR;
     }
@@ -91,7 +91,7 @@ public:
         // check inputs shape
         // reshape outputs
 #ifdef DEBUG
-        std::cout << "*"<<name_<<" load*" << std::endl;
+        std::cout << "*"<<name()<<" load*" << std::endl;
 #endif
         return NO_ERROR;
     }
@@ -110,7 +110,7 @@ public:
      */
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
 #ifdef DEBUG
-        std::cout << "*"<<name_<<" execute*" << std::endl;
+        std::cout << "*"<<name()<<" execute*" << std::endl;
 #endif
         return NO_ERROR;
     }
@@ -123,7 +123,7 @@ public:
      */
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
 #ifdef DEBUG
-        std::cout << "*"<<name_<<" free*" << std::endl;
+        std::cout << "*"<<name()<<" free*" << std::endl;
 #endif
         return NO_ERROR;
     }

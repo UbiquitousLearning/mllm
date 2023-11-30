@@ -157,7 +157,7 @@ ErrorCode CPUKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     int out_seq_offset = cache_seq_len_/cache_limit_;
     outputs[0]->deepCopyOffsetFrom(cache_, {0,0,out_seq_offset,0});
 #ifdef DEBUG
-    std::cout << "*"<<name_<<" setUp*" << std::endl;
+    std::cout << "*"<<name()<<" setUp*" << std::endl;
 #endif
     return NO_ERROR;
 }

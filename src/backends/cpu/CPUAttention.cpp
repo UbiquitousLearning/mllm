@@ -239,19 +239,19 @@ ErrorCode CPUAttention::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     O_proj_->execute({kqv_state_}, outputs);
 
     if (!k_cached_->allocted()) { // 第一次
-    //     k_cached_->reshape(k_state_->shape());
-    //     k_cached_->alloc();
-    //     k_cached_->copyFrom(k_state_);
-    //     v_cached_->reshape(v_state_->shape());
-    //     v_cached_->alloc();
-    //     v_cached_->copyFrom(v_state_);
-    // } else {
-    //     k_cached_->reshape(k_merged_->shape());
-    //     k_cached_->alloc();
-    //     k_cached_->copyFrom(k_merged_);
-    //     v_cached_->reshape(v_merged_->shape());
-    //     v_cached_->alloc();
-    //     v_cached_->copyFrom(v_merged_);
+        k_cached_->reshape(k_state_->batch(), k_state_->head(), k_state_->sequence(), k_state_->dimension());
+        k_cached_->alloc();
+        k_cached_->copyFrom(k_state_);
+        v_cached_->reshape(v_state_->batch(), v_state_->head(), v_state_->sequence(), v_state_->dimension());
+        v_cached_->alloc();
+        v_cached_->copyFrom(v_state_);
+    } else {
+        k_cached_->reshape(k_merged_->batch(), k_merged_->head(), k_merged_->sequence(), k_merged_->dimension());
+        k_cached_->alloc();
+        k_cached_->copyFrom(k_merged_);
+        v_cached_->reshape(v_merged_->batch(), v_merged_->head(), v_merged_->sequence(), v_merged_->dimension());
+        v_cached_->alloc();
+        v_cached_->copyFrom(v_merged_);
     }
 //    std::cout << "[" << outputs[0]->batch() << "," << outputs[0]->head() << "," << outputs[0]->sequence() << "," << outputs[0]->dimension() << "]" << std::endl;
 //    outputs[0]->fullDataTest();

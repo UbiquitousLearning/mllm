@@ -88,9 +88,9 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
     auto *q =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wq");
     auto *k =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wk");
     auto *v =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wv");
-    q = _View(ctx, {q}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + ".q_view");
-    k = _View(ctx, {k}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + ".k_view");
-    v = _View(ctx, {v}, {-1, head_size, -1, -1}, {0, 3, 2, 3}, name + ".v_view");
+    q = _View(ctx, {q}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".q_view");
+    k = _View(ctx, {k}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".k_view");
+    v = _View(ctx, {v}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".v_view");
     q = _RoPE(ctx, {q}, name + ".q_rope");
     k = _RoPE(ctx, {k}, name + ".k_rope");
     k = _KVCache(ctx, {k}, true, name + ".k_cache");
@@ -100,7 +100,7 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
     qk = _Causalmask(ctx, {qk}, name + ".mask");
     qk = _Softmax(ctx, {qk}, SEQUENCE, name + ".softmax");
     auto *o = _Matmul(ctx, {qk, v}, false, false, name + ".qkv");
-    o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1+3}, name + ".qkv_view");
+    o = _View(ctx, {o}, {-1, -1, -1, -1}, {BATCH, -1, SEQUENCE, HEAD+DIMENSION}, name + ".qkv_view");
     o = _Linear(ctx, {o}, hidden_size * head_size, embedding_size, false, name + ".wo");
     return o;
 }
@@ -166,7 +166,7 @@ int main() {
     token2Tensor(input, net, tokens_id);
 
     std::cout << in_str << std::flush;
-    for(int step = 0; step<64; step++) {
+    for(int step = 0; step<12; step++) {
         ex.execute(&net, input);
         auto result = ex.result();
         auto token_idx = postProcessing(result[0], input);
