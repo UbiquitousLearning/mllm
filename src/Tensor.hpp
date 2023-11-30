@@ -158,14 +158,14 @@ public:
     //    inline int offset(const int n, const int c = 0, const int h = 0,
     //                      const int w = 0) const {
     //        CHECK_GE(n, 0);
-    //        CHECK_LE(n, num());
-    //        CHECK_GE(channels(), 0);
-    //        CHECK_LE(c, channels());
-    //        CHECK_GE(height(), 0);
-    //        CHECK_LE(h, height());
-    //        CHECK_GE(width(), 0);
-    //        CHECK_LE(w, width());
-    //        return ((n * channels() + c) * height() + h) * width() + w;
+    //        CHECK_LE(n, batch());
+    //        CHECK_GE(head(), 0);
+    //        CHECK_LE(c, head());
+    //        CHECK_GE(sequence(), 0);
+    //        CHECK_LE(h, sequence());
+    //        CHECK_GE(dimension(), 0);
+    //        CHECK_LE(w, dimension());
+    //        return ((n * head() + c) * sequence() + h) * dimension() + w;
     //    }
     inline int offset(const int b, const int h = 0, const int s = 0,
                       const int d = 0) const {
@@ -534,6 +534,7 @@ public:
 //        byte_width_ = bw;
 //    }
     // TODO:Name?
+
 
 
     template <class Dtype>

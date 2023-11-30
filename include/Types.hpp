@@ -51,8 +51,8 @@ enum DataType {
     MLLM_TYPE_COUNT,
 };
 enum ChlType {
-    BHSD = 0,
-    BSHD = 1,
+    BSHD = 0,
+    BHSD = 1,
 };
 
 enum Chl {
