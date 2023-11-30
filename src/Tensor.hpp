@@ -590,8 +590,47 @@ public:
             }
         }
         std::cout << name() << " " << sum / count() << std::endl;
-//        std::cout << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] AVG:" << sum / count() << std::endl;
+//        std::cout << name() << ": shape:[" << num() << " " << channels() << " " << height() << " " << width() << "] AVG:" << sum / count() << std::endl;
     }
+
+
+
+
+    shared_ptr<Tensor> view(int batch, int head, int sequence, int dimension) {
+        auto t = std::make_shared<Tensor>();
+        t->setBackend(backend_);
+        t->setDtype(dtype_);
+        t->reshape(batch, head, sequence, dimension);
+        t->host_ptr_ = host_ptr_;
+        return t;
+    }
+    shared_ptr<Tensor> unfold(int axis, int size, int step) {
+        CHECK_GE(axis, 0);
+        CHECK_LT(axis, numAxes());
+        CHECK_GE(size, 0);
+        CHECK_GE(step, 0);
+        CHECK_LE(size, shape(axis));
+        CHECK_LE(step, shape(axis));
+        CHECK_EQ(shape(axis) % step, 0);
+        auto t = std::make_shared<Tensor>();
+        t->setBackend(backend_);
+        t->setDtype(dtype_);
+        vector<int> shape = shape_;
+        shape[axis] = size;
+        shape.insert(shape.begin() + axis + 1, shape[axis] / step);
+        shape[axis + 1] = step;
+        t->reshape(shape);
+        t->host_ptr_ = host_ptr_;
+        return t;
+    }
+
+//
+//    void setByteWidth(int bw) {
+//        byte_width_ = bw;
+//    }
+    // TODO:Name?
+
+
 
     template <class Dtype>
     void fullData(Dtype value) {

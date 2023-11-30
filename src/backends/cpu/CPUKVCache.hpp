@@ -22,6 +22,7 @@ public:
 
 private:
     bool support_multi_thread_ = false;
+
     int cache_seq_len_= -999;
     bool isK_;
 
