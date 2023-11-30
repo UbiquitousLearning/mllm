@@ -67,6 +67,14 @@ static void vec_dot_fp32_arm(const int n, float *__restrict s, const float *__re
 }
 #endif
 
+
+void vec_dot_fp32(const int n, float * __restrict s, const float * __restrict vx, const float * __restrict vy) {
+    #ifdef __AVX2__
+        vec_dot_fp32_avx2(n, s, vx, vy);
+    #elif defined(__ARM_NEON)
+        vec_dot_fp32_arm(n, s, vx, vy);
+    #endif
+}
 void vec_dot_fp32(const float * __restrict src0, const float * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf) {
     float value = 0;
 #ifdef __AVX2__
@@ -195,6 +203,14 @@ static void vec_dot_q4_0_q8_0_arm(const int n, float * __restrict s, const void 
 }
 #endif
 
+
+void vec_dot_q4_0_q8_0(const int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy) {
+#ifdef __AVX2__
+    vec_dot_q4_0_q8_0_avx(n, s, vx, vy);
+#elif defined(__ARM_NEON)
+    vec_dot_q4_0_q8_0_arm(n, s, vx, vy);
+#endif
+}
 void vec_dot_q4_0_q8_0(const void * __restrict src0, const void * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf) {
     float value = 0;
 #ifdef __AVX2__
@@ -603,13 +619,10 @@ void vec_dot_q4_K_q8_K(const int n, float * __restrict s, const void * __restric
 
 void vec_dot_q4_K_q8_K(const void * __restrict src0, const void * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf) {
     float value = 0;
-
-    vec_dot_q4_K_q8_K(hid_len, &value, src1, src0);
-
+    vec_dot_q4_K_q8_K(hid_len, dst->ptrAt<float>(batch, head, src0_inf, sec1_outf), src1, src0);
     if (support_bias) {
-        value += bias->dataAt<float>(0, head, 0, sec1_outf);
+        dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, dst->dataAt<float>(batch, head, src0_inf, sec1_outf)+ bias->dataAt<float>(0, head, 0, sec1_outf));
     }
-    dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, value);
 }
 
 

@@ -97,8 +97,8 @@ public:
     }
     inline int head() const {
         switch (ctype_) {
-        case BHSD:
-            return legacyShape(1);
+        // case BHSD:
+        //     return legacyShape(1);
         case BSHD:
             return legacyShape(2);
         case BHDS:
@@ -109,8 +109,8 @@ public:
     }
     inline int sequence() const {
         switch (ctype_) {
-        case BHSD:
-            return legacyShape(2);
+        // case BHSD:
+        //     return legacyShape(2);
         case BSHD:
             return legacyShape(1);
         case BHDS:
@@ -121,8 +121,8 @@ public:
     }
     inline int dimension() const {
         switch (ctype_) {
-        case BHSD:
-            return legacyShape(3);
+        // case BHSD:
+        //     return legacyShape(3);
         case BSHD:
             return legacyShape(3);
         case BHDS:
@@ -187,17 +187,14 @@ public:
     inline int offset(const int b, const int h = 0, const int s = 0,
                       const int d = 0) const {
         // batch, head, sequence, dimension
-        CHECK_GE(b, 0);
-        CHECK_LE(b, batch());
-        CHECK_GE(head(), 0);
-        CHECK_LE(h, head());
-        CHECK_GE(sequence(), 0);
-        CHECK_LE(s, sequence());
-        if(s >= sequence()) {
-            std::cout<<""<<s<<"-"<<sequence()<<std::endl;
-        }
-        CHECK_GE(dimension(), 0);
-        CHECK_LE(d, dimension());
+        // CHECK_GE(b, 0);
+        // CHECK_LE(b, batch());
+        // CHECK_GE(head(), 0);
+        // CHECK_LE(h, head());
+        // CHECK_GE(sequence(), 0);
+        // CHECK_LE(s, sequence());
+        // CHECK_GE(dimension(), 0);
+        // CHECK_LE(d, dimension());
         if (shape_offset_.size() == 4 & shape_base_.size() == 4) {
             const int base_batch_ = shape_base_[0];
             const int base_head_ = shape_base_[1];
@@ -208,8 +205,8 @@ public:
             const int s_ = (s + shape_offset_[2])%base_sequence_;
             const int d_ = (d + shape_offset_[3])%base_dimension_;
             switch (ctype_) {
-            case BHSD:
-                return ((b_ * base_head_ + h_) * base_sequence_ + s_) * base_dimension_ + d_;
+            // case BHSD:
+            //     return ((b_ * base_head_ + h_) * base_sequence_ + s_) * base_dimension_ + d_;
             case BSHD:
                 return ((b_ * base_sequence_ + s_) * base_head_ + h_) * base_dimension_ + d_;
             case BHDS:
@@ -219,12 +216,12 @@ public:
             }
         } else {
             switch (ctype_) {
-            case BHSD:
-                return ((b * head() + h) * sequence() + s) * dimension() + d;
+            // case BHSD:
+            //     return ((b * head() + h) * sequence() + s) * dimension() + d;
             case BSHD:
-                return ((b * sequence() + s) * head() + h) * dimension() + d;
+                return ((b * shape_[1] + s) * shape_[2] + h) * shape_[3] + d;
             case BHDS:
-                return ((b * head() + h) * dimension() + d) * sequence() + s;
+                return ((b * shape_[1] + h) * shape_[2] + d) * shape_[3] + s;
             default:
                 break;
             }
