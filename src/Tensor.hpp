@@ -96,23 +96,40 @@ public:
         return legacyShape(0);
     }
     inline int head() const {
-        if(ctype_ == BHSD)
+        switch (ctype_) {
+        case BHSD:
             return legacyShape(1);
-        else if(ctype_ == BSHD)
+        case BSHD:
             return legacyShape(2);
-        else
+        case BHDS:
+            return legacyShape(1);
+        default:
             return -1;
+        }
     }
     inline int sequence() const {
-        if(ctype_ == BHSD)
+        switch (ctype_) {
+        case BHSD:
             return legacyShape(2);
-        else if(ctype_ == BSHD)
+        case BSHD:
             return legacyShape(1);
-        else
+        case BHDS:
+            return legacyShape(3);
+        default:
             return -1;
+        }
     }
     inline int dimension() const {
-        return legacyShape(3);
+        switch (ctype_) {
+        case BHSD:
+            return legacyShape(3);
+        case BSHD:
+            return legacyShape(3);
+        case BHDS:
+            return legacyShape(2);
+        default:
+            return -1;
+        }
     }
 
     inline int count() const {
@@ -176,6 +193,9 @@ public:
         CHECK_LE(h, head());
         CHECK_GE(sequence(), 0);
         CHECK_LE(s, sequence());
+        if(s >= sequence()) {
+            std::cout<<""<<s<<"-"<<sequence()<<std::endl;
+        }
         CHECK_GE(dimension(), 0);
         CHECK_LE(d, dimension());
         if (shape_offset_.size() == 4 & shape_base_.size() == 4) {
@@ -187,16 +207,26 @@ public:
             const int h_ = (h + shape_offset_[1])%base_head_;
             const int s_ = (s + shape_offset_[2])%base_sequence_;
             const int d_ = (d + shape_offset_[3])%base_dimension_;
-            if(ctype_ == BHSD) {
+            switch (ctype_) {
+            case BHSD:
                 return ((b_ * base_head_ + h_) * base_sequence_ + s_) * base_dimension_ + d_;
-            } else if (ctype_ == BSHD) {
+            case BSHD:
                 return ((b_ * base_sequence_ + s_) * base_head_ + h_) * base_dimension_ + d_;
+            case BHDS:
+                return ((b_ * base_head_ + h_) * base_dimension_ + d_) * base_sequence_ + s_;
+            default:
+                break;
             }
         } else {
-            if(ctype_ == BHSD) {
+            switch (ctype_) {
+            case BHSD:
                 return ((b * head() + h) * sequence() + s) * dimension() + d;
-            } else if (ctype_ == BSHD) {
+            case BSHD:
                 return ((b * sequence() + s) * head() + h) * dimension() + d;
+            case BHDS:
+                return ((b * head() + h) * dimension() + d) * sequence() + s;
+            default:
+                break;
             }
         }
     }
@@ -231,6 +261,25 @@ public:
     void copyFrom(const shared_ptr<Tensor> &source, bool reshape = false);
 
     void deepCopyFrom(const shared_ptr<Tensor> &source, bool copyshape = true) {
+        setMasterTensor(source.get());
+        if(ctype_ != master_tensor_->ctype()) {
+            if (transed_) {
+                auto b = master_tensor_->batch();
+                auto h = master_tensor_->head();
+                auto d = master_tensor_->dimension();
+                auto s = master_tensor_->sequence();
+                master_tensor_->ctype_ = ctype_;
+                master_tensor_->reshape(b, h, s,d);
+            }else {
+                auto b = batch();
+                auto h = head();
+                auto d = dimension();
+                auto s = sequence();
+                ctype_ = master_tensor_->ctype_;
+                reshape(b, h, s,d);
+                // ctype_ = source.ctype_;
+            }
+        }
         // deep Copy
         host_ptr_ = source->hostPtr<void>();
         capacity_ = source->capacity_;
@@ -240,6 +289,7 @@ public:
         }
         allocated_ = source->allocated_;
         dtype_ = source->dtype_;
+        // ctype_ = source->ctype_;
         //
         for (auto &child_tensor: child_tensors_) {
             child_tensor->deepCopyFrom(source, false);
@@ -247,7 +297,6 @@ public:
             child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
         }
         //
-        setMasterTensor(source.get());
         source->addChildTensor(this);
     }
     /**
@@ -256,6 +305,26 @@ public:
      * \param shape_offset
      */
     void deepCopyOffsetFrom(Tensor &source, const vector<int> &shape_offset) {
+        //
+        setMasterTensor(&source);
+        if(ctype_ != master_tensor_->ctype()) {
+            if (transed_) {
+                auto b = master_tensor_->batch();
+                auto h = master_tensor_->head();
+                auto d = master_tensor_->dimension();
+                auto s = master_tensor_->sequence();
+                master_tensor_->ctype_ = ctype_;
+                master_tensor_->reshape(b, h, s,d);
+            }else {
+                auto b = batch();
+                auto h = head();
+                auto d = dimension();
+                auto s = sequence();
+                ctype_ = master_tensor_->ctype_;
+                reshape(b, h, s,d);
+                // ctype_ = source.ctype_;
+            }
+        }
         assert(source.allocted());
         // don't need alloc()
         shape_offset_ = shape_offset;
@@ -273,8 +342,6 @@ public:
             //remove child_temsor from child_tensors_:
             child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
         }
-        //
-        setMasterTensor(&source);
         source.addChildTensor(this);
     }
 
@@ -335,6 +402,34 @@ public:
     }
     ChlType ctype() const {
         return ctype_;
+    }
+    void transShape(Chl dim_a, Chl dim_b) {
+        if(dim_a == SEQUENCE && dim_b == DIMENSION) {
+            if(ctype() == BSHD) {
+                auto b = batch();
+                auto h = head();
+                auto d = dimension();
+                auto s = sequence();
+                ctype_ = BHDS;
+                reshape(b, h, s,d);
+                transed_ = true;
+                // if(masterTensor() != nullptr) {
+                //     auto b = master_tensor_->batch();
+                //     auto h = master_tensor_->head();
+                //     auto d = master_tensor_->dimension();
+                //     auto s = master_tensor_->sequence();
+                //     master_tensor_->ctype_ = BHDS;
+                //     master_tensor_->reshape(b, h, s,d);
+                // }
+            }else if (transed_) {
+
+            }
+            else {
+                std::cout<<"TODO, need support!"<<std::endl;
+            }
+        } else {
+            std::cout<<"TODO, need support!"<<std::endl;
+        }
     }
 
     int cntSize() {
@@ -569,6 +664,10 @@ private:
     //shared
     Tensor* master_tensor_ = nullptr;
     vector<Tensor *> child_tensors_;
+
+
+    //
+    bool transed_ = false;
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H

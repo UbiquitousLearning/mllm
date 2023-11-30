@@ -28,6 +28,7 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
          batch |out_channel | seq_len               |  1
          */
         CHECK_EQ(inputs[0]->dimension(), inputs[1]->sequence());
+        inputs[1]->transShape(SEQUENCE, DIMENSION);
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[1]->dimension());
     } else if (transpose1_) {
         /*
@@ -52,6 +53,8 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
          batch |out_channel | seq_len               |  1
          */
         CHECK_EQ(inputs[0]->sequence(), inputs[1]->sequence());
+        inputs[0]->transShape(SEQUENCE, DIMENSION);
+        inputs[1]->transShape(SEQUENCE, DIMENSION);
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[1]->dimension());
     }
     //outputs[0]->setDtype(activationDtype());

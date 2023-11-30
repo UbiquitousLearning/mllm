@@ -86,23 +86,57 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
 
     //    auto start = std::chrono::high_resolution_clock::now(); // 记录开始时间
 
+    // int M = src0->sequence();
+    // int K = src0->dimension();
+    // int N = src1->sequence();
     int M = transpose0 ? src0->dimension() : src0->sequence();
     int K = transpose0 ? src0->sequence() : src0->dimension();
     int N = transpose1 ? src1->sequence() : src1->dimension();
-    Tensor *src0_cal = (transpose1 && !transpose0) ? src0 : (transpose0 && !transpose1) ? tensor_trans(src0) : src0;
-    Tensor *src1_cal = (transpose1 && !transpose0) ? src1 : (!transpose0 && !transpose1) ? tensor_trans(src1) : src1;
-    for (int b = 0; b < src0->batch(); b++) {
-        for (int h = 0; h < src0->head(); h++) {
-            #pragma omp parallel for num_threads(4)
-            for (int n = 0; n < N; n++) {
-                for (int m = 0; m < M; m++) {
-                    vec_dot_fp32(src0_cal->hostPtr<float>() + src0_cal->offset(b, h, m, 0),
-                                      src1_cal->hostPtr<float>() + src1_cal->offset(b, h, n, 0),
-                                      dst, support_bias, bias, K, b, h, m, n);
+    // Tensor *src0_cal = (transpose1 && !transpose0) ? src0 : (transpose0 && !transpose1) ? tensor_trans(src0) : src0;
+    // Tensor *src1_cal = (transpose1 && !transpose0) ? src1 : (!transpose0 && !transpose1) ? tensor_trans(src1) : src1;
+    Tensor *src0_cal = src0;
+    Tensor *src1_cal = src1;
+    if(!transpose0 && transpose1) {
+        for (int b = 0; b < src0->batch(); b++) {
+            for (int h = 0; h < src0->head(); h++) {
+#pragma omp parallel for num_threads(4)
+                for (int n = 0; n < N; n++) {
+                    for (int m = 0; m < M; m++) {
+                        vec_dot_fp32(src0_cal->hostPtr<float>() + src0_cal->offset(b, h, m, 0),
+                                          src1_cal->hostPtr<float>() + src1_cal->offset(b, h, n, 0),
+                                          dst, support_bias, bias, K, b, h, m, n);
+                    }
+                }
+            }
+        }
+    }else if (!transpose0 && !transpose1) {
+        for (int b = 0; b < src0->batch(); b++) {
+            for (int h = 0; h < src0->head(); h++) {
+#pragma omp parallel for num_threads(4)
+                for (int n = 0; n < N; n++) {
+                    for (int m = 0; m < M; m++) {
+                        vec_dot_fp32(src0_cal->hostPtr<float>() + src0_cal->offset(b, h, m, 0),
+                                          src1_cal->hostPtr<float>() + src1_cal->offset(b, h, 0, n),
+                                          dst, support_bias, bias, K, b, h, m, n);
+                    }
+                }
+            }
+        }
+    } else {
+        for (int b = 0; b < src0->batch(); b++) {
+            for (int h = 0; h < src0->head(); h++) {
+#pragma omp parallel for num_threads(4)
+                for (int n = 0; n < N; n++) {
+                    for (int m = 0; m < M; m++) {
+                        vec_dot_fp32(src0_cal->hostPtr<float>() + src0_cal->offset(b, h, 0, m),
+                                          src1_cal->hostPtr<float>() + src1_cal->offset(b, h, 0, n),
+                                          dst, support_bias, bias, K, b, h, m, n);
+                    }
                 }
             }
         }
     }
+
 
     //    auto end = std::chrono::high_resolution_clock::now();   // 记录结束时间
     //    std::chrono::duration<double> duration = end - start;  // 计算时间差

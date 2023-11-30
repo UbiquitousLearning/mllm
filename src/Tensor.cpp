@@ -24,14 +24,24 @@ Tensor::Tensor(const vector<int> &shape) :
 bool Tensor::reshape(const int batch, const int head, const int sequence, const int dimension) {
     vector<int> shape(4);
     shape[0] = batch;
-    if (ctype_ == BHSD){
+    switch (ctype_) {
+    case BHSD:
         shape[1] = head;
         shape[2] = sequence;
-    } else if (ctype_ == BSHD){
+        shape[3] = dimension;
+        break;
+    case BSHD:
         shape[1] = sequence;
         shape[2] = head;
+        shape[3] = dimension;
+        break;
+    case BHDS:
+        shape[1] = head;
+        shape[2] = dimension;
+        shape[3] = sequence;
+    default:
+        break;
     }
-    shape[3] = dimension;
     return reshape(shape);
 }
 

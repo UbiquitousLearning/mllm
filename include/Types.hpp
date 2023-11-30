@@ -52,7 +52,8 @@ enum DataType {
 };
 enum ChlType {
     BSHD = 0,
-    BHSD = 1,
+    BHSD = 1, //ABANDENED!!
+    BHDS = 2,
 };
 
 enum Chl {
