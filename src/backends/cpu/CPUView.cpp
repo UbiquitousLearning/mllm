@@ -43,6 +43,8 @@ ErrorCode CPUView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode CPUView::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    if ((data_dim1_ + data_dim3_ != 1+3) & inputs[0]->ctype() == BSHD && outputs[0]->ctype() == BSHD){
+    }
     //std::cout<<name() << "  CPUView()" << std::endl;
     if(data_dim0_ == 0 && data_dim1_ == 1 && data_dim2_ == 2 && data_dim3_ == 3) {
         outputs[0]->copyFrom(inputs[0]);
@@ -97,6 +99,7 @@ ErrorCode CPUView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 #ifdef DEBUG
         std::cout << "*"<<name()<<" setUp*" << std::endl;
 #endif
+        return NO_ERROR;
     }else if (inputs[0]->ctype() == BSHD & outputs[0]->ctype() == BSHD &(data_dim0_ == 0 && data_dim1_ == -1 && data_dim2_ == 2 && data_dim3_ == 1+3)) {
         if(inputs[0]->masterTensor() == nullptr) {
             inputs[0]->free(); // TODO remove
@@ -107,6 +110,7 @@ ErrorCode CPUView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 #ifdef DEBUG
         std::cout << "*"<<name()<<" setUp*" << std::endl;
 #endif
+        return NO_ERROR;
     }
     else {
         return Op::setUp(inputs, outputs);

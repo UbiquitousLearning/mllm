@@ -38,12 +38,12 @@ public:
         // reshape outputs
 #ifdef DEBUG
         std::cout << "*"<<name()<<" reshape*" << std::endl;
-        for (auto input:inputs) {
-            std::cout << "Input "<< input->name() <<" shape: " << input->ShapeString() << std::endl;
-        }
-        for (auto output:outputs) {
-            std::cout << "Output "<< output->name() <<" shape: " << output->ShapeString() << std::endl;
-        }
+        // for (auto input:inputs) {
+        //     std::cout << "Input "<< input->name() <<" shape: " << input->ShapeString() << std::endl;
+        // }
+        // for (auto output:outputs) {
+        //     std::cout << "Output "<< output->name() <<" shape: " << output->ShapeString() << std::endl;
+        // }
         //std::cout << "*"<<name()<<" reshape*" << std::endl;
 // #elif DEBUG
 //         std::cout << "*"<<name()<<" reshape*" << std::endl;

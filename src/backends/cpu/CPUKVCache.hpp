@@ -18,9 +18,10 @@ public:
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
+    Tensor cache_;
+
 private:
     bool support_multi_thread_ = false;
-    Tensor cache_;
     int cache_seq_len_= -INFINITY;
     bool isK_;
 

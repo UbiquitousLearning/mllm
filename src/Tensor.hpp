@@ -27,7 +27,7 @@ public:
         backend_(bn), host_ptr_(), capacity_(0), dtype_(MLLM_TYPE_F32) {
     }
     ~Tensor() {
-        if (host_ptr_ != nullptr) {
+        if (host_ptr_ != nullptr && masterTensor() == nullptr){
             backend_->free(host_ptr_);
             //allocated_ = false;
 //            ::free(host_ptr_);
@@ -100,12 +100,16 @@ public:
             return legacyShape(1);
         else if(ctype_ == BSHD)
             return legacyShape(2);
+        else
+            return -1;
     }
     inline int sequence() const {
         if(ctype_ == BHSD)
             return legacyShape(2);
         else if(ctype_ == BSHD)
             return legacyShape(1);
+        else
+            return -1;
     }
     inline int dimension() const {
         return legacyShape(3);
@@ -239,6 +243,8 @@ public:
         //
         for (auto &child_tensor: child_tensors_) {
             child_tensor->deepCopyFrom(source, false);
+            //remove child_temsor from child_tensors_:
+            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
         }
         //
         setMasterTensor(source.get());
@@ -264,6 +270,8 @@ public:
         //
         for (auto &child_tensor: child_tensors_) {
             child_tensor->deepCopyOffsetFrom(source, shape_offset);
+            //remove child_temsor from child_tensors_:
+            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
         }
         //
         setMasterTensor(&source);
