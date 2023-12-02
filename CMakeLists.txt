@@ -170,11 +170,14 @@ add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_CP
     src/tokenizers/Tokenizer.cpp
     src/tokenizers/Tokenizer.hpp
     src/tokenizers/BPE/Bpe.cpp
-    src/tokenizers/BPE/Bpe.hpp)
+    src/tokenizers/BPE/Bpe.hpp
+)
 target_link_libraries(${TEST_EXE} MLLM_CPU)
 
 
-add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/demo/main_fuyu.cpp )# ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC})
+add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/demo/main_fuyu.cpp
+        src/tokenizers/Unigram/Unigram.hpp
+        src/tokenizers/Unigram/Unigram.cpp)# ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC})
 target_link_directories(main_fuyu PUBLIC ${PROJECT_SOURCE_DIR}/third_party/imageHelper)
 #find_package(X11 REQUIRED)
 #target_link_libraries(main_fuyu ${X11_LIBRARIES})
