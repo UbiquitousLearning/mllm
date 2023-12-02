@@ -56,7 +56,7 @@ bool TestLoader::load(Tensor *tensor, bool strict) {
     }
     if (tensor->shape().empty()) {
         // Get shape from TensorIndex
-        tensor->reshape(index->dims);
+        tensor->reshape_unsafe(index->dims);
         if (!tensor->allocted()) {
             tensor->alloc();
         }
