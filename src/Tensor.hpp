@@ -661,6 +661,9 @@ public:
     }
 
     void permute(int axis0, int axis1, int axis2, int axis3, bool copy = true);
+    bool reshape_unsafe(const vector<int> &shape){
+        shape_ = shape;
+    }
 
 
 private:
