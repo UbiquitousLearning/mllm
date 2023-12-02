@@ -75,4 +75,30 @@ string Tokenizer::detokenize(const vector<token_id_t> &tokens) {
     }
     return result;
 }
+void Tokenizer::setSpecialToken(const string &bos, const string &eos, const string &unk, const string &nl) {
+    if (!bos.empty()) {
+        auto bos_token = this->vocab_map_.find(bos);
+        if (bos_token != this->vocab_map_.end()) {
+            TokenBos = bos_token->second;
+        } else {
+            std::cerr << "BOS token not found in vocab file." << std::endl;
+        }
+    }
+    if (!eos.empty()) {
+        auto eos_token = this->vocab_map_.find(eos);
+        if (eos_token != this->vocab_map_.end()) {
+            TokenEos = eos_token->second;
+        } else {
+            std::cerr << "EOS token not found in vocab file." << std::endl;
+        }
+    }
+    if (!unk.empty()) {
+        auto unk_token = this->vocab_map_.find(unk);
+        if (unk_token != this->vocab_map_.end()) {
+            TokenUnk = unk_token->second;
+        } else {
+            std::cerr << "UNK token not found in vocab file." << std::endl;
+        }
+    }
+}
 } // namespace mllm

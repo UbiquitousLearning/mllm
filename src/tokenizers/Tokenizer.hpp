@@ -29,10 +29,12 @@ protected:
     std::vector<Token> id_token_;
     bool load_vocab(const std::string &vocab_file);
 
+
 public:
     virtual void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) = 0;
     std::string detokenize(const std::vector<token_id_t> &tokens);
     explicit Tokenizer(const std::string &vocab_file);
+    void setSpecialToken(const std::string &bos="", const std::string &eos="", const std::string &unk="", const std::string &nl="");
 };
 
 } // namespace mllm
