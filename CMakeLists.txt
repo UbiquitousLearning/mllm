@@ -63,7 +63,7 @@ aux_source_directory(${PROJECT_SOURCE_DIR}/test TEST_SRC)
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${PROJECT_SOURCE_DIR}/thirdpartys)
+include_directories(${PROJECT_SOURCE_DIR}/third_party)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 
@@ -175,8 +175,9 @@ target_link_libraries(${TEST_EXE} MLLM_CPU)
 
 
 add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/demo/main_fuyu.cpp )# ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC})
-find_package(X11 REQUIRED)
-target_link_libraries(main_fuyu ${X11_LIBRARIES})
+target_link_directories(main_fuyu PUBLIC ${PROJECT_SOURCE_DIR}/third_party/imageHelper)
+#find_package(X11 REQUIRED)
+#target_link_libraries(main_fuyu ${X11_LIBRARIES})
 # target_link_libraries(${TEST_EXE} MLLM_CPU)
 
 # nnapi temp test
