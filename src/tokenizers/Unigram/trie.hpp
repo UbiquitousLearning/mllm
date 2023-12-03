@@ -13,6 +13,13 @@ template <typename Value>
 class TrieIterator;
 template <typename Value>
 class Trie {
+public:
+    struct Node {
+        std::unordered_map<Value, Node *> children;
+        //        Value value;
+        bool is_leaf = false;
+    };
+private:
     Node *root;
     public:
     Trie():root(new Node()) {}
@@ -38,11 +45,6 @@ void insert(const std::vector<Value> &key) {
         return TrieIterator<Value>(node, labels);
     }
 
-    struct Node {
-        std::unordered_map<Value, Node *> children;
-//        Value value;
-        bool is_leaf = false;
-    };
 };
 template <typename Value>
 class TrieIterator {

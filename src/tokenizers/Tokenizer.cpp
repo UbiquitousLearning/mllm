@@ -55,7 +55,7 @@ bool Tokenizer::load_vocab(const std::string &vocab_file) {
     return true;
 }
 Tokenizer::Tokenizer(const std::string &vocab_file) {
-    load_vocab(vocab_file);
+    if(!load_vocab(vocab_file)) exit(-1);
 }
 string Tokenizer::detokenize(const vector<token_id_t> &tokens) {
     //int size = tokens.size() - 1;

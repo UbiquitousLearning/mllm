@@ -67,6 +67,11 @@ include_directories(${PROJECT_SOURCE_DIR}/third_party)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 
+#add tokenizers
+file(GLOB_RECURSE SRC_TOKENIZERS
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/*.cpp
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/*.hpp
+)
 # if compile to x86_64
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$")
     message(STATUS "x86_64 detected")
@@ -138,7 +143,7 @@ if(TEST)
         MLLM_TEST
         ${PROJECT_SOURCE_DIR}/test/main.cpp
         ${MLLM_TEST}
-        ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER}
+        ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
     )
 
     target_link_libraries(

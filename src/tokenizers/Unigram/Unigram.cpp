@@ -8,6 +8,9 @@ UnigramTokenizer::UnigramTokenizer(const std::string &vocab_file) :
     Tokenizer(std::move(vocab_file)) {
 }
 void UnigramTokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, bool byte_fallback) {
+    if (bos) {
+        tokens.emplace_back(TokenBos);
+    }
     auto size = text.size();
     std::vector<BestPath> best_path(size + 1);
     auto unk_score = this->min_score_ - K_UNK_PENALTY;

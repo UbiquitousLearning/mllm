@@ -51,6 +51,7 @@ def write_vocab(vocab_file, tokenizer):
 
 def write_unigram(vocab_file, tokenizer_config):
     vocab_file.write(struct.pack("<i", len(tokenizer_config["vocab"])))
+    print(len(tokenizer_config["vocab"]))
     idx = 0
     for token_score in tokenizer_config["vocab"]:
         token, score = token_score[0], token_score[1]
@@ -59,23 +60,23 @@ def write_unigram(vocab_file, tokenizer_config):
         vocab_file.write(token.encode("utf-8"))
         vocab_file.write(struct.pack("<f", score))
         idx += 1
-        print(token, score)
+        # print(token, score)
 
 
 if __name__ == "__main__":
     args = parser.parse_args()
     output_file = args.output_file
     input_file = args.input_file
+
     with open(output_file, "wb+") as vocab_file:
+        vocab_file.write(struct.pack("<i", MAGIC_NUM))
+
         if args.type == "BPE":
             from sentencepiece import SentencePieceProcessor  # type: ignore
-
             sentencepiece_tokenizer = SentencePieceProcessor(str(input_file))
-            vocab_file = open(output_file, "wb+")
             write_vocab(vocab_file, sentencepiece_tokenizer)
         elif args.type == "Unigram":
             tokenizer_config = json.load(open(input_file, "r"))
-            vocab_file = open(output_file, "wb+")
             config = tokenizer_config["model"]
             if config["type"] == "Unigram":
                 write_unigram(vocab_file, config)
