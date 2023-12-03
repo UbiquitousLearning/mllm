@@ -1,18 +1,24 @@
+import json
 import struct
 from typing import Iterable, Tuple
-
-from sentencepiece import SentencePieceProcessor  # type: ignore
+import argparse
 
 MAGIC_NUM = 23333
-out_fname = "./vocab.mllm"
-fname_tokenizer = "./tokenizer.model"
-sentencepiece_tokenizer = SentencePieceProcessor(str(fname_tokenizer))
-vocab_file = open(out_fname, "wb+")
-vocab_file.write(struct.pack("<i", MAGIC_NUM))
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--input_file", type=str, default="tokenizer.model"
+)
+parser.add_argument("--output_file", type=str, default="vocab.mllm")
+parser.add_argument(
+    "--type",
+    choices=["BPE", "Unigram"],
+    default="BPE",
+)
 
 
 def sentencepiece_tokens(
-        tokenizer: SentencePieceProcessor,
+        tokenizer
 ) -> Iterable[Tuple[bytes, float]]:
     for i in range(tokenizer.vocab_size()):
         text: bytes
@@ -43,6 +49,38 @@ def write_vocab(vocab_file, tokenizer):
         idx += 1
 
 
+def write_unigram(vocab_file, tokenizer_config):
+    vocab_file.write(struct.pack("<i", len(tokenizer_config["vocab"])))
+    idx = 0
+    for token_score in tokenizer_config["vocab"]:
+        token, score = token_score[0], token_score[1]
+        vocab_file.write(struct.pack("<i", idx))
+        vocab_file.write(struct.pack("<i", len(token)))
+        vocab_file.write(token.encode("utf-8"))
+        vocab_file.write(struct.pack("<f", score))
+        idx += 1
+        print(token, score)
+
+
 if __name__ == "__main__":
-    write_vocab(vocab_file, sentencepiece_tokenizer)
-    vocab_file.close()
+    args = parser.parse_args()
+    output_file = args.output_file
+    input_file = args.input_file
+    with open(output_file, "wb+") as vocab_file:
+        if args.type == "BPE":
+            from sentencepiece import SentencePieceProcessor  # type: ignore
+
+            sentencepiece_tokenizer = SentencePieceProcessor(str(input_file))
+            vocab_file = open(output_file, "wb+")
+            write_vocab(vocab_file, sentencepiece_tokenizer)
+        elif args.type == "Unigram":
+            tokenizer_config = json.load(open(input_file, "r"))
+            vocab_file = open(output_file, "wb+")
+            config = tokenizer_config["model"]
+            if config["type"] == "Unigram":
+                write_unigram(vocab_file, config)
+            else:
+                raise Exception("Not implemented! Only Unigram Supported!")
+
+        else:
+            raise Exception("Not implemented")
