@@ -369,7 +369,7 @@ public:
     }
 
     template <typename Dtype>
-    Dtype* ptrAt(const int batch, const int head, const int sequence, const int dimension) const {
+    Dtype* ptrAt(const int batch, const int head, const int sequence, const int dimension) {
         return ((Dtype *)host_ptr_ + offset(batch, head, sequence, dimension));
     }
 

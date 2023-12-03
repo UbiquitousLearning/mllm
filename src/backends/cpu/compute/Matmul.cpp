@@ -118,6 +118,9 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
                             vec_dot_fp32(K, dst->ptrAt<float>(b, h, m, n),
                                               src1_cal->hostPtr<float>() + src1_cal->offset(b, h, n, 0),
                                               src0_cal->hostPtr<float>() + src0_cal->offset(b, h, m, 0) );
+                            if(support_bias){
+                                *dst->ptrAt<float>(b,h,m,n) +=  bias->dataAt<float>(0, h, 0, n);
+                            }
                         }
                     }
                     // 处理剩余的元素
@@ -126,6 +129,9 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
                         vec_dot_fp32(K, dst->ptrAt<float>(b, h, m, n),
                                           src1_cal->hostPtr<float>() + src1_cal->offset(b, h, n, 0),
                                           src0_cal->hostPtr<float>() + src0_cal->offset(b, h, m, 0) );
+                        if(support_bias){
+                            *dst->ptrAt<float>(b,h,m,n) +=  bias->dataAt<float>(0, h, 0, n);
+                        }
                     }
                 }
             }
@@ -151,6 +157,9 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
                             vec_dot_fp32(K, dst->ptrAt<float>(b, h, m, n),
                                               src1_cal->hostPtr<float>() + src1_cal->offset(b, h, 0, n),
                                               src0_cal->hostPtr<float>() + src0_cal->offset(b, h, m, 0) );
+                            if(support_bias){
+                                *dst->ptrAt<float>(b,h,m,n) +=  bias->dataAt<float>(0, h, 0, n);
+                            }
                         }
                     }
                     // 处理剩余的元素
@@ -159,6 +168,9 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
                         vec_dot_fp32(K, dst->ptrAt<float>(b, h, m, n),
                                           src1_cal->hostPtr<float>() + src1_cal->offset(b, h, 0, n),
                                           src0_cal->hostPtr<float>() + src0_cal->offset(b, h, m, 0) );
+                        if(support_bias){
+                            *dst->ptrAt<float>(b,h,m,n) +=  bias->dataAt<float>(0, h, 0, n);
+                        }
                     }
                 }
             }
@@ -184,6 +196,9 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
                             vec_dot_fp32(K, dst->ptrAt<float>(b, h, m, n),
                                               src1_cal->hostPtr<float>() + src1_cal->offset(b, h, 0, n),
                                               src0_cal->hostPtr<float>() + src0_cal->offset(b, h, 0, m) );
+                            if(support_bias){
+                                *dst->ptrAt<float>(b,h,m,n) +=  bias->dataAt<float>(0, h, 0, n);
+                            }
                         }
                     }
                     // 处理剩余的元素
@@ -192,6 +207,9 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
                         vec_dot_fp32(K, dst->ptrAt<float>(b, h, m, n),
                                           src1_cal->hostPtr<float>() + src1_cal->offset(b, h, 0, n),
                                           src0_cal->hostPtr<float>() + src0_cal->offset(b, h, 0, m) );
+                        if(support_bias){
+                            *dst->ptrAt<float>(b,h,m,n) +=  bias->dataAt<float>(0, h, 0, n);
+                        }
                     }
                 }
             }
@@ -261,6 +279,9 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
                             vec_dot_q4_0_q8_0(K, dst->ptrAt<float>(b, h, m, n),
                                               src1_cal->hostPtr<block_q4_0>() + src1_cal->offset(b, h, n, 0) / QK4_0,
                                               src0_cal->hostPtr<block_q8_0>() + src0_cal->offset(b, h, m, 0) / QK8_0);
+                            if(support_bias){
+                                *dst->ptrAt<float>(b,h,m,n) +=  bias->dataAt<float>(0, h, 0, n);
+                            }
                         }
                     }
                     // 处理剩余的元素
@@ -269,6 +290,9 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
                         vec_dot_q4_0_q8_0(K, dst->ptrAt<float>(b, h, m, n),
                                           src1_cal->hostPtr<block_q4_0>() + src1_cal->offset(b, h, n, 0) / QK4_0,
                                           src0_cal->hostPtr<block_q8_0>() + src0_cal->offset(b, h, m, 0) / QK8_0);
+                        if(support_bias){
+                            *dst->ptrAt<float>(b,h,m,n) +=  bias->dataAt<float>(0, h, 0, n);
+                        }
                     }
             }
         }
@@ -357,6 +381,9 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
                         vec_dot_q4_K_q8_K(K, dst->ptrAt<float>(b, h, m, n),
                                           src1_cal->hostPtr<block_q4_K>() + src1_cal->offset(b, h, n, 0) / QK_K,
                                           src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0) / QK_K);
+                        if(support_bias){
+                            *dst->ptrAt<float>(b,h,m,n) +=  bias->dataAt<float>(0, h, 0, n);
+                        }
                     }
                 }
                 // 处理剩余的元素
@@ -365,6 +392,9 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
                     vec_dot_q4_K_q8_K(K, dst->ptrAt<float>(b, h, m, n),
                                       src1_cal->hostPtr<block_q4_K>() + src1_cal->offset(b, h, n, 0) / QK_K,
                                       src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0) / QK_K);
+                    if(support_bias){
+                        *dst->ptrAt<float>(b,h,m,n) +=  bias->dataAt<float>(0, h, 0, n);
+                    }
                 }
 
                 /*
@@ -456,6 +486,9 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
                         vec_dot_q6_K_q8_K(K, dst->ptrAt<float>(b, h, m, n),
                                           src1_cal->hostPtr<block_q6_K>() + src1_cal->offset(b, h, n, 0) / QK_K,
                                           src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0) / QK_K);
+                        if(support_bias){
+                            *dst->ptrAt<float>(b,h,m,n) +=  bias->dataAt<float>(0, h, 0, n);
+                        }
                     }
                 }
                 // 处理剩余的元素
@@ -464,6 +497,9 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
                     vec_dot_q6_K_q8_K(K, dst->ptrAt<float>(b, h, m, n),
                                       src1_cal->hostPtr<block_q6_K>() + src1_cal->offset(b, h, n, 0) / QK_K,
                                       src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0) / QK_K);
+                    if(support_bias){
+                        *dst->ptrAt<float>(b,h,m,n) +=  bias->dataAt<float>(0, h, 0, n);
+                    }
                 }
             }
         }
