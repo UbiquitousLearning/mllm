@@ -34,6 +34,7 @@ bool Tokenizer::load_vocab(const std::string &vocab_file) {
         std::cout << "vocab length error" << std::endl;
         return false;
     }
+    float min_score = INFINITY;
     this->vocab_map_.reserve(length);
     this->id_token_.resize(length);
     int offset = 0;
@@ -42,12 +43,15 @@ bool Tokenizer::load_vocab(const std::string &vocab_file) {
         auto token = readString(fp);
         auto score = readf32(fp);
         this->vocab_map_[token] = id;
-
+        if (score < min_score) {
+            min_score = score;
+        }
         this->id_token_[id].score = score;
         this->id_token_[id].token_id = id;
         this->id_token_[id].token = token;
         offset++;
     }
+    this->min_score_ = min_score;
     return true;
 }
 Tokenizer::Tokenizer(const std::string &vocab_file) {

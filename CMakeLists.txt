@@ -177,7 +177,8 @@ target_link_libraries(${TEST_EXE} MLLM_CPU)
 
 add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/demo/main_fuyu.cpp
         src/tokenizers/Unigram/Unigram.hpp
-        src/tokenizers/Unigram/Unigram.cpp)# ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC})
+        src/tokenizers/Unigram/Unigram.cpp
+        src/tokenizers/Unigram/trie.hpp)# ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC})
 target_link_directories(main_fuyu PUBLIC ${PROJECT_SOURCE_DIR}/third_party/imageHelper)
 #find_package(X11 REQUIRED)
 #target_link_libraries(main_fuyu ${X11_LIBRARIES})

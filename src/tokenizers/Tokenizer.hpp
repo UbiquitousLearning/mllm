@@ -25,6 +25,7 @@ protected:
     inline  static token_id_t TokenEos = 2;
     inline  static token_id_t TokenNl = 13;
     inline  static token_id_t TokenUnk = 0;
+    float min_score_ = 0.0;
     std::unordered_map<token_t, token_id_t> vocab_map_;
     std::vector<Token> id_token_;
     bool load_vocab(const std::string &vocab_file);
