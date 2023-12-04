@@ -10,10 +10,19 @@ TEST_F(TokenizerTest, test) {
     tokenizer->setSpecialToken("|ENDOFTEXT|");
     std::string text = "Hello world";
      // normalization text
-    // replace all " " to "_"
-    std::replace(text.begin(), text.end(), ' ', '_');
+    // replace all " " to "▁"
+    std::string text_ = "";
+    for (auto &ch : text) {
+        if (ch == ' ') {
+            text_ += "▁";
+        }else {
+            text_ += ch;
+        }
+
+    }
+    // std::replace(text.begin(), text.end(), ' ', L'▁');
     // prepend "_" to text
-    std::string new_text = "_" + std::string(text);
+    std::string new_text = "▁" + std::string(text_);
 
     tokenizer->tokenize(new_text, ids, true);
     for (auto id : ids) {
