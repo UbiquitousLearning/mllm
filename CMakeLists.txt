@@ -67,6 +67,11 @@ include_directories(${PROJECT_SOURCE_DIR}/third_party)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 
+#add tokenizers
+file(GLOB_RECURSE SRC_TOKENIZERS
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/*.cpp
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/*.hpp
+)
 # if compile to x86_64
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$")
     message(STATUS "x86_64 detected")
@@ -138,7 +143,7 @@ if(TEST)
         MLLM_TEST
         ${PROJECT_SOURCE_DIR}/test/main.cpp
         ${MLLM_TEST}
-        ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER}
+        ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
     )
 
     target_link_libraries(
@@ -170,13 +175,17 @@ add_executable(main_llama ${PROJECT_SOURCE_DIR}/demo/main_llama.cpp ${DIR_SRC_CP
     src/tokenizers/Tokenizer.cpp
     src/tokenizers/Tokenizer.hpp
     src/tokenizers/BPE/Bpe.cpp
-    src/tokenizers/BPE/Bpe.hpp)
+    src/tokenizers/BPE/Bpe.hpp
+)
 target_link_libraries(main_llama MLLM_CPU)
 
 
 add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/demo/main_fuyu.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/Tokenizer.hpp
+        src/tokenizers/Unigram/Unigram.hpp
+        src/tokenizers/Unigram/Unigram.cpp
+        src/tokenizers/Unigram/trie.hpp
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp)
 target_link_libraries(main_fuyu MLLM_CPU)
