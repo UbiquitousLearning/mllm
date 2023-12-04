@@ -98,7 +98,7 @@ ErrorCode CPUView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
         ((inputs[0]->ctype() == BSHD && outputs[0]->ctype() == BSHD))|((inputs[0]->ctype() == BHDS && outputs[0]->ctype() == BHDS))
     ){
         if(inputs[0]->masterTensor() == nullptr) {
-            inputs[0]->free(); // TODO remove
+            inputs[0]->free();
         }
         outputs[0]->setDtype(activation_dtype());
         outputs[0]->alloc();

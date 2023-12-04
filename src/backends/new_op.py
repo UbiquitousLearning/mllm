@@ -21,6 +21,7 @@ public:
     virtual ErrorCode load(AbstructLoader &loader) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
     bool support_multi_thread_ = false;
@@ -66,6 +67,11 @@ ErrorCode CPUAbc::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
 ErrorCode CPUAbc::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     //std::cout<<name() << "  CPUAbc() free" << std::endl;
     return Op::free(inputs, outputs);
+}
+
+ErrorCode CPUAbc::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    //std::cout<<name() << "  CPUAbc() setUp" << std::endl;
+    return Op::setUp(inputs, outputs);
 }
 } // namespace mllm
 

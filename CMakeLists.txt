@@ -22,7 +22,7 @@ else()
 endif()
 
 # temp executable name
-set(TEST_EXE main_test)
+#set(TEST_EXE main_test)
 option(TEST "test mode" ON)
 option(QUANT "quantize tools" ON)
 
@@ -171,23 +171,26 @@ endif()
 
 # else ()
 # No Unit Test.
-add_executable(${TEST_EXE} ${PROJECT_SOURCE_DIR}/demo/main_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+add_executable(main_llama ${PROJECT_SOURCE_DIR}/demo/main_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
     src/tokenizers/Tokenizer.cpp
     src/tokenizers/Tokenizer.hpp
     src/tokenizers/BPE/Bpe.cpp
     src/tokenizers/BPE/Bpe.hpp
 )
-target_link_libraries(${TEST_EXE} MLLM_CPU)
+target_link_libraries(main_llama MLLM_CPU)
 
 
-add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/demo/main_fuyu.cpp
+add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/demo/main_fuyu.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
         src/tokenizers/Unigram/Unigram.hpp
         src/tokenizers/Unigram/Unigram.cpp
-        src/tokenizers/Unigram/trie.hpp)# ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC})
+        src/tokenizers/Unigram/trie.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp)
+target_link_libraries(main_fuyu MLLM_CPU)
 target_link_directories(main_fuyu PUBLIC ${PROJECT_SOURCE_DIR}/third_party/imageHelper)
-#find_package(X11 REQUIRED)
-#target_link_libraries(main_fuyu ${X11_LIBRARIES})
-# target_link_libraries(${TEST_EXE} MLLM_CPU)
+
 
 # nnapi temp test
 if(NNAPI)

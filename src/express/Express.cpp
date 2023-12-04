@@ -340,7 +340,7 @@ NetTensor *_KVCache(Context *ctx, std::vector<NetTensor *> inputs, bool isK, str
     out_tensor->in = net_op_;
     return out_tensor;
 }
-NetTensor *ReLU(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+NetTensor *_ReLU(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "ReLU" + std::to_string(ctx->idx);
@@ -354,7 +354,7 @@ NetTensor *ReLU(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     out_tensor->in = net_op_;
     return out_tensor;
 }
-NetTensor *ReLUSquaredActivation(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+NetTensor *_ReLUSquaredActivation(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "ReLUSquaredActivation" + std::to_string(ctx->idx);
@@ -368,7 +368,7 @@ NetTensor *ReLUSquaredActivation(Context *ctx, std::vector<NetTensor *> inputs, 
     out_tensor->in = net_op_;
     return out_tensor;
 }
-NetTensor *LayerNorm(Context *ctx, std::vector<NetTensor *> inputs, bool bias, string name) {
+NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs, bool bias, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "LayerNorm" + std::to_string(ctx->idx);
@@ -382,6 +382,31 @@ NetTensor *LayerNorm(Context *ctx, std::vector<NetTensor *> inputs, bool bias, s
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;
+}
+vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int split_num, Chl split_dim, string name){
+    if (name.empty()) {
+        name = "LayerNorm" + std::to_string(ctx->idx);
+    }
+    auto sub_param = get_active_subgraph(ctx);
+    _NEW_OP(mllm::SPLIT)
+    net_op_->param["split_num"] =(int) split_num;
+    net_op_->param["split_dim"] =(int) split_dim;
+    _UPDATE_INPUT_TENSORS
+    vector<NetTensor *> out_tensors;
+    net_op_->out_size = split_num;
+    for (int i = 0; i < split_num; ++i) {
+        NetTensor *out_tensor = new NetTensor();
+        out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
+        out_tensor->type = inputs[0]->type;
+        ctx->idx++;
+        ctx->net_tensors.insert(out_tensor);
+        out_tensor->subgraph = sub_param;
+        sub_param->net_tensors.push_back(out_tensor);
+        out_tensor->in = net_op_;
+        out_tensors.push_back(out_tensor);
+    }
+    return out_tensors;
+
 }
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;

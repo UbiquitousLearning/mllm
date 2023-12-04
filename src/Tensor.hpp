@@ -27,7 +27,8 @@ public:
         backend_(bn), host_ptr_(), capacity_(0), dtype_(MLLM_TYPE_F32) {
     }
     ~Tensor() {
-        if (host_ptr_ != nullptr && masterTensor() == nullptr){
+        if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_) {
+//            std::cout << "free " << name() << std::endl;
             backend_->free(host_ptr_);
             //allocated_ = false;
 //            ::free(host_ptr_);
@@ -54,6 +55,10 @@ public:
     //    bool reshape(const int num, const int channels, const int height, const int width);
     bool reshape(const int batch, const int head, const int sequence, const int dimension);
 
+    bool reshape_unsafe(const vector<int> &shape){
+        shape_ = shape;
+    }
+
     void alloc();
     void alloc(DataType dtype) {
         dtype_ = dtype;
@@ -61,6 +66,7 @@ public:
     }
 
     void free(){
+        if(aggregated_){return;}
         if (host_ptr_ != nullptr && masterTensor() == nullptr) {
             backend_->free(host_ptr_);
             host_ptr_ = nullptr;
@@ -195,11 +201,11 @@ public:
         // CHECK_LE(s, sequence());
         // CHECK_GE(dimension(), 0);
         // CHECK_LE(d, dimension());
-        if (shape_offset_.size() == 4 & shape_base_.size() == 4) {
-            const int base_batch_ = shape_base_[0];
-            const int base_head_ = shape_base_[1];
-            const int base_sequence_ = shape_base_[2];
-            const int base_dimension_ = shape_base_[3];
+        if (shape_offset_.size() == 4 & shape_master_.size() == 4) {
+            const int base_batch_ = shape_master_[0];
+            const int base_head_ = shape_master_[1];
+            const int base_sequence_ = shape_master_[2];
+            const int base_dimension_ = shape_master_[3];
             const int b_ = (b + shape_offset_[0])%base_batch_;
             const int h_ = (h + shape_offset_[1])%base_head_;
             const int s_ = (s + shape_offset_[2])%base_sequence_;
@@ -229,7 +235,7 @@ public:
     }
 
     inline int offset(const vector<int> &indices) const {
-        if (shape_offset_.size() == 4 & shape_base_.size() == 4) {
+        if (shape_offset_.size() == 4 & shape_master_.size() == 4) {
             return offset(indices[0], indices[1], indices[2], indices[3]);
         } else {
             CHECK_LE(indices.size(), numAxes());
@@ -301,7 +307,7 @@ public:
      * \param source
      * \param shape_offset
      */
-    void deepCopyOffsetFrom(Tensor &source, const vector<int> &shape_offset) {
+    void deepCopyFrom(Tensor &source, const vector<int> &shape_offset) {
         //
         setMasterTensor(&source);
         if(ctype_ != master_tensor_->ctype()) {
@@ -325,9 +331,9 @@ public:
         assert(source.allocted());
         // don't need alloc()
         shape_offset_ = shape_offset;
-        shape_base_ = {source.batch(), source.head(), source.sequence(), source.dimension()};
+        shape_master_ = {source.batch(), source.head(), source.sequence(), source.dimension()};
         if(source.head() != head()) {
-            shape_base_ = {source.batch(), head(), source.sequence(), source.dimension() * source.head() / head()};
+            shape_master_ = {source.batch(), head(), source.sequence(), source.dimension() * source.head() / head()};
         }
         // deep Copy
         host_ptr_ = source.hostPtr<void>();
@@ -335,7 +341,7 @@ public:
         dtype_ = source.dtype_;
         //
         for (auto &child_tensor: child_tensors_) {
-            child_tensor->deepCopyOffsetFrom(source, shape_offset);
+            child_tensor->deepCopyFrom(source, shape_offset);
             //remove child_temsor from child_tensors_:
             child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
         }
@@ -355,7 +361,16 @@ public:
     template <typename Dtype>
     Dtype dataAt(const int batch, const int head, const int sequence, const int dimension) const {
         //        return hostPtr<Dtype>()[offset(n, c, h, w)];
-        return ((Dtype *)host_ptr_)[offset(batch, head, sequence, dimension)];
+        if(!aggregated_) {
+            return ((Dtype *)host_ptr_)[offset(batch, head, sequence, dimension)];
+        }else{
+            int b = batch;
+            int h = head;
+            int s = sequence;
+            int d = dimension;
+            int tensor_id = checkDim(b, h, s, d);
+            return aggregated_tensors_[tensor_id]->dataAt<Dtype>(b, h, s, d);
+        }
     }
     template <typename Dtype>
     Dtype dataAtDangerously(const int offset) const {
@@ -369,8 +384,17 @@ public:
     }
 
     template <typename Dtype>
-    Dtype* ptrAt(const int batch, const int head, const int sequence, const int dimension) const {
-        return ((Dtype *)host_ptr_ + offset(batch, head, sequence, dimension));
+    Dtype* ptrAt(const int batch, const int head, const int sequence, const int dimension) {
+        if(!aggregated_){
+            return ((Dtype *)host_ptr_ + offset(batch, head, sequence, dimension));
+        }else{
+            int b = batch;
+            int h = head;
+            int s = sequence;
+            int d = dimension;
+            int tensor_id = checkDim(b, h, s, d);
+            return aggregated_tensors_[tensor_id]->ptrAt<Dtype>(b, h, s, d);
+        }
     }
 
     template <typename Dtype>
@@ -380,8 +404,17 @@ public:
 
     template <typename Dtype>
     void setDataAt(const int batch, const int head, const int sequence, const int dimension, Dtype value) {
-        Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
-        typed_ptr[offset(batch, head, sequence, dimension)] = value;
+        if(!aggregated_) {
+            Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
+            typed_ptr[offset(batch, head, sequence, dimension)] = value;
+        }else{
+            int b = batch;
+            int h = head;
+            int s = sequence;
+            int d = dimension;
+            int tensor_id = checkDim(b, h, s, d);
+            aggregated_tensors_[tensor_id]->setDataAt<Dtype>(b, h, s, d, value);
+        }
     }
     template <typename Dtype>
     void setDataAtDangerously(const int offset, Dtype value) const {
@@ -410,14 +443,6 @@ public:
                 ctype_ = BHDS;
                 reshape(b, h, s,d);
                 transed_ = true;
-                // if(masterTensor() != nullptr) {
-                //     auto b = master_tensor_->batch();
-                //     auto h = master_tensor_->head();
-                //     auto d = master_tensor_->dimension();
-                //     auto s = master_tensor_->sequence();
-                //     master_tensor_->ctype_ = BHDS;
-                //     master_tensor_->reshape(b, h, s,d);
-                // }
             }else if (transed_) {
 
             }
@@ -429,7 +454,7 @@ public:
         }
     }
 
-    int cntSize() {
+    size_t cntSize() {
         return DataTypeSize(dtype_, count_);
     }
 
@@ -455,9 +480,74 @@ public:
     vector<int> shape_offset() const {
         return shape_offset_;
     }
-    vector<int> shape_base() const {
-        return shape_base_;
+    vector<int> shape_master() const {
+        return shape_master_;
     }
+
+    Tensor *masterTensor() const {
+        return master_tensor_;
+    }
+    void setMasterTensor(Tensor* master_tensor) {
+        master_tensor_ = master_tensor;
+    }
+
+    vector<Tensor *> childTensors() {
+        return child_tensors_;
+    }
+    void addChildTensor(Tensor* child) {
+        child_tensors_.push_back(child);
+    }
+
+
+    void addTensors(vector<shared_ptr<Tensor>> ts, Chl dim) {
+        aggregated_ = true;
+        aggregated_dim_ = dim;
+        aggregated_dims_ = {};
+        switch (dim) {
+        case HEAD:{
+            auto sum = 0;
+            for (auto &t : ts) {
+                CHECK_EQ(t->batch(), batch());
+                CHECK_EQ(t->sequence(), sequence());
+                CHECK_EQ(t->dimension(), dimension());
+                sum += t->head();
+                aggregated_dims_.push_back(sum);
+            }
+            CHECK_EQ(sum, head());
+            break;
+        }
+        case SEQUENCE: {
+            auto sum = 0;
+            for (auto &t : ts) {
+                CHECK_EQ(t->batch(), batch());
+                CHECK_EQ(t->head(), head());
+                CHECK_EQ(t->dimension(), dimension());
+                sum += t->sequence();
+                aggregated_dims_.push_back(sum);
+            }
+            CHECK_EQ(sum, sequence());
+            break;
+        }
+        case DIMENSION: {
+            auto sum = 0;
+            for (auto &t : ts) {
+                CHECK_EQ(t->batch(), batch());
+                CHECK_EQ(t->head(), head());
+                CHECK_EQ(t->sequence(), sequence());
+                sum += t->dimension();
+                aggregated_dims_.push_back(sum);
+            }
+            CHECK_EQ(sum, dimension());
+            break;
+        }
+        default:
+            break;
+        }
+        aggregated_tensors_ = ts;
+    }
+
+public:
+    /*TEST*/
 
     template <typename Dtype>
     void checkData() {
@@ -487,22 +577,6 @@ public:
         }
     }
 
-    Tensor *masterTensor() const {
-        return master_tensor_;
-    }
-    void setMasterTensor(Tensor* master_tensor) {
-        master_tensor_ = master_tensor;
-    }
-
-    vector<Tensor *> childTensors() {
-        return child_tensors_;
-    }
-    void addChildTensor(Tensor* child) {
-        child_tensors_.push_back(child);
-    }
-
-
-    /*TEST*/
     void printShape(){
         std::cout << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "]" << std::endl;
     }
@@ -554,18 +628,6 @@ public:
             std::cout << std::fixed << std::setprecision(7) << typed_ptr[i] << " ";
         }
     }
-    // template <typename Dtype>
-    // friend void checkTensorMem(shared_ptr<Tensor> t1, shared_ptr<Tensor> t2) {
-    //     assert(t1->count() == t2->count());
-    //     for (int i = 0; i < t1->count(); ++i) {
-    //         auto *typed_ptr1 = t1->hostPtr<Dtype>();
-    //         auto *typed_ptr2 = t2->hostPtr<Dtype>();
-    //         if (typed_ptr1[i] != typed_ptr2[i]) {
-    //             std::cout << "[ERROR]: " << i << " " << typed_ptr1[i] << " " << typed_ptr2[i] << std::endl;
-    //             assert(typed_ptr1[i] == typed_ptr2[i]);
-    //         }
-    //     }
-    // }
 
     template <typename Dtype>
     void printAVG() {
@@ -590,9 +652,6 @@ public:
 //        std::cout << name() << ": shape:[" << num() << " " << channels() << " " << height() << " " << width() << "] AVG:" << sum / count() << std::endl;
     }
 
-
-
-
     shared_ptr<Tensor> view(int batch, int head, int sequence, int dimension) {
         auto t = std::make_shared<Tensor>();
         t->setBackend(backend_);
@@ -601,6 +660,7 @@ public:
         t->host_ptr_ = host_ptr_;
         return t;
     }
+
     shared_ptr<Tensor> unfold(int axis, int size, int step) {
         CHECK_GE(axis, 0);
         CHECK_LT(axis, numAxes());
@@ -620,14 +680,6 @@ public:
         t->host_ptr_ = host_ptr_;
         return t;
     }
-
-//
-//    void setByteWidth(int bw) {
-//        byte_width_ = bw;
-//    }
-    // TODO:Name?
-
-
 
     template <class Dtype>
     void fullData(Dtype value) {
@@ -661,10 +713,6 @@ public:
     }
 
     void permute(int axis0, int axis1, int axis2, int axis3, bool copy = true);
-    bool reshape_unsafe(const vector<int> &shape){
-        shape_ = shape;
-    }
-
 
 private:
     bool reshape(const vector<int> &shape);
@@ -672,41 +720,74 @@ private:
         return shape_[canonicalAxisIndex(index)];
     }
 
+    int checkDim(int &b, int &h, int &s, int &d) const {
+        if (!aggregated_){
+            return -1;
+        }
+        int tensor_id = -1;
+        switch (aggregated_dim_) {
+        case HEAD: {
+            for (int a = 0; a < aggregated_dims_.size(); ++a) {
+                if (h < aggregated_dims_[a]) {
+                    tensor_id = a;
+                    break;
+                }
+            }
+            h = h - aggregated_dims_[tensor_id-1];
+            break;
+        }
+        case SEQUENCE: {
+            for (int a = 0; a < aggregated_dims_.size(); ++a) {
+                if (s < aggregated_dims_[a]) {
+                    tensor_id = a;
+                    break;
+                }
+            }
+            s = s - aggregated_dims_[tensor_id-1];
+            break;
+        }
+        case DIMENSION: {
+            for (int a = 0; a < aggregated_dims_.size(); ++a) {
+                if (d < aggregated_dims_[a]) {
+                    tensor_id = a;
+                    break;
+                }
+            }
+            d = d - aggregated_dims_[tensor_id-1];
+            break;
+        }
+        default:
+            break;
+        }
+        return tensor_id;
+    }
 
 private:
     string name_;
-//    int byte_width_; // 32/16/8/4 //enum
     DataType dtype_;
     ChlType ctype_ = BSHD;
     Backend *backend_;
     void *host_ptr_;
     void *device_ptr_;
-
-    // shared_ptr<HostMemory> data_; //存放数据
-    // shared_ptr<HostMemory> diff_; //存放梯度  //TODO: not need for "inference"; only define; do not use. DELITE
-    // shared_ptr<HostMemory> shape_data_; //Tensor形状，N K H W //4*sizeofint
-
-    // TODO device_data_?
-
     vector<int> shape_; // 保存 N K H W
     int capacity_;      // 元素个数 申请内存的总长度相关
     int count_;         // 当前元素数
-
     int allocated_ = 0;
 
 
     // shadow tensor if;
     vector<int> shape_offset_;
-    vector<int> shape_base_;
-
-
-    //shared
+    vector<int> shape_master_;
     Tensor* master_tensor_ = nullptr;
     vector<Tensor *> child_tensors_;
-
-
-    //
     bool transed_ = false;
+
+    //aggregated
+    bool aggregated_ = false;
+    vector<shared_ptr<Tensor>> aggregated_tensors_;
+    Chl aggregated_dim_;
+    vector<int> aggregated_dims_ ;
+
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H

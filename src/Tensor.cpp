@@ -70,11 +70,12 @@ bool Tensor::reshape(const vector<int> &shape) {
 }
 
 void Tensor::alloc() {
+    if(aggregated_){return;}
     assert(backend_ != nullptr);
     if(masterTensor() != nullptr) {
         return;
     }
-    if(!shape_offset_.empty() & !shape_base_.empty()) {
+    if(!shape_offset_.empty() & !shape_master_.empty()) {
         return;
     }
     if (allocated_ != count_) {

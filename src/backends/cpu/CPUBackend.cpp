@@ -14,6 +14,9 @@
 #include "CPUMul.hpp"
 #include "CPUKVCache.hpp"
 #include "CPUReLU.hpp"
+#include "CPUReLU2.hpp"
+#include "CPUSplit.hpp"
+#include "CPULayerNorm.hpp"
 #include <math.h>
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
@@ -74,7 +77,9 @@ void CPUBackend::registerOps() {
     addCreator(VIEW, (CPUBackend::Creator *)(new CPUViewCreator()));
     addCreator(KVCACHE, (CPUBackend::Creator *)(new CPUKVCacheCreator()));
     addCreator(RELU, (CPUBackend::Creator *)(new CPUReLUCreator()));
-    addCreator(RELU2, (CPUBackend::Creator *)(new CPUReLUCreator()));
+    addCreator(RELU2, (CPUBackend::Creator *)(new CPUReLU2Creator()));
+    addCreator(LAYERNORM, (CPUBackend::Creator *)(new CPULayerNormCreator()));
+    addCreator(SPLIT, (CPUBackend::Creator *)(new CPUSplitCreator()));
 }
 
 } // namespace mllm

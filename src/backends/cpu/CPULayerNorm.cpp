@@ -16,15 +16,25 @@ CPULayerNorm::CPULayerNorm(Backend *bn, string opName, bool multiThread,bool bia
 ErrorCode CPULayerNorm::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, 1, normSize_); //
-    weight_.setDtype(loader.getDataType(weight_.name()));
-    weight_.alloc();
-    loader.load(&weight_);
+     if (&loader != nullptr) {
+         weight_.setDtype(loader.getDataType(weight_.name()));
+         weight_.alloc();
+         loader.load(&weight_);
+     } else {
+         weight_.setDtype(MLLM_TYPE_F32);
+         weight_.alloc();
+     }
     if (bias) {
         bias_.setName(name() + ".bias");
         bias_.reshape(1, 1, 1, normSize_); //
-        bias_.setDtype(loader.getDataType(bias_.name()));
-        bias_.alloc();
-        loader.load(&bias_);
+        if (&loader != nullptr) {
+            bias_.setDtype(loader.getDataType(bias_.name()));
+            bias_.alloc();
+            loader.load(&bias_);
+        } else {
+            bias_.setDtype(MLLM_TYPE_F32);
+            bias_.alloc();
+        }
     }
 
     return Op::load(loader);

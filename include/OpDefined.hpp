@@ -26,6 +26,7 @@ enum OpType {
     RELU,
     RELU2,
     LAYERNORM,
+    SPLIT,
     OP_NUM
 };
 
@@ -48,6 +49,7 @@ static const vector<string> OpNames = {
     "ReLU",
     "ReLUSquaredActivation",
     "LayerNorm",
+    "Split",
     "OP_NUM"};
 } // namespace mllm
 #endif
