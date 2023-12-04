@@ -130,7 +130,7 @@ void llama2(Context* c, int vocab_size= 32000, int hidden_dim= 4096, int ffn_hid
     i = _Linear(c, {i}, hidden_dim, vocab_size, false, "output");
 }
 int main() {
-    auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
+    auto tokenizer = BPETokenizer("./vocab.mllm");
     auto tokens_id = vector<token_id_t>();
     // tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
     // tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);

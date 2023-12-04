@@ -7,6 +7,7 @@
 #include "NetParameter.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
+#include "tokenizers/Unigram/Unigram.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include "imageHelper/stb_image.h"
 
@@ -81,10 +82,28 @@ int main() {
     }
     stbi_image_free(data);
 
-    auto tokenizer = BPETokenizer("../tools/convertor/vocab.mllm");
+    auto tokenizer = UnigramTokenizer("./vocab_uni.mllm");
+    tokenizer.setSpecialToken("|ENDOFTEXT|");
     auto tokens_id = vector<token_id_t>();
     string in_str = " I believe the meaning of life is";
-    tokenizer.tokenize(in_str, tokens_id, true);
+    std::string text_ = "";
+    for (auto &ch : in_str) {
+        if (ch == ' ') {
+            text_ += "▁";
+        }else {
+            text_ += ch;
+        }
+
+    }
+    std::string new_text = "▁" + std::string(text_);
+    tokenizer.tokenize(new_text, tokens_id, true);
+//    for (auto id : tokens_id) {
+//        std::cout << id << " ";
+//    }
+//    auto result_ = tokenizer.detokenize(tokens_id);
+//    std::cout << result_ << std::endl;
+//    return 0;
+
 
 
     int vocab_size = 262144;
