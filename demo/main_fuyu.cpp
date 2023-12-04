@@ -63,6 +63,7 @@ NetTensor *Persimmon(Context* c, int vocab_size= 262144, int hidden_dim= 4096, i
     }
     // end loop
     i = _LayerNorm(c, {i}, true, (string)"final_layernorm");
+    i = _Linear(c, {i}, hidden_dim, vocab_size, false, "lm_head");
     return i;
 }
 int main() {
