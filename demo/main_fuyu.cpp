@@ -45,6 +45,7 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
 }
 NetTensor *MLP(Context *ctx, NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
     auto *x = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, true, name+".dense_h_to_4h");
+    x = _ReLUSquaredActivation(ctx, {x});
     x = _Linear(ctx, {x}, ffn_hidden_dim, hidden_dim, true, name+".dense_4h_to_h");
     return x;
 }
