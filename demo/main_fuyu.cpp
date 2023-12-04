@@ -43,27 +43,27 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
     o = _Linear(ctx, {o}, hidden_size * head_size, embedding_size, false, name + ".dense");
     return o;
 }
-NetTensor *FFN(Context *ctx, NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
-    auto *x = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, name+".dense_h_to_4h");
-    x = _Linear(ctx, {x}, ffn_hidden_dim, hidden_dim, false, name+".dense_4h_to_h");
+NetTensor *MLP(Context *ctx, NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
+    auto *x = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, true, name+".dense_h_to_4h");
+    x = _Linear(ctx, {x}, ffn_hidden_dim, hidden_dim, true, name+".dense_4h_to_h");
     return x;
 }
-void Persimmon(Context* c, int vocab_size= 32000, int hidden_dim= 4096, int ffn_hidden_dim = 4096*4, int mutil_head_size = 32){
+NetTensor *Persimmon(Context* c, int vocab_size= 262144, int hidden_dim= 4096, int ffn_hidden_dim = 4096*4, int mutil_head_size = 32){
     auto *i = _Input(c);
     i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"tok_embeddings");
     // loop
-    for(int layer=0; layer<1; ++layer) {
-//        auto *x = _LayerNorm(c, {i}, true, (string)"layers."+std::to_string(layer)+".post_attention_layernorm");
-        auto *x = Attention(c, i, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".self_attention");
+    for(int layer=0; layer<35; ++layer) {
+        auto *x = _LayerNorm(c, {i}, true, (string)"layers."+std::to_string(layer)+".input_layernorm");
+        x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".self_attention");
         i = _Add(c, {x, i});
         x = _LayerNorm(c, {i}, true, (string)"layers."+std::to_string(layer)+".post_attention_layernorm");
-        x = FFN(c, x, hidden_dim, ffn_hidden_dim, (string)"layers."+std::to_string(layer) +".feed_forward");
+        x = MLP(c, x, hidden_dim, ffn_hidden_dim, (string)"layers."+std::to_string(layer) +".mlp");
         i = _Add(c, {x, i});
         _SubgraphBegin(c);
     }
     // end loop
-    i = _RMSNorm(c, {i}, (string)"norm");
-    i = _Linear(c, {i}, hidden_dim, vocab_size, false, "output");
+    i = _LayerNorm(c, {i}, true, (string)"final_layernorm");
+    return i;
 }
 int main() {
     int width, height, channel;
@@ -85,7 +85,7 @@ int main() {
     tokenizer.tokenize(in_str, tokens_id, true);
 
 
-    int vocab_size = 32000;
+    int vocab_size = 262144;
     int hidden_dim = 4096;
     int ffn_hidden_dim = 4096*4;
     int mutil_head_size = 32;
@@ -114,7 +114,5 @@ int main() {
     for (auto *tensor : c->net_tensors) {
         delete tensor;
     }
-    return 0;
-
     return 0;
 }

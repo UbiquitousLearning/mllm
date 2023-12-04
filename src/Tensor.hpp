@@ -454,7 +454,7 @@ public:
         }
     }
 
-    int cntSize() {
+    size_t cntSize() {
         return DataTypeSize(dtype_, count_);
     }
 

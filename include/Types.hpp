@@ -172,7 +172,7 @@ static string DataTypeName(DataType dataType) {
         return "Unknown";
     }
 }
-static float DataTypeSize(DataType dtype, int count=1) {
+static size_t DataTypeSize(DataType dtype, int count=1) {
     switch (dtype) {
     case MLLM_TYPE_F32:
         return sizeof(float) *count;
