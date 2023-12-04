@@ -17,7 +17,7 @@
  */
 namespace mllm {
 bool Tokenizer::load_vocab(const std::string &vocab_file) {
-    FILE *fp = fopen(vocab_file.c_str(), "r");
+    FILE *fp = fopen(vocab_file.c_str(), "rb");
     if (fp == nullptr) {
         std::cout << "open file failed" << std::endl;
         return false;

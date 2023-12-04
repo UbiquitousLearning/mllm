@@ -7,13 +7,16 @@ MAGIC_NUM = 23333
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--input_file", type=str, default="tokenizer.model"
+    # "--input_file", type=str, default="tokenizer.model"
+    "--input_file", type=str, default="tokenizer.json"
 )
-parser.add_argument("--output_file", type=str, default="vocab.mllm")
+# parser.add_argument("--output_file", type=str, default="vocab.mllm")
+parser.add_argument("--output_file", type=str, default="vocab_uni.mllm")
 parser.add_argument(
     "--type",
     choices=["BPE", "Unigram"],
-    default="BPE",
+    # default="BPE",
+    default="Unigram",
 )
 
 
@@ -56,8 +59,13 @@ def write_unigram(vocab_file, tokenizer_config):
     for token_score in tokenizer_config["vocab"]:
         token, score = token_score[0], token_score[1]
         vocab_file.write(struct.pack("<i", idx))
-        vocab_file.write(struct.pack("<i", len(token)))
-        vocab_file.write(token.encode("utf-8"))
+        # # print(idx)
+        # if (71002 <= idx):
+        #     print(token)
+
+        token_ = token.encode("utf-8")
+        vocab_file.write(struct.pack("<i", len(token_)))
+        vocab_file.write(token_)
         vocab_file.write(struct.pack("<f", score))
         idx += 1
         # print(token, score)

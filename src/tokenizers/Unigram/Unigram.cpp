@@ -4,13 +4,23 @@
 #include "Unigram.hpp"
 #include "sstream"
 using namespace mllm;
+
 UnigramTokenizer::UnigramTokenizer(const std::string &vocab_file) :
     Tokenizer(std::move(vocab_file)) {
+    for (auto &item : this->id_token_) {
+        std::vector<char> vec(item.token.begin(), item.token.end());
+        trie_.insert(vec);
+    }
 }
+
 void UnigramTokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, bool byte_fallback) {
+    if (text.empty()) {
+        return;
+    }
     if (bos) {
         tokens.emplace_back(TokenBos);
     }
+
     auto size = text.size();
     std::vector<BestPath> best_path(size + 1);
     auto unk_score = this->min_score_ - K_UNK_PENALTY;
@@ -23,15 +33,17 @@ void UnigramTokenizer::tokenize(const std::string &text, std::vector<token_id_t>
         std::vector<char> vec(sub_str.begin(), sub_str.end());
         auto sub_len = sub_str.length();
         auto iter = trie_.commonPrefixSearch(vec);
-        for (std::vector<char> item = iter.next(); !item.empty(); item = iter.next()) {
+        auto item = iter->next();
+        // for (std::vector<char> item = iter.next(); !item.empty(); item = iter.next()) {
+        while (!item.empty()) {
             auto key_pos = starts_at + item.size();
             auto token = std::string(item.begin(), item.end());
             auto token_id = this->vocab_map_.find(token);
-            auto target_node = best_path[key_pos];
+            auto &target_node = best_path[key_pos];
             if (token_id != this->vocab_map_.end()) {
                 auto score = this->id_token_[token_id->second].score;
                 auto new_score = best_path_score + score;
-                if (new_score > target_node.best_path_score) {
+                if (new_score > target_node.best_path_score || target_node.starts_at == -1) {
                     target_node.best_path_score = new_score;
                     target_node.starts_at = starts_at;
                     target_node.id = token_id->second;
@@ -40,11 +52,12 @@ void UnigramTokenizer::tokenize(const std::string &text, std::vector<token_id_t>
                     has_single_char = true;
                 }
             }
+            item = iter->next();
         }
         if (!has_single_char) {
-            auto target_node = best_path[starts_at + mblen];
+            auto &target_node = best_path[starts_at + mblen];
             auto new_score = best_path_score + unk_score;
-            if (new_score > target_node.best_path_score) {
+            if (new_score > target_node.best_path_score || target_node.starts_at == -1) {
                 target_node.best_path_score = new_score;
                 target_node.starts_at = starts_at;
                 target_node.id = TokenUnk;
@@ -63,7 +76,6 @@ void UnigramTokenizer::tokenize(const std::string &text, std::vector<token_id_t>
 
         if (target_node.id == TokenUnk) {
             token_.append(sub_str);
-
         } else {
             if (!token_.empty()) {
                 std::reverse(token_.begin(), token_.end());
