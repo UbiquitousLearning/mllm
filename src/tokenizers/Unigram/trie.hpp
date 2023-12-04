@@ -68,11 +68,11 @@ public:
                 node = next->second;
                 path.push_back(*iter);
                 if (node->is_leaf) {
-                    iter++;
+                    ++iter;
                     return path;
                 }
             }
-            iter++;
+            ++iter;
         }
         return {};
 
