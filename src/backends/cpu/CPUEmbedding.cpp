@@ -26,9 +26,14 @@ ErrorCode CPUEmbedding::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
 ErrorCode CPUEmbedding::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, vocabSize_, hiddenSize_);
-    weight_.setDtype(loader.getDataType(weight_.name()));
-    weight_.alloc();
-    loader.load(&weight_);
+    if (&loader != nullptr) {
+        weight_.setDtype(loader.getDataType(weight_.name()));
+        weight_.alloc();
+        loader.load(&weight_);
+    } else {
+        weight_.setDtype(MLLM_TYPE_F32);
+        weight_.alloc();
+    }
     return Op::load(loader);
 }
 ErrorCode CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

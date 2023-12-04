@@ -32,9 +32,10 @@ NetTensor *_Embedding(Context *ctx, std::vector<NetTensor *> inputs, int vocab_s
 NetTensor *_Mul(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_View(Context *ctx, std::vector<NetTensor *> inputs, vector<int> dims, vector<int>data_dims, string name = "");
 NetTensor *_KVCache(Context *ctx, std::vector<NetTensor *> inputs, bool isK, string name = "");
-NetTensor *ReLU(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
-NetTensor *ReLUSquaredActivation(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
-NetTensor *LayerNorm(Context *ctx, std::vector<NetTensor *> inputs,bool bias= true, string name = "");
+NetTensor *_ReLU(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_ReLUSquaredActivation(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs,bool bias= true, string name = "");
+vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int split_num, Chl split_dim, string name = "");
 // NOLINTEND(readability-identifier-naming)
 
 /*

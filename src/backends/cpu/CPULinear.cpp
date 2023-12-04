@@ -38,15 +38,25 @@ ErrorCode CPULinear::load(AbstructLoader &loader) {
     //std::cout << name() << "  CPULinear load" << std::endl;
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, out_features_, in_features_);
-    weight_.setDtype(loader.getDataType(weight_.name()));
-    weight_.alloc();
-    loader.load(&weight_);
+    if (&loader != nullptr) {
+        weight_.setDtype(loader.getDataType(weight_.name()));
+        weight_.alloc();
+        loader.load(&weight_);
+    } else {
+        weight_.setDtype(MLLM_TYPE_F32);
+        weight_.alloc();
+    }
     if (support_bias_) {
         bias_.setName(name() + ".bias");
         bias_.reshape(1, 1, 1, out_features_);
-        bias_.setDtype(loader.getDataType(bias_.name()));
-        bias_.alloc();
-        loader.load(&bias_);
+        if (&loader != nullptr) {
+            bias_.setDtype(loader.getDataType(bias_.name()));
+            bias_.alloc();
+            loader.load(&bias_);
+        } else {
+            bias_.setDtype(MLLM_TYPE_F32);
+            bias_.alloc();
+        }
     }
     return Op::load(loader);
 }
