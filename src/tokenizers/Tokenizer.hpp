@@ -21,18 +21,21 @@ typedef struct TokenT {
 } Token;
 class Tokenizer {
 protected:
-    inline const static token_id_t TokenBos = 1;
-    inline const static token_id_t TokenEos = 2;
-    inline const static token_id_t TokenNl = 13;
-    inline const static token_id_t TokenUnk = 0;
+    inline  static token_id_t TokenBos = 1;
+    inline  static token_id_t TokenEos = 2;
+    inline  static token_id_t TokenNl = 13;
+    inline  static token_id_t TokenUnk = 0;
+    float min_score_ = 0.0;
     std::unordered_map<token_t, token_id_t> vocab_map_;
     std::vector<Token> id_token_;
     bool load_vocab(const std::string &vocab_file);
+
 
 public:
     virtual void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) = 0;
     std::string detokenize(const std::vector<token_id_t> &tokens);
     explicit Tokenizer(const std::string &vocab_file);
+    void setSpecialToken(const std::string &bos="", const std::string &eos="", const std::string &unk="", const std::string &nl="");
 };
 
 } // namespace mllm
