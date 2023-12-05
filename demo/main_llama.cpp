@@ -1,6 +1,7 @@
 #include <iostream>
 #include <valarray>
 #include <csignal>
+#include "cmdline.h"
 #include "Net.hpp"
 #include "Executor.hpp"
 #include "NetParameter.hpp"
@@ -129,12 +130,22 @@ void llama2(Context* c, int vocab_size= 32000, int hidden_dim= 4096, int ffn_hid
     i = _RMSNorm(c, {i}, (string)"norm");
     i = _Linear(c, {i}, hidden_dim, vocab_size, false, "output");
 }
-int main() {
-    auto tokenizer = BPETokenizer("./vocab.mllm");
+int main(int argc, char **argv) {
+    cmdline::parser cmdParser;
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab.mllm");
+    cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/llama-2-7b-q4_k-46.mllm");
+    cmdParser.add<string>("input", 'i', "specify input string", false, "I believe the meaning of life is");
+    cmdParser.parse_check(argc, argv);
+
+    string in_str = cmdParser.get<string>("input");
+    string vocab_path = cmdParser.get<string>("vocab");
+    string model_path = cmdParser.get<string>("model");
+
+    auto tokenizer = BPETokenizer(vocab_path);
     auto tokens_id = vector<token_id_t>();
     // tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
     // tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);
-    string in_str = " I believe the meaning of life is";
+    // string in_str = " I believe the meaning of life is";
     //    string in_str = " I believe the meaning of life is to be happy.";
     //    string in_str = " Building a website can be done in 10 simple steps:\\nStep 1:";
     tokenizer.tokenize(in_str, tokens_id, true);
@@ -159,7 +170,7 @@ int main() {
     //    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
     //    ParamLoader param_loader("../models/llama-2-7b-q4_k-64.mllm");
 //    ParamLoader param_loader("../models/llama-2-7b-q4_k-4632.mllm");
-    ParamLoader param_loader("../models/llama-2-7b-q4_k-46.mllm");
+    ParamLoader param_loader(model_path);
     Executor ex(&param_loader);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
     token2Tensor(input, net, tokens_id);
