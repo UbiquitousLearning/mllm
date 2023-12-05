@@ -58,11 +58,20 @@ Net::Net(BackendConfig config){
 
 void Net::convert(vector<NetParameter> &param, BackendType backend_type) {
     // init
-    auto *in_tensor = param[0].net_tensors[0];
-    tensors_[in_tensor->name] = std::make_shared<Tensor>(backends_[backend_type].get());
-    tensors_[in_tensor->name]->setName(in_tensor->name);
-    input_name_ = in_tensor->name;
-    for (auto &sub_param : param) {
+//    auto param_g0 = param[0];
+//    for (auto *t:param_g0.net_tensors) {
+//        if(t->in == NULL){
+//            std::cout<<t->name<<std::endl;
+//            auto *in_tensor = t;
+//            tensors_[in_tensor->name] = std::make_shared<Tensor>(backends_[backend_type].get());
+//            tensors_[in_tensor->name]->setName(in_tensor->name);
+//            input_name_ = in_tensor->name;
+////            tensor_names_[0].push_back(in_tensor->name);
+//        }
+//    }
+
+    for (int ii = 0; ii < (int)param.size(); ++ii) {
+        auto &sub_param = param[ii];
         vector<string> names = {};
         auto net_in_tensor = sub_param.net_inputs;
         for (const auto &out_t : net_in_tensor) {
@@ -73,9 +82,20 @@ void Net::convert(vector<NetParameter> &param, BackendType backend_type) {
             }
             names.push_back(out_t->name);
         }
+
+        for (auto *t:sub_param.net_tensors) {
+            if(t->in == NULL){
+                std::cout<<t->name<<std::endl;
+                auto *in_tensor = t;
+                tensors_[in_tensor->name] = std::make_shared<Tensor>(backends_[backend_type].get());
+                tensors_[in_tensor->name]->setName(in_tensor->name);
+                input_names_.push_back(in_tensor->name);
+                inputname_graphidx_[in_tensor->name] = ii;
+                names.push_back(in_tensor->name);
+            }
+        }
         tensor_names_.push_back(names);
     }
-    tensor_names_[0].push_back(in_tensor->name);
 
     for (int i = 0; i < (int)param.size(); ++i) {
         param[i].topologySort();

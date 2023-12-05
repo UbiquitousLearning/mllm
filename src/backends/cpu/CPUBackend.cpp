@@ -71,7 +71,7 @@ void CPUBackend::registerOps() {
     addCreator(SILU, (CPUBackend::Creator *)(new CPUSiLUCreator()));
     addCreator(SOFTMAX, (CPUBackend::Creator *)(new CPUSoftMaxCreator()));
     addCreator(LINEAR, (CPUBackend::Creator *)(new CPULinearCreator()));
-    addCreator(ATTENTION, (CPUBackend::Creator *)(new CPUAttentionCreator()));
+//    addCreator(ATTENTION, (CPUBackend::Creator *)(new CPUAttentionCreator()));
     addCreator(EMBEDDING, (CPUBackend::Creator *)(new CPUEmbeddingCreator()));
     addCreator(MUL, (CPUBackend::Creator *)(new CPUMulCreator()));
     addCreator(VIEW, (CPUBackend::Creator *)(new CPUViewCreator()));

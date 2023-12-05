@@ -249,7 +249,7 @@ NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_feature
     out_tensor->in = net_op_;
     return out_tensor;
 }
-
+/*
 NetTensor *_Attention(Context *ctx, std::vector<NetTensor *> inputs, int embedding_size, int hidden_size, int head_size, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -268,6 +268,7 @@ NetTensor *_Attention(Context *ctx, std::vector<NetTensor *> inputs, int embeddi
     out_tensor->in = net_op_;
     return out_tensor;
 }
+ */
 NetTensor *_Embedding(Context *ctx, std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
