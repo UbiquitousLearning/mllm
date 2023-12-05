@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
 
     std::cout << in_str << std::flush;
     for(int step = 0; step<12; step++) {
-        ex.execute(&net, input);
+        ex.execute(&net, {input});
         auto result = ex.result();
         auto token_idx = postProcessing(result[0], input);
         auto out_token = tokenizer.detokenize({token_idx});

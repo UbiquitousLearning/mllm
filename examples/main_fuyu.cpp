@@ -50,9 +50,7 @@ NetTensor *MLP(Context *ctx, NetTensor * i, int hidden_dim, int ffn_hidden_dim, 
     x = _Linear(ctx, {x}, ffn_hidden_dim, hidden_dim, true, name+".dense_4h_to_h");
     return x;
 }
-NetTensor *Persimmon(Context* c, int vocab_size= 262144, int hidden_dim= 4096, int ffn_hidden_dim = 4096*4, int mutil_head_size = 32){
-    auto *i = _Input(c);
-    i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"tok_embeddings");
+NetTensor *Persimmon(Context* c, NetTensor * i, int hidden_dim= 4096, int ffn_hidden_dim = 4096*4, int mutil_head_size = 32){
     // loop
     for(int layer=0; layer<35; ++layer) {
         auto *x = _LayerNorm(c, {i}, true, (string)"layers."+std::to_string(layer)+".input_layernorm");
@@ -65,8 +63,15 @@ NetTensor *Persimmon(Context* c, int vocab_size= 262144, int hidden_dim= 4096, i
     }
     // end loop
     i = _LayerNorm(c, {i}, true, (string)"final_layernorm");
-    i = _Linear(c, {i}, hidden_dim, vocab_size, false, "lm_head");
     return i;
+}
+void Fuyu(Context* c, int vocab_size= 262144, int patch_size = 30, int cnl_size = 3,int hidden_dim= 4096, int ffn_hidden_dim = 4096*4, int mutil_head_size = 32){
+    auto *i = _Input(c);
+    i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"embed_tokens");
+    auto *p = _Input(c);
+    p = _Linear(c, {p}, patch_size*patch_size*cnl_size, hidden_dim, false, "vision_embed_tokens");
+    i = Persimmon(c, i, hidden_dim, ffn_hidden_dim, mutil_head_size);
+    i = _Linear(c, {i}, hidden_dim, vocab_size, false, "lm_head");
 }
 int main() {
     int width, height, channel;
@@ -110,10 +115,11 @@ int main() {
     int hidden_dim = 4096;
     int ffn_hidden_dim = 4096*4;
     int mutil_head_size = 32;
+    int patch_size = 30;
 
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
-    Persimmon(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size);
+    Fuyu(c, vocab_size, patch_size, 3, hidden_dim, ffn_hidden_dim, mutil_head_size);
 
     BackendConfig bn;
     Net net(bn);
@@ -121,11 +127,11 @@ int main() {
 
 
     Executor ex(nullptr);
-    shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    token2Tensor(input, net, tokens_id);
+    shared_ptr<Tensor> input_seq = std::make_shared<Tensor>();
+    token2Tensor(input_seq, net, tokens_id);
 
     std::cout << in_str << std::flush;
-    ex.execute(&net, input);
+    ex.execute(&net, {input_seq});
     auto result = ex.result();
 
     // free memory
