@@ -37,11 +37,15 @@ Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, share
         ops_[net_op->name] = my_op;
     }
     for (auto net_op : param.net_ops) {
+        bool connect_input = false;
         string op_name = net_op->name;
         op_names_.push_back(op_name);
         auto in_tensors = net_op->in;
         vector<shared_ptr<Tensor>> inTensors;
         for (auto *in_t : in_tensors) {
+            if(in_t->in == NULL){
+                connect_input = true;
+            }
             auto in_t_name = in_t->name;
             auto it = tensors_.find(in_t_name);
             if (it != tensors_.end()) {
@@ -62,6 +66,9 @@ Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, share
         }
         ops_input_tensors_[op_name] = inTensors;
         ops_output_tensors_[op_name] = outTensors;
+        if(connect_input){
+            ops_connect_input_.push_back(op_name);
+        }
     }
 #ifdef NNAPI_ENABLED
     auto *nnapiBackend = dynamic_cast<NNAPIBackend *>(backend_);
@@ -70,18 +77,34 @@ Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, share
 }
 
 
-void Graph::reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors, const string& input_tensor_name){
-    ops_input_tensors_[op_names_[0]].clear();
-//    auto in_tensors = param_.net_ops[0]->in;
-    //    vector<shared_ptr<Tensor>> inTensors;
-//    for (auto *in_t : in_tensors)
-    {
-        if (tensors_.find(input_tensor_name) != tensors_.end()) {
-            ops_input_tensors_[op_names_[0]].push_back(tensors_[input_tensor_name]);
-        } else {
-            ops_input_tensors_[op_names_[0]].push_back(external_tensors[input_tensor_name]);
+void Graph::reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors){
+    for (auto op :ops_connect_input_) {
+        vector<string> tmp_name ;
+        for (auto in_t : ops_input_tensors_[op]) {
+            tmp_name.push_back(in_t->name());
         }
+        ops_input_tensors_[op].clear();
+        for (auto input_tensor_name : tmp_name)
+        {
+            if (tensors_.find(input_tensor_name) != tensors_.end()) {
+                ops_input_tensors_[op].push_back(tensors_[input_tensor_name]);
+            } else {
+                ops_input_tensors_[op].push_back(external_tensors[input_tensor_name]);
+            }
+        }
+
     }
+//    ops_input_tensors_[op_names_[0]].clear();
+////    auto in_tensors = param_.net_ops[0]->in;
+//    //    vector<shared_ptr<Tensor>> inTensors;
+//    for (auto input_tensor_name : input_tensor_names)
+//    {
+//        if (tensors_.find(input_tensor_name) != tensors_.end()) {
+//            ops_input_tensors_[op_names_[0]].push_back(tensors_[input_tensor_name]);
+//        } else {
+//            ops_input_tensors_[op_names_[0]].push_back(external_tensors[input_tensor_name]);
+//        }
+//    }
     //ops_input_tensors_[param_.net_ops[0]->name][0]->printData<float>();
     //std::cout << param_.net_ops[0]->name << std::endl;
     //    ops_input_tensors_[param_.net_ops[0]->name] = inTensors;

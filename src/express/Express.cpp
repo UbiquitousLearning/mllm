@@ -409,6 +409,21 @@ vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int sp
     return out_tensors;
 
 }
+NetTensor *_Gather(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Gather" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::GATHER)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }

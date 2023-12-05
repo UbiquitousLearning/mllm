@@ -27,6 +27,7 @@ enum OpType {
     RELU2,
     LAYERNORM,
     SPLIT,
+    GATHER,
     OP_NUM
 };
 
@@ -39,7 +40,7 @@ static const vector<string> OpNames = {
     "Scale",
     "RoPE",
     "RMSNorm",
-    "CAUSALMASK",
+    "CausalMask",
     "Linear",
 //    "Attention",
     "Embedding",
@@ -50,6 +51,7 @@ static const vector<string> OpNames = {
     "ReLUSquaredActivation",
     "LayerNorm",
     "Split",
+    "Gqther",
     "OP_NUM"};
 } // namespace mllm
 #endif

@@ -16,11 +16,20 @@ using namespace std;
 void token2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<token_id_t> tokens) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape(1, 1, static_cast<int>(tokens.size()), 1);
+    input_tensor->setDtype(MLLM_TYPE_F32);
     input_tensor->alloc();
     input_tensor->fullData<float>(1);
     for (int idx = 0; idx < tokens.size(); ++idx) {
         input_tensor->setDataAt<float>(0, 0, idx, 0, tokens[idx]);
     }
+}
+
+void testFull(shared_ptr<Tensor> input_tensor, Net &net, vector<int> shape) {
+    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+    input_tensor->reshape(shape[0], shape[1], shape[2], shape[3]);
+    input_tensor->setDtype(MLLM_TYPE_F32);
+    input_tensor->alloc();
+    input_tensor->fullData<float>(1);
 }
 
 NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden_size, int head_size, string name){
@@ -66,10 +75,12 @@ NetTensor *Persimmon(Context* c, NetTensor * i, int hidden_dim= 4096, int ffn_hi
     return i;
 }
 void Fuyu(Context* c, int vocab_size= 262144, int patch_size = 30, int cnl_size = 3,int hidden_dim= 4096, int ffn_hidden_dim = 4096*4, int mutil_head_size = 32){
-    auto *i = _Input(c);
+    auto *i = _Input(c, {}, "input_ids");
     i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"embed_tokens");
-    auto *p = _Input(c);
+    auto *p = _Input(c, {}, "image_patches");
     p = _Linear(c, {p}, patch_size*patch_size*cnl_size, hidden_dim, false, "vision_embed_tokens");
+    auto *id = _Input(c, {}, "image_patches_indices");
+    i = _Gather(c, {i, p, id}, "gather");
     i = Persimmon(c, i, hidden_dim, ffn_hidden_dim, mutil_head_size);
     i = _Linear(c, {i}, hidden_dim, vocab_size, false, "lm_head");
 }
@@ -127,11 +138,17 @@ int main() {
 
 
     Executor ex(nullptr);
+
+
     shared_ptr<Tensor> input_seq = std::make_shared<Tensor>();
     token2Tensor(input_seq, net, tokens_id);
+    shared_ptr<Tensor> img_patch = std::make_shared<Tensor>();
+    testFull(img_patch,net, {1, 1,(int)input_seq->sequence(), patch_size*patch_size*3});
+    shared_ptr<Tensor> img_patch_id = std::make_shared<Tensor>();
+    testFull(img_patch_id, net,{1, 1,(int)input_seq->sequence(), 1});
 
     std::cout << in_str << std::flush;
-    ex.execute(&net, {input_seq});
+    ex.execute(&net, {input_seq, img_patch, img_patch_id});
     auto result = ex.result();
 
     // free memory

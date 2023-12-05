@@ -40,7 +40,6 @@ public:
 """
 
 code_cpp = """
-
 #include "CPUAbc.hpp"
 
 namespace mllm {

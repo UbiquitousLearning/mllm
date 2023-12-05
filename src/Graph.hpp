@@ -66,7 +66,7 @@ public:
 //        return param_;
 //    }
 
-    void reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors, const string& input_tensor_name);
+    void reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
 protected:
 //    NetParameter param_;
@@ -95,6 +95,8 @@ protected:
     //    unordered_map<string, shared_ptr<Tensor>> external_tensors_;
 
     vector<string> op_names_;
+
+    vector<string> ops_connect_input_; // opname: op's input Tensors
 
 };
 

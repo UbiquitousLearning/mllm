@@ -25,12 +25,18 @@ void Executor::execute(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
 //    net->tensors()[net->inputName()] = input_tensor;
 //    net->subGraph()["G0"]->reflashInput(net->tensors(), net->inputName());
     //Init inputs
+    vector<int> flashGid = {};
     for (int tid = 0; tid < net->inputNames().size(); ++tid) {
         auto input_name = net->inputNames()[tid];
-        auto &input_tensor = input_tensors[tid];
+        auto input_tensor = input_tensors[tid];
         input_tensor->setName(input_name);
         net->tensors()[input_name] = input_tensor;
-        net->subGraph()["G" + std::to_string(net->inGmap()[input_name])]->reflashInput(net->tensors(), input_name);
+        if (std::find(flashGid.begin(), flashGid.end(), net->inGmap()[input_name]) == flashGid.end()) {
+            flashGid.push_back(net->inGmap()[input_name]);
+        }
+    }
+    for (auto Gid :flashGid) {
+        net->subGraph()["G" + std::to_string(Gid)]->reflashInput(net->tensors());
     }
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
