@@ -85,7 +85,6 @@ void Net::convert(vector<NetParameter> &param, BackendType backend_type) {
 
         for (auto *t:sub_param.net_tensors) {
             if(t->in == NULL){
-                std::cout<<t->name<<std::endl;
                 auto *in_tensor = t;
                 tensors_[in_tensor->name] = std::make_shared<Tensor>(backends_[backend_type].get());
                 tensors_[in_tensor->name]->setName(in_tensor->name);
