@@ -55,9 +55,9 @@ public:
     //    bool reshape(const int num, const int channels, const int height, const int width);
     bool reshape(const int batch, const int head, const int sequence, const int dimension);
 
-    bool reshape_unsafe(const vector<int> &shape){
-        shape_ = shape;
-    }
+//    bool reshape_unsafe(const vector<int> &shape){
+//        shape_ = shape;
+//    }
 
     void alloc();
     void alloc(DataType dtype) {
