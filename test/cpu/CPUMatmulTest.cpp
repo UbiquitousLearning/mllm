@@ -18,7 +18,7 @@ TEST_F(CPUTest, CPUMatmul1) {
 
     TEST_EXCUTE({input0, input1}, {c_output});
     //    c_output->printData<float>();
-    COMPARE_TENSOR(c_output.get(), output.get(), false);
+    COMPARE_TENSOR(c_output.get(), output.get(), true);
 }
 TEST_F(CPUTest, CPUMatmul2) {
     SETUP_OP(CPUMatmul, false, true, false);

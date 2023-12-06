@@ -15,5 +15,5 @@ TEST_F(CPUTest, CPUSilu1) {
     PRINT_TENSOR_SHAPES(input0, c_output, output);
     TEST_EXCUTE({input0}, {c_output});
     output->printData<float>();
-    COMPARE_TENSOR(c_output, output);
+    COMPARE_TENSOR(c_output, output, true);
 }

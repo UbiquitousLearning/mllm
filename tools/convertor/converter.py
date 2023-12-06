@@ -3,7 +3,7 @@ import json
 import struct
 from functools import reduce
 from io import BufferedWriter
-
+import os
 import torch
 
 MAGIC_NUMBER = 20012
@@ -28,8 +28,8 @@ def calc_tensors_index_table_size(name: str):
 
 class Writer:
     writer: BufferedWriter
-    tensors_map: dict[str, Tensor]
-    tensors_name: list[str]
+    tensors_map: [str, Tensor]
+    tensors_name: [str]
 
     def __init__(self, path: str):
         self.tensors_map = {}
@@ -65,7 +65,7 @@ class Writer:
         self.writer.write(struct.pack("<i", len(val)))
         self.writer.write(val.encode("utf-8"))
 
-    def write_tensor(self, tensor: torch.Tensor, name: str) -> tuple[int, int]:
+    def write_tensor(self, tensor: torch.Tensor, name: str) -> [int, int]:
         tensor_idx = Tensor(name=name, dtype=self.__torch_dtype_to_int(tensor.dtype))
         self.tensors_map[name] = tensor_idx
         offset = self.writer.tell()
@@ -91,7 +91,7 @@ class Writer:
             self.write_u64(tensor.offset)
             self.write_int(tensor.dtype)
 
-    def write_tensor_index_padding(self, tensors_name: list[str]):
+    def write_tensor_index_padding(self, tensors_name: [str]):
         if len(tensors_name) > 0:
             self.tensors_name = tensors_name
             padding_size = reduce(
@@ -130,10 +130,13 @@ def all_keys(model: dict, index_: dict):
     global file_map
     all_keys_name = []
     if index_ is not None and isinstance(index_, dict) and "weight_map" in index_.keys():
+        json_pwd = args.input_model.name.rsplit("/", 1)[0]
+
         for (key, val) in index_["weight_map"].items():
             all_keys_name.append(key)
             if val is not None and val not in file_map.keys():
-                file_map[val] = safe_open(val, framework="pt")
+                # JOIN PATH
+                file_map[val] = safe_open(os.path.join(json_pwd,val), framework="pt")
     else:
         for key in model.keys():
             if not key.startswith("_"):
