@@ -188,8 +188,9 @@ add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/examples/main_fuyu.cpp ${DIR_SRC_
         src/tokenizers/Unigram/trie.hpp
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
-        src/preprocess/FuyuPreProcess.hpp
-        src/preprocess/FuyuPreProcess.cpp)
+#        src/preprocess/FuyuPreProcess.hpp
+#        src/preprocess/FuyuPreProcess.cpp
+)
 target_link_libraries(main_fuyu MLLM_CPU)
 target_link_directories(main_fuyu PUBLIC ${PROJECT_SOURCE_DIR}/third_party/imageHelper)
 

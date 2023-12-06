@@ -59,30 +59,30 @@ NetTensor *MLP(Context *ctx, NetTensor * i, int hidden_dim, int ffn_hidden_dim, 
     x = _Linear(ctx, {x}, ffn_hidden_dim, hidden_dim, true, name+".dense_4h_to_h");
     return x;
 }
-NetTensor *Persimmon(Context* c, NetTensor * i, int hidden_dim= 4096, int ffn_hidden_dim = 4096*4, int mutil_head_size = 32){
+NetTensor *Persimmon(Context* c, NetTensor * i, int hidden_dim= 4096, int ffn_hidden_dim = 4096*4, int mutil_head_size = 32, string name = "language_model.model"){
     // loop
-    for(int layer=0; layer<35; ++layer) {
-        auto *x = _LayerNorm(c, {i}, true, (string)"layers."+std::to_string(layer)+".input_layernorm");
-        x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".self_attention");
+    for(int layer=0; layer<1; ++layer) {
+        auto *x = _LayerNorm(c, {i}, true, name + (string)".layers."+std::to_string(layer)+".input_layernorm");
+        x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name + (string)".layers."+std::to_string(layer)+".self_attention");
         i = _Add(c, {x, i});
-        x = _LayerNorm(c, {i}, true, (string)"layers."+std::to_string(layer)+".post_attention_layernorm");
-        x = MLP(c, x, hidden_dim, ffn_hidden_dim, (string)"layers."+std::to_string(layer) +".mlp");
+        x = _LayerNorm(c, {i}, true, name + (string)".layers."+std::to_string(layer)+".post_attention_layernorm");
+        x = MLP(c, x, hidden_dim, ffn_hidden_dim, name + (string)".layers."+std::to_string(layer) +".mlp");
         i = _Add(c, {x, i});
         _SubgraphBegin(c);
     }
     // end loop
-    i = _LayerNorm(c, {i}, true, (string)"final_layernorm");
+    i = _LayerNorm(c, {i}, true, name + (string)".final_layernorm");
     return i;
 }
 void Fuyu(Context* c, int vocab_size= 262144, int patch_size = 30, int cnl_size = 3,int hidden_dim= 4096, int ffn_hidden_dim = 4096*4, int mutil_head_size = 32){
     auto *i = _Input(c, {}, "input_ids");
-    i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"embed_tokens");
+    i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"language_model.model.embed_tokens");
     auto *p = _Input(c, {}, "image_patches");
     p = _Linear(c, {p}, patch_size*patch_size*cnl_size, hidden_dim, false, "vision_embed_tokens");
     auto *id = _Input(c, {}, "image_patches_indices");
     i = _Gather(c, {i, p, id}, "gather");
-    i = Persimmon(c, i, hidden_dim, ffn_hidden_dim, mutil_head_size);
-    i = _Linear(c, {i}, hidden_dim, vocab_size, false, "lm_head");
+    i = Persimmon(c, i, hidden_dim, ffn_hidden_dim, mutil_head_size, "language_model.model");
+    i = _Linear(c, {i}, hidden_dim, vocab_size, false, "language_model.lm_head");
 }
 int main() {
     int width, height, channel;
@@ -101,7 +101,7 @@ int main() {
     auto tokenizer = UnigramTokenizer("./vocab_uni.mllm");
     tokenizer.setSpecialToken("|ENDOFTEXT|");
     auto tokens_id = vector<token_id_t>();
-    string in_str = " I believe the meaning of life is";
+    string in_str = "Generate a caption";
     std::string text_ = "";
     for (auto &ch : in_str) {
         if (ch == ' ') {
@@ -137,7 +137,8 @@ int main() {
     net.convert(c->sub_param_);
 
 
-    Executor ex(nullptr);
+    ParamLoader param_loader("../models/fuyu-2-7b-fp32.mllm");
+    Executor ex(&param_loader);
 
 
     shared_ptr<Tensor> input_seq = std::make_shared<Tensor>();
