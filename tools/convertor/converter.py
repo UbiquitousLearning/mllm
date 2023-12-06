@@ -1,4 +1,5 @@
 import argparse
+import json
 import struct
 from functools import reduce
 from io import BufferedWriter
@@ -6,6 +7,7 @@ from io import BufferedWriter
 import torch
 
 MAGIC_NUMBER = 20012
+file_map = {}
 
 
 class Tensor:
@@ -50,7 +52,6 @@ class Writer:
         else:
             raise Exception(f"Unknown dtype: {dtype}")
 
-
     def write_int(self, val: int):
         self.writer.write(struct.pack("<i", val))
 
@@ -68,7 +69,7 @@ class Writer:
         tensor_idx = Tensor(name=name, dtype=self.__torch_dtype_to_int(tensor.dtype))
         self.tensors_map[name] = tensor_idx
         offset = self.writer.tell()
-        if tensor.dtype == torch.bfloat16: # to float 16
+        if tensor.dtype == torch.bfloat16:  # to float 16
             tensor_numpy = tensor.detach().to(torch.float32).numpy()
         else:
             tensor_numpy = tensor.numpy()
@@ -79,7 +80,7 @@ class Writer:
         return offset, size
 
     def write_tensor_index(
-        self,
+            self,
     ):
         self.writer.seek(4 + 8)
         for tensor_name in self.tensors_name:
@@ -109,7 +110,13 @@ class Writer:
         self.writer.close()
 
 
-def get_tensor(model: dict, key: str):
+def get_tensor(model: dict, key: str,index_: dict):
+    if index_ is not None and isinstance(index_, dict) and "weight_map" in index_.keys():
+        if key in index_["weight_map"].keys():
+            model_ = file_map[index_["weight_map"][key]]
+            return model_.get_tensor(key)
+        else:
+            raise Exception(f"Tensor {key} not found in index")
     if key in model.keys():
         if args.type == "torch":
             return model[key]
@@ -117,6 +124,27 @@ def get_tensor(model: dict, key: str):
             return model.get_tensor(key)
     else:
         raise Exception(f"Tensor {key} not found in model")
+
+
+def all_keys(model: dict, index_: dict):
+    global file_map
+    all_keys_name = []
+    if index_ is not None and isinstance(index_, dict) and "weight_map" in index_.keys():
+        for (key, val) in index_["weight_map"].items():
+            all_keys_name.append(key)
+            if val is not None and val not in file_map.keys():
+                file_map[val] = safe_open(val, framework="pt")
+    else:
+        for key in model.keys():
+            if not key.startswith("_"):
+                val = model[key]
+                if isinstance(val, torch.Tensor):
+                    all_keys_name.append(key)
+                elif isinstance(val, dict):
+                    all_keys_name.extend(all_keys(val))
+                else:
+                    pass
+    return all_keys_name
 
 
 if __name__ == "__main__":
@@ -131,21 +159,29 @@ if __name__ == "__main__":
         choices=["torch", "safetensor"],
         default="torch",
     )
+    model = None
+    index_ = None
     args = parser.parse_args()
     if args.type == "torch":
         model = torch.load(args.input_model.name)
+        if isinstance(model, dict) and "model" in model.keys():
+            model = model["model"]
     elif args.type == "safetensor":
         from safetensors import safe_open
 
-        args.input_model.close()
-        model = safe_open(args.input_model.name, framework="pt")
+        if args.input_model.name.endswith(".json"):
+            index_ = json.load(args.input_model)
+        else:
+            args.input_model.close()
+            model = safe_open(args.input_model.name, framework="pt")
     else:
         raise Exception("Unknown type")
     writer = Writer(args.output_model)
-    model_keys = [key for key in model.keys() if not key.startswith("_")]
+    model_keys = all_keys(model, index_)
     writer.write_tensor_index_padding(model_keys)
     for key in model_keys:
-        tensor = get_tensor(model, key)
+        tensor = get_tensor(model, key,index_)
+        tensor = tensor.float()
         offset, size = writer.write_tensor(tensor, key)
         print(f"Write tensor {key} to {offset} with size {size}")
     writer.write_tensor_index()
