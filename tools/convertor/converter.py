@@ -3,41 +3,31 @@ import json
 import struct
 from functools import reduce
 from io import BufferedWriter
-
+import os
 import torch
-
 MAGIC_NUMBER = 20012
 file_map = {}
-
-
 class Tensor:
     name: str
     offset: int
     size: int
     dtype: int
-
     def __init__(self, name: str, dtype: int):
         self.name = name
         self.dtype = dtype
-
-
 # One Tensor Index Item Contains: Name_Len(Int)+Name(str)+Weights_Len(UInt64)+Offset(UInt64)+DataType(Int)
 def calc_tensors_index_table_size(name: str):
     return 4 + len(name) + 8 + 8 + 4
-
-
 class Writer:
     writer: BufferedWriter
-    tensors_map: dict[str, Tensor]
-    tensors_name: list[str]
-
+    tensors_map: [str, Tensor]
+    tensors_name: [str]
     def __init__(self, path: str):
         self.tensors_map = {}
         self.tensors_name = []
         self.writer = open(path, "wb+")
         self.writer.seek(0)
         self.write_int(MAGIC_NUMBER)
-
     def __torch_dtype_to_int(self, dtype: torch.dtype) -> int:
         if dtype == torch.float32 or dtype == torch.bfloat16:
             return 0
@@ -51,21 +41,16 @@ class Writer:
             return 18
         else:
             raise Exception(f"Unknown dtype: {dtype}")
-
     def write_int(self, val: int):
         self.writer.write(struct.pack("<i", val))
-
     def write_float(self, val: float):
         self.writer.write(struct.pack("<f", val))
-
     def write_u64(self, val: int):
         self.writer.write(struct.pack("<Q", val))
-
     def write_str(self, val: str):
         self.writer.write(struct.pack("<i", len(val)))
         self.writer.write(val.encode("utf-8"))
-
-    def write_tensor(self, tensor: torch.Tensor, name: str) -> tuple[int, int]:
+    def write_tensor(self, tensor: torch.Tensor, name: str) -> [int, int]:
         tensor_idx = Tensor(name=name, dtype=self.__torch_dtype_to_int(tensor.dtype))
         self.tensors_map[name] = tensor_idx
         offset = self.writer.tell()
@@ -78,7 +63,6 @@ class Writer:
         tensor_idx.size = size
         tensor_idx.offset = offset
         return offset, size
-
     def write_tensor_index(
             self,
     ):
@@ -90,8 +74,7 @@ class Writer:
             self.write_u64(tensor.size)
             self.write_u64(tensor.offset)
             self.write_int(tensor.dtype)
-
-    def write_tensor_index_padding(self, tensors_name: list[str]):
+    def write_tensor_index_padding(self, tensors_name: [str]):
         if len(tensors_name) > 0:
             self.tensors_name = tensors_name
             padding_size = reduce(
@@ -105,11 +88,8 @@ class Writer:
             return
         else:
             raise Exception("No tensors to write")
-
     def close(self):
         self.writer.close()
-
-
 def get_tensor(model: dict, key: str,index_: dict):
     if index_ is not None and isinstance(index_, dict) and "weight_map" in index_.keys():
         if key in index_["weight_map"].keys():
@@ -124,16 +104,16 @@ def get_tensor(model: dict, key: str,index_: dict):
             return model.get_tensor(key)
     else:
         raise Exception(f"Tensor {key} not found in model")
-
-
 def all_keys(model: dict, index_: dict):
     global file_map
     all_keys_name = []
     if index_ is not None and isinstance(index_, dict) and "weight_map" in index_.keys():
+        json_pwd = args.input_model.name.rsplit("/", 1)[0]
         for (key, val) in index_["weight_map"].items():
             all_keys_name.append(key)
             if val is not None and val not in file_map.keys():
-                file_map[val] = safe_open(val, framework="pt")
+                # JOIN PATH
+                file_map[val] = safe_open(os.path.join(json_pwd,val), framework="pt")
     else:
         for key in model.keys():
             if not key.startswith("_"):
@@ -145,8 +125,6 @@ def all_keys(model: dict, index_: dict):
                 else:
                     pass
     return all_keys_name
-
-
 if __name__ == "__main__":
     global args
     parser = argparse.ArgumentParser()
@@ -168,7 +146,6 @@ if __name__ == "__main__":
             model = model["model"]
     elif args.type == "safetensor":
         from safetensors import safe_open
-
         if args.input_model.name.endswith(".json"):
             index_ = json.load(args.input_model)
         else:
