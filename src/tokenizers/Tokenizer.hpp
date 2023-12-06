@@ -36,6 +36,9 @@ public:
     std::string detokenize(const std::vector<token_id_t> &tokens);
     explicit Tokenizer(const std::string &vocab_file);
     void setSpecialToken(const std::string &bos="", const std::string &eos="", const std::string &unk="", const std::string &nl="");
+   static  std::string replaceString(const std::string &str,  char old_char,  const std::string& new_char);
+    bool getTokenId(const token_t &token, token_id_t &id);
+
 };
 
 } // namespace mllm

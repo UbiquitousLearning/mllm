@@ -52,6 +52,13 @@ enum ResampleType {
 
 class FuyuPreProcess {
     std::vector<ImageInfo> images_;
+    vector<vector<vector<float>>> image_patches_;
+    vector<vector<token_id_t>> image_input_ids_;
+    vector<vector<int>> image_patch_indices_per_batch;
+    vector<vector<int>> image_patch_indices_per_subseq ;
+    vector<vector<token_id_t>> text_ids_;
+    vector<size_t> text_lengths_;
+
     Tokenizer *tokenizer_;
     token_id_t image_placeholder_id_;
     token_id_t image_newline_id_;
@@ -76,7 +83,8 @@ private:
     static std::vector<ImageInfo> ResizeImages(const std::vector<ImageInfo> &images, int height, int width, ResampleType resample_type = ResampleType::BILINEAR, bool free_source = true);
     static vector<ImageInfo> NormalizeImages(const vector<ImageInfo> &images, float mean, float std, bool free_source = true);
     void get_sample_encoding(const std::string &text);
-    static std::vector<vector<vector<float>>> PatchImages( std::vector<ImageInfo> &images, size_t patch_height, size_t patch_width);
+    static std::vector<vector<float>> FuyuPreProcess::PatchImages(  ImageInfo &images, size_t patch_height, size_t patch_width) ;
+
 
 
 };
