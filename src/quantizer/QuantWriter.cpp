@@ -33,6 +33,19 @@ float *QuantWriter::getParam(std::string param_name) {
     auto [data, size] = param_loader_->load(param_name);
     return static_cast<float *>((void *)data);
 }
+
+vector<string> fp32_layers = {"norm", "rope", "tok_embeddings"};
+vector<string> q6_layers = {"w2", "wv"};
+
+bool find_names(const string &name, const vector<string> &layer_names) {
+    for (const auto &layer : layer_names) {
+        if (name.find(layer) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void QuantWriter::quantParams(DataType dataType) {
     quant_type_ = dataType;
     for (const auto &name : param_names_) {
@@ -45,22 +58,12 @@ void QuantWriter::quantParams(DataType dataType) {
         auto size = param_loader_->offsets_[name].second / sizeof(float);
         void *quant_ptr = nullptr;
         std::pair<void *, uint64_t> block_t;
-        if (name.find("norm") != std::string::npos) {
-            auto s = param_loader_->offsets_[name].second / sizeof(float);
-            auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
+        if(find_names(name, fp32_layers)) {
+            const auto s = param_loader_->offsets_[name].second / sizeof(float);
+            const auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
             writeParam(name, MLLM_TYPE_F32, param, tsize);
             std::cout << name << "  size:" << tsize << std::endl;
-        } else if (name.find("tok_embeddings") != std::string::npos) {
-            auto s = param_loader_->offsets_[name].second / sizeof(float);
-            auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
-            writeParam(name, MLLM_TYPE_F32, param, tsize);
-            std::cout << name << "  size:" << tsize << std::endl;
-        }  else if (name.find("rope") != std::string::npos) {
-            auto s = param_loader_->offsets_[name].second / sizeof(float);
-            auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
-            writeParam(name, MLLM_TYPE_F32, param, tsize);
-            std::cout << name << "  size:" << tsize << std::endl;
-        }  else if ((name.find(".w2") != std::string::npos)||(name.find(".wv") != std::string::npos)) {
+        }else if (find_names(name, q6_layers)) {
             switch (dataType) {
             case MLLM_TYPE_F32:
                 std::cout << "No need to quantize FP32 params\n";

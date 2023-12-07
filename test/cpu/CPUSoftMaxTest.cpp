@@ -4,7 +4,7 @@
 #include "CPUTest.hpp"
 #include "backends/cpu/CPUSoftMax.hpp"
 TEST_F(CPUTest, CPUSoftMax1) {
-    SETUP_OP(CPUSoftMax, 0, false);
+    SETUP_OP(CPUSoftMax, SEQUENCE, false);
     TENSOR(input0);
     TENSOR(output);
     TENSOR(c_output);
