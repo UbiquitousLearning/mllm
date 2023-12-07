@@ -32,7 +32,7 @@ void testFull(shared_ptr<Tensor> input_tensor, Net &net, vector<int> shape) {
 }
 
 void clearTensor(shared_ptr<Tensor> input_tensor) {
-    input_tensor->reshape(0,0,0,0);
+    input_tensor->reshape(0,input_tensor->head(),input_tensor->sequence(),input_tensor->dimension());
     input_tensor->alloc();
 }
 
