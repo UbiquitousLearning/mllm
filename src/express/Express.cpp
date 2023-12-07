@@ -249,7 +249,7 @@ NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_feature
     out_tensor->in = net_op_;
     return out_tensor;
 }
-
+/*
 NetTensor *_Attention(Context *ctx, std::vector<NetTensor *> inputs, int embedding_size, int hidden_size, int head_size, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -268,6 +268,7 @@ NetTensor *_Attention(Context *ctx, std::vector<NetTensor *> inputs, int embeddi
     out_tensor->in = net_op_;
     return out_tensor;
 }
+ */
 NetTensor *_Embedding(Context *ctx, std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -383,7 +384,7 @@ NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs, bool bias, 
     out_tensor->in = net_op_;
     return out_tensor;
 }
-vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int split_num, Chl split_dim, string name){
+vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int split_num, Chl split_dim, int split_dim_size, string name){
     if (name.empty()) {
         name = "LayerNorm" + std::to_string(ctx->idx);
     }
@@ -391,6 +392,7 @@ vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int sp
     _NEW_OP(mllm::SPLIT)
     net_op_->param["split_num"] =(int) split_num;
     net_op_->param["split_dim"] =(int) split_dim;
+    net_op_->param["split_dim_size"] =(int) split_dim_size;
     _UPDATE_INPUT_TENSORS
     vector<NetTensor *> out_tensors;
     net_op_->out_size = split_num;
@@ -408,6 +410,21 @@ vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int sp
     return out_tensors;
 
 }
+NetTensor *_Gather(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Gather" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::GATHER)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }

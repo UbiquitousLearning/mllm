@@ -171,7 +171,7 @@ endif()
 
 # else ()
 # No Unit Test.
-add_executable(main_llama ${PROJECT_SOURCE_DIR}/demo/main_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+add_executable(main_llama ${PROJECT_SOURCE_DIR}/examples/main_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
     src/tokenizers/Tokenizer.cpp
     src/tokenizers/Tokenizer.hpp
     src/tokenizers/BPE/Bpe.cpp
@@ -180,7 +180,7 @@ add_executable(main_llama ${PROJECT_SOURCE_DIR}/demo/main_llama.cpp ${DIR_SRC_CP
 target_link_libraries(main_llama MLLM_CPU)
 
 
-add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/demo/main_fuyu.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/examples/main_fuyu.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/Tokenizer.hpp
         src/tokenizers/Unigram/Unigram.hpp
@@ -188,8 +188,9 @@ add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/demo/main_fuyu.cpp ${DIR_SRC_CPU}
         src/tokenizers/Unigram/trie.hpp
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
-        src/preprocess/FuyuPreProcess.hpp
-        src/preprocess/FuyuPreProcess.cpp)
+#        src/preprocess/FuyuPreProcess.hpp
+#        src/preprocess/FuyuPreProcess.cpp
+)
 target_link_libraries(main_fuyu MLLM_CPU)
 target_link_directories(main_fuyu PUBLIC ${PROJECT_SOURCE_DIR}/third_party/imageHelper)
 
@@ -201,6 +202,6 @@ if(NNAPI)
 
     add_definitions(-DDEBUG)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/nnapi)
-    add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/demo/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER})
+    add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/examples/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER})
     target_link_libraries(nnapi_test MLLM_NNAPI)
 endif()

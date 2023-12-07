@@ -59,10 +59,10 @@ static bool isSame(Tensor *a, Tensor *b, bool unstrict = false) {
     double eps = 0.000001;
     int flag = 0;
 
-    for (int i = 0; i < a->legacyShape(0); ++i) {
-        for (int j = 0; j < a->legacyShape(1); ++j) {
-            for (int k = 0; k < a->legacyShape(2); ++k) {
-                for (int l = 0; l < a->legacyShape(3); ++l) {
+    for (int i = 0; i < a->batch(); ++i) {
+        for (int j = 0; j < a->head(); ++j) {
+            for (int k = 0; k < a->sequence(); ++k) {
+                for (int l = 0; l < a->dimension(); ++l) {
                     double a_ = a->dataAt<float>({i, j, k, l});
                     double b_ = b->dataAt<float>({i, j, k, l});
 

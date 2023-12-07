@@ -8,12 +8,12 @@ void Executor::init() {
 // #define DYNAMIC
 bool paramloaded = false;
 bool freeGraph = false;
-void Executor::execute(Net *net, shared_ptr<Tensor> input_tensor) {
-    auto input_size = input_tensor->shape();
+void Executor::execute(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
+//    auto input_size = input_tensor->shape();
     bool init = false;
     bool reshape = false;
     // TODO: when reshape begin
-    checkReshape(init, reshape, input_size);
+    checkReshape(init, reshape, input_tensors);
     // set Input tensor
 
     uint64_t t_start;
@@ -21,9 +21,24 @@ void Executor::execute(Net *net, shared_ptr<Tensor> input_tensor) {
     uint64_t time_start = mllm_time_us();
     uint64_t time_end;
 
-    input_tensor->setName(net->inputName());
-    net->tensors()[net->inputName()] = input_tensor;
-    net->subGraph()["G0"]->reflashInput(net->tensors(), net->inputName());
+//    input_tensor->setName(net->inputName());
+//    net->tensors()[net->inputName()] = input_tensor;
+//    net->subGraph()["G0"]->reflashInput(net->tensors(), net->inputName());
+    //Init inputs
+    vector<int> flashGid = {};
+    for (int tid = 0; tid < net->inputNames().size(); ++tid) {
+        auto input_name = net->inputNames()[tid];
+        auto input_tensor = input_tensors[tid];
+        input_tensor->setName(input_name);
+        net->tensors()[input_name] = input_tensor;
+        if (std::find(flashGid.begin(), flashGid.end(), net->inGmap()[input_name]) == flashGid.end()) {
+            flashGid.push_back(net->inGmap()[input_name]);
+        }
+    }
+    for (auto Gid :flashGid) {
+        net->subGraph()["G" + std::to_string(Gid)]->reflashInput(net->tensors());
+    }
+
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         string name = "G" + std::to_string(i);
         auto &g = net->subGraph()[name];
@@ -113,7 +128,7 @@ void Executor::execute(Net *net, shared_ptr<Tensor> input_tensor) {
         // std::cout <<"["<< name << "]==== end      === "<< result_[0]->name() << "'s shape:  [" << result_[0]->batch() << "," << result_[0]->head() << "," << result_[0]->sequence() << "," << result_[0]->dimension() << "]" << std::endl;
     }
     auto ex_time_end = mllm_time_us();
-    if (input_tensor->sequence() == 1) {
+    if (input_tensors[0]->sequence() == 1) {
         auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
         run_time_.push_back(token_run_time);
 #ifdef DEBUG

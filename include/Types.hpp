@@ -61,6 +61,7 @@ enum Chl {
     HEAD = 1,
     SEQUENCE = 2,
     DIMENSION = 3,
+    D_HD,
 };
 #if defined(__ARM_NEON) && !defined(_MSC_VER)
 typedef __fp16 mllm_fp16_t;

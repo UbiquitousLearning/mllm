@@ -31,8 +31,11 @@ public:
         return tensor_names_;
     }
     void freeTensors(int graph_idx);
-    string inputName() {
-        return input_name_;
+    vector<string> inputNames() const{
+        return input_names_;
+    }
+    map<string, int> inGmap() const{
+        return inputname_graphidx_;
     }
 
 private:
@@ -42,7 +45,8 @@ private:
     vector<vector<string>> tensor_names_;
     vector<NetOp *> ops_;
     unordered_map<BackendType, shared_ptr<Backend>> backends_;
-    string input_name_ ;
+    vector<string> input_names_ ;
+    map<string, int> inputname_graphidx_;
 
 };
 

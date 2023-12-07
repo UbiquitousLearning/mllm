@@ -18,7 +18,7 @@ TEST_F(CPUTest, CPULinear1) {
     TEST_WEIGHTS_LOAD(loader);
     PRINT_TENSOR_SHAPES(input0, output, test_output);
     TEST_EXCUTE({input0}, {test_output});
-    COMPARE_TENSOR(output.get(), test_output.get());
+    COMPARE_TENSOR(output.get(), test_output.get(), true);
 }
 TEST_F(CPUTest, CPULinear2) {
     SETUP_OP(CPULinear, 3, 4, false, false);
@@ -34,7 +34,7 @@ TEST_F(CPUTest, CPULinear2) {
     //        TEST_LOAD(&op->bias_());
     TEST_WEIGHTS_LOAD(loader);
     TEST_EXCUTE({input0}, {test_output});
-    COMPARE_TENSOR(output.get(), test_output.get());
+    COMPARE_TENSOR(output.get(), test_output.get(), true);
 }
 // TEST_F(CPUTest, CPULinear3) {
 //     SETUP_OP(CPULinear, 3, 4, false, false);

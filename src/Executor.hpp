@@ -46,17 +46,33 @@ public:
         return subGraph->forward();
     }
     */
+    bool checkSame(vector<shared_ptr<Tensor>> input_tensor){
+        if(input_tensor.size() != input_sizes_.size()){
+            return false;
+        }
+        bool same = true;
+        for (int i = 0; i < input_tensor.size(); ++i) {
+            if (input_tensor[i]->shape() != input_sizes_[i]) {
+                same = false;
+                break;
+            }
+        }
+        return same;
+    }
 
-    bool checkReshape(bool &init, bool &reshape, vector<int> input_size) {
-        if (input_size_.empty()) {
-            input_size_ = input_size;
+    bool checkReshape(bool &init, bool &reshape, vector<shared_ptr<Tensor>> input_tensor) {
+        if (input_sizes_.empty()) {
+            for (auto &t : input_tensor) {
+                input_sizes_.push_back(t->shape());
+            }
             init = true;
-        } else if (input_size.empty()) {
-            reshape = false;
-        } else if (input_size[0] == input_size_[0] && input_size[1] == input_size_[1] && input_size[2] == input_size_[2] && input_size[3] == input_size_[3]) {
+        } else if (checkSame(input_tensor)) {
             reshape = false;
         } else {
-            input_size_ = input_size;
+            input_sizes_.clear();
+            for (auto &t : input_tensor) {
+                input_sizes_.push_back(t->shape());
+            }
             reshape = true;
         }
         return init || reshape;
@@ -64,7 +80,7 @@ public:
 
     void execute(vector<int> input_size = {});
 
-    void execute(Net *net, shared_ptr<Tensor> input_tensor);
+    void execute(Net *net, vector<shared_ptr<Tensor>> input_tensor);
 
     vector<shared_ptr<Tensor>> &result() {
         return result_;
@@ -80,7 +96,7 @@ public:
     }
 
 private:
-    vector<int> input_size_;
+    vector<vector<int>> input_sizes_;
     // map<string, map<string,vector<int>>> graph_input_shapes_;
     vector<shared_ptr<Tensor>> result_;
     ParamLoader *data_loader_;

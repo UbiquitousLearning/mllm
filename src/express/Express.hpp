@@ -27,7 +27,7 @@ NetTensor *_RMSNorm(Context *ctx, std::vector<NetTensor *> inputs, string name =
 NetTensor *_RoPE(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale, string name);
 NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
-NetTensor *_Attention(Context *ctx, std::vector<NetTensor *> inputs, int embedding_size, int hidden_size, int head_size=1, string name = "");
+//NetTensor *_Attention(Context *ctx, std::vector<NetTensor *> inputs, int embedding_size, int hidden_size, int head_size=1, string name = "");
 NetTensor *_Embedding(Context *ctx, std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name = "");
 NetTensor *_Mul(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_View(Context *ctx, std::vector<NetTensor *> inputs, vector<int> dims, vector<int>data_dims, string name = "");
@@ -35,7 +35,8 @@ NetTensor *_KVCache(Context *ctx, std::vector<NetTensor *> inputs, bool isK, str
 NetTensor *_ReLU(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_ReLUSquaredActivation(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs,bool bias= true, string name = "");
-vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int split_num, Chl split_dim, string name = "");
+vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int split_num, Chl split_dim, int split_dim_size = -1, string name = "");
+NetTensor *_Gather(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 // NOLINTEND(readability-identifier-naming)
 
 /*

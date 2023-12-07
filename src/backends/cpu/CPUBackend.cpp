@@ -17,6 +17,9 @@
 #include "CPUReLU2.hpp"
 #include "CPUSplit.hpp"
 #include "CPULayerNorm.hpp"
+#include "CPUGather.hpp"
+
+
 #include <math.h>
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
@@ -47,21 +50,6 @@ Op *CPUBackend::opCreate(const OpParam &op_param, string name) {
     // return nullptr;
 }
 void CPUBackend::registerOps() {
-    // ADD,
-    // MASK,
-    // MATMUL,
-    // RMSNORM,
-    // ROPE,
-    // SCALE,
-    // SILU,
-    // SOFTMAX
-
-    // static CPUAddCreator _temp;
-    // addCreator(ADD, &_temp);
-
-    // static CPUMatmulCreator _temp;
-    // addCreator(MATMUL, &_temp);
-
     addCreator(ADD, (CPUBackend::Creator *)(new CPUAddCreator()));
     addCreator(CAUSALMASK, (CPUBackend::Creator *)(new CPUCausalMaskCreator()));
     addCreator(MATMUL, (CPUBackend::Creator *)(new CPUMatmulCreator()));
@@ -71,7 +59,7 @@ void CPUBackend::registerOps() {
     addCreator(SILU, (CPUBackend::Creator *)(new CPUSiLUCreator()));
     addCreator(SOFTMAX, (CPUBackend::Creator *)(new CPUSoftMaxCreator()));
     addCreator(LINEAR, (CPUBackend::Creator *)(new CPULinearCreator()));
-    addCreator(ATTENTION, (CPUBackend::Creator *)(new CPUAttentionCreator()));
+//    addCreator(ATTENTION, (CPUBackend::Creator *)(new CPUAttentionCreator()));
     addCreator(EMBEDDING, (CPUBackend::Creator *)(new CPUEmbeddingCreator()));
     addCreator(MUL, (CPUBackend::Creator *)(new CPUMulCreator()));
     addCreator(VIEW, (CPUBackend::Creator *)(new CPUViewCreator()));
@@ -80,6 +68,7 @@ void CPUBackend::registerOps() {
     addCreator(RELU2, (CPUBackend::Creator *)(new CPUReLU2Creator()));
     addCreator(LAYERNORM, (CPUBackend::Creator *)(new CPULayerNormCreator()));
     addCreator(SPLIT, (CPUBackend::Creator *)(new CPUSplitCreator()));
+    addCreator(GATHER, (CPUBackend::Creator *)(new CPUGatherCreator()));
 }
 
 } // namespace mllm

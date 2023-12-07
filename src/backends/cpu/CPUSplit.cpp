@@ -2,10 +2,11 @@
 
 namespace mllm {
 
-CPUSplit::CPUSplit(Backend *bn,  string opName,  int splitNum, Chl splitDim, bool multiThread) :
+CPUSplit::CPUSplit(Backend *bn,  string opName,  int splitNum, Chl splitDim, int splitDimSize, bool multiThread) :
     Op(bn, opName) {
     split_num_ = splitNum;
     split_dim_ = splitDim;
+    split_dim_size_ =  splitDimSize;
 }
 
 ErrorCode CPUSplit::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -31,6 +32,13 @@ ErrorCode CPUSplit::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
             CHECK_EQ(inputs[0]->dimension() % split_num_, 0);
             for (auto &output: outputs) {
                 output->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension() / split_num_);
+            }
+            break;
+        }
+        case D_HD: {
+            CHECK_EQ(inputs[0]->dimension() % split_num_, 0);
+            for (auto &output: outputs) {
+                output->reshape(inputs[0]->batch(), split_dim_size_, inputs[0]->sequence(), inputs[0]->dimension() / (split_num_*split_dim_size_));
             }
             break;
         }

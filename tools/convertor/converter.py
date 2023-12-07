@@ -22,6 +22,7 @@ class Writer:
     writer: BufferedWriter
     tensors_map: [str, Tensor]
     tensors_name: [str]
+
     def __init__(self, path: str):
         self.tensors_map = {}
         self.tensors_name = []
@@ -50,6 +51,7 @@ class Writer:
     def write_str(self, val: str):
         self.writer.write(struct.pack("<i", len(val)))
         self.writer.write(val.encode("utf-8"))
+
     def write_tensor(self, tensor: torch.Tensor, name: str) -> [int, int]:
         tensor_idx = Tensor(name=name, dtype=self.__torch_dtype_to_int(tensor.dtype))
         self.tensors_map[name] = tensor_idx
@@ -74,6 +76,7 @@ class Writer:
             self.write_u64(tensor.size)
             self.write_u64(tensor.offset)
             self.write_int(tensor.dtype)
+
     def write_tensor_index_padding(self, tensors_name: [str]):
         if len(tensors_name) > 0:
             self.tensors_name = tensors_name

@@ -52,7 +52,7 @@ ErrorCode CPUScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     CHECK_EQ(outputs.size(), 1);
     // outputs[0]->deepCopyFrom(inputs[0]);
     if(inputs[0]->masterTensor() == nullptr) {
-        inputs[0]->free(); // TODO remove
+        inputs[0]->free();
     }
     outputs[0]->setDtype(activation_dtype());
     outputs[0]->alloc();

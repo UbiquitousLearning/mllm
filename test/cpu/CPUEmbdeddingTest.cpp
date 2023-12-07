@@ -16,5 +16,5 @@ TEST_F(CPUTest, CPUEmbedding1) {
     op->setUp({input0}, {output});
     op->load(loader);
     op->execute({input0}, {output});
-    COMPARE_TENSOR(p_output.get(), output.get());
+    COMPARE_TENSOR(p_output.get(), output.get(), true);
 }

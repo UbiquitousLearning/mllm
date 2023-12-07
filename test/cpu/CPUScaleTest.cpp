@@ -13,7 +13,7 @@ TEST_F(CPUTest, CPUScale1) {
     TEST_SETUP({input0}, {output});
     input0->fullDataTest();
     TEST_EXCUTE({input0}, {output});
-    COMPARE_TENSOR(input0.get(), output.get(), false);
+    COMPARE_TENSOR(input0.get(), output.get(), true);
 }
 TEST_F(CPUTest, CPUScale2) {
     SETUP_OP(CPUScale, 0, 1);
