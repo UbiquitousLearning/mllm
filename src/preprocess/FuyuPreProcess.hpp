@@ -5,7 +5,16 @@
 #ifndef FUYUPREPROCESS_HPP
 #define FUYUPREPROCESS_HPP
 #include <vector>
-
+#ifndef  STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_STATIC
+#define STB_IMAGE_IMPLEMENTATION
+#endif
+#include "imageHelper/stb_image.h"
+#ifndef  STB_IMAGE_RESIZE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_STATIC
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#endif
+#include "imageHelper/stb_image_resize2.h"
 
 #include "tokenizers/Tokenizer.hpp"
 // #include <imageHelper/stb_image_resize.h>

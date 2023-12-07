@@ -5,10 +5,7 @@
 #include "FuyuPreProcess.hpp"
 
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "imageHelper/stb_image.h"
-#define STB_IMAGE_RESIZE_IMPLEMENTATION
-#include "imageHelper/stb_image_resize2.h"
+
 #include <cassert>
 #include <iostream>
 
