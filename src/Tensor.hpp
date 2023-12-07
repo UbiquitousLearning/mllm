@@ -9,7 +9,8 @@
 #include <iomanip>
 #include <cmath>
 #include "Timing.hpp"
-
+#include <fstream>
+#include <filesystem>
 #include <assert.h>
 
 const auto KMaxAxes = 32;
@@ -621,6 +622,53 @@ public:
         }
     }
 
+
+
+    template <typename Dtype>
+    void saveData() {
+        std::filesystem::create_directory("save_out");
+        std::ofstream outFile("save_out/" + name() + ".log");
+
+        outFile << "----------------------------------------" << std::endl;
+        outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "]" << std::endl;
+
+        int N = batch();
+        int C = head();
+        int H = sequence();
+        int W = dimension();
+        if (N == 1 && C == 1) {
+            for (int h = 0; h < H; ++h) {
+                for (int c = 0; c < W; ++c) {
+                    outFile << std::fixed << std::setprecision(7) << dataAt<Dtype>(0, 0, h, c) << " ";
+                }
+                outFile << std::endl;
+                outFile << "---------" << std::endl;
+            }
+        } else if (N == 1 && W == 1) {
+            for (int h = 0; h < H; ++h) {
+                for (int c = 0; c < C; ++c) {
+                    outFile << std::fixed << std::setprecision(7) << dataAt<Dtype>(0, c, h, 0) << " ";
+                }
+                outFile << std::endl;
+            }
+        } else {
+            for (int n = 0; n < N; ++n) {
+                for (int c = 0; c < C; ++c) {
+                    for (int h = 0; h < H; ++h) {
+                        for (int w = 0; w < W; ++w) {
+                            outFile << std::fixed << std::setprecision(7) << dataAt<Dtype>(n, c, h, w) << " ";
+                        }
+                        outFile << std::endl;
+                    }
+                    outFile << std::endl;
+                }
+                outFile << std::endl;
+            }
+        }
+
+        outFile.close();
+    }
+
     template <typename Dtype>
     void printMem() {
         for (int i = 0; i < count_; ++i) {
@@ -754,6 +802,16 @@ private:
                 }
             }
             d = d - aggregated_dims_[tensor_id-1];
+            break;
+        }
+        case D_HD: {
+            int head_size = aggregated_tensors_[0]->head();
+            int aggregated_size = aggregated_tensors_.size();
+            auto d_ = d / (head_size * aggregated_size);
+            auto h_m = d % (head_size * aggregated_size);
+            tensor_id = h_m / head_size;
+            d = h_m % head_size;
+            h = d_;
             break;
         }
         default:

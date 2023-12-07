@@ -33,11 +33,11 @@ void testFull(shared_ptr<Tensor> input_tensor, Net &net, vector<int> shape) {
 }
 
 NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden_size, int head_size, string name){
-    x =_Linear(ctx, {x}, embedding_size, hidden_size * head_size * 3, false, name + ".query_key_value");
-    auto skv = _Split(ctx, {x}, 3, Chl::DIMENSION, name + ".split");
-    auto *q = _View(ctx, {skv[0]}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".q_view");
-    auto *k = _View(ctx, {skv[1]}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".k_view");
-    auto *v = _View(ctx, {skv[2]}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".v_view");
+    x =_Linear(ctx, {x}, embedding_size, hidden_size * head_size * 3, true, name + ".query_key_value");
+    auto skv = _Split(ctx, {x}, 3, Chl::D_HD, head_size, name + ".split");
+    auto *q = skv[0];
+    auto *k = skv[1];
+    auto *v = skv[2];
     q = _LayerNorm(ctx, {q}, true, name + ".q_layernorm");
     k = _LayerNorm(ctx, {k}, true, name + ".k_layernorm");
     q = _RoPE(ctx, {q}, name + ".q_rope");
@@ -45,12 +45,12 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
     k = _KVCache(ctx, {k}, true, name + ".k_cache");
     v = _KVCache(ctx, {v}, true, name + ".v_cache");
     auto *qk = _Matmul(ctx, {q, k}, false, true, name + ".qk");
-    qk = _Scale(ctx, {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
+    qk = _Scale(ctx, {qk}, 1.0F / std::sqrt(head_size), 0.0F, false, name + ".scale");
     qk = _Causalmask(ctx, {qk}, name + ".mask");
     qk = _Softmax(ctx, {qk}, SEQUENCE, name + ".softmax");
     auto *o = _Matmul(ctx, {qk, v}, false, false, name + ".qkv");
     o = _View(ctx, {o}, {-1, -1, -1, -1}, {BATCH, -1, SEQUENCE, HEAD+DIMENSION}, name + ".qkv_view");
-    o = _Linear(ctx, {o}, hidden_size * head_size, embedding_size, false, name + ".dense");
+    o = _Linear(ctx, {o}, hidden_size * head_size, embedding_size, true, name + ".dense");
     return o;
 }
 NetTensor *MLP(Context *ctx, NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
@@ -59,11 +59,11 @@ NetTensor *MLP(Context *ctx, NetTensor * i, int hidden_dim, int ffn_hidden_dim, 
     x = _Linear(ctx, {x}, ffn_hidden_dim, hidden_dim, true, name+".dense_4h_to_h");
     return x;
 }
-NetTensor *Persimmon(Context* c, NetTensor * i, int hidden_dim= 4096, int ffn_hidden_dim = 4096*4, int mutil_head_size = 32, string name = "language_model.model"){
+NetTensor *Persimmon(Context* c, NetTensor * i, int hidden_dim= 4096, int ffn_hidden_dim = 4096*4, int mutil_head_size = 64, string name = "language_model.model"){
     // loop
     for(int layer=0; layer<1; ++layer) {
         auto *x = _LayerNorm(c, {i}, true, name + (string)".layers."+std::to_string(layer)+".input_layernorm");
-        x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name + (string)".layers."+std::to_string(layer)+".self_attention");
+        x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name + (string)".layers."+std::to_string(layer)+".self_attn");
         i = _Add(c, {x, i});
         x = _LayerNorm(c, {i}, true, name + (string)".layers."+std::to_string(layer)+".post_attention_layernorm");
         x = MLP(c, x, hidden_dim, ffn_hidden_dim, name + (string)".layers."+std::to_string(layer) +".mlp");
@@ -78,27 +78,27 @@ void Fuyu(Context* c, int vocab_size= 262144, int patch_size = 30, int cnl_size 
     auto *i = _Input(c, {}, "input_ids");
     i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"language_model.model.embed_tokens");
     auto *p = _Input(c, {}, "image_patches");
-    p = _Linear(c, {p}, patch_size*patch_size*cnl_size, hidden_dim, false, "vision_embed_tokens");
+    p = _Linear(c, {p}, patch_size*patch_size*cnl_size, hidden_dim, true, "vision_embed_tokens");
     auto *id = _Input(c, {}, "image_patches_indices");
     i = _Gather(c, {i, p, id}, "gather");
     i = Persimmon(c, i, hidden_dim, ffn_hidden_dim, mutil_head_size, "language_model.model");
     i = _Linear(c, {i}, hidden_dim, vocab_size, false, "language_model.lm_head");
 }
 int main() {
-    int width, height, channel;
-    unsigned char *data = stbi_load("test.jpg", &width, &height, &channel, 0);
-    if (data == nullptr) {
-        cout << "load image failed" << endl;
-        return -1;
-    }
-    cout << "width: " << width << " height: " << height << " channel: " << channel << endl;
-    vector<float> data_f32(width * height * channel);
-    for (int i = 0; i < width * height * channel; i++) {
-        data_f32[i] = data[i] / 255.0;
-    }
-    stbi_image_free(data);
+    // int width, height, channel;
+    // unsigned char *data = stbi_load("test.jpg", &width, &height, &channel, 0);
+    // if (data == nullptr) {
+    //     cout << "load image failed" << endl;
+    //     return -1;
+    // }
+    // cout << "width: " << width << " height: " << height << " channel: " << channel << endl;
+    // vector<float> data_f32(width * height * channel);
+    // for (int i = 0; i < width * height * channel; i++) {
+    //     data_f32[i] = data[i] / 255.0;
+    // }
+    // stbi_image_free(data);
 
-    auto tokenizer = UnigramTokenizer("./vocab_uni.mllm");
+    auto tokenizer = UnigramTokenizer("vocab_uni.mllm");
     tokenizer.setSpecialToken("|ENDOFTEXT|");
     auto tokens_id = vector<token_id_t>();
     string in_str = "Generate a caption";
@@ -125,7 +125,7 @@ int main() {
     int vocab_size = 262144;
     int hidden_dim = 4096;
     int ffn_hidden_dim = 4096*4;
-    int mutil_head_size = 32;
+    int mutil_head_size = 64;
     int patch_size = 30;
 
     std::unique_ptr<Context> c_ptr(new Context());
@@ -137,7 +137,7 @@ int main() {
     net.convert(c->sub_param_);
 
 
-    ParamLoader param_loader("../models/fuyu-2-7b-fp32.mllm");
+    ParamLoader param_loader("../models/fuyu-8b-fp32.mllm");
     Executor ex(&param_loader);
 
 

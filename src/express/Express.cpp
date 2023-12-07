@@ -384,7 +384,7 @@ NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs, bool bias, 
     out_tensor->in = net_op_;
     return out_tensor;
 }
-vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int split_num, Chl split_dim, string name){
+vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int split_num, Chl split_dim, int split_dim_size, string name){
     if (name.empty()) {
         name = "LayerNorm" + std::to_string(ctx->idx);
     }
@@ -392,6 +392,7 @@ vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int sp
     _NEW_OP(mllm::SPLIT)
     net_op_->param["split_num"] =(int) split_num;
     net_op_->param["split_dim"] =(int) split_dim;
+    net_op_->param["split_dim_size"] =(int) split_dim_size;
     _UPDATE_INPUT_TENSORS
     vector<NetTensor *> out_tensors;
     net_op_->out_size = split_num;

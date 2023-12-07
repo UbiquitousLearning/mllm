@@ -35,7 +35,7 @@ NetTensor *_KVCache(Context *ctx, std::vector<NetTensor *> inputs, bool isK, str
 NetTensor *_ReLU(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_ReLUSquaredActivation(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs,bool bias= true, string name = "");
-vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int split_num, Chl split_dim, string name = "");
+vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int split_num, Chl split_dim, int split_dim_size = -1, string name = "");
 NetTensor *_Gather(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 // NOLINTEND(readability-identifier-naming)
 
