@@ -54,6 +54,28 @@ bool Tokenizer::load_vocab(const std::string &vocab_file) {
     this->min_score_ = min_score;
     return true;
 }
+
+std::string Tokenizer::replaceString(const std::string &str, char old_char, const std::string& new_char) {
+    std::string result;
+    for (auto &ch : str) {
+        if (ch == old_char) {
+            result += new_char;
+        } else {
+            result += ch;
+        }
+    }
+    return result;
+}
+
+bool Tokenizer::getTokenId(const token_t &token, token_id_t &id) {
+    auto token_id = this->vocab_map_.find(token);
+    if (token_id != this->vocab_map_.end()) {
+        id = token_id->second;
+        return true;
+    }
+    return false;
+}
+
 Tokenizer::Tokenizer(const std::string &vocab_file) {
     if(!load_vocab(vocab_file)) exit(-1);
 }
