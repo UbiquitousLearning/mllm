@@ -9,5 +9,5 @@ url = "https://huggingface.co/adept/fuyu-8b/resolve/main/bus.png"
 image = Image.open(requests.get(url, stream=True).raw)
 # with open("bus.tmp", "wb") as f:
 #     f.write(image.tobytes())
-inputs = processor(text=[text_prompt,text_prompt],images=[image,image], return_tensors="pt")
+inputs = processor(text=text_prompt,images=[image,image], return_tensors="pt")
 print(inputs)

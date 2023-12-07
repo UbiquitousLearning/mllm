@@ -192,9 +192,73 @@ void FuyuPreProcess::get_sample_encoding(const std::string &text) {
     } else {
         std::cerr << "ANSWER_START token not found in vocab file." << std::endl;
     }
+    token_id_t end_of_text_token = 0;
+    if (tokenizer_->getTokenId("|ENDOFTEXT|", end_of_text_token)) {
+        text_ids.push_back(end_of_text_token);
+    } else {
+        std::cerr << "END_OF_TEXT token not found in vocab file." << std::endl;
+    }
     text_ids_.push_back(text_ids);
+    //TODO: Should we Pad the prompt tokens? HF pad & cut off the padding in `construct_full_unpacked_stream`.
     text_lengths_.push_back(text_ids.size());
 //construct_full_unpacked_stream
+    auto image_padded_unpacked_tokens = vector<vector<token_id_t>>(images_.size(), vector<token_id_t>());
+    auto unpacked_image_patch_indices_per_batch = vector<vector<int>>(images_.size(), vector<int>());
+    size_t max_prompt_length = 0;
+    for (int i = 0; i < images_.size(); i++) {
+        auto &image_padded_unpacked_token = image_padded_unpacked_tokens[i];
+        auto &unpacked_image_patch_indice_per_batch = unpacked_image_patch_indices_per_batch[i];
+        //TODO:
+        auto text_length = text_lengths_[0];
+        auto image_token_length = image_input_ids_[i].size();
+        if (text_lengths_.size()>1) {
+            text_length = text_lengths_[i];
+        }
+        auto size_ =image_token_length+text_length;
+        image_padded_unpacked_token.insert(image_padded_unpacked_token.begin(), image_input_ids_[i].begin(), image_input_ids_[i].end());
+        image_padded_unpacked_token.insert(image_padded_unpacked_token.end(), text_ids_[0].begin(), text_ids_[0].end());
+        unpacked_image_patch_indice_per_batch.insert(unpacked_image_patch_indice_per_batch.begin(), image_patch_indices_per_batch[i].begin(), image_patch_indices_per_batch[i].end());
+        unpacked_image_patch_indice_per_batch.insert(unpacked_image_patch_indice_per_batch.end(), text_ids_[0].size(), -1);
+        if (size_ > max_prompt_length) {
+            max_prompt_length = size_;
+        }
+        //
+    }
+    size_t max_seq_len_batch = std::min(max_prompt_length + max_tokens_to_generate, max_position_embeddings);
+    auto tokens_to_place = std::min(max_seq_len_batch, max_prompt_length);
+    //full_unpacked_stream_to_tensor
+    image_patch_input_indices_.resize(images_.size());
+    // for (auto &image_patch_input_indice : image_patch_input_indices_) {
+    for (int i = 0; i < image_patch_input_indices_.size(); i++) {
+        auto &image_patch_input_indice = image_patch_input_indices_[i];
+        image_patch_input_indice.insert(image_patch_input_indice.begin(), unpacked_image_patch_indices_per_batch[i].begin(), unpacked_image_patch_indices_per_batch[i].begin()+tokens_to_place);
+        image_patch_input_indice.insert(image_patch_input_indice.end(), max_seq_len_batch - tokens_to_place, -1);
+    }
+    image_input_ids_.clear();
+    image_input_ids_.resize(images_.size());
+//_left_pad_inputs_with_attention_mask
+    attention_mask_.resize(images_.size());
+    image_patches_indices_.resize(images_.size());
+    for (int i = 0; i < images_.size(); i++) {
+        auto &attention_mask = attention_mask_[i];
+        auto &input_id = image_input_ids_[i];
+       auto  num_padding_tokens = max_prompt_length - image_padded_unpacked_tokens[i].size();
+        input_id.insert(input_id.end(), num_padding_tokens, pad_token_id);
+        input_id.insert(input_id.end, image_padded_unpacked_tokens[i].begin(), image_padded_unpacked_tokens[i].end());
+        attention_mask.insert(attention_mask.end(), num_padding_tokens, 0);
+        attention_mask.insert(attention_mask.end(), image_padded_unpacked_tokens[i].size(), 1);
+
+        // For the image patches indices, we need to add the padding tokens as well.
+        auto &image_patch_input_indice = image_patches_indices_[i];
+        auto &image_patch_input_indice_per_batch = image_patch_input_indices_[i];
+        auto num_padding_indices  = max_seq_len_batch - image_patch_input_indice_per_batch.size();
+        image_patch_input_indice.insert(image_patch_input_indice.end(), num_padding_indices, -1);
+        image_patch_input_indice.insert(image_patch_input_indice.end(), image_patch_input_indice_per_batch.begin(), image_patch_input_indice_per_batch.end());
+    }
+
+
+
+
 }
 
 std::vector<vector<float>> FuyuPreProcess::PatchImages(ImageInfo &images, size_t patch_height, size_t patch_width) {
@@ -235,5 +299,9 @@ std::vector<vector<float>> FuyuPreProcess::PatchImages(ImageInfo &images, size_t
     // }
 
     return patches;
+}
+
+void FuyuPreProcess::_left_pad_inputs_with_attention_mask() {
+
 }
 } // mllm
