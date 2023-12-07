@@ -233,6 +233,7 @@ public:
                 break;
             }
         }
+        return -1;
     }
 
     inline int offset(const vector<int> &indices) const {

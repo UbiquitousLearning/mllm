@@ -4,6 +4,12 @@
 
 #include "FuyuPreProcess.hpp"
 
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "imageHelper/stb_image.h"
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include "imageHelper/stb_image_resize2.h"
+#include <cassert>
 #include <iostream>
 
 namespace mllm {
@@ -16,7 +22,7 @@ void FuyuPreProcess::PreProcessImages(const std::vector<vector<uint8_t>> &images
     //     exit(-1);
     // }
     // auto images_ = std::vector<ImageInfo>();
-    images_.resize(images.size());
+    // images_.resize(images.size());
     for (auto image : images) {
         int width_, height_, channels_;
         // Data is [height * width * channels],RGB
@@ -245,7 +251,7 @@ void FuyuPreProcess::get_sample_encoding(const std::string &text) {
         auto &input_id = image_input_ids_[i];
        auto  num_padding_tokens = max_prompt_length - image_padded_unpacked_tokens[i].size();
         input_id.insert(input_id.end(), num_padding_tokens, pad_token_id);
-        input_id.insert(input_id.end, image_padded_unpacked_tokens[i].begin(), image_padded_unpacked_tokens[i].end());
+        input_id.insert(input_id.end(), image_padded_unpacked_tokens[i].begin(), image_padded_unpacked_tokens[i].end());
         attention_mask.insert(attention_mask.end(), num_padding_tokens, 0);
         attention_mask.insert(attention_mask.end(), image_padded_unpacked_tokens[i].size(), 1);
 

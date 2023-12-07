@@ -185,7 +185,6 @@ static size_t DataTypeSize(DataType dtype, int count=1) {
         return sizeof(short)*count;
     case MLLM_TYPE_I8:
         return sizeof(char)*count;
-        // TODO WRONG?
     case MLLM_TYPE_Q4_0:
         return (sizeof(block_q4_0))*count / (QK4_0);
     case MLLM_TYPE_Q4_K:
@@ -198,7 +197,10 @@ static size_t DataTypeSize(DataType dtype, int count=1) {
         return (sizeof(block_q8_K))*count / (QK_K);
     case MLLM_TYPE_Q4_1:
     case MLLM_TYPE_Q8_1:
-    case MLLM_TYPE_COUNT: return 0;
+    case MLLM_TYPE_COUNT:
+        return 0;
+    default:
+        return 0;
     }
 }
 #ifdef __cplusplus

@@ -8,8 +8,7 @@
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include "tokenizers/Unigram/Unigram.hpp"
-#define STB_IMAGE_IMPLEMENTATION
-#include "imageHelper/stb_image.h"
+#include "preprocess/FuyuPreProcess.hpp"
 
 using namespace std;
 
@@ -30,6 +29,36 @@ void testFull(shared_ptr<Tensor> input_tensor, Net &net, vector<int> shape) {
     input_tensor->setDtype(MLLM_TYPE_F32);
     input_tensor->alloc();
     input_tensor->fullData<float>(1);
+}
+
+
+unsigned int argmax(const std::vector<float>& scores) {
+    if(scores.empty()) {
+        throw std::invalid_argument("Input vector is empty");
+    }
+    unsigned int maxIndex = 0;
+    float maxValue = scores[0];
+    for(size_t i = 1; i < scores.size(); ++i) {
+        if(scores[i] > maxValue) {
+            maxIndex = i;
+            maxValue = scores[i];
+        }
+    }
+    return maxIndex;
+}
+unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor>& out_result){
+    CHECK_EQ(result->batch(), 1);
+    CHECK_EQ(result->head(), 1);
+    out_result->reshape(1, 1, 1, 1);
+    out_result->alloc();
+    vector<float> scores;
+    for (int i = 0; i < result->dimension(); ++i) {
+        auto value = result->dataAt<float>(0, 0, result->sequence()-1, i);
+        scores.push_back(value);
+    }
+    auto token_idx =  argmax(scores);
+    out_result->setDataAt<float>(0, 0, 0, 0, token_idx);
+    return token_idx;
 }
 
 NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden_size, int head_size, string name){
@@ -85,18 +114,20 @@ void Fuyu(Context* c, int vocab_size= 262144, int patch_size = 30, int cnl_size 
     i = _Linear(c, {i}, hidden_dim, vocab_size, false, "language_model.lm_head");
 }
 int main() {
-    // int width, height, channel;
-    // unsigned char *data = stbi_load("test.jpg", &width, &height, &channel, 0);
-    // if (data == nullptr) {
-    //     cout << "load image failed" << endl;
-    //     return -1;
-    // }
-    // cout << "width: " << width << " height: " << height << " channel: " << channel << endl;
-    // vector<float> data_f32(width * height * channel);
-    // for (int i = 0; i < width * height * channel; i++) {
-    //     data_f32[i] = data[i] / 255.0;
-    // }
-    // stbi_image_free(data);
+    /*
+    int width, height, channel;
+    unsigned char *data = stbi_load("test.jpg", &width, &height, &channel, 0);
+    if (data == nullptr) {
+        cout << "load image failed" << endl;
+        return -1;
+    }
+    cout << "width: " << width << " height: " << height << " channel: " << channel << endl;
+    vector<float> data_f32(width * height * channel);
+    for (int i = 0; i < width * height * channel; i++) {
+        data_f32[i] = data[i] / 255.0;
+    }
+    stbi_image_free(data);
+    */
 
     auto tokenizer = UnigramTokenizer("vocab_uni.mllm");
     tokenizer.setSpecialToken("|ENDOFTEXT|");
@@ -120,6 +151,8 @@ int main() {
 //    std::cout << result_ << std::endl;
 //    return 0;
 
+    // auto *preprocess = new FuyuPreProcess(&tokenizer, 30, 30, 10);
+    // preprocess->Process(in_str);
 
 
     int vocab_size = 262144;
@@ -151,6 +184,8 @@ int main() {
     std::cout << in_str << std::flush;
     ex.execute(&net, {input_seq, img_patch, img_patch_id});
     auto result = ex.result();
+    auto token_idx = postProcessing(result[0], input_seq);
+    auto out_token = tokenizer.detokenize({token_idx});
 
     // free memory
     for (auto *op : c->net_ops) {

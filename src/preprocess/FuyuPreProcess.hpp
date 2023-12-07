@@ -5,10 +5,7 @@
 #ifndef FUYUPREPROCESS_HPP
 #define FUYUPREPROCESS_HPP
 #include <vector>
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_RESIZE_IMPLEMENTATION
-#include <imageHelper/stb_image.h>
-#include <imageHelper/stb_image_resize2.h>
+
 
 #include "tokenizers/Tokenizer.hpp"
 // #include <imageHelper/stb_image_resize.h>
@@ -94,7 +91,7 @@ private:
     static std::vector<ImageInfo> ResizeImages(const std::vector<ImageInfo> &images, int height, int width, ResampleType resample_type = ResampleType::BILINEAR, bool free_source = true);
     static vector<ImageInfo> NormalizeImages(const vector<ImageInfo> &images, float mean, float std, bool free_source = true);
     void get_sample_encoding(const std::string &text);
-    static std::vector<vector<float>> FuyuPreProcess::PatchImages(  ImageInfo &images, size_t patch_height, size_t patch_width) ;
+    static std::vector<vector<float>> PatchImages(  ImageInfo &images, size_t patch_height, size_t patch_width) ;
     // vector<vector<token_id_t>> construct_full_unpacked_stream();
     void _left_pad_inputs_with_attention_mask();
 
