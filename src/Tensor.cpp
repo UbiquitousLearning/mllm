@@ -85,8 +85,10 @@ void Tensor::alloc() {
             backend_->free(host_ptr_);
             host_ptr_ = nullptr;
         }
-        //host_ptr_ = malloc(cntSize());
-        backend_->alloc(&host_ptr_, cntSize(), 8);
+        if(count_ >0) {
+            // host_ptr_ = malloc(cntSize());
+            backend_->alloc(&host_ptr_, cntSize(), 8);
+        }
         allocated_ = count_;
     }
 }
