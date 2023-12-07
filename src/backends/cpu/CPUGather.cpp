@@ -11,6 +11,10 @@ ErrorCode CPUGather::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     //std::cout<<name() << "  CPUGather  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 3);
     CHECK_EQ(outputs.size(), 1);
+    if(inputs[1]->batch() == 0) {
+        outputs[0]->reshape(inputs[0]->batch(), 1, inputs[0]->sequence(), inputs[0]->dimension());
+        return Op::reshape(inputs, outputs);
+    }
     CHECK_EQ(inputs[0]->batch(), inputs[1]->batch());
     CHECK_EQ(inputs[0]->head(), inputs[1]->head());
     CHECK_EQ(inputs[0]->head(), 1);
@@ -22,6 +26,9 @@ ErrorCode CPUGather::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 }
 
 ErrorCode CPUGather::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    if(inputs[1]->batch() == 0) {
+        return Op::execute(inputs, outputs);
+    }
     //std::cout<<name() << "  CPUGather()" << std::endl;
     assert(inputs[0]->ctype() == BSHD);
     assert(inputs[1]->ctype() == BSHD);

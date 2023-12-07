@@ -31,6 +31,11 @@ void testFull(shared_ptr<Tensor> input_tensor, Net &net, vector<int> shape) {
     input_tensor->fullData<float>(1);
 }
 
+void clearTensor(shared_ptr<Tensor> input_tensor) {
+    input_tensor->reshape(0,0,0,0);
+    input_tensor->alloc();
+}
+
 
 unsigned int argmax(const std::vector<float>& scores) {
     if(scores.empty()) {
@@ -185,6 +190,9 @@ int main() {
     ex.execute(&net, {input_seq, img_patch, img_patch_id});
     auto result = ex.result();
     auto token_idx = postProcessing(result[0], input_seq);
+    clearTensor(img_patch);
+    clearTensor(img_patch_id);
+
     auto out_token = tokenizer.detokenize({token_idx});
 
     // free memory

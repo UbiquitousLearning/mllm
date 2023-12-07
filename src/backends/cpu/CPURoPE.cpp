@@ -69,7 +69,7 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     ishape = inputs[0]->dimension();
     // outputs[0]->setDtype(activationDtype());
-    pos_max_ = 128;
+    pos_max_ = 16384;
     return Op::reshape(inputs, outputs);
 }
 

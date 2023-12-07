@@ -111,7 +111,7 @@ CPUKVCache::CPUKVCache(Backend *bn, string opName, bool isK, bool multiThread) :
     isK_ = isK;
     cache_.setBackend(bn);
     cache_.setDtype(MLLM_TYPE_F32);
-    cache_limit_ = 100;
+    cache_limit_ = 500;
 }
 
 ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
