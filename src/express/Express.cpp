@@ -196,7 +196,7 @@ NetTensor *_RMSNorm(Context *ctx, std::vector<NetTensor *> inputs, string name) 
     return out_tensor;
 }
 
-NetTensor *_RoPE(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+NetTensor *_RoPE(Context *ctx, std::vector<NetTensor *> inputs, int pose_type, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "RoPE" + std::to_string(ctx->idx);
@@ -207,6 +207,7 @@ NetTensor *_RoPE(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::ROPE)
+    net_op_->param["pose_type"] = pose_type;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;

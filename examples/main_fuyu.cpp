@@ -68,8 +68,8 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
     auto *v = skv[2];
     q = _LayerNorm(ctx, {q}, true, name + ".q_layernorm");
     k = _LayerNorm(ctx, {k}, true, name + ".k_layernorm");
-    q = _RoPE(ctx, {q}, name + ".q_rope");
-    k = _RoPE(ctx, {k}, name + ".k_rope");
+    q = _RoPE(ctx, {q}, 3, name + ".q_rope");
+    k = _RoPE(ctx, {k}, 3, name + ".k_rope");
     k = _KVCache(ctx, {k}, true, name + ".k_cache");
     v = _KVCache(ctx, {v}, true, name + ".v_cache");
     auto *qk = _Matmul(ctx, {q, k}, false, true, name + ".qk");
@@ -83,19 +83,19 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
 }
 NetTensor *MLP(Context *ctx, NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
     auto *x = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, true, name+".dense_h_to_4h");
-    x = _ReLUSquaredActivation(ctx, {x});
+    x = _ReLUSquaredActivation(ctx, {x}, name+".relu2");
     x = _Linear(ctx, {x}, ffn_hidden_dim, hidden_dim, true, name+".dense_4h_to_h");
     return x;
 }
 NetTensor *Persimmon(Context* c, NetTensor * i, int hidden_dim= 4096, int ffn_hidden_dim = 4096*4, int mutil_head_size = 64, string name = "language_model.model"){
     // loop
-    for(int layer=0; layer<1; ++layer) {
+    for(int layer=0; layer<36; ++layer) {
         auto *x = _LayerNorm(c, {i}, true, name + (string)".layers."+std::to_string(layer)+".input_layernorm");
         x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name + (string)".layers."+std::to_string(layer)+".self_attn");
-        i = _Add(c, {x, i});
+        i = _Add(c, {x, i}, name + (string)".layers."+std::to_string(layer)+".add_attn");
         x = _LayerNorm(c, {i}, true, name + (string)".layers."+std::to_string(layer)+".post_attention_layernorm");
         x = MLP(c, x, hidden_dim, ffn_hidden_dim, name + (string)".layers."+std::to_string(layer) +".mlp");
-        i = _Add(c, {x, i});
+        i = _Add(c, {x, i}, name + (string)".layers."+std::to_string(layer)+".add_mlp");
         _SubgraphBegin(c);
     }
     // end loop
@@ -131,18 +131,19 @@ int main() {
     auto tokenizer = UnigramTokenizer("vocab_uni.mllm");
     tokenizer.setSpecialToken("|ENDOFTEXT|");
     auto tokens_id = vector<token_id_t>();
-    string in_str = "Generate a coco-style caption.\n";
-    std::string text_ = "";
-    for (auto &ch : in_str) {
-        if (ch == ' ') {
-            text_ += "▁";
-        }else {
-            text_ += ch;
-        }
-
-    }
-    std::string new_text = "▁" + std::string(text_);
-    tokenizer.tokenize(new_text, tokens_id, true);
+    tokens_id = {71013, 128340,  71374,  71389, 120412,  71377,  71835,  71374,  73615, 71375,  71128};
+//    string in_str = "Generate a coco-style caption.\n";
+//    std::string text_ = "";
+//    for (auto &ch : in_str) {
+//        if (ch == ' ') {
+//            text_ += "▁";
+//        }else {
+//            text_ += ch;
+//        }
+//
+//    }
+//    std::string new_text = "▁" + std::string(text_);
+//    tokenizer.tokenize(new_text, tokens_id, true);
 //    for (auto id : tokens_id) {
 //        std::cout << id << " ";
 //    }
@@ -176,16 +177,17 @@ int main() {
     shared_ptr<Tensor> input_seq = std::make_shared<Tensor>();
     token2Tensor(input_seq, net, tokens_id);
     shared_ptr<Tensor> img_patch = std::make_shared<Tensor>();
-    testFull(img_patch,net, {1, 1,(int)input_seq->sequence(), patch_size*patch_size*3});
-    // testFull(img_patch,net, {0, 0, 0, 0});
+//    testFull(img_patch,net, {1, 1,(int)input_seq->sequence(), patch_size*patch_size*3});
+     testFull(img_patch,net, {0, 0, 0, 0});
     shared_ptr<Tensor> img_patch_id = std::make_shared<Tensor>();
-    testFull(img_patch_id, net,{1, 1,(int)input_seq->sequence(), 1});
-    // testFull(img_patch,net, {0, 0, 0, 0});
+//    testFull(img_patch_id, net,{1, 1,(int)input_seq->sequence(), 1});
+     testFull(img_patch,net, {0, 0, 0, 0});
 
-    std::cout << in_str << std::flush;
+//    std::cout << in_str << std::flush;
     ex.execute(&net, {input_seq, img_patch, img_patch_id});
     auto result = ex.result();
     auto token_idx = postProcessing(result[0], input_seq);
+    std::cout<<token_idx<<std::endl;
     testFull(img_patch,net, {0, 0, 0, 0});
     testFull(img_patch,net, {0, 0, 0, 0});
 

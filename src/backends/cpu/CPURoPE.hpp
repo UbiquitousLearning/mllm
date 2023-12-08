@@ -8,7 +8,7 @@ namespace mllm {
 
 class CPURoPE final : public Op {
 public:
-    CPURoPE(Backend *bn, string opName, bool hf, bool multiThread);
+    CPURoPE(Backend *bn, string opName, int pose_type, bool multiThread);
     virtual ~CPURoPE() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -22,7 +22,7 @@ private:
     Tensor cos_;
     int h_cnt_ = 0;
     int pos_max_ ;
-    bool hf_;
+    int pose_type_;
     int ishape;
     bool support_multi_thread_ = false;
 };
@@ -30,7 +30,8 @@ private:
 class CPURoPECreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new CPURoPE(bn, name, false, false);
+        int pose_type = op_param["pose_type"];
+        return new CPURoPE(bn, name, pose_type, false);
     }
 };
 } // namespace mllm

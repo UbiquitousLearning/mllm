@@ -91,8 +91,8 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
     q = _View(ctx, {q}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".q_view");
     k = _View(ctx, {k}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".k_view");
     v = _View(ctx, {v}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".v_view");
-    q = _RoPE(ctx, {q}, name + ".q_rope");
-    k = _RoPE(ctx, {k}, name + ".k_rope");
+    q = _RoPE(ctx, {q}, 2, name + ".q_rope");
+    k = _RoPE(ctx, {k}, 2, name + ".k_rope");
     k = _KVCache(ctx, {k}, true, name + ".k_cache");
     v = _KVCache(ctx, {v}, true, name + ".v_cache");
     auto *qk = _Matmul(ctx, {q, k}, false, true, name + ".qk");
