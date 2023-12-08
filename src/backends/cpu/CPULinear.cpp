@@ -17,6 +17,10 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     //std::cout << name() << "  CPULinear  reshape" << std::endl;
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
+    if(inputs[0]->count() == 0) {
+        outputs[0]->reshape(0,0,0,0);
+        return Op::reshape(inputs, outputs);
+    }
     // N     |    C       |   H                   |  W
     // -----------------------------------------------
     // 1     |out_channel | in_channel            |  1
@@ -62,6 +66,9 @@ ErrorCode CPULinear::load(AbstructLoader &loader) {
 }
 
 ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    if(inputs[0]->count() == 0) {
+        return Op::execute(inputs, outputs);
+    }
     // std::cout << name() << "  CPULinear()" << std::endl;
     switch (weight_.dtype()) {
     case MLLM_TYPE_F32: {

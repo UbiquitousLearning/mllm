@@ -31,12 +31,6 @@ void testFull(shared_ptr<Tensor> input_tensor, Net &net, vector<int> shape) {
     input_tensor->fullData<float>(1);
 }
 
-void clearTensor(shared_ptr<Tensor> input_tensor) {
-    input_tensor->reshape(0,input_tensor->head(),input_tensor->sequence(),input_tensor->dimension());
-    input_tensor->alloc();
-}
-
-
 unsigned int argmax(const std::vector<float>& scores) {
     if(scores.empty()) {
         throw std::invalid_argument("Input vector is empty");
@@ -183,15 +177,17 @@ int main() {
     token2Tensor(input_seq, net, tokens_id);
     shared_ptr<Tensor> img_patch = std::make_shared<Tensor>();
     testFull(img_patch,net, {1, 1,(int)input_seq->sequence(), patch_size*patch_size*3});
+    // testFull(img_patch,net, {0, 0, 0, 0});
     shared_ptr<Tensor> img_patch_id = std::make_shared<Tensor>();
     testFull(img_patch_id, net,{1, 1,(int)input_seq->sequence(), 1});
+    // testFull(img_patch,net, {0, 0, 0, 0});
 
     std::cout << in_str << std::flush;
     ex.execute(&net, {input_seq, img_patch, img_patch_id});
     auto result = ex.result();
     auto token_idx = postProcessing(result[0], input_seq);
-    clearTensor(img_patch);
-    clearTensor(img_patch_id);
+    testFull(img_patch,net, {0, 0, 0, 0});
+    testFull(img_patch,net, {0, 0, 0, 0});
 
     auto out_token = tokenizer.detokenize({token_idx});
 
