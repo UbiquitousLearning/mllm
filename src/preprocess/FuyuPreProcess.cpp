@@ -92,7 +92,6 @@ std::vector<ImageInfo> FuyuPreProcess::PadImages(const std::vector<ImageInfo> &i
 
 std::vector<ImageInfo> FuyuPreProcess::ResizeImages(const std::vector<ImageInfo> &images, int height, int width, ResampleType resample_type, bool free_source) {
     assert(resample_type == ResampleType::BILINEAR);
-    assert(free_source=true);
     stbir_filter filter = stbir_filter::STBIR_FILTER_DEFAULT;
     switch (resample_type) {
     case ResampleType::BILINEAR: filter = stbir_filter::STBIR_FILTER_TRIANGLE;

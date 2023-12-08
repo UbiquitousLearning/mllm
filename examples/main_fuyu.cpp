@@ -131,7 +131,7 @@ int main() {
     auto tokenizer = UnigramTokenizer("vocab_uni.mllm");
     tokenizer.setSpecialToken("|ENDOFTEXT|");
     auto tokens_id = vector<token_id_t>();
-    string in_str = "Generate a caption";
+    string in_str = "Generate a coco-style caption.\n";
     std::string text_ = "";
     for (auto &ch : in_str) {
         if (ch == ' ') {
