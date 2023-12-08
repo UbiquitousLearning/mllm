@@ -71,6 +71,9 @@ public:
                     ++iter;
                     return path;
                 }
+            }else {
+                ++iter;
+                return {};
             }
             ++iter;
         }

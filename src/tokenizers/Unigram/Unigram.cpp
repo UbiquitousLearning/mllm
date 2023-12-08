@@ -102,7 +102,7 @@ void UnigramTokenizer::tokenize(const std::string &text, std::vector<token_id_t>
             if (byte_fallback) {
                 for (char j : item) {
                     char *byte_string = new char[10];
-                    sprintf(byte_string, "<0x{%02X}>", j);
+                    sprintf(byte_string, "<0x%02X>",static_cast<unsigned char>(j));
                     auto result = this->vocab_map_.find(byte_string);
                     if (result != this->vocab_map_.end()) {
                         tokens.emplace_back(result->second);

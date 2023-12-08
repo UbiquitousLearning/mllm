@@ -8,7 +8,7 @@ TEST_F(TokenizerTest, test) {
     auto tokenizer = std::make_shared<mllm::UnigramTokenizer>("vocab_uni.mllm");
     std::vector<mllm::token_id_t> ids;
     tokenizer->setSpecialToken("|ENDOFTEXT|");
-    std::string text = "Hello world";
+    std::string text = "a coco-style image captioning model";
      // normalization text
     // replace all " " to "▁"
     std::string text_ = "";
@@ -18,7 +18,6 @@ TEST_F(TokenizerTest, test) {
         }else {
             text_ += ch;
         }
-
     }
     // std::replace(text.begin(), text.end(), ' ', L'▁');
     // prepend "_" to text
