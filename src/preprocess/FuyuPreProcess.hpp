@@ -58,7 +58,6 @@ enum ResampleType {
 
 class FuyuPreProcess {
     std::vector<ImageInfo> images_;
-    vector<vector<vector<float>>> image_patches_;
     vector<vector<int>> image_patch_indices_per_batch;
     vector<vector<int>> image_patch_indices_per_subseq ;
     vector<vector<int>> image_patch_input_indices_;
@@ -81,6 +80,8 @@ public:
     vector<vector<token_id_t>> image_input_ids_;
     vector<vector<int>> attention_mask_;
     vector<vector<int>> image_patches_indices_;
+    vector<vector<vector<float>>> image_patches_;
+
     explicit FuyuPreProcess(Tokenizer *tokenizer,size_t patch_height = 30, size_t patch_width = 30, size_t max_tokens_to_generate = 10) :
         tokenizer_(tokenizer),max_tokens_to_generate(max_tokens_to_generate) {
         auto tmp_token = vector<token_id_t>();
@@ -91,14 +92,16 @@ public:
         patch_size_ = std::make_pair(patch_height, patch_width);
     }
 
-    void PreProcessImages(const std::vector<std::vector<uint8_t>> &images, int height = 224, int width = 224, bool do_pad = false, bool do_resize = false, bool do_normalize = false, float mean = 0.5, float std = 0.5);
-    void Process(std::string text);
+    void PreProcessImages(const std::vector<uint8_t*> &images,const std::vector<size_t> &image_length, int height = 1080, int width = 1920, bool do_pad = true, bool do_resize = true, bool do_normalize = true, float mean = 0.5, float std = 0.5);
+    void Process(const std::string& text);
+    void PreProcessImages(const std::vector<std::string> &images_path,int height = 1080,int width = 1920, bool do_pad = true, bool do_resize = true, bool do_normalize = true, float mean = 0.5, float std = 0.5);
+
 
 
 private:
-    static std::vector<ImageInfo> PadImages(const std::vector<ImageInfo> &images, int height, int width, float pad_value = 1.0, PaddingType padding_type = PaddingType::CONSTANT, bool free_source = true);
-    static std::vector<ImageInfo> ResizeImages(const std::vector<ImageInfo> &images, int height, int width, ResampleType resample_type = ResampleType::BILINEAR, bool free_source = true);
-    static vector<ImageInfo> NormalizeImages(const vector<ImageInfo> &images, float mean, float std, bool free_source = true);
+    static std::vector<ImageInfo> PadImages(  std::vector<ImageInfo> &images, int height, int width,size_t patch_width=30,size_t patch_height=30, float pad_value = 1.0, PaddingType padding_type = PaddingType::CONSTANT, bool free_source = true);
+    static std::vector<ImageInfo> ResizeImages(  std::vector<ImageInfo> &images, int height, int width, ResampleType resample_type = ResampleType::BILINEAR, bool free_source = true);
+    static vector<ImageInfo> NormalizeImages(  vector<ImageInfo> &images, float mean, float std, bool free_source = true);
     void get_sample_encoding(const std::string &text);
     static std::vector<vector<float>> PatchImages(  ImageInfo &images, size_t patch_height, size_t patch_width) ;
     // vector<vector<token_id_t>> construct_full_unpacked_stream();
