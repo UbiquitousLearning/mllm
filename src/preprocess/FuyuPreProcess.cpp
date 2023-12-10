@@ -5,12 +5,12 @@
 #include "FuyuPreProcess.hpp"
 
 
-
 #include <cassert>
+#include <fstream>
 #include <iostream>
 
 namespace mllm {
-void FuyuPreProcess::PreProcessImages(const std::vector<vector<uint8_t>> &images, int height, int width, bool do_pad, bool do_resize, bool do_normalize, float mean, float std) {
+void FuyuPreProcess::PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length, const int height, const int width, const bool do_pad, const bool do_resize, const bool do_normalize, const float mean, const float std) {
     assert(height > 0 && width > 0);
 
     // if (do_resize) {
@@ -20,17 +20,19 @@ void FuyuPreProcess::PreProcessImages(const std::vector<vector<uint8_t>> &images
     // }
     // auto images_ = std::vector<ImageInfo>();
     // images_.resize(images.size());
-    for (auto image : images) {
+    // for (auto image : images) {
+    for (int i = 0; i < images.size(); i++) {
+        auto image = images[i];
         int width_, height_, channels_;
         // Data is [height * width * channels],RGB
-        const unsigned char *data = stbi_load_from_memory(image.data(), image.size(), &width, &height, &channels_, 3);
+        const unsigned char *data = stbi_load_from_memory(image, image_length[i], &width_, &height_, &channels_, 3);
         if (data == nullptr) {
             std::cerr << "load image failed" << std::endl;
             exit(-1);
         }
-        float *float_data = new float[width * height * channels_];
-        for (int i = 0; i < width * height * channels_; i++) {
-            float_data[i] = data[i] / 255.0;
+        auto *float_data = new float[width_ * height_ * channels_];
+        for (int j = 0; j < width_ * height_ * channels_; j++) {
+            float_data[j] = data[j] / 255.0;
         }
 
         images_.emplace_back(float_data, width_, height_, channels_);
@@ -42,55 +44,87 @@ void FuyuPreProcess::PreProcessImages(const std::vector<vector<uint8_t>> &images
 
     // TODO: PAD images
     if (do_pad) {
-        images_ = PadImages(images_, height, width);
+
+        images_ = PadImages(images_, height, width, patch_size_.second, patch_size_.first);
     }
     if (do_normalize) {
         images_ = NormalizeImages(images_, mean, std);
     }
-    // TODO: Patch images
 }
 
-void FuyuPreProcess::Process(std::string text) {
+void FuyuPreProcess::Process(const std::string &text) {
     if (text.empty()) {
         return;
     }
     if (images_.empty()) {
         std::cout << "images is empty" << std::endl;
     }
-    auto batch_size = images_.size();
+    // auto batch_size = images_.size();
+    get_sample_encoding(text);
 }
 
-std::vector<ImageInfo> FuyuPreProcess::PadImages(const std::vector<ImageInfo> &images, int height, int width, float pad_value, PaddingType padding_type, bool free_source) {
+void FuyuPreProcess::PreProcessImages(const std::vector<std::string> &images_path, const int height, const int width, const bool do_pad, const bool do_resize, const bool do_normalize, const float mean, const float std) {
+    assert(height > 0 && width > 0);
+    auto image_data = std::vector<uint8_t *>();
+    auto image_length = std::vector<size_t>();
+    for (const auto &i : images_path) {
+        // read all file contents
+        std::ifstream file(i, std::ios::binary | std::ios::ate);
+        if (!file.is_open()) {
+            std::cerr << "Cannot open file: " << i << std::endl;
+            exit(-1);
+        }
+        auto size = file.tellg();
+        auto data = new uint8_t[size];
+        file.seekg(0, std::ios::beg);
+        file.read(reinterpret_cast<char *>(data), size);
+        file.close();
+        image_data.emplace_back(data);
+        image_length.emplace_back(size);
+    }
+    PreProcessImages(image_data, image_length, height, width, do_pad, do_resize, do_normalize, mean, std);
+}
+
+std::vector<ImageInfo> FuyuPreProcess::PadImages(std::vector<ImageInfo> &images, int height, int width, size_t patch_width, size_t patch_height, float pad_value, PaddingType padding_type, bool free_source) {
     assert(padding_type == PaddingType::CONSTANT);
     auto padded_images = std::vector<ImageInfo>();
     for (auto image : images) {
-        if (image.height == height && image.width == width && image.channels == 3) {
+        // if (image.height == height && image.width == width && image.channels == 3) {
+        //     padded_images.emplace_back(image.data, image.width, image.height, image.channels, image.original_width, image.original_height);
+        //
+        //     continue;
+        // }
+        if (image.height % patch_height == 0 && image.width % patch_width == 0) {
             padded_images.emplace_back(image.data, image.width, image.height, image.channels, image.original_width, image.original_height);
-
             continue;
         }
+        auto height_ = height;
+        auto width_ = width;
+        height_ = (image.height / patch_height + 1) * patch_height;
+        width_ = (image.width / patch_width + 1) * patch_width;
         auto padded_image = std::vector<float>();
-        padded_image.resize(height * width * image.channels, pad_value);
+        padded_image.resize(height_ * width_ * image.channels, pad_value);
         for (int i = 0; i < image.height; i++) {
             for (int j = 0; j < image.width; j++) {
                 for (int k = 0; k < image.channels; k++) {
-                    padded_image[(i * width + j) * image.channels + k] = image.data[(i * image.width + j) * image.channels + k];
+                    padded_image[(i * width_ + j) * image.channels + k] = image.data[(i * image.width + j) * image.channels + k];
                 }
             }
         }
-        padded_images.emplace_back(padded_image.data(), width, height, image.channels, image.original_width, image.original_height);
+        padded_images.emplace_back(padded_image.data(), width_, height_, image.channels, image.original_width, image.original_height);
         if (free_source) {
             free(image.data);
             image.data = nullptr;
         }
     }
     if (free_source) {
-        delete &images;
+        // delete &images;
+        images.clear();
     }
     return padded_images;
 }
 
-std::vector<ImageInfo> FuyuPreProcess::ResizeImages(const std::vector<ImageInfo> &images, int height, int width, ResampleType resample_type, bool free_source) {
+std::vector<ImageInfo> FuyuPreProcess::ResizeImages(std::vector<ImageInfo> &images, int height, int width, ResampleType resample_type, bool free_source) {
     assert(resample_type == ResampleType::BILINEAR);
     stbir_filter filter = stbir_filter::STBIR_FILTER_DEFAULT;
     switch (resample_type) {
@@ -102,38 +136,50 @@ std::vector<ImageInfo> FuyuPreProcess::ResizeImages(const std::vector<ImageInfo>
     }
     auto resized_images = std::vector<ImageInfo>();
     for (auto image : images) {
-        auto resized_image = std::vector<float>();
-        resized_image.resize(height * width * image.channels);
-        stbir_resize(image.data, image.width, image.height, 0, resized_image.data(), width, height, 0, stbir_pixel_layout::STBIR_RGB, stbir_datatype::STBIR_TYPE_FLOAT, stbir_edge::STBIR_EDGE_CLAMP, filter);
-        resized_images.emplace_back(resized_image.data(), width, height, image.channels, image.original_width, image.original_height);
+        if (image.height <= height && image.width <= width && image.channels == 3) {
+            resized_images.emplace_back(image.data, image.width, image.height, image.channels, image.original_width, image.original_height);
+            continue;
+        }
+        auto height_ = height;
+        auto width_ = width;
+        auto height_ratio = static_cast<float>(height) / image.height;
+        auto width_ratio = static_cast<float>(width) / image.width;
+        auto ratio = std::min(height_ratio, width_ratio);
+        height_ = static_cast<int>(image.height * ratio);
+        width_ = static_cast<int>(image.width * ratio);
+        auto resized_image = new float[height_ * width_ * image.channels];
+        stbir_resize(image.data, image.width, image.height, 0, resized_image, width_, height_, 0, stbir_pixel_layout::STBIR_RGB, stbir_datatype::STBIR_TYPE_FLOAT, stbir_edge::STBIR_EDGE_CLAMP, filter);
+        resized_images.emplace_back(resized_image, width_, height_, image.channels, image.original_width, image.original_height);
         if (free_source) {
             free(image.data);
             image.data = nullptr;
         }
     }
     if (free_source) {
-        delete &images;
+        // delete &images;
+        // images.clear();
+        images.clear();
     }
 
     return resized_images;
 }
 
-vector<ImageInfo> FuyuPreProcess::NormalizeImages(const vector<ImageInfo> &images, float mean, float std, bool free_source) {
+vector<ImageInfo> FuyuPreProcess::NormalizeImages(vector<ImageInfo> &images, float mean, float std, bool free_source) {
     auto normalized_images = std::vector<ImageInfo>();
     for (auto image : images) {
-        auto normalized_image = std::vector<float>();
-        normalized_image.resize(image.width * image.height * image.channels);
+        auto normalized_image = new float[image.width * image.height * image.channels];
         for (int i = 0; i < image.width * image.height * image.channels; i++) {
             normalized_image[i] = (image.data[i] - mean) / std;
         }
-        normalized_images.emplace_back(normalized_image.data(), image.width, image.height, image.channels, image.original_width, image.original_height);
+        normalized_images.emplace_back(normalized_image, image.width, image.height, image.channels, image.original_width, image.original_height);
         if (free_source) {
             free(image.data);
             image.data = nullptr;
         }
     }
     if (free_source) {
-        delete &images;
+        // delete &images;
+        images.clear();
     }
     return normalized_images;
 }
@@ -175,7 +221,7 @@ void FuyuPreProcess::get_sample_encoding(const std::string &text) {
         image_patches_[i] = PatchImages(image, patch_size_.first, patch_size_.second);
     }
     // TODO: _transform_coordinates_and_tokenize
-//_tokenize_prompts_with_image_and_batch
+    //_tokenize_prompts_with_image_and_batch
     //Now handle the text
     //TODO: More than One line of text.
     tokenizer_->setSpecialToken("|ENDOFTEXT|");
@@ -190,7 +236,7 @@ void FuyuPreProcess::get_sample_encoding(const std::string &text) {
     }
     tokenizer_->tokenize(text_, text_ids, true);
     token_id_t answer_start_token = 0;
-    if (tokenizer_->getTokenId("token_id_t", answer_start_token)) {
+    if (tokenizer_->getTokenId("<0x04>", answer_start_token)) {
         text_ids.push_back(answer_start_token);
     } else {
         std::cerr << "ANSWER_START token not found in vocab file." << std::endl;
@@ -204,7 +250,7 @@ void FuyuPreProcess::get_sample_encoding(const std::string &text) {
     text_ids_.push_back(text_ids);
     //TODO: Should we Pad the prompt tokens? HF pad & cut off the padding in `construct_full_unpacked_stream`.
     text_lengths_.push_back(text_ids.size());
-//construct_full_unpacked_stream
+    //construct_full_unpacked_stream
     auto image_padded_unpacked_tokens = vector<vector<token_id_t>>(images_.size(), vector<token_id_t>());
     auto unpacked_image_patch_indices_per_batch = vector<vector<int>>(images_.size(), vector<int>());
     size_t max_prompt_length = 0;
@@ -214,10 +260,10 @@ void FuyuPreProcess::get_sample_encoding(const std::string &text) {
         //TODO:
         auto text_length = text_lengths_[0];
         auto image_token_length = image_input_ids_[i].size();
-        if (text_lengths_.size()>1) {
+        if (text_lengths_.size() > 1) {
             text_length = text_lengths_[i];
         }
-        auto size_ =image_token_length+text_length;
+        auto size_ = image_token_length + text_length;
         image_padded_unpacked_token.insert(image_padded_unpacked_token.begin(), image_input_ids_[i].begin(), image_input_ids_[i].end());
         image_padded_unpacked_token.insert(image_padded_unpacked_token.end(), text_ids_[0].begin(), text_ids_[0].end());
         unpacked_image_patch_indice_per_batch.insert(unpacked_image_patch_indice_per_batch.begin(), image_patch_indices_per_batch[i].begin(), image_patch_indices_per_batch[i].end());
@@ -234,18 +280,18 @@ void FuyuPreProcess::get_sample_encoding(const std::string &text) {
     // for (auto &image_patch_input_indice : image_patch_input_indices_) {
     for (int i = 0; i < image_patch_input_indices_.size(); i++) {
         auto &image_patch_input_indice = image_patch_input_indices_[i];
-        image_patch_input_indice.insert(image_patch_input_indice.begin(), unpacked_image_patch_indices_per_batch[i].begin(), unpacked_image_patch_indices_per_batch[i].begin()+tokens_to_place);
+        image_patch_input_indice.insert(image_patch_input_indice.begin(), unpacked_image_patch_indices_per_batch[i].begin(), unpacked_image_patch_indices_per_batch[i].begin() + tokens_to_place);
         image_patch_input_indice.insert(image_patch_input_indice.end(), max_seq_len_batch - tokens_to_place, -1);
     }
     image_input_ids_.clear();
     image_input_ids_.resize(images_.size());
-//_left_pad_inputs_with_attention_mask
+    //_left_pad_inputs_with_attention_mask
     attention_mask_.resize(images_.size());
     image_patches_indices_.resize(images_.size());
     for (int i = 0; i < images_.size(); i++) {
         auto &attention_mask = attention_mask_[i];
         auto &input_id = image_input_ids_[i];
-       auto  num_padding_tokens = max_prompt_length - image_padded_unpacked_tokens[i].size();
+        auto num_padding_tokens = max_prompt_length - image_padded_unpacked_tokens[i].size();
         input_id.insert(input_id.end(), num_padding_tokens, pad_token_id);
         input_id.insert(input_id.end(), image_padded_unpacked_tokens[i].begin(), image_padded_unpacked_tokens[i].end());
         attention_mask.insert(attention_mask.end(), num_padding_tokens, 0);
@@ -254,14 +300,10 @@ void FuyuPreProcess::get_sample_encoding(const std::string &text) {
         // For the image patches indices, we need to add the padding tokens as well.
         auto &image_patch_input_indice = image_patches_indices_[i];
         auto &image_patch_input_indice_per_batch = image_patch_input_indices_[i];
-        auto num_padding_indices  = max_seq_len_batch - image_patch_input_indice_per_batch.size();
+        auto num_padding_indices = max_seq_len_batch - image_patch_input_indice_per_batch.size();
         image_patch_input_indice.insert(image_patch_input_indice.end(), num_padding_indices, -1);
         image_patch_input_indice.insert(image_patch_input_indice.end(), image_patch_input_indice_per_batch.begin(), image_patch_input_indice_per_batch.end());
     }
-
-
-
-
 }
 
 std::vector<vector<float>> FuyuPreProcess::PatchImages(ImageInfo &images, size_t patch_height, size_t patch_width) {
@@ -283,7 +325,7 @@ std::vector<vector<float>> FuyuPreProcess::PatchImages(ImageInfo &images, size_t
     // for (int b = 0; b < batch; b++) {
     for (int i = 0; i < dim2_2; i++) {
         for (int j = 0; j < dim_2_1; j++) {
-            auto patch = patches[i * dim_2_1 + j];
+            auto &patch = patches[i * dim_2_1 + j];
             auto const index_first_element_of_line = i * stride2 + j * stride1;
             while (patch.size() < patch_height * patch_width * channels) {
                 for (int h = 0; h < patch_height; h++) {
@@ -305,6 +347,5 @@ std::vector<vector<float>> FuyuPreProcess::PatchImages(ImageInfo &images, size_t
 }
 
 void FuyuPreProcess::_left_pad_inputs_with_attention_mask() {
-
 }
 } // mllm
