@@ -30,17 +30,17 @@ TEST_F(TokenizerTest, FuyuPreprocessorTest) {
         std::cout << std::endl;
     }
     std::cout<<"Image Patches"<<std::endl;
-//     for (auto id : image_patches) {
-//         for (auto id_ : id) {
-//             for (auto id__ : id_) {
-//                     std::cout << id__ << " ";
-//             }
-//             std::cout << std::endl;
-//
-//
-//         }
-//         std::cout << std::endl;
-//     }
+     for (auto id : image_patches) {
+         for (const auto& id_ : id) {
+             for (const auto idx : id_) {
+                     std::cout << idx << " ";
+             }
+             std::cout << std::endl;
+
+
+         }
+         std::cout << std::endl;
+     }
     std::cout << "Image Patches Size" << std::endl;
     std::cout << image_patches.size() << std::endl;
     std::cout << image_patches[0].size() << std::endl;
