@@ -95,15 +95,15 @@ public:
     void PreProcessImages(const std::vector<uint8_t*> &images,const std::vector<size_t> &image_length, int height = 1080, int width = 1920, bool do_pad = true, bool do_resize = true, bool do_normalize = true, float mean = 0.5, float std = 0.5);
     void Process(const std::string& text);
     void PreProcessImages(const std::vector<std::string> &images_path,int height = 1080,int width = 1920, bool do_pad = true, bool do_resize = true, bool do_normalize = true, float mean = 0.5, float std = 0.5);
+    static std::vector<vector<float>> PatchImages(  ImageInfo &images, size_t patch_height, size_t patch_width) ;
 
 
 
 private:
-    static std::vector<ImageInfo> PadImages(  std::vector<ImageInfo> &images, int height, int width,size_t patch_width=30,size_t patch_height=30, float pad_value = 1.0, PaddingType padding_type = PaddingType::CONSTANT, bool free_source = true);
+    static std::vector<ImageInfo> PadImages(  std::vector<ImageInfo> &images, int height, int width,size_t patch_width=30,size_t patch_height=30, float pad_value = 1.0/255.0, PaddingType padding_type = PaddingType::CONSTANT, bool free_source = true);
     static std::vector<ImageInfo> ResizeImages(  std::vector<ImageInfo> &images, int height, int width, ResampleType resample_type = ResampleType::BILINEAR, bool free_source = true);
     static vector<ImageInfo> NormalizeImages(  vector<ImageInfo> &images, float mean, float std, bool free_source = true);
     void get_sample_encoding(const std::string &text);
-    static std::vector<vector<float>> PatchImages(  ImageInfo &images, size_t patch_height, size_t patch_width) ;
     // vector<vector<token_id_t>> construct_full_unpacked_stream();
     void _left_pad_inputs_with_attention_mask();
 
