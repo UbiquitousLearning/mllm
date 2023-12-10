@@ -8,7 +8,7 @@
 using namespace mllm;
 
 TEST_F(TokenizerTest, FuyuPreprocessorTest) {
-    auto unigram = UnigramTokenizer("vocab_uni.mllm");
+    auto unigram = UnigramTokenizer("../project/android/vocab_uni.mllm");
     auto preprocessor = FuyuPreProcess(&unigram);
     preprocessor.PreProcessImages({"bus.png"});
     preprocessor.Process("a coco-style image captioning model");
