@@ -4,11 +4,11 @@
 #include "TokenizorTest.hpp"
 #include "gtest/gtest.h"
 #include "tokenizers/Unigram/Unigram.hpp"
-TEST_F(TokenizerTest, test) {
+TEST_F(TokenizerTest, UnigramTest) {
     auto tokenizer = std::make_shared<mllm::UnigramTokenizer>("../project/android/vocab_uni.mllm");
     std::vector<mllm::token_id_t> ids;
     tokenizer->setSpecialToken("|ENDOFTEXT|");
-    std::string text = "a coco-style image captioning model";
+    std::string text = "a coco-style image captioning model\n";
      // normalization text
     // replace all " " to "▁"
     std::string text_ = "";
