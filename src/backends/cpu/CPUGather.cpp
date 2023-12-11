@@ -19,7 +19,6 @@ ErrorCode CPUGather::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     CHECK_EQ(inputs[0]->head(), inputs[1]->head());
     CHECK_EQ(inputs[0]->head(), 1);
     CHECK_EQ(inputs[0]->dimension(), inputs[1]->dimension());
-    CHECK_EQ(inputs[0]->sequence(), inputs[2]->sequence());
     CHECK_EQ(inputs[2]->dimension(), 1);
     outputs[0]->reshape(inputs[0]->batch(), 1, inputs[0]->sequence(), inputs[0]->dimension());
     return Op::reshape(inputs, outputs);

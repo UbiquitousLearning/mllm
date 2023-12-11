@@ -23,6 +23,37 @@ void token2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<token_id_t> 
     }
 }
 
+void patches2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vector<float>>> image_patches) {
+    const int batch = image_patches.size();
+    const int seq =  image_patches[0].size();
+    const int dims = image_patches[0][0].size();
+    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+    input_tensor->reshape(batch, 1, seq, dims);
+    input_tensor->setDtype(MLLM_TYPE_F32);
+    input_tensor->alloc();
+    for (int i = 0; i < batch; ++i) {
+        for (int j = 0; j < seq; ++j) {
+            for (int k = 0; k < dims; ++k) {
+                input_tensor->setDataAt<float>(i, 0, j, k, image_patches[i][j][k]);
+            }
+        }
+    }
+}
+
+void patchIdx2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<int>> image_patches_indices) {
+    const int batch = image_patches_indices.size();
+    const int seq =  image_patches_indices[0].size();
+    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+    input_tensor->reshape(batch, 1, seq, 1);
+    input_tensor->setDtype(MLLM_TYPE_F32);
+    input_tensor->alloc();
+    for (int i = 0; i < batch; ++i) {
+        for (int j = 0; j < seq; ++j) {
+                input_tensor->setDataAt<float>(i, 0, j, 0, image_patches_indices[i][j]);
+        }
+    }
+}
+
 void testFull(shared_ptr<Tensor> input_tensor, Net &net, vector<int> shape) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape(shape[0], shape[1], shape[2], shape[3]);
@@ -128,10 +159,10 @@ int main() {
     stbi_image_free(data);
     */
 
-    auto tokenizer = UnigramTokenizer("vocab_uni.mllm");
-    tokenizer.setSpecialToken("|ENDOFTEXT|");
-    auto tokens_id = vector<token_id_t>();
-    tokens_id = {71013, 128340,  71374,  71389, 120412,  71377,  71835,  71374,  73615, 71375,  71128};
+    // auto tokenizer = UnigramTokenizer("vocab_uni.mllm");
+    // tokenizer.setSpecialToken("|ENDOFTEXT|");
+    // auto tokens_id = vector<token_id_t>();
+    // tokens_id = {71013, 128340,  71374,  71389, 120412,  71377,  71835,  71374,  73615, 71375,  71128};
 //    string in_str = "Generate a coco-style caption.\n";
 //    std::string text_ = "";
 //    for (auto &ch : in_str) {
@@ -155,6 +186,20 @@ int main() {
     // preprocess->Process(in_str);
 
 
+    auto tokenizer = UnigramTokenizer("../project/android/vocab_uni.mllm");
+    auto preprocessor = FuyuPreProcess(&tokenizer);
+    preprocessor.PreProcessImages({"bus.png"});
+    preprocessor.Process("Generate a coco-style caption.\n");
+    auto input_ids = preprocessor.image_input_ids_;
+    auto image_patches_indices = preprocessor.image_patches_indices_;
+    auto image_patches = preprocessor.image_patches_;
+
+    // std::cout<<input_ids[0].size()<<std::endl;
+    // std::cout<<image_patches_indices[0].size()<<std::endl;
+    // std::cout<<image_patches[0].size()<<"  "<<image_patches[0][0].size()<<std::endl;
+
+
+
     int vocab_size = 262144;
     int hidden_dim = 4096;
     int ffn_hidden_dim = 4096*4;
@@ -170,20 +215,22 @@ int main() {
     net.convert(c->sub_param_);
 
 
-    ParamLoader param_loader("../models/fuyu-8b-fp32.mllm");
-    Executor ex(&param_loader);
-
 
     shared_ptr<Tensor> input_seq = std::make_shared<Tensor>();
-    token2Tensor(input_seq, net, tokens_id);
+    token2Tensor(input_seq, net, input_ids[0]);
     shared_ptr<Tensor> img_patch = std::make_shared<Tensor>();
-//    testFull(img_patch,net, {1, 1,(int)input_seq->sequence(), patch_size*patch_size*3});
-     testFull(img_patch,net, {0, 0, 0, 0});
+    patches2Tensor(img_patch, net, image_patches);
+    //    testFull(img_patch,net, {1, 1,(int)input_seq->sequence(), patch_size*patch_size*3});
+    // testFull(img_patch,net, {0, 0, 0, 0});
     shared_ptr<Tensor> img_patch_id = std::make_shared<Tensor>();
-//    testFull(img_patch_id, net,{1, 1,(int)input_seq->sequence(), 1});
-     testFull(img_patch,net, {0, 0, 0, 0});
+    patchIdx2Tensor(img_patch_id, net, image_patches_indices);
+    //    testFull(img_patch_id, net,{1, 1,(int)input_seq->sequence(), 1});
+    // testFull(img_patch_id,net, {0, 0, 0, 0});
 
-//    std::cout << in_str << std::flush;
+
+
+    ParamLoader param_loader("../models/fuyu-8b-q4_k.mllm");
+    Executor ex(&param_loader);
     ex.execute(&net, {input_seq, img_patch, img_patch_id});
     auto result = ex.result();
     auto token_idx = postProcessing(result[0], input_seq);
