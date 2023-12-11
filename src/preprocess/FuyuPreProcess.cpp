@@ -224,16 +224,18 @@ void FuyuPreProcess::get_sample_encoding(const std::string &text) {
     //_tokenize_prompts_with_image_and_batch
     //Now handle the text
     //TODO: More than One line of text.
-    tokenizer_->setSpecialToken("|ENDOFTEXT|");
+    // tokenizer_->setSpecialToken("|ENDOFTEXT|");
+    tokenizer_->setSpecialToken("<s>");
+
     auto text_ = Tokenizer::replaceString(text, ' ', "▁");
     text_ = "▁" + text_;
     auto text_ids = vector<token_id_t>();
-    token_id_t bos_token_id = 0;
-    if (tokenizer_->getTokenId("<s>", bos_token_id)) {
-        text_ids.push_back(bos_token_id);
-    } else {
-        std::cerr << "BOS token not found in vocab file." << std::endl;
-    }
+    // token_id_t bos_token_id = 0;
+    // if (tokenizer_->getTokenId("<s>", bos_token_id)) {
+    //     text_ids.push_back(bos_token_id);
+    // } else {
+    //     std::cerr << "BOS token not found in vocab file." << std::endl;
+    // }
     tokenizer_->tokenize(text_, text_ids, true);
     token_id_t answer_start_token = 0;
     if (tokenizer_->getTokenId("<0x04>", answer_start_token)) {
@@ -241,12 +243,12 @@ void FuyuPreProcess::get_sample_encoding(const std::string &text) {
     } else {
         std::cerr << "ANSWER_START token not found in vocab file." << std::endl;
     }
-    token_id_t end_of_text_token = 0;
-    if (tokenizer_->getTokenId("|ENDOFTEXT|", end_of_text_token)) {
-        text_ids.push_back(end_of_text_token);
-    } else {
-        std::cerr << "END_OF_TEXT token not found in vocab file." << std::endl;
-    }
+    // token_id_t end_of_text_token = 0;
+    // if (tokenizer_->getTokenId("|ENDOFTEXT|", end_of_text_token)) {
+    //     text_ids.push_back(end_of_text_token);
+    // } else {
+    //     std::cerr << "END_OF_TEXT token not found in vocab file." << std::endl;
+    // }
     text_ids_.push_back(text_ids);
     //TODO: Should we Pad the prompt tokens? HF pad & cut off the padding in `construct_full_unpacked_stream`.
     text_lengths_.push_back(text_ids.size());

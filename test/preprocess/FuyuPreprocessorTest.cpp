@@ -8,14 +8,18 @@
 using namespace mllm;
 
 TEST_F(TokenizerTest, FuyuPreprocessorTest) {
-    GTEST_SKIP();
+    // GTEST_SKIP();
     auto unigram = UnigramTokenizer("../project/android/vocab_uni.mllm");
+
     auto preprocessor = FuyuPreProcess(&unigram);
     preprocessor.PreProcessImages({"bus.png"});
     preprocessor.Process("a coco-style image captioning model");
     auto input_ids = preprocessor.image_input_ids_;
-    auto attention_mask = preprocessor.attention_mask_;
+    auto image_patches_indices = preprocessor.image_patches_indices_;
     auto image_patches = preprocessor.image_patches_;
+    std::cout<< "Input Id Size "<<input_ids[0].size()<<std::endl;
+    std::cout<< "Image Patches Indices Size "<<image_patches_indices[0].size()<<std::endl;
+
     std::cout<<"Input Id"<<std::endl;
     for (auto id : input_ids) {
         for (auto id_ : id) {
@@ -23,25 +27,25 @@ TEST_F(TokenizerTest, FuyuPreprocessorTest) {
         }
         std::cout << std::endl;
     }
-    std::cout<<"Attention Mask"<<std::endl;
-    for (auto id : attention_mask) {
-        for (auto id_ : id) {
-            std::cout << id_ << " ";
-        }
-        std::cout << std::endl;
-    }
-    std::cout<<"Image Patches"<<std::endl;
-     for (auto id : image_patches) {
-         for (const auto& id_ : id) {
-             for (const auto idx : id_) {
-                     std::cout << idx << " ";
-             }
-             std::cout << std::endl;
-
-
-         }
-         std::cout << std::endl;
-     }
+    // std::cout<<"Attention Mask"<<std::endl;
+    // for (auto id : attention_mask) {
+    //     for (auto id_ : id) {
+    //         std::cout << id_ << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
+    // std::cout<<"Image Patches"<<std::endl;
+    //  for (auto id : image_patches) {
+    //      for (const auto& id_ : id) {
+    //          for (const auto idx : id_) {
+    //                  std::cout << idx << " ";
+    //          }
+    //          std::cout << std::endl;
+    //
+    //
+    //      }
+    //      std::cout << std::endl;
+    //  }
     std::cout << "Image Patches Size" << std::endl;
     std::cout << image_patches.size() << std::endl;
     std::cout << image_patches[0].size() << std::endl;

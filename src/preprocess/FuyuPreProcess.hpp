@@ -98,6 +98,7 @@ public:
         auto tmp_token = vector<token_id_t>();
         tokenizer_->tokenize("|SPEAKER|", tmp_token, false);
         image_placeholder_id_ = tmp_token[0];
+        tmp_token.clear();
         tokenizer_->tokenize("|NEWLINE|", tmp_token, false);
         image_newline_id_ = tmp_token[0];
         patch_size_ = std::make_pair(patch_height, patch_width);
