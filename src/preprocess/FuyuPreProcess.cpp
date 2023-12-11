@@ -332,7 +332,7 @@ std::vector<vector<float>> FuyuPreProcess::PatchImages(ImageInfo &images, size_t
                 for (int h = 0; h < patch_height; h++) {
                     for (int w = 0; w < patch_width; w++) {
                         for (int c = 0; c < channels; c++) {
-                            patch.push_back(images.data[index_first_element_of_line + h * width + w + c * square]);
+                            patch.push_back(images.get_whc_pixel(index_first_element_of_line + h * width + w + c * square));
                         }
                     }
                 }

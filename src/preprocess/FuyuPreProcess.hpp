@@ -46,6 +46,17 @@ struct ImageInfo {
         ) :
         data(data), width(width), height(height), channels(channels), original_width(original_width), original_height(original_height) {
     }
+    // Convert from CWH to WHC
+    size_t convert_index(size_t cwh_idx) const {
+        size_t c = cwh_idx / (width * height);
+        size_t wh = cwh_idx % (width * height);
+        size_t w = wh % width;
+        size_t h = wh / width;
+        return h * width * channels + w * channels + c;
+}
+    float get_whc_pixel(size_t idx) const {
+      return   data[convert_index(idx)];
+    }
 };
 
 enum PaddingType {
