@@ -102,8 +102,8 @@ std::vector<ImageInfo> FuyuPreProcess::PadImages(std::vector<ImageInfo> &images,
         auto width_ = width;
         height_ = (image.height / patch_height + 1) * patch_height;
         width_ = (image.width / patch_width + 1) * patch_width;
-        auto padded_image = std::vector<float>();
-        padded_image.resize(height_ * width_ * image.channels, pad_value);
+        auto padded_image =  new float[height_ * width_ * image.channels]{pad_value};
+        std::fill(padded_image, padded_image + height_ * width_ * image.channels, pad_value);
         for (int i = 0; i < image.height; i++) {
             for (int j = 0; j < image.width; j++) {
                 for (int k = 0; k < image.channels; k++) {
@@ -111,7 +111,7 @@ std::vector<ImageInfo> FuyuPreProcess::PadImages(std::vector<ImageInfo> &images,
                 }
             }
         }
-        padded_images.emplace_back(padded_image.data(), width_, height_, image.channels, image.original_width, image.original_height);
+        padded_images.emplace_back(padded_image , width_, height_, image.channels, image.original_width, image.original_height);
         if (free_source) {
             free(image.data);
             image.data = nullptr;
@@ -331,7 +331,7 @@ std::vector<vector<float>> FuyuPreProcess::PatchImages(ImageInfo &images, size_t
                 for (int h = 0; h < patch_height; h++) {
                     for (int w = 0; w < patch_width; w++) {
                         for (int c = 0; c < channels; c++) {
-                            patch.push_back(images.data[index_first_element_of_line + h * patch_height + w + c * square]);
+                            patch.push_back(images.get_whc_pixel(index_first_element_of_line + h * width + w + c * square));
                         }
                     }
                 }
