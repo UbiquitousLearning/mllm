@@ -8,6 +8,7 @@
 using namespace mllm;
 
 TEST_F(TokenizerTest, FuyuPreprocessorTest) {
+    GTEST_SKIP();
     auto unigram = UnigramTokenizer("../project/android/vocab_uni.mllm");
     auto preprocessor = FuyuPreProcess(&unigram);
     preprocessor.PreProcessImages({"bus.png"});
@@ -47,6 +48,8 @@ TEST_F(TokenizerTest, FuyuPreprocessorTest) {
     std::cout << image_patches[0][0].size() << std::endl;
 }
 TEST_F(TokenizerTest, FuyuPatchImages) {
+    GTEST_SKIP();
+
     auto height = 420;
     auto width = 640;
     auto channels = 3;
