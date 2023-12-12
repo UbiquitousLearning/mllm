@@ -5,6 +5,7 @@
 #include "Matmul.hpp"
 #include <pthread.h>
 
+/*
 #define F32_BLOCK 16
 inline void transpose_scalar_block(const float *A, float *B, const int lda, const int ldb, const int block_size = F32_BLOCK) {
     int i;
@@ -38,46 +39,8 @@ Tensor *tensor_trans(Tensor *src) {
 //    std::cout<<"\n ====  "<<src->name()<<":["<<src->batch()<<","<<src->head()<<","<<src->sequence()<<","<<src->dimension()<<"]"
 //        <<" ====  "<< (t_end - t_start)/1000.0F << " ms" << std::endl;
     return dst;
-    /*
-//    src->reshape({src->batch(), src->head(), src->dimension(), src->sequence()});
-//    return src;
-    Tensor *dst = new Tensor();
-    dst->setBackend(src->backend());
-    dst->reshape({src->batch(), src->head(), src->dimension(), src->sequence()});
-    dst->setDtype(src->dtype());
-    dst->alloc();
-    for (int b = 0; b < src->batch(); b++) {
-        for (int h = 0; h < src->head(); h++) {
-            int i = 0;
-            int j = 0;
-            if (std::min(src->sequence(), src->dimension()) > F32_BLOCK) {
-                #pragma omp parallel for num_threads(4)
-                for (i = 0; i < src->sequence(); i += F32_BLOCK) {
-                    for (j = 0; j < src->dimension(); j += F32_BLOCK) {
-                        transpose_scalar_block(src->ptrAt<float>(b, h, i, j), dst->ptrAt<float>(b, h, j, i), src->dimension(), src->sequence());
-                    }
-                }
-                // for leftovers
-                for (; i < src->sequence(); i++) {
-                    for (; j < src->dimension(); j++) {
-                        dst->setDataAt<float>({b, h, j, i}, src->dataAt<float>({b, h, i, j}));
-                    }
-                }
-                continue;
-            }
-            for (int n = 0; n < src->sequence(); n++) {
-                #pragma omp parallel for num_threads(4)
-                for (int m = 0; m < src->dimension(); m++) {
-                    dst->setDataAt<float>({b, h, m, n}, src->dataAt<float>({b, h, n, m}));
-                }
-            }
-        }
-    }
-    return dst;
-*/
-
 }
-
+*/
 
 ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1) {
     // INPUT: M.K
@@ -259,15 +222,20 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     src0_q8.setDtype(MLLM_TYPE_Q8_0);
     src0_q8.alloc();
     //quantize_row_q8_0(src0_->hostPtr<float>(), src0_q8.hostPtr<block_q8_0>(), src0_->count());
-    for (int b = 0; b < src0_->batch(); b++) {
-        for (int h = 0; h < src0_->head(); h++) {
+    if (src0_->dimension() % QK8_0 == 0) {
+        for (int b = 0; b < src0_->batch(); b++) {
+            for (int h = 0; h < src0_->head(); h++) {
 #pragma omp parallel for num_threads(4)
-            for (int s = 0; s < src0_->sequence(); s++) {
-                quantize_row_q8_0(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
-                                  src0_q8.hostPtr<block_q8_0>() + src0_q8.offset(b, h, s, 0) / QK8_0,
-                                  src0_->dimension());
+                for (int s = 0; s < src0_->sequence(); s++) {
+                    quantize_row_q8_0(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
+                                      src0_q8.hostPtr<block_q8_0>() + src0_q8.offset(b, h, s, 0) / QK8_0,
+                                      src0_->dimension());
+                }
             }
         }
+    } else {
+        std::cout << "[ERROR]: " << src0_->sequence() << "%" << QK8_0 << "!=" << std::endl;
+        assert(src0_->sequence() % QK8_0 == 0);
     }
     auto *src0 = &src0_q8;
     assert(src0->dtype() == MLLM_TYPE_Q8_0);
@@ -356,16 +324,21 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     src0_q8.setBackend(src0_->backend());
     src0_q8.setDtype(MLLM_TYPE_Q8_K);
     src0_q8.alloc();
-    quantize_row_q8_K(src0_->hostPtr<float>(), src0_q8.hostPtr<block_q8_K>(), src0_->count());
-    for (int b = 0; b < src0_->batch(); b++) {
-        for (int h = 0; h < src0_->head(); h++) {
+//    quantize_row_q8_K(src0_->hostPtr<float>(), src0_q8.hostPtr<block_q8_K>(), src0_->count());
+    if (src0_->sequence() % QK_K == 0) {
+        for (int b = 0; b < src0_->batch(); b++) {
+            for (int h = 0; h < src0_->head(); h++) {
 #pragma omp parallel for num_threads(4)
-            for (int s = 0; s < src0_->sequence(); s++) {
-                quantize_row_q8_K(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
-                                  src0_q8.hostPtr<block_q8_K>() + src0_q8.offset(b, h, s, 0) / QK_K,
-                                  src0_->dimension());
+                for (int s = 0; s < src0_->sequence(); s++) {
+                    quantize_row_q8_K(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
+                                      src0_q8.hostPtr<block_q8_K>() + src0_q8.offset(b, h, s, 0) / QK_K,
+                                      src0_->dimension());
+                }
             }
         }
+    } else {
+        std::cout << "[ERROR]: " << src0_->sequence() << "%" << QK_K << "!=" << std::endl;
+        assert(src0_->sequence() % QK_K == 0);
     }
     auto *src0 = &src0_q8;
     assert(src0->dtype() == MLLM_TYPE_Q8_K);
@@ -457,7 +430,6 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     return NO_ERROR;
 }
 
-
 ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1) {
 
     //    uint64_t t_start = mllm_time_us();
@@ -478,15 +450,20 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     src0_q8.setDtype(MLLM_TYPE_Q8_K);
     src0_q8.alloc();
     //    quantize_row_q8_K(src0_->hostPtr<float>(), src0_q8.hostPtr<block_q8_K>(), src0_->count());
-    for (int b = 0; b < src0_->batch(); b++) {
-        for (int h = 0; h < src0_->head(); h++) {
+    if(src0_->sequence() % QK_K == 0) {
+        for (int b = 0; b < src0_->batch(); b++) {
+            for (int h = 0; h < src0_->head(); h++) {
 #pragma omp parallel for num_threads(4)
-            for (int s = 0; s < src0_->sequence(); s++) {
-                quantize_row_q8_K(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
-                                  src0_q8.hostPtr<block_q8_K>() + src0_q8.offset(b, h, s, 0) / QK_K,
-                                  src0_->dimension());
+                for (int s = 0; s < src0_->sequence(); s++) {
+                    quantize_row_q8_K(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
+                                      src0_q8.hostPtr<block_q8_K>() + src0_q8.offset(b, h, s, 0) / QK_K,
+                                      src0_->dimension());
+                }
             }
         }
+    }else{
+        std::cout<<"[ERROR]: "<<src0_->sequence() << "%"<< QK_K <<"!="<<std::endl;
+        assert(src0_->sequence() % QK_K == 0);
     }
     auto *src0 = &src0_q8;
     assert(src0->dtype() == MLLM_TYPE_Q8_K);

@@ -34,8 +34,8 @@ float *QuantWriter::getParam(std::string param_name) {
     return static_cast<float *>((void *)data);
 }
 
-vector<string> fp32_layers = {"norm", "rope", "tok_embeddings", "bias"};
-vector<string> q6_layers = {"w2", "wv"};
+vector<string> fp32_layers = {"norm", "rope", "tok_embeddings", "bias", "vision_embed_tokens"};
+vector<string> q6_layers = {"w2", "wv", "dense_h_to_4h"};
 
 bool find_names(const string &name, const vector<string> &layer_names) {
     for (const auto &layer : layer_names) {
@@ -96,10 +96,11 @@ void QuantWriter::quantParams(DataType dataType) {
             if (quant_ptr != nullptr) {
                 if ((dataType == MLLM_TYPE_Q4_0) |(dataType ==MLLM_TYPE_Q4_K)|dataType ==MLLM_TYPE_Q6_K) {
                     writeParam(name, MLLM_TYPE_Q6_K, quant_ptr, size);
+                    std::cout << "  size:" << size <<" type:"<< DataTypeName(MLLM_TYPE_Q6_K)<< std::endl;
                 } else {
                     writeParam(name, quant_type_, quant_ptr, size);
+                    std::cout << "  size:" << size <<" type:"<< DataTypeName(quant_type_)<< std::endl;
                 }
-                std::cout << "  size:" << size <<" type:"<< DataTypeName(quant_type_)<< std::endl;
             }
         } else {
             std::cout << "Quantize param " << name << " to " << DataTypeName(dataType) << "\t";

@@ -3,7 +3,7 @@
 // Created by 咸的鱼 on 2023/12/8.
 //
 #include "TokenizorTest.hpp"
-#include "preprocess/FuyuPreProcess.hpp"
+#include "processor/FuyuPreProcess.hpp"
 #include "tokenizers/Unigram/Unigram.hpp"
 using namespace mllm;
 

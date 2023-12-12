@@ -144,8 +144,8 @@ if(TEST)
         ${PROJECT_SOURCE_DIR}/test/main.cpp
         ${MLLM_TEST}
         ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
-            src/preprocess/FuyuPreProcess.hpp
-            src/preprocess/FuyuPreProcess.cpp
+            src/processor/FuyuPreProcess.hpp
+            src/processor/FuyuPreProcess.cpp
     )
 
     target_link_libraries(
@@ -190,8 +190,8 @@ add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/examples/main_fuyu.cpp ${DIR_SRC_
         src/tokenizers/Unigram/trie.hpp
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
-        src/preprocess/FuyuPreProcess.hpp
-        src/preprocess/FuyuPreProcess.cpp
+        src/processor/FuyuPreProcess.hpp
+        src/processor/FuyuPreProcess.cpp
 )
 target_link_libraries(main_fuyu MLLM_CPU)
 #target_link_directories(main_fuyu PUBLIC ${PROJECT_SOURCE_DIR}/third_party/imageHelper)

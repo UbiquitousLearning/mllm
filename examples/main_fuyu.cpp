@@ -8,7 +8,7 @@
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include "tokenizers/Unigram/Unigram.hpp"
-#include "preprocess/FuyuPreProcess.hpp"
+#include "processor/FuyuPreProcess.hpp"
 
 using namespace std;
 
@@ -182,9 +182,6 @@ int main() {
 //    std::cout << result_ << std::endl;
 //    return 0;
 
-    // auto *preprocess = new FuyuPreProcess(&tokenizer, 30, 30, 10);
-    // preprocess->Process(in_str);
-
 
     auto tokenizer = UnigramTokenizer("../project/android/vocab_uni.mllm");
     auto preprocessor = FuyuPreProcess(&tokenizer);
@@ -229,7 +226,7 @@ int main() {
 
 
 
-    ParamLoader param_loader("../models/fuyu-8b-q4_k.mllm");
+    ParamLoader param_loader("../models/fuyu-8b-q4_0.mllm");
     Executor ex(&param_loader);
     ex.execute(&net, {input_seq, img_patch, img_patch_id});
     auto result = ex.result();
