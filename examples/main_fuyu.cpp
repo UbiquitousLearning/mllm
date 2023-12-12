@@ -12,6 +12,14 @@
 
 using namespace std;
 
+
+void fullTensor(shared_ptr<Tensor> input_tensor, Net &net, vector<int> shape) {
+    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+    input_tensor->reshape(shape[0], shape[1], shape[2], shape[3]);
+    input_tensor->setDtype(MLLM_TYPE_F32);
+    input_tensor->alloc();
+    input_tensor->fullData<float>(1);
+}
 void token2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<token_id_t> tokens) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape(1, 1, static_cast<int>(tokens.size()), 1);
@@ -24,6 +32,10 @@ void token2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<token_id_t> 
 }
 
 void patches2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vector<float>>> image_patches) {
+    if(image_patches.empty()) {
+        fullTensor(input_tensor, net, {0, 0, 0, 0});
+        return;
+    }
     const int batch = image_patches.size();
     const int seq =  image_patches[0].size();
     const int dims = image_patches[0][0].size();
@@ -41,6 +53,10 @@ void patches2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vec
 }
 
 void patchIdx2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<int>> image_patches_indices) {
+    if(image_patches_indices.empty()) {
+        fullTensor(input_tensor, net, {0, 0, 0, 0});
+        return;
+    }
     const int batch = image_patches_indices.size();
     const int seq =  image_patches_indices[0].size();
     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
@@ -52,14 +68,6 @@ void patchIdx2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<in
                 input_tensor->setDataAt<float>(i, 0, j, 0, image_patches_indices[i][j]);
         }
     }
-}
-
-void testFull(shared_ptr<Tensor> input_tensor, Net &net, vector<int> shape) {
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
-    input_tensor->reshape(shape[0], shape[1], shape[2], shape[3]);
-    input_tensor->setDtype(MLLM_TYPE_F32);
-    input_tensor->alloc();
-    input_tensor->fullData<float>(1);
 }
 
 unsigned int argmax(const std::vector<float>& scores) {
@@ -183,17 +191,16 @@ int main() {
 //    return 0;
 
 
-    auto tokenizer = UnigramTokenizer("../project/android/vocab_uni.mllm");
+    auto tokenizer = UnigramTokenizer("./vocab_uni.mllm");
     auto preprocessor = FuyuPreProcess(&tokenizer);
     preprocessor.PreProcessImages({"bus.png"});
     preprocessor.Process("Generate a coco-style caption.\n");
     auto input_ids = preprocessor.image_input_ids_;
     auto image_patches_indices = preprocessor.image_patches_indices_;
     auto image_patches = preprocessor.image_patches_;
-
-    // std::cout<<input_ids[0].size()<<std::endl;
-    // std::cout<<image_patches_indices[0].size()<<std::endl;
-    // std::cout<<image_patches[0].size()<<"  "<<image_patches[0][0].size()<<std::endl;
+    if(input_ids.empty()) {
+        input_ids = preprocessor.text_ids_;
+    }
 
 
 
@@ -217,12 +224,10 @@ int main() {
     token2Tensor(input_seq, net, input_ids[0]);
     shared_ptr<Tensor> img_patch = std::make_shared<Tensor>();
     patches2Tensor(img_patch, net, image_patches);
-    //    testFull(img_patch,net, {1, 1,(int)input_seq->sequence(), patch_size*patch_size*3});
-    // testFull(img_patch,net, {0, 0, 0, 0});
+    // fullTensor(img_patch,net, {0, 0, 0, 0});
     shared_ptr<Tensor> img_patch_id = std::make_shared<Tensor>();
     patchIdx2Tensor(img_patch_id, net, image_patches_indices);
-    //    testFull(img_patch_id, net,{1, 1,(int)input_seq->sequence(), 1});
-    // testFull(img_patch_id,net, {0, 0, 0, 0});
+    // fullTensor(img_patch_id,net, {0, 0, 0, 0});
 
 
 
@@ -233,13 +238,13 @@ int main() {
         auto result = ex.result();
         auto token_idx = postProcessing(result[0], input_seq);
 //        std::cout << token_idx << std::endl;
-        testFull(img_patch, net, {0, 0, 0, 0});
-        testFull(img_patch, net, {0, 0, 0, 0});
+        fullTensor(img_patch, net, {0, 0, 0, 0});
+        fullTensor(img_patch, net, {0, 0, 0, 0});
         auto out_token = tokenizer.detokenize({token_idx});
-        std::cout << out_token << std::flush;
         if(token_idx == 71013){
             break;
         }
+        std::cout << out_token << std::flush;
     }
     printf("\n");
     ex.perf();

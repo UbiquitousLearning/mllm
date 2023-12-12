@@ -128,6 +128,7 @@ void Executor::execute(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
         // std::cout <<"["<< name << "]==== end      === "<< result_[0]->name() << "'s shape:  [" << result_[0]->batch() << "," << result_[0]->head() << "," << result_[0]->sequence() << "," << result_[0]->dimension() << "]" << std::endl;
     }
     auto ex_time_end = mllm_time_us();
+    // std::cout <<"                "<< (ex_time_end - ex_time_start) / 1000.0F << " ms" << std::endl;
     if (input_tensors[0]->sequence() == 1) {
         auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
         run_time_.push_back(token_run_time);

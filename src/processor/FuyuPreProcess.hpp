@@ -72,7 +72,6 @@ class FuyuPreProcess {
     vector<vector<int>> image_patch_indices_per_batch;
     vector<vector<int>> image_patch_indices_per_subseq ;
     vector<vector<int>> image_patch_input_indices_;
-    vector<vector<token_id_t>> text_ids_;
     vector<size_t> text_lengths_;
     size_t max_tokens_to_generate;
     Tokenizer *tokenizer_;
@@ -92,6 +91,7 @@ public:
     vector<vector<int>> attention_mask_;
     vector<vector<int>> image_patches_indices_;
     vector<vector<vector<float>>> image_patches_;
+    vector<vector<token_id_t>> text_ids_;
 
     explicit FuyuPreProcess(Tokenizer *tokenizer,size_t patch_height = 30, size_t patch_width = 30, size_t max_tokens_to_generate = 10) :
         tokenizer_(tokenizer),max_tokens_to_generate(max_tokens_to_generate) {
