@@ -226,7 +226,7 @@ int main() {
 
 
 
-    ParamLoader param_loader("../models/fuyu-8b-q4_0.mllm");
+    ParamLoader param_loader("../models/fuyu-8b-q4_k_.mllm");
     Executor ex(&param_loader);
     ex.execute(&net, {input_seq, img_patch, img_patch_id});
     auto result = ex.result();

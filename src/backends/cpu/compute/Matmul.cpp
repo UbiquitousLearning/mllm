@@ -234,8 +234,8 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
             }
         }
     } else {
-        std::cout << "[ERROR]: " << src0_->sequence() << "%" << QK8_0 << "!=" << std::endl;
-        assert(src0_->sequence() % QK8_0 == 0);
+        std::cout << "[ERROR]: " << src0_->dimension() << "%" << QK8_0 << "!=0" << std::endl;
+        assert(src0_->dimension() % QK8_0 == 0);
     }
     auto *src0 = &src0_q8;
     assert(src0->dtype() == MLLM_TYPE_Q8_0);
@@ -325,7 +325,7 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     src0_q8.setDtype(MLLM_TYPE_Q8_K);
     src0_q8.alloc();
 //    quantize_row_q8_K(src0_->hostPtr<float>(), src0_q8.hostPtr<block_q8_K>(), src0_->count());
-    if (src0_->sequence() % QK_K == 0) {
+    if (src0_->dimension() % QK_K == 0) {
         for (int b = 0; b < src0_->batch(); b++) {
             for (int h = 0; h < src0_->head(); h++) {
 #pragma omp parallel for num_threads(4)
@@ -337,8 +337,8 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
             }
         }
     } else {
-        std::cout << "[ERROR]: " << src0_->sequence() << "%" << QK_K << "!=" << std::endl;
-        assert(src0_->sequence() % QK_K == 0);
+        std::cout << "[ERROR]: " << src0_->dimension() << "%" << QK_K << "!=0" << std::endl;
+        assert(src0_->dimension() % QK_K == 0);
     }
     auto *src0 = &src0_q8;
     assert(src0->dtype() == MLLM_TYPE_Q8_K);
@@ -450,7 +450,7 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     src0_q8.setDtype(MLLM_TYPE_Q8_K);
     src0_q8.alloc();
     //    quantize_row_q8_K(src0_->hostPtr<float>(), src0_q8.hostPtr<block_q8_K>(), src0_->count());
-    if(src0_->sequence() % QK_K == 0) {
+    if(src0_->dimension() % QK_K == 0) {
         for (int b = 0; b < src0_->batch(); b++) {
             for (int h = 0; h < src0_->head(); h++) {
 #pragma omp parallel for num_threads(4)
@@ -462,8 +462,8 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
             }
         }
     }else{
-        std::cout<<"[ERROR]: "<<src0_->sequence() << "%"<< QK_K <<"!="<<std::endl;
-        assert(src0_->sequence() % QK_K == 0);
+        std::cout<<"[ERROR]: "<<src0_->dimension() << "%"<< QK_K <<"!=0"<<std::endl;
+        assert(src0_->dimension() % QK_K == 0);
     }
     auto *src0 = &src0_q8;
     assert(src0->dtype() == MLLM_TYPE_Q8_K);
