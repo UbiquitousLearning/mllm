@@ -226,16 +226,23 @@ int main() {
 
 
 
-    ParamLoader param_loader("../models/fuyu-8b-q4_k_.mllm");
+    ParamLoader param_loader("../models/fuyu-8b-q4_k-46.mllm");
     Executor ex(&param_loader);
-    ex.execute(&net, {input_seq, img_patch, img_patch_id});
-    auto result = ex.result();
-    auto token_idx = postProcessing(result[0], input_seq);
-    std::cout<<token_idx<<std::endl;
-    testFull(img_patch,net, {0, 0, 0, 0});
-    testFull(img_patch,net, {0, 0, 0, 0});
-
-    auto out_token = tokenizer.detokenize({token_idx});
+    for(int step = 0; step<10; step++) {
+        ex.execute(&net, {input_seq, img_patch, img_patch_id});
+        auto result = ex.result();
+        auto token_idx = postProcessing(result[0], input_seq);
+//        std::cout << token_idx << std::endl;
+        testFull(img_patch, net, {0, 0, 0, 0});
+        testFull(img_patch, net, {0, 0, 0, 0});
+        auto out_token = tokenizer.detokenize({token_idx});
+        std::cout << out_token << std::flush;
+        if(token_idx == 71013){
+            break;
+        }
+    }
+    printf("\n");
+    ex.perf();
 
     // free memory
     for (auto *op : c->net_ops) {

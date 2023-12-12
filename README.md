@@ -1,3 +1,4 @@
+模型目录：  @Phoenix22:/data/yrj/research/llm/testLLM/models
 
 [代码规范](/doc/coding_standard.md)
 

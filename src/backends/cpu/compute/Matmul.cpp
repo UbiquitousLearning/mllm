@@ -43,20 +43,9 @@ Tensor *tensor_trans(Tensor *src) {
 */
 
 ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1) {
-    // INPUT: M.K
-    // W:K,N
-    // OUTPUT:M.N
-
-    //    auto start = std::chrono::high_resolution_clock::now(); // 记录开始时间
-
-    // int M = src0->sequence();
-    // int K = src0->dimension();
-    // int N = src1->sequence();
     int M = transpose0 ? src0->dimension() : src0->sequence();
     int K = transpose0 ? src0->sequence() : src0->dimension();
     int N = transpose1 ? src1->sequence() : src1->dimension();
-    // Tensor *src0_cal = (transpose1 && !transpose0) ? src0 : (transpose0 && !transpose1) ? tensor_trans(src0) : src0;
-    // Tensor *src1_cal = (transpose1 && !transpose0) ? src1 : (!transpose0 && !transpose1) ? tensor_trans(src1) : src1;
     Tensor *src0_cal = src0;
     Tensor *src1_cal = src1;
     const int64_t blck_0 = 16;
@@ -70,14 +59,6 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
                     h_1 = 0;
                 }
                 for (int m = 0; m < M; m++) {
-                    /*
-#pragma omp parallel for num_threads(4)
-                    for (int n = 0; n < N; n++) {
-                        vec_dot_fp32(src0_cal->hostPtr<float>() + src0_cal->offset(b, h, m, 0),
-                                          src1_cal->hostPtr<float>() + src1_cal->offset(b, h, n, 0),
-                                          dst, support_bias, bias, K, b, h, m, n);
-                    }
-                    */
                     int num_blocks = N / blck_0;
                     int remainder = N % blck_0;
                     // 处理完整的块
@@ -115,14 +96,6 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
                     h_1 = 0;
                 }
                 for (int m = 0; m < M; m++) {
-                    /*
-#pragma omp parallel for num_threads(4)
-                    for (int n = 0; n < N; n++) {
-                        vec_dot_fp32(src0_cal->hostPtr<float>() + src0_cal->offset(b, h, m, 0),
-                                          src1_cal->hostPtr<float>() + src1_cal->offset(b, h, 0, n),
-                                          dst, support_bias, bias, K, b, h, m, n);
-                    }
-                    */
                     int num_blocks = N / blck_0;
                     int remainder = N % blck_0;
                     // 处理完整的块
@@ -160,14 +133,6 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
                     h_1 = 0;
                 }
                 for (int m = 0; m < M; m++) {
-                    /*
-#pragma omp parallel for num_threads(4)
-            for (int n = 0; n < N; n++) {
-                    vec_dot_fp32(src0_cal->hostPtr<float>() + src0_cal->offset(b, h, 0, m),
-                                      src1_cal->hostPtr<float>() + src1_cal->offset(b, h, 0, n),
-                                      dst, support_bias, bias, K, b, h, m, n);
-                }
-                */
                     int num_blocks = N / blck_0;
                     int remainder = N % blck_0;
                     // 处理完整的块
@@ -197,10 +162,6 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
         }
     }
 
-
-    //    auto end = std::chrono::high_resolution_clock::now();   // 记录结束时间
-    //    std::chrono::duration<double> duration = end - start;  // 计算时间差
-    //    std::cout<<duration.count()<<std::endl; // 返回秒数
     return NO_ERROR;
 }
 
@@ -254,14 +215,6 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
                 h_1 = 0;
             }
             for (int m = 0; m < M; m++) {
-                /*
-    #pragma omp parallel for num_threads(4)
-        for (int n = 0; n < N; n++) {
-                vec_dot_q4_0_q8_0(src0_cal->hostPtr<block_q8_0>() + src0_cal->offset(b, h, m, 0)/QK8_0,
-                                  src1_cal->hostPtr<block_q4_0>() + src1_cal->offset(b, h, n, 0)/(QK4_0),
-                                  dst, support_bias, bias, K, b, h, m, n);
-            }
-                */
                 int num_blocks = N / blck_0;
                 int remainder = N % blck_0;
                 // 处理完整的块
@@ -305,20 +258,6 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     src1 = &src1_q4;
     */
     assert(src1->dtype() == MLLM_TYPE_Q4_K);
-    /*
-    const int src0_batch = src0_->shape()[0];
-    const int src0_head = src0_->shape()[2];
-    const int src0_sequence = src0_->shape()[1];
-    const int src0_dimension = src0_->shape()[3];
-    const int src1_batch = src1->shape()[0];
-    const int src1_head = src1->shape()[2];
-    const int src1_sequence = src1->shape()[1];
-    const int src1_dimension = src1->shape()[3];
-    const int dst_batch = dst->shape()[0];
-    const int dst_head = dst->shape()[2];
-    const int dst_sequence = dst->shape()[1];
-    const int dst_dimension = dst->shape()[3];
-    */
     assert (src0_->dtype() == MLLM_TYPE_F32);
     Tensor src0_q8(src0_->shape());
     src0_q8.setBackend(src0_->backend());
@@ -347,11 +286,6 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     int N = src1->sequence();
     Tensor *src0_cal = src0;
     Tensor *src1_cal = src1;
-    /*
-    auto src1_ptr = src1_cal->hostPtr<block_q4_K>();
-    auto src0_ptr = src0_cal->hostPtr<block_q8_K>();
-    auto dst_ptr = dst->hostPtr<float>();
-    */
     const int64_t blck_0 = 16;
 
     for (int b = 0; b < src0->batch(); b++) {
@@ -363,17 +297,6 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
                 h_1 = 0;
             }
             for (int m = 0; m < M; m++) {
-                /*
-                #pragma omp parallel for num_threads(4)
-                for (int n = 0; n < N; n++) {
-                    // vec_dot_q4_K_q8_K(src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0) / QK_K,
-                    //                   src1_cal->hostPtr<block_q4_K>() + src1_cal->offset(b, h, n, 0) / QK_K,
-                    //                   dst, support_bias, bias, K, b, h, m, n);
-                    vec_dot_q4_K_q8_K(K, dst->ptrAt<float>(b, h, m, n),
-                                    src1_cal->hostPtr<block_q4_K>() + src1_cal->offset(b, h, n, 0) / QK_K,
-                                    src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0) / QK_K);
-                }
-                */
 
                 int num_blocks = N / blck_0;
                 int remainder = N % blck_0;
@@ -399,34 +322,9 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
                         *dst->ptrAt<float>(b,h,m,n) +=  bias->dataAt<float>(0, 0, 0, n);
                     }
                 }
-
-                /*
-                int num_blocks = N / blck_0;
-                int remainder = N % blck_0;
-                // 处理完整的块
-                #pragma omp parallel for num_threads(4)
-                for (int block = 0; block < num_blocks; block++) {
-                    for (int n = block * blck_0; n < (block + 1) * blck_0; n++) {
-                        vec_dot_q4_K_q8_K(K, dst->ptrAt<float>(b, h, m, n),
-                                          src1_ptr + (((b * src1_sequence + n) * src1_head + h) * src1_dimension + 0 )/ QK_K,
-                                          src0_ptr + (((b * src0_sequence + m) * src0_head + h) * src0_dimension + 0 )/ QK_K);
-                    }
-                }
-                // 处理剩余的元素
-                #pragma omp parallel for num_threads(4)
-                for (int n = num_blocks * blck_0; n < num_blocks * blck_0 + remainder; n++) {
-                    vec_dot_q4_K_q8_K(K, dst->ptrAt<float>(b, h, m, n),
-                                          src1_ptr + (((b * src1_sequence + n) * src1_head + h) * src1_dimension + 0 )/ QK_K,
-                                          src0_ptr + (((b * src0_sequence + m) * src0_head + h) * src0_dimension + 0 )/ QK_K);
-
-                }
-                */
             }
         }
     }
-    // std::cout<<"quantize_row_q8_K: "<<(end_t1 - start_t1)/1000.0F<<" ms \t";
-    // std::cout<<"j: "<<(start_t2 - end_t1)/1000.0F<<" ms \t";
-    // std::cout<<"vec_dot_q4_K_q8_K: "<<(end_t2 - start_t2)/1000.0F<<" ms"<<std::endl;
     return NO_ERROR;
 }
 
@@ -482,14 +380,6 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
                 h_1 = 0;
             }
             for (int m = 0; m < M; m++) {
-                /*
-#pragma omp parallel for num_threads(4)
-                for (int n = 0; n < N; n++) {
-                    vec_dot_q6_K_q8_K(src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0) / QK_K,
-                                      src1_cal->hostPtr<block_q6_K>() + src1_cal->offset(b, h, n, 0) / QK_K,
-                                      dst, support_bias, bias, K, b, h, m, n);
-                }
-                */
                 int num_blocks = N / blck_0;
                 int remainder = N % blck_0;
                 // 处理完整的块
