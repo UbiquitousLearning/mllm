@@ -22,14 +22,13 @@ using namespace qnn;
 using namespace qnn::tools;
 using namespace qnn::tools::sample_app;
 
-static void* sg_backendHandle{nullptr};
-static void* sg_modelHandle{nullptr};
+
 
 namespace mllm {
 
 const std::string QNNBackend::s_defaultOutputPath = "./output/";
 
-QNNBackend::QNNBackend(QnnFunctionPointers qnnFunctionPointers,
+void QNNBackend::QnnBackendInitialize(QnnFunctionPointers qnnFunctionPointers,
                                        std::string inputListPaths,
                                        std::string opPackagePaths,
                                        void* backendLibraryHandle,
@@ -41,23 +40,26 @@ QNNBackend::QNNBackend(QnnFunctionPointers qnnFunctionPointers,
                                        bool dumpOutputs,
                                        std::string cachedBinaryPath,
                                        std::string saveBinaryName)
-    : m_qnnFunctionPointers(qnnFunctionPointers),
-      m_outputPath(outputPath),
-      m_saveBinaryName(saveBinaryName),
-      m_cachedBinaryPath(cachedBinaryPath),
-      m_debug(debug),
-      m_outputDataType(outputDataType),
-      m_inputDataType(inputDataType),
-      m_profilingLevel(profilingLevel),
-      m_dumpOutputs(dumpOutputs),
-      m_backendLibraryHandle(backendLibraryHandle),
-      m_isBackendInitialized(false),
-      m_isContextCreated(false) {
-  split(m_inputListPaths, inputListPaths, ',');
-  split(m_opPackagePaths, opPackagePaths, ',');
-  if (m_outputPath.empty()) {
-    m_outputPath = s_defaultOutputPath;
-  }
+    {
+
+      m_qnnFunctionPointers = qnnFunctionPointers;
+      m_outputPath = outputPath;
+      m_saveBinaryName = saveBinaryName;
+      m_cachedBinaryPath = cachedBinaryPath;
+      m_debug = debug;
+      m_outputDataType = outputDataType;
+      m_inputDataType = inputDataType;
+      m_profilingLevel = profilingLevel;
+      m_dumpOutputs = dumpOutputs;
+      m_backendLibraryHandle = backendLibraryHandle;
+      m_isBackendInitialized = false;
+      m_isContextCreated = false; 
+      
+      split(m_inputListPaths, inputListPaths, ',');
+      split(m_opPackagePaths, opPackagePaths, ',');
+      if (m_outputPath.empty()) {
+        m_outputPath = s_defaultOutputPath;
+      }
 
   return;
 }
@@ -167,7 +169,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
       }
     }
 
-    QNNBackend(qnnFunctionPointers,
+    QnnBackendInitialize(qnnFunctionPointers,
                 inputListPaths,
                 opPackagePaths,
                 sg_backendHandle,
@@ -184,6 +186,27 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
 void QNNBackend::init() {
 
   r_init();
+}
+
+void QNNBackend::release() {
+  r_release();
+}
+
+int32_t QNNBackend::r_release() {
+  QNNBackend* app = this;
+
+
+  if (StatusCode::SUCCESS != app->freeContext()) {
+    return app->reportError("Context Free failure");
+  }
+
+  auto devicePropertySupportStatus = app->isDevicePropertySupported();
+  if (StatusCode::FAILURE != devicePropertySupportStatus) {
+    auto freeDeviceStatus = app->freeDevice();
+    if (StatusCode::SUCCESS != freeDeviceStatus) {
+      return app->reportError("Device Free failure");
+    }
+  }
 }
 
 int32_t QNNBackend::r_init() {
@@ -248,24 +271,9 @@ int32_t QNNBackend::r_init() {
         return app->reportError("Graph Execution failure");
       }
 
-      if (StatusCode::SUCCESS != app->freeContext()) {
-        return app->reportError("Context Free failure");
-      }
-
-      if (StatusCode::FAILURE != devicePropertySupportStatus) {
-        auto freeDeviceStatus = app->freeDevice();
-        if (StatusCode::SUCCESS != freeDeviceStatus) {
-          return app->reportError("Device Free failure");
-        }
-      }
     }
 
-    if (sg_backendHandle) {
-      pal::dynamicloading::dlClose(sg_backendHandle);
-    }
-    if (sg_modelHandle) {
-      pal::dynamicloading::dlClose(sg_modelHandle);
-    }
+    
 }
 
 

@@ -27,7 +27,8 @@ int main() {
 
     QNNBackend *qbn = new QNNBackend(mm);
     qbn->init();
-    // qbn->getBackendBuildId();
 
+    qbn->release();
+    delete  qbn;
 
 }

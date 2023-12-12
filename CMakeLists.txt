@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project(mllm)
 cmake_policy(SET CMP0074 NEW)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 option(ARM "build on ARM" OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -198,7 +198,7 @@ if(QNN)
 
     
 
-    set(CMAKE_CXX_FLAGS " -fno-rtti -fPIC -Wall  -pg -pthread -march=x86-64 -O3 -g -Wno-write-strings -fvisibility=hidden ")
+    set(CMAKE_CXX_FLAGS " -fPIC -Wall  -pg -pthread -march=x86-64 -O3 -g -Wno-write-strings -fvisibility=hidden ")
     set(CMAKE_LD_FLAGS "-shared -s -fPIC -pthread -fvisibility=hidden -flto")
 
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)

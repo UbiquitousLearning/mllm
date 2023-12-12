@@ -9,7 +9,9 @@
 #include <memory>
 
 #include "Utils/IOTensor.hpp"
+#include "PAL/DynamicLoading.hpp"
 #include "QNN.hpp"
+#include "Logger.hpp"
 
 using std::shared_ptr;
 
@@ -36,20 +38,14 @@ class Backend;
 class QNNBackend : public Backend {
 public:
     QNNBackend(shared_ptr<MemoryManager> mm);
-    QNNBackend(sample_app::QnnFunctionPointers qnnFunctionPointers,
-               std::string inputListPaths,
-               std::string opPackagePaths,
-               void *backendHandle,
-               std::string outputPath                  = s_defaultOutputPath,
-               bool debug                              = false,
-               iotensor::OutputDataType outputDataType = iotensor::OutputDataType::FLOAT_ONLY,
-               iotensor::InputDataType inputDataType   = iotensor::InputDataType::FLOAT,
-               sample_app::ProfilingLevel profilingLevel           = sample_app::ProfilingLevel::OFF,
-               bool dumpOutputs                        = false,
-               std::string cachedBinaryPath            = "",
-               std::string saveBinaryName              = "");
     ~QNNBackend() {
-
+        if (sg_backendHandle) {
+          pal::dynamicloading::dlClose(sg_backendHandle);
+        }
+        if (sg_modelHandle) {
+          pal::dynamicloading::dlClose(sg_modelHandle);
+        }
+        QNN_INFO("Free handle");
     }
 
     // Init QNN Backend context
@@ -57,6 +53,7 @@ public:
     int32_t r_init(); // TODO: Config
 
     void release();
+    int32_t r_release();
 
     // void alloc(void **ptr, size_t size,size_t alignment) {
     //     mem_manager_->alloc(ptr, size, alignment);
@@ -141,6 +138,20 @@ public:
 
     StatusCode extractProfilingEvent(QnnProfile_EventId_t profileEventId);
 
+
+    void QnnBackendInitialize(sample_app::QnnFunctionPointers qnnFunctionPointers,
+               std::string inputListPaths,
+               std::string opPackagePaths,
+               void *backendHandle,
+               std::string outputPath                  = s_defaultOutputPath,
+               bool debug                              = false,
+               iotensor::OutputDataType outputDataType = iotensor::OutputDataType::FLOAT_ONLY,
+               iotensor::InputDataType inputDataType   = iotensor::InputDataType::FLOAT,
+               sample_app::ProfilingLevel profilingLevel           = sample_app::ProfilingLevel::OFF,
+               bool dumpOutputs                        = false,
+               std::string cachedBinaryPath            = "",
+               std::string saveBinaryName              = "");
+
     static const std::string s_defaultOutputPath;
 
 
@@ -171,6 +182,10 @@ public:
     Qnn_LogHandle_t m_logHandle         = nullptr;
     Qnn_BackendHandle_t m_backendHandle = nullptr;
     Qnn_DeviceHandle_t m_deviceHandle   = nullptr;
+
+
+    void* sg_backendHandle = nullptr;
+    void* sg_modelHandle = nullptr;
 
 };
 

@@ -13,7 +13,7 @@ namespace mllm {
         n_free_blocks_(0),
         base_alignment_(base_alignment)
     {
-        data_ = aligned_alloc(base_alignment,pool_size);
+        data_ = std::aligned_alloc(base_alignment,pool_size);
         n_free_blocks_ += 1;
         free_blocks_.emplace_back(data_,pool_size);
         #ifdef MLLM_ALLOCATOR_DEBUG
