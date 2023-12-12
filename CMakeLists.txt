@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project(mllm)
 cmake_policy(SET CMP0074 NEW)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 option(ARM "build on ARM" OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -42,6 +42,9 @@ option(DEBUG "debug print" OFF)
 
 # backend options
 option(NNAPI "Enable NNAPI" OFF)
+
+# backend options
+option(QNN "Enable QNN" OFF)
 
 if(CMAKE_HOST_UNIX)
     message("current platform: Linux ")
@@ -176,4 +179,30 @@ if(NNAPI)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/nnapi)
     add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/demo/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC}) # ${DIR_SRC_QUANT})
     target_link_libraries(nnapi_test MLLM_CPU MLLM_NNAPI)
+endif()
+
+
+# QNN test
+if(QNN)
+    if (ARM)
+        include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
+    endif()
+    add_definitions(-DQNN_ENABLED)
+    # add_definitions(-DQNN_API)
+    
+    include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/Log)
+    include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/PAL/include)
+    include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/Utils)
+    include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/WrapperUtils)
+    include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/QNN)
+
+    
+
+    set(CMAKE_CXX_FLAGS " -fno-rtti -fPIC -Wall  -pg -pthread -march=x86-64 -O3 -g -Wno-write-strings -fvisibility=hidden ")
+    set(CMAKE_LD_FLAGS "-shared -s -fPIC -pthread -fvisibility=hidden -flto")
+
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
+    add_executable(qnn_test ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
+    target_link_libraries(qnn_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
+
 endif()
