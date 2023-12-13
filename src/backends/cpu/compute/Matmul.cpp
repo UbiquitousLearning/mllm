@@ -217,9 +217,10 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
                             vec_dot_q4_K_q8_K(K, &tmp,
                                               src1_cal->hostPtr<block_q4_K>() + src1_cal->offset(b_1, h_1, n, 0) / QK_K,
                                               src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0) / QK_K);
-                            *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp);
                             if (support_bias) {
-                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) += MLLM_FP32_TO_FP16(bias->dataAt<float>(0, 0, 0, n));
+                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp + bias->dataAt<float>(0, 0, 0, n));
+                            } else {
+                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp);
                             }
                         }else{std::cout<<"Not support tupe [Matmul]"<<std::endl;}
                     }
@@ -282,9 +283,11 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
                             vec_dot_q6_K_q8_K(K, &tmp,
                                               src1_cal->hostPtr<block_q6_K>() + src1_cal->offset(b_1, h_1, n, 0) / QK_K,
                                               src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0) / QK_K);
-                            *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp);
+
                             if (support_bias) {
-                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) += MLLM_FP32_TO_FP16(bias->dataAt<float>(0, 0, 0, n));
+                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp + bias->dataAt<float>(0, 0, 0, n));
+                            } else {
+                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp);
                             }
                         } else {
                             std::cout << "Not support tupe [Matmul]" << std::endl;

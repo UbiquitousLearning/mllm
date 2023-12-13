@@ -72,7 +72,6 @@ ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     }
     case MLLM_TYPE_F16: {
         mat_mul_fp32_fp16(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_);
-        // outputs[0]->printData<float>();
         break;
     }
     default:
