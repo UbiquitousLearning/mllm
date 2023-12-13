@@ -1,13 +1,5 @@
-# include_directories("../../../include/QNN") 
-# include_directories(Log)
-# include_directories(PAL/src/linux)
-# include_directories(PAL/src/common)
-# include_directories(Utils)
-# include_directories(WrapperUtils)
-# include_directories(PAL/include)
-
 get_property(dirs DIRECTORY ${CMAKE_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
-message(">>> include_dirs=${dirs}") #打印一下目录情况
+message(">>> include_dirs=${dirs}") #print include directories
 
 
 
@@ -29,6 +21,9 @@ file(GLOB MLLM_QNN_SRC
 
     ${CMAKE_CURRENT_LIST_DIR}/WrapperUtils/*.cpp
     ${CMAKE_CURRENT_LIST_DIR}/WrapperUtils/*.hpp
+
+    ${CMAKE_CURRENT_LIST_DIR}/op/*.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/*.hpp
     
 )
 

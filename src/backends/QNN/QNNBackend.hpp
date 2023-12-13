@@ -91,7 +91,11 @@ public:
     shared_ptr<MemoryManager> mem_manager_;
     // unordered_map<OpType, Op*(*)(Backend*)> op_map_;
 
-
+    // --------- temp dev functions to test QNNBackend
+    ErrorCode graphAddNode(Op op);
+    ErrorCode graphFinilize();
+    ErrorCode graphExecute();
+    // ---------
     
     StatusCode initialize();
 

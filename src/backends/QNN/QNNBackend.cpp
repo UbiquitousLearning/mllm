@@ -287,6 +287,23 @@ std::string QNNBackend::getBackendBuildId() {
   return (backendBuildId == nullptr ? std::string("") : std::string(backendBuildId));
 }
 
+// --------- temp dev functions to test QNNBackend
+ErrorCode graphAddNode(Op op){
+    this->m_qnnFunctionPointers.qnnInterface.graphAddNode(); 
+    return NO_ERROR;
+}
+
+ErrorCode graphFinilize(){
+    m_qnnFunctionPointers.qnnInterface.graphFinalize((*m_graphsInfo)[graphIdx].graph, m_profileBackendHandle, nullptr));
+    return NO_ERROR;
+}
+
+ErrorCode graphExecute(){
+    this->executeGraphs();
+    return NO_ERROR;
+}
+// ---------
+
 // Initialize QnnSampleApp. Things it does:
 //  1. Create output directory
 //  2. Read all input list paths provided
