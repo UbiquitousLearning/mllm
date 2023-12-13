@@ -67,13 +67,12 @@ static void vec_dot_fp32_arm(const int n, float *__restrict s, const float *__re
 }
 #endif
 
-
-void vec_dot_fp32(const int n, float * __restrict s, const float * __restrict vx, const float * __restrict vy) {
-    #ifdef __AVX2__
-        vec_dot_fp32_avx2(n, s, vx, vy);
-    #elif defined(__ARM_NEON)
-        vec_dot_fp32_arm(n, s, vx, vy);
-    #endif
+void vec_dot_fp32(const int n, float *__restrict s, const float *__restrict vx, const float *__restrict vy) {
+#ifdef __AVX2__
+    vec_dot_fp32_avx2(n, s, vx, vy);
+#elif defined(__ARM_NEON)
+    vec_dot_fp32_arm(n, s, vx, vy);
+#endif
 }
 void vec_dot_fp32(const float * __restrict src0, const float * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf) {
     float value = 0;
@@ -90,6 +89,42 @@ void vec_dot_fp32(const float * __restrict src0, const float * __restrict src1, 
         value += bias->dataAt<float>(0, head, 0, sec1_outf);
     }
     dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, value);
+}
+
+void vec_dot_fp16(const int n, float * __restrict s, const mllm_fp16_t * __restrict vx, const mllm_fp16_t * __restrict vy) {
+    float sumf = 0.0;
+
+#if defined(__AVX2__) || defined(__ARM_NEON)
+    const int np = (n & ~(MLLM_F16_STEP - 1));
+
+    MLLM_F16_VEC sum[MLLM_F16_ARR] = { MLLM_F16_VEC_ZERO };
+
+    MLLM_F16_VEC ax[MLLM_F16_ARR];
+    MLLM_F16_VEC ay[MLLM_F16_ARR];
+
+    for (int i = 0; i < np; i += MLLM_F16_STEP) {
+        for (int j = 0; j < MLLM_F16_ARR; j++) {
+            ax[j] = MLLM_F16_VEC_LOAD(vx + i + j*MLLM_F16_EPR, j);
+            ay[j] = MLLM_F16_VEC_LOAD(vy + i + j*MLLM_F16_EPR, j);
+
+            sum[j] = MLLM_F16_VEC_FMA(sum[j], ax[j], ay[j]);
+        }
+    }
+
+    // reduce sum0..sum3 to sum0
+    MLLM_F16_VEC_REDUCE(sumf, sum);
+
+    // leftovers
+    for (int i = np; i < n; ++i) {
+        sumf += (float)(MLLM_FP16_TO_FP32(vx[i])*MLLM_FP16_TO_FP32(vy[i]));
+    }
+#else
+    for (int i = 0; i < n; ++i) {
+        sumf += (float)(MLLM_FP16_TO_FP32(vx[i])*MLLM_FP16_TO_FP32(vy[i]));
+    }
+#endif
+
+    *s = sumf;
 }
 
 #ifdef __AVX2__

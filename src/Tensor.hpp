@@ -428,7 +428,18 @@ public:
     void setDataAt(const vector<int> &index, Dtype value) {
         setDataAt(index[0], index[1], index[2], index[3], value);
     }
-
+    DataType dtypeAt(const int batch, const int head, const int sequence, const int dimension) const{
+        if(!aggregated_){
+            return dtype_;
+        }else{
+            int b = batch;
+            int h = head;
+            int s = sequence;
+            int d = dimension;
+            int tensor_id = checkDim(b, h, s, d);
+            return aggregated_tensors_[tensor_id]->dtype_;
+        }
+    }
     DataType dtype() const {
         return dtype_;
     }

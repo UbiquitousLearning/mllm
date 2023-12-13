@@ -178,7 +178,7 @@ static size_t DataTypeSize(DataType dtype, int count=1) {
     case MLLM_TYPE_F32:
         return sizeof(float) *count;
     case MLLM_TYPE_F16:
-        return sizeof(short)*count;
+        return sizeof(mllm_fp16_t)*count;
     case MLLM_TYPE_I32:
         return sizeof(int)*count;
     case MLLM_TYPE_I16:

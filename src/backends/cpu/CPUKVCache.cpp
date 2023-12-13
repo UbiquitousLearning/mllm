@@ -110,7 +110,7 @@ CPUKVCache::CPUKVCache(Backend *bn, string opName, bool isK, bool multiThread) :
     Op(bn, opName) {
     isK_ = isK;
     cache_.setBackend(bn);
-    cache_.setDtype(MLLM_TYPE_F32);
+    cache_.setDtype(MLLM_TYPE_F16);
     cache_limit_ = 500;
 }
 
@@ -149,7 +149,7 @@ ErrorCode CPUKVCache::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 ErrorCode CPUKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
-    outputs[0]->setDtype(activation_dtype());
+    outputs[0]->setDtype(cache_.dtype());
     outputs[0]->deepCopyFrom(cache_, {0,0,cache_seq_len_/cache_limit_,0});
     if (inputs[0]->masterTensor() ==nullptr) {
         inputs[0]->free();

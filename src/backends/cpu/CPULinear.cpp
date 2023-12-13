@@ -77,15 +77,15 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     }
     case MLLM_TYPE_F16: break;
     case MLLM_TYPE_Q4_0: {
-        mat_mul_fp32_q4_0(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true);
+        mat_mul_fp32_q4_0(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_);
         break;
     }
     case MLLM_TYPE_Q4_K: {
-        mat_mul_fp32_q4_K(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true);
+        mat_mul_fp32_q4_K(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_);
         break;
     }
     case MLLM_TYPE_Q6_K: {
-        mat_mul_fp32_q6_K(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true);
+        mat_mul_fp32_q6_K(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_);
         break;
     }
     default:

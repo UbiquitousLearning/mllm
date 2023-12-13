@@ -104,7 +104,12 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                         float sin_value = sin_.dataAt<float>(0, 0, s +h_cnt_, d);
                         float cos_value = cos_.dataAt<float>(0, 0, s +h_cnt_, d);
                         auto value = in_value * cos_value + in_value_2 * sin_value;
-                        output->setDataAt<float>(n, h, s, d, value);
+                        if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F32) {
+                            output->setDataAt<float>(n, h, s, d, value);
+                        }
+                        else if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F16) {
+                            output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
+                        }
                     }
                     else if (pose_type_== 2) {
                         float in_value = input->dataAt<float>(n, h, s, d);
@@ -117,7 +122,12 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                         float sin_value = sin_.dataAt<float>(0, 0, s +h_cnt_, d);
                         float cos_value = cos_.dataAt<float>(0, 0, s +h_cnt_, d);
                         auto value = in_value * cos_value + in_value_2 * sin_value;
-                        output->setDataAt<float>(n, h, s, d, value);
+                        if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F32) {
+                            output->setDataAt<float>(n, h, s, d, value);
+                        }
+                        else if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F16) {
+                            output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
+                        }
                     }else{
                         float in_value = input->dataAt<float>(n, h, s, d);
                         float in_value_2;
@@ -126,13 +136,28 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                         if (d < input->dimension() / 4) {
                             in_value_2 = - input->dataAt<float>(n, h, s, d + input->dimension() / 4);
                             auto value = in_value * cos_value + in_value_2 * sin_value;
-                            output->setDataAt<float>(n, h, s, d, value);
+                            if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F32) {
+                                output->setDataAt<float>(n, h, s, d, value);
+                            }
+                            else if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F16) {
+                                output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
+                            }
                         } else if(d < input->dimension() / 2){
                             in_value_2 = input->dataAt<float>(n, h, s, d - input->dimension() / 4);
                             auto value = in_value * cos_value + in_value_2 * sin_value;
-                            output->setDataAt<float>(n, h, s, d, value);
+                            if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F32) {
+                                output->setDataAt<float>(n, h, s, d, value);
+                            }
+                            else if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F16) {
+                                output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
+                            }
                         }else {
-                            output->setDataAt<float>(n, h, s, d, in_value);
+                            if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F32) {
+                                output->setDataAt<float>(n, h, s, d, in_value);
+                            }
+                            else if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F16) {
+                                output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(in_value));
+                            }
                         }
                     }
                 }
