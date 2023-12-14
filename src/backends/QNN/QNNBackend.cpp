@@ -94,12 +94,12 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     // Command line parsing loop
     int longIndex = 0;
     int opt       = 0;
-    std::string modelPath = "/mllm/qualcomm_ai_engine_direct_new/examples/QNN/example_libs/x86_64-linux-clang/libqnn_model_float.so";
-    std::string backEndPath = "/mllm/qualcomm_ai_engine_direct_new/lib/x86_64-linux-clang/libQnnCpu.so";
+    std::string modelPath = "/mllm/qualcomm_ai_engine_direct_new/examples/QNN/example_libs/x86_64-linux-clang/libqnn_model_8bit_quantized.so";
+    std::string backEndPath = "/mllm/qualcomm_ai_engine_direct_new/lib/x86_64-linux-clang/libQnnHtp.so";
     std::string inputListPaths = "/mllm/qualcomm_ai_engine_direct_new/examples/QNN/converter/models/input_list_float.txt";
     bool debug =  false;
     std::string outputPath;
-    std::string opPackagePaths = "/mllm/qualcomm_ai_engine_direct_new/examples/QNN/OpPackage/CPU/libs/x86_64-linux-clang/libQnnCpuOpPackageExample.so:QnnOpPackage_interfaceProvider";
+    std::string opPackagePaths = "/mllm/qualcomm_ai_engine_direct_new/examples/QNN/OpPackage/HTP/build/x86_64-linux-clang/libQnnHtpOpPackageExample.so:exampleInterfaceProvider";
     iotensor::OutputDataType parsedOutputDataType   = iotensor::OutputDataType::FLOAT_ONLY;
     iotensor::InputDataType parsedInputDataType     = iotensor::InputDataType::FLOAT;
     sample_app::ProfilingLevel parsedProfilingLevel = ProfilingLevel::OFF;
@@ -279,7 +279,6 @@ int32_t QNNBackend::r_init() {
 
 std::string QNNBackend::getBackendBuildId() {
   char* backendBuildId{nullptr};
-  QNN_INFO("m_qnnFunctionPointers.qnnInterface.backendGetBuildId %x\n", m_qnnFunctionPointers.qnnInterface.backendGetBuildId);
   if (QNN_SUCCESS !=
       m_qnnFunctionPointers.qnnInterface.backendGetBuildId((const char**)&backendBuildId)) {
     QNN_ERROR("Unable to get build Id from the backend.");

@@ -40,7 +40,7 @@ dynamicloadutil::StatusCode dynamicloadutil::getQnnFunctionPointers(
     bool loadModelLib,
     void** modelHandleRtn) {
   void* libBackendHandle = pal::dynamicloading::dlOpen(
-      backendPath.c_str(), pal::dynamicloading::DL_NOW | pal::dynamicloading::DL_LOCAL);
+      backendPath.c_str(), pal::dynamicloading::DL_NOW | pal::dynamicloading::DL_GLOBAL);
   if (nullptr == libBackendHandle) {
     QNN_ERROR("Unable to load backend. pal::dynamicloading::dlError(): %s",
               pal::dynamicloading::dlError());
@@ -80,7 +80,6 @@ dynamicloadutil::StatusCode dynamicloadutil::getQnnFunctionPointers(
       break;
     }
   }
-  QNN_INFO("qnnFunctionPointers->qnnInterface %x\n", qnnFunctionPointers->qnnInterface);
   if (!foundValidInterface) {
     QNN_ERROR("Unable to find a valid interface.");
     libBackendHandle = nullptr;
