@@ -98,7 +98,7 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
     auto *qk = _Matmul(ctx, {q, k}, false, true, name + ".qk");
     qk = _Scale(ctx, {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
     qk = _Causalmask(ctx, {qk}, name + ".mask");
-    qk = _Softmax(ctx, {qk}, SEQUENCE, name + ".softmax");
+    qk = _Softmax(ctx, {qk}, DIMENSION, name + ".softmax");
     auto *o = _Matmul(ctx, {qk, v}, false, false, name + ".qkv");
     o = _View(ctx, {o}, {-1, -1, -1, -1}, {BATCH, -1, SEQUENCE, HEAD+DIMENSION}, name + ".qkv_view");
     o = _Linear(ctx, {o}, hidden_size * head_size, embedding_size, false, name + ".wo");

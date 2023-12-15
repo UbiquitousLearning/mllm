@@ -67,7 +67,7 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     auto &input = inputs[0];
     auto &output = outputs[0];
 
-    if (axis_ == SEQUENCE) {
+    if (axis_ == DIMENSION) {
         for (int n = 0; n < input->batch(); ++n) {
             #pragma omp parallel for num_threads(4)
             for (int h = 0; h < input->head(); ++h) {
