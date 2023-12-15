@@ -115,6 +115,47 @@ void UnigramTokenizer::tokenize(const std::string &text, std::vector<token_id_t>
     }
 }
 
+std::string UnigramTokenizer::detokenize(const std::vector<token_id_t> &tokens) {
+    int size = tokens.size();
+    std::string result;
+    for (int i = 0; i < size; i++) {
+        auto token_id = tokens[i];
+        if (token_id == TokenUnk) {
+            result += "<unk>";
+            continue;
+        }
+        if (token_id == TokenBos) {
+            continue;
+        }
+        if (token_id == TokenEos) {
+            if (i != size - 1) {
+                result += " ";
+            }
+        }
+        auto token  = this->id_token_[token_id].token;
+        if (token[0] == '<' && token[token.size() - 1] == '>') {
+            std::stringstream ss;
+            ss << std::hex << token.substr(3, token.size() - 4);
+            int n;
+            ss >> n;
+            result += static_cast<char>(n);
+            // replace ▁[wide char] with " "
+            //TODO:Fuyu only
+        } else if (token[0] == -30 && token[1] == -106 && token[2] == -127) {
+            if (i != size - 1) {
+                result += " ";
+            }
+            if (token.size() > 3) {
+                result += token.substr(3);
+            }
+        }else {
+            result += token;
+        }
+
+    }
+    return result;
+}
+
 void UnigramTokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) {
     this->tokenize(std::move(text), tokens, bos, true);
 }

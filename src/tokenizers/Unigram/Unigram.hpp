@@ -19,6 +19,8 @@ public:
     void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) override;
     explicit UnigramTokenizer(const std::string &vocab_file);
     void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, bool byte_fallback);
+    std::string detokenize(const std::vector<token_id_t> &tokens) override;
+
 };
 } // namespace mllm
 
