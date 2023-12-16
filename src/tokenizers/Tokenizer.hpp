@@ -28,17 +28,24 @@ protected:
     float min_score_ = 0.0;
     std::unordered_map<token_t, token_id_t> vocab_map_;
     std::vector<Token> id_token_;
+    string vocab_file_name_;
+#ifdef ANDROID_API
+    AAssetManager *asset_manager_;
+#endif
+
     bool load_vocab(const std::string &vocab_file);
 
 
 public:
-    virtual void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) = 0;
-    std::string detokenize(const std::vector<token_id_t> &tokens);
     explicit Tokenizer(const std::string &vocab_file);
+    virtual void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) = 0;
+    virtual std::string detokenize(const std::vector<token_id_t> &tokens);
     void setSpecialToken(const std::string &bos="", const std::string &eos="", const std::string &unk="", const std::string &nl="");
    static  std::string replaceString(const std::string &str,  char old_char,  const std::string& new_char);
     bool getTokenId(const token_t &token, token_id_t &id);
-
+#ifdef ANDROID_API
+    void setAssetManager(AAssetManager *asset_manager);
+#endif
 };
 
 } // namespace mllm
