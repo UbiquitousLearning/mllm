@@ -212,3 +212,20 @@ if(NNAPI)
     add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/examples/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER})
     target_link_libraries(nnapi_test MLLM_NNAPI)
 endif()
+
+if (APK)
+    add_library(mllm_lib STATIC ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER}
+            src/tokenizers/Tokenizer.cpp
+            src/tokenizers/Tokenizer.hpp
+            src/tokenizers/Unigram/Unigram.hpp
+            src/tokenizers/Unigram/Unigram.cpp
+            src/tokenizers/Unigram/trie.hpp
+            src/tokenizers/BPE/Bpe.cpp
+            src/tokenizers/BPE/Bpe.hpp
+            src/processor/FuyuPreProcess.hpp
+            src/processor/FuyuPreProcess.cpp
+            src/LibHelper.cpp
+            src/LibHelper.hpp
+    )
+
+endif ()

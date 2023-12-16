@@ -9,6 +9,9 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#ifdef ANDROID_API
+#include <android/asset_manager.h>
+#endif
 #include <iostream>
 namespace mllm {
 const static int VocabMagicNumber = 23333;
@@ -28,7 +31,7 @@ protected:
     float min_score_ = 0.0;
     std::unordered_map<token_t, token_id_t> vocab_map_;
     std::vector<Token> id_token_;
-    string vocab_file_name_;
+    std::string vocab_file_name_;
 #ifdef ANDROID_API
     AAssetManager *asset_manager_;
 #endif
