@@ -15,15 +15,23 @@
  * │      │      │     │        │      │      │       │
  * └──────┴──────┴─────┴────────┴──────┴──────┴───────┘
  */
+
 namespace mllm {
 bool Tokenizer::load_vocab(const std::string &vocab_file) {
+#ifdef ANDROID_API
+   auto *fp= AAssetManager_open(asset_manager_, vocab_file.c_str(), AASSET_MODE_RANDOM);
+#else
+
     FILE *fp = fopen(vocab_file.c_str(), "rb");
+#endif
+
     if (fp == nullptr) {
         std::cout << "open file failed" << std::endl;
         return false;
     }
     // Use a unique_ptr with a custom deleter to ensure the file is closed.
-    std::unique_ptr<FILE, decltype(&fclose)> fp_guard(fp, &fclose);
+
+    std::unique_ptr<mllm_file, decltype(&fclose)> fp_guard(fp, &fclose);
     fseek(fp, 0, SEEK_CUR);
     if (readInt(fp) != VocabMagicNumber) {
         std::cout << "magic number error" << std::endl;
@@ -75,9 +83,20 @@ bool Tokenizer::getTokenId(const token_t &token, token_id_t &id) {
     }
     return false;
 }
+#ifdef ANDROID_API
+void Tokenizer::setAssetManager(AAssetManager *asset_manager) {
+    asset_manager_ = asset_manager;
+    if(!load_vocab(vocab_file_name_)) exit(-1);
 
-Tokenizer::Tokenizer(const std::string &vocab_file) {
+
+}
+#endif
+Tokenizer::Tokenizer(const std::string &vocab_file):vocab_file_name_(vocab_file) {
+
+#ifndef ANDROID_API
     if(!load_vocab(vocab_file)) exit(-1);
+#endif
+
 }
 string Tokenizer::detokenize(const vector<token_id_t> &tokens) {
     //int size = tokens.size() - 1;
