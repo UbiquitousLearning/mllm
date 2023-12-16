@@ -22,6 +22,9 @@ file(GLOB MLLM_QNN_SRC
     ${CMAKE_CURRENT_LIST_DIR}/WrapperUtils/*.cpp
     ${CMAKE_CURRENT_LIST_DIR}/WrapperUtils/*.hpp
 
+    ${CMAKE_CURRENT_LIST_DIR}/Model/*.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/Model/*.hpp
+
     ${CMAKE_CURRENT_LIST_DIR}/op/*.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/*.hpp
     

@@ -10,6 +10,7 @@
 
 #include "Utils/IOTensor.hpp"
 #include "PAL/DynamicLoading.hpp"
+#include "QnnModel.hpp"
 #include "QNN.hpp"
 #include "Logger.hpp"
 
@@ -92,8 +93,14 @@ public:
     // unordered_map<OpType, Op*(*)(Backend*)> op_map_;
 
     // --------- temp dev functions to test QNNBackend
-    ErrorCode graphAddNode(Op op);
-    ErrorCode graphFinilize();
+    /**
+     create a GraphInfo containing graph handle, should be called at backend initialization
+     TODO: integrate with backend init
+    */
+    qnn_wrapper_api::QnnModel qnnModel;
+    int32_t graphInitialize();
+    qnn_wrapper_api::ModelError_t graphAddNode(Op op);
+    qnn_wrapper_api::ModelError_t graphFinilize();
     ErrorCode graphExecute();
     // ---------
     
@@ -175,6 +182,10 @@ public:
     sample_app::ProfilingLevel m_profilingLevel;
     bool m_dumpOutputs;
     qnn_wrapper_api::GraphInfo_t **m_graphsInfo;
+    // for mllm single graph execute
+    qnn_wrapper_api::GraphInfo_t graphInfo;
+
+    const QnnGraph_Config_t **graphConfigs = nullptr;
     uint32_t m_graphsCount;
     void *m_backendLibraryHandle;
     iotensor::IOTensor m_ioTensor;

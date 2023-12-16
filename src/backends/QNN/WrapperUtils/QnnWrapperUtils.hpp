@@ -115,6 +115,15 @@ typedef enum ModelError {
   MODEL_UNKNOWN_ERROR = 0x7FFFFFFF
 } ModelError_t;
 
+/**
+ * @brief Returns the error message associated with a given error code
+ *
+ * @param[in] modelError ModelError_t error code
+ *
+ * @return string message
+ */
+std::string getModelErrorName(ModelError_t modelError);
+
 typedef struct GraphInfo {
   Qnn_GraphHandle_t graph;
   char *graphName;
@@ -129,6 +138,40 @@ typedef struct GraphConfigInfo {
   char *graphName;
   const QnnGraph_Config_t **graphConfigs;
 } GraphConfigInfo_t;
+
+/**
+ * @brief Helper function to get Qnn GraphConfig structure from provided GraphConfigInfo using
+ * graphName.
+ *
+ * @param[in] graphName the Qnn graphName to use for lookup
+ *
+ * @param[in] graphsConfigInfo array of GraphConfig_t objects
+ *
+ * @param[in] numGraphsConfigInfo the number of array elements in graphConfigInfo
+ *
+ * @param[out] graphConfigs the result of query of graphName from graphsConfigInfo if successful.
+ *
+ * @return Error code
+ *
+ */
+ModelError_t getQnnGraphConfigFromInfo(const char *graphName,
+                                       const GraphConfigInfo_t **graphsConfigInfo,
+                                       const uint32_t numGraphsConfigInfo,
+                                       const QnnGraph_Config_t **&graphConfigs);
+
+/**
+ * @brief Deep Copies QnnTensor_t structs to a pointer array destination location.
+ *        Note: The copy will be stored on the heap and as such requires caller to make
+ *        appropriate free call(s) using function below.
+ *        Note 2: deepCopy is only done for metadata
+ *
+ * @param[in] source tensor object to copy from
+ *
+ * @param[in] destination tensor object to copy to
+ *
+ * @return Error code
+ */
+ModelError_t deepCopyQnnTensors(Qnn_Tensor_t &source, Qnn_Tensor_t &destination);
 
 /**
  * @brief Frees all memory allocated tensor attributes.
@@ -151,16 +194,6 @@ ModelError_t freeQnnTensor(Qnn_Tensor_t &tensor);
  */
 ModelError_t freeQnnTensors(Qnn_Tensor_t *&tensors, uint32_t numTensors);
 
-/**
- * @brief A helper function to free memory malloced for communicating the Graph for a model(s)
- *
- * @param[in] graphsInfo Pointer pointing to location of graph objects
- *
- * @param[in] numGraphs The number of graph objects the above pointer is pointing to
- *
- * @return Error code
- *
- */
-ModelError_t freeGraphsInfo(GraphInfoPtr_t **graphsInfo, uint32_t numGraphs);
+size_t memscpy(void *dst, size_t dstSize, const void *src, size_t copySize);
 
 }  // namespace qnn_wrapper_api

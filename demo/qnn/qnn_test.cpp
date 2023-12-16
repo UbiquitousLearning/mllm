@@ -27,17 +27,23 @@ int main() {
     }
 
     QNNBackend *qbn = new QNNBackend(mm);
-    qbn->init();
+
+    // qbn->init(); // TODO: use part of the init function to create a graph handle
     // backend init and create a graph handle
-    qbn->m_qnnFunctionPointers->qnnInterface
-        // create an Add op for test
-        shared_ptr<Op>
-            add = std::make_shared<QNNAdd>(qbn, "add");
+    std::cout << "backend init" << std::endl;
+    qbn->graphInitialize();
+    // create an Add op for test
+    std::cout << "create an Add op for test" << std::endl;
+    Op add = QNNAdd(qbn, "add");
     // build graph
-
+    std::cout << "build graph" << std::endl;
+    qbn->graphAddNode(add);
     // graph compile
-
+    std::cout << "graph compile" << std::endl;
+    qbn->graphFinilize();
     // graph run
+    std::cout << "graph run" << std::endl;
+    qbn->graphExecute();
 
     qbn->release();
     delete  qbn;

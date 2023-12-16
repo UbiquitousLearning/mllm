@@ -17,12 +17,14 @@
 #include "QnnSampleAppUtils.hpp"
 #include "QnnWrapperUtils.hpp"
 #include "DynamicLoadUtil.hpp"
+#include "Types.hpp"
 
 using namespace qnn;
 using namespace qnn::tools;
 using namespace qnn::tools::sample_app;
 
-
+// Flag to determine if Backend should node validation for each opNode added
+#define DO_GRAPH_NODE_VALIDATIONS 1
 
 namespace mllm {
 
@@ -94,12 +96,12 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     // Command line parsing loop
     int longIndex = 0;
     int opt       = 0;
-    std::string modelPath = "/mllm/qualcomm_ai_engine_direct_new/examples/QNN/example_libs/x86_64-linux-clang/libqnn_model_float.so";
-    std::string backEndPath = "/mllm/qualcomm_ai_engine_direct_new/lib/x86_64-linux-clang/libQnnCpu.so";
-    std::string inputListPaths = "/mllm/qualcomm_ai_engine_direct_new/examples/QNN/converter/models/input_list_float.txt";
-    bool debug =  false;
+    std::string modelPath = "/qnn-projects/QNN-test-libs/example_libs/x86_64-linux-clang/libqnn_model_float.so";
+    std::string backEndPath = "/qnn-projects/QNN-test-libs/libQnnCpu.so";
+    std::string inputListPaths = "/qnn-projects/QNN-test-libs/input_list_float.txt";
+    bool debug =  true;
     std::string outputPath;
-    std::string opPackagePaths = "/mllm/qualcomm_ai_engine_direct_new/examples/QNN/OpPackage/CPU/libs/x86_64-linux-clang/libQnnCpuOpPackageExample.so:QnnOpPackage_interfaceProvider";
+    std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnCpuOpPackageExample.so:QnnOpPackage_interfaceProvider";
     iotensor::OutputDataType parsedOutputDataType   = iotensor::OutputDataType::FLOAT_ONLY;
     iotensor::InputDataType parsedInputDataType     = iotensor::InputDataType::FLOAT;
     sample_app::ProfilingLevel parsedProfilingLevel = ProfilingLevel::OFF;
@@ -288,18 +290,167 @@ std::string QNNBackend::getBackendBuildId() {
 }
 
 // --------- temp dev functions to test QNNBackend
-ErrorCode graphAddNode(Op op){
-    this->m_qnnFunctionPointers.qnnInterface.graphAddNode(); 
-    return NO_ERROR;
+int32_t QNNBackend::graphInitialize() {
+    QNN_INFO("qnn-sample-app build version: %s", getBuildId().c_str());
+    QNN_INFO("Backend        build version: %s", getBackendBuildId().c_str());
+
+    if (StatusCode::SUCCESS != this->initialize()) {
+        return this->reportError("Initialization failure");
+    }
+
+    if (StatusCode::SUCCESS != this->initializeBackend()) {
+        return this->reportError("Backend Initialization failure");
+    }
+
+    auto devicePropertySupportStatus = this->isDevicePropertySupported();
+    if (StatusCode::FAILURE != devicePropertySupportStatus) {
+        auto createDeviceStatus = this->createDevice();
+        if (StatusCode::SUCCESS != createDeviceStatus) {
+            return this->reportError("Device Creation failure");
+        }
+    }
+
+    if (StatusCode::SUCCESS != this->initializeProfiling()) {
+        return this->reportError("Profiling Initialization failure");
+    }
+
+    if (StatusCode::SUCCESS != this->registerOpPackages()) {
+        return this->reportError("Register Op Packages failure");
+    }
+
+    if (StatusCode::SUCCESS != this->createContext()) {
+        return this->reportError("Context Creation failure");
+    }
+    
+    // initialize graph info, set graph info, graph count
+    // acting the same as composeGraphs
+    const QnnGraph_Config_t **graphConfigs = nullptr;
+    qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::MODEL_NO_ERROR;
+    VALIDATE(qnn_wrapper_api::getQnnGraphConfigFromInfo(
+                 "convReluModel", (const qnn_wrapper_api::GraphConfigInfo_t **)m_graphConfigsInfo, 1, graphConfigs),
+             err);
+    VALIDATE(qnnModel.initialize(m_backendHandle,
+                                      m_qnnFunctionPointers.qnnInterface,
+                                      m_context,
+                                      "mllmQnnModel",
+                                      m_debug,
+                                      DO_GRAPH_NODE_VALIDATIONS,
+                                      graphConfigs),
+             err);
+    // TODO: err should not be converted to int32_t directly
+    return 0;
 }
 
-ErrorCode graphFinilize(){
-    m_qnnFunctionPointers.qnnInterface.graphFinalize((*m_graphsInfo)[graphIdx].graph, m_profileBackendHandle, nullptr));
-    return NO_ERROR;
+qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(Op op) {
+  // sample add node function
+    qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
+    const char *inputs_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu[] = {
+        "InceptionV3_InceptionV3_Conv2d_1a_3x3_BatchNorm_FusedBatchNorm_0"};
+    uint32_t dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu_0[] = {1, 149, 149, 32};
+    Qnn_Tensor_t outputs_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu[] = {(Qnn_Tensor_t){
+        .version = QNN_TENSOR_VERSION_1,
+        .v1 = {
+            .id = 0,
+            .name = "InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu_0",
+            .type = QNN_TENSOR_TYPE_APP_READ,
+            .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+            .dataType = QNN_DATATYPE_FLOAT_32,
+            .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                               QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                               {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+            .rank = 4,
+            .dimensions = dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu_0,
+            .memType = QNN_TENSORMEMTYPE_RAW,
+            .clientBuf = {.data = nullptr, .dataSize = 0}}}};
+    VALIDATE(qnnModel.addNode(
+                 QNN_OPCONFIG_VERSION_1,                             // Op_Config_t Version
+                 "InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu",       // Node Name
+                 "qti.aisw",                                         // Package Name
+                 "Relu",                                             // Qnn Node Type
+                 nullptr,                                            // Node Params
+                 0,                                                  // Num Node Params
+                 inputs_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu,  // Input Tensor Names
+                 1,                                                  // Num Input Tensor Names
+                 outputs_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu, // Output Tensors
+                 1                                                   // Num Output Tensors
+                 ),
+             err);
+    return err;
 }
 
-ErrorCode graphExecute(){
-    this->executeGraphs();
+qnn_wrapper_api::ModelError_t QNNBackend::graphFinilize() {
+    // Add all models to array to get graphsInfo
+    qnn_wrapper_api::QnnModel *models[] = {&qnnModel};
+    uint32_t numModels = 1;
+    // Populate the constructed graphs in provided output variables
+    qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::MODEL_NO_ERROR;
+    VALIDATE(getGraphInfoFromModels(*models, numModels, &m_graphsInfo), err);
+
+    return qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
+}
+
+ErrorCode QNNBackend::graphExecute() {
+    // TODO: execute graphInfo
+    auto returnStatus = StatusCode::SUCCESS;
+    for (size_t graphIdx = 0; graphIdx < m_graphsCount; graphIdx++) {
+        QNN_DEBUG("Starting execution for graphIdx: %d", graphIdx);
+        if (graphIdx >= m_inputFileLists.size()) {
+            QNN_ERROR("No Inputs available for: %d", graphIdx);
+            returnStatus = StatusCode::FAILURE;
+            break;
+        }
+        Qnn_Tensor_t *inputs = nullptr;
+        Qnn_Tensor_t *outputs = nullptr;
+        if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&inputs, &outputs, (*m_graphsInfo)[graphIdx])) {
+            QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
+            returnStatus = StatusCode::FAILURE;
+            break;
+        }
+        auto inputFileList = m_inputFileLists[graphIdx];
+        auto graphInfo = (*m_graphsInfo)[graphIdx];
+        if (!inputFileList.empty()) {
+            size_t totalCount = inputFileList[0].size();
+            while (!inputFileList[0].empty()) {
+                size_t startIdx = (totalCount - inputFileList[0].size());
+                if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(graphIdx, inputFileList, inputs, graphInfo, m_inputDataType)) {
+                    returnStatus = StatusCode::FAILURE;
+                }
+                if (StatusCode::SUCCESS == returnStatus) {
+                    QNN_DEBUG("Successfully populated input tensors for graphIdx: %d", graphIdx);
+                    Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
+                    executeStatus =
+                        m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
+                                                                        inputs,
+                                                                        graphInfo.numInputTensors,
+                                                                        outputs,
+                                                                        graphInfo.numOutputTensors,
+                                                                        m_profileBackendHandle,
+                                                                        nullptr);
+                    if (QNN_GRAPH_NO_ERROR != executeStatus) {
+                        returnStatus = StatusCode::FAILURE;
+                    }
+                    if (StatusCode::SUCCESS == returnStatus) {
+                        QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
+                        if (iotensor::StatusCode::SUCCESS != m_ioTensor.writeOutputTensors(graphIdx, startIdx, graphInfo.graphName, outputs, graphInfo.numOutputTensors, m_outputDataType, m_graphsCount, m_outputPath)) {
+                            returnStatus = StatusCode::FAILURE;
+                        }
+                    }
+                }
+                if (StatusCode::SUCCESS != returnStatus) {
+                    QNN_ERROR("Execution of Graph: %d failed!", graphIdx);
+                    break;
+                }
+            }
+        }
+        m_ioTensor.tearDownInputAndOutputTensors(
+            inputs, outputs, graphInfo.numInputTensors, graphInfo.numOutputTensors);
+        inputs = nullptr;
+        outputs = nullptr;
+        if (StatusCode::SUCCESS != returnStatus) {
+            break;
+        }
+        return NO_ERROR;
+    }
     return NO_ERROR;
 }
 // ---------
