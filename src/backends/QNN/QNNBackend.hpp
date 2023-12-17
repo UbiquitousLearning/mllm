@@ -100,8 +100,8 @@ public:
     qnn_wrapper_api::QnnModel qnnModel;
     int32_t graphInitialize();
     qnn_wrapper_api::ModelError_t graphAddNode(string name, string nodeType,
-                                               std::vector<Qnn_Tensor_t *> inputTensors, std::vector<Qnn_Tensor_t *> outputTensors, 
-                                               string packageName = "qti.aisw");
+                                               std::vector<const char *> inputTensorNames, std::vector<Qnn_Tensor_t> outputTensors, 
+                                               string packageName);
     qnn_wrapper_api::ModelError_t graphFinilize();
     ErrorCode graphExecute();
     // ---------

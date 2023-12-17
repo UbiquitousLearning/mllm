@@ -342,40 +342,21 @@ int32_t QNNBackend::graphInitialize() {
 
 qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
                                                        string nodeType,
-                                                       std::vector<Qnn_Tensor_t *> inputTensors,
-                                                       std::vector<Qnn_Tensor_t *> outputTensors,
+                                                       std::vector<const char *> inputTensorNames,
+                                                       std::vector<Qnn_Tensor_t> outputTensors,
                                                        string packageName) {
-    // sample add node function
     qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
-    const char *inputs_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu[] = {
-        "InceptionV3_InceptionV3_Conv2d_1a_3x3_BatchNorm_FusedBatchNorm_0"};
-    uint32_t dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu_0[] = {1, 149, 149, 32};
-    Qnn_Tensor_t outputs_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu[] = {(Qnn_Tensor_t){
-        .version = QNN_TENSOR_VERSION_1,
-        .v1 = {
-            .id = 0,
-            .name = "InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu_0",
-            .type = QNN_TENSOR_TYPE_APP_READ,
-            .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-            .dataType = QNN_DATATYPE_FLOAT_32,
-            .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                               QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                               {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-            .rank = 4,
-            .dimensions = dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu_0,
-            .memType = QNN_TENSORMEMTYPE_RAW,
-            .clientBuf = {.data = nullptr, .dataSize = 0}}}};
     VALIDATE(qnnModel.addNode(
-                 QNN_OPCONFIG_VERSION_1,                             // Op_Config_t Version
-                 name.c_str(),       // Node Name
-                 packageName.c_str(),                                        // Package Name
-                 "Relu",                                             // Qnn Node Type
-                 nullptr,                                            // Node Params
-                 0,                                                  // Num Node Params
-                 inputs_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu,  // Input Tensor Names
-                 1,                                                  // Num Input Tensor Names
-                 outputs_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu, // Output Tensors
-                 1                                                   // Num Output Tensors
+                 QNN_OPCONFIG_VERSION_1,  // Op_Config_t Version
+                 name.c_str(),            // Node Name
+                 packageName.c_str(),     // Package Name
+                 nodeType.c_str(),        // Qnn Node Type
+                 nullptr,                 // Node Params
+                 0,                       // Num Node Params
+                 inputTensorNames.data(), // Input Tensor Names
+                 inputTensorNames.size(), // Num Input Tensor Names
+                 outputTensors.data(),    // Output Tensors
+                 outputTensors.size()     // Num Output Tensors
                  ),
              err);
     return err;

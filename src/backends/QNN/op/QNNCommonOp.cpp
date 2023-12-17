@@ -31,7 +31,30 @@ ErrorCode QNNCommonOp::load(AbstructLoader &loader) {
 }
 
 ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, string packageName) {
-    if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputs, outputs)) {
+    vector<const char *> inputTensorNames;
+    for (auto input : inputs) {
+        inputTensorNames.push_back(input->name().c_str());
+    }
+    vector<Qnn_Tensor_t> outputTensors;
+    // TODO: convert tensors to Qnn_Tensor_t like below
+    uint32_t dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu_0[] = {1, 149, 149, 32};
+    Qnn_Tensor_t outputs_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu[] = {(Qnn_Tensor_t){
+        .version = QNN_TENSOR_VERSION_1,
+        .v1 = {
+            .id = 0,
+            .name = "InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu_0",
+            .type = QNN_TENSOR_TYPE_APP_READ,
+            .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+            .dataType = QNN_DATATYPE_FLOAT_32,
+            .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                               QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                               {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+            .rank = 4,
+            .dimensions = dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu_0,
+            .memType = QNN_TENSORMEMTYPE_RAW,
+            .clientBuf = {.data = nullptr, .dataSize = 0}}}};
+
+    if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputTensors, packageName)) {
         return ErrorCode::INVALID_VALUE;
     }
     return NO_ERROR;
