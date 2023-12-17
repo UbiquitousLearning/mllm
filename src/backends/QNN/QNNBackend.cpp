@@ -340,8 +340,12 @@ int32_t QNNBackend::graphInitialize() {
     return 0;
 }
 
-qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(Op op) {
-  // sample add node function
+qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
+                                                       string nodeType,
+                                                       std::vector<Qnn_Tensor_t *> inputTensors,
+                                                       std::vector<Qnn_Tensor_t *> outputTensors,
+                                                       string packageName) {
+    // sample add node function
     qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
     const char *inputs_InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu[] = {
         "InceptionV3_InceptionV3_Conv2d_1a_3x3_BatchNorm_FusedBatchNorm_0"};
@@ -363,8 +367,8 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(Op op) {
             .clientBuf = {.data = nullptr, .dataSize = 0}}}};
     VALIDATE(qnnModel.addNode(
                  QNN_OPCONFIG_VERSION_1,                             // Op_Config_t Version
-                 "InceptionV3_InceptionV3_Conv2d_1a_3x3_Relu",       // Node Name
-                 "qti.aisw",                                         // Package Name
+                 name.c_str(),       // Node Name
+                 packageName.c_str(),                                        // Package Name
                  "Relu",                                             // Qnn Node Type
                  nullptr,                                            // Node Params
                  0,                                                  // Num Node Params

@@ -24,6 +24,7 @@
 
 using namespace qnn;
 using namespace qnn::tools;
+using namespace qnn_wrapper_api;
 
 void sample_app::split(std::vector<std::string> &splitString,
                        const std::string &tokenizedString,

@@ -1,9 +1,10 @@
 #include "QNNAdd.hpp"
 #include "Types.hpp"
+#include "QNNCommonOp.hpp"
 
 namespace mllm {
 QNNAdd::QNNAdd(Backend *bn, string opName) :
-    Op(bn, opName) {
+    QNNCommonOp(bn, opName) {
 }
 
 ErrorCode QNNAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -23,8 +24,9 @@ ErrorCode QNNAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
 }
 
 ErrorCode QNNAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // tensor set up
     // graph add node
+    // TODO: check if name_ is set in Op
+    return graphAddNode(name(), "Add", inputs, outputs);
     return NO_ERROR;
 }
 } // namespace mllm

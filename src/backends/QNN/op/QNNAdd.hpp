@@ -1,9 +1,9 @@
 #ifndef MLLM_QNNADD_H
 #define MLLM_QNNADD_H
 
-#include "Op.hpp"
+#include "QNNCommonOp.hpp"
 namespace mllm {
-class QNNAdd : public Op {
+class QNNAdd : public QNNCommonOp {
 public:
     QNNAdd(Backend *bn, string opName);
     virtual ~QNNAdd() = default;

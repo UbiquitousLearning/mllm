@@ -21,6 +21,7 @@
 
 using namespace qnn;
 using namespace qnn::tools;
+using namespace qnn_wrapper_api;
 
 // Helper method to read data from files to a buffer.
 iotensor::StatusCode iotensor::IOTensor::readDataAndAllocateBuffer(

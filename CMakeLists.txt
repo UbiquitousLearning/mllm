@@ -194,6 +194,8 @@ if(QNN)
     include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/Utils)
     include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/WrapperUtils)
     include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/QNN)
+    include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/Model)
+    include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN)
 
     
 
