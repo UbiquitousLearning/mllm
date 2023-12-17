@@ -281,7 +281,6 @@ int32_t QNNBackend::r_init() {
 
 std::string QNNBackend::getBackendBuildId() {
   char* backendBuildId{nullptr};
-  QNN_INFO("m_qnnFunctionPointers.qnnInterface.backendGetBuildId %x\n", m_qnnFunctionPointers.qnnInterface.backendGetBuildId);
   if (QNN_SUCCESS !=
       m_qnnFunctionPointers.qnnInterface.backendGetBuildId((const char**)&backendBuildId)) {
     QNN_ERROR("Unable to get build Id from the backend.");
