@@ -8,7 +8,6 @@
 #include <iostream>
 #include "Tensor.hpp"
 #include "Types.hpp"
-#define mllm_file FILE
 #ifdef ANDROID_API
 #include <android/asset_manager.h>
 #define fseek AAsset_seek64
@@ -16,6 +15,8 @@
 #define mllm_file AAsset
 #define fread(buffer, size, count, fp) AAsset_read(fp, buffer, size * count)
 #define ftell(fp) AAsset_getLength64(fp) - AAsset_getRemainingLength64(fp)
+#else
+#define mllm_file FILE
 #endif
 
 namespace mllm {
