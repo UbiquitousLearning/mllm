@@ -146,4 +146,13 @@ void LibHelper::run(const std::string& input_str,unsigned int max_step) const {
         callback_(out_string,step==max_step-1);
     }
 }
+
+LibHelper::~LibHelper() {
+
+        delete c;
+        delete net_;
+        delete executor_;
+        delete tokenizer_;
+
+}
 #endif

@@ -39,9 +39,10 @@ class LibHelper {
     Tokenizer *tokenizer_;
 public:
     explicit LibHelper(AAssetManager* asset_manager,std::string weights_path,std::string vacab_path);
-    void setUp(PreDefinedModel model,MLLMBackendType backend_type);
+    void setUp(PreDefinedModel model,MLLMBackendType backend_type=MLLMBackendType::CPU);
     void setCallback(callback_t callback);
     void run(const std::string& input_str,unsigned int max_step) const;
+    ~LibHelper();
 };
 
 } // mllm
