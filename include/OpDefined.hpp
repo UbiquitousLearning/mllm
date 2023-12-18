@@ -27,6 +27,7 @@ enum OpType {
     LAYERNORM,
     SPLIT,
     GATHER,
+    CONVOLUTION2D,
     OP_NUM
 };
 
@@ -50,6 +51,7 @@ static const vector<string> OpNames = {
     "LayerNorm",
     "Split",
     "Gqther",
+    "Convolution2D",
     "OP_NUM"};
 } // namespace mllm
 #endif

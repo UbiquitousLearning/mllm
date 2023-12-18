@@ -36,6 +36,7 @@ NetTensor *_ReLUSquaredActivation(Context *ctx, std::vector<NetTensor *> inputs,
 NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs,bool bias= true, string name = "");
 vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int split_num, Chl split_dim, int split_dim_size = -1, string name = "");
 NetTensor *_Gather(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_Convolution2D(Context *ctx, std::vector<NetTensor *> inputs,  int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, string name = "");
 // NOLINTEND(readability-identifier-naming)
 
 /*

@@ -17,6 +17,7 @@
 #include "CPUSplit.hpp"
 #include "CPULayerNorm.hpp"
 #include "CPUGather.hpp"
+#include "CPUConvolution2D.hpp"
 
 
 #include <math.h>
@@ -67,6 +68,7 @@ void CPUBackend::registerOps() {
     addCreator(LAYERNORM, (CPUBackend::Creator *)(new CPULayerNormCreator()));
     addCreator(SPLIT, (CPUBackend::Creator *)(new CPUSplitCreator()));
     addCreator(GATHER, (CPUBackend::Creator *)(new CPUGatherCreator()));
+    addCreator(CONVOLUTION2D, (CPUBackend::Creator *)(new CPUConvolution2DCreator()));
 }
 
 } // namespace mllm

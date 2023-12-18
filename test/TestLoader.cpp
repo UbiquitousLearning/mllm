@@ -32,6 +32,13 @@ TestLoader::TestLoader(string filename) :
         index->name = name;
         index->type = type;
         index->dims = shape;
+        std::size_t found = filename.find("CPUConvolution2D");
+        if(found != std::string::npos & name == "input0") {
+            index->dims = {shape[0], shape[2], shape[1], shape[3]};
+        }
+        else if(found != std::string::npos & name == "output") {
+                index->dims = {shape[0], shape[2], shape[1], shape[3]};
+            }
         index->len = length;
         index->offset = ftell(fp_);
         tensor_map_[name] = index;
