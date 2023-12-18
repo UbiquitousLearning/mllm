@@ -1,7 +1,7 @@
 //
 // Created by 咸的鱼 on 2023/12/16.
 //
-
+#ifdef ANDROID_API
 #include "LibHelper.hpp"
 #include <iostream>
 #include <Types.hpp>
@@ -132,7 +132,7 @@ void LibHelper::setCallback(callback_t callback) {
 void LibHelper::run(const std::string& input_str,unsigned int max_step) const {
     auto tokens_id = vector<token_id_t>();
     tokenizer_->tokenize(input_str, tokens_id, true);
-
+    auto out_string = input_str;
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
     token2Tensor(input, *net_, tokens_id);
 
@@ -142,6 +142,8 @@ void LibHelper::run(const std::string& input_str,unsigned int max_step) const {
         auto result = executor_->result();
         auto token_idx = postProcessing(result[0], input);
         const auto out_token = tokenizer_-> detokenize({token_idx});
-        callback_(out_token,step==max_step-1);
+        out_string += out_token;
+        callback_(out_string,step==max_step-1);
     }
 }
+#endif

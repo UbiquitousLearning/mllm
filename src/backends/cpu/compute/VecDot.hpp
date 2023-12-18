@@ -93,7 +93,7 @@
         }                                                         \
         const float32x4_t t0 = vcvt_f32_f16(vget_low_f16 (x[0])); \
         const float32x4_t t1 = vcvt_f32_f16(vget_high_f16(x[0])); \
-        res = (MLLM_float) vaddvq_f32(vaddq_f32(t0, t1));         \
+        res = (float) vaddvq_f32(vaddq_f32(t0, t1));         \
     }
 
 #define MLLM_F16_VEC                MLLM_F16x8
