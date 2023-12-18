@@ -3,6 +3,7 @@
 
 #include "Backend.hpp"
 #include "Op.hpp"
+#include "OpDefined.hpp"
 #include "Types.hpp"
 #include "MemoryManager.hpp"
 #include "NetParameter.hpp"
@@ -75,11 +76,17 @@ public:
     // virtual Op* OpCreate(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
     //                             OpParam op_param) = 0;
     Op *opCreate(const OpParam &op_param, string name="") {
-
+        OpType optype = OpType(op_param.find("type")->second);
+        auto iter = map_creator_.find(optype);
+        if (iter == map_creator_.end()) {
+            printf("Don't support type \n");
+            return nullptr;
+        }
+        Op *exe = nullptr;
+        exe = iter->second->create(op_param, this, name);
+        return exe;
     }
-    void registerOps() {
-
-    }
+    void registerOps();
     // virtual void* OpCreater(OpParam op_param);
 
 
@@ -103,6 +110,7 @@ public:
                                                std::vector<const char *> inputTensorNames, std::vector<Qnn_Tensor_t> outputTensors, 
                                                string packageName);
     qnn_wrapper_api::ModelError_t graphFinilize();
+    qnn_wrapper_api::ModelError_t modelAddTensor(const char *nodeName, Qnn_Tensor_t tensor);
     ErrorCode graphExecute();
     // ---------
     
@@ -167,6 +175,19 @@ public:
 
     static const std::string s_defaultOutputPath;
 
+    class Creator {
+    public:
+        virtual Op *create(OpParam op_param, Backend *bn, string name) const = 0;
+    };
+    bool addCreator(OpType t, Creator *c) {
+        if (map_creator_.find(t) != map_creator_.end()) {
+            printf("Error: %d type has be added\n", t);
+            return false;
+        }
+        map_creator_.insert(std::make_pair(t, c));
+        return true;
+    }
+    std::map<OpType, QNNBackend::Creator *> map_creator_;
 
     sample_app::QnnFunctionPointers m_qnnFunctionPointers;
     std::vector<std::string> m_inputListPaths;

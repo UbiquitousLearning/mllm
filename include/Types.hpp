@@ -7,7 +7,8 @@
 typedef enum {
     MLLM_CPU,
     MLLM_OPENCL,
-    MLLM_NNAPI
+    MLLM_NNAPI,
+    MLLM_QNN
 } BackendType;
 
 enum ErrorCode {
