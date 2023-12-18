@@ -227,5 +227,6 @@ if (APK)
             src/LibHelper.cpp
             src/LibHelper.hpp
     )
+    target_link_libraries(mllm_lib MLLM_CPU)
 
 endif ()
