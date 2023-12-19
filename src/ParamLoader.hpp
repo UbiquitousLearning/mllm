@@ -9,7 +9,7 @@
 #include "Tensor.hpp"
 #include "Types.hpp"
 #define mllm_file FILE
-#ifdef ANDROID_API
+// #ifdef ANDROID_API
 // #include <android/asset_manager.h>
 // #define fseek AAsset_seek64
 // #define fclose AAsset_close
@@ -83,7 +83,7 @@ public:
 // void setAssetManager(AAssetManager *asset_manager) {
 //     asset_manager_ = asset_manager;
 // };
-#endif
+// #endif
 
 
 private:
