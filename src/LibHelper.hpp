@@ -32,14 +32,14 @@ enum MLLMBackendType {
 typedef  std::function<void(std::string,bool)> callback_t;
 class LibHelper {
     Context *c=nullptr;
-    AAssetManager* asset_manager_;
+    // AAssetManager* asset_manager_;
     Net *net_;
     Executor *executor_;
     callback_t callback_ = [](std::string,bool){};
     Tokenizer *tokenizer_;
 public:
-    explicit LibHelper(AAssetManager* asset_manager,std::string weights_path,std::string vacab_path);
-    void setUp(PreDefinedModel model,MLLMBackendType backend_type=MLLMBackendType::CPU);
+    explicit LibHelper(const std::string& base_path,std::string weights_path,std::string vacab_path,PreDefinedModel model,MLLMBackendType backend_type=MLLMBackendType::CPU);
+    // void setUp();
     void setCallback(callback_t callback);
     void run(const std::string& input_str,unsigned int max_step) const;
     ~LibHelper();
