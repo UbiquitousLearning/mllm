@@ -1,6 +1,6 @@
 
 #include "CPUConvolution2D.hpp"
-#include "compute/Convolution2D.hpp"
+#include "compute/Convolution.hpp"
 
 namespace mllm {
 

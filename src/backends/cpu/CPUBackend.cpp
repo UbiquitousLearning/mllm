@@ -18,6 +18,8 @@
 #include "CPULayerNorm.hpp"
 #include "CPUGather.hpp"
 #include "CPUConvolution2D.hpp"
+#include "CPUAvgPool2D.hpp"
+#include "CPUMaxPool2D.hpp"
 
 
 #include <math.h>
@@ -69,6 +71,8 @@ void CPUBackend::registerOps() {
     addCreator(SPLIT, (CPUBackend::Creator *)(new CPUSplitCreator()));
     addCreator(GATHER, (CPUBackend::Creator *)(new CPUGatherCreator()));
     addCreator(CONVOLUTION2D, (CPUBackend::Creator *)(new CPUConvolution2DCreator()));
+    addCreator(AVGPOOL2D, (CPUBackend::Creator *)(new CPUAvgPoolCreator()));
+    addCreator(MAXPOOL2D, (CPUBackend::Creator *)(new CPUMaxPoolCreator()));
 }
 
 } // namespace mllm

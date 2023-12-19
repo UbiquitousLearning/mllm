@@ -2,8 +2,7 @@
 // Created by ey on 23-12-18.
 //
 
-#include "Convolution2D.hpp"
-
+#include "Convolution.hpp"
 
 void conv2d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_h, int stride_w) {
     int in_height = input->head();

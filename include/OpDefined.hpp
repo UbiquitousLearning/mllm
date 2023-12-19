@@ -28,6 +28,8 @@ enum OpType {
     SPLIT,
     GATHER,
     CONVOLUTION2D,
+    AVGPOOL2D,
+    MAXPOOL2D,
     OP_NUM
 };
 
@@ -52,6 +54,8 @@ static const vector<string> OpNames = {
     "Split",
     "Gqther",
     "Convolution2D",
+    "AvgPool2D",
+    "MaxPool2D",
     "OP_NUM"};
 } // namespace mllm
 #endif
