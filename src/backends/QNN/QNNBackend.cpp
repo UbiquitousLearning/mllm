@@ -408,6 +408,15 @@ StatusCode QNNBackend::initialize() {
   if (!readSuccess) {
     exitWithMessage("Could not read input lists", EXIT_FAILURE);
   }
+  // print m_inputFileLists
+  for (auto const& inputFileList : m_inputFileLists) {
+    std::cout << "inputFileList: " << inputFileList.size() << std::endl;
+    for(auto& inputFile : inputFileList) {
+      std::cout << "inputFile: " << inputFile.size() << std::endl;
+      std::cout << "inputFile: " << inputFile.front() << std::endl;
+      std::cout << "--------------" << std::endl;
+    }
+  }
   // initialize logging in the backend
   if (log::isLogInitialized()) {
     auto logCallback = log::getLogCallback();
