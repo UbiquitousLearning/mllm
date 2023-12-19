@@ -4,7 +4,7 @@
 
 namespace mllm {
 
-CPUConvolution2D::CPUConvolution2D(Backend *bn, string opName, int in_channel, int out_channel,  vector<int> kernal_size, vector<int> stride, PaddingType padding_type, bool multiThread) :
+CPUConvolution2D::CPUConvolution2D(Backend *bn, string opName, int in_channel, int out_channel,  vector<int> kernal_size, vector<int> stride, PaddingType padding_type, bool bias, bool multiThread) :
 Op(bn, opName) {
     kernel_size_[0] = kernal_size[0];
     kernel_size_[1] = kernal_size[1];
@@ -13,7 +13,9 @@ Op(bn, opName) {
     in_channel_ = in_channel;
     out_channel_ = out_channel;
     padding_type_ = padding_type;
+    support_bias_ = bias;
     weight_.setBackend(bn);
+    bias_.setBackend(bn);
 }
 
 ErrorCode CPUConvolution2D::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -55,6 +57,18 @@ ErrorCode CPUConvolution2D::load(AbstructLoader &loader) {
         weight_.setDtype(MLLM_TYPE_F32);
         weight_.alloc();
     }
+    if (support_bias_) {
+        bias_.setName(name() + ".bias");
+        bias_.reshape(1, 1, 1, out_channel_);
+        if (&loader != nullptr) {
+            bias_.setDtype(loader.getDataType(bias_.name()));
+            bias_.alloc();
+            loader.load(&bias_);
+        } else {
+            bias_.setDtype(MLLM_TYPE_F32);
+            bias_.alloc();
+        }
+    }
     return Op::load(loader);
 }
 
@@ -62,11 +76,11 @@ ErrorCode CPUConvolution2D::execute(vector<shared_ptr<Tensor>> inputs, vector<sh
     // std::cout<<name() << "  CPUConvolution2D()" << std::endl;
     switch (padding_type_) {
     case SAME:{
-        conv2d_fp32_SAME(inputs[0].get(), outputs[0].get(), &weight_, stride_[0], stride_[1], padding_h_, padding_w_);
+        conv2d_fp32_SAME(inputs[0].get(), outputs[0].get(), &weight_, support_bias_, &bias_, stride_[0], stride_[1], padding_h_, padding_w_);
         break;
     }
     case VALID: {
-        conv2d_fp32_VALID(inputs[0].get(), outputs[0].get(), &weight_, stride_[0], stride_[1]);
+        conv2d_fp32_VALID(inputs[0].get(), outputs[0].get(), &weight_, support_bias_, &bias_,stride_[0], stride_[1]);
         break;
     }
     }

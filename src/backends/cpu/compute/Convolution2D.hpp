@@ -10,7 +10,7 @@
 #include "VecDot.hpp"
 using namespace mllm;
 
-void conv2d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, int stride_h, int stride_w);
-void conv2d_fp32_SAME(Tensor* input, Tensor* output, Tensor* kernel, int stride_h, int stride_w, int padding_h, int padding_w);
+void conv2d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_h, int stride_w);
+void conv2d_fp32_SAME(Tensor* input, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_h, int stride_w, int padding_h, int padding_w);
 
 #endif //CONVOLUTION2D_HPP

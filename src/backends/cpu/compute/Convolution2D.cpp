@@ -5,7 +5,7 @@
 #include "Convolution2D.hpp"
 
 
-void conv2d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, int stride_h, int stride_w) {
+void conv2d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_h, int stride_w) {
     int in_height = input->head();
     int in_width = input->dimension();
     int in_channel = input->sequence();
@@ -31,6 +31,9 @@ void conv2d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, int stride
                             value += tmp_value;
                         }
                     }
+                    if (support_bias) {
+                        value += *bias->ptrAt<float>(0, 0, 0, out_ch);
+                    }
                     *output->ptrAt<float>(b, out_h, out_ch, out_w) = value;
                 }
             }
@@ -39,7 +42,7 @@ void conv2d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, int stride
 }
 
 
-void conv2d_fp32_SAME(Tensor* input, Tensor* output, Tensor* kernel, int stride_h, int stride_w, int padding_h, int padding_w) {
+void conv2d_fp32_SAME(Tensor* input, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_h, int stride_w, int padding_h, int padding_w) {
     int padding_top = padding_h ;
     int padding_left = padding_w ;
     
@@ -82,6 +85,9 @@ void conv2d_fp32_SAME(Tensor* input, Tensor* output, Tensor* kernel, int stride_
                             vec_dot_fp32(vec_dot_n, &tmp_value, kernel_p, input->ptrAt<float>(b, blk_h+k_h, in_ch, blk_w+start_k_w));
                             value += tmp_value;
                         }
+                    }
+                    if (support_bias) {
+                        value += *bias->ptrAt<float>(0, 0, 0, out_ch);
                     }
                     *output->ptrAt<float>(b, out_h, out_ch, out_w) = value;
                 }

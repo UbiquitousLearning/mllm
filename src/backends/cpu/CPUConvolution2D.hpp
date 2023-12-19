@@ -9,7 +9,7 @@ namespace mllm {
 
 class CPUConvolution2D final : public Op {
 public:
-    CPUConvolution2D(Backend *bn, string opName, int in_channel, int out_channel,  vector<int> kernal_size, vector<int> stride, PaddingType padding_type, bool multiThread);
+    CPUConvolution2D(Backend *bn, string opName, int in_channel, int out_channel,  vector<int> kernal_size, vector<int> stride, PaddingType padding_type, bool bias, bool multiThread);
     virtual ~CPUConvolution2D() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -32,6 +32,8 @@ private:
     int padding_h_;
     int padding_w_;
     Tensor weight_;
+    Tensor bias_;
+    bool support_bias_;
 
 };
 
@@ -43,7 +45,8 @@ public:
         int in_channel = op_param["in_channel"];
         int out_channel = op_param["out_channel"];
         PaddingType padding_type = (PaddingType)op_param["padding"];
-        return new CPUConvolution2D(bn, name, in_channel, out_channel, kernal_size, stride, padding_type,  false);
+        bool bias = (bool)op_param["bias"];
+        return new CPUConvolution2D(bn, name, in_channel, out_channel, kernal_size, stride, padding_type, bias,  false);
     }
 };
 
