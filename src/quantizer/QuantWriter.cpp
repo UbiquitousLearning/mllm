@@ -34,7 +34,7 @@ float *QuantWriter::getParam(std::string param_name) {
     return static_cast<float *>((void *)data);
 }
 
-vector<string> fp32_layers = {"norm", "rope", "tok_embeddings", "bias", "vision_embed_tokens"};
+vector<string> fp32_layers = {"norm", "rope", "bias", "vision_embed_tokens"};//"tok_embeddings",
 vector<string> q6_layers = {"w2", "wv", "dense_h_to_4h"};
 
 bool find_names(const string &name, const vector<string> &layer_names) {
