@@ -12,8 +12,12 @@
 #include "NetParameter.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
-using namespace mllm;
 
+using namespace mllm;
+inline bool exists_test (const std::string& name) {
+    std::ifstream f(name.c_str());
+    return f.good();
+}
 void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, float value) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape(shape[0], shape[1], shape[2], shape[3]);
@@ -111,15 +115,26 @@ void llama2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_h
 }
 
 
-LibHelper::LibHelper(const std::string &base_path, std::string weights_path, std::string vacab_path, PreDefinedModel model, MLLMBackendType backend_type) {
+bool LibHelper::setUp(const std::string &base_path, std::string weights_path, std::string vacab_path, PreDefinedModel model, MLLMBackendType backend_type) {
     c = new Context();
     BackendConfig bn;
-
     weights_path = base_path + weights_path;
+    vacab_path = base_path + vacab_path;
+    LOGI("Setup!");
+    //check path exists
+    if(!exists_test(weights_path)||!exists_test(vacab_path)){
+        return false;
+    }
+
     const auto param_loader = new ParamLoader(std::move(weights_path));
     executor_ = new Executor(param_loader);
     net_ = new Net(bn);
-    vacab_path = base_path + vacab_path;
+    if (net_ == nullptr || executor_ == nullptr || !param_loader->isAvailible()) {
+        return false;
+    }
+    auto size =param_loader->getParamSize();
+    LOGI("param size:%d",size);
+
     switch (model) {
     case PreDefinedModel::LLAMA: {
         int vocab_size = 32000;
@@ -128,13 +143,19 @@ LibHelper::LibHelper(const std::string &base_path, std::string weights_path, std
         int mutil_head_size = 32;
         llama2(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size);
         net_->convert(c->sub_param_, BackendType::MLLM_CPU);
-        tokenizer_ = new BPETokenizer(std::move(vacab_path));
+        tokenizer_ = new BPETokenizer(vacab_path);
         break;
     }
     default: {
-        throw std::invalid_argument("Unsupported model");
+        return false;
     }
     }
+     size =tokenizer_->getVocabSize();
+    LOGI("tokenizer size:%d",size);
+    if (!tokenizer_->isAvailible()) {
+        return false;
+    }
+    return true;
 }
 
 void LibHelper::setCallback(callback_t callback) {
@@ -155,6 +176,7 @@ void LibHelper::run(const std::string &input_str, unsigned int max_step) const {
         auto token_idx = postProcessing(result[0], input);
         const auto out_token = tokenizer_->detokenize({token_idx});
         out_string += out_token;
+        //TODO: End with EOS
         callback_(out_string, step == max_step - 1);
     }
 }

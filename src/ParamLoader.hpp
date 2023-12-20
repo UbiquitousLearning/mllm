@@ -79,6 +79,12 @@ public:
     vector<std::string> getParamNames();
     std::tuple<uint8_t *, uint64_t> load(string name);
     DataType getDataType(string name) override;
+    bool isAvailible() const {
+        return fp_ != nullptr&& !offsets_.empty();
+    }
+    unsigned int getParamSize() const {
+        return offsets_.size();
+    }
 // #ifdef ANDROID_API
 // void setAssetManager(AAssetManager *asset_manager) {
 //     asset_manager_ = asset_manager;

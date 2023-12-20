@@ -7,6 +7,11 @@
 #include <string>
 #ifdef ANDROID_API
 #include <android/asset_manager.h>
+#include <android/log.h>
+#define TAG "MLLM"
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG,TAG,__VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR,TAG,__VA_ARGS__)
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO,TAG,__VA_ARGS__)
 #include "functional"
 
 namespace mllm {
@@ -20,31 +25,35 @@ class Backend;
 class Net;
 class Executor;
 class Tensor;
+
 enum PreDefinedModel {
     LLAMA = 0,
     FUYU,
 };
+
 enum MLLMBackendType {
     CPU = 0,
     GPU,
     NNAPI,
 };
-typedef  std::function<void(std::string,bool)> callback_t;
+
+typedef std::function<void(std::string, bool)> callback_t;
+
 class LibHelper {
-    Context *c=nullptr;
+    Context *c = nullptr;
     // AAssetManager* asset_manager_;
-    Net *net_;
-    Executor *executor_;
-    callback_t callback_ = [](std::string,bool){};
-    Tokenizer *tokenizer_;
+    Net *net_ = nullptr;
+    Executor *executor_ = nullptr;
+    callback_t callback_ = [](std::string, bool) {
+    };
+    Tokenizer *tokenizer_ = nullptr;
+
 public:
-    explicit LibHelper(const std::string& base_path,std::string weights_path,std::string vacab_path,PreDefinedModel model,MLLMBackendType backend_type=MLLMBackendType::CPU);
-    // void setUp();
+    bool setUp(const std::string &base_path, std::string weights_path, std::string vacab_path, PreDefinedModel model, MLLMBackendType backend_type = MLLMBackendType::CPU);
     void setCallback(callback_t callback);
-    void run(const std::string& input_str,unsigned int max_step) const;
+    void run(const std::string &input_str, unsigned int max_step) const;
     ~LibHelper();
 };
-
 } // mllm
 #endif
 #endif //LIBHELPER_HPP
