@@ -52,17 +52,17 @@ ParamLoader::~ParamLoader() {
         fclose(fp_);
     }
 }
-#ifdef ANDROID_API
-ParamLoader::ParamLoader(std::string filename, AAssetManager *asset_manager, bool use_mmap ):asset_manager_(asset_manager),
-#else
+// #ifdef ANDROID_API
+// ParamLoader::ParamLoader(std::string filename, AAssetManager *asset_manager, bool use_mmap ):asset_manager_(asset_manager),
+// #else
 ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
-#endif
+// #endif
 path_(std::move(filename)), use_mmap_(use_mmap) {
-#ifdef ANDROID_API
-    this->fp_ = AAssetManager_open(asset_manager_, this->path_.c_str(), AASSET_MODE_RANDOM);
-#else
+// #ifdef ANDROID_API
+//     this->fp_ = AAssetManager_open(asset_manager_, this->path_.c_str(), AASSET_MODE_RANDOM);
+// #else
     this->fp_ = fopen(this->path_.c_str(), "rb");
-#endif
+// #endif
 
     if (this->fp_ == nullptr) {
         std::cout << "open file failed" << std::endl;

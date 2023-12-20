@@ -18,12 +18,12 @@
 
 namespace mllm {
 bool Tokenizer::load_vocab(const std::string &vocab_file) {
-#ifdef ANDROID_API
-   auto *fp= AAssetManager_open(asset_manager_, vocab_file.c_str(), AASSET_MODE_RANDOM);
-#else
+// #ifdef ANDROID_API
+//    auto *fp= AAssetManager_open(asset_manager_, vocab_file.c_str(), AASSET_MODE_RANDOM);
+// #else
 
     FILE *fp = fopen(vocab_file.c_str(), "rb");
-#endif
+// #endif
 
     if (fp == nullptr) {
         std::cout << "open file failed" << std::endl;
@@ -83,19 +83,19 @@ bool Tokenizer::getTokenId(const token_t &token, token_id_t &id) {
     }
     return false;
 }
-#ifdef ANDROID_API
-void Tokenizer::setAssetManager(AAssetManager *asset_manager) {
-    asset_manager_ = asset_manager;
-    if(!load_vocab(vocab_file_name_)) exit(-1);
-
-
-}
-#endif
+// #ifdef ANDROID_API
+// void Tokenizer::setAssetManager(AAssetManager *asset_manager) {
+//     asset_manager_ = asset_manager;
+//     if(!load_vocab(vocab_file_name_)) exit(-1);
+//
+//
+// }
+// #endif
 Tokenizer::Tokenizer(const std::string &vocab_file):vocab_file_name_(vocab_file) {
 
-#ifndef ANDROID_API
+// #ifndef ANDROID_API
     if(!load_vocab(vocab_file)) exit(-1);
-#endif
+// #endif
 
 }
 string Tokenizer::detokenize(const vector<token_id_t> &tokens) {

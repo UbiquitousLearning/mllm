@@ -8,16 +8,15 @@
 #include <iostream>
 #include "Tensor.hpp"
 #include "Types.hpp"
-#ifdef ANDROID_API
-#include <android/asset_manager.h>
-#define fseek AAsset_seek64
-#define fclose AAsset_close
-#define mllm_file AAsset
-#define fread(buffer, size, count, fp) AAsset_read(fp, buffer, size * count)
-#define ftell(fp) AAsset_getLength64(fp) - AAsset_getRemainingLength64(fp)
-#else
 #define mllm_file FILE
-#endif
+// #ifdef ANDROID_API
+// #include <android/asset_manager.h>
+// #define fseek AAsset_seek64
+// #define fclose AAsset_close
+// #define mllm_file AAsset
+// #define fread(buffer, size, count, fp) AAsset_read(fp, buffer, size * count)
+// #define ftell(fp) AAsset_getLength64(fp) - AAsset_getRemainingLength64(fp)
+// #endif
 
 namespace mllm {
 class Tensor;
@@ -65,11 +64,11 @@ class ParamLoader : public AbstructLoader {
     friend class QuantWriter;
 
 public:
-#ifdef ANDROID_API
-    ParamLoader(std::string filename, AAssetManager *asset_manager, bool use_mmap = false);
-#else
+// #ifdef ANDROID_API
+//     ParamLoader(std::string filename, AAssetManager *asset_manager, bool use_mmap = false);
+// #else
     ParamLoader(std::string filename, bool use_mmap = false);
-#endif
+// #endif
 
 #ifdef USE_MMAP
     ParamLoader(void *buffer);
@@ -80,17 +79,23 @@ public:
     vector<std::string> getParamNames();
     std::tuple<uint8_t *, uint64_t> load(string name);
     DataType getDataType(string name) override;
-#ifdef ANDROID_API
-void setAssetManager(AAssetManager *asset_manager) {
-    asset_manager_ = asset_manager;
-};
-#endif
+    bool isAvailible() const {
+        return fp_ != nullptr&& !offsets_.empty();
+    }
+    unsigned int getParamSize() const {
+        return offsets_.size();
+    }
+// #ifdef ANDROID_API
+// void setAssetManager(AAssetManager *asset_manager) {
+//     asset_manager_ = asset_manager;
+// };
+// #endif
 
 
 private:
-#ifdef ANDROID_API
-    AAssetManager *asset_manager_;
-#endif
+// #ifdef ANDROID_API
+//     AAssetManager *asset_manager_;
+// #endif
 
     mllm_file *fp_;
     uint8_t *buffer_;
