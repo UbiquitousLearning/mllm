@@ -175,6 +175,9 @@ void LibHelper::run(const std::string &input_str, unsigned int max_step) const {
         auto result = executor_->result();
         auto token_idx = postProcessing(result[0], input);
         const auto out_token = tokenizer_->detokenize({token_idx});
+        if (out_token == "</s>"||token_idx==2) {
+            break;
+        }
         out_string += out_token;
         //TODO: End with EOS
         callback_(out_string, step == max_step - 1);
