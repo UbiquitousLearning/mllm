@@ -55,13 +55,14 @@ int main() {
                                  {.clientBuf = {.data = nullptr,
                                                 .dataSize = 0}}}}});
 
+    float data[] = {1, 2, 3, 4, 5, 6, 7, 8};
     qbn->modelAddTensor("y", // Node Name
                         (Qnn_Tensor_t){
                             .version = QNN_TENSOR_VERSION_1,
                             {.v1 = {
                                  .id = 0,
                                  .name = "y",
-                                 .type = QNN_TENSOR_TYPE_APP_WRITE,
+                                 .type = QNN_TENSOR_TYPE_STATIC,
                                  .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                  .dataType = QNN_DATATYPE_FLOAT_32,
                                  .quantizeParams = {QNN_DEFINITION_UNDEFINED,
@@ -70,8 +71,8 @@ int main() {
                                  .rank = 4,
                                  .dimensions = dimensions,
                                  .memType = QNN_TENSORMEMTYPE_RAW,
-                                 {.clientBuf = {.data = nullptr,
-                                                .dataSize = 0}}}}});
+                                 {.clientBuf = {.data = data,
+                                                .dataSize = 32}}}}});
 
     vector<Qnn_Tensor_t> outputs = {
         (Qnn_Tensor_t){
