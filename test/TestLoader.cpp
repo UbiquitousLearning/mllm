@@ -32,6 +32,16 @@ TestLoader::TestLoader(string filename) :
         index->name = name;
         index->type = type;
         index->dims = shape;
+        bool found_conv = (filename.find("CPUConvolution2D")!= std::string::npos);
+        bool found_avgpool = (filename.find("CPUAvgPool2D")!= std::string::npos);
+        bool found_maxpool = (filename.find("CPUMaxPool2D")!= std::string::npos);
+        bool found = found_conv || found_avgpool ||found_maxpool;
+        if(found & name == "input0") {
+            index->dims = {shape[0], shape[2], shape[1], shape[3]};
+        }
+        else if(found  & name == "output") {
+                index->dims = {shape[0], shape[2], shape[1], shape[3]};
+            }
         index->len = length;
         index->offset = ftell(fp_);
         tensor_map_[name] = index;
