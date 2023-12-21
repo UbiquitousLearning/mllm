@@ -190,20 +190,20 @@ int main(int argc, char **argv) {
         // string in_str = " Hello, who are you?";
         auto tokens_id = vector<token_id_t>();
         tokenizer.tokenize(in_str, tokens_id, true);
-        // token2Tensor(input, net, tokens_id);
-        // std::cout << in_str << std::flush;
-        // for(int step = 0; step<100; step++) {
-        //     // ex.execute(&net, {input});
-        //     ex.run(&net, {input});
-        //     auto result = ex.result();
-        //     auto token_idx = postProcessing(result[0], input);
-        //     if(token_idx == 2){// "</s>"
-        //         break;
-        //     }
-        //     auto out_token = tokenizer.detokenize({token_idx});
-        //     std::cout << out_token << std::flush;
-        // }
-        // printf("\n");
+        token2Tensor(input, net, tokens_id);
+        std::cout << in_str << std::flush;
+        for(int step = 0; step<100; step++) {
+            // ex.execute(&net, {input});
+            ex.run(&net, {input});
+            auto result = ex.result();
+            auto token_idx = postProcessing(result[0], input);
+            if(token_idx == 2){// "</s>"
+                break;
+            }
+            auto out_token = tokenizer.detokenize({token_idx});
+            std::cout << out_token << std::flush;
+        }
+        printf("\n");
     }
 
 
