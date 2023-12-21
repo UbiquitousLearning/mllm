@@ -47,6 +47,7 @@ class LibHelper {
     callback_t callback_ = [](std::string, bool) {
     };
     Tokenizer *tokenizer_ = nullptr;
+    unsigned int eos_id_ = 2;
 
 public:
     bool setUp(const std::string &base_path, std::string weights_path, std::string vacab_path, PreDefinedModel model, MLLMBackendType backend_type = MLLMBackendType::CPU);
