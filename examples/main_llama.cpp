@@ -145,15 +145,7 @@ int main(int argc, char **argv) {
     string model_path = cmdParser.get<string>("model");
 
     auto tokenizer = BPETokenizer(vocab_path);
-    // tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
-    // tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);
-    // string in_str = " I believe the meaning of life is";
-    //    string in_str = " I believe the meaning of life is to be happy.";
-    //    string in_str = " Building a website can be done in 10 simple steps:\\nStep 1:";
-    //    for (auto idx : tokens_id) {
-    //        std::cout << idx << ",";
-    //    }
-    //    std::cout << std::endl;
+
     int vocab_size = 32000;
     int hidden_dim = 4096;
     int ffn_hidden_dim = 11008;
@@ -167,10 +159,6 @@ int main(int argc, char **argv) {
     Net net(bn);
     net.convert(c->sub_param_);
 
-    //    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");
-    //    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
-    //    ParamLoader param_loader("../models/llama-2-7b-q4_k-64.mllm");
-//    ParamLoader param_loader("../models/llama-2-7b-q4_k-4632.mllm");
     ParamLoader param_loader(model_path);
     Executor ex(&param_loader);
 
@@ -178,22 +166,25 @@ int main(int argc, char **argv) {
     token2Tensor(initT, net, {0});
     ex.setup(&net, {initT});
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-
     vector<string> in_strs = {
         " Hello, who are you?",
-        " What can you do?"};
-    for (auto in_str : in_strs)
+        " What can you do?",
+        "Please introduce Beijing University of Posts and Telecommunications."
+    };
+    for (int str_i = 0; str_i < in_strs.size(); ++str_i)
     {
+        auto in_str = in_strs[str_i];
         if(in_str[0] != ' '){
             in_str = ' '+ in_str;
         }
-        // string in_str = " Hello, who are you?";
         auto tokens_id = vector<token_id_t>();
         tokenizer.tokenize(in_str, tokens_id, true);
+        if(str_i > 0) {
+            tokens_id[0] = 13;
+        }
         token2Tensor(input, net, tokens_id);
         std::cout << in_str << std::flush;
         for(int step = 0; step<100; step++) {
-            // ex.execute(&net, {input});
             ex.run(&net, {input});
             auto result = ex.result();
             auto token_idx = postProcessing(result[0], input);
