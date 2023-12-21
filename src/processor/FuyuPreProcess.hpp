@@ -14,6 +14,7 @@
 #define STB_IMAGE_RESIZE_STATIC
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #endif
+#include "PreProcess.hpp"
 #include "imageHelper/stb_image_resize2.h"
 
 #include "tokenizers/Tokenizer.hpp"
@@ -67,14 +68,13 @@ enum ResampleType {
     BILINEAR,
 };
 
-class FuyuPreProcess {
+class FuyuPreProcess:public PreProcessor{
     std::vector<ImageInfo> images_;
     vector<vector<int>> image_patch_indices_per_batch;
     vector<vector<int>> image_patch_indices_per_subseq ;
     vector<vector<int>> image_patch_input_indices_;
     vector<size_t> text_lengths_;
     size_t max_tokens_to_generate;
-    Tokenizer *tokenizer_;
     token_id_t image_placeholder_id_;
     token_id_t image_newline_id_;
     std::pair<size_t,size_t> patch_size_;
@@ -94,7 +94,7 @@ public:
     vector<vector<token_id_t>> text_ids_;
 
     explicit FuyuPreProcess(Tokenizer *tokenizer,size_t patch_height = 30, size_t patch_width = 30, size_t max_tokens_to_generate = 10) :
-        tokenizer_(tokenizer),max_tokens_to_generate(max_tokens_to_generate) {
+        PreProcessor(tokenizer),max_tokens_to_generate(max_tokens_to_generate) {
         auto tmp_token = vector<token_id_t>();
         tokenizer_->tokenize("|SPEAKER|", tmp_token, false);
         image_placeholder_id_ = tmp_token[0];
