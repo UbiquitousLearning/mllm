@@ -17,16 +17,16 @@
 #include "tokenizers/Tokenizer.hpp"
 using namespace  mllm;
 
-inline void fullTensor(shared_ptr<Tensor> input_tensor, mllm::Net net, vector<int> shape, float value) {
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+inline void fullTensor(shared_ptr<Tensor> input_tensor, mllm::Net *net, vector<int> shape, float value) {
+    input_tensor->setBackend(net->backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape(shape[0], shape[1], shape[2], shape[3]);
     input_tensor->setDtype(MLLM_TYPE_F32);
     input_tensor->alloc();
     input_tensor->fullData<float>(value);
 }
 
-inline void token2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<token_id_t> tokens) {
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+inline void token2Tensor(shared_ptr<Tensor> input_tensor, Net *net, vector<token_id_t> tokens) {
+    input_tensor->setBackend(net->backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape(1, 1, static_cast<int>(tokens.size()), 1);
     input_tensor->setDtype(MLLM_TYPE_F32);
     input_tensor->alloc();
@@ -35,7 +35,7 @@ inline void token2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<token
         input_tensor->setDataAt<float>(0, 0, idx, 0, tokens[idx]);
     }
 }
-inline void patches2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vector<float>>> image_patches) {
+inline void patches2Tensor(shared_ptr<Tensor> input_tensor, Net *net, vector<vector<vector<float>>> image_patches) {
     if(image_patches.empty()) {
         fullTensor(input_tensor, net, {0, 0, 0, 0},1.0F);
         return;
@@ -43,7 +43,7 @@ inline void patches2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vec
     const int batch = image_patches.size();
     const int seq =  image_patches[0].size();
     const int dims = image_patches[0][0].size();
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+    input_tensor->setBackend(net->backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape(batch, 1, seq, dims);
     input_tensor->setDtype(MLLM_TYPE_F32);
     input_tensor->alloc();
@@ -55,14 +55,14 @@ inline void patches2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vec
         }
     }
 }
-inline void patchIdx2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<int>> image_patches_indices) {
+inline void patchIdx2Tensor(shared_ptr<Tensor> input_tensor, Net *net, vector<vector<int>> image_patches_indices) {
     if(image_patches_indices.empty()) {
         fullTensor(input_tensor, net, {0, 0, 0, 0},1.0F);
         return;
     }
     const int batch = image_patches_indices.size();
     const int seq =  image_patches_indices[0].size();
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+    input_tensor->setBackend(net->backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape(batch, 1, seq, 1);
     input_tensor->setDtype(MLLM_TYPE_F32);
     input_tensor->alloc();

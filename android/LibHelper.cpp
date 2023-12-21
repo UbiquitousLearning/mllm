@@ -71,7 +71,7 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
         eos_id_ = 2;
         break;
     }
-    case FUYU:
+    case FUYU: {
         int vocab_size = 262144;
         int hidden_dim = 4096;
         int ffn_hidden_dim = 4096*4;
@@ -82,6 +82,7 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
         pre_processor_ = new FuyuPreProcess(tokenizer_);
         eos_id_ = 71013;
         break;
+    }
     default: {
         return false;
     }
@@ -91,6 +92,9 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
     if (!tokenizer_->isAvailible()) {
         return false;
     }
+    shared_ptr<Tensor> initT = std::make_shared<Tensor>();
+    token2Tensor(initT, net_, {0});
+    executor_->setup(net_, {initT});
     return true;
 }
 
@@ -98,23 +102,33 @@ void LibHelper::setCallback(callback_t callback) {
     this->callback_ = std::move(callback);
 }
 
-void LibHelper::run(const std::string &input_str, unsigned int max_step) const {
+void LibHelper::run(std::string &input_str, unsigned int max_step)  {
+    if (input_str[0]!=' ') {
+        input_str = ' ' + input_str;
+    }
     auto tokens_id = vector<token_id_t>();
     tokenizer_->tokenize(input_str, tokens_id, true);
-    auto out_string = input_str;
+    if (is_first_run_cond_) {
+        if (tokens_id[0] >0) {
+            tokens_id[0] = 13;
+        }
+        is_first_run_cond_ = false;
+    }
+    auto out_string = std::string();
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    token2Tensor(input, *net_, tokens_id);
-
-    std::cout << input << std::flush;
+    token2Tensor(input, net_, tokens_id);
+    // std::cout << input << std::flush;
     for (int step = 0; step < max_step; step++) {
         executor_->execute(net_, {input});
         auto result = executor_->result();
         auto token_idx = postProcessing(result[0], input);
         const auto out_token = tokenizer_->detokenize({token_idx});
+
+        out_string += out_token;
         if (out_token == "</s>" || token_idx == eos_id_) {
+            callback_(out_string,true);
             break;
         }
-        out_string += out_token;
         //TODO: End with EOS
         callback_(out_string, step == max_step - 1);
     }
