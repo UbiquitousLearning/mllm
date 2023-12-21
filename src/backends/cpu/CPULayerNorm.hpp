@@ -19,7 +19,7 @@ public:
 
 private:
     bool support_multi_thread_ = false;
-    float epsilon_ = 1e-5;
+    float epsilon_ = 1e-6;
     int normSize_=0;
     Tensor weight_;
     Tensor bias_;

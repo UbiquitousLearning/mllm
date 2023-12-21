@@ -238,12 +238,12 @@ int main() {
         auto result = ex.result();
         auto token_idx = postProcessing(result[0], input_seq);
 //        std::cout << token_idx << std::endl;
-        fullTensor(img_patch, net, {0, 0, 0, 0});
-        fullTensor(img_patch, net, {0, 0, 0, 0});
-        auto out_token = tokenizer.detokenize({token_idx});
         if(token_idx == 71013){
             break;
         }
+        fullTensor(img_patch, net, {0, 0, 0, 0});
+        fullTensor(img_patch, net, {0, 0, 0, 0});
+        auto out_token = tokenizer.detokenize({token_idx});
         std::cout << out_token << std::flush;
     }
     printf("\n");
