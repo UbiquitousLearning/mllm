@@ -48,7 +48,9 @@ void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, flo
     input_tensor->fullData<float>(value);
 }
 void token2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<token_id_t> tokens) {
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+    if(input_tensor->backend() == nullptr) {
+        input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+    }
     input_tensor->reshape(1, 1, static_cast<int>(tokens.size()), 1);
     input_tensor->alloc();
     input_tensor->fullData<float>(1);
@@ -135,25 +137,15 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab.mllm");
     cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/llama-2-7b-chat-q4_k.mllm");
     // cmdParser.add<string>("input", 'i', "specify input string", false, " Structured pruning and unstructured pruning represent two distinct categories within the realm of parameter pruning for LLMs. Structured pruning involves the removal of entire structured components, such as neurons, channels, or layers, based on predefined criteria. This method aims to simplify the model architecture by discarding specific structural elements that contribute less to overall performance. On the other hand, unstructured pruning targets individual weights within the model, irrespective of their structural context. This approach aims to enhance the model's sparsity by selectively eliminating less influential parameters, thereby reducing the model's footprint.The significance of parameter pruning lies in its ability to strike a balance between model size and performance. By judiciously removing redundant weights, LLMs can achieve substantial compression without compromising their capabilities. This becomes particularly relevant in scenarios where computational resources, memory constraints, or deployment on edge devices necessitate a more streamlined and resource-efficient model.");
-    cmdParser.add<string>("input", 'i', "specify input string", false, " Hello, who are you?");// I think the meaning of life is
+    // cmdParser.add<string>("input", 'i', "specify input string", false, " Hello, who are you?");// I think the meaning of life is
     cmdParser.parse_check(argc, argv);
 
-    string in_str = cmdParser.get<string>("input");
+    // string in_str = cmdParser.get<string>("input");
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
 
     auto tokenizer = BPETokenizer(vocab_path);
-    auto tokens_id = vector<token_id_t>();
-    // tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
-    // tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);
-    // string in_str = " I believe the meaning of life is";
-    //    string in_str = " I believe the meaning of life is to be happy.";
-    //    string in_str = " Building a website can be done in 10 simple steps:\\nStep 1:";
-    tokenizer.tokenize(in_str, tokens_id, true);
-    //    for (auto idx : tokens_id) {
-    //        std::cout << idx << ",";
-    //    }
-    //    std::cout << std::endl;
+
     int vocab_size = 32000;
     int hidden_dim = 4096;
     int ffn_hidden_dim = 11008;
@@ -167,25 +159,48 @@ int main(int argc, char **argv) {
     Net net(bn);
     net.convert(c->sub_param_);
 
-    //    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");
-    //    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
-    //    ParamLoader param_loader("../models/llama-2-7b-q4_k-64.mllm");
-//    ParamLoader param_loader("../models/llama-2-7b-q4_k-4632.mllm");
     ParamLoader param_loader(model_path);
     Executor ex(&param_loader);
-    shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    token2Tensor(input, net, tokens_id);
 
-    std::cout << in_str << std::flush;
-    for(int step = 0; step<20; step++) {
-        ex.execute(&net, {input});
-        auto result = ex.result();
-        auto token_idx = postProcessing(result[0], input);
-        auto out_token = tokenizer.detokenize({token_idx});
-        std::cout << out_token << std::flush;
+    shared_ptr<Tensor> initT = std::make_shared<Tensor>();
+    token2Tensor(initT, net, {0});
+    ex.setup(&net, {initT});
+    shared_ptr<Tensor> input = std::make_shared<Tensor>();
+    vector<string> in_strs = {
+        " Hello, who are you?",
+        " What can you do?",
+        "Please introduce Beijing University of Posts and Telecommunications."
+    };
+    for (int str_i = 0; str_i < in_strs.size(); ++str_i)
+    {
+        auto in_str = in_strs[str_i];
+        if(in_str[0] != ' '){
+            in_str = ' '+ in_str;
+        }
+        auto tokens_id = vector<token_id_t>();
+        tokenizer.tokenize(in_str, tokens_id, true);
+        if(str_i > 0) {
+            tokens_id[0] = 13;
+        }
+        token2Tensor(input, net, tokens_id);
+        std::cout << in_str << std::flush;
+        for(int step = 0; step<100; step++) {
+            ex.run(&net, {input});
+            auto result = ex.result();
+            auto token_idx = postProcessing(result[0], input);
+            if(token_idx == 2){// "</s>"
+                break;
+            }
+            auto out_token = tokenizer.detokenize({token_idx});
+            std::cout << out_token << std::flush;
+        }
+        printf("\n");
     }
-    printf("\n");
+
+
     ex.perf();
+
+
 
     // free memory
     for (auto *op : c->net_ops) {

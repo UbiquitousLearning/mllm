@@ -637,9 +637,9 @@ public:
 
 
     template <typename Dtype>
-    void saveData() {
+    void saveData(string ex = "") {
         std::filesystem::create_directory("save_out");
-        std::ofstream outFile("save_out/" + name() + ".log");
+        std::ofstream outFile("save_out/" + name() +ex + ".log");
 
         outFile << "----------------------------------------" << std::endl;
         outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "]" << std::endl;
