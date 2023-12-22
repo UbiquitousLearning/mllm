@@ -651,7 +651,7 @@ public:
         if (N == 1 && C == 1) {
             for (int h = 0; h < H; ++h) {
                 for (int c = 0; c < W; ++c) {
-                    outFile << std::fixed << std::setprecision(7) << dataAt<Dtype>(0, 0, h, c) << " ";
+                    outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(0, 0, h, c) << " ";
                 }
                 outFile << std::endl;
                 outFile << "---------" << std::endl;
@@ -659,7 +659,7 @@ public:
         } else if (N == 1 && W == 1) {
             for (int h = 0; h < H; ++h) {
                 for (int c = 0; c < C; ++c) {
-                    outFile << std::fixed << std::setprecision(7) << dataAt<Dtype>(0, c, h, 0) << " ";
+                    outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(0, c, h, 0) << " ";
                 }
                 outFile << std::endl;
             }
@@ -668,7 +668,7 @@ public:
                 for (int c = 0; c < C; ++c) {
                     for (int h = 0; h < H; ++h) {
                         for (int w = 0; w < W; ++w) {
-                            outFile << std::fixed << std::setprecision(7) << dataAt<Dtype>(n, c, h, w) << " ";
+                            outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(n, c, h, w) << " ";
                         }
                         outFile << std::endl;
                     }
