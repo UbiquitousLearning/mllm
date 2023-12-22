@@ -3,6 +3,7 @@
 
 #include "Backend.hpp"
 #include "Op.hpp"
+#include "OpDefined.hpp"
 #include "Types.hpp"
 #include "MemoryManager.hpp"
 #include "NetParameter.hpp"
@@ -10,6 +11,7 @@
 
 #include "Utils/IOTensor.hpp"
 #include "PAL/DynamicLoading.hpp"
+#include "QnnModel.hpp"
 #include "QNN.hpp"
 #include "Logger.hpp"
 
@@ -39,59 +41,62 @@ class QNNBackend : public Backend {
 public:
     QNNBackend(shared_ptr<MemoryManager> mm);
     ~QNNBackend() {
-        if (sg_backendHandle) {
-          pal::dynamicloading::dlClose(sg_backendHandle);
+        // free creaters in map_creator_
+        for (auto &iter : map_creator_) {
+            delete iter.second;
         }
-        if (sg_modelHandle) {
-          pal::dynamicloading::dlClose(sg_modelHandle);
+        // free qnn backend resource
+        this->release();
+        // free dynamic library handle
+        if (m_backendLibraryHandle) {
+            pal::dynamicloading::dlClose(m_backendLibraryHandle);
+        }
+        if (m_modelHandle) {
+            pal::dynamicloading::dlClose(m_modelHandle);
         }
         QNN_INFO("Free handle");
     }
 
-    // Init QNN Backend context
-    void init();
-    int32_t r_init(); // TODO: Config
+    Op *opCreate(const OpParam &op_param, string name = "") {
+        OpType optype = OpType(op_param.find("type")->second);
+        auto iter = map_creator_.find(optype);
+        if (iter == map_creator_.end()) {
+            printf("Don't support type \n");
+            return nullptr;
+        }
+        Op *exe = nullptr;
+        exe = iter->second->create(op_param, this, name);
+        return exe;
+    }
+    class Creator {
+    public:
+        virtual Op *create(OpParam op_param, Backend *bn, string name) const = 0;
+    };
+    bool addCreator(OpType t, Creator *c) {
+        if (map_creator_.find(t) != map_creator_.end()) {
+            printf("Error: %d type has be added\n", t);
+            return false;
+        }
+        map_creator_.insert(std::make_pair(t, c));
+        return true;
+    }
+
+    qnn_wrapper_api::ModelError_t graphAddNode(string name, string nodeType,
+                                               std::vector<const char *> inputTensorNames, std::vector<Qnn_Tensor_t> outputTensors,
+                                               string packageName);
+    qnn_wrapper_api::ModelError_t graphFinilize();
+    qnn_wrapper_api::ModelError_t modelAddTensor(const char *nodeName, Qnn_Tensor_t tensor);
+    ErrorCode graphExecute();
+
+private:
+    int32_t graphInitialize();
 
     void release();
-    int32_t r_release();
 
-    // void alloc(void **ptr, size_t size,size_t alignment) {
-    //     mem_manager_->alloc(ptr, size, alignment);
-    // }
+    void registerOps();
 
-    // void free(void *ptr) {
-    //     mem_manager_->free(ptr);
-    // }
-
-    
-    /**
-     * @brief create execution for op with input and output tensors.
-     * @param inputs    input tensors.
-     * @param outputs   output tensors.
-     * @param op        given op.
-     * @return created execution if op is supported, nullptr otherwise.
-     */
-    // virtual Op* OpCreate(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
-    //                             OpParam op_param) = 0;
-    Op *opCreate(const OpParam &op_param, string name="") {
-
-    }
-    void registerOps() {
-
-    }
-    // virtual void* OpCreater(OpParam op_param);
-
-
-    // @brief Print a message to STDERR then return a nonzero
-    //  exit status.
-    int32_t reportError(const std::string &err);
-
-// private:
-    //
-    shared_ptr<MemoryManager> mem_manager_;
-    // unordered_map<OpType, Op*(*)(Backend*)> op_map_;
-
-
+    // @brief Print a message to STDERR then exit with a non-zero
+    void reportError(const std::string &err);
     
     StatusCode initialize();
 
@@ -106,10 +111,6 @@ public:
     StatusCode executeGraphs();
 
     StatusCode registerOpPackages();
-
-    StatusCode createFromBinary();
-
-    StatusCode saveBinary();
 
     StatusCode freeContext();
 
@@ -138,30 +139,21 @@ public:
 
     StatusCode extractProfilingEvent(QnnProfile_EventId_t profileEventId);
 
-
-    void QnnBackendInitialize(sample_app::QnnFunctionPointers qnnFunctionPointers,
-               std::string inputListPaths,
-               std::string opPackagePaths,
-               void *backendHandle,
-               std::string outputPath                  = s_defaultOutputPath,
-               bool debug                              = false,
-               iotensor::OutputDataType outputDataType = iotensor::OutputDataType::FLOAT_ONLY,
-               iotensor::InputDataType inputDataType   = iotensor::InputDataType::FLOAT,
-               sample_app::ProfilingLevel profilingLevel           = sample_app::ProfilingLevel::OFF,
-               bool dumpOutputs                        = false,
-               std::string cachedBinaryPath            = "",
-               std::string saveBinaryName              = "");
+    static qnn_wrapper_api::ModelError_t QnnModel_freeGraphsInfo(qnn_wrapper_api::GraphInfoPtr_t **graphsInfo, uint32_t numGraphsInfo) {
+        return qnn_wrapper_api::freeGraphsInfo(graphsInfo, numGraphsInfo);
+    }
 
     static const std::string s_defaultOutputPath;
 
+    std::map<OpType, QNNBackend::Creator *> map_creator_;
+    shared_ptr<MemoryManager> mem_manager_;
+    qnn_wrapper_api::QnnModel qnnModel;
 
     sample_app::QnnFunctionPointers m_qnnFunctionPointers;
     std::vector<std::string> m_inputListPaths;
     std::vector<std::vector<std::queue<std::string>>> m_inputFileLists;
     std::vector<std::string> m_opPackagePaths;
     std::string m_outputPath;
-    std::string m_saveBinaryName;
-    std::string m_cachedBinaryPath;
     QnnBackend_Config_t **m_backendConfig = nullptr;
     Qnn_ContextHandle_t m_context         = nullptr;
     QnnContext_Config_t **m_contextConfig = nullptr;
@@ -171,8 +163,14 @@ public:
     sample_app::ProfilingLevel m_profilingLevel;
     bool m_dumpOutputs;
     qnn_wrapper_api::GraphInfo_t **m_graphsInfo;
+    // for mllm single graph execute
+    qnn_wrapper_api::GraphInfo_t graphInfo;
+
+    const QnnGraph_Config_t **graphConfigs = nullptr;
     uint32_t m_graphsCount;
-    void *m_backendLibraryHandle;
+    // these two pointers is .so library handle
+    void *m_backendLibraryHandle = nullptr;
+    void *m_modelHandle = nullptr; // m_modelHandle is always nullptr cause we build graph in runtime
     iotensor::IOTensor m_ioTensor;
     bool m_isBackendInitialized;
     bool m_isContextCreated;
@@ -182,11 +180,6 @@ public:
     Qnn_LogHandle_t m_logHandle         = nullptr;
     Qnn_BackendHandle_t m_backendHandle = nullptr;
     Qnn_DeviceHandle_t m_deviceHandle   = nullptr;
-
-
-    void* sg_backendHandle = nullptr;
-    void* sg_modelHandle = nullptr;
-
 };
 
 

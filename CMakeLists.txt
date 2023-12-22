@@ -188,13 +188,16 @@ if(QNN)
         include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
     endif()
     add_definitions(-DQNN_ENABLED)
-    # add_definitions(-DQNN_API)
+    # for debug
+    add_definitions(-DDEBUG)
     
     include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/Log)
     include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/PAL/include)
     include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/Utils)
     include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/WrapperUtils)
     include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/QNN)
+    include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/Model)
+    include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN)
 
     
 

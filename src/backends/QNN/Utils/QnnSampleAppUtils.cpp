@@ -24,6 +24,7 @@
 
 using namespace qnn;
 using namespace qnn::tools;
+using namespace qnn_wrapper_api;
 
 void sample_app::split(std::vector<std::string> &splitString,
                        const std::string &tokenizedString,
@@ -92,12 +93,13 @@ sample_app::ReadInputListRetType_t sample_app::readInputList(const std::string i
     std::vector<std::string> inputFilePaths;
     split(inputFilePaths, lines.front(), ' ');
     parseInputFilePaths(inputFilePaths, paths, separator);
+    // TODO: multi input support
     filePathsList.reserve(paths.size());
     for (size_t idx = 0; idx < paths.size(); idx++) {
       if (idx >= filePathsList.size()) {
         filePathsList.push_back(std::queue<std::string>());
       }
-      filePathsList[idx].push(paths[idx]);
+      filePathsList.back().push(paths[idx]);
     }
     lines.pop();
   }
