@@ -31,99 +31,37 @@ namespace mllm {
 
 const std::string QNNBackend::s_defaultOutputPath = "./output";
 
-void QNNBackend::QnnBackendInitialize(QnnFunctionPointers qnnFunctionPointers,
-                                       std::string inputListPaths,
-                                       std::string opPackagePaths,
-                                       void* backendLibraryHandle,
-                                       std::string outputPath,
-                                       bool debug,
-                                       iotensor::OutputDataType outputDataType,
-                                       iotensor::InputDataType inputDataType,
-                                       sample_app::ProfilingLevel profilingLevel,
-                                       bool dumpOutputs,
-                                       std::string cachedBinaryPath,
-                                       std::string saveBinaryName)
-    {
-
-      m_qnnFunctionPointers = qnnFunctionPointers;
-      m_outputPath = outputPath;
-      m_saveBinaryName = saveBinaryName;
-      m_cachedBinaryPath = cachedBinaryPath;
-      m_debug = debug;
-      m_outputDataType = outputDataType;
-      m_inputDataType = inputDataType;
-      m_profilingLevel = profilingLevel;
-      m_dumpOutputs = dumpOutputs;
-      m_backendLibraryHandle = backendLibraryHandle;
-      m_isBackendInitialized = false;
-      m_isContextCreated = false; 
-      
-      split(m_inputListPaths, inputListPaths, ',');
-      split(m_opPackagePaths, opPackagePaths, ',');
-      if (m_outputPath.empty()) {
-        m_outputPath = s_defaultOutputPath;
-      }
-
-  return;
+void QNNBackend::registerOps() {
+    addCreator(ADD, (QNNBackend::Creator *)new QNNAddCreator());
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
   
     if (!log::initializeLogging()) {
       std::cerr << "ERROR: Unable to initialize logging!\n";
-      return ;
+      return;
     }
+    // TODO: make debug level configuable
+    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_DEBUG);
 
-    enum OPTIONS {
-      OPT_HELP             = 0,
-      OPT_MODEL            = 1,
-      OPT_BACKEND          = 2,
-      OPT_INPUT_LIST       = 3,
-      OPT_OUTPUT_DIR       = 4,
-      OPT_OP_PACKAGES      = 5,
-      OPT_DEBUG_OUTPUTS    = 6,
-      OPT_OUTPUT_DATA_TYPE = 7,
-      OPT_INPUT_DATA_TYPE  = 8,
-      OPT_LOG_LEVEL        = 9,
-      OPT_PROFILING_LEVEL  = 10,
-      OPT_RETRIEVE_CONTEXT = 11,
-      OPT_SAVE_CONTEXT     = 12,
-      OPT_VERSION          = 13,
-      OPT_SYSTEM_LIBRARY   = 14
-    };
-
-    bool loadFromCachedBinary = false;
-
-    // Command line parsing loop
-    int longIndex = 0;
-    int opt       = 0;
     std::string modelPath = "/qnn-projects/QNN-test-libs/example_libs/x86_64-linux-clang/libqnn_model_float.so";
     std::string backEndPath = "/qnn-projects/QNN-test-libs/libQnnCpu.so";
     std::string inputListPaths = "/qnn-projects/QNN-test-libs/input_list_float.txt";
-    bool debug =  true;
-    std::string outputPath;
     std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnCpuOpPackageExample.so:QnnOpPackage_interfaceProvider";
-    iotensor::OutputDataType parsedOutputDataType   = iotensor::OutputDataType::FLOAT_ONLY;
-    iotensor::InputDataType parsedInputDataType     = iotensor::InputDataType::FLOAT;
-    sample_app::ProfilingLevel parsedProfilingLevel = ProfilingLevel::DETAILED;
-    bool dumpOutputs                                = true;
-    std::string cachedBinaryPath;
-    std::string saveBinaryName;
-    QnnLog_Level_t logLevel{QNN_LOG_LEVEL_ERROR};
-    std::string systemLibraryPath;
-    
-    if (!modelPath.empty()) {
-      if (!cachedBinaryPath.empty()) {
-        std::exit(EXIT_FAILURE);
-      }
-    } else {
-      if (cachedBinaryPath.empty()) {
-        std::exit(EXIT_FAILURE);
-      }
-    }
+    // TODO: make these configuable
+    m_debug = true;
+    m_outputDataType = iotensor::OutputDataType::FLOAT_ONLY;
+    m_inputDataType = iotensor::InputDataType::FLOAT;
+    m_profilingLevel = ProfilingLevel::DETAILED;
+    m_dumpOutputs = true;
+    m_isBackendInitialized = false;
+    m_isContextCreated = false;
 
-    if (!cachedBinaryPath.empty() && !saveBinaryName.empty()) {
-      std::exit(EXIT_FAILURE);
+    // config path strings
+    split(m_inputListPaths, inputListPaths, ',');
+    split(m_opPackagePaths, opPackagePaths, ',');
+    if (m_outputPath.empty()) {
+        m_outputPath = s_defaultOutputPath;
     }
 
     if (backEndPath.empty()) {
@@ -131,10 +69,6 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     }
 
     if (inputListPaths.empty()) {
-      std::exit(EXIT_FAILURE);
-    }
-
-    if (loadFromCachedBinary && systemLibraryPath.empty()) {
       std::exit(EXIT_FAILURE);
     }
 
@@ -146,9 +80,9 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     auto statusCode = dynamicloadutil::getQnnFunctionPointers(backEndPath,
                                                               modelPath,
                                                               &m_qnnFunctionPointers,
-                                                              &sg_backendHandle,
-                                                              !loadFromCachedBinary,
-                                                              &sg_modelHandle);
+                                                              &m_backendLibraryHandle,
+                                                              true,
+                                                              &m_modelHandle);
 
     if (dynamicloadutil::StatusCode::SUCCESS != statusCode) {
       if (dynamicloadutil::StatusCode::FAIL_LOAD_BACKEND == statusCode) {
@@ -164,123 +98,25 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
       }
     }
 
-    if (loadFromCachedBinary) {
-        statusCode =
-            dynamicloadutil::getQnnSystemFunctionPointers(systemLibraryPath, &m_qnnFunctionPointers);
-        if (dynamicloadutil::StatusCode::SUCCESS != statusCode) {
-            exitWithMessage("Error initializing QNN System Function Pointers", EXIT_FAILURE);
-      }
-    }
+    // cause we build graph in runtime, the freeGraphInfoFnHandle should be assigned here
+    m_qnnFunctionPointers.freeGraphInfoFnHandle = this->QnnModel_freeGraphsInfo;
 
-    QnnBackendInitialize(m_qnnFunctionPointers,
-                         inputListPaths,
-                         opPackagePaths,
-                         sg_backendHandle,
-                         outputPath,
-                         debug,
-                         parsedOutputDataType,
-                         parsedInputDataType,
-                         parsedProfilingLevel,
-                         dumpOutputs,
-                         cachedBinaryPath,
-                         saveBinaryName);
-}
-
-void QNNBackend::init() {
-
-  r_init();
+    // init qnn resources and create a graph
+    this->graphInitialize();
 }
 
 void QNNBackend::release() {
-  r_release();
-}
-
-int32_t QNNBackend::r_release() {
-  QNNBackend* app = this;
-
-
-  if (StatusCode::SUCCESS != app->freeContext()) {
-    return app->reportError("Context Free failure");
-  }
-
-  auto devicePropertySupportStatus = app->isDevicePropertySupported();
-  if (StatusCode::FAILURE != devicePropertySupportStatus) {
-    auto freeDeviceStatus = app->freeDevice();
-    if (StatusCode::SUCCESS != freeDeviceStatus) {
-      return app->reportError("Device Free failure");
-    }
-  }
-}
-
-int32_t QNNBackend::r_init() {
-
-    {
-      bool loadFromCachedBinary{false};
-      // std::unique_ptr<QnnSampleApp> app =
-      //     processCommandLine(argc, argv, loadFromCachedBinary);
-
-      QNNBackend* app = this;
-
-      if (nullptr == app) {
-        return EXIT_FAILURE;
-      }
-
-      QNN_INFO("qnn-sample-app build version: %s", getBuildId().c_str());
-      QNN_INFO("Backend        build version: %s", getBackendBuildId().c_str());
-
-
-      if (StatusCode::SUCCESS != app->initialize()) {
-        return app->reportError("Initialization failure");
-      }
-
-      if (StatusCode::SUCCESS != app->initializeBackend()) {
-        return app->reportError("Backend Initialization failure");
-      }
-      
-
-      auto devicePropertySupportStatus = app->isDevicePropertySupported();
-      if (StatusCode::FAILURE != devicePropertySupportStatus) {
-        auto createDeviceStatus = app->createDevice();
-        if (StatusCode::SUCCESS != createDeviceStatus) {
-          return app->reportError("Device Creation failure");
-        }
-      }
-
-      if (StatusCode::SUCCESS != app->initializeProfiling()) {
-        return app->reportError("Profiling Initialization failure");
-      }
-
-      if (StatusCode::SUCCESS != app->registerOpPackages()) {
-        return app->reportError("Register Op Packages failure");
-      }
-
-      if (!loadFromCachedBinary) {
-        if (StatusCode::SUCCESS != app->createContext()) {
-          return app->reportError("Context Creation failure");
-        }
-        if (StatusCode::SUCCESS != app->composeGraphs()) {
-          return app->reportError("Graph Prepare failure");
-        }
-        if (StatusCode::SUCCESS != app->finalizeGraphs()) {
-          return app->reportError("Graph Finalize failure");
-        }
-      } else {
-        if (StatusCode::SUCCESS != app->createFromBinary()) {
-          return app->reportError("Create From Binary failure");
-        }
-      }
-
-      if (StatusCode::SUCCESS != app->executeGraphs()) {
-        return app->reportError("Graph Execution failure");
-      }
-
+    if (StatusCode::SUCCESS != this->freeContext()) {
+        this->reportError("Context Free failure");
     }
 
-    
-}
-
-void QNNBackend::registerOps() {
-    addCreator(ADD, (QNNBackend::Creator *)new QNNAddCreator());
+    auto devicePropertySupportStatus = this->isDevicePropertySupported();
+    if (StatusCode::FAILURE != devicePropertySupportStatus) {
+        auto freeDeviceStatus = this->freeDevice();
+        if (StatusCode::SUCCESS != freeDeviceStatus) {
+            this->reportError("Device Free failure");
+        }
+    }
 }
 
 std::string QNNBackend::getBackendBuildId() {
@@ -292,37 +128,36 @@ std::string QNNBackend::getBackendBuildId() {
   return (backendBuildId == nullptr ? std::string("") : std::string(backendBuildId));
 }
 
-// --------- temp dev functions to test QNNBackend
 int32_t QNNBackend::graphInitialize() {
-    QNN_INFO("qnn-sample-app build version: %s", getBuildId().c_str());
+    QNN_INFO("qnn-backend    build version: %s", getBuildId().c_str());
     QNN_INFO("Backend        build version: %s", getBackendBuildId().c_str());
 
     if (StatusCode::SUCCESS != this->initialize()) {
-        return this->reportError("Initialization failure");
+        this->reportError("Initialization failure");
     }
 
     if (StatusCode::SUCCESS != this->initializeBackend()) {
-        return this->reportError("Backend Initialization failure");
+        this->reportError("Backend Initialization failure");
     }
 
     auto devicePropertySupportStatus = this->isDevicePropertySupported();
     if (StatusCode::FAILURE != devicePropertySupportStatus) {
         auto createDeviceStatus = this->createDevice();
         if (StatusCode::SUCCESS != createDeviceStatus) {
-            return this->reportError("Device Creation failure");
+            this->reportError("Device Creation failure");
         }
     }
 
     if (StatusCode::SUCCESS != this->initializeProfiling()) {
-        return this->reportError("Profiling Initialization failure");
+        this->reportError("Profiling Initialization failure");
     }
 
     if (StatusCode::SUCCESS != this->registerOpPackages()) {
-        return this->reportError("Register Op Packages failure");
+        this->reportError("Register Op Packages failure");
     }
 
     if (StatusCode::SUCCESS != this->createContext()) {
-        return this->reportError("Context Creation failure");
+        this->reportError("Context Creation failure");
     }
     
     // initialize graph info, set graph info, graph count
@@ -340,7 +175,6 @@ int32_t QNNBackend::graphInitialize() {
                                       DO_GRAPH_NODE_VALIDATIONS,
                                       graphConfigs),
              err);
-    // TODO: err should not be converted to int32_t directly
     return 0;
 }
 
@@ -396,7 +230,6 @@ ErrorCode QNNBackend::graphExecute() {
     }
     return NO_ERROR;
 }
-// ---------
 
 // Initialize QnnSampleApp. Things it does:
 //  1. Create output directory
@@ -418,7 +251,6 @@ StatusCode QNNBackend::initialize() {
   // initialize logging in the backend
   if (log::isLogInitialized()) {
     auto logCallback = log::getLogCallback();
-    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_DEBUG);
     auto logLevel    = log::getLogLevel();
     QNN_INFO("Initializing logging in the backend. Callback: [%p], Log Level: [%d]",
              logCallback,
@@ -458,9 +290,9 @@ StatusCode QNNBackend::initializeProfiling() {
 }
 
 // Simple method to report error from app to lib.
-int32_t QNNBackend::reportError(const std::string& err) {
+void QNNBackend::reportError(const std::string& err) {
   QNN_ERROR("%s", err.c_str());
-  return EXIT_FAILURE;
+  exit(1);
 }
 
 // Initialize a QnnBackend.
@@ -589,164 +421,7 @@ StatusCode QNNBackend::finalizeGraphs() {
   if (ProfilingLevel::OFF != m_profilingLevel) {
     extractBackendProfilingInfo(m_profileBackendHandle);
   }
-  auto returnStatus = StatusCode::SUCCESS;
-  if (!m_saveBinaryName.empty()) {
-    QNN_INFO("Before saveBinary(): saving context and metadata.");
-    returnStatus = saveBinary();
-  } else {
-    QNN_DEBUG("m_saveBinaryName is empty()");
-  }
-  return returnStatus;
-}
 
-StatusCode QNNBackend::createFromBinary() {
-  if (m_cachedBinaryPath.empty()) {
-    QNN_ERROR("No name provided to read binary file from.");
-    return StatusCode::FAILURE;
-  }
-  if (nullptr == m_qnnFunctionPointers.qnnSystemInterface.systemContextCreate ||
-      nullptr == m_qnnFunctionPointers.qnnSystemInterface.systemContextGetBinaryInfo ||
-      nullptr == m_qnnFunctionPointers.qnnSystemInterface.systemContextFree) {
-    QNN_ERROR("QNN System function pointers are not populated.");
-    return StatusCode::FAILURE;
-  }
-  uint64_t bufferSize{0};
-  std::shared_ptr<uint8_t> buffer{nullptr};
-  // read serialized binary into a byte buffer
-  tools::datautil::StatusCode status{tools::datautil::StatusCode::SUCCESS};
-  std::tie(status, bufferSize) = tools::datautil::getFileSize(m_cachedBinaryPath);
-  if (0 == bufferSize) {
-    QNN_ERROR("Received path to an empty file. Nothing to deserialize.");
-    return StatusCode::FAILURE;
-  }
-  buffer = std::shared_ptr<uint8_t>(new uint8_t[bufferSize], std::default_delete<uint8_t[]>());
-  if (!buffer) {
-    QNN_ERROR("Failed to allocate memory.");
-    return StatusCode::FAILURE;
-  }
-
-  status = tools::datautil::readBinaryFromFile(
-      m_cachedBinaryPath, reinterpret_cast<uint8_t*>(buffer.get()), bufferSize);
-  if (status != tools::datautil::StatusCode::SUCCESS) {
-    QNN_ERROR("Failed to read binary data.");
-    return StatusCode::FAILURE;
-  }
-
-  // inspect binary info
-  auto returnStatus = StatusCode::SUCCESS;
-  QnnSystemContext_Handle_t sysCtxHandle{nullptr};
-  if (QNN_SUCCESS != m_qnnFunctionPointers.qnnSystemInterface.systemContextCreate(&sysCtxHandle)) {
-    QNN_ERROR("Could not create system handle.");
-    returnStatus = StatusCode::FAILURE;
-  }
-  const QnnSystemContext_BinaryInfo_t* binaryInfo{nullptr};
-  Qnn_ContextBinarySize_t binaryInfoSize{0};
-  if (StatusCode::SUCCESS == returnStatus &&
-      QNN_SUCCESS != m_qnnFunctionPointers.qnnSystemInterface.systemContextGetBinaryInfo(
-                         sysCtxHandle,
-                         static_cast<void*>(buffer.get()),
-                         bufferSize,
-                         &binaryInfo,
-                         &binaryInfoSize)) {
-    QNN_ERROR("Failed to get context binary info");
-    returnStatus = StatusCode::FAILURE;
-  }
-
-  // fill GraphInfo_t based on binary info
-  if (StatusCode::SUCCESS == returnStatus &&
-      !copyMetadataToGraphsInfo(binaryInfo, m_graphsInfo, m_graphsCount)) {
-    QNN_ERROR("Failed to copy metadata.");
-    returnStatus = StatusCode::FAILURE;
-  }
-  m_qnnFunctionPointers.qnnSystemInterface.systemContextFree(sysCtxHandle);
-  sysCtxHandle = nullptr;
-
-  if (StatusCode::SUCCESS == returnStatus &&
-      nullptr == m_qnnFunctionPointers.qnnInterface.contextCreateFromBinary) {
-    QNN_ERROR("contextCreateFromBinaryFnHandle is nullptr.");
-    returnStatus = StatusCode::FAILURE;
-  }
-  if (StatusCode::SUCCESS == returnStatus &&
-      m_qnnFunctionPointers.qnnInterface.contextCreateFromBinary(
-          m_backendHandle,
-          m_deviceHandle,
-          (const QnnContext_Config_t**)&m_contextConfig,
-          static_cast<void*>(buffer.get()),
-          bufferSize,
-          &m_context,
-          m_profileBackendHandle)) {
-    QNN_ERROR("Could not create context from binary.");
-    returnStatus = StatusCode::FAILURE;
-  }
-  if (ProfilingLevel::OFF != m_profilingLevel) {
-    extractBackendProfilingInfo(m_profileBackendHandle);
-  }
-  m_isContextCreated = true;
-  if (StatusCode::SUCCESS == returnStatus) {
-    for (size_t graphIdx = 0; graphIdx < m_graphsCount; graphIdx++) {
-      if (nullptr == m_qnnFunctionPointers.qnnInterface.graphRetrieve) {
-        QNN_ERROR("graphRetrieveFnHandle is nullptr.");
-        returnStatus = StatusCode::FAILURE;
-        break;
-      }
-      if (QNN_SUCCESS !=
-          m_qnnFunctionPointers.qnnInterface.graphRetrieve(
-              m_context, (*m_graphsInfo)[graphIdx].graphName, &((*m_graphsInfo)[graphIdx].graph))) {
-        QNN_ERROR("Unable to retrieve graph handle for graph Idx: %d", graphIdx);
-        returnStatus = StatusCode::FAILURE;
-      }
-    }
-  }
-  if (StatusCode::SUCCESS != returnStatus) {
-    QNN_DEBUG("Cleaning up graph Info structures.");
-    qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
-  }
-  return returnStatus;
-}
-
-StatusCode QNNBackend::saveBinary() {
-  if (m_saveBinaryName.empty()) {
-    QNN_ERROR("No name provided to save binary file.");
-    return StatusCode::FAILURE;
-  }
-  if (nullptr == m_qnnFunctionPointers.qnnInterface.contextGetBinarySize ||
-      nullptr == m_qnnFunctionPointers.qnnInterface.contextGetBinary) {
-    QNN_ERROR("contextGetBinarySizeFnHandle or contextGetBinaryFnHandle is nullptr.");
-    return StatusCode::FAILURE;
-  }
-  uint64_t requiredBufferSize{0};
-  if (QNN_CONTEXT_NO_ERROR !=
-      m_qnnFunctionPointers.qnnInterface.contextGetBinarySize(m_context, &requiredBufferSize)) {
-    QNN_ERROR("Could not get the required binary size.");
-    return StatusCode::FAILURE;
-  }
-  std::unique_ptr<uint8_t[]> saveBuffer(new uint8_t[requiredBufferSize]);
-  if (nullptr == saveBuffer) {
-    QNN_ERROR("Could not allocate buffer to save binary.");
-    return StatusCode::FAILURE;
-  }
-  uint64_t writtenBufferSize{0};
-  if (QNN_CONTEXT_NO_ERROR !=
-      m_qnnFunctionPointers.qnnInterface.contextGetBinary(m_context,
-                                                          reinterpret_cast<void*>(saveBuffer.get()),
-                                                          requiredBufferSize,
-                                                          &writtenBufferSize)) {
-    QNN_ERROR("Could not get binary.");
-    return StatusCode::FAILURE;
-  }
-  if (requiredBufferSize < writtenBufferSize) {
-    QNN_ERROR(
-        "Illegal written buffer size [%d] bytes. Cannot exceed allocated memory of [%d] bytes",
-        writtenBufferSize,
-        requiredBufferSize);
-    return StatusCode::FAILURE;
-  }
-  auto dataUtilStatus = tools::datautil::writeBinaryToFile(
-      m_outputPath, m_saveBinaryName + ".bin", (uint8_t*)saveBuffer.get(), writtenBufferSize);
-  if (tools::datautil::StatusCode::SUCCESS != dataUtilStatus) {
-    QNN_ERROR("Error while writing binary to file.");
-    return StatusCode::FAILURE;
-  }
   return StatusCode::SUCCESS;
 }
 

@@ -28,13 +28,8 @@ int main() {
 
     QNNBackend *qbn = new QNNBackend(mm);
 
-    // qbn->init(); // TODO: use part of the init function to create a graph handle
-    // backend init and create a graph handle
-    std::cout << "backend init" << std::endl;
-    qbn->graphInitialize();
     // build graph
     std::cout << "build graph" << std::endl;
-
     // graph add node
     uint32_t dimensions[] = {1, 2, 2, 2};
     qbn->modelAddTensor("x", // Node Name
@@ -99,6 +94,5 @@ int main() {
     std::cout << "graph run" << std::endl;
     qbn->graphExecute();
 
-    qbn->release();
     delete qbn;
 }
