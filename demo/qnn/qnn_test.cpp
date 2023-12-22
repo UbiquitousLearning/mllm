@@ -79,7 +79,7 @@ int main() {
             .version = QNN_TENSOR_VERSION_1,
             {.v1 = {
                  .id = 0,
-                 .name = "aten__add_0_add_0_0",
+                 .name = "add-output",
                  .type = QNN_TENSOR_TYPE_APP_READ,
                  .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                  .dataType = QNN_DATATYPE_FLOAT_32,

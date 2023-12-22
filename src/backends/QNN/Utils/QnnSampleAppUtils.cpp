@@ -93,12 +93,12 @@ sample_app::ReadInputListRetType_t sample_app::readInputList(const std::string i
     std::vector<std::string> inputFilePaths;
     split(inputFilePaths, lines.front(), ' ');
     parseInputFilePaths(inputFilePaths, paths, separator);
+    // TODO: multi input support
     filePathsList.reserve(paths.size());
-    filePathsList.push_back(std::queue<std::string>());
     for (size_t idx = 0; idx < paths.size(); idx++) {
-      // if (idx >= filePathsList.size()) {
-      //   filePathsList.push_back(std::queue<std::string>());
-      // }
+      if (idx >= filePathsList.size()) {
+        filePathsList.push_back(std::queue<std::string>());
+      }
       filePathsList.back().push(paths[idx]);
     }
     lines.pop();

@@ -105,7 +105,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnCpuOpPackageExample.so:QnnOpPackage_interfaceProvider";
     iotensor::OutputDataType parsedOutputDataType   = iotensor::OutputDataType::FLOAT_ONLY;
     iotensor::InputDataType parsedInputDataType     = iotensor::InputDataType::FLOAT;
-    sample_app::ProfilingLevel parsedProfilingLevel = ProfilingLevel::OFF;
+    sample_app::ProfilingLevel parsedProfilingLevel = ProfilingLevel::DETAILED;
     bool dumpOutputs                                = true;
     std::string cachedBinaryPath;
     std::string saveBinaryName;
@@ -141,15 +141,15 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     QNN_INFO("Model: %s", modelPath.c_str());
     QNN_INFO("Backend: %s", backEndPath.c_str());
 
-    QnnFunctionPointers qnnFunctionPointers;
+    // QnnFunctionPointers qnnFunctionPointers;
     // Load backend and model .so and validate all the required function symbols are resolved
     auto statusCode = dynamicloadutil::getQnnFunctionPointers(backEndPath,
                                                               modelPath,
-                                                              &qnnFunctionPointers,
+                                                              &m_qnnFunctionPointers,
                                                               &sg_backendHandle,
                                                               !loadFromCachedBinary,
                                                               &sg_modelHandle);
-    
+
     if (dynamicloadutil::StatusCode::SUCCESS != statusCode) {
       if (dynamicloadutil::StatusCode::FAIL_LOAD_BACKEND == statusCode) {
         exitWithMessage(
@@ -165,25 +165,25 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     }
 
     if (loadFromCachedBinary) {
-      statusCode =
-          dynamicloadutil::getQnnSystemFunctionPointers(systemLibraryPath, &qnnFunctionPointers);
-      if (dynamicloadutil::StatusCode::SUCCESS != statusCode) {
-        exitWithMessage("Error initializing QNN System Function Pointers", EXIT_FAILURE);
+        statusCode =
+            dynamicloadutil::getQnnSystemFunctionPointers(systemLibraryPath, &m_qnnFunctionPointers);
+        if (dynamicloadutil::StatusCode::SUCCESS != statusCode) {
+            exitWithMessage("Error initializing QNN System Function Pointers", EXIT_FAILURE);
       }
     }
 
-    QnnBackendInitialize(qnnFunctionPointers,
-                inputListPaths,
-                opPackagePaths,
-                sg_backendHandle,
-                outputPath,
-                debug,
-                parsedOutputDataType,
-                parsedInputDataType,
-                parsedProfilingLevel,
-                dumpOutputs,
-                cachedBinaryPath,
-                saveBinaryName);
+    QnnBackendInitialize(m_qnnFunctionPointers,
+                         inputListPaths,
+                         opPackagePaths,
+                         sg_backendHandle,
+                         outputPath,
+                         debug,
+                         parsedOutputDataType,
+                         parsedInputDataType,
+                         parsedProfilingLevel,
+                         dumpOutputs,
+                         cachedBinaryPath,
+                         saveBinaryName);
 }
 
 void QNNBackend::init() {
@@ -330,7 +330,7 @@ int32_t QNNBackend::graphInitialize() {
     const QnnGraph_Config_t **graphConfigs = nullptr;
     qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::MODEL_NO_ERROR;
     VALIDATE(qnn_wrapper_api::getQnnGraphConfigFromInfo(
-                 "convReluModel", (const qnn_wrapper_api::GraphConfigInfo_t **)m_graphConfigsInfo, 1, graphConfigs),
+                 "mllmQnnModel", (const qnn_wrapper_api::GraphConfigInfo_t **)m_graphConfigsInfo, m_graphConfigsInfoCount, graphConfigs),
              err);
     VALIDATE(qnnModel.initialize(m_backendHandle,
                                       m_qnnFunctionPointers.qnnInterface,
@@ -369,11 +369,17 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
 qnn_wrapper_api::ModelError_t QNNBackend::graphFinilize() {
     // Add all models to array to get graphsInfo
     qnn_wrapper_api::QnnModel *models[] = {&qnnModel};
-    uint32_t numModels = 1;
     m_graphsCount = 1;
     // Populate the constructed graphs in provided output variables
     qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::MODEL_NO_ERROR;
-    VALIDATE(getGraphInfoFromModels(*models, numModels, &m_graphsInfo), err);
+    VALIDATE(getGraphInfoFromModels(*models, m_graphsCount, &m_graphsInfo), err);
+    // Graph finalize
+    if (QNN_GRAPH_NO_ERROR != m_qnnFunctionPointers.qnnInterface.graphFinalize((*m_graphsInfo)[0].graph, m_profileBackendHandle, nullptr)) {
+        return qnn_wrapper_api::ModelError_t::MODEL_GRAPH_ERROR;
+    }
+    if (ProfilingLevel::OFF != m_profilingLevel) {
+        extractBackendProfilingInfo(m_profileBackendHandle);
+    }
 
     return qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
 }
@@ -408,18 +414,11 @@ StatusCode QNNBackend::initialize() {
   if (!readSuccess) {
     exitWithMessage("Could not read input lists", EXIT_FAILURE);
   }
-  // print m_inputFileLists
-  for (auto const& inputFileList : m_inputFileLists) {
-    std::cout << "inputFileList: " << inputFileList.size() << std::endl;
-    for(auto& inputFile : inputFileList) {
-      std::cout << "inputFile: " << inputFile.size() << std::endl;
-      std::cout << "inputFile: " << inputFile.front() << std::endl;
-      std::cout << "--------------" << std::endl;
-    }
-  }
+
   // initialize logging in the backend
   if (log::isLogInitialized()) {
     auto logCallback = log::getLogCallback();
+    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_DEBUG);
     auto logLevel    = log::getLogLevel();
     QNN_INFO("Initializing logging in the backend. Callback: [%p], Log Level: [%d]",
              logCallback,
