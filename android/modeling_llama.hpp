@@ -5,7 +5,8 @@
 #ifndef MODELING_LLAMA_HPP
 #define MODELING_LLAMA_HPP
 #include "helper.hpp"
-NetTensor *Attention_LLAMA(Context *ctx, NetTensor *x, int embedding_size, int hidden_size, int head_size, string name) {
+
+inline NetTensor *Attention_LLAMA(Context *ctx, NetTensor *x, int embedding_size, int hidden_size, int head_size, string name) {
     auto *q = _Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wq");
     auto *k = _Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wk");
     auto *v = _Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wv");
@@ -26,7 +27,7 @@ NetTensor *Attention_LLAMA(Context *ctx, NetTensor *x, int embedding_size, int h
     return o;
 }
 
-NetTensor *FFN_LLAMA(Context *ctx, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
+inline NetTensor *FFN_LLAMA(Context *ctx, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, name + ".w1");
     x = _SiLU(ctx, {x});
     auto *y = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, name + ".w3");
@@ -35,7 +36,7 @@ NetTensor *FFN_LLAMA(Context *ctx, NetTensor *i, int hidden_dim, int ffn_hidden_
     return x;
 }
 
-void llama2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32) {
+inline void llama2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32) {
     auto *i = _Input(c);
     i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"tok_embeddings");
     // loop
@@ -55,7 +56,7 @@ void llama2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_h
 }
 
 
-unsigned int postProcessing_llama(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_result) {
+inline unsigned int postProcessing_llama(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_result) {
     CHECK_EQ(result->batch(), 1);
     CHECK_EQ(result->head(), 1);
     out_result->reshape(1, 1, 1, 1);

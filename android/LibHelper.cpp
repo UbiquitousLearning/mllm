@@ -95,6 +95,7 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
     shared_ptr<Tensor> initT = std::make_shared<Tensor>();
     token2Tensor(initT, net_, {0});
     executor_->setup(net_, {initT});
+    is_first_run_cond_ = true;
     return true;
 }
 
@@ -102,23 +103,56 @@ void LibHelper::setCallback(callback_t callback) {
     this->callback_ = std::move(callback);
 }
 
-void LibHelper::run(std::string &input_str, unsigned int max_step)  {
+void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step,unsigned int image_length)  {
     if (input_str[0]!=' ') {
         input_str = ' ' + input_str;
     }
     auto tokens_id = vector<token_id_t>();
-    tokenizer_->tokenize(input_str, tokens_id, true);
+    shared_ptr<Tensor> input = std::make_shared<Tensor>();
+    shared_ptr<Tensor> img_patch = std::make_shared<Tensor>();
+    shared_ptr<Tensor> img_patch_id = std::make_shared<Tensor>();
+
+    if (image!=nullptr) {
+        if (pre_processor_!=nullptr&&image_length>0) {
+            switch (model_) {
+            case FUYU:{
+                const auto pre_processor = dynamic_cast<FuyuPreProcess*>(pre_processor_);
+                pre_processor->PreProcessImages({image}, {image_length}, 1080, 1920, true, true, true, 0.5, 0.5);
+                pre_processor->Process(input_str);
+                tokens_id = pre_processor->text_ids_[0];
+                token2Tensor(input, net_, tokens_id);
+                const auto image_patches = pre_processor->image_patches_;
+                const auto image_patch_indices = pre_processor->image_patches_indices_ ;
+                patches2Tensor(img_patch, net_, image_patches);
+                patchIdx2Tensor(img_patch_id, net_, image_patch_indices);
+                break;
+            }
+            default:break;
+            }
+        }else {
+            LOGE("Image Processor is not available!");
+            return;
+        }
+
+    }else {
+        tokenizer_->tokenize(input_str, tokens_id, true);
+    }
+    LOGI("is_first_run_cond_:%d", is_first_run_cond_);
     if (is_first_run_cond_) {
+        is_first_run_cond_ = false;
+    }else {
         if (tokens_id[0] >0) {
             tokens_id[0] = 13;
         }
-        is_first_run_cond_ = false;
     }
     auto out_string = std::string();
-    shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    token2Tensor(input, net_, tokens_id);
+
     // std::cout << input << std::flush;
     for (int step = 0; step < max_step; step++) {
+        if (img_patch->allocted()) {
+            executor_->execute(net_, {input, img_patch, img_patch_id});
+
+        }
         executor_->execute(net_, {input});
         auto result = executor_->result();
         auto token_idx = postProcessing(result[0], input);

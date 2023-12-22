@@ -72,7 +72,8 @@ inline void patchIdx2Tensor(shared_ptr<Tensor> input_tensor, Net *net, vector<ve
         }
     }
 }
-unsigned int argmax(const std::vector<float> &scores) {
+
+inline unsigned int argmax(const std::vector<float> &scores) {
     if (scores.empty()) {
         throw std::invalid_argument("Input vector is empty");
     }

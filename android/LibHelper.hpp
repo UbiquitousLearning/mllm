@@ -56,7 +56,7 @@ public:
     unsigned postProcessing(std::shared_ptr<Tensor> result, std::shared_ptr<Tensor> &out_result) const;
     bool setUp(const std::string &base_path, std::string weights_path, std::string vacab_path, PreDefinedModel model, MLLMBackendType backend_type = MLLMBackendType::CPU);
     void setCallback(callback_t callback);
-    void run( std::string &input_str, unsigned int max_step) ;
+    void run(std::string &input_str, uint8_t *image, unsigned max_step, unsigned image_length) ;
     ~LibHelper();
 };
 } // mllm
