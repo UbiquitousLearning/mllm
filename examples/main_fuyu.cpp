@@ -192,17 +192,6 @@ int main() {
 
 
     auto tokenizer = UnigramTokenizer("./vocab_uni.mllm");
-    auto preprocessor = FuyuPreProcess(&tokenizer);
-    preprocessor.PreProcessImages({"bus_lite.png"});
-    preprocessor.Process("Generate a coco-style caption.\n");
-    auto input_ids = preprocessor.image_input_ids_;
-    auto image_patches_indices = preprocessor.image_patches_indices_;
-    auto image_patches = preprocessor.image_patches_;
-    if(input_ids.empty()) {
-        input_ids = preprocessor.text_ids_;
-    }
-
-
 
     int vocab_size = 262144;
     int hidden_dim = 4096;
@@ -217,24 +206,36 @@ int main() {
     BackendConfig bn;
     Net net(bn);
     net.convert(c->sub_param_);
+    ParamLoader param_loader("../models/fuyu-8b-q4_k-46.mllm");
+
+    Executor ex(&param_loader);
+    shared_ptr<Tensor> initT = std::make_shared<Tensor>();
+    token2Tensor(initT, net, {0});
+    shared_ptr<Tensor> initIMG = std::make_shared<Tensor>();
+    shared_ptr<Tensor> imgPatchId= std::make_shared<Tensor>();
+    fullTensor(initIMG, net, {0, 0, 0, 0});
+    fullTensor(imgPatchId, net, {0, 0, 0, 0});
+    ex.setup(&net, {initT, initIMG, imgPatchId});
 
 
 
+    auto preprocessor = FuyuPreProcess(&tokenizer);
+    preprocessor.PreProcessImages({"bus_lite.png"});
+    preprocessor.Process("Generate a coco-style caption.\n");
+    auto input_ids = preprocessor.image_input_ids_;
+    auto image_patches_indices = preprocessor.image_patches_indices_;
+    auto image_patches = preprocessor.image_patches_;
+    if(input_ids.empty()) {
+        input_ids = preprocessor.text_ids_;
+    }
     shared_ptr<Tensor> input_seq = std::make_shared<Tensor>();
     token2Tensor(input_seq, net, input_ids[0]);
     shared_ptr<Tensor> img_patch = std::make_shared<Tensor>();
     patches2Tensor(img_patch, net, image_patches);
-    // fullTensor(img_patch,net, {0, 0, 0, 0});
     shared_ptr<Tensor> img_patch_id = std::make_shared<Tensor>();
     patchIdx2Tensor(img_patch_id, net, image_patches_indices);
-    // fullTensor(img_patch_id,net, {0, 0, 0, 0});
-
-
-
-    ParamLoader param_loader("../models/fuyu-8b-q4_k-46.mllm");
-    Executor ex(&param_loader);
     for(int step = 0; step<10; step++) {
-        ex.execute(&net, {input_seq, img_patch, img_patch_id});
+        ex.run(&net, {input_seq, img_patch, img_patch_id});
         auto result = ex.result();
         auto token_idx = postProcessing(result[0], input_seq);
 //        std::cout << token_idx << std::endl;
@@ -247,6 +248,8 @@ int main() {
         std::cout << out_token << std::flush;
     }
     printf("\n");
+
+
     ex.perf();
 
     // free memory

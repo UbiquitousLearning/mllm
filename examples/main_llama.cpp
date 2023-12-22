@@ -108,9 +108,9 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
 }
 NetTensor *FFN(Context *ctx, NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
     auto *x = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, name+".w1");
-    x = _SiLU(ctx, {x});
+    x = _SiLU(ctx, {x}, name+".silu");
     auto *y = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, name+".w3");
-    x = _Mul(ctx, {x, y});
+    x = _Mul(ctx, {x, y}, name+".dot");
     x = _Linear(ctx, {x}, ffn_hidden_dim, hidden_dim, false, name+".w2");
     return x;
 }
@@ -122,11 +122,11 @@ void llama2(Context* c, int vocab_size= 32000, int hidden_dim= 4096, int ffn_hid
         auto *x = _RMSNorm(c, {i}, (string)"layers."+std::to_string(layer)+".attention_norm");
         //x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
         x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
-        i = _Add(c, {x, i});
+        i = _Add(c, {x, i}, (string)"layers."+std::to_string(layer) +".attention_add");
         x = _RMSNorm(c, {i}, (string)"layers."+std::to_string(layer)+".ffn_norm");
         x = FFN(c, x, hidden_dim, ffn_hidden_dim, (string)"layers."+std::to_string(layer) +".feed_forward");
-        i = _Add(c, {x, i});
-        _SubgraphBegin(c);
+        i = _Add(c, {x, i}, (string)"layers."+std::to_string(layer) +".ffn_add");
+        //_SubgraphBegin(c);
     }
     // end loop
     i = _RMSNorm(c, {i}, (string)"norm");
