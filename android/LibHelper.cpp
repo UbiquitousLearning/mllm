@@ -58,6 +58,7 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
     auto size = param_loader->getParamSize();
     LOGI("param size:%d", size);
     model_ = model;
+    LOGI("MODEL TYPE:%d", model_);
 
     switch (model) {
     case LLAMA: {
@@ -78,6 +79,7 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
         int mutil_head_size = 64;
         int patch_size = 30;
         Fuyu(c, vocab_size, patch_size, 3, hidden_dim, ffn_hidden_dim, mutil_head_size);
+        net_->convert(c->sub_param_, BackendType::MLLM_CPU);
         tokenizer_ = new UnigramTokenizer(vacab_path);
         pre_processor_ = new FuyuPreProcess(tokenizer_);
         eos_id_ = 71013;
@@ -92,9 +94,26 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
     if (!tokenizer_->isAvailible()) {
         return false;
     }
-    shared_ptr<Tensor> initT = std::make_shared<Tensor>();
-    token2Tensor(initT, net_, {0});
-    executor_->setup(net_, {initT});
+    switch (model_) {
+    case LLAMA: {
+        shared_ptr<Tensor> initT = std::make_shared<Tensor>();
+        token2Tensor(initT, net_, {0});
+        executor_->setup(net_, {initT});
+        break;
+    }
+    case FUYU: {
+        shared_ptr<Tensor> initT = std::make_shared<Tensor>();
+        token2Tensor(initT, net_, {0});
+        shared_ptr<Tensor> initIMG = std::make_shared<Tensor>();
+        shared_ptr<Tensor> imgPatchId= std::make_shared<Tensor>();
+        fullTensor(initIMG, net_, {0, 0, 0, 0},1.0F);
+        fullTensor(imgPatchId, net_, {0, 0, 0, 0},1.0F);
+        executor_->setup(net_, {initT, initIMG, imgPatchId});
+        break;
+    }
+
+    }
+
     is_first_run_cond_ = true;
     return true;
 }
@@ -104,8 +123,20 @@ void LibHelper::setCallback(callback_t callback) {
 }
 
 void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step,unsigned int image_length)  {
-    if (input_str[0]!=' ') {
-        input_str = ' ' + input_str;
+    // PreProcess
+    switch (model_) {
+    case LLAMA: {
+        if (input_str[0]!=' ') {
+            input_str = ' ' + input_str;
+        }
+        break;
+    }
+    case FUYU: {
+        if (input_str[input_str.length()-1]!='\n') {
+            input_str = input_str + '\n';
+        }
+    }
+
     }
     auto tokens_id = vector<token_id_t>();
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
@@ -113,14 +144,19 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step,un
     shared_ptr<Tensor> img_patch_id = std::make_shared<Tensor>();
 
     if (image!=nullptr) {
+        LOGI("Image Found!");
         if (pre_processor_!=nullptr&&image_length>0) {
             switch (model_) {
             case FUYU:{
                 const auto pre_processor = dynamic_cast<FuyuPreProcess*>(pre_processor_);
-                pre_processor->PreProcessImages({image}, {image_length}, 1080, 1920, true, true, true, 0.5, 0.5);
+                pre_processor->PreProcessImages({image}, {image_length});//, 1080, 1920, true, true, true, 0.5, 0.5);
                 pre_processor->Process(input_str);
-                tokens_id = pre_processor->text_ids_[0];
-                token2Tensor(input, net_, tokens_id);
+                auto input_ids = pre_processor->image_input_ids_;
+                if (input_ids.empty()) {
+                    input_ids = pre_processor->text_ids_;
+                }
+
+                token2Tensor(input, net_, input_ids[0]);
                 const auto image_patches = pre_processor->image_patches_;
                 const auto image_patch_indices = pre_processor->image_patches_indices_ ;
                 patches2Tensor(img_patch, net_, image_patches);
@@ -135,34 +171,50 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step,un
         }
 
     }else {
-        tokenizer_->tokenize(input_str, tokens_id, true);
-    }
-    LOGI("is_first_run_cond_:%d", is_first_run_cond_);
-    if (is_first_run_cond_) {
-        is_first_run_cond_ = false;
-    }else {
-        if (tokens_id[0] >0) {
-            tokens_id[0] = 13;
+        if (model_ == LLAMA) {
+
+            tokenizer_->tokenize(input_str, tokens_id, true);
+            LOGI("is_first_run_cond_:%d", is_first_run_cond_);
+            if (is_first_run_cond_) {
+                is_first_run_cond_ = false;
+            }else {
+                LOGI("Keep Speaker!");
+                if (tokens_id[0] >0) {
+                    tokens_id[0] = 13;
+
+                }
+            }
+            token2Tensor(input, net_, tokens_id);
         }
     }
+
     auto out_string = std::string();
 
     // std::cout << input << std::flush;
     for (int step = 0; step < max_step; step++) {
-        if (img_patch->allocted()) {
-            executor_->execute(net_, {input, img_patch, img_patch_id});
-
+        if (model_==FUYU) {
+            LOGI("Image Patch!");
+            executor_->run(net_, {input, img_patch, img_patch_id});
+        }else {
+            executor_->run(net_, {input});
         }
-        executor_->execute(net_, {input});
         auto result = executor_->result();
         auto token_idx = postProcessing(result[0], input);
-        const auto out_token = tokenizer_->detokenize({token_idx});
+        if (model_==FUYU) {
+            // LOGI("1");
+            fullTensor(img_patch, net_, {0, 0, 0, 0},1.0F);
+            // LOGI("2");
 
-        out_string += out_token;
+            fullTensor(img_patch_id, net_, {0, 0, 0, 0},1.0F);
+            // LOGI("3");
+
+        }
+        const auto out_token = tokenizer_->detokenize({token_idx});
         if (out_token == "</s>" || token_idx == eos_id_) {
             callback_(out_string,true);
             break;
         }
+        out_string += out_token;
         //TODO: End with EOS
         callback_(out_string, step == max_step - 1);
     }

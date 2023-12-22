@@ -243,7 +243,7 @@ int main() {
             break;
         }
         fullTensor(img_patch, net, {0, 0, 0, 0});
-        fullTensor(img_patch, net, {0, 0, 0, 0});
+        fullTensor(img_patch_id, net, {0, 0, 0, 0});
         auto out_token = tokenizer.detokenize({token_idx});
         std::cout << out_token << std::flush;
     }
