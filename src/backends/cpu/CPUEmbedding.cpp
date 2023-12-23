@@ -117,7 +117,7 @@ ErrorCode CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     case MLLM_TYPE_I32: break;
     case MLLM_TYPE_COUNT: break;
     }
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 ErrorCode CPUEmbedding::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     weight_.free();

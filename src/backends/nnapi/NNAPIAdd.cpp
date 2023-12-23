@@ -24,7 +24,7 @@ ErrorCode NNAPIAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
                         inputs[0]->sequence(),
                         inputs[0]->dimension());
 
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode NNAPIAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

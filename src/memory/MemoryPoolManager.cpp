@@ -13,7 +13,12 @@ namespace mllm {
         n_free_blocks_(0),
         base_alignment_(base_alignment)
     {
+#if defined(_MSC_VER) || defined(__MINGW32__)
+        data_ = _aligned_malloc(pool_size,base_alignment);
+#else
         data_ = std::aligned_alloc(base_alignment,pool_size);
+#endif
+
         n_free_blocks_ += 1;
         free_blocks_.emplace_back(data_,pool_size);
         #ifdef MLLM_ALLOCATOR_DEBUG

@@ -23,7 +23,7 @@ ErrorCode NNAPIScale::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                         inputs[0]->head(),
                         inputs[0]->sequence(),
                         inputs[0]->dimension());
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode NNAPIScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -38,7 +38,7 @@ ErrorCode NNAPIScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 
     std::vector<uint32_t> dims = {1, 1, 1, 1};
 
-    auto result = NO_ERROR;
+    auto result = MLLM_NO_ERROR;
     if (bias_after_scale_) { // output = middle + bias
         auto middleIdx = buildTensor(ANEURALNETWORKS_TENSOR_FLOAT32, inputShape);
         auto inputIdxs = getTensorIdxs(inputs);

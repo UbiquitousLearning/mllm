@@ -61,6 +61,6 @@ ErrorCode CPUCausalMask::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 #ifdef DEBUG
     std::cout << "*"<<name()<<" setUp*" << std::endl;
 #endif
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 } // namespace mllm

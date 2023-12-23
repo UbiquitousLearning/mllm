@@ -12,9 +12,9 @@
 #include <iostream>
 #include "Types.hpp"
 
-#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-#include <x86intrin.h>
-#endif
+// #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+// #include <x86intrin.h>
+// #endif
 
 #undef MIN
 #undef MAX
@@ -24,6 +24,28 @@
 // 16-bit float
 // on Arm, we use __fp16
 // on x86, we use uint16_t
+#ifdef __ARM_NEON
+
+#else
+
+#ifdef __wasm_simd128__
+#include <wasm_simd128.h>
+#else
+#ifdef __POWER9_VECTOR__
+#include <altivec.h>
+#undef bool
+#define bool _Bool
+#else
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#include <intrin.h>
+#else
+#if !defined(__riscv)
+#include <immintrin.h>
+#endif
+#endif
+#endif
+#endif
+#endif
 
 #if defined(__ARM_NEON) && !defined(_MSC_VER)
 #include <arm_neon.h>

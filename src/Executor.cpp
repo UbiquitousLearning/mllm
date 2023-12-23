@@ -2,11 +2,14 @@
 #include "Executor.hpp"
 namespace mllm {
 void Executor::setup(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
+    mllm_time_init();
     bool init = true;
     // set Input tensor
 
     uint64_t time_start = mllm_time_us();
     uint64_t time_end;
+    uint64_t t_start;
+    uint64_t t_end;
     //Init inputs
     vector<int> flashGid = {};
     for (int tid = 0; tid < net->inputNames().size(); ++tid) {
