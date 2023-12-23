@@ -198,6 +198,7 @@ add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/examples/main_fuyu.cpp ${DIR_SRC_
         src/processor/PreProcess.hpp
         src/processor/FuyuPreProcess.hpp
         src/processor/FuyuPreProcess.cpp
+        src/processor/PreProcess.cpp
 )
 target_link_libraries(main_fuyu MLLM_CPU)
 #target_link_directories(main_fuyu PUBLIC ${PROJECT_SOURCE_DIR}/third_party/imageHelper)
@@ -231,6 +232,7 @@ if (APK)
             android/modeling_llama.hpp
             android/modeling_fuyu.hpp
             android/helper.hpp
+            src/processor/PreProcess.cpp
 
     )
     target_link_libraries(mllm_lib MLLM_CPU)
