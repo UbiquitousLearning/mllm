@@ -18,7 +18,7 @@
 #define NNAPI_CHECK(func, ...)                                    \
     do {                                                          \
         const auto _status = (func(__VA_ARGS__));                 \
-        if (_status != ANEURALNETWORKS_NO_ERROR) {                \
+        if (_status != ANEURALNETWORKS_MLLM_NO_ERROR) {                \
             const auto ENUM_TO_STR = NNAPIEnumToString(_status);  \
             std::cout << "NNAPI error : " << ENUM_TO_STR << "\n"; \
             exit(0);                                              \
@@ -32,7 +32,7 @@ std::string NNAPIEnumToString(int code) {
 #define _ENUM_TO_STR(code) \
     case ANEURALNETWORKS_##code: return #code
         // ResultCode begin
-        _ENUM_TO_STR(NO_ERROR);
+        _ENUM_TO_STR(MLLM_NO_ERROR);
         _ENUM_TO_STR(OUT_OF_MEMORY);
         _ENUM_TO_STR(INCOMPLETE);
         _ENUM_TO_STR(UNEXPECTED_NULL);
@@ -280,7 +280,7 @@ ErrorCode NNAPIBackend::buildOperation(int op, const std::vector<uint32_t> &inpu
 #endif
     opNames_.push_back(name);
     NNAPI_CHECK(ANeuralNetworksModel_addOperation_27, nnapiModel_, op, inputs.size(), inputs.data(), outputs.size(), outputs.data());
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode NNAPIBackend::buildModel() {
@@ -345,7 +345,7 @@ ErrorCode NNAPIBackend::buildModel() {
     NNAPI_CHECK(ANeuralNetworksCompilation_setPreference_27, nnapiCompilation_, ANEURALNETWORKS_PREFER_SUSTAINED_SPEED);
     NNAPI_CHECK(ANeuralNetworksCompilation_finish_27, nnapiCompilation_);
     NNAPI_CHECK(ANeuralNetworksBurst_create_29, nnapiCompilation_, &nnapiBurst_);
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 void NNAPIBackend::invokeModel() const {
@@ -386,7 +386,7 @@ ErrorCode NNAPIBackend::identifyInputsAndOutputs(std::vector<shared_ptr<Tensor>>
     for (int i = 0; i < outputs.size(); i++) {
         outputTensors_[i] = outputs[i].get();
     }
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 } // namespace mllm

@@ -29,7 +29,7 @@ ErrorCode NNAPIMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_
                         inputs[0]->sequence(),
                         inputs[1]->dimension());
 
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode NNAPIMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

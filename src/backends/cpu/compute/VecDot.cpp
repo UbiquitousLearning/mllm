@@ -887,6 +887,16 @@ void vec_dot_q6_K_q8_K(const int n, float * __restrict s, const void * __restric
         acc = _mm256_fmadd_ps(_mm256_broadcast_ss(&d), _mm256_cvtepi32_ps(sumi), acc);
     }
 
+#if defined(_MSC_VER) || defined(__MINGW32__)
+    float arr[8];
+    _mm256_storeu_ps(arr, acc);
+
+    // for(float i : arr) {
+    //     printf("%f ", i);
+    // }
+    // printf("\n");
+#endif
+
     *s = hsum_float_8(acc);
 
 #elif defined __AVX__

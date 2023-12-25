@@ -14,14 +14,14 @@ ErrorCode NNAPICommonOp::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 #ifdef DEBUG
     std::cout << "*NNAPI " << name() << " reshape*" << std::endl;
 #endif
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode NNAPICommonOp::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
 #ifdef DEBUG
     std::cout << "*NNAPI " << name() << " setUp*" << std::endl;
 #endif
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode NNAPICommonOp::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -29,21 +29,21 @@ ErrorCode NNAPICommonOp::execute(vector<shared_ptr<Tensor>> inputs, vector<share
     std::cout << "*NNAPI " << name() << " execute*" << std::endl;
 #endif
     // do nothing, should be implemented by NNAPI
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode NNAPICommonOp::load(AbstructLoader &loader) {
 #ifdef DEBUG
     std::cout << "*NNAPI " << name() << " load*" << std::endl;
 #endif
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode NNAPICommonOp::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
 #ifdef DEBUG
     std::cout << "*" << name() << " free*" << std::endl;
 #endif
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 std::vector<uint32_t> NNAPICommonOp::getTensorIdxs(const vector<shared_ptr<Tensor>> &tensors) {

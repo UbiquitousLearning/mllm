@@ -18,7 +18,7 @@ ErrorCode NNAPISiLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     std::cout << "*NNAPI " << name() << " reshape*" << std::endl;
 #endif
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode NNAPISiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

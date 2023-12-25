@@ -29,6 +29,7 @@ void ParamWriter::writeIndex() {
         write_u64(fp_, param.size);
         write_u64(fp_, param.offset);
         writeInt(fp_, param.type);
+        std::cout<<"write param "<<param.name<<" size "<<param.size<<" offset "<<param.offset<<" type "<<param.type<<std::endl;
     }
     fflush(fp_);
 }
@@ -38,8 +39,19 @@ void ParamWriter::writeParam(string name, DataType type, void *data, uint64_t si
     param.name = std::move(name);
     param.type = type;
     param.offset = ftell(fp_);
-    fwrite(data, sizeof(char), size, fp_);
-    param.size = ftell(fp_) - param.offset;
+    auto status = fwrite(data, sizeof(char), size, fp_);
+    fflush(fp_);  // 确保数据立即写入文件
+    if (status != size) {
+        // 写入失败
+        std::cout<<"fwrite error"<<status<<"!="<<size<<std::endl;
+    }
+    auto foff_size_after = ftell(fp_);
+    auto foff_size = foff_size_after - param.offset;
+    if (foff_size != size) {
+        std::cout << "Assertion failed: foff_size (" << foff_size << ") != size (" << size << ")" << std::endl;
+    }
+    assert(foff_size == size);
+    param.size = foff_size;
     index_++;
 }
 void ParamWriter::paddingIndex(const vector<string> names) {

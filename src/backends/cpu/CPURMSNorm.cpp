@@ -8,11 +8,11 @@ namespace mllm {
 // template class CPURMSNorm;
 // int32_t opp = 897988541;
 
-int32_t op_params[1];
+// int32_t op_params[1];
 CPURMSNorm::CPURMSNorm(Backend *bn, string opName, bool multiThread, float epsilon) :
     Op(bn, opName), epsilon_(epsilon), support_multi_thread_(multiThread) {
-    op_params[0] = 897988541;
-    memcpy(&epsilon_, op_params, sizeof(float));
+    // op_params[0] = 897988541;s, sizeof(float));
+    // memcpy(&epsilon_, op_param)
     weight_.setBackend(bn);
 }
 

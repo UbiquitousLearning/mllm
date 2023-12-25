@@ -54,7 +54,7 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
             }
         }
     }
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode mat_mul_fp32_fp16(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1) {
@@ -119,7 +119,7 @@ ErrorCode mat_mul_fp32_fp16(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
             }
         }
     }
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias) {
@@ -173,7 +173,7 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
             }
         }
     }
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias) {
@@ -240,7 +240,7 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
             }
         }
     }
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias) {
@@ -280,7 +280,7 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
             for (int m = 0; m < M; m++) {
                 int num_blocks = N / blck_0;
                 int remainder = N % blck_0;
-#pragma omp parallel for num_threads(4)
+// #pragma omp parallel for num_threads(4)
                 for (int block = 0; block < num_blocks + 1; block++) {
                     for (int n = block * blck_0; n < (block + 1) * blck_0 & n < num_blocks * blck_0 + remainder; n++) {
                         if (dst->dtypeAt(n, h, m, n) == MLLM_TYPE_F32) {
@@ -309,6 +309,6 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
             }
         }
     }
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 

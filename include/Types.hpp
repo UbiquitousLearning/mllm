@@ -11,7 +11,7 @@ typedef enum {
 } BackendType;
 
 enum ErrorCode {
-    NO_ERROR = 0,
+    MLLM_NO_ERROR = 0,
     OUT_OF_MEMORY = 1,
     NOT_SUPPORT = 2,
     COMPUTE_SIZE_ERROR = 3,

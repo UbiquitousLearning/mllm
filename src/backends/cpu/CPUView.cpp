@@ -106,7 +106,7 @@ ErrorCode CPUView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 #ifdef DEBUG
         std::cout << "*"<<name()<<" setUp*" << std::endl;
 #endif
-        return NO_ERROR;
+        return MLLM_NO_ERROR;
     }
     else {
         return Op::setUp(inputs, outputs);

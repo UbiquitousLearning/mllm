@@ -48,7 +48,7 @@ public:
 // #elif DEBUG
 //         std::cout << "*"<<name()<<" reshape*" << std::endl;
 #endif
-        return NO_ERROR;
+        return MLLM_NO_ERROR;
     }
     /*
     virtual ErrorCode reshapeOutputs(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -60,7 +60,7 @@ public:
                 t->alloc();
             }
         }
-        return NO_ERROR;
+        return MLLM_NO_ERROR;
     }
      */
 
@@ -84,7 +84,7 @@ public:
 #ifdef DEBUG
         std::cout << "*"<<name()<<" setUp*" << std::endl;
 #endif
-        return NO_ERROR;
+        return MLLM_NO_ERROR;
     }
 
     virtual ErrorCode load(AbstructLoader &loader) {
@@ -93,13 +93,13 @@ public:
 #ifdef DEBUG
         std::cout << "*"<<name()<<" load*" << std::endl;
 #endif
-        return NO_ERROR;
+        return MLLM_NO_ERROR;
     }
     /*
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, ParamLoader &loader) {
         setUp(inputs, outputs);
         load(loader);
-        return NO_ERROR;
+        return MLLM_NO_ERROR;
     }*/
 
     /**
@@ -112,7 +112,7 @@ public:
 #ifdef DEBUG
         std::cout << "*"<<name()<<" execute*" << std::endl;
 #endif
-        return NO_ERROR;
+        return MLLM_NO_ERROR;
     }
 
     /**
@@ -125,12 +125,12 @@ public:
 #ifdef DEBUG
         std::cout << "*"<<name()<<" free*" << std::endl;
 #endif
-        return NO_ERROR;
+        return MLLM_NO_ERROR;
     }
 
 //    virtual ErrorCode setDtype(DataType activation_dtype) {
 //        activation_dtype_ = activation_dtype;
-//        return NO_ERROR;
+//        return MLLM_NO_ERROR;
 //    }
 //    DataType activationDtype() const {
 //        return activation_dtype_;

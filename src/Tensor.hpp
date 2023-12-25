@@ -10,8 +10,14 @@
 #include <cmath>
 #include "Timing.hpp"
 #include <fstream>
-#include <filesystem>
+// #include <filesystem>
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
 #include <assert.h>
+#include <sys/stat.h>
 
 const auto KMaxAxes = 32;
 
@@ -638,8 +644,26 @@ public:
 
     template <typename Dtype>
     void saveData(string ex = "") {
-        std::filesystem::create_directory("save_out");
-        std::ofstream outFile("save_out/" + name() +ex + ".log");
+        // std::filesystem::create_directory("save_out");
+        string directory = "save_out";
+        struct stat info;
+
+        if(stat(directory.c_str(), &info) != 0) {
+            // if the directory does not exist, create it
+#ifdef _WIN32
+            _mkdir(directory.c_str());
+#else
+            mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+#endif
+        } else if(!(info.st_mode & S_IFDIR)) {
+            // if the path exists but it is not a directory, also create it
+#ifdef _WIN32
+            _mkdir(directory.c_str());
+#else
+            mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+#endif
+        }
+        std::ofstream outFile(directory+ "/" + name() +ex + ".log");
 
         outFile << "----------------------------------------" << std::endl;
         outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "]" << std::endl;
