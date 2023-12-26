@@ -9,16 +9,17 @@ namespace mllm {
 // int32_t opp = 897988541;
 
 // int32_t op_params[1];
-CPURMSNorm::CPURMSNorm(Backend *bn, string opName, bool multiThread, float epsilon) :
+CPURMSNorm::CPURMSNorm(Backend *bn, string opName, int normSize, float epsilon, bool multiThread) :
     Op(bn, opName), epsilon_(epsilon), support_multi_thread_(multiThread) {
     // op_params[0] = 897988541;s, sizeof(float));
     // memcpy(&epsilon_, op_param)
+    normSize_ = normSize;
     weight_.setBackend(bn);
 }
 
 ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // RMSNorm 类似于LayerNorm作用于channel维度
-    normSize_ = inputs[0]->dimension();
+    assert(normSize_ == inputs[0]->dimension());
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     // outputs[0]->setDtype(activationDtype());
     // std::cout << name() << "  CPURMSNorm  reshape" << std::endl;
@@ -65,6 +66,7 @@ ErrorCode CPURMSNorm::load(AbstructLoader &loader) {
     if (&loader != nullptr) {
         weight_.setDtype(loader.getDataType(weight_.name()));
         weight_.alloc();
+        // auto l = loader.length(weight_.name());
         loader.load(&weight_);
     } else {
         weight_.setDtype(MLLM_TYPE_F32);

@@ -5,8 +5,9 @@
 #include "CPULayerNorm.hpp"
 
 namespace mllm {
-CPULayerNorm::CPULayerNorm(Backend *bn, string opName, bool multiThread,bool bias, float epsilon ) :
+CPULayerNorm::CPULayerNorm(Backend *bn, string opName,int normSize,bool bias, float epsilon, bool multiThread) :
     support_multi_thread_(multiThread), Op(bn, std::move(opName)), epsilon_(epsilon),bias(bias) {
+    normSize_ = normSize;
     weight_.setBackend(bn);
     if (bias) {
         bias_.setBackend(bn);
@@ -40,7 +41,7 @@ ErrorCode CPULayerNorm::load(AbstructLoader &loader) {
     return Op::load(loader);
 }
 ErrorCode CPULayerNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    normSize_ = inputs[0]->dimension();
+    assert(normSize_ == inputs[0]->dimension());
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     return Op::reshape(inputs, outputs);
 }

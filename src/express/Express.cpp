@@ -202,7 +202,7 @@ NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, bool transpose
     return out_tensor;
 }
 
-NetTensor *_RMSNorm(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+NetTensor *_RMSNorm(Context *ctx, std::vector<NetTensor *> inputs, int norm_size, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "RMSNorm" + std::to_string(ctx->idx);
@@ -213,6 +213,7 @@ NetTensor *_RMSNorm(Context *ctx, std::vector<NetTensor *> inputs, string name) 
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::RMSNORM)
+    net_op_->param["norm_size"] = (int) norm_size;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;
@@ -386,7 +387,7 @@ NetTensor *_GELU(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     out_tensor->in = net_op_;
     return out_tensor;
 }
-NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs, bool bias, string name) {
+NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs, int norm_size, bool bias, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "LayerNorm" + std::to_string(ctx->idx);
@@ -397,6 +398,7 @@ NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs, bool bias, 
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::LAYERNORM)
     net_op_->param["bias"] =(int) bias;
+    net_op_->param["norm_size"] = (int) norm_size;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;

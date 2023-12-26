@@ -41,17 +41,17 @@ inline void llama2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, in
     i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"tok_embeddings");
     // loop
     for (int layer = 0; layer < 32; ++layer) {
-        auto *x = _RMSNorm(c, {i}, (string)"layers." + std::to_string(layer) + ".attention_norm");
+        auto *x = _RMSNorm(c, {i}, hidden_dim, (string)"layers." + std::to_string(layer) + ".attention_norm");
         //x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
         x = Attention_LLAMA(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers." + std::to_string(layer) + ".attention");
         i = _Add(c, {x, i});
-        x = _RMSNorm(c, {i}, (string)"layers." + std::to_string(layer) + ".ffn_norm");
+        x = _RMSNorm(c, {i}, hidden_dim, (string)"layers." + std::to_string(layer) + ".ffn_norm");
         x = FFN_LLAMA(c, x, hidden_dim, ffn_hidden_dim, (string)"layers." + std::to_string(layer) + ".feed_forward");
         i = _Add(c, {x, i});
         _SubgraphBegin(c);
     }
     // end loop
-    i = _RMSNorm(c, {i}, (string)"norm");
+    i = _RMSNorm(c, {i}, hidden_dim, (string)"norm");
     i = _Linear(c, {i}, hidden_dim, vocab_size, false, "output");
 }
 

@@ -96,8 +96,8 @@ NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden
     auto *q = skv[0];
     auto *k = skv[1];
     auto *v = skv[2];
-    q = _LayerNorm(ctx, {q}, true, name + ".q_layernorm");
-    k = _LayerNorm(ctx, {k}, true, name + ".k_layernorm");
+    q = _LayerNorm(ctx, {q}, hidden_size, true, name + ".q_layernorm");
+    k = _LayerNorm(ctx, {k}, hidden_size, true, name + ".k_layernorm");
     q = _RoPE(ctx, {q}, 3, name + ".q_rope");
     k = _RoPE(ctx, {k}, 3, name + ".k_rope");
     k = _KVCache(ctx, {k}, true, name + ".k_cache");
@@ -120,16 +120,16 @@ NetTensor *MLP(Context *ctx, NetTensor * i, int hidden_dim, int ffn_hidden_dim, 
 NetTensor *Persimmon(Context* c, NetTensor * i, int hidden_dim= 4096, int ffn_hidden_dim = 4096*4, int mutil_head_size = 64, string name = "language_model.model"){
     // loop
     for(int layer=0; layer<36; ++layer) {
-        auto *x = _LayerNorm(c, {i}, true, name + (string)".layers."+std::to_string(layer)+".input_layernorm");
+        auto *x = _LayerNorm(c, {i},  hidden_dim, true, name + (string)".layers."+std::to_string(layer)+".input_layernorm");
         x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name + (string)".layers."+std::to_string(layer)+".self_attn");
         i = _Add(c, {x, i}, name + (string)".layers."+std::to_string(layer)+".add_attn");
-        x = _LayerNorm(c, {i}, true, name + (string)".layers."+std::to_string(layer)+".post_attention_layernorm");
+        x = _LayerNorm(c, {i},  hidden_dim, true,name + (string)".layers."+std::to_string(layer)+".post_attention_layernorm");
         x = MLP(c, x, hidden_dim, ffn_hidden_dim, name + (string)".layers."+std::to_string(layer) +".mlp");
         i = _Add(c, {x, i}, name + (string)".layers."+std::to_string(layer)+".add_mlp");
         _SubgraphBegin(c);
     }
     // end loop
-    i = _LayerNorm(c, {i}, true, name + (string)".final_layernorm");
+    i = _LayerNorm(c, {i},  hidden_dim, true, name + (string)".final_layernorm");
     return i;
 }
 void Fuyu(Context* c, int vocab_size= 262144, int patch_size = 30, int cnl_size = 3,int hidden_dim= 4096, int ffn_hidden_dim = 4096*4, int mutil_head_size = 32){
@@ -198,14 +198,8 @@ int main() {
     Net net(bn);
     net.convert(c->sub_param_);
     ParamLoader param_loader("../models/fuyu-8b-q4_k-46.mllm");
-
     Executor ex(&param_loader);
-    shared_ptr<Tensor> initT = Tokenizer::token2Tensor( &net, {0});
-    shared_ptr<Tensor> initIMG = std::make_shared<Tensor>();
-    shared_ptr<Tensor> imgPatchId= std::make_shared<Tensor>();
-    fullTensor(initIMG, net, {0, 0, 0, 0});
-    fullTensor(imgPatchId, net, {0, 0, 0, 0});
-    ex.setup(&net, {initT, initIMG, imgPatchId});
+    ex.setup(&net);
 
 
 
@@ -218,7 +212,8 @@ int main() {
     if(input_ids.empty()) {
         input_ids = preprocessor.text_ids_;
     }
-    shared_ptr<Tensor> input_seq = UnigramTokenizer::token2Tensor(&net, input_ids[0]);
+    shared_ptr<Tensor> input_seq = std::make_shared<Tensor>();
+    UnigramTokenizer::token2Tensor(&net, input_ids[0], input_seq);
     shared_ptr<Tensor> img_patch = std::make_shared<Tensor>();
     patches2Tensor(img_patch, net, image_patches);
     shared_ptr<Tensor> img_patch_id = std::make_shared<Tensor>();

@@ -1115,21 +1115,21 @@ void vit(Context* c, int hidden_dim= 768, int ffn_hidden_dim = 3072, int class_s
     auto *i = _Input(c, {}, "input_ids");
     i = Embedding(c, i, hidden_dim, name+".embeddings");
     for(int layer=0; layer<12; ++layer) {
-        auto *x = _LayerNorm(c, {i}, true, name + ".encoder.layer."+std::to_string(layer)+".layernorm_before");
+        auto *x = _LayerNorm(c, {i},  hidden_dim,  true,name + ".encoder.layer."+std::to_string(layer)+".layernorm_before");
         x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name + ".encoder.layer."+std::to_string(layer)+".attention");
         i = _Add(c, {x, i}, name + ".encoder.layer."+std::to_string(layer)+".add_attn");
-        x = _LayerNorm(c, {i}, true, name + ".encoder.layer."+std::to_string(layer)+".layernorm_after");
+        x = _LayerNorm(c, {i}, hidden_dim, true, name + ".encoder.layer."+std::to_string(layer)+".layernorm_after");
         x = MLP(c, x, hidden_dim, ffn_hidden_dim, name + ".encoder.layer."+std::to_string(layer));
         i = _Add(c, {x, i}, name + ".encoder.layer."+std::to_string(layer)+".add_mlp");
         _SubgraphBegin(c);
     }
-    i = _LayerNorm(c, {i}, true, name + ".layernorm");
+    i = _LayerNorm(c, {i}, hidden_dim, true,  name + ".layernorm");
     i = _Linear(c, {i}, hidden_dim, class_size, false, "classifier");
 }
 int main() {
 
     int width, height, channel;
-    unsigned char *data = stbi_load("catty.jpg", &width, &height, &channel, 0);
+    unsigned char *data = stbi_load("cat.jpg", &width, &height, &channel, 0);
     if (data == nullptr) {
         cout << "load image failed" << endl;
         return -1;
@@ -1140,25 +1140,6 @@ int main() {
     images = PreProcessor::ResizeImages(images, 224, 224,true);
     images = PreProcessor::NormalizeImages(images, 0.5, 0.5);
     data_f32 = images[0].data;
-    // vector<float> data_f32(width * height * channel);
-    // for (int i = 0; i < width * height * channel; i++) {
-    //     data_f32[i] = data[i] / 255.0;
-    // }
-    //
-    //
-    // // Print the pixel values
-    // for (int i = 0; i < height; i++) {
-    //     for (int j = 0; j < width; j++) {
-    //         for (int k = 0; k < channel; k++) {
-    //             // cout << "Pixel at (" << i << ", " << j << ", " << k << "): " << (data_f32[(i * width + j) * channel + k]-0.5)/0.5 << endl;
-    //             auto vv = data_f32[(i * width + j) * channel + k];
-    //             data_f32[(i * width + j) * channel + k] = (vv - 0.5)/0.5;
-    //         }
-    //     }
-    // }
-
-    // cout << "width: " << width << " height: " << height << " channel: " << channel << endl;
-
     stbi_image_free(data);
 
 
@@ -1172,14 +1153,11 @@ int main() {
     Net net(bn);
     net.convert(c->sub_param_);
     ParamLoader param_loader("../models/vit-fp32.mllm");
-
     Executor ex(&param_loader);
-    shared_ptr<Tensor> initT = std::make_shared<Tensor>();
-    imgFullTensor(initT, net, height, width, channel);
-    ex.setup(&net, {initT});
+    ex.setup(&net);
 
     shared_ptr<Tensor> input_img = std::make_shared<Tensor>();
-    img2Tensor(input_img, net, data_f32, height, width, channel);
+    img2Tensor(input_img, net, data_f32, 224, 224, 3);
     ex.run(&net, {input_img});
     auto result = ex.result();
     auto token_idx = postProcessing(result[0], input_img);

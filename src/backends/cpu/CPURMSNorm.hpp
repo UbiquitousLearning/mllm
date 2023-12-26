@@ -8,7 +8,7 @@ namespace mllm {
 
 class CPURMSNorm final : public Op {
 public:
-    CPURMSNorm(Backend *bn, string opName, bool multiThread, float epsilon = 1e-6);
+    CPURMSNorm(Backend *bn, string opName,int normSize, float epsilon = 1e-6,  bool multiThread= true);
     virtual ~CPURMSNorm() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -31,7 +31,8 @@ private:
 class CPURMSNormCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new CPURMSNorm(bn, name, false);
+        int normSize = (int)op_param["norm_size"];
+        return new CPURMSNorm(bn, name, normSize);
     }
 };
 } // namespace mllm

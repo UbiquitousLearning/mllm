@@ -85,18 +85,16 @@ bool Tokenizer::getTokenId(const token_t &token, token_id_t &id) {
     return false;
 }
 
-shared_ptr<Tensor> Tokenizer::token2Tensor(Net *net, vector<token_id_t> tokens) {
-    auto input_tensor = std::make_shared<Tensor>();
-    if(input_tensor->backend() == nullptr) {
-        input_tensor->setBackend(net->backends()[BackendType::MLLM_CPU].get());
-    }
+void Tokenizer::token2Tensor(Net *net, vector<token_id_t> tokens, shared_ptr<Tensor> input_tensor) {
+    // auto input_tensor = std::make_shared<Tensor>();
+    input_tensor->setBackend(net->backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape(1, 1, static_cast<int>(tokens.size()), 1);
     input_tensor->alloc();
     input_tensor->fullData<float>(1);
     for (int idx = 0; idx < tokens.size(); ++idx) {
         input_tensor->setDataAt<float>(0, 0, idx, 0, tokens[idx]);
     }
-    return input_tensor;
+    return;
 }
 
 // #ifdef ANDROID_API

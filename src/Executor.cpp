@@ -1,7 +1,7 @@
 #include <csignal>
 #include "Executor.hpp"
 namespace mllm {
-void Executor::setup(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
+void Executor::setup(Net *net){//, vector<shared_ptr<Tensor>> input_tensors) {
     mllm_time_init();
     bool init = true;
     // set Input tensor
@@ -11,32 +11,32 @@ void Executor::setup(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     uint64_t t_start;
     uint64_t t_end;
     //Init inputs
-    vector<int> flashGid = {};
-    for (int tid = 0; tid < net->inputNames().size(); ++tid) {
-        auto input_name = net->inputNames()[tid];
-        auto input_tensor = input_tensors[tid];
-        input_tensor->setName(input_name);
-        net->tensors()[input_name] = input_tensor;
-        if (std::find(flashGid.begin(), flashGid.end(), net->inGmap()[input_name]) == flashGid.end()) {
-            flashGid.push_back(net->inGmap()[input_name]);
-        }
-    }
-    for (auto Gid :flashGid) {
-        net->subGraph()["G" + std::to_string(Gid)]->reflashInput(net->tensors());
-    }
+    // vector<int> flashGid = {};
+    // for (int tid = 0; tid < net->inputNames().size(); ++tid) {
+    //     auto input_name = net->inputNames()[tid];
+    //     auto input_tensor = input_tensors[tid];
+    //     input_tensor->setName(input_name);
+    //     net->tensors()[input_name] = input_tensor;
+    //     if (std::find(flashGid.begin(), flashGid.end(), net->inGmap()[input_name]) == flashGid.end()) {
+    //         flashGid.push_back(net->inGmap()[input_name]);
+    //     }
+    // }
+    // for (auto Gid :flashGid) {
+    //     net->subGraph()["G" + std::to_string(Gid)]->reflashInput(net->tensors());
+    // }
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         string name = "G" + std::to_string(i);
         auto &g = net->subGraph()[name];
-#ifdef DEBUG
-            std::cout << "[" << name << "]==== reshape";
-            t_start = mllm_time_us();
-#endif
-            g->reshape();
-#ifdef DEBUG
-            t_end = mllm_time_us();
-            std::cout << " ====  " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
-#endif
+// #ifdef DEBUG
+//             std::cout << "[" << name << "]==== reshape";
+//             t_start = mllm_time_us();
+// #endif
+//              g->reshape();
+// #ifdef DEBUG
+//             t_end = mllm_time_us();
+//             std::cout << " ====  " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
+// #endif
 #ifdef DEBUG
             std::cout << "[" << name << "]==== load";
             t_start = mllm_time_us();

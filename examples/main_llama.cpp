@@ -109,17 +109,17 @@ void llama2(Context* c, int vocab_size= 32000, int hidden_dim= 4096, int ffn_hid
     i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"tok_embeddings");
     // loop
     for(int layer=0; layer<32; ++layer) {
-        auto *x = _RMSNorm(c, {i}, (string)"layers."+std::to_string(layer)+".attention_norm");
+        auto *x = _RMSNorm(c, {i}, hidden_dim, (string)"layers."+std::to_string(layer)+".attention_norm");
         //x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
         x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
         i = _Add(c, {x, i}, (string)"layers."+std::to_string(layer) +".attention_add");
-        x = _RMSNorm(c, {i}, (string)"layers."+std::to_string(layer)+".ffn_norm");
+        x = _RMSNorm(c, {i}, hidden_dim, (string)"layers."+std::to_string(layer)+".ffn_norm");
         x = FFN(c, x, hidden_dim, ffn_hidden_dim, (string)"layers."+std::to_string(layer) +".feed_forward");
         i = _Add(c, {x, i}, (string)"layers."+std::to_string(layer) +".ffn_add");
         //_SubgraphBegin(c);
     }
     // end loop
-    i = _RMSNorm(c, {i}, (string)"norm");
+    i = _RMSNorm(c, {i}, hidden_dim, (string)"norm");
     i = _Linear(c, {i}, hidden_dim, vocab_size, false, "output");
 }
 int main(int argc, char **argv) {
@@ -151,14 +151,15 @@ int main(int argc, char **argv) {
 
     ParamLoader param_loader(model_path);
     Executor ex(&param_loader);
+    ex.setup(&net);
 
-    shared_ptr<Tensor> initT = mllm::BPETokenizer::token2Tensor( &net, {0});
-    ex.setup(&net, {initT});
+
     vector<string> in_strs = {
         " Hello, who are you?",
         " What can you do?",
         "Please introduce Beijing University of Posts and Telecommunications."
     };
+    shared_ptr<Tensor> input = std::make_shared<Tensor>();
     for (int str_i = 0; str_i < in_strs.size(); ++str_i)
     {
         auto in_str = in_strs[str_i];
@@ -170,7 +171,7 @@ int main(int argc, char **argv) {
         if(str_i > 0) {
             tokens_id[0] = 13;
         }
-        shared_ptr<Tensor> input  = BPETokenizer::token2Tensor( &net, tokens_id);
+        BPETokenizer::token2Tensor( &net, tokens_id, input);
         std::cout << in_str << std::flush;
         for(int step = 0; step<100; step++) {
             ex.run(&net, {input});

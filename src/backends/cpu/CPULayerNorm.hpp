@@ -10,7 +10,7 @@ namespace mllm {
 
 class CPULayerNorm:public Op {
 public:
-    CPULayerNorm(Backend *bn, string opName, bool multiThread, bool bias= true,float epsilon = 1e-5 );
+    CPULayerNorm(Backend *bn, string opName, int normSize,bool bias= true,float epsilon = 1e-6, bool multiThread =true);
     virtual ~CPULayerNorm() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
@@ -28,8 +28,9 @@ private:
 class CPULayerNormCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        int bias = op_param["bias"];
-        return new CPULayerNorm(bn, name, false,(bool)bias);
+        bool bias = (bool)op_param["bias"];
+        int normSize = (int)op_param["norm_size"];
+        return new CPULayerNorm(bn, name, normSize, bias);
 
     }
 };

@@ -94,23 +94,24 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
     if (!tokenizer_->isAvailible()) {
         return false;
     }
-    switch (model_) {
-    case LLAMA: {
-        shared_ptr<Tensor> initT =  mllm::Tokenizer::token2Tensor( net_, {0});
-        executor_->setup(net_, {initT});
-        break;
-    }
-    case FUYU: {
-        shared_ptr<Tensor> initT = mllm::Tokenizer::token2Tensor( net_, {0});
-        shared_ptr<Tensor> initIMG = std::make_shared<Tensor>();
-        shared_ptr<Tensor> imgPatchId= std::make_shared<Tensor>();
-        fullTensor(initIMG, net_, {0, 0, 0, 0},1.0F);
-        fullTensor(imgPatchId, net_, {0, 0, 0, 0},1.0F);
-        executor_->setup(net_, {initT, initIMG, imgPatchId});
-        break;
-    }
 
-    }
+    executor_->setup(net_);
+    // switch (model_) {
+    // case LLAMA: {
+    //     shared_ptr<Tensor> initT =  mllm::Tokenizer::token2Tensor( net_, {0});
+    //     executor_->setup(net_, {initT});
+    //     break;
+    // }
+    // case FUYU: {
+    //     shared_ptr<Tensor> initT = mllm::Tokenizer::token2Tensor( net_, {0});
+    //     shared_ptr<Tensor> initIMG = std::make_shared<Tensor>();
+    //     shared_ptr<Tensor> imgPatchId= std::make_shared<Tensor>();
+    //     fullTensor(initIMG, net_, {0, 0, 0, 0},1.0F);
+    //     fullTensor(imgPatchId, net_, {0, 0, 0, 0},1.0F);
+    //     executor_->setup(net_, {initT, initIMG, imgPatchId});
+    //     break;
+    // }
+    // }
 
     is_first_run_cond_ = true;
     return true;
@@ -154,7 +155,8 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step,un
                     input_ids = pre_processor->text_ids_;
                 }
 
-                input = mllm::Tokenizer::token2Tensor( net_, input_ids[0]);
+                // input = mllm::Tokenizer::token2Tensor( net_, input_ids[0]);
+                UnigramTokenizer::token2Tensor(net_, input_ids[0], input);
                 const auto image_patches = pre_processor->image_patches_;
                 const auto image_patch_indices = pre_processor->image_patches_indices_ ;
                 patches2Tensor(img_patch, net_, image_patches);
@@ -182,7 +184,8 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step,un
 
                 }
             }
-            input =  mllm::Tokenizer::token2Tensor (net_, tokens_id);
+            UnigramTokenizer::token2Tensor(net_, tokens_id, input);
+            // input =  mllm::Tokenizer::token2Tensor (net_, tokens_id);
         }
     }
 

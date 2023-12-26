@@ -24,7 +24,7 @@ NetTensor *_Causalmask(Context *ctx, std::vector<NetTensor *> inputs, string nam
 NetTensor *_SiLU(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Softmax(Context *ctx, std::vector<NetTensor *> inputs, int axis, string name = "");
 NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs,  bool transpose0, bool transpose1, string name = "");
-NetTensor *_RMSNorm(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_RMSNorm(Context *ctx, std::vector<NetTensor *> inputs, int norm_size, string name = "");
 NetTensor *_RoPE(Context *ctx, std::vector<NetTensor *> inputs, int pose_type, string name = "");
 NetTensor *_Scale(Context *ctx, std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale, string name);
 NetTensor *_Linear(Context *ctx, std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
@@ -35,7 +35,7 @@ NetTensor *_KVCache(Context *ctx, std::vector<NetTensor *> inputs, bool isK, str
 NetTensor *_ReLU(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_ReLUSquaredActivation(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_GELU(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
-NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs,bool bias= true, string name = "");
+NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs,int norm_size, bool bias= true, string name = "");
 vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int split_num, Chl split_dim, int split_dim_size = -1, string name = "");
 NetTensor *_Gather(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Convolution2D(Context *ctx, std::vector<NetTensor *> inputs,  int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias= false, string name = "");

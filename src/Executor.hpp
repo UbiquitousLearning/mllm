@@ -24,7 +24,7 @@ public:
      * 使用几个线程，什么策略？
      */
     void init();
-    void setup(Net *net, vector<shared_ptr<Tensor>> input_tensors);
+    void setup(Net *net);//, vector<shared_ptr<Tensor>> input_tensors);
     void run(Net *net, vector<shared_ptr<Tensor>> input_tensors);
 
     /*

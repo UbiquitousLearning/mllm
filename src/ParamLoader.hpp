@@ -59,6 +59,7 @@ public:
     virtual bool load(mllm::Tensor *tensor) = 0;
     virtual bool load(std::shared_ptr<mllm::Tensor> tensor) = 0;
     virtual DataType getDataType(string name) = 0;
+    // virtual int length (string name) =0;
 };
 class ParamLoader : public AbstructLoader {
     friend class QuantWriter;
@@ -89,7 +90,13 @@ public:
 // void setAssetManager(AAssetManager *asset_manager) {
 //     asset_manager_ = asset_manager;
 // };
-// #endif
+    // #endif
+
+    // int length (string name) override {
+    //     auto [offset, length] = offsets_[name];
+    //     auto type = getDataType(name);
+    //     return length/(DataTypeSize(type, 1));
+    // }
 
 
 private:

@@ -211,6 +211,8 @@ add_executable(main_vit ${PROJECT_SOURCE_DIR}/examples/main_vit.cpp ${DIR_SRC_CP
         src/tokenizers/Unigram/trie.hpp
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
+        src/processor/PreProcess.hpp
+        src/processor/PreProcess.cpp
 )
 target_link_libraries(main_vit MLLM_CPU)
 
