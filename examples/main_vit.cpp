@@ -18,7 +18,7 @@ using namespace std;
 
 
 
-void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<float> img, int height, int width, int channel) {
+void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, float* img, int height, int width, int channel) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape(1, height, channel, width);
     input_tensor->setDtype(MLLM_TYPE_F32);
@@ -1135,22 +1135,27 @@ int main() {
         return -1;
     }
     cout << "width: " << width << " height: " << height << " channel: " << channel << endl;
-    vector<float> data_f32(width * height * channel);
-    for (int i = 0; i < width * height * channel; i++) {
-        data_f32[i] = data[i] / 255.0;
-    }
-
-
-    // Print the pixel values
-    for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; j++) {
-            for (int k = 0; k < channel; k++) {
-                // cout << "Pixel at (" << i << ", " << j << ", " << k << "): " << (data_f32[(i * width + j) * channel + k]-0.5)/0.5 << endl;
-                auto vv = data_f32[(i * width + j) * channel + k];
-                data_f32[(i * width + j) * channel + k] = (vv - 0.5)/0.5;
-            }
-        }
-    }
+    auto data_f32 = PreProcessor::RescaleImage(data,255.0,height*width*channel);
+    auto images =std::vector<ImageInfo>( {  ImageInfo(data_f32, width, height, channel)});
+    images = PreProcessor::ResizeImages(images, 224, 224,true);
+    images = PreProcessor::NormalizeImages(images, 0.5, 0.5);
+    data_f32 = images[0].data;
+    // vector<float> data_f32(width * height * channel);
+    // for (int i = 0; i < width * height * channel; i++) {
+    //     data_f32[i] = data[i] / 255.0;
+    // }
+    //
+    //
+    // // Print the pixel values
+    // for (int i = 0; i < height; i++) {
+    //     for (int j = 0; j < width; j++) {
+    //         for (int k = 0; k < channel; k++) {
+    //             // cout << "Pixel at (" << i << ", " << j << ", " << k << "): " << (data_f32[(i * width + j) * channel + k]-0.5)/0.5 << endl;
+    //             auto vv = data_f32[(i * width + j) * channel + k];
+    //             data_f32[(i * width + j) * channel + k] = (vv - 0.5)/0.5;
+    //         }
+    //     }
+    // }
 
     // cout << "width: " << width << " height: " << height << " channel: " << channel << endl;
 

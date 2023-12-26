@@ -36,11 +36,7 @@ void FuyuPreProcess::PreProcessImages(const std::vector<uint8_t *> &images, cons
             std::cerr << "load image failed" << std::endl;
             exit(-1);
         }
-        auto *float_data = new float[width_ * height_ * channels_];
-        for (int j = 0; j < width_ * height_ * channels_; j++) {
-            float_data[j] = data[j] / 255.0;
-        }
-
+        auto float_data = RescaleImage(data, 255.0, width_ * height_ * channels_);
         images_.emplace_back(float_data, width_, height_, channels_);
     }
     auto image_patches = std::vector<FourDVector>();
