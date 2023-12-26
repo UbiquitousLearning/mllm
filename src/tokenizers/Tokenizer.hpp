@@ -54,7 +54,7 @@ public:
     unsigned int getVocabSize() const {
         return this->vocab_map_.size();
     }
-    std::shared_ptr<Tensor> token2Tensor(Net *net, vector<token_id_t> tokens);
+    static std::shared_ptr<Tensor> token2Tensor(Net *net, vector<token_id_t> tokens);
 
 // #ifdef ANDROID_API
 //     void setAssetManager(AAssetManager *asset_manager);
