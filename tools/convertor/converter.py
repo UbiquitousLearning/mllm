@@ -97,7 +97,10 @@ def get_tensor(model: dict, key: str,index_: dict):
     if index_ is not None and isinstance(index_, dict) and "weight_map" in index_.keys():
         if key in index_["weight_map"].keys():
             model_ = file_map[index_["weight_map"][key]]
-            return model_.get_tensor(key)
+            if args.type == "torch":
+                return model_[key]
+            if args.type == "safetensor":
+                return model_.get_tensor(key)
         else:
             raise Exception(f"Tensor {key} not found in index")
     if key in model.keys():
@@ -116,7 +119,11 @@ def all_keys(model: dict, index_: dict):
             all_keys_name.append(key)
             if val is not None and val not in file_map.keys():
                 # JOIN PATH
-                file_map[val] = safe_open(os.path.join(json_pwd,val), framework="pt")
+                val_path = os.path.join(json_pwd,val)
+                if args.type == "torch":
+                    file_map[val] = torch.load(val_path,weights_only=True)
+                else:
+                    file_map[val] = safe_open(val_path, framework="pt")
     else:
         for key in model.keys():
             if not key.startswith("_"):
@@ -144,9 +151,14 @@ if __name__ == "__main__":
     index_ = None
     args = parser.parse_args()
     if args.type == "torch":
-        model = torch.load(args.input_model.name)
-        if isinstance(model, dict) and "model" in model.keys():
-            model = model["model"]
+        if args.input_model.name.endswith(".json"):
+            if args.input_model.name != "pytorch_model.bin.index.json":
+                raise Exception("Only support pytorch_model.bin.index.json")
+            index_ = json.load(args.input_model)
+        else:
+            model = torch.load(args.input_model.name)
+            if isinstance(model, dict) and "model" in model.keys():
+                model = model["model"]
     elif args.type == "safetensor":
         from safetensors import safe_open
         if args.input_model.name.endswith(".json"):
