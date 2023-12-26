@@ -47,7 +47,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
 
     std::string modelPath = "/qnn-projects/QNN-test-libs/example_libs/x86_64-linux-clang/libqnn_model_float.so";
     std::string backEndPath = "/qnn-projects/QNN-test-libs/libQnnCpu.so";
-    std::string inputListPaths = "/qnn-projects/QNN-test-libs/input_list_float.txt";
+    std::string inputListPaths = "/qnn-projects/mllm/bin/input-list.txt";
     std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnCpuOpPackageExample.so:QnnOpPackage_interfaceProvider";
     // TODO: make these configuable
     m_debug = true;

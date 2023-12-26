@@ -31,7 +31,8 @@ int main() {
     // build graph
     std::cout << "build graph" << std::endl;
     // graph add node
-    uint32_t dimensions[] = {1, 2, 2, 2};
+    uint32_t dimensions0[] = {1, 2, 2, 2};
+    uint32_t dimensions1[] = {1, 1, 4, 2};
     qbn->modelAddTensor("x", // Node Name
                         (Qnn_Tensor_t){
                             .version = QNN_TENSOR_VERSION_1,
@@ -45,7 +46,7 @@ int main() {
                                                     QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                     {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
                                  .rank = 4,
-                                 .dimensions = dimensions,
+                                 .dimensions = dimensions0,
                                  .memType = QNN_TENSORMEMTYPE_RAW,
                                  {.clientBuf = {.data = nullptr,
                                                 .dataSize = 0}}}}});
@@ -64,11 +65,12 @@ int main() {
                                                     QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                     {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
                                  .rank = 4,
-                                 .dimensions = dimensions,
+                                 .dimensions = dimensions1,
                                  .memType = QNN_TENSORMEMTYPE_RAW,
                                  {.clientBuf = {.data = data,
                                                 .dataSize = 32}}}}});
 
+    uint32_t dimensionsOut[] = {1, 2, 2, 4}; 
     vector<Qnn_Tensor_t> outputs = {
         (Qnn_Tensor_t){
             .version = QNN_TENSOR_VERSION_1,
@@ -82,11 +84,19 @@ int main() {
                                     QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                     {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
                  .rank = 4,
-                 .dimensions = dimensions,
+                 .dimensions = dimensionsOut,
                  .memType = QNN_TENSORMEMTYPE_RAW,
                  {.clientBuf = {.data = nullptr,
                                 .dataSize = 0}}}}}};
-    qbn->graphAddNode("qnn-add", "ElementWiseAdd", {"x", "y"}, outputs, "qti.aisw");
+    vector<Qnn_Param_t> paramsMatmul = {
+        {.paramType = QNN_PARAMTYPE_SCALAR,
+         .name = "transpose_in0",
+         {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = 0}}}},
+        {.paramType = QNN_PARAMTYPE_SCALAR,
+         .name = "transpose_in1",
+         {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = 1}}}}
+    };
+    qbn->graphAddNode("qnn-add", "MatMul", {"x", "y"}, outputs, paramsMatmul, "qti.aisw");
     // graph compile
     std::cout << "graph compile" << std::endl;
     qbn->graphFinilize();

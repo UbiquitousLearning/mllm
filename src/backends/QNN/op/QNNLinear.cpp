@@ -108,8 +108,8 @@ ErrorCode QNNLinear::load(AbstructLoader &loader) {
                                                                  .rank = 3,
                                                                  .dimensions = {},
                                                                  .memType = QNN_TENSORMEMTYPE_RAW,
-                                                                 {.clientBuf = {.data = bias_.hostPtr<void>(),
-                                                                                .dataSize = BINLEN(linear_weight)}}}}});
+                                                                 {.clientBuf = {.data = weight_.hostPtr<void>(),
+                                                                                .dataSize = (uint32_t)weight_.cntSize()}}}}});
     if (support_bias_) {
         bias_.setName(name() + ".bias");
         bias_.reshape(1, 1, 1, out_features_);
@@ -130,8 +130,8 @@ ErrorCode QNNLinear::load(AbstructLoader &loader) {
                                                                    .rank = 3,
                                                                    .dimensions = {},
                                                                    .memType = QNN_TENSORMEMTYPE_RAW,
-                                                                   {.clientBuf = {.data = BINVARSTART(linear_weight),
-                                                                                  .dataSize = BINLEN(linear_weight)}}}}});
+                                                                   {.clientBuf = {.data = bias_.hostPtr<void>(),
+                                                                                  .dataSize = (uint32_t)bias_.cntSize()}}}}});
     }
     return Op::load(loader);
 }
