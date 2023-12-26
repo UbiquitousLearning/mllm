@@ -18,6 +18,7 @@ struct Context {
 // NOLINTBEGIN(readability-identifier-naming)
 void _SubgraphBegin(Context *ctx);
 NetTensor *_Input(Context *ctx, vector<int> dims={}, string name = "", DataType type = MLLM_TYPE_F32);
+NetTensor *_Parameter(Context *ctx, std::vector<NetTensor *> inputs, int batch, int seq, int head, int dim, string name = "", DataType type = MLLM_TYPE_F32);
 NetTensor *_Add(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Causalmask(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_SiLU(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
@@ -33,12 +34,15 @@ NetTensor *_View(Context *ctx, std::vector<NetTensor *> inputs, vector<int> dims
 NetTensor *_KVCache(Context *ctx, std::vector<NetTensor *> inputs, bool isK, string name = "");
 NetTensor *_ReLU(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_ReLUSquaredActivation(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_GELU(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs,bool bias= true, string name = "");
 vector<NetTensor *> _Split(Context *ctx, std::vector<NetTensor *> inputs, int split_num, Chl split_dim, int split_dim_size = -1, string name = "");
 NetTensor *_Gather(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Convolution2D(Context *ctx, std::vector<NetTensor *> inputs,  int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias= false, string name = "");
 NetTensor *_AvgPool2D(Context *ctx, std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name = "");
 NetTensor *_MaxPool2D(Context *ctx, std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name = "");
+NetTensor *_Cat(Context *ctx, std::vector<NetTensor *> inputs, Chl axis, string name = "");
+NetTensor *_Transpose(Context *ctx, std::vector<NetTensor *> inputs, string name = "");
 // NOLINTEND(readability-identifier-naming)
 
 /*

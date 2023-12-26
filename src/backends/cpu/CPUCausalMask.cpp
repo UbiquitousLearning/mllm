@@ -57,7 +57,7 @@ ErrorCode CPUCausalMask::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     }
     outputs[0]->setDtype(activation_dtype());
     outputs[0]->alloc();
-    inputs[0]->deepCopyFrom(outputs[0], false);
+    inputs[0]->deepCopyFrom(outputs[0].get(), false);
 #ifdef DEBUG
     std::cout << "*"<<name()<<" setUp*" << std::endl;
 #endif

@@ -14,15 +14,18 @@
 #include "CPUKVCache.hpp"
 #include "CPUReLU.hpp"
 #include "CPUReLU2.hpp"
+#include "CPUGELU.hpp"
 #include "CPUSplit.hpp"
 #include "CPULayerNorm.hpp"
 #include "CPUGather.hpp"
 #include "CPUConvolution2D.hpp"
 #include "CPUAvgPool2D.hpp"
 #include "CPUMaxPool2D.hpp"
-
+#include "CPUParameter.hpp"
+#include "CPUCat.hpp"
 
 #include <math.h>
+#include <CPUTranspose.hpp>
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
     Backend(mm) {
@@ -52,6 +55,7 @@ Op *CPUBackend::opCreate(const OpParam &op_param, string name) {
     // return nullptr;
 }
 void CPUBackend::registerOps() {
+    addCreator(PARAMETER, (CPUBackend::Creator *)(new CPUParameterCreator()));
     addCreator(ADD, (CPUBackend::Creator *)(new CPUAddCreator()));
     addCreator(CAUSALMASK, (CPUBackend::Creator *)(new CPUCausalMaskCreator()));
     addCreator(MATMUL, (CPUBackend::Creator *)(new CPUMatmulCreator()));
@@ -67,12 +71,15 @@ void CPUBackend::registerOps() {
     addCreator(KVCACHE, (CPUBackend::Creator *)(new CPUKVCacheCreator()));
     addCreator(RELU, (CPUBackend::Creator *)(new CPUReLUCreator()));
     addCreator(RELU2, (CPUBackend::Creator *)(new CPUReLU2Creator()));
+    addCreator(GELU, (CPUBackend::Creator *)(new CPUGELUCreator()));
     addCreator(LAYERNORM, (CPUBackend::Creator *)(new CPULayerNormCreator()));
     addCreator(SPLIT, (CPUBackend::Creator *)(new CPUSplitCreator()));
     addCreator(GATHER, (CPUBackend::Creator *)(new CPUGatherCreator()));
     addCreator(CONVOLUTION2D, (CPUBackend::Creator *)(new CPUConvolution2DCreator()));
     addCreator(AVGPOOL2D, (CPUBackend::Creator *)(new CPUAvgPoolCreator()));
     addCreator(MAXPOOL2D, (CPUBackend::Creator *)(new CPUMaxPoolCreator()));
+    addCreator(CAT, (CPUBackend::Creator *)(new CPUCatCreator()));
+    addCreator(TRANSPOSE, (CPUBackend::Creator *)(new CPUTransposeCreator()));
 }
 
 } // namespace mllm

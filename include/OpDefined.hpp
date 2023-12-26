@@ -9,6 +9,7 @@ using std::vector;
 namespace mllm {
 enum OpType {
     INVALID_VALUE = 0,
+    PARAMETER,
     ADD,
     SOFTMAX,
     SILU,
@@ -24,17 +25,21 @@ enum OpType {
     KVCACHE,
     RELU,
     RELU2,
+    GELU,
     LAYERNORM,
     SPLIT,
     GATHER,
     CONVOLUTION2D,
     AVGPOOL2D,
     MAXPOOL2D,
+    CAT,
+    TRANSPOSE,
     OP_NUM
 };
 
 static const vector<string> OpNames = {
     "INVALID_VALUE",
+    "Parameter",
     "Add",
     "SoftMax",
     "SiLU",
@@ -50,12 +55,15 @@ static const vector<string> OpNames = {
     "KVCACHE",
     "ReLU",
     "ReLUSquaredActivation",
+    "GELU",
     "LayerNorm",
     "Split",
     "Gqther",
     "Convolution2D",
     "AvgPool2D",
     "MaxPool2D",
+    "Cat",
+    "Transpose",
     "OP_NUM"};
 } // namespace mllm
 #endif

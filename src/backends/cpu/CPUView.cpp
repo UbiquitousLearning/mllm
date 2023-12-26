@@ -37,6 +37,11 @@ ErrorCode CPUView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         dim1 = 1;
         dim2 = inputs[0]->sequence();
         dim3 = inputs[0]->dimension() * inputs[0]->head();
+    } else if(data_dim0_ == 0 && data_dim1_ == -1 && data_dim2_ == 2+1 && data_dim3_ == 3){
+        dim0 = inputs[0]->batch();
+        dim1 = 1;
+        dim2 = inputs[0]->sequence()* inputs[0]->head();
+        dim3 = inputs[0]->dimension();
     }
     outputs[0]->reshape(dim0, dim1, dim2, dim3);
     return Op::reshape(inputs, outputs);
@@ -94,15 +99,15 @@ ErrorCode CPUView::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 ErrorCode CPUView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
-    if ((data_dim1_ + data_dim3_ != 1+3) &
-        ((inputs[0]->ctype() == BSHD && outputs[0]->ctype() == BSHD))|((inputs[0]->ctype() == BHDS && outputs[0]->ctype() == BHDS))
+    if ((data_dim1_ + data_dim3_ != 1+3)
+        // & ((inputs[0]->ctype() == BSHD && outputs[0]->ctype() == BSHD))|((inputs[0]->ctype() == BHDS && outputs[0]->ctype() == BHDS))
     ){
         if(inputs[0]->masterTensor() == nullptr) {
             inputs[0]->free();
         }
         outputs[0]->setDtype(activation_dtype());
         outputs[0]->alloc();
-        inputs[0]->deepCopyFrom(outputs[0], false);
+        inputs[0]->deepCopyFrom(outputs[0].get(), false);
 #ifdef DEBUG
         std::cout << "*"<<name()<<" setUp*" << std::endl;
 #endif

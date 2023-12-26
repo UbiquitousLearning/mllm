@@ -271,9 +271,9 @@ public:
                   bool reshape = false);
     void copyFrom(const shared_ptr<Tensor> &source, bool reshape = false);
 
-    void deepCopyFrom(const shared_ptr<Tensor> &source, bool copyshape = true) {
-        setMasterTensor(source.get());
-        if(ctype_ != master_tensor_->ctype()) {
+    void deepCopyFrom(Tensor* source, bool copyshape = true) {
+        setMasterTensor(source);
+        if(ctype_ != master_tensor_->ctype() && undiffusion_ == false) {
             if (transed_) {
                 auto b = master_tensor_->batch();
                 auto h = master_tensor_->head();
@@ -315,6 +315,46 @@ public:
      * \param source
      * \param shape_offset
      */
+    void deepCopyFrom(Tensor *source, const vector<int> &shape_offset) { //b,h,s,d
+        //
+        setMasterTensor(source);
+        if(ctype_ != master_tensor_->ctype()) {
+            if (transed_) {
+                auto b = master_tensor_->batch();
+                auto h = master_tensor_->head();
+                auto d = master_tensor_->dimension();
+                auto s = master_tensor_->sequence();
+                master_tensor_->ctype_ = ctype_;
+                master_tensor_->reshape(b, h, s,d);
+            }else {
+                auto b = batch();
+                auto h = head();
+                auto d = dimension();
+                auto s = sequence();
+                ctype_ = master_tensor_->ctype_;
+                reshape(b, h, s,d);
+                // ctype_ = source.ctype_;
+            }
+        }
+        assert(source->allocted());
+        // don't need alloc()
+        shape_offset_ = shape_offset;
+        shape_master_ = {source->batch(), source->head(), source->sequence(), source->dimension()};
+        if(source->head() != head()) {
+            shape_master_ = {source->batch(), head(), source->sequence(), source->dimension() * source->head() / head()};
+        }
+        // deep Copy
+        host_ptr_ = source->hostPtr<void>();
+        allocated_ = source->allocated_;
+        dtype_ = source->dtype_;
+        //
+        for (auto &child_tensor: child_tensors_) {
+            child_tensor->deepCopyFrom(source, shape_offset);
+            //remove child_temsor from child_tensors_:
+            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
+        }
+        source->addChildTensor(this);
+    }
     void deepCopyFrom(Tensor &source, const vector<int> &shape_offset) {
         //
         setMasterTensor(&source);
@@ -460,7 +500,7 @@ public:
                 auto d = dimension();
                 auto s = sequence();
                 ctype_ = BHDS;
-                reshape(b, h, s,d);
+                reshape(b, h, s, d);
                 transed_ = true;
             }else if (transed_) {
 
@@ -471,6 +511,9 @@ public:
         } else {
             std::cout<<"TODO, need support!"<<std::endl;
         }
+    }
+    void setUndiffusion() {
+        undiffusion_ = true;
     }
 
     size_t cntSize() {
@@ -666,7 +709,7 @@ public:
         std::ofstream outFile(directory+ "/" + name() +ex + ".log");
 
         outFile << "----------------------------------------" << std::endl;
-        outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "]" << std::endl;
+        outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] "<<dtype()<< std::endl;
 
         int N = batch();
         int C = head();
@@ -875,6 +918,7 @@ private:
     Tensor* master_tensor_ = nullptr;
     vector<Tensor *> child_tensors_;
     bool transed_ = false;
+    bool undiffusion_ = false;
 
     //aggregated
     bool aggregated_ = false;

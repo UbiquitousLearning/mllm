@@ -4,7 +4,7 @@
 
 #ifndef MLLM_TOKENIZER_HPP
 #define MLLM_TOKENIZER_HPP
-
+#include <memory>
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -13,6 +13,7 @@
 #include <android/asset_manager.h>
 #endif
 #include <iostream>
+#include "Tensor.hpp"
 namespace mllm {
 class Net;
 const static int VocabMagicNumber = 23333;
@@ -53,7 +54,7 @@ public:
     unsigned int getVocabSize() const {
         return this->vocab_map_.size();
     }
-    static shared_ptr<Tensor> token2Tensor(Net *net, vector<token_id_t> tokens);
+    std::shared_ptr<Tensor> token2Tensor(Net *net, vector<token_id_t> tokens);
 
 // #ifdef ANDROID_API
 //     void setAssetManager(AAssetManager *asset_manager);

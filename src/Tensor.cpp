@@ -138,7 +138,13 @@ void Tensor::copyFrom(const Tensor &source, bool copy_diff, bool reshape) {
     CHECK_EQ(source.dtype(), dtype());
     CHECK_EQ(source.count(), count());
     // copy
-    memcpy(host_ptr_, source.host_ptr_, cntSize());
+    if(masterTensor() == nullptr) {
+        memcpy(host_ptr_, source.host_ptr_, cntSize());
+    }
+    else {
+        // memcpy(masterTensor()->host_ptr_+ offset(0, 0, 0,0), source.host_ptr_, cntSize());
+        std::cout<<"not support"<<std::endl;
+    }
 }
 void Tensor::copyFrom(const shared_ptr<Tensor> &source, bool reshape) {
     CHECK_EQ(source->dtype(), dtype());

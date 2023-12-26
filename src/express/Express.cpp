@@ -100,6 +100,28 @@ NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
     ctx->net_tensors.insert(net_tensor);
     return net_tensor;
 }
+
+NetTensor *_Parameter(Context *ctx, std::vector<NetTensor *> inputs, int batch, int seq, int head, int dim, string name, DataType type) {
+    // TODO:Check
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Parameter" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    // TODO: check Type
+    out_tensor->type = type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::PARAMETER)
+    net_op_->param["batch"] = batch;
+    net_op_->param["seq"] = seq;
+    net_op_->param["head"] = head;
+    net_op_->param["dim"] = dim;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+
+}
 NetTensor *_Add(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     // TODO:Check
     NetTensor *out_tensor = new NetTensor();
@@ -350,6 +372,20 @@ NetTensor *_ReLUSquaredActivation(Context *ctx, std::vector<NetTensor *> inputs,
     out_tensor->in = net_op_;
     return out_tensor;
 }
+NetTensor *_GELU(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "GELU" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::GELU)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
 NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs, bool bias, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -462,6 +498,36 @@ NetTensor *_MaxPool2D(Context *ctx, std::vector<NetTensor *> inputs, vector<int>
     net_op_->param["stride_h"] =(float) stride[0];
     net_op_->param["stride_w"] =(float) stride[1];
     net_op_->param["padding"] =(float) padding;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+NetTensor *_Cat(Context *ctx, std::vector<NetTensor *> inputs, Chl axis, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "_Cat" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::CAT)
+    net_op_->param["axis"] =(float)axis;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+NetTensor *_Transpose(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "_Transpose" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::TRANSPOSE)
+    // net_op_->param["axis"] =(float)axis;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;

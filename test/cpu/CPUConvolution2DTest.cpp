@@ -4,7 +4,7 @@
 #include "CPUTest.hpp"
 #include "backends/cpu/CPUConvolution2D.hpp"
 TEST_F(CPUTest, CPUConvolution2D1) {
-    SETUP_OP(CPUConvolution2D, 2, 4, {3,3}, {1,1},VALID, false, false);
+    SETUP_OP(CPUConvolution2D, 3, 768, {16, 16}, {16,16},VALID, true, false);
     TENSOR(input0)
     TENSOR(output)
     TENSOR(test_output);
