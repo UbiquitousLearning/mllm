@@ -3,6 +3,7 @@
 
 #include "Op.hpp"
 #include "QNNBackend.hpp"
+#include "QnnTypes.h"
 #include "Types.hpp"
 
 namespace mllm {
@@ -18,7 +19,7 @@ public:
 
 protected:
     QNNBackend *qnnBackend_;
-    ErrorCode graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, string packageName = "qti.aisw");
+    ErrorCode graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<Qnn_Param_t> params = {}, string packageName = "qti.aisw");
 };
 } // namespace mllm
 

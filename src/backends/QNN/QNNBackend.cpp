@@ -15,6 +15,7 @@
 #include "PAL/DynamicLoading.hpp"
 #include "PAL/GetOpt.hpp"
 #include "QnnSampleAppUtils.hpp"
+#include "QnnTypes.h"
 #include "QnnWrapperUtils.hpp"
 #include "DynamicLoadUtil.hpp"
 #include "Types.hpp"
@@ -182,15 +183,20 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
                                                        string nodeType,
                                                        std::vector<const char *> inputTensorNames,
                                                        std::vector<Qnn_Tensor_t> outputTensors,
+                                                       std::vector<Qnn_Param_t> params,
                                                        string packageName) {
     qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
+    Qnn_Param_t* paramsPtr = nullptr;
+    if (params.size() > 0) {
+        paramsPtr = params.data();
+    }
     VALIDATE(qnnModel.addNode(
                  QNN_OPCONFIG_VERSION_1,  // Op_Config_t Version
                  name.c_str(),            // Node Name
                  packageName.c_str(),     // Package Name
                  nodeType.c_str(),        // Qnn Node Type
-                 nullptr,                 // Node Params
-                 0,                       // Num Node Params
+                 paramsPtr,                 // Node Params
+                 params.size(),                       // Num Node Params
                  inputTensorNames.data(), // Input Tensor Names
                  inputTensorNames.size(), // Num Input Tensor Names
                  outputTensors.data(),    // Output Tensors

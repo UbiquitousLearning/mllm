@@ -1,4 +1,5 @@
 #include "QNNCommonOp.hpp"
+#include "OpDefined.hpp"
 #include "QnnTypes.h"
 #include "QnnWrapperUtils.hpp"
 #include "Types.hpp"
@@ -31,7 +32,7 @@ ErrorCode QNNCommonOp::load(AbstructLoader &loader) {
     return NO_ERROR;
 }
 
-ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, string packageName) {
+ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<Qnn_Param_t> params, string packageName) {
     vector<const char *> inputTensorNames;
     for (auto &input : inputs) {
         inputTensorNames.push_back(input->name().c_str());
@@ -60,7 +61,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
                                                      .dataSize = 0}}}}});
     }
 
-    if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputTensors, packageName)) {
+    if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputTensors, params, packageName)) {
         return ErrorCode::INVALID_VALUE;
     }
     return NO_ERROR;

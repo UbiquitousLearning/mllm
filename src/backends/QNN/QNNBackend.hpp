@@ -4,6 +4,7 @@
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "OpDefined.hpp"
+#include "QnnTypes.h"
 #include "Types.hpp"
 #include "MemoryManager.hpp"
 #include "NetParameter.hpp"
@@ -20,18 +21,16 @@ using std::shared_ptr;
 using namespace qnn;
 using namespace qnn::tools;
 
-
 namespace mllm {
 
 enum class StatusCode {
-  SUCCESS,
-  FAILURE,
-  FAILURE_INPUT_LIST_EXHAUSTED,
-  FAILURE_SYSTEM_ERROR,
-  FAILURE_SYSTEM_COMMUNICATION_ERROR,
-  QNN_FEATURE_UNSUPPORTED
+    SUCCESS,
+    FAILURE,
+    FAILURE_INPUT_LIST_EXHAUSTED,
+    FAILURE_SYSTEM_ERROR,
+    FAILURE_SYSTEM_COMMUNICATION_ERROR,
+    QNN_FEATURE_UNSUPPORTED
 };
-
 
 class Op;
 
@@ -83,6 +82,7 @@ public:
 
     qnn_wrapper_api::ModelError_t graphAddNode(string name, string nodeType,
                                                std::vector<const char *> inputTensorNames, std::vector<Qnn_Tensor_t> outputTensors,
+                                               std::vector<Qnn_Param_t> params,
                                                string packageName);
     qnn_wrapper_api::ModelError_t graphFinilize();
     qnn_wrapper_api::ModelError_t modelAddTensor(const char *nodeName, Qnn_Tensor_t tensor);
@@ -97,7 +97,7 @@ private:
 
     // @brief Print a message to STDERR then exit with a non-zero
     void reportError(const std::string &err);
-    
+
     StatusCode initialize();
 
     StatusCode initializeBackend();
@@ -132,7 +132,6 @@ private:
 
     StatusCode verifyFailReturnStatus(Qnn_ErrorHandle_t errCode);
 
-
     StatusCode extractBackendProfilingInfo(Qnn_ProfileHandle_t profileHandle);
 
     StatusCode extractProfilingSubEvents(QnnProfile_EventId_t profileEventId);
@@ -155,7 +154,7 @@ private:
     std::vector<std::string> m_opPackagePaths;
     std::string m_outputPath;
     QnnBackend_Config_t **m_backendConfig = nullptr;
-    Qnn_ContextHandle_t m_context         = nullptr;
+    Qnn_ContextHandle_t m_context = nullptr;
     QnnContext_Config_t **m_contextConfig = nullptr;
     bool m_debug;
     iotensor::OutputDataType m_outputDataType;
@@ -174,14 +173,13 @@ private:
     iotensor::IOTensor m_ioTensor;
     bool m_isBackendInitialized;
     bool m_isContextCreated;
-    Qnn_ProfileHandle_t m_profileBackendHandle              = nullptr;
+    Qnn_ProfileHandle_t m_profileBackendHandle = nullptr;
     qnn_wrapper_api::GraphConfigInfo_t **m_graphConfigsInfo = nullptr;
     uint32_t m_graphConfigsInfoCount;
-    Qnn_LogHandle_t m_logHandle         = nullptr;
+    Qnn_LogHandle_t m_logHandle = nullptr;
     Qnn_BackendHandle_t m_backendHandle = nullptr;
-    Qnn_DeviceHandle_t m_deviceHandle   = nullptr;
+    Qnn_DeviceHandle_t m_deviceHandle = nullptr;
 };
-
 
 } // namespace mllm
 
