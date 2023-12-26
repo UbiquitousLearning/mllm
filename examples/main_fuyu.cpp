@@ -20,16 +20,7 @@ void fullTensor(shared_ptr<Tensor> input_tensor, Net &net, vector<int> shape) {
     input_tensor->alloc();
     input_tensor->fullData<float>(1);
 }
-void token2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<token_id_t> tokens) {
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
-    input_tensor->reshape(1, 1, static_cast<int>(tokens.size()), 1);
-    input_tensor->setDtype(MLLM_TYPE_F32);
-    input_tensor->alloc();
-    input_tensor->fullData<float>(1);
-    for (int idx = 0; idx < tokens.size(); ++idx) {
-        input_tensor->setDataAt<float>(0, 0, idx, 0, tokens[idx]);
-    }
-}
+
 
 void patches2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vector<float>>> image_patches) {
     if(image_patches.empty()) {
@@ -209,8 +200,7 @@ int main() {
     ParamLoader param_loader("../models/fuyu-8b-q4_k-46.mllm");
 
     Executor ex(&param_loader);
-    shared_ptr<Tensor> initT = std::make_shared<Tensor>();
-    token2Tensor(initT, net, {0});
+    shared_ptr<Tensor> initT = Tokenizer::token2Tensor( &net, {0});
     shared_ptr<Tensor> initIMG = std::make_shared<Tensor>();
     shared_ptr<Tensor> imgPatchId= std::make_shared<Tensor>();
     fullTensor(initIMG, net, {0, 0, 0, 0});
@@ -228,8 +218,7 @@ int main() {
     if(input_ids.empty()) {
         input_ids = preprocessor.text_ids_;
     }
-    shared_ptr<Tensor> input_seq = std::make_shared<Tensor>();
-    token2Tensor(input_seq, net, input_ids[0]);
+    shared_ptr<Tensor> input_seq = UnigramTokenizer::token2Tensor(&net, input_ids[0]);
     shared_ptr<Tensor> img_patch = std::make_shared<Tensor>();
     patches2Tensor(img_patch, net, image_patches);
     shared_ptr<Tensor> img_patch_id = std::make_shared<Tensor>();

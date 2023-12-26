@@ -47,17 +47,7 @@ void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, flo
     input_tensor->alloc();
     input_tensor->fullData<float>(value);
 }
-void token2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<token_id_t> tokens) {
-    if(input_tensor->backend() == nullptr) {
-        input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
-    }
-    input_tensor->reshape(1, 1, static_cast<int>(tokens.size()), 1);
-    input_tensor->alloc();
-    input_tensor->fullData<float>(1);
-    for (int idx = 0; idx < tokens.size(); ++idx) {
-        input_tensor->setDataAt<float>(0, 0, idx, 0, tokens[idx]);
-    }
-}
+
 unsigned int argmax(const std::vector<float>& scores) {
     if(scores.empty()) {
         throw std::invalid_argument("Input vector is empty");
@@ -162,10 +152,8 @@ int main(int argc, char **argv) {
     ParamLoader param_loader(model_path);
     Executor ex(&param_loader);
 
-    shared_ptr<Tensor> initT = std::make_shared<Tensor>();
-    token2Tensor(initT, net, {0});
+    shared_ptr<Tensor> initT = mllm::BPETokenizer::token2Tensor( &net, {0});
     ex.setup(&net, {initT});
-    shared_ptr<Tensor> input = std::make_shared<Tensor>();
     vector<string> in_strs = {
         " Hello, who are you?",
         " What can you do?",
@@ -182,7 +170,7 @@ int main(int argc, char **argv) {
         if(str_i > 0) {
             tokens_id[0] = 13;
         }
-        token2Tensor(input, net, tokens_id);
+        shared_ptr<Tensor> input  = BPETokenizer::token2Tensor( &net, tokens_id);
         std::cout << in_str << std::flush;
         for(int step = 0; step<100; step++) {
             ex.run(&net, {input});
