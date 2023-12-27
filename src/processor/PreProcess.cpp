@@ -12,7 +12,7 @@
 #include "imageHelper/stb_image_resize2.h"
 using namespace mllm;
 
-float * PreProcessor::RescaleImage(const uint8_t *data, const float scale, unsigned length) {
+float *PreProcessor::RescaleImage(const uint8_t *data, const float scale, unsigned length) {
     auto *float_data = new float[length];
     for (int j = 0; j < length; j++) {
         float_data[j] = data[j] / scale;
@@ -37,7 +37,7 @@ std::vector<ImageInfo> PreProcessor::PadImages(std::vector<ImageInfo> &images, i
         auto width_ = width;
         height_ = (image.height / patch_height + 1) * patch_height;
         width_ = (image.width / patch_width + 1) * patch_width;
-        auto padded_image =  new float[height_ * width_ * image.channels]{pad_value};
+        auto padded_image = new float[height_ * width_ * image.channels]{pad_value};
         std::fill(padded_image, padded_image + height_ * width_ * image.channels, pad_value);
         for (int i = 0; i < image.height; i++) {
             for (int j = 0; j < image.width; j++) {
@@ -46,7 +46,7 @@ std::vector<ImageInfo> PreProcessor::PadImages(std::vector<ImageInfo> &images, i
                 }
             }
         }
-        padded_images.emplace_back(padded_image , width_, height_, image.channels, image.original_width, image.original_height);
+        padded_images.emplace_back(padded_image, width_, height_, image.channels, image.original_width, image.original_height);
         if (free_source) {
             free(image.data);
             image.data = nullptr;
@@ -59,7 +59,7 @@ std::vector<ImageInfo> PreProcessor::PadImages(std::vector<ImageInfo> &images, i
     return padded_images;
 }
 
-std::vector<ImageInfo> PreProcessor::ResizeImages(std::vector<ImageInfo> &images, int height, int width,bool strict_size, ResampleType resample_type, bool free_source) {
+std::vector<ImageInfo> PreProcessor::ResizeImages(std::vector<ImageInfo> &images, int height, int width, bool strict_size, ResampleType resample_type, bool free_source) {
     assert(resample_type == ResampleType::BILINEAR);
     stbir_filter filter = stbir_filter::STBIR_FILTER_DEFAULT;
     switch (resample_type) {
@@ -71,13 +71,13 @@ std::vector<ImageInfo> PreProcessor::ResizeImages(std::vector<ImageInfo> &images
     }
     auto resized_images = std::vector<ImageInfo>();
     for (auto image : images) {
-        if (image.height <= height && image.width <= width && image.channels == 3&&strict_size ==false) {
+        if (image.height <= height && image.width <= width && image.channels == 3 && strict_size == false) {
             resized_images.emplace_back(image.data, image.width, image.height, image.channels, image.original_width, image.original_height);
             continue;
         }
         auto height_ = height;
         auto width_ = width;
-        if (strict_size ==false) {
+        if (strict_size == false) {
             auto height_ratio = static_cast<float>(height) / image.height;
             auto width_ratio = static_cast<float>(width) / image.width;
             auto ratio = std::min(height_ratio, width_ratio);
@@ -119,4 +119,59 @@ std::vector<ImageInfo> PreProcessor::NormalizeImages(std::vector<ImageInfo> &ima
         images.clear();
     }
     return normalized_images;
+}
+
+std::vector<ImageInfo> PreProcessor::CenterCropImages(std::vector<ImageInfo> &images, int height, int width, float pad, bool free_source) {
+    auto cropped_images = std::vector<ImageInfo>();
+    for (auto image : images) {
+        if (image.height == height && image.width == width && image.channels == 3) {
+            cropped_images.emplace_back(image.data, image.width, image.height, image.channels, image.original_width, image.original_height);
+            continue;
+        }
+        auto height_ = height;
+        auto width_ = width;
+        auto height_offset = (image.height - height) / 2;
+        auto width_offset = (image.width - width) / 2;
+        auto top_index = height_offset;
+        auto bottom_index = height_offset + height;
+        auto left_index = width_offset;
+        auto right_index = width_offset + width;
+        auto cropped_image = new float[height * width * image.channels];
+        if (top_index >= 0 && bottom_index <= image.height && left_index >= 0 && right_index <= image.width) {
+            for (int i = 0; i < height; i++) {
+                for (int j = 0; j < width; j++) {
+                    for (int k = 0; k < image.channels; k++) {
+                        cropped_image[(i * width + j) * image.channels + k] = image.data[((i + height_offset) * image.width + j + width_offset) * image.channels + k];
+                    }
+                }
+            }
+            cropped_images.emplace_back(cropped_image, width_, height_, image.channels, image.original_width, image.original_height);
+        } else {
+            auto top_pad = std::max(height_ - image.height, 0) / 2;
+            auto bottom_pad = std::max(height_ - image.height, 0) + height_;
+            auto left_pad = std::max(width_ - image.width, 0) / 2;
+            auto right_pad = std::max(width_ - image.width, 0) + width_;
+            for (int i = 0; i < height_; i++) {
+                for (int j = 0; j < width_; j++) {
+                    for (int k = 0; k < image.channels; k++) {
+                        if (i < top_pad || i >= bottom_pad || j < left_pad || j >= right_pad) {
+                            cropped_image[(i * width_ + j) * image.channels + k] = pad;
+                        } else {
+                            cropped_image[(i * width_ + j) * image.channels + k] = image.data[((i - top_pad) * image.width + j - left_pad) * image.channels + k];
+                        }
+                    }
+                }
+            }
+        }
+
+        if (free_source) {
+            free(image.data);
+            image.data = nullptr;
+        }
+    }
+    if (free_source) {
+        // delete &images;
+        images.clear();
+    }
+    return cropped_images;
 }
