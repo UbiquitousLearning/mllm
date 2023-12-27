@@ -41,12 +41,12 @@ void display(Context *c) {
     }
 }
 
-void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, float value) {
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
-    input_tensor->reshape(shape[0], shape[1], shape[2], shape[3]);
-    input_tensor->alloc();
-    input_tensor->fullData<float>(value);
-}
+// void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, float value) {
+//     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+//     input_tensor->reshape(shape[0], shape[1], shape[2], shape[3]);
+//     input_tensor->alloc();
+//     input_tensor->fullData<float>(value);
+// }
 
 unsigned int argmax(const std::vector<float>& scores) {
     if(scores.empty()) {
@@ -109,17 +109,17 @@ void llama2(Context* c, int vocab_size= 32000, int hidden_dim= 4096, int ffn_hid
     i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"tok_embeddings");
     // loop
     for(int layer=0; layer<32; ++layer) {
-        auto *x = _RMSNorm(c, {i}, hidden_dim, (string)"layers."+std::to_string(layer)+".attention_norm");
+        auto *x = _RMSNorm(c, {i}, hidden_dim, 1e-6, (string)"layers."+std::to_string(layer)+".attention_norm");
         //x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
         x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
         i = _Add(c, {x, i}, (string)"layers."+std::to_string(layer) +".attention_add");
-        x = _RMSNorm(c, {i}, hidden_dim, (string)"layers."+std::to_string(layer)+".ffn_norm");
+        x = _RMSNorm(c, {i}, hidden_dim, 1e-6, (string)"layers."+std::to_string(layer)+".ffn_norm");
         x = FFN(c, x, hidden_dim, ffn_hidden_dim, (string)"layers."+std::to_string(layer) +".feed_forward");
         i = _Add(c, {x, i}, (string)"layers."+std::to_string(layer) +".ffn_add");
         //_SubgraphBegin(c);
     }
     // end loop
-    i = _RMSNorm(c, {i}, hidden_dim, (string)"norm");
+    i = _RMSNorm(c, {i}, hidden_dim, 1e-6, (string)"norm");
     i = _Linear(c, {i}, hidden_dim, vocab_size, false, "output");
 }
 int main(int argc, char **argv) {

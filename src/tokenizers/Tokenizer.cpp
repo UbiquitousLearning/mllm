@@ -90,10 +90,25 @@ void Tokenizer::token2Tensor(Net *net, vector<token_id_t> tokens, shared_ptr<Ten
     input_tensor->setBackend(net->backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape(1, 1, static_cast<int>(tokens.size()), 1);
     input_tensor->alloc();
-    input_tensor->fullData<float>(1);
+    // input_tensor->fullData<float>(1);
     for (int idx = 0; idx < tokens.size(); ++idx) {
         input_tensor->setDataAt<float>(0, 0, idx, 0, tokens[idx]);
     }
+    return;
+}
+
+void Tokenizer::tokens2Tensor(Net *net, vector<vector<token_id_t>> tokens, shared_ptr<Tensor> input_tensor) {
+    // auto input_tensor = std::make_shared<Tensor>();
+    input_tensor->setBackend(net->backends()[BackendType::MLLM_CPU].get());
+    const auto bsize = static_cast<int>(tokens.size());
+    input_tensor->reshape(bsize, 1, static_cast<int>(tokens[0].size()), 1);
+    input_tensor->alloc();
+    for (int b = 0; b < bsize; ++b){
+        for (int idx = 0; idx < tokens[b].size(); ++idx) {
+            input_tensor->setDataAt<float>(b, 0, idx, 0, tokens[b][idx]);
+        }
+    }
+
     return;
 }
 

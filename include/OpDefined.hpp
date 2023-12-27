@@ -26,6 +26,7 @@ enum OpType {
     RELU,
     RELU2,
     GELU,
+    QUICKGLUE,
     LAYERNORM,
     SPLIT,
     GATHER,
@@ -34,6 +35,9 @@ enum OpType {
     MAXPOOL2D,
     CAT,
     TRANSPOSE,
+    SUBDIM,
+    DIVISION,
+    NORM,
     OP_NUM
 };
 
@@ -56,6 +60,7 @@ static const vector<string> OpNames = {
     "ReLU",
     "ReLUSquaredActivation",
     "GELU",
+    "QuickGELU",
     "LayerNorm",
     "Split",
     "Gqther",
@@ -64,6 +69,9 @@ static const vector<string> OpNames = {
     "MaxPool2D",
     "Cat",
     "Transpose",
+    "SubDim",
+    "Division",
+    "Norm",
     "OP_NUM"};
 } // namespace mllm
 #endif

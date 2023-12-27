@@ -64,6 +64,7 @@ public:
     static std::vector<ImageInfo> PadImages(std::vector<ImageInfo> &images, int height, int width, size_t patch_width = 30, size_t patch_height = 30, float pad_value = 1.0 / 255.0, PaddingType padding_type = PaddingType::CONSTANT, bool free_source = true);
     static std::vector<ImageInfo> ResizeImages(std::vector<ImageInfo> &images, int height, int width, bool strict_size = false, ResampleType resample_type = ResampleType::BILINEAR, bool free_source = true);
     static std::vector<ImageInfo> NormalizeImages(std::vector<ImageInfo> &images, float mean, float std, bool free_source = true);
+    static std::vector<ImageInfo> NormalizeImages(std::vector<ImageInfo> &images, vector<float> means, vector<float> stds, bool free_source = true);
 };
 }
 

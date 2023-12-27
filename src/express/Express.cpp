@@ -202,7 +202,7 @@ NetTensor *_Matmul(Context *ctx, std::vector<NetTensor *> inputs, bool transpose
     return out_tensor;
 }
 
-NetTensor *_RMSNorm(Context *ctx, std::vector<NetTensor *> inputs, int norm_size, string name) {
+NetTensor *_RMSNorm(Context *ctx, std::vector<NetTensor *> inputs, int norm_size,  float epsilon, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "RMSNorm" + std::to_string(ctx->idx);
@@ -294,7 +294,7 @@ NetTensor *_Mul(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     // TODO:Check
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
-        name = "Dot" + std::to_string(ctx->idx);
+        name = "Mul" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
     // TODO: check Type
@@ -387,7 +387,21 @@ NetTensor *_GELU(Context *ctx, std::vector<NetTensor *> inputs, string name) {
     out_tensor->in = net_op_;
     return out_tensor;
 }
-NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs, int norm_size, bool bias, string name) {
+NetTensor *_QuickGELU(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "_QuickGELU" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::QUICKGLUE)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+NetTensor *_LayerNorm(Context *ctx, std::vector<NetTensor *> inputs, int norm_size, bool bias,  float epsilon, string name) {
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "LayerNorm" + std::to_string(ctx->idx);
@@ -530,6 +544,52 @@ NetTensor *_Transpose(Context *ctx, std::vector<NetTensor *> inputs, string name
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::TRANSPOSE)
     // net_op_->param["axis"] =(float)axis;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+NetTensor *_SubDim(Context *ctx, std::vector<NetTensor *> inputs, Chl dim, vector<int> interval, string name){
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "_SubDim" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::SUBDIM)
+    net_op_->param["dim"] =(float)dim;
+    net_op_->param["start_i"] =(float)interval[0];
+    net_op_->param["end_i"] =(float)interval[1];
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+NetTensor *_Division(Context *ctx, std::vector<NetTensor *> inputs, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Division" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::DIVISION)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
+NetTensor *_Norm(Context *ctx, std::vector<NetTensor *> inputs, int L_n, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "_Norm" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::NORM)
+    net_op_->param["L_n"] =(float)L_n;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     return out_tensor;

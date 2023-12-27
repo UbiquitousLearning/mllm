@@ -1115,15 +1115,16 @@ void vit(Context* c, int hidden_dim= 768, int ffn_hidden_dim = 3072, int class_s
     auto *i = _Input(c, {}, "input_ids");
     i = Embedding(c, i, hidden_dim, name+".embeddings");
     for(int layer=0; layer<12; ++layer) {
-        auto *x = _LayerNorm(c, {i},  hidden_dim,  true,name + ".encoder.layer."+std::to_string(layer)+".layernorm_before");
+        auto *x = _LayerNorm(c, {i},  hidden_dim,  true,1e-6, name + ".encoder.layer."+std::to_string(layer)+".layernorm_before");
         x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name + ".encoder.layer."+std::to_string(layer)+".attention");
         i = _Add(c, {x, i}, name + ".encoder.layer."+std::to_string(layer)+".add_attn");
-        x = _LayerNorm(c, {i}, hidden_dim, true, name + ".encoder.layer."+std::to_string(layer)+".layernorm_after");
+        x = _LayerNorm(c, {i}, hidden_dim, true, 1e-6, name + ".encoder.layer."+std::to_string(layer)+".layernorm_after");
         x = MLP(c, x, hidden_dim, ffn_hidden_dim, name + ".encoder.layer."+std::to_string(layer));
         i = _Add(c, {x, i}, name + ".encoder.layer."+std::to_string(layer)+".add_mlp");
         _SubgraphBegin(c);
     }
-    i = _LayerNorm(c, {i}, hidden_dim, true,  name + ".layernorm");
+    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, name + ".post_subdim");
+    i = _LayerNorm(c, {i}, hidden_dim, true,  1e-6, name + ".layernorm");
     i = _Linear(c, {i}, hidden_dim, class_size, false, "classifier");
 }
 int main() {
