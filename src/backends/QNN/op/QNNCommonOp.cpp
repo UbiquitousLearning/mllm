@@ -67,4 +67,11 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
     return NO_ERROR;
 }
 
+ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<const char *> inputTensorNames, vector<Qnn_Tensor_t> outputs, vector<Qnn_Param_t> params, string packageName) {
+    if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputs, params, packageName)) {
+        return ErrorCode::INVALID_VALUE;
+    }
+    return NO_ERROR;
+}
+
 } // namespace mllm
