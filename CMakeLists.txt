@@ -205,7 +205,7 @@ if(QNN)
     set(CMAKE_LD_FLAGS "-shared -s -fPIC -pthread -fvisibility=hidden -flto")
 
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
-    add_executable(qnn_test ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
+    add_executable(qnn_test ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_test.cpp ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_wrapper.hpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
     add_executable(silu_test ${PROJECT_SOURCE_DIR}/demo/qnn/silu_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
     target_link_libraries(qnn_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
     target_link_libraries(silu_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
