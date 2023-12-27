@@ -1,19 +1,29 @@
 
 #include "QNNSoftmax.hpp"
+#include "QnnTypes.h"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
 
 namespace mllm {
-QNNSoftmax::QNNSoftmax(Backend *bn, string opName) :
+QNNSoftmax::QNNSoftmax(Backend *bn, string opName, int axis) :
     QNNCommonOp(bn, opName) {
+    axis_ = axis;
 }
 
 ErrorCode QNNSoftmax::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    return NO_ERROR;
+    CHECK_EQ(inputs.size(), 1);
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+    return Op::reshape(inputs, outputs);
 }
 
 ErrorCode QNNSoftmax::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    return graphAddNode(name(), "Add", inputs, outputs);
+    vector<Qnn_Param_t> params = {
+        {.paramType = QNN_PARAMTYPE_SCALAR,
+         .name = "axis",
+         {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_UINT_32, {.uint32Value = static_cast<uint32_t>(axis_)}}}},
+        {.paramType = QNN_PARAMTYPE_SCALAR,
+         .name = "beta",
+         {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_FLOAT_32, {.floatValue = 1.000000000000f}}}}};
+    return graphAddNode(name(), "Softmax", inputs, outputs);
 }
 } // namespace mllm
-

@@ -69,7 +69,7 @@ int main() {
                  .memType = QNN_TENSORMEMTYPE_RAW,
                  {.clientBuf = {.data = nullptr,
                                 .dataSize = 0}}}}}};
-    qbn->graphAddNode("qnn-silu", "SiLU", {"x"}, outputs, "LLaMAPackage");
+    qbn->graphAddNode("qnn-silu", "SiLU", {"x"}, outputs, {}, "LLaMAPackage");
     // graph compile
     std::cout << "graph compile" << std::endl;
     qbn->graphFinilize();
