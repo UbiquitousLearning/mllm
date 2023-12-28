@@ -30,7 +30,7 @@ int main() {
 
     // build graph
     std::cout << "build graph" << std::endl;
-    testSoftmax(qbn);
+    testMul(qbn);
     // graph compile
     std::cout << "graph compile" << std::endl;
     qbn->graphFinilize();

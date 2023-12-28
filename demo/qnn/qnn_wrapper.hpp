@@ -121,3 +121,129 @@ void testSoftmax(QNNBackend *qbn) {
                                 .dataSize = 0}}}}}};
     qbn->graphAddNode("qnn-softmax", "Softmax", {"x"}, outputs, params, "qti.aisw");
 }
+
+void testAdd(QNNBackend *qbn) {
+    // graph add node
+    uint32_t dimensions0[] = {1, 2, 2, 2};
+    uint32_t dimensions1[] = {1, 1, 1, 1};
+    qbn->modelAddTensor("x", // Node Name
+                        (Qnn_Tensor_t){
+                            .version = QNN_TENSOR_VERSION_1,
+                            {.v1 = {
+                                 .id = 0,
+                                 .name = "x",
+                                 .type = QNN_TENSOR_TYPE_APP_WRITE,
+                                 .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                 .dataType = QNN_DATATYPE_FLOAT_32,
+                                 .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                    QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                    {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                 .rank = 4,
+                                 .dimensions = dimensions0,
+                                 .memType = QNN_TENSORMEMTYPE_RAW,
+                                 {.clientBuf = {.data = nullptr,
+                                                .dataSize = 0}}}}});
+
+    float data[] = {1};
+    qbn->modelAddTensor("y", // Node Name
+                        (Qnn_Tensor_t){
+                            .version = QNN_TENSOR_VERSION_1,
+                            {.v1 = {
+                                 .id = 0,
+                                 .name = "y",
+                                 .type = QNN_TENSOR_TYPE_STATIC,
+                                 .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                 .dataType = QNN_DATATYPE_FLOAT_32,
+                                 .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                    QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                    {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                 .rank = 4,
+                                 .dimensions = dimensions1,
+                                 .memType = QNN_TENSORMEMTYPE_RAW,
+                                 {.clientBuf = {.data = data,
+                                                .dataSize = 4}}}}});
+
+    uint32_t dimensionsOut[] = {1, 2, 2, 2};
+    vector<Qnn_Tensor_t> outputs = {
+        (Qnn_Tensor_t){
+            .version = QNN_TENSOR_VERSION_1,
+            {.v1 = {
+                 .id = 0,
+                 .name = "add-output",
+                 .type = QNN_TENSOR_TYPE_APP_READ,
+                 .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                 .dataType = QNN_DATATYPE_FLOAT_32,
+                 .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                    QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                    {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                 .rank = 4,
+                 .dimensions = dimensionsOut,
+                 .memType = QNN_TENSORMEMTYPE_RAW,
+                 {.clientBuf = {.data = nullptr,
+                                .dataSize = 0}}}}}};
+
+    qbn->graphAddNode("qnn-add", "ElementWiseAdd", {"x", "y"}, outputs, {}, "qti.aisw");
+}
+
+void testMul(QNNBackend *qbn) {
+    // graph add node
+    uint32_t dimensions0[] = {1, 2, 2, 2};
+    uint32_t dimensions1[] = {1};
+    qbn->modelAddTensor("x", // Node Name
+                        (Qnn_Tensor_t){
+                            .version = QNN_TENSOR_VERSION_1,
+                            {.v1 = {
+                                 .id = 0,
+                                 .name = "x",
+                                 .type = QNN_TENSOR_TYPE_APP_WRITE,
+                                 .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                 .dataType = QNN_DATATYPE_FLOAT_32,
+                                 .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                    QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                    {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                 .rank = 4,
+                                 .dimensions = dimensions0,
+                                 .memType = QNN_TENSORMEMTYPE_RAW,
+                                 {.clientBuf = {.data = nullptr,
+                                                .dataSize = 0}}}}});
+
+    float data[] = {2};
+    qbn->modelAddTensor("y", // Node Name
+                        (Qnn_Tensor_t){
+                            .version = QNN_TENSOR_VERSION_1,
+                            {.v1 = {
+                                 .id = 0,
+                                 .name = "y",
+                                 .type = QNN_TENSOR_TYPE_STATIC,
+                                 .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                 .dataType = QNN_DATATYPE_FLOAT_32,
+                                 .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                    QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                    {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                 .rank = 1,
+                                 .dimensions = dimensions1,
+                                 .memType = QNN_TENSORMEMTYPE_RAW,
+                                 {.clientBuf = {.data = data,
+                                                .dataSize = 4}}}}});
+
+    uint32_t dimensionsOut[] = {1, 2, 2, 2};
+    vector<Qnn_Tensor_t> outputs = {
+        (Qnn_Tensor_t){
+            .version = QNN_TENSOR_VERSION_1,
+            {.v1 = {
+                 .id = 0,
+                 .name = "add-output",
+                 .type = QNN_TENSOR_TYPE_APP_READ,
+                 .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                 .dataType = QNN_DATATYPE_FLOAT_32,
+                 .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                    QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                    {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                 .rank = 4,
+                 .dimensions = dimensionsOut,
+                 .memType = QNN_TENSORMEMTYPE_RAW,
+                 {.clientBuf = {.data = nullptr,
+                                .dataSize = 0}}}}}};
+
+    qbn->graphAddNode("qnn-mul", "ElementWiseMultiply", {"x", "y"}, outputs, {}, "qti.aisw");
+}
