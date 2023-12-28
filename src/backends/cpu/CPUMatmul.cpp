@@ -16,7 +16,7 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     CHECK_EQ(outputs.size(), 1);
     CHECK_EQ(inputs[0]->head(), inputs[1]->head());
     //    CHECK_EQ(inputs[0]->head(), 1);
-    CHECK_EQ(inputs[0]->batch(), inputs[1]->batch());
+    // CHECK_EQ(inputs[0]->batch(), inputs[1]->batch());
     if (!transpose0_ && !transpose1_) {
         /*
          N     |    C       |   H                   |  W

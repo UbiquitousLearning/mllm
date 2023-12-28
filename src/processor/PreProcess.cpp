@@ -175,3 +175,36 @@ std::vector<ImageInfo> PreProcessor::CenterCropImages(std::vector<ImageInfo> &im
     }
     return cropped_images;
 }
+
+std::vector<ImageInfo> PreProcessor::NormalizeImages(std::vector<ImageInfo> &images, vector<float> means, vector<float> stds, bool free_source) {
+    auto normalized_images = std::vector<ImageInfo>();
+    for (auto image : images) {
+        auto normalized_image = new float[image.width * image.height * image.channels];
+        // for (int i = 0; i < image.width * image.height * image.channels; i++) {
+        //     normalized_image[i] = (image.data[i] - mean) / std;
+        // }
+        auto height = image.height;
+        auto width = image.width;
+        auto channel = image.channels;
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                for (int k = 0; k < channel; k++) {
+                    // std::cout << "Pixel at (" << i << ", " << j << ", " << k << "): " <<  image.data[(i * width + j) * channel + k] << std::endl;
+                    auto vv = image.data[(i * width + j) * channel + k];
+                    normalized_image[(i * width + j) * channel + k] = (vv - means[k])/(stds[k]);
+                }
+            }
+        }
+        normalized_images.emplace_back(normalized_image, image.width, image.height, image.channels, image.original_width, image.original_height);
+        if (free_source) {
+            free(image.data);
+            image.data = nullptr;
+        }
+    }
+    if (free_source) {
+        // delete &images;
+        images.clear();
+    }
+    return normalized_images;
+}
+

@@ -23,6 +23,10 @@
 #include "CPUMaxPool2D.hpp"
 #include "CPUParameter.hpp"
 #include "CPUCat.hpp"
+#include "CPUSubDim.hpp"
+#include "CPUQuickGELU.hpp"
+#include "CPUDivision.hpp"
+#include "CPUNorm.hpp"
 
 #include <math.h>
 #include <CPUTranspose.hpp>
@@ -72,6 +76,7 @@ void CPUBackend::registerOps() {
     addCreator(RELU, (CPUBackend::Creator *)(new CPUReLUCreator()));
     addCreator(RELU2, (CPUBackend::Creator *)(new CPUReLU2Creator()));
     addCreator(GELU, (CPUBackend::Creator *)(new CPUGELUCreator()));
+    addCreator(QUICKGLUE, (CPUBackend::Creator *)(new CPUQuickGELUCreator()));
     addCreator(LAYERNORM, (CPUBackend::Creator *)(new CPULayerNormCreator()));
     addCreator(SPLIT, (CPUBackend::Creator *)(new CPUSplitCreator()));
     addCreator(GATHER, (CPUBackend::Creator *)(new CPUGatherCreator()));
@@ -80,6 +85,9 @@ void CPUBackend::registerOps() {
     addCreator(MAXPOOL2D, (CPUBackend::Creator *)(new CPUMaxPoolCreator()));
     addCreator(CAT, (CPUBackend::Creator *)(new CPUCatCreator()));
     addCreator(TRANSPOSE, (CPUBackend::Creator *)(new CPUTransposeCreator()));
+    addCreator(SUBDIM, (CPUBackend::Creator *)(new CPUSubDimCreator()));
+    addCreator(DIVISION, (CPUBackend::Creator *)(new CPUDivisionCreator()));
+    addCreator(NORM, (CPUBackend::Creator *)(new CPUNormCreator()));
 }
 
 } // namespace mllm

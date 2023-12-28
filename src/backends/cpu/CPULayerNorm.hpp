@@ -19,7 +19,7 @@ public:
 
 private:
     bool support_multi_thread_ = false;
-    float epsilon_ = 1e-6;
+    float epsilon_;
     int normSize_=0;
     Tensor weight_;
     Tensor bias_;
@@ -30,7 +30,8 @@ public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
         bool bias = (bool)op_param["bias"];
         int normSize = (int)op_param["norm_size"];
-        return new CPULayerNorm(bn, name, normSize, bias);
+        int epsilon = (int)op_param["epsilon"];
+        return new CPULayerNorm(bn, name, normSize, bias, epsilon);
 
     }
 };

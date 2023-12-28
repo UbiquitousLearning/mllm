@@ -21,13 +21,15 @@ ErrorCode CPUGELU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     int head = input->head();
     int seq = input->sequence();
     int dim = input->dimension();
-#pragma omp parallel for collapse(4)
+#pragma omp parallel for collapse(4) num_threads(4)
     for (int b = 0; b <batch ; ++b) {
         for (int h = 0; h < head; ++h) {
             for (int s = 0; s < seq; ++s) {
                 for (int d = 0; d < dim; ++d) {
                     float value = input->dataAt<float>(b, h, s, d);
-                    output->setDataAt<float>(b, h, s, d, 0.5 * value * (1 + std::tanh(std::sqrt(2 / M_PI) * (value + 0.044715 * std::pow(value, 3)))));
+                    // output->setDataAt<float>(b, h, s, d, 0.5 * value * (1 + std::tanh(std::sqrt(2 / M_PI) * (value + 0.044715 * std::pow(value, 3)))));
+                    output->setDataAt<float>(b, h, s, d, 0.5 * value * (1 + std::tanh(std::sqrt(2 / M_PI) * (0.7978845608 * (value + 0.044715 * std::pow(value, 3))))));
+;
                 }
             }
         }
