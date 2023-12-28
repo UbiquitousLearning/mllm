@@ -1153,7 +1153,7 @@ int main() {
     BackendConfig bn;
     Net net(bn);
     net.convert(c->sub_param_);
-    ParamLoader param_loader("../models/vit-fp32.mllm");
+    ParamLoader param_loader("../models/vit-q4_k.mllm");
     Executor ex(&param_loader);
     ex.setup(&net);
 
