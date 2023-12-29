@@ -201,37 +201,51 @@ int main() {
     Executor ex(&param_loader);
     ex.setup(&net);
 
-
-
-    auto preprocessor = FuyuPreProcess(&tokenizer);
-    preprocessor.PreProcessImages({"bus_lite.png"});
-    preprocessor.Process("Generate a coco-style caption.\n");
-    auto input_ids = preprocessor.image_input_ids_;
-    auto image_patches_indices = preprocessor.image_patches_indices_;
-    auto image_patches = preprocessor.image_patches_;
-    if(input_ids.empty()) {
-        input_ids = preprocessor.text_ids_;
-    }
+    std::vector<vector<string>> in_imgs = {
+        {"bus_lite.png"},
+        {}
+    };
+    vector<string> in_strs = {
+        "Generate a coco-style caption.\n",
+        "What's this?\n"
+    };
     shared_ptr<Tensor> input_seq = std::make_shared<Tensor>();
-    UnigramTokenizer::token2Tensor(&net, input_ids[0], input_seq);
     shared_ptr<Tensor> img_patch = std::make_shared<Tensor>();
-    patches2Tensor(img_patch, net, image_patches);
     shared_ptr<Tensor> img_patch_id = std::make_shared<Tensor>();
-    patchIdx2Tensor(img_patch_id, net, image_patches_indices);
-    for(int step = 0; step<10; step++) {
-        ex.run(&net, {input_seq, img_patch, img_patch_id});
-        auto result = ex.result();
-        auto token_idx = postProcessing(result[0], input_seq);
-//        std::cout << token_idx << std::endl;
-        if(token_idx == 71013){
-            break;
+    for (int inId = 0; inId < in_strs.size(); ++inId) {
+        auto in_str = in_strs[inId];
+        auto in_img = in_imgs[inId];
+        auto preprocessor = FuyuPreProcess(&tokenizer);
+        preprocessor.image_input_ids_.clear();
+        preprocessor.image_patches_indices_.clear();
+        preprocessor.image_patches_.clear();
+        preprocessor.PreProcessImages(in_img);
+        preprocessor.Process(in_str);
+        auto input_ids = preprocessor.image_input_ids_;
+        auto image_patches_indices = preprocessor.image_patches_indices_;
+        auto image_patches = preprocessor.image_patches_;
+        if(input_ids.empty()) {
+            input_ids = preprocessor.text_ids_;
         }
-        fullTensor(img_patch, net, {0, 0, 0, 0});
-        fullTensor(img_patch_id, net, {0, 0, 0, 0});
-        auto out_token = tokenizer.detokenize({token_idx});
-        std::cout << out_token << std::flush;
+        UnigramTokenizer::token2Tensor(&net, input_ids[0], input_seq);
+        patches2Tensor(img_patch, net, image_patches);
+        patchIdx2Tensor(img_patch_id, net, image_patches_indices);
+        for(int step = 0; step<10; step++) {
+            ex.run(&net, {input_seq, img_patch, img_patch_id});
+            auto result = ex.result();
+            auto token_idx = postProcessing(result[0], input_seq);
+            //        std::cout << token_idx << std::endl;
+            if(token_idx == 71013){
+                break;
+            }
+            fullTensor(img_patch, net, {0, 0, 0, 0});
+            fullTensor(img_patch_id, net, {0, 0, 0, 0});
+            auto out_token = tokenizer.detokenize({token_idx});
+            std::cout << out_token << std::flush;
+        }
+        printf("\n");
     }
-    printf("\n");
+
 
 
     ex.perf();
