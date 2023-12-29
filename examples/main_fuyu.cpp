@@ -197,7 +197,7 @@ int main() {
     BackendConfig bn;
     Net net(bn);
     net.convert(c->sub_param_);
-    ParamLoader param_loader("../models/fuyu-8b-q4_k-46.mllm");
+    ParamLoader param_loader("../models/fuyu-8b-q4_k-4632.mllm");
     Executor ex(&param_loader);
     ex.setup(&net);
 

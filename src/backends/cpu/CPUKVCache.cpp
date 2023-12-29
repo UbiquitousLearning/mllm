@@ -150,11 +150,11 @@ ErrorCode CPUKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     CHECK_EQ(inputs.size(), 1);
     CHECK_EQ(outputs.size(), 1);
     outputs[0]->setDtype(cache_.dtype());
-    outputs[0]->deepCopyFrom(cache_, {0,0,cache_seq_len_/cache_limit_,0});
+    outputs[0]->deepCopyFrom(cache_, false, {0,0,cache_seq_len_/cache_limit_,0});
     if (inputs[0]->masterTensor() ==nullptr) {
         inputs[0]->free();
     }
-    inputs[0]->deepCopyFrom(cache_, {0,0,cache_seq_len_%cache_limit_,0});
+    inputs[0]->deepCopyFrom(cache_, false, {0,0,cache_seq_len_%cache_limit_,0});
 #ifdef DEBUG
     std::cout << "*"<<name()<<" setUp*" << std::endl;
 #endif

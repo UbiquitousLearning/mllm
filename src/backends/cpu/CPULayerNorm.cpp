@@ -59,13 +59,13 @@ ErrorCode CPULayerNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
                 float sum_squares = 0.0F;
                 float sum = 0.0F;
 // sum
-#pragma omp parallel for reduction(+ : sum_squares) reduction(+ : sum) num_threads(4)
+// #pragma omp parallel for reduction(+ : sum_squares) reduction(+ : sum) num_threads(4)
                 for (int d = 0; d < dim; d++) {
                     float value = input->dataAt<float>(n, h, s, d);
                     sum += value;
                 }
                 float mean = sum / dim;
-#pragma omp parallel for reduction(+ : sum_squares) num_threads(4)
+// #pragma omp parallel for reduction(+ : sum_squares) num_threads(4)
                 for (int d = 0; d < dim; d++) {
                     float value = input->dataAt<float>(n, h, s, d);
                     sum_squares += (value - mean) * (value - mean);

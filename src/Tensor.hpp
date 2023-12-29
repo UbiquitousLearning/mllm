@@ -44,22 +44,7 @@ public:
     }
     explicit Tensor(const int num, const int channels, const int height, const int width); // N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
     explicit Tensor(const vector<int> &shape);
-
-    Backend *backend() const {
-        return backend_;
-    }
-    void setBackend(Backend *bn) {
-        backend_ = bn;
-    };
-    void setDtype(DataType dtype) {
-        dtype_ = dtype;
-    }
-
-    inline const vector<int> &shape() const {
-        return shape_;
-    }
-
-    //    bool reshape(const int num, const int channels, const int height, const int width);
+        //    bool reshape(const int num, const int channels, const int height, const int width);
     bool reshape(const int batch, const int head, const int sequence, const int dimension);
 
     void alloc();
@@ -82,24 +67,6 @@ public:
     size_t size() const {
         return capacity_ * dtypeSize();
     }
-    /*
-    // Deprecated legacy shape accessor num: use batch() instead.
-    inline int num() const {
-        return legacyShape(0);
-    }
-    // Deprecated legacy shape accessor channels: use head() instead.
-    inline int channels() const {
-        return legacyShape(1);
-    }
-    // Deprecated legacy shape accessor height: use sequence() instead.
-    inline int height() const {
-        return legacyShape(2);
-    }
-    // Deprecated legacy shape accessor width: use dimension() instead.
-    inline int width() const {
-        return legacyShape(3);
-    }
-    */
 
     inline int batch() const {
         return legacyShape(0);
@@ -156,26 +123,12 @@ public:
         return stream.str();
     }
     inline int canonicalAxisIndex(int axis_index) const {
-        /*
-        CHECK_GE(axis_index, -numAxes())
-            << "axis " << axis_index << " out of range for " << numAxes()
-            << "-D Tensor with shape " << ShapeString();
-        CHECK_LT(axis_index, numAxes())
-            << "axis " << axis_index << " out of range for " << numAxes()
-            << "-D Tensor with shape " << ShapeString();
-            */
         if (axis_index < 0) {
             return axis_index + numAxes();
         }
         return axis_index;
     }
     inline int legacyShape(int index) const {
-        /*
-        CHECK_LE(numAxes(), 4)
-            << "Cannot use legacy accessors on Tensors with > 4 axes.";
-        CHECK_LT(index, 4);
-        CHECK_GE(index, -4);
-        */
         if (index >= numAxes() || index < -numAxes()) {
             // Axis is out of range, but still in [0, 3] (or [-4, -1] for reverse
             // indexing) -- this special case simulates the one-padding used to fill
@@ -184,30 +137,9 @@ public:
         }
         return shape(index);
     }
-
-    //    inline int offset(const int n, const int c = 0, const int h = 0,
-    //                      const int w = 0) const {
-    //        CHECK_GE(n, 0);
-    //        CHECK_LE(n, batch());
-    //        CHECK_GE(head(), 0);
-    //        CHECK_LE(c, head());
-    //        CHECK_GE(sequence(), 0);
-    //        CHECK_LE(h, sequence());
-    //        CHECK_GE(dimension(), 0);
-    //        CHECK_LE(w, dimension());
-    //        return ((n * head() + c) * sequence() + h) * dimension() + w;
-    //    }
     inline int offset(const int b, const int h = 0, const int s = 0,
                       const int d = 0) const {
         // batch, head, sequence, dimension
-        // CHECK_GE(b, 0);
-        // CHECK_LE(b, batch());
-        // CHECK_GE(head(), 0);
-        // CHECK_LE(h, head());
-        // CHECK_GE(sequence(), 0);
-        // CHECK_LE(s, sequence());
-        // CHECK_GE(dimension(), 0);
-        // CHECK_LE(d, dimension());
         if (shape_offset_.size() == 4 & shape_master_.size() == 4) {
             const int base_batch_ = shape_master_[0];
             const int base_head_ = shape_master_[1];
@@ -279,11 +211,6 @@ public:
             return aggregated_tensors_[tensor_id]->dataAt<Dtype>(b, h, s, d);
         }
     }
-    template <typename Dtype>
-    Dtype dataAtDangerously(const int offset) const {
-        //        return hostPtr<Dtype>()[offset(n, c, h, w)];
-        return ((Dtype *)host_ptr_)[offset];
-    }
 
     template <typename Dtype>
     Dtype dataAt(const vector<int> &index) const {
@@ -323,11 +250,6 @@ public:
             aggregated_tensors_[tensor_id]->setDataAt<Dtype>(b, h, s, d, value);
         }
     }
-    template <typename Dtype>
-    void setDataAtDangerously(const int offset, Dtype value) const {
-        //        return hostPtr<Dtype>()[offset(n, c, h, w)];
-        ((Dtype *)host_ptr_)[offset] = value;
-    }
 
     template <typename Dtype>
     void setDataAt(const vector<int> &index, Dtype value) {
@@ -345,9 +267,25 @@ public:
             return aggregated_tensors_[tensor_id]->dtype_;
         }
     }
+
+    Backend *backend() const {
+        return backend_;
+    }
+    void setBackend(Backend *bn) {
+        backend_ = bn;
+    };
+
     DataType dtype() const {
         return dtype_;
     }
+    void setDtype(DataType dtype) {
+        dtype_ = dtype;
+    }
+
+    inline const vector<int> &shape() const {
+        return shape_;
+    }
+
     ChlType ctype() const {
         return ctype_;
     }
@@ -404,27 +342,29 @@ public:
      * \param source
      * \param shape_offset
      */
-    void deepCopyFrom(Tensor* source, bool copyshape = true) {
+
+    void deepCopyFrom(Tensor* source, bool copyshape = true, const vector<int>& shape_offset = {}) {
+        if(!shape_offset.empty()) {
+            copyshape = false;
+        }
         setMasterTensor(source);
-        if(ctype_ != master_tensor_->ctype() && undiffusion_ == false) {
-            if (transed_) {
+        if(ctype_ != BCTHW && ctype_ != master_tensor_->ctype() && undiffusion_ == false) {
+            if (transed_) { // child tensor have been transed(BSHD->BHDS);
                 auto b = master_tensor_->batch();
                 auto h = master_tensor_->head();
                 auto d = master_tensor_->dimension();
                 auto s = master_tensor_->sequence();
                 master_tensor_->ctype_ = ctype_;
                 master_tensor_->reshape(b, h, s,d);
-            }else {
+            } else {
                 auto b = batch();
                 auto h = head();
                 auto d = dimension();
                 auto s = sequence();
                 ctype_ = master_tensor_->ctype_;
                 reshape(b, h, s,d);
-                // ctype_ = source.ctype_;
             }
         }
-        // deep Copy
         host_ptr_ = source->hostPtr<void>();
         capacity_ = source->capacity_;
         count_ = source->count_;
@@ -433,118 +373,28 @@ public:
         }
         allocated_ = source->allocated_;
         dtype_ = source->dtype_;
-        // ctype_ = source->ctype_;
-        //
-        for (auto &child_tensor: child_tensors_) {
-            child_tensor->deepCopyFrom(source, false);
-            //remove child_temsor from child_tensors_:
-            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
-        }
-        //
-        source->addChildTensor(this);
-    }
-    void deepCopyFrom(Tensor *source, const vector<int> &shape_offset) { //b,h,s,d
-        //
-        setMasterTensor(source);
-        if(ctype_ != master_tensor_->ctype()) {
-            if (transed_) {
-                auto b = master_tensor_->batch();
-                auto h = master_tensor_->head();
-                auto d = master_tensor_->dimension();
-                auto s = master_tensor_->sequence();
-                master_tensor_->ctype_ = ctype_;
-                master_tensor_->reshape(b, h, s,d);
-            }else {
-                auto b = batch();
-                auto h = head();
-                auto d = dimension();
-                auto s = sequence();
-                ctype_ = master_tensor_->ctype_;
-                reshape(b, h, s,d);
-                // ctype_ = source.ctype_;
-            }
-        }
-        assert(source->allocted());
-        // don't need alloc()
-        shape_offset_ = shape_offset;
-        shape_master_ = {source->batch(), source->head(), source->sequence(), source->dimension()};
-        if(source->head() != head()) {
-            shape_master_ = {source->batch(), head(), source->sequence(), source->dimension() * source->head() / head()};
-        }
-        // deep Copy
-        host_ptr_ = source->hostPtr<void>();
-        allocated_ = source->allocated_;
-        dtype_ = source->dtype_;
-        //
-        for (auto &child_tensor: child_tensors_) {
-            child_tensor->deepCopyFrom(source, shape_offset);
-            //remove child_temsor from child_tensors_:
-            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
-        }
-        source->addChildTensor(this);
-    }
-    void deepCopyFrom(Tensor &source, const vector<int> &shape_offset) {
-        //
-        setMasterTensor(&source);
-        if(ctype_ != master_tensor_->ctype()) {
-            if (transed_) {
-                auto b = master_tensor_->batch();
-                auto h = master_tensor_->head();
-                auto d = master_tensor_->dimension();
-                auto s = master_tensor_->sequence();
-                master_tensor_->ctype_ = ctype_;
-                master_tensor_->reshape(b, h, s,d);
-            }else {
-                auto b = batch();
-                auto h = head();
-                auto d = dimension();
-                auto s = sequence();
-                ctype_ = master_tensor_->ctype_;
-                reshape(b, h, s,d);
-                // ctype_ = source.ctype_;
-            }
-        }
-        assert(source.allocted());
-        // don't need alloc()
-        shape_offset_ = shape_offset;
-        shape_master_ = {source.batch(), source.head(), source.sequence(), source.dimension()};
-        if(source.head() != head()) {
-            shape_master_ = {source.batch(), head(), source.sequence(), source.dimension() * source.head() / head()};
-        }
-        // deep Copy
-        host_ptr_ = source.hostPtr<void>();
-        allocated_ = source.allocated_;
-        dtype_ = source.dtype_;
-        //
-        for (auto &child_tensor: child_tensors_) {
-            child_tensor->deepCopyFrom(source, shape_offset);
-            //remove child_temsor from child_tensors_:
-            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
-        }
-        source.addChildTensor(this);
-    }
-    void transShape(Chl dim_a, Chl dim_b) {
-        if(dim_a == SEQUENCE && dim_b == DIMENSION) {
-            if(ctype() == BSHD) {
-                auto b = batch();
-                auto h = head();
-                auto d = dimension();
-                auto s = sequence();
-                ctype_ = BHDS;
-                reshape(b, h, s, d);
-                transed_ = true;
-            }else if (transed_) {
 
+        if (!shape_offset.empty()) {
+            shape_offset_ = shape_offset;
+            shape_master_ = {source->batch(), source->head(), source->sequence(), source->dimension()};
+            if(source->head() != head()) { // TODO: need to check
+                shape_master_ = {source->batch(), head(), source->sequence(), source->dimension() * source->head() / head()};
             }
-            else {
-                std::cout<<"TODO, need support!"<<std::endl;
-            }
-        } else {
-            std::cout<<"TODO, need support!"<<std::endl;
         }
+
+        for (auto &child_tensor: child_tensors_) {
+            if (!shape_offset.empty()) {
+                child_tensor->deepCopyFrom(source, false, shape_offset);
+            } else {
+                child_tensor->deepCopyFrom(source, false);
+            }
+            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
+        }
+        source->addChildTensor(this);
     }
-    void setUndiffusion() {
-        undiffusion_ = true;
+
+    void deepCopyFrom(Tensor &source, bool copyshape = true, const vector<int>& shape_offset = {}) {
+        deepCopyFrom(&source, copyshape, shape_offset);
     }
 
     vector<int> shape_offset() const {
@@ -566,6 +416,21 @@ public:
     }
     void addChildTensor(Tensor* child) {
         child_tensors_.push_back(child);
+    }
+
+    void transShape(Chl dim_a, Chl dim_b, bool undiffusion_ = false) {
+        if(dim_a == SEQUENCE && dim_b == DIMENSION && ctype() == BSHD) {
+            auto b = batch();
+            auto h = head();
+            auto d = dimension();
+            auto s = sequence();
+            ctype_ = BHDS;
+            reshape(b, h, s, d);
+            transed_ = true;
+            if(undiffusion_) {
+                undiffusion_ = true;
+            }
+        }
     }
 
     /************************************Aggregated  Tensers  *******************/
@@ -627,92 +492,25 @@ public:
     }
     int offset(const int b, const int c, const int t, const int h, const int w) const {
         assert(ctype_ == BCTHW);
-        //0 1 2 3
-        //b h s q
-        // return ((b * head() + h) * sequence() + s) * dimension() + d;
         return (((b * channel() + c) * time() + t) * height() + h) * width() + w;
     }
     template <typename Dtype>
     Dtype dataAt(const int batch, const int channel, const int time, const int height, const int width) const {
+        assert(ctype_ == BCTHW);
         return ((Dtype *)host_ptr_)[offset(batch, channel, time, height, width)];
     }
     template <typename Dtype>
     Dtype *ptrAt(const int batch, const int channel, const int time, const int height, const int width) {
+        assert(ctype_ == BCTHW);
         return ((Dtype *)host_ptr_ + offset(batch, channel, time, height, width));
     }
     template <typename Dtype>
     void setDataAt(const int batch, const int channel, const int time, const int height, const int width, Dtype value) {
+        assert(ctype_ == BCTHW);
         Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
         typed_ptr[offset(batch, channel, time, height, width)] = value;
     }
-    template <typename Dtype>
-    void print5Data() {
-        std::cout << "----------------------------------------" << std::endl;
-        std::cout << name() << ": shape:[" << batch() << " " << channel() << " " << time() << " " << height()<<" "<<width() << "]" << std::endl;
-        int N = batch();
-        int C = channel();
-        int T = time();
-        int H = height();
-        int W = height();
-            for (int n = 0; n < N; ++n) {
-                for (int c = 0; c < C; ++c) {
-                    for (int t = 0; t < T; ++t) {
-                        for (int h = 0; h < H; ++h) {
-                            for (int w = 0; w < W; ++w) {
-                                std::cout << std::fixed << std::setprecision(7) << dataAt<Dtype>(n, c, t, h, w) << " ";
-                            }
-                            std::cout << std::endl;
-                        }
-                        std::cout << std::endl;
-                    }
-                    std::cout << std::endl;
-                }
-            }
-    }
-    template <typename Dtype>
-    void save5Data(string ex = "") {
-        // std::filesystem::create_directory("save_out");
-        string directory = "save_out";
-        struct stat info;
 
-        if(stat(directory.c_str(), &info) != 0) {
-            // if the directory does not exist, create it
-#ifdef _WIN32
-            _mkdir(directory.c_str());
-#else
-            mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
-#endif
-        } else if(!(info.st_mode & S_IFDIR)) {
-            // if the path exists but it is not a directory, also create it
-#ifdef _WIN32
-            _mkdir(directory.c_str());
-#else
-            mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
-#endif
-        }
-        std::ofstream outFile(directory+ "/" + name() +ex + ".log");
-        outFile << "----------------------------------------" << std::endl;
-        outFile << name() << ": shape:[" << batch() << " " << channel() << " " << time() << " " << height()<<" "<<width() << "]" << std::endl;
-        int N = batch();
-        int C = channel();
-        int T = time();
-        int H = height();
-        int W = height();
-        for (int n = 0; n < N; ++n) {
-            for (int c = 0; c < C; ++c) {
-                for (int t = 0; t < T; ++t) {
-                    for (int h = 0; h < H; ++h) {
-                        for (int w = 0; w < W; ++w) {
-                            outFile << std::fixed << std::setprecision(7) << dataAt<Dtype>(n, c, t, h, w) << " ";
-                        }
-                        outFile << std::endl;
-                    }
-                    outFile << std::endl;
-                }
-                outFile << std::endl;
-            }
-        }
-    }
 
 
 public:
@@ -792,8 +590,6 @@ public:
         }
     }
 
-
-
     template <typename Dtype>
     void saveData(string ex = "") {
         // std::filesystem::create_directory("save_out");
@@ -856,6 +652,78 @@ public:
 
         outFile.close();
     }
+
+     /************************************B, C, T, H, W  *******************/
+    template <typename Dtype>
+    void print5Data() {
+        std::cout << "----------------------------------------" << std::endl;
+        std::cout << name() << ": shape:[" << batch() << " " << channel() << " " << time() << " " << height()<<" "<<width() << "]" << std::endl;
+        int N = batch();
+        int C = channel();
+        int T = time();
+        int H = height();
+        int W = height();
+            for (int n = 0; n < N; ++n) {
+                for (int c = 0; c < C; ++c) {
+                    for (int t = 0; t < T; ++t) {
+                        for (int h = 0; h < H; ++h) {
+                            for (int w = 0; w < W; ++w) {
+                                std::cout << std::fixed << std::setprecision(7) << dataAt<Dtype>(n, c, t, h, w) << " ";
+                            }
+                            std::cout << std::endl;
+                        }
+                        std::cout << std::endl;
+                    }
+                    std::cout << std::endl;
+                }
+            }
+    }
+
+    template <typename Dtype>
+    void save5Data(string ex = "") {
+        // std::filesystem::create_directory("save_out");
+        string directory = "save_out";
+        struct stat info;
+
+        if(stat(directory.c_str(), &info) != 0) {
+            // if the directory does not exist, create it
+#ifdef _WIN32
+            _mkdir(directory.c_str());
+#else
+            mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+#endif
+        } else if(!(info.st_mode & S_IFDIR)) {
+            // if the path exists but it is not a directory, also create it
+#ifdef _WIN32
+            _mkdir(directory.c_str());
+#else
+            mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+#endif
+        }
+        std::ofstream outFile(directory+ "/" + name() +ex + ".log");
+        outFile << "----------------------------------------" << std::endl;
+        outFile << name() << ": shape:[" << batch() << " " << channel() << " " << time() << " " << height()<<" "<<width() << "]" << std::endl;
+        int N = batch();
+        int C = channel();
+        int T = time();
+        int H = height();
+        int W = height();
+        for (int n = 0; n < N; ++n) {
+            for (int c = 0; c < C; ++c) {
+                for (int t = 0; t < T; ++t) {
+                    for (int h = 0; h < H; ++h) {
+                        for (int w = 0; w < W; ++w) {
+                            outFile << std::fixed << std::setprecision(7) << dataAt<Dtype>(n, c, t, h, w) << " ";
+                        }
+                        outFile << std::endl;
+                    }
+                    outFile << std::endl;
+                }
+                outFile << std::endl;
+            }
+        }
+    }
+
 
     template <typename Dtype>
     void printMem() {

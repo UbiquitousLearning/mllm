@@ -39,8 +39,8 @@ ErrorCode CPUTranspose::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     outputs[0]->alloc();
     // outputs[0]->transShape(SEQUENCE, DIMENSION);
     inputs[0]->deepCopyFrom(outputs[0].get(), false);
-    inputs[0]->transShape(SEQUENCE, DIMENSION);
-    inputs[0]->setUndiffusion();
+    inputs[0]->transShape(SEQUENCE, DIMENSION, true);
+    // inputs[0]->setUndiffusion();
     return MLLM_NO_ERROR;
 }
 } // namespace mllm

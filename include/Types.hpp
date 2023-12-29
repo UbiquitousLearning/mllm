@@ -54,7 +54,9 @@ enum ChlType {
     BSHD = 0,
     // BHSD = 1, //ABANDENED!!
     BHDS = 2,
-    BCTHW = 3
+
+    BCTHW = 3,
+    BTHWC = 4
 };
 
 enum Chl {
@@ -62,7 +64,13 @@ enum Chl {
     HEAD = 1,
     SEQUENCE = 2,
     DIMENSION = 3,
-    D_HD,
+
+    CHANNLE = 1,
+    TIME = 2,
+    HEIGHT = 3,
+    WIDTH = 4,
+
+    D_HD = 313, //only use for split attn.in_proj
 };
 
 

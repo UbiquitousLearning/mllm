@@ -87,7 +87,7 @@ NetTensor *MLP(Context *ctx, NetTensor *i, int hidden_dim, int ffn_hidden_dim, s
     return x;
 }
 NetTensor *VisionEmbedding(Context *c, NetTensor * i, int hidden_size, string name) { //TODO
-    i = _Convolution2D(c,{i}, 3, 768, {32, 32}, {32, 32}, VALID, false, name +".patch_embedding");
+    i = _Convolution3D(c,{i}, 3, 1280, {2, 14, 14}, {2, 14, 14}, VALID, false, name +".rgbt_stem.proj.1");
     i = _Transpose(c, {i}, name +".patch_embedding.projection_transpose");
     i = _View(c, {i}, {-1, -1, -1, -1}, {BATCH, -1, HEAD+SEQUENCE, DIMENSION}, name +".patch_embedding.projection_view");
     auto *s = _Parameter(c, {}, 1, 1, 1, 768, name +".class_embedding");
