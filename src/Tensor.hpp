@@ -62,10 +62,6 @@ public:
     //    bool reshape(const int num, const int channels, const int height, const int width);
     bool reshape(const int batch, const int head, const int sequence, const int dimension);
 
-//    bool reshape_unsafe(const vector<int> &shape){
-//        shape_ = shape;
-//    }
-
     void alloc();
     void alloc(DataType dtype) {
         dtype_ = dtype;
@@ -160,22 +156,26 @@ public:
         return stream.str();
     }
     inline int canonicalAxisIndex(int axis_index) const {
+        /*
         CHECK_GE(axis_index, -numAxes())
             << "axis " << axis_index << " out of range for " << numAxes()
             << "-D Tensor with shape " << ShapeString();
         CHECK_LT(axis_index, numAxes())
             << "axis " << axis_index << " out of range for " << numAxes()
             << "-D Tensor with shape " << ShapeString();
+            */
         if (axis_index < 0) {
             return axis_index + numAxes();
         }
         return axis_index;
     }
     inline int legacyShape(int index) const {
+        /*
         CHECK_LE(numAxes(), 4)
             << "Cannot use legacy accessors on Tensors with > 4 axes.";
         CHECK_LT(index, 4);
         CHECK_GE(index, -4);
+        */
         if (index >= numAxes() || index < -numAxes()) {
             // Axis is out of range, but still in [0, 3] (or [-4, -1] for reverse
             // indexing) -- this special case simulates the one-padding used to fill
@@ -259,153 +259,12 @@ public:
             return offset;
         }
     }
-    /**
-     * @brief Copy from a source Tensor.
-     * @param source the Tensor to copy from
-     * @param copy_diff if false, copy the data; if true, copy the diff
-     * @param reshape if false, require this Tensor to be pre-shaped to the shape
-     *        of other (and die otherwise); if true, reshape this Tensor to other's
-     *        shape if necessary
-     */
-    void copyFrom(const Tensor &source, bool copy_diff = false,
-                  bool reshape = false);
-    void copyFrom(const shared_ptr<Tensor> &source, bool reshape = false);
-
-    void deepCopyFrom(Tensor* source, bool copyshape = true) {
-        setMasterTensor(source);
-        if(ctype_ != master_tensor_->ctype() && undiffusion_ == false) {
-            if (transed_) {
-                auto b = master_tensor_->batch();
-                auto h = master_tensor_->head();
-                auto d = master_tensor_->dimension();
-                auto s = master_tensor_->sequence();
-                master_tensor_->ctype_ = ctype_;
-                master_tensor_->reshape(b, h, s,d);
-            }else {
-                auto b = batch();
-                auto h = head();
-                auto d = dimension();
-                auto s = sequence();
-                ctype_ = master_tensor_->ctype_;
-                reshape(b, h, s,d);
-                // ctype_ = source.ctype_;
-            }
-        }
-        // deep Copy
-        host_ptr_ = source->hostPtr<void>();
-        capacity_ = source->capacity_;
-        count_ = source->count_;
-        if (copyshape) {
-            shape_ = source->shape_;
-        }
-        allocated_ = source->allocated_;
-        dtype_ = source->dtype_;
-        // ctype_ = source->ctype_;
-        //
-        for (auto &child_tensor: child_tensors_) {
-            child_tensor->deepCopyFrom(source, false);
-            //remove child_temsor from child_tensors_:
-            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
-        }
-        //
-        source->addChildTensor(this);
-    }
-    /**
-     * \brief this Tensor is a DEEP COPY of source
-     * \param source
-     * \param shape_offset
-     */
-    void deepCopyFrom(Tensor *source, const vector<int> &shape_offset) { //b,h,s,d
-        //
-        setMasterTensor(source);
-        if(ctype_ != master_tensor_->ctype()) {
-            if (transed_) {
-                auto b = master_tensor_->batch();
-                auto h = master_tensor_->head();
-                auto d = master_tensor_->dimension();
-                auto s = master_tensor_->sequence();
-                master_tensor_->ctype_ = ctype_;
-                master_tensor_->reshape(b, h, s,d);
-            }else {
-                auto b = batch();
-                auto h = head();
-                auto d = dimension();
-                auto s = sequence();
-                ctype_ = master_tensor_->ctype_;
-                reshape(b, h, s,d);
-                // ctype_ = source.ctype_;
-            }
-        }
-        assert(source->allocted());
-        // don't need alloc()
-        shape_offset_ = shape_offset;
-        shape_master_ = {source->batch(), source->head(), source->sequence(), source->dimension()};
-        if(source->head() != head()) {
-            shape_master_ = {source->batch(), head(), source->sequence(), source->dimension() * source->head() / head()};
-        }
-        // deep Copy
-        host_ptr_ = source->hostPtr<void>();
-        allocated_ = source->allocated_;
-        dtype_ = source->dtype_;
-        //
-        for (auto &child_tensor: child_tensors_) {
-            child_tensor->deepCopyFrom(source, shape_offset);
-            //remove child_temsor from child_tensors_:
-            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
-        }
-        source->addChildTensor(this);
-    }
-    void deepCopyFrom(Tensor &source, const vector<int> &shape_offset) {
-        //
-        setMasterTensor(&source);
-        if(ctype_ != master_tensor_->ctype()) {
-            if (transed_) {
-                auto b = master_tensor_->batch();
-                auto h = master_tensor_->head();
-                auto d = master_tensor_->dimension();
-                auto s = master_tensor_->sequence();
-                master_tensor_->ctype_ = ctype_;
-                master_tensor_->reshape(b, h, s,d);
-            }else {
-                auto b = batch();
-                auto h = head();
-                auto d = dimension();
-                auto s = sequence();
-                ctype_ = master_tensor_->ctype_;
-                reshape(b, h, s,d);
-                // ctype_ = source.ctype_;
-            }
-        }
-        assert(source.allocted());
-        // don't need alloc()
-        shape_offset_ = shape_offset;
-        shape_master_ = {source.batch(), source.head(), source.sequence(), source.dimension()};
-        if(source.head() != head()) {
-            shape_master_ = {source.batch(), head(), source.sequence(), source.dimension() * source.head() / head()};
-        }
-        // deep Copy
-        host_ptr_ = source.hostPtr<void>();
-        allocated_ = source.allocated_;
-        dtype_ = source.dtype_;
-        //
-        for (auto &child_tensor: child_tensors_) {
-            child_tensor->deepCopyFrom(source, shape_offset);
-            //remove child_temsor from child_tensors_:
-            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
-        }
-        source.addChildTensor(this);
-    }
 
     template <typename Dtype>
     Dtype *hostPtr() const {
         return (Dtype *)host_ptr_;
     }
 
-    //    template <typename Dtype>
-    //    Dtype dataAt(const int n, const int c, const int h, const int w) const {
-    //        //        return hostPtr<Dtype>()[offset(n, c, h, w)];
-    //        return ((Dtype *)host_ptr_)[offset(n, c, h, w)];
-    //    }
     template <typename Dtype>
     Dtype dataAt(const int batch, const int head, const int sequence, const int dimension) const {
         //        return hostPtr<Dtype>()[offset(n, c, h, w)];
@@ -492,6 +351,175 @@ public:
     ChlType ctype() const {
         return ctype_;
     }
+    size_t cntSize() {
+        return DataTypeSize(dtype_, count_);
+    }
+    int dtypeSize() const {
+        return DataTypeSize(dtype_, 1);
+    }
+    int dtypeSize(int size) {
+        return DataTypeSize(dtype_, size);
+    }
+    void setName(string name) {
+        name_ = name;
+    }
+    string name() const {
+        return name_;
+    }
+    int allocted() const {
+        return allocated_;
+    }
+
+     /**
+     * @brief Copy from a source Tensor.
+     * @param source the Tensor to copy from
+     * @param copy_diff if false, copy the data; if true, copy the diff
+     * @param reshape if false, require this Tensor to be pre-shaped to the shape
+     *        of other (and die otherwise); if true, reshape this Tensor to other's
+     *        shape if necessary
+     */
+    void copyFrom(const Tensor &source, bool copy_diff = false, bool reshape = false){
+        assert(masterTensor() == nullptr);
+        CHECK_EQ(source.dtype(), dtype());
+        CHECK_EQ(source.count(), count());
+        // copy
+        memcpy(host_ptr_, source.host_ptr_, cntSize());
+    }
+    void copyFrom(const shared_ptr<Tensor> &source, bool reshape = false){
+        assert(masterTensor() == nullptr);
+        CHECK_EQ(source->dtype(), dtype());
+        CHECK_EQ(source->count(), count());
+        // copy
+        memcpy(host_ptr_, source->host_ptr_, cntSize());
+    }
+
+
+    /************************************Deep Copy   MasterTenser  *******************/
+
+    /**
+     * \brief this Tensor is a DEEP COPY of source
+     * \param source
+     * \param shape_offset
+     */
+    void deepCopyFrom(Tensor* source, bool copyshape = true) {
+        setMasterTensor(source);
+        if(ctype_ != master_tensor_->ctype() && undiffusion_ == false) {
+            if (transed_) {
+                auto b = master_tensor_->batch();
+                auto h = master_tensor_->head();
+                auto d = master_tensor_->dimension();
+                auto s = master_tensor_->sequence();
+                master_tensor_->ctype_ = ctype_;
+                master_tensor_->reshape(b, h, s,d);
+            }else {
+                auto b = batch();
+                auto h = head();
+                auto d = dimension();
+                auto s = sequence();
+                ctype_ = master_tensor_->ctype_;
+                reshape(b, h, s,d);
+                // ctype_ = source.ctype_;
+            }
+        }
+        // deep Copy
+        host_ptr_ = source->hostPtr<void>();
+        capacity_ = source->capacity_;
+        count_ = source->count_;
+        if (copyshape) {
+            shape_ = source->shape_;
+        }
+        allocated_ = source->allocated_;
+        dtype_ = source->dtype_;
+        // ctype_ = source->ctype_;
+        //
+        for (auto &child_tensor: child_tensors_) {
+            child_tensor->deepCopyFrom(source, false);
+            //remove child_temsor from child_tensors_:
+            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
+        }
+        //
+        source->addChildTensor(this);
+    }
+    void deepCopyFrom(Tensor *source, const vector<int> &shape_offset) { //b,h,s,d
+        //
+        setMasterTensor(source);
+        if(ctype_ != master_tensor_->ctype()) {
+            if (transed_) {
+                auto b = master_tensor_->batch();
+                auto h = master_tensor_->head();
+                auto d = master_tensor_->dimension();
+                auto s = master_tensor_->sequence();
+                master_tensor_->ctype_ = ctype_;
+                master_tensor_->reshape(b, h, s,d);
+            }else {
+                auto b = batch();
+                auto h = head();
+                auto d = dimension();
+                auto s = sequence();
+                ctype_ = master_tensor_->ctype_;
+                reshape(b, h, s,d);
+                // ctype_ = source.ctype_;
+            }
+        }
+        assert(source->allocted());
+        // don't need alloc()
+        shape_offset_ = shape_offset;
+        shape_master_ = {source->batch(), source->head(), source->sequence(), source->dimension()};
+        if(source->head() != head()) {
+            shape_master_ = {source->batch(), head(), source->sequence(), source->dimension() * source->head() / head()};
+        }
+        // deep Copy
+        host_ptr_ = source->hostPtr<void>();
+        allocated_ = source->allocated_;
+        dtype_ = source->dtype_;
+        //
+        for (auto &child_tensor: child_tensors_) {
+            child_tensor->deepCopyFrom(source, shape_offset);
+            //remove child_temsor from child_tensors_:
+            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
+        }
+        source->addChildTensor(this);
+    }
+    void deepCopyFrom(Tensor &source, const vector<int> &shape_offset) {
+        //
+        setMasterTensor(&source);
+        if(ctype_ != master_tensor_->ctype()) {
+            if (transed_) {
+                auto b = master_tensor_->batch();
+                auto h = master_tensor_->head();
+                auto d = master_tensor_->dimension();
+                auto s = master_tensor_->sequence();
+                master_tensor_->ctype_ = ctype_;
+                master_tensor_->reshape(b, h, s,d);
+            }else {
+                auto b = batch();
+                auto h = head();
+                auto d = dimension();
+                auto s = sequence();
+                ctype_ = master_tensor_->ctype_;
+                reshape(b, h, s,d);
+                // ctype_ = source.ctype_;
+            }
+        }
+        assert(source.allocted());
+        // don't need alloc()
+        shape_offset_ = shape_offset;
+        shape_master_ = {source.batch(), source.head(), source.sequence(), source.dimension()};
+        if(source.head() != head()) {
+            shape_master_ = {source.batch(), head(), source.sequence(), source.dimension() * source.head() / head()};
+        }
+        // deep Copy
+        host_ptr_ = source.hostPtr<void>();
+        allocated_ = source.allocated_;
+        dtype_ = source.dtype_;
+        //
+        for (auto &child_tensor: child_tensors_) {
+            child_tensor->deepCopyFrom(source, shape_offset);
+            //remove child_temsor from child_tensors_:
+            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
+        }
+        source.addChildTensor(this);
+    }
     void transShape(Chl dim_a, Chl dim_b) {
         if(dim_a == SEQUENCE && dim_b == DIMENSION) {
             if(ctype() == BSHD) {
@@ -516,29 +544,6 @@ public:
         undiffusion_ = true;
     }
 
-    size_t cntSize() {
-        return DataTypeSize(dtype_, count_);
-    }
-
-    int dtypeSize() const {
-        return DataTypeSize(dtype_, 1);
-    }
-    int dtypeSize(int size) {
-        return DataTypeSize(dtype_, size);
-    }
-
-    void setName(string name) {
-        name_ = name;
-    }
-
-    string name() const {
-        return name_;
-    }
-
-    int allocted() const {
-        return allocated_;
-    }
-
     vector<int> shape_offset() const {
         return shape_offset_;
     }
@@ -560,6 +565,7 @@ public:
         child_tensors_.push_back(child);
     }
 
+    /************************************Aggregated  Tensers  *******************/
 
     void addTensors(vector<shared_ptr<Tensor>> ts, Chl dim) {
         aggregated_ = true;
@@ -608,8 +614,19 @@ public:
         aggregated_tensors_ = ts;
     }
 
+    /************************************B, C, T, H, W  *******************/
+
+    bool reshape(const int batch, const int channel, const int time, const int height, const int width);
+    int channel() const {   assert (ctype_ == BCTHW) ;  return legacyShape(1);}
+    int time() const {   assert (ctype_ == BCTHW) ;  return legacyShape(2);}
+    int height() const {   assert (ctype_ == BCTHW) ;  return legacyShape(3);}
+    int width() const {   assert (ctype_ == BCTHW) ;  return legacyShape(4);}
+
+
 public:
     /*TEST*/
+
+    /************************************ TEST & DEBUG  *******************/
 
     template <typename Dtype>
     void checkData() {
@@ -839,10 +856,32 @@ public:
         }
     }
 
-    void permute(int axis0, int axis1, int axis2, int axis3, bool copy = true);
+    // void permute(int axis0, int axis1, int axis2, int axis3, bool copy = true);
 
 private:
-    bool reshape(const vector<int> &shape);
+    bool reshape(const vector<int> &shape) {
+        CHECK_LE(shape.size(), KMaxAxes); // 维数不能超过kMaxBlobAxes
+        count_ = 1;                       // num*channels*height*width 赋值为1，为了相乘
+        shape_.resize(shape.size());
+        // if (!shape_data_ || shape_data_->size() < shape.size() * sizeof(int)) {
+        //     shape_data_.reset(new HostMemory(shape.size() * sizeof(int)));
+        // }
+        for (int i = 0; i < shape.size(); ++i) {
+            CHECK_GE(shape[i], 0);
+            if (count_ != 0) {
+                CHECK_LE(shape[i], INT_MAX / count_);
+            }
+            count_ *= shape[i]; // 记录数据大小
+            shape_[i] = shape[i];
+        }
+        if (count_ > capacity_) { // capactity不小于count
+            capacity_ = count_;
+            // data_.reset(new  HostMemory(capacity_ * sizeof(Dtype)));
+            // diff_.reset(new  HostMemory(capacity_ * sizeof(Dtype)));
+            return true;
+        }
+        return false;
+    }
     inline int shape(int index) const {
         return shape_[canonicalAxisIndex(index)];
     }

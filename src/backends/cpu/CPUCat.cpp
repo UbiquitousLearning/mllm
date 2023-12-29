@@ -148,7 +148,7 @@ ErrorCode CPUCat::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Ten
 // #endif
 //         return MLLM_NO_ERROR;
 //     }else {
-        Op::setUp(inputs, outputs);
+        return Op::setUp(inputs, outputs);
     // }
 }
 } // namespace mllm

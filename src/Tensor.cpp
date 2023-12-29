@@ -45,29 +45,29 @@ bool Tensor::reshape(const int batch, const int head, const int sequence, const 
     return reshape(shape);
 }
 
-bool Tensor::reshape(const vector<int> &shape) {
-    CHECK_LE(shape.size(), KMaxAxes); // 维数不能超过kMaxBlobAxes
-    count_ = 1;                       // num*channels*height*width 赋值为1，为了相乘
-    shape_.resize(shape.size());
-    // if (!shape_data_ || shape_data_->size() < shape.size() * sizeof(int)) {
-    //     shape_data_.reset(new HostMemory(shape.size() * sizeof(int)));
-    // }
-    for (int i = 0; i < shape.size(); ++i) {
-        CHECK_GE(shape[i], 0);
-        if (count_ != 0) {
-            CHECK_LE(shape[i], INT_MAX / count_);
-        }
-        count_ *= shape[i]; // 记录数据大小
-        shape_[i] = shape[i];
-    }
-    if (count_ > capacity_) { // capactity不小于count
-        capacity_ = count_;
-        // data_.reset(new  HostMemory(capacity_ * sizeof(Dtype)));
-        // diff_.reset(new  HostMemory(capacity_ * sizeof(Dtype)));
-        return true;
-    }
-    return false;
-}
+// bool Tensor::reshape(const vector<int> &shape) {
+//     CHECK_LE(shape.size(), KMaxAxes); // 维数不能超过kMaxBlobAxes
+//     count_ = 1;                       // num*channels*height*width 赋值为1，为了相乘
+//     shape_.resize(shape.size());
+//     // if (!shape_data_ || shape_data_->size() < shape.size() * sizeof(int)) {
+//     //     shape_data_.reset(new HostMemory(shape.size() * sizeof(int)));
+//     // }
+//     for (int i = 0; i < shape.size(); ++i) {
+//         CHECK_GE(shape[i], 0);
+//         if (count_ != 0) {
+//             CHECK_LE(shape[i], INT_MAX / count_);
+//         }
+//         count_ *= shape[i]; // 记录数据大小
+//         shape_[i] = shape[i];
+//     }
+//     if (count_ > capacity_) { // capactity不小于count
+//         capacity_ = count_;
+//         // data_.reset(new  HostMemory(capacity_ * sizeof(Dtype)));
+//         // diff_.reset(new  HostMemory(capacity_ * sizeof(Dtype)));
+//         return true;
+//     }
+//     return false;
+// }
 
 void Tensor::alloc() {
     if(aggregated_){return;}
@@ -91,6 +91,18 @@ void Tensor::alloc() {
         }
         allocated_ = count_;
     }
+}
+
+
+bool Tensor::reshape(const int batch, const int channel, const int time, const int height, const int width) {
+    ctype_ = BCTHW;
+    vector<int> shape(5);
+    shape[0] = batch;
+    shape[1] = channel;
+    shape[2] = time;
+    shape[3] = height;
+    shape[4] = width;
+    return reshape(shape);
 }
 //void Tensor::alloc() {
 //    if(allocated_ == 0){
@@ -134,24 +146,31 @@ void Tensor::alloc() {
 //     diff_->set_cpu_data(diff);
 // }
 
-void Tensor::copyFrom(const Tensor &source, bool copy_diff, bool reshape) {
-    CHECK_EQ(source.dtype(), dtype());
-    CHECK_EQ(source.count(), count());
-    // copy
-    if(masterTensor() == nullptr) {
-        memcpy(host_ptr_, source.host_ptr_, cntSize());
-    }
-    else {
-        // memcpy(masterTensor()->host_ptr_+ offset(0, 0, 0,0), source.host_ptr_, cntSize());
-        std::cout<<"not support"<<std::endl;
-    }
-}
-void Tensor::copyFrom(const shared_ptr<Tensor> &source, bool reshape) {
-    CHECK_EQ(source->dtype(), dtype());
-    CHECK_EQ(source->count(), count());
-    // copy
-    memcpy(host_ptr_, source->host_ptr_, cntSize());
-}
+// void Tensor::copyFrom(const Tensor &source, bool copy_diff, bool reshape) {
+//     CHECK_EQ(source.dtype(), dtype());
+//     CHECK_EQ(source.count(), count());
+//     // copy
+//     if(masterTensor() == nullptr) {
+//         memcpy(host_ptr_, source.host_ptr_, cntSize());
+//     }
+//     else {
+//         // memcpy(masterTensor()->host_ptr_+ offset(0, 0, 0,0), source.host_ptr_, cntSize());
+//         std::cout<<"not support"<<std::endl;
+//     }
+// }
+// void Tensor::copyFrom(const shared_ptr<Tensor> &source, bool reshape) {
+//     CHECK_EQ(source->dtype(), dtype());
+//     CHECK_EQ(source->count(), count());
+//     // copy
+//     if(masterTensor() == nullptr) {
+//         memcpy(host_ptr_, source->host_ptr_, cntSize());
+//     }
+//     else {
+//         // memcpy(masterTensor()->host_ptr_+ offset(0, 0, 0,0), source.host_ptr_, cntSize());
+//         std::cout<<"not support"<<std::endl;
+//     }
+// }
+/*
 void Tensor::permute(int axis0, int axis1, int axis2, int axis3, bool copy) {
     // 检查轴的合法性
     CHECK_GE(axis0, 0);
@@ -197,4 +216,5 @@ void Tensor::permute(int axis0, int axis1, int axis2, int axis3, bool copy) {
         }
     }
 }
+*/
 } // namespace mllm

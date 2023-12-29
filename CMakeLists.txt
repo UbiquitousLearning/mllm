@@ -151,6 +151,8 @@ if(TEST)
         ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
             src/processor/FuyuPreProcess.hpp
             src/processor/FuyuPreProcess.cpp
+            src/processor/PreProcess.hpp
+            src/processor/PreProcess.cpp
     )
 
     target_link_libraries(
@@ -223,6 +225,16 @@ add_executable(main_clip ${PROJECT_SOURCE_DIR}/examples/main_clip.cpp ${DIR_SRC_
         src/processor/PreProcess.cpp
 )
 target_link_libraries(main_clip MLLM_CPU)
+
+add_executable(main_imagebind ${PROJECT_SOURCE_DIR}/examples/main_imagebind.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp
+        src/processor/PreProcess.hpp
+        src/processor/PreProcess.cpp
+)
+target_link_libraries(main_imagebind MLLM_CPU)
 
 # nnapi temp test
 if(NNAPI)

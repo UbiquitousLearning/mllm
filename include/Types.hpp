@@ -54,6 +54,7 @@ enum ChlType {
     BSHD = 0,
     // BHSD = 1, //ABANDENED!!
     BHDS = 2,
+    BCTHW = 3
 };
 
 enum Chl {
