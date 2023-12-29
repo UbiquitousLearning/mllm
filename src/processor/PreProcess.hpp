@@ -4,6 +4,8 @@
 
 #ifndef PREPROCESS_HPP
 #define PREPROCESS_HPP
+#include <utility>
+
 #include "tokenizers/Tokenizer.hpp"
 
 namespace mllm {
@@ -48,16 +50,27 @@ struct ImageInfo {
 
 class PreProcessor {
 public:
-    PreProcessor(Tokenizer *tokenizer) :
-        tokenizer_(tokenizer) {
+    virtual ~PreProcessor() = default;
+
+    explicit PreProcessor(Tokenizer *tokenizer, int height, int width, bool do_pad, bool do_resize, bool do_normalize , bool do_rescale , std::vector<float> mean ={} , std::vector<float> std = {}) :
+        tokenizer_(tokenizer), height_(height), width_(width), do_pad_(do_pad), do_resize_(do_resize), do_normalize_(do_normalize), do_rescale_(do_rescale), mean_(std::move(mean)), std_(std::move(std)) {
     }
 
-    virtual void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length, int height = 1080, int width = 1920, bool do_pad = true, bool do_resize = true, bool do_normalize = true, float mean = 0.5, float std = 0.5) =0;
+    virtual void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) =0;
     virtual void Process(const std::string &text) =0;
-    virtual void PreProcessImages(const std::vector<std::string> &images_path, int height = 1080, int width = 1920, bool do_pad = true, bool do_resize = true, bool do_normalize = true, float mean = 0.5, float std = 0.5) =0;
+    virtual void PreProcessImages(const std::vector<std::string> &images_path);
 
 protected:
     Tokenizer *tokenizer_;
+    int height_ = 0;
+    int width_ = 0;
+    bool do_pad_ = false;
+    bool do_resize_ = false;
+    bool do_normalize_ = false;
+    bool do_rescale_ = true;
+    float scale_ = 255.0;
+    std::vector<float> mean_ = {0.5};
+    std::vector<float> std_ = {0.5};
 
 public:
     static float *RescaleImage(const uint8_t *data, float scale, unsigned int length);
@@ -65,7 +78,7 @@ public:
     static std::vector<ImageInfo> ResizeImages(std::vector<ImageInfo> &images, int height, int width, bool strict_size = false, ResampleType resample_type = ResampleType::BILINEAR, bool free_source = true);
     static std::vector<ImageInfo> NormalizeImages(std::vector<ImageInfo> &images, float mean, float std, bool free_source = true);
     static std::vector<ImageInfo> NormalizeImages(std::vector<ImageInfo> &images, vector<float> means, vector<float> stds, bool free_source = true);
-    static std::vector<ImageInfo> CenterCropImages(std::vector<ImageInfo> &images, int height, int width,float pad = 0.0F, bool free_source = true);
+    static std::vector<ImageInfo> CenterCropImages(std::vector<ImageInfo> &images, int height, int width, float pad = 0.0F, bool free_source = true);
 };
 }
 

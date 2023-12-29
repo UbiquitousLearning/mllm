@@ -211,6 +211,7 @@ add_executable(main_vit ${PROJECT_SOURCE_DIR}/examples/main_vit.cpp ${DIR_SRC_CP
         src/tokenizers/BPE/Bpe.hpp
         src/processor/PreProcess.hpp
         src/processor/PreProcess.cpp
+
 )
 target_link_libraries(main_vit MLLM_CPU)
 
@@ -221,6 +222,8 @@ add_executable(main_clip ${PROJECT_SOURCE_DIR}/examples/main_clip.cpp ${DIR_SRC_
         src/tokenizers/BPE/Bpe.hpp
         src/processor/PreProcess.hpp
         src/processor/PreProcess.cpp
+        src/processor/ClipPreProcess.cpp
+        src/processor/ClipPreProcess.hpp
 )
 target_link_libraries(main_clip MLLM_CPU)
 
