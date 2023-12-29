@@ -240,10 +240,10 @@ add_executable(main_imagebind ${PROJECT_SOURCE_DIR}/examples/main_imagebind.cpp 
         src/tokenizers/BPE/Bpe.hpp
         ${DIR_SRC_PROCESSOE}
         ${DIR_THIRDPARTY_AUDIO}
-#        src/processor/PreProcess.hpp
-#        src/processor/PreProcess.cpp
 #        src/processor/ClipPreProcess.cpp
 #        src/processor/ClipPreProcess.hpp
+        src/processor/PreProcess.hpp
+        src/processor/PreProcess.cpp
 )
 target_link_libraries(main_imagebind MLLM_CPU)
 
