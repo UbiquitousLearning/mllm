@@ -21,6 +21,7 @@
 #include "CPUConvolution2D.hpp"
 #include "CPUAvgPool2D.hpp"
 #include "CPUMaxPool2D.hpp"
+#include "CPUConvolution3D.hpp"
 #include "CPUParameter.hpp"
 #include "CPUCat.hpp"
 #include "CPUSubDim.hpp"
@@ -83,6 +84,7 @@ void CPUBackend::registerOps() {
     addCreator(CONVOLUTION2D, (CPUBackend::Creator *)(new CPUConvolution2DCreator()));
     addCreator(AVGPOOL2D, (CPUBackend::Creator *)(new CPUAvgPoolCreator()));
     addCreator(MAXPOOL2D, (CPUBackend::Creator *)(new CPUMaxPoolCreator()));
+    addCreator(CONVOLUTION3D, (CPUBackend::Creator *)(new CPUConvolution3DCreator()));
     addCreator(CAT, (CPUBackend::Creator *)(new CPUCatCreator()));
     addCreator(TRANSPOSE, (CPUBackend::Creator *)(new CPUTransposeCreator()));
     addCreator(SUBDIM, (CPUBackend::Creator *)(new CPUSubDimCreator()));

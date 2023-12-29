@@ -58,6 +58,9 @@ class TestIO:
     def write_dim(self, n: int, c: int, h: int, w: int):
         self.file.write(struct.pack("<iiii", n, c, h, w))
 
+    def write_longdim(self, n: int, c: int, t: int, h: int, w: int):
+        self.file.write(struct.pack("<iiiii", n, c, t, h, w))
+
 
 class TestSaver(TestIO):
     def __init__(self, filename: str, ):
@@ -98,10 +101,14 @@ class TestSaver(TestIO):
         self.write_string(name)
         self.write_int(self.__torch_dtype_to_int(tensor.dtype))
         dims = list(tensor.shape)
-        if len(dims) > 4:
-            raise Exception("Tensor dims should be less than 4")
-        dims = [1] * (4 - len(dims)) + dims
-        self.write_dim(*dims)
+        if len(dims) <= 4:
+            if len(dims) > 4:
+                raise Exception("Tensor dims should be less than 4")
+            dims = [1] * (4 - len(dims)) + dims
+            self.write_dim(*dims)
+        else:
+            dims = dims + [1] * (5 - len(dims))
+            self.write_longdim(*dims)
         self.write_u64(0)
         offset = self.file.tell()
         with torch.no_grad():

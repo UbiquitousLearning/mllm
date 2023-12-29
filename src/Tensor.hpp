@@ -351,6 +351,9 @@ public:
     ChlType ctype() const {
         return ctype_;
     }
+    void setCtype(ChlType type) {
+        ctype_ = type;
+    }
     size_t cntSize() {
         return DataTypeSize(dtype_, count_);
     }
@@ -620,7 +623,96 @@ public:
     int channel() const {   assert (ctype_ == BCTHW) ;  return legacyShape(1);}
     int time() const {   assert (ctype_ == BCTHW) ;  return legacyShape(2);}
     int height() const {   assert (ctype_ == BCTHW) ;  return legacyShape(3);}
-    int width() const {   assert (ctype_ == BCTHW) ;  return legacyShape(4);}
+    int width() const {   assert (ctype_ == BCTHW) ;  return legacyShape(4);
+    }
+    int offset(const int b, const int c, const int t, const int h, const int w) const {
+        assert(ctype_ == BCTHW);
+        //0 1 2 3
+        //b h s q
+        // return ((b * head() + h) * sequence() + s) * dimension() + d;
+        return (((b * channel() + c) * time() + t) * height() + h) * width() + w;
+    }
+    template <typename Dtype>
+    Dtype dataAt(const int batch, const int channel, const int time, const int height, const int width) const {
+        return ((Dtype *)host_ptr_)[offset(batch, channel, time, height, width)];
+    }
+    template <typename Dtype>
+    Dtype *ptrAt(const int batch, const int channel, const int time, const int height, const int width) {
+        return ((Dtype *)host_ptr_ + offset(batch, channel, time, height, width));
+    }
+    template <typename Dtype>
+    void setDataAt(const int batch, const int channel, const int time, const int height, const int width, Dtype value) {
+        Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
+        typed_ptr[offset(batch, channel, time, height, width)] = value;
+    }
+    template <typename Dtype>
+    void print5Data() {
+        std::cout << "----------------------------------------" << std::endl;
+        std::cout << name() << ": shape:[" << batch() << " " << channel() << " " << time() << " " << height()<<" "<<width() << "]" << std::endl;
+        int N = batch();
+        int C = channel();
+        int T = time();
+        int H = height();
+        int W = height();
+            for (int n = 0; n < N; ++n) {
+                for (int c = 0; c < C; ++c) {
+                    for (int t = 0; t < T; ++t) {
+                        for (int h = 0; h < H; ++h) {
+                            for (int w = 0; w < W; ++w) {
+                                std::cout << std::fixed << std::setprecision(7) << dataAt<Dtype>(n, c, t, h, w) << " ";
+                            }
+                            std::cout << std::endl;
+                        }
+                        std::cout << std::endl;
+                    }
+                    std::cout << std::endl;
+                }
+            }
+    }
+    template <typename Dtype>
+    void save5Data(string ex = "") {
+        // std::filesystem::create_directory("save_out");
+        string directory = "save_out";
+        struct stat info;
+
+        if(stat(directory.c_str(), &info) != 0) {
+            // if the directory does not exist, create it
+#ifdef _WIN32
+            _mkdir(directory.c_str());
+#else
+            mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+#endif
+        } else if(!(info.st_mode & S_IFDIR)) {
+            // if the path exists but it is not a directory, also create it
+#ifdef _WIN32
+            _mkdir(directory.c_str());
+#else
+            mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+#endif
+        }
+        std::ofstream outFile(directory+ "/" + name() +ex + ".log");
+        outFile << "----------------------------------------" << std::endl;
+        outFile << name() << ": shape:[" << batch() << " " << channel() << " " << time() << " " << height()<<" "<<width() << "]" << std::endl;
+        int N = batch();
+        int C = channel();
+        int T = time();
+        int H = height();
+        int W = height();
+        for (int n = 0; n < N; ++n) {
+            for (int c = 0; c < C; ++c) {
+                for (int t = 0; t < T; ++t) {
+                    for (int h = 0; h < H; ++h) {
+                        for (int w = 0; w < W; ++w) {
+                            outFile << std::fixed << std::setprecision(7) << dataAt<Dtype>(n, c, t, h, w) << " ";
+                        }
+                        outFile << std::endl;
+                    }
+                    outFile << std::endl;
+                }
+                outFile << std::endl;
+            }
+        }
+    }
 
 
 public:

@@ -157,39 +157,54 @@ void conv2d_fp32_SAME(Tensor* input, Tensor* output, Tensor* kernel, bool suppor
     }
 }
 
-void conv3d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_h, int stride_w) {
+void conv3d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_t, int stride_h, int stride_w) {
     assert(input->ctype() == BCTHW);
+    const int in_height = input->head();
+    const int in_width = input->width();
+    const int in_time = input->time();
+    const int in_channel = input->channel();
+    assert(in_channel == kernel->channel());
     assert(kernel->ctype() == BCTHW);
+    const int kernel_h = kernel->height();
+    const int kernel_w = kernel->width();
+    const int kernel_t = kernel->time();
     assert(output->ctype() == BCTHW);
-    int in_height = input->head();
-    int in_width = input->dimension();
-    int in_channel = input->sequence();
-    int kernel_h = kernel->head();
-    int kernel_w = kernel->dimension();
-    int out_height = output->head();
-    int out_width = output->dimension();
-    int out_channel = kernel->batch();
+    const int out_height = output->height();
+    const int out_width = output->width();
+    const int out_time = output->time();
+    const int out_channel = output->channel();
+    assert(out_channel == kernel->batch());
     for (int b = 0; b < input->batch(); ++b) {
 #pragma omp parallel for num_threads(4)
         for (int out_ch = 0; out_ch < out_channel; ++out_ch) {
-            for (int out_h = 0; out_h < out_height; ++out_h) {
-                for (int out_w = 0; out_w < out_width; ++out_w) {
-                    int blk_h = out_h * stride_h;
-                    int blk_w = out_w * stride_w;
-                    // set value;
-                    float value = 0;
-                    for (int in_ch = 0; in_ch < in_channel; ++in_ch) {
-                        for (int k_h = 0; k_h < kernel_h; ++k_h) {
-                            float* kernel_p = kernel->ptrAt<float>(out_ch, k_h, in_ch, 0);
-                            float tmp_value;
-                            vec_dot_fp32(kernel_w, &tmp_value, kernel_p, input->ptrAt<float>(b, blk_h+k_h, in_ch, blk_w+0));
-                            value += tmp_value;
+            for (int out_t = 0; out_t < out_time; ++out_t) {
+                for (int out_h = 0; out_h < out_height; ++out_h) {
+                    for (int out_w = 0; out_w < out_width; ++out_w) {
+                        int blk_t = out_t * stride_t;
+                        int blk_h = out_h * stride_h;
+                        int blk_w = out_w * stride_w;
+                        // set value;
+                        float value = 0;
+                        for (int in_ch = 0; in_ch < in_channel; ++in_ch) {
+                            for (int k_t = 0; k_t < kernel_t; ++k_t) {
+                                for (int k_h = 0; k_h < kernel_h; ++k_h) {
+                                    float tmp_value;
+                                    vec_dot_fp32(kernel_w, &tmp_value,
+                                        kernel->ptrAt<float>(out_ch,  in_ch, k_t, k_h,0),
+                                        input->ptrAt<float>(b, in_ch, blk_t+k_t, blk_h + k_h, blk_w + 0));
+                                    value += tmp_value;
+                                    // for (int k_w = 0; k_w < kernel_w; ++k_w) {
+                                    //     value += kernel->dataAt<float>(out_ch,  in_ch, k_t, k_h,k_w) *
+                                    //         input->dataAt<float>(b, in_ch, blk_t+k_t, blk_h + k_h, blk_w + k_w);
+                                    // }
+                                }
+                            }
                         }
+                        if (support_bias) {
+                            value += *bias->ptrAt<float>(0, 0, 0, 0, out_ch);
+                        }
+                        *output->ptrAt<float>(b, out_ch, out_t, out_h, out_w) = value;
                     }
-                    if (support_bias) {
-                        value += *bias->ptrAt<float>(0, 0, 0, out_ch);
-                    }
-                    *output->ptrAt<float>(b, out_h, out_ch, out_w) = value;
                 }
             }
         }

@@ -480,6 +480,30 @@ NetTensor *_Convolution2D(Context *ctx, std::vector<NetTensor *> inputs, int in_
     out_tensor->in = net_op_;
     return out_tensor;
 }
+NetTensor *_Convolution3D(Context *ctx, std::vector<NetTensor *> inputs, int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, string name) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Convolution3D" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::CONVOLUTION3D)
+    net_op_->param["in_channel"] =(float) in_channel;
+    net_op_->param["out_channel"] =(float) out_channel;
+    net_op_->param["kernal_t"] =(float) kernal[0];
+    net_op_->param["kernal_h"] =(float) kernal[1];
+    net_op_->param["kernal_w"] =(float) kernal[2];
+    net_op_->param["stride_t"] =(float) stride[1];
+    net_op_->param["stride_h"] =(float) stride[1];
+    net_op_->param["stride_w"] =(float) stride[2];
+    net_op_->param["padding"] =(float) padding;
+    net_op_->param["bias"] =(float) bias;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    return out_tensor;
+}
 NetTensor *_AvgPool2D(Context *ctx, std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name ){
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {

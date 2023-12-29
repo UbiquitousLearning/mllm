@@ -29,7 +29,7 @@ ErrorCode CPUConvolution2D::reshape(vector<shared_ptr<Tensor>> inputs, vector<sh
         padding_h_ = (kernel_size_[0] - 1) / 2;
         padding_w_ = (kernel_size_[1] - 1) / 2;
         const int out_height = (inputs[0]->head() + 2 * padding_h_ - kernel_size_[0]) / stride_[0] + 1;
-        const int out_width = (inputs[0]->dimension() + 2 * padding_w_ - kernel_size_[0]) / stride_[1] + 1;
+        const int out_width = (inputs[0]->dimension() + 2 * padding_w_ - kernel_size_[1]) / stride_[1] + 1;
         outputs[0]->reshape(inputs[0]->batch(),out_height, out_channel_,  out_width);
         break;
         }
@@ -37,7 +37,7 @@ ErrorCode CPUConvolution2D::reshape(vector<shared_ptr<Tensor>> inputs, vector<sh
         padding_h_ = 0;
         padding_w_ = 0;
         const int out_height = (inputs[0]->head() - kernel_size_[0]) / stride_[0] + 1;
-        const int out_width = (inputs[0]->dimension()- kernel_size_[0]) / stride_[1] + 1;
+        const int out_width = (inputs[0]->dimension()- kernel_size_[1]) / stride_[1] + 1;
         outputs[0]->reshape(inputs[0]->batch(),out_height, out_channel_, out_width);
         break;
         }

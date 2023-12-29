@@ -31,8 +31,10 @@ struct TensorIndex {
     uint64_t len;
     uint64_t offset;
     bool checkDim(vector<int> dims_, bool strict);
+    bool checkDim5(vector<int> dims_, bool strict);
 };
 static string DimDesc(vector<int> dim);
+static string DimDesc5(vector<int> dim);
 
 class TestIO {
 protected:
@@ -44,6 +46,7 @@ protected:
     string read_string();
     double read_f32();
     vector<int> read_shape();
+    vector<int> read_shape(int len);
     bool write_int(int val);
     bool write_u64(uint64_t val);
     bool write_shape(vector<int> shape);

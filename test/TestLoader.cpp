@@ -23,25 +23,30 @@ TestLoader::TestLoader(string filename) :
     fseek(fp_, 0, SEEK_END);
     uint64_t end = ftell(fp_);
     fseek(fp_, 4, SEEK_SET);
+    bool found_conv = (filename.find("CPUConvolution2D")!= std::string::npos);
+    bool found_conv3d = (filename.find("CPUConvolution3D")!= std::string::npos);
+    bool found_avgpool = (filename.find("CPUAvgPool2D")!= std::string::npos);
+    bool found_maxpool = (filename.find("CPUMaxPool2D")!= std::string::npos);
+    bool found = found_conv || found_avgpool ||found_maxpool;
     while (ftell(fp_) != end) {
         string name = read_string();
         int type = read_int();
-        vector<int> shape = read_shape();
+        vector<int> shape;
+        if(found_conv3d)
+            shape = read_shape(5);
+        else
+            shape = read_shape(4);
         uint64_t length = read_u64();
         TensorIndex *index = new TensorIndex();
         index->name = name;
         index->type = type;
         index->dims = shape;
-        bool found_conv = (filename.find("CPUConvolution2D")!= std::string::npos);
-        bool found_avgpool = (filename.find("CPUAvgPool2D")!= std::string::npos);
-        bool found_maxpool = (filename.find("CPUMaxPool2D")!= std::string::npos);
-        bool found = found_conv || found_avgpool ||found_maxpool;
         if(found & name == "input0") {
             index->dims = {shape[0], shape[2], shape[1], shape[3]};
         }
         else if(found  & name == "output") {
-                index->dims = {shape[0], shape[2], shape[1], shape[3]};
-            }
+            index->dims = {shape[0], shape[2], shape[1], shape[3]};
+        }
         index->len = length;
         index->offset = ftell(fp_);
         tensor_map_[name] = index;
@@ -64,9 +69,16 @@ bool TestLoader::load(Tensor *tensor, bool strict) {
             return false;
         }
     }
+    if(index->dims.size() == 5) {
+        tensor->setCtype(BCTHW);
+    }
     if (tensor->shape().empty()) {
         // Get shape from TensorIndex
-        tensor->reshape(index->dims[0], index->dims[1], index->dims[2], index->dims[3]);
+        if(index->dims.size() == 5) {
+            tensor->reshape(index->dims[0], index->dims[1], index->dims[2], index->dims[3], index->dims[4]);
+        }else {
+            tensor->reshape(index->dims[0], index->dims[1], index->dims[2], index->dims[3]);
+        }
         if (!tensor->allocted()) {
             tensor->alloc();
         }
@@ -76,8 +88,14 @@ bool TestLoader::load(Tensor *tensor, bool strict) {
         }
     }
 
-    if ((!index->checkDim({tensor->batch(), tensor->head(), tensor->sequence(), tensor->dimension()}, strict))) {
-        return false;
+    if(index->dims.size() == 5) {
+        if ((!index->checkDim5({tensor->batch(), tensor->channel(), tensor->time(), tensor->height(), tensor->width()}, strict))) {
+            return false;
+        }
+    }else {
+        if ((!index->checkDim({tensor->batch(), tensor->head(), tensor->sequence(), tensor->dimension()}, strict))) {
+            return false;
+        }
     }
 
     fseek(fp_, index->offset, SEEK_SET);
@@ -147,6 +165,16 @@ vector<int> TestIO::read_shape() {
     }
     return ret;
 }
+vector<int> TestIO::read_shape(int len) {
+    vector<int> ret(len);
+    for (int i = 0; i < len; ++i) {
+        ret[i] = read_int();
+        if (ret[i] < 0) {
+            ret[i] = 1;
+        }
+    }
+    return ret;
+}
 bool TestIO::write_string(string str) {
     if (read_mode_) return false;
     int len = str.length();
@@ -202,10 +230,38 @@ bool TensorIndex::checkDim(vector<int> dims_, bool strict) {
     }
     return true;
 }
+bool TensorIndex::checkDim5(vector<int> dims_, bool strict) {
+    if (dims_.size() != this->dims.size()) {
+        std::cout << "dims size not match at " << this->name << " Expected: " << DimDesc(this->dims) << " Actual: " << DimDesc5(dims_) << std::endl;
+        return false;
+    }
+    if (!strict) {
+        auto a_dim_num = dims[0] * dims[1] * dims[2] * dims[3]*dims[4];
+        auto b_dim_num = dims_[0] * dims_[1] * dims_[2] * dims_[3]*dims[4];
+        if (a_dim_num != b_dim_num) {
+            std::cout << "dim num not match at " << this->name << " Expected: " << DimDesc(this->dims) << " Actual: " << DimDesc5(dims_) << std::endl;
+            return false;
+        }
+        return true;
+    }
+    for (int i = 0; i < 5; ++i) {
+        if (dims_[i] != this->dims[i]) {
+            std::cout << "dims not match at " << this->name << " Expected: " << DimDesc(this->dims) << " Actual: " << DimDesc(dims_) << std::endl;
+            return false;
+        }
+    }
+    return true;
+}
 string DimDesc(vector<int> dim) {
     dim.resize(4, 1);
     ostringstream ss;
     ss << "[" << dim[0] << "," << dim[1] << "," << dim[2] << "," << dim[3] << "]";
+    return ss.str();
+}
+string DimDesc5(vector<int> dim) {
+    dim.resize(5, 1);
+    ostringstream ss;
+    ss << "[" << dim[0] << "," << dim[1] << "," << dim[2] << "," << dim[3] <<","<<dim[4]<< "]";
     return ss.str();
 }
 TestIO::TestIO(string filename, bool read_mode) :
