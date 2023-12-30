@@ -36,7 +36,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
          {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = 0}}}},
         {.paramType = QNN_PARAMTYPE_SCALAR,
          .name = "transpose_in1",
-         {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = 0}}}}};
+         {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = 1}}}}};
     // add weight tensor to qnn
     uint32_t dimensionsWeight[4];
     for (int i = 0; i < 4; i++) {
@@ -142,7 +142,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                              {.clientBuf = {.data = nullptr,
                                                             .dataSize = 0}}}}}};
     return graphAddNode(name(), "ElementWiseAdd", {(name() + ".intermediate").c_str(), bias_.name().c_str()},
-                        biasOutput, paramsMatmul);
+                        biasOutput);
 }
 
 ErrorCode QNNLinear::load(AbstructLoader &loader) {
