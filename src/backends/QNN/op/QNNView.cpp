@@ -17,10 +17,12 @@ QNNView::QNNView(Backend *bn, string opName, vector<int> dims, vector<int> data_
 }
 
 ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    int dim0;
-    int dim1;
-    int dim2;
-    int dim3;
+    CHECK_EQ(inputs.size(), 1);
+    CHECK_EQ(outputs.size(), 1);
+    int dim0 = dim0_;
+    int dim1 = dim1_;
+    int dim2 = dim2_;
+    int dim3 = dim3_;
 
     if (data_dim0_ == 0 && data_dim1_ == 1 && data_dim2_ == 2 && data_dim3_ == 3) {
         dim0 = inputs[0]->batch();
@@ -39,7 +41,7 @@ ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         dim3 = inputs[0]->dimension() * inputs[0]->head();
     }
     outputs[0]->reshape(dim0, dim1, dim2, dim3);
-    return NO_ERROR;
+    return Op::reshape(inputs, outputs);
 }
 
 ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
