@@ -23,13 +23,13 @@ using namespace mllm;
 
 void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, float* img, int height, int width, int channel) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
-    input_tensor->reshape(1, height, channel, width);
+    input_tensor->reshape(1, channel, 1, height, width);
     input_tensor->setDtype(MLLM_TYPE_F32);
     input_tensor->alloc();
     for (int h = 0; h < height; ++h) {
         for (int c = 0; c < channel; ++c) {
             for (int w = 0; w < width; ++w) {
-                input_tensor->setDataAt<float>(0, h, c, w, img[(h * width + w) * channel + c]);
+                input_tensor->setDataAt<float>(0,c, 0,h,  w, img[(h * width + w) * channel + c]);
             }
         }
     }
@@ -88,13 +88,13 @@ NetTensor *MLP(Context *ctx, NetTensor *i, int hidden_dim, int ffn_hidden_dim, s
 }
 NetTensor *VisionEmbedding(Context *c, NetTensor * i, int hidden_size, string name) { //TODO
     i = _Convolution3D(c,{i}, 3, 1280, {2, 14, 14}, {2, 14, 14}, VALID, false, name +".rgbt_stem.proj.1");
-    i = _Transpose(c, {i}, name +".patch_embedding.projection_transpose");
-    i = _View(c, {i}, {-1, -1, -1, -1}, {BATCH, -1, HEAD+SEQUENCE, DIMENSION}, name +".patch_embedding.projection_view");
-    auto *s = _Parameter(c, {}, 1, 1, 1, 768, name +".class_embedding");
-    i = _Cat(c, {s, i}, SEQUENCE, name +".class_embedding.cat");
-    s = _Parameter(c, {}, 1, 50, 1, 1, name +".position_ids");
-    s = _Embedding(c, {s}, 50, 768, name +".position_embedding");
-    i = _Add(c, {i, s}, name +".position_embeddings.add");
+    i = _Transpose(c, {i}, name +".rgbt_stem.proj_transpose");
+    i = _View(c, {i}, {-1, -1, -1, -1}, {BATCH, -1,  TIME + HEIGHT + WIDTH, CHANNLE}, name +".rgbt_stem.proj_view");
+    auto *s = _Parameter(c, {}, 1, 1, 1, 1280, name +".cls_token");
+    i = _Cat(c, {s, i}, SEQUENCE, name +".rgbt_cls.cat");
+    s = _Parameter(c, {}, 1, 257, 1, 1280, name +".pos_embedding_helper.pos_embed");
+    // s = _Embedding(c, {s}, 257, 1280, name +".position_embedding");
+    i = _Add(c, {i, s}, name +".pos_embed.add");
     return i;
 }
 NetTensor *TextEmbedding(Context *c, NetTensor * i,  int vocab_size, int hidden_dim, int max_position_embeddings, string name) {
@@ -159,7 +159,7 @@ void CLIP(Context* c) {
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab.mllm");
-    cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/clip-q4_k.mllm");
+    cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/imagebind-q4_k.mllm");
     // cmdParser.add<string>("input", 'i', "specify input string", false, " Structured pruning and unstructured pruning represent two distinct categories within the realm of parameter pruning for LLMs. Structured pruning involves the removal of entire structured components, such as neurons, channels, or layers, based on predefined criteria. This method aims to simplify the model architecture by discarding specific structural elements that contribute less to overall performance. On the other hand, unstructured pruning targets individual weights within the model, irrespective of their structural context. This approach aims to enhance the model's sparsity by selectively eliminating less influential parameters, thereby reducing the model's footprint.The significance of parameter pruning lies in its ability to strike a balance between model size and performance. By judiciously removing redundant weights, LLMs can achieve substantial compression without compromising their capabilities. This becomes particularly relevant in scenarios where computational resources, memory constraints, or deployment on edge devices necessitate a more streamlined and resource-efficient model.");
     // cmdParser.add<string>("input", 'i', "specify input string", false, " Hello, who are you?");// I think the meaning of life is
     cmdParser.parse_check(argc, argv);
@@ -221,6 +221,7 @@ int main(int argc, char **argv) {
     img2Tensor(input_img, net, data_f32, 224, 224, 3);
     ex.run(&net, {input_text, input_img});
     auto result = ex.result();
+    // result[0]->printShape();
     auto probs = postProcessing(result[0]);
     for (auto prob : probs) {
         std::cout << prob << "  ";

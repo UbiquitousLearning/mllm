@@ -65,12 +65,15 @@ enum Chl {
     SEQUENCE = 2,
     DIMENSION = 3,
 
+    D_HD = 313, //only use for split attn.in_proj
+
     CHANNLE = 1,
     TIME = 2,
     HEIGHT = 3,
     WIDTH = 4,
 
-    D_HD = 313, //only use for split attn.in_proj
+    THW = 234,
+
 };
 
 

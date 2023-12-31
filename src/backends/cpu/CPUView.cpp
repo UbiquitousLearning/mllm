@@ -47,11 +47,21 @@ ErrorCode CPUView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         } else if(data_dim0_ == BATCH && data_dim1_ == -1 && data_dim2_ == SEQUENCE+HEAD && data_dim3_ == DIMENSION){
             dim1 = 1;
             dim2 = inputs[0]->sequence()* inputs[0]->head();
-        } else if(data_dim0_ == BATCH && data_dim1_ == -1 && data_dim2_ == CHANNLE && data_dim3_ == TIME+HEIGHT+WIDTH) {
-            assert(inputs[0]->ctype() == BCTHW);
+        } else if (data_dim0_ == BATCH && data_dim1_ == -1 && data_dim2_ == CHANNLE && data_dim3_ == TIME + HEIGHT + WIDTH) {
+            // assert(inputs[0]->ctype() == BCTHW);
             dim1 = 1;
             dim2 = inputs[0]->channel();
             dim3 = inputs[0]->time() * inputs[0]->height() * inputs[0]->width();
+        } else if (data_dim0_ == BATCH && data_dim1_ == -1 && data_dim2_ == TIME + HEIGHT + WIDTH && data_dim3_ == CHANNLE ) {
+            if(inputs[0]->ctype() == BTHWC) {
+                dim1 = 1;
+                dim2 = inputs[0]->time() * inputs[0]->height() * inputs[0]->width();
+                dim3 = inputs[0]->channel();
+            }else {
+                dim1 = 1;
+                dim2 = inputs[0]->time() * inputs[0]->height() * inputs[0]->channel();
+                dim3 = inputs[0]->width();
+            }
         }else {
             std::cout<<"CPUView not support!!!!"<<std::endl;
         }
@@ -118,6 +128,7 @@ ErrorCode CPUView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
     if (   (data_dim0_ == BATCH && data_dim2_ ==SEQUENCE && inputs[0]->ctype()!=BCTHW)  // head & dimension
         || (data_dim0_ == BATCH && data_dim3_ ==DIMENSION && inputs[0]->ctype()==BSHD) // head & sequence
         || (data_dim0_ == BATCH && inputs[0]->ctype()==BCTHW) //
+        // || (data_dim0_ == BATCH && data_dim3_ == CHANNLE && inputs[0]->ctype()==BTHWC) //
     ){
         noNeedEx_ = true;
         if(inputs[0]->masterTensor() == nullptr) {

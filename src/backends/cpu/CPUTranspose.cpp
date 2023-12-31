@@ -10,7 +10,11 @@ CPUTranspose::CPUTranspose(Backend *bn,  string opName, bool multiThread) :
 ErrorCode CPUTranspose::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     //std::cout<<name() << "  CPUTranspose  reshape" << std::endl;
     // inputs[0]->transShape(SEQUENCE, DIMENSION);
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[0]->sequence());
+    if(inputs[0]->ctype() == BSHD) {
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[0]->sequence());
+    } else if(inputs[0]->ctype() == BCTHW) {
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->time(), inputs[0]->height(), inputs[0]->width(), inputs[0]->channel());
+    }
     return Op::reshape(inputs, outputs);
 }
 
@@ -39,7 +43,11 @@ ErrorCode CPUTranspose::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     outputs[0]->alloc();
     // outputs[0]->transShape(SEQUENCE, DIMENSION);
     inputs[0]->deepCopyFrom(outputs[0].get(), false);
-    inputs[0]->transShape(SEQUENCE, DIMENSION, true);
+    if(inputs[0]->ctype() == BSHD) {
+        inputs[0]->transShape(SEQUENCE, DIMENSION, true);
+    }else {
+        inputs[0]->transShape(THW, CHANNLE, true);
+    }
     // inputs[0]->setUndiffusion();
     return MLLM_NO_ERROR;
 }

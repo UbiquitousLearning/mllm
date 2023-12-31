@@ -64,13 +64,23 @@ void Tensor::alloc() {
 
 
 bool Tensor::reshape(const int batch, const int channel, const int time, const int height, const int width) {
-    ctype_ = BCTHW;
-    vector<int> shape(5);
-    shape[0] = batch;
-    shape[1] = channel;
-    shape[2] = time;
-    shape[3] = height;
-    shape[4] = width;
-    return reshape(shape);
+    if(ctype_ != BTHWC) {
+        ctype_ = BCTHW;
+        vector<int> shape(5);
+        shape[0] = batch;
+        shape[1] = channel;
+        shape[2] = time;
+        shape[3] = height;
+        shape[4] = width;
+        return reshape(shape);
+    } else {
+        vector<int> shape(5);
+        shape[0] = batch;
+        shape[1] = time;
+        shape[2] = height;
+        shape[3] = width;
+        shape[4] = channel;
+        return reshape(shape);
+    }
 }
 } // namespace mllm

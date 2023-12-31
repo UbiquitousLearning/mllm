@@ -168,7 +168,7 @@ void conv3d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, bool suppo
     const int kernel_h = kernel->height();
     const int kernel_w = kernel->width();
     const int kernel_t = kernel->time();
-    assert(output->ctype() == BCTHW);
+    // assert(output->ctype() == BCTHW);
     const int out_height = output->height();
     const int out_width = output->width();
     const int out_time = output->time();
