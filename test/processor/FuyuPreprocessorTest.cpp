@@ -11,12 +11,12 @@ TEST_F(TokenizerTest, FuyuPreprocessorTest) {
     // GTEST_SKIP();
     auto unigram = UnigramTokenizer("../project/android/vocab_uni.mllm");
 
-    auto preprocessor = FuyuPreProcess(&unigram);
-    preprocessor.PreProcessImages({"bus.png"});
-    preprocessor.Process("Generate a coco-style caption.\n");
-    auto input_ids = preprocessor.image_input_ids_;
-    auto image_patches_indices = preprocessor.image_patches_indices_;
-    auto image_patches = preprocessor.image_patches_;
+    auto preprocessor = new FuyuPreProcess(&unigram);
+    preprocessor->PreProcessImages({"bus.png"});
+    preprocessor->Process("Generate a coco-style caption.\n");
+    auto input_ids = preprocessor->image_input_ids_;
+    auto image_patches_indices = preprocessor->image_patches_indices_;
+    auto image_patches = preprocessor->image_patches_;
     std::cout<< "Input Id Size "<<input_ids[0].size()<<std::endl;
     std::cout<< "Image Patches Indices Size "<<image_patches_indices[0].size()<<std::endl;
 

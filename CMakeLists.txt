@@ -25,7 +25,7 @@ endif()
 #set(TEST_EXE main_test)
 option(TEST "test mode" ON)
 option(QUANT "quantize tools" ON)
-option(APK "Build for Android APK Lib." ON)
+option(APK "Build for Android APK Lib." OFF)
 
 if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)
@@ -151,6 +151,9 @@ if(TEST)
         ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
             src/processor/FuyuPreProcess.hpp
             src/processor/FuyuPreProcess.cpp
+            src/processor/PreProcess.hpp
+            src/processor/PreProcess.cpp
+            test/processor/ClipPreprocessorTest.cpp
     )
 
     target_link_libraries(
