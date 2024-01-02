@@ -5,6 +5,7 @@
 #include "Executor.hpp"
 #include "NetParameter.hpp"
 #include "QnnTypes.h"
+#include "Types.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include "backends/QNN/QNNBackend.hpp"
@@ -12,6 +13,11 @@
 #include "qnn_wrapper.hpp"
 
 using namespace mllm;
+
+void Attention(Context *ctx) {
+    auto *i = _Input(ctx);
+    i = _Add(ctx, {i, i});
+}
 
 int main() {
     BackendConfig bnc;
@@ -39,4 +45,15 @@ int main() {
     qbn->graphExecute();
 
     delete qbn;
+
+    std::unique_ptr<Context> c_ptr(new Context());
+    auto *c = c_ptr.get();
+
+    BackendConfig bn;
+    Net net(c->sub_param_, bn);
+    net.convert(c->sub_param_, MLLM_QNN);
+
+    Executor ex;
+    shared_ptr<Tensor> input = std::make_shared<Tensor>();
+    ex.execute(&net, input);
 }
