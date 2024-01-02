@@ -5,6 +5,10 @@ namespace mllm {
 
 CPUQuickGELU::CPUQuickGELU(Backend *bn,  string opName, bool multiThread) :
     Op(bn, opName) {
+    if (!init_table_gelu_quick_f16_flag) {
+        init_table_gelu_quick_f16();
+        init_table_gelu_quick_f16_flag = true;
+    }
 }
 
 ErrorCode CPUQuickGELU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -22,14 +26,16 @@ ErrorCode CPUQuickGELU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     int head = input->head();
     int seq = input->sequence();
     int dim = input->dimension();
-#pragma omp parallel for collapse(4) num_threads(4)
+#pragma omp parallel for collapse(3) num_threads(4)
     for (int b = 0; b <batch ; ++b) {
         for (int h = 0; h < head; ++h) {
             for (int s = 0; s < seq; ++s) {
-                for (int d = 0; d < dim; ++d) {
-                    float value = input->dataAt<float>(b, h, s, d);
-                    output->setDataAt<float>(b, h, s, d, value * (1 / (1 + std::exp(-1.702 * value))));
-                }
+//                for (int d = 0; d < dim; ++d) {
+//                    float value = input->dataAt<float>(b, h, s, d);
+//                    output->setDataAt<float>(b, h, s, d, value * (1 / (1 + std::exp(-1.702 * value))));
+//                }
+                mllm_vec_gelu_quick_f32(dim,  outputs[0]->ptrAt<float>(b, h, s,0),
+                                  inputs[0]->ptrAt<float>(b, h, s,0));
             }
         }
     }

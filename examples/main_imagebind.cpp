@@ -19,6 +19,20 @@
 #include <numeric>
 
 using namespace mllm;
+void tokens2Tensor(Net *net, vector<vector<token_id_t>> tokens, shared_ptr<Tensor> input_tensor) {
+    // auto input_tensor = std::make_shared<Tensor>();
+    input_tensor->setBackend(net->backends()[BackendType::MLLM_CPU].get());
+    const auto bsize = static_cast<int>(tokens.size());
+    input_tensor->reshape(bsize, 1, static_cast<int>(tokens[0].size()), 1);
+    input_tensor->alloc();
+    for (int b = 0; b < bsize; ++b){
+        for (int idx = 0; idx < tokens[b].size(); ++idx) {
+            input_tensor->setDataAt<float>(b, 0, idx, 0, tokens[b][idx]);
+        }
+    }
+
+    return;
+}
 
 
 void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, float* img, int height, int width, int channel) {
@@ -149,10 +163,10 @@ void CLIP(Context* c) {
     i = TextModel(c, i);
     auto *p = _Input(c, {}, "input_imgs");
     p = VisonModel(c, p);
-    i = _Linear(c, {i}, 512, 512, false, "text_projection");
-    i = _Division(c, {i, _Norm(c, {i}, 2, "text_norm")}, "text_division");
-    p = _Linear(c, {p}, 768, 512, false, "visual_projection");
-    p = _Division(c, {p, _Norm(c, {p}, 2, "visual_norm")}, "visual_division");
+//    i = _Linear(c, {i}, 512, 512, false, "text_projection");
+//    i = _Division(c, {i, _Norm(c, {i}, 2, "text_norm")}, "text_division");
+//    p = _Linear(c, {p}, 768, 512, false, "visual_projection");
+//    p = _Division(c, {p, _Norm(c, {p}, 2, "visual_norm")}, "visual_division");
     auto *o = _Matmul(c, {i, p}, false, true, "matmul");
     o = _Scale(c, {o}, 100.0, 0.0F, false, "scale");
 }
@@ -188,8 +202,9 @@ int main(int argc, char **argv) {
     Executor ex(&param_loader);
     ex.setup(&net);
     shared_ptr<Tensor> input_text = std::make_shared<Tensor>();
-    vector<string> in_strs = {" a photo of a cat", " a photo of a dog"};
     auto tokens_ids = vector<vector<token_id_t>>();
+    /*
+    vector<string> in_strs = {" a photo of a cat", " a photo of a dog"};
     for (auto in_str : in_strs) {
         if (in_str[0] != ' ') {
             in_str = ' ' + in_str;
@@ -198,10 +213,12 @@ int main(int argc, char **argv) {
         tokenizer.tokenize(in_str, tokens_id, true);
         tokens_ids.push_back(tokens_id);
     }
+     */
     //TODO Tokenizer
-    tokens_ids[0] = {49406,   320,  1125,   539,   320,  2368, 49407};
-    tokens_ids[1] = {49406,   320,  1125,   539,   320,  1929, 49407};
-    BPETokenizer::tokens2Tensor(&net, tokens_ids, input_text);
+    tokens_ids[0] = {49406,   320,  1929,   269, 49407};
+    tokens_ids[1] = {49406,   320,  1615, 49407};
+    tokens_ids[2] = {49406,   320,  3329, 49407};
+    tokens2Tensor(&net, tokens_ids, input_text);
     // ex.run(&net, {input_text});
 
     shared_ptr<Tensor> input_img = std::make_shared<Tensor>();

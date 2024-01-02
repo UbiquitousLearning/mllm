@@ -5,20 +5,20 @@
 #include "compute/VecDot.hpp"
 namespace mllm {
 
-static mllm_fp16_t table_exp_f16[1 << 16];
-static bool init_table_exp_f16_flag = false;
-void init_table_exp_f16() {
-    mllm_fp16_t ii;
-    for (int i = 0; i < (1 << 16); ++i) {
-        uint16_t ui = i;
-        memcpy(&ii, &ui, sizeof(ii));
-        const float f = MLLM_COMPUTE_FP16_TO_FP32(ii);
-        table_exp_f16[i] = MLLM_FP32_TO_FP16(expf(f));
-        //        float val = MLLM_FP16_TO_FP32(expf(f));
-        //        std::cout<<i<<"  "<<f<<" "<<expf(f)<<"  "<<val<<std::endl;
-        //        printf("%d  %f %f  %f\n", i, f, expf(f), val);
-    }
-}
+//static mllm_fp16_t table_exp_f16[1 << 16];
+//static bool init_table_exp_f16_flag = false;
+//void init_table_exp_f16() {
+//    mllm_fp16_t ii;
+//    for (int i = 0; i < (1 << 16); ++i) {
+//        uint16_t ui = i;
+//        memcpy(&ii, &ui, sizeof(ii));
+//        const float f = MLLM_COMPUTE_FP16_TO_FP32(ii);
+//        table_exp_f16[i] = MLLM_FP32_TO_FP16(expf(f));
+//        //        float val = MLLM_FP16_TO_FP32(expf(f));
+//        //        std::cout<<i<<"  "<<f<<" "<<expf(f)<<"  "<<val<<std::endl;
+//        //        printf("%d  %f %f  %f\n", i, f, expf(f), val);
+//    }
+//}
 
 CPUSoftMax::CPUSoftMax(Backend *bn, string opName, int axis, bool multiThread) :
     Op(bn, opName) {
