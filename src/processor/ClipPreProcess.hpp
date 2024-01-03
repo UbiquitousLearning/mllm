@@ -17,6 +17,7 @@ public:
     vector<vector<vector<vector<float>>>> pixel_values_;
     void Process(const std::string &text) override;
     void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) override;
+    void PreProcessImages(const std::vector<std::string> &images_path) override;
 
 
 };

@@ -149,6 +149,8 @@ if(TEST)
         ${PROJECT_SOURCE_DIR}/test/main.cpp
         ${MLLM_TEST}
         ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
+            src/processor/ClipPreprocess.hpp
+            src/processor/ClipPreprocess.cpp
             src/processor/FuyuPreProcess.hpp
             src/processor/FuyuPreProcess.cpp
             src/processor/PreProcess.hpp

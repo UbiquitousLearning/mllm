@@ -176,7 +176,9 @@ std::vector<ImageInfo> PreProcessor::CenterCropImages(std::vector<ImageInfo> &im
             for (int i = 0; i < height_; i++) {
                 for (int j = 0; j < width_; j++) {
                     for (int k = 0; k < image.channels; k++) {
+
                         if (i < top_pad || i >= bottom_pad || j < left_pad || j >= right_pad) {
+                            auto index = (i * width_ + j) * image.channels + k;
                             cropped_image[(i * width_ + j) * image.channels + k] = pad;
                         } else {
                             cropped_image[(i * width_ + j) * image.channels + k] = image.data[((i - top_pad) * image.width + j - left_pad) * image.channels + k];
@@ -184,6 +186,8 @@ std::vector<ImageInfo> PreProcessor::CenterCropImages(std::vector<ImageInfo> &im
                     }
                 }
             }
+            cropped_images.emplace_back(cropped_image, width_, height_, image.channels, image.original_width, image.original_height);
+
         }
 
         if (free_source) {

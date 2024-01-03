@@ -61,4 +61,26 @@ void ClipProcessor::PreProcessImages(const std::vector<uint8_t *> &images, const
         pixel_values_.push_back(pixel_values);
     }
 }
+
+void ClipProcessor::PreProcessImages(const std::vector<std::string> &images_path) {
+    assert(height_ > 0 && width_ > 0);
+    auto image_data = std::vector<uint8_t *>();
+    auto image_length = std::vector<size_t>();
+    for (const auto &i : images_path) {
+        // read all file contents
+        std::ifstream file(i, std::ios::binary | std::ios::ate);
+        if (!file.is_open()) {
+            std::cerr << "Cannot open file: " << i << std::endl;
+            exit(-1);
+        }
+        auto size = file.tellg();
+        auto data = new uint8_t[size];
+        file.seekg(0, std::ios::beg);
+        file.read(reinterpret_cast<char *>(data), size);
+        file.close();
+        image_data.emplace_back(data);
+        image_length.emplace_back(size);
+    }
+    PreProcessImages(image_data, image_length);
+}
 }
