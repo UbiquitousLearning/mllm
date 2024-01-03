@@ -28,7 +28,7 @@ void Executor::execute(Net *net, shared_ptr<Tensor> input_tensor) {
         auto &g = net->subGraph()[name];
         if (init || reshape) {
 #ifdef DEBUG
-            std::cout << "[" << name << "]==== reshape\n";
+            std::cout << "[" << name << "]==== reshape";
             t_start = mllm_time_us();
 #endif
             g->reshape();
@@ -40,7 +40,7 @@ void Executor::execute(Net *net, shared_ptr<Tensor> input_tensor) {
         // load params
         if (!paramloaded) {
 #ifdef DEBUG
-            std::cout << "[" << name << "]==== load\n";
+            std::cout << "[" << name << "]==== load";
             t_start = mllm_time_us();
 #endif
             g->setUpOps(*data_loader_);

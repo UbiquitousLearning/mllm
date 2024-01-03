@@ -68,6 +68,14 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
 }
 
 ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<const char *> inputTensorNames, vector<Qnn_Tensor_t> outputs, vector<Qnn_Param_t> params, string packageName) {
+    std::cout << "=name:" << name << std::endl;
+    std::cout << "=nodeType:" << nodeType << std::endl;
+    for(auto &inputTensorName : inputTensorNames) {
+        std::cout << "=input:" << inputTensorName << std::endl;
+    }
+    for(auto &output : outputs) {
+        std::cout << "=output:" << output.v1.name << std::endl;
+    }
     if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputs, params, packageName)) {
         return ErrorCode::INVALID_VALUE;
     }
