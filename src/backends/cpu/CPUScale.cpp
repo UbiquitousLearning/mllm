@@ -28,18 +28,32 @@ ErrorCode CPUScale::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     //std::cout<<name() << "  CPUScale()" << std::endl;
     auto & input = inputs[0];
     auto & output = outputs[0];
-    for(int n = 0; n<input->batch(); ++n){
-        for(int c = 0; c<input->head(); ++c){
-            for(int h = 0; h<input->sequence(); ++h){
-                #pragma omp parallel for num_threads(4)
-                for(int w = 0; w<input->dimension(); ++w){
-                    float value = input->dataAt<float>(n, c, h, w);
-                    if(bias_after_scale_){
-                        value = value * scale_ + bias_;
-                    }else{
-                        value = (value + bias_) * scale_;
+    if(inputs[0]->masterTensor() == nullptr && outputs[0]->masterTensor() == nullptr && inputs[0]->ctype() == outputs[0]->ctype()) {
+        auto copy_size = input->batch() * input->head() * input->sequence() * input->dimension();
+        auto in_ptr = inputs[0]->hostPtr<float>();
+        auto out_ptr = outputs[0]->hostPtr<float>();
+#pragma omp parallel for num_threads(4)
+        for (int is = 0; is < copy_size; ++is) {
+            if(bias_after_scale_) {
+                out_ptr[is] = in_ptr[is] * scale_ + bias_;
+            }else{
+                out_ptr[is] = (in_ptr[is] + bias_) * scale_;
+            }
+        }
+    }else {
+        for(int n = 0; n<input->batch(); ++n){
+            for(int c = 0; c<input->head(); ++c){
+                for(int h = 0; h<input->sequence(); ++h){
+#pragma omp parallel for num_threads(4)
+                    for(int w = 0; w<input->dimension(); ++w){
+                        float value = input->dataAt<float>(n, c, h, w);
+                        if(bias_after_scale_){
+                            value = value * scale_ + bias_;
+                        }else{
+                            value = (value + bias_) * scale_;
+                        }
+                        output->setDataAt<float>(n, c, h, w, value);
                     }
-                    output->setDataAt<float>(n, c, h, w, value);
                 }
             }
         }
