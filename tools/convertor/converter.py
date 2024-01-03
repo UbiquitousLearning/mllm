@@ -72,6 +72,8 @@ class Writer:
         for tensor_name in self.tensors_name:
             tensor = self.tensors_map[tensor_name]
             # self.write_int(len(tensor.name))
+            tensor.name = tensor.name.replace("_weight", ".weight")
+            tensor.name = tensor.name.replace("_bias", ".bias")
             self.write_str(tensor.name)
             self.write_u64(tensor.size)
             self.write_u64(tensor.offset)

@@ -645,6 +645,10 @@ public:
 
     template <typename Dtype>
     void saveData(string ex = "") {
+        if(ctype() == BTHWC ||ctype() == BCTHW) {
+            save5Data<Dtype>(ex);
+            return;
+        }
         // std::filesystem::create_directory("save_out");
         string directory = "save_out";
         struct stat info;
@@ -936,13 +940,13 @@ private:
             break;
         }
         case D_HD: {
-            int head_size = aggregated_tensors_[0]->head();
+            int dim_size = aggregated_tensors_[0]->dimension();
             int aggregated_size = aggregated_tensors_.size();
-            auto d_ = d / (head_size * aggregated_size);
-            auto h_m = d % (head_size * aggregated_size);
-            tensor_id = h_m / head_size;
-            d = h_m % head_size;
-            h = d_;
+            auto h_ = d / (dim_size * aggregated_size);
+            auto d_m = d % (dim_size * aggregated_size);
+            tensor_id = d_m / dim_size;
+            d = d_m % dim_size;
+            h = h_;
             break;
         }
         default:
