@@ -162,6 +162,8 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
             ops_[lname]->free(ops_input_tensors_[lname], ops_output_tensors_[lname]);
         }
     }
+    // backend event hook
+    this->backend_->onExecuteEnd();
     // TODO
     return ops_output_tensors_[op_names_[op_names_.size() - 1]];
 }

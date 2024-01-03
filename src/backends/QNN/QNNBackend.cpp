@@ -20,6 +20,13 @@
 #include "DynamicLoadUtil.hpp"
 #include "Types.hpp"
 #include "op/QNNAdd.hpp"
+#include "op/QNNLinear.hpp"
+#include "op/QNNMatmul.hpp"
+#include "op/QNNMul.hpp"
+#include "op/QNNScale.hpp"
+#include "op/QNNSiLU.hpp"
+#include "op/QNNSoftMax.hpp"
+#include "op/QNNView.hpp"
 
 using namespace qnn;
 using namespace qnn::tools;
@@ -34,6 +41,19 @@ const std::string QNNBackend::s_defaultOutputPath = "./output";
 
 void QNNBackend::registerOps() {
     addCreator(ADD, (QNNBackend::Creator *)new QNNAddCreator());
+    // addCreator(CAUSALMASK, (QNNBackend::Creator *)(new QNNCausalMaskCreator()));
+    addCreator(MATMUL, (QNNBackend::Creator *)(new QNNMatmulCreator()));
+    // addCreator(RMSNORM, (QNNBackend::Creator *)(new QNNRMSNormCreator()));
+    // addCreator(ROPE, (QNNBackend::Creator *)(new QNNRoPECreator()));
+    addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
+    addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
+    addCreator(SOFTMAX, (QNNBackend::Creator *)(new QNNSoftMaxCreator()));
+    addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearCreator()));
+    // addCreator(ATTENTION, (QNNBackend::Creator *)(new QNNAttentionCreator()));
+    // addCreator(EMBEDDING, (QNNBackend::Creator *)(new QNNEmbeddingCreator()));
+    addCreator(MUL, (QNNBackend::Creator *)(new QNNMulCreator()));
+    addCreator(VIEW, (QNNBackend::Creator *)(new QNNViewCreator()));
+    // addCreator(KVCACHE, (QNNBackend::Creator *)(new QNNKVCacheCreator()));
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
@@ -106,6 +126,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
 
     // init qnn resources and create a graph
     this->graphInitialize();
+    this->registerOps();
 }
 
 void QNNBackend::release() {

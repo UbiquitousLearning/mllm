@@ -88,6 +88,11 @@ public:
     qnn_wrapper_api::ModelError_t modelAddTensor(const char *nodeName, Qnn_Tensor_t tensor);
     ErrorCode graphExecute();
 
+    virtual void onExecuteEnd() override {
+        graphFinilize();
+        graphExecute();
+    }
+
 private:
     int32_t graphInitialize();
 

@@ -7,7 +7,7 @@
 
 namespace mllm {
 QNNLinear::QNNLinear(Backend *bn, string opName, int in_features, int out_features, bool bias) :
-    QNNCommonOp(bn, opName) {
+    QNNCommonOp(bn, opName), in_features_(in_features), out_features_(out_features), support_bias_(bias) {
 }
 
 ErrorCode QNNLinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -146,12 +146,12 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode QNNLinear::load(AbstructLoader &loader) {
-    // std::cout << name() << "  CPULinear load" << std::endl;
+    std::cout << name() << "  CPULinear load" << std::endl;
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, out_features_, in_features_);
-    weight_.setDtype(loader.getDataType(weight_.name()));
+    // weight_.setDtype(loader.getDataType(weight_.name()));
     weight_.alloc();
-    loader.load(&weight_);
+    // loader.load(&weight_);
 
     if (support_bias_) {
         bias_.setName(name() + ".bias");
