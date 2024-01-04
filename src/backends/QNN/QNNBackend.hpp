@@ -87,6 +87,7 @@ public:
     qnn_wrapper_api::ModelError_t graphFinilize();
     qnn_wrapper_api::ModelError_t modelAddTensor(const char *nodeName, Qnn_Tensor_t tensor);
     ErrorCode graphExecute();
+    ErrorCode graphExecute(std::map< std::string, std::vector<uint8_t*>> inputBufferMap, std::map< std::string, std::vector<uint8_t*>> outputBufferMap);
 
 private:
     int32_t graphInitialize();
@@ -109,6 +110,7 @@ private:
     StatusCode finalizeGraphs();
 
     StatusCode executeGraphs();
+    StatusCode executeGraphs(std::map< std::string, std::vector<uint8_t*>> inputBufferMap, std::map< std::string, std::vector<uint8_t*>> outputBufferMap);
 
     StatusCode registerOpPackages();
 

@@ -17,8 +17,9 @@ BEGIN_PKG_OP_DEFINITION(PKG_RoPE);
 template<typename TensorType>
 GraphStatus ropeImpl(TensorType& out_0,
                      const TensorType& in_0,
-                     const TensorType& in_1,
-                     const TensorType& cos);
+                     const TensorType& sin,
+                     const TensorType& cos,
+                     const Tensor& pose_type);
 
 // forward declaration of sample cost function
 static float ropeCostFunc(const Op *op);
@@ -80,6 +81,10 @@ DEF_PACKAGE_OP((ropeImpl<Tensor>), "RoPE")
  *       graph construction will skip this parameter when this parameter is not provided at
  *       Qnn_addNode
  */
+DEF_PACKAGE_PARAM_ORDER("RoPE", 
+                        "pose_type",
+                        true,
+                        nullptr)
 
 
 /* execute functions for ops */
@@ -88,7 +93,8 @@ template<typename TensorType>
 GraphStatus ropeImpl(TensorType& out_0,
                      const TensorType& in_0,
                      const TensorType& sin,
-                     const TensorType& cos)
+                     const TensorType& cos,
+                     const Tensor& pose_type)
 
 {
   /*
@@ -104,11 +110,17 @@ GraphStatus ropeImpl(TensorType& out_0,
    * Please check in SDK documentation for more information.
    */
 
+   debuglog("relux execute... dims=(%zdx%zdx%zdx%zd)", in_0.dim(0), in_0.dim(1), in_0.dim(2), in_0.dim(3));
+   debuglog("relux execute... dims=(%zdx%zdx%zdx%zd)", sin.dim(0), sin.dim(1), sin.dim(2), sin.dim(3));
+   debuglog("relux execute... dims=(%zdx%zdx%zdx%zd)", cos.dim(0), cos.dim(1), cos.dim(2), cos.dim(3));
+
   // BSHD =>  NHWC
 
   int h_cnt_ = 0; // history sequence position
 
   // Todo: We need consider to store the sequence position if we have KV Cache
+
+  auto pose_type_ = pose_type(0,0,0,0);
 
   out_0.set_dims(in_0);
   auto [b_in, h_in, w_in, d_in] = in_0.dims();
