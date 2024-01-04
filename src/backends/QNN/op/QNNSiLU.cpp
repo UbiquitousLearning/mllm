@@ -9,7 +9,6 @@ QNNSiLU::QNNSiLU(Backend *bn, string opName) :
 }
 
 ErrorCode QNNSiLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-<<<<<<< HEAD
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     return Op::reshape(inputs, outputs);
 }

@@ -63,6 +63,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     for (int i = 0; i < 4; i++) {
         dimensionsWeight[i] = weight_.shape()[i];
     }
+    weight_.fullData(2.f);
     qnnBackend_->modelAddTensor(weight_.name().c_str(), (Qnn_Tensor_t){
                                                             .version = QNN_TENSOR_VERSION_1,
                                                             {.v1 = {
