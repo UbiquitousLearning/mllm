@@ -12,8 +12,9 @@ public:
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 };
 
+
 class QNNSiLUCreator : public QNNBackend::Creator {
-public:
+
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
         return new QNNSiLU(bn, name);
     }

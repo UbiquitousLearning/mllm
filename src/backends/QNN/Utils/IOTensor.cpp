@@ -80,6 +80,17 @@ iotensor::StatusCode iotensor::IOTensor::copyFromFloatToNative(float* floatBuffe
                                      datautil::calculateElementCount(dims));
       break;
 
+    case QNN_DATATYPE_FLOAT_16:
+      if (datautil::StatusCode::SUCCESS !=
+          datautil::castFromFloat<__fp16>(
+              static_cast<__fp16*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
+              floatBuffer,
+              datautil::calculateElementCount(dims))) {
+        QNN_ERROR("failure in castFromFloat<__fp16>");
+        returnStatus = StatusCode::FAILURE;
+      }
+      break;
+
     case QNN_DATATYPE_UINT_8:
       if (datautil::StatusCode::SUCCESS !=
           datautil::castFromFloat<uint8_t>(
@@ -443,6 +454,11 @@ iotensor::StatusCode iotensor::IOTensor::allocateBuffer(uint8_t** buffer,
       returnStatus = allocateBuffer<float>(reinterpret_cast<float**>(buffer), elementCount);
       break;
 
+    case QNN_DATATYPE_FLOAT_16:
+      QNN_DEBUG("allocating fp16 buffer");
+      returnStatus = allocateBuffer<__fp16>(reinterpret_cast<__fp16**>(buffer), elementCount);
+      break;
+
     case QNN_DATATYPE_UINT_8:
     case QNN_DATATYPE_UFIXED_POINT_8:
       QNN_DEBUG("allocating uint8_t buffer");
@@ -543,6 +559,17 @@ iotensor::StatusCode iotensor::IOTensor::convertToFloat(float** out, Qnn_Tensor_
               QNN_TENSOR_GET_QUANT_PARAMS(tensor).scaleOffsetEncoding.scale,
               elementCount)) {
         QNN_ERROR("failure in tfNToFloat<uint8_t>");
+        returnStatus = StatusCode::FAILURE;
+      }
+      break;
+
+    case QNN_DATATYPE_FLOAT_16:
+      if (datautil::StatusCode::SUCCESS !=
+          datautil::castToFloat<__fp16>(
+              *out,
+              reinterpret_cast<__fp16*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
+              elementCount)) {
+        QNN_ERROR("failure in castToFloat<__fp16>");
         returnStatus = StatusCode::FAILURE;
       }
       break;

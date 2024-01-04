@@ -17,7 +17,9 @@ BEGIN_PKG_OP_DEFINITION(PKG_RoPE);
 template<typename TensorType>
 GraphStatus ropeImpl(TensorType& out_0,
                      const TensorType& in_0,
-                     const TensorType& weights);
+                     const TensorType& sin,
+                     const TensorType& cos,
+                     const Tensor& pose_type);
 
 // forward declaration of sample cost function
 static float ropeCostFunc(const Op *op);
@@ -79,6 +81,10 @@ DEF_PACKAGE_OP((ropeImpl<Tensor>), "RoPE")
  *       graph construction will skip this parameter when this parameter is not provided at
  *       Qnn_addNode
  */
+DEF_PACKAGE_PARAM_ORDER("RoPE", 
+                        "pose_type",
+                        true,
+                        nullptr)
 
 
 /* execute functions for ops */
@@ -86,7 +92,9 @@ DEF_PACKAGE_OP((ropeImpl<Tensor>), "RoPE")
 template<typename TensorType>
 GraphStatus ropeImpl(TensorType& out_0,
                      const TensorType& in_0,
-                     const TensorType& weights)
+                     const TensorType& sin,
+                     const TensorType& cos,
+                     const Tensor& pose_type)
 
 {
   /*
@@ -101,6 +109,168 @@ GraphStatus ropeImpl(TensorType& out_0,
    *
    * Please check in SDK documentation for more information.
    */
+
+   debuglog("relux execute... dims=(%zdx%zdx%zdx%zd)", in_0.dim(0), in_0.dim(1), in_0.dim(2), in_0.dim(3));
+   debuglog("relux execute... dims=(%zdx%zdx%zdx%zd)", sin.dim(0), sin.dim(1), sin.dim(2), sin.dim(3));
+   debuglog("relux execute... dims=(%zdx%zdx%zdx%zd)", cos.dim(0), cos.dim(1), cos.dim(2), cos.dim(3));
+
+  // BSHD =>  NHWC
+
+  int h_cnt_ = 0; // history sequence position
+
+  // Todo: We need consider to store the sequence position if we have KV Cache
+
+  auto pose_type_ = pose_type(0,0,0,0);
+
+  out_0.set_dims(in_0);
+  auto [b_in, h_in, w_in, d_in] = in_0.dims();
+  for (Idx b = 0; b < b_in; b++) {
+    for (Idx h = 0; h < h_in; h++) {
+      for (Idx w = 0; w < w_in; w++) {
+        // RoPE
+        for (Idx d = 0; d < d_in; d++) {
+          
+
+          int s = h; //  BSHD order
+          if (pose_type_ == 1) {
+              float in_value = in_0(b, h, w, d);
+              float in_value_2;
+              if (d < d_in / 2) { // 偶數 0,2,4
+                  in_value_2 = -in_0(b, h, w, d + d_in / 2);
+              } else {
+                  in_value_2 = in_0(b, h, w, d - d_in / 2);
+              }
+              float sin_value = sin(0, 0, s +h_cnt_, d);
+              float cos_value = cos(0, 0, s +h_cnt_, d);
+              auto value = in_value * cos_value + in_value_2 * sin_value;
+              out_0(b, h, w, d) = value;
+          }
+          else if (pose_type_ == 2) {
+              float in_value = in_0(b, h, w, d);
+              float in_value_2;
+              if (d % 2 == 0) { // 偶數 0,2,4
+                  in_value_2 = -in_0(b, h, w, d + 1);
+              } else {
+                  in_value_2 = in_0(b, h, w, d - 1);
+              }
+              float sin_value = sin(0, 0, s +h_cnt_, d);
+              float cos_value = cos(0, 0, s +h_cnt_, d);
+              auto value = in_value * cos_value + in_value_2 * sin_value;
+              out_0(b, h, w, d) = value;
+          } else {
+              float in_value = in_0(b, h, w, d);
+              float in_value_2;
+              float sin_value = sin(0, 0, s +h_cnt_, d);
+              float cos_value = cos(0, 0, s +h_cnt_, d);
+              if (d < d_in / 4) {
+                  in_value_2 = -in_0(b, h, w, d + d_in / 4);
+                  auto value = in_value * cos_value + in_value_2 * sin_value;
+
+                  out_0(b ,h , w, d) = value;
+              } else if(d < d_in / 2){
+                  in_value_2 = in_0(b, h, w, d - d_in / 4);
+                  auto value = in_value * cos_value + in_value_2 * sin_value;
+                  
+                  out_0(b ,h , w, d) = value;
+              }else {
+                  
+                  out_0(b ,h , w, d) = in_value;
+              }
+          }
+
+        }
+      }
+    }
+  }
+
+
+//   auto &input = inputs[0];
+//   auto &output = outputs[0];
+//   for (int n = 0; n < input->batch(); ++n) {
+//       for (int h = 0; h < input->head(); ++h) {
+//           for (int s = 0; s < input->sequence(); ++s) {//sequance
+//               #pragma omp parallel for num_threads(4)
+//               for (int d = 0; d < input->dimension(); ++d) {
+//                   if (pose_type_== 1) {
+//                       float in_value = input->dataAt<float>(n, h, s, d);
+//                       float in_value_2;
+//                       if (d < input->dimension() / 2) { // 偶數 0,2,4
+//                           in_value_2 = -input->dataAt<float>(n, h, s, d + input->dimension() / 2);
+//                       } else {
+//                           in_value_2 = input->dataAt<float>(n, h, s, d - input->dimension() / 2);
+//                       }
+//                       float sin_value = sin_.dataAt<float>(0, 0, s +h_cnt_, d);
+//                       float cos_value = cos_.dataAt<float>(0, 0, s +h_cnt_, d);
+//                       auto value = in_value * cos_value + in_value_2 * sin_value;
+//                       if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F32) {
+//                           output->setDataAt<float>(n, h, s, d, value);
+//                       }
+//                       else if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F16) {
+//                           output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
+//                       }
+//                   }
+//                   else if (pose_type_== 2) {
+//                       float in_value = input->dataAt<float>(n, h, s, d);
+//                       float in_value_2;
+//                       if (d % 2 == 0) { // 偶數 0,2,4
+//                           in_value_2 = -input->dataAt<float>(n, h, s, d + 1);
+//                       } else {
+//                           in_value_2 = input->dataAt<float>(n, h, s, d - 1);
+//                       }
+//                       float sin_value = sin_.dataAt<float>(0, 0, s +h_cnt_, d);
+//                       float cos_value = cos_.dataAt<float>(0, 0, s +h_cnt_, d);
+//                       auto value = in_value * cos_value + in_value_2 * sin_value;
+//                       if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F32) {
+//                           output->setDataAt<float>(n, h, s, d, value);
+//                       }
+//                       else if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F16) {
+//                           output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
+//                       }
+//                   }else{
+//                       float in_value = input->dataAt<float>(n, h, s, d);
+//                       float in_value_2;
+//                       float sin_value = sin_.dataAt<float>(0, 0, s +h_cnt_, d);
+//                       float cos_value = cos_.dataAt<float>(0, 0, s +h_cnt_, d);
+//                       if (d < input->dimension() / 4) {
+//                           in_value_2 = - input->dataAt<float>(n, h, s, d + input->dimension() / 4);
+//                           auto value = in_value * cos_value + in_value_2 * sin_value;
+//                           if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F32) {
+//                               output->setDataAt<float>(n, h, s, d, value);
+//                           }
+//                           else if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F16) {
+//                               output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
+//                           }
+//                       } else if(d < input->dimension() / 2){
+//                           in_value_2 = input->dataAt<float>(n, h, s, d - input->dimension() / 4);
+//                           auto value = in_value * cos_value + in_value_2 * sin_value;
+//                           if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F32) {
+//                               output->setDataAt<float>(n, h, s, d, value);
+//                           }
+//                           else if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F16) {
+//                               output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
+//                           }
+//                       }else {
+//                           if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F32) {
+//                               output->setDataAt<float>(n, h, s, d, in_value);
+//                           }
+//                           else if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F16) {
+//                               output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(in_value));
+//                           }
+//                       }
+//                   }
+//               }
+//           }
+//       }
+//   }
+
+
+// Todo store history position
+//   h_cnt_ += input->sequence();
+//   if(h_cnt_ >pos_max_){
+//       h_cnt_ = 0;
+//   }
+
+
   return GraphStatus::Success;
 }
 

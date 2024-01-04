@@ -19,9 +19,9 @@ BEGIN_PKG_OPS_OPTS_LIST()
  *  registered to the HTP Core.
  *  Append the latest OpName at the bottom
  */
+DECLARE_PKG_OPS_OPTS_LIST(PKG_Attention)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_RMSNorm)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_SiLU)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_Attention)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_RoPE)
 
 END_PKG_OPS_OPTS_LIST()
@@ -29,7 +29,7 @@ END_PKG_OPS_OPTS_LIST()
 // op package info
 static constexpr auto sg_packageName = THIS_PKG_NAME_STR;  // package name passed in as compile flag
 
-static std::array<const char*, 4> sg_opNames{{"RMSNorm", "SiLU", "Attention", "RoPE"}};
+static std::array<const char*, 4> sg_opNames{{"Attention", "RMSNorm", "SiLU", "RoPE"}};
 
 static Qnn_ApiVersion_t sg_sdkApiVersion  = QNN_HTP_API_VERSION_INIT;
 static QnnOpPackage_Info_t sg_packageInfo = QNN_OP_PACKAGE_INFO_INIT;
@@ -222,7 +222,12 @@ Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
      * Check if op config type matches any registered ops
      * If a match is found, check number of inputs, outputs and params
      */
-    if (std::string(opConfig.v1.typeName) == "RMSNorm"){
+    if (std::string(opConfig.v1.typeName) == "Attention"){
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 5 || opConfig.v1.numOfOutputs != 1){
+          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    }
+    else if (std::string(opConfig.v1.typeName) == "RMSNorm"){
         if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
@@ -232,13 +237,8 @@ Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }
-    else if (std::string(opConfig.v1.typeName) == "Attention"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 5 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
-        }
-    }
     else if (std::string(opConfig.v1.typeName) == "RoPE"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }

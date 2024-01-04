@@ -228,17 +228,31 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             </Input>
 
             <Input>
-                <Name>weights</Name>
+                <Name>sin</Name>
                 <Description>
-                    <Content>RoPE weights</Content>
+                    <Content>RoPE sin weights</Content>
                 </Description>
                 <Mandatory>true</Mandatory>
                 <Datatype>BACKEND_SPECIFIC</Datatype>
                 <Shape>
-                    <Rank>1D</Rank>
-                    <Text>[ 32768 ]</Text>
+                    <Rank>2D</Rank>
+                    <Text>[ 16384, hidden state ]</Text>
                 </Shape>
             </Input>
+
+            <Input>
+                <Name>cos</Name>
+                <Description>
+                    <Content>RoPE cos weights</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>2D</Rank>
+                    <Text>[ 16384, hidden state  ]</Text>
+                </Shape>
+            </Input>
+
 
             <Output>
                 <Name>out[0]</Name>
@@ -252,6 +266,16 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
                     <Text> [N, C, H , W] </Text>
                 </Shape>
             </Output>
+
+            <Parameter>
+                <Name>pose_type</Name>
+                <Mandatory>false</Mandatory>
+                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
 
             <!--This Op is implemented on these Backends-->
             <SupportedBackend>HTP</SupportedBackend>
@@ -343,7 +367,12 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
             </Input>
             <Input>
-                <Name>weights</Name>
+                <Name>sin</Name>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+            </Input>
+
+            <Input>
+                <Name>cos</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
             </Input>
 

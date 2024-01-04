@@ -356,6 +356,11 @@ template datautil::StatusCode datautil::castToFloat<int32_t>(float* out,
                                                              int32_t* in,
                                                              size_t numElements);
 
+template datautil::StatusCode datautil::castToFloat<__fp16>(float* out,
+                                                             __fp16* in,
+                                                             size_t numElements);
+
+
 template <typename T_QuantType>
 datautil::StatusCode datautil::castFromFloat(T_QuantType* out, float* in, size_t numElements) {
   if (nullptr == out || nullptr == in) {
@@ -389,5 +394,9 @@ template datautil::StatusCode datautil::castFromFloat<int16_t>(int16_t* out,
                                                                size_t numElements);
 
 template datautil::StatusCode datautil::castFromFloat<int32_t>(int32_t* out,
+                                                               float* in,
+                                                               size_t numElements);
+
+template datautil::StatusCode datautil::castFromFloat<__fp16>(__fp16* out,
                                                                float* in,
                                                                size_t numElements);
