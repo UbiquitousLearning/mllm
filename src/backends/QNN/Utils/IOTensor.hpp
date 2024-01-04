@@ -65,6 +65,8 @@ class IOTensor {
                                            size_t numInputTensors,
                                            size_t numOutputTensors);
 
+  StatusCode writeOutputTensor(Qnn_Tensor_t *output, uint8_t* output_buffer);
+
  private:
   size_t m_batchSize;
   size_t m_numFilesPopulated;

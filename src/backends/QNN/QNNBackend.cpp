@@ -28,6 +28,9 @@
 #include "op/QNNSoftMax.hpp"
 #include "op/QNNView.hpp"
 
+#include "QnnTypeMacros.hpp"
+#include "IOTensor.hpp"
+
 using namespace qnn;
 using namespace qnn::tools;
 using namespace qnn::tools::sample_app;
@@ -66,12 +69,10 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_DEBUG);
 
 
-    std::string modelPath = "/qnn-projects/QNN-test-libs/example_libs/x86_64-linux-clang/libqnn_model_float.so";
-    // std::string backEndPath = "/qnn-projects/QNN-test-libs/libQnnCpu.so";
-    std::string backEndPath = "/qnn-projects/QNN-test-libs/libQnnHtp.so";
-    std::string inputListPaths = "/qnn-projects/mllm/bin/input-list.txt";
-    // std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnCpuOpPackageExample.so:QnnOpPackage_interfaceProvider";
-    std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnHtpOpPackageExample.so:exampleInterfaceProvider,/qnn-projects/QNN-test-libs/llama-op-package/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
+    std::string modelPath = "/mllm/qualcomm_ai_engine_direct_new/examples/QNN/example_libs/x86_64-linux-clang/libqnn_model_float.so";
+    std::string backEndPath = "/mllm/qualcomm_ai_engine_direct_new/lib/x86_64-linux-clang/libQnnHtp.so";
+    std::string inputListPaths = "/mllm/test_zh/input_list_float.txt";
+    std::string opPackagePaths = "/mllm/LLaMAOpPackageHtp/LLaMAPackage/build/x86_64-linux-clang/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
 
     // TODO: make these configuable
     m_debug = true;
@@ -718,6 +719,14 @@ StatusCode QNNBackend::executeGraphs(std::map< std::string, std::vector<uint8_t*
                                               m_outputPath)) {
               returnStatus = StatusCode::FAILURE;
             }
+            for (int oi=0; oi < graphInfo.numOutputTensors; oi ++) {
+                auto output = outputs[oi];
+
+                m_ioTensor.writeOutputTensor(&output, outputBufferMap["graph"][oi]);
+
+                
+            }
+            
           }
         }
         if (StatusCode::SUCCESS != returnStatus) {

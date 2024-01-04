@@ -9,6 +9,8 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <numeric>
+#include <queue>
 
 #include "DataUtil.hpp"
 #include "IOTensor.hpp"
@@ -722,6 +724,31 @@ iotensor::StatusCode iotensor::IOTensor::writeOutputTensor(Qnn_Tensor_t* output,
     QNN_ERROR("failure in writeBatchDataToFile");
     returnStatus = StatusCode::FAILURE;
   }
+  return returnStatus;
+}
+
+// Helper method to write out output. There is no de-quantization here.
+// Just write output as is to files.
+iotensor::StatusCode iotensor::IOTensor::writeOutputTensor(Qnn_Tensor_t* output, uint8_t* output_buffer) {
+  if (nullptr == output) {
+    QNN_ERROR("output is nullptr");
+    return StatusCode::FAILURE;
+  }
+  auto returnStatus = StatusCode::SUCCESS;
+  std::vector<size_t> dims;
+  fillDims(dims, QNN_TENSOR_GET_DIMENSIONS(output), QNN_TENSOR_GET_RANK(output));
+  uint8_t* bufferToWrite = reinterpret_cast<uint8_t*>(QNN_TENSOR_GET_CLIENT_BUF(output).data);
+
+  Qnn_DataType_t dataType = QNN_TENSOR_GET_DATA_TYPE(output);
+  datautil::StatusCode err{datautil::StatusCode::SUCCESS};
+  size_t length{0};
+  std::tie(err, length) = datautil::calculateLength(dims, dataType);
+  if (datautil::StatusCode::SUCCESS != err) {
+    return StatusCode::FAILURE;
+  }
+
+  memcpy(output_buffer, bufferToWrite, length);
+  
   return returnStatus;
 }
 
