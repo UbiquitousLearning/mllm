@@ -81,7 +81,7 @@ std::vector<ImageInfo> PreProcessor::PadImages(std::vector<ImageInfo> &images, i
     return padded_images;
 }
 
-std::vector<ImageInfo> PreProcessor::ResizeImages(std::vector<ImageInfo> &images, int height, int width, bool strict_size, ResampleType resample_type, bool free_source) {
+std::vector<ImageInfo> PreProcessor::ResizeImages(std::vector<ImageInfo> &images, int height, int width, bool strict_size, bool fit, PreProcessor::ResizeFitEdge fit_edge, ResampleType resample_type, bool free_source) {
     assert(resample_type == ResampleType::BILINEAR);
     stbir_filter filter = stbir_filter::STBIR_FILTER_DEFAULT;
     switch (resample_type) {
@@ -93,18 +93,42 @@ std::vector<ImageInfo> PreProcessor::ResizeImages(std::vector<ImageInfo> &images
     }
     auto resized_images = std::vector<ImageInfo>();
     for (auto image : images) {
-        if (image.height <= height && image.width <= width && image.channels == 3 && strict_size == false) {
+        if (image.height <= height && image.width <= width && image.channels == 3 && (strict_size == false&&fit == false)) {
             resized_images.emplace_back(image.data, image.width, image.height, image.channels, image.original_width, image.original_height);
             continue;
         }
         auto height_ = height;
         auto width_ = width;
-        if (strict_size == false) {
+        if (strict_size == false&&fit == false) {
             auto height_ratio = static_cast<float>(height) / image.height;
             auto width_ratio = static_cast<float>(width) / image.width;
             auto ratio = std::min(height_ratio, width_ratio);
-            height_ = static_cast<int>(image.height * ratio);
-            width_ = static_cast<int>(image.width * ratio);
+            // rounded to int
+
+            height_ = std::round(image.height * ratio);
+            width_ = std::round(image.width * ratio);
+        }
+        if (fit && fit_edge!=none) {
+            auto shortest_ = std::min(image.height, image.width);
+            auto longest_ = std::max(image.height, image.width);
+            switch (fit_edge) {
+                case shortest:
+                longest_ = std::round(height * longest_ / shortest_);
+                shortest_ = height;
+
+                    break;
+            case longest:
+                shortest_ = std::round(height * shortest_ / longest_);
+                longest_ = height_;
+
+            }
+            if (image.height > image.width) {
+                height_ = longest_;
+                width_ = shortest_;
+            }else {
+                width_ = longest_;
+                height_ = shortest_;
+            }
         }
         auto resized_image = new float[height_ * width_ * image.channels];
         stbir_resize(image.data, image.width, image.height, 0, resized_image, width_, height_, 0, stbir_pixel_layout::STBIR_RGB, stbir_datatype::STBIR_TYPE_FLOAT, stbir_edge::STBIR_EDGE_CLAMP, filter);
@@ -176,7 +200,6 @@ std::vector<ImageInfo> PreProcessor::CenterCropImages(std::vector<ImageInfo> &im
             for (int i = 0; i < height_; i++) {
                 for (int j = 0; j < width_; j++) {
                     for (int k = 0; k < image.channels; k++) {
-
                         if (i < top_pad || i >= bottom_pad || j < left_pad || j >= right_pad) {
                             auto index = (i * width_ + j) * image.channels + k;
                             cropped_image[(i * width_ + j) * image.channels + k] = pad;

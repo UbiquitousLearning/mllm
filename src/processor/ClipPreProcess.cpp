@@ -36,8 +36,10 @@ void ClipProcessor::PreProcessImages(const std::vector<uint8_t *> &images, const
         imageinfos.emplace_back(ImageInfo(f32_data, width, height, channels));
     }
     if (do_resize_) {
-        imageinfos = PreProcessor::ResizeImages(imageinfos, height_, width_, false);
+
+        imageinfos = PreProcessor::ResizeImages(imageinfos, height_, width_, false,true,shortest);
     }
+    // std::cout<<imageinfos[0].height<< imageinfos[0].width <<std::endl;
     // Use height_ or crop_size?
     imageinfos = PreProcessor::CenterCropImages(imageinfos, height_, width_, 0, true);
 
@@ -47,17 +49,18 @@ void ClipProcessor::PreProcessImages(const std::vector<uint8_t *> &images, const
     //todo: Optimize this!
     for (auto &imageinfo : imageinfos) {
         auto pixel_values = vector<vector<vector<float>>>();
-        for (int i = 0; i < imageinfo.height; i++) {
-            auto row = vector<vector<float>>();
-            for (int j = 0; j < imageinfo.width; j++) {
-                auto pixel = vector<float>();
-                for (int k = 0; k < imageinfo.channels; k++) {
-                    pixel.push_back(imageinfo.get_whc_pixel(i * imageinfo.width * imageinfo.channels + j * imageinfo.channels + k));
+        for (int k = 0; k < imageinfo.channels; k++) {
+            auto channel = vector<vector<float>>();
+            for (int i = 0; i < imageinfo.height; i++) {
+                auto row = vector<float>();
+                for (int j = 0; j < imageinfo.width; j++) {
+                    row.push_back(imageinfo.get_whc_pixel(i * imageinfo.width + j + k * imageinfo.width * imageinfo.height));
                 }
-                row.push_back(pixel);
+                channel.push_back(row);
             }
-            pixel_values.push_back(row);
+            pixel_values.push_back(channel);
         }
+
         pixel_values_.push_back(pixel_values);
     }
 }

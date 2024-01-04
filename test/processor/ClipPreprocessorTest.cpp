@@ -35,19 +35,17 @@
 // }
 TEST_F(TokenizerTest,Clip) {
     auto tokenizer = new mllm::BPETokenizer("./vit_vocab.mllm");
-    auto clip = new mllm::ClipProcessor(tokenizer);
+    mllm::ClipProcessor* clip = new mllm::ClipProcessor(tokenizer);
      clip->PreProcessImages({"bus.jpeg"});
     auto images = clip->pixel_values_[0];
-    for (auto row:images){
-        for (auto pixel:row){
-            for (auto channel:pixel){
-                std::cout<<channel<<" ";
-            }
-            std::cout<<std::endl;
-        }
-        std::cout<<std::endl;
-    }
-
-
-
+    std::cout << "size: " << images.size()<<" " <<images[0].size()  << " " << images[0][0].size() << std::endl;
+    // for (auto row:images){
+    //     for (auto pixel:row){
+    //         for (auto channel:pixel){
+    //             std::cout<<channel<<" ";
+    //         }
+    //         std::cout<<std::endl;
+    //     }
+    //     std::cout<<std::endl;
+    // }
 }

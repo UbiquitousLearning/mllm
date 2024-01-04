@@ -35,21 +35,34 @@ struct ImageInfo {
     }
 
     // Convert from CWH to WHC
-    size_t convert_index(size_t cwh_idx) const {
+    size_t convert_index_to_whc(size_t cwh_idx) const {
         size_t c = cwh_idx / (width * height);
         size_t wh = cwh_idx % (width * height);
         size_t w = wh % width;
         size_t h = wh / width;
         return h * width * channels + w * channels + c;
     }
+    size_t convert_index_to_cwh(size_t whc_idx) const {
+        size_t c = whc_idx % channels;
+        size_t wh = whc_idx / channels;
+        size_t w = wh % width;
+        size_t h = wh / width;
+        return c * width * height + h * width + w;
+    }
 
     float get_whc_pixel(size_t idx) const {
-        return data[convert_index(idx)];
+        return data[convert_index_to_whc(idx)];
     }
+    float get_cwh_pixel(size_t idx) const {
+        return data[convert_index_to_cwh(idx)];
+    }
+
+
 };
 
 class PreProcessor {
 public:
+
     virtual ~PreProcessor() = default;
 
     explicit PreProcessor(Tokenizer *tokenizer, int height, int width, bool do_pad, bool do_resize, bool do_normalize , bool do_rescale , std::vector<float> mean ={} , std::vector<float> std = {}) :
@@ -71,11 +84,15 @@ protected:
     float scale_ = 255.0;
     std::vector<float> mean_ = {0.5};
     std::vector<float> std_ = {0.5};
-
+    enum ResizeFitEdge {
+        none,
+        shortest,
+        longest,
+    };
 public:
     static float *RescaleImage(const uint8_t *data, float scale, unsigned int length);
     static std::vector<ImageInfo> PadImages(std::vector<ImageInfo> &images, int height, int width, size_t patch_width = 30, size_t patch_height = 30, float pad_value = 1.0 / 255.0, PaddingType padding_type = PaddingType::CONSTANT, bool free_source = true);
-    static std::vector<ImageInfo> ResizeImages(std::vector<ImageInfo> &images, int height, int width, bool strict_size = false, ResampleType resample_type = ResampleType::BILINEAR, bool free_source = true);
+    static std::vector<ImageInfo> ResizeImages(std::vector<ImageInfo> &images, int height, int width, bool strict_size = false,bool fit =false,ResizeFitEdge fit_edge = none, ResampleType resample_type = ResampleType::BILINEAR, bool free_source = true);
     static std::vector<ImageInfo> NormalizeImages(std::vector<ImageInfo> &images, float mean, float std, bool free_source = true);
     static std::vector<ImageInfo> NormalizeImages(std::vector<ImageInfo> &images, vector<float> means, vector<float> stds, bool free_source = true);
     static std::vector<ImageInfo> CenterCropImages(std::vector<ImageInfo> &images, int height, int width, float pad = 0.0F, bool free_source = true);
