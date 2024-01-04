@@ -3,8 +3,12 @@
 #include "Op.hpp"
 #include "Types.hpp"
 #include "backends/cpu/CPUBackend.hpp"
+#include <memory>
 #ifdef NNAPI_ENABLED
 #include "backends/nnapi/NNAPIBackend.hpp"
+#endif
+#ifdef QNN_ENABLED
+#include "backends/QNN/QNNBackend.hpp"
 #endif
 #include <map>
 #include <vector>
@@ -14,6 +18,9 @@ namespace mllm {
 shared_ptr<CPUBackend> cpuBn;
 #ifdef NNAPI_ENABLED
 shared_ptr<NNAPIBackend> nnapiBn;
+#endif
+#ifdef QNN_ENABLED
+shared_ptr<QNNBackend> qnnBn;
 #endif
 
 Net::Net(const vector<NetParameter> &param, BackendConfig config) :
@@ -35,6 +42,10 @@ Net::Net(const vector<NetParameter> &param, BackendConfig config) :
     nnapiBn.reset(new NNAPIBackend(mm));
     backends_.emplace(BackendType::MLLM_NNAPI,  nnapiBn);
     //backends_.emplace(BackendType::MLLM_NNAPI, new NNAPIBackend(mm));
+#endif
+#ifdef QNN_ENABLED
+    qnnBn.reset(new QNNBackend(mm));
+    backends_.emplace(BackendType::MLLM_QNN,  qnnBn);
 #endif
 
     auto *in_tensor = param[0].net_tensors[0];

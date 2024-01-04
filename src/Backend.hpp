@@ -59,6 +59,8 @@ public:
     virtual Op *opCreate(const OpParam &op_param, string name="") = 0;
     virtual void registerOps() = 0;
     // virtual void* OpCreater(OpParam op_param);
+
+    virtual void onExecuteEnd(){};
 private:
     //
     shared_ptr<MemoryManager> mem_manager_;

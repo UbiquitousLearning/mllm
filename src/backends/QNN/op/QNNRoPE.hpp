@@ -4,10 +4,10 @@
 
 #include "QNNCommonOp.hpp"
 namespace mllm {
-class QNNRope : public QNNCommonOp {
+class QNNRoPE : public QNNCommonOp {
 public:
-    QNNRope(Backend *bn, string opName);
-    virtual ~QNNRope() = default;
+    QNNRoPE(Backend *bn, string opName);
+    virtual ~QNNRoPE() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
@@ -32,7 +32,7 @@ private:
 class QNNRopeCreator : public QNNBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new QNNRope(bn, name);
+        return new QNNRoPE(bn, name);
     }
 };
 

@@ -151,9 +151,13 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
         uint64_t t_start = mllm_time_us();
 #endif
         ops_[lname]->execute(ops_input_tensors_[lname], ops_output_tensors_[lname]);
+// currently, when QNN is enabled, result will not write there
+// TODO: better solution
+#ifndef QNN_ENABLED
         for(auto &t: ops_output_tensors_[lname]){
             t->checkData<float>();
         }
+#endif
 #ifdef DEBUG
         uint64_t t_end = mllm_time_us();
         std::cout<<"\n ====  "<<lname<<" ====  "<< (t_end - t_start)/1000.0F << " ms" ;
@@ -162,6 +166,8 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
             ops_[lname]->free(ops_input_tensors_[lname], ops_output_tensors_[lname]);
         }
     }
+    // backend event hook
+    this->backend_->onExecuteEnd();
     // TODO
     return ops_output_tensors_[op_names_[op_names_.size() - 1]];
 }

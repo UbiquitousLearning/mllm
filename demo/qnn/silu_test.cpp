@@ -70,8 +70,8 @@ int main() {
                  {.clientBuf = {.data = nullptr,
                                 .dataSize = 0}}}}}};
 
-    std::vector<Qnn_Param_t> params;
-    qbn->graphAddNode("qnn-silu", "SiLU", {"x"}, outputs, params, "LLaMAPackage");
+    qbn->graphAddNode("qnn-silu", "SiLU", {"x"}, outputs, {}, "LLaMAPackage");
+    
     // graph compile
     std::cout << "graph compile" << std::endl;
     qbn->graphFinilize();

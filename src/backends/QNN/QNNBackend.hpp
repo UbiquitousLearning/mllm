@@ -89,6 +89,11 @@ public:
     ErrorCode graphExecute();
     ErrorCode graphExecute(std::map< std::string, std::vector<uint8_t*>> inputBufferMap, std::map< std::string, std::vector<uint8_t*>> outputBufferMap);
 
+    virtual void onExecuteEnd() override {
+        graphFinilize();
+        graphExecute();
+    }
+
 private:
     int32_t graphInitialize();
 

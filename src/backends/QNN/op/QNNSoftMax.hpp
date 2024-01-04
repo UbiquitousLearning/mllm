@@ -4,18 +4,22 @@
 
 #include "QNNCommonOp.hpp"
 namespace mllm {
-class QNNSoftmax : public QNNCommonOp {
+class QNNSoftMax : public QNNCommonOp {
 public:
-    QNNSoftmax(Backend *bn, string opName);
-    virtual ~QNNSoftmax() = default;
+    QNNSoftMax(Backend *bn, string opName, int axis);
+    virtual ~QNNSoftMax() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+
+private:
+    int axis_ = 0;
 };
 
-class QNNSoftmaxCreator : public QNNBackend::Creator {
+class QNNSoftMaxCreator : public QNNBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new QNNSoftmax(bn, name);
+        int axis = op_param["axis"];
+        return new QNNSoftMax(bn, name, axis);
     }
 };
 

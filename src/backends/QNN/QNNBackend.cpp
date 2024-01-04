@@ -20,6 +20,13 @@
 #include "DynamicLoadUtil.hpp"
 #include "Types.hpp"
 #include "op/QNNAdd.hpp"
+#include "op/QNNLinear.hpp"
+#include "op/QNNMatmul.hpp"
+#include "op/QNNMul.hpp"
+#include "op/QNNScale.hpp"
+#include "op/QNNSiLU.hpp"
+#include "op/QNNSoftMax.hpp"
+#include "op/QNNView.hpp"
 
 using namespace qnn;
 using namespace qnn::tools;
@@ -34,6 +41,19 @@ const std::string QNNBackend::s_defaultOutputPath = "./output";
 
 void QNNBackend::registerOps() {
     addCreator(ADD, (QNNBackend::Creator *)new QNNAddCreator());
+    // addCreator(CAUSALMASK, (QNNBackend::Creator *)(new QNNCausalMaskCreator()));
+    addCreator(MATMUL, (QNNBackend::Creator *)(new QNNMatmulCreator()));
+    // addCreator(RMSNORM, (QNNBackend::Creator *)(new QNNRMSNormCreator()));
+    // addCreator(ROPE, (QNNBackend::Creator *)(new QNNRoPECreator()));
+    addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
+    addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
+    addCreator(SOFTMAX, (QNNBackend::Creator *)(new QNNSoftMaxCreator()));
+    addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearCreator()));
+    // addCreator(ATTENTION, (QNNBackend::Creator *)(new QNNAttentionCreator()));
+    // addCreator(EMBEDDING, (QNNBackend::Creator *)(new QNNEmbeddingCreator()));
+    addCreator(MUL, (QNNBackend::Creator *)(new QNNMulCreator()));
+    addCreator(VIEW, (QNNBackend::Creator *)(new QNNViewCreator()));
+    // addCreator(KVCACHE, (QNNBackend::Creator *)(new QNNKVCacheCreator()));
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
@@ -45,10 +65,14 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     // TODO: make debug level configuable
     log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_DEBUG);
 
-    std::string modelPath = "/mllm/qualcomm_ai_engine_direct_new/examples/QNN/example_libs/x86_64-linux-clang/libqnn_model_float.so";
-    std::string backEndPath = "/mllm/qualcomm_ai_engine_direct_new/lib/x86_64-linux-clang/libQnnHtp.so";
-    std::string inputListPaths = "/mllm/test_zh/input_list_float.txt";
-    std::string opPackagePaths = "/mllm/LLaMAOpPackageHtp/LLaMAPackage/build/x86_64-linux-clang/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
+
+    std::string modelPath = "/qnn-projects/QNN-test-libs/example_libs/x86_64-linux-clang/libqnn_model_float.so";
+    // std::string backEndPath = "/qnn-projects/QNN-test-libs/libQnnCpu.so";
+    std::string backEndPath = "/qnn-projects/QNN-test-libs/libQnnHtp.so";
+    std::string inputListPaths = "/qnn-projects/mllm/bin/input-list.txt";
+    // std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnCpuOpPackageExample.so:QnnOpPackage_interfaceProvider";
+    std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnHtpOpPackageExample.so:exampleInterfaceProvider,/qnn-projects/QNN-test-libs/llama-op-package/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
+
     // TODO: make these configuable
     m_debug = true;
     m_outputDataType = iotensor::OutputDataType::FLOAT_ONLY;
@@ -104,6 +128,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
 
     // init qnn resources and create a graph
     this->graphInitialize();
+    this->registerOps();
 }
 
 void QNNBackend::release() {
