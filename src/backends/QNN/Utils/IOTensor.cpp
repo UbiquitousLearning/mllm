@@ -737,12 +737,17 @@ iotensor::StatusCode iotensor::IOTensor::writeOutputTensor(Qnn_Tensor_t* output,
   auto returnStatus = StatusCode::SUCCESS;
   std::vector<size_t> dims;
   fillDims(dims, QNN_TENSOR_GET_DIMENSIONS(output), QNN_TENSOR_GET_RANK(output));
-  uint8_t* bufferToWrite = reinterpret_cast<uint8_t*>(QNN_TENSOR_GET_CLIENT_BUF(output).data);
+  float* floatBuffer = nullptr;
+  returnStatus       = convertToFloat(&floatBuffer, output);
+  if (StatusCode::SUCCESS != returnStatus) {
+    QNN_ERROR("failure in convertToFloat");
+    return StatusCode::FAILURE;
+  }
+  uint8_t* bufferToWrite = reinterpret_cast<uint8_t*>(floatBuffer);
 
-  Qnn_DataType_t dataType = QNN_TENSOR_GET_DATA_TYPE(output);
   datautil::StatusCode err{datautil::StatusCode::SUCCESS};
   size_t length{0};
-  std::tie(err, length) = datautil::calculateLength(dims, dataType);
+  std::tie(err, length) = datautil::calculateLength(dims, QNN_DATATYPE_FLOAT_32);
   if (datautil::StatusCode::SUCCESS != err) {
     return StatusCode::FAILURE;
   }

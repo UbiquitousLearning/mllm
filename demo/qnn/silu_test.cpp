@@ -51,7 +51,7 @@ int main() {
                                  {.clientBuf = {.data = nullptr,
                                                 .dataSize = 0}}}}});
 
-    __fp16 output_data[8];
+    float output_data[8];
     vector<Qnn_Tensor_t> outputs = {
         (Qnn_Tensor_t){
             .version = QNN_TENSOR_VERSION_1,
@@ -91,8 +91,8 @@ int main() {
     std::cout << "graph run" << std::endl;
     qbn->graphExecute(inputBufferMap, outputBufferMap);
 
-    // for(int i=0; i<8; i++) 
-    //     std::cout << output_data[i] << std::endl;
+    for(int i=0; i<8; i++) 
+        std::cout << output_data[i] << std::endl;
 
     delete qbn;
 }

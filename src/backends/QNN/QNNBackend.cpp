@@ -708,17 +708,6 @@ StatusCode QNNBackend::executeGraphs(std::map< std::string, std::vector<uint8_t*
           }
           if (StatusCode::SUCCESS == returnStatus) {
             QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
-            if (iotensor::StatusCode::SUCCESS !=
-                m_ioTensor.writeOutputTensors(graphIdx,
-                                              startIdx,
-                                              graphInfo.graphName,
-                                              outputs,
-                                              graphInfo.numOutputTensors,
-                                              m_outputDataType,
-                                              m_graphsCount,
-                                              m_outputPath)) {
-              returnStatus = StatusCode::FAILURE;
-            }
             for (int oi=0; oi < graphInfo.numOutputTensors; oi ++) {
                 auto output = outputs[oi];
 
