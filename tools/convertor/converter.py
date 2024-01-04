@@ -129,7 +129,10 @@ def all_keys(model: dict, index_: dict):
     else:
         for key in model.keys():
             if not key.startswith("_"):
-                val = model[key]
+                if args.type == "torch":
+                    val = model[key]
+                if args.type == "safetensor":
+                    val = model.get_tensor(key)
                 if isinstance(val, torch.Tensor):
                     all_keys_name.append(key)
                 elif isinstance(val, dict):
@@ -137,6 +140,66 @@ def all_keys(model: dict, index_: dict):
                 else:
                     pass
     return all_keys_name
+
+def key_map(key: str, model_type: str):
+    key_ori = key
+    key_list = key.split(".")
+    new_key = key
+    num_layer = 0
+
+    PTH_NAMES: dict = {
+        "tok_embeddings.weight": "token_embeddings",
+        "norm.weight": "norm",
+        "output.weight": "output",
+        ".attention.wq.weight": ".attention.q",
+        ".attention.wk.weight": ".attention.k",
+        ".attention.wv.weight": ".attention.v",
+        ".attention.wo.weight": ".attention.o",
+        ".attention_norm.weight": ".attention.norm",
+        ".feed_forward.w1.weight": ".feed_forward.w1",
+        ".feed_forward.w2.weight": ".feed_forward.w2",
+        ".feed_forward.w3.weight": ".feed_forward.w3",
+        ".feed_forward.w4.weight": ".feed_forward.w4",
+        ".ffn_norm.weight": ".ffn_norm",
+        "rope.freqs": "rope.freqs"
+    }
+
+    ST_NAMES: dict = {
+        "embed_tokens.weight": "token_embeddings",
+        "norm.weight": "norm",#??
+        "output.weight": "output",#??
+        ".self_attn.q_proj.weight": ".attention.q",
+        ".self_attn.k_proj.weight": ".attention.k",
+        ".self_attn.v_proj.weight": ".attention.v",
+        ".self_attn.o_proj.weight": ".attention.o",
+        ".self_attn.rotary_emb.inv_freq": ".rope.freqs",#??
+        ".post_attention_layernorm.weight": ".attention.norm",
+        ".mlp.down_proj.weight": ".feed_forward.w1",
+        ".mlp.gate_proj.weight": ".feed_forward.w2",
+        ".mlp.up_proj.weight": ".feed_forward.w3",
+        ".mlp.down_proj.weight": ".feed_forward.w4",
+        "input_layernorm.weight": ".ffn_norm", #??
+    }
+
+    if key_list[0] == "layers":
+        num_layer = key_list[1]
+        key_ori = ''
+        for i in range(2, len(key_list)):
+            key_ori += "." + key_list[i]
+        #print(key_ori)
+        if model_type == "torch" :
+            new_key = "layers." + num_layer + PTH_NAMES.get(key_ori, key_ori)
+        elif model_type == "safetensor" :
+            new_key = "layers." + num_layer + ST_NAMES.get(key_ori, key_ori)
+    else:
+        #print(key_ori)
+        if model_type == "torch" :
+            new_key = PTH_NAMES.get(key_ori, key_ori)
+        elif model_type == "safetensor" :
+            new_key = ST_NAMES.get(key_ori, key_ori)
+    return new_key
+
+
 if __name__ == "__main__":
     global args
     parser = argparse.ArgumentParser()
@@ -162,20 +225,30 @@ if __name__ == "__main__":
             if isinstance(model, dict) and "model" in model.keys():
                 model = model["model"]
     elif args.type == "safetensor":
+        print("1")
         from safetensors import safe_open
         if args.input_model.name.endswith(".json"):
             index_ = json.load(args.input_model)
         else:
+            print("2")
+            tensors = {}
             args.input_model.close()
             model = safe_open(args.input_model.name, framework="pt")
+            for key in model.keys():
+                tensors[key] = model.get_tensor(key)
     else:
         raise Exception("Unknown type")
     writer = Writer(args.output_model)
     model_keys = all_keys(model, index_)
     writer.write_tensor_index_padding(model_keys)
+
     for key in model_keys:
-        tensor = get_tensor(model, key,index_)
+        tensor = get_tensor(model, key, index_)
         tensor = tensor.float()
         offset, size = writer.write_tensor(tensor, key)
         print(f"Write tensor {key} to {offset} with size {size}")
+        key = key_map(key, args.type)
+        print(f"Write tensor {key} to {offset} with size {size}")
+
     writer.write_tensor_index()
+
