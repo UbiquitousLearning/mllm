@@ -68,11 +68,19 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     // TODO: make debug level configuable
     log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_DEBUG);
 
-
+#ifdef QNN_ZH
+    std::string modelPath = "/qnn-projects/QNN-test-libs/example_libs/x86_64-linux-clang/libqnn_model_float.so";
+    // std::string backEndPath = "/qnn-projects/QNN-test-libs/libQnnCpu.so";
+    std::string backEndPath = "/qnn-projects/QNN-test-libs/libQnnHtp.so";
+    // std::string inputListPaths = "/qnn-projects/mllm/bin/input-list.txt";
+    // std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnCpuOpPackageExample.so:QnnOpPackage_interfaceProvider";
+    std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnHtpOpPackageExample.so:exampleInterfaceProvider,/qnn-projects/QNN-test-libs/llama-op-package/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
+#else
     std::string modelPath = "/mllm/qualcomm_ai_engine_direct_new/examples/QNN/example_libs/x86_64-linux-clang/libqnn_model_float.so";
     std::string backEndPath = "/mllm/qualcomm_ai_engine_direct_new/lib/x86_64-linux-clang/libQnnHtp.so";
     std::string inputListPaths = "/mllm/test_zh/input_list_float.txt";
     std::string opPackagePaths = "/mllm/LLaMAOpPackageHtp/LLaMAPackage/build/x86_64-linux-clang/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
+#endif
 
     // TODO: make these configuable
     m_debug = true;
@@ -84,7 +92,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     m_isContextCreated = false;
 
     // config path strings
-    split(m_inputListPaths, inputListPaths, ',');
+    // split(m_inputListPaths, inputListPaths, ',');
     split(m_opPackagePaths, opPackagePaths, ',');
     if (m_outputPath.empty()) {
         m_outputPath = s_defaultOutputPath;
@@ -94,9 +102,9 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
       std::exit(EXIT_FAILURE);
     }
 
-    if (inputListPaths.empty()) {
-      std::exit(EXIT_FAILURE);
-    }
+    // if (inputListPaths.empty()) {
+    //   std::exit(EXIT_FAILURE);
+    // }
 
     QNN_INFO("Model: %s", modelPath.c_str());
     QNN_INFO("Backend: %s", backEndPath.c_str());
@@ -665,10 +673,10 @@ StatusCode QNNBackend::executeGraphs(std::map< std::string, std::vector<uint8_t*
   auto returnStatus = StatusCode::SUCCESS;
   for (size_t graphIdx = 0; graphIdx < m_graphsCount; graphIdx++) {
     QNN_DEBUG("Starting execution for graphIdx: %d", graphIdx);
-    if (graphIdx >= m_inputFileLists.size()) {
-      QNN_ERROR("No Inputs available for: %d", graphIdx);
-      returnStatus = StatusCode::FAILURE;
-      break;
+    if (graphIdx >= inputBufferMap.size()) {
+        QNN_ERROR("No Inputs available for: %d", graphIdx);
+        returnStatus = StatusCode::FAILURE;
+        break;
     }
     Qnn_Tensor_t* inputs  = nullptr;
     Qnn_Tensor_t* outputs = nullptr;

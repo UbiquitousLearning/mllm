@@ -190,6 +190,18 @@ if(QNN)
     add_definitions(-DQNN_ENABLED)
     # for debug
     add_definitions(-DDEBUG)
+    execute_process(
+        COMMAND git rev-parse --abbrev-ref HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_BRANCH_NAME
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    message(STATUS "git branch name: ${GIT_BRANCH_NAME}")
+    if(GIT_BRANCH_NAME MATCHES "develop-QNN-zh")
+        add_definitions(-DQNN_ZH)
+        message(STATUS "QNN_ZH")   
+    endif()
+    
     
     include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/Log)
     include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN/PAL/include)
