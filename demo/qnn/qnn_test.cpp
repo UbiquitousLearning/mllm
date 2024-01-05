@@ -65,7 +65,9 @@ int main() {
 
     Executor ex;
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    fullTensor(input, net, {1, 1, 2, 4}, 2);
+    fullTensor(input, net, {1, 1, 2, 4}, 2.f);
 
     ex.execute(&net, input);
+    auto result = ex.result();
+    result[0]->printData<float>();
 }

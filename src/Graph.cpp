@@ -97,6 +97,7 @@ void Graph::reshape() {
 
 void Graph::setUpTensors() {
     auto &graph_in_tensors = ops_input_tensors_[op_names_[0]];
+    this->backend_->onSetUpStart(graph_in_tensors);
     for (auto &t : graph_in_tensors) {
         t->alloc();
     }
@@ -144,7 +145,8 @@ void Graph::setUpOps(ParamLoader &loader) {
 // #define DEBUG
 const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
     // TODO 改为递归
-
+    // backend event hook
+    this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]]);
     for (int i = 0; i < (int)op_names_.size(); ++i) {
         string lname = op_names_[i];
 #ifdef DEBUG

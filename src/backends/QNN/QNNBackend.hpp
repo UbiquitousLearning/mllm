@@ -87,12 +87,11 @@ public:
     qnn_wrapper_api::ModelError_t graphFinilize();
     qnn_wrapper_api::ModelError_t modelAddTensor(const char *nodeName, Qnn_Tensor_t tensor);
     ErrorCode graphExecute();
-    ErrorCode graphExecute(std::map< std::string, std::vector<uint8_t*>> inputBufferMap, std::map< std::string, std::vector<uint8_t*>> outputBufferMap);
+    ErrorCode graphExecute(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap);
 
-    virtual void onExecuteEnd() override {
-        graphFinilize();
-        graphExecute();
-    }
+    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs) override;
+    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+    virtual void onExecuteEnd() override;
 
 private:
     int32_t graphInitialize();
@@ -115,7 +114,7 @@ private:
     StatusCode finalizeGraphs();
 
     StatusCode executeGraphs();
-    StatusCode executeGraphs(std::map< std::string, std::vector<uint8_t*>> inputBufferMap, std::map< std::string, std::vector<uint8_t*>> outputBufferMap);
+    StatusCode executeGraphs(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap);
 
     StatusCode registerOpPackages();
 
@@ -150,6 +149,11 @@ private:
     }
 
     static const std::string s_defaultOutputPath;
+
+    std::map<std::string, std::vector<uint8_t *>> inputBufferMap;
+    std::vector<uint8_t *> inputBuffers;
+    std::map<std::string, std::vector<uint8_t *>> outputBufferMap;
+    std::vector<uint8_t *> outputBuffers;
 
     std::map<OpType, QNNBackend::Creator *> map_creator_;
     shared_ptr<MemoryManager> mem_manager_;
