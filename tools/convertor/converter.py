@@ -74,10 +74,13 @@ class Writer:
             # self.write_int(len(tensor.name))
             tensor.name = tensor.name.replace("_weight", ".weight")
             tensor.name = tensor.name.replace("_bias", ".bias")
+            # todo: nort used in GTEST
+            # tensor.name = key_map(tensor.name, args.type)
             self.write_str(tensor.name)
             self.write_u64(tensor.size)
             self.write_u64(tensor.offset)
             self.write_int(tensor.dtype)
+            print(f"Write tensor {tensor.name} to {tensor.offset} with size {tensor.size}")
 
     def write_tensor_index_padding(self, tensors_name: [str]):
         if len(tensors_name) > 0:
@@ -161,10 +164,10 @@ def key_map(key: str, model_type: str):
         ".feed_forward.w3.weight": ".feed_forward.w3",
         ".feed_forward.w4.weight": ".feed_forward.w4",
         ".ffn_norm.weight": ".ffn_norm",
-        "rope.freqs": "rope.freqs"
-    }
-
-    ST_NAMES: dict = {
+        "rope.freqs": "rope.freqs",
+    # }
+    # 
+    # ST_NAMES: dict = {
         "embed_tokens.weight": "token_embeddings",
         "norm.weight": "norm",#??
         "output.weight": "output",#??
@@ -186,17 +189,19 @@ def key_map(key: str, model_type: str):
         key_ori = ''
         for i in range(2, len(key_list)):
             key_ori += "." + key_list[i]
+        new_key = "layers." + num_layer + PTH_NAMES.get(key_ori, key_ori)
         #print(key_ori)
-        if model_type == "torch" :
-            new_key = "layers." + num_layer + PTH_NAMES.get(key_ori, key_ori)
-        elif model_type == "safetensor" :
-            new_key = "layers." + num_layer + ST_NAMES.get(key_ori, key_ori)
+        # if model_type == "torch" :
+        #     new_key = "layers." + num_layer + PTH_NAMES.get(key_ori, key_ori)
+        # elif model_type == "safetensor" :
+        #     new_key = "layers." + num_layer + ST_NAMES.get(key_ori, key_ori)
     else:
+        new_key = PTH_NAMES.get(key_ori, key_ori)
         #print(key_ori)
-        if model_type == "torch" :
-            new_key = PTH_NAMES.get(key_ori, key_ori)
-        elif model_type == "safetensor" :
-            new_key = ST_NAMES.get(key_ori, key_ori)
+        # if model_type == "torch" :
+        #     new_key = PTH_NAMES.get(key_ori, key_ori)
+        # elif model_type == "safetensor" :
+        #     new_key = ST_NAMES.get(key_ori, key_ori)
     return new_key
 
 
@@ -246,9 +251,7 @@ if __name__ == "__main__":
         tensor = get_tensor(model, key, index_)
         tensor = tensor.float()
         offset, size = writer.write_tensor(tensor, key)
-        print(f"Write tensor {key} to {offset} with size {size}")
-        key = key_map(key, args.type)
-        print(f"Write tensor {key} to {offset} with size {size}")
+        print(f"Get tensor {key} to {offset} with size {size}")
 
     writer.write_tensor_index()
 

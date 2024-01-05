@@ -20,6 +20,8 @@ public:
 private:
     bool support_multi_thread_ = false;
     Chl axis_;
+    int expd_batch_;
+    int expd_batch_input_idx;
 };
 
 class CPUCatCreator : public CPUBackend::Creator {

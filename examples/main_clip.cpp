@@ -7,13 +7,14 @@
 #include "NetParameter.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
-#ifndef  STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_STATIC
-#define STB_IMAGE_IMPLEMENTATION
-#endif
-#include "imageHelper/stb_image.h"
+// #ifndef  STB_IMAGE_IMPLEMENTATION
+// #define STB_IMAGE_STATIC
+// #define STB_IMAGE_IMPLEMENTATION
+// #endif
+// #include "imageHelper/stb_image.h"
 // #include "imageHelper/stb_image_resize2.h"
-#include "processor/PreProcess.hpp"
+// #include "processor/PreProcess.hpp"
+#include "processor/ClipPreProcess.hpp"
 #include <cmath>
 #include <vector>
 #include <numeric>
@@ -30,6 +31,22 @@ void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, float* img, int heigh
         for (int c = 0; c < channel; ++c) {
             for (int w = 0; w < width; ++w) {
                 input_tensor->setDataAt<float>(0, h, c, w, img[(h * width + w) * channel + c]);
+            }
+        }
+    }
+}
+void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vector<float>>> img) {
+    int channel = img.size();
+    int height = img[0].size();
+    int width= img[0][0].size();
+    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+    input_tensor->reshape(1, height, channel, width);
+    input_tensor->setDtype(MLLM_TYPE_F32);
+    input_tensor->alloc();
+    for (int h = 0; h < height; ++h) {
+        for (int c = 0; c < channel; ++c) {
+            for (int w = 0; w < width; ++w) {
+                input_tensor->setDataAt<float>(0, h, c, w, img[c][h][w]);
             }
         }
     }
@@ -161,7 +178,8 @@ int main(int argc, char **argv) {
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
 
-    auto tokenizer = BPETokenizer(vocab_path);
+    // auto tokenizer = BPETokenizer(vocab_path);
+    auto tokenizer = new BPETokenizer(vocab_path);
 
     // int vocab_size = 32000;
     // int hidden_dim = 4096;
@@ -188,7 +206,7 @@ int main(int argc, char **argv) {
             in_str = ' ' + in_str;
         }
         auto tokens_id = vector<token_id_t>();
-        tokenizer.tokenize(in_str, tokens_id, true);
+        tokenizer->tokenize(in_str, tokens_id, true);
         tokens_ids.push_back(tokens_id);
     }
     //TODO Tokenizer
@@ -198,20 +216,25 @@ int main(int argc, char **argv) {
     // ex.run(&net, {input_text});
 
     shared_ptr<Tensor> input_img = std::make_shared<Tensor>();
-    int width, height, channel;
-    unsigned char *data = stbi_load("catty.jpg", &width, &height, &channel, 0);
-    if (data == nullptr) {
-        std::cout << "load image failed" << std::endl;
-        return -1;
-    }
-    std::cout << "width: " << width << " height: " << height << " channel: " << channel << std::endl;
-    auto data_f32 = PreProcessor::RescaleImage(data,255.0,height*width*channel);
-    auto images =std::vector<ImageInfo>( {  ImageInfo(data_f32, width, height, channel)});
-    images = PreProcessor::ResizeImages(images, 224, 224,true); //TODO: processer PAD
-    images = PreProcessor::NormalizeImages(images, {0.48145466,0.4578275,0.40821073}, {0.26862954,0.26130258,0.27577711});
-    data_f32 = images[0].data;
-    stbi_image_free(data);
-    img2Tensor(input_img, net, data_f32, 224, 224, 3);
+    // int width, height, channel;
+    // unsigned char *data = stbi_load("catty.jpg", &width, &height, &channel, 0);
+    // if (data == nullptr) {
+    //     std::cout << "load image failed" << std::endl;
+    //     return -1;
+    // }
+    // std::cout << "width: " << width << " height: " << height << " channel: " << channel << std::endl;
+    // auto data_f32 = PreProcessor::RescaleImage(data,255.0,height*width*channel);
+    // auto images =std::vector<ImageInfo>( {  ImageInfo(data_f32, width, height, channel)});
+    // images = PreProcessor::ResizeImages(images, 224, 224,true);
+    // images = PreProcessor::NormalizeImages(images, {0.48145466,0.4578275,0.40821073}, {0.26862954,0.26130258,0.27577711});
+    // data_f32 = images[0].data;
+    // stbi_image_free(data);
+    auto* clip = new ClipProcessor(tokenizer);
+    clip->PreProcessImages({"cat.jpg"});
+    auto images = clip->pixel_values_[0];
+    std::cout << "size: " << images.size()<<" " <<images[0].size()  << " " << images[0][0].size() << std::endl;
+    // img2Tensor(input_img, net, data_f32, 224, 224, 3);
+    img2Tensor(input_img, net, images);
     ex.run(&net, {input_text, input_img});
     auto result = ex.result();
     auto probs = postProcessing(result[0]);

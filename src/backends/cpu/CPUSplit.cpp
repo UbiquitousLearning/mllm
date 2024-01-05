@@ -42,6 +42,13 @@ ErrorCode CPUSplit::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
             }
             break;
         }
+        case HD: {
+            CHECK_EQ(inputs[0]->dimension() % split_num_, 0);
+            for (auto &output : outputs) {
+                output->reshape(inputs[0]->batch(), split_dim_size_, inputs[0]->sequence(), inputs[0]->dimension() / (split_num_ * split_dim_size_));
+            }
+            break;
+        }
         default: {
             break;
         }

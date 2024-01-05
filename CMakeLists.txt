@@ -149,8 +149,8 @@ if(TEST)
         ${PROJECT_SOURCE_DIR}/test/main.cpp
         ${MLLM_TEST}
         ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
-            src/processor/ClipPreprocess.hpp
-            src/processor/ClipPreprocess.cpp
+            src/processor/ClipPreProcess.hpp
+            src/processor/ClipPreProcess.cpp
             src/processor/FuyuPreProcess.hpp
             src/processor/FuyuPreProcess.cpp
             src/processor/PreProcess.hpp
@@ -238,6 +238,8 @@ add_executable(main_imagebind ${PROJECT_SOURCE_DIR}/examples/main_imagebind.cpp 
         src/tokenizers/BPE/Bpe.hpp
         src/processor/PreProcess.hpp
         src/processor/PreProcess.cpp
+        src/processor/ClipPreProcess.cpp
+        src/processor/ClipPreProcess.hpp
 )
 target_link_libraries(main_imagebind MLLM_CPU)
 

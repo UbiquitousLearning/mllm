@@ -10,6 +10,14 @@ CPUCat::CPUCat(Backend *bn,  string opName,Chl axis,  bool multiThread) :
 
 ErrorCode CPUCat::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     //std::cout<<name() << "  CPUCat  reshape" << std::endl;
+    expd_batch_ = inputs[0]->batch();
+    for (int ii = 0; ii < inputs.size(); ++ii) {
+        auto input = inputs[ii];
+        if(input->batch()>expd_batch_) {
+            expd_batch_ = input->batch();
+            expd_batch_input_idx = ii;
+        }
+    }
     switch (axis_) {
     case BATCH: {
         int batch_size=0;
@@ -24,7 +32,7 @@ ErrorCode CPUCat::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         for (auto input : inputs) {
             head_size += input->head();
         }
-        outputs[0]->reshape(inputs[0]->batch(), head_size, inputs[0]->sequence(), inputs[0]->dimension());
+        outputs[0]->reshape(expd_batch_, head_size, inputs[0]->sequence(), inputs[0]->dimension());
         break;
     }
     case SEQUENCE: {
@@ -32,7 +40,7 @@ ErrorCode CPUCat::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         for (auto input : inputs) {
             seq_size += input->sequence();
         }
-        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), seq_size, inputs[0]->dimension());
+        outputs[0]->reshape(expd_batch_, inputs[0]->head(), seq_size, inputs[0]->dimension());
         break;
     }
     case DIMENSION: {
@@ -40,7 +48,7 @@ ErrorCode CPUCat::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         for (auto input : inputs) {
             dim_size += input->dimension();
         }
-        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), dim_size);
+        outputs[0]->reshape(expd_batch_, inputs[0]->head(), inputs[0]->sequence(), dim_size);
         break;
     }
     default:
@@ -57,7 +65,7 @@ ErrorCode CPUCat::load(AbstructLoader &loader) {
 ErrorCode CPUCat::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     //std::cout<<name() << "  CPUCat()" << std::endl;
     if(axis_ == DIMENSION) {
-        for (int n = 0; n < inputs[0]->batch(); ++n) {
+        for (int n = 0; n < expd_batch_; ++n) {
             for (int c = 0; c < inputs[0]->head(); ++c) {
                 for (int h = 0; h < inputs[0]->sequence(); ++h) {
                     // for (int w = 0; w < inputs[0]->dimension(); ++w) {
@@ -69,7 +77,11 @@ ErrorCode CPUCat::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
                         // for (; w < dim_size; ++w) {
                         //     outputs[0]->setDataAt<float>(n, c, h, w, inputs[idx]->dataAt<float>(n, c, h, w));
                         // }
-                        memcpy(outputs[0]->ptrAt<float>(n, c, h, w), inputs[idx]->ptrAt<float>(n, c, h, 0), sizeof(float) * (dim_size));
+                        auto n_ = n;
+                        if(idx != expd_batch_input_idx) {
+                            n_ = 0;
+                        }
+                        memcpy(outputs[0]->ptrAt<float>(n, c, h, w), inputs[idx]->ptrAt<float>(n_, c, h, 0), sizeof(float) * (dim_size));
                         w += dim_size;
                     }
                 }
@@ -77,7 +89,7 @@ ErrorCode CPUCat::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         }
     }
     else if (axis_ == SEQUENCE && inputs[0]->head() == 1 ) {
-        for (int n = 0; n < inputs[0]->batch(); ++n) {
+        for (int n = 0; n < expd_batch_; ++n) {
                 // for (int w = 0; w < inputs[0]->dimension(); ++w) {
                     // for (int h = 0; h < inputs[0]->sequence(); ++h) {
                     //     outputs[0]->setDataAt<float>(n, c, h, w, inputs[0]->dataAt<float>(n, c, h, w));
@@ -88,8 +100,12 @@ ErrorCode CPUCat::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
                         // for (; h < seq_size; ++h) {
                         //     outputs[0]->setDataAt<float>(n, c, h, w, inputs[idx]->dataAt<float>(n, c, h, w));
                         // }
+                        auto n_ = n;
+                        if(idx != expd_batch_input_idx) {
+                            n_ = 0;
+                        }
                         memcpy(outputs[0]->ptrAt<float>(n, 0, h, 0),
-                            inputs[idx]->ptrAt<float>(n, 0, 0, 0),
+                            inputs[idx]->ptrAt<float>(n_, 0, 0, 0),
                             sizeof(float) * (inputs[idx]->sequence() * inputs[idx]->dimension()));
                         h += inputs[idx]->sequence();
                     }

@@ -573,6 +573,9 @@ public:
 
     template <typename Dtype>
     void checkData() {
+        if(ctype() == BTHWC || ctype() == BCTHW || dtype() !=MLLM_TYPE_F32) {
+            return;
+        }
         // n c h w
         int N = batch();
         int C = head();
@@ -947,6 +950,20 @@ private:
             tensor_id = d_m / dim_size;
             d = d_m % dim_size;
             h = h_;
+            break;
+        }
+        case HD: {
+            // d: 0-3840
+            auto orin_d = d;
+            int dim_size = aggregated_tensors_[0]->dimension(); //80
+            int head_size = aggregated_tensors_[0]->head(); //16
+            int aggregated_size = aggregated_tensors_.size();
+            tensor_id = orin_d/(dim_size *head_size);
+            h = (orin_d - tensor_id*(dim_size*head_size)) / dim_size ; //  d/(80*3)
+            d = (orin_d - tensor_id*(dim_size*head_size)) % dim_size ;
+            // if(tensor_id >0) {
+            //     std::cout<<tensor_id<<" "<<orin_d<<" "<<(orin_d - tensor_id*(dim_size*head_size))<<" "<<h<<" "<<d<<" "<<head_size<<" "<<dim_size<<std::endl;
+            // }
             break;
         }
         default:

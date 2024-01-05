@@ -7,13 +7,14 @@
 #include "NetParameter.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
-#ifndef  STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_STATIC
-#define STB_IMAGE_IMPLEMENTATION
-#endif
-#include "imageHelper/stb_image.h"
+// #ifndef  STB_IMAGE_IMPLEMENTATION
+// #define STB_IMAGE_STATIC
+// #define STB_IMAGE_IMPLEMENTATION
+// #endif
+// #include "imageHelper/stb_image.h"
 // #include "imageHelper/stb_image_resize2.h"
-#include "processor/PreProcess.hpp"
+#include "processor/ClipPreProcess.hpp"
+// #include "processor/PreProcess.hpp"
 #include <cmath>
 #include <vector>
 #include <numeric>
@@ -37,19 +38,42 @@ void tokens2Tensor(Net *net, vector<vector<token_id_t>> tokens, shared_ptr<Tenso
 
 void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<float*> imgs, int height, int width, int channel) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
-    input_tensor->reshape(imgs.size(), channel, 1, height, width);
+    input_tensor->reshape(imgs.size(), channel, 2, height, width);
     input_tensor->setDtype(MLLM_TYPE_F32);
     input_tensor->alloc();
     for (int bi = 0; bi < imgs.size(); ++bi) {
-    for (int h = 0; h < height; ++h) {
-        for (int c = 0; c < channel; ++c) {
-            for (int w = 0; w < width; ++w) {
-                input_tensor->setDataAt<float>(bi,c, 0,h,  w, imgs[bi][(h * width + w) * channel + c]);
+        for (int t = 0; t < 2; ++t) {
+            for (int h = 0; h < height; ++h) {
+                for (int c = 0; c < channel; ++c) {
+                    for (int w = 0; w < width; ++w) {
+                        input_tensor->setDataAt<float>(bi, c, t, h, w, imgs[bi][(h * width + w) * channel + c]);
+                    }
+                }
             }
         }
     }
-    }
     // input_tensor->save5Data<float>();
+}
+void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vector<vector<float>>>> imgs) {
+    int channel = imgs[0].size();
+    int height = imgs[0][0].size();
+    int width= imgs[0][0][0].size();
+    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+    input_tensor->reshape(imgs.size(), channel, 2, height, width);
+    input_tensor->setDtype(MLLM_TYPE_F32);
+    input_tensor->alloc();
+    for (int bi = 0; bi < imgs.size(); ++bi) {
+        for (int t = 0; t < 2; ++t) {
+            for (int h = 0; h < height; ++h) {
+                for (int c = 0; c < channel; ++c) {
+                    for (int w = 0; w < width; ++w) {
+                        input_tensor->setDataAt<float>(bi, c, t, h, w, imgs[bi][c][h][w]);
+                    }
+                }
+            }
+        }
+    }
+    input_tensor->save5Data<float>();
 }
 vector<float> softmax(const vector<float>& scores) {
     vector<float> exps;
@@ -82,7 +106,7 @@ NetTensor *Attention(Context *ctx, NetTensor *x, int embedding_size, int hidden_
     // k = _View(ctx, {k}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".k_view");
     // v = _View(ctx, {v}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".v_view");
     x =_Linear(ctx, {x}, embedding_size, hidden_size * head_size * 3, true, name + ".in_proj");
-    auto skv = _Split(ctx, {x}, 3, Chl::D_HD, head_size, name + ".split");
+    auto skv = _Split(ctx, {x}, 3, Chl::HD, head_size, name + ".split");
     auto *q = skv[0];
     auto *k = skv[1];
     auto *v = skv[2];
@@ -99,7 +123,7 @@ NetTensor *Attention(Context *ctx, NetTensor *x, int embedding_size, int hidden_
 }
 NetTensor *MLP(Context *ctx, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, true, name + ".fc1");
-    x = _QuickGELU(ctx, {x}, name + ".act_fn");
+    x = _GELU(ctx, {x}, name + ".act_fn");
     x = _Linear(ctx, {x}, ffn_hidden_dim, hidden_dim, true, name + ".fc2");
     return x;
 }
@@ -128,8 +152,9 @@ NetTensor *VisonModel(Context* c, NetTensor * i,  int hidden_dim= 1280, int ffn_
         _SubgraphBegin(c);
     }
     i = _LayerNorm(c, {i}, hidden_dim, true,  1e-6, "modality_heads."+ name + ".0");
-    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, name + ".post_subdim");
+    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, "modality_heads."+name + ".post_subdim");
     i = _Linear(c, {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".2");
+    i = _Division(c, {i, _Norm(c, {i}, 2, "modality_postprocessors."+name +".l2norm")}, "modality_postprocessors."+name +".division");
     return i;
 }
 
@@ -158,8 +183,9 @@ NetTensor *TextModel(Context *c, NetTensor * i,  int vocab_size = 49408, int hid
     }
     // end loop
     i = _LayerNorm(c, {i}, hidden_dim,true, 1e-6,"modality_heads."+ name + ".0");
-    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, name + ".final_subdim");//Todo
+    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, "modality_heads."+ name + ".post_subdim");//Todo
     i = _Linear(c, {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".1");
+    i = _Division(c, {i, _Norm(c, {i}, 2, "modality_postprocessors."+name +".l2norm")}, "modality_postprocessors."+name +".division");
     return i;
 }
 
@@ -168,17 +194,13 @@ void CLIP(Context* c) {
     // i = TextModel(c, i);
     auto *p = _Input(c, {}, "input_imgs");
     p = VisonModel(c, p);
-//    i = _Linear(c, {i}, 512, 512, false, "text_projection");
-//    i = _Division(c, {i, _Norm(c, {i}, 2, "text_norm")}, "text_division");
-//    p = _Linear(c, {p}, 768, 512, false, "visual_projection");
-//    p = _Division(c, {p, _Norm(c, {p}, 2, "visual_norm")}, "visual_division");
     // auto *o = _Matmul(c, {i, p}, false, true, "matmul");
     // o = _Scale(c, {o}, 100.0, 0.0F, false, "scale");
 }
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab.mllm");
-    cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/imagebind_huge-q4_k.mllm");
+    cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/imagebind_huge-fp32.mllm");
     // cmdParser.add<string>("input", 'i', "specify input string", false, " Structured pruning and unstructured pruning represent two distinct categories within the realm of parameter pruning for LLMs. Structured pruning involves the removal of entire structured components, such as neurons, channels, or layers, based on predefined criteria. This method aims to simplify the model architecture by discarding specific structural elements that contribute less to overall performance. On the other hand, unstructured pruning targets individual weights within the model, irrespective of their structural context. This approach aims to enhance the model's sparsity by selectively eliminating less influential parameters, thereby reducing the model's footprint.The significance of parameter pruning lies in its ability to strike a balance between model size and performance. By judiciously removing redundant weights, LLMs can achieve substantial compression without compromising their capabilities. This becomes particularly relevant in scenarios where computational resources, memory constraints, or deployment on edge devices necessitate a more streamlined and resource-efficient model.");
     // cmdParser.add<string>("input", 'i', "specify input string", false, " Hello, who are you?");// I think the meaning of life is
     cmdParser.parse_check(argc, argv);
@@ -187,7 +209,8 @@ int main(int argc, char **argv) {
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
 
-    auto tokenizer = BPETokenizer(vocab_path);
+    // auto tokenizer = BPETokenizer(vocab_path);
+    auto tokenizer = new BPETokenizer(vocab_path);
 
     // int vocab_size = 32000;
     // int hidden_dim = 4096;
@@ -214,7 +237,7 @@ int main(int argc, char **argv) {
             in_str = ' ' + in_str;
         }
         auto tokens_id = vector<token_id_t>();
-        tokenizer.tokenize(in_str, tokens_id, true);
+        tokenizer->tokenize(in_str, tokens_id, true);
         tokens_ids.push_back(tokens_id);
     }
     //TODO Tokenizer
@@ -223,28 +246,33 @@ int main(int argc, char **argv) {
     tokens_ids[2] = {49406,   320,  3329, 49407};
     shared_ptr<Tensor> input_text = std::make_shared<Tensor>();
     tokens2Tensor(&net, tokens_ids, input_text);
-    // ex.run(&net, {input_text});
 
-    vector<string> img_names = {"dog_image_224.jpg"};//, "car_image_224.jpg", "bird_image_224.jpg"};
-    vector<float*> data_imgs;
+    vector<string> img_names = {"dog_image.jpg", "car_image.jpg", "bird_image.jpg"};
+    // vector<float*> data_imgs;
+    vector< vector< vector<vector<float>>>> data_imgs;
+    auto* clip = new ClipProcessor(tokenizer);
     for (auto img_name : img_names){
-    int width, height, channel;
-        unsigned char *data = stbi_load(img_name.c_str(), &width, &height, &channel, 0);
-        if (data == nullptr) {
-            std::cout << "load image failed" << std::endl;
-            return -1;
-        }
-        std::cout << "width: " << width << " height: " << height << " channel: " << channel << std::endl;
-        auto data_f32 = PreProcessor::RescaleImage(data,255.0,height*width*channel);
-        auto images =std::vector<ImageInfo>( {  ImageInfo(data_f32, width, height, channel)});
-        images = PreProcessor::ResizeImages(images, 224, 224,true); //TODO: processer PAD
-        images = PreProcessor::NormalizeImages(images, {0.48145466,0.4578275,0.40821073}, {0.26862954,0.26130258,0.27577711});
-        data_f32 = images[0].data;
-        data_imgs.push_back(data_f32);
-        stbi_image_free(data);
+        // int width, height, channel;
+        // unsigned char *data = stbi_load(img_name.c_str(), &width, &height, &channel, 0);
+        // if (data == nullptr) {
+        //     std::cout << "load image failed" << std::endl;
+        //     return -1;
+        // }
+        // std::cout << "width: " << width << " height: " << height << " channel: " << channel << std::endl;
+        // auto data_f32 = PreProcessor::RescaleImage(data,255.0,height*width*channel);
+        // auto images =std::vector<ImageInfo>( {  ImageInfo(data_f32, width, height, channel)});
+        // images = PreProcessor::ResizeImages(images, 224, 224,true);
+        // images = PreProcessor::NormalizeImages(images, {0.48145466,0.4578275,0.40821073}, {0.26862954,0.26130258,0.27577711});
+        // data_f32 = images[0].data;
+        // data_imgs.push_back(data_f32);
+        // stbi_image_free(data);
+        clip->PreProcessImages({img_name});
+        auto images = clip->pixel_values_[0];
+        data_imgs.push_back(images);
     }
     shared_ptr<Tensor> input_img = std::make_shared<Tensor>();
-    img2Tensor(input_img, net, data_imgs, 224, 224, 3);
+    // img2Tensor(input_img, net, data_imgs, 224, 224, 3);
+    img2Tensor(input_img, net, data_imgs);
     // ex.run(&net, {input_text, input_img});
     ex.run(&net, {input_img});
     auto result = ex.result();
