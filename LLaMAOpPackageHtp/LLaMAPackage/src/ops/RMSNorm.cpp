@@ -101,6 +101,43 @@ GraphStatus rmsnormImpl(TensorType& out_0,
    *
    * Please check in SDK documentation for more information.
    */
+   out_0.set_dims(in_0);
+    // NHWC
+
+    float epsilon_ = 1e-5;
+    auto [b_in, h_in, w_in, d_in] = in_0.dims();
+    for (Idx b = 0; b < b_in; b++) {
+      for (Idx h = 0; h < h_in; h++) {
+        for (Idx w = 0; w < w_in; w++) {
+          // RMS
+          float sum_squares = 0.0f;
+          for (Idx d = 0; d < d_in; d++) {
+            float inval       = in_0(b, h, w, d);
+            sum_squares += inval*inval;
+          }
+
+          // debuglog("silu execute... sum_squares=(%f)", sum_squares);
+
+          float rms = sqrtf(sum_squares / d_in + epsilon_);
+
+          for (Idx d = 0; d < d_in; d++) {
+            float inval       = in_0(b, h, w, d);
+            float weight      = weights(0, 0, 0, d);
+            
+            out_0(b, h, w, d) = inval * weight / rms;
+
+            // float out_value = out_0(b, h, w, d);
+            // debuglog("silu execute... inval=(%f)", inval);
+            // debuglog("silu execute... weight=(%f)", weight);
+            // debuglog("silu execute... out_value=(%f)", out_value);
+          }
+
+        }
+      }
+    }
+
+
+
   return GraphStatus::Success;
 }
 
