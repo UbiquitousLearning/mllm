@@ -4,6 +4,7 @@
 
 #ifndef FUYUPREPROCESS_HPP
 #define FUYUPREPROCESS_HPP
+#include <utility>
 #include <vector>
 
 
@@ -15,12 +16,12 @@ using std::vector;
 namespace mllm {
 typedef vector<vector<vector<vector<float>>>> FourDVector;
 
-struct FuyuBatchEncoding {
-    std::vector<int> input_ids;
-    std::vector<int> attention_mask;
-    std::vector<FourDVector> image_patches;
-    std::vector<int> image_patches_indices;
-};
+// struct FuyuBatchEncoding {
+//     std::vector<int> input_ids;
+//     std::vector<int> attention_mask;
+//     std::vector<FourDVector> image_patches;
+//     std::vector<int> image_patches_indices;
+// };
 
 class FuyuPreProcess:public PreProcessor{
     std::vector<ImageInfo> images_;
@@ -47,8 +48,9 @@ public:
     vector<vector<vector<float>>> image_patches_;
     vector<vector<token_id_t>> text_ids_;
 
-    explicit FuyuPreProcess(Tokenizer *tokenizer,size_t patch_height = 30, size_t patch_width = 30, size_t max_tokens_to_generate = 10) :
-        PreProcessor(tokenizer),max_tokens_to_generate(max_tokens_to_generate) {
+    explicit FuyuPreProcess(Tokenizer *tokenizer,size_t patch_height = 30, size_t patch_width = 30, size_t max_tokens_to_generate = 10,int height = 1080, int width = 1920, bool do_pad = true, bool do_resize = true, bool do_normalize = true, std::vector<float> mean = {0.5}, std::vector<float> std = {0.5}) :
+        PreProcessor(tokenizer, height, width, do_pad, do_resize, do_normalize, true,std::move(mean), std::move(std)
+            ),max_tokens_to_generate(max_tokens_to_generate) {
         auto tmp_token = vector<token_id_t>();
         tokenizer_->tokenize("|SPEAKER|", tmp_token, false);
         image_placeholder_id_ = tmp_token[0];
@@ -58,9 +60,9 @@ public:
         patch_size_ = std::make_pair(patch_height, patch_width);
     }
 
-    void PreProcessImages(const std::vector<uint8_t*> &images,const std::vector<size_t> &image_length, int height = 1080, int width = 1920, bool do_pad = true, bool do_resize = true, bool do_normalize = true, float mean = 0.5, float std = 0.5) override;
+    void PreProcessImages(const std::vector<uint8_t*> &images,const std::vector<size_t> &image_length) override;
+    void PreProcessImages(const std::vector<std::string> &images_path) override;
     void Process(const std::string& text) override;
-    void PreProcessImages(const std::vector<std::string> &images_path,int height = 1080,int width = 1920, bool do_pad = true, bool do_resize = true, bool do_normalize = true, float mean = 0.5, float std = 0.5) override;
     static std::vector<vector<float>> PatchImages(  ImageInfo &images, size_t patch_height, size_t patch_width) ;
 
 

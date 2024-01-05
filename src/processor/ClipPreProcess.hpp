@@ -1,0 +1,25 @@
+//
+// Created by 咸的鱼 on 2023/12/29.
+//
+
+#ifndef CLIPPREPROCESS_HPP
+#define CLIPPREPROCESS_HPP
+#include "PreProcess.hpp"
+namespace mllm {
+class ClipProcessor:public mllm::PreProcessor {
+public:
+    explicit ClipProcessor(mllm::Tokenizer *tokenizer, int height=224, int width=224, bool do_pad=false, bool do_resize=true, bool do_normalize=true , bool do_rescale=true , std::vector<float> mean ={0.48145466, 0.4578275, 0.40821073} , std::vector<float> std = {0.26862954, 0.26130258, 0.27577711}) :
+        PreProcessor(tokenizer, height, width, do_pad, do_resize, do_normalize, do_rescale, std::move(mean), std::move(std)) {
+    }
+    vector<vector<token_id_t>> input_ids_;
+    vector<vector<int>> attention_mask_;
+    //4-D vector
+    vector<vector<vector<vector<float>>>> pixel_values_;
+    void Process(const std::string &text) override;
+    void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) override;
+    void PreProcessImages(const std::vector<std::string> &images_path) override;
+
+
+};
+}
+#endif //CLIPPREPROCESS_HPP

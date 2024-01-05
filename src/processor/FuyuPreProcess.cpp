@@ -16,8 +16,8 @@
 #include "PreProcess.hpp"
 #include "imageHelper/stb_image_resize2.h"
 namespace mllm {
-void FuyuPreProcess::PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length, const int height, const int width, const bool do_pad, const bool do_resize, const bool do_normalize, const float mean, const float std) {
-    assert(height > 0 && width > 0);
+void FuyuPreProcess::PreProcessImages(const std::vector<uint8_t*> &images,const std::vector<size_t> &image_length) {
+    assert(height_ > 0 && width_ > 0);
 
     // if (do_resize) {
     //     // Not implemented yet
@@ -40,33 +40,32 @@ void FuyuPreProcess::PreProcessImages(const std::vector<uint8_t *> &images, cons
         images_.emplace_back(float_data, width_, height_, channels_);
     }
     auto image_patches = std::vector<FourDVector>();
-    if (do_resize) {
-        images_ = ResizeImages(images_, height, width);
+    if (do_resize_) {
+        images_ = ResizeImages(images_, height_, width_);
     }
 
     // TODO: PAD images
-    if (do_pad) {
+    if (do_pad_) {
 
-        images_ = PadImages(images_, height, width, patch_size_.second, patch_size_.first);
+        images_ = PadImages(images_, height_, width_, patch_size_.second, patch_size_.first);
     }
-    if (do_normalize) {
-        images_ = NormalizeImages(images_, mean, std);
+    if (do_normalize_) {
+        if (mean_.size()!=std_.size()||mean_.size()!=1&&mean_.size()!=3) {
+            std::cerr << "MEAN should be of same size of std and length should be (1 or 3) !" << std::endl;
+            exit(-1);
+        }
+        if (mean_.size()==1) {
+            mean_.resize(3,mean_[0]);
+        }
+        if (std_.size()==1) {
+            std_.resize(3,std_[0]);
+        }
+        images_ = NormalizeImages(images_, mean_, std_);
     }
 }
 
-void FuyuPreProcess::Process(const std::string &text) {
-    if (text.empty()) {
-        return;
-    }
-    if (images_.empty()) {
-        std::cout << "images is empty" << std::endl;
-    }
-    // auto batch_size = images_.size();
-    get_sample_encoding(text);
-}
-
-void FuyuPreProcess::PreProcessImages(const std::vector<std::string> &images_path, const int height, const int width, const bool do_pad, const bool do_resize, const bool do_normalize, const float mean, const float std) {
-    assert(height > 0 && width > 0);
+void FuyuPreProcess::PreProcessImages(const std::vector<std::string> &images_path) {
+    assert(height_ > 0 && width_ > 0);
     auto image_data = std::vector<uint8_t *>();
     auto image_length = std::vector<size_t>();
     for (const auto &i : images_path) {
@@ -84,9 +83,19 @@ void FuyuPreProcess::PreProcessImages(const std::vector<std::string> &images_pat
         image_data.emplace_back(data);
         image_length.emplace_back(size);
     }
-    PreProcessImages(image_data, image_length, height, width, do_pad, do_resize, do_normalize, mean, std);
+    PreProcessImages(image_data, image_length);
 }
 
+void FuyuPreProcess::Process(const std::string &text) {
+    if (text.empty()) {
+        return;
+    }
+    if (images_.empty()) {
+        std::cout << "images is empty" << std::endl;
+    }
+    // auto batch_size = images_.size();
+    get_sample_encoding(text);
+}
 
 void FuyuPreProcess::get_sample_encoding(const std::string &text) {
     image_input_ids_.resize(images_.size());
