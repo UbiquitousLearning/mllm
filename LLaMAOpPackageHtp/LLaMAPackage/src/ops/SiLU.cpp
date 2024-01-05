@@ -100,8 +100,12 @@ GraphStatus siluImpl(TensorType& out_0,
    * Please check in SDK documentation for more information.
    */
 
+   debuglog("silu execute... inval=(%d)", in_0.get_dtype()); 
+   debuglog("silu execute... inval=(%d)", out_0.get_dtype()); 
+   
     out_0.set_dims(in_0);
     // NHWC
+
     auto [b_in, h_in, w_in, d_in] = in_0.dims();
     for (Idx b = 0; b < b_in; b++) {
       for (Idx h = 0; h < h_in; h++) {
@@ -110,15 +114,31 @@ GraphStatus siluImpl(TensorType& out_0,
           for (Idx d = 0; d < d_in; d++) {
             float inval       = in_0(b, h, w, d);
             float outval      = 1 / (1 + expf(-inval));
-            out_0(b, h, w, d) = inval * outval;
+
+
             debuglog("silu execute... inval=(%f)", inval);
             debuglog("silu execute... outval=(%f)", outval);
+
+            out_0(b, h, w, d) = inval * outval;
+            
           }
         }
       }
     }
 
 
+    for (Idx b = 0; b < b_in; b++) {
+      for (Idx h = 0; h < h_in; h++) {
+        for (Idx w = 0; w < w_in; w++) {
+          // SiLU
+          for (Idx d = 0; d < d_in; d++) {
+            float out_value = out_0(b, h, w, d);
+            debuglog("silu execute... outval=(%f)", out_value);
+            
+          }
+        }
+      }
+    }
     
 
 

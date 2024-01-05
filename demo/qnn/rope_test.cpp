@@ -65,12 +65,11 @@ int main() {
         return 1;
     }
 
-    __fp16* data = new __fp16[1*180*1*128];
+    float* data = new float[1*180*1*128];
 
     for (int i = 0; i < 1*180*1*128; ++i) {
         float ff;
-        if (!(file >> ff)) { // 逐个读取 float 数据到数组中
-            data[i] = (__fp16)ff;
+        if (!(file >> data[i] )) { // 逐个读取 float 数据到数组中
             std::cout << "读取文件失败" << std::endl;
             return 1;
         }
@@ -82,7 +81,7 @@ int main() {
                             {.v1 = {
                                  .id = 0,
                                  .name = "x",
-                                 .type = QNN_TENSOR_TYPE_STATIC,
+                                 .type = QNN_TENSOR_TYPE_APP_WRITE,
                                  .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                  .dataType = QNN_DATATYPE_FLOAT_16,
                                  .quantizeParams = {QNN_DEFINITION_UNDEFINED,
@@ -91,8 +90,8 @@ int main() {
                                  .rank = 4,
                                  .dimensions = dimensions,
                                  .memType = QNN_TENSORMEMTYPE_RAW,
-                                 {.clientBuf = {.data = data,
-                                                .dataSize = 1*180*1*128*2}}}}});
+                                 {.clientBuf = {.data = nullptr,
+                                                .dataSize = 0}}}}});
 
     int pos_max_ = 16384;
     int ishape = 128;
@@ -148,7 +147,7 @@ int main() {
 
 
 
-    __fp16 output_data[1*180*1*128];
+    __fp16* output_data = new __fp16[1*180*1*128];
     vector<Qnn_Tensor_t> outputs = {
         (Qnn_Tensor_t){
             .version = QNN_TENSOR_VERSION_1,
@@ -171,12 +170,43 @@ int main() {
     // graph compile
     std::cout << "graph compile" << std::endl;
     qbn->graphFinilize();
+
+    // build input and outputs
+    std::map<std::string, std::vector<uint8_t*>> inputBufferMap;
+    std::vector<uint8_t*> inputBuffers;
+    inputBuffers.push_back((uint8_t*)data);
+    inputBufferMap.insert(std::make_pair("graph", inputBuffers));
+
+    std::map<std::string, std::vector<uint8_t*>> outputBufferMap;
+    std::vector<uint8_t*> outputBuffers;
+    outputBuffers.push_back((uint8_t*)output_data);
+    outputBufferMap.insert(std::make_pair("graph", outputBuffers));
+
     // graph run
     std::cout << "graph run" << std::endl;
-    qbn->graphExecute();
+    qbn->graphExecute(inputBufferMap, outputBufferMap);
 
-    // for(int i=0; i<8; i++) 
-    //     std::cout << output_data[i] << std::endl;
+    // for(int i=0; i<1*180*1*128; i++) 
+    //     std::cout << output_data[i] << " ";
+
+
+    float* label_data = new float[1*180*1*128];
+    for (int i = 0; i < 1*180*1*128; ++i) {
+        float ff;
+        if (!(file >> label_data[i] )) { // 逐个读取 float 数据到数组中
+            std::cout << "读取文件失败" << std::endl;
+            return 1;
+        }
+    }
+
+    for (int i = 0; i < 1*180*1*128; ++i) {
+        __fp16 a_ = output_data[i];
+        __fp16 b_ = label_data[i];
+        float eps = 0.000001;
+        if ( (abs(a_ - b_) / std::max(a_, b_)) > eps  ) {
+            std::cout << a_ << " " << b_ << std::endl;
+        }
+    }
 
     delete qbn;
 }

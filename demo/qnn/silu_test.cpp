@@ -51,7 +51,7 @@ int main() {
                                  {.clientBuf = {.data = nullptr,
                                                 .dataSize = 0}}}}});
 
-    float output_data[8];
+    __fp16 output_data[8];
     vector<Qnn_Tensor_t> outputs = {
         (Qnn_Tensor_t){
             .version = QNN_TENSOR_VERSION_1,
