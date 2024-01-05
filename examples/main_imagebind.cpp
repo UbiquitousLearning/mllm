@@ -20,22 +20,25 @@
 #include <numeric>
 
 using namespace mllm;
-void tokens2Tensor(Net *net, vector<vector<token_id_t>> tokens, shared_ptr<Tensor> input_tensor) {
-    // auto input_tensor = std::make_shared<Tensor>();
+void tokens2Tensor(Net *net, vector<vector<token_id_t>> tokens, shared_ptr<Tensor> input_tensor, shared_ptr<Tensor> input_text_lens) {
     input_tensor->setBackend(net->backends()[BackendType::MLLM_CPU].get());
     const auto bsize = static_cast<int>(tokens.size());
-    input_tensor->reshape(bsize, 1, static_cast<int>(tokens[0].size()), 1);
+    input_tensor->reshape(bsize, 1, 77, 1);
     input_tensor->alloc();
+
+    input_text_lens->setBackend(net->backends()[BackendType::MLLM_CPU].get());
+    input_text_lens->reshape(1, 1, 1, bsize);
+    input_text_lens->alloc();
+
     for (int b = 0; b < bsize; ++b){
+        input_text_lens->setDataAt<float>(0, 0, 0, b, tokens[b].size()-1);
         for (int idx = 0; idx < tokens[b].size(); ++idx) {
             input_tensor->setDataAt<float>(b, 0, idx, 0, tokens[b][idx]);
         }
     }
-
-    return;
 }
 
-
+/*
 void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<float*> imgs, int height, int width, int channel) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape(imgs.size(), channel, 2, height, width);
@@ -52,8 +55,8 @@ void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<float*> imgs, 
             }
         }
     }
-    // input_tensor->save5Data<float>();
 }
+*/
 void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vector<vector<float>>>> imgs) {
     int channel = imgs[0].size();
     int height = imgs[0][0].size();
@@ -73,8 +76,8 @@ void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vector<
             }
         }
     }
-    input_tensor->save5Data<float>();
 }
+/*
 vector<float> softmax(const vector<float>& scores) {
     vector<float> exps;
     float max_val = *max_element(scores.begin(), scores.end());
@@ -87,24 +90,9 @@ vector<float> softmax(const vector<float>& scores) {
     }
     return exps;
 }
-vector<float> postProcessing(shared_ptr<Tensor> result){
-    vector<float> scores;
-    for (int i = 0; i < result->batch(); ++i) {
-        auto value = result->dataAt<float>(i, 0, 0, 0);
-        scores.push_back(value);
-    }
-    auto token_idx =  softmax(scores);
-    return token_idx;
-}
+*/
 
 NetTensor *Attention(Context *ctx, NetTensor *x, int embedding_size, int hidden_size, int head_size, string name) {
-    // auto *q = _Linear(ctx, {x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
-    // auto *k = _Linear(ctx, {x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
-    // auto *v = _Linear(ctx, {x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
-    // // q= _Scale(ctx, {q}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".q_scale");
-    // q = _View(ctx, {q}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".q_view");
-    // k = _View(ctx, {k}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".k_view");
-    // v = _View(ctx, {v}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".v_view");
     x =_Linear(ctx, {x}, embedding_size, hidden_size * head_size * 3, true, name + ".in_proj");
     auto skv = _Split(ctx, {x}, 3, Chl::HD, head_size, name + ".split");
     auto *q = skv[0];
@@ -139,7 +127,6 @@ NetTensor *VisionEmbedding(Context *c, NetTensor * i, int hidden_size, string na
     return i;
 }
 NetTensor *VisonModel(Context* c, NetTensor * i,  int hidden_dim= 1280, int ffn_hidden_dim = 5120, int mutil_head_size = 16, string name = "vision"){
-    // auto *i = _Input(c, {}, "input_ids");
     i = VisionEmbedding(c, i, hidden_dim, "modality_preprocessors."+name);
     i = _LayerNorm(c, {i},  hidden_dim,  true,1e-6, "modality_trunks."+name + ".pre_transformer_layer.0");
     for(int layer=0; layer<32; ++layer) {
@@ -149,7 +136,6 @@ NetTensor *VisonModel(Context* c, NetTensor * i,  int hidden_dim= 1280, int ffn_
         x = _LayerNorm(c, {i}, hidden_dim, true, 1e-6, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".norm_2");
         x = MLP(c, x, hidden_dim, ffn_hidden_dim, "modality_trunks."+name + ".blocks."+std::to_string(layer)+ ".mlp");
         i = _Add(c, {x, i}, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".add_mlp");
-        _SubgraphBegin(c);
     }
     i = _LayerNorm(c, {i}, hidden_dim, true,  1e-6, "modality_heads."+ name + ".0");
     i = _SubDim(c, {i}, SEQUENCE, {0, 1}, "modality_heads."+name + ".post_subdim");
@@ -161,66 +147,55 @@ NetTensor *VisonModel(Context* c, NetTensor * i,  int hidden_dim= 1280, int ffn_
 
 NetTensor *TextEmbedding(Context *c, NetTensor * i,  int vocab_size, int hidden_dim, int max_position_embeddings, string name) {
     //input: 3 x  77
-    i = _Embedding(c, {i}, vocab_size, hidden_dim, name +".token_embedding"); // 3 x 77 x 1024
-    auto *s = _Parameter(c, {}, 1, max_position_embeddings, 1, hidden_dim, name +".pos_embed"); // 1 x 77 x 1024
-    // s = _SubDim(c, {s, i}, SEQUENCE, {0,0}, name +".position_ids.subdim");
-    // s = _Embedding(c, {s}, max_position_embeddings, hidden_dim, name +".position_embedding");
+    i = _Embedding(c, {i}, vocab_size, hidden_dim, name +".token_embedding");
+    auto *s = _Parameter(c, {}, 1, max_position_embeddings, 1, hidden_dim, name +".pos_embed");
     i = _Add(c, {s, i}, name+".add_embd");
     return i;
 }
-NetTensor *TextModel(Context *c, NetTensor * i,  int vocab_size = 49408, int hidden_dim = 1024, int ffn_hidden_dim = 4096, int mutil_head_size = 12, string name="text") {
-    // auto *i = _Input(c);
+NetTensor *TextModel(Context *c, NetTensor * i,  NetTensor * in_len, int vocab_size = 49408, int hidden_dim = 1024, int ffn_hidden_dim = 4096, int mutil_head_size = 16, string name="text") {
     i = TextEmbedding(c, i, vocab_size, hidden_dim, 77, "modality_preprocessors."+name);
-    // loop
     for (int layer = 0; layer < 24; ++layer) {
-        auto *x = _LayerNorm(c, {i}, hidden_dim, true, 1e-6, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".norm1");
-        x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name+".blocks." + std::to_string(layer) + ".attn");
+        auto *x = _LayerNorm(c, {i}, hidden_dim, true, 1e-6, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".norm_1");
+        x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".attn");
         i = _Add(c, {x, i}, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".add_attn");
-        x = _LayerNorm(c, {i}, hidden_dim, true, 1e-6, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".norm2");
+        x = _LayerNorm(c, {i}, hidden_dim, true, 1e-6, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".norm_2");
         x = MLP(c, x, hidden_dim, ffn_hidden_dim, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".mlp");
         i = _Add(c, {x, i}, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".add_mlp");
-        //_SubgraphBegin(c);
     }
-    // end loop
-    i = _LayerNorm(c, {i}, hidden_dim,true, 1e-6,"modality_heads."+ name + ".0");
-    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, "modality_heads."+ name + ".post_subdim");//Todo
-    i = _Linear(c, {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".1");
+    i = _SubDim(c, {i, in_len}, SEQUENCE, {0, 0}, "modality_heads."+ name + ".post_subdim");//Todo
+    i = _LayerNorm(c, {i}, hidden_dim,true, 1e-6,"modality_heads."+ name + ".proj.0");
+    i = _Linear(c, {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".proj.1");
     i = _Division(c, {i, _Norm(c, {i}, 2, "modality_postprocessors."+name +".l2norm")}, "modality_postprocessors."+name +".division");
+    i = _Scale(c, {i}, 100.0, 0.0F, false, "modality_postprocessors."+name +".logit_scale");
     return i;
 }
 
-void CLIP(Context* c) {
-    // auto *i = _Input(c, {}, "input_ids");
-    // i = TextModel(c, i);
+void ImageBind(Context* c) {
+    auto *i = _Input(c, {}, "input_ids");
+    auto *i_len = _Input(c, {}, "input_lens");
+    i = TextModel(c, i, i_len);
     auto *p = _Input(c, {}, "input_imgs");
     p = VisonModel(c, p);
-    // auto *o = _Matmul(c, {i, p}, false, true, "matmul");
-    // o = _Scale(c, {o}, 100.0, 0.0F, false, "scale");
+    i = _View(c, {i}, {-1, -1, -1, -1}, {SEQUENCE, HEAD, BATCH, DIMENSION}, "final.text_view");
+    p = _View(c, {p}, {-1, -1, -1, -1}, {SEQUENCE, HEAD, BATCH, DIMENSION}, "final.vision_view");
+    i = _Matmul(c, {p, i}, false, true, "final.vision@text");
+    i = _Softmax(c, {i}, DIMENSION, "final.softmax");
 }
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab.mllm");
-    cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/imagebind_huge-fp32.mllm");
-    // cmdParser.add<string>("input", 'i', "specify input string", false, " Structured pruning and unstructured pruning represent two distinct categories within the realm of parameter pruning for LLMs. Structured pruning involves the removal of entire structured components, such as neurons, channels, or layers, based on predefined criteria. This method aims to simplify the model architecture by discarding specific structural elements that contribute less to overall performance. On the other hand, unstructured pruning targets individual weights within the model, irrespective of their structural context. This approach aims to enhance the model's sparsity by selectively eliminating less influential parameters, thereby reducing the model's footprint.The significance of parameter pruning lies in its ability to strike a balance between model size and performance. By judiciously removing redundant weights, LLMs can achieve substantial compression without compromising their capabilities. This becomes particularly relevant in scenarios where computational resources, memory constraints, or deployment on edge devices necessitate a more streamlined and resource-efficient model.");
-    // cmdParser.add<string>("input", 'i', "specify input string", false, " Hello, who are you?");// I think the meaning of life is
+    cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/imagebind_huge-q4_k.mllm");
     cmdParser.parse_check(argc, argv);
 
-    // string in_str = cmdParser.get<string>("input");
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
 
     // auto tokenizer = BPETokenizer(vocab_path);
     auto tokenizer = new BPETokenizer(vocab_path);
 
-    // int vocab_size = 32000;
-    // int hidden_dim = 4096;
-    // int ffn_hidden_dim = 11008;
-    // int mutil_head_size = 32;
-
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
-    // transformer(c);
-    CLIP(c);
+    ImageBind(c);
 
     BackendConfig bn;
     Net net(bn);
@@ -245,44 +220,21 @@ int main(int argc, char **argv) {
     tokens_ids[1] = {49406,   320,  1615, 49407};
     tokens_ids[2] = {49406,   320,  3329, 49407};
     shared_ptr<Tensor> input_text = std::make_shared<Tensor>();
-    tokens2Tensor(&net, tokens_ids, input_text);
+    shared_ptr<Tensor> input_text_lens = std::make_shared<Tensor>();
+    tokens2Tensor(&net, tokens_ids, input_text, input_text_lens);
 
     vector<string> img_names = {"dog_image.jpg", "car_image.jpg", "bird_image.jpg"};
     // vector<float*> data_imgs;
     vector< vector< vector<vector<float>>>> data_imgs;
     auto* clip = new ClipProcessor(tokenizer);
-    for (auto img_name : img_names){
-        // int width, height, channel;
-        // unsigned char *data = stbi_load(img_name.c_str(), &width, &height, &channel, 0);
-        // if (data == nullptr) {
-        //     std::cout << "load image failed" << std::endl;
-        //     return -1;
-        // }
-        // std::cout << "width: " << width << " height: " << height << " channel: " << channel << std::endl;
-        // auto data_f32 = PreProcessor::RescaleImage(data,255.0,height*width*channel);
-        // auto images =std::vector<ImageInfo>( {  ImageInfo(data_f32, width, height, channel)});
-        // images = PreProcessor::ResizeImages(images, 224, 224,true);
-        // images = PreProcessor::NormalizeImages(images, {0.48145466,0.4578275,0.40821073}, {0.26862954,0.26130258,0.27577711});
-        // data_f32 = images[0].data;
-        // data_imgs.push_back(data_f32);
-        // stbi_image_free(data);
-        clip->PreProcessImages({img_name});
-        auto images = clip->pixel_values_[0];
-        data_imgs.push_back(images);
-    }
+    clip->PreProcessImages(img_names);
+    data_imgs = clip->pixel_values_;
     shared_ptr<Tensor> input_img = std::make_shared<Tensor>();
-    // img2Tensor(input_img, net, data_imgs, 224, 224, 3);
     img2Tensor(input_img, net, data_imgs);
-    // ex.run(&net, {input_text, input_img});
-    ex.run(&net, {input_img});
+
+    ex.run(&net, {input_text, input_text_lens, input_img});
     auto result = ex.result();
-    // result[0]->printShape();
-    auto probs = postProcessing(result[0]);
-    for (auto prob : probs) {
-        std::cout << prob << "  ";
-    }
-    std::cout << std::endl;
-    // ex.perf();
+    result[0]->printData<float>();
 
     // free memory
     for (auto *op : c->net_ops) {

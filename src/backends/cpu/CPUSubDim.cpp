@@ -46,7 +46,11 @@ ErrorCode CPUSubDim::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     }
     case SEQUENCE:{
         if(inputs.size() == 2) {
-            outputs[0]->reshape(input->batch(), input->head(), inputs[1]->sequence(), input->dimension());
+            if(inputs[1]->dimension() == inputs[0]->batch() &&inputs[0]->batch()>1 && inputs[1]->head() == 1 && inputs[1]->sequence() == 1 && inputs[1]->batch() == 1) {
+                outputs[0]->reshape(input->batch(), input->head(), 1, input->dimension());
+            }else {
+                outputs[0]->reshape(input->batch(), input->head(), inputs[1]->sequence(), input->dimension());
+            }
         }else {
             assert(inputs.size() == 1);
             assert(end_d_ - start_d_ >= 1);
@@ -95,10 +99,18 @@ ErrorCode CPUSubDim::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     }
     case SEQUENCE:{
         if(inputs.size() == 2) {
-            for (int b = 0; b < input->batch(); ++b) {
-                memcpy(output->hostPtr<float>() + output->offset(b, 0, 0, 0),
-                       input->hostPtr<float>() + input->offset(b, 0, 0, 0),
-                       input->head() * inputs[1]->sequence() * input->dimension() * sizeof(float));
+            if(inputs[1]->dimension() == inputs[0]->batch() &&inputs[0]->batch()>1 && inputs[1]->head() == 1 && inputs[1]->sequence() == 1 && inputs[1]->batch() == 1) {
+                for (int b = 0; b < input->batch(); ++b) {
+                    memcpy(output->hostPtr<float>() + output->offset(b, 0, 0, 0),
+                           input->hostPtr<float>() + input->offset(b, 0, inputs[1]->dataAt<float>(0, 0, 0, b), 0),
+                           input->head() * 1 * input->dimension() * sizeof(float));
+                }
+            }else {
+                for (int b = 0; b < input->batch(); ++b) {
+                    memcpy(output->hostPtr<float>() + output->offset(b, 0, 0, 0),
+                           input->hostPtr<float>() + input->offset(b, 0, 0, 0),
+                           input->head() * inputs[1]->sequence() * input->dimension() * sizeof(float));
+                }
             }
         }else {
             for (int b = 0; b < input->batch(); ++b) {
