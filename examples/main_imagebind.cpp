@@ -170,6 +170,35 @@ NetTensor *TextModel(Context *c, NetTensor * i,  NetTensor * in_len, int vocab_s
     return i;
 }
 
+NetTensor *AudioEmbedding(Context *c, NetTensor * i, int hidden_size, string name) { //input: 9, 1, 128, 204
+    i = _Convolution2D(c,{i}, 1, 768, {16, 16}, {10, 10}, VALID, false, name +".rgbt_stem.proj"); // 9, 768, 12, 19
+    i = _Transpose(c, {i},name +".rgbt_stem.proj_transpose");
+    i = _View(c, {i}, {-1, -1, -1, -1}, {BATCH, -1, HEAD+SEQUENCE, DIMENSION},  name +".rgbt_stem.proj_view"); //9. 1. 228, 768
+    i = _LayerNorm(c, {i}, hidden_size, true, 1e-6, name +".norm_layer.proj_norm");
+    auto *s = _Parameter(c, {}, 1, 1, 1, 768, name +".cls_token");
+    i = _Cat(c, {s, i}, SEQUENCE, name +".cls_token.cat");
+    s = _Parameter(c, {}, 1, 229, 1, 768, name +".pos_embedding_helper.pos_embed");
+    i = _Add(c, {i, s}, name +".position_embeddings.add");
+    return i;
+}
+NetTensor *AudioModel(Context* c, NetTensor * i,  int hidden_dim= 768, int ffn_hidden_dim = 3072, int mutil_head_size = 12, string name = "audio"){
+    i = AudioEmbedding(c, i, hidden_dim, "modality_preprocessors."+name);
+    i = _LayerNorm(c, {i},  hidden_dim,  true,1e-6, "modality_trunks."+name + ".pre_transformer_layer.0");
+    for(int layer=0; layer<32; ++layer) {
+        auto *x = _LayerNorm(c, {i},  hidden_dim,  true,1e-6, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".norm_1");
+        x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".attn");
+        i = _Add(c, {x, i}, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".add_attn");
+        x = _LayerNorm(c, {i}, hidden_dim, true, 1e-6, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".norm_2");
+        x = MLP(c, x, hidden_dim, ffn_hidden_dim, "modality_trunks."+name + ".blocks."+std::to_string(layer)+ ".mlp");
+        i = _Add(c, {x, i}, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".add_mlp");
+    }
+    i = _LayerNorm(c, {i}, hidden_dim, true,  1e-6, "modality_heads."+ name + ".0");
+    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, "modality_heads."+name + ".post_subdim");
+    i = _Linear(c, {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".2");
+    i = _Division(c, {i, _Norm(c, {i}, 2, "modality_postprocessors."+name +".l2norm")}, "modality_postprocessors."+name +".division");
+    return i;
+}
+
 void ImageBind(Context* c) {
     auto *i = _Input(c, {}, "input_ids");
     auto *i_len = _Input(c, {}, "input_lens");
