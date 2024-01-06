@@ -34,7 +34,7 @@ class BPETokenizer final : public Tokenizer {
 
 public:
     void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) override;
-    std::string bpe(const std::string &token);
+    vector<std::string> bpe(const std::string &token);
     void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, bool byte_fallback);
     void setMergeRank(const std::unordered_map<string,unsigned> &merge_rank);
     explicit BPETokenizer(const std::string &vocab_file);
