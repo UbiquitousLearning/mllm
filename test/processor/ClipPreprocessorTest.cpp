@@ -7,10 +7,10 @@
 #include "processor/ClipPreProcess.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 TEST_F(TokenizerTest, ClipPreProcess) {
-   auto tokenizer = new mllm::BPETokenizer("./vit_vocab.mllm");
+   auto tokenizer = new mllm::BPETokenizer("./clip_vocab.mllm");
     //read merges.txt and split it into merge_rank
     std::unordered_map<string,unsigned> merge_rank;
-    auto merge_file = std::ifstream("./merges.txt");
+    auto merge_file = std::ifstream("./clip_merges.txt");
     std::string line;
     unsigned rank=0;
     while (std::getline(merge_file, line)) {

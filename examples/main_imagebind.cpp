@@ -212,7 +212,7 @@ void ImageBind(Context* c) {
 }
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./clip_vocab.mllm");
     cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/imagebind_huge-q4_k.mllm");
     cmdParser.parse_check(argc, argv);
 
@@ -220,7 +220,6 @@ int main(int argc, char **argv) {
     string model_path = cmdParser.get<string>("model");
 
     // auto tokenizer = BPETokenizer(vocab_path);
-    auto tokenizer = new BPETokenizer(vocab_path);
 
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
@@ -234,14 +233,33 @@ int main(int argc, char **argv) {
     Executor ex(&param_loader);
     ex.setup(&net);
 
-    vector<string> in_strs = {" A dog", " A car", "A bird"};
+    auto tokenizer = new BPETokenizer(vocab_path);
+    std::unordered_map<string,unsigned> merge_rank;
+    auto merge_file = std::ifstream("./clip_merges.txt");
+    std::string line;
+    unsigned rank=0;
+    while (std::getline(merge_file, line)) {
+        if (line.empty()) {
+            continue;
+        }
+        if (line[0]=='#'){
+            continue;
+        }
+        merge_rank[line]=rank;
+        rank++;
+    }
+    tokenizer->setMergeRank(merge_rank);
+    tokenizer->setSpecialToken("<|startoftext|>","<|endoftext|>");
+
+    vector<string> in_strs = {"A dog", "A car", "A bird"};
     auto tokens_ids = vector<vector<token_id_t>>();
     for (auto in_str : in_strs) {
-        if (in_str[0] != ' ') {
-            in_str = ' ' + in_str;
-        }
         auto tokens_id = vector<token_id_t>();
         tokenizer->tokenize(in_str, tokens_id, true);
+//        for (auto t :tokens_id) {
+//            std::cout << t<<" ";
+//        }
+        std::cout<<std::endl;
         tokens_ids.push_back(tokens_id);
     }
     //TODO Tokenizer

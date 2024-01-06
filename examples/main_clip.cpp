@@ -168,7 +168,7 @@ void CLIP(Context* c) {
 }
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./clip_vocab.mllm");
     cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/clip-q4_k.mllm");
     // cmdParser.add<string>("input", 'i', "specify input string", false, " Structured pruning and unstructured pruning represent two distinct categories within the realm of parameter pruning for LLMs. Structured pruning involves the removal of entire structured components, such as neurons, channels, or layers, based on predefined criteria. This method aims to simplify the model architecture by discarding specific structural elements that contribute less to overall performance. On the other hand, unstructured pruning targets individual weights within the model, irrespective of their structural context. This approach aims to enhance the model's sparsity by selectively eliminating less influential parameters, thereby reducing the model's footprint.The significance of parameter pruning lies in its ability to strike a balance between model size and performance. By judiciously removing redundant weights, LLMs can achieve substantial compression without compromising their capabilities. This becomes particularly relevant in scenarios where computational resources, memory constraints, or deployment on edge devices necessitate a more streamlined and resource-efficient model.");
     // cmdParser.add<string>("input", 'i', "specify input string", false, " Hello, who are you?");// I think the meaning of life is
@@ -179,7 +179,6 @@ int main(int argc, char **argv) {
     string model_path = cmdParser.get<string>("model");
 
     // auto tokenizer = BPETokenizer(vocab_path);
-    auto tokenizer = new BPETokenizer(vocab_path);
 
     // int vocab_size = 32000;
     // int hidden_dim = 4096;
@@ -198,41 +197,40 @@ int main(int argc, char **argv) {
     ParamLoader param_loader(model_path);
     Executor ex(&param_loader);
     ex.setup(&net);
-    shared_ptr<Tensor> input_text = std::make_shared<Tensor>();
-    vector<string> in_strs = {" a photo of a cat", " a photo of a dog"};
+
+    auto tokenizer = new BPETokenizer(vocab_path);
+    std::unordered_map<string,unsigned> merge_rank;
+    auto merge_file = std::ifstream("./clip_merges.txt");
+    std::string line;
+    unsigned rank=0;
+    while (std::getline(merge_file, line)) {
+        if (line.empty()) {
+            continue;
+        }
+        if (line[0]=='#'){
+            continue;
+        }
+        merge_rank[line]=rank;
+        rank++;
+    }
+    tokenizer->setMergeRank(merge_rank);
+    tokenizer->setSpecialToken("<|startoftext|>","<|endoftext|>");
+
+    vector<string> in_strs = {"a photo of a cat", "a photo of a dog"};
     auto tokens_ids = vector<vector<token_id_t>>();
     for (auto in_str : in_strs) {
-        if (in_str[0] != ' ') {
-            in_str = ' ' + in_str;
-        }
-        auto tokens_id = vector<token_id_t>();
+        vector<mllm::token_id_t> tokens_id={};
         tokenizer->tokenize(in_str, tokens_id, true);
         tokens_ids.push_back(tokens_id);
     }
-    //TODO Tokenizer
-    tokens_ids[0] = {49406,   320,  1125,   539,   320,  2368, 49407};
-    tokens_ids[1] = {49406,   320,  1125,   539,   320,  1929, 49407};
+    shared_ptr<Tensor> input_text = std::make_shared<Tensor>();
     BPETokenizer::tokens2Tensor(&net, tokens_ids, input_text);
-    // ex.run(&net, {input_text});
 
     shared_ptr<Tensor> input_img = std::make_shared<Tensor>();
-    // int width, height, channel;
-    // unsigned char *data = stbi_load("catty.jpg", &width, &height, &channel, 0);
-    // if (data == nullptr) {
-    //     std::cout << "load image failed" << std::endl;
-    //     return -1;
-    // }
-    // std::cout << "width: " << width << " height: " << height << " channel: " << channel << std::endl;
-    // auto data_f32 = PreProcessor::RescaleImage(data,255.0,height*width*channel);
-    // auto images =std::vector<ImageInfo>( {  ImageInfo(data_f32, width, height, channel)});
-    // images = PreProcessor::ResizeImages(images, 224, 224,true);
-    // images = PreProcessor::NormalizeImages(images, {0.48145466,0.4578275,0.40821073}, {0.26862954,0.26130258,0.27577711});
-    // data_f32 = images[0].data;
-    // stbi_image_free(data);
     auto* clip = new ClipProcessor(tokenizer);
     clip->PreProcessImages({"cat.jpg"});
     auto images = clip->pixel_values_[0];
-    std::cout << "size: " << images.size()<<" " <<images[0].size()  << " " << images[0][0].size() << std::endl;
+//    std::cout << "size: " << images.size()<<" " <<images[0].size()  << " " << images[0][0].size() << std::endl;
     // img2Tensor(input_img, net, data_f32, 224, 224, 3);
     img2Tensor(input_img, net, images);
     ex.run(&net, {input_text, input_img});

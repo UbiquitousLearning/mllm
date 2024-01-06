@@ -4,8 +4,8 @@
 
 #include "Bpe.hpp"
 
-#include "../../../../../Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/c++/v1/algorithm"
-#include "../../../../../Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/c++/v1/utility"
+//#include "../../../../../Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/c++/v1/algorithm"
+//#include "../../../../../Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/include/c++/v1/utility"
 
 static size_t utf8_len(char src) {
     const size_t lookup[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3, 4};
@@ -110,7 +110,7 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         tokens.emplace_back(mllm::BPETokenizer::TokenBos);
     }
     if (!merge_rank.empty()){
-        std::cout<<"merge_rank is not empty! Loading"<<std::endl;
+//        std::cout<<"merge_rank is not empty! Loading"<<std::endl;
         // split text with space
         vector<string> words = {};
         for (int i = 0; i < text.size(); ++i) {

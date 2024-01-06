@@ -6,7 +6,7 @@
 #include "backends/cpu/CPURoPE.hpp"
 TEST_F(CPUTest, CPURoPE1) {
     //    GTEST_SKIP();
-    SETUP_OP(CPURoPE, false, false);
+    SETUP_OP(CPURoPE, 2, false);
     TENSOR(input0);
     TENSOR(output);
     TENSOR(c_output);
