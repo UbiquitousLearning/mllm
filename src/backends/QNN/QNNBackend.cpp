@@ -92,7 +92,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     m_isContextCreated = false;
 
     // config path strings
-    // split(m_inputListPaths, inputListPaths, ',');
+    split(m_inputListPaths, inputListPaths, ',');
     split(m_opPackagePaths, opPackagePaths, ',');
     if (m_outputPath.empty()) {
         m_outputPath = s_defaultOutputPath;
