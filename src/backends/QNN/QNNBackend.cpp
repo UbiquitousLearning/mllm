@@ -69,10 +69,10 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_DEBUG);
 
 #ifdef QNN_ZH
-    std::string modelPath = "/qnn-projects/QNN-test-libs/example_libs/x86_64-linux-clang/libqnn_model_float.so";
+    // std::string modelPath = "/qnn-projects/QNN-test-libs/example_libs/x86_64-linux-clang/libqnn_model_float.so";
     // std::string backEndPath = "/qnn-projects/QNN-test-libs/libQnnCpu.so";
     std::string backEndPath = "/qnn-projects/QNN-test-libs/libQnnHtp.so";
-    // std::string inputListPaths = "/qnn-projects/mllm/bin/input-list.txt";
+    std::string inputListPaths = "/qnn-projects/mllm/bin/input-list.txt";
     // std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnCpuOpPackageExample.so:QnnOpPackage_interfaceProvider";
     std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnHtpOpPackageExample.so:exampleInterfaceProvider,/qnn-projects/QNN-test-libs/llama-op-package/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
 #else
@@ -106,16 +106,15 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     //   std::exit(EXIT_FAILURE);
     // }
 
-    QNN_INFO("Model: %s", modelPath.c_str());
     QNN_INFO("Backend: %s", backEndPath.c_str());
 
     // QnnFunctionPointers qnnFunctionPointers;
     // Load backend and model .so and validate all the required function symbols are resolved
     auto statusCode = dynamicloadutil::getQnnFunctionPointers(backEndPath,
-                                                              modelPath,
+                                                              "",
                                                               &m_qnnFunctionPointers,
                                                               &m_backendLibraryHandle,
-                                                              true,
+                                                              false,
                                                               &m_modelHandle);
 
     if (dynamicloadutil::StatusCode::SUCCESS != statusCode) {
@@ -125,7 +124,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
             EXIT_FAILURE);
       } else if (dynamicloadutil::StatusCode::FAIL_LOAD_MODEL == statusCode) {
         exitWithMessage(
-            "Error initializing QNN Function Pointers: could not load model: " + modelPath,
+            "Error initializing QNN Function Pointers: could not load model: ",
             EXIT_FAILURE);
       } else {
         exitWithMessage("Error initializing QNN Function Pointers", EXIT_FAILURE);
