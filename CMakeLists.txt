@@ -197,9 +197,12 @@ if(QNN)
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
     message(STATUS "git branch name: ${GIT_BRANCH_NAME}")
-    if(GIT_BRANCH_NAME MATCHES "develop-QNN-zh")
+    if(ARM)
+        add_definitions(-DQNN_ARM)
+        message(STATUS "QNN_ARM")  
+    elseif(GIT_BRANCH_NAME MATCHES "develop-QNN-zh")
         add_definitions(-DQNN_ZH)
-        message(STATUS "QNN_ZH")   
+        message(STATUS "QNN_ZH") 
     endif()
     
     
@@ -212,8 +215,11 @@ if(QNN)
     include_directories(${PROJECT_SOURCE_DIR}/src/backends/QNN)
 
     
-
-    set(CMAKE_CXX_FLAGS " -fPIC -Wall  -pg -pthread -march=x86-64 -O3 -g -Wno-write-strings -fvisibility=hidden ")
+    if(ARM)
+    set(CMAKE_CXX_FLAGS " -fPIC -Wall -pthread -march=armv8-a -O3 -g -Wno-write-strings -fvisibility=hidden -flto")
+    else()
+    set(CMAKE_CXX_FLAGS " -fPIC -Wall  -pg -pthread -march=x86-64 -O3 -g -Wno-write-strings -fvisibility=hidden -flto")
+    endif()
     set(CMAKE_LD_FLAGS "-shared -s -fPIC -pthread -fvisibility=hidden -flto")
 
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
