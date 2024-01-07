@@ -4,7 +4,7 @@
 
 #ifndef MLLM_GRAPH_H
 #define MLLM_GRAPH_H
-#include "NetParameter.hpp"
+#include "express/Express.hpp"
 #include "Tensor.hpp"
 #include "Op.hpp"
 #include "ParamLoader.hpp"

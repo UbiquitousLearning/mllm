@@ -77,12 +77,12 @@ void NetParameter::topologySort() {
     net_ops = *result;
 }
 // get active subgraph
-NetParameter *get_active_subgraph(Context *ctx) {
-    if (ctx->active_sub >= ctx->sub_param_.size()) {
-        ctx->sub_param_.emplace_back();
-    }
-    return &ctx->sub_param_[ctx->active_sub];
-}
+//NetParameter *get_active_subgraph(Context *ctx) {
+//    if (ctx->active_sub >= ctx->sub_param_.size()) {
+//        ctx->sub_param_.emplace_back();
+//    }
+//    return &ctx->sub_param_[ctx->active_sub];
+//}
 // NOLINTBEGIN (readability-identifier-naming)
 NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
     // Ref Count?

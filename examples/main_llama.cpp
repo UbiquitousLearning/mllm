@@ -4,7 +4,6 @@
 #include "cmdline.h"
 #include "Net.hpp"
 #include "Executor.hpp"
-#include "NetParameter.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 using namespace mllm;

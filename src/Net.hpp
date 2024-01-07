@@ -1,7 +1,6 @@
 #ifndef MLLM_NET_H
 #define MLLM_NET_H
 
-#include "NetParameter.hpp"
 #include "Op.hpp"
 #include "ParamLoader.hpp"
 #include "Graph.hpp"

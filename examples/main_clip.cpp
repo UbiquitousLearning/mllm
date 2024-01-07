@@ -4,7 +4,6 @@
 #include "cmdline.h"
 #include "Net.hpp"
 #include "Executor.hpp"
-#include "NetParameter.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 // #ifndef  STB_IMAGE_IMPLEMENTATION
@@ -133,7 +132,8 @@ NetTensor *transformer(Context *c, NetTensor * i,  int vocab_size = 49408, int h
     }
     // end loop
     i = _LayerNorm(c, {i}, hidden_dim,true, 1e-6, name + ".final_layer_norm");
-    i = _SubDim(c, {i}, SEQUENCE, {-1, 0}, name + ".final_subdim");
+//    i = _SubDim(c, {i}, SEQUENCE, {-1, 0}, name + ".final_subdim");
+    i = i->clip(c, {}, {}, {-1, 0}, {});
     return i;
 }
 NetTensor *vit(Context* c, NetTensor * i,  int hidden_dim= 768, int ffn_hidden_dim = 3072, int class_size=1000, int mutil_head_size = 12, string name = "vision_model"){
@@ -149,7 +149,8 @@ NetTensor *vit(Context* c, NetTensor * i,  int hidden_dim= 768, int ffn_hidden_d
         i = _Add(c, {x, i}, name + ".encoder.layers."+std::to_string(layer)+".add_mlp");
         _SubgraphBegin(c);
     }
-    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, name + ".post_subdim");
+//    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, name + ".post_subdim");
+    i = i->clip(c, {}, {}, {0, 1}, {});
     i = _LayerNorm(c, {i}, hidden_dim, true,  1e-6, name + ".post_layernorm");
     return i;
 }

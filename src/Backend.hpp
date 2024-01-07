@@ -2,7 +2,7 @@
 #define MLLM_BACKEND_H
 
 #include "MemoryManager.hpp"
-#include "NetParameter.hpp"
+#include "Types.hpp"
 #include <memory>
 using std::shared_ptr;
 

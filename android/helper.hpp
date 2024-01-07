@@ -11,7 +11,6 @@
 #include <valarray>
 #include "Net.hpp"
 #include "Executor.hpp"
-#include "NetParameter.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include "tokenizers/Tokenizer.hpp"

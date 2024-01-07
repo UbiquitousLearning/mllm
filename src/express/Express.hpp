@@ -8,13 +8,13 @@
 
 using namespace mllm;
 // 前置声明
-struct Context {
-    vector<NetParameter> sub_param_;
-    vector<NetOp *> net_ops;
-    std::set<NetTensor *> net_tensors;
-    int idx = 0;
-    int active_sub = 0;
-};
+//struct Context {
+//    vector<NetParameter> sub_param_;
+//    vector<NetOp *> net_ops;
+//    std::set<NetTensor *> net_tensors;
+//    int idx = 0;
+//    int active_sub = 0;
+//};
 // NOLINTBEGIN(readability-identifier-naming)
 void _SubgraphBegin(Context *ctx);
 NetTensor *_Input(Context *ctx, vector<int> dims={}, string name = "", DataType type = MLLM_TYPE_F32);

@@ -3,6 +3,20 @@
 #define MLLM_TYPES_H
 #include "OpDefined.hpp"
 #include <iostream>
+#include <algorithm>
+#include <iostream>
+#include <map>
+#include <set>
+#include <sstream>
+#include <string.h>
+#include <string>
+#include <vector>
+#include <cassert>
+using std::string;
+using std::vector;
+using std::map;
+
+typedef map<std::string, float> OpParam;
 
 typedef enum {
     MLLM_CPU,

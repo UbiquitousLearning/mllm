@@ -1,5 +1,4 @@
 #include "ParamLoader.hpp"
-#include "NetParameter.hpp"
 #include "Types.hpp"
 #include <cstdint>
 #include <cstdio>

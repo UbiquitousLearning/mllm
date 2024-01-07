@@ -4,7 +4,6 @@
 #include <csignal>
 #include "Net.hpp"
 #include "Executor.hpp"
-#include "NetParameter.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include "tokenizers/Unigram/Unigram.hpp"
@@ -197,7 +196,7 @@ int main() {
     BackendConfig bn;
     Net net(bn);
     net.convert(c->sub_param_);
-    ParamLoader param_loader("../models/fuyu-8b-q4_k-4632.mllm");
+    ParamLoader param_loader("../models/fuyu-8b-q4_k.mllm");
     Executor ex(&param_loader);
     ex.setup(&net);
 

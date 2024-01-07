@@ -4,7 +4,6 @@
 #include <csignal>
 #include "Net.hpp"
 #include "Executor.hpp"
-#include "NetParameter.hpp"
 #include "express/Express.hpp"
 #ifndef  STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC
@@ -1123,7 +1122,8 @@ void vit(Context* c, int hidden_dim= 768, int ffn_hidden_dim = 3072, int class_s
         i = _Add(c, {x, i}, name + ".encoder.layer."+std::to_string(layer)+".add_mlp");
         _SubgraphBegin(c);
     }
-    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, name + ".post_subdim");
+//    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, name + ".post_subdim");
+    i = i->clip(c, {}, {}, {0, 1}, {});
     i = _LayerNorm(c, {i}, hidden_dim, true,  1e-6, name + ".layernorm");
     i = _Linear(c, {i}, hidden_dim, class_size, false, "classifier");
 }
