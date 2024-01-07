@@ -47,6 +47,7 @@ public:
     virtual std::string detokenize(const std::vector<token_id_t> &tokens);
     void setSpecialToken(const std::string &bos="", const std::string &eos="", const std::string &unk="", const std::string &nl="");
    static  std::string replaceString(const std::string &str,  char old_char,  const std::string& new_char);
+static std::string unCapitalize(const std::string &str);
     bool getTokenId(const token_t &token, token_id_t &id);
     bool isAvailible() const {
         return !this->vocab_map_.empty();
