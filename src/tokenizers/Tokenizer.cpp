@@ -76,6 +76,18 @@ std::string Tokenizer::replaceString(const std::string &str, char old_char, cons
     return result;
 }
 
+std::string Tokenizer::unCapitalize(const std::string &str) {
+    std::string result;
+    for (auto &ch : str) {
+        if (ch >= 'A' && ch <= 'Z') {
+            result += ch + 32;
+        } else {
+            result += ch;
+        }
+    }
+    return result;
+}
+
 bool Tokenizer::getTokenId(const token_t &token, token_id_t &id) {
     auto token_id = this->vocab_map_.find(token);
     if (token_id != this->vocab_map_.end()) {
