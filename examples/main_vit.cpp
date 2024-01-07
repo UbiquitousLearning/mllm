@@ -1123,7 +1123,7 @@ void vit(Context* c, int hidden_dim= 768, int ffn_hidden_dim = 3072, int class_s
         _SubgraphBegin(c);
     }
 //    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, name + ".post_subdim");
-    i = i->clip(c, {}, {}, {0, 1}, {});
+    i = i->clip(c, {}, {}, {0}, {});
     i = _LayerNorm(c, {i}, hidden_dim, true,  1e-6, name + ".layernorm");
     i = _Linear(c, {i}, hidden_dim, class_size, false, "classifier");
 }

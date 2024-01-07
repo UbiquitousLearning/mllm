@@ -89,24 +89,47 @@ typedef struct TNetTensor {
         net_op_->param["type"] = SUBDIM;
         ctx->net_ops.push_back(net_op_);
         //PARAM
-        assert((b.size()+h.size()+s.size()+d.size()==2) &&(b.size()*b.size()+h.size()*h.size()+s.size()*s.size()+d.size()*d.size()==4));
-        if(b.size()==2){
-            net_op_->param["dim"] = (float)BATCH;
-            net_op_->param["start_i"] = (float)b[0];
-            net_op_->param["end_i"] = (float)b[1];
-        } else if(h.size()==2){
-            net_op_->param["dim"] = (float)HEAD;
-            net_op_->param["start_i"] = (float)h[0];
-            net_op_->param["end_i"] = (float)h[1];
-        } else if(s.size()==2){
-            net_op_->param["dim"] = (float)SEQUENCE;
-            net_op_->param["start_i"] = (float)s[0];
-            net_op_->param["end_i"] = (float)s[1];
-        } else if(d.size()==2){
-            net_op_->param["dim"] = (float)DIMENSION;
-            net_op_->param["start_i"] = (float)d[0];
-            net_op_->param["end_i"] = (float)d[1];
-        } else {}
+        if((b.size()+h.size()+s.size()+d.size()==2) &&(b.size()*b.size()+h.size()*h.size()+s.size()*s.size()+d.size()*d.size()==4)) {
+            if (b.size() == 2) {
+                net_op_->param["dim"] = (float)BATCH;
+                net_op_->param["start_i"] = (float)b[0];
+                net_op_->param["end_i"] = (float)b[1];
+            } else if (h.size() == 2) {
+                net_op_->param["dim"] = (float)HEAD;
+                net_op_->param["start_i"] = (float)h[0];
+                net_op_->param["end_i"] = (float)h[1];
+            } else if (s.size() == 2) {
+                net_op_->param["dim"] = (float)SEQUENCE;
+                net_op_->param["start_i"] = (float)s[0];
+                net_op_->param["end_i"] = (float)s[1];
+            } else if (d.size() == 2) {
+                net_op_->param["dim"] = (float)DIMENSION;
+                net_op_->param["start_i"] = (float)d[0];
+                net_op_->param["end_i"] = (float)d[1];
+            } else {
+            }
+        }else if((b.size()+h.size()+s.size()+d.size()==1) &&(b.size()*b.size()+h.size()*h.size()+s.size()*s.size()+d.size()*d.size()==1)){
+            if (b.size() == 1) {
+                net_op_->param["dim"] = (float)BATCH;
+                net_op_->param["start_i"] = (float)b[0];
+                net_op_->param["end_i"] = (float)(b[0]+1);
+            } else if (h.size() == 1) {
+                net_op_->param["dim"] = (float)HEAD;
+                net_op_->param["start_i"] = (float)h[0];
+                net_op_->param["end_i"] = (float)(h[0]+1);
+            } else if (s.size() == 1) {
+                net_op_->param["dim"] = (float)SEQUENCE;
+                net_op_->param["start_i"] = (float)s[0];
+                net_op_->param["end_i"] = (float)(s[0]+1);
+            } else if (d.size() == 1) {
+                net_op_->param["dim"] = (float)DIMENSION;
+                net_op_->param["start_i"] = (float)d[0];
+                net_op_->param["end_i"] = (float)(d[0]+1);
+            } else {
+            }
+        }else{
+            std::cout<<"ERROR: "<<name<<" clip"<<std::endl;
+        }
         //net_op_->param["dim"] = (float)dim;
         //net_op_->param["start_i"] = (float)interval[0];
         //net_op_->param["end_i"] = (float)interval[1];

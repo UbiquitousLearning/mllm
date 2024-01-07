@@ -138,7 +138,7 @@ NetTensor *VisonModel(Context* c, NetTensor * i,  int hidden_dim= 1280, int ffn_
     }
     i = _LayerNorm(c, {i}, hidden_dim, true,  1e-6, "modality_heads."+ name + ".0");
 //    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, "modality_heads."+name + ".post_subdim");
-    i = i->clip(c, {}, {}, {0, 1}, {});
+    i = i->clip(c, {}, {}, {0}, {});
     i = _Linear(c, {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".2");
     i = _Division(c, {i, _Norm(c, {i}, 2, "modality_postprocessors."+name +".l2norm")}, "modality_postprocessors."+name +".division");
     return i;
@@ -194,7 +194,7 @@ NetTensor *AudioModel(Context* c, NetTensor * i,  int hidden_dim= 768, int ffn_h
     }
     i = _LayerNorm(c, {i}, hidden_dim, true,  1e-6, "modality_heads."+ name + ".0");
 //    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, "modality_heads."+name + ".post_subdim");
-    i = i->clip(c, {}, {}, {0, 1}, {});
+    i = i->clip(c, {}, {}, {0}, {});
     i = _Linear(c, {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".2");
     i = _Division(c, {i, _Norm(c, {i}, 2, "modality_postprocessors."+name +".l2norm")}, "modality_postprocessors."+name +".division");
     return i;
