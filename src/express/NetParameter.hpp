@@ -66,9 +66,10 @@ typedef struct TNetTensor {
     NetOp *in;
     vector<NetOp *> out;
     NetParameter *subgraph;
-//    Context *ctx;
+    Context *ctx;
 
-    NetTensor *clip(Context *ctx, vector<int> b, vector<int> h, vector<int> s, vector<int> d){  //NetTensor *clip(Context *ctx,  Chl dim, vector<int> interval){
+    NetTensor *clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d){
+        Context *ctx =this->ctx;
         NetTensor *out_tensor = new NetTensor();
         if (name.empty()) {
             name = this->name + "_clip_"+std::to_string(ctx->idx);
@@ -80,7 +81,6 @@ typedef struct TNetTensor {
         auto sub_param = get_active_subgraph(ctx);
         out_tensor->subgraph = sub_param;
         sub_param->net_tensors.push_back(out_tensor);
-//        _NEW_OP(mllm::SUBDIM)
         sub_param->net_ops.emplace_back(new NetOp());
         auto net_op_ = (sub_param->net_ops.back());
         net_op_->name = name;
@@ -130,10 +130,6 @@ typedef struct TNetTensor {
         }else{
             std::cout<<"ERROR: "<<name<<" clip"<<std::endl;
         }
-        //net_op_->param["dim"] = (float)dim;
-        //net_op_->param["start_i"] = (float)interval[0];
-        //net_op_->param["end_i"] = (float)interval[1];
-        //        _UPDATE_INPUT_TENSORS
         net_op_->in.push_back(this);
         this->out.push_back(net_op_);
         if (std::find(sub_param->net_tensors.begin(), sub_param->net_tensors.end(), this) == sub_param->net_tensors.end()) {
@@ -144,6 +140,7 @@ typedef struct TNetTensor {
         }
 
         out_tensor->in = net_op_;
+        out_tensor->ctx = ctx;
         return out_tensor;
     }
 } NetTensor;

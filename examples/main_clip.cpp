@@ -72,49 +72,49 @@ vector<float> postProcessing(shared_ptr<Tensor> result){
     return token_idx;
 }
 
-NetTensor *Attention(Context *ctx, NetTensor *x, int embedding_size, int hidden_size, int head_size, string name) {
-    auto *q = _Linear(ctx, {x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
-    auto *k = _Linear(ctx, {x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
-    auto *v = _Linear(ctx, {x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
-    // q= _Scale(ctx, {q}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".q_scale");
-    q = _View(ctx, {q}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".q_view");
-    k = _View(ctx, {k}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".k_view");
-    v = _View(ctx, {v}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".v_view");
-    auto *qk = _Matmul(ctx, {q, k}, false, true, name + ".qk");
-    qk = _Scale(ctx, {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
+NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head_size, string name) {
+    auto *q = _Linear( {x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
+    auto *k = _Linear( {x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
+    auto *v = _Linear( {x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
+    // q= _Scale( {q}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".q_scale");
+    q = _View( {q}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".q_view");
+    k = _View( {k}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".k_view");
+    v = _View( {v}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".v_view");
+    auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
+    qk = _Scale( {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
     if(name.find("text_model") != std::string::npos){
-        qk = _Causalmask(ctx, {qk}, name + ".mask");
+        qk = _Causalmask( {qk}, name + ".mask");
     }
-    qk = _Softmax(ctx, {qk}, DIMENSION, name + ".softmax");
-    auto *o = _Matmul(ctx, {qk, v}, false, false, name + ".qkv");
-    o = _View(ctx, {o}, {-1, -1, -1, -1}, {BATCH, -1, SEQUENCE, HEAD + DIMENSION}, name + ".qkv_view");
-    o = _Linear(ctx, {o}, hidden_size * head_size, embedding_size, true, name + ".out_proj");
+    qk = _Softmax( {qk}, DIMENSION, name + ".softmax");
+    auto *o = _Matmul( {qk, v}, false, false, name + ".qkv");
+    o = _View( {o}, {-1, -1, -1, -1}, {BATCH, -1, SEQUENCE, HEAD + DIMENSION}, name + ".qkv_view");
+    o = _Linear( {o}, hidden_size * head_size, embedding_size, true, name + ".out_proj");
     return o;
 }
-NetTensor *MLP(Context *ctx, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
-    auto *x = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, true, name + ".fc1");
-    x = _QuickGELU(ctx, {x}, name + ".act_fn");
-    x = _Linear(ctx, {x}, ffn_hidden_dim, hidden_dim, true, name + ".fc2");
+NetTensor *MLP(  NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
+    auto *x = _Linear( {i}, hidden_dim, ffn_hidden_dim, true, name + ".fc1");
+    x = _QuickGELU( {x}, name + ".act_fn");
+    x = _Linear( {x}, ffn_hidden_dim, hidden_dim, true, name + ".fc2");
     return x;
 }
 NetTensor *VisionEmbedding(Context *c, NetTensor * i, int hidden_size, string name) {
-    i = _Convolution2D(c,{i}, 3, 768, {32, 32}, {32, 32}, VALID, false, name +".patch_embedding");
-    i = _Transpose(c, {i}, name +".patch_embedding.projection_transpose");
-    i = _View(c, {i}, {-1, -1, -1, -1}, {BATCH, -1, HEAD+SEQUENCE, DIMENSION}, name +".patch_embedding.projection_view");
+    i = _Convolution2D({i}, 3, 768, {32, 32}, {32, 32}, VALID, false, name +".patch_embedding");
+    i = _Transpose( {i}, name +".patch_embedding.projection_transpose");
+    i = _View( {i}, {-1, -1, -1, -1}, {BATCH, -1, HEAD+SEQUENCE, DIMENSION}, name +".patch_embedding.projection_view");
     auto *s = _Parameter(c, {}, 1, 1, 1, 768, name +".class_embedding");
-    i = _Cat(c, {s, i}, SEQUENCE, name +".class_embedding.cat");
+    i = _Cat( {s, i}, SEQUENCE, name +".class_embedding.cat");
     s = _Parameter(c, {}, 1, 50, 1, 1, name +".position_ids");
-    s = _Embedding(c, {s}, 50, 768, name +".position_embedding");
-    i = _Add(c, {i, s}, name +".position_embeddings.add");
+    s = _Embedding( {s}, 50, 768, name +".position_embedding");
+    i = _Add( {i, s}, name +".position_embeddings.add");
     return i;
 }
 NetTensor *TextEmbedding(Context *c, NetTensor * i,  int vocab_size, int hidden_dim, int max_position_embeddings, string name) {
-    i = _Embedding(c, {i}, vocab_size, hidden_dim, name +".token_embedding");
+    i = _Embedding( {i}, vocab_size, hidden_dim, name +".token_embedding");
     auto *s = _Parameter(c, {}, 1, max_position_embeddings, 1, 1, name +".position_ids");
     //mark 77->7
-    s = _SubDim(c, {s, i}, SEQUENCE, {0,0}, name +".position_ids.subdim");
-    s = _Embedding(c, {s}, max_position_embeddings, hidden_dim, name +".position_embedding");
-    i = _Add(c, {s, i}, name+".add_embd");
+    s = _SubDim( {s, i}, SEQUENCE, {0,0}, name +".position_ids.subdim");
+    s = _Embedding( {s}, max_position_embeddings, hidden_dim, name +".position_embedding");
+    i = _Add( {s, i}, name+".add_embd");
     return i;
 }
 NetTensor *transformer(Context *c, NetTensor * i,  int vocab_size = 49408, int hidden_dim = 512, int ffn_hidden_dim = 2048, int mutil_head_size = 8, string name="text_model") {
@@ -122,36 +122,36 @@ NetTensor *transformer(Context *c, NetTensor * i,  int vocab_size = 49408, int h
     i = TextEmbedding(c, i, vocab_size, hidden_dim, 77, name+".embeddings");
     // loop
     for (int layer = 0; layer < 12; ++layer) {
-        auto *x = _LayerNorm(c, {i}, hidden_dim, true, 1e-6, name+".encoder.layers." + std::to_string(layer) + ".layer_norm1");
-        x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name+".encoder.layers." + std::to_string(layer) + ".self_attn");
-        i = _Add(c, {x, i}, name+".encoder.layers." + std::to_string(layer) + ".add_attn");
-        x = _LayerNorm(c, {i}, hidden_dim, true, 1e-6, name+".encoder.layers." + std::to_string(layer) + ".layer_norm2");
-        x = MLP(c, x, hidden_dim, ffn_hidden_dim, name+".encoder.layers." + std::to_string(layer) + ".mlp");
-        i = _Add(c, {x, i}, name+".encoder.layers." + std::to_string(layer) + ".add_mlp");
+        auto *x = _LayerNorm( {i}, hidden_dim, true, 1e-6, name+".encoder.layers." + std::to_string(layer) + ".layer_norm1");
+        x = Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name+".encoder.layers." + std::to_string(layer) + ".self_attn");
+        i = _Add( {x, i}, name+".encoder.layers." + std::to_string(layer) + ".add_attn");
+        x = _LayerNorm( {i}, hidden_dim, true, 1e-6, name+".encoder.layers." + std::to_string(layer) + ".layer_norm2");
+        x = MLP( x, hidden_dim, ffn_hidden_dim, name+".encoder.layers." + std::to_string(layer) + ".mlp");
+        i = _Add( {x, i}, name+".encoder.layers." + std::to_string(layer) + ".add_mlp");
         //_SubgraphBegin(c);
     }
     // end loop
-    i = _LayerNorm(c, {i}, hidden_dim,true, 1e-6, name + ".final_layer_norm");
-//    i = _SubDim(c, {i}, SEQUENCE, {-1, 0}, name + ".final_subdim");
-    i = i->clip(c, {}, {}, {-1}, {});
+    i = _LayerNorm( {i}, hidden_dim,true, 1e-6, name + ".final_layer_norm");
+//    i = _SubDim( {i}, SEQUENCE, {-1, 0}, name + ".final_subdim");
+    i = i->clip( {}, {}, {-1}, {});
     return i;
 }
 NetTensor *vit(Context* c, NetTensor * i,  int hidden_dim= 768, int ffn_hidden_dim = 3072, int class_size=1000, int mutil_head_size = 12, string name = "vision_model"){
     // auto *i = _Input(c, {}, "input_ids");
     i = VisionEmbedding(c, i, hidden_dim, name+".embeddings");
-    i = _LayerNorm(c, {i},  hidden_dim,  true,1e-6, name + ".pre_layrnorm");
+    i = _LayerNorm( {i},  hidden_dim,  true,1e-6, name + ".pre_layrnorm");
     for(int layer=0; layer<12; ++layer) {
-        auto *x = _LayerNorm(c, {i},  hidden_dim,  true,1e-6, name + ".encoder.layers."+std::to_string(layer)+".layer_norm1");
-        x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name + ".encoder.layers."+std::to_string(layer)+".self_attn");
-        i = _Add(c, {x, i}, name + ".encoder.layers."+std::to_string(layer)+".add_attn");
-        x = _LayerNorm(c, {i}, hidden_dim, true, 1e-6, name + ".encoder.layers."+std::to_string(layer)+".layer_norm2");
-        x = MLP(c, x, hidden_dim, ffn_hidden_dim, name + ".encoder.layers."+std::to_string(layer)+ ".mlp");
-        i = _Add(c, {x, i}, name + ".encoder.layers."+std::to_string(layer)+".add_mlp");
+        auto *x = _LayerNorm( {i},  hidden_dim,  true,1e-6, name + ".encoder.layers."+std::to_string(layer)+".layer_norm1");
+        x = Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name + ".encoder.layers."+std::to_string(layer)+".self_attn");
+        i = _Add( {x, i}, name + ".encoder.layers."+std::to_string(layer)+".add_attn");
+        x = _LayerNorm( {i}, hidden_dim, true, 1e-6, name + ".encoder.layers."+std::to_string(layer)+".layer_norm2");
+        x = MLP( x, hidden_dim, ffn_hidden_dim, name + ".encoder.layers."+std::to_string(layer)+ ".mlp");
+        i = _Add( {x, i}, name + ".encoder.layers."+std::to_string(layer)+".add_mlp");
         _SubgraphBegin(c);
     }
-//    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, name + ".post_subdim");
-    i = i->clip(c, {}, {}, {0}, {});
-    i = _LayerNorm(c, {i}, hidden_dim, true,  1e-6, name + ".post_layernorm");
+//    i = _SubDim({i}, SEQUENCE, {0, 1}, name + ".post_subdim");
+    i = i->clip( {}, {}, {0}, {});
+    i = _LayerNorm( {i}, hidden_dim, true,  1e-6, name + ".post_layernorm");
     return i;
 }
 
@@ -160,12 +160,12 @@ void CLIP(Context* c) {
     i = transformer(c, i);
     auto *p = _Input(c, {}, "input_imgs");
     p = vit(c, p);
-    i = _Linear(c, {i}, 512, 512, false, "text_projection");
-    i = _Division(c, {i, _Norm(c, {i}, 2, "text_norm")}, "text_division");
-    p = _Linear(c, {p}, 768, 512, false, "visual_projection");
-    p = _Division(c, {p, _Norm(c, {p}, 2, "visual_norm")}, "visual_division");
-    auto *o = _Matmul(c, {i, p}, false, true, "matmul");
-    o = _Scale(c, {o}, 100.0, 0.0F, false, "scale");
+    i = _Linear( {i}, 512, 512, false, "text_projection");
+    i = _Division( {i, _Norm( {i}, 2, "text_norm")}, "text_division");
+    p = _Linear( {p}, 768, 512, false, "visual_projection");
+    p = _Division( {p, _Norm( {p}, 2, "visual_norm")}, "visual_division");
+    auto *o = _Matmul( {i, p}, false, true, "matmul");
+    o = _Scale( {o}, 100.0, 0.0F, false, "scale");
 }
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
