@@ -341,7 +341,7 @@ NetTensor *_Mul(std::vector<NetTensor *> inputs, string name) {
 //     out_tensor->ctx = ctx;
 //     return out_tensor;
 // }
-NetTensor *_KVCache(std::vector<NetTensor *> inputs, bool isK, string name) {
+NetTensor *_KVCache(std::vector<NetTensor *> inputs,string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -353,7 +353,6 @@ NetTensor *_KVCache(std::vector<NetTensor *> inputs, bool isK, string name) {
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::KVCACHE)
-    net_op_->param["isK"] = isK;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
@@ -647,23 +646,23 @@ NetTensor *_Division(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_Norm(std::vector<NetTensor *> inputs, int L_n, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
-    if (name.empty()) {
-        name = "_Norm" + std::to_string(ctx->idx);
-    }
-    out_tensor->name = "outtensor-" + name + "-00";
-    out_tensor->type = inputs[0]->type;
-    ctx->idx++;
-    _STORE_OUT_TENSOR
-    _NEW_OP(mllm::NORM)
-    net_op_->param["L_n"] =(float)L_n;
-    _UPDATE_INPUT_TENSORS
-    out_tensor->in = net_op_;
-    out_tensor->ctx = ctx;
-    return out_tensor;
-}
+// NetTensor *_Norm(std::vector<NetTensor *> inputs, int L_n, string name) {
+//     Context *ctx = inputs[0]->ctx;
+//     NetTensor *out_tensor = new NetTensor();
+//     if (name.empty()) {
+//         name = "_Norm" + std::to_string(ctx->idx);
+//     }
+//     out_tensor->name = "outtensor-" + name + "-00";
+//     out_tensor->type = inputs[0]->type;
+//     ctx->idx++;
+//     _STORE_OUT_TENSOR
+//     _NEW_OP(mllm::NORM)
+//     net_op_->param["L_n"] =(float)L_n;
+//     _UPDATE_INPUT_TENSORS
+//     out_tensor->in = net_op_;
+//     out_tensor->ctx = ctx;
+//     return out_tensor;
+// }
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }

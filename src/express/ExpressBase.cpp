@@ -437,4 +437,41 @@ NetTensor *TNetTensor::transpose(Chl axis1, Chl axis2) {
     return out_tensor;
 }
 
+NetTensor *TNetTensor::norm(int L_n) {
+    Context *ctx =this->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = this->name + "_L"+std::to_string(L_n)+"Norm_"+std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = this->type;
+    ctx->idx++;
+    ctx->net_tensors.insert(out_tensor);
+    auto sub_param = get_active_subgraph(ctx);
+    out_tensor->subgraph = sub_param;
+    sub_param->net_tensors.push_back(out_tensor);
+    sub_param->net_ops.emplace_back(new NetOp());
+    auto net_op_ = (sub_param->net_ops.back());
+    net_op_->name = name;
+    net_op_->type = NORM;
+    net_op_->param = OpParam();
+    net_op_->param["type"] = NORM;
+    ctx->net_ops.push_back(net_op_);
+    // PARAM
+    net_op_->param["L_n"] =(float)L_n;
+    //
+    net_op_->in.push_back(this);
+    this->out.push_back(net_op_);
+    if (std::find(sub_param->net_tensors.begin(), sub_param->net_tensors.end(), this) == sub_param->net_tensors.end()) {
+        sub_param->net_tensors.push_back(this);
+        if (this->subgraph != nullptr) {
+            sub_param->net_inputs.insert(this);
+        }
+    }
+
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
 }

@@ -84,6 +84,7 @@ typedef struct TNetTensor {
     NetTensor *view(int b, int h, int s, int d);
     NetTensor *flatten(Chl axis_start, Chl axis_end);
     NetTensor *transpose(Chl axis1, Chl axis2);
+    NetTensor *norm(int L_n);
 } NetTensor;
 
 } // namespace mllm

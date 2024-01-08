@@ -124,14 +124,11 @@ NetTensor *MLP( NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
 }
 NetTensor *VisionEmbedding(Context *c, NetTensor * i, int hidden_size, string name) { //TODO
     i = _Convolution3D({i}, 3, 1280, {2, 14, 14}, {2, 14, 14}, VALID, false, name +".rgbt_stem.proj.1");
-    // i = _Transpose( {i}, name +".rgbt_stem.proj_transpose");
     i = i->transpose(SEQUENCE, DIMENSION);
-    // i = _View( {i}, {-1, -1, -1, -1}, {BATCH, -1,  TIME + HEIGHT + WIDTH, CHANNLE}, name +".rgbt_stem.proj_view");
     i = i->flatten(TIME, CHANNLE);
     auto *s = _Parameter(c, {}, 1, 1, 1, 1280, name +".cls_token");
     i = _Cat( {s, i}, SEQUENCE, name +".rgbt_cls.cat");
     s = _Parameter(c, {}, 1, 257, 1, 1280, name +".pos_embedding_helper.pos_embed");
-    // s = _Embedding(c, {s}, 257, 1280, name +".position_embedding");
     i = _Add({i, s}, name +".pos_embed.add");
     return i;
 }
@@ -149,13 +146,12 @@ NetTensor *VisonModel(Context* c, NetTensor * i,  int hidden_dim= 1280, int ffn_
     i = _LayerNorm( {i}, hidden_dim, true,  1e-6, "modality_heads."+ name + ".0");
     i = i->clip( {}, {}, {0}, {});
     i = _Linear( {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".2");
-    i = _Division( {i, _Norm( {i}, 2, "modality_postprocessors."+name +".l2norm")}, "modality_postprocessors."+name +".division");
+    i = _Division( {i, i->norm(2)}, "modality_postprocessors."+name +".division");
     return i;
 }
 
 
 NetTensor *TextEmbedding(Context *c, NetTensor * i,  int vocab_size, int hidden_dim, int max_position_embeddings, string name) {
-    //input: 3 x  77
     i = _Embedding( {i}, vocab_size, hidden_dim, name +".token_embedding");
     auto *s = _Parameter(c, {}, 1, max_position_embeddings, 1, hidden_dim, name +".pos_embed");
     i = _Add( {s, i}, name+".add_embd");
@@ -174,7 +170,7 @@ NetTensor *TextModel(Context *c, NetTensor * i,  NetTensor * in_len, int vocab_s
     i = i->_clip({}, {}, {in_len}, {});
     i = _LayerNorm( {i}, hidden_dim,true, 1e-6,"modality_heads."+ name + ".proj.0");
     i = _Linear( {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".proj.1");
-    i = _Division( {i, _Norm( {i}, 2, "modality_postprocessors."+name +".l2norm")}, "modality_postprocessors."+name +".division");
+    i = _Division( {i, i->norm(2)}, "modality_postprocessors."+name +".division");
     i = _Scale( {i}, 100.0, 0.0F, false, "modality_postprocessors."+name +".logit_scale");
     return i;
 }
@@ -204,7 +200,7 @@ NetTensor *AudioModel(Context* c, NetTensor * i,  int hidden_dim= 768, int ffn_h
     i = _LayerNorm( {i}, hidden_dim, true,  1e-6, "modality_heads."+ name + ".0");
     i = i->clip( {}, {}, {0}, {});
     i = _Linear( {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".2");
-    i = _Division( {i, _Norm( {i}, 2, "modality_postprocessors."+name +".l2norm")}, "modality_postprocessors."+name +".division");
+    i = _Division( {i, i->norm(2)}, "modality_postprocessors."+name +".division");
     return i;
 }
 

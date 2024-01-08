@@ -31,7 +31,7 @@ NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_fea
 NetTensor *_Embedding(std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name = "");
 NetTensor *_Mul(std::vector<NetTensor *> inputs, string name = "");
 // NetTensor *_View(std::vector<NetTensor *> inputs, vector<int> dims, vector<int>data_dims, string name = "");
-NetTensor *_KVCache(std::vector<NetTensor *> inputs, bool isK, string name = "");
+NetTensor *_KVCache(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_ReLU(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_ReLUSquaredActivation(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_GELU(std::vector<NetTensor *> inputs, string name = "");
@@ -47,7 +47,7 @@ NetTensor *_Cat(std::vector<NetTensor *> inputs, Chl axis, string name = "");
 // NetTensor *_Transpose(std::vector<NetTensor *> inputs, string name = "");
 // NetTensor *_SubDim(std::vector<NetTensor *> inputs, Chl dim, vector<int> interval = {0, 0}, string name = "");
 NetTensor *_Division(std::vector<NetTensor *> inputs, string name = "");
-NetTensor *_Norm(std::vector<NetTensor *> inputs, int L_n, string name = "");
+// NetTensor *_Norm(std::vector<NetTensor *> inputs, int L_n, string name = "");
 // NOLINTEND(readability-identifier-naming)
 
 #endif // MLLM_EXPRESS_H

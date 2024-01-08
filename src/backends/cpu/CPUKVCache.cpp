@@ -106,9 +106,8 @@ ErrorCode CPUKVCache::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 */
 
-CPUKVCache::CPUKVCache(Backend *bn, string opName, bool isK, bool multiThread) :
+CPUKVCache::CPUKVCache(Backend *bn, string opName, bool multiThread) :
     Op(bn, opName) {
-    isK_ = isK;
     cache_.setBackend(bn);
     cache_.setDtype(MLLM_TYPE_F16);
     cache_limit_ = 500;
