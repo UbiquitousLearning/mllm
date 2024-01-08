@@ -4,7 +4,7 @@
 #include "CPUTest.hpp"
 #include "backends/cpu/CPUSiLU.hpp"
 TEST_F(CPUTest, CPUSilu1) {
-    SETUP_OP(CPUSiLU, false);
+    SETUP_OP(CPUSiLU, 4);
     TENSOR(input0);
     TENSOR(output);
     TENSOR(c_output);

@@ -3,7 +3,7 @@
 
 namespace mllm {
 
-CPUSubDim::CPUSubDim(Backend *bn,  string opName,Chl dim, vector<int> interval, bool multiThread) :
+CPUSubDim::CPUSubDim(Backend *bn,  string opName,Chl dim, vector<int> interval, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     dim_ = dim;
     start_d_ = interval[0];

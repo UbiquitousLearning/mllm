@@ -48,7 +48,7 @@ void CPUBackend::initTable() {
 //     return map_creator_->find(optype)->second->Create(inputs, outputs, optype, this);
 //     // return nullptr;
 // }
-Op *CPUBackend::opCreate(const OpParam &op_param, string name) {
+Op *CPUBackend::opCreate(const OpParam &op_param, string name, int threadCount) {
     OpType optype = OpType(op_param.find("type")->second);
     auto iter = map_creator_.find(optype);
     if (iter == map_creator_.end()) {
@@ -56,7 +56,7 @@ Op *CPUBackend::opCreate(const OpParam &op_param, string name) {
         return nullptr;
     }
     Op *exe = nullptr;
-    exe = iter->second->create(op_param, this, name);
+    exe = iter->second->create(op_param, this, name, threadCount);
     return exe;
     // return nullptr;
 }

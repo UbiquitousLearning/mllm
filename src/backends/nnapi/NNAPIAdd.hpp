@@ -16,7 +16,7 @@ public:
 
 class NNAPIAddCreator : public NNAPIBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         return new NNAPIAdd(bn, name);
     }
 };

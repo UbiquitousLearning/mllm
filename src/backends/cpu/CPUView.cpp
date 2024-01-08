@@ -4,7 +4,7 @@
 
 namespace mllm {
 
-CPUView::CPUView(Backend *bn,  string opName,vector<int> dims, vector<int>data_dims, bool multiThread) :
+CPUView::CPUView(Backend *bn,  string opName,vector<int> dims, vector<int>data_dims, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     dim0_ = dims[0];
     dim1_ = dims[1];
@@ -91,7 +91,7 @@ ErrorCode CPUView::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         // } else
         {
             for (int n = 0; n < inputs[0]->batch(); ++n) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                 for (int h = 0; h < dim1_; ++h) {
                     for (int s = 0; s < inputs[0]->sequence(); ++s) {
                         float* src = inputs[0]->ptrAt<float>(n, 0, s, h * (inputs[0]->dimension() / dim1_));
@@ -111,7 +111,7 @@ ErrorCode CPUView::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
             int dimension = inputs[0]->dimension();
             for (int n = 0; n < batch_size; ++n) {
                 for (int s = 0; s < sequence; ++s) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                     for (int d = 0; d < dimension; ++d) {
                         for (int h = 0; h < head_num; ++h) {
                             float value = inputs[0]->dataAt<float>(n, h, s, d);

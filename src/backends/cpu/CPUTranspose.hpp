@@ -9,7 +9,7 @@ namespace mllm {
 
 class CPUTranspose final : public Op {
 public:
-    CPUTranspose(Backend *bn, string opName, bool multiThread);
+    CPUTranspose(Backend *bn, string opName, int threadCount);
     virtual ~CPUTranspose() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -18,13 +18,13 @@ public:
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
-    bool support_multi_thread_ = false;
+    int thread_count = 4;
 };
 
 class CPUTransposeCreator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new CPUTranspose(bn, name, false);
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
+        return new CPUTranspose(bn, name, threadCount);
     }
 };
 

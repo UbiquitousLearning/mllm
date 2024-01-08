@@ -21,7 +21,7 @@ namespace mllm {
 
 class Graph {
 public:
-    explicit Graph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+    explicit Graph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors, int threadCount);
     virtual ~Graph() = default;
 
     /**

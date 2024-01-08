@@ -9,7 +9,7 @@ namespace mllm {
 
 class CPUConvolution3D final : public Op {
 public:
-    CPUConvolution3D(Backend *bn, string opName, int in_channel, int out_channel,  vector<int> kernal_size, vector<int> stride, PaddingType padding_type, bool bias, bool multiThread);
+    CPUConvolution3D(Backend *bn, string opName, int in_channel, int out_channel,  vector<int> kernal_size, vector<int> stride, PaddingType padding_type, bool bias, int threadCount);
     virtual ~CPUConvolution3D() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -28,7 +28,7 @@ private:
     int kernel_size_[3];
     int out_channel_;
     int in_channel_;
-    bool support_multi_thread_ = false;
+    int thread_count = 4;
     int padding_t_;
     int padding_h_;
     int padding_w_;
@@ -40,14 +40,14 @@ private:
 
 class CPUConvolution3DCreator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         vector<int> kernal_size = {(int)op_param["kernal_t"],(int)op_param["kernal_h"],(int)op_param["kernal_w"]};
         vector<int> stride = {(int)op_param["stride_t"],(int)op_param["stride_h"],(int)op_param["stride_w"]};
         int in_channel = op_param["in_channel"];
         int out_channel = op_param["out_channel"];
         PaddingType padding_type = (PaddingType)op_param["padding"];
         bool bias = (bool)op_param["bias"];
-        return new CPUConvolution3D(bn, name, in_channel, out_channel, kernal_size, stride, padding_type, bias,  false);
+        return new CPUConvolution3D(bn, name, in_channel, out_channel, kernal_size, stride, padding_type, bias,  threadCount);
     }
 };
 

@@ -20,7 +20,7 @@ namespace mllm {
 //    }
 //}
 
-CPUSoftMax::CPUSoftMax(Backend *bn, string opName, int axis, bool multiThread) :
+CPUSoftMax::CPUSoftMax(Backend *bn, string opName, int axis, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     axis_ = axis;
     if (!init_table_exp_f16_flag) {
@@ -69,12 +69,12 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 
     if (axis_ == DIMENSION) {
         for (int n = 0; n < input->batch(); ++n) {
-            #pragma omp parallel for num_threads(4)
+            #pragma omp parallel for num_threads(thread_count)
             for (int h = 0; h < input->head(); ++h) {
                 for (int s = 0; s < input->sequence(); ++s) {
                     int num_classes = input->dimension(); // 获取类别数量
                     float max = -INFINITY;
-                    // #pragma omp parallel for num_threads(4)
+                    // #pragma omp parallel for num_threads(thread_count)
                     for (int j = 0; j < num_classes; ++j) {
                         max = MAX(max, input->dataAt<float>(n, h, s, j));
                     }
@@ -102,7 +102,7 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
         for (int n = 0; n < input->batch(); ++n) {
             for (int c = 0; c < input->head(); ++c) {
                 for (int h = 0; h < input->sequence(); ++h) {
-                    // #pragma omp parallel for num_threads(4)
+                    // #pragma omp parallel for num_threads(thread_count)
                     for (int w = 0; w < input->dimension(); ++w) {
                         std::vector<int> index = {n, c, h, w};
                         int num_classes = 0; //input->shape(axis_); // 获取类别数量

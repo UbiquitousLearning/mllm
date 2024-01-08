@@ -9,7 +9,7 @@ namespace mllm {
 
 class CPUView final : public Op {
 public:
-    CPUView(Backend *bn, string opName, vector<int> dims, vector<int>data_dims, bool multiThread);
+    CPUView(Backend *bn, string opName, vector<int> dims, vector<int>data_dims, int threadCount);
     virtual ~CPUView() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
@@ -26,13 +26,13 @@ private:
     int data_dim2_;
     int data_dim3_;
     // int data_dim4_ = -999; //only for BCTHW
-    bool support_multi_thread_ = false;
+    int thread_count = 4;
     bool noNeedEx_ = false;
 };
 
 class CPUViewCreator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         vector<int> dims = {(int)op_param["dim0"], (int)op_param["dim1"], (int)op_param["dim2"], (int)op_param["dim3"]};
         vector<int> data_dims = {(int)op_param["data_dim0"], (int)op_param["data_dim1"], (int)op_param["data_dim2"], (int)op_param["data_dim3"]};
         // if(op_param.find("dim4")!= op_param.end()) {
@@ -42,7 +42,7 @@ public:
         //     data_dims.push_back((int)op_param["data_dim4"]);
         // }
         assert(data_dims.size() == dims.size());
-        return new CPUView(bn, name, dims, data_dims, false);
+        return new CPUView(bn, name, dims, data_dims, threadCount);
     }
 };
 

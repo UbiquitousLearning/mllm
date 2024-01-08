@@ -19,7 +19,7 @@ private:
 
 class NNAPISoftMaxCreator : public NNAPIBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         int axis = op_param["axis"];
         return new NNAPISoftMax(bn, name, axis);
     }

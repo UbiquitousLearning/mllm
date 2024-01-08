@@ -9,21 +9,21 @@ namespace mllm {
 
 class CPUShape final : public Op {
 public:
-    CPUShape(Backend *bn, string opName,Chl axis, bool multiThread);
+    CPUShape(Backend *bn, string opName,Chl axis, int threadCount);
     virtual ~CPUShape() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
     Chl axis_;
-    bool support_multi_thread_ = false;
+    int thread_count = 4;
 };
 
 class CPUShapeCreator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         Chl axis = (Chl)op_param["axis"];
-        return new CPUShape(bn, name, axis, false);
+        return new CPUShape(bn, name, axis, threadCount);
     }
 };
 

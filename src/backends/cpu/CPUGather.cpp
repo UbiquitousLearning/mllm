@@ -3,7 +3,7 @@
 
 namespace mllm {
 
-CPUGather::CPUGather(Backend *bn,  string opName, bool multiThread) :
+CPUGather::CPUGather(Backend *bn,  string opName, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
 }
 

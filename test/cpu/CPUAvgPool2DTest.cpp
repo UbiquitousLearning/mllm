@@ -5,7 +5,7 @@
 
 #include "CPUTest.hpp"
 TEST_F(CPUTest, CPUAvgPool2D1) {
-    SETUP_OP(CPUAvgPool2D, {3,3}, {1,1},VALID, false);
+    SETUP_OP(CPUAvgPool2D, {3,3}, {1,1},VALID, 4);
     TENSOR(input0)
     TENSOR(output)
     TENSOR(test_output);
@@ -21,7 +21,7 @@ TEST_F(CPUTest, CPUAvgPool2D1) {
 
 
 TEST_F(CPUTest, CPUAvgPool2D2) {
-    SETUP_OP(CPUAvgPool2D, {3,3}, {1,1}, SAME, false);
+    SETUP_OP(CPUAvgPool2D, {3,3}, {1,1}, SAME, 4);
     TENSOR(input0)
     TENSOR(output)
     TENSOR(test_output);

@@ -10,7 +10,7 @@
 namespace mllm {
 class CPUReLU2 final : public Op {
 public:
-    CPUReLU2(Backend *bn, string opName, bool multiThread);
+    CPUReLU2(Backend *bn, string opName, int threadCount);
     virtual ~CPUReLU2() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
@@ -18,13 +18,13 @@ public:
 
 
 private:
-    bool support_multi_thread_ = false;
+    int thread_count = 4;
 };
 
 class CPUReLU2Creator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new CPUReLU2(bn, name, false);
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
+        return new CPUReLU2(bn, name, threadCount);
     }
 };
 } // namespace mllm

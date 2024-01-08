@@ -4,7 +4,7 @@
 #include "CPUTest.hpp"
 #include "backends/cpu/CPUMatmul.hpp"
 TEST_F(CPUTest, CPUMatmul1) {
-    SETUP_OP(CPUMatmul, false, false, false);
+    SETUP_OP(CPUMatmul, false, false, 4);
     TENSOR(input0);
     TENSOR(input1);
     TENSOR(output);
@@ -21,7 +21,7 @@ TEST_F(CPUTest, CPUMatmul1) {
     COMPARE_TENSOR(c_output.get(), output.get(), true);
 }
 TEST_F(CPUTest, CPUMatmul2) {
-    SETUP_OP(CPUMatmul, false, true, false);
+    SETUP_OP(CPUMatmul, false, true, 4);
     TENSOR(input0);
     TENSOR(input1);
     TENSOR(output);
@@ -37,7 +37,7 @@ TEST_F(CPUTest, CPUMatmul2) {
     COMPARE_TENSOR(c_output.get(), output.get(), true);
 }
 // TEST_F(CPUTest, CPUMatmul3) {
-//     SETUP_OP(CPUMatmul, true, false, false);
+//     SETUP_OP(CPUMatmul, true, false, 4);
 //     TENSOR(input0);
 //     TENSOR(input1);
 //     TENSOR(output);

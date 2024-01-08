@@ -4,7 +4,7 @@
 
 #include "Convolution.hpp"
 
-void conv2d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_h, int stride_w) {
+void conv2d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_h, int stride_w, int thread_count) {
     int in_height = input->head();
     int in_width = input->dimension();
     int in_channel = input->sequence();
@@ -14,7 +14,7 @@ void conv2d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, bool suppo
     int out_width = output->dimension();
     int out_channel = kernel->batch();
     for (int b = 0; b < input->batch(); ++b) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
         for (int out_ch = 0; out_ch < out_channel; ++out_ch) {
             for (int out_h = 0; out_h < out_height; ++out_h) {
                 for (int out_w = 0; out_w < out_width; ++out_w) {
@@ -40,7 +40,7 @@ void conv2d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, bool suppo
     }
 }
 
-void conv2d_fp32_q4_K_VALID(Tensor* input_, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_h, int stride_w) {
+void conv2d_fp32_q4_K_VALID(Tensor* input_, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_h, int stride_w, int thread_count) {
     assert(kernel->dtype() == MLLM_TYPE_Q4_K);
     assert(input_->dtype() == MLLM_TYPE_F32);
 
@@ -51,7 +51,7 @@ void conv2d_fp32_q4_K_VALID(Tensor* input_, Tensor* output, Tensor* kernel, bool
     if (input_->dimension() % QK_K == 0) {
         for (int b = 0; b < input_->batch(); b++) {
             for (int h = 0; h < input_->head(); h++) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                 for (int s = 0; s < input_->sequence(); s++) {
                     quantize_row_q8_K(input_->hostPtr<float>() + input_->offset(b, h, s, 0),
                                       src0_q8.hostPtr<block_q8_K>() + src0_q8.offset(b, h, s, 0) / QK_K,
@@ -73,7 +73,7 @@ void conv2d_fp32_q4_K_VALID(Tensor* input_, Tensor* output, Tensor* kernel, bool
     int out_width = output->dimension();
     int out_channel = kernel->batch();
     for (int b = 0; b < input->batch(); ++b) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
         for (int out_ch = 0; out_ch < out_channel; ++out_ch) {
             for (int out_h = 0; out_h < out_height; ++out_h) {
                 for (int out_w = 0; out_w < out_width; ++out_w) {
@@ -103,7 +103,7 @@ void conv2d_fp32_q4_K_VALID(Tensor* input_, Tensor* output, Tensor* kernel, bool
     }
 }
 
-void conv2d_fp32_SAME(Tensor* input, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_h, int stride_w, int padding_h, int padding_w) {
+void conv2d_fp32_SAME(Tensor* input, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_h, int stride_w, int padding_h, int padding_w, int thread_count) {
     int padding_top = padding_h ;
     int padding_left = padding_w ;
     
@@ -116,7 +116,7 @@ void conv2d_fp32_SAME(Tensor* input, Tensor* output, Tensor* kernel, bool suppor
     int out_width = output->dimension();
     int out_channel = kernel->batch();
     for (int b = 0; b < input->batch(); ++b) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
         for (int out_ch = 0; out_ch < out_channel; ++out_ch) {
             for (int out_h = 0; out_h < out_height; ++out_h) {
                 for (int out_w = 0; out_w < out_width; ++out_w) {
@@ -157,7 +157,7 @@ void conv2d_fp32_SAME(Tensor* input, Tensor* output, Tensor* kernel, bool suppor
     }
 }
 
-void conv3d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_t, int stride_h, int stride_w) {
+void conv3d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, bool support_bias, Tensor* bias, int stride_t, int stride_h, int stride_w, int thread_count) {
     assert(input->ctype() == BCTHW);
     const int in_height = input->head();
     const int in_width = input->width();
@@ -175,7 +175,7 @@ void conv3d_fp32_VALID(Tensor* input, Tensor* output, Tensor* kernel, bool suppo
     const int out_channel = output->channel();
     assert(out_channel == kernel->batch());
     for (int b = 0; b < input->batch(); ++b) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
         for (int out_ch = 0; out_ch < out_channel; ++out_ch) {
             for (int out_t = 0; out_t < out_time; ++out_t) {
                 for (int out_h = 0; out_h < out_height; ++out_h) {

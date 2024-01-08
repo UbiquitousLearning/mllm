@@ -3,7 +3,7 @@
 
 namespace mllm {
 
-CPUQuickGELU::CPUQuickGELU(Backend *bn,  string opName, bool multiThread) :
+CPUQuickGELU::CPUQuickGELU(Backend *bn,  string opName, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     if (!init_table_gelu_quick_f16_flag) {
         init_table_gelu_quick_f16();
@@ -26,7 +26,7 @@ ErrorCode CPUQuickGELU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     int head = input->head();
     int seq = input->sequence();
     int dim = input->dimension();
-#pragma omp parallel for collapse(3) num_threads(4)
+#pragma omp parallel for collapse(3) num_threads(thread_count)
     for (int b = 0; b <batch ; ++b) {
         for (int h = 0; h < head; ++h) {
             for (int s = 0; s < seq; ++s) {

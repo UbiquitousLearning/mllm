@@ -22,7 +22,7 @@ public:
     public:
         // virtual Op* Create(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
         //                             OpParam op_param, Backend* backend) const = 0;
-        virtual Op *create(OpParam op_param, Backend *bn, string name) const = 0;
+        virtual Op *create(OpParam op_param, Backend *bn, string, int threadCount) const = 0;
     };
     void initTable();
     void initCreatorMap() {
@@ -40,7 +40,7 @@ public:
     // virtual Op* OpCreate(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
     //                             OpParam op_param) override;
 
-    virtual Op *opCreate(const OpParam &op_param, string name) override;
+    virtual Op *opCreate(const OpParam &op_param, string name, int threadCount) override;
 
     virtual void registerOps() override;
     const mllm_fp16_t *getSoftMaxTable() const {

@@ -9,7 +9,7 @@ namespace mllm {
 
 class CPUParameter final : public Op {
 public:
-    CPUParameter(Backend *bn, string opName, int batch, int head, int seq, int dim, bool multiThread);
+    CPUParameter(Backend *bn, string opName, int batch, int head, int seq, int dim, int threadCount);
     virtual ~CPUParameter() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -21,7 +21,7 @@ public:
         return weight_;
     }
 private:
-    bool support_multi_thread_ = false;
+    int thread_count = 4;
     Tensor weight_;
     int batch_;
     int head_;
@@ -31,12 +31,12 @@ private:
 
 class CPUParameterCreator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         int batch = (int)op_param["batch"];
         int head = (int)op_param["head"];
         int seq = (int)op_param["seq"];
         int dim = (int)op_param["dim"];
-        return new CPUParameter(bn, name, batch, head, seq, dim, false);
+        return new CPUParameter(bn, name, batch, head, seq, dim, threadCount);
     }
 };
 

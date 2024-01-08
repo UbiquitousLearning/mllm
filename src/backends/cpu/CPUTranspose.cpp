@@ -3,7 +3,7 @@
 
 namespace mllm {
 
-CPUTranspose::CPUTranspose(Backend *bn,  string opName, bool multiThread) :
+CPUTranspose::CPUTranspose(Backend *bn,  string opName, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
 }
 

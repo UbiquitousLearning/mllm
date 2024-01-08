@@ -4,7 +4,7 @@
 
 namespace mllm {
 
-CPUMaxPool2D::CPUMaxPool2D(Backend *bn,  string opName, vector<int> kernal_size, vector<int> stride, PaddingType padding_type, bool multiThread) :
+CPUMaxPool2D::CPUMaxPool2D(Backend *bn,  string opName, vector<int> kernal_size, vector<int> stride, PaddingType padding_type, int threadCount) : thread_count(threadCount),
 Op(bn, opName) {
     kernel_size_[0] = kernal_size[0];
     kernel_size_[1] = kernal_size[1];
@@ -44,11 +44,11 @@ ErrorCode CPUMaxPool2D::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     //std::cout<<name() << "  CPUMaxPool()" << std::endl;
     switch (padding_type_) {
     case SAME:{
-        maxpool2d_fp32_SAME(inputs[0].get(), outputs[0].get(),kernel_size_[0], kernel_size_[1], stride_[0], stride_[1], padding_h_, padding_w_);
+        maxpool2d_fp32_SAME(inputs[0].get(), outputs[0].get(),kernel_size_[0], kernel_size_[1], stride_[0], stride_[1], padding_h_, padding_w_, thread_count);
         break;
     }
     case VALID: {
-        maxpool2d_fp32_VALID(inputs[0].get(), outputs[0].get(), kernel_size_[0], kernel_size_[1], stride_[0], stride_[1]);
+        maxpool2d_fp32_VALID(inputs[0].get(), outputs[0].get(), kernel_size_[0], kernel_size_[1], stride_[0], stride_[1], thread_count);
         break;
     }
     }

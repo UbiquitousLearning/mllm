@@ -5,7 +5,7 @@
 #include "backends/cpu/CPUEmbedding.hpp"
 
 TEST_F(CPUTest, CPUEmbedding1) {
-    SETUP_OP(CPUEmbedding, 128, 180);
+    SETUP_OP(CPUEmbedding, 128, 180, 4);
     TENSOR(input0);
     TENSOR(output);
     TENSOR(p_output);

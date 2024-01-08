@@ -9,7 +9,7 @@ namespace mllm {
 
 class CPUCat final : public Op {
 public:
-    CPUCat(Backend *bn, string opName,Chl axis, bool multiThread);
+    CPUCat(Backend *bn, string opName,Chl axis, int threadCount);
     virtual ~CPUCat() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -18,7 +18,7 @@ public:
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
-    bool support_multi_thread_ = false;
+    int thread_count = 4;
     Chl axis_;
     int expd_batch_;
     int expd_batch_input_idx;
@@ -26,9 +26,9 @@ private:
 
 class CPUCatCreator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         const auto axis = (Chl)op_param["axis"];
-        return new CPUCat(bn, name, axis, false);
+        return new CPUCat(bn, name, axis, threadCount);
     }
 };
 

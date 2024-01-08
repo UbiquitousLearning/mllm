@@ -4,7 +4,7 @@
 
 namespace mllm {
 
-CPUConvolution3D::CPUConvolution3D(Backend *bn, string opName, int in_channel, int out_channel,  vector<int> kernal_size, vector<int> stride, PaddingType padding_type, bool bias, bool multiThread) :
+CPUConvolution3D::CPUConvolution3D(Backend *bn, string opName, int in_channel, int out_channel,  vector<int> kernal_size, vector<int> stride, PaddingType padding_type, bool bias, int threadCount) : thread_count(threadCount),
 Op(bn, opName) {
     kernel_size_[0] = kernal_size[0];
     kernel_size_[1] = kernal_size[1];
@@ -83,12 +83,12 @@ ErrorCode CPUConvolution3D::execute(vector<shared_ptr<Tensor>> inputs, vector<sh
     // std::cout<<name() << "  CPUConvolution3D()" << std::endl;
     switch (padding_type_) {
     case SAME:{
-        // conv2d_fp32_SAME(inputs[0].get(), outputs[0].get(), &weight_, support_bias_, &bias_, stride_[0], stride_[1], padding_h_, padding_w_);
+        // conv2d_fp32_SAME(inputs[0].get(), outputs[0].get(), &weight_, support_bias_, &bias_, stride_[0], stride_[1], padding_h_, padding_w_, thread_count);
         std::cout<<"TO SUPPORT"<<std::endl;
         break;
     }
     case VALID: {
-        conv3d_fp32_VALID(inputs[0].get(), outputs[0].get(), &weight_, support_bias_, &bias_,stride_[0], stride_[1], stride_[2]);
+        conv3d_fp32_VALID(inputs[0].get(), outputs[0].get(), &weight_, support_bias_, &bias_,stride_[0], stride_[1], stride_[2], thread_count);
         break;
     }
     }

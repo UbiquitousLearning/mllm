@@ -17,12 +17,12 @@ private:
     float scale_;
     float bias_;
     bool bias_after_scale_;
-    bool support_multi_thread_ = false;
+    int thread_count = 4;
 };
 
 class NNAPIScaleCreator : public NNAPIBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         // TODO: op_param :: int-->float?
         float scale = op_param["scale"];
         float bias = op_param["bias"];

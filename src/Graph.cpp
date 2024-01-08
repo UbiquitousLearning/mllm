@@ -20,7 +20,7 @@ namespace mllm {
  * @param in_param
  */
 
-Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors) {
+Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors, int threadCount) {
     backend_ = bn;
 
     for (auto net_tensor : param.net_tensors) {
@@ -32,7 +32,7 @@ Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, share
     }
     for (auto net_op : param.net_ops) {
         shared_ptr<Op> my_op(nullptr);
-        auto *new_op = backend_->opCreate(net_op->param, net_op->name);
+        auto *new_op = backend_->opCreate(net_op->param, net_op->name, threadCount);
         my_op.reset(new_op);
         ops_[net_op->name] = my_op;
     }

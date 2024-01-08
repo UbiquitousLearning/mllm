@@ -4,7 +4,7 @@
 #include <utility>
 
 namespace mllm {
-CPUGELU::CPUGELU(Backend *bn, string opName, bool multiThread):support_multi_thread_(multiThread), Op(bn, std::move(opName))  {
+CPUGELU::CPUGELU(Backend *bn, string opName, int threadCount):thread_count(threadCount), Op(bn, std::move(opName))  {
     if (!init_table_gelu_f16_flag) {
         init_table_gelu_f16();
         init_table_gelu_f16_flag = true;
@@ -25,7 +25,7 @@ ErrorCode CPUGELU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     int head = input->head();
     int seq = input->sequence();
     int dim = input->dimension();
-#pragma omp parallel for collapse(3) num_threads(4)
+#pragma omp parallel for collapse(3) num_threads(thread_count)
     for (int b = 0; b <batch ; ++b) {
         for (int h = 0; h < head; ++h) {
             for (int s = 0; s < seq; ++s) {

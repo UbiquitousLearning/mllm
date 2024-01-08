@@ -15,7 +15,7 @@ namespace mllm {
 
 class CPUAbc final : public Op {
 public:
-    CPUAbc(Backend *bn, string opName, bool multiThread);
+    CPUAbc(Backend *bn, string opName, int threadCount);
     virtual ~CPUAbc() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -24,13 +24,13 @@ public:
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
-    bool support_multi_thread_ = false;
+    int thread_count = 4;
 };
 
 class CPUAbcCreator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new CPUAbc(bn, name, false);
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
+        return new CPUAbc(bn, name, threadCount);
     }
 };
 
@@ -44,7 +44,7 @@ code_cpp = """
 
 namespace mllm {
 
-CPUAbc::CPUAbc(Backend *bn,  string opName, bool multiThread) :
+CPUAbc::CPUAbc(Backend *bn,  string opName, int threadCount) : thread_count(threadCount), 
     Op(bn, opName) {
 }
 

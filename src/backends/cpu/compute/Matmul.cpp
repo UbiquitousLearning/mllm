@@ -5,7 +5,7 @@
 #include "Matmul.hpp"
 #include <pthread.h>
 
-ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1) {
+ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1, int thread_count) {
     const int M = transpose0 ? src0->dimension() : src0->sequence();
     const int K = transpose0 ? src0->sequence() : src0->dimension();
     const int N = transpose1 ? src1->sequence() : src1->dimension();
@@ -19,7 +19,7 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
             for (int m = 0; m < M; m++) {
                 const int num_blocks = N / blck_0;
                 const int remainder = N % blck_0;
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                 for (int block = 0; block < num_blocks + 1; block++) {
                     for (int n = block * blck_0; n < (block + 1) * blck_0 & n < num_blocks * blck_0 + remainder; n++) {
                         int s_1, d_1;
@@ -57,7 +57,7 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
     return MLLM_NO_ERROR;
 }
 
-ErrorCode mat_mul_fp32_fp16(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1) {
+ErrorCode mat_mul_fp32_fp16(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1, int thread_count) {
     assert(src1->dtype() == MLLM_TYPE_F16);
     assert(src0_->dtype() == MLLM_TYPE_F32);
     Tensor src0_qf16(src0_->shape());
@@ -66,7 +66,7 @@ ErrorCode mat_mul_fp32_fp16(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     src0_qf16.alloc();
         for (int b = 0; b < src0_->batch(); b++) {
             for (int h = 0; h < src0_->head(); h++) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                 for (int s = 0; s < src0_->sequence(); s++) {
                     mllm_fp32_to_fp16_row(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
                                       src0_qf16.hostPtr<mllm_fp16_t>() + src0_qf16.offset(b, h, s, 0),
@@ -96,7 +96,7 @@ ErrorCode mat_mul_fp32_fp16(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
             for (int m = 0; m < M; m++) {
                 const int num_blocks = N / blck_0;
                 const int remainder = N % blck_0;
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                 for (int block = 0; block < num_blocks + 1; block++) {
                     for (int n = block * blck_0; n < (block + 1) * blck_0 & n < num_blocks * blck_0 + remainder; n++) {
                         int s_1, d_1;
@@ -122,7 +122,7 @@ ErrorCode mat_mul_fp32_fp16(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     return MLLM_NO_ERROR;
 }
 
-ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias) {
+ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, int thread_count) {
     assert(src1->dtype() == MLLM_TYPE_Q4_0);
     assert(src0_->dtype() == MLLM_TYPE_F32);
     Tensor src0_q8(src0_->shape());
@@ -132,7 +132,7 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     if (src0_->dimension() % QK8_0 == 0) {
         for (int b = 0; b < src0_->batch(); b++) {
             for (int h = 0; h < src0_->head(); h++) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                 for (int s = 0; s < src0_->sequence(); s++) {
                     quantize_row_q8_0(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
                                       src0_q8.hostPtr<block_q8_0>() + src0_q8.offset(b, h, s, 0) / QK8_0,
@@ -159,7 +159,7 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
             for (int m = 0; m < M; m++) {
                 int num_blocks = N / blck_0;
                 int remainder = N % blck_0;
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                 for (int block = 0; block < num_blocks + 1; block++) {
                     for (int n = block * blck_0; n < (block + 1) * blck_0 & n < num_blocks * blck_0 + remainder; n++) {
                         vec_dot_q4_0_q8_0(K, dst->ptrAt<float>(b, h, m, n),
@@ -176,7 +176,7 @@ ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     return MLLM_NO_ERROR;
 }
 
-ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias) {
+ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, int thread_count) {
     assert(src1->dtype() == MLLM_TYPE_Q4_K);
     assert(src0_->dtype() == MLLM_TYPE_F32);
     Tensor src0_q8(src0_->shape());
@@ -186,7 +186,7 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     if (src0_->dimension() % QK_K == 0) {
         for (int b = 0; b < src0_->batch(); b++) {
             for (int h = 0; h < src0_->head(); h++) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                 for (int s = 0; s < src0_->sequence(); s++) {
                     quantize_row_q8_K(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
                                       src0_q8.hostPtr<block_q8_K>() + src0_q8.offset(b, h, s, 0) / QK_K,
@@ -214,7 +214,7 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
             for (int m = 0; m < M; m++) {
                 int num_blocks = N / blck_0;
                 int remainder = N % blck_0;
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                 for (int block = 0; block < num_blocks + 1; block++) {
                     for (int n = block * blck_0; n < (block + 1) * blck_0 & n < num_blocks * blck_0 + remainder; n++) {
                         if(dst->dtypeAt(n,h,m,n) == MLLM_TYPE_F32) {
@@ -243,7 +243,7 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     return MLLM_NO_ERROR;
 }
 
-ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias) {
+ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, int thread_count) {
     assert(src1->dtype() == MLLM_TYPE_Q6_K);
     assert(src0_->dtype() == MLLM_TYPE_F32);
     Tensor src0_q8(src0_->shape());
@@ -253,7 +253,7 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     if (src0_->dimension() % QK_K == 0) {
         for (int b = 0; b < src0_->batch(); b++) {
             for (int h = 0; h < src0_->head(); h++) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                 for (int s = 0; s < src0_->sequence(); s++) {
                     quantize_row_q8_K(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
                                       src0_q8.hostPtr<block_q8_K>() + src0_q8.offset(b, h, s, 0) / QK_K,
@@ -280,7 +280,7 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
             for (int m = 0; m < M; m++) {
                 int num_blocks = N / blck_0;
                 int remainder = N % blck_0;
-// #pragma omp parallel for num_threads(4)
+// #pragma omp parallel for num_threads(thread_count)
                 for (int block = 0; block < num_blocks + 1; block++) {
                     for (int n = block * blck_0; n < (block + 1) * blck_0 & n < num_blocks * blck_0 + remainder; n++) {
                         if (dst->dtypeAt(n, h, m, n) == MLLM_TYPE_F32) {

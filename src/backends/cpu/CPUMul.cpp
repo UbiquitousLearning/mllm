@@ -3,7 +3,7 @@
 
 namespace mllm {
 
-CPUMul::CPUMul(Backend *bn,  string opName, bool multiThread) :
+CPUMul::CPUMul(Backend *bn,  string opName, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
 }
 
@@ -32,7 +32,7 @@ ErrorCode CPUMul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         auto in0_ptr = inputs[0]->hostPtr<float>();
         auto in1_ptr = inputs[1]->hostPtr<float>();
         auto out_ptr = outputs[0]->hostPtr<float>();
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
         for (int is = 0; is < copy_size; ++is) {
             out_ptr[is] = in0_ptr[is] * in1_ptr[is];
         }
@@ -40,7 +40,7 @@ ErrorCode CPUMul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         for (int n = 0; n < N; ++n) {
             for (int c = 0; c < C; ++c) {
                 for (int h = 0; h < H; ++h) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                     for (int w = 0; w < W; ++w) {
                         outputs[0]->setDataAt<float>(n, c, h, w, inputs[0]->dataAt<float>(n, c, h, w) * inputs[1]->dataAt<float>(n, c, h, w));
                     }

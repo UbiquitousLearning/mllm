@@ -5,7 +5,7 @@
 
 namespace mllm {
 /*
-CPUKVCache::CPUKVCache(Backend *bn, string opName, bool isK, bool multiThread) :
+CPUKVCache::CPUKVCache(Backend *bn, string opName, bool isK, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     isK_ = isK;
     cache_.setBackend(bn);
@@ -34,7 +34,7 @@ ErrorCode CPUKVCache::load(AbstructLoader &loader) {
 void tensor_trans(shared_ptr<Tensor> src, Tensor *dst) {
     for (int b = 0; b < src->batch(); b++) {
         for (int h = 0; h < src->head(); h++) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
             for (int n = 0; n < src->sequence(); n++) {
                 for (int m = 0; m < src->dimension(); m++) {
                     dst->setDataAt<float>({b, h, m, n}, src->dataAt<float>({b, h, n, m}));
@@ -56,7 +56,7 @@ ErrorCode CPUKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 
             for (int b = 0; b < cache_.batch(); ++b) {
                 for (int h = 0; h < cache_.head(); ++h) {
-                    #pragma omp parallel for num_threads(4)
+                    #pragma omp parallel for num_threads(thread_count)
                     for (int s = 0; s < c_sen; ++s) {
                         float *dest_ptr = outputs[0]->ptrAt<float>(b, h, s, 0);
                         if (s < a_sen) {
@@ -72,7 +72,7 @@ ErrorCode CPUKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
         } else {
             for (int b = 0; b < cache_.batch(); ++b) {
                 for (int h = 0; h < cache_.head(); ++h) {
-                    #pragma omp parallel for num_threads(4)
+                    #pragma omp parallel for num_threads(thread_count)
                     for (int s = 0; s < outputs[0]->sequence(); ++s) {
                         float *output_ptr = outputs[0]->ptrAt<float>({b, h, s, 0});
                         if (cache_.dimension() > 0) {
@@ -106,7 +106,7 @@ ErrorCode CPUKVCache::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 */
 
-CPUKVCache::CPUKVCache(Backend *bn, string opName, bool multiThread) :
+CPUKVCache::CPUKVCache(Backend *bn, string opName, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     cache_.setBackend(bn);
     cache_.setDtype(MLLM_TYPE_F16);

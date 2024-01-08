@@ -3,7 +3,7 @@
 
 namespace mllm {
 
-CPUCat::CPUCat(Backend *bn,  string opName,Chl axis,  bool multiThread) :
+CPUCat::CPUCat(Backend *bn,  string opName,Chl axis,  int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     axis_ = axis;
 }

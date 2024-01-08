@@ -7,7 +7,7 @@ namespace mllm {
 // template class CPUSiLU;
 // template class CPUSiLU;
 
-CPUSiLU::CPUSiLU(Backend *bn, string opName, bool multiThread) :
+CPUSiLU::CPUSiLU(Backend *bn, string opName, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     if (!init_table_silu_f16_flag) {
         init_table_silu_f16();
@@ -28,11 +28,11 @@ ErrorCode CPUSiLU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     int n1 = input->head();
     int n2 = input->sequence();
     int n3 = input->dimension();
-#pragma omp parallel for collapse(3) num_threads(4)
+#pragma omp parallel for collapse(3) num_threads(thread_count)
     for (int n = 0; n < batch; n++) {
         for (int h = 0; h < n2; h++) {
             for (int c = 0; c < n1; c++) {
-//                #pragma omp parallel for num_threads(4)
+//                #pragma omp parallel for num_threads(thread_count)
 //                for (int w = 0; w < n3; w++) {
 //                    float value = input->dataAt<float>(n, c, h, w);
 //                    outputs[0]->setDataAt<float>(n, c, h, w, value / (1 + std::exp(-value)));

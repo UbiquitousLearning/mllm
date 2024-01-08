@@ -3,7 +3,7 @@
 
 namespace mllm {
 
-CPUParameter::CPUParameter(Backend *bn,  string opName,int batch, int head, int seq, int dim, bool multiThread) :
+CPUParameter::CPUParameter(Backend *bn,  string opName,int batch, int head, int seq, int dim, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     batch_ = batch;
     head_ = head;

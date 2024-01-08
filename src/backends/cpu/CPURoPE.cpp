@@ -54,7 +54,7 @@ void sinusoidal_position_embedding_hf(int batch_size, int nums_head, int seq_len
     }
 }
 
-CPURoPE::CPURoPE(Backend *bn, string opName, int pose_type, bool multiThread) :
+CPURoPE::CPURoPE(Backend *bn, string opName, int pose_type, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
 //    freq_.setBackend(bn);
     cos_.setBackend(bn);
@@ -91,7 +91,7 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     for (int n = 0; n < input->batch(); ++n) {
         for (int h = 0; h < input->head(); ++h) {
             for (int s = 0; s < input->sequence(); ++s) {//sequance
-                #pragma omp parallel for num_threads(4)
+                #pragma omp parallel for num_threads(thread_count)
                 for (int d = 0; d < input->dimension(); ++d) {
                     if (pose_type_== 1) {
                         float in_value = input->dataAt<float>(n, h, s, d);

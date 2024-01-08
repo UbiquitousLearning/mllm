@@ -5,7 +5,7 @@
 
 namespace mllm {
 
-CPUNorm::CPUNorm(Backend *bn, string opName,int L_n, bool multiThread) :
+CPUNorm::CPUNorm(Backend *bn, string opName,int L_n, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     assert(L_n ==1 || L_n ==2);
     L_n_ = L_n;
@@ -34,7 +34,7 @@ ErrorCode CPUNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                 if (L_n_ == 2) {
                     // Calculate the sum of squares
                     float sum_of_squares = 0.0f;
-// #pragma omp parallel for num_threads(4)
+// #pragma omp parallel for num_threads(thread_count)
                     for (int d = 0; d < inputs[0]->dimension(); ++d) {
                         sum_of_squares += inputs[0]->dataAt<float>(n, h, s,d) * inputs[0]->dataAt<float>(n, h, s,d);
                     }
@@ -42,18 +42,18 @@ ErrorCode CPUNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     float l2_norm = std::sqrt(sum_of_squares);
 
                     // Use the L2 norm in your code...
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                     for (int d = 0; d < dim; d++) {
                         outputs[0]->setDataAt<float>(n, h, s,d, l2_norm);
                     }
                 } else {
                     float sum_of_abs_values = 0.0f;
 
-// #pragma omp parallel for num_threads(4)
+// #pragma omp parallel for num_threads(thread_count)
                     for (int d = 0; d < inputs[0]->dimension(); ++d) {
                         sum_of_abs_values += std::abs(inputs[0]->dataAt<float>(n, h, s,d));
                     }
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                     for (int d = 0; d < dim; d++) {
                         outputs[0]->setDataAt<float>(n, h, s,d, sum_of_abs_values);
                     }
@@ -67,7 +67,7 @@ ErrorCode CPUNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 //         // Calculate the sum of squares
 //         float sum_of_squares = 0.0f;
 //
-// #pragma omp parallel for num_threads(4)
+// #pragma omp parallel for num_threads(thread_count)
 //         for (int i = 0; i < size; ++i) {
 //             sum_of_squares += data[i] * data[i];
 //         }
@@ -81,7 +81,7 @@ ErrorCode CPUNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 //         // Calculate the L1 norm
 //         float sum_of_abs_values = 0.0f;
 //
-// #pragma omp parallel for num_threads(4)
+// #pragma omp parallel for num_threads(thread_count)
 //         for (int i = 0; i < size; ++i) {
 //             sum_of_abs_values += std::abs(data[i]);
 //         }

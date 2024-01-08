@@ -14,7 +14,7 @@ public:
     virtual ~Net() = default;
 
     // convert all subgraph to specified backend, just for develop
-    void convert(vector<NetParameter> &param, BackendType backend_type = BackendType::MLLM_CPU);
+    void convert(vector<NetParameter> &param, BackendType backend_type = BackendType::MLLM_CPU, int threadCount=4);
 
     unordered_map<string, shared_ptr<Graph>> &subGraph() {
         return subGraphs_;

@@ -5,7 +5,7 @@
 #include "CPUTest.hpp"
 #include "backends/cpu/CPUReLU.hpp"
 TEST_F(CPUTest, CPUReLU1) {
-    SETUP_OP(CPUReLU, false);
+    SETUP_OP(CPUReLU, 4);
     TENSOR(input0);
     TENSOR(output);
     TENSOR(c_output);

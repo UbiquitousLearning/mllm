@@ -3,12 +3,12 @@
 
 namespace mllm {
 
-CPULinear::CPULinear(Backend *bn, string opName, int in_features, int out_features, bool bias, bool multiThread) :
+CPULinear::CPULinear(Backend *bn, string opName, int in_features, int out_features, bool bias, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     in_features_ = in_features;
     out_features_ = out_features;
     support_bias_ = bias;
-    support_multi_thread_ = multiThread;
+    thread_count = threadCount;
     weight_.setBackend(bn);
     bias_.setBackend(bn);
 }
@@ -72,20 +72,20 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     // std::cout << name() << "  CPULinear()" << std::endl;
     switch (weight_.dtype()) {
     case MLLM_TYPE_F32: {
-        mat_mul_fp32(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true);
+        mat_mul_fp32(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true, thread_count);
         break;
     }
     case MLLM_TYPE_F16: break;
     case MLLM_TYPE_Q4_0: {
-        mat_mul_fp32_q4_0(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_);
+        mat_mul_fp32_q4_0(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, thread_count);
         break;
     }
     case MLLM_TYPE_Q4_K: {
-        mat_mul_fp32_q4_K(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_);
+        mat_mul_fp32_q4_K(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, thread_count);
         break;
     }
     case MLLM_TYPE_Q6_K: {
-        mat_mul_fp32_q6_K(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_);
+        mat_mul_fp32_q6_K(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, thread_count);
         break;
     }
     default:

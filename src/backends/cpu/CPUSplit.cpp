@@ -2,7 +2,7 @@
 
 namespace mllm {
 
-CPUSplit::CPUSplit(Backend *bn,  string opName,  int splitNum, Chl splitDim, int splitDimSize, bool multiThread) :
+CPUSplit::CPUSplit(Backend *bn,  string opName,  int splitNum, Chl splitDim, int splitDimSize, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     split_num_ = splitNum;
     split_dim_ = splitDim;

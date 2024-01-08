@@ -3,7 +3,7 @@
 
 namespace mllm {
 
-CPUDivision::CPUDivision(Backend *bn, string opName, bool multiThread) :
+CPUDivision::CPUDivision(Backend *bn, string opName, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
 }
 
@@ -34,7 +34,7 @@ ErrorCode CPUDivision::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
         auto in0_ptr = inputs[0]->hostPtr<float>();
         auto in1_ptr = inputs[1]->hostPtr<float>();
         auto out_ptr = outputs[0]->hostPtr<float>();
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
         for (int is = 0; is < copy_size; ++is) {
             if (inputs[1]->count() == 1) {
                 out_ptr[is] = in0_ptr[is] / in1_000;
@@ -46,7 +46,7 @@ ErrorCode CPUDivision::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
         for (int n = 0; n < N; ++n) {
             for (int c = 0; c < C; ++c) {
                 for (int h = 0; h < H; ++h) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
                     for (int w = 0; w < W; ++w) {
                         auto divisor = (inputs[1]->count() != 1) ?
                                            inputs[1]->dataAt<float>(n, c, h, w) :

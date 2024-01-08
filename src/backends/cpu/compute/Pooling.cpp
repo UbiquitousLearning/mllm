@@ -3,7 +3,7 @@
 //
 
 #include "Pooling.hpp"
-void avgpool2d_fp32_VALID(Tensor* input, Tensor* output, int kernel_h, int kernel_w, int stride_h, int stride_w) {
+void avgpool2d_fp32_VALID(Tensor* input, Tensor* output, int kernel_h, int kernel_w, int stride_h, int stride_w, int thread_count) {
     int in_height = input->head();
     int in_width = input->dimension();
     int out_height = output->head();
@@ -11,7 +11,7 @@ void avgpool2d_fp32_VALID(Tensor* input, Tensor* output, int kernel_h, int kerne
     int out_channel = output->sequence();
     std::vector<float> one_array(kernel_w, 1.0f);
     for (int b = 0; b < input->batch(); ++b) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
         for (int out_ch = 0; out_ch < out_channel; ++out_ch) {
             for (int out_h = 0; out_h < out_height; ++out_h) {
                 for (int out_w = 0; out_w < out_width; ++out_w) {
@@ -31,7 +31,7 @@ void avgpool2d_fp32_VALID(Tensor* input, Tensor* output, int kernel_h, int kerne
     }
 }
 
-void avgpool2d_fp32_SAME(Tensor* input, Tensor* output, int kernel_h, int kernel_w,  int stride_h, int stride_w, int padding_h, int padding_w) {
+void avgpool2d_fp32_SAME(Tensor* input, Tensor* output, int kernel_h, int kernel_w,  int stride_h, int stride_w, int padding_h, int padding_w, int thread_count) {
     int padding_top = padding_h ;
     int padding_left = padding_w ;
 
@@ -41,7 +41,7 @@ void avgpool2d_fp32_SAME(Tensor* input, Tensor* output, int kernel_h, int kernel
     int out_width = output->dimension();
     int out_channel = output->sequence();
     for (int b = 0; b < input->batch(); ++b) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
         for (int out_ch = 0; out_ch < out_channel; ++out_ch) {
             for (int out_h = 0; out_h < out_height; ++out_h) {
                 for (int out_w = 0; out_w < out_width; ++out_w) {
@@ -78,7 +78,7 @@ void avgpool2d_fp32_SAME(Tensor* input, Tensor* output, int kernel_h, int kernel
 }
 
 
-void maxpool2d_fp32_VALID(Tensor* input, Tensor* output, int kernel_h, int kernel_w, int stride_h, int stride_w) {
+void maxpool2d_fp32_VALID(Tensor* input, Tensor* output, int kernel_h, int kernel_w, int stride_h, int stride_w, int thread_count) {
     int in_height = input->head();
     int in_width = input->dimension();
     int out_height = output->head();
@@ -86,7 +86,7 @@ void maxpool2d_fp32_VALID(Tensor* input, Tensor* output, int kernel_h, int kerne
     int out_channel = output->sequence();
     std::vector<float> one_array(kernel_w, 1.0f);
     for (int b = 0; b < input->batch(); ++b) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
         for (int out_ch = 0; out_ch < out_channel; ++out_ch) {
             for (int out_h = 0; out_h < out_height; ++out_h) {
                 for (int out_w = 0; out_w < out_width; ++out_w) {
@@ -105,7 +105,7 @@ void maxpool2d_fp32_VALID(Tensor* input, Tensor* output, int kernel_h, int kerne
         }
     }
 }
-void maxpool2d_fp32_SAME(Tensor* input, Tensor* output, int kernel_h, int kernel_w,  int stride_h, int stride_w, int padding_h, int padding_w) {
+void maxpool2d_fp32_SAME(Tensor* input, Tensor* output, int kernel_h, int kernel_w,  int stride_h, int stride_w, int padding_h, int padding_w, int thread_count) {
     int padding_top = padding_h ;
     int padding_left = padding_w ;
 
@@ -115,7 +115,7 @@ void maxpool2d_fp32_SAME(Tensor* input, Tensor* output, int kernel_h, int kernel
     int out_width = output->dimension();
     int out_channel = output->sequence();
     for (int b = 0; b < input->batch(); ++b) {
-#pragma omp parallel for num_threads(4)
+#pragma omp parallel for num_threads(thread_count)
         for (int out_ch = 0; out_ch < out_channel; ++out_ch) {
             for (int out_h = 0; out_h < out_height; ++out_h) {
                 for (int out_w = 0; out_w < out_width; ++out_w) {

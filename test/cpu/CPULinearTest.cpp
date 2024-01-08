@@ -4,7 +4,7 @@
 #include "CPUTest.hpp"
 #include "backends/cpu/CPULinear.hpp"
 TEST_F(CPUTest, CPULinear1) {
-    SETUP_OP(CPULinear, 128, 128, true, false);
+    SETUP_OP(CPULinear, 128, 128, true, 4);
     TENSOR(input0)
     TENSOR(output)
     TENSOR(test_output);
@@ -21,7 +21,7 @@ TEST_F(CPUTest, CPULinear1) {
     COMPARE_TENSOR(output.get(), test_output.get(), true);
 }
 TEST_F(CPUTest, CPULinear2) {
-    SETUP_OP(CPULinear, 3, 4, false, false);
+    SETUP_OP(CPULinear, 3, 4, false, 4);
     TENSOR(input0)
     TENSOR(output)
     TENSOR(test_output);
@@ -37,7 +37,7 @@ TEST_F(CPUTest, CPULinear2) {
     COMPARE_TENSOR(output.get(), test_output.get(), true);
 }
 // TEST_F(CPUTest, CPULinear3) {
-//     SETUP_OP(CPULinear, 3, 4, false, false);
+//     SETUP_OP(CPULinear, 3, 4, false, 4);
 //     TENSOR(input0)
 //     TENSOR(output)
 //     TENSOR(test_output);

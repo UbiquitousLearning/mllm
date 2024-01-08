@@ -3,7 +3,7 @@
 
 namespace mllm {
 
-CPUShape::CPUShape(Backend *bn,  string opName,Chl axis, bool multiThread) :
+CPUShape::CPUShape(Backend *bn,  string opName,Chl axis, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     axis_ = axis;
 }

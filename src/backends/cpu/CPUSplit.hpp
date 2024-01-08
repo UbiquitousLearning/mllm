@@ -9,14 +9,14 @@ namespace mllm {
 
 class CPUSplit final : public Op {
 public:
-    CPUSplit(Backend *bn, string opName, int splitNum, Chl splitDim, int splitDimSize, bool multiThread);
+    CPUSplit(Backend *bn, string opName, int splitNum, Chl splitDim, int splitDimSize, int threadCount);
     virtual ~CPUSplit() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
-    bool support_multi_thread_ = false;
+    int thread_count = 4;
     int split_num_;
     Chl split_dim_;
     int split_dim_size_;
@@ -24,11 +24,11 @@ private:
 
 class CPUSplitCreator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         int splitNum = (int)op_param["split_num"];
         Chl splitDim = (Chl)op_param["split_dim"];
         int splitDimSize = (int)op_param["split_dim_size"];
-        return new CPUSplit(bn, name, splitNum, splitDim, splitDimSize,false);
+        return new CPUSplit(bn, name, splitNum, splitDim, splitDimSize,threadCount);
     }
 };
 
