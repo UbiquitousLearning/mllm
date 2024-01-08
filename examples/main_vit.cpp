@@ -9,8 +9,7 @@
 #define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
 #endif
-#include "imageHelper/stb_image.h"
-// #include "imageHelper/stb_image_resize2.h"
+#include "stb/stb_image.h"
 #include "processor/PreProcess.hpp"
 
 using namespace std;

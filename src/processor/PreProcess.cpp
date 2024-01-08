@@ -9,7 +9,7 @@
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #endif
 #include "PreProcess.hpp"
-#include "imageHelper/stb_image_resize2.h"
+#include "stb/stb_image_resize2.h"
 using namespace mllm;
 
 void PreProcessor::PreProcessImages(const std::vector<std::string> &images_path) {

@@ -7,7 +7,7 @@
 #define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
 #endif
-#include "imageHelper/stb_image.h"
+#include "stb/stb_image.h"
 
 namespace mllm {
 void ClipProcessor::Process(const std::string &text) {

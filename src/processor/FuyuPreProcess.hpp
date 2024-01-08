@@ -10,7 +10,7 @@
 
 #include "PreProcess.hpp"
 #include "tokenizers/Tokenizer.hpp"
-// #include <imageHelper/stb_image_resize.h>
+// #include <stb/stb_image_resize.h>
 using std::vector;
 
 namespace mllm {

@@ -43,13 +43,9 @@ public:
     virtual Op *opCreate(const OpParam &op_param, string name, int threadCount) override;
 
     virtual void registerOps() override;
-    const mllm_fp16_t *getSoftMaxTable() const {
-        return SOFT_MAX_TABLE_;
-    }
 
 private:
     std::map<OpType, CPUBackend::Creator *> map_creator_;
-    mllm_fp16_t SOFT_MAX_TABLE_[1 << 16];
 };
 
 } // namespace mllm

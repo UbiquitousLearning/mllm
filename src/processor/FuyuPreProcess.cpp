@@ -12,9 +12,9 @@
 #define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
 #endif
-#include "imageHelper/stb_image.h"
+#include "stb/stb_image.h"
 #include "PreProcess.hpp"
-#include "imageHelper/stb_image_resize2.h"
+#include "stb/stb_image_resize2.h"
 namespace mllm {
 void FuyuPreProcess::PreProcessImages(const std::vector<uint8_t*> &images,const std::vector<size_t> &image_length) {
     assert(height_ > 0 && width_ > 0);

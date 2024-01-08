@@ -6,14 +6,7 @@
 #include "Executor.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
-// #ifndef  STB_IMAGE_IMPLEMENTATION
-// #define STB_IMAGE_STATIC
-// #define STB_IMAGE_IMPLEMENTATION
-// #endif
-// #include "imageHelper/stb_image.h"
-// #include "imageHelper/stb_image_resize2.h"
 #include "processor/ClipPreProcess.hpp"
-// #include "processor/PreProcess.hpp"
 #include <cmath>
 #include <vector>
 #include <numeric>
