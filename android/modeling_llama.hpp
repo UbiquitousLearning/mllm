@@ -10,9 +10,9 @@ inline NetTensor *Attention_LLAMA(Context *ctx, NetTensor *x, int embedding_size
     auto *q =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".wq");
     auto *k =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".wk");
     auto *v =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".wv");
-    q = _View( {q}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".q_view");
-    k = _View( {k}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".k_view");
-    v = _View( {v}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".v_view");
+    q = q->view(-1, head_size, -1, hidden_size);
+    k = k->view(-1, head_size, -1, hidden_size);
+    v = v->view(-1, head_size, -1, hidden_size);
     q = _RoPE( {q}, 2, name + ".q_rope");
     k = _RoPE( {k}, 2, name + ".k_rope");
     k = _KVCache( {k}, true, name + ".k_cache");
@@ -22,7 +22,7 @@ inline NetTensor *Attention_LLAMA(Context *ctx, NetTensor *x, int embedding_size
     qk = _Causalmask( {qk}, name + ".mask");
     qk = _Softmax( {qk}, DIMENSION, name + ".softmax");
     auto *o = _Matmul( {qk, v}, false, false, name + ".qkv");
-    o = _View( {o}, {-1, -1, -1, -1}, {BATCH, -1, SEQUENCE, HEAD+DIMENSION}, name + ".qkv_view");
+    o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _Linear( {o}, hidden_size * head_size, embedding_size, false, name + ".wo");
     return o;
 }

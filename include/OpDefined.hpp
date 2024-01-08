@@ -39,6 +39,7 @@ enum OpType {
     SUBDIM,
     DIVISION,
     NORM,
+    SHAPE,
     OP_NUM
 };
 
@@ -74,6 +75,7 @@ static const vector<string> OpNames = {
     "SubDim",
     "Division",
     "Norm",
+    "Shape",
     "OP_NUM"};
 } // namespace mllm
 #endif

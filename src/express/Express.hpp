@@ -1,7 +1,7 @@
 #ifndef MLLM_EXPRESS_H
 #define MLLM_EXPRESS_H
 
-#include "NetParameter.hpp"
+#include "ExpressBase.hpp"
 #include "Types.hpp"
 #include <string>
 #include <vector>
@@ -30,7 +30,7 @@ NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool
 NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
 NetTensor *_Embedding(std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name = "");
 NetTensor *_Mul(std::vector<NetTensor *> inputs, string name = "");
-NetTensor *_View(std::vector<NetTensor *> inputs, vector<int> dims, vector<int>data_dims, string name = "");
+// NetTensor *_View(std::vector<NetTensor *> inputs, vector<int> dims, vector<int>data_dims, string name = "");
 NetTensor *_KVCache(std::vector<NetTensor *> inputs, bool isK, string name = "");
 NetTensor *_ReLU(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_ReLUSquaredActivation(std::vector<NetTensor *> inputs, string name = "");
@@ -44,8 +44,8 @@ NetTensor *_Convolution3D(std::vector<NetTensor *> inputs,  int in_channel, int 
 NetTensor *_AvgPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name = "");
 NetTensor *_MaxPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name = "");
 NetTensor *_Cat(std::vector<NetTensor *> inputs, Chl axis, string name = "");
-NetTensor *_Transpose(std::vector<NetTensor *> inputs, string name = "");
-NetTensor *_SubDim(std::vector<NetTensor *> inputs, Chl dim, vector<int> interval = {0, 0}, string name = "");
+// NetTensor *_Transpose(std::vector<NetTensor *> inputs, string name = "");
+// NetTensor *_SubDim(std::vector<NetTensor *> inputs, Chl dim, vector<int> interval = {0, 0}, string name = "");
 NetTensor *_Division(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Norm(std::vector<NetTensor *> inputs, int L_n, string name = "");
 // NOLINTEND(readability-identifier-naming)

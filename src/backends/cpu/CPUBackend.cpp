@@ -28,6 +28,7 @@
 #include "CPUQuickGELU.hpp"
 #include "CPUDivision.hpp"
 #include "CPUNorm.hpp"
+#include "CPUShape.hpp"
 
 #include <math.h>
 #include <CPUTranspose.hpp>
@@ -90,6 +91,7 @@ void CPUBackend::registerOps() {
     addCreator(SUBDIM, (CPUBackend::Creator *)(new CPUSubDimCreator()));
     addCreator(DIVISION, (CPUBackend::Creator *)(new CPUDivisionCreator()));
     addCreator(NORM, (CPUBackend::Creator *)(new CPUNormCreator()));
+    addCreator(SHAPE, (CPUBackend::Creator *)(new CPUShapeCreator()));
 }
 
 } // namespace mllm

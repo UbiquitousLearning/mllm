@@ -3,7 +3,6 @@
 #include <vector>
 #include "unordered_map"
 #include "Express.hpp"
-#include "NetParameter.hpp"
 #include <algorithm> // 包含 reverse 函数的头文件
 #include <memory>
 
@@ -79,7 +78,7 @@ NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
         name = "input" + std::to_string(ctx->idx);
     }
     net_tensor->name = name + "-00";
-    net_tensor->shape = dims;
+    net_tensor->shape_ = dims;
     net_tensor->type = type;
     net_tensor->subgraph = get_active_subgraph(ctx);
     ctx->idx++;
@@ -318,31 +317,30 @@ NetTensor *_Mul(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_View(std::vector<NetTensor *> inputs, vector<int> dims, vector<int>data_dims, string name){
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
-    if (name.empty()) {
-        name = "View" + std::to_string(ctx->idx);
-    }
-    out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
-    out_tensor->type = inputs[0]->type;
-    ctx->idx++;
-    _STORE_OUT_TENSOR
-    _NEW_OP(mllm::VIEW)
-    net_op_->param["dim0"] = dims[0];
-    net_op_->param["dim1"] = dims[1];
-    net_op_->param["dim2"] = dims[2];
-    net_op_->param["dim3"] = dims[3];
-    net_op_->param["data_dim0"] = data_dims[0];
-    net_op_->param["data_dim1"] = data_dims[1];
-    net_op_->param["data_dim2"] = data_dims[2];
-    net_op_->param["data_dim3"] = data_dims[3];
-    _UPDATE_INPUT_TENSORS
-    out_tensor->in = net_op_;
-    out_tensor->ctx = ctx;
-    return out_tensor;
-}
+// NetTensor *_View(std::vector<NetTensor *> inputs, vector<int> dims, vector<int>data_dims, string name){
+//     Context *ctx = inputs[0]->ctx;
+//     NetTensor *out_tensor = new NetTensor();
+//     if (name.empty()) {
+//         name = "View" + std::to_string(ctx->idx);
+//     }
+//     out_tensor->name = "outtensor-" + name + "-00";
+//     out_tensor->type = inputs[0]->type;
+//     ctx->idx++;
+//     _STORE_OUT_TENSOR
+//     _NEW_OP(mllm::VIEW)
+//     net_op_->param["dim0"] = dims[0];
+//     net_op_->param["dim1"] = dims[1];
+//     net_op_->param["dim2"] = dims[2];
+//     net_op_->param["dim3"] = dims[3];
+//     net_op_->param["data_dim0"] = data_dims[0];
+//     net_op_->param["data_dim1"] = data_dims[1];
+//     net_op_->param["data_dim2"] = data_dims[2];
+//     net_op_->param["data_dim3"] = data_dims[3];
+//     _UPDATE_INPUT_TENSORS
+//     out_tensor->in = net_op_;
+//     out_tensor->ctx = ctx;
+//     return out_tensor;
+// }
 NetTensor *_KVCache(std::vector<NetTensor *> inputs, bool isK, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -597,42 +595,42 @@ NetTensor *_Cat(std::vector<NetTensor *> inputs, Chl axis, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_Transpose(std::vector<NetTensor *> inputs, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
-    if (name.empty()) {
-        name = "_Transpose" + std::to_string(ctx->idx);
-    }
-    out_tensor->name = "outtensor-" + name + "-00";
-    out_tensor->type = inputs[0]->type;
-    ctx->idx++;
-    _STORE_OUT_TENSOR
-    _NEW_OP(mllm::TRANSPOSE)
-    // net_op_->param["axis"] =(float)axis;
-    _UPDATE_INPUT_TENSORS
-    out_tensor->in = net_op_;
-    out_tensor->ctx = ctx;
-    return out_tensor;
-}
-NetTensor *_SubDim(std::vector<NetTensor *> inputs, Chl dim, vector<int> interval, string name){
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
-    if (name.empty()) {
-        name = "_SubDim" + std::to_string(ctx->idx);
-    }
-    out_tensor->name = "outtensor-" + name + "-00";
-    out_tensor->type = inputs[0]->type;
-    ctx->idx++;
-    _STORE_OUT_TENSOR
-    _NEW_OP(mllm::SUBDIM)
-    net_op_->param["dim"] =(float)dim;
-    net_op_->param["start_i"] =(float)interval[0];
-    net_op_->param["end_i"] =(float)interval[1];
-    _UPDATE_INPUT_TENSORS
-    out_tensor->in = net_op_;
-    out_tensor->ctx = ctx;
-    return out_tensor;
-}
+// NetTensor *_Transpose(std::vector<NetTensor *> inputs, string name) {
+//     Context *ctx = inputs[0]->ctx;
+//     NetTensor *out_tensor = new NetTensor();
+//     if (name.empty()) {
+//         name = "_Transpose" + std::to_string(ctx->idx);
+//     }
+//     out_tensor->name = "outtensor-" + name + "-00";
+//     out_tensor->type = inputs[0]->type;
+//     ctx->idx++;
+//     _STORE_OUT_TENSOR
+//     _NEW_OP(mllm::TRANSPOSE)
+//     // net_op_->param["axis"] =(float)axis;
+//     _UPDATE_INPUT_TENSORS
+//     out_tensor->in = net_op_;
+//     out_tensor->ctx = ctx;
+//     return out_tensor;
+// }
+// NetTensor *_SubDim(std::vector<NetTensor *> inputs, Chl dim, vector<int> interval, string name){
+//     Context *ctx = inputs[0]->ctx;
+//     NetTensor *out_tensor = new NetTensor();
+//     if (name.empty()) {
+//         name = "_SubDim" + std::to_string(ctx->idx);
+//     }
+//     out_tensor->name = "outtensor-" + name + "-00";
+//     out_tensor->type = inputs[0]->type;
+//     ctx->idx++;
+//     _STORE_OUT_TENSOR
+//     _NEW_OP(mllm::SUBDIM)
+//     net_op_->param["dim"] =(float)dim;
+//     net_op_->param["start_i"] =(float)interval[0];
+//     net_op_->param["end_i"] =(float)interval[1];
+//     _UPDATE_INPUT_TENSORS
+//     out_tensor->in = net_op_;
+//     out_tensor->ctx = ctx;
+//     return out_tensor;
+// }
 NetTensor *_Division(std::vector<NetTensor *> inputs, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();

@@ -112,7 +112,7 @@ NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head
     }
     qk = _Softmax( {qk}, DIMENSION, name + ".softmax");
     auto *o = _Matmul( {qk, v}, false, false, name + ".qkv");
-    o = _View( {o}, {-1, -1, -1, -1}, {BATCH, -1, SEQUENCE, HEAD + DIMENSION}, name + ".qkv_view");
+    o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _Linear( {o}, hidden_size * head_size, embedding_size, true, name + ".out_proj");
     return o;
 }
@@ -124,8 +124,10 @@ NetTensor *MLP( NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
 }
 NetTensor *VisionEmbedding(Context *c, NetTensor * i, int hidden_size, string name) { //TODO
     i = _Convolution3D({i}, 3, 1280, {2, 14, 14}, {2, 14, 14}, VALID, false, name +".rgbt_stem.proj.1");
-    i = _Transpose( {i}, name +".rgbt_stem.proj_transpose");
-    i = _View( {i}, {-1, -1, -1, -1}, {BATCH, -1,  TIME + HEIGHT + WIDTH, CHANNLE}, name +".rgbt_stem.proj_view");
+    // i = _Transpose( {i}, name +".rgbt_stem.proj_transpose");
+    i = i->transpose(SEQUENCE, DIMENSION);
+    // i = _View( {i}, {-1, -1, -1, -1}, {BATCH, -1,  TIME + HEIGHT + WIDTH, CHANNLE}, name +".rgbt_stem.proj_view");
+    i = i->flatten(TIME, CHANNLE);
     auto *s = _Parameter(c, {}, 1, 1, 1, 1280, name +".cls_token");
     i = _Cat( {s, i}, SEQUENCE, name +".rgbt_cls.cat");
     s = _Parameter(c, {}, 1, 257, 1, 1280, name +".pos_embedding_helper.pos_embed");
@@ -145,7 +147,6 @@ NetTensor *VisonModel(Context* c, NetTensor * i,  int hidden_dim= 1280, int ffn_
         i = _Add( {x, i}, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".add_mlp");
     }
     i = _LayerNorm( {i}, hidden_dim, true,  1e-6, "modality_heads."+ name + ".0");
-//    i = _SubDim( {i}, SEQUENCE, {0, 1}, "modality_heads."+name + ".post_subdim");
     i = i->clip( {}, {}, {0}, {});
     i = _Linear( {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".2");
     i = _Division( {i, _Norm( {i}, 2, "modality_postprocessors."+name +".l2norm")}, "modality_postprocessors."+name +".division");
@@ -170,7 +171,7 @@ NetTensor *TextModel(Context *c, NetTensor * i,  NetTensor * in_len, int vocab_s
         x = MLP( x, hidden_dim, ffn_hidden_dim, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".mlp");
         i = _Add( {x, i}, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".add_mlp");
     }
-    i = _SubDim( {i, in_len}, SEQUENCE, {0, 0}, "modality_heads."+ name + ".post_subdim");//Todo
+    i = i->_clip({}, {}, {in_len}, {});
     i = _LayerNorm( {i}, hidden_dim,true, 1e-6,"modality_heads."+ name + ".proj.0");
     i = _Linear( {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".proj.1");
     i = _Division( {i, _Norm( {i}, 2, "modality_postprocessors."+name +".l2norm")}, "modality_postprocessors."+name +".division");
@@ -180,8 +181,8 @@ NetTensor *TextModel(Context *c, NetTensor * i,  NetTensor * in_len, int vocab_s
 
 NetTensor *AudioEmbedding(Context *c, NetTensor * i, int hidden_size, string name) { //input: 9, 1, 128, 204
     i = _Convolution2D({i}, 1, 768, {16, 16}, {10, 10}, VALID, false, name +".rgbt_stem.proj"); // 9, 768, 12, 19
-    i = _Transpose( {i},name +".rgbt_stem.proj_transpose");
-    i = _View( {i}, {-1, -1, -1, -1}, {BATCH, -1, HEAD+SEQUENCE, DIMENSION},  name +".rgbt_stem.proj_view"); //9. 1. 228, 768
+    i = i->transpose(SEQUENCE, DIMENSION);
+    i = i->flatten(HEAD, SEQUENCE);
     i = _LayerNorm( {i}, hidden_size, true, 1e-6, name +".norm_layer.proj_norm");
     auto *s = _Parameter(c, {}, 1, 1, 1, 768, name +".cls_token");
     i = _Cat( {s, i}, SEQUENCE, name +".cls_token.cat");
@@ -201,7 +202,6 @@ NetTensor *AudioModel(Context* c, NetTensor * i,  int hidden_dim= 768, int ffn_h
         i = _Add( {x, i}, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".add_mlp");
     }
     i = _LayerNorm( {i}, hidden_dim, true,  1e-6, "modality_heads."+ name + ".0");
-//    i = _SubDim(c, {i}, SEQUENCE, {0, 1}, "modality_heads."+name + ".post_subdim");
     i = i->clip( {}, {}, {0}, {});
     i = _Linear( {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".2");
     i = _Division( {i, _Norm( {i}, 2, "modality_postprocessors."+name +".l2norm")}, "modality_postprocessors."+name +".division");
@@ -214,8 +214,8 @@ void ImageBind(Context* c) {
     i = TextModel(c, i, i_len);
     auto *p = _Input(c, {}, "input_imgs");
     p = VisonModel(c, p);
-    i = _View( {i}, {-1, -1, -1, -1}, {SEQUENCE, HEAD, BATCH, DIMENSION}, "final.text_view");
-    p = _View( {p}, {-1, -1, -1, -1}, {SEQUENCE, HEAD, BATCH, DIMENSION}, "final.vision_view");
+    i = i->transpose(BATCH, SEQUENCE);
+    p = p->transpose(BATCH, SEQUENCE);
     i = _Matmul( {p, i}, false, true, "final.vision@text");
     i = _Softmax( {i}, DIMENSION, "final.softmax");
 }

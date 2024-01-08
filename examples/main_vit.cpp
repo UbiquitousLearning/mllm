@@ -1082,15 +1082,15 @@ NetTensor *Attention(NetTensor * x, int embedded_size, int hidden_size, int head
     auto *q =_Linear({x}, embedded_size, hidden_size * head_size, true, name + ".attention.query");
     auto *k =_Linear({x}, embedded_size, hidden_size * head_size, true, name + ".attention.key");
     auto *v =_Linear({x}, embedded_size, hidden_size * head_size, true, name + ".attention.value");
-    q = _View({q}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".q_view");
-    k = _View({k}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".k_view");
-    v = _View({v}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".v_view");
+    q = q->view(-1, head_size, -1, hidden_size);
+    k = k->view(-1, head_size, -1, hidden_size);
+    v = v->view(-1, head_size, -1, hidden_size);
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
     qk = _Scale( {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
     // qk = _Causalmask( {qk}, name + ".mask");
     qk = _Softmax( {qk}, DIMENSION, name + ".softmax");
     auto *o = _Matmul( {qk, v}, false, false, name + ".qkv");
-    o = _View( {o}, {-1, -1, -1, -1}, {BATCH, -1, SEQUENCE, HEAD+DIMENSION}, name + ".qkv_view");
+    o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _Linear( {o}, hidden_size * head_size, embedded_size, true, name + ".output.dense");
     return o;
 }
@@ -1102,8 +1102,9 @@ NetTensor *MLP( NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
 }
 NetTensor *Embedding(Context *c, NetTensor * i, int hidden_size, string name) {
     i = _Convolution2D({i}, 3, 768, {16, 16}, {16, 16}, VALID, true, name +".patch_embeddings.projection");
-    i = _Transpose( {i}, name +".patch_embeddings.projection_transpose");
-    i = _View( {i}, {-1, -1, -1, -1}, {BATCH, -1, HEAD+SEQUENCE, DIMENSION}, name +".patch_embeddings.projection_view");
+    // i = _Transpose( {i}, name +".patch_embeddings.projection_transpose");
+    i = i->transpose(SEQUENCE, DIMENSION);
+    i = i->flatten(HEAD, SEQUENCE);
     auto *s = _Parameter(c, {}, 1, 1, 1, 768, name +".cls_token");
     i = _Cat( {s, i}, SEQUENCE, name +".cls_token.cat");
     s = _Parameter(c, {}, 1, 197, 1, 768, name +".position_embeddings");
@@ -1122,7 +1123,6 @@ void vit(Context* c, int hidden_dim= 768, int ffn_hidden_dim = 3072, int class_s
         i = _Add( {x, i}, name + ".encoder.layer."+std::to_string(layer)+".add_mlp");
         _SubgraphBegin(c);
     }
-//    i = _SubDim( {i}, SEQUENCE, {0, 1}, name + ".post_subdim");
     i = i->clip( {}, {}, {0}, {});
     i = _LayerNorm( {i}, hidden_dim, true,  1e-6, name + ".layernorm");
     i = _Linear( {i}, hidden_dim, class_size, false, "classifier");

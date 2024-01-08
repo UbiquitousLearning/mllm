@@ -76,10 +76,9 @@ NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head
     auto *q = _Linear( {x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
     auto *k = _Linear( {x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
     auto *v = _Linear( {x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
-    // q= _Scale( {q}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".q_scale");
-    q = _View( {q}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".q_view");
-    k = _View( {k}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".k_view");
-    v = _View( {v}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".v_view");
+    q = q->view(-1, head_size, -1, hidden_size);
+    k = k->view(-1, head_size, -1, hidden_size);
+    v = v->view(-1, head_size, -1, hidden_size);
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
     qk = _Scale( {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
     if(name.find("text_model") != std::string::npos){
@@ -87,7 +86,7 @@ NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head
     }
     qk = _Softmax( {qk}, DIMENSION, name + ".softmax");
     auto *o = _Matmul( {qk, v}, false, false, name + ".qkv");
-    o = _View( {o}, {-1, -1, -1, -1}, {BATCH, -1, SEQUENCE, HEAD + DIMENSION}, name + ".qkv_view");
+    o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _Linear( {o}, hidden_size * head_size, embedding_size, true, name + ".out_proj");
     return o;
 }
@@ -99,8 +98,8 @@ NetTensor *MLP(  NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) 
 }
 NetTensor *VisionEmbedding(Context *c, NetTensor * i, int hidden_size, string name) {
     i = _Convolution2D({i}, 3, 768, {32, 32}, {32, 32}, VALID, false, name +".patch_embedding");
-    i = _Transpose( {i}, name +".patch_embedding.projection_transpose");
-    i = _View( {i}, {-1, -1, -1, -1}, {BATCH, -1, HEAD+SEQUENCE, DIMENSION}, name +".patch_embedding.projection_view");
+    i = i->transpose(SEQUENCE, DIMENSION);
+    i = i->flatten(HEAD, SEQUENCE);
     auto *s = _Parameter(c, {}, 1, 1, 1, 768, name +".class_embedding");
     i = _Cat( {s, i}, SEQUENCE, name +".class_embedding.cat");
     s = _Parameter(c, {}, 1, 50, 1, 1, name +".position_ids");
@@ -111,8 +110,7 @@ NetTensor *VisionEmbedding(Context *c, NetTensor * i, int hidden_size, string na
 NetTensor *TextEmbedding(Context *c, NetTensor * i,  int vocab_size, int hidden_dim, int max_position_embeddings, string name) {
     i = _Embedding( {i}, vocab_size, hidden_dim, name +".token_embedding");
     auto *s = _Parameter(c, {}, 1, max_position_embeddings, 1, 1, name +".position_ids");
-    //mark 77->7
-    s = _SubDim( {s, i}, SEQUENCE, {0,0}, name +".position_ids.subdim");
+    s = s->_clip({}, {}, {0, i->shape(SEQUENCE)}, {});
     s = _Embedding( {s}, max_position_embeddings, hidden_dim, name +".position_embedding");
     i = _Add( {s, i}, name+".add_embd");
     return i;
@@ -132,7 +130,6 @@ NetTensor *transformer(Context *c, NetTensor * i,  int vocab_size = 49408, int h
     }
     // end loop
     i = _LayerNorm( {i}, hidden_dim,true, 1e-6, name + ".final_layer_norm");
-//    i = _SubDim( {i}, SEQUENCE, {-1, 0}, name + ".final_subdim");
     i = i->clip( {}, {}, {-1}, {});
     return i;
 }
@@ -149,7 +146,6 @@ NetTensor *vit(Context* c, NetTensor * i,  int hidden_dim= 768, int ffn_hidden_d
         i = _Add( {x, i}, name + ".encoder.layers."+std::to_string(layer)+".add_mlp");
         _SubgraphBegin(c);
     }
-//    i = _SubDim({i}, SEQUENCE, {0, 1}, name + ".post_subdim");
     i = i->clip( {}, {}, {0}, {});
     i = _LayerNorm( {i}, hidden_dim, true,  1e-6, name + ".post_layernorm");
     return i;

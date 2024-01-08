@@ -25,7 +25,7 @@ inline NetTensor *Attention_Fuyu(Context *ctx, NetTensor * x, int embedding_size
     qk = _Causalmask( {qk}, name + ".mask");
     qk = _Softmax( {qk}, DIMENSION, name + ".softmax");
     auto *o = _Matmul( {qk, v}, false, false, name + ".qkv");
-    o = _View( {o}, {-1, -1, -1, -1}, {BATCH, -1, SEQUENCE, HEAD+DIMENSION}, name + ".qkv_view");
+    o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _Linear( {o}, hidden_size * head_size, embedding_size, true, name + ".dense");
     return o;
 }
