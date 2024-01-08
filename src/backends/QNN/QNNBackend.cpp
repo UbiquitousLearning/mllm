@@ -76,9 +76,9 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     // std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnCpuOpPackageExample.so:QnnOpPackage_interfaceProvider";
     std::string opPackagePaths = "/qnn-projects/QNN-test-libs/llama-op-package/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
 #elifdef QNN_ARM
-    std::string backEndPath = "./qnn/libQnnHtp.so";
+    std::string backEndPath = "libQnnHtp.so";
     std::string inputListPaths = "./qnn/input-list.txt";
-    std::string opPackagePaths = "./qnn/hexagon-v75/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
+    std::string opPackagePaths = "./qnn/llama-op-hexagon75/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
 #else
     std::string modelPath = "/mllm/qualcomm_ai_engine_direct_new/examples/QNN/example_libs/x86_64-linux-clang/libqnn_model_float.so";
     std::string backEndPath = "/mllm/qualcomm_ai_engine_direct_new/lib/x86_64-linux-clang/libQnnHtp.so";
