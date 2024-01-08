@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <iostream>
 #include <valarray>
 #include <csignal>
@@ -16,14 +17,15 @@ using namespace mllm;
 
 void BuildModel(Context *ctx) {
     auto *i = _Input(ctx);
-    auto *q = _Linear(ctx, {i}, 4, 2, false, "layers." + std::to_string(0) + ".attention.wq");
+    auto *q = _Linear(ctx, {i}, 4096, 4096, false, "layers." + std::to_string(0) + ".attention.wq");
 }
 
-void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, float value) {
+template <typename Dtype>
+void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dtype value) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_QNN].get());
     input_tensor->reshape(shape);
     input_tensor->alloc();
-    input_tensor->fullData<float>(value);
+    input_tensor->fullData<Dtype>(value);
 }
 
 int main() {
@@ -65,9 +67,10 @@ int main() {
 
     Executor ex;
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    fullTensor(input, net, {1, 1, 2, 4}, 2.f);
+    input->setDtype(MLLM_TYPE_I8);
+    fullTensor(input, net, {1, 1, 2, 4096}, (int8_t)2);
 
     ex.execute(&net, input);
     auto result = ex.result();
-    result[0]->printData<float>();
+    // result[0]->printData<float>();
 }

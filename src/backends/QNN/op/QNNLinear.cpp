@@ -3,6 +3,7 @@
 #include "QnnTypes.h"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
+#include <cstdint>
 #include <memory>
 
 namespace mllm {
@@ -42,8 +43,8 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     for (int i = 0; i < 4; i++) {
         dimensionsWeight[i] = weight_.shape()[i];
     }
-    weight_.fullData(2.f);
-    weight_.printData<float>();
+    weight_.fullData((int8_t)2);
+    // weight_.printData<float>();
     qnnBackend_->modelAddTensor(weight_.name().c_str(), (Qnn_Tensor_t){
                                                             .version = QNN_TENSOR_VERSION_1,
                                                             {.v1 = {
@@ -51,7 +52,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                                                  .name = weight_.name().c_str(),
                                                                  .type = QNN_TENSOR_TYPE_STATIC,
                                                                  .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                                 .dataType = QNN_DATATYPE_FLOAT_32,
+                                                                 .dataType = QNN_DATATYPE_UFIXED_POINT_8,
                                                                  .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                                                     QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                                                     {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
@@ -73,7 +74,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                                       .name = outString.c_str(),
                                                       .type = QNN_TENSOR_TYPE_APP_READ,
                                                       .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                      .dataType = QNN_DATATYPE_FLOAT_32,
+                                                      .dataType = QNN_DATATYPE_UFIXED_POINT_8,
                                                       .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                                          QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                                          {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
@@ -145,6 +146,7 @@ ErrorCode QNNLinear::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, out_features_, in_features_);
     // weight_.setDtype(loader.getDataType(weight_.name()));
+    weight_.setDtype(MLLM_TYPE_I8);
     weight_.setBackend(qnnBackend_);
     weight_.alloc();
     // loader.load(&weight_);

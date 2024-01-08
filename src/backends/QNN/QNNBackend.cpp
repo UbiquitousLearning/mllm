@@ -66,7 +66,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
       return;
     }
     // TODO: make debug level configuable
-    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_DEBUG);
+    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_ERROR);
 
 #ifdef QNN_ZH
     // std::string modelPath = "/qnn-projects/QNN-test-libs/example_libs/x86_64-linux-clang/libqnn_model_float.so";
@@ -90,7 +90,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     m_debug = true;
     m_outputDataType = iotensor::OutputDataType::FLOAT_ONLY;
     m_inputDataType = iotensor::InputDataType::FLOAT;
-    m_profilingLevel = ProfilingLevel::DETAILED;
+    m_profilingLevel = ProfilingLevel::OFF;
     m_dumpOutputs = true;
     m_isBackendInitialized = false;
     m_isContextCreated = false;
@@ -173,7 +173,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
                                                              .name = inputs[0]->name().c_str(),
                                                              .type = QNN_TENSOR_TYPE_APP_WRITE,
                                                              .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                             .dataType = QNN_DATATYPE_FLOAT_32,
+                                                             .dataType = QNN_DATATYPE_UFIXED_POINT_8,
                                                              .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                                                 QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                                                 {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
@@ -188,14 +188,14 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
     graphFinilize();
     for(auto &input : inputs) {
         std::cout << "input dtype:" << input->dtype() << std::endl;
-        input->printData<float>();
+        // input->printData<float>();
         inputBuffers.push_back(input->hostPtr<uint8_t>());
     }
     inputBufferMap.insert(std::make_pair("graph", inputBuffers));
     for(auto &output : outputs) {
         std::cout << "output dtype:" << output->dtype() << std::endl;
         output->alloc();
-        output->printData<float>();
+        // output->printData<float>();
         outputBuffers.push_back(output->hostPtr<uint8_t>());
     }
     outputBufferMap.insert(std::make_pair("graph", outputBuffers));
