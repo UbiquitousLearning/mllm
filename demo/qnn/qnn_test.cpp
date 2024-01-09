@@ -2,6 +2,7 @@
 #include <iostream>
 #include <valarray>
 #include <csignal>
+#include "MockLoader.hpp"
 #include "Net.hpp"
 #include "Executor.hpp"
 #include "NetParameter.hpp"
@@ -17,7 +18,7 @@ using namespace mllm;
 
 void BuildModel(Context *ctx) {
     auto *i = _Input(ctx);
-    auto *q = _Linear(ctx, {i}, 4096, 4096, false, "layers." + std::to_string(0) + ".attention.wq");
+    auto *q = _Linear(ctx, {i}, 4096, 4096, true, "layers." + std::to_string(0) + ".attention.wq");
 }
 
 template <typename Dtype>
@@ -65,10 +66,10 @@ int main() {
     net.convert(c->sub_param_, MLLM_QNN);
     std::cout << "convert done" << std::endl;
 
-    Executor ex;
+    MockLoader loader("");
+    Executor ex(&loader);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    input->setDtype(MLLM_TYPE_I8);
-    fullTensor(input, net, {1, 1, 2, 4096}, (int8_t)2);
+    fullTensor(input, net, {1, 1, 2, 4096}, 2.f);
 
     ex.execute(&net, input);
     auto result = ex.result();

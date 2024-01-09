@@ -59,6 +59,12 @@ public:
 #ifdef USE_MMAP
     ParamLoader(void *buffer);
 #endif
+// no param loader for debug
+#ifdef DEBUG
+    ParamLoader() {
+        std::cout << "ParamLoader" << std::endl;
+    }
+#endif
     ~ParamLoader();
     bool load(mllm::Tensor *tensor) override;
     bool load(std::shared_ptr<mllm::Tensor> tensor) override;

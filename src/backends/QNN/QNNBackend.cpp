@@ -66,7 +66,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
       return;
     }
     // TODO: make debug level configuable
-    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_ERROR);
+    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_VERBOSE);
 
 #ifdef QNN_ZH
     // std::string modelPath = "/qnn-projects/QNN-test-libs/example_libs/x86_64-linux-clang/libqnn_model_float.so";
@@ -173,7 +173,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
                                                              .name = inputs[0]->name().c_str(),
                                                              .type = QNN_TENSOR_TYPE_APP_WRITE,
                                                              .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                             .dataType = QNN_DATATYPE_UFIXED_POINT_8,
+                                                             .dataType = QNN_DATATYPE_FLOAT_32,
                                                              .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                                                 QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                                                 {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},

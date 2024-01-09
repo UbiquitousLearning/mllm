@@ -223,7 +223,7 @@ if(QNN)
     set(CMAKE_LD_FLAGS "-shared -s -fPIC -pthread -fvisibility=hidden -flto")
 
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
-    add_executable(qnn_test ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_test.cpp ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_wrapper.hpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
+    add_executable(qnn_test ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_test.cpp ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_wrapper.hpp ${PROJECT_SOURCE_DIR}/demo/qnn/MockLoader.hpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
     add_executable(silu_test ${PROJECT_SOURCE_DIR}/demo/qnn/silu_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
     add_executable(rope_test ${PROJECT_SOURCE_DIR}/demo/qnn/rope_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
     add_executable(rms_test ${PROJECT_SOURCE_DIR}/demo/qnn/rms_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
