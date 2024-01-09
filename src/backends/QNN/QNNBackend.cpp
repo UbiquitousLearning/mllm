@@ -66,7 +66,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
       return;
     }
     // TODO: make debug level configuable
-    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_DEBUG);
+    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_VERBOSE);
 
 #ifdef QNN_ZH
     // std::string modelPath = "/qnn-projects/QNN-test-libs/example_libs/x86_64-linux-clang/libqnn_model_float.so";
@@ -76,9 +76,9 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     // std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnCpuOpPackageExample.so:QnnOpPackage_interfaceProvider";
     std::string opPackagePaths = "/qnn-projects/QNN-test-libs/llama-op-package/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
 #elifdef QNN_ARM
-    std::string backEndPath = "./qnn/libQnnHtp.so";
+    std::string backEndPath = "libQnnHtp.so";
     std::string inputListPaths = "./qnn/input-list.txt";
-    std::string opPackagePaths = "./qnn/hexagon-v75/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
+    std::string opPackagePaths = "./qnn/llama-op-hexagon75/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
 #else
     std::string modelPath = "/mllm/qualcomm_ai_engine_direct_new/examples/QNN/example_libs/x86_64-linux-clang/libqnn_model_float.so";
     std::string backEndPath = "/mllm/qualcomm_ai_engine_direct_2.18/lib/x86_64-linux-clang/libQnnHtp.so";
@@ -90,7 +90,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     m_debug = true;
     m_outputDataType = iotensor::OutputDataType::FLOAT_ONLY;
     m_inputDataType = iotensor::InputDataType::FLOAT;
-    m_profilingLevel = ProfilingLevel::DETAILED;
+    m_profilingLevel = ProfilingLevel::OFF;
     m_dumpOutputs = true;
     m_isBackendInitialized = false;
     m_isContextCreated = false;
@@ -188,14 +188,14 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
     graphFinilize();
     for(auto &input : inputs) {
         std::cout << "input dtype:" << input->dtype() << std::endl;
-        input->printData<float>();
+        // input->printData<float>();
         inputBuffers.push_back(input->hostPtr<uint8_t>());
     }
     inputBufferMap.insert(std::make_pair("graph", inputBuffers));
     for(auto &output : outputs) {
         std::cout << "output dtype:" << output->dtype() << std::endl;
         output->alloc();
-        output->printData<float>();
+        // output->printData<float>();
         outputBuffers.push_back(output->hostPtr<uint8_t>());
     }
     outputBufferMap.insert(std::make_pair("graph", outputBuffers));

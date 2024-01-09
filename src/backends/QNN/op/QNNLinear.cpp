@@ -3,6 +3,7 @@
 #include "QnnTypes.h"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
+#include <cstdint>
 #include <memory>
 
 namespace mllm {
@@ -30,20 +31,43 @@ ErrorCode QNNLinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 }
 
 ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    // add matmul param to qnn
     vector<Qnn_Param_t> paramsMatmul = {
         {.paramType = QNN_PARAMTYPE_SCALAR,
          .name = "transpose_in0",
          {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = 0}}}},
         {.paramType = QNN_PARAMTYPE_SCALAR,
          .name = "transpose_in1",
-         {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = 1}}}}};    
+         {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = 1}}}}};
+    // add quantized input tensor to qnn
+    auto inputQuantizeName = inputs[0]->name() + ".quantize";
+    uint32_t dimensionsInput[4];
+    for (int i = 0; i < 4; i++) {
+        dimensionsInput[i] = inputs[0]->shape()[i];
+    }
+    vector<Qnn_Tensor_t> quantizedInput = {
+        (Qnn_Tensor_t){
+            .version = QNN_TENSOR_VERSION_1,
+            {.v1 = {
+                 .id = 0,
+                 .name = inputQuantizeName.c_str(),
+                 .type = QNN_TENSOR_TYPE_NATIVE,
+                 .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                 .dataType = QNN_DATATYPE_UFIXED_POINT_8,
+                 .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                    QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                    {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                 .rank = 4,
+                 .dimensions = dimensionsInput,
+                 .memType = QNN_TENSORMEMTYPE_RAW,
+                 {.clientBuf = {.data = nullptr,
+                                .dataSize = 0}}}}}};
+    graphAddNode(name() + ".quantize", "Quantize", {inputs[0]->name().c_str()}, quantizedInput);
     // add weight tensor to qnn
     uint32_t dimensionsWeight[4];
     for (int i = 0; i < 4; i++) {
         dimensionsWeight[i] = weight_.shape()[i];
     }
-    weight_.fullData(2.f);
-    weight_.printData<float>();
     qnnBackend_->modelAddTensor(weight_.name().c_str(), (Qnn_Tensor_t){
                                                             .version = QNN_TENSOR_VERSION_1,
                                                             {.v1 = {
@@ -51,7 +75,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                                                  .name = weight_.name().c_str(),
                                                                  .type = QNN_TENSOR_TYPE_STATIC,
                                                                  .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                                 .dataType = QNN_DATATYPE_FLOAT_32,
+                                                                 .dataType = QNN_DATATYPE_UFIXED_POINT_8,
                                                                  .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                                                     QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                                                     {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
@@ -60,32 +84,72 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                                                  .memType = QNN_TENSORMEMTYPE_RAW,
                                                                  {.clientBuf = {.data = weight_.hostPtr<void>(),
                                                                                 .dataSize = (uint32_t)weight_.cntSize()}}}}});
-
-    uint32_t dimensionsBias[4];
+    // dimensions of matmul output and bias
+    uint32_t dimensionsOutput[4];
     for (int i = 0; i < 4; i++) {
-        dimensionsBias[i] = outputs[0]->shape()[i];
+        dimensionsOutput[i] = outputs[0]->shape()[i];
     }
-    auto outString = outputs[0]->name();
-    if (!support_bias_) { // if don't support bias, just matmul and write to outputs[0]
-        vector<Qnn_Tensor_t> qnnOutputTensor = {{QNN_TENSOR_VERSION_1,
-                                                 {.v1 = {
-                                                      .id = 0,
-                                                      .name = outString.c_str(),
-                                                      .type = QNN_TENSOR_TYPE_APP_READ,
-                                                      .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                      .dataType = QNN_DATATYPE_FLOAT_32,
-                                                      .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                                                         QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                                                         {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-                                                      .rank = 4,
-                                                      .dimensions = dimensionsBias,
-                                                      .memType = QNN_TENSORMEMTYPE_RAW,
-                                                      {.clientBuf = {.data = nullptr,
-                                                                     .dataSize = 0}}}}}};
-        return graphAddNode(name(), "MatMul", {inputs[0]->name().c_str(), weight_.name().c_str()}, qnnOutputTensor, paramsMatmul);
+    auto outName = outputs[0]->name();
+    auto outQuantizedName = outputs[0]->name() + ".quantized";
+    auto outDeqnName = outputs[0]->name() + ".dequantized";
+    vector<Qnn_Tensor_t> matmulOut = {{QNN_TENSOR_VERSION_1,
+                                       {.v1 = {
+                                            .id = 0,
+                                            .name = outQuantizedName.c_str(),
+                                            .type = QNN_TENSOR_TYPE_NATIVE,
+                                            .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                            .dataType = QNN_DATATYPE_UFIXED_POINT_8,
+                                            .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                               QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                               {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                            .rank = 4,
+                                            .dimensions = dimensionsOutput,
+                                            .memType = QNN_TENSORMEMTYPE_RAW,
+                                            {.clientBuf = {.data = nullptr,
+                                                           .dataSize = 0}}}}}};
+    graphAddNode(name() + ".matmul", "MatMul", {inputQuantizeName.c_str(), weight_.name().c_str()}, matmulOut, paramsMatmul);
+
+    // if don't support bias, just dequantize and write to tensor with name of outputs[0]
+    if (!support_bias_) {
+        // output of dequantized result of matmul
+        vector<Qnn_Tensor_t> deqnOut = {{QNN_TENSOR_VERSION_1,
+                                         {.v1 = {
+                                              .id = 0,
+                                              .name = outName.c_str(),
+                                              .type = QNN_TENSOR_TYPE_NATIVE,
+                                              .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                              .dataType = QNN_DATATYPE_FLOAT_32,
+                                              .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                                 QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                                 {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                              .rank = 4,
+                                              .dimensions = dimensionsOutput,
+                                              .memType = QNN_TENSORMEMTYPE_RAW,
+                                              {.clientBuf = {.data = nullptr,
+                                                             .dataSize = 0}}}}}};
+        return graphAddNode(name() + ".dequantize", "Dequantize", {outQuantizedName.c_str()}, deqnOut);
     }
 
+    // dequantize to tensor with name of outputs[0] + ".dequantize"
+    // output of dequantized result of matmul
+    vector<Qnn_Tensor_t> deqnOut = {{QNN_TENSOR_VERSION_1,
+                                     {.v1 = {
+                                          .id = 0,
+                                          .name = outDeqnName.c_str(),
+                                          .type = QNN_TENSOR_TYPE_NATIVE,
+                                          .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                          .dataType = QNN_DATATYPE_FLOAT_32,
+                                          .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                             QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                             {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                          .rank = 4,
+                                          .dimensions = dimensionsOutput,
+                                          .memType = QNN_TENSORMEMTYPE_RAW,
+                                          {.clientBuf = {.data = nullptr,
+                                                         .dataSize = 0}}}}}};
+    graphAddNode(name() + ".dequantize", "Dequantize", {outQuantizedName.c_str()}, deqnOut);
     // add bias tensor to qnn
+    uint32_t dimensionsBias[4] = {1, 1, 1, (uint32_t)out_features_};
     qnnBackend_->modelAddTensor(bias_.name().c_str(), (Qnn_Tensor_t){
                                                           .version = QNN_TENSOR_VERSION_1,
                                                           {.v1 = {
@@ -102,30 +166,11 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                                                .memType = QNN_TENSORMEMTYPE_RAW,
                                                                {.clientBuf = {.data = bias_.hostPtr<void>(),
                                                                               .dataSize = (uint32_t)bias_.cntSize()}}}}});
-    // add intermediate output of matmul
-    vector<Qnn_Tensor_t> intermediateOutput = {
-        {.version = QNN_TENSOR_VERSION_1,
-         {.v1 = {
-              .id = 0,
-              .name = (name() + ".intermediate").c_str(),
-              .type = QNN_TENSOR_TYPE_NATIVE,
-              .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-              .dataType = QNN_DATATYPE_FLOAT_32,
-              .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                 QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                 {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-              .rank = 4,
-              .dimensions = dimensionsBias,
-              .memType = QNN_TENSORMEMTYPE_RAW,
-              {.clientBuf = {.data = nullptr,
-                             .dataSize = 0}}}}}};
-
-    graphAddNode(name(), "MatMul", {inputs[0]->name().c_str(), weight_.name().c_str()}, intermediateOutput, paramsMatmul);
-
+    // final output
     vector<Qnn_Tensor_t> biasOutput = {{QNN_TENSOR_VERSION_1,
                                         {.v1 = {
                                              .id = 0,
-                                             .name = outString.c_str(),
+                                             .name = outName.c_str(),
                                              .type = QNN_TENSOR_TYPE_APP_READ,
                                              .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                              .dataType = QNN_DATATYPE_FLOAT_32,
@@ -133,28 +178,27 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                                                 QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                                 {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
                                              .rank = 4,
-                                             .dimensions = dimensionsBias,
+                                             .dimensions = dimensionsOutput,
                                              .memType = QNN_TENSORMEMTYPE_RAW,
                                              {.clientBuf = {.data = nullptr,
                                                             .dataSize = 0}}}}}};
-    return graphAddNode(name(), "ElementWiseAdd", {(name() + ".intermediate").c_str(), bias_.name().c_str()},
-                        biasOutput);
+    return graphAddNode(name() + ".add", "ElementWiseAdd", {outDeqnName.c_str(), bias_.name().c_str()}, biasOutput);
 }
 
 ErrorCode QNNLinear::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, out_features_, in_features_);
-    // weight_.setDtype(loader.getDataType(weight_.name()));
+    weight_.setDtype(loader.getDataType(weight_.name()));
     weight_.setBackend(qnnBackend_);
     weight_.alloc();
-    // loader.load(&weight_);
-
+    loader.load(&weight_);
     if (support_bias_) {
         bias_.setName(name() + ".bias");
         bias_.reshape(1, 1, 1, out_features_);
-        // bias_.setDtype(loader.getDataType(bias_.name()));
+        bias_.setDtype(loader.getDataType(bias_.name()));
+        bias_.setBackend(qnnBackend_);
         bias_.alloc();
-        // loader.load(&bias_);
+        loader.load(&bias_);
     }
     return Op::load(loader);
 }
