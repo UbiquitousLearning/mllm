@@ -58,9 +58,11 @@ aux_source_directory(${PROJECT_SOURCE_DIR}/src DIR_SRC)
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/express DIR_SRC_EXP)
 
+aux_source_directory(${PROJECT_SOURCE_DIR}/src/processor DIR_SRC_PROCESSOE)
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/memory DIR_SRC_MEM_MANAGER)
 aux_source_directory(${PROJECT_SOURCE_DIR}/examples EMP_SRC)
 aux_source_directory(${PROJECT_SOURCE_DIR}/test TEST_SRC)
+aux_source_directory(${PROJECT_SOURCE_DIR}/third_party/wenet_audio DIR_THIRDPARTY_AUDIO)
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${PROJECT_SOURCE_DIR}/include)
@@ -236,10 +238,12 @@ add_executable(main_imagebind ${PROJECT_SOURCE_DIR}/examples/main_imagebind.cpp 
         src/tokenizers/Tokenizer.hpp
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
-        src/processor/PreProcess.hpp
-        src/processor/PreProcess.cpp
-        src/processor/ClipPreProcess.cpp
-        src/processor/ClipPreProcess.hpp
+        ${DIR_SRC_PROCESSOE}
+        ${DIR_THIRDPARTY_AUDIO}
+#        src/processor/PreProcess.hpp
+#        src/processor/PreProcess.cpp
+#        src/processor/ClipPreProcess.cpp
+#        src/processor/ClipPreProcess.hpp
 )
 target_link_libraries(main_imagebind MLLM_CPU)
 

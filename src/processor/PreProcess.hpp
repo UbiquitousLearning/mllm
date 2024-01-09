@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "tokenizers/Tokenizer.hpp"
+#include "AudioProcess.hpp"
 
 namespace mllm {
 enum PaddingType {
@@ -96,6 +97,10 @@ public:
     static std::vector<ImageInfo> NormalizeImages(std::vector<ImageInfo> &images, float mean, float std, bool free_source = true);
     static std::vector<ImageInfo> NormalizeImages(std::vector<ImageInfo> &images, vector<float> means, vector<float> stds, bool free_source = true);
     static std::vector<ImageInfo> CenterCropImages(std::vector<ImageInfo> &images, int height, int width, float pad = 0.0F, bool free_source = true);
+
+    static std::vector<std::vector<std::vector<std::vector<float>>>> ProcessAudio(std::vector<std::string> waves) {
+        return ProcessWAV(waves);
+    }
 };
 }
 
