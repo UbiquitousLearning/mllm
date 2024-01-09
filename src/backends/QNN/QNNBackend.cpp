@@ -66,7 +66,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
       return;
     }
     // TODO: make debug level configuable
-    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_VERBOSE);
+    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_DEBUG);
 
 #ifdef QNN_ZH
     // std::string modelPath = "/qnn-projects/QNN-test-libs/example_libs/x86_64-linux-clang/libqnn_model_float.so";
@@ -87,7 +87,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
 #endif
 
     // TODO: make these configuable
-    m_debug = true;
+    m_debug = false; // when set true, NATIVE tensor will be regared as APP_READ tensor
     m_outputDataType = iotensor::OutputDataType::FLOAT_ONLY;
     m_inputDataType = iotensor::InputDataType::FLOAT;
     m_profilingLevel = ProfilingLevel::OFF;
