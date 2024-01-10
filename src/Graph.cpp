@@ -109,12 +109,8 @@ void Graph::setUpTensors() {
     }
     // set up tensors of ops
     for (int i = 0; i < (int)op_names_.size(); ++i) {
-        std::cout << "EXE:: SetUpTensors " << op_names_[i] << std::endl;
         string lname = op_names_[i];
-        std::cout << "EXE:: SetUpTensors " << op_names_[i] << std::endl;
-        std::cout <<"======" <<ops_[lname]->name() << std::endl;
         ops_[lname]->setUp(ops_input_tensors_[lname], ops_output_tensors_[lname]);
-        std::cout << "EXE:: SetUpTensors " << op_names_[i] << std::endl;
     }
 }
 

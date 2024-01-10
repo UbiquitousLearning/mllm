@@ -4,8 +4,8 @@
 #include "QNNCommonOp.hpp"
 
 namespace mllm {
-QNNMatmul::QNNMatmul(Backend *bn, string opName) :
-    QNNCommonOp(bn, opName) {
+QNNMatmul::QNNMatmul(Backend *bn, string opName, bool transpose0, bool transpose1) :
+    QNNCommonOp(bn, opName), transpose0_(transpose0), transpose1_(transpose1) {
 }
 
 ErrorCode QNNMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
