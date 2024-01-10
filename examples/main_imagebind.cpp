@@ -77,6 +77,29 @@ void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vector<
         }
     }
 }
+void audio2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vector<vector<float>>>> audio) {
+    vector<vector<vector<float>>> audio_new;
+    for (auto auv : audio) {
+        for (auto au : auv) {
+            audio_new.push_back(au);
+        }
+    }
+    int batch = audio_new.size();
+    int channel = 1;
+    int height = audio_new[0].size();
+    int width= audio_new[0][0].size();
+    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+    input_tensor->reshape(batch, height, channel, width);
+    input_tensor->setDtype(MLLM_TYPE_F32);
+    input_tensor->alloc();
+    for (int bi = 0; bi < audio_new.size(); ++bi) {
+            for (int h = 0; h < height; ++h) {
+                for (int w = 0; w < width; ++w) {
+                    input_tensor->setDataAt<float>(bi, h, 0, w, audio_new[bi][h][w]);
+            }
+        }
+    }
+}
 /*
 vector<float> softmax(const vector<float>& scores) {
     vector<float> exps;
@@ -172,7 +195,7 @@ NetTensor *AudioEmbedding(Context *c, NetTensor * i, int hidden_size, string nam
     i = _Convolution2D({i}, 1, 768, {16, 16}, {10, 10}, VALID, false, name +".rgbt_stem.proj"); // 9, 768, 12, 19
     i = i->transpose(SEQUENCE, DIMENSION);
     i = i->flatten(HEAD, SEQUENCE);
-    i = _LayerNorm( {i}, hidden_size, true, 1e-6, name +".norm_layer.proj_norm");
+    i = _LayerNorm( {i}, hidden_size, true, 1e-6, name +".rgbt_stem.norm_layer");
     auto *s = _Parameter(c, {}, 1, 1, 1, 768, name +".cls_token");
     i = _Cat( {s, i}, SEQUENCE, name +".cls_token.cat");
     s = _Parameter(c, {}, 1, 229, 1, 768, name +".pos_embedding_helper.pos_embed");
@@ -181,7 +204,8 @@ NetTensor *AudioEmbedding(Context *c, NetTensor * i, int hidden_size, string nam
 }
 NetTensor *AudioModel(Context* c, NetTensor * i,  int hidden_dim= 768, int ffn_hidden_dim = 3072, int mutil_head_size = 12, string name = "audio"){
     i = AudioEmbedding(c, i, hidden_dim, "modality_preprocessors."+name);
-    i = _LayerNorm( {i},  hidden_dim,  true,1e-6, "modality_trunks."+name + ".pre_transformer_layer.0");
+    //TODO trans 3, 229, 768 -> 229, 3, 768
+    //TODO i = i->transpose(BATCH, SEQUENCE);
     for(int layer=0; layer<12; ++layer) {
         auto *x = _LayerNorm( {i},  hidden_dim,  true,1e-6, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".norm_1");
         x = Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".attn");
@@ -201,12 +225,25 @@ void ImageBind(Context* c) {
     auto *i = _Input(c, {}, "input_ids");
     auto *i_len = _Input(c, {}, "input_lens");
     i = TextModel(c, i, i_len);
+
     auto *p = _Input(c, {}, "input_imgs");
     p = VisonModel(c, p);
+
+    auto *a = _Input(c, {}, "input_audios");
+    a = AudioModel(c, a);
+
+
     i = i->transpose(BATCH, SEQUENCE);
     p = p->transpose(BATCH, SEQUENCE);
-    i = _Matmul( {p, i}, false, true, "final.vision@text");
-    i = _Softmax( {i}, DIMENSION, "final.softmax");
+    a = a->transpose(BATCH, SEQUENCE);
+
+    auto *j1 = _Matmul( {p, i}, false, true, "final.vision@text");
+    j1 = _Softmax( {j1}, DIMENSION, "final.softmax");
+
+     auto *j2 = _Matmul( {p, a}, false, true, "final.vision@audio");
+    j2 = _Softmax( {j2}, DIMENSION, "final.softmax");
+
+    i = _Cat( {j1, j2}, BATCH, "final.cat");
 }
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
@@ -279,8 +316,17 @@ int main(int argc, char **argv) {
     img2Tensor(input_img, net, data_imgs);
 
     ex.run(&net, {input_text, input_text_lens, input_img});
+    //TODO: Audio
+    /*
+    auto audios = PreProcessor::ProcessAudio({"./dog_audio_16k.wav"});
+    shared_ptr<Tensor> input_audio = std::make_shared<Tensor>();
+    audio2Tensor(input_audio, net, audios);
+    ex.run(&net, {input_audio});
+    */
+
+
     auto result = ex.result();
-    result[0]->printData<float>();
+    // result[0]->printData<float>();
 
     // free memory
     for (auto *op : c->net_ops) {

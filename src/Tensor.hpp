@@ -418,7 +418,7 @@ public:
         child_tensors_.push_back(child);
     }
 
-    void transShape(Chl dim_a = SEQUENCE, Chl dim_b = DIMENSION, bool undiffusion_ = false) {
+    void transShape(Chl dim_a = SEQUENCE, Chl dim_b = DIMENSION, bool undiffusion = false) {
         if(dim_a == SEQUENCE && dim_b == DIMENSION && ctype() == BSHD) {
             auto b = batch();
             auto h = head();
@@ -427,9 +427,7 @@ public:
             ctype_ = BHDS;
             reshape(b, h, s, d);
             transed_ = true;
-            if(undiffusion_) {
-                undiffusion_ = true;
-            }
+            undiffusion_ = undiffusion;
         } else if(THW == dim_a && dim_b == CHANNLE &&ctype() == BCTHW) {
             auto b = batch();
             auto c = channel();
@@ -439,9 +437,7 @@ public:
             ctype_ = BTHWC;
             reshape(b, c, t, h, w);
             transed_ = true;
-            if(undiffusion_) {
-                undiffusion_ = true;
-            }
+            undiffusion_ = undiffusion;
         }
     }
 
