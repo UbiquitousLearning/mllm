@@ -44,11 +44,12 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
         for (int i = 0; i < output->shape().size(); i++) {
             dimensions[i] = output->shape()[i];
         }
+        auto outString = output->name();
         outputTensors.push_back({QNN_TENSOR_VERSION_1,
                                  {.v1 = {
                                       .id = 0,
-                                      .name = output->name().c_str(),
-                                      .type = QNN_TENSOR_TYPE_APP_READ,
+                                      .name = outString.c_str(),
+                                      .type = getOutputTensorType(output),
                                       .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                       .dataType = QNN_DATATYPE_FLOAT_32,
                                       .quantizeParams = {QNN_DEFINITION_UNDEFINED,

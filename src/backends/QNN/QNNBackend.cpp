@@ -20,9 +20,12 @@
 #include "DynamicLoadUtil.hpp"
 #include "Types.hpp"
 #include "op/QNNAdd.hpp"
+#include "op/QNNCausalMask.hpp"
 #include "op/QNNLinear.hpp"
 #include "op/QNNMatmul.hpp"
 #include "op/QNNMul.hpp"
+#include "op/QNNRMSNorm.hpp"
+#include "op/QNNRoPE.hpp"
 #include "op/QNNScale.hpp"
 #include "op/QNNSiLU.hpp"
 #include "op/QNNSoftMax.hpp"
@@ -44,10 +47,10 @@ const std::string QNNBackend::s_defaultOutputPath = "./output";
 
 void QNNBackend::registerOps() {
     addCreator(ADD, (QNNBackend::Creator *)new QNNAddCreator());
-    // addCreator(CAUSALMASK, (QNNBackend::Creator *)(new QNNCausalMaskCreator()));
+    addCreator(CAUSALMASK, (QNNBackend::Creator *)(new QNNCausalMaskCreator()));
     addCreator(MATMUL, (QNNBackend::Creator *)(new QNNMatmulCreator()));
-    // addCreator(RMSNORM, (QNNBackend::Creator *)(new QNNRMSNormCreator()));
-    // addCreator(ROPE, (QNNBackend::Creator *)(new QNNRoPECreator()));
+    addCreator(RMSNORM, (QNNBackend::Creator *)(new QNNRMSNormCreator()));
+    addCreator(ROPE, (QNNBackend::Creator *)(new QNNRoPECreator()));
     addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
     addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
     addCreator(SOFTMAX, (QNNBackend::Creator *)(new QNNSoftMaxCreator()));
