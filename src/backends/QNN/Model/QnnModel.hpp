@@ -98,6 +98,7 @@ class QnnModel {
    *
    */
   ModelError_t getQnnTensor(const char*& nodeName, const char*& tensorName, Qnn_Tensor_t& tensor);
+  ModelError_t getQnnTensor(std::string nodeName, std::string tensorName, Qnn_Tensor_t& tensor);
 
   /**
    * @brief A wrapper function to create a node in class's graph.
@@ -138,6 +139,17 @@ class QnnModel {
                        Qnn_Param_t* params,
                        uint32_t numOfParams,
                        const char** inputNames,
+                       uint32_t numOfInputs,
+                       Qnn_Tensor_t* outputTensors,
+                       uint32_t numOfOutputs);
+  // overload for vector of inputNames
+  ModelError_t addNode(Qnn_OpConfigVersion_t version,
+                       const char* name,
+                       const char* packageName,
+                       const char* type,
+                       Qnn_Param_t* params,
+                       uint32_t numOfParams,
+                       std::vector<std::string> inputNames,
                        uint32_t numOfInputs,
                        Qnn_Tensor_t* outputTensors,
                        uint32_t numOfOutputs);

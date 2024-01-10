@@ -116,7 +116,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                          {.v1 = {
                                               .id = 0,
                                               .name = outName.c_str(),
-                                              .type = QNN_TENSOR_TYPE_NATIVE,
+                                              .type = getOutputTensorType(outputs[0]),
                                               .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                               .dataType = QNN_DATATYPE_FLOAT_32,
                                               .quantizeParams = {QNN_DEFINITION_UNDEFINED,
@@ -171,7 +171,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                         {.v1 = {
                                              .id = 0,
                                              .name = outName.c_str(),
-                                             .type = QNN_TENSOR_TYPE_APP_READ,
+                                             .type = getOutputTensorType(outputs[0]),
                                              .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                              .dataType = QNN_DATATYPE_FLOAT_32,
                                              .quantizeParams = {QNN_DEFINITION_UNDEFINED,
@@ -201,5 +201,13 @@ ErrorCode QNNLinear::load(AbstructLoader &loader) {
         loader.load(&bias_);
     }
     return Op::load(loader);
+}
+
+ErrorCode QNNLinear::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    weight_.free();
+    if (support_bias_) {
+        bias_.free();
+    }
+    return Op::free(inputs, outputs);
 }
 } // namespace mllm

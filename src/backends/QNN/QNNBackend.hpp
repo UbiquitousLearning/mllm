@@ -81,11 +81,11 @@ public:
     }
 
     qnn_wrapper_api::ModelError_t graphAddNode(string name, string nodeType,
-                                               std::vector<const char *> inputTensorNames, std::vector<Qnn_Tensor_t> outputTensors,
+                                               std::vector<string> inputTensorNames, std::vector<Qnn_Tensor_t> outputTensors,
                                                std::vector<Qnn_Param_t> params,
                                                string packageName);
     qnn_wrapper_api::ModelError_t graphFinilize();
-    qnn_wrapper_api::ModelError_t modelAddTensor(const char *nodeName, Qnn_Tensor_t tensor);
+    qnn_wrapper_api::ModelError_t modelAddTensor(std::string nodeName, Qnn_Tensor_t tensor);
     ErrorCode graphExecute();
     ErrorCode graphExecute(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap);
 

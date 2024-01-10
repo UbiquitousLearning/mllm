@@ -29,7 +29,7 @@ private:
 
 };
 
-class QNNRopeCreator : public QNNBackend::Creator {
+class QNNRoPECreator : public QNNBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
         return new QNNRoPE(bn, name);

@@ -18,7 +18,9 @@ using namespace mllm;
 
 void BuildModel(Context *ctx) {
     auto *i = _Input(ctx);
-    auto *q = _Linear(ctx, {i}, 4096, 4096, true, "layers." + std::to_string(0) + ".attention.wq");
+    auto *q = _Linear(ctx, {i}, 4, 2, true, "layers." + std::to_string(0) + ".attention.wq");
+    auto *r = _RMSNorm(ctx, {q}, "layers." + std::to_string(0) + ".attention_norm");
+    r = _SiLU(ctx, {r}, "layers." + std::to_string(0) + ".ffn.activation");
 }
 
 template <typename Dtype>
@@ -69,9 +71,9 @@ int main() {
     MockLoader loader("");
     Executor ex(&loader);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    fullTensor(input, net, {1, 1, 2, 4096}, 2.f);
+    fullTensor(input, net, {1, 1, 2, 4}, 2.f);
 
     ex.execute(&net, input);
     auto result = ex.result();
-    // result[0]->printData<float>();
+    result[0]->printData<float>();
 }

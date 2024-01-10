@@ -20,7 +20,8 @@ public:
 protected:
     QNNBackend *qnnBackend_;
     ErrorCode graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<Qnn_Param_t> params = {}, string packageName = "qti.aisw");
-    ErrorCode graphAddNode(string name, string nodeType, vector<const char *> inputs, vector<Qnn_Tensor_t> outputs, vector<Qnn_Param_t> params = {}, string packageName = "qti.aisw");
+    ErrorCode graphAddNode(string name, string nodeType, vector<string> inputs, vector<Qnn_Tensor_t> outputs, vector<Qnn_Param_t> params = {}, string packageName = "qti.aisw");
+    Qnn_TensorType_t getOutputTensorType(shared_ptr<mllm::Tensor> tensor) const;
 };
 } // namespace mllm
 

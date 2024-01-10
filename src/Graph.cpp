@@ -3,6 +3,7 @@
 //
 #include "Graph.hpp"
 #include "OpDefined.hpp"
+#include "Types.hpp"
 
 std::string intToStringWithLeadingZero(int num) {
     if (num < 10) {
@@ -101,6 +102,12 @@ void Graph::setUpTensors() {
     for (auto &t : graph_in_tensors) {
         t->alloc();
     }
+    // set graph out tensor TensorType
+    auto &graph_out_tensors = ops_output_tensors_[op_names_[op_names_.size() - 1]];
+    for (auto &t : graph_out_tensors) {
+        t->setTensorType(GRAPH_OUTPUT);
+    }
+    // set up tensors of ops
     for (int i = 0; i < (int)op_names_.size(); ++i) {
         string lname = op_names_[i];
         ops_[lname]->setUp(ops_input_tensors_[lname], ops_output_tensors_[lname]);

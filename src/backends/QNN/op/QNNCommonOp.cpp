@@ -33,9 +33,9 @@ ErrorCode QNNCommonOp::load(AbstructLoader &loader) {
 }
 
 ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<Qnn_Param_t> params, string packageName) {
-    vector<const char *> inputTensorNames;
+    vector<string> inputTensorNames;
     for (auto &input : inputs) {
-        inputTensorNames.push_back(input->name().c_str());
+        inputTensorNames.push_back(input->name());
     }
 
     vector<Qnn_Tensor_t> outputTensors;
@@ -44,11 +44,12 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
         for (int i = 0; i < output->shape().size(); i++) {
             dimensions[i] = output->shape()[i];
         }
+        auto outString = output->name();
         outputTensors.push_back({QNN_TENSOR_VERSION_1,
                                  {.v1 = {
                                       .id = 0,
-                                      .name = output->name().c_str(),
-                                      .type = QNN_TENSOR_TYPE_APP_READ,
+                                      .name = outString.c_str(),
+                                      .type = getOutputTensorType(output),
                                       .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                       .dataType = QNN_DATATYPE_FLOAT_32,
                                       .quantizeParams = {QNN_DEFINITION_UNDEFINED,
@@ -67,7 +68,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
     return NO_ERROR;
 }
 
-ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<const char *> inputTensorNames, vector<Qnn_Tensor_t> outputs, vector<Qnn_Param_t> params, string packageName) {
+ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string> inputTensorNames, vector<Qnn_Tensor_t> outputs, vector<Qnn_Param_t> params, string packageName) {
     std::cout << "=name:" << name << std::endl;
     std::cout << "=nodeType:" << nodeType << std::endl;
     for(auto &inputTensorName : inputTensorNames) {
@@ -80,6 +81,13 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<const c
         return ErrorCode::INVALID_VALUE;
     }
     return NO_ERROR;
+}
+
+Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tensor) const {
+    if(tensor->tensorType() == GRAPH_OUTPUT)
+        return QNN_TENSOR_TYPE_APP_READ;
+    else
+        return QNN_TENSOR_TYPE_NATIVE; // qnn input is set APP_WRITE by backend
 }
 
 } // namespace mllm

@@ -20,9 +20,12 @@
 #include "DynamicLoadUtil.hpp"
 #include "Types.hpp"
 #include "op/QNNAdd.hpp"
+#include "op/QNNCausalMask.hpp"
 #include "op/QNNLinear.hpp"
 #include "op/QNNMatmul.hpp"
 #include "op/QNNMul.hpp"
+#include "op/QNNRMSNorm.hpp"
+#include "op/QNNRoPE.hpp"
 #include "op/QNNScale.hpp"
 #include "op/QNNSiLU.hpp"
 #include "op/QNNSoftMax.hpp"
@@ -44,10 +47,10 @@ const std::string QNNBackend::s_defaultOutputPath = "./output";
 
 void QNNBackend::registerOps() {
     addCreator(ADD, (QNNBackend::Creator *)new QNNAddCreator());
-    // addCreator(CAUSALMASK, (QNNBackend::Creator *)(new QNNCausalMaskCreator()));
+    addCreator(CAUSALMASK, (QNNBackend::Creator *)(new QNNCausalMaskCreator()));
     addCreator(MATMUL, (QNNBackend::Creator *)(new QNNMatmulCreator()));
-    // addCreator(RMSNORM, (QNNBackend::Creator *)(new QNNRMSNormCreator()));
-    // addCreator(ROPE, (QNNBackend::Creator *)(new QNNRoPECreator()));
+    addCreator(RMSNORM, (QNNBackend::Creator *)(new QNNRMSNormCreator()));
+    addCreator(ROPE, (QNNBackend::Creator *)(new QNNRoPECreator()));
     addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
     addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
     addCreator(SOFTMAX, (QNNBackend::Creator *)(new QNNSoftMaxCreator()));
@@ -66,7 +69,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
       return;
     }
     // TODO: make debug level configuable
-    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_VERBOSE);
+    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_DEBUG);
 
 #ifdef QNN_ZH
     // std::string modelPath = "/qnn-projects/QNN-test-libs/example_libs/x86_64-linux-clang/libqnn_model_float.so";
@@ -87,7 +90,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
 #endif
 
     // TODO: make these configuable
-    m_debug = true;
+    m_debug = false; // when set true, NATIVE tensor will be regared as APP_READ tensor
     m_outputDataType = iotensor::OutputDataType::FLOAT_ONLY;
     m_inputDataType = iotensor::InputDataType::FLOAT;
     m_profilingLevel = ProfilingLevel::OFF;
@@ -266,7 +269,7 @@ int32_t QNNBackend::graphInitialize() {
 
 qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
                                                        string nodeType,
-                                                       std::vector<const char *> inputTensorNames,
+                                                       std::vector<string> inputTensorNames,
                                                        std::vector<Qnn_Tensor_t> outputTensors,
                                                        std::vector<Qnn_Param_t> params,
                                                        string packageName) {
@@ -282,7 +285,7 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
                  nodeType.c_str(),        // Qnn Node Type
                  paramsPtr,                 // Node Params
                  params.size(),                       // Num Node Params
-                 inputTensorNames.data(), // Input Tensor Names
+                 inputTensorNames, // Input Tensor Names
                  inputTensorNames.size(), // Num Input Tensor Names
                  outputTensors.data(),    // Output Tensors
                  outputTensors.size()     // Num Output Tensors
@@ -309,8 +312,8 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphFinilize() {
     return qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
 }
 
-qnn_wrapper_api::ModelError_t QNNBackend::modelAddTensor(const char *nodeName, Qnn_Tensor_t tensor) {
-    return qnnModel.addTensor(nodeName, tensor);
+qnn_wrapper_api::ModelError_t QNNBackend::modelAddTensor(std::string nodeName, Qnn_Tensor_t tensor) {
+    return qnnModel.addTensor(nodeName.c_str(), tensor);
 }
 
 ErrorCode QNNBackend::graphExecute() {

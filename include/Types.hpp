@@ -51,6 +51,13 @@ enum DataType {
     MLLM_TYPE_I32,
     MLLM_TYPE_COUNT,
 };
+
+enum TensorType {
+    GRAPH_INTERAL = 0, // currently weights and intermediate tensors both use this
+    GRAPH_INPUT = 1,
+    GRAPH_OUTPUT = 2,
+    GRAPH_WEIGHT = 3,
+};
 #if defined(__ARM_NEON) && defined(__CUDACC__)
 typedef half mllm_fp16_t;
 #elif defined(__ARM_NEON) && !defined(_MSC_VER)

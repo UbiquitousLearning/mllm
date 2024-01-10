@@ -21,7 +21,7 @@ public:
         return true;
     }
     DataType getDataType(string name) override {
-        if (name.find("weight") != string::npos){
+        if (name.find("wq.weight") != string::npos) {
             std::cout << name << "int8" << std::endl;
             return DataType::MLLM_TYPE_I8;
         }
