@@ -3,7 +3,9 @@
 //
 
 #include "Bpe.hpp"
-
+#include <unicode/regex.h>
+#include <unicode/unistr.h>
+#include <unordered_map>
 
 static size_t utf8_len(char src) {
     const size_t lookup[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3, 4};
@@ -108,16 +110,43 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         tokens.emplace_back(mllm::BPETokenizer::TokenBos);
     }
     if (!merge_rank.empty()){
-//        std::cout<<"merge_rank is not empty! Loading"<<std::endl;
-        // split text with space
+        std::cout<<"merge_rank is not empty! Loading"<<std::endl;
         vector<string> words = {};
-        for (int i = 0; i < text.size(); ++i) {
-            if (text[i]==' '){
-                words.emplace_back(text.substr(offset,i-offset));
-                offset=i+1;
-            }
+        UErrorCode status = U_ZERO_ERROR;
+        icu_74::UnicodeString pattern = "<\\|startoftext\\|>|<\\|endoftext\\|>|'s|'t|'re|'ve|'m|'ll|'d|[\\p{L}]+|[\\p{N}]|[^\\s\\p{L}\\p{N}]+";
+        icu_74::UnicodeString textToMatch = text.c_str(); // convert std::string to UnicodeString
+        icu::RegexMatcher matcher(pattern, textToMatch, 0, status);
+
+        if (U_FAILURE(status)) {
+            // Handle the error
+            throw std::runtime_error("Error in regex");
         }
-        words.emplace_back(text.substr(offset,text.size()-offset));
+
+        while (matcher.find(status)) {
+            icu_74::UnicodeString match = matcher.group(status);
+            if (U_FAILURE(status)) {
+                // Handle the error
+                throw std::runtime_error("Error in regex");
+            }
+            std::string cpp_str;
+            std::string token;
+            match.toUTF8String(cpp_str);
+            for (size_t i = 0; i < cpp_str.length(); ++i) {
+                unsigned char byte = cpp_str[i];
+                token += bytes_to_unicode_[byte];
+            }
+            words.emplace_back(token);
+        }
+        // split text with space
+        // for (int i = 0; i < text.size(); ++i) {
+        //     if (text[i]==' '){
+        //         words.emplace_back(text.substr(offset,i-offset));
+        //         offset=i+1;
+        //     }
+        // }
+        // words.emplace_back(text.substr(offset,text.size()-offset));
+
+        
         for (const auto& word:words){
             auto word_splits = bpe(word);
             for (const auto& word_split:word_splits){
@@ -224,6 +253,37 @@ void mllm::BPETokenizer::tryMergeSymbol(size_t start, size_t end) {
 void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) {
     this->tokenize(std::move(text), tokens, bos, true);
 }
+
+/**
+Returns list of utf-8 byte and a mapping to unicode strings. We specifically avoids mapping to whitespace/control
+characters the bpe code barfs on.
+
+The reversible bpe codes work on unicode strings. This means you need a large # of unicode characters in your vocab
+if you want to avoid UNKs. When you're at something like a 10B token dataset you end up needing around 5K for
+decent coverage. This is a significant percentage of your normal, say, 32K bpe vocab. To avoid that, we want lookup
+tables between utf-8 bytes and unicode strings.
+**/
+static std::unordered_map<unsigned char, string> bytes_to_unicode() {
+    std::unordered_map<unsigned char, string> mapping;
+    unsigned char n = 0;
+
+    for (int b = 0; b < 256; ++b) {
+        int convert_uchar = 0;
+        if ((b >= 33 && b <= 126) || (b >= 161 && b <= 172) || (b >= 174 && b <= 255)) {
+            convert_uchar = b;
+        } else {
+            convert_uchar = 256 + n;
+            ++n;
+        }
+        icu::UnicodeString str((UChar32)convert_uchar);
+        std::string s;
+        str.toUTF8String(s);
+        mapping[b] = s;
+    }
+    return mapping;
+}
+
 mllm::BPETokenizer::BPETokenizer(const std::string &vocab_file) :
     Tokenizer(vocab_file) {
+    bytes_to_unicode_ = bytes_to_unicode();
 }
