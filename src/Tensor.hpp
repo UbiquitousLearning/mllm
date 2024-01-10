@@ -69,7 +69,11 @@ public:
     }
 
     inline int batch() const {
-        return legacyShape(0);
+        if (ctype_ == SBHD) {
+            return legacyShape(1);
+        } else {
+            return legacyShape(0);
+        }
     }
     inline int head() const {
         switch (ctype_) {
@@ -79,6 +83,8 @@ public:
             return legacyShape(2);
         case BHDS:
             return legacyShape(1);
+        case SBHD:
+            return legacyShape(2);
         default:
             return -1;
         }
@@ -91,6 +97,8 @@ public:
             return legacyShape(1);
         case BHDS:
             return legacyShape(3);
+        case SBHD:
+            return legacyShape(0);
         default:
             return -1;
         }
@@ -103,6 +111,8 @@ public:
             return legacyShape(3);
         case BHDS:
             return legacyShape(2);
+        case SBHD:
+            return legacyShape(3);
         default:
             return -1;
         }
@@ -156,6 +166,8 @@ public:
                 return ((b_ * base_sequence_ + s_) * base_head_ + h_) * base_dimension_ + d_;
             case BHDS:
                 return ((b_ * base_head_ + h_) * base_dimension_ + d_) * base_sequence_ + s_;
+            case SBHD:
+                return ((s_ * base_batch_ + b_) * base_head_ + h_) * base_dimension_ + d_;
             default:
                 break;
             }
@@ -167,6 +179,8 @@ public:
                 return ((b * shape_[1] + s) * shape_[2] + h) * shape_[3] + d;
             case BHDS:
                 return ((b * shape_[1] + h) * shape_[2] + d) * shape_[3] + s;
+            case SBHD:
+                return ((s * shape_[1] + b) * shape_[2] + h) * shape_[3] + d;
             default:
                 break;
             }
@@ -436,6 +450,15 @@ public:
             auto w = width();
             ctype_ = BTHWC;
             reshape(b, c, t, h, w);
+            transed_ = true;
+            undiffusion_ = undiffusion;
+        } else if(dim_a == BATCH && dim_b == SEQUENCE && ctype() == BSHD) {
+            auto b = batch();
+            auto h = head();
+            auto d = dimension();
+            auto s = sequence();
+            ctype_ = SBHD;
+            reshape(b, h, s, d);
             transed_ = true;
             undiffusion_ = undiffusion;
         }

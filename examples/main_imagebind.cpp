@@ -115,14 +115,20 @@ vector<float> softmax(const vector<float>& scores) {
 }
 */
 
-NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head_size, string name) {
+NetTensor *Attention(Context *c,NetTensor *x, int embedding_size, int hidden_size, int head_size, string name) {
     x =_Linear({x}, embedding_size, hidden_size * head_size * 3, true, name + ".in_proj");
     auto skv = _Split( {x}, 3, Chl::HD, head_size, name + ".split");
     auto *q = skv[0];
     auto *k = skv[1];
     auto *v = skv[2];
+    if(name.find("audio") != std::string::npos) {
+        auto *kb = _Parameter(c, {}, 1, 1, head_size,  hidden_size, name +".bias_k");
+        k = _Cat( {k, kb},  SEQUENCE, name + ".k_cat");
+        auto *vb = _Parameter(c, {}, 1, 1, head_size,  hidden_size, name +".bias_v");
+        v = _Cat( {v, vb}, SEQUENCE, name + ".v_cat");
+    }
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
-    qk = _Scale( {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
+    qk = *qk/std::sqrt(hidden_size);
     if(name.find("text") != std::string::npos){
         qk = _Causalmask( {qk}, name + ".mask");
     }
@@ -140,7 +146,7 @@ NetTensor *MLP( NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
 }
 NetTensor *VisionEmbedding(Context *c, NetTensor * i, int hidden_size, string name) { //TODO
     i = _Convolution3D({i}, 3, 1280, {2, 14, 14}, {2, 14, 14}, VALID, false, name +".rgbt_stem.proj.1");
-    i = i->transpose(SEQUENCE, DIMENSION);
+    i = i->transpose(THW, CHANNLE);
     i = i->flatten(TIME, CHANNLE);
     auto *s = _Parameter(c, {}, 1, 1, 1, 1280, name +".cls_token");
     i = _Cat( {s, i}, SEQUENCE, name +".rgbt_cls.cat");
@@ -153,7 +159,7 @@ NetTensor *VisonModel(Context* c, NetTensor * i,  int hidden_dim= 1280, int ffn_
     i = _LayerNorm( {i},  hidden_dim,  true,1e-6, "modality_trunks."+name + ".pre_transformer_layer.0");
     for(int layer=0; layer<32; ++layer) {
         auto *x = _LayerNorm( {i},  hidden_dim,  true,1e-6, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".norm_1");
-        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".attn") +i;
+        i = *Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".attn") +i;
         x = _LayerNorm( {i}, hidden_dim, true, 1e-6, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".norm_2");
         i = *MLP( x, hidden_dim, ffn_hidden_dim, "modality_trunks."+name + ".blocks."+std::to_string(layer)+ ".mlp") + i;
     }
@@ -175,7 +181,7 @@ NetTensor *TextModel(Context *c, NetTensor * i,  NetTensor * in_len, int vocab_s
     i = TextEmbedding(c, i, vocab_size, hidden_dim, 77, "modality_preprocessors."+name);
     for (int layer = 0; layer < 24; ++layer) {
         auto *x = _LayerNorm( {i}, hidden_dim, true, 1e-6, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".norm_1");
-        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".attn") +i;
+        i = *Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".attn") +i;
         x = _LayerNorm( {i}, hidden_dim, true, 1e-6, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".norm_2");
         i = *MLP( x, hidden_dim, ffn_hidden_dim, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".mlp") +i;
     }
@@ -200,11 +206,9 @@ NetTensor *AudioEmbedding(Context *c, NetTensor * i, int hidden_size, string nam
 }
 NetTensor *AudioModel(Context* c, NetTensor * i,  int hidden_dim= 768, int ffn_hidden_dim = 3072, int mutil_head_size = 12, string name = "audio"){
     i = AudioEmbedding(c, i, hidden_dim, "modality_preprocessors."+name);
-    //TODO trans 3, 229, 768 -> 229, 3, 768
-    //TODO i = i->transpose(BATCH, SEQUENCE);
     for(int layer=0; layer<12; ++layer) {
         auto *x = _LayerNorm( {i},  hidden_dim,  true,1e-6, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".norm_1");
-        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".attn") +i;
+        i = *Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".attn") +i;
         x = _LayerNorm( {i}, hidden_dim, true, 1e-6, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".norm_2");
         i = *MLP( x, hidden_dim, ffn_hidden_dim, "modality_trunks."+name + ".blocks."+std::to_string(layer)+ ".mlp") + i;
     }
@@ -212,6 +216,9 @@ NetTensor *AudioModel(Context* c, NetTensor * i,  int hidden_dim= 768, int ffn_h
     i = i->clip( {}, {}, {0}, {});
     i = _Linear( {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".2");
     i = *i/i->norm(2);
+    i = *i*20.0;
+    i = i->view(ANYDIM, -1, 3, -1);
+    i = i->mean(SEQUENCE);
     return i;
 }
 
@@ -279,7 +286,6 @@ int main(int argc, char **argv) {
     }
     tokenizer->setMergeRank(merge_rank);
     tokenizer->setSpecialToken("<|startoftext|>","<|endoftext|>");
-
     vector<string> in_strs = {"a dog.", "A car", "A bird"};
     auto tokens_ids = vector<vector<token_id_t>>();
     for (auto in_str : in_strs) {
@@ -310,8 +316,8 @@ int main(int argc, char **argv) {
     img2Tensor(input_img, net, data_imgs);
 
     ex.run(&net, {input_text, input_text_lens, input_img});
-    //TODO: Audio
     /*
+    //Audio
     auto audios = PreProcessor::ProcessAudio({"./dog_audio_16k.wav"});
     shared_ptr<Tensor> input_audio = std::make_shared<Tensor>();
     audio2Tensor(input_audio, net, audios);

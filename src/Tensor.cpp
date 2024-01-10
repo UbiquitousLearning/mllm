@@ -31,6 +31,12 @@ bool Tensor::reshape(const int batch, const int head, const int sequence, const 
         shape[1] = head;
         shape[2] = dimension;
         shape[3] = sequence;
+        break;
+    case SBHD:
+        shape[0] = sequence;
+        shape[1] = batch;
+        shape[2] = head;
+        shape[3] = dimension;
     default:
         break;
     }

@@ -246,6 +246,41 @@ NetTensor *TNetTensor::shape(Chl axis) {
     return out_tensor;
 }
 
+NetTensor *TNetTensor::mean(Chl axis) {
+    Context *ctx =this->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    out_tensor->name = "outtensor-" + name + "_mean_"+ "-00";
+    out_tensor->type = this->type;
+    ctx->idx++;
+    ctx->net_tensors.insert(out_tensor);
+    auto sub_param = get_active_subgraph(ctx);
+    out_tensor->subgraph = sub_param;
+    sub_param->net_tensors.push_back(out_tensor);
+    sub_param->net_ops.emplace_back(new NetOp());
+    auto net_op_ = (sub_param->net_ops.back());
+    net_op_->name = name+ "_mean_";
+    net_op_->type = MEAN;
+    net_op_->param = OpParam();
+    net_op_->param["type"] = MEAN;
+    ctx->net_ops.push_back(net_op_);
+    // PARAM
+    net_op_->param["axis"] = axis;
+
+    //
+    net_op_->in.push_back(this);
+    this->out.push_back(net_op_);
+    if (std::find(sub_param->net_tensors.begin(), sub_param->net_tensors.end(), this) == sub_param->net_tensors.end()) {
+        sub_param->net_tensors.push_back(this);
+        if (this->subgraph != nullptr) {
+            sub_param->net_inputs.insert(this);
+        }
+    }
+
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
 NetTensor *TNetTensor::view(int b, int h, int s, int d) {
     Context *ctx =this->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -284,6 +319,14 @@ NetTensor *TNetTensor::view(int b, int h, int s, int d) {
         } else {
             dims = {b, -1, -1, d};
             data_dims = {BATCH, -1, HEAD+SEQUENCE, DIMENSION};
+        }
+    }else if (h == -1 & d == -1 & b != -1 & s != -1) {// keep h&d change b&s
+        if(s != 1) {
+            dims = {-1, h, s, d};
+            data_dims = {BATCH, HEAD, BATCH, DIMENSION};
+        } else {
+            dims = {-1, h, -1, d};
+            data_dims = {BATCH+SEQUENCE, HEAD, -1, DIMENSION};
         }
     }else {
         std::cout<<"ERROR: "<<name<<" view ["<<b<<", "<<h<<", "<<s<<", "<<d<<"]"<<std::endl;
@@ -392,6 +435,20 @@ NetTensor *TNetTensor::transpose(Chl axis1, Chl axis2) {
     if (axis1 == SEQUENCE & axis2 == DIMENSION){
         net_op_->type = TRANSPOSE;
         net_op_->param["type"] = TRANSPOSE;
+        net_op_->param["axis0"] = axis1;
+        net_op_->param["axis1"] = axis2;
+        ctx->net_ops.push_back(net_op_);
+    } else if (axis1 == THW & axis2 == CHANNLE){
+        net_op_->type = TRANSPOSE;
+        net_op_->param["type"] = TRANSPOSE;
+        net_op_->param["axis0"] = axis1;
+        net_op_->param["axis1"] = axis2;
+        ctx->net_ops.push_back(net_op_);
+    } else if (axis1 == BATCH & axis2 == SEQUENCE){
+        net_op_->type = TRANSPOSE;
+        net_op_->param["type"] = TRANSPOSE;
+        net_op_->param["axis0"] = axis1;
+        net_op_->param["axis1"] = axis2;
         ctx->net_ops.push_back(net_op_);
     } else {
         net_op_->type = VIEW;
@@ -443,7 +500,7 @@ NetTensor *TNetTensor::norm(int L_n) {
     if (name.empty()) {
         name = this->name + "_L"+std::to_string(L_n)+"Norm_"+std::to_string(ctx->idx);
     }
-    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->name = "outtensor-" + name +std::to_string(L_n)+"Norm_"+ "-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -452,7 +509,7 @@ NetTensor *TNetTensor::norm(int L_n) {
     sub_param->net_tensors.push_back(out_tensor);
     sub_param->net_ops.emplace_back(new NetOp());
     auto net_op_ = (sub_param->net_ops.back());
-    net_op_->name = name;
+    net_op_->name = name+std::to_string(L_n)+"Norm_";
     net_op_->type = NORM;
     net_op_->param = OpParam();
     net_op_->param["type"] = NORM;

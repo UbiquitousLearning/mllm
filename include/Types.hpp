@@ -70,7 +70,9 @@ enum ChlType {
     BHDS = 2,
 
     BCTHW = 3,
-    BTHWC = 4
+    BTHWC = 4,
+
+    SBHD = 10  //not used
 };
 
 enum Chl {

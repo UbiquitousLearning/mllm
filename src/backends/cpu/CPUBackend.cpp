@@ -29,9 +29,10 @@
 #include "CPUDivision.hpp"
 #include "CPUNorm.hpp"
 #include "CPUShape.hpp"
+#include "CPUTranspose.hpp"
+#include "CPUMean.hpp"
 
 #include <math.h>
-#include <CPUTranspose.hpp>
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
     Backend(mm) {
@@ -82,6 +83,7 @@ void CPUBackend::registerOps() {
     addCreator(DIVISION, (CPUBackend::Creator *)(new CPUDivisionCreator()));
     addCreator(NORM, (CPUBackend::Creator *)(new CPUNormCreator()));
     addCreator(SHAPE, (CPUBackend::Creator *)(new CPUShapeCreator()));
+    addCreator(MEAN, (CPUBackend::Creator *)(new CPUMeanCreator()));
 }
 
 } // namespace mllm

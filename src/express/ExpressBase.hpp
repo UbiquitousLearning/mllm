@@ -85,6 +85,7 @@ typedef struct TNetTensor {
     NetTensor *flatten(Chl axis_start, Chl axis_end);
     NetTensor *transpose(Chl axis1, Chl axis2);
     NetTensor *norm(int L_n);
+    NetTensor *mean(Chl axis);
 
     // Overload the operators.
     NetTensor *operator+(NetTensor* in_1) ;

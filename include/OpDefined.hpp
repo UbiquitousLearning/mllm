@@ -40,6 +40,7 @@ enum OpType {
     DIVISION,
     NORM,
     SHAPE,
+    MEAN,
     OP_NUM
 };
 
@@ -76,6 +77,7 @@ static const vector<string> OpNames = {
     "Division",
     "Norm",
     "Shape",
+    "Mean",
     "OP_NUM"};
 } // namespace mllm
 #endif

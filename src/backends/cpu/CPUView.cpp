@@ -62,10 +62,15 @@ ErrorCode CPUView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                 dim2 = inputs[0]->time() * inputs[0]->height() * inputs[0]->channel();
                 dim3 = inputs[0]->width();
             }
-        }else if (data_dim0_ == SEQUENCE && data_dim1_ == HEAD && data_dim2_ == BATCH && data_dim3_ ==DIMENSION) {
+        } else if (data_dim0_ == SEQUENCE && data_dim1_ == HEAD && data_dim2_ == BATCH && data_dim3_ ==DIMENSION) {
             dim0 = inputs[0]->sequence();
             dim1 = inputs[0]->head();
             dim2 = inputs[0]->batch();
+            dim3 = inputs[0]->dimension();
+        } else if (data_dim0_ == BATCH && data_dim1_ == HEAD && data_dim2_ == BATCH && data_dim3_ ==DIMENSION) {
+            dim0 = inputs[0]->batch()/dim2_;
+            dim1 = inputs[0]->head();
+            dim2 = dim2_;
             dim3 = inputs[0]->dimension();
         } else {
             std::cout<<"CPUView not support!!!!"<<std::endl;
@@ -81,49 +86,6 @@ ErrorCode CPUView::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     } else {
         std::cout<<"CPUView not support!!!!"<<std::endl;
     }
-    //std::cout<<name() << "  CPUView()" << std::endl;
-    /*
-    if(data_dim0_ == 0 && data_dim1_ == 1 && data_dim2_ == 2 && data_dim3_ == 3) {
-        return Op::execute(inputs, outputs);
-        // outputs[0]->copyFrom(inputs[0]);
-    } else if(data_dim0_ == 0 && data_dim1_ == 3 && data_dim2_ == 2 && data_dim3_ == 3){
-        // if (inputs[0]->ctype() == BSHD && outputs[0]->ctype() == BSHD) {
-        // } else
-        {
-            for (int n = 0; n < inputs[0]->batch(); ++n) {
-#pragma omp parallel for num_threads(thread_count)
-                for (int h = 0; h < dim1_; ++h) {
-                    for (int s = 0; s < inputs[0]->sequence(); ++s) {
-                        float* src = inputs[0]->ptrAt<float>(n, 0, s, h * (inputs[0]->dimension() / dim1_));
-                        float* dest = outputs[0]->ptrAt<float>(n, h, s, 0);
-                        memcpy(dest, src, sizeof(float) * (inputs[0]->dimension() / dim1_));
-                    }
-                }
-            }
-        }
-    } else if(data_dim0_ == 0 && data_dim1_ == -1 && data_dim2_ == 2 && data_dim3_ == 1+3){
-        // if (inputs[0]->ctype() == BSHD && outputs[0]->ctype() == BSHD) {
-        // } else
-        {
-            int batch_size = inputs[0]->batch();
-            int head_num = inputs[0]->head();
-            int sequence = inputs[0]->sequence();
-            int dimension = inputs[0]->dimension();
-            for (int n = 0; n < batch_size; ++n) {
-                for (int s = 0; s < sequence; ++s) {
-#pragma omp parallel for num_threads(thread_count)
-                    for (int d = 0; d < dimension; ++d) {
-                        for (int h = 0; h < head_num; ++h) {
-                            float value = inputs[0]->dataAt<float>(n, h, s, d);
-                            float* dest_ptr = outputs[0]->hostPtr<float>() + (n * sequence * head_num * dimension) + (s * head_num * dimension) + (h * dimension) + d;
-                            memcpy(dest_ptr, &value, sizeof(float));
-                        }
-                    }
-                }
-            }
-        }
-    }
-    */
     return Op::execute(inputs, outputs);
 }
 
@@ -134,6 +96,7 @@ ErrorCode CPUView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
         || (data_dim0_ == BATCH && data_dim3_ ==DIMENSION && inputs[0]->ctype()==BSHD) // head & sequence
         || (data_dim0_ == SEQUENCE && data_dim1_ == HEAD && data_dim2_ == BATCH && data_dim3_ ==DIMENSION && inputs[0]->ctype()==BSHD) // head & sequence
         || (data_dim0_ == BATCH && inputs[0]->ctype()==BCTHW) //
+        || (data_dim1_ == HEAD && data_dim3_ ==DIMENSION && inputs[0]->ctype()==BSHD) // batch & sequence
         // || (data_dim0_ == BATCH && data_dim3_ == CHANNLE && inputs[0]->ctype()==BTHWC) //
     ){
         noNeedEx_ = true;

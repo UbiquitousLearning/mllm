@@ -36,12 +36,31 @@ ErrorCode CPUParameter::load(AbstructLoader &loader) {
 ErrorCode CPUParameter::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     //std::cout<<name() << "  CPUParameter()" << std::endl;
     if(outputs[0]->masterTensor()->name() != weight_.name()) {
-        // outputs[0]->copyFrom(weight_);
-        for (int n = 0; n < outputs[0]->batch(); ++n) {
-            for (int c = 0; c < outputs[0]->head(); ++c) {
-                for (int h = 0; h < outputs[0]->sequence(); ++h) {
-                    for (int w = 0; w < outputs[0]->dimension(); ++w) {
-                        outputs[0]->setDataAt<float>(n, c, h, w, weight_.dataAt<float>(n, c, h, w));
+        if(outputs[0]->masterTensor() == nullptr) {
+            // outputs[0]->copyFrom(weight_);
+            for (int n = 0; n < outputs[0]->batch(); ++n) {
+                for (int c = 0; c < outputs[0]->head(); ++c) {
+                    for (int h = 0; h < outputs[0]->sequence(); ++h) {
+                        for (int w = 0; w < outputs[0]->dimension(); ++w) {
+                            outputs[0]->setDataAt<float>(n, c, h, w, weight_.dataAt<float>(n, c, h, w));
+                        }
+                    }
+                }
+            }
+        }else {
+            if(weight_.batch() == 1) {
+                auto off = outputs[0]->shape_offset();
+                auto off_b = off[0];
+                auto off_h = off[1];
+                auto off_s_ = off[2];
+                auto off_d = off[3];
+                for (int n = 0; n < outputs[0]->masterTensor()->batch(); ++n) {
+                    for (int c = 0; c < outputs[0]->head(); ++c) {
+                        for (int h = 0; h < outputs[0]->sequence(); ++h) {
+                            for (int w = 0; w < outputs[0]->dimension(); ++w) {
+                                outputs[0]->masterTensor()->setDataAt<float>(n +off_b, c+off_h, h+off_s_, w+off_d, weight_.dataAt<float>(0, c, h, w));
+                            }
+                        }
                     }
                 }
             }
