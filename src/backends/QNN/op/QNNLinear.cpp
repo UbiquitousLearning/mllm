@@ -202,4 +202,12 @@ ErrorCode QNNLinear::load(AbstructLoader &loader) {
     }
     return Op::load(loader);
 }
+
+ErrorCode QNNLinear::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    weight_.free();
+    if (support_bias_) {
+        bias_.free();
+    }
+    return Op::free(inputs, outputs);
+}
 } // namespace mllm

@@ -33,9 +33,9 @@ ErrorCode QNNCommonOp::load(AbstructLoader &loader) {
 }
 
 ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<Qnn_Param_t> params, string packageName) {
-    vector<const char *> inputTensorNames;
+    vector<string> inputTensorNames;
     for (auto &input : inputs) {
-        inputTensorNames.push_back(input->name().c_str());
+        inputTensorNames.push_back(input->name());
     }
 
     vector<Qnn_Tensor_t> outputTensors;
@@ -68,7 +68,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
     return NO_ERROR;
 }
 
-ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<const char *> inputTensorNames, vector<Qnn_Tensor_t> outputs, vector<Qnn_Param_t> params, string packageName) {
+ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string> inputTensorNames, vector<Qnn_Tensor_t> outputs, vector<Qnn_Param_t> params, string packageName) {
     std::cout << "=name:" << name << std::endl;
     std::cout << "=nodeType:" << nodeType << std::endl;
     for(auto &inputTensorName : inputTensorNames) {

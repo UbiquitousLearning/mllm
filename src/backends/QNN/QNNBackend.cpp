@@ -269,7 +269,7 @@ int32_t QNNBackend::graphInitialize() {
 
 qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
                                                        string nodeType,
-                                                       std::vector<const char *> inputTensorNames,
+                                                       std::vector<string> inputTensorNames,
                                                        std::vector<Qnn_Tensor_t> outputTensors,
                                                        std::vector<Qnn_Param_t> params,
                                                        string packageName) {
@@ -285,7 +285,7 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
                  nodeType.c_str(),        // Qnn Node Type
                  paramsPtr,                 // Node Params
                  params.size(),                       // Num Node Params
-                 inputTensorNames.data(), // Input Tensor Names
+                 inputTensorNames, // Input Tensor Names
                  inputTensorNames.size(), // Num Input Tensor Names
                  outputTensors.data(),    // Output Tensors
                  outputTensors.size()     // Num Output Tensors
@@ -312,8 +312,8 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphFinilize() {
     return qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
 }
 
-qnn_wrapper_api::ModelError_t QNNBackend::modelAddTensor(const char *nodeName, Qnn_Tensor_t tensor) {
-    return qnnModel.addTensor(nodeName, tensor);
+qnn_wrapper_api::ModelError_t QNNBackend::modelAddTensor(std::string nodeName, Qnn_Tensor_t tensor) {
+    return qnnModel.addTensor(nodeName.c_str(), tensor);
 }
 
 ErrorCode QNNBackend::graphExecute() {

@@ -20,6 +20,7 @@ void BuildModel(Context *ctx) {
     auto *i = _Input(ctx);
     auto *q = _Linear(ctx, {i}, 4, 2, true, "layers." + std::to_string(0) + ".attention.wq");
     auto *r = _RMSNorm(ctx, {q}, "layers." + std::to_string(0) + ".attention_norm");
+    r = _SiLU(ctx, {r}, "layers." + std::to_string(0) + ".ffn.activation");
 }
 
 template <typename Dtype>
