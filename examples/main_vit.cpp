@@ -1085,7 +1085,8 @@ NetTensor *Attention(NetTensor * x, int embedded_size, int hidden_size, int head
     k = k->view(-1, head_size, -1, hidden_size);
     v = v->view(-1, head_size, -1, hidden_size);
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
-    qk = _Scale( {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
+    qk = *qk/std::sqrt(hidden_size);
+    // qk = _Scale( {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
     // qk = _Causalmask( {qk}, name + ".mask");
     qk = _Softmax( {qk}, DIMENSION, name + ".softmax");
     auto *o = _Matmul( {qk, v}, false, false, name + ".qkv");
@@ -1106,8 +1107,7 @@ NetTensor *Embedding(Context *c, NetTensor * i, int hidden_size, string name) {
     i = i->flatten(HEAD, SEQUENCE);
     auto *s = _Parameter(c, {}, 1, 1, 1, 768, name +".cls_token");
     i = _Cat( {s, i}, SEQUENCE, name +".cls_token.cat");
-    s = _Parameter(c, {}, 1, 197, 1, 768, name +".position_embeddings");
-    i = _Add( {i, s}, name +".position_embeddings.add");
+    i = *_Parameter(c, {}, 1, 197, 1, 768, name +".position_embeddings") +i;
     return i;
 }
 void vit(Context* c, int hidden_dim= 768, int ffn_hidden_dim = 3072, int class_size=1000, int mutil_head_size = 12, string name = "vit"){
@@ -1115,11 +1115,9 @@ void vit(Context* c, int hidden_dim= 768, int ffn_hidden_dim = 3072, int class_s
     i = Embedding(c, i, hidden_dim, name+".embeddings");
     for(int layer=0; layer<12; ++layer) {
         auto *x = _LayerNorm( {i},  hidden_dim,  true,1e-6, name + ".encoder.layer."+std::to_string(layer)+".layernorm_before");
-        x = Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name + ".encoder.layer."+std::to_string(layer)+".attention");
-        i = _Add( {x, i}, name + ".encoder.layer."+std::to_string(layer)+".add_attn");
+        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name + ".encoder.layer."+std::to_string(layer)+".attention") +i;
         x = _LayerNorm( {i}, hidden_dim, true, 1e-6, name + ".encoder.layer."+std::to_string(layer)+".layernorm_after");
-        x = MLP( x, hidden_dim, ffn_hidden_dim, name + ".encoder.layer."+std::to_string(layer));
-        i = _Add( {x, i}, name + ".encoder.layer."+std::to_string(layer)+".add_mlp");
+        i = *MLP( x, hidden_dim, ffn_hidden_dim, name + ".encoder.layer."+std::to_string(layer)) +i;
         _SubgraphBegin(c);
     }
     i = i->clip( {}, {}, {0}, {});

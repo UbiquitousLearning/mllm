@@ -96,16 +96,14 @@ NetTensor *VisionEmbedding(Context *c, NetTensor * i, int hidden_size, string na
     auto *s = _Parameter(c, {}, 1, 1, 1, 768, name +".class_embedding");
     i = _Cat( {s, i}, SEQUENCE, name +".class_embedding.cat");
     s = _Parameter(c, {}, 1, 50, 1, 1, name +".position_ids");
-    s = _Embedding( {s}, 50, 768, name +".position_embedding");
-    i = _Add( {i, s}, name +".position_embeddings.add");
+    i = *_Embedding( {s}, 50, 768, name +".position_embedding") + i;
     return i;
 }
 NetTensor *TextEmbedding(Context *c, NetTensor * i,  int vocab_size, int hidden_dim, int max_position_embeddings, string name) {
     i = _Embedding( {i}, vocab_size, hidden_dim, name +".token_embedding");
     auto *s = _Parameter(c, {}, 1, max_position_embeddings, 1, 1, name +".position_ids");
     s = s->_clip({}, {}, {0, i->shape(SEQUENCE)}, {});
-    s = _Embedding( {s}, max_position_embeddings, hidden_dim, name +".position_embedding");
-    i = _Add( {s, i}, name+".add_embd");
+    i = *_Embedding( {s}, max_position_embeddings, hidden_dim, name +".position_embedding") +i;
     return i;
 }
 NetTensor *transformer(Context *c, NetTensor * i,  int vocab_size = 49408, int hidden_dim = 512, int ffn_hidden_dim = 2048, int mutil_head_size = 8, string name="text_model") {
@@ -114,11 +112,9 @@ NetTensor *transformer(Context *c, NetTensor * i,  int vocab_size = 49408, int h
     // loop
     for (int layer = 0; layer < 12; ++layer) {
         auto *x = _LayerNorm( {i}, hidden_dim, true, 1e-6, name+".encoder.layers." + std::to_string(layer) + ".layer_norm1");
-        x = Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name+".encoder.layers." + std::to_string(layer) + ".self_attn");
-        i = _Add( {x, i}, name+".encoder.layers." + std::to_string(layer) + ".add_attn");
+        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name+".encoder.layers." + std::to_string(layer) + ".self_attn")+i;
         x = _LayerNorm( {i}, hidden_dim, true, 1e-6, name+".encoder.layers." + std::to_string(layer) + ".layer_norm2");
-        x = MLP( x, hidden_dim, ffn_hidden_dim, name+".encoder.layers." + std::to_string(layer) + ".mlp");
-        i = _Add( {x, i}, name+".encoder.layers." + std::to_string(layer) + ".add_mlp");
+        i = *MLP( x, hidden_dim, ffn_hidden_dim, name+".encoder.layers." + std::to_string(layer) + ".mlp") +i;
         //_SubgraphBegin(c);
     }
     // end loop
@@ -132,11 +128,9 @@ NetTensor *vit(Context* c, NetTensor * i,  int hidden_dim= 768, int ffn_hidden_d
     i = _LayerNorm( {i},  hidden_dim,  true,1e-6, name + ".pre_layrnorm");
     for(int layer=0; layer<12; ++layer) {
         auto *x = _LayerNorm( {i},  hidden_dim,  true,1e-6, name + ".encoder.layers."+std::to_string(layer)+".layer_norm1");
-        x = Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name + ".encoder.layers."+std::to_string(layer)+".self_attn");
-        i = _Add( {x, i}, name + ".encoder.layers."+std::to_string(layer)+".add_attn");
+        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name + ".encoder.layers."+std::to_string(layer)+".self_attn")+i;
         x = _LayerNorm( {i}, hidden_dim, true, 1e-6, name + ".encoder.layers."+std::to_string(layer)+".layer_norm2");
-        x = MLP( x, hidden_dim, ffn_hidden_dim, name + ".encoder.layers."+std::to_string(layer)+ ".mlp");
-        i = _Add( {x, i}, name + ".encoder.layers."+std::to_string(layer)+".add_mlp");
+        i = *MLP( x, hidden_dim, ffn_hidden_dim, name + ".encoder.layers."+std::to_string(layer)+ ".mlp") +i;
         _SubgraphBegin(c);
     }
     i = i->clip( {}, {}, {0}, {});
@@ -150,9 +144,9 @@ void CLIP(Context* c) {
     auto *p = _Input(c, {}, "input_imgs");
     p = vit(c, p);
     i = _Linear( {i}, 512, 512, false, "text_projection");
-    i = _Division( {i, i->norm(2)}, "text_division");
+    i = *i/i->norm(2);
     p = _Linear( {p}, 768, 512, false, "visual_projection");
-    p = _Division( {p, p->norm(2)}, "visual_division");
+    p = *p/p->norm(2);
     auto *o = _Matmul( {i, p}, false, true, "matmul");
     o = _Scale( {o}, 100.0, 0.0F, false, "scale");
 }

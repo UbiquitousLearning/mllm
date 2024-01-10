@@ -145,7 +145,7 @@ NetTensor *VisionEmbedding(Context *c, NetTensor * i, int hidden_size, string na
     auto *s = _Parameter(c, {}, 1, 1, 1, 1280, name +".cls_token");
     i = _Cat( {s, i}, SEQUENCE, name +".rgbt_cls.cat");
     s = _Parameter(c, {}, 1, 257, 1, 1280, name +".pos_embedding_helper.pos_embed");
-    i = _Add({i, s}, name +".pos_embed.add");
+    i = *s + i;
     return i;
 }
 NetTensor *VisonModel(Context* c, NetTensor * i,  int hidden_dim= 1280, int ffn_hidden_dim = 5120, int mutil_head_size = 16, string name = "vision"){
@@ -153,16 +153,14 @@ NetTensor *VisonModel(Context* c, NetTensor * i,  int hidden_dim= 1280, int ffn_
     i = _LayerNorm( {i},  hidden_dim,  true,1e-6, "modality_trunks."+name + ".pre_transformer_layer.0");
     for(int layer=0; layer<32; ++layer) {
         auto *x = _LayerNorm( {i},  hidden_dim,  true,1e-6, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".norm_1");
-        x = Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".attn");
-        i = _Add( {x, i}, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".add_attn");
+        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".attn") +i;
         x = _LayerNorm( {i}, hidden_dim, true, 1e-6, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".norm_2");
-        x = MLP( x, hidden_dim, ffn_hidden_dim, "modality_trunks."+name + ".blocks."+std::to_string(layer)+ ".mlp");
-        i = _Add( {x, i}, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".add_mlp");
+        i = *MLP( x, hidden_dim, ffn_hidden_dim, "modality_trunks."+name + ".blocks."+std::to_string(layer)+ ".mlp") + i;
     }
     i = _LayerNorm( {i}, hidden_dim, true,  1e-6, "modality_heads."+ name + ".0");
     i = i->clip( {}, {}, {0}, {});
     i = _Linear( {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".2");
-    i = _Division( {i, i->norm(2)}, "modality_postprocessors."+name +".division");
+    i = *i/i->norm(2);
     return i;
 }
 
@@ -170,24 +168,22 @@ NetTensor *VisonModel(Context* c, NetTensor * i,  int hidden_dim= 1280, int ffn_
 NetTensor *TextEmbedding(Context *c, NetTensor * i,  int vocab_size, int hidden_dim, int max_position_embeddings, string name) {
     i = _Embedding( {i}, vocab_size, hidden_dim, name +".token_embedding");
     auto *s = _Parameter(c, {}, 1, max_position_embeddings, 1, hidden_dim, name +".pos_embed");
-    i = _Add( {s, i}, name+".add_embd");
+    i = *s + i;
     return i;
 }
 NetTensor *TextModel(Context *c, NetTensor * i,  NetTensor * in_len, int vocab_size = 49408, int hidden_dim = 1024, int ffn_hidden_dim = 4096, int mutil_head_size = 16, string name="text") {
     i = TextEmbedding(c, i, vocab_size, hidden_dim, 77, "modality_preprocessors."+name);
     for (int layer = 0; layer < 24; ++layer) {
         auto *x = _LayerNorm( {i}, hidden_dim, true, 1e-6, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".norm_1");
-        x = Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".attn");
-        i = _Add( {x, i}, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".add_attn");
+        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".attn") +i;
         x = _LayerNorm( {i}, hidden_dim, true, 1e-6, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".norm_2");
-        x = MLP( x, hidden_dim, ffn_hidden_dim, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".mlp");
-        i = _Add( {x, i}, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".add_mlp");
+        i = *MLP( x, hidden_dim, ffn_hidden_dim, "modality_trunks."+name+".blocks." + std::to_string(layer) + ".mlp") +i;
     }
     i = i->_clip({}, {}, {in_len}, {});
     i = _LayerNorm( {i}, hidden_dim,true, 1e-6,"modality_heads."+ name + ".proj.0");
     i = _Linear( {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".proj.1");
-    i = _Division( {i, i->norm(2)}, "modality_postprocessors."+name +".division");
-    i = _Scale( {i}, 100.0, 0.0F, false, "modality_postprocessors."+name +".logit_scale");
+    i = *i/i->norm(2);
+    i = *i*100.0; // i = _Scale( {i}, 100.0, 0.0F, false, "modality_postprocessors."+name +".logit_scale");
     return i;
 }
 
@@ -199,7 +195,7 @@ NetTensor *AudioEmbedding(Context *c, NetTensor * i, int hidden_size, string nam
     auto *s = _Parameter(c, {}, 1, 1, 1, 768, name +".cls_token");
     i = _Cat( {s, i}, SEQUENCE, name +".cls_token.cat");
     s = _Parameter(c, {}, 1, 229, 1, 768, name +".pos_embedding_helper.pos_embed");
-    i = _Add( {i, s}, name +".position_embeddings.add");
+    i = *s + i;
     return i;
 }
 NetTensor *AudioModel(Context* c, NetTensor * i,  int hidden_dim= 768, int ffn_hidden_dim = 3072, int mutil_head_size = 12, string name = "audio"){
@@ -208,16 +204,14 @@ NetTensor *AudioModel(Context* c, NetTensor * i,  int hidden_dim= 768, int ffn_h
     //TODO i = i->transpose(BATCH, SEQUENCE);
     for(int layer=0; layer<12; ++layer) {
         auto *x = _LayerNorm( {i},  hidden_dim,  true,1e-6, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".norm_1");
-        x = Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".attn");
-        i = _Add( {x, i}, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".add_attn");
+        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".attn") +i;
         x = _LayerNorm( {i}, hidden_dim, true, 1e-6, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".norm_2");
-        x = MLP( x, hidden_dim, ffn_hidden_dim, "modality_trunks."+name + ".blocks."+std::to_string(layer)+ ".mlp");
-        i = _Add( {x, i}, "modality_trunks."+name + ".blocks."+std::to_string(layer)+".add_mlp");
+        i = *MLP( x, hidden_dim, ffn_hidden_dim, "modality_trunks."+name + ".blocks."+std::to_string(layer)+ ".mlp") + i;
     }
     i = _LayerNorm( {i}, hidden_dim, true,  1e-6, "modality_heads."+ name + ".0");
     i = i->clip( {}, {}, {0}, {});
     i = _Linear( {i}, hidden_dim, 1024, false, "modality_heads."+ name + ".2");
-    i = _Division( {i, i->norm(2)}, "modality_postprocessors."+name +".division");
+    i = *i/i->norm(2);
     return i;
 }
 
@@ -229,21 +223,21 @@ void ImageBind(Context* c) {
     auto *p = _Input(c, {}, "input_imgs");
     p = VisonModel(c, p);
 
-    auto *a = _Input(c, {}, "input_audios");
-    a = AudioModel(c, a);
+    // auto *a = _Input(c, {}, "input_audios");
+    // a = AudioModel(c, a);
 
 
     i = i->transpose(BATCH, SEQUENCE);
     p = p->transpose(BATCH, SEQUENCE);
-    a = a->transpose(BATCH, SEQUENCE);
+    // a = a->transpose(BATCH, SEQUENCE);
 
     auto *j1 = _Matmul( {p, i}, false, true, "final.vision@text");
     j1 = _Softmax( {j1}, DIMENSION, "final.softmax");
 
-     auto *j2 = _Matmul( {p, a}, false, true, "final.vision@audio");
-    j2 = _Softmax( {j2}, DIMENSION, "final.softmax");
+    //  auto *j2 = _Matmul( {p, a}, false, true, "final.vision@audio");
+    // j2 = _Softmax( {j2}, DIMENSION, "final.softmax");
 
-    i = _Cat( {j1, j2}, BATCH, "final.cat");
+    // i = _Cat( {j1, j2}, BATCH, "final.cat");
 }
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
@@ -326,7 +320,7 @@ int main(int argc, char **argv) {
 
 
     auto result = ex.result();
-    // result[0]->printData<float>();
+    result[0]->printData<float>();
 
     // free memory
     for (auto *op : c->net_ops) {

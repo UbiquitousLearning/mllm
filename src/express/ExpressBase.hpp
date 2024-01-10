@@ -86,8 +86,12 @@ typedef struct TNetTensor {
     NetTensor *transpose(Chl axis1, Chl axis2);
     NetTensor *norm(int L_n);
 
-    // Overload the + operator.
+    // Overload the operators.
     NetTensor *operator+(NetTensor* in_1) ;
+    NetTensor *operator*(NetTensor* in_1) ;
+    NetTensor *operator*(float muln) ;
+    NetTensor *operator/(NetTensor* in_1) ;
+    NetTensor *operator/(float devr) ;
 } NetTensor;
 
 } // namespace mllm

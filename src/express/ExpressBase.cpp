@@ -513,4 +513,147 @@ NetTensor *TNetTensor::operator+(NetTensor* in_1) {
     return out_tensor;
 }
 
+NetTensor *TNetTensor::operator*(NetTensor* in_1) {
+    Context *ctx =this->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    out_tensor->name = "outtensor-" + name+ "_mul_" + "-00";
+    out_tensor->type = this->type;
+    ctx->idx++;
+    ctx->net_tensors.insert(out_tensor);
+    auto sub_param = get_active_subgraph(ctx);
+    out_tensor->subgraph = sub_param;
+    sub_param->net_tensors.push_back(out_tensor);
+    sub_param->net_ops.emplace_back(new NetOp());
+    auto net_op_ = (sub_param->net_ops.back());
+    net_op_->name = name+ "_mul_";
+    net_op_->type = MUL;
+    net_op_->param = OpParam();
+    net_op_->param["type"] = MUL;
+    ctx->net_ops.push_back(net_op_);
+    net_op_->in.push_back(this);
+    this->out.push_back(net_op_);
+    if (std::find(sub_param->net_tensors.begin(), sub_param->net_tensors.end(), this) == sub_param->net_tensors.end()) {
+        sub_param->net_tensors.push_back(this);
+        if (this->subgraph != nullptr) {
+            sub_param->net_inputs.insert(this);
+        }
+    }
+    net_op_->in.push_back(in_1);
+    in_1->out.push_back(net_op_);
+    if (std::find(sub_param->net_tensors.begin(), sub_param->net_tensors.end(), in_1) == sub_param->net_tensors.end()) {
+        sub_param->net_tensors.push_back(in_1);
+        if (in_1->subgraph != nullptr) {
+            sub_param->net_inputs.insert(in_1);
+        }
+    }
+
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+NetTensor *TNetTensor::operator*(float muln) {
+    Context *ctx =this->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    out_tensor->name = "outtensor-" + name+ "_div1_" + "-00";
+    out_tensor->type = this->type;
+    ctx->idx++;
+    ctx->net_tensors.insert(out_tensor);
+    auto sub_param = get_active_subgraph(ctx);
+    out_tensor->subgraph = sub_param;
+    sub_param->net_tensors.push_back(out_tensor);
+    sub_param->net_ops.emplace_back(new NetOp());
+    auto net_op_ = (sub_param->net_ops.back());
+    net_op_->name = name+ "_div1_";
+    net_op_->type = SCALE;
+    net_op_->param = OpParam();
+    net_op_->param["type"] = SCALE;
+    net_op_->param["scale"] = muln;
+    net_op_->param["bias"] = 0.0F;
+    net_op_->param["bias_after_scale"] = (float)false;
+    ctx->net_ops.push_back(net_op_);
+    net_op_->in.push_back(this);
+    this->out.push_back(net_op_);
+    if (std::find(sub_param->net_tensors.begin(), sub_param->net_tensors.end(), this) == sub_param->net_tensors.end()) {
+        sub_param->net_tensors.push_back(this);
+        if (this->subgraph != nullptr) {
+            sub_param->net_inputs.insert(this);
+        }
+    }
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
+NetTensor *TNetTensor::operator/(NetTensor* in_1) {
+    Context *ctx =this->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    out_tensor->name = "outtensor-" + name+ "_div_" + "-00";
+    out_tensor->type = this->type;
+    ctx->idx++;
+    ctx->net_tensors.insert(out_tensor);
+    auto sub_param = get_active_subgraph(ctx);
+    out_tensor->subgraph = sub_param;
+    sub_param->net_tensors.push_back(out_tensor);
+    sub_param->net_ops.emplace_back(new NetOp());
+    auto net_op_ = (sub_param->net_ops.back());
+    net_op_->name = name+ "_div_";
+    net_op_->type = DIVISION;
+    net_op_->param = OpParam();
+    net_op_->param["type"] = DIVISION;
+    ctx->net_ops.push_back(net_op_);
+    net_op_->in.push_back(this);
+    this->out.push_back(net_op_);
+    if (std::find(sub_param->net_tensors.begin(), sub_param->net_tensors.end(), this) == sub_param->net_tensors.end()) {
+        sub_param->net_tensors.push_back(this);
+        if (this->subgraph != nullptr) {
+            sub_param->net_inputs.insert(this);
+        }
+    }
+    net_op_->in.push_back(in_1);
+    in_1->out.push_back(net_op_);
+    if (std::find(sub_param->net_tensors.begin(), sub_param->net_tensors.end(), in_1) == sub_param->net_tensors.end()) {
+        sub_param->net_tensors.push_back(in_1);
+        if (in_1->subgraph != nullptr) {
+            sub_param->net_inputs.insert(in_1);
+        }
+    }
+
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
+NetTensor *TNetTensor::operator/(float devr) {
+    Context *ctx =this->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    out_tensor->name = "outtensor-" + name+ "_div1_" + "-00";
+    out_tensor->type = this->type;
+    ctx->idx++;
+    ctx->net_tensors.insert(out_tensor);
+    auto sub_param = get_active_subgraph(ctx);
+    out_tensor->subgraph = sub_param;
+    sub_param->net_tensors.push_back(out_tensor);
+    sub_param->net_ops.emplace_back(new NetOp());
+    auto net_op_ = (sub_param->net_ops.back());
+    net_op_->name = name+ "_div1_";
+    net_op_->type = SCALE;
+    net_op_->param = OpParam();
+    net_op_->param["type"] = SCALE;
+    net_op_->param["scale"] = 1/devr;
+    net_op_->param["bias"] = 0.0F;
+    net_op_->param["bias_after_scale"] = (float)false;
+    ctx->net_ops.push_back(net_op_);
+    net_op_->in.push_back(this);
+    this->out.push_back(net_op_);
+    if (std::find(sub_param->net_tensors.begin(), sub_param->net_tensors.end(), this) == sub_param->net_tensors.end()) {
+        sub_param->net_tensors.push_back(this);
+        if (this->subgraph != nullptr) {
+            sub_param->net_inputs.insert(this);
+        }
+    }
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
 }

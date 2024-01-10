@@ -87,7 +87,7 @@ NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int he
     k = _KVCache( {k},  name + ".k_cache");
     v = _KVCache( {v}, name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
-    qk = _Scale( {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
+    qk = *qk/std::sqrt(hidden_size);
     qk = _Causalmask( {qk}, name + ".mask");
     qk = _Softmax( {qk}, DIMENSION, name + ".softmax");
     auto *o = _Matmul( {qk, v}, false, false, name + ".qkv");
@@ -99,7 +99,7 @@ NetTensor *FFN( NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
     auto *x = _Linear( {i}, hidden_dim, ffn_hidden_dim, false, name+".w1");
     x = _SiLU( {x}, name+".silu");
     auto *y = _Linear( {i}, hidden_dim, ffn_hidden_dim, false, name+".w3");
-    x = _Mul( {x, y}, name+".dot");
+    x = *x*y;// x = _Mul( {x, y}, name+".dot");
     x = _Linear( {x}, ffn_hidden_dim, hidden_dim, false, name+".w2");
     return x;
 }
@@ -109,11 +109,9 @@ void llama2(Context* c, int vocab_size= 32000, int hidden_dim= 4096, int ffn_hid
     // loop
     for(int layer=0; layer<32; ++layer) {
         auto *x = _RMSNorm( {i}, hidden_dim, 1e-6, (string)"layers."+std::to_string(layer)+".attention_norm");
-        x = Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
-        i = _Add( {x, i}, (string)"layers."+std::to_string(layer) +".attention_add");
+        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention") +i;
         x = _RMSNorm( {i}, hidden_dim, 1e-6, (string)"layers."+std::to_string(layer)+".ffn_norm");
-        x = FFN( x, hidden_dim, ffn_hidden_dim, (string)"layers."+std::to_string(layer) +".feed_forward");
-        i = _Add( {x, i}, (string)"layers."+std::to_string(layer) +".ffn_add");
+        i = *FFN( x, hidden_dim, ffn_hidden_dim, (string)"layers."+std::to_string(layer) +".feed_forward") +i;
         //_SubgraphBegin(c);
     }
     // end loop
