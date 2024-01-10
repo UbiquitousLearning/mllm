@@ -3,6 +3,8 @@
 #include "QnnTypes.h"
 #include "QnnWrapperUtils.hpp"
 #include "Types.hpp"
+#include <memory>
+#include <string>
 
 namespace mllm {
 
@@ -44,11 +46,11 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
         for (int i = 0; i < output->shape().size(); i++) {
             dimensions[i] = output->shape()[i];
         }
-        auto outString = output->name();
+        inputTensorNames_.push_back(new string(output->name()));
         outputTensors.push_back({QNN_TENSOR_VERSION_1,
                                  {.v1 = {
                                       .id = 0,
-                                      .name = outString.c_str(),
+                                      .name = inputTensorNames_.back()->c_str(),
                                       .type = getOutputTensorType(output),
                                       .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                       .dataType = QNN_DATATYPE_FLOAT_32,

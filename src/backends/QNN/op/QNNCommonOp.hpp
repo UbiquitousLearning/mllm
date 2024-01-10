@@ -18,6 +18,7 @@ public:
     virtual ErrorCode load(AbstructLoader &loader) override;
 
 protected:
+    vector<string *> inputTensorNames_;
     QNNBackend *qnnBackend_;
     ErrorCode graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<Qnn_Param_t> params = {}, string packageName = "qti.aisw");
     ErrorCode graphAddNode(string name, string nodeType, vector<string> inputs, vector<Qnn_Tensor_t> outputs, vector<Qnn_Param_t> params = {}, string packageName = "qti.aisw");
