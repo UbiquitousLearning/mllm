@@ -18,9 +18,9 @@ using namespace mllm;
 
 void BuildModel(Context *ctx) {
     auto *i = _Input(ctx);
-    auto *q = _Linear(ctx, {i}, 4, 2, true, "layers." + std::to_string(0) + ".attention.wq");
-    auto *r = _RMSNorm(ctx, {q}, "layers." + std::to_string(0) + ".attention_norm");
-    r = _SiLU(ctx, {r}, "layers." + std::to_string(0) + ".ffn.activation");
+    auto *q = _Linear(ctx, {i}, 4, 4, false, "layers." + std::to_string(0) + ".attention.wq");
+    auto *k = _Linear(ctx, {q}, 4, 4, false, "layers." + std::to_string(0) + ".wq");
+    _Matmul(ctx, {q, k}, false, true);
 }
 
 template <typename Dtype>

@@ -62,13 +62,13 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                  .memType = QNN_TENSORMEMTYPE_RAW,
                  {.clientBuf = {.data = nullptr,
                                 .dataSize = 0}}}}}};
-    graphAddNode(name() + ".quantize", "Quantize", {inputs[0]->name().c_str()}, quantizedInput);
+    graphAddNode(name() + ".quantize", "Quantize", {inputs[0]->name()}, quantizedInput);
     // add weight tensor to qnn
     uint32_t dimensionsWeight[4];
     for (int i = 0; i < 4; i++) {
         dimensionsWeight[i] = weight_.shape()[i];
     }
-    qnnBackend_->modelAddTensor(weight_.name().c_str(), (Qnn_Tensor_t){
+    qnnBackend_->modelAddTensor(weight_.name(), (Qnn_Tensor_t){
                                                             .version = QNN_TENSOR_VERSION_1,
                                                             {.v1 = {
                                                                  .id = 0,
@@ -107,7 +107,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                             .memType = QNN_TENSORMEMTYPE_RAW,
                                             {.clientBuf = {.data = nullptr,
                                                            .dataSize = 0}}}}}};
-    graphAddNode(name() + ".matmul", "MatMul", {inputQuantizeName.c_str(), weight_.name().c_str()}, matmulOut, paramsMatmul);
+    graphAddNode(name() + ".matmul", "MatMul", {inputQuantizeName, weight_.name()}, matmulOut, paramsMatmul);
 
     // if don't support bias, just dequantize and write to tensor with name of outputs[0]
     if (!support_bias_) {
@@ -127,7 +127,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                               .memType = QNN_TENSORMEMTYPE_RAW,
                                               {.clientBuf = {.data = nullptr,
                                                              .dataSize = 0}}}}}};
-        return graphAddNode(name() + ".dequantize", "Dequantize", {outQuantizedName.c_str()}, deqnOut);
+        return graphAddNode(name() + ".dequantize", "Dequantize", {outQuantizedName}, deqnOut);
     }
 
     // dequantize to tensor with name of outputs[0] + ".dequantize"
@@ -147,10 +147,10 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                           .memType = QNN_TENSORMEMTYPE_RAW,
                                           {.clientBuf = {.data = nullptr,
                                                          .dataSize = 0}}}}}};
-    graphAddNode(name() + ".dequantize", "Dequantize", {outQuantizedName.c_str()}, deqnOut);
+    graphAddNode(name() + ".dequantize", "Dequantize", {outQuantizedName}, deqnOut);
     // add bias tensor to qnn
     uint32_t dimensionsBias[4] = {1, 1, 1, (uint32_t)out_features_};
-    qnnBackend_->modelAddTensor(bias_.name().c_str(), (Qnn_Tensor_t){
+    qnnBackend_->modelAddTensor(bias_.name(), (Qnn_Tensor_t){
                                                           .version = QNN_TENSOR_VERSION_1,
                                                           {.v1 = {
                                                                .id = 0,
@@ -182,7 +182,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                              .memType = QNN_TENSORMEMTYPE_RAW,
                                              {.clientBuf = {.data = nullptr,
                                                             .dataSize = 0}}}}}};
-    return graphAddNode(name() + ".add", "ElementWiseAdd", {outDeqnName.c_str(), bias_.name().c_str()}, biasOutput);
+    return graphAddNode(name() + ".add", "ElementWiseAdd", {outDeqnName, bias_.name()}, biasOutput);
 }
 
 ErrorCode QNNLinear::load(AbstructLoader &loader) {
