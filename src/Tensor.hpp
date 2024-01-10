@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <cmath>
 #include "Timing.hpp"
+#include "Types.hpp"
 
 const auto KMaxAxes = 32;
 
@@ -369,6 +370,14 @@ public:
         return name_;
     }
 
+    void setTensorType(TensorType type) {
+        type_ = type;
+    }
+
+    TensorType tensorType() const {
+        return type_;
+    }
+
     int allocted() const {
         return allocated_;
     }
@@ -409,9 +418,11 @@ private:
     string name_;
 //    int byte_width_; // 32/16/8/4 //enum
     DataType dtype_;
+    TensorType type_ = GRAPH_INTERAL;
     Backend *backend_;
     void *host_ptr_;
     void *device_ptr_;
+    
 
     // shared_ptr<HostMemory> data_; //存放数据
     // shared_ptr<HostMemory> diff_; //存放梯度  //TODO: not need for "inference"; only define; do not use. DELITE

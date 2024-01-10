@@ -82,4 +82,11 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<const c
     return NO_ERROR;
 }
 
+Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tensor) const {
+    if(tensor->tensorType() == GRAPH_OUTPUT)
+        return QNN_TENSOR_TYPE_APP_READ;
+    else
+        return QNN_TENSOR_TYPE_NATIVE; // qnn input is set APP_WRITE by backend
+}
+
 } // namespace mllm
