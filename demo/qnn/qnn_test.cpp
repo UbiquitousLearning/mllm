@@ -16,11 +16,12 @@
 
 using namespace mllm;
 
+// when set name of linear, use q8 as postfix to let mock loader load int8 data
 void BuildModel(Context *ctx) {
     auto *i = _Input(ctx);
     i = _RoPE(ctx, {i});
     i = _RMSNorm(ctx, {i});
-    auto *q = _Linear(ctx, {i}, 4, 4, false, "layers." + std::to_string(0) + ".attention.wq");
+    auto *q = _Linear(ctx, {i}, 4, 4, false, "layers." + std::to_string(0) + ".attention.q8");
     q = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
     // auto *k = _Linear(ctx, {i}, 4, 4, false, "layers." + std::to_string(0) + ".attention.wq");
     // k = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});

@@ -777,6 +777,7 @@ StatusCode QNNBackend::executeGraphs(std::map< std::string, std::vector<uint8_t*
                 std::cout << "output name:" << output.v1.name << std::endl;
                 std::cout << "output id:" << output.v1.clientBuf.dataSize << std::endl;
                 std::cout << "output type:" << output.v1.type << std::endl;
+                std::cout << "output type:" << output.v1.dataType << std::endl;
                 // m_ioTensor.writeOutputTensor(&output, outputBufferMap["graph"][oi]);
                 memcpy(outputBufferMap["graph"][oi], output.v1.clientBuf.data, output.v1.clientBuf.dataSize);
             }
