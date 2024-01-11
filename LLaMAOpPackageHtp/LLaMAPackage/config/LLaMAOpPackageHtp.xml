@@ -409,12 +409,14 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Input>
                 <Name>in[0]</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
 
 
             <Output>
                 <Name>out[0]</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Output>
         </SupplementalOpDef>
 
@@ -458,15 +460,18 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Input>
                 <Name>in[0]</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
             <Input>
                 <Name>weights</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
 
             <Output>
                 <Name>out[0]</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Output>
         </SupplementalOpDef>
 
@@ -477,20 +482,24 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Input>
                 <Name>in[0]</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
             <Input>
                 <Name>sin</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
 
             <Input>
                 <Name>cos</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
 
             <Output>
                 <Name>out[0]</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Output>
         </SupplementalOpDef>
 
@@ -501,11 +510,13 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Input>
                 <Name>in[0]</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
 
             <Output>
                 <Name>out[0]</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Output>
         </SupplementalOpDef>
 
@@ -516,15 +527,18 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Input>
                 <Name>in[0]</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
             <Input>
                 <Name>in[1]</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
 
             <Output>
                 <Name>out[0]</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Output>
         </SupplementalOpDef>
 

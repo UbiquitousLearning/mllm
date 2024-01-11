@@ -110,9 +110,9 @@ GraphStatus ropeImpl(TensorType& out_0,
    * Please check in SDK documentation for more information.
    */
 
-   debuglog("relux execute... dims=(%zdx%zdx%zdx%zd)", in_0.dim(0), in_0.dim(1), in_0.dim(2), in_0.dim(3));
-   debuglog("relux execute... dims=(%zdx%zdx%zdx%zd)", sin.dim(0), sin.dim(1), sin.dim(2), sin.dim(3));
-   debuglog("relux execute... dims=(%zdx%zdx%zdx%zd)", cos.dim(0), cos.dim(1), cos.dim(2), cos.dim(3));
+   debuglog("RoPE execute... dims=(%zdx%zdx%zdx%zd)", in_0.dim(0), in_0.dim(1), in_0.dim(2), in_0.dim(3));
+   debuglog("RoPE execute... dims=(%zdx%zdx%zdx%zd)", sin.dim(0), sin.dim(1), sin.dim(2), sin.dim(3));
+   debuglog("RoPE execute... dims=(%zdx%zdx%zdx%zd)", cos.dim(0), cos.dim(1), cos.dim(2), cos.dim(3));
 
   // BSHD =>  NHWC
 
