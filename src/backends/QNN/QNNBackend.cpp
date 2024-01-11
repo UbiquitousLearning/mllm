@@ -176,7 +176,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
                                                              .name = inputs[0]->name().c_str(),
                                                              .type = QNN_TENSOR_TYPE_APP_WRITE,
                                                              .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                             .dataType = QNN_DATATYPE_FLOAT_16,
+                                                             .dataType = QNN_DATATYPE_FLOAT_32,
                                                              .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                                                 QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                                                 {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},

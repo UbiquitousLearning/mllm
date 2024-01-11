@@ -45,7 +45,7 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
                                          .name = sinName.c_str(),
                                          .type = QNN_TENSOR_TYPE_STATIC,
                                          .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                         .dataType = QNN_DATATYPE_FLOAT_16,
+                                         .dataType = QNN_DATATYPE_FLOAT_32,
                                          .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                             QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                             {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
@@ -63,7 +63,7 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
                                          .name = cosName.c_str(),
                                          .type = QNN_TENSOR_TYPE_STATIC,
                                          .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                         .dataType = QNN_DATATYPE_FLOAT_16,
+                                         .dataType = QNN_DATATYPE_FLOAT_32,
                                          .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                             QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                             {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
@@ -92,7 +92,7 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
                  .name = outName.c_str(),
                  .type = getOutputTensorType(outputs[0]),
                  .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                 .dataType = QNN_DATATYPE_FLOAT_16,
+                 .dataType = QNN_DATATYPE_FLOAT_32,
                  .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                     QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                     {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
@@ -122,8 +122,8 @@ ErrorCode QNNRoPE::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Ten
 void QNNRoPE::sinusoidal_position_embedding(int batch_size, int nums_head, int seq_len, int output_dim, Tensor &sin, Tensor &cos) {
     sin.reshape(batch_size, nums_head, seq_len, output_dim);
     cos.reshape(batch_size, nums_head, seq_len, output_dim);
-    sin.setDtype(MLLM_TYPE_F16);
-    cos.setDtype(MLLM_TYPE_F16);
+    sin.setDtype(MLLM_TYPE_F32);
+    cos.setDtype(MLLM_TYPE_F32);
     sin.alloc();
     cos.alloc();
     for (int n = 0; n < batch_size; ++n) {
@@ -131,13 +131,13 @@ void QNNRoPE::sinusoidal_position_embedding(int batch_size, int nums_head, int s
             for (int s = 0; s < seq_len; ++s) {
                 for (int d = 0; d < output_dim; d += 2) {
                     int i = (int)d / 2;
-                    __fp16 sin_value = std::sin(s / std::pow(10000, 2.0 * i / output_dim));
-                    __fp16 cos_value = std::cos(s / std::pow(10000, 2.0 * i / output_dim));
-                    ((__fp16 *)sin.hostPtr<void>())[n * h * s * d] = sin_value;
-                    ((__fp16 *)cos.hostPtr<void>())[n * h * s * d] = cos_value;
+                    float sin_value = std::sin(s / std::pow(10000, 2.0 * i / output_dim));
+                    float cos_value = std::cos(s / std::pow(10000, 2.0 * i / output_dim));
+                    ((float *)sin.hostPtr<void>())[n * h * s * d] = sin_value;
+                    ((float *)cos.hostPtr<void>())[n * h * s * d] = cos_value;
                     if (d + 1 < output_dim) {
-                        ((__fp16 *)sin.hostPtr<void>())[n * h * s * (d + 1)] = sin_value;
-                        ((__fp16 *)cos.hostPtr<void>())[n * h * s * (d + 1)] = cos_value;
+                        ((float *)sin.hostPtr<void>())[n * h * s * (d + 1)] = sin_value;
+                        ((float *)cos.hostPtr<void>())[n * h * s * (d + 1)] = cos_value;
                     }
                 }
             }
@@ -158,14 +158,14 @@ void QNNRoPE::sinusoidal_position_embedding_hf(int batch_size, int nums_head, in
                     if (d >= (int)output_dim / 2) {
                         i = (int)(d - output_dim / 2);
                     }
-                    __fp16 sin_value = std::sin(s / std::pow(10000, 2.0 * i / output_dim));
-                    __fp16 cos_value = std::cos(s / std::pow(10000, 2.0 * i / output_dim));
+                    float sin_value = std::sin(s / std::pow(10000, 2.0 * i / output_dim));
+                    float cos_value = std::cos(s / std::pow(10000, 2.0 * i / output_dim));
 
-                    ((__fp16 *)sin.hostPtr<void>())[n * h * s * d] = sin_value;
-                    ((__fp16 *)cos.hostPtr<void>())[n * h * s * d] = cos_value;
+                    ((float *)sin.hostPtr<void>())[n * h * s * d] = sin_value;
+                    ((float *)cos.hostPtr<void>())[n * h * s * d] = cos_value;
                     if (d + 1 < output_dim) {
-                        ((__fp16 *)sin.hostPtr<void>())[n * h * s * (d + 1)] = sin_value;
-                        ((__fp16 *)cos.hostPtr<void>())[n * h * s * (d + 1)] = cos_value;
+                        ((float *)sin.hostPtr<void>())[n * h * s * (d + 1)] = sin_value;
+                        ((float *)cos.hostPtr<void>())[n * h * s * (d + 1)] = cos_value;
                     }
                 }
             }
