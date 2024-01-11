@@ -25,7 +25,7 @@ public:
             std::cout << name << "int8" << std::endl;
             return DataType::MLLM_TYPE_I8;
         }
-        return DataType::MLLM_TYPE_F16;
+        return DataType::MLLM_TYPE_F32;
     }
 };
 
