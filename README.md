@@ -124,7 +124,7 @@ See the [documentation]() here for more information
 
 ## Contribution
 
-Read the [contribution](https://mllm-landing.vercel.app/zh/contributing/contributing/) before you contribute.
+Read the [contribution](https://mllm-landing.vercel.app/contributing/contributing/) before you contribute.
 
 ## Acknowledgments
 
