@@ -17,9 +17,9 @@
 namespace mllm {
 class Tokenizer;
 class PreProcessor;
+struct Context;
 }
 
-struct Context;
 
 namespace mllm {
 class Backend;

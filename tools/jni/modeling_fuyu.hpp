@@ -5,6 +5,7 @@
 #ifndef MODELING_FUYU_HPP
 #define MODELING_FUYU_HPP
 #include <express/Express.hpp>
+#include "express/ExpressBase.hpp"
 #include "math.h"
 #include "helper.hpp"
 

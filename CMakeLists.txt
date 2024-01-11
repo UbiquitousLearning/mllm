@@ -270,11 +270,11 @@ if (APK)
             src/processor/PreProcess.hpp
             src/processor/FuyuPreProcess.hpp
             src/processor/FuyuPreProcess.cpp
-            android/LibHelper.cpp
-            android/LibHelper.hpp
-            android/modeling_llama.hpp
-            android/modeling_fuyu.hpp
-            android/helper.hpp
+            tools/jni/LibHelper.cpp
+            tools/jni/LibHelper.hpp
+            tools/jni/modeling_llama.hpp
+            tools/jni/modeling_fuyu.hpp
+            tools/jni/helper.hpp
             src/processor/PreProcess.cpp
 
     )
