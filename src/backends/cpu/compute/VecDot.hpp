@@ -1,7 +1,3 @@
-// This code is based on ggml(https://github.com/ggerganov/ggml), please see
-// https://github.com/ggerganov/ggml/blob/master/src/ggml.c
-// ggml is licensed under MIT Copyright (c) 2022 Georgi Gerganov,
-
 /*
  * This code is based on ggml(https://github.com/ggerganov/ggml),
  * please see https://github.com/ggerganov/ggml/blob/master/src/ggml.c
