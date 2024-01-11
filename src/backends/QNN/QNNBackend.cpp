@@ -90,7 +90,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
 #endif
 
     // TODO: make these configuable
-    m_debug = true; // when set true, NATIVE tensor will be regared as APP_READ tensor
+    m_debug = false; // when set true, NATIVE tensor will be regared as APP_READ tensor
     m_outputDataType = iotensor::OutputDataType::FLOAT_ONLY;
     m_inputDataType = iotensor::InputDataType::FLOAT;
     m_profilingLevel = ProfilingLevel::OFF;
@@ -772,7 +772,11 @@ StatusCode QNNBackend::executeGraphs(std::map< std::string, std::vector<uint8_t*
             QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
             for (int oi=0; oi < graphInfo.numOutputTensors; oi ++) {
                 auto output = outputs[oi];
-
+                // DEBUGLOG
+                std::cout << "----------------" << std::endl;
+                std::cout << "output name:" << output.v1.name << std::endl;
+                std::cout << "output id:" << output.v1.clientBuf.dataSize << std::endl;
+                std::cout << "output type:" << output.v1.type << std::endl;
                 // m_ioTensor.writeOutputTensor(&output, outputBufferMap["graph"][oi]);
                 memcpy(outputBufferMap["graph"][oi], output.v1.clientBuf.data, output.v1.clientBuf.dataSize);
             }

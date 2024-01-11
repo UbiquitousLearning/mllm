@@ -26,12 +26,13 @@ ErrorCode QNNScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     for (int i = 0; i < 4; i++) {
         dimensions[i] = inputs[0]->shape(i);
     }
+    auto interName = name() + ".intermediate";
     vector<Qnn_Tensor_t>
         intermediateOutput = {
             {.version = QNN_TENSOR_VERSION_1,
              {.v1 = {
                   .id = 0,
-                  .name = (name() + ".intermediate").c_str(),
+                  .name = interName.c_str(),
                   .type = QNN_TENSOR_TYPE_NATIVE,
                   .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                   .dataType = QNN_DATATYPE_FLOAT_32,
@@ -47,45 +48,48 @@ ErrorCode QNNScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     uint32_t scalarDimensions[1] = {1};
     float biasData[] = {bias_};
     float scaleData[] = {scale_};
-    qnnBackend_->modelAddTensor((name() + ".scale").c_str(), (Qnn_Tensor_t){
-                                                                 .version = QNN_TENSOR_VERSION_1,
-                                                                 {.v1 = {
-                                                                      .id = 0,
-                                                                      .name = inputs[0]->name().c_str(),
-                                                                      .type = QNN_TENSOR_TYPE_STATIC,
-                                                                      .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                                      .dataType = QNN_DATATYPE_FLOAT_32,
-                                                                      .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                                                                         QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                                                                         {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-                                                                      .rank = 1,
-                                                                      .dimensions = scalarDimensions,
-                                                                      .memType = QNN_TENSORMEMTYPE_RAW,
-                                                                      {.clientBuf = {.data = scaleData,
-                                                                                     .dataSize = 4}}}}});
-    qnnBackend_->modelAddTensor((name() + ".bias").c_str(), (Qnn_Tensor_t){
-                                                                .version = QNN_TENSOR_VERSION_1,
-                                                                {.v1 = {
-                                                                     .id = 0,
-                                                                     .name = inputs[0]->name().c_str(),
-                                                                     .type = QNN_TENSOR_TYPE_STATIC,
-                                                                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                                     .dataType = QNN_DATATYPE_FLOAT_32,
-                                                                     .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                                                                        QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                                                                        {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-                                                                     .rank = 1,
-                                                                     .dimensions = scalarDimensions,
-                                                                     .memType = QNN_TENSORMEMTYPE_RAW,
-                                                                     {.clientBuf = {.data = biasData,
-                                                                                    .dataSize = 4}}}}});
+    auto scaleName = name() + ".scale";
+    auto biasName = name() + ".bias";
+    qnnBackend_->modelAddTensor(scaleName, (Qnn_Tensor_t){
+                                               .version = QNN_TENSOR_VERSION_1,
+                                               {.v1 = {
+                                                    .id = 0,
+                                                    .name = scaleName.c_str(),
+                                                    .type = QNN_TENSOR_TYPE_STATIC,
+                                                    .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                                    .dataType = QNN_DATATYPE_FLOAT_32,
+                                                    .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                                       QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                                       {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                                    .rank = 1,
+                                                    .dimensions = scalarDimensions,
+                                                    .memType = QNN_TENSORMEMTYPE_RAW,
+                                                    {.clientBuf = {.data = scaleData,
+                                                                   .dataSize = 4}}}}});
+    qnnBackend_->modelAddTensor(biasName, (Qnn_Tensor_t){
+                                              .version = QNN_TENSOR_VERSION_1,
+                                              {.v1 = {
+                                                   .id = 0,
+                                                   .name = biasName.c_str(),
+                                                   .type = QNN_TENSOR_TYPE_STATIC,
+                                                   .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                                   .dataType = QNN_DATATYPE_FLOAT_32,
+                                                   .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                                      QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                                      {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                                   .rank = 1,
+                                                   .dimensions = scalarDimensions,
+                                                   .memType = QNN_TENSORMEMTYPE_RAW,
+                                                   {.clientBuf = {.data = biasData,
+                                                                  .dataSize = 4}}}}});
     // convert output to qnn tensor
+    auto outName = outputs[0]->name();
     vector<Qnn_Tensor_t> outputTensors = {
         {.version = QNN_TENSOR_VERSION_1,
          {.v1 = {
               .id = 0,
-              .name = outputs[0]->name().c_str(),
-              .type = QNN_TENSOR_TYPE_APP_READ,
+              .name = outName.c_str(),
+              .type = getOutputTensorType(outputs[0]),
               .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
               .dataType = QNN_DATATYPE_FLOAT_32,
               .quantizeParams = {QNN_DEFINITION_UNDEFINED,
@@ -97,11 +101,11 @@ ErrorCode QNNScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
               {.clientBuf = {.data = nullptr,
                              .dataSize = 0}}}}}};
     if (bias_after_scale_) {
-        graphAddNode(name(), "ElementWiseMultiply", {inputs[0]->name().c_str(), (name() + ".scale").c_str()}, intermediateOutput);
-        return graphAddNode(name(), "ElementWiseAdd", {(name() + ".intermediate").c_str(), (name() + ".bias").c_str()}, outputTensors);
+        graphAddNode(name(), "ElementWiseMultiply", {inputs[0]->name(), scaleName}, intermediateOutput);
+        return graphAddNode(name(), "ElementWiseAdd", {interName, biasName}, outputTensors);
     } else {
-        graphAddNode(name(), "ElementWiseAdd", {inputs[0]->name().c_str(), (name() + ".bias").c_str()}, intermediateOutput);
-        return graphAddNode(name(), "ElementWiseMultiply", {(name() + ".intermediate").c_str(), (name() + ".scale").c_str()}, outputTensors);
+        graphAddNode(name(), "ElementWiseAdd", {inputs[0]->name(), biasName}, intermediateOutput);
+        return graphAddNode(name(), "ElementWiseMultiply", {interName, scaleName}, outputTensors);
     }
 }
 } // namespace mllm
