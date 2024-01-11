@@ -1,14 +1,11 @@
 ## Introduction
 [![Documentation](https://img.shields.io/badge/view-docs-blue)]()
 
-mllm is a fast multimodal LLM inference engine for mobile and edge devices, mainly supporting CPU inference on Android devices, and also supports accelerating inference through GPU and NPU methods. Currently, mllm supports the inference of large models like llama, fuyu, vit, imagebind, clip, etc.
+mllm is a fast, lightweight, dependency-free multimodal LLM inference engine for mobile and edge devices.
 
-mllm provides a series of [example programs](examples), including the implementation of llama, clip, fuyu, vit, imagebind, and more using the mllm framework. In addition, mllm also offers [an example app](android) for Android devices, where you can upload models to your phone via adb to experience the effects of different models' inference on mllm.
+Currently, mllm is mainly optimized for Android devices.
 
-
-### News
-
-
+## Android Demo
 
 
 ##  Key Features
@@ -33,8 +30,6 @@ Currently mllm support models:
 
 ##  Quick Start
 
-Here are the end-to-end binary build and model conversion steps for the LLaMA-7B model.
-
 ### Get the Code
 
 ```bash
@@ -43,7 +38,7 @@ cd mllm
 ```
 ### Check prerequisites 
 
-Although mllm is a standalone library, it requires some tools to build the project and some other libs to accelerating the inference.
+Building mllm requires following tools:
 - CMake >= 3.18
 - OpenMP Libs.
 - Android NDK Toolchains >= 26
@@ -128,8 +123,8 @@ Read the [contribution](https://mllm-landing.vercel.app/contributing/contributin
 
 ## Acknowledgments
 
-mllm imitates [ggml](https://github.com/ggerganov/ggml) to implement [vector multiplication](src/backends/cpu/compute/VecDot.hpp), and [quantization algorithms](src/backends/cpu/quantize) on CPU. 
-It utilizes [stb](https://github.com/nothings/stb) and [wenet](https://github.com/wenet-e2e/wenet) for handling images and audios.
+mllm reuses many low-level kernel implementation from [ggml](https://github.com/ggerganov/ggml) on ARM CPU. 
+It also utilizes [stb](https://github.com/nothings/stb) and [wenet](https://github.com/wenet-e2e/wenet) for handling images and audios.
 Additionally, mllm refers to the following projects:
 
 [//]: # (* [ggml]&#40;https://github.com/ggerganov/ggml&#41;)
@@ -141,12 +136,6 @@ Additionally, mllm refers to the following projects:
 * [transformers](https://github.com/huggingface/transformers)
 * [clip](https://github.com/openai/CLIP)
 * [ImageBind](https://github.com/facebookresearch/ImageBind)
-
-## Citation
-
-```
-
-```
 
 ## License
 
