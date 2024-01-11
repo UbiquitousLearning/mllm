@@ -99,6 +99,11 @@ enum PaddingType {
     VALID
 };
 
+
+// This code is based on ggml(https://github.com/ggerganov/ggml), please see
+// https://github.com/ggerganov/ggml/blob/master/src/ggml.c
+// ggml is licensed under MIT Copyright (c) 2022 Georgi Gerganov,
+// please see [ggml License](GGML_LICENSE)
 #if defined(__ARM_NEON) && !defined(_MSC_VER)
 typedef __fp16 mllm_fp16_t;
 #else

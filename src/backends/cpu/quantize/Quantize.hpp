@@ -1,6 +1,7 @@
-//
-// Created by ey on 23-10-24.
-//
+// This code is based on ggml(https://github.com/ggerganov/ggml), please see
+// https://github.com/ggerganov/ggml/blob/master/src/ggml.c
+// ggml is licensed under MIT Copyright (c) 2022 Georgi Gerganov,
+// please see [ggml License](./GGML_LICENSE)
 
 #ifndef MLLM_QUANTIZE_HPP
 #define MLLM_QUANTIZE_HPP

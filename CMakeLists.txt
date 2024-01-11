@@ -97,13 +97,12 @@ if(QUANT)
         ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
     )
 
-    # MLLM Quantizer is /src/quantizer/*.cpp but except main.cpp, gguf.cpp and gguf.hpp
     file(GLOB_RECURSE MLLM_QUANTIZER
         ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp)
     list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/main.cpp)
-    list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/gguf.hpp)
-    list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/gguf.cpp)
+#    list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/gguf.hpp)
+#    list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/gguf.cpp)
 
     message(STATUS "MLLM_Quant: ${MLLM_QUANT}")
 
@@ -117,13 +116,14 @@ if(QUANT)
         ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
     )
     add_executable(
-        from_gguf
-        ${PROJECT_SOURCE_DIR}/src/quantizer/gguf.cpp
-        ${MLLM_QUANT}
-        ${MLLM_QUANTIZER}
+            from_gguf
+            ${PROJECT_SOURCE_DIR}/tools/gguf_convertor/gguf.cpp
+            ${PROJECT_SOURCE_DIR}/tools/gguf_convertor/gguf.hpp
+            ${MLLM_QUANT}
+            ${MLLM_QUANTIZER}
+            # ${DIR_SRC}
+            ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
 
-        # ${DIR_SRC}
-        ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
     )
 
 endif()
