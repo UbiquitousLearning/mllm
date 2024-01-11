@@ -4,8 +4,8 @@
 #include "QNNCommonOp.hpp"
 
 namespace mllm {
-QNNMatmul::QNNMatmul(Backend *bn, string opName) :
-    QNNCommonOp(bn, opName) {
+QNNMatmul::QNNMatmul(Backend *bn, string opName, bool transpose0, bool transpose1) :
+    QNNCommonOp(bn, opName), transpose0_(transpose0), transpose1_(transpose1) {
 }
 
 ErrorCode QNNMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -63,6 +63,6 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         {.paramType = QNN_PARAMTYPE_SCALAR,
          .name = "transpose_in1",
          {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = transpose1_}}}}};
-    return graphAddNode(name(), "Reshape", inputs, outputs, paramsMatmul);
+    return graphAddNode(name(), "MatMul", inputs, outputs, paramsMatmul);
 }
 } // namespace mllm

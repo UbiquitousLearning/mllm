@@ -1,6 +1,7 @@
 #ifndef MLLM_MockLoader_H
 #define MLLM_MockLoader_H
 #include "ParamLoader.hpp"
+#include <cstdint>
 
 namespace mllm {
 class MockLoader : public ParamLoader {
@@ -12,6 +13,18 @@ public:
 #ifdef DEBUG
         std::cout << "MockLoader load" << std::endl;
 #endif
+        switch (tensor->dtype()) {
+        case DataType::MLLM_TYPE_F32: {
+            tensor->fullData<float>(2.f);
+            break;
+        }
+        case DataType::MLLM_TYPE_I8: {
+            tensor->fullData<int8_t>(2);
+            break;
+        }
+        default:
+            break;
+        }
         return true;
     }
     bool load(std::shared_ptr<mllm::Tensor> tensor) override {
@@ -21,7 +34,7 @@ public:
         return true;
     }
     DataType getDataType(string name) override {
-        if (name.find("wq.weight") != string::npos) {
+        if (name.find("q8.weight") != string::npos) {
             std::cout << name << "int8" << std::endl;
             return DataType::MLLM_TYPE_I8;
         }

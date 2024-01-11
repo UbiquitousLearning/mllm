@@ -47,6 +47,6 @@ ErrorCode QNNAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Ten
                                       .memType = QNN_TENSORMEMTYPE_RAW,
                                       {.clientBuf = {.data = nullptr,
                                                      .dataSize = 0}}}}}};
-    return graphAddNode(name(), "ElementWiseAdd", {inputName0.c_str(), inputName1.c_str()}, out);
+    return graphAddNode(name(), "ElementWiseAdd", {inputName0, inputName1}, out);
 }
 } // namespace mllm

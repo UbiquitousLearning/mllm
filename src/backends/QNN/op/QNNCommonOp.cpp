@@ -3,6 +3,8 @@
 #include "QnnTypes.h"
 #include "QnnWrapperUtils.hpp"
 #include "Types.hpp"
+#include <memory>
+#include <string>
 
 namespace mllm {
 
@@ -33,6 +35,15 @@ ErrorCode QNNCommonOp::load(AbstructLoader &loader) {
 }
 
 ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<Qnn_Param_t> params, string packageName) {
+    // DEBUGLOG
+    std::cout << "=name:" << name << std::endl;
+    std::cout << "=nodeType:" << nodeType << std::endl;
+    for (auto &inputTensorName : inputs) {
+        std::cout << "=input:" << inputTensorName->name() << std::endl;
+    }
+    for (auto &output : outputs) {
+        std::cout << "=output:" << output->name() << std::endl;
+    }
     vector<string> inputTensorNames;
     for (auto &input : inputs) {
         inputTensorNames.push_back(input->name());
@@ -44,11 +55,11 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
         for (int i = 0; i < output->shape().size(); i++) {
             dimensions[i] = output->shape()[i];
         }
-        auto outString = output->name();
+        inputTensorNames_.push_back(new string(output->name()));
         outputTensors.push_back({QNN_TENSOR_VERSION_1,
                                  {.v1 = {
                                       .id = 0,
-                                      .name = outString.c_str(),
+                                      .name = inputTensorNames_.back()->c_str(),
                                       .type = getOutputTensorType(output),
                                       .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                       .dataType = QNN_DATATYPE_FLOAT_32,
@@ -69,6 +80,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
 }
 
 ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string> inputTensorNames, vector<Qnn_Tensor_t> outputs, vector<Qnn_Param_t> params, string packageName) {
+    // DEBUGLOG
     std::cout << "=name:" << name << std::endl;
     std::cout << "=nodeType:" << nodeType << std::endl;
     for(auto &inputTensorName : inputTensorNames) {

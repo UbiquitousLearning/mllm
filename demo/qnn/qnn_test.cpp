@@ -16,11 +16,23 @@
 
 using namespace mllm;
 
+// when set name of linear, use q8 as postfix to let mock loader load int8 data
 void BuildModel(Context *ctx) {
     auto *i = _Input(ctx);
-    auto *q = _Linear(ctx, {i}, 4, 2, true, "layers." + std::to_string(0) + ".attention.wq");
-    auto *r = _RMSNorm(ctx, {q}, "layers." + std::to_string(0) + ".attention_norm");
-    r = _SiLU(ctx, {r}, "layers." + std::to_string(0) + ".ffn.activation");
+    i = _RoPE(ctx, {i});
+    i = _RMSNorm(ctx, {i});
+    auto *q = _Linear(ctx, {i}, 4, 4, false, "attention.q.q8");
+    auto *k = _Linear(ctx, {i}, 4, 4, false, "attention.k.q8");
+    auto *v = _Linear(ctx, {i}, 4, 4, false, "attention.v.q8");
+    // q = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
+    // k = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
+    // v = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
+    auto *qk = _Matmul(ctx, {q, k}, false, true, "attention.qk");
+    qk = _Scale(ctx, {qk}, 0.5f, 0.0F, false, "attention.scale");
+    qk = _Causalmask(ctx, {qk}, "mask");
+    qk = _Softmax(ctx, {qk}, 3, "softmax");
+    auto *o = _Matmul(ctx, {qk, v}, false, false, "qkv");
+    o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, "qkv_view");
 }
 
 template <typename Dtype>
