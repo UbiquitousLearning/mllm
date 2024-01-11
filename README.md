@@ -1,4 +1,4 @@
-# Introduction
+## Introduction
 [![Documentation](https://img.shields.io/badge/view-docs-blue)]()
 
 
@@ -11,12 +11,12 @@ mllm is an open-source large model edge inference framework, mainly supporting C
 mllm provides a series of [example programs](examples), including the implementation of llama, clip, fuyu, vit, imagebind, and more using the mllm framework. In addition, mllm also offers [an example app](android) for Android devices, where you can upload models to your phone via adb to experience the effects of different models' inference on mllm.
 
 
-# News
+### News
 
 
 
 
-#  Key Features
+##  Key Features
 
 Currently mllm support models:
 
@@ -36,20 +36,61 @@ Currently mllm support models:
 | Clip      | U      | U    |
 | ImageBind | U      | U    |
 
+##  Quick Start
+
+Here are the end-to-end binary build and model conversion steps for the LLaMA-7B model.
+
+### Get the Code
+
+```bash
+git clone https://github.com/UbiquitousLearning/mllm
+cd mllm
+```
+
+### Download models
+
+```bash
+mkdir models && cd models
+wget .... >> llama-2-7b-chat-q4_k.mllm
+```
+### Run on Linux
+
+- Build
+    ```bash
+    cd scripts
+    ./build.sh
+    ```
+- Run
+    ```bash
+    cd ../bin
+    ./main_llama
+    ```
+  
+### Run on Android
+
+- Build
+    ```bash
+    cd scripts
+    ./build_android.sh
+    ```
+- Run
+    ```bash
+    ./llama_exe.sh
+    ```
 
 ## Roadmap
 
 See the [roadmap]() here for more information
 
-# Documentation
+## Documentation
 
 See the [documentation]() here for more information
 
-# Contribution
+## Contribution
 
 Read the [contribution]() before you contribute.
 
-# Acknowledgments
+## Acknowledgments
 
 mllm refers to the following projects:
 
@@ -59,12 +100,12 @@ mllm refers to the following projects:
 * [clip](https://github.com/openai/CLIP)
 * [ImageBind](https://github.com/facebookresearch/ImageBind)
 
-# Citation
+## Citation
 
 ```
 
 ```
 
-# License
+## License
 
 Apache 2.0
