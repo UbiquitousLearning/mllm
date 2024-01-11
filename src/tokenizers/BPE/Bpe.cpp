@@ -3,8 +3,10 @@
 //
 
 #include "Bpe.hpp"
+#include <iostream>
 #include <unicode/regex.h>
 #include <unicode/unistr.h>
+#include <unicode/uscript.h>
 #include <unordered_map>
 
 static size_t utf8_len(char src) {
@@ -27,11 +29,19 @@ vector<std::string> mllm::BPETokenizer::bpe(const std::string& token) {
     //     return cache[token];
     // }
 
+    // split by unicode
+    icu::UnicodeString ustr = icu::UnicodeString::fromUTF8(token);
     vector<string> word_splits = {};
-    for (int i = 0; i < token.size()-1; ++i) {
-        word_splits.emplace_back(token.substr(i, 1));
+    for (int i = 0; i < ustr.length()-1; ++i) {
+        auto middle_unicode_str = ustr.tempSubString(i, 1);
+        std::string middle_str;
+        middle_unicode_str.toUTF8String(middle_str);
+        word_splits.emplace_back(middle_str);
     }
-    word_splits.emplace_back(token.substr(token.size()-1, 1)+"</w>");
+    auto last_unicode_str = ustr.tempSubString(ustr.length()-1, 1);
+    std::string last_str;
+    last_unicode_str.toUTF8String(last_str);
+    word_splits.emplace_back(last_str+"</w>");
 
     auto pairs = get_pairs(word_splits);
     if (pairs.empty()) {
@@ -115,6 +125,22 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         UErrorCode status = U_ZERO_ERROR;
         icu_74::UnicodeString pattern = "<\\|startoftext\\|>|<\\|endoftext\\|>|'s|'t|'re|'ve|'m|'ll|'d|[\\p{L}]+|[\\p{N}]|[^\\s\\p{L}\\p{N}]+";
         icu_74::UnicodeString textToMatch = text.c_str(); // convert std::string to UnicodeString
+        // FIXME: temporarily We add space to split Chinese characters
+        icu_74::UnicodeString newText;
+        for (int i = 0; i < textToMatch.length(); ++i) {
+            UChar32 c = textToMatch.char32At(i);
+            auto sc = uscript_getScript(c, &status);
+
+            if (sc == USCRIPT_HAN) {
+                newText += " ";
+            }
+            newText += c;
+        }
+        textToMatch = newText;
+        std::string utf8Str;
+        textToMatch.toUTF8String(utf8Str);
+        std::cout << utf8Str;
+        
         icu::RegexMatcher matcher(pattern, textToMatch, 0, status);
 
         if (U_FAILURE(status)) {
@@ -137,15 +163,6 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
             }
             words.emplace_back(token);
         }
-        // split text with space
-        // for (int i = 0; i < text.size(); ++i) {
-        //     if (text[i]==' '){
-        //         words.emplace_back(text.substr(offset,i-offset));
-        //         offset=i+1;
-        //     }
-        // }
-        // words.emplace_back(text.substr(offset,text.size()-offset));
-
         
         for (const auto& word:words){
             auto word_splits = bpe(word);

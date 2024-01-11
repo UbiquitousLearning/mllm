@@ -89,5 +89,4 @@ bool Tensor::reshape(const int batch, const int channel, const int time, const i
         return reshape(shape);
     }
 }
-*/
 } // namespace mllm
