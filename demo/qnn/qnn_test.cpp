@@ -37,13 +37,14 @@ void Attention(Context *ctx) {
 
 void FFN(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim) {
     auto *i = _Input(ctx);
+    i = _RoPE(ctx, {i});
     auto *x = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, "ffn.l1.q8");
     auto *y = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, "ffn.l3.q8");
 
     x = _SiLU(ctx, {x}, "ffn.silu1");
-    auto *z = _Mul(ctx, {x, y});
+    auto *z = _Add(ctx, {x, y});
 
-    // z = _Linear(ctx, {z}, ffn_hidden_dim, hidden_dim, false, "ffn.l2.q8");
+    z = _Linear(ctx, {z}, ffn_hidden_dim, hidden_dim, false, "ffn.l2.q8");
 }
 
 template <typename Dtype>
@@ -83,7 +84,7 @@ int main() {
 
     int vocab_size = 32000;
     int hidden_dim = 4096;
-    int ffn_hidden_dim = 11008;
+    int ffn_hidden_dim = 4096;
     int mutil_head_size = 32;
 
     std::unique_ptr<Context> c_ptr(new Context());
