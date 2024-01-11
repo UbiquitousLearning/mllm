@@ -90,8 +90,8 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         dimensionsOutput[i] = outputs[0]->shape()[i];
     }
     auto outName = outputs[0]->name();
-    auto outQuantizedName = outputs[0]->name() + ".quantized";
-    auto outDeqnName = outputs[0]->name() + ".dequantized";
+    auto outQuantizedName = name() + outputs[0]->name() + ".quantized";
+    auto outDeqnName = name() + outputs[0]->name() + ".dequantized";
     vector<Qnn_Tensor_t> matmulOut = {{QNN_TENSOR_VERSION_1,
                                        {.v1 = {
                                             .id = 0,
