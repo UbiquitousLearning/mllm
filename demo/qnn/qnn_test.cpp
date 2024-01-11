@@ -17,7 +17,7 @@
 using namespace mllm;
 
 // when set name of linear, use q8 as postfix to let mock loader load int8 data
-void BuildModel(Context *ctx) {
+void Attention(Context *ctx) {
     auto *i = _Input(ctx);
     i = _RoPE(ctx, {i});
     i = _RMSNorm(ctx, {i});
@@ -33,6 +33,17 @@ void BuildModel(Context *ctx) {
     qk = _Softmax(ctx, {qk}, 3, "softmax");
     auto *o = _Matmul(ctx, {qk, v}, false, false, "qkv");
     o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, "qkv_view");
+}
+
+void FFN(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim) {
+    auto *i = _Input(ctx);
+    auto *x = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, "ffn.l1.q8");
+    auto *y = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, "ffn.l3.q8");
+
+    x = _SiLU(ctx, {x}, "ffn.silu1");
+    auto *z = _Mul(ctx, {x, y});
+
+    // z = _Linear(ctx, {z}, ffn_hidden_dim, hidden_dim, false, "ffn.l2.q8");
 }
 
 template <typename Dtype>
@@ -70,10 +81,15 @@ int main() {
 
     // delete qbn;
 
+    int vocab_size = 32000;
+    int hidden_dim = 4096;
+    int ffn_hidden_dim = 11008;
+    int mutil_head_size = 32;
+
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
 
-    BuildModel(c);
+    FFN(c, hidden_dim, ffn_hidden_dim);
 
     BackendConfig bn;
     Net net(c->sub_param_, bn);
@@ -83,9 +99,11 @@ int main() {
     MockLoader loader("");
     Executor ex(&loader);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    fullTensor(input, net, {1, 1, 2, 4}, 2.f);
+
+    // 1 batch seqence length embedding
+    fullTensor(input, net, {1, 1, 2, hidden_dim}, 2.f);
 
     ex.execute(&net, input);
     auto result = ex.result();
-    result[0]->printData<float>();
+    // result[0]->printData<float>();
 }
