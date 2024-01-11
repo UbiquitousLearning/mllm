@@ -38,7 +38,7 @@ ErrorCode QNNAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Ten
                                       .name = outString.c_str(),
                                       .type = getOutputTensorType(outputs[0]),
                                       .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                      .dataType = QNN_DATATYPE_FLOAT_32,
+                                      .dataType = QNN_DATATYPE_FLOAT_16,
                                       .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                          QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                          {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
