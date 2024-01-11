@@ -18,9 +18,10 @@ using namespace mllm;
 
 void BuildModel(Context *ctx) {
     auto *i = _Input(ctx);
-    auto *q = _Linear(ctx, {i}, 4, 4, false, "layers." + std::to_string(0) + ".attention.wq");
-    auto *k = _Linear(ctx, {q}, 4, 4, false, "layers." + std::to_string(0) + ".wq");
-    _Matmul(ctx, {q, k}, false, true);
+    // auto *q = _Linear(ctx, {i}, 4, 4, false, "layers." + std::to_string(0) + ".attention.wq");
+    // auto *k = _Linear(ctx, {q}, 4, 4, false, "layers." + std::to_string(0) + ".wq");
+    // _Matmul(ctx, {q, k}, false, true);
+    _RoPE(ctx, {i});
 }
 
 template <typename Dtype>
