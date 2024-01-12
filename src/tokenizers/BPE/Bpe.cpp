@@ -109,7 +109,7 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         return;
     }
     if (this->vocab_map_.empty() || this->id_token_.empty()) {
-        std::cout << "The vocab map is empty!" << std::endl;
+        std::cerr << "The vocab map is empty!" << std::endl;
         return;
     }
     symbols_.clear();
@@ -120,7 +120,6 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         tokens.emplace_back(mllm::BPETokenizer::TokenBos);
     }
     if (!merge_rank.empty()){
-        std::cout<<"merge_rank is not empty! Loading"<<std::endl;
         vector<string> words = {};
         UErrorCode status = U_ZERO_ERROR;
         icu_74::UnicodeString pattern = "<\\|startoftext\\|>|<\\|endoftext\\|>|'s|'t|'re|'ve|'m|'ll|'d|[\\p{L}]+|[\\p{N}]|[^\\s\\p{L}\\p{N}]+";
@@ -137,9 +136,6 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
             newText += c;
         }
         textToMatch = newText;
-        std::string utf8Str;
-        textToMatch.toUTF8String(utf8Str);
-        std::cout << utf8Str;
         
         icu::RegexMatcher matcher(pattern, textToMatch, 0, status);
 
@@ -199,8 +195,6 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         idx++;
     }
     for (int i = 1; i < symbols_.size(); ++i) {
-        //        std::cout<<symbols_[i].ch<<std::endl;
-        // Always Keep the single symbol
         tryMergeSymbol(i - 1, i);
     }
     while (!queue_.empty()) {

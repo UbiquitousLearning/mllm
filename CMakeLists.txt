@@ -39,20 +39,7 @@ FetchContent_Declare(
 
 # find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
 # set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
-# include(ExternalProject)
-# ExternalProject_Add(icu_dep
-#   PREFIX icu_dep
-#   GIT_REPOSITORY https://github.com/unicode-org/icu.git
-#   GIT_TAG release-74-rc 
-#   CONFIGURE_COMMAND icu4c/source/configure --prefix=/usr/local --enable-static
-#   BUILD_COMMAND make
-#   INSTALL_COMMAND make install
-# )
-# add_library(icu_dep_lib STATIC IMPORTED GLOBAL)
-# set_property(TARGET icu_dep_lib 
-#     PROPERTY IMPORTED_LOCATION 
-#     ${make_lib_SOURCE_DIR}/path/to/make_lib_libA.a
-# )
+SET(ICU_LIBRARY ${PROJECT_SOURCE_DIR}/third_party/icu)
 
 # find_package(ICU REQUIRED COMPONENTS uc i18n data)
 option(DEBUG "debug print" OFF)
