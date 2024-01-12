@@ -93,7 +93,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     m_debug = false; // when set true, NATIVE tensor will be regared as APP_READ tensor
     m_outputDataType = iotensor::OutputDataType::FLOAT_ONLY;
     m_inputDataType = iotensor::InputDataType::FLOAT;
-    m_profilingLevel = ProfilingLevel::OFF;
+    m_profilingLevel = ProfilingLevel::BASIC;
     m_dumpOutputs = true;
     m_isBackendInitialized = false;
     m_isContextCreated = false;
@@ -787,6 +787,9 @@ StatusCode QNNBackend::executeGraphs(std::map< std::string, std::vector<uint8_t*
         if (StatusCode::SUCCESS != returnStatus) {
           QNN_ERROR("Execution of Graph: %d failed!", graphIdx);
           break;
+        }
+        if (ProfilingLevel::OFF != m_profilingLevel) {
+          extractBackendProfilingInfo(m_profileBackendHandle);
         }
       }
 

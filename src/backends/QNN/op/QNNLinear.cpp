@@ -40,7 +40,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
          .name = "transpose_in1",
          {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = 1}}}}};
     // add quantized input tensor to qnn
-    auto inputQuantizeName = inputs[0]->name() + ".quantize";
+    auto inputQuantizeName = name() + inputs[0]->name() + ".quantize";
     uint32_t dimensionsInput[4];
     for (int i = 0; i < 4; i++) {
         dimensionsInput[i] = inputs[0]->shape()[i];
