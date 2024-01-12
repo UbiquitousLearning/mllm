@@ -114,12 +114,13 @@ def all_keys(model: dict, index_: dict):
     global file_map
     all_keys_name = []
     if index_ is not None and isinstance(index_, dict) and "weight_map" in index_.keys():
-        json_pwd = args.input_model.name.rsplit("/", 1)[0]
+        json_pwd = os.path.dirname(args.input_model.name)
         for (key, val) in index_["weight_map"].items():
             all_keys_name.append(key)
             if val is not None and val not in file_map.keys():
                 # JOIN PATH
                 val_path = os.path.join(json_pwd,val)
+                print(val_path)
                 if args.type == "torch":
                     file_map[val] = torch.load(val_path,weights_only=True)
                 else:
@@ -152,7 +153,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.type == "torch":
         if args.input_model.name.endswith(".json"):
-            if args.input_model.name != "pytorch_model.bin.index.json":
+            if os.path.basename(args.input_model.name) != "pytorch_model.bin.index.json":
                 raise Exception("Only support pytorch_model.bin.index.json")
             index_ = json.load(args.input_model)
         else:
