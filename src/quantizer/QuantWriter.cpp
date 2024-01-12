@@ -34,7 +34,7 @@ float *QuantWriter::getParam(std::string param_name) {
     return static_cast<float *>((void *)data);
 }
 
-vector<string> fp32_layers = {"norm", "rope", "bias",
+vector<string> fp32_layers = {"norm", "rope", "bias","rotary_emb",
                                 "vision_embed_tokens",
                                 "embeddings", "logit_scale",  //, "tok_embeddings"};
                                 "modality_preprocessors", "modality_heads", "modality_postprocessors", "pre_transformer_layer"};

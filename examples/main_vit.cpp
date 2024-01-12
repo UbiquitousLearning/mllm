@@ -1127,7 +1127,7 @@ void vit(Context* c, int hidden_dim= 768, int ffn_hidden_dim = 3072, int class_s
 int main() {
 
     int width, height, channel;
-    unsigned char *data = stbi_load("cat.jpg", &width, &height, &channel, 0);
+    unsigned char *data = stbi_load("../assets/cat.jpg", &width, &height, &channel, 0);
     if (data == nullptr) {
         cout << "load image failed" << endl;
         return -1;

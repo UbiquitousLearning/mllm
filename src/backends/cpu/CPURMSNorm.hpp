@@ -32,7 +32,7 @@ class CPURMSNormCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         int normSize = (int)op_param["norm_size"];
-        int epsilon = (int)op_param["epsilon"];
+        float epsilon = (float)op_param["epsilon"];
         return new CPURMSNorm(bn, name, normSize, epsilon, threadCount);
     }
 };

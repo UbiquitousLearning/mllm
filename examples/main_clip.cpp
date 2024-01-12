@@ -152,9 +152,9 @@ void CLIP(Context* c) {
 }
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./clip_vocab.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/clip_vocab.mllm");
     cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/clip-q4_k.mllm");
-    cmdParser.add<string>("merges", '\0', "specify mllm tokenizer merges.txt path", false, "./clip_merges.txt");
+    cmdParser.add<string>("merges", '\0', "specify mllm tokenizer merges.txt path", false, "../vocab/clip_merges.txt");
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
@@ -204,7 +204,7 @@ int main(int argc, char **argv) {
 
     shared_ptr<Tensor> input_img = std::make_shared<Tensor>();
     auto* clip = new ClipProcessor(tokenizer);
-    clip->PreProcessImages({"cat.jpg"});
+    clip->PreProcessImages({"../assets/cat.jpg"});
     auto images = clip->pixel_values_[0];
     img2Tensor(input_img, net, images);
     ex.run(&net, {input_text, input_img});

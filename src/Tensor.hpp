@@ -357,7 +357,7 @@ public:
      * \param shape_offset
      */
 
-    void deepCopyFrom(Tensor* source, bool copyshape = true, const vector<int>& shape_offset = {}) {
+    void deepCopyFrom(Tensor* source, bool copyshape = true, const vector<int>& shape_offset = {}, int head_rep=1) {
         if(!shape_offset.empty()) {
             copyshape = false;
         }
@@ -392,23 +392,27 @@ public:
             shape_offset_ = shape_offset;
             shape_master_ = {source->batch(), source->head(), source->sequence(), source->dimension()};
             if(source->head() != head()) { // TODO: need to check
-                shape_master_ = {source->batch(), head(), source->sequence(), source->dimension() * source->head() / head()};
+                if(head() == 1 &&  head_rep ==1) {
+                    shape_master_ = {source->batch(), head(), source->sequence(), source->dimension() * source->head() / head()};
+                } else if(head() == 1 &&  head_rep >1) {
+                    shape_master_ = {source->batch(), head(), source->sequence(), source->dimension() * source->head() / head_rep};
+                }
             }
         }
 
         for (auto &child_tensor: child_tensors_) {
             if (!shape_offset.empty()) {
-                child_tensor->deepCopyFrom(source, false, shape_offset);
+                child_tensor->deepCopyFrom(source, false, shape_offset, head_rep);
             } else {
-                child_tensor->deepCopyFrom(source, false);
+                child_tensor->deepCopyFrom(source, false, {}, head_rep);
             }
             child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
         }
         source->addChildTensor(this);
     }
 
-    void deepCopyFrom(Tensor &source, bool copyshape = true, const vector<int>& shape_offset = {}) {
-        deepCopyFrom(&source, copyshape, shape_offset);
+    void deepCopyFrom(Tensor &source, bool copyshape = true, const vector<int>& shape_offset = {}, int head_rep=1) {
+        deepCopyFrom(&source, copyshape, shape_offset, head_rep);
     }
 
     vector<int> shape_offset() const {
@@ -693,7 +697,7 @@ public:
         std::ofstream outFile(directory+ "/" + name() +ex + ".log");
 
         outFile << "----------------------------------------" << std::endl;
-        outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] "<<dtype()<< std::endl;
+        outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] "<<dtype()<<" "<<ctype()<< std::endl;
 
         int N = batch();
         int C = head();

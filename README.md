@@ -18,15 +18,16 @@ Currently mllm support models:
 
 * N: Not support yet
 
-|           | Normal | INT4 |
-|-----------|------|------|
-| llama     | S    | S    |
-| apacha    | S    | S    |
-| persimmon | S    | S    |
-| fuyu      | S    | S    |
-| vit       | S    | S    |
-| Clip      | U    | U    |
-| ImageBind | U    | U    |
+|                | FP32 | INT4 |
+|----------------|------|------|
+| Llama 7B       | S    | S    |
+| Alpaca 7B      | S    | S    |
+| TinyLlama 1.1B | S    | S    |
+| Persimmon 8B   | S    | S    |
+| fuyu 8B        | S    | S    |
+| ViT            | S    | S    |
+| Clip           | U    | U    |
+| ImageBind      | U    | U    |
 
 ##  Quick Start
 
@@ -97,7 +98,7 @@ python convert.py --input_model=model.safetensors.index.json --output_model=mode
 You can convert vocabulary to mllm vocabulary as followed.
 ```bash
 cd tools/convertor
-python vocab.py tokenizer.json vocab.mllm
+python vocab.py tokenizer.model vocab.mllm
 ```
 
 ## Quantize models

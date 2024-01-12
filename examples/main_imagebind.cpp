@@ -248,7 +248,7 @@ void ImageBind(Context* c) {
 }
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./clip_vocab.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/clip_vocab.mllm");
     cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/imagebind_huge-q4_k.mllm");
     cmdParser.parse_check(argc, argv);
 
@@ -271,7 +271,7 @@ int main(int argc, char **argv) {
 
     auto tokenizer = new BPETokenizer(vocab_path);
     std::unordered_map<string,unsigned> merge_rank;
-    auto merge_file = std::ifstream("./clip_merges.txt");
+    auto merge_file = std::ifstream("../vocab/clip_merges.txt");
     std::string line;
     unsigned rank=0;
     while (std::getline(merge_file, line)) {
@@ -306,7 +306,7 @@ int main(int argc, char **argv) {
     shared_ptr<Tensor> input_text_lens = std::make_shared<Tensor>();
     tokens2Tensor(&net, tokens_ids, input_text, input_text_lens);
 
-    vector<string> img_names = {"dog_image.jpg", "car_image.jpg", "bird_image.jpg"};
+    vector<string> img_names = {"../assets/dog_image.jpg", "../assets/car_image.jpg", "../assets/bird_image.jpg"};
     // vector<float*> data_imgs;
     vector< vector< vector<vector<float>>>> data_imgs;
     auto* clip = new ClipProcessor(tokenizer);

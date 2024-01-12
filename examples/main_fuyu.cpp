@@ -181,7 +181,7 @@ int main() {
 //    return 0;
 
 
-    auto tokenizer = UnigramTokenizer("./vocab_uni.mllm");
+    auto tokenizer = UnigramTokenizer("../vocab/fuyu_vocab.mllm");
 
     int vocab_size = 262144;
     int hidden_dim = 4096;
