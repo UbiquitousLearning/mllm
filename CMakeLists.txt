@@ -39,10 +39,6 @@ FetchContent_Declare(
 
 # find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
 # set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
-#SET(ICU_LIBRARY ${PROJECT_SOURCE_DIR}/third_party/icu)
-find_package(ICU REQUIRED COMPONENTS uc i18n)
-
-# find_package(ICU REQUIRED COMPONENTS uc i18n data)
 option(DEBUG "debug print" OFF)
 
 # backend options
@@ -168,7 +164,7 @@ if(TEST)
     target_link_libraries(
         MLLM_TEST
         GTest::gtest_main
-        MLLM_CPU ICU::uc ICU::i18n
+        MLLM_CPU 
     )
     add_executable(
         memoryPoolTest
@@ -189,10 +185,7 @@ if(TEST)
     #     src/processor/ClipPreProcess.cpp
     #     src/processor/ClipPreProcess.hpp
     # )
-    # target_link_libraries(clip_tokenizer_test 
-    #     ${ICU_LIBRARY}/libicui18n.a
-    #     ${ICU_LIBRARY}/libicuuc.a
-    #     ${ICU_LIBRARY}/libicudata.a
+    # target_link_libraries(clip_tokenizer_test
     #     MLLM_CPU)
     add_executable(
             SystemMemoryTest
@@ -215,7 +208,7 @@ add_executable(main_llama ${PROJECT_SOURCE_DIR}/examples/main_llama.cpp ${DIR_SR
     src/tokenizers/BPE/Bpe.cpp
     src/tokenizers/BPE/Bpe.hpp
 )
-target_link_libraries(main_llama MLLM_CPU ICU::uc ICU::i18n)
+target_link_libraries(main_llama MLLM_CPU )
 
 add_executable(main_alpaca ${PROJECT_SOURCE_DIR}/examples/main_alpaca.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
         src/tokenizers/Tokenizer.cpp
@@ -223,7 +216,7 @@ add_executable(main_alpaca ${PROJECT_SOURCE_DIR}/examples/main_alpaca.cpp ${DIR_
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
 )
-target_link_libraries(main_alpaca MLLM_CPU ICU::uc ICU::i18n)
+target_link_libraries(main_alpaca MLLM_CPU )
 
 add_executable(main_tinyllama ${PROJECT_SOURCE_DIR}/examples/main_tinyllama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
         src/tokenizers/Tokenizer.cpp
@@ -231,7 +224,7 @@ add_executable(main_tinyllama ${PROJECT_SOURCE_DIR}/examples/main_tinyllama.cpp 
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
 )
-target_link_libraries(main_tinyllama MLLM_CPU ICU::uc ICU::i18n)
+target_link_libraries(main_tinyllama MLLM_CPU )
 
 add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/examples/main_fuyu.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
         src/tokenizers/Tokenizer.cpp
@@ -246,11 +239,7 @@ add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/examples/main_fuyu.cpp ${DIR_SRC_
         src/processor/FuyuPreProcess.cpp
         src/processor/PreProcess.cpp
 )
-target_link_libraries(main_fuyu 
-#    ${ICU_LIBRARY}/libicui18n.a
-#    ${ICU_LIBRARY}/libicuuc.a
-#    ${ICU_LIBRARY}/libicudata.a
-    MLLM_CPU ICU::uc ICU::i18n)
+target_link_libraries(main_fuyu    MLLM_CPU )
 
 add_executable(main_vit ${PROJECT_SOURCE_DIR}/examples/main_vit.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
         src/tokenizers/Tokenizer.cpp
@@ -263,11 +252,7 @@ add_executable(main_vit ${PROJECT_SOURCE_DIR}/examples/main_vit.cpp ${DIR_SRC_CP
         src/processor/PreProcess.hpp
         src/processor/PreProcess.cpp
 )
-target_link_libraries(main_vit 
-#    ${ICU_LIBRARY}/libicui18n.a
-#    ${ICU_LIBRARY}/libicuuc.a
-#    ${ICU_LIBRARY}/libicudata.a
-    MLLM_CPU  ICU::uc ICU::i18n)
+target_link_libraries(main_vit    MLLM_CPU  )
 
 add_executable(main_clip ${PROJECT_SOURCE_DIR}/examples/main_clip.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
         src/tokenizers/Tokenizer.cpp
@@ -279,11 +264,7 @@ add_executable(main_clip ${PROJECT_SOURCE_DIR}/examples/main_clip.cpp ${DIR_SRC_
         src/processor/ClipPreProcess.cpp
         src/processor/ClipPreProcess.hpp
 )
-target_link_libraries(main_clip 
-#    ${ICU_LIBRARY}/libicui18n.a
-#    ${ICU_LIBRARY}/libicuuc.a
-#    ${ICU_LIBRARY}/libicudata.a
-    MLLM_CPU  ICU::uc ICU::i18n)
+target_link_libraries(main_clip    MLLM_CPU  )
 
 add_executable(main_imagebind ${PROJECT_SOURCE_DIR}/examples/main_imagebind.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
         src/tokenizers/Tokenizer.cpp
@@ -297,11 +278,7 @@ add_executable(main_imagebind ${PROJECT_SOURCE_DIR}/examples/main_imagebind.cpp 
         src/processor/PreProcess.hpp
         src/processor/PreProcess.cpp
 )
-target_link_libraries(main_imagebind 
-#    ${ICU_LIBRARY}/libicui18n.a
-#    ${ICU_LIBRARY}/libicuuc.a
-#    ${ICU_LIBRARY}/libicudata.a
-    MLLM_CPU  ICU::uc ICU::i18n)
+target_link_libraries(main_imagebind MLLM_CPU  )
 
 # nnapi temp test
 if(NNAPI)
@@ -334,6 +311,6 @@ if (APK)
             src/processor/PreProcess.cpp
 
     )
-    target_link_libraries(mllm_lib ICU::uc ICU::i18n)
+#    target_link_libraries(mllm_lib )
 
 endif ()
