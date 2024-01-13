@@ -14,4 +14,4 @@ if [ $? -ne 0 ]; then
     echo "adb push failed"
     exit 1
 fi
-adb shell ./data/local/tmp/mllm/main_llama
+adb shell cd /data/local/tmp/mllm/bin&&./main_llama
