@@ -14,6 +14,7 @@
 #include "PAL/StringOp.hpp"
 #include "PAL/DynamicLoading.hpp"
 #include "PAL/GetOpt.hpp"
+#include "QNNMemoryManager.hpp"
 #include "QnnSampleAppUtils.hpp"
 #include "QnnTypes.h"
 #include "QnnWrapperUtils.hpp"
@@ -144,6 +145,10 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     // init qnn resources and create a graph
     this->graphInitialize();
     this->registerOps();
+
+    // cast mm to QNNMemoryManager and set qnnInterface
+    auto qnnMM = std::dynamic_pointer_cast<QNNMemoryManager>(mm);
+    qnnMM->setQnnInterfaceAndContext(m_qnnFunctionPointers.qnnInterface, m_context);
 }
 
 void QNNBackend::release() {

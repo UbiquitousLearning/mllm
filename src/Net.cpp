@@ -9,6 +9,7 @@
 #endif
 #ifdef QNN_ENABLED
 #include "backends/QNN/QNNBackend.hpp"
+#include "QNNMemoryManager.hpp"
 #endif
 #include <map>
 #include <vector>
@@ -26,6 +27,16 @@ shared_ptr<QNNBackend> qnnBn;
 Net::Net(const vector<NetParameter> &param, BackendConfig config) :
     config_(config) {
     shared_ptr<MemoryManager> mm = nullptr;
+#if defined (QNN_ENABLED) && defined (QNN_ARM)
+    switch (config.memory) {
+    case BackendConfig::Memory_High:
+        mm = std::make_shared<QNNMemoryManager>();
+        break;
+    default:
+        mm = std::make_shared<QNNMemoryManager>();
+        break;
+    }
+#else
     switch (config.memory) {
     case BackendConfig::Memory_High:
         mm = std::make_shared<SystemMemoryManager>();
@@ -34,6 +45,7 @@ Net::Net(const vector<NetParameter> &param, BackendConfig config) :
         mm = std::make_shared<SystemMemoryManager>();
         break;
     }
+#endif
 
     cpuBn.reset(new CPUBackend(mm));
     backends_.emplace(BackendType::MLLM_CPU,  cpuBn);
