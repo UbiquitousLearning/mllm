@@ -36,17 +36,17 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor>& out_r
     out_result->setDataAt<float>(0, 0, 0, 0, token_idx);
     return token_idx;
 }
-NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int head_size, int mutil_key_value_head, string name){
+NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int head_size, string name){
     auto *q =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
-    auto *k =_Linear({x}, embedding_size, hidden_size * mutil_key_value_head, false, name + ".k_proj");
-    auto *v =_Linear({x}, embedding_size, hidden_size * mutil_key_value_head, false, name + ".v_proj");
+    auto *k =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".k_proj");
+    auto *v =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".v_proj");
     q = q->view(-1, head_size, -1, hidden_size);
-    k = k->view(-1, mutil_key_value_head, -1, hidden_size);
-    v = v->view(-1, mutil_key_value_head, -1, hidden_size);
-    q = _RoPE( {q}, 1, name + ".q_rope");
-    k = _RoPE( {k}, 1, name + ".k_rope");
-    k = _KVCache( {k},head_size/mutil_key_value_head,  name + ".k_cache");
-    v = _KVCache( {v},head_size/mutil_key_value_head, name + ".v_cache");
+    k = k->view(-1, head_size, -1, hidden_size);
+    v = v->view(-1, head_size, -1, hidden_size);
+    q = _RoPE( {q}, 2, name + ".q_rope");
+    k = _RoPE( {k}, 2, name + ".k_rope");
+    k = _KVCache( {k},  name + ".k_cache");
+    v = _KVCache( {v}, name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
     qk = *qk/std::sqrt(hidden_size);
     qk = _Causalmask( {qk}, name + ".mask");
@@ -64,41 +64,41 @@ NetTensor *FFN( NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
     x = _Linear( {x}, ffn_hidden_dim, hidden_dim, false, name+".down_proj");
     return x;
 }
-void tinyllama(Context* c, int vocab_size= 32000, int hidden_dim= 2048, int ffn_hidden_dim = 5632, int mutil_head_size = 32, int mutil_key_value_head= 4){
+void llama(Context* c, int vocab_size= 55296, int hidden_dim= 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32){
     auto *i = _Input(c);
-    i = _Embedding( {i}, vocab_size, hidden_dim, (string)"model.embed_tokens");
+    i = _Embedding( {i}, vocab_size, hidden_dim, "model.embed_tokens");
     // loop
-    for(int layer=0; layer<22; ++layer) {
-        auto *x = _RMSNorm( {i}, hidden_dim, 1e-6, (string)"model.layers."+std::to_string(layer)+".input_layernorm");
-        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, mutil_key_value_head, (string)"model.layers."+std::to_string(layer)+".self_attn") +i;
-        x = _RMSNorm( {i}, hidden_dim, 1e-6, (string)"model.layers."+std::to_string(layer)+".post_attention_layernorm");
-        i = *FFN( x, hidden_dim, ffn_hidden_dim, (string)"model.layers."+std::to_string(layer) +".mlp") +i;
+    for(int layer=0; layer<32; ++layer) {
+        auto *x = _RMSNorm( {i}, hidden_dim, 1e-6, "model.layers."+std::to_string(layer)+".input_layernorm");
+        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "model.layers."+std::to_string(layer)+".self_attn") +i;
+        x = _RMSNorm( {i}, hidden_dim, 1e-6, "model.layers."+std::to_string(layer)+".post_attention_layernorm");
+        i = *FFN( x, hidden_dim, ffn_hidden_dim, "model.layers."+std::to_string(layer) +".mlp") +i;
         //_SubgraphBegin(c);
     }
     // end loop
-    i = _RMSNorm( {i}, hidden_dim, 1e-6, (string)"model.norm");
+    i = _RMSNorm( {i}, hidden_dim, 1e-6, "model.norm");
     i = _Linear( {i}, hidden_dim, vocab_size, false, "lm_head");
 }
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/tinyllama_vocab.mllm");
-    cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/tinyllama-1.1b-chat-q4_k.mllm");//../models/tinyllama-1.1b-chat-fp32.mllm
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/chinese-alpaca_vocab.mllm");
+    cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/chinese-alpaca-7b-q4_k.mllm");
     cmdParser.parse_check(argc, argv);
 
+    // string in_str = cmdParser.get<string>("input");
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
 
     auto tokenizer = BPETokenizer(vocab_path);
 
-    int vocab_size = 32000;
-    int hidden_dim = 2048;
-    int ffn_hidden_dim = 5632;
+    int vocab_size = 55296;
+    int hidden_dim = 4096;
+    int ffn_hidden_dim = 11008;
     int mutil_head_size = 32;
-    int key_value_head_size = 4;
 
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
-    tinyllama(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size, key_value_head_size);
+    llama(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size);
 
     BackendConfig bn;
     Net net(bn);
@@ -110,9 +110,8 @@ int main(int argc, char **argv) {
 
 
     vector<string> in_strs = {
-        " Hello, who are you?",
-        " What can you do?",
-        "Please introduce Beijing University of Posts and Telecommunications."
+        " 你能做什么？",
+        " 介绍北京。",
     };
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
     for (int str_i = 0; str_i < in_strs.size(); ++str_i)
@@ -123,22 +122,20 @@ int main(int argc, char **argv) {
         }
         auto tokens_id = vector<token_id_t>();
         tokenizer.tokenize(in_str, tokens_id, true);
-        std::cout<<std::endl;
         if(str_i > 0) {
             tokens_id[0] = 13;
         }
         BPETokenizer::token2Tensor( &net, tokens_id, input);
         std::cout << in_str << std::flush;
-        for(int step = 0; step<30; step++) {
+        for(int step = 0; step<100; step++) {
             ex.run(&net, {input});
             auto result = ex.result();
             auto token_idx = postProcessing(result[0], input);
-            // std::cout <<token_idx<<"  " << std::flush;
             if(token_idx == 2){// "</s>"
                 break;
             }
             auto out_token = tokenizer.detokenize({token_idx});
-            std::cout <<out_token << std::flush;
+            std::cout << out_token << std::flush;
         }
         printf("\n");
     }

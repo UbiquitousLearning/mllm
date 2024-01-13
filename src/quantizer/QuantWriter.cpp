@@ -38,7 +38,7 @@ vector<string> fp32_layers = {"norm", "rope", "bias","rotary_emb",
                                 "vision_embed_tokens",
                                 "embeddings", "logit_scale",  //, "tok_embeddings"};
                                 "modality_preprocessors", "modality_heads", "modality_postprocessors", "pre_transformer_layer"};
-vector<string> q6_layers = {"w2", "wv", "dense_h_to_4h"};
+vector<string> q6_layers = {"w2", "wv", "dense_h_to_4h", "v_proj", "down_proj"};
 
 bool find_names(const string &name, const vector<string> &layer_names) {
     for (const auto &layer : layer_names) {
