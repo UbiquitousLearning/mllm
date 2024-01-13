@@ -122,10 +122,10 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
     if (!merge_rank.empty()){
         vector<string> words = {};
         UErrorCode status = U_ZERO_ERROR;
-        icu_74::UnicodeString pattern = "<\\|startoftext\\|>|<\\|endoftext\\|>|'s|'t|'re|'ve|'m|'ll|'d|[\\p{L}]+|[\\p{N}]|[^\\s\\p{L}\\p{N}]+";
-        icu_74::UnicodeString textToMatch = text.c_str(); // convert std::string to UnicodeString
+        icu::UnicodeString pattern = "<\\|startoftext\\|>|<\\|endoftext\\|>|'s|'t|'re|'ve|'m|'ll|'d|[\\p{L}]+|[\\p{N}]|[^\\s\\p{L}\\p{N}]+";
+        icu::UnicodeString textToMatch = text.c_str(); // convert std::string to UnicodeString
         // FIXME: temporarily We add space to split Chinese characters
-        icu_74::UnicodeString newText;
+        icu::UnicodeString newText;
         for (int i = 0; i < textToMatch.length(); ++i) {
             UChar32 c = textToMatch.char32At(i);
             auto sc = uscript_getScript(c, &status);
@@ -145,7 +145,7 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         }
 
         while (matcher.find(status)) {
-            icu_74::UnicodeString match = matcher.group(status);
+            icu::UnicodeString match = matcher.group(status);
             if (U_FAILURE(status)) {
                 // Handle the error
                 throw std::runtime_error("Error in regex");
