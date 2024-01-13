@@ -33,9 +33,6 @@ QNNMemoryManager::~QNNMemoryManager() {
             QNN_ERROR("qnnInterface_->memDeRegister failed\n");
         }
     }
-    for (auto &memPtr : qnnMemPtrList_) {
-        rpcmem_free(memPtr);
-    }
 }
 
 void QNNMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
