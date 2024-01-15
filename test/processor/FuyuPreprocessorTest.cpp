@@ -21,12 +21,13 @@ TEST_F(TokenizerTest, FuyuPreprocessorTest) {
     std::cout<< "Image Patches Indices Size "<<image_patches_indices[0].size()<<std::endl;
 
     std::cout<<"Input Id"<<std::endl;
-    for (auto id : input_ids) {
-        for (auto id_ : id) {
-            std::cout << id_ << " ";
-        }
-        std::cout << std::endl;
-    }
+    // for (auto id : input_ids) {
+    //     for (auto id_ : id) {
+    //         std::cout << id_ << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
+
     // std::cout<<"Attention Mask"<<std::endl;
     // for (auto id : attention_mask) {
     //     for (auto id_ : id) {

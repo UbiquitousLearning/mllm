@@ -124,7 +124,7 @@ void maxpool2d_fp32_SAME(Tensor* input, Tensor* output, int kernel_h, int kernel
                     // set value;
                     int start_k_h = 0;
                     int start_k_w = 0;
-                    float value = 0;
+                    float value = -999999;
                     if(blk_h<0) {
                         assert(padding_top = -blk_h);
                         start_k_h += padding_top;
