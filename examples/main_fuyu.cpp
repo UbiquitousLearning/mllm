@@ -201,8 +201,8 @@ int main() {
     ex.setup(&net);
 
     std::vector<vector<string>> in_imgs = {
-        {"bus_lite.png"},
-        {}
+        {"../assets/bus.png"},
+        {"../assets/two_cats.jpg"}
     };
     vector<string> in_strs = {
         "Generate a coco-style caption.\n",
