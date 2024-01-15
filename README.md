@@ -1,5 +1,6 @@
 ## Introduction
 [![Documentation](https://img.shields.io/badge/view-docs-blue)]()
+[![Actions Status](https://github.com/UbiquitousLearning/mllm/workflows/Tests/badge.svg)](https://github.com/UbiquitousLearning/mllm/actions)
 
 mllm is a fast, lightweight, dependency-free multimodal LLM inference engine for mobile and edge devices.
 
