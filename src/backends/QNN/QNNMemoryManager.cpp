@@ -1,9 +1,11 @@
 #include "QNNMemoryManager.hpp"
 #include "Logger.hpp"
+#include "QnnTypes.h"
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
 #include <cstdio>
+#include <iostream>
 
 namespace mllm {
 
@@ -11,7 +13,7 @@ QNNMemoryManager::QNNMemoryManager() {
     // load libcdsprpc.so
     void *libCdspHandle = pal::dynamicloading::dlOpen("libcdsprpc.so", pal::dynamicloading::DL_NOW | pal::dynamicloading::DL_LOCAL);
     if (nullptr == libCdspHandle) {
-        QNN_ERROR("dlopen libcdsprpc.so failed\n");
+        std::cerr << "dlopen libcdsprpc.so failed" << std::endl;
     }
 
     rpcmem_alloc = (RpcMemAllocFn_t)dlsym(libCdspHandle, "rpcmem_alloc");
@@ -20,7 +22,7 @@ QNNMemoryManager::QNNMemoryManager() {
 
     if (nullptr == rpcmem_alloc || nullptr == rpcmem_free || nullptr == rpcmem_to_fd) {
         dlclose(libCdspHandle);
-        QNN_ERROR("dlsym failed\n");
+        std::cerr << "dlsym failed" << std::endl;
     }
 }
 
@@ -30,7 +32,7 @@ QNNMemoryManager::~QNNMemoryManager() {
         Qnn_ErrorHandle_t deregisterRet = qnnInterface_->memDeRegister(&memHandle, 1);
         if (QNN_SUCCESS != deregisterRet) {
             // handle errors
-            QNN_ERROR("qnnInterface_->memDeRegister failed\n");
+            std::cerr << "qnnInterface_->memDeRegister failed" << std::endl;
         }
     }
 }
@@ -44,31 +46,31 @@ void QNNMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
     // Allocate the shared buffer
     uint8_t *memPointer = (uint8_t *)rpcmem_alloc(RPCMEM_HEAP_ID_SYSTEM, RPCMEM_DEFAULT_FLAGS, size);
     if (nullptr == memPointer) {
-        QNN_ERROR("rpcmem_alloc failed\n");
+        std::cerr << "rpcmem_alloc failed" << std::endl;
     }
     int memFd = rpcmem_to_fd(memPointer);
     if (-1 == memFd) {
-        QNN_ERROR("rpcmem_to_fd failed\n");
+        std::cerr << "rpcmem_to_fd failed" << std::endl;
     }
     // Fill the info of Qnn_MemDescriptor_t and regist the buffer to QNN
     // Qnn_MemDescriptor_t is defined in ${QNN_SDK_ROOT}/include/QNN/QnnMem.h
     Qnn_MemDescriptor_t memDescriptor = QNN_MEM_DESCRIPTOR_INIT;
     Qnn_Tensor_t inputTensor;
-    memDescriptor.memShape = {inputTensor.v1.rank, inputTensor.v1.dimensions, nullptr};
-    memDescriptor.dataType = inputTensor.v1.dataType;
+    uint32_t dimensions[] = {static_cast<uint32_t>(size)};
+    memDescriptor.memShape = {1, dimensions, nullptr};
+    memDescriptor.dataType = QNN_DATATYPE_INT_8;
     memDescriptor.memType = QNN_MEM_TYPE_ION;
     memDescriptor.ionInfo.fd = memFd;
-    inputTensor.v1.memType = QNN_TENSORMEMTYPE_MEMHANDLE;
-    inputTensor.v1.memHandle = nullptr;
 
     Qnn_ErrorHandle_t registRet = qnnInterface_->memRegister(*context_, &memDescriptor, 1u, &(inputTensor.v1.memHandle));
     if (QNN_SUCCESS != registRet) {
         rpcmem_free(memPointer);
         // handle errors
-        QNN_ERROR("qnnInterface_->memRegister failed\n");
+        std::cerr << "qnnInterface_->memRegister failed" << std::endl;
     }
 
     qnnMemHandleList_.push_back(inputTensor.v1.memHandle);
+    qnnMemPtrMap_[memPointer] = inputTensor.v1.memHandle;
     *ptr = memPointer;
     /**
      * At this place, the allocation and registration of the shared buffer has been complete.

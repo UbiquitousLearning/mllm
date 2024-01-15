@@ -5,8 +5,10 @@
 #include "MemoryManager.hpp"
 #include "PAL/DynamicLoading.hpp"
 #include "DynamicLoadUtil.hpp"
-#include "QNNBackend.hpp"
 #include <cstddef>
+#include <iostream>
+#include <unordered_map>
+#include <vector>
 #include <dlfcn.h>
 
 namespace mllm {
@@ -19,7 +21,6 @@ typedef Qnn_ErrorHandle_t (*QnnInterfaceGetProvidersFn_t)(const QnnInterface_t *
 
 class QNNMemoryManager : public MemoryManager {
 public:
-    friend QNNBackend;
     QNNMemoryManager();
     ~QNNMemoryManager();
 
@@ -29,18 +30,30 @@ public:
     void setQnnInterfaceAndContext(QNN_INTERFACE_VER_TYPE &qnnInterface, Qnn_ContextHandle_t &context) {
         this->qnnInterface_ = &qnnInterface;
         this->context_ = &context;
+
         if (context == nullptr) {
             QNN_ERROR("qnnInterface or context is nullptr");
             exit(1);
         }
     }
 
+    Qnn_MemHandle_t getMemHandle(void *ptr) const {
+        auto it = qnnMemPtrMap_.find(ptr);
+        if (it == qnnMemPtrMap_.end()) {
+            std::cerr << "getMemHandle failed" << std::endl;
+            exit(1);
+        }
+        return it->second;
+    }
+
 private:
     QNN_INTERFACE_VER_TYPE *qnnInterface_ = nullptr;
     Qnn_ContextHandle_t *context_ = nullptr;
 
-    vector<Qnn_MemHandle_t> qnnMemHandleList_;
-    vector<void*> qnnMemPtrList_;
+    std::vector<Qnn_MemHandle_t> qnnMemHandleList_;
+    std::vector<void *> qnnMemPtrList_;
+    // relation between buffer memPointer and qnn memHandle
+    std::unordered_map<void *, Qnn_MemHandle_t> qnnMemPtrMap_;
 
     RpcMemAllocFn_t rpcmem_alloc;
     RpcMemFreeFn_t rpcmem_free;
