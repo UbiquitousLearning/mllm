@@ -297,6 +297,6 @@ if (APK)
             src/processor/PreProcess.cpp
 
     )
-#    target_link_libraries(mllm_lib )
+    target_link_libraries(mllm_lib MLLM_CPU)
 
 endif ()

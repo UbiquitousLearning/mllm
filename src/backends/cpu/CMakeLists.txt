@@ -41,7 +41,7 @@ target_include_directories(
 
 if(OpenMP_FOUND)
     message(STATUS "found openmp")
-    if(ARM)
+    if(ARM AND NOT APK)
         message(STATUS "[ARM]  found openmp")
         #todo: check libomp.a
         find_library(LIBOMP libomp.a PATHS ${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/lib/linux/aarch64)

@@ -142,7 +142,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step,un
     shared_ptr<Tensor> img_patch = std::make_shared<Tensor>();
     shared_ptr<Tensor> img_patch_id = std::make_shared<Tensor>();
 
-    if (image!=nullptr) {
+    if (image!=nullptr&&image_length>0){
         LOGI("Image Found!");
         if (pre_processor_!=nullptr&&image_length>0) {
             switch (model_) {
@@ -186,7 +186,25 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step,un
             }
             UnigramTokenizer::token2Tensor(net_, tokens_id, input);
             // input =  mllm::Tokenizer::token2Tensor (net_, tokens_id);
-        }
+        }else
+            if (model_==FUYU) {
+                const auto pre_processor = dynamic_cast<FuyuPreProcess*>(pre_processor_);
+                // pre_processor->PreProcessImages({image}, {image_length});//, 1080, 1920, true, true, true, 0.5, 0.5);
+                pre_processor->Process(input_str);
+                // auto input_ids = pre_processor->image_input_ids_;
+                // if (input_ids.empty()) {
+                 auto   input_ids = pre_processor->text_ids_;
+                // }
+                UnigramTokenizer::token2Tensor(net_, input_ids[0], input);
+
+                // LOGI("1");
+                fullTensor(img_patch, net_, {0, 0, 0, 0},1.0F);
+                // LOGI("2");
+
+                fullTensor(img_patch_id, net_, {0, 0, 0, 0},1.0F);
+                // LOGI("3");
+
+            }
     }
 
     auto out_string = std::string();
