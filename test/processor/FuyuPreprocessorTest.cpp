@@ -9,10 +9,10 @@ using namespace mllm;
 
 TEST_F(TokenizerTest, FuyuPreprocessorTest) {
     // GTEST_SKIP();
-    auto unigram = UnigramTokenizer("../project/android/vocab_uni.mllm");
+    auto unigram = UnigramTokenizer("../vocab/fuyu_vocab.mllm");
 
     auto preprocessor = new FuyuPreProcess(&unigram);
-    preprocessor->PreProcessImages({"bus.png"});
+    preprocessor->PreProcessImages({"../assets/bus.png"});
     preprocessor->Process("Generate a coco-style caption.\n");
     auto input_ids = preprocessor->image_input_ids_;
     auto image_patches_indices = preprocessor->image_patches_indices_;

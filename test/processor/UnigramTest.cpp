@@ -5,7 +5,7 @@
 #include "gtest/gtest.h"
 #include "tokenizers/Unigram/Unigram.hpp"
 TEST_F(TokenizerTest, UnigramTest) {
-    auto tokenizer = std::make_shared<mllm::UnigramTokenizer>("../project/android/vocab_uni.mllm");
+    auto tokenizer = std::make_shared<mllm::UnigramTokenizer>("../vocab/fuyu_vocab.mllm");
     std::vector<mllm::token_id_t> ids;
     tokenizer->setSpecialToken("|ENDOFTEXT|");
     std::string text = "Generate a coco-style caption.\n";

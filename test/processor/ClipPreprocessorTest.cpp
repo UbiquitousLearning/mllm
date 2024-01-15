@@ -7,10 +7,10 @@
 #include "processor/ClipPreProcess.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 TEST_F(TokenizerTest, ClipPreProcess) {
-   auto tokenizer = new mllm::BPETokenizer("./clip_vocab.mllm");
+   auto tokenizer = new mllm::BPETokenizer("../vocab/clip_vocab.mllm");
     //read merges.txt and split it into merge_rank
     std::unordered_map<string,unsigned> merge_rank;
-    auto merge_file = std::ifstream("./clip_merges.txt");
+    auto merge_file = std::ifstream("../vocab/clip_merges.txt");
     std::string line;
     unsigned rank=0;
     while (std::getline(merge_file, line)) {
@@ -35,9 +35,9 @@ TEST_F(TokenizerTest, ClipPreProcess) {
     }
 }
 TEST_F(TokenizerTest,Clip) {
-    auto tokenizer = new mllm::BPETokenizer("./vit_vocab.mllm");
+    auto tokenizer = new mllm::BPETokenizer("../vocab/clip_vocab.mllm");
     mllm::ClipProcessor* clip = new mllm::ClipProcessor(tokenizer);
-    clip->PreProcessImages({"bus.jpeg"});
+    clip->PreProcessImages({"../assets/bus.png"});
     auto images = clip->pixel_values_[0];
     std::cout << "size: " << images.size()<<" " <<images[0].size()  << " " << images[0][0].size() << std::endl;
     // for (auto row:images){

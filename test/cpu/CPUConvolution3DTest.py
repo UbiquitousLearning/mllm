@@ -7,9 +7,9 @@ class CPUConvolution3D1(TestBase):
         conv3d = torch.nn.Conv3d(in_channels=3, out_channels=1280, kernel_size=(2, 14, 14), stride=(2, 14, 14), groups=1, bias=False)
         output = conv3d(input0)
         CPUConvolution3D_weight = conv3d.weight
-        print(input0.shape, input0)
-        print(CPUConvolution3D_weight)
-        print(output)
+        # print(input0.shape, input0)
+        # print(CPUConvolution3D_weight)
+        # print(output)
         # print(CPUConvolution3D_weight.shape)
         # CPUConvolution3D_bias= conv3d.bias
         # print(CPUConvolution3D_bias.shape)

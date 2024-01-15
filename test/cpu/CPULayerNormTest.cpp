@@ -5,7 +5,7 @@
 #include "CPUTest.hpp"
 #include "backends/cpu/CPULayerNorm.hpp"
 TEST_F(CPUTest, CPULayerNorm1) {
-    SETUP_OP(CPULayerNorm, false);
+    SETUP_OP(CPULayerNorm, 32000, false, 1e-5);
     TENSOR(input0);
     TENSOR(output);
     TENSOR(c_output);

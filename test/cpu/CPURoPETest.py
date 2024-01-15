@@ -51,7 +51,7 @@ def reshape_for_broadcast(freqs_cis: torch.Tensor, x: torch.Tensor):
     assert 0 <= 1 < ndim
     assert freqs_cis.shape == (x.shape[1], x.shape[-1])
     shape = [d if i == 1 or i == ndim - 1 else 1 for i, d in enumerate(x.shape)]
-    print(shape)
+    # print(shape)
     return freqs_cis.view(*shape)
 
 
@@ -78,9 +78,9 @@ def apply_rotary_emb(
     """
     xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
     # xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
-    print(xq_.shape)
+    # print(xq_.shape)
     freqs_cis = reshape_for_broadcast(freqs_cis, xq_)
-    print(freqs_cis.shape)
+    # print(freqs_cis.shape)
     xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(3)
     # xk_out = torch.view_as_real(xk_ * freqs_cis).flatten(3)
     # print(xk_out.shape)
@@ -106,7 +106,7 @@ class CPURoPE1(TestBase):
         input0 = torch.randn(1, 180, 1, 128)
         model = RoPE()
         output = model(input0)
-        print(output.shape)
+        # print(output.shape)
         input0 = input0.transpose(1, 2)
         output = output.transpose(1, 2)
         self.test_done(True)

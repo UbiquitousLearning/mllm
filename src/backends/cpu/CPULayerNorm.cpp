@@ -75,7 +75,11 @@ ErrorCode CPULayerNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
 #pragma omp parallel for num_threads(thread_count)
                 for (int d = 0; d < dim; d++) {
                     float value = output->dataAt<float>(n, h, s, d);
-                    output->setDataAt<float>(n, h, s, d, weight_.dataAt<float>(0, 0, 0, d) * value / rms + bias_.dataAt<float>(0, 0, 0, d));
+                    if (bias) {
+                        output->setDataAt<float>(n, h, s, d, weight_.dataAt<float>(0, 0, 0, d) * value / rms + bias_.dataAt<float>(0, 0, 0, d));
+                    } else {
+                        output->setDataAt<float>(n, h, s, d, weight_.dataAt<float>(0, 0, 0, d) * value / rms);
+                    }
                 }
             }
         }

@@ -6,9 +6,9 @@ from TestUtils import TestBase
 class CPUSoftMax1(TestBase):
     def test(self):
         input0 = torch.randn(2, 3, 4, 5, dtype=torch.float32)
-        softmax = torch.nn.Softmax(dim=2)
+        softmax = torch.nn.Softmax(dim=-1)
         output = softmax(input0)
-        print(output.shape, output.dtype)
+        # print(output.shape, output.dtype)
         self.test_done(True)
 
 

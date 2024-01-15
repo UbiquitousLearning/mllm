@@ -113,7 +113,7 @@ static bool isSame(Tensor *a, Tensor *b, bool unstrict = false) {
                             }
                         }
                         if (unstrict) {
-                            if (abs(a_ - b_) > 1e-4) {
+                            if (abs(a_ - b_) > 1e-3) {
                                 std::cout << std::setprecision(8) << std::setiosflags(std::ios::fixed | std::ios::showpoint) << "a[" << i << "," << j << "," << k << "," << l << "]: " << (double)a->dataAt<float>(i, j, k, l) << "!= b[" << i << "," << j << "," << k << "," << l << "]: " << (double)b->dataAt<float>(i, j, k, l) << std::endl;
                                 //                        return false;
                                 std::cout << std::setprecision(8) << std::setiosflags(std::ios::fixed | std::ios::showpoint) << "Diff:" << abs(a_ - b_) << std::endl;

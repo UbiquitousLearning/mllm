@@ -3,6 +3,7 @@
 //
 
 #include "TestLoader.hpp"
+#include <filesystem>
 
 namespace mllm {
 TestLoader::~TestLoader() {
@@ -10,7 +11,7 @@ TestLoader::~TestLoader() {
 TestLoader::TestLoader(string filename) :
     TestIO(filename, true) {
     if (fp_ == nullptr) {
-        std::cout << "File not found" << std::endl;
+        std::cout<<filename << "File not found" << std::endl;
         return;
     }
     int magic = read_int();
@@ -267,6 +268,9 @@ string DimDesc5(vector<int> dim) {
 TestIO::TestIO(string filename, bool read_mode) :
     read_mode_(read_mode) {
     filename = "test_" + filename + ".mllm";
+    std::filesystem::path path = "../bin";
+    path /= filename;
+    filename =  path.string();
 
     if (read_mode) {
         fp_ = fopen(filename.c_str(), "rb");

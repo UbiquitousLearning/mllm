@@ -4,7 +4,7 @@
 #include "CPUTest.hpp"
 #include "backends/cpu/CPURMSNorm.hpp"
 TEST_F(CPUTest, CPURMSNorm1) {
-    SETUP_OP(CPURMSNorm, false);
+    SETUP_OP(CPURMSNorm, 32000, 1e-5,false);
     TENSOR(input0);
     TENSOR(output);
     TENSOR(c_output);
