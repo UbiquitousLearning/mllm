@@ -172,7 +172,7 @@ int main(int argc, char **argv) {
     ex.setup(&net);
 
     std::vector<vector<string>> in_imgs = {
-        {},
+        {"../assets/bus.jpg"},
         {"../assets/two_cats.jpg"}
     };
     vector<string> in_strs = {
