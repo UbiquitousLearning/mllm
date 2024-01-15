@@ -114,6 +114,10 @@ std::vector<std::vector<std::vector<std::vector<float>>>> ProcessWAV(std::vector
         auto sample_rate = 16000;
         // std::vector<std::pair<int, int>> clip_timepoints = {{0, 32000}, {28856, 60856}, {57712, 89712}};
         std::vector<std::pair<int, int>> clip_timepoints = {{0, 32000}, {4882, 36882}, {9764, 41764}}; //for ../dog_audio_16k.wav
+        if( wav.find("car") != std::string::npos)
+            clip_timepoints = {{0, 32000}, {24000, 56000}, {48000, 80000}};
+        if( wav.find("bird") != std::string::npos)
+            clip_timepoints = {{0, 32000}, {24000, 56000}, {48000, 80000}};
         //TODO: get_clip_timepoints  END  /imagebind/data.py #L141~143
         std::vector<std::vector<std::vector<float>>> all_clips;
         for (auto clip_timepoint : clip_timepoints)

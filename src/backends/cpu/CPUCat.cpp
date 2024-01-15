@@ -64,8 +64,12 @@ ErrorCode CPUCat::load(AbstructLoader &loader) {
 }
 
 ErrorCode CPUCat::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // std::cout<<name() << "  CPUCat()" << std::endl;
-    if (axis_ == DIMENSION) {
+    if(axis_ == BATCH) {
+        for (int n = 0; n < inputs.size(); ++n) {
+            auto copysize = inputs[0]->batch() * inputs[0]->head() * inputs[0]->sequence() * inputs[0]->dimension();
+            memcpy(outputs[0]->ptrAt<float>(n*inputs[0]->batch(), 0, 0, 0), inputs[n]->ptrAt<float>(0, 0, 0, 0), sizeof(float) * copysize);
+        }
+    }else if (axis_ == DIMENSION) {
         for (int n = 0; n < expd_batch_; ++n) {
             for (int c = 0; c < inputs[0]->head(); ++c) {
                 for (int h = 0; h < inputs[0]->sequence(); ++h) {

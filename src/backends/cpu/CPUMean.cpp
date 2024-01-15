@@ -101,8 +101,6 @@ ErrorCode CPUMean::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     default:
         break;
     }
-
-    outputs[0]->printData<float>();
     return Op::execute(inputs, outputs);
 }
 } // namespace mllm

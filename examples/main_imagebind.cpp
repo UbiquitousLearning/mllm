@@ -230,21 +230,21 @@ void ImageBind(Context* c) {
     auto *p = _Input(c, {}, "input_imgs");
     p = VisonModel(c, p);
 
-    // auto *a = _Input(c, {}, "input_audios");
-    // a = AudioModel(c, a);
+    auto *a = _Input(c, {}, "input_audios");
+    a = AudioModel(c, a);
 
 
     i = i->transpose(BATCH, SEQUENCE);
     p = p->transpose(BATCH, SEQUENCE);
-    // a = a->transpose(BATCH, SEQUENCE);
+    a = a->transpose(BATCH, SEQUENCE);
 
     auto *j1 = _Matmul( {p, i}, false, true, "final.vision@text");
-    j1 = _Softmax( {j1}, DIMENSION, "final.softmax");
+    j1 = _Softmax( {j1}, DIMENSION, "final.vision@text.softmax");
 
-    //  auto *j2 = _Matmul( {p, a}, false, true, "final.vision@audio");
-    // j2 = _Softmax( {j2}, DIMENSION, "final.softmax");
+     auto *j2 = _Matmul( {p, a}, false, true, "final.vision@audio");
+    j2 = _Softmax( {j2}, DIMENSION, "final.vision@audio.softmax");
 
-    // i = _Cat( {j1, j2}, BATCH, "final.cat");
+    i = _Cat( {j1, j2}, BATCH, "final.cat");
 }
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
@@ -310,7 +310,12 @@ int main(int argc, char **argv) {
     shared_ptr<Tensor> input_img = std::make_shared<Tensor>();
     img2Tensor(input_img, net, data_imgs);
 
-    ex.run(&net, {input_text, input_text_lens, input_img});
+
+    auto audios = PreProcessor::ProcessAudio({"../assets/dog_audio_16k.wav", "../assets/car_audio_16k.wav", "../assets/bird_audio_16k.wav"});
+    shared_ptr<Tensor> input_audio = std::make_shared<Tensor>();
+    audio2Tensor(input_audio, net, audios);
+
+    ex.run(&net, {input_text, input_text_lens, input_img, input_audio});
     /*
     //Audio
     auto audios = PreProcessor::ProcessAudio({"./dog_audio_16k.wav"});
