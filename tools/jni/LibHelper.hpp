@@ -17,6 +17,7 @@
 namespace mllm {
 class Tokenizer;
 class PreProcessor;
+class FuyuPreProcess;
 struct Context;
 }
 
@@ -48,7 +49,7 @@ class LibHelper {
     callback_t callback_ = [](std::string, bool) {
     };
     Tokenizer *tokenizer_ = nullptr;
-    PreProcessor *pre_processor_ = nullptr;
+    FuyuPreProcess *pre_processor_ = nullptr;
     unsigned int eos_id_ = 2;
     PreDefinedModel model_ = PreDefinedModel::LLAMA;
     bool is_first_run_cond_ = true;

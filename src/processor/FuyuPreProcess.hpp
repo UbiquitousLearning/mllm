@@ -24,7 +24,6 @@ typedef vector<vector<vector<vector<float>>>> FourDVector;
 // };
 
 class FuyuPreProcess:public PreProcessor{
-    std::vector<ImageInfo> images_;
     vector<vector<int>> image_patch_indices_per_batch;
     vector<vector<int>> image_patch_indices_per_subseq ;
     vector<vector<int>> image_patch_input_indices_;
@@ -47,6 +46,7 @@ public:
     vector<vector<int>> image_patches_indices_;
     vector<vector<vector<float>>> image_patches_;
     vector<vector<token_id_t>> text_ids_;
+    std::vector<ImageInfo> images_;
 
     explicit FuyuPreProcess(Tokenizer *tokenizer,size_t patch_height = 30, size_t patch_width = 30, size_t max_tokens_to_generate = 10,int height = 1080, int width = 1920, bool do_pad = true, bool do_resize = true, bool do_normalize = true, std::vector<float> mean = {0.5}, std::vector<float> std = {0.5}) :
         PreProcessor(tokenizer, height, width, do_pad, do_resize, do_normalize, true,std::move(mean), std::move(std)

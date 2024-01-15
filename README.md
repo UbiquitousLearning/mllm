@@ -105,23 +105,23 @@ wget .... >> llama-2-7b-chat-q4_k.mllm
     ```
   > ./main_llama 
     Load model: 10.0351 s
-  
-    [Q] Hello, who are you?
-    [A]
-    I am a bot, I'm here to help answer your questions and provide information. I'm just an AI, I don't have personal experiences or feelings like humans do, but I'm here to help you with any questions you may have. Is there something specific you would like to know or talk about?
-    What can you do?
-  
-    [Q] I can help with a wide range of tasks, including:
-    [A]
-    * Answering questions on various topics, such as science, history, technology, and more.
-    * Providing information on different subjects, such as culture, entertainment, and lifestyle.
-    * Helping with language-related tasks, such as translating text or correcting grammar.
-    * Generating text, such as articles, stories, or even entire books.
-    * Chatting and conversing with
-  
-    [Q] Please introduce Beijing University of Posts and Telecommunications.
-    [A] Beijing University of Posts and Telecommunications (BUPT) is a public research university located in Beijing, China. It was established in 1955 and is one of the top universities in China, with a strong focus on engineering, technology, and telecommunications.
-    BUPT offers a wide range of undergraduate and graduate programs in fields such as computer science, electrical engineering, software engineering, and communication engineering. The university
+  [Q]  Hello, who are you?
+  [A]
+
+  I am a bot, I'm here to help answer your questions and provide information. I'm just an AI, I don't have personal experiences or feelings like humans do, but I'm here to help you with any questions you may have. Is there something specific you would like to know or talk about?
+  [Q]  What can you do?
+  [A]
+  I can help with a wide range of tasks, including:
+
+  * Answering questions on various topics, such as science, history, technology, and more.
+  * Providing information on different subjects, such as culture, entertainment, and lifestyle.
+  * Helping with language-related tasks, such as translating text or improving grammar and syntax.
+  * Generating text, such as articles, stories, or even entire books.
+  * Assisting with coding
+  [Q]  Please introduce Beijing University of Posts and Telecommunications.
+  [A]
+  Beijing University of Posts and Telecommunications (BUPT) is a public research university located in Beijing, China. It was established in 1955 and is one of the top universities in China, with a strong focus on engineering, technology, and telecommunications.
+  BUPT offers a wide range of undergraduate and graduate programs in fields such as computer science, electrical engineering, software engineering, and communication engineering. The university
   ```
 - Imagebind
   ```bash
@@ -131,7 +131,6 @@ wget .... >> llama-2-7b-chat-q4_k.mllm
   ```
   > ./main_imagebind 
   Load model: 2.17264 s
-  ----------------------------------------
   vision@audio :
   0.9986231 0.0013304 0.0000464
   0.0000365 0.9998704 0.0000931

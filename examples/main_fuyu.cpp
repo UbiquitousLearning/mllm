@@ -172,7 +172,7 @@ int main(int argc, char **argv) {
     ex.setup(&net);
 
     std::vector<vector<string>> in_imgs = {
-        {"../assets/bus.png"},
+        {},
         {"../assets/two_cats.jpg"}
     };
     vector<string> in_strs = {
@@ -186,6 +186,7 @@ int main(int argc, char **argv) {
         auto in_str = in_strs[inId];
         auto in_img = in_imgs[inId];
         auto preprocessor = FuyuPreProcess(&tokenizer);
+        preprocessor.images_.clear();
         preprocessor.image_input_ids_.clear();
         preprocessor.image_patches_indices_.clear();
         preprocessor.image_patches_.clear();
@@ -200,7 +201,11 @@ int main(int argc, char **argv) {
         UnigramTokenizer::token2Tensor(&net, input_ids[0], input_seq);
         patches2Tensor(img_patch, net, image_patches);
         patchIdx2Tensor(img_patch_id, net, image_patches_indices);
-        std::cout <<"[Q] ["<<in_img[0]<<"]"<< in_str << std::endl;
+        std::cout <<"[Q] [";
+        if(!in_img.empty()) {
+            std::cout <<in_img[0];
+        }
+        std::cout<<"]"<< in_str << std::endl;
         std::cout <<"[A] "<< std::flush;
         for(int step = 0; step<50; step++) {
             ex.run(&net, {input_seq, img_patch, img_patch_id});

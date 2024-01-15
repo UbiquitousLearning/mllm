@@ -280,7 +280,7 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
             for (int m = 0; m < M; m++) {
                 int num_blocks = N / blck_0;
                 int remainder = N % blck_0;
-// #pragma omp parallel for num_threads(thread_count)
+#pragma omp parallel for num_threads(thread_count)
                 for (int block = 0; block < num_blocks + 1; block++) {
                     for (int n = block * blck_0; n < (block + 1) * blck_0 & n < num_blocks * blck_0 + remainder; n++) {
                         if (dst->dtypeAt(n, h, m, n) == MLLM_TYPE_F32) {
