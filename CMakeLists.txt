@@ -41,9 +41,6 @@ FetchContent_Declare(
 # set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 option(DEBUG "debug print" OFF)
 
-# backend options
-option(NNAPI "Enable NNAPI" OFF)
-
 if(CMAKE_HOST_UNIX)
     message("current platform: Linux ")
 
@@ -279,17 +276,6 @@ add_executable(main_imagebind ${PROJECT_SOURCE_DIR}/examples/main_imagebind.cpp 
         src/processor/PreProcess.cpp
 )
 target_link_libraries(main_imagebind MLLM_CPU  )
-
-# nnapi temp test
-if(NNAPI)
-    include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
-    add_definitions(-DNNAPI_ENABLED)
-
-    add_definitions(-DDEBUG)
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/nnapi)
-    add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/examples/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER})
-    target_link_libraries(nnapi_test MLLM_NNAPI)
-endif()
 
 if (APK)
     add_library(mllm_lib STATIC ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER}

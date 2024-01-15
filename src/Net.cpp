@@ -3,18 +3,12 @@
 #include "Op.hpp"
 #include "Types.hpp"
 #include "backends/cpu/CPUBackend.hpp"
-#ifdef NNAPI_ENABLED
-#include "backends/nnapi/NNAPIBackend.hpp"
-#endif
 #include <map>
 #include <vector>
 
 namespace mllm {
 
 shared_ptr<CPUBackend> cpuBn;
-#ifdef NNAPI_ENABLED
-shared_ptr<NNAPIBackend> nnapiBn;
-#endif
 
 Net::Net(BackendConfig config){
     shared_ptr<MemoryManager> mm = nullptr;
@@ -30,11 +24,7 @@ Net::Net(BackendConfig config){
     cpuBn.reset(new CPUBackend(mm));
     backends_.emplace(BackendType::MLLM_CPU,  cpuBn);
     //backends_.emplace(BackendType::MLLM_CPU,  new CPUBackend(mm));  //memory lost
-#ifdef NNAPI_ENABLED
-    nnapiBn.reset(new NNAPIBackend(mm));
-    backends_.emplace(BackendType::MLLM_NNAPI,  nnapiBn);
-    //backends_.emplace(BackendType::MLLM_NNAPI, new NNAPIBackend(mm));
-#endif
+
 
 //    auto *in_tensor = param[0].net_tensors[0];
 //    tensors_[in_tensor->name] = std::make_shared<Tensor>(backends_[BackendType::MLLM_CPU].get());

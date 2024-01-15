@@ -21,7 +21,7 @@ typedef map<std::string, float> OpParam;
 typedef enum {
     MLLM_CPU,
     MLLM_OPENCL,
-    MLLM_NNAPI
+    MLLM_QNN
 } BackendType;
 
 enum ErrorCode {

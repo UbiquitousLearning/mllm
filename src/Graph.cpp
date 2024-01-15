@@ -70,10 +70,6 @@ Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, share
             ops_connect_input_.push_back(op_name);
         }
     }
-#ifdef NNAPI_ENABLED
-    auto *nnapiBackend = dynamic_cast<NNAPIBackend *>(backend_);
-    nnapiBackend->identifyInputsAndOutputs(inputTensors(), outputTensors());
-#endif
 }
 
 
@@ -189,13 +185,6 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
             ops_[op_name]->free(ops_input_tensors_[op_name], ops_output_tensors_[op_name]);
         }
     }
-// invoke nnapi model
-#ifdef NNAPI_ENABLED
-    std::cout << "NNAPI invoke model" << std::endl;
-    auto *nnapiBackend = dynamic_cast<NNAPIBackend *>(backend_);
-    nnapiBackend->buildModel();
-    nnapiBackend->invokeModel();
-#endif
     // TODO
     return ops_output_tensors_[op_names_[op_names_.size() - 1]];
 }
