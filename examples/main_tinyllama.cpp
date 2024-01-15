@@ -82,7 +82,7 @@ void tinyllama(Context* c, int vocab_size= 32000, int hidden_dim= 2048, int ffn_
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/tinyllama_vocab.mllm");
-    cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/tinyllama-1.1b-chat-q4_k.mllm");//../models/tinyllama-1.1b-chat-fp32.mllm
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/tinyllama-1.1b-chat-q4_k.mllm");//../models/tinyllama-1.1b-chat-fp32.mllm
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");

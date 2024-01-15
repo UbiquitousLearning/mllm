@@ -82,7 +82,7 @@ void llama(Context* c, int vocab_size= 55296, int hidden_dim= 4096, int ffn_hidd
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/chinese-alpaca_vocab.mllm");
-    cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/chinese-alpaca-7b-q4_k.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/chinese-alpaca-7b-q4_k.mllm");
     cmdParser.parse_check(argc, argv);
 
     // string in_str = cmdParser.get<string>("input");

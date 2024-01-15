@@ -13,22 +13,22 @@ Currently, mllm is mainly optimized for Android devices.
 
 Currently mllm support models:
 
-* S: Support and test well on mobile devices.
+* ✔️ : Support and test well on mobile devices.
 
-* U: It is under construction or still has some bugs.
+* ⚠️ : It is under construction or still has some bugs.
 
-* N: Not support yet
+* ❌  : Not support yet.
 
 |                | FP32 | INT4 |
 |----------------|------|------|
-| Llama 7B       | S    | S    |
-| Alpaca 7B      | S    | S    |
-| TinyLlama 1.1B | S    | S    |
-| Persimmon 8B   | S    | S    |
-| fuyu 8B        | S    | S    |
-| ViT            | S    | S    |
-| Clip           | U    | U    |
-| ImageBind      | U    | U    |
+| Llama 7B       | ✔️   | ✔️   |
+| Alpaca 7B      | ✔️   | ✔️   |
+| TinyLlama 1.1B | ✔️   | ✔️   |
+| Persimmon 8B   | ✔️   | ✔️   |
+| fuyu 8B        | ✔️   | ✔️   |
+| ViT            | ✔️   | ✔️   |
+| Clip           | ✔️   | ✔️   |
+| ImageBind      | ⚠️   | ⚠️   |
 
 ##  Quick Start
 
@@ -51,19 +51,7 @@ Building mllm requires following tools:
 mkdir models && cd models
 wget .... >> llama-2-7b-chat-q4_k.mllm
 ```
-### Run on Linux
 
-- Build
-    ```bash
-    cd scripts
-    ./build.sh
-    ```
-- Run
-    ```bash
-    cd ../bin
-    ./main_llama
-    ```
-  
 ### Run on Android
 
 - Build
@@ -75,6 +63,88 @@ wget .... >> llama-2-7b-chat-q4_k.mllm
     ```bash
     ./llama_exe.sh
     ```
+  
+### Run on Linux PC
+
+- Build
+    ```bash
+    cd scripts
+    ./build.sh
+    ```
+- Run
+    ```bash
+    cd ../bin
+    ./main_llama
+    ```
+
+
+## Demo results
+- fuyu
+    ```bash
+    cd ./bin
+    ./main_fuyu -m ../models/fuyu-8b-q4_k.mllm -v ../vacob/fuyu_vocab.mllm
+    ```
+  result are as followed:
+    ```
+    > ./main_fuyu
+    Load model: 15.5373 s
+  
+    [Q] [../assets/bus.png] Generate a coco-style caption.\n
+    [A] A bus driving down▁the▁road next▁to a sidewalk.
+  
+    [Q] [../assets/two_cats.jpg] What's this?\n
+    [A] Two cats laying on▁top▁of a pink blanket.
+   ```
+  
+
+- llama
+    ```bash
+    ./main_llama -m ../models/llama-2-7b-chat-q4_k.mllm -v ../vacob/llama_vocab.mllm
+    ```
+  result are as followed:
+    ```
+  > ./main_llama 
+    Load model: 10.0351 s
+  
+    [Q] Hello, who are you?
+    [A]
+    I am a bot, I'm here to help answer your questions and provide information. I'm just an AI, I don't have personal experiences or feelings like humans do, but I'm here to help you with any questions you may have. Is there something specific you would like to know or talk about?
+    What can you do?
+  
+    [Q] I can help with a wide range of tasks, including:
+    [A]
+    * Answering questions on various topics, such as science, history, technology, and more.
+    * Providing information on different subjects, such as culture, entertainment, and lifestyle.
+    * Helping with language-related tasks, such as translating text or correcting grammar.
+    * Generating text, such as articles, stories, or even entire books.
+    * Chatting and conversing with
+  
+    [Q] Please introduce Beijing University of Posts and Telecommunications.
+    [A]Beijing University of Posts and Telecommunications (BUPT) is a public research university located in Beijing, China. It was established in 1955 and is one of the top universities in China, with a strong focus on engineering, technology, and telecommunications.
+    BUPT offers a wide range of undergraduate and graduate programs in fields such as computer science, electrical engineering, software engineering, and communication engineering. The university
+  ```
+- Imagebind
+  ```bash
+  ./main_imagebind -m ../models/imagebind_huge-q4_k.mllm -v ../vacob/clip_vocab.mllm
+    ```
+  result are as followed:
+  ```
+  > ./main_imagebind 
+  Load model: 2.17264 s
+  ----------------------------------------
+  vision@audio :
+  0.9986231 0.0013304 0.0000464
+  0.0000365 0.9998704 0.0000931
+  0.0000124 0.0085099 0.9914777
+  vision@audio :  
+  0.8093262 0.1228018 0.0678720
+  0.0669636 0.8485162 0.0845202
+  0.0021796 0.0015212 0.9962992
+  ```
+
+
+
+
 ## Convert models
 You can download models from [here](), or you can convert a pytorch/safetensor model to mllm model by yourself.
 

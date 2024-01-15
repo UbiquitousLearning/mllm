@@ -2,6 +2,7 @@
 #include <iostream>
 #include <valarray>
 #include <csignal>
+#include "cmdline.h"
 #include "Net.hpp"
 #include "Executor.hpp"
 #include "express/Express.hpp"
@@ -141,47 +142,17 @@ void Fuyu(Context* c, int vocab_size= 262144, int patch_size = 30, int cnl_size 
     i = Persimmon(c, i, hidden_dim, ffn_hidden_dim, mutil_head_size, "language_model.model");
     i = _Linear( {i}, hidden_dim, vocab_size, false, "language_model.lm_head");
 }
-int main() {
-    /*
-    int width, height, channel;
-    unsigned char *data = stbi_load("test.jpg", &width, &height, &channel, 0);
-    if (data == nullptr) {
-        cout << "load image failed" << endl;
-        return -1;
-    }
-    cout << "width: " << width << " height: " << height << " channel: " << channel << endl;
-    vector<float> data_f32(width * height * channel);
-    for (int i = 0; i < width * height * channel; i++) {
-        data_f32[i] = data[i] / 255.0;
-    }
-    stbi_image_free(data);
-    */
+int main(int argc, char **argv) {
+    cmdline::parser cmdParser;
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/fuyu_vocab.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/fuyu-8b-q4_k.mllm");
+    cmdParser.parse_check(argc, argv);
 
-    // auto tokenizer = UnigramTokenizer("vocab_uni.mllm");
-    // tokenizer.setSpecialToken("|ENDOFTEXT|");
-    // auto tokens_id = vector<token_id_t>();
-    // tokens_id = {71013, 128340,  71374,  71389, 120412,  71377,  71835,  71374,  73615, 71375,  71128};
-//    string in_str = "Generate a coco-style caption.\n";
-//    std::string text_ = "";
-//    for (auto &ch : in_str) {
-//        if (ch == ' ') {
-//            text_ += "▁";
-//        }else {
-//            text_ += ch;
-//        }
-//
-//    }
-//    std::string new_text = "▁" + std::string(text_);
-//    tokenizer.tokenize(new_text, tokens_id, true);
-//    for (auto id : tokens_id) {
-//        std::cout << id << " ";
-//    }
-//    auto result_ = tokenizer.detokenize(tokens_id);
-//    std::cout << result_ << std::endl;
-//    return 0;
+    string vocab_path = cmdParser.get<string>("vocab");
+    string model_path = cmdParser.get<string>("model");
 
 
-    auto tokenizer = UnigramTokenizer("../vocab/fuyu_vocab.mllm");
+    auto tokenizer = UnigramTokenizer(vocab_path);
 
     int vocab_size = 262144;
     int hidden_dim = 4096;
@@ -196,7 +167,7 @@ int main() {
     BackendConfig bn;
     Net net(bn);
     net.convert(c->sub_param_);
-    ParamLoader param_loader("../models/fuyu-8b-q4_k.mllm");
+    ParamLoader param_loader(model_path);
     Executor ex(&param_loader);
     ex.setup(&net);
 

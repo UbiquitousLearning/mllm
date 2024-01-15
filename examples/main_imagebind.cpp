@@ -249,7 +249,7 @@ void ImageBind(Context* c) {
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/clip_vocab.mllm");
-    cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/imagebind_huge-q4_k.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/imagebind_huge-q4_k.mllm");
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");

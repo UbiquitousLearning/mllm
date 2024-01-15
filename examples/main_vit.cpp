@@ -5,6 +5,7 @@
 #include "Net.hpp"
 #include "Executor.hpp"
 #include "express/Express.hpp"
+#include "cmdline.h"
 #ifndef  STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
@@ -1124,7 +1125,12 @@ void vit(Context* c, int hidden_dim= 768, int ffn_hidden_dim = 3072, int class_s
     i = _LayerNorm( {i}, hidden_dim, true,  1e-6, name + ".layernorm");
     i = _Linear( {i}, hidden_dim, class_size, false, "classifier");
 }
-int main() {
+int main(int argc, char **argv) {
+    cmdline::parser cmdParser;
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/vit-q4_k.mllm");
+    cmdParser.parse_check(argc, argv);
+
+    string model_path = cmdParser.get<string>("model");
 
     int width, height, channel;
     unsigned char *data = stbi_load("../assets/cat.jpg", &width, &height, &channel, 0);
@@ -1150,7 +1156,7 @@ int main() {
     BackendConfig bn;
     Net net(bn);
     net.convert(c->sub_param_);
-    ParamLoader param_loader("../models/vit-q4_k.mllm");
+    ParamLoader param_loader(model_path);
     Executor ex(&param_loader);
     ex.setup(&net);
 
