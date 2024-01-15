@@ -120,7 +120,7 @@ wget .... >> llama-2-7b-chat-q4_k.mllm
     * Chatting and conversing with
   
     [Q] Please introduce Beijing University of Posts and Telecommunications.
-    [A]Beijing University of Posts and Telecommunications (BUPT) is a public research university located in Beijing, China. It was established in 1955 and is one of the top universities in China, with a strong focus on engineering, technology, and telecommunications.
+    [A] Beijing University of Posts and Telecommunications (BUPT) is a public research university located in Beijing, China. It was established in 1955 and is one of the top universities in China, with a strong focus on engineering, technology, and telecommunications.
     BUPT offers a wide range of undergraduate and graduate programs in fields such as computer science, electrical engineering, software engineering, and communication engineering. The university
   ```
 - Imagebind

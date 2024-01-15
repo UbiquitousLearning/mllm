@@ -168,7 +168,8 @@ int main(int argc, char **argv) {
             tokens_id[0] = 13;
         }
         BPETokenizer::token2Tensor( &net, tokens_id, input);
-        std::cout << in_str << std::flush;
+        std::cout <<"[Q] "<< in_str << std::endl;
+        std::cout <<"[A] "<< std::flush;
         for(int step = 0; step<100; step++) {
             ex.run(&net, {input});
             auto result = ex.result();

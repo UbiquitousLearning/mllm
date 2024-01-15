@@ -200,7 +200,9 @@ int main(int argc, char **argv) {
         UnigramTokenizer::token2Tensor(&net, input_ids[0], input_seq);
         patches2Tensor(img_patch, net, image_patches);
         patchIdx2Tensor(img_patch_id, net, image_patches_indices);
-        for(int step = 0; step<10; step++) {
+        std::cout <<"[Q] ["<<in_str<<"]"<< in_str << std::endl;
+        std::cout <<"[A] "<< std::flush;
+        for(int step = 0; step<50; step++) {
             ex.run(&net, {input_seq, img_patch, img_patch_id});
             auto result = ex.result();
             auto token_idx = postProcessing(result[0], input_seq);
