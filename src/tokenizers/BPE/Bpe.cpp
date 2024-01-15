@@ -3,21 +3,210 @@
 //
 
 #include "Bpe.hpp"
+#include <iostream>
+#include <regex>
+#include <codecvt>
+#include <unordered_map>
+
 static size_t utf8_len(char src) {
     const size_t lookup[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3, 4};
     uint8_t highbits = static_cast<uint8_t>(src) >> 4;
     return lookup[highbits];
+}
+static std::vector<std::pair<string, string>> get_pairs( vector<string> word) {
+    std::vector<std::pair<string, string>> pairs;
+    for (int i = 1; i < word.size(); ++i) {
+        pairs.emplace_back(word[i-1],word[i] );
+    }
+    return pairs;
+}
+vector<std::string> mllm::BPETokenizer::bpe(const std::string& token) {
+    // static std::unordered_map<std::string, std::string> cache;
+
+    // // 检查 token 是否在缓存中
+    // if (cache.find(token) != cache.end()) {
+    //     return cache[token];
+    // }
+
+    // split by unicode
+    // icu::UnicodeString ustr = icu::UnicodeString::fromUTF8(token);
+    // vector<string> word_splits = {};
+    // for (int i = 0; i < ustr.length()-1; ++i) {
+    //     auto middle_unicode_str = ustr.tempSubString(i, 1);
+    //     std::string middle_str;
+    //     middle_unicode_str.toUTF8String(middle_str);
+    //     word_splits.emplace_back(middle_str);
+    // }
+    // auto last_unicode_str = ustr.tempSubString(ustr.length()-1, 1);
+    // std::string last_str;
+    // last_unicode_str.toUTF8String(last_str);
+    // word_splits.emplace_back(last_str+"</w>");
+
+    std::wstring_convert<std::codecvt_utf8_utf16<char32_t>, char32_t> converter;
+    std::u32string u32_token = converter.from_bytes(token);
+
+    std::vector<std::string> word_splits;
+    for (char32_t c : u32_token) {
+        word_splits.push_back(converter.to_bytes(c));
+    }
+    std::string last_str = word_splits.back();
+    word_splits.pop_back();
+    word_splits.push_back(last_str + "</w>");
+
+
+    auto pairs = get_pairs(word_splits);
+    if (pairs.empty()) {
+        return {token + "</w>"};
+    }
+
+    while (true) {
+        // 找到排名最小的字符对
+        auto bigram = *std::min_element(pairs.begin(), pairs.end(), [this](const auto& a, const auto& b) {
+            auto string_a = std::string(a.first)+" " + std::string(a.second);
+            auto string_b = std::string(b.first)+" " + std::string(b.second);
+            auto rank_a = merge_rank.count(string_a) ? merge_rank.at(string_a) : INFINITY;
+            auto rank_b = merge_rank.count(string_b) ? merge_rank.at(string_b) : INFINITY;
+            return rank_a < rank_b;
+        });
+        auto bigram_string = std::string(bigram.first)+" " + std::string(bigram.second);
+        if (merge_rank.find(bigram_string) == merge_rank.end()) {
+            break;
+        }
+
+        string first = bigram.first, second = bigram.second;
+        vector<std::string> new_word;
+        int i = 0;
+        int j=0;
+        while (i < word_splits.size()) {
+            // find first at word_splits[i:]
+            bool found = false;
+            for (j = i; j < word_splits.size(); ++j) {
+                if (word_splits[j] == first) {
+                    found = true;
+                    for (int k = i; k < j; ++k) {
+                        new_word.emplace_back(word_splits[k]);
+                    }
+                    i = j;
+                    break;
+                }
+            }
+            if (!found) {
+                new_word.insert(new_word.end(), word_splits.begin() + i, word_splits.end());
+                break;
+            }
+            if (word_splits[i]==first && i<word_splits.size() -1&& word_splits[i+1]==second){
+                new_word.emplace_back(first+second);
+                i+=2;
+            }else {
+                new_word.emplace_back(word_splits[i]);
+                i++;
+            }
+        }
+            word_splits = new_word;
+            if (word_splits.size() == 1) {
+                break;
+            } else {
+                pairs = get_pairs(word_splits);
+
+        }
+    }
+
+        // cache[token] = word_splits;
+        return word_splits;
+
 }
 void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, bool byte_fallback = false) {
     if (text.empty()) {
         return;
     }
     if (this->vocab_map_.empty() || this->id_token_.empty()) {
-        std::cout << "The vocab map is empty!" << std::endl;
+        std::cerr << "The vocab map is empty!" << std::endl;
         return;
     }
+    symbols_.clear();
+    while (!queue_.empty()) queue_.pop();
     size_t offset = 0;
     int idx = 0;
+    if (bos) {
+        tokens.emplace_back(mllm::BPETokenizer::TokenBos);
+    }
+    if (!merge_rank.empty()){
+        // vector<string> words = {};
+        // UErrorCode status = U_ZERO_ERROR;
+        // icu::UnicodeString pattern = "<\\|startoftext\\|>|<\\|endoftext\\|>|'s|'t|'re|'ve|'m|'ll|'d|[\\p{L}]+|[\\p{N}]|[^\\s\\p{L}\\p{N}]+";
+        // icu::UnicodeString textToMatch = text.c_str(); // convert std::string to UnicodeString
+        // // FIXME: temporarily We add space to split Chinese characters
+        // icu::UnicodeString newText;
+        // for (int i = 0; i < textToMatch.length(); ++i) {
+        //     UChar32 c = textToMatch.char32At(i);
+        //     auto sc = uscript_getScript(c, &status);
+        //
+        //     if (sc == USCRIPT_HAN) {
+        //         newText += " ";
+        //     }
+        //     newText += c;
+        // }
+        // textToMatch = newText;
+        //
+        // icu::RegexMatcher matcher(pattern, textToMatch, 0, status);
+        //
+        // if (U_FAILURE(status)) {
+        //     // Handle the error
+        //     throw std::runtime_error("Error in regex");
+        // }
+        //
+        // while (matcher.find(status)) {
+        //     icu::UnicodeString match = matcher.group(status);
+        //     if (U_FAILURE(status)) {
+        //         // Handle the error
+        //         throw std::runtime_error("Error in regex");
+        //     }
+        //     std::string cpp_str;
+        //     std::string token;
+        //     match.toUTF8String(cpp_str);
+        //     for (size_t i = 0; i < cpp_str.length(); ++i) {
+        //         unsigned char byte = cpp_str[i];
+        //         token += bytes_to_unicode_[byte];
+        //     }
+        //     words.emplace_back(token);
+        // }
+
+        std::vector<std::string> words;
+        std::regex pattern("<\\|startoftext\\|>|<\\|endoftext\\|>|'s|'t|'re|'ve|'m|'ll|'d|\\w+|\\d+|\\S+");
+        std::smatch match;
+
+        std::string::const_iterator searchStart(text.cbegin());
+        while (std::regex_search(searchStart, text.cend(), match, pattern)) {
+            words.push_back(match.str());
+            searchStart = match.suffix().first;
+        }
+
+        // return words;
+        
+        for (const auto& word:words){
+            auto word_splits = bpe(word);
+            for (const auto& word_split:word_splits){
+                if (auto result = this->vocab_map_.find(word_split); result != this->vocab_map_.end()) {
+                    auto token_idx =  result->second ;
+                    tokens.emplace_back(id_token_[token_idx].score);
+                } else {
+                    if (!byte_fallback) {
+                        tokens.emplace_back(mllm::BPETokenizer::TokenUnk);
+                    } else {
+                        for (const char j : word_split) {
+                            token_id_t token_id = static_cast<uint8_t>(j) + 3;
+                            tokens.emplace_back(token_id);
+                        }
+                    }
+                }
+            }
+
+        }
+        if (TokenEos>0) {
+            tokens.push_back(TokenEos);
+        }
+        return;
+    }
     while (offset < text.size()) {
         CharSymbol symbol;
         symbol.ch = text.c_str() + offset;
@@ -29,8 +218,6 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         idx++;
     }
     for (int i = 1; i < symbols_.size(); ++i) {
-        //        std::cout<<symbols_[i].ch<<std::endl;
-        // Always Keep the single symbol
         tryMergeSymbol(i - 1, i);
     }
     while (!queue_.empty()) {
@@ -56,9 +243,7 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         tryMergeSymbol(first.last, item.start);
         tryMergeSymbol(item.start, first.next);
     }
-    if (bos) {
-        tokens.emplace_back(mllm::BPETokenizer::TokenBos);
-    }
+
     for (int i = 0; i < symbols_.size(); ++i) {
         if (symbols_[i].length > 0) {
             auto token_text = std::string(symbols_[i].ch, symbols_[i].length);
@@ -78,6 +263,11 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         }
     }
 }
+
+void mllm::BPETokenizer::setMergeRank(const std::unordered_map<string, unsigned> &merge_rank) {
+    this->merge_rank = merge_rank;
+}
+
 void mllm::BPETokenizer::tryMergeSymbol(size_t start, size_t end) {
     if (start == -1 || end == -1) {
         return;
@@ -97,6 +287,40 @@ void mllm::BPETokenizer::tryMergeSymbol(size_t start, size_t end) {
 void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) {
     this->tokenize(std::move(text), tokens, bos, true);
 }
+
+/**
+Returns list of utf-8 byte and a mapping to unicode strings. We specifically avoids mapping to whitespace/control
+characters the bpe code barfs on.
+
+The reversible bpe codes work on unicode strings. This means you need a large # of unicode characters in your vocab
+if you want to avoid UNKs. When you're at something like a 10B token dataset you end up needing around 5K for
+decent coverage. This is a significant percentage of your normal, say, 32K bpe vocab. To avoid that, we want lookup
+tables between utf-8 bytes and unicode strings.
+**/
+static std::unordered_map<unsigned char, string> bytes_to_unicode() {
+    std::unordered_map<unsigned char, string> mapping;
+    unsigned char n = 0;
+
+    for (int b = 0; b < 256; ++b) {
+        int convert_uchar = 0;
+        if ((b >= 33 && b <= 126) || (b >= 161 && b <= 172) || (b >= 174 && b <= 255)) {
+            convert_uchar = b;
+        } else {
+            convert_uchar = 256 + n;
+            ++n;
+        }
+        // icu::UnicodeString str((UChar32)convert_uchar);
+        // std::string s;
+        // str.toUTF8String(s);
+        // mapping[b] = s;
+        std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
+        std::string s = converter.to_bytes(static_cast<char32_t>(convert_uchar));
+        mapping[b] = s;
+    }
+    return mapping;
+}
+
 mllm::BPETokenizer::BPETokenizer(const std::string &vocab_file) :
     Tokenizer(vocab_file) {
+    bytes_to_unicode_ = bytes_to_unicode();
 }

@@ -3,6 +3,7 @@
 //
 #include "ParamLoader.hpp"
 #include "Tokenizer.hpp"
+#include <Net.hpp>
 /* Vocab Structure
  * ┌──────┬──────┬─────┬────────┬──────┬──────┬───────┐
  * │      │      │     │        │      │      │       │
@@ -15,15 +16,23 @@
  * │      │      │     │        │      │      │       │
  * └──────┴──────┴─────┴────────┴──────┴──────┴───────┘
  */
+
 namespace mllm {
 bool Tokenizer::load_vocab(const std::string &vocab_file) {
+// #ifdef ANDROID_API
+//    auto *fp= AAssetManager_open(asset_manager_, vocab_file.c_str(), AASSET_MODE_RANDOM);
+// #else
+
     FILE *fp = fopen(vocab_file.c_str(), "rb");
+// #endif
+
     if (fp == nullptr) {
         std::cout << "open file failed" << std::endl;
         return false;
     }
     // Use a unique_ptr with a custom deleter to ensure the file is closed.
-    std::unique_ptr<FILE, decltype(&fclose)> fp_guard(fp, &fclose);
+
+    std::unique_ptr<mllm_file, decltype(&fclose)> fp_guard(fp, &fclose);
     fseek(fp, 0, SEEK_CUR);
     if (readInt(fp) != VocabMagicNumber) {
         std::cout << "magic number error" << std::endl;
@@ -54,8 +63,81 @@ bool Tokenizer::load_vocab(const std::string &vocab_file) {
     this->min_score_ = min_score;
     return true;
 }
-Tokenizer::Tokenizer(const std::string &vocab_file) {
+
+std::string Tokenizer::replaceString(const std::string &str, char old_char, const std::string& new_char) {
+    std::string result;
+    for (auto &ch : str) {
+        if (ch == old_char) {
+            result += new_char;
+        } else {
+            result += ch;
+        }
+    }
+    return result;
+}
+
+std::string Tokenizer::unCapitalize(const std::string &str) {
+    std::string result;
+    for (auto &ch : str) {
+        if (ch >= 'A' && ch <= 'Z') {
+            result += ch + 32;
+        } else {
+            result += ch;
+        }
+    }
+    return result;
+}
+
+bool Tokenizer::getTokenId(const token_t &token, token_id_t &id) {
+    auto token_id = this->vocab_map_.find(token);
+    if (token_id != this->vocab_map_.end()) {
+        id = token_id->second;
+        return true;
+    }
+    return false;
+}
+
+void Tokenizer::token2Tensor(Net *net, vector<token_id_t> tokens, shared_ptr<Tensor> input_tensor) {
+    // auto input_tensor = std::make_shared<Tensor>();
+    input_tensor->setBackend(net->backends()[BackendType::MLLM_CPU].get());
+    input_tensor->reshape(1, 1, static_cast<int>(tokens.size()), 1);
+    input_tensor->alloc();
+    // input_tensor->fullData<float>(1);
+    for (int idx = 0; idx < tokens.size(); ++idx) {
+        input_tensor->setDataAt<float>(0, 0, idx, 0, tokens[idx]);
+    }
+    return;
+}
+
+void Tokenizer::tokens2Tensor(Net *net, vector<vector<token_id_t>> tokens, shared_ptr<Tensor> input_tensor) {
+    // auto input_tensor = std::make_shared<Tensor>();
+    input_tensor->setBackend(net->backends()[BackendType::MLLM_CPU].get());
+    const auto bsize = static_cast<int>(tokens.size());
+    input_tensor->reshape(bsize, 1, static_cast<int>(tokens[0].size()), 1);
+    input_tensor->alloc();
+    for (int b = 0; b < bsize; ++b){
+        for (int idx = 0; idx < tokens[b].size(); ++idx) {
+            input_tensor->setDataAt<float>(b, 0, idx, 0, tokens[b][idx]);
+        }
+    }
+
+    return;
+}
+
+// #ifdef ANDROID_API
+// void Tokenizer::setAssetManager(AAssetManager *asset_manager) {
+//     asset_manager_ = asset_manager;
+//     if(!load_vocab(vocab_file_name_)) exit(-1);
+//
+//
+// }
+// #endif
+Tokenizer::Tokenizer(const std::string &vocab_file):vocab_file_name_(vocab_file) {
+
+// #ifndef ANDROID_API
     if(!load_vocab(vocab_file)) exit(-1);
+// #endif
+
 }
 string Tokenizer::detokenize(const vector<token_id_t> &tokens) {
     //int size = tokens.size() - 1;

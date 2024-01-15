@@ -5,6 +5,13 @@
 #ifndef MLLM_TIMING_HPP
 #define MLLM_TIMING_HPP
 
+
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#include <bemapiset.h>
+#include  <windows.h>
+#endif
+
+
 namespace mllm {
 
 

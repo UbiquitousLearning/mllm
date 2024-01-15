@@ -30,7 +30,7 @@ private:
 
 class NNAPILinearCreator : public NNAPIBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         int in_features = op_param["in_features"];
         int out_features = op_param["out_features"];
         int bias = op_param["bias"];

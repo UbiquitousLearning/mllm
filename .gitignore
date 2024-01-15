@@ -22,4 +22,4 @@ _deps
 *.cmake
 Makefile
 *.model
-*.mllm
+models/*

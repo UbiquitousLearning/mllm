@@ -16,7 +16,7 @@ class ReLUSquaredActivation(nn.Module):
 from TestUtils import TestBase
 
 
-class CPURelu21(TestBase):
+class CPUReLU21(TestBase):
     def test(self):
         seed = 1234
         torch.manual_seed(seed)
@@ -25,5 +25,5 @@ class CPURelu21(TestBase):
         input0 = torch.randn(bs, seq_len, embedding_dim).float()
         relu = ReLUSquaredActivation()
         output = relu(input0)
-        print(output)
+        # print(output)
         self.test_done(True)

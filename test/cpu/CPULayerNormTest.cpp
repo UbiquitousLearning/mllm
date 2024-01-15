@@ -5,7 +5,7 @@
 #include "CPUTest.hpp"
 #include "backends/cpu/CPULayerNorm.hpp"
 TEST_F(CPUTest, CPULayerNorm1) {
-    SETUP_OP(CPULayerNorm, false);
+    SETUP_OP(CPULayerNorm, 32000, false, 1e-5);
     TENSOR(input0);
     TENSOR(output);
     TENSOR(c_output);
@@ -18,5 +18,5 @@ TEST_F(CPUTest, CPULayerNorm1) {
     TEST_WEIGHTS_LOAD(loader);
     //    op->weight().printData<float>();
     TEST_EXCUTE({input0}, {c_output});
-    COMPARE_TENSOR(c_output.get(), output.get(), false);
+    COMPARE_TENSOR(c_output.get(), output.get(), true);
 }

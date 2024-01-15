@@ -25,6 +25,7 @@ endif()
 #set(TEST_EXE main_test)
 option(TEST "test mode" ON)
 option(QUANT "quantize tools" ON)
+option(APK "Build for Android APK Lib." OFF)
 
 if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)
@@ -57,9 +58,11 @@ aux_source_directory(${PROJECT_SOURCE_DIR}/src DIR_SRC)
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/express DIR_SRC_EXP)
 
+aux_source_directory(${PROJECT_SOURCE_DIR}/src/processor DIR_SRC_PROCESSOE)
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/memory DIR_SRC_MEM_MANAGER)
 aux_source_directory(${PROJECT_SOURCE_DIR}/examples EMP_SRC)
 aux_source_directory(${PROJECT_SOURCE_DIR}/test TEST_SRC)
+aux_source_directory(${PROJECT_SOURCE_DIR}/third_party/wenet_audio DIR_THIRDPARTY_AUDIO)
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${PROJECT_SOURCE_DIR}/include)
@@ -80,6 +83,10 @@ if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$")
 elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
     message(STATUS "ARM detected")
     add_definitions(-DARM)
+    if (APK)
+        message(STATUS "Build for Android APK Lib.")
+        add_definitions("-DANDROID_API")
+    endif ()
 endif()
 
 if(QUANT)
@@ -90,13 +97,12 @@ if(QUANT)
         ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
     )
 
-    # MLLM Quantizer is /src/quantizer/*.cpp but except main.cpp, gguf.cpp and gguf.hpp
     file(GLOB_RECURSE MLLM_QUANTIZER
         ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp)
     list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/main.cpp)
-    list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/gguf.hpp)
-    list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/gguf.cpp)
+#    list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/gguf.hpp)
+#    list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/gguf.cpp)
 
     message(STATUS "MLLM_Quant: ${MLLM_QUANT}")
 
@@ -110,13 +116,14 @@ if(QUANT)
         ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
     )
     add_executable(
-        from_gguf
-        ${PROJECT_SOURCE_DIR}/src/quantizer/gguf.cpp
-        ${MLLM_QUANT}
-        ${MLLM_QUANTIZER}
+            from_gguf
+            ${PROJECT_SOURCE_DIR}/tools/gguf_convertor/gguf.cpp
+            ${PROJECT_SOURCE_DIR}/tools/gguf_convertor/gguf.hpp
+            ${MLLM_QUANT}
+            ${MLLM_QUANTIZER}
+            # ${DIR_SRC}
+            ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
 
-        # ${DIR_SRC}
-        ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
     )
 
 endif()
@@ -134,6 +141,7 @@ if(TEST)
     )
     list(REMOVE_ITEM MLLM_TEST ${CMAKE_CURRENT_LIST_DIR}/test/TestSystemMemoryManager.cpp)
     list(REMOVE_ITEM MLLM_TEST ${CMAKE_CURRENT_LIST_DIR}/test/TestMemoryPoolManager.cpp)
+    # list(REMOVE_ITEM MLLM_TEST ${CMAKE_CURRENT_LIST_DIR}/test/clip_tokenizer_test.cpp)
 
     message(STATUS "MLLM_TEST: ${MLLM_TEST}")
 
@@ -144,18 +152,41 @@ if(TEST)
         ${PROJECT_SOURCE_DIR}/test/main.cpp
         ${MLLM_TEST}
         ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
+            src/processor/ClipPreProcess.hpp
+            src/processor/ClipPreProcess.cpp
+            src/processor/FuyuPreProcess.hpp
+            src/processor/FuyuPreProcess.cpp
+            src/processor/PreProcess.hpp
+            src/processor/PreProcess.cpp
+            test/processor/ClipPreprocessorTest.cpp
     )
 
     target_link_libraries(
         MLLM_TEST
         GTest::gtest_main
-        MLLM_CPU
+        MLLM_CPU 
     )
     add_executable(
         memoryPoolTest
         ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp
         ${DIR_SRC_MEM_MANAGER} ${PROJECT_SOURCE_DIR}/src/MemoryManager.hpp
     )
+
+    # add_executable(
+    #     clip_tokenizer_test
+    #     ${PROJECT_SOURCE_DIR}/test/clip_tokenizer_test.cpp
+    #     ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER}
+    #     src/tokenizers/Tokenizer.cpp
+    #     src/tokenizers/Tokenizer.hpp
+    #     src/tokenizers/BPE/Bpe.cpp
+    #     src/tokenizers/BPE/Bpe.hpp
+    #     src/processor/PreProcess.hpp
+    #     src/processor/PreProcess.cpp
+    #     src/processor/ClipPreProcess.cpp
+    #     src/processor/ClipPreProcess.hpp
+    # )
+    # target_link_libraries(clip_tokenizer_test
+    #     MLLM_CPU)
     add_executable(
             SystemMemoryTest
             ${PROJECT_SOURCE_DIR}/test/TestSystemMemoryManager.cpp
@@ -177,8 +208,23 @@ add_executable(main_llama ${PROJECT_SOURCE_DIR}/examples/main_llama.cpp ${DIR_SR
     src/tokenizers/BPE/Bpe.cpp
     src/tokenizers/BPE/Bpe.hpp
 )
-target_link_libraries(main_llama MLLM_CPU)
+target_link_libraries(main_llama MLLM_CPU )
 
+add_executable(main_alpaca ${PROJECT_SOURCE_DIR}/examples/main_alpaca.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp
+)
+target_link_libraries(main_alpaca MLLM_CPU )
+
+add_executable(main_tinyllama ${PROJECT_SOURCE_DIR}/examples/main_tinyllama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp
+)
+target_link_libraries(main_tinyllama MLLM_CPU )
 
 add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/examples/main_fuyu.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
         src/tokenizers/Tokenizer.cpp
@@ -187,10 +233,52 @@ add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/examples/main_fuyu.cpp ${DIR_SRC_
         src/tokenizers/Unigram/Unigram.cpp
         src/tokenizers/Unigram/trie.hpp
         src/tokenizers/BPE/Bpe.cpp
-        src/tokenizers/BPE/Bpe.hpp)
-target_link_libraries(main_fuyu MLLM_CPU)
-target_link_directories(main_fuyu PUBLIC ${PROJECT_SOURCE_DIR}/third_party/imageHelper)
+        src/tokenizers/BPE/Bpe.hpp
+        src/processor/PreProcess.hpp
+        src/processor/FuyuPreProcess.hpp
+        src/processor/FuyuPreProcess.cpp
+        src/processor/PreProcess.cpp
+)
+target_link_libraries(main_fuyu    MLLM_CPU )
 
+add_executable(main_vit ${PROJECT_SOURCE_DIR}/examples/main_vit.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/Unigram/Unigram.hpp
+        src/tokenizers/Unigram/Unigram.cpp
+        src/tokenizers/Unigram/trie.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp
+        src/processor/PreProcess.hpp
+        src/processor/PreProcess.cpp
+)
+target_link_libraries(main_vit    MLLM_CPU  )
+
+add_executable(main_clip ${PROJECT_SOURCE_DIR}/examples/main_clip.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp
+        src/processor/PreProcess.hpp
+        src/processor/PreProcess.cpp
+        src/processor/ClipPreProcess.cpp
+        src/processor/ClipPreProcess.hpp
+)
+target_link_libraries(main_clip    MLLM_CPU  )
+
+add_executable(main_imagebind ${PROJECT_SOURCE_DIR}/examples/main_imagebind.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp
+        ${DIR_SRC_PROCESSOE}
+        ${DIR_THIRDPARTY_AUDIO}
+#        src/processor/ClipPreProcess.cpp
+#        src/processor/ClipPreProcess.hpp
+        src/processor/PreProcess.hpp
+        src/processor/PreProcess.cpp
+)
+target_link_libraries(main_imagebind MLLM_CPU  )
 
 # nnapi temp test
 if(NNAPI)
@@ -202,3 +290,27 @@ if(NNAPI)
     add_executable(nnapi_test ${PROJECT_SOURCE_DIR}/examples/nnapi_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER})
     target_link_libraries(nnapi_test MLLM_NNAPI)
 endif()
+
+if (APK)
+    add_library(mllm_lib STATIC ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER}
+            src/tokenizers/Tokenizer.cpp
+            src/tokenizers/Tokenizer.hpp
+            src/tokenizers/Unigram/Unigram.hpp
+            src/tokenizers/Unigram/Unigram.cpp
+            src/tokenizers/Unigram/trie.hpp
+            src/tokenizers/BPE/Bpe.cpp
+            src/tokenizers/BPE/Bpe.hpp
+            src/processor/PreProcess.hpp
+            src/processor/FuyuPreProcess.hpp
+            src/processor/FuyuPreProcess.cpp
+            tools/jni/LibHelper.cpp
+            tools/jni/LibHelper.hpp
+            tools/jni/modeling_llama.hpp
+            tools/jni/modeling_fuyu.hpp
+            tools/jni/helper.hpp
+            src/processor/PreProcess.cpp
+
+    )
+#    target_link_libraries(mllm_lib )
+
+endif ()

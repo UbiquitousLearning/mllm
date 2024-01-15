@@ -6,7 +6,7 @@
 
 namespace mllm {
 
-CPUReLU2::CPUReLU2(Backend *bn, string opName, bool multiThread):support_multi_thread_(multiThread), Op(bn, std::move(opName)) {
+CPUReLU2::CPUReLU2(Backend *bn, string opName, int threadCount):thread_count(threadCount), Op(bn, std::move(opName)) {
 }
 ErrorCode CPUReLU2::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     CHECK_EQ(inputs.size(), 1);

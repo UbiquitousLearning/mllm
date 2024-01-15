@@ -1,0 +1,17 @@
+This project includes code from the following open-source projects:
+
+1. MIT License:
+   - Original code from Sean Barrett, available at https://github.com/nothings/stb.
+        - Copyright (c) 2017 Sean Barrett.
+   - Original code from Georgi Gerganov, available at https://github.com/ggerganov/ggml.
+        - Copyright (c) 2022 Georgi Gerganov.
+
+2. Public Domain (CC0):
+   - The stb code is released into the public domain by Sean Barrett.
+
+3. Apache License 2.0:
+   - Parts of this project are derived from wenet, available at https://github.com/wenet-e2e/wenet.
+       - Copyright (c) 2017 Binbin Zhang.
+
+Please see the individual licenses in the LICENSES file for more details.
+

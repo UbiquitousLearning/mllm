@@ -21,7 +21,7 @@ ErrorCode NNAPIMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_
     CHECK_EQ(inputs[0]->head(), inputs[1]->head());
     CHECK_EQ(inputs[0]->head(), 1);
     // different from cpu version, we assume that the input is 2D and already transposed
-    CHECK_EQ(inputs[0]->width(), inputs[1]->height());
+    CHECK_EQ(inputs[0]->dimension(), inputs[1]->sequence());
 
     bias_.reshape(1, 1, 1, outputs[0]->dimension());
     outputs[0]->reshape(inputs[0]->batch(),
@@ -29,7 +29,7 @@ ErrorCode NNAPIMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_
                         inputs[0]->sequence(),
                         inputs[1]->dimension());
 
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode NNAPIMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -41,9 +41,9 @@ ErrorCode NNAPIMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     bias_.fullData(0);
     outputs[0]->alloc();
 
-    unsigned int batch_size = inputs[0]->batch() * inputs[0]->head() * inputs[0]->sequence();
-    unsigned int num_units = inputs[1]->width();
-    unsigned int input_size = inputs[0]->height();
+    unsigned int batch_size = inputs[0]->batch() * inputs[0]->head();//* inputs[0]->sequence();
+    unsigned int num_units = inputs[1]->dimension();
+    unsigned int input_size = inputs[0]->sequence();
 
     std::vector<uint32_t> inputIdxs;
     inputIdxs.push_back(getTensorIdx(inputs[0].get(), true, {batch_size, input_size})); // reshape to 2D

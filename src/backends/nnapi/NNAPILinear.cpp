@@ -46,7 +46,7 @@ ErrorCode NNAPILinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_
     bias_.setName(name() + ".bias");
 
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode NNAPILinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -80,7 +80,7 @@ ErrorCode NNAPILinear::load(AbstructLoader &loader) {
     loader.load(&weight_);
     if (support_bias_)
         loader.load(&bias_);
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 } // namespace mllm

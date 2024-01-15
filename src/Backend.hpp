@@ -2,7 +2,7 @@
 #define MLLM_BACKEND_H
 
 #include "MemoryManager.hpp"
-#include "NetParameter.hpp"
+#include "Types.hpp"
 #include <memory>
 using std::shared_ptr;
 
@@ -56,7 +56,7 @@ public:
      */
     // virtual Op* OpCreate(const vector<shared_ptr<Tensor>>& inputs, const vector<shared_ptr<Tensor>>& outputs,
     //                             OpParam op_param) = 0;
-    virtual Op *opCreate(const OpParam &op_param, string name="") = 0;
+    virtual Op *opCreate(const OpParam &op_param, string name="", int threadCount=4) = 0;
     virtual void registerOps() = 0;
     // virtual void* OpCreater(OpParam op_param);
 private:

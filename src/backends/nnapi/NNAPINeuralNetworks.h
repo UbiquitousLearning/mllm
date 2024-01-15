@@ -5752,7 +5752,7 @@ typedef enum {
  * Result codes.
  *
  * <p>Any NNAPI function can return any result code, including result codes not
- * currently documented. Any value other than {@link ANEURALNETWORKS_NO_ERROR}
+ * currently documented. Any value other than {@link ANEURALNETWORKS_MLLM_NO_ERROR}
  * indicates a failure of some kind.</p>
  *
  * <p>Additional information about the nature of a failure can be obtained from
@@ -5765,7 +5765,7 @@ typedef enum {
     /**
      * Operation was succesful.
      */
-    ANEURALNETWORKS_NO_ERROR = 0,
+    ANEURALNETWORKS_MLLM_NO_ERROR = 0,
 
     /**
      * Failure caused by not enough available memory.
@@ -6333,7 +6333,7 @@ typedef struct ANeuralNetworksMemoryDesc ANeuralNetworksMemoryDesc;
  * @param desc The {@link ANeuralNetworksMemoryDesc} to be created.
  *             Set to NULL if unsuccessful.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksMemoryDesc_create(ANeuralNetworksMemoryDesc** desc) __INTRODUCED_IN(30);
 
@@ -6392,7 +6392,7 @@ void ANeuralNetworksMemoryDesc_free(ANeuralNetworksMemoryDesc* desc) __INTRODUCE
  *                  optimize the case when different roles prefer different memory locations or data
  *                  layouts.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksMemoryDesc_addInputRole(ANeuralNetworksMemoryDesc* desc,
                                            const ANeuralNetworksCompilation* compilation,
@@ -6438,7 +6438,7 @@ int ANeuralNetworksMemoryDesc_addInputRole(ANeuralNetworksMemoryDesc* desc,
  *                  optimize the case when multiple roles prefer different memory locations or data
  *                  layouts.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksMemoryDesc_addOutputRole(ANeuralNetworksMemoryDesc* desc,
                                             const ANeuralNetworksCompilation* compilation,
@@ -6465,7 +6465,7 @@ int ANeuralNetworksMemoryDesc_addOutputRole(ANeuralNetworksMemoryDesc* desc,
  * @param dimensions An array of dimensions. An entry with the value 0 indicates that the
  *                   corresponding axis has an unknown size.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksMemoryDesc_setDimensions(ANeuralNetworksMemoryDesc* desc, uint32_t rank,
                                             const uint32_t* dimensions) __INTRODUCED_IN(30);
@@ -6482,7 +6482,7 @@ int ANeuralNetworksMemoryDesc_setDimensions(ANeuralNetworksMemoryDesc* desc, uin
  *
  * @param desc The memory descriptor to be finished.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksMemoryDesc_finish(ANeuralNetworksMemoryDesc* desc) __INTRODUCED_IN(30);
 
@@ -6535,7 +6535,7 @@ int ANeuralNetworksMemoryDesc_finish(ANeuralNetworksMemoryDesc* desc) __INTRODUC
  * @param memory The memory object to be created.
  *               Set to NULL if unsuccessful.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful; ANEURALNETWORKS_OP_FAILED if the memory is
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful; ANEURALNETWORKS_OP_FAILED if the memory is
  *         created with unspecified dimensions or rank and it is not supported for this set of
  *         roles.
  */
@@ -6576,7 +6576,7 @@ int ANeuralNetworksMemory_createFromDesc(const ANeuralNetworksMemoryDesc* desc,
  * @param src The source memory object.
  * @param dst The destination memory object.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksMemory_copy(const ANeuralNetworksMemory* src, const ANeuralNetworksMemory* dst)
         __INTRODUCED_IN(30);
@@ -6590,7 +6590,7 @@ int ANeuralNetworksMemory_copy(const ANeuralNetworksMemory* src, const ANeuralNe
  *
  * @param numDevices Used to return the number of devices.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *
  * Available since API level 29.
  */
@@ -6605,7 +6605,7 @@ int ANeuralNetworks_getDeviceCount(uint32_t* numDevices) __INTRODUCED_IN(29);
  *               The same representation will always be returned for the specified
  *               device.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *
  * Available since API level 29.
  */
@@ -6624,7 +6624,7 @@ int ANeuralNetworks_getDevice(uint32_t devIndex, ANeuralNetworksDevice** device)
  *               or lower, the format of the name is undefined.
  *               The name will remain valid for the duration of the application.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *
  * Available since API level 29.
  */
@@ -6643,7 +6643,7 @@ int ANeuralNetworksDevice_getName(const ANeuralNetworksDevice* device, const cha
  * @param device The representation of the specified device.
  * @param type The returned {@link DeviceTypeCode} of the specified device.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *
  * Available since API level 29.
  */
@@ -6673,7 +6673,7 @@ int ANeuralNetworksDevice_getType(const ANeuralNetworksDevice* device, int32_t* 
  *                level 28 or lower, "UNKNOWN" will be returned. The version string will remain
  *                valid for the duration of the application.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *
  * Available since API level 29.
  */
@@ -6692,7 +6692,7 @@ int ANeuralNetworksDevice_getVersion(const ANeuralNetworksDevice* device, const 
  * @param device The representation of the specified device.
  * @param featureLevel The API level of the most advanced feature this driver implements.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *
  * Available since API level 29.
  */
@@ -6711,7 +6711,7 @@ int ANeuralNetworksDevice_getFeatureLevel(const ANeuralNetworksDevice* device,
  *
  * @param device The representation of the specified device.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *
  * Available since API level 30.
  */
@@ -6732,7 +6732,7 @@ int ANeuralNetworksDevice_wait(const ANeuralNetworksDevice* device) __INTRODUCED
  *                     in the model. The order of elements in the supportedOps array matches
  *                     the order in which the corresponding operations were added to the model.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *
  * Available since API level 29.
  */
@@ -6762,7 +6762,7 @@ int ANeuralNetworksModel_getSupportedOperationsForDevices(
  * @param numDevices The number of devices in the set.
  * @param compilation The newly created object or NULL if unsuccessful.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA
  *         if the model is invalid.
  *
  * Available since API level 29.
@@ -6794,7 +6794,7 @@ int ANeuralNetworksCompilation_createForDevices(ANeuralNetworksModel* model,
  *              failed execution or in a successful execution that produces incorrect
  *              output values.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *
  * Available since API level 29.
  */
@@ -6832,7 +6832,7 @@ int ANeuralNetworksCompilation_setCaching(ANeuralNetworksCompilation* compilatio
  *
  * @param execution The execution to be scheduled and executed.
  *
- * @return ANEURALNETWORKS_NO_ERROR if the execution completed normally.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if the execution completed normally.
  *         ANEURALNETWORKS_UNMAPPABLE if the execution input or output memory cannot
  *         be properly mapped.
  */
@@ -6854,7 +6854,7 @@ int ANeuralNetworksExecution_compute(ANeuralNetworksExecution* execution) __INTR
  *              the index associated with {@link ANeuralNetworksModel_addOperand}.
  * @param rank The rank of the output operand.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_OUTPUT_INSUFFICIENT_SIZE
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful, ANEURALNETWORKS_OUTPUT_INSUFFICIENT_SIZE
  *         if the target output is provided an insufficient buffer at execution time,
  *         ANEURALNETWORKS_BAD_DATA if the index is invalid.
  *
@@ -6880,7 +6880,7 @@ int ANeuralNetworksExecution_getOutputOperandRank(ANeuralNetworksExecution* exec
  * @param dimensions The dimension array to be filled. The size of the array must be exactly as
  *                   large as the rank of the output operand to be queried in the model.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_OUTPUT_INSUFFICIENT_SIZE
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful, ANEURALNETWORKS_OUTPUT_INSUFFICIENT_SIZE
  *         if the target output is provided an insufficient buffer at execution time,
  *         ANEURALNETWORKS_BAD_DATA if the index is invalid or if the target is a scalar.
  *
@@ -6903,7 +6903,7 @@ int ANeuralNetworksExecution_getOutputOperandDimensions(ANeuralNetworksExecution
  * @param compilation The {@link ANeuralNetworksCompilation} to be evaluated.
  * @param burst The newly created object or NULL if unsuccessful.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA
  *         if the compilation is invalid.
  */
 int ANeuralNetworksBurst_create(ANeuralNetworksCompilation* compilation,
@@ -6954,7 +6954,7 @@ void ANeuralNetworksBurst_free(ANeuralNetworksBurst* burst) __INTRODUCED_IN(29);
  *                  must be created from the same {@link
  *                  ANeuralNetworksCompilation} as the burst object.
  *
- * @return ANEURALNETWORKS_NO_ERROR if the execution completed normally.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if the execution completed normally.
  */
 int ANeuralNetworksExecution_burstCompute(ANeuralNetworksExecution* execution,
                                           ANeuralNetworksBurst* burst) __INTRODUCED_IN(29);
@@ -6988,7 +6988,7 @@ int ANeuralNetworksExecution_burstCompute(ANeuralNetworksExecution* execution,
  * @param memory The memory object to be created.
  *               Set to NULL if unsuccessful.
  *
- * @return ANEURALNETWORKS_NO_ERROR if the request completed normally.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if the request completed normally.
  *
  * @see AHardwareBuffer
  */
@@ -7017,7 +7017,7 @@ int ANeuralNetworksMemory_createFromAHardwareBuffer(const AHardwareBuffer* ahwb,
  * @param execution The execution to be modified.
  * @param measure 'true' if duration is to be measured, 'false' if not.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksExecution_setMeasureTiming(ANeuralNetworksExecution* execution, bool measure)
         __INTRODUCED_IN(29);
@@ -7040,7 +7040,7 @@ int ANeuralNetworksExecution_setMeasureTiming(ANeuralNetworksExecution* executio
  *                 available, UINT64_MAX will be returned. A particular device
  *                 need not support any given measurement.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *
  * Available since API level 29.
  */
@@ -7074,7 +7074,7 @@ int ANeuralNetworksExecution_getDuration(const ANeuralNetworksExecution* executi
  * @param memory The memory object to be created.
  *               Set to NULL if unsuccessful.
  *
- * @return ANEURALNETWORKS_NO_ERROR if the request completed normally.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if the request completed normally.
  */
 int ANeuralNetworksMemory_createFromFd(size_t size, int protect, int fd, size_t offset,
                                        ANeuralNetworksMemory** memory) __INTRODUCED_IN(27);
@@ -7117,7 +7117,7 @@ void ANeuralNetworksMemory_free(ANeuralNetworksMemory* memory) __INTRODUCED_IN(2
  * @param model The {@link ANeuralNetworksModel} to be created.
  *              Set to NULL if unsuccessful.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksModel_create(ANeuralNetworksModel** model) __INTRODUCED_IN(27);
 
@@ -7152,7 +7152,7 @@ void ANeuralNetworksModel_free(ANeuralNetworksModel* model) __INTRODUCED_IN(27);
  *
  * @param model The model to be finished.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksModel_finish(ANeuralNetworksModel* model) __INTRODUCED_IN(27);
 
@@ -7204,7 +7204,7 @@ int ANeuralNetworksModel_finish(ANeuralNetworksModel* model) __INTRODUCED_IN(27)
  *             nor the dimensions it points to need to outlive the call to
  *             {@link ANeuralNetworksModel_addOperand}.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksModel_addOperand(ANeuralNetworksModel* model,
                                     const ANeuralNetworksOperandType* type) __INTRODUCED_IN(27);
@@ -7242,7 +7242,7 @@ int ANeuralNetworksModel_addOperand(ANeuralNetworksModel* model,
  * @param buffer A pointer to the data to use.
  * @param length The size in bytes of the data value.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksModel_setOperandValue(ANeuralNetworksModel* model, int32_t index,
                                          const void* buffer, size_t length) __INTRODUCED_IN(27);
@@ -7266,7 +7266,7 @@ int ANeuralNetworksModel_setOperandValue(ANeuralNetworksModel* model, int32_t in
  *                    No memory in this struct needs to outlive the call to
  *                    this function.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksModel_setOperandSymmPerChannelQuantParams(
         ANeuralNetworksModel* model, int32_t index,
@@ -7311,7 +7311,7 @@ int ANeuralNetworksModel_setOperandSymmPerChannelQuantParams(
  *               The offset is in bytes from the start of memory.
  * @param length The size in bytes of the data value.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksModel_setOperandValueFromMemory(ANeuralNetworksModel* model, int32_t index,
                                                    const ANeuralNetworksMemory* memory,
@@ -7343,7 +7343,7 @@ int ANeuralNetworksModel_setOperandValueFromMemory(ANeuralNetworksModel* model, 
  * @param index The index of the model operand we're setting.
  * @param value The model to be referenced.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksModel_setOperandValueFromModel(ANeuralNetworksModel* model, int32_t index,
                                                   const ANeuralNetworksModel* value)
@@ -7371,7 +7371,7 @@ int ANeuralNetworksModel_setOperandValueFromModel(ANeuralNetworksModel* model, i
  *
  * Available since API level 27.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksModel_addOperation(ANeuralNetworksModel* model,
                                       ANeuralNetworksOperationType type, uint32_t inputCount,
@@ -7466,7 +7466,7 @@ int ANeuralNetworksModel_relaxComputationFloat32toFloat16(ANeuralNetworksModel* 
  * @param model The {@link ANeuralNetworksModel} to be compiled.
  * @param compilation The newly created object or NULL if unsuccessful.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA
  *         if the model is invalid.
  */
 int ANeuralNetworksCompilation_create(ANeuralNetworksModel* model,
@@ -7502,7 +7502,7 @@ void ANeuralNetworksCompilation_free(ANeuralNetworksCompilation* compilation) __
  *                  {@link PREFER_SINGLE_FAST_ANSWER}, or
  *                  {@link PREFER_SUSTAINED_SPEED}.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksCompilation_setPreference(ANeuralNetworksCompilation* compilation,
                                              int32_t preference) __INTRODUCED_IN(27);
@@ -7528,7 +7528,7 @@ int ANeuralNetworksCompilation_setPreference(ANeuralNetworksCompilation* compila
  *
  * @param compilation The compilation to be finished.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksCompilation_finish(ANeuralNetworksCompilation* compilation) __INTRODUCED_IN(27);
 
@@ -7555,7 +7555,7 @@ int ANeuralNetworksCompilation_finish(ANeuralNetworksCompilation* compilation) _
  *     executions created by the application. Must be one of
  *     ANEURALNETWORKS_PRIORITY_*.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  */
 int ANeuralNetworksCompilation_setPriority(ANeuralNetworksCompilation* compilation, int priority)
         __INTRODUCED_IN(30);
@@ -7595,7 +7595,7 @@ int ANeuralNetworksCompilation_setPriority(ANeuralNetworksCompilation* compilati
  *     compilation may be aborted. If set to 0, the timeout duration is
  *     considered infinite.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *
  * Available since API level 30.
  */
@@ -7621,7 +7621,7 @@ int ANeuralNetworksCompilation_setTimeout(ANeuralNetworksCompilation* compilatio
  * @param compilation The {@link ANeuralNetworksCompilation} to be evaluated.
  * @param execution The newly created object or NULL if unsuccessful.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA
  *         if the compilation is invalid.
  */
 int ANeuralNetworksExecution_create(ANeuralNetworksCompilation* compilation,
@@ -7686,7 +7686,7 @@ void ANeuralNetworksExecution_free(ANeuralNetworksExecution* execution) __INTROD
  * @param buffer The buffer containing the data.
  * @param length The length in bytes of the buffer.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA if the
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA if the
  *         name is not recognized or the buffer is too small for the input.
  */
 int ANeuralNetworksExecution_setInput(ANeuralNetworksExecution* execution, int32_t index,
@@ -7734,7 +7734,7 @@ int ANeuralNetworksExecution_setInput(ANeuralNetworksExecution* execution, int32
  *               The offset is in bytes from the start of memory.
  * @param length The size in bytes of the data value.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA if the
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA if the
  *         name is not recognized or the buffer is too small for the input.
  */
 int ANeuralNetworksExecution_setInputFromMemory(ANeuralNetworksExecution* execution, int32_t index,
@@ -7782,7 +7782,7 @@ int ANeuralNetworksExecution_setInputFromMemory(ANeuralNetworksExecution* execut
  * @param buffer The buffer where the data is to be written.
  * @param length The length in bytes of the buffer.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA if the
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA if the
  *         name is not recognized or the buffer is too small for the output.
  */
 int ANeuralNetworksExecution_setOutput(ANeuralNetworksExecution* execution, int32_t index,
@@ -7835,7 +7835,7 @@ int ANeuralNetworksExecution_setOutput(ANeuralNetworksExecution* execution, int3
  *               The offset is in bytes from the start of memory.
  * @param length The length in bytes of the data value.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA if the
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful, ANEURALNETWORKS_BAD_DATA if the
  *         name is not recognized or the buffer is too small for the output.
  */
 int ANeuralNetworksExecution_setOutputFromMemory(ANeuralNetworksExecution* execution, int32_t index,
@@ -7887,7 +7887,7 @@ int ANeuralNetworksExecution_setOutputFromMemory(ANeuralNetworksExecution* execu
  * @param event The event that will be signaled on completion. event is set to
  *              NULL if there's an error.
  *
- * @return ANEURALNETWORKS_NO_ERROR if the evaluation is successfully scheduled.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if the evaluation is successfully scheduled.
  */
 int ANeuralNetworksExecution_startCompute(ANeuralNetworksExecution* execution,
                                           ANeuralNetworksEvent** event) __INTRODUCED_IN(27);
@@ -7933,7 +7933,7 @@ int ANeuralNetworksExecution_startCompute(ANeuralNetworksExecution* execution,
  *     be spent executing a model. If this duration is exceeded, the execution
  *     may be aborted. If set to 0, the timeout duration is considered infinite.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *
  * Available since API level 30.
  */
@@ -7960,7 +7960,7 @@ int ANeuralNetworksExecution_setTimeout(ANeuralNetworksExecution* execution, uin
  *     produced by {@link ANeuralNetworks_getMaximumLoopTimeout}, it will be
  *     overridden by that value.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *         ANEURALNETWORKS_BAD_STATE if execution has started.
  *         ANEURALNETWORKS_UNEXPECTED_NULL if execution is NULL.
  *
@@ -8010,7 +8010,7 @@ uint64_t ANeuralNetworks_getMaximumLoopTimeout() __INTRODUCED_IN(30);
  * Available since API level 27.
  *
  * @param event The event that will be signaled on completion.
- * @return ANEURALNETWORKS_NO_ERROR if the execution completed normally.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if the execution completed normally.
  *         ANEURALNETWORKS_UNMAPPABLE if the execution input or output memory cannot
  *         be properly mapped.
  */
@@ -8040,7 +8040,7 @@ void ANeuralNetworksEvent_free(ANeuralNetworksEvent* event) __INTRODUCED_IN(27);
  * @param sync_fence_fd The sync_fence file descriptor.
  * @param event The newly created object or NULL if unsuccessful.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *
  * Available since API level 30.
  */
@@ -8064,7 +8064,7 @@ int ANeuralNetworksEvent_createFromSyncFenceFd(int sync_fence_fd, ANeuralNetwork
  * @param sync_fence_fd The sync_fence file descriptor. The file descriptor will
  *                      be set to -1 if there is an error.
  *
- * @return ANEURALNETWORKS_NO_ERROR if successful.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if successful.
  *
  * Available since API level 30.
  */
@@ -8137,7 +8137,7 @@ int ANeuralNetworksEvent_getSyncFenceFd(const ANeuralNetworksEvent* event, int* 
  * @param event The event that will be signaled on completion. event is set to
  *              NULL if there's an error.
  *
- * @return ANEURALNETWORKS_NO_ERROR if the evaluation is successfully scheduled.
+ * @return ANEURALNETWORKS_MLLM_NO_ERROR if the evaluation is successfully scheduled.
  *
  * Available since API level 30.
  */

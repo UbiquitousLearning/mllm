@@ -8,9 +8,11 @@
 #include "unordered_map"
 #include "string"
 class TrieIterator;
+
 namespace mllm {
 template <typename Value>
 class TrieIterator;
+
 template <typename Value>
 class Trie {
 public:
@@ -19,11 +21,16 @@ public:
         //        Value value;
         bool is_leaf = false;
     };
+
 private:
     Node *root;
-    public:
-    Trie():root(new Node()) {}
-void insert(const std::vector<Value> &key) {
+
+public:
+    Trie():
+        root(new Node()) {
+    }
+
+    void insert(const std::vector<Value> &key) {
         auto node = root;
         for (auto ch : key) {
             auto next = node->children.find(ch);
@@ -37,16 +44,18 @@ void insert(const std::vector<Value> &key) {
         }
         node->is_leaf = true;
     }
-    TrieIterator<Value>* iterator() {
+
+    TrieIterator<Value> *iterator() {
         return new TrieIterator<Value>(root, std::vector<char>());
     }
-    TrieIterator<Value>* commonPrefixSearch(const std::vector<Value> &labels) {
+
+    TrieIterator<Value> *commonPrefixSearch(const std::vector<Value> &labels) {
         auto node = root;
         auto tmp = new TrieIterator<Value>(node, labels);
         return tmp;
     }
-
 };
+
 template <typename Value>
 class TrieIterator {
 public:
@@ -56,11 +65,13 @@ public:
     typename std::vector<Value>::iterator end;
     typename std::vector<Value>::iterator iter;
 
-    TrieIterator(typename Trie<Value>::Node *node, std::vector<Value> labels) : node(node),labels(labels) {
+    TrieIterator(typename Trie<Value>::Node *node, std::vector<Value> labels) :
+        node(node), labels(labels) {
         path.clear();
         iter = this->labels.begin();
         end = this->labels.end();
     }
+
     std::vector<char> next() {
         while (iter != end) {
             auto next = node->children.find(*iter);
@@ -71,15 +82,14 @@ public:
                     ++iter;
                     return path;
                 }
+            } else {
+                ++iter;
+                return {};
             }
             ++iter;
         }
         return {};
-
     }
-
-
-
 };
 } // namespace mllm
 

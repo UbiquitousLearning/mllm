@@ -3,6 +3,20 @@
 #define MLLM_TYPES_H
 #include "OpDefined.hpp"
 #include <iostream>
+#include <algorithm>
+#include <iostream>
+#include <map>
+#include <set>
+#include <sstream>
+#include <string.h>
+#include <string>
+#include <vector>
+#include <cassert>
+using std::string;
+using std::vector;
+using std::map;
+
+typedef map<std::string, float> OpParam;
 
 typedef enum {
     MLLM_CPU,
@@ -11,7 +25,7 @@ typedef enum {
 } BackendType;
 
 enum ErrorCode {
-    NO_ERROR = 0,
+    MLLM_NO_ERROR = 0,
     OUT_OF_MEMORY = 1,
     NOT_SUPPORT = 2,
     COMPUTE_SIZE_ERROR = 3,
@@ -54,6 +68,11 @@ enum ChlType {
     BSHD = 0,
     // BHSD = 1, //ABANDENED!!
     BHDS = 2,
+
+    BCTHW = 3,
+    BTHWC = 4,
+
+    SBHD = 10  //not used
 };
 
 enum Chl {
@@ -61,7 +80,52 @@ enum Chl {
     HEAD = 1,
     SEQUENCE = 2,
     DIMENSION = 3,
+
+    HD = 113,
+    D_HD = 313, //only use for split attn.in_proj
+
+    CHANNLE = 1,
+    TIME = 2,
+    HEIGHT = 3,
+    WIDTH = 4,
+
+    THW = 234,
+
 };
+
+
+enum PaddingType {
+    SAME,
+    VALID
+};
+
+
+/*
+ * This code is based on ggml(https://github.com/ggerganov/ggml),
+ * please see https://github.com/ggerganov/ggml/blob/master/src/ggml.c
+ * ggml is licensed under MIT Copyright (c) 2022 Georgi Gerganov:
+ *
+ * MIT License
+ * Copyright (c) 2022 Georgi Gerganov
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 #if defined(__ARM_NEON) && !defined(_MSC_VER)
 typedef __fp16 mllm_fp16_t;
 #else
@@ -177,14 +241,13 @@ static size_t DataTypeSize(DataType dtype, int count=1) {
     case MLLM_TYPE_F32:
         return sizeof(float) *count;
     case MLLM_TYPE_F16:
-        return sizeof(short)*count;
+        return sizeof(mllm_fp16_t)*count;
     case MLLM_TYPE_I32:
         return sizeof(int)*count;
     case MLLM_TYPE_I16:
         return sizeof(short)*count;
     case MLLM_TYPE_I8:
         return sizeof(char)*count;
-        // TODO WRONG?
     case MLLM_TYPE_Q4_0:
         return (sizeof(block_q4_0))*count / (QK4_0);
     case MLLM_TYPE_Q4_K:
@@ -197,7 +260,10 @@ static size_t DataTypeSize(DataType dtype, int count=1) {
         return (sizeof(block_q8_K))*count / (QK_K);
     case MLLM_TYPE_Q4_1:
     case MLLM_TYPE_Q8_1:
-    case MLLM_TYPE_COUNT: return 0;
+    case MLLM_TYPE_COUNT:
+        return 0;
+    default:
+        return 0;
     }
 }
 #ifdef __cplusplus

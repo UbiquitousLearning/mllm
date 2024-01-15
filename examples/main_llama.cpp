@@ -4,7 +4,6 @@
 #include "cmdline.h"
 #include "Net.hpp"
 #include "Executor.hpp"
-#include "NetParameter.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 using namespace mllm;
@@ -41,21 +40,13 @@ void display(Context *c) {
     }
 }
 
-void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, float value) {
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
-    input_tensor->reshape(shape[0], shape[1], shape[2], shape[3]);
-    input_tensor->alloc();
-    input_tensor->fullData<float>(value);
-}
-void token2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<token_id_t> tokens) {
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
-    input_tensor->reshape(1, 1, static_cast<int>(tokens.size()), 1);
-    input_tensor->alloc();
-    input_tensor->fullData<float>(1);
-    for (int idx = 0; idx < tokens.size(); ++idx) {
-        input_tensor->setDataAt<float>(0, 0, idx, 0, tokens[idx]);
-    }
-}
+// void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, float value) {
+//     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
+//     input_tensor->reshape(shape[0], shape[1], shape[2], shape[3]);
+//     input_tensor->alloc();
+//     input_tensor->fullData<float>(value);
+// }
+
 unsigned int argmax(const std::vector<float>& scores) {
     if(scores.empty()) {
         throw std::invalid_argument("Input vector is empty");
@@ -84,75 +75,63 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor>& out_r
     out_result->setDataAt<float>(0, 0, 0, 0, token_idx);
     return token_idx;
 }
-NetTensor *Attention(Context *ctx, NetTensor * x, int embedding_size, int hidden_size, int head_size, string name){
-    auto *q =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wq");
-    auto *k =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wk");
-    auto *v =_Linear(ctx, {x}, embedding_size, hidden_size * head_size, false, name + ".wv");
-    q = _View(ctx, {q}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".q_view");
-    k = _View(ctx, {k}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".k_view");
-    v = _View(ctx, {v}, {-1, head_size, -1, -1}, {BATCH, DIMENSION, SEQUENCE, DIMENSION}, name + ".v_view");
-    q = _RoPE(ctx, {q}, name + ".q_rope");
-    k = _RoPE(ctx, {k}, name + ".k_rope");
-    k = _KVCache(ctx, {k}, true, name + ".k_cache");
-    v = _KVCache(ctx, {v}, true, name + ".v_cache");
-    auto *qk = _Matmul(ctx, {q, k}, false, true, name + ".qk");
-    qk = _Scale(ctx, {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
-    qk = _Causalmask(ctx, {qk}, name + ".mask");
-    qk = _Softmax(ctx, {qk}, SEQUENCE, name + ".softmax");
-    auto *o = _Matmul(ctx, {qk, v}, false, false, name + ".qkv");
-    o = _View(ctx, {o}, {-1, -1, -1, -1}, {BATCH, -1, SEQUENCE, HEAD+DIMENSION}, name + ".qkv_view");
-    o = _Linear(ctx, {o}, hidden_size * head_size, embedding_size, false, name + ".wo");
+NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int head_size, string name){
+    auto *q =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".wq");
+    auto *k =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".wk");
+    auto *v =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".wv");
+    q = q->view(-1, head_size, -1, hidden_size);
+    k = k->view(-1, head_size, -1, hidden_size);
+    v = v->view(-1, head_size, -1, hidden_size);
+    q = _RoPE( {q}, 2, name + ".q_rope");
+    k = _RoPE( {k}, 2, name + ".k_rope");
+    k = _KVCache( {k},  name + ".k_cache");
+    v = _KVCache( {v}, name + ".v_cache");
+    auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
+    qk = *qk/std::sqrt(hidden_size);
+    qk = _Causalmask( {qk}, name + ".mask");
+    qk = _Softmax( {qk}, DIMENSION, name + ".softmax");
+    auto *o = _Matmul( {qk, v}, false, false, name + ".qkv");
+    o = o->view(-1, 1, -1, hidden_size * head_size);
+    o = _Linear( {o}, hidden_size * head_size, embedding_size, false, name + ".wo");
     return o;
 }
-NetTensor *FFN(Context *ctx, NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
-    auto *x = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, name+".w1");
-    x = _SiLU(ctx, {x});
-    auto *y = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, name+".w3");
-    x = _Mul(ctx, {x, y});
-    x = _Linear(ctx, {x}, ffn_hidden_dim, hidden_dim, false, name+".w2");
+NetTensor *FFN( NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
+    auto *x = _Linear( {i}, hidden_dim, ffn_hidden_dim, false, name+".w1");
+    x = _SiLU( {x}, name+".silu");
+    auto *y = _Linear( {i}, hidden_dim, ffn_hidden_dim, false, name+".w3");
+    x = *x*y;// x = _Mul( {x, y}, name+".dot");
+    x = _Linear( {x}, ffn_hidden_dim, hidden_dim, false, name+".w2");
     return x;
 }
 void llama2(Context* c, int vocab_size= 32000, int hidden_dim= 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32){
     auto *i = _Input(c);
-    i = _Embedding(c, {i}, vocab_size, hidden_dim, (string)"tok_embeddings");
+    i = _Embedding( {i}, vocab_size, hidden_dim, (string)"tok_embeddings");
     // loop
     for(int layer=0; layer<32; ++layer) {
-        auto *x = _RMSNorm(c, {i}, (string)"layers."+std::to_string(layer)+".attention_norm");
-        //x = _Attention(c, {x}, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
-        x = Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention");
-        i = _Add(c, {x, i});
-        x = _RMSNorm(c, {i}, (string)"layers."+std::to_string(layer)+".ffn_norm");
-        x = FFN(c, x, hidden_dim, ffn_hidden_dim, (string)"layers."+std::to_string(layer) +".feed_forward");
-        i = _Add(c, {x, i});
-        _SubgraphBegin(c);
+        auto *x = _RMSNorm( {i}, hidden_dim, 1e-6, (string)"layers."+std::to_string(layer)+".attention_norm");
+        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, (string)"layers."+std::to_string(layer)+".attention") +i;
+        x = _RMSNorm( {i}, hidden_dim, 1e-6, (string)"layers."+std::to_string(layer)+".ffn_norm");
+        i = *FFN( x, hidden_dim, ffn_hidden_dim, (string)"layers."+std::to_string(layer) +".feed_forward") +i;
+        //_SubgraphBegin(c);
     }
     // end loop
-    i = _RMSNorm(c, {i}, (string)"norm");
-    i = _Linear(c, {i}, hidden_dim, vocab_size, false, "output");
+    i = _RMSNorm( {i}, hidden_dim, 1e-6, (string)"norm");
+    i = _Linear( {i}, hidden_dim, vocab_size, false, "output");
 }
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab.mllm");
-    cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/llama-2-7b-q4_k-46.mllm");
-    cmdParser.add<string>("input", 'i', "specify input string", false, "I believe the meaning of life is");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/llama_vocab.mllm");
+    cmdParser.add<string>("model", '\0', "specify mllm model path", false, "../models/llama-2-7b-chat-q4_k.mllm");
+    // cmdParser.add<string>("input", 'i', "specify input string", false, " Structured pruning and unstructured pruning represent two distinct categories within the realm of parameter pruning for LLMs. Structured pruning involves the removal of entire structured components, such as neurons, channels, or layers, based on predefined criteria. This method aims to simplify the model architecture by discarding specific structural elements that contribute less to overall performance. On the other hand, unstructured pruning targets individual weights within the model, irrespective of their structural context. This approach aims to enhance the model's sparsity by selectively eliminating less influential parameters, thereby reducing the model's footprint.The significance of parameter pruning lies in its ability to strike a balance between model size and performance. By judiciously removing redundant weights, LLMs can achieve substantial compression without compromising their capabilities. This becomes particularly relevant in scenarios where computational resources, memory constraints, or deployment on edge devices necessitate a more streamlined and resource-efficient model.");
+    // cmdParser.add<string>("input", 'i', "specify input string", false, " Hello, who are you?");// I think the meaning of life is
     cmdParser.parse_check(argc, argv);
 
-    string in_str = cmdParser.get<string>("input");
+    // string in_str = cmdParser.get<string>("input");
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
 
     auto tokenizer = BPETokenizer(vocab_path);
-    auto tokens_id = vector<token_id_t>();
-    // tokenizer.tokenize(string(" this is 🦙.cpp"), tokens_id, true);
-    // tokenizer.tokenize(string(" 你所热爱的，就是你的生活"), tokens_id, true);
-    // string in_str = " I believe the meaning of life is";
-    //    string in_str = " I believe the meaning of life is to be happy.";
-    //    string in_str = " Building a website can be done in 10 simple steps:\\nStep 1:";
-    tokenizer.tokenize(in_str, tokens_id, true);
-    //    for (auto idx : tokens_id) {
-    //        std::cout << idx << ",";
-    //    }
-    //    std::cout << std::endl;
+
     int vocab_size = 32000;
     int hidden_dim = 4096;
     int ffn_hidden_dim = 11008;
@@ -166,25 +145,47 @@ int main(int argc, char **argv) {
     Net net(bn);
     net.convert(c->sub_param_);
 
-    //    ParamLoader param_loader("../models/llama-2-7b-fp32.mllm");
-    //    ParamLoader param_loader("../models/llama-2-7b-q4_0.mllm");
-    //    ParamLoader param_loader("../models/llama-2-7b-q4_k-64.mllm");
-//    ParamLoader param_loader("../models/llama-2-7b-q4_k-4632.mllm");
     ParamLoader param_loader(model_path);
     Executor ex(&param_loader);
-    shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    token2Tensor(input, net, tokens_id);
+    ex.setup(&net);
 
-    std::cout << in_str << std::flush;
-    for(int step = 0; step<12; step++) {
-        ex.execute(&net, {input});
-        auto result = ex.result();
-        auto token_idx = postProcessing(result[0], input);
-        auto out_token = tokenizer.detokenize({token_idx});
-        std::cout << out_token << std::flush;
+
+    vector<string> in_strs = {
+        " Hello, who are you?",
+        " What can you do?",
+        "Please introduce Beijing University of Posts and Telecommunications."
+    };
+    shared_ptr<Tensor> input = std::make_shared<Tensor>();
+    for (int str_i = 0; str_i < in_strs.size(); ++str_i)
+    {
+        auto in_str = in_strs[str_i];
+        if(in_str[0] != ' '){
+            in_str = ' '+ in_str;
+        }
+        auto tokens_id = vector<token_id_t>();
+        tokenizer.tokenize(in_str, tokens_id, true);
+        if(str_i > 0) {
+            tokens_id[0] = 13;
+        }
+        BPETokenizer::token2Tensor( &net, tokens_id, input);
+        std::cout << in_str << std::flush;
+        for(int step = 0; step<100; step++) {
+            ex.run(&net, {input});
+            auto result = ex.result();
+            auto token_idx = postProcessing(result[0], input);
+            if(token_idx == 2){// "</s>"
+                break;
+            }
+            auto out_token = tokenizer.detokenize({token_idx});
+            std::cout << out_token << std::flush;
+        }
+        printf("\n");
     }
-    printf("\n");
+
+
     ex.perf();
+
+
 
     // free memory
     for (auto *op : c->net_ops) {

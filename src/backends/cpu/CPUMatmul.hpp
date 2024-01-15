@@ -10,7 +10,7 @@ namespace mllm {
 class Tensor;
 class CPUMatmul final : public Op {
 public:
-    CPUMatmul(Backend *bn, string opName, bool transpose0, bool transpose1, bool multiThread);
+    CPUMatmul(Backend *bn, string opName, bool transpose0, bool transpose1, int threadCount);
     virtual ~CPUMatmul() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
@@ -18,7 +18,7 @@ public:
 private:
     bool transpose0_;
     bool transpose1_;
-    bool support_multi_thread_ = false;
+    int thread_count = 4;
 };
 
 class CPUMatmulCreator : public CPUBackend::Creator {
@@ -27,10 +27,10 @@ public:
     //                                 OpParam op_param, Backend* backend) const  {
     //     return new CPUMatmul(backend, false, false, false, false);
     // }
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         bool transpose0 = (bool)op_param["transpose0"];
         bool transpose1 = (bool)op_param["transpose1"];
-        return new CPUMatmul(bn, name, transpose0, transpose1, false);
+        return new CPUMatmul(bn, name, transpose0, transpose1, threadCount);
     }
 };
 

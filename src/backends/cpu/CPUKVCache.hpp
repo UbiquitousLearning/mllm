@@ -10,7 +10,7 @@ namespace mllm {
 
 class CPUKVCache final : public Op {
 public:
-    CPUKVCache(Backend *bn, string opName, bool isK, bool multiThread);
+    CPUKVCache(Backend *bn, string opName, int n_rep, int threadCount);
     virtual ~CPUKVCache() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -21,19 +21,19 @@ public:
     Tensor cache_;
 
 private:
-    bool support_multi_thread_ = false;
+    int thread_count = 4;
 
     int cache_seq_len_= -999;
-    bool isK_;
+    int n_rep_ = 1;
 
     int cache_limit_ ;
 };
 
 class CPUKVCacheCreator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        bool isK = (bool)op_param["isK"];
-        return new CPUKVCache(bn, name, isK, false);
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
+        int n_rep = (int)op_param["n_rep"];
+        return new CPUKVCache(bn, name, n_rep, threadCount);
     }
 };
 

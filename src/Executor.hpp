@@ -15,7 +15,7 @@ public:
     Executor(ParamLoader *data_loader) :
         data_loader_(data_loader) {
         // nothing to do
-        init();
+        // init();
     }
     ~Executor() = default;
 
@@ -24,6 +24,8 @@ public:
      * 使用几个线程，什么策略？
      */
     void init();
+    void setup(Net *net);//, vector<shared_ptr<Tensor>> input_tensors);
+    void run(Net *net, vector<shared_ptr<Tensor>> input_tensors);
 
     /*
     void graphShapeInit(shared_ptr<Graph> subGraph, unordered_map<string, shared_ptr<Tensor>> &external_tensors) {

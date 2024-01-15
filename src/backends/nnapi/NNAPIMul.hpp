@@ -21,7 +21,7 @@ private:
 
 class NNAPIMulCreator : public NNAPIBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         return new NNAPIMul(bn, name);
     }
 };

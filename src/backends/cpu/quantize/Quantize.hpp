@@ -1,6 +1,29 @@
-//
-// Created by ey on 23-10-24.
-//
+/*
+ * This code is based on ggml(https://github.com/ggerganov/ggml),
+ * please see https://github.com/ggerganov/ggml/blob/master/src/ggml.c
+ * ggml is licensed under MIT Copyright (c) 2022 Georgi Gerganov:
+ *
+ * MIT License
+ * Copyright (c) 2022 Georgi Gerganov
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
 #ifndef MLLM_QUANTIZE_HPP
 #define MLLM_QUANTIZE_HPP
@@ -11,10 +34,11 @@
 #include <string.h>
 #include <iostream>
 #include "Types.hpp"
+#include <omp.h>
 
-#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-#include <x86intrin.h>
-#endif
+// #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+// #include <x86intrin.h>
+// #endif
 
 #undef MIN
 #undef MAX
@@ -24,6 +48,28 @@
 // 16-bit float
 // on Arm, we use __fp16
 // on x86, we use uint16_t
+#ifdef __ARM_NEON
+
+#else
+
+#ifdef __wasm_simd128__
+#include <wasm_simd128.h>
+#else
+#ifdef __POWER9_VECTOR__
+#include <altivec.h>
+#undef bool
+#define bool _Bool
+#else
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#include <intrin.h>
+#else
+#if !defined(__riscv)
+#include <immintrin.h>
+#endif
+#endif
+#endif
+#endif
+#endif
 
 #if defined(__ARM_NEON) && !defined(_MSC_VER)
 #include <arm_neon.h>
@@ -84,8 +130,111 @@ inline static float lookup_fp16_to_fp32(uint16_t f) {
 #define MLLM_FP32_TO_FP16(x) MLLM_COMPUTE_FP32_TO_FP16(x)
 #endif
 
+static mllm_fp16_t table_exp_f16[1 << 16];
+static bool init_table_exp_f16_flag = false;
+inline void init_table_exp_f16() {
+    mllm_fp16_t ii;
+    for (int i = 0; i < (1 << 16); ++i) {
+        uint16_t ui = i;
+        memcpy(&ii, &ui, sizeof(ii));
+        const float f = MLLM_COMPUTE_FP16_TO_FP32(ii);
+        table_exp_f16[i] = MLLM_FP32_TO_FP16(expf(f));
+        //        float val = MLLM_FP16_TO_FP32(expf(f));
+        //        std::cout<<i<<"  "<<f<<" "<<expf(f)<<"  "<<val<<std::endl;
+        //        printf("%d  %f %f  %f\n", i, f, expf(f), val);
+    }
+}
+/*
+inline double mllm_table_exp(float input){
+    uint16_t scvt;
+    mllm_fp16_t tmp = MLLM_FP32_TO_FP16(input);
+    memcpy(&scvt, &tmp, sizeof(scvt));
+    const float val = MLLM_FP16_TO_FP32(table_exp_f16[scvt]);
+    return (double)val ;
+}
+*/
 
+static const float GELU_COEF_A     = 0.044715f;
+static const float GELU_QUICK_COEF = -1.702f;
+static const float SQRT_2_OVER_PI  = 0.79788456080286535587989211986876f;
 
+inline static float mllm_gelu_f32(float x) {
+    return 0.5f*x*(1.0f + tanhf(SQRT_2_OVER_PI*x*(1.0f + GELU_COEF_A*x*x)));
+}
+
+inline static float mllm_gelu_quick_f32(float x) {
+    return x*(1.0f/(1.0f+expf(GELU_QUICK_COEF*x)));
+}
+
+// Sigmoid Linear Unit (SiLU) function
+inline static float mllm_silu_f32(float x) {
+    return x/(1.0f + expf(-x));
+}
+
+//GELU
+static mllm_fp16_t mllm_table_gelu_f16[1 << 16];
+static bool init_table_gelu_f16_flag = false;
+inline void init_table_gelu_f16() {
+    mllm_fp16_t ii;
+    for (int i = 0; i < (1 << 16); ++i) {
+        uint16_t ui = i;
+        memcpy(&ii, &ui, sizeof(ii));
+        const float f = MLLM_COMPUTE_FP16_TO_FP32(ii);
+        mllm_table_gelu_f16[i] = MLLM_FP32_TO_FP16(mllm_gelu_f32(f));
+    }
+}
+inline static void mllm_vec_gelu_f32(const int n, float * y, const float * x) {
+    uint16_t t;
+//#pragma omp parallel for num_threads(thread_count)
+    for (int i = 0; i < n; ++i) {
+        mllm_fp16_t fp16 = MLLM_FP32_TO_FP16(x[i]);
+        memcpy(&t, &fp16, sizeof(uint16_t));
+        y[i] = MLLM_FP16_TO_FP32(mllm_table_gelu_f16[t]);
+    }
+}
+
+//QuickGELU
+static mllm_fp16_t mllm_table_gelu_quick_f16[1 << 16];
+static bool init_table_gelu_quick_f16_flag = false;
+inline void init_table_gelu_quick_f16() {
+    mllm_fp16_t ii;
+    for (int i = 0; i < (1 << 16); ++i) {
+        uint16_t ui = i;
+        memcpy(&ii, &ui, sizeof(ii));
+        const float f = MLLM_COMPUTE_FP16_TO_FP32(ii);
+        mllm_table_gelu_quick_f16[i] = MLLM_FP32_TO_FP16(mllm_gelu_quick_f32(f));
+    }
+}
+inline static void mllm_vec_gelu_quick_f32(const int n, float * y, const float * x) {
+    uint16_t t;
+//#pragma omp parallel for num_threads(thread_count)
+    for (int i = 0; i < n; ++i) {
+        mllm_fp16_t fp16 = MLLM_FP32_TO_FP16(x[i]);
+        memcpy(&t, &fp16, sizeof(uint16_t));
+        y[i] = MLLM_FP16_TO_FP32(mllm_table_gelu_quick_f16[t]);
+    }
+}
+//SiLU
+static mllm_fp16_t mllm_table_silu_f16[1 << 16];
+static bool init_table_silu_f16_flag = false;
+inline void init_table_silu_f16() {
+    mllm_fp16_t ii;
+    for (int i = 0; i < (1 << 16); ++i) {
+        uint16_t ui = i;
+        memcpy(&ii, &ui, sizeof(ii));
+        const float f = MLLM_COMPUTE_FP16_TO_FP32(ii);
+        mllm_table_silu_f16[i] = MLLM_FP32_TO_FP16(mllm_silu_f32(f));
+    }
+}
+inline static void mllm_vec_silu_f32(const int n, float * y, const float * x) {
+    uint16_t t;
+//#pragma omp parallel for num_threads(thread_count)
+    for (int i = 0; i < n; ++i) {
+        mllm_fp16_t fp16 = MLLM_FP32_TO_FP16(x[i]);
+        memcpy(&t, &fp16, sizeof(uint16_t));
+        y[i] = MLLM_FP16_TO_FP32(mllm_table_silu_f16[t]);
+    }
+}
 
 
 
@@ -192,7 +341,7 @@ static float make_qx_quants(int n, int nmax, const float * __restrict x, int8_t 
 
 
 
-
+// FP32_FP16
 
 
 inline mllm_fp16_t mllm_fp32_to_fp16(float x) {

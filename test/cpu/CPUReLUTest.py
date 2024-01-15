@@ -1,7 +1,7 @@
 import torch
 
 from TestUtils import TestBase
-class CPURelu1(TestBase):
+class CPUReLU1(TestBase):
     def test(self):
         seed = 1234
         torch.manual_seed(seed)
@@ -10,9 +10,9 @@ class CPURelu1(TestBase):
         input0 = torch.randn(bs, seq_len, embedding_dim).float() * 1e-5
         relu = torch.nn.ReLU()
         output = relu(input0)
-        print(output)
+        # print(output)
         self.test_done(True)
 
 
 if __name__ == '__main__':
-    CPURelu1().test()
+    CPUReLU1().test()

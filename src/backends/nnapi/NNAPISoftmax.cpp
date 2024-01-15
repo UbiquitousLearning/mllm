@@ -18,7 +18,7 @@ ErrorCode NNAPISoftMax::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
 #endif
     CHECK_EQ(inputs.size(), 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode NNAPISoftMax::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

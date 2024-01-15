@@ -19,7 +19,7 @@ ErrorCode NNAPIMul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     CHECK_EQ(inputs[0]->sequence(), inputs[1]->sequence());
     CHECK_EQ(inputs[0]->dimension(), inputs[1]->dimension());
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode NNAPIMul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

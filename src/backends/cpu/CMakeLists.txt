@@ -41,8 +41,19 @@ target_include_directories(
 
 if(OpenMP_FOUND)
     message(STATUS "found openmp")
+    if(ARM)
+        message(STATUS "[ARM]  found openmp")
+        #todo: check libomp.a
+        find_library(LIBOMP libomp.a PATHS ${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/lib/linux/aarch64)
+        if(NOT LIBOMP)
+            message(STATUS "use local libomp.a!")
+            set(${LIBOMP} ${PROJECT_SOURCE_DIR}/third_party/libomp/libomp.a)
+        endif()
+        target_link_libraries(MLLM_CPU ${LIBOMP})
+    else()
     target_link_libraries(MLLM_CPU
             PUBLIC
             OpenMP::OpenMP_CXX )
+    endif()
     #target_link_libraries (MLLM_CPU -static-openmp -fopenmp)
 endif()

@@ -102,16 +102,58 @@ void UnigramTokenizer::tokenize(const std::string &text, std::vector<token_id_t>
             if (byte_fallback) {
                 for (char j : item) {
                     char *byte_string = new char[10];
-                    sprintf(byte_string, "<0x{%02X}>", j);
+                    sprintf(byte_string, "<0x%02X>", j);
                     auto result = this->vocab_map_.find(byte_string);
                     if (result != this->vocab_map_.end()) {
                         tokens.emplace_back(result->second);
+                    }else {
+                        std::cerr<< "byte_fallback error"<< byte_string << std::endl;
                     }
                 }
-            }
-            tokens.emplace_back(TokenUnk);
+            }else tokens.emplace_back(TokenUnk);
         }
     }
+}
+
+std::string UnigramTokenizer::detokenize(const std::vector<token_id_t> &tokens) {
+    int size = tokens.size();
+    std::string result;
+    for (int i = 0; i < size; i++) {
+        auto token_id = tokens[i];
+        if (token_id == TokenUnk) {
+            result += "<unk>";
+            continue;
+        }
+        if (token_id == TokenBos) {
+            continue;
+        }
+        if (token_id == TokenEos) {
+            if (i != size - 1) {
+                result += " ";
+            }
+        }
+        auto token  = this->id_token_[token_id].token;
+        if (token[0] == '<' && token[token.size() - 1] == '>') {
+            std::stringstream ss;
+            ss << std::hex << token.substr(3, token.size() - 4);
+            int n;
+            ss >> n;
+            result += static_cast<char>(n);
+            // replace ▁[wide char] with " "
+            //TODO:Fuyu only
+        } else if (token[0] == -30 && token[1] == -106 && token[2] == -127) {
+            // if (i != size - 1) {
+                result += " ";
+            // }
+            if (token.size() > 3) {
+                result += token.substr(3);
+            }
+        }else {
+            result += token;
+        }
+
+    }
+    return result;
 }
 
 void UnigramTokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) {

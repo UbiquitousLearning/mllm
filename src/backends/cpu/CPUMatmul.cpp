@@ -3,11 +3,11 @@
 
 namespace mllm {
 
-CPUMatmul::CPUMatmul(Backend *bn, string opName, bool transpose0, bool transpose1, bool multiThread) :
+CPUMatmul::CPUMatmul(Backend *bn, string opName, bool transpose0, bool transpose1, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     transpose0_ = transpose0;
     transpose1_ = transpose1;
-    support_multi_thread_ = multiThread;
+    thread_count = threadCount;
 }
 
 ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -16,7 +16,7 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     CHECK_EQ(outputs.size(), 1);
     CHECK_EQ(inputs[0]->head(), inputs[1]->head());
     //    CHECK_EQ(inputs[0]->head(), 1);
-    CHECK_EQ(inputs[0]->batch(), inputs[1]->batch());
+    // CHECK_EQ(inputs[0]->batch(), inputs[1]->batch());
     if (!transpose0_ && !transpose1_) {
         /*
          N     |    C       |   H                   |  W
@@ -64,8 +64,19 @@ ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 ErrorCode CPUMatmul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     //std::cout<<name() << "  CPUMatmul()" << std::endl;
     assert(inputs[0]->dtype() == MLLM_TYPE_F32);
-    assert(inputs[1]->dtype() == MLLM_TYPE_F32);
-    mat_mul_fp32(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_);
+    // assert(inputs[1]->dtype() == MLLM_TYPE_F32);
+    switch (inputs[1]->dtype()) {
+    case MLLM_TYPE_F32: {
+        mat_mul_fp32(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, thread_count);
+        break;
+    }
+    case MLLM_TYPE_F16: {
+        mat_mul_fp32_fp16(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, thread_count);
+        break;
+    }
+    default:
+        break;
+    }
     return Op::execute(inputs, outputs);
 }
 

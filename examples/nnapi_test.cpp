@@ -1,7 +1,6 @@
 #include <iostream>
 #include "Net.hpp"
 #include "Executor.hpp"
-#include "NetParameter.hpp"
 #include "Types.hpp"
 #include "express/Express.hpp"
 

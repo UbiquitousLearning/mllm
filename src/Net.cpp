@@ -56,7 +56,7 @@ Net::Net(BackendConfig config){
 //    tensor_names_[0].push_back(in_tensor->name);
 }
 
-void Net::convert(vector<NetParameter> &param, BackendType backend_type) {
+void Net::convert(vector<NetParameter> &param, BackendType backend_type, int threadCount) {
     // init
 //    auto param_g0 = param[0];
 //    for (auto *t:param_g0.net_tensors) {
@@ -99,7 +99,7 @@ void Net::convert(vector<NetParameter> &param, BackendType backend_type) {
     for (int i = 0; i < (int)param.size(); ++i) {
         param[i].topologySort();
         shared_ptr<Graph> subg_1;
-        subg_1.reset(new Graph( param[i], backends_[backend_type].get(), tensors_));
+        subg_1.reset(new Graph( param[i], backends_[backend_type].get(), tensors_, threadCount));
         subGraphs_["G" + std::to_string(i)] = subg_1;
     }
     //printf("Net convert\n");

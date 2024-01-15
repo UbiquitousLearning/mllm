@@ -7,7 +7,7 @@ namespace mllm {
 // template class CPUMask;
 // template class CPUMask;
 
-CPUCausalMask::CPUCausalMask(Backend *bn, string opName, bool multiThread) :
+CPUCausalMask::CPUCausalMask(Backend *bn, string opName, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
 }
 
@@ -25,12 +25,13 @@ ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<share
         int head_num = inputs[0]->head();
         int sequence = inputs[0]->sequence();
         int dimension = inputs[0]->dimension();
+        int old_dim = dimension - sequence;
         for (int n = 0; n < batch_size; ++n) {
             for (int h = 0; h < head_num; ++h) {
                 for (int s = 0; s < sequence; ++s) {
-                    #pragma omp parallel for num_threads(4)
+                    #pragma omp parallel for num_threads(thread_count)
                     for (int d = 0; d < dimension; ++d) {
-                        if (d > s) {
+                        if (d > s + old_dim) {
                             outputs[0]->setDataAt<float>({n, h, s, d}, -INFINITY);
                         }
                         else{
@@ -56,10 +57,10 @@ ErrorCode CPUCausalMask::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     }
     outputs[0]->setDtype(activation_dtype());
     outputs[0]->alloc();
-    inputs[0]->deepCopyFrom(outputs[0], false);
+    inputs[0]->deepCopyFrom(outputs[0].get(), false);
 #ifdef DEBUG
     std::cout << "*"<<name()<<" setUp*" << std::endl;
 #endif
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 } // namespace mllm

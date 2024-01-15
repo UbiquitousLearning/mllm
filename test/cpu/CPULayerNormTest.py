@@ -9,7 +9,7 @@ class CPULayerNorm1(TestBase):
         output = layer_norm(input0)
         CPULayerNorm_weight = layer_norm.weight
         CPULayerNorm_bias = layer_norm.bias
-        print(CPULayerNorm_weight)
-        print(CPULayerNorm_bias)
-        print(output)
+        # print(CPULayerNorm_weight)
+        # print(CPULayerNorm_bias)
+        # print(output)
         self.test_done(True)
