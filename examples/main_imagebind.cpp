@@ -311,18 +311,11 @@ int main(int argc, char **argv) {
     img2Tensor(input_img, net, data_imgs);
 
 
-    auto audios = PreProcessor::ProcessAudio({"../assets/dog_audio_16k.wav", "../assets/car_audio_16k.wav", "../assets/bird_audio_16k.wav"});
+    auto audios = PreProcessor::ProcessAudio({"../assets/dog_audio.wav", "../assets/car_audio.wav", "../assets/bird_audio.wav"});
     shared_ptr<Tensor> input_audio = std::make_shared<Tensor>();
     audio2Tensor(input_audio, net, audios);
 
     ex.run(&net, {input_text, input_text_lens, input_img, input_audio});
-    /*
-    //Audio
-    auto audios = PreProcessor::ProcessAudio({"./dog_audio_16k.wav"});
-    shared_ptr<Tensor> input_audio = std::make_shared<Tensor>();
-    audio2Tensor(input_audio, net, audios);
-    ex.run(&net, {input_audio});
-    */
 
 
     auto result = ex.result();

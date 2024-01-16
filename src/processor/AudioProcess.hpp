@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-std::vector<std::vector<std::vector<std::vector<float>>>> ProcessWAV(std::vector<std::string> waves);
+std::vector<std::vector<std::vector<std::vector<float>>>> ProcessWAV(std::vector<std::string> waves, int resample_rate = 16000);
 
 
 
