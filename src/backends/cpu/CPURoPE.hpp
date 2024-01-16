@@ -18,8 +18,10 @@ public:
 
 private:
 //    Tensor freq_;
-    Tensor sin_;
-    Tensor cos_;
+    // static Tensor sin_;
+    // static Tensor cos_;
+    static vector<vector<float>> sin_;
+    static vector<vector<float>> cos_;
     int h_cnt_ = 0;
     int pos_max_ ;
     int pose_type_;
