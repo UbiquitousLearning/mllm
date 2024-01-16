@@ -136,7 +136,7 @@ wget .... -O llama-2-7b-chat-q4_k.mllm
   ```
   > ./main_imagebind 
   Load model: 2.17264 s
-  vision@audio :
+  vision@text :
   0.9986231 0.0013304 0.0000464
   0.0000365 0.9998704 0.0000931
   0.0000124 0.0085099 0.9914777
@@ -173,7 +173,7 @@ python convert.py --input_model=model.safetensors.index.json --output_model=mode
 You can convert vocabulary to mllm vocabulary as followed.
 ```bash
 cd tools/convertor
-python vocab.py tokenizer.model vocab.mllm
+python vocab.py --input_file=tokenizer.model --output_file=vocab.mllm --type=Unigram
 ```
 
 ## Quantize models
