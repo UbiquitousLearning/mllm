@@ -757,6 +757,8 @@ StatusCode QNNBackend::executeGraphs(std::map< std::string, std::vector<uint8_t*
       if (StatusCode::SUCCESS == returnStatus) {
           QNN_DEBUG("Successfully populated input tensors for graphIdx: %d", graphIdx);
           Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
+          uint64_t t_start = mllm_time_us();
+
           executeStatus =
               m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
                                                               inputs,
@@ -765,6 +767,9 @@ StatusCode QNNBackend::executeGraphs(std::map< std::string, std::vector<uint8_t*
                                                               graphInfo.numOutputTensors,
                                                               m_profileBackendHandle,
                                                               nullptr);
+          uint64_t t_end = mllm_time_us();
+          std::cout << "QNN execution time" << (t_end - t_start)/ 1000.0F << " ms" << std::endl;
+
           if (QNN_GRAPH_NO_ERROR != executeStatus) {
             returnStatus = StatusCode::FAILURE;
           }
