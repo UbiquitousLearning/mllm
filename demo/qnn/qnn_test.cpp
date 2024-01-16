@@ -25,11 +25,11 @@ NetTensor * Attention(Context *ctx, NetTensor * i, uint32_t hidden_dim, uint32_t
     // q = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
     // k = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
     // v = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
-    q = _RoPE(ctx, {q}, std::to_string(layer)+"RoPE_q");
-    k = _RoPE(ctx, {k}), std::to_string(layer)+"RoPE_k";
+    // q = _RoPE(ctx, {q}, std::to_string(layer)+"RoPE_q");
+    // k = _RoPE(ctx, {k}), std::to_string(layer)+"RoPE_k";
     auto *qk = _Matmul(ctx, {q, k}, false, true, std::to_string(layer)+"attention.qk");
     qk = _Scale(ctx, {qk}, 0.5f, 0.0F, false, std::to_string(layer)+"attention.scale");
-    qk = _Causalmask(ctx, {qk}, std::to_string(layer)+"mask");
+    // qk = _Causalmask(ctx, {qk}, std::to_string(layer)+"mask");
     qk = _Softmax(ctx, {qk}, 3, std::to_string(layer)+"softmax");
     auto *o = _Matmul(ctx, {qk, v}, false, false, std::to_string(layer)+"qkv");
     // o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, "qkv_view");
@@ -53,8 +53,8 @@ NetTensor * FFN(Context *ctx, NetTensor * i, uint32_t hidden_dim, uint32_t ffn_h
 void LLaMA(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim) {
     auto *i = _Input(ctx);
 
-    i = _RoPE(ctx, {i}, "RoPE_0");
-    // i = _Softmax(ctx, {i}, 3, "softmax0");
+    // i = _RoPE(ctx, {i}, "RoPE_0");
+    i = _Softmax(ctx, {i}, 3, "softmax0");
     for(int layer=0; layer<4; ++layer) {
 
         auto *x = _RMSNorm(ctx, {i}, std::to_string(layer)+"RMSNorm");
@@ -64,6 +64,19 @@ void LLaMA(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim) {
 
 }
 
+
+NetTensor * SiLU(Context *ctx,  uint32_t hidden_dim, uint32_t ffn_hidden_dim, int layer) {
+
+    auto *i = _Input(ctx);
+    auto *z = _SiLU(ctx, {i}, "ffn.silu1");
+    for (int i = 1; i<=layer; i++)
+        z = _SiLU(ctx, {z}, std::to_string(i)+".ffn.silu1");
+
+    return z;
+}
+
+
+
 template <typename Dtype>
 void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dtype value) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_QNN].get());
@@ -72,7 +85,7 @@ void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dty
     input_tensor->fullData<Dtype>(value);
 }
 
-int main() {
+int main(int argc,char **argv) {
     // BackendConfig bnc;
 
     // shared_ptr<MemoryManager> mm = nullptr;
@@ -99,15 +112,23 @@ int main() {
 
     // delete qbn;
 
+    // argv 1 op name
+    // argv 2 execution times
+
     int vocab_size = 32000;
     int hidden_dim = 4096;
-    int ffn_hidden_dim = 4096;
+    int ffn_hidden_dim = 11008;
     int mutil_head_size = 32;
 
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
 
-    LLaMA(c, hidden_dim, ffn_hidden_dim);
+    if (strcmp(argv[1], "silu") == 0) {
+        SiLU(c, hidden_dim, ffn_hidden_dim, atoi(argv[2]));
+    } else {
+        LLaMA(c, hidden_dim, ffn_hidden_dim);
+    }
+    
 
     BackendConfig bn;
     Net net(c->sub_param_, bn);
@@ -123,6 +144,6 @@ int main() {
 
     ex.execute(&net, input);
     ex.perf();
-    auto result = ex.result();
+    // auto result = ex.result();
     // result[0]->printData<float>();
 }
