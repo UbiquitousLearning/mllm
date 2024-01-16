@@ -10,7 +10,6 @@ CPUCat::CPUCat(Backend *bn, string opName, Chl axis, int threadCount) :
 }
 
 ErrorCode CPUCat::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // std::cout<<name() << "  CPUCat  reshape" << std::endl;
     expd_batch_ = inputs[0]->batch();
     for (int ii = 0; ii < inputs.size(); ++ii) {
         auto input = inputs[ii];
@@ -59,17 +58,16 @@ ErrorCode CPUCat::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
 }
 
 ErrorCode CPUCat::load(AbstructLoader &loader) {
-    // std::cout<<name() << "  CPUCat load" << std::endl;
     return Op::load(loader);
 }
 
 ErrorCode CPUCat::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    if(axis_ == BATCH) {
+    if (axis_ == BATCH) {
         for (int n = 0; n < inputs.size(); ++n) {
             auto copysize = inputs[0]->batch() * inputs[0]->head() * inputs[0]->sequence() * inputs[0]->dimension();
-            memcpy(outputs[0]->ptrAt<float>(n*inputs[0]->batch(), 0, 0, 0), inputs[n]->ptrAt<float>(0, 0, 0, 0), sizeof(float) * copysize);
+            memcpy(outputs[0]->ptrAt<float>(n * inputs[0]->batch(), 0, 0, 0), inputs[n]->ptrAt<float>(0, 0, 0, 0), sizeof(float) * copysize);
         }
-    }else if (axis_ == DIMENSION) {
+    } else if (axis_ == DIMENSION) {
         for (int n = 0; n < expd_batch_; ++n) {
             for (int c = 0; c < inputs[0]->head(); ++c) {
                 for (int h = 0; h < inputs[0]->sequence(); ++h) {
@@ -107,14 +105,12 @@ ErrorCode CPUCat::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
 }
 
 ErrorCode CPUCat::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // std::cout<<name() << "  CPUCat() free" << std::endl;
     return Op::free(inputs, outputs);
 }
 
 ErrorCode CPUCat::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // std::cout<<name() << "  CPUCat() setUp" << std::endl;
     if (axis_ == SEQUENCE && inputs[0]->head() != 1) { //
-        CHECK_EQ(outputs.size(), 1);
+        assert(outputs.size() == 1);
         outputs[0]->setDtype(activation_dtype());
         outputs[0]->alloc();
         int cbatch = 0;

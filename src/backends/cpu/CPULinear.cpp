@@ -15,8 +15,8 @@ CPULinear::CPULinear(Backend *bn, string opName, int in_features, int out_featur
 
 ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     //std::cout << name() << "  CPULinear  reshape" << std::endl;
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
     if(inputs[0]->count() == 0) {
         outputs[0]->reshape(0,0,0,0);
         return Op::reshape(inputs, outputs);
@@ -31,8 +31,8 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     // -----------------------------------------------
     // batch |out_channel | seq_len               |  1
     //       |out_features|  inputs[0]->sequence()  |
-    CHECK_EQ(inputs[0]->head(), 1);
-    CHECK_EQ(in_features_, inputs[0]->dimension());
+    assert(inputs[0]->head() == 1);
+    assert(in_features_ == inputs[0]->dimension());
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
     //outputs[0]->setDtype(activationDtype());
     return Op::reshape(inputs, outputs);
@@ -42,7 +42,7 @@ ErrorCode CPULinear::load(AbstructLoader &loader) {
     //std::cout << name() << "  CPULinear load" << std::endl;
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, out_features_, in_features_);
-    if (&loader != nullptr) {
+    if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
         weight_.setDtype(loader.getDataType(weight_.name()));
         weight_.alloc();
         loader.load(&weight_);
@@ -53,7 +53,7 @@ ErrorCode CPULinear::load(AbstructLoader &loader) {
     if (support_bias_) {
         bias_.setName(name() + ".bias");
         bias_.reshape(1, 1, 1, out_features_);
-        if (&loader != nullptr) {
+        if (loader.getDataType(bias_.name()) != MLLM_TYPE_COUNT) {
             bias_.setDtype(loader.getDataType(bias_.name()));
             bias_.alloc();
             loader.load(&bias_);

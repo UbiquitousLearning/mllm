@@ -23,7 +23,7 @@ CPUView::CPUView(Backend *bn,  string opName,vector<int> dims, vector<int>data_d
 }
 
 ErrorCode CPUView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUView  reshape" << std::endl;
+
     // if(data_dim4_ != -999) {
     //     int dim0 = inputs[0]->batch();
     //     int dim1 = inputs[0]->channel();
@@ -90,8 +90,8 @@ ErrorCode CPUView::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode CPUView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
     if (   (data_dim0_ == BATCH && data_dim2_ ==SEQUENCE && inputs[0]->ctype()!=BCTHW)  // head & dimension
         || (data_dim0_ == BATCH && data_dim3_ ==DIMENSION && inputs[0]->ctype()==BSHD) // head & sequence
         || (data_dim0_ == SEQUENCE && data_dim1_ == HEAD && data_dim2_ == BATCH && data_dim3_ ==DIMENSION && inputs[0]->ctype()==BSHD) // head & sequence

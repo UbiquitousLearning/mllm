@@ -4,8 +4,6 @@
 
 namespace mllm {
 
-// template class CPURMSNorm;
-// template class CPURMSNorm;
 // int32_t opp = 897988541;
 
 // int32_t op_params[1];
@@ -63,7 +61,7 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 ErrorCode CPURMSNorm::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, 1, normSize_); //
-    if (&loader != nullptr) {
+    if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
         weight_.setDtype(loader.getDataType(weight_.name()));
         weight_.alloc();
         // auto l = loader.length(weight_.name());

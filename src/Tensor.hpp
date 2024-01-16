@@ -1,9 +1,7 @@
-
 #ifndef MLLM_TENSOR_H
 #define MLLM_TENSOR_H
 #include <climits>
 #include "Backend.hpp"
-#include "Check.hpp"
 #include <iostream>
 #include <cstdio>
 #include <iomanip>
@@ -26,7 +24,6 @@ class Backend;
 
 class Tensor {
 public:
-    // Tensor():data_(), diff_(), capacity_(0){}
     Tensor() :
         host_ptr_(), capacity_(0), dtype_(MLLM_TYPE_F32) {
     }
@@ -35,16 +32,13 @@ public:
     }
     ~Tensor() {
         if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_) {
-//            std::cout << "free " << name() << std::endl;
             backend_->free(host_ptr_);
-            //allocated_ = false;
-//            ::free(host_ptr_);
             host_ptr_ = nullptr;
         }
     }
-    explicit Tensor(const int num, const int channels, const int height, const int width); // N C H W like Caffe //TODO add param: HostMemory; NCHW_Type?
+    explicit Tensor(const int num, const int channels, const int height, const int width);
     explicit Tensor(const vector<int> &shape);
-        //    bool reshape(const int num, const int channels, const int height, const int width);
+
     bool reshape(const int batch, const int head, const int sequence, const int dimension);
 
     void alloc();
@@ -53,8 +47,8 @@ public:
         alloc();
     }
 
-    void free(){
-        if(aggregated_){return;}
+    void free() {
+        if (aggregated_) { return; }
         if (host_ptr_ != nullptr && masterTensor() == nullptr) {
             backend_->free(host_ptr_);
             host_ptr_ = nullptr;
@@ -63,7 +57,7 @@ public:
     }
 
     void update();
-    
+
     size_t size() const {
         return capacity_ * dtypeSize();
     }
@@ -77,8 +71,6 @@ public:
     }
     inline int head() const {
         switch (ctype_) {
-        // case BHSD:
-        //     return legacyShape(1);
         case BSHD:
             return legacyShape(2);
         case BHDS:
@@ -91,8 +83,6 @@ public:
     }
     inline int sequence() const {
         switch (ctype_) {
-        // case BHSD:
-        //     return legacyShape(2);
         case BSHD:
             return legacyShape(1);
         case BHDS:
@@ -105,8 +95,6 @@ public:
     }
     inline int dimension() const {
         switch (ctype_) {
-        // case BHSD:
-        //     return legacyShape(3);
         case BSHD:
             return legacyShape(3);
         case BHDS:
@@ -140,9 +128,6 @@ public:
     }
     inline int legacyShape(int index) const {
         if (index >= numAxes() || index < -numAxes()) {
-            // Axis is out of range, but still in [0, 3] (or [-4, -1] for reverse
-            // indexing) -- this special case simulates the one-padding used to fill
-            // extraneous axes of legacy Tensors.
             return 1;
         }
         return shape(index);
@@ -155,13 +140,11 @@ public:
             const int base_head_ = shape_master_[1];
             const int base_sequence_ = shape_master_[2];
             const int base_dimension_ = shape_master_[3];
-            const int b_ = (b + shape_offset_[0])%base_batch_;
-            const int h_ = (h + shape_offset_[1])%base_head_;
-            const int s_ = (s + shape_offset_[2])%base_sequence_;
-            const int d_ = (d + shape_offset_[3])%base_dimension_;
+            const int b_ = (b + shape_offset_[0]) % base_batch_;
+            const int h_ = (h + shape_offset_[1]) % base_head_;
+            const int s_ = (s + shape_offset_[2]) % base_sequence_;
+            const int d_ = (d + shape_offset_[3]) % base_dimension_;
             switch (ctype_) {
-            // case BHSD:
-            //     return ((b_ * base_head_ + h_) * base_sequence_ + s_) * base_dimension_ + d_;
             case BSHD:
                 return ((b_ * base_sequence_ + s_) * base_head_ + h_) * base_dimension_ + d_;
             case BHDS:
@@ -173,8 +156,6 @@ public:
             }
         } else {
             switch (ctype_) {
-            // case BHSD:
-            //     return ((b * head() + h) * sequence() + s) * dimension() + d;
             case BSHD:
                 return ((b * shape_[1] + s) * shape_[2] + h) * shape_[3] + d;
             case BHDS:
@@ -192,13 +173,10 @@ public:
         if (shape_offset_.size() == 4 & shape_master_.size() == 4) {
             return offset(indices[0], indices[1], indices[2], indices[3]);
         } else {
-            CHECK_LE(indices.size(), numAxes());
             int offset = 0;
             for (int i = 0; i < numAxes(); ++i) {
                 offset *= shape(i);
                 if (indices.size() > i) {
-                    CHECK_GE(indices[i], 0);
-                    CHECK_LT(indices[i], shape(i));
                     offset += indices[i];
                 }
             }
@@ -213,10 +191,9 @@ public:
 
     template <typename Dtype>
     Dtype dataAt(const int batch, const int head, const int sequence, const int dimension) const {
-        //        return hostPtr<Dtype>()[offset(n, c, h, w)];
-        if(!aggregated_) {
+        if (!aggregated_) {
             return ((Dtype *)host_ptr_)[offset(batch, head, sequence, dimension)];
-        }else{
+        } else {
             int b = batch;
             int h = head;
             int s = sequence;
@@ -232,10 +209,10 @@ public:
     }
 
     template <typename Dtype>
-    Dtype* ptrAt(const int batch, const int head, const int sequence, const int dimension) {
-        if(!aggregated_){
+    Dtype *ptrAt(const int batch, const int head, const int sequence, const int dimension) {
+        if (!aggregated_) {
             return ((Dtype *)host_ptr_ + offset(batch, head, sequence, dimension));
-        }else{
+        } else {
             int b = batch;
             int h = head;
             int s = sequence;
@@ -246,16 +223,16 @@ public:
     }
 
     template <typename Dtype>
-    Dtype* ptrAt(const vector<int> &index) const {
+    Dtype *ptrAt(const vector<int> &index) const {
         return ptrAt<Dtype>(index[0], index[1], index[2], index[3]);
     }
 
     template <typename Dtype>
     void setDataAt(const int batch, const int head, const int sequence, const int dimension, Dtype value) {
-        if(!aggregated_) {
+        if (!aggregated_) {
             Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
             typed_ptr[offset(batch, head, sequence, dimension)] = value;
-        }else{
+        } else {
             int b = batch;
             int h = head;
             int s = sequence;
@@ -269,10 +246,10 @@ public:
     void setDataAt(const vector<int> &index, Dtype value) {
         setDataAt(index[0], index[1], index[2], index[3], value);
     }
-    DataType dtypeAt(const int batch, const int head, const int sequence, const int dimension) const{
-        if(!aggregated_){
+    DataType dtypeAt(const int batch, const int head, const int sequence, const int dimension) const {
+        if (!aggregated_) {
             return dtype_;
-        }else{
+        } else {
             int b = batch;
             int h = head;
             int s = sequence;
@@ -325,7 +302,7 @@ public:
         return allocated_;
     }
 
-     /**
+    /**
      * @brief Copy from a source Tensor.
      * @param source the Tensor to copy from
      * @param copy_diff if false, copy the data; if true, copy the diff
@@ -333,21 +310,20 @@ public:
      *        of other (and die otherwise); if true, reshape this Tensor to other's
      *        shape if necessary
      */
-    void copyFrom(const Tensor &source, bool copy_diff = false, bool reshape = false){
+    void copyFrom(const Tensor &source, bool copy_diff = false, bool reshape = false) {
         assert(masterTensor() == nullptr);
-        CHECK_EQ(source.dtype(), dtype());
-        CHECK_EQ(source.count(), count());
+        assert(source.dtype() == dtype());
+        assert(source.count() == count());
         // copy
         memcpy(host_ptr_, source.host_ptr_, cntSize());
     }
-    void copyFrom(const shared_ptr<Tensor> &source, bool reshape = false){
+    void copyFrom(const shared_ptr<Tensor> &source, bool reshape = false) {
         assert(masterTensor() == nullptr);
-        CHECK_EQ(source->dtype(), dtype());
-        CHECK_EQ(source->count(), count());
+        assert(source->dtype() == dtype());
+        assert(source->count() == count());
         // copy
         memcpy(host_ptr_, source->host_ptr_, cntSize());
     }
-
 
     /************************************Deep Copy   MasterTenser  *******************/
 
@@ -357,26 +333,26 @@ public:
      * \param shape_offset
      */
 
-    void deepCopyFrom(Tensor* source, bool copyshape = true, const vector<int>& shape_offset = {}, int head_rep=1) {
-        if(!shape_offset.empty()) {
+    void deepCopyFrom(Tensor *source, bool copyshape = true, const vector<int> &shape_offset = {}, int head_rep = 1) {
+        if (!shape_offset.empty()) {
             copyshape = false;
         }
         setMasterTensor(source);
-        if(ctype_ != BCTHW && ctype_ != BTHWC && ctype_ != master_tensor_->ctype() && undiffusion_ == false) {
+        if (ctype_ != BCTHW && ctype_ != BTHWC && ctype_ != master_tensor_->ctype() && undiffusion_ == false) {
             if (transed_) { // child tensor have been transed(BSHD->BHDS);
                 auto b = master_tensor_->batch();
                 auto h = master_tensor_->head();
                 auto d = master_tensor_->dimension();
                 auto s = master_tensor_->sequence();
                 master_tensor_->ctype_ = ctype_;
-                master_tensor_->reshape(b, h, s,d);
+                master_tensor_->reshape(b, h, s, d);
             } else {
                 auto b = batch();
                 auto h = head();
                 auto d = dimension();
                 auto s = sequence();
                 ctype_ = master_tensor_->ctype_;
-                reshape(b, h, s,d);
+                reshape(b, h, s, d);
             }
         }
         host_ptr_ = source->hostPtr<void>();
@@ -391,16 +367,16 @@ public:
         if (!shape_offset.empty()) {
             shape_offset_ = shape_offset;
             shape_master_ = {source->batch(), source->head(), source->sequence(), source->dimension()};
-            if(source->head() != head()) { // TODO: need to check
-                if(head() == 1 &&  head_rep ==1) {
+            if (source->head() != head()) { // TODO: need to check
+                if (head() == 1 && head_rep == 1) {
                     shape_master_ = {source->batch(), head(), source->sequence(), source->dimension() * source->head() / head()};
-                } else if(head() == 1 &&  head_rep >1) {
+                } else if (head() == 1 && head_rep > 1) {
                     shape_master_ = {source->batch(), head(), source->sequence(), source->dimension() * source->head() / head_rep};
                 }
             }
         }
 
-        for (auto &child_tensor: child_tensors_) {
+        for (auto &child_tensor : child_tensors_) {
             if (!shape_offset.empty()) {
                 child_tensor->deepCopyFrom(source, false, shape_offset, head_rep);
             } else {
@@ -411,7 +387,7 @@ public:
         source->addChildTensor(this);
     }
 
-    void deepCopyFrom(Tensor &source, bool copyshape = true, const vector<int>& shape_offset = {}, int head_rep=1) {
+    void deepCopyFrom(Tensor &source, bool copyshape = true, const vector<int> &shape_offset = {}, int head_rep = 1) {
         deepCopyFrom(&source, copyshape, shape_offset, head_rep);
     }
 
@@ -425,19 +401,19 @@ public:
     Tensor *masterTensor() const {
         return master_tensor_;
     }
-    void setMasterTensor(Tensor* master_tensor) {
+    void setMasterTensor(Tensor *master_tensor) {
         master_tensor_ = master_tensor;
     }
 
     vector<Tensor *> childTensors() {
         return child_tensors_;
     }
-    void addChildTensor(Tensor* child) {
+    void addChildTensor(Tensor *child) {
         child_tensors_.push_back(child);
     }
 
     void transShape(Chl dim_a = SEQUENCE, Chl dim_b = DIMENSION, bool undiffusion = false) {
-        if(dim_a == SEQUENCE && dim_b == DIMENSION && ctype() == BSHD) {
+        if (dim_a == SEQUENCE && dim_b == DIMENSION && ctype() == BSHD) {
             auto b = batch();
             auto h = head();
             auto d = dimension();
@@ -446,7 +422,7 @@ public:
             reshape(b, h, s, d);
             transed_ = true;
             undiffusion_ = undiffusion;
-        } else if(THW == dim_a && dim_b == CHANNLE &&ctype() == BCTHW) {
+        } else if (THW == dim_a && dim_b == CHANNLE && ctype() == BCTHW) {
             auto b = batch();
             auto c = channel();
             auto t = time();
@@ -456,7 +432,7 @@ public:
             reshape(b, c, t, h, w);
             transed_ = true;
             undiffusion_ = undiffusion;
-        } else if(dim_a == BATCH && dim_b == SEQUENCE && ctype() == BSHD) {
+        } else if (dim_a == BATCH && dim_b == SEQUENCE && ctype() == BSHD) {
             auto b = batch();
             auto h = head();
             auto d = dimension();
@@ -475,40 +451,40 @@ public:
         aggregated_dim_ = dim;
         aggregated_dims_ = {};
         switch (dim) {
-        case HEAD:{
+        case HEAD: {
             auto sum = 0;
             for (auto &t : ts) {
-                CHECK_EQ(t->batch(), batch());
-                CHECK_EQ(t->sequence(), sequence());
-                CHECK_EQ(t->dimension(), dimension());
+                assert(t->batch() == batch());
+                assert(t->sequence() == sequence());
+                assert(t->dimension() == dimension());
                 sum += t->head();
                 aggregated_dims_.push_back(sum);
             }
-            CHECK_EQ(sum, head());
+            assert(sum == head());
             break;
         }
         case SEQUENCE: {
             auto sum = 0;
             for (auto &t : ts) {
-                CHECK_EQ(t->batch(), batch());
-                CHECK_EQ(t->head(), head());
-                CHECK_EQ(t->dimension(), dimension());
+                assert(t->batch() == batch());
+                assert(t->head() == head());
+                assert(t->dimension() == dimension());
                 sum += t->sequence();
                 aggregated_dims_.push_back(sum);
             }
-            CHECK_EQ(sum, sequence());
+            assert(sum == sequence());
             break;
         }
         case DIMENSION: {
             auto sum = 0;
             for (auto &t : ts) {
-                CHECK_EQ(t->batch(), batch());
-                CHECK_EQ(t->head(), head());
-                CHECK_EQ(t->sequence(), sequence());
+                assert(t->batch() == batch());
+                assert(t->head() == head());
+                assert(t->sequence() == sequence());
                 sum += t->dimension();
                 aggregated_dims_.push_back(sum);
             }
-            CHECK_EQ(sum, dimension());
+            assert(sum == dimension());
             break;
         }
         default:
@@ -566,7 +542,7 @@ public:
         case BCTHW:
             return (((b * channel() + c) * time() + t) * height() + h) * width() + w;
         case BTHWC:
-            return (((b * time() + t) * height() + h) * width() + w) *channel() + c ;
+            return (((b * time() + t) * height() + h) * width() + w) * channel() + c;
         default: return -1;
         }
     }
@@ -587,8 +563,6 @@ public:
         typed_ptr[offset(batch, channel, time, height, width)] = value;
     }
 
-
-
 public:
     /*TEST*/
 
@@ -596,7 +570,7 @@ public:
 
     template <typename Dtype>
     void checkData() {
-        if(ctype() == BTHWC || ctype() == BCTHW || dtype() !=MLLM_TYPE_F32) {
+        if (ctype() == BTHWC || ctype() == BCTHW || dtype() != MLLM_TYPE_F32) {
             return;
         }
         // n c h w
@@ -618,14 +592,14 @@ public:
                 }
             }
         }
-        if(ck) {
-            std::cout<<"\n[ERROR]:" << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] has Nan" << std::endl;
-            //printData<Dtype>();
+        if (ck) {
+            std::cout << "\n[ERROR]:" << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] has Nan" << std::endl;
+            // printData<Dtype>();
             assert(ck == false);
         }
     }
 
-    void printShape(){
+    void printShape() {
         std::cout << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "]" << std::endl;
     }
 
@@ -671,7 +645,7 @@ public:
 
     template <typename Dtype>
     void saveData(string ex = "") {
-        if(ctype() == BTHWC ||ctype() == BCTHW) {
+        if (ctype() == BTHWC || ctype() == BCTHW) {
             save5Data<Dtype>(ex);
             return;
         }
@@ -679,14 +653,14 @@ public:
         string directory = "save_out";
         struct stat info;
 
-        if(stat(directory.c_str(), &info) != 0) {
+        if (stat(directory.c_str(), &info) != 0) {
             // if the directory does not exist, create it
 #ifdef _WIN32
             _mkdir(directory.c_str());
 #else
             mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
 #endif
-        } else if(!(info.st_mode & S_IFDIR)) {
+        } else if (!(info.st_mode & S_IFDIR)) {
             // if the path exists but it is not a directory, also create it
 #ifdef _WIN32
             _mkdir(directory.c_str());
@@ -694,10 +668,10 @@ public:
             mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
 #endif
         }
-        std::ofstream outFile(directory+ "/" + name() +ex + ".log");
+        std::ofstream outFile(directory + "/" + name() + ex + ".log");
 
         outFile << "----------------------------------------" << std::endl;
-        outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] "<<dtype()<<" "<<ctype()<< std::endl;
+        outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] " << dtype() << " " << ctype() << std::endl;
 
         int N = batch();
         int C = head();
@@ -736,30 +710,30 @@ public:
         outFile.close();
     }
 
-     /************************************B, C, T, H, W  *******************/
+    /************************************B, C, T, H, W  *******************/
     template <typename Dtype>
     void print5Data() {
         std::cout << "----------------------------------------" << std::endl;
-        std::cout << name() << ": shape:[" << batch() << " " << channel() << " " << time() << " " << height()<<" "<<width() << "]" << std::endl;
+        std::cout << name() << ": shape:[" << batch() << " " << channel() << " " << time() << " " << height() << " " << width() << "]" << std::endl;
         int N = batch();
         int C = channel();
         int T = time();
         int H = height();
         int W = height();
-            for (int n = 0; n < N; ++n) {
-                for (int c = 0; c < C; ++c) {
-                    for (int t = 0; t < T; ++t) {
-                        for (int h = 0; h < H; ++h) {
-                            for (int w = 0; w < W; ++w) {
-                                std::cout << std::fixed << std::setprecision(7) << dataAt<Dtype>(n, c, t, h, w) << " ";
-                            }
-                            std::cout << std::endl;
+        for (int n = 0; n < N; ++n) {
+            for (int c = 0; c < C; ++c) {
+                for (int t = 0; t < T; ++t) {
+                    for (int h = 0; h < H; ++h) {
+                        for (int w = 0; w < W; ++w) {
+                            std::cout << std::fixed << std::setprecision(7) << dataAt<Dtype>(n, c, t, h, w) << " ";
                         }
                         std::cout << std::endl;
                     }
                     std::cout << std::endl;
                 }
+                std::cout << std::endl;
             }
+        }
     }
 
     template <typename Dtype>
@@ -768,14 +742,14 @@ public:
         string directory = "save_out";
         struct stat info;
 
-        if(stat(directory.c_str(), &info) != 0) {
+        if (stat(directory.c_str(), &info) != 0) {
             // if the directory does not exist, create it
 #ifdef _WIN32
             _mkdir(directory.c_str());
 #else
             mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
 #endif
-        } else if(!(info.st_mode & S_IFDIR)) {
+        } else if (!(info.st_mode & S_IFDIR)) {
             // if the path exists but it is not a directory, also create it
 #ifdef _WIN32
             _mkdir(directory.c_str());
@@ -783,9 +757,9 @@ public:
             mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
 #endif
         }
-        std::ofstream outFile(directory+ "/" + name() +ex + ".log");
+        std::ofstream outFile(directory + "/" + name() + ex + ".log");
         outFile << "----------------------------------------" << std::endl;
-        outFile << name() << ": shape:[" << batch() << " " << channel() << " " << time() << " " << height()<<" "<<width() << "]" << std::endl;
+        outFile << name() << ": shape:[" << batch() << " " << channel() << " " << time() << " " << height() << " " << width() << "]" << std::endl;
         int N = batch();
         int C = channel();
         int T = time();
@@ -806,7 +780,6 @@ public:
             }
         }
     }
-
 
     template <typename Dtype>
     void printMem() {
@@ -836,7 +809,6 @@ public:
             }
         }
         std::cout << name() << " " << sum / count() << std::endl;
-//        std::cout << name() << ": shape:[" << num() << " " << channels() << " " << height() << " " << width() << "] AVG:" << sum / count() << std::endl;
     }
 
     shared_ptr<Tensor> view(int batch, int head, int sequence, int dimension) {
@@ -844,26 +816,6 @@ public:
         t->setBackend(backend_);
         t->setDtype(dtype_);
         t->reshape(batch, head, sequence, dimension);
-        t->host_ptr_ = host_ptr_;
-        return t;
-    }
-
-    shared_ptr<Tensor> unfold(int axis, int size, int step) {
-        CHECK_GE(axis, 0);
-        CHECK_LT(axis, numAxes());
-        CHECK_GE(size, 0);
-        CHECK_GE(step, 0);
-        CHECK_LE(size, shape(axis));
-        CHECK_LE(step, shape(axis));
-        CHECK_EQ(shape(axis) % step, 0);
-        auto t = std::make_shared<Tensor>();
-        t->setBackend(backend_);
-        t->setDtype(dtype_);
-        vector<int> shape = shape_;
-        shape[axis] = size;
-        shape.insert(shape.begin() + axis + 1, shape[axis] / step);
-        shape[axis + 1] = step;
-        t->reshape(shape);
         t->host_ptr_ = host_ptr_;
         return t;
     }
@@ -899,28 +851,21 @@ public:
         }
     }
 
-    // void permute(int axis0, int axis1, int axis2, int axis3, bool copy = true);
-
 private:
     bool reshape(const vector<int> &shape) {
-        CHECK_LE(shape.size(), KMaxAxes); // 维数不能超过kMaxBlobAxes
-        count_ = 1;                       // num*channels*height*width 赋值为1，为了相乘
+        assert(shape.size() <= KMaxAxes);
+        count_ = 1;
         shape_.resize(shape.size());
-        // if (!shape_data_ || shape_data_->size() < shape.size() * sizeof(int)) {
-        //     shape_data_.reset(new HostMemory(shape.size() * sizeof(int)));
-        // }
         for (int i = 0; i < shape.size(); ++i) {
-            CHECK_GE(shape[i], 0);
+            assert(shape[i] >= 0);
             if (count_ != 0) {
-                CHECK_LE(shape[i], INT_MAX / count_);
+                assert(shape[i] <= INT_MAX / count_);
             }
             count_ *= shape[i]; // 记录数据大小
             shape_[i] = shape[i];
         }
         if (count_ > capacity_) { // capactity不小于count
             capacity_ = count_;
-            // data_.reset(new  HostMemory(capacity_ * sizeof(Dtype)));
-            // diff_.reset(new  HostMemory(capacity_ * sizeof(Dtype)));
             return true;
         }
         return false;
@@ -930,7 +875,7 @@ private:
     }
 
     int checkDim(int &b, int &h, int &s, int &d) const {
-        if (!aggregated_){
+        if (!aggregated_) {
             return -1;
         }
         int tensor_id = -1;
@@ -942,7 +887,7 @@ private:
                     break;
                 }
             }
-            h = h - aggregated_dims_[tensor_id-1];
+            h = h - aggregated_dims_[tensor_id - 1];
             break;
         }
         case SEQUENCE: {
@@ -952,7 +897,7 @@ private:
                     break;
                 }
             }
-            s = s - aggregated_dims_[tensor_id-1];
+            s = s - aggregated_dims_[tensor_id - 1];
             break;
         }
         case DIMENSION: {
@@ -962,7 +907,7 @@ private:
                     break;
                 }
             }
-            d = d - aggregated_dims_[tensor_id-1];
+            d = d - aggregated_dims_[tensor_id - 1];
             break;
         }
         case D_HD: {
@@ -976,17 +921,12 @@ private:
             break;
         }
         case HD: {
-            // d: 0-3840
             auto orin_d = d;
-            int dim_size = aggregated_tensors_[0]->dimension(); //80
-            int head_size = aggregated_tensors_[0]->head(); //16
-            int aggregated_size = aggregated_tensors_.size();
-            tensor_id = orin_d/(dim_size *head_size);
-            h = (orin_d - tensor_id*(dim_size*head_size)) / dim_size ; //  d/(80*3)
-            d = (orin_d - tensor_id*(dim_size*head_size)) % dim_size ;
-            // if(tensor_id >0) {
-            //     std::cout<<tensor_id<<" "<<orin_d<<" "<<(orin_d - tensor_id*(dim_size*head_size))<<" "<<h<<" "<<d<<" "<<head_size<<" "<<dim_size<<std::endl;
-            // }
+            int dim_size = aggregated_tensors_[0]->dimension();
+            int head_size = aggregated_tensors_[0]->head();
+            tensor_id = orin_d / (dim_size * head_size);
+            h = (orin_d - tensor_id * (dim_size * head_size)) / dim_size;
+            d = (orin_d - tensor_id * (dim_size * head_size)) % dim_size;
             break;
         }
         default:
@@ -1002,21 +942,20 @@ private:
     Backend *backend_;
     void *host_ptr_;
     void *device_ptr_;
-    vector<int> shape_; // 保存 N K H W
-    int capacity_;      // 元素个数 申请内存的总长度相关
-    int count_;         // 当前元素数
+    vector<int> shape_;
+    int capacity_;
+    int count_;
     int allocated_ = 0;
-
 
     // shadow tensor if;
     vector<int> shape_offset_;
     vector<int> shape_master_;
-    Tensor* master_tensor_ = nullptr;
+    Tensor *master_tensor_ = nullptr;
     vector<Tensor *> child_tensors_;
     bool transed_ = false;
     bool undiffusion_ = false;
 
-    //aggregated
+    // aggregated
     bool aggregated_ = false;
     vector<shared_ptr<Tensor>> aggregated_tensors_;
     Chl aggregated_dim_;

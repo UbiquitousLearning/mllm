@@ -1,5 +1,5 @@
 //
-// Created by ey on 23-12-19.
+// Created by Rongjie Yi on 23-12-19.
 //
 
 #include "Pooling.hpp"

@@ -10,7 +10,7 @@ CPUTranspose::CPUTranspose(Backend *bn,  string opName, int axis0, int axis1, in
 }
 
 ErrorCode CPUTranspose::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUTranspose  reshape" << std::endl;
+
     // inputs[0]->transShape(SEQUENCE, DIMENSION);
     if(axis0_ == SEQUENCE && axis1_ == DIMENSION) {
         if(inputs[0]->ctype() == BSHD) {
@@ -31,22 +31,22 @@ ErrorCode CPUTranspose::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
 }
 
 ErrorCode CPUTranspose::load(AbstructLoader &loader) {
-    //std::cout<<name() << "  CPUTranspose load" << std::endl;
+
     return Op::load(loader);
 }
 
 ErrorCode CPUTranspose::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUTranspose()" << std::endl;
+
     return Op::execute(inputs, outputs);
 }
 
 ErrorCode CPUTranspose::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUTranspose() free" << std::endl;
+
     return Op::free(inputs, outputs);
 }
 
 ErrorCode CPUTranspose::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUTranspose() setUp" << std::endl;
+
     // return Op::setUp(inputs, outputs);
     if(inputs[0]->masterTensor() == nullptr) {
         inputs[0]->free();

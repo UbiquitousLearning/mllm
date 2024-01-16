@@ -41,7 +41,7 @@ ErrorCode CPUAvgPool2D::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
 
 
 ErrorCode CPUAvgPool2D::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUAvgPool()" << std::endl;
+
     switch (padding_type_) {
     case SAME:{
         avgpool2d_fp32_SAME(inputs[0].get(), outputs[0].get(),kernel_size_[0], kernel_size_[1], stride_[0], stride_[1], padding_h_, padding_w_, thread_count);
@@ -57,7 +57,7 @@ ErrorCode CPUAvgPool2D::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
 
 
 ErrorCode CPUAvgPool2D::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUAvgPool() setUp" << std::endl;
+
     return Op::setUp(inputs, outputs);
 }
 } // namespace mllm

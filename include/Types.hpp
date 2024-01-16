@@ -31,14 +31,6 @@ enum ErrorCode {
     COMPUTE_SIZE_ERROR = 3,
     NO_EXECUTION = 4,
     INVALID_VALUE = 5,
-
-    // // User error
-    // INPUT_DATA_ERROR = 10,
-    // CALL_BACK_STOP   = 11,
-
-    // // Op Resize Error
-    // TENSOR_NOT_SUPPORT = 20,
-    // TENSOR_NEED_DIVIDE = 21,
 };
 
 enum DataType {
@@ -66,7 +58,6 @@ enum DataType {
 };
 enum ChlType {
     BSHD = 0,
-    // BHSD = 1, //ABANDENED!!
     BHDS = 2,
 
     BCTHW = 3,

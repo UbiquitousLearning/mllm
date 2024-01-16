@@ -95,6 +95,8 @@ void QuantWriter::quantParams(DataType dataType) {
                 quantize_row_q8_K(param, quant_ptr, size);
                 size = block_t.second;
                 break;
+            default:
+                break;
             }
             if (quant_ptr != nullptr) {
                 if ((dataType == MLLM_TYPE_Q4_0) |(dataType ==MLLM_TYPE_Q4_K)|dataType ==MLLM_TYPE_Q6_K) {
@@ -152,6 +154,8 @@ void QuantWriter::quantParams(DataType dataType) {
                 break;
             case MLLM_TYPE_COUNT:
                 UNREACHABLE()
+                break;
+            default:
                 break;
             }
             if (quant_ptr != nullptr) {

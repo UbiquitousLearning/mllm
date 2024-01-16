@@ -58,7 +58,7 @@ class AbstructLoader {
 public:
     virtual bool load(mllm::Tensor *tensor) = 0;
     virtual bool load(std::shared_ptr<mllm::Tensor> tensor) = 0;
-    virtual DataType getDataType(string name) = 0;
+    virtual DataType getDataType(string name) {return MLLM_TYPE_COUNT;}
     // virtual int length (string name) =0;
 };
 class ParamLoader : public AbstructLoader {

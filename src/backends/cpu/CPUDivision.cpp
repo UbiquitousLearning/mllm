@@ -8,14 +8,14 @@ CPUDivision::CPUDivision(Backend *bn, string opName, int threadCount) : thread_c
 }
 
 ErrorCode CPUDivision::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // std::cout<<name() << "  CPUDivision  reshape" << std::endl;
-    CHECK_EQ(inputs.size(), 2);
-    CHECK_EQ(outputs.size(), 1);
+
+    assert(inputs.size() == 2);
+    assert(outputs.size() == 1);
     if (inputs[1]->count() != 1) {
-        CHECK_EQ(inputs[0]->batch(), inputs[1]->batch());
-        CHECK_EQ(inputs[0]->head(), inputs[1]->head());
-        CHECK_EQ(inputs[0]->sequence(), inputs[1]->sequence());
-        CHECK_EQ(inputs[0]->dimension(), inputs[1]->dimension());
+        assert(inputs[0]->batch() == inputs[1]->batch());
+        assert(inputs[0]->head() == inputs[1]->head());
+        assert(inputs[0]->sequence() == inputs[1]->sequence());
+        assert(inputs[0]->dimension() == inputs[1]->dimension());
     }
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
 
@@ -23,7 +23,7 @@ ErrorCode CPUDivision::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_
     return Op::reshape(inputs, outputs);
 }
 ErrorCode CPUDivision::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // std::cout<<name() << "  CPUDivision()" << std::endl;
+
     int N = inputs[0]->batch();
     int C = inputs[0]->head();
     int H = inputs[0]->sequence();

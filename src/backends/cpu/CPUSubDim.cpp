@@ -11,7 +11,7 @@ CPUSubDim::CPUSubDim(Backend *bn,  string opName,Chl dim, vector<int> interval, 
 }
 
 ErrorCode CPUSubDim::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUSubDim  reshape" << std::endl;
+
     auto input = inputs[0];
     switch (dim_) {
     case BATCH: {
@@ -85,7 +85,7 @@ ErrorCode CPUSubDim::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 }
 
 ErrorCode CPUSubDim::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUSubDim()" << std::endl;
+
     auto input = inputs[0];
     auto output = outputs[0];
     switch (dim_) {

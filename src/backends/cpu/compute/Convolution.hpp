@@ -1,5 +1,5 @@
 //
-// Created by ey on 23-12-18.
+// Created by Rongjie Yi on 23-12-18.
 //
 
 #ifndef CONVOLUTION2D_HPP

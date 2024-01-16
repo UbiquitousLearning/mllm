@@ -23,7 +23,7 @@ ErrorCode CPUConvolution2D::reshape(vector<shared_ptr<Tensor>> inputs, vector<sh
     //sequence = out_channel
     //head = height
     //dimension = width
-    CHECK_EQ(in_channel_, inputs[0]->sequence());
+    assert(in_channel_ == inputs[0]->sequence());
     switch (padding_type_) {
     case SAME:{
         padding_h_ = (kernel_size_[0] - 1) / 2;
@@ -46,10 +46,10 @@ ErrorCode CPUConvolution2D::reshape(vector<shared_ptr<Tensor>> inputs, vector<sh
 }
 
 ErrorCode CPUConvolution2D::load(AbstructLoader &loader) {
-    //std::cout<<name() << "  CPUConvolution2D load" << std::endl;
+
     weight_.setName(name() + ".weight");
     weight_.reshape(out_channel_, kernel_size_[0], in_channel_, kernel_size_[1]);
-    if (&loader != nullptr) {
+    if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
         weight_.setDtype(loader.getDataType(weight_.name()));
         weight_.alloc();
         loader.load(&weight_);
@@ -60,7 +60,7 @@ ErrorCode CPUConvolution2D::load(AbstructLoader &loader) {
     if (support_bias_) {
         bias_.setName(name() + ".bias");
         bias_.reshape(1, 1, 1, out_channel_);
-        if (&loader != nullptr) {
+        if (loader.getDataType(bias_.name()) != MLLM_TYPE_COUNT) {
             bias_.setDtype(loader.getDataType(bias_.name()));
             bias_.alloc();
             loader.load(&bias_);
@@ -73,7 +73,7 @@ ErrorCode CPUConvolution2D::load(AbstructLoader &loader) {
 }
 
 ErrorCode CPUConvolution2D::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // std::cout<<name() << "  CPUConvolution2D()" << std::endl;
+
     switch (padding_type_) {
     case SAME:{
         conv2d_fp32_SAME(inputs[0].get(), outputs[0].get(), &weight_, support_bias_, &bias_, stride_[0], stride_[1], padding_h_, padding_w_, thread_count);
@@ -88,13 +88,13 @@ ErrorCode CPUConvolution2D::execute(vector<shared_ptr<Tensor>> inputs, vector<sh
 }
 
 ErrorCode CPUConvolution2D::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUConvolution2D() free" << std::endl;
+
     weight_.free();
     return Op::free(inputs, outputs);
 }
 
 ErrorCode CPUConvolution2D::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUConvolution2D() setUp" << std::endl;
+
     return Op::setUp(inputs, outputs);
 }
 } // namespace mllm

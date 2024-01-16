@@ -1,5 +1,5 @@
 //
-// Created by 30500 on 2020/12/2 0002.
+// Created by Rongjie Yi.
 //
 #include "Graph.hpp"
 #include "OpDefined.hpp"
@@ -12,11 +12,9 @@ std::string intToStringWithLeadingZero(int num) {
 }
 
 namespace mllm {
-// template class Graph;
-// template class Graph;
 
 /**
- * @brief 初始化
+ * @brief init
  * @param in_param
  */
 
@@ -88,25 +86,9 @@ void Graph::reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_ten
                 ops_input_tensors_[op].push_back(external_tensors[input_tensor_name]);
             }
         }
-
     }
-//    ops_input_tensors_[op_names_[0]].clear();
-////    auto in_tensors = param_.net_ops[0]->in;
-//    //    vector<shared_ptr<Tensor>> inTensors;
-//    for (auto input_tensor_name : input_tensor_names)
-//    {
-//        if (tensors_.find(input_tensor_name) != tensors_.end()) {
-//            ops_input_tensors_[op_names_[0]].push_back(tensors_[input_tensor_name]);
-//        } else {
-//            ops_input_tensors_[op_names_[0]].push_back(external_tensors[input_tensor_name]);
-//        }
-//    }
-    //ops_input_tensors_[param_.net_ops[0]->name][0]->printData<float>();
-    //std::cout << param_.net_ops[0]->name << std::endl;
-    //    ops_input_tensors_[param_.net_ops[0]->name] = inTensors;
 }
 void Graph::reshape() {
-    // RESHAPE
     for (const auto& op_name : op_names_) {
         ops_[op_name]->reshape(ops_input_tensors_[op_name], ops_output_tensors_[op_name]); // tensors_[op_name]:1.reshape
     }
@@ -128,31 +110,9 @@ void Graph::setUpOps(ParamLoader &loader) {
     }
 }
 
-//void Graph::reshapeOutputs() {
-//    // RESHAPE
-//    for (int i = 0; i < (int)param_.net_ops.size(); ++i) {
-//        auto *net_op = param_.net_ops[i];
-//        string op_name = net_op->name;
-//        ops_[op_name]->reshapeOutputs(ops_input_tensors_[op_name], ops_output_tensors_[op_name]);
-//    }
-//}
-
-//void Graph::setUp(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0) {
-//    if (init) {
-//        std::cout << "EXE:: Init" << std::endl;
-//        this->setUpTensors();
-//    } else if (reshape) {
-//        std::cout << "EXE:: Reshape" << std::endl;
-//        if (graph0) {
-//            this->reFlashInput(external_tensors);
-//        }
-//        this->reshapeOutputs();
-//    }
-//}
-
 
 /**
- * @brief 前向传播
+ * @brief forward
  * @param loss
  * @return
  */
@@ -166,7 +126,8 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
         uint64_t t_start = mllm_time_us();
 #endif
         ops_[op_name]->execute(ops_input_tensors_[op_name], ops_output_tensors_[op_name]);
-/*
+
+#ifdef SAVECHECK
         for(auto &t: ops_input_tensors_[op_name]){
             t->checkData<float>();
             t->saveData<float>();
@@ -175,7 +136,7 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
              t->checkData<float>();
              t->saveData<float>();
          }
-*/
+#endif
 
 #ifdef DEBUG
         uint64_t t_end = mllm_time_us();
@@ -185,17 +146,8 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
             ops_[op_name]->free(ops_input_tensors_[op_name], ops_output_tensors_[op_name]);
         }
     }
-    // TODO
     return ops_output_tensors_[op_names_[op_names_.size() - 1]];
 }
-
-//const vector<shared_ptr<Tensor>> &Graph::forward(const vector<shared_ptr<Tensor>> &inTensors) {
-//    // Copy
-//    // for (int i = 0; i < inTensors.size(); ++i) {
-//    //     tensors_["Input0"][i]->CopyFrom(*inTensors[i]);
-//    // }
-//    return forward();
-//}
 
 void Graph::freeOps(){
     for (const auto& op_name: op_names_) {
@@ -208,7 +160,6 @@ void Graph::freeTensors(){
     }
 }
 void Graph::free() {
-    //TODO update
     freeOps();
     freeTensors();
 }

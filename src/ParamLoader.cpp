@@ -65,6 +65,7 @@ path_(std::move(filename)), use_mmap_(use_mmap) {
 
     if (this->fp_ == nullptr) {
         std::cout << "param open file failed" << std::endl;
+        return;
         int errorCode = errno;
         char *errorMsg = strerror(errorCode);
         printf("Open file fail, errorCode:%d, errorMsg:%s\n", errorCode, errorMsg);

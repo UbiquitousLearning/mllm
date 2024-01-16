@@ -17,11 +17,6 @@ bool Tensor::reshape(const int batch, const int head, const int sequence, const 
     vector<int> shape(4);
     shape[0] = batch;
     switch (ctype_) {
-    // case BHSD:
-    //     shape[1] = head;
-    //     shape[2] = sequence;
-    //     shape[3] = dimension;
-    //     break;
     case BSHD:
         shape[1] = sequence;
         shape[2] = head;

@@ -1,5 +1,5 @@
 //
-// Created by lx on 23-10-16.
+// Created by Xiang Li on 23-10-16.
 //
 #include "CPUTest.hpp"
 #include "backends/cpu/CPUSoftMax.hpp"

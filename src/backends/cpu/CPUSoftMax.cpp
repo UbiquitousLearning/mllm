@@ -31,7 +31,7 @@ CPUSoftMax::CPUSoftMax(Backend *bn, string opName, int axis, int threadCount) : 
 
 ErrorCode CPUSoftMax::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // std::cout << name() << "  CPUSoftMax  reshape" << std::endl;
-    CHECK_EQ(inputs.size(), 1);
+    assert(inputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     // outputs[0]->setDtype(activationDtype());
     return Op::reshape(inputs, outputs);

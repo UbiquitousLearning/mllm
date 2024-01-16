@@ -12,7 +12,7 @@ CPUNorm::CPUNorm(Backend *bn, string opName,int L_n, int threadCount) : thread_c
 }
 
 ErrorCode CPUNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // std::cout<<name() << "  CPUNorm  reshape" << std::endl;
+
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     return Op::reshape(inputs, outputs);
 }

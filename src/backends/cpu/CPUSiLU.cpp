@@ -4,8 +4,6 @@
 
 namespace mllm {
 
-// template class CPUSiLU;
-// template class CPUSiLU;
 
 CPUSiLU::CPUSiLU(Backend *bn, string opName, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
@@ -18,7 +16,7 @@ CPUSiLU::CPUSiLU(Backend *bn, string opName, int threadCount) : thread_count(thr
 ErrorCode CPUSiLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     //outputs[0]->setDtype(activationDtype());
-    //std::cout<<name() << "  CPUSiLU  reshape" << std::endl;
+
     return Op::reshape(inputs, outputs);
 }
 
@@ -42,7 +40,7 @@ ErrorCode CPUSiLU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
             }
         }
     }
-    //std::cout<<name() << "  CPUSiLU()" << std::endl;
+
     return Op::execute(inputs, outputs);
 }
 

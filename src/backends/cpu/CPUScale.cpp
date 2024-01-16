@@ -3,8 +3,6 @@
 
 namespace mllm {
 
-// template class CPUScale;
-// template class CPUScale;
 
 
 CPUScale::CPUScale(Backend *bn, string opName, float scale, float bias, bool bias_after_scale, int threadCount)  :
@@ -16,16 +14,16 @@ CPUScale::CPUScale(Backend *bn, string opName, float scale, float bias, bool bia
 }
 
 ErrorCode CPUScale::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUScale  reshape" << std::endl;
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
+
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     //outputs[0]->setDtype(activationDtype());
     return Op::reshape(inputs, outputs);
 }
 
 ErrorCode CPUScale::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUScale()" << std::endl;
+
     auto & input = inputs[0];
     auto & output = outputs[0];
     if(inputs[0]->masterTensor() == nullptr && outputs[0]->masterTensor() == nullptr && inputs[0]->ctype() == outputs[0]->ctype()) {
@@ -62,8 +60,8 @@ ErrorCode CPUScale::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 }
 
 ErrorCode CPUScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
     // outputs[0]->deepCopyFrom(inputs[0]);
     if(inputs[0]->masterTensor() == nullptr) {
         inputs[0]->free();

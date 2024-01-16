@@ -13,9 +13,9 @@ CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int threadCount) :
 }
 
 ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // std::cout<<name() << "  CPUKVCache  reshape" << std::endl;
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
+
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
     if(cache_seq_len_ < 0) {
         cache_.reshape(inputs[0]->batch(), inputs[0]->head()*n_rep_, cache_limit_, inputs[0]->dimension());
         cache_.setName(name() + ".Cache");
@@ -28,12 +28,12 @@ ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 }
 
 ErrorCode CPUKVCache::load(AbstructLoader &loader) {
-    // std::cout<<name() << "  CPUKVCache load" << std::endl;
+
     return Op::load(loader);
 }
 
 ErrorCode CPUKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // std::cout<<name() << "  CPUKVCache()" << std::endl;
+
     int cache_seq_len_old = cache_seq_len_;
     cache_seq_len_ += inputs[0]->sequence();
     if(n_rep_ >1) {
@@ -89,14 +89,14 @@ ErrorCode CPUKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 }
 
 ErrorCode CPUKVCache::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // std::cout<<name() << "  CPUKVCache() free" << std::endl;
+
     return Op::free(inputs, outputs);
 }
 
 
 ErrorCode CPUKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
     outputs[0]->setDtype(cache_.dtype());
     outputs[0]->deepCopyFrom(cache_, false, {0,0,cache_seq_len_/cache_limit_,0});
     if (inputs[0]->masterTensor() ==nullptr) {

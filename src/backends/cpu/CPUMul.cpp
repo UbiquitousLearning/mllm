@@ -8,20 +8,20 @@ CPUMul::CPUMul(Backend *bn,  string opName, int threadCount) : thread_count(thre
 }
 
 ErrorCode CPUMul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUMul  reshape" << std::endl;
-    CHECK_EQ(inputs.size(), 2);
-    CHECK_EQ(outputs.size(), 1);
-    CHECK_EQ(inputs[0]->batch(), inputs[1]->batch());
-    CHECK_EQ(inputs[0]->head(), inputs[1]->head());
-    CHECK_EQ(inputs[0]->sequence(), inputs[1]->sequence());
-    CHECK_EQ(inputs[0]->dimension(), inputs[1]->dimension());
+
+    assert(inputs.size() == 2);
+    assert(outputs.size() == 1);
+    assert(inputs[0]->batch() == inputs[1]->batch());
+    assert(inputs[0]->head() == inputs[1]->head());
+    assert(inputs[0]->sequence() == inputs[1]->sequence());
+    assert(inputs[0]->dimension() == inputs[1]->dimension());
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     //outputs[0]->setDtype(activationDtype());
     return Op::reshape(inputs, outputs);
 }
 
 ErrorCode CPUMul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUMul()" << std::endl;
+
     int N = inputs[0]->batch();
     int C = inputs[0]->head();
     int H = inputs[0]->sequence();

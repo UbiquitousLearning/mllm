@@ -1064,8 +1064,8 @@ unsigned int argmax(const std::vector<float>& scores) {
     return maxIndex;
 }
 unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor>& out_result){
-    CHECK_EQ(result->batch(), 1);
-    CHECK_EQ(result->head(), 1);
+    assert(result->batch() == 1);
+    assert(result->head() ==  1);
     out_result->reshape(1, 1, 1, 1);
     out_result->alloc();
     vector<float> scores;

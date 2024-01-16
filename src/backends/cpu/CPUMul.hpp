@@ -1,5 +1,5 @@
 //
-// Created by 30500 on 2023/10/12 0012.
+// Created by Rongjie Yi on 2023/10/12 0012.
 //
 
 #ifndef MLLM_CPUMUL_HPP

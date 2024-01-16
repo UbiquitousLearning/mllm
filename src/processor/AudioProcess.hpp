@@ -1,5 +1,5 @@
 //
-// Created by ey on 24-1-9.
+// Created by Rongjie Yi on 24-1-9.
 //
 
 #ifndef AUDIOPROCESS_HPP

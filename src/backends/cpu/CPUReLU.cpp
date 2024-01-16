@@ -1,5 +1,5 @@
 //
-// Created by 咸的鱼 on 2023/11/26.
+// Created by Xiang Li on 2023/11/26.
 //
 
 #include "CPUReLU.hpp"
@@ -10,8 +10,8 @@ namespace mllm {
 CPUReLU::CPUReLU(Backend *bn, string opName, int threadCount):thread_count(threadCount), Op(bn, std::move(opName))  {
 }
 ErrorCode CPUReLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     return Op::reshape(inputs, outputs);
 }

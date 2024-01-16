@@ -1,5 +1,5 @@
 //
-// Created by 咸的鱼 on 2023/12/21.
+// Created by Xiang Li on 2023/12/21.
 //
 
 #ifndef MODELING_FUYU_HPP
@@ -65,8 +65,8 @@ inline void Fuyu(Context* c, int vocab_size= 262144, int patch_size = 30, int cn
     i = _Linear( {i}, hidden_dim, vocab_size, false, "language_model.lm_head");
 }
 unsigned int postProcessing_Fuyu(shared_ptr<Tensor> result, shared_ptr<Tensor>& out_result){
-    CHECK_EQ(result->batch(), 1);
-    CHECK_EQ(result->head(), 1);
+    assert(result->batch() == 1);
+    assert(result->head() ==  1);
     out_result->reshape(1, 1, 1, 1);
     out_result->alloc();
     vector<float> scores;

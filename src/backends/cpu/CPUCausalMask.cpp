@@ -4,8 +4,6 @@
 
 namespace mllm {
 
-// template class CPUMask;
-// template class CPUMask;
 
 CPUCausalMask::CPUCausalMask(Backend *bn, string opName, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
@@ -13,8 +11,8 @@ CPUCausalMask::CPUCausalMask(Backend *bn, string opName, int threadCount) : thre
 
 ErrorCode CPUCausalMask::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     //std::cout << "CPUMask  reshape" << std::endl;
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     return Op::reshape(inputs, outputs);
 }
@@ -49,8 +47,8 @@ ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<share
 }
 
 ErrorCode CPUCausalMask::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
     // outputs[0]->deepCopyFrom(inputs[0]);
     if(inputs[0]->masterTensor() == nullptr) {
         inputs[0]->free(); // TODO remove

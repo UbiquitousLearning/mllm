@@ -68,8 +68,8 @@ CPURoPE::CPURoPE(Backend *bn, string opName, int pose_type, int threadCount) : t
 
 ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // std::cout << name() << "  CPURoPE  reshape" << std::endl;
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     ishape = inputs[0]->dimension();
     pos_max_ = 16384;

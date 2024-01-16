@@ -13,16 +13,16 @@ CPUParameter::CPUParameter(Backend *bn,  string opName,int batch, int head, int 
 }
 
 ErrorCode CPUParameter::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUParameter  reshape" << std::endl;
+
     outputs[0]->reshape(batch_, head_, seq_, dim_);
     return Op::reshape(inputs, outputs);
 }
 
 ErrorCode CPUParameter::load(AbstructLoader &loader) {
-    //std::cout<<name() << "  CPUParameter load" << std::endl;
+
     weight_.setName(name());
     weight_.reshape(batch_, head_, seq_, dim_);
-    if (&loader != nullptr) {
+    if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
         weight_.setDtype(loader.getDataType(weight_.name()));
         weight_.alloc();
         loader.load(&weight_);
@@ -34,7 +34,7 @@ ErrorCode CPUParameter::load(AbstructLoader &loader) {
 }
 
 ErrorCode CPUParameter::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUParameter()" << std::endl;
+
     if(outputs[0]->masterTensor()->name() != weight_.name()) {
         if(outputs[0]->masterTensor() == nullptr) {
             // outputs[0]->copyFrom(weight_);
@@ -70,13 +70,13 @@ ErrorCode CPUParameter::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
 }
 
 ErrorCode CPUParameter::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUParameter() free" << std::endl;
+
     weight_.free();
     return Op::free(inputs, outputs);
 }
 
 ErrorCode CPUParameter::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUParameter() setUp" << std::endl;
+
     outputs[0]->deepCopyFrom(&weight_, false);
     return MLLM_NO_ERROR;
 }

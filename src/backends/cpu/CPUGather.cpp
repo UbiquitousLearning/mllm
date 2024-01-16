@@ -8,18 +8,18 @@ CPUGather::CPUGather(Backend *bn,  string opName, int threadCount) : thread_coun
 }
 
 ErrorCode CPUGather::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUGather  reshape" << std::endl;
-    CHECK_EQ(inputs.size(), 3);
-    CHECK_EQ(outputs.size(), 1);
+
+    assert(inputs.size() == 3);
+    assert(outputs.size() == 1);
     if(inputs[1]->batch() == 0) {
         outputs[0]->reshape(inputs[0]->batch(), 1, inputs[0]->sequence(), inputs[0]->dimension());
         return Op::reshape(inputs, outputs);
     }
-    CHECK_EQ(inputs[0]->batch(), inputs[1]->batch());
-    CHECK_EQ(inputs[0]->head(), inputs[1]->head());
-    CHECK_EQ(inputs[0]->head(), 1);
-    CHECK_EQ(inputs[0]->dimension(), inputs[1]->dimension());
-    CHECK_EQ(inputs[2]->dimension(), 1);
+    assert(inputs[0]->batch() == inputs[1]->batch());
+    assert(inputs[0]->head() == inputs[1]->head());
+    assert(inputs[0]->head() == 1);
+    assert(inputs[0]->dimension() == inputs[1]->dimension());
+    assert(inputs[2]->dimension() == 1);
     outputs[0]->reshape(inputs[0]->batch(), 1, inputs[0]->sequence(), inputs[0]->dimension());
     return Op::reshape(inputs, outputs);
 }
@@ -28,7 +28,7 @@ ErrorCode CPUGather::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     if(inputs[1]->batch() == 0) {
         return Op::execute(inputs, outputs);
     }
-    //std::cout<<name() << "  CPUGather()" << std::endl;
+
     assert(inputs[0]->ctype() == BSHD);
     assert(inputs[1]->ctype() == BSHD);
     assert(outputs[0]->ctype() == BSHD);
@@ -47,7 +47,7 @@ ErrorCode CPUGather::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 }
 
 ErrorCode CPUGather::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUGather() setUp" << std::endl;
+
     if(inputs[0]->masterTensor() == nullptr) {
         inputs[0]->free();
     }

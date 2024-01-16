@@ -1,5 +1,5 @@
 //
-// Created by 咸的鱼 on 2023/11/26.
+// Created by Xiang Li on 2023/11/26.
 //
 
 #include "CPULayerNorm.hpp"
@@ -17,7 +17,7 @@ CPULayerNorm::CPULayerNorm(Backend *bn, string opName,int normSize,bool bias, fl
 ErrorCode CPULayerNorm::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, 1, normSize_); //
-     if (&loader != nullptr) {
+     if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
          weight_.setDtype(loader.getDataType(weight_.name()));
          weight_.alloc();
          loader.load(&weight_);
@@ -28,7 +28,7 @@ ErrorCode CPULayerNorm::load(AbstructLoader &loader) {
     if (bias) {
         bias_.setName(name() + ".bias");
         bias_.reshape(1, 1, 1, normSize_); //
-        if (&loader != nullptr) {
+        if (loader.getDataType(bias_.name()) != MLLM_TYPE_COUNT) {
             bias_.setDtype(loader.getDataType(bias_.name()));
             bias_.alloc();
             loader.load(&bias_);
