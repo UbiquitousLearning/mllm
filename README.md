@@ -54,7 +54,7 @@ Building mllm requires following tools:
 
 ```bash
 mkdir models && cd models
-wget .... >> llama-2-7b-chat-q4_k.mllm
+wget .... -O llama-2-7b-chat-q4_k.mllm
 ```
 
 ### Run on Android
