@@ -1,17 +1,22 @@
-## Introduction
-[![Documentation](https://img.shields.io/badge/view-docs-blue)]()
+# mllm
+[![Documentation](https://img.shields.io/badge/view-docs-blue)](https://ubiquitouslearning.github.io/mllm_website/introduction/getstarted/)
 [![Actions Status](https://github.com/UbiquitousLearning/mllm/workflows/Tests/badge.svg)](https://github.com/UbiquitousLearning/mllm/actions)
 
+## Description
+
 mllm is a fast, lightweight, dependency-free multimodal LLM inference engine for mobile and edge devices.
+
+- Plain C/C++ implementation without dependencies
+- ARM NEON support for ARM architectures
+- AVX2 support for x86 architectures
+- 4-bit and6-bit integer quantization support
 
 Currently, mllm is mainly optimized for Android devices.
 
 ## Android Demo
+(gif)
 
-
-##  Key Features
-
-Currently mllm support models:
+##  Support models
 
 * ✔️ : Support and test well on mobile devices.
 
@@ -19,16 +24,16 @@ Currently mllm support models:
 
 * ❌  : Not support yet.
 
-|                | FP32 | INT4 |
-|----------------|------|------|
-| Llama 7B       | ✔️   | ✔️   |
-| Alpaca 7B      | ✔️   | ✔️   |
-| TinyLlama 1.1B | ✔️   | ✔️   |
-| Persimmon 8B   | ✔️   | ✔️   |
-| fuyu 8B        | ✔️   | ✔️   |
-| ViT            | ✔️   | ✔️   |
-| Clip           | ✔️   | ✔️   |
-| ImageBind      | ⚠️   | ⚠️   |
+|                    | FP32 | INT4 |
+|--------------------|------|------|
+| Llama 7B           | ✔️   | ✔️   |
+| Alpaca 7B          | ✔️   | ✔️   |
+| TinyLlama 1.1B     | ✔️   | ✔️   |
+| Persimmon 8B       | ✔️   | ✔️   |
+| Fuyu 8B            | ✔️   | ✔️   |
+| Vision Transformer | ✔️   | ✔️   |
+| CLIP               | ✔️   | ✔️   |
+| ImageBind          | ⚠️   | ⚠️   |
 
 ##  Quick Start
 
@@ -64,7 +69,7 @@ wget .... >> llama-2-7b-chat-q4_k.mllm
     ./llama_exe.sh
     ```
   
-### Run on Linux PC
+### Run on Host Linux
 
 - Build
     ```bash
@@ -78,7 +83,7 @@ wget .... >> llama-2-7b-chat-q4_k.mllm
     ```
 
 
-## Demo results
+## Demos
 - fuyu
     ```bash
     cd ./bin
@@ -145,7 +150,7 @@ wget .... >> llama-2-7b-chat-q4_k.mllm
 
 
 ## Convert models
-You can download models from [here](), or you can convert a pytorch/safetensor model to mllm model by yourself.
+You can download models from [here](https://huggingface.co/mllmTeam), or you can convert a pytorch/safetensor model to mllm model by yourself.
 
 ```bash
 cd tools/convertor
@@ -182,25 +187,21 @@ cd bin
 
 ## Roadmap
 
-See the [roadmap](https://mllm-landing.vercel.app/roadmap/roadmap/) here for more information
+See the [roadmap](https://ubiquitouslearning.github.io/mllm_website/roadmap/roadmap/) here for more information
 
 ## Documentation
 
-See the [documentation]() here for more information
+See the [documentation](https://ubiquitouslearning.github.io/mllm_website/introduction/getstarted/) here for more information
 
 ## Contribution
 
-Read the [contribution](https://mllm-landing.vercel.app/contributing/contributing/) before you contribute.
+Read the [contribution](https://ubiquitouslearning.github.io/mllm_website/contributing/contributing/) before you contribute.
 
 ## Acknowledgments
 
 mllm reuses many low-level kernel implementation from [ggml](https://github.com/ggerganov/ggml) on ARM CPU. 
 It also utilizes [stb](https://github.com/nothings/stb) and [wenet](https://github.com/wenet-e2e/wenet) for handling images and audios.
 Additionally, mllm refers to the following projects:
-
-[//]: # (* [ggml]&#40;https://github.com/ggerganov/ggml&#41;)
-[//]: # (* [stb]&#40;https://github.com/nothings/stb&#41;)
-[//]: # (* [wenet]&#40;https://github.com/wenet-e2e/wenet&#41;)
 
 * [llama.cpp](https://github.com/ggerganov/llama.cpp)
 * [MNN](https://github.com/alibaba/MNN)
