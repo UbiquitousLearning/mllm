@@ -14,11 +14,130 @@
 #include "wenet_audio/feature_pipeline.h"
 #include "backends/cpu/compute/VecDot.hpp"
 
+class Fraction {
+public:
+    int numerator;
+    int denominator;
+
+    // Constructor accepting a single int argument
+    Fraction(int num) :
+        numerator(num), denominator(1) {
+    }
+
+    Fraction(int num, int den) :
+        numerator(num), denominator(den) {
+        if (denominator == 0) {
+            throw std::invalid_argument("Denominator cannot be zero.");
+        }
+        simplify();
+    }
+
+    // Calculate the greatest common divisor
+    int gcd(int a, int b) {
+        while (b != 0) {
+            int temp = b;
+            b = a % b;
+            a = temp;
+        }
+        return a;
+    }
+
+    // Simplify the fraction
+    void simplify() {
+        if (numerator == 0) {
+            denominator = 1;
+            return;
+        }
+        int gcd_value = gcd(std::abs(numerator), std::abs(denominator));
+        numerator /= gcd_value;
+        denominator /= gcd_value;
+        if (denominator < 0) {
+            numerator = -numerator;
+            denominator = -denominator;
+        }
+    }
+
+    // Addition operation
+    Fraction operator+(const Fraction &other) {
+        int num = numerator * other.denominator + other.numerator * denominator;
+        int den = denominator * other.denominator;
+        return Fraction(num, den);
+    }
+
+    // Subtraction operation
+    Fraction operator-(const Fraction &other) {
+        int num = numerator * other.denominator - other.numerator * denominator;
+        int den = denominator * other.denominator;
+        return Fraction(num, den);
+    }
+
+    // Multiplication operation
+    Fraction operator*(const Fraction &other) {
+        int num = numerator * other.numerator;
+        int den = denominator * other.denominator;
+        return Fraction(num, den);
+    }
+
+    // Division operation
+    Fraction operator/(const Fraction &other) {
+        if (other.numerator == 0) {
+            throw std::invalid_argument("Cannot divide by zero.");
+        }
+        int num = numerator * other.denominator;
+        int den = denominator * other.numerator;
+        return Fraction(num, den);
+    }
+
+    // Overload comparison operators
+    bool operator>(const Fraction &other) const {
+        return static_cast<double>(numerator) / denominator > static_cast<double>(other.numerator) / other.denominator;
+    }
+
+    bool operator<(const Fraction &other) const {
+        return static_cast<double>(numerator) / denominator < static_cast<double>(other.numerator) / other.denominator;
+    }
+
+    bool operator>=(const Fraction &other) const {
+        return !(*this < other);
+    }
+
+    bool operator<=(const Fraction &other) const {
+        return !(*this > other);
+    }
+
+    bool operator==(const Fraction &other) const {
+        return numerator == other.numerator && denominator == other.denominator;
+    }
+
+    bool operator!=(const Fraction &other) const {
+        return !(*this == other);
+    }
+
+    // Print the fraction
+    void print() {
+        std::cout << numerator << "/" << denominator << std::endl;
+    }
+
+    float toFloat() const {
+        return static_cast<float>(numerator) / denominator;
+    }
+
+    static Fraction max(const Fraction &a, const Fraction &b) {
+        double val_a = static_cast<double>(a.numerator) / a.denominator;
+        double val_b = static_cast<double>(b.numerator) / b.denominator;
+        if (val_a >= val_b) {
+            return a;
+        } else {
+            return b;
+        }
+    }
+};
+
 float *waveClip(const float *data_, int start, int end, int channel) {
     std::vector<float> even_elements;
 
     for (int i = start; i < end; ++i) {
-        if (i % channel == 0) { // 选择第一个channel TODO：torchaudio/compliance/kaldi.py #L125 _get_waveform_and_window_properties()
+        if (i % channel == 0) {
             even_elements.push_back(data_[i]);
         }
     }
@@ -160,9 +279,7 @@ std::pair<int, std::vector<std::vector<std::vector<float>>>> get_sinc_resample_k
     for (int i = 0; i < kernels.size(); i++) {
         kernels[i] = kernels[i] * window[i] * scale;
         result[i / (kernels.size() / new_freq)][0][i % (kernels.size() / new_freq)] = kernels[i];
-        // std::cout << "kernels[" << i << "]: " << kernels[i] << " " << result[i / (kernels.size() / new_freq)][0][i % (kernels.size() / new_freq)] << " " << i / (kernels.size() / new_freq) << " " << i % (kernels.size() / new_freq) << std::endl;
     }
-    // print3DVetcors(result);
     return std::make_pair(width, result);
 }
 
@@ -264,15 +381,6 @@ std::vector<float> apply_sinc_resample_kernel(std::vector<std::vector<float>> or
 
     int target_length = static_cast<int>(std::ceil(static_cast<double>(new_freq) * length / orig_freq));
     result = cut_and_trans(resample_wav, target_length);
-
-    // std::cout << std::fixed;
-    // std::cout << std::setprecision(4);
-    // for (size_t j = 0; j < result.size(); ++j)
-    // {
-    //     std::cout << result[j] << ",";
-    // }
-    // std::cout << std::endl;
-    // std::cout <<result.size()/2<< std::endl;
     return result;
 }
 
@@ -305,15 +413,73 @@ std::vector<std::vector<float>> get_wav_data(const float *wavdata, int wavdata_s
     return result;
 }
 
+int current_aug_index = 0;
+int current_clip_index = 0;
+bool is_last_clip = 0;
+
+Fraction clip_sampler(float last_clip_end_time, Fraction video_duration, Fraction clip_duration, Fraction clips_per_video) {
+    int augs_per_clip = 1;
+
+    auto max_possible_clip_start = Fraction::max(Fraction(0), video_duration - clip_duration);
+
+    auto uniform_clip = max_possible_clip_start / Fraction::max(clips_per_video - Fraction(1), Fraction(1));
+
+    auto clip_start_sec = uniform_clip * Fraction(current_clip_index);
+    int clip_index = current_clip_index;
+    int aug_index = current_aug_index;
+
+    current_aug_index += 1;
+    if (current_aug_index >= augs_per_clip) {
+        current_clip_index += 1;
+        current_aug_index = 0;
+    }
+
+    if (Fraction(current_clip_index) >= clips_per_video || uniform_clip * Fraction(current_clip_index) > max_possible_clip_start) {
+        current_clip_index = 0;
+        is_last_clip = 1;
+    }
+
+    if (is_last_clip) {
+        current_clip_index = 0;
+    }
+
+    return clip_start_sec;
+}
+
+std::vector<std::pair<Fraction, Fraction>> get_clip_timepoints(Fraction clip_duration, Fraction clips_per_video, Fraction duration) {
+    std::vector<std::pair<Fraction, Fraction>> all_clip_timepoints;
+    float end = 0;
+    Fraction clip_sampler_result = clip_sampler(end, duration, clip_duration, clips_per_video);
+    all_clip_timepoints.push_back(std::make_pair(clip_sampler_result, clip_sampler_result + clip_duration));
+    while (is_last_clip == 0) {
+        clip_sampler_result = clip_sampler(end, duration, clip_duration, clips_per_video);
+        all_clip_timepoints.push_back(std::make_pair(clip_sampler_result, clip_sampler_result + clip_duration));
+    }
+    return all_clip_timepoints;
+}
+std::vector<std::pair<int, int>> get_clip_timepoints(Fraction clip_duration, Fraction clips_per_video, Fraction duration, int resample_rate) {
+    current_aug_index = 0;
+    current_clip_index = 0;
+    is_last_clip = 0;
+    std::vector<std::pair<Fraction, Fraction>> clip_timepoints_test = get_clip_timepoints(clip_duration, clips_per_video, duration);
+    std::vector<std::pair<int, int>> clip_timepoints;
+    for (auto &values : clip_timepoints_test) {
+        values.first = values.first * Fraction(resample_rate);
+        values.second = values.second * Fraction(resample_rate);
+        clip_timepoints.push_back(std::make_pair(int(values.first.toFloat()), int(values.second.toFloat())));
+    }
+    return clip_timepoints;
+}
+
 std::vector<std::vector<std::vector<std::vector<float>>>> ProcessWAV(std::vector<std::string> waves, int resample_rate) {
     auto feature_config = wenet::InitFeaturePipelineConfigFromFlags();
     auto feature_pipeline = std::make_shared<wenet::FeaturePipeline>(*feature_config);
     std::vector<std::vector<std::vector<std::vector<float>>>> output_audios;
+    Fraction clip_duration(2);
+    Fraction clips_per_video(3);
     for (auto &wav : waves) {
         wenet::WavReader wav_reader(wav);
         wav_reader.rescale();
-        // wav_reader.print();
-        // resample -> sample_rate
         auto wavdata = wav_reader.data();
         auto wavdata_sample = wav_reader.num_sample();
         auto wavdata_channel = wav_reader.num_channel();
@@ -322,15 +488,11 @@ std::vector<std::vector<std::vector<std::vector<float>>>> ProcessWAV(std::vector
         std::vector<std::vector<float>> wav_data = get_wav_data(wavdata, wavdata_sample, wavdata_channel);
         auto resampled = resample(wav_data, resample_rate, origin_sample_rate);
 
-        // TODO: 2. get_clip_timepoints  /imagebind/data.py #L141~143
         auto waveform_size = wav_reader.num_sample();
-        auto sample_rate = resample_rate;
-        std::vector<std::pair<int, int>> clip_timepoints = {{0, 32000}, {4882, 36882}, {9764, 41764}}; // for ../dog_audio.wav
-        if (wav.find("car") != std::string::npos)
-            clip_timepoints = {{0, 32000}, {24000, 56000}, {48000, 80000}};
-        if (wav.find("bird") != std::string::npos)
-            clip_timepoints = {{0, 32000}, {24000, 56000}, {48000, 80000}};
-        // TODO: get_clip_timepoints  END  /imagebind/data.py #L141~143
+        if (origin_sample_rate != resample_rate) {
+            waveform_size = resampled.size() / wavdata_channel;
+        }
+        std::vector<std::pair<int, int>> clip_timepoints = get_clip_timepoints(Fraction(clip_duration), Fraction(clips_per_video), Fraction(waveform_size) / Fraction(resample_rate), resample_rate);
         std::vector<std::vector<std::vector<float>>> all_clips;
         for (auto clip_timepoint : clip_timepoints) {
             const int clip_start = clip_timepoint.first * wav_reader.num_channel();
@@ -341,7 +503,6 @@ std::vector<std::vector<std::vector<std::vector<float>>>> ProcessWAV(std::vector
             } else {
                 datac = waveClip(resampled.data(), clip_start, clip_end, wav_reader.num_channel());
             }
-            // printdata_(datac, (clip_end - clip_start)/wav_reader.num_channel());
             const int datac_num_sample = (clip_end - clip_start) / wav_reader.num_channel();
             feature_pipeline->AcceptWaveform(std::vector<float>(datac, datac + datac_num_sample));
             const int num_frames_ = 204;
