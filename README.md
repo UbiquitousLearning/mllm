@@ -2,7 +2,7 @@
 [![Documentation](https://img.shields.io/badge/view-docs-blue)](https://ubiquitouslearning.github.io/mllm_website/introduction/getstarted/)
 [![Actions Status](https://github.com/UbiquitousLearning/mllm/workflows/Tests/badge.svg)](https://github.com/UbiquitousLearning/mllm/actions)
 
-mllm is a fast, lightweight, dependency-free multimodal LLM inference engine for mobile and edge devices.
+mllm is a fast and lightweight multimodal LLM inference engine for mobile and edge devices.
 
 - Plain C/C++ implementation without dependencies
 - Optimized for multimodal LLMs like fuyu-8B
@@ -199,14 +199,8 @@ Read the [contribution](https://ubiquitouslearning.github.io/mllm_website/contri
 ## Acknowledgments
 
 mllm reuses many low-level kernel implementation from [ggml](https://github.com/ggerganov/ggml) on ARM CPU. 
-It also utilizes [stb](https://github.com/nothings/stb) and [wenet](https://github.com/wenet-e2e/wenet) for handling images and audios.
-Additionally, mllm refers to the following projects:
-
-* [llama.cpp](https://github.com/ggerganov/llama.cpp)
-* [MNN](https://github.com/alibaba/MNN)
-* [transformers](https://github.com/huggingface/transformers)
-* [clip](https://github.com/openai/CLIP)
-* [ImageBind](https://github.com/facebookresearch/ImageBind)
+It also utilizes [stb](https://github.com/nothings/stb) and [wenet](https://github.com/wenet-e2e/wenet) for pre-processing images and audios.
+mllm also has benefitted from following projects: [llama.cpp](https://github.com/ggerganov/llama.cpp) and [MNN](https://github.com/alibaba/MNN).
 
 ## License
 
