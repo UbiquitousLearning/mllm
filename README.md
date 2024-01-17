@@ -98,7 +98,7 @@ wget .... -O llama-2-7b-chat-q4_k.mllm
    ```
   
 
-- Llama 7B
+- **Llama 7B**
 
   Run on Linux
     ```bash
@@ -132,7 +132,7 @@ wget .... -O llama-2-7b-chat-q4_k.mllm
     Beijing University of Posts and Telecommunications (BUPT) is a public research university located in Beijing, China. It was established in 1955 and is one of the top universities in China, with a strong focus on engineering, technology, and telecommunications.
     BUPT offers a wide range of undergraduate and graduate programs in fields such as computer science, electrical engineering, software engineering, and communication engineering. The university
   ```
-- Imagebind
+- **ImageBind**
 
   Run on Linux
   ```bash
