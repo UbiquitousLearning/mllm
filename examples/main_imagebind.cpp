@@ -294,9 +294,6 @@ int main(int argc, char **argv) {
         tokenizer->tokenize(in_str, tokens_id, true);
         tokens_ids.push_back(tokens_id);
     }
-    // tokens_ids[0] = {49406,   320,  1929,   269, 49407};
-    // tokens_ids[1] = {49406,   320,  1615, 49407};
-    // tokens_ids[2] = {49406,   320,  3329, 49407};
     shared_ptr<Tensor> input_text = std::make_shared<Tensor>();
     shared_ptr<Tensor> input_text_lens = std::make_shared<Tensor>();
     tokens2Tensor(&net, tokens_ids, input_text, input_text_lens);

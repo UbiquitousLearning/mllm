@@ -3,15 +3,11 @@
 #define MLLM_NETPARAMETER_H
 
 #include "Types.hpp"
-#include <algorithm>
-#include <iostream>
 #include <map>
 #include <set>
 #include <sstream>
-#include <string.h>
 #include <string>
 #include <vector>
-#include <cassert>
 using std::string;
 using std::vector;
 using std::map;
@@ -35,8 +31,6 @@ typedef struct TNetOp {
 typedef struct TNetParameter {
     string weights_path;
     string model_path;
-    // string input_name;
-    // string output_name;
     vector<NetOp *> net_ops;
     vector<NetTensor *> net_tensors;
     std::set<NetTensor *> net_inputs;
@@ -77,6 +71,20 @@ typedef struct TNetTensor {
     NetParameter *subgraph;
     Context *ctx;
 
+    /**
+     * \brief Clips the tensor along the specified dimensions.
+     * \param b A vector specifying the start and end indices for the batch dimension.
+     * \param h A vector specifying the start and end indices for the head dimension.
+     * \param s A vector specifying the start and end indices for the sequence dimension.
+     * \param d A vector specifying the start and end indices for the dimension dimension.
+     * \return A pointer to the resulting tensor after clipping.
+     *
+     * e.g. clip({}, {}, {0, 1}, {}) will clip the tensor along the sequence dimension from 0 to 2;
+     *      clip({}, {}, {0}, {}) will clip the tensor along the sequence dimension from 0 to 1;
+     *      clip({}, {}, {-1}, {}) will clip the tensor along the sequence dimension from dim_len-1 to dim_len;
+     *      _clip({}, {}, {0, i->shape(SEQUENCE)}, {}); will clip the tensor along the sequence dimension from 0 to i->shape(SEQUENCE);
+     *      _clip({}, {}, {in_len}, {}); will clip the tensor along the sequence dimension from in_len to in_len+1;
+     */
     NetTensor *clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d);
     NetTensor *_clip(intTensor_pair b, intTensor_pair h, intTensor_pair s, intTensor_pair d);
     NetTensor *_clip(Tensor_pair b, Tensor_pair h, Tensor_pair s, Tensor_pair d);
@@ -87,7 +95,7 @@ typedef struct TNetTensor {
     NetTensor *norm(int L_n);
     NetTensor *mean(Chl axis);
 
-    // Overload the operators.
+    /* Overload the operators.*/
     NetTensor *operator+(NetTensor* in_1) ;
     NetTensor *operator*(NetTensor* in_1) ;
     NetTensor *operator*(float muln) ;

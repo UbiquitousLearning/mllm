@@ -5,14 +5,13 @@
 #include "ExpressBase.hpp"
 namespace mllm {
 
-
-NetTensor *TNetTensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d){
-    Context *ctx =this->ctx;
+NetTensor *TNetTensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
+    Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
-        name = this->name + "_clip_"+std::to_string(ctx->idx);
+        name = this->name + "_clip_" + std::to_string(ctx->idx);
     }
-    out_tensor->name = "outtensor-" + name + "_clip_"+ "-00";
+    out_tensor->name = "outtensor-" + name + "_clip_" + "-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -21,13 +20,12 @@ NetTensor *TNetTensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<
     sub_param->net_tensors.push_back(out_tensor);
     sub_param->net_ops.emplace_back(new NetOp());
     auto net_op_ = (sub_param->net_ops.back());
-    net_op_->name = name+ "_clip_";
+    net_op_->name = name + "_clip_";
     net_op_->type = SUBDIM;
     net_op_->param = OpParam();
     net_op_->param["type"] = SUBDIM;
     ctx->net_ops.push_back(net_op_);
-    //PARAM
-    if((b.size()+h.size()+s.size()+d.size()==2) &&(b.size()*b.size()+h.size()*h.size()+s.size()*s.size()+d.size()*d.size()==4)) {
+    if ((b.size() + h.size() + s.size() + d.size() == 2) && (b.size() * b.size() + h.size() * h.size() + s.size() * s.size() + d.size() * d.size() == 4)) {
         if (b.size() == 2) {
             net_op_->param["dim"] = (float)BATCH;
             net_op_->param["start_i"] = (float)b[0];
@@ -46,27 +44,27 @@ NetTensor *TNetTensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<
             net_op_->param["end_i"] = (float)d[1];
         } else {
         }
-    }else if((b.size()+h.size()+s.size()+d.size()==1) &&(b.size()*b.size()+h.size()*h.size()+s.size()*s.size()+d.size()*d.size()==1)){
+    } else if ((b.size() + h.size() + s.size() + d.size() == 1) && (b.size() * b.size() + h.size() * h.size() + s.size() * s.size() + d.size() * d.size() == 1)) {
         if (b.size() == 1) {
             net_op_->param["dim"] = (float)BATCH;
             net_op_->param["start_i"] = (float)b[0];
-            net_op_->param["end_i"] = (float)(b[0]+1);
+            net_op_->param["end_i"] = (float)(b[0] + 1);
         } else if (h.size() == 1) {
             net_op_->param["dim"] = (float)HEAD;
             net_op_->param["start_i"] = (float)h[0];
-            net_op_->param["end_i"] = (float)(h[0]+1);
+            net_op_->param["end_i"] = (float)(h[0] + 1);
         } else if (s.size() == 1) {
             net_op_->param["dim"] = (float)SEQUENCE;
             net_op_->param["start_i"] = (float)s[0];
-            net_op_->param["end_i"] = (float)(s[0]+1);
+            net_op_->param["end_i"] = (float)(s[0] + 1);
         } else if (d.size() == 1) {
             net_op_->param["dim"] = (float)DIMENSION;
             net_op_->param["start_i"] = (float)d[0];
-            net_op_->param["end_i"] = (float)(d[0]+1);
+            net_op_->param["end_i"] = (float)(d[0] + 1);
         } else {
         }
-    }else{
-        std::cout<<"ERROR: "<<name<<" clip"<<std::endl;
+    } else {
+        std::cout << "ERROR: " << name << " clip" << std::endl;
     }
     net_op_->in.push_back(this);
     this->out.push_back(net_op_);
@@ -82,13 +80,13 @@ NetTensor *TNetTensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<
     return out_tensor;
 }
 
-NetTensor *TNetTensor::_clip(intTensor_pair b, intTensor_pair h, intTensor_pair s, intTensor_pair d){
-    Context *ctx =this->ctx;
+NetTensor *TNetTensor::_clip(intTensor_pair b, intTensor_pair h, intTensor_pair s, intTensor_pair d) {
+    Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
-        name = this->name + "_clip_"+std::to_string(ctx->idx);
+        name = this->name + "_clip_" + std::to_string(ctx->idx);
     }
-    out_tensor->name = "outtensor-" + name + "_clip_"+ "-00";
+    out_tensor->name = "outtensor-" + name + "_clip_" + "-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -97,7 +95,7 @@ NetTensor *TNetTensor::_clip(intTensor_pair b, intTensor_pair h, intTensor_pair 
     sub_param->net_tensors.push_back(out_tensor);
     sub_param->net_ops.emplace_back(new NetOp());
     auto net_op_ = (sub_param->net_ops.back());
-    net_op_->name = name+ "_clip_";
+    net_op_->name = name + "_clip_";
     net_op_->type = SUBDIM;
     net_op_->param = OpParam();
     net_op_->param["type"] = SUBDIM;
@@ -148,13 +146,13 @@ NetTensor *TNetTensor::_clip(intTensor_pair b, intTensor_pair h, intTensor_pair 
     return out_tensor;
 }
 
-NetTensor *TNetTensor::_clip(Tensor_pair b, Tensor_pair h, Tensor_pair s, Tensor_pair d){
-    Context *ctx =this->ctx;
+NetTensor *TNetTensor::_clip(Tensor_pair b, Tensor_pair h, Tensor_pair s, Tensor_pair d) {
+    Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
-        name = this->name + "_clip_"+std::to_string(ctx->idx);
+        name = this->name + "_clip_" + std::to_string(ctx->idx);
     }
-    out_tensor->name = "outtensor-" + name+ "_clip_" + "-00";
+    out_tensor->name = "outtensor-" + name + "_clip_" + "-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -163,7 +161,7 @@ NetTensor *TNetTensor::_clip(Tensor_pair b, Tensor_pair h, Tensor_pair s, Tensor
     sub_param->net_tensors.push_back(out_tensor);
     sub_param->net_ops.emplace_back(new NetOp());
     auto net_op_ = (sub_param->net_ops.back());
-    net_op_->name = name+ "_clip_";
+    net_op_->name = name + "_clip_";
     net_op_->type = SUBDIM;
     net_op_->param = OpParam();
     net_op_->param["type"] = SUBDIM;
@@ -209,12 +207,12 @@ NetTensor *TNetTensor::_clip(Tensor_pair b, Tensor_pair h, Tensor_pair s, Tensor
 }
 
 NetTensor *TNetTensor::shape(Chl axis) {
-    Context *ctx =this->ctx;
+    Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
-        name = this->name + "_shape_"+std::to_string(axis)+" "+std::to_string(ctx->idx);
+        name = this->name + "_shape_" + std::to_string(axis) + " " + std::to_string(ctx->idx);
     }
-    out_tensor->name = "outtensor-" + name + "_shape_"+ "-00";
+    out_tensor->name = "outtensor-" + name + "_shape_" + "-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -223,7 +221,7 @@ NetTensor *TNetTensor::shape(Chl axis) {
     sub_param->net_tensors.push_back(out_tensor);
     sub_param->net_ops.emplace_back(new NetOp());
     auto net_op_ = (sub_param->net_ops.back());
-    net_op_->name = name+ "_shape_";
+    net_op_->name = name + "_shape_";
     net_op_->type = SHAPE;
     net_op_->param = OpParam();
     net_op_->param["type"] = SHAPE;
@@ -247,9 +245,9 @@ NetTensor *TNetTensor::shape(Chl axis) {
 }
 
 NetTensor *TNetTensor::mean(Chl axis) {
-    Context *ctx =this->ctx;
+    Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
-    out_tensor->name = "outtensor-" + name + "_mean_"+ "-00";
+    out_tensor->name = "outtensor-" + name + "_mean_" + "-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -258,7 +256,7 @@ NetTensor *TNetTensor::mean(Chl axis) {
     sub_param->net_tensors.push_back(out_tensor);
     sub_param->net_ops.emplace_back(new NetOp());
     auto net_op_ = (sub_param->net_ops.back());
-    net_op_->name = name+ "_mean_";
+    net_op_->name = name + "_mean_";
     net_op_->type = MEAN;
     net_op_->param = OpParam();
     net_op_->param["type"] = MEAN;
@@ -282,12 +280,12 @@ NetTensor *TNetTensor::mean(Chl axis) {
 }
 
 NetTensor *TNetTensor::view(int b, int h, int s, int d) {
-    Context *ctx =this->ctx;
+    Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
-        name = this->name + "_view_"+std::to_string(ctx->idx);
+        name = this->name + "_view_" + std::to_string(ctx->idx);
     }
-    out_tensor->name = "outtensor-" + name+ "_view_"+ "-00";
+    out_tensor->name = "outtensor-" + name + "_view_" + "-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -296,7 +294,7 @@ NetTensor *TNetTensor::view(int b, int h, int s, int d) {
     sub_param->net_tensors.push_back(out_tensor);
     sub_param->net_ops.emplace_back(new NetOp());
     auto net_op_ = (sub_param->net_ops.back());
-    net_op_->name = name+ "_view_";
+    net_op_->name = name + "_view_";
     net_op_->type = VIEW;
     net_op_->param = OpParam();
     net_op_->param["type"] = VIEW;
@@ -305,31 +303,31 @@ NetTensor *TNetTensor::view(int b, int h, int s, int d) {
     vector<int> dims;
     vector<int> data_dims;
     if (b == -1 & s == -1 & h != -1 & d != -1) { // keep b&s change h&d
-        if(h != 1) {
+        if (h != 1) {
             dims = {b, h, s, -1};
             data_dims = {BATCH, DIMENSION, SEQUENCE, DIMENSION};
         } else {
             dims = {b, -1, s, -1};
             data_dims = {BATCH, -1, SEQUENCE, HEAD + DIMENSION};
         }
-    } else if (b == -1 & d == -1 & h != -1 & s != -1) {// keep b&d change h&s
-        if(h != 1) {
+    } else if (b == -1 & d == -1 & h != -1 & s != -1) { // keep b&d change h&s
+        if (h != 1) {
             dims = {b, h, -1, d};
             data_dims = {BATCH, SEQUENCE, SEQUENCE, DIMENSION};
         } else {
             dims = {b, -1, -1, d};
-            data_dims = {BATCH, -1, HEAD+SEQUENCE, DIMENSION};
+            data_dims = {BATCH, -1, HEAD + SEQUENCE, DIMENSION};
         }
-    }else if (h == -1 & d == -1 & b != -1 & s != -1) {// keep h&d change b&s
-        if(s != 1) {
+    } else if (h == -1 & d == -1 & b != -1 & s != -1) { // keep h&d change b&s
+        if (s != 1) {
             dims = {-1, h, s, d};
             data_dims = {BATCH, HEAD, BATCH, DIMENSION};
         } else {
             dims = {-1, h, -1, d};
-            data_dims = {BATCH+SEQUENCE, HEAD, -1, DIMENSION};
+            data_dims = {BATCH + SEQUENCE, HEAD, -1, DIMENSION};
         }
-    }else {
-        std::cout<<"ERROR: "<<name<<" view ["<<b<<", "<<h<<", "<<s<<", "<<d<<"]"<<std::endl;
+    } else {
+        std::cout << "ERROR: " << name << " view [" << b << ", " << h << ", " << s << ", " << d << "]" << std::endl;
     }
 
     net_op_->param["dim0"] = dims[0];
@@ -357,12 +355,12 @@ NetTensor *TNetTensor::view(int b, int h, int s, int d) {
 }
 
 NetTensor *TNetTensor::flatten(Chl axis_start, Chl axis_end) {
-    Context *ctx =this->ctx;
+    Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
-        name = this->name + "_transpose_"+std::to_string(ctx->idx);
+        name = this->name + "_transpose_" + std::to_string(ctx->idx);
     }
-    out_tensor->name = "outtensor-" + name + "_flatten_"+ + "-00";
+    out_tensor->name = "outtensor-" + name + "_flatten_" + +"-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -377,18 +375,18 @@ NetTensor *TNetTensor::flatten(Chl axis_start, Chl axis_end) {
     net_op_->param["type"] = VIEW;
     ctx->net_ops.push_back(net_op_);
     // PARAM
-    vector<int> dims= {-1, -1, -1, -1};
+    vector<int> dims = {-1, -1, -1, -1};
     vector<int> data_dims;
     if (axis_start == BATCH & axis_end == SEQUENCE) {
-        data_dims = {-1, HEAD, BATCH+SEQUENCE, DIMENSION};
-    }else if (axis_start == HEAD & axis_end == SEQUENCE) {
-        data_dims = {BATCH, -1, HEAD+SEQUENCE, DIMENSION};
-    }else if (axis_start == HEAD & axis_end == DIMENSION) {
-        data_dims = {BATCH, HEAD, -1, SEQUENCE+DIMENSION};
-    }else if (axis_start == TIME & axis_end == CHANNLE) {
-        data_dims = {BATCH, -1,  TIME + HEIGHT + WIDTH, CHANNLE};
-    }else {
-        std::cout<<"ERROR: "<<name<<" flatten  "<<axis_start<<"&"<<axis_end<<std::endl;
+        data_dims = {-1, HEAD, BATCH + SEQUENCE, DIMENSION};
+    } else if (axis_start == HEAD & axis_end == SEQUENCE) {
+        data_dims = {BATCH, -1, HEAD + SEQUENCE, DIMENSION};
+    } else if (axis_start == HEAD & axis_end == DIMENSION) {
+        data_dims = {BATCH, HEAD, -1, SEQUENCE + DIMENSION};
+    } else if (axis_start == TIME & axis_end == CHANNLE) {
+        data_dims = {BATCH, -1, TIME + HEIGHT + WIDTH, CHANNLE};
+    } else {
+        std::cout << "ERROR: " << name << " flatten  " << axis_start << "&" << axis_end << std::endl;
     }
 
     net_op_->param["dim0"] = dims[0];
@@ -416,12 +414,12 @@ NetTensor *TNetTensor::flatten(Chl axis_start, Chl axis_end) {
 }
 
 NetTensor *TNetTensor::transpose(Chl axis1, Chl axis2) {
-    Context *ctx =this->ctx;
+    Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
-        name = this->name + "_transpose_"+std::to_string(ctx->idx);
+        name = this->name + "_transpose_" + std::to_string(ctx->idx);
     }
-    out_tensor->name = "outtensor-" + name+ "_transpose_"+ + "-00";
+    out_tensor->name = "outtensor-" + name + "_transpose_" + +"-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -430,21 +428,21 @@ NetTensor *TNetTensor::transpose(Chl axis1, Chl axis2) {
     sub_param->net_tensors.push_back(out_tensor);
     sub_param->net_ops.emplace_back(new NetOp());
     auto net_op_ = (sub_param->net_ops.back());
-    net_op_->name = name+ "_transpose_";
+    net_op_->name = name + "_transpose_";
     net_op_->param = OpParam();
-    if (axis1 == SEQUENCE & axis2 == DIMENSION){
+    if (axis1 == SEQUENCE & axis2 == DIMENSION) {
         net_op_->type = TRANSPOSE;
         net_op_->param["type"] = TRANSPOSE;
         net_op_->param["axis0"] = axis1;
         net_op_->param["axis1"] = axis2;
         ctx->net_ops.push_back(net_op_);
-    } else if (axis1 == THW & axis2 == CHANNLE){
+    } else if (axis1 == THW & axis2 == CHANNLE) {
         net_op_->type = TRANSPOSE;
         net_op_->param["type"] = TRANSPOSE;
         net_op_->param["axis0"] = axis1;
         net_op_->param["axis1"] = axis2;
         ctx->net_ops.push_back(net_op_);
-    } else if (axis1 == BATCH & axis2 == SEQUENCE){
+    } else if (axis1 == BATCH & axis2 == SEQUENCE) {
         net_op_->type = TRANSPOSE;
         net_op_->param["type"] = TRANSPOSE;
         net_op_->param["axis0"] = axis1;
@@ -460,14 +458,14 @@ NetTensor *TNetTensor::transpose(Chl axis1, Chl axis2) {
         if (axis1 == BATCH & axis2 == SEQUENCE) {
             dims = {-1, -1, -1, -1};
             data_dims = {SEQUENCE, HEAD, BATCH, DIMENSION};
-        }else if (axis1 == HEAD & axis2 == SEQUENCE) {
+        } else if (axis1 == HEAD & axis2 == SEQUENCE) {
             dims = {-1, -1, -1, -1};
             data_dims = {BATCH, SEQUENCE, HEAD, DIMENSION};
-        }else if (axis1 == HEAD & axis2 == DIMENSION) {
+        } else if (axis1 == HEAD & axis2 == DIMENSION) {
             dims = {-1, -1, -1, -1};
             data_dims = {BATCH, SEQUENCE, DIMENSION, HEAD};
-        }else {
-            std::cout<<"ERROR: "<<name<<" transpose  "<<axis1<<"&"<<axis2<<std::endl;
+        } else {
+            std::cout << "ERROR: " << name << " transpose  " << axis1 << "&" << axis2 << std::endl;
         }
         net_op_->param["dim0"] = dims[0];
         net_op_->param["dim1"] = dims[1];
@@ -495,12 +493,12 @@ NetTensor *TNetTensor::transpose(Chl axis1, Chl axis2) {
 }
 
 NetTensor *TNetTensor::norm(int L_n) {
-    Context *ctx =this->ctx;
+    Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
-        name = this->name + "_L"+std::to_string(L_n)+"Norm_"+std::to_string(ctx->idx);
+        name = this->name + "_L" + std::to_string(L_n) + "Norm_" + std::to_string(ctx->idx);
     }
-    out_tensor->name = "outtensor-" + name +std::to_string(L_n)+"Norm_"+ "-00";
+    out_tensor->name = "outtensor-" + name + std::to_string(L_n) + "Norm_" + "-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -509,13 +507,13 @@ NetTensor *TNetTensor::norm(int L_n) {
     sub_param->net_tensors.push_back(out_tensor);
     sub_param->net_ops.emplace_back(new NetOp());
     auto net_op_ = (sub_param->net_ops.back());
-    net_op_->name = name+std::to_string(L_n)+"Norm_";
+    net_op_->name = name + std::to_string(L_n) + "Norm_";
     net_op_->type = NORM;
     net_op_->param = OpParam();
     net_op_->param["type"] = NORM;
     ctx->net_ops.push_back(net_op_);
     // PARAM
-    net_op_->param["L_n"] =(float)L_n;
+    net_op_->param["L_n"] = (float)L_n;
     //
     net_op_->in.push_back(this);
     this->out.push_back(net_op_);
@@ -531,10 +529,10 @@ NetTensor *TNetTensor::norm(int L_n) {
     return out_tensor;
 }
 
-NetTensor *TNetTensor::operator+(NetTensor* in_1) {
-    Context *ctx =this->ctx;
+NetTensor *TNetTensor::operator+(NetTensor *in_1) {
+    Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
-    out_tensor->name = "outtensor-" + name+ "_add_" + "-00";
+    out_tensor->name = "outtensor-" + name + "_add_" + "-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -543,7 +541,7 @@ NetTensor *TNetTensor::operator+(NetTensor* in_1) {
     sub_param->net_tensors.push_back(out_tensor);
     sub_param->net_ops.emplace_back(new NetOp());
     auto net_op_ = (sub_param->net_ops.back());
-    net_op_->name = name+ "_add_";
+    net_op_->name = name + "_add_";
     net_op_->type = ADD;
     net_op_->param = OpParam();
     net_op_->param["type"] = ADD;
@@ -570,10 +568,10 @@ NetTensor *TNetTensor::operator+(NetTensor* in_1) {
     return out_tensor;
 }
 
-NetTensor *TNetTensor::operator*(NetTensor* in_1) {
-    Context *ctx =this->ctx;
+NetTensor *TNetTensor::operator*(NetTensor *in_1) {
+    Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
-    out_tensor->name = "outtensor-" + name+ "_mul_" + "-00";
+    out_tensor->name = "outtensor-" + name + "_mul_" + "-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -582,7 +580,7 @@ NetTensor *TNetTensor::operator*(NetTensor* in_1) {
     sub_param->net_tensors.push_back(out_tensor);
     sub_param->net_ops.emplace_back(new NetOp());
     auto net_op_ = (sub_param->net_ops.back());
-    net_op_->name = name+ "_mul_";
+    net_op_->name = name + "_mul_";
     net_op_->type = MUL;
     net_op_->param = OpParam();
     net_op_->param["type"] = MUL;
@@ -609,9 +607,9 @@ NetTensor *TNetTensor::operator*(NetTensor* in_1) {
     return out_tensor;
 }
 NetTensor *TNetTensor::operator*(float muln) {
-    Context *ctx =this->ctx;
+    Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
-    out_tensor->name = "outtensor-" + name+ "_div1_" + "-00";
+    out_tensor->name = "outtensor-" + name + "_div1_" + "-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -620,7 +618,7 @@ NetTensor *TNetTensor::operator*(float muln) {
     sub_param->net_tensors.push_back(out_tensor);
     sub_param->net_ops.emplace_back(new NetOp());
     auto net_op_ = (sub_param->net_ops.back());
-    net_op_->name = name+ "_div1_";
+    net_op_->name = name + "_div1_";
     net_op_->type = SCALE;
     net_op_->param = OpParam();
     net_op_->param["type"] = SCALE;
@@ -641,10 +639,10 @@ NetTensor *TNetTensor::operator*(float muln) {
     return out_tensor;
 }
 
-NetTensor *TNetTensor::operator/(NetTensor* in_1) {
-    Context *ctx =this->ctx;
+NetTensor *TNetTensor::operator/(NetTensor *in_1) {
+    Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
-    out_tensor->name = "outtensor-" + name+ "_div_" + "-00";
+    out_tensor->name = "outtensor-" + name + "_div_" + "-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -653,7 +651,7 @@ NetTensor *TNetTensor::operator/(NetTensor* in_1) {
     sub_param->net_tensors.push_back(out_tensor);
     sub_param->net_ops.emplace_back(new NetOp());
     auto net_op_ = (sub_param->net_ops.back());
-    net_op_->name = name+ "_div_";
+    net_op_->name = name + "_div_";
     net_op_->type = DIVISION;
     net_op_->param = OpParam();
     net_op_->param["type"] = DIVISION;
@@ -681,9 +679,9 @@ NetTensor *TNetTensor::operator/(NetTensor* in_1) {
 }
 
 NetTensor *TNetTensor::operator/(float devr) {
-    Context *ctx =this->ctx;
+    Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
-    out_tensor->name = "outtensor-" + name+ "_div1_" + "-00";
+    out_tensor->name = "outtensor-" + name + "_div1_" + "-00";
     out_tensor->type = this->type;
     ctx->idx++;
     ctx->net_tensors.insert(out_tensor);
@@ -692,11 +690,11 @@ NetTensor *TNetTensor::operator/(float devr) {
     sub_param->net_tensors.push_back(out_tensor);
     sub_param->net_ops.emplace_back(new NetOp());
     auto net_op_ = (sub_param->net_ops.back());
-    net_op_->name = name+ "_div1_";
+    net_op_->name = name + "_div1_";
     net_op_->type = SCALE;
     net_op_->param = OpParam();
     net_op_->param["type"] = SCALE;
-    net_op_->param["scale"] = 1/devr;
+    net_op_->param["scale"] = 1 / devr;
     net_op_->param["bias"] = 0.0F;
     net_op_->param["bias_after_scale"] = (float)false;
     ctx->net_ops.push_back(net_op_);
@@ -713,4 +711,4 @@ NetTensor *TNetTensor::operator/(float devr) {
     return out_tensor;
 }
 
-}
+} // namespace mllm

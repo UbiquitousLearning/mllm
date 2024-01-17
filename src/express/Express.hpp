@@ -7,16 +7,9 @@
 #include <vector>
 
 using namespace mllm;
-// 前置声明
-//struct Context {
-//    vector<NetParameter> sub_param_;
-//    vector<NetOp *> net_ops;
-//    std::set<NetTensor *> net_tensors;
-//    int idx = 0;
-//    int active_sub = 0;
-//};
-// NOLINTBEGIN(readability-identifier-naming)
 void _SubgraphBegin(Context *ctx);
+
+
 NetTensor *_Input(Context *ctx, vector<int> dims={}, string name = "", DataType type = MLLM_TYPE_F32);
 NetTensor *_Parameter(Context *ctx, std::vector<NetTensor *> inputs, int batch, int seq, int head, int dim, string name = "", DataType type = MLLM_TYPE_F32);
 NetTensor *_Add(std::vector<NetTensor *> inputs, string name = "");
@@ -30,7 +23,6 @@ NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool
 NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
 NetTensor *_Embedding(std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name = "");
 NetTensor *_Mul(std::vector<NetTensor *> inputs, string name = "");
-// NetTensor *_View(std::vector<NetTensor *> inputs, vector<int> dims, vector<int>data_dims, string name = "");
 NetTensor *_KVCache(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, string name = "");
 NetTensor *_ReLU(std::vector<NetTensor *> inputs, string name = "");
@@ -45,10 +37,6 @@ NetTensor *_Convolution3D(std::vector<NetTensor *> inputs,  int in_channel, int 
 NetTensor *_AvgPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name = "");
 NetTensor *_MaxPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name = "");
 NetTensor *_Cat(std::vector<NetTensor *> inputs, Chl axis, string name = "");
-// NetTensor *_Transpose(std::vector<NetTensor *> inputs, string name = "");
-// NetTensor *_SubDim(std::vector<NetTensor *> inputs, Chl dim, vector<int> interval = {0, 0}, string name = "");
 NetTensor *_Division(std::vector<NetTensor *> inputs, string name = "");
-// NetTensor *_Norm(std::vector<NetTensor *> inputs, int L_n, string name = "");
-// NOLINTEND(readability-identifier-naming)
 
 #endif // MLLM_EXPRESS_H

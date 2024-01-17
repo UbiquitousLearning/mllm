@@ -46,10 +46,8 @@ Op *CPUBackend::opCreate(const OpParam &op_param, string name, int threadCount) 
         printf("Don't support type \n");
         return nullptr;
     }
-    Op *exe = nullptr;
-    exe = iter->second->create(op_param, this, name, threadCount);
+    Op *exe = iter->second->create(op_param, this, name, threadCount);
     return exe;
-    // return nullptr;
 }
 void CPUBackend::registerOps() {
     addCreator(PARAMETER, (CPUBackend::Creator *)(new CPUParameterCreator()));

@@ -1,9 +1,8 @@
-#include <iostream>
 #include <string>
 #include <vector>
 #include "unordered_map"
 #include "Express.hpp"
-#include <algorithm> // 包含 reverse 函数的头文件
+#include <algorithm>
 #include <memory>
 
 using namespace mllm;
@@ -56,23 +55,18 @@ void NetParameter::topologySort() {
     for (auto *op : net_ops) {
         topology(this, *result, op, visited);
     }
-    /*
-    for (auto *op : *result) {
-        std::cout << op->name << std::endl;
-    }
-    */
     net_ops = *result;
 }
-// get active subgraph
-//NetParameter *get_active_subgraph(Context *ctx) {
-//    if (ctx->active_sub >= ctx->sub_param_.size()) {
-//        ctx->sub_param_.emplace_back();
-//    }
-//    return &ctx->sub_param_[ctx->active_sub];
-//}
-// NOLINTBEGIN (readability-identifier-naming)
+
+/**
+ * \brief Creates an input tensor with the given parameters.
+ * \param ctx The context in which the tensor is created.
+ * \param dims The dimensions of the tensor. Default is an empty vector.
+ * \param name The name of the tensor. Default is an empty string.
+ * \param type The data type of the tensor. Default is MLLM_TYPE_F32.
+ * \return A pointer to the created tensor.
+ */
 NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
-    // Ref Count?
     NetTensor *net_tensor = new NetTensor();
     if (name.empty()) {
         name = "input" + std::to_string(ctx->idx);
@@ -89,14 +83,24 @@ NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
     return net_tensor;
 }
 
+/**
+ * \brief Creates a parameter tensor with the given parameters.
+ * \param ctx The context in which the tensor is created.
+ * \param inputs A vector of input tensors.
+ * \param batch The batch size.
+ * \param seq The sequence length.
+ * \param head The number of heads.
+ * \param dim The dimension size.
+ * \param name The name of the tensor.
+ * \param type The data type of the tensor. Default is MLLM_TYPE_F32.
+ * \return A pointer to the created tensor.
+ */
 NetTensor *_Parameter(Context *ctx, std::vector<NetTensor *> inputs, int batch, int seq, int head, int dim, string name, DataType type) {
-    // TODO:Check
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "Parameter" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
     out_tensor->type = type;
     ctx->idx++;
     _STORE_OUT_TENSOR
@@ -119,7 +123,6 @@ NetTensor *_Add(std::vector<NetTensor *> inputs, string name) {
         name = "Add" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
@@ -136,7 +139,6 @@ NetTensor *_Causalmask(std::vector<NetTensor *> inputs, string name) {
         name = "Causalmask" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
@@ -153,7 +155,6 @@ NetTensor *_SiLU(std::vector<NetTensor *> inputs, string name) {
         name = "Silu" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
@@ -163,6 +164,9 @@ NetTensor *_SiLU(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+/**
+ * \param axis The axis along which the softmax is performed. e.g. DIMENSION.
+ */
 NetTensor *_Softmax(std::vector<NetTensor *> inputs, int axis, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -170,7 +174,6 @@ NetTensor *_Softmax(std::vector<NetTensor *> inputs, int axis, string name) {
         name = "Softmax" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
@@ -181,6 +184,10 @@ NetTensor *_Softmax(std::vector<NetTensor *> inputs, int axis, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+/**
+ * \param transpose0 Whether to transpose the first input tensor.
+ * \param transpose1 Whether to transpose the second input tensor.
+ */
 NetTensor *_Matmul(std::vector<NetTensor *> inputs, bool transpose0, bool transpose1, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -188,7 +195,6 @@ NetTensor *_Matmul(std::vector<NetTensor *> inputs, bool transpose0, bool transp
         name = "Matmul" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
@@ -200,15 +206,17 @@ NetTensor *_Matmul(std::vector<NetTensor *> inputs, bool transpose0, bool transp
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-
-NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size,  float epsilon, string name) {
+/**
+ * \param norm_size The size of the normed dimension.
+ * \param epsilon Default is 1e-6.
+ */
+NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilon, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "RMSNorm" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
@@ -220,7 +228,10 @@ NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size,  float epsil
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-
+/**
+ * \param pose_type RoPR type, 1 for TinyLLama, 2 for LLama, 3 for fuyu.
+ * This RoPE function is ready for optimization in the future.
+ */
 NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -228,7 +239,6 @@ NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name) {
         name = "RoPE" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
@@ -239,7 +249,11 @@ NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-
+/**
+ * \param scale scale factor.
+ * \param bias default is 0.
+ * \param bias_after_scale whether to add bias after scale.
+ */
 NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale,string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -247,7 +261,6 @@ NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool
         name = "Scale" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
@@ -260,7 +273,11 @@ NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-
+/**
+ * \param in_features The size of each input sample (i.e., input dimension).
+ * \param out_features The size of each output sample (i.e., output dimension).
+ * \param bias If set to false, the layer will not learn an additive bias. Default is true.
+ */
 NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -268,7 +285,6 @@ NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_fea
         name = "Linear" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
@@ -281,6 +297,10 @@ NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_fea
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+/**
+ * \param vocab_size The size of the vocabulary.
+ * \param hidden_size The size of the hidden layer.
+ */
 NetTensor *_Embedding(std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -288,7 +308,6 @@ NetTensor *_Embedding(std::vector<NetTensor *> inputs, int vocab_size, int hidde
         name = "Embedding" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
@@ -308,7 +327,6 @@ NetTensor *_Mul(std::vector<NetTensor *> inputs, string name) {
         name = "Mul" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
@@ -318,30 +336,6 @@ NetTensor *_Mul(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-// NetTensor *_View(std::vector<NetTensor *> inputs, vector<int> dims, vector<int>data_dims, string name){
-//     Context *ctx = inputs[0]->ctx;
-//     NetTensor *out_tensor = new NetTensor();
-//     if (name.empty()) {
-//         name = "View" + std::to_string(ctx->idx);
-//     }
-//     out_tensor->name = "outtensor-" + name + "-00";
-//     out_tensor->type = inputs[0]->type;
-//     ctx->idx++;
-//     _STORE_OUT_TENSOR
-//     _NEW_OP(mllm::VIEW)
-//     net_op_->param["dim0"] = dims[0];
-//     net_op_->param["dim1"] = dims[1];
-//     net_op_->param["dim2"] = dims[2];
-//     net_op_->param["dim3"] = dims[3];
-//     net_op_->param["data_dim0"] = data_dims[0];
-//     net_op_->param["data_dim1"] = data_dims[1];
-//     net_op_->param["data_dim2"] = data_dims[2];
-//     net_op_->param["data_dim3"] = data_dims[3];
-//     _UPDATE_INPUT_TENSORS
-//     out_tensor->in = net_op_;
-//     out_tensor->ctx = ctx;
-//     return out_tensor;
-// }
 NetTensor *_KVCache(std::vector<NetTensor *> inputs,string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -349,7 +343,6 @@ NetTensor *_KVCache(std::vector<NetTensor *> inputs,string name) {
         name = "KVCache" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
@@ -360,6 +353,11 @@ NetTensor *_KVCache(std::vector<NetTensor *> inputs,string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+/**
+ * Only for Transformer-based models' Decoder.
+ * \param n_rep  if head size of K/V is different with Q, set n_rep > 1, the output will be replicated n_rep times.
+ *               e.g. n_rep = 8 in TinyLLama.
+ */
 NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -367,7 +365,6 @@ NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, string name) {
         name = "KVCache" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    // TODO: check Type
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
@@ -442,6 +439,11 @@ NetTensor *_QuickGELU(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+/**
+ * \param norm_size The size of the normed dimension.
+ * \param bias If set to false, the layer will not learn an additive bias.
+ * \param epsilon Default is 1e-6.
+ */
 NetTensor *_LayerNorm(std::vector<NetTensor *> inputs, int norm_size, bool bias,  float epsilon, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -460,6 +462,12 @@ NetTensor *_LayerNorm(std::vector<NetTensor *> inputs, int norm_size, bool bias,
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+/**
+ * \param split_num The number of output tensors.
+ * \param split_dim The dimension along which to split. e.g. D_HD for fuyu.
+ * \param split_dim_size The size of the dimension along which to split.
+ * This _Split function is ready for optimization in the future.
+ */
 vector<NetTensor *> _Split(std::vector<NetTensor *> inputs, int split_num, Chl split_dim, int split_dim_size, string name){
     Context *ctx = inputs[0]->ctx;
     if (name.empty()) {
@@ -504,7 +512,14 @@ NetTensor *_Gather(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-
+/**
+ * \param in_channel The number of channels in the input image.
+ * \param out_channel The number of channels produced by the convolution.
+ * \param kernal The size of the convolving kernel.
+ * \param stride The stride of the convolution.
+ * \param padding The type of padding applied to the input. Default is VALID.
+ * \param bias If set to false, the layer will not learn an additive bias. Default is true.
+ */
 NetTensor *_Convolution2D(std::vector<NetTensor *> inputs, int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -529,6 +544,14 @@ NetTensor *_Convolution2D(std::vector<NetTensor *> inputs, int in_channel, int o
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+/**
+ * \param in_channel The number of channels in the input image.
+ * \param out_channel The number of channels produced by the convolution.
+ * \param kernal The size of the convolving kernel.
+ * \param stride The stride of the convolution.
+ * \param padding The type of padding applied to the input.
+ * \param bias If set to false, the layer will not learn an additive bias. Default is true.
+ */
 NetTensor *_Convolution3D(std::vector<NetTensor *> inputs, int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -555,6 +578,11 @@ NetTensor *_Convolution3D(std::vector<NetTensor *> inputs, int in_channel, int o
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+/**
+ * \param kernal The size of the convolving kernel.
+ * \param stride The stride of the convolution.
+ * \param padding The type of padding applied to the input.
+ */
 NetTensor *_AvgPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name ){
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -576,6 +604,11 @@ NetTensor *_AvgPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vecto
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+/**
+ * \param kernal The size of the convolving kernel.
+ * \param stride The stride of the convolution.
+ * \param padding The type of padding applied to the input.
+ */
 NetTensor *_MaxPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name ){
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -597,6 +630,9 @@ NetTensor *_MaxPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vecto
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+/**
+ * \param axis The axis along which the concat is performed.
+ */
 NetTensor *_Cat(std::vector<NetTensor *> inputs, Chl axis, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -614,42 +650,6 @@ NetTensor *_Cat(std::vector<NetTensor *> inputs, Chl axis, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-// NetTensor *_Transpose(std::vector<NetTensor *> inputs, string name) {
-//     Context *ctx = inputs[0]->ctx;
-//     NetTensor *out_tensor = new NetTensor();
-//     if (name.empty()) {
-//         name = "_Transpose" + std::to_string(ctx->idx);
-//     }
-//     out_tensor->name = "outtensor-" + name + "-00";
-//     out_tensor->type = inputs[0]->type;
-//     ctx->idx++;
-//     _STORE_OUT_TENSOR
-//     _NEW_OP(mllm::TRANSPOSE)
-//     // net_op_->param["axis"] =(float)axis;
-//     _UPDATE_INPUT_TENSORS
-//     out_tensor->in = net_op_;
-//     out_tensor->ctx = ctx;
-//     return out_tensor;
-// }
-// NetTensor *_SubDim(std::vector<NetTensor *> inputs, Chl dim, vector<int> interval, string name){
-//     Context *ctx = inputs[0]->ctx;
-//     NetTensor *out_tensor = new NetTensor();
-//     if (name.empty()) {
-//         name = "_SubDim" + std::to_string(ctx->idx);
-//     }
-//     out_tensor->name = "outtensor-" + name + "-00";
-//     out_tensor->type = inputs[0]->type;
-//     ctx->idx++;
-//     _STORE_OUT_TENSOR
-//     _NEW_OP(mllm::SUBDIM)
-//     net_op_->param["dim"] =(float)dim;
-//     net_op_->param["start_i"] =(float)interval[0];
-//     net_op_->param["end_i"] =(float)interval[1];
-//     _UPDATE_INPUT_TENSORS
-//     out_tensor->in = net_op_;
-//     out_tensor->ctx = ctx;
-//     return out_tensor;
-// }
 NetTensor *_Division(std::vector<NetTensor *> inputs, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -666,24 +666,6 @@ NetTensor *_Division(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-// NetTensor *_Norm(std::vector<NetTensor *> inputs, int L_n, string name) {
-//     Context *ctx = inputs[0]->ctx;
-//     NetTensor *out_tensor = new NetTensor();
-//     if (name.empty()) {
-//         name = "_Norm" + std::to_string(ctx->idx);
-//     }
-//     out_tensor->name = "outtensor-" + name + "-00";
-//     out_tensor->type = inputs[0]->type;
-//     ctx->idx++;
-//     _STORE_OUT_TENSOR
-//     _NEW_OP(mllm::NORM)
-//     net_op_->param["L_n"] =(float)L_n;
-//     _UPDATE_INPUT_TENSORS
-//     out_tensor->in = net_op_;
-//     out_tensor->ctx = ctx;
-//     return out_tensor;
-// }
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }
-// NOLINTEND (readability-identifier-naming)

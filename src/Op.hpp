@@ -14,15 +14,13 @@ class ParamLoader;
 
 class Op {
 public:
-    Op(){};
-
     /**
      * @brief initializer.
      * @param bn   backend that exection will running on.
      * @param name name of Op.
      */
     Op(Backend *bn, string name = "") :
-        backend_(bn) , name_(name) {
+        backend_(bn), name_(name) {
         // nothing to do
     }
     virtual ~Op() = default;
@@ -35,16 +33,16 @@ public:
      */
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
 #ifdef DEBUGPRINT
-        std::cout << ""<<name()<<"     reshape:";
+        std::cout << "" << name() << "     reshape:";
         std::cout << "\n    || ";
-         for (auto input:inputs) {
-             std::cout << "Input "<< input->name() <<" shape: " << input->ShapeString() <<" |";
-         }
+        for (auto input : inputs) {
+            std::cout << "Input " << input->name() << " shape: " << input->ShapeString() << " |";
+        }
         std::cout << "\n    || ";
-         for (auto output:outputs) {
-             std::cout << "Output "<< output->name() <<" shape: " << output->ShapeString() << " |";
-         }
-        std::cout<<std::endl;
+        for (auto output : outputs) {
+            std::cout << "Output " << output->name() << " shape: " << output->ShapeString() << " |";
+        }
+        std::cout << std::endl;
 #endif
         return MLLM_NO_ERROR;
     }
@@ -56,8 +54,7 @@ public:
      * @return MLLM_NO_ERROR
      */
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-
-        for (auto &output :outputs) {
+        for (auto &output : outputs) {
             output->setDtype(activation_dtype_);
             output->alloc();
         }
@@ -71,7 +68,7 @@ public:
      */
     virtual ErrorCode load(AbstructLoader &loader) {
 #ifdef DEBUGPRINT
-        std::cout << ""<<name()<<"      load" << std::endl;
+        std::cout << "" << name() << "      load" << std::endl;
 #endif
         return MLLM_NO_ERROR;
     }

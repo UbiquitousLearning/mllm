@@ -6,22 +6,32 @@
 namespace mllm {
 class Executor {
 public:
-    Executor() :
-        data_loader_(nullptr) {
-        // nothing to do
-    }
     Executor(ParamLoader *data_loader) :
         data_loader_(data_loader) {
-        // nothing to do
     }
     ~Executor() = default;
 
     /**
-     * @brief setup
-     *
+     * \brief Setup graphs in net
+     * \param net  An instance of the Net class
      */
     void setup(Net *net);
+
+    /**
+     * \brief Executes the foreword propagation of provided network
+     * \param net       An instance of the Net class representing the network to be run
+     * \param input_tensors     A vector of input tensors to be processed by the network
+     */
     void run(Net *net, vector<shared_ptr<Tensor>> input_tensors);
+
+    /**
+     * \brief Setup&Executes the foreword propagation of provided network
+     * \param net       An instance of the Net class representing the network to be run
+     * \param input_tensors     A vector of input tensors to be processed by the network
+     *
+     * execute(net, input_tensors) is equivalent to setup(net) + run(net, input_tensors)
+     */
+    void execute(Net *net, vector<shared_ptr<Tensor>> input_tensor);
 
     bool checkSame(vector<shared_ptr<Tensor>> input_tensor) {
         if (input_tensor.size() != input_sizes_.size()) {
@@ -36,7 +46,14 @@ public:
         }
         return same;
     }
-
+    /**
+     * \brief Checks whether the input tensors have the same shape as the previous input tensors.
+     *        Change init & reshape flags accordingly.
+     * \param init    whether to initialize the input_sizes_ vector
+     * \param reshape    whether to reshape the input tensors
+     * \param input_tensor   A vector of input tensors to be processed by the network
+     * \return
+     */
     bool checkReshape(bool &init, bool &reshape, vector<shared_ptr<Tensor>> input_tensor) {
         if (input_sizes_.empty()) {
             for (auto &t : input_tensor) {
@@ -54,10 +71,6 @@ public:
         }
         return init || reshape;
     }
-
-    void execute(vector<int> input_size = {});
-
-    void execute(Net *net, vector<shared_ptr<Tensor>> input_tensor);
 
     vector<shared_ptr<Tensor>> &result() {
         return result_;
