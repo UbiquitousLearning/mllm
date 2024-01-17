@@ -100,6 +100,7 @@ wget .... -O llama-2-7b-chat-q4_k.mllm
 
   Run on Linux
     ```bash
+    cd ./bin
     ./main_llama -m ../models/llama-2-7b-chat-q4_k.mllm -v ../vacob/llama_vocab.mllm
     ```
   Run on Android
@@ -133,6 +134,7 @@ wget .... -O llama-2-7b-chat-q4_k.mllm
 
   Run on Linux
   ```bash
+  cd ./bin
   ./main_imagebind -m ../models/imagebind_huge-q4_k.mllm -v ../vacob/clip_vocab.mllm
     ```
   Run on Android
@@ -155,7 +157,7 @@ wget .... -O llama-2-7b-chat-q4_k.mllm
   ```
 
 
-## customization
+## Customization
 
 ### Convert models
 You can download models from [here](https://huggingface.co/mllmTeam), or you can convert a pytorch/safetensor model to mllm model by yourself.
