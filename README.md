@@ -59,7 +59,8 @@ wget .... -O llama-2-7b-chat-q4_k.mllm
 ```
 
 ### Run on Android
-
+You should connect your Android device to your host computer. 
+Run the following commands on your host computer.
 - Build
     ```bash
     cd scripts
