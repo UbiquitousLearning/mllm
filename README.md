@@ -212,4 +212,11 @@ Additionally, mllm refers to the following projects:
 
 ## License
 
-MIT License
+### Overall Project License
+
+This project is licensed under the terms of the MIT License. Please see the [LICENSE](LICENSE) file in the root directory for the full text of the MIT License.
+
+### Apache 2.0 Licensed Components
+
+Certain component([wenet](https://github.com/wenet-e2e/wenet)) of this project is licensed under the Apache License 2.0. These component is clearly identified in their respective subdirectories along with a copy of the Apache License 2.0. For the full text of the Apache License 2.0, please refer to the [LICENSE-APACHE](third_party/wenet_audio/LICENSE) file located in the relevant subdirectories.
+
