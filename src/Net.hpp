@@ -13,7 +13,6 @@ public:
     explicit Net(BackendConfig config);
     virtual ~Net() = default;
 
-    // convert all subgraph to specified backend, just for develop
     void convert(vector<NetParameter> &param, BackendType backend_type = BackendType::MLLM_CPU, int threadCount=4);
 
     unordered_map<string, shared_ptr<Graph>> &subGraph() {
@@ -39,7 +38,6 @@ public:
 
 private:
     unordered_map<string, shared_ptr<Graph>> subGraphs_;
-    //BackendConfig config_;
     unordered_map<string, shared_ptr<Tensor>> tensors_;
     vector<vector<string>> tensor_names_;
     vector<NetOp *> ops_;

@@ -2,10 +2,9 @@
 
 namespace mllm {
 
-Tensor::Tensor(const int num, const int channels, const int height, const int width) :
+Tensor::Tensor(const int batch, const int head, const int sequence, const int dimension) :
     host_ptr_(), capacity_(0) {
-    reshape(num, channels, height, width);
-    // TODO
+    reshape(batch, head, sequence, dimension);
 }
 
 Tensor::Tensor(const vector<int> &shape) :
@@ -49,14 +48,11 @@ void Tensor::alloc() {
         return;
     }
     if (allocated_ != count_) {
-        // 如果原有内存已经分配，则释放它
         if (host_ptr_ != nullptr) {
-            //::free(host_ptr_);
             backend_->free(host_ptr_);
             host_ptr_ = nullptr;
         }
         if(count_ >0) {
-            // host_ptr_ = malloc(cntSize());
             backend_->alloc(&host_ptr_, cntSize(), 8);
         }
         allocated_ = count_;

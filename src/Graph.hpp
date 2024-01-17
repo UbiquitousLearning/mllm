@@ -10,7 +10,6 @@
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
 
-
 #include <unordered_map>
 using std::unordered_map;
 
@@ -18,32 +17,61 @@ namespace mllm {
 
 class Graph {
 public:
+    /**
+     * \brief Graph
+     * \param param NetParameter contains the structure of this graph
+     * \param bn Backend like CPU/QNN etc
+     * \param external_tensors xternal tensors from other graph and inter graphs.
+     * \param threadCount number of Threads
+     */
     explicit Graph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors, int threadCount);
     virtual ~Graph() = default;
 
     /**
-     * @brief 初始化
+     * \brief set the output tensors' shape of Ops in this graph.
      */
     void reshape();
 
+    /**
+     * \brief alloc the memory of output tensors of Ops in this graph.
+     */
     void setUpTensors();
 
+    /**
+     * \brief load the weights/bias of Ops in this graph.
+     * \param loader A Paramloader
+     */
     void setUpOps(ParamLoader &loader);
 
     /**
-     * @brief forward
+     * \brief forward propagation
+     * \param autofree Whether to release the memory of weights. Set to false
+     * \return The last output tensor
      */
     const vector<shared_ptr<Tensor>> &forward(bool autofree = false);
 
+    /**
+     * \brief free the memory of Ops' weights in this graph.
+     */
     void freeOps();
+    /**
+     * \brief free the memory of output tensors of Ops in this graph.
+     */
     void freeTensors();
+    /**
+     * \brief free output tensors & Ops' weights
+     */
     void free();
 
     /**
-     * @brief backward
+     * \brief backward propagation [Not Used]
      */
     void backward();
 
+    /**
+     * \brief reflash 'ops_input_tensors_'.
+     * \param external_tensors external tensors from other graph and inter graphs.
+     */
     void reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
 protected:
@@ -65,7 +93,7 @@ protected:
 
     vector<string> op_names_;
 
-    vector<string> ops_connect_input_; // opname: op's input Tensors
+    vector<string> ops_connect_input_;
 };
 
 } // namespace mllm

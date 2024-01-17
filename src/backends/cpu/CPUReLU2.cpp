@@ -21,7 +21,7 @@ ErrorCode CPUReLU2::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     int head = input->head();
     int seq = input->sequence();
     int dim = input->dimension();
-#pragma omp parallel for collapse(4)
+#pragma omp parallel for collapse(4) num_threads(thread_count)
     for (int b = 0; b <batch ; ++b) {
         for (int h = 0; h < head; ++h) {
             for (int s = 0; s < seq; ++s) {

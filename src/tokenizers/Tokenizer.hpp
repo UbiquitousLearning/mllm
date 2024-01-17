@@ -42,6 +42,7 @@ protected:
 
 public:
     explicit Tokenizer(const std::string &vocab_file);
+    virtual ~Tokenizer() {}
     virtual void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) = 0;
     virtual std::string detokenize(const std::vector<token_id_t> &tokens);
     void setSpecialToken(const std::string &bos = "", const std::string &eos = "", const std::string &unk = "", const std::string &nl = "");

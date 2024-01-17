@@ -141,7 +141,7 @@ std::string UnigramTokenizer::detokenize(const std::vector<token_id_t> &tokens) 
             result += static_cast<char>(n);
             // replace ▁[wide char] with " "
             //TODO:Fuyu only
-        } else if (token[0] == -30 && token[1] == -106 && token[2] == -127) {
+        } else if ((int)token[0] == -30 && (int)token[1] == -106 && (int)token[2] == -127) {
             // if (i != size - 1) {
                 result += " ";
             // }

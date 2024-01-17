@@ -103,9 +103,6 @@ ErrorCode CPUKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
         inputs[0]->free();
     }
     inputs[0]->deepCopyFrom(cache_, false, {0,0,cache_seq_len_%cache_limit_,0});
-#ifdef DEBUG
-    std::cout << "*"<<name()<<" setUp*" << std::endl;
-#endif
     return MLLM_NO_ERROR;
 }
 } // namespace mllm

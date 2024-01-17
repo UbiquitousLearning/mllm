@@ -2,7 +2,6 @@
 // Created by Rongjie Yi.
 //
 #include "Graph.hpp"
-#include "OpDefined.hpp"
 
 std::string intToStringWithLeadingZero(int num) {
     if (num < 10) {
@@ -12,11 +11,6 @@ std::string intToStringWithLeadingZero(int num) {
 }
 
 namespace mllm {
-
-/**
- * @brief init
- * @param in_param
- */
 
 Graph::Graph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors, int threadCount) {
     backend_ = bn;
@@ -110,19 +104,11 @@ void Graph::setUpOps(ParamLoader &loader) {
     }
 }
 
-
-/**
- * @brief forward
- * @param loss
- * @return
- */
-// #define DEBUG
 const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
-    // TODO 改为递归
 
     for (const auto& op_name : op_names_) {
 
-#ifdef DEBUG
+#ifdef DEBUGPRINT
         uint64_t t_start = mllm_time_us();
 #endif
         ops_[op_name]->execute(ops_input_tensors_[op_name], ops_output_tensors_[op_name]);
@@ -138,9 +124,9 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
          }
 #endif
 
-#ifdef DEBUG
+#ifdef DEBUGPRINT
         uint64_t t_end = mllm_time_us();
-        std::cout<<"\n ====  "<<op_name<<" ====  "<< (t_end - t_start)/1000.0F << " ms" ;
+        std::cout<<""<<op_name<<"       exe_time:"<< (t_end - t_start)/1000.0F << " ms"<< std::endl;
 #endif
         if(autofree){
             ops_[op_name]->free(ops_input_tensors_[op_name], ops_output_tensors_[op_name]);

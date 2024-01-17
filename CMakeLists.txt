@@ -4,52 +4,53 @@ project(mllm)
 cmake_policy(SET CMP0074 NEW)
 set(CMAKE_CXX_STANDARD 17)
 option(ARM "build on ARM" OFF)
-
+add_compile_options(-Wno-deprecated-declarations)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
+if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
     message(STATUS "ARM detected")
     set(ARM ON)
     set(ANDROID_PLATFORM android-28)
 
     # add_compile_options(-std=c++17)
-endif()
+endif ()
 
-if(ARM)
+if (ARM)
     set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin-arm)
-else()
+else ()
     set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
-endif()
+endif ()
 
 # temp executable name
 #set(TEST_EXE main_test)
 option(TEST "test mode" ON)
 option(QUANT "quantize tools" ON)
 option(APK "Build for Android APK Lib." OFF)
+option(FROM_GGUF "convert from gguf" OFF)
 
-if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)
-endif()
+endif ()
 
 include(FetchContent)
 FetchContent_Declare(
-    googletest
-    URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+        googletest
+        URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
 )
 
 # find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
 # set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 option(DEBUG "debug print" OFF)
 
-if(CMAKE_HOST_UNIX)
+if (CMAKE_HOST_UNIX)
     message("current platform: Linux ")
 
-# set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++14 -stdlib=libc++")
-elseif(CMAKE_HOST_WIN32)
+    # set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++14 -stdlib=libc++")
+elseif (CMAKE_HOST_WIN32)
     message("current platform: Windows ")
-else()
+else ()
     message("current platform: unknown ")
-endif()
+endif ()
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/src DIR_SRC)
 
@@ -69,63 +70,63 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 
 #add tokenizers
 file(GLOB_RECURSE SRC_TOKENIZERS
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/*.cpp
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/*.hpp
+        ${PROJECT_SOURCE_DIR}/src/tokenizers/*.cpp
+        ${PROJECT_SOURCE_DIR}/src/tokenizers/*.hpp
 )
 # if compile to x86_64
-if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$")
+if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$")
     message(STATUS "x86_64 detected")
     add_compile_options(-mf16c)
     add_compile_options(-mavx2)
-elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
+elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
     message(STATUS "ARM detected")
     add_definitions(-DARM)
     if (APK)
         message(STATUS "Build for Android APK Lib.")
         add_definitions("-DANDROID_API")
     endif ()
-endif()
+endif ()
 
-if(QUANT)
+if (QUANT)
     include_directories(${PROJECT_SOURCE_DIR}/src/quantizer)
     file(GLOB_RECURSE MLLM_QUANT
 
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.hpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
+            ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.hpp
+            ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
     )
 
     file(GLOB_RECURSE MLLM_QUANTIZER
-        ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp)
+            ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp)
     list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/main.cpp)
-#    list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/gguf.hpp)
-#    list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/gguf.cpp)
 
     message(STATUS "MLLM_Quant: ${MLLM_QUANT}")
 
     add_executable(
-        quantize
-        ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
-        ${MLLM_QUANT}
-        ${MLLM_QUANTIZER}
-
-        # ${DIR_SRC}
-        ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
-    )
-    add_executable(
-            from_gguf
-            ${PROJECT_SOURCE_DIR}/tools/gguf_convertor/gguf.cpp
-            ${PROJECT_SOURCE_DIR}/tools/gguf_convertor/gguf.hpp
+            quantize
+            ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
             ${MLLM_QUANT}
             ${MLLM_QUANTIZER}
+
             # ${DIR_SRC}
             ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
-
     )
+    if (FROM_GGUF)
+        add_executable(
+                from_gguf
+                ${PROJECT_SOURCE_DIR}/tools/gguf_convertor/gguf.cpp
+                ${PROJECT_SOURCE_DIR}/tools/gguf_convertor/gguf.hpp
+                ${MLLM_QUANT}
+                ${MLLM_QUANTIZER}
+                # ${DIR_SRC}
+                ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
 
-endif()
+        )
+    endif ()
 
-if(TEST)
+endif ()
+
+if (TEST)
     add_definitions(-DTEST)
     FetchContent_MakeAvailable(googletest)
     enable_testing()
@@ -133,8 +134,8 @@ if(TEST)
 
     # MLLM Tests
     file(GLOB_RECURSE MLLM_TEST
-        ${CMAKE_CURRENT_LIST_DIR}/test/*.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/test/*.hpp
+            ${CMAKE_CURRENT_LIST_DIR}/test/*.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/test/*.hpp
     )
     list(REMOVE_ITEM MLLM_TEST ${CMAKE_CURRENT_LIST_DIR}/test/TestSystemMemoryManager.cpp)
     list(REMOVE_ITEM MLLM_TEST ${CMAKE_CURRENT_LIST_DIR}/test/TestMemoryPoolManager.cpp)
@@ -145,10 +146,10 @@ if(TEST)
     # Add ${DIR_SRC_QUANT} to ${DIR_SRC}
     # if ()
     add_executable(
-        MLLM_TEST
-        ${PROJECT_SOURCE_DIR}/test/main.cpp
-        ${MLLM_TEST}
-        ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
+            MLLM_TEST
+            ${PROJECT_SOURCE_DIR}/test/main.cpp
+            ${MLLM_TEST}
+            ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
             src/processor/ClipPreProcess.hpp
             src/processor/ClipPreProcess.cpp
             src/processor/FuyuPreProcess.hpp
@@ -159,14 +160,14 @@ if(TEST)
     )
 
     target_link_libraries(
-        MLLM_TEST
-        GTest::gtest_main
-        MLLM_CPU 
+            MLLM_TEST
+            GTest::gtest_main
+            MLLM_CPU
     )
     add_executable(
-        memoryPoolTest
-        ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp
-        ${DIR_SRC_MEM_MANAGER} ${PROJECT_SOURCE_DIR}/src/MemoryManager.hpp
+            memoryPoolTest
+            ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp
+            ${DIR_SRC_MEM_MANAGER} ${PROJECT_SOURCE_DIR}/src/MemoryManager.hpp
     )
 
     # add_executable(
@@ -192,18 +193,18 @@ if(TEST)
     include(GoogleTest)
 
     # if not cross-compiling
-    if(NOT ARM)
+    if (NOT ARM)
         gtest_discover_tests(MLLM_TEST)
-    endif()
-endif()
+    endif ()
+endif ()
 
 # else ()
 # No Unit Test.
 add_executable(main_llama ${PROJECT_SOURCE_DIR}/examples/main_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
-    src/tokenizers/Tokenizer.cpp
-    src/tokenizers/Tokenizer.hpp
-    src/tokenizers/BPE/Bpe.cpp
-    src/tokenizers/BPE/Bpe.hpp
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp
 )
 if (ARM AND NOT APK)
     target_compile_options(main_llama PRIVATE -fopenmp)
@@ -300,8 +301,8 @@ add_executable(main_imagebind ${PROJECT_SOURCE_DIR}/examples/main_imagebind.cpp 
         src/tokenizers/BPE/Bpe.hpp
         ${DIR_SRC_PROCESSOE}
         ${DIR_THIRDPARTY_AUDIO}
-#        src/processor/ClipPreProcess.cpp
-#        src/processor/ClipPreProcess.hpp
+        #        src/processor/ClipPreProcess.cpp
+        #        src/processor/ClipPreProcess.hpp
         src/processor/PreProcess.hpp
         src/processor/PreProcess.cpp
 )

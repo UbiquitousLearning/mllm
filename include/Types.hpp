@@ -38,17 +38,10 @@ enum DataType {
     MLLM_TYPE_F16 = 1,
     MLLM_TYPE_Q4_0 = 2,
     MLLM_TYPE_Q4_1 = 3,
-    // MLLM_TYPE_Q4_2 = 4, support has been removed
-    // MLLM_TYPE_Q4_3 (5) support has been removed
-    // MLLM_TYPE_Q5_0 = 6,
-    // MLLM_TYPE_Q5_1 = 7,
     MLLM_TYPE_Q8_0 = 8,
     MLLM_TYPE_Q8_1 = 9,
     // k-quantizations
-    // MLLM_TYPE_Q2_K = 10,
-    // MLLM_TYPE_Q3_K = 11,
     MLLM_TYPE_Q4_K = 12,
-    // MLLM_TYPE_Q5_K = 13,
     MLLM_TYPE_Q6_K = 14,
     MLLM_TYPE_Q8_K = 15,
     MLLM_TYPE_I8,

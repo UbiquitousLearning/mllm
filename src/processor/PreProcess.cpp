@@ -112,15 +112,16 @@ std::vector<ImageInfo> PreProcessor::ResizeImages(std::vector<ImageInfo> &images
             auto shortest_ = std::min(image.height, image.width);
             auto longest_ = std::max(image.height, image.width);
             switch (fit_edge) {
-                case shortest:
+            case shortest:
                 longest_ = std::round(height * longest_ / shortest_);
                 shortest_ = height;
-
-                    break;
+                break;
             case longest:
                 shortest_ = std::round(height * shortest_ / longest_);
                 longest_ = height_;
-
+                break;
+            default:
+                break;
             }
             if (image.height > image.width) {
                 height_ = longest_;
