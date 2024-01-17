@@ -1,16 +1,13 @@
-# mllm
 [![Website](https://img.shields.io/badge/website-visit-green)](https://ubiquitouslearning.github.io/mllm_website/)
 [![Documentation](https://img.shields.io/badge/view-docs-blue)](https://ubiquitouslearning.github.io/mllm_website/introduction/getstarted/)
 [![Actions Status](https://github.com/UbiquitousLearning/mllm/workflows/Tests/badge.svg)](https://github.com/UbiquitousLearning/mllm/actions)
 
-## Description
-
 mllm is a fast, lightweight, dependency-free multimodal LLM inference engine for mobile and edge devices.
 
 - Plain C/C++ implementation without dependencies
-- ARM NEON support for ARM architectures
-- AVX2 support for x86 architectures
-- 4-bit and6-bit integer quantization support
+- Optimized for multimodal LLMs like fuyu-8B
+- Supported: ARM NEON and x86 AVX2
+- 4-bit and 6-bit integer quantization
 
 Currently, mllm is mainly optimized for Android devices.
 
