@@ -75,6 +75,16 @@ NetTensor * SiLU(Context *ctx,  uint32_t hidden_dim, uint32_t ffn_hidden_dim, in
     return z;
 }
 
+NetTensor * RMSNorm(Context *ctx,  uint32_t hidden_dim, uint32_t ffn_hidden_dim, int layer) {
+
+    auto *i = _Input(ctx);
+    auto *z = _RMSNorm(ctx, {i}, "ffn.rmsnorm1");
+    for (int i = 1; i<=layer; i++)
+        z = _RMSNorm(ctx, {z}, std::to_string(i)+".ffn.rmsnorm");
+
+    return z;
+}
+
 
 
 template <typename Dtype>
@@ -123,10 +133,17 @@ int main(int argc,char **argv) {
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
 
+    int dimension = 0;
+
     if (strcmp(argv[1], "silu") == 0) {
         SiLU(c, hidden_dim, ffn_hidden_dim, atoi(argv[2]));
+        dimension = hidden_dim;
+    } else if (strcmp(argv[1], "rmsnorm") == 0) {
+        RMSNorm(c, hidden_dim, ffn_hidden_dim, atoi(argv[2]));
+        dimension = vocab_size;
     } else {
         LLaMA(c, hidden_dim, ffn_hidden_dim);
+        dimension = hidden_dim;
     }
     
 
@@ -140,7 +157,7 @@ int main(int argc,char **argv) {
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
 
     // 1 batch seqence length embedding
-    fullTensor(input, net, {1, 1, 1, hidden_dim}, 2.f);
+    fullTensor(input, net, {1, 1, 1, dimension}, 2.f);
 
     ex.execute(&net, input);
     ex.perf();
