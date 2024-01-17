@@ -44,6 +44,7 @@ cd mllm
 ### Check prerequisites 
 
 Building mllm requires following tools:
+- gcc(11.4+) / clang (11.0+)
 - CMake >= 3.18
 - OpenMP Libs.
 - Android NDK Toolchains >= 26
