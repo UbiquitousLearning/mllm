@@ -65,6 +65,7 @@ wget .... -O llama-2-7b-chat-q4_k.mllm
 - Build for Android
   
   ```bash
+  export ANDROID_NDK=/path/to/your/ndk
   cd scripts
   ./build_android.sh
   ```
