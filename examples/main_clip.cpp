@@ -153,7 +153,7 @@ void CLIP(Context* c) {
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/clip_vocab.mllm");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/clip-q4_k.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/clip-vit-base-patch32-q4_k.mllm");
     cmdParser.add<string>("merges", 't', "specify mllm tokenizer merges.txt path", false, "../vocab/clip_merges.txt");
     cmdParser.parse_check(argc, argv);
 

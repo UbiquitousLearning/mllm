@@ -1127,7 +1127,7 @@ void vit(Context* c, int hidden_dim= 768, int ffn_hidden_dim = 3072, int class_s
 }
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/vit-q4_k.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/vit-base-patch16-224-q4_k.mllm");
     cmdParser.parse_check(argc, argv);
 
     string model_path = cmdParser.get<string>("model");

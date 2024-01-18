@@ -50,10 +50,15 @@ Building mllm requires following tools:
 - Android NDK Toolchains >= 26
 
 ### Download models
-
+You can download the corresponding model from [here](https://huggingface.co/mllmTeam), or you can download the model using the following instructions
 ```bash
 mkdir models && cd models
-wget .... -O llama-2-7b-chat-q4_k.mllm
+# Dowload llama-2-7b-chat-q4_k.mllm
+wget https://huggingface.co/mllmTeam/llama-2-7b-mllm/resolve/main/llama-2-7b-chat-q4_k.mllm?download=true  -O llama-2-7b-chat-q4_k.mllm
+# Download fuyu-8b-q4_k.mllm
+wget https://huggingface.co/mllmTeam/fuyu-8b-mllm/blob/resolve/main/fuyu-8b-q4_k.mllm?download=true  -O fuyu-8b-q4_k.mllm
+# Download imagebind_huge-q4_k.mllm
+wget https://huggingface.co/mllmTeam/imagebind_huge-mllm/resolve/blob/main/imagebind_huge-q4_k.mllm?download=true -O imagebind_huge-q4_k.mllm 
 ```
 
 ### Build
