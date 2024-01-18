@@ -12,7 +12,10 @@ mllm is a fast and lightweight multimodal LLM inference engine for mobile and ed
 Currently, mllm is mainly optimized for Android devices.
 
 ## Android Demo
-(gif)
+
+
+https://github.com/lx200916/mllm/assets/44310445/4ede7e6e-f3d2-4ef5-bd32-73c022edfdbe
+
 
 ##  Support models
 
