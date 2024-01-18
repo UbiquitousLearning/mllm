@@ -10,6 +10,7 @@
 namespace mllm {
 
 QNNMemoryManager::QNNMemoryManager() {
+#ifdef QNN_ARM
     // load libcdsprpc.so
     void *libCdspHandle = pal::dynamicloading::dlOpen("libcdsprpc.so", pal::dynamicloading::DL_NOW | pal::dynamicloading::DL_LOCAL);
     if (nullptr == libCdspHandle) {
@@ -24,9 +25,11 @@ QNNMemoryManager::QNNMemoryManager() {
         dlclose(libCdspHandle);
         std::cerr << "dlsym failed" << std::endl;
     }
+#endif
 }
 
 QNNMemoryManager::~QNNMemoryManager() {
+#ifdef QNN_ARM
     // free all buffers if it's not being used
     for (auto &memHandle : qnnMemHandleList_) {
         Qnn_ErrorHandle_t deregisterRet = qnnInterface_->memDeRegister(&memHandle, 1);
@@ -35,12 +38,13 @@ QNNMemoryManager::~QNNMemoryManager() {
             std::cerr << "qnnInterface_->memDeRegister failed" << std::endl;
         }
     }
+#endif
 }
 
 void QNNMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
     assert(size > 0);
 
-    // Calculate the size base on tensor dimensions and data type ......
+#ifdef QNN_ARM
 #define RPCMEM_HEAP_ID_SYSTEM 25
 #define RPCMEM_DEFAULT_FLAGS 1
     // Allocate the shared buffer
@@ -48,47 +52,56 @@ void QNNMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
     if (nullptr == memPointer) {
         std::cerr << "rpcmem_alloc failed" << std::endl;
     }
-    int memFd = rpcmem_to_fd(memPointer);
+
+#else
+    void **origin = (void **)malloc(size + sizeof(void *) + alignment - 1);
+    assert(origin != nullptr);
+    if (origin == nullptr) {
+        *ptr = nullptr;
+    }
+    void **aligned = (void **)(((size_t)(origin) + sizeof(void *) + alignment - 1) & (~(alignment - 1)));
+    // printf("origin = %p, align=%p\n",origin,aligned);
+    aligned[-1] = origin;
+    *ptr = aligned;
+#endif
+}
+
+void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
+#ifdef QNN_ARM
+    auto it = qnnMemPtrMap_.find(ptr);
+    if (it == qnnMemPtrMap_.end()) {
+        std::cerr << "getMemHandle failed" << std::endl;
+        return;
+    }
+
+    int memFd = rpcmem_to_fd(ptr);
     if (-1 == memFd) {
         std::cerr << "rpcmem_to_fd failed" << std::endl;
+        return;
     }
-    // Fill the info of Qnn_MemDescriptor_t and regist the buffer to QNN
-    // Qnn_MemDescriptor_t is defined in ${QNN_SDK_ROOT}/include/QNN/QnnMem.h
+
     Qnn_MemDescriptor_t memDescriptor = QNN_MEM_DESCRIPTOR_INIT;
-    Qnn_Tensor_t inputTensor;
-    uint32_t dimensions[] = {static_cast<uint32_t>(size)};
-    memDescriptor.memShape = {1, dimensions, nullptr};
-    memDescriptor.dataType = QNN_DATATYPE_INT_8;
+    memDescriptor.memShape = {qnnTensor.v1.rank, qnnTensor.v1.dimensions, nullptr};
+    memDescriptor.dataType = qnnTensor.v1.dataType;
     memDescriptor.memType = QNN_MEM_TYPE_ION;
     memDescriptor.ionInfo.fd = memFd;
-
-    Qnn_ErrorHandle_t registRet = qnnInterface_->memRegister(*context_, &memDescriptor, 1u, &(inputTensor.v1.memHandle));
-    if (QNN_SUCCESS != registRet) {
-        rpcmem_free(memPointer);
-        // handle errors
-        std::cerr << "qnnInterface_->memRegister failed" << std::endl;
+    qnnTensor.v1.memType = QNN_TENSORMEMTYPE_MEMHANDLE;
+    Qnn_ErrorHandle_t registRet = qnnInterface_->memRegister(this->context_, &memDescriptor, 1u, &(qnnTensor.v1.memHandle));
+    if (registRet != QNN_SUCCESS) {
+        std::cerr << "qnnInterface memRegister failed" << std::endl;
+        return;
     }
 
-    qnnMemHandleList_.push_back(inputTensor.v1.memHandle);
-    qnnMemPtrMap_[memPointer] = inputTensor.v1.memHandle;
-    *ptr = memPointer;
-    /**
-     * At this place, the allocation and registration of the shared buffer has been complete.
-     * On QNN side, the buffer has been bound by memfd
-     * On user side, this buffer can be manipulated through memPointer.
-     */
-    /**
-     * Optionally, user can also allocate and register shared buffer for output as adove codes (lines 7-46).
-     * And if so the output buffer also should be deregistered and freed as below codes (lines 66-70).
-     */
-    // Load the input data to memPointer ......
-    // Execute QNN graph with input tensor and output tensor ......
-    // Get output data ......
-    // Deregister and free all buffers if it's not being used
+    qnnMemHandleList_.push_back(qnnTensor.v1.memHandle);
+#endif
 }
 
 void QNNMemoryManager::free(void *ptr) {
+#ifdef QNN_ARM
     rpcmem_free(ptr);
+#else
+    ::free(((void **)ptr)[-1]);
+#endif
 }
 
 } // namespace mllm

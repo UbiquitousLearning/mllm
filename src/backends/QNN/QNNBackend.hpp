@@ -115,6 +115,7 @@ private:
 
     StatusCode executeGraphs();
     StatusCode executeGraphs(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap);
+    StatusCode executeGraphsShared();
 
     StatusCode registerOpPackages();
 

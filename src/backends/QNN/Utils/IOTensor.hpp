@@ -104,6 +104,9 @@ class IOTensor {
   StatusCode copyFromFloatToNative(float *floatBuffer, Qnn_Tensor_t *tensor);
 
   StatusCode setupTensors(Qnn_Tensor_t **tensors, uint32_t tensorCount, Qnn_Tensor_t *tensorsInfo);
+  // just set the tensor info, no buffer allocation
+  // used when enable qnn shared buffer for input and output
+  StatusCode setupTensorsNoCopy(Qnn_Tensor_t **tensors, uint32_t tensorCount, Qnn_Tensor_t *tensorsInfo);
 
   StatusCode fillDims(std::vector<size_t> &dims, uint32_t *inDimensions, uint32_t rank);
 };

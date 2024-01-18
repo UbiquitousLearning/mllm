@@ -20,6 +20,7 @@
 #include "PAL/Path.hpp"
 #include "PAL/StringOp.hpp"
 #include "QnnTypeMacros.hpp"
+#include "QnnTypes.h"
 
 using namespace qnn;
 using namespace qnn::tools;
@@ -377,20 +378,65 @@ iotensor::StatusCode iotensor::IOTensor::setupTensors(Qnn_Tensor_t** tensors,
   return returnStatus;
 }
 
+iotensor::StatusCode iotensor::IOTensor::setupTensorsNoCopy(Qnn_Tensor_t** tensors,
+                                                      uint32_t tensorCount,
+                                                      Qnn_Tensor_t* tensorWrappers){
+    if (nullptr == tensorWrappers) {
+        QNN_ERROR("tensorWrappers is nullptr");
+        return StatusCode::FAILURE;
+    }
+    if (0 == tensorCount) {
+        QNN_INFO("tensor count is 0. Nothing to setup.");
+        return StatusCode::SUCCESS;
+    }
+    auto returnStatus = StatusCode::SUCCESS;
+    *tensors = (Qnn_Tensor_t *)calloc(1, tensorCount * sizeof(Qnn_Tensor_t));
+    if (nullptr == *tensors) {
+        QNN_ERROR("mem alloc failed for *tensors");
+        returnStatus = StatusCode::FAILURE;
+        return returnStatus;
+    }
+    for (size_t tensorIdx = 0; tensorIdx < tensorCount; tensorIdx++) {
+        Qnn_Tensor_t wrapperTensor = tensorWrappers[tensorIdx];
+        std::vector<size_t> dims;
+        fillDims(dims, QNN_TENSOR_GET_DIMENSIONS(wrapperTensor), QNN_TENSOR_GET_RANK(wrapperTensor));
+        if (StatusCode::SUCCESS == returnStatus) {
+            QNN_DEBUG("allocateBuffer successful");
+            (*tensors)[tensorIdx] = QNN_TENSOR_INIT;
+            returnStatus =
+                (sample_app::deepCopyQnnTensorInfo(((*tensors) + tensorIdx), &wrapperTensor) == true ? StatusCode::SUCCESS : StatusCode::FAILURE);
+        }
+        if (StatusCode::SUCCESS == returnStatus) {
+            QNN_DEBUG("deepCopyQnnTensorInfo successful");
+            QNN_TENSOR_SET_MEM_TYPE(((*tensors) + tensorIdx), QNN_TENSORMEMTYPE_MEMHANDLE);
+        }
+    }
+    return returnStatus;
+}
+
 // Setup details for all input and output tensors for graph execution.
 iotensor::StatusCode iotensor::IOTensor::setupInputAndOutputTensors(
     Qnn_Tensor_t** inputs, Qnn_Tensor_t** outputs, qnn_wrapper_api::GraphInfo_t graphInfo) {
   auto returnStatus = StatusCode::SUCCESS;
-  if (StatusCode::SUCCESS !=
-      setupTensors(inputs, graphInfo.numInputTensors, (graphInfo.inputTensors))) {
-    QNN_ERROR("Failure in setting up input tensors");
-    returnStatus = StatusCode::FAILURE;
+#ifdef QNN_ARM
+  if (StatusCode::SUCCESS != setupTensorsNoCopy(inputs, graphInfo.numInputTensors, (graphInfo.inputTensors))) {
+      QNN_ERROR("Failure in setting up input tensors");
+      returnStatus = StatusCode::FAILURE;
   }
-  if (StatusCode::SUCCESS !=
-      setupTensors(outputs, graphInfo.numOutputTensors, (graphInfo.outputTensors))) {
-    QNN_ERROR("Failure in setting up output tensors");
-    returnStatus = StatusCode::FAILURE;
+  if (StatusCode::SUCCESS != setupTensorsNoCopy(outputs, graphInfo.numOutputTensors, (graphInfo.outputTensors))) {
+      QNN_ERROR("Failure in setting up output tensors");
+      returnStatus = StatusCode::FAILURE;
   }
+#else
+  if (StatusCode::SUCCESS != setupTensors(inputs, graphInfo.numInputTensors, (graphInfo.inputTensors))) {
+      QNN_ERROR("Failure in setting up input tensors");
+      returnStatus = StatusCode::FAILURE;
+  }
+  if (StatusCode::SUCCESS != setupTensors(outputs, graphInfo.numOutputTensors, (graphInfo.outputTensors))) {
+      QNN_ERROR("Failure in setting up output tensors");
+      returnStatus = StatusCode::FAILURE;
+  }
+#endif
   if (StatusCode::SUCCESS != returnStatus) {
     QNN_ERROR("Failure in setupInputAndOutputTensors, cleaning up resources");
     if (nullptr != *inputs) {

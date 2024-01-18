@@ -5,9 +5,10 @@
 #include "MemoryManager.hpp"
 #include "PAL/DynamicLoading.hpp"
 #include "DynamicLoadUtil.hpp"
+#include "QnnTypes.h"
 #include <cstddef>
 #include <iostream>
-#include <unordered_map>
+#include <set>
 #include <vector>
 #include <dlfcn.h>
 
@@ -37,14 +38,7 @@ public:
         }
     }
 
-    Qnn_MemHandle_t getMemHandle(void *ptr) const {
-        auto it = qnnMemPtrMap_.find(ptr);
-        if (it == qnnMemPtrMap_.end()) {
-            std::cerr << "getMemHandle failed" << std::endl;
-            exit(1);
-        }
-        return it->second;
-    }
+    void registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor);
 
 private:
     QNN_INTERFACE_VER_TYPE *qnnInterface_ = nullptr;
@@ -52,8 +46,8 @@ private:
 
     std::vector<Qnn_MemHandle_t> qnnMemHandleList_;
     std::vector<void *> qnnMemPtrList_;
-    // relation between buffer memPointer and qnn memHandle
-    std::unordered_map<void *, Qnn_MemHandle_t> qnnMemPtrMap_;
+    // memHandle set, to check if the ptr is allocted by rpcmem_alloc
+    std::set<void *> qnnMemPtrMap_;
 
     RpcMemAllocFn_t rpcmem_alloc;
     RpcMemFreeFn_t rpcmem_free;

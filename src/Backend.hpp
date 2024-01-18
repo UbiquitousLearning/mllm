@@ -63,7 +63,7 @@ public:
     virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs){};
     virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs){};
     virtual void onExecuteEnd(){};
-private:
+protected:
     //
     shared_ptr<MemoryManager> mem_manager_;
     // unordered_map<OpType, Op*(*)(Backend*)> op_map_;
