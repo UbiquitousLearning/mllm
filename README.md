@@ -25,16 +25,16 @@ https://github.com/lx200916/mllm/assets/44310445/4ede7e6e-f3d2-4ef5-bd32-73c022e
 
 * ❌  : Not support yet.
 
-|                    | FP32 | INT4 |
-|--------------------|------|------|
-| Llama 7B           | ✔️   | ✔️   |
-| Alpaca 7B          | ✔️   | ✔️   |
-| TinyLlama 1.1B     | ✔️   | ✔️   |
-| Persimmon 8B       | ✔️   | ✔️   |
-| Fuyu 8B            | ✔️   | ✔️   |
-| Vision Transformer | ✔️   | ✔️   |
-| CLIP               | ✔️   | ✔️   |
-| ImageBind          | ⚠️   | ⚠️   |
+|                      | FP32 | INT4 |
+|----------------------|------|------|
+| Llama 7B             | ✔️   | ✔️   |
+| Alpaca 7B            | ✔️   | ✔️   |
+| TinyLlama 1.1B       | ✔️   | ✔️   |
+| Persimmon 8B         | ✔️   | ✔️   |
+| Fuyu 8B              | ✔️   | ✔️   |
+| Vision Transformer   | ✔️   | ✔️   |
+| CLIP                 | ✔️   | ✔️   |
+| ImageBind  (3 modal) | ✔️   | ✔️   |
 
 ##  Quick Start
 
