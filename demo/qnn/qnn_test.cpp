@@ -25,11 +25,11 @@ NetTensor * Attention(Context *ctx, NetTensor * i, uint32_t hidden_dim, uint32_t
     // q = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
     // k = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
     // v = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
-    // q = _RoPE(ctx, {q}, std::to_string(layer)+"RoPE_q");
-    // k = _RoPE(ctx, {k}), std::to_string(layer)+"RoPE_k";
+    q = _RoPE(ctx, {q}, std::to_string(layer)+"RoPE_q");
+    k = _RoPE(ctx, {k}), std::to_string(layer)+"RoPE_k";
     auto *qk = _Matmul(ctx, {q, k}, false, true, std::to_string(layer)+"attention.qk");
     qk = _Scale(ctx, {qk}, 0.5f, 0.0F, false, std::to_string(layer)+"attention.scale");
-    // qk = _Causalmask(ctx, {qk}, std::to_string(layer)+"mask");
+    qk = _Causalmask(ctx, {qk}, std::to_string(layer)+"mask");
     qk = _Softmax(ctx, {qk}, 3, std::to_string(layer)+"softmax");
     auto *o = _Matmul(ctx, {qk, v}, false, false, std::to_string(layer)+"qkv");
     // o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, "qkv_view");
@@ -55,7 +55,7 @@ void LLaMA(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim) {
 
     // i = _RoPE(ctx, {i}, "RoPE_0");
     i = _Softmax(ctx, {i}, 3, "softmax0");
-    for(int layer=0; layer<4; ++layer) {
+    for(int layer=0; layer<8; ++layer) {
 
         auto *x = _RMSNorm(ctx, {i}, std::to_string(layer)+"RMSNorm");
         i = Attention( ctx, i, hidden_dim, ffn_hidden_dim, layer);
@@ -84,6 +84,16 @@ NetTensor * RMSNorm(Context *ctx,  uint32_t hidden_dim, uint32_t ffn_hidden_dim,
 
     return z;
 }
+
+NetTensor * RoPE(Context *ctx,  uint32_t hidden_dim, uint32_t ffn_hidden_dim, int layer) {
+
+    auto *i = _Input(ctx);
+    auto *z = _RoPE(ctx, {i}, "ffn.rope");
+    for (int i = 1; i<=layer; i++)
+        z = _RoPE(ctx, {z}, std::to_string(i)+".ffn.rope");
+    return z;
+}
+
 
 
 
@@ -133,7 +143,9 @@ int main(int argc,char **argv) {
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
 
-    int dimension = 0;
+    int dimension = hidden_dim;
+    int head_size = 1;
+    int seqence_size = 1;
 
     if (strcmp(argv[1], "silu") == 0) {
         SiLU(c, hidden_dim, ffn_hidden_dim, atoi(argv[2]));
@@ -141,7 +153,11 @@ int main(int argc,char **argv) {
     } else if (strcmp(argv[1], "rmsnorm") == 0) {
         RMSNorm(c, hidden_dim, ffn_hidden_dim, atoi(argv[2]));
         dimension = vocab_size;
-    } else {
+    } else if (strcmp(argv[1], "rope") == 0) {
+        RoPE(c, hidden_dim, ffn_hidden_dim, atoi(argv[2]));
+        dimension = hidden_dim / mutil_head_size;
+        seqence_size = 1000;
+    }else {
         LLaMA(c, hidden_dim, ffn_hidden_dim);
         dimension = hidden_dim;
     }
@@ -157,7 +173,7 @@ int main(int argc,char **argv) {
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
 
     // 1 batch seqence length embedding
-    fullTensor(input, net, {1, 1, 1, dimension}, 2.f);
+    fullTensor(input, net, {1, seqence_size, 1, dimension}, 2.f);
 
     ex.execute(&net, input);
     ex.perf();
