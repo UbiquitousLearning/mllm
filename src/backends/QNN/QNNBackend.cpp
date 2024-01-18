@@ -14,6 +14,7 @@
 #include "PAL/StringOp.hpp"
 #include "PAL/DynamicLoading.hpp"
 #include "PAL/GetOpt.hpp"
+#include "QNNMemoryManager.hpp"
 #include "QnnSampleAppUtils.hpp"
 #include "QnnTypes.h"
 #include "QnnWrapperUtils.hpp"
@@ -144,6 +145,11 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     // init qnn resources and create a graph
     this->graphInitialize();
     this->registerOps();
+
+#ifdef QNN_ARM
+    auto qnnMM = std::dynamic_pointer_cast<QNNMemoryManager>(mm);
+    qnnMM->setQnnInterfaceAndContext(m_qnnFunctionPointers.qnnInterface, m_context);
+#endif
 }
 
 void QNNBackend::release() {
@@ -189,23 +195,37 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
 
 void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
     graphFinilize();
-    for(auto &input : inputs) {
+#ifndef QNN_ARM
+    for (auto &input : inputs) {
         std::cout << "input dtype:" << input->dtype() << std::endl;
         // input->printData<float>();
         inputBuffers.push_back(input->hostPtr<uint8_t>());
     }
     inputBufferMap.insert(std::make_pair("graph", inputBuffers));
-    for(auto &output : outputs) {
+    for (auto &output : outputs) {
         std::cout << "output dtype:" << output->dtype() << std::endl;
         output->alloc();
         // output->printData<float>();
         outputBuffers.push_back(output->hostPtr<uint8_t>());
     }
     outputBufferMap.insert(std::make_pair("graph", outputBuffers));
+#else
+    for (auto &input : inputs) {
+        inputBuffers.push_back(input->hostPtr<uint8_t>());
+    }
+    for (auto &output : outputs) {
+        output->alloc();
+        outputBuffers.push_back(output->hostPtr<uint8_t>());
+    }
+#endif
 }
 
 void QNNBackend::onExecuteEnd() {
+#ifdef QNN_ARM
+    executeGraphsShared();
+#else
     graphExecute(inputBufferMap, outputBufferMap);
+#endif
 }
 
 std::string QNNBackend::getBackendBuildId() {
@@ -815,6 +835,53 @@ StatusCode QNNBackend::executeGraphs(std::map< std::string, std::vector<uint8_t*
   return returnStatus;
 }
 
+StatusCode QNNBackend::executeGraphsShared() {
+    auto returnStatus = StatusCode::SUCCESS;
 
+    for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
+        auto graphInfo = (*m_graphsInfo)[graphIdx];
 
+        Qnn_Tensor_t *inputs = nullptr;
+        Qnn_Tensor_t *outputs = nullptr;
+        if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&inputs, &outputs, (*m_graphsInfo)[graphIdx])) {
+            QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
+            returnStatus = StatusCode::FAILURE;
+            break;
+        }
+
+        auto qnnMM = std::dynamic_pointer_cast<QNNMemoryManager>(mem_manager_);
+        for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {
+            qnnMM->registerQnnTensor(inputBuffers[i], inputs[i]);
+        }
+        for (int i = 0; i < (*m_graphsInfo)[graphIdx].numOutputTensors; i++) {
+            qnnMM->registerQnnTensor(outputBuffers[i], outputs[i]);
+        }
+
+        Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
+        executeStatus =
+            m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
+                                                            inputs,
+                                                            graphInfo.numInputTensors,
+                                                            outputs,
+                                                            graphInfo.numOutputTensors,
+                                                            m_profileBackendHandle,
+                                                            nullptr);
+        if (QNN_GRAPH_NO_ERROR != executeStatus) {
+            returnStatus = StatusCode::FAILURE;
+        }
+        if (StatusCode::SUCCESS == returnStatus) {
+            QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
+            for (int oi = 0; oi < graphInfo.numOutputTensors; oi++) {
+                auto output = outputs[oi];
+                // DEBUGLOG
+                std::cout << "----------------" << std::endl;
+                std::cout << "output name:" << output.v1.name << std::endl;
+                // std::cout << "output id:" << output.v1.clientBuf.dataSize << std::endl;
+                std::cout << "output type:" << output.v1.type << std::endl;
+                std::cout << "output type:" << output.v1.dataType << std::endl;
+            }
+        }
+    }
+    return returnStatus;
+}
 }
