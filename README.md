@@ -2,14 +2,15 @@
 [![Documentation](https://img.shields.io/badge/view-docs-blue)](https://ubiquitouslearning.github.io/mllm_website/introduction/getstarted/)
 [![Actions Status](https://github.com/UbiquitousLearning/mllm/workflows/Tests/badge.svg)](https://github.com/UbiquitousLearning/mllm/actions)
 
-mllm is a fast and lightweight multimodal LLM inference engine for mobile and edge devices.
+**mllm** is a fast and lightweight <ins>multimodal LLM</ins> inference engine for mobile and edge devices.
 
 - Plain C/C++ implementation without dependencies
 - Optimized for multimodal LLMs like fuyu-8B
 - Supported: ARM NEON and x86 AVX2
 - 4-bit and 6-bit integer quantization
+- Currently, mllm is mainly optimized for Android devices.
 
-Currently, mllm is mainly optimized for Android devices.
+Wait.. why on-device multimodal LLM? - It's a key building block for [intelligent personal agent](https://arxiv.org/pdf/2401.05459.pdf), text-based image searching/retrieval, screen VQA, and many more exciting mobile apps, without letting go your private data (chat history, screenshots, taken photos, etc).
 
 
 ### Contents
@@ -45,16 +46,16 @@ https://github.com/lx200916/mllm/assets/44310445/4ede7e6e-f3d2-4ef5-bd32-73c022e
 [//]: # ()
 [//]: # (* ❌  : Not support yet.)
 
-|                      | FP32 | INT4 |
-|----------------------|------|------|
-| LLaMA 7B             | ✔️   | ✔️   |
-| Alpaca 7B            | ✔️   | ✔️   |
-| TinyLLaMA 1.1B       | ✔️   | ✔️   |
-| Persimmon 8B         | ✔️   | ✔️   |
-| Fuyu 8B              | ✔️   | ✔️   |
-| Vision Transformer   | ✔️   | ✔️   |
-| CLIP                 | ✔️   | ✔️   |
-| ImageBind  (3 modal) | ✔️   | ✔️   |
+|                          | FP32 | INT4 |
+|--------------------------|------|------|
+| LLaMA-1/2 7B             | ✔️   | ✔️   |
+| Alpaca 7B                | ✔️   | ✔️   |
+| TinyLLaMA 1.1B           | ✔️   | ✔️   |
+| Persimmon 8B             | ✔️   | ✔️   |
+| Fuyu 8B                  | ✔️   | ✔️   |
+| Vision Transformer       | ✔️   | ✔️   |
+| CLIP                     | ✔️   | ✔️   |
+| ImageBind (3 modalities) | ✔️   | ✔️   |
 
 ## Quick Start
 
