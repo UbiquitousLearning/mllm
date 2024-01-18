@@ -7,7 +7,8 @@ namespace mllm {
 
 vector<vector<float>> CPURoPE::sin_;
 vector<vector<float>> CPURoPE::cos_;
-int ishape_old;
+int CPURoPE::global_pose_type_ = -1;
+int CPURoPE::ishape_old;
 
 void sinusoidal_position_embedding_hf(int seq_len, int output_dim, vector<vector<float>> &sin, vector<vector<float>> &cos) {
     sin.resize(seq_len);
@@ -73,7 +74,8 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     ishape = inputs[0]->dimension();
     pos_max_ = 16384;
-    if(sin_.empty() ||ishape_old <ishape) {
+    if(sin_.empty() ||ishape_old <ishape || global_pose_type_!= pose_type_){
+        global_pose_type_ = pose_type_;
         ishape_old = ishape;
         if (pose_type_ == 1) {
             sinusoidal_position_embedding_hf( pos_max_, ishape, sin_, cos_);

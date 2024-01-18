@@ -43,13 +43,11 @@ typedef std::function<void(std::string, bool)> callback_t;
 
 class LibHelper {
     Context *c = nullptr;
-    // AAssetManager* asset_manager_;
     Net *net_ = nullptr;
     Executor *executor_ = nullptr;
     callback_t callback_ = [](std::string, bool) {
     };
     Tokenizer *tokenizer_ = nullptr;
-    FuyuPreProcess *pre_processor_ = nullptr;
     unsigned int eos_id_ = 2;
     PreDefinedModel model_ = PreDefinedModel::LLAMA;
     bool is_first_run_cond_ = true;
