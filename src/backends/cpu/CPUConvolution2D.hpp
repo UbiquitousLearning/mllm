@@ -33,6 +33,8 @@ private:
     int padding_w_;
     Tensor weight_;
     Tensor bias_;
+
+    float ** kernal_;
     bool support_bias_;
 
 };
