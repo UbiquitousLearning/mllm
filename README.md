@@ -265,12 +265,10 @@ cd bin
 
 ## Roadmap
 
-- QNN Backend
-- LLaVA
-- PandaGPT
-- ...
-
-See the [roadmap](https://ubiquitouslearning.github.io/mllm_website/roadmap/roadmap/) here for more information
+- More backends like QNN
+- More models like LLaVA
+- More optimizations like LUT-GEMM
+- [More..](https://ubiquitouslearning.github.io/mllm_website/roadmap/roadmap/)
 
 ## Documentation
 
