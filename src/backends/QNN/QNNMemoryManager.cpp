@@ -2,12 +2,24 @@
 #include "Logger.hpp"
 #include "QnnTypes.h"
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstdio>
 #include <iostream>
 
 namespace mllm {
+
+template <class T>
+static inline T resolveSymbol(void *libHandle, const char *sym) {
+    T ptr = (T)pal::dynamicloading::dlSym(libHandle, sym);
+    if (ptr == nullptr) {
+        QNN_ERROR("Unable to access symbol [%s]. pal::dynamicloading::dlError(): %s",
+                  sym,
+                  pal::dynamicloading::dlError());
+    }
+    return ptr;
+}
 
 QNNMemoryManager::QNNMemoryManager() {
 #ifdef QNN_ARM
@@ -26,19 +38,44 @@ QNNMemoryManager::QNNMemoryManager() {
         std::cerr << "dlsym failed" << std::endl;
     }
 #endif
+    // Get QNN Interface
+    void *libBackendHandle = pal::dynamicloading::dlOpen(
+        "libQnnHtp.so", pal::dynamicloading::DL_NOW | pal::dynamicloading::DL_GLOBAL);
+    QnnInterfaceGetProvidersFn_t getInterfaceProviders{nullptr};
+    getInterfaceProviders =
+        resolveSymbol<QnnInterfaceGetProvidersFn_t>(libBackendHandle, "QnnInterface_getProviders");
+    QnnInterface_t **interfaceProviders{nullptr};
+    uint32_t numProviders{0};
+    if (QNN_SUCCESS != getInterfaceProviders((const QnnInterface_t ***)&interfaceProviders, &numProviders)) {
+        std::cerr << "Failed to get interface providers." << std::endl;
+    }
+    for (size_t pIdx = 0; pIdx < numProviders; pIdx++) {
+        if (QNN_API_VERSION_MAJOR == interfaceProviders[pIdx]->apiVersion.coreApiVersion.major && QNN_API_VERSION_MINOR <= interfaceProviders[pIdx]->apiVersion.coreApiVersion.minor) {
+            qnnInterface_ = interfaceProviders[pIdx]->QNN_INTERFACE_VER_NAME;
+            break;
+        }
+    }
 }
 
 QNNMemoryManager::~QNNMemoryManager() {
 #ifdef QNN_ARM
     // free all buffers if it's not being used
     for (auto &memHandle : qnnMemHandleList_) {
-        Qnn_ErrorHandle_t deregisterRet = qnnInterface_->memDeRegister(&memHandle, 1);
+        Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&memHandle, 1);
         if (QNN_SUCCESS != deregisterRet) {
             // handle errors
-            std::cerr << "qnnInterface_->memDeRegister failed" << std::endl;
+            std::cerr << "qnnInterface_.memDeRegister failed" << std::endl;
         }
     }
 #endif
+}
+
+void QNNMemoryManager::setQnnInterfaceAndContext(void *context) {
+    context_ = context;
+    if (context_ == nullptr) {
+        std::cerr << "context is null" << std::endl;
+        exit(1);
+    }
 }
 
 void QNNMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
@@ -52,7 +89,8 @@ void QNNMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
     if (nullptr == memPointer) {
         std::cerr << "rpcmem_alloc failed" << std::endl;
     }
-
+    qnnMemPtrMap_.insert(memPointer);
+    *ptr = memPointer;
 #else
     void **origin = (void **)malloc(size + sizeof(void *) + alignment - 1);
     assert(origin != nullptr);
@@ -67,7 +105,6 @@ void QNNMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
 }
 
 void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
-#ifdef QNN_ARM
     auto it = qnnMemPtrMap_.find(ptr);
     if (it == qnnMemPtrMap_.end()) {
         std::cerr << "getMemHandle failed" << std::endl;
@@ -86,14 +123,13 @@ void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
     memDescriptor.memType = QNN_MEM_TYPE_ION;
     memDescriptor.ionInfo.fd = memFd;
     qnnTensor.v1.memType = QNN_TENSORMEMTYPE_MEMHANDLE;
-    Qnn_ErrorHandle_t registRet = qnnInterface_->memRegister(this->context_, &memDescriptor, 1u, &(qnnTensor.v1.memHandle));
+    Qnn_ErrorHandle_t registRet = qnnInterface_.memRegister(context_, &memDescriptor, 1u, &(qnnTensor.v1.memHandle));
     if (registRet != QNN_SUCCESS) {
         std::cerr << "qnnInterface memRegister failed" << std::endl;
         return;
     }
 
     qnnMemHandleList_.push_back(qnnTensor.v1.memHandle);
-#endif
 }
 
 void QNNMemoryManager::free(void *ptr) {

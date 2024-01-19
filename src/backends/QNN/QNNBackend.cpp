@@ -147,8 +147,8 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     this->registerOps();
 
 #ifdef QNN_ARM
-    auto qnnMM = std::dynamic_pointer_cast<QNNMemoryManager>(mm);
-    qnnMM->setQnnInterfaceAndContext(m_qnnFunctionPointers.qnnInterface, m_context);
+    auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mm);
+    qnnMM->setQnnInterfaceAndContext(m_context);
 #endif
 }
 
@@ -844,7 +844,7 @@ StatusCode QNNBackend::executeGraphsShared() {
             break;
         }
 
-        auto qnnMM = std::dynamic_pointer_cast<QNNMemoryManager>(mem_manager_);
+        auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {
             qnnMM->registerQnnTensor(inputBuffers[i], inputs[i]);
         }

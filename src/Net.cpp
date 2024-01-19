@@ -36,7 +36,11 @@ Net::Net(const vector<NetParameter> &param, BackendConfig config) :
 #endif   
         break;
     default:
+#ifdef QNN_ENABLED
+        mm = std::make_shared<QNNMemoryManager>();
+#else
         mm = std::make_shared<SystemMemoryManager>();
+#endif
         break;
     }
 

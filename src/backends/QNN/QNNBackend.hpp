@@ -157,7 +157,6 @@ private:
     std::vector<uint8_t *> outputBuffers;
 
     std::map<OpType, QNNBackend::Creator *> map_creator_;
-    shared_ptr<MemoryManager> mem_manager_;
     qnn_wrapper_api::QnnModel qnnModel;
 
     sample_app::QnnFunctionPointers m_qnnFunctionPointers;
