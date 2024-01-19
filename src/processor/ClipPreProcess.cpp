@@ -86,4 +86,24 @@ void ClipProcessor::PreProcessImages(const std::vector<std::string> &images_path
     }
     PreProcessImages(image_data, image_length);
 }
+
+
+void ClipProcessor::Img2Tensor(Backend *bn, shared_ptr<Tensor> input_tensor,vector<vector<vector<float>>> img) {
+    int channel = img.size();
+    int height = img[0].size();
+    int width= img[0][0].size();
+    input_tensor->setBackend(bn);
+    input_tensor->reshape(1, height, channel, width);
+    input_tensor->setDtype(MLLM_TYPE_F32);
+    input_tensor->alloc();
+    for (int h = 0; h < height; ++h) {
+        for (int c = 0; c < channel; ++c) {
+            for (int w = 0; w < width; ++w) {
+                input_tensor->setDataAt<float>(0, h, c, w, img[c][h][w]);
+            }
+        }
+    }
+}
+
+
 }

@@ -86,7 +86,7 @@ NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
 /**
  * \brief Creates a parameter tensor with the given parameters.
  * \param ctx The context in which the tensor is created.
- * \param inputs A vector of input tensors.
+ * \param inputs {}
  * \param batch The batch size.
  * \param seq The sequence length.
  * \param head The number of heads.
@@ -114,6 +114,33 @@ NetTensor *_Parameter(Context *ctx, std::vector<NetTensor *> inputs, int batch, 
     out_tensor->ctx = ctx;
     return out_tensor;
 
+}
+/**
+ * \brief Creates a range tensor from start to end. [start, end)
+ * \param ctx The context in which the tensor is created.
+ * \param inputs {}
+ * \param start start number
+ * \param end end number
+ * \param name The name of the tensor.
+ * \param type The data type of the tensor. Default is MLLM_TYPE_F32.
+ * \return A pointer to the created tensor.
+ */
+NetTensor *_Range(Context *ctx, std::vector<NetTensor *> inputs, int start, int end, string name, DataType type) {
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Range" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::RANGE)
+    net_op_->param["start"] = start;
+    net_op_->param["end"] = end;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
 }
 NetTensor *_Add(std::vector<NetTensor *> inputs, string name) {
     Context *ctx = inputs[0]->ctx;

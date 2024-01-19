@@ -169,22 +169,6 @@ if (TEST)
             ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp
             ${DIR_SRC_MEM_MANAGER} ${PROJECT_SOURCE_DIR}/src/MemoryManager.hpp
     )
-
-    # add_executable(
-    #     clip_tokenizer_test
-    #     ${PROJECT_SOURCE_DIR}/test/clip_tokenizer_test.cpp
-    #     ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER}
-    #     src/tokenizers/Tokenizer.cpp
-    #     src/tokenizers/Tokenizer.hpp
-    #     src/tokenizers/BPE/Bpe.cpp
-    #     src/tokenizers/BPE/Bpe.hpp
-    #     src/processor/PreProcess.hpp
-    #     src/processor/PreProcess.cpp
-    #     src/processor/ClipPreProcess.cpp
-    #     src/processor/ClipPreProcess.hpp
-    # )
-    # target_link_libraries(clip_tokenizer_test
-    #     MLLM_CPU)
     add_executable(
             SystemMemoryTest
             ${PROJECT_SOURCE_DIR}/test/TestSystemMemoryManager.cpp
@@ -225,6 +209,20 @@ if (ARM AND NOT APK)
 else ()
     target_link_libraries(main_alpaca MLLM_CPU)
 endif ()
+
+add_executable(main_llava ${PROJECT_SOURCE_DIR}/examples/main_llava.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/processor/PreProcess.cpp
+        src/processor/ClipPreProcess.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(main_llava PRIVATE -fopenmp)
+    target_link_libraries(main_llava PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(main_llava MLLM_CPU)
+endif ()
+
 
 add_executable(main_tinyllama ${PROJECT_SOURCE_DIR}/examples/main_tinyllama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
         src/tokenizers/Tokenizer.cpp

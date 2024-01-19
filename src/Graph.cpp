@@ -103,21 +103,23 @@ void Graph::setUpOps(ParamLoader &loader) {
         ops_[op_name]->load(loader);
     }
 }
-
+// #define SAVECHECK
 const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
 
     for (const auto& op_name : op_names_) {
-
-#ifdef DEBUGPRINT
-        uint64_t t_start = mllm_time_us();
-#endif
-        ops_[op_name]->execute(ops_input_tensors_[op_name], ops_output_tensors_[op_name]);
 
 #ifdef SAVECHECK
         for(auto &t: ops_input_tensors_[op_name]){
             t->checkData<float>();
             t->saveData<float>();
         }
+#endif
+#ifdef DEBUGPRINT
+        uint64_t t_start = mllm_time_us();
+#endif
+        ops_[op_name]->execute(ops_input_tensors_[op_name], ops_output_tensors_[op_name]);
+
+#ifdef SAVECHECK
          for(auto &t: ops_output_tensors_[op_name]){
              t->checkData<float>();
              t->saveData<float>();

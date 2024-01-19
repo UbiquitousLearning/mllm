@@ -13,36 +13,6 @@
 
 using namespace mllm;
 
-
-void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, float* img, int height, int width, int channel) {
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
-    input_tensor->reshape(1, height, channel, width);
-    input_tensor->setDtype(MLLM_TYPE_F32);
-    input_tensor->alloc();
-    for (int h = 0; h < height; ++h) {
-        for (int c = 0; c < channel; ++c) {
-            for (int w = 0; w < width; ++w) {
-                input_tensor->setDataAt<float>(0, h, c, w, img[(h * width + w) * channel + c]);
-            }
-        }
-    }
-}
-void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vector<float>>> img) {
-    int channel = img.size();
-    int height = img[0].size();
-    int width= img[0][0].size();
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
-    input_tensor->reshape(1, height, channel, width);
-    input_tensor->setDtype(MLLM_TYPE_F32);
-    input_tensor->alloc();
-    for (int h = 0; h < height; ++h) {
-        for (int c = 0; c < channel; ++c) {
-            for (int w = 0; w < width; ++w) {
-                input_tensor->setDataAt<float>(0, h, c, w, img[c][h][w]);
-            }
-        }
-    }
-}
 vector<float> softmax(const vector<float>& scores) {
     vector<float> exps;
     float max_val = *max_element(scores.begin(), scores.end());
@@ -203,10 +173,10 @@ int main(int argc, char **argv) {
     BPETokenizer::tokens2Tensor(&net, tokens_ids, input_text);
 
     shared_ptr<Tensor> input_img = std::make_shared<Tensor>();
-    auto* clip = new ClipProcessor(tokenizer);
-    clip->PreProcessImages({"../assets/cat.jpg"});
-    auto images = clip->pixel_values_[0];
-    img2Tensor(input_img, net, images);
+    auto *clip_processor = new ClipProcessor(tokenizer);
+    clip_processor->PreProcessImages({"../assets/cat.jpg"});
+    auto images = clip_processor->pixel_values_[0];
+    clip_processor->Img2Tensor(net.backends()[BackendType::MLLM_CPU].get(), input_img, images);
     ex.run(&net, {input_text, input_img});
     auto result = ex.result();
     auto probs = postProcessing(result[0]);

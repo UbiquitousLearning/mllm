@@ -41,6 +41,7 @@ enum OpType {
     NORM,
     SHAPE,
     MEAN,
+    RANGE,
     OP_NUM
 };
 
@@ -78,6 +79,7 @@ static const vector<string> OpNames = {
     "Norm",
     "Shape",
     "Mean",
+    "Range",
     "OP_NUM"};
 } // namespace mllm
 #endif

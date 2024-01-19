@@ -125,6 +125,7 @@ std::tuple<uint8_t *, uint64_t> ParamLoader::load(string name) {
 }
 DataType ParamLoader::getDataType(string name) {
     if (data_type_.count(name) != 1) {
+        std::cerr<<name<<" not found"<<std::endl;
         return DataType::MLLM_TYPE_COUNT;
     }
     int type = data_type_[name];

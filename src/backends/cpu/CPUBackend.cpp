@@ -31,6 +31,7 @@
 #include "CPUShape.hpp"
 #include "CPUTranspose.hpp"
 #include "CPUMean.hpp"
+#include "CPURange.hpp"
 
 #include <math.h>
 namespace mllm {
@@ -82,6 +83,7 @@ void CPUBackend::registerOps() {
     addCreator(NORM, (CPUBackend::Creator *)(new CPUNormCreator()));
     addCreator(SHAPE, (CPUBackend::Creator *)(new CPUShapeCreator()));
     addCreator(MEAN, (CPUBackend::Creator *)(new CPUMeanCreator()));
+    addCreator(RANGE, (CPUBackend::Creator *)(new CPURangeCreator()));
 }
 
 } // namespace mllm

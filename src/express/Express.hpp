@@ -12,6 +12,7 @@ void _SubgraphBegin(Context *ctx);
 
 NetTensor *_Input(Context *ctx, vector<int> dims={}, string name = "", DataType type = MLLM_TYPE_F32);
 NetTensor *_Parameter(Context *ctx, std::vector<NetTensor *> inputs, int batch, int seq, int head, int dim, string name = "", DataType type = MLLM_TYPE_F32);
+NetTensor *_Range(Context *ctx, std::vector<NetTensor *> inputs, int start, int end, string name = "", DataType type = MLLM_TYPE_F32);
 NetTensor *_Add(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Causalmask(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_SiLU(std::vector<NetTensor *> inputs, string name = "");
