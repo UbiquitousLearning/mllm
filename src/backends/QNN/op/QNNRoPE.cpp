@@ -133,11 +133,12 @@ void QNNRoPE::sinusoidal_position_embedding(int batch_size, int nums_head, int s
                     int i = (int)d / 2;
                     float sin_value = std::sin(s / std::pow(10000, 2.0 * i / output_dim));
                     float cos_value = std::cos(s / std::pow(10000, 2.0 * i / output_dim));
-                    ((float *)sin.hostPtr<void>())[n * h * s * d] = sin_value;
-                    ((float *)cos.hostPtr<void>())[n * h * s * d] = cos_value;
+                    sin.setDataAt<float>(n, h, s, d, sin_value);
+                    cos.setDataAt<float>(n, h, s, d, cos_value);
                     if (d + 1 < output_dim) {
-                        ((float *)sin.hostPtr<void>())[n * h * s * (d + 1)] = sin_value;
-                        ((float *)cos.hostPtr<void>())[n * h * s * (d + 1)] = cos_value;
+                        sin.setDataAt<float>(n, h, s, d+1, sin_value);
+                        cos.setDataAt<float>(n, h, s, d+1, cos_value);
+
                     }
                 }
             }
@@ -161,11 +162,11 @@ void QNNRoPE::sinusoidal_position_embedding_hf(int batch_size, int nums_head, in
                     float sin_value = std::sin(s / std::pow(10000, 2.0 * i / output_dim));
                     float cos_value = std::cos(s / std::pow(10000, 2.0 * i / output_dim));
 
-                    ((float *)sin.hostPtr<void>())[n * h * s * d] = sin_value;
-                    ((float *)cos.hostPtr<void>())[n * h * s * d] = cos_value;
+                    sin.setDataAt<float>(n, h, s, d, sin_value);
+                    cos.setDataAt<float>(n, h, s, d, cos_value);
                     if (d + 1 < output_dim) {
-                        ((float *)sin.hostPtr<void>())[n * h * s * (d + 1)] = sin_value;
-                        ((float *)cos.hostPtr<void>())[n * h * s * (d + 1)] = cos_value;
+                        sin.setDataAt<float>(n, h, s, d+1, sin_value);
+                        cos.setDataAt<float>(n, h, s, d+1, cos_value);
                     }
                 }
             }

@@ -53,9 +53,9 @@ NetTensor * FFN(Context *ctx, NetTensor * i, uint32_t hidden_dim, uint32_t ffn_h
 void LLaMA(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim) {
     auto *i = _Input(ctx);
 
-    i = _RoPE(ctx, {i}, "RoPE_0");
-    // i = _Softmax(ctx, {i}, 3, "softmax0");
-    for(int layer=0; layer<4; ++layer) {
+    // i = _RoPE(ctx, {i}, "RoPE_0");
+    i = _Softmax(ctx, {i}, 3, "softmax0");
+    for(int layer=0; layer<8; ++layer) {
 
         auto *x = _RMSNorm(ctx, {i}, std::to_string(layer)+"RMSNorm");
         i = Attention( ctx, i, hidden_dim, ffn_hidden_dim, layer);
@@ -63,6 +63,39 @@ void LLaMA(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim) {
     }
 
 }
+
+
+NetTensor * SiLU(Context *ctx,  uint32_t hidden_dim, uint32_t ffn_hidden_dim, int layer) {
+
+    auto *i = _Input(ctx);
+    auto *z = _SiLU(ctx, {i}, "ffn.silu1");
+    for (int i = 1; i<=layer; i++)
+        z = _SiLU(ctx, {z}, std::to_string(i)+".ffn.silu1");
+
+    return z;
+}
+
+NetTensor * RMSNorm(Context *ctx,  uint32_t hidden_dim, uint32_t ffn_hidden_dim, int layer) {
+
+    auto *i = _Input(ctx);
+    auto *z = _RMSNorm(ctx, {i}, "ffn.rmsnorm1");
+    for (int i = 1; i<=layer; i++)
+        z = _RMSNorm(ctx, {z}, std::to_string(i)+".ffn.rmsnorm");
+
+    return z;
+}
+
+NetTensor * RoPE(Context *ctx,  uint32_t hidden_dim, uint32_t ffn_hidden_dim, int layer) {
+
+    auto *i = _Input(ctx);
+    auto *z = _RoPE(ctx, {i}, "ffn.rope");
+    for (int i = 1; i<=layer; i++)
+        z = _RoPE(ctx, {z}, std::to_string(i)+".ffn.rope");
+    return z;
+}
+
+
+
 
 template <typename Dtype>
 void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dtype value) {
@@ -72,7 +105,7 @@ void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dty
     input_tensor->fullData<Dtype>(value);
 }
 
-int main() {
+int main(int argc,char **argv) {
     // BackendConfig bnc;
 
     // shared_ptr<MemoryManager> mm = nullptr;
@@ -99,15 +132,36 @@ int main() {
 
     // delete qbn;
 
+    // argv 1 op name
+    // argv 2 execution times
+
     int vocab_size = 32000;
     int hidden_dim = 4096;
-    int ffn_hidden_dim = 4096;
+    int ffn_hidden_dim = 11008;
     int mutil_head_size = 32;
 
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
 
-    LLaMA(c, hidden_dim, ffn_hidden_dim);
+    int dimension = hidden_dim;
+    int head_size = 1;
+    int seqence_size = 1;
+
+    if (strcmp(argv[1], "silu") == 0) {
+        SiLU(c, hidden_dim, ffn_hidden_dim, atoi(argv[2]));
+        dimension = hidden_dim;
+    } else if (strcmp(argv[1], "rmsnorm") == 0) {
+        RMSNorm(c, hidden_dim, ffn_hidden_dim, atoi(argv[2]));
+        dimension = vocab_size;
+    } else if (strcmp(argv[1], "rope") == 0) {
+        RoPE(c, hidden_dim, ffn_hidden_dim, atoi(argv[2]));
+        dimension = hidden_dim / mutil_head_size;
+        seqence_size = 1000;
+    }else {
+        LLaMA(c, hidden_dim, ffn_hidden_dim);
+        dimension = hidden_dim;
+    }
+    
 
     BackendConfig bn;
     Net net(c->sub_param_, bn);
@@ -119,10 +173,10 @@ int main() {
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
 
     // 1 batch seqence length embedding
-    fullTensor(input, net, {1, 1, 1, hidden_dim}, 2.f);
+    fullTensor(input, net, {1, seqence_size, 1, dimension}, 2.f);
 
     ex.execute(&net, input);
     ex.perf();
-    auto result = ex.result();
+    // auto result = ex.result();
     // result[0]->printData<float>();
 }

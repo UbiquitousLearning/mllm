@@ -83,6 +83,177 @@ DEF_PACKAGE_OP((rmsnormImpl<Tensor>), "RMSNorm")
 
 /* execute functions for ops */
 
+#ifndef REFERENCE_OP
+
+#include "qhmath_hvx.h"
+#include "hvx_internal.h"
+#include <hexagon_types.h>
+#include <stddef.h>
+
+#define BLOCK_SIZE       (8*1024/VLEN)  /* vector chunks */
+#define L2FETCH_AHEAD    (BLOCK_SIZE)
+
+int32_t hvx_rmsnorm_af(
+    float *restrict input,
+    float *restrict weights,
+    float *restrict output,
+    uint32_t size)
+{
+    if ((input == NULL) || (output == NULL) || (size == 0))
+    {
+        return -1;
+    }
+
+    HVX_Vector *iptr = (HVX_Vector *)input;
+    HVX_Vector *iptr2 = (HVX_Vector *)weights;
+    HVX_UVector *optr = (HVX_UVector *)output;
+    HVX_Vector sline1p, sline1c, sline1;
+    HVX_Vector sline2p, sline2c, sline2;
+
+    int32_t block, l2fetch_block;
+    int32_t leftover = size & 31;
+    int32_t vectors_in_rounddown = size / 32;
+    int32_t leftover_size = leftover * sizeof(float);
+
+    sline1p = *iptr++;
+
+
+    // ^2 sum
+    HVX_Vector sum = Q6_Vqf32_vadd_VsfVsf(Q6_V_vzero(), Q6_V_vzero());
+    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
+    {
+        block = Q6_R_min_RR(i, BLOCK_SIZE);
+        l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
+
+        if (l2fetch_block > 0)
+        {
+            l2fetch(iptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+        }
+
+        for (int32_t j = 0; j < block; ++j)
+        {
+            sline1c = *iptr++;
+            sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
+
+            sum = Q6_Vqf32_vadd_Vqf32Vqf32(sum,  Q6_Vqf32_vmpy_VsfVsf(sline1, sline1));
+            
+
+            sline1p = sline1c;
+        }
+    }
+
+    if (vectors_in_rounddown > 0) {
+
+      sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
+      sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+      sum = Q6_Vqf32_vadd_Vqf32Vqf32(sum,  Q6_Vqf32_vmpy_VsfVsf(sline1, sline1));
+
+    }
+
+    float epsilon_ = 1e-5;
+    union {
+      float f;
+      uint32_t ui;
+    } sum_value;
+    sum_value.f = 0.0f;
+
+
+    sum = Q6_Vsf_equals_Vqf32(sum);
+
+    for (int32_t i = 0; i < 32; i++) {
+      sum_value.f += *((float*)&sum + i);
+    }
+
+    sum_value.f = 1.0f / sqrtf(sum_value.f / size + epsilon_);
+
+
+    // x * 1/rsqrt(sum)
+    iptr = (HVX_Vector *)input;
+    sline1p = *iptr++;
+    sline2p = *iptr2++;
+
+    HVX_Vector irsqrt_vsf = Q6_V_vsplat_R(sum_value.ui);
+    HVX_Vector irsqrt_vqf32 = Q6_Vqf32_vadd_VsfVsf(irsqrt_vsf, Q6_V_vzero());
+
+    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
+    {
+        block = Q6_R_min_RR(i, BLOCK_SIZE);
+        l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
+
+        if (l2fetch_block > 0)
+        {
+            l2fetch(iptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+            l2fetch(iptr2 + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+        }
+
+        for (int32_t j = 0; j < block; ++j)
+        {
+            sline1c = *iptr++;
+            sline2c = *iptr2++;
+            sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
+            sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t)weights);
+
+            HVX_Vector middle_value_qf32 = Q6_Vqf32_vmpy_VsfVsf(sline1, sline2);
+            *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(middle_value_qf32, irsqrt_vqf32));
+
+            sline1p = sline1c;
+            sline2p = sline2c;
+        }
+    }
+
+    if (vectors_in_rounddown > 0) {
+
+      sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
+      sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+
+      sline2c = is_aligned(iptr2, VLEN) && leftover == 0 ? sline2p : *iptr2++;
+      sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t) weights);
+
+      HVX_Vector middle_value_qf32 = Q6_Vqf32_vmpy_VsfVsf(sline1, sline2);
+      *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(middle_value_qf32, irsqrt_vqf32));
+
+    }
+
+
+    if (leftover_size > 0)
+      return -1;
+
+    return 0;
+}
+
+template<typename TensorType>
+GraphStatus rmsnormImpl(TensorType& out_0,
+                        const TensorType& in_0,
+                        const TensorType& weights)
+
+{
+  out_0.set_dims(in_0);
+  
+  // NHWC
+
+  auto in_ptr = (float*)in_0.raw_data_const();
+  auto out_ptr = (float*)out_0.raw_data();
+  auto weights_ptr = (float*)weights.raw_data_const();
+
+
+  auto [b_in, h_in, w_in, d_in] = in_0.dims();
+  for (Idx b = 0; b < b_in; b++) {
+    for (Idx h = 0; h < h_in; h++) {
+      for (Idx w = 0; w < w_in; w++) {
+        // RMS
+        hvx_rmsnorm_af(in_ptr, weights_ptr, out_ptr,  d_in);
+       
+        in_ptr += d_in;
+        out_ptr += d_in;
+      }
+    }
+  }
+
+  return GraphStatus::Success;
+}
+
+#else
+
 template<typename TensorType>
 GraphStatus rmsnormImpl(TensorType& out_0,
                         const TensorType& in_0,
@@ -119,6 +290,8 @@ GraphStatus rmsnormImpl(TensorType& out_0,
           // debuglog("silu execute... sum_squares=(%f)", sum_squares);
 
           float rms = sqrtf(sum_squares / d_in + epsilon_);
+          debuglog("rms execute... sum_squares=(%f)", 1.0f / rms);
+          debuglog("rms execute... sum_squares=(%f)", sum_squares);
 
           for (Idx d = 0; d < d_in; d++) {
             float inval       = in_0(b, h, w, d);
@@ -126,10 +299,6 @@ GraphStatus rmsnormImpl(TensorType& out_0,
             
             out_0(b, h, w, d) = inval * weight / rms;
 
-            // float out_value = out_0(b, h, w, d);
-            // debuglog("silu execute... inval=(%f)", inval);
-            // debuglog("silu execute... weight=(%f)", weight);
-            // debuglog("silu execute... out_value=(%f)", out_value);
           }
 
         }
@@ -140,6 +309,9 @@ GraphStatus rmsnormImpl(TensorType& out_0,
 
   return GraphStatus::Success;
 }
+
+#endif
+
 
 __attribute__((unused)) static float rmsnormCostFunc(const Op *op)
 {

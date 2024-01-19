@@ -38,6 +38,38 @@ endif
 
 HEXAGON_SDK_BASE := $(dir $(HEXAGON_SDK_ROOT))
 
+ifndef HEXAGON_TOOLS_ROOT
+HEXAGON_TOOLS_ROOT = $(DEFAULT_HEXAGON_TOOLS_ROOT)
+endif
+
+ifndef V
+V = v75
+endif
+
+ifndef BUILD
+BUILD = $(DEFAULT_BUILD)
+endif
+
+QHL_DIR = $(HEXAGON_SDK_ROOT)/libs/qhl
+QHL_HVX_DIR = $(HEXAGON_SDK_ROOT)/libs/qhl_hvx
+COMPLETE_TOOLS_VERSION = $(shell basename $(HEXAGON_TOOLS_ROOT))
+TEMP_VAR = $(subst ., ,$(COMPLETE_TOOLS_VERSION))
+TOOLS_VERSION = $(word 1,$(TEMP_VAR))$(word 2,$(TEMP_VAR))
+BUILD_DIR = hexagon_$(BUILD)_toolv$(TOOLS_VERSION)_$(V)
+PREBUILT_DIR = hexagon_toolv$(TOOLS_VERSION)_v65
+
+QHL_DIR_BIN = $(QHL_DIR)/$(BUILD_DIR)
+QHL_HVX_DIR_BIN = $(QHL_HVX_DIR)/$(BUILD_DIR)
+
+QHL_INC_DIRS := $(QHL_DIR)/inc/qhmath $(QHL_DIR)/inc/qhcomplex $(QHL_DIR)/inc/qhdsp $(QHL_DIR)/inc/qhblas
+QHL_LIBS = $(QHL_DIR_BIN)/libqhdsp.a $(QHL_DIR_BIN)/libqhcomplex.a $(QHL_DIR_BIN)/libqhmath.a $(QHL_DIR_BIN)/libqhblas.a
+
+QHL_HVX_INC_DIRS := $(QHL_HVX_DIR)/inc/internal $(QHL_HVX_DIR)/inc/qhdsp_hvx $(QHL_HVX_DIR)/inc/qhblas_hvx
+QHL_HVX_LIBS = $(QHL_HVX_DIR_BIN)/libqhdsp_hvx.a $(QHL_HVX_DIR_BIN)/libqhblas_hvx.a $(QHL_DIR_BIN)/libqhmath.a $(QHL_DIR_BIN)/libqhcomplex.a
+
+WORKER_POOL_INC := $(HEXAGON_SDK_ROOT)/libs/worker_pool/inc/ $(HEXAGON_SDK_ROOT)/incs/stddef/ $(HEXAGON_SDK_ROOT)/incs/
+WORKER_POOL_LIB := $(HEXAGON_SDK_ROOT)/libs/worker_pool/prebuilt/$(PREBUILT_DIR)/libworker_pool.a
+
 $(info "HEXAGON_SDK_ROOT is [${HEXAGON_SDK_ROOT}]")
 # Users should note that the tools version may change between hexagon sdk versions
 # Following combination of SDK and Tool version is supported
@@ -75,6 +107,8 @@ OP_INCLUDE_DIR := ./include
 OP_INCLUDES =  #$(wildcard $(OP_INCLUDE_DIR)/*.h) user defined if any op specific headers are needed, add -I to common flags
 LIBRARY_NAME := libQnn$(PACKAGE_NAME).so
 SUPPORTED_TARGETS = x86_64-linux-clang hexagon-v68 hexagon-v69 hexagon-v73 hexagon-v75 aarch64-android
+
+INCLUDES = $(addprefix -I,$(QHL_INC_DIRS)) $(addprefix -I,$(QHL_HVX_INC_DIRS)) $(addprefix -I,$(WORKER_POOL_INC)) -I/mllm/Hexagon5x_8gen3/5.4.1.1/libs/qhl_hvx/inc/qhmath_hvx/
 
 
 COMMON_CXX_FLAGS = -std=c++17 -I$(QNN_INCLUDE) -fPIC -Wall -Wreorder -Wno-missing-braces -fno-builtin -Wno-unused-function
@@ -236,7 +270,7 @@ $(WORK)/x86_64-linux-clang/%.o: $(SRC_DIR)/%.cpp | $(WORK)/x86_64-linux-clang
 	$(X86_CXX) $(X86_CXX_FLAGS) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -c $< -o $@
 
 $(WORK)/x86_64-linux-clang/ops/%.o: $(OP_SRC_DIR)/%.cpp | $(WORK)/x86_64-linux-clang
-	$(X86_CXX) $(X86_CXX_FLAGS) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -c $< -o $@
+	$(X86_CXX) $(X86_CXX_FLAGS) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -DREFERENCE_OP -c $< -o $@
 
 $(WORK)/x86_64-linux-clang/ops/%.o: $(OP_SRC_DIR)/x86_asm/%.S | $(WORK)/x86_64-linux-clang
 	$(X86_CXX) $(X86_CXX_FLAGS) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -c $< -o $@
@@ -288,20 +322,20 @@ $(WORK)/hexagon-v75/%.o: $(SRC_DIR)/%.cpp | $(WORK)/hexagon-v75
 	$(HEXAGON_CXX_V75) $(HEXAGON_CXX_FLAGS_V75) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -c $< -o $@
 
 $(WORK)/hexagon-v75/ops/%.o: $(OP_SRC_DIR)/%.cpp | $(WORK)/hexagon-v75
-	$(HEXAGON_CXX_V75) $(HEXAGON_CXX_FLAGS_V75) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -c $< -o $@
+	$(HEXAGON_CXX_V75) $(HEXAGON_CXX_FLAGS_V75) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD $(INCLUDES) -DHVX_OP -c $< -o $@
 
 $(WORK)/hexagon-v75/ops/%.o: $(OP_SRC_DIR)/v75_asm/%.S | $(WORK)/hexagon-v75
 	$(HEXAGON_CXX_V75) $(HEXAGON_CXX_FLAGS_V75) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -c $< -o $@
 
 $(WORK)/hexagon-v75/$(LIBRARY_NAME): $(hexagon-v75_objs) | $(HFILES)
-	$(HEXAGON_CXX_V75) -fPIC -std=c++17 -g -shared -o $@ $^ $(HEX_LDFLAGS)
+	$(HEXAGON_CXX_V75) -fPIC -std=c++17 -g -shared -o $@ $^ $(HEX_LDFLAGS) $(QHL_LIBS) $(QHL_HVX_LIBS) $(WORKER_POOL_LIB)
 
 # aarch64
 $(WORK)/aarch64-android/%.o: $(SRC_DIR)/%.cpp | $(WORK)/aarch64-android
 	$(AARCH64_CXX) $(AARCH64_CXX_FLAGS) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -c $< -o $@
 
 $(WORK)/aarch64-android/ops/%.o: $(OP_SRC_DIR)/%.cpp | $(WORK)/aarch64-android
-	$(AARCH64_CXX) $(AARCH64_CXX_FLAGS) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -c $< -o $@
+	$(AARCH64_CXX) $(AARCH64_CXX_FLAGS) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -DREFERENCE_OP -c $< -o $@
 
 $(WORK)/aarch64-android/ops/%.o: $(OP_SRC_DIR)/android_asm/%.S | $(WORK)/aarch64-android
 	$(AARCH64_CXX) $(AARCH64_CXX_FLAGS) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -c $< -o $@
