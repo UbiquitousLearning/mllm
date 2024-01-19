@@ -147,8 +147,8 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
     this->registerOps();
 
 #ifdef QNN_ARM
-    auto qnnMM = std::dynamic_pointer_cast<QNNMemoryManager>(mm);
-    qnnMM->setQnnInterfaceAndContext(m_qnnFunctionPointers.qnnInterface, m_context);
+    auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mm);
+    qnnMM->setQnnInterfaceAndContext(m_context);
 #endif
 }
 
@@ -849,7 +849,7 @@ StatusCode QNNBackend::executeGraphsShared() {
             break;
         }
 
-        auto qnnMM = std::dynamic_pointer_cast<QNNMemoryManager>(mem_manager_);
+        auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {
             qnnMM->registerQnnTensor(inputBuffers[i], inputs[i]);
         }
@@ -858,6 +858,7 @@ StatusCode QNNBackend::executeGraphsShared() {
         }
 
         Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
+        uint64_t t_start = mllm_time_us();
         executeStatus =
             m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
                                                             inputs,
@@ -866,6 +867,9 @@ StatusCode QNNBackend::executeGraphsShared() {
                                                             graphInfo.numOutputTensors,
                                                             m_profileBackendHandle,
                                                             nullptr);
+        uint64_t t_end = mllm_time_us();
+        std::cout << "QNN execution time" << (t_end - t_start) / 1000.0F << " ms" << std::endl;
+
         if (QNN_GRAPH_NO_ERROR != executeStatus) {
             returnStatus = StatusCode::FAILURE;
         }
