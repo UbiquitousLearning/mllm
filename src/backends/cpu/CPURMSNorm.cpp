@@ -16,7 +16,7 @@ CPURMSNorm::CPURMSNorm(Backend *bn, string opName, int normSize, float epsilon, 
 }
 
 ErrorCode CPURMSNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // RMSNorm 类似于LayerNorm作用于channel维度
+    // RMSNorm is similar to LayerNorm which operates on the channel dimension.
     assert(normSize_ == inputs[0]->dimension());
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     // outputs[0]->setDtype(activationDtype());

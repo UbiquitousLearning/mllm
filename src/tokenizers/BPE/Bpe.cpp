@@ -21,27 +21,6 @@ static std::vector<std::pair<string, string>> get_pairs( vector<string> word) {
     return pairs;
 }
 vector<std::string> mllm::BPETokenizer::bpe(const std::string& token) {
-    // static std::unordered_map<std::string, std::string> cache;
-
-    // // 检查 token 是否在缓存中
-    // if (cache.find(token) != cache.end()) {
-    //     return cache[token];
-    // }
-
-    // split by unicode
-    // icu::UnicodeString ustr = icu::UnicodeString::fromUTF8(token);
-    // vector<string> word_splits = {};
-    // for (int i = 0; i < ustr.length()-1; ++i) {
-    //     auto middle_unicode_str = ustr.tempSubString(i, 1);
-    //     std::string middle_str;
-    //     middle_unicode_str.toUTF8String(middle_str);
-    //     word_splits.emplace_back(middle_str);
-    // }
-    // auto last_unicode_str = ustr.tempSubString(ustr.length()-1, 1);
-    // std::string last_str;
-    // last_unicode_str.toUTF8String(last_str);
-    // word_splits.emplace_back(last_str+"</w>");
-
     std::wstring_convert<std::codecvt_utf8_utf16<char32_t>, char32_t> converter;
     std::u32string u32_token = converter.from_bytes(token);
 
@@ -60,7 +39,6 @@ vector<std::string> mllm::BPETokenizer::bpe(const std::string& token) {
     }
 
     while (true) {
-        // 找到排名最小的字符对
         auto bigram = *std::min_element(pairs.begin(), pairs.end(), [this](const auto& a, const auto& b) {
             auto string_a = std::string(a.first)+" " + std::string(a.second);
             auto string_b = std::string(b.first)+" " + std::string(b.second);
@@ -131,46 +109,6 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         tokens.emplace_back(mllm::BPETokenizer::TokenBos);
     }
     if (!merge_rank.empty()){
-        // vector<string> words = {};
-        // UErrorCode status = U_ZERO_ERROR;
-        // icu::UnicodeString pattern = "<\\|startoftext\\|>|<\\|endoftext\\|>|'s|'t|'re|'ve|'m|'ll|'d|[\\p{L}]+|[\\p{N}]|[^\\s\\p{L}\\p{N}]+";
-        // icu::UnicodeString textToMatch = text.c_str(); // convert std::string to UnicodeString
-        // // FIXME: temporarily We add space to split Chinese characters
-        // icu::UnicodeString newText;
-        // for (int i = 0; i < textToMatch.length(); ++i) {
-        //     UChar32 c = textToMatch.char32At(i);
-        //     auto sc = uscript_getScript(c, &status);
-        //
-        //     if (sc == USCRIPT_HAN) {
-        //         newText += " ";
-        //     }
-        //     newText += c;
-        // }
-        // textToMatch = newText;
-        //
-        // icu::RegexMatcher matcher(pattern, textToMatch, 0, status);
-        //
-        // if (U_FAILURE(status)) {
-        //     // Handle the error
-        //     throw std::runtime_error("Error in regex");
-        // }
-        //
-        // while (matcher.find(status)) {
-        //     icu::UnicodeString match = matcher.group(status);
-        //     if (U_FAILURE(status)) {
-        //         // Handle the error
-        //         throw std::runtime_error("Error in regex");
-        //     }
-        //     std::string cpp_str;
-        //     std::string token;
-        //     match.toUTF8String(cpp_str);
-        //     for (size_t i = 0; i < cpp_str.length(); ++i) {
-        //         unsigned char byte = cpp_str[i];
-        //         token += bytes_to_unicode_[byte];
-        //     }
-        //     words.emplace_back(token);
-        // }
-
         std::vector<std::string> words;
         std::regex pattern("<\\|startoftext\\|>|<\\|endoftext\\|>|'s|'t|'re|'ve|'m|'ll|'d|\\w+|\\d+|\\S+");
         std::smatch match;
@@ -181,8 +119,6 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
             searchStart = match.suffix().first;
         }
 
-        // return words;
-        
         for (const auto& word:words){
             auto word_splits = bpe(word);
             for (const auto& word_split:word_splits){
@@ -309,10 +245,7 @@ static std::unordered_map<unsigned char, string> bytes_to_unicode() {
             convert_uchar = 256 + n;
             ++n;
         }
-        // icu::UnicodeString str((UChar32)convert_uchar);
-        // std::string s;
-        // str.toUTF8String(s);
-        // mapping[b] = s;
+
         std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
         std::string s = converter.to_bytes(static_cast<char32_t>(convert_uchar));
         mapping[b] = s;

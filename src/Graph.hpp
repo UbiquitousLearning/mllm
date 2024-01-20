@@ -4,12 +4,11 @@
 
 #ifndef MLLM_GRAPH_H
 #define MLLM_GRAPH_H
-#include "express/Express.hpp"
 #include "Tensor.hpp"
 #include "Op.hpp"
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
-
+#include "express/ExpressBase.hpp"
 #include <unordered_map>
 using std::unordered_map;
 
@@ -21,7 +20,7 @@ public:
      * \brief Graph
      * \param param NetParameter contains the structure of this graph
      * \param bn Backend like CPU/QNN etc
-     * \param external_tensors xternal tensors from other graph and inter graphs.
+     * \param external_tensors external tensors from other graph and inter graphs.
      * \param threadCount number of Threads
      */
     explicit Graph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors, int threadCount);

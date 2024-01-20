@@ -19,14 +19,6 @@ namespace mllm {
 void FuyuPreProcess::PreProcessImages(const std::vector<uint8_t*> &images,const std::vector<size_t> &image_length) {
     assert(height_ > 0 && width_ > 0);
 
-    // if (do_resize) {
-    //     // Not implemented yet
-    //     std::cerr << "Resize not implemented yet" << std::endl;
-    //     exit(-1);
-    // }
-    // auto images_ = std::vector<ImageInfo>();
-    // images_.resize(images.size());
-    // for (auto image : images) {
     for (int i = 0; i < images.size(); i++) {
         auto image = images[i];
         int width_, height_, channels_;
@@ -46,7 +38,6 @@ void FuyuPreProcess::PreProcessImages(const std::vector<uint8_t*> &images,const 
 
     // TODO: PAD images
     if (do_pad_) {
-
         images_ = PadImages(images_, height_, width_, patch_size_.second, patch_size_.first);
     }
     if (do_normalize_) {

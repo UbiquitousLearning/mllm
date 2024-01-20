@@ -99,7 +99,7 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     if (pose_type_== 1) {
                         float in_value = input->dataAt<float>(n, h, s, d);
                         float in_value_2;
-                        if (d < input->dimension() / 2) { // 偶數 0,2,4
+                        if (d < input->dimension() / 2) { // if is even number: 0,2,4
                             in_value_2 = -input->dataAt<float>(n, h, s, d + input->dimension() / 2);
                         } else {
                             in_value_2 = input->dataAt<float>(n, h, s, d - input->dimension() / 2);
@@ -117,7 +117,7 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     else if (pose_type_== 2) {
                         float in_value = input->dataAt<float>(n, h, s, d);
                         float in_value_2;
-                        if (d % 2 == 0) { // 偶數 0,2,4
+                        if (d % 2 == 0) { // if is even number: 0,2,4
                             in_value_2 = -input->dataAt<float>(n, h, s, d + 1);
                         } else {
                             in_value_2 = input->dataAt<float>(n, h, s, d - 1);

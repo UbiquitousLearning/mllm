@@ -4,19 +4,9 @@
 #include <map>
 #include <string>
 #include <utility>
-#include <vector>
-#include <iostream>
 #include "Tensor.hpp"
 #include "Types.hpp"
 #define mllm_file FILE
-// #ifdef ANDROID_API
-// #include <android/asset_manager.h>
-// #define fseek AAsset_seek64
-// #define fclose AAsset_close
-// #define mllm_file AAsset
-// #define fread(buffer, size, count, fp) AAsset_read(fp, buffer, size * count)
-// #define ftell(fp) AAsset_getLength64(fp) - AAsset_getRemainingLength64(fp)
-// #endif
 
 namespace mllm {
 class Tensor;
@@ -54,22 +44,24 @@ static std::string readString(mllm_file *fp_) {
 }
 
 #define _MAGIC_NUMBER 20012
+/**
+ * \brief The AbstructLoader abstract class provides an interface for loading parameters. 
+ */
 class AbstructLoader {
 public:
     virtual bool load(mllm::Tensor *tensor) = 0;
     virtual bool load(std::shared_ptr<mllm::Tensor> tensor) = 0;
     virtual DataType getDataType(string name) {return MLLM_TYPE_COUNT;}
-    // virtual int length (string name) =0;
 };
+
+/**
+ * \brief The ParamLoader class is the default and only(currently) implementation of the AbstructLoader class.
+ */
 class ParamLoader : public AbstructLoader {
     friend class QuantWriter;
 
 public:
-// #ifdef ANDROID_API
-//     ParamLoader(std::string filename, AAssetManager *asset_manager, bool use_mmap = false);
-// #else
     ParamLoader(std::string filename, bool use_mmap = false);
-// #endif
 
 #ifdef USE_MMAP
     ParamLoader(void *buffer);
@@ -86,24 +78,9 @@ public:
     unsigned int getParamSize() const {
         return offsets_.size();
     }
-// #ifdef ANDROID_API
-// void setAssetManager(AAssetManager *asset_manager) {
-//     asset_manager_ = asset_manager;
-// };
-    // #endif
-
-    // int length (string name) override {
-    //     auto [offset, length] = offsets_[name];
-    //     auto type = getDataType(name);
-    //     return length/(DataTypeSize(type, 1));
-    // }
 
 
 private:
-// #ifdef ANDROID_API
-//     AAssetManager *asset_manager_;
-// #endif
-
     mllm_file *fp_;
     uint8_t *buffer_;
     std::string path_;
