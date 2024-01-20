@@ -26,14 +26,11 @@
  * └───────┴──────┴───────┴────────┴───────────┴─────────┴─────────┴──────┴──────────────────────┴─────────────────────────┘
  * Weights File Structure
  */
-
 namespace mllm {
 bool ParamLoader::load(mllm::Tensor *tensor) {
     string name = tensor->name();
 #ifndef USE_MMAP
-    if (offsets_.find(name) == offsets_.end()) {
-        return false;
-    }
+    if (offsets_.find(name) == offsets_.end()) { return false; }
     std::pair<uint64_t, uint64_t> offset = offsets_[name];
     uint8_t *data = new uint8_t[offset.second];
     fseek(fp_, offset.first, SEEK_SET);
@@ -41,34 +38,35 @@ bool ParamLoader::load(mllm::Tensor *tensor) {
     // TODO:Data?
     //  tenor. = data;
     auto *p = tensor->hostPtr<char>();
-    memcpy(static_cast<void *>(p), static_cast<void *>(data), offset.second); // Cast pointers to void*
-    delete[] data;                                                            // Free the memory allocated by new
+    memcpy(static_cast<void *>(p), static_cast<void *>(data),
+           offset.second); // Cast pointers to void*
+    delete[] data;         // Free the memory allocated by new
     return true;
 #endif
 }
 ParamLoader::~ParamLoader() {
-    if (fp_ != nullptr) {
-        fclose(fp_);
-    }
+    if (fp_ != nullptr) { fclose(fp_); }
 }
 // #ifdef ANDROID_API
-// ParamLoader::ParamLoader(std::string filename, AAssetManager *asset_manager, bool use_mmap ):asset_manager_(asset_manager),
-// #else
+// ParamLoader::ParamLoader(std::string filename, AAssetManager *asset_manager,
+// bool use_mmap ):asset_manager_(asset_manager), #else
 ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
-// #endif
-path_(std::move(filename)), use_mmap_(use_mmap) {
-// #ifdef ANDROID_API
-//     this->fp_ = AAssetManager_open(asset_manager_, this->path_.c_str(), AASSET_MODE_RANDOM);
-// #else
+    // #endif
+    path_(std::move(filename)), use_mmap_(use_mmap) {
+    // #ifdef ANDROID_API
+    //     this->fp_ = AAssetManager_open(asset_manager_, this->path_.c_str(),
+    //     AASSET_MODE_RANDOM);
+    // #else
     this->fp_ = fopen(this->path_.c_str(), "rb");
-// #endif
+    // #endif
 
     if (this->fp_ == nullptr) {
         std::cout << "param open file failed" << std::endl;
         return;
         int errorCode = errno;
         char *errorMsg = strerror(errorCode);
-        printf("Open file fail, errorCode:%d, errorMsg:%s\n", errorCode, errorMsg);
+        printf("Open file fail, errorCode:%d, errorMsg:%s\n", errorCode,
+               errorMsg);
         exit(1);
     }
 #ifndef USE_MMAP

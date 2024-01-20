@@ -96,10 +96,10 @@ NetTensor *FFN( NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
 
 NetTensor * text_embd(NetTensor * i,  int vocab_size= 32064, int hidden_dim= 4096, string name = "language_model") {
     // auto *i = _Input(c);
-    i = _Embedding( {i}, vocab_size, hidden_dim, name+"model.embed_tokens");
+    i = _Embedding( {i}, vocab_size, hidden_dim, name+".model.embed_tokens");
     return i;
 }
-NetTensor * llama(Context* c, NetTensor * i,  int vocab_size= 32064, int hidden_dim= 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, string name = "language_model"){
+NetTensor * llama(NetTensor * i,  int vocab_size= 32064, int hidden_dim= 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, string name = "language_model"){
     // i = _Embedding( {i}, vocab_size, hidden_dim, name+"model.embed_tokens");
     for(int layer=0; layer<32; ++layer) {
         auto *x = _RMSNorm( {i}, hidden_dim, 1e-5,  name+"model.layers."+std::to_string(layer)+".input_layernorm");
@@ -165,20 +165,16 @@ NetTensor *vision_tower(Context* c, NetTensor * i,  int hidden_dim= 1024, int ff
     return i;
 }
 
-// NetTensor *multi_modal_projector( NetTensor * v, int hidden_dim=1024, int  ffn_hidden_dim = 4096, string name ="multi_modal_projector") {
-//     v = _Linear( {v}, hidden_dim, ffn_hidden_dim, true, name + ".linear_1");
-//     v = _GELU( {v}, name + ".act_fn");
-//     v = _Linear( {v}, ffn_hidden_dim, hidden_dim, true, name + ".linear_2");
-//     return v;
-// }
 
 
 void llava(Context* c) {
+    auto *i = _Input(c, {}, "input_text");
+    auto *e = text_embd(i);
+    i = i->where(32000, SEQUENCE);
     auto *v = _Input(c, {}, "input_imgs");
     v = vision_tower(c, v);
-    // auto *i = _Input(c, {}, "input_text");
-    // i = text_embd(i);
-    //multi_modal_projector（i， v）
+    i = _Replace({e, v,i});
+    i = llama(i);
 }
 
 int main(int argc, char **argv) {
@@ -227,10 +223,10 @@ int main(int argc, char **argv) {
         // std::cout<<std::endl;
     }
     tokens_ids[0] = {1, 32000, 29871, 13, 11889, 29901, 1724, 29915, 29879, 278, 2793, 310, 278, 1967, 29973, 13, 22933, 9047, 13566, 29901};
-    /*
+
     shared_ptr<Tensor> input_text = std::make_shared<Tensor>();
     BPETokenizer::tokens2Tensor(&net, tokens_ids, input_text);
-    */
+
 
     auto *clip_processor = new ClipProcessor(tokenizer, 336, 336);
     clip_processor->PreProcessImages({"../assets/australia_336.jpg"});
@@ -245,9 +241,9 @@ int main(int argc, char **argv) {
 
     // input_img->fullData<float>(1);//TODO
 
-    ex.run(&net, {input_img});
+    ex.run(&net, {input_text, input_img});
     auto result = ex.result();
-    // result[0]->saveData<float>();//TODO
+    result[0]->saveData<float>();//TODO
 
     /*
     vector<string> in_strs = {

@@ -1,4 +1,5 @@
 #include "CPUBackend.hpp"
+#include <math.h>
 #include "CPUView.hpp"
 #include "CPUAdd.hpp"
 #include "CPUCausalMask.hpp"
@@ -32,8 +33,10 @@
 #include "CPUTranspose.hpp"
 #include "CPUMean.hpp"
 #include "CPURange.hpp"
+#include "CPUWhere.hpp"
+#include "CPUReplace.hpp"
 
-#include <math.h>
+
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
     Backend(mm) {
@@ -84,6 +87,8 @@ void CPUBackend::registerOps() {
     addCreator(SHAPE, (CPUBackend::Creator *)(new CPUShapeCreator()));
     addCreator(MEAN, (CPUBackend::Creator *)(new CPUMeanCreator()));
     addCreator(RANGE, (CPUBackend::Creator *)(new CPURangeCreator()));
+    addCreator(WHERE, (CPUBackend::Creator *)(new CPUWhereCreator()));
+    addCreator(REPLACE, (CPUBackend::Creator *)(new CPUReplaceCreator()));
 }
 
 } // namespace mllm

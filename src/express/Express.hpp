@@ -39,5 +39,6 @@ NetTensor *_AvgPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vecto
 NetTensor *_MaxPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name = "");
 NetTensor *_Cat(std::vector<NetTensor *> inputs, Chl axis, string name = "");
 NetTensor *_Division(std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_Replace(std::vector<NetTensor *> inputs, string name = "");
 
 #endif // MLLM_EXPRESS_H

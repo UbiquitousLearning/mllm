@@ -42,6 +42,8 @@ enum OpType {
     SHAPE,
     MEAN,
     RANGE,
+    WHERE,
+    REPLACE,
     OP_NUM
 };
 
@@ -80,6 +82,8 @@ static const vector<string> OpNames = {
     "Shape",
     "Mean",
     "Range",
+    "Where",
+    "Replace",
     "OP_NUM"};
 } // namespace mllm
 #endif

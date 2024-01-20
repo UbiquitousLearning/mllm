@@ -5,6 +5,7 @@
 #include "Types.hpp"
 #include <map>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 using std::string;
@@ -93,6 +94,8 @@ typedef struct TNetTensor {
     NetTensor *transpose(Chl axis1, Chl axis2);
     NetTensor *norm(int L_n);
     NetTensor *mean(Chl axis);
+    NetTensor *where(float data);
+    NetTensor *where(float data, Chl axis);
 
     /* Overload the operators.*/
     NetTensor *operator+(NetTensor* in_1) ;

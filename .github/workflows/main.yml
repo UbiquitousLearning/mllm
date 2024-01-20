@@ -21,12 +21,12 @@ jobs:
         uses: actions/checkout@v4.1.1
         with:
           submodules: true
-      - name: Security Check
+        #      - name: Security Check
         #        Check if is a forked repo, if so, do not run action job.
-        if: github.repository != 'UbiquitousLearning/mllm'
-        run: |
-          echo "This is a forked repo, stop running"
-          exit 1
+      #        if: github.repository != 'UbiquitousLearning/mllm'
+      #        run: |
+      #          echo "This is a forked repo, stop running"
+      #          exit 1
       - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
@@ -51,40 +51,40 @@ jobs:
           post: |
             COMMIT_MESSAGE="$(git show -s --format=%s)" python3 ../tools/ci/report.py
           
-#  mobile_test:
-#    name: Unit Tests on Mobile
-#    runs-on: self-hosted
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@v4.1.1
-#        with:
-#          submodules: true
-#      - name: Security Check
-#        #        Check if is a forked repo, if so, do not run action job.
-#        if: github.repository != 'UbiquitousLearning/mllm'
-#        run: |
-#          echo "This is a forked repo, stop running"
-#          exit 1
-#      - uses: actions/setup-python@v4
-#        with:
-#          python-version: '3.9'
-#          cache: 'pip' # caching pip dependencies
-#      - run: cd test && pip install -r requirements.txt && pip install cmake
-#      - name: Prepare & Build
-#        run: |
-#          bash tools/ci/build_arm64.sh
-#      - name: Test
-#        uses: gacts/run-and-post-run@v1
-#        env:
-#          FEISHU_TOKEN: ${{ secrets.FEISHU_TOKEN }}
-#          FEISHU_AT: ${{ secrets.FEISHU_AT }}
-#          PR_NUMBER: ${{ github.event.number }}
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#          IS_MOBILE: 1
-#        with:
-#          run: adb devices && python3 ./tools/ci/mobile_test.py
-#          post: |
-#            COMMIT_MESSAGE="$(git show -s --format=%s)" python3 ./tools/ci/report.py
+          #  mobile_test:
+          #    name: Unit Tests on Mobile
+          #    runs-on: self-hosted
+          #    steps:
+          #      - name: Checkout
+          #        uses: actions/checkout@v4.1.1
+          #        with:
+          #          submodules: true
+          #      - name: Security Check
+          #        #        Check if is a forked repo, if so, do not run action job.
+          #        if: github.repository != 'UbiquitousLearning/mllm'
+          #        run: |
+          #          echo "This is a forked repo, stop running"
+          #          exit 1
+          #      - uses: actions/setup-python@v4
+          #        with:
+          #          python-version: '3.9'
+          #          cache: 'pip' # caching pip dependencies
+          #      - run: cd test && pip install -r requirements.txt && pip install cmake
+          #      - name: Prepare & Build
+          #        run: |
+          #          bash tools/ci/build_arm64.sh
+          #      - name: Test
+          #        uses: gacts/run-and-post-run@v1
+          #        env:
+          #          FEISHU_TOKEN: ${{ secrets.FEISHU_TOKEN }}
+          #          FEISHU_AT: ${{ secrets.FEISHU_AT }}
+          #          PR_NUMBER: ${{ github.event.number }}
+          #          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          #          IS_MOBILE: 1
+          #        with:
+          #          run: adb devices && python3 ./tools/ci/mobile_test.py
+          #          post: |
+          #            COMMIT_MESSAGE="$(git show -s --format=%s)" python3 ./tools/ci/report.py
           
     
 
