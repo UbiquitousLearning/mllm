@@ -44,18 +44,18 @@ float **reshape_conv2d_kernal_fp32(Tensor *kernel) {
     int kernel_w = kernel->dimension();
     int out_channel = kernel->batch();
 
-    // 改变布局的内核
+    // convert the kernel to a new layout
     float **k_new = new float *[out_channel];
     for (int i = 0; i < out_channel; i++) {
         k_new[i] = new float[in_channel * kernel_h * kernel_w];
     }
 
     for (int out_ch = 0; out_ch < out_channel; ++out_ch) {
-        // 将过滤器重新布局
+        // re-layout the filter
         for (int in_ch = 0; in_ch < in_channel; ++in_ch) {
             for (int k_h = 0; k_h < kernel_h; ++k_h) {
                 float *kernel_p = kernel->ptrAt<float>(out_ch, k_h, in_ch, 0);
-                // 将滤波器全都放在同一行
+                // put all the filters in one row
                 for (int i = 0; i < kernel_w; i++) {
                     k_new[out_ch][i + k_h * kernel_w + in_ch * kernel_h * kernel_w] = kernel_p[i];
                 }
@@ -72,23 +72,23 @@ void conv2d_fp32_VALID_view(Tensor *input, Tensor *output, Tensor *kernel, bool 
     int out_width = output->dimension();
     int out_channel = kernel->batch();
 
-    // 改变布局的内核
+    // convert the kernel to a new layout
     float **k_new = reshape_conv2d_kernal_fp32(kernel);
 
-    // 改变布局的感受野
+    // change the layout of the receptive field
     float **i_new = new float *[out_height * out_width];
     for (int i = 0; i < out_width * out_height; i++) {
         i_new[i] = new float[in_channel * kernel_h * kernel_w];
     }
 
     for (int b = 0; b < input->batch(); ++b) {
-        // 将不同的感受野重新布局
+        // re-layout the receptive field
         for (int out_h = 0; out_h < out_height; ++out_h) {
             for (int out_w = 0; out_w < out_width; ++out_w) {
                 int blk_h = out_h * stride_h;
                 int blk_w = out_w * stride_w;
 
-                // 将所有通道的感受野全都放在一行
+                // put all the receptive field in one row
                 for (int in_ch = 0; in_ch < in_channel; ++in_ch) {
                     for (int k_h = 0; k_h < kernel_h; ++k_h) {
                         float *i_p = input->ptrAt<float>(b, blk_h + k_h, in_ch, blk_w + 0);
@@ -124,20 +124,20 @@ void conv2d_fp32_VALID(Tensor *input, Tensor *output, float **k_new, int kernel_
     int out_width = output->dimension();
     int out_channel = output->sequence();
 
-    // 改变布局的感受野
+    // convert the receptive field to a new layout
     float **i_new = new float *[out_height * out_width];
     for (int i = 0; i < out_width * out_height; i++) {
         i_new[i] = new float[in_channel * kernel_h * kernel_w];
     }
 
     for (int b = 0; b < input->batch(); ++b) {
-        // 将不同的感受野重新布局
+        // re-layout the receptive field
         for (int out_h = 0; out_h < out_height; ++out_h) {
             for (int out_w = 0; out_w < out_width; ++out_w) {
                 int blk_h = out_h * stride_h;
                 int blk_w = out_w * stride_w;
 
-                // 将所有通道的感受野全都放在一行
+                // put all the receptive field in one row
                 for (int in_ch = 0; in_ch < in_channel; ++in_ch) {
                     for (int k_h = 0; k_h < kernel_h; ++k_h) {
                         float *i_p = input->ptrAt<float>(b, blk_h + k_h, in_ch, blk_w + 0);

@@ -40,9 +40,9 @@ void ParamWriter::writeParam(string name, DataType type, void *data, uint64_t si
     param.type = type;
     param.offset = ftell(fp_);
     auto status = fwrite(data, sizeof(char), size, fp_);
-    fflush(fp_);  // 确保数据立即写入文件
+    fflush(fp_);  // make sure the data is written to the file immediately
     if (status != size) {
-        // 写入失败
+        // if write failed, print the error message and exit
         std::cout<<"fwrite error"<<status<<"!="<<size<<std::endl;
     }
     auto foff_size_after = ftell(fp_);

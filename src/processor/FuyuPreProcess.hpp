@@ -16,12 +16,6 @@ using std::vector;
 namespace mllm {
 typedef vector<vector<vector<vector<float>>>> FourDVector;
 
-// struct FuyuBatchEncoding {
-//     std::vector<int> input_ids;
-//     std::vector<int> attention_mask;
-//     std::vector<FourDVector> image_patches;
-//     std::vector<int> image_patches_indices;
-// };
 
 class FuyuPreProcess:public PreProcessor{
     vector<vector<int>> image_patch_indices_per_batch;

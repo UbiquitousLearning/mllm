@@ -6,7 +6,6 @@
 #include <cstdio>
 #include <iomanip>
 #include <cmath>
-#include "Timing.hpp"
 #include <fstream>
 #ifdef _WIN32
 #include <direct.h>
@@ -18,7 +17,7 @@
 
 namespace mllm {
 class Backend;
-/* Tensor is the baseic data structure of mllm. It is used to store the data of the model's weights and activations(the intermediate data  of the calculation).
+/* Tensor is the baseic data structure of mllm. It is used to store the data of the model's weights and activations(the intermediate data of the calculation).
  * The Tensor class contained 3 kinds of Tensors: BasicTensor, ChildTensor. AggregatedTensor.
  *
  * I）These are some basic attributes of Tensors:
@@ -29,12 +28,12 @@ class Backend;
  *        ctype_ == BHDS, the order of the dimensions in the memory is: batch, head, dimension, sequence.
  *        ctype_ == BCTHW, the order of the dimensions in the memory is: batch,  channel, time, height, width, which is used for 5-D Tensor.
  * - The data type of Tensor is 'dtype_', which can be MLLM_TYPE_FP32, MLLM_TYPE_FP16, MLLM_TYPE_Q4_K, etc.
- * - Private variable 'transed_' indicates whether the Tensor has been transed.
+ * - Private variable 'transed_' indicates whether the Tensor has been transposed. See method `transShape` below for more information.
  *   e.g. origin tensor's ctype_ == BSHD, transed_ == false,
  *        transed tensor's ctype_ == BHDS, transed_ == true.
  *
  * II）These are some attributes used for ChildTensor:
- * The ChildTensor is a Tensor which is a part of another Tensor(called 'MasterTensor'), and 'host_ptr_' of ChildTensor is same with'host_ptr_' of MasterTensor.
+ * The ChildTensor is a Tensor which is a part of another Tensor(called 'MasterTensor'), and 'host_ptr_' of ChildTensor is the same as the 'host_ptr_' of MasterTensor.
  * Each ChlidTensor only have one MasterTensor, but each MasterTensor can have multiple ChildTensors.
  * - Private variable 'shape_master_' indicates the shape of MasterTensor.
  * - Private variable 'master_tensor_' indicates the MasterTensor of ChildTensor.

@@ -9,6 +9,9 @@
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <bemapiset.h>
 #include  <windows.h>
+#else
+#include <cstdint>
+#include <ctime>
 #endif
 
 

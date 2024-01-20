@@ -1,5 +1,7 @@
 #include <csignal>
+#include "Timing.hpp"
 #include "Executor.hpp"
+
 namespace mllm {
 void Executor::setup(Net *net) {
     mllm_time_init();

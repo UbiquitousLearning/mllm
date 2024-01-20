@@ -282,14 +282,6 @@ struct BackendConfig {
     void *sharedContext = nullptr;
 };
 
-// 定义枚举类型
-// enum DataType {
-//    FP32 = 0,
-//    FP16,
-//    INT8,
-//    INT4,
-//    DATA_TYPE_COUNT,
-//};
 
 } // namespace mllm
 #endif //__cplusplus

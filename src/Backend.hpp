@@ -52,7 +52,6 @@ public:
     virtual void registerOps() = 0;
 
 private:
-    //
     shared_ptr<MemoryManager> mem_manager_;
 };
 

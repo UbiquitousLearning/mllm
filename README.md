@@ -8,9 +8,8 @@
 - Optimized for multimodal LLMs like fuyu-8B
 - Supported: ARM NEON and x86 AVX2
 - 4-bit and 6-bit integer quantization
-- Currently, mllm is mainly optimized for Android devices.
 
-Wait.. why on-device multimodal LLM? - It's a key building block for [intelligent personal agent](https://arxiv.org/pdf/2401.05459.pdf), text-based image searching/retrieval, screen VQA, and many more exciting mobile apps, without letting go your private data (chat history, screenshots, taken photos, etc).
+Wait.. why on-device multimodal LLM? - It's a key building block for [intelligent personal agent](https://arxiv.org/pdf/2401.05459.pdf), text-based image searching/retrieval, screen VQA, and many more exciting mobile apps, without giving away your private data (chat history, screenshots, taken photos, etc).
 
 
 ### Contents
@@ -72,10 +71,9 @@ Building mllm requires following tools:
 
 - gcc(11.4+) / clang (11.0+)
 - CMake >= 3.18
-- OpenMP Libs.
 - Android NDK Toolchains >= 26
 
-### Run for Android
+### Try it on Android
 
 #### Build
 
@@ -85,10 +83,9 @@ Building mllm requires following tools:
   ./build_android.sh
   ```
 
-#### Run Fuyu 8B
+#### Run Fuyu-8B
 
-You can download the corresponding model from [here](https://huggingface.co/mllmTeam), or you can download the model
-using the following instructions
+Download the model from [here](https://huggingface.co/mllmTeam), or using the following instructions
 
 ```bash
 mkdir ../models && cd ../models
@@ -116,7 +113,7 @@ Load model: 15.5373 s
 [A] Two cats laying on▁top▁of a pink blanket.
 ```
 
-#### Run LLaMA 7B
+#### Run LLaMA-2-7B
 
 Download model
 
@@ -197,14 +194,14 @@ cd scripts
 ./build.sh
  ```
 
-#### Run Fuyu 8B
+#### Run Fuyu-8B
 
 ```bash
 cd ./bin
 ./main_fuyu -m ../models/fuyu-8b-q4_k.mllm -v ../vacob/fuyu_vocab.mllm
  ```
 
-#### Run LLaMA 7B
+#### Run LLaMA-2-7B
 
 ```bash
 cd ./bin

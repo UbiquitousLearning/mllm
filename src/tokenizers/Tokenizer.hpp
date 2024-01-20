@@ -4,15 +4,12 @@
 
 #ifndef MLLM_TOKENIZER_HPP
 #define MLLM_TOKENIZER_HPP
-#include <memory>
-#include <cstddef>
 #include <string>
 #include <vector>
 #include <unordered_map>
 #ifdef ANDROID_API
 #include <android/asset_manager.h>
 #endif
-#include <iostream>
 #include "Tensor.hpp"
 namespace mllm {
 class Net;
@@ -24,6 +21,13 @@ typedef struct TokenT {
     token_t token;
     float score;
 } Token;
+
+/**
+ * @brief A Tokenizer is used to tokenize a string into a vector of numbers.
+ * Currently, all the models use the same tokenizer, and when it is initialized, it will load the vocabulary file.
+ * Then it use either `BPE` or `Unigram` to tokenize the string.
+ * Some models may have a preprocessing step, like `clip` or `fuyu`. When using them, you need to pass the tokenizer to the processor.
+ */
 class Tokenizer {
 protected:
     inline  static token_id_t TokenBos = 1;
@@ -57,10 +61,6 @@ public:
     }
     static void token2Tensor(Net *net, vector<token_id_t> tokens, shared_ptr<Tensor> input_tensor);
     static void tokens2Tensor(Net *net, vector<vector<token_id_t>> tokens, shared_ptr<Tensor> input_tensor);
-
-// #ifdef ANDROID_API
-//     void setAssetManager(AAssetManager *asset_manager);
-// #endif
 };
 
 } // namespace mllm

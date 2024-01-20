@@ -1,7 +1,6 @@
 
 #include "CPUNorm.hpp"
 #include <cmath>
-#include <numeric>
 
 namespace mllm {
 

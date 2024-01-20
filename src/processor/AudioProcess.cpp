@@ -149,9 +149,9 @@ std::vector<std::vector<float>> readFeats(const std::shared_ptr<wenet::FeaturePi
     bool end_flag = false;
     std::vector<std::vector<float>> chunk_feats;
     while (!end_flag) {
-        // 这里主要实现的是，读取一段音频，对音频进行每67个frame一次送入forward，
-        if (!feature_pipeline->Read(num_frames_, &chunk_feats)) // 说明feat结束，没有获取67个frame数据，则自动补0
-        {
+        // Read `num_frames_` of frame and extract features. 
+        if (!feature_pipeline->Read(num_frames_, &chunk_feats)){ 
+            // If the feat is end, pad the feat to `num_frames_` frames.
             int padding_len = num_frames_ - chunk_feats.size();
             std::vector<float> zero_vector(feature_dim_, 0);
             for (int i = 0; i < padding_len; i++) {
