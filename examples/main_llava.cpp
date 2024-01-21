@@ -72,8 +72,8 @@ NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int he
     q = q->view(-1, head_size, -1, hidden_size);
     k = k->view(-1, head_size, -1, hidden_size);
     v = v->view(-1, head_size, -1, hidden_size);
-    q = _RoPE( {q}, 2, name + ".q_rope");
-    k = _RoPE( {k}, 2, name + ".k_rope");
+    q = _RoPE( {q}, 1, name + ".q_rope");
+    k = _RoPE( {k}, 1, name + ".k_rope");
     k = _KVCache( {k},  name + ".k_cache");
     v = _KVCache( {v}, name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
@@ -102,14 +102,14 @@ NetTensor * text_embd(NetTensor * i,  int vocab_size= 32064, int hidden_dim= 409
 NetTensor * llama(NetTensor * i,  int vocab_size= 32064, int hidden_dim= 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, string name = "language_model"){
     // i = _Embedding( {i}, vocab_size, hidden_dim, name+"model.embed_tokens");
     for(int layer=0; layer<32; ++layer) {
-        auto *x = _RMSNorm( {i}, hidden_dim, 1e-5,  name+"model.layers."+std::to_string(layer)+".input_layernorm");
-        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size,  name+"model.layers."+std::to_string(layer)+".self_attn") +i;
-        x = _RMSNorm( {i}, hidden_dim, 1e-5,  name+"model.layers."+std::to_string(layer)+".post_attention_layernorm");
-        i = *FFN( x, hidden_dim, ffn_hidden_dim,  name+"model.layers."+std::to_string(layer) +".mlp") +i;
+        auto *x = _RMSNorm( {i}, hidden_dim, 1e-5,  name+".model.layers."+std::to_string(layer)+".input_layernorm");
+        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size,  name+".model.layers."+std::to_string(layer)+".self_attn") +i;
+        x = _RMSNorm( {i}, hidden_dim, 1e-5,  name+".model.layers."+std::to_string(layer)+".post_attention_layernorm");
+        i = *FFN( x, hidden_dim, ffn_hidden_dim,  name+".model.layers."+std::to_string(layer) +".mlp") +i;
         //_SubgraphBegin(c);
     }
-    i = _RMSNorm( {i}, hidden_dim, 1e-5,  name+"model.norm");
-    i = _Linear( {i}, hidden_dim, vocab_size, false,  name+"lm_head");
+    i = _RMSNorm( {i}, hidden_dim, 1e-5,  name+".model.norm");
+    i = _Linear( {i}, hidden_dim, vocab_size, false,  name+".lm_head");
     return i;
 }
 
@@ -175,6 +175,7 @@ void llava(Context* c) {
     v = vision_tower(c, v);
     i = _Replace({e, v,i});
     i = llama(i);
+    i = i->clip( {}, {}, {0}, {});
 }
 
 int main(int argc, char **argv) {
@@ -229,7 +230,7 @@ int main(int argc, char **argv) {
 
 
     auto *clip_processor = new ClipProcessor(tokenizer, 336, 336);
-    clip_processor->PreProcessImages({"../assets/australia_336.jpg"});
+    clip_processor->PreProcessImages({"../assets/australia.jpg"});
     auto images = clip_processor->pixel_values_[0];
 
     shared_ptr<Tensor> input_img = std::make_shared<Tensor>();
@@ -239,7 +240,7 @@ int main(int argc, char **argv) {
     Executor ex(&param_loader);
     ex.setup(&net);
 
-    // input_img->fullData<float>(1);//TODO
+//     input_img->fullData<float>(1);//TODO
 
     ex.run(&net, {input_text, input_img});
     auto result = ex.result();

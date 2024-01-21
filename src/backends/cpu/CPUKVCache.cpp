@@ -8,7 +8,7 @@ CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int threadCount) :
     Op(bn, opName) {
     cache_.setBackend(bn);
     cache_.setDtype(MLLM_TYPE_F16);
-    cache_limit_ = 500;
+    cache_limit_ = 700;
     n_rep_ = n_rep;
 }
 
