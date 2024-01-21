@@ -33,6 +33,7 @@ NetTensor * Attention(Context *ctx, NetTensor * i, uint32_t hidden_dim, uint32_t
     qk = _Softmax(ctx, {qk}, 3, std::to_string(layer)+"softmax");
     auto *o = _Matmul(ctx, {qk, v}, false, false, std::to_string(layer)+"qkv");
     // o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, "qkv_view");
+    o = _Linear(ctx, {o}, hidden_dim, hidden_dim, false, std::to_string(layer)+"attention.o.q8");
 
     return o;
 }
@@ -43,7 +44,7 @@ NetTensor * FFN(Context *ctx, NetTensor * i, uint32_t hidden_dim, uint32_t ffn_h
     auto *y = _Linear(ctx, {i}, hidden_dim, ffn_hidden_dim, false, std::to_string(layer)+"ffn.l3.q8");
 
     x = _SiLU(ctx, {x}, std::to_string(layer)+"ffn.silu1");
-    auto *z = _Add(ctx, {x, y}, std::to_string(layer)+"ffn.add");
+    auto *z = _Mul(ctx, {x, y}, std::to_string(layer)+"ffn.mul");
 
     z = _Linear(ctx, {z}, ffn_hidden_dim, hidden_dim, false, std::to_string(layer)+"ffn.l2.q8");
 
@@ -129,10 +130,10 @@ NetTensor * SeperateFFN(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_d
     auto *z = _Softmax(ctx, {i}, 3, "softmax0");
     for (int l = 1; l<=layer; l++) {
         auto *x = _Linear(ctx, {z}, hidden_dim, ffn_hidden_dim, false, std::to_string(l)+"ffn.l1.q8");
-        auto *y = _Linear(ctx, {z}, hidden_dim, ffn_hidden_dim, false, std::to_string(l)+"ffn.l3.q8");
-
         x = _SiLU(ctx, {x}, std::to_string(l)+"ffn.silu1");
-        z = _Add(ctx, {x, y}, std::to_string(l)+"ffn.add");
+        
+        auto *y = _Linear(ctx, {z}, hidden_dim, ffn_hidden_dim, false, std::to_string(l)+"ffn.l3.q8");
+        z = _Mul(ctx, {x, y}, std::to_string(l)+"ffn.mul");
 
         z = _Linear(ctx, {z}, ffn_hidden_dim, hidden_dim, false, std::to_string(l)+"ffn.l2.q8");
     }
@@ -151,7 +152,7 @@ NetTensor * SeperateFFNNoSiLU(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hi
         auto *y = _Linear(ctx, {z}, hidden_dim, ffn_hidden_dim, false, std::to_string(l)+"ffn.l3.q8");
 
         // x = _SiLU(ctx, {x}, std::to_string(l)+"ffn.silu1");
-        z = _Add(ctx, {x, y}, std::to_string(l)+"ffn.add");
+        z = _Mul(ctx, {x, y}, std::to_string(l)+"ffn.mul");
 
         z = _Linear(ctx, {z}, ffn_hidden_dim, hidden_dim, false, std::to_string(l)+"ffn.l2.q8");
     }
@@ -185,6 +186,22 @@ NetTensor * FFNLinearCompose(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hid
     for (int l = 1; l<=layer; l++) {
 
         z = _Linear(ctx, {z}, hidden_dim, ffn_hidden_dim, false, std::to_string(l)+"ffn.l1.q8");
+        z = _Linear(ctx, {z}, ffn_hidden_dim, hidden_dim, false, std::to_string(l)+"ffn.l3.q8");
+    }
+    
+    return z;
+}
+
+NetTensor * FFNLinearSiLUCompose(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim, int layer) {
+
+    auto *i = _Input(ctx);
+
+    auto *z = _Softmax(ctx, {i}, 3, "softmax0");
+    
+    for (int l = 1; l<=layer; l++) {
+
+        z = _Linear(ctx, {z}, hidden_dim, ffn_hidden_dim, false, std::to_string(l)+"ffn.l1.q8");
+        z = _SiLU(ctx, {z}, std::to_string(l)+"ffn.silu1");
         z = _Linear(ctx, {z}, ffn_hidden_dim, hidden_dim, false, std::to_string(l)+"ffn.l3.q8");
     }
     
@@ -337,6 +354,10 @@ int main(int argc,char **argv) {
         seqence_size = 1;
     } else if (strcmp(argv[1], "ffn_compose") == 0) {
         FFNLinearCompose(c, hidden_dim, ffn_hidden_dim, atoi(argv[2]));
+        dimension = hidden_dim;
+        seqence_size = 1;
+    } else if (strcmp(argv[1], "ffnsilu_compose") == 0) {
+        FFNLinearSiLUCompose(c, hidden_dim, ffn_hidden_dim, atoi(argv[2]));
         dimension = hidden_dim;
         seqence_size = 1;
     } else if (strcmp(argv[1], "linear_attn") == 0) {
