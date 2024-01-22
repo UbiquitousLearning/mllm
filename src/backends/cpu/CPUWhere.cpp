@@ -35,7 +35,7 @@ ErrorCode CPUWhere::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
         }
     }
     int num = b_vec.size();
-    if (axis_ == -1) {
+    if ((int)axis_ == -1) {
         outputs[0]->reshape(1, 1, 4, num);
         outputs[0]->setDtype(activation_dtype());
         outputs[0]->alloc();
