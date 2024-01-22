@@ -124,21 +124,23 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/clip_vocab.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/clip-vit-base-patch32-q4_k.mllm");
-    cmdParser.add<string>("merges", 't', "specify mllm tokenizer merges.txt path", false, "../vocab/clip_merges.txt");
+    cmdParser.add<string>("merges", 'f', "specify mllm tokenizer merges.txt path", false, "../vocab/clip_merges.txt");
+    cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
     string merges_path = cmdParser.get<string>("merges");
+    int thread_num = cmdParser.get<int>("thread");
 
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
-    // transformer(c);
+
     CLIP(c);
 
     BackendConfig bn;
     Net net(bn);
-    net.convert(c->sub_param_);
+    net.convert(c->sub_param_, BackendType::MLLM_CPU, thread_num);
 
     ParamLoader param_loader(model_path);
     Executor ex(&param_loader);

@@ -28,6 +28,7 @@ Graph::Graph(const NetParameter &param, Backend *bn,
         shared_ptr<Op> my_op(nullptr);
         auto *new_op = backend_->opCreate(net_op->param, net_op->name, threadCount);
         my_op.reset(new_op);
+        my_op->setOpType(net_op->type);
         ops_[net_op->name] = my_op;
     }
     for (auto net_op : param.net_ops) {
@@ -84,9 +85,27 @@ void Graph::reflashInput(
 }
 void Graph::reshape() {
     for (const auto &op_name : op_names_) {
-        ops_[op_name]->reshape(
-            ops_input_tensors_[op_name],
-            ops_output_tensors_[op_name]); // tensors_[op_name]:1.reshape
+        bool do_ = true;
+        if(ops_[op_name]->type() == PARAMETER || ops_[op_name]->type() == RANGE|| ops_[op_name]->type() == GATHER|| ops_[op_name]->type() == REPLACE){
+            do_ = true;
+        }else {
+            for (auto &input_tensor : ops_input_tensors_[op_name]) {
+                if (input_tensor->count() == 0) {
+                    do_ = false;
+                }
+            }
+        }
+        ops_not_inputs_empty_[op_name] = do_;
+        if(do_) {
+            ops_[op_name]->reshape(
+                ops_input_tensors_[op_name],
+                ops_output_tensors_[op_name]); // tensors_[op_name]:1.reshape
+        }else{
+//            std::cout<<"op_name:"<<op_name<<" is not do"<<std::endl;
+            for (auto &output_tensor : ops_output_tensors_[op_name]) {
+                output_tensor->reshape(0, 0, 0, 0);
+            }
+        }
     }
 }
 
@@ -94,47 +113,56 @@ void Graph::setUpTensors() {
     auto &graph_in_tensors = ops_input_tensors_[op_names_[0]];
     for (auto &t : graph_in_tensors) { t->alloc(); }
     for (const auto &op_name : op_names_) {
-        ops_[op_name]->setUp(ops_input_tensors_[op_name],
-                             ops_output_tensors_[op_name]);
+        if (ops_not_inputs_empty_[op_name] ) {
+            ops_[op_name]->setUp(ops_input_tensors_[op_name],
+                                 ops_output_tensors_[op_name]);
+        }else{
+//            std::cout<<"op_name:"<<op_name<<" is not do"<<std::endl;
+        }
     }
 }
 
 void Graph::setUpOps(ParamLoader &loader) {
-    for (const auto &op_name : op_names_) { ops_[op_name]->load(loader); }
+    for (const auto &op_name : op_names_) {
+        ops_[op_name]->load(loader);
+    }
 }
-
+//#define SAVECHECK
 const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
 
     for (const auto &op_name : op_names_) {
-
+        if (ops_not_inputs_empty_[op_name] ) {
 #ifdef SAVECHECK
-        for(auto &t: ops_input_tensors_[op_name]){
-            t->checkData<float>();
-            t->saveData<float>();
-        }
+            for (auto &t : ops_input_tensors_[op_name]) {
+                t->checkData<float>();
+                t->saveData<float>();
+            }
 #endif
 #ifdef DEBUGPRINT
-        uint64_t t_start = mllm_time_us();
+            uint64_t t_start = mllm_time_us();
 #endif
-        ops_[op_name]->execute(ops_input_tensors_[op_name],
-                               ops_output_tensors_[op_name]);
+            ops_[op_name]->execute(ops_input_tensors_[op_name],
+                                   ops_output_tensors_[op_name]);
 
 #ifdef SAVECHECK
-         for(auto &t: ops_output_tensors_[op_name]){
-             t->checkData<float>();
-             t->saveData<float>();
-         }
+            for (auto &t : ops_output_tensors_[op_name]) {
+                t->checkData<float>();
+                t->saveData<float>();
+            }
 #endif
 
 #ifdef DEBUGPRINT
-        uint64_t t_end = mllm_time_us();
-        std::cout << "" << op_name
-                  << "       exe_time:" << (t_end - t_start) / 1000.0F << " ms"
-                  << std::endl;
+            uint64_t t_end = mllm_time_us();
+            std::cout << "" << op_name
+                      << "       exe_time:" << (t_end - t_start) / 1000.0F << " ms"
+                      << std::endl;
 #endif
-        if (autofree) {
-            ops_[op_name]->free(ops_input_tensors_[op_name],
-                                ops_output_tensors_[op_name]);
+            if (autofree) {
+                ops_[op_name]->free(ops_input_tensors_[op_name],
+                                    ops_output_tensors_[op_name]);
+            }
+        }else{
+//            std::cout<<"op_name:"<<op_name<<" is not do"<<std::endl;
         }
     }
     return ops_output_tensors_[op_names_[op_names_.size() - 1]];

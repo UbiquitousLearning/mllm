@@ -26,7 +26,7 @@ private:
     static int ishape_old;
     int h_cnt_ = 0;
     int pos_max_ ;
-    int pose_type_;
+    int pose_type_ =4;
     int ishape;
     int thread_count = 4;
 };

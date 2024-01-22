@@ -17,6 +17,7 @@ public:
 private:
     Chl dim_;
     int start_d_ = 999999999;
+    int start_d_const_ = 999999999;
     int end_d_= 999999999;
     int thread_count = 4;
 };

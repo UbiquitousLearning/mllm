@@ -105,6 +105,12 @@ public:
     DataType activation_dtype() const {
         return activation_dtype_;
     }
+    OpType type() const {
+        return type_;
+    }
+    void setOpType(OpType type) {
+        type_ = type;
+    }
 
 private:
     Backend *backend_;
@@ -112,6 +118,7 @@ private:
     vector<Tensor *> outputs_;
     string name_;
     DataType activation_dtype_ = MLLM_TYPE_F32;
+    OpType type_;
 };
 
 } // namespace mllm

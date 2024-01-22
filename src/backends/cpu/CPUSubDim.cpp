@@ -7,6 +7,7 @@ CPUSubDim::CPUSubDim(Backend *bn,  string opName,Chl dim, vector<int> interval, 
     Op(bn, opName) {
     dim_ = dim;
     start_d_ = interval[0];
+    start_d_const_ = interval[0];
     end_d_ = interval[1];
 }
 
@@ -20,9 +21,9 @@ ErrorCode CPUSubDim::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         }else {
             assert(inputs.size() == 1);
             assert(end_d_ - start_d_ >= 1);
-            if(start_d_<0) {
+            if(start_d_const_<0) {
                 int tmplen = end_d_ - start_d_;
-                start_d_ = inputs[0]->batch() + start_d_;
+                start_d_ = inputs[0]->batch() + start_d_const_;
                 end_d_ = start_d_ + tmplen;
             }
             outputs[0]->reshape(end_d_ - start_d_, input->head(), input->sequence() , input->dimension());
@@ -54,9 +55,9 @@ ErrorCode CPUSubDim::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         }else {
             assert(inputs.size() == 1);
             assert(end_d_ - start_d_ >= 1);
-            if(start_d_<0) {
+            if(start_d_const_<0) {
                 int tmplen = end_d_ - start_d_;
-                start_d_ = inputs[0]->sequence() + start_d_;
+                start_d_ = inputs[0]->sequence() + start_d_const_;
                 end_d_ = start_d_ + tmplen;
             }
             outputs[0]->reshape(input->batch(), input->head(), end_d_ - start_d_ , input->dimension());

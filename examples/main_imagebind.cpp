@@ -250,10 +250,14 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/clip_vocab.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/imagebind_huge-q4_k.mllm");
+    cmdParser.add<string>("merges", 'f', "specify mllm tokenizer merges.txt path", false, "../vocab/clip_merges.txt");
+    cmdParser.add<int>("thread", 't', "num of threads", false, 100);
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
+    string merges_path = cmdParser.get<string>("merges");
+    int thread_num = cmdParser.get<int>("thread");
 
     // auto tokenizer = BPETokenizer(vocab_path);
 
@@ -263,7 +267,7 @@ int main(int argc, char **argv) {
 
     BackendConfig bn;
     Net net(bn);
-    net.convert(c->sub_param_);
+    net.convert(c->sub_param_, BackendType::MLLM_CPU, thread_num);
 
     ParamLoader param_loader(model_path);
     Executor ex(&param_loader);
@@ -271,7 +275,7 @@ int main(int argc, char **argv) {
 
     auto tokenizer = new BPETokenizer(vocab_path);
     std::unordered_map<string,unsigned> merge_rank;
-    auto merge_file = std::ifstream("../vocab/clip_merges.txt");
+    auto merge_file = std::ifstream(merges_path);
     std::string line;
     unsigned rank=0;
     while (std::getline(merge_file, line)) {

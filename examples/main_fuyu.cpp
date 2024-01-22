@@ -90,6 +90,8 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor>& out_r
     return token_idx;
 }
 
+int cache_max = 500;
+
 NetTensor *Attention(NetTensor * x, int embedding_size, int hidden_size, int head_size, string name){
     x =_Linear( {x}, embedding_size, hidden_size * head_size * 3, true, name + ".query_key_value");
     auto skv = _Split( {x}, 3, Chl::D_HD, head_size, name + ".split");
@@ -100,8 +102,8 @@ NetTensor *Attention(NetTensor * x, int embedding_size, int hidden_size, int hea
     k = _LayerNorm( {k}, hidden_size, true, 1e-6, name + ".k_layernorm");
     q = _RoPE( {q}, 3, name + ".q_rope");
     k = _RoPE( {k}, 3, name + ".k_rope");
-    k = _KVCache( {k}, name + ".k_cache");
-    v = _KVCache( {v}, name + ".v_cache");
+    k = _KVCache( {k},cache_max,  name + ".k_cache");
+    v = _KVCache( {v},cache_max,  name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
     qk = _Scale( {qk}, 1.0F / std::sqrt(head_size), 0.0F, false, name + ".scale");
     qk = _Causalmask( {qk}, name + ".mask");
@@ -146,10 +148,14 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/fuyu_vocab.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/fuyu-8b-q4_k.mllm");
+    cmdParser.add<int>("cache", 'c', "max KV cache size", false, 500);
+    cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
+    cache_max = cmdParser.get<int>("cache");
+    int thread_num = cmdParser.get<int>("thread");
 
 
     auto tokenizer = UnigramTokenizer(vocab_path);
@@ -166,7 +172,7 @@ int main(int argc, char **argv) {
 
     BackendConfig bn;
     Net net(bn);
-    net.convert(c->sub_param_);
+    net.convert(c->sub_param_, BackendType::MLLM_CPU, thread_num);
     ParamLoader param_loader(model_path);
     Executor ex(&param_loader);
     ex.setup(&net);

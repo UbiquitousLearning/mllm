@@ -75,6 +75,9 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor>& out_r
     out_result->setDataAt<float>(0, 0, 0, 0, token_idx);
     return token_idx;
 }
+
+
+int cache_max = 200;
 NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int head_size, string name){
     auto *q =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".wq");
     auto *k =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".wk");
@@ -84,8 +87,8 @@ NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int he
     v = v->view(-1, head_size, -1, hidden_size);
     q = _RoPE( {q}, 2, name + ".q_rope");
     k = _RoPE( {k}, 2, name + ".k_rope");
-    k = _KVCache( {k},  name + ".k_cache");
-    v = _KVCache( {v}, name + ".v_cache");
+    k = _KVCache( {k}, cache_max,  name + ".k_cache");
+    v = _KVCache( {v}, cache_max, name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
     qk = *qk/std::sqrt(hidden_size);
     qk = _Causalmask( {qk}, name + ".mask");
@@ -122,13 +125,15 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/llama_vocab.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/llama-2-7b-chat-q4_k.mllm");
-    // cmdParser.add<string>("input", 'i', "specify input string", false, " Structured pruning and unstructured pruning represent two distinct categories within the realm of parameter pruning for LLMs. Structured pruning involves the removal of entire structured components, such as neurons, channels, or layers, based on predefined criteria. This method aims to simplify the model architecture by discarding specific structural elements that contribute less to overall performance. On the other hand, unstructured pruning targets individual weights within the model, irrespective of their structural context. This approach aims to enhance the model's sparsity by selectively eliminating less influential parameters, thereby reducing the model's footprint.The significance of parameter pruning lies in its ability to strike a balance between model size and performance. By judiciously removing redundant weights, LLMs can achieve substantial compression without compromising their capabilities. This becomes particularly relevant in scenarios where computational resources, memory constraints, or deployment on edge devices necessitate a more streamlined and resource-efficient model.");
-    // cmdParser.add<string>("input", 'i', "specify input string", false, " Hello, who are you?");// I think the meaning of life is
+    cmdParser.add<int>("limits", 'l',  "max KV cache size", false, 200);
+    cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
     // string in_str = cmdParser.get<string>("input");
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
+    cache_max = cmdParser.get<int>("limits");
+    int thread_num = cmdParser.get<int>("thread");
 
     auto tokenizer = BPETokenizer(vocab_path);
 
@@ -143,7 +148,7 @@ int main(int argc, char **argv) {
 
     BackendConfig bn;
     Net net(bn);
-    net.convert(c->sub_param_);
+    net.convert(c->sub_param_, BackendType::MLLM_CPU, thread_num);
 
     ParamLoader param_loader(model_path);
     Executor ex(&param_loader);

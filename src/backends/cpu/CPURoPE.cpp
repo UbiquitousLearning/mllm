@@ -61,6 +61,33 @@ void sinusoidal_position_embedding(int seq_len, int output_dim, vector<vector<fl
         }
     }
 }
+void sinusoidal_position_embedding_sample(int seq_len, int output_dim, vector<vector<float>> &sin, vector<vector<float>> &cos) {
+    sin.resize(seq_len);
+    for (int i = 0; i < seq_len; ++i) {
+        sin[i].resize(output_dim);
+    }
+    cos.resize(seq_len);
+    for (int i = 0; i < seq_len; ++i) {
+        cos[i].resize(output_dim);
+    }
+#pragma omp parallel for num_threads(4)
+    for (int s = 0; s < seq_len; ++s) {
+        for (int d = 0; d < output_dim/2; d += 1) {
+            int i = (int)d / 1;
+            float sin_value = sinf(s / std::pow(10000, 2.0 * i / output_dim));
+            float cos_value = cosf(s / std::pow(10000, 2.0 * i / output_dim));
+            sin[s][d] = sin_value;
+            cos[s][d] = cos_value;
+        }
+        for (int d = output_dim/2; d < output_dim; d += 1) {
+            int i = (int)(d -output_dim/2);
+            float sin_value = sinf(s / std::pow(10000, 2.0 * i / output_dim));
+            float cos_value = cosf(s / std::pow(10000, 2.0 * i / output_dim));
+            sin[s][d] = sin_value;
+            cos[s][d] = cos_value;
+        }
+    }
+}
 
 CPURoPE::CPURoPE(Backend *bn, string opName, int pose_type, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
@@ -81,8 +108,12 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
             sinusoidal_position_embedding_hf( pos_max_, ishape, sin_, cos_);
         } else if (pose_type_ == 2) {
             sinusoidal_position_embedding(pos_max_, ishape, sin_, cos_);
-        } else {
+        } else if (pose_type_ == 3){
             sinusoidal_position_embedding_hf(pos_max_, ishape/2, sin_, cos_);
+        } else if (pose_type_ == 4){
+            sinusoidal_position_embedding_sample(pos_max_, ishape, sin_, cos_);
+        } else{
+
         }
     }
     return Op::reshape(inputs, outputs);
@@ -96,7 +127,7 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
             for (int s = 0; s < input->sequence(); ++s) {//sequance
                 #pragma omp parallel for num_threads(thread_count)
                 for (int d = 0; d < input->dimension(); ++d) {
-                    if (pose_type_== 1) {
+                    if (pose_type_== 1 ) {
                         float in_value = input->dataAt<float>(n, h, s, d);
                         float in_value_2;
                         if (d < input->dimension() / 2) { // if is even number: 0,2,4
@@ -131,7 +162,7 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                         else if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F16) {
                             output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
                         }
-                    }else{
+                    }else if (pose_type_== 3) {
                         float in_value = input->dataAt<float>(n, h, s, d);
                         float in_value_2;
                         float sin_value = sin_[s +h_cnt_][d];
@@ -162,6 +193,27 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                 output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(in_value));
                             }
                         }
+                    } else if (pose_type_== 4) {
+                        float in_value = input->dataAt<float>(n, h, s, d);
+                        float in_value_2;
+                        if (d < input->dimension() / 2) {
+                            in_value_2 = -input->dataAt<float>(n, h, s, d + input->dimension() / 2);
+                        } else {
+                            in_value_2 = input->dataAt<float>(n, h, s, d - input->dimension() / 2);
+                        }
+                        float sin_value = sin_[s +h_cnt_][d];
+                        float cos_value = cos_[s +h_cnt_][d];
+                        auto value = in_value * cos_value + in_value_2 * sin_value;
+                        if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F32) {
+                            output->setDataAt<float>(n, h, s, d, value);
+                        }
+                        else if(output->dtypeAt(n,h,s, d) == MLLM_TYPE_F16) {
+                            output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
+                        }
+                    }
+
+                    else{
+
                     }
                 }
             }

@@ -4,11 +4,11 @@
 #include "ParamLoader.hpp"
 
 namespace mllm {
-CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int threadCount) : thread_count(threadCount),
+CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     cache_.setBackend(bn);
     cache_.setDtype(MLLM_TYPE_F16);
-    cache_limit_ = 700;
+    cache_limit_ = cache_max;
     n_rep_ = n_rep;
 }
 

@@ -9,6 +9,7 @@ CPUReplace::CPUReplace(Backend *bn,  string opName, int threadCount) : thread_co
 
 ErrorCode CPUReplace::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     if(inputs[1]->batch() == 0) {
+        outputs[0]->reshape(inputs[0]->batch(), 1, inputs[0]->sequence(), inputs[0]->dimension());
         return Op::execute(inputs, outputs);
     }
     assert(inputs.size() == 3);
@@ -29,6 +30,12 @@ ErrorCode CPUReplace::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 }
 
 ErrorCode CPUReplace::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    if (inputs[1]->batch() == 0) {
+        auto dst_ptr = outputs[0]->ptrAt<float>(0, 0, 0, 0);
+        auto src_ptr = inputs[0]->ptrAt<float>(0, 0, 0, 0);
+        memcpy(dst_ptr, src_ptr, sizeof(float)*inputs[0]->dimension()*inputs[0]->sequence()*inputs[0]->batch()*inputs[0]->head());
+        return Op::execute(inputs, outputs);
+    }
     assert(inputs.size() == 3);
     assert(outputs.size() == 1);
     auto dest_input = inputs[0];

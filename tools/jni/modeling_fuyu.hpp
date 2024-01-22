@@ -19,8 +19,8 @@ inline NetTensor *Attention_Fuyu(Context *ctx, NetTensor * x, int embedding_size
     k = _LayerNorm( {k}, hidden_size, true, 1e-6, name + ".k_layernorm");
     q = _RoPE( {q}, 3, name + ".q_rope");
     k = _RoPE( {k}, 3, name + ".k_rope");
-    k = _KVCache( {k}, name + ".k_cache");
-    v = _KVCache( {v}, name + ".v_cache");
+    k = _KVCache( {k}, 500,name + ".k_cache");
+    v = _KVCache( {v},500, name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
     qk = _Scale( {qk}, 1.0F / std::sqrt(head_size), 0.0F, false, name + ".scale");
     qk = _Causalmask( {qk}, name + ".mask");

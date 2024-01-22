@@ -1128,9 +1128,11 @@ void vit(Context* c, int hidden_dim= 768, int ffn_hidden_dim = 3072, int class_s
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/vit-base-patch16-224-q4_k.mllm");
+    cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
     string model_path = cmdParser.get<string>("model");
+    int thread_num = cmdParser.get<int>("thread");
 
     int width, height, channel;
     unsigned char *data = stbi_load("../assets/cat.jpg", &width, &height, &channel, 0);
@@ -1155,7 +1157,7 @@ int main(int argc, char **argv) {
 
     BackendConfig bn;
     Net net(bn);
-    net.convert(c->sub_param_);
+    net.convert(c->sub_param_, BackendType::MLLM_CPU, thread_num);
     ParamLoader param_loader(model_path);
     Executor ex(&param_loader);
     ex.setup(&net);

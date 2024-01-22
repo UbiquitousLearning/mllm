@@ -24,8 +24,8 @@ NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool
 NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
 NetTensor *_Embedding(std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name = "");
 NetTensor *_Mul(std::vector<NetTensor *> inputs, string name = "");
-NetTensor *_KVCache(std::vector<NetTensor *> inputs, string name = "");
-NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, string name = "");
+NetTensor *_KVCache(std::vector<NetTensor *> inputs, int cache_max, string name = "");
+NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, int cache_max, string name = "");
 NetTensor *_ReLU(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_ReLUSquaredActivation(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_GELU(std::vector<NetTensor *> inputs, string name = "");

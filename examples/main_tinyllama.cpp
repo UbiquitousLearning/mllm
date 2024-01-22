@@ -36,6 +36,9 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor>& out_r
     out_result->setDataAt<float>(0, 0, 0, 0, token_idx);
     return token_idx;
 }
+
+
+int cache_max = 200;
 NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int head_size, int mutil_key_value_head, string name){
     auto *q =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
     auto *k =_Linear({x}, embedding_size, hidden_size * mutil_key_value_head, false, name + ".k_proj");
@@ -43,10 +46,10 @@ NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int he
     q = q->view(-1, head_size, -1, hidden_size);
     k = k->view(-1, mutil_key_value_head, -1, hidden_size);
     v = v->view(-1, mutil_key_value_head, -1, hidden_size);
-    q = _RoPE( {q}, 1, name + ".q_rope");
-    k = _RoPE( {k}, 1, name + ".k_rope");
-    k = _KVCache( {k},head_size/mutil_key_value_head,  name + ".k_cache");
-    v = _KVCache( {v},head_size/mutil_key_value_head, name + ".v_cache");
+    q = _RoPE( {q}, 4, name + ".q_rope");
+    k = _RoPE( {k}, 4, name + ".k_rope");
+    k = _KVCache( {k},head_size/mutil_key_value_head,  cache_max,  name + ".k_cache");
+    v = _KVCache( {v},head_size/mutil_key_value_head, cache_max,  name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
     qk = *qk/std::sqrt(hidden_size);
     qk = _Causalmask( {qk}, name + ".mask");
@@ -83,10 +86,14 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/tinyllama_vocab.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/tinyllama-1.1b-chat-q4_k.mllm");//../models/tinyllama-1.1b-chat-fp32.mllm
+    cmdParser.add<int>("limits", 'l',  "max KV cache size", false, 200);
+    cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
+    cache_max = cmdParser.get<int>("limits");
+    int thread_num = cmdParser.get<int>("thread");
 
     auto tokenizer = BPETokenizer(vocab_path);
 
@@ -102,7 +109,7 @@ int main(int argc, char **argv) {
 
     BackendConfig bn;
     Net net(bn);
-    net.convert(c->sub_param_);
+    net.convert(c->sub_param_, BackendType::MLLM_CPU, thread_num);
 
     ParamLoader param_loader(model_path);
     Executor ex(&param_loader);

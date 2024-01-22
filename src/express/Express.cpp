@@ -256,7 +256,7 @@ NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilo
     return out_tensor;
 }
 /**
- * \param pose_type RoPR type, 1 for TinyLLama, 2 for LLama, 3 for fuyu.
+ * \param pose_type RoPR type, 4 for HuggingFace Hub, 2 for LLama, 3 for fuyu, NO_USE for 1.
  * This RoPE function is ready for optimization in the future.
  */
 NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name) {
@@ -363,7 +363,7 @@ NetTensor *_Mul(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_KVCache(std::vector<NetTensor *> inputs,string name) {
+NetTensor *_KVCache(std::vector<NetTensor *> inputs,int cache_max, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -375,6 +375,7 @@ NetTensor *_KVCache(std::vector<NetTensor *> inputs,string name) {
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::KVCACHE)
     net_op_->param["n_rep"] = 1;
+    net_op_->param["cache_max"] = (int)cache_max;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
@@ -385,7 +386,7 @@ NetTensor *_KVCache(std::vector<NetTensor *> inputs,string name) {
  * \param n_rep  if head size of K/V is different with Q, set n_rep > 1, the output will be replicated n_rep times.
  *               e.g. n_rep = 8 in TinyLLama.
  */
-NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, string name) {
+NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, int cache_max, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -397,6 +398,7 @@ NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, string name) {
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::KVCACHE)
     net_op_->param["n_rep"] = (int)n_rep;
+    net_op_->param["cache_max"] = (int)cache_max;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
