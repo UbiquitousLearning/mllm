@@ -34,7 +34,7 @@ jobs:
       - run: cd test && pip install -r requirements.txt && pip install cmake
       - name: Build
         run: |
-          cmake -DTEST=on -Bbuild && cmake --build build --target all
+          cmake -DCMAKE_BUILD_TYPE=Debug -DTEST=on -Bbuild && cmake --build build --target all
       - name: Make Data
         run:
           cd test && bash test.sh
