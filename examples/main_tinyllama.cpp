@@ -46,8 +46,8 @@ NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int he
     q = q->view(-1, head_size, -1, hidden_size);
     k = k->view(-1, mutil_key_value_head, -1, hidden_size);
     v = v->view(-1, mutil_key_value_head, -1, hidden_size);
-    q = _RoPE( {q}, 4, name + ".q_rope");
-    k = _RoPE( {k}, 4, name + ".k_rope");
+    q = _RoPE( {q}, HFHUBROPE, name + ".q_rope");
+    k = _RoPE( {k}, HFHUBROPE, name + ".k_rope");
     k = _KVCache( {k},head_size/mutil_key_value_head,  cache_max,  name + ".k_cache");
     v = _KVCache( {v},head_size/mutil_key_value_head, cache_max,  name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");

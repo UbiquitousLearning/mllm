@@ -7,45 +7,6 @@
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 using namespace mllm;
-// For Visualization and Debug
-void display(NetParameter *net) {
-    std::cout << "===NetParameter===" << std::endl;
-    for (auto *op : net->net_ops) {
-        std::cout << "===NetOP===" << std::endl;
-        std::cout << "op->name:" << op->name << std::endl;
-        std::cout << "op->type:" << op->type << std::endl;
-        std::cout << "op input" << op->in.size() << std::endl;
-        for (auto *input : op->in) {
-            std::cout << "==Input==\ninput.name:" << input->name << std::endl;
-            if (input->in != nullptr) {
-                std::cout << "input op:" << input->in->name << std::endl;
-            }
-            std::cout << "input in subgraph:" << (input->subgraph == net) << std::endl;
-            std::cout << std::endl;
-        }
-        std::cout << "op output" << op->out.size() << std::endl;
-        for (auto *output : op->out) {
-            std::cout << "output.name:" << output->name << std::endl;
-            std::cout << "output op:" << output->out.size() << std::endl;
-            if (!output->out.empty()) {
-                std::cout << "output op:" << output->out[0]->name << std::endl;
-            }
-        }
-        std::cout << std::endl;
-    }
-}
-void display(Context *c) {
-    for (auto sub : c->sub_param_) {
-        display(&sub);
-    }
-}
-
-// void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, float value) {
-//     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
-//     input_tensor->reshape(shape[0], shape[1], shape[2], shape[3]);
-//     input_tensor->alloc();
-//     input_tensor->fullData<float>(value);
-// }
 
 unsigned int argmax(const std::vector<float>& scores) {
     if(scores.empty()) {
@@ -85,8 +46,8 @@ NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int he
     q = q->view(-1, head_size, -1, hidden_size);
     k = k->view(-1, head_size, -1, hidden_size);
     v = v->view(-1, head_size, -1, hidden_size);
-    q = _RoPE( {q}, 2, name + ".q_rope");
-    k = _RoPE( {k}, 2, name + ".k_rope");
+    q = _RoPE( {q}, LLAMAROPE, name + ".q_rope");
+    k = _RoPE( {k}, LLAMAROPE, name + ".k_rope");
     k = _KVCache( {k}, cache_max,  name + ".k_cache");
     v = _KVCache( {v}, cache_max, name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");

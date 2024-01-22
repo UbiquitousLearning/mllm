@@ -83,6 +83,11 @@ enum PaddingType {
     VALID
 };
 
+enum RoPEType {
+    LLAMAROPE = 2,
+    PERSIMMONROPE = 3,
+    HFHUBROPE = 4,
+};
 
 /*
  * This code is based on ggml(https://github.com/ggerganov/ggml),

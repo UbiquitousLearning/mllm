@@ -17,8 +17,8 @@ inline NetTensor *Attention_Fuyu(Context *ctx, NetTensor * x, int embedding_size
     auto *v = skv[2];
     q = _LayerNorm( {q}, hidden_size, true, 1e-6, name + ".q_layernorm");
     k = _LayerNorm( {k}, hidden_size, true, 1e-6, name + ".k_layernorm");
-    q = _RoPE( {q}, 3, name + ".q_rope");
-    k = _RoPE( {k}, 3, name + ".k_rope");
+    q = _RoPE( {q}, PERSIMMONROPE, name + ".q_rope");
+    k = _RoPE( {k}, PERSIMMONROPE, name + ".k_rope");
     k = _KVCache( {k}, 500,name + ".k_cache");
     v = _KVCache( {v},500, name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");

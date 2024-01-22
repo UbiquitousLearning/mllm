@@ -46,8 +46,8 @@ NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int he
     q = q->view(-1, head_size, -1, hidden_size);
     k = k->view(-1, head_size, -1, hidden_size);
     v = v->view(-1, head_size, -1, hidden_size);
-    q = _RoPE( {q}, 4, name + ".q_rope");
-    k = _RoPE( {k}, 4, name + ".k_rope");
+    q = _RoPE( {q}, HFHUBROPE, name + ".q_rope");
+    k = _RoPE( {k}, HFHUBROPE, name + ".k_rope");
     k = _KVCache( {k}, cache_max,  name + ".k_cache");
     v = _KVCache( {v}, cache_max, name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/chinese-alpaca_vocab.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/chinese-alpaca-7b-q4_k.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 200);
-    cmdParser.add<int>("thread", 't', "num of threads", false, 100);
+    cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
     // string in_str = cmdParser.get<string>("input");

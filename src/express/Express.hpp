@@ -5,8 +5,9 @@
 #include "Types.hpp"
 #include <string>
 #include <vector>
-
 using namespace mllm;
+void displayExpress(Context *c);
+
 void _SubgraphBegin(Context *ctx);
 
 

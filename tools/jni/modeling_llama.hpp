@@ -13,8 +13,8 @@ inline NetTensor *Attention_LLAMA(Context *ctx, NetTensor *x, int embedding_size
     q = q->view(-1, head_size, -1, hidden_size);
     k = k->view(-1, head_size, -1, hidden_size);
     v = v->view(-1, head_size, -1, hidden_size);
-    q = _RoPE( {q}, 2, name + ".q_rope");
-    k = _RoPE( {k}, 2, name + ".k_rope");
+    q = _RoPE( {q}, LLAMAROPE, name + ".q_rope");
+    k = _RoPE( {k}, LLAMAROPE, name + ".k_rope");
     k = _KVCache( {k}, 500, name + ".k_cache");
     v = _KVCache( {v}, 500, name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");

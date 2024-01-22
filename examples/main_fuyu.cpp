@@ -100,8 +100,8 @@ NetTensor *Attention(NetTensor * x, int embedding_size, int hidden_size, int hea
     auto *v = skv[2];
     q = _LayerNorm( {q}, hidden_size, true, 1e-6, name + ".q_layernorm");
     k = _LayerNorm( {k}, hidden_size, true, 1e-6, name + ".k_layernorm");
-    q = _RoPE( {q}, 3, name + ".q_rope");
-    k = _RoPE( {k}, 3, name + ".k_rope");
+    q = _RoPE( {q}, PERSIMMONROPE, name + ".q_rope");
+    k = _RoPE( {k}, PERSIMMONROPE, name + ".k_rope");
     k = _KVCache( {k},cache_max,  name + ".k_cache");
     v = _KVCache( {v},cache_max,  name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
