@@ -2,6 +2,6 @@
 mkdir ../build
 cd ../build || exit
 
-cmake .. -DCMAKE_BUILD_TYPE=Release -DTEST=OFF
+cmake .. -DCMAKE_BUILD_TYPE=Release
 
 make -j4
