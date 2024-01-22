@@ -60,9 +60,11 @@ ErrorCode CPUConvolution3D::load(AbstructLoader &loader) {
         weight_.setDtype(loader.getDataType(weight_.name()));
         weight_.alloc();
         loader.load(&weight_);
+        kernal_ = reshape_conv3d_kernal_fp32(&weight_);
     } else {
         weight_.setDtype(MLLM_TYPE_F32);
         weight_.alloc();
+        kernal_ = reshape_conv3d_kernal_fp32(&weight_);
     }
     if (support_bias_) {
         bias_.setName(name() + ".bias");
@@ -88,7 +90,8 @@ ErrorCode CPUConvolution3D::execute(vector<shared_ptr<Tensor>> inputs, vector<sh
         break;
     }
     case VALID: {
-        conv3d_fp32_VALID(inputs[0].get(), outputs[0].get(), &weight_, support_bias_, &bias_,stride_[0], stride_[1], stride_[2], thread_count);
+        // conv3d_fp32_VALID(inputs[0].get(), outputs[0].get(), &weight_, support_bias_, &bias_,stride_[0], stride_[1], stride_[2], thread_count);
+        conv3d_fp32_VALID(inputs[0].get(), outputs[0].get(),   kernal_, kernel_size_[0], kernel_size_[1],  kernel_size_[2], support_bias_, &bias_,stride_[0], stride_[1], stride_[2], thread_count);
         break;
     }
     }
