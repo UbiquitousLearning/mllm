@@ -195,6 +195,21 @@ int main(int argc, char **argv) {
     ex.setup(&net);
 
     auto tokenizer = new BPETokenizer(vocab_path);
+    // std::unordered_map<string,unsigned> merge_rank;
+    // auto merge_file = std::ifstream("../vocab/llava_merges.txt");
+    // std::string line;
+    // unsigned rank=0;
+    // while (std::getline(merge_file, line)) {
+    //     if (line.empty()) {
+    //         continue;
+    //     }
+    //     if (line[0]=='#'){
+    //         continue;
+    //     }
+    //     merge_rank[line]=rank;
+    //     rank++;
+    // }
+    // tokenizer->setMergeRank(merge_rank);
 
     std::vector<vector<string>> in_imgs = {
         {"./assets/australia.jpg"}};
@@ -207,12 +222,13 @@ int main(int argc, char **argv) {
 
         auto tokens_ids = vector<vector<token_id_t>>();
         vector<mllm::token_id_t> tokens_id = {};
-        tokenizer->tokenize(in_str, tokens_id, true);
+        tokenizer->tokenize(in_str, tokens_id, {"<image>", "<pad>"});
         tokens_ids.push_back(tokens_id);
-        // for (auto id : tokens_id) {
-        //     std::cout<<id<<" ";
-        // }
-        // std::cout<<std::endl;
+        for (auto id : tokens_id) {
+            std::cout<<id<<" ";
+        }
+        std::cout<<std::endl;
+        // {1 32000 29871 13 11889 29901 1724 29915 29879 278 2793 310 278 1967 29973 13 3289 5425 1254 13566 29901 }
         tokens_ids[0] = {1, 32000, 29871, 13, 11889, 29901, 1724, 29915, 29879, 278, 2793, 310, 278, 1967, 29973, 13, 22933, 9047, 13566, 29901};
 
         shared_ptr<Tensor> input_text = std::make_shared<Tensor>();

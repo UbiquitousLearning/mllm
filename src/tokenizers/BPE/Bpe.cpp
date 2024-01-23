@@ -179,7 +179,8 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         tryMergeSymbol(first.last, item.start);
         tryMergeSymbol(item.start, first.next);
     }
-
+    // auto result = this->vocab_map_.find("<image>");
+    // auto t = result->second;
     for (int i = 0; i < symbols_.size(); ++i) {
         if (symbols_[i].length > 0) {
             auto token_text = std::string(symbols_[i].ch, symbols_[i].length);
@@ -224,6 +225,50 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
     this->tokenize(std::move(text), tokens, bos, true);
 }
 
+std::string replaceTextwithSpecial(const std::string &text, std::vector<std::string> special) {
+    std::string result = text;
+    for (const auto &s : special) {
+        std::string replaceStr = s + "▁";
+        size_t pos = result.find(s);
+        while (pos != std::string::npos) {
+            result.replace(pos, s.length(), replaceStr);
+            pos = result.find(s, pos + replaceStr.length());
+        }
+    }
+
+    std::string replaceStr = "▁";
+    string cap = " ";
+    size_t pos = result.find(" ");
+    while (pos != std::string::npos) {
+        result.replace(pos, cap.length(), replaceStr);
+        pos = result.find(" ", pos + replaceStr.length());
+    }
+    return result;
+}
+
+void mllm::BPETokenizer::tokenize(std::string &text, std::vector<token_id_t> &tokens, const std::vector<std::string> &special) {
+    text = replaceTextwithSpecial(text, special);
+    tokens.push_back(1);
+    size_t startPos = 0;
+    for (const std::string &delimiter : special) {
+        size_t found = text.find(delimiter, startPos);
+        if (found != std::string::npos) {
+            vector<token_id_t> tokens_id = {};
+            if (found > startPos) {
+                this->tokenize(text.substr(startPos, found - startPos), tokens_id, true, true);
+                tokens.insert(tokens.end(), tokens_id.begin() + 1, tokens_id.end());
+            }
+            auto result = this->vocab_map_.find(delimiter);
+            tokens.push_back(result->second);
+            startPos = found + delimiter.length();
+        }
+    }
+    if (startPos < text.length()) {
+        vector<token_id_t> tokens_id = {};
+        this->tokenize(text.substr(startPos), tokens_id, true, true);
+        tokens.insert(tokens.end(), tokens_id.begin() + 1, tokens_id.end());
+    }
+}
 /**
 Returns list of utf-8 byte and a mapping to unicode strings. We specifically avoids mapping to whitespace/control
 characters the bpe code barfs on.
