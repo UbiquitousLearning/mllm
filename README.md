@@ -55,7 +55,7 @@ https://github.com/lx200916/mllm/assets/44310445/4ede7e6e-f3d2-4ef5-bd32-73c022e
 | Vision Transformer       | ✔️  | ✔️   |
 | CLIP                     | ✔️  | ✔️   |
 | ImageBind (3 modalities) | ✔️  | ✔️   |
-| LLaVA 7B                 | ⚠️  | ⚠️   |
+| LLaVA 7B                 | ✔️  | ✔️   |
 
 ## Quick Start
 

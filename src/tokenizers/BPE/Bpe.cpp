@@ -20,7 +20,7 @@ static std::vector<std::pair<string, string>> get_pairs( vector<string> word) {
     }
     return pairs;
 }
-vector<std::string> mllm::BPETokenizer::bpe(const std::string& token) {
+vector<std::string> mllm::BPETokenizer::bpe(const std::string& token, std::string end_symbol) {
     std::wstring_convert<std::codecvt_utf8_utf16<char32_t>, char32_t> converter;
     std::u32string u32_token = converter.from_bytes(token);
 
@@ -30,12 +30,14 @@ vector<std::string> mllm::BPETokenizer::bpe(const std::string& token) {
     }
     std::string last_str = word_splits.back();
     word_splits.pop_back();
-    word_splits.push_back(last_str + "</w>");
+    // word_splits.push_back(last_str + "</w>");
+    word_splits.push_back(last_str + end_symbol);
 
 
     auto pairs = get_pairs(word_splits);
     if (pairs.empty()) {
-        return {token + "</w>"};
+        // return {token + "</w>"};
+        return {token + end_symbol};
     }
 
     while (true) {
@@ -93,7 +95,7 @@ vector<std::string> mllm::BPETokenizer::bpe(const std::string& token) {
         return word_splits;
 
 }
-void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, bool byte_fallback = false) {
+void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, bool byte_fallback = false, std::string end_symbol = "") {
     if (text.empty()) {
         return;
     }
@@ -120,7 +122,7 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         }
 
         for (const auto& word:words){
-            auto word_splits = bpe(word);
+            auto word_splits = bpe(word, end_symbol);
             for (const auto& word_split:word_splits){
                 if (auto result = this->vocab_map_.find(word_split); result != this->vocab_map_.end()) {
                     auto token_idx =  result->second ;
@@ -224,27 +226,47 @@ void mllm::BPETokenizer::tryMergeSymbol(size_t start, size_t end) {
 void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) {
     this->tokenize(std::move(text), tokens, bos, true);
 }
+std::pair<size_t, std::string> find_special(const std::string &text, const std::vector<std::string> &special, size_t pos) {
+    for (const std::string &delimiter : special) {
+        size_t found = text.find(delimiter, pos);
+        if((found != std::string::npos) ) {
+            return {found, delimiter};
+        }
+    }
+    return {std::string::npos, ""};
+}
 
 void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, const std::vector<std::string> &special) {
     tokens.push_back(1);
     size_t startPos = 0;
-    for (const std::string &delimiter : special) {
-        size_t found = text.find(delimiter, startPos);
-        if (found != std::string::npos) {
-            vector<token_id_t> tokens_id = {};
-            if (found > startPos) {
-                this->tokenize(text.substr(startPos, found - startPos), tokens_id, true, true);
-                tokens.insert(tokens.end(), tokens_id.begin() + 1, tokens_id.end());
-            }
-            auto result = this->vocab_map_.find(delimiter);
-            tokens.push_back(result->second);
-            startPos = found + delimiter.length();
+    auto result = find_special(text, special, startPos);
+    size_t found = result.first;
+    std::string delimiter = result.second;
+    while (found != std::string::npos) {
+        vector<token_id_t> tokens_id = {};
+        if (found > startPos) {
+            this->tokenize(text.substr(startPos, found - startPos), tokens_id, true, true);
+            tokens.insert(tokens.end(), tokens_id.begin() + 1, tokens_id.end() - 1);
         }
+        std::string  delimiter_;
+        if (delimiter == "\n") {
+            delimiter_ = "<0x0A>";
+        } else {
+            delimiter_  = delimiter;
+        }
+        auto result = this->vocab_map_.find(delimiter_);
+        if (result != this->vocab_map_.end()) {
+            tokens.push_back(result->second);
+        }
+        startPos = found + delimiter.length();
+        auto result_ = find_special(text, special, startPos);
+        found = result_.first;
+        delimiter = result_.second;
     }
     if (startPos < text.length()) {
         vector<token_id_t> tokens_id = {};
         this->tokenize(text.substr(startPos), tokens_id, true, true);
-        tokens.insert(tokens.end(), tokens_id.begin() + 1, tokens_id.end());
+        tokens.insert(tokens.end(), tokens_id.begin() + 1, tokens_id.end() - 1);
     }
 }
 /**

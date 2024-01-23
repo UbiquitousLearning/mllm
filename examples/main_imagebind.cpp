@@ -262,7 +262,7 @@ int main(int argc, char **argv) {
     for (auto in_str : in_strs) {
         in_str = toLowercase(in_str);
         auto tokens_id = vector<token_id_t>();
-        tokenizer->tokenize(in_str, tokens_id, true);
+        tokenizer->tokenize(in_str, tokens_id, true, true, "</w>");
         tokens_ids.push_back(tokens_id);
     }
     shared_ptr<Tensor> input_text = std::make_shared<Tensor>();

@@ -164,11 +164,11 @@ int main(int argc, char **argv) {
     tokenizer->setMergeRank(merge_rank);
     tokenizer->setSpecialToken("<|startoftext|>","<|endoftext|>");
 
-    vector<string> in_strs = {"a photo of cat", "a photo of dog"};
+    vector<string> in_strs = {"a photo of a cat", "a photo of a dog"};
     auto tokens_ids = vector<vector<token_id_t>>();
     for (auto in_str : in_strs) {
         vector<mllm::token_id_t> tokens_id={};
-        tokenizer->tokenize(in_str, tokens_id, true);
+        tokenizer->tokenize(in_str, tokens_id, true, true, "</w>");
         tokens_ids.push_back(tokens_id);
     }
     shared_ptr<Tensor> input_text = std::make_shared<Tensor>();
