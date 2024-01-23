@@ -218,18 +218,22 @@ int main(int argc, char **argv) {
 
     for (int inId = 0; inId < in_strs.size(); ++inId) {
         auto in_str = in_strs[0];
+        if (in_str[0] != ' ') {
+            in_str = ' ' + in_str;
+        }
         auto in_img = in_imgs[0];
 
         auto tokens_ids = vector<vector<token_id_t>>();
         vector<mllm::token_id_t> tokens_id = {};
+        mllm::BPETokenizer::replaceString(in_strs[0],' ',"▁");
         tokenizer->tokenize(in_str, tokens_id, {"<image>", "<pad>"});
         tokens_ids.push_back(tokens_id);
         for (auto id : tokens_id) {
             std::cout<<id<<" ";
         }
         std::cout<<std::endl;
-        // {1 32000 29871 13 11889 29901 1724 29915 29879 278 2793 310 278 1967 29973 13 3289 5425 1254 13566 29901 }
-        tokens_ids[0] = {1, 32000, 29871, 13, 11889, 29901, 1724, 29915, 29879, 278, 2793, 310, 278, 1967, 29973, 13, 22933, 9047, 13566, 29901};
+        // {1 29871 32000 13 11889 29901 1724 29915 29879 278 2793 310 278 1967 29973 13 3289 5425 1254 13566 29901  }
+        tokens_ids[0] = {1, 29871, 32000, 13, 11889, 29901, 1724, 29915, 29879, 278, 2793, 310, 278, 1967, 29973, 13, 22933, 9047, 13566, 29901};
 
         shared_ptr<Tensor> input_text = std::make_shared<Tensor>();
         BPETokenizer::tokens2Tensor(&net, tokens_ids, input_text);
