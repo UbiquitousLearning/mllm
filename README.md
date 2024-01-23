@@ -242,7 +242,7 @@ python convert.py --input_model=model.bin --output_model=model.mllm --type=safet
 python convert.py --input_model=model.safetensors.index.json --output_model=model.mllm --type=safetensor
 ``` 
 
-### Convert Vocabulary
+### Convert vocabulary
 
 You can convert vocabulary to mllm vocabulary as followed.
 
