@@ -52,7 +52,6 @@ def write_vocab(vocab_file, tokenizer):
 
 
 def write_unigram(vocab_file, tokenizer_config):
-    vocab_file.write(struct.pack("<i", len(tokenizer_config["vocab"])))
     print(len(tokenizer_config["vocab"]))
     idx = 0
     vocab = tokenizer_config["vocab"]
@@ -65,6 +64,7 @@ def write_unigram(vocab_file, tokenizer_config):
             token_score = token["id"]
             if vocab.count(token_str) == 0:
                 vocab.append([token_str, token_score])
+    vocab_file.write(struct.pack("<i", len(vocab)))
     for token_score in vocab:
         token, score = token_score[0], token_score[1]
         if vocab_type == "BPE":
@@ -104,6 +104,12 @@ if __name__ == "__main__":
             # elif args.type == "Unigram":
             config = tokenizer_config["model"]
             added_vocab = tokenizer_config.get("added_tokens",[])
+            merges = config.get("merges",[])
+            if config["type"] == "BPE" and len(merges) != 0:
+                with open(f"{output_file}.merges.txt", "w+") as f:
+                    for merge in merges:
+                        f.write(f"{merge}\n")
+
             if config["type"] == "Unigram" or config["type"] == "BPE":
                 write_unigram(vocab_file, config)
             else:
