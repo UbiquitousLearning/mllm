@@ -4,7 +4,6 @@ from typing import Iterable, Tuple
 import argparse
 
 MAGIC_NUM = 23333
-
 parser = argparse.ArgumentParser()
 parser.add_argument(
     # "--input_file", type=str, default="tokenizer.model"
@@ -57,10 +56,19 @@ def write_unigram(vocab_file, tokenizer_config):
     print(len(tokenizer_config["vocab"]))
     idx = 0
     vocab = tokenizer_config["vocab"]
+    vocab_type = tokenizer_config["type"]
     if type(vocab) is dict:
         vocab = [ [k, v] for k, v in vocab.items()]
+        for token in added_vocab:
+            print(token)
+            token_str = token["content"]
+            token_score = token["id"]
+            if vocab.count(token_str) == 0:
+                vocab.append([token_str, token_score])
     for token_score in vocab:
         token, score = token_score[0], token_score[1]
+        if vocab_type == "BPE":
+            idx = int(token_score[1])
         vocab_file.write(struct.pack("<i", idx))
         # # print(idx)
         # if (71002 <= idx):
@@ -71,11 +79,13 @@ def write_unigram(vocab_file, tokenizer_config):
         vocab_file.write(token_)
         vocab_file.write(struct.pack("<f", score))
         print(idx, token)
-        idx += 1
+        if vocab_type != "BPE":
+            idx += 1
         # print(token, score)
 
 
 if __name__ == "__main__":
+    global added_vocab
     args = parser.parse_args()
     output_file = args.output_file
     input_file = args.input_file
@@ -93,6 +103,7 @@ if __name__ == "__main__":
 
             # elif args.type == "Unigram":
             config = tokenizer_config["model"]
+            added_vocab = tokenizer_config.get("added_tokens",[])
             if config["type"] == "Unigram" or config["type"] == "BPE":
                 write_unigram(vocab_file, config)
             else:
