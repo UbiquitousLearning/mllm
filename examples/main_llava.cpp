@@ -212,7 +212,7 @@ int main(int argc, char **argv) {
     // tokenizer->setMergeRank(merge_rank);
 
     std::vector<vector<string>> in_imgs = {
-        {"./assets/australia.jpg"}};
+        {"../assets/australia.jpg"}};
     vector<string> in_strs = {
         "<image>\nUSER: What's the content of the image?\nASSISTANT:"};
 
@@ -242,7 +242,7 @@ int main(int argc, char **argv) {
         clip_processor->Img2Tensor(net.backends()[MLLM_CPU].get(), input_img, images);
 
         std::cout << in_strs[0] << std::flush;
-        for (int step = 0; step < 6; step++) {
+        for (int step = 0; step < 30; step++) {
             ex.run(&net, {input_text, input_img});
             auto result = ex.result();
             auto token_idx = postProcessing(result[0], input_text, input_img);
