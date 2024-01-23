@@ -24,6 +24,13 @@ ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     }
 
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head()*n_rep_, inputs[0]->sequence() + cache_seq_len_, inputs[0]->dimension());
+    if(inputs[0]->sequence() + cache_seq_len_ >cache_limit_){
+        std::cerr<<"\n[ERROR]: Current tokens exceed cache limit: "<<inputs[0]->sequence() + cache_seq_len_<<">"<<cache_limit_<<";";
+        std::cerr<<"\n         Please set args `--limits` >"<<cache_limit_<<std::endl;
+
+        exit(1);
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head()*n_rep_, cache_limit_, inputs[0]->dimension());
+    }
     return Op::reshape(inputs, outputs);
 }
 
@@ -99,6 +106,9 @@ ErrorCode CPUKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     assert(outputs.size() == 1);
     outputs[0]->setDtype(cache_.dtype());
     outputs[0]->deepCopyFrom(cache_, false, {0,0,cache_seq_len_/cache_limit_,0});
+    if(inputs[0]->sequence() + cache_seq_len_ >cache_limit_) {
+        outputs[0]->deepCopyFrom(cache_, false, {0,0,cache_seq_len_%cache_limit_ +1,0});
+    }
     if (inputs[0]->masterTensor() ==nullptr) {
         inputs[0]->free();
     }

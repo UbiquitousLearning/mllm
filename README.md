@@ -104,13 +104,13 @@ Result are as followed:
 
 ```
 > ./main_fuyu
-Load model: 15.5373 s
+Load model: 6.34905 s
+[Q] [../assets/bus.png]Generate a coco-style caption.
 
-[Q] [../assets/bus.png] Generate a coco-style caption.\n
-[A] A bus driving down▁the▁road next▁to a sidewalk.
-  
-[Q] [../assets/two_cats.jpg] What's this?\n
-[A] Two cats laying on▁top▁of a pink blanket.
+[A]  A blue bus driving down▁the▁road next▁to a sidewalk.
+[Q] [../assets/two_cats.jpg]What's this?
+
+[A]  Two cats laying on▁top▁of a pink blanket.
 ```
 
 #### Run LLaMA-2-7B

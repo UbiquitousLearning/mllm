@@ -38,25 +38,6 @@ void tokens2Tensor(Net *net, vector<vector<token_id_t>> tokens, shared_ptr<Tenso
     }
 }
 
-/*
-void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<float*> imgs, int height, int width, int channel) {
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
-    input_tensor->reshape(imgs.size(), channel, 2, height, width);
-    input_tensor->setDtype(MLLM_TYPE_F32);
-    input_tensor->alloc();
-    for (int bi = 0; bi < imgs.size(); ++bi) {
-        for (int t = 0; t < 2; ++t) {
-            for (int h = 0; h < height; ++h) {
-                for (int c = 0; c < channel; ++c) {
-                    for (int w = 0; w < width; ++w) {
-                        input_tensor->setDataAt<float>(bi, c, t, h, w, imgs[bi][(h * width + w) * channel + c]);
-                    }
-                }
-            }
-        }
-    }
-}
-*/
 void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vector<vector<float>>>> imgs) {
     int channel = imgs[0].size();
     int height = imgs[0][0].size();
@@ -100,20 +81,6 @@ void audio2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vecto
         }
     }
 }
-/*
-vector<float> softmax(const vector<float>& scores) {
-    vector<float> exps;
-    float max_val = *max_element(scores.begin(), scores.end());
-    for (float score : scores) {
-        exps.push_back(exp(score - max_val));
-    }
-    float sum_exps = accumulate(exps.begin(), exps.end(), 0.0f);
-    for (float& exp : exps) {
-        exp /= sum_exps;
-    }
-    return exps;
-}
-*/
 
 NetTensor *Attention(Context *c,NetTensor *x, int embedding_size, int hidden_size, int head_size, string name) {
     x =_Linear({x}, embedding_size, hidden_size * head_size * 3, true, name + ".in_proj");

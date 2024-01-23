@@ -59,7 +59,7 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_r
     input_img->alloc();
     return token_idx;
 }
-NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head_size, string name) {
+NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name) {
     auto *q = _Linear({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
     auto *k = _Linear({x}, embedding_size, hidden_size * head_size, false, name + ".k_proj");
     auto *v = _Linear({x}, embedding_size, hidden_size * head_size, false, name + ".v_proj");
@@ -93,11 +93,11 @@ NetTensor *text_embd(NetTensor *i, int vocab_size = 32064, int hidden_dim = 4096
     i = _Embedding({i}, vocab_size, hidden_dim, name + ".model.embed_tokens");
     return i;
 }
-NetTensor *llama(NetTensor *i, int vocab_size = 32064, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, string name = "language_model") {
+NetTensor *llama(NetTensor *i, int vocab_size = 32064, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 700, string name = "language_model") {
     // i = _Embedding( {i}, vocab_size, hidden_dim, name+"model.embed_tokens");
     for (int layer = 0; layer < 32; ++layer) {
         auto *x = _RMSNorm({i}, hidden_dim, 1e-6, name + ".model.layers." + std::to_string(layer) + ".input_layernorm");
-        i = *Attention(x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, name + ".model.layers." + std::to_string(layer) + ".self_attn") + i;
+        i = *Attention(x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, name + ".model.layers." + std::to_string(layer) + ".self_attn") + i;
         x = _RMSNorm({i}, hidden_dim, 1e-6, name + ".model.layers." + std::to_string(layer) + ".post_attention_layernorm");
         i = *FFN(x, hidden_dim, ffn_hidden_dim, name + ".model.layers." + std::to_string(layer) + ".mlp") + i;
         //_SubgraphBegin(c);
@@ -158,14 +158,14 @@ NetTensor *vision_tower(Context *c, NetTensor *i, int hidden_dim = 1024, int ffn
     return i;
 }
 
-void llava(Context *c) {
+void llava(Context *c, int cache_max = 700) {
     auto *i = _Input(c, {}, "input_text");
     auto *e = text_embd(i);
     i = i->where(32000, SEQUENCE);
     auto *v = _Input(c, {}, "input_imgs");
     v = vision_tower(c, v);
     i = _Replace({e, v, i});
-    i = llama(i);
+    i = llama(i, 32064, 4096, 11008, 32, cache_max, "language_model");
     i = i->clip({}, {}, {-1}, {});
 }
 
@@ -179,12 +179,12 @@ int main(int argc, char **argv) {
 
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
-    cache_max = cmdParser.get<int>("limits");
+    int tokens_limit = cmdParser.get<int>("limits");
     int thread_num = cmdParser.get<int>("thread");
 
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
-    llava(c);
+    llava(c, tokens_limit);
 
     BackendConfig bn;
     Net net(bn);

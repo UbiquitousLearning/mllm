@@ -38,8 +38,7 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor>& out_r
 }
 
 
-int cache_max = 200;
-NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int head_size, int mutil_key_value_head, string name){
+NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int head_size, int mutil_key_value_head, int cache_max, string name){
     auto *q =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
     auto *k =_Linear({x}, embedding_size, hidden_size * mutil_key_value_head, false, name + ".k_proj");
     auto *v =_Linear({x}, embedding_size, hidden_size * mutil_key_value_head, false, name + ".v_proj");
@@ -67,13 +66,13 @@ NetTensor *FFN( NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
     x = _Linear( {x}, ffn_hidden_dim, hidden_dim, false, name+".down_proj");
     return x;
 }
-void tinyllama(Context* c, int vocab_size= 32000, int hidden_dim= 2048, int ffn_hidden_dim = 5632, int mutil_head_size = 32, int mutil_key_value_head= 4){
+void tinyllama(Context* c, int vocab_size= 32000, int hidden_dim= 2048, int ffn_hidden_dim = 5632, int mutil_head_size = 32, int mutil_key_value_head= 4, int cache_max=200){
     auto *i = _Input(c);
     i = _Embedding( {i}, vocab_size, hidden_dim, (string)"model.embed_tokens");
     // loop
     for(int layer=0; layer<22; ++layer) {
         auto *x = _RMSNorm( {i}, hidden_dim, 1e-6, (string)"model.layers."+std::to_string(layer)+".input_layernorm");
-        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, mutil_key_value_head, (string)"model.layers."+std::to_string(layer)+".self_attn") +i;
+        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, mutil_key_value_head, cache_max, (string)"model.layers."+std::to_string(layer)+".self_attn") +i;
         x = _RMSNorm( {i}, hidden_dim, 1e-6, (string)"model.layers."+std::to_string(layer)+".post_attention_layernorm");
         i = *FFN( x, hidden_dim, ffn_hidden_dim, (string)"model.layers."+std::to_string(layer) +".mlp") +i;
         //_SubgraphBegin(c);
@@ -85,14 +84,14 @@ void tinyllama(Context* c, int vocab_size= 32000, int hidden_dim= 2048, int ffn_
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/tinyllama_vocab.mllm");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/tinyllama-1.1b-chat-q4_k.mllm");//../models/tinyllama-1.1b-chat-fp32.mllm
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/tinyllama-1.1b-chat-q4_k.mllm");
     cmdParser.add<int>("limits", 'l',  "max KV cache size", false, 200);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
-    cache_max = cmdParser.get<int>("limits");
+    int tokens_limit = cmdParser.get<int>("limits");
     int thread_num = cmdParser.get<int>("thread");
 
     auto tokenizer = BPETokenizer(vocab_path);
@@ -105,7 +104,7 @@ int main(int argc, char **argv) {
 
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
-    tinyllama(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size, key_value_head_size);
+    tinyllama(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size, key_value_head_size, tokens_limit);
 
     BackendConfig bn;
     Net net(bn);

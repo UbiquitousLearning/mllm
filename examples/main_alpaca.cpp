@@ -38,8 +38,7 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor>& out_r
 }
 
 
-int cache_max = 200;
-NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int head_size, string name){
+NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int head_size, int cache_max, string name){
     auto *q =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
     auto *k =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".k_proj");
     auto *v =_Linear({x}, embedding_size, hidden_size * head_size, false, name + ".v_proj");
@@ -67,13 +66,13 @@ NetTensor *FFN( NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
     x = _Linear( {x}, ffn_hidden_dim, hidden_dim, false, name+".down_proj");
     return x;
 }
-void llama(Context* c, int vocab_size= 55296, int hidden_dim= 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32){
+void llama(Context* c, int vocab_size= 55296, int hidden_dim= 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200){
     auto *i = _Input(c);
     i = _Embedding( {i}, vocab_size, hidden_dim, "model.embed_tokens");
     // loop
     for(int layer=0; layer<32; ++layer) {
         auto *x = _RMSNorm( {i}, hidden_dim, 1e-6, "model.layers."+std::to_string(layer)+".input_layernorm");
-        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, "model.layers."+std::to_string(layer)+".self_attn") +i;
+        i = *Attention( x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, "model.layers."+std::to_string(layer)+".self_attn") +i;
         x = _RMSNorm( {i}, hidden_dim, 1e-6, "model.layers."+std::to_string(layer)+".post_attention_layernorm");
         i = *FFN( x, hidden_dim, ffn_hidden_dim, "model.layers."+std::to_string(layer) +".mlp") +i;
         //_SubgraphBegin(c);
@@ -93,7 +92,7 @@ int main(int argc, char **argv) {
     // string in_str = cmdParser.get<string>("input");
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
-    cache_max = cmdParser.get<int>("limits");
+    int token_limit = cmdParser.get<int>("limits");
     int thread_num = cmdParser.get<int>("thread");
 
     auto tokenizer = BPETokenizer(vocab_path);
@@ -105,7 +104,7 @@ int main(int argc, char **argv) {
 
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
-    llama(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size);
+    llama(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size, token_limit);
 
     BackendConfig bn;
     Net net(bn);
