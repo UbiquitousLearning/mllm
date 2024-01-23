@@ -224,22 +224,8 @@ void mllm::BPETokenizer::tryMergeSymbol(size_t start, size_t end) {
 void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) {
     this->tokenize(std::move(text), tokens, bos, true);
 }
-/*
-std::string replaceSpace(const std::string &text) {
-    std::string result = text;
-    std::string replaceStr = "▁";
-    string space = " ";
-    size_t pos = result.find(" ");
-    while (pos != std::string::npos) {
-        result.replace(pos, space.length(), replaceStr);
-        pos = result.find(" ", pos + replaceStr.length());
-    }
-    return result;
-}
-*/
 
-void mllm::BPETokenizer::tokenize(std::string &text, std::vector<token_id_t> &tokens, const std::vector<std::string> &special) {
-    // text = replaceSpace(text);
+void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, const std::vector<std::string> &special) {
     tokens.push_back(1);
     size_t startPos = 0;
     for (const std::string &delimiter : special) {
