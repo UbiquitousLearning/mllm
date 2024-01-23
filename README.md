@@ -94,7 +94,7 @@ mkdir ../models && cd ../models
 wget https://huggingface.co/mllmTeam/fuyu-8b-mllm/blob/resolve/main/fuyu-8b-q4_k.mllm?download=true  -O fuyu-8b-q4_k.mllm
 ```
 
-Run
+Run on an android phone with at least 12GB of memory.
 
 ```bash
 cd ../script
@@ -124,7 +124,7 @@ mkdir ../models && cd ../models
 wget https://huggingface.co/mllmTeam/llama-2-7b-mllm/resolve/main/llama-2-7b-chat-q4_k.mllm?download=true  -O llama-2-7b-chat-q4_k.mllm
 ```
 
-Run
+Run on an android phone with at least 12GB of memory.
 
 ```bash
 cd ../script
@@ -165,7 +165,7 @@ mkdir ../models && cd ../models
 wget https://huggingface.co/mllmTeam/imagebind_huge-mllm/resolve/blob/main/imagebind_huge-q4_k.mllm?download=true -O imagebind_huge-q4_k.mllm 
 ```
 
-Run
+Run on an android phone with at least 4GB of memory.
 
 ```bash
 cd ../script
