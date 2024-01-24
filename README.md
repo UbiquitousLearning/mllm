@@ -263,7 +263,7 @@ cd bin
 ## Roadmap
 
 - More backends like QNN
-- More models like LLaVA
+- More models like PandaGPT
 - More optimizations like LUT-GEMM
 - [More..](https://ubiquitouslearning.github.io/mllm_website/roadmap/roadmap/)
 
