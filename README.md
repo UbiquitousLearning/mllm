@@ -45,17 +45,16 @@ https://github.com/lx200916/mllm/assets/44310445/4ede7e6e-f3d2-4ef5-bd32-73c022e
 [//]: # ()
 [//]: # (* ❌  : Not support yet.)
 
-|                          | FP32 | INT4 |
-|--------------------------|-----|------|
-| LLaMA-1/2 7B             | ✔️  | ✔️   |
-| Alpaca 7B                | ✔️  | ✔️   |
-| TinyLLaMA 1.1B           | ✔️  | ✔️   |
-| Persimmon 8B             | ✔️  | ✔️   |
-| Fuyu 8B                  | ✔️  | ✔️   |
-| Vision Transformer       | ✔️  | ✔️   |
-| CLIP                     | ✔️  | ✔️   |
-| ImageBind (3 modalities) | ✔️  | ✔️   |
-| LLaVA 7B                 | ✔️  | ✔️   |
+|                                                                             | FP32 | INT4 |
+|-----------------------------------------------------------------------------|-----|------|
+| [LLaMA-1/2 7B](https://github.com/facebookresearch/llama)                   | ✔️  | ✔️   |
+| [Alpaca 7B](https://github.com/ymcui/Chinese-LLaMA-Alpaca-2)                | ✔️  | ✔️   |
+| [TinyLLaMA 1.1B](https://github.com/jzhang38/TinyLlama)                     | ✔️  | ✔️   |
+| [Fuyu 8B](https://www.adept.ai/blog/fuyu-8b)                                | ✔️  | ✔️   |
+| [Vision Transformer](https://github.com/google-research/vision_transformer) | ✔️  | ✔️   |
+| [CLIP](https://github.com/openai/CLIP)                                      | ✔️  | ✔️   |
+| [ImageBind](https://github.com/facebookresearch/ImageBind) (3 modalities)   | ✔️  | ✔️   |
+| [LLaVA 7B](https://github.com/haotian-liu/LLaVA)                                                                | ✔️  | ✔️   |
 
 ## Quick Start
 
