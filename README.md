@@ -35,9 +35,9 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 
 <table>
     <tr>
-        <td>Demo1</td>
-        <td>Demo2</td>
-        <td>Demo3</td>
+        <td>Demo of LLM chatting</td>
+        <td>Demo of image understanding</td>
+        <td>Demo of UI screen understanding</td>
     </tr>
     <tr>
         <td> <video src="https://github.com/UbiquitousLearning/mllm/assets/38753457/7a1eb892-8259-41ff-8c97-b773d16fce7f"> </td>
