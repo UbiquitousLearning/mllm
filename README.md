@@ -90,7 +90,7 @@ Download the model from [here](https://huggingface.co/mllmTeam), or using the fo
 ```bash
 mkdir ../models && cd ../models
 # Download fuyu-8b-q4_k.mllm
-wget https://huggingface.co/mllmTeam/fuyu-8b-mllm/blob/resolve/main/fuyu-8b-q4_k.mllm?download=true  -O fuyu-8b-q4_k.mllm
+wget https://huggingface.co/mllmTeam/fuyu-8b-mllm/resolve/main/fuyu-8b-q4_k.mllm?download=true  -O fuyu-8b-q4_k.mllm
 ```
 
 Run on an android phone with at least 12GB of memory.
@@ -161,7 +161,7 @@ Download model
 ```bash
 mkdir ../models && cd ../models
 # Download imagebind_huge-q4_k.mllm
-wget https://huggingface.co/mllmTeam/imagebind_huge-mllm/resolve/blob/main/imagebind_huge-q4_k.mllm?download=true -O imagebind_huge-q4_k.mllm 
+wget https://huggingface.co/mllmTeam/imagebind_huge-mllm/resolve/main/imagebind_huge-q4_k.mllm?download=true -O imagebind_huge-q4_k.mllm 
 ```
 
 Run on an android phone with at least 4GB of memory.
