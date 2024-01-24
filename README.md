@@ -45,17 +45,16 @@ https://github.com/lx200916/mllm/assets/44310445/4ede7e6e-f3d2-4ef5-bd32-73c022e
 [//]: # ()
 [//]: # (* ❌  : Not support yet.)
 
-|                          | FP32 | INT4 |
-|--------------------------|-----|------|
-| LLaMA-1/2 7B             | ✔️  | ✔️   |
-| Alpaca 7B                | ✔️  | ✔️   |
-| TinyLLaMA 1.1B           | ✔️  | ✔️   |
-| Persimmon 8B             | ✔️  | ✔️   |
-| Fuyu 8B                  | ✔️  | ✔️   |
-| Vision Transformer       | ✔️  | ✔️   |
-| CLIP                     | ✔️  | ✔️   |
-| ImageBind (3 modalities) | ✔️  | ✔️   |
-| LLaVA 7B                 | ✔️  | ✔️   |
+|                                                                             | FP32 | INT4 |
+|-----------------------------------------------------------------------------|-----|------|
+| [LLaMA-1/2 7B](https://github.com/facebookresearch/llama)                   | ✔️  | ✔️   |
+| [Alpaca 7B](https://github.com/ymcui/Chinese-LLaMA-Alpaca-2)                | ✔️  | ✔️   |
+| [TinyLLaMA 1.1B](https://github.com/jzhang38/TinyLlama)                     | ✔️  | ✔️   |
+| [Fuyu 8B](https://www.adept.ai/blog/fuyu-8b)                                | ✔️  | ✔️   |
+| [Vision Transformer](https://github.com/google-research/vision_transformer) | ✔️  | ✔️   |
+| [CLIP](https://github.com/openai/CLIP)                                      | ✔️  | ✔️   |
+| [ImageBind](https://github.com/facebookresearch/ImageBind) (3 modalities)   | ✔️  | ✔️   |
+| [LLaVA 7B](https://github.com/haotian-liu/LLaVA)                                                                | ✔️  | ✔️   |
 
 ## Quick Start
 
@@ -177,13 +176,13 @@ Result are as followed:
 > ./main_imagebind 
 Load model: 2.17264 s
 vision X text :
-0.9986231 0.0013304 0.0000464
-0.0000365 0.9998704 0.0000931
-0.0000124 0.0085099 0.9914777
-vision X audio :  
-0.8089266 0.1228399 0.0682334 
-0.0706672 0.8396024 0.0897304
-0.0021378 0.0015886 0.9962736
+0.9985647 0.0013827 0.0000526 
+0.0000365 0.9998636 0.0000999 
+0.0000115 0.0083149 0.9916736 
+vision X audio :
+0.8054272 0.1228001 0.0717727 
+0.0673458 0.8429284 0.0897258 
+0.0021967 0.0015335 0.9962698 
 ```
 
 

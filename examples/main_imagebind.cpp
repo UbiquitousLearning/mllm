@@ -82,6 +82,23 @@ void audio2Tensor(shared_ptr<Tensor> input_tensor, Net &net, vector<vector<vecto
     }
 }
 
+void showResult(shared_ptr<Tensor> tensor){
+    std::cout<<"vision X text :"<<std::endl;
+    for (int s = 0; s < tensor->sequence(); ++s) {
+        for (int d = 0; d < tensor->dimension(); ++d) {
+            std::cout<<tensor->dataAt<float>(0, 0, s, d)<<" ";
+        }
+        std::cout<<std::endl;
+    }
+    std::cout<<"vision X audio :"<<std::endl;
+    for (int s = 0; s < tensor->sequence(); ++s) {
+        for (int d = 0; d < tensor->dimension(); ++d) {
+            std::cout<<tensor->dataAt<float>(1, 0, s, d)<<" ";
+        }
+        std::cout<<std::endl;
+    }
+}
+
 NetTensor *Attention(Context *c,NetTensor *x, int embedding_size, int hidden_size, int head_size, string name) {
     x =_Linear({x}, embedding_size, hidden_size * head_size * 3, true, name + ".in_proj");
     auto skv = _Split( {x}, 3, Chl::HD, head_size, name + ".split");
@@ -218,7 +235,7 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/clip_vocab.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/imagebind_huge-q4_k.mllm");
     cmdParser.add<string>("merges", 'f', "specify mllm tokenizer merges.txt path", false, "../vocab/clip_merges.txt");
-    cmdParser.add<int>("thread", 't', "num of threads", false, 4);
+    cmdParser.add<int>("thread", 't', "num of threads", false, 100);
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
@@ -287,7 +304,7 @@ int main(int argc, char **argv) {
 
 
     auto result = ex.result();
-    result[0]->printData<float>();
+    showResult(result[0]);
 
     // free memory
     for (auto *op : c->net_ops) {
