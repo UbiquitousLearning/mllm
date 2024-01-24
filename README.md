@@ -33,8 +33,19 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 
 ## Android Demo
 
-https://github.com/lx200916/mllm/assets/44310445/4ede7e6e-f3d2-4ef5-bd32-73c022edfdbe
-
+<table>
+    <tr>
+        <td>Demo1</td>
+        <td>Demo2</td>
+        <td>Demo3</td>
+    </tr>
+    <tr>
+        <td> <video src="https://github.com/UbiquitousLearning/mllm/assets/38753457/7a1eb892-8259-41ff-8c97-b773d16fce7f"> </td>
+        <td> <video src="https://github.com/UbiquitousLearning/mllm/assets/38753457/32549658-5c74-4ce0-962f-6621c919faad"> </td>
+        <td>  <video src="https://github.com/UbiquitousLearning/mllm/assets/38753457/fe234f27-1393-4ee2-84ce-254cee91a27f"> </td>
+    </tr>
+</table>
+            
 ## Support models
 
 [//]: # (* ✔️ : Support and test well on mobile devices.)
