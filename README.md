@@ -22,7 +22,7 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
     - [Run for Linux](#run-for-linux)
 - [Customization](#customization)
     - [Convert models](#convert-models)
-    - [Convert Vocabulary](#convert-vocabulary)
+    - [Convert vocabulary](#convert-vocabulary)
     - [Quantize models](#quantize-models)
 - [Roadmap](#roadmap)
 - [Documentation](#documentation)
