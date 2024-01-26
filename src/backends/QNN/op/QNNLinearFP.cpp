@@ -46,7 +46,7 @@ ErrorCode QNNLinearFP::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         dimensionsWeight[i] = weight_.shape()[i];
     }
     auto weightName = weight_.name();
-    auto weightQuantName = weightName + ".quantized";
+    auto weightDeQuantName = weightName + ".dequantized";
     qnnBackend_->modelAddTensor(weight_.name(), (Qnn_Tensor_t){
                                                     .version = QNN_TENSOR_VERSION_1,
                                                     {.v1 = {
@@ -67,8 +67,8 @@ ErrorCode QNNLinearFP::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     vector<Qnn_Tensor_t> weightQuantOut = {{QNN_TENSOR_VERSION_1,
                                             {.v1 = {
                                                  .id = 0,
-                                                 .name = weightQuantName.c_str(),
-                                                 .type = getOutputTensorType(outputs[0]),
+                                                 .name = weightDeQuantName.c_str(),
+                                                 .type = QNN_TENSOR_TYPE_NATIVE,
                                                  .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                                  .dataType = QNN_DATATYPE_FLOAT_32,
                                                  .quantizeParams = {QNN_DEFINITION_UNDEFINED,
@@ -95,7 +95,7 @@ ErrorCode QNNLinearFP::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
                                            {.v1 = {
                                                 .id = 0,
                                                 .name = outName.c_str(),
-                                                .type = QNN_TENSOR_TYPE_NATIVE,
+                                                .type = getOutputTensorType(outputs[0]),
                                                 .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                                 .dataType = QNN_DATATYPE_FLOAT_32,
                                                 .quantizeParams = {QNN_DEFINITION_UNDEFINED,
@@ -106,7 +106,7 @@ ErrorCode QNNLinearFP::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
                                                 .memType = QNN_TENSORMEMTYPE_RAW,
                                                 {.clientBuf = {.data = nullptr,
                                                                .dataSize = 0}}}}}};
-        return graphAddNode(name() + ".matmul", "MatMul", {inputs[0]->name(), weightQuantName}, matmulOut, paramsMatmul);
+        return graphAddNode(name() + ".matmul", "MatMul", {inputs[0]->name(), weightDeQuantName}, matmulOut, paramsMatmul);
     }
 
     string matmulOutName = name() + ".matmul";
@@ -125,7 +125,7 @@ ErrorCode QNNLinearFP::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
                                             .memType = QNN_TENSORMEMTYPE_RAW,
                                             {.clientBuf = {.data = nullptr,
                                                            .dataSize = 0}}}}}};
-    graphAddNode(name() + ".matmul", "MatMul", {inputs[0]->name(), weightQuantName}, matmulOut, paramsMatmul);
+    graphAddNode(name() + ".matmul", "MatMul", {inputs[0]->name(), weightDeQuantName}, matmulOut, paramsMatmul);
     // add bias tensor to qnn
     uint32_t dimensionsBias[4] = {1, 1, 1, (uint32_t)out_features_};
     qnnBackend_->modelAddTensor(bias_.name(), (Qnn_Tensor_t){
