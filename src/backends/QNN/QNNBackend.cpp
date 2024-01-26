@@ -31,6 +31,7 @@
 #include "op/QNNSiLU.hpp"
 #include "op/QNNSoftMax.hpp"
 #include "op/QNNView.hpp"
+#include "op/QNNKVCache.hpp"
 
 #include "QnnTypeMacros.hpp"
 #include "IOTensor.hpp"
@@ -60,7 +61,7 @@ void QNNBackend::registerOps() {
     // addCreator(EMBEDDING, (QNNBackend::Creator *)(new QNNEmbeddingCreator()));
     addCreator(MUL, (QNNBackend::Creator *)(new QNNMulCreator()));
     addCreator(VIEW, (QNNBackend::Creator *)(new QNNViewCreator()));
-    // addCreator(KVCACHE, (QNNBackend::Creator *)(new QNNKVCacheCreator()));
+    addCreator(KVCACHE, (QNNBackend::Creator *)(new QNNKVCacheCreator()));
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) : Backend(mm) {
@@ -191,16 +192,17 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
                                                              .memType = QNN_TENSORMEMTYPE_RAW,
                                                              {.clientBuf = {.data = nullptr,
                                                                             .dataSize = 0}}}}});
-}
-
-void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
-    graphFinilize();
-#ifndef QNN_ARM
+    
     for (auto &input : inputs) {
         std::cout << "input dtype:" << input->dtype() << std::endl;
         // input->printData<float>();
         inputBuffers.push_back(input->hostPtr<uint8_t>());
     }
+}
+
+void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+    graphFinilize();
+#ifndef QNN_ARM
     inputBufferMap.insert(std::make_pair("graph", inputBuffers));
     for (auto &output : outputs) {
         std::cout << "output dtype:" << output->dtype() << std::endl;
@@ -848,6 +850,9 @@ StatusCode QNNBackend::executeGraphsShared() {
             returnStatus = StatusCode::FAILURE;
             break;
         }
+
+        QNN_DEBUG("input tensors: %d ", (*m_graphsInfo)[graphIdx].numInputTensors);
+        QNN_DEBUG("output tensors: %d ", (*m_graphsInfo)[graphIdx].numOutputTensors);
 
         auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {

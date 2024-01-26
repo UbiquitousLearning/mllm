@@ -93,6 +93,14 @@ public:
     virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
     virtual void onExecuteEnd() override;
 
+
+    void pushInputBuffers(uint8_t* ptr) {
+        inputBuffers.push_back(ptr);
+    }
+    void pushOutputBuffers(uint8_t* ptr) {
+        outputBuffers.push_back(ptr);
+    }
+
 private:
     int32_t graphInitialize();
 
