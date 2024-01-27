@@ -57,8 +57,8 @@ void QNNBackend::registerOps() {
     addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
     addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
     addCreator(SOFTMAX, (QNNBackend::Creator *)(new QNNSoftMaxCreator()));
-    // addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearCreator()));
-    addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearFPCreator()));
+    addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearCreator()));
+    // addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearFPCreator()));
     // addCreator(ATTENTION, (QNNBackend::Creator *)(new QNNAttentionCreator()));
     // addCreator(EMBEDDING, (QNNBackend::Creator *)(new QNNEmbeddingCreator()));
     addCreator(MUL, (QNNBackend::Creator *)(new QNNMulCreator()));

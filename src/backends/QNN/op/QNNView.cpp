@@ -37,8 +37,8 @@ ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     } else if (data_dim0_ == 0 && data_dim1_ == -1 && data_dim2_ == 2 && data_dim3_ == 1 + 3) {
         dim0 = inputs[0]->batch();
         dim1 = 1;
-        dim2 = inputs[0]->sequence();
-        dim3 = inputs[0]->dimension() * inputs[0]->head();
+        dim2 = inputs[0]->head();
+        dim3 = inputs[0]->dimension() * inputs[0]->sequence();
     }
     outputs[0]->reshape(dim0, dim1, dim2, dim3);
     return Op::reshape(inputs, outputs);

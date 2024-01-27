@@ -42,7 +42,7 @@ NetTensor * Attention(Context *ctx, NetTensor * i, uint32_t hidden_dim, uint32_t
     auto *o = _Matmul(ctx, {qk, v}, false, false, std::to_string(layer)+"attention.qkv");
 
     // NSHD
-    // o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, "qkv_view");
+    o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, std::to_string(layer)+"qkv_view");
     o = _Linear(ctx, {o}, hidden_dim, hidden_dim, false, std::to_string(layer)+"attention.o.q8");
 
     return o;
@@ -242,7 +242,7 @@ void SeperateAttention(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_di
         qk = _Softmax(ctx, {qk}, 3, std::to_string(l)+"softmax");
         
         o = _Matmul(ctx, {qk, v}, false, false, std::to_string(l)+"attention.qkv");
-        // o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, "qkv_view");
+        o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, "qkv_view");
 
     }
 
@@ -444,6 +444,6 @@ int main(int argc,char **argv) {
 
     ex.execute(&net, input);
     ex.perf();
-    auto result = ex.result();
-    result[0]->printData<float>();
+    // auto result = ex.result();
+    // result[0]->printData<float>();
 }

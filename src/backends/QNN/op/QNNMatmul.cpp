@@ -27,9 +27,8 @@ ErrorCode QNNMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         // QKV matmul
         // QK NHSW  V NSHW
         CHECK_EQ(inputs[0]->head(), inputs[1]->sequence());
-        QNN_DEBUG("CHECK_EQ(inputs[0]->head(), inputs[1]->sequence()) %d %d", inputs[0]->head(), inputs[1]->sequence());
         CHECK_EQ(inputs[0]->dimension(), inputs[1]->head());
-        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[1]->dimension());
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->sequence(), inputs[0]->head(), inputs[1]->dimension());
     } else if (transpose1_) {
         /*
          N     |    C       |   H                   |  W
@@ -44,8 +43,6 @@ ErrorCode QNNMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         CHECK_EQ(inputs[0]->head(), inputs[1]->head());
         CHECK_EQ(inputs[0]->sequence(), inputs[1]->sequence());
         CHECK_EQ(inputs[0]->dimension(), inputs[1]->dimension());
-        QNN_DEBUG("CHECK_EQ(inputs[0]->sequence(), inputs[1]->sequence()) %d %d", inputs[0]->sequence(), inputs[1]->sequence());
-        QNN_DEBUG("CHECK_EQ(inputs[0]->dimension(), inputs[1]->dimension()) %d %d", inputs[0]->dimension(), inputs[1]->dimension());
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->sequence(), inputs[0]->head(), inputs[1]->head());
     } else {
         /*
@@ -128,17 +125,45 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
          {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = transpose1_}}}}};
         
 
-        uint32_t dimOut[4];
-        for(int i = 0; i < 4; i++) {
-            dimOut[i] = outputs[0]->shape(i);
-        }
-        auto outName = outputs[0]->name();
-        vector<Qnn_Tensor_t> out = {
+        uint32_t dimOutMatmul[4];
+        dimOutMatmul[0] = outputs[0]->shape(0);
+        dimOutMatmul[1] = outputs[0]->shape(2);
+        dimOutMatmul[2] = outputs[0]->shape(1);
+        dimOutMatmul[3] = outputs[0]->shape(3);
+        auto outMatmulName = outputs[0]->name() + ".matmul";
+        vector<Qnn_Tensor_t> outMatmul = {
             (Qnn_Tensor_t){
                 .version = QNN_TENSOR_VERSION_1,
                 {.v1 = {
                     .id = 0,
-                    .name = outName.c_str(),
+                    .name = outMatmulName.c_str(),
+                    .type = QNN_TENSOR_TYPE_NATIVE,
+                    .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                    .dataType = QNN_DATATYPE_FLOAT_32,
+                    .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                        QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                        {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                    .rank = 4,
+                    .dimensions = dimOutMatmul,
+                    .memType = QNN_TENSORMEMTYPE_RAW,
+                    {.clientBuf = {.data = nullptr,
+                                    .dataSize = 0}}}}}};
+        
+        graphAddNode(name(), "MatMul", {inputs[0]->name(), outVTransposeName}, outMatmul, paramsMatmul);
+
+
+        uint32_t dimOut[4];
+        for(int i = 0; i < 4; i++) {
+            dimOut[i] = outputs[0]->shape(i);
+        }
+
+        auto outTransposeName = outputs[0]->name();
+        vector<Qnn_Tensor_t> outTranspose = {
+            (Qnn_Tensor_t){
+                .version = QNN_TENSOR_VERSION_1,
+                {.v1 = {
+                    .id = 0,
+                    .name = outTransposeName.c_str(),
                     .type = getOutputTensorType(outputs[0]),
                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                     .dataType = QNN_DATATYPE_FLOAT_32,
@@ -150,8 +175,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     .memType = QNN_TENSORMEMTYPE_RAW,
                     {.clientBuf = {.data = nullptr,
                                     .dataSize = 0}}}}}};
-        
-        return graphAddNode(name(), "MatMul", {inputs[0]->name(), outVTransposeName}, out, paramsMatmul);
+        return graphAddNode(name()+".out_transpose", "Transpose", {outMatmulName}, outTranspose, paramsTranspose);
 
     } else {
 
