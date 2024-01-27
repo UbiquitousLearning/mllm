@@ -9,7 +9,7 @@
 namespace mllm {
 QNNKVCache::QNNKVCache(Backend *bn, string opName, bool isK) :
     QNNCommonOp(bn, opName), isK_(isK) {
-        cache_size_ = 128;
+        cache_size_ = 1;
         dimension_size_ = 4096;
         seq_pos_cpu_ = 0;
 }
