@@ -23,6 +23,7 @@
 #include "op/QNNAdd.hpp"
 #include "op/QNNCausalMask.hpp"
 #include "op/QNNLinear.hpp"
+#include "op/QNNLinearFP.hpp"
 #include "op/QNNMatmul.hpp"
 #include "op/QNNMul.hpp"
 #include "op/QNNRMSNorm.hpp"
@@ -56,7 +57,8 @@ void QNNBackend::registerOps() {
     addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
     addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
     addCreator(SOFTMAX, (QNNBackend::Creator *)(new QNNSoftMaxCreator()));
-    addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearCreator()));
+    // addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearCreator()));
+    addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearFPCreator()));
     // addCreator(ATTENTION, (QNNBackend::Creator *)(new QNNAttentionCreator()));
     // addCreator(EMBEDDING, (QNNBackend::Creator *)(new QNNEmbeddingCreator()));
     addCreator(MUL, (QNNBackend::Creator *)(new QNNMulCreator()));
