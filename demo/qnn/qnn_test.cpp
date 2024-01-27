@@ -13,6 +13,7 @@
 #include "backends/QNN/QNNBackend.hpp"
 #include "memory/SystemMemoryManager.hpp"
 #include "qnn_wrapper.hpp"
+#include "backends/QNN/QNNMemoryManager.hpp"
 
 using namespace mllm;
 
@@ -27,6 +28,8 @@ NetTensor * Attention(Context *ctx, NetTensor * i, uint32_t hidden_dim, uint32_t
     // v = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
     q = _RoPE(ctx, {q}, std::to_string(layer)+"RoPE_q");
     k = _RoPE(ctx, {k}), std::to_string(layer)+"RoPE_k";
+    k = _KVCache(ctx, {k}, false, std::to_string(layer)+"KVCache_k");
+    v = _KVCache(ctx, {v}, false, std::to_string(layer)+"KVCache_v");
     auto *qk = _Matmul(ctx, {q, k}, false, true, std::to_string(layer)+"attention.qk");
     qk = _Scale(ctx, {qk}, 0.5f, 0.0F, false, std::to_string(layer)+"attention.scale");
     qk = _Causalmask(ctx, {qk}, std::to_string(layer)+"mask");
@@ -223,10 +226,13 @@ void SeperateAttention(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_di
         // v = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
         q = _RoPE(ctx, {q}, std::to_string(l)+"RoPE_q");
         k = _RoPE(ctx, {k}), std::to_string(l)+"RoPE_k";
+        k = _KVCache(ctx, {k}, false, std::to_string(l)+"KVCache_k");
+        v = _KVCache(ctx, {v}, false, std::to_string(l)+"KVCache_v");
         auto *qk = _Matmul(ctx, {q, k}, false, true, std::to_string(l)+"attention.qk");
         qk = _Scale(ctx, {qk}, 0.5f, 0.0F, false, std::to_string(l)+"attention.scale");
         qk = _Causalmask(ctx, {qk}, std::to_string(l)+"mask");
         qk = _Softmax(ctx, {qk}, 3, std::to_string(l)+"softmax");
+        
         o = _Matmul(ctx, {qk, v}, false, false, std::to_string(l)+"qkv");
         // o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, "qkv_view");
 
@@ -282,6 +288,28 @@ void SeperateAttentionNOCustom(Context *ctx, uint32_t hidden_dim, uint32_t ffn_h
 //     return o;
 // }
 
+void KVCacheCopy(int hidden_dim, int ffn_hidden_dim, int layer, int seq_len) {
+
+    for (int i=0; i<layer;i++) {
+        
+
+        QNNMemoryManager *mm = new QNNMemoryManager();
+
+        void *input_ptr;
+        void *output_ptr;
+        mm->alloc(&input_ptr, seq_len * hidden_dim * sizeof(float), 32);
+        mm->alloc(&output_ptr, seq_len * hidden_dim * sizeof(float), 32);
+
+        uint64_t t_start = mllm_time_us();
+
+        memcpy(input_ptr, output_ptr, seq_len*hidden_dim*sizeof(float));
+
+        uint64_t t_end = mllm_time_us();
+        std::cout << "QNN KVCache shared buffer copy time" << (t_end - t_start) / 1000.0F << " ms" << std::endl;
+    }
+    
+
+}
 
 
 template <typename Dtype>
@@ -387,6 +415,10 @@ int main(int argc,char **argv) {
     } else if (strcmp(argv[1], "llama") == 0) {
         LLaMA(c, hidden_dim, ffn_hidden_dim);
         dimension = hidden_dim;
+    } else if (strcmp(argv[1], "kvcache_copy") == 0) {
+
+        KVCacheCopy(hidden_dim, ffn_hidden_dim, atoi(argv[2]), atoi(argv[3]));
+        return 0;
     }
     
 
