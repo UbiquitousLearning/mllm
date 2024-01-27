@@ -23,18 +23,25 @@ NetTensor * Attention(Context *ctx, NetTensor * i, uint32_t hidden_dim, uint32_t
     auto *q = _Linear(ctx, {i}, hidden_dim, hidden_dim, false, std::to_string(layer)+"attention.q.q8");
     auto *k = _Linear(ctx, {i}, hidden_dim, hidden_dim, false, std::to_string(layer)+"attention.k.q8");
     auto *v = _Linear(ctx, {i}, hidden_dim, hidden_dim, false, std::to_string(layer)+"attention.v.q8");
-    // q = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
-    // k = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
-    // v = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
+    // NSD
+    q = _View(ctx, {q}, {-1, -1, 32, -1}, {0, 3, 2, 3}, std::to_string(layer)+"Reshape_q");
+    k = _View(ctx, {k}, {-1, -1, 32, -1}, {0, 3, 2, 3}, std::to_string(layer)+"Reshape_k");
+    v = _View(ctx, {v}, {-1, -1, 32, -1}, {0, 3, 2, 3}, std::to_string(layer)+"Reshape_v");
+    // NSHD
     q = _RoPE(ctx, {q}, std::to_string(layer)+"RoPE_q");
     k = _RoPE(ctx, {k}), std::to_string(layer)+"RoPE_k";
+    // NSHD
     k = _KVCache(ctx, {k}, false, std::to_string(layer)+"KVCache_k");
     v = _KVCache(ctx, {v}, false, std::to_string(layer)+"KVCache_v");
     auto *qk = _Matmul(ctx, {q, k}, false, true, std::to_string(layer)+"attention.qk");
+    // NHSD
     qk = _Scale(ctx, {qk}, 0.5f, 0.0F, false, std::to_string(layer)+"attention.scale");
     qk = _Causalmask(ctx, {qk}, std::to_string(layer)+"mask");
     qk = _Softmax(ctx, {qk}, 3, std::to_string(layer)+"softmax");
-    auto *o = _Matmul(ctx, {qk, v}, false, false, std::to_string(layer)+"qkv");
+    // NHSD
+    auto *o = _Matmul(ctx, {qk, v}, false, false, std::to_string(layer)+"attention.qkv");
+
+    // NSHD
     // o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, "qkv_view");
     o = _Linear(ctx, {o}, hidden_dim, hidden_dim, false, std::to_string(layer)+"attention.o.q8");
 
@@ -214,16 +221,17 @@ NetTensor * FFNLinearSiLUCompose(Context *ctx, uint32_t hidden_dim, uint32_t ffn
 void SeperateAttention(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim, int layer) {
     
     auto *i = _Input(ctx);
-    auto *o = _Softmax(ctx, {i}, 3, "softmax0");
+    // auto *o = _Softmax(ctx, {i}, 3, "softmax0");
+    auto *o = _KVCache(ctx, {i}, false, "kvcache0");
 
     for (int l = 1; l<=layer; l++) {
 
         auto *q = _Linear(ctx, {o}, hidden_dim, hidden_dim, false, std::to_string(l)+"attention.q.q8");
         auto *k = _Linear(ctx, {o}, hidden_dim, hidden_dim, false, std::to_string(l)+"attention.k.q8");
         auto *v = _Linear(ctx, {o}, hidden_dim, hidden_dim, false, std::to_string(l)+"attention.v.q8");
-        // q = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
-        // k = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
-        // v = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
+        q = _View(ctx, {q}, {-1, -1, 32, -1}, {0, 3, 2, 3}, std::to_string(l)+"Reshape_q");
+        k = _View(ctx, {k}, {-1, -1, 32, -1}, {0, 3, 2, 3}, std::to_string(l)+"Reshape_k");
+        v = _View(ctx, {v}, {-1, -1, 32, -1}, {0, 3, 2, 3}, std::to_string(l)+"Reshape_v");
         q = _RoPE(ctx, {q}, std::to_string(l)+"RoPE_q");
         k = _RoPE(ctx, {k}), std::to_string(l)+"RoPE_k";
         k = _KVCache(ctx, {k}, false, std::to_string(l)+"KVCache_k");
@@ -233,7 +241,7 @@ void SeperateAttention(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_di
         qk = _Causalmask(ctx, {qk}, std::to_string(l)+"mask");
         qk = _Softmax(ctx, {qk}, 3, std::to_string(l)+"softmax");
         
-        o = _Matmul(ctx, {qk, v}, false, false, std::to_string(l)+"qkv");
+        o = _Matmul(ctx, {qk, v}, false, false, std::to_string(l)+"attention.qkv");
         // o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, "qkv_view");
 
     }
@@ -436,6 +444,6 @@ int main(int argc,char **argv) {
 
     ex.execute(&net, input);
     ex.perf();
-    // auto result = ex.result();
-    // result[0]->printData<float>();
+    auto result = ex.result();
+    result[0]->printData<float>();
 }

@@ -24,7 +24,8 @@ ErrorCode QNNKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     // // we do not store transpose K, since this is done by matmul.
     // outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), a_sen + seq_pos_cpu_, a_dim);
 
-    outputs[0]->reshape(1, 1, cache_size_, dimension_size_);
+    // outputs[0]->reshape(1, 1, cache_size_, dimension_size_);
+    outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
 
     // seq_pos_cpu_ += a_sen;
     return Op::reshape(inputs, outputs);
