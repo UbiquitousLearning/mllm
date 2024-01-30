@@ -31,8 +31,12 @@ option(APK "Build for Android APK Lib." OFF)
 option(FROM_GGUF "convert from gguf" OFF)
 
 option(DEBUG "debug print" OFF)
+if(DEBUG)
+    add_definitions(-DDEBUGPRINT)
+endif()
+
 # backend options
-option(QNN "Enable QNN" OFF)
+option(QNN "Enable QNN" ON)
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)
@@ -342,9 +346,10 @@ endif ()
 
 if(QNN)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
-    # for debug
-    add_definitions(-DDEBUG)
+    add_definitions(-DQNN_ENABLED)
 
+    # micros used for load different qnn lib paths
+    # TODO: remove
     execute_process(
         COMMAND git rev-parse --abbrev-ref HEAD
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -352,8 +357,6 @@ if(QNN)
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
     message(STATUS "git branch name: ${GIT_BRANCH_NAME}")
-    # micros used for load different qnn lib paths
-    # TODO: remove
     if(ARM)
         add_definitions(-DQNN_ARM)
         message(STATUS "QNN_ARM")  
@@ -371,18 +374,18 @@ if(QNN)
 
     
     add_executable(qnn_test ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_test.cpp ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_wrapper.hpp ${PROJECT_SOURCE_DIR}/demo/qnn/MockLoader.hpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
-    add_executable(silu_test ${PROJECT_SOURCE_DIR}/demo/qnn/silu_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
-    add_executable(rope_test ${PROJECT_SOURCE_DIR}/demo/qnn/rope_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
-    add_executable(rms_test ${PROJECT_SOURCE_DIR}/demo/qnn/rms_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
-    add_executable(casuamask_test ${PROJECT_SOURCE_DIR}/demo/qnn/casuamask_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
-    add_executable(attention_test ${PROJECT_SOURCE_DIR}/demo/qnn/attention_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} )
-    add_executable(kvcache_test ${PROJECT_SOURCE_DIR}/demo/qnn/kvcache_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} )
+    # add_executable(silu_test ${PROJECT_SOURCE_DIR}/demo/qnn/silu_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
+    # add_executable(rope_test ${PROJECT_SOURCE_DIR}/demo/qnn/rope_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
+    # add_executable(rms_test ${PROJECT_SOURCE_DIR}/demo/qnn/rms_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
+    # add_executable(casuamask_test ${PROJECT_SOURCE_DIR}/demo/qnn/casuamask_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
+    # add_executable(attention_test ${PROJECT_SOURCE_DIR}/demo/qnn/attention_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} )
+    # add_executable(kvcache_test ${PROJECT_SOURCE_DIR}/demo/qnn/kvcache_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} )
     target_link_libraries(qnn_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
-    target_link_libraries(silu_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
-    target_link_libraries(rope_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
-    target_link_libraries(rms_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
-    target_link_libraries(casuamask_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
-    target_link_libraries(attention_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
-    target_link_libraries(kvcache_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
+    # target_link_libraries(silu_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
+    # target_link_libraries(rope_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
+    # target_link_libraries(rms_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
+    # target_link_libraries(casuamask_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
+    # target_link_libraries(attention_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
+    # target_link_libraries(kvcache_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
 
 endif()

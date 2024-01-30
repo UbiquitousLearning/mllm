@@ -1,45 +1,16 @@
 #include "Net.hpp"
-#include "memory/SystemMemoryManager.hpp"
 #include "Op.hpp"
 #include "Types.hpp"
-#include "backends/cpu/CPUBackend.hpp"
+#include "Backend.hpp"
 #include <vector>
-#ifdef QNN_ENABLED
-#include "backends/QNN/QNNBackend.hpp"
-#include "backends/QNN/QNNMemoryManager.hpp"
-#endif
+
 
 namespace mllm {
 
-shared_ptr<CPUBackend> cpuBn;
+Net::Net(BackendConfig config) {
+    backends_.emplace(MLLM_CPU, GetBackendCreator(MLLM_CPU)->create(config));
 #ifdef QNN_ENABLED
-shared_ptr<QNNBackend> qnnBn;
-#endif
-
-Net::Net(BackendConfig config){
-    shared_ptr<MemoryManager> mm = nullptr;
-    switch (config.memory) {
-    case BackendConfig::Memory_High:
-#ifdef QNN_ENABLED
-        mm = std::make_shared<QNNMemoryManager>();
-#else
-        mm = std::make_shared<SystemMemoryManager>();
-#endif   
-        break;
-    default:
-#ifdef QNN_ENABLED
-        mm = std::make_shared<QNNMemoryManager>();
-#else
-        mm = std::make_shared<SystemMemoryManager>();
-#endif
-        break;
-    }
-
-    cpuBn.reset(new CPUBackend(mm));
-    backends_.emplace(BackendType::MLLM_CPU,  cpuBn);
-#ifdef QNN_ENABLED
-    qnnBn.reset(new QNNBackend(mm));
-    backends_.emplace(BackendType::MLLM_QNN, qnnBn);
+    backends_.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create(config));
 #endif
 }
 

@@ -1,5 +1,9 @@
 #include "CPUBackend.hpp"
 #include <math.h>
+#include <memory>
+#include "Backend.hpp"
+#include "Types.hpp"
+#include "memory/SystemMemoryManager.hpp"
 #include "CPUView.hpp"
 #include "CPUAdd.hpp"
 #include "CPUCausalMask.hpp"
@@ -37,7 +41,27 @@
 #include "CPUReplace.hpp"
 
 
+
 namespace mllm {
+class CPUBackendCreator : public BackendCreator {
+    shared_ptr<Backend> create(BackendConfig config) {
+        shared_ptr<MemoryManager> mm = nullptr;
+        switch (config.memory) {
+        case BackendConfig::Memory_High:
+            mm = std::make_shared<SystemMemoryManager>();
+            break;
+        default:
+            mm = std::make_shared<SystemMemoryManager>();
+            break;
+        }
+        return std::make_shared<CPUBackend>(mm);
+    };
+};
+
+void registerCPUBackendCreator() {
+    InsertBackendCreatorMap(MLLM_CPU, std::make_shared<CPUBackendCreator>());
+}
+
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
     Backend(mm) {
     registerOps();

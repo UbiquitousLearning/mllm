@@ -69,6 +69,7 @@ public:
 
 private:
     string name_;
+    TensorType type_ = GRAPH_INTERNAL; // tensor type in a graph
     DataType dtype_;
     ChlType ctype_ = BSHD;
     Backend *backend_;
@@ -438,6 +439,13 @@ public:
         backend_ = bn;
     };
 
+    void setTensorType(TensorType type) {
+        type_ = type;
+    }
+    TensorType tensorType() const {
+        return type_;
+    }
+
     DataType dtype() const {
         return dtype_;
     }
@@ -709,7 +717,7 @@ public:
      * \param height Height of the 2D grid
      * \param width Width of the 2D grid
      * \return Whether the reshape operation was successful.
-    */
+     */
     bool reshape(const int batch, const int channel, const int time, const int height, const int width);
     /**
      * \brief get the size of the corresponding dimension for 5-D Tensor, contains: batch, head, sequence, dimension.
@@ -1040,45 +1048,6 @@ public:
             }
         }
         std::cout << name() << " " << sum / count() << std::endl;
-//        std::cout << name() << ": shape:[" << num() << " " << channels() << " " << height() << " " << width() << "] AVG:" << sum / count() << std::endl;
-    }
-
-    DataType dtype() const {
-        return dtype_;
-    }
-
-    int cntSize() {
-        return DataTypeSize(dtype_, count_);
-    }
-
-    int dtypeSize() {
-        return DataTypeSize(dtype_, 1);
-    }
-//
-//    void setByteWidth(int bw) {
-//        byte_width_ = bw;
-//    }
-    // TODO:Name?
-
-    void setName(string name) {
-        name_ = name;
-    }
-
-    string name() const {
-        return name_;
-    }
-
-    void setTensorType(TensorType type) {
-        type_ = type;
-    }
-
-    TensorType tensorType() const {
-        return type_;
-    }
-
-    int allocted() const {
-        return allocated_;
-    }
     }
 
     template <class Dtype>

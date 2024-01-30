@@ -5,20 +5,23 @@
 #include <iostream>
 
 #include "QNNBackend.hpp"
-#include "BuildId.hpp"
-#include "DataUtil.hpp"
-#include "Logger.hpp"
+#include "Utils/BuildId.hpp"
+#include "Utils/DataUtil.hpp"
+#include "Utils/QnnSampleAppUtils.hpp"
+#include "Utils/IOTensor.hpp"
+#include "Utils/DynamicLoadUtil.hpp"
+#include "Log/Logger.hpp"
 #include "PAL/Directory.hpp"
 #include "PAL/FileOp.hpp"
 #include "PAL/Path.hpp"
 #include "PAL/StringOp.hpp"
 #include "PAL/DynamicLoading.hpp"
 #include "PAL/GetOpt.hpp"
+#include "WrapperUtils/QnnWrapperUtils.hpp"
 #include "QNNMemoryManager.hpp"
-#include "QnnSampleAppUtils.hpp"
 #include "QnnTypes.h"
-#include "QnnWrapperUtils.hpp"
-#include "DynamicLoadUtil.hpp"
+#include "QnnTypeMacros.hpp"
+
 #include "Types.hpp"
 #include "op/QNNAdd.hpp"
 #include "op/QNNCausalMask.hpp"
@@ -34,8 +37,10 @@
 #include "op/QNNView.hpp"
 #include "op/QNNKVCache.hpp"
 
-#include "QnnTypeMacros.hpp"
-#include "IOTensor.hpp"
+# define DEBUGPRINT
+#ifdef DEBUGPRINT
+#include "Timing.hpp"
+#endif
 
 using namespace qnn;
 using namespace qnn::tools;
@@ -170,7 +175,7 @@ void QNNBackend::release() {
 }
 
 void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
-  #ifdef DEBUG
+  #ifdef DEBUGPRINT
     std::cout << "onSetUpStart" << std::endl;
   #endif
     // add input tensor to qnn
@@ -346,7 +351,7 @@ ErrorCode QNNBackend::graphExecute() {
     if(result != StatusCode::SUCCESS) {
         return ErrorCode::INVALID_VALUE;
     }
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode QNNBackend::graphExecute(std::map< std::string, std::vector<uint8_t*>> inputBufferMap, std::map< std::string, std::vector<uint8_t*>> outputBufferMap) {
@@ -355,7 +360,7 @@ ErrorCode QNNBackend::graphExecute(std::map< std::string, std::vector<uint8_t*>>
     if(result != StatusCode::SUCCESS) {
         return ErrorCode::INVALID_VALUE;
     }
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 

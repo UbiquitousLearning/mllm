@@ -60,6 +60,29 @@ protected:
     shared_ptr<MemoryManager> mem_manager_;
 };
 
+/**
+ * \brief abstract Runtime register
+ */
+class BackendCreator {
+public:
+    virtual shared_ptr<Backend> create(BackendConfig config) = 0;
+};
+
+/**
+ * \brief get registered backend creator for given backend type.
+ * \param type  given backend type.
+ * \return backend creator pointer if registered, nullptr otherwise.
+ */
+const std::shared_ptr<BackendCreator> GetBackendCreator(BackendType type);
+
+/**
+ * \brief register backend creator for given backend type.
+ * \param type given backend type.
+ * \param creator registering backend creator.
+ * \return true if backend creator for given backend type was not registered before, false otherwise.
+ */
+bool InsertBackendCreatorMap(BackendType type, shared_ptr<BackendCreator> creator);
+
 } // namespace mllm
 
 #endif // MLLM_BACKEND_H

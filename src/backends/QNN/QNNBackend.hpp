@@ -4,17 +4,16 @@
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "OpDefined.hpp"
-#include "QnnTypes.h"
+#include "QNN/QnnTypes.h"
 #include "Types.hpp"
 #include "MemoryManager.hpp"
-#include "NetParameter.hpp"
 #include <memory>
 
 #include "Utils/IOTensor.hpp"
 #include "PAL/DynamicLoading.hpp"
-#include "QnnModel.hpp"
+#include "Model/QnnModel.hpp"
 #include "QNN.hpp"
-#include "Logger.hpp"
+#include "Log/Logger.hpp"
 
 using std::shared_ptr;
 
