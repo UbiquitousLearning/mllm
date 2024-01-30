@@ -1,5 +1,5 @@
 //
-// Created by lx on 23-11-2.
+// Created by Xiang Li on 23-11-2.
 //
 #include "gtest/gtest.h"
 #include <unordered_map>
@@ -10,7 +10,7 @@
 #include "Types.hpp"
 namespace mllm {
 TEST_F(QuantTest, ReadTest) {
-    auto loader = ParamLoader("quant_test.mllm");
+    auto loader = ParamLoader("../bin/quant_test.mllm");
     auto tensor_name = loader.getParamNames();
     ASSERT_EQ(tensor_name.size(), 2);
     ASSERT_EQ(loader.getDataType(tensor_name[0]), DataType::MLLM_TYPE_F32);
@@ -19,8 +19,8 @@ TEST_F(QuantTest, ReadTest) {
     ASSERT_EQ(data[1], 0.0);
 }
 TEST_F(QuantTest, WriteTest) {
-    auto *loader = new ParamLoader("quant_test.mllm");
-    auto *writer = new ParamWriter("quant_result.mllm");
+    auto *loader = new ParamLoader("../bin/quant_test.mllm");
+    auto *writer = new ParamWriter("../bin/quant_result.mllm");
     auto tensor_name = loader->getParamNames();
     writer->paddingIndex(tensor_name);
     ASSERT_EQ(tensor_name.size(), 2);
@@ -33,7 +33,7 @@ TEST_F(QuantTest, WriteTest) {
     writer->writeIndex();
     delete writer;
     delete loader;
-    auto loader2 = ParamLoader("quant_result.mllm");
+    auto loader2 = ParamLoader("../bin/quant_result.mllm");
     auto tensor_name2 = loader2.getParamNames();
     ASSERT_EQ(tensor_name2.size(), 2);
     ASSERT_EQ(loader2.getDataType(tensor_name2[0]), DataType::MLLM_TYPE_F32);
@@ -44,12 +44,12 @@ TEST_F(QuantTest, WriteTest) {
     }
 }
 TEST_F(QuantTest, QuantTest) {
-    auto *quant = new QuantWriter("quant_result.mllm", "quant_test.mllm");
+    auto *quant = new QuantWriter("../bin/quant_result.mllm", "../bin/quant_test.mllm");
     ASSERT_EQ(quant->readParams(), 2);
     quant->quantParams(DataType::MLLM_TYPE_Q4_0);
     ASSERT_EQ(quant->data_.size(), 2);
     // delete quant;
-    auto loader = ParamLoader("quant_result.mllm");
+    auto loader = ParamLoader("../bin/quant_result.mllm");
     auto tensor_name = loader.getParamNames();
     ASSERT_EQ(tensor_name.size(), 2);
     ASSERT_EQ(loader.getDataType(tensor_name[0]), DataType::MLLM_TYPE_Q4_0);

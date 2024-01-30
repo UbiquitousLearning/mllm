@@ -1,12 +1,12 @@
 //
-// Created by lx on 23-10-17.
+// Created by Xiang Li on 23-10-17.
 //
 
 #include "CPUTest.hpp"
 #include "backends/cpu/CPURoPE.hpp"
 TEST_F(CPUTest, CPURoPE1) {
     //    GTEST_SKIP();
-    SETUP_OP(CPURoPE, false, false);
+    SETUP_OP(CPURoPE, 2, 4);
     TENSOR(input0);
     TENSOR(output);
     TENSOR(c_output);

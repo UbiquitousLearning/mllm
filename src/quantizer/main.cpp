@@ -1,5 +1,5 @@
 //
-// Created by lx on 23-10-31.
+// Created by Xiang Li on 23-10-31.
 //
 #include "ParamWriter.hpp"
 #include "ParamLoader.hpp"
@@ -30,6 +30,8 @@ int main(int argc, char **argv) {
         quant_writer.quantParams(MLLM_TYPE_Q8_0);
     } else if (quant_type == "Q4_K") {
         quant_writer.quantParams(MLLM_TYPE_Q4_K);
+    } else if (quant_type == "Q6_K") {
+        quant_writer.quantParams(MLLM_TYPE_Q6_K);
     } else if (quant_type == "Q8_K") {
         quant_writer.quantParams(MLLM_TYPE_Q8_K);
     } else {

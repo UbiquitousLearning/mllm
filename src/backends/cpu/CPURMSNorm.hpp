@@ -8,7 +8,7 @@ namespace mllm {
 
 class CPURMSNorm final : public Op {
 public:
-    CPURMSNorm(Backend *bn, string opName, bool multiThread, float epsilon = 1e-5);
+    CPURMSNorm(Backend *bn, string opName,int normSize, float epsilon = 1e-6,  int threadCount=4);
     virtual ~CPURMSNorm() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -20,7 +20,7 @@ public:
     }
 
 private:
-    bool support_multi_thread_ = false;
+    int thread_count = 4;
     float epsilon_;
     int axis_ = 1;
     Tensor weight_;
@@ -30,8 +30,10 @@ private:
 
 class CPURMSNormCreator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new CPURMSNorm(bn, name, false);
+    virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
+        int normSize = (int)op_param["norm_size"];
+        float epsilon = (float)op_param["epsilon"];
+        return new CPURMSNorm(bn, name, normSize, epsilon, threadCount);
     }
 };
 } // namespace mllm

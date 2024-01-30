@@ -14,7 +14,6 @@ using std::list;
 
 
 namespace mllm {
-// 这是一个功能和malloc/free相同的分配/释放内存/显存的函数。
 
 struct FreeBlock{
     void* addr;
@@ -22,9 +21,6 @@ struct FreeBlock{
     FreeBlock(void*addr,size_t size):addr(addr),size(size){}
 };
 
-/**
- * 内存管理类 mem pool .
- */
 class MemoryPoolManager : public MemoryManager{
 public:
     MemoryPoolManager(size_t pool_size,size_t base_alignment);
@@ -42,7 +38,6 @@ public:
 #endif
 
 private:
-    // memory buffer
     void * data_; 
     int n_free_blocks_;
     size_t base_alignment_;

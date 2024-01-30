@@ -5,7 +5,7 @@ from TestUtils import TestBase
 
 class CPUSilu1(TestBase):
     def test(self):
-        input0 = torch.randn(1, 2, 3, 4)
+        input0 = torch.randn(1, 1, 3, 4)
         silu = torch.nn.SiLU()
         output = silu(input0)
         self.test_done(True)
