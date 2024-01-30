@@ -3,6 +3,7 @@
 #include "QnnTypes.h"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
+#include <cassert>
 
 namespace mllm {
 QNNSoftMax::QNNSoftMax(Backend *bn, string opName, int axis) :
@@ -11,7 +12,7 @@ QNNSoftMax::QNNSoftMax(Backend *bn, string opName, int axis) :
 }
 
 ErrorCode QNNSoftMax::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    CHECK_EQ(inputs.size(), 1);
+    assert(outputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     return Op::reshape(inputs, outputs);
 }

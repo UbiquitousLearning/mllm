@@ -5,37 +5,25 @@
 #include <cstdint>
 
 namespace mllm {
-QNNRoPE::QNNRoPE(Backend *bn, string opName, bool hf) :
-    QNNCommonOp(bn, opName) {
+QNNRoPE::QNNRoPE(Backend *bn, string opName, int pose_type) :
+    QNNCommonOp(bn, opName), pose_type_(pose_type) {
     cos_.setBackend(bn);
     sin_.setBackend(bn);
-    hf_ = hf;
 }
 
 ErrorCode QNNRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
-    outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
-    ishape = inputs[0]->shape(3);
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+
+    ishape = inputs[0]->dimension();
+
     return Op::reshape(inputs, outputs);
 }
 
 ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    pos_max_ = 16384;
-    ishape = inputs[0]->dimension();
-
-    if (!sin_.allocted()) {
-        if (pose_type_ == 1) {
-            sinusoidal_position_embedding_hf(1, 1, pos_max_, ishape, sin_, cos_);
-        } else if (pose_type_ == 2) {
-            sinusoidal_position_embedding(1, 1, pos_max_, ishape, sin_, cos_);
-        } else {
-            sinusoidal_position_embedding_hf(1, 1, pos_max_, ishape / 2, sin_, cos_);
-        }
-    }
-
-    uint32_t sin_dimensions[] = {16384, static_cast<uint32_t>(ishape)};
-    uint32_t cos_dimensions[] = {16384, static_cast<uint32_t>(ishape)};
+    uint32_t sin_dimensions[] = {static_cast<uint32_t>(pos_max_), static_cast<uint32_t>(ishape)};
+    uint32_t cos_dimensions[] = {static_cast<uint32_t>(pos_max_), static_cast<uint32_t>(ishape)};
     auto sinName = name() + ".sin";
     qnnBackend_->modelAddTensor(sinName, // Node Name
                                 (Qnn_Tensor_t){
@@ -80,8 +68,8 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
          {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_UINT_32, {.uint32Value = pose_type}}}}};
 
     uint32_t dimOut[4];
-    for(int i = 0; i < 4; i++) {
-        dimOut[i] = inputs[0]->shape(i);
+    for (int i = 0; i < 4; i++) {
+        dimOut[i] = inputs[0]->shape()[i];
     }
     auto outName = outputs[0]->name();
     vector<Qnn_Tensor_t> out = {
@@ -105,10 +93,15 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 }
 
 ErrorCode QNNRoPE::load(AbstructLoader &loader) {
-    if (hf_) {
-        sinusoidal_position_embedding_hf(1, 1, pos_max_, ishape, sin_, cos_);
-    } else {
-        sinusoidal_position_embedding(1, 1, pos_max_, ishape, sin_, cos_);
+    if (!sin_.allocted()) {
+        if (pose_type_ == HFHUBROPE) {
+            sinusoidal_position_embedding_hf(1, 1, pos_max_, ishape, sin_, cos_);
+        } else if (pose_type_ == LLAMAROPE) {
+            sinusoidal_position_embedding(1, 1, pos_max_, ishape, sin_, cos_);
+        } else if (pose_type_ == PERSIMMONROPE) {
+            sinusoidal_position_embedding_hf(1, 1, pos_max_, ishape / 2, sin_, cos_);
+        } else {
+        }
     }
     return Op::load(loader);
 }
@@ -136,9 +129,8 @@ void QNNRoPE::sinusoidal_position_embedding(int batch_size, int nums_head, int s
                     sin.setDataAt<float>(n, h, s, d, sin_value);
                     cos.setDataAt<float>(n, h, s, d, cos_value);
                     if (d + 1 < output_dim) {
-                        sin.setDataAt<float>(n, h, s, d+1, sin_value);
-                        cos.setDataAt<float>(n, h, s, d+1, cos_value);
-
+                        sin.setDataAt<float>(n, h, s, d + 1, sin_value);
+                        cos.setDataAt<float>(n, h, s, d + 1, cos_value);
                     }
                 }
             }
@@ -165,8 +157,8 @@ void QNNRoPE::sinusoidal_position_embedding_hf(int batch_size, int nums_head, in
                     sin.setDataAt<float>(n, h, s, d, sin_value);
                     cos.setDataAt<float>(n, h, s, d, cos_value);
                     if (d + 1 < output_dim) {
-                        sin.setDataAt<float>(n, h, s, d+1, sin_value);
-                        cos.setDataAt<float>(n, h, s, d+1, cos_value);
+                        sin.setDataAt<float>(n, h, s, d + 1, sin_value);
+                        cos.setDataAt<float>(n, h, s, d + 1, cos_value);
                     }
                 }
             }

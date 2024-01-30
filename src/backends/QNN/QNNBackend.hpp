@@ -55,7 +55,7 @@ public:
         QNN_INFO("Free handle");
     }
 
-    Op *opCreate(const OpParam &op_param, string name = "") {
+    Op *opCreate(const OpParam &op_param, string name, int threadCount) override {
         OpType optype = OpType(op_param.find("type")->second);
         auto iter = map_creator_.find(optype);
         if (iter == map_creator_.end()) {
