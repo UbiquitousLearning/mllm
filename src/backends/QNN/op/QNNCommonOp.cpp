@@ -32,10 +32,10 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
 
     vector<Qnn_Tensor_t> outputTensors;
     for (auto &output : outputs) {
-        uint32_t dimensions[4];
-        for (int i = 0; i < output->shape().size(); i++) {
-            dimensions[i] = output->shape()[i];
-        }
+        uint32_t dimensions[4] = {static_cast<uint32_t>(output->batch()),
+                                  static_cast<uint32_t>(output->sequence()),
+                                  static_cast<uint32_t>(output->head()),
+                                  static_cast<uint32_t>(output->dimension())};
         inputTensorNames_.push_back(new string(output->name()));
         outputTensors.push_back({QNN_TENSOR_VERSION_1,
                                  {.v1 = {
