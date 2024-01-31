@@ -55,6 +55,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
     }
 
     if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputTensors, params, packageName)) {
+        exit(1);
         return ErrorCode::INVALID_VALUE;
     }
     return MLLM_NO_ERROR;
@@ -73,6 +74,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string>
     }
 #endif
     if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputs, params, packageName)) {
+        exit(1);
         return ErrorCode::INVALID_VALUE;
     }
     return MLLM_NO_ERROR;

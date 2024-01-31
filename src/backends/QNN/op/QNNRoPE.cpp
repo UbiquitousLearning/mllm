@@ -22,15 +22,27 @@ ErrorCode QNNRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    // in case ishape is 0 when Op is the first one in the graph
+    if (!sin_.allocted()) {
+        if (pose_type_ == HFHUBROPE) {
+            sinusoidal_position_embedding_hf(1, 1, pos_max_, ishape, sin_, cos_);
+        } else if (pose_type_ == LLAMAROPE) {
+            sinusoidal_position_embedding(1, 1, pos_max_, ishape, sin_, cos_);
+        } else if (pose_type_ == PERSIMMONROPE) {
+            sinusoidal_position_embedding_hf(1, 1, pos_max_, ishape / 2, sin_, cos_);
+        } else {
+        }
+    }
+
     uint32_t sin_dimensions[] = {static_cast<uint32_t>(pos_max_), static_cast<uint32_t>(ishape)};
     uint32_t cos_dimensions[] = {static_cast<uint32_t>(pos_max_), static_cast<uint32_t>(ishape)};
-    auto sinName = name() + ".sin";
-    qnnBackend_->modelAddTensor(sinName, // Node Name
+
+    qnnBackend_->modelAddTensor(sin_.name(), // Node Name
                                 (Qnn_Tensor_t){
                                     .version = QNN_TENSOR_VERSION_1,
                                     {.v1 = {
                                          .id = 0,
-                                         .name = sinName.c_str(),
+                                         .name = sin_.name().c_str(),
                                          .type = QNN_TENSOR_TYPE_STATIC,
                                          .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                          .dataType = QNN_DATATYPE_FLOAT_32,
@@ -42,13 +54,13 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
                                          .memType = QNN_TENSORMEMTYPE_RAW,
                                          {.clientBuf = {.data = sin_.hostPtr<void>(),
                                                         .dataSize = static_cast<uint32_t>(sin_.cntSize())}}}}});
-    auto cosName = name() + ".cos";
-    qnnBackend_->modelAddTensor(cosName, // Node Name
+
+    qnnBackend_->modelAddTensor(cos_.name(), // Node Name
                                 (Qnn_Tensor_t){
                                     .version = QNN_TENSOR_VERSION_1,
                                     {.v1 = {
                                          .id = 0,
-                                         .name = cosName.c_str(),
+                                         .name = cos_.name().c_str(),
                                          .type = QNN_TENSOR_TYPE_STATIC,
                                          .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                          .dataType = QNN_DATATYPE_FLOAT_32,
@@ -89,20 +101,13 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
                  .memType = QNN_TENSORMEMTYPE_RAW,
                  {.clientBuf = {.data = nullptr,
                                 .dataSize = 0}}}}}};
-    return graphAddNode(name(), "RoPE", {inputs[0]->name(), sinName, cosName}, out, params_rope, "LLaMAPackage");
+    return graphAddNode(name(), "RoPE", {inputs[0]->name(), sin_.name(), cos_.name()}, out, params_rope, "LLaMAPackage");
 }
 
 ErrorCode QNNRoPE::load(AbstructLoader &loader) {
-    if (!sin_.allocted()) {
-        if (pose_type_ == HFHUBROPE) {
-            sinusoidal_position_embedding_hf(1, 1, pos_max_, ishape, sin_, cos_);
-        } else if (pose_type_ == LLAMAROPE) {
-            sinusoidal_position_embedding(1, 1, pos_max_, ishape, sin_, cos_);
-        } else if (pose_type_ == PERSIMMONROPE) {
-            sinusoidal_position_embedding_hf(1, 1, pos_max_, ishape / 2, sin_, cos_);
-        } else {
-        }
-    }
+    sin_.setName(name() + ".sin");
+    cos_.setName(name() + ".cos");
+
     return Op::load(loader);
 }
 
@@ -141,6 +146,8 @@ void QNNRoPE::sinusoidal_position_embedding(int batch_size, int nums_head, int s
 void QNNRoPE::sinusoidal_position_embedding_hf(int batch_size, int nums_head, int seq_len, int output_dim, Tensor &sin, Tensor &cos) {
     sin.reshape(batch_size, nums_head, seq_len, output_dim);
     cos.reshape(batch_size, nums_head, seq_len, output_dim);
+    sin.setDtype(MLLM_TYPE_F32);
+    cos.setDtype(MLLM_TYPE_F32);
     sin.alloc();
     cos.alloc();
     for (int n = 0; n < batch_size; ++n) {

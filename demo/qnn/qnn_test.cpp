@@ -60,15 +60,14 @@ NetTensor *FFNNoSiLU(Context *ctx, NetTensor *i, uint32_t hidden_dim, uint32_t f
 
 void LLaMA(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim) {
     auto *i = _Input(ctx);
-    _Linear({i}, hidden_dim, hidden_dim, true, "linear0.q8");
 
-    // i = _RoPE(ctx, {i}, "RoPE_0");
-    // i = _Softmax({i}, 3, "softmax0");
-    // for (int layer = 0; layer < 8; ++layer) {
-    //     i = _RMSNorm({i}, hidden_dim, 1e-6, std::to_string(layer) + "RMSNorm");
-    //     i = Attention(ctx, i, hidden_dim, ffn_hidden_dim, layer);
-    //     i = FFN(ctx, i, hidden_dim, ffn_hidden_dim, layer);
-    // }
+    i = _RoPE({i}, RoPEType::LLAMAROPE, "RoPE_0");
+    i = _Softmax({i}, 3, "softmax0");
+    for (int layer = 0; layer < 1; ++layer) {
+        i = _RMSNorm({i}, hidden_dim, 1e-6, std::to_string(layer) + "RMSNorm");
+        i = Attention(ctx, i, hidden_dim, ffn_hidden_dim, layer);
+        i = FFN(ctx, i, hidden_dim, ffn_hidden_dim, layer);
+    }
 }
 
 void LLaMANoSiLU(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim) {
