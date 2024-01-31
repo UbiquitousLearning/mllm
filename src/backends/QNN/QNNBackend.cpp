@@ -62,8 +62,8 @@ void QNNBackend::registerOps() {
     addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
     addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
     addCreator(SOFTMAX, (QNNBackend::Creator *)(new QNNSoftMaxCreator()));
-    // addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearCreator()));
-    addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearFPCreator()));
+    addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearCreator()));
+    // addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearFPCreator()));
     // addCreator(ATTENTION, (QNNBackend::Creator *)(new QNNAttentionCreator()));
     // addCreator(EMBEDDING, (QNNBackend::Creator *)(new QNNEmbeddingCreator()));
     addCreator(MUL, (QNNBackend::Creator *)(new QNNMulCreator()));
@@ -80,23 +80,9 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
     // TODO: make debug level configuable
     log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_DEBUG);
 
-#ifdef QNN_ZH
-    // std::string modelPath = "/qnn-projects/QNN-test-libs/example_libs/x86_64-linux-clang/libqnn_model_float.so";
-    // std::string backEndPath = "/qnn-projects/QNN-test-libs/libQnnCpu.so";
-    std::string backEndPath = "/qnn-projects/QNN-test-libs/libQnnHtp.so";
-    std::string inputListPaths = "/qnn-projects/mllm/bin/input-list.txt";
-    // std::string opPackagePaths = "/qnn-projects/QNN-test-libs/libQnnCpuOpPackageExample.so:QnnOpPackage_interfaceProvider";
-    std::string opPackagePaths = "/qnn-projects/QNN-test-libs/llama-op-package/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
-#elifdef QNN_ARM
     std::string backEndPath = "libQnnHtp.so";
     std::string inputListPaths = "./qnn/input-list.txt";
     std::string opPackagePaths = "libQnnLLaMAPackage_CPU.so:LLaMAPackageInterfaceProvider:CPU,libQnnLLaMAPackage_HTP.so:LLaMAPackageInterfaceProvider:HTP";
-#else
-    std::string modelPath = "/mllm/qualcomm_ai_engine_direct_new/examples/QNN/example_libs/x86_64-linux-clang/libqnn_model_float.so";
-    std::string backEndPath = "/mllm/qualcomm_ai_engine_direct_2.18/lib/x86_64-linux-clang/libQnnHtp.so";
-    std::string inputListPaths = "/mllm/test_zh/input_list_float.txt";
-    std::string opPackagePaths = "/mllm/LLaMAOpPackageHtp/LLaMAPackage/build/x86_64-linux-clang/libQnnLLaMAPackage.so:LLaMAPackageInterfaceProvider";
-#endif
 
     // TODO: make these configuable
     m_debug = false; // when set true, NATIVE tensor will be regared as APP_READ tensor

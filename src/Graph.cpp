@@ -2,6 +2,9 @@
 // Created by Rongjie Yi.
 //
 #include "Graph.hpp"
+#ifdef DEBUGPRINT
+#include "Timing.hpp"
+#endif
 
 std::string intToStringWithLeadingZero(int num) {
     if (num < 10) {

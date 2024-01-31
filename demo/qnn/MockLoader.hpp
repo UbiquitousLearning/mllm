@@ -6,7 +6,7 @@
 namespace mllm {
 class MockLoader : public ParamLoader {
 public:
-    MockLoader(std::string filename) {
+    MockLoader(std::string filename) : ParamLoader(filename) {
     }
     bool load(mllm::Tensor *tensor) override {
         std::cout << tensor->name() << std::endl;

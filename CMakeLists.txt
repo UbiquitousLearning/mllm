@@ -191,8 +191,7 @@ if (TEST)
     endif ()
 endif ()
 
-# else ()
-# No Unit Test.
+
 add_executable(main_llama ${PROJECT_SOURCE_DIR}/examples/main_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/Tokenizer.hpp
@@ -347,23 +346,6 @@ endif ()
 if(QNN)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
     add_definitions(-DQNN_ENABLED)
-
-    # micros used for load different qnn lib paths
-    # TODO: remove
-    execute_process(
-        COMMAND git rev-parse --abbrev-ref HEAD
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_BRANCH_NAME
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    message(STATUS "git branch name: ${GIT_BRANCH_NAME}")
-    if(ARM)
-        add_definitions(-DQNN_ARM)
-        message(STATUS "QNN_ARM")  
-    elseif(GIT_BRANCH_NAME MATCHES "develop-QNN-zh")
-        add_definitions(-DQNN_ZH)
-        message(STATUS "QNN_ZH") 
-    endif()
 
     if (ARM)
         set(CMAKE_CXX_FLAGS " -fPIC -Wall -pthread -march=armv8-a -O3 -g -Wno-write-strings -fvisibility=hidden -flto")

@@ -43,7 +43,10 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
          {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = 1}}}}};
     // add quantized input tensor to qnn
     auto inputQuantizeName = name() + inputs[0]->name() + ".quantize";
-    uint32_t dimensionsInput[4];
+    uint32_t dimensionsInput[4] = {static_cast<uint32_t>(inputs[0]->batch()),
+                                   static_cast<uint32_t>(inputs[0]->sequence()),
+                                   static_cast<uint32_t>(inputs[0]->head()),
+                                   static_cast<uint32_t>(inputs[0]->dimension())};
     for (int i = 0; i < 4; i++) {
         dimensionsInput[i] = inputs[0]->shape()[i];
     }
@@ -66,10 +69,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                 .dataSize = 0}}}}}};
     graphAddNode(name() + ".quantize", "Quantize", {inputs[0]->name()}, quantizedInput);
     // add weight tensor to qnn
-    uint32_t dimensionsWeight[4];
-    for (int i = 0; i < 4; i++) {
-        dimensionsWeight[i] = weight_.shape()[i];
-    }
+    uint32_t dimensionsWeight[2] = {static_cast<uint32_t>(weight_.sequence()), static_cast<uint32_t>(weight_.dimension())};
     qnnBackend_->modelAddTensor(weight_.name(), (Qnn_Tensor_t){
                                                     .version = QNN_TENSOR_VERSION_1,
                                                     {.v1 = {
@@ -81,16 +81,17 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                                          .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                                             QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                                             {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-                                                         .rank = 4,
+                                                         .rank = 2,
                                                          .dimensions = dimensionsWeight,
                                                          .memType = QNN_TENSORMEMTYPE_RAW,
                                                          {.clientBuf = {.data = weight_.hostPtr<void>(),
                                                                         .dataSize = (uint32_t)weight_.cntSize()}}}}});
     // dimensions of matmul output and bias
-    uint32_t dimensionsOutput[4];
-    for (int i = 0; i < 4; i++) {
-        dimensionsOutput[i] = outputs[0]->shape()[i];
-    }
+    uint32_t dimensionsOutput[4] = {static_cast<uint32_t>(outputs[0]->batch()),
+                                    static_cast<uint32_t>(outputs[0]->sequence()),
+                                    static_cast<uint32_t>(outputs[0]->head()),
+                                    static_cast<uint32_t>(outputs[0]->dimension())};
+
     auto outName = outputs[0]->name();
     auto outQuantizedName = name() + outputs[0]->name() + ".quantized";
     auto outDeqnName = name() + outputs[0]->name() + ".dequantized";

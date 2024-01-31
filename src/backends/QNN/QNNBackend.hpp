@@ -39,6 +39,7 @@ class QNNBackend : public Backend {
 public:
     QNNBackend(shared_ptr<MemoryManager> mm);
     ~QNNBackend() {
+        terminateBackend();
         // free creaters in map_creator_
         for (auto &iter : map_creator_) {
             delete iter.second;
@@ -105,7 +106,7 @@ private:
 
     void release();
 
-    void registerOps();
+    void registerOps() override;
 
     // @brief Print a message to STDERR then exit with a non-zero
     void reportError(const std::string &err);

@@ -14,6 +14,10 @@ QNNCommonOp::QNNCommonOp(Backend *bn, string opName) :
 }
 
 ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<Qnn_Param_t> params, string packageName) {
+    vector<string> inputTensorNames;
+    for (auto &input : inputs) {
+        inputTensorNames.push_back(input->name());
+    }
 // DEBUGLOG
 #ifdef DEBUGPRINT
     std::cout << "node name:" << name << std::endl;
@@ -22,13 +26,9 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
         std::cout << "input:" << inputTensorName << std::endl;
     }
     for (auto &output : outputs) {
-        std::cout << "output:" << output.v1.name << std::endl;
+        std::cout << "output:" << output->name() << std::endl;
     }
 #endif
-    vector<string> inputTensorNames;
-    for (auto &input : inputs) {
-        inputTensorNames.push_back(input->name());
-    }
 
     vector<Qnn_Tensor_t> outputTensors;
     for (auto &output : outputs) {
