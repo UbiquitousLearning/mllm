@@ -67,10 +67,10 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
          .name = "pose_type",
          {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_UINT_32, {.uint32Value = pose_type}}}}};
 
-    uint32_t dimOut[4];
-    for (int i = 0; i < 4; i++) {
-        dimOut[i] = inputs[0]->shape()[i];
-    }
+    uint32_t dimOut[4] = {static_cast<uint32_t>(inputs[0]->batch()),
+                          static_cast<uint32_t>(inputs[0]->sequence()),
+                          static_cast<uint32_t>(inputs[0]->head()),
+                          static_cast<uint32_t>(inputs[0]->dimension())};
     auto outName = outputs[0]->name();
     vector<Qnn_Tensor_t> out = {
         (Qnn_Tensor_t){

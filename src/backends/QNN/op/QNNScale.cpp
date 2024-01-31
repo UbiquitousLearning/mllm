@@ -22,10 +22,10 @@ ErrorCode QNNScale::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 
 ErrorCode QNNScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // add intermediate output of matmul
-    uint32_t dimensions[4];
-    for (int i = 0; i < 4; i++) {
-        dimensions[i] = inputs[0]->shape()[i];
-    }
+    uint32_t dimensions[4] = {static_cast<uint32_t>(inputs[0]->batch()),
+                              static_cast<uint32_t>(inputs[0]->sequence()),
+                              static_cast<uint32_t>(inputs[0]->head()),
+                              static_cast<uint32_t>(inputs[0]->dimension())};
     auto interName = name() + ".intermediate";
     vector<Qnn_Tensor_t>
         intermediateOutput = {
