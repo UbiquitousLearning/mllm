@@ -138,9 +138,10 @@ Tensor &Tensor::binaryCompute(Func operation, string append_s, float data) {
         } else {
             gph_[next_name].reshape(gph_[name_].batch(), gph_[name_].head(), gph_[name_].sequence(), gph_[name_].dimension());
         }
-        //     break;
-        // }
-        // case TENSOR_STATIC_SHAPED: {
+        break;
+    }
+    case TENSOR_STATIC_SHAPED: {
+        gph_[next_name].setDtype(gph_[name_].dtype());
         gph_[next_name].alloc();
         /*
         if (gph_[name_].masterTensor() == nullptr) {
@@ -226,9 +227,9 @@ Tensor &Tensor::binaryTwoCompute(Func operation, string append_s, Tensor& other)
         } else {
             gph_[next_name].reshape(gph_[name_].batch(), gph_[name_].head(), gph_[name_].sequence(), gph_[name_].dimension());
         }
-        //     break;
-        // }
-        // case TENSOR_STATIC_SHAPED: {
+        break;
+    }
+    case TENSOR_STATIC_SHAPED: {
         gph_[next_name].setDtype(gph_[name_].dtype());
         gph_[next_name].alloc();
         /*
@@ -332,6 +333,9 @@ Tensor& Tensor::view(int b, int h, int s, int d) {
         } else {
             gph_[next_name].reshape(dim_b, dim_h, dim_s, dim_d);
         }
+        break;
+    }
+    case TENSOR_STATIC_SHAPED: {
         //alloc
         if (   (b == -1 && s == -1 && gph_[name_].ctype()!=BCTHW)  // head & dimension
             || (b == -1 && d == -1 && gph_[name_].ctype()==BSHD) // head & sequence

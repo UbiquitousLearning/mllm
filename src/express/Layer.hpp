@@ -50,6 +50,12 @@ protected:
             vector<shared_ptr<Tensor>> shared_inputs{std::make_shared<Tensor>(Tensor::gph_[input.name()])};
             vector<shared_ptr<Tensor>> shared_outputs{std::make_shared<Tensor>(Tensor::gph_[next_name])};
             op_->reshape(shared_inputs, shared_outputs);
+            Tensor::gph_[next_name] = *shared_outputs[0];
+            break;
+        }
+        case TENSOR_STATIC_SHAPED: {
+            vector<shared_ptr<Tensor>> shared_inputs{std::make_shared<Tensor>(Tensor::gph_[input.name()])};
+            vector<shared_ptr<Tensor>> shared_outputs{std::make_shared<Tensor>(Tensor::gph_[next_name])};
             op_->setUp(shared_inputs, shared_outputs);
             Tensor::gph_[next_name] = *shared_outputs[0];
             break;
@@ -95,6 +101,13 @@ protected:
                                                      std::make_shared<Tensor>(Tensor::gph_[input1.name()])};
             vector<shared_ptr<Tensor>> shared_outputs{std::make_shared<Tensor>(Tensor::gph_[next_name])};
             op_->reshape(shared_inputs, shared_outputs);
+            Tensor::gph_[next_name] = *shared_outputs[0];
+            break;
+        }
+        case TENSOR_STATIC_SHAPED: {
+            vector<shared_ptr<Tensor>> shared_inputs{std::make_shared<Tensor>(Tensor::gph_[input0.name()]),
+                                                     std::make_shared<Tensor>(Tensor::gph_[input1.name()])};
+            vector<shared_ptr<Tensor>> shared_outputs{std::make_shared<Tensor>(Tensor::gph_[next_name])};
             op_->setUp(shared_inputs, shared_outputs);
             Tensor::gph_[next_name] = *shared_outputs[0];
             break;

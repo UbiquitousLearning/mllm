@@ -50,6 +50,11 @@ public:
 
             Forward(inputs);
             for (auto &input : inputs) {
+                input.status() = TENSOR_STATIC_SHAPED;
+            }
+
+            Forward(inputs);
+            for (auto &input : inputs) {
                 input.status() = TENSOR_STATIC_ALLOCED;
             }
 
