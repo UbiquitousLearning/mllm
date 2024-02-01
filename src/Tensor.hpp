@@ -12,6 +12,7 @@
 #else
 #include <sys/stat.h>
 #endif
+#include <Types.hpp>
 #include <assert.h>
 #include <sys/stat.h>
 
@@ -61,24 +62,32 @@ public:
         backend_(bn), host_ptr_(), capacity_(0), dtype_(MLLM_TYPE_F32) {
     }
     ~Tensor() {
-        if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_) {
-            backend_->free(host_ptr_);
+        if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_&& gph_.find(name_) == gph_.end()) {
+            try {
+                backend_->free(host_ptr_);
+            } catch (...) {}
             host_ptr_ = nullptr;
         }
     }
+    static map<string, Tensor> gph_;
 
 private:
     string name_;
     DataType dtype_;
     ChlType ctype_ = BSHD;
-    Backend *backend_;
-    void *host_ptr_;
-    void *device_ptr_; // not used for CPU
+    TensorType ttype_ = NORMAL_TENSOR;
+
+    Backend *backend_{};
+    void *host_ptr_{};
+    void *device_ptr_{}; // not used for CPU
     vector<int> shape_;
-    int capacity_;
-    int count_;
+    int capacity_{};
+    int count_{};
     int allocated_ = 0;
     bool transed_ = false;
+
+    TensorStatus status_ = TENSOR_STATIC_INIT;
+    // map<string, Tensor> gph_;
 
     // used for ChildTensor
     vector<int> shape_offset_;
@@ -103,6 +112,7 @@ public:
      * \param dimension the hidden size
      */
     explicit Tensor(const int batch, const int head, const int sequence, const int dimension);
+    explicit Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bool do_alloc = true);
     /**
      * \brief build Tensor with shape.
      *        [ATTENTION] this function only used to build Tensor which other Tensor's shape !!!
@@ -445,6 +455,13 @@ public:
         dtype_ = dtype;
     }
 
+    TensorType ttype() const {
+        return ttype_;
+    }
+    void setTtype(TensorType ttype) {
+        ttype_ = ttype;
+    }
+
     const vector<int> &shape() const {
         return shape_;
     }
@@ -538,6 +555,36 @@ public:
         assert(source->count() == count());
         memcpy(host_ptr_, source->host_ptr_, cntSize());
     }
+
+    map<string, Tensor> getGraph() {
+        return  gph_;
+    }
+    TensorStatus& status() {
+        return status_;
+    }
+    /**
+     * \brief Overload the operators.
+     * \param data binary data
+     * \return Tensor
+    */
+    Tensor& operator+(float data);
+    Tensor& operator-(float data);
+    Tensor& operator*(float data);
+    Tensor& operator/(float data);
+
+    /**
+     * \brief Overload the operators.
+     * \param other The Other Tensor
+     * \return Tensor
+    */
+    Tensor& operator+(Tensor& other);
+    Tensor& operator-(Tensor& other);
+    Tensor& operator*(Tensor& other);
+    Tensor& operator/(Tensor& other);
+
+
+    Tensor& view(int b, int h, int s, int d);
+
 
     /* Functions used for ChildTensor:
      * - deepCopyFrom
@@ -1150,6 +1197,17 @@ private:
         }
         return tensor_id;
     }
+
+    template <typename Func>
+    static void binaryTensorCompute(Tensor &input, Tensor &output, Func operation, float data, int thread_count);
+    template <typename Func>
+    Tensor& binaryCompute(Func operation, string append_s,  float data) ;
+
+    template <typename Func>
+    static void binaryTensorsCompute(Tensor &input0,Tensor &input1, Tensor &output, Func operation, int thread_count);
+    template <typename Func>
+    Tensor& binaryTwoCompute(Func operation, string append_s, Tensor& other) ;
+
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H

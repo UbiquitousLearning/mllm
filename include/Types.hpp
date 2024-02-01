@@ -24,6 +24,13 @@ typedef enum {
     MLLM_QNN
 } BackendType;
 
+enum TensorStatus {
+    TENSOR_DYNAMIC,
+    TENSOR_STATIC_INIT ,
+    // TENSOR_STATIC_SHAPED ,
+    TENSOR_STATIC_ALLOCED ,
+};
+
 enum ErrorCode {
     MLLM_NO_ERROR = 0,
     OUT_OF_MEMORY = 1,
@@ -57,6 +64,12 @@ enum ChlType {
     BTHWC = 4,
 
     SBHD = 10  //not used
+};
+
+
+enum TensorType {
+    INPUT_TENSOR = 0,
+    NORMAL_TENSOR
 };
 
 enum Chl {
