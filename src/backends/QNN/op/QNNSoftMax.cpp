@@ -25,6 +25,6 @@ ErrorCode QNNSoftMax::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
         {.paramType = QNN_PARAMTYPE_SCALAR,
          .name = "beta",
          {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_FLOAT_32, {.floatValue = 1.000000000000f}}}}};
-    return graphAddNode(name(), "Softmax", inputs, outputs, params);
+    return graphAddNode(name(), "Softmax", inputs, outputs, params, "qti.aisw", false);
 }
 } // namespace mllm

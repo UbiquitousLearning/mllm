@@ -18,30 +18,52 @@ QNNView::QNNView(Backend *bn, string opName, vector<int> dims, vector<int> data_
 }
 
 ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    assert(inputs.size() == 1);
-    assert(outputs.size() == 1);
-    int dim0 = dim0_;
-    int dim1 = dim1_;
-    int dim2 = dim2_;
-    int dim3 = dim3_;
-
-    if (data_dim0_ == 0 && data_dim1_ == 1 && data_dim2_ == 2 && data_dim3_ == 3) {
-        dim0 = inputs[0]->batch();
-        dim1 = inputs[0]->head();
+    int dim0 = inputs[0]->batch();
+    int dim1 = inputs[0]->sequence();
+    int dim2 = inputs[0]->head();
+    int dim3 = inputs[0]->dimension();
+    
+    if(data_dim0_ == BATCH && data_dim1_ == DIMENSION && data_dim2_ == SEQUENCE && data_dim3_ == DIMENSION) {
+        dim1 = dim1_;
         dim2 = inputs[0]->sequence();
+        dim3 = inputs[0]->dimension()/ dim1_;
+    } else if(data_dim0_ == BATCH && data_dim1_ == -1 && data_dim2_ == SEQUENCE && data_dim3_ == HEAD+DIMENSION){
+        dim2 = dim1;
+        dim1 = 1;
+        dim3 = inputs[0]->dimension() * inputs[0]->head();
+    } else if(data_dim0_ == BATCH && data_dim1_ == -1 && data_dim2_ == SEQUENCE+HEAD && data_dim3_ == DIMENSION){
+        dim1 = 1;
+        dim2 = inputs[0]->sequence()* inputs[0]->head();
+    } else if (data_dim0_ == BATCH && data_dim1_ == -1 && data_dim2_ == CHANNLE && data_dim3_ == TIME + HEIGHT + WIDTH) {
+        // assert(inputs[0]->ctype() == BCTHW);
+        dim1 = 1;
+        dim2 = inputs[0]->channel();
+        dim3 = inputs[0]->time() * inputs[0]->height() * inputs[0]->width();
+    } else if (data_dim0_ == BATCH && data_dim1_ == -1 && data_dim2_ == TIME + HEIGHT + WIDTH && data_dim3_ == CHANNLE ) {
+        if(inputs[0]->ctype() == BTHWC) {
+            dim1 = 1;
+            dim2 = inputs[0]->time() * inputs[0]->height() * inputs[0]->width();
+            dim3 = inputs[0]->channel();
+        }else {
+            dim1 = 1;
+            dim2 = inputs[0]->time() * inputs[0]->height() * inputs[0]->channel();
+            dim3 = inputs[0]->width();
+        }
+    } else if (data_dim0_ == SEQUENCE && data_dim1_ == HEAD && data_dim2_ == BATCH && data_dim3_ ==DIMENSION) {
+        dim0 = inputs[0]->sequence();
+        dim1 = inputs[0]->head();
+        dim2 = inputs[0]->batch();
         dim3 = inputs[0]->dimension();
-    } else if (data_dim0_ == 0 && data_dim1_ == 3 && data_dim2_ == 2 && data_dim3_ == 3) {
-        dim0 = inputs[0]->batch();
+    } else if (data_dim0_ == BATCH && data_dim1_ == HEAD && data_dim2_ == BATCH && data_dim3_ ==DIMENSION) {
+        dim0 = inputs[0]->batch()/dim2_;
         dim1 = inputs[0]->head();
         dim2 = dim2_;
-        dim3 = inputs[0]->dimension() / dim2_;
-    } else if (data_dim0_ == 0 && data_dim1_ == -1 && data_dim2_ == 2 && data_dim3_ == 1 + 3) {
-        dim0 = inputs[0]->batch();
-        dim1 = 1;
-        dim2 = inputs[0]->head();
-        dim3 = inputs[0]->dimension() * inputs[0]->sequence();
+        dim3 = inputs[0]->dimension();
+    } else {
+        std::cout<<"CPUView not support!!!!"<<std::endl;
     }
     outputs[0]->reshape(dim0, dim1, dim2, dim3);
+
     return Op::reshape(inputs, outputs);
 }
 

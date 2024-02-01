@@ -12,8 +12,8 @@ QNNLinearTest::QNNLinearTest(Backend *bn, string opName, int in_features, int ou
 }
 
 ErrorCode QNNLinearTest::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
     // N     |    C       |   H                   |  W
     // -----------------------------------------------
     // 1     |out_channel | in_channel            |  1
@@ -24,8 +24,8 @@ ErrorCode QNNLinearTest::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
     // -----------------------------------------------
     // batch |out_channel | seq_len               |  1
     //       |out_features|  inputs[0]->sequence()  |
-    CHECK_EQ(inputs[0]->head(), 1);
-    CHECK_EQ(in_features_, inputs[0]->dimension());
+    assert(inputs[0]->head() == 1);
+    assert(in_features_ == inputs[0]->dimension());
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
     return Op::reshape(inputs, outputs);
 }

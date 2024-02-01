@@ -18,9 +18,9 @@ NetTensor *Attention(Context *ctx, NetTensor *i, uint32_t hidden_dim, uint32_t f
     auto *k = _Linear({i}, hidden_dim, hidden_dim, false, std::to_string(layer) + "attention.k.q8");
     auto *v = _Linear({i}, hidden_dim, hidden_dim, false, std::to_string(layer) + "attention.v.q8");
     // NSD
-    // q = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
-    // k = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
-    // v = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
+    q = q->view(-1, 32, -1,  hidden_dim / 32); // bhsd parameter order
+    k = k->view(-1, 32, -1,  hidden_dim / 32);
+    v = v->view(-1, 32, -1,  hidden_dim / 32);
     // NSHD
     q = _RoPE({q}, LLAMAROPE, std::to_string(layer) + "RoPE_q");
     k = _RoPE({k}, LLAMAROPE, std::to_string(layer) + "RoPE_k");
@@ -33,7 +33,8 @@ NetTensor *Attention(Context *ctx, NetTensor *i, uint32_t hidden_dim, uint32_t f
     qk = _Softmax({qk}, 3, std::to_string(layer) + "softmax");
     // NHSD
     auto *o = _Matmul({qk, v}, false, false, std::to_string(layer) + "qkv");
-    // o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, "qkv_view");
+    // NSHD
+    o = o->view(-1, 1, -1, hidden_dim);
     o = _Linear({o}, hidden_dim, hidden_dim, false, std::to_string(layer) + "attention.o.q8");
 
     return o;
@@ -197,9 +198,9 @@ void SeperateAttention(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_di
         auto *q = _Linear({o}, hidden_dim, hidden_dim, false, std::to_string(l) + "attention.q.q8");
         auto *k = _Linear({o}, hidden_dim, hidden_dim, false, std::to_string(l) + "attention.k.q8");
         auto *v = _Linear({o}, hidden_dim, hidden_dim, false, std::to_string(l) + "attention.v.q8");
-        // q = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
-        // k = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
-        // v = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
+        q = q->view(-1, 32, -1,  hidden_dim / 32); // bhsd parameter order
+        k = k->view(-1, 32, -1,  hidden_dim / 32);
+        v = v->view(-1, 32, -1,  hidden_dim / 32);
         q = _RoPE({q}, LLAMAROPE, std::to_string(l) + "RoPE_q");
         k = _RoPE({k}, LLAMAROPE, std::to_string(l) + "RoPE_k");
         k = _KVCache({k}, false, std::to_string(l) + "KVCache_k");
@@ -210,7 +211,7 @@ void SeperateAttention(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_di
         qk = _Softmax({qk}, 3, std::to_string(l) + "softmax");
 
         o = _Matmul({qk, v}, false, false, std::to_string(l) + "qkv");
-        // o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, "qkv_view");
+        o = o->view(-1, 1, -1, hidden_dim);
     }
 
     // return o;
@@ -319,7 +320,7 @@ int main(int argc, char **argv) {
     // argv 2 execution times
 
     int vocab_size = 32000;
-    int hidden_dim = 16;
+    int hidden_dim = 4096;
     int ffn_hidden_dim = 11008;
     int mutil_head_size = 32;
 

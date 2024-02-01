@@ -67,10 +67,10 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     if (name().find("qkv") != string::npos ) {
         // QKV matmul only transpose v
         uint32_t dimVTranspose[4];
-        dimVTranspose[0] = inputs[1]->shape(0);
-        dimVTranspose[1] = inputs[1]->shape(2);
-        dimVTranspose[2] = inputs[1]->shape(1);
-        dimVTranspose[3] = inputs[1]->shape(3);
+        dimVTranspose[0] = inputs[1]->batch();
+        dimVTranspose[1] = inputs[1]->head();
+        dimVTranspose[2] = inputs[1]->sequence();
+        dimVTranspose[3] = inputs[1]->dimension();
 
         uint32_t transposeParamsDimension[4] = {4};
         uint32_t transposeParamsValue[4] = {0,2,1,3};
@@ -127,10 +127,10 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         
 
         uint32_t dimOutMatmul[4];
-        dimOutMatmul[0] = outputs[0]->shape(0);
-        dimOutMatmul[1] = outputs[0]->shape(2);
-        dimOutMatmul[2] = outputs[0]->shape(1);
-        dimOutMatmul[3] = outputs[0]->shape(3);
+        dimOutMatmul[0] = outputs[0]->batch();
+        dimOutMatmul[1] = outputs[0]->head();
+        dimOutMatmul[2] = outputs[0]->sequence();
+        dimOutMatmul[3] = outputs[0]->dimension();
         auto outMatmulName = outputs[0]->name() + ".matmul";
         vector<Qnn_Tensor_t> outMatmul = {
             (Qnn_Tensor_t){
@@ -154,9 +154,10 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 
 
         uint32_t dimOut[4];
-        for(int i = 0; i < 4; i++) {
-            dimOut[i] = outputs[0]->shape(i);
-        }
+        dimOut[0] = outputs[0]->batch();
+        dimOut[1] = outputs[0]->sequence();
+        dimOut[2] = outputs[0]->head();
+        dimOut[3] = outputs[0]->dimension();
 
         auto outTransposeName = outputs[0]->name();
         vector<Qnn_Tensor_t> outTranspose = {
@@ -183,10 +184,10 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         // QK matmul transpose q and k
 
         uint32_t dimQTranspose[4];
-        dimQTranspose[0] = inputs[0]->shape(0);
-        dimQTranspose[1] = inputs[0]->shape(2);
-        dimQTranspose[2] = inputs[0]->shape(1);
-        dimQTranspose[3] = inputs[0]->shape(3);
+        dimQTranspose[0] = inputs[0]->batch();
+        dimQTranspose[1] = inputs[0]->head();
+        dimQTranspose[2] = inputs[0]->sequence();
+        dimQTranspose[3] = inputs[0]->dimension();
 
         uint32_t transposeParamsDimension[4] = {4};
         uint32_t transposeParamsValue[4] = {0,2,1,3};
@@ -234,10 +235,10 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         graphAddNode(name()+".q_transpose", "Transpose", {inputs[0]->name()}, outQTranspose, paramsTranspose);
 
         uint32_t dimKTranspose[4];
-        dimKTranspose[0] = inputs[1]->shape(0);
-        dimKTranspose[1] = inputs[1]->shape(2);
-        dimKTranspose[2] = inputs[1]->shape(1);
-        dimKTranspose[3] = inputs[1]->shape(3);
+        dimKTranspose[0] = inputs[1]->batch();
+        dimKTranspose[1] = inputs[1]->head();
+        dimKTranspose[2] = inputs[1]->sequence();
+        dimKTranspose[3] = inputs[1]->dimension();
 
         auto outKTransposeName = inputs[1]->name() + ".k_transpose_out";
         vector<Qnn_Tensor_t> outKTranspose = {
@@ -270,9 +271,11 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         
 
         uint32_t dimOut[4];
-        for(int i = 0; i < 4; i++) {
-            dimOut[i] = outputs[0]->shape(i);
-        }
+        dimOut[0] = outputs[0]->batch();
+        dimOut[1] = outputs[0]->head();
+        dimOut[2] = outputs[0]->sequence();
+        dimOut[3] = outputs[0]->dimension();
+
         auto outName = outputs[0]->name();
         vector<Qnn_Tensor_t> out = {
             (Qnn_Tensor_t){

@@ -17,6 +17,6 @@ ErrorCode QNNCausalMask::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 }
 
 ErrorCode QNNCausalMask::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    return graphAddNode(name(), "CausalMask", inputs, outputs, {}, "LLaMAPackage");
+    return graphAddNode(name(), "CausalMask", inputs, outputs, {}, "LLaMAPackage", false);
 }
 } // namespace mllm

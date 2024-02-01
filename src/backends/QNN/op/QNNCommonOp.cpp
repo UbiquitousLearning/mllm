@@ -13,7 +13,7 @@ QNNCommonOp::QNNCommonOp(Backend *bn, string opName) :
     qnnBackend_ = dynamic_cast<QNNBackend *>(bn);
 }
 
-ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<Qnn_Param_t> params, string packageName) {
+ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<Qnn_Param_t> params, string packageName, bool isNSHD) {
     vector<string> inputTensorNames;
     for (auto &input : inputs) {
         inputTensorNames.push_back(input->name());
@@ -36,6 +36,11 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
                                   static_cast<uint32_t>(output->sequence()),
                                   static_cast<uint32_t>(output->head()),
                                   static_cast<uint32_t>(output->dimension())};
+        if (!isNSHD) {
+            dimensions[1] = static_cast<uint32_t>(output->head());
+            dimensions[2] = static_cast<uint32_t>(output->sequence());
+        }
+
         inputTensorNames_.push_back(new string(output->name()));
         outputTensors.push_back({QNN_TENSOR_VERSION_1,
                                  {.v1 = {

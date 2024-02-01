@@ -104,11 +104,11 @@ GraphStatus causalmaskImpl(TensorType& out_0,
   
   int old_dim = 0;
 
-  // NSHD
+  // NHSD
   auto [b_in, h_in, w_in, d_in] = in_0.dims();
 
   // S > 1 => mask
-  if (h_in > 1) {
+  if (w_in > 1) {
     for (Idx b = 0; b < b_in; b++) {
       for (Idx h = 0; h < h_in; h++) {
         for (Idx w = 0; w < w_in; w++) {
@@ -117,7 +117,7 @@ GraphStatus causalmaskImpl(TensorType& out_0,
             
             float in_value = in_0(b, h, w, d);
 
-            if (d > h + old_dim)
+            if (d > w + old_dim)
               out_0(b, h, w, d) = in_value - MASK_INFINITY;
             else
               out_0(b, h, w, d) = in_value;
