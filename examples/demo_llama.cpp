@@ -128,14 +128,14 @@ class LLaMABlock final: public Module, public LLaMAConfig {
 class LLaMAModel final: public Module, public LLaMAConfig {
     Embedding embedding = Embedding(vocab_size, in_hidden_dim, "embedding");
     vector<LLaMABlock> blocks = List<LLaMABlock>(32);
-    Linear norm = Linear(in_hidden_dim, vocab_size, false, "norm");
+    Linear mlp_head = Linear(in_hidden_dim, vocab_size, false, "mlp_head");
 
     vector<Tensor> Forward(vector<Tensor> inputs) override {
         auto x = embedding(inputs[0]);
         for (auto &block : blocks) {
             x = block({x})[0];
         }
-        x = norm(x);
+        x = mlp_head(x);
         return {x};
     }
 };
