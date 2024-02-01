@@ -101,6 +101,10 @@ public:
         outputBuffers.push_back(ptr);
     }
 
+    void pushOutputTensor(Tensor t) {
+        outputTensors_.push_back(t);
+    }
+
 private:
     int32_t graphInitialize();
 
@@ -198,6 +202,8 @@ private:
     Qnn_LogHandle_t m_logHandle = nullptr;
     Qnn_BackendHandle_t m_backendHandle = nullptr;
     Qnn_DeviceHandle_t m_deviceHandle = nullptr;
+
+    std::vector<Tensor> outputTensors_;
 };
 
 } // namespace mllm

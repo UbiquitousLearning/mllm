@@ -175,7 +175,7 @@ NetTensor * Linear(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim, i
 
     auto *i = _Input(ctx);
 
-    auto *z = _Softmax(ctx, {i}, 3, "softmax0");
+    auto *z = _Causalmask(ctx, {i}, "mask");
     auto *x = _Linear(ctx, {z}, hidden_dim, ffn_hidden_dim, false, std::to_string(0)+"ffn.l1.q8");
     for (int l = 1; l<=layer; l++) {
 
@@ -444,6 +444,6 @@ int main(int argc,char **argv) {
 
     ex.execute(&net, input);
     ex.perf();
-    // auto result = ex.result();
-    // result[0]->printData<float>();
+    auto result = ex.result();
+    result[0]->printData<float>();
 }
