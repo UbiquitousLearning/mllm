@@ -1,5 +1,4 @@
 #include "ParamLoader.hpp"
-#include "NetParameter.hpp"
 #include "Types.hpp"
 #include <cstdint>
 #include <cstdio>
@@ -27,14 +26,11 @@
  * └───────┴──────┴───────┴────────┴───────────┴─────────┴─────────┴──────┴──────────────────────┴─────────────────────────┘
  * Weights File Structure
  */
-
 namespace mllm {
 bool ParamLoader::load(mllm::Tensor *tensor) {
     string name = tensor->name();
 #ifndef USE_MMAP
-    if (offsets_.find(name) == offsets_.end()) {
-        return false;
-    }
+    if (offsets_.find(name) == offsets_.end()) { return false; }
     std::pair<uint64_t, uint64_t> offset = offsets_[name];
     uint8_t *data = new uint8_t[offset.second];
     fseek(fp_, offset.first, SEEK_SET);
@@ -42,24 +38,35 @@ bool ParamLoader::load(mllm::Tensor *tensor) {
     // TODO:Data?
     //  tenor. = data;
     auto *p = tensor->hostPtr<char>();
-    memcpy(static_cast<void *>(p), static_cast<void *>(data), offset.second); // Cast pointers to void*
-    delete[] data;                                                            // Free the memory allocated by new
+    memcpy(static_cast<void *>(p), static_cast<void *>(data),
+           offset.second); // Cast pointers to void*
+    delete[] data;         // Free the memory allocated by new
     return true;
 #endif
 }
 ParamLoader::~ParamLoader() {
-    if (fp_ != nullptr) {
-        fclose(fp_);
-    }
+    if (fp_ != nullptr) { fclose(fp_); }
 }
+// #ifdef ANDROID_API
+// ParamLoader::ParamLoader(std::string filename, AAssetManager *asset_manager,
+// bool use_mmap ):asset_manager_(asset_manager), #else
 ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
+    // #endif
     path_(std::move(filename)), use_mmap_(use_mmap) {
+    // #ifdef ANDROID_API
+    //     this->fp_ = AAssetManager_open(asset_manager_, this->path_.c_str(),
+    //     AASSET_MODE_RANDOM);
+    // #else
     this->fp_ = fopen(this->path_.c_str(), "rb");
+    // #endif
+
     if (this->fp_ == nullptr) {
-        std::cout << "open file failed" << std::endl;
+        std::cout << "param open file failed" << std::endl;
+        return;
         int errorCode = errno;
         char *errorMsg = strerror(errorCode);
-        printf("Open file fail, errorCode:%d, errorMsg:%s\n", errorCode, errorMsg);
+        printf("Open file fail, errorCode:%d, errorMsg:%s\n", errorCode,
+               errorMsg);
         exit(1);
     }
 #ifndef USE_MMAP
@@ -101,20 +108,22 @@ bool ParamLoader::load(std::shared_ptr<mllm::Tensor> tensor) {
 vector<std::string> ParamLoader::getParamNames() {
     // get keys of data_type_
     vector<std::string> keys;
-    for (auto &iter : data_type_) {
-        keys.push_back(iter.first);
+    keys.reserve(data_type_.size());
+for (auto &[fst, snd] : data_type_) {
+        keys.push_back(fst);
     }
     return keys;
 }
 std::tuple<uint8_t *, uint64_t> ParamLoader::load(string name) {
     auto [offset, length] = offsets_[name];
-    uint8_t *data = new uint8_t[length];
+    auto *data = new uint8_t[length];
     fseek(fp_, offset, SEEK_SET);
     fread(data, sizeof(uint8_t), length, fp_);
     return std::make_tuple(data, length);
 }
 DataType ParamLoader::getDataType(string name) {
     if (data_type_.count(name) != 1) {
+        std::cerr<<name<<" not found"<<std::endl;
         return DataType::MLLM_TYPE_COUNT;
     }
     int type = data_type_[name];

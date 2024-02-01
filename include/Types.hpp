@@ -3,29 +3,34 @@
 #define MLLM_TYPES_H
 #include "OpDefined.hpp"
 #include <iostream>
+#include <algorithm>
+#include <iostream>
+#include <map>
+#include <set>
+#include <sstream>
+#include <string.h>
+#include <string>
+#include <vector>
+#include <cassert>
+using std::string;
+using std::vector;
+using std::map;
+
+typedef map<std::string, float> OpParam;
 
 typedef enum {
     MLLM_CPU,
     MLLM_OPENCL,
-    MLLM_NNAPI,
     MLLM_QNN
 } BackendType;
 
 enum ErrorCode {
-    NO_ERROR = 0,
+    MLLM_NO_ERROR = 0,
     OUT_OF_MEMORY = 1,
     NOT_SUPPORT = 2,
     COMPUTE_SIZE_ERROR = 3,
     NO_EXECUTION = 4,
     INVALID_VALUE = 5,
-
-    // // User error
-    // INPUT_DATA_ERROR = 10,
-    // CALL_BACK_STOP   = 11,
-
-    // // Op Resize Error
-    // TENSOR_NOT_SUPPORT = 20,
-    // TENSOR_NEED_DIVIDE = 21,
 };
 
 enum DataType {
@@ -33,17 +38,10 @@ enum DataType {
     MLLM_TYPE_F16 = 1,
     MLLM_TYPE_Q4_0 = 2,
     MLLM_TYPE_Q4_1 = 3,
-    // MLLM_TYPE_Q4_2 = 4, support has been removed
-    // MLLM_TYPE_Q4_3 (5) support has been removed
-    // MLLM_TYPE_Q5_0 = 6,
-    // MLLM_TYPE_Q5_1 = 7,
     MLLM_TYPE_Q8_0 = 8,
     MLLM_TYPE_Q8_1 = 9,
     // k-quantizations
-    // MLLM_TYPE_Q2_K = 10,
-    // MLLM_TYPE_Q3_K = 11,
     MLLM_TYPE_Q4_K = 12,
-    // MLLM_TYPE_Q5_K = 13,
     MLLM_TYPE_Q6_K = 14,
     MLLM_TYPE_Q8_K = 15,
     MLLM_TYPE_I8,
@@ -53,14 +51,79 @@ enum DataType {
 };
 
 enum TensorType {
-    GRAPH_INTERAL = 0, // currently weights and intermediate tensors both use this
+    GRAPH_INTERNAL = 0, // currently weights and intermediate tensors both use this
     GRAPH_INPUT = 1,
     GRAPH_OUTPUT = 2,
     GRAPH_WEIGHT = 3,
 };
-#if defined(__ARM_NEON) && defined(__CUDACC__)
-typedef half mllm_fp16_t;
-#elif defined(__ARM_NEON) && !defined(_MSC_VER)
+
+enum ChlType {
+    BSHD = 0,
+    BHDS = 2,
+
+    BCTHW = 3,
+    BTHWC = 4,
+
+    SBHD = 10  //not used
+};
+
+enum Chl {
+    BATCH = 0,
+    HEAD = 1,
+    SEQUENCE = 2,
+    DIMENSION = 3,
+
+    HD = 113,
+    D_HD = 313, //only use for split attn.in_proj
+
+    CHANNLE = 1,
+    TIME = 2,
+    HEIGHT = 3,
+    WIDTH = 4,
+
+    THW = 234,
+
+};
+
+
+enum PaddingType {
+    SAME,
+    VALID
+};
+
+enum RoPEType {
+    LLAMAROPE = 2,
+    PERSIMMONROPE = 3,
+    HFHUBROPE = 4,
+};
+
+/*
+ * This code is based on ggml(https://github.com/ggerganov/ggml),
+ * please see https://github.com/ggerganov/ggml/blob/master/src/ggml.c
+ * ggml is licensed under MIT Copyright (c) 2022 Georgi Gerganov:
+ *
+ * MIT License
+ * Copyright (c) 2022 Georgi Gerganov
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+#if defined(__ARM_NEON) && !defined(_MSC_VER)
 typedef __fp16 mllm_fp16_t;
 #else
 typedef uint16_t mllm_fp16_t;
@@ -116,6 +179,7 @@ typedef struct {
     mllm_fp16_t d;            // super-block scale
 } block_q6_K;
 #pragma pack()
+static_assert(sizeof(block_q6_K) == sizeof(mllm_fp16_t) + QK_K / 16 + 3*QK_K/4, "wrong q6_K block size/padding");
 
 #define QK8_0 32
 #pragma pack(1)
@@ -153,6 +217,8 @@ static string DataTypeName(DataType dataType) {
         return "Q4_0";
     case MLLM_TYPE_Q4_K:
         return "Q4_K";
+    case MLLM_TYPE_Q6_K:
+        return "Q6_K";
     case MLLM_TYPE_Q8_0:
         return "Q8_0";
     case MLLM_TYPE_Q8_K:
@@ -161,33 +227,40 @@ static string DataTypeName(DataType dataType) {
         return "Q4_1";
     case MLLM_TYPE_Q8_1:
         return "Q8_1";
-    case MLLM_TYPE_COUNT: return "COUNT";
+    case MLLM_TYPE_COUNT:
+        return "COUNT";
+    default:
+        return "Unknown";
     }
 }
-static float DataTypeSize(DataType dtype, int count=1) {
+static size_t DataTypeSize(DataType dtype, int count=1) {
     switch (dtype) {
     case MLLM_TYPE_F32:
         return sizeof(float) *count;
     case MLLM_TYPE_F16:
-        return sizeof(short)*count;
+        return sizeof(mllm_fp16_t)*count;
     case MLLM_TYPE_I32:
         return sizeof(int)*count;
     case MLLM_TYPE_I16:
         return sizeof(short)*count;
     case MLLM_TYPE_I8:
         return sizeof(char)*count;
-        // TODO WRONG?
     case MLLM_TYPE_Q4_0:
         return (sizeof(block_q4_0))*count / (QK4_0);
     case MLLM_TYPE_Q4_K:
         return (sizeof(block_q4_K))*count / (QK_K);
+    case MLLM_TYPE_Q6_K:
+        return (sizeof(block_q6_K))*count / (QK_K);
     case MLLM_TYPE_Q8_0:
         return (sizeof(block_q8_0))*count / (QK8_0);
     case MLLM_TYPE_Q8_K:
         return (sizeof(block_q8_K))*count / (QK_K);
     case MLLM_TYPE_Q4_1:
     case MLLM_TYPE_Q8_1:
-    case MLLM_TYPE_COUNT: return 0;
+    case MLLM_TYPE_COUNT:
+        return 0;
+    default:
+        return 0;
     }
 }
 #ifdef __cplusplus
@@ -222,14 +295,6 @@ struct BackendConfig {
     void *sharedContext = nullptr;
 };
 
-// 定义枚举类型
-// enum DataType {
-//    FP32 = 0,
-//    FP16,
-//    INT8,
-//    INT4,
-//    DATA_TYPE_COUNT,
-//};
 
 } // namespace mllm
 #endif //__cplusplus

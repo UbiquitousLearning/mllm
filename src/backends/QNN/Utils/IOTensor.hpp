@@ -18,7 +18,7 @@
 #include "QnnSampleAppUtils.hpp"
 #include "QnnTensor.h"
 #include "QnnTypes.h"
-#include "QnnWrapperUtils.hpp"
+#include "WrapperUtils/QnnWrapperUtils.hpp"
 
 namespace qnn {
 namespace tools {

@@ -1,9 +1,19 @@
 //
-// Created by ey on 23-11-8.
+// Created by Rongjie Yi on 23-11-8.
 //
 
 #ifndef MLLM_TIMING_HPP
 #define MLLM_TIMING_HPP
+
+
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#include <bemapiset.h>
+#include  <windows.h>
+#else
+#include <cstdint>
+#include <ctime>
+#endif
+
 
 namespace mllm {
 

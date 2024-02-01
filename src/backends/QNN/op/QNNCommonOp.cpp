@@ -1,7 +1,7 @@
 #include "QNNCommonOp.hpp"
 #include "OpDefined.hpp"
 #include "QnnTypes.h"
-#include "QnnWrapperUtils.hpp"
+#include "WrapperUtils/QnnWrapperUtils.hpp"
 #include "Types.hpp"
 #include <memory>
 #include <string>
@@ -13,48 +13,29 @@ QNNCommonOp::QNNCommonOp(Backend *bn, string opName) :
     qnnBackend_ = dynamic_cast<QNNBackend *>(bn);
 }
 
-ErrorCode QNNCommonOp::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-#if DEBUG
-    std::cout << "*QNN" << name() << " reshape*" << std::endl;
-#endif
-    return NO_ERROR;
-}
-
-ErrorCode QNNCommonOp::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-#if DEBUG
-    std::cout << "*QNN" << name() << " execute*" << std::endl;
-#endif
-    return NO_ERROR;
-}
-
-ErrorCode QNNCommonOp::load(AbstructLoader &loader) {
-#if DEBUG
-    std::cout << "*QNN" << name() << " *" << std::endl;
-#endif
-    return NO_ERROR;
-}
-
 ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<Qnn_Param_t> params, string packageName) {
-    // DEBUGLOG
-    std::cout << "=name:" << name << std::endl;
-    std::cout << "=nodeType:" << nodeType << std::endl;
-    for (auto &inputTensorName : inputs) {
-        std::cout << "=input:" << inputTensorName->name() << std::endl;
-    }
-    for (auto &output : outputs) {
-        std::cout << "=output:" << output->name() << std::endl;
-    }
     vector<string> inputTensorNames;
     for (auto &input : inputs) {
         inputTensorNames.push_back(input->name());
     }
+// DEBUGLOG
+#ifdef DEBUGPRINT
+    std::cout << "node name:" << name << std::endl;
+    std::cout << "node type:" << nodeType << std::endl;
+    for (auto &inputTensorName : inputTensorNames) {
+        std::cout << "input:" << inputTensorName << std::endl;
+    }
+    for (auto &output : outputs) {
+        std::cout << "output:" << output->name() << std::endl;
+    }
+#endif
 
     vector<Qnn_Tensor_t> outputTensors;
     for (auto &output : outputs) {
-        uint32_t dimensions[4];
-        for (int i = 0; i < output->shape().size(); i++) {
-            dimensions[i] = output->shape()[i];
-        }
+        uint32_t dimensions[4] = {static_cast<uint32_t>(output->batch()),
+                                  static_cast<uint32_t>(output->sequence()),
+                                  static_cast<uint32_t>(output->head()),
+                                  static_cast<uint32_t>(output->dimension())};
         inputTensorNames_.push_back(new string(output->name()));
         outputTensors.push_back({QNN_TENSOR_VERSION_1,
                                  {.v1 = {
@@ -74,29 +55,33 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
     }
 
     if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputTensors, params, packageName)) {
+        exit(1);
         return ErrorCode::INVALID_VALUE;
     }
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string> inputTensorNames, vector<Qnn_Tensor_t> outputs, vector<Qnn_Param_t> params, string packageName) {
-    // DEBUGLOG
-    std::cout << "=name:" << name << std::endl;
-    std::cout << "=nodeType:" << nodeType << std::endl;
-    for(auto &inputTensorName : inputTensorNames) {
-        std::cout << "=input:" << inputTensorName << std::endl;
+// DEBUGLOG
+#ifdef DEBUGPRINT
+    std::cout << "node name:" << name << std::endl;
+    std::cout << "node type:" << nodeType << std::endl;
+    for (auto &inputTensorName : inputTensorNames) {
+        std::cout << "input:" << inputTensorName << std::endl;
     }
-    for(auto &output : outputs) {
-        std::cout << "=output:" << output.v1.name << std::endl;
+    for (auto &output : outputs) {
+        std::cout << "output:" << output.v1.name << std::endl;
     }
+#endif
     if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputs, params, packageName)) {
+        exit(1);
         return ErrorCode::INVALID_VALUE;
     }
-    return NO_ERROR;
+    return MLLM_NO_ERROR;
 }
 
 Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tensor) const {
-    if(tensor->tensorType() == GRAPH_OUTPUT)
+    if (tensor->tensorType() == GRAPH_OUTPUT)
         return QNN_TENSOR_TYPE_APP_READ;
     else
         return QNN_TENSOR_TYPE_NATIVE; // qnn input is set APP_WRITE by backend

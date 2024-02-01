@@ -1,10 +1,10 @@
 //
-// Created by lx on 23-10-16.
+// Created by Xiang Li on 23-10-16.
 //
 #include "CPUTest.hpp"
 #include "backends/cpu/CPUSoftMax.hpp"
 TEST_F(CPUTest, CPUSoftMax1) {
-    SETUP_OP(CPUSoftMax, 0, false);
+    SETUP_OP(CPUSoftMax, DIMENSION, 4);
     TENSOR(input0);
     TENSOR(output);
     TENSOR(c_output);

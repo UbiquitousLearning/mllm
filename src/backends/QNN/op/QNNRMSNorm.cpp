@@ -5,14 +5,14 @@
 #include <cstdint>
 
 namespace mllm {
-QNNRMSNorm::QNNRMSNorm(Backend *bn, string opName) :
-    QNNCommonOp(bn, opName) {
+QNNRMSNorm::QNNRMSNorm(Backend *bn, string opName, int normSize, float epsilon) :
+    QNNCommonOp(bn, opName), normSize_(normSize), epsilon_(epsilon) {
     weight_.setBackend(bn);
 }
 
 ErrorCode QNNRMSNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     normSize_ = inputs[0]->dimension();
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     return Op::reshape(inputs, outputs);
 }
 
@@ -61,9 +61,15 @@ ErrorCode QNNRMSNorm::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 ErrorCode QNNRMSNorm::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, 1, normSize_);
-    weight_.setDtype(loader.getDataType(weight_.name()));
-    weight_.alloc();
-    loader.load(&weight_);
+    if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
+        weight_.setDtype(loader.getDataType(weight_.name()));
+        weight_.alloc();
+        // auto l = loader.length(weight_.name());
+        loader.load(&weight_);
+    } else {
+        weight_.setDtype(MLLM_TYPE_F32);
+        weight_.alloc();
+    }
     return Op::load(loader);
 }
 } // namespace mllm

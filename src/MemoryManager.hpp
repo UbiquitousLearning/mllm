@@ -4,10 +4,9 @@
 #include <cstddef>
 
 namespace mllm {
-// 这是一个功能和malloc/free相同的分配/释放内存/显存的函数。
-
 /**
- * 内存管理类 mem pool ... TODO 管理HostMemory
+ * \brief The MemoryManager class provides an interface for memory management.
+ * This class is expected to be overridden by specific memory management implementations.
  */
 class MemoryManager {
 public:

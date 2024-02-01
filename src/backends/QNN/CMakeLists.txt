@@ -1,7 +1,15 @@
-get_property(dirs DIRECTORY ${CMAKE_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
-message(">>> include_dirs=${dirs}") #print include directories
+include_directories(
+    ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/QNN
+    ${CMAKE_CURRENT_LIST_DIR}/Log
+    ${CMAKE_CURRENT_LIST_DIR}/PAL/include
+    ${CMAKE_CURRENT_LIST_DIR}/Model
+    ${CMAKE_CURRENT_LIST_DIR}/Utils
+    ${CMAKE_CURRENT_LIST_DIR}/WrapperUtils
+)
 
-
+get_property(current_includes DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
+message(STATUS "MLLM_QNN INCLUDES: ${current_includes}") #print include directories
 
 # QNN Backend
 file(GLOB MLLM_QNN_SRC
@@ -31,7 +39,6 @@ file(GLOB MLLM_QNN_SRC
 )
 
 # import android ndk cmake toolchain
-#include(/Users/luis/Library/Android/sdk/ndk/25.1.8937393/build/cmake/android.toolchain.cmake)
 if (ARM)
     include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
 endif()
@@ -41,10 +48,4 @@ add_library(
     MLLM_QNN
     OBJECT
     ${MLLM_QNN_SRC}
-)
-
-target_include_directories(
-    MLLM_QNN
-    PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}
 )

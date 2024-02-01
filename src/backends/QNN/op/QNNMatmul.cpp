@@ -9,11 +9,11 @@ QNNMatmul::QNNMatmul(Backend *bn, string opName, bool transpose0, bool transpose
 }
 
 ErrorCode QNNMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    CHECK_EQ(inputs.size(), 2);
-    CHECK_EQ(outputs.size(), 1);
-    
-    //    CHECK_EQ(inputs[0]->head(), 1);
-    CHECK_EQ(inputs[0]->batch(), inputs[1]->batch());
+
+    assert(inputs.size() == 2);
+    assert(outputs.size() == 1);
+    assert(inputs[0]->head() == inputs[1]->head());
+  
     if (!transpose0_ && !transpose1_) {
         /*
          N     |    C       |   H                   |  W
@@ -24,11 +24,11 @@ ErrorCode QNNMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
          -----------------------------------------------
          batch |out_channel | seq_len               |  1
          */
-        // QKV matmul
-        // QK NHSW  V NSHW
-        CHECK_EQ(inputs[0]->head(), inputs[1]->sequence());
-        CHECK_EQ(inputs[0]->dimension(), inputs[1]->head());
-        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->sequence(), inputs[0]->head(), inputs[1]->dimension());
+
+        assert(inputs[0]->dimension() == inputs[1]->sequence());
+        inputs[1]->transShape(SEQUENCE, DIMENSION);
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[1]->dimension());
+
     } else if (transpose1_) {
         /*
          N     |    C       |   H                   |  W
@@ -39,11 +39,10 @@ ErrorCode QNNMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
          -----------------------------------------------
          batch |out_channel | seq_len               |  1
          */
-        // QK matmul NSHD input (NHSD format tensor)
-        CHECK_EQ(inputs[0]->head(), inputs[1]->head());
-        CHECK_EQ(inputs[0]->sequence(), inputs[1]->sequence());
-        CHECK_EQ(inputs[0]->dimension(), inputs[1]->dimension());
-        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->sequence(), inputs[0]->head(), inputs[1]->head());
+
+        assert(inputs[0]->dimension() == inputs[1]->dimension());
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[1]->sequence());
+
     } else {
         /*
          N     |    C       |   H                   |  W
@@ -54,7 +53,9 @@ ErrorCode QNNMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
          -----------------------------------------------
          batch |out_channel | seq_len               |  1
          */
-        CHECK_EQ(inputs[0]->sequence(), inputs[1]->sequence());
+        assert(inputs[0]->sequence() == inputs[1]->sequence());
+        inputs[0]->transShape(SEQUENCE, DIMENSION);
+        inputs[1]->transShape(SEQUENCE, DIMENSION);
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[1]->dimension());
     }
     // outputs[0]->setDtype(activationDtype());

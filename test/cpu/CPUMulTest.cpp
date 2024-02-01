@@ -1,10 +1,10 @@
 //
-// Created by lx on 23-10-16.
+// Created by Xiang Li on 23-10-16.
 //
 #include "CPUTest.hpp"
 #include "backends/cpu/CPUMul.hpp"
 TEST_F(CPUTest, CPUMul1) {
-    SETUP_OP(CPUMul, false);
+    SETUP_OP(CPUMul, 4);
     TENSOR(input0);
     TENSOR(input1);
     TENSOR(output);

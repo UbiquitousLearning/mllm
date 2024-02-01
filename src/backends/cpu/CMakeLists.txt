@@ -41,8 +41,13 @@ target_include_directories(
 
 if(OpenMP_FOUND)
     message(STATUS "found openmp")
+    if(ARM AND NOT APK)
+        message(STATUS "[ARM]  found openmp")
+        target_compile_options(MLLM_CPU PRIVATE -fopenmp)
+        target_link_libraries(MLLM_CPU PUBLIC -fopenmp -static-openmp)
+    else()
     target_link_libraries(MLLM_CPU
             PUBLIC
             OpenMP::OpenMP_CXX )
-    #target_link_libraries (MLLM_CPU -static-openmp -fopenmp)
+    endif()
 endif()

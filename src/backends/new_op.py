@@ -15,21 +15,22 @@ namespace mllm {
 
 class CPUAbc final : public Op {
 public:
-    CPUAbc(Backend *bn, string opName, bool multiThread);
-    virtual ~CPUAbc() = default;
-    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-    virtual ErrorCode load(AbstructLoader &loader) override;
-    virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-    virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    CPUAbc(Backend *bn, string opName, int threadCount);
+    ~CPUReplace() override = default;
+    ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    ErrorCode load(AbstructLoader &loader) override;
+    ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
-    bool support_multi_thread_ = false;
+    int thread_count = 4;
 };
 
 class CPUAbcCreator : public CPUBackend::Creator {
 public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new CPUAbc(bn, name, false);
+    Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const override {
+        return new CPUAbc(bn, name, threadCount);
     }
 };
 
@@ -39,33 +40,32 @@ public:
 """
 
 code_cpp = """
-
 #include "CPUAbc.hpp"
 
 namespace mllm {
 
-CPUAbc::CPUAbc(Backend *bn,  string opName, bool multiThread) :
+CPUAbc::CPUAbc(Backend *bn,  string opName, int threadCount) : thread_count(threadCount), 
     Op(bn, opName) {
 }
 
 ErrorCode CPUAbc::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUAbc  reshape" << std::endl;
     return Op::reshape(inputs, outputs);
 }
 
-ErrorCode CPUAbc::load(AbstructLoader &loader) {
-    //std::cout<<name() << "  CPUAbc load" << std::endl;
-    return Op::load(loader);
-}
-
 ErrorCode CPUAbc::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUAbc()" << std::endl;
     return Op::execute(inputs, outputs);
 }
 
+ErrorCode CPUAbc::load(AbstructLoader &loader) {
+    return Op::load(loader);
+}
+
 ErrorCode CPUAbc::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout<<name() << "  CPUAbc() free" << std::endl;
     return Op::free(inputs, outputs);
+}
+
+ErrorCode CPUAbc::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    return Op::setUp(inputs, outputs);
 }
 } // namespace mllm
 

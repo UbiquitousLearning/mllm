@@ -1,80 +1,82 @@
 //
-// Created by yirongjie.
+// Created by Rongjie Yi.
 //
 
 #ifndef MLLM_GRAPH_H
 #define MLLM_GRAPH_H
-#include "NetParameter.hpp"
 #include "Tensor.hpp"
 #include "Op.hpp"
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
-
-// using std::unordered_map;
+#include "express/ExpressBase.hpp"
 #include <unordered_map>
 using std::unordered_map;
-// #include "layer.h"
+
 namespace mllm {
 
 class Graph {
 public:
-    explicit Graph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+    /**
+     * \brief Graph
+     * \param param NetParameter contains the structure of this graph
+     * \param bn Backend like CPU/QNN etc
+     * \param external_tensors external tensors from other graph and inter graphs.
+     * \param threadCount number of Threads
+     */
+    explicit Graph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors, int threadCount);
     virtual ~Graph() = default;
 
     /**
-     * @brief 初始化
+     * \brief set the output tensors' shape of Ops in this graph.
      */
     void reshape();
 
+    /**
+     * \brief alloc the memory of output tensors of Ops in this graph.
+     */
     void setUpTensors();
 
+    /**
+     * \brief load the weights/bias of Ops in this graph.
+     * \param loader A Paramloader
+     */
     void setUpOps(ParamLoader &loader);
 
-    //void reshapeOutputs();
-
-    //void setUp(unordered_map<string, shared_ptr<Tensor>> &external_tensors, bool init, bool reshape, bool graph0);
-
+    /**
+     * \brief forward propagation
+     * \param autofree Whether to release the memory of weights. Set to false
+     * \return The last output tensor
+     */
+    const vector<shared_ptr<Tensor>> &forward(bool autofree = false);
 
     /**
-     * @brief 前行传播
+     * \brief free the memory of Ops' weights in this graph.
      */
-    // const  vector<shared_ptr<Tensor>>& forward();
-    const vector<shared_ptr<Tensor>> &forward(bool autofree = false);
-    // set input blobs then use forward() instead.
-    //const vector<shared_ptr<Tensor>> &forward(const vector<shared_ptr<Tensor>> &inTensors);
-
     void freeOps();
+    /**
+     * \brief free the memory of output tensors of Ops in this graph.
+     */
     void freeTensors();
+    /**
+     * \brief free output tensors & Ops' weights
+     */
     void free();
 
-//    const vector<shared_ptr<Tensor>> &inputTensors(){
-//        return ops_input_tensors_[param_.net_ops[0]->name];
-//    }
-//    const vector<shared_ptr<Tensor>> &outputTensors(){
-//        return ops_output_tensors_[param_.net_ops[param_.net_ops.size() - 1]->name];
-//    }
-
     /**
-     * @brief 反向传播
+     * \brief backward propagation [Not Used]
      */
     void backward();
 
-//    NetParameter &param() {
-//        return param_;
-//    }
-
-    void reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors, string input_tensor_name);
+    /**
+     * \brief reflash 'ops_input_tensors_'.
+     * \param external_tensors external tensors from other graph and inter graphs.
+     */
+    void reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
 
 protected:
-//    NetParameter param_;
     Backend *backend_;
-    // The network name
     string name_;
-    // The phase: TRAIN or TEST
-    // Phase phase_;
 
-    // Individual layers in the net
-    // vector<shared_ptr<Layer > > layers_;
     vector<string> layer_names_;
 
     // tensor indices for the input and the output of the net
@@ -83,16 +85,15 @@ protected:
     vector<Tensor *> input_tensors_;
     vector<Tensor *> output_tensors_;
 
-    // vector <string> op_names_;
-    // vector<vector<string>> op_in_names_;
     unordered_map<string, vector<shared_ptr<Tensor>>> ops_input_tensors_;  // opname: op's output Tensors
     unordered_map<string, vector<shared_ptr<Tensor>>> ops_output_tensors_; // opname: op's output Tensors
     unordered_map<string, shared_ptr<Tensor>> tensors_;                    // opname: Tensors
     unordered_map<string, shared_ptr<Op>> ops_;                            // opname: op
-    //    unordered_map<string, shared_ptr<Tensor>> external_tensors_;
+    unordered_map<string, bool> ops_not_inputs_empty_;                      // opname: ops_not_inputs_empty
 
     vector<string> op_names_;
 
+    vector<string> ops_connect_input_;
 };
 
 } // namespace mllm

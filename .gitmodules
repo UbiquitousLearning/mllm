@@ -1,0 +1,3 @@
+[submodule "android"]
+	path = android
+	url = https://github.com/lx200916/ChatBotApp

@@ -12,10 +12,17 @@ class QNNCommonOp : public Op {
 public:
     QNNCommonOp(Backend *bn, string opName);
     virtual ~QNNCommonOp() = default;
-    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override = 0;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override = 0;
-    virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-    virtual ErrorCode load(AbstructLoader &loader) override;
+    virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
+        return MLLM_NO_ERROR;
+    };
+    virtual ErrorCode load(AbstructLoader &loader) override {
+        return Op::load(loader);
+    };
+    virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
+        return MLLM_NO_ERROR;
+    }
 
 protected:
     vector<string *> inputTensorNames_;

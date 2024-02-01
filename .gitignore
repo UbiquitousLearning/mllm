@@ -1,4 +1,4 @@
-
+.devcontainer/
 .vscode/
 .idea/
 .cache/
@@ -22,4 +22,6 @@ _deps
 *.cmake
 Makefile
 *.model
-*.mllm
+models/*
+/.devcontainer/
+/.vscode/

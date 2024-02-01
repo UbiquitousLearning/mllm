@@ -4,17 +4,16 @@
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "OpDefined.hpp"
-#include "QnnTypes.h"
+#include "QNN/QnnTypes.h"
 #include "Types.hpp"
 #include "MemoryManager.hpp"
-#include "NetParameter.hpp"
 #include <memory>
 
 #include "Utils/IOTensor.hpp"
 #include "PAL/DynamicLoading.hpp"
-#include "QnnModel.hpp"
+#include "Model/QnnModel.hpp"
 #include "QNN.hpp"
-#include "Logger.hpp"
+#include "Log/Logger.hpp"
 
 using std::shared_ptr;
 
@@ -40,6 +39,7 @@ class QNNBackend : public Backend {
 public:
     QNNBackend(shared_ptr<MemoryManager> mm);
     ~QNNBackend() {
+        terminateBackend();
         // free creaters in map_creator_
         for (auto &iter : map_creator_) {
             delete iter.second;
@@ -56,7 +56,7 @@ public:
         QNN_INFO("Free handle");
     }
 
-    Op *opCreate(const OpParam &op_param, string name = "") {
+    Op *opCreate(const OpParam &op_param, string name, int threadCount) override {
         OpType optype = OpType(op_param.find("type")->second);
         auto iter = map_creator_.find(optype);
         if (iter == map_creator_.end()) {
@@ -110,7 +110,7 @@ private:
 
     void release();
 
-    void registerOps();
+    void registerOps() override;
 
     // @brief Print a message to STDERR then exit with a non-zero
     void reportError(const std::string &err);

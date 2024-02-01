@@ -2,6 +2,7 @@
 #include "QNNView.hpp"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
+#include <cassert>
 
 namespace mllm {
 QNNView::QNNView(Backend *bn, string opName, vector<int> dims, vector<int> data_dims) :
@@ -17,8 +18,8 @@ QNNView::QNNView(Backend *bn, string opName, vector<int> dims, vector<int> data_
 }
 
 ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
     int dim0 = dim0_;
     int dim1 = dim1_;
     int dim2 = dim2_;

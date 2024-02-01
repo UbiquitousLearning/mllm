@@ -4,34 +4,33 @@
 #include <map>
 #include <string>
 #include <utility>
-#include <vector>
-#include <iostream>
 #include "Tensor.hpp"
 #include "Types.hpp"
+#define mllm_file FILE
 
 namespace mllm {
 class Tensor;
-static int readInt(FILE *fp_) {
+static int readInt(mllm_file *fp_) {
     int tmp;
     fread(&tmp, sizeof(int32_t), 1, fp_);
     return tmp;
 }
-static uint64_t readu64(FILE *fp_) {
+static uint64_t readu64(mllm_file *fp_) {
     uint64_t tmp;
     fread(&tmp, sizeof(uint64_t), 1, fp_);
     return tmp;
 }
-static float readf32(FILE *fp_) {
+static float readf32(mllm_file *fp_) {
     float tmp;
     fread(&tmp, sizeof(float), 1, fp_);
     return tmp;
 }
-static double readf64(FILE *fp_) {
+static double readf64(mllm_file *fp_) {
     double tmp;
     fread(&tmp, sizeof(double), 1, fp_);
     return tmp;
 }
-static std::string readString(FILE *fp_) {
+static std::string readString(mllm_file *fp_) {
     int len = readInt(fp_);
     char *tmp = new char[len + 1];
     fread(tmp, sizeof(char), len, fp_);
@@ -45,17 +44,25 @@ static std::string readString(FILE *fp_) {
 }
 
 #define _MAGIC_NUMBER 20012
+/**
+ * \brief The AbstructLoader abstract class provides an interface for loading parameters. 
+ */
 class AbstructLoader {
 public:
     virtual bool load(mllm::Tensor *tensor) = 0;
     virtual bool load(std::shared_ptr<mllm::Tensor> tensor) = 0;
-    virtual DataType getDataType(string name) = 0;
+    virtual DataType getDataType(string name) {return MLLM_TYPE_COUNT;}
 };
+
+/**
+ * \brief The ParamLoader class is the default and only(currently) implementation of the AbstructLoader class.
+ */
 class ParamLoader : public AbstructLoader {
     friend class QuantWriter;
 
 public:
     ParamLoader(std::string filename, bool use_mmap = false);
+
 #ifdef USE_MMAP
     ParamLoader(void *buffer);
 #endif
@@ -71,9 +78,16 @@ public:
     vector<std::string> getParamNames();
     std::tuple<uint8_t *, uint64_t> load(string name);
     DataType getDataType(string name) override;
+    bool isAvailible() const {
+        return fp_ != nullptr&& !offsets_.empty();
+    }
+    unsigned int getParamSize() const {
+        return offsets_.size();
+    }
+
 
 private:
-    FILE *fp_;
+    mllm_file *fp_;
     uint8_t *buffer_;
     std::string path_;
     std::uint64_t size_;
