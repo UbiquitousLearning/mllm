@@ -14,18 +14,18 @@ QNNScale::QNNScale(Backend *bn, string opName, float scale, float bias, bool bia
 }
 
 ErrorCode QNNScale::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
-    outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
-    return NO_ERROR;
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+    return Op::reshape(inputs, outputs);
 }
 
 ErrorCode QNNScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // add intermediate output of matmul
-    uint32_t dimensions[4];
-    for (int i = 0; i < 4; i++) {
-        dimensions[i] = inputs[0]->shape(i);
-    }
+    uint32_t dimensions[4] = {static_cast<uint32_t>(inputs[0]->batch()),
+                              static_cast<uint32_t>(inputs[0]->sequence()),
+                              static_cast<uint32_t>(inputs[0]->head()),
+                              static_cast<uint32_t>(inputs[0]->dimension())};
     auto interName = name() + ".intermediate";
     vector<Qnn_Tensor_t>
         intermediateOutput = {

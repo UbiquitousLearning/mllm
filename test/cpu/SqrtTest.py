@@ -7,7 +7,7 @@ class Sqrt1(TestBase):
     def test(self):
         input = torch.randn(1, 2) * 1e-6
         output = torch.sqrt(input)
-        print(output)
+        # print(output)
         self.test_done(True)
 
 

@@ -11,11 +11,11 @@ class RMSNorm(torch.nn.Module):
 
     def _norm(self, x):
         y = x.pow(2).mean(-1, keepdim=True) + self.eps
-        print("y1", y)
+        # print("y1", y)
         y = torch.sqrt(y)
-        print("y2", y)
+        # print("y2", y)
         y = 1 / y
-        print("y3", y)
+        # print("y3", y)
         return x * y
 
     def forward(self, x):

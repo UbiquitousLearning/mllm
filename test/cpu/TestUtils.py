@@ -3,12 +3,22 @@ import struct
 from typing import BinaryIO
 
 import torch
-
+import platform
 
 def change_dir():
+
     dir_name = os.path.basename(os.getcwd())
-    if dir_name != "bin":
-        os.chdir("../../bin")
+    arch = platform.machine()
+    # Check if running on ARM or X86
+    if arch == 'aarch64' or 'arm' in arch:
+        if dir_name != 'bin-arm':
+            os.chdir('../bin-arm')
+    else:
+        if dir_name != 'bin':
+            os.chdir('../bin')
+
+
+
 
 
 class TestIO:
@@ -47,6 +57,9 @@ class TestIO:
 
     def write_dim(self, n: int, c: int, h: int, w: int):
         self.file.write(struct.pack("<iiii", n, c, h, w))
+
+    def write_longdim(self, n: int, c: int, t: int, h: int, w: int):
+        self.file.write(struct.pack("<iiiii", n, c, t, h, w))
 
 
 class TestSaver(TestIO):
@@ -88,10 +101,14 @@ class TestSaver(TestIO):
         self.write_string(name)
         self.write_int(self.__torch_dtype_to_int(tensor.dtype))
         dims = list(tensor.shape)
-        if len(dims) > 4:
-            raise Exception("Tensor dims should be less than 4")
-        dims = [1] * (4 - len(dims)) + dims
-        self.write_dim(*dims)
+        if len(dims) <= 4:
+            if len(dims) > 4:
+                raise Exception("Tensor dims should be less than 4")
+            dims = [1] * (4 - len(dims)) + dims
+            self.write_dim(*dims)
+        else:
+            dims = dims + [1] * (5 - len(dims))
+            self.write_longdim(*dims)
         self.write_u64(0)
         offset = self.file.tell()
         with torch.no_grad():

@@ -6,14 +6,14 @@
 namespace mllm {
 QNNEmbedding::QNNEmbedding(Backend *bn, string opName, int hiddenSize, int vocabSize) :
     QNNCommonOp(bn, opName), hiddenSize_(hiddenSize), vocabSize_(vocabSize) {
-    CHECK_GT(hiddenSize_, 0);
-    CHECK_GT(vocabSize_, 0);
+    assert(hiddenSize_ > 0);
+    assert(vocabSize_ > 0);
     weight_.setBackend(bn);
 }
 
 ErrorCode QNNEmbedding::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
     auto input = inputs[0];
     auto output = outputs[0];
     // Input: [batch, 1, sequence, 1]
@@ -28,9 +28,14 @@ ErrorCode QNNEmbedding::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 ErrorCode QNNEmbedding::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, vocabSize_, hiddenSize_);
-    weight_.setDtype(loader.getDataType(weight_.name()));
-    weight_.alloc();
-    loader.load(&weight_);
+    if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
+        weight_.setDtype(loader.getDataType(weight_.name()));
+        weight_.alloc();
+        loader.load(&weight_);
+    } else {
+        weight_.setDtype(MLLM_TYPE_F32);
+        weight_.alloc();
+    }
     return Op::load(loader);
 }
 

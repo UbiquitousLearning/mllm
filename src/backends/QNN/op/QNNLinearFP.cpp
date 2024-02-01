@@ -9,11 +9,13 @@
 namespace mllm {
 QNNLinearFP::QNNLinearFP(Backend *bn, string opName, int in_features, int out_features, bool bias) :
     QNNCommonOp(bn, opName), in_features_(in_features), out_features_(out_features), support_bias_(bias) {
+    weight_.setBackend(bn);
+    bias_.setBackend(bn);
 }
 
 ErrorCode QNNLinearFP::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    CHECK_EQ(inputs.size(), 1);
-    CHECK_EQ(outputs.size(), 1);
+    assert(inputs.size() == 1);
+    assert(outputs.size() == 1);
     // N     |    C       |   H                   |  W
     // -----------------------------------------------
     // 1     |out_channel | in_channel            |  1
@@ -24,8 +26,8 @@ ErrorCode QNNLinearFP::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_
     // -----------------------------------------------
     // batch |out_channel | seq_len               |  1
     //       |out_features|  inputs[0]->sequence()  |
-    CHECK_EQ(inputs[0]->head(), 1);
-    CHECK_EQ(in_features_, inputs[0]->dimension());
+    assert(inputs[0]->head() == 1);
+    assert(in_features_ == inputs[0]->dimension());
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
     return Op::reshape(inputs, outputs);
 }
@@ -166,17 +168,25 @@ ErrorCode QNNLinearFP::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 ErrorCode QNNLinearFP::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, out_features_, in_features_);
-    weight_.setDtype(loader.getDataType(weight_.name()));
-    weight_.setBackend(qnnBackend_);
-    weight_.alloc();
-    loader.load(&weight_);
+    if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
+        weight_.setDtype(loader.getDataType(weight_.name()));
+        weight_.alloc();
+        loader.load(&weight_);
+    } else {
+        weight_.setDtype(MLLM_TYPE_F32);
+        weight_.alloc();
+    }
     if (support_bias_) {
         bias_.setName(name() + ".bias");
         bias_.reshape(1, 1, 1, out_features_);
-        bias_.setDtype(loader.getDataType(bias_.name()));
-        bias_.setBackend(qnnBackend_);
-        bias_.alloc();
-        loader.load(&bias_);
+        if (loader.getDataType(bias_.name()) != MLLM_TYPE_COUNT) {
+            bias_.setDtype(loader.getDataType(bias_.name()));
+            bias_.alloc();
+            loader.load(&bias_);
+        } else {
+            bias_.setDtype(MLLM_TYPE_F32);
+            bias_.alloc();
+        }
     }
     return Op::load(loader);
 }

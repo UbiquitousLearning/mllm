@@ -1,6 +1,6 @@
 //==============================================================================
 //
-//  Copyright (c) 2021-2022 Qualcomm Technologies, Inc.
+//  Copyright (c) 2022 Qualcomm Technologies, Inc.
 //  All Rights Reserved.
 //  Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
@@ -8,15 +8,54 @@
 
 #pragma once
 
-#include "QnnTypes.h"
+#include <cstdlib>
+#include <cstring>
+#include <string>
 
-#define QNN_OP_CFG_VALID(opConfig) ((opConfig).version == QNN_OPCONFIG_VERSION_1)
+#include "QnnTypes.h"
+#include "WrapperUtils/QnnWrapperUtils.hpp"
+
+namespace qnn_wrapper_api {
+
+/**
+ * @brief Verifies the tensor object passed is of supported Qnn_Tensor_t API version
+ *
+ * @param[in] tensor Qnn_Tensor_t object to validate
+ *
+ * @return Error code
+ */
+inline ModelError_t validateTensorVersion(Qnn_Tensor_t tensor) {
+  if (tensor.version != QNN_TENSOR_VERSION_1) {
+    PRINT_ERROR("validateTensorVersion() tensor %s, got unsupported version %d.",
+                tensor.v1.name,
+                tensor.version);
+    return MODEL_TENSOR_ERROR;
+  }
+  return MODEL_NO_ERROR;
+}
+
+/**
+ * @brief Verifies the tensor object passed is of supported Qnn_OpConfig_t API version
+ *
+ * @param[in] tensor Qnn_OpConfig_t object to validate
+ *
+ * @return Error code
+ */
+inline ModelError_t validateOpConfigVersion(Qnn_OpConfig_t opConfig) {
+  if (opConfig.version != QNN_OPCONFIG_VERSION_1) {
+    PRINT_ERROR("validateOpConfigVersion() op %s, got unsupported version %d.",
+                opConfig.v1.name,
+                opConfig.version);
+    return MODEL_NODES_ERROR;
+  }
+  return MODEL_NO_ERROR;
+}
 
 inline const char* getQnnOpConfigName(const Qnn_OpConfig_t& opConfig) {
   if (opConfig.version == QNN_OPCONFIG_VERSION_1) {
     return opConfig.v1.name;
   }
-  return NULL;
+  return nullptr;
 }
 
 inline const char* getQnnOpConfigName(const Qnn_OpConfig_t* opConfig) {
@@ -27,7 +66,7 @@ inline const char* getQnnOpConfigPackageName(const Qnn_OpConfig_t& opConfig) {
   if (opConfig.version == QNN_OPCONFIG_VERSION_1) {
     return opConfig.v1.packageName;
   }
-  return NULL;
+  return nullptr;
 }
 
 inline const char* getQnnOpConfigPackageName(const Qnn_OpConfig_t* opConfig) {
@@ -38,7 +77,7 @@ inline const char* getQnnOpConfigTypeName(const Qnn_OpConfig_t& opConfig) {
   if (opConfig.version == QNN_OPCONFIG_VERSION_1) {
     return opConfig.v1.typeName;
   }
-  return NULL;
+  return nullptr;
 }
 
 inline const char* getQnnOpConfigTypeName(const Qnn_OpConfig_t* opConfig) {
@@ -60,7 +99,7 @@ inline const Qnn_Param_t* getQnnOpConfigParams(const Qnn_OpConfig_t& opConfig) {
   if (opConfig.version == QNN_OPCONFIG_VERSION_1) {
     return opConfig.v1.params;
   }
-  return NULL;
+  return nullptr;
 }
 
 inline const Qnn_Param_t* getQnnOpConfigParams(const Qnn_OpConfig_t* opConfig) {
@@ -82,7 +121,7 @@ inline const Qnn_Tensor_t* getQnnOpConfigInputs(const Qnn_OpConfig_t& opConfig) 
   if (opConfig.version == QNN_OPCONFIG_VERSION_1) {
     return opConfig.v1.inputTensors;
   }
-  return NULL;
+  return nullptr;
 }
 
 inline const Qnn_Tensor_t* getQnnOpConfigInputs(const Qnn_OpConfig_t* opConfig) {
@@ -104,7 +143,7 @@ inline const Qnn_Tensor_t* getQnnOpConfigOutputs(const Qnn_OpConfig_t& opConfig)
   if (opConfig.version == QNN_OPCONFIG_VERSION_1) {
     return opConfig.v1.outputTensors;
   }
-  return NULL;
+  return nullptr;
 }
 
 inline const Qnn_Tensor_t* getQnnOpConfigOutputs(const Qnn_OpConfig_t* opConfig) {
@@ -186,6 +225,8 @@ inline void setQnnOpConfigOutputs(Qnn_OpConfig_t* opConfig,
   setQnnOpConfigOutputs(*opConfig, numOfOutputs, outputTensors);
 }
 
+// inline Qnn_OpConfig_t
+
 inline uint32_t getQnnTensorId(const Qnn_Tensor_t& tensor) {
   if (tensor.version == QNN_TENSOR_VERSION_1) {
     return tensor.v1.id;
@@ -263,7 +304,7 @@ inline uint32_t* getQnnTensorDimensions(const Qnn_Tensor_t& tensor) {
   if (tensor.version == QNN_TENSOR_VERSION_1) {
     return tensor.v1.dimensions;
   }
-  return NULL;
+  return nullptr;
 }
 
 inline uint32_t* getQnnTensorDimensions(const Qnn_Tensor_t* tensor) {
@@ -296,7 +337,7 @@ inline Qnn_MemHandle_t getQnnTensorMemHandle(const Qnn_Tensor_t& tensor) {
   if (tensor.version == QNN_TENSOR_VERSION_1) {
     return tensor.v1.memHandle;
   }
-  return NULL;
+  return nullptr;
 }
 
 inline Qnn_MemHandle_t getQnnTensorMemHandle(const Qnn_Tensor_t* tensor) {
@@ -411,6 +452,10 @@ inline void setQnnTensorMemHandle(Qnn_Tensor_t* tensor, Qnn_MemHandle_t handle) 
   setQnnTensorMemHandle(*tensor, handle);
 }
 
+// Validation
+#define VALIDATE_TENSOR_VERSION(tensor, err) VALIDATE(validateTensorVersion(tensor), err)
+#define VALIDATE_OP_CONFIG_VERSION(op, err)  VALIDATE(validateOpConfigVersion(op), err)
+
 // Accessors for QNN Op Config
 #define QNN_OP_CFG_GET_NAME(opConfig)         getQnnOpConfigName(opConfig)
 #define QNN_OP_CFG_GET_PACKAGE_NAME(opConfig) getQnnOpConfigPackageName(opConfig)
@@ -458,3 +503,5 @@ inline void setQnnTensorMemHandle(Qnn_Tensor_t* tensor, Qnn_MemHandle_t handle) 
 #define QNN_TENSOR_SET_MEM_TYPE(tensor, value)     setQnnTensorMemType(tensor, value)
 #define QNN_TENSOR_SET_CLIENT_BUF(tensor, value)   setQnnTensorClientBuf(tensor, value)
 #define QNN_TENSOR_SET_MEM_HANDLE(tensor, value)   setQnnTensorMemHandle(tensor, value)
+
+}  // namespace qnn_wrapper_api

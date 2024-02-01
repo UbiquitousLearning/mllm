@@ -1,10 +1,10 @@
 #ifndef MLLM_QNNMEMORY_SYSTEM_H
 #define MLLM_QNNMEMORY_SYSTEM_H
 
-#include "Logger.hpp"
+#include "Log/Logger.hpp"
 #include "MemoryManager.hpp"
 #include "PAL/DynamicLoading.hpp"
-#include "DynamicLoadUtil.hpp"
+#include "Utils/DynamicLoadUtil.hpp"
 #include "QnnTypes.h"
 #include <cstddef>
 #include <iostream>

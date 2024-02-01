@@ -14,12 +14,12 @@
 #include <string>
 #include <tuple>
 
-#include "Logger.hpp"
+#include "Log/Logger.hpp"
 #include "PAL/Directory.hpp"
 #include "PAL/FileOp.hpp"
 #include "PAL/Path.hpp"
 #include "PAL/StringOp.hpp"
-#include "QnnSampleAppUtils.hpp"
+#include "Utils/QnnSampleAppUtils.hpp"
 #include "QnnTypeMacros.hpp"
 
 using namespace qnn;
