@@ -121,7 +121,7 @@ GraphStatus kvcacheImpl(TensorType& out_0,
   auto in_ptr = (float*)in_0.raw_data_const();
   auto out_ptr = (float*)out_0.raw_data();
 
-  out_ptr += seq_pos_ * h_in * w_in * d_in;
+  out_ptr += seq_pos_ * w_in * d_in;
 
   memcpy(out_ptr, in_ptr, h_in * w_in * d_in * sizeof(float));
 
