@@ -12,21 +12,26 @@
 using namespace mllm;
 
 // when set name of linear, use q8 as postfix to let mock loader load int8 data
+
 NetTensor *Attention(Context *ctx, NetTensor *i, uint32_t hidden_dim, uint32_t ffn_hidden_dim, int layer) {
     auto *q = _Linear({i}, hidden_dim, hidden_dim, false, std::to_string(layer) + "attention.q.q8");
     auto *k = _Linear({i}, hidden_dim, hidden_dim, false, std::to_string(layer) + "attention.k.q8");
     auto *v = _Linear({i}, hidden_dim, hidden_dim, false, std::to_string(layer) + "attention.v.q8");
+    // NSD
     // q = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
     // k = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
     // v = _View(ctx, {q}, {-1, 2, -1, -1}, {0, 3, 2, 3});
+    // NSHD
     q = _RoPE({q}, LLAMAROPE, std::to_string(layer) + "RoPE_q");
     k = _RoPE({k}, LLAMAROPE, std::to_string(layer) + "RoPE_k");
     k = _KVCache({k}, false, std::to_string(layer) + "KVCache_k");
     v = _KVCache({v}, false, std::to_string(layer) + "KVCache_v");
     auto *qk = _Matmul({q, k}, false, true, std::to_string(layer) + "attention.qk");
+    // NHSD
     qk = _Scale({qk}, 0.5f, 0.0F, false, std::to_string(layer) + "attention.scale");
     qk = _Causalmask({qk}, std::to_string(layer) + "mask");
     qk = _Softmax({qk}, 3, std::to_string(layer) + "softmax");
+    // NHSD
     auto *o = _Matmul({qk, v}, false, false, std::to_string(layer) + "qkv");
     // o = _View(ctx, {o}, {-1, -1, -1, -1}, {0, -1, 2, 1 + 3}, "qkv_view");
     o = _Linear({o}, hidden_dim, hidden_dim, false, std::to_string(layer) + "attention.o.q8");
@@ -145,11 +150,13 @@ NetTensor *SeperateFFNNoSiLU(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hid
 NetTensor *Linear(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim, int layer) {
     auto *i = _Input(ctx);
 
-    auto *z = _Softmax({i}, 3, "softmax0");
+
+    auto *z = _Causalmask({i}, "mask");
     auto *x = _Linear({z}, hidden_dim, ffn_hidden_dim, false, std::to_string(0) + "ffn.l1.q8");
     for (int l = 1; l <= layer; l++) {
         auto *y = _Linear({z}, hidden_dim, ffn_hidden_dim, false, std::to_string(l) + "ffn.l3.q8");
         x = _Add({x, y}, std::to_string(l) + "ffn.add");
+
     }
 
     return x;
@@ -397,6 +404,6 @@ int main(int argc, char **argv) {
     ex.setup(&net);
     ex.run(&net, {input});
     ex.perf();
-    // auto result = ex.result();
-    // result[0]->printData<float>();
+    auto result = ex.result();
+    result[0]->printData<float>();
 }

@@ -19,7 +19,8 @@ ErrorCode QNNKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
 
-    outputs[0]->reshape(1, 1, cache_size_, dimension_size_);
+    // outputs[0]->reshape(1, 1, cache_size_, dimension_size_);
+    outputs[0]->reshape(inputs[0]->shape(0), inputs[0]->shape(1), inputs[0]->shape(2), inputs[0]->shape(3));
 
     return Op::reshape(inputs, outputs);
 }

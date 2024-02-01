@@ -27,6 +27,7 @@
 #include "op/QNNCausalMask.hpp"
 #include "op/QNNLinear.hpp"
 #include "op/QNNLinearFP.hpp"
+#include "op/QNNLinearTest.hpp"
 #include "op/QNNMatmul.hpp"
 #include "op/QNNMul.hpp"
 #include "op/QNNRMSNorm.hpp"
@@ -62,8 +63,9 @@ void QNNBackend::registerOps() {
     addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
     addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
     addCreator(SOFTMAX, (QNNBackend::Creator *)(new QNNSoftMaxCreator()));
-    addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearCreator()));
+    // addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearCreator()));
     // addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearFPCreator()));
+    addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearTestCreator()));
     // addCreator(ATTENTION, (QNNBackend::Creator *)(new QNNAttentionCreator()));
     // addCreator(EMBEDDING, (QNNBackend::Creator *)(new QNNEmbeddingCreator()));
     addCreator(MUL, (QNNBackend::Creator *)(new QNNMulCreator()));
@@ -799,6 +801,7 @@ StatusCode QNNBackend::executeGraphsShared() {
         }
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numOutputTensors; i++) {
             qnnMM->registerQnnTensor(outputBuffers[i], outputs[i]);
+            QNN_DEBUG("outputBuffers: %p ", outputBuffers[i]);
         }
 
         Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
@@ -813,6 +816,10 @@ StatusCode QNNBackend::executeGraphsShared() {
                                                             nullptr);
         uint64_t t_end = mllm_time_us();
         std::cout << "QNN execution time" << (t_end - t_start) / 1000.0F << " ms" << std::endl;
+
+        for (int i=0; i<outputTensors_.size(); i++) {
+          outputTensors_[i].printData<uint32_t>();
+        }
 
         if (QNN_GRAPH_NO_ERROR != executeStatus) {
             returnStatus = StatusCode::FAILURE;

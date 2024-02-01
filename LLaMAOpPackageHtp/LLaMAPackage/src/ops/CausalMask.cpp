@@ -129,7 +129,7 @@ GraphStatus causalmaskImpl(TensorType& out_0,
   } else {
     auto in_ptr = in_0.raw_data_const();
     auto out_ptr = out_0.raw_data();
-    memcpy(out_ptr, in_ptr, b_in*h_in*w_in*d_in*2);
+    memcpy(out_ptr, in_ptr, b_in*h_in*w_in*d_in*4);
   }
 
   

@@ -111,17 +111,19 @@ GraphStatus kvcacheImpl(TensorType& out_0,
   auto [b_in, h_in, w_in, d_in] = in_0.dims();
   
   uint32_t seq_pos_ = seq_pos(0,0,0,0);
-  uint32_t hidden_dim_ = hidden_dim(0,0,0,0);
+  // uint32_t hidden_dim_ = hidden_dim(0,0,0,0);
 
-  const size_t dims[] = {b_in, h_in, seq_pos_+1, hidden_dim_};
-  out_0.set_dims(dims);
+  // const size_t dims[] = {b_in, h_in, seq_pos_+1, hidden_dim_};
+  // out_0.set_dims(dims);
+
+  // NSHD
 
   auto in_ptr = (float*)in_0.raw_data_const();
   auto out_ptr = (float*)out_0.raw_data();
 
-  out_ptr += seq_pos_ * hidden_dim_;
+  out_ptr += seq_pos_ * w_in * d_in;
 
-  memcpy(out_ptr, in_ptr, hidden_dim_ * sizeof(float));
+  memcpy(out_ptr, in_ptr, h_in * w_in * d_in * sizeof(float));
 
 
   return GraphStatus::Success;
