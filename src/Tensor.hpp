@@ -571,6 +571,7 @@ public:
     Tensor& operator-(float data);
     Tensor& operator*(float data);
     Tensor& operator/(float data);
+    Tensor& operator/(double data);
 
     /**
      * \brief Overload the operators.

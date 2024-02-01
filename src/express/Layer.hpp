@@ -123,7 +123,10 @@ protected:
 
 class Linear final : public Layer {
 public:
-    explicit Linear(std::string name) {
+    explicit Linear(int in_features, int out_features, bool bias, std::string name) {
+        param_["in_features"] = in_features;
+        param_["out_features"] = out_features;
+        param_["bias"] = (float)bias;
         init(std::move(name), OpType::LINEAR);
     }
     Tensor &operator()(Tensor &input) {
@@ -133,6 +136,7 @@ public:
 
 class SiLU final : public Layer {
 public:
+    SiLU() = default;
     SiLU(std::string name) {
         init(std::move(name), OpType::SILU);
     }
@@ -158,6 +162,16 @@ public:
         param_["hidden_size"] = hidden_size;
         param_["vocab_size"] = vocab_size;
         init(std::move(name), OpType::EMBEDDING);
+    }
+    Tensor &operator()(Tensor &input) {
+        return _1I1O_OP(input);
+    }
+};
+
+class Causalmask final : public Layer {
+public:
+    explicit Causalmask(std::string name) {
+        init(std::move(name), OpType::CAUSALMASK);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);

@@ -172,6 +172,9 @@ Tensor &Tensor::operator*(float data) {
 Tensor &Tensor::operator/(float data) {
     return binaryCompute(std::divides<float>(), "-TDdiv",  data);
 }
+Tensor &Tensor::operator/(double data) {
+    return binaryCompute(std::divides<float>(), "-TDdiv",  static_cast<float>(data));
+}
 
 template <typename Func>
 void Tensor::binaryTensorsCompute(Tensor &input0,Tensor &input1, Tensor &output, Func operation, int thread_count){
