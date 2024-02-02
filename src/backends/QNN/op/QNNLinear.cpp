@@ -86,6 +86,9 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                                          .memType = QNN_TENSORMEMTYPE_RAW,
                                                          {.clientBuf = {.data = weight_.hostPtr<void>(),
                                                                         .dataSize = (uint32_t)weight_.cntSize()}}}}});
+    // free weight host memory
+    weight_.free();
+
     // dimensions of matmul output and bias
     uint32_t dimensionsOutput[4] = {static_cast<uint32_t>(outputs[0]->batch()),
                                     static_cast<uint32_t>(outputs[0]->sequence()),
@@ -169,6 +172,9 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                                        .memType = QNN_TENSORMEMTYPE_RAW,
                                                        {.clientBuf = {.data = bias_.hostPtr<void>(),
                                                                       .dataSize = (uint32_t)bias_.cntSize()}}}}});
+    // free bias host memory
+    bias_.free();
+
     // final output
     vector<Qnn_Tensor_t> biasOutput = {{QNN_TENSOR_VERSION_1,
                                         {.v1 = {
@@ -215,10 +221,10 @@ ErrorCode QNNLinear::load(AbstructLoader &loader) {
 }
 
 ErrorCode QNNLinear::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    weight_.free();
-    if (support_bias_) {
-        bias_.free();
-    }
+    // weight_.free();
+    // if (support_bias_) {
+    //     bias_.free();
+    // }
     return Op::free(inputs, outputs);
 }
 } // namespace mllm

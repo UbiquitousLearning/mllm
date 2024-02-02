@@ -405,6 +405,6 @@ int main(int argc, char **argv) {
     ex.setup(&net);
     ex.run(&net, {input});
     ex.perf();
-    auto result = ex.result();
-    result[0]->printData<float>();
+    // auto result = ex.result();
+    // result[0]->printData<float>();
 }

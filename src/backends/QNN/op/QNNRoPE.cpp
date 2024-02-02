@@ -54,6 +54,8 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
                                          .memType = QNN_TENSORMEMTYPE_RAW,
                                          {.clientBuf = {.data = sin_.hostPtr<void>(),
                                                         .dataSize = static_cast<uint32_t>(sin_.cntSize())}}}}});
+    // free sin_
+    sin_.free();
 
     qnnBackend_->modelAddTensor(cos_.name(), // Node Name
                                 (Qnn_Tensor_t){
@@ -72,6 +74,8 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
                                          .memType = QNN_TENSORMEMTYPE_RAW,
                                          {.clientBuf = {.data = cos_.hostPtr<void>(),
                                                         .dataSize = static_cast<uint32_t>(cos_.cntSize())}}}}});
+    // free cos_
+    cos_.free();
 
     uint32_t pose_type = 2;
     vector<Qnn_Param_t> params_rope = {
