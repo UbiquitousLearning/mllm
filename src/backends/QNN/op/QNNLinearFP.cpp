@@ -65,6 +65,8 @@ ErrorCode QNNLinearFP::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
                                                          .memType = QNN_TENSORMEMTYPE_RAW,
                                                          {.clientBuf = {.data = weight_.hostPtr<void>(),
                                                                         .dataSize = (uint32_t)weight_.cntSize()}}}}});
+    // free weight
+    weight_.free();
     // output of dequantized result of weight
     vector<Qnn_Tensor_t> weightQuantOut = {{QNN_TENSOR_VERSION_1,
                                             {.v1 = {
@@ -82,7 +84,6 @@ ErrorCode QNNLinearFP::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
                                                  {.clientBuf = {.data = nullptr,
                                                                 .dataSize = 0}}}}}};
     // dequantize weight to float and matmul
-    // TODO: implement llama op for dequantize using group quantize
     graphAddNode(name() + ".dequantize", "Dequantize", {weightName}, weightQuantOut);
     // dimensions of matmul output and bias
     uint32_t dimensionsOutput[4];
@@ -146,6 +147,9 @@ ErrorCode QNNLinearFP::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
                                                        .memType = QNN_TENSORMEMTYPE_RAW,
                                                        {.clientBuf = {.data = bias_.hostPtr<void>(),
                                                                       .dataSize = (uint32_t)bias_.cntSize()}}}}});
+    // free bias
+    bias_.free();
+
     // final output
     vector<Qnn_Tensor_t> biasOutput = {{QNN_TENSOR_VERSION_1,
                                         {.v1 = {
@@ -192,10 +196,10 @@ ErrorCode QNNLinearFP::load(AbstructLoader &loader) {
 }
 
 ErrorCode QNNLinearFP::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    weight_.free();
-    if (support_bias_) {
-        bias_.free();
-    }
+    // weight_.free();
+    // if (support_bias_) {
+    //     bias_.free();
+    // }
     return Op::free(inputs, outputs);
 }
 } // namespace mllm
