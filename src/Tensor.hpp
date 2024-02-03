@@ -63,9 +63,7 @@ public:
     }
     ~Tensor() {
         if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_&& gph_.find(name_) == gph_.end()) {
-            try {
-                backend_->free(host_ptr_);
-            } catch (...) {}
+            backend_->free(host_ptr_);
             host_ptr_ = nullptr;
         }
     }

@@ -23,6 +23,7 @@ public:
         name_ = std::move(name);
         param_["type"] = type;
         backend_ = Module::backends[MLLM_CPU];
+        // std::cout<<name_<<std::endl;
         // constexpr int threadCount = 4;
         // op_ = backend_->opCreate(param_, std::move(name), threadCount);
         // op_->load(*Module::loader);
@@ -37,9 +38,15 @@ protected:
         }
 
         string next_name = "out-" + op_->name();
+        if (Tensor::gph_.find(input.name()) != Tensor::gph_.end()) {
+            Tensor::gph_[input.name()].status() = input.status();
+        }
         switch (input.status()) {
         case TENSOR_STATIC_INIT: {
             if (Tensor::gph_.find(input.name()) == Tensor::gph_.end()) {
+                Tensor::gph_[input.name()] = input;
+                Tensor::gph_[input.name()].setName(input.name());
+            }else if(input.count() !=  Tensor::gph_[input.name()].count()) {
                 Tensor::gph_[input.name()] = input;
                 Tensor::gph_[input.name()].setName(input.name());
             }
@@ -50,21 +57,29 @@ protected:
             vector<shared_ptr<Tensor>> shared_inputs{std::make_shared<Tensor>(Tensor::gph_[input.name()])};
             vector<shared_ptr<Tensor>> shared_outputs{std::make_shared<Tensor>(Tensor::gph_[next_name])};
             op_->reshape(shared_inputs, shared_outputs);
+            Tensor::gph_[input.name()] = *shared_inputs[0];
             Tensor::gph_[next_name] = *shared_outputs[0];
+            // Tensor::gph_[next_name].printShape();
             break;
         }
         case TENSOR_STATIC_SHAPED: {
+            assert(Tensor::gph_[input.name()].hostPtr<float>() != nullptr);
             vector<shared_ptr<Tensor>> shared_inputs{std::make_shared<Tensor>(Tensor::gph_[input.name()])};
             vector<shared_ptr<Tensor>> shared_outputs{std::make_shared<Tensor>(Tensor::gph_[next_name])};
             op_->setUp(shared_inputs, shared_outputs);
+            Tensor::gph_[input.name()] = *shared_inputs[0];
             Tensor::gph_[next_name] = *shared_outputs[0];
+            assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
             break;
         }
         case TENSOR_STATIC_ALLOCED: {
+            assert(Tensor::gph_[input.name()].hostPtr<float>() != nullptr);
             vector<shared_ptr<Tensor>> shared_inputs{std::make_shared<Tensor>(Tensor::gph_[input.name()])};
             vector<shared_ptr<Tensor>> shared_outputs{std::make_shared<Tensor>(Tensor::gph_[next_name])};
             op_->execute(shared_inputs, shared_outputs);
+            // Tensor::gph_[input.name()] = *shared_inputs[0];
             Tensor::gph_[next_name] = *shared_outputs[0];
+            assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
             break;
         }
         default: {
@@ -82,7 +97,17 @@ protected:
         }
 
         string next_name = "out-" + op_->name();
-        assert(input0.status() == input1.status());
+        if (Tensor::gph_.find(input0.name()) != Tensor::gph_.end()) {
+            Tensor::gph_[input0.name()].status() = input0.status();
+        }
+
+        if (Tensor::gph_.find(input1.name()) != Tensor::gph_.end()) {
+            Tensor::gph_[input1.name()].status() = input0.status();
+        }
+        if ((Tensor::gph_.find(input0.name()) != Tensor::gph_.end()) &&
+            Tensor::gph_.find(input1.name()) != Tensor::gph_.end()) {
+            assert(input0.status() == input1.status());
+        }
         switch (input0.status()) {
         case TENSOR_STATIC_INIT: {
             if (Tensor::gph_.find(input0.name()) == Tensor::gph_.end()) {
@@ -101,7 +126,10 @@ protected:
                                                      std::make_shared<Tensor>(Tensor::gph_[input1.name()])};
             vector<shared_ptr<Tensor>> shared_outputs{std::make_shared<Tensor>(Tensor::gph_[next_name])};
             op_->reshape(shared_inputs, shared_outputs);
+            Tensor::gph_[input0.name()] = *shared_inputs[0];
+            Tensor::gph_[input1.name()] = *shared_inputs[1];
             Tensor::gph_[next_name] = *shared_outputs[0];
+            // Tensor::gph_[next_name].printShape();
             break;
         }
         case TENSOR_STATIC_SHAPED: {
@@ -109,7 +137,10 @@ protected:
                                                      std::make_shared<Tensor>(Tensor::gph_[input1.name()])};
             vector<shared_ptr<Tensor>> shared_outputs{std::make_shared<Tensor>(Tensor::gph_[next_name])};
             op_->setUp(shared_inputs, shared_outputs);
+            Tensor::gph_[input0.name()] = *shared_inputs[0];
+            Tensor::gph_[input1.name()] = *shared_inputs[1];
             Tensor::gph_[next_name] = *shared_outputs[0];
+            assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
             break;
         }
         case TENSOR_STATIC_ALLOCED: {
@@ -117,7 +148,10 @@ protected:
                                                      std::make_shared<Tensor>(Tensor::gph_[input1.name()])};
             vector<shared_ptr<Tensor>> shared_outputs{std::make_shared<Tensor>(Tensor::gph_[next_name])};
             op_->execute(shared_inputs, shared_outputs);
+            // Tensor::gph_[input0.name()] = *shared_inputs[0];
+            // Tensor::gph_[input1.name()] = *shared_inputs[1];
             Tensor::gph_[next_name] = *shared_outputs[0];
+            assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
             break;
         }
         default: {

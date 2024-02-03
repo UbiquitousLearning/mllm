@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstdio>
+#include <malloc.h>
+
 namespace mllm {
 
 static inline void **align(void **ptr, size_t alignment) {
@@ -24,7 +26,9 @@ void SystemMemoryManager::alloc(void **ptr, size_t size,size_t alignment){
 }
 
 void SystemMemoryManager::free(void *ptr){
-    ::free(((void**)ptr)[-1]);
+    if (ptr != nullptr && malloc_usable_size(((void**)ptr)[-1]) > 0) {
+        ::free(((void**)ptr)[-1]);
+    }
 }
 
 } // namespace mllm
