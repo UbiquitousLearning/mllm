@@ -39,6 +39,10 @@ public:
         loader = new ParamLoader(std::move(path));
     }
 
+    void load(string path) {
+        initLoader(path);
+    }
+
     virtual vector<Tensor> Forward(vector<Tensor> inputs) = 0;
 
     vector<Tensor> operator()(vector<Tensor> inputs) {
