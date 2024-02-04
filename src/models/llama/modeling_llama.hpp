@@ -1,5 +1,5 @@
 //
-// Created by 30500 on 2024/2/4 0004.
+// Created by Rongjie Yi on 2024/2/4 0004.
 //
 
 #ifndef MODELING_LLAMA_HPP
@@ -8,43 +8,9 @@
 
 #include "Layer.hpp"
 #include "Module.hpp"
+#include "configuration_llama.hpp"
 
 using namespace mllm;
-
-class LLaMAConfig {
-public:
-    int vocab_size = 32000;
-    int hidden_dim = 4096;
-    int head_size = 32;
-    int attn_hidden_dim = hidden_dim/head_size;
-    int mlp_hidden = 11008;
-    int block_num = 32;
-
-    RoPEType RoPE_type = RoPEType::LLAMAROPE;
-
-    static int cache_limit;
-
-    std::string base_name = "layers."+std::to_string(Module::listIdx)+ ".";
-    std::string attn_base_name = base_name+ "attention.";
-    std::string ffn_base_name = base_name+ "feed_forward.";
-    std::string q_proj_name = attn_base_name+"wq";
-    std::string k_proj_name = attn_base_name+"wk";
-    std::string v_proj_name = attn_base_name+"wv";
-    std::string o_proj_name = attn_base_name+"wo";
-    std::string gate_proj_name = ffn_base_name+"w1";
-    std::string up_proj_name = ffn_base_name+"w3";
-    std::string down_proj_name = ffn_base_name+"w2";
-    std::string attn_norm_name =  base_name+"attention_norm";
-    std::string ffn_norm_name = base_name+"ffn_norm";
-    std::string token_embd_name = "tok_embeddings";
-    std::string post_norm_name = "norm";
-    std::string lm_head_name = "output";
-
-    static void init(int token_limit) {
-        cache_limit = token_limit;
-    }
-};
-int LLaMAConfig::cache_limit = 200;
 
 class LLaMAAttention final: public Module, public LLaMAConfig {
     Linear q_proj = Linear(hidden_dim, head_size*attn_hidden_dim, false, q_proj_name);

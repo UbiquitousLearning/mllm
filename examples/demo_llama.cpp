@@ -3,8 +3,6 @@
 //
 
 #include <iostream>
-#include <valarray>
-#include <csignal>
 #include "cmdline.h"
 #include "models/llama/modeling_llama.hpp"
 #include "models/llama/tokenization_llama.hpp"
@@ -25,11 +23,10 @@ int main(int argc, char **argv) {
     int tokens_limit = cmdParser.get<int>("limits");
     int thread_num = cmdParser.get<int>("thread");
 
-    Module::initBackend(MLLM_CPU);
-    LLaMAConfig::init(tokens_limit);
-
     auto tokenizer = LLaMATokenizer(vocab_path);
 
+    Module::initBackend(MLLM_CPU);
+    LLaMAConfig::init(tokens_limit, 7, LLAMAROPE);
     auto model = LLaMAModel();
     model.load(model_path);
 
