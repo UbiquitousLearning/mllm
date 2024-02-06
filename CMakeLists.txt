@@ -343,6 +343,16 @@ if (APK)
 
 endif ()
 
+add_executable(qnn_opt ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_opt.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp
+)
+if(QNN)
+    target_link_libraries(qnn_opt MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
+endif()
+
 if(QNN)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
     add_definitions(-DQNN_ENABLED)
