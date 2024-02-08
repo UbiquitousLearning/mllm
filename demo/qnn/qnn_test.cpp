@@ -24,8 +24,8 @@ NetTensor *Attention(Context *ctx, NetTensor *i, uint32_t hidden_dim, uint32_t f
     // NSHD
     q = _RoPE({q}, LLAMAROPE, std::to_string(layer) + "RoPE_q");
     k = _RoPE({k}, LLAMAROPE, std::to_string(layer) + "RoPE_k");
-    k = _KVCache({k}, false, std::to_string(layer) + "KVCache_k");
-    v = _KVCache({v}, false, std::to_string(layer) + "KVCache_v");
+    k = _KVCache({k}, 1, std::to_string(layer) + "KVCache_k");
+    v = _KVCache({v}, 1, std::to_string(layer) + "KVCache_v");
     auto *qk = _Matmul({q, k}, false, true, std::to_string(layer) + "attention.qk");
     // NHSD
     qk = _Scale({qk}, 0.5f, 0.0F, false, std::to_string(layer) + "attention.scale");
@@ -69,7 +69,7 @@ void LLaMA(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim) {
 
     i = _RoPE({i}, RoPEType::LLAMAROPE, "RoPE_0");
     i = _Softmax({i}, 3, "softmax0");
-    for (int layer = 0; layer < 1; ++layer) {
+    for (int layer = 0; layer < 8; ++layer) {
         i = _RMSNorm({i}, hidden_dim, 1e-6, std::to_string(layer) + "RMSNorm");
         i = Attention(ctx, i, hidden_dim, ffn_hidden_dim, layer);
         i = FFN(ctx, i, hidden_dim, ffn_hidden_dim, layer);
@@ -203,8 +203,8 @@ void SeperateAttention(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_di
         v = v->view(-1, 32, -1,  hidden_dim / 32);
         q = _RoPE({q}, LLAMAROPE, std::to_string(l) + "RoPE_q");
         k = _RoPE({k}, LLAMAROPE, std::to_string(l) + "RoPE_k");
-        k = _KVCache({k}, false, std::to_string(l) + "KVCache_k");
-        v = _KVCache({v}, false, std::to_string(l) + "KVCache_v");
+        k = _KVCache({k}, 1, std::to_string(l) + "KVCache_k");
+        v = _KVCache({v}, 1, std::to_string(l) + "KVCache_v");
         auto *qk = _Matmul({q, k}, false, true, std::to_string(l) + "attention.qk");
         qk = _Scale({qk}, 0.5f, 0.0F, false, std::to_string(l) + "attention.scale");
         qk = _Causalmask({qk}, std::to_string(l) + "mask");
@@ -212,6 +212,7 @@ void SeperateAttention(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_di
 
         o = _Matmul({qk, v}, false, false, std::to_string(l) + "qkv");
         o = o->view(-1, 1, -1, hidden_dim);
+        o = _Linear({o}, hidden_dim, hidden_dim, false, std::to_string(l) + "attention.o.q8");
     }
 
     // return o;
