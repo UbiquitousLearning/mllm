@@ -1,5 +1,5 @@
 
-#include "QNNLinear.hpp"
+#include "QNNLinearINT8.hpp"
 #include "QnnTypes.h"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
@@ -7,13 +7,13 @@
 #include <memory>
 
 namespace mllm {
-QNNLinear::QNNLinear(Backend *bn, string opName, int in_features, int out_features, bool bias) :
+QNNLinearINT8::QNNLinearINT8(Backend *bn, string opName, int in_features, int out_features, bool bias) :
     QNNCommonOp(bn, opName), in_features_(in_features), out_features_(out_features), support_bias_(bias) {
     weight_.setBackend(bn);
     bias_.setBackend(bn);
 }
 
-ErrorCode QNNLinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+ErrorCode QNNLinearINT8::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
     // N     |    C       |   H                   |  W
@@ -32,7 +32,7 @@ ErrorCode QNNLinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     return Op::reshape(inputs, outputs);
 }
 
-ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // add matmul param to qnn
     vector<Qnn_Param_t> paramsMatmul = {
         {.paramType = QNN_PARAMTYPE_SCALAR,
@@ -131,7 +131,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     return graphAddNode(name(), "MatMul", {inputs[0]->name(), weight_.name(), bias_.name()}, biasOutput, paramsMatmul);
 }
 
-ErrorCode QNNLinear::load(AbstructLoader &loader) {
+ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, out_features_, in_features_);
     if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
@@ -157,7 +157,7 @@ ErrorCode QNNLinear::load(AbstructLoader &loader) {
     return Op::load(loader);
 }
 
-ErrorCode QNNLinear::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+ErrorCode QNNLinearINT8::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // weight_.free();
     // if (support_bias_) {
     //     bias_.free();

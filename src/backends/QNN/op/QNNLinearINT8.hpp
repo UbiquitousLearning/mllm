@@ -1,13 +1,13 @@
 
-#ifndef MLLM_QNNLINEAR_H
-#define MLLM_QNNLINEAR_H
+#ifndef MLLM_QNNLINEARINT8_H
+#define MLLM_QNNLINEARINT8_H
 
 #include "QNNCommonOp.hpp"
 namespace mllm {
-class QNNLinear : public QNNCommonOp {
+class QNNLinearINT8 : public QNNCommonOp {
 public:
-    QNNLinear(Backend *bn, string opName, int in_features, int out_features, bool bias);
-    virtual ~QNNLinear() = default;
+    QNNLinearINT8(Backend *bn, string opName, int in_features, int out_features, bool bias);
+    virtual ~QNNLinearINT8() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -21,13 +21,13 @@ private:
     Tensor bias_;
 };
 
-class QNNLinearCreator : public QNNBackend::Creator {
+class QNNLinearINT8Creator : public QNNBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
         int in_features = op_param["in_features"];
         int out_features = op_param["out_features"];
         int bias = op_param["bias"];
-        return new QNNLinear(bn, name, in_features, out_features, (bool)bias);
+        return new QNNLinearINT8(bn, name, in_features, out_features, (bool)bias);
     }
 };
 
