@@ -101,11 +101,11 @@ ErrorCode QNNScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
               {.clientBuf = {.data = nullptr,
                              .dataSize = 0}}}}}};
     if (bias_after_scale_) {
-        graphAddNode(name(), "ElementWiseMultiply", {inputs[0]->name(), scaleName}, intermediateOutput);
+        graphAddNode(name(), "LLaMAMul", {inputs[0]->name(), scaleName}, intermediateOutput, {}, "LLaMAPackage");
         return graphAddNode(name(), "ElementWiseAdd", {interName, biasName}, outputTensors);
     } else {
         graphAddNode(name(), "ElementWiseAdd", {inputs[0]->name(), biasName}, intermediateOutput);
-        return graphAddNode(name(), "ElementWiseMultiply", {interName, scaleName}, outputTensors);
+        return graphAddNode(name(), "LLaMAMul", {interName, scaleName}, outputTensors, {}, "LLaMAPackage");
     }
 }
 } // namespace mllm
