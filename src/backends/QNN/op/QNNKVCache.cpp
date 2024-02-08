@@ -20,21 +20,21 @@ ErrorCode QNNKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     assert(outputs.size() == 1);
 
     // outputs[0]->reshape(1, 1, cache_size_, dimension_size_);
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->sequence(), inputs[0]->head(), inputs[0]->dimension());
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
 
     return Op::reshape(inputs, outputs);
 }
 
 ErrorCode QNNKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {  
-    qnnBackend_->pushInputBuffers(seq_pos_.hostPtr<uint8_t>());
+    // qnnBackend_->pushInputBuffers(seq_pos_.hostPtr<uint8_t>());
 
-    outputs[0]->setDtype(MLLM_TYPE_F32);
-    outputs[0]->setBackend(qnnBackend_);
-    outputs[0]->alloc();
+    // outputs[0]->setDtype(MLLM_TYPE_F32);
+    // outputs[0]->setBackend(qnnBackend_);
+    // outputs[0]->alloc();
 
     // output for net shape and QNN name index
     // cache_ for QNN shared buffer storage
-    qnnBackend_->pushOutputBuffers(outputs[0]->hostPtr<uint8_t>());
+    // qnnBackend_->pushOutputBuffers(outputs[0]->hostPtr<uint8_t>());
 
     vector<Qnn_Param_t> paramsKVCache = {
         {.paramType = QNN_PARAMTYPE_SCALAR,
@@ -49,7 +49,7 @@ ErrorCode QNNKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
                                                      {.v1 = {
                                                           .id = 0,
                                                           .name = seq_pos_.name().c_str(),
-                                                          .type = QNN_TENSOR_TYPE_APP_WRITE,
+                                                          .type = QNN_TENSOR_TYPE_STATIC,
                                                           .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                                           .dataType = QNN_DATATYPE_UINT_32,
                                                           .quantizeParams = {QNN_DEFINITION_UNDEFINED,
@@ -58,8 +58,8 @@ ErrorCode QNNKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
                                                           .rank = 4,
                                                           .dimensions = dimensionsSeq,
                                                           .memType = QNN_TENSORMEMTYPE_RAW,
-                                                          {.clientBuf = {.data = nullptr,
-                                                                         .dataSize = 0}}}}});
+                                                          {.clientBuf = {.data = seq_pos_.hostPtr<uint8_t>(),
+                                                                         .dataSize = 4}}}}});
 
     // add cache output tensor to qnn
     uint32_t dimensionsCache[4] = {static_cast<uint32_t>(outputs[0]->batch()),
@@ -72,7 +72,7 @@ ErrorCode QNNKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
                                             {.v1 = {
                                                  .id = 0,
                                                  .name = outName.c_str(),
-                                                 .type = QNN_TENSOR_TYPE_APP_READ,
+                                                 .type = QNN_TENSOR_TYPE_NATIVE,
                                                  .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                                  .dataType = QNN_DATATYPE_FLOAT_32,
                                                  .quantizeParams = {QNN_DEFINITION_UNDEFINED,
