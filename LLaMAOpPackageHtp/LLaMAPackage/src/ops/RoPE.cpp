@@ -269,19 +269,19 @@ GraphStatus ropeImpl(TensorType& out_0,
     cos_ptr += d_in * h_cnt_;
 
 
-    
+    // NSHD
     for (Idx b = 0; b < b_in; b++) {
       for (Idx h = 0; h < h_in; h++) {
 
-        for (Idx w = 0; w < w_in; w++) {
+        // for (Idx w = 0; w < w_in; w++) {
           // RoPE
           
 
-          hvx_rope_af(in_ptr, sin_ptr, cos_ptr, out_ptr, d_in);
+          hvx_rope_af(in_ptr, sin_ptr, cos_ptr, out_ptr, d_in * w_in);
         
-          in_ptr += d_in;
-          out_ptr += d_in;
-        }
+          in_ptr += d_in * w_in;
+          out_ptr += d_in * w_in;
+        // }
 
         sin_ptr += d_in;
         cos_ptr += d_in;
