@@ -14,6 +14,7 @@ enum OpType {
     SOFTMAX,
     SILU,
     MATMUL,
+    MATMULINT8
     SCALE,
     ROPE,
     RMSNORM,
@@ -44,6 +45,7 @@ enum OpType {
     RANGE,
     WHERE,
     REPLACE,
+    WNOP,
     OP_NUM
 };
 
@@ -84,6 +86,7 @@ static const vector<string> OpNames = {
     "Range",
     "Where",
     "Replace",
+    "WNop",
     "OP_NUM"};
 } // namespace mllm
 #endif

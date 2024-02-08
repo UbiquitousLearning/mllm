@@ -4,8 +4,8 @@
 #include "Timing.hpp"
 #include "Types.hpp"
 #include "cmdline.h"
-#include "Net.hpp"
-#include "Executor.hpp"
+#include "backends/QNN/QNNNet.hpp"
+#include "backends/QNN/QNNExecutor.hpp"
 #include "express/Express.hpp"
 #include "MockLoader.hpp"
 
@@ -391,12 +391,12 @@ int main(int argc, char **argv) {
     // }
 
     BackendConfig bn;
-    Net net(bn);
+    QNNNet net(bn);
     net.convert(c->sub_param_, MLLM_QNN);
     std::cout << "convert done" << std::endl;
 
     MockLoader loader("");
-    Executor ex(&loader);
+    QNNExecutor ex(&loader);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
 
     // 1 batch seqence length embedding

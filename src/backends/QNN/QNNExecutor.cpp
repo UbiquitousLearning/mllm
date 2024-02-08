@@ -1,16 +1,22 @@
 #include <csignal>
 #include "Timing.hpp"
-#include "Executor.hpp"
+#include "QNNExecutor.hpp"
 
 namespace mllm {
-void Executor::setup(Net *net) {
+void QNNExecutor::setup(Net *net) {
     mllm_time_init();
 
     uint64_t time_start = mllm_time_us();
     uint64_t time_end;
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        string name = "G" + std::to_string(i);
+        string name;
+        if (executionType_ == PROMPT) {
+            name = "Prompt_Graph." + std::to_string(i);
+        } else if (executionType_ == AUTOREGRESSIVE) {
+            name = "Autoregressive_Graph." + std::to_string(i);
+        }
+            
         auto &g = net->subGraph()[name];
 
         g->setUpOps(*data_loader_);
@@ -22,7 +28,7 @@ void Executor::setup(Net *net) {
     }
 }
 
-void Executor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
+void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     bool init = false;
     bool reshape = false;
 
@@ -39,14 +45,20 @@ void Executor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
             flashGid.push_back(net->inGmap()[input_name]);
         }
     }
+    string typeName;
+    if (executionType_ == PROMPT) {
+        typeName = "Prompt_Graph.";
+    } else if (executionType_ == AUTOREGRESSIVE) {
+        typeName = "Autoregressive_Graph.";
+    }
     for (auto Gid : flashGid) {
-        net->subGraph()["G" + std::to_string(Gid)]->reflashInput(net->tensors());
+        net->subGraph()[typeName + std::to_string(Gid)]->reflashInput(net->tensors());
     }
 
     auto ex_time_start = mllm_time_us();
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        string name = "G" + std::to_string(i);
+        string name = typeName + std::to_string(i);
         auto &g = net->subGraph()[name];
 
         g->reshape();
@@ -70,7 +82,7 @@ void Executor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
 }
 
 // #define DYNAMIC
-void Executor::execute(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
+void QNNExecutor::execute(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     bool init = false;
     bool reshape = false;
     // TODO: when reshape begin
@@ -91,12 +103,20 @@ void Executor::execute(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
             flashGid.push_back(net->inGmap()[input_name]);
         }
     }
+
+    string typeName;
+    if (executionType_ == PROMPT) {
+        typeName = "Prompt_Graph.";
+    } else if (executionType_ == AUTOREGRESSIVE) {
+        typeName = "Autoregressive_Graph.";
+    }
+
     for (auto Gid : flashGid) {
-        net->subGraph()["G" + std::to_string(Gid)]->reflashInput(net->tensors());
+        net->subGraph()[typeName + std::to_string(Gid)]->reflashInput(net->tensors());
     }
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        string name = "G" + std::to_string(i);
+        string name = typeName + std::to_string(i);
         auto &g = net->subGraph()[name];
         if (init || reshape) {
             g->reshape();
@@ -117,7 +137,7 @@ void Executor::execute(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     float exe_time = 0;
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        string name = "G" + std::to_string(i);
+        string name = typeName + std::to_string(i);
         auto &g = net->subGraph()[name];
 #endif
 
