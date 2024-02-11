@@ -97,6 +97,11 @@ enum RoPEType {
     HFHUBROPE = 4,
 };
 
+enum QNNExecutionType {
+    PROMPT = 0,
+    AUTOREGRESSIVE = 1,
+};
+
 /*
  * This code is based on ggml(https://github.com/ggerganov/ggml),
  * please see https://github.com/ggerganov/ggml/blob/master/src/ggml.c
