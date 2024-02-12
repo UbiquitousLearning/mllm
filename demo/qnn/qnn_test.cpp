@@ -392,7 +392,7 @@ int main(int argc, char **argv) {
     // }
 
     BackendConfig bn;
-    QNNNet net(bn);
+    QNNNet net(bn, c);
     net.convert(c->sub_param_, MLLM_QNN);
     std::cout << "convert done" << std::endl;
 
