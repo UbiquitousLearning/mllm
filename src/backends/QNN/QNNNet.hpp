@@ -7,7 +7,7 @@
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include "Net.hpp"
-#include "ExpressBase.hpp"
+#include "express/ExpressBase.hpp"
 
 namespace mllm {
 class QNNNet : public Net {
@@ -44,7 +44,7 @@ public:
 
 private:
 
-    void build_new_graph(NetOp *op);
+    void build_new_graph(std::vector<NetTensor *> inputs, NetOp *op);
 
     /*
      * Net variables
@@ -60,7 +60,6 @@ private:
     Context *ctx_;
     std::string Quantizationtype = "Smoothquant";
     
-    "k-quant"
 
 };
 

@@ -14,7 +14,7 @@ enum OpType {
     SOFTMAX,
     SILU,
     MATMUL,
-    MATMULINT8
+    MATMULINT8,
     SCALE,
     ROPE,
     RMSNORM,

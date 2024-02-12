@@ -2,7 +2,7 @@
 #include "Op.hpp"
 #include "Types.hpp"
 #include "Backend.hpp"
-#include "Express.hpp"
+#include "express/Express.hpp"
 #include <vector>
 
 namespace mllm {
@@ -11,12 +11,12 @@ QNNNet::QNNNet(BackendConfig config, Context *ctx) : Net(config) {
     ctx_ = ctx;
 }
 
-void QNNNet::build_new_graph(NetOp *op) {
+void QNNNet::build_new_graph(std::vector<NetTensor *> inputs, NetOp *op) {
 
     auto opType = op->type;
     switch(opType) {
         case MATMUL:
-            _Matmul(std::vector<NetTensor *> inputs,  bool transpose0, bool transpose1, string name = "");
+            _Matmul(inputs,  (bool)op->param["transpose0"], (bool)op->param["transpose1"], op->name + "CPU_ds");
             break;
         
         
@@ -30,6 +30,8 @@ void QNNNet::build_new_graph(NetOp *op) {
 
 // QNN dynamic shape use
 void QNNNet::convert(vector<NetParameter> &param, BackendType backend_type, int threadCount) {
+
+    // Quantization type =>  QNNOps selection.
 
     // before generating a correct graph, we first split them for QNN dynamic shape.
     // In QNN scenario, we will build at least three types of graph
@@ -64,11 +66,20 @@ void QNNNet::convert(vector<NetParameter> &param, BackendType backend_type, int 
             int opBegin = splitPositions[dop_i];
             int opEnd = splitPositions[dop_i + 1];
 
-            // build new graph.
+            // 1.build new graph.
+            //  1) add WNOP to CPU graph.
 
-            // delete ops in existing graph and add WNOP.
 
-            // connect tensors in different graphs.
+            //  2) build CPU graph
+            //      matmul in BSHD => matmul output BSHD.
+            //      directly connect CPU and QNN graph. 
+
+
+
+
+            // 2.delete ops in existing graph and add WNOP.
+
+            // 3.connect tensors in different graphs.
 
         }
 
