@@ -733,6 +733,16 @@ public:
         }
         aggregated_tensors_ = ts;
     }
+    bool aggregated() const {
+        return aggregated_;
+    }
+
+    vector<shared_ptr<Tensor>>& aggregated_tensors() {
+        return aggregated_tensors_;
+    }
+    Chl aggregated_dim() const {
+        return aggregated_dim_;
+    }
 
     /* Functions used for 5-D Tensor:
      * - reshape

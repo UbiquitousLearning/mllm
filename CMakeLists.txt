@@ -319,17 +319,30 @@ endif ()
 
 
 
-add_executable(demo_llama ${PROJECT_SOURCE_DIR}/examples/demo_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+add_executable(demo_llama ${PROJECT_SOURCE_DIR}/examples/demo_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
         src/tokenizers/Tokenizer.cpp
-        src/tokenizers/Tokenizer.hpp
         src/tokenizers/BPE/Bpe.cpp
-        src/tokenizers/BPE/Bpe.hpp
 )
 if (ARM AND NOT APK)
     target_compile_options(demo_llama PRIVATE -fopenmp)
     target_link_libraries(demo_llama PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
     target_link_libraries(demo_llama MLLM_CPU)
+endif ()
+
+
+
+add_executable(demo_fuyu ${PROJECT_SOURCE_DIR}/examples/demo_fuyu.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Unigram/Unigram.cpp
+        src/processor/FuyuPreProcess.cpp
+        src/processor/PreProcess.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_fuyu PRIVATE -fopenmp)
+    target_link_libraries(demo_fuyu PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_fuyu MLLM_CPU)
 endif ()
 
 if (APK)

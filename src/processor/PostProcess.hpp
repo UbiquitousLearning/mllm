@@ -4,7 +4,7 @@
 
 #ifndef POSTPROCESS_HPP
 #define POSTPROCESS_HPP
-
+#include <Tensor.hpp>
 
 namespace mllm {
 inline void chatPostProcessing(unsigned token_idx, Tensor &tokens_tensor, const vector<Tensor *>& clean_tensors) {

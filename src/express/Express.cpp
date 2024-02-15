@@ -534,7 +534,7 @@ NetTensor *_LayerNorm(std::vector<NetTensor *> inputs, int norm_size, bool bias,
 vector<NetTensor *> _Split(std::vector<NetTensor *> inputs, int split_num, Chl split_dim, int split_dim_size, string name){
     Context *ctx = inputs[0]->ctx;
     if (name.empty()) {
-        name = "LayerNorm" + std::to_string(ctx->idx);
+        name = "Split" + std::to_string(ctx->idx);
     }
     auto sub_param = get_active_subgraph(ctx);
     _NEW_OP(mllm::SPLIT)

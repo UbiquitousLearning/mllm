@@ -49,9 +49,9 @@ public:
     static std::string post_norm_name;
     static std::string lm_head_name ;
 
-    static void init(int token_limit, int billions=7, RoPEType type = LLAMAROPE) {
+    static void init(int token_limit, int billions=7, RoPEType type = LLAMAROPE, int vocab=32000) {
         if(billions == 7) {
-            vocab_size = 32000;
+            vocab_size = vocab;
             hidden_dim = 4096;
             head_size = 32;
             mlp_hidden = 11008;
