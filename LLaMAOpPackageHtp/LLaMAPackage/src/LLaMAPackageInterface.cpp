@@ -19,21 +19,22 @@ BEGIN_PKG_OPS_OPTS_LIST()
  *  registered to the HTP Core.
  *  Append the latest OpName at the bottom
  */
-DECLARE_PKG_OPS_OPTS_LIST(PKG_KVCache)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_RMSNorm)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAMul)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_HeadMatmul)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_SiLU)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_CausalMask)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_Attention)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_WNop)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_RoPE)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAMul)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_CausalMask)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_KVCache)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_HeadMatmul)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_Attention)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_SiLU)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_RMSNorm)
 
 END_PKG_OPS_OPTS_LIST()
 
 // op package info
 static constexpr auto sg_packageName = THIS_PKG_NAME_STR;  // package name passed in as compile flag
 
-static std::array<const char*, 8> sg_opNames{{"KVCache", "RMSNorm", "LLaMAMul", "HeadMatmul", "SiLU", "CausalMask", "Attention", "RoPE"}};
+static std::array<const char*, 9> sg_opNames{{"WNop", "RoPE", "LLaMAMul", "CausalMask", "KVCache", "HeadMatmul", "Attention", "SiLU", "RMSNorm"}};
 
 static Qnn_ApiVersion_t sg_sdkApiVersion  = QNN_HTP_API_VERSION_INIT;
 static QnnOpPackage_Info_t sg_packageInfo = QNN_OP_PACKAGE_INFO_INIT;
@@ -217,13 +218,13 @@ Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
      * Check if op config type matches any registered ops
      * If a match is found, check number of inputs, outputs and params
      */
-    if (std::string(opConfig.v1.typeName) == "KVCache"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
+    if (std::string(opConfig.v1.typeName) == "WNop"){
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 2){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }
-    else if (std::string(opConfig.v1.typeName) == "RMSNorm"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
+    else if (std::string(opConfig.v1.typeName) == "RoPE"){
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }
@@ -232,18 +233,18 @@ Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }
-    else if (std::string(opConfig.v1.typeName) == "HeadMatmul"){
-        if (opConfig.v1.numOfParams != 2 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
-        }
-    }
-    else if (std::string(opConfig.v1.typeName) == "SiLU"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
-        }
-    }
     else if (std::string(opConfig.v1.typeName) == "CausalMask"){
         if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1){
+          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    }
+    else if (std::string(opConfig.v1.typeName) == "KVCache"){
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
+          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    }
+    else if (std::string(opConfig.v1.typeName) == "HeadMatmul"){
+        if (opConfig.v1.numOfParams != 2 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }
@@ -252,8 +253,13 @@ Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }
-    else if (std::string(opConfig.v1.typeName) == "RoPE"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1){
+    else if (std::string(opConfig.v1.typeName) == "SiLU"){
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1){
+          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    }
+    else if (std::string(opConfig.v1.typeName) == "RMSNorm"){
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }

@@ -37,6 +37,7 @@
 #include "op/QNNSoftMax.hpp"
 #include "op/QNNView.hpp"
 #include "op/QNNKVCache.hpp"
+#include "op/QNNWNop.hpp"
 
 #define DEBUGPRINT
 #ifdef DEBUGPRINT
@@ -71,6 +72,7 @@ void QNNBackend::registerOps() {
     addCreator(MUL, (QNNBackend::Creator *)(new QNNMulCreator()));
     addCreator(VIEW, (QNNBackend::Creator *)(new QNNViewCreator()));
     addCreator(KVCACHE, (QNNBackend::Creator *)(new QNNKVCacheCreator()));
+    addCreator(WNOP, (QNNBackend::Creator *)(new QNNWNopCreator()));
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :

@@ -44,6 +44,8 @@ void QNNNet::convert(vector<NetParameter> &param, BackendType backend_type, int 
         auto &sub_param = param[ii];
         vector<NetOp *> ops = sub_param.net_ops;
         
+        std::cout << "QNN net convert" << std::endl;
+
         vector<int> splitPositions;
         for (int op_i = 0; op_i < ops.size(); op_i++ ) {
 
@@ -58,28 +60,43 @@ void QNNNet::convert(vector<NetParameter> &param, BackendType backend_type, int 
             exit(-1);
         }
 
-        _SubgraphBegin(ctx_);
-        auto new_sub_param = get_active_subgraph(ctx_);
+        std::cout << "QNN split point size" << splitPositions.size() << std::endl;
+
+        // _SubgraphBegin(ctx_);
+        // auto new_sub_param = get_active_subgraph(ctx_);
 
         // merge all dynamic shape ops to a CPU graph.
-        for (int dop_i; dop_i < splitPositions.size(); dop_i+=2) {
+        for (int dop_i = 0; dop_i < splitPositions.size(); dop_i+=2) {
             int opBegin = splitPositions[dop_i];
             int opEnd = splitPositions[dop_i + 1];
 
-            // 1.build new graph.
-            //  1) add WNOP to CPU graph.
+            // Add WNOP to QNN graph.
+            // All CPU ops execute in QNNOp execution function.
+            NetOp* beginOp = ops[opBegin];
+            for (int in_i = 0; in_i < beginOp->in.size(); in_i++ ) {
+                NetTensor* in_tensor = beginOp->in[in_i];
+                auto * wnop = _WNop({in_tensor}, 0, beginOp->name + "WNop" + std::to_string(in_i));
+                beginOp->in[in_i] = wnop;
+                std::cout << "WNop QNN -> CPU" << std::endl;
+            }
 
+            NetOp* endOp = ops[opEnd];
+            for (int out_i = 0; out_i < endOp->out.size(); out_i++ ) {
+                NetTensor* out_tensor = endOp->out[out_i];
+                auto * wnop = _WNop({out_tensor}, 1, endOp->name + "WNop" + std::to_string(out_i));
 
-            //  2) build CPU graph
-            //      matmul in BSHD => matmul output BSHD.
-            //      directly connect CPU and QNN graph. 
+                // replace all the related
+                for (auto op : ops) {
+                    auto iter = std::find(op->in.begin(), op->in.end(), out_tensor);
+                    if ( iter != op->in.end() && op->type != WNOP) {
+                        *iter = wnop;
+                    }
 
+                    std::cout << "WNop CPU -> QNN" << std::endl;
+                }
 
-
-
-            // 2.delete ops in existing graph and add WNOP.
-
-            // 3.connect tensors in different graphs.
+                
+            }
 
         }
 

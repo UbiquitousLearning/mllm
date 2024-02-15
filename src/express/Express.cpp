@@ -745,6 +745,25 @@ NetTensor *_Replace(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+
+NetTensor *_WNop(std::vector<NetTensor *> inputs, int sync_type, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "WNop" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::WNOP)
+    net_op_->param["sync_type"] = (float)sync_type;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }
