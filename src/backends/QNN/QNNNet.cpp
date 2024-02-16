@@ -81,21 +81,33 @@ void QNNNet::convert(vector<NetParameter> &param, BackendType backend_type, int 
             }
 
             NetOp* endOp = ops[opEnd];
-            for (int out_i = 0; out_i < endOp->out.size(); out_i++ ) {
-                NetTensor* out_tensor = endOp->out[out_i];
-                auto * wnop = _WNop({out_tensor}, 1, endOp->name + "WNop" + std::to_string(out_i));
+            std::cout << "End op type" << endOp->type << std::endl;
+            std::cout << "End op out size" << endOp->out.size() << std::endl;
 
-                // replace all the related
-                for (auto op : ops) {
-                    auto iter = std::find(op->in.begin(), op->in.end(), out_tensor);
-                    if ( iter != op->in.end() && op->type != WNOP) {
-                        *iter = wnop;
+            vector<NetTensor *> tensors = sub_param.net_tensors;
+
+            for (auto tensor_i : tensors) {
+
+                // tensor_i is the out tensor
+                if (tensor_i->in == endOp) {
+
+                    for (auto op : ops) {
+
+                        auto iter = std::find(op->in.begin(), op->in.end(), tensor_i);
+                        if ( iter != op->in.end() && op->type != WNOP) {
+
+                            auto * wnop = _WNop({tensor_i}, 1, endOp->name + "WNop" + std::to_string(iter - op->in.begin()));
+                            *iter = wnop;
+
+                            // replace all the related
+                            std::cout << "WNop CPU -> QNN" << std::endl;
+
+                        }
+
                     }
 
-                    std::cout << "WNop CPU -> QNN" << std::endl;
-                }
 
-                
+                }
             }
 
         }
