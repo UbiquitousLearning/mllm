@@ -144,6 +144,8 @@ void QNNExecutor::execute(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
         g->reshape();
         g->setUpTensors();
 
+        std::cout << "QNNGraph forward begin" << std::endl;
+
         result_ = g->forward();
 
         // free

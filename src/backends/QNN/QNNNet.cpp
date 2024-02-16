@@ -4,6 +4,7 @@
 #include "Backend.hpp"
 #include "express/Express.hpp"
 #include <vector>
+#include "backends/QNN/QNNGraph.hpp"
 
 namespace mllm {
 
@@ -146,7 +147,7 @@ void QNNNet::convert(vector<NetParameter> &param, BackendType backend_type, int 
     for (int i = 0; i < (int)param.size(); ++i) {
         param[i].topologySort();
         shared_ptr<Graph> subg_1;
-        subg_1.reset(new Graph( param[i], backends_[backend_type].get(), tensors_, threadCount));
+        subg_1.reset(new QNNGraph( param[i], backends_[backend_type].get(), tensors_, threadCount));
         subGraphs_["Prompt_Graph." + std::to_string(i)] = subg_1;
     }
 }
