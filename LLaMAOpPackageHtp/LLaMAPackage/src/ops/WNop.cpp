@@ -114,7 +114,6 @@ GraphStatus wnopImpl(TensorType& out_0,
 
   out_0.set_dims(in_0);
   
-  auto sync_var_ = sync_var(0,0,0,0);
   auto sync_type_ = sync_type(0,0,0,0);
 
 
@@ -130,11 +129,11 @@ GraphStatus wnopImpl(TensorType& out_0,
 
     memcpy(out_ptr, in_ptr, b_in * h_in * w_in * d_in * sizeof(float));
 
-    sync_var_ = 1;
+    sync_var(0,0,0,0) = 1;
 
   } else if (sync_type_ == 1) {
 
-    while (sync_var_ != 1) {
+    while (sync_var(0,0,0,0) == 0) {
 
       Q6_V_vzero();
 

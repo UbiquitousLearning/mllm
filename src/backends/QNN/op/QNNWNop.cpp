@@ -22,15 +22,13 @@ ErrorCode QNNWNop::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     // sync logic.
     if (sync_type_ == 0) {
 
-        while (syncVar_.dataAt<uint32_t>(0, 0, 0, 0) != 0) {
+        while (syncVar_.dataAt<uint32_t>(0, 0, 0, 0) == 0) {
             usleep(100);
         }
 
     } else if (sync_type_ == 1) {
         syncVar_.setDataAt<uint32_t>(0, 0, 0, 0, 1);
     }
-
-    std::cout << "sync now." << std::endl;
 
     return Op::execute(inputs, outputs);
 }
