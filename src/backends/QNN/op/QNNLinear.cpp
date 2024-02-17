@@ -54,6 +54,9 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     // TODO： split into another function
     // if weight is float32, use float matmul
     if (weight_.dtype() == MLLM_TYPE_F32) {
+
+        std::cout << " test fp linear " << name() << std::endl;
+
         uint32_t dimensionsWeight[2] = {static_cast<uint32_t>(weight_.sequence()), static_cast<uint32_t>(weight_.dimension())};
         qnnBackend_->modelAddTensor(weight_.name(), (Qnn_Tensor_t){
                                                         .version = QNN_TENSOR_VERSION_1,

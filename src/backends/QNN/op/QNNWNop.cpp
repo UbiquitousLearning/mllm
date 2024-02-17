@@ -1,6 +1,8 @@
 
 #include "QNNWNop.hpp"
 
+#include <unistd.h>
+
 namespace mllm {
 
 QNNWNop::QNNWNop(Backend *bn,  string opName, int sync_type) : sync_type_(sync_type),
@@ -18,7 +20,18 @@ ErrorCode QNNWNop::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 ErrorCode QNNWNop::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
 
     // sync logic.
+    if (sync_type_ == 0) {
+
+        while (syncVar_.dataAt<uint32_t>(0, 0, 0, 0) != 0) {
+            usleep(100);
+        }
+
+    } else if (sync_type_ == 1) {
+        syncVar_.setDataAt<uint32_t>(0, 0, 0, 0, 1);
+    }
+
     std::cout << "sync now." << std::endl;
+
     return Op::execute(inputs, outputs);
 }
 
