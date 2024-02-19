@@ -38,6 +38,8 @@ public:
 private:
     QNNExecutionType executionType_ = PROMPT;
 
+    uint autoregressive_seq_pos_ = 0;
+
 };
 
 } // namespace mllm

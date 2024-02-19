@@ -216,6 +216,32 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
         output->alloc();
         outputBuffers.push_back(output->hostPtr<uint8_t>());
     }
+
+    auto returnStatus = StatusCode::SUCCESS;
+
+    for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
+        auto graphInfo = (*m_graphsInfo)[graphIdx];
+
+        
+        if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&inputs_, &outputs_, (*m_graphsInfo)[graphIdx])) {
+            QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
+            returnStatus = StatusCode::FAILURE;
+            break;
+        }
+
+        QNN_DEBUG("input tensors: %d ", (*m_graphsInfo)[graphIdx].numInputTensors);
+        QNN_DEBUG("output tensors: %d ", (*m_graphsInfo)[graphIdx].numOutputTensors);
+
+        auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
+        for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {
+            qnnMM->registerQnnTensor(inputBuffers[i], inputs_[i]);
+        }
+        for (int i = 0; i < (*m_graphsInfo)[graphIdx].numOutputTensors; i++) {
+            qnnMM->registerQnnTensor(outputBuffers[i], outputs_[i]);
+            QNN_DEBUG("outputBuffers: %p ", outputBuffers[i]);
+        }
+
+    }
 #endif
 }
 
@@ -786,42 +812,18 @@ StatusCode QNNBackend::executeGraphsShared() {
     for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
         auto graphInfo = (*m_graphsInfo)[graphIdx];
 
-        Qnn_Tensor_t *inputs = nullptr;
-        Qnn_Tensor_t *outputs = nullptr;
-        if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&inputs, &outputs, (*m_graphsInfo)[graphIdx])) {
-            QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
-            returnStatus = StatusCode::FAILURE;
-            break;
-        }
-
-        QNN_DEBUG("input tensors: %d ", (*m_graphsInfo)[graphIdx].numInputTensors);
-        QNN_DEBUG("output tensors: %d ", (*m_graphsInfo)[graphIdx].numOutputTensors);
-
-        auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
-        for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {
-            qnnMM->registerQnnTensor(inputBuffers[i], inputs[i]);
-        }
-        for (int i = 0; i < (*m_graphsInfo)[graphIdx].numOutputTensors; i++) {
-            qnnMM->registerQnnTensor(outputBuffers[i], outputs[i]);
-            QNN_DEBUG("outputBuffers: %p ", outputBuffers[i]);
-        }
-
         Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
         uint64_t t_start = mllm_time_us();
         executeStatus =
             m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
-                                                            inputs,
+                                                            inputs_,
                                                             graphInfo.numInputTensors,
-                                                            outputs,
+                                                            outputs_,
                                                             graphInfo.numOutputTensors,
                                                             m_profileBackendHandle,
                                                             nullptr);
         uint64_t t_end = mllm_time_us();
         std::cout << "QNN execution time" << (t_end - t_start) / 1000.0F << " ms" << std::endl;
-
-        for (int i=0; i<outputTensors_.size(); i++) {
-          outputTensors_[i].printData<uint32_t>();
-        }
 
         if (QNN_GRAPH_NO_ERROR != executeStatus) {
             returnStatus = StatusCode::FAILURE;
@@ -829,7 +831,46 @@ StatusCode QNNBackend::executeGraphsShared() {
         if (StatusCode::SUCCESS == returnStatus) {
             QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
             for (int oi = 0; oi < graphInfo.numOutputTensors; oi++) {
-                auto output = outputs[oi];
+                auto output = outputs_[oi];
+                // DEBUGLOG
+                std::cout << "----------------" << std::endl;
+                std::cout << "output name:" << output.v1.name << std::endl;
+                // std::cout << "output id:" << output.v1.clientBuf.dataSize << std::endl;
+                std::cout << "output type:" << output.v1.type << std::endl;
+                std::cout << "output type:" << output.v1.dataType << std::endl;
+            }
+        }
+    }
+    return returnStatus;
+}
+
+StatusCode QNNBackend::executeGraphsSharedAutoregressive() {
+    auto returnStatus = StatusCode::SUCCESS;
+
+    for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
+        auto graphInfo = (*m_graphsInfo)[graphIdx];
+
+        Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
+        uint64_t t_start = mllm_time_us();
+        executeStatus =
+            m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
+                                                            inputs_,
+                                                            graphInfo.numInputTensors,
+                                                            outputs_,
+                                                            graphInfo.numOutputTensors,
+                                                            m_profileBackendHandle,
+                                                            nullptr);
+        uint64_t t_end = mllm_time_us();
+        std::cout << "QNN execution time" << (t_end - t_start) / 1000.0F << " ms" << std::endl;
+
+
+        if (QNN_GRAPH_NO_ERROR != executeStatus) {
+            returnStatus = StatusCode::FAILURE;
+        }
+        if (StatusCode::SUCCESS == returnStatus) {
+            QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
+            for (int oi = 0; oi < graphInfo.numOutputTensors; oi++) {
+                auto output = outputs_[oi];
                 // DEBUGLOG
                 std::cout << "----------------" << std::endl;
                 std::cout << "output name:" << output.v1.name << std::endl;

@@ -177,4 +177,12 @@ void QNNRoPE::sinusoidal_position_embedding_hf(int batch_size, int nums_head, in
     }
 }
 
+ErrorCode QNNRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+
+    // TODO: h_cnt_ as an input to ROPE.
+    h_cnt_ += inputs[0]->sequence();
+
+    return QNNCommonOp::execute(inputs, outputs);
+}
+
 } // namespace mllm

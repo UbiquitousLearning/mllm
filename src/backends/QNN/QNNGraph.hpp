@@ -33,6 +33,10 @@ public:
     virtual const vector<shared_ptr<Tensor>> &forward(bool autofree = false) override;
 
     void QNNThreadExecute();
+
+private:
+    uint autoregressive_seq_pos_ = 0;
+
 };
 
 } // namespace mllm

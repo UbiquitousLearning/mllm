@@ -72,7 +72,8 @@ void LLaMA(Context *ctx, uint32_t hidden_dim, uint32_t ffn_hidden_dim) {
     for (int layer = 0; layer < 8; ++layer) {
         i = _RMSNorm({i}, hidden_dim, 1e-6, std::to_string(layer) + "RMSNorm");
         i = Attention(ctx, i, hidden_dim, ffn_hidden_dim, layer);
-        i = FFN(ctx, i, hidden_dim, ffn_hidden_dim, layer);
+        auto x = _RMSNorm( {i}, hidden_dim, 1e-6, (string) "layers." + std::to_string(layer) + ".ffn_norm");
+        i = FFN(ctx, x, hidden_dim, ffn_hidden_dim, layer);
     }
 }
 
@@ -393,18 +394,23 @@ int main(int argc, char **argv) {
 
     BackendConfig bn;
     QNNNet net(bn, c);
+    // Net net(bn);
     net.convert(c->sub_param_, MLLM_QNN);
     std::cout << "convert done" << std::endl;
 
     MockLoader loader("");
     QNNExecutor ex(&loader);
+    // Executor ex(&loader);
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
 
     // 1 batch seqence length embedding
     fullTensor(input, net, {1, seqence_size, 1, dimension}, 2.f);
 
     ex.setup(&net);
-    ex.run(&net, {input});
+    for (int step = 0; step < atoi(argv[3]); step ++) {
+        ex.run(&net, {input});
+    }
+    
     ex.perf();
     // auto result = ex.result();
     // result[0]->printData<float>();

@@ -128,6 +128,7 @@ private:
     StatusCode executeGraphs();
     StatusCode executeGraphs(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap);
     StatusCode executeGraphsShared();
+    StatusCode executeGraphsSharedAutoregressive();
 
     StatusCode registerOpPackages();
 
@@ -204,6 +205,9 @@ private:
     Qnn_DeviceHandle_t m_deviceHandle = nullptr;
 
     std::vector<Tensor> outputTensors_;
+
+    Qnn_Tensor_t *inputs_ = nullptr;
+    Qnn_Tensor_t *outputs_ = nullptr;
 };
 
 } // namespace mllm

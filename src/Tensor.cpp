@@ -59,6 +59,30 @@ void Tensor::alloc() {
     }
 }
 
+void Tensor::alloc(vector<uint> alloc_size) {
+    if(aggregated_){return;}
+    assert(backend_ != nullptr);
+    if(masterTensor() != nullptr) {
+        return;
+    }
+    if(!shape_offset_.empty() & !shape_master_.empty()) {
+        return;
+    }
+    if (allocated_ != count_) {
+        if (host_ptr_ != nullptr) {
+            backend_->free(host_ptr_);
+            host_ptr_ = nullptr;
+        }
+
+        // alloc size is different from shape size
+        size_t qnn_alloc_size = alloc_size[0] * alloc_size[1] * alloc_size[2] * alloc_size[3];
+        if(qnn_alloc_size > 0) {
+            backend_->alloc(&host_ptr_, cntSize(), 8);
+        }
+        allocated_ = qnn_alloc_size;
+    }
+}
+
 
 bool Tensor::reshape(const int batch, const int channel, const int time, const int height, const int width) {
     if(ctype_ != BTHWC) {

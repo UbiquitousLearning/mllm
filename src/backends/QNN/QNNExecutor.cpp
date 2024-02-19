@@ -62,7 +62,9 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
         auto &g = net->subGraph()[name];
 
         g->reshape();
-        g->setUpTensors();
+
+        if ( autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0) 
+            g->setUpTensors();
 
         result_ = g->forward();
 
@@ -79,6 +81,8 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
         auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
         run_time_.push_back(token_run_time);
     }
+
+    autoregressive_seq_pos_ += input_tensors[0]->sequence();
 }
 
 // #define DYNAMIC

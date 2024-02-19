@@ -132,6 +132,8 @@ public:
         alloc();
     }
     void alloc();
+
+    void alloc(vector<uint> alloc_size);
     /**
      * \brief free the memory of Tensor.
      */

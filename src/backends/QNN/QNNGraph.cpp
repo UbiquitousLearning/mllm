@@ -18,7 +18,8 @@ void QNNGraph::QNNThreadExecute() {
 //#define SAVECHECK
 const vector<shared_ptr<Tensor>> &QNNGraph::forward(bool autofree) {
     // backend event hook
-    this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]]);
+    if ( autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0) 
+        this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]]);
 
     std::cout << "QNNexecute thread start" << std::endl;
 
@@ -62,6 +63,8 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(bool autofree) {
     // backend event hook
     // We use a thread to parallel CPU AND QNN execution.
     qnnThread->join();
+
+    autoregressive_seq_pos_ += ops_input_tensors_[op_names_[0]][0]->sequence();
 
     return ops_output_tensors_[op_names_[op_names_.size() - 1]];
 }

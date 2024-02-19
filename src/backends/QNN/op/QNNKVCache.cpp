@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <memory>
 
+#define DYNAMICBUFFER 32
+
 namespace mllm {
 QNNKVCache::QNNKVCache(Backend *bn, string opName, bool isK) :
     QNNCommonOp(bn, opName), isK_(isK) {
@@ -13,6 +15,9 @@ QNNKVCache::QNNKVCache(Backend *bn, string opName, bool isK) :
     dimension_size_ = 4096;
     seq_pos_cpu_ = 0;
     seq_pos_.setBackend(bn);
+
+    alloc_size_.resize(4);
+    qnn_size_.resize(4);
 }
 
 ErrorCode QNNKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -20,7 +25,21 @@ ErrorCode QNNKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     assert(outputs.size() == 1);
 
     // outputs[0]->reshape(1, 1, cache_size_, dimension_size_);
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() + seq_pos_cpu_, inputs[0]->dimension());
+
+    // NSHD 
+    alloc_size_[0] = inputs[0]->batch();
+    alloc_size_[1] = (( inputs[0]->batch() + seq_pos_cpu_ ) / DYNAMICBUFFER + 1) * DYNAMICBUFFER;
+    alloc_size_[2] = inputs[0]->head();
+    alloc_size_[3] = inputs[0]->dimension();
+
+    qnn_size_[0] = inputs[0]->batch();
+    if (( inputs[0]->batch() + seq_pos_cpu_ ) / DYNAMICBUFFER == 0) 
+        qnn_size_[1] = 1;
+    else    
+        qnn_size_[1] = (( inputs[0]->batch() + seq_pos_cpu_ ) / DYNAMICBUFFER ) * DYNAMICBUFFER;
+    qnn_size_[2] = inputs[0]->head();
+    qnn_size_[3] = inputs[0]->dimension();
 
     return Op::reshape(inputs, outputs);
 }
@@ -30,7 +49,7 @@ ErrorCode QNNKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 
     outputs[0]->setDtype(MLLM_TYPE_F32);
     outputs[0]->setBackend(qnnBackend_);
-    outputs[0]->alloc();
+    outputs[0]->alloc(qnn_size_);
 
     // output for net shape and QNN name index
     // cache_ for QNN shared buffer storage
@@ -62,10 +81,7 @@ ErrorCode QNNKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
                                                                          .dataSize = 0}}}}});
 
     // add cache output tensor to qnn
-    uint32_t dimensionsCache[4] = {static_cast<uint32_t>(outputs[0]->batch()),
-                                   static_cast<uint32_t>(outputs[0]->sequence()),
-                                   static_cast<uint32_t>(outputs[0]->head()),
-                                   static_cast<uint32_t>(outputs[0]->dimension())};
+    uint32_t dimensionsCache[4] = {qnn_size_[0], qnn_size_[1], qnn_size_[2], qnn_size_[3]};
 
     auto outName = outputs[0]->name();
     vector<Qnn_Tensor_t> kvcache_output = {{QNN_TENSOR_VERSION_1,
@@ -102,4 +118,22 @@ ErrorCode QNNKVCache::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     outputs[0]->free();
     return MLLM_NO_ERROR;
 }
+
+ErrorCode QNNKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+
+    // size_t copy_size = inputs[0]->batch() * inputs[0]->head() * 1 * inputs[0]->dimension();
+
+
+
+    // if(outputs[0]->dtype() == MLLM_TYPE_F32) {
+        
+    //     memcpy(outputs[0]->hostPtr<uint8_t>() + (seq_pos_cpu_ - outputs[0]->sequence()) * copy_size, inputs[0]->hostPtr<uint8_t>(),  inputs[0]->sequence() * copy_size * sizeof(float));
+    // }
+        
+
+    seq_pos_cpu_ += inputs[0]->sequence();
+
+    return QNNCommonOp::execute(inputs, outputs);
+}
+
 } // namespace mllm

@@ -12,6 +12,7 @@ public:
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
     int cache_size_;
@@ -20,6 +21,16 @@ private:
     Tensor seq_pos_;
     Tensor cache_;
     int seq_pos_cpu_;
+
+    // each op has three size
+    // 1. op reshape size -> CPU execution size.
+    // 2. op alloc size -> input and output memory buffer.
+    // 3. op qnn size -> qnn op execution size.
+
+    std::vector<uint> alloc_size_;
+    std::vector<uint> qnn_size_;
+
+
 };
 
 class QNNKVCacheCreator : public QNNBackend::Creator {
