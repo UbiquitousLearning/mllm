@@ -37,7 +37,7 @@ ErrorCode QNNRMSNorm::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     // free weight_
     weight_.free();
 
-    uint32_t dimOut[] = {(uint32_t)outputs[0]->batch(), (uint32_t)outputs[0]->head(), (uint32_t)outputs[0]->sequence(), (uint32_t)outputs[0]->dimension()};
+    uint32_t dimOut[] = {(uint32_t)outputs[0]->batch(), (uint32_t)outputs[0]->sequence(), (uint32_t)outputs[0]->head(), (uint32_t) outputs[0]->dimension()};
     auto outName = outputs[0]->name();
     vector<Qnn_Tensor_t>
         out = {

@@ -40,9 +40,9 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_r
     return token_idx;
 }
 NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name) {
-    auto *q = _Linear({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj.q8");
-    auto *k = _Linear({x}, embedding_size, hidden_size * head_size, false, name + ".k_proj.q8");
-    auto *v = _Linear({x}, embedding_size, hidden_size * head_size, false, name + ".v_proj.q8");
+    auto *q = _Linear({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
+    auto *k = _Linear({x}, embedding_size, hidden_size * head_size, false, name + ".k_proj");
+    auto *v = _Linear({x}, embedding_size, hidden_size * head_size, false, name + ".v_proj");
     q = q->view(-1, head_size, -1, hidden_size);
     k = k->view(-1, head_size, -1, hidden_size);
     v = v->view(-1, head_size, -1, hidden_size);
@@ -56,20 +56,21 @@ NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head
     qk = _Softmax({qk}, DIMENSION, name + ".softmax");
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
     o = o->view(-1, 1, -1, hidden_size * head_size);
-    o = _Linear({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj.q8");
+    o = _Linear({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
     return o;
 }
 NetTensor *FFN(NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
-    auto *x = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj.q8");
+    auto *x = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
     x = _SiLU({x}, name + ".silu");
-    auto *y = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj.q8");
+    auto *y = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
     x = *x * y; // x = _Mul( {x, y}, name+".dot");
-    x = _Linear({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.q8");
+    x = _Linear({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
     return x;
 }
 void llama(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200) {
     auto *i = _Input(c);
-    // i = _Embedding({i}, vocab_size, hidden_dim, (string) "tok_embeddings");
+    i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
+    _SubgraphBegin(c);
     // loop
     for (int layer = 0; layer < 16; ++layer) {
         auto *x = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
@@ -85,7 +86,7 @@ void llama(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hi
 
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/llama_vocab.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/llama_vocab.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./models/llama-7b-smoothquant.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
@@ -96,7 +97,7 @@ int main(int argc, char **argv) {
     int tokens_limit = cmdParser.get<int>("limits");
     int thread_num = cmdParser.get<int>("thread");
 
-    // auto tokenizer = BPETokenizer(vocab_path);
+    auto tokenizer = BPETokenizer(vocab_path);
 
     int vocab_size = 50272;
     int hidden_dim = 4096;
@@ -111,8 +112,8 @@ int main(int argc, char **argv) {
     Net net(bn);
     net.convert(c->sub_param_, BackendType::MLLM_QNN, thread_num);
 
-    // ParamLoader param_loader(model_path);
-    MockLoader param_loader("");
+    ParamLoader param_loader(model_path);
+    // MockLoader param_loader("");
     Executor ex(&param_loader);
     ex.setup(&net);
 
@@ -123,22 +124,22 @@ int main(int argc, char **argv) {
     // "Please introduce Beijing University of Posts and Telecommunications."};
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
 
-    input->reshape(1, 1, 1, hidden_dim);
-    input->setBackend(net.backends()[MLLM_QNN].get());
-    input->alloc();
+    // input->reshape(1, 1, 1, hidden_dim);
+    // input->setBackend(net.backends()[MLLM_QNN].get());
+    // input->alloc();
 
     for (int str_i = 0; str_i < in_strs.size(); ++str_i) {
-        // auto in_str = in_strs[str_i];
-        // if (in_str[0] != ' ') {
-        //     in_str = ' ' + in_str;
-        // }
-        // auto tokens_id = vector<token_id_t>();
-        // tokenizer.tokenize(in_str, tokens_id, true);
-        // if (str_i > 0) {
-        //     tokens_id[0] = 13;
-        // }
-        // BPETokenizer::token2Tensor(&net, tokens_id, input);
-        // std::cout << "[Q] " << in_str << std::endl;
+        auto in_str = in_strs[str_i];
+        if (in_str[0] != ' ') {
+            in_str = ' ' + in_str;
+        }
+        auto tokens_id = vector<token_id_t>();
+        tokenizer.tokenize(in_str, tokens_id, true);
+        if (str_i > 0) {
+            tokens_id[0] = 13;
+        }
+        BPETokenizer::token2Tensor(&net, tokens_id, input);
+        std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
             ex.run(&net, {input});
