@@ -41,6 +41,8 @@ file(GLOB MLLM_QNN_SRC
 # import android ndk cmake toolchain
 if (ARM)
     include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
+    add_definitions(-DQNN_ARM)
+    message(STATUS "QNN ARM detected")
 endif()
 
 

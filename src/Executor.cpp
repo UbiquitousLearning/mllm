@@ -46,6 +46,7 @@ void Executor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     auto ex_time_start = mllm_time_us();
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
+        std::cout << "=======forwarding graph " << i << std::endl;
         string name = "G" + std::to_string(i);
         auto &g = net->subGraph()[name];
 
@@ -62,11 +63,14 @@ void Executor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
             net->freeTensors(i);
         }
     }
+    std::cout << "result size" << result_.size() << std::endl;
     auto ex_time_end = mllm_time_us();
     if (input_tensors[0]->sequence() == 1) {
         auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
         run_time_.push_back(token_run_time);
     }
+    auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
+    run_time_.push_back(token_run_time);
 }
 
 // #define DYNAMIC
