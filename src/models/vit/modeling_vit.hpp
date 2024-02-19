@@ -38,12 +38,12 @@ class ViTAttention final: public Module, public ViTConfig {
 
 class ViTMLP final: public Module, public ViTConfig {
     Linear up_proj = Linear(hidden_dim, mlp_hidden, true, up_proj_name);
-    GELU gelu = GELU( ffn_base_name+"act");
+    Layer act = ACT_FN[act_fn_type](ffn_base_name+"act");
     Linear down_proj = Linear(mlp_hidden, hidden_dim, true, down_proj_name);
 
     vector<Tensor> Forward(vector<Tensor> inputs) override {
         auto x = up_proj(inputs[0]);
-        x =gelu(x);
+        x =act(x);
         x = down_proj(x);
         return {x};
     }

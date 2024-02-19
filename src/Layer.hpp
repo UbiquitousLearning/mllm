@@ -34,6 +34,10 @@ public:
         // op_->load(*Module::loader);
     }
     static map<string, string> layername_2_tensorname;
+
+    Tensor &operator()(Tensor &input) {
+        return _1I1O_OP(input);
+    }
 private:
     std::string name_num_to_X(const std::string& input_string) {
         std::regex pattern(R"(\.\d{1,3}\.)");  // Matches any number between 1 and 100 between two dots
@@ -506,6 +510,26 @@ public:
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
     }
+};
+
+class QuickGELU final : public Layer {
+public:
+    QuickGELU() = default;
+    explicit QuickGELU(std::string name) {
+        init(std::move(name), OpType::QUICKGLUE);
+    }
+    Tensor &operator()(Tensor &input) {
+        return _1I1O_OP(input);
+    }
+};
+
+using ActFnConstructor = std::function<Layer( const std::string&)>;
+inline std::map<std::string, ActFnConstructor> ACT_FN = {
+    {"SiLU", []( const std::string& name) { return SiLU( name); }},
+    {"ReLU", []( const std::string& name) { return ReLU( name); }},
+    {"ReLU2", [](const std::string& name) { return ReLUSquaredActivation( name); }},
+    {"GELU", [](const std::string& name) { return GELU( name); }},
+    {"QuickGELU", []( const std::string& name) { return QuickGELU( name); }},
 };
 
 class Softmax final : public Layer {
