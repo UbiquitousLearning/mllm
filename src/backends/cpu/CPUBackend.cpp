@@ -70,7 +70,7 @@ void CPUBackend::registerOps() {
     addCreator(KVCACHE, (CPUBackend::Creator *)(new CPUKVCacheCreator()));
     addCreator(RELU, (CPUBackend::Creator *)(new CPUReLUCreator()));
     addCreator(RELU2, (CPUBackend::Creator *)(new CPUReLU2Creator()));
-    addCreator(GELU, (CPUBackend::Creator *)(new CPUGELUCreator()));
+    addCreator(OP_GELU, (CPUBackend::Creator *)(new CPUGELUCreator()));
     addCreator(QUICKGLUE, (CPUBackend::Creator *)(new CPUQuickGELUCreator()));
     addCreator(LAYERNORM, (CPUBackend::Creator *)(new CPULayerNormCreator()));
     addCreator(SPLIT, (CPUBackend::Creator *)(new CPUSplitCreator()));

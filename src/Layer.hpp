@@ -50,7 +50,7 @@ private:
     void reset_KVCache(string input_name, string layer_next_name) {
         vector<string> renameX_names;
         renameX_names.push_back(input_name);
-        const vector<string> suffixs = {"-view", "-transpose", ".split-0", ".split-1", ".split-2"};
+        const vector<string> suffixs = {"-view", "-transpose", "-flatten", ".split-0", ".split-1", ".split-2"};
         for (auto suffix : suffixs) {
             if (input_name.rfind(suffix) == (input_name.size() - suffix.size())) {
                 const auto r_name = input_name.substr(0, input_name.size() - suffix.size());
@@ -136,6 +136,7 @@ protected:
             op_->execute(shared_inputs, shared_outputs);
             if(Tensor::gph_[next_name].aggregated() == false) {
                 assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                // Tensor::gph_[next_name].saveData<float>();
             }
             break;
         }
@@ -304,6 +305,57 @@ protected:
         Tensor::gph_[next_name].status() = Tensor::gph_[input0.name()].status();
         return Tensor::gph_[next_name];
     }
+    Tensor &_0I1O_OP() {
+        if (op_ == nullptr) {
+            constexpr int threadCount = 4;
+            op_ = backend_->opCreate(param_, name_, threadCount);
+            op_->load(*Module::loader);
+        }
+        string layer_next_name = "param-" + op_->name();
+        switch (Module::tensor_status) {
+        case TENSOR_STATIC_INIT: {
+            if(layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
+                layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);                
+            }
+            auto next_name = layername_2_tensorname[layer_next_name];
+            if (Tensor::gph_.find(next_name) == Tensor::gph_.end()) {
+                Tensor::gph_[next_name] = Tensor(backend_);
+                Tensor::gph_[next_name].setName(next_name);
+            }
+            vector<shared_ptr<Tensor>> shared_inputs{};
+            vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor*){})};
+            op_->reshape(shared_inputs, shared_outputs);
+            break;
+        }
+        case TENSOR_STATIC_SHAPED: {
+            auto next_name = layername_2_tensorname[layer_next_name];
+            vector<shared_ptr<Tensor>> shared_inputs{};
+            vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor*){})};
+            op_->setUp(shared_inputs, shared_outputs);
+            if(Tensor::gph_[next_name].aggregated() == false) {
+                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+            }
+            break;
+        }
+        case TENSOR_STATIC_ALLOCED: {
+            auto next_name = layername_2_tensorname[layer_next_name];
+            vector<shared_ptr<Tensor>> shared_inputs{};
+            vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor*){})};
+            op_->execute(shared_inputs, shared_outputs);
+            if(Tensor::gph_[next_name].aggregated() == false) {
+                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+            }
+            // Tensor::gph_[next_name].saveData<float>();
+            break;
+        }
+        default: {
+            break;
+        }
+        }
+        auto next_name = layername_2_tensorname[layer_next_name];
+        Tensor::gph_[next_name].status() = Module::tensor_status;
+        return Tensor::gph_[next_name];
+    }
     vector<Tensor> _1INO_OP(Tensor &input, int N) {
         if (op_ == nullptr) {
             constexpr int threadCount = 4;
@@ -445,6 +497,17 @@ public:
     }
 };
 
+class GELU final : public Layer {
+public:
+    GELU() = default;
+    GELU(std::string name) {
+        init(std::move(name), OpType::OP_GELU);
+    }
+    Tensor &operator()(Tensor &input) {
+        return _1I1O_OP(input);
+    }
+};
+
 class Softmax final : public Layer {
 public:
     explicit Softmax(Chl axis, std::string name) {
@@ -555,6 +618,49 @@ public:
     }
     vector<Tensor> operator()(Tensor &input) {
         return _1INO_OP(input, (int)param_["split_num"]);
+    }
+};
+
+class Convolution2D final : public Layer {
+public:
+    explicit Convolution2D(int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, std::string name) {
+        param_["in_channel"] =(float) in_channel;
+        param_["out_channel"] =(float) out_channel;
+        param_["kernal_h"] =(float) kernal[0];
+        param_["kernal_w"] =(float) kernal[1];
+        param_["stride_h"] =(float) stride[0];
+        param_["stride_w"] =(float) stride[1];
+        param_["padding"] =(float) padding;
+        param_["bias"] =(float) bias;
+        init(std::move(name), OpType::CONVOLUTION2D);
+    }
+    Tensor &operator()(Tensor &input) {
+        return _1I1O_OP(input);
+    }
+};
+
+class Concat final : public Layer {
+public:
+    explicit Concat(Chl axis, std::string name) {
+        param_["axis"] =(float)axis;
+        init(std::move(name), OpType::CAT);
+    }
+    Tensor &operator()(Tensor &input0, Tensor &input1) {
+        return _2I1O_OP(input0, input1);
+    }
+};
+
+class Parameter final : public Layer {
+public:
+    explicit Parameter(int batch, int seq, int head, int dim, std::string name) {
+        param_["batch"] = batch;
+        param_["seq"] = seq;
+        param_["head"] = head;
+        param_["dim"] = dim;
+        init(std::move(name), OpType::PARAMETER);
+    }
+    Tensor &operator()() {
+        return _0I1O_OP();
     }
 };
 

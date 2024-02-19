@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
     auto tokenizer = LLaMATokenizer(vocab_path);
 
     Module::initBackend(MLLM_CPU);
-    LLaMAConfig::init(tokens_limit, 7, LLAMAROPE);
+    LLaMAConfig::init(tokens_limit, "7B", LLAMAROPE);
     auto model = LLaMAModel();
     model.load(model_path);
 

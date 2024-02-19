@@ -480,7 +480,7 @@ NetTensor *_GELU(std::vector<NetTensor *> inputs, string name) {
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
-    _NEW_OP(mllm::GELU)
+    _NEW_OP(mllm::OP_GELU)
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;

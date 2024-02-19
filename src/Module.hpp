@@ -19,6 +19,7 @@ class Module {
 public:
     static map<BackendType, Backend *> backends;
     static ParamLoader *loader;
+    static TensorStatus tensor_status;
 
     Module() = default;
     virtual ~Module() = default;
@@ -51,16 +52,19 @@ public:
                 input.setTtype(TensorType::NORMAL_TENSOR);
                 input.status() = TENSOR_STATIC_INIT;
             }
+            tensor_status = TENSOR_STATIC_INIT;
 
             Forward(inputs);
             for (auto &input : inputs) {
                 input.status() = TENSOR_STATIC_SHAPED;
             }
+            tensor_status = TENSOR_STATIC_SHAPED;
 
             Forward(inputs);
             for (auto &input : inputs) {
                 input.status() = TENSOR_STATIC_ALLOCED;
             }
+            tensor_status = TENSOR_STATIC_ALLOCED;
 
             return Forward(inputs);
         } else {

@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
     auto processor = FuyuProcessor(vocab_path);
 
     Module::initBackend(MLLM_CPU);
-    FuyuConfig::init(tokens_limit, 7);
+    FuyuConfig::init(tokens_limit, "8B");
     auto model = FuyuModel();
     model.load(model_path);
 

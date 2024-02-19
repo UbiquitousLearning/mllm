@@ -583,6 +583,10 @@ public:
 
 
     Tensor& view(int b, int h, int s, int d);
+    Tensor& flatten(Chl axis_start, Chl axis_end);
+    Tensor& transpose(Chl axis0, Chl axis1);
+    Tensor& clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d);
+    static Tensor& cat(vector<Tensor> input_tensors, Chl dims);
 
 
     /* Functions used for ChildTensor:

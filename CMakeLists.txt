@@ -345,6 +345,17 @@ else ()
     target_link_libraries(demo_fuyu MLLM_CPU)
 endif ()
 
+
+add_executable(demo_vit ${PROJECT_SOURCE_DIR}/examples/demo_vit.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/processor/PreProcess.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_vit PRIVATE -fopenmp)
+    target_link_libraries(demo_vit PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_vit MLLM_CPU)
+endif ()
+
 if (APK)
     add_library(mllm_lib STATIC ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER}
             src/tokenizers/Tokenizer.cpp

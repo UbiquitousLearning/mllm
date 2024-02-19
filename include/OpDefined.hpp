@@ -25,7 +25,7 @@ enum OpType {
     KVCACHE,
     RELU,
     RELU2,
-    GELU,
+    OP_GELU,
     QUICKGLUE,
     LAYERNORM,
     SPLIT,
