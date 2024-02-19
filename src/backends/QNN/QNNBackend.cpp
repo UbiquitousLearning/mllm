@@ -141,13 +141,8 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
     m_qnnFunctionPointers.freeGraphInfoFnHandle = this->QnnModel_freeGraphsInfo;
 
     // init qnn resources and create a graph
-    this->graphInitialize();
+    this->backendInitialize();
     this->registerOps();
-
-#ifdef QNN_ARM
-    auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mm);
-    qnnMM->setQnnInterfaceAndContext(m_context);
-#endif
 }
 
 void QNNBackend::release() {
@@ -168,6 +163,36 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
 #ifdef DEBUGPRINT
     std::cout << "onSetUpStart" << std::endl;
 #endif
+
+    auto returnStatus = StatusCode::SUCCESS;
+
+    // rebuild a new graph.
+    if (m_graphsInfo != nullptr) {
+
+        std::cout << "free graph tensors begin" << std::endl;
+
+        m_ioTensor.tearDownInputAndOutputTensors(
+        inputs_, outputs_, graphInfo.numInputTensors, graphInfo.numOutputTensors);
+        inputs_ = nullptr;
+        outputs_ = nullptr;
+        if (StatusCode::SUCCESS != returnStatus) {
+            return;
+        }
+
+        std::cout << "free graphs begin" << std::endl;
+        qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
+        m_graphsInfo = nullptr;
+
+        qnnModel.freeTensors();
+
+        this->freeContext();
+        qnnModel.clearGraph();
+
+    }
+
+    this->contextInitialize();
+
+
     // add input tensor to qnn
     uint32_t dimensionsInput[4];
     for (int i = 0; i < 4; i++) {
@@ -261,7 +286,7 @@ std::string QNNBackend::getBackendBuildId() {
     return (backendBuildId == nullptr ? std::string("") : std::string(backendBuildId));
 }
 
-int32_t QNNBackend::graphInitialize() {
+int32_t QNNBackend::backendInitialize() {
     QNN_INFO("qnn-backend    build version: %s", getBuildId().c_str());
     QNN_INFO("Backend        build version: %s", getBackendBuildId().c_str());
 
@@ -289,9 +314,19 @@ int32_t QNNBackend::graphInitialize() {
         this->reportError("Register Op Packages failure");
     }
 
+    return 0;
+}
+
+int32_t QNNBackend::contextInitialize() {
+
     if (StatusCode::SUCCESS != this->createContext()) {
         this->reportError("Context Creation failure");
     }
+
+#ifdef QNN_ARM
+    auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
+    qnnMM->setQnnInterfaceAndContext(m_context);
+#endif
 
     // initialize graph info, set graph info, graph count
     // acting the same as composeGraphs

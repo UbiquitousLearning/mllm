@@ -106,7 +106,8 @@ public:
     }
 
 private:
-    int32_t graphInitialize();
+    int32_t backendInitialize();
+    int32_t contextInitialize();
 
     void release();
 
