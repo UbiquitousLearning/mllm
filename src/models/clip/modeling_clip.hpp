@@ -11,8 +11,8 @@
 class ClipVisionEmbedding final: public Module, public ClipConfig {
   Convolution2D patch_embedding = Convolution2D(3, hidden_dim, {patch, patch}, {patch, patch}, VALID, true, patch_embedding_name);
   Parameter cls_token = Parameter(1, 1, 1, hidden_dim, cls_token_name);
-  Parameter position_ids = Parameter(1, int(img_hw/patch) * int(img_hw/patch) + 1, 1, 1,position_ids_name);
-  Embedding position_embedding = Embedding( int(img_hw/patch) * int(img_hw/patch) + 1, hidden_dim, position_embeddings_name);
+  Parameter position_ids = Parameter(1, std::ceil(img_hw/patch) * std::ceil(img_hw/patch)  + 1, 1, 1,position_ids_name);
+  Embedding position_embedding = Embedding( std::ceil(img_hw/patch) * std::ceil(img_hw/patch)  + 1, hidden_dim, position_embeddings_name);
 
   vector<Tensor> Forward(vector<Tensor> inputs) override {
     auto embd = patch_embedding(inputs[0]);
