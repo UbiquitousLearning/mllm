@@ -197,6 +197,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
         inputBufferMap.clear();
         outputBufferMap.clear();
 
+        syncVarTensors_.resize(0);
 
     }
 
@@ -250,6 +251,11 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
     for (auto &output : outputs) {
         output->alloc();
         outputBuffers.push_back(output->hostPtr<uint8_t>());
+    }
+
+    // reset the syncvar
+    for (auto t : syncVarTensors_) {
+        t->setDataAt<uint32_t>(0,0,0,0, 0);
     }
 
     auto returnStatus = StatusCode::SUCCESS;

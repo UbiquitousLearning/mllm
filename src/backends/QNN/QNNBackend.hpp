@@ -105,6 +105,10 @@ public:
         outputTensors_.push_back(t);
     }
 
+    void pushSyncVarTensor(Tensor* t) {
+        syncVarTensors_.push_back(t);
+    }
+
 private:
     int32_t backendInitialize();
     int32_t contextInitialize();
@@ -206,6 +210,7 @@ private:
     Qnn_DeviceHandle_t m_deviceHandle = nullptr;
 
     std::vector<Tensor> outputTensors_;
+    std::vector<Tensor*> syncVarTensors_;
 
     Qnn_Tensor_t *inputs_ = nullptr;
     Qnn_Tensor_t *outputs_ = nullptr;

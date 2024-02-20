@@ -30,7 +30,7 @@ ErrorCode QNNWNop::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         syncVar_.setDataAt<uint32_t>(0, 0, 0, 0, 1);
     }
 
-    return Op::execute(inputs, outputs);
+    return QNNCommonOp::execute(inputs, outputs);
 }
 
 ErrorCode QNNWNop::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -50,6 +50,9 @@ ErrorCode QNNWNop::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
     syncVar_.setDataAt<uint32_t>(0, 0, 0, 0, 0);
 
     qnnBackend_->pushOutputBuffers(syncVar_.hostPtr<uint8_t>());
+
+    // reset the sync variable in the backend.onExecuteStart.
+    qnnBackend_->pushSyncVarTensor(&syncVar_);
 
 
     vector<Qnn_Param_t> paramsWNop = {
