@@ -31,6 +31,7 @@ public:
     void setQnnInterfaceAndContext(void *context);
 
     void registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor);
+    void deRegisterQnnTensor();
 
 private:
     QNN_INTERFACE_VER_TYPE qnnInterface_;

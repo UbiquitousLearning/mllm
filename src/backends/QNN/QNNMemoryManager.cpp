@@ -132,6 +132,21 @@ void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
     qnnMemHandleList_.push_back(qnnTensor.v1.memHandle);
 }
 
+void QNNMemoryManager::deRegisterQnnTensor() {
+#ifdef QNN_ARM
+    // free all buffers if it's not being used
+    for (auto &memHandle : qnnMemHandleList_) {
+        Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&memHandle, 1);
+        if (QNN_SUCCESS != deregisterRet) {
+            // handle errors
+            std::cerr << "qnnInterface_.memDeRegister failed" << std::endl;
+        }
+    }
+
+    qnnMemHandleList_.resize(0);
+#endif
+}
+
 void QNNMemoryManager::free(void *ptr) {
 #ifdef QNN_ARM
     rpcmem_free(ptr);

@@ -603,7 +603,13 @@ ModelError_t QnnModel::freeTensors() {
 
 ModelError_t QnnModel::clearGraph() {
   
+  m_modelInputTensors.resize(0);
+  m_modelOutputTensors.resize(0);
+
+  m_modelOutputTensorMap.clear();
   m_graphName.clear();
+  
+  
 
   return MODEL_NO_ERROR;
 }

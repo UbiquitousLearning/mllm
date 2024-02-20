@@ -179,6 +179,9 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
             return;
         }
 
+        auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
+        qnnMM->deRegisterQnnTensor();
+
         std::cout << "free graphs begin" << std::endl;
         qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
         m_graphsInfo = nullptr;
@@ -187,6 +190,13 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
 
         this->freeContext();
         qnnModel.clearGraph();
+
+        inputBuffers.resize(0);
+        outputBuffers.resize(0);
+
+        inputBufferMap.clear();
+        outputBufferMap.clear();
+
 
     }
 
@@ -247,6 +257,8 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
     for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
         auto graphInfo = (*m_graphsInfo)[graphIdx];
 
+        QNN_DEBUG("input tensors: %d ", (*m_graphsInfo)[graphIdx].numInputTensors);
+        QNN_DEBUG("output tensors: %d ", (*m_graphsInfo)[graphIdx].numOutputTensors);
         
         if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&inputs_, &outputs_, (*m_graphsInfo)[graphIdx])) {
             QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
