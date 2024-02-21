@@ -75,7 +75,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         uint32_t transposeParamsDimension[4] = {4};
         uint32_t transposeParamsValue[4] = {0,2,1,3};
 
-        auto paramsTransposeName = inputs[0]->name() + "transpose_params";
+        auto paramsTransposeName = name() + "transpose_params";
         vector<Qnn_Param_t> paramsTranspose = {
         {.paramType = QNN_PARAMTYPE_TENSOR,
          .name = "perm",
@@ -97,7 +97,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     {.clientBuf = {.data = (uint8_t*)transposeParamsValue,
                                     .dataSize = 4 * sizeof(uint32_t)}}}}}}}};
 
-        auto outVTransposeName = inputs[1]->name() + ".v_transpose_out";
+        auto outVTransposeName = name() + ".v_transpose_out";
         vector<Qnn_Tensor_t> outVTranspose = {
             (Qnn_Tensor_t){
                 .version = QNN_TENSOR_VERSION_1,
@@ -192,7 +192,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         uint32_t transposeParamsDimension[4] = {4};
         uint32_t transposeParamsValue[4] = {0,2,1,3};
 
-        auto paramsTransposeName = inputs[0]->name() + "transpose_params";
+        auto paramsTransposeName = name() + "transpose_params";
         vector<Qnn_Param_t> paramsTranspose = {
         {.paramType = QNN_PARAMTYPE_TENSOR,
          .name = "perm",
@@ -214,7 +214,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     {.clientBuf = {.data = (uint8_t*)transposeParamsValue,
                                     .dataSize = 4 * sizeof(uint32_t)}}}}}}}};
 
-        auto outQTransposeName = inputs[0]->name() + ".q_transpose_out";
+        auto outQTransposeName = name() + ".q_transpose_out";
         vector<Qnn_Tensor_t> outQTranspose = {
             (Qnn_Tensor_t){
                 .version = QNN_TENSOR_VERSION_1,
@@ -240,7 +240,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         dimKTranspose[2] = inputs[1]->sequence();
         dimKTranspose[3] = inputs[1]->dimension();
 
-        auto outKTransposeName = inputs[1]->name() + ".k_transpose_out";
+        auto outKTransposeName = name() + ".k_transpose_out";
         vector<Qnn_Tensor_t> outKTranspose = {
             (Qnn_Tensor_t){
                 .version = QNN_TENSOR_VERSION_1,
@@ -258,7 +258,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                     .memType = QNN_TENSORMEMTYPE_RAW,
                     {.clientBuf = {.data = nullptr,
                                     .dataSize = 0}}}}}};
-        graphAddNode(name()+".v_transpose", "Transpose", {inputs[1]->name()}, outKTranspose, paramsTranspose);
+        graphAddNode(name()+".k_transpose", "Transpose", {inputs[1]->name()}, outKTranspose, paramsTranspose);
 
 
         vector<Qnn_Param_t> paramsMatmul = {
