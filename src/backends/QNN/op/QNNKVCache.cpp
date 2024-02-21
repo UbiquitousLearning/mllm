@@ -29,15 +29,15 @@ ErrorCode QNNKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 
     // NSHD 
     alloc_size_[0] = inputs[0]->batch();
-    alloc_size_[1] = (( inputs[0]->batch() + seq_pos_cpu_ ) / DYNAMICBUFFER + 1) * DYNAMICBUFFER;
+    alloc_size_[1] = (( inputs[0]->sequence() + seq_pos_cpu_ ) / DYNAMICBUFFER + 1) * DYNAMICBUFFER;
     alloc_size_[2] = inputs[0]->head();
     alloc_size_[3] = inputs[0]->dimension();
 
     qnn_size_[0] = inputs[0]->batch();
-    if (( inputs[0]->batch() + seq_pos_cpu_ ) / DYNAMICBUFFER == 0) 
+    if (( inputs[0]->sequence() + seq_pos_cpu_ ) / DYNAMICBUFFER == 0) 
         qnn_size_[1] = 1;
     else    
-        qnn_size_[1] = (( inputs[0]->batch() + seq_pos_cpu_ ) / DYNAMICBUFFER ) * DYNAMICBUFFER;
+        qnn_size_[1] = (( inputs[0]->sequence() + seq_pos_cpu_ ) / DYNAMICBUFFER ) * DYNAMICBUFFER;
     qnn_size_[2] = inputs[0]->head();
     qnn_size_[3] = inputs[0]->dimension();
 
@@ -45,6 +45,13 @@ ErrorCode QNNKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 }
 
 ErrorCode QNNKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {  
+
+    seq_pos_.setName(name() + ".seq_pos");
+    seq_pos_.reshape(1, 1, 1, 1);
+    seq_pos_.setDtype(MLLM_TYPE_I32);
+    seq_pos_.setBackend(qnnBackend_);
+    seq_pos_.alloc();
+
     qnnBackend_->pushInputBuffers(seq_pos_.hostPtr<uint8_t>());
 
     outputs[0]->setDtype(MLLM_TYPE_F32);
@@ -103,13 +110,7 @@ ErrorCode QNNKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 }
 
 ErrorCode QNNKVCache::load(AbstructLoader &loader) {
-    seq_pos_.setName(name() + ".seq_pos");
-    seq_pos_.reshape(1, 1, 1, 1);
-    seq_pos_.setDtype(MLLM_TYPE_I32);
-    seq_pos_.setBackend(qnnBackend_);
-    seq_pos_.alloc();
-
-    seq_pos_.setDataAt<uint32_t>(0, 0, 0, 0, 0);
+    
     return Op::load(loader);
 }
 
@@ -130,7 +131,8 @@ ErrorCode QNNKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     //     memcpy(outputs[0]->hostPtr<uint8_t>() + (seq_pos_cpu_ - outputs[0]->sequence()) * copy_size, inputs[0]->hostPtr<uint8_t>(),  inputs[0]->sequence() * copy_size * sizeof(float));
     // }
         
-
+    // TODO : seq_pos value update
+    seq_pos_.setDataAt<uint32_t>(0, 0, 0, 0, seq_pos_cpu_);
     seq_pos_cpu_ += inputs[0]->sequence();
 
     return QNNCommonOp::execute(inputs, outputs);
