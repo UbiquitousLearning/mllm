@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
     auto processor = ClipProcessor(vocab_path, merges_path);
 
     Module::initBackend(MLLM_CPU);
-    ClipConfig::init("base", 32, 224);
+    ClipConfig::init("base", 32, 224, 49408);
     auto model = CLipModel();
     model.load(model_path);
 

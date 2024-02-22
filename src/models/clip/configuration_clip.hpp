@@ -13,14 +13,14 @@ using namespace mllm;
 class ClipConfig: public ViTConfig{
 
 public:
-    int text_vocab_size= 49408;
-    int max_position_embeddings = 77;
+    static int text_vocab_size;
+    static int max_position_embeddings;
 
-    int text_hidden_dim = 512;
-    int text_head_size = 8;
+    static int text_hidden_dim;
+    static int text_head_size;
     int text_attn_hidden_dim = text_hidden_dim / text_head_size;
-    int text_mlp_hidden = 2048;
-    int text_block_num = 12;
+    static int text_mlp_hidden;
+    static int text_block_num;
 
 
 
@@ -42,9 +42,25 @@ public:
     string vision_pre_layrnorm_name = "vision_model.pre_layrnorm";
 
 
-    static void init(const string& model_type = "base", int patch_ = 32, int hw = 224) {
+    static void init(const string& model_type = "base", int patch_ = 32, int hw = 224, int text_vocab_size_ = 49408) {
         ViTConfig::init(model_type, patch_, hw, 1000,  "QuickGELU", "vision_model");
+        text_vocab_size = text_vocab_size_;
+        if (model_type == "base") {
+            max_position_embeddings = 77;
+            text_hidden_dim = 512;
+            text_head_size = 8;
+            text_mlp_hidden = 2048;
+            text_block_num = 12;
+        }
     }
 };
+
+int ClipConfig::text_vocab_size;
+int ClipConfig::max_position_embeddings;
+
+int ClipConfig::text_hidden_dim;
+int ClipConfig::text_head_size;
+int ClipConfig::text_mlp_hidden;
+int ClipConfig::text_block_num;
 
 #endif // CONFIG_ViT_HPP
