@@ -175,7 +175,7 @@ int main(int argc, char **argv) {
     BPETokenizer::tokens2Tensor(&net, tokens_ids, input_text);
 
     shared_ptr<Tensor> input_img = std::make_shared<Tensor>();
-    auto *clip_processor = new ClipProcessor(tokenizer);
+    auto *clip_processor = new ClipPreProcessor(tokenizer);
     clip_processor->PreProcessImages({"../assets/cat.jpg"});
     auto images = clip_processor->pixel_values_[0];
     clip_processor->Img2Tensor(net.backends()[BackendType::MLLM_CPU].get(), input_img, images);

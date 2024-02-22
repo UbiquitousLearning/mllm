@@ -96,10 +96,10 @@ public:
             lm_head_name = "classifier";
         } else if(name_type == "vision_model") {
             vison_model_name = "vision_model";
-            _patch_embedding_name = "patch_embeddings";
+            _patch_embedding_name = "patch_embedding";
             _cls_token_name = "class_embedding";
             _position_ids_name = "position_ids";
-            _position_embeddings_name = "position_embeddings";
+            _position_embeddings_name = "position_embedding";
             _layer_name = "layers.";
             _attn_base_name = "self_attn.";
             _ffn_base_name = "mlp.";
@@ -108,7 +108,7 @@ public:
             _v_proj_name = "v_proj";
             _o_proj_name = "out_proj";
             _up_proj_name = "fc1";
-            _down_proj_name = "fc2";
+            _down_proj_name =_ffn_base_name + "fc2";
             _attn_norm_name = "layer_norm1";
             _ffn_norm_name = "layer_norm2";
             _post_norm_name = ".post_layernorm";
@@ -141,5 +141,6 @@ std::string ViTConfig::_patch_embedding_name;
 std::string ViTConfig::_cls_token_name;
 std::string ViTConfig::_position_ids_name;
 std::string ViTConfig::_position_embeddings_name;
+// std::string ViTConfig::down_proj_name;
 
 #endif // CONFIG_ViT_HPP

@@ -2,30 +2,35 @@
 #include <utility>
 #include "cmdline.h"
 #include "models/clip/modeling_clip.hpp"
-#include "models/vit/labels_vit.hpp"
-#include "models/vit/processing_vit.hpp"
+#include "models/clip/processing_clip.hpp"
 
 using namespace mllm;
 
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/vit-base-patch16-224-q4_k.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/clip_vocab.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/clip-vit-base-patch32-q4_k.mllm");
+    cmdParser.add<string>("merges", 'f', "specify mllm tokenizer merges.txt path", false, "../vocab/clip_merges.txt");
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
+    string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
+    string merges_path = cmdParser.get<string>("merges");
     int thread_num = cmdParser.get<int>("thread");
 
-    auto processor = ViTProcessor();
+    auto processor = ClipProcessor(vocab_path, merges_path);
 
     Module::initBackend(MLLM_CPU);
-    ViTConfig::init("base", 16, 224, imagenet_id2label.size());
-    auto model = ViTModel();
+    ClipConfig::init("base", 32, 224);
+    auto model = CLipModel();
     model.load(model_path);
 
-
-    auto input_tensor = processor.process("../assets/cat.jpg", 224);
-    auto result = model({input_tensor});
+    auto input_tensors = processor.process({"a photo of a cat", "a photo of a dog"}, "../assets/cat.jpg", 224);
+    auto result = model({input_tensors[0], input_tensors[1]});
     auto token_idx = processor.postProcess(result[0]);
-    std::cout << imagenet_id2label[token_idx] << std::endl;
+    for (auto prob : token_idx) {
+        std::cout << prob << "  ";
+    }
+    std::cout<<std::endl;
 }

@@ -289,7 +289,7 @@ int main(int argc, char **argv) {
     vector<string> img_names = {"../assets/dog_image.jpg", "../assets/car_image.jpg", "../assets/bird_image.jpg"};
     // vector<float*> data_imgs;
     vector< vector< vector<vector<float>>>> data_imgs;
-    auto* clip = new ClipProcessor(tokenizer);
+    auto* clip = new ClipPreProcessor(tokenizer);
     clip->PreProcessImages(img_names);
     data_imgs = clip->pixel_values_;
     shared_ptr<Tensor> input_img = std::make_shared<Tensor>();

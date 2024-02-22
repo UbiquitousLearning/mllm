@@ -140,7 +140,7 @@ protected:
             op_->execute(shared_inputs, shared_outputs);
             if(Tensor::gph_[next_name].aggregated() == false) {
                 assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
-                // Tensor::gph_[next_name].saveData<float>();
+                // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
             }
             break;
         }

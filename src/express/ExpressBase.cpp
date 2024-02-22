@@ -349,7 +349,7 @@ NetTensor *TNetTensor::transpose(Chl axis1, Chl axis2) {
 NetTensor *TNetTensor::norm(int L_n) {
     Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
-    _SET_OUT_TENSOR_NAME(out_tensor, name, net_op_, "_transpose_")
+    _SET_OUT_TENSOR_NAME(out_tensor, name, net_op_, "_norm_")
     net_op_->type = NORM;
     net_op_->param["type"] = NORM;
     net_op_->param["L_n"] = (float)L_n;

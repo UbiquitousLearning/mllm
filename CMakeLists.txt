@@ -357,7 +357,10 @@ else ()
 endif ()
 
 add_executable(demo_clip ${PROJECT_SOURCE_DIR}/examples/demo_clip.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
         src/processor/PreProcess.cpp
+        src/processor/ClipPreProcess.cpp
 )
 if (ARM AND NOT APK)
     target_compile_options(demo_clip PRIVATE -fopenmp)

@@ -179,20 +179,29 @@ Tensor &Tensor::operator/(double data) {
 
 template <typename Func>
 void Tensor::binaryTensorsCompute(Tensor &input0,Tensor &input1, Tensor &output, Func operation, int thread_count){
+    int batch_ = std::max(input0.batch(), input1.batch());
     if (input0.masterTensor() == nullptr && output.masterTensor() == nullptr && input0.ctype() == output.ctype()) {
+        for (int n = 0; n < batch_; ++n) {
+            auto n_0 = std::min(n, input0.batch() - 1);
+            auto n_1 = std::min(n, input1.batch() - 1);
 #pragma omp parallel for num_threads(thread_count)
-        for (int is = 0; is < input0.batch() * input0.head() * input0.sequence() * input0.dimension(); ++is) {
-            output.hostPtr<float>()[is] = operation(input0.hostPtr<float>()[is], input1.hostPtr<float>()[is]);
+            for (int is = 0; is <  input0.head() * input0.sequence() * input0.dimension(); ++is) {
+               output.ptrAt<float>(n, 0, 0, 0)[is] =
+                   operation(input0.ptrAt<float>(n_0, 0, 0, 0)[is],
+                       input1.ptrAt<float>(n_1, 0, 0, 0)[is]);
+            }
         }
     } else {
-        for (int n = 0; n < input0.batch(); ++n) {
+        for (int n = 0; n < batch_; ++n) {
+            auto n_0 = std::min(n, input0.batch() - 1);
+            auto n_1 = std::min(n, input1.batch() - 1);
             for (int c = 0; c < input0.head(); ++c) {
                 for (int h = 0; h < input0.sequence(); ++h) {
 #pragma omp parallel for num_threads(thread_count)
                     for (int w = 0; w < input0.dimension(); ++w) {
                         output.ptrAt<float>(n, c, h, w)[0] =
-                            operation(input0.ptrAt<float>(n, c, h, w)[0],
-                                input1.ptrAt<float>(n, c, h, w)[0]);
+                            operation(input0.ptrAt<float>(n_0, c, h, w)[0],
+                                input1.ptrAt<float>(n_1, c, h, w)[0]);
                     }
                 }
             }
@@ -210,7 +219,7 @@ Tensor &Tensor::binaryTwoCompute(Func operation, string append_s, Tensor& other)
             gph_[name_] = *this;
             gph_[name_].status() = status_;
         }
-        gph_[next_name] = Tensor(gph_[name_].batch(), gph_[name_].head(), gph_[name_].sequence(), gph_[name_].dimension(), backend_, false);
+        gph_[next_name] = Tensor(std::max(gph_[name_].batch(), other.batch()), gph_[name_].head(), gph_[name_].sequence(), gph_[name_].dimension(), backend_, false);
         gph_[next_name].setName(next_name);
         gph_[next_name].alloc();
         binaryTensorsCompute(gph_[name_],gph_[other.name_], gph_[next_name], operation, thread_count);
@@ -222,10 +231,10 @@ Tensor &Tensor::binaryTwoCompute(Func operation, string append_s, Tensor& other)
             gph_[name_].status() = status_;
         }
         if (gph_.find(next_name) == gph_.end()) {
-            gph_[next_name] = Tensor(gph_[name_].batch(), gph_[name_].head(), gph_[name_].sequence(), gph_[name_].dimension(), backend_, false);
+            gph_[next_name] = Tensor(std::max(gph_[name_].batch(), other.batch()), gph_[name_].head(), gph_[name_].sequence(), gph_[name_].dimension(), backend_, false);
             gph_[next_name].setName(next_name);
         } else {
-            gph_[next_name].reshape(gph_[name_].batch(), gph_[name_].head(), gph_[name_].sequence(), gph_[name_].dimension());
+            gph_[next_name].reshape(std::max(gph_[name_].batch(), other.batch()), gph_[name_].head(), gph_[name_].sequence(), gph_[name_].dimension());
         }
         break;
     }
@@ -242,6 +251,8 @@ Tensor &Tensor::binaryTwoCompute(Func operation, string append_s, Tensor& other)
     }
     case TENSOR_STATIC_ALLOCED: {
         binaryTensorsCompute(gph_[name_], gph_[other.name_], gph_[next_name], operation, thread_count);
+        // Tensor::gph_[name_].saveData<float>();
+        // Tensor::gph_[other.name_].saveData<float>();
         // Tensor::gph_[next_name].saveData<float>();
         break;
     }
@@ -579,7 +590,7 @@ Tensor &Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d)
             for (int b = 0; b < gph_[name_].batch(); ++b) {
                 memcpy(gph_[next_name].hostPtr<float>() + gph_[next_name].offset(b, 0, 0, 0),
                        gph_[name_].hostPtr<float>() + gph_[name_].offset(b, 0, s[0], 0),
-                       gph_[name_].head() * s[1] - s[0] * gph_[name_].dimension() * sizeof(float));
+                       gph_[name_].head() * (s[1] - s[0]) * gph_[name_].dimension() * sizeof(float));
             }
         } else if (s.size() == 1) {
             int seq_idx = s[0];
@@ -722,5 +733,75 @@ Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
     return gph_[next_name];
 }
 
+Tensor& Tensor::norm(int L_n) {
+    int thread_count = 4;
+    assert(L_n ==1 || L_n ==2);
+    const std::string next_name = name_ + "-norm";
+    switch (status_) {
+    case TENSOR_DYNAMIC: {
+        std::cout << "[TODO] not support dynamic tensor view" << std::endl;
+        break;
+    }
+    case TENSOR_STATIC_INIT: {
+        if (gph_.find(name_) == gph_.end()) {
+            gph_[name_] = *this;
+            gph_[name_].status() = status_;
+        }
+        // reshape
+        int dim_b = gph_[name_].batch();
+        int dim_h = gph_[name_].head();
+        int dim_s = gph_[name_].sequence();
+        int dim_d = gph_[name_].dimension();
+        if (gph_.find(next_name) == gph_.end()) {
+            gph_[next_name] = Tensor(backend_);
+            gph_[next_name].reshape(dim_b, dim_h, dim_s, dim_d);
+            gph_[next_name].setName(next_name);
+        } else {
+            gph_[next_name].reshape(dim_b, dim_h, dim_s, dim_d);
+        }
+        break;
+    }
+    case TENSOR_STATIC_SHAPED: {
+        //alloc
+        gph_[next_name].setDtype(gph_[name_].dtype());
+        gph_[next_name].alloc();
+        break;
+    }
+    case TENSOR_STATIC_ALLOCED: {
+        // exe
+        for (int h = 0; h < gph_[name_].head(); h++) {
+            for (int n = 0; n < gph_[name_].batch(); n++) {
+                for (int s = 0; s < gph_[name_].sequence(); s++) {
+                    if (L_n == 2) {
+                        float sum_of_squares = 0.0f;
+                        for (int d = 0; d < gph_[name_].dimension(); ++d) {
+                            sum_of_squares += gph_[name_].dataAt<float>(n, h, s,d) * gph_[name_].dataAt<float>(n, h, s,d);
+                        }
+                        float l2_norm = std::sqrt(sum_of_squares);
+#pragma omp parallel for num_threads(thread_count)
+                        for (int d = 0; d < gph_[name_].dimension(); d++) {
+                            gph_[next_name].setDataAt<float>(n, h, s,d, l2_norm);
+                        }
+                    } else {
+                        float sum_of_abs_values = 0.0f;
+                        for (int d = 0; d < gph_[name_].dimension(); ++d) {
+                            sum_of_abs_values += std::abs(gph_[name_].dataAt<float>(n, h, s,d));
+                        }
+#pragma omp parallel for num_threads(thread_count)
+                        for (int d = 0; d < gph_[name_].dimension(); d++) {
+                             gph_[next_name].setDataAt<float>(n, h, s,d, sum_of_abs_values);
+                        }
 
+                    }
+                }
+            }
+        }
+        break;
+    }
+    default: {
+    }
+    }
+    gph_[next_name].status() = status_;
+    return gph_[next_name];
+}
 } // namespace mllm

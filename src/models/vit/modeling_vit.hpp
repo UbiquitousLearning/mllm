@@ -11,10 +11,10 @@
 using namespace mllm;
 
 class ViTAttention final: public Module, public ViTConfig {
-    Linear q_proj = Linear(hidden_dim, head_size*attn_hidden_dim, false, q_proj_name);
-    Linear k_proj = Linear(hidden_dim, head_size*attn_hidden_dim, false,k_proj_name);
-    Linear v_proj = Linear(hidden_dim, head_size*attn_hidden_dim,false,v_proj_name);
-    Linear o_proj = Linear(head_size*attn_hidden_dim, hidden_dim, false, o_proj_name);
+    Linear q_proj = Linear(hidden_dim, head_size*attn_hidden_dim, true, q_proj_name);
+    Linear k_proj = Linear(hidden_dim, head_size*attn_hidden_dim, true,k_proj_name);
+    Linear v_proj = Linear(hidden_dim, head_size*attn_hidden_dim,true,v_proj_name);
+    Linear o_proj = Linear(head_size*attn_hidden_dim, hidden_dim, true, o_proj_name);
     Matmul qk_mm = Matmul(false, true, attn_base_name+"qk_mm");
     Matmul qkv_mm = Matmul(false, false, attn_base_name+"qkv_mm");
     Softmax softmax = Softmax(DIMENSION, attn_base_name+"softmax");

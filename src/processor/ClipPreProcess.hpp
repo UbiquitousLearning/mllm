@@ -6,9 +6,9 @@
 #define CLIPPREPROCESS_HPP
 #include "PreProcess.hpp"
 namespace mllm {
-class ClipProcessor : public mllm::PreProcessor {
+class ClipPreProcessor : public mllm::PreProcessor {
 public:
-    explicit ClipProcessor(
+    explicit ClipPreProcessor(
         mllm::Tokenizer *tokenizer, int height = 224, int width = 224,
         bool do_pad = false, bool do_resize = true, bool do_normalize = true,
         bool do_rescale = true,
