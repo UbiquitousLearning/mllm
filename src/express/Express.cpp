@@ -225,6 +225,38 @@ NetTensor *_SiLU(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+NetTensor *_Quantize(std::vector<NetTensor *> inputs, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Quantize" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = MLLM_TYPE_I8;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::QUANTIZE)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+NetTensor *_Dequantize(std::vector<NetTensor *> inputs, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Dequantize" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = MLLM_TYPE_F32;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::DEQUANTIZE)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
 /**
  * \param axis The axis along which the softmax is performed. e.g. DIMENSION.
  */
@@ -260,6 +292,28 @@ NetTensor *_Matmul(std::vector<NetTensor *> inputs, bool transpose0, bool transp
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::MATMUL)
+    net_op_->param["transpose0"] = transpose0;
+    net_op_->param["transpose1"] = transpose1;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+/**
+ * \param transpose0 Whether to transpose the first input tensor.
+ * \param transpose1 Whether to transpose the second input tensor.
+ */
+NetTensor *_MatmulINT8(std::vector<NetTensor *> inputs, bool transpose0, bool transpose1, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "MatmulINT8" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::MATMULINT8)
     net_op_->param["transpose0"] = transpose0;
     net_op_->param["transpose1"] = transpose1;
     _UPDATE_INPUT_TENSORS
@@ -350,6 +404,30 @@ NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_fea
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::LINEAR)
+    net_op_->param["in_features"] = in_features;
+    net_op_->param["out_features"] = out_features;
+    net_op_->param["bias"] = (int)bias;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+/**
+ * \param in_features The size of each input sample (i.e., input dimension).
+ * \param out_features The size of each output sample (i.e., output dimension).
+ * \param bias If set to false, the layer will not learn an additive bias. Default is true.
+ */
+NetTensor *_LinearINT8(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "LinearINT8" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::LINEARINT8)
     net_op_->param["in_features"] = in_features;
     net_op_->param["out_features"] = out_features;
     net_op_->param["bias"] = (int)bias;

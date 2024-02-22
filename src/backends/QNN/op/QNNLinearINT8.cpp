@@ -132,28 +132,35 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 }
 
 ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
+    // weight_.setName(name() + ".weight");
+    // weight_.reshape(1, 1, out_features_, in_features_);
+    // if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
+    //     weight_.setDtype(loader.getDataType(weight_.name()));
+    //     weight_.alloc();
+    //     loader.load(&weight_);
+    // } else {
+    //     weight_.setDtype(MLLM_TYPE_F32);
+    //     weight_.alloc();
+    // }
+    // if (support_bias_) {
+    //     bias_.setName(name() + ".bias");
+    //     bias_.reshape(1, 1, 1, out_features_);
+    //     if (loader.getDataType(bias_.name()) != MLLM_TYPE_COUNT) {
+    //         bias_.setDtype(loader.getDataType(bias_.name()));
+    //         bias_.alloc();
+    //         loader.load(&bias_);
+    //     } else {
+    //         bias_.setDtype(MLLM_TYPE_F32);
+    //         bias_.alloc();
+    //     }
+    // }
+
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, out_features_, in_features_);
-    if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
-        weight_.setDtype(loader.getDataType(weight_.name()));
-        weight_.alloc();
-        loader.load(&weight_);
-    } else {
-        weight_.setDtype(MLLM_TYPE_F32);
-        weight_.alloc();
-    }
-    if (support_bias_) {
-        bias_.setName(name() + ".bias");
-        bias_.reshape(1, 1, 1, out_features_);
-        if (loader.getDataType(bias_.name()) != MLLM_TYPE_COUNT) {
-            bias_.setDtype(loader.getDataType(bias_.name()));
-            bias_.alloc();
-            loader.load(&bias_);
-        } else {
-            bias_.setDtype(MLLM_TYPE_F32);
-            bias_.alloc();
-        }
-    }
+    weight_.setDtype(MLLM_TYPE_I8);
+    weight_.alloc();
+
+
     return Op::load(loader);
 }
 

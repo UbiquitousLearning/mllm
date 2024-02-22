@@ -20,6 +20,7 @@ enum OpType {
     RMSNORM,
     CAUSALMASK,
     LINEAR,
+    LINEARINT8,
     EMBEDDING,
     MUL,
     VIEW,
@@ -46,6 +47,8 @@ enum OpType {
     WHERE,
     REPLACE,
     WNOP,
+    QUANTIZE,
+    DEQUANTIZE,
     OP_NUM
 };
 
@@ -56,11 +59,13 @@ static const vector<string> OpNames = {
     "SoftMax",
     "SiLU",
     "MatMul",
+    "MatMulINT8",
     "Scale",
     "RoPE",
     "RMSNorm",
     "CausalMask",
     "Linear",
+    "LinearINT8"
     "Embedding",
     "Mul",
     "VIEW",
@@ -87,6 +92,8 @@ static const vector<string> OpNames = {
     "Where",
     "Replace",
     "WNop",
+    "Quantize",
+    "Dequantize",
     "OP_NUM"};
 } // namespace mllm
 #endif

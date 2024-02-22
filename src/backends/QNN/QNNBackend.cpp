@@ -26,9 +26,13 @@
 #include "op/QNNAdd.hpp"
 #include "op/QNNCausalMask.hpp"
 #include "op/QNNLinear.hpp"
+#include "op/QNNLinear3D.hpp"
 #include "op/QNNLinearFP.hpp"
 #include "op/QNNLinearTest.hpp"
+#include "op/QNNLinearINT8.hpp"
 #include "op/QNNMatmul.hpp"
+#include "op/QNNMatmulNT.hpp"
+#include "op/QNNMatmulINT8.hpp"
 #include "op/QNNMul.hpp"
 #include "op/QNNRMSNorm.hpp"
 #include "op/QNNRoPE.hpp"
@@ -38,6 +42,10 @@
 #include "op/QNNView.hpp"
 #include "op/QNNKVCache.hpp"
 #include "op/QNNWNop.hpp"
+
+#include "op/QNNReLU.hpp"
+#include "op/QNNQuantize.hpp"
+#include "op/QNNDequantize.hpp"
 
 #define DEBUGPRINT
 #ifdef DEBUGPRINT
@@ -59,6 +67,8 @@ void QNNBackend::registerOps() {
     addCreator(ADD, (QNNBackend::Creator *)new QNNAddCreator());
     addCreator(CAUSALMASK, (QNNBackend::Creator *)(new QNNCausalMaskCreator()));
     addCreator(MATMUL, (QNNBackend::Creator *)(new QNNMatmulCreator()));
+    // addCreator(MATMUL, (QNNBackend::Creator *)(new QNNMatmulNTCreator()));
+    addCreator(MATMULINT8, (QNNBackend::Creator *)(new QNNMatmulINT8Creator()));
     addCreator(RMSNORM, (QNNBackend::Creator *)(new QNNRMSNormCreator()));
     addCreator(ROPE, (QNNBackend::Creator *)(new QNNRoPECreator()));
     addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
@@ -67,12 +77,17 @@ void QNNBackend::registerOps() {
     addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearCreator()));
     // addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearFPCreator()));
     // addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearTestCreator()));
+    // addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinear3DCreator()));
+    addCreator(LINEARINT8, (QNNBackend::Creator *)(new QNNLinearINT8Creator()));
     // addCreator(ATTENTION, (QNNBackend::Creator *)(new QNNAttentionCreator()));
     // addCreator(EMBEDDING, (QNNBackend::Creator *)(new QNNEmbeddingCreator()));
     addCreator(MUL, (QNNBackend::Creator *)(new QNNMulCreator()));
     addCreator(VIEW, (QNNBackend::Creator *)(new QNNViewCreator()));
     addCreator(KVCACHE, (QNNBackend::Creator *)(new QNNKVCacheCreator()));
     addCreator(WNOP, (QNNBackend::Creator *)(new QNNWNopCreator()));
+    addCreator(RELU, (QNNBackend::Creator *)(new QNNReLUCreator()));
+    addCreator(QUANTIZE, (QNNBackend::Creator *)(new QNNQuantizeCreator()));
+    addCreator(DEQUANTIZE, (QNNBackend::Creator *)(new QNNDequantizeCreator()));
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :

@@ -41,6 +41,13 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
             dimensions[2] = static_cast<uint32_t>(output->sequence());
         }
 
+        auto data_type = QNN_DATATYPE_FLOAT_32;
+        if (nodeType == "Reshape") {
+            std::cout << "QNN INT8 op" << std::endl;
+            data_type = QNN_DATATYPE_UFIXED_POINT_8;
+        }
+            
+
         inputTensorNames_.push_back(new string(output->name()));
         outputTensors.push_back({QNN_TENSOR_VERSION_1,
                                  {.v1 = {
@@ -48,7 +55,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
                                       .name = inputTensorNames_.back()->c_str(),
                                       .type = getOutputTensorType(output),
                                       .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                      .dataType = QNN_DATATYPE_FLOAT_32,
+                                      .dataType = data_type,
                                       .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                          QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                          {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
