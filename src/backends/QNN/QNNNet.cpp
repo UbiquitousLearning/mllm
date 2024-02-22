@@ -40,81 +40,81 @@ void QNNNet::convert(vector<NetParameter> &param, BackendType backend_type, int 
     //      2. autoregressive QNN graph. 
     //      3. autoregressive CPU graph.
 
-    // We assume only one param now.
-    for (int ii = 0; ii < (int)param.size(); ++ii) {
-        auto &sub_param = param[ii];
-        vector<NetOp *> ops = sub_param.net_ops;
+    // // We assume only one param now.
+    // for (int ii = 0; ii < (int)param.size(); ++ii) {
+    //     auto &sub_param = param[ii];
+    //     vector<NetOp *> ops = sub_param.net_ops;
         
-        std::cout << "QNN net convert" << std::endl;
+    //     std::cout << "QNN net convert" << std::endl;
 
-        vector<int> splitPositions;
-        for (int op_i = 0; op_i < ops.size(); op_i++ ) {
+    //     vector<int> splitPositions;
+    //     for (int op_i = 0; op_i < ops.size(); op_i++ ) {
 
-            // find where the matmul => split dynamic shape graph point.
-            if (ops[op_i]->type == MATMUL) {
-                splitPositions.push_back(op_i);
-            }
-        }
+    //         // find where the matmul => split dynamic shape graph point.
+    //         if (ops[op_i]->type == MATMUL) {
+    //             splitPositions.push_back(op_i);
+    //         }
+    //     }
 
-        if (splitPositions.size() % 2 != 0) {
-            std::cout << "dynamic shape graph split errors" << std::endl;
-            exit(-1);
-        }
+    //     if (splitPositions.size() % 2 != 0) {
+    //         std::cout << "dynamic shape graph split errors" << std::endl;
+    //         exit(-1);
+    //     }
 
-        std::cout << "QNN split point size" << splitPositions.size() << std::endl;
+    //     std::cout << "QNN split point size" << splitPositions.size() << std::endl;
 
-        // _SubgraphBegin(ctx_);
-        // auto new_sub_param = get_active_subgraph(ctx_);
+    //     // _SubgraphBegin(ctx_);
+    //     // auto new_sub_param = get_active_subgraph(ctx_);
 
-        // merge all dynamic shape ops to a CPU graph.
-        for (int dop_i = 0; dop_i < splitPositions.size(); dop_i+=2) {
-            int opBegin = splitPositions[dop_i];
-            int opEnd = splitPositions[dop_i + 1];
+    //     // merge all dynamic shape ops to a CPU graph.
+    //     for (int dop_i = 0; dop_i < splitPositions.size(); dop_i+=2) {
+    //         int opBegin = splitPositions[dop_i];
+    //         int opEnd = splitPositions[dop_i + 1];
 
-            // Add WNOP to QNN graph.
-            // All CPU ops execute in QNNOp execution function.
-            NetOp* beginOp = ops[opBegin];
-            for (int in_i = 0; in_i < beginOp->in.size(); in_i++ ) {
-                NetTensor* in_tensor = beginOp->in[in_i];
-                auto * wnop = _WNop({in_tensor}, 0, beginOp->name + "WNop" + std::to_string(in_i));
-                beginOp->in[in_i] = wnop;
-                std::cout << "WNop QNN -> CPU" << std::endl;
-            }
+    //         // Add WNOP to QNN graph.
+    //         // All CPU ops execute in QNNOp execution function.
+    //         NetOp* beginOp = ops[opBegin];
+    //         for (int in_i = 0; in_i < beginOp->in.size(); in_i++ ) {
+    //             NetTensor* in_tensor = beginOp->in[in_i];
+    //             auto * wnop = _WNop({in_tensor}, 0, beginOp->name + "WNop" + std::to_string(in_i));
+    //             beginOp->in[in_i] = wnop;
+    //             std::cout << "WNop QNN -> CPU" << std::endl;
+    //         }
 
-            NetOp* endOp = ops[opEnd];
-            std::cout << "End op type" << endOp->type << std::endl;
-            std::cout << "End op out size" << endOp->out.size() << std::endl;
+    //         NetOp* endOp = ops[opEnd];
+    //         std::cout << "End op type" << endOp->type << std::endl;
+    //         std::cout << "End op out size" << endOp->out.size() << std::endl;
 
-            vector<NetTensor *> tensors = sub_param.net_tensors;
+    //         vector<NetTensor *> tensors = sub_param.net_tensors;
 
-            for (auto tensor_i : tensors) {
+    //         for (auto tensor_i : tensors) {
 
-                // tensor_i is the out tensor
-                if (tensor_i->in == endOp) {
+    //             // tensor_i is the out tensor
+    //             if (tensor_i->in == endOp) {
 
-                    for (auto op : ops) {
+    //                 for (auto op : ops) {
 
-                        auto iter = std::find(op->in.begin(), op->in.end(), tensor_i);
-                        if ( iter != op->in.end() && op->type != WNOP) {
+    //                     auto iter = std::find(op->in.begin(), op->in.end(), tensor_i);
+    //                     if ( iter != op->in.end() && op->type != WNOP) {
 
-                            auto * wnop = _WNop({tensor_i}, 1, endOp->name + "WNop" + std::to_string(iter - op->in.begin()));
-                            *iter = wnop;
+    //                         auto * wnop = _WNop({tensor_i}, 1, endOp->name + "WNop" + std::to_string(iter - op->in.begin()));
+    //                         *iter = wnop;
 
-                            // replace all the related
-                            std::cout << "WNop CPU -> QNN" << std::endl;
+    //                         // replace all the related
+    //                         std::cout << "WNop CPU -> QNN" << std::endl;
 
-                        }
+    //                     }
 
-                    }
-
-
-                }
-            }
-
-        }
+    //                 }
 
 
-    }
+    //             }
+    //         }
+
+    //     }
+
+
+    // }
 
 
 
