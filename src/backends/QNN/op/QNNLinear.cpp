@@ -47,9 +47,9 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                    static_cast<uint32_t>(inputs[0]->sequence()),
                                    static_cast<uint32_t>(inputs[0]->head()),
                                    static_cast<uint32_t>(inputs[0]->dimension())};
-    for (int i = 0; i < 4; i++) {
-        dimensionsInput[i] = inputs[0]->shape()[i];
-    }
+    // for (int i = 0; i < 4; i++) {
+    //     dimensionsInput[i] = inputs[0]->shape()[i];
+    // }
 
     // TODO： split into another function
     // if weight is float32, use float matmul
@@ -57,7 +57,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 
         std::cout << " test fp linear " << name() << std::endl;
 
-        uint32_t dimensionsWeight[2] = {static_cast<uint32_t>(weight_.sequence()), static_cast<uint32_t>(weight_.dimension())};
+        uint32_t dimensionsWeight[4] = {1, 1, static_cast<uint32_t>(weight_.sequence()), static_cast<uint32_t>(weight_.dimension())};
         qnnBackend_->modelAddTensor(weight_.name(), (Qnn_Tensor_t){
                                                         .version = QNN_TENSOR_VERSION_1,
                                                         {.v1 = {
@@ -69,15 +69,15 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                                              .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                                                 QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                                                 {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-                                                             .rank = 2,
+                                                             .rank = 4,
                                                              .dimensions = dimensionsWeight,
                                                              .memType = QNN_TENSORMEMTYPE_RAW,
                                                              {.clientBuf = {.data = weight_.hostPtr<void>(),
                                                                             .dataSize = (uint32_t)weight_.cntSize()}}}}});
         // final output
         uint32_t dimensionsOutput[4] = {static_cast<uint32_t>(outputs[0]->batch()),
+                                        static_cast<uint32_t>(1),
                                         static_cast<uint32_t>(outputs[0]->sequence()),
-                                        static_cast<uint32_t>(outputs[0]->head()),
                                         static_cast<uint32_t>(outputs[0]->dimension())};
         auto outString = outputs[0]->name();
         vector<Qnn_Tensor_t>
@@ -118,7 +118,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                 .dataSize = 0}}}}}};
     graphAddNode(name() + ".quantize", "Quantize", {inputs[0]->name()}, quantizedInput);
     // add weight tensor to qnn
-    uint32_t dimensionsWeight[2] = {static_cast<uint32_t>(weight_.sequence()), static_cast<uint32_t>(weight_.dimension())};
+    uint32_t dimensionsWeight[4] = {1 , 1, static_cast<uint32_t>(weight_.sequence()), static_cast<uint32_t>(weight_.dimension())};
     qnnBackend_->modelAddTensor(weight_.name(), (Qnn_Tensor_t){
                                                     .version = QNN_TENSOR_VERSION_1,
                                                     {.v1 = {
@@ -130,13 +130,13 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                                          .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                                             QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                                             {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-                                                         .rank = 2,
+                                                         .rank = 4,
                                                          .dimensions = dimensionsWeight,
                                                          .memType = QNN_TENSORMEMTYPE_RAW,
                                                          {.clientBuf = {.data = weight_.hostPtr<void>(),
                                                                         .dataSize = (uint32_t)weight_.cntSize()}}}}});
     // free weight host memory
-    weight_.free();
+    // weight_.free();
 
     // dimensions of matmul output and bias
     uint32_t dimensionsOutput[4] = {static_cast<uint32_t>(outputs[0]->batch()),
