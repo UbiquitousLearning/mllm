@@ -34,10 +34,11 @@ ErrorCode QNNKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     alloc_size_[3] = inputs[0]->dimension();
 
     qnn_size_[0] = inputs[0]->batch();
-    if (( inputs[0]->sequence() + seq_pos_cpu_ ) / DYNAMICBUFFER == 0) 
-        qnn_size_[1] = 1;
-    else    
-        qnn_size_[1] = (( inputs[0]->sequence() + seq_pos_cpu_ ) / DYNAMICBUFFER ) * DYNAMICBUFFER;
+    // if (( inputs[0]->sequence() + seq_pos_cpu_ ) / DYNAMICBUFFER == 0) 
+    //     qnn_size_[1] = 1;
+    // else    
+    //     qnn_size_[1] = (( inputs[0]->sequence() + seq_pos_cpu_ ) / DYNAMICBUFFER ) * DYNAMICBUFFER;
+    qnn_size_[1] = inputs[0]->sequence();
     qnn_size_[2] = inputs[0]->head();
     qnn_size_[3] = inputs[0]->dimension();
 
