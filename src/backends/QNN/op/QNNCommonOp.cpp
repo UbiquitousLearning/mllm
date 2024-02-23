@@ -41,8 +41,9 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
             dimensions[2] = static_cast<uint32_t>(output->sequence());
         }
 
+        // TODO tensor type = MLLM_TYPE_I8
         auto data_type = QNN_DATATYPE_FLOAT_32;
-        if (nodeType == "Reshape") {
+        if (nodeType == "Reshape" || nodeType == "LLaMAReLU") {
             std::cout << "QNN INT8 op" << std::endl;
             data_type = QNN_DATATYPE_UFIXED_POINT_8;
         }

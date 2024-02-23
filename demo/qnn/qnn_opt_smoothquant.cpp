@@ -74,7 +74,7 @@ NetTensor *FFN(NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     x = _LinearINT8({x}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
 
     // x = _Dequantize({x}, (string) name + ".relux.dequantize");
-    // x = _ReLU({x}, name + ".relu");
+    x = _ReLU({x}, name + ".relu");
     // x = _Quantize({x}, (string) name + ".relux.quantize");
 
     x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
@@ -96,7 +96,9 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
     }
     // end loop
     // i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
-    // i = _Linear({i}, hidden_dim, vocab_size, false, "output");
+    i = _Quantize({i},  ".model.quantize");
+    i = _LinearINT8({i}, hidden_dim, vocab_size, false, "output");
+    i = _Dequantize({i},  ".model.dequantize");
 }
 
 template <typename Dtype>
@@ -112,7 +114,7 @@ int main(int argc, char **argv) {
     
     int vocab_size = 50272;
     int hidden_dim = 4096;
-    int ffn_hidden_dim = 11008;
+    int ffn_hidden_dim = 16384;
     int mutil_head_size = 32;
 
     std::unique_ptr<Context> c_ptr(new Context());
@@ -128,7 +130,7 @@ int main(int argc, char **argv) {
     QNNExecutor ex(&param_loader);
 
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    fullTensor(input, net, {1, 1, 32, hidden_dim}, 2.f);
+    fullTensor(input, net, {1, 1, 1, hidden_dim}, 2.f);
     ex.setup(&net);
 
     ex.run(&net, {input});

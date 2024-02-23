@@ -17,6 +17,6 @@ ErrorCode QNNReLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode QNNReLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    return graphAddNode(name(), "Relu", inputs, outputs);
+    return graphAddNode(name(), "LLaMAReLU", inputs, outputs, {}, "LLaMAPackage");
 }
 } // namespace mllm
