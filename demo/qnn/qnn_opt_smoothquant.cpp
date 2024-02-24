@@ -3,6 +3,7 @@
 #include <csignal>
 #include "MockLoader.hpp"
 #include "Types.hpp"
+#include "backends/QNN/QNNOptNet.hpp"
 #include "cmdline.h"
 #include "Net.hpp"
 #include "Executor.hpp"
@@ -122,7 +123,7 @@ int main(int argc, char **argv) {
     opt(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size, 1);
 
     BackendConfig bn;
-    QNNNet net(bn, c);
+    QNNOptNet net(bn, c);
     net.convert(c->sub_param_, BackendType::MLLM_QNN);
 
     // ParamLoader param_loader(model_path);
