@@ -52,8 +52,8 @@ NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head
     v = v->view(-1, head_size, -1, hidden_size);
     // q = _RoPE({q}, LLAMAROPE, name + ".q_rope");
     // k = _RoPE({k}, LLAMAROPE, name + ".k_rope");
-    // k = _KVCache({k}, cache_max, name + ".k_cache");
-    // v = _KVCache({v}, cache_max, name + ".v_cache");
+    k = _KVCache({k}, cache_max, name + ".k_cache");
+    v = _KVCache({v}, cache_max, name + ".v_cache");
 
     auto *qk = _MatmulINT8({q, k}, false, true, name + ".qk");
     // qk = _Dequantize({qk}, (string) name + ".qk.dequantize");
@@ -133,7 +133,10 @@ int main(int argc, char **argv) {
     fullTensor(input, net, {1, 1, 1, hidden_dim}, 2.f);
     ex.setup(&net);
 
-    ex.run(&net, {input});
+    // for (int i=0; i<32; i++) {
+        ex.run(&net, {input});
+    // }
+    
 
     /*
     cmdline::parser cmdParser;
