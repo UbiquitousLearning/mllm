@@ -214,6 +214,9 @@ protected:
             vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor*){})};
             op_->execute(shared_inputs, shared_outputs);
             assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+            // Tensor::gph_[input0.name()].saveNData<float>(input0.name());
+            // Tensor::gph_[input1.name()].saveNData<float>(input1.name());
+            // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
             break;
         }
         default: {

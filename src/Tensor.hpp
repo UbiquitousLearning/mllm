@@ -514,6 +514,15 @@ public:
             reshape(b, h, s, d);
             transed_ = true;
             undiffusion_ = undiffusion;
+        } else if (dim_a == SEQUENCE && dim_b == DIMENSION && ctype() == BHDS) {
+            auto b = batch();
+            auto h = head();
+            auto d = dimension();
+            auto s = sequence();
+            ctype_ = BSHD;
+            reshape(b, h, s, d);
+            transed_ = false;
+            undiffusion_ = undiffusion;
         } else if (THW == dim_a && dim_b == CHANNLE && ctype() == BCTHW) {
             auto b = batch();
             auto c = channel();
@@ -587,6 +596,7 @@ public:
     Tensor& transpose(Chl axis0, Chl axis1);
     Tensor& clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d);
     static Tensor& cat(vector<Tensor> input_tensors, Chl dims);;
+    static Tensor& mm(Tensor& input0, Tensor& input1);
     Tensor& norm(int L_n);
 
 
@@ -1291,13 +1301,13 @@ private:
         return tensor_id;
     }
 
-    template <typename Func>
-    static void binaryTensorCompute(Tensor &input, Tensor &output, Func operation, float data, int thread_count);
+    // template <typename Func>
+    // static void binaryTensorCompute(Tensor &input, Tensor &output, Func operation, float data, int thread_count);
     template <typename Func>
     Tensor& binaryCompute(Func operation, string append_s,  float data) ;
-
-    template <typename Func>
-    static void binaryTensorsCompute(Tensor &input0,Tensor &input1, Tensor &output, Func operation, int thread_count);
+    //
+    // template <typename Func>
+    // static void binaryTensorsCompute(Tensor &input0,Tensor &input1, Tensor &output, Func operation, int thread_count);
     template <typename Func>
     Tensor& binaryTwoCompute(Func operation, string append_s, Tensor& other) ;
 

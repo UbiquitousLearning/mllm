@@ -21,8 +21,6 @@ class LLaMAAttention final: public Module, public LLaMAConfig {
     RoPE k_rope = RoPE( RoPE_type, attn_base_name+"k_rope");
     KVCache k_cache = KVCache(cache_limit, attn_base_name+"k_cache");
     KVCache v_cache = KVCache(cache_limit, attn_base_name+"v_cache");
-    Matmul qk_mm = Matmul(false, true, attn_base_name+"qk_mm");
-    Matmul qkv_mm = Matmul(false, false, attn_base_name+"qkv_mm");
     Causalmask mask = Causalmask(attn_base_name+"mask");
     Softmax softmax = Softmax(DIMENSION, attn_base_name+"softmax");
 
@@ -37,11 +35,12 @@ class LLaMAAttention final: public Module, public LLaMAConfig {
         k = k_rope(k);
         k = k_cache(k);
         v = v_cache(v);
-        auto qk = qk_mm(q, k);
+        k = k.transpose(SEQUENCE, DIMENSION);
+        auto qk = Tensor::mm(q, k);
         qk = qk / std::sqrt(attn_hidden_dim);
         qk = mask(qk);
         qk = softmax(qk);
-        auto o = qkv_mm(qk, v);
+        auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, attn_hidden_dim * head_size);
         o = o_proj(o);
         return {o};

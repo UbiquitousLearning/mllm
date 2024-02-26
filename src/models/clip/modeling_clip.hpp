@@ -47,8 +47,6 @@ class ClipTextAttention final : public Module, public ClipConfig {
     Linear k_proj = Linear(text_hidden_dim, text_head_size *text_attn_hidden_dim, true, text_k_proj_name);
     Linear v_proj = Linear(text_hidden_dim, text_head_size *text_attn_hidden_dim, true, text_v_proj_name);
     Linear o_proj = Linear(text_head_size * text_attn_hidden_dim, text_hidden_dim, true, text_o_proj_name);
-    Matmul qk_mm = Matmul(false, true, text_attn_base_name + "qk_mm");
-    Matmul qkv_mm = Matmul(false, false, text_attn_base_name + "qkv_mm");
     Causalmask mask = Causalmask(text_attn_base_name + "mask");
     Softmax softmax = Softmax(DIMENSION, text_attn_base_name + "softmax");
 
@@ -59,11 +57,12 @@ class ClipTextAttention final : public Module, public ClipConfig {
         q = q.view(-1, text_head_size, -1, text_attn_hidden_dim);
         k = k.view(-1, text_head_size, -1, text_attn_hidden_dim);
         v = v.view(-1, text_head_size, -1, text_attn_hidden_dim);
-        auto qk = qk_mm(q, k);
+        k = k.transpose(SEQUENCE, DIMENSION);
+        auto qk = Tensor::mm(q, k);
         qk = qk / std::sqrt(text_attn_hidden_dim);
         qk = mask(qk);
         qk = softmax(qk);
-        auto o = qkv_mm(qk, v);
+        auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, text_attn_hidden_dim * text_head_size);
         o = o_proj(o);
         return {o};

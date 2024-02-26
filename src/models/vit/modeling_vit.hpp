@@ -15,8 +15,6 @@ class ViTAttention final: public Module, public ViTConfig {
     Linear k_proj = Linear(hidden_dim, head_size*attn_hidden_dim, true,k_proj_name);
     Linear v_proj = Linear(hidden_dim, head_size*attn_hidden_dim,true,v_proj_name);
     Linear o_proj = Linear(head_size*attn_hidden_dim, hidden_dim, true, o_proj_name);
-    Matmul qk_mm = Matmul(false, true, attn_base_name+"qk_mm");
-    Matmul qkv_mm = Matmul(false, false, attn_base_name+"qkv_mm");
     Softmax softmax = Softmax(DIMENSION, attn_base_name+"softmax");
 
     vector<Tensor> Forward(vector<Tensor> inputs) override {
@@ -26,10 +24,11 @@ class ViTAttention final: public Module, public ViTConfig {
         q = q.view(-1, head_size, -1, attn_hidden_dim);
         k = k.view(-1, head_size, -1, attn_hidden_dim);
         v = v.view(-1, head_size, -1, attn_hidden_dim);
-        auto qk = qk_mm(q, k);
+        k = k.transpose(SEQUENCE, DIMENSION);
+        auto qk = Tensor::mm(q, k);
         qk = qk / std::sqrt(attn_hidden_dim);
         qk = softmax(qk);
-        auto o = qkv_mm(qk, v);
+        auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, attn_hidden_dim * head_size);
         o = o_proj(o);
         return {o};
