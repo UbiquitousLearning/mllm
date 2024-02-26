@@ -126,11 +126,10 @@ private:
 
     StatusCode createContext();
 
-    StatusCode composeGraphs();
+    // StatusCode composeGraphs();
 
-    StatusCode finalizeGraphs();
+    // StatusCode finalizeGraphs();
 
-    StatusCode executeGraphs();
     StatusCode executeGraphs(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap);
     StatusCode executeGraphsShared();
     StatusCode executeGraphsSharedAutoregressive();
@@ -141,9 +140,9 @@ private:
 
     StatusCode terminateBackend();
 
-    StatusCode freeGraphs();
+    // StatusCode freeGraphs();
 
-    Qnn_ContextHandle_t getContext();
+    // Qnn_ContextHandle_t getContext();
 
     StatusCode initializeProfiling();
 

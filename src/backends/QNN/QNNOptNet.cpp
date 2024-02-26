@@ -1,4 +1,4 @@
-#include "QNNNet.hpp"
+#include "QNNOptNet.hpp"
 #include "Op.hpp"
 #include "Types.hpp"
 #include "Backend.hpp"
@@ -8,12 +8,12 @@
 
 namespace mllm {
 
-QNNNet::QNNNet(BackendConfig config, Context *ctx) :
+QNNOptNet::QNNOptNet(BackendConfig config, Context *ctx) :
     Net(config) {
     ctx_ = ctx;
 }
 
-void QNNNet::build_new_graph(std::vector<NetTensor *> inputs, NetOp *op) {
+void QNNOptNet::build_new_graph(std::vector<NetTensor *> inputs, NetOp *op) {
     auto opType = op->type;
     switch (opType) {
     case MATMUL:
@@ -25,7 +25,7 @@ void QNNNet::build_new_graph(std::vector<NetTensor *> inputs, NetOp *op) {
     }
 }
 
-void QNNNet::convert(vector<NetParameter> &param, BackendType backend_type, int threadCount) {
+void QNNOptNet::convert(vector<NetParameter> &param, BackendType backend_type, int threadCount) {
     // *** NOTE: this below is for cpu-qnn hybrid execution, which will use cpu for embedding
     /*
     // the first graph is embedding layer, which shoud be executed in CPU
@@ -115,6 +115,7 @@ void QNNNet::convert(vector<NetParameter> &param, BackendType backend_type, int 
         for (const auto &out_t : net_in_tensor) {
             tensors_[out_t->name] = std::make_shared<Tensor>(backends_[backend_type].get());
             tensors_[out_t->name]->setName(out_t->name);
+            tensors_[out_t->name]->setDtype(out_t->type);
             for (auto &tensor_name : tensor_names_) {
                 tensor_name.erase(std::remove(tensor_name.begin(), tensor_name.end(), out_t->name), tensor_name.end());
             }
@@ -126,6 +127,7 @@ void QNNNet::convert(vector<NetParameter> &param, BackendType backend_type, int 
                 auto *in_tensor = t;
                 tensors_[in_tensor->name] = std::make_shared<Tensor>(backends_[backend_type].get());
                 tensors_[in_tensor->name]->setName(in_tensor->name);
+                tensors_[in_tensor->name]->setDtype(in_tensor->type);
                 input_names_.push_back(in_tensor->name);
                 inputname_graphidx_[in_tensor->name] = ii;
                 names.push_back(in_tensor->name);

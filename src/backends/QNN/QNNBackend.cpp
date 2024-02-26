@@ -224,22 +224,22 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
     for (int i = 0; i < 4; i++) {
         dimensionsInput[i] = inputs[0]->shape()[i];
     }
-    this->modelAddTensor(inputs[0]->name().c_str(), (Qnn_Tensor_t){
-                                                        .version = QNN_TENSOR_VERSION_1,
-                                                        {.v1 = {
-                                                             .id = 0,
-                                                             .name = inputs[0]->name().c_str(),
-                                                             .type = QNN_TENSOR_TYPE_APP_WRITE,
-                                                             .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                             .dataType = QNN_DATATYPE_FLOAT_32,
-                                                             .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                                                                QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                                                                {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-                                                             .rank = 4,
-                                                             .dimensions = dimensionsInput,
-                                                             .memType = QNN_TENSORMEMTYPE_RAW,
-                                                             {.clientBuf = {.data = nullptr,
-                                                                            .dataSize = 0}}}}});
+    qnnModel.addTensor(inputs[0]->name().c_str(), (Qnn_Tensor_t){
+                                                      .version = QNN_TENSOR_VERSION_1,
+                                                      {.v1 = {
+                                                           .id = 0,
+                                                           .name = inputs[0]->name().c_str(),
+                                                           .type = QNN_TENSOR_TYPE_APP_WRITE,
+                                                           .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                                           .dataType = QNN_DATATYPE_FLOAT_32,
+                                                           .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                                              QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                                              {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                                           .rank = 4,
+                                                           .dimensions = dimensionsInput,
+                                                           .memType = QNN_TENSORMEMTYPE_RAW,
+                                                           {.clientBuf = {.data = nullptr,
+                                                                          .dataSize = 0}}}}});
 
     for (auto &input : inputs) {
         std::cout << "input dtype:" << input->dtype() << std::endl;
@@ -428,14 +428,6 @@ qnn_wrapper_api::ModelError_t QNNBackend::modelAddTensor(std::string nodeName, Q
     return qnnModel.addTensor(nodeName.c_str(), tensor);
 }
 
-ErrorCode QNNBackend::graphExecute() {
-    // currently only call executeGraphs
-    auto result = this->executeGraphs();
-    if (result != StatusCode::SUCCESS) {
-        return ErrorCode::INVALID_VALUE;
-    }
-    return MLLM_NO_ERROR;
-}
 
 ErrorCode QNNBackend::graphExecute(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap) {
     // currently only call executeGraphs
@@ -583,33 +575,6 @@ StatusCode QNNBackend::freeContext() {
     return StatusCode::SUCCESS;
 }
 
-// Calls composeGraph function in QNN's model.so.
-// composeGraphs is supposed to populate graph related
-// information in m_graphsInfo and m_graphsCount.
-// m_debug is the option supplied to composeGraphs to
-// say that all intermediate tensors including output tensors
-// are expected to be read by the app.
-StatusCode QNNBackend::composeGraphs() {
-    auto returnStatus = StatusCode::SUCCESS;
-    if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != m_qnnFunctionPointers.composeGraphsFnHandle(m_backendHandle, m_qnnFunctionPointers.qnnInterface, m_context, (const qnn_wrapper_api::GraphConfigInfo_t **)m_graphConfigsInfo, m_graphConfigsInfoCount, &m_graphsInfo, &m_graphsCount, m_debug, log::getLogCallback(), log::getLogLevel())) {
-        QNN_ERROR("Failed in composeGraphs()");
-        returnStatus = StatusCode::FAILURE;
-    }
-    return returnStatus;
-}
-
-StatusCode QNNBackend::finalizeGraphs() {
-    for (size_t graphIdx = 0; graphIdx < m_graphsCount; graphIdx++) {
-        if (QNN_GRAPH_NO_ERROR != m_qnnFunctionPointers.qnnInterface.graphFinalize((*m_graphsInfo)[graphIdx].graph, m_profileBackendHandle, nullptr)) {
-            return StatusCode::FAILURE;
-        }
-    }
-    if (ProfilingLevel::OFF != m_profilingLevel) {
-        extractBackendProfilingInfo(m_profileBackendHandle);
-    }
-
-    return StatusCode::SUCCESS;
-}
 
 StatusCode QNNBackend::extractBackendProfilingInfo(
     Qnn_ProfileHandle_t profileHandle) {
@@ -719,74 +684,6 @@ StatusCode QNNBackend::freeDevice() {
     return StatusCode::SUCCESS;
 }
 
-// executeGraphs() that is currently used by qnn-sample-app's main.cpp.
-// This function runs all the graphs present in model.so by reading
-// inputs from input_list based files and writes output to .raw files.
-StatusCode QNNBackend::executeGraphs() {
-    auto returnStatus = StatusCode::SUCCESS;
-    for (size_t graphIdx = 0; graphIdx < m_graphsCount; graphIdx++) {
-        QNN_DEBUG("Starting execution for graphIdx: %d", graphIdx);
-        if (graphIdx >= m_inputFileLists.size()) {
-            QNN_ERROR("No Inputs available for: %d", graphIdx);
-            returnStatus = StatusCode::FAILURE;
-            break;
-        }
-        Qnn_Tensor_t *inputs = nullptr;
-        Qnn_Tensor_t *outputs = nullptr;
-        if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&inputs, &outputs, (*m_graphsInfo)[graphIdx])) {
-            QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
-            returnStatus = StatusCode::FAILURE;
-            break;
-        }
-        auto inputFileList = m_inputFileLists[graphIdx];
-        auto graphInfo = (*m_graphsInfo)[graphIdx];
-        if (!inputFileList.empty()) {
-            size_t totalCount = inputFileList[0].size();
-            while (!inputFileList[0].empty()) {
-                size_t startIdx = (totalCount - inputFileList[0].size());
-                if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(graphIdx, inputFileList, inputs, graphInfo, m_inputDataType)) {
-                    returnStatus = StatusCode::FAILURE;
-                }
-                if (StatusCode::SUCCESS == returnStatus) {
-                    QNN_DEBUG("Successfully populated input tensors for graphIdx: %d", graphIdx);
-                    Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
-                    executeStatus =
-                        m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
-                                                                        inputs,
-                                                                        graphInfo.numInputTensors,
-                                                                        outputs,
-                                                                        graphInfo.numOutputTensors,
-                                                                        m_profileBackendHandle,
-                                                                        nullptr);
-                    if (QNN_GRAPH_NO_ERROR != executeStatus) {
-                        returnStatus = StatusCode::FAILURE;
-                    }
-                    if (StatusCode::SUCCESS == returnStatus) {
-                        QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
-                        if (iotensor::StatusCode::SUCCESS != m_ioTensor.writeOutputTensors(graphIdx, startIdx, graphInfo.graphName, outputs, graphInfo.numOutputTensors, m_outputDataType, m_graphsCount, m_outputPath)) {
-                            returnStatus = StatusCode::FAILURE;
-                        }
-                    }
-                }
-                if (StatusCode::SUCCESS != returnStatus) {
-                    QNN_ERROR("Execution of Graph: %d failed!", graphIdx);
-                    break;
-                }
-            }
-        }
-        m_ioTensor.tearDownInputAndOutputTensors(
-            inputs, outputs, graphInfo.numInputTensors, graphInfo.numOutputTensors);
-        inputs = nullptr;
-        outputs = nullptr;
-        if (StatusCode::SUCCESS != returnStatus) {
-            break;
-        }
-    }
-
-    qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
-    m_graphsInfo = nullptr;
-    return returnStatus;
-}
 
 // executeGraphs() that load input/output buffers from CPU context
 // inputBufferMap and outputBufferMap: graph_name -> graph input/output CPU buffers.
