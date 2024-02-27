@@ -3,6 +3,7 @@
 #include <csignal>
 #include "MockLoader.hpp"
 #include "Types.hpp"
+#include "backends/QNN/QNNOptNet.hpp"
 #include "cmdline.h"
 #include "Net.hpp"
 #include "Executor.hpp"
@@ -86,7 +87,7 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
     // i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
     // _SubgraphBegin(c);
     // loop
-    
+   
     for (int layer = 0; layer < 16; ++layer) {
         auto *x = *Attention(i, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn") + i;
         i = _RMSNorm({x}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
@@ -94,6 +95,7 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
         i = _RMSNorm({x}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
         //_SubgraphBegin(c);
     }
+ 
     // end loop
     // i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
     i = _Quantize({i},  ".model.quantize");
@@ -122,7 +124,7 @@ int main(int argc, char **argv) {
     opt(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size, 1);
 
     BackendConfig bn;
-    QNNNet net(bn, c);
+    QNNOptNet net(bn, c);
     net.convert(c->sub_param_, BackendType::MLLM_QNN);
 
     // ParamLoader param_loader(model_path);

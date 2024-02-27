@@ -110,8 +110,8 @@ public:
     }
 
 private:
-    int32_t backendInitialize();
-    int32_t contextInitialize();
+    // int32_t backendInitialize();
+    // int32_t contextInitialize();
 
     void release();
 
@@ -120,17 +120,16 @@ private:
     // @brief Print a message to STDERR then exit with a non-zero
     void reportError(const std::string &err);
 
-    StatusCode initialize();
+    // StatusCode initialize();
 
-    StatusCode initializeBackend();
+    // StatusCode initializeBackend();
 
     StatusCode createContext();
 
-    StatusCode composeGraphs();
+    // StatusCode composeGraphs();
 
-    StatusCode finalizeGraphs();
+    // StatusCode finalizeGraphs();
 
-    StatusCode executeGraphs();
     StatusCode executeGraphs(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap);
     StatusCode executeGraphsShared();
     StatusCode executeGraphsSharedAutoregressive();
@@ -141,9 +140,9 @@ private:
 
     StatusCode terminateBackend();
 
-    StatusCode freeGraphs();
+    // StatusCode freeGraphs();
 
-    Qnn_ContextHandle_t getContext();
+    // Qnn_ContextHandle_t getContext();
 
     StatusCode initializeProfiling();
 
@@ -178,10 +177,9 @@ private:
     qnn_wrapper_api::QnnModel qnnModel;
 
     sample_app::QnnFunctionPointers m_qnnFunctionPointers;
-    std::vector<std::string> m_inputListPaths;
-    std::vector<std::vector<std::queue<std::string>>> m_inputFileLists;
+
     std::vector<std::string> m_opPackagePaths;
-    std::string m_outputPath;
+
     QnnBackend_Config_t **m_backendConfig = nullptr;
     Qnn_ContextHandle_t m_context = nullptr;
     QnnContext_Config_t **m_contextConfig = nullptr;
@@ -189,7 +187,7 @@ private:
     iotensor::OutputDataType m_outputDataType;
     iotensor::InputDataType m_inputDataType;
     sample_app::ProfilingLevel m_profilingLevel;
-    bool m_dumpOutputs;
+
     qnn_wrapper_api::GraphInfo_t **m_graphsInfo;
     // for mllm single graph execute
     qnn_wrapper_api::GraphInfo_t graphInfo;
