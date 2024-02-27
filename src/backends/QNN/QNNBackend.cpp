@@ -893,6 +893,21 @@ StatusCode QNNBackend::executeGraphsShared() {
         uint64_t t_end = mllm_time_us();
         std::cout << "QNN execution time" << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 
+        // print autoregressive latency.
+        FILE *fp = fopen("AR_latency.txt", "a");
+    
+        // 检查文件是否成功打开
+        if (fp == NULL) {
+            // 文件打开失败，输出错误消息并退出程序
+            printf("无法打开文件或文件不存在。\n");
+        }
+        
+        // 写入内容到文件
+        fprintf(fp, "QNN execution time %f ms\n", (t_end - t_start) / 1000.0F);
+        
+        // 关闭文件
+        fclose(fp);
+
         if (QNN_GRAPH_NO_ERROR != executeStatus) {
             returnStatus = StatusCode::FAILURE;
         }

@@ -133,9 +133,9 @@ int main(int argc, char **argv) {
     fullTensor(input, net, {1, 1, 1, hidden_dim}, 2.f);
     ex.setup(&net);
 
-    // for (int i=0; i<32; i++) {
+    for (int i=0; i<128; i++) {
         ex.run(&net, {input});
-    // }
+    }
     
 
     /*
