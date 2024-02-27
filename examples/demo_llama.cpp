@@ -35,8 +35,9 @@ int main(int argc, char **argv) {
         " What can you do?",
         "Please introduce Beijing University of Posts and Telecommunications."};
 
-    for (auto &in_str : in_strs) {
-        auto input_tensor = tokenizer.tokenize(in_str);
+    for (int i = 0; i < in_strs.size(); ++i) {
+        auto in_str = in_strs[i];
+        auto input_tensor = tokenizer.tokenize(in_str, i);
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
@@ -44,7 +45,7 @@ int main(int argc, char **argv) {
             auto outputs = tokenizer.detokenize(result[0]);
             auto out_string = outputs.first;
             auto out_token = outputs.second;
-            if (out_string == "</s>") {
+            if (out_token == 2) {
                 break;
             }
             std::cout << out_string << std::flush;

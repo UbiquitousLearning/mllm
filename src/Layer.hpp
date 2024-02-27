@@ -84,6 +84,7 @@ private:
 
 protected:
     Tensor &_1I1O_OP(Tensor &input) {
+        Module::runlistIdx = saved_list_idx;
         if (op_ == nullptr) {
             constexpr int threadCount = 4;
             op_ = backend_->opCreate(param_, name_, threadCount);
@@ -153,6 +154,7 @@ protected:
         return Tensor::gph_[next_name];
     }
     Tensor &_2I1O_OP(Tensor &input0, Tensor &input1) {
+        Module::runlistIdx = saved_list_idx;
         if (op_ == nullptr) {
             constexpr int threadCount = 4;
             op_ = backend_->opCreate(param_, name_, threadCount);
@@ -228,6 +230,7 @@ protected:
         return Tensor::gph_[next_name];
     }
     Tensor &_3I1O_OP(Tensor &input0, Tensor &input1, Tensor &input2) {
+        Module::runlistIdx = saved_list_idx;
         if (op_ == nullptr) {
             constexpr int threadCount = 4;
             op_ = backend_->opCreate(param_, name_, threadCount);
@@ -313,6 +316,7 @@ protected:
         return Tensor::gph_[next_name];
     }
     Tensor &_0I1O_OP() {
+        Module::runlistIdx = saved_list_idx;
         if (op_ == nullptr) {
             constexpr int threadCount = 4;
             op_ = backend_->opCreate(param_, name_, threadCount);
@@ -364,6 +368,7 @@ protected:
         return Tensor::gph_[next_name];
     }
     vector<Tensor> _1INO_OP(Tensor &input, int N) {
+        Module::runlistIdx = saved_list_idx;
         if (op_ == nullptr) {
             constexpr int threadCount = 4;
             op_ = backend_->opCreate(param_, name_, threadCount);

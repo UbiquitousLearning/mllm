@@ -32,15 +32,15 @@ public:
     explicit LLaMATokenizer(const std::string &vocab_file) {
         tokenizer = new BPETokenizer(vocab_file);
     }
-    Tensor tokenize(std::string &text) const {
+    Tensor tokenize(std::string &text, int str_i = 0) const {
         if (text[0] != ' ') {
             text = ' ' + text;
         }
         auto tokens_id = vector<token_id_t>();
         tokenizer->tokenize(text, tokens_id, true);
-        // if (str_i > 0) {
-        //     tokens_id[0] = 13;
-        // }
+        if (str_i > 0){
+            tokens_id[0] = 13;
+        }
         return BPETokenizer::tokens2Input(tokens_id);
     }
 

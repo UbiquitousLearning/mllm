@@ -87,6 +87,7 @@ public:
     //     return modules;
     // }
     static int listIdx;
+    static int runlistIdx;
 
     template <typename T>
     static vector<T > List(int n) {

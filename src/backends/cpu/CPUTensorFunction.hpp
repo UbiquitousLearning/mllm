@@ -239,10 +239,29 @@ public:
         int dim_h = 0;
         int dim_s = 0;
         int dim_d = 0;
-        if (input.ctype() == BSHD || input.ctype() == BHDS) {
+        if (input.ctype() == BSHD) {
             dim_h = input.head();
             dim_s = input.sequence();
             dim_d = input.dimension();
+            if (axis_start == BATCH & axis_end == SEQUENCE) {
+                // data_dims = {-1, HEAD, BATCH + SEQUENCE, DIMENSION};
+                dim_b = 1;
+                dim_s = input.sequence() * input.batch();
+            } else if (axis_start == HEAD & axis_end == SEQUENCE) {
+                // data_dims = {BATCH, -1, HEAD + SEQUENCE, DIMENSION};
+                dim_h = 1;
+                dim_s = input.sequence() * input.head();
+            } else if (axis_start == HEAD & axis_end == DIMENSION) {
+                // data_dims = {BATCH, HEAD, -1, SEQUENCE + DIMENSION};
+                dim_h = 1;
+                dim_d = input.dimension() * input.head();
+            } else {
+                std::cout << "ERROR:  flatten  " << axis_start << "&" << axis_end << std::endl;
+            }
+        } else if (input.ctype() == BHDS) {
+            dim_h = input.head();
+            dim_s = input.dimension();
+            dim_d = input.sequence();
             if (axis_start == BATCH & axis_end == SEQUENCE) {
                 // data_dims = {-1, HEAD, BATCH + SEQUENCE, DIMENSION};
                 dim_b = 1;
@@ -281,6 +300,7 @@ public:
         if (   (axis_start == TIME & axis_end == CHANNLE && input.ctype()!=BSHD)
             || (axis_start == BATCH & axis_end == SEQUENCE && input.ctype()!=BCTHW)
             || (axis_start == HEAD & axis_end == SEQUENCE && input.ctype()==BSHD)
+            || (axis_start == HEAD & axis_end == SEQUENCE && input.ctype()==BHDS)
             || (axis_start == HEAD & axis_end == DIMENSION && input.ctype()==BSHD)
         ){
             if(input.masterTensor() == nullptr) {
