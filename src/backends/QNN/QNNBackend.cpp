@@ -100,7 +100,6 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
     log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_DEBUG);
 
     std::string backEndPath = "libQnnHtp.so";
-    std::string inputListPaths = "./qnn/input-list.txt";
     std::string opPackagePaths = "libQnnLLaMAPackage_CPU.so:LLaMAPackageInterfaceProvider:CPU,libQnnLLaMAPackage_HTP.so:LLaMAPackageInterfaceProvider:HTP";
 
     // TODO: make these configuable
@@ -108,36 +107,25 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
     m_outputDataType = iotensor::OutputDataType::FLOAT_ONLY;
     m_inputDataType = iotensor::InputDataType::FLOAT;
     m_profilingLevel = ProfilingLevel::BASIC;
-    m_dumpOutputs = true;
+
     m_isBackendInitialized = false;
     m_isContextCreated = false;
 
     // config path strings
-    split(m_inputListPaths, inputListPaths, ',');
     split(m_opPackagePaths, opPackagePaths, ',');
-    if (m_outputPath.empty()) {
-        m_outputPath = s_defaultOutputPath;
-    }
 
     if (backEndPath.empty()) {
         std::exit(EXIT_FAILURE);
     }
-
-    // if (inputListPaths.empty()) {
-    //   std::exit(EXIT_FAILURE);
-    // }
-
     QNN_INFO("Backend: %s", backEndPath.c_str());
 
-    // QnnFunctionPointers qnnFunctionPointers;
-    // Load backend and model .so and validate all the required function symbols are resolved
+    // Load backend and validate all the required function symbols are resolved
     auto statusCode = dynamicloadutil::getQnnFunctionPointers(backEndPath,
                                                               "",
                                                               &m_qnnFunctionPointers,
                                                               &m_backendLibraryHandle,
                                                               false,
                                                               &m_modelHandle);
-
     if (dynamicloadutil::StatusCode::SUCCESS != statusCode) {
         if (dynamicloadutil::StatusCode::FAIL_LOAD_BACKEND == statusCode) {
             exitWithMessage(
@@ -151,12 +139,56 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
             exitWithMessage("Error initializing QNN Function Pointers", EXIT_FAILURE);
         }
     }
-
     // cause we build graph in runtime, the freeGraphInfoFnHandle should be assigned here
     m_qnnFunctionPointers.freeGraphInfoFnHandle = this->QnnModel_freeGraphsInfo;
 
-    // init qnn resources and create a graph
-    this->backendInitialize();
+    // init qnn resources
+    {
+        QNN_INFO("qnn-backend    build version: %s", getBuildId().c_str());
+        QNN_INFO("Backend        build version: %s", getBackendBuildId().c_str());
+
+        // initialize logging in the backend
+        if (log::isLogInitialized()) {
+            auto logCallback = log::getLogCallback();
+            auto logLevel = log::getLogLevel();
+            QNN_INFO("Initializing logging in the backend. Callback: [%p], Log Level: [%d]",
+                     logCallback,
+                     logLevel);
+            if (QNN_SUCCESS != m_qnnFunctionPointers.qnnInterface.logCreate(logCallback, logLevel, &m_logHandle)) {
+                QNN_WARN("Unable to initialize logging in the backend.");
+            }
+        } else {
+            QNN_WARN("Logging not available in the backend.");
+        }
+
+        // initialize QnnBackend
+        auto qnnStatus = m_qnnFunctionPointers.qnnInterface.backendCreate(
+            m_logHandle, (const QnnBackend_Config_t **)m_backendConfig, &m_backendHandle);
+        if (QNN_BACKEND_NO_ERROR != qnnStatus) {
+            QNN_ERROR("Could not initialize backend due to error = %d", qnnStatus);
+            this->reportError("Backend Initialization failure");
+        }
+        QNN_INFO("Initialize Backend Returned Status = %d", qnnStatus);
+        m_isBackendInitialized = true;
+
+        auto devicePropertySupportStatus = this->isDevicePropertySupported();
+        if (StatusCode::FAILURE != devicePropertySupportStatus) {
+            auto createDeviceStatus = this->createDevice();
+            if (StatusCode::SUCCESS != createDeviceStatus) {
+                this->reportError("Device Creation failure");
+            }
+        }
+
+        if (StatusCode::SUCCESS != this->initializeProfiling()) {
+            this->reportError("Profiling Initialization failure");
+        }
+
+        if (StatusCode::SUCCESS != this->registerOpPackages()) {
+            this->reportError("Register Op Packages failure");
+        }
+    }
+
+    // register ops
     this->registerOps();
 }
 
@@ -183,11 +215,10 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
 
     // rebuild a new graph.
     if (m_graphsInfo != nullptr) {
-
         std::cout << "free graph tensors begin" << std::endl;
 
         m_ioTensor.tearDownInputAndOutputTensors(
-        inputs_, outputs_, graphInfo.numInputTensors, graphInfo.numOutputTensors);
+            inputs_, outputs_, graphInfo.numInputTensors, graphInfo.numOutputTensors);
         inputs_ = nullptr;
         outputs_ = nullptr;
         if (StatusCode::SUCCESS != returnStatus) {
@@ -213,11 +244,36 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
         outputBufferMap.clear();
 
         syncVarTensors_.resize(0);
-
     }
 
-    this->contextInitialize();
+    // create qnn context, assign context to qnn memory manager
+    if (StatusCode::SUCCESS != this->createContext()) {
+        this->reportError("Context Creation failure");
+    }
+#ifdef QNN_ARM
+    auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
+    qnnMM->setQnnInterfaceAndContext(m_context);
+#endif
 
+    // initialize qnn graph info, set graph info, graph count
+    // NOTE: currently not using it
+    const QnnGraph_Config_t **graphConfigs = nullptr;
+    qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::getQnnGraphConfigFromInfo(
+        "mllmQnnModel", (const qnn_wrapper_api::GraphConfigInfo_t **)m_graphConfigsInfo, m_graphConfigsInfoCount, graphConfigs);
+    if (err != qnn_wrapper_api::MODEL_NO_ERROR) {
+        this->reportError("Graph Config Info failure");
+    }
+
+    err = qnnModel.initialize(m_backendHandle,
+                              m_qnnFunctionPointers.qnnInterface,
+                              m_context,
+                              "mllmQnnModel",
+                              m_debug,
+                              DO_GRAPH_NODE_VALIDATIONS,
+                              graphConfigs);
+    if (err != qnn_wrapper_api::MODEL_NO_ERROR) {
+        this->reportError("Graph Initialization failure");
+    }
 
     // add input tensor to qnn
     uint32_t dimensionsInput[4];
@@ -270,7 +326,7 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
 
     // reset the syncvar
     for (auto t : syncVarTensors_) {
-        t->setDataAt<uint32_t>(0,0,0,0, 0);
+        t->setDataAt<uint32_t>(0, 0, 0, 0, 0);
     }
 
     auto returnStatus = StatusCode::SUCCESS;
@@ -280,7 +336,7 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
 
         QNN_DEBUG("input tensors: %d ", (*m_graphsInfo)[graphIdx].numInputTensors);
         QNN_DEBUG("output tensors: %d ", (*m_graphsInfo)[graphIdx].numOutputTensors);
-        
+
         if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&inputs_, &outputs_, (*m_graphsInfo)[graphIdx])) {
             QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
             returnStatus = StatusCode::FAILURE;
@@ -298,7 +354,6 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
             qnnMM->registerQnnTensor(outputBuffers[i], outputs_[i]);
             QNN_DEBUG("outputBuffers: %p ", outputBuffers[i]);
         }
-
     }
 #endif
 }
@@ -319,65 +374,6 @@ std::string QNNBackend::getBackendBuildId() {
     return (backendBuildId == nullptr ? std::string("") : std::string(backendBuildId));
 }
 
-int32_t QNNBackend::backendInitialize() {
-    QNN_INFO("qnn-backend    build version: %s", getBuildId().c_str());
-    QNN_INFO("Backend        build version: %s", getBackendBuildId().c_str());
-
-    if (StatusCode::SUCCESS != this->initialize()) {
-        this->reportError("Initialization failure");
-    }
-
-    if (StatusCode::SUCCESS != this->initializeBackend()) {
-        this->reportError("Backend Initialization failure");
-    }
-
-    auto devicePropertySupportStatus = this->isDevicePropertySupported();
-    if (StatusCode::FAILURE != devicePropertySupportStatus) {
-        auto createDeviceStatus = this->createDevice();
-        if (StatusCode::SUCCESS != createDeviceStatus) {
-            this->reportError("Device Creation failure");
-        }
-    }
-
-    if (StatusCode::SUCCESS != this->initializeProfiling()) {
-        this->reportError("Profiling Initialization failure");
-    }
-
-    if (StatusCode::SUCCESS != this->registerOpPackages()) {
-        this->reportError("Register Op Packages failure");
-    }
-
-    return 0;
-}
-
-int32_t QNNBackend::contextInitialize() {
-
-    if (StatusCode::SUCCESS != this->createContext()) {
-        this->reportError("Context Creation failure");
-    }
-
-#ifdef QNN_ARM
-    auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
-    qnnMM->setQnnInterfaceAndContext(m_context);
-#endif
-
-    // initialize graph info, set graph info, graph count
-    // acting the same as composeGraphs
-    const QnnGraph_Config_t **graphConfigs = nullptr;
-    qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::MODEL_NO_ERROR;
-    VALIDATE(qnn_wrapper_api::getQnnGraphConfigFromInfo(
-                 "mllmQnnModel", (const qnn_wrapper_api::GraphConfigInfo_t **)m_graphConfigsInfo, m_graphConfigsInfoCount, graphConfigs),
-             err);
-    VALIDATE(qnnModel.initialize(m_backendHandle,
-                                 m_qnnFunctionPointers.qnnInterface,
-                                 m_context,
-                                 "mllmQnnModel",
-                                 m_debug,
-                                 DO_GRAPH_NODE_VALIDATIONS,
-                                 graphConfigs),
-             err);
-    return 0;
-}
 
 qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
                                                        string nodeType,
@@ -428,7 +424,6 @@ qnn_wrapper_api::ModelError_t QNNBackend::modelAddTensor(std::string nodeName, Q
     return qnnModel.addTensor(nodeName.c_str(), tensor);
 }
 
-
 ErrorCode QNNBackend::graphExecute(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap) {
     // currently only call executeGraphs
     auto result = this->executeGraphs(inputBufferMap, outputBufferMap);
@@ -436,38 +431,6 @@ ErrorCode QNNBackend::graphExecute(std::map<std::string, std::vector<uint8_t *>>
         return ErrorCode::INVALID_VALUE;
     }
     return MLLM_NO_ERROR;
-}
-
-// Initialize QnnSampleApp. Things it does:
-//  1. Create output directory
-//  2. Read all input list paths provided
-//      during creation.
-StatusCode QNNBackend::initialize() {
-    // Create Output Directory
-    if (m_dumpOutputs && !::pal::FileOp::checkFileExists(m_outputPath) && !pal::Directory::makePath(m_outputPath)) {
-        exitWithMessage("Could not create output directory: " + m_outputPath, EXIT_FAILURE);
-    }
-    // Read Input File List
-    bool readSuccess;
-    std::tie(m_inputFileLists, readSuccess) = readInputLists(m_inputListPaths);
-    if (!readSuccess) {
-        exitWithMessage("Could not read input lists", EXIT_FAILURE);
-    }
-
-    // initialize logging in the backend
-    if (log::isLogInitialized()) {
-        auto logCallback = log::getLogCallback();
-        auto logLevel = log::getLogLevel();
-        QNN_INFO("Initializing logging in the backend. Callback: [%p], Log Level: [%d]",
-                 logCallback,
-                 logLevel);
-        if (QNN_SUCCESS != m_qnnFunctionPointers.qnnInterface.logCreate(logCallback, logLevel, &m_logHandle)) {
-            QNN_WARN("Unable to initialize logging in the backend.");
-        }
-    } else {
-        QNN_WARN("Logging not available in the backend.");
-    }
-    return StatusCode::SUCCESS;
 }
 
 StatusCode QNNBackend::initializeProfiling() {
@@ -494,19 +457,6 @@ StatusCode QNNBackend::initializeProfiling() {
 void QNNBackend::reportError(const std::string &err) {
     QNN_ERROR("%s", err.c_str());
     exit(1);
-}
-
-// Initialize a QnnBackend.
-StatusCode QNNBackend::initializeBackend() {
-    auto qnnStatus = m_qnnFunctionPointers.qnnInterface.backendCreate(
-        m_logHandle, (const QnnBackend_Config_t **)m_backendConfig, &m_backendHandle);
-    if (QNN_BACKEND_NO_ERROR != qnnStatus) {
-        QNN_ERROR("Could not initialize backend due to error = %d", qnnStatus);
-        return StatusCode::FAILURE;
-    }
-    QNN_INFO("Initialize Backend Returned Status = %d", qnnStatus);
-    m_isBackendInitialized = true;
-    return StatusCode::SUCCESS;
 }
 
 // Terminate the backend after done.
@@ -574,7 +524,6 @@ StatusCode QNNBackend::freeContext() {
     m_isContextCreated = false;
     return StatusCode::SUCCESS;
 }
-
 
 StatusCode QNNBackend::extractBackendProfilingInfo(
     Qnn_ProfileHandle_t profileHandle) {
@@ -684,7 +633,6 @@ StatusCode QNNBackend::freeDevice() {
     return StatusCode::SUCCESS;
 }
 
-
 // executeGraphs() that load input/output buffers from CPU context
 // inputBufferMap and outputBufferMap: graph_name -> graph input/output CPU buffers.
 StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap) {
@@ -703,7 +651,7 @@ StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *
             returnStatus = StatusCode::FAILURE;
             break;
         }
-        // auto inputFileList = m_inputFileLists[graphIdx];
+
         auto graphInfo = (*m_graphsInfo)[graphIdx];
         if (!inputBufferMap.empty()) {
             // Todo only one graph now. Name "graph"
@@ -827,7 +775,6 @@ StatusCode QNNBackend::executeGraphsSharedAutoregressive() {
                                                             nullptr);
         uint64_t t_end = mllm_time_us();
         std::cout << "QNN execution time" << (t_end - t_start) / 1000.0F << " ms" << std::endl;
-
 
         if (QNN_GRAPH_NO_ERROR != executeStatus) {
             returnStatus = StatusCode::FAILURE;
