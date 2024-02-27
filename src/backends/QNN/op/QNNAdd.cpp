@@ -25,6 +25,6 @@ ErrorCode QNNAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
 
 ErrorCode QNNAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // graph add node
-    return graphAddNode(name(), "ElementWiseAdd", inputs, outputs);
+    return graphAddNode(name(), "LLaMAAdd", inputs, outputs, {}, "LLaMAPackage");
 }
 } // namespace mllm

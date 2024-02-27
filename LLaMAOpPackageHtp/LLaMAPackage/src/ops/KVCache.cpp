@@ -88,105 +88,150 @@ DEF_PACKAGE_PARAM_ORDER("KVCache",
 
 /* execute functions for ops */
 
-#ifndef REFERENCE_OP
+// #ifndef REFERENCE_OP
 
-#include "qhmath_hvx.h"
-#include "hvx_internal.h"
-#include <hexagon_types.h>
-#include <stddef.h>
+// #include "qhmath_hvx.h"
+// #include "hvx_internal.h"
+// #include <hexagon_types.h>
+// #include <stddef.h>
 
-#define BLOCK_SIZE       (8*1024/VLEN)  /* vector chunks */
-#define L2FETCH_AHEAD    (BLOCK_SIZE)
-#define ONE      0x3F800000
-#define M_ONE    0xAF800000
-
-
-int32_t hvx_memcpy_af(float *restrict input, float *restrict output, uint32_t size)
-{
-    HVX_Vector *input_v_ptr;
-    HVX_UVector *output_v_ptr;
-    HVX_Vector slinep;
-    HVX_Vector slinec;
-    HVX_Vector sline;
-    int32_t block, l2fetch_block;
-    int32_t leftover = size & 31;
-    int32_t vectors_in_rounddown = size / 32;
-    int32_t leftover_size = leftover * sizeof(float);
+// #define BLOCK_SIZE       (8*1024/VLEN)  /* vector chunks */
+// #define L2FETCH_AHEAD    (BLOCK_SIZE)
+// #define ONE      0x3F800000
+// #define M_ONE    0xAF800000
 
 
-    /* Check input arguments. Return error status if some argument has invalid value */
-    if ((input == 0) || (output == 0) || (size == 0))
-    {
-        return -1;
-    }
+// int32_t hvx_memcpy_af(float *restrict input, float *restrict output, uint32_t size)
+// {
+//     HVX_Vector *input_v_ptr;
+//     HVX_UVector *output_v_ptr;
+//     HVX_Vector slinep;
+//     HVX_Vector slinec;
+//     HVX_Vector sline;
+//     int32_t block, l2fetch_block;
+//     int32_t leftover = size & 31;
+//     int32_t vectors_in_rounddown = size / 32;
+//     int32_t leftover_size = leftover * sizeof(float);
 
-    input_v_ptr = (HVX_Vector *) input;
-    output_v_ptr = (HVX_UVector *) output;
 
-    /*
-     * If input data is not aligned to HVX vector size, compose aligned vectors
-     * from data loaded in slinep and slinec
-     */
-    slinep = *input_v_ptr++;
+//     /* Check input arguments. Return error status if some argument has invalid value */
+//     if ((input == 0) || (output == 0) || (size == 0))
+//     {
+//         return -1;
+//     }
 
-    /*
-     * Handle number of whole vectors in input data.
-     * Don't process last vector in order to avoid out-of-boundary load.
-     */
-    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
-    {
-        block = Q6_R_min_RR(i, BLOCK_SIZE);
-        l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
+//     input_v_ptr = (HVX_Vector *) input;
+//     output_v_ptr = (HVX_UVector *) output;
 
-        if (l2fetch_block > 0)
-        {
-            l2fetch(input_v_ptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
-        }
+//     /*
+//      * If input data is not aligned to HVX vector size, compose aligned vectors
+//      * from data loaded in slinep and slinec
+//      */
+//     slinep = *input_v_ptr++;
 
-        /* Process one vector at a time */
-        for (int32_t j = 0; j < block; ++j)
-        {
-            slinec = *input_v_ptr++;
+//     /*
+//      * Handle number of whole vectors in input data.
+//      * Don't process last vector in order to avoid out-of-boundary load.
+//      */
+//     for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
+//     {
+//         block = Q6_R_min_RR(i, BLOCK_SIZE);
+//         l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
 
-            /* Compose vector of input data from slinec and slinep */
-            sline = Q6_V_valign_VVR(slinec, slinep, (size_t) input);
+//         if (l2fetch_block > 0)
+//         {
+//             l2fetch(input_v_ptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+//         }
 
-            /* Store results to the output buffer and convert from qf32 to sf */
-            *((HVX_UVector *)(output_v_ptr++)) = sline;
+//         /* Process one vector at a time */
+//         for (int32_t j = 0; j < block; ++j)
+//         {
+//             slinec = *input_v_ptr++;
 
-            /* Prepare slinep for next iteration */
-            slinep = slinec;
-        }
-    }
+//             /* Compose vector of input data from slinec and slinep */
+//             sline = Q6_V_valign_VVR(slinec, slinep, (size_t) input);
 
-    /* Handle last whole vector from input data */
-    if (vectors_in_rounddown > 0)
-    {
-        slinec = is_aligned(input_v_ptr, VLEN) && leftover == 0 ? slinep : *input_v_ptr++;
-        sline = Q6_V_valign_VVR(slinec, slinep, (size_t) input);
+//             /* Store results to the output buffer and convert from qf32 to sf */
+//             *((HVX_UVector *)(output_v_ptr++)) = sline;
 
-        /* Convert from qf32 to sf, store output and go to handle leftover */
-        *((HVX_UVector *)(output_v_ptr++)) = sline;
+//             /* Prepare slinep for next iteration */
+//             slinep = slinec;
+//         }
+//     }
 
-        slinep = slinec;
-    }
+//     /* Handle last whole vector from input data */
+//     if (vectors_in_rounddown > 0)
+//     {
+//         slinec = is_aligned(input_v_ptr, VLEN) && leftover == 0 ? slinep : *input_v_ptr++;
+//         sline = Q6_V_valign_VVR(slinec, slinep, (size_t) input);
 
-    /* Handle leftover elements */
-    if (leftover > 0)
-    {
-        slinec = (is_in_one_chunk(input_v_ptr, leftover_size, VLEN)
-                   ? slinep
-                   : *input_v_ptr++);
+//         /* Convert from qf32 to sf, store output and go to handle leftover */
+//         *((HVX_UVector *)(output_v_ptr++)) = sline;
 
-        sline = Q6_V_valign_VVR(slinec, slinep, (size_t) input);
+//         slinep = slinec;
+//     }
 
-        /* Store output */
-        vstu_variable(output_v_ptr, leftover_size, sline);
-    }
+//     /* Handle leftover elements */
+//     if (leftover > 0)
+//     {
+//         slinec = (is_in_one_chunk(input_v_ptr, leftover_size, VLEN)
+//                    ? slinep
+//                    : *input_v_ptr++);
 
-    return 0;
-}
+//         sline = Q6_V_valign_VVR(slinec, slinep, (size_t) input);
 
+//         /* Store output */
+//         vstu_variable(output_v_ptr, leftover_size, sline);
+//     }
+
+//     return 0;
+// }
+
+
+// template<typename TensorType,typename TensorType1>
+// GraphStatus kvcacheImpl(TensorType& out_0,
+//                         const TensorType& in_0,
+//                         const TensorType1 &seq_pos,
+//                         const Tensor& hidden_dim)
+
+// {
+//   /*
+//    * add code here
+//    * */
+//   /*
+//    * To have good performance and stability, it is required to avoid heap memory
+//    * allocation in this function. The heap memory allocation includes but not
+//    * limited to calling malloc, operator new, constructing STL container objects
+//    * like std::vector with default allocator, and adding items like calling
+//    * std::vector::push_back to STL container objects with default allocator.
+//    *
+//    * Please check in SDK documentation for more information.
+//    */
+  
+//   out_0.set_dims(in_0);
+//   auto [b_in, h_in, w_in, d_in] = in_0.dims();
+  
+//   uint32_t seq_pos_ = seq_pos(0,0,0,0);
+//   // uint32_t hidden_dim_ = hidden_dim(0,0,0,0);
+
+//   // // const size_t dims[] = {b_in, h_in, seq_pos_+1, hidden_dim_};
+//   // // out_0.set_dims(dims);
+
+//   // NSHD
+
+//   auto in_ptr = (float*)in_0.raw_data_const();
+//   auto out_ptr = (float*)out_0.raw_data();
+
+//   out_ptr += seq_pos_ * h_in * w_in * d_in;
+
+//   hvx_memcpy_af(out_ptr, in_ptr, h_in * w_in * d_in);
+
+
+//   return GraphStatus::Success;
+// }
+
+
+// #else
 
 template<typename TensorType,typename TensorType1>
 GraphStatus kvcacheImpl(TensorType& out_0,
@@ -219,64 +264,34 @@ GraphStatus kvcacheImpl(TensorType& out_0,
 
   // NSHD
 
-  auto in_ptr = (float*)in_0.raw_data_const();
-  auto out_ptr = (float*)out_0.raw_data();
+    DType dtype = in_0.get_dtype();
 
-  out_ptr += seq_pos_ * h_in * w_in * d_in;
+    const uint8_t *in_ptr = (uint8_t*)in_0.raw_data_const();
+    uint8_t *out_ptr = (uint8_t*)out_0.raw_data();
 
-  hvx_memcpy_af(out_ptr, in_ptr, h_in * w_in * d_in);
+    if (dtype == DType::QUInt8) {
+
+        out_ptr += seq_pos_ * w_in * d_in;
+        memcpy(out_ptr, in_ptr, w_in * d_in * sizeof(uint8_t));
+
+    } else if (dtype == DType::Float16) {
+
+        out_ptr += seq_pos_ * w_in * d_in * sizeof(float) / 2;
+        memcpy(out_ptr, in_ptr, w_in * d_in * sizeof(float) / 2);
+    } else if (dtype == DType::Float32) {
+
+        out_ptr += seq_pos_ * w_in * d_in * sizeof(float);
+        memcpy(out_ptr, in_ptr, w_in * d_in * sizeof(float));
+    }
+
+  
 
 
   return GraphStatus::Success;
 }
 
 
-#else
-
-template<typename TensorType,typename TensorType1>
-GraphStatus kvcacheImpl(TensorType& out_0,
-                        const TensorType& in_0,
-                        const TensorType1 &seq_pos,
-                        const Tensor& hidden_dim)
-
-{
-  /*
-   * add code here
-   * */
-  /*
-   * To have good performance and stability, it is required to avoid heap memory
-   * allocation in this function. The heap memory allocation includes but not
-   * limited to calling malloc, operator new, constructing STL container objects
-   * like std::vector with default allocator, and adding items like calling
-   * std::vector::push_back to STL container objects with default allocator.
-   *
-   * Please check in SDK documentation for more information.
-   */
-  
-  out_0.set_dims(in_0);
-  auto [b_in, h_in, w_in, d_in] = in_0.dims();
-  
-  uint32_t seq_pos_ = seq_pos(0,0,0,0);
-  // uint32_t hidden_dim_ = hidden_dim(0,0,0,0);
-
-  // // const size_t dims[] = {b_in, h_in, seq_pos_+1, hidden_dim_};
-  // // out_0.set_dims(dims);
-
-  // NSHD
-
-  auto in_ptr = (float*)in_0.raw_data_const();
-  auto out_ptr = (float*)out_0.raw_data();
-
-  out_ptr += seq_pos_ * w_in * d_in;
-
-  memcpy(out_ptr, in_ptr, w_in * d_in * sizeof(float));
-
-
-  return GraphStatus::Success;
-}
-
-
-#endif
+// #endif
 
 
 __attribute__((unused)) static float kvcacheCostFunc(const Op *op)

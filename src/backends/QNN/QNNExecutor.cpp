@@ -63,10 +63,10 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
 
         g->reshape();
 
-        if ( autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0) {
+        // if ( autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0) {
             
             g->setUpTensors();
-        }
+        // }
             
 
         result_ = g->forward();
