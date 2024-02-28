@@ -225,7 +225,7 @@ NetTensor *_SiLU(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_Quantize(std::vector<NetTensor *> inputs, string name) {
+NetTensor *_Quantize(std::vector<NetTensor *> inputs, bool isNSHD, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -236,12 +236,13 @@ NetTensor *_Quantize(std::vector<NetTensor *> inputs, string name) {
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::QUANTIZE)
+    net_op_->param["isNSHD"] = isNSHD;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_Dequantize(std::vector<NetTensor *> inputs, string name) {
+NetTensor *_Dequantize(std::vector<NetTensor *> inputs, bool isNSHD, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -252,6 +253,7 @@ NetTensor *_Dequantize(std::vector<NetTensor *> inputs, string name) {
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::DEQUANTIZE)
+    net_op_->param["isNSHD"] = isNSHD;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;

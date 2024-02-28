@@ -44,7 +44,7 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_r
 }
 NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name) {
 
-    x = _Quantize({x}, (string) name + ".x.quantize");
+    x = _Quantize({x}, true, (string) name + ".x.quantize");
     auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
     auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".k_proj");
     auto *v = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".v_proj");
@@ -57,21 +57,21 @@ NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head
     v = _KVCache({v}, cache_max, name + ".v_cache");
 
     auto *qk = _MatmulINT8({q, k}, false, true, name + ".qk");
-    // qk = _Dequantize({qk}, (string) name + ".qk.dequantize");
+    qk = _Dequantize({qk}, false, (string) name + ".qk.dequantize");
 
     // qk = *qk / std::sqrt(hidden_size);
     // qk = _Causalmask({qk}, name + ".mask");
-    // qk = _Softmax({qk}, DIMENSION, name + ".softmax");
+    qk = _Softmax({qk}, DIMENSION, name + ".softmax");
 
-    // qk = _Quantize({qk}, (string) name + ".qk.quantize");
+    qk = _Quantize({qk}, false, (string) name + ".qk.quantize");
     auto *o = _MatmulINT8({qk, v}, false, false, name + ".qkv");
     o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
-    o = _Dequantize({o}, (string) name + ".o.dequantize");
+    o = _Dequantize({o}, true, (string) name + ".o.dequantize");
     return o;
 }
 NetTensor *FFN(NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
-    auto *x = _Quantize({i}, (string) name + ".x.quantize");
+    auto *x = _Quantize({i}, true, (string) name + ".x.quantize");
     x = _LinearINT8({x}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
 
     // x = _Dequantize({x}, (string) name + ".relux.dequantize");
@@ -79,7 +79,7 @@ NetTensor *FFN(NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     // x = _Quantize({x}, (string) name + ".relux.quantize");
 
     x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
-    x = _Dequantize({x}, (string) name + ".x.dequantize");
+    x = _Dequantize({x}, true, (string) name + ".x.dequantize");
     return x;
 }
 void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200) {
@@ -98,9 +98,9 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
  
     // end loop
     // i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
-    i = _Quantize({i},  ".model.quantize");
+    i = _Quantize({i},  true, ".model.quantize");
     i = _LinearINT8({i}, hidden_dim, vocab_size, false, "output");
-    i = _Dequantize({i},  ".model.dequantize");
+    i = _Dequantize({i}, true,  ".model.dequantize");
 }
 
 template <typename Dtype>
