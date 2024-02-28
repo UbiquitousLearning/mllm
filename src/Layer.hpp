@@ -642,6 +642,7 @@ public:
 
 class Split final : public Layer {
 public:
+    Split() = default;
     explicit Split(int split_num, Chl split_dim, int split_dim_size, std::string name) {
         param_["split_num"] =(float) split_num;
         param_["split_dim"] =(float) split_dim;
@@ -684,6 +685,7 @@ public:
 
 class Parameter final : public Layer {
 public:
+    Parameter() = default;
     explicit Parameter(int batch, int seq, int head, int dim, std::string name) {
         param_["batch"] = batch;
         param_["seq"] = seq;

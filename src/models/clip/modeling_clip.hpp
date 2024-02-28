@@ -8,31 +8,48 @@
 #include "models/vit/modeling_vit.hpp"
 #include "configuration_clip.hpp"
 
-class ClipVisionEmbedding final : public Module, public ClipConfig {
-    Convolution2D patch_embedding = Convolution2D(3, hidden_dim, {patch, patch}, {patch, patch}, VALID, false, patch_embedding_name);
-    Parameter cls_token = Parameter(1, 1, 1, hidden_dim, cls_token_name);
-    Parameter position_ids = Parameter(1, std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1, 1, 1, position_ids_name);
-    Embedding position_embedding = Embedding(std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1, hidden_dim, position_embeddings_name);
-    LayerNorm pre_layrnorm = LayerNorm(hidden_dim, true, 1e-6, vision_pre_layrnorm_name);
+class ClipVisionEmbedding final : public Module {
+    Layer patch_embedding;
+    Parameter cls_token;
+    Parameter position_ids;
+    Layer position_embedding;
 
+public:
+    ClipVisionEmbedding() = default;
+    ClipVisionEmbedding(int hidden_dim, int patch, int img_hw, const ViTNameConfig &names, const string &base_name) {
+        patch_embedding = Convolution2D(3, hidden_dim, {patch, patch}, {patch, patch}, VALID, false, base_name + names._patch_embedding_name);
+        cls_token = Parameter(1, 1, 1, hidden_dim, base_name + names._cls_token_name);
+        position_ids = Parameter(1, std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1, 1, 1, base_name + names._position_ids_name);
+        position_embedding = Embedding(std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1, hidden_dim, base_name + names._position_embeddings_name);
+    }
     vector<Tensor> Forward(vector<Tensor> inputs) override {
         auto embd = patch_embedding(inputs[0]);
         embd = embd.transpose(SEQUENCE, DIMENSION);
         embd = embd.flatten(HEAD, SEQUENCE);
         embd = Tensor::cat({cls_token(), embd}, SEQUENCE);
         embd = position_embedding(position_ids()) + embd;
-        embd = pre_layrnorm(embd);
         return {embd};
     }
 };
 
-class CLipVisionModel final : public Module, public ClipConfig {
-    ClipVisionEmbedding embedding = ClipVisionEmbedding();
-    vector<ViTBlock> blocks = List<ViTBlock>(block_num);
-    LayerNorm norm = LayerNorm(hidden_dim, true, 1e-6, post_norm_name);
+class CLipVisionModel final : public Module {
+    ClipVisionEmbedding embedding;
+    Layer pre_layrnorm;
+    vector<ViTBlock> blocks;
+    Layer norm;
 
+public:
+    CLipVisionModel() = default;
+    CLipVisionModel(int hidden_dim, int head_size, int mlp_hidden, const string &act_fn_type, int patch, int img_hw, int block_num,
+                    const ViTNameConfig &names, const string &base_name) {
+        embedding = ClipVisionEmbedding(hidden_dim, patch, img_hw, names, base_name + names._embd_name);
+        pre_layrnorm = LayerNorm(hidden_dim, true, 1e-6, base_name + names._vision_pre_layrnorm_name);
+        blocks = List<ViTBlock>(block_num, hidden_dim, head_size, mlp_hidden, act_fn_type, names, base_name + names._layer_name);
+        norm = LayerNorm(hidden_dim, true, 1e-6, base_name + names._post_norm_name);
+    }
     vector<Tensor> Forward(vector<Tensor> inputs) override {
         auto x = embedding(inputs)[0];
+        x = pre_layrnorm(x);
         for (auto &block : blocks) {
             x = block({x})[0];
         }
@@ -42,65 +59,104 @@ class CLipVisionModel final : public Module, public ClipConfig {
     }
 };
 
-class ClipTextAttention final : public Module, public ClipConfig {
-    Linear q_proj = Linear(text_hidden_dim, text_head_size *text_attn_hidden_dim, true, text_q_proj_name);
-    Linear k_proj = Linear(text_hidden_dim, text_head_size *text_attn_hidden_dim, true, text_k_proj_name);
-    Linear v_proj = Linear(text_hidden_dim, text_head_size *text_attn_hidden_dim, true, text_v_proj_name);
-    Linear o_proj = Linear(text_head_size * text_attn_hidden_dim, text_hidden_dim, true, text_o_proj_name);
-    Causalmask mask = Causalmask(text_attn_base_name + "mask");
-    Softmax softmax = Softmax(DIMENSION, text_attn_base_name + "softmax");
+class ClipTextAttention final : public Module {
+    Layer q_proj;
+    Layer k_proj;
+    Layer v_proj;
+    Layer o_proj;
+    Layer mask;
+    Layer softmax;
+    int head_size_{};
+    int attn_hidden_dim_{};
 
+public:
+    ClipTextAttention() = default;
+    ClipTextAttention(int hidden_dim, int head_size, int attn_hidden_dim, const ClipTextNameConfig &names, const string &base_name) {
+        head_size_ = head_size;
+        attn_hidden_dim_ = attn_hidden_dim;
+        q_proj = Linear(hidden_dim, head_size * attn_hidden_dim, true, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_dim, head_size * attn_hidden_dim, true, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_dim, head_size * attn_hidden_dim, true, base_name + names._v_proj_name);
+        o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, true, base_name + names._o_proj_name);
+        mask = Causalmask(base_name + "mask");
+        softmax = Softmax(DIMENSION, base_name + "softmax");
+    }
     vector<Tensor> Forward(vector<Tensor> inputs) override {
         auto q = q_proj(inputs[0]);
         auto k = k_proj(inputs[1]);
         auto v = v_proj(inputs[2]);
-        q = q.view(-1, text_head_size, -1, text_attn_hidden_dim);
-        k = k.view(-1, text_head_size, -1, text_attn_hidden_dim);
-        v = v.view(-1, text_head_size, -1, text_attn_hidden_dim);
+        q = q.view(-1, head_size_, -1, attn_hidden_dim_);
+        k = k.view(-1, head_size_, -1, attn_hidden_dim_);
+        v = v.view(-1, head_size_, -1, attn_hidden_dim_);
         k = k.transpose(SEQUENCE, DIMENSION);
         auto qk = Tensor::mm(q, k);
-        qk = qk / std::sqrt(text_attn_hidden_dim);
+        qk = qk / std::sqrt(attn_hidden_dim_);
         qk = mask(qk);
         qk = softmax(qk);
         auto o = Tensor::mm(qk, v);
-        o = o.view(-1, 1, -1, text_attn_hidden_dim * text_head_size);
+        o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
         o = o_proj(o);
         return {o};
     }
 };
-class ClipTextMLP final : public Module, public ClipConfig {
-    Linear up_proj = Linear(text_hidden_dim, text_mlp_hidden, true, text_up_proj_name);
-    Layer act = ACT_FN[act_fn_type](text_ffn_base_name + "act");
-    Linear down_proj = Linear(text_mlp_hidden, text_hidden_dim, true, text_down_proj_name);
 
+class ClipTextMLP final : public Module {
+    Layer up_proj;
+    Layer act;
+
+public:
+    ClipTextMLP() = default;
+    ClipTextMLP(int hidden_dim, int mlp_hidden, const string &act_fn_type, const ClipTextNameConfig &names, const string &base_name) {
+        up_proj = Linear(hidden_dim, mlp_hidden, true, base_name + names._up_proj_name);
+        act = ACT_FN[act_fn_type](base_name + names._ffn_base_name + "act");
+    }
     vector<Tensor> Forward(vector<Tensor> inputs) override {
         auto x = up_proj(inputs[0]);
         x = act(x);
-        x = down_proj(x);
         return {x};
     }
 };
-class ClipTextBlock final : public Module, public ClipConfig {
-    ClipTextAttention attention = ClipTextAttention();
-    ClipTextMLP mlp = ClipTextMLP();
-    LayerNorm norm1 = LayerNorm(text_hidden_dim, true, 1e-6, text_attn_norm_name);
-    LayerNorm norm2 = LayerNorm(text_hidden_dim, true, 1e-6, text_ffn_norm_name);
 
+class ClipTextBlock final : public Module {
+    ClipTextAttention attention;
+    ClipTextMLP mlp;
+    Layer down_proj;
+    Layer norm1;
+    Layer norm2;
+
+public:
+    ClipTextBlock() = default;
+    ClipTextBlock(int hidden_dim, int head_size, int mlp_hidden, const string &act_fn_type, const ClipTextNameConfig &names, const string &base_name) {
+        attention = ClipTextAttention(hidden_dim, head_size, hidden_dim / head_size, names, base_name + names._attn_base_name);
+        mlp = ClipTextMLP(hidden_dim, mlp_hidden, act_fn_type, names, base_name + names._ffn_base_name);
+        down_proj = Linear(mlp_hidden, hidden_dim, true, base_name + names._down_proj_name);
+        norm1 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._attn_norm_name);
+        norm2 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._ffn_norm_name);
+    }
     vector<Tensor> Forward(vector<Tensor> inputs) override {
         auto x = norm1(inputs[0]);
         x = attention({x, x, x})[0];
         auto tmp = x + inputs[0];
         x = norm2(tmp);
         x = mlp({x})[0];
+        x = down_proj(x);
         x = x + tmp;
         return {x};
     }
 };
-class ClipTextEmbedding final : public Module, public ClipConfig {
-    Embedding token_embedding = Embedding(text_vocab_size, text_hidden_dim, text_token_embedding_name);
-    Parameter position_ids = Parameter(1, max_position_embeddings, 1, 1, text_position_ids_name);
-    Embedding position_embedding = Embedding(max_position_embeddings, text_hidden_dim, text_position_embeddings_name);
 
+class ClipTextEmbedding final : public Module {
+    Layer token_embedding;
+    Parameter position_ids;
+    Layer position_embedding;
+
+public:
+    ClipTextEmbedding() = default;
+    ClipTextEmbedding(int vocab_size, int hidden_dim, int max_position_embeddings, const ClipTextNameConfig &names, const string &base_name) {
+        token_embedding = Embedding(vocab_size, hidden_dim, base_name + names._token_embedding_name);
+        position_ids = Parameter(1, max_position_embeddings, 1, 1, base_name + names._position_ids_name);
+        position_embedding = Embedding(max_position_embeddings, hidden_dim, base_name + names._position_embeddings_name);
+    }
     vector<Tensor> Forward(vector<Tensor> inputs) override {
         auto embd = token_embedding(inputs[0]);
         auto pos_embd = position_ids().clip({}, {}, {0, embd.sequence()}, {});
@@ -110,10 +166,19 @@ class ClipTextEmbedding final : public Module, public ClipConfig {
     }
 };
 
-class CLipTextModel final : public Module, public ClipConfig {
-    ClipTextEmbedding embedding = ClipTextEmbedding();
-    vector<ClipTextBlock> blocks = List<ClipTextBlock>(text_block_num);
-    LayerNorm norm = LayerNorm(text_hidden_dim, true, 1e-6, text_post_norm_name);
+class CLipTextModel final : public Module {
+    ClipTextEmbedding embedding;
+    vector<ClipTextBlock> blocks;
+    Layer norm;
+
+public:
+    CLipTextModel() = default;
+    CLipTextModel(int hidden_dim, int head_size, int mlp_hidden, const string &act_fn_type, int max_position_embeddings, int vocab_size, int block_num,
+                  const ClipTextNameConfig &names, const string &base_name) {
+        embedding = ClipTextEmbedding(vocab_size, hidden_dim, max_position_embeddings, names, base_name + names._embd_name);
+        blocks = List<ClipTextBlock>(block_num, hidden_dim, head_size, mlp_hidden, act_fn_type, names, base_name + names._layer_name);
+        norm = LayerNorm(hidden_dim, true, 1e-6, base_name + names._post_norm_name);
+    }
 
     vector<Tensor> Forward(vector<Tensor> inputs) override {
         auto x = embedding(inputs)[0];
@@ -126,21 +191,42 @@ class CLipTextModel final : public Module, public ClipConfig {
     }
 };
 
-class CLipModel final : public Module, public ClipConfig {
-    CLipTextModel text_model = CLipTextModel();
-    Linear text_projection = Linear(text_hidden_dim, text_hidden_dim, false, "text_projection");
-    CLipVisionModel vision_model = CLipVisionModel();
-    Linear visual_projection = Linear(hidden_dim, text_hidden_dim, false, "visual_projection");
-    Matmul out_mm = Matmul(false, true, "out_mm");
+class CLipModel final : public Module {
+    CLipTextModel text_model;
+    Layer text_projection;
+    CLipVisionModel vision_model;
+    Layer visual_projection;
 
+public:
+    explicit CLipModel(const ClipConfig &config) :
+        CLipModel(config.text_hidden_dim, config.text_head_size, config.text_mlp_hidden,
+                  config.hidden_dim, config.head_size, config.mlp_hidden,
+                  config.act_fn_type, config.max_position_embeddings, config.text_vocab_size, config.text_block_num,
+                  config.patch, config.img_hw, config.block_num,
+                  config.text_names_config, "text_model",
+                  config.names_config, "vision_model"){};
+    CLipModel(int text_hidden_dim, int text_head_size, int text_mlp_hidden,
+              int vision_hidden_dim, int vision_head_size, int vision_mlp_hidden,
+              const string &act_fn_type, int max_position_embeddings, int vocab_size, int text_block_num,
+              int patch, int img_hw, int vision_block_num,
+              const ClipTextNameConfig &text_names, const string &text_base_name,
+              const ViTNameConfig &vit_names, const string &vision_base_name) {
+        text_model = CLipTextModel(text_hidden_dim, text_head_size, text_mlp_hidden, act_fn_type, max_position_embeddings, vocab_size, text_block_num,
+                                   text_names, text_base_name);
+        text_projection = Linear(text_hidden_dim, text_hidden_dim, false, "text_projection");
+        vision_model = CLipVisionModel(vision_hidden_dim, vision_head_size, vision_mlp_hidden, act_fn_type, patch, img_hw, vision_block_num,
+                                       vit_names, vision_base_name);
+        visual_projection = Linear(vision_hidden_dim, text_hidden_dim, false, "visual_projection");
+    }
     vector<Tensor> Forward(vector<Tensor> inputs) override {
         auto text = text_model({inputs[0]})[0];
         text = text_projection(text);
-        text = text/text.norm(2);
+        text = text / text.norm(2);
         auto vision = vision_model({inputs[1]})[0];
         vision = visual_projection(vision);
-        vision = vision/vision.norm(2);
-        auto out = out_mm(text, vision)*100;
+        vision = vision / vision.norm(2);
+        vision = vision.transpose(SEQUENCE, DIMENSION);
+        auto out = Tensor::mm(text, vision) * 100;
         return {out};
     }
 };

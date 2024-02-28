@@ -26,8 +26,9 @@ int main(int argc, char **argv) {
     auto processor = FuyuProcessor(vocab_path);
 
     Module::initBackend(MLLM_CPU);
-    FuyuConfig::init(tokens_limit, "8B");
-    auto model = FuyuModel();
+    FuyuConfig config;
+    config.init(tokens_limit, "8B");
+    auto model = FuyuModel(config);
     model.load(model_path);
 
     std::vector<vector<string>> in_imgs = {

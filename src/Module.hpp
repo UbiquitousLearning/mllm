@@ -102,13 +102,25 @@ public:
         return modules;
     }
 
+    // 递归终止函数
+    template<typename T>
+    static auto change_last(T value) {
+        return std::make_tuple(value + std::to_string(listIdx) + ".");
+    }
+    // 递归函数
+    template<typename T, typename... Args>
+    static auto change_last(T head, Args... tail) {
+        auto tail_tuple = change_last(tail...);
+        return std::tuple_cat(std::make_tuple(head), tail_tuple);
+    }
     template <typename T, typename... Args>
     static vector<T> List(int n, Args &&...args) {
         static_assert(std::is_base_of<Module, T>::value, "T must be a subclass of Module");
         listIdx = 0;
         vector<T> modules;
         for (int i = 0; i < n; i++) {
-            modules.emplace_back(std::forward<Args>(args)...);
+            auto new_args = change_last(args...);  // 创建新的参数包，最后一个参数被修改为原来的值+ std::to_string(listIdx)+ "."
+            modules.push_back(std::move(T(std::apply([&](auto&&... args){ return T(std::forward<decltype(args)>(args)...); }, new_args))));
             listIdx++;
         }
         listIdx = 0;

@@ -22,8 +22,9 @@ int main(int argc, char **argv) {
     auto processor = ClipProcessor(vocab_path, merges_path);
 
     Module::initBackend(MLLM_CPU);
-    ClipConfig::init("base", 32, 224, 49408);
-    auto model = CLipModel();
+    ClipConfig config;
+    config.init("base", 32, 224, 49408);
+    auto model = CLipModel(config);
     model.load(model_path);
 
     auto input_tensors = processor.process({"a photo of a cat", "a photo of a dog"}, "../assets/cat.jpg", 224);
