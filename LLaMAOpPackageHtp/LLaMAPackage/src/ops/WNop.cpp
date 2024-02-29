@@ -21,6 +21,7 @@ template<typename TensorType,typename TensorType1>
 GraphStatus wnopImpl(TensorType& out_0,
                       TensorType1 &sync_var,
                      const TensorType& in_0,
+                     const TensorType& in_1,
                      const Tensor& sync_type);
 
 // forward declaration of sample cost function
@@ -95,6 +96,7 @@ template<typename TensorType,typename TensorType1>
 GraphStatus wnopImpl(TensorType& out_0,
                       TensorType1 &sync_var,
                      const TensorType& in_0,
+                     const TensorType& in_1,
                      const Tensor& sync_type)
 
 {
@@ -120,20 +122,35 @@ GraphStatus wnopImpl(TensorType& out_0,
   // sync_type == 0 sending signal to CPU
   // sync_type == 1 waiting signal from CPU
 
+  DType dtype = in_0.get_dtype();
+  uint32_t bitwidth = 4;
+
+   if (dtype == DType::QUInt8) {
+
+        bitwidth = 1;
+
+    } else if (dtype == DType::Float16) {
+
+        bitwidth = 2;
+    } else if (dtype == DType::Float32) {
+
+        bitwidth = 4;
+    }
+
   if (sync_type_ == 0) {
 
     auto [b_in, h_in, w_in, d_in] = in_0.dims();
 
-    auto in_ptr = (float*)in_0.raw_data_const();
-    auto out_ptr = (float*)out_0.raw_data();
+    auto in_ptr = (void*)in_0.raw_data_const();
+    auto out_ptr = (void*)out_0.raw_data();
 
-    memcpy(out_ptr, in_ptr, b_in * h_in * w_in * d_in * sizeof(float));
+    memcpy(out_ptr, in_ptr, b_in * h_in * w_in * d_in * bitwidth);
 
     sync_var(0,0,0,0) = 1;
 
   } else if (sync_type_ == 1) {
 
-    while (sync_var(0,0,0,0) == 0) {
+    while (in_1(0,0,0,0) == 0) {
 
       Q6_V_vzero();
 
@@ -141,10 +158,10 @@ GraphStatus wnopImpl(TensorType& out_0,
 
     auto [b_in, h_in, w_in, d_in] = in_0.dims();
 
-    auto in_ptr = (float*)in_0.raw_data_const();
-    auto out_ptr = (float*)out_0.raw_data();
+    auto in_ptr = (void*)in_0.raw_data_const();
+    auto out_ptr = (void*)out_0.raw_data();
 
-    memcpy(out_ptr, in_ptr, b_in * h_in * w_in * d_in * sizeof(float));
+    memcpy(out_ptr, in_ptr, b_in * h_in * w_in * d_in * bitwidth);
 
   }
 

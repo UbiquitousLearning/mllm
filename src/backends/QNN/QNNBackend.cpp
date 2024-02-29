@@ -352,8 +352,8 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
     for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
         auto graphInfo = (*m_graphsInfo)[graphIdx];
 
-        QNN_DEBUG("input tensors: %d ", (*m_graphsInfo)[graphIdx].numInputTensors);
-        QNN_DEBUG("output tensors: %d ", (*m_graphsInfo)[graphIdx].numOutputTensors);
+        QNN_DEBUG("input tensors: %d ", inputBuffers.size());
+        QNN_DEBUG("output tensors: %d ", outputBuffers.size());
 
         if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&inputs_, &outputs_, (*m_graphsInfo)[graphIdx])) {
             QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
