@@ -619,6 +619,18 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
                 <Shape>
                     <Rank>4D</Rank>
                     <Layout>NHWC</Layout>
+                    <Text>[1]</Text>
+                </Shape>
+            </Input>
+            <Input>
+                <Name>in[1]</Name>
+                <Description>
+                    <Content>sync input var</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>1D</Rank>
                     <Text>[N, C, H , W]</Text>
                 </Shape>
             </Input>
@@ -903,18 +915,24 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             </Output>
         </SupplementalOpDef>
 
-        <!--KVCache-->
+        <!--WNop-->
         <SupplementalOpDef>
             <Name>WNop</Name>
 
             <Input>
                 <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+            <Input>
+                <Name>in[1]</Name>
+                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
             </Input>
 
             <Output>
                 <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Output>

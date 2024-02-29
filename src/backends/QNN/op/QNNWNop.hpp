@@ -15,7 +15,8 @@ public:
 
 private:
     int thread_count = 4;
-    Tensor syncVar_;
+    Tensor syncToCPUVar_;
+    Tensor syncToNPUVar_;
     int sync_type_;
 };
 

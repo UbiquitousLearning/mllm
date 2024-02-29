@@ -55,7 +55,7 @@ ErrorCode QNNKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 
     qnnBackend_->pushInputBuffers(seq_pos_.hostPtr<uint8_t>());
 
-    outputs[0]->setDtype(MLLM_TYPE_I8);
+    // outputs[0]->setDtype(MLLM_TYPE_I8);
     outputs[0]->setBackend(qnnBackend_);
     outputs[0]->alloc(qnn_size_);
 
@@ -91,6 +91,13 @@ ErrorCode QNNKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     // add cache output tensor to qnn
     uint32_t dimensionsCache[4] = {qnn_size_[0], qnn_size_[1], qnn_size_[2], qnn_size_[3]};
 
+    auto data_type = QNN_DATATYPE_FLOAT_32;
+    if (outputs[0]->dtype() == MLLM_TYPE_I8) {
+        std::cout << "QNN INT8 op" << std::endl;
+        data_type = QNN_DATATYPE_UFIXED_POINT_8;
+    }
+
+
     auto outName = outputs[0]->name();
     vector<Qnn_Tensor_t> kvcache_output = {{QNN_TENSOR_VERSION_1,
                                             {.v1 = {
@@ -98,7 +105,7 @@ ErrorCode QNNKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
                                                  .name = outName.c_str(),
                                                  .type = QNN_TENSOR_TYPE_APP_READ,
                                                  .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                 .dataType = QNN_DATATYPE_UFIXED_POINT_8,
+                                                 .dataType = data_type,
                                                  .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                                     QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                                     {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
