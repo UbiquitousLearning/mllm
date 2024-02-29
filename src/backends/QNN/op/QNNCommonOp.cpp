@@ -43,7 +43,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
 
         // TODO tensor type = MLLM_TYPE_I8
         auto data_type = QNN_DATATYPE_FLOAT_32;
-        if (nodeType == "Reshape" || nodeType == "LLaMAReLU") {
+        if (output->dtype() == MLLM_TYPE_I8) {
             std::cout << "QNN INT8 op" << std::endl;
             data_type = QNN_DATATYPE_UFIXED_POINT_8;
         }

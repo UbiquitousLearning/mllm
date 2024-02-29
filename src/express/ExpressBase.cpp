@@ -263,6 +263,7 @@ NetTensor *TNetTensor::view(int b, int h, int s, int d) {
     net_op_->param["data_dim2"] = data_dims[2];
     net_op_->param["data_dim3"] = data_dims[3];
     _SET_NET_OP(ctx, net_op_, this, sub_param, out_tensor)
+    out_tensor->type = this->type;
     return out_tensor;
 }
 

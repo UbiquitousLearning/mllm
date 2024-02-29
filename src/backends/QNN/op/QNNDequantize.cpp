@@ -6,8 +6,9 @@
 #include <cassert>
 
 namespace mllm {
-QNNDequantize::QNNDequantize(Backend *bn, string opName) :
+QNNDequantize::QNNDequantize(Backend *bn, string opName, bool isNSHD) :
     QNNCommonOp(bn, opName) {
+        isNSHD_ = isNSHD;
 }
 
 ErrorCode QNNDequantize::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -18,10 +19,21 @@ ErrorCode QNNDequantize::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 
 ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto outName = outputs[0]->name();
-    uint32_t dimensionsOutput[4] = {static_cast<uint32_t>(outputs[0]->batch()),
-                                    static_cast<uint32_t>(outputs[0]->sequence()),
-                                    static_cast<uint32_t>(outputs[0]->head()),
-                                    static_cast<uint32_t>(outputs[0]->dimension())};
+    uint32_t dimensionsOutput[4];
+
+    if (isNSHD_) {
+        dimensionsOutput[0] = static_cast<uint32_t>(outputs[0]->batch());
+        dimensionsOutput[1] = static_cast<uint32_t>(outputs[0]->sequence());
+        dimensionsOutput[2] = static_cast<uint32_t>(outputs[0]->head());
+        dimensionsOutput[3] = static_cast<uint32_t>(outputs[0]->dimension());
+    } else {
+
+        dimensionsOutput[0] = static_cast<uint32_t>(outputs[0]->batch());
+        dimensionsOutput[1] = static_cast<uint32_t>(outputs[0]->head());
+        dimensionsOutput[2] = static_cast<uint32_t>(outputs[0]->sequence());
+        dimensionsOutput[3] = static_cast<uint32_t>(outputs[0]->dimension());
+    }
+    
     vector<Qnn_Tensor_t> outputTensor = {{QNN_TENSOR_VERSION_1,
                                           {.v1 = {
                                                .id = 0,
