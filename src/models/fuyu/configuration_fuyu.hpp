@@ -4,27 +4,30 @@
 
 #ifndef CONFIG_FUYU_HPP
 #define CONFIG_FUYU_HPP
+#include <models/transformer/configuration_transformer.hpp>
 
 using namespace mllm;
 
-class FuyuNameConfig {
+class FuyuNameConfig : public TransformerNameConfig {
 public:
     string blk_name = "language_model.model.layers.";
     string vision_embed_tokens_name = "vision_embed_tokens";
     string token_embd_name = "language_model.model.embed_tokens";
     string host_name = "language_model.model.";
-    string _attn_base_name = "self_attn.";
-    string _ffn_base_name = "mlp.";
-    string _qkv_proj_name = "query_key_value";
-    string _q_norm_name = "q_layernorm";
-    string _k_norm_name = "k_layernorm";
-    string _o_proj_name = "dense";
-    string _up_proj_name = "dense_h_to_4h";
-    string _down_proj_name = "dense_4h_to_h";
-    string _attn_norm_name = "input_layernorm";
-    string _ffn_norm_name = "post_attention_layernorm";
     string post_norm_name = "language_model.model.final_layernorm";
     string lm_head_name = "language_model.lm_head";
+    void init() {
+        _attn_base_name = "self_attn.";
+        _ffn_base_name = "mlp.";
+        _qkv_proj_name = "query_key_value";
+        _q_norm_name = "q_layernorm";
+        _k_norm_name = "k_layernorm";
+        _o_proj_name = "dense";
+        _up_proj_name = "dense_h_to_4h";
+        _down_proj_name = "dense_4h_to_h";
+        _attn_norm_name = "input_layernorm";
+        _ffn_norm_name = "post_attention_layernorm";
+    }
 };
 
 class FuyuConfig {
@@ -41,6 +44,7 @@ public:
     FuyuNameConfig name_config;
 
     void init(int token_limit, const string &billions = "8B") {
+        name_config.init();
         vocab_size = 262144;
         if (billions == "8B" || billions == "8b") {
             hidden_dim = 4096;

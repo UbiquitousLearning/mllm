@@ -45,7 +45,8 @@ class LLaMABlock final : public Module {
 public:
     LLaMABlock() = default;
     LLaMABlock(int hidden_dim, int head_size, int mlp_hidden, RoPEType RoPE_type, int cache_limit, const LLaMANameConfig &names, const string &base_name) {
-        attention = MultiHeadAttention(hidden_dim, head_size, hidden_dim / head_size, RoPE_type, cache_limit, true, false, names, base_name + names._attn_base_name);
+        attention = MultiHeadAttention(hidden_dim, head_size, hidden_dim / head_size, false, false, false,
+                                       RoPE_type, cache_limit, true, false, names, base_name + names._attn_base_name);
         mlp = LLaMAMLP(hidden_dim, mlp_hidden, names, base_name + names._ffn_base_name);
         norm1 = RMSNorm(hidden_dim, 1e-6, base_name + names._attn_norm_name);
         norm2 = RMSNorm(hidden_dim, 1e-6, base_name + names._ffn_norm_name);

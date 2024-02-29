@@ -369,6 +369,22 @@ else ()
     target_link_libraries(demo_clip MLLM_CPU)
 endif ()
 
+add_executable(demo_imagebind ${PROJECT_SOURCE_DIR}/examples/demo_imagebind.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
+        ${DIR_SRC_PROCESSOE}
+        ${DIR_THIRDPARTY_AUDIO}
+        src/processor/PreProcess.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_imagebind PRIVATE -fopenmp)
+    target_link_libraries(demo_imagebind PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_imagebind MLLM_CPU)
+endif ()
+
+
+
 
 
 if (APK)

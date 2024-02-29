@@ -14,6 +14,7 @@ public:
     std::string token_embd_name;
     std::string post_norm_name;
     std::string lm_head_name;
+    std::string _gate_proj_name;
 
     void init(RoPEType type = LLAMAROPE) {
         switch (type) {

@@ -7,6 +7,7 @@
 
 #include "models/vit/modeling_vit.hpp"
 #include "configuration_clip.hpp"
+#include "models/transformer/modeling_transformer.hpp"
 
 class ClipVisionEmbedding final : public Module {
     Layer patch_embedding;
@@ -86,7 +87,8 @@ class ClipTextBlock final : public Module {
 public:
     ClipTextBlock() = default;
     ClipTextBlock(int hidden_dim, int head_size, int mlp_hidden, const string &act_fn_type, const ClipTextNameConfig &names, const string &base_name) {
-        attention = MultiHeadAttention(hidden_dim, head_size, hidden_dim / head_size, RoPEType::NONE, 0, true, true, names, base_name + names._attn_base_name);
+        attention = MultiHeadAttention(hidden_dim, head_size, hidden_dim / head_size, false, false, false,
+                                       RoPEType::NONE, 0, true, true, names, base_name + names._attn_base_name);
         mlp = ClipTextMLP(hidden_dim, mlp_hidden, act_fn_type, names, base_name + names._ffn_base_name);
         down_proj = Linear(mlp_hidden, hidden_dim, true, base_name + names._down_proj_name);
         norm1 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._attn_norm_name);
