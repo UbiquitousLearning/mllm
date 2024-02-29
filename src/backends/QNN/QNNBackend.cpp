@@ -316,9 +316,9 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
     }
     outputBufferMap.insert(std::make_pair("graph", outputBuffers));
 #else
-    for (auto &input : inputs) {
-        inputBuffers.push_back(input->hostPtr<uint8_t>());
-    }
+    // for (auto &input : inputs) {
+    //     inputBuffers.push_back(input->hostPtr<uint8_t>());
+    // }
     for (auto &output : outputs) {
         output->alloc();
         outputBuffers.push_back(output->hostPtr<uint8_t>());
@@ -334,8 +334,8 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
     for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
         auto graphInfo = (*m_graphsInfo)[graphIdx];
 
-        QNN_DEBUG("input tensors: %d ", (*m_graphsInfo)[graphIdx].numInputTensors);
-        QNN_DEBUG("output tensors: %d ", (*m_graphsInfo)[graphIdx].numOutputTensors);
+        QNN_DEBUG("input tensors: %d ", inputBuffers.size());
+        QNN_DEBUG("output tensors: %d ", outputBuffers.size());
 
         if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&inputs_, &outputs_, (*m_graphsInfo)[graphIdx])) {
             QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
