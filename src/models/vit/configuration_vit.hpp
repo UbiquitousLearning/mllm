@@ -75,7 +75,7 @@ public:
     int img_hw;
     int hidden_dim;
     int head_size;
-    int mlp_hidden;
+    int ffn_hidden;
     int block_num;
     string act_fn_type;
 
@@ -87,7 +87,7 @@ public:
         if (model_type == "base") {
             hidden_dim = 768;
             head_size = 12;
-            mlp_hidden = 3072;
+            ffn_hidden = 3072;
             block_num = 12;
         } else {
             throw std::runtime_error("Unsupported model size");

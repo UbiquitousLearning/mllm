@@ -35,7 +35,7 @@ public:
     int vocab_size{};
     int hidden_dim{};
     int head_size{};
-    int mlp_hidden{};
+    int ffn_hidden{};
     int block_num{};
     int patch_size{};
     int chl_size{};
@@ -49,7 +49,7 @@ public:
         if (billions == "8B" || billions == "8b") {
             hidden_dim = 4096;
             head_size = 64;
-            mlp_hidden = 4096 * 4;
+            ffn_hidden = 4096 * 4;
             block_num = 36;
             patch_size = 30;
             chl_size = 3;

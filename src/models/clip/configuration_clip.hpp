@@ -51,7 +51,7 @@ public:
     int max_position_embeddings{};
     int text_hidden_dim{};
     int text_head_size{};
-    int text_mlp_hidden{};
+    int text_ffn_hidden{};
     int text_block_num{};
 
     void init(const string &model_type = "base", int patch_ = 32, int hw = 224, int text_vocab_size_ = 49408) {
@@ -64,12 +64,12 @@ public:
         if (model_type == "base") {
             hidden_dim = 768;
             head_size = 12;
-            mlp_hidden = 3072;
+            ffn_hidden = 3072;
             block_num = 12;
             max_position_embeddings = 77;
             text_hidden_dim = 512;
             text_head_size = 8;
-            text_mlp_hidden = 2048;
+            text_ffn_hidden = 2048;
             text_block_num = 12;
         } else {
             throw std::runtime_error("Unsupported model size");

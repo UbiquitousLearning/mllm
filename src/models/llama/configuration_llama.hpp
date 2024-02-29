@@ -66,7 +66,7 @@ public:
     int vocab_size{};
     int hidden_dim{};
     int head_size{};
-    int mlp_hidden{};
+    int ffn_hidden{};
     int block_num{};
     RoPEType RoPE_type;
     int cache_limit{};
@@ -78,7 +78,7 @@ public:
         if (billions == "7B" || billions == "7b") {
             hidden_dim = 4096;
             head_size = 32;
-            mlp_hidden = 11008;
+            ffn_hidden = 11008;
             block_num = 32;
         } else {
             throw std::runtime_error("Unsupported model size");

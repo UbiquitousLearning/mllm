@@ -20,7 +20,7 @@ class EncoderBlock final : public Module {
 
 public:
     EncoderBlock() = default;
-    EncoderBlock(int hidden_dim, int head_size, int mlp_hidden, const string &model_type, const ImagebindNameConfig &names, const string &base_name) {
+    EncoderBlock(int hidden_dim, int head_size, int ffn_hidden, const string &model_type, const ImagebindNameConfig &names, const string &base_name) {
         bool do_mask = false;
         bool bias_kv_cat = false;
         if (model_type == "text") {
@@ -32,7 +32,7 @@ public:
                                        true, false, bias_kv_cat,
                                        RoPEType::NONE, 0, do_mask, true,
                                        names, base_name + names._attn_base_name);
-        ffn = FeedForward(hidden_dim, mlp_hidden, "GELU", true,
+        ffn = FeedForward(hidden_dim, ffn_hidden, "GELU", true,
                           names, base_name + names._ffn_base_name);
         norm1 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._attn_norm_name);
         norm2 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._ffn_norm_name);
@@ -80,12 +80,12 @@ class ImagebindVisionModel final : public Module {
 
 public:
     ImagebindVisionModel() = default;
-    ImagebindVisionModel(int hidden_dim, int head_size, int mlp_hidden, int head_hidden_dim,
+    ImagebindVisionModel(int hidden_dim, int head_size, int ffn_hidden, int head_hidden_dim,
                          int patch, int patch_time, int img_hw, int block_num,
                          const ImagebindNameConfig &names) {
         embedding = ImagebindVisionEmbedding(hidden_dim, patch, patch_time, img_hw, names, names._vision_embd_name);
         pre_transformer_layer = LayerNorm(hidden_dim, true, 1e-6, names.vision_pre_transformer_layer_name);
-        blocks = List<EncoderBlock>(block_num, hidden_dim, head_size, mlp_hidden, "vision", names, names._vision_blocks_name);
+        blocks = List<EncoderBlock>(block_num, hidden_dim, head_size, ffn_hidden, "vision", names, names._vision_blocks_name);
         norm = LayerNorm(hidden_dim, true, 1e-6, names.vision_post_norm_name);
         head = Linear(hidden_dim, head_hidden_dim, false, names.vision_head_name);
     }
@@ -128,11 +128,11 @@ class ImagebindTextModel final : public Module {
 
 public:
     ImagebindTextModel() = default;
-    ImagebindTextModel(int hidden_dim, int head_size, int mlp_hidden, int head_hidden_dim,
+    ImagebindTextModel(int hidden_dim, int head_size, int ffn_hidden, int head_hidden_dim,
                        int vocab_size, int max_position_embeddings, int block_num,
                        const ImagebindNameConfig &names) {
         embedding = ImagebindTextEmbedding(vocab_size, hidden_dim, max_position_embeddings, names, names._text_embd_name);
-        blocks = List<EncoderBlock>(block_num, hidden_dim, head_size, mlp_hidden, "text", names, names._text_blocks_name);
+        blocks = List<EncoderBlock>(block_num, hidden_dim, head_size, ffn_hidden, "text", names, names._text_blocks_name);
         norm = LayerNorm(hidden_dim, true, 1e-6, names.text_post_norm_name);
         head = Linear(hidden_dim, head_hidden_dim, false, names.text_head_name);
     }
@@ -157,14 +157,18 @@ class ImagebindModel final : public Module {
     Layer vision_text_softmax;
 
 public:
-    ImagebindModel() = default;
-    ImagebindModel(int vision_hidden_dim, int vision_head_size, int vision_mlp_hidden, int patch, int patch_time, int img_hw, int vision_block_num,
-                   int text_hidden_dim, int text_head_size, int text_mlp_hidden, int vocab_size, int max_position_embeddings, int text_block_num,
+    explicit ImagebindModel(const ImagebindConfig &config):
+        ImagebindModel(config.vision_hidden_dim, config.vision_head_size, config.vision_ffn_hidden, config.patch, config.patch_time, config.img_hw, config.vision_block_num,
+                       config.text_hidden_dim, config.text_head_size, config.text_ffn_hidden, config.vocab_size, config.max_position_embeddings, config.text_block_num,
+                       config.head_hidden_dim,
+                       config.names_config) {};
+    ImagebindModel(int vision_hidden_dim, int vision_head_size, int vision_ffn_hidden, int patch, int patch_time, int img_hw, int vision_block_num,
+                   int text_hidden_dim, int text_head_size, int text_ffn_hidden, int vocab_size, int max_position_embeddings, int text_block_num,
                    int head_hidden_dim,
                    const ImagebindNameConfig &names) {
-        vision_model = ImagebindVisionModel(vision_hidden_dim, vision_head_size, vision_mlp_hidden, head_hidden_dim,
+        vision_model = ImagebindVisionModel(vision_hidden_dim, vision_head_size, vision_ffn_hidden, head_hidden_dim,
                                             patch, patch_time, img_hw, vision_block_num, names);
-        text_model = ImagebindTextModel(text_hidden_dim, text_head_size, text_mlp_hidden, head_hidden_dim,
+        text_model = ImagebindTextModel(text_hidden_dim, text_head_size, text_ffn_hidden, head_hidden_dim,
                                         vocab_size, max_position_embeddings, text_block_num, names);
         vision_text_softmax = Softmax( DIMENSION, "final.vision@text.softmax");
     }

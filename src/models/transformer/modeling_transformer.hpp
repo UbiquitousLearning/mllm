@@ -120,10 +120,10 @@ class FeedForward final : public Module {
 
 public:
     FeedForward() = default;
-    FeedForward(int hidden_dim, int mlp_hidden, const string &act_fn_type, bool bias, const TransformerNameConfig &names, const string &base_name) {
-        up_proj = Linear(hidden_dim, mlp_hidden, bias, base_name + names._up_proj_name);
+    FeedForward(int hidden_dim, int ffn_hidden, const string &act_fn_type, bool bias, const TransformerNameConfig &names, const string &base_name) {
+        up_proj = Linear(hidden_dim, ffn_hidden, bias, base_name + names._up_proj_name);
         act = ACT_FN[act_fn_type](base_name + "act");
-        down_proj = Linear(mlp_hidden, hidden_dim, bias, base_name + names._down_proj_name);
+        down_proj = Linear(ffn_hidden, hidden_dim, bias, base_name + names._down_proj_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = up_proj(inputs[0]);

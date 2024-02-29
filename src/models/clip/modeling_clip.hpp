@@ -41,11 +41,11 @@ class CLipVisionModel final : public Module {
 
 public:
     CLipVisionModel() = default;
-    CLipVisionModel(int hidden_dim, int head_size, int mlp_hidden, const string &act_fn_type, int patch, int img_hw, int block_num,
+    CLipVisionModel(int hidden_dim, int head_size, int ffn_hidden, const string &act_fn_type, int patch, int img_hw, int block_num,
                     const ViTNameConfig &names, const string &base_name) {
         embedding = ClipVisionEmbedding(hidden_dim, patch, img_hw, names, base_name + names._embd_name);
         pre_layrnorm = LayerNorm(hidden_dim, true, 1e-6, base_name + names._vision_pre_layrnorm_name);
-        blocks = List<ViTBlock>(block_num, hidden_dim, head_size, mlp_hidden, act_fn_type, names, base_name + names._layer_name);
+        blocks = List<ViTBlock>(block_num, hidden_dim, head_size, ffn_hidden, act_fn_type, names, base_name + names._layer_name);
         norm = LayerNorm(hidden_dim, true, 1e-6, base_name + names._post_norm_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
@@ -66,8 +66,8 @@ class ClipTextMLP final : public Module {
 
 public:
     ClipTextMLP() = default;
-    ClipTextMLP(int hidden_dim, int mlp_hidden, const string &act_fn_type, const ClipTextNameConfig &names, const string &base_name) {
-        up_proj = Linear(hidden_dim, mlp_hidden, true, base_name + names._up_proj_name);
+    ClipTextMLP(int hidden_dim, int ffn_hidden, const string &act_fn_type, const ClipTextNameConfig &names, const string &base_name) {
+        up_proj = Linear(hidden_dim, ffn_hidden, true, base_name + names._up_proj_name);
         act = ACT_FN[act_fn_type](base_name + names._ffn_base_name + "act");
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
@@ -86,11 +86,11 @@ class ClipTextBlock final : public Module {
 
 public:
     ClipTextBlock() = default;
-    ClipTextBlock(int hidden_dim, int head_size, int mlp_hidden, const string &act_fn_type, const ClipTextNameConfig &names, const string &base_name) {
+    ClipTextBlock(int hidden_dim, int head_size, int ffn_hidden, const string &act_fn_type, const ClipTextNameConfig &names, const string &base_name) {
         attention = MultiHeadAttention(hidden_dim, head_size, hidden_dim / head_size, false, false, false,
                                        RoPEType::NONE, 0, true, true, names, base_name + names._attn_base_name);
-        mlp = ClipTextMLP(hidden_dim, mlp_hidden, act_fn_type, names, base_name + names._ffn_base_name);
-        down_proj = Linear(mlp_hidden, hidden_dim, true, base_name + names._down_proj_name);
+        mlp = ClipTextMLP(hidden_dim, ffn_hidden, act_fn_type, names, base_name + names._ffn_base_name);
+        down_proj = Linear(ffn_hidden, hidden_dim, true, base_name + names._down_proj_name);
         norm1 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._attn_norm_name);
         norm2 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._ffn_norm_name);
     }
@@ -134,10 +134,10 @@ class CLipTextModel final : public Module {
 
 public:
     CLipTextModel() = default;
-    CLipTextModel(int hidden_dim, int head_size, int mlp_hidden, const string &act_fn_type, int max_position_embeddings, int vocab_size, int block_num,
+    CLipTextModel(int hidden_dim, int head_size, int ffn_hidden, const string &act_fn_type, int max_position_embeddings, int vocab_size, int block_num,
                   const ClipTextNameConfig &names, const string &base_name) {
         embedding = ClipTextEmbedding(vocab_size, hidden_dim, max_position_embeddings, names, base_name + names._embd_name);
-        blocks = List<ClipTextBlock>(block_num, hidden_dim, head_size, mlp_hidden, act_fn_type, names, base_name + names._layer_name);
+        blocks = List<ClipTextBlock>(block_num, hidden_dim, head_size, ffn_hidden, act_fn_type, names, base_name + names._layer_name);
         norm = LayerNorm(hidden_dim, true, 1e-6, base_name + names._post_norm_name);
     }
 
@@ -160,22 +160,22 @@ class CLipModel final : public Module {
 
 public:
     explicit CLipModel(const ClipConfig &config) :
-        CLipModel(config.text_hidden_dim, config.text_head_size, config.text_mlp_hidden,
-                  config.hidden_dim, config.head_size, config.mlp_hidden,
+        CLipModel(config.text_hidden_dim, config.text_head_size, config.text_ffn_hidden,
+                  config.hidden_dim, config.head_size, config.ffn_hidden,
                   config.act_fn_type, config.max_position_embeddings, config.text_vocab_size, config.text_block_num,
                   config.patch, config.img_hw, config.block_num,
                   config.text_names_config, "text_model",
                   config.names_config, "vision_model"){};
-    CLipModel(int text_hidden_dim, int text_head_size, int text_mlp_hidden,
-              int vision_hidden_dim, int vision_head_size, int vision_mlp_hidden,
+    CLipModel(int text_hidden_dim, int text_head_size, int text_ffn_hidden,
+              int vision_hidden_dim, int vision_head_size, int vision_ffn_hidden,
               const string &act_fn_type, int max_position_embeddings, int vocab_size, int text_block_num,
               int patch, int img_hw, int vision_block_num,
               const ClipTextNameConfig &text_names, const string &text_base_name,
               const ViTNameConfig &vit_names, const string &vision_base_name) {
-        text_model = CLipTextModel(text_hidden_dim, text_head_size, text_mlp_hidden, act_fn_type, max_position_embeddings, vocab_size, text_block_num,
+        text_model = CLipTextModel(text_hidden_dim, text_head_size, text_ffn_hidden, act_fn_type, max_position_embeddings, vocab_size, text_block_num,
                                    text_names, text_base_name);
         text_projection = Linear(text_hidden_dim, text_hidden_dim, false, "text_projection");
-        vision_model = CLipVisionModel(vision_hidden_dim, vision_head_size, vision_mlp_hidden, act_fn_type, patch, img_hw, vision_block_num,
+        vision_model = CLipVisionModel(vision_hidden_dim, vision_head_size, vision_ffn_hidden, act_fn_type, patch, img_hw, vision_block_num,
                                        vit_names, vision_base_name);
         visual_projection = Linear(vision_hidden_dim, text_hidden_dim, false, "visual_projection");
     }

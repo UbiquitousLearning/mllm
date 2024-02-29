@@ -80,13 +80,8 @@ public:
             tokenizer->tokenize(in_str, tokens_id, true, true, "</w>");
             tokens_ids.push_back(tokens_id);
         }
-        shared_ptr<Tensor> input_text = std::make_shared<Tensor>();
-        // auto input_tensor = BPETokenizer::tokens2Input(tokens_ids);
-        //
-        // auto *clip_processor = new ClipPreProcessor(tokenizer);
-        clip_processor->PreProcessImages({std::move(img_path)});
+        clip_processor->PreProcessImages({std::move(img_path)}, hw, hw);
         auto images = clip_processor->pixel_values_[0];
-        // auto input_img_tensor = img2Tensor(images, std::move(img_name));
 
         return {Tokenizer::tokens2Input(tokens_ids), img2Tensor(images, std::move(img_name))};
     }

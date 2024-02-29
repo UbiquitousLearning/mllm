@@ -25,6 +25,11 @@ public:
     void PreProcessImages(const std::vector<uint8_t *> &images,
                           const std::vector<size_t> &image_length) override;
     void PreProcessImages(const std::vector<std::string> &images_path) override;
+    void PreProcessImages(const std::vector<std::string> &images_path, int height, int width) {
+        height_ = height;
+        width_ = width;
+        PreProcessImages(images_path);
+    }
 
     void Img2Tensor(Backend *bn, shared_ptr<Tensor> input_tensor, vector<vector<vector<float>>> img);
 

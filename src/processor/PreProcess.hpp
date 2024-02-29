@@ -73,6 +73,11 @@ public:
     virtual void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) =0;
     virtual void Process(const std::string &text) =0;
     virtual void PreProcessImages(const std::vector<std::string> &images_path);
+    void PreProcessImages(const std::vector<std::string> &images_path, int height, int width) {
+        height_ = height;
+        width_ = width;
+        PreProcessImages(images_path);
+    }
 
 protected:
     Tokenizer *tokenizer_;
