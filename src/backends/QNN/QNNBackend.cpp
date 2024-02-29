@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <inttypes.h>
 
 #include <cstring>
@@ -5,6 +6,7 @@
 #include <iostream>
 
 #include "QNNBackend.hpp"
+#include "QnnModel.hpp"
 #include "Utils/BuildId.hpp"
 #include "Utils/DataUtil.hpp"
 #include "Utils/QnnSampleAppUtils.hpp"
@@ -206,7 +208,7 @@ void QNNBackend::release() {
     }
 }
 
-void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
+void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, string graphName) {
 #ifdef DEBUGPRINT
     std::cout << "onSetUpStart" << std::endl;
 #endif
@@ -214,8 +216,10 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
     auto returnStatus = StatusCode::SUCCESS;
 
     // rebuild a new graph.
-    if (m_graphsInfo != nullptr) {
+    auto it = qnnModelIndexMap_.find(graphName);
+    if (it != qnnModelIndexMap_.end()) {
         std::cout << "free graph tensors begin" << std::endl;
+        qnnModelIndex_ = it->second;
 
         m_ioTensor.tearDownInputAndOutputTensors(
             inputs_, outputs_, graphInfo.numInputTensors, graphInfo.numOutputTensors);
@@ -232,13 +236,15 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
         qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
         m_graphsInfo = nullptr;
 
-        qnnModel.freeTensors();
+        qnnModels_[qnnModelIndex_].freeTensors();
 
         this->freeContext();
-        qnnModel.clearGraph();
+        qnnModels_[qnnModelIndex_].clearGraph();
 
-        inputBuffers.resize(0);
-        outputBuffers.resize(0);
+        // inputBuffers.resize(0);
+        // outputBuffers.resize(0);
+        inputBufferMap[graphName].resize(0);
+        outputBufferMap[graphName].resize(0);
 
         inputBufferMap.clear();
         outputBufferMap.clear();
@@ -246,6 +252,9 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
         syncVarTensors_.resize(0);
     }
 
+    // create a new graph
+    qnnModelIndex_ = qnnModels_.size();
+    qnnModels_.push_back(qnn_wrapper_api::QnnModel());
     // create qnn context, assign context to qnn memory manager
     if (StatusCode::SUCCESS != this->createContext()) {
         this->reportError("Context Creation failure");
@@ -259,20 +268,20 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
     // NOTE: currently not using it
     const QnnGraph_Config_t **graphConfigs = nullptr;
     qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::getQnnGraphConfigFromInfo(
-        "mllmQnnModel", (const qnn_wrapper_api::GraphConfigInfo_t **)m_graphConfigsInfo, m_graphConfigsInfoCount, graphConfigs);
+        graphName.c_str(), (const qnn_wrapper_api::GraphConfigInfo_t **)m_graphConfigsInfo, m_graphConfigsInfoCount, graphConfigs);
     if (err != qnn_wrapper_api::MODEL_NO_ERROR) {
         this->reportError("Graph Config Info failure");
     }
 
-    err = qnnModel.initialize(m_backendHandle,
-                              m_qnnFunctionPointers.qnnInterface,
-                              m_context,
-                              "mllmQnnModel",
-                              m_debug,
-                              DO_GRAPH_NODE_VALIDATIONS,
-                              graphConfigs);
+    err = qnnModels_[qnnModelIndex_].initialize(m_backendHandle,
+                                                m_qnnFunctionPointers.qnnInterface,
+                                                m_context,
+                                                graphName.c_str(),
+                                                m_debug,
+                                                DO_GRAPH_NODE_VALIDATIONS,
+                                                graphConfigs);
     if (err != qnn_wrapper_api::MODEL_NO_ERROR) {
-        this->reportError("Graph Initialization failure");
+        this->reportError("Graph Initialization failure: " + graphName);
     }
 
     // add input tensor to qnn
@@ -280,50 +289,59 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs) {
     for (int i = 0; i < 4; i++) {
         dimensionsInput[i] = inputs[0]->shape()[i];
     }
-    qnnModel.addTensor(inputs[0]->name().c_str(), (Qnn_Tensor_t){
-                                                      .version = QNN_TENSOR_VERSION_1,
-                                                      {.v1 = {
-                                                           .id = 0,
-                                                           .name = inputs[0]->name().c_str(),
-                                                           .type = QNN_TENSOR_TYPE_APP_WRITE,
-                                                           .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                           .dataType = QNN_DATATYPE_FLOAT_32,
-                                                           .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                                                              QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                                                              {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-                                                           .rank = 4,
-                                                           .dimensions = dimensionsInput,
-                                                           .memType = QNN_TENSORMEMTYPE_RAW,
-                                                           {.clientBuf = {.data = nullptr,
-                                                                          .dataSize = 0}}}}});
+    qnnModels_[qnnModelIndex_].addTensor(inputs[0]->name().c_str(), (Qnn_Tensor_t){
+                                                                        .version = QNN_TENSOR_VERSION_1,
+                                                                        {.v1 = {
+                                                                             .id = 0,
+                                                                             .name = inputs[0]->name().c_str(),
+                                                                             .type = QNN_TENSOR_TYPE_APP_WRITE,
+                                                                             .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                                                             .dataType = QNN_DATATYPE_FLOAT_32,
+                                                                             .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                                                                QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                                                                {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                                                             .rank = 4,
+                                                                             .dimensions = dimensionsInput,
+                                                                             .memType = QNN_TENSORMEMTYPE_RAW,
+                                                                             {.clientBuf = {.data = nullptr,
+                                                                                            .dataSize = 0}}}}});
+    // create a new inputBuffer and outputBuffer for the graph
+    inputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>(inputs.size())));
+    outputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>()));
+    currentInputBuffers = &inputBufferMap[graphName];
 
-    for (auto &input : inputs) {
-        std::cout << "input dtype:" << input->dtype() << std::endl;
-        // input->printData<float>();
-        inputBuffers.push_back(input->hostPtr<uint8_t>());
+    for(int i = 0; i < inputs.size(); i++) {
+        // switch(inputs[i]->tensorType()){
+        //     case TensorType::GRAPH_INPUT:
+        //         std::cout << "TYPE: GRAPH_INPUT" << std::endl;
+        //         break;
+        //     case TensorType::GRAPH_OUTPUT:
+        //         std::cout << "TYPE: GRAPH_OUTPUT" << std::endl;
+        //         break;
+        //     default:
+        //         std::cout << "TYPE: unsupported tensor type" << std::endl;
+        //         break;
+        // }
+        
+        (*currentInputBuffers)[i] = inputs[i]->hostPtr<uint8_t>();
     }
 }
 
-void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) {
+void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
+#ifdef DEBUGPRINT
+    std::cout << "onExecuteStart" << std::endl;
+#endif
+
     graphFinilize();
-#ifndef QNN_ARM
-    inputBufferMap.insert(std::make_pair("graph", inputBuffers));
-    for (auto &output : outputs) {
-        std::cout << "output dtype:" << output->dtype() << std::endl;
-        output->alloc();
-        // output->printData<float>();
-        outputBuffers.push_back(output->hostPtr<uint8_t>());
-    }
-    outputBufferMap.insert(std::make_pair("graph", outputBuffers));
-#else
-    // for (auto &input : inputs) {
-    //     inputBuffers.push_back(input->hostPtr<uint8_t>());
-    // }
-    for (auto &output : outputs) {
-        output->alloc();
-        outputBuffers.push_back(output->hostPtr<uint8_t>());
+    // push output tensors to the buffer list
+    currentOutputBuffers = &outputBufferMap[graphName];
+    currentOutputBuffers->resize(outputs.size());
+    for(int i = 0; i < outputs.size(); i++) {
+        outputs[i]->alloc();
+        (*currentOutputBuffers)[i] = outputs[i]->hostPtr<uint8_t>();
     }
 
+// #ifdef QNN_ARM
     // reset the syncvar
     for (auto t : syncVarTensors_) {
         t->setDataAt<uint32_t>(0, 0, 0, 0, 0);
@@ -347,22 +365,27 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
         QNN_DEBUG("output tensors: %d ", (*m_graphsInfo)[graphIdx].numOutputTensors);
 
         auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
+
+        // register input and output tensor to qnn shared buffers
+        // TODO: currently must insure the inputs and outputs of mllm graph are the same as the qnn graph
+        // op created io tensors (kvcache, wnop...) should be solved
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {
-            qnnMM->registerQnnTensor(inputBuffers[i], inputs_[i]);
+            qnnMM->registerQnnTensor((*currentInputBuffers)[i], inputs_[i]);
+            QNN_DEBUG("inputBuffers: %p ", (*currentInputBuffers)[i]);
         }
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numOutputTensors; i++) {
-            qnnMM->registerQnnTensor(outputBuffers[i], outputs_[i]);
-            QNN_DEBUG("outputBuffers: %p ", outputBuffers[i]);
+            qnnMM->registerQnnTensor((*currentOutputBuffers)[i], outputs_[i]);
+            QNN_DEBUG("outputBuffers: %p ", (*currentOutputBuffers)[i]);
         }
     }
-#endif
+// #endif
 }
 
 void QNNBackend::onExecuteEnd() {
 #ifdef QNN_ARM
     executeGraphsShared();
 #else
-    graphExecute(inputBufferMap, outputBufferMap);
+    executeGraphs(inputBufferMap, outputBufferMap);
 #endif
 }
 
@@ -373,7 +396,6 @@ std::string QNNBackend::getBackendBuildId() {
     }
     return (backendBuildId == nullptr ? std::string("") : std::string(backendBuildId));
 }
-
 
 qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
                                                        string nodeType,
@@ -386,7 +408,7 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
     if (params.size() > 0) {
         paramsPtr = params.data();
     }
-    VALIDATE(qnnModel.addNode(
+    VALIDATE(qnnModels_[qnnModelIndex_].addNode(
                  QNN_OPCONFIG_VERSION_1,  // Op_Config_t Version
                  name.c_str(),            // Node Name
                  packageName.c_str(),     // Package Name
@@ -404,7 +426,7 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
 
 qnn_wrapper_api::ModelError_t QNNBackend::graphFinilize() {
     // Add all models to array to get graphsInfo
-    qnn_wrapper_api::QnnModel *models[] = {&qnnModel};
+    qnn_wrapper_api::QnnModel *models[] = {&qnnModels_[qnnModelIndex_]};
     m_graphsCount = 1;
     // Populate the constructed graphs in provided output variables
     qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::MODEL_NO_ERROR;
@@ -421,16 +443,7 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphFinilize() {
 }
 
 qnn_wrapper_api::ModelError_t QNNBackend::modelAddTensor(std::string nodeName, Qnn_Tensor_t tensor) {
-    return qnnModel.addTensor(nodeName.c_str(), tensor);
-}
-
-ErrorCode QNNBackend::graphExecute(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap) {
-    // currently only call executeGraphs
-    auto result = this->executeGraphs(inputBufferMap, outputBufferMap);
-    if (result != StatusCode::SUCCESS) {
-        return ErrorCode::INVALID_VALUE;
-    }
-    return MLLM_NO_ERROR;
+    return qnnModels_[qnnModelIndex_].addTensor(nodeName.c_str(), tensor);
 }
 
 StatusCode QNNBackend::initializeProfiling() {
@@ -654,9 +667,9 @@ StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *
 
         auto graphInfo = (*m_graphsInfo)[graphIdx];
         if (!inputBufferMap.empty()) {
-            // Todo only one graph now. Name "graph"
-            size_t totalCount = inputBufferMap["graph"].size();
-            if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(graphIdx, inputBufferMap["graph"], inputs, graphInfo, m_inputDataType)) {
+            // Todo only one graph now
+            size_t totalCount = currentInputBuffers->size();
+            if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(graphIdx, *currentInputBuffers, inputs, graphInfo, m_inputDataType)) {
                 returnStatus = StatusCode::FAILURE;
             }
 
@@ -692,7 +705,7 @@ StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *
                         std::cout << "output type:" << output.v1.type << std::endl;
                         std::cout << "output type:" << output.v1.dataType << std::endl;
                         // m_ioTensor.writeOutputTensor(&output, outputBufferMap["graph"][oi]);
-                        memcpy(outputBufferMap["graph"][oi], output.v1.clientBuf.data, output.v1.clientBuf.dataSize);
+                        memcpy((*currentOutputBuffers)[oi], output.v1.clientBuf.data, output.v1.clientBuf.dataSize);
                     }
                 }
             }

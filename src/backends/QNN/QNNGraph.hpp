@@ -32,6 +32,8 @@ public:
      */
     virtual const vector<shared_ptr<Tensor>> &forward(bool autofree = false) override;
 
+    void setUpTensors(std::string graphName);
+
     void QNNThreadExecute();
 
 private:

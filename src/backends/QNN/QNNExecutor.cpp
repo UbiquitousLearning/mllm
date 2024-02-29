@@ -1,4 +1,5 @@
 #include <csignal>
+#include "QNNGraph.hpp"
 #include "Timing.hpp"
 #include "QNNExecutor.hpp"
 
@@ -61,12 +62,18 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
         string name = typeName + std::to_string(i);
         auto &g = net->subGraph()[name];
 
+        // cast graph to QNNGraph
+        // TODO: if this implementation is used, the setUpTensors(string) should be merged to Graph
+        // the qnn_graph below is where we cast the Graph to QNNGraph
+        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+
         g->reshape();
 
-        // if ( autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0) {
+        if ( autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0) {
             
-            g->setUpTensors();
-        // }
+            // g->setUpTensors();
+            qnn_graph->setUpTensors(name);
+        }
             
 
         result_ = g->forward();
