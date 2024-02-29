@@ -38,7 +38,7 @@ ErrorCode QNNKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     //     qnn_size_[1] = 1;
     // else    
     //     qnn_size_[1] = (( inputs[0]->sequence() + seq_pos_cpu_ ) / DYNAMICBUFFER ) * DYNAMICBUFFER;
-    qnn_size_[1] = inputs[0]->sequence();
+    qnn_size_[1] = inputs[0]->sequence() + seq_pos_cpu_;
     qnn_size_[2] = inputs[0]->head();
     qnn_size_[3] = inputs[0]->dimension();
 
@@ -55,7 +55,7 @@ ErrorCode QNNKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 
     qnnBackend_->pushInputBuffers(seq_pos_.hostPtr<uint8_t>());
 
-    outputs[0]->setDtype(MLLM_TYPE_F32);
+    outputs[0]->setDtype(MLLM_TYPE_I8);
     outputs[0]->setBackend(qnnBackend_);
     outputs[0]->alloc(qnn_size_);
 
@@ -98,7 +98,7 @@ ErrorCode QNNKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
                                                  .name = outName.c_str(),
                                                  .type = QNN_TENSOR_TYPE_APP_READ,
                                                  .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                 .dataType = QNN_DATATYPE_FLOAT_32,
+                                                 .dataType = QNN_DATATYPE_UFIXED_POINT_8,
                                                  .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                                     QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                                     {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
