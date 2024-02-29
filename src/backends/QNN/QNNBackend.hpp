@@ -84,21 +84,19 @@ public:
                                                std::vector<string> inputTensorNames, std::vector<Qnn_Tensor_t> outputTensors,
                                                std::vector<Qnn_Param_t> params,
                                                string packageName);
-    qnn_wrapper_api::ModelError_t graphFinilize();
-    qnn_wrapper_api::ModelError_t modelAddTensor(std::string nodeName, Qnn_Tensor_t tensor);
-    ErrorCode graphExecute();
-    ErrorCode graphExecute(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap);
 
-    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs) override;
-    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs) override;
+    qnn_wrapper_api::ModelError_t modelAddTensor(std::string nodeName, Qnn_Tensor_t tensor);
+
+    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, string graphName) override;
+    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") override;
     virtual void onExecuteEnd() override;
 
 
     void pushInputBuffers(uint8_t* ptr) {
-        inputBuffers.push_back(ptr);
+        currentInputBuffers->push_back(ptr);
     }
     void pushOutputBuffers(uint8_t* ptr) {
-        outputBuffers.push_back(ptr);
+        currentOutputBuffers->push_back(ptr);
     }
 
     void pushOutputTensor(Tensor t) {
@@ -112,6 +110,7 @@ public:
 private:
     // int32_t backendInitialize();
     // int32_t contextInitialize();
+    qnn_wrapper_api::ModelError_t graphFinilize();
 
     void release();
 
@@ -169,12 +168,18 @@ private:
     static const std::string s_defaultOutputPath;
 
     std::map<std::string, std::vector<uint8_t *>> inputBufferMap;
-    std::vector<uint8_t *> inputBuffers;
+    // std::vector<uint8_t *> inputBuffers;
+    std::vector<uint8_t *>* currentInputBuffers;
     std::map<std::string, std::vector<uint8_t *>> outputBufferMap;
-    std::vector<uint8_t *> outputBuffers;
+    // std::vector<uint8_t *> outputBuffers;
+    std::vector<uint8_t *>* currentOutputBuffers;
 
     std::map<OpType, QNNBackend::Creator *> map_creator_;
-    qnn_wrapper_api::QnnModel qnnModel;
+    // qnn_wrapper_api::QnnModel qnnModel;
+
+    std::map<std::string, int> qnnModelIndexMap_;
+    std::vector<qnn_wrapper_api::QnnModel> qnnModels_;
+    int qnnModelIndex_;
 
     sample_app::QnnFunctionPointers m_qnnFunctionPointers;
 

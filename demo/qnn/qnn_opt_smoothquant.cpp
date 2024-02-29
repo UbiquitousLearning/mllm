@@ -93,13 +93,13 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
         i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
         i = FFN(i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
         i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
-        //_SubgraphBegin(c);
+        _SubgraphBegin(c);
     }
     // end loop
     // i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
-    i = _Quantize({i},  ".model.quantize");
+    i = _Quantize({i},  "model.quantize");
     i = _LinearINT8({i}, hidden_dim, vocab_size, false, "output");
-    i = _Dequantize({i},  ".model.dequantize");
+    i = _Dequantize({i},  "model.dequantize");
 }
 
 template <typename Dtype>
