@@ -309,24 +309,38 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, string graphNa
     inputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>(inputs.size())));
     outputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>()));
     currentInputBuffers = &inputBufferMap[graphName];
-    for (auto &input : inputs) {
-        std::cout << "input dtype:" << input->dtype() << std::endl;
-        currentInputBuffers->push_back(input->hostPtr<uint8_t>());
+
+    for(int i = 0; i < inputs.size(); i++) {
+        // switch(inputs[i]->tensorType()){
+        //     case TensorType::GRAPH_INPUT:
+        //         std::cout << "TYPE: GRAPH_INPUT" << std::endl;
+        //         break;
+        //     case TensorType::GRAPH_OUTPUT:
+        //         std::cout << "TYPE: GRAPH_OUTPUT" << std::endl;
+        //         break;
+        //     default:
+        //         std::cout << "TYPE: unsupported tensor type" << std::endl;
+        //         break;
+        // }
+        
+        (*currentInputBuffers)[i] = inputs[i]->hostPtr<uint8_t>();
     }
 }
 
 void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
-    graphFinilize();
+#ifdef DEBUGPRINT
+    std::cout << "onExecuteStart" << std::endl;
+#endif
 
+    graphFinilize();
     // push output tensors to the buffer list
     currentOutputBuffers = &outputBufferMap[graphName];
     currentOutputBuffers->resize(outputs.size());
-    for (auto &output : outputs) {
-        std::cout << "output dtype:" << output->dtype() << std::endl;
-        output->alloc();
-        // output->printData<float>();
-        currentOutputBuffers->push_back(output->hostPtr<uint8_t>());
+    for(int i = 0; i < outputs.size(); i++) {
+        outputs[i]->alloc();
+        (*currentOutputBuffers)[i] = outputs[i]->hostPtr<uint8_t>();
     }
+
 // #ifdef QNN_ARM
     // reset the syncvar
     for (auto t : syncVarTensors_) {
@@ -351,8 +365,13 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
         QNN_DEBUG("output tensors: %d ", (*m_graphsInfo)[graphIdx].numOutputTensors);
 
         auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
+
+        // register input and output tensor to qnn shared buffers
+        // TODO: currently must insure the inputs and outputs of mllm graph are the same as the qnn graph
+        // op created io tensors (kvcache, wnop...) should be solved
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {
             qnnMM->registerQnnTensor((*currentInputBuffers)[i], inputs_[i]);
+            QNN_DEBUG("inputBuffers: %p ", (*currentInputBuffers)[i]);
         }
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numOutputTensors; i++) {
             qnnMM->registerQnnTensor((*currentOutputBuffers)[i], outputs_[i]);
