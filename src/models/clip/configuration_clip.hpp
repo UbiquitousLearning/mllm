@@ -10,18 +10,8 @@
 
 using namespace mllm;
 
-class ClipTextNameConfig {
+class ClipTextNameConfig: public TransformerNameConfig{
 public:
-    string _q_proj_name;
-    string _k_proj_name;
-    string _v_proj_name;
-    string _o_proj_name;
-    string _up_proj_name;
-    string _down_proj_name;
-    string _attn_base_name;
-    string _ffn_base_name;
-    string _attn_norm_name;
-    string _ffn_norm_name;
     string _layer_name;
     string _post_norm_name;
     string lm_head_name;

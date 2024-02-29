@@ -97,6 +97,7 @@ enum PaddingType {
 };
 
 enum RoPEType {
+    NONE = 0,
     LLAMAROPE = 2,
     PERSIMMONROPE = 3,
     HFHUBROPE = 4,

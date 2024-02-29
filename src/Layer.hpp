@@ -28,10 +28,14 @@ public:
         param_["type"] = type;
         backend_ = Module::backends[MLLM_CPU];
         saved_list_idx = Module::listIdx;
+        init_ = true;
         // std::cout<<name_<<std::endl;
         // constexpr int threadCount = 4;
         // op_ = backend_->opCreate(param_, std::move(name), threadCount);
         // op_->load(*Module::loader);
+    }
+    bool ready() {
+        return init_;
     }
     static map<string, string> layername_2_tensorname;
 
@@ -460,6 +464,7 @@ protected:
     Op *op_ = nullptr;
     Backend *backend_{};
     OpParam param_;
+    bool init_ = false;
     int saved_list_idx;
 };
 

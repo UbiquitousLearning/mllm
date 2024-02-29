@@ -4,23 +4,13 @@
 
 #ifndef CONFIG_LLAMA_HPP
 #define CONFIG_LLAMA_HPP
+#include "models/transformer/configuration_transformer.hpp"
 
 using namespace mllm;
 
-class LLaMANameConfig {
+class LLaMANameConfig : public TransformerNameConfig{
 public:
     std::string blk_name;
-    std::string _q_proj_name;
-    std::string _k_proj_name;
-    std::string _v_proj_name;
-    std::string _o_proj_name;
-    std::string _gate_proj_name;
-    std::string _up_proj_name;
-    std::string _down_proj_name;
-    std::string _attn_base_name;
-    std::string _ffn_base_name;
-    std::string _attn_norm_name;
-    std::string _ffn_norm_name;
     std::string token_embd_name;
     std::string post_norm_name;
     std::string lm_head_name;

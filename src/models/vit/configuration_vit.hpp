@@ -6,24 +6,13 @@
 #define CONFIG_VIT_HPP
 
 #include <utility>
-
-#include "Module.hpp"
+#include "models/transformer/configuration_transformer.hpp"
 
 using namespace mllm;
 
-class ViTNameConfig {
+class ViTNameConfig: public TransformerNameConfig{
 public:
     string vison_model_name;
-    string _q_proj_name;
-    string _k_proj_name;
-    string _v_proj_name;
-    string _o_proj_name;
-    string _up_proj_name;
-    string _down_proj_name;
-    string _attn_base_name;
-    string _ffn_base_name;
-    string _attn_norm_name;
-    string _ffn_norm_name;
     string _layer_name;
     string _post_norm_name;
     string lm_head_name;

@@ -59,47 +59,6 @@ public:
     }
 };
 
-class ClipTextAttention final : public Module {
-    Layer q_proj;
-    Layer k_proj;
-    Layer v_proj;
-    Layer o_proj;
-    Layer mask;
-    Layer softmax;
-    int head_size_{};
-    int attn_hidden_dim_{};
-
-public:
-    ClipTextAttention() = default;
-    ClipTextAttention(int hidden_dim, int head_size, int attn_hidden_dim, const ClipTextNameConfig &names, const string &base_name) {
-        head_size_ = head_size;
-        attn_hidden_dim_ = attn_hidden_dim;
-        q_proj = Linear(hidden_dim, head_size * attn_hidden_dim, true, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_dim, head_size * attn_hidden_dim, true, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_dim, head_size * attn_hidden_dim, true, base_name + names._v_proj_name);
-        o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, true, base_name + names._o_proj_name);
-        mask = Causalmask(base_name + "mask");
-        softmax = Softmax(DIMENSION, base_name + "softmax");
-    }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
-        auto q = q_proj(inputs[0]);
-        auto k = k_proj(inputs[1]);
-        auto v = v_proj(inputs[2]);
-        q = q.view(-1, head_size_, -1, attn_hidden_dim_);
-        k = k.view(-1, head_size_, -1, attn_hidden_dim_);
-        v = v.view(-1, head_size_, -1, attn_hidden_dim_);
-        k = k.transpose(SEQUENCE, DIMENSION);
-        auto qk = Tensor::mm(q, k);
-        qk = qk / std::sqrt(attn_hidden_dim_);
-        qk = mask(qk);
-        qk = softmax(qk);
-        auto o = Tensor::mm(qk, v);
-        o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
-        o = o_proj(o);
-        return {o};
-    }
-};
-
 class ClipTextMLP final : public Module {
     Layer up_proj;
     Layer act;
@@ -118,7 +77,7 @@ public:
 };
 
 class ClipTextBlock final : public Module {
-    ClipTextAttention attention;
+    MultiHeadAttention attention;
     ClipTextMLP mlp;
     Layer down_proj;
     Layer norm1;
@@ -127,7 +86,7 @@ class ClipTextBlock final : public Module {
 public:
     ClipTextBlock() = default;
     ClipTextBlock(int hidden_dim, int head_size, int mlp_hidden, const string &act_fn_type, const ClipTextNameConfig &names, const string &base_name) {
-        attention = ClipTextAttention(hidden_dim, head_size, hidden_dim / head_size, names, base_name + names._attn_base_name);
+        attention = MultiHeadAttention(hidden_dim, head_size, hidden_dim / head_size, RoPEType::NONE, 0, true, true, names, base_name + names._attn_base_name);
         mlp = ClipTextMLP(hidden_dim, mlp_hidden, act_fn_type, names, base_name + names._ffn_base_name);
         down_proj = Linear(mlp_hidden, hidden_dim, true, base_name + names._down_proj_name);
         norm1 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._attn_norm_name);
