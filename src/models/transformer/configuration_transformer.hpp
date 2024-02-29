@@ -20,8 +20,13 @@ public:
     string _ffn_base_name;
     string _attn_norm_name;
     string _ffn_norm_name;
+
     string _qkv_proj_name;
+
     string _q_norm_name;
     string _k_norm_name;
+
+    string _bias_k_name = "bias_k";
+    string _bias_v_name = "bias_v";
 };
 #endif //CONFIGURATION_TRANSFORMER_HPP

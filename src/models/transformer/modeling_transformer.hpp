@@ -67,7 +67,7 @@ public:
             bias_v = Parameter(1, 1, head_size, attn_hidden_dim, base_name + "bias_v");
         }
     }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         Tensor q, k, v;
         if (qkv_proj.ready()) {
             auto qkv = qkv_proj(inputs[0]);
@@ -125,7 +125,7 @@ public:
         act = ACT_FN[act_fn_type](base_name + "act");
         down_proj = Linear(mlp_hidden, hidden_dim, bias, base_name + names._down_proj_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = up_proj(inputs[0]);
         x = act(x);
         x = down_proj(x);

@@ -23,7 +23,7 @@ public:
         position_ids = Parameter(1, std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1, 1, 1, base_name + names._position_ids_name);
         position_embedding = Embedding(std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1, hidden_dim, base_name + names._position_embeddings_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         auto embd = patch_embedding(inputs[0]);
         embd = embd.transpose(SEQUENCE, DIMENSION);
         embd = embd.flatten(HEAD, SEQUENCE);
@@ -48,7 +48,7 @@ public:
         blocks = List<ViTBlock>(block_num, hidden_dim, head_size, mlp_hidden, act_fn_type, names, base_name + names._layer_name);
         norm = LayerNorm(hidden_dim, true, 1e-6, base_name + names._post_norm_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         auto x = embedding(inputs)[0];
         x = pre_layrnorm(x);
         for (auto &block : blocks) {
@@ -70,7 +70,7 @@ public:
         up_proj = Linear(hidden_dim, mlp_hidden, true, base_name + names._up_proj_name);
         act = ACT_FN[act_fn_type](base_name + names._ffn_base_name + "act");
     }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         auto x = up_proj(inputs[0]);
         x = act(x);
         return {x};
@@ -94,7 +94,7 @@ public:
         norm1 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._attn_norm_name);
         norm2 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._ffn_norm_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         auto x = norm1(inputs[0]);
         x = attention({x, x, x})[0];
         auto tmp = x + inputs[0];
@@ -118,7 +118,7 @@ public:
         position_ids = Parameter(1, max_position_embeddings, 1, 1, base_name + names._position_ids_name);
         position_embedding = Embedding(max_position_embeddings, hidden_dim, base_name + names._position_embeddings_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         auto embd = token_embedding(inputs[0]);
         auto pos_embd = position_ids().clip({}, {}, {0, embd.sequence()}, {});
         auto p_embd = position_embedding(pos_embd);
@@ -141,7 +141,7 @@ public:
         norm = LayerNorm(hidden_dim, true, 1e-6, base_name + names._post_norm_name);
     }
 
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         auto x = embedding(inputs)[0];
         for (auto &block : blocks) {
             x = block({x})[0];
@@ -179,7 +179,7 @@ public:
                                        vit_names, vision_base_name);
         visual_projection = Linear(vision_hidden_dim, text_hidden_dim, false, "visual_projection");
     }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         auto text = text_model({inputs[0]})[0];
         text = text_projection(text);
         text = text / text.norm(2);

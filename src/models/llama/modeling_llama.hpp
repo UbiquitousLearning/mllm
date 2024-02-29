@@ -26,7 +26,7 @@ public:
         up_proj = Linear(hidden_dim, mlp_hidden, false, base_name + names._up_proj_name);
         down_proj = Linear(mlp_hidden, hidden_dim, false, base_name + names._down_proj_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         auto x = gate_proj(inputs[0]);
         x = silu(x);
         auto y = up_proj(inputs[0]);
@@ -51,7 +51,7 @@ public:
         norm1 = RMSNorm(hidden_dim, 1e-6, base_name + names._attn_norm_name);
         norm2 = RMSNorm(hidden_dim, 1e-6, base_name + names._ffn_norm_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         auto x = norm1(inputs[0]);
         x = attention({x, x, x})[0];
         auto tmp = x + inputs[0];
@@ -80,7 +80,7 @@ public:
         norm = RMSNorm(hidden_dim, 1e-6, names.post_norm_name);
         lm_head = Linear(hidden_dim, vocab_size, false, names.lm_head_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         auto x = embedding(inputs[0]);
         for (auto &block : blocks) {
             x = block({x})[0];

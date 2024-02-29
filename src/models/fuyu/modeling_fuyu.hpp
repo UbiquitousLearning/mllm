@@ -29,7 +29,7 @@ public:
         norm1 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._attn_norm_name);
         norm2 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._ffn_norm_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         auto x = norm1(inputs[0]);
         x = attention({x, x, x})[0];
         auto tmp = x + inputs[0];
@@ -52,7 +52,7 @@ public:
         norm = LayerNorm(hidden_dim, true, 1e-6, names.post_norm_name);
         lm_head = Linear(hidden_dim, vocab_size, false, names.lm_head_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         auto x = inputs[0];
         for (auto &block : blocks) {
             x = block({x})[0];
@@ -94,7 +94,7 @@ public:
         fuyu_gather = FuyuGather("gather");
         persimmon = Persimmon(hidden_dim, head_size, mlp_hidden, cache_limit, block_num, vocab_size, names);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         auto input_ids = embed_tokens(inputs[0]);
         if (inputs[1].batch() > 0) {
             auto image_patches = vision_embed_tokens(inputs[1]);

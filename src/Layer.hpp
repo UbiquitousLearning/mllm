@@ -677,6 +677,26 @@ public:
     }
 };
 
+class Convolution3D final : public Layer {
+public:
+    explicit Convolution3D(int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, std::string name) {
+        param_["in_channel"] =(float) in_channel;
+        param_["out_channel"] =(float) out_channel;
+        param_["kernal_t"] =(float) kernal[0];
+        param_["kernal_h"] =(float) kernal[1];
+        param_["kernal_w"] =(float) kernal[2];
+        param_["stride_t"] =(float) stride[0];
+        param_["stride_h"] =(float) stride[1];
+        param_["stride_w"] =(float) stride[2];
+        param_["padding"] =(float) padding;
+        param_["bias"] =(float) bias;
+        init(std::move(name), OpType::CONVOLUTION3D);
+    }
+    Tensor &operator()(Tensor &input) {
+        return _1I1O_OP(input);
+    }
+};
+
 class Concat final : public Layer {
 public:
     explicit Concat(Chl axis, std::string name) {

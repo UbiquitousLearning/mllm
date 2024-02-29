@@ -10,6 +10,7 @@
 #include "Backend.hpp"
 #include "backends/cpu/CPUBackend.hpp"
 
+#include <any>
 #include <memory/SystemMemoryManager.hpp>
 #include <utility>
 
@@ -44,9 +45,15 @@ public:
         initLoader(path);
     }
 
-    virtual vector<Tensor> Forward(vector<Tensor> inputs) = 0;
+    virtual vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) = 0;
 
-    vector<Tensor> operator()(vector<Tensor> inputs) {
+    template <typename... Args>
+    vector<std::any> convertArgsToAnyVector(Args... args) {
+        return vector<std::any>{std::any(args)...};
+    }
+    template <typename... Args>
+    vector<Tensor> operator()(vector<Tensor> inputs, Args... args) {
+        vector<std::any> anyArgs = convertArgsToAnyVector(args...);
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
             for (auto &input : inputs) {
                 input.setTtype(TensorType::NORMAL_TENSOR);
@@ -54,27 +61,27 @@ public:
             }
             tensor_status = TENSOR_STATIC_INIT;
 
-            Forward(inputs);
+            Forward(inputs, anyArgs);
             for (auto &input : inputs) {
                 input.status() = TENSOR_STATIC_SHAPED;
             }
             tensor_status = TENSOR_STATIC_SHAPED;
 
-            Forward(inputs);
+            Forward(inputs, anyArgs);
             for (auto &input : inputs) {
                 input.status() = TENSOR_STATIC_ALLOCED;
             }
             tensor_status = TENSOR_STATIC_ALLOCED;
 
-            return Forward(inputs);
+            return Forward(inputs, anyArgs);
         } else {
-            return Forward(inputs);
+            return Forward(inputs, anyArgs);
         }
     }
 
-    vector<Tensor> call(vector<Tensor> inputs) {
-        return operator()(inputs);
-    }
+    // vector<Tensor> call(vector<Tensor> inputs, vector<std::any> args) {
+    //     return operator()(inputs, args);
+    // }
 
     // template <typename T>
     // static vector<T *> List(int n) {
