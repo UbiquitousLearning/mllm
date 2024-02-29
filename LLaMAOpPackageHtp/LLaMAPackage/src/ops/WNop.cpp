@@ -21,6 +21,7 @@ template<typename TensorType,typename TensorType1>
 GraphStatus wnopImpl(TensorType& out_0,
                       TensorType1 &sync_var,
                      const TensorType& in_0,
+                     const TensorType& in_1,
                      const Tensor& sync_type);
 
 // forward declaration of sample cost function
@@ -95,6 +96,7 @@ template<typename TensorType,typename TensorType1>
 GraphStatus wnopImpl(TensorType& out_0,
                       TensorType1 &sync_var,
                      const TensorType& in_0,
+                     const TensorType& in_1,
                      const Tensor& sync_type)
 
 {
@@ -148,7 +150,7 @@ GraphStatus wnopImpl(TensorType& out_0,
 
   } else if (sync_type_ == 1) {
 
-    while (sync_var(0,0,0,0) == 0) {
+    while (in_1(0,0,0,0) == 0) {
 
       Q6_V_vzero();
 
