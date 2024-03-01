@@ -29,11 +29,9 @@ int main(int argc, char **argv) {
     auto model = ImagebindModel(config);
     model.load(model_path);
 
-    auto inputs = processor.process(
+    auto input_tensors = processor.process(
         {"a dog.", "A car", "A bird"},config.max_position_embeddings,
         {"../assets/dog_image.jpg", "../assets/car_image.jpg", "../assets/bird_image.jpg"}, config.img_hw,
         {"../assets/dog_audio.wav", "../assets/car_audio.wav", "../assets/bird_audio.wav"});
-    auto input_tensors = std::get<0>(inputs);
-    int in_len = std::get<1>(inputs);
-    auto result = model({input_tensors[0], input_tensors[1]}, in_len);
+    auto result = model({input_tensors.text_tensors, input_tensors.img_tensors}, input_tensors.in_len);
 }

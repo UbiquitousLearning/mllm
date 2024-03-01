@@ -111,7 +111,7 @@ public:
     ImagebindTextEmbedding() = default;
     ImagebindTextEmbedding(int vocab_size, int hidden_dim, int max_position_embeddings, const ImagebindNameConfig &names, const string &base_name) {
         token_embedding = Embedding(vocab_size, hidden_dim, base_name + names._token_embedding_name);
-        pos_embd = Parameter(1, max_position_embeddings, 1, 1, base_name + names._pos_embed_name);
+        pos_embd = Parameter(1, max_position_embeddings, 1, hidden_dim, base_name + names._pos_embed_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto embd = token_embedding(inputs[0]);
