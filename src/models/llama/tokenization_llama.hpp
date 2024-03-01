@@ -30,6 +30,7 @@ class LLaMATokenizer final {
     }
 public:
     explicit LLaMATokenizer(const std::string &vocab_file) {
+        Module::initBackend(MLLM_CPU);
         tokenizer = new BPETokenizer(vocab_file);
     }
     Tensor tokenize(std::string &text, int str_i = 0) const {

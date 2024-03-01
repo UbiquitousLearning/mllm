@@ -73,6 +73,7 @@ class FuyuProcessor final {
 
 public:
     explicit FuyuProcessor(const std::string &vocab_file) {
+        Module::initBackend(MLLM_CPU);
         tokenizer = new UnigramTokenizer(vocab_file);
     }
 

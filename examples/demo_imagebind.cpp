@@ -23,9 +23,7 @@ int main(int argc, char **argv) {
 
     auto processor = ImagebindProcessor(vocab_path, merges_path);
 
-    Module::initBackend(MLLM_CPU);
-    ImagebindConfig config;
-    config.init("huge");
+    ImagebindConfig config("huge");
     auto model = ImagebindModel(config);
     model.load(model_path);
 

@@ -72,7 +72,7 @@ public:
     int cache_limit{};
     LLaMANameConfig names_config;
 
-    void init(int token_limit, string billions = "7B", RoPEType type = LLAMAROPE, int vocab = 32000) {
+    explicit LLaMAConfig(int token_limit, string billions = "7B", RoPEType type = LLAMAROPE, int vocab = 32000) {
         names_config.init(type);
         vocab_size = vocab;
         if (billions == "7B" || billions == "7b") {

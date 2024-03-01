@@ -79,7 +79,7 @@ public:
     int block_num;
     string act_fn_type;
 
-    void init(const string &model_type = "base", int patch_ = 16, int hw = 224, int classes = 1000, string act_fn_type_ = "GELU", const string &name_type = "vit") {
+    explicit ViTConfig(const string &model_type = "base", int patch_ = 16, int hw = 224, int classes = 1000, string act_fn_type_ = "GELU", const string &name_type = "vit") {
         names_config.init(name_type);
         class_size = classes;
         patch = patch_;

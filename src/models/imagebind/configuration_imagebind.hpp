@@ -75,7 +75,7 @@ public:
 
     int head_hidden_dim = 1024;
 
-    void init(const string& model_type = "huge") {
+    explicit ImagebindConfig(const string& model_type = "huge") {
         if (model_type != "huge") {
             std::cerr<<"model type not supported"<<std::endl;
         }

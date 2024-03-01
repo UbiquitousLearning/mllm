@@ -46,6 +46,7 @@ class ViTProcessor final {
 
 public:
     explicit ViTProcessor() {
+        Module::initBackend(MLLM_CPU);
     }
 
     Tensor process(string img_path, int hw = 224, string name = "input", BackendType type = MLLM_CPU) {

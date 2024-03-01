@@ -26,16 +26,21 @@ public:
     virtual ~Module() = default;
 
     static void initBackend(BackendType type = BackendType::MLLM_CPU) {
-        switch (type) {
-        case BackendType::MLLM_CPU: {
-            shared_ptr<MemoryManager> mm = nullptr;
-            mm = std::make_shared<SystemMemoryManager>();
-            backends[MLLM_CPU] = new CPUBackend(mm);
-            break;
+        if (Module::backends.find(type) == Module::backends.end()) {
+            switch (type) {
+            case BackendType::MLLM_CPU: {
+                shared_ptr<MemoryManager> mm = nullptr;
+                mm = std::make_shared<SystemMemoryManager>();
+                backends[MLLM_CPU] = new CPUBackend(mm);
+                break;
+            }
+            default: {
+            }
+            }
         }
-        default: {
-        }
-        }
+    }
+    void to(BackendType type) {
+        initBackend(type);
     }
     static void initLoader(string path) {
         loader = new ParamLoader(std::move(path));

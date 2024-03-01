@@ -80,6 +80,7 @@ class ImagebindProcessor final {
 
 public:
     explicit ImagebindProcessor(const string &vocab_path, const string &merges_path) {
+        Module::initBackend(MLLM_CPU);
         tokenizer = new BPETokenizer(vocab_path);
         std::unordered_map<string, unsigned> merge_rank;
         auto merge_file = std::ifstream(merges_path);

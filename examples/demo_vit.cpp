@@ -18,9 +18,7 @@ int main(int argc, char **argv) {
 
     auto processor = ViTProcessor();
 
-    Module::initBackend(MLLM_CPU);
-    ViTConfig config;
-    config.init("base", 16, 224, imagenet_id2label.size());
+    ViTConfig config("base", 16, 224, imagenet_id2label.size());
     auto model = ViTModel(config);
     model.load(model_path);
 

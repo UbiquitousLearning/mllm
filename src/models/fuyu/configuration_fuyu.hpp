@@ -43,7 +43,7 @@ public:
 
     FuyuNameConfig name_config;
 
-    void init(int token_limit, const string &billions = "8B") {
+    explicit FuyuConfig(int token_limit, const string &billions = "8B") {
         name_config.init();
         vocab_size = 262144;
         if (billions == "8B" || billions == "8b") {

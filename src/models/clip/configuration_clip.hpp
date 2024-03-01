@@ -54,7 +54,7 @@ public:
     int text_ffn_hidden{};
     int text_block_num{};
 
-    void init(const string &model_type = "base", int patch_ = 32, int hw = 224, int text_vocab_size_ = 49408) {
+    explicit ClipConfig(const string &model_type = "base", int patch_ = 32, int hw = 224, int text_vocab_size_ = 49408) {
         names_config.init("clip");
         text_names_config.init();
         patch = patch_;
