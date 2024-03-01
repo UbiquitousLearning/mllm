@@ -309,6 +309,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, string graphNa
     inputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>(inputs.size())));
     outputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>()));
     currentInputBuffers = &inputBufferMap[graphName];
+    currentOutputBuffers = &outputBufferMap[graphName];
 
     for(int i = 0; i < inputs.size(); i++) {
         // switch(inputs[i]->tensorType()){
@@ -334,11 +335,9 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
 
     graphFinilize();
     // push output tensors to the buffer list
-    currentOutputBuffers = &outputBufferMap[graphName];
-    currentOutputBuffers->resize(outputs.size());
     for(int i = 0; i < outputs.size(); i++) {
         outputs[i]->alloc();
-        (*currentOutputBuffers)[i] = outputs[i]->hostPtr<uint8_t>();
+        currentOutputBuffers->push_back(outputs[i]->hostPtr<uint8_t>());
     }
 
 // #ifdef QNN_ARM
@@ -352,8 +351,8 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
     for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
         auto graphInfo = (*m_graphsInfo)[graphIdx];
 
-        QNN_DEBUG("input tensors: %d ", inputBuffers.size());
-        QNN_DEBUG("output tensors: %d ", outputBuffers.size());
+        // QNN_DEBUG("input tensors: %d ", inputBuffers.size());
+        // QNN_DEBUG("output tensors: %d ", outputBuffers.size());
 
         if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&inputs_, &outputs_, (*m_graphsInfo)[graphIdx])) {
             QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
@@ -361,8 +360,8 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
             break;
         }
 
-        QNN_DEBUG("input tensors: %d ", (*m_graphsInfo)[graphIdx].numInputTensors);
-        QNN_DEBUG("output tensors: %d ", (*m_graphsInfo)[graphIdx].numOutputTensors);
+        // QNN_DEBUG("input tensors: %d ", (*m_graphsInfo)[graphIdx].numInputTensors);
+        // QNN_DEBUG("output tensors: %d ", (*m_graphsInfo)[graphIdx].numOutputTensors);
 
         auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
 
