@@ -86,7 +86,7 @@ public:
 
         return {Tokenizer::tokens2Input(tokens_ids), img2Tensor(images, std::move(img_name))};
     }
-    vector<float> postProcess(const Tensor &result) {
+    vector<float> postProcess(Tensor &result) {
         vector<float> scores;
         for (int i = 0; i < result.batch(); ++i) {
             auto value = result.dataAt<float>(i, 0, 0, 0);

@@ -59,7 +59,7 @@ private:
     void reset_KVCache(string input_name, string layer_next_name) {
         vector<string> renameX_names;
         renameX_names.push_back(input_name);
-        const vector<string> suffixs = {"-view", "-transpose", "-flatten", ".split-0", ".split-1", ".split-2"};
+        const vector<string> suffixs = {"-view", ".split-0", ".split-1", ".split-2"};
         for (auto suffix : suffixs) {
             if (input_name.rfind(suffix) == (input_name.size() - suffix.size())) {
                 const auto r_name = input_name.substr(0, input_name.size() - suffix.size());

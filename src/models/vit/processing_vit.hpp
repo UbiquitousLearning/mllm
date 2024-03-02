@@ -64,7 +64,7 @@ public:
         auto input_tensor = img2Tensor(data_f32, hw, hw, channel_);
         return input_tensor;
     }
-    unsigned int postProcess(const Tensor &result) {
+    unsigned int postProcess(Tensor &result) {
         assert(result.batch() == 1);
         assert(result.head() == 1);
         vector<float> scores;

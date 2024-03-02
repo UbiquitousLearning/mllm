@@ -109,7 +109,7 @@ public:
     std::string detokenize(const std::vector<token_id_t> &tokens) {
         return tokenizer->detokenize(tokens);
     }
-    std::pair<std::string, unsigned> detokenize(const Tensor &result) {
+    std::pair<std::string, unsigned> detokenize(Tensor &result) {
         assert(result.batch() == 1);
         assert(result.head() == 1);
         vector<float> scores;

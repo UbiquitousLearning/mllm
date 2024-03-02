@@ -63,7 +63,21 @@ enum ChlType {
     BCTHW = 3,
     BTHWC = 4,
 
-    SBHD = 10  //not used
+    SBHD = 10,  //not used
+
+    BDHS = 11,
+    BDSH = 12
+};
+
+
+inline std::map<std::vector<int>, ChlType> Chls2Type = {
+    {{0, 2, 3, 1}, BDHS},
+    {{0, 1, 3, 2}, BHDS},
+    {{0, 2, 1, 3}, BSHD},
+    {{1, 2, 0, 3}, SBHD},
+    {{0, 3, 2, 1}, BDSH},
+    {{0, 1, 2, 3, 4}, BTHWC},
+    {{0, 2, 3, 4, 1}, BCTHW}
 };
 
 
@@ -74,8 +88,8 @@ enum TensorType {
 
 enum Chl {
     BATCH = 0,
-    HEAD = 1,
-    SEQUENCE = 2,
+    SEQUENCE = 1,
+    HEAD = 2,
     DIMENSION = 3,
 
     HD = 113,

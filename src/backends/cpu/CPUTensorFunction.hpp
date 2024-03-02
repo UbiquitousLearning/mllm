@@ -12,13 +12,31 @@ class Tensor;
 
 inline int thread_count = 4;
 class CPUmmFunction {
+    static void tranTensorChl(Tensor &input) {
+        assert(input.ctype() == BSHD);
+        auto b = input.batch();
+        auto h = input.head();
+        auto d = input.dimension();
+        auto s = input.sequence();
+        auto ori_seq_idx = input.chls_[SEQUENCE];
+        auto ori_head_idx = input.chls_[HEAD];
+        auto ori_dim_idx = input.chls_[DIMENSION];
+        input.chls_[HEAD] = ori_seq_idx;
+        input.chls_[DIMENSION] = ori_head_idx;
+        input.chls_[SEQUENCE] = ori_dim_idx;
+        input.changeCtype();
+        input.reshape(b, h, s, d);
+        input.transed() = true;
+        input.undiffusion() = false;
+    }
 public:
     static void reshape(Tensor &input0, Tensor &input1, Tensor &output) {
-        input1.transShape(SEQUENCE, DIMENSION);
+        if(input1.chls_[SEQUENCE] != 3) {
+            tranTensorChl(input1);
+        }
+        assert(input0.dimension() == input1.sequence());
         if (input0.dimension() == input1.sequence()) {
             output.reshape(input0.batch(), input0.head(), input0.sequence(), input1.dimension());
-        } else {
-            output.reshape(input0.batch(), input0.head(), input0.sequence(), input1.sequence());
         }
     }
     static void setup(Tensor &input0, Tensor &input1, Tensor &output) {
@@ -26,14 +44,15 @@ public:
         output.alloc();
     }
     static void execute(Tensor &input0, Tensor &input1, Tensor &output) {
+        bool isSame = std::equal(input0.chls_.begin(), input0.chls_.end(), input1.chls_.begin());
         assert(input0.dtype() == MLLM_TYPE_F32);
         switch (input1.dtype()) {
         case MLLM_TYPE_F32: {
-            mat_mul_fp32(&input0, &input1, &output, false, nullptr, false, input0.ctype() == input1.ctype(), thread_count);
+            mat_mul_fp32(&input0, &input1, &output, false, nullptr, false, isSame, thread_count);
             break;
         }
         case MLLM_TYPE_F16: {
-            mat_mul_fp32_fp16(&input0, &input1, &output, false, nullptr, false, input0.ctype() == input1.ctype(), thread_count);
+            mat_mul_fp32_fp16(&input0, &input1, &output, false, nullptr, false, isSame, thread_count);
             break;
         }
         default:
@@ -239,6 +258,7 @@ public:
         int dim_h = 0;
         int dim_s = 0;
         int dim_d = 0;
+        /*
         if (input.ctype() == BSHD) {
             dim_h = input.head();
             dim_s = input.sequence();
@@ -265,19 +285,27 @@ public:
             if (axis_start == BATCH & axis_end == SEQUENCE) {
                 // data_dims = {-1, HEAD, BATCH + SEQUENCE, DIMENSION};
                 dim_b = 1;
-                dim_s = input.sequence() * input.batch();
+                dim_s = dim_s * input.batch();
             } else if (axis_start == HEAD & axis_end == SEQUENCE) {
                 // data_dims = {BATCH, -1, HEAD + SEQUENCE, DIMENSION};
                 dim_h = 1;
-                dim_s = input.sequence() * input.head();
+                dim_s = dim_s * input.head();
             } else if (axis_start == HEAD & axis_end == DIMENSION) {
                 // data_dims = {BATCH, HEAD, -1, SEQUENCE + DIMENSION};
                 dim_h = 1;
-                dim_d = input.dimension() * input.head();
+                dim_d = dim_d * input.head();
             } else {
                 std::cout << "ERROR:  flatten  " << axis_start << "&" << axis_end << std::endl;
             }
-        } else {
+        } else if (input.ctype() == BDHS) {
+            dim_h = input.head();
+            dim_s = input.sequence();
+            dim_d = input.dimension();
+            if (axis_start == HEAD & axis_end == SEQUENCE) {
+                dim_h = 1;
+                dim_s = input.sequence() * input.head();
+            }
+        }else {
             if (axis_start == TIME & axis_end == CHANNLE) {
                 // data_dims = {BATCH, -1, TIME + HEIGHT + WIDTH, CHANNLE};
                 if (input.ctype() == BTHWC) {
@@ -292,16 +320,42 @@ public:
                     std::cout << "ERROR: flatten  " << axis_start << "&" << axis_end << std::endl;
                 }
             }
+        }*/
+        if(input.shape().size() == 4) {
+            dim_h = input.head();
+            dim_s = input.sequence();
+            dim_d = input.dimension();
+            if (axis_start == BATCH & axis_end == SEQUENCE) {
+                dim_b = 1;
+                dim_s = input.sequence() * input.batch();
+            } else if (axis_start == HEAD & axis_end == SEQUENCE) {
+                dim_h = 1;
+                dim_s = input.sequence() * input.head();
+            } else if (axis_start == HEAD & axis_end == DIMENSION) {
+                dim_h = 1;
+                dim_d = input.dimension() * input.head();
+            }else {
+                std::cout << "ERROR:  flatten  " << axis_start << "&" << axis_end << std::endl;
+            }
+        } else if (input.shape().size() == 5) {
+            if (axis_start == TIME & axis_end == WIDTH) {
+                dim_h = 1;
+                dim_s = input.time() * input.height() * input.width();
+                dim_d = input.channel();
+            }
         }
         assert(dim_d+dim_s+dim_h > 0);
         output.reshape(dim_b, dim_h, dim_s, dim_d);
     }
     static void setup(Tensor &input, Tensor &output, Chl axis_start, Chl axis_end) {
-        if (   (axis_start == TIME & axis_end == CHANNLE && input.ctype()!=BSHD)
+        if (   (axis_start == TIME & axis_end == WIDTH && input.ctype()!=BSHD)
             || (axis_start == BATCH & axis_end == SEQUENCE && input.ctype()!=BCTHW)
             || (axis_start == HEAD & axis_end == SEQUENCE && input.ctype()==BSHD)
             || (axis_start == HEAD & axis_end == SEQUENCE && input.ctype()==BHDS)
+            || (axis_start == HEAD & axis_end == SEQUENCE && input.ctype()==BDHS)
             || (axis_start == HEAD & axis_end == DIMENSION && input.ctype()==BSHD)
+            || (axis_start == HEAD & axis_end == DIMENSION && input.ctype()==BHDS)
+            || (axis_start == HEAD & axis_end == SEQUENCE && input.ctype()==BDSH)
         ){
             if(input.masterTensor() == nullptr) {
                 input.free();

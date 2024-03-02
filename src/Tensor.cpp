@@ -27,26 +27,41 @@ Tensor::Tensor(const vector<int> &shape) :
 
 bool Tensor::reshape(const int batch, const int head, const int sequence, const int dimension) {
     vector<int> shape(4);
-    shape[0] = batch;
-    switch (ctype_) {
-    case BSHD:
-        shape[1] = sequence;
-        shape[2] = head;
-        shape[3] = dimension;
-        break;
-    case BHDS:
-        shape[1] = head;
-        shape[2] = dimension;
-        shape[3] = sequence;
-        break;
-    case SBHD:
-        shape[0] = sequence;
-        shape[1] = batch;
-        shape[2] = head;
-        shape[3] = dimension;
-    default:
-        break;
-    }
+    shape[chls_[BATCH]] = batch;
+    shape[chls_[HEAD]] = head;
+    shape[chls_[SEQUENCE]] = sequence;
+    shape[chls_[DIMENSION]] = dimension;
+
+    // shape[0] = batch;
+    // switch (ctype_) {
+    // case BSHD:
+    //     shape[1] = sequence;
+    //     shape[2] = head;
+    //     shape[3] = dimension;
+    //     break;
+    // case BHDS:
+    //     shape[1] = head;
+    //     shape[2] = dimension;
+    //     shape[3] = sequence;
+    //     break;
+    // case SBHD:
+    //     shape[0] = sequence;
+    //     shape[1] = batch;
+    //     shape[2] = head;
+    //     shape[3] = dimension;
+    // default:
+    //     break;
+    // }
+
+    // vector<int> shape1(4);
+    // shape1[chls_[BATCH]] = batch;
+    // shape1[chls_[HEAD]] = head;
+    // shape1[chls_[SEQUENCE]] = sequence;
+    // shape1[chls_[DIMENSION]] = dimension;
+    // bool isSame = std::equal(shape.begin(), shape.end(), shape1.begin());
+    // if(!isSame) {
+    //     std::cout<<"";
+    // }
     return reshape(shape);
 }
 
@@ -72,24 +87,35 @@ void Tensor::alloc() {
 }
 
 bool Tensor::reshape(const int batch, const int channel, const int time, const int height, const int width) {
+
     if (ctype_ != BTHWC) {
         ctype_ = BCTHW;
-        vector<int> shape(5);
-        shape[0] = batch;
-        shape[1] = channel;
-        shape[2] = time;
-        shape[3] = height;
-        shape[4] = width;
-        return reshape(shape);
-    } else {
-        vector<int> shape(5);
-        shape[0] = batch;
-        shape[1] = time;
-        shape[2] = height;
-        shape[3] = width;
-        shape[4] = channel;
-        return reshape(shape);
     }
+    vector<int> shape(5);
+    shape[chls_[BATCH]] = batch;
+    shape[chls_[CHANNLE]] = channel;
+    shape[chls_[TIME]] = time;
+    shape[chls_[HEIGHT]] = height;
+    shape[chls_[WIDTH]] = width;
+    return reshape(shape);
+    // if (ctype_ != BTHWC) {
+    //     ctype_ = BCTHW;
+    //     vector<int> shape(5);
+    //     shape[0] = batch;
+    //     shape[1] = channel;
+    //     shape[2] = time;
+    //     shape[3] = height;
+    //     shape[4] = width;
+    //     return reshape(shape);
+    // } else {
+    //     vector<int> shape(5);
+    //     shape[0] = batch;
+    //     shape[1] = time;
+    //     shape[2] = height;
+    //     shape[3] = width;
+    //     shape[4] = channel;
+    //     return reshape(shape);
+    // }
 }
 
 map<string, Tensor> Tensor::gph_;
@@ -270,7 +296,6 @@ Tensor& Tensor::flatten(Chl axis_start, Chl axis_end) {
     }
     case TENSOR_STATIC_ALLOCED: {
         CPUflattenFunction::execute(gph_[name_], gph_[next_name]);
-        // Tensor::gph_[next_name].saveData<float>();
         break;
     }
     default: {
@@ -279,8 +304,11 @@ Tensor& Tensor::flatten(Chl axis_start, Chl axis_end) {
     gph_[next_name].status() = status_;
     return gph_[next_name];
 }
-/*
-Tensor& Tensor::transpose1(Chl axis0, Chl axis1) {
+
+Tensor &Tensor::transpose(Chl axis0, Chl axis1) {
+    return transpose({{axis0, axis1}});
+}
+Tensor &Tensor::transpose(vector<std::pair<Chl, Chl>> axiss) {
     const std::string next_name = name_ + "-transpose";
     switch (status_) {
     case TENSOR_DYNAMIC: {
@@ -293,64 +321,44 @@ Tensor& Tensor::transpose1(Chl axis0, Chl axis1) {
             gph_[name_].status() = status_;
         }
         // reshape
-        if (gph_[name_].ctype() == BSHD) {
-            int dim_b = 0;
-            int dim_h = 0;
-            int dim_s = 0;
-            int dim_d = 0;
-            if (axis0 == SEQUENCE && axis1 == DIMENSION) {
-                // outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[0]->sequence());
-                dim_b = gph_[name_].batch();
-                dim_h = gph_[name_].head();
-                dim_s = gph_[name_].dimension();
-                dim_d = gph_[name_].sequence();
-            } else if (axis0 == BATCH && axis1 == SEQUENCE) {
-                // outputs[0]->reshape(inputs[0]->sequence(), inputs[0]->head(), inputs[0]->batch(), inputs[0]->dimension());
-                dim_b = gph_[name_].sequence();
-                dim_h = gph_[name_].head();
-                dim_s = gph_[name_].batch();
-                dim_d = gph_[name_].dimension();
-            }
-            if (gph_.find(next_name) == gph_.end()) {
-                gph_[next_name] = Tensor(backend_);
-                gph_[next_name].reshape(dim_b, dim_h, dim_s, dim_d);
-                gph_[next_name].setName(next_name);
-            } else {
-                gph_[next_name].reshape(dim_b, dim_h, dim_s, dim_d);
-            }
-        } else if (axis0 == THW && axis1 == CHANNLE && gph_[name_].ctype() == BCTHW) {
-            // outputs[0]->reshape(inputs[0]->batch(), inputs[0]->time(), inputs[0]->height(), inputs[0]->width(), inputs[0]->channel());
-            int dim_0 = gph_[name_].batch();
-            int dim_1 = gph_[name_].time();
-            int dim_2 = gph_[name_].height();
-            int dim_3 = gph_[name_].width();
-            int dim_4 = gph_[name_].channel();
-            if (gph_.find(next_name) == gph_.end()) {
-                gph_[next_name] = Tensor(backend_);
-                gph_[next_name].reshape(dim_0, dim_1, dim_2, dim_3, dim_4);
-                gph_[next_name].setName(next_name);
-            } else {
-                gph_[next_name].reshape(dim_0, dim_1, dim_2, dim_3, dim_4);
-            }
-        }else {
-            std::cout<<"[TODO]Tensor.Transpose not support!!!!"<<std::endl;
+        if (gph_.find(next_name) == gph_.end()) {
+            gph_[next_name] = Tensor(backend_);
+            gph_[next_name].setName(next_name);
         }
-        gph_[next_name].transposed() = true;
+        gph_[next_name].trans_copy_shape(gph_[name_].shape());
+        if(std::equal(gph_[next_name].chls_.begin(), gph_[next_name].chls_.end(), gph_[name_].chls_.begin())) {
+            for (auto axis : axiss) {
+                auto axis0 = axis.first;
+                auto axis1 = axis.second;
+                auto ori_0_idx = gph_[next_name].chls_[axis0];
+                auto ori_1_idx = gph_[next_name].chls_[axis1];
+                gph_[next_name].chls_[axis0] = ori_1_idx;
+                gph_[next_name].chls_[axis1] = ori_0_idx;
+            }
+            gph_[next_name].changeCtype(gph_[name_].shape().size());
+            gph_[next_name].undiffusion_ = true;
+        }
         break;
     }
     case TENSOR_STATIC_SHAPED: {
-        //alloc
-        if(gph_[name_].masterTensor() == nullptr) {
-            gph_[name_].free();
+        if(gph_[name_].masterTensor() != nullptr) {
+            if (gph_[next_name].master_tensor_ == nullptr) {
+                gph_[next_name].setDtype(gph_[name_].dtype());
+                gph_[next_name].deepCopyFrom(gph_[name_], false);
+            }
+        }else {
+            if(gph_[name_].masterTensor() == nullptr) {
+                gph_[name_].free();
+            }
+            gph_[next_name].setDtype(gph_[name_].dtype());
+            gph_[next_name].alloc();
+            gph_[name_].undiffusion_ = true;
+            gph_[name_].deepCopyFrom(gph_[next_name], false);
+            gph_[next_name].trans_from_ = axiss;
         }
-        gph_[next_name].setDtype(gph_[name_].dtype());
-        gph_[next_name].alloc();
-        gph_[name_].deepCopyFrom(gph_[next_name], false);
-        gph_[name_].transShape(axis0, axis1, true);
         break;
     }
     case TENSOR_STATIC_ALLOCED: {
-        // Tensor::gph_[next_name].saveData<float>();
         break;
     }
     default: {
@@ -358,33 +366,6 @@ Tensor& Tensor::transpose1(Chl axis0, Chl axis1) {
     }
     gph_[next_name].status() = status_;
     return gph_[next_name];
-}
-*/
-
-
-Tensor& Tensor::transpose(Chl axis0, Chl axis1) {
-    switch (status_) {
-    case TENSOR_DYNAMIC: {
-        std::cout << "[TODO] not support dynamic tensor view" << std::endl;
-        break;
-    }
-    case TENSOR_STATIC_INIT: {
-        if (name_.find(".X.") != std::string::npos && Module::runlistIdx > 0) {
-        } else {
-            gph_[name_].transShape(axis0, axis1, true);
-        }
-        break;
-    }
-    case TENSOR_STATIC_SHAPED: {
-        break;
-    }
-    case TENSOR_STATIC_ALLOCED: {
-        break;
-    }
-    default: {
-    }
-    }
-    return gph_[name_];
 }
 
 Tensor &Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d) {

@@ -71,7 +71,7 @@ public:
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
         auto embd = patch_embedding(inputs[0]);
-        embd = embd.transpose(SEQUENCE, DIMENSION);
+        embd = embd.transpose({{SEQUENCE, DIMENSION}, {HEAD, SEQUENCE}});
         embd = embd.flatten(HEAD, SEQUENCE);
         embd = Tensor::cat({cls_token(), embd}, SEQUENCE);
         embd = position_embeddings() + embd;

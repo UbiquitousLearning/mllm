@@ -63,8 +63,9 @@ public:
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto embd = patch_embedding(inputs[0]);
-        embd = embd.transpose(THW, CHANNLE);
-        embd = embd.flatten(TIME, CHANNLE);
+        // embd = embd.transpose(THW, CHANNLE);
+        embd = embd.transpose({{CHANNLE, TIME}, {CHANNLE, WIDTH}, {CHANNLE, HEIGHT}});// BCTHW->-->BTHWC
+        embd = embd.flatten(TIME, WIDTH);
         embd = Tensor::cat({cls_token(), embd}, SEQUENCE);
         embd = pos_embed() + embd;
         return {embd};
