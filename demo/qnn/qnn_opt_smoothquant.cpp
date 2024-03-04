@@ -53,8 +53,8 @@ NetTensor *Attention(Context *c, NetTensor *x, int embedding_size, int hidden_si
     v = v->view(-1, head_size, -1, hidden_size);
     // q = _RoPE({q}, LLAMAROPE, name + ".q_rope");
     // k = _RoPE({k}, LLAMAROPE, name + ".k_rope");
-    k = _KVCache({k}, cache_max, name + ".k_cache");
-    v = _KVCache({v}, cache_max, name + ".v_cache");
+    // k = _KVCache({k}, cache_max, name + ".k_cache");
+    // v = _KVCache({v}, cache_max, name + ".v_cache");
 
     // auto *m = _MergeOutput({q,k,v}, name + ".qkv_merge");
 

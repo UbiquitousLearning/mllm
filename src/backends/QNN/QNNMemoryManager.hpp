@@ -8,6 +8,7 @@
 #include "QnnTypes.h"
 #include <cstddef>
 #include <iostream>
+#include <map>
 #include <set>
 #include <vector>
 #include <dlfcn.h>
@@ -40,6 +41,7 @@ private:
     std::vector<Qnn_MemHandle_t> qnnMemHandleList_;
     // memHandle set, to check if the ptr is allocted by rpcmem_alloc
     std::set<void *> qnnMemPtrMap_;
+    std::map<void*, std::pair<int, Qnn_MemHandle_t>> ptrToFdAndMemHandleMap_;
 
     RpcMemAllocFn_t rpcmem_alloc;
     RpcMemFreeFn_t rpcmem_free;
