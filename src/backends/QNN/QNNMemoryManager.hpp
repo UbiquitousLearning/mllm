@@ -41,8 +41,7 @@ private:
     std::vector<Qnn_MemHandle_t> qnnMemHandleList_;
     // memHandle set, to check if the ptr is allocted by rpcmem_alloc
     std::set<void *> qnnMemPtrMap_;
-    std::map<void*, int> ptrMemFdMap_;
-    std::map<int, Qnn_MemHandle_t> memFdMemHandleMap_;
+    std::map<void*, std::pair<int, Qnn_MemHandle_t>> ptrToFdAndMemHandleMap_;
 
     RpcMemAllocFn_t rpcmem_alloc;
     RpcMemFreeFn_t rpcmem_free;

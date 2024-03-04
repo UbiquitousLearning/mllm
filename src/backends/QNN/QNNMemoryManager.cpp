@@ -113,10 +113,10 @@ void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
     }
 
     // check if the ptr has been registered, if so assign the memHandle
-    auto mapIt = ptrMemFdMap_.find(ptr);
-    if (mapIt != ptrMemFdMap_.end()) {
+    auto mapIt = ptrToFdAndMemHandleMap_.find(ptr);
+    if (mapIt != ptrToFdAndMemHandleMap_.end()) {
         qnnTensor.v1.memType = QNN_TENSORMEMTYPE_MEMHANDLE;
-        qnnTensor.v1.memHandle = memFdMemHandleMap_[mapIt->second];
+        qnnTensor.v1.memHandle = mapIt->second.second;
         return;
     }
 
@@ -139,8 +139,7 @@ void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
     }
 
     qnnMemHandleList_.push_back(qnnTensor.v1.memHandle);
-    ptrMemFdMap_.insert(std::make_pair(ptr, memFd));
-    memFdMemHandleMap_.insert(std::make_pair(memFd, qnnTensor.v1.memHandle));
+    ptrToFdAndMemHandleMap_.insert(std::make_pair(ptr, std::make_pair(memFd, qnnTensor.v1.memHandle)));
 }
 
 void QNNMemoryManager::deRegisterQnnTensor() {
