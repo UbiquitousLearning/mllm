@@ -179,6 +179,12 @@ ErrorCode QNNMatmulINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     } else {
         // QK matmul transpose q and k
 
+        std::cout << inputs[0]->batch() << " " << inputs[0]->sequence() << " " << inputs[0]->head() << " " << inputs[0]->dimension() << std::endl;
+        std::cout << inputs[1]->batch() << " " << inputs[1]->sequence() << " " << inputs[1]->head() << " " << inputs[1]->dimension() << std::endl;
+
+        std::cout << inputs[0]->name() << std::endl;
+        std::cout << inputs[1]->name() << std::endl;
+
         uint32_t dimQTranspose[4];
         dimQTranspose[0] = inputs[0]->batch();
         dimQTranspose[1] = inputs[0]->head();
@@ -228,6 +234,9 @@ ErrorCode QNNMatmulINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                      .memType = QNN_TENSORMEMTYPE_RAW,
                      {.clientBuf = {.data = nullptr,
                                     .dataSize = 0}}}}}};
+
+        std::cout << dimQTranspose[0] << " " << dimQTranspose[1] << " " << dimQTranspose[2] << " " << dimQTranspose[3] << std::endl;
+
         graphAddNode(name() + ".q_transpose", "Transpose", {inputs[0]->name()}, outQTranspose, paramsTranspose);
 
         uint32_t dimKTranspose[4];
@@ -254,7 +263,7 @@ ErrorCode QNNMatmulINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                      .memType = QNN_TENSORMEMTYPE_RAW,
                      {.clientBuf = {.data = nullptr,
                                     .dataSize = 0}}}}}};
-        graphAddNode(name() + ".v_transpose", "Transpose", {inputs[1]->name()}, outKTranspose, paramsTranspose);
+        graphAddNode(name() + ".k_transpose", "Transpose", {inputs[1]->name()}, outKTranspose, paramsTranspose);
 
         vector<Qnn_Param_t> paramsMatmulINT8 = {
             {.paramType = QNN_PARAMTYPE_SCALAR,

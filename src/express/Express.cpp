@@ -844,6 +844,49 @@ NetTensor *_WNop(std::vector<NetTensor *> inputs, int sync_type, string name) {
     return out_tensor;
 }
 
+NetTensor *_MergeOutput(std::vector<NetTensor *> inputs, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Merge" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::MERGEOUTPUT)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
+vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, string name) {
+    Context *ctx = inputs[0]->ctx;
+    if (name.empty()) {
+        name = "Split" + std::to_string(ctx->idx);
+    }
+    auto sub_param = get_active_subgraph(ctx);
+    _NEW_OP(mllm::SPLITINPUT)
+    net_op_->param["isPrompt"] = (float)isPrompt;
+    _UPDATE_INPUT_TENSORS
+    vector<NetTensor *> out_tensors;
+    net_op_->out_size = 3;
+    for (int i = 0; i < 3; ++i) {
+        NetTensor *out_tensor = new NetTensor();
+        out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
+        out_tensor->type = inputs[0]->type;
+        ctx->idx++;
+        ctx->net_tensors.insert(out_tensor);
+        out_tensor->subgraph = sub_param;
+        sub_param->net_tensors.push_back(out_tensor);
+        out_tensor->in = net_op_;
+        out_tensor->ctx = ctx;
+        out_tensors.push_back(out_tensor);
+    }
+    return out_tensors;
+}
+
 void _SubgraphBegin(Context *ctx) {
     ctx->active_sub++;
 }

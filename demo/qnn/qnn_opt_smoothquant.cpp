@@ -42,7 +42,7 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_r
     out_result->setDataAt<float>(0, 0, 0, 0, token_idx);
     return token_idx;
 }
-NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name) {
+NetTensor *Attention(Context *c, NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name) {
 
     x = _Quantize({x}, true, (string) name + ".x.quantize");
     auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
@@ -56,6 +56,16 @@ NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head
     // k = _KVCache({k}, cache_max, name + ".k_cache");
     // v = _KVCache({v}, cache_max, name + ".v_cache");
 
+    // auto *m = _MergeOutput({q,k,v}, name + ".qkv_merge");
+
+    // _SubgraphBegin(c);
+
+    // auto s = _SplitInput({m}, false, name + ".qkv_split");
+
+    // q = s[0];
+    // k = s[1];
+    // v = s[2];
+
     auto *qk = _MatmulINT8({q, k}, false, true, name + ".qk");
     qk = _Dequantize({qk}, false, (string) name + ".qk.dequantize");
 
@@ -65,6 +75,9 @@ NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head
 
     qk = _Quantize({qk}, false, (string) name + ".qk.quantize");
     auto *o = _MatmulINT8({qk, v}, false, false, name + ".qkv");
+
+    // _SubgraphBegin(c);
+
     o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
     o = _Dequantize({o}, true, (string) name + ".o.dequantize");
@@ -89,11 +102,11 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
     // loop
     
     for (int layer = 0; layer < 1; ++layer) {
-        i = Attention(i, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn");
+        i = Attention(c, i, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn");
         i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
         i = FFN(i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
         i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
-        _SubgraphBegin(c);
+        // _SubgraphBegin(c);
     }
  
     // end loop

@@ -95,7 +95,7 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
 
 const vector<shared_ptr<Tensor>> &QNNGraph::forward(bool autofree) {
     // backend event hook
-    if (autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0)
+    // if (autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0)
         this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]]);
 
     std::cout << "QNNexecute thread start" << std::endl;

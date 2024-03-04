@@ -253,10 +253,13 @@ GraphStatus kvcacheImpl(TensorType& out_0,
    * Please check in SDK documentation for more information.
    */
   
-  out_0.set_dims(in_0);
   auto [b_in, h_in, w_in, d_in] = in_0.dims();
-  
+
   uint32_t seq_pos_ = seq_pos(0,0,0,0);
+  const size_t dims[] = {b_in, h_in + seq_pos_, w_in, d_in};
+
+  out_0.set_dims(dims);
+  
   // uint32_t hidden_dim_ = hidden_dim(0,0,0,0);
 
   // // const size_t dims[] = {b_in, h_in, seq_pos_+1, hidden_dim_};

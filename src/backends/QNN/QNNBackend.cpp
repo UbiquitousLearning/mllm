@@ -49,6 +49,9 @@
 #include "op/QNNQuantize.hpp"
 #include "op/QNNDequantize.hpp"
 
+#include "op/QNNMergeOutput.hpp"
+#include "op/QNNSplitInput.hpp"
+
 #define DEBUGPRINT
 #ifdef DEBUGPRINT
 #include "Timing.hpp"
@@ -90,6 +93,8 @@ void QNNBackend::registerOps() {
     addCreator(RELU, (QNNBackend::Creator *)(new QNNReLUCreator()));
     addCreator(QUANTIZE, (QNNBackend::Creator *)(new QNNQuantizeCreator()));
     addCreator(DEQUANTIZE, (QNNBackend::Creator *)(new QNNDequantizeCreator()));
+    addCreator(MERGEOUTPUT, (QNNBackend::Creator *)(new QNNMergeOutputCreator()));
+    addCreator(SPLITINPUT, (QNNBackend::Creator *)(new QNNSplitInputCreator()));
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
@@ -290,6 +295,11 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     for (int i = 0; i < 4; i++) {
         dimensionsInput[i] = inputs[0]->shape()[i];
     }
+    auto data_type = QNN_DATATYPE_FLOAT_32;
+    if (inputs[0]->dtype() == MLLM_TYPE_I8) {
+        std::cout << "QNN INT8 op" << std::endl;
+        data_type = QNN_DATATYPE_UFIXED_POINT_8;
+    }
     qnnModels_[qnnModelIndex_].addTensor(inputs[0]->name().c_str(), (Qnn_Tensor_t){
                                                                         .version = QNN_TENSOR_VERSION_1,
                                                                         {.v1 = {
@@ -297,7 +307,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
                                                                              .name = inputs[0]->name().c_str(),
                                                                              .type = QNN_TENSOR_TYPE_APP_WRITE,
                                                                              .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                                             .dataType = QNN_DATATYPE_FLOAT_32,
+                                                                             .dataType = data_type,
                                                                              .quantizeParams = {QNN_DEFINITION_UNDEFINED,
                                                                                                 QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                                                                 {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
