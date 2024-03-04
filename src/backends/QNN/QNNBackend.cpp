@@ -352,6 +352,9 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
         std::cout << "input tensors num:" << (*m_graphsInfo)[graphIdx].numInputTensors << std::endl;
         std::cout << "output tensors num:" << (*m_graphsInfo)[graphIdx].numOutputTensors << std::endl;
 
+        std::cout << "input tensors num:" << currentInputBuffers->size() << std::endl;
+        std::cout << "output tensors num:" << currentOutputBuffers->size() << std::endl;
+
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {
             // std::cout << "input name:" << inputs[i]->name() << std::endl;
             qnnMM->registerQnnTensor((*currentInputBuffers)[i], inputs_[i]);
