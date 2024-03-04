@@ -301,33 +301,21 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
         currentOutputBuffers->push_back(outputs[i]->hostPtr<uint8_t>());
     }
 
-}
-
-void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
-#ifdef DEBUGPRINT
-    std::cout << "onExecuteStart" << std::endl;
-#endif
-
-    // update currentInputBuffers, currentOutputBuffers, qnnModelIndex_
     currentInputBuffers = &inputBufferMap[graphName];
     currentOutputBuffers = &outputBufferMap[graphName];
     qnnModelIndex_ = qnnModelIndexMap_[graphName];
-
-    std::cout << "graph name:" << graphName << std::endl;
-    std::cout << "output buffers size" << currentOutputBuffers->size() << std::endl;
 
     auto status = graphFinilize();
     if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != status) {
         this->reportError("Graph Finalization failure");
     }
 
-// #ifdef QNN_ARM
-    // reset the syncvar
-    for (auto t : syncVarTensors_) {
-        t->setDataAt<uint32_t>(0, 0, 0, 0, 0);
-    }
-
     auto returnStatus = StatusCode::SUCCESS;
+
+    Qnn_Tensor_t *inputs_ = nullptr;
+    Qnn_Tensor_t *outputs_ = nullptr;
+
+    auto m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
 
     for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
         auto graphInfo = (*m_graphsInfo)[graphIdx];
@@ -339,6 +327,12 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
             QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
             returnStatus = StatusCode::FAILURE;
             break;
+        }
+
+        // Todo only one graph now
+        size_t totalCount = currentInputBuffers->size();
+        if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(graphIdx, *currentInputBuffers, inputs_, graphInfo, m_inputDataType)) {
+            returnStatus = StatusCode::FAILURE;
         }
 
         // QNN_DEBUG("input tensors: %d ", (*m_graphsInfo)[graphIdx].numInputTensors);
@@ -366,6 +360,33 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
             QNN_DEBUG("outputBuffers: %p ", (*currentOutputBuffers)[i]);
         }
     }
+
+    inputsMap_[qnnModelIndex_] = inputs_;
+    outputsMap_[qnnModelIndex_] = outputs_;
+
+}
+
+void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
+#ifdef DEBUGPRINT
+    std::cout << "onExecuteStart" << std::endl;
+#endif
+
+    // update currentInputBuffers, currentOutputBuffers, qnnModelIndex_
+    currentInputBuffers = &inputBufferMap[graphName];
+    currentOutputBuffers = &outputBufferMap[graphName];
+    qnnModelIndex_ = qnnModelIndexMap_[graphName];
+    qnn_wrapper_api::GraphInfo_t **m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
+
+    std::cout << "graph name:" << graphName << std::endl;
+    std::cout << "output buffers size" << currentOutputBuffers->size() << std::endl;
+
+// #ifdef QNN_ARM
+    // reset the syncvar
+    for (auto t : syncVarTensors_) {
+        t->setDataAt<uint32_t>(0, 0, 0, 0, 0);
+    }
+
+    
 // #endif
 }
 
@@ -409,6 +430,10 @@ void QNNBackend::afterAllGraphsExecute() {
     // TODO: dynamic do not clear all the map.
     inputBufferMap.clear();
     outputBufferMap.clear();
+
+    m_graphsInfoMap_.clear();
+    inputsMap_.clear();
+    outputsMap_.clear();
     
 }
 
@@ -453,6 +478,8 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphFinilize() {
     m_graphsCount = 1;
     // Populate the constructed graphs in provided output variables
     qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::MODEL_NO_ERROR;
+    qnn_wrapper_api::GraphInfo_t **m_graphsInfo = nullptr;
+    
     VALIDATE(getGraphInfoFromModels(*models, m_graphsCount, &m_graphsInfo), err);
     // Graph finalize
     if (QNN_GRAPH_NO_ERROR != m_qnnFunctionPointers.qnnInterface.graphFinalize((*m_graphsInfo)[0].graph, m_profileBackendHandle, nullptr)) {
@@ -461,6 +488,7 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphFinilize() {
     if (ProfilingLevel::OFF != m_profilingLevel) {
         extractBackendProfilingInfo(m_profileBackendHandle);
     }
+    m_graphsInfoMap_[qnnModelIndex_] = m_graphsInfo;
 
     return qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
 }
@@ -672,6 +700,9 @@ StatusCode QNNBackend::freeDevice() {
 // executeGraphs() that load input/output buffers from CPU context
 // inputBufferMap and outputBufferMap: graph_name -> graph input/output CPU buffers.
 StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap) {
+
+    qnn_wrapper_api::GraphInfo_t **m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
+
     auto returnStatus = StatusCode::SUCCESS;
     for (size_t graphIdx = 0; graphIdx < m_graphsCount; graphIdx++) {
         QNN_DEBUG("Starting execution for graphIdx: %d", graphIdx);
@@ -680,21 +711,12 @@ StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *
             returnStatus = StatusCode::FAILURE;
             break;
         }
-        Qnn_Tensor_t *inputs = nullptr;
-        Qnn_Tensor_t *outputs = nullptr;
-        if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&inputs, &outputs, (*m_graphsInfo)[graphIdx])) {
-            QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
-            returnStatus = StatusCode::FAILURE;
-            break;
-        }
+
+        Qnn_Tensor_t *inputs_ = inputsMap_[qnnModelIndex_];
+        Qnn_Tensor_t *outputs_ = outputsMap_[qnnModelIndex_];
 
         auto graphInfo = (*m_graphsInfo)[graphIdx];
         if (!inputBufferMap.empty()) {
-            // Todo only one graph now
-            size_t totalCount = currentInputBuffers->size();
-            if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(graphIdx, *currentInputBuffers, inputs, graphInfo, m_inputDataType)) {
-                returnStatus = StatusCode::FAILURE;
-            }
 
             size_t startIdx = 0;
 
@@ -705,9 +727,9 @@ StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *
 
                 executeStatus =
                     m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
-                                                                    inputs,
+                                                                    inputs_,
                                                                     graphInfo.numInputTensors,
-                                                                    outputs,
+                                                                    outputs_,
                                                                     graphInfo.numOutputTensors,
                                                                     m_profileBackendHandle,
                                                                     nullptr);
@@ -720,7 +742,7 @@ StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *
                 if (StatusCode::SUCCESS == returnStatus) {
                     QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
                     for (int oi = 0; oi < graphInfo.numOutputTensors; oi++) {
-                        auto output = outputs[oi];
+                        auto output = outputs_[oi];
                         // DEBUGLOG
                         std::cout << "----------------" << std::endl;
                         std::cout << "output name:" << output.v1.name << std::endl;
@@ -742,9 +764,9 @@ StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *
         }
 
         m_ioTensor.tearDownInputAndOutputTensors(
-            inputs, outputs, graphInfo.numInputTensors, graphInfo.numOutputTensors);
-        inputs = nullptr;
-        outputs = nullptr;
+            inputs_, outputs_, graphInfo.numInputTensors, graphInfo.numOutputTensors);
+        inputs_ = nullptr;
+        outputs_ = nullptr;
         if (StatusCode::SUCCESS != returnStatus) {
             break;
         }
@@ -756,10 +778,16 @@ StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *
 }
 
 StatusCode QNNBackend::executeGraphsShared() {
+
+    qnn_wrapper_api::GraphInfo_t **m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
+
     auto returnStatus = StatusCode::SUCCESS;
 
     for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
         auto graphInfo = (*m_graphsInfo)[graphIdx];
+
+        Qnn_Tensor_t *inputs_ = inputsMap_[qnnModelIndex_];
+        Qnn_Tensor_t *outputs_ = outputsMap_[qnnModelIndex_];
 
         Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
         uint64_t t_start = mllm_time_us();
@@ -814,15 +842,20 @@ StatusCode QNNBackend::executeGraphsShared() {
         //     exit(-1);
         // }
 
-        std::cout << "free graphs begin" << std::endl;
-        qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
-        m_graphsInfo = nullptr;
+        // std::cout << "free graphs begin" << std::endl;
+        // qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
+        // m_graphsInfo = nullptr;
     }
     return returnStatus;
 }
 
 StatusCode QNNBackend::executeGraphsSharedAutoregressive() {
+    qnn_wrapper_api::GraphInfo_t **m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
+
     auto returnStatus = StatusCode::SUCCESS;
+
+    Qnn_Tensor_t *inputs_ = inputsMap_[qnnModelIndex_];
+    Qnn_Tensor_t *outputs_ = outputsMap_[qnnModelIndex_];
 
     for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
         auto graphInfo = (*m_graphsInfo)[graphIdx];
