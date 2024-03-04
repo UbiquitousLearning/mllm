@@ -3,6 +3,8 @@
 #include "Timing.hpp"
 #endif
 
+#include "QNNBackend.hpp"
+
 namespace mllm {
 
 QNNGraph::QNNGraph(const NetParameter &param, Backend *bn,
@@ -37,12 +39,14 @@ void QNNGraph::setUpTensors(std::string name) {
             // std::cout << "op_name:" << op_name << " is not do" << std::endl;
         }
     }
+
+    this->backend_->onSetUpEnd(graph_in_tensors, graph_out_tensors, name);
 }
 
 // WARNING: non virtual override function, all features should be merged into the origin function
 const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
     // backend event hook
-    if (autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0)
+    // if (autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0)
         this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]], graphName);
 
     std::cout << "QNNexecute thread start" << std::endl;
@@ -90,7 +94,19 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
 
     autoregressive_seq_pos_ += ops_input_tensors_[op_names_[0]][0]->sequence();
 
+    
+
     return ops_output_tensors_[op_names_[op_names_.size() - 1]];
+}
+
+void QNNGraph::free(std::string graphName) {
+    auto *qnn_backend = dynamic_cast<QNNBackend *>(this->backend_);
+    qnn_backend->freeGraphDataStructure(graphName);
+}
+
+void QNNGraph::allFree() {
+    auto *qnn_backend = dynamic_cast<QNNBackend *>(this->backend_);
+    qnn_backend->afterAllGraphsExecute();
 }
 
 const vector<shared_ptr<Tensor>> &QNNGraph::forward(bool autofree) {

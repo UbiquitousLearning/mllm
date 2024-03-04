@@ -94,6 +94,23 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
         auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
         result_ = qnn_graph->forward(name);
     }
+
+    // free all graphs here
+    for (int i = 0; i < (int)net->subGraph().size(); ++i) {
+        string name = typeName + std::to_string(i);
+        auto &g = net->subGraph()[name];
+        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+        qnn_graph->free(name);
+    }
+
+    // first graph all free is OK.
+    {
+        string name = typeName + std::to_string(0);
+        auto &g = net->subGraph()[name];
+        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+        qnn_graph->allFree();
+    }
+    
     // open file "AR_latency.txt" to record the time of each token
     std::fstream fs("AR_latency.txt", std::ios::app);
     fs << "---------------" << std::endl;

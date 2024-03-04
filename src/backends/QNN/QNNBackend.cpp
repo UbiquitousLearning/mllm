@@ -220,43 +220,6 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
 
     auto returnStatus = StatusCode::SUCCESS;
 
-    // rebuild a new graph.
-    auto it = qnnModelIndexMap_.find(graphName);
-    if (it != qnnModelIndexMap_.end()) {
-        std::cout << "free graph tensors begin" << std::endl;
-        qnnModelIndex_ = it->second;
-
-        m_ioTensor.tearDownInputAndOutputTensors(
-            inputs_, outputs_, graphInfo.numInputTensors, graphInfo.numOutputTensors);
-        inputs_ = nullptr;
-        outputs_ = nullptr;
-        if (StatusCode::SUCCESS != returnStatus) {
-            return;
-        }
-
-        auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
-        qnnMM->deRegisterQnnTensor();
-
-        std::cout << "free graphs begin" << std::endl;
-        qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
-        m_graphsInfo = nullptr;
-
-        qnnModels_[qnnModelIndex_].freeTensors();
-
-        this->freeContext();
-        qnnModels_[qnnModelIndex_].clearGraph();
-
-        // inputBuffers.resize(0);
-        // outputBuffers.resize(0);
-        inputBufferMap[graphName].resize(0);
-        outputBufferMap[graphName].resize(0);
-
-        inputBufferMap.clear();
-        outputBufferMap.clear();
-
-        syncVarTensors_.resize(0);
-    }
-
     // create a new graph
     qnnModelIndex_ = qnnModels_.size();
     qnnModelIndexMap_.insert(std::make_pair(graphName, qnnModelIndex_));
@@ -318,7 +281,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
                                                                                             .dataSize = 0}}}}});
     // create a new inputBuffer and outputBuffer for the graph
     inputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>(inputs.size())));
-    outputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>(outputs.size())));
+    outputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>(0)));
     
     currentInputBuffers = &inputBufferMap[graphName];
     currentOutputBuffers = &outputBufferMap[graphName];
@@ -327,10 +290,17 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     for(int i = 0; i < inputs.size(); i++) {
         (*currentInputBuffers)[i] = inputs[i]->hostPtr<uint8_t>();
     }
+    
+}
+
+void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
+
     // push output tensors to the buffer list
+    currentOutputBuffers = &outputBufferMap[graphName];
     for (int i = 0; i < outputs.size(); i++) {
-        (*currentOutputBuffers)[i] = outputs[i]->hostPtr<uint8_t>();
+        currentOutputBuffers->push_back(outputs[i]->hostPtr<uint8_t>());
     }
+
 }
 
 void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
@@ -383,12 +353,12 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
         std::cout << "output tensors num:" << (*m_graphsInfo)[graphIdx].numOutputTensors << std::endl;
 
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {
-            std::cout << "input name:" << inputs[i]->name() << std::endl;
+            // std::cout << "input name:" << inputs[i]->name() << std::endl;
             qnnMM->registerQnnTensor((*currentInputBuffers)[i], inputs_[i]);
             QNN_DEBUG("inputBuffers: %p ", (*currentInputBuffers)[i]);
         }
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numOutputTensors; i++) {
-            std::cout << "output name:" << outputs[i]->name() << std::endl;
+            // std::cout << "output name:" << outputs[i]->name() << std::endl;
             qnnMM->registerQnnTensor((*currentOutputBuffers)[i], outputs_[i]);
             QNN_DEBUG("outputBuffers: %p ", (*currentOutputBuffers)[i]);
         }
@@ -404,7 +374,38 @@ void QNNBackend::onExecuteEnd() {
 #endif
 }
 
-void QNNBackend::afterAllGraphsExecute(){
+void QNNBackend::freeGraphDataStructure(string graphName) {
+
+    auto it = qnnModelIndexMap_.find(graphName);
+    if(it != qnnModelIndexMap_.end()) {
+        std::cout << "free graph tensors begin" << std::endl;
+        qnnModelIndex_ = it->second;
+
+        qnnModels_[qnnModelIndex_].freeTensors();
+        qnnModels_[qnnModelIndex_].clearGraph();
+    }
+
+    inputBufferMap[graphName].resize(0);
+    outputBufferMap[graphName].resize(0);
+}
+
+void QNNBackend::afterAllGraphsExecute() {
+
+    //TODO: dynamic free no useable graph.
+    // clear old models.
+    qnnModelIndexMap_.clear();
+
+    auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
+    qnnMM->deRegisterQnnTensor();
+
+
+    syncVarTensors_.resize(0);
+    
+    this->freeContext();
+
+    // TODO: dynamic do not clear all the map.
+    inputBufferMap.clear();
+    outputBufferMap.clear();
     
 }
 
@@ -800,6 +801,19 @@ StatusCode QNNBackend::executeGraphsShared() {
                 std::cout << "output type:" << output.v1.dataType << std::endl;
             }
         }
+
+        // m_ioTensor.tearDownInputAndOutputTensors(
+        //     inputs_, outputs_, graphInfo.numInputTensors, graphInfo.numOutputTensors);
+        // inputs_ = nullptr;
+        // outputs_ = nullptr;
+        // if (StatusCode::SUCCESS != returnStatus) {
+        //     std::cout << "tear down tensors fail" << std::endl;
+        //     exit(-1);
+        // }
+
+        std::cout << "free graphs begin" << std::endl;
+        qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
+        m_graphsInfo = nullptr;
     }
     return returnStatus;
 }
