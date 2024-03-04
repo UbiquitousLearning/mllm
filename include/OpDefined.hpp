@@ -49,6 +49,8 @@ enum OpType {
     WNOP,
     QUANTIZE,
     DEQUANTIZE,
+    MERGEOUTPUT,
+    SPLITINPUT,
     OP_NUM
 };
 
@@ -94,6 +96,8 @@ static const vector<string> OpNames = {
     "WNop",
     "Quantize",
     "Dequantize",
+    "MergeOutput",
+    "SplitInput",
     "OP_NUM"};
 } // namespace mllm
 #endif
