@@ -32,6 +32,9 @@ public:
      */
     virtual const vector<shared_ptr<Tensor>> &forward(bool autofree = false) override;
 
+    // TODO: WARNING!!! non virtual forward
+    const vector<shared_ptr<Tensor>> &forward(std::string graphName);
+
     void setUpTensors(std::string graphName);
 
     void QNNThreadExecute();

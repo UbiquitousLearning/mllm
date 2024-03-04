@@ -115,13 +115,16 @@ void Graph::reshape() {
 
 void Graph::setUpTensors() {
     auto &graph_in_tensors = ops_input_tensors_[op_names_[0]];
-    this->backend_->onSetUpStart(graph_in_tensors);
-    for (auto &t : graph_in_tensors) { t->alloc(); }
     // set graph out tensor TensorType
     auto &graph_out_tensors = ops_output_tensors_[op_names_[op_names_.size() - 1]];
     for (auto &t : graph_out_tensors) {
         t->setTensorType(GRAPH_OUTPUT);
     }
+
+    this->backend_->onSetUpStart(graph_in_tensors, graph_out_tensors);
+
+    for (auto &t : graph_in_tensors) { t->alloc(); }
+
     // set up tensors of ops
     for (const auto &op_name : op_names_) {
         if (ops_not_inputs_empty_[op_name] ) {

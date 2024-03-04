@@ -1,4 +1,5 @@
 #include <csignal>
+#include <fstream>
 #include "QNNGraph.hpp"
 #include "Timing.hpp"
 #include "QNNExecutor.hpp"
@@ -76,7 +77,7 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
         }
             
 
-        result_ = g->forward();
+        // result_ = g->forward();
 
         // free
         if (false) {
@@ -86,6 +87,16 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
             net->freeTensors(i);
         }
     }
+    // execute all graphs here
+    for (int i = 0; i < (int)net->subGraph().size(); ++i) {
+        string name = typeName + std::to_string(i);
+        auto &g = net->subGraph()[name];
+        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+        result_ = qnn_graph->forward(name);
+    }
+    // open file "AR_latency.txt" to record the time of each token
+    std::fstream fs("AR_latency.txt", std::ios::app);
+    fs << "---------------" << std::endl;
     auto ex_time_end = mllm_time_us();
     if (input_tensors[0]->sequence() == 1) {
         auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;

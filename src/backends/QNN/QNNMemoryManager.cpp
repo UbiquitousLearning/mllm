@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <iostream>
+#include <utility>
 
 namespace mllm {
 
@@ -111,6 +112,14 @@ void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
         return;
     }
 
+    // check if the ptr has been registered, if so assign the memHandle
+    auto mapIt = ptrMemFdMap_.find(ptr);
+    if (mapIt != ptrMemFdMap_.end()) {
+        qnnTensor.v1.memType = QNN_TENSORMEMTYPE_MEMHANDLE;
+        qnnTensor.v1.memHandle = memFdMemHandleMap_[mapIt->second];
+        return;
+    }
+
     int memFd = rpcmem_to_fd(ptr);
     if (-1 == memFd) {
         std::cerr << "rpcmem_to_fd failed" << std::endl;
@@ -130,6 +139,8 @@ void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
     }
 
     qnnMemHandleList_.push_back(qnnTensor.v1.memHandle);
+    ptrMemFdMap_.insert(std::make_pair(ptr, memFd));
+    memFdMemHandleMap_.insert(std::make_pair(memFd, qnnTensor.v1.memHandle));
 }
 
 void QNNMemoryManager::deRegisterQnnTensor() {
