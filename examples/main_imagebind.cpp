@@ -32,8 +32,12 @@ void tokens2Tensor(Net *net, vector<vector<token_id_t>> tokens, shared_ptr<Tenso
 
     for (int b = 0; b < bsize; ++b){
         input_text_lens->setDataAt<float>(0, 0, 0, b, tokens[b].size()-1);
-        for (int idx = 0; idx < tokens[b].size(); ++idx) {
-            input_tensor->setDataAt<float>(b, 0, idx, 0, tokens[b][idx]);
+        for (int idx = 0; idx < 77; ++idx) {
+            if(idx < tokens[b].size()) {
+                input_tensor->setDataAt<float>(b, 0, idx, 0, tokens[b][idx]);
+            }else {
+                input_tensor->setDataAt<float>(b, 0, idx, 0, 0);
+            }
         }
     }
 }
@@ -131,7 +135,7 @@ NetTensor *MLP( NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
 NetTensor *VisionEmbedding(Context *c, NetTensor * i, int hidden_size, string name) { //TODO
     i = _Convolution3D({i}, 3, 1280, {2, 14, 14}, {2, 14, 14}, VALID, false, name +".rgbt_stem.proj.1");
     i = i->transpose(THW, CHANNLE);
-    i = i->flatten(TIME, CHANNLE);
+    i = i->flatten(TIME, WIDTH);
     auto *s = _Parameter(c, {}, 1, 1, 1, 1280, name +".cls_token");
     i = _Cat( {s, i}, SEQUENCE, name +".rgbt_cls.cat");
     s = _Parameter(c, {}, 1, 257, 1, 1280, name +".pos_embedding_helper.pos_embed");

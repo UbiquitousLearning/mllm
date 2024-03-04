@@ -280,7 +280,7 @@ NetTensor *TNetTensor::flatten(Chl axis_start, Chl axis_end) {
         data_dims = {BATCH, -1, HEAD + SEQUENCE, DIMENSION};
     } else if (axis_start == HEAD & axis_end == DIMENSION) {
         data_dims = {BATCH, HEAD, -1, SEQUENCE + DIMENSION};
-    } else if (axis_start == TIME & axis_end == CHANNLE) {
+    } else if (axis_start == TIME & axis_end == WIDTH) {
         data_dims = {BATCH, -1, TIME + HEIGHT + WIDTH, CHANNLE};
     } else {
         std::cout << "ERROR: " << name << " flatten  " << axis_start << "&" << axis_end << std::endl;
