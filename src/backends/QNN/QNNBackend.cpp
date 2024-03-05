@@ -254,10 +254,16 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     }
 
     // add input tensor to qnn
-    uint32_t dimensionsInput[4];
-    for (int i = 0; i < 4; i++) {
-        dimensionsInput[i] = inputs[0]->shape()[i];
-    }
+    // TODO: we believe it is NSHD now.
+    uint32_t dimensionsInput[4] = {
+                                static_cast<uint32_t>(inputs[0]->batch()),
+                                static_cast<uint32_t>(inputs[0]->sequence()),
+                                static_cast<uint32_t>(inputs[0]->head()),
+                                static_cast<uint32_t>(inputs[0]->dimension()),
+    };
+    // for (int i = 0; i < 4; i++) {
+    //     dimensionsInput[i] = inputs[0]->shape()[i];
+    // }
     auto data_type = QNN_DATATYPE_FLOAT_32;
     if (inputs[0]->dtype() == MLLM_TYPE_I8) {
         std::cout << "QNN INT8 op" << std::endl;

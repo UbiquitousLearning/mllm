@@ -67,13 +67,13 @@ NetTensor *Attention(Context *c, NetTensor *x, int embedding_size, int hidden_si
     v = s[2];
 
     auto *qk = _MatmulINT8({q, k}, false, true, name + ".qk");
-    qk = _Dequantize({qk}, false, (string) name + ".qk.dequantize");
+    // qk = _Dequantize({qk}, false, (string) name + ".qk.dequantize");
 
     // qk = *qk / std::sqrt(hidden_size);
     // qk = _Causalmask({qk}, name + ".mask");
     qk = _Softmax({qk}, DIMENSION, name + ".softmax");
 
-    qk = _Quantize({qk}, false, (string) name + ".qk.quantize");
+    // qk = _Quantize({qk}, false, (string) name + ".qk.quantize");
     auto *o = _MatmulINT8({qk, v}, false, false, name + ".qkv");
 
     _SubgraphBegin(c);
@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
     QNNExecutor ex(&param_loader);
 
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    fullTensor(input, net, {1, 1, 1, hidden_dim}, 2.f);
+    fullTensor(input, net, {1, 1, 32, hidden_dim}, 2.f);
     ex.setup(&net);
 
     for (int i=0; i<1; i++) {
