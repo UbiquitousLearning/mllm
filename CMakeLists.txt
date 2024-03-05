@@ -232,11 +232,27 @@ add_executable(main_tinyllama ${PROJECT_SOURCE_DIR}/examples/main_tinyllama.cpp 
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
 )
+
 if (ARM AND NOT APK)
     target_compile_options(main_tinyllama PRIVATE -fopenmp)
     target_link_libraries(main_tinyllama PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
     target_link_libraries(main_tinyllama MLLM_CPU)
+endif ()
+
+
+add_executable(main_ReLULlama ${PROJECT_SOURCE_DIR}/examples/main_ReLULlama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp
+)
+
+if (ARM AND NOT APK)
+    target_compile_options(main_ReLULlama PRIVATE -fopenmp)
+    target_link_libraries(main_ReLULlama PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(main_ReLULlama MLLM_CPU)
 endif ()
 
 add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/examples/main_fuyu.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
