@@ -60,13 +60,14 @@ QNNMemoryManager::QNNMemoryManager() {
 
 QNNMemoryManager::~QNNMemoryManager() {
 #ifdef QNN_ARM
-    // free all buffers if it's not being used
-    for (auto &memHandle : qnnMemHandleList_) {
-        Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&memHandle, 1);
+    for (auto &mem : ptrToFdAndMemHandleMap_) {
+        Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&mem.second.second, 1);
         if (QNN_SUCCESS != deregisterRet) {
             // handle errors
             std::cerr << "qnnInterface_.memDeRegister failed" << std::endl;
         }
+        rpcmem_free(mem.first);
+        ptrToFdAndMemHandleMap_.erase(mem.first);
     }
 #endif
 }
@@ -138,27 +139,37 @@ void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
         return;
     }
 
-    qnnMemHandleList_.push_back(qnnTensor.v1.memHandle);
     ptrToFdAndMemHandleMap_.insert(std::make_pair(ptr, std::make_pair(memFd, qnnTensor.v1.memHandle)));
 }
 
 void QNNMemoryManager::deRegisterQnnTensor() {
 #ifdef QNN_ARM
     // free all buffers if it's not being used
-    for (auto &memHandle : qnnMemHandleList_) {
-        Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&memHandle, 1);
+    for (auto &mem : ptrToFdAndMemHandleMap_) {
+        Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&mem.second.second, 1);
         if (QNN_SUCCESS != deregisterRet) {
             // handle errors
             std::cerr << "qnnInterface_.memDeRegister failed" << std::endl;
         }
+        rpcmem_free(mem.first);
+        ptrToFdAndMemHandleMap_.erase(mem.first);
     }
-
-    qnnMemHandleList_.resize(0);
+    
 #endif
 }
 
 void QNNMemoryManager::free(void *ptr) {
 #ifdef QNN_ARM
+    // if the ptr has been registered, deregister it
+    auto it = ptrToFdAndMemHandleMap_.find(ptr);
+    if (it != ptrToFdAndMemHandleMap_.end()) {
+        Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&it->second.second, 1);
+        if (QNN_SUCCESS != deregisterRet) {
+            // handle errors
+            std::cerr << "qnnInterface_.memDeRegister failed" << std::endl;
+        }
+        ptrToFdAndMemHandleMap_.erase(it);
+    }
     rpcmem_free(ptr);
 #else
     ::free(((void **)ptr)[-1]);

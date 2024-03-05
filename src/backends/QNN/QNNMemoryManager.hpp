@@ -38,7 +38,6 @@ private:
     QNN_INTERFACE_VER_TYPE qnnInterface_;
     Qnn_ContextHandle_t context_ = nullptr;
 
-    std::vector<Qnn_MemHandle_t> qnnMemHandleList_;
     // memHandle set, to check if the ptr is allocted by rpcmem_alloc
     std::set<void *> qnnMemPtrMap_;
     std::map<void*, std::pair<int, Qnn_MemHandle_t>> ptrToFdAndMemHandleMap_;
