@@ -154,7 +154,9 @@ void QNNMemoryManager::deRegisterQnnTensor() {
         rpcmem_free(mem.first);
         ptrToFdAndMemHandleMap_.erase(mem.first);
     }
-    
+
+    qnnMemHandleList_.resize(0);
+    ptrToFdAndMemHandleMap_.clear();
 #endif
 }
 

@@ -88,8 +88,11 @@ public:
     qnn_wrapper_api::ModelError_t modelAddTensor(std::string nodeName, Qnn_Tensor_t tensor);
 
     virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) override;
+    virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) override;
     virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") override;
     virtual void onExecuteEnd() override;
+
+    void freeGraphDataStructure(string graphName);
 
     void afterAllGraphsExecute();
 
@@ -195,7 +198,8 @@ private:
     iotensor::InputDataType m_inputDataType;
     sample_app::ProfilingLevel m_profilingLevel;
 
-    qnn_wrapper_api::GraphInfo_t **m_graphsInfo;
+    // qnn_wrapper_api::GraphInfo_t **m_graphsInfo;
+    std::map<int, qnn_wrapper_api::GraphInfo_t **> m_graphsInfoMap_;
     // for mllm single graph execute
     qnn_wrapper_api::GraphInfo_t graphInfo;
 
@@ -217,8 +221,12 @@ private:
     std::vector<Tensor> outputTensors_;
     std::vector<Tensor*> syncVarTensors_;
 
-    Qnn_Tensor_t *inputs_ = nullptr;
-    Qnn_Tensor_t *outputs_ = nullptr;
+    // Qnn_Tensor_t *inputs_ = nullptr;
+    // Qnn_Tensor_t *outputs_ = nullptr;
+
+    std::map<int, Qnn_Tensor_t *> inputsMap_;
+    std::map<int, Qnn_Tensor_t *> outputsMap_;
+
 };
 
 } // namespace mllm

@@ -36,6 +36,8 @@ public:
     const vector<shared_ptr<Tensor>> &forward(std::string graphName);
 
     void setUpTensors(std::string graphName);
+    void free(std::string graphName);
+    void allFree();
 
     void QNNThreadExecute();
 

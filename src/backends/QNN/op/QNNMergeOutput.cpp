@@ -30,33 +30,34 @@ ErrorCode QNNMergeOutput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared
         inputTensorNames.push_back(input->name());
     }
 
-    outputs[0]->setBackend(qnnBackend_);
-    outputs[0]->alloc();
-    qnnBackend_->pushOutputBuffers(outputs[0]->hostPtr<uint8_t>());
+    // outputs[0]->setBackend(qnnBackend_);
+    // outputs[0]->alloc();
+    // qnnBackend_->pushOutputBuffers(outputs[0]->hostPtr<uint8_t>());
 
-    vector<Qnn_Tensor_t> outputTensors;
-    for (auto &output : outputs) {
-        uint32_t dimensions[4] = {static_cast<uint32_t>(output->batch()),
-                                  static_cast<uint32_t>(output->sequence()),
-                                  static_cast<uint32_t>(output->head()),
-                                  static_cast<uint32_t>(output->dimension())};
+    std::cout << getOutputTensorType(outputs[0]) << std::endl;
 
-        std::cout << dimensions[0] << " " << dimensions[1] << " " << dimensions[2] << " " << dimensions[3] << std::endl;
+    uint32_t dimensions[4] = {static_cast<uint32_t>(outputs[0]->batch()),
+                                  static_cast<uint32_t>(outputs[0]->sequence()),
+                                  static_cast<uint32_t>(outputs[0]->head()),
+                                  static_cast<uint32_t>(outputs[0]->dimension())};
 
-        // TODO tensor type = MLLM_TYPE_I8
-        auto data_type = QNN_DATATYPE_FLOAT_32;
-        if (output->dtype() == MLLM_TYPE_I8) {
-            std::cout << "QNN INT8 op" << std::endl;
-            data_type = QNN_DATATYPE_UFIXED_POINT_8;
-        }
-            
+    std::cout << dimensions[0] << " " << dimensions[1] << " " << dimensions[2] << " " << dimensions[3] << std::endl;
 
-        auto outName = new string(output->name());
-        outputTensors.push_back({QNN_TENSOR_VERSION_1,
+    // TODO tensor type = MLLM_TYPE_I8
+    auto data_type = QNN_DATATYPE_FLOAT_32;
+    if (outputs[0]->dtype() == MLLM_TYPE_I8) {
+        std::cout << "QNN INT8 op" << std::endl;
+        data_type = QNN_DATATYPE_UFIXED_POINT_8;
+    }
+
+    auto outName = outputs[0]->name();
+
+    vector<Qnn_Tensor_t> outputTensors = {
+        (Qnn_Tensor_t){QNN_TENSOR_VERSION_1,
                                  {.v1 = {
                                       .id = 0,
-                                      .name = outName->c_str(),
-                                      .type = QNN_TENSOR_TYPE_APP_READ,
+                                      .name = outName.c_str(),
+                                      .type = getOutputTensorType(outputs[0]),
                                       .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                       .dataType = data_type,
                                       .quantizeParams = {QNN_DEFINITION_UNDEFINED,
@@ -66,8 +67,9 @@ ErrorCode QNNMergeOutput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared
                                       .dimensions = dimensions,
                                       .memType = QNN_TENSORMEMTYPE_RAW,
                                       {.clientBuf = {.data = nullptr,
-                                                     .dataSize = 0}}}}});
-    }
+                                                     .dataSize = 0}}}}}
+
+    };
 
     return graphAddNode(name() + ".mergeoutput", "MergeOutput", inputTensorNames, outputTensors, {}, "LLaMAPackage");
 }
