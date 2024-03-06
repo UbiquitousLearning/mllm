@@ -310,59 +310,65 @@ Tensor &Tensor::transpose(Chl axis0, Chl axis1) {
 }
 Tensor &Tensor::transpose(vector<std::pair<Chl, Chl>> axiss) {
     const std::string next_name = name_ + "-transpose";
-    switch (status_) {
-    case TENSOR_DYNAMIC: {
-        std::cout << "[TODO] not support dynamic tensor view" << std::endl;
-        break;
-    }
-    case TENSOR_STATIC_INIT: {
-        if (gph_.find(name_) == gph_.end()) {
-            gph_[name_] = *this;
-            gph_[name_].status() = status_;
+    if (next_name.find(".X.") != std::string::npos && Module::runlistIdx > 0) {}
+    else {
+        switch (status_) {
+        case TENSOR_DYNAMIC: {
+            std::cout << "[TODO] not support dynamic tensor view" << std::endl;
+            break;
         }
-        // reshape
-        if (gph_.find(next_name) == gph_.end()) {
-            gph_[next_name] = Tensor(backend_);
-            gph_[next_name].setName(next_name);
-        }
-        gph_[next_name].trans_copy_shape(gph_[name_].shape());
-        if(std::equal(gph_[next_name].chls_.begin(), gph_[next_name].chls_.end(), gph_[name_].chls_.begin())) {
-            for (auto axis : axiss) {
-                auto axis0 = axis.first;
-                auto axis1 = axis.second;
-                auto ori_0_idx = gph_[next_name].chls_[axis0];
-                auto ori_1_idx = gph_[next_name].chls_[axis1];
-                gph_[next_name].chls_[axis0] = ori_1_idx;
-                gph_[next_name].chls_[axis1] = ori_0_idx;
+        case TENSOR_STATIC_INIT: {
+            if (gph_.find(name_) == gph_.end()) {
+                gph_[name_] = *this;
+                gph_[name_].status() = status_;
             }
-            gph_[next_name].changeCtype(gph_[name_].shape().size());
-            gph_[next_name].undiffusion_ = true;
+            // reshape
+            if (gph_.find(next_name) == gph_.end()) {
+                gph_[next_name] = Tensor(backend_);
+                gph_[next_name].setName(next_name);
+            }
+            gph_[next_name].trans_copy_shape(gph_[name_].shape());
+            std::map<Chl, int> origin_chls = {{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3},
+                                {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
+            if(std::equal(gph_[next_name].chls_.begin(), gph_[next_name].chls_.end(), origin_chls.begin())) {
+                gph_[next_name].chls_ = gph_[name_].chls_;
+                for (auto axis : axiss) {
+                    auto axis0 = axis.first;
+                    auto axis1 = axis.second;
+                    auto ori_0_idx = gph_[next_name].chls_[axis0];
+                    auto ori_1_idx = gph_[next_name].chls_[axis1];
+                    gph_[next_name].chls_[axis0] = ori_1_idx;
+                    gph_[next_name].chls_[axis1] = ori_0_idx;
+                }
+                gph_[next_name].changeCtype(gph_[name_].shape().size());
+                gph_[next_name].undiffusion_ = true;
+            }
+            break;
         }
-        break;
-    }
-    case TENSOR_STATIC_SHAPED: {
-        if(gph_[name_].masterTensor() != nullptr) {
-            if (gph_[next_name].master_tensor_ == nullptr) {
+        case TENSOR_STATIC_SHAPED: {
+            if(gph_[name_].masterTensor() != nullptr) {
+                if (gph_[next_name].master_tensor_ == nullptr) {
+                    gph_[next_name].setDtype(gph_[name_].dtype());
+                    gph_[next_name].deepCopyFrom(gph_[name_], false);
+                }
+            }else {
+                if(gph_[name_].masterTensor() == nullptr) {
+                    gph_[name_].free();
+                }
                 gph_[next_name].setDtype(gph_[name_].dtype());
-                gph_[next_name].deepCopyFrom(gph_[name_], false);
+                gph_[next_name].alloc();
+                gph_[name_].undiffusion_ = true;
+                gph_[name_].deepCopyFrom(gph_[next_name], false);
+                gph_[next_name].trans_from_ = axiss;
             }
-        }else {
-            if(gph_[name_].masterTensor() == nullptr) {
-                gph_[name_].free();
-            }
-            gph_[next_name].setDtype(gph_[name_].dtype());
-            gph_[next_name].alloc();
-            gph_[name_].undiffusion_ = true;
-            gph_[name_].deepCopyFrom(gph_[next_name], false);
-            gph_[next_name].trans_from_ = axiss;
+            break;
         }
-        break;
-    }
-    case TENSOR_STATIC_ALLOCED: {
-        break;
-    }
-    default: {
-    }
+        case TENSOR_STATIC_ALLOCED: {
+            break;
+        }
+        default: {
+        }
+        }
     }
     gph_[next_name].status() = status_;
     return gph_[next_name];
@@ -393,6 +399,41 @@ Tensor &Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d)
     }
     case TENSOR_STATIC_ALLOCED: {
         CPUclipFunction::execute(gph_[name_], gph_[next_name], b, h, s, d);
+        break;
+    }
+    default: {
+    }
+    }
+    gph_[next_name].status() = status_;
+    return gph_[next_name];
+}
+
+
+Tensor &Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
+    const std::string next_name = name_ + "-clip";
+    switch (status_) {
+    case TENSOR_DYNAMIC: {
+        std::cout << "[TODO] not support dynamic tensor view" << std::endl;
+        break;
+    }
+    case TENSOR_STATIC_INIT: {
+        if (gph_.find(name_) == gph_.end()) {
+            gph_[name_] = *this;
+            gph_[name_].status() = status_;
+        }
+        if (gph_.find(next_name) == gph_.end()) {
+            gph_[next_name] = Tensor(backend_);
+            gph_[next_name].setName(next_name);
+        }
+        CPUclipaxisFunction::reshape(gph_[name_], gph_[next_name], keep_axis, b, h, s, d);
+        break;
+    }
+    case TENSOR_STATIC_SHAPED: {
+        CPUclipaxisFunction::setup(gph_[name_], gph_[next_name],  keep_axis, b, h, s, d);
+        break;
+    }
+    case TENSOR_STATIC_ALLOCED: {
+        CPUclipaxisFunction::execute(gph_[name_], gph_[next_name],  keep_axis, b, h, s, d);
         break;
     }
     default: {

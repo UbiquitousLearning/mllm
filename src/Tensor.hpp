@@ -294,6 +294,8 @@ public:
                 return ((b_ * base_dimension_ + d_) * base_head_ + h_) * base_sequence_ + s_;
             case SBHD:
                 return ((s_ * base_batch_ + b_) * base_head_ + h_) * base_dimension_ + d_;
+            case DBHS:
+                return ((d_ * base_batch_ + b_) * base_head_ + h_) * base_sequence_ + s_;
             default:
                 break;
             }
@@ -307,6 +309,8 @@ public:
                 return ((b * shape_[1] + d) * shape_[2] + h) * shape_[3] + s;
             case SBHD:
                 return ((s * shape_[1] + b) * shape_[2] + h) * shape_[3] + d;
+            case DBHS:
+                return ((d * shape_[1] + b) * shape_[2] + h) * shape_[3] + s;
             default:
                 break;
             }
@@ -660,7 +664,7 @@ public:
         if(shape().size() >0) {
             size = shape().size();
         }
-        if(size) {
+        if(size == 4) {
             vector<int> a = {chls_[BATCH] , chls_[HEAD] , chls_[SEQUENCE] , chls_[DIMENSION]};
             ctype_ = Chls2Type[a];
         }else {
@@ -706,6 +710,7 @@ public:
     // Tensor& transpose_(Chl axis0, Chl axis1);
     // Tensor& transpose(vector<Chl> axis);
     Tensor& clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d);
+    Tensor &clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d);
     static Tensor& cat(vector<Tensor> input_tensors, Chl dims);;
     static Tensor& mm(Tensor& input0, Tensor& input1);
     Tensor& norm(int L_n);
@@ -772,6 +777,34 @@ public:
             changeCtype();
             child_tensors_[0]->changeCtype();
             child_tensors_[0]->reshape(b, h, s, d);
+            trans_copy_shape(child_tensors_[0]->shape());
+        } else if (child_tensors_.size() == 1 && child_tensors_[0]->ctype() == BCTHW && master_tensor_->ctype_== BSHD && ctype() != BCTHW) {
+            auto b = child_tensors_[0]->batch();
+            auto c = child_tensors_[0]->channel();
+            auto t = child_tensors_[0]->time();
+            auto h = child_tensors_[0]->height();
+            auto w = child_tensors_[0]->width();
+            auto origin_c_0 = child_tensors_[0]->chls_;
+            auto origin_c_1 = chls_;
+            // chls_ = origin_c_0;
+            // child_tensors_[0]->chls_ = origin_c_1;
+
+            chls_ ={{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
+            child_tensors_[0]->chls_ = {{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
+            for (int i = trans_from_.size() - 1; i >= 0; --i) {
+                auto tf = trans_from_[i];
+                auto axis0 = tf.first;
+                auto axis1 = tf.second;
+                auto ori_0_idx = child_tensors_[0]->chls_[axis0];
+                auto ori_1_idx = child_tensors_[0]->chls_[axis1];
+                child_tensors_[0]->chls_[axis0] = ori_1_idx;
+                child_tensors_[0]->chls_[axis1] = ori_0_idx;
+            }
+            // chls_ ={{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
+            // child_tensors_[0]->chls_ = {{BATCH, 0}, {CHANNLE, 4}, {TIME, 1}, {HEIGHT, 2}, {WIDTH, 3}};
+            changeCtype();
+            child_tensors_[0]->changeCtype();
+            child_tensors_[0]->reshape(b, c, t, h, w);
             trans_copy_shape(child_tensors_[0]->shape());
         }
         host_ptr_ = source->hostPtr<void>();
@@ -936,18 +969,20 @@ public:
      *        no matter what the value of ctype_ is, these functions will return the size of the corresponding dimension.
      * \return the size of the corresponding dimension
      */
-    int channel() const {
-        assert(ctype_ == BCTHW || ctype_ == BTHWC);
-        switch (ctype_) {
-        case BCTHW:
-            return legacyShape(1);
-        case BTHWC:
-            return legacyShape(4);
-        default: return -1;
-        }
+    int channel() {
+        assert(shape().size() == 5);
+        return legacyShape(chls_[CHANNLE]);
+        // switch (ctype_) {
+        // case BCTHW:
+        //     return legacyShape(1);
+        // case BTHWC:
+        //     return legacyShape(4);
+        // default: return -1;
+        // }
     }
-    int time() const {
-        assert(ctype_ == BCTHW || ctype_ == BTHWC);
+    int time() {
+        assert(shape().size() == 5);
+        return legacyShape(chls_[TIME]);
         switch (ctype_) {
         case BCTHW:
             return legacyShape(2);
@@ -956,27 +991,29 @@ public:
         default: return -1;
         }
     }
-    int height() const {
-        assert(ctype_ == BCTHW || ctype_ == BTHWC);
-        switch (ctype_) {
-        case BCTHW:
-            return legacyShape(3);
-        case BTHWC:
-            return legacyShape(2);
-        default: return -1;
-        }
+    int height()  {
+        assert(shape().size() == 5);
+        return legacyShape(chls_[HEIGHT]);
+        // switch (ctype_) {
+        // case BCTHW:
+        //     return legacyShape(3);
+        // case BTHWC:
+        //     return legacyShape(2);
+        // default: return -1;
+        // }
     }
-    int width() const {
-        assert(ctype_ == BCTHW || ctype_ == BTHWC);
-        switch (ctype_) {
-        case BCTHW:
-            return legacyShape(4);
-        case BTHWC:
-            return legacyShape(3);
-        default: return -1;
-        }
+    int width()  {
+        assert(shape().size() == 5);
+        return legacyShape(chls_[WIDTH]);
+        // switch (ctype_) {
+        // case BCTHW:
+        //     return legacyShape(4);
+        // case BTHWC:
+        //     return legacyShape(3);
+        // default: return -1;
+        // }
     }
-    int offset(const int b, const int c, const int t, const int h, const int w) const {
+    int offset(const int b, const int c, const int t, const int h, const int w)  {
         assert(ctype_ == BCTHW || ctype_ == BTHWC);
         switch (ctype_) {
         case BCTHW:
@@ -987,7 +1024,7 @@ public:
         }
     }
     template <typename Dtype>
-    Dtype dataAt(const int batch, const int channel, const int time, const int height, const int width) const {
+    Dtype dataAt(const int batch, const int channel, const int time, const int height, const int width)  {
         assert(ctype_ == BCTHW || ctype_ == BTHWC);
         return ((Dtype *)host_ptr_)[offset(batch, channel, time, height, width)];
     }

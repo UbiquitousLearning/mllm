@@ -29,7 +29,7 @@ public:
             bias_kv_cat = true;
         }
         attention = MultiHeadAttention(hidden_dim, head_size, hidden_dim / head_size,
-                                       true, false, bias_kv_cat,
+                                       SPLIT_HD, false, bias_kv_cat,
                                        RoPEType::NONE, 0, do_mask, true,
                                        names, base_name + names._attn_base_name);
         ffn = FeedForward(hidden_dim, ffn_hidden, "GELU", true,
@@ -63,9 +63,8 @@ public:
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto embd = patch_embedding(inputs[0]);
-        // embd = embd.transpose(THW, CHANNLE);
-        embd = embd.transpose({{CHANNLE, TIME}, {CHANNLE, WIDTH}, {CHANNLE, HEIGHT}});// BCTHW->-->BTHWC
-        embd = embd.flatten(TIME, WIDTH);
+        embd = embd.transpose({{WIDTH, HEIGHT}, {WIDTH, TIME}, {WIDTH, CHANNLE}});
+        embd = embd.flatten(CHANNLE, HEIGHT);
         embd = Tensor::cat({cls_token(), embd}, SEQUENCE);
         embd = pos_embed() + embd;
         return {embd};
@@ -138,12 +137,12 @@ public:
         head = Linear(hidden_dim, head_hidden_dim, false, names.text_head_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
-        int in_len_ = std::any_cast<int>(args[0]);
+        vector<int> in_len_ = std::any_cast<vector<int>>(args[0]);
         auto x = embedding(inputs)[0];
         for (auto &block : blocks) {
             x = block({x})[0];
         }
-        x = x.clip({}, {}, {in_len_}, {});
+        x = x.clip(BATCH,  {}, {}, in_len_, {});
         x = norm(x);
         x = head(x);
         x = x / x.norm(2);
@@ -158,31 +157,33 @@ class ImagebindModel final : public Module {
     Layer vision_text_softmax;
 
 public:
-    explicit ImagebindModel(const ImagebindConfig &config):
+    explicit ImagebindModel(const ImagebindConfig &config) :
         ImagebindModel(config.vision_hidden_dim, config.vision_head_size, config.vision_ffn_hidden, config.patch, config.patch_time, config.img_hw, config.vision_block_num,
                        config.text_hidden_dim, config.text_head_size, config.text_ffn_hidden, config.vocab_size, config.max_position_embeddings, config.text_block_num,
                        config.head_hidden_dim,
-                       config.names_config) {};
+                       config.names_config){};
     ImagebindModel(int vision_hidden_dim, int vision_head_size, int vision_ffn_hidden, int patch, int patch_time, int img_hw, int vision_block_num,
                    int text_hidden_dim, int text_head_size, int text_ffn_hidden, int vocab_size, int max_position_embeddings, int text_block_num,
                    int head_hidden_dim,
                    const ImagebindNameConfig &names) {
-        vision_model = ImagebindVisionModel(vision_hidden_dim, vision_head_size, vision_ffn_hidden, head_hidden_dim,
-                                            patch, patch_time, img_hw, vision_block_num, names);
         text_model = ImagebindTextModel(text_hidden_dim, text_head_size, text_ffn_hidden, head_hidden_dim,
                                         vocab_size, max_position_embeddings, text_block_num, names);
-        vision_text_softmax = Softmax( DIMENSION, "final.vision@text.softmax");
+        vision_model = ImagebindVisionModel(vision_hidden_dim, vision_head_size, vision_ffn_hidden, head_hidden_dim,
+                                            patch, patch_time, img_hw, vision_block_num, names);
+        vision_text_softmax = Softmax(DIMENSION, "final.vision@text.softmax");
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
-        int in_len_ = std::any_cast<int>(args[0]);
+
+        vector<int> in_len_ = std::any_cast<vector<int>>(args[0]);
         auto text = text_model({inputs[0]}, in_len_)[0];
         auto vision = vision_model({inputs[1]})[0];
 
         text = text.transpose(BATCH, SEQUENCE);
         vision = vision.transpose(BATCH, SEQUENCE);
 
+        text = text.transpose(SEQUENCE, DIMENSION);
         auto out = Tensor::mm(vision, text);
-        out = vision_text_softmax( out);
+        out = vision_text_softmax(out);
         return {out};
     }
 };

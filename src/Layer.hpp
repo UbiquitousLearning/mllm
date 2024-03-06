@@ -146,8 +146,8 @@ protected:
             op_->execute(shared_inputs, shared_outputs);
             if(Tensor::gph_[next_name].aggregated() == false) {
                 assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
-                // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
             }
+            // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
             break;
         }
         default: {
@@ -445,6 +445,7 @@ protected:
             op_->execute(shared_inputs, shared_outputs);
             for (int i = 0; i < shared_outputs.size(); ++i) {
                 assert(Tensor::gph_[next_names[i]].hostPtr<float>() != nullptr);
+                //Tensor::gph_[next_names[i]].saveNData<float>(layer_next_names[i]);
             }
             break;
         }

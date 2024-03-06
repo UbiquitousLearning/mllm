@@ -62,11 +62,12 @@ enum ChlType {
 
     BCTHW = 3,
     BTHWC = 4,
+    BWCTH = 5,
 
-    SBHD = 10,  //not used
-
+    SBHD = 10,
     BDHS = 11,
-    BDSH = 12
+    BDSH = 12,
+    DBHS = 13
 };
 
 
@@ -76,8 +77,10 @@ inline std::map<std::vector<int>, ChlType> Chls2Type = {
     {{0, 2, 1, 3}, BSHD},
     {{1, 2, 0, 3}, SBHD},
     {{0, 3, 2, 1}, BDSH},
+    {{1, 2, 3, 0}, DBHS},
     {{0, 1, 2, 3, 4}, BTHWC},
-    {{0, 2, 3, 4, 1}, BCTHW}
+    {{0, 2, 3, 4, 1}, BCTHW},
+    {{0, 3, 4, 1, 2}, BWCTH}
 };
 
 
@@ -92,7 +95,7 @@ enum Chl {
     HEAD = 2,
     DIMENSION = 3,
 
-    HD = 113,
+    HD = 113, //only use for split attn.in_proj
     D_HD = 313, //only use for split attn.in_proj
 
     CHANNLE = 1,

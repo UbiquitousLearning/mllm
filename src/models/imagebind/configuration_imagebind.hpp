@@ -35,10 +35,12 @@ public:
         _down_proj_name = "fc2";
         _attn_norm_name = "norm_1";
         _ffn_norm_name = "norm_2";
+        _attn_base_name = "attn.";
+        _ffn_base_name = "mlp.";
 
         _vision_embd_name = "modality_preprocessors.vision.";
         _patch_embedding_name = "rgbt_stem.proj.1";
-        _cls_token_name = "class_embedding";
+        _cls_token_name = "cls_token";
         _vision_pos_embed_name = "pos_embedding_helper.pos_embed";
 
         vision_pre_transformer_layer_name = "modality_trunks.vision.pre_transformer_layer.0";
@@ -50,8 +52,8 @@ public:
         _token_embedding_name = "token_embedding";
         _pos_embed_name = "pos_embed";
 
-        text_post_norm_name = "modality_heads.text.0";
-        text_head_name = "modality_heads.text.1";
+        text_post_norm_name = "modality_heads.text.proj.0";
+        text_head_name = "modality_heads.text.proj.1";
         _text_blocks_name = "modality_trunks.text.blocks.";
     }
 };

@@ -9,6 +9,14 @@
 
 using namespace mllm;
 
+
+enum AttnQKVSplitType {
+    SPLIT_NONE = 0,
+    SPLIT_HD = Chl::HD,
+    SPLIT_D_HD = Chl::D_HD,
+};
+
+
 class MultiHeadAttention final : public Module {
     Layer qkv_proj;
     Split qkv_split;
@@ -32,14 +40,14 @@ class MultiHeadAttention final : public Module {
 public:
     MultiHeadAttention() = default;
     MultiHeadAttention(int hidden_dim, int head_size, int attn_hidden_dim,
-                       bool do_qkv_proj, bool post_qkv_norm, bool bias_kv_cat,
+                       AttnQKVSplitType do_qkv_proj, bool post_qkv_norm, bool bias_kv_cat,
                        RoPEType RoPE_type, int cache_limit, bool do_mask, bool bias,
                        const TransformerNameConfig &names, const string &base_name) {
         attn_hidden_dim_ = attn_hidden_dim;
         head_size_ = head_size;
-        if (do_qkv_proj) {
+        if (do_qkv_proj > 0) {
             qkv_proj = Linear(hidden_dim, head_size * attn_hidden_dim * 3, bias, base_name + names._qkv_proj_name);
-            qkv_split = Split(3, Chl::D_HD, head_size, base_name + names._qkv_proj_name + ".split");
+            qkv_split = Split(3, (Chl)do_qkv_proj, head_size, base_name + names._qkv_proj_name + ".split");
         } else {
             q_proj = Linear(hidden_dim, head_size * attn_hidden_dim, bias, base_name + names._q_proj_name);
             k_proj = Linear(hidden_dim, head_size * attn_hidden_dim, bias, base_name + names._k_proj_name);

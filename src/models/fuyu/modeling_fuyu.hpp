@@ -22,7 +22,7 @@ class PersimmonBlock final : public Module {
 public:
     PersimmonBlock() = default;
     PersimmonBlock(int hidden_dim, int head_size, int ffn_hidden, int cache_limit, const FuyuNameConfig &names, const string &base_name) {
-        attention = MultiHeadAttention(hidden_dim, head_size, hidden_dim / head_size, true, true, false,
+        attention = MultiHeadAttention(hidden_dim, head_size, hidden_dim / head_size, SPLIT_D_HD, true, false,
                                        PERSIMMONROPE, cache_limit, true, true, names, base_name + names._attn_base_name);
         mlp = FeedForward(hidden_dim, ffn_hidden, "ReLU2", true,
                           names, base_name + names._ffn_base_name);
