@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
     QNNExecutor ex(&param_loader);
 
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    fullTensor(input, net, {1, 1, 32, hidden_dim}, 2.f);
+    fullTensor(input, net, {1, 1, 1, hidden_dim}, 2.f);
     ex.setup(&net);
 
     for (int i=0; i<1; i++) {

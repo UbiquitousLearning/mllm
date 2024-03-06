@@ -30,6 +30,28 @@ void QNNExecutor::setup(Net *net) {
     }
 }
 
+void QNNExecutor::QNNGraphThreadExecute(int id, Net* net) {
+
+    string typeName = "Prompt_Graph.";
+    
+    std::vector<int> names;
+    std::vector<QNNGraph*> qnn_graphs;
+    for (int i = id; i < (int)net->subGraph().size(); i+=this->threadNum_) {
+        string name = typeName + std::to_string(i);
+        auto &g = net->subGraph()[name];
+        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+        
+        qnn_graphs.push_back(qnn_graph);
+        names.push_back(i);
+    }
+
+    while(!this->threadVar_[id])
+        usleep(10);
+
+    for (int i = 0; i < names.size(); i++) 
+        result_ = qnn_graphs[i]->forward(typeName + std::to_string(names[i]));
+}
+
 void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     bool init = false;
     bool reshape = false;
@@ -57,6 +79,7 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
         net->subGraph()[typeName + std::to_string(Gid)]->reflashInput(net->tensors());
     }
 
+    std::fstream fs("AR_latency.txt", std::ios::app);
     auto ex_time_start = mllm_time_us();
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
@@ -88,20 +111,37 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
         }
     }
     auto ex_time_end = mllm_time_us();
-    std::cout << "setup all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+
+    std::thread qnnGraphThread_0(&QNNExecutor::QNNGraphThreadExecute, this, 0, net);
+    std::thread qnnGraphThread_1(&QNNExecutor::QNNGraphThreadExecute, this, 1, net);
+    std::thread qnnGraphThread_2(&QNNExecutor::QNNGraphThreadExecute, this, 2, net);
+    // std::thread qnnGraphThread_3(&QNNExecutor::QNNGraphThreadExecute, this, 3, net);
+
+    fs << "setup all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     ex_time_start = mllm_time_us();
 
     // execute all graphs here
-    for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        string name = typeName + std::to_string(i);
-        auto &g = net->subGraph()[name];
-        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-        result_ = qnn_graph->forward(name);
-    }
+    // for (int i = 0; i < (int)net->subGraph().size(); ++i) {
+    //     string name = typeName + std::to_string(i);
+    //     auto &g = net->subGraph()[name];
+    //     auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+    //     result_ = qnn_graph->forward(name);
+    // }
+
+    threadVar_[0] = true;
+    threadVar_[1] = true;
+    threadVar_[2] = true;
+    // threadVar_[3] = true;
+
+    qnnGraphThread_0.join();
+    qnnGraphThread_1.join();
+    qnnGraphThread_2.join();
+    // qnnGraphThread_3.join();
+
 
     ex_time_end = mllm_time_us();
-    std::cout << "execute all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+    fs << "execute all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     // free all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
@@ -120,7 +160,7 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     }
     
     // open file "AR_latency.txt" to record the time of each token
-    std::fstream fs("AR_latency.txt", std::ios::app);
+    
     fs << "---------------" << std::endl;
     
     if (input_tensors[0]->sequence() == 1) {

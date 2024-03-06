@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <Graph.hpp>
 #include <thread>
+#include <unistd.h>
 
 using std::unordered_map;
 
@@ -43,6 +44,9 @@ public:
 
 private:
     uint autoregressive_seq_pos_ = 0;
+    std::thread *qnnThread_;
+
+    bool threadVar_ = false;
 
 };
 
