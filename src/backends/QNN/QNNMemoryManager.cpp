@@ -151,9 +151,11 @@ void QNNMemoryManager::deRegisterQnnTensor() {
             // handle errors
             std::cerr << "qnnInterface_.memDeRegister failed" << std::endl;
         }
-        rpcmem_free(mem.first);
-        ptrToFdAndMemHandleMap_.erase(mem.first);
+        // rpcmem_free(mem.first);
+        // clear the map outside the loop.
+        // ptrToFdAndMemHandleMap_.erase(mem.first);
     }
+    ptrToFdAndMemHandleMap_.clear();
 #endif
 }
 
