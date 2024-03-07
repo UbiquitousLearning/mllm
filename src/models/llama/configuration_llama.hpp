@@ -49,8 +49,8 @@ public:
             _down_proj_name = "down_proj";
             _attn_norm_name = "input_layernorm";
             _ffn_norm_name = "post_attention_layernorm";
-            token_embd_name = "embed_tokens";
-            post_norm_name = "norm";
+            token_embd_name = "model.embed_tokens";
+            post_norm_name = "model.norm";
             lm_head_name = "lm_head";
             break;
         }

@@ -35,6 +35,7 @@ class MultiHeadAttention final : public Module {
     Parameter bias_k;
     Parameter bias_v;
     int head_size_{};
+    int kv_head_size_{};
     int attn_hidden_dim_{};
 
 public:
@@ -45,6 +46,7 @@ public:
                        const TransformerNameConfig &names, const string &base_name) {
         attn_hidden_dim_ = attn_hidden_dim;
         head_size_ = head_size;
+        kv_head_size_ = kv_head_size;
         if (do_qkv_proj > 0) {
             qkv_proj = Linear(hidden_dim, head_size * attn_hidden_dim * 3, bias, base_name + names._qkv_proj_name);
             qkv_split = Split(3, (Chl)do_qkv_proj, head_size, base_name + names._qkv_proj_name + ".split");
@@ -88,8 +90,8 @@ public:
             k = k_proj(inputs[1]);
             v = v_proj(inputs[2]);
             q = q.view(-1, head_size_, -1, attn_hidden_dim_);
-            k = k.view(-1, head_size_, -1, attn_hidden_dim_);
-            v = v.view(-1, head_size_, -1, attn_hidden_dim_);
+            k = k.view(-1, kv_head_size_, -1, attn_hidden_dim_);
+            v = v.view(-1, kv_head_size_, -1, attn_hidden_dim_);
         }
         if (q_norm.ready() && k_norm.ready()) {
             q = q_norm(q);
