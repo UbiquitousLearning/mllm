@@ -57,7 +57,7 @@ ErrorCode QNNKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 
     // outputs[0]->setDtype(MLLM_TYPE_I8);
     outputs[0]->setBackend(qnnBackend_);
-    outputs[0]->alloc(qnn_size_);
+    outputs[0]->alloc(alloc_size_);
 
     // output for net shape and QNN name index
     // cache_ for QNN shared buffer storage
