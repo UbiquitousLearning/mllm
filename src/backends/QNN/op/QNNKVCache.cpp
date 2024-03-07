@@ -11,7 +11,7 @@
 namespace mllm {
 QNNKVCache::QNNKVCache(Backend *bn, string opName, bool isK) :
     QNNCommonOp(bn, opName), isK_(isK) {
-    cache_size_ = 1;
+    cache_size_ = 512;
     dimension_size_ = 4096;
     seq_pos_cpu_ = 0;
     seq_pos_.setBackend(bn);
@@ -29,7 +29,7 @@ ErrorCode QNNKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 
     // NSHD 
     alloc_size_[0] = inputs[0]->batch();
-    alloc_size_[1] = (( inputs[0]->sequence() + seq_pos_cpu_ ) / DYNAMICBUFFER + 1) * DYNAMICBUFFER;
+    alloc_size_[1] = cache_size_;
     alloc_size_[2] = inputs[0]->head();
     alloc_size_[3] = inputs[0]->dimension();
 
