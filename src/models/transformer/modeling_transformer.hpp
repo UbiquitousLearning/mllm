@@ -39,7 +39,7 @@ class MultiHeadAttention final : public Module {
 
 public:
     MultiHeadAttention() = default;
-    MultiHeadAttention(int hidden_dim, int head_size, int attn_hidden_dim,
+    MultiHeadAttention(int hidden_dim, int head_size,int kv_head_size, int attn_hidden_dim,
                        AttnQKVSplitType do_qkv_proj, bool post_qkv_norm, bool bias_kv_cat,
                        RoPEType RoPE_type, int cache_limit, bool do_mask, bool bias,
                        const TransformerNameConfig &names, const string &base_name) {
@@ -50,8 +50,8 @@ public:
             qkv_split = Split(3, (Chl)do_qkv_proj, head_size, base_name + names._qkv_proj_name + ".split");
         } else {
             q_proj = Linear(hidden_dim, head_size * attn_hidden_dim, bias, base_name + names._q_proj_name);
-            k_proj = Linear(hidden_dim, head_size * attn_hidden_dim, bias, base_name + names._k_proj_name);
-            v_proj = Linear(hidden_dim, head_size * attn_hidden_dim, bias, base_name + names._v_proj_name);
+            k_proj = Linear(hidden_dim, kv_head_size * attn_hidden_dim, bias, base_name + names._k_proj_name);
+            v_proj = Linear(hidden_dim, kv_head_size * attn_hidden_dim, bias, base_name + names._v_proj_name);
         }
         if (post_qkv_norm) {
             q_norm = LayerNorm(attn_hidden_dim, true, 1e-6, base_name + names._q_norm_name);
@@ -62,8 +62,8 @@ public:
             k_rope = RoPE(RoPE_type, base_name + "k_rope");
         }
         if (cache_limit > 0) {
-            k_cache = KVCache(cache_limit, base_name + "k_cache");
-            v_cache = KVCache(cache_limit, base_name + "v_cache");
+            k_cache = KVCache(head_size/kv_head_size, cache_limit, base_name + "k_cache");
+            v_cache = KVCache(head_size/kv_head_size, cache_limit, base_name + "v_cache");
         }
         if (do_mask) {
             mask = Causalmask(base_name + "mask");

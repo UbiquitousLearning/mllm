@@ -28,7 +28,7 @@ public:
         } else if (model_type == "audio") {
             bias_kv_cat = true;
         }
-        attention = MultiHeadAttention(hidden_dim, head_size, hidden_dim / head_size,
+        attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size,
                                        SPLIT_HD, false, bias_kv_cat,
                                        RoPEType::NONE, 0, do_mask, true,
                                        names, base_name + names._attn_base_name);
