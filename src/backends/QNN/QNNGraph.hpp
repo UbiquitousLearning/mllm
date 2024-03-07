@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <Graph.hpp>
 #include <thread>
+#include <unistd.h>
 
 using std::unordered_map;
 
@@ -36,11 +37,16 @@ public:
     const vector<shared_ptr<Tensor>> &forward(std::string graphName);
 
     void setUpTensors(std::string graphName);
+    void free(std::string graphName);
+    void allFree();
 
     void QNNThreadExecute();
 
 private:
     uint autoregressive_seq_pos_ = 0;
+    std::thread *qnnThread_;
+
+    bool threadVar_ = false;
 
 };
 

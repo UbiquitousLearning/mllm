@@ -76,8 +76,8 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                                                             .dataSize = (uint32_t)weight_.cntSize()}}}}});
         // final output
         uint32_t dimensionsOutput[4] = {static_cast<uint32_t>(outputs[0]->batch()),
-                                        static_cast<uint32_t>(1),
                                         static_cast<uint32_t>(outputs[0]->sequence()),
+                                        static_cast<uint32_t>(outputs[0]->head()),
                                         static_cast<uint32_t>(outputs[0]->dimension())};
         auto outString = outputs[0]->name();
         vector<Qnn_Tensor_t>

@@ -53,8 +53,8 @@ NetTensor *Attention(Context *c, NetTensor *x, int embedding_size, int hidden_si
     v = v->view(-1, head_size, -1, hidden_size);
     // q = _RoPE({q}, LLAMAROPE, name + ".q_rope");
     // k = _RoPE({k}, LLAMAROPE, name + ".k_rope");
-    // k = _KVCache({k}, cache_max, name + ".k_cache");
-    // v = _KVCache({v}, cache_max, name + ".v_cache");
+    k = _KVCache({k}, cache_max, name + ".k_cache");
+    v = _KVCache({v}, cache_max, name + ".v_cache");
 
     // auto *m = _MergeOutput({q,k,v}, name + ".qkv_merge");
 
@@ -65,19 +65,23 @@ NetTensor *Attention(Context *c, NetTensor *x, int embedding_size, int hidden_si
     // q = s[0];
     // k = s[1];
     // v = s[2];
+    q = _Dequantize({q}, true, (string) name + ".q.dequantize");
+    k = _Dequantize({k}, true, (string) name + ".k.dequantize");
+    v = _Dequantize({v}, true, (string) name + ".v.dequantize");
 
-    auto *qk = _MatmulINT8({q, k}, false, true, name + ".qk");
-    qk = _Dequantize({qk}, false, (string) name + ".qk.dequantize");
+    auto *qk = _Matmul({q, k}, false, true, name + ".qk");
+    // qk = _Dequantize({qk}, false, (string) name + ".qk.dequantize");
 
     // qk = *qk / std::sqrt(hidden_size);
     // qk = _Causalmask({qk}, name + ".mask");
     qk = _Softmax({qk}, DIMENSION, name + ".softmax");
 
-    qk = _Quantize({qk}, false, (string) name + ".qk.quantize");
-    auto *o = _MatmulINT8({qk, v}, false, false, name + ".qkv");
+    // qk = _Quantize({qk}, false, (string) name + ".qk.quantize");
+    auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
 
     // _SubgraphBegin(c);
 
+    o = _Quantize({o}, true, (string) name + ".o.quantize");
     o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
     o = _Dequantize({o}, true, (string) name + ".o.dequantize");
@@ -101,19 +105,20 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
     // _SubgraphBegin(c);
     // loop
     
-    for (int layer = 0; layer < 1; ++layer) {
-        i = Attention(c, i, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn");
-        i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
-        i = FFN(i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
-        i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
+    for (int layer = 0; layer < 16; ++layer) {
+        auto *x = *Attention(c, i, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn") + i;
+        i = _RMSNorm({x}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
+        x = *FFN(i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp") + i;
+        i = _RMSNorm({x}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
         // _SubgraphBegin(c);
     }
  
     // end loop
-    // i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
-    i = _Quantize({i},  true, ".model.quantize");
-    i = _LinearINT8({i}, hidden_dim, vocab_size, false, "output");
-    i = _Dequantize({i}, true,  ".model.dequantize");
+    i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
+    // i = _Quantize({i},  true, ".model.quantize");
+    // i = _LinearINT8({i}, hidden_dim, vocab_size, false, "output");
+    // i = _Dequantize({i}, true,  ".model.dequantize");
+    i = _Linear({i}, hidden_dim, vocab_size, false, "output");
 }
 
 template <typename Dtype>
@@ -145,10 +150,10 @@ int main(int argc, char **argv) {
     QNNExecutor ex(&param_loader);
 
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    fullTensor(input, net, {1, 1, 1, hidden_dim}, 2.f);
+    fullTensor(input, net, {1, 1, 4, hidden_dim}, 2.f);
     ex.setup(&net);
 
-    for (int i=0; i<1; i++) {
+    for (int i=0; i<32; i++) {
         ex.run(&net, {input});
     }
     
