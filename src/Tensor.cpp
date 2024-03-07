@@ -237,6 +237,40 @@ Tensor& Tensor::operator/(Tensor& other){
     return binaryTwoCompute(std::divides<float>(), "-TTdiv", other);
 }
 
+Tensor& Tensor::mean(Chl axis) {
+    const std::string next_name = name_ + "-mean";
+    switch (status_) {
+    case TENSOR_DYNAMIC: {
+        std::cout<<"[TODO] not support dynamic tensor view"<<std::endl;
+        break;
+    }
+    case TENSOR_STATIC_INIT: {
+        if (gph_.find(name_) == gph_.end()) {
+            gph_[name_] = *this;
+            gph_[name_].status() = status_;
+        }
+        if (gph_.find(next_name) == gph_.end()) {
+            gph_[next_name] = Tensor( backend_);
+            gph_[next_name].setName(next_name);
+        }
+        CPUmeanFunction::reshape(gph_[name_], gph_[next_name], axis);
+        break;
+    }
+    case TENSOR_STATIC_SHAPED: {
+        CPUmeanFunction::setup(gph_[name_], gph_[next_name], axis);
+        break;
+    }
+    case TENSOR_STATIC_ALLOCED: {
+        CPUmeanFunction::execute(gph_[name_], gph_[next_name], axis);
+        break;
+    }
+    default: {
+    }
+    }
+    gph_[next_name].status() = status_;
+    return gph_[next_name];
+}
+
 Tensor& Tensor::view(int b, int h, int s, int d) {
     const std::string next_name = name_ + "-view";
     switch (status_) {

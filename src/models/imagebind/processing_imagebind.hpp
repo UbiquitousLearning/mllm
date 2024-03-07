@@ -144,7 +144,8 @@ public:
     }
 
     void showResult(Tensor& tensor){
-        std::cout<<"vision X text :"<<std::endl;
+        // std::cout<<"vision X text :"<<std::endl;
+        // std::cout<<std::endl;
         for (int s = 0; s < tensor.sequence(); ++s) {
             for (int d = 0; d < tensor.dimension(); ++d) {
                 std::cout<<tensor.dataAt<float>(0, 0, s, d)<<" ";
@@ -159,58 +160,13 @@ public:
         //     std::cout<<std::endl;
         // }
     }
-/*
-    struct imagebind_text_out{
-        Tensor text_tensors;
-        vector<int> in_len;
-    };
-
-    imagebind_text_out process_text(vector<string> in_strs, int max_pos, vector<string> img_path, int hw, vector<string> wav_path,
-                                                       string text_name = "input_text", string img_name = "input_vision", string wav_name = "input_audio",
-                                                       BackendType type = MLLM_CPU) {
-        auto tokens_ids = vector<vector<token_id_t>>();
-        for (auto in_str : in_strs) {
-            in_str = toLowercase(in_str);
-            vector<mllm::token_id_t> tokens_id = {};
-            tokenizer->tokenize(in_str, tokens_id, true, true, "</w>");
-            tokens_ids.push_back(tokens_id);
+    void showResult(vector<Tensor> tensors) {
+        vector<string> shows = {"vision X text :", "vision X audio :"};
+        for (int i = 0; i < tensors.size(); ++i) {
+            std::cout<<shows[i]<<std::endl;
+            showResult(tensors[i]);
         }
-        vector<int> input_text_lens ={};
-        for (auto tokens_id : tokens_ids) {
-            input_text_lens.push_back(tokens_id.size() - 1);
-        }
-
-        clip_processor->PreProcessImages(img_path, hw, hw);
-        auto images = clip_processor->pixel_values_;
-
-        auto audios = PreProcessor::ProcessAudio(std::move(wav_path));
-
-        return {tokens2Input(tokens_ids, max_pos, std::move(text_name)), input_text_lens};
     }
-
-    Tensor process_vision(vector<string> in_strs, int max_pos, vector<string> img_path, int hw, vector<string> wav_path,
-                                                       string text_name = "input_text", string img_name = "input_vision", string wav_name = "input_audio",
-                                                       BackendType type = MLLM_CPU) {
-        auto tokens_ids = vector<vector<token_id_t>>();
-        for (auto in_str : in_strs) {
-            in_str = toLowercase(in_str);
-            vector<mllm::token_id_t> tokens_id = {};
-            tokenizer->tokenize(in_str, tokens_id, true, true, "</w>");
-            tokens_ids.push_back(tokens_id);
-        }
-        vector<int> input_text_lens ={};
-        for (auto tokens_id : tokens_ids) {
-            input_text_lens.push_back(tokens_id.size() - 1);
-        }
-
-        clip_processor->PreProcessImages(img_path, hw, hw);
-        auto images = clip_processor->pixel_values_;
-
-        auto audios = PreProcessor::ProcessAudio(std::move(wav_path));
-
-        return img2Tensor(images, std::move(img_name));
-    }
-    */
 
 };
 

@@ -31,6 +31,6 @@ int main(int argc, char **argv) {
         {"a dog.", "A car", "A bird"},config.max_position_embeddings,
         {"../assets/dog_image.jpg", "../assets/car_image.jpg", "../assets/bird_image.jpg"}, config.img_hw,
         {"../assets/dog_audio.wav", "../assets/car_audio.wav", "../assets/bird_audio.wav"});
-    auto result = model({input_tensors.text_tensors, input_tensors.img_tensors}, input_tensors.in_len);
-    processor.showResult(result[0]);
+    auto result = model({input_tensors.text_tensors, input_tensors.img_tensors, input_tensors.audio_tensors}, input_tensors.in_len);
+    processor.showResult(result);
 }

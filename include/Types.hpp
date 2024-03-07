@@ -107,6 +107,7 @@ enum Chl {
 
 };
 
+#define ANYDIM -198098
 
 enum PaddingType {
     SAME,

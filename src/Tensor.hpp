@@ -700,6 +700,7 @@ public:
     Tensor& operator-(Tensor& other);
     Tensor& operator*(Tensor& other);
     Tensor& operator/(Tensor& other);
+    Tensor& mean(Chl axis);
 
 
     Tensor& view(int b, int h, int s, int d);
