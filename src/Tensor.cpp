@@ -68,16 +68,18 @@ void Tensor::alloc(vector<uint> alloc_size) {
     if(!shape_offset_.empty() & !shape_master_.empty()) {
         return;
     }
-    if (allocated_ != count_) {
+    // alloc size is different from shape size
+    size_t qnn_alloc_size = alloc_size[0] * alloc_size[1] * alloc_size[2] * alloc_size[3];
+    
+    if (allocated_ != qnn_alloc_size) {
         if (host_ptr_ != nullptr) {
             backend_->free(host_ptr_);
             host_ptr_ = nullptr;
         }
 
-        // alloc size is different from shape size
-        size_t qnn_alloc_size = alloc_size[0] * alloc_size[1] * alloc_size[2] * alloc_size[3];
+        
         if(qnn_alloc_size > 0) {
-            backend_->alloc(&host_ptr_, cntSize(), 8);
+            backend_->alloc(&host_ptr_, DataTypeSize(dtype_, qnn_alloc_size), 8);
         }
         allocated_ = qnn_alloc_size;
     }

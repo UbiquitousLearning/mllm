@@ -377,23 +377,94 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
     std::cout << "onExecuteStart" << std::endl;
 #endif
 
+    // to support multi-thread, we need local variable.
     // update currentInputBuffers, currentOutputBuffers, qnnModelIndex_
-    currentInputBuffers = &inputBufferMap[graphName];
-    currentOutputBuffers = &outputBufferMap[graphName];
-    qnnModelIndex_ = qnnModelIndexMap_[graphName];
-    qnn_wrapper_api::GraphInfo_t **m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
+    auto t_qnnModelIndex_ = qnnModelIndexMap_[graphName];
+    // qnn_wrapper_api::GraphInfo_t **m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
 
-    std::cout << "graph name:" << graphName << std::endl;
-    std::cout << "output buffers size" << currentOutputBuffers->size() << std::endl;
+    // std::cout << "graph name:" << graphName << std::endl;
+    // std::cout << "output buffers size" << currentOutputBuffers->size() << std::endl;
 
 // #ifdef QNN_ARM
     // reset the syncvar
-    for (auto t : syncVarTensors_) {
-        t->setDataAt<uint32_t>(0, 0, 0, 0, 0);
-    }
+    // for (auto t : syncVarTensors_) {
+    //     t->setDataAt<uint32_t>(0, 0, 0, 0, 0);
+    // }
 
     
 // #endif
+    qnn_wrapper_api::GraphInfo_t **m_graphsInfo = m_graphsInfoMap_[t_qnnModelIndex_];
+
+    auto returnStatus = StatusCode::SUCCESS;
+
+    for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
+        auto graphInfo = (*m_graphsInfo)[graphIdx];
+
+        Qnn_Tensor_t *inputs_ = inputsMap_[t_qnnModelIndex_];
+        Qnn_Tensor_t *outputs_ = outputsMap_[t_qnnModelIndex_];
+
+        Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
+        uint64_t t_start = mllm_time_us();
+        executeStatus =
+            m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
+                                                            inputs_,
+                                                            graphInfo.numInputTensors,
+                                                            outputs_,
+                                                            graphInfo.numOutputTensors,
+                                                            m_profileBackendHandle,
+                                                            nullptr);
+        // uint64_t t_end = mllm_time_us();
+        // std::cout << "QNN execution time" << (t_end - t_start) / 1000.0F << " ms" << std::endl;
+
+        // // print autoregressive latency.
+        // FILE *fp = fopen("AR_latency.txt", "a");
+    
+        // // 检查文件是否成功打开
+        // if (fp == NULL) {
+        //     // 文件打开失败，输出错误消息并退出程序
+        //     printf("无法打开文件或文件不存在。\n");
+        // }
+        
+        // // 写入内容到文件
+        // fprintf(fp, "QNN execution time %f ms\n", (t_end - t_start) / 1000.0F);
+        
+        // // 关闭文件
+        // fclose(fp);
+
+        if (QNN_GRAPH_NO_ERROR != executeStatus) {
+            returnStatus = StatusCode::FAILURE;
+        }
+
+        // if (ProfilingLevel::OFF != m_profilingLevel) {
+        //     extractBackendProfilingInfo(m_profileBackendHandle);
+        // }
+        // if (StatusCode::SUCCESS == returnStatus) {
+        //     QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
+        //     for (int oi = 0; oi < graphInfo.numOutputTensors; oi++) {
+        //         auto output = outputs_[oi];
+        //         // DEBUGLOG
+        //         std::cout << "----------------" << std::endl;
+        //         std::cout << "output name:" << output.v1.name << std::endl;
+        //         // std::cout << "output id:" << output.v1.clientBuf.dataSize << std::endl;
+        //         std::cout << "output type:" << output.v1.type << std::endl;
+        //         std::cout << "output type:" << output.v1.dataType << std::endl;
+        //     }
+        // }
+
+        // m_ioTensor.tearDownInputAndOutputTensors(
+        //     inputs_, outputs_, graphInfo.numInputTensors, graphInfo.numOutputTensors);
+        // inputs_ = nullptr;
+        // outputs_ = nullptr;
+        // if (StatusCode::SUCCESS != returnStatus) {
+        //     std::cout << "tear down tensors fail" << std::endl;
+        //     exit(-1);
+        // }
+
+        std::cout << "free graphs begin" << std::endl;
+        qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
+        m_graphsInfo = nullptr;
+    }
+
 }
 
 void QNNBackend::onExecuteEnd() {
