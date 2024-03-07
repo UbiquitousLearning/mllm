@@ -434,6 +434,10 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
         if (QNN_GRAPH_NO_ERROR != executeStatus) {
             returnStatus = StatusCode::FAILURE;
         }
+
+        // if (ProfilingLevel::OFF != m_profilingLevel) {
+        //     extractBackendProfilingInfo(m_profileBackendHandle);
+        // }
         // if (StatusCode::SUCCESS == returnStatus) {
         //     QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
         //     for (int oi = 0; oi < graphInfo.numOutputTensors; oi++) {
@@ -456,9 +460,9 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
         //     exit(-1);
         // }
 
-        // std::cout << "free graphs begin" << std::endl;
-        // qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
-        // m_graphsInfo = nullptr;
+        std::cout << "free graphs begin" << std::endl;
+        qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
+        m_graphsInfo = nullptr;
     }
 
 }

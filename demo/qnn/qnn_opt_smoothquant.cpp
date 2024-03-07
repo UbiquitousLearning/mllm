@@ -56,17 +56,20 @@ NetTensor *Attention(Context *c, NetTensor *x, int embedding_size, int hidden_si
     k = _KVCache({k}, cache_max, name + ".k_cache");
     v = _KVCache({v}, cache_max, name + ".v_cache");
 
-    auto *m = _MergeOutput({q,k,v}, name + ".qkv_merge");
+    // auto *m = _MergeOutput({q,k,v}, name + ".qkv_merge");
 
-    _SubgraphBegin(c);
+    // _SubgraphBegin(c);
 
-    auto s = _SplitInput({m}, false, name + ".qkv_split");
+    // auto s = _SplitInput({m}, false, name + ".qkv_split");
 
-    q = s[0];
-    k = s[1];
-    v = s[2];
+    // q = s[0];
+    // k = s[1];
+    // v = s[2];
+    q = _Dequantize({q}, true, (string) name + ".q.dequantize");
+    k = _Dequantize({k}, true, (string) name + ".k.dequantize");
+    v = _Dequantize({v}, true, (string) name + ".v.dequantize");
 
-    auto *qk = _MatmulINT8({q, k}, false, true, name + ".qk");
+    auto *qk = _Matmul({q, k}, false, true, name + ".qk");
     // qk = _Dequantize({qk}, false, (string) name + ".qk.dequantize");
 
     // qk = *qk / std::sqrt(hidden_size);
@@ -74,10 +77,11 @@ NetTensor *Attention(Context *c, NetTensor *x, int embedding_size, int hidden_si
     qk = _Softmax({qk}, DIMENSION, name + ".softmax");
 
     // qk = _Quantize({qk}, false, (string) name + ".qk.quantize");
-    auto *o = _MatmulINT8({qk, v}, false, false, name + ".qkv");
+    auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
 
-    _SubgraphBegin(c);
+    // _SubgraphBegin(c);
 
+    o = _Quantize({o}, true, (string) name + ".o.quantize");
     o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
     o = _Dequantize({o}, true, (string) name + ".o.dequantize");
@@ -110,10 +114,11 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
     }
  
     // end loop
-    // i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
-    i = _Quantize({i},  true, ".model.quantize");
-    i = _LinearINT8({i}, hidden_dim, vocab_size, false, "output");
-    i = _Dequantize({i}, true,  ".model.dequantize");
+    i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
+    // i = _Quantize({i},  true, ".model.quantize");
+    // i = _LinearINT8({i}, hidden_dim, vocab_size, false, "output");
+    // i = _Dequantize({i}, true,  ".model.dequantize");
+    i = _Linear({i}, hidden_dim, vocab_size, false, "output");
 }
 
 template <typename Dtype>
@@ -145,10 +150,10 @@ int main(int argc, char **argv) {
     QNNExecutor ex(&param_loader);
 
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    fullTensor(input, net, {1, 1, 1, hidden_dim}, 2.f);
+    fullTensor(input, net, {1, 1, 4, hidden_dim}, 2.f);
     ex.setup(&net);
 
-    for (int i=0; i<1; i++) {
+    for (int i=0; i<32; i++) {
         ex.run(&net, {input});
     }
     

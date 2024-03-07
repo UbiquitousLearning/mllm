@@ -37,16 +37,16 @@ public:
      */
     void execute(Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
 
-    void QNNGraphThreadExecute(int id, Net* net);
+    // void QNNGraphThreadExecute(int id, Net* net);
 
 private:
     QNNExecutionType executionType_ = PROMPT;
 
     uint autoregressive_seq_pos_ = 0;
 
-    int threadVar_[4] = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+    // int threadVar_[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-    uint threadNum_ = 3;
+    // uint threadNum_ = 100;
 
 };
 
