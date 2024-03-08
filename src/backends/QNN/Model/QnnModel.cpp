@@ -595,7 +595,7 @@ ModelError_t QnnModel::freeTensors() {
        tensorIt != m_modelTensorsMap.end();) {
     Qnn_Tensor_t &tensor = tensorIt->second;
     
-    tensorIt = m_modelTensorsMap.erase(tensorIt);
+    tensorIt = m_modelTensorsMap.erase(tensorIt++);
   }
 
   return MODEL_NO_ERROR;

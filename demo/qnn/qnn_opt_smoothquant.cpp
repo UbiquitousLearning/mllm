@@ -101,7 +101,7 @@ NetTensor *FFN(NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
 void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200) {
     auto *i = _Input(c);
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.decoder.embed_tokens");
-    return;
+
     _SubgraphBegin(c);
     // loop
 
@@ -192,13 +192,13 @@ int main(int argc, char **argv) {
             auto result = ex.result();
             result[0]->printShape();
             // --------- JUST RUN FOR ONE TOKEN ---------
-            break;
+            // break;
             auto token_idx = postProcessing(result[0], input);
             if (token_idx == 2) { // "</s>"
                 break;
             }
-            // auto out_token = tokenizer.detokenize({token_idx});
-            // std::cout << out_token << std::flush;
+            auto out_token = tokenizer.detokenize({token_idx});
+            std::cout << out_token << std::flush;
         }
         printf("\n");
     }

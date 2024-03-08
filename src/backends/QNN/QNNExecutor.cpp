@@ -172,13 +172,13 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
         qnn_graph->free(name);
     }
 
-    // first graph all free is OK.
-    // {
-    //     string name = typeName + std::to_string(0);
-    //     auto &g = net->subGraph()[name];
-    //     auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-    //     qnn_graph->allFree();
-    // }
+    // use the first graph to free all context is OK.
+    {
+        string name = typeName + std::to_string(1);
+        auto &g = net->subGraph()[name];
+        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+        qnn_graph->allFree();
+    }
     
     // open file "AR_latency.txt" to record the time of each token
     
