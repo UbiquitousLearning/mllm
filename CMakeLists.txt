@@ -352,15 +352,15 @@ endif ()
 # if(QNN)
 #     target_link_libraries(qnn_opt MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
 # endif()
-# add_executable(qnn_llama ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
-#         src/tokenizers/Tokenizer.cpp
-#         src/tokenizers/Tokenizer.hpp
-#         src/tokenizers/BPE/Bpe.cpp
-#         src/tokenizers/BPE/Bpe.hpp
-# )
-# if(QNN)
-#     target_link_libraries(qnn_llama MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
-# endif()
+add_executable(qnn_opt_smoothquant ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_opt_smoothquant.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp
+)
+if(QNN)
+    target_link_libraries(qnn_opt_smoothquant MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
+endif()
 
 if(QNN)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
@@ -375,7 +375,7 @@ if(QNN)
 
     
     # add_executable(qnn_test ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_test.cpp ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_wrapper.hpp ${PROJECT_SOURCE_DIR}/demo/qnn/MockLoader.hpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
-    add_executable(qnn_opt_smoothquant ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_opt_smoothquant.cpp ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_wrapper.hpp ${PROJECT_SOURCE_DIR}/demo/qnn/MockLoader.hpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
+    # add_executable(qnn_opt_smoothquant ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_opt_smoothquant.cpp ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_wrapper.hpp ${PROJECT_SOURCE_DIR}/demo/qnn/MockLoader.hpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
     # add_executable(silu_test ${PROJECT_SOURCE_DIR}/demo/qnn/silu_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
     # add_executable(rope_test ${PROJECT_SOURCE_DIR}/demo/qnn/rope_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
     # add_executable(rms_test ${PROJECT_SOURCE_DIR}/demo/qnn/rms_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ) 
@@ -383,7 +383,7 @@ if(QNN)
     # add_executable(attention_test ${PROJECT_SOURCE_DIR}/demo/qnn/attention_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} )
     # add_executable(kvcache_test ${PROJECT_SOURCE_DIR}/demo/qnn/kvcache_test.cpp ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} )
     # target_link_libraries(qnn_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
-    target_link_libraries(qnn_opt_smoothquant MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
+    # target_link_libraries(qnn_opt_smoothquant MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
     # target_link_libraries(silu_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
     # target_link_libraries(rope_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
     # target_link_libraries(rms_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
