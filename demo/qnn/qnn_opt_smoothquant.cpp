@@ -170,7 +170,6 @@ int main(int argc, char **argv) {
     // " What can you do?",
     // "Please introduce Beijing University of Posts and Telecommunications."};
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    input->setBackend(net.backends()[MLLM_QNN].get());
 
     for (int str_i = 0; str_i < in_strs.size(); ++str_i) {
         auto in_str = in_strs[str_i];
@@ -191,8 +190,7 @@ int main(int argc, char **argv) {
             ex.run(&net, {input});
             auto result = ex.result();
             result[0]->printShape();
-            // --------- JUST RUN FOR ONE TOKEN ---------
-            // break;
+
             auto token_idx = postProcessing(result[0], input);
             if (token_idx == 2) { // "</s>"
                 break;

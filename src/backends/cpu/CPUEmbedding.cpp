@@ -9,7 +9,6 @@ CPUEmbedding::CPUEmbedding(Backend *bn,  string opName, int hiddenSize, int voca
     assert(hiddenSize_ > 0);
     assert(vocabSize_ > 0);
     weight_.setBackend(bn);
-    std::cout << "==========CPUEmbedding" << std::endl;
 }
 ErrorCode CPUEmbedding::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
 
