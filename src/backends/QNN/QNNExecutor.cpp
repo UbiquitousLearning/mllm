@@ -92,20 +92,18 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
         // cast graph to QNNGraph
         // TODO: if this implementation is used, the setUpTensors(string) should be merged to Graph
         // the qnn_graph below is where we cast the Graph to QNNGraph
-        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-
-        g->reshape();
-
-        // if ( autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0) {
-            
+        if(i == 0){
+            g->reshape();
+            g->setUpTensors();
+        } else {
+            std::cout << "=======setup qnn graph " << i << std::endl;
+            auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+            g->reshape();
+            // if ( autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0) {
             // g->setUpTensors();
             qnn_graph->setUpTensors(name);
-        // }
-            
-
-        // result_ = g->forward();
-
-        // free
+            // }
+        }
         if (false) {
             if (i < (int)net->subGraph().size() - 1) {
                 g->freeTensors();
@@ -130,10 +128,16 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
 
     // execute all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        string name = typeName + std::to_string(i);
-        auto &g = net->subGraph()[name];
-        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-        result_ = qnn_graph->forward(name);
+        if(i == 0){
+            string name = typeName + std::to_string(i);
+            auto &g = net->subGraph()[name];
+            result_ = g->forward();
+        } else {
+            string name = typeName + std::to_string(i);
+            auto &g = net->subGraph()[name];
+            auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+            result_ = qnn_graph->forward(name);
+        }
     }
 
     // threadVar_[0] = true;
@@ -161,6 +165,7 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
 
     // free all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
+        if(i == 0) continue;
         string name = typeName + std::to_string(i);
         auto &g = net->subGraph()[name];
         auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
@@ -168,12 +173,12 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     }
 
     // first graph all free is OK.
-    {
-        string name = typeName + std::to_string(0);
-        auto &g = net->subGraph()[name];
-        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-        qnn_graph->allFree();
-    }
+    // {
+    //     string name = typeName + std::to_string(0);
+    //     auto &g = net->subGraph()[name];
+    //     auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+    //     qnn_graph->allFree();
+    // }
     
     // open file "AR_latency.txt" to record the time of each token
     

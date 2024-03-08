@@ -139,7 +139,10 @@ void QNNOptNet::convert(vector<NetParameter> &param, BackendType backend_type, i
     for (int i = 0; i < (int)param.size(); ++i) {
         param[i].topologySort();
         shared_ptr<Graph> subg_1;
-        subg_1.reset(new QNNGraph(param[i], backends_[backend_type].get(), tensors_, threadCount));
+        if(i == 0) // use CPU graph and CPU backend for embedding
+            subg_1.reset(new Graph(param[i], backends_[MLLM_CPU].get(), tensors_, threadCount));
+        else
+            subg_1.reset(new QNNGraph(param[i], backends_[backend_type].get(), tensors_, threadCount));
         subGraphs_["Prompt_Graph." + std::to_string(i)] = subg_1;
     }
 }
