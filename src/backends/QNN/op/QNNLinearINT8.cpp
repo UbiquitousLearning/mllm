@@ -11,6 +11,10 @@ QNNLinearINT8::QNNLinearINT8(Backend *bn, string opName, int in_features, int ou
     QNNCommonOp(bn, opName), in_features_(in_features), out_features_(out_features), support_bias_(bias) {
     weight_.setBackend(bn);
     bias_.setBackend(bn);
+#ifdef SMOOTHQUANT
+    weightScale_.setBackend(bn);
+    biasScale_.setBackend(bn);
+#endif
 }
 
 ErrorCode QNNLinearINT8::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -44,6 +48,15 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
     // add weight tensor to qnn
     uint32_t dimensionsWeight[2] = {static_cast<uint32_t>(weight_.sequence()), static_cast<uint32_t>(weight_.dimension())};
+
+    auto qnnQuantDefined = QNN_DEFINITION_UNDEFINED;
+    float weightScale = 0;
+#ifdef SMOOTHQUANT
+    qnnQuantDefined = QNN_DEFINITION_DEFINED;
+    weightScale = weightScale_.hostPtr<float>()[0];
+    std::cout << "===================" << weightScale << std::endl;
+#endif
+
     qnnBackend_->modelAddTensor(weight_.name(), (Qnn_Tensor_t){
                                                     .version = QNN_TENSOR_VERSION_1,
                                                     {.v1 = {
@@ -52,9 +65,9 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                                                          .type = QNN_TENSOR_TYPE_STATIC,
                                                          .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                                          .dataType = QNN_DATATYPE_UFIXED_POINT_8,
-                                                         .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                                                            QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                                                            {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                                         .quantizeParams = {qnnQuantDefined,
+                                                                            QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
+                                                                            {.scaleOffsetEncoding = {.scale = weightScale, .offset = 0}}},
                                                          .rank = 2,
                                                          .dimensions = dimensionsWeight,
                                                          .memType = QNN_TENSORMEMTYPE_RAW,
@@ -93,6 +106,12 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
     // add bias tensor to qnn
     uint32_t dimensionsBias[4] = {1, 1, 1, (uint32_t)out_features_};
+    float biasScale = 0;
+#ifdef SMOOTHQUANT
+    qnnQuantDefined = QNN_DEFINITION_DEFINED;
+    biasScale = biasScale_.hostPtr<float>()[0];
+    std::cout << "===================" << biasScale << std::endl;
+#endif
     qnnBackend_->modelAddTensor(bias_.name(), (Qnn_Tensor_t){
                                                   .version = QNN_TENSOR_VERSION_1,
                                                   {.v1 = {
@@ -101,9 +120,9 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                                                        .type = QNN_TENSOR_TYPE_STATIC,
                                                        .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                                        .dataType = QNN_DATATYPE_UFIXED_POINT_8,
-                                                       .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                                                          QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                                                          {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                                       .quantizeParams = {qnnQuantDefined,
+                                                                          QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
+                                                                          {.scaleOffsetEncoding = {.scale = biasScale, .offset = 0}}},
                                                        .rank = 4,
                                                        .dimensions = dimensionsBias,
                                                        .memType = QNN_TENSORMEMTYPE_RAW,
@@ -159,7 +178,29 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
     weight_.reshape(1, 1, out_features_, in_features_);
     weight_.setDtype(MLLM_TYPE_I8);
     weight_.alloc();
+    loader.load(&weight_);
+    if (support_bias_) {
+        bias_.setName(name() + ".bias");
+        bias_.reshape(1, 1, 1, out_features_);
+        bias_.setDtype(MLLM_TYPE_I8);
+        bias_.alloc();
+        loader.load(&bias_);
+    }
 
+#ifdef SMOOTHQUANT
+    weightScale_.setName(name() + ".weight.scale");
+    weightScale_.reshape(1, 1, 1, 1);
+    weightScale_.setDtype(MLLM_TYPE_F32);
+    weightScale_.alloc();
+    loader.load(&weightScale_);
+    if (support_bias_) {
+        biasScale_.setName(name() + ".bias.scale");
+        biasScale_.reshape(1, 1, 1, 1);
+        biasScale_.setDtype(MLLM_TYPE_F32);
+        biasScale_.alloc();
+        loader.load(&biasScale_);
+    }
+#endif
 
     return Op::load(loader);
 }

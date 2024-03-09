@@ -19,6 +19,10 @@ private:
     bool support_bias_;
     Tensor weight_;
     Tensor bias_;
+// #ifdef SMOOTHQUANT
+    Tensor weightScale_;
+    Tensor biasScale_;
+// #endif
 };
 
 class QNNLinearINT8Creator : public QNNBackend::Creator {
