@@ -90,7 +90,7 @@ NetTensor *FFN(NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _Quantize({i}, true, (string)name + ".x.quantize");
     x = _LinearINT8({x}, hidden_dim, ffn_hidden_dim, false, name + ".fc1");
     // x = _Dequantize({x}, (string) name + ".relux.dequantize");
-    x = _ReLU({x}, name + ".relu");
+    x = _GELU({x}, name + ".gelu");
     // x = _Quantize({x}, (string) name + ".relux.quantize");
     x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".fc2");
     x = _Dequantize({x}, true, (string)name + ".x.dequantize");
@@ -99,13 +99,13 @@ NetTensor *FFN(NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
 void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200) {
     auto *i = _Input(c);
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.decoder.embed_tokens");
-
     _SubgraphBegin(c);
     // loop
 
-    for (int layer = 0; layer < 1; ++layer) {
-        // auto* x = _LayerNorm({i}, hidden_dim, true, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn_layer_norm");
-        auto *x = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn_layer_norm");
+    for (int layer = 0; layer < 2; ++layer) {
+        if (layer == 0)
+            i = _KVCache({i}, 0, ".i_cache");
+        auto *x = _LayerNorm({i}, hidden_dim, true, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn_layer_norm");
         i = *Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn") + i;
         x = _LayerNorm({i}, hidden_dim, true, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".final_layer_norm");
         i = *FFN(x, hidden_dim, ffn_hidden_dim, (string) "model.decoder.layers." + std::to_string(layer)) + i;
@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
 
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
-    opt(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size, 1);
+    opt(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size, 512);
 
     BackendConfig bn;
     QNNOptNet net(bn, c);
