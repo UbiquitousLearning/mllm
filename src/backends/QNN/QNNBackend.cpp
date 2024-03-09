@@ -28,6 +28,7 @@
 #include "Types.hpp"
 #include "op/QNNAdd.hpp"
 #include "op/QNNCausalMask.hpp"
+#include "op/QNNGELU.hpp"
 #include "op/QNNLinear.hpp"
 #include "op/QNNLinear3D.hpp"
 #include "op/QNNLinearFP.hpp"
@@ -94,6 +95,7 @@ void QNNBackend::registerOps() {
     addCreator(KVCACHE, (QNNBackend::Creator *)(new QNNKVCacheCreator()));
     addCreator(WNOP, (QNNBackend::Creator *)(new QNNWNopCreator()));
     addCreator(RELU, (QNNBackend::Creator *)(new QNNReLUCreator()));
+    addCreator(GELU, (QNNBackend::Creator *)(new QNNGELUCreator()));
     addCreator(QUANTIZE, (QNNBackend::Creator *)(new QNNQuantizeCreator()));
     addCreator(DEQUANTIZE, (QNNBackend::Creator *)(new QNNDequantizeCreator()));
     addCreator(MERGEOUTPUT, (QNNBackend::Creator *)(new QNNMergeOutputCreator()));
@@ -303,7 +305,9 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
 }
 
 void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
-
+#ifdef DEBUGPRINT
+    std::cout << "onSetUpEnd" << std::endl;
+#endif
     // push output tensors to the buffer list
     currentOutputBuffers = &outputBufferMap[graphName];
     for (int i = 0; i < outputs.size(); i++) {

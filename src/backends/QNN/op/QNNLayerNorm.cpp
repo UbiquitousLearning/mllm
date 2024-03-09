@@ -19,6 +19,7 @@ ErrorCode QNNLayerNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
 }
 
 ErrorCode QNNLayerNorm::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout << "layernorm setip" << std::endl;
     uint32_t axesDim[1] = {1};
     uint32_t axes[1] = {3};
     vector<Qnn_Param_t> params = {
