@@ -111,8 +111,8 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
 
     // TODO: make these configuable
     m_debug = false; // when set true, NATIVE tensor will be regared as APP_READ tensor
-    m_outputDataType = iotensor::OutputDataType::FLOAT_ONLY;
-    m_inputDataType = iotensor::InputDataType::FLOAT;
+    m_outputDataType = iotensor::OutputDataType::FLOAT_AND_NATIVE;
+    m_inputDataType = iotensor::InputDataType::NATIVE;
     m_profilingLevel = ProfilingLevel::BASIC;
 
     m_isBackendInitialized = false;
