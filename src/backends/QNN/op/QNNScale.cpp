@@ -23,8 +23,8 @@ ErrorCode QNNScale::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 ErrorCode QNNScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // add intermediate output of matmul
     uint32_t dimensions[4] = {static_cast<uint32_t>(inputs[0]->batch()),
-                              static_cast<uint32_t>(inputs[0]->head()),
                               static_cast<uint32_t>(inputs[0]->sequence()),
+                              static_cast<uint32_t>(inputs[0]->head()),
                               static_cast<uint32_t>(inputs[0]->dimension())};
     auto interName = name() + ".intermediate";
     vector<Qnn_Tensor_t>
@@ -101,10 +101,10 @@ ErrorCode QNNScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
               {.clientBuf = {.data = nullptr,
                              .dataSize = 0}}}}}};
     if (bias_after_scale_) {
-        graphAddNode(name(), "LLaMAMul", {inputs[0]->name(), scaleName}, intermediateOutput, {}, "LLaMAPackage");
+        graphAddNode(name(), "ElementWiseMul", {inputs[0]->name(), scaleName}, intermediateOutput, {}, "LLaMAPackage");
         return graphAddNode(name(), "ElementWiseAdd", {interName, biasName}, outputTensors);
     } else {
-        graphAddNode(name(), "ElementWiseAdd", {inputs[0]->name(), biasName}, intermediateOutput);
+        graphAddNode(name(), "ElementWiseMul", {inputs[0]->name(), biasName}, intermediateOutput);
         return graphAddNode(name(), "LLaMAMul", {interName, scaleName}, outputTensors, {}, "LLaMAPackage");
     }
 }
