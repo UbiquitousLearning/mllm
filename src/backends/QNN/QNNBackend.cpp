@@ -322,7 +322,6 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     Qnn_Tensor_t *outputs_ = nullptr;
 
     auto m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
-    std::cout << "------------------" << std::endl;
 
     for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
         auto graphInfo = (*m_graphsInfo)[graphIdx];
@@ -335,13 +334,13 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
             returnStatus = StatusCode::FAILURE;
             break;
         }
-        std::cout << "------------------" << std::endl;
+
         // Todo only one graph now
         size_t totalCount = currentInputBuffers->size();
         if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(graphIdx, *currentInputBuffers, inputs_, graphInfo, m_inputDataType)) {
             returnStatus = StatusCode::FAILURE;
         }
-        std::cout << "------------------" << std::endl;
+
         // QNN_DEBUG("input tensors: %d ", (*m_graphsInfo)[graphIdx].numInputTensors);
         // QNN_DEBUG("output tensors: %d ", (*m_graphsInfo)[graphIdx].numOutputTensors);
 
