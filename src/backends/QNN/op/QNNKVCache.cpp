@@ -9,9 +9,9 @@
 #define DYNAMICBUFFER 32
 
 namespace mllm {
-QNNKVCache::QNNKVCache(Backend *bn, string opName, bool isK) :
-    QNNCommonOp(bn, opName), isK_(isK) {
-    cache_size_ = 512;
+QNNKVCache::QNNKVCache(Backend *bn, string opName, int cache_max) :
+    QNNCommonOp(bn, opName) {
+    cache_size_ = cache_max;
     dimension_size_ = 4096;
     seq_pos_cpu_ = 0;
     seq_pos_.setBackend(bn);
@@ -30,6 +30,8 @@ ErrorCode QNNKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     // NSHD 
     alloc_size_[0] = inputs[0]->batch();
     alloc_size_[1] = cache_size_;
+    if (cache_size_ == 0)
+        alloc_size_[1] = inputs[0]->sequence();
     alloc_size_[2] = inputs[0]->head();
     alloc_size_[3] = inputs[0]->dimension();
 
@@ -141,7 +143,8 @@ ErrorCode QNNKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
         
     // TODO : seq_pos value update
     seq_pos_.setDataAt<uint32_t>(0, 0, 0, 0, seq_pos_cpu_);
-    seq_pos_cpu_ += inputs[0]->sequence();
+    if (cache_size_ != 0)
+        seq_pos_cpu_ += inputs[0]->sequence();
 
     return QNNCommonOp::execute(inputs, outputs);
 }

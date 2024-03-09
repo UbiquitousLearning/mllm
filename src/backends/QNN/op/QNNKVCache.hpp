@@ -6,7 +6,7 @@
 namespace mllm {
 class QNNKVCache : public QNNCommonOp {
 public:
-    QNNKVCache(Backend *bn, string opName, bool isK);
+    QNNKVCache(Backend *bn, string opName, int cache_max);
     virtual ~QNNKVCache() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
@@ -36,7 +36,7 @@ private:
 class QNNKVCacheCreator : public QNNBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new QNNKVCache(bn, name, false);
+        return new QNNKVCache(bn, name, (int)op_param["cache_max"]);
     }
 };
 
