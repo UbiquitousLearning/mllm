@@ -107,7 +107,7 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
 
     for (int layer = 0; layer < 1; ++layer) {
         auto *x = *Attention(c, i, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn") + i;
-        i = _RMSNorm({x}, hidden_dim, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn_layer_norm");
+        i = _LayerNorm({x}, hidden_dim, true, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn_layer_norm");
         x = *FFN(i, hidden_dim, ffn_hidden_dim, (string) "model.decoder.layers." + std::to_string(layer)) + i;
         i = _RMSNorm({x}, hidden_dim, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".input_layernorm");
         // _SubgraphBegin(c);

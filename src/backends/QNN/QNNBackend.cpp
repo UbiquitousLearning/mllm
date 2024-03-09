@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "OpDefined.hpp"
 #include "QNNBackend.hpp"
 #include "QnnModel.hpp"
 #include "Utils/BuildId.hpp"
@@ -36,6 +37,7 @@
 #include "op/QNNMatmulNT.hpp"
 #include "op/QNNMatmulINT8.hpp"
 #include "op/QNNMul.hpp"
+#include "op/QNNLayerNorm.hpp"
 #include "op/QNNRMSNorm.hpp"
 #include "op/QNNRoPE.hpp"
 #include "op/QNNScale.hpp"
@@ -75,6 +77,7 @@ void QNNBackend::registerOps() {
     // addCreator(MATMUL, (QNNBackend::Creator *)(new QNNMatmulNTCreator()));
     addCreator(MATMULINT8, (QNNBackend::Creator *)(new QNNMatmulINT8Creator()));
     addCreator(RMSNORM, (QNNBackend::Creator *)(new QNNRMSNormCreator()));
+    addCreator(LAYERNORM, (QNNBackend::Creator *)(new QNNLayerNormCreator()));
     addCreator(ROPE, (QNNBackend::Creator *)(new QNNRoPECreator()));
     addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
     addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
