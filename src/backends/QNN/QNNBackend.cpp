@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "OpDefined.hpp"
 #include "QNNBackend.hpp"
 #include "QnnModel.hpp"
 #include "Utils/BuildId.hpp"
@@ -27,6 +28,7 @@
 #include "Types.hpp"
 #include "op/QNNAdd.hpp"
 #include "op/QNNCausalMask.hpp"
+#include "op/QNNGELU.hpp"
 #include "op/QNNLinear.hpp"
 #include "op/QNNLinear3D.hpp"
 #include "op/QNNLinearFP.hpp"
@@ -36,6 +38,7 @@
 #include "op/QNNMatmulNT.hpp"
 #include "op/QNNMatmulINT8.hpp"
 #include "op/QNNMul.hpp"
+#include "op/QNNLayerNorm.hpp"
 #include "op/QNNRMSNorm.hpp"
 #include "op/QNNRoPE.hpp"
 #include "op/QNNScale.hpp"
@@ -75,6 +78,7 @@ void QNNBackend::registerOps() {
     // addCreator(MATMUL, (QNNBackend::Creator *)(new QNNMatmulNTCreator()));
     addCreator(MATMULINT8, (QNNBackend::Creator *)(new QNNMatmulINT8Creator()));
     addCreator(RMSNORM, (QNNBackend::Creator *)(new QNNRMSNormCreator()));
+    addCreator(LAYERNORM, (QNNBackend::Creator *)(new QNNLayerNormCreator()));
     addCreator(ROPE, (QNNBackend::Creator *)(new QNNRoPECreator()));
     addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
     addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
@@ -91,6 +95,7 @@ void QNNBackend::registerOps() {
     addCreator(KVCACHE, (QNNBackend::Creator *)(new QNNKVCacheCreator()));
     addCreator(WNOP, (QNNBackend::Creator *)(new QNNWNopCreator()));
     addCreator(RELU, (QNNBackend::Creator *)(new QNNReLUCreator()));
+    addCreator(GELU, (QNNBackend::Creator *)(new QNNGELUCreator()));
     addCreator(QUANTIZE, (QNNBackend::Creator *)(new QNNQuantizeCreator()));
     addCreator(DEQUANTIZE, (QNNBackend::Creator *)(new QNNDequantizeCreator()));
     addCreator(MERGEOUTPUT, (QNNBackend::Creator *)(new QNNMergeOutputCreator()));
@@ -104,7 +109,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
         return;
     }
     // TODO: make debug level configuable
-    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_ERROR);
+    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_INFO);
 
     std::string backEndPath = "libQnnHtp.so";
     std::string opPackagePaths = "libQnnLLaMAPackage_CPU.so:LLaMAPackageInterfaceProvider:CPU,libQnnLLaMAPackage_HTP.so:LLaMAPackageInterfaceProvider:HTP";
@@ -300,7 +305,9 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
 }
 
 void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
-
+#ifdef DEBUGPRINT
+    std::cout << "onSetUpEnd" << std::endl;
+#endif
     // push output tensors to the buffer list
     currentOutputBuffers = &outputBufferMap[graphName];
     for (int i = 0; i < outputs.size(); i++) {
@@ -322,7 +329,6 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     Qnn_Tensor_t *outputs_ = nullptr;
 
     auto m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
-    std::cout << "------------------" << std::endl;
 
     for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
         auto graphInfo = (*m_graphsInfo)[graphIdx];
@@ -335,13 +341,13 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
             returnStatus = StatusCode::FAILURE;
             break;
         }
-        std::cout << "------------------" << std::endl;
+
         // Todo only one graph now
         size_t totalCount = currentInputBuffers->size();
         if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(graphIdx, *currentInputBuffers, inputs_, graphInfo, m_inputDataType)) {
             returnStatus = StatusCode::FAILURE;
         }
-        std::cout << "------------------" << std::endl;
+
         // QNN_DEBUG("input tensors: %d ", (*m_graphsInfo)[graphIdx].numInputTensors);
         // QNN_DEBUG("output tensors: %d ", (*m_graphsInfo)[graphIdx].numOutputTensors);
 

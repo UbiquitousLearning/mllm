@@ -89,11 +89,9 @@ NetTensor *Attention(Context *c, NetTensor *x, int embedding_size, int hidden_si
 NetTensor *FFN(NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _Quantize({i}, true, (string)name + ".x.quantize");
     x = _LinearINT8({x}, hidden_dim, ffn_hidden_dim, false, name + ".fc1");
-
     // x = _Dequantize({x}, (string) name + ".relux.dequantize");
     x = _ReLU({x}, name + ".relu");
     // x = _Quantize({x}, (string) name + ".relux.quantize");
-
     x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".fc2");
     x = _Dequantize({x}, true, (string)name + ".x.dequantize");
     return x;
@@ -106,18 +104,15 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
     // loop
 
     for (int layer = 0; layer < 1; ++layer) {
-        auto *x = *Attention(c, i, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn") + i;
-        i = _RMSNorm({x}, hidden_dim, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn_layer_norm");
-        x = *FFN(i, hidden_dim, ffn_hidden_dim, (string) "model.decoder.layers." + std::to_string(layer)) + i;
-        i = _RMSNorm({x}, hidden_dim, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".input_layernorm");
+        // auto* x = _LayerNorm({i}, hidden_dim, true, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn_layer_norm");
+        auto *x = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn_layer_norm");
+        i = *Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn") + i;
+        x = _LayerNorm({i}, hidden_dim, true, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".final_layer_norm");
+        i = *FFN(x, hidden_dim, ffn_hidden_dim, (string) "model.decoder.layers." + std::to_string(layer)) + i;
         // _SubgraphBegin(c);
     }
 
     // end loop
-    // i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.decoder.norm");
-    // i = _Quantize({i},  true, ".model.decoder.quantize");
-    // i = _LinearINT8({i}, hidden_dim, vocab_size, false, "output");
-    // i = _Dequantize({i}, true,  ".model.decoder.dequantize");
     i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
 }
 

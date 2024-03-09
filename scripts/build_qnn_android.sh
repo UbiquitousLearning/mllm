@@ -13,5 +13,6 @@ cmake .. \
 -DDEBUG=ON \
 -DTEST=OFF \
 -DQUANT=OFF \
+-DSMOOTHQUANT=ON\
 
 make -j4
