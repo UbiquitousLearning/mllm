@@ -302,6 +302,14 @@ public:
     }
 
     /**
+     * \brief obtain the raw pointer to the first address where tensor stores data.
+     * \return the pointer(void *) to the first address where tensor stores data.
+     */
+    void *rawHostPtr() const {
+        return host_ptr_;
+    }
+
+    /**
      * \brief obtain the pointer to the first address where tensor stores data.
      * \tparam Dtype float, mllm_fp16_t, etc.
      * \return the pointer to the first address where tensor stores data.
