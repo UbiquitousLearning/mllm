@@ -109,7 +109,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
         return;
     }
     // TODO: make debug level configuable
-    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_ERROR);
+    log::setLogLevel(QnnLog_Level_t::QNN_LOG_LEVEL_INFO);
 
     std::string backEndPath = "libQnnHtp.so";
     std::string opPackagePaths = "libQnnLLaMAPackage_CPU.so:LLaMAPackageInterfaceProvider:CPU,libQnnLLaMAPackage_HTP.so:LLaMAPackageInterfaceProvider:HTP";
