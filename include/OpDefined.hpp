@@ -44,6 +44,7 @@ enum OpType {
     RANGE,
     WHERE,
     REPLACE,
+    PREDICTOR,
     OP_NUM
 };
 

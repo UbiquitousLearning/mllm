@@ -35,6 +35,7 @@
 #include "CPURange.hpp"
 #include "CPUWhere.hpp"
 #include "CPUReplace.hpp"
+#include "CPUPredictor.hpp"
 
 
 namespace mllm {
@@ -89,6 +90,7 @@ void CPUBackend::registerOps() {
     addCreator(RANGE, (CPUBackend::Creator *)(new CPURangeCreator()));
     addCreator(WHERE, (CPUBackend::Creator *)(new CPUWhereCreator()));
     addCreator(REPLACE, (CPUBackend::Creator *)(new CPUReplaceCreator()));
+    addCreator(PREDICTOR, (CPUBackend::Creator *)(new CPUPredictorCreator()));
 }
 
 } // namespace mllm

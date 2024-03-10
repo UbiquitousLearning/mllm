@@ -150,4 +150,5 @@ type_traits_t type_traits[] = {
         .vec_dot_type = MLLM_TYPE_F16,
         .add_row_to = (mllm_vec_add_row_func)fp_16_add_row_to,
     }
+    // TODO: add support to more type
 };
