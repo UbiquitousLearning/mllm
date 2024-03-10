@@ -110,7 +110,8 @@ int main(int argc, char **argv) {
     Net net(bn);
     net.convert(c->sub_param_, BackendType::MLLM_CPU, thread_num);
 
-    ParamLoader param_loader(model_path);
+//    ParamLoader param_loader(model_path);
+    MultiFileParamLoader param_loader({model_path});
     Executor ex(&param_loader);
     ex.setup(&net);
 
