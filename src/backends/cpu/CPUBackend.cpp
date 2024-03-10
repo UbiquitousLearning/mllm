@@ -36,7 +36,8 @@
 #include "CPUWhere.hpp"
 #include "CPUReplace.hpp"
 #include "CPUPredictor.hpp"
-
+#include "CPUSparseIdLinear.hpp"
+#include "CPUSparseLinear.hpp"
 
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
@@ -91,6 +92,8 @@ void CPUBackend::registerOps() {
     addCreator(WHERE, (CPUBackend::Creator *)(new CPUWhereCreator()));
     addCreator(REPLACE, (CPUBackend::Creator *)(new CPUReplaceCreator()));
     addCreator(PREDICTOR, (CPUBackend::Creator *)(new CPUPredictorCreator()));
+    addCreator(SparseLinear, (CPUBackend::Creator *)(new CPUSparseLinearCreator()));
+    addCreator(SparseIdLinear, (CPUBackend::Creator *)(new CPUSparseIdLinearCreator()));
 }
 
 } // namespace mllm

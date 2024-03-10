@@ -45,6 +45,8 @@ enum OpType {
     WHERE,
     REPLACE,
     PREDICTOR,
+    SparseLinear,
+    SparseIdLinear,
     OP_NUM
 };
 

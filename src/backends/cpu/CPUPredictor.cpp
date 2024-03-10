@@ -23,11 +23,11 @@ ErrorCode CPUPredictor::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
     assert(outputs.size() == 1);
     auto &x = inputs[0];
     auto &o = outputs[0];
+    assert(x->dimension() == in_dim_);
     if(x->count() == 0){
         o->reshape(0,0,0,0);
         return Op::reshape(inputs, outputs);
     }
-    assert(x->dimension() == in_dim_);
     o->reshape(x->batch(), x->head(), x->sequence(), out_dim_);
     return Op::reshape(inputs, outputs);
 }
@@ -49,7 +49,9 @@ ErrorCode CPUPredictor::load(AbstructLoader &loader) {
     up_.reshape(1, 1, r, in_dim_);
     down_.reshape(1, 1, out_dim_, r);
     up_.alloc();
+    loader.load(&up_);
     down_.alloc();
+    loader.load(&down_);
 
     return Op::load(loader);
 }
