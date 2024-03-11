@@ -33,8 +33,8 @@ ErrorCode CPUPredictor::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
 }
 
 ErrorCode CPUPredictor::load(AbstructLoader &loader) {
-    up_.setName(name() + ".up_pred");
-    down_.setName(name() + ".down_pred");
+    up_.setName(name() + ".predictor.up.weight");
+    down_.setName(name() + ".predictor.down.weight");
     auto type = loader.getDataType(up_.name());
     assert(type != MLLM_TYPE_COUNT);
     assert(loader.getDataType(down_.name()) == type);

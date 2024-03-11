@@ -5,19 +5,27 @@ from functools import reduce
 from io import BufferedWriter
 import os
 import torch
+
 MAGIC_NUMBER = 20012
 file_map = {}
+
+
 class Tensor:
     name: str
     offset: int
     size: int
     dtype: int
+
     def __init__(self, name: str, dtype: int):
         self.name = name
         self.dtype = dtype
+
+
 # One Tensor Index Item Contains: Name_Len(Int)+Name(str)+Weights_Len(UInt64)+Offset(UInt64)+DataType(Int)
 def calc_tensors_index_table_size(name: str):
     return 4 + len(name) + 8 + 8 + 4
+
+
 class Writer:
     writer: BufferedWriter
     tensors_map: [str, Tensor]
@@ -29,6 +37,7 @@ class Writer:
         self.writer = open(path, "wb+")
         self.writer.seek(0)
         self.write_int(MAGIC_NUMBER)
+
     def __torch_dtype_to_int(self, dtype: torch.dtype) -> int:
         if dtype == torch.float32 or dtype == torch.bfloat16:
             return 0
@@ -42,12 +51,16 @@ class Writer:
             return 18
         else:
             raise Exception(f"Unknown dtype: {dtype}")
+
     def write_int(self, val: int):
         self.writer.write(struct.pack("<i", val))
+
     def write_float(self, val: float):
         self.writer.write(struct.pack("<f", val))
+
     def write_u64(self, val: int):
         self.writer.write(struct.pack("<Q", val))
+
     def write_str(self, val: str):
         self.writer.write(struct.pack("<i", len(val)))
         self.writer.write(val.encode("utf-8"))
@@ -65,6 +78,7 @@ class Writer:
         tensor_idx.size = size
         tensor_idx.offset = offset
         return offset, size
+
     def write_tensor_index(
             self,
     ):
@@ -96,9 +110,12 @@ class Writer:
             return
         else:
             raise Exception("No tensors to write")
+
     def close(self):
         self.writer.close()
-def get_tensor(model: dict, key: str,index_: dict):
+
+
+def get_tensor(model: dict, key: str, index_: dict):
     if index_ is not None and isinstance(index_, dict) and "weight_map" in index_.keys():
         if key in index_["weight_map"].keys():
             model_ = file_map[index_["weight_map"][key]]
@@ -115,6 +132,8 @@ def get_tensor(model: dict, key: str,index_: dict):
             return model.get_tensor(key)
     else:
         raise Exception(f"Tensor {key} not found in model")
+
+
 def all_keys(model: dict, index_: dict):
     global file_map
     all_keys_name = []
@@ -124,10 +143,10 @@ def all_keys(model: dict, index_: dict):
             all_keys_name.append(key)
             if val is not None and val not in file_map.keys():
                 # JOIN PATH
-                val_path = os.path.join(json_pwd,val)
+                val_path = os.path.join(json_pwd, val)
                 print(val_path)
                 if args.type == "torch":
-                    file_map[val] = torch.load(val_path,weights_only=True)
+                    file_map[val] = torch.load(val_path, weights_only=True)
                 else:
                     file_map[val] = safe_open(val_path, framework="pt")
     else:
@@ -145,65 +164,19 @@ def all_keys(model: dict, index_: dict):
                     pass
     return all_keys_name
 
-def key_map(key: str, model_type: str):
-    key_ori = key
-    key_list = key.split(".")
-    new_key = key
-    num_layer = 0
 
-    PTH_NAMES: dict = {
-        "tok_embeddings.weight": "token_embeddings",
-        "norm.weight": "norm",
-        "output.weight": "output",
-        ".attention.wq.weight": ".attention.q",
-        ".attention.wk.weight": ".attention.k",
-        ".attention.wv.weight": ".attention.v",
-        ".attention.wo.weight": ".attention.o",
-        ".attention_norm.weight": ".attention.norm",
-        ".feed_forward.w1.weight": ".feed_forward.w1",
-        ".feed_forward.w2.weight": ".feed_forward.w2",
-        ".feed_forward.w3.weight": ".feed_forward.w3",
-        ".feed_forward.w4.weight": ".feed_forward.w4",
-        ".ffn_norm.weight": ".ffn_norm",
-        "rope.freqs": "rope.freqs",
-    # }
-    # 
-    # ST_NAMES: dict = {
-        "embed_tokens.weight": "token_embeddings",
-        "norm.weight": "norm",#??
-        "output.weight": "output",#??
-        ".self_attn.q_proj.weight": ".attention.q",
-        ".self_attn.k_proj.weight": ".attention.k",
-        ".self_attn.v_proj.weight": ".attention.v",
-        ".self_attn.o_proj.weight": ".attention.o",
-        ".self_attn.rotary_emb.inv_freq": ".rope.freqs",#??
-        ".post_attention_layernorm.weight": ".attention.norm",
-        ".mlp.down_proj.weight": ".feed_forward.w1",
-        ".mlp.gate_proj.weight": ".feed_forward.w2",
-        ".mlp.up_proj.weight": ".feed_forward.w3",
-        ".mlp.down_proj.weight": ".feed_forward.w4",
-        "input_layernorm.weight": ".ffn_norm", #??
-    }
+def process_str(name: str):
+    if 'down_proj.weight' not in name:
+        return name
+    return name.replace('weight', 'weight_T')
 
-    if key_list[0] == "layers":
-        num_layer = key_list[1]
-        key_ori = ''
-        for i in range(2, len(key_list)):
-            key_ori += "." + key_list[i]
-        new_key = "layers." + num_layer + PTH_NAMES.get(key_ori, key_ori)
-        #print(key_ori)
-        # if model_type == "torch" :
-        #     new_key = "layers." + num_layer + PTH_NAMES.get(key_ori, key_ori)
-        # elif model_type == "safetensor" :
-        #     new_key = "layers." + num_layer + ST_NAMES.get(key_ori, key_ori)
-    else:
-        new_key = PTH_NAMES.get(key_ori, key_ori)
-        #print(key_ori)
-        # if model_type == "torch" :
-        #     new_key = PTH_NAMES.get(key_ori, key_ori)
-        # elif model_type == "safetensor" :
-        #     new_key = ST_NAMES.get(key_ori, key_ori)
-    return new_key
+def process(name: str, ten: torch.Tensor):
+    if 'down_proj.weight' not in name:
+        return name, ten
+
+    new_name = name.replace('weight', 'weight_T')
+    transposed_tensor = ten.transpose(-2, -1).contiguous()
+    return new_name, transposed_tensor
 
 
 if __name__ == "__main__":
@@ -231,12 +204,11 @@ if __name__ == "__main__":
             if isinstance(model, dict) and "model" in model.keys():
                 model = model["model"]
     elif args.type == "safetensor":
-        print("1")
         from safetensors import safe_open
+
         if args.input_model.name.endswith(".json"):
             index_ = json.load(args.input_model)
         else:
-            print("2")
             tensors = {}
             args.input_model.close()
             model = safe_open(args.input_model.name, framework="pt")
@@ -246,13 +218,13 @@ if __name__ == "__main__":
         raise Exception("Unknown type")
     writer = Writer(args.output_model)
     model_keys = all_keys(model, index_)
-    writer.write_tensor_index_padding(model_keys)
+    writer.write_tensor_index_padding(list(map(process_str, model_keys)))
 
     for key in model_keys:
         tensor = get_tensor(model, key, index_)
+        key, tensor = process(key, tensor)
         tensor = tensor.float()
         offset, size = writer.write_tensor(tensor, key)
         print(f"Get tensor {key} to {offset} with size {size}")
 
     writer.write_tensor_index()
-
