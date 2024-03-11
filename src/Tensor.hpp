@@ -715,6 +715,8 @@ public:
     static Tensor& cat(vector<Tensor> input_tensors, Chl dims);;
     static Tensor& mm(Tensor& input0, Tensor& input1);
     Tensor& norm(int L_n);
+    Tensor& where(float value, Chl axis);
+    static Tensor& range(int start, int end);
 
 
     /* Functions used for ChildTensor:
@@ -1199,7 +1201,7 @@ public:
 
     template <typename Dtype>
     void saveNData(string new_name = "", string ex = "") {
-        if (status() == TENSOR_STATIC_ALLOCED || TENSOR_STATIC_SHAPED == status()) {
+        if (status() == TENSOR_STATIC_ALLOCED || (TENSOR_STATIC_SHAPED == status()&& shape().size()>0)) {
             if (ctype() == BTHWC || ctype() == BCTHW) {
                 save5Data<Dtype>(ex);
                 return;

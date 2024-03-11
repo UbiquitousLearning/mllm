@@ -683,5 +683,96 @@ public:
     }
 };
 
+class CPUwhereFunction {
+public:
+    static void reshape(Tensor &input, Tensor &output, float value, Chl axis) {
+    }
+    static void setup(Tensor &input, Tensor &output, float value, Chl axis) {
+    }
+    static void execute(Tensor &input, Tensor &output, float value, Chl axis) {
+        vector<float> b_vec = {};
+        vector<float> s_vec = {};
+        vector<float> h_vec = {};
+        vector<float> d_vec = {};
+#pragma omp parallel for collapse(4) num_threads(thread_count)
+        for (int b = 0; b < input.batch(); b++) {
+            for (auto s = 0; s < input.sequence(); s++) {
+                for (auto h = 0; h < input.head(); h++) {
+                    for (auto d = 0; d < input.dimension(); d++) {
+                        if (input.dataAt<float>(b, h, h, s) == value) {
+                            b_vec.push_back(b);
+                            s_vec.push_back(s);
+                            h_vec.push_back(h);
+                            d_vec.push_back(d);
+                        }
+                    }
+                }
+            }
+        }
+        int num = b_vec.size();
+        if ((int)axis == -1) {
+            output.reshape(1, 1, 4, num);
+            output.setDtype(input.dtype());
+            output.alloc();
+            for (int i = 0; i < 4; ++i) {
+                auto dest_ptr = output.hostPtr<float>() + output.offset(0, 0, i, 0);
+                switch (i) {
+                case 0:
+                    memcpy(dest_ptr, b_vec.data(), num * sizeof(float));
+                    break;
+                case 1:
+                    memcpy(dest_ptr, h_vec.data(), num * sizeof(float));
+                    break;
+                case 2:
+                    memcpy(dest_ptr, s_vec.data(), num * sizeof(float));
+                    break;
+                case 3:
+                    memcpy(dest_ptr, d_vec.data(), num * sizeof(float));
+                    break;
+                default:
+                    break;
+                }
+            }
+        } else {
+            output.reshape(1, 1, 1, num);
+            output.setDtype(input.dtype());
+            output.alloc();
+            auto dest_ptr = output.hostPtr<float>();
+            switch (axis) {
+            case BATCH:
+                memcpy(dest_ptr, b_vec.data(), num * sizeof(float));
+                break;
+            case HEAD:
+                memcpy(dest_ptr, h_vec.data(), num * sizeof(float));
+                break;
+            case SEQUENCE:
+                memcpy(dest_ptr, s_vec.data(), num * sizeof(float));
+                break;
+            case DIMENSION:
+                memcpy(dest_ptr, d_vec.data(), num * sizeof(float));
+                break;
+            default:
+                break;
+            }
+        }
+    }
+};
+
+class CPURangeFunction {
+public:
+    static void reshape(Tensor &output, int start, int end) {
+        output.reshape(1, 1,  end - start, 1);
+    }
+    static void setup(Tensor &output, int start, int end) {
+        output.setDtype(MLLM_TYPE_F32);
+        output.alloc();
+    }
+    static void execute(Tensor &output, int start, int end) {
+        for (int i = 0; i < end-start; ++i) {
+            output.setDataAt<float>(0, 0, i+start,0, (float)i);
+        }
+    }
+};
+
 } // namespace mllm
 #endif // CPUTENSORFUNCTION_HPP

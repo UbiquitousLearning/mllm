@@ -589,4 +589,69 @@ Tensor& Tensor::norm(int L_n) {
     gph_[next_name].status() = status_;
     return gph_[next_name];
 }
+Tensor& Tensor::where(float value, Chl axis) {
+    const std::string next_name = name_ + "-where";
+    switch (status_) {
+    case TENSOR_DYNAMIC: {
+        std::cout << "[TODO] not support dynamic tensor view" << std::endl;
+        break;
+    }
+    case TENSOR_STATIC_INIT: {
+        if (gph_.find(name_) == gph_.end()) {
+            gph_[name_] = *this;
+            gph_[name_].status() = status_;
+        }
+        if (gph_.find(next_name) == gph_.end()) {
+            gph_[next_name] = Tensor(backend_);
+            gph_[next_name].setName(next_name);
+        }
+        CPUwhereFunction::reshape(gph_[name_], gph_[next_name], value, axis);
+        break;
+    }
+    case TENSOR_STATIC_SHAPED: {
+        CPUwhereFunction::setup(gph_[name_], gph_[next_name], value, axis);
+        break;
+    }
+    case TENSOR_STATIC_ALLOCED: {
+        CPUwhereFunction::execute(gph_[name_], gph_[next_name], value, axis);
+        break;
+    }
+    default: {
+    }
+    }
+    gph_[next_name].status() = status_;
+    return gph_[next_name];
+}
+
+Tensor& Tensor::range(int start, int end) {
+    static int range_name_idx = 0;
+    const std::string next_name = "range" + std::to_string(range_name_idx);
+    switch (Module::tensor_status) {
+    case TENSOR_DYNAMIC: {
+        std::cout<<"[TODO] not support dynamic tensor view"<<std::endl;
+        break;
+    }
+    case TENSOR_STATIC_INIT: {
+        if (gph_.find(next_name) == gph_.end()) {
+            gph_[next_name] = Tensor( Module::backends[MLLM_CPU]);
+            gph_[next_name].setName(next_name);
+        }
+        CPURangeFunction::reshape(gph_[next_name], start, end);
+        break;
+    }
+    case TENSOR_STATIC_SHAPED: {
+        CPURangeFunction::setup(gph_[next_name], start, end);
+        break;
+    }
+    case TENSOR_STATIC_ALLOCED: {
+        CPURangeFunction::execute(gph_[next_name], start, end);
+        range_name_idx++;
+        break;
+    }
+    default: {
+    }
+    }
+    gph_[next_name].status() = Module::tensor_status;
+    return gph_[next_name];
+}
 } // namespace mllm

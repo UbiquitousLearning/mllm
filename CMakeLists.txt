@@ -396,6 +396,18 @@ else ()
     target_link_libraries(demo_tinyllama MLLM_CPU)
 endif ()
 
+add_executable(demo_llava ${PROJECT_SOURCE_DIR}/examples/demo_llava.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/processor/PreProcess.cpp
+        src/processor/ClipPreProcess.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_llava PRIVATE -fopenmp)
+    target_link_libraries(demo_llava PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_llava MLLM_CPU)
+endif ()
 
 
 if (APK)
