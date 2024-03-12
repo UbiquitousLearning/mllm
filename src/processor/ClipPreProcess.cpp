@@ -10,13 +10,13 @@
 #include "stb/stb_image.h"
 
 namespace mllm {
-void ClipProcessor::Process(const std::string &text) {
+void ClipPreProcessor::Process(const std::string &text) {
     auto token_id = vector<token_id_t>();
     tokenizer_->tokenize(text, token_id, false);
     input_ids_.push_back(token_id);
 }
 
-void ClipProcessor::PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) {
+void ClipPreProcessor::PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) {
     auto imageinfos = vector<ImageInfo>();
     for (int i = 0; i < images.size(); i++) {
         int width, height, channels;
@@ -65,7 +65,7 @@ void ClipProcessor::PreProcessImages(const std::vector<uint8_t *> &images, const
     }
 }
 
-void ClipProcessor::PreProcessImages(const std::vector<std::string> &images_path) {
+void ClipPreProcessor::PreProcessImages(const std::vector<std::string> &images_path) {
     assert(height_ > 0 && width_ > 0);
     auto image_data = std::vector<uint8_t *>();
     auto image_length = std::vector<size_t>();
@@ -88,7 +88,7 @@ void ClipProcessor::PreProcessImages(const std::vector<std::string> &images_path
 }
 
 
-void ClipProcessor::Img2Tensor(Backend *bn, shared_ptr<Tensor> input_tensor,vector<vector<vector<float>>> img) {
+void ClipPreProcessor::Img2Tensor(Backend *bn, shared_ptr<Tensor> input_tensor,vector<vector<vector<float>>> img) {
     int channel = img.size();
     int height = img[0].size();
     int width= img[0][0].size();
