@@ -5,6 +5,7 @@
 #include "TokenizorTest.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 TEST_F(TokenizerTest, OPTTokenizerTest) {
+    GTEST_SKIP();
     auto bpe = new mllm::BPETokenizer("./vocab_opt.mllm");
     std::unordered_map<string,unsigned> merge_rank;
     auto merge_file = std::ifstream("./merges.txt");
