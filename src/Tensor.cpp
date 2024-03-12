@@ -181,7 +181,6 @@ Tensor &Tensor::operator/(double data) {
 }
 template <typename Func>
 Tensor &Tensor::binaryTwoCompute(Func operation, string append_s, Tensor& other) {
-    int thread_count = 4;
     const std::string next_name = name_ + append_s;
     switch (status_) {
     case TENSOR_DYNAMIC: {
@@ -555,7 +554,6 @@ Tensor &Tensor::mm(Tensor& input0, Tensor& input1) {
 }
 
 Tensor& Tensor::norm(int L_n) {
-    // int thread_count = 4;
     assert(L_n ==1 || L_n ==2);
     const std::string next_name = name_ + "-norm";
     switch (status_) {

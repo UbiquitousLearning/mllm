@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
     cmdParser.parse_check(argc, argv);
 
     string model_path = cmdParser.get<string>("model");
-    int thread_num = cmdParser.get<int>("thread");
+    Layer::cpu_thread = cmdParser.get<int>("thread");
 
     auto processor = ViTProcessor();
 

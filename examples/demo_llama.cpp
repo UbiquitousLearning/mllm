@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
     int tokens_limit = cmdParser.get<int>("limits");
-    int thread_num = cmdParser.get<int>("thread");
+    Layer::cpu_thread = cmdParser.get<int>("thread");
 
     auto tokenizer = LLaMATokenizer(vocab_path);
 

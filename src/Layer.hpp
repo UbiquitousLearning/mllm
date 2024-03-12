@@ -43,6 +43,8 @@ public:
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
     }
+
+    static int cpu_thread;
 private:
     std::string name_num_to_X(const std::string& input_string) {
         std::regex pattern(R"(\.\d{1,3}\.)");  // Matches any number between 1 and 100 between two dots
@@ -91,8 +93,7 @@ protected:
     Tensor &_1I1O_OP(Tensor &input) {
         Module::runlistIdx = saved_list_idx;
         if (op_ == nullptr) {
-            constexpr int threadCount = 4;
-            op_ = backend_->opCreate(param_, name_, threadCount);
+            op_ = backend_->opCreate(param_, name_, cpu_thread);
             op_->load(*Module::loader);
         }
 
@@ -161,8 +162,7 @@ protected:
     Tensor &_2I1O_OP(Tensor &input0, Tensor &input1) {
         Module::runlistIdx = saved_list_idx;
         if (op_ == nullptr) {
-            constexpr int threadCount = 4;
-            op_ = backend_->opCreate(param_, name_, threadCount);
+            op_ = backend_->opCreate(param_, name_, cpu_thread);
             op_->load(*Module::loader);
         }
 
@@ -237,8 +237,7 @@ protected:
     Tensor &_3I1O_OP(Tensor &input0, Tensor &input1, Tensor &input2) {
         Module::runlistIdx = saved_list_idx;
         if (op_ == nullptr) {
-            constexpr int threadCount = 4;
-            op_ = backend_->opCreate(param_, name_, threadCount);
+            op_ = backend_->opCreate(param_, name_, cpu_thread);
             op_->load(*Module::loader);
         }
 
@@ -324,8 +323,7 @@ protected:
     Tensor &_0I1O_OP() {
         Module::runlistIdx = saved_list_idx;
         if (op_ == nullptr) {
-            constexpr int threadCount = 4;
-            op_ = backend_->opCreate(param_, name_, threadCount);
+            op_ = backend_->opCreate(param_, name_, cpu_thread);
             op_->load(*Module::loader);
         }
         string layer_next_name = "param-" + op_->name();
@@ -376,8 +374,7 @@ protected:
     vector<Tensor> _1INO_OP(Tensor &input, int N) {
         Module::runlistIdx = saved_list_idx;
         if (op_ == nullptr) {
-            constexpr int threadCount = 4;
-            op_ = backend_->opCreate(param_, name_, threadCount);
+            op_ = backend_->opCreate(param_, name_, cpu_thread);
             op_->load(*Module::loader);
         }
         if (Tensor::gph_.find(input.name()) != Tensor::gph_.end()) {
@@ -469,6 +466,7 @@ protected:
     OpParam param_;
     bool init_ = false;
     int saved_list_idx;
+    
 };
 
 class Linear final : public Layer {

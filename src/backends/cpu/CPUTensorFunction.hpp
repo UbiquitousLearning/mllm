@@ -7,10 +7,11 @@
 #include "Tensor.hpp"
 #include "compute/Matmul.hpp"
 
+#include <Layer.hpp>
+
 namespace mllm {
 class Tensor;
 
-inline int thread_count = 4;
 class CPUmmFunction {
     static void tranTensorChl(Tensor &input) {
         assert(input.ctype() == BSHD);
@@ -48,11 +49,11 @@ public:
         assert(input0.dtype() == MLLM_TYPE_F32);
         switch (input1.dtype()) {
         case MLLM_TYPE_F32: {
-            mat_mul_fp32(&input0, &input1, &output, false, nullptr, false, isSame, thread_count);
+            mat_mul_fp32(&input0, &input1, &output, false, nullptr, false, isSame, Layer::cpu_thread);
             break;
         }
         case MLLM_TYPE_F16: {
-            mat_mul_fp32_fp16(&input0, &input1, &output, false, nullptr, false, isSame, thread_count);
+            mat_mul_fp32_fp16(&input0, &input1, &output, false, nullptr, false, isSame, Layer::cpu_thread);
             break;
         }
         default:
@@ -80,7 +81,7 @@ public:
                             sum_of_squares += input.dataAt<float>(n, h, s,d) * input.dataAt<float>(n, h, s,d);
                         }
                         float l2_norm = std::sqrt(sum_of_squares);
-#pragma omp parallel for num_threads(thread_count)
+#pragma omp parallel for num_threads(Layer::cpu_thread)
                         for (int d = 0; d < input.dimension(); d++) {
                             output.setDataAt<float>(n, h, s,d, l2_norm);
                         }
@@ -89,7 +90,7 @@ public:
                         for (int d = 0; d < input.dimension(); ++d) {
                             sum_of_abs_values += std::abs(input.dataAt<float>(n, h, s,d));
                         }
-#pragma omp parallel for num_threads(thread_count)
+#pragma omp parallel for num_threads(Layer::cpu_thread)
                         for (int d = 0; d < input.dimension(); d++) {
                             output.setDataAt<float>(n, h, s,d, sum_of_abs_values);
                         }
@@ -115,7 +116,7 @@ public:
     template <typename Func>
     static void execute(Tensor &input, Tensor &output, Func operation, float data) {
         if (input.masterTensor() == nullptr && output.masterTensor() == nullptr && input.ctype() == output.ctype()) {
-#pragma omp parallel for num_threads(thread_count)
+#pragma omp parallel for num_threads(Layer::cpu_thread)
             for (int is = 0; is < input.batch() * input.head() * input.sequence() * input.dimension(); ++is) {
                 output.hostPtr<float>()[is] = operation(input.hostPtr<float>()[is], data);
             }
@@ -123,7 +124,7 @@ public:
             for (int n = 0; n < input.batch(); ++n) {
                 for (int c = 0; c < input.head(); ++c) {
                     for (int h = 0; h < input.sequence(); ++h) {
-#pragma omp parallel for num_threads(thread_count)
+#pragma omp parallel for num_threads(Layer::cpu_thread)
                         for (int w = 0; w < input.dimension(); ++w) {
                             output.ptrAt<float>(n, c, h, w)[0] =
                                 operation(input.ptrAt<float>(n, c, h, w)[0],
@@ -152,7 +153,7 @@ public:
             for (int n = 0; n < batch_; ++n) {
                 auto n_0 = std::min(n, input0.batch() - 1);
                 auto n_1 = std::min(n, input1.batch() - 1);
-#pragma omp parallel for num_threads(thread_count)
+#pragma omp parallel for num_threads(Layer::cpu_thread)
                 for (int is = 0; is < input0.head() * input0.sequence() * input0.dimension(); ++is) {
                     output.ptrAt<float>(n, 0, 0, 0)[is] =
                         operation(input0.ptrAt<float>(n_0, 0, 0, 0)[is],
@@ -165,7 +166,7 @@ public:
                 auto n_1 = std::min(n, input1.batch() - 1);
                 for (int c = 0; c < input0.head(); ++c) {
                     for (int h = 0; h < input0.sequence(); ++h) {
-#pragma omp parallel for num_threads(thread_count)
+#pragma omp parallel for num_threads(Layer::cpu_thread)
                         for (int w = 0; w < input0.dimension(); ++w) {
                             output.ptrAt<float>(n, c, h, w)[0] =
                                 operation(input0.ptrAt<float>(n_0, c, h, w)[0],
@@ -694,7 +695,7 @@ public:
         vector<float> s_vec = {};
         vector<float> h_vec = {};
         vector<float> d_vec = {};
-#pragma omp parallel for collapse(4) num_threads(thread_count)
+#pragma omp parallel for collapse(4) num_threads(Layer::cpu_thread)
         for (int b = 0; b < input.batch(); b++) {
             for (auto s = 0; s < input.sequence(); s++) {
                 for (auto h = 0; h < input.head(); h++) {

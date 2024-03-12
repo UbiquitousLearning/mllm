@@ -209,14 +209,14 @@ cd scripts
 
 ```bash
 cd ./bin
-./main_fuyu -m ../models/fuyu-8b-q4_k.mllm -v ../vacob/fuyu_vocab.mllm
+./demo_fuyu -m ../models/fuyu-8b-q4_k.mllm -v ../vacob/fuyu_vocab.mllm
  ```
 
 #### Run LLaMA-2-7B
 
 ```bash
 cd ./bin
-./main_llama -m ../models/llama-2-7b-chat-q4_k.mllm -v ../vacob/llama_vocab.mllm
+./demo_llama -m ../models/llama-2-7b-chat-q4_k.mllm -v ../vacob/llama_vocab.mllm
 ```
 
 
@@ -224,7 +224,7 @@ cd ./bin
 
 ```bash
 cd ./bin
-./main_imagebind -m ../models/imagebind_huge-q4_k.mllm -v ../vacob/clip_vocab.mllm
+./demo_imagebind -m ../models/imagebind_huge-q4_k.mllm -v ../vacob/clip_vocab.mllm
 ```
 
 
