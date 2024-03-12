@@ -280,7 +280,7 @@ NetTensor *TNetTensor::flatten(Chl axis_start, Chl axis_end) {
         data_dims = {BATCH, -1, HEAD + SEQUENCE, DIMENSION};
     } else if (axis_start == HEAD & axis_end == DIMENSION) {
         data_dims = {BATCH, HEAD, -1, SEQUENCE + DIMENSION};
-    } else if (axis_start == TIME & axis_end == CHANNLE) {
+    } else if (axis_start == TIME & axis_end == WIDTH) {
         data_dims = {BATCH, -1, TIME + HEIGHT + WIDTH, CHANNLE};
     } else {
         std::cout << "ERROR: " << name << " flatten  " << axis_start << "&" << axis_end << std::endl;
@@ -349,7 +349,7 @@ NetTensor *TNetTensor::transpose(Chl axis1, Chl axis2) {
 NetTensor *TNetTensor::norm(int L_n) {
     Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
-    _SET_OUT_TENSOR_NAME(out_tensor, name, net_op_, "_transpose_")
+    _SET_OUT_TENSOR_NAME(out_tensor, name, net_op_, "_norm_")
     net_op_->type = NORM;
     net_op_->param["type"] = NORM;
     net_op_->param["L_n"] = (float)L_n;

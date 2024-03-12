@@ -19,7 +19,7 @@ namespace mllm {
 
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
-static int64_t timer_freq, timer_start;
+static __int64 timer_freq, timer_start;
 inline void mllm_time_init(void) {
     LARGE_INTEGER t;
     QueryPerformanceFrequency(&t);
@@ -31,12 +31,12 @@ inline void mllm_time_init(void) {
     QueryPerformanceCounter(&t);
     timer_start = t.QuadPart;
 }
-inline int64_t mllm_time_ms(void) {
+inline __int64 mllm_time_ms(void) {
     LARGE_INTEGER t;
     QueryPerformanceCounter(&t);
     return ((t.QuadPart-timer_start) * 1000) / timer_freq;
 }
-inline int64_t mllm_time_us(void) {
+inline __int64 mllm_time_us(void) {
     LARGE_INTEGER t;
     QueryPerformanceCounter(&t);
     return ((t.QuadPart-timer_start) * 1000000) / timer_freq;

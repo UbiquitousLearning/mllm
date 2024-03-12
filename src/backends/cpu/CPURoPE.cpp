@@ -92,6 +92,7 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto &input = inputs[0];
     auto &output = outputs[0];
+    auto out_dtype = output->dtype();
     for (int n = 0; n < input->batch(); ++n) {
         for (int h = 0; h < input->head(); ++h) {
             for (int s = 0; s < input->sequence(); ++s) { // sequance
@@ -108,9 +109,9 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                         float sin_value = sin_[s + h_cnt_][d];
                         float cos_value = cos_[s + h_cnt_][d];
                         auto value = in_value * cos_value + in_value_2 * sin_value;
-                        if (output->dtypeAt(n, h, s, d) == MLLM_TYPE_F32) {
+                        if (out_dtype == MLLM_TYPE_F32) {
                             output->setDataAt<float>(n, h, s, d, value);
-                        } else if (output->dtypeAt(n, h, s, d) == MLLM_TYPE_F16) {
+                        } else if (out_dtype == MLLM_TYPE_F16) {
                             output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
                         }
                     } else if (pose_type_ == PERSIMMONROPE) {
