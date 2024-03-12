@@ -2,6 +2,7 @@ import json
 import struct
 from typing import Iterable, Tuple
 import argparse
+import os
 
 MAGIC_NUM = 23333
 parser = argparse.ArgumentParser()
@@ -89,7 +90,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     output_file = args.output_file
     input_file = args.input_file
-
+    added_vocab = []
     with open(output_file, "wb+") as vocab_file:
         vocab_file.write(struct.pack("<i", MAGIC_NUM))
 
@@ -98,6 +99,11 @@ if __name__ == "__main__":
 
             sentencepiece_tokenizer = SentencePieceProcessor(str(input_file))
             write_vocab(vocab_file, sentencepiece_tokenizer)
+        elif args.type == "BPE" and os.path.basename(input_file) =="vocab.json":
+            vocabs = json.load(open(input_file, "r"))
+            config = {"vocab": vocabs, "type": "BPE"}
+            write_unigram(vocab_file, config)
+
         else:
             tokenizer_config = json.load(open(input_file, "r"))
 
