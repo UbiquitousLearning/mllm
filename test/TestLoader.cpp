@@ -71,11 +71,13 @@ bool TestLoader::load(Tensor *tensor, bool strict) {
         }
     }
     if(index->dims.size() == 5) {
+        tensor->chls_ = {{BATCH, 0},{CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
         tensor->setCtype(BCTHW);
     }
     if (tensor->shape().empty()) {
         // Get shape from TensorIndex
         if(index->dims.size() == 5) {
+        tensor->chls_ = {{BATCH, 0},{CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
             tensor->reshape(index->dims[0], index->dims[1], index->dims[2], index->dims[3], index->dims[4]);
         }else {
             tensor->reshape(index->dims[0], index->dims[1], index->dims[2], index->dims[3]);
