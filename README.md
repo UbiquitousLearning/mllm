@@ -114,8 +114,7 @@ cd ../script
 Result are as followed:
 
 ```
-> ./main_fuyu
-Load model: 6.34905 s
+> ./demo_fuyu
 [Q] [../assets/bus.png]Generate a coco-style caption.
 
 [A]  A blue bus driving down▁the▁road next▁to a sidewalk.
@@ -144,8 +143,7 @@ cd ../script
 Result are as followed:
 
 ```
-> ./main_llama
-Load model: 10.0351 s
+> ./demo_llama
 [Q]  Hello, who are you?
 [A]
 
@@ -184,8 +182,7 @@ cd ../script
 
 Result are as followed:
 ```
-> ./main_imagebind 
-Load model: 2.17264 s
+> ./demo_imagebind 
 vision X text :
 0.9985647 0.0013827 0.0000526 
 0.0000365 0.9998636 0.0000999 
@@ -209,14 +206,14 @@ cd scripts
 
 ```bash
 cd ./bin
-./main_fuyu -m ../models/fuyu-8b-q4_k.mllm -v ../vacob/fuyu_vocab.mllm
+./demo_fuyu -m ../models/fuyu-8b-q4_k.mllm -v ../vacob/fuyu_vocab.mllm
  ```
 
 #### Run LLaMA-2-7B
 
 ```bash
 cd ./bin
-./main_llama -m ../models/llama-2-7b-chat-q4_k.mllm -v ../vacob/llama_vocab.mllm
+./demo_llama -m ../models/llama-2-7b-chat-q4_k.mllm -v ../vacob/llama_vocab.mllm
 ```
 
 
@@ -224,7 +221,7 @@ cd ./bin
 
 ```bash
 cd ./bin
-./main_imagebind -m ../models/imagebind_huge-q4_k.mllm -v ../vacob/clip_vocab.mllm
+./demo_imagebind -m ../models/imagebind_huge-q4_k.mllm -v ../vacob/clip_vocab.mllm
 ```
 
 

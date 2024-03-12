@@ -4,7 +4,11 @@ project(mllm)
 cmake_policy(SET CMP0074 NEW)
 set(CMAKE_CXX_STANDARD 17)
 option(ARM "build on ARM" OFF)
-add_compile_options(-Wno-deprecated-declarations)
+if(MSVC)
+    message(STATUS "Using MSVC as the compiler")
+else()
+    add_compile_options(-Wno-deprecated-declarations)
+endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
@@ -45,13 +49,13 @@ FetchContent_Declare(
 option(DEBUG "debug print" OFF)
 
 if (CMAKE_HOST_UNIX)
-    message("current platform: Linux ")
+    message(STATUS "current platform: Linux ")
 
     # set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++14 -stdlib=libc++")
 elseif (CMAKE_HOST_WIN32)
-    message("current platform: Windows ")
+    message(STATUS "current platform: Windows ")
 else ()
-    message("current platform: unknown ")
+    message(STATUS "current platform: unknown ")
 endif ()
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/src DIR_SRC)
@@ -312,6 +316,99 @@ if (ARM AND NOT APK)
 else ()
     target_link_libraries(main_imagebind MLLM_CPU)
 endif ()
+
+
+
+add_executable(demo_llama ${PROJECT_SOURCE_DIR}/examples/demo_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_llama PRIVATE -fopenmp)
+    target_link_libraries(demo_llama PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_llama MLLM_CPU)
+endif ()
+
+
+
+add_executable(demo_fuyu ${PROJECT_SOURCE_DIR}/examples/demo_fuyu.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Unigram/Unigram.cpp
+        src/processor/FuyuPreProcess.cpp
+        src/processor/PreProcess.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_fuyu PRIVATE -fopenmp)
+    target_link_libraries(demo_fuyu PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_fuyu MLLM_CPU)
+endif ()
+
+
+add_executable(demo_vit ${PROJECT_SOURCE_DIR}/examples/demo_vit.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/processor/PreProcess.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_vit PRIVATE -fopenmp)
+    target_link_libraries(demo_vit PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_vit MLLM_CPU)
+endif ()
+
+add_executable(demo_clip ${PROJECT_SOURCE_DIR}/examples/demo_clip.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/processor/PreProcess.cpp
+        src/processor/ClipPreProcess.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_clip PRIVATE -fopenmp)
+    target_link_libraries(demo_clip PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_clip MLLM_CPU)
+endif ()
+
+add_executable(demo_imagebind ${PROJECT_SOURCE_DIR}/examples/demo_imagebind.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
+        ${DIR_SRC_PROCESSOE}
+        ${DIR_THIRDPARTY_AUDIO}
+        src/processor/PreProcess.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_imagebind PRIVATE -fopenmp)
+    target_link_libraries(demo_imagebind PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_imagebind MLLM_CPU)
+endif ()
+
+add_executable(demo_tinyllama ${PROJECT_SOURCE_DIR}/examples/demo_tinyllama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_tinyllama PRIVATE -fopenmp)
+    target_link_libraries(demo_tinyllama PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_tinyllama MLLM_CPU)
+endif ()
+
+add_executable(demo_llava ${PROJECT_SOURCE_DIR}/examples/demo_llava.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/processor/PreProcess.cpp
+        src/processor/ClipPreProcess.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_llava PRIVATE -fopenmp)
+    target_link_libraries(demo_llava PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_llava MLLM_CPU)
+endif ()
+
 
 if (APK)
     add_library(mllm_lib STATIC ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER}
