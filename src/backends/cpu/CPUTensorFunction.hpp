@@ -19,12 +19,12 @@ class CPUmmFunction {
         auto h = input.head();
         auto d = input.dimension();
         auto s = input.sequence();
-        auto ori_seq_idx = input.chls_[SEQUENCE];
-        auto ori_head_idx = input.chls_[HEAD];
-        auto ori_dim_idx = input.chls_[DIMENSION];
-        input.chls_[HEAD] = ori_seq_idx;
-        input.chls_[DIMENSION] = ori_head_idx;
-        input.chls_[SEQUENCE] = ori_dim_idx;
+        auto ori_seq_idx = input.chls()[SEQUENCE];
+        auto ori_head_idx = input.chls()[HEAD];
+        auto ori_dim_idx = input.chls()[DIMENSION];
+        input.chls()[HEAD] = ori_seq_idx;
+        input.chls()[DIMENSION] = ori_head_idx;
+        input.chls()[SEQUENCE] = ori_dim_idx;
         input.changeCtype();
         input.reshape(b, h, s, d);
         input.transed() = true;
@@ -35,7 +35,7 @@ class CPUmmFunction {
             auto h = input.masterTensor()->head();
             auto d = input.masterTensor()->dimension();
             auto s = input.masterTensor()->sequence();
-            input.masterTensor()->chls_ = input.chls_;
+            input.masterTensor()->chls() = input.chls();
             input.masterTensor()->changeCtype();
             input.masterTensor()->reshape(b, h, s, d);
             for (auto child : input.masterTensor()->childTensors()) {
@@ -43,7 +43,7 @@ class CPUmmFunction {
                 auto h = child->head();
                 auto d = child->dimension();
                 auto s = child->sequence();
-                child->chls_ = input.chls_;
+                child->chls() = input.chls();
                 child->changeCtype();
                 child->reshape(b, h, s, d);
             }
@@ -51,7 +51,7 @@ class CPUmmFunction {
     }
 public:
     static void reshape(Tensor &input0, Tensor &input1, Tensor &output) {
-        if(input1.chls_[SEQUENCE] != 3) {
+        if(input1.chls()[SEQUENCE] != 3) {
             tranTensorChl(input1);
         }
         assert(input0.dimension() == input1.sequence());
@@ -64,7 +64,7 @@ public:
         output.alloc();
     }
     static void execute(Tensor &input0, Tensor &input1, Tensor &output) {
-        bool isSame = std::equal(input0.chls_.begin(), input0.chls_.end(), input1.chls_.begin());
+        bool isSame = std::equal(input0.chls().begin(), input0.chls().end(), input1.chls().begin());
         assert(input0.dtype() == MLLM_TYPE_F32);
         switch (input1.dtype()) {
         case MLLM_TYPE_F32: {

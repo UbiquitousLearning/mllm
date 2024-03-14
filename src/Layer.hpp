@@ -29,10 +29,6 @@ public:
         backend_ = Module::backends[MLLM_CPU];
         saved_list_idx = Module::listIdx;
         init_ = true;
-        // std::cout<<name_<<std::endl;
-        // constexpr int threadCount = 4;
-        // op_ = backend_->opCreate(param_, std::move(name), threadCount);
-        // op_->load(*Module::loader);
     }
     bool ready() {
         return init_;
@@ -94,282 +90,104 @@ private:
     }
 
 protected:
-    Tensor &_1I1O_OP(Tensor &input) {
-        Module::runlistIdx = saved_list_idx;
+    bool INIT_OP() {
         if (op_ == nullptr) {
             op_ = backend_->opCreate(param_, name_, cpu_thread);
+        }
+        if (Module::doLoad) {
             op_->load(*Module::loader);
         }
-
-        string layer_next_name = "out-" + op_->name();
-        if (Tensor::gph_.find(input.name()) != Tensor::gph_.end()) {
-            Tensor::gph_[input.name()].status() = input.status();
-        }
-        switch (input.status()) {
-        case TENSOR_STATIC_INIT: {
-            if (Tensor::gph_.find(input.name()) == Tensor::gph_.end()) {
-                Tensor::gph_[input.name()] = input;
-                Tensor::gph_[input.name()].setName(input.name());
-            } else if (input.count() != Tensor::gph_[input.name()].count()) {
-                Tensor::gph_[input.name()] = input;
-                Tensor::gph_[input.name()].setName(input.name());
+        return Module::doLoad;
+    }
+    Tensor &_1I1O_OP(Tensor &input) {
+        Module::runlistIdx = saved_list_idx;
+        if (INIT_OP()) {
+            return input;
+        } else {
+            string layer_next_name = "out-" + op_->name();
+            if (Tensor::gph_.find(input.name()) != Tensor::gph_.end()) {
+                Tensor::gph_[input.name()].status() = input.status();
             }
-            auto in_name = input.name();
-            if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
-                if (param_["type"] == KVCACHE) {
-                    layername_2_tensorname[layer_next_name] = layer_next_name;
-                    reset_KVCache(input.name());
-                    in_name = name_X_to_num(in_name, saved_list_idx);
-                } else {
-                    layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+            switch (input.status()) {
+            case TENSOR_STATIC_INIT: {
+                if (Tensor::gph_.find(input.name()) == Tensor::gph_.end()) {
+                    Tensor::gph_[input.name()] = input;
+                    Tensor::gph_[input.name()].setName(input.name());
+                } else if (input.count() != Tensor::gph_[input.name()].count()) {
+                    Tensor::gph_[input.name()] = input;
+                    Tensor::gph_[input.name()].setName(input.name());
                 }
+                auto in_name = input.name();
+                if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
+                    if (param_["type"] == KVCACHE) {
+                        layername_2_tensorname[layer_next_name] = layer_next_name;
+                        reset_KVCache(input.name());
+                        in_name = name_X_to_num(in_name, saved_list_idx);
+                    } else {
+                        layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                    }
+                }
+                auto next_name = layername_2_tensorname[layer_next_name];
+                if (Tensor::gph_.find(next_name) == Tensor::gph_.end()) {
+                    Tensor::gph_[next_name] = Tensor(backend_);
+                    Tensor::gph_[next_name].setName(next_name);
+                }
+                vector<shared_ptr<Tensor>> shared_inputs{std::shared_ptr<Tensor>(&Tensor::gph_[in_name], [](Tensor *) {})};
+                vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
+                op_->reshape(shared_inputs, shared_outputs);
+                op_->setUp(shared_inputs, shared_outputs);
+                if (Tensor::gph_[next_name].aggregated() == false) {
+                    assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                }
+                break;
+            }
+            case TENSOR_STATIC_READY: {
+                auto next_name = layername_2_tensorname[layer_next_name];
+                assert(Tensor::gph_[input.name()].hostPtr<float>() != nullptr);
+                vector<shared_ptr<Tensor>> shared_inputs{std::shared_ptr<Tensor>(&Tensor::gph_[input.name()], [](Tensor *) {})};
+                vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
+                op_->execute(shared_inputs, shared_outputs);
+                if (Tensor::gph_[next_name].aggregated() == false) {
+                    assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                }
+                break;
+            }
+            default: {
+                break;
+            }
             }
             auto next_name = layername_2_tensorname[layer_next_name];
-            if (Tensor::gph_.find(next_name) == Tensor::gph_.end()) {
-                Tensor::gph_[next_name] = Tensor(backend_);
-                Tensor::gph_[next_name].setName(next_name);
-            }
-            vector<shared_ptr<Tensor>> shared_inputs{std::shared_ptr<Tensor>(&Tensor::gph_[in_name], [](Tensor *) {})};
-            vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
-            op_->reshape(shared_inputs, shared_outputs);
-            op_->setUp(shared_inputs, shared_outputs);
-            if (Tensor::gph_[next_name].aggregated() == false) {
-                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
-            }
-            break;
+            Tensor::gph_[next_name].status() = Tensor::gph_[input.name()].status();
+            // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+            return Tensor::gph_[next_name];
         }
-        case TENSOR_STATIC_READY: {
-            auto next_name = layername_2_tensorname[layer_next_name];
-            assert(Tensor::gph_[input.name()].hostPtr<float>() != nullptr);
-            vector<shared_ptr<Tensor>> shared_inputs{std::shared_ptr<Tensor>(&Tensor::gph_[input.name()], [](Tensor *) {})};
-            vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
-            op_->execute(shared_inputs, shared_outputs);
-            if (Tensor::gph_[next_name].aggregated() == false) {
-                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
-            }
-            break;
-        }
-        default: {
-            break;
-        }
-        }
-        auto next_name = layername_2_tensorname[layer_next_name];
-        Tensor::gph_[next_name].status() = Tensor::gph_[input.name()].status();
-        // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
-        return Tensor::gph_[next_name];
     }
     Tensor &_2I1O_OP(Tensor &input0, Tensor &input1) {
         Module::runlistIdx = saved_list_idx;
-        if (op_ == nullptr) {
-            op_ = backend_->opCreate(param_, name_, cpu_thread);
-            op_->load(*Module::loader);
-        }
+        if (INIT_OP()) {
+            return input0;
+        } else {
+            string layer_next_name = "out-" + op_->name();
+            if (Tensor::gph_.find(input0.name()) != Tensor::gph_.end()) {
+                Tensor::gph_[input0.name()].status() = input0.status();
+            }
 
-        string layer_next_name = "out-" + op_->name();
-        if (Tensor::gph_.find(input0.name()) != Tensor::gph_.end()) {
-            Tensor::gph_[input0.name()].status() = input0.status();
-        }
-
-        if (Tensor::gph_.find(input1.name()) != Tensor::gph_.end()) {
-            Tensor::gph_[input1.name()].status() = input0.status();
-        }
-        if ((Tensor::gph_.find(input0.name()) != Tensor::gph_.end()) && Tensor::gph_.find(input1.name()) != Tensor::gph_.end()) {
-            assert(input0.status() == input1.status());
-        }
-        switch (input0.status()) {
-        case TENSOR_STATIC_INIT: {
-            if (Tensor::gph_.find(input0.name()) == Tensor::gph_.end()) {
-                Tensor::gph_[input0.name()] = input0;
-                Tensor::gph_[input0.name()].setName(input0.name());
+            if (Tensor::gph_.find(input1.name()) != Tensor::gph_.end()) {
+                Tensor::gph_[input1.name()].status() = input0.status();
             }
-            if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end()) {
-                Tensor::gph_[input1.name()] = input1;
-                Tensor::gph_[input1.name()].setName(input1.name());
+            if ((Tensor::gph_.find(input0.name()) != Tensor::gph_.end()) && Tensor::gph_.find(input1.name()) != Tensor::gph_.end()) {
+                assert(input0.status() == input1.status());
             }
-            if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
-                layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
-            }
-            auto next_name = layername_2_tensorname[layer_next_name];
-            if (Tensor::gph_.find(next_name) == Tensor::gph_.end()) {
-                Tensor::gph_[next_name] = Tensor(backend_);
-                Tensor::gph_[next_name].setName(next_name);
-            }
-            vector<shared_ptr<Tensor>> shared_inputs{
-                std::shared_ptr<Tensor>(&Tensor::gph_[input0.name()], [](Tensor *) {}),
-                std::shared_ptr<Tensor>(&Tensor::gph_[input1.name()], [](Tensor *) {})};
-            vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
-            op_->reshape(shared_inputs, shared_outputs);
-            op_->setUp(shared_inputs, shared_outputs);
-            assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
-            break;
-        }
-        case TENSOR_STATIC_READY: {
-            auto next_name = layername_2_tensorname[layer_next_name];
-            vector<shared_ptr<Tensor>> shared_inputs{
-                std::shared_ptr<Tensor>(&Tensor::gph_[input0.name()], [](Tensor *) {}),
-                std::shared_ptr<Tensor>(&Tensor::gph_[input1.name()], [](Tensor *) {})};
-            vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
-            op_->execute(shared_inputs, shared_outputs);
-            assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
-            break;
-        }
-        default: {
-            break;
-        }
-        }
-        auto next_name = layername_2_tensorname[layer_next_name];
-        Tensor::gph_[next_name].status() = Tensor::gph_[input0.name()].status();
-        // Tensor::gph_[input0.name()].saveNData<float>(input0.name());
-        // Tensor::gph_[input1.name()].saveNData<float>(input1.name());
-        // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
-        return Tensor::gph_[next_name];
-    }
-    Tensor &_3I1O_OP(Tensor &input0, Tensor &input1, Tensor &input2) {
-        Module::runlistIdx = saved_list_idx;
-        if (op_ == nullptr) {
-            op_ = backend_->opCreate(param_, name_, cpu_thread);
-            op_->load(*Module::loader);
-        }
-
-        string layer_next_name = "out-" + op_->name();
-        if (Tensor::gph_.find(input0.name()) != Tensor::gph_.end()) {
-            Tensor::gph_[input0.name()].status() = input0.status();
-        }
-        if (Tensor::gph_.find(input1.name()) != Tensor::gph_.end()) {
-            Tensor::gph_[input1.name()].status() = input0.status();
-        }
-        if (Tensor::gph_.find(input2.name()) != Tensor::gph_.end()) {
-            Tensor::gph_[input2.name()].status() = input0.status();
-        }
-        if ((Tensor::gph_.find(input0.name()) != Tensor::gph_.end()) && Tensor::gph_.find(input1.name()) != Tensor::gph_.end()) {
-            assert(input0.status() == input1.status());
-        }
-        if ((Tensor::gph_.find(input0.name()) != Tensor::gph_.end()) && Tensor::gph_.find(input2.name()) != Tensor::gph_.end()) {
-            assert(input0.status() == input2.status());
-        }
-        switch (input0.status()) {
-        case TENSOR_STATIC_INIT: {
-            if (Tensor::gph_.find(input0.name()) == Tensor::gph_.end()) {
-                Tensor::gph_[input0.name()] = input0;
-                Tensor::gph_[input0.name()].setName(input0.name());
-            }
-            if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end()) {
-                Tensor::gph_[input1.name()] = input1;
-                Tensor::gph_[input1.name()].setName(input1.name());
-            }
-            if (Tensor::gph_.find(input2.name()) == Tensor::gph_.end()) {
-                Tensor::gph_[input2.name()] = input2;
-                Tensor::gph_[input2.name()].setName(input2.name());
-            }
-            if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
-                layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
-            }
-            auto next_name = layername_2_tensorname[layer_next_name];
-            if (Tensor::gph_.find(next_name) == Tensor::gph_.end()) {
-                Tensor::gph_[next_name] = Tensor(backend_);
-                Tensor::gph_[next_name].setName(next_name);
-            }
-            vector<shared_ptr<Tensor>> shared_inputs{
-                std::shared_ptr<Tensor>(&Tensor::gph_[input0.name()], [](Tensor *) {}),
-                std::shared_ptr<Tensor>(&Tensor::gph_[input1.name()], [](Tensor *) {}),
-                std::shared_ptr<Tensor>(&Tensor::gph_[input2.name()], [](Tensor *) {})};
-            vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
-            op_->reshape(shared_inputs, shared_outputs);
-            op_->setUp(shared_inputs, shared_outputs);
-            assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
-            break;
-        }
-        case TENSOR_STATIC_READY: {
-            auto next_name = layername_2_tensorname[layer_next_name];
-            vector<shared_ptr<Tensor>> shared_inputs{
-                std::shared_ptr<Tensor>(&Tensor::gph_[input0.name()], [](Tensor *) {}),
-                std::shared_ptr<Tensor>(&Tensor::gph_[input1.name()], [](Tensor *) {}),
-                std::shared_ptr<Tensor>(&Tensor::gph_[input2.name()], [](Tensor *) {})};
-            vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
-            op_->execute(shared_inputs, shared_outputs);
-            assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
-            break;
-        }
-        default: {
-            break;
-        }
-        }
-        auto next_name = layername_2_tensorname[layer_next_name];
-        Tensor::gph_[next_name].status() = Tensor::gph_[input0.name()].status();
-        // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
-        return Tensor::gph_[next_name];
-    }
-    Tensor &_0I1O_OP() {
-        Module::runlistIdx = saved_list_idx;
-        if (op_ == nullptr) {
-            op_ = backend_->opCreate(param_, name_, cpu_thread);
-            op_->load(*Module::loader);
-        }
-        string layer_next_name = "param-" + op_->name();
-        switch (Module::tensor_status) {
-        case TENSOR_STATIC_INIT: {
-            if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
-                layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
-            }
-            auto next_name = layername_2_tensorname[layer_next_name];
-            if (Tensor::gph_.find(next_name) == Tensor::gph_.end()) {
-                Tensor::gph_[next_name] = Tensor(backend_);
-                Tensor::gph_[next_name].setName(next_name);
-            }
-            vector<shared_ptr<Tensor>> shared_inputs{};
-            vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
-            op_->reshape(shared_inputs, shared_outputs);
-            op_->setUp(shared_inputs, shared_outputs);
-            if (Tensor::gph_[next_name].aggregated() == false) {
-                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
-            }
-            break;
-        }
-        case TENSOR_STATIC_READY: {
-            auto next_name = layername_2_tensorname[layer_next_name];
-            vector<shared_ptr<Tensor>> shared_inputs{};
-            vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
-            op_->execute(shared_inputs, shared_outputs);
-            if (Tensor::gph_[next_name].aggregated() == false) {
-                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
-            }
-            break;
-        }
-        default: {
-            break;
-        }
-        }
-        auto next_name = layername_2_tensorname[layer_next_name];
-        Tensor::gph_[next_name].status() = Module::tensor_status;
-        // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
-        return Tensor::gph_[next_name];
-    }
-    vector<Tensor> _1INO_OP(Tensor &input, int N) {
-        Module::runlistIdx = saved_list_idx;
-        if (op_ == nullptr) {
-            op_ = backend_->opCreate(param_, name_, cpu_thread);
-            op_->load(*Module::loader);
-        }
-        if (Tensor::gph_.find(input.name()) != Tensor::gph_.end()) {
-            Tensor::gph_[input.name()].status() = input.status();
-        }
-
-        vector<string> layer_next_names = {};
-        for (int i = 0; i < N; ++i) {
-            layer_next_names.push_back("out-" + op_->name() + "-" + std::to_string(i));
-        }
-        switch (input.status()) {
-        case TENSOR_STATIC_INIT: {
-            if (Tensor::gph_.find(input.name()) == Tensor::gph_.end()) {
-                Tensor::gph_[input.name()] = input;
-                Tensor::gph_[input.name()].setName(input.name());
-            } else if (input.count() != Tensor::gph_[input.name()].count()) {
-                Tensor::gph_[input.name()] = input;
-                Tensor::gph_[input.name()].setName(input.name());
-            }
-            vector<shared_ptr<Tensor>> shared_outputs = {};
-            vector<string> next_names = {};
-            for (const auto &layer_next_name : layer_next_names) {
+            switch (input0.status()) {
+            case TENSOR_STATIC_INIT: {
+                if (Tensor::gph_.find(input0.name()) == Tensor::gph_.end()) {
+                    Tensor::gph_[input0.name()] = input0;
+                    Tensor::gph_[input0.name()].setName(input0.name());
+                }
+                if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end()) {
+                    Tensor::gph_[input1.name()] = input1;
+                    Tensor::gph_[input1.name()].setName(input1.name());
+                }
                 if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
                     layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
                 }
@@ -378,44 +196,228 @@ protected:
                     Tensor::gph_[next_name] = Tensor(backend_);
                     Tensor::gph_[next_name].setName(next_name);
                 }
-                next_names.push_back(next_name);
-                shared_outputs.push_back(std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {}));
+                vector<shared_ptr<Tensor>> shared_inputs{
+                    std::shared_ptr<Tensor>(&Tensor::gph_[input0.name()], [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&Tensor::gph_[input1.name()], [](Tensor *) {})};
+                vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
+                op_->reshape(shared_inputs, shared_outputs);
+                op_->setUp(shared_inputs, shared_outputs);
+                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                break;
             }
-            vector<shared_ptr<Tensor>> shared_inputs{std::shared_ptr<Tensor>(&Tensor::gph_[input.name()], [](Tensor *) {})};
-            op_->reshape(shared_inputs, shared_outputs);
-            op_->setUp(shared_inputs, shared_outputs);
-            break;
+            case TENSOR_STATIC_READY: {
+                auto next_name = layername_2_tensorname[layer_next_name];
+                vector<shared_ptr<Tensor>> shared_inputs{
+                    std::shared_ptr<Tensor>(&Tensor::gph_[input0.name()], [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&Tensor::gph_[input1.name()], [](Tensor *) {})};
+                vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
+                op_->execute(shared_inputs, shared_outputs);
+                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                break;
+            }
+            default: {
+                break;
+            }
+            }
+            auto next_name = layername_2_tensorname[layer_next_name];
+            Tensor::gph_[next_name].status() = Tensor::gph_[input0.name()].status();
+            // Tensor::gph_[input0.name()].saveNData<float>(input0.name());
+            // Tensor::gph_[input1.name()].saveNData<float>(input1.name());
+            // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+            return Tensor::gph_[next_name];
         }
-        case TENSOR_STATIC_READY: {
-            vector<shared_ptr<Tensor>> shared_outputs = {};
-            vector<string> next_names = {};
+    }
+    Tensor &_3I1O_OP(Tensor &input0, Tensor &input1, Tensor &input2) {
+        Module::runlistIdx = saved_list_idx;
+        if (INIT_OP()) {
+            return input0;
+        } else {
+            string layer_next_name = "out-" + op_->name();
+            if (Tensor::gph_.find(input0.name()) != Tensor::gph_.end()) {
+                Tensor::gph_[input0.name()].status() = input0.status();
+            }
+            if (Tensor::gph_.find(input1.name()) != Tensor::gph_.end()) {
+                Tensor::gph_[input1.name()].status() = input0.status();
+            }
+            if (Tensor::gph_.find(input2.name()) != Tensor::gph_.end()) {
+                Tensor::gph_[input2.name()].status() = input0.status();
+            }
+            if ((Tensor::gph_.find(input0.name()) != Tensor::gph_.end()) && Tensor::gph_.find(input1.name()) != Tensor::gph_.end()) {
+                assert(input0.status() == input1.status());
+            }
+            if ((Tensor::gph_.find(input0.name()) != Tensor::gph_.end()) && Tensor::gph_.find(input2.name()) != Tensor::gph_.end()) {
+                assert(input0.status() == input2.status());
+            }
+            switch (input0.status()) {
+            case TENSOR_STATIC_INIT: {
+                if (Tensor::gph_.find(input0.name()) == Tensor::gph_.end()) {
+                    Tensor::gph_[input0.name()] = input0;
+                    Tensor::gph_[input0.name()].setName(input0.name());
+                }
+                if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end()) {
+                    Tensor::gph_[input1.name()] = input1;
+                    Tensor::gph_[input1.name()].setName(input1.name());
+                }
+                if (Tensor::gph_.find(input2.name()) == Tensor::gph_.end()) {
+                    Tensor::gph_[input2.name()] = input2;
+                    Tensor::gph_[input2.name()].setName(input2.name());
+                }
+                if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
+                    layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                }
+                auto next_name = layername_2_tensorname[layer_next_name];
+                if (Tensor::gph_.find(next_name) == Tensor::gph_.end()) {
+                    Tensor::gph_[next_name] = Tensor(backend_);
+                    Tensor::gph_[next_name].setName(next_name);
+                }
+                vector<shared_ptr<Tensor>> shared_inputs{
+                    std::shared_ptr<Tensor>(&Tensor::gph_[input0.name()], [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&Tensor::gph_[input1.name()], [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&Tensor::gph_[input2.name()], [](Tensor *) {})};
+                vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
+                op_->reshape(shared_inputs, shared_outputs);
+                op_->setUp(shared_inputs, shared_outputs);
+                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                break;
+            }
+            case TENSOR_STATIC_READY: {
+                auto next_name = layername_2_tensorname[layer_next_name];
+                vector<shared_ptr<Tensor>> shared_inputs{
+                    std::shared_ptr<Tensor>(&Tensor::gph_[input0.name()], [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&Tensor::gph_[input1.name()], [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&Tensor::gph_[input2.name()], [](Tensor *) {})};
+                vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
+                op_->execute(shared_inputs, shared_outputs);
+                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                break;
+            }
+            default: {
+                break;
+            }
+            }
+            auto next_name = layername_2_tensorname[layer_next_name];
+            Tensor::gph_[next_name].status() = Tensor::gph_[input0.name()].status();
+            // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+            return Tensor::gph_[next_name];
+        }
+    }
+    Tensor &_0I1O_OP() {
+        Module::runlistIdx = saved_list_idx;
+        if (INIT_OP()) {
+            return Tensor::gph_["0"];
+        } else {
+            string layer_next_name = "param-" + op_->name();
+            switch (Module::tensor_status) {
+            case TENSOR_STATIC_INIT: {
+                if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
+                    layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                }
+                auto next_name = layername_2_tensorname[layer_next_name];
+                if (Tensor::gph_.find(next_name) == Tensor::gph_.end()) {
+                    Tensor::gph_[next_name] = Tensor(backend_);
+                    Tensor::gph_[next_name].setName(next_name);
+                }
+                vector<shared_ptr<Tensor>> shared_inputs{};
+                vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
+                op_->reshape(shared_inputs, shared_outputs);
+                op_->setUp(shared_inputs, shared_outputs);
+                if (Tensor::gph_[next_name].aggregated() == false) {
+                    assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                }
+                break;
+            }
+            case TENSOR_STATIC_READY: {
+                auto next_name = layername_2_tensorname[layer_next_name];
+                vector<shared_ptr<Tensor>> shared_inputs{};
+                vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
+                op_->execute(shared_inputs, shared_outputs);
+                if (Tensor::gph_[next_name].aggregated() == false) {
+                    assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                }
+                break;
+            }
+            default: {
+                break;
+            }
+            }
+            auto next_name = layername_2_tensorname[layer_next_name];
+            Tensor::gph_[next_name].status() = Module::tensor_status;
+            // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+            return Tensor::gph_[next_name];
+        }
+    }
+    vector<Tensor> _1INO_OP(Tensor &input, int N) {
+        Module::runlistIdx = saved_list_idx;
+        if (INIT_OP()) {
+            return {input};
+        } else {
+            if (Tensor::gph_.find(input.name()) != Tensor::gph_.end()) {
+                Tensor::gph_[input.name()].status() = input.status();
+            }
+
+            vector<string> layer_next_names = {};
+            for (int i = 0; i < N; ++i) {
+                layer_next_names.push_back("out-" + op_->name() + "-" + std::to_string(i));
+            }
+            switch (input.status()) {
+            case TENSOR_STATIC_INIT: {
+                if (Tensor::gph_.find(input.name()) == Tensor::gph_.end()) {
+                    Tensor::gph_[input.name()] = input;
+                    Tensor::gph_[input.name()].setName(input.name());
+                } else if (input.count() != Tensor::gph_[input.name()].count()) {
+                    Tensor::gph_[input.name()] = input;
+                    Tensor::gph_[input.name()].setName(input.name());
+                }
+                vector<shared_ptr<Tensor>> shared_outputs = {};
+                vector<string> next_names = {};
+                for (const auto &layer_next_name : layer_next_names) {
+                    if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
+                        layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                    }
+                    auto next_name = layername_2_tensorname[layer_next_name];
+                    if (Tensor::gph_.find(next_name) == Tensor::gph_.end()) {
+                        Tensor::gph_[next_name] = Tensor(backend_);
+                        Tensor::gph_[next_name].setName(next_name);
+                    }
+                    next_names.push_back(next_name);
+                    shared_outputs.push_back(std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {}));
+                }
+                vector<shared_ptr<Tensor>> shared_inputs{std::shared_ptr<Tensor>(&Tensor::gph_[input.name()], [](Tensor *) {})};
+                op_->reshape(shared_inputs, shared_outputs);
+                op_->setUp(shared_inputs, shared_outputs);
+                break;
+            }
+            case TENSOR_STATIC_READY: {
+                vector<shared_ptr<Tensor>> shared_outputs = {};
+                vector<string> next_names = {};
+                for (const auto &layer_next_name : layer_next_names) {
+                    auto next_name = layername_2_tensorname[layer_next_name];
+                    next_names.push_back(next_name);
+                    shared_outputs.push_back(std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {}));
+                }
+                if (Tensor::gph_[input.name()].aggregated() == false) {
+                    assert(Tensor::gph_[input.name()].hostPtr<float>() != nullptr);
+                }
+                vector<shared_ptr<Tensor>> shared_inputs{std::shared_ptr<Tensor>(&Tensor::gph_[input.name()], [](Tensor *) {})};
+                op_->execute(shared_inputs, shared_outputs);
+                for (int i = 0; i < shared_outputs.size(); ++i) {
+                    assert(Tensor::gph_[next_names[i]].hostPtr<float>() != nullptr);
+                }
+                break;
+            }
+            default: {
+                break;
+            }
+            }
+            vector<Tensor> output_result = {};
             for (const auto &layer_next_name : layer_next_names) {
                 auto next_name = layername_2_tensorname[layer_next_name];
-                next_names.push_back(next_name);
-                shared_outputs.push_back(std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {}));
+                Tensor::gph_[next_name].status() = Tensor::gph_[input.name()].status();
+                // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+                output_result.push_back(Tensor::gph_[next_name]);
             }
-            if (Tensor::gph_[input.name()].aggregated() == false) {
-                assert(Tensor::gph_[input.name()].hostPtr<float>() != nullptr);
-            }
-            vector<shared_ptr<Tensor>> shared_inputs{std::shared_ptr<Tensor>(&Tensor::gph_[input.name()], [](Tensor *) {})};
-            op_->execute(shared_inputs, shared_outputs);
-            for (int i = 0; i < shared_outputs.size(); ++i) {
-                assert(Tensor::gph_[next_names[i]].hostPtr<float>() != nullptr);
-            }
-            break;
+            return output_result;
         }
-        default: {
-            break;
-        }
-        }
-        vector<Tensor> output_result = {};
-        for (const auto &layer_next_name : layer_next_names) {
-            auto next_name = layername_2_tensorname[layer_next_name];
-            Tensor::gph_[next_name].status() = Tensor::gph_[input.name()].status();
-            // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
-            output_result.push_back(Tensor::gph_[next_name]);
-        }
-        return output_result;
     }
 
     std::string name_;

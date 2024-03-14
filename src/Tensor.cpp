@@ -27,10 +27,10 @@ Tensor::Tensor(const vector<int> &shape) :
 
 bool Tensor::reshape(const int batch, const int head, const int sequence, const int dimension) {
     vector<int> shape(4);
-    shape[chls_[BATCH]] = batch;
-    shape[chls_[HEAD]] = head;
-    shape[chls_[SEQUENCE]] = sequence;
-    shape[chls_[DIMENSION]] = dimension;
+    shape[chls()[BATCH]] = batch;
+    shape[chls()[HEAD]] = head;
+    shape[chls()[SEQUENCE]] = sequence;
+    shape[chls()[DIMENSION]] = dimension;
 
     // shape[0] = batch;
     // switch (ctype_) {
@@ -54,10 +54,10 @@ bool Tensor::reshape(const int batch, const int head, const int sequence, const 
     // }
 
     // vector<int> shape1(4);
-    // shape1[chls_[BATCH]] = batch;
-    // shape1[chls_[HEAD]] = head;
-    // shape1[chls_[SEQUENCE]] = sequence;
-    // shape1[chls_[DIMENSION]] = dimension;
+    // shape1[chls()[BATCH]] = batch;
+    // shape1[chls()[HEAD]] = head;
+    // shape1[chls()[SEQUENCE]] = sequence;
+    // shape1[chls()[DIMENSION]] = dimension;
     // bool isSame = std::equal(shape.begin(), shape.end(), shape1.begin());
     // if(!isSame) {
     //     std::cout<<"";
@@ -92,11 +92,11 @@ bool Tensor::reshape(const int batch, const int channel, const int time, const i
         ctype_ = BCTHW;
     }
     vector<int> shape(5);
-    shape[chls_[BATCH]] = batch;
-    shape[chls_[CHANNLE]] = channel;
-    shape[chls_[TIME]] = time;
-    shape[chls_[HEIGHT]] = height;
-    shape[chls_[WIDTH]] = width;
+    shape[chls()[BATCH]] = batch;
+    shape[chls()[CHANNLE]] = channel;
+    shape[chls()[TIME]] = time;
+    shape[chls()[HEIGHT]] = height;
+    shape[chls()[WIDTH]] = width;
     return reshape(shape);
     // if (ctype_ != BTHWC) {
     //     ctype_ = BCTHW;
@@ -122,6 +122,7 @@ map<string, Tensor> Tensor::gph_;
 
 template <typename Func>
 Tensor &Tensor::binaryCompute(Func operation, string append_s, float data) {
+    if(Module::doLoad){return *this;}
     const std::string next_name = name_ + append_s;
     switch (status_) {
     case TENSOR_DYNAMIC: {
@@ -179,6 +180,7 @@ Tensor &Tensor::operator/(double data) {
 }
 template <typename Func>
 Tensor &Tensor::binaryTwoCompute(Func operation, string append_s, Tensor& other) {
+    if(Module::doLoad){return *this;}
     const std::string next_name = name_ + append_s;
     switch (status_) {
     case TENSOR_DYNAMIC: {
@@ -233,6 +235,7 @@ Tensor& Tensor::operator/(Tensor& other){
 }
 
 Tensor& Tensor::mean(Chl axis) {
+    if(Module::doLoad){return *this;}
     const std::string next_name = name_ + "-mean";
     switch (status_) {
     case TENSOR_DYNAMIC: {
@@ -265,6 +268,7 @@ Tensor& Tensor::mean(Chl axis) {
 }
 
 Tensor& Tensor::view(int b, int h, int s, int d) {
+    if(Module::doLoad){return *this;}
     const std::string next_name = name_ + "-view";
     switch (status_) {
     case TENSOR_DYNAMIC: {
@@ -297,6 +301,7 @@ Tensor& Tensor::view(int b, int h, int s, int d) {
 }
 
 Tensor& Tensor::flatten(Chl axis_start, Chl axis_end) {
+    if(Module::doLoad){return *this;}
     const std::string next_name = name_ + "-flatten";
     switch (status_) {
     case TENSOR_DYNAMIC: {
@@ -332,6 +337,7 @@ Tensor &Tensor::transpose(Chl axis0, Chl axis1) {
     return transpose({{axis0, axis1}});
 }
 Tensor &Tensor::transpose(vector<std::pair<Chl, Chl>> axiss) {
+    if(Module::doLoad){return *this;}
     const std::string next_name = name_ + "-transpose";
     if (next_name.find(".X.") != std::string::npos && Module::runlistIdx > 0) {}
     else {
@@ -358,10 +364,10 @@ Tensor &Tensor::transpose(vector<std::pair<Chl, Chl>> axiss) {
                 for (auto axis : axiss) {
                     auto axis0 = axis.first;
                     auto axis1 = axis.second;
-                    auto ori_0_idx = gph_[next_name].chls_[axis0];
-                    auto ori_1_idx = gph_[next_name].chls_[axis1];
-                    gph_[next_name].chls_[axis0] = ori_1_idx;
-                    gph_[next_name].chls_[axis1] = ori_0_idx;
+                    auto ori_0_idx = gph_[next_name].chls()[axis0];
+                    auto ori_1_idx = gph_[next_name].chls()[axis1];
+                    gph_[next_name].chls()[axis0] = ori_1_idx;
+                    gph_[next_name].chls()[axis1] = ori_0_idx;
                 }
                 gph_[next_name].changeCtype(gph_[name_].shape().size());
                 gph_[next_name].undiffusion_ = true;
@@ -398,6 +404,7 @@ Tensor &Tensor::transpose(vector<std::pair<Chl, Chl>> axiss) {
 }
 
 Tensor &Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
+    if(Module::doLoad){return *this;}
     const std::string next_name = name_ + "-clip";
     switch (status_) {
     case TENSOR_DYNAMIC: {
@@ -429,8 +436,8 @@ Tensor &Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d)
     return gph_[next_name];
 }
 
-
 Tensor &Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
+    if(Module::doLoad){return *this;}
     const std::string next_name = name_ + "-clip";
     switch (status_) {
     case TENSOR_DYNAMIC: {
@@ -463,6 +470,7 @@ Tensor &Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s,
 }
 
 Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
+    if(Module::doLoad){return Tensor::gph_["0"];}
     const std::string next_name = input_tensors[0].name() + "-cat";
     int expd_batch_ = input_tensors[0].batch();
     int expd_batch_input_idx = 0;
@@ -503,6 +511,7 @@ Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
 }
 
 Tensor &Tensor::mm(Tensor& input0, Tensor& input1) {
+    if(Module::doLoad){return Tensor::gph_["0"];}
     const std::string next_name = input0.name() + "-mm-" + input1.name();
     switch (input0.status()) {
     case TENSOR_DYNAMIC: {
@@ -534,6 +543,7 @@ Tensor &Tensor::mm(Tensor& input0, Tensor& input1) {
 }
 
 Tensor& Tensor::norm(int L_n) {
+    if(Module::doLoad){return *this;}
     assert(L_n ==1 || L_n ==2);
     const std::string next_name = name_ + "-norm";
     switch (status_) {
@@ -564,7 +574,9 @@ Tensor& Tensor::norm(int L_n) {
     gph_[next_name].status() = status_;
     return gph_[next_name];
 }
+
 Tensor& Tensor::where(float value, Chl axis) {
+    if(Module::doLoad){return *this;}
     const std::string next_name = name_ + "-where";
     switch (status_) {
     case TENSOR_DYNAMIC: {
@@ -596,6 +608,7 @@ Tensor& Tensor::where(float value, Chl axis) {
 }
 
 Tensor& Tensor::range(int start, int end) {
+    if(Module::doLoad){return Tensor::gph_["0"];}
     static int range_name_idx = 0;
     const std::string next_name = "range" + std::to_string(range_name_idx);
     switch (Module::tensor_status) {

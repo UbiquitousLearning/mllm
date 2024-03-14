@@ -21,6 +21,7 @@ public:
     static map<BackendType, Backend *> backends;
     static ParamLoader *loader;
     static TensorStatus tensor_status;
+    static bool doLoad;
 
     Module() = default;
     virtual ~Module() = default;
@@ -48,6 +49,16 @@ public:
 
     void load(string path) {
         initLoader(path);
+        Module::doLoad = true;
+        vector<Tensor> tmps;
+        int max_in_size = 5;
+        for (int i = 0; i < max_in_size; ++i) {
+            Tensor::gph_[std::to_string(i)] = Tensor();
+            tmps.push_back(Tensor::gph_[std::to_string(i)]);
+        }
+        operator()(tmps, 0);
+        Module::doLoad = false;
+        Tensor::gph_.clear();
     }
 
     virtual vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) = 0;
@@ -58,6 +69,9 @@ public:
     }
     template <typename... Args>
     vector<Tensor> operator()(vector<Tensor> inputs, Args... args) {
+        if(doLoad) {
+            return Forward(inputs, {});
+        }
         vector<std::any> anyArgs = convertArgsToAnyVector(args...);
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
             for (auto &input : inputs) {
