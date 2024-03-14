@@ -29,6 +29,25 @@ class CPUmmFunction {
         input.reshape(b, h, s, d);
         input.transed() = true;
         input.undiffusion() = false;
+        // if no TENSOR_STATIC_SHAPED
+        if (input.masterTensor() != nullptr) {
+            auto b = input.masterTensor()->batch();
+            auto h = input.masterTensor()->head();
+            auto d = input.masterTensor()->dimension();
+            auto s = input.masterTensor()->sequence();
+            input.masterTensor()->chls_ = input.chls_;
+            input.masterTensor()->changeCtype();
+            input.masterTensor()->reshape(b, h, s, d);
+            for (auto child : input.masterTensor()->childTensors()) {
+                auto b = child->batch();
+                auto h = child->head();
+                auto d = child->dimension();
+                auto s = child->sequence();
+                child->chls_ = input.chls_;
+                child->changeCtype();
+                child->reshape(b, h, s, d);
+            }
+        }
     }
 public:
     static void reshape(Tensor &input0, Tensor &input1, Tensor &output) {

@@ -646,6 +646,16 @@ public:
         assert(source.count() == count());
         memcpy(host_ptr_, source.host_ptr_, cntSize());
     }
+    void initFrom(const Tensor &source) {
+        dtype_ = source.dtype();
+        chls_ = source.chls_;
+        ctype_ = source.ctype_;
+        shape_ = source.shape_;
+        count_ = source.count_;
+        if(source.host_ptr_!= nullptr) {
+            alloc();
+        }
+    }
     void copyFrom(const shared_ptr<Tensor> &source) {
         assert(masterTensor() == nullptr);
         assert(source->dtype() == dtype());
@@ -866,7 +876,7 @@ public:
         master_tensor_ = master_tensor;
     }
 
-    vector<Tensor *> childTensors() {
+    vector<Tensor *> &childTensors() {
         return child_tensors_;
     }
     void addChildTensor(Tensor *child) {
@@ -1201,7 +1211,8 @@ public:
 
     template <typename Dtype>
     void saveNData(string new_name = "", string ex = "") {
-        if (status() == TENSOR_STATIC_ALLOCED || (TENSOR_STATIC_SHAPED == status()&& shape().size()>0)) {
+        // if (status() == TENSOR_STATIC_ALLOCED || (TENSOR_STATIC_SHAPED == status()&& shape().size()>0)) {
+        if (status() == TENSOR_STATIC_READY && shape().size()>0) {
             if (ctype() == BTHWC || ctype() == BCTHW) {
                 save5Data<Dtype>(ex);
                 return;

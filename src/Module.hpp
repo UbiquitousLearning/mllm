@@ -68,15 +68,9 @@ public:
 
             Forward(inputs, anyArgs);
             for (auto &input : inputs) {
-                input.status() = TENSOR_STATIC_SHAPED;
+                input.status() = TENSOR_STATIC_READY;
             }
-            tensor_status = TENSOR_STATIC_SHAPED;
-
-            Forward(inputs, anyArgs);
-            for (auto &input : inputs) {
-                input.status() = TENSOR_STATIC_ALLOCED;
-            }
-            tensor_status = TENSOR_STATIC_ALLOCED;
+            tensor_status = TENSOR_STATIC_READY;
 
             return Forward(inputs, anyArgs);
         } else {
@@ -84,20 +78,6 @@ public:
         }
     }
 
-    // vector<Tensor> call(vector<Tensor> inputs, vector<std::any> args) {
-    //     return operator()(inputs, args);
-    // }
-
-    // template <typename T>
-    // static vector<T *> List(int n) {
-    //     static_assert(std::is_base_of<Module, T>::value, "T must be a subclass of Module");
-    //
-    //     vector<T *> modules;
-    //     for (int i = 0; i < n; i++) {
-    //         modules.push_back(new T());
-    //     }
-    //     return modules;
-    // }
     static int listIdx;
     static int runlistIdx;
 

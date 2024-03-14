@@ -148,13 +148,11 @@ Tensor &Tensor::binaryCompute(Func operation, string append_s, float data) {
             gph_[next_name].setName(next_name);
         }
         CPUbinaryFunction::reshape(gph_[name_], gph_[next_name]);
-        break;
-    }
-    case TENSOR_STATIC_SHAPED: {
+
         CPUbinaryFunction::setup(gph_[name_], gph_[next_name]);
         break;
     }
-    case TENSOR_STATIC_ALLOCED: {
+    case TENSOR_STATIC_READY: {
         CPUbinaryFunction::execute(gph_[name_], gph_[next_name], operation, data);
         break;
     }
@@ -207,13 +205,11 @@ Tensor &Tensor::binaryTwoCompute(Func operation, string append_s, Tensor& other)
             gph_[next_name].setName(next_name);
         }
         CPUbinaryTwoFunction::reshape(gph_[name_], gph_[other.name_], gph_[next_name]);
-        break;
-    }
-    case TENSOR_STATIC_SHAPED: {
+
         CPUbinaryTwoFunction::setup(gph_[name_], gph_[other.name_], gph_[next_name]);
         break;
     }
-    case TENSOR_STATIC_ALLOCED: {
+    case TENSOR_STATIC_READY: {
         CPUbinaryTwoFunction::execute(gph_[name_], gph_[other.name_], gph_[next_name], operation);
         break;
     }
@@ -253,13 +249,11 @@ Tensor& Tensor::mean(Chl axis) {
             gph_[next_name].setName(next_name);
         }
         CPUmeanFunction::reshape(gph_[name_], gph_[next_name], axis);
-        break;
-    }
-    case TENSOR_STATIC_SHAPED: {
+
         CPUmeanFunction::setup(gph_[name_], gph_[next_name], axis);
         break;
     }
-    case TENSOR_STATIC_ALLOCED: {
+    case TENSOR_STATIC_READY: {
         CPUmeanFunction::execute(gph_[name_], gph_[next_name], axis);
         break;
     }
@@ -287,13 +281,11 @@ Tensor& Tensor::view(int b, int h, int s, int d) {
             gph_[next_name].setName(next_name);
         }
         CPUviewFunction::reshape(gph_[name_], gph_[next_name], b, h, s, d);
-        break;
-    }
-    case TENSOR_STATIC_SHAPED: {
+
         CPUviewFunction::setup(gph_[name_], gph_[next_name], b, h, s, d);
         break;
     }
-    case TENSOR_STATIC_ALLOCED: {
+    case TENSOR_STATIC_READY: {
         CPUviewFunction::execute(gph_[name_], gph_[next_name]);
         break;
     }
@@ -321,13 +313,11 @@ Tensor& Tensor::flatten(Chl axis_start, Chl axis_end) {
             gph_[next_name].setName(next_name);
         }
         CPUflattenFunction::reshape(gph_[name_], gph_[next_name], axis_start, axis_end);
-        break;
-    }
-    case TENSOR_STATIC_SHAPED: {
+
         CPUflattenFunction::setup(gph_[name_], gph_[next_name], axis_start, axis_end);
         break;
     }
-    case TENSOR_STATIC_ALLOCED: {
+    case TENSOR_STATIC_READY: {
         CPUflattenFunction::execute(gph_[name_], gph_[next_name]);
         break;
     }
@@ -376,9 +366,9 @@ Tensor &Tensor::transpose(vector<std::pair<Chl, Chl>> axiss) {
                 gph_[next_name].changeCtype(gph_[name_].shape().size());
                 gph_[next_name].undiffusion_ = true;
             }
-            break;
-        }
-        case TENSOR_STATIC_SHAPED: {
+        //     break;
+        // }
+        // case TENSOR_STATIC_SHAPED: {
             if(gph_[name_].masterTensor() != nullptr) {
                 if (gph_[next_name].master_tensor_ == nullptr) {
                     gph_[next_name].setDtype(gph_[name_].dtype());
@@ -396,7 +386,7 @@ Tensor &Tensor::transpose(vector<std::pair<Chl, Chl>> axiss) {
             }
             break;
         }
-        case TENSOR_STATIC_ALLOCED: {
+        case TENSOR_STATIC_READY: {
             break;
         }
         default: {
@@ -424,13 +414,11 @@ Tensor &Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d)
             gph_[next_name].setName(next_name);
         }
         CPUclipFunction::reshape(gph_[name_], gph_[next_name], b, h, s, d);
-        break;
-    }
-    case TENSOR_STATIC_SHAPED: {
+
         CPUclipFunction::setup(gph_[name_], gph_[next_name], b, h, s, d);
         break;
     }
-    case TENSOR_STATIC_ALLOCED: {
+    case TENSOR_STATIC_READY: {
         CPUclipFunction::execute(gph_[name_], gph_[next_name], b, h, s, d);
         break;
     }
@@ -459,13 +447,11 @@ Tensor &Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s,
             gph_[next_name].setName(next_name);
         }
         CPUclipaxisFunction::reshape(gph_[name_], gph_[next_name], keep_axis, b, h, s, d);
-        break;
-    }
-    case TENSOR_STATIC_SHAPED: {
+
         CPUclipaxisFunction::setup(gph_[name_], gph_[next_name],  keep_axis, b, h, s, d);
         break;
     }
-    case TENSOR_STATIC_ALLOCED: {
+    case TENSOR_STATIC_READY: {
         CPUclipaxisFunction::execute(gph_[name_], gph_[next_name],  keep_axis, b, h, s, d);
         break;
     }
@@ -502,13 +488,10 @@ Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
             gph_[next_name].setName(next_name);
         }
         CPUcatFunction::reshape(inputs, gph_[next_name], axis, expd_batch_, expd_batch_input_idx);
-        break;
-    }
-    case TENSOR_STATIC_SHAPED: {
         CPUcatFunction::setup(inputs, gph_[next_name], axis, expd_batch_, expd_batch_input_idx);
         break;
     }
-    case TENSOR_STATIC_ALLOCED: {
+    case TENSOR_STATIC_READY: {
         CPUcatFunction::execute(inputs, gph_[next_name], axis, expd_batch_, expd_batch_input_idx);
         break;
     }
@@ -536,13 +519,10 @@ Tensor &Tensor::mm(Tensor& input0, Tensor& input1) {
         } else {
             CPUmmFunction::reshape(gph_[input0.name()], gph_[input1.name()], gph_[next_name]);
         }
-        break;
-    }
-    case TENSOR_STATIC_SHAPED: {
         CPUmmFunction::setup(gph_[input0.name()], gph_[input1.name()], gph_[next_name]);
         break;
     }
-    case TENSOR_STATIC_ALLOCED: {
+    case TENSOR_STATIC_READY: {
         CPUmmFunction::execute(gph_[input0.name()], gph_[input1.name()], gph_[next_name]);
         break;
     }
@@ -571,13 +551,10 @@ Tensor& Tensor::norm(int L_n) {
             gph_[next_name].setName(next_name);
         }
         CPUnormFunction::reshape(gph_[name_], gph_[next_name], L_n);
-        break;
-    }
-    case TENSOR_STATIC_SHAPED: {
         CPUnormFunction::setup(gph_[name_], gph_[next_name], L_n);
         break;
     }
-    case TENSOR_STATIC_ALLOCED: {
+    case TENSOR_STATIC_READY: {
         CPUnormFunction::execute(gph_[name_], gph_[next_name], L_n);
         break;
     }
@@ -604,13 +581,10 @@ Tensor& Tensor::where(float value, Chl axis) {
             gph_[next_name].setName(next_name);
         }
         CPUwhereFunction::reshape(gph_[name_], gph_[next_name], value, axis);
-        break;
-    }
-    case TENSOR_STATIC_SHAPED: {
         CPUwhereFunction::setup(gph_[name_], gph_[next_name], value, axis);
         break;
     }
-    case TENSOR_STATIC_ALLOCED: {
+    case TENSOR_STATIC_READY: {
         CPUwhereFunction::execute(gph_[name_], gph_[next_name], value, axis);
         break;
     }
@@ -635,13 +609,10 @@ Tensor& Tensor::range(int start, int end) {
             gph_[next_name].setName(next_name);
         }
         CPURangeFunction::reshape(gph_[next_name], start, end);
-        break;
-    }
-    case TENSOR_STATIC_SHAPED: {
         CPURangeFunction::setup(gph_[next_name], start, end);
         break;
     }
-    case TENSOR_STATIC_ALLOCED: {
+    case TENSOR_STATIC_READY: {
         CPURangeFunction::execute(gph_[next_name], start, end);
         range_name_idx++;
         break;

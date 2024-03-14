@@ -27,8 +27,7 @@ typedef enum {
 enum TensorStatus {
     TENSOR_DYNAMIC,
     TENSOR_STATIC_INIT ,
-    TENSOR_STATIC_SHAPED ,
-    TENSOR_STATIC_ALLOCED ,
+    TENSOR_STATIC_READY ,
 };
 
 enum ErrorCode {
