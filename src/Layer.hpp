@@ -349,7 +349,11 @@ protected:
     vector<Tensor> _1INO_OP(Tensor &input, int N) {
         Module::runlistIdx = saved_list_idx;
         if (INIT_OP()) {
-            return {input};
+            vector<Tensor> out;
+            for (int i = 0; i < N; ++i) {
+                out.push_back(input);
+            }
+            return out;
         } else {
             if (Tensor::gph_.find(input.name()) != Tensor::gph_.end()) {
                 Tensor::gph_[input.name()].status() = input.status();

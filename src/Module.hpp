@@ -56,7 +56,8 @@ public:
             Tensor::gph_[std::to_string(i)] = Tensor();
             tmps.push_back(Tensor::gph_[std::to_string(i)]);
         }
-        operator()(tmps, 0);
+        vector<int> tmpt = {0, 0};
+        operator()(tmps, tmpt);
         Module::doLoad = false;
         Tensor::gph_.clear();
     }
@@ -69,10 +70,10 @@ public:
     }
     template <typename... Args>
     vector<Tensor> operator()(vector<Tensor> inputs, Args... args) {
-        if(doLoad) {
-            return Forward(inputs, {});
-        }
         vector<std::any> anyArgs = convertArgsToAnyVector(args...);
+        if(doLoad) {
+            return Forward(inputs, anyArgs);
+        }
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
             for (auto &input : inputs) {
                 input.setTtype(TensorType::NORMAL_TENSOR);
