@@ -691,6 +691,10 @@ public:
         return undiffusion_ ;
     }
 
+    vector<std::pair<Chl, Chl>>& transFrom() {
+        return trans_from_;
+    }
+
     /**
      * \brief Overload the operators.
      * \param data binary data
@@ -702,6 +706,8 @@ public:
     Tensor& operator/(float data);
     Tensor& operator/(double data);
 
+
+
     /**
      * \brief Overload the operators.
      * \param other The Other Tensor
@@ -711,16 +717,16 @@ public:
     Tensor& operator-(Tensor& other);
     Tensor& operator*(Tensor& other);
     Tensor& operator/(Tensor& other);
+
     Tensor& mean(Chl axis);
 
 
     Tensor& view(int b, int h, int s, int d);
     Tensor& flatten(Chl axis_start, Chl axis_end);
-    Tensor& transpose(Chl axis0, Chl axis1);
+    Tensor& transpose(Chl axis0, Chl axis1){
+        return transpose({{axis0, axis1}});
+    }
     Tensor& transpose(vector<std::pair<Chl, Chl>> axiss);
-    // Tensor& transpose(vector<Chl> dims);
-    // Tensor& transpose_(Chl axis0, Chl axis1);
-    // Tensor& transpose(vector<Chl> axis);
     Tensor& clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d);
     Tensor &clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d);
     static Tensor& cat(vector<Tensor> input_tensors, Chl dims);;
@@ -1511,6 +1517,13 @@ private:
     // static void binaryTensorsCompute(Tensor &input0,Tensor &input1, Tensor &output, Func operation, int thread_count);
     template <typename Func>
     Tensor& binaryTwoCompute(Func operation, string append_s, Tensor& other) ;
+
+
+    template<typename Func, typename... Args>
+    Tensor& applyFunc(const std::string& suffix, Func func, Args... args);  
+
+    template<typename Func, typename... Args>
+    static Tensor& applyStaticFunc(const std::string& suffix, Func func, Args... args);
 
 };
 } // namespace mllm

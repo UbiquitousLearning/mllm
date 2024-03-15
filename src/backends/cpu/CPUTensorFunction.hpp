@@ -49,21 +49,18 @@ class CPUmmFunction {
             }
         }
     }
+
 public:
-    static void reshape(Tensor &input0, Tensor &input1, Tensor &output) {
-        if(input1.chls()[SEQUENCE] != 3) {
+    static void setup(Tensor &output, Tensor &input0, Tensor &input1) {
+        if (input1.chls()[SEQUENCE] != 3) {
             tranTensorChl(input1);
         }
         assert(input0.dimension() == input1.sequence());
-        if (input0.dimension() == input1.sequence()) {
-            output.reshape(input0.batch(), input0.head(), input0.sequence(), input1.dimension());
-        }
-    }
-    static void setup(Tensor &input0, Tensor &input1, Tensor &output) {
+        output.reshape(input0.batch(), input0.head(), input0.sequence(), input1.dimension());
         output.setDtype(input0.dtype());
         output.alloc();
     }
-    static void execute(Tensor &input0, Tensor &input1, Tensor &output) {
+    static void execute(Tensor &output, Tensor &input0, Tensor &input1) {
         bool isSame = std::equal(input0.chls().begin(), input0.chls().end(), input1.chls().begin());
         assert(input0.dtype() == MLLM_TYPE_F32);
         switch (input1.dtype()) {
@@ -83,52 +80,46 @@ public:
 
 class CPUnormFunction {
 public:
-    static void reshape(Tensor &input,  Tensor &output, int L_n) {
+    static void setup(Tensor &input, Tensor &output, int L_n) {
         output.reshape(input.batch(), input.head(), input.sequence(), input.dimension());
-    }
-    static void setup(Tensor &input,  Tensor &output, int L_n) {
         output.setDtype(input.dtype());
         output.alloc();
     }
-    static void execute(Tensor &input,  Tensor &output, int L_n) {
+    static void execute(Tensor &input, Tensor &output, int L_n) {
         for (int h = 0; h < input.head(); h++) {
             for (int n = 0; n < input.batch(); n++) {
                 for (int s = 0; s < input.sequence(); s++) {
                     if (L_n == 2) {
                         float sum_of_squares = 0.0f;
                         for (int d = 0; d < input.dimension(); ++d) {
-                            sum_of_squares += input.dataAt<float>(n, h, s,d) * input.dataAt<float>(n, h, s,d);
+                            sum_of_squares += input.dataAt<float>(n, h, s, d) * input.dataAt<float>(n, h, s, d);
                         }
                         float l2_norm = std::sqrt(sum_of_squares);
 #pragma omp parallel for num_threads(Layer::cpu_thread)
                         for (int d = 0; d < input.dimension(); d++) {
-                            output.setDataAt<float>(n, h, s,d, l2_norm);
+                            output.setDataAt<float>(n, h, s, d, l2_norm);
                         }
                     } else {
                         float sum_of_abs_values = 0.0f;
                         for (int d = 0; d < input.dimension(); ++d) {
-                            sum_of_abs_values += std::abs(input.dataAt<float>(n, h, s,d));
+                            sum_of_abs_values += std::abs(input.dataAt<float>(n, h, s, d));
                         }
 #pragma omp parallel for num_threads(Layer::cpu_thread)
                         for (int d = 0; d < input.dimension(); d++) {
-                            output.setDataAt<float>(n, h, s,d, sum_of_abs_values);
+                            output.setDataAt<float>(n, h, s, d, sum_of_abs_values);
                         }
-
                     }
                 }
             }
         }
     }
-    
 };
-
 
 class CPUbinaryFunction {
 public:
-    static void reshape(Tensor &input, Tensor &output) {
+    template <typename Func>
+    static void setup(Tensor &input, Tensor &output, Func operation, float data) {
         output.reshape(input.batch(), input.head(), input.sequence(), input.dimension());
-    }
-    static void setup(Tensor &input, Tensor &output) {
         output.setDtype(input.dtype());
         output.alloc();
     }
@@ -158,15 +149,14 @@ public:
 
 class CPUbinaryTwoFunction {
 public:
-    static void reshape(Tensor &input0, Tensor &input1, Tensor &output) {
+    template <typename Func>
+    static void setup(Tensor &input0, Tensor &output, Tensor &input1, Func operation) {
         output.reshape(std::max(input0.batch(), input1.batch()), input0.head(), input0.sequence(), input0.dimension());
-    }
-    static void setup(Tensor &input0, Tensor &input1, Tensor &output) {
         output.setDtype(input0.dtype());
         output.alloc();
     }
     template <typename Func>
-    static void execute(Tensor &input0, Tensor &input1, Tensor &output, Func operation) {
+    static void execute(Tensor &input0, Tensor &output, Tensor &input1, Func operation) {
         int batch_ = std::max(input0.batch(), input1.batch());
         if (input0.masterTensor() == nullptr && output.masterTensor() == nullptr && input0.ctype() == output.ctype()) {
             for (int n = 0; n < batch_; ++n) {
@@ -199,7 +189,7 @@ public:
 };
 class CPUmeanFunction {
 public:
-    static void reshape(Tensor &input, Tensor &output, Chl axis) {
+    static void setup(Tensor &input, Tensor &output, Chl axis) {
         int batch = input.batch();
         int head = input.head();
         int sequence = input.sequence();
@@ -221,8 +211,6 @@ public:
             break;
         }
         output.reshape(batch, head, sequence, dimension);
-    }
-    static void setup(Tensor &input, Tensor &output, Chl axis) {
         output.setDtype(input.dtype());
         output.alloc();
     }
@@ -296,7 +284,7 @@ public:
 
 class CPUviewFunction {
 public:
-    static void reshape(Tensor &input, Tensor &output, int b, int h, int s, int d) {
+    static void setup(Tensor &input, Tensor &output, int b, int h, int s, int d) {
         int dim_b = input.batch();
         int dim_h = input.head();
         int dim_s = input.sequence();
@@ -347,8 +335,6 @@ public:
             std::cout << "[TODO]Tensor.View not support!!!!" << std::endl;
         }
         output.reshape(dim_b, dim_h, dim_s, dim_d);
-    }
-    static void setup(Tensor &input, Tensor &output, int b, int h, int s, int d) {
         if ((b == -1 && s == -1 && input.ctype() != BCTHW)   // head & dimension
             || (b == -1 && d == -1 && input.ctype() == BSHD) // head & sequence
             || (h == -1 && d == -1 && input.ctype() == BSHD) // batch & sequence
@@ -363,81 +349,18 @@ public:
             std::cout << "[TODO]Tensor.View not support!!!!" << std::endl;
         }
     }
-    static void execute(Tensor &input, Tensor &output) {
+    static void execute(Tensor &input, Tensor &output, int b, int h, int s, int d) {
     }
 };
 
 class CPUflattenFunction {
 public:
-    static void reshape(Tensor &input, Tensor &output, Chl axis_start, Chl axis_end) {
+    static void setup(Tensor &input, Tensor &output, Chl axis_start, Chl axis_end) {
         int dim_b = input.batch();
         int dim_h = 0;
         int dim_s = 0;
         int dim_d = 0;
-        /*
-        if (input.ctype() == BSHD) {
-            dim_h = input.head();
-            dim_s = input.sequence();
-            dim_d = input.dimension();
-            if (axis_start == BATCH & axis_end == SEQUENCE) {
-                // data_dims = {-1, HEAD, BATCH + SEQUENCE, DIMENSION};
-                dim_b = 1;
-                dim_s = input.sequence() * input.batch();
-            } else if (axis_start == HEAD & axis_end == SEQUENCE) {
-                // data_dims = {BATCH, -1, HEAD + SEQUENCE, DIMENSION};
-                dim_h = 1;
-                dim_s = input.sequence() * input.head();
-            } else if (axis_start == HEAD & axis_end == DIMENSION) {
-                // data_dims = {BATCH, HEAD, -1, SEQUENCE + DIMENSION};
-                dim_h = 1;
-                dim_d = input.dimension() * input.head();
-            } else {
-                std::cout << "ERROR:  flatten  " << axis_start << "&" << axis_end << std::endl;
-            }
-        } else if (input.ctype() == BHDS) {
-            dim_h = input.head();
-            dim_s = input.dimension();
-            dim_d = input.sequence();
-            if (axis_start == BATCH & axis_end == SEQUENCE) {
-                // data_dims = {-1, HEAD, BATCH + SEQUENCE, DIMENSION};
-                dim_b = 1;
-                dim_s = dim_s * input.batch();
-            } else if (axis_start == HEAD & axis_end == SEQUENCE) {
-                // data_dims = {BATCH, -1, HEAD + SEQUENCE, DIMENSION};
-                dim_h = 1;
-                dim_s = dim_s * input.head();
-            } else if (axis_start == HEAD & axis_end == DIMENSION) {
-                // data_dims = {BATCH, HEAD, -1, SEQUENCE + DIMENSION};
-                dim_h = 1;
-                dim_d = dim_d * input.head();
-            } else {
-                std::cout << "ERROR:  flatten  " << axis_start << "&" << axis_end << std::endl;
-            }
-        } else if (input.ctype() == BDHS) {
-            dim_h = input.head();
-            dim_s = input.sequence();
-            dim_d = input.dimension();
-            if (axis_start == HEAD & axis_end == SEQUENCE) {
-                dim_h = 1;
-                dim_s = input.sequence() * input.head();
-            }
-        }else {
-            if (axis_start == TIME & axis_end == CHANNLE) {
-                // data_dims = {BATCH, -1, TIME + HEIGHT + WIDTH, CHANNLE};
-                if (input.ctype() == BTHWC) {
-                    dim_h = 1;
-                    dim_s = input.time() * input.height() * input.width();
-                    dim_d = input.channel();
-                } else if (input.ctype() == BCTHW) {
-                    dim_h = 1;
-                    dim_s = input.time() * input.height() * input.channel();
-                    dim_d = input.width();
-                } else {
-                    std::cout << "ERROR: flatten  " << axis_start << "&" << axis_end << std::endl;
-                }
-            }
-        }*/
-        if(input.shape().size() == 4) {
+        if (input.shape().size() == 4) {
             dim_h = input.head();
             dim_s = input.sequence();
             dim_d = input.dimension();
@@ -450,7 +373,7 @@ public:
             } else if (axis_start == HEAD & axis_end == DIMENSION) {
                 dim_h = 1;
                 dim_d = input.dimension() * input.head();
-            }else {
+            } else {
                 std::cout << "ERROR:  flatten  " << axis_start << "&" << axis_end << std::endl;
             }
         } else if (input.shape().size() == 5) {
@@ -464,45 +387,81 @@ public:
                 dim_d = input.time();
             }
         }
-        assert(dim_d+dim_s+dim_h > 0);
+        assert(dim_d + dim_s + dim_h > 0);
         output.reshape(dim_b, dim_h, dim_s, dim_d);
-    }
-    static void setup(Tensor &input, Tensor &output, Chl axis_start, Chl axis_end) {
-        if (   (axis_start == TIME & axis_end == WIDTH && input.ctype()==BCTHW)
-            || (axis_start == CHANNLE & axis_end == HEIGHT && input.ctype()==BWCTH)
-            || (axis_start == HEIGHT & axis_end == CHANNLE && input.ctype()==BTHWC)
-            || (axis_start == BATCH & axis_end == SEQUENCE && input.ctype()!=BCTHW)
-            || (axis_start == HEAD & axis_end == SEQUENCE && input.ctype()==BSHD)
-            || (axis_start == HEAD & axis_end == SEQUENCE && input.ctype()==BHDS)
-            || (axis_start == HEAD & axis_end == SEQUENCE && input.ctype()==BDHS)
-            || (axis_start == HEAD & axis_end == DIMENSION && input.ctype()==BSHD)
-            || (axis_start == HEAD & axis_end == DIMENSION && input.ctype()==BHDS)
-            || (axis_start == HEAD & axis_end == SEQUENCE && input.ctype()==BDSH)
-        ){
-            if(input.masterTensor() == nullptr) {
+        if ((axis_start == TIME & axis_end == WIDTH && input.ctype() == BCTHW)
+            || (axis_start == CHANNLE & axis_end == HEIGHT && input.ctype() == BWCTH)
+            || (axis_start == HEIGHT & axis_end == CHANNLE && input.ctype() == BTHWC)
+            || (axis_start == BATCH & axis_end == SEQUENCE && input.ctype() != BCTHW)
+            || (axis_start == HEAD & axis_end == SEQUENCE && input.ctype() == BSHD)
+            || (axis_start == HEAD & axis_end == SEQUENCE && input.ctype() == BHDS)
+            || (axis_start == HEAD & axis_end == SEQUENCE && input.ctype() == BDHS)
+            || (axis_start == HEAD & axis_end == DIMENSION && input.ctype() == BSHD)
+            || (axis_start == HEAD & axis_end == DIMENSION && input.ctype() == BHDS)
+            || (axis_start == HEAD & axis_end == SEQUENCE && input.ctype() == BDSH)) {
+            if (input.masterTensor() == nullptr) {
                 input.free();
             }
             output.setDtype(input.dtype());
             output.alloc();
             input.deepCopyFrom(output, false);
-        }else {
-            std::cout<<"[TODO]Tensor.Flatten not support!!!!"<<std::endl;
+        } else {
+            std::cout << "[TODO]Tensor.Flatten not support!!!!" << std::endl;
         }
     }
-    static void execute(Tensor &input, Tensor &output) {
+    static void execute(Tensor &input, Tensor &output, Chl axis_start, Chl axis_end) {
+    }
+};
+class CPUtransposeFunction {
+public:
+    static void setup(Tensor &input, Tensor &output, vector<std::pair<Chl, Chl>> axiss) {
+        if (output.count() <= 0 || output.shape() != input.shape()) {
+            output.trans_copy_shape(input.shape());
+            std::map<Chl, int> origin_chls = {{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
+            if (std::equal(output.chls().begin(), output.chls().end(), origin_chls.begin())) {
+                output.chls() = input.chls();
+                for (auto axis : axiss) {
+                    auto axis0 = axis.first;
+                    auto axis1 = axis.second;
+                    auto ori_0_idx = output.chls()[axis0];
+                    auto ori_1_idx = output.chls()[axis1];
+                    output.chls()[axis0] = ori_1_idx;
+                    output.chls()[axis1] = ori_0_idx;
+                }
+                output.changeCtype(input.shape().size());
+                output.undiffusion() = true;
+            }
+            if (input.masterTensor() != nullptr) {
+                if (output.masterTensor() == nullptr) {
+                    output.setDtype(input.dtype());
+                    output.deepCopyFrom(input, false);
+                }
+            } else {
+                if (input.masterTensor() == nullptr) {
+                    input.free();
+                }
+                output.setDtype(input.dtype());
+                output.alloc();
+                input.undiffusion() = true;
+                input.deepCopyFrom(output, false);
+                output.transFrom() = axiss;
+            }
+        }
+    }
+    static void execute(Tensor &input, Tensor &output, vector<std::pair<Chl, Chl>> axiss) {
     }
 };
 
 class CPUclipFunction {
 public:
-    static void reshape(Tensor &input, Tensor &output, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
+    static void setup(Tensor &input, Tensor &output, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
         // reshape
         int dim_b = input.batch();
         int dim_h = input.head();
         int dim_s = input.sequence();
         int dim_d = input.dimension();
-        std::vector<std::pair<std::vector<int>, int*>> data = {{b, &dim_b}, {h, &dim_h}, {s, &dim_s}, {d, &dim_d}};
-        for (auto& pair : data) {
+        std::vector<std::pair<std::vector<int>, int *>> data = {{b, &dim_b}, {h, &dim_h}, {s, &dim_s}, {d, &dim_d}};
+        for (auto &pair : data) {
             if (pair.first.size() == 2) {
                 *pair.second = pair.first[1] - pair.first[0];
             } else if (pair.first.size() == 1) {
@@ -510,8 +469,6 @@ public:
             }
         }
         output.reshape(dim_b, dim_h, dim_s, dim_d);
-    }
-    static void setup(Tensor &input, Tensor &output, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
         output.setDtype(input.dtype());
         output.alloc();
     }
@@ -532,33 +489,24 @@ public:
                        input.hostPtr<float>() + input.offset(b, 0, seq_idx, 0),
                        input.head() * 1 * input.dimension() * sizeof(float));
             }
-        }else {
-            std::cout<<"[TODO]Tensor.CLip not support!!!!"<<std::endl;
+        } else {
+            std::cout << "[TODO]Tensor.CLip not support!!!!" << std::endl;
         }
     }
 };
 
 class CPUclipaxisFunction {
 public:
-    static void reshape(Tensor &input, Tensor &output,Chl axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
+    static void setup(Tensor &input, Tensor &output, Chl axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
         // reshape
         int dim_b = input.batch();
         int dim_h = input.head();
         int dim_s = input.sequence();
         int dim_d = input.dimension();
-
-        /*
-        std::vector<std::pair<std::vector<int>, int*>> data = {{b, &dim_b}, {h, &dim_h}, {s, &dim_s}, {d, &dim_d}};
-        for (auto& pair : data) {
-            if (pair.first.size() > 0) {
-                *pair.second = 1;
-            }
-        }
-        */
         switch (axis) {
         case BATCH: {
-            std::vector<std::pair<std::vector<int>, int*>> data = {{h, &dim_h}, {s, &dim_s}, {d, &dim_d}};
-            for (auto& pair : data) {
+            std::vector<std::pair<std::vector<int>, int *>> data = {{h, &dim_h}, {s, &dim_s}, {d, &dim_d}};
+            for (auto &pair : data) {
                 if (pair.first.size() > 0) {
                     *pair.second = 1;
                 }
@@ -566,8 +514,8 @@ public:
             break;
         }
         case HEAD: {
-            std::vector<std::pair<std::vector<int>, int*>> data = {{b, &dim_b}, {s, &dim_s}, {d, &dim_d}};
-            for (auto& pair : data) {
+            std::vector<std::pair<std::vector<int>, int *>> data = {{b, &dim_b}, {s, &dim_s}, {d, &dim_d}};
+            for (auto &pair : data) {
                 if (pair.first.size() > 0) {
                     *pair.second = 1;
                 }
@@ -575,8 +523,8 @@ public:
             break;
         }
         case SEQUENCE: {
-            std::vector<std::pair<std::vector<int>, int*>> data = {{b, &dim_b}, {h, &dim_h}, {d, &dim_d}};
-            for (auto& pair : data) {
+            std::vector<std::pair<std::vector<int>, int *>> data = {{b, &dim_b}, {h, &dim_h}, {d, &dim_d}};
+            for (auto &pair : data) {
                 if (pair.first.size() > 0) {
                     *pair.second = 1;
                 }
@@ -584,8 +532,8 @@ public:
             break;
         }
         case DIMENSION: {
-            std::vector<std::pair<std::vector<int>, int*>> data = {{b, &dim_b}, {h, &dim_h}, {s, &dim_s}};
-            for (auto& pair : data) {
+            std::vector<std::pair<std::vector<int>, int *>> data = {{b, &dim_b}, {h, &dim_h}, {s, &dim_s}};
+            for (auto &pair : data) {
                 if (pair.first.size() > 0) {
                     *pair.second = 1;
                 }
@@ -596,14 +544,12 @@ public:
             break;
         }
         output.reshape(dim_b, dim_h, dim_s, dim_d);
-    }
-    static void setup(Tensor &input, Tensor &output, Chl axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
         output.setDtype(input.dtype());
         output.alloc();
     }
     static void execute(Tensor &input, Tensor &output, Chl axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
         if (axis == BATCH) {
-            if(s.size()>0) {
+            if (s.size() > 0) {
                 for (int i = 0; i < s.size(); ++i) {
                     auto seq_idx = s[i];
                     memcpy(output.hostPtr<float>() + output.offset(i, 0, 0, 0),
@@ -612,33 +558,40 @@ public:
                 }
             }
         } else {
-            std::cout<<"[TODO]Tensor.CLip not support!!!!"<<std::endl;
+            std::cout << "[TODO]Tensor.CLip not support!!!!" << std::endl;
         }
     }
 };
 
 class CPUcatFunction {
 public:
-    static void reshape(vector<Tensor *>inputs, Tensor &output, Chl axis, int expd_batch_, int expd_batch_input_idx) {
+    static void setup(Tensor &output, vector<Tensor *> inputs, Chl axis) {
+        int expd_batch_ = inputs[0]->batch();
+        for (int ii = 0; ii < inputs.size(); ++ii) {
+            auto input = inputs[ii];
+            if (input->batch() > expd_batch_) {
+                expd_batch_ = input->batch();
+            }
+        }
         int dim_b = expd_batch_;
         int dim_h = inputs[0]->head();
         int dim_s = inputs[0]->sequence();
         int dim_d = inputs[0]->dimension();
         int sizes[] = {0, 0, 0, 0};
         Chl axes[] = {BATCH, HEAD, SEQUENCE, DIMENSION};
-        int* dims[] = {&dim_b, &dim_h, &dim_s, &dim_d};
+        int *dims[] = {&dim_b, &dim_h, &dim_s, &dim_d};
         for (int i = 0; i < 4; i++) {
             if (axis == axes[i]) {
                 for (auto input : inputs) {
-                    sizes[i] += (i == 0) ? input->batch() : (i == 1) ? input->head() : (i == 2) ? input->sequence() : input->dimension();
+                    sizes[i] += (i == 0) ? input->batch() : (i == 1) ? input->head() :
+                                                        (i == 2)     ? input->sequence() :
+                                                                       input->dimension();
                 }
                 *dims[i] = sizes[i];
                 break;
             }
         }
         output.reshape(dim_b, dim_h, dim_s, dim_d);
-    }
-    static void setup(vector<Tensor *>inputs, Tensor &output, Chl axis, int expd_batch_, int expd_batch_input_idx) {
         output.setDtype(inputs[0]->dtype());
         output.alloc();
         if (axis == SEQUENCE && inputs[0]->head() != 1) {
@@ -651,13 +604,22 @@ public:
                     inputs[idx]->free();
                 }
                 if (idx > 0) {
-                    cseq += inputs[idx-1]->sequence();
+                    cseq += inputs[idx - 1]->sequence();
                 }
                 inputs[idx]->deepCopyFrom(output, false, {cbatch, chead, cseq, cdim}); // b,h,s,d
             }
         }
     }
-    static void execute(vector<Tensor *>inputs, Tensor &output, Chl axis, int expd_batch_, int expd_batch_input_idx) {
+    static void execute(Tensor &output, vector<Tensor *> inputs, Chl axis) {
+        int expd_batch_ = inputs[0]->batch();
+        int expd_batch_input_idx = 0;
+        for (int ii = 0; ii < inputs.size(); ++ii) {
+            auto input = inputs[ii];
+            if (input->batch() > expd_batch_) {
+                expd_batch_ = input->batch();
+                expd_batch_input_idx = ii;
+            }
+        }
         if (axis == BATCH) {
             for (int n = 0; n < inputs.size(); ++n) {
                 auto copysize = inputs[0]->batch() * inputs[0]->head() * inputs[0]->sequence() * inputs[0]->dimension();
@@ -705,8 +667,6 @@ public:
 
 class CPUwhereFunction {
 public:
-    static void reshape(Tensor &input, Tensor &output, float value, Chl axis) {
-    }
     static void setup(Tensor &input, Tensor &output, float value, Chl axis) {
     }
     static void execute(Tensor &input, Tensor &output, float value, Chl axis) {
@@ -780,16 +740,14 @@ public:
 
 class CPURangeFunction {
 public:
-    static void reshape(Tensor &output, int start, int end) {
-        output.reshape(1, 1,  end - start, 1);
-    }
     static void setup(Tensor &output, int start, int end) {
+        output.reshape(1, 1, end - start, 1);
         output.setDtype(MLLM_TYPE_F32);
         output.alloc();
     }
     static void execute(Tensor &output, int start, int end) {
-        for (int i = 0; i < end-start; ++i) {
-            output.setDataAt<float>(0, 0, i+start,0, (float)i);
+        for (int i = 0; i < end - start; ++i) {
+            output.setDataAt<float>(0, 0, i + start, 0, (float)i);
         }
     }
 };

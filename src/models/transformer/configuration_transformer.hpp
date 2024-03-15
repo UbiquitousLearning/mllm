@@ -5,6 +5,8 @@
 #ifndef CONFIGURATION_TRANSFORMER_HPP
 #define CONFIGURATION_TRANSFORMER_HPP
 
+#include "Layer.hpp"
+
 using namespace mllm;
 using namespace std;
 
