@@ -53,73 +53,51 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     uint32_t dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride[]     = {2};
     uint32_t InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride[]                = {1, 1};
 
-    vector<Qnn_Param_t> params_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D             = {
-      {.paramType = QNN_PARAMTYPE_TENSOR,
-       .name      = "dilation",
-       .tensorParam =
-           (Qnn_Tensor_t){
-               .version = QNN_TENSOR_VERSION_1,
-               .v1      = {.id             = 0,
-                      .name           = "InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_dilation",
-                      .type           = QNN_TENSOR_TYPE_STATIC,
-                      .dataFormat     = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                      .dataType       = QNN_DATATYPE_UINT_32,
-                      .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                         QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                         {.scaleOffsetEncoding = {.scale  = 0.0000000000000000f,
-                                                                  .offset = 0}}},
-                      .rank           = 1,
-                      .dimensions =
-                          dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_dilation,
-                      .memType   = QNN_TENSORMEMTYPE_RAW,
-                      .clientBuf = {.data = (uint8_t*)
-                                        InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_dilation,
-                                    .dataSize = 8}}}},
-      {.paramType = QNN_PARAMTYPE_TENSOR,
-       .name      = "pad_amount",
-       .tensorParam =
-           (Qnn_Tensor_t){
-               .version = QNN_TENSOR_VERSION_1,
-               .v1      = {.id             = 0,
-                      .name           = "InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount",
-                      .type           = QNN_TENSOR_TYPE_STATIC,
-                      .dataFormat     = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                      .dataType       = QNN_DATATYPE_UINT_32,
-                      .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                         QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                         {.scaleOffsetEncoding = {.scale  = 0.0000000000000000f,
-                                                                  .offset = 0}}},
-                      .rank           = 2,
-                      .dimensions =
-                          dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount,
-                      .memType = QNN_TENSORMEMTYPE_RAW,
-                      .clientBuf =
-                          {.data = (uint8_t*)
-                               InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount,
-                           .dataSize = 16}}}},
-      {.paramType = QNN_PARAMTYPE_TENSOR,
-       .name      = "stride",
-       .tensorParam =
-           (Qnn_Tensor_t){
-               .version = QNN_TENSOR_VERSION_1,
-               .v1      = {.id             = 0,
-                      .name           = "InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride",
-                      .type           = QNN_TENSOR_TYPE_STATIC,
-                      .dataFormat     = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                      .dataType       = QNN_DATATYPE_UINT_32,
-                      .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                         QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                         {.scaleOffsetEncoding = {.scale  = 0.0000000000000000f,
-                                                                  .offset = 0}}},
-                      .rank           = 1,
-                      .dimensions = dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride,
-                      .memType    = QNN_TENSORMEMTYPE_RAW,
-                      .clientBuf =
-                          {.data = (uint8_t*)InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride,
-                           .dataSize = 8}}}},
-      {.paramType   = QNN_PARAMTYPE_SCALAR,
-       .name        = "group",
-       .scalarParam = {.dataType = QNN_DATATYPE_UINT_32, .uint32Value = 1}}};
+    vector<Qnn_Param_t> params_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D = {
+        {.paramType = QNN_PARAMTYPE_TENSOR,
+         .name = "stride",
+         .tensorParam =
+             (Qnn_Tensor_t){
+                 .version = QNN_TENSOR_VERSION_1,
+                 .v1 = {.id = 0,
+                        .name = "InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride",
+                        .type = QNN_TENSOR_TYPE_STATIC,
+                        .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                        .dataType = QNN_DATATYPE_UINT_32,
+                        .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                           QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                           {.scaleOffsetEncoding = {.scale = 0.0000000000000000f,
+                                                                    .offset = 0}}},
+                        .rank = 1,
+                        .dimensions = dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride,
+                        .memType = QNN_TENSORMEMTYPE_RAW,
+                        .clientBuf =
+                            {.data = (uint8_t *)InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride,
+                             .dataSize = 8}}}},
+        {.paramType = QNN_PARAMTYPE_TENSOR,
+         .name = "pad_amount",
+         .tensorParam =
+             (Qnn_Tensor_t){
+                 .version = QNN_TENSOR_VERSION_1,
+                 .v1 = {.id = 0,
+                        .name = "InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount",
+                        .type = QNN_TENSOR_TYPE_STATIC,
+                        .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                        .dataType = QNN_DATATYPE_UINT_32,
+                        .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                           QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                           {.scaleOffsetEncoding = {.scale = 0.0000000000000000f,
+                                                                    .offset = 0}}},
+                        .rank = 2,
+                        .dimensions =
+                            dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount,
+                        .memType = QNN_TENSORMEMTYPE_RAW,
+                        .clientBuf =
+                            {.data = (uint8_t *)
+                                 InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount,
+                             .dataSize = 16}}}},
+
+    };
 
     // add weight tensor to qnn
     uint32_t dimensionsWeight[4] = {1, 1, static_cast<uint32_t>(weight_.dimension()), static_cast<uint32_t>(weight_.sequence())};
@@ -129,7 +107,7 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 #ifdef SMOOTHQUANT
     qnnQuantDefined = QNN_DEFINITION_DEFINED;
     weightScale = weightScale_.hostPtr<float>()[0];
-    std::cout << "===================" << weightScale << std::endl;
+    // std::cout << "===================" << weightScale << std::endl;
 #endif
 
     qnnBackend_->modelAddTensor(weight_.name(), (Qnn_Tensor_t){
@@ -185,7 +163,7 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 #ifdef SMOOTHQUANT
     qnnQuantDefined = QNN_DEFINITION_DEFINED;
     biasScale = biasScale_.hostPtr<float>()[0];
-    std::cout << "===================" << biasScale << std::endl;
+    // std::cout << "===================" << biasScale << std::endl;
 #endif
     qnnBackend_->modelAddTensor(bias_.name(), (Qnn_Tensor_t){
                                                   .version = QNN_TENSOR_VERSION_1,

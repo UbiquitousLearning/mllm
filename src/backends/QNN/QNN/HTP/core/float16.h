@@ -19,6 +19,7 @@
 
 #include "weak_linkage.h"
 #include "macros_attribute.h"
+
 PUSH_VISIBILITY(default)
 
 struct API_EXPORT Float16 {
@@ -103,15 +104,15 @@ inline constexpr Float16::Float16(float f) : d(0)
         uint32_t w;
     } const u(f);
 
-    bool const neg = u.w & (1u << 31);
-    int const exp_extract = (u.w >> 23) & 0xFF;
-    uint32_t const frac_bits = u.w & 0x7FFFFF;
+    bool const neg = u.w & (uint32_t(1u) << 31u);
+    int const exp_extract = (u.w >> 23u) & 0xFFu;
+    uint32_t const frac_bits = u.w & 0x7FFFFFu;
 
     if (exp_extract == 0xFF) {
         if (frac_bits == 0)
             d = make_inf(neg);
         else
-            d = make_nan(frac_bits & 0x400000);
+            d = make_nan(frac_bits & 0x400000u);
         return;
     }
 
@@ -123,7 +124,7 @@ inline constexpr Float16::Float16(float f) : d(0)
     }
 
     int const exp = exp_extract - 127;
-    int const frac = round(frac_bits | (1u << 23), 23 - 10);
+    int const frac = round(frac_bits | (uint32_t(1) << 23u), 23 - 10);
     d = make(neg, exp, frac);
 }
 
@@ -172,7 +173,7 @@ inline constexpr bool Float16::is_finite() const
 inline constexpr int16_t Float16::exp() const
 {
     assert(is_finite());
-    int16_t const e = static_cast<int16_t>(exp_bits() >> 10);
+    int16_t const e = static_cast<int16_t>(exp_bits() >> 10u);
     return e != 0 ? e - bias() : e - bias() + 1;
 }
 
@@ -180,7 +181,7 @@ inline constexpr int16_t Float16::frac() const
 {
     assert(is_finite());
     uint16_t f = frac_bits();
-    if (is_norm()) f |= 1u << 10;
+    if (is_norm()) f |= uint32_t(1) << 10u;
     return static_cast<int16_t>(f);
 }
 
@@ -222,15 +223,15 @@ inline constexpr Float16::operator float() const
             float f;
         } u{};
         u.w = 0;
-        u.w |= sign << 31;
-        u.w |= 0xFF << 23;
+        u.w |= sign << 31u;
+        u.w |= uint32_t(0xFF) << 23u;
         // Copy over the msb of the fractional part.
         uint16_t const frac = frac_bits();
-        uint32_t frac_msb = frac & (1u << 9);
-        frac_msb <<= 21 - 9;
+        uint32_t frac_msb = frac & (uint32_t(1u) << 9u);
+        frac_msb <<= 12u; // RHS = 21 - 9
         u.w |= frac_msb;
         // Make sure the frac part doesn't become 0 for signaling NaNs.
-        if ((frac & (frac_msb - 1)) != 0) u.w |= 1;
+        if ((frac & (frac_msb - 1)) != 0) u.w |= 1u;
         return u.f;
     }
 
@@ -245,32 +246,32 @@ inline constexpr Float16::Float16(int sign, int exp, int frac) : d(make(sign, ex
 
 inline constexpr uint16_t Float16::sign_bit() const
 {
-    return d & 0x8000;
+    return d & 0x8000u;
 }
 
 inline constexpr uint16_t Float16::exp_bits() const
 {
-    return d & 0x7C00;
+    return d & 0x7C00u;
 }
 
 inline constexpr uint16_t Float16::frac_bits() const
 {
-    return d & 0x03FF;
+    return d & 0x03FFu;
 }
 
 inline constexpr uint16_t Float16::make_sign_bit(uint16_t s)
 {
-    return static_cast<uint16_t>(!!s) << 15;
+    return static_cast<uint16_t>(!!s) << 15u;
 }
 
 inline constexpr uint16_t Float16::make_exp_bits(uint16_t e)
 {
-    return (e & 0x001F) << 10;
+    return (e & 0x001Fu) << 10u;
 }
 
 inline constexpr uint16_t Float16::make_frac_bits(uint16_t f)
 {
-    return f & 0x03FF;
+    return f & 0x03FFu;
 }
 
 inline constexpr uint16_t Float16::make_zero(bool neg)
@@ -306,19 +307,20 @@ inline constexpr uint16_t Float16::make(int sign, int exp, int frac)
     }
     if (exp + exp_inc < exp_min()) {
         // This number can become subnormal or zero.
-        frac = static_cast<unsigned>(frac) >> (exp_min() - exp - exp_inc);
-        return make_sign_bit(sign) | make_exp_bits(0) | make_frac_bits(frac);
+        frac = hnnx::safe_rshift(static_cast<unsigned>(frac), (exp_min() - exp - exp_inc));
+        return make_sign_bit(static_cast<uint16_t>(sign)) | make_exp_bits(0) |
+               make_frac_bits(static_cast<uint16_t>(frac));
     }
 
     if (exp_inc < 0) {
-        frac = static_cast<unsigned>(frac) << -exp_inc;
+        frac = hnnx::safe_lshift(static_cast<unsigned>(frac), -exp_inc);
     } else if (exp_inc > 0) {
         frac = round(static_cast<uint32_t>(frac), exp_inc);
         // Rounding can change the most significant bit, so check it again.
         unsigned const clzr = HEX_COUNT_LEADING_ZERO(frac);
         assert(clzr == 20 || clzr == 21);
         if (clzr < 21) {
-            frac >>= (21 - clzr);
+            frac = hnnx::safe_rshift(frac, (21 - clzr));
             exp_inc += (21 - clzr);
             // And the exponent check one more time...
             if (exp + exp_inc > exp_max()) return make_inf(sign);
@@ -326,31 +328,32 @@ inline constexpr uint16_t Float16::make(int sign, int exp, int frac)
     }
     exp += exp_inc;
     exp += bias();
-    return make_sign_bit(sign) | make_exp_bits(exp) | make_frac_bits(frac);
+    return make_sign_bit(static_cast<uint16_t>(sign)) | make_exp_bits(static_cast<uint16_t>(exp)) |
+           make_frac_bits(static_cast<uint16_t>(frac));
 }
 
 inline constexpr uint32_t Float16::round(uint32_t v, unsigned s)
 {
     if (s == 0) return v;
-    unsigned const out_msb = 1u << (s - 1);
+    unsigned const out_msb = hnnx::safe_lshift(1u, (s - 1));
     if ((v & out_msb) == 0) {
         // Round down.
-        return v >> s;
+        return hnnx::safe_rshift(v, s);
     }
     if ((v & (out_msb - 1)) == 0) {
         // It's a tie, round to even.
-        v >>= s;
-        return v & 1 ? v + 1 : v;
+        v = hnnx::safe_rshift(v, s);
+        return v & 1u ? v + 1 : v;
     }
     // Round up.
-    return (v >> s) + 1;
+    return hnnx::safe_rshift(v, s) + 1;
 }
 
 inline std::pair<int32_t, int32_t> Float16::force_norm() const
 {
     if (is_zero()) return std::make_pair(0, 0);
-    int32_t f = frac_bits();
-    int32_t e = static_cast<int32_t>(exp_bits() >> 10);
+    uint32_t f = frac_bits();
+    int32_t e = static_cast<int32_t>(exp_bits() >> 10u);
     if (e == 0) {
         // Subnormal number.
         assert(f != 0);
@@ -358,10 +361,10 @@ inline std::pair<int32_t, int32_t> Float16::force_norm() const
         // Shift f left so that the first bit 1 is at position 10 from lsb
         // (assuming that lsb is at 0).
         e = -14 - (clz - 5);
-        f <<= clz - 5;
+        f = hnnx::safe_lshift(f, clz - 5);
     } else {
         e -= bias();
-        f |= 1 << 10;
+        f |= uint32_t(1) << 10u;
     }
     return std::make_pair(e, f);
 }

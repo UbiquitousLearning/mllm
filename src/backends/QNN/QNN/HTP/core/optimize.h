@@ -33,6 +33,7 @@
 #include "match_op.h"
 #include "oexpr.h"
 #include "op_package_name.h"
+#include "tensor_info.h"
 #include "macros_attribute.h"
 #include "weak_linkage.h"
 
@@ -66,6 +67,7 @@ class Replacement;
 using ReplFunc = OptFunction<OpRef(Replacement &, OpDef const &)>;
 
 namespace hnnx {
+
 class Match;
 
 typedef std::function<bool(Match &, OpDef const &)> MatchFunc;
@@ -1968,10 +1970,8 @@ class GraphOptInfo {
 #define DEF_AUTOSPLIT_TYPICAL(PRIORITY, OPSTR, ARITY, dim, CHUNKSIZE)                                                  \
     DEF_AUTOSPLIT_COMMON(PRIORITY, 0, OpVarIn(OPSTR), OK, dim, "I", CHUNKSIZE,                                         \
                          OP_ITER(Op(OPSTR), "J", 0, INPUTS_OF("*"),                                                    \
-                                 SELECT(OR(OR(GT(ADD(1, SPLIT_START("J")), ARITY),                                     \
-                                              EQ(DIM_OF(ITER_INPUT_OF("*", "J"), dim), CHUNKSIZE)),                    \
-                                           IS_SCALAR(ITER_INPUT_OF("*", "J"))),                                        \
-                                        ITER_INPUT_OF("*", "J"), TYPICAL_SLICE(ITER_INPUT_OF("*", "J"), "I"))))
+                                 SELECT(GE(SPLIT_START("J"), ARITY), ITER_INPUT_OF("*", "J"),                          \
+                                        TYPICAL_SLICE(ITER_INPUT_OF("*", "J"), "I"))))
 
 // This class organizes the rules that which
 // are part of the same optimization pass (priority, phase,...)
@@ -2308,8 +2308,17 @@ DECLARE_PACKAGE_OPTIMIZATION_DEF()
     AUTOSPLIT_SLICE(in, AUTOSPLIT_SHAPEFN_APPLY(conv_valid_split_start, tag, in, stride),                              \
                     AUTOSPLIT_SHAPEFN_APPLY(conv_valid_split_size, tag, in, stride, filt_taps,                         \
                                             GET_DILVALUE(dummy, ##__VA_ARGS__, 1)))
-
+#ifndef DTP_COMPILE
+#define DEF_TENSOR_PROPERTIES(...)                                                                                     \
+    namespace DefProperties {                                                                                          \
+    [[maybe_unused]] static bool CTRICKS_PASTER(opdef_proprety, __LINE__) =                                            \
+            hnnx::register_tensor_properties(THIS_PKG_NAME_STR, TensorInfoBuilder(THIS_PKG_NAME_STR, __VA_ARGS__));    \
+    }
 #else
+#define DEF_TENSOR_PROPERTIES(...) __dtp__(__VA_ARGS__)<<<__FILE__, __LINE__>>>
+#endif
+#else
+#define DEF_TENSOR_PROPERTIES(...)
 #define DEF_AUTOSPLIT(...)
 #define DEF_AUTOSPLITIM(...)
 #define DEF_AUTOSPLIT_ORDERED(...)

@@ -16,6 +16,7 @@
 #include <cstring> // for memcpy etc
 #endif
 // #include "asm_define.h"
+#include "builtin_intrinsics.h"
 #include "macros_attribute.h"
 
 struct tile_data {
@@ -148,9 +149,9 @@ inline uint32_t min_u32(uint32_t a, uint32_t b)
 {
     union {
         float f;
-        int32_t u32;
+        uint32_t u32;
     } const uu = {x};
-    return ((uu.u32 >> 23) & 0xFF) - 126;
+    return ((uu.u32 >> 23u) & 0xFFu) - 126;
 }
 /**
  * @brief low-cost frexpf (but only the 'fraction' result);
@@ -166,9 +167,9 @@ inline uint32_t min_u32(uint32_t a, uint32_t b)
 {
     union {
         float f;
-        int32_t u32;
+        uint32_t u32;
     } uu = {x};
-    uu.u32 = (uu.u32 & 0x807fffffu) | (126 << 23); // force exponent = 126
+    uu.u32 = (uu.u32 & 0x807fffffu) | (uint32_t(126) << 23u); // force exponent = 126
     return uu.f;
 }
 
@@ -184,9 +185,9 @@ inline uint32_t min_u32(uint32_t a, uint32_t b)
 {
     union {
         float f;
-        int32_t u32;
+        uint32_t u32;
     } const uu = {x};
-    int32_t const m = (uu.u32 & 0x007fffffu) | (1 << 23);
+    int32_t const m = (uu.u32 & 0x007fffffu) | (uint32_t(1) << 23u);
     return m;
 }
 
@@ -199,9 +200,9 @@ inline uint32_t min_u32(uint32_t a, uint32_t b)
 {
     union {
         float f;
-        int32_t u32;
+        uint32_t u32;
     } uu = {x};
-    uu.u32 = (uu.u32 & 0x807fffffu) | (126 << 23); // force exponent = 126
+    uu.u32 = (uu.u32 & 0x807fffffu) | (uint32_t(126) << 23u); // force exponent = 126
     return uu.f;
 }
 /**
@@ -210,13 +211,13 @@ inline uint32_t min_u32(uint32_t a, uint32_t b)
  *
  * Constraint: iexpo must be in range -126..127
  */
-[[maybe_unused]] inline ALWAYSINLINE constexpr float flt_power2(int iexpo)
+[[maybe_unused]] inline ALWAYSINLINE constexpr float flt_power2(uint32_t const iexpo)
 {
-    int const a = (iexpo + 127) & 0xFF;
+    uint32_t const a = (iexpo + 127) & 0xFFu;
     union {
-        int32_t u32;
+        uint32_t u32;
         float f;
-    } const uu = {a << 23};
+    } const uu = {a << 23u};
     return uu.f;
 }
 /**
@@ -229,6 +230,31 @@ inline uint32_t min_u32(uint32_t a, uint32_t b)
 {
     return val * flt_power2(iexpo);
 }
+/**
+ * @brief low-cost 2.0*n for integer n.
+ * Same as pow(2.0d, iexpo) without a function call;
+ *
+ * Constraint: iexpo must be in range -1022..1023
+ */
+[[maybe_unused]] inline ALWAYSINLINE constexpr double double_power2(uint32_t const iexpo)
+{
+    uint64_t const a = (iexpo + 1023) & 0x7FFu;
+    union {
+        uint64_t u64;
+        double d;
+    } const uu = {a << 52u};
+    return uu.d;
+}
+/**
+ * @brief low-cost ldexpf
+ * Same as ldexp(val, iexpo) without a function call;
+ *
+ * Constraint: iexpo must be in range -1022..1023
+ */
+[[maybe_unused]] inline ALWAYSINLINE constexpr double double_ldexp(double val, int iexpo)
+{
+    return val * double_power2(iexpo);
+}
 
 /**
  * @brief returns the exponent and mantissa of x, as a n-bit number
@@ -236,18 +262,19 @@ inline uint32_t min_u32(uint32_t a, uint32_t b)
  * Constraint: iexpo must be in range -126..127
  * Input must not be negative, inf,nan, zero, or denormal.
  */
-template <int MBITS> inline constexpr std::pair<int32_t, uint32_t> get_scalefactor(float x)
+template <uint32_t MBITS> inline constexpr std::pair<int32_t, uint32_t> get_scalefactor(float x)
 {
     union {
         float f;
-        int32_t u32;
+        uint32_t u32;
     } const uu = {x};
 
     uint32_t inval = uu.u32;
-    uint32_t const mask = (1 << MBITS) - 1;
-    inval = (inval + (1 << (24 - MBITS - 1))) >> (24 - MBITS); // possibly overflows into exponent, but that's OK.
-    uint32_t const m = ((inval & mask) | (1 << (MBITS - 1)));
-    int32_t const e = int32_t((inval >> (MBITS - 1)) & 0xFF) - 126;
+    uint32_t const mask = hnnx::safe_lshift(1, MBITS) - 1;
+    inval = hnnx::safe_rshift(inval + hnnx::safe_lshift(1, (24 - MBITS - 1)),
+                              (24 - MBITS)); // possibly overflows into exponent, but that's OK.
+    uint32_t const m = ((inval & mask) | hnnx::safe_lshift(1, (MBITS - 1)));
+    int32_t const e = int32_t(hnnx::safe_rshift(inval, (MBITS - 1)) & 0xFFu) - 126;
     return {e, m};
 }
 
@@ -263,14 +290,18 @@ template <int MBITS> inline constexpr std::pair<int32_t, uint32_t> get_scalefact
 [[maybe_unused]] inline ALWAYSINLINE constexpr uint32_t get_scaling_params(float x, int max_sl, int max_sr)
 {
     auto [e, m] = get_scalefactor<15>(x);
+    // Set a sl or sr amount to perform a multiply of 2^exponent by mantissa.
     int sl = (e > 0) ? e : 0;
     int sr = (e > 0) ? 0 : -e;
-
+    // The max_sl allows the addition of extra left shifts when working with small numbers having negative exponents.
+    // For every extra left shift, there is an offsetting right shift added so that the net right shift amount
+    // required from the exponent stays the same. The max_sr parameter provides a ceiling to the required offsetting
+    // right shifts, preventing the total right shift requirement from being large enough to erase data through shifting.
     if (sl == 0 && sr > 0) {
         sl = min_i32(max_sl, max_i32(max_sr - sr, 0));
         sr = sr + sl;
     }
-    return ((sl & 0x0FF) << 24) | ((sr & 0x0FF) << 16) | m;
+    return ((uint32_t(sl) & 0x0FFu) << 24u) | ((uint32_t(sr) & 0x0FFu) << 16u) | uint32_t(m);
 }
 
 /**
@@ -281,7 +312,7 @@ template <int MBITS> inline constexpr std::pair<int32_t, uint32_t> get_scalefact
 inline uint32_t get_quantized_multipiler(const float scale_f, int &recip_shamt)
 {
     recip_shamt = (scale_f <= 1.0f) ? 0 : flt_getexp(scale_f);
-    uint32_t scale = roundf(flt_ldexp(scale_f, (31 - recip_shamt)));
+    uint32_t scale = static_cast<uint32_t>(roundf(flt_ldexp(scale_f, (31 - recip_shamt))));
     scale = (scale < 0x7fffffffu) ? scale : 0x7FFFFFFFu;
     return scale;
 }

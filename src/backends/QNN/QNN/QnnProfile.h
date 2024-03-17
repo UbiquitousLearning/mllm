@@ -234,10 +234,9 @@ typedef enum {
   QNN_PROFILE_ERROR_MEM_ALLOC = QNN_COMMON_ERROR_MEM_ALLOC,
   /// Invalid/NULL QNN profile handle
   QNN_PROFILE_ERROR_INVALID_HANDLE = QNN_MIN_ERROR_PROFILE + 0,
-  /// Returned when a profile handle which is in-use is attempted to be freed,
-  /// or reconfigured.
+  /// Attempt to free or reconfigure a profile handle that is in-use
   QNN_PROFILE_ERROR_HANDLE_IN_USE = QNN_MIN_ERROR_PROFILE + 1,
-  /// Returned when an event is incompatible with an API
+  /// Event is incompatible with API
   QNN_PROFILE_ERROR_INCOMPATIBLE_EVENT = QNN_MIN_ERROR_PROFILE + 2,
 
   ////////////////////////////////////////////

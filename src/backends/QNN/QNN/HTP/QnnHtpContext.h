@@ -38,6 +38,7 @@ extern "C" {
 typedef enum {
   QNN_HTP_CONTEXT_CONFIG_OPTION_WEIGHT_SHARING_ENABLED  = 1,
   QNN_HTP_CONTEXT_CONFIG_OPTION_REGISTER_MULTI_CONTEXTS = 2,
+  QNN_HTP_CONTEXT_CONFIG_OPTION_FILE_READ_MEMORY_BUDGET = 3,
   QNN_HTP_CONTEXT_CONFIG_OPTION_UNKNOWN                 = 0x7fffffff
 } QnnHtpContext_ConfigOption_t;
 
@@ -78,6 +79,8 @@ typedef struct {
  *               | 1  | QNN_HTP_CONTEXT_CONFIG_OPTION_WEIGHT_SHARING_ENABLED                | bool                                  |
  *               +====+=====================================================================+=======================================+
  *               | 2  | QNN_HTP_CONTEXT_CONFIG_OPTION_REGISTER_MULTI_CONTEXTS               | QnnHtpContext_GroupRegistration_t     |
+ *               +====+=====================================================================+=======================================+
+ *               | 3  | QNN_HTP_CONTEXT_CONFIG_OPTION_FILE_READ_MEMORY_BUDGET               | uint64_t                              |
  *               +----+---------------------------------------------------------------------+---------------------------------------+
  *               \endverbatim
  */
@@ -87,6 +90,12 @@ typedef struct QnnHtpContext_CustomConfig {
     // This field sets the weight sharing which is by default false
     bool weightSharingEnabled;
     QnnHtpContext_GroupRegistration_t groupRegistration;
+    // - Init time may be impacted depending the value set below
+    // - Value should be grather than 0 and less than or equal to the file size
+    //    - If set to 0, the feature is not utilized
+    //    - If set to greater than file size, min(fileSize, fileReadMemoryBudgetInMb) is used
+    // - As an example, if value 2 is passed, it would translate to (2 * 1024 * 1024) bytes
+    uint64_t fileReadMemoryBudgetInMb;
   };
 } QnnHtpContext_CustomConfig_t;
 

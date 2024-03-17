@@ -1,6 +1,6 @@
 //==============================================================================
 //
-// Copyright (c) 2019-2023 Qualcomm Technologies, Inc.
+// Copyright (c) 2019-2024 Qualcomm Technologies, Inc.
 // All Rights Reserved.
 // Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
@@ -94,11 +94,15 @@ typedef enum {
  *                       part of this call. Subsequent usage of the tensor must reference this _id_.
  *                       Creating a tensor with a name that duplicates a previously created tensor
  *                       name in the context and all child graphs results in undefined behaviour.
+ *                       The _dimensions_ are treated as the maximum dimensions during tensor
+ *                       creation.
  *
  * @return Error code:
  *         - QNN_SUCCESS: Successfully created a context tensor
  *         - QNN_TENSOR_ERROR_INVALID_HANDLE: Provided context handle is invalid
  *         - QNN_TENSOR_ERROR_INVALID_TENSOR_PARAM: One or more tensor parameters is invalid
+ *         - QNN_TENSOR_ERROR_UNSUPPORTED_TENSOR_PARAM: One or more tensor parameters are
+ *           unsupported
  *         - QNN_COMMON_ERROR_MEM_ALLOC: Failure in creating tensor due to issues with memory
  *           allocation
  *         - QNN_TENSOR_ERROR_UNSUPPORTED_FEATURE: some API feature is not supported yet
@@ -132,12 +136,15 @@ Qnn_ErrorHandle_t QnnTensor_createContextTensor(Qnn_ContextHandle_t context, Qnn
  *                _id_ will be overwritten by the backend as part of this call. Subsequent usage of
  *                the tensor must reference this _id_. Creating a tensor with a name that
  *                duplicates a previously created tensor name in the graph or parent context
- *                results in undefined behaviour.
+ *                results in undefined behaviour. The _dimensions_ are treated as the maximum
+ *                dimensions during tensor creation.
  *
  * @return Error code:
  *         - QNN_SUCCESS: Successfully created a graph tensor
  *         - QNN_TENSOR_ERROR_INVALID_HANDLE: Provided graph handle is invalid
  *         - QNN_TENSOR_ERROR_INVALID_TENSOR_PARAM: One or more tensor parameters is invalid
+ *         - QNN_TENSOR_ERROR_UNSUPPORTED_TENSOR_PARAM: One or more tensor parameters are
+ *           unsupported
  *         - QNN_COMMON_ERROR_MEM_ALLOC: Failure in creating tensor due to issues with memory
  *           allocation
  *         - QNN_TENSOR_ERROR_UNSUPPORTED_FEATURE: some API feature is not supported yet

@@ -68,6 +68,14 @@ API_FUNC_EXPORT inline bool is_in_crate(std::unique_ptr<TA, DeleterWithDisable<T
     return tp.get() != nullptr && tp.get_deleter().delete_disabled();
 }
 
+// For extended DMA, this will change to 'uint64_t' on hexagon builds for arch which support it.
+// See [HEXNNVVV-3774]
+using far_vm_ptr = size_t;
+// convert a pointer to a far_vm_ptr
+template <typename T> inline far_vm_ptr far_vm_ptr_from_ptr(T *const p)
+{
+    return (far_vm_ptr)(size_t)p;
+}
 } // namespace hnnx
 
 POP_VISIBILITY()

@@ -1,6 +1,6 @@
 //==============================================================================
 //
-// Copyright (c) 2020-2022 Qualcomm Technologies, Inc.
+// Copyright (c) 2020-2023 Qualcomm Technologies, Inc.
 // All Rights Reserved.
 // Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
@@ -135,6 +135,19 @@
 /// @brief OPCONST(X) enforces that op X is a Const during pattern matching
 #define OPCONST(X) LET(X, Op("$Const"))
 
+/// @brief OPCONST_DDR(X) enforces that op Name is a Const during pattern matching
+///   the "constant_crouton_from_ddr" is discarded in final cleanup and the
+///   constant is loaded from memory. It is used in contexts where crouton format
+///   is expected.
+#define OPCONST_DDR(Name)      Op("constant_crouton_from_ddr", Op("ForceFormat_Crouton", OPCONST(Name)))
+#define OPCONST_FLAT_DDR(Name) Op("constant_flat_from_ddr", OPCONST(Name))
+
+/// @brief OPCONST_DDR(X) enforces that op Name is a Const during pattern matching
+///   the "constant_crouton_to_vtcm" will be converted to a sequence to load
+///   the constant into TCM memory during final cloeanup
+#define OPCONST_TCM(Name)      Op("constant_crouton_to_vtcm", OPCONST(Name))
+#define OPCONST_FLAT_TCM(Name) Op("constant_flat_to_vtcm", OPCONST(Name))
+
 // How wide should the output tile be?
 // Well,
 // * We have HEX_VTCM_MB - WEIGHT_STORAGE available from VTCM
@@ -215,7 +228,9 @@
 // Default is 256; smaller tiles usually get better performance, and size 256 doesn't incur much overhead.
 // Also, for the activation, multiplying height by 2 (becase that's how it'll get tiled if "*" is tiled to TILE_HEIGHT)
 // and multiplying the whole thing by 2 (because whatever we tile "*" to, we tile ACT to 2x, due to stride).
-#define SMART_EARLY_WIDTH_S2(ACT_STR, WEIGHT_STR, OUT_STR, TCMSIZE)                                                    \
+//
+// Sometimes, we need to tile all the way down to 8; hence, we can specify whether to round to 16 or to 8
+#define SMART_EARLY_WIDTH_S2(ACT_STR, WEIGHT_STR, OUT_STR, TCMSIZE, ROUNDER)                                           \
     EVEN_TILE_UNDER_CUTOFF2_CUSTOM(                                                                                    \
             DIM_WIDTH(OUT_STR),                                                                                        \
             MIN(256, ROUNDUP(MAX(16, DIV(SUBS(DIV(MUL(TCMSIZE, 7), 16),                                                \
@@ -226,15 +241,13 @@
                                                  MUL(TILE_HEIGHT, 2), ROUNDUP(DIM_DEPTH(ACT_STR), 32)),                \
                                              MUL(ELEMENTSIZE_OF(OUT_STR), DIM_BATCHES(ACT_STR), TILE_HEIGHT,           \
                                                  MIN_CHANNEL_SPLIT_SIZE)))),                                           \
-                             16)),                                                                                     \
-            16)
+                             ROUNDER)),                                                                                \
+            ROUNDER)
 
-// If Estimated size is greater than TCM size, then tile to half of current width
-// Has to be rounded up to 8, because it must be a multiple of 8
-// Should not be tiled to width less than 8
-#define EARLY_HALF_WIDTH_S2(ACT_STR, WEIGHT_STR, OUT_STR, TCMSIZE)                                                     \
-    SELECT(GT(ESTIMATE_SIZE(ACT_STR, WEIGHT_STR, OUT_STR), TCMSIZE), MAX(8, ROUNDUP(DIV(DIM_WIDTH(OUT_STR), 2), 8)),   \
-           DIM_WIDTH(OUT_STR))
+#define SMART_EARLY_WIDTH_ADAPTIVE_ROUNDING_S2(ACT_STR, WEIGHT_STR, OUT_STR, TCMSIZE)                                  \
+    SELECT(AND(IS_QUINT8(WEIGHT_STR), IS_QUINT16(ACT_STR)),                                                            \
+           SMART_EARLY_WIDTH_S2(ACT_STR, WEIGHT_STR, OUT_STR, TCMSIZE, 8),                                             \
+           SMART_EARLY_WIDTH_S2(ACT_STR, WEIGHT_STR, OUT_STR, TCMSIZE, 16))
 
 #define FLAT_TENSOR_SIZE(T) MUL(ELEMENTSIZE_OF(T), DIM_BATCHES(T), DIM_HEIGHT(T), DIM_WIDTH(T), DIM_DEPTH(T))
 
@@ -379,5 +392,34 @@
 #define ACT_FUSION_MULTI_OUT_CHECK(OP)                                                                                 \
     OR(EXTERNAL_CONSTRAINT(has_only_one_consumer, OP), OPTION_BOOL("force_conv_fusion"),                               \
        AND(PRODUCER_FOR(OP, "*Output"), EXTERNAL_CONSTRAINT(has_n_consumers, OP, 2), PRODUCER_FOR("*", "*Output")))
+
+// For central tiler, just return true but for legacy evaluate the
+// conjunction of the arguments
+
+// This should be used to separate predicate into semantic and tiling preference options
+// where the tiling preferences (typically references to target TCM size) should be
+// wrappered in this macro.
+#define SHOULD_TILE(...) AND(__VA_ARGS__)
+
+//if u8, w>8 && w%8 == 0
+//if u16, (w>8 && w%8 == 0) or (w<32 && w>4 && w%4==0) since w>=32 && w%8 !=0, we have space rearrange
+//==>(w>8 && w%8 == 0) or (u16 && w<32 && w>4 && w%4==0)
+#define WIDTH_TO_HEIGHTX_CONSTRAINT(OPSTR)                                                                             \
+    OR(AND(GT(DIM_WIDTH(OPSTR), TILE_HEIGHT), EQ(REM(DIM_WIDTH(OPSTR), TILE_HEIGHT), 0)),                              \
+       AND(IS_QUINT16(OPSTR), GT(DIM_WIDTH(OPSTR), 4), LT(DIM_WIDTH(OPSTR), 32), EQ(REM(DIM_WIDTH(OPSTR), 4), 0)))
+
+#define HEIGHTX_SHAPE(OPSTR)                                                                                           \
+    SELECT(EQ(REM(DIM_WIDTH(OPSTR), TILE_HEIGHT), 0),                                                                  \
+           gen_Shape(DIM_BATCHES(OPSTR), MUL(DIM_HEIGHT(OPSTR), TILE_HEIGHT), DIV(DIM_WIDTH(OPSTR), TILE_HEIGHT),      \
+                     DIM_DEPTH(OPSTR)),                                                                                \
+           SELECT(EQ(REM(DIM_WIDTH(OPSTR), 4), 0),                                                                     \
+                  gen_Shape(DIM_BATCHES(OPSTR), MUL(DIM_HEIGHT(OPSTR), 4), DIV(DIM_WIDTH(OPSTR), 4),                   \
+                            DIM_DEPTH(OPSTR)),                                                                         \
+                  gen_Shape(DIM_BATCHES(OPSTR), DIM_HEIGHT(OPSTR), DIM_WIDTH(OPSTR), DIM_DEPTH(OPSTR))))
+
+#define HEIGHT84_SHAPE(OPSTR)                                                                                          \
+    SELECT(EQ(REM(DIM_WIDTH(OPSTR), TILE_HEIGHT), 0),                                                                  \
+           gen_Shape(DIM_BATCHES(OPSTR), TILE_HEIGHT, DIV(DIM_WIDTH(OPSTR), TILE_HEIGHT), DIM_DEPTH(OPSTR)),           \
+           gen_Shape(DIM_BATCHES(OPSTR), 4, DIV(DIM_WIDTH(OPSTR), 4), DIM_DEPTH(OPSTR)))
 
 #endif

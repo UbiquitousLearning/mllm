@@ -86,7 +86,7 @@ public:
     }
 
 
-private:
+protected:
     mllm_file *fp_;
     uint8_t *buffer_;
     std::string path_;

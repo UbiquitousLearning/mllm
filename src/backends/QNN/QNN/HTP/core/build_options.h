@@ -32,10 +32,24 @@ constexpr bool DebugRegistry = true;
 constexpr bool DebugRegistry = false;
 #endif
 
+#ifdef DEBUG_TCM
+constexpr bool DebugTcm = true;
+#else
+constexpr bool DebugTcm = false;
+#endif
+
 #ifdef __hexagon__
 constexpr bool IsPlatformHexagon = true;
 #else
 constexpr bool IsPlatformHexagon = false;
+#endif
+
+#ifdef _WIN32
+constexpr bool PLATFORM_CANNOT_BYPASS_VCALL = true;
+constexpr bool OS_WIN = true;
+#else
+constexpr bool PLATFORM_CANNOT_BYPASS_VCALL = false;
+constexpr bool OS_WIN = false;
 #endif
 } // namespace build_options
 

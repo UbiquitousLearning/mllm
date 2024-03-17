@@ -1,9 +1,11 @@
 #include "QNNGraph.hpp"
+#include <cstring>
 #ifdef DEBUGPRINT
 #include "Timing.hpp"
 #endif
 
 #include "QNNBackend.hpp"
+#include "MemInspect.hpp"
 
 namespace mllm {
 
@@ -37,8 +39,11 @@ void QNNGraph::setUpTensors(std::string name) {
     // set up tensors of ops
     for (const auto &op_name : op_names_) {
         if (ops_not_inputs_empty_[op_name]) {
+            TIME_COUNT_START()
             ops_[op_name]->setUp(ops_input_tensors_[op_name],
                                  ops_output_tensors_[op_name]);
+            PRINT_MEMORY_USAGE(op_name.c_str());
+            TIME_COUNT_END();
         } else {
             // std::cout << "op_name:" << op_name << " is not do" << std::endl;
         }

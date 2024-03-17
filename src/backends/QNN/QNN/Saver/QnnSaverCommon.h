@@ -1,6 +1,6 @@
 //=============================================================================
 //
-//  Copyright (c) 2020-2021 Qualcomm Technologies, Inc.
+//  Copyright (c) 2020-2021, 2023 Qualcomm Technologies, Inc.
 //  All Rights Reserved.
 //  Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
@@ -26,7 +26,7 @@
 
 // Saver API Version values
 #define QNN_SAVER_API_VERSION_MAJOR 1
-#define QNN_SAVER_API_VERSION_MINOR 0
+#define QNN_SAVER_API_VERSION_MINOR 1
 #define QNN_SAVER_API_VERSION_PATCH 0
 
 // clang-format off

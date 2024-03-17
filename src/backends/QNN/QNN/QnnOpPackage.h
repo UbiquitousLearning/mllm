@@ -95,10 +95,9 @@ typedef enum {
   QNN_OP_PACKAGE_NO_ERROR = QNN_SUCCESS,
   /// There is optional API component that is not supported yet. See QnnProperty.
   QNN_OP_PACKAGE_ERROR_UNSUPPORTED_FEATURE = QNN_COMMON_ERROR_NOT_SUPPORTED,
-  /// Indicates op package library was already initialized.
+  /// Op package library was already initialized.
   QNN_OP_PACKAGE_ERROR_LIBRARY_ALREADY_INITIALIZED = QNN_MIN_ERROR_OP_PACKAGE + 0,
-  /// Attempt was made to call a function in an uninitialized op package library.
-  /// Unless otherwise noted, any op package function may return this error.
+  /// Attempt to call a function in an uninitialized op package library.
   QNN_OP_PACKAGE_ERROR_LIBRARY_NOT_INITIALIZED = QNN_MIN_ERROR_OP_PACKAGE + 1,
   /// An invalid op package handle was provided.
   QNN_OP_PACKAGE_ERROR_INVALID_HANDLE = QNN_MIN_ERROR_OP_PACKAGE + 2,

@@ -82,6 +82,20 @@ API_EXPORT std::map<std::string, std::vector<std::unique_ptr<PackageOpStorageBas
 
 POP_VISIBILITY()
 
+#define INIT_PKG_CORE_INIT_FUNC()                                                                                      \
+    static bool sg_init = false;                                                                                       \
+    extern "C" int op_pkg_init(PackageOpIf &pkg_if)                                                                    \
+    {                                                                                                                  \
+        pkg_if._name = THIS_PKG_NAME_STR;                                                                              \
+        if (sg_init) {                                                                                                 \
+            return GraphStatus::Success;                                                                               \
+        }                                                                                                              \
+        REGISTER_PACKAGE_OPS();                                                                                        \
+        REGISTER_PACKAGE_OPTIMIZATIONS()                                                                               \
+        sg_init = true;                                                                                                \
+        return GraphStatus::Success;                                                                                   \
+    }
+
 #define INIT_PACKAGE_OP_DEF()                                                                                          \
     API_HIDDEN std::vector<std::unique_ptr<hnnx::PackageOpStorageBase>> &current_package_ops_storage_vec_func()        \
     {                                                                                                                  \

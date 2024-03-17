@@ -123,6 +123,10 @@ template <size_t Rank> struct Shape : public hnnx::ShapeFlags {
     API_EXPORT static const Shape *deserialize(hnnx::Deserializer &dctx);
     API_EXPORT void serialize(hnnx::Serializer &sctx) const;
 
+#ifndef PREPARE_DISABLED
+    std::string get_shape_info() const;
+#endif
+
   protected:
     API_EXPORT unsigned shplen() const { return (char const *)&pad[0] + Rank - (char const *)this; }
 };

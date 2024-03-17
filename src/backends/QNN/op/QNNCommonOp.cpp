@@ -19,16 +19,16 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
         inputTensorNames.push_back(input->name());
     }
 // DEBUGLOG
-#ifdef DEBUGPRINT
-    std::cout << "node name:" << name << std::endl;
-    std::cout << "node type:" << nodeType << std::endl;
-    for (auto &inputTensorName : inputTensorNames) {
-        std::cout << "input:" << inputTensorName << std::endl;
-    }
-    for (auto &output : outputs) {
-        std::cout << "output:" << output->name() << std::endl;
-    }
-#endif
+// #ifdef DEBUGPRINT
+//     std::cout << "node name:" << name << std::endl;
+//     std::cout << "node type:" << nodeType << std::endl;
+//     for (auto &inputTensorName : inputTensorNames) {
+//         std::cout << "input:" << inputTensorName << std::endl;
+//     }
+//     for (auto &output : outputs) {
+//         std::cout << "output:" << output->name() << std::endl;
+//     }
+// #endif
 
     vector<Qnn_Tensor_t> outputTensors;
     for (auto &output : outputs) {
@@ -42,7 +42,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
         }
 
         // TODO tensor type = MLLM_TYPE_I8
-        auto data_type = QNN_DATATYPE_FLOAT_32;
+        auto data_type = QNN_DATATYPE_UFIXED_POINT_8;
         if (output->dtype() == MLLM_TYPE_I8) {
             std::cout << "QNN INT8 op" << std::endl;
             data_type = QNN_DATATYPE_UFIXED_POINT_8;
@@ -76,16 +76,16 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
 
 ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string> inputTensorNames, vector<Qnn_Tensor_t> outputs, vector<Qnn_Param_t> params, string packageName) {
 // DEBUGLOG
-#ifdef DEBUGPRINT
-    std::cout << "node name:" << name << std::endl;
-    std::cout << "node type:" << nodeType << std::endl;
-    for (auto &inputTensorName : inputTensorNames) {
-        std::cout << "input:" << inputTensorName << std::endl;
-    }
-    for (auto &output : outputs) {
-        std::cout << "output:" << output.v1.name << std::endl;
-    }
-#endif
+// #ifdef DEBUGPRINT
+//     std::cout << "node name:" << name << std::endl;
+//     std::cout << "node type:" << nodeType << std::endl;
+//     for (auto &inputTensorName : inputTensorNames) {
+//         std::cout << "input:" << inputTensorName << std::endl;
+//     }
+//     for (auto &output : outputs) {
+//         std::cout << "output:" << output.v1.name << std::endl;
+//     }
+// #endif
     if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputs, params, packageName)) {
         exit(1);
         return ErrorCode::INVALID_VALUE;

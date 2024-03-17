@@ -89,7 +89,9 @@ struct tensor_info {
 };
 
 // returns a map : tensor index -> tensor_info
+PUSH_VISIBILITY(default)
 API_EXPORT std::map<uint8_t, tensor_info> &get_tensor_info_map();
+POP_VISIBILITY()
 
 template <typename AggType, class Tup, size_t... I>
 static inline constexpr AggType tensors_to_indices_helper(std::index_sequence<I...>)

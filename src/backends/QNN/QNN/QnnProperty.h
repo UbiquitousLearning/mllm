@@ -1,6 +1,6 @@
 //=============================================================================
 //
-//  Copyright (c) 2019-2023 Qualcomm Technologies, Inc.
+//  Copyright (c) 2019-2024 Qualcomm Technologies, Inc.
 //  All Rights Reserved.
 //  Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
@@ -110,6 +110,19 @@ extern "C" {
  */
 #define QNN_PROPERTY_CONTEXT_SUPPORT_CONFIG_PERSISTENT_BINARY (QNN_PROPERTY_GROUP_CONTEXT + 7)
 
+/**
+ * @brief Property key for determining whether or not a backend supports binary compatibility
+ * control in a context. See QNN_CONTEXT_CONFIG_BINARY_COMPATIBILITY. This is a capability.
+ */
+#define QNN_PROPERTY_CONTEXT_SUPPORT_CONFIG_BINARY_COMPATIBILITY_TYPE \
+  (QNN_PROPERTY_GROUP_CONTEXT + 8)
+
+/**
+ * @brief Property key for determining whether or not a backend supports
+ * QnnContext_validateBinary. See QnnContext_validateBinary. This is a capability.
+ */
+#define QNN_PROPERTY_CONTEXT_SUPPORT_VALIDATE_BINARY (QNN_PROPERTY_GROUP_CONTEXT + 9)
+
 ///
 /// Definition of QNN_PROPERTY_GROUP_GRAPH property group. This group is Core (non-optional) API.
 ///
@@ -205,6 +218,50 @@ extern "C" {
  */
 #define QNN_PROPERTY_GRAPH_SUPPORT_SUBGRAPH (QNN_PROPERTY_GROUP_GRAPH + 13)
 
+/**
+ * @brief Property key for determining whether or not a backend supports
+ *        graph profiling state. This is a capability.
+ */
+#define QNN_PROPERTY_GRAPH_SUPPORT_PROFILING_STATE (QNN_PROPERTY_GROUP_GRAPH + 14)
+
+/**
+ * @brief Property key for determining whether or not a backend supports
+ *        controlling the number of profiling executions of a graph. This is a capability.
+ */
+#define QNN_PROPERTY_GRAPH_SUPPORT_SET_PROFILING_NUM_EXECUTIONS (QNN_PROPERTY_GROUP_GRAPH + 15)
+
+/**
+ * @brief Property key for determining whether or not a backend supports the
+ *        execution environment option for binding client allocated mem handles to a graph.
+ *        This is a capability.
+ */
+#define QNN_PROPERTY_GRAPH_SUPPORT_ENV_OPTION_BIND_MEM_HANDLES (QNN_PROPERTY_GROUP_GRAPH + 16)
+
+/**
+ * @brief Property key for determining whether or not a backend supports the
+ *        execution environment option for populating client buffers with backend allocated memory.
+ *        This is a capability.
+ */
+#define QNN_PROPERTY_GRAPH_SUPPORT_ENV_OPTION_POPULATE_CLIENT_BUFS (QNN_PROPERTY_GROUP_GRAPH + 17)
+
+/**
+ * @brief Property key for determining whether or not a backend supports finalizing
+ *        (QnnGraph_finalize) a graph retrieved from a context binary. This is a capability.
+ */
+#define QNN_PROPERTY_GRAPH_SUPPORT_FINALIZE_DESERIALIZED_GRAPH (QNN_PROPERTY_GROUP_GRAPH + 18)
+
+/**
+ * @brief Property key for determining whether a backend supports the custom
+ *        graph property. This is a capability.
+ */
+#define QNN_PROPERTY_GRAPH_SUPPORT_CUSTOM_PROPERTY (QNN_PROPERTY_GROUP_GRAPH + 19)
+
+/**
+ * @brief Property key for determining whether or not a backend supports
+ *        early termination of graph execution. This is a capability.
+ */
+#define QNN_PROPERTY_GRAPH_SUPPORT_EARLY_TERMINATION (QNN_PROPERTY_GROUP_GRAPH + 20)
+
 ///
 /// Definition of QNN_PROPERTY_GROUP_OP_PACKAGE property group. This group is Optional portion of
 /// API.
@@ -257,6 +314,18 @@ extern "C" {
  */
 #define QNN_PROPERTY_TENSOR_SUPPORT_CONTEXT_TENSORS (QNN_PROPERTY_GROUP_TENSOR + 2)
 
+/**
+ * @brief Property key to determine whether or not a backend supports dynamic tensor dimensions.
+ *        This is a capability.
+ */
+#define QNN_PROPERTY_TENSOR_SUPPORT_DYNAMIC_DIMENSIONS (QNN_PROPERTY_GROUP_TENSOR + 3)
+
+/**
+ * @brief Property key to determine whether or not a backend supports tensor sparsity.
+ *        This is a capability.
+ */
+#define QNN_PROPERTY_TENSOR_SUPPORT_SPARSITY (QNN_PROPERTY_GROUP_TENSOR + 4)
+
 ///
 /// Definition of QNN_PROPERTY_GROUP_ERROR property group. This group is Optional portion of API.
 ///
@@ -267,6 +336,12 @@ extern "C" {
  */
 #define QNN_PROPERTY_GROUP_ERROR (QNN_PROPERTY_GROUP_CORE + 1000)
 
+/**
+ * @brief Property key to determine whether or not a backend supports retrieving verbose
+ *        string descriptors of errorHandles.
+ */
+#define QNN_PROPERTY_ERROR_GET_VERBOSE_MESSAGE (QNN_PROPERTY_GROUP_ERROR + 1)
+
 ///
 /// Definition of QNN_PROPERTY_GROUP_MEMORY property group. This group is an optional API.
 ///
@@ -276,6 +351,18 @@ extern "C" {
  *        check if Memory API is supported by a backend.
  */
 #define QNN_PROPERTY_GROUP_MEMORY (QNN_PROPERTY_GROUP_CORE + 1100)
+
+/**
+ * @brief Property key to determine whether or not a backend supports ion memory type.
+ *        This is a capability.
+ */
+#define QNN_PROPERTY_MEMORY_SUPPORT_MEM_TYPE_ION (QNN_PROPERTY_GROUP_MEMORY + 1)
+
+/**
+ * @brief Property key to determine whether or not a backend supports custom memory type.
+ *        This is a capability.
+ */
+#define QNN_PROPERTY_MEMORY_SUPPORT_MEM_TYPE_CUSTOM (QNN_PROPERTY_GROUP_MEMORY + 2)
 
 ///
 /// Definition of QNN_PROPERTY_GROUP_SIGNAL property group. This group is an optional API.
@@ -395,7 +482,7 @@ typedef enum {
 
   // Remaining values signal errors.
 
-  /// The the property key was not known to a backend.
+  /// Backend did not recognize the property key.
   QNN_PROPERTY_ERROR_UNKNOWN_KEY = QNN_MIN_ERROR_PROPERTY + 0,
 
   //////////////////////////////////////////////

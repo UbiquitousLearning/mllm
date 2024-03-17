@@ -28,6 +28,7 @@
  */
 namespace mllm {
 bool ParamLoader::load(mllm::Tensor *tensor) {
+    std::cout << "load: " << tensor->name() << std::endl;
     string name = tensor->name();
 #ifndef USE_MMAP
     if (offsets_.find(name) == offsets_.end()) { return false; }

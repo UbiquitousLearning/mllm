@@ -1,6 +1,6 @@
 //=============================================================================
 //
-//  Copyright (c) 2022-2023 Qualcomm Technologies, Inc.
+//  Copyright (c) 2022-2024 Qualcomm Technologies, Inc.
 //  All Rights Reserved.
 //  Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
@@ -26,6 +26,13 @@ extern "C" {
 //=============================================================================
 // Macros
 //=============================================================================
+/**
+ * @brief QnnHtpGraph config value macro. Represents to use the maximum
+ *        available number of the resource.
+ *
+ *        Currently only applicable for QNN_HTP_GRAPH_CONFIG_OPTION_VTCM_SIZE.
+ */
+#define QNN_HTP_GRAPH_CONFIG_OPTION_MAX 0
 
 //=============================================================================
 // Data Types

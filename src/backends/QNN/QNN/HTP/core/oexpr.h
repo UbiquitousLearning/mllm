@@ -101,6 +101,8 @@ namespace hnnx {
 template <typename T> class optim_configvar;
 }
 
+PUSH_VISIBILITY(default)
+
 API_EXPORT hnnx::Crate *get_lambda_crate();
 template <typename R> class OptFunction;
 
@@ -135,6 +137,8 @@ template <typename R, typename... Args> class OptFunction<R(Args...)> {
     API_EXPORT R operator()(Args... args) const { return mFunc(mObj, args...); }
     API_EXPORT operator bool() const { return (mFunc != nullptr); }
 };
+
+POP_VISIBILITY()
 
 namespace oExp {
 
@@ -762,6 +766,12 @@ template <typename TA, typename TB, typename... Ts> inline constexpr auto AND(TA
     auto parms = std::make_tuple(wrap_param_to<bool>(std::forward<TA>(a)), wrap_param_to<bool>(std::forward<TB>(b)),
                                  wrap_param_to<bool>(std::forward<Ts>(ts))...);
     return make_logop<Variant::lg_and>(parms);
+}
+
+//! AND(a,b, ...) - logical AND; evaluation stops after first 'false' operand
+template <typename TA> inline constexpr auto AND(TA &&a)
+{
+    return AND(std::forward<TA>(a), true);
 }
 
 //! XOR(a,b, ...) - logical XOR

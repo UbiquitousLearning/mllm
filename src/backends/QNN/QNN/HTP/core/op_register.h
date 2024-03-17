@@ -17,19 +17,22 @@
 #include "op_register_types.h"
 #include "op_package_name.h"
 #include "template_help.h"
+#include "weak_linkage.h"
 
 #include <memory>
 #include <string>
 #include <utility>
 
 namespace hnnx {
+PUSH_VISIBILITY(default)
 
-const OpFactory make_op_custom_internal(const std::string_view op_name_in, const std::string_view type_tag,
-                                        op_reg_parms const &opreg_parms, bool is_external = false);
+API_EXPORT OpFactory make_op_custom_internal(const std::string_view op_name_in, const std::string_view type_tag,
+                                             op_reg_parms const &opreg_parms, bool is_external = false);
 
-extern const OpFactory make_op_custom(const std::string_view op_name_in, std::string_view const type_tag,
-                                      op_reg_parms const &opreg_parms);
+API_EXPORT OpFactory make_op_custom(const std::string_view op_name_in, std::string_view const type_tag,
+                                    op_reg_parms const &opreg_parms);
 
+POP_VISIBILITY()
 template <bool IS_SIMPLE> struct item_return {
 };
 

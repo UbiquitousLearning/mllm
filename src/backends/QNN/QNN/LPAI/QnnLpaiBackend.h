@@ -34,34 +34,36 @@ extern "C" {
  * @brief An enum which defines the different targets supported by LPAI compilation.
  */
 typedef enum {
-    /// LPAI model will be compiled for x86
-    QNN_LPAI_BACKEND_TARGET_X86       = 0,
-    /// LPAI model will be compiled for ARM
-    QNN_LPAI_BACKEND_TARGET_ARM       = 1,
-    /// LPAI model will be compiled for ADSP
-    QNN_LPAI_BACKEND_TARGET_ADSP      = 2,
-    /// LPAI model will be compiled for TENSILICA
-    QNN_LPAI_BACKEND_TARGET_TENSILICA = 3,
-    /// UNKNOWN enum event that must not be used
-    QNN_LPAI_BACKEND_TARGET_UNKNOWN = 0x7fffffff,
+  /// LPAI model will be compiled for x86
+  QNN_LPAI_BACKEND_TARGET_X86 = 0,
+  /// LPAI model will be compiled for ARM
+  QNN_LPAI_BACKEND_TARGET_ARM = 1,
+  /// LPAI model will be compiled for ADSP
+  QNN_LPAI_BACKEND_TARGET_ADSP = 2,
+  /// LPAI model will be compiled for TENSILICA
+  QNN_LPAI_BACKEND_TARGET_TENSILICA = 3,
+  /// UNKNOWN enum event that must not be used
+  QNN_LPAI_BACKEND_TARGET_UNKNOWN = 0x7fffffff,
 } QnnLpaiBackend_Target_t;
 
 /**
  * @brief An enum which defines the version of LPAI Hardware.
  */
 typedef enum {
-    /// No LPAI HW will be used
-    QNN_LPAI_BACKEND_HW_VERSION_NA   = 0,
-    /// LPAI HW version v1
-    QNN_LPAI_BACKEND_HW_VERSION_V1   = 1,
-    /// LPAI HW version v2
-    QNN_LPAI_BACKEND_HW_VERSION_V2   = 2,
-    /// LPAI HW version v3
-    QNN_LPAI_BACKEND_HW_VERSION_V3   = 3,
-    /// LPAI HW version v4
-    QNN_LPAI_BACKEND_HW_VERSION_V4   = 4,
-    /// UNKNOWN enum event that must not be used
-    QNN_LPAI_BACKEND_HW_VERSION_UNKNOWN = 0x7fffffff,
+  /// No LPAI HW will be used
+  QNN_LPAI_BACKEND_HW_VERSION_NA = 0,
+  /// LPAI HW version v1
+  QNN_LPAI_BACKEND_HW_VERSION_V1 = 1,
+  /// LPAI HW version v2
+  QNN_LPAI_BACKEND_HW_VERSION_V2 = 2,
+  /// LPAI HW version v3
+  QNN_LPAI_BACKEND_HW_VERSION_V3 = 3,
+  /// LPAI HW version v4
+  QNN_LPAI_BACKEND_HW_VERSION_V4 = 4,
+  /// LPAI HW version v5
+  QNN_LPAI_BACKEND_HW_VERSION_V5 = 5,
+  /// UNKNOWN enum event that must not be used
+  QNN_LPAI_BACKEND_HW_VERSION_UNKNOWN = 0x7fffffff,
 } QnnLpaiBackend_HwVersion_t;
 
 //=============================================================================

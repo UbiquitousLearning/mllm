@@ -99,6 +99,12 @@ typedef enum {
   /// the output file streams dynamically during runtime.
   /// This config option is mutually exclusive with QNN_SAVER_CONFIG_OPTION_APPEND_TIMESTAMP.
   QNN_SAVER_CONFIG_OPTION_FILE_CONFIG = 3,
+  /// Configuration controlling whether the header should be written to the saver output file.
+  /// This config must be provided concurrently with QNN_SAVER_CONFIG_OPTION_FILE_CONFIG.
+  QNN_SAVER_CONFIG_WRITE_OUTPUT_HEADER = 4,
+  /// Configuration controlling whether the footer should be written to the saver output file.
+  /// This config must be provided concurrently with QNN_SAVER_CONFIG_OPTION_FILE_CONFIG.
+  QNN_SAVER_CONFIG_WRITE_OUTPUT_FOOTER = 5,
   // Unused, present to ensure 32 bits.
   QNN_SAVER_CONFIG_OPTION_UNDEFINED = 0x7FFFFFFF
 } QnnSaver_ConfigOption_t;
@@ -128,6 +134,23 @@ typedef struct {
     uint32_t backendId;
     /// Alternative filenames for Saver outputs.
     QnnSaver_FileConfig_t fileConfig;
+    /// Boolean flag to indicate if the saver output header should be written or not.
+    /// The 'header' refers to the static text at the top of the output file before any APIs are
+    /// recorded (header includes, beginning of main(), command line parsing, etc.)
+    /// This config would be used when writing to a pre-existing saver output file created from a
+    /// previous call to QnnSaver_initialize(), providing a fileConfig
+    /// (QNN_SAVER_CONFIG_OPTION_FILE_CONFIG) and writeOutputFooter == 0.
+    /// Because the output files already exist, the they will be opened in append mode.
+    /// Defaults to 1 (true) if not provided.
+    uint8_t writeOutputHeader;
+    /// Boolean flag to indicate if the saver output footer should be written or not.
+    /// The 'footer' refers to the static text at the bottom of the output file after all APIs have
+    /// been recorded (misc. cleanup, the end of main(), etc.)
+    /// This config would be used when writing to a saver output file that will be appended to at
+    /// later point with a subsequent call to QnnSaver_initialize(), providing a fileConfig
+    /// (QNN_SAVER_CONFIG_OPTION_FILE_CONFIG) and writeOutputHeader == 0
+    /// Defaults to 1 (true) if not provided.
+    uint8_t writeOutputFooter;
   };
 } QnnSaver_Config_t;
 

@@ -40,7 +40,9 @@ template <typename T> struct alloc_func_for_op {
     static void *alloc_func(void *ptr, Deserializer &dctx) { return new (ptr) T(dctx); }
 };
 
+PUSH_VISIBILITY(default)
 API_EXPORT void deserialize_simple_op_wrapper(void *, Deserializer &dctx, std::unique_ptr<SimpleOpBase> sop_in);
+POP_VISIBILITY()
 
 template <typename T> struct alloc_func_for_op_ext {
     static void *alloc_func(void *ptr, Deserializer &dctx)

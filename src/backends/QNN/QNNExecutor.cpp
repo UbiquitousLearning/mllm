@@ -1,8 +1,11 @@
 #include <csignal>
 #include <fstream>
+#include "QNNBackend.hpp"
 #include "QNNGraph.hpp"
 #include "Timing.hpp"
 #include "QNNExecutor.hpp"
+#include "MemInspect.hpp"
+#include "Types.hpp"
 
 namespace mllm {
 void QNNExecutor::setup(Net *net) {
@@ -84,7 +87,11 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
 
     std::fstream fs("AR_latency.txt", std::ios::app);
     auto ex_time_start = mllm_time_us();
-
+    PRINT_MEMORY_USAGE("before setup all graph");
+    shared_ptr<Backend> a = net->backends()[MLLM_QNN];
+    // cast to QNNBackend*
+    // auto *qnn = dynamic_cast<QNNBackend *>(a.get());
+    // qnn->swapMemManager();
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         string name = typeName + std::to_string(i);
         auto &g = net->subGraph()[name];
@@ -93,6 +100,7 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
         // TODO: if this implementation is used, the setUpTensors(string) should be merged to Graph
         // the qnn_graph below is where we cast the Graph to QNNGraph
         if(i == 0){
+            std::cout << "=======setup cpu graph " << i << std::endl;
             g->reshape();
             g->setUpTensors();
         } else {
@@ -128,15 +136,21 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
 
     // execute all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
+        uint64_t t_start = mllm_time_us();
         if(i == 0){
+            std::cout << "======= cpu graph execute" << i << std::endl;
             string name = typeName + std::to_string(i);
             auto &g = net->subGraph()[name];
             result_ = g->forward();
         } else {
+            std::cout << "=======qnn graph execute" << i << std::endl;
             string name = typeName + std::to_string(i);
             auto &g = net->subGraph()[name];
             auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
             result_ = qnn_graph->forward(name);
+            uint64_t t_end = mllm_time_us();
+            std::cout << "graph forward " << (t_end - t_start) / 1000.0F << "ms" << std::endl;
+            PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
         }
     }
 

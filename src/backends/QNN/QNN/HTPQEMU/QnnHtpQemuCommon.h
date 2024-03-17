@@ -1,6 +1,6 @@
 //=============================================================================
 //
-//  Copyright (c) 2023 Qualcomm Technologies, Inc.
+//  Copyright (c) 2023-2024 Qualcomm Technologies, Inc.
 //  All Rights Reserved.
 //  Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
@@ -51,6 +51,6 @@
 // DSP Context blob Version values
 #define QNN_HTP_QEMU_CONTEXT_BLOB_VERSION_MAJOR 3
 #define QNN_HTP_QEMU_CONTEXT_BLOB_VERSION_MINOR 1
-#define QNN_HTP_QEMU_CONTEXT_BLOB_VERSION_PATCH 0
+#define QNN_HTP_QEMU_CONTEXT_BLOB_VERSION_PATCH 1
 
 #endif  // QNN_HTP_QEMU_COMMON_H

@@ -1,13 +1,9 @@
 //=============================================================================
 //
-//  Copyright (c) 2021-2023 Qualcomm Technologies, Inc.
+//  Copyright (c) 2021-2024 Qualcomm Technologies, Inc.
 //  All Rights Reserved.
 //  Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
-//=============================================================================
-
-//=============================================================================
-// !!! This is an auto-generated file. Do NOT modify manually !!!
 //=============================================================================
 
 /**
@@ -31,6 +27,7 @@
 #include "QnnBackend.h"
 #include "QnnContext.h"
 #include "QnnDevice.h"
+#include "QnnError.h"
 #include "QnnGraph.h"
 #include "QnnLog.h"
 #include "QnnMem.h"
@@ -179,6 +176,14 @@ typedef Qnn_ErrorHandle_t (*QnnContext_CreateFromBinaryFn_t)(
 typedef Qnn_ErrorHandle_t (*QnnContext_FreeFn_t)(Qnn_ContextHandle_t context,
                                                  Qnn_ProfileHandle_t profile);
 
+/** @brief See QnnContext_validateBinary()*/
+typedef Qnn_ErrorHandle_t (*QnnContext_ValidateBinaryFn_t)(
+    Qnn_BackendHandle_t backend,
+    Qnn_DeviceHandle_t device,
+    const QnnContext_Config_t** config,
+    const void* binaryBuffer,
+    Qnn_ContextBinarySize_t binaryBufferSize);
+
 //
 // From QnnGraph.h
 //
@@ -198,6 +203,10 @@ typedef Qnn_ErrorHandle_t (*QnnGraph_CreateSubgraphFn_t)(Qnn_GraphHandle_t graph
 typedef Qnn_ErrorHandle_t (*QnnGraph_SetConfigFn_t)(Qnn_GraphHandle_t graphHandle,
                                                     const QnnGraph_Config_t** config);
 
+/** @brief See QnnGraph_getProperty()*/
+typedef Qnn_ErrorHandle_t (*QnnGraph_GetPropertyFn_t)(Qnn_GraphHandle_t graphHandle,
+                                                      QnnGraph_Property_t** properties);
+
 /** @brief See QnnGraph_addNode()*/
 typedef Qnn_ErrorHandle_t (*QnnGraph_AddNodeFn_t)(Qnn_GraphHandle_t graphHandle,
                                                   Qnn_OpConfig_t opConfig);
@@ -211,6 +220,10 @@ typedef Qnn_ErrorHandle_t (*QnnGraph_FinalizeFn_t)(Qnn_GraphHandle_t graphHandle
 typedef Qnn_ErrorHandle_t (*QnnGraph_RetrieveFn_t)(Qnn_ContextHandle_t contextHandle,
                                                    const char* graphName,
                                                    Qnn_GraphHandle_t* graphHandle);
+
+/** @brief See QnnGraph_prepareExecutionEnvironment()*/
+typedef Qnn_ErrorHandle_t (*QnnGraph_PrepareExecutionEnvironmentFn_t)(
+    Qnn_GraphHandle_t graphHandle, QnnGraph_ExecuteEnvironment_t** envs, uint32_t envSize);
 
 /** @brief See QnnGraph_execute()*/
 typedef Qnn_ErrorHandle_t (*QnnGraph_ExecuteFn_t)(Qnn_GraphHandle_t graphHandle,
@@ -231,6 +244,10 @@ typedef Qnn_ErrorHandle_t (*QnnGraph_ExecuteAsyncFn_t)(Qnn_GraphHandle_t graphHa
                                                        Qnn_SignalHandle_t signalHandle,
                                                        Qnn_NotifyFn_t notifyFn,
                                                        void* notifyParam);
+
+/** @brief See QnnGraph_releaseExecutionEnvironment()*/
+typedef Qnn_ErrorHandle_t (*QnnGraph_ReleaseExecutionEnvironmentFn_t)(
+    Qnn_GraphHandle_t graphHandle, const QnnGraph_ExecuteEnvironment_t** envs, uint32_t envSize);
 
 //
 // From QnnTensor.h
@@ -359,6 +376,19 @@ typedef Qnn_ErrorHandle_t (*QnnSignal_TriggerFn_t)(Qnn_SignalHandle_t signal);
 /** @brief See QnnSignal_free()*/
 typedef Qnn_ErrorHandle_t (*QnnSignal_FreeFn_t)(Qnn_SignalHandle_t signal);
 
+//
+// From QnnError.h
+//
+
+/** @brief See QnnError_getMessage()*/
+typedef Qnn_ErrorHandle_t (*QnnError_GetMessageFn_t)(Qnn_ErrorHandle_t errorHandle,
+                                                     const char** errorMessage);
+/** @brief See QnnError_getVerboseMessage()*/
+typedef Qnn_ErrorHandle_t (*QnnError_GetVerboseMessageFn_t)(Qnn_ErrorHandle_t errorHandle,
+                                                            const char** errorMessage);
+/** @brief See QnnError_freeVerboseMessage()*/
+typedef Qnn_ErrorHandle_t (*QnnError_FreeVerboseMessageFn_t)(const char* errorMessage);
+
 // clang-format off
 
 /**
@@ -367,63 +397,73 @@ typedef Qnn_ErrorHandle_t (*QnnSignal_FreeFn_t)(Qnn_SignalHandle_t signal);
  *
  */
 typedef struct {
-  QnnProperty_HasCapabilityFn_t          propertyHasCapability;
+  QnnProperty_HasCapabilityFn_t             propertyHasCapability;
 
-  QnnBackend_CreateFn_t                  backendCreate;
-  QnnBackend_SetConfigFn_t               backendSetConfig;
-  QnnBackend_GetApiVersionFn_t           backendGetApiVersion;
-  QnnBackend_GetBuildIdFn_t              backendGetBuildId;
-  QnnBackend_RegisterOpPackageFn_t       backendRegisterOpPackage;
-  QnnBackend_GetSupportedOperationsFn_t  backendGetSupportedOperations;
-  QnnBackend_ValidateOpConfigFn_t        backendValidateOpConfig;
-  QnnBackend_FreeFn_t                    backendFree;
+  QnnBackend_CreateFn_t                     backendCreate;
+  QnnBackend_SetConfigFn_t                  backendSetConfig;
+  QnnBackend_GetApiVersionFn_t              backendGetApiVersion;
+  QnnBackend_GetBuildIdFn_t                 backendGetBuildId;
+  QnnBackend_RegisterOpPackageFn_t          backendRegisterOpPackage;
+  QnnBackend_GetSupportedOperationsFn_t     backendGetSupportedOperations;
+  QnnBackend_ValidateOpConfigFn_t           backendValidateOpConfig;
+  QnnBackend_FreeFn_t                       backendFree;
 
-  QnnContext_CreateFn_t                  contextCreate;
-  QnnContext_SetConfigFn_t               contextSetConfig;
-  QnnContext_GetBinarySizeFn_t           contextGetBinarySize;
-  QnnContext_GetBinaryFn_t               contextGetBinary;
-  QnnContext_CreateFromBinaryFn_t        contextCreateFromBinary;
-  QnnContext_FreeFn_t                    contextFree;
+  QnnContext_CreateFn_t                     contextCreate;
+  QnnContext_SetConfigFn_t                  contextSetConfig;
+  QnnContext_GetBinarySizeFn_t              contextGetBinarySize;
+  QnnContext_GetBinaryFn_t                  contextGetBinary;
+  QnnContext_CreateFromBinaryFn_t           contextCreateFromBinary;
+  QnnContext_FreeFn_t                       contextFree;
 
-  QnnGraph_CreateFn_t                    graphCreate;
-  QnnGraph_CreateSubgraphFn_t            graphCreateSubgraph;
-  QnnGraph_SetConfigFn_t                 graphSetConfig;
-  QnnGraph_AddNodeFn_t                   graphAddNode;
-  QnnGraph_FinalizeFn_t                  graphFinalize;
-  QnnGraph_RetrieveFn_t                  graphRetrieve;
-  QnnGraph_ExecuteFn_t                   graphExecute;
-  QnnGraph_ExecuteAsyncFn_t              graphExecuteAsync;
+  QnnGraph_CreateFn_t                       graphCreate;
+  QnnGraph_CreateSubgraphFn_t               graphCreateSubgraph;
+  QnnGraph_SetConfigFn_t                    graphSetConfig;
+  QnnGraph_AddNodeFn_t                      graphAddNode;
+  QnnGraph_FinalizeFn_t                     graphFinalize;
+  QnnGraph_RetrieveFn_t                     graphRetrieve;
+  QnnGraph_ExecuteFn_t                      graphExecute;
+  QnnGraph_ExecuteAsyncFn_t                 graphExecuteAsync;
 
-  QnnTensor_CreateContextTensorFn_t      tensorCreateContextTensor;
-  QnnTensor_CreateGraphTensorFn_t        tensorCreateGraphTensor;
+  QnnTensor_CreateContextTensorFn_t         tensorCreateContextTensor;
+  QnnTensor_CreateGraphTensorFn_t           tensorCreateGraphTensor;
 
-  QnnLog_CreateFn_t                      logCreate;
-  QnnLog_SetLogLevelFn_t                 logSetLogLevel;
-  QnnLog_FreeFn_t                        logFree;
+  QnnLog_CreateFn_t                         logCreate;
+  QnnLog_SetLogLevelFn_t                    logSetLogLevel;
+  QnnLog_FreeFn_t                           logFree;
 
-  QnnProfile_CreateFn_t                  profileCreate;
-  QnnProfile_SetConfigFn_t               profileSetConfig;
-  QnnProfile_GetEventsFn_t               profileGetEvents;
-  QnnProfile_GetSubEventsFn_t            profileGetSubEvents;
-  QnnProfile_GetEventDataFn_t            profileGetEventData;
-  QnnProfile_GetExtendedEventDataFn_t    profileGetExtendedEventData;
-  QnnProfile_FreeFn_t                    profileFree;
+  QnnProfile_CreateFn_t                     profileCreate;
+  QnnProfile_SetConfigFn_t                  profileSetConfig;
+  QnnProfile_GetEventsFn_t                  profileGetEvents;
+  QnnProfile_GetSubEventsFn_t               profileGetSubEvents;
+  QnnProfile_GetEventDataFn_t               profileGetEventData;
+  QnnProfile_GetExtendedEventDataFn_t       profileGetExtendedEventData;
+  QnnProfile_FreeFn_t                       profileFree;
 
-  QnnMem_RegisterFn_t                    memRegister;
-  QnnMem_DeRegisterFn_t                  memDeRegister;
+  QnnMem_RegisterFn_t                       memRegister;
+  QnnMem_DeRegisterFn_t                     memDeRegister;
 
-  QnnDevice_GetPlatformInfoFn_t          deviceGetPlatformInfo;
-  QnnDevice_FreePlatformInfoFn_t         deviceFreePlatformInfo;
-  QnnDevice_GetInfrastructureFn_t        deviceGetInfrastructure;
-  QnnDevice_CreateFn_t                   deviceCreate;
-  QnnDevice_SetConfigFn_t                deviceSetConfig;
-  QnnDevice_GetInfoFn_t                  deviceGetInfo;
-  QnnDevice_FreeFn_t                     deviceFree;
+  QnnDevice_GetPlatformInfoFn_t             deviceGetPlatformInfo;
+  QnnDevice_FreePlatformInfoFn_t            deviceFreePlatformInfo;
+  QnnDevice_GetInfrastructureFn_t           deviceGetInfrastructure;
+  QnnDevice_CreateFn_t                      deviceCreate;
+  QnnDevice_SetConfigFn_t                   deviceSetConfig;
+  QnnDevice_GetInfoFn_t                     deviceGetInfo;
+  QnnDevice_FreeFn_t                        deviceFree;
 
-  QnnSignal_CreateFn_t                   signalCreate;
-  QnnSignal_SetConfigFn_t                signalSetConfig;
-  QnnSignal_TriggerFn_t                  signalTrigger;
-  QnnSignal_FreeFn_t                     signalFree;
+  QnnSignal_CreateFn_t                      signalCreate;
+  QnnSignal_SetConfigFn_t                   signalSetConfig;
+  QnnSignal_TriggerFn_t                     signalTrigger;
+  QnnSignal_FreeFn_t                        signalFree;
+
+  QnnError_GetMessageFn_t                   errorGetMessage;
+  QnnError_GetVerboseMessageFn_t            errorGetVerboseMessage;
+  QnnError_FreeVerboseMessageFn_t           errorFreeVerboseMessage;
+
+  QnnGraph_PrepareExecutionEnvironmentFn_t  graphPrepareExecutionEnvironment;
+  QnnGraph_ReleaseExecutionEnvironmentFn_t  graphReleaseExecutionEnvironment;
+  QnnGraph_GetPropertyFn_t                  graphGetProperty;
+
+  QnnContext_ValidateBinaryFn_t             contextValidateBinary;
 
 } QNN_INTERFACE_VER_TYPE;
 
@@ -477,6 +517,13 @@ typedef struct {
   NULL, /*signalSetConfig*/ \
   NULL, /*signalTrigger*/ \
   NULL, /*signalFree*/ \
+  NULL, /*errorGetMessage*/ \
+  NULL, /*errorGetVerboseMessage*/ \
+  NULL, /*errorFreeVerboseMessage*/ \
+  NULL, /*graphPrepareExecutionEnvironment*/ \
+  NULL, /*graphReleaseExecutionEnvironment*/ \
+  NULL, /*graphGetProperty*/ \
+  NULL, /*contextValidateBinary*/ \
 }
 
 typedef struct {

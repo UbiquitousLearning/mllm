@@ -1,6 +1,7 @@
 #include "Backend.hpp"
 #include "QNNBackend.hpp"
 #include "QNNMemoryManager.hpp"
+#include "memory/SystemMemoryManager.hpp"
 
 namespace mllm {
 
