@@ -9,6 +9,7 @@
 #ifndef HEXNN_FLAGS_H
 #define HEXNN_FLAGS_H 1
 
+#include "builtin_intrinsics.h"
 #include <cstddef>
 
 /*
@@ -37,6 +38,7 @@ enum class Flags : unsigned {
     IS_PADZAP, // Op is a crouton padzap (same tensor type and shape in and out)
     IS_PRELOAD, // Op is a chunk preload op
     CAN_BE_SRC_DESTRUCTIVE, // Op will work correctly if input[0] and output[0] are at the same places in TCM
+    IS_WEIGHT_FOR_BIT_REARRANGE, // Indicates Weight data will be used for bit rearrangement
     XXX_LAST_FLAG
 };
 
@@ -87,12 +89,12 @@ template <typename T, int S = 1> static constexpr Flags_word flags_for()
 
 static constexpr bool test_flag_for(Flags_word w, Flags which)
 {
-    return ((w >> static_cast<unsigned>(which)) & 1) != 0;
+    return (safe_rshift(w, static_cast<unsigned>(which)) & 1u) != 0;
 }
 static constexpr bool test_flag_and(Flags_word w, Flags which_a, Flags which_b)
 {
-    if (((w >> static_cast<unsigned>(which_a)) & 1) == 0) return false;
-    return ((w >> static_cast<unsigned>(which_b)) & 1) != 0;
+    if ((safe_rshift(w, static_cast<unsigned>(which_a)) & 1u) == 0) return false;
+    return (safe_rshift(w, static_cast<unsigned>(which_b)) & 1u) != 0;
 }
 
 template <typename T, int S> class FlagCounter {

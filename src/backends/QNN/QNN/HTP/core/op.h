@@ -1,6 +1,6 @@
 //==============================================================================
 //
-// Copyright (c) 2018-2022 Qualcomm Technologies, Inc.
+// Copyright (c) 2018-2023 Qualcomm Technologies, Inc.
 // All Rights Reserved.
 // Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
@@ -86,7 +86,6 @@ class Op : public hnnx::Executable {
     //! Half of them can be the external OpID, and we can use a counter or something to uniquify in the other bits.
     //! We can accumulate performance information and such to still represent OpIDs on the interface.
   public:
-    //const unsigned long long int nope_my_id; // move this here so alignment doesn't waste 4 bytes
     Op(){};
     API_EXPORT Op(Graph &graph_in, unsigned long long int my_id_in);
     API_EXPORT Op(hnnx::Deserializer &);
@@ -129,10 +128,9 @@ class Op : public hnnx::Executable {
     API_EXPORT virtual Flags_word get_flag_word() const { return hnnx::flags_for<Op>(); }
     virtual const char *get_docs() const { return hnnx::docs_for<Op>(); }
 
-    /**
-     * @brief Gets the typeid mangled name of the kernel implementing this op.
-     */
-    API_EXPORT const char *get_func_name() const noexcept;
+    /// @brief
+    ///     Gets the typeid mangled name of the kernel implementing this operator
+    API_EXPORT const char *true_func() const noexcept;
 
     // get type, allowing for SimpleOpWrapper to get forwarded type.
     API_EXPORT std::type_info const *get_type_extended() const;
@@ -351,7 +349,10 @@ class ConstWrapperOp : public Op {
     API_EXPORT ConstWrapperOp(Graph &graph_in, OpId my_id_in, const OutputDef &def, void const *data_in);
 
     API_EXPORT void clear(Graph *graph_in) override;
-    API_EXPORT virtual GraphStatus execute(Graph *g) const noexcept override { return GraphStatus::Success; }
+    API_EXPORT virtual GraphStatus execute(EXECUTE_METHOD_PARMS) const noexcept override
+    {
+        return GraphStatus::Success;
+    }
     API_EXPORT virtual hnnx::Executable::ItemType compile(Graph &graph_in) const noexcept override
     {
         return hnnx::Executable::null_item();
@@ -380,7 +381,10 @@ class ShapeWrapperOp : public Op {
     API_EXPORT ShapeWrapperOp(Graph &graph_in, OpId my_id_in, const OpDef *op_def_in);
     API_EXPORT ShapeWrapperOp(Graph &graph_in, OpId my_id_in, uptr_Tensor owned_tensor_in);
     API_EXPORT ShapeWrapperOp(hnnx::Deserializer &);
-    API_EXPORT virtual GraphStatus execute(Graph *g) const noexcept override { return GraphStatus::Success; }
+    API_EXPORT virtual GraphStatus execute(EXECUTE_METHOD_PARMS) const noexcept override
+    {
+        return GraphStatus::Success;
+    }
     API_EXPORT virtual hnnx::Executable::ItemType compile(Graph &graph_in) const noexcept override
     {
         return hnnx::Executable::null_item();

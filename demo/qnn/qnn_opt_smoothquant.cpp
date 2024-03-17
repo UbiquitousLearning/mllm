@@ -11,6 +11,7 @@
 #include "tokenizers/BPE/Bpe.hpp"
 #include "backends/QNN/QNNNet.hpp"
 #include "backends/QNN/QNNExecutor.hpp"
+#include "TestNet.hpp"
 
 using namespace mllm;
 
@@ -43,8 +44,9 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_r
     return token_idx;
 }
 NetTensor *Attention(Context *c, NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name) {
-    x = _Quantize({x}, true, (string)name + ".x.quantize");
+    // x = _Quantize({x}, true, (string)name + ".x.quantize");
     auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
+    return q;
     auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".k_proj");
     auto *v = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".v_proj");
     q = q->view(-1, head_size, -1, hidden_size);
@@ -55,39 +57,42 @@ NetTensor *Attention(Context *c, NetTensor *x, int embedding_size, int hidden_si
     k = _KVCache({k}, cache_max, name + ".k_cache");
     v = _KVCache({v}, cache_max, name + ".v_cache");
 
-    // auto *m = _MergeOutput({q,k,v}, name + ".qkv_merge");
+    auto *m = _MergeOutput({q, k, v}, name + ".qkv_merge");
+
+    _SubgraphBegin(c);
+
+    auto s = _SplitInput({m}, true, name + ".qkv_split");
+
+    q = s[0];
+    k = s[1];
+    v = s[2];
+    // q = _Dequantize({q}, true, (string)name + ".q.dequantize");
+    // k = _Dequantize({k}, true, (string)name + ".k.dequantize");
+    // v = _Dequantize({v}, true, (string)name + ".v.dequantize");
+
+    // auto *qk = _Matmul({q, k}, false, true, name + ".qk");
+    // // qk = _Dequantize({qk}, false, (string) name + ".qk.dequantize");
+
+    // // qk = *qk / std::sqrt(hidden_size);
+    // // qk = _Causalmask({qk}, name + ".mask");
+
+    // // qk = _Quantize({qk}, false, (string) name + ".qk.quantize");
+    // auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
 
     // _SubgraphBegin(c);
-
-    // auto s = _SplitInput({m}, false, name + ".qkv_split");
-
-    // q = s[0];
-    // k = s[1];
-    // v = s[2];
-    q = _Dequantize({q}, true, (string)name + ".q.dequantize");
-    k = _Dequantize({k}, true, (string)name + ".k.dequantize");
-    v = _Dequantize({v}, true, (string)name + ".v.dequantize");
-
     auto *qk = _Matmul({q, k}, false, true, name + ".qk");
-    // qk = _Dequantize({qk}, false, (string) name + ".qk.dequantize");
-
-    // qk = *qk / std::sqrt(hidden_size);
-    // qk = _Causalmask({qk}, name + ".mask");
     qk = _Softmax({qk}, DIMENSION, name + ".softmax");
-
-    // qk = _Quantize({qk}, false, (string) name + ".qk.quantize");
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
-
-    // _SubgraphBegin(c);
-
-    o = _Quantize({o}, true, (string)name + ".o.quantize");
+    _SubgraphBegin(c);
+    // o = _Quantize({o}, true, (string)name + ".o.quantize");
     o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".out_proj");
-    o = _Dequantize({o}, true, (string)name + ".o.dequantize");
+    // o = _Dequantize({o}, true, (string)name + ".o.dequantize");
     return o;
 }
-NetTensor *FFN(NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
-    auto *x = _Quantize({i}, true, (string)name + ".x.quantize");
+NetTensor *FFN(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
+    // auto *x = _Quantize({i}, true, (string)name + ".x.quantize");
+    auto *x = i;
     x = _LinearINT8({x}, hidden_dim, ffn_hidden_dim, false, name + ".fc1");
     // x = _Dequantize({x}, (string) name + ".relux.dequantize");
     x = _GELU({x}, name + ".gelu");
@@ -102,17 +107,20 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
     _SubgraphBegin(c);
     // loop
 
-    for (int layer = 0; layer < 2; ++layer) {
+    for (int layer = 0; layer < 1; ++layer) {
         if (layer == 0)
-            i = _KVCache({i}, 0, ".i_cache");
-        auto *x = _LayerNorm({i}, hidden_dim, true, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn_layer_norm");
-        i = *Attention(c, x, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn") + i;
-        x = _LayerNorm({i}, hidden_dim, true, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".final_layer_norm");
-        i = *FFN(x, hidden_dim, ffn_hidden_dim, (string) "model.decoder.layers." + std::to_string(layer)) + i;
+            i = _Quantize({i}, true, "x.quantize");
+        // auto *x = _LayerNorm({i}, hidden_dim, true, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn_layer_norm");
+        i = Attention(c, i, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn");
+        return;
+        auto *x = _LayerNorm({i}, hidden_dim, true, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".final_layer_norm");
+        // x = _LayerNorm({i}, hidden_dim, true, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".final_layer_norm");
+        i = FFN(c, x, hidden_dim, ffn_hidden_dim, (string) "model.decoder.layers." + std::to_string(layer));
         // _SubgraphBegin(c);
     }
 
     // end loop
+    // _SubgraphBegin(c);
     i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
 }
 
@@ -128,33 +136,81 @@ void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dty
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/vocab_opt_6.7b.mllm");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./models/opt-6.7b-sq_nohead.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./models/opt-1.3b-sq_nohead.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
-    cmdParser.add<int>("thread", 't', "num of threads", false, 4);
+    // cmdParser.add<int>("thread", 't', "num of threads", false, 4);
+    cmdParser.add<int>("seq", 's', "num of threads", false, 1);
+    cmdParser.add<int>("head", 'h', "num of heads", false, 32);
+    cmdParser.add<int>("type", 't', "type of test", false, 1);
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
     int tokens_limit = cmdParser.get<int>("limits");
-    int thread_num = cmdParser.get<int>("thread");
+    // int thread_num = cmdParser.get<int>("thread");
+    int seqLength = cmdParser.get<int>("seq");
+    int head_num = cmdParser.get<int>("head");
+    int type = cmdParser.get<int>("type");
 
     auto tokenizer = BPETokenizer(vocab_path);
 
     int vocab_size = 50272;
-    int hidden_dim = 4096;
-    int ffn_hidden_dim = 16384;
-    int mutil_head_size = 32;
+    int hidden_dim = 2048;
+    int ffn_hidden_dim = 8192;
+    // int mutil_head_size = 32;
 
     std::unique_ptr<Context> c_ptr(new Context());
     auto *c = c_ptr.get();
-    opt(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size, 512);
+
+    // opt(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
+    switch(type){
+        case 1:
+            linearTest2048(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
+            break;
+        case 2:
+            linearTest11008(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
+            break;
+        case 3:
+            attentionMinor(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
+            break;
+        case 4:
+            attentionPlus(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
+            break;
+        case 5:
+            ffnTest(c, vocab_size, hidden_dim, 11008, head_num, 512);
+            break;
+        case 6:
+            linearTest4096(c, vocab_size, 4096, ffn_hidden_dim, head_num, 512);
+            break;
+        case 7:
+            attentionMinor(c, vocab_size, 4096, ffn_hidden_dim, head_num, 512);
+            break;
+        case 8:
+            attentionPlus(c, vocab_size, 4096, ffn_hidden_dim, head_num, 512);
+            break;
+        case 9:
+            linearTest409616384(c, vocab_size, 4096, 16384, head_num, 512);
+            break;
+        case 10:
+            ffnTest(c, vocab_size,4096, 16384, head_num, 512);
+            break;
+        case 11:
+            linearTest409611008(c, vocab_size, 4096, 11008, head_num, 512);
+            break;
+        case 12:
+            ffnTest(c, vocab_size, 4096, 11008, head_num, 512);
+            break;
+        case 13:
+            opt(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
+            break;
+    }
 
     BackendConfig bn;
     QNNOptNet net(bn, c);
     net.convert(c->sub_param_, BackendType::MLLM_QNN);
 
-    ParamLoader param_loader(model_path);
-    // MockLoader param_loader("");
+    // ParamLoader param_loader(model_path);
+    MockLoader param_loader(model_path);
     QNNExecutor ex(&param_loader);
 
     ex.setup(&net);
@@ -171,18 +227,20 @@ int main(int argc, char **argv) {
         if (in_str[0] != ' ') {
             in_str = ' ' + in_str;
         }
-        auto tokens_id = vector<token_id_t>();
-        tokenizer.tokenize(in_str, tokens_id, true);
-        if (str_i > 0) {
-            tokens_id[0] = 13;
-        }
-        BPETokenizer::token2Tensor(&net, tokens_id, input);
+        // auto tokens_id = vector<token_id_t>();
+        // tokenizer.tokenize(in_str, tokens_id, true);
+        // if (str_i > 0) {
+        //     tokens_id[0] = 13;
+        // }
+        // BPETokenizer::token2Tensor(&net, tokens_id, input);
+        fullTensor(input, net, {1,1, seqLength, 1}, 2.f);
         input->printData<float>();
 
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
-        for (int step = 0; step < 3; step++) {
+        for (int step = 0; step < 1; step++) {
             ex.run(&net, {input});
+            return 0;
             auto result = ex.result();
             result[0]->printShape();
 

@@ -126,13 +126,13 @@ class OpDefFlags {
     }
     // ctor used by OpDef (non-const)
     API_EXPORT OpDefFlags(hnnx::opname_tag_parm_t opstr, int n_in, int n_out)
-        : flags(flag_init(opstr, n_in, n_out)), opstr_hashval(hnnx::find_opname_hash(opstr))
+        : flags((uint16_t)flag_init(opstr, n_in, n_out)), opstr_hashval((uint16_t)hnnx::find_opname_hash(opstr))
     {
     }
     // ctor used by OpDef_ConstBase
     API_EXPORT OpDefFlags(hnnx::opname_tag_parm_t opstr,
                           bool isconst) // is_const ignored; always true
-        : flags(BIT_const | BIT_constbase), opstr_hashval(hnnx::find_opname_hash(opstr))
+        : flags(BIT_const | BIT_constbase), opstr_hashval((uint16_t)hnnx::find_opname_hash(opstr))
     {
     }
     template <unsigned F> bool set_flag_state(bool val)
@@ -204,11 +204,11 @@ class OpDef;
 class Graph;
 
 class RefersToGraph {
-    Graph &m_graph;
-
   public:
+    std::reference_wrapper<Graph> m_graph;
+
     RefersToGraph(Graph &g) : m_graph(g) {}
-    Graph &graph() const { return m_graph; }
+    Graph &graph() const { return m_graph.get(); }
 };
 // this is used as the parameter to 'dereference' and 'output_def'
 // so they can take Graph &, or anything based on RefersToGraph &,
@@ -238,13 +238,13 @@ class OpRef final {
     {
     }
     OpRef() : input_id() {}
-
+    ~OpRef() = default;
     OpRef(const OpRef &) = default;
     OpRef(OpRef &&) = default;
     OpRef &operator=(OpRef const &) = default;
     OpRef &operator=(OpRef &&) = default;
     API_EXPORT OpDef &dereference(AnyGraphContext) const;
-    API_EXPORT OutputDef &output_def(AnyGraphContext) const;
+    API_EXPORT const OutputDef &output_def(AnyGraphContext) const;
 
     // note,  these ops all do a lookup via output_def()
     API_EXPORT size_t rank(AnyGraphContext c) const { return output_def(c).rank; }
@@ -320,6 +320,7 @@ class OpDef : public OpDefFlags {
     OpDef(OpDef const &) = delete; // use the .copy() method
     OpDef(OpDef &&) = default; // we can return them though
     OpDef &operator=(OpDef const &) = delete;
+    OpDef &operator=(OpDef &&) = delete;
     API_EXPORT Graph &graph() const { return graphref.get(); }
     // make a copy with the same output and no inputs; then
     // copy shape from 'shape_from' (if not null) and output
@@ -417,6 +418,10 @@ API_FUNC_EXPORT inline bool compare_constbase_eq(const OpDef_ConstBase &lhs, con
 class OpDef_Const : public OpDef_ConstBase {
   public:
     std::unique_ptr<Tensor> const_data;
+    OpDef_Const(OpDef_Const const &) = delete;
+    OpDef_Const &operator=(const OpDef_Const &) = delete;
+    OpDef_Const(OpDef_Const &&) = delete;
+    OpDef_Const &operator=(OpDef_Const &&) = delete;
     API_EXPORT OpDef_Const(Graph &graph_in, OpId my_id_in, OutputDef const &output_def, const uint8_t *data_in,
                            size_t len);
     API_EXPORT OpDef_Const(Graph &graph_in, OpId my_id_in, std::unique_ptr<Tensor> tensor_in);

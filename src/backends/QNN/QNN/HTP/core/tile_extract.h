@@ -146,7 +146,7 @@
 PUSH_VISIBILITY(default)
 
 namespace tileExt {
-enum tile_flags {
+enum tile_flags : unsigned {
     // lower 5 bits contain 'ht'. This must be 0 (to indicate 'default') or a number in range 1..8
     // The default is normally 8; for 32-bit tiles it is 2.
     tile_ht_mask = 31,

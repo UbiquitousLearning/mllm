@@ -8,6 +8,7 @@
 
 #include "cc_pp.h"
 #include "macros_attribute.h"
+#include "weak_linkage.h"
 
 #ifndef CHECK_HVX_H
 #define CHECK_HVX_H 1
@@ -26,8 +27,10 @@ static inline void check_not_hvx() {}
 
 #else
 
+PUSH_VISIBILITY(default)
 API_EXPORT void check_hvx();
 API_EXPORT void check_not_hvx();
+POP_VISIBILITY()
 
 #endif
 

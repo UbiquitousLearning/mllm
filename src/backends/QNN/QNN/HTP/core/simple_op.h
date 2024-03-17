@@ -28,6 +28,10 @@ class SimpleOpBase {
 
   public:
     SimpleOpBase() {}
+    SimpleOpBase(const SimpleOpBase &) = delete;
+    SimpleOpBase &operator=(const SimpleOpBase &) = delete;
+    SimpleOpBase(SimpleOpBase &&) = delete;
+    SimpleOpBase &operator=(SimpleOpBase &&) = delete;
     API_EXPORT virtual ~SimpleOpBase();
     API_EXPORT virtual std::type_info const *true_type() const { return &typeid(*this); }
     API_EXPORT virtual size_t get_n_inputs() const = 0;
@@ -81,6 +85,10 @@ template <auto F> class SimpleOp : public SimpleOpBase {
     static constexpr size_t n_graphs = std::tuple_size<std::decay_t<graph_ptr_tuple_type>>::value;
 
     SimpleOp() : SimpleOpBase() {}
+    SimpleOp(const SimpleOp &) = delete;
+    SimpleOp &operator=(const SimpleOp &) = delete;
+    SimpleOp(SimpleOp &&) = delete;
+    SimpleOp &operator=(SimpleOp &&) = delete;
 
     ~SimpleOp() override = default;
 

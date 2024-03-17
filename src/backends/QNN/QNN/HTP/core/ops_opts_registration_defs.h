@@ -6,28 +6,11 @@
 //
 //==============================================================================
 
-#ifndef OP_PACKAGE_OPS_OPTS_LIST_DEFS_H
-#define OP_PACKAGE_OPS_OPTS_LIST_DEFS_H 1
+#ifndef OPS_OPTS_REGISTRATION_DEFS_H
+#define OPS_OPTS_REGISTRATION_DEFS_H 1
 
 #include "unique_types.h"
 #include "c_tricks.h"
-
-namespace hnnx {
-
-/**
- * @brief process_op_registration_list
- * Register all of the Ops in the Op registration list
- */
-void process_op_registration_list();
-
-/**
- * @brief process_opt_registration_list
- * Register all of the Opts in the Opt registration list
- * 
- */
-void process_opt_registration_list();
-
-} // namespace hnnx
 
 namespace fold {
 template <auto, int> struct ModifiedDerivedType;
@@ -46,7 +29,7 @@ template <auto, int> struct ModifiedDerivedType;
                                                                                                                        \
     /** @brief Whether the name for this type suffix is already present in the type suffix string table */             \
     template <>                                                                                                        \
-    constexpr bool StrUpd<(I)>::is_new_type_suffix =                                                                   \
+    constexpr bool StrUpd<(I)>::is_new_type_tag =                                                                      \
             make_string_view(type_tag_chain<UniqTy<0>, I - 1>().get_arr())                                             \
                     .rfind(std::string_view{(TAG).data(), (TAG).size()}) == std::string_view::npos;                    \
                                                                                                                        \
@@ -61,9 +44,9 @@ template <auto, int> struct ModifiedDerivedType;
     }                                                                                                                  \
                                                                                                                        \
     /** @brief Update the size of the type suffix string table for this file. @return 0 or TAG.size() */               \
-    template <> constexpr uint64_t NC<(I)>::inc_type_suffix_strtab_size() noexcept                                     \
+    template <> constexpr uint64_t NC<(I)>::inc_type_tag_strtab_size() noexcept                                        \
     {                                                                                                                  \
-        if (StrUpd<(I)>::is_new_type_suffix) {                                                                         \
+        if (StrUpd<(I)>::is_new_type_tag) {                                                                            \
             return (TAG).size();                                                                                       \
         } else {                                                                                                       \
             return 0U;                                                                                                 \
@@ -86,14 +69,14 @@ template <auto, int> struct ModifiedDerivedType;
     /** @brief Grow the type suffix string table for this file. No-op if it already contains the string */             \
     template <>                                                                                                        \
     template <>                                                                                                        \
-    constexpr ba_str<NC<(I)>::type_suffix_strtab_size()> type_suffix_strtab_container::chain<                          \
-            UniqTy<0>, NC<(I)>::reg_op_count(), NC<(I)>::type_suffix_strtab_size()> =                                  \
-            strtab_append<UniqTy<0>, I, (TAG).size(), StrUpd<(I)>::is_new_type_suffix>(                                \
-                    type_tag_chain<UniqTy<0>, I - 1>(), std::string_view{(TAG).data(), (TAG).size()});                 \
+    constexpr ba_str<NC<(I)>::type_tag_strtab_size()>                                                                  \
+            type_tag_strtab_container::chain<UniqTy<0>, NC<(I)>::reg_op_count(), NC<(I)>::type_tag_strtab_size()> =    \
+                    strtab_append<UniqTy<0>, I, (TAG).size(), StrUpd<(I)>::is_new_type_tag>(                           \
+                            type_tag_chain<UniqTy<0>, I - 1>(), std::string_view{(TAG).data(), (TAG).size()});         \
                                                                                                                        \
     /** @brief Record the offset of this type suffix in the type suffix string table. */                               \
     template <>                                                                                                        \
-    constexpr uint16_t StrUpd<(I)>::type_suffix_offset =                                                               \
+    constexpr uint16_t StrUpd<(I)>::type_tag_offset =                                                                  \
             static_cast<uint16_t>(make_string_view(type_tag_chain<UniqTy<0>, I>().get_arr())                           \
                                           .rfind(std::string_view{(TAG).data(), (TAG).size()}));                       \
                                                                                                                        \
@@ -103,7 +86,7 @@ template <auto, int> struct ModifiedDerivedType;
     constexpr ba_op<NC<(I)>::reg_op_count()> op_arr_container::chain<UniqTy<0>, NC<(I)>::reg_op_count()> =             \
             chain<UniqTy<0>, NC<(I - 1)>::reg_op_count()>.append(                                                      \
                     hnnx::reg_op_node{hnnx::GetParms<IS_SIMPLE>::get<FP, I>(), StrUpd<(I)>::op_name_offset,            \
-                                      StrUpd<(I)>::type_suffix_offset});
+                                      StrUpd<(I)>::type_tag_offset});
 
 /** @brief IMPL_APPEND_REG_OP_ELEM (used by REGISTER_OP, REGISTER_OP_HVX, etc.) */
 #define IMPL_APPEND_REG_OP_ELEM(I, FP, OP, TAG, LINE)                                                                  \
@@ -118,7 +101,7 @@ template <auto, int> struct ModifiedDerivedType;
                                                                                                                        \
     /** @brief Whether the name for this type suffix is already present in the type suffix string table */             \
     template <>                                                                                                        \
-    constexpr bool StrUpd<(I)>::is_new_type_suffix =                                                                   \
+    constexpr bool StrUpd<(I)>::is_new_type_tag =                                                                      \
             make_string_view(type_tag_chain<UniqTy<0>, I - 1>().get_arr())                                             \
                     .find(std::string_view{(TAG).data(), (TAG).size()}) == std::string_view::npos;                     \
                                                                                                                        \
@@ -133,9 +116,9 @@ template <auto, int> struct ModifiedDerivedType;
     }                                                                                                                  \
                                                                                                                        \
     /** @brief Update the size of the type suffix string table for this file. @return 0 or TAG.size() */               \
-    template <> constexpr uint64_t NC<(I)>::inc_type_suffix_strtab_size() noexcept                                     \
+    template <> constexpr uint64_t NC<(I)>::inc_type_tag_strtab_size() noexcept                                        \
     {                                                                                                                  \
-        if (StrUpd<(I)>::is_new_type_suffix) {                                                                         \
+        if (StrUpd<(I)>::is_new_type_tag) {                                                                            \
             return (TAG).size();                                                                                       \
         } else {                                                                                                       \
             return 0U;                                                                                                 \
@@ -158,14 +141,14 @@ template <auto, int> struct ModifiedDerivedType;
     /** @brief Grow the type suffix string table for this file. No-op if it already contains the string */             \
     template <>                                                                                                        \
     template <>                                                                                                        \
-    constexpr ba_str<NC<(I)>::type_suffix_strtab_size()> type_suffix_strtab_container::chain<                          \
-            UniqTy<0>, NC<(I)>::reg_op_count(), NC<(I)>::type_suffix_strtab_size()> =                                  \
-            strtab_append<UniqTy<0>, I, (TAG).size(), StrUpd<(I)>::is_new_type_suffix>(                                \
-                    type_tag_chain<UniqTy<0>, I - 1>(), std::string_view{(TAG).data(), (TAG).size()});                 \
+    constexpr ba_str<NC<(I)>::type_tag_strtab_size()>                                                                  \
+            type_tag_strtab_container::chain<UniqTy<0>, NC<(I)>::reg_op_count(), NC<(I)>::type_tag_strtab_size()> =    \
+                    strtab_append<UniqTy<0>, I, (TAG).size(), StrUpd<(I)>::is_new_type_tag>(                           \
+                            type_tag_chain<UniqTy<0>, I - 1>(), std::string_view{(TAG).data(), (TAG).size()});         \
                                                                                                                        \
     /** @brief Record the offset of this type suffix in the type suffix string table. */                               \
     template <>                                                                                                        \
-    constexpr uint16_t StrUpd<(I)>::type_suffix_offset =                                                               \
+    constexpr uint16_t StrUpd<(I)>::type_tag_offset =                                                                  \
             static_cast<uint16_t>(make_string_view(type_tag_chain<UniqTy<0>, I>().get_arr())                           \
                                           .find(std::string_view{(TAG).data(), (TAG).size()}));                        \
                                                                                                                        \
@@ -176,7 +159,7 @@ template <auto, int> struct ModifiedDerivedType;
     constexpr ba_op<NC<(I)>::reg_op_count()> op_arr_container::chain<UniqTy<0>, NC<(I)>::reg_op_count()> =             \
             chain<UniqTy<0>, NC<(I - 1)>::reg_op_count()>.append(                                                      \
                     hnnx::reg_op_node{hnnx::GetParms<false>::get<fold::ModifiedDerivedType<FP, LINE>::Modified, I>(),  \
-                                      StrUpd<(I)>::op_name_offset, StrUpd<(I)>::type_suffix_offset});
+                                      StrUpd<(I)>::op_name_offset, StrUpd<(I)>::type_tag_offset});
 
 /** @brief APPEND_REG_OP_ELEM (used by REGISTER_OP, REGISTER_OP_HVX, etc.) */
 #define APPEND_REG_OP_ELEM(FP, OP, TAG, LINE) IMPL_APPEND_REG_OP_ELEM(__COUNTER__, FP, OP, TAG, LINE)
@@ -213,7 +196,7 @@ template <auto, int> struct ModifiedDerivedType;
     using hnnx::op_arr_container;                                                                                      \
     using hnnx::opt_arr_container;                                                                                     \
     using hnnx::op_name_strtab_container;                                                                              \
-    using hnnx::type_suffix_strtab_container;                                                                          \
+    using hnnx::type_tag_strtab_container;                                                                             \
     using hnnx::StrtabUpdate;                                                                                          \
     using hnnx::strtab_append;                                                                                         \
     using hnnx::make_string_view;                                                                                      \
@@ -226,18 +209,18 @@ template <auto, int> struct ModifiedDerivedType;
     template <> constexpr int32_t NC<(COUNT)>::reg_op_count() noexcept { return 0; }                                   \
     template <> constexpr int32_t NC<(COUNT)>::reg_opt_count() noexcept { return 0; }                                  \
     template <> constexpr uint64_t NC<(COUNT)>::op_name_strtab_size() noexcept { return 0U; }                          \
-    template <> constexpr uint64_t NC<(COUNT)>::type_suffix_strtab_size() noexcept { return 0U; }                      \
+    template <> constexpr uint64_t NC<(COUNT)>::type_tag_strtab_size() noexcept { return 0U; }                         \
     template <> template <> constexpr ba_op<0> op_arr_container::chain<UniqTy<0>, 0> = {};                             \
     template <> template <> constexpr ba_opt<0> opt_arr_container::chain<UniqTy<0>, 0> = {};                           \
     template <> template <> constexpr ba_str<0> op_name_strtab_container::chain<UniqTy<0>, 0, 0> = {};                 \
-    template <> template <> constexpr ba_str<0> type_suffix_strtab_container::chain<UniqTy<0>, 0, 0> = {};
+    template <> template <> constexpr ba_str<0> type_tag_strtab_container::chain<UniqTy<0>, 0, 0> = {};
 
 #define INITIALIZE_TABLES() IMPL_INITIALIZE_TABLES(__COUNTER__)
 
-#define OPS_REG_TABLE(NAME)         CTRICKS_PASTER(NAME, _inner_ops_regist_table)
-#define OP_NAME_STR_TABLE(NAME)     CTRICKS_PASTER(NAME, _inner_op_name_strtab)
-#define TYPE_SUFFIX_STR_TABLE(NAME) CTRICKS_PASTER(NAME, _inner_type_suffix_strtab)
-#define EXT_OPS_REG_TABLE(NAME)     CTRICKS_PASTER(NAME, _ops_table)
+#define OPS_REG_TABLE(NAME)      CTRICKS_PASTER(NAME, _inner_ops_regist_table)
+#define OP_NAME_STR_TABLE(NAME)  CTRICKS_PASTER(NAME, _inner_op_name_strtab)
+#define TYPE_TAG_STR_TABLE(NAME) CTRICKS_PASTER(NAME, _inner_type_tag_strtab)
+#define EXT_OPS_REG_TABLE(NAME)  CTRICKS_PASTER(NAME, _ops_table)
 
 #define OPTS_REG_TABLE(NAME)     CTRICKS_PASTER(NAME, _inner_opts_regist_table)
 #define EXT_OPTS_REG_TABLE(NAME) CTRICKS_PASTER(NAME, _opts_table)
@@ -246,33 +229,38 @@ template <auto, int> struct ModifiedDerivedType;
  * @brief IMPL_FINALIZE_TABLES defines the registration tables for both 
  * the ops and opts defined in the Op source file
  */
-#define IMPL_FINALIZE_TABLES(COUNT, NAME)                                                                                                                                   \
-    namespace {                                                                                                                                                             \
-    /** @brief The completed Op registration table */                                                                                                                       \
-    auto const OPS_REG_TABLE(NAME) = op_arr_container::chain<UniqTy<0>, NC<(COUNT)>::reg_op_count()>.get_arr();                                                             \
-    /** @brief The completed Op name string table */                                                                                                                        \
-    auto const OP_NAME_STR_TABLE(NAME) =                                                                                                                                    \
-            op_name_strtab_container::chain<UniqTy<0>, NC<(COUNT)>::reg_op_count(), NC<(COUNT)>::op_name_strtab_size()>.get_arr();                                          \
-    /** @brief The completed type suffix string table */                                                                                                                    \
-    auto const TYPE_SUFFIX_STR_TABLE(NAME) = type_suffix_strtab_container::chain<UniqTy<0>, NC<(COUNT)>::reg_op_count(), NC<(COUNT)>::type_suffix_strtab_size()>.get_arr(); \
-    /** @brief The completed Optimization registration table */                                                                                                             \
-    auto const OPTS_REG_TABLE(NAME) = opt_arr_container::chain<UniqTy<0>, NC<(COUNT)>::reg_opt_count()>.get_arr();                                                          \
-    }                                                                                                                                                                       \
-    namespace hnnx {                                                                                                                                                        \
-    /** @brief Exported getter function for the Op registration table, its associated string tables, and their sizes */                                                     \
-    extern "C" reg_op_table const *EXT_OPS_REG_TABLE(NAME)()                                                                                                                \
-    {                                                                                                                                                                       \
-        static const reg_op_table table{::OPS_REG_TABLE(NAME).data(),       ::OPS_REG_TABLE(NAME).size(),                                                                   \
-                                        OP_NAME_STR_TABLE(NAME).data(),     OP_NAME_STR_TABLE(NAME).size(),                                                                 \
-                                        TYPE_SUFFIX_STR_TABLE(NAME).data(), TYPE_SUFFIX_STR_TABLE(NAME).size()};                                                            \
-        return &table;                                                                                                                                                      \
-    }                                                                                                                                                                       \
-    /** @brief Exported getter function for the Optimization registration table and its size */                                                                             \
-    extern "C" reg_opt_table const *EXT_OPTS_REG_TABLE(NAME)()                                                                                                              \
-    {                                                                                                                                                                       \
-        static const reg_opt_table table{::OPTS_REG_TABLE(NAME).data(), ::OPTS_REG_TABLE(NAME).size(), __FILE__};                                                           \
-        return &table;                                                                                                                                                      \
-    }                                                                                                                                                                       \
+#define IMPL_FINALIZE_TABLES(COUNT, NAME)                                                                                                                              \
+    namespace {                                                                                                                                                        \
+    /** @brief The completed Op registration table */                                                                                                                  \
+    constexpr auto OPS_REG_TABLE(NAME) = op_arr_container::chain<UniqTy<0>, NC<(COUNT)>::reg_op_count()>.get_arr();                                                    \
+    /** @brief The completed Op name string table */                                                                                                                   \
+    constexpr auto OP_NAME_STR_TABLE(NAME) =                                                                                                                           \
+            op_name_strtab_container::chain<UniqTy<0>, NC<(COUNT)>::reg_op_count(), NC<(COUNT)>::op_name_strtab_size()>.get_arr();                                     \
+    /** @brief The completed type suffix string table */                                                                                                               \
+    constexpr auto TYPE_TAG_STR_TABLE(NAME) = type_tag_strtab_container::chain<UniqTy<0>, NC<(COUNT)>::reg_op_count(), NC<(COUNT)>::type_tag_strtab_size()>.get_arr(); \
+    /** @brief The completed Optimization registration table */                                                                                                        \
+    constexpr auto OPTS_REG_TABLE(NAME) = opt_arr_container::chain<UniqTy<0>, NC<(COUNT)>::reg_opt_count()>.get_arr();                                                 \
+    }                                                                                                                                                                  \
+    namespace hnnx {                                                                                                                                                   \
+    /** @brief Exported getter function for the Op registration table, its associated string tables, and their sizes */                                                \
+    extern "C" reg_op_table const *EXT_OPS_REG_TABLE(NAME)()                                                                                                           \
+    {                                                                                                                                                                  \
+        static constexpr reg_op_table table{                                                                                                                           \
+                OPS_REG_TABLE(NAME).empty() ? nullptr : &OPS_REG_TABLE(NAME).front(),                                                                                  \
+                OPS_REG_TABLE(NAME).size(),                                                                                                                            \
+                OP_NAME_STR_TABLE(NAME).empty() ? nullptr : &OP_NAME_STR_TABLE(NAME).front(),                                                                          \
+                OP_NAME_STR_TABLE(NAME).size(),                                                                                                                        \
+                TYPE_TAG_STR_TABLE(NAME).empty() ? nullptr : &TYPE_TAG_STR_TABLE(NAME).front(),                                                                        \
+                TYPE_TAG_STR_TABLE(NAME).size()};                                                                                                                      \
+        return &table;                                                                                                                                                 \
+    }                                                                                                                                                                  \
+    /** @brief Exported getter function for the Optimization registration table and its size */                                                                        \
+    extern "C" reg_opt_table const *EXT_OPTS_REG_TABLE(NAME)()                                                                                                         \
+    {                                                                                                                                                                  \
+        static constexpr reg_opt_table table{OPTS_REG_TABLE(NAME).size() ? &OPTS_REG_TABLE(NAME).front() : nullptr,                                                    \
+                                             OPTS_REG_TABLE(NAME).size(), __FILE__};                                                                                   \
+        return &table;                                                                                                                                                 \
+    }                                                                                                                                                                  \
     }
 
 /**
@@ -340,7 +328,7 @@ template <auto, int> struct ModifiedDerivedType;
             reg_op_table const *const op_tab = ::PREFIX##_op_package_ops_list[i]();                                    \
             reg_op_node const *const entries = op_tab->get_entries();                                                  \
             std::string_view const names = op_tab->get_op_name_strtab();                                               \
-            std::string_view const suffixes = op_tab->get_type_suffix_strtab();                                        \
+            std::string_view const suffixes = op_tab->get_type_tag_strtab();                                           \
             for (uint32_t j = 0U; j < op_tab->get_num_entries(); j++) {                                                \
                 const reg_op_node reg_op = entries[j];                                                                 \
                 reg_op.PREFIX##_process(names, suffixes);                                                              \
@@ -449,4 +437,4 @@ template <auto, int> struct ModifiedDerivedType;
 #define DECLARE_OPS_OPTS_LIST(NAME)     IMPL_DECLARE_OPS_OPTS_LIST(__COUNTER__, NAME)
 #define DECLARE_PKG_OPS_OPTS_LIST(NAME) IMPL_DECLARE_OPS_OPTS_LIST(__COUNTER__, NAME)
 
-#endif
+#endif // OPS_OPTS_REGISTRATION_DEFS_H

@@ -54,6 +54,7 @@
 
 #include "op/QNNMergeOutput.hpp"
 #include "op/QNNSplitInput.hpp"
+#include "MemInspect.hpp"
 
 #define DEBUGPRINT
 #ifdef DEBUGPRINT
@@ -317,8 +318,9 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     currentInputBuffers = &inputBufferMap[graphName];
     currentOutputBuffers = &outputBufferMap[graphName];
     qnnModelIndex_ = qnnModelIndexMap_[graphName];
-
+    PRINT_MEMORY_USAGE("before graph finilize")
     auto status = graphFinilize();
+    PRINT_MEMORY_USAGE("after graph finilize")
     if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != status) {
         this->reportError("Graph Finalization failure");
     }
@@ -420,8 +422,8 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
                                                             graphInfo.numOutputTensors,
                                                             m_profileBackendHandle,
                                                             nullptr);
-        // uint64_t t_end = mllm_time_us();
-        // std::cout << "QNN execution time" << (t_end - t_start) / 1000.0F << " ms" << std::endl;
+        uint64_t t_end = mllm_time_us();
+        std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 
         // // print autoregressive latency.
         // FILE *fp = fopen("AR_latency.txt", "a");
@@ -818,7 +820,7 @@ StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *
                                                                     m_profileBackendHandle,
                                                                     nullptr);
                 uint64_t t_end = mllm_time_us();
-                std::cout << "QNN execution time" << (t_end - t_start) / 1000.0F << " ms" << std::endl;
+                std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 
                 if (QNN_GRAPH_NO_ERROR != executeStatus) {
                     returnStatus = StatusCode::FAILURE;
@@ -884,7 +886,7 @@ StatusCode QNNBackend::executeGraphsShared() {
                                                             m_profileBackendHandle,
                                                             nullptr);
         uint64_t t_end = mllm_time_us();
-        std::cout << "QNN execution time" << (t_end - t_start) / 1000.0F << " ms" << std::endl;
+        std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 
         // print autoregressive latency.
         FILE *fp = fopen("AR_latency.txt", "a");
@@ -955,7 +957,7 @@ StatusCode QNNBackend::executeGraphsSharedAutoregressive() {
                                                             m_profileBackendHandle,
                                                             nullptr);
         uint64_t t_end = mllm_time_us();
-        std::cout << "QNN execution time" << (t_end - t_start) / 1000.0F << " ms" << std::endl;
+        std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 
         if (QNN_GRAPH_NO_ERROR != executeStatus) {
             returnStatus = StatusCode::FAILURE;

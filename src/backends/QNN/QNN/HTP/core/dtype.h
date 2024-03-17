@@ -14,6 +14,7 @@
 #include "dtype_enum.h"
 #include "float16.h"
 #include "macros_attribute.h"
+#include "weak_linkage.h"
 
 template <DType DT> struct dtype_traits {
 };
@@ -98,7 +99,9 @@ struct dtype_info {
     unsigned is_signed : 1;
 };
 
+PUSH_VISIBILITY(default)
 API_EXPORT dtype_info DType_info(DType d); // in graph.cc
+POP_VISIBILITY()
 
 namespace hnnx {
 namespace dtype_private {

@@ -1,6 +1,6 @@
 //==============================================================================
 //
-// Copyright (c) 2021 Qualcomm Technologies, Inc.
+// Copyright (c) 2021-2023 Qualcomm Technologies, Inc.
 // All Rights Reserved.
 // Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
@@ -19,7 +19,7 @@
 #include <string>
 #include <utility>
 
-#if !defined(ANDROID) && !(defined(_WIN32) && defined(_M_ARM64))
+#if !defined(ANDROID) && !(defined(_WIN32) && defined(_M_ARM64) && defined(PREPARE_DISABLED))
 #define DESERIALIZATION_ENABLED 1
 #else
 #define DESERIALIZATION_ENABLED 0

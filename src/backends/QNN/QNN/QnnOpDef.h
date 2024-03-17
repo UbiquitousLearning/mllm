@@ -1,6 +1,6 @@
 //=============================================================================
 //
-//  Copyright (c) 2019-2023 Qualcomm Technologies, Inc.
+//  Copyright (c) 2019-2024 Qualcomm Technologies, Inc.
 //  All Rights Reserved.
 //  Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
@@ -25,7 +25,7 @@
 #define QNN_OP_PACKAGE_NAME_QTI_AISW "qti.aisw"
 
 #define QNN_OPSET_VERSION_MAJOR 1
-#define QNN_OPSET_VERSION_MINOR 27
+#define QNN_OPSET_VERSION_MINOR 30
 #define QNN_OPSET_VERSION_PATCH 0
 
 #define QNN_OP_ARGB_TO_RGB                      "ArgbToRgb"
@@ -99,11 +99,12 @@
 #define QNN_OP_CONV_2D_PARAM_GROUP      "group"
 #define QNN_OP_CONV_2D_PARAM_DILATION   "dilation"
 
-#define QNN_OP_CONV_3D                  "Conv3d"
-#define QNN_OP_CONV_3D_PARAM_STRIDE     "stride"
-#define QNN_OP_CONV_3D_PARAM_PAD_AMOUNT "pad_amount"
-#define QNN_OP_CONV_3D_PARAM_GROUP      "group"
-#define QNN_OP_CONV_3D_PARAM_DILATION   "dilation"
+#define QNN_OP_CONV_3D                             "Conv3d"
+#define QNN_OP_CONV_3D_PARAM_STRIDE                "stride"
+#define QNN_OP_CONV_3D_PARAM_PAD_AMOUNT            "pad_amount"
+#define QNN_OP_CONV_3D_PARAM_GROUP                 "group"
+#define QNN_OP_CONV_3D_PARAM_DILATION              "dilation"
+#define QNN_OP_CONV_3D_PARAM_REUSE_SPARSE_INDICIES "reuse_sparse_indicies"
 
 #define QNN_OP_CONVERT                           "Convert"
 #define QNN_OP_CONVERT_PARAM_DYNAMIC_INPUT_DATA  "dynamic_input_data"
@@ -112,6 +113,8 @@
 #define QNN_OP_CORRELATION_1D                    "Correlation1D"
 #define QNN_OP_CORRELATION_1D_PARAM_DISPLACEMENT "displacement"
 #define QNN_OP_CORRELATION_1D_PARAM_SHIFT        "shift"
+
+#define QNN_OP_CREATE_SPARSE "CreateSparse"
 
 #define QNN_OP_CROP_AND_RESIZE                                     "CropAndResize"
 #define QNN_OP_CROP_AND_RESIZE_PARAM_RESIZE_DIMS                   "resize_dims"
@@ -343,6 +346,10 @@
 #define QNN_OP_GENERATE_PROPOSALS_PARAM_IOU_THRESHOLD   "iou_threshold"
 #define QNN_OP_GENERATE_PROPOSALS_PARAM_BBOX_XFORM_CLIP "bbox_xform_clip"
 
+#define QNN_OP_GET_SPARSE_INDICES "GetSparseIndices"
+
+#define QNN_OP_GET_SPARSE_VALUES "GetSparseValues"
+
 #define QNN_OP_GRID_SAMPLE                         "GridSample"
 #define QNN_OP_GRID_SAMPLE_PARAM_ALIGN_CORNERS     "align_corners"
 #define QNN_OP_GRID_SAMPLE_PARAM_MODE              "mode"
@@ -362,6 +369,7 @@
 #define QNN_OP_GRU_DIRECTION_FORWARD         0
 #define QNN_OP_GRU_DIRECTION_REVERSE         1
 #define QNN_OP_GRU_PARAM_LINEAR_BEFORE_RESET "linear_before_reset"
+#define QNN_OP_GRU_PARAM_TIME_MAJOR          "time_major"
 
 #define QNN_OP_HARD_SWISH "HardSwish"
 
@@ -420,12 +428,18 @@
 #define QNN_OP_LSTM_DIRECTION_REVERSE           1
 #define QNN_OP_LSTM_PARAM_CELL_CLIP_THRESHOLD   "cell_clip_threshold"
 #define QNN_OP_LSTM_PARAM_OUTPUT_CLIP_THRESHOLD "output_clip_threshold"
+#define QNN_OP_LSTM_PARAM_TIME_MAJOR            "time_major"
 #define QNN_OP_LSTM_PARAM_INPUT_GATE_QSCALE     "input_gate_qscale"
 #define QNN_OP_LSTM_PARAM_FORGET_GATE_QSCALE    "forget_gate_qscale"
 #define QNN_OP_LSTM_PARAM_CELL_GATE_QSCALE      "cell_gate_qscale"
 #define QNN_OP_LSTM_PARAM_OUTPUT_GATE_QSCALE    "output_gate_qscale"
 #define QNN_OP_LSTM_PARAM_HIDDEN_STATE_OFFSET   "hidden_state_offset"
 #define QNN_OP_LSTM_PARAM_HIDDEN_STATE_QSCALE   "hidden_state_qscale"
+
+#define QNN_OP_MASKED_SOFTMAX                   "MaskedSoftmax"
+#define QNN_OP_MASKED_SOFTMAX_PARAM_MODE        "mode"
+#define QNN_OP_MASKED_SOFTMAX_MODE_UNCOMPRESSED 0
+#define QNN_OP_MASKED_SOFTMAX_MODE_COMPRESSED   1
 
 #define QNN_OP_MOMENTS                 "Moments"
 #define QNN_OP_MOMENTS_PARAM_AXES      "axes"
@@ -613,6 +627,8 @@
 #define QNN_OP_SPACE_TO_DEPTH_PARAM_MODE       "mode"
 #define QNN_OP_SPACE_TO_DEPTH_MODE_DCR         0
 #define QNN_OP_SPACE_TO_DEPTH_MODE_CRD         1
+
+#define QNN_OP_SPARSE_TO_DENSE "SparseToDense"
 
 #define QNN_OP_SPLIT                   "Split"
 #define QNN_OP_SPLIT_PARAM_AXIS        "axis"

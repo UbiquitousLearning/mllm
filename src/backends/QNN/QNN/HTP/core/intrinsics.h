@@ -1,6 +1,6 @@
 //==============================================================================
 //
-// Copyright (c) 2020-2021 Qualcomm Technologies, Inc.
+// Copyright (c) 2020-2023 Qualcomm Technologies, Inc.
 // All Rights Reserved.
 // Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
@@ -23,6 +23,67 @@
 #include "afuncs.h"
 
 #include "check_hvx.h"
+
+#ifdef _WIN32
+#include <thread>
+#endif
+
+///////// inline implementation of trivial HVX intrinsics, reduces code size significantly.
+#if !defined(__hexagon__) && defined(Q6_V_lo_W)
+namespace hnnx {
+inline HVX_Vector q6op_V_lo_W(HVX_VectorPair const &w)
+{
+    return w.v[0];
+}
+inline HVX_Vector q6op_V_hi_W(HVX_VectorPair const &w)
+{
+    return w.v[1];
+}
+inline HVX_VectorPair q6op_W_vcombine_VV(HVX_Vector const &v1, HVX_Vector const &v0)
+{
+    HVX_VectorPair result;
+    result.v[0] = v0;
+    result.v[1] = v1;
+    return result;
+}
+#undef Q6_V_lo_W
+#define Q6_V_lo_W(W) hnnx::q6op_V_lo_W(W)
+#undef Q6_V_hi_W
+#define Q6_V_hi_W(W) hnnx::q6op_V_hi_W(W)
+#undef Q6_W_vcombine_VV
+#define Q6_W_vcombine_VV(V1, V0) hnnx::q6op_W_vcombine_VV(V1, V0)
+} // namespace hnnx
+
+//
+// workaround for defect in libnative Q6_Vw_vadd_VwVwQ_carry, Q6_Vw_vsub_VwVwQ_carry [QTOOL-108346]
+//
+namespace hnnx {
+template <bool SUBTRACT>
+HVX_Vector do_Vw_vaddORsub_VwVwQ_carry(HVX_Vector const &vu, HVX_Vector const &vv, HVX_VectorPred *qcarry)
+{
+    using u64 = unsigned long long;
+    HVX_Vector result;
+    HVX_VectorPred carry_out; // use local for this, in case qcarry aliases one of the inputs.
+    for (unsigned i = 0; i < 32; i++) {
+        unsigned v_val = vv.uw[i];
+        if (SUBTRACT) v_val = ~v_val;
+        u64 sum = u64(vu.uw[i]) + u64(v_val) + (qcarry->uw[i] & 1u);
+        result.uw[i] = unsigned(sum);
+        carry_out.uw[i] = (sum > 0xFFFFFFFFu) ? 0x01010101 : 0;
+    }
+    *qcarry = carry_out;
+    return result;
+}
+#undef Q6_Vw_vadd_VwVwQ_carry
+#define Q6_Vw_vadd_VwVwQ_carry(VA, VB, QP) hnnx::do_Vw_vaddORsub_VwVwQ_carry<false>(VA, VB, QP)
+#undef Q6_Vw_vsub_VwVwQ_carry
+#define Q6_Vw_vsub_VwVwQ_carry(VA, VB, QP) hnnx::do_Vw_vaddORsub_VwVwQ_carry<true>(VA, VB, QP)
+} // namespace hnnx
+// end [QTOOL-108346]
+
+#endif
+////////////////////////////////////////
+
 #include "hvx_mathops.h"
 #include "macros_attribute.h"
 
@@ -128,7 +189,13 @@ struct unaligned_vector_wrapper {
         v = val;
         return val;
     }
-    inline HVX_Vector operator=(unaligned_vector_wrapper const &rhs) { return (v = rhs.v); }
+    inline HVX_Vector operator=(unaligned_vector_wrapper const &rhs)
+    {
+        if (this != &rhs) {
+            v = rhs.v;
+        }
+        return *this;
+    }
 }; // <- so the struct is not considered aligned
 #pragma pack(pop)
 inline HVX_Vector vmemu(void const *addr)
@@ -208,8 +275,11 @@ inline void q6op_vstu_variable_ARVR_alt(void *ptr, unsigned w, HVX_Vector value,
 
 inline void dcfetch(void const *addr)
 {
+    PUSH_WARNING()
+    DISABLE_WARNING("-Wcast-qual", MSVC_NO_EQUIV)
     //    asm volatile(" dcfetch(%0) " : : "r"(addr));
-    Q6_dcfetch_A((void *)addr);
+    Q6_dcfetch_A(const_cast<void *>(addr));
+    POP_WARNING()
 }
 
 inline void ALWAYSINLINE l2pref(const void *p, uint32_t height, uint32_t width, uint32_t stride)
@@ -275,7 +345,7 @@ inline void q6op_vstu_variable_ARVR(void *addr, int n, HVX_Vector vin, int pos0)
     q6op_vstu_variable_ARV(addr, n, Q6_V_vror_VR(vin, pos0));
 }
 
-inline void dcfetch(void const *addr) {}
+inline void dcfetch(void const volatile *addr) {}
 inline void l2pref(const void *p, uint32_t height, uint32_t width, uint32_t stride) {}
 
 inline void pause_just_enough()
@@ -283,8 +353,7 @@ inline void pause_just_enough()
 #ifndef _WIN32
     sched_yield();
 #else
-    errlog("FATAL: sched_yield is not implemented on Windows now, and pause_just_enough is not expected to execute.");
-    assert(0);
+    std::this_thread::yield();
 #endif
 }
 
@@ -292,7 +361,7 @@ inline void pause_just_enough()
 
 inline void dcfetch_block(const void *addr, int size)
 {
-    uint8_t *address = (uint8_t *)addr;
+    auto address = static_cast<const uint8_t *>(addr);
 
     for (int i = 0; i < size; i += 64) {
         dcfetch(address);
@@ -331,15 +400,15 @@ inline void hvx_store_vec_x2_unaligned_inline(void *addr, HVX_Vector v0, HVX_Vec
 {
     check_hvx();
 
-    unsigned int const VECTOR_SIZE = 128;
+    static constexpr unsigned int vector_size = 128;
     HVX_Vector *outp = (HVX_Vector *)addr;
-    if (bytes >= VECTOR_SIZE) {
+    if (bytes >= vector_size) {
         q6op_vstu_AV(outp, v0);
         outp++;
-        bytes -= VECTOR_SIZE;
+        bytes -= vector_size;
         v0 = v1;
     }
-    if (bytes >= VECTOR_SIZE) {
+    if (bytes >= vector_size) {
         q6op_vstu_AV(outp, v0);
     } else if (bytes >= 1) {
         q6op_vstu_variable_ARV(outp, bytes, v0);
@@ -358,27 +427,27 @@ inline void hvx_store_vec_x4_unaligned_inline(void *addr, HVX_Vector v0, HVX_Vec
 {
     check_hvx();
 
-    unsigned int const VECTOR_SIZE = 128;
+    static constexpr unsigned int vector_size = 128;
     HVX_Vector *outp = (HVX_Vector *)addr;
-    if (bytes >= VECTOR_SIZE) {
+    if (bytes >= vector_size) {
         q6op_vstu_AV(outp, v0);
         outp++;
-        bytes -= VECTOR_SIZE;
+        bytes -= vector_size;
         v0 = v1;
     }
-    if (bytes >= VECTOR_SIZE) {
+    if (bytes >= vector_size) {
         q6op_vstu_AV(outp, v0);
         outp++;
-        bytes -= VECTOR_SIZE;
+        bytes -= vector_size;
         v0 = v2;
     }
-    if (bytes >= VECTOR_SIZE) {
+    if (bytes >= vector_size) {
         q6op_vstu_AV(outp, v0);
         outp++;
-        bytes -= VECTOR_SIZE;
+        bytes -= vector_size;
         v0 = v3;
     }
-    if (bytes >= VECTOR_SIZE) {
+    if (bytes >= vector_size) {
         q6op_vstu_AV(outp, v0);
     } else if (bytes >= 1) {
         q6op_vstu_variable_ARV(outp, bytes, v0);
@@ -422,7 +491,7 @@ inline HVX_VectorPair addw_u64(HVX_VectorPair acc, HVX_VectorPair addend)
 //convert long long int into qfloat for sum and sum(squared)
 inline HVX_Vector uint64_to_qfloat(HVX_Vector ll_hi, HVX_Vector ll_lo)
 {
-    HVX_Vector vzero = Q6_V_vsplat_R(0);
+    HVX_Vector vzero = Q6_V_vzero();
     HVX_VectorPred q0;
     HVX_Vector v32 = Q6_V_vsplat_R(32);
     HVX_Vector qmask = Q6_V_vsplat_R(0xffffff00);
@@ -430,13 +499,13 @@ inline HVX_Vector uint64_to_qfloat(HVX_Vector ll_hi, HVX_Vector ll_lo)
     HVX_Vector qf32_out, hi, lo, exp0, mant0, exp;
     q0 = Q6_Q_vcmp_eq_VwVw(ll_hi, vzero); //if(!hi)
     hi = Q6_V_vmux_QVV(q0, ll_lo, ll_hi); //
-    lo = Q6_V_vmux_QVV(q0, vzero, ll_lo); //xxxx | xxxx or xxxx | 0000
+    lo = Q6_V_vand_QnV(q0, ll_lo); //xxxx | xxxx or xxxx | 0000
     exp0 = Q6_Vuw_vcl0_Vuw(hi); //get size of value 32 or 64bit
     mant0 = Q6_Vw_vasl_VwVw(hi, exp0); //shift hi by size
     exp = Q6_Vw_vsub_VwVw(v32, exp0); //compute missing bit using oppisite shift on lo
     lo = Q6_Vw_vlsr_VwVw(lo, exp);
     mant0 = Q6_Vw_vadd_VwVw(mant0, lo); //combine lo and hi
-    exp = Q6_V_vmux_QVV(q0, vzero, v32); //adjust exp by 32 if 32 or 64bit ll
+    exp = Q6_V_vand_QnV(q0, v32); //adjust exp by 32 if 32 or 64bit ll
     exp0 = Q6_Vw_vsub_VwVw(exp0, exp); //convert to qfloat exponent
     mant0 = Q6_Vuw_vlsr_VuwR(mant0, 1); //make mant issa signed format
     mant0 = Q6_V_vand_VV(mant0, qmask);
@@ -463,7 +532,7 @@ inline HVX_Vector int32_to_qfloat(HVX_Vector const in)
     HVX_Vector normalized = Q6_Vw_vasl_VwVw(in, lshift);
     HVX_Vector vexp = Q6_Vw_vsub_VwVw(Q6_V_vsplat_R(0x7f + 30), lshift);
     HVX_Vector mant = Q6_V_vand_VV(Q6_V_vsplat_R(0xFFFFFF00), normalized);
-    HVX_Vector ret = Q6_V_vmux_QVV(is_zero, vzero, Q6_Vw_vadd_VwVw(mant, vexp));
+    HVX_Vector ret = Q6_V_vand_QnV(is_zero, Q6_Vw_vadd_VwVw(mant, vexp));
     return ret;
 }
 
@@ -475,8 +544,7 @@ inline HVX_Vector int32_to_float(HVX_Vector const in)
 // Convert IEEE 754 float to Qualcomm 32-bit float (qf32)
 [[maybe_unused]] static inline ALWAYSINLINE HVX_Vector Q6_Vqf32_equals_Vsf(HVX_Vector vin)
 {
-    HVX_Vector vzero = Q6_V_vsplat_R(0);
-    return Q6_Vqf32_vadd_VsfVsf(vin, vzero);
+    return Q6_Vqf32_vadd_VsfVsf(vin, Q6_V_vzero());
 }
 
 [[maybe_unused]] static inline ALWAYSINLINE HVX_Vector Q6_Vqf32_from_int(HVX_Vector vin)
@@ -532,7 +600,8 @@ static inline HVX_Vector convert_sf_to_s32(HVX_Vector vals)
     mant = Q6_V_vmux_QVV(p_overflow, const_7fffffff, mant);
 
     /* Turn negative values into two's complement negative values */
-    mant = Q6_V_vmux_QVV(p_neg, Q6_Vw_vsub_VwVw_sat(const_zero, mant), mant);
+    HVX_Vector v_neg = Q6_V_vand_QR(p_neg, -1); // 0xFFFFFFFF in -ve lanes, 0 in >=0
+    mant = Q6_V_vxor_VV(Q6_Vw_vadd_VwVw(mant, v_neg), v_neg);
     return mant;
 #endif // HEX_ARCH >= 73
 }
@@ -563,6 +632,16 @@ static inline HVX_Vector convert_s32_to_sf(const HVX_Vector vals)
 #else
     return int32_to_float(vals);
 #endif
+}
+
+inline ALWAYSINLINE HVX_Vector q6op_V_vsplat_float32(const float val)
+{
+    union {
+        float as_f32;
+        int32_t as_i32;
+    } bitCast;
+    bitCast.as_f32 = val;
+    return Q6_V_vsplat_R(bitCast.as_i32);
 }
 
 #if defined(__hexagon__)

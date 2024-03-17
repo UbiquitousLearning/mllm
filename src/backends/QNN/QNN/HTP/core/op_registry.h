@@ -76,6 +76,9 @@ API_FUNC_EXPORT uptr_Op op_factory_generate(OpIoPtrs const &op_io_ptrs, OpId id_
 	 */
 extern API_FUNC_EXPORT const OpRegistry_map_t &get_registered_ops();
 
+// Function clean up all package(external) ops from op maps
+extern API_FUNC_EXPORT void clear_pkg_ops_in_op_maps();
+
 // for 'introspect', we want a mapping from each registered OpFactory (a function pointer)
 // to the corresponding typeid ptr. This map is built via calls to
 // register_optype_by_factory; this function is normally a weak def which does nothing,

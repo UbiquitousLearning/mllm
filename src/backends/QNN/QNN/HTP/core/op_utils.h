@@ -35,8 +35,8 @@ static inline bool is_input_tensor_compatible(Graph &graph_in, Tensor const *ten
     // else returns a nullptr
     if (!tensor || !dynamic_cast<T>(tensor)) {
         if constexpr (build_options::DebugRegistry)
-            debuglog("input tensor is %p in positiopn %d, dynamic cast to %s failed", tensor, position,
-                     typeid(T).name());
+            debuglog("input tensor is %p of type %s in position %d, dynamic cast to %s failed", tensor,
+                     typeid(*tensor).name(), position, typeid(T).name());
         return false;
     }
     return true;

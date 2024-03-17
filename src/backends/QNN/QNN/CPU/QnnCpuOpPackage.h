@@ -43,6 +43,7 @@ typedef double QnnCpuOpPackage_ProfileData_t;
 typedef enum {
   QNN_CPU_PARAMTYPE_SCALAR = 0,
   QNN_CPU_PARAMTYPE_TENSOR = 1,
+  QNN_CPU_PARAMTYPE_STRING = 2,
   // Unused, present to ensure 32 bits.
   QNN_CPU_PARAMTYPE_UNDEFINED = 0xFFFFFFFF
 } QnnCpuOpPackage_ParamType_t;
@@ -161,6 +162,7 @@ typedef struct {
   const char* name;
   union {
     double scalarParam;
+    const char* string;
     QnnCpuOpPackage_Tensor_t* tensorParam;
   };
 } QnnCpuOpPackage_Param_t;

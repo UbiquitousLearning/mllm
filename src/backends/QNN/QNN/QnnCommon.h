@@ -1,6 +1,6 @@
 //==============================================================================
 //
-// Copyright (c) 2019-2023 Qualcomm Technologies, Inc.
+// Copyright (c) 2019-2024 Qualcomm Technologies, Inc.
 // All Rights Reserved.
 // Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
@@ -44,7 +44,7 @@ extern "C" {
 
 // Provide values to use for API version.
 #define QNN_API_VERSION_MAJOR 2
-#define QNN_API_VERSION_MINOR 10
+#define QNN_API_VERSION_MINOR 14
 #define QNN_API_VERSION_PATCH 0
 
 /// NULL backend identifier.
@@ -183,29 +183,27 @@ typedef enum {
   QNN_COMMON_MIN_ERROR = QNN_MIN_ERROR_COMMON,
   //////////////////////////////////////////
 
-  /// Indicates an API or a feature is not supported by implementation.
-  /// Generally applicable to optional elements of the API.
+  /// API or feature is not supported by implementation.
   QNN_COMMON_ERROR_NOT_SUPPORTED = QNN_MIN_ERROR_COMMON + 0,
-  /// Indicates memory allocation related error.
+  /// Memory allocation related error.
   QNN_COMMON_ERROR_MEM_ALLOC = QNN_MIN_ERROR_COMMON + 2,
-  /// Indicates system level error, such as related to platform / OS services
+  /// System level error, such as related to platform / OS services
   QNN_COMMON_ERROR_SYSTEM = QNN_MIN_ERROR_COMMON + 3,
-  /// Indicates invalid function argument
+  /// Invalid function argument
   QNN_COMMON_ERROR_INVALID_ARGUMENT = QNN_MIN_ERROR_COMMON + 4,
-  /// Indicates an illegal operation or sequence of operations
+  /// Illegal operation or sequence of operations
   QNN_COMMON_ERROR_OPERATION_NOT_PERMITTED = QNN_MIN_ERROR_COMMON + 5,
-  /// Indicates failure in attempting to use QNN API on an unsupported platform
+  /// Attempt to use QNN API on an unsupported platform
   QNN_COMMON_ERROR_PLATFORM_NOT_SUPPORTED = QNN_MIN_ERROR_COMMON + 6,
   /// Communication errors with platform / OS service
   QNN_COMMON_ERROR_SYSTEM_COMMUNICATION = QNN_MIN_ERROR_COMMON + 7,
-  /// Indicates loaded libs are of incompatible versions
+  /// Loaded libraries are of incompatible versions
   QNN_COMMON_ERROR_INCOMPATIBLE_BINARIES = QNN_MIN_ERROR_COMMON + 8,
-  /// Indicates lib has already been loaded in this process
+  /// Attempt to reload library already loaded in this process
   QNN_COMMON_ERROR_LOADING_BINARIES = QNN_MIN_ERROR_COMMON + 9,
-  /// Indicates resource allocation related error.
+  /// Resource allocation related error.
   QNN_COMMON_ERROR_RESOURCE_UNAVAILABLE = QNN_MIN_ERROR_COMMON + 10,
-  /// Indicates general type of error, which has not been identified as any other error type.
-  /// In general, this error should rarely be used.
+  /// General error, which has not been identified as any other error type.
   QNN_COMMON_ERROR_GENERAL = QNN_MIN_ERROR_COMMON + 100,
 
   //////////////////////////////////////////

@@ -1,6 +1,6 @@
 //==============================================================================
 //
-// Copyright (c) 2023 Qualcomm Technologies, Inc.
+// Copyright (c) 2023-2024 Qualcomm Technologies, Inc.
 // All Rights Reserved.
 // Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <utility>
 #include <tuple>
+
+#include "executable.h"
 
 // Contains defs for host-side and target side, so try not
 // to add too many 'host only' things.
@@ -149,6 +151,17 @@ constexpr std::pair<unsigned, unsigned> tensor_scalar_tgt_size_align(bool is_qua
 {
     const unsigned ifc_size = interface_tgt_size_align(is_quantized).first;
     return {tgt_sizet_bytes * 2 + ifc_size, tgt_sizet_bytes};
+}
+// sizeof OpExtraInfo on target: {long long, 2 * unsigned, char *, 4 * padbyte}
+constexpr std::pair<unsigned, unsigned> OpExtraInfo_size_align = {24, 8};
+
+// The size of a SliceDispatchOp for the given number of slices.
+// Currently it's always the same regardless of 'nslices'; We may introduce 'right-sized'
+// value, in which case 'exact=true' will get the 'real' size; but exact = false will always
+// give the full size.
+constexpr std::pair<unsigned, unsigned> slice_dispatch_op_size_align(unsigned const nslices, bool const exact = false)
+{
+    return {tgt_sizet_bytes * (4 + 3 * Executable::MAX_OP_SLICES), tgt_sizet_bytes};
 }
 
 // this is used in e.g.

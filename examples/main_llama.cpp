@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
         BPETokenizer::token2Tensor(&net, tokens_id, input);
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
-        for (int step = 0; step < 100; step++) {
+        for (int step = 0; step < 1; step++) {
             ex.run(&net, {input});
             auto result = ex.result();
             auto token_idx = postProcessing(result[0], input);

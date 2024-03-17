@@ -6,8 +6,8 @@
 //
 //==============================================================================
 
-#ifndef OP_PACKAGE_OPS_OPTS_LIST_H
-#define OP_PACKAGE_OPS_OPTS_LIST_H 1
+#ifndef OPS_OPTS_REGISTRATION_H
+#define OPS_OPTS_REGISTRATION_H 1
 
 // Note that Op files must include this file AFTER they've included either
 // typical_op.h or variadic_op.h, since these headers both give definitions for DerivedType
@@ -35,7 +35,7 @@ class reg_op_node {
     /** @brief op_name */
     uint16_t op_name_offset;
     /** @brief type_tag */
-    uint16_t type_suffix_offset;
+    uint16_t type_tag_offset;
 
     std::string_view const get_subview(std::string_view const strtab, std::string_view::size_type const start) const
     {
@@ -44,13 +44,13 @@ class reg_op_node {
 
   public:
     /** @brief reg_op_node @param a @param n @param t */
-    constexpr reg_op_node(op_reg_parms p, uint16_t n, uint16_t t) noexcept
-        : op_parms(p), op_name_offset(n), type_suffix_offset(t)
+    constexpr reg_op_node(op_reg_parms const p, uint16_t const n, uint16_t const t) noexcept
+        : op_parms(p), op_name_offset(n), type_tag_offset(t)
     {
     }
 
-    constexpr reg_op_node(simop_reg_parms p, uint16_t n, uint16_t t) noexcept
-        : simple_op_parms(p), op_name_offset(n), type_suffix_offset(t)
+    constexpr reg_op_node(simop_reg_parms const p, uint16_t const n, uint16_t const t) noexcept
+        : simple_op_parms(p), op_name_offset(n), type_tag_offset(t)
     {
     }
 
@@ -58,21 +58,21 @@ class reg_op_node {
     constexpr reg_op_node() noexcept : reg_op_node(op_reg_parms{}, 0, 0) {}
 
     /** @brief process invoke the make_op_custom function */
-    void core_process(std::string_view const op_name_strtab, std::string_view const type_suffix_strtab) const
+    void core_process(std::string_view const op_name_strtab, std::string_view const type_tag_strtab) const
     {
         std::string_view const op_name = get_subview(op_name_strtab, op_name_offset);
-        std::string_view const type_tag = get_subview(type_suffix_strtab, type_suffix_offset);
+        std::string_view const type_tag = get_subview(type_tag_strtab, type_tag_offset);
         hnnx::make_op_custom(op_name, type_tag, op_parms);
     }
 
     /** @brief process append external oppkg ops into op vector for later use */
-    void pkg_process(std::string_view const op_name_strtab, std::string_view const type_suffix_strtab) const
+    void pkg_process(std::string_view const op_name_strtab, std::string_view const type_tag_strtab) const
     {
         std::string_view const op_name = get_subview(op_name_strtab, op_name_offset);
-        std::string_view const type_suffix = get_subview(type_suffix_strtab, type_suffix_offset);
+        std::string_view const type_tag = get_subview(type_tag_strtab, type_tag_offset);
         std::vector<std::unique_ptr<PackageOpStorageBase>> &ops = current_package_ops_storage_vec_func();
         ops.push_back(std::make_unique<PackageOpStorageBase>(
-                op_name, type_suffix, simple_op_parms.sim_newop, *(simple_op_parms.tinf),
+                op_name, type_tag, simple_op_parms.sim_newop, *(simple_op_parms.tinf),
                 simple_op_parms.deserializer_reg_func, simple_op_parms.deserialize_func, simple_op_parms.cost_f,
                 simple_op_parms.flags));
     }
@@ -151,42 +151,46 @@ template <typename T, uint32_t N> class built_array {
     constexpr const std::array<T, N> get_arr() const noexcept { return arr; }
     /** @brief built_array 
      *  @param old the previous array
-     *  @param add the new element to append
+     *  @param newElem the new element to append
      */
-    constexpr built_array(built_array<T, N - 1> const &old, T add)
+    constexpr built_array(built_array<T, N - 1> const &old, T newElem)
     {
-        for (uint32_t i = 0U; i < N - 1U; i++) {
-            arr[i] = old.get_arr()[i];
+        if constexpr (N > 1) {
+            for (uint32_t i = 0U; i < N - 1U; i++) {
+                arr[i] = old.get_arr()[i];
+            }
         }
-        arr[N - 1U] = add;
+        arr[N - 1U] = newElem;
     }
     /** @brief append
-     *  @param add the new element to append
+     *  @param newElem the new element to append
      *  @return the new array
      */
-    constexpr built_array<T, N + 1> append(T add) const { return built_array<T, N + 1>(*this, add); }
+    constexpr built_array<T, N + 1> append(T newElem) const { return built_array<T, N + 1>(*this, newElem); }
 
     /** @brief append
-     *  @param add the new element to append
+     *  @param newElem the new element to append
      *  @return the new array
      */
-    template <std::string_view::size_type I> constexpr built_array<T, N + I> append(sv_size_wrapper<I> add) const
+    template <std::string_view::size_type I> constexpr built_array<T, N + I> append(sv_size_wrapper<I> newElem) const
     {
-        return built_array<T, N + I>(*this, add);
+        return built_array<T, N + I>(*this, newElem);
     }
 
     /** @brief built_array 
      *  @param old the previous array
-     *  @param add a view of the array of new elements to append
+     *  @param newElem a view of the array of new elements to append
      */
     template <std::string_view::size_type I>
-    constexpr built_array(built_array<T, N - I> const &old, sv_size_wrapper<I> add)
+    constexpr built_array(built_array<T, N - I> const &old, sv_size_wrapper<I> newElem)
     {
-        for (uint32_t i = 0U; i < (N - I); i++) {
-            arr[i] = old.get_arr()[i];
+        if constexpr (N > I) {
+            for (uint32_t i = 0U; i < (N - I); i++) {
+                arr[i] = old.get_arr()[i];
+            }
         }
         for (uint32_t i = (N - I); i < N; i++) {
-            arr[i] = add.v[i - (N - I)];
+            arr[i] = newElem.v[i - (N - I)];
         }
     }
 };
@@ -197,18 +201,18 @@ template <typename T> class built_array<T, 0> {
     /** @brief built_array constructor */
     constexpr built_array() = default;
     /** @brief append
-     *  @param add the new element to append
+     *  @param newElem the new element to append
      *  @return the new array
      */
-    constexpr built_array<T, 1> append(T add) const { return built_array<T, 1>(*this, add); }
+    constexpr built_array<T, 1> append(T newElem) const { return built_array<T, 1>(*this, newElem); }
 
     /** @brief append
-     *  @param add the new element to append
+     *  @param newElem the new element to append
      *  @return the new array
      */
-    template <std::string_view::size_type I> constexpr built_array<T, I> append(sv_size_wrapper<I> add) const
+    template <std::string_view::size_type I> constexpr built_array<T, I> append(sv_size_wrapper<I> newElem) const
     {
-        return built_array<T, I>(*this, add);
+        return built_array<T, I>(*this, newElem);
     }
 
     /** @brief get_arr
@@ -220,16 +224,25 @@ template <typename T> class built_array<T, 0> {
 /** @brief op_name_strtab_t empty struct to help specialize arr_container for the op_name string table */
 struct op_name_strtab_t {
 };
-/** @brief type_suffix_strtab empty struct to help specialize arr_container for the type_suffix string table */
-struct type_suffix_strtab_t {
+/** @brief type_tag_strtab empty struct to help specialize arr_container for the type_tag string table */
+struct type_tag_strtab_t {
 };
 
-template <typename> inline constexpr bool is_strtab = false;
-template <> inline constexpr bool is_strtab<op_name_strtab_t> = true;
-template <> inline constexpr bool is_strtab<type_suffix_strtab_t> = true;
+template <typename> constexpr bool is_strtab()
+{
+    return false;
+}
+template <> constexpr bool is_strtab<op_name_strtab_t>()
+{
+    return true;
+}
+template <> constexpr bool is_strtab<type_tag_strtab_t>()
+{
+    return true;
+}
 
 /** @brief arr_container */
-template <typename T, bool S = is_strtab<T>> struct arr_container {
+template <typename T, bool S = is_strtab<T>()> struct arr_container {
     /** @brief chain link to the built_array contained in this structure */
     template <typename UNIQ_TY, uint32_t I> static constexpr built_array<T, I> chain = {};
 };
@@ -246,17 +259,17 @@ class reg_op_table {
     reg_op_node const *entries;
     uint32_t num_entries;
     std::string_view op_name_strtab;
-    std::string_view type_suffix_strtab;
+    std::string_view type_tag_strtab;
 
   public:
     constexpr reg_op_node const *get_entries() const noexcept { return entries; }
     constexpr uint32_t get_num_entries() const noexcept { return num_entries; }
     constexpr std::string_view const get_op_name_strtab() const noexcept { return op_name_strtab; }
-    constexpr std::string_view const get_type_suffix_strtab() const noexcept { return type_suffix_strtab; }
-    constexpr reg_op_table(reg_op_node const *p, uint32_t const n, std::string_view::value_type const *o,
-                           std::string_view::size_type const o_size, std::string_view::value_type const *t,
+    constexpr std::string_view const get_type_tag_strtab() const noexcept { return type_tag_strtab; }
+    constexpr reg_op_table(reg_op_node const *const p, uint32_t const n, std::string_view::value_type const *const o,
+                           std::string_view::size_type const o_size, std::string_view::value_type const *const t,
                            std::string_view::size_type const t_size) noexcept
-        : entries(p), num_entries(n), op_name_strtab{o, o_size}, type_suffix_strtab{t, t_size}
+        : entries(p), num_entries(n), op_name_strtab{o, o_size}, type_tag_strtab{t, t_size}
     {
     }
     constexpr reg_op_table() noexcept : reg_op_table(nullptr, 0U, "", 0U, "", 0U) {}
@@ -275,7 +288,8 @@ class reg_opt_table {
     constexpr reg_optim_node const *get_entries() const noexcept { return entries; }
     constexpr uint32_t get_num_entries() const noexcept { return num_entries; }
     constexpr std::string_view const get_file_name() const noexcept { return file_name; }
-    constexpr reg_opt_table(reg_optim_node const *p, uint32_t const n, std::string_view::value_type const *f) noexcept
+    constexpr reg_opt_table(reg_optim_node const *const p, uint32_t const n,
+                            std::string_view::value_type const *const f) noexcept
         : entries(p), num_entries(n), file_name{f}
     {
     }
@@ -287,8 +301,8 @@ using reg_opt_table_wrapper = reg_opt_table const *(*)();
 
 /** @brief op_name_strtab_container */
 using op_name_strtab_container = arr_container<op_name_strtab_t>;
-/** @brief type_suffix_strtab_container */
-using type_suffix_strtab_container = arr_container<type_suffix_strtab_t>;
+/** @brief type_tag_strtab_container */
+using type_tag_strtab_container = arr_container<type_tag_strtab_t>;
 /** @brief op_arr_container */
 using op_arr_container = arr_container<reg_op_node>;
 /** @brief opt_arr_container */
@@ -329,8 +343,8 @@ template <typename UNIQ_TY, int32_t I> class NodeCounter {
     constexpr static int32_t inc_opt() noexcept { return 0; }
     /** @brief inc_op_name_strtab_size @return 0, or some string size constant if the string table needs to grow */
     constexpr static uint64_t inc_op_name_strtab_size() noexcept { return 0; }
-    /** @brief inc_type_suffix_strtab_size @return 0, or some string size constant if the string table needs to grow */
-    constexpr static uint64_t inc_type_suffix_strtab_size() noexcept { return 0; }
+    /** @brief inc_type_tag_strtab_size @return 0, or some string size constant if the string table needs to grow */
+    constexpr static uint64_t inc_type_tag_strtab_size() noexcept { return 0; }
 
   public:
     /** @brief reg_op_count @return The number of ops that have been registered so far */
@@ -345,10 +359,10 @@ template <typename UNIQ_TY, int32_t I> class NodeCounter {
     {
         return inc_op_name_strtab_size() + NodeCounter<UNIQ_TY, I - 1>::op_name_strtab_size();
     }
-    /** @brief type_suffix_strtab_size @return The string table size for the ops that have been registered so far */
-    constexpr static uint64_t type_suffix_strtab_size() noexcept
+    /** @brief type_tag_strtab_size @return The string table size for the ops that have been registered so far */
+    constexpr static uint64_t type_tag_strtab_size() noexcept
     {
-        return inc_type_suffix_strtab_size() + NodeCounter<UNIQ_TY, I - 1>::type_suffix_strtab_size();
+        return inc_type_tag_strtab_size() + NodeCounter<UNIQ_TY, I - 1>::type_tag_strtab_size();
     }
 };
 
@@ -359,11 +373,11 @@ template <typename U, size_t I> constexpr auto op_name_chain()
                                            NodeCounter<U, I>::op_name_strtab_size()>;
 }
 
-/** @brief Shorthand for type_suffix_strtab_container::chain<...> */
+/** @brief Shorthand for type_tag_strtab_container::chain<...> */
 template <typename U, size_t I> constexpr auto type_tag_chain()
 {
-    return type_suffix_strtab_container::chain<U, NodeCounter<U, I>::reg_op_count(),
-                                               NodeCounter<U, I>::type_suffix_strtab_size()>;
+    return type_tag_strtab_container::chain<U, NodeCounter<U, I>::reg_op_count(),
+                                            NodeCounter<U, I>::type_tag_strtab_size()>;
 }
 
 /**
@@ -380,10 +394,10 @@ template <typename U, uint32_t I> struct StrtabUpdate {
     static bool const is_new_op_name;
     /** @brief op_name_offset short offset locating the Op name in the op_name_strtab */
     static uint16_t const op_name_offset;
-    /** @brief is_new_type_suffix whether the type suffix to be appended is already present in the type_suffix_strtab */
-    static bool const is_new_type_suffix;
-    /** @brief type_suffix_offset short offset locating the type suffix in the type_suffix_strtab */
-    static uint16_t const type_suffix_offset;
+    /** @brief is_new_type_tag whether the type suffix to be appended is already present in the type_tag_strtab */
+    static bool const is_new_type_tag;
+    /** @brief type_tag_offset short offset locating the type suffix in the type_tag_strtab */
+    static uint16_t const type_tag_offset;
 };
 
 /**
@@ -393,10 +407,10 @@ template <typename U, uint32_t I> struct StrtabUpdate {
  * @tparam N Current table size
  */
 template <typename U, uint32_t I, std::string_view::size_type M, bool A, uint32_t N>
-constexpr auto strtab_append(ba_str<N> const &curr, std::string_view const add)
+constexpr auto strtab_append(ba_str<N> const &curr, std::string_view const newString)
 {
     if constexpr (A) {
-        sv_size_wrapper<M> const w{add};
+        sv_size_wrapper<M> const w{newString};
         return curr.append(w);
     } else {
         return curr;
@@ -414,4 +428,4 @@ constexpr std::string_view make_string_view(std::array<std::string::value_type, 
 
 } // namespace hnnx
 
-#endif // OP_PACKAGE_OPS_OPTS_LIST_H
+#endif // OPS_OPTS_REGISTRATION_H

@@ -32,6 +32,8 @@
 #include "weak_linkage.h"
 #include "macros_attribute.h"
 
+PUSH_VISIBILITY(default)
+
 namespace hnnx {
 
 // configuration of each op package op parameter
@@ -170,5 +172,7 @@ API_EXPORT void add_package_per_channel_ops(std::set<std::string> &oset, const c
         getPkgPerChannelOpsTmpMap()[std::string(THIS_PKG_NAME_STR)] = &currentPackagePerChannelQuantizedOpsSetFunc();
 
 DECLARE_PACKAGE_PARAM_ORDER_DEF()
+
+POP_VISIBILITY()
 
 #endif // OP_PACKAGE_FEATURE_SUPPORT_H

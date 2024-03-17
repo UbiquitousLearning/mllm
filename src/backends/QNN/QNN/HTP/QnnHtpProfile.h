@@ -137,6 +137,8 @@ extern "C" {
  * @brief QnnProfile_EventType_t definition to get profile information
  *        that corresponds to execute the graph on the accelerator
  *        when client invokes QnnGraph_execute or QnnGraph_executeAsync.
+ *        The value indicates execute including wait/resource acquisition
+ *        time on the accelerator, if applicable in multi-threaded scenarios.
  *        The value returned is time taken in microseconds
  *
  * @note graph execute accelerator time maybe available on both
@@ -205,6 +207,23 @@ extern "C" {
  *        The value returned is time taken in microseconds.
  */
 #define QNN_HTP_PROFILE_EVENTTYPE_GRAPH_EXECUTE_RESOURCE_POWER_UP_TIME 3011
+
+/**
+ * @brief QnnProfile_EventType_t definition to get profile information
+ *        that corresponds to execute the graph on the accelerator
+ *        when client invokes QnnGraph_execute or QnnGraph_executeAsync.
+ *        The value indicates execute excluding wait/resource acquisition
+ *        time on the accelerator, if applicable in multi-threaded scenarios.
+ *        The value returned is time taken in microseconds
+ *
+ * @note graph execute accelerator time maybe available on both
+ *       QNN_PROFILE_LEVEL_BASIC and QNN_PROFILE_LEVEL_DETAILED levels
+ *
+ * @note When QNN_PROFILE_LEVEL_DETAILED is used, this event can have
+ *       multiple sub-events of type QNN_PROFILE_EVENTTYPE_NODE / QNN_PROFILE_EVENTUNIT_MICROSEC
+ *       There will be a sub-event for each node that was added to the graph
+ */
+#define QNN_HTP_PROFILE_EVENTTYPE_GRAPH_EXECUTE_ACCEL_EXCL_WAIT_TIME_MICROSEC 3012
 
 /**
  * @brief QnnProfile_EventType_t definition to get profile information

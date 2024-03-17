@@ -260,8 +260,8 @@ template <typename TOUT> inline TOUT saturate_round(float val)
     } else {
         // convert to int32,rounding;
         int const r = Q6_R_convert_sf2w_R(val);
-        if constexpr (sizeof(TOUT) < 4) return hnnx::scast::q6_sat_int<TOUT>::op(r);
-        return r;
+        if constexpr (sizeof(TOUT) < 4) return static_cast<TOUT>(hnnx::scast::q6_sat_int<TOUT>::op(r));
+        return static_cast<TOUT>(r);
     }
 }
 #endif

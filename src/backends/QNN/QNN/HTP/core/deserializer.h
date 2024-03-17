@@ -176,8 +176,11 @@ class Deserializer : public DeSerError {
     constexpr bool is_aligned_const_format() const { return aligned_const_format_flag; }
     void set_aligned_const_format(const bool v = true) { aligned_const_format_flag = v; }
 
+    PUSH_WARNING()
+    DISABLE_WARNING("-Wcast-qual", MSVC_NO_EQUIV)
     // valid when the entire pickle, in const_extent format, is loaded as a single, persistent dma buffer
     inline unsigned char *get_weight_pointer() { return ((unsigned char *)bufstart) + (4 * pickle_len_words); };
+    POP_WARNING()
     inline size_t get_weight_size() { return (bufend - bufstart) - (4 * pickle_len_words); };
 
   protected:
@@ -311,8 +314,8 @@ class Deserializer : public DeSerError {
     void set_op_flags(uint32_t f) { op_flags = f; };
 
     const OpExtraInfo &get_op_extra_info() const { return op_extra_info; };
-    OpExtraInfo &get_op_extra_info() { return op_extra_info; };
     void clear_extra_info() { op_extra_info.clear(); };
+    void set_op_extra_info(OpExtraInfo in_op_extra_info) { op_extra_info = in_op_extra_info; };
 
     /**
 	 * @brief deserialize buffer for specified size
@@ -399,7 +402,7 @@ class Deserializer : public DeSerError {
     // offs_bytes defined as uint64_t to support possible 'far' data on hexagon.
     API_EXPORT bool extract_const_extent_data(uint64_t offs_bytes, size_t len, void *dstp, DMA_Manager *dma = nullptr);
     // same, using an external const_extent
-    bool extract_const_extent_data(uint64_t offs_bytes, size_t len, void *dstp, unsigned char *const weight_data,
+    bool extract_const_extent_data(uint64_t offs_bytes, size_t len, void *dstp, const unsigned char *const weight_data,
                                    const size_t weight_length);
 
     // Increment tue current read position of internal buffer without reading anything

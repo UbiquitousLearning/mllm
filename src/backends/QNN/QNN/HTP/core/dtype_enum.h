@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include "weak_linkage.h"
 
+PUSH_VISIBILITY(default)
+
 typedef int NN_INT32_T;
 
 typedef unsigned int NN_UINT32_T;
@@ -79,5 +81,7 @@ inline char const *DType_name_inline(DType d)
 
 } // namespace hnnx
 #endif
+
+POP_VISIBILITY()
 
 #endif

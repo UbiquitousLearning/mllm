@@ -112,6 +112,7 @@ class string_tag_t {
     API_EXPORT static string_key map_str(char const *s);
 
   public:
+    ~string_tag_t() = default;
     // same as string_tag_t(string_view), but if the name is not already in the registry,
     // it will return string_tag for "" (can check with result.empty())
     API_EXPORT static string_tag_t map_str_checked(std::string_view);
@@ -210,10 +211,12 @@ typedef string_tag_t split_context_tag_t;
 typedef string_tag_t split_context_parm_t;
 #endif
 
+PUSH_VISIBILITY(default)
 // this is for use in code where we need to transform a literal name to opstr,
 // e.g. opname_tag_t opname_Concat = make_opname( "Concat");
 //
 API_EXPORT opname_tag_t make_opname(char const *opname, char const *prefix = THIS_PKG_NAME_STR);
+POP_VISIBILITY()
 
 // For retrieving an option value from within DEF_OPT rules, converted to T.
 // Returns true if the option exists and can convert to T;

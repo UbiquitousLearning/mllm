@@ -1,6 +1,6 @@
 //==============================================================================
 //
-// Copyright (c) 2020 Qualcomm Technologies, Inc.
+// Copyright (c) 2023 Qualcomm Technologies, Inc.
 // All Rights Reserved.
 // Confidential and Proprietary - Qualcomm Technologies, Inc.
 //
@@ -16,7 +16,9 @@
 #include <chrono>
 
 #if !defined(__PRETTY_FUNCTION__) && !defined(__GNUC__)
-#define __PRETTY_FUNCTION__ __FUNCSIG__
+#define __FUNC_INFO__ __FUNCSIG__
+#else
+#define __FUNC_INFO__ __PRETTY_FUNCTION__
 #endif
 
 #define STRINGIZE_DETAIL(X) #X

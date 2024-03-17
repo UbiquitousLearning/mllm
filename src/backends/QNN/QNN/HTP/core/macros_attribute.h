@@ -35,7 +35,13 @@
 #define ALWAYSINLINE __attribute((always_inline))
 
 #ifndef API_EXPORT
-#define API_EXPORT [[gnu::visibility("default")]]
+/**
+ * @brief The definition of API_EXPORT is commented out for
+ * now, because it was causing problems with static analysis.
+ * As an alternative, use the PUSH_VISIBILITY(default)/POP_VISIBILITY()
+ * macros to ensure that symbols are exported on Linux.
+*/
+#define API_EXPORT /* [[gnu::visibility("default")]] */
 #endif
 #ifndef API_HIDDEN
 #define API_HIDDEN [[gnu::visibility("hidden")]]
@@ -44,5 +50,37 @@
 #define RESTRICT_VAR __restrict__
 
 #endif // _MSC_VER
+
+/**
+ * @brief The following macros: [PUSH|POP|ENABLE|DISABLE]_WARNING,
+ * allow for in-code enabing and disabling of compiler warnings in
+ * a portable fashion.
+*/
+#define DO_PRAGMA(x) _Pragma(#x)
+
+#define MSVC_NO_EQUIV
+#define GNU_NO_EQUIV ""
+
+#if defined(__clang__)
+#define PUSH_WARNING()             DO_PRAGMA(clang diagnostic push)
+#define POP_WARNING()              DO_PRAGMA(clang diagnostic pop)
+#define ENABLE_WARNING(gnu, msvc)  DO_PRAGMA(clang diagnostic warning gnu)
+#define DISABLE_WARNING(gnu, msvc) DO_PRAGMA(clang diagnostic ignored gnu)
+#elif defined(__GNUG__)
+#define PUSH_WARNING()             DO_PRAGMA(GCC diagnostic push)
+#define POP_WARNING()              DO_PRAGMA(GCC diagnostic pop)
+#define ENABLE_WARNING(gnu, msvc)  DO_PRAGMA(GCC diagnostic warning gnu)
+#define DISABLE_WARNING(gnu, msvc) DO_PRAGMA(GCC diagnostic ignored gnu)
+#elif defined(_MSC_VER)
+#define PUSH_WARNING()             DO_PRAGMA(warning(push))
+#define POP_WARNING()              DO_PRAGMA(warning(pop))
+#define ENABLE_WARNING(gnu, msvc)  DO_PRAGMA(warning(default : msvc))
+#define DISABLE_WARNING(gnu, msvc) DO_PRAGMA(warning(disable : msvc))
+#else
+#define PUSH_WARNING()
+#define POP_WARNING()
+#define ENABLE_WARNING(gnu, msvc)
+#define DISABLE_WARNING(gnu, msvc)
+#endif
 
 #endif //MACROS_MSVC_H

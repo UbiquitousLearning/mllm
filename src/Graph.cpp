@@ -2,6 +2,7 @@
 // Created by Rongjie Yi.
 //
 #include "Graph.hpp"
+#include "MemInspect.hpp"
 #ifdef DEBUGPRINT
 #include "Timing.hpp"
 #endif
@@ -130,6 +131,7 @@ void Graph::setUpTensors() {
         if (ops_not_inputs_empty_[op_name] ) {
             ops_[op_name]->setUp(ops_input_tensors_[op_name],
                                  ops_output_tensors_[op_name]);
+            PRINT_MEMORY_USAGE((op_name + " setUp").c_str());
         }else{
 //            std::cout<<"op_name:"<<op_name<<" is not do"<<std::endl;
         }
@@ -139,6 +141,7 @@ void Graph::setUpTensors() {
 void Graph::setUpOps(ParamLoader &loader) {
     for (const auto &op_name : op_names_) {
         ops_[op_name]->load(loader);
+        PRINT_MEMORY_USAGE((op_name + " load").c_str());
     }
 }
 //#define SAVECHECK
