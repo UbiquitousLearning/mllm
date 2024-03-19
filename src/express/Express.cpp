@@ -1,5 +1,6 @@
 #include <string>
 #include <vector>
+#include "Types.hpp"
 #include "unordered_map"
 #include "Express.hpp"
 #include <algorithm>
@@ -887,6 +888,7 @@ vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, 
     return out_tensors;
 }
 
-void _SubgraphBegin(Context *ctx) {
+void _SubgraphBegin(Context *ctx, BackendType backend) {
     ctx->active_sub++;
+    ctx->next_backend = backend;
 }

@@ -8,8 +8,7 @@
 using namespace mllm;
 void displayExpress(Context *c);
 
-void _SubgraphBegin(Context *ctx);
-
+void _SubgraphBegin(Context *ctx, BackendType backend = MLLM_DEFAULT);
 
 NetTensor *_Input(Context *ctx, vector<int> dims={}, string name = "", DataType type = MLLM_TYPE_F32);
 NetTensor *_Parameter(Context *ctx, std::vector<NetTensor *> inputs, int batch, int seq, int head, int dim, string name = "", DataType type = MLLM_TYPE_F32);

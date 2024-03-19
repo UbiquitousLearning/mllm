@@ -46,7 +46,6 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_r
 NetTensor *Attention(Context *c, NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name) {
     // x = _Quantize({x}, true, (string)name + ".x.quantize");
     auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
-    return q;
     auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".k_proj");
     auto *v = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".v_proj");
     q = q->view(-1, head_size, -1, hidden_size);
@@ -207,7 +206,7 @@ int main(int argc, char **argv) {
 
     BackendConfig bn;
     QNNOptNet net(bn, c);
-    net.convert(c->sub_param_, BackendType::MLLM_QNN);
+    net.convert(c, BackendType::MLLM_QNN);
 
     // ParamLoader param_loader(model_path);
     MockLoader param_loader(model_path);

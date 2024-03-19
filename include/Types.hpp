@@ -19,6 +19,7 @@ using std::map;
 typedef map<std::string, float> OpParam;
 
 typedef enum {
+    MLLM_DEFAULT,
     MLLM_CPU,
     MLLM_OPENCL,
     MLLM_QNN

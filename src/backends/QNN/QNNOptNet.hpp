@@ -16,6 +16,7 @@ public:
     virtual ~QNNOptNet() = default;
 
     virtual void convert(vector<NetParameter> &param, BackendType backend_type = BackendType::MLLM_QNN, int threadCount = 4) override;
+    virtual void convert(Context* ctx, BackendType backend_type = BackendType::MLLM_QNN, int threadCount = 4);
 
 private:
     void build_new_graph(std::vector<NetTensor *> inputs, NetOp *op);
