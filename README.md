@@ -96,7 +96,7 @@ Building mllm requires following tools:
 
 #### Run Fuyu-8B
 
-Download the model from [here](https://huggingface.co/mllmTeam), or using the following instructions
+Download the model from [here](https://huggingface.co/mllmTeam/fuyu-8b-mllm/tree/main/), or using the following instructions
 
 ```bash
 mkdir ../models && cd ../models
@@ -125,7 +125,7 @@ Result are as followed:
 
 #### Run LLaMA-2-7B
 
-Download model
+Download model from [here](https://huggingface.co/mllmTeam/llama-2-7b-mllm/tree/main/), or using the following instructions
 
 ```bash
 mkdir ../models && cd ../models
@@ -165,7 +165,7 @@ BUPT offers a wide range of undergraduate and graduate programs in fields such a
 
 #### Run ImageBind
 
-Download model
+Download model from [here](https://huggingface.co/mllmTeam/imagebind_huge-mllm/tree/main), or using the following instructions
 
 ```bash
 mkdir ../models && cd ../models
