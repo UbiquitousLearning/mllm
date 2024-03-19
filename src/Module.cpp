@@ -11,5 +11,5 @@ ParamLoader *Module::loader;
 int Module::listIdx;
 int Module::runlistIdx;
 TensorStatus Module::tensor_status;
-
+bool Module::doLoad = false;
 } // namespace mllm

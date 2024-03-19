@@ -1,5 +1,4 @@
 #include <iostream>
-#include <utility>
 #include "cmdline.h"
 #include "models/vit/modeling_vit.hpp"
 #include "models/vit/labels_vit.hpp"
