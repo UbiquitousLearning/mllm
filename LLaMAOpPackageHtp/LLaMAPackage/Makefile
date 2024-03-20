@@ -81,7 +81,7 @@ HEXAGON_SDK_ROOT_V75 := $(HEXAGON_SDK_BASE)/5.4.1.1/
 HEXAGON_SDK_ROOT_X86 := $(HEXAGON_SDK_BASE)/5.4.1.1/
 HEXAGON_TOOLS_VERSION_V68 := 8.4.09
 HEXAGON_TOOLS_VERSION_V69 := 8.5.03
-HEXAGON_TOOLS_VERSION_V73 := 8.6.02
+HEXAGON_TOOLS_VERSION_V73 := 8.7.06
 HEXAGON_TOOLS_VERSION_V75 := 8.7.06
 #Updated to point to latest sdk to match with libQnnHtp.so
 HEXAGON_TOOLS_VERSION_X86 := 8.7.06
@@ -309,13 +309,13 @@ $(WORK)/hexagon-v73/%.o: $(SRC_DIR)/%.cpp | $(WORK)/hexagon-v73
 	$(HEXAGON_CXX_V73) $(HEXAGON_CXX_FLAGS_V73) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -c $< -o $@
 
 $(WORK)/hexagon-v73/ops/%.o: $(OP_SRC_DIR)/%.cpp | $(WORK)/hexagon-v73
-	$(HEXAGON_CXX_V73) $(HEXAGON_CXX_FLAGS_V73) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -c $< -o $@
+	$(HEXAGON_CXX_V73) $(HEXAGON_CXX_FLAGS_V73) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD $(INCLUDES) -DHVX_OP -c $< -o $@
 
 $(WORK)/hexagon-v73/ops/%.o: $(OP_SRC_DIR)/v73_asm/%.S | $(WORK)/hexagon-v73
 	$(HEXAGON_CXX_V73) $(HEXAGON_CXX_FLAGS_V73) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -c $< -o $@
 
 $(WORK)/hexagon-v73/$(LIBRARY_NAME): $(hexagon-v73_objs) | $(HFILES)
-	$(HEXAGON_CXX_V73) -fPIC -std=c++17 -g -shared -o $@ $^ $(HEX_LDFLAGS)
+	$(HEXAGON_CXX_V73) -fPIC -std=c++17 -g -shared -o $@ $^ $(HEX_LDFLAGS) $(QHL_LIBS) $(QHL_HVX_LIBS) $(WORKER_POOL_LIB)
 
 #v75
 $(WORK)/hexagon-v75/%.o: $(SRC_DIR)/%.cpp | $(WORK)/hexagon-v75
