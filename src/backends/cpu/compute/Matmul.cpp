@@ -312,3 +312,66 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     return MLLM_NO_ERROR;
 }
 
+ErrorCode mat_mul_i8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1, int thread_count, float scale1, float scale2) {
+    const int M = transpose0 ? src0->dimension() : src0->sequence();
+    const int K = transpose0 ? src0->sequence() : src0->dimension();
+    const int N = transpose1 ? src1->sequence() : src1->dimension();
+    Tensor *src0_cal = src0;
+    Tensor *src1_cal = src1;
+    const int64_t blck_0 = 16;
+    for (int b = 0; b < src0->batch(); b++) {
+        for (int h = 0; h < src0->head(); h++) {
+            const int b_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : b;
+            const int h_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : h;
+            for (int m = 0; m < M; m++) {
+                const int num_blocks = N / blck_0;
+                const int remainder = N % blck_0;
+                // #pragma omp parallel for num_threads(thread_count)
+                for (int block = 0; block < num_blocks + 1; block++) {
+                    for (int n = block * blck_0; n < (block + 1) * blck_0 & n < num_blocks * blck_0 + remainder; n++) {
+                        int s_1, d_1;
+                        int s_0, d_0;
+                        if (!transpose0 && transpose1) {
+                            s_1 = n;
+                            d_1 = 0;
+                            s_0 = m;
+                            d_0 = 0;
+                        } else if (!transpose0 && !transpose1) {
+                            s_1 = 0;
+                            d_1 = n;
+                            s_0 = m;
+                            d_0 = 0;
+                        } else {
+                            s_1 = 0;
+                            d_1 = n;
+                            s_0 = 0;
+                            d_0 = m;
+                        }
+                        if (dst->dtypeAt(n, h, m, n) == MLLM_TYPE_F32) {
+                            vec_dot_fp32(K, dst->ptrAt<float>(b, h, m, n),
+                                         src1_cal->hostPtr<float>() + src1_cal->offset(b_1, h_1, s_1, d_1),
+                                         src0_cal->hostPtr<float>() + src0_cal->offset(b, h, s_0, d_0));
+                            if (support_bias) {
+                                *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0, n);
+                            }
+                        } else if (dst->dtypeAt(n, h, m, n) == MLLM_TYPE_F16) {
+                            float tmp = 0;
+                            vec_dot_fp32(K, &tmp,
+                                         src1_cal->hostPtr<float>() + src1_cal->offset(b_1, h_1, s_1, d_1),
+                                         src0_cal->hostPtr<float>() + src0_cal->offset(b, h, s_0, d_0));
+                            if (support_bias) {
+                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp + bias->dataAt<float>(0, 0, 0, n));
+                            } else {
+                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp);
+                            }
+                        } else {
+                            std::cout << "Not support type [Matmul]" << std::endl;
+                        }
+                        
+                    }
+                }
+            }
+        }
+    }
+    return MLLM_NO_ERROR;
+}
