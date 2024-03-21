@@ -211,33 +211,8 @@ Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
 }
 
 Tensor &Tensor::mm(Tensor &input0, Tensor &input1) {
-    // const std::string next_name = input0.name() + "-mm-" + input1.name();
-    // return applyStaticFunc(next_name, CPUmmFunction(), gph_[input0.name()], gph_[input1.name()]);
-
-     if (Module::doLoad) { return Tensor::gph_["0"]; }
     const std::string next_name = input0.name() + "-mm-" + input1.name();
-    switch (Module::tensor_status) {
-    case TENSOR_DYNAMIC: {
-        std::cout << "[TODO] not support dynamic tensor view" << std::endl;
-        break;
-    }
-    case TENSOR_STATIC_INIT: {
-        if (gph_.find(next_name) == gph_.end()) {
-            gph_[next_name] = Tensor(Module::backends[MLLM_CPU]);
-            gph_[next_name].setName(next_name);
-        }
-        CPUmmFunction::setup(gph_[next_name], gph_[input0.name()], gph_[input1.name()]);
-        break;
-    }
-    case TENSOR_STATIC_READY: {
-        CPUmmFunction::execute(gph_[next_name],  gph_[input0.name()], gph_[input1.name()]);
-        break;
-    }
-    default: {
-    }
-    }
-    gph_[next_name].status() = Module::tensor_status;
-    return gph_[next_name];
+    return applyStaticFunc(next_name, CPUmmFunction(), std::ref(gph_[input0.name()]), std::ref(gph_[input1.name()]));
 }
 
 Tensor &Tensor::range(int start, int end) {
