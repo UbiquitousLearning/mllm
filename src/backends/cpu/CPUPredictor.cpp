@@ -44,14 +44,14 @@ ErrorCode CPUPredictor::load(AbstructLoader &loader) {
     auto up_size = loader.getTensorSize(up_.name());
     assert(up_size % type_traits[type].size == 0);
     auto n_ele = up_size / type_traits[type].size;
-    auto r = (int)(n_ele / in_dim_);
-    assert(r * out_dim_ * type_traits[type].size == loader.getTensorSize(down_.name()));
-    up_.reshape(1, 1, r, in_dim_);
-    down_.reshape(1, 1, out_dim_, r);
+    r_ = (int)(n_ele / in_dim_);
+    assert(r_ * out_dim_ * type_traits[type].size == loader.getTensorSize(down_.name()));
+    up_.reshape(1, 1, r_, in_dim_);
+    down_.reshape(1, 1, out_dim_, r_);
     up_.alloc();
-    loader.load(&up_);
+    assert(loader.load(&up_));
     down_.alloc();
-    loader.load(&down_);
+    assert(loader.load(&down_));
 
     return Op::load(loader);
 }
@@ -71,6 +71,7 @@ ErrorCode CPUPredictor::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     case MLLM_TYPE_F16: {
         mat_mul_fp32_fp16(x.get(), &up_, &hidden_, false, nullptr, false, true, thread_count);
         mat_mul_fp32_fp16(&hidden_, &down_, o.get(), false, nullptr, false, true, thread_count);
+        break;
     }
     default:
         fprintf(stderr, "type not support yet");

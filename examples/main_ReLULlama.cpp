@@ -59,11 +59,12 @@ NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int he
     return o;
 }
 NetTensor *FFN( NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
-    auto *x = _Linear( {i}, hidden_dim, ffn_hidden_dim, false, name+".gate_proj");
+    auto *ids = _Predictor({i}, hidden_dim, ffn_hidden_dim, name);
+    auto *x = _SparseIdLinear( {i, ids}, hidden_dim, ffn_hidden_dim, name+".gate_proj");
     x = _ReLU( {x}, name+".relu");
-    auto *y = _Linear( {i}, hidden_dim, ffn_hidden_dim, false, name+".up_proj");
+    auto *y = _SparseIdLinear( {i, ids}, hidden_dim, ffn_hidden_dim, name+".up_proj");
     x = *x*y;// x = _Mul( {x, y}, name+".dot");
-    x = _Linear( {x}, ffn_hidden_dim, hidden_dim, false, name+".down_proj");
+    x = _SparseLinear( {x}, ffn_hidden_dim, hidden_dim, name+".down_proj");
     return x;
 }
 void ReLULlama(Context* c, int vocab_size= 32000, int hidden_dim= 2048, int ffn_hidden_dim = 5632, int mutil_head_size = 32, int mutil_key_value_head= 4, int cache_max= 200){
@@ -81,17 +82,20 @@ void ReLULlama(Context* c, int vocab_size= 32000, int hidden_dim= 2048, int ffn_
     i = _RMSNorm( {i}, hidden_dim, 1e-6, (string)"model.norm");
     i = _Linear( {i}, hidden_dim, vocab_size, false, "lm_head");
 }
-int main(int argc, char **argv) {
+
+void run_inference(int argc, char **argv){
     cmdline::parser cmdParser;
-//    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/ReLULlama_vocab.mllm");
+    //    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/ReLULlama_vocab.mllm");
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/relu_llama_vocab.mllm");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./ReLULlama.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./ReLULlama_new.mllm");
+    cmdParser.add<string>("predictor", 'p', "specify mllm model predictor path", false, "./ReLULlama_predictor.mllm");
     cmdParser.add<int>("limits", 'l',  "max KV cache size", false, 600);
     cmdParser.add<int>("thread", 't', "num of threads", false, 64);
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
+    string predictor_path = cmdParser.get<string>("predictor");
     int tokens_limit = cmdParser.get<int>("limits");
     int thread_num = cmdParser.get<int>("thread");
 
@@ -112,8 +116,9 @@ int main(int argc, char **argv) {
     // tokenize input
     std::cout << "start to tokenize input" << std::endl;
     auto tokenizer = BPETokenizer(vocab_path);
-    auto prompt = " Hello, who are you?";                     // prompt
+    auto prompt = " Hello! Who are you?";                     // prompt
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
+    input->setName("input");
     auto tokens_id = vector<token_id_t>();
     tokenizer.tokenize(prompt, tokens_id, true);
     BPETokenizer::token2Tensor( &net, tokens_id, input);
@@ -124,7 +129,7 @@ int main(int argc, char **argv) {
     printf("\n");
 
     // set up net and load parameters
-    ParamLoader param_loader(model_path);
+    MultiFileParamLoader param_loader({model_path, predictor_path});
     Executor ex(&param_loader);
     ex.setup(&net);  // load params
 
@@ -155,5 +160,10 @@ int main(int argc, char **argv) {
     for (auto *tensor : c->net_tensors) {
         delete tensor;
     }
+}
+
+int main(int argc, char **argv) {
+    run_inference(argc, argv);
+
     return 0;
 }

@@ -194,8 +194,13 @@ void MultiFileParamLoader::load_file(const string& filename) {
     }
 }
 MultiFileParamLoader::~MultiFileParamLoader() {
+#include <set>
+    std::set<FILE *> closed;
     for(const auto& p:files_){
-        fclose(p.second);
+        if(closed.find(p.second) != closed.end()) {
+            fclose(p.second);
+            closed.insert(p.second);
+        }
     }
 }
 

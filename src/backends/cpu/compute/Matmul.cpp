@@ -50,18 +50,19 @@ ErrorCode sparse_mat_mul_id(Tensor *x, Tensor *W, Tensor *ids, Tensor *dst, int 
     auto x_to_vec_dot_type = type_traits[vec_dot_type].from_float;
     auto to_dst = type_traits[dst->dtype()].from_float;
     auto not_vec_dot_type = x_dtype != vec_dot_type;
-    Tensor to(x->shape()); // later this tensor will be free by ~Tensor
+    std::unique_ptr<Tensor> to; // later this tensor will be free by ~Tensor
     if(not_vec_dot_type){
         // convert x.dtype to vec_dot_type
         // so that we can use vec_dot to calculate dot product
         ASSERT(x_dtype == MLLM_TYPE_F32); // x should be fp32
-        to.setBackend(x->backend());
-        to.setDtype(vec_dot_type);
-        to.alloc();
+        to = std::make_unique<Tensor>(x->shape());
+        to->setBackend(x->backend());
+        to->setDtype(vec_dot_type);
+        to->alloc();
         void *row_src = x->rawHostPtr();
-        void *row_dst = to.rawHostPtr();
+        void *row_dst = to->rawHostPtr();
         auto row_size_src = x->dimension() * type_traits[x_dtype].size;
-        auto row_size_dst = to.dimension() * type_traits[x_dtype].size; // TODO: There is a bug here. For type like q4_0, we can't calc row_size like this, but now dst_type only support fp16 and fp32, so it is ok
+        auto row_size_dst = to->dimension() * type_traits[x_dtype].size; // TODO: There is a bug here. For type like q4_0, we can't calc row_size like this, but now dst_type only support fp16 and fp32, so it is ok
         auto n_row = x->batch() * x->head() * x->sequence();
         auto n_ele = x->dimension();
 #pragma omp parallel for num_threads(thread_count)
@@ -70,9 +71,10 @@ ErrorCode sparse_mat_mul_id(Tensor *x, Tensor *W, Tensor *ids, Tensor *dst, int 
             row_src = (char *)row_src + row_size_src;
             row_dst = (char *)row_dst + row_size_dst;
         }
-        x = &to;
+        x = to.get();
     }
 
+    const auto blck = 16;
     auto x_row_offset = (x->offset(0,0,1,0) - x->offset(0,0,0,0)) * type_traits[x_dtype].size;
     for(int b = 0; b < B;b++){
         for(int h = 0;h < H;h++){
@@ -82,20 +84,22 @@ ErrorCode sparse_mat_mul_id(Tensor *x, Tensor *W, Tensor *ids, Tensor *dst, int 
             auto h_W = h % H_W;
             for(int m = 0;m < M;m++){
 #pragma omp parallel for num_threads(thread_count)
-                for(int n = 0;n <N;n++){
-                    // predictor says that there is no need to calculate this position
-                    if(ids->dataAt<float>(b,h,m,n) <= 0.0){
-                        dst->setDataAt<float>(b,h,m,n,0.0);
-                        continue;
+                for(int x_block=0; x_block < N; x_block += blck) {
+                    for (int n = x_block; n < x_block + blck && n < N; n++) {
+                        // predictor says that there is no need to calculate this position
+                        if (ids->dataAt<float>(b, h, m, n) <= 0.0) {
+                            dst->setDataAt<float>(b, h, m, n, 0.0);
+                            continue;
+                        }
+
+                        float tmp;
+
+                        vec_dot(K,
+                                &tmp,
+                                (char *)W->rawHostPtr() + W->offset(b_W, h_W, n, 0) * type_traits[W_dtype].size, // cannot calc W_row like x_row, cause b_W,h_W may not be contiguous
+                                x_row);
+                        dst->setDataAt<float>(b, h, m, n, tmp); // it seems that currently activation can only be fp32
                     }
-
-                    float tmp;
-
-                    vec_dot(K,
-                            &tmp,
-                            (char *)W->rawHostPtr() + W->offset(b_W,h_W,n,0) * type_traits[W_dtype].size, // cannot calc W_row like x_row, cause b_W,h_W may not be contiguous
-                            x_row);
-                    dst->setDataAt<float>(b,h,m,n,tmp); // it seems that currently activation can only be fp32
                 }
                 x_row = x_row + x_row_offset;
             }
@@ -143,7 +147,7 @@ ErrorCode mat_mul_sparse(Tensor *x, Tensor *W, Tensor *dst, int thread_count){
                        N * sizeof(float));
                 for(int k = 0;k < K;k++){
                     auto alpha = x->dataAt<float>(b,h,m,k);
-                    if(alpha > 0.0){
+                    if(alpha != 0.0){
                         add_row_to(N,
                                    (char *)W->rawHostPtr() + W->offset(b_W,h_W,k,0) * type_traits[W_dtype].size,
                                    fill_row,

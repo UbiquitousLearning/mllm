@@ -35,6 +35,7 @@ ErrorCode CPUSparseIdLinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<s
 }
 
 ErrorCode CPUSparseIdLinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+//    auto start = mllm::mllm_time_us();
     auto &x = inputs[0];
     auto &ids = inputs[1];
     auto &o = outputs[0];
@@ -45,6 +46,8 @@ ErrorCode CPUSparseIdLinear::execute(vector<shared_ptr<Tensor>> inputs, vector<s
 
     sparse_mat_mul_id(x.get(), &weight_, ids.get(), o.get(), thread_count);
 
+//    auto end = mllm::mllm_time_us();
+//    printf("exec time: %ld us\n", end - start);
     return Op::execute(inputs, outputs);
 }
 
@@ -55,7 +58,7 @@ ErrorCode CPUSparseIdLinear::load(AbstructLoader &loader) {
     weight_.setDtype(type);
     weight_.reshape(1, 1, out_dim_, in_dim_);
     weight_.alloc();
-    loader.load(&weight_);
+    assert(loader.load(&weight_));
     return Op::load(loader);
 }
 

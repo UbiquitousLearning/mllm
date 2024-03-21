@@ -49,7 +49,7 @@ ErrorCode CPUSparseLinear::load(AbstructLoader &loader) {
     weight_.setDtype(type);
     weight_.reshape(1, 1, in_dim_, out_dim_);
     weight_.alloc();
-    loader.load(&weight_);
+    assert(loader.load(&weight_));
     return Op::load(loader);
 }
 

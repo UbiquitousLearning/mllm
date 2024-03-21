@@ -165,13 +165,13 @@ def all_keys(model: dict, index_: dict):
     return all_keys_name
 
 
-def process_str(name: str):
-    if 'down_proj.weight' not in name:
+def process_str(name: str, type: str='dense'):
+    if type == 'dense' or ('down_proj.weight' not in name):
         return name
     return name.replace('weight', 'weight_T')
 
-def process(name: str, ten: torch.Tensor):
-    if 'down_proj.weight' not in name:
+def process(name: str, ten: torch.Tensor, type: str='dense'):
+    if type == 'dense' or ('down_proj.weight' not in name):
         return name, ten
 
     new_name = name.replace('weight', 'weight_T')
@@ -190,6 +190,11 @@ if __name__ == "__main__":
         "--type",
         choices=["torch", "safetensor"],
         default="torch",
+    )
+    parser.add_argument(
+        "--model_type",
+        choices=["dense", "sparse"],
+        default="dense",
     )
     model = None
     index_ = None
@@ -218,11 +223,11 @@ if __name__ == "__main__":
         raise Exception("Unknown type")
     writer = Writer(args.output_model)
     model_keys = all_keys(model, index_)
-    writer.write_tensor_index_padding(list(map(process_str, model_keys)))
+    writer.write_tensor_index_padding([process_str(name, args.model_type) for name in model_keys])
 
     for key in model_keys:
         tensor = get_tensor(model, key, index_)
-        key, tensor = process(key, tensor)
+        key, tensor = process(key, tensor, args.model_type)
         tensor = tensor.float()
         offset, size = writer.write_tensor(tensor, key)
         print(f"Get tensor {key} to {offset} with size {size}")
