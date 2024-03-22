@@ -212,7 +212,7 @@ Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
 
 Tensor &Tensor::mm(Tensor &input0, Tensor &input1) {
     const std::string next_name = input0.name() + "-mm-" + input1.name();
-    return applyStaticFunc(next_name, CPUmmFunction(), gph_[input0.name()], gph_[input1.name()]);
+    return applyStaticFunc(next_name, CPUmmFunction(), std::ref(gph_[input0.name()]), std::ref(gph_[input1.name()]));
 }
 
 Tensor &Tensor::range(int start, int end) {
