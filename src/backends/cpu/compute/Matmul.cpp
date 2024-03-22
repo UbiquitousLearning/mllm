@@ -327,7 +327,7 @@ ErrorCode mat_mul_i8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias,
             for (int m = 0; m < M; m++) {
                 const int num_blocks = N / blck_0;
                 const int remainder = N % blck_0;
-                // #pragma omp parallel for num_threads(thread_count)
+#pragma omp parallel for num_threads(thread_count)
                 for (int block = 0; block < num_blocks + 1; block++) {
                     for (int n = block * blck_0; n < (block + 1) * blck_0 & n < num_blocks * blck_0 + remainder; n++) {
                         int s_1, d_1;

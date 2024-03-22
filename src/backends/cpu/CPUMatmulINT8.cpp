@@ -76,6 +76,7 @@ ErrorCode CPUMatmulINT8::load(AbstructLoader &loader) {
     // std::cout << name() << "  CPULinear load" << std::endl;
     scale1_.setName(name() + ".scale");
     scale1_.reshape(1, 1, 1, 1);
+    scale1_.setBackend(this->backend());
     if (loader.getDataType(scale1_.name()) != MLLM_TYPE_COUNT) {
         scale1_.setDtype(loader.getDataType(scale1_.name()));
         scale1_.alloc();
@@ -86,6 +87,7 @@ ErrorCode CPUMatmulINT8::load(AbstructLoader &loader) {
     }
     scale2_.setName(name() + ".scale");
     scale2_.reshape(1, 1, 1, 1);
+    scale2_.setBackend(this->backend());
     if (loader.getDataType(scale2_.name()) != MLLM_TYPE_COUNT) {
         scale2_.setDtype(loader.getDataType(scale2_.name()));
         scale2_.alloc();

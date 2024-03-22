@@ -2,6 +2,7 @@
 #include <math.h>
 #include <memory>
 #include "Backend.hpp"
+#include "CPUMatmulINT8.hpp"
 #include "Types.hpp"
 #include "memory/SystemMemoryManager.hpp"
 #include "CPUView.hpp"
@@ -82,6 +83,7 @@ void CPUBackend::registerOps() {
     addCreator(ADD, (CPUBackend::Creator *)(new CPUAddCreator()));
     addCreator(CAUSALMASK, (CPUBackend::Creator *)(new CPUCausalMaskCreator()));
     addCreator(MATMUL, (CPUBackend::Creator *)(new CPUMatmulCreator()));
+    addCreator(MATMULINT8, (CPUBackend::Creator *)(new CPUMatmulINT8Creator()));
     addCreator(RMSNORM, (CPUBackend::Creator *)(new CPURMSNormCreator()));
     addCreator(ROPE, (CPUBackend::Creator *)(new CPURoPECreator()));
     addCreator(SCALE, (CPUBackend::Creator *)(new CPUScaleCreator()));
