@@ -348,6 +348,7 @@ void vec_dot_q6_K_q8_K(const void * __restrict src0, const void * __restrict src
 void vec_dot_q4_K_q8_K(const int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy);
 void vec_dot_q6_K_q8_K(const int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy);
 void vec_dot_q4_0_q8_0(const int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy);
+void vec_dot_q8_0_q8_0(const int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy, float scale1 = 1, float scale2 = 1);
 void vec_dot_fp32(const int n, float * __restrict s, const float * __restrict vx, const float * __restrict vy);
 void vec_dot_fp16(const int n, float * __restrict s, const mllm_fp16_t * __restrict vx, const mllm_fp16_t * __restrict vy);
 

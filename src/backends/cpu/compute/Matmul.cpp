@@ -3,6 +3,7 @@
 //
 
 #include "Matmul.hpp"
+#include "compute/VecDot.hpp"
 #include <pthread.h>
 
 ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1, int thread_count) {
@@ -347,27 +348,12 @@ ErrorCode mat_mul_i8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias,
                             s_0 = 0;
                             d_0 = m;
                         }
-                        if (dst->dtypeAt(n, h, m, n) == MLLM_TYPE_F32) {
-                            vec_dot_fp32(K, dst->ptrAt<float>(b, h, m, n),
-                                         src1_cal->hostPtr<float>() + src1_cal->offset(b_1, h_1, s_1, d_1),
-                                         src0_cal->hostPtr<float>() + src0_cal->offset(b, h, s_0, d_0));
-                            if (support_bias) {
-                                *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0, n);
-                            }
-                        } else if (dst->dtypeAt(n, h, m, n) == MLLM_TYPE_F16) {
-                            float tmp = 0;
-                            vec_dot_fp32(K, &tmp,
-                                         src1_cal->hostPtr<float>() + src1_cal->offset(b_1, h_1, s_1, d_1),
-                                         src0_cal->hostPtr<float>() + src0_cal->offset(b, h, s_0, d_0));
-                            if (support_bias) {
-                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp + bias->dataAt<float>(0, 0, 0, n));
-                            } else {
-                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp);
-                            }
-                        } else {
-                            std::cout << "Not support type [Matmul]" << std::endl;
+
+                        vec_dot_q8_0_q8_0(K, dst->ptrAt<float>(b, h, m, n), src1_cal->hostPtr<float>() + src1_cal->offset(b_1, h_1, s_1, d_1), src0_cal->hostPtr<float>() + src0_cal->offset(b, h, s_0, d_0), scale1, scale2);
+                        if (support_bias) {
+                            *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0, n);
                         }
-                        
+
                     }
                 }
             }

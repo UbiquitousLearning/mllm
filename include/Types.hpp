@@ -194,6 +194,11 @@ typedef struct {
     int8_t qs[QK8_0]; // quants
 } block_q8_0;
 #pragma pack()
+#pragma pack(1)
+typedef struct {
+    int8_t qs[QK8_0]; // quants
+} block_q8_0_sq; // q8 block for smoothquant
+#pragma pack()
 
 // This is only used for intermediate quantization and dot products
 #pragma pack(1)
