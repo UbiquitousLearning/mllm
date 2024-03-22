@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     string model_path = cmdParser.get<string>("model");
     string merges_path = cmdParser.get<string>("merges");
     int tokens_limit = cmdParser.get<int>("limits");
-    Layer::cpu_thread = cmdParser.get<int>("thread");
+    CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
 
     auto processor = LLaVAProcessor(vocab_path, merges_path);

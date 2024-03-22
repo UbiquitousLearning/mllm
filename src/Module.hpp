@@ -53,7 +53,7 @@ public:
         vector<Tensor> tmps;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
-            Tensor::gph_[std::to_string(i)] = Tensor();
+            Tensor::gph_[std::to_string(i)] = Tensor(Module::backends[MLLM_CPU]);
             tmps.push_back(Tensor::gph_[std::to_string(i)]);
         }
         vector<int> tmpt = {0, 0};

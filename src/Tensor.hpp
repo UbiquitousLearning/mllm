@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <cmath>
 #include <fstream>
+#include <vector>
 #ifdef _WIN32
 #include <direct.h>
 #else
@@ -1508,22 +1509,8 @@ private:
         return tensor_id;
     }
 
-    // template <typename Func>
-    // static void binaryTensorCompute(Tensor &input, Tensor &output, Func operation, float data, int thread_count);
-    template <typename Func>
-    Tensor& binaryCompute(Func operation, string append_s,  float data) ;
-    //
-    // template <typename Func>
-    // static void binaryTensorsCompute(Tensor &input0,Tensor &input1, Tensor &output, Func operation, int thread_count);
-    template <typename Func>
-    Tensor& binaryTwoCompute(Func operation, string append_s, Tensor& other) ;
-
-
-    template<typename Func, typename... Args>
-    Tensor& applyFunc(const std::string& suffix, Func func, Args... args);  
-
-    template<typename Func, typename... Args>
-    static Tensor& applyStaticFunc(const std::string& suffix, Func func, Args... args);
+    Tensor& getFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
+    static Tensor& getStaticFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
 
 };
 } // namespace mllm

@@ -1,6 +1,8 @@
 #include "Tensor.hpp"
 
 #include <express/ExpressBase.hpp>
+#include "OpDefined.hpp"
+#include "Types.hpp"
 #include "backends/cpu/CPUTensorFunction.hpp"
 
 #include <Module.hpp>
@@ -71,9 +73,9 @@ bool Tensor::reshape(const int batch, const int channel, const int time, const i
 
 map<string, Tensor> Tensor::gph_;
 
-template <typename Func, typename... Args>
-Tensor &Tensor::applyFunc(const std::string &suffix, Func func, Args... args) {
+Tensor& Tensor::getFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors){
     if (Module::doLoad) { return *this; }
+    TensorFunction *func = backend_->funcCreate(type);
     const std::string next_name = name_ + "-" + suffix;
     switch (status_) {
     case TENSOR_STATIC_INIT: {
@@ -85,11 +87,19 @@ Tensor &Tensor::applyFunc(const std::string &suffix, Func func, Args... args) {
             gph_[next_name] = Tensor(backend_);
             gph_[next_name].setName(next_name);
         }
-        func.setup(gph_[name_], gph_[next_name], args...);
+        std::vector<Tensor*> tensorPtrs = {&gph_[name_]};
+        for (auto &other_tensor : other_tensors) {
+            tensorPtrs.push_back(other_tensor);
+        }
+        func->setup(gph_[next_name], tensorPtrs, float_args);
         break;
     }
     case TENSOR_STATIC_READY: {
-        func.execute(gph_[name_], gph_[next_name], args...);
+        std::vector<Tensor*> tensorPtrs = {&gph_[name_]};
+        for (auto &other_tensor : other_tensors) {
+            tensorPtrs.push_back(other_tensor);
+        }
+        func->execute(gph_[next_name], tensorPtrs, float_args);
         break;
     }
     default: {
@@ -99,99 +109,139 @@ Tensor &Tensor::applyFunc(const std::string &suffix, Func func, Args... args) {
     return gph_[next_name];
 }
 
-template <typename Func>
-Tensor &Tensor::binaryCompute(Func operation, string append_s, float data) {
-    return applyFunc(append_s, CPUbinaryFunction(), operation, data);
-}
-
 Tensor &Tensor::operator+(float data) {
-    return binaryCompute(std::plus<float>(), "-TDadd", data);
-}
-Tensor &Tensor::operator-(float data) {
-    return binaryCompute(std::minus<float>(), "-TDsub", data);
-}
-Tensor &Tensor::operator*(float data) {
-    return binaryCompute(std::multiplies<float>(), "-TDmul", data);
-}
-Tensor &Tensor::operator/(float data) {
-    return binaryCompute(std::divides<float>(), "-TDdiv", data);
-}
-Tensor &Tensor::operator/(double data) {
-    return binaryCompute(std::divides<float>(), "-TDdiv", static_cast<float>(data));
+    return getFunc( "add", FUNC_ADD, {data});
 }
 
-template <typename Func>
-Tensor &Tensor::binaryTwoCompute(Func operation, string append_s, Tensor &other) {
-    return applyFunc(append_s, CPUbinaryTwoFunction(), other, operation);
+Tensor &Tensor::operator-(float data) {
+    return getFunc( "sub", FUNC_SUB, {data});
+}
+
+Tensor &Tensor::operator*(float data) {
+    return getFunc( "mul", FUNC_MUL, {data});
+}
+
+Tensor &Tensor::operator/(float data) {
+    return getFunc( "div", FUNC_DIV, {data});
+}
+
+Tensor &Tensor::operator/(double data) {
+    return getFunc( "div", FUNC_DIV, {static_cast<float>(data)});
 }
 
 Tensor &Tensor::operator+(Tensor &other) {
-    return binaryTwoCompute(std::plus<float>(), "-TTadd", other);
+    return getFunc( "TTadd", FUNC_TTADD, {}, {&other});
 }
+
 Tensor &Tensor::operator-(Tensor &other) {
-    return binaryTwoCompute(std::minus<float>(), "-TTsub", other);
+    return getFunc( "TTsub", FUNC_TTSUB, {}, {&other});
 }
+
 Tensor &Tensor::operator*(Tensor &other) {
-    return binaryTwoCompute(std::multiplies<float>(), "-TTmul", other);
+    return getFunc( "TTmul", FUNC_TTMUL, {}, {&other});
 }
+
 Tensor &Tensor::operator/(Tensor &other) {
-    return binaryTwoCompute(std::divides<float>(), "-TTdiv", other);
+    return getFunc( "TTdiv", FUNC_TTDIV, {}, {&other});
 }
 
 Tensor &Tensor::mean(Chl axis) {
-    return applyFunc("mean", CPUmeanFunction(), axis);
+    return getFunc( "mean", FUNC_MEAN, {(float)axis});
 }
 
 Tensor &Tensor::view(int b, int h, int s, int d) {
-    return applyFunc("view", CPUviewFunction(), b, h, s, d);
+    return getFunc("view", FUNC_VIEW, {(float)b, (float)h, (float)s, (float)d});
 }
 
 Tensor &Tensor::flatten(Chl axis_start, Chl axis_end) {
-    return applyFunc("flatten", CPUflattenFunction(), axis_start, axis_end);
+    return getFunc( "flatten", FUNC_FLATTEN, {(float)axis_start, (float)axis_end});
 }
 
 Tensor &Tensor::transpose(vector<std::pair<Chl, Chl>> axiss) {
-    return applyFunc("transpose", CPUtransposeFunction(), axiss);
+    vector<float> axis_s;
+    for (auto &axis : axiss) {
+        axis_s.push_back((float)axis.first);
+        axis_s.push_back((float)axis.second);
+    }
+    return getFunc( "transpose", FUNC_TRANPOSE, axis_s);
 }
 
 Tensor &Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
-    return applyFunc("clip", CPUclipFunction(), b, h, s, d);
+    vector<float> axis_s;
+    axis_s.push_back(b.size());
+    axis_s.push_back(h.size());
+    axis_s.push_back(s.size());
+    axis_s.push_back(d.size());
+    for (auto &axis : b) {
+        axis_s.push_back((float)axis);
+    }
+    for (auto &axis : h) {
+        axis_s.push_back((float)axis);
+    }
+    for (auto &axis : s) {
+        axis_s.push_back((float)axis);
+    }
+    for (auto &axis : d) {
+        axis_s.push_back((float)axis);
+    }
+    return getFunc( "clip", FUNC_CLIP, axis_s);
 }
 
 Tensor &Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
-    return applyFunc("clip", CPUclipaxisFunction(), keep_axis, b, h, s, d);
+    vector<float> axis_s = {(float)keep_axis};
+    axis_s.push_back(b.size());
+    axis_s.push_back(h.size());
+    axis_s.push_back(s.size());
+    axis_s.push_back(d.size());
+    for (auto &axis : b) {
+        axis_s.push_back((float)axis);
+    }
+    for (auto &axis : h) {
+        axis_s.push_back((float)axis);
+    }
+    for (auto &axis : s) {
+        axis_s.push_back((float)axis);
+    }
+    for (auto &axis : d) {
+        axis_s.push_back((float)axis);
+    }
+    return getFunc( "clipaxis", FUNC_CLIPAXIS, axis_s);
 }
 
 Tensor &Tensor::norm(int L_n) {
-    return applyFunc("norm", CPUnormFunction(), L_n);
+    return getFunc("norm", FUNC_NORM, {(float)L_n});
 }
 
 Tensor &Tensor::where(float value, Chl axis) {
-    return applyFunc("where", CPUwhereFunction(), value, axis);
+    return getFunc("where", FUNC_WHERE, {(float)value, (float)axis});
 }
+
+
+
+
 /**
  * static function
  */
 
-template <typename Func, typename... Args>
-Tensor &Tensor::applyStaticFunc(const std::string &suffix, Func func, Args... args) {
+Tensor& Tensor::getStaticFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors){
     if (Module::doLoad) { return Tensor::gph_["0"]; }
+    auto backend_h = Module::backends[MLLM_CPU];
+    if(!other_tensors.empty() && other_tensors[0]->backend_!= nullptr){
+        backend_h = other_tensors[0]->backend();
+    }
+    TensorFunction *func = backend_h->funcCreate(type);
     const std::string next_name = suffix;
     switch (Module::tensor_status) {
-    case TENSOR_DYNAMIC: {
-        std::cout << "[TODO] not support dynamic tensor view" << std::endl;
-        break;
-    }
     case TENSOR_STATIC_INIT: {
         if (gph_.find(next_name) == gph_.end()) {
-            gph_[next_name] = Tensor(Module::backends[MLLM_CPU]);
+            gph_[next_name] = Tensor(backend_h);
             gph_[next_name].setName(next_name);
         }
-        func.setup(gph_[next_name], args...);
+        func->setup(gph_[next_name], other_tensors, float_args);
         break;
     }
     case TENSOR_STATIC_READY: {
-        func.execute(gph_[next_name], args...);
+        func->execute(gph_[next_name], other_tensors, float_args);
         break;
     }
     default: {
@@ -207,17 +257,17 @@ Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
         inputs.push_back(&gph_[input_tensor.name()]);
     }
     const std::string next_name = input_tensors[0].name() + "-cat";
-    return applyStaticFunc(next_name, CPUcatFunction(), inputs, axis);
+    return getStaticFunc(next_name, FUNC_CAT, {(float)axis}, inputs);
 }
 
 Tensor &Tensor::mm(Tensor &input0, Tensor &input1) {
     const std::string next_name = input0.name() + "-mm-" + input1.name();
-    return applyStaticFunc(next_name, CPUmmFunction(), std::ref(gph_[input0.name()]), std::ref(gph_[input1.name()]));
+    return getStaticFunc(next_name, FUNC_MM, {}, {&gph_[input0.name()], &gph_[input1.name()]});
 }
 
 Tensor &Tensor::range(int start, int end) {
     const std::string next_name = "range-" + std::to_string(start) + "-" + std::to_string(end);
-    return applyStaticFunc(next_name, CPURangeFunction(), start, end);
+    return getStaticFunc(next_name, FUNC_RANGE, {(float)start, (float)end});
 }
 
 } // namespace mllm

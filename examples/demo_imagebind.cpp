@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
     string merges_path = cmdParser.get<string>("merges");
-    Layer::cpu_thread = cmdParser.get<int>("thread");
+    CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     auto processor = ImagebindProcessor(vocab_path, merges_path);
 

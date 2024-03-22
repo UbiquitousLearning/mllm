@@ -39,8 +39,6 @@ public:
         return _1I1O_OP(input);
     }
 
-    static int cpu_thread;
-
 private:
     std::string name_num_to_X(const std::string &input_string) {
         std::regex pattern(R"(\.\d{1,3}\.)"); // Matches any number between 1 and 100 between two dots
@@ -92,7 +90,7 @@ private:
 protected:
     bool INIT_OP() {
         if (op_ == nullptr) {
-            op_ = backend_->opCreate(param_, name_, cpu_thread);
+            op_ = backend_->opCreate(param_, name_);
         }
         if (Module::doLoad) {
             op_->load(*Module::loader);
