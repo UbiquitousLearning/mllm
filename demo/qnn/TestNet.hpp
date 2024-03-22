@@ -1,4 +1,5 @@
 #include "Net.hpp"
+#include "Types.hpp"
 #include "express/Express.hpp"
 NetTensor *AttentionTest(Context *c, NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name) {
     // x = _Quantize({x}, true, (string)name + ".x.quantize");
@@ -42,7 +43,9 @@ void linearTest2048(Context *c, int vocab_size = 32000, int hidden_dim = 4096, i
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.decoder.embed_tokens");
     _SubgraphBegin(c);
     i = _Quantize({i}, true, "x.quantize");
-    _LinearINT8({i}, 2048, 2048, false, "model.decoder.layers.0.fc1");
+    i = _LinearINT8({i}, 2048, 2048, false, "model.decoder.layers.0.fc1");
+    _SubgraphBegin(c, MLLM_CPU);
+    i = _MatmulINT8({i, i}, false, true, "model.decoder.layers.0.fc2");
 }
 void linearTest11008(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200) {
     auto *i = _Input(c);

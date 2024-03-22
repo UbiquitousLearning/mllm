@@ -99,4 +99,10 @@ ErrorCode CPUMatmulINT8::load(AbstructLoader &loader) {
     return Op::load(loader);
 }
 
+ErrorCode CPUMatmulINT8::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs){
+    scale1_.free();
+    scale2_.free();
+    return Op::free(inputs, outputs);
+}
+
 } // namespace mllm
