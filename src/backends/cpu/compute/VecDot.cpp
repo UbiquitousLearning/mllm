@@ -1344,6 +1344,20 @@ void vec_dot_q6_K_q8_K(const void * __restrict src0, const void * __restrict src
     dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, value);
 }
 
+#if !defined(__ARM_FEATURE_DOTPROD)
+
+inline static int32x4_t mllm_vdotq_s32(int32x4_t acc, int8x16_t a, int8x16_t b) {
+    const int16x8_t p0 = vmull_s8(vget_low_s8(a), vget_low_s8(b));
+    const int16x8_t p1 = vmull_s8(vget_high_s8(a), vget_high_s8(b));
+
+    return vaddq_s32(acc, vaddq_s32(vpaddlq_s16(p0), vpaddlq_s16(p1)));
+}
+#else
+
+#define mllm_vdotq_s32(a, b, c) vdotq_s32(a, b, c)
+
+#endif
+
 void vec_dot_q8_0_q8_0(const int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy, float scale1, float scale2) {
     const int qk = QK8_0;
     const int nb = n / qk;
@@ -1377,21 +1391,49 @@ void vec_dot_q8_0_q8_0(const int n, float *__restrict s, const void *__restrict 
         const int8x16_t y0_1 = vld1q_s8(y0->qs + 16);
         const int8x16_t y1_0 = vld1q_s8(y1->qs);
         const int8x16_t y1_1 = vld1q_s8(y1->qs + 16);
-#if defined(__ARM_FEATURE_DOTPROD)
-        sumv0 = vmlaq_n_f32(sumv0, vcvtq_f32_s32(vaddq_s32(vdotq_s32(vdupq_n_s32(0), x0_0, y0_0), vdotq_s32(vdupq_n_s32(0), x0_1, y0_1))), scale);
 
-        sumv1 = vmlaq_n_f32(sumv1, vcvtq_f32_s32(vaddq_s32(vdotq_s32(vdupq_n_s32(0), x1_0, y1_0), vdotq_s32(vdupq_n_s32(0), x1_1, y1_1))), scale);
-#else
-        sumv0 =  vaddq_s16(vmulq_s16(vreinterpretq_s16_s8(x0_0), vreinterpretq_s16_s8(y0_0)),
-                           vmulq_s16(vreinterpretq_s16_s8(x0_1), vreinterpretq_s16_s8(y0_1)));
+        sumv0 = vmlaq_n_f32(sumv0, vcvtq_f32_s32(vaddq_s32(mllm_vdotq_s32(vdupq_n_s32(0), x0_0, y0_0), mllm_vdotq_s32(vdupq_n_s32(0), x0_1, y0_1))), scale);
 
-        sumv1 =  vaddq_s16(vmulq_s16(vreinterpretq_s16_s8(x1_0), vreinterpretq_s16_s8(y1_0)),
-                            vmulq_s16(vreinterpretq_s16_s8(x1_1), vreinterpretq_s16_s8(y1_1)));
-#endif
+        sumv1 = vmlaq_n_f32(sumv1, vcvtq_f32_s32(vaddq_s32(mllm_vdotq_s32(vdupq_n_s32(0), x1_0, y1_0), mllm_vdotq_s32(vdupq_n_s32(0), x1_1, y1_1))), scale);
     }
 
     *s = vaddvq_f32(sumv0) + vaddvq_f32(sumv1);
 #elif defined(__AVX2__) || defined(__AVX__)
-    // TODO: implement AVX2 and AVX q8_0 dot product
+    // Initialize accumulator with zeros
+    __m256 acc = _mm256_setzero_ps();
+
+    // Main loop
+    for (int i = 0; i < nb; ++i) {
+        // Compute combined scale for the block
+        const __m256 d = _mm256_set1_ps(scale);
+        __m256i qx = _mm256_loadu_si256((const __m256i *)x[i].qs);
+        __m256i qy = _mm256_loadu_si256((const __m256i *)y[i].qs);
+
+        const __m256 q = mul_sum_i8_pairs_float(qx, qy);
+
+        // Multiply q with scale and accumulate
+#if defined(__AVX2__)
+        acc = _mm256_fmadd_ps(d, q, acc);
+#else
+        acc = _mm256_add_ps(_mm256_mul_ps(d, q), acc);
+#endif
+    }
+
+    *s = hsum_float_8(acc);
+#else
+    // scalar
+    float sumf = 0.0;
+
+    for (int i = 0; i < nb; i++) {
+        int sumi = 0;
+
+        for (int j = 0; j < qk; j++) {
+            sumi += x[i].qs[j] * y[i].qs[j];
+        }
+
+        sumf += sumi * scale;
+    }
+
+    *s = sumf;
 #endif
 }

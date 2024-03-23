@@ -313,7 +313,7 @@ NetTensor *_MatmulINT8(std::vector<NetTensor *> inputs, bool transpose0, bool tr
         name = "MatmulINT8" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    out_tensor->type = inputs[0]->type;
+    out_tensor->type = MLLM_TYPE_F32;
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::MATMULINT8)

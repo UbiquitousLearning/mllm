@@ -2,6 +2,7 @@
 #include "CPUMatmulINT8.hpp"
 #include "Types.hpp"
 #include "compute/Matmul.hpp"
+#include <iostream>
 
 namespace mllm {
 
@@ -67,7 +68,10 @@ ErrorCode CPUMatmulINT8::execute(vector<shared_ptr<Tensor>> inputs, vector<share
     assert(inputs[0]->dtype() == MLLM_TYPE_I8);
     assert(inputs[1]->dtype() == MLLM_TYPE_I8);
 
-    mat_mul_i8(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, thread_count);
+    std::cout << scale1_.dataAt<float>(0, 0, 0, 0) << std::endl;
+    std::cout << scale2_.dataAt<float>(0, 0, 0, 0) << std::endl;
+
+    mat_mul_i8(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, thread_count, scale1_.dataAt<float>(0, 0, 0, 0), scale2_.dataAt<float>(0, 0, 0, 0));
 
     return Op::execute(inputs, outputs);
 }
@@ -77,29 +81,20 @@ ErrorCode CPUMatmulINT8::load(AbstructLoader &loader) {
     scale1_.setName(name() + ".scale");
     scale1_.reshape(1, 1, 1, 1);
     scale1_.setBackend(this->backend());
-    if (loader.getDataType(scale1_.name()) != MLLM_TYPE_COUNT) {
-        scale1_.setDtype(loader.getDataType(scale1_.name()));
-        scale1_.alloc();
-        loader.load(&scale1_);
-    } else {
-        scale1_.setDtype(MLLM_TYPE_F32);
-        scale1_.alloc();
-    }
+    scale1_.setDtype(MLLM_TYPE_F32);
+    scale1_.alloc();
+    loader.load(&scale1_);
+
     scale2_.setName(name() + ".scale");
     scale2_.reshape(1, 1, 1, 1);
     scale2_.setBackend(this->backend());
-    if (loader.getDataType(scale2_.name()) != MLLM_TYPE_COUNT) {
-        scale2_.setDtype(loader.getDataType(scale2_.name()));
-        scale2_.alloc();
-        loader.load(&scale2_);
-    } else {
-        scale2_.setDtype(MLLM_TYPE_F32);
-        scale2_.alloc();
-    }
+    scale2_.setDtype(MLLM_TYPE_F32);
+    scale2_.alloc();
+    loader.load(&scale2_);
     return Op::load(loader);
 }
 
-ErrorCode CPUMatmulINT8::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs){
+ErrorCode CPUMatmulINT8::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     scale1_.free();
     scale2_.free();
     return Op::free(inputs, outputs);

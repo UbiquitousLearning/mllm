@@ -353,7 +353,6 @@ ErrorCode mat_mul_i8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias,
                         if (support_bias) {
                             *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0, n);
                         }
-
                     }
                 }
             }
