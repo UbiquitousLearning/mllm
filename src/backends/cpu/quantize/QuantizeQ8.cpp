@@ -26,6 +26,7 @@
  */
 
 #include "QuantizeQ8.hpp"
+#include "Types.hpp"
 
 void quantize_row_q8_0_reference( float * __restrict x, block_q8_0 * __restrict y, int k) {
     assert(k % QK8_0 == 0);
@@ -254,4 +255,13 @@ void dequantize_row_q8_K(const block_q8_K * __restrict x, float * __restrict y, 
 
 void quantize_row_q8_K(const float * __restrict x, void * __restrict y, int k) {
     quantize_row_q8_K_reference(x, (block_q8_K  *)y, k);
+}
+
+//========================== smoothquant i8 =================================
+void dequantize_row_i8(const void *__restrict vx, float *__restrict y, int k, float scale) {
+    const int8_t *__restrict x = (int8_t *)vx;
+
+    for (int i = 0; i < k; i++) {
+        y[i] = x[i] * scale;
+    }
 }

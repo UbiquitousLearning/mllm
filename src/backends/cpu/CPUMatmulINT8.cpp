@@ -65,13 +65,18 @@ ErrorCode CPUMatmulINT8::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 }
 
 ErrorCode CPUMatmulINT8::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    assert(inputs[0]->dtype() == MLLM_TYPE_I8);
     assert(inputs[1]->dtype() == MLLM_TYPE_I8);
 
-    std::cout << scale1_.dataAt<float>(0, 0, 0, 0) << std::endl;
-    std::cout << scale2_.dataAt<float>(0, 0, 0, 0) << std::endl;
-
-    mat_mul_i8(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, thread_count, scale1_.dataAt<float>(0, 0, 0, 0), scale2_.dataAt<float>(0, 0, 0, 0));
+    switch (inputs[0]->dtype()) {
+    case MLLM_TYPE_I8: // q * k
+        mat_mul_i8(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, thread_count, scale1_.dataAt<float>(0, 0, 0, 0), scale2_.dataAt<float>(0, 0, 0, 0));
+        break;
+    case MLLM_TYPE_F32: // qk * v
+        mat_mul_fp32_i8(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, thread_count, scale2_.dataAt<float>(0, 0, 0, 0));
+        break;
+    default:
+        break;
+    }
 
     return Op::execute(inputs, outputs);
 }
