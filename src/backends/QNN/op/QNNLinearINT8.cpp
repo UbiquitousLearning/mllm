@@ -141,7 +141,7 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     // if don't support bias, just dequantize and write to tensor with name of outputs[0]
     if (!support_bias_) {
         float outputScale = 0;
-        outputScale = outputScale_.hostPtr<float>()[0] / 128.0;
+        outputScale = outputScale_.hostPtr<float>()[0] / 127.0;
 
         vector<Qnn_Tensor_t> matmulOut = {{QNN_TENSOR_VERSION_1,
                                            {.v1 = {
@@ -189,7 +189,7 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     // bias_.free();
 
     float outputScale = 0;
-    outputScale = outputScale_.hostPtr<float>()[0]  / 128.0;
+    outputScale = outputScale_.hostPtr<float>()[0]  / 127.0;
 
     // final output
     vector<Qnn_Tensor_t> biasOutput = {{QNN_TENSOR_VERSION_1,

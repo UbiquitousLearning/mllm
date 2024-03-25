@@ -37,7 +37,7 @@ ErrorCode QNNQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     }
 
     float quantScale = 0;
-    quantScale = scale_.hostPtr<float>()[0]  / 128.0;
+    quantScale = scale_.hostPtr<float>()[0]  / 127.0;
 
     vector<Qnn_Tensor_t> outputTensor = {{QNN_TENSOR_VERSION_1,
                                           {.v1 = {
