@@ -368,6 +368,27 @@ NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name) {
     return out_tensor;
 }
 /**
+ * \param max_num The maximum number of positions.
+ */
+NetTensor *_PositionalEmbedding(std::vector<NetTensor *> inputs, int max_num, int hidden_dim, string name){
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "PE" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::POSITIOANL_EMBEDDING)
+    net_op_->param["max_num"] = max_num;
+    net_op_->param["hidden_dim"] = hidden_dim;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+/**
  * \param scale scale factor.
  * \param bias default is 0.
  * \param bias_after_scale whether to add bias after scale.

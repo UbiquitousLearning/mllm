@@ -3,6 +3,8 @@
 #include <memory>
 #include "Backend.hpp"
 #include "CPUMatmulINT8.hpp"
+#include "CPUPoEmbedding.hpp"
+#include "OpDefined.hpp"
 #include "Types.hpp"
 #include "memory/SystemMemoryManager.hpp"
 #include "CPUView.hpp"
@@ -115,6 +117,7 @@ void CPUBackend::registerOps() {
     addCreator(RANGE, (CPUBackend::Creator *)(new CPURangeCreator()));
     addCreator(WHERE, (CPUBackend::Creator *)(new CPUWhereCreator()));
     addCreator(REPLACE, (CPUBackend::Creator *)(new CPUReplaceCreator()));
+    addCreator(POSITIOANL_EMBEDDING, (CPUBackend::Creator *)(new CPUPoEmbeddingCreator()));
 }
 
 } // namespace mllm

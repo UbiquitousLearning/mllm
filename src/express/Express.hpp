@@ -23,6 +23,7 @@ NetTensor *_Matmul(std::vector<NetTensor *> inputs,  bool transpose0, bool trans
 NetTensor *_MatmulINT8(std::vector<NetTensor *> inputs,  bool transpose0, bool transpose1, string name = "");
 NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilon= 1e-6, string name = "");
 NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name = "");
+NetTensor *_PositionalEmbedding(std::vector<NetTensor *> inputs, int max_num, int hidden_dim, string name = "");
 NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale, string name);
 NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
 NetTensor *_LinearINT8(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");

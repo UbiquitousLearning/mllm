@@ -17,6 +17,7 @@ enum OpType {
     MATMULINT8,
     SCALE,
     ROPE,
+    POSITIOANL_EMBEDDING,
     RMSNORM,
     CAUSALMASK,
     LINEAR,
