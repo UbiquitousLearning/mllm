@@ -111,26 +111,16 @@ ErrorCode QNNLayerNorm::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 ErrorCode QNNLayerNorm::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, 1, normSize_);
-    if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
-        weight_.setDtype(loader.getDataType(weight_.name()));
-        weight_.alloc();
-        // auto l = loader.length(weight_.name());
-        loader.load(&weight_);
-    } else {
-        weight_.setDtype(MLLM_TYPE_F32);
-        weight_.alloc();
-    }
+    weight_.setDtype(MLLM_TYPE_F32);
+    weight_.alloc();
+    loader.load(&weight_);
+
     if (bias) {
         bias_.setName(name() + ".bias");
-        bias_.reshape(1, 1, 1, normSize_); //
-        if (loader.getDataType(bias_.name()) != MLLM_TYPE_COUNT) {
-            bias_.setDtype(loader.getDataType(bias_.name()));
-            bias_.alloc();
-            loader.load(&bias_);
-        } else {
-            bias_.setDtype(MLLM_TYPE_F32);
-            bias_.alloc();
-        }
+        bias_.reshape(1, 1, 1, normSize_);
+        bias_.setDtype(MLLM_TYPE_F32);
+        bias_.alloc();
+        loader.load(&bias_);
     }
     return Op::load(loader);
 }
