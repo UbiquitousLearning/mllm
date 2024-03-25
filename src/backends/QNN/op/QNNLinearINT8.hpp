@@ -23,6 +23,7 @@ private:
     Tensor weightScale_;
     Tensor biasScale_;
 // #endif
+    Tensor outputScale_;
 };
 
 class QNNLinearINT8Creator : public QNNBackend::Creator {
