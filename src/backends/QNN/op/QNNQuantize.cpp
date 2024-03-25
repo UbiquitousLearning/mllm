@@ -60,7 +60,16 @@ ErrorCode QNNQuantize::load(AbstructLoader &loader) {
 
     std::cout << "load quantize" << std::endl;
 
-    scale_.setName("model.decoder.layers.0.self_attn.q_proj.input_scale");
+
+    string scaleName = name();
+
+    std::string wordToRemove = "quantize";
+    int pos = scaleName.find(wordToRemove);
+    if (pos != -1) {
+        scaleName.erase(pos, wordToRemove.length());
+    }
+
+    scale_.setName(scaleName + "input_scale");
     scale_.reshape(1, 1, 1, 1);
     scale_.setDtype(MLLM_TYPE_F32);
     scale_.alloc();
