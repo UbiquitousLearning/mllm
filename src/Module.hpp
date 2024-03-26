@@ -78,6 +78,9 @@ public:
             for (auto &input : inputs) {
                 input.setTtype(TensorType::NORMAL_TENSOR);
                 input.status() = TENSOR_STATIC_INIT;
+                if(input.batch() == 0){
+                    Tensor::gph_[input.name()] = input;
+                }
             }
             tensor_status = TENSOR_STATIC_INIT;
 

@@ -178,11 +178,11 @@ protected:
             }
             switch (input0.status()) {
             case TENSOR_STATIC_INIT: {
-                if (Tensor::gph_.find(input0.name()) == Tensor::gph_.end()) {
+                if (Tensor::gph_.find(input0.name()) == Tensor::gph_.end()|| input0.count() != Tensor::gph_[input0.name()].count()) {
                     Tensor::gph_[input0.name()] = input0;
                     Tensor::gph_[input0.name()].setName(input0.name());
                 }
-                if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end()) {
+                if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end()|| input1.count() != Tensor::gph_[input1.name()].count()) {
                     Tensor::gph_[input1.name()] = input1;
                     Tensor::gph_[input1.name()].setName(input1.name());
                 }
@@ -248,15 +248,15 @@ protected:
             }
             switch (input0.status()) {
             case TENSOR_STATIC_INIT: {
-                if (Tensor::gph_.find(input0.name()) == Tensor::gph_.end()) {
+                if (Tensor::gph_.find(input0.name()) == Tensor::gph_.end() || input0.count() != Tensor::gph_[input0.name()].count()) {
                     Tensor::gph_[input0.name()] = input0;
                     Tensor::gph_[input0.name()].setName(input0.name());
                 }
-                if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end()) {
+                if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end()|| input1.count() != Tensor::gph_[input1.name()].count()) {
                     Tensor::gph_[input1.name()] = input1;
                     Tensor::gph_[input1.name()].setName(input1.name());
                 }
-                if (Tensor::gph_.find(input2.name()) == Tensor::gph_.end()) {
+                if (Tensor::gph_.find(input2.name()) == Tensor::gph_.end()|| input2.count() != Tensor::gph_[input0.name()].count()) {
                     Tensor::gph_[input2.name()] = input2;
                     Tensor::gph_[input2.name()].setName(input2.name());
                 }
