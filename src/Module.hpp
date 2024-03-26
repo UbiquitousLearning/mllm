@@ -53,7 +53,7 @@ public:
         vector<Tensor> tmps;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
-            Tensor::gph_[std::to_string(i)] = Tensor();
+            Tensor::gph_[std::to_string(i)] = Tensor(Module::backends[MLLM_CPU]);
             tmps.push_back(Tensor::gph_[std::to_string(i)]);
         }
         vector<int> tmpt = {0, 0};
@@ -78,6 +78,9 @@ public:
             for (auto &input : inputs) {
                 input.setTtype(TensorType::NORMAL_TENSOR);
                 input.status() = TENSOR_STATIC_INIT;
+                if(input.batch() == 0){
+                    Tensor::gph_[input.name()] = input;
+                }
             }
             tensor_status = TENSOR_STATIC_INIT;
 

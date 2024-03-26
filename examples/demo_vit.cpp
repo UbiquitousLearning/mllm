@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
     cmdParser.parse_check(argc, argv);
 
     string model_path = cmdParser.get<string>("model");
-    Layer::cpu_thread = cmdParser.get<int>("thread");
+    CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     auto processor = ViTProcessor();
 

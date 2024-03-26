@@ -6,5 +6,4 @@
 #include "Layer.hpp"
 namespace mllm {
 map<string, string> Layer::layername_2_tensorname;
-int Layer::cpu_thread = 4;
 }; // namespace mllm

@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
     int tokens_limit = cmdParser.get<int>("limits");
-    Layer::cpu_thread = cmdParser.get<int>("thread");
+    CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     auto processor = FuyuProcessor(vocab_path);
 

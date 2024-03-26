@@ -58,14 +58,14 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 
 |                                                                             | FP32 | INT4 |
 |-----------------------------------------------------------------------------|-----|------|
-| [LLaMA-1/2 7B](https://github.com/facebookresearch/llama)                   | ✔️  | ✔️   |
-| [Alpaca 7B](https://github.com/ymcui/Chinese-LLaMA-Alpaca-2)                | ✔️  | ✔️   |
-| [TinyLLaMA 1.1B](https://github.com/jzhang38/TinyLlama)                     | ✔️  | ✔️   |
-| [Fuyu 8B](https://www.adept.ai/blog/fuyu-8b)                                | ✔️  | ✔️   |
-| [Vision Transformer](https://github.com/google-research/vision_transformer) | ✔️  | ✔️   |
-| [CLIP](https://github.com/openai/CLIP)                                      | ✔️  | ✔️   |
-| [ImageBind](https://github.com/facebookresearch/ImageBind) (3 modalities)   | ✔️  | ✔️   |
-| [LLaVA 7B](https://github.com/haotian-liu/LLaVA)                                                                | ✔️  | ✔️   |
+| [LLaMA-1/2 7B](https://github.com/facebookresearch/llama)                   | [✔️](https://huggingface.co/mllmTeam/llama-2-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/llama-2-7b-mllm/tree/main)   |
+| [Alpaca 7B](https://github.com/ymcui/Chinese-LLaMA-Alpaca-2)                | [✔️](https://huggingface.co/mllmTeam/chinese-alpaca-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/chinese-alpaca-7b-mllm/tree/main)   |
+| [TinyLLaMA 1.1B](https://github.com/jzhang38/TinyLlama)                     | [✔️](https://huggingface.co/mllmTeam/tinyllama-1.1b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/tinyllama-1.1b-mllm/tree/main)   |
+| [Fuyu 8B](https://www.adept.ai/blog/fuyu-8b)                                | [✔️](https://huggingface.co/mllmTeam/fuyu-8b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/fuyu-8b-mllm/tree/main)   |
+| [Vision Transformer](https://github.com/google-research/vision_transformer) | [✔️](https://huggingface.co/mllmTeam/vit-base-patch16-224-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/vit-base-patch16-224-mllm/tree/main)   |
+| [CLIP](https://github.com/openai/CLIP)                                      | [✔️](https://huggingface.co/mllmTeam/clip-vit-base-patch32-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/clip-vit-base-patch32-mllm/tree/main)   |
+| [ImageBind](https://github.com/facebookresearch/ImageBind) (3 modalities)   | [✔️](https://huggingface.co/mllmTeam/imagebind_huge-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/imagebind_huge-mllm/tree/main)   |
+| [LLaVA 7B](https://github.com/haotian-liu/LLaVA)                                                                | [✔️](https://huggingface.co/mllmTeam/llava-1.5-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/llava-1.5-7b-mllm/tree/main)   |
 
 ## Quick Start
 

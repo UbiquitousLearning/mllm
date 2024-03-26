@@ -25,11 +25,16 @@ public:
         return true;
     }
     Op *opCreate(const OpParam &op_param, string name, int threadCount) override;
+    TensorFunction *funcCreate(const TensorFuncType type) override;
 
     void registerOps() override;
+    void registerFuncs() override;
+
+    static int cpu_threads;
 
 private:
     std::map<OpType, CPUBackend::Creator *> map_creator_;
+    std::map<TensorFuncType, TensorFunction *> map_function_;
 };
 
 } // namespace mllm
