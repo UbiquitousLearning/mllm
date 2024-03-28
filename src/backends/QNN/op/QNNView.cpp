@@ -85,7 +85,16 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         scaleName.erase(pos, wordToRemove.length());
     }
 
-    scale_.setName(scaleName + ".output_scale");
+    string scale_type_name = ".output_scale";
+
+    wordToRemove = ".quantize";
+    pos = scaleName.find(wordToRemove);
+    if (pos != -1) {
+        scaleName.erase(pos, wordToRemove.length());
+        scale_type_name = ".input_scale";
+    }
+
+    scale_.setName(scaleName + scale_type_name);
     scale_.reshape(1, 1, 1, 1);
     scale_.setDtype(MLLM_TYPE_F32);
     scale_.alloc();
