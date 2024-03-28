@@ -273,7 +273,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     auto data_type = QNN_DATATYPE_FLOAT_32;
     if (inputs[0]->dtype() == MLLM_TYPE_I8) {
         std::cout << "QNN INT8 op" << std::endl;
-        data_type = QNN_DATATYPE_UFIXED_POINT_8;
+        data_type = QNN_DATATYPE_SFIXED_POINT_8;
     }
     qnnModels_[qnnModelIndex_].addTensor(inputs[0]->name().c_str(), (Qnn_Tensor_t){
                                                                         .version = QNN_TENSOR_VERSION_1,
