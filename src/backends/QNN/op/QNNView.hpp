@@ -10,6 +10,7 @@ public:
     virtual ~QNNView() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode load(AbstructLoader &loader) override;
 
 private:
     int dim0_ = -1;
@@ -20,6 +21,8 @@ private:
     int data_dim1_;
     int data_dim2_;
     int data_dim3_;
+
+    Tensor scale_;
 };
 
 class QNNViewCreator : public QNNBackend::Creator {
