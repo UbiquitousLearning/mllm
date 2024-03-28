@@ -857,7 +857,7 @@ public:
         if (N == 1 && C == 1) {
             for (int h = 0; h < H; ++h) {
                 for (int c = 0; c < W; ++c) {
-                    std::cout << std::fixed << std::setprecision(7) << dataAt<Dtype>(0, 0, h, c) << " ";
+                    std::cout << std::fixed << std::setprecision(7) << static_cast<float>(dataAt<Dtype>(0, 0, h, c)) << " ";
                 }
                 std::cout << std::endl;
                 std::cout << "---------" << std::endl;
@@ -865,7 +865,7 @@ public:
         } else if (N == 1 && W == 1) {
             for (int h = 0; h < H; ++h) {
                 for (int c = 0; c < C; ++c) {
-                    std::cout << std::fixed << std::setprecision(7) << dataAt<Dtype>(0, c, h, 0) << " ";
+                    std::cout << std::fixed << std::setprecision(7) << static_cast<float>(dataAt<Dtype>(0, c, h, 0)) << " ";
                 }
                 std::cout << std::endl;
             }
@@ -874,7 +874,7 @@ public:
                 for (int c = 0; c < C; ++c) {
                     for (int h = 0; h < H; ++h) {
                         for (int w = 0; w < W; ++w) {
-                            std::cout << std::fixed << std::setprecision(7) << dataAt<Dtype>(n, c, h, w) << " ";
+                            std::cout << std::fixed << std::setprecision(7) << static_cast<float>(dataAt<Dtype>(n, c, h, w)) << " ";
                         }
                         std::cout << std::endl;
                     }
