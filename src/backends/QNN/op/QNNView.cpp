@@ -15,6 +15,8 @@ QNNView::QNNView(Backend *bn, string opName, vector<int> dims, vector<int> data_
     data_dim1_ = data_dims[1];
     data_dim2_ = data_dims[2];
     data_dim3_ = data_dims[3];
+
+    scale_.setBackend(bn);
 }
 
 ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -68,6 +70,38 @@ ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    return graphAddNode(name(), "Reshape", inputs, outputs);
+    return graphAddNode(name(), "Reshape", inputs, outputs, {}, "qti.aisw", true, &scale_);
+}
+
+ErrorCode QNNView::load(AbstructLoader &loader) {
+
+    std::cout << "load view" << std::endl;
+
+    string scaleName = name();
+
+    std::string wordToRemove = "-00_view_";
+    int pos = scaleName.find(wordToRemove);
+    if (pos != -1) {
+        scaleName.erase(pos, wordToRemove.length());
+    }
+
+    string scale_type_name = ".output_scale";
+
+    wordToRemove = ".quantize";
+    pos = scaleName.find(wordToRemove);
+    if (pos != -1) {
+        scaleName.erase(pos, wordToRemove.length());
+        scale_type_name = ".input_scale";
+    }
+
+    scale_.setName(scaleName + scale_type_name);
+    scale_.reshape(1, 1, 1, 1);
+    scale_.setDtype(MLLM_TYPE_F32);
+    scale_.alloc();
+    loader.load(&scale_);
+
+    std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
+
+    return Op::load(loader);
 }
 } // namespace mllm

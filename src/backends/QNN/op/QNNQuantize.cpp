@@ -9,6 +9,7 @@ namespace mllm {
 QNNQuantize::QNNQuantize(Backend *bn, string opName, bool isNSHD) :
     QNNCommonOp(bn, opName) {
         isNSHD_ = isNSHD;
+        scale_.setBackend(bn);
 }
 
 ErrorCode QNNQuantize::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -34,21 +35,48 @@ ErrorCode QNNQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         dimensionsOutput[2] = static_cast<uint32_t>(outputs[0]->sequence());
         dimensionsOutput[3] = static_cast<uint32_t>(outputs[0]->dimension());
     }
+
+    float quantScale = 0;
+    quantScale = scale_.hostPtr<float>()[0]  / 127.0;
+
     vector<Qnn_Tensor_t> outputTensor = {{QNN_TENSOR_VERSION_1,
                                           {.v1 = {
                                                .id = 0,
                                                .name = outName.c_str(),
                                                .type = getOutputTensorType(outputs[0]),
                                                .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                               .dataType = QNN_DATATYPE_UFIXED_POINT_8,
-                                               .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                                                  QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                                                  {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                               .dataType = QNN_DATATYPE_SFIXED_POINT_8,
+                                               .quantizeParams = {QNN_DEFINITION_DEFINED,
+                                                                  QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
+                                                                  {.scaleOffsetEncoding = {.scale = quantScale, .offset = 0}}},
                                                .rank = 4,
                                                .dimensions = dimensionsOutput,
                                                .memType = QNN_TENSORMEMTYPE_RAW,
                                                {.clientBuf = {.data = nullptr,
                                                               .dataSize = 0}}}}}};
     return graphAddNode(name(), "Quantize", {inputs[0]->name()}, outputTensor);
+}
+ErrorCode QNNQuantize::load(AbstructLoader &loader) {
+
+    std::cout << "load quantize" << std::endl;
+
+
+    string scaleName = name();
+
+    std::string wordToRemove = "quantize";
+    int pos = scaleName.find(wordToRemove);
+    if (pos != -1) {
+        scaleName.erase(pos, wordToRemove.length());
+    }
+
+    scale_.setName(scaleName + "input_scale");
+    scale_.reshape(1, 1, 1, 1);
+    scale_.setDtype(MLLM_TYPE_F32);
+    scale_.alloc();
+    loader.load(&scale_);
+
+    std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
+
+    return Op::load(loader);
 }
 } // namespace mllm

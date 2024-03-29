@@ -13,7 +13,7 @@ QNNCommonOp::QNNCommonOp(Backend *bn, string opName) :
     qnnBackend_ = dynamic_cast<QNNBackend *>(bn);
 }
 
-ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<Qnn_Param_t> params, string packageName, bool isNSHD) {
+ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<Qnn_Param_t> params, string packageName, bool isNSHD, Tensor *scale) {
     vector<string> inputTensorNames;
     for (auto &input : inputs) {
         inputTensorNames.push_back(input->name());
@@ -42,12 +42,21 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
         }
 
         // TODO tensor type = MLLM_TYPE_I8
-        auto data_type = QNN_DATATYPE_UFIXED_POINT_8;
+        auto data_type = QNN_DATATYPE_FLOAT_32;
         if (output->dtype() == MLLM_TYPE_I8) {
             std::cout << "QNN INT8 op" << std::endl;
-            data_type = QNN_DATATYPE_UFIXED_POINT_8;
+            data_type = QNN_DATATYPE_SFIXED_POINT_8;
         }
             
+        float quantScale = 0.0f;
+        auto quantDefine = QNN_DEFINITION_UNDEFINED;
+        auto quantType = QNN_QUANTIZATION_ENCODING_UNDEFINED;
+
+        if (scale != nullptr) {
+            quantScale = scale->hostPtr<float>()[0]  / 127.0;
+            quantDefine = QNN_DEFINITION_DEFINED;
+            quantType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
+        }
 
         inputTensorNames_.push_back(new string(output->name()));
         outputTensors.push_back({QNN_TENSOR_VERSION_1,
@@ -57,9 +66,9 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
                                       .type = getOutputTensorType(output),
                                       .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                       .dataType = data_type,
-                                      .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                                         QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                                         {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                      .quantizeParams = {quantDefine,
+                                                         quantType,
+                                                         {.scaleOffsetEncoding = {.scale = quantScale, .offset = 0}}},
                                       .rank = 4,
                                       .dimensions = dimensions,
                                       .memType = QNN_TENSORMEMTYPE_RAW,

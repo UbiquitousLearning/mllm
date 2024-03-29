@@ -275,16 +275,16 @@ GraphStatus kvcacheImpl(TensorType& out_0,
     if (dtype == DType::QUInt8) {
 
         out_ptr += seq_pos_ * w_in * d_in;
-        memcpy(out_ptr, in_ptr, w_in * d_in * sizeof(uint8_t));
+        memcpy(out_ptr, in_ptr, h_in * w_in * d_in * sizeof(uint8_t));
 
     } else if (dtype == DType::Float16) {
 
         out_ptr += seq_pos_ * w_in * d_in * sizeof(float) / 2;
-        memcpy(out_ptr, in_ptr, w_in * d_in * sizeof(float) / 2);
+        memcpy(out_ptr, in_ptr, h_in * w_in * d_in * sizeof(float) / 2);
     } else if (dtype == DType::Float32) {
 
         out_ptr += seq_pos_ * w_in * d_in * sizeof(float);
-        memcpy(out_ptr, in_ptr, w_in * d_in * sizeof(float));
+        memcpy(out_ptr, in_ptr, h_in * w_in * d_in * sizeof(float));
     }
 
   
