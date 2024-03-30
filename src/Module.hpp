@@ -36,7 +36,7 @@ public:
     virtual ~Module() = default;
 
     static void initBackend(BackendType type = BackendType::MLLM_CPU) {
-        if (Module::backends.find(type) == Module::backends.end()) {
+        if (Module::backends.find(type) == Module::backends.end() || Module::backends[type] == nullptr) {
             switch (type) {
             case BackendType::MLLM_CPU: {
                 shared_ptr<MemoryManager> mm = nullptr;

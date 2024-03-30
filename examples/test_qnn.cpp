@@ -18,7 +18,6 @@ Tensor get_input_qnn() {
 }
 
 int main(int argc, char **argv) {
-    Module::initBackend(MLLM_CPU);
     cmdline::parser cmdParser;
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/XXXX.mllm");
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);

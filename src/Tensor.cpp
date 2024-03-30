@@ -127,6 +127,7 @@ vector<Tensor> Tensor::toDevice(vector<Tensor> inputs, BackendType backend_type)
     if (backend_type == inputs[0].device()) {
         return inputs;
     }
+    Module::initBackend(backend_type);
     vector<string> next_names;
     for (auto &input : inputs) {
         next_names.push_back(input.name() + "-" + "to" + std::to_string(backend_type));
