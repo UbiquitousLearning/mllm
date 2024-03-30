@@ -305,8 +305,6 @@ add_executable(main_imagebind ${PROJECT_SOURCE_DIR}/examples/main_imagebind.cpp 
         src/tokenizers/BPE/Bpe.hpp
         ${DIR_SRC_PROCESSOE}
         ${DIR_THIRDPARTY_AUDIO}
-        #        src/processor/ClipPreProcess.cpp
-        #        src/processor/ClipPreProcess.hpp
         src/processor/PreProcess.hpp
         src/processor/PreProcess.cpp
 )
@@ -407,6 +405,18 @@ if (ARM AND NOT APK)
     target_link_libraries(demo_llava PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
     target_link_libraries(demo_llava MLLM_CPU)
+endif ()
+
+
+add_executable(test_qnn ${PROJECT_SOURCE_DIR}/examples/test_qnn.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/backends/qnn/QNNBackend.cpp
+)
+target_compile_definitions(test_qnn PRIVATE USE_QNN)
+if (ARM AND NOT APK)
+    target_compile_options(test_qnn PRIVATE -fopenmp)
+    target_link_libraries(test_qnn PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(test_qnn MLLM_CPU)
 endif ()
 
 

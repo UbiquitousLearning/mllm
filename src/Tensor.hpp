@@ -2,6 +2,7 @@
 #define MLLM_TENSOR_H
 #include <climits>
 #include "Backend.hpp"
+#include "OpDefined.hpp"
 #include <iostream>
 #include <cstdio>
 #include <iomanip>
@@ -958,6 +959,22 @@ public:
         return aggregated_dim_;
     }
 
+    BackendType device() const {
+        return backend_->type();
+    }
+
+    Tensor&  to(BackendType backend_type);
+    static vector<Tensor> toDevice(vector<Tensor> inputs, BackendType backend_type);
+    static vector<Tensor> toCPU(vector<Tensor> inputs){
+        return toDevice(inputs, MLLM_CPU);
+    }
+    static vector<Tensor> toQNN(vector<Tensor> inputs){
+        return toDevice(inputs, MLLM_QNN);
+    }
+
+    static void reshape_alloc_cross_bn(Tensor &src_t, Tensor &dst_t);
+    static void copy_data_cross_bn(Tensor &src_t, Tensor &dst_t);
+
     /* Functions used for 5-D Tensor:
      * - reshape
      * - channel
@@ -1508,10 +1525,14 @@ private:
         }
         return tensor_id;
     }
-
     Tensor& getFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
     static Tensor& getStaticFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
 
+#ifdef USE_QNN
+    Tensor& getOp(const std::string& suffix, const OpType type,  OpParam param, vector<Tensor *> other_tensors={});
+    static Tensor& getStaticOp(const std::string& suffix, const OpType type,  OpParam param, vector<Tensor *> other_tensors={});
+    static bool checkgetOps(Backend *bn);
+#endif
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H

@@ -14,7 +14,7 @@ public:
 
     class Creator {
     public:
-        virtual Op *create(OpParam op_param, Backend *bn, string, int threadCount) const = 0;
+        virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const = 0;
     };
     bool addCreator(OpType t, Creator *c) {
         if (map_creator_.find(t) != map_creator_.end()) {

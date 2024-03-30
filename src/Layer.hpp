@@ -11,6 +11,7 @@
 #include "Op.hpp"
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
+#include "Types.hpp"
 
 #include <Module.hpp>
 
@@ -22,11 +23,11 @@ namespace mllm {
 class Layer {
 public:
     Layer() = default;
-    void init(std::string name, OpType type) {
+    void init(std::string name, OpType type, BackendType device = MLLM_CPU) {
         name_ = std::move(name);
         param_["type"] = type;
-        Module::initBackend(MLLM_CPU);
-        backend_ = Module::backends[MLLM_CPU];
+        Module::initBackend(device);
+        backend_ = Module::backends[device];
         saved_list_idx = Module::listIdx;
         init_ = true;
     }
@@ -37,6 +38,15 @@ public:
 
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
+    }
+
+    void to(BackendType backend_type) {
+        Module::initBackend(backend_type);
+        backend_ = Module::backends[backend_type];
+    }
+
+    BackendType device() const {
+        return backend_->type();
     }
 
 private:
@@ -89,6 +99,10 @@ private:
 
 protected:
     bool INIT_OP() {
+        if (Module::doToDevice) {
+            to(Module::tmp_device);
+            return Module::doToDevice;        
+        }
         if (op_ == nullptr) {
             op_ = backend_->opCreate(param_, name_);
         }
@@ -134,18 +148,20 @@ protected:
                 vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
                 op_->reshape(shared_inputs, shared_outputs);
                 op_->setUp(shared_inputs, shared_outputs);
-                if (Tensor::gph_[next_name].aggregated() == false) {
+                if (Tensor::gph_[next_name].aggregated() == false && op_->backend()->type() == MLLM_CPU) {
                     assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
                 }
                 break;
             }
             case TENSOR_STATIC_READY: {
                 auto next_name = layername_2_tensorname[layer_next_name];
-                assert(Tensor::gph_[input.name()].hostPtr<float>() != nullptr);
+                if(op_->backend()->type() == MLLM_CPU){
+                    assert(Tensor::gph_[input.name()].hostPtr<float>() != nullptr);
+                }
                 vector<shared_ptr<Tensor>> shared_inputs{std::shared_ptr<Tensor>(&Tensor::gph_[input.name()], [](Tensor *) {})};
                 vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
                 op_->execute(shared_inputs, shared_outputs);
-                if (Tensor::gph_[next_name].aggregated() == false) {
+                if (Tensor::gph_[next_name].aggregated() == false && op_->backend()->type() == MLLM_CPU) {
                     assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
                 }
                 break;
@@ -200,7 +216,9 @@ protected:
                 vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
                 op_->reshape(shared_inputs, shared_outputs);
                 op_->setUp(shared_inputs, shared_outputs);
-                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                if(op_->backend()->type() == MLLM_CPU){
+                    assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                }
                 break;
             }
             case TENSOR_STATIC_READY: {
@@ -210,7 +228,9 @@ protected:
                     std::shared_ptr<Tensor>(&Tensor::gph_[input1.name()], [](Tensor *) {})};
                 vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
                 op_->execute(shared_inputs, shared_outputs);
-                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                if(op_->backend()->type() == MLLM_CPU){
+                    assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                }
                 break;
             }
             default: {
@@ -275,7 +295,9 @@ protected:
                 vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
                 op_->reshape(shared_inputs, shared_outputs);
                 op_->setUp(shared_inputs, shared_outputs);
-                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                if(op_->backend()->type() == MLLM_CPU){
+                    assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                }
                 break;
             }
             case TENSOR_STATIC_READY: {
@@ -286,7 +308,9 @@ protected:
                     std::shared_ptr<Tensor>(&Tensor::gph_[input2.name()], [](Tensor *) {})};
                 vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
                 op_->execute(shared_inputs, shared_outputs);
-                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                if(op_->backend()->type() == MLLM_CPU){
+                    assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                }
                 break;
             }
             default: {
@@ -319,7 +343,7 @@ protected:
                 vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
                 op_->reshape(shared_inputs, shared_outputs);
                 op_->setUp(shared_inputs, shared_outputs);
-                if (Tensor::gph_[next_name].aggregated() == false) {
+                if (Tensor::gph_[next_name].aggregated() == false && op_->backend()->type() == MLLM_CPU) {
                     assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
                 }
                 break;
@@ -329,7 +353,7 @@ protected:
                 vector<shared_ptr<Tensor>> shared_inputs{};
                 vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
                 op_->execute(shared_inputs, shared_outputs);
-                if (Tensor::gph_[next_name].aggregated() == false) {
+                if (Tensor::gph_[next_name].aggregated() == false && op_->backend()->type() == MLLM_CPU) {
                     assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
                 }
                 break;
@@ -397,13 +421,15 @@ protected:
                     next_names.push_back(next_name);
                     shared_outputs.push_back(std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {}));
                 }
-                if (Tensor::gph_[input.name()].aggregated() == false) {
+                if (Tensor::gph_[input.name()].aggregated() == false&& op_->backend()->type() == MLLM_CPU) {
                     assert(Tensor::gph_[input.name()].hostPtr<float>() != nullptr);
                 }
                 vector<shared_ptr<Tensor>> shared_inputs{std::shared_ptr<Tensor>(&Tensor::gph_[input.name()], [](Tensor *) {})};
                 op_->execute(shared_inputs, shared_outputs);
-                for (int i = 0; i < shared_outputs.size(); ++i) {
-                    assert(Tensor::gph_[next_names[i]].hostPtr<float>() != nullptr);
+                if(op_->backend()->type() == MLLM_CPU){
+                    for (int i = 0; i < shared_outputs.size(); ++i) {
+                        assert(Tensor::gph_[next_names[i]].hostPtr<float>() != nullptr);
+                    }
                 }
                 break;
             }
@@ -432,11 +458,11 @@ protected:
 
 class Linear final : public Layer {
 public:
-    explicit Linear(int in_features, int out_features, bool bias, std::string name) {
+    explicit Linear(int in_features, int out_features, bool bias, std::string name, BackendType device = MLLM_CPU) {
         param_["in_features"] = in_features;
         param_["out_features"] = out_features;
         param_["bias"] = (float)bias;
-        init(std::move(name), OpType::LINEAR);
+        init(std::move(name), OpType::LINEAR, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -446,8 +472,8 @@ public:
 class SiLU final : public Layer {
 public:
     SiLU() = default;
-    SiLU(std::string name) {
-        init(std::move(name), OpType::SILU);
+    SiLU(std::string name, BackendType device = MLLM_CPU) {
+        init(std::move(name), OpType::SILU, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -457,8 +483,8 @@ public:
 class ReLU final : public Layer {
 public:
     ReLU() = default;
-    ReLU(std::string name) {
-        init(std::move(name), OpType::RELU);
+    ReLU(std::string name, BackendType device = MLLM_CPU) {
+        init(std::move(name), OpType::RELU, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -468,8 +494,8 @@ public:
 class ReLUSquaredActivation final : public Layer {
 public:
     ReLUSquaredActivation() = default;
-    ReLUSquaredActivation(std::string name) {
-        init(std::move(name), OpType::RELU2);
+    ReLUSquaredActivation(std::string name, BackendType device = MLLM_CPU) {
+        init(std::move(name), OpType::RELU2, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -479,8 +505,8 @@ public:
 class GELU final : public Layer {
 public:
     GELU() = default;
-    GELU(std::string name) {
-        init(std::move(name), OpType::OP_GELU);
+    GELU(std::string name, BackendType device = MLLM_CPU) {
+        init(std::move(name), OpType::OP_GELU, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -490,8 +516,8 @@ public:
 class QuickGELU final : public Layer {
 public:
     QuickGELU() = default;
-    explicit QuickGELU(std::string name) {
-        init(std::move(name), OpType::QUICKGLUE);
+    explicit QuickGELU(std::string name, BackendType device = MLLM_CPU) {
+        init(std::move(name), OpType::QUICKGLUE, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -509,9 +535,9 @@ inline std::map<std::string, ActFnConstructor> ACT_FN = {
 
 class Softmax final : public Layer {
 public:
-    explicit Softmax(Chl axis, std::string name) {
+    explicit Softmax(Chl axis, std::string name, BackendType device = MLLM_CPU) {
         param_["axis"] = axis;
-        init(std::move(name), OpType::SOFTMAX);
+        init(std::move(name), OpType::SOFTMAX, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -520,10 +546,10 @@ public:
 
 class Embedding final : public Layer {
 public:
-    explicit Embedding(int vocab_size, int hidden_size, std::string name) {
+    explicit Embedding(int vocab_size, int hidden_size, std::string name, BackendType device = MLLM_CPU) {
         param_["hidden_size"] = hidden_size;
         param_["vocab_size"] = vocab_size;
-        init(std::move(name), OpType::EMBEDDING);
+        init(std::move(name), OpType::EMBEDDING, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -532,8 +558,8 @@ public:
 
 class Causalmask final : public Layer {
 public:
-    explicit Causalmask(std::string name) {
-        init(std::move(name), OpType::CAUSALMASK);
+    explicit Causalmask(std::string name, BackendType device = MLLM_CPU) {
+        init(std::move(name), OpType::CAUSALMASK, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -542,9 +568,9 @@ public:
 
 class RoPE final : public Layer {
 public:
-    explicit RoPE(int pose_type, std::string name) {
+    explicit RoPE(int pose_type, std::string name, BackendType device = MLLM_CPU) {
         param_["pose_type"] = pose_type;
-        init(std::move(name), OpType::ROPE);
+        init(std::move(name), OpType::ROPE, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -553,15 +579,15 @@ public:
 
 class KVCache final : public Layer {
 public:
-    explicit KVCache(int cache_max, std::string name) {
+    explicit KVCache(int cache_max, std::string name, BackendType device = MLLM_CPU) {
         param_["n_rep"] = 1;
         param_["cache_max"] = cache_max;
-        init(std::move(name), OpType::KVCACHE);
+        init(std::move(name), OpType::KVCACHE, device);
     }
-    explicit KVCache(int n_rep, int cache_max, std::string name) {
+    explicit KVCache(int n_rep, int cache_max, std::string name, BackendType device = MLLM_CPU) {
         param_["n_rep"] = n_rep;
         param_["cache_max"] = cache_max;
-        init(std::move(name), OpType::KVCACHE);
+        init(std::move(name), OpType::KVCACHE, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -570,11 +596,11 @@ public:
 
 class LayerNorm final : public Layer {
 public:
-    explicit LayerNorm(int norm_size, bool bias, float epsilon, std::string name) {
+    explicit LayerNorm(int norm_size, bool bias, float epsilon, std::string name, BackendType device = MLLM_CPU) {
         param_["norm_size"] = norm_size;
         param_["epsilon"] = epsilon;
         param_["bias"] = (float)bias;
-        init(std::move(name), OpType::LAYERNORM);
+        init(std::move(name), OpType::LAYERNORM, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -583,10 +609,10 @@ public:
 
 class RMSNorm final : public Layer {
 public:
-    explicit RMSNorm(int norm_size, float epsilon, std::string name) {
+    explicit RMSNorm(int norm_size, float epsilon, std::string name, BackendType device = MLLM_CPU) {
         param_["norm_size"] = norm_size;
         param_["epsilon"] = epsilon;
-        init(std::move(name), OpType::RMSNORM);
+        init(std::move(name), OpType::RMSNORM, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -595,10 +621,10 @@ public:
 
 class Matmul final : public Layer {
 public:
-    explicit Matmul(bool transpose0, bool transpose1, std::string name) {
+    explicit Matmul(bool transpose0, bool transpose1, std::string name, BackendType device = MLLM_CPU) {
         param_["transpose0"] = transpose0;
         param_["transpose1"] = transpose1;
-        init(std::move(name), OpType::MATMUL);
+        init(std::move(name), OpType::MATMUL, device);
     }
     Tensor &operator()(Tensor &input0, Tensor &input1) {
         return _2I1O_OP(input0, input1);
@@ -608,11 +634,11 @@ public:
 class Split final : public Layer {
 public:
     Split() = default;
-    explicit Split(int split_num, Chl split_dim, int split_dim_size, std::string name) {
+    explicit Split(int split_num, Chl split_dim, int split_dim_size, std::string name, BackendType device = MLLM_CPU) {
         param_["split_num"] = (float)split_num;
         param_["split_dim"] = (float)split_dim;
         param_["split_dim_size"] = (float)split_dim_size;
-        init(std::move(name), OpType::SPLIT);
+        init(std::move(name), OpType::SPLIT, device);
     }
     vector<Tensor> operator()(Tensor &input) {
         return _1INO_OP(input, (int)param_["split_num"]);
@@ -621,7 +647,7 @@ public:
 
 class Convolution2D final : public Layer {
 public:
-    explicit Convolution2D(int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, std::string name) {
+    explicit Convolution2D(int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, std::string name, BackendType device = MLLM_CPU) {
         param_["in_channel"] = (float)in_channel;
         param_["out_channel"] = (float)out_channel;
         param_["kernal_h"] = (float)kernal[0];
@@ -630,7 +656,7 @@ public:
         param_["stride_w"] = (float)stride[1];
         param_["padding"] = (float)padding;
         param_["bias"] = (float)bias;
-        init(std::move(name), OpType::CONVOLUTION2D);
+        init(std::move(name), OpType::CONVOLUTION2D, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -639,7 +665,7 @@ public:
 
 class Convolution3D final : public Layer {
 public:
-    explicit Convolution3D(int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, std::string name) {
+    explicit Convolution3D(int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, std::string name, BackendType device = MLLM_CPU) {
         param_["in_channel"] = (float)in_channel;
         param_["out_channel"] = (float)out_channel;
         param_["kernal_t"] = (float)kernal[0];
@@ -650,7 +676,7 @@ public:
         param_["stride_w"] = (float)stride[2];
         param_["padding"] = (float)padding;
         param_["bias"] = (float)bias;
-        init(std::move(name), OpType::CONVOLUTION3D);
+        init(std::move(name), OpType::CONVOLUTION3D, device);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
@@ -659,9 +685,9 @@ public:
 
 class Concat final : public Layer {
 public:
-    explicit Concat(Chl axis, std::string name) {
+    explicit Concat(Chl axis, std::string name, BackendType device = MLLM_CPU) {
         param_["axis"] = (float)axis;
-        init(std::move(name), OpType::CAT);
+        init(std::move(name), OpType::CAT, device);
     }
     Tensor &operator()(Tensor &input0, Tensor &input1) {
         return _2I1O_OP(input0, input1);
@@ -671,12 +697,12 @@ public:
 class Parameter final : public Layer {
 public:
     Parameter() = default;
-    explicit Parameter(int batch, int seq, int head, int dim, std::string name) {
+    explicit Parameter(int batch, int seq, int head, int dim, std::string name, BackendType device = MLLM_CPU) {
         param_["batch"] = batch;
         param_["seq"] = seq;
         param_["head"] = head;
         param_["dim"] = dim;
-        init(std::move(name), OpType::PARAMETER);
+        init(std::move(name), OpType::PARAMETER, device);
     }
     Tensor &operator()() {
         return _0I1O_OP();
