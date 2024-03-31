@@ -23,8 +23,8 @@ ErrorCode CPUPoEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<shar
     int H = inputs[0]->sequence();
     int W = inputs[0]->dimension();
     for (int h = 0; h < H; ++h) {
-        for (int w = 0; w < W; ++w) {
 #pragma omp parallel for num_threads(thread_count)
+        for (int w = 0; w < W; ++w) {
             outputs[0]->setDataAt<float>(0, 0, h, w,
                                          inputs[0]->dataAt<float>(0, 0, h, w) + weight_.dataAt<float>(0, 0, h, w));
         }

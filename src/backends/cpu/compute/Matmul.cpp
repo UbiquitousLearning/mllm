@@ -371,18 +371,20 @@ ErrorCode mat_mul_fp32_i8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
     src1_fp.setBackend(src1->backend());
     src1_fp.setDtype(MLLM_TYPE_F32);
     src1_fp.alloc();
-    if (src0->dimension() % QK8_0 == 0) {
-        for (int b = 0; b < src0->batch(); b++) {
-            for (int h = 0; h < src0->head(); h++) {
-// #pragma omp parallel for num_threads(thread_count)
-                for (int s = 0; s < src0->sequence(); s++) {
-                    dequantize_row_i8(src1->hostPtr<int8_t>() + src1->offset(b, h, s, 0), src1_fp.hostPtr<float>() + src1_fp.offset(b, h, s, 0), src1->dimension(), scale2);
-                }
+    // if (src0->dimension() % QK8_0 == 0) {
+        
+    // } else {
+    //     std::cout << "[ERROR]: " << src0->dimension() << "%" << QK8_0 << "!=0" << std::endl;
+    //     src0->printShape();
+    //     assert(src0->dimension() % QK8_0 == 0);
+    // }
+    for (int b = 0; b < src0->batch(); b++) {
+        for (int h = 0; h < src0->head(); h++) {
+            #pragma omp parallel for num_threads(thread_count)
+            for (int s = 0; s < src0->sequence(); s++) {
+                dequantize_row_i8(src1->hostPtr<int8_t>() + src1->offset(b, h, s, 0), src1_fp.hostPtr<float>() + src1_fp.offset(b, h, s, 0), src1->dimension(), scale2);
             }
         }
-    } else {
-        std::cout << "[ERROR]: " << src0->dimension() << "%" << QK8_0 << "!=0" << std::endl;
-        assert(src0->dimension() % QK8_0 == 0);
     }
 
     const int M = transpose0 ? src0->dimension() : src0->sequence();

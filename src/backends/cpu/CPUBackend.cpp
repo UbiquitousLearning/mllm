@@ -4,6 +4,7 @@
 #include "Backend.hpp"
 #include "CPUMatmulINT8.hpp"
 #include "CPUPoEmbedding.hpp"
+#include "CPUSplitInput.hpp"
 #include "OpDefined.hpp"
 #include "Types.hpp"
 #include "memory/SystemMemoryManager.hpp"
@@ -118,6 +119,7 @@ void CPUBackend::registerOps() {
     addCreator(WHERE, (CPUBackend::Creator *)(new CPUWhereCreator()));
     addCreator(REPLACE, (CPUBackend::Creator *)(new CPUReplaceCreator()));
     addCreator(POSITIOANL_EMBEDDING, (CPUBackend::Creator *)(new CPUPoEmbeddingCreator()));
+    addCreator(SPLITINPUT, (CPUBackend::Creator *)(new CPUSplitInputCreator()));
 }
 
 } // namespace mllm

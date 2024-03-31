@@ -2,6 +2,7 @@
 #include "CPUMatmulINT8.hpp"
 #include "Types.hpp"
 #include "compute/Matmul.hpp"
+#include <cstdint>
 #include <iostream>
 
 namespace mllm {
@@ -82,20 +83,42 @@ ErrorCode CPUMatmulINT8::execute(vector<shared_ptr<Tensor>> inputs, vector<share
 }
 
 ErrorCode CPUMatmulINT8::load(AbstructLoader &loader) {
-    // std::cout << name() << "  CPULinear load" << std::endl;
-    scale1_.setName(name() + ".scale");
-    scale1_.reshape(1, 1, 1, 1);
-    scale1_.setBackend(this->backend());
-    scale1_.setDtype(MLLM_TYPE_F32);
-    scale1_.alloc();
-    loader.load(&scale1_);
+    std::cout << name() << "  CPUMatmulInt8 load" << std::endl;
+    std::string scaleName = name();
+    std::string wordToRemove = ".qkv";
+    int pos = scaleName.find(wordToRemove);
+    if (pos == -1) { // qk
+        wordToRemove = ".qk";
+        pos = scaleName.find(wordToRemove);
+        scaleName.erase(pos, wordToRemove.length());
 
-    scale2_.setName(name() + ".scale");
-    scale2_.reshape(1, 1, 1, 1);
-    scale2_.setBackend(this->backend());
-    scale2_.setDtype(MLLM_TYPE_F32);
-    scale2_.alloc();
-    loader.load(&scale2_);
+        scale1_.setName(scaleName + ".q_proj.output_scale");
+        scale1_.reshape(1, 1, 1, 1);
+        scale1_.setBackend(this->backend());
+        scale1_.setDtype(MLLM_TYPE_F32);
+        scale1_.alloc();
+        loader.load(&scale1_);
+        scale1_.printData<float>();
+
+        scale2_.setName(scaleName + ".k_proj.output_scale");
+        scale2_.reshape(1, 1, 1, 1);
+        scale2_.setBackend(this->backend());
+        scale2_.setDtype(MLLM_TYPE_F32);
+        scale2_.alloc();
+        loader.load(&scale2_);
+        scale2_.printData<float>();
+    } else { // qkv
+        scaleName.erase(pos, wordToRemove.length());
+
+        scale2_.setName(scaleName + ".v_proj.output_scale");
+        scale2_.reshape(1, 1, 1, 1);
+        scale2_.setBackend(this->backend());
+        scale2_.setDtype(MLLM_TYPE_F32);
+        scale2_.alloc();
+        loader.load(&scale2_);
+        scale2_.printData<float>();
+    }
+
     return Op::load(loader);
 }
 

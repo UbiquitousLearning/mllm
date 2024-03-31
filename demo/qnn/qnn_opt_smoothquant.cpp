@@ -56,33 +56,38 @@ NetTensor *Attention(Context *c, NetTensor *x, int embedding_size, int hidden_si
     // k = _KVCache({k}, cache_max, name + ".k_cache");
     // v = _KVCache({v}, cache_max, name + ".v_cache");
 
-    // auto *m = _MergeOutput({q, k, v}, name + ".qkv_merge");
+    auto *m = _MergeOutput({q, k, v}, name + ".qkv_merge");
 
-    // _SubgraphBegin(c);
+    // --------------------
+    _SubgraphBegin(c, MLLM_CPU);
+    // --------------------
 
-    // auto s = _SplitInput({m}, true, name + ".qkv_split");
+    auto s = _SplitInput({m}, true, name + ".qkv_split");
 
-    // q = s[0];
-    // k = s[1];
-    // v = s[2];
-    q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize");
-    k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize");
-    v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize");
+    q = s[0];
+    k = s[1];
+    v = s[2];
+    // q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize");
+    // k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize");
+    // v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize");
 
-    auto *qk = _Matmul({q, k}, false, true, name + ".qk");
+    auto *qk = _MatmulINT8({q, k}, false, true, name + ".qk");
     // qk = _Dequantize({qk}, false, (string) name + ".qk.dequantize");
 
     // qk = *qk / std::sqrt(hidden_size);
     qk = _Causalmask({qk}, name + ".mask");
     qk = _Softmax({qk}, DIMENSION, name + ".softmax");
 
-    auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
-    // // _SubgraphBegin(c);
+    auto *o = _MatmulINT8({qk, v}, false, false, name + ".qkv");
 
-    o = _Quantize({o}, true, (string)name + ".out_proj.quantize");
-    o = o->view(-1, 1, -1, hidden_size * head_size);
-    o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".out_proj");
-    o = _Dequantize({o}, true, (string)name + ".out_proj.dequantize");
+    // // --------------------
+    // _SubgraphBegin(c);
+    // // --------------------
+
+    // o = _Quantize({o}, true, (string)name + ".out_proj.quantize");
+    // o = o->view(-1, 1, -1, hidden_size * head_size);
+    // o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".out_proj");
+    // o = _Dequantize({o}, true, (string)name + ".out_proj.dequantize");
     return o;
 }
 NetTensor *FFN(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
@@ -137,7 +142,7 @@ int main(int argc, char **argv) {
     // cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.add<int>("seq", 's', "num of threads", false, 1);
     cmdParser.add<int>("head", 'h', "num of heads", false, 32);
-    cmdParser.add<int>("type", 't', "type of test", false, 1);
+    cmdParser.add<int>("type", 't', "type of test", false, 13);
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
@@ -253,7 +258,9 @@ int main(int argc, char **argv) {
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 1; step++) {
-            ex.run(&net, {input});
+            ex.run(c, &net, {input});
+            //  ---------------------------------
+            // ex.run(&net, {input});
             auto result = ex.result();
             result[0]->printShape();
             result[0]->printData<float>();
