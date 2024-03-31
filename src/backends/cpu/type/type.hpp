@@ -15,6 +15,7 @@ typedef void (*mllm_vec_add_row_func) (const int n, const void * MLLM_RESTRICT s
 
 typedef struct type_traits_t{
     size_t size;  // type size
+    int blck_size; // number of element in a block (quantization block)
     mllm_to_float_func to_float;
     mllm_from_float_func from_float;
     mllm_vec_dot_func vec_dot;
@@ -23,5 +24,19 @@ typedef struct type_traits_t{
 }type_traits_t;
 
 extern type_traits_t type_traits[];
+
+inline size_t type_size(DataType type){
+    return type_traits[type].size;
+}
+
+inline int blck_size(DataType type){
+    return type_traits[type].blck_size;
+}
+
+// ne: number of elements in a row
+// return the number of bytes in a row
+inline size_t row_size(DataType type, int64_t ne) {
+    return type_size(type) * ne / blck_size(type);
+}
 
 #endif // MLLM_TYPE_HPP

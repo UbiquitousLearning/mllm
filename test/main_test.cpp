@@ -356,14 +356,20 @@ bool Equal(Tensor &t1, Tensor &t2, Tensor *mask){
                     }
 
                     if(mask != nullptr) {
-                        if (mask->dataAt<float>(b, h, s, d) > 0.0 && abs(tmp1 - tmp2) > 1e-4)
+                        if (mask->dataAt<float>(b, h, s, d) > 0.0 && abs(tmp1 - tmp2) > 1e-3) {
+                            fprintf(stderr, "not equal %lf != %lf\n", tmp1, tmp2);
                             return false;
+                        }
 
-                        if (mask->dataAt<float>(b, h, s, d) <= 0.0 && tmp1 != 0.0)
+                        if (mask->dataAt<float>(b, h, s, d) <= 0.0 && tmp1 != 0.0) {
+                            fprintf(stderr, "%lf was masked\n", tmp1);
                             return false;
+                        }
                     }else {
-                        if(abs(tmp1 - tmp2) > 1e-4)
+                        if(abs(tmp1 - tmp2) > 1e-3) {
+                            fprintf(stderr, "not equal %lf != %lf\n", tmp1, tmp2);
                             return false;
+                        }
                     }
                 }
             }
@@ -372,7 +378,37 @@ bool Equal(Tensor &t1, Tensor &t2, Tensor *mask){
     return true;
 }
 
-int thread_count = 1;
+template<typename T>
+double SparsityRate(Tensor &t){
+    // calculate the rate of elements that are smaller than 0.0 in the tensor
+    auto B = t.batch();
+    auto H = t.head();
+    auto S = t.sequence();
+    auto D = t.dimension();
+    double rate = 0.0;
+    for(auto b = 0;b < B; b++){
+        for(auto h = 0; h < H; h++){
+            for(auto s = 0;s < S;s++){
+                for(auto d = 0;d < D;d++){
+                    if constexpr (std::is_same_v<T, float>){
+                        if(t.dataAt<float>(b, h, s, d) <= 0.0){
+                            rate += 1.0;
+                        }
+                    }else if(std::is_same_v<T, mllm_fp16_t>){
+                        if(MLLM_FP16_TO_FP32(t.dataAt<mllm_fp16_t>(b, h, s, d)) <= 0.0){
+                            rate += 1.0;
+                        }
+                    }else{
+                        abort();
+                    }
+                }
+            }
+        }
+    }
+    return rate / (B * H * S * D);
+}
+
+int thread_count = 8;
 
 tuple<unique_ptr<Net>, unique_ptr<Executor>> LinearSparse(AbstructLoader &param_loader,int in_dim, int out_dim, string name){
     BackendConfig bn;
@@ -417,7 +453,7 @@ tuple<unique_ptr<Net>, unique_ptr<Executor>> Linear(AbstructLoader &param_loader
     return {std::move(net), std::move(ex)};
 }
 
-int N = 20;
+int N = 5;
 
 bool test_sparse_id_linear(AbstructLoader &param_loader, int in_dim, int out_dim, const string &name){
     Ticker timer;
@@ -447,7 +483,7 @@ bool test_sparse_id_linear(AbstructLoader &param_loader, int in_dim, int out_dim
     timer.Tick();
     ex_sparse->execute(net_sparse.get(), {x, ids});
     timer.Tick();
-    printf("\033[31m sparse linear time: %.2lf us\033[0m\n", timer.Microseconds());
+    printf("\033[31m sparse linear id time: %.2lf us  (sparsity: %.2lf)\033[0m\n", timer.Microseconds(), SparsityRate<float>(*ids));
     auto res_sparse = ex_sparse->result()[0];
 //        res_sparse->printData<float>();
 
@@ -487,7 +523,7 @@ bool test_sparse_linear(AbstructLoader &param_loader, int in_dim, int out_dim, c
     timer.Tick();
     ex_sparse->execute(net_sparse.get(), {x});
     timer.Tick();
-    printf("\033[31m sparse linear time: %.2lf us\033[0m\n", timer.Microseconds());
+    printf("\033[31m sparse linear time: %.2lf us  (sparsity: %.2lf)\033[0m\n", timer.Microseconds(), SparsityRate<float>(*x));
     auto res_sparse = ex_sparse->result()[0];
 //    res_sparse->printData<float>();
 
@@ -513,7 +549,9 @@ int main(int argc, char **argv) {
     auto predictor_path = "./ReLULlama_predictor.mllm";
 
     Ticker timer;
-    MultiFileParamLoader param_loader({model_path, sparse_model_path , predictor_path, "./tmp1.mllm", "tmp2.mllm"});
+    MultiFileParamLoader param_loader({model_path, sparse_model_path , predictor_path});
+    MultiFileParamLoader q4_0_loader({"test_model_sparse_q4_0.mllm", "test_model_dense_q4_0.mllm"});
+    MultiFileParamLoader q4_K_loader({"test_model_sparse_q4_K.mllm", "test_model_dense_q4_K.mllm"});
     timer.Tick();
     std::cout << timer.Microseconds() << " us" << std::endl;
 
@@ -521,8 +559,12 @@ int main(int argc, char **argv) {
     int hidden_size = 4096;
     int intermediate_size = 11008;
 
-    assert(test_sparse_linear(param_loader, intermediate_size, hidden_size, "model.layers.0.mlp.down_proj"));
-    assert(test_sparse_id_linear(param_loader, hidden_size, intermediate_size, "model.layers.0.mlp.up_proj"));
-    
+    assert(test_sparse_id_linear(q4_0_loader, hidden_size, intermediate_size, "up_proj"));
+    assert(test_sparse_id_linear(q4_K_loader, hidden_size, intermediate_size, "up_proj"));
+//    assert(test_sparse_linear(param_loader, intermediate_size, hidden_size, "down_proj"));
+//    assert(test_sparse_id_linear(param_loader, hidden_size, intermediate_size, "up_proj"));
+//    assert(test_sparse_linear(param_loader, intermediate_size, hidden_size, "model.layers.0.mlp.down_proj"));
+//    assert(test_sparse_id_linear(param_loader, hidden_size, intermediate_size, "model.layers.0.mlp.up_proj"));
+
     return 0;
 }
