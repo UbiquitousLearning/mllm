@@ -34,20 +34,14 @@ ErrorCode CPUSplitInput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 }
 
 ErrorCode CPUSplitInput::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    std::cout << "CPUSplitInput::execute" << std::endl;
-    std::cout << inputs[0]->dtype() << std::endl;
-    std::cout << outputs[0]->dtype() << std::endl;
-    std::cout << outputs[1]->dtype() << std::endl;
-    std::cout << outputs[2]->dtype() << std::endl;
-    
-
     // copy data from input to output
     int offset = 0;
     memcpy(outputs[0]->hostPtr<void>(), inputs[0]->hostPtr<void>(), outputs[0]->cntSize());
     offset += outputs[0]->cntSize();
-    memcpy(outputs[1]->hostPtr<void>(), (bool*)inputs[0]->hostPtr<void>() + offset, outputs[1]->cntSize());
+    memcpy(outputs[1]->hostPtr<void>(), inputs[0]->hostPtr<uint8_t>() + offset, outputs[1]->cntSize());
     offset += outputs[1]->cntSize();
-    memcpy(outputs[2]->hostPtr<void>(), (bool*)inputs[0]->hostPtr<void>() + offset, outputs[2]->cntSize());
+    memcpy(outputs[2]->hostPtr<void>(), inputs[0]->hostPtr<uint8_t>() + offset, outputs[2]->cntSize());
+
     return Op::execute(inputs, outputs);
 }
 } // namespace mllm
