@@ -94,9 +94,9 @@ NetTensor *CPUNPUAttention(Context *c, NetTensor *x, int embedding_size, int hid
 
 NetTensor *NPUAttention(Context *c, NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name) {
     // x = _Quantize({x}, true, (string)name + ".x.quantize");
-    auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
-    auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
-    auto *v = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
+    auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
+    auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".k_proj");
+    auto *v = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".v_proj");
     q = q->view(-1, head_size, -1, hidden_size);
     k = k->view(-1, head_size, -1, hidden_size);
     v = v->view(-1, head_size, -1, hidden_size);
@@ -124,19 +124,19 @@ NetTensor *NPUAttention(Context *c, NetTensor *x, int embedding_size, int hidden
 
     o = _Quantize({o}, true, (string)name + ".out_proj.quantize");
     o = o->view(-1, 1, -1, hidden_size * head_size);
-    o = _LinearINT8({o}, hidden_size * head_size, embedding_size, true, name + ".out_proj");
-    // o = _Dequantize({o}, true, (string)name + ".out_proj.dequantize");
+    o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".out_proj");
+    o = _Dequantize({o}, true, (string)name + ".out_proj.dequantize");
     return o;
 }
 NetTensor *FFN(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _Quantize({i}, true, (string)name + ".fc1.quantize");
     // auto *x = i;
-    x = _LinearINT8({x}, hidden_dim, ffn_hidden_dim, true, name + ".fc1");
+    x = _LinearINT8({x}, hidden_dim, ffn_hidden_dim, false, name + ".fc1");
     // x = _Dequantize({x}, (string) name + ".relux.dequantize");
     x = _ReLU({x}, name + ".fc2.relu");
     // x = _Quantize({x}, (string) name + ".relux.quantize");
-    // x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".fc2");
-    // x = _Dequantize({x}, true, (string)name + ".fc2.dequantize");
+    x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".fc2");
+    x = _Dequantize({x}, true, (string)name + ".fc2.dequantize");
     return x;
 }
 void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200) {
@@ -154,7 +154,7 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
         i = NPUAttention(c, i, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn");
         // auto *x = _LayerNorm({i}, hidden_dim, true, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".final_layer_norm");
         // x = _LayerNorm({i}, hidden_dim, true, 1e-6, (string) "model.decoder.layers." + std::to_string(layer) + ".final_layer_norm");
-        // i = FFN(c, i, hidden_dim, ffn_hidden_dim, (string) "model.decoder.layers." + std::to_string(layer));
+        i = FFN(c, i, hidden_dim, ffn_hidden_dim, (string) "model.decoder.layers." + std::to_string(layer));
         // _SubgraphBegin(c);
     }
 
@@ -301,7 +301,7 @@ int main(int argc, char **argv) {
             // ex.run(&net, {input});
             auto result = ex.result();
             result[0]->printShape();
-            result[0]->printData<int8_t>();
+            result[0]->printData<float>();
 
             // for (int n = 0; n < 32 * 7 * 64; n++) {
             //     std::cout << result[0]->hostPtr<float>()[n] << " ";
