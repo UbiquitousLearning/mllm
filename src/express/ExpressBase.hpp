@@ -42,6 +42,8 @@ typedef struct TNetParameter {
 // 前置声明
 struct Context {
     vector<NetParameter> sub_param_;
+    vector<BackendType> sub_backend_;
+    BackendType next_backend = MLLM_DEFAULT;
     vector<NetOp *> net_ops;
     std::set<NetTensor *> net_tensors;
     int idx = 0;
@@ -50,6 +52,7 @@ struct Context {
 inline NetParameter *get_active_subgraph(Context *ctx) {
     if (ctx->active_sub >= ctx->sub_param_.size()) {
         ctx->sub_param_.emplace_back();
+        ctx->sub_backend_.emplace_back(ctx->next_backend);
     }
     return &ctx->sub_param_[ctx->active_sub];
 }

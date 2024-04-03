@@ -2,6 +2,10 @@
 #include <math.h>
 #include <memory>
 #include "Backend.hpp"
+#include "CPUMatmulINT8.hpp"
+#include "CPUPoEmbedding.hpp"
+#include "CPUSplitInput.hpp"
+#include "OpDefined.hpp"
 #include "Types.hpp"
 #include "memory/SystemMemoryManager.hpp"
 #include "CPUView.hpp"
@@ -82,6 +86,7 @@ void CPUBackend::registerOps() {
     addCreator(ADD, (CPUBackend::Creator *)(new CPUAddCreator()));
     addCreator(CAUSALMASK, (CPUBackend::Creator *)(new CPUCausalMaskCreator()));
     addCreator(MATMUL, (CPUBackend::Creator *)(new CPUMatmulCreator()));
+    addCreator(MATMULINT8, (CPUBackend::Creator *)(new CPUMatmulINT8Creator()));
     addCreator(RMSNORM, (CPUBackend::Creator *)(new CPURMSNormCreator()));
     addCreator(ROPE, (CPUBackend::Creator *)(new CPURoPECreator()));
     addCreator(SCALE, (CPUBackend::Creator *)(new CPUScaleCreator()));
@@ -113,6 +118,8 @@ void CPUBackend::registerOps() {
     addCreator(RANGE, (CPUBackend::Creator *)(new CPURangeCreator()));
     addCreator(WHERE, (CPUBackend::Creator *)(new CPUWhereCreator()));
     addCreator(REPLACE, (CPUBackend::Creator *)(new CPUReplaceCreator()));
+    addCreator(POSITIOANL_EMBEDDING, (CPUBackend::Creator *)(new CPUPoEmbeddingCreator()));
+    addCreator(SPLITINPUT, (CPUBackend::Creator *)(new CPUSplitInputCreator()));
 }
 
 } // namespace mllm

@@ -3,6 +3,7 @@
 #include "Net.hpp"
 #include "Executor.hpp"
 #include "Types.hpp"
+#include "express/ExpressBase.hpp"
 #include <numeric>
 #include <thread>
 
@@ -27,6 +28,9 @@ public:
      * \param input_tensors     A vector of input tensors to be processed by the network
      */
     void run(Net *net, vector<shared_ptr<Tensor>> input_tensors) override;
+
+    // used for assigning graph backends execuation
+    void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor);
 
     /**
      * \brief Setup&Executes the foreword propagation of provided network

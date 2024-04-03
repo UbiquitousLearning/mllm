@@ -5,6 +5,7 @@
 #include "express/Express.hpp"
 #include <vector>
 #include "backends/QNN/QNNGraph.hpp"
+#include "express/ExpressBase.hpp"
 
 namespace mllm {
 
@@ -143,6 +144,57 @@ void QNNOptNet::convert(vector<NetParameter> &param, BackendType backend_type, i
             subg_1.reset(new Graph(param[i], backends_[MLLM_CPU].get(), tensors_, threadCount));
         else
             subg_1.reset(new QNNGraph(param[i], backends_[backend_type].get(), tensors_, threadCount));
+        subGraphs_["Prompt_Graph." + std::to_string(i)] = subg_1;
+    }
+    std::cout << "finish convert" << std::endl;
+}
+
+void QNNOptNet::convert(Context* ctx, BackendType backend_type, int threadCount) {
+    auto& param = ctx->sub_param_;
+    for (int ii = 0; ii < (int)param.size(); ++ii) {
+        auto &sub_param = param[ii];
+        vector<string> names = {};
+        auto net_in_tensor = sub_param.net_inputs;
+        for (const auto &out_t : net_in_tensor) {
+            tensors_[out_t->name] = std::make_shared<Tensor>(backends_[backend_type].get());
+            tensors_[out_t->name]->setName(out_t->name);
+            tensors_[out_t->name]->setDtype(out_t->type);
+            for (auto &tensor_name : tensor_names_) {
+                tensor_name.erase(std::remove(tensor_name.begin(), tensor_name.end(), out_t->name), tensor_name.end());
+            }
+            names.push_back(out_t->name);
+        }
+
+        for (auto *t : sub_param.net_tensors) {
+            if (t->in == NULL) {
+                auto *in_tensor = t;
+                tensors_[in_tensor->name] = std::make_shared<Tensor>(backends_[backend_type].get());
+                tensors_[in_tensor->name]->setName(in_tensor->name);
+                tensors_[in_tensor->name]->setDtype(in_tensor->type);
+                input_names_.push_back(in_tensor->name);
+                inputname_graphidx_[in_tensor->name] = ii;
+                names.push_back(in_tensor->name);
+            }
+        }
+        tensor_names_.push_back(names);
+    }
+
+    for (int i = 0; i < (int)param.size(); ++i) {
+        auto expectedBackend = ctx->sub_backend_[i];
+
+        param[i].topologySort();
+        shared_ptr<Graph> subg_1;
+        if(expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN){
+            std::cout << "Graph" << i << " expectedBackend: " << expectedBackend << std::endl;
+            subg_1.reset(new Graph(param[i], backends_[expectedBackend].get(), tensors_, threadCount));
+        } else {
+            std::cout << "Graph" << i << " expectedBackend: " << expectedBackend << std::endl;
+            if(i == 0) // use CPU graph and CPU backend for embedding, based on specific subgraph split
+                subg_1.reset(new Graph(param[i], backends_[MLLM_CPU].get(), tensors_, threadCount));
+            else
+                subg_1.reset(new QNNGraph(param[i], backends_[backend_type].get(), tensors_, threadCount));
+        }
+
         subGraphs_["Prompt_Graph." + std::to_string(i)] = subg_1;
     }
     std::cout << "finish convert" << std::endl;

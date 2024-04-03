@@ -8,8 +8,7 @@
 using namespace mllm;
 void displayExpress(Context *c);
 
-void _SubgraphBegin(Context *ctx);
-
+void _SubgraphBegin(Context *ctx, BackendType backend = MLLM_DEFAULT);
 
 NetTensor *_Input(Context *ctx, vector<int> dims={}, string name = "", DataType type = MLLM_TYPE_F32);
 NetTensor *_Parameter(Context *ctx, std::vector<NetTensor *> inputs, int batch, int seq, int head, int dim, string name = "", DataType type = MLLM_TYPE_F32);
@@ -24,6 +23,7 @@ NetTensor *_Matmul(std::vector<NetTensor *> inputs,  bool transpose0, bool trans
 NetTensor *_MatmulINT8(std::vector<NetTensor *> inputs,  bool transpose0, bool transpose1, string name = "");
 NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilon= 1e-6, string name = "");
 NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name = "");
+NetTensor *_PositionalEmbedding(std::vector<NetTensor *> inputs, int max_num, int hidden_dim, string name = "");
 NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale, string name);
 NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
 NetTensor *_LinearINT8(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");

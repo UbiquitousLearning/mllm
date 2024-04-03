@@ -112,7 +112,7 @@ public:
         type_ = type;
     }
 
-private:
+protected:
     Backend *backend_;
     vector<Tensor *> inputs_;
     vector<Tensor *> outputs_;

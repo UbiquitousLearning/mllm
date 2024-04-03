@@ -19,6 +19,7 @@ using std::map;
 typedef map<std::string, float> OpParam;
 
 typedef enum {
+    MLLM_DEFAULT,
     MLLM_CPU,
     MLLM_OPENCL,
     MLLM_QNN
@@ -192,6 +193,11 @@ typedef struct {
     mllm_fp16_t d;       // delta
     int8_t qs[QK8_0]; // quants
 } block_q8_0;
+#pragma pack()
+#pragma pack(1)
+typedef struct {
+    int8_t qs[QK8_0]; // quants
+} block_q8_0_sq; // q8 block for smoothquant
 #pragma pack()
 
 // This is only used for intermediate quantization and dot products
