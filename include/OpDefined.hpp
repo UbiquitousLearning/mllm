@@ -25,7 +25,7 @@ enum OpType {
     KVCACHE,
     RELU,
     RELU2,
-    GELU,
+    OP_GELU,
     QUICKGLUE,
     LAYERNORM,
     SPLIT,
@@ -88,5 +88,28 @@ static const vector<string> OpNames = {
     "Where",
     "Replace",
     "OP_NUM"};
+
+enum TensorFuncType {
+    FUNC_ADD,
+    FUNC_SUB,
+    FUNC_MUL,
+    FUNC_DIV,
+    FUNC_TTADD,
+    FUNC_TTSUB,
+    FUNC_TTMUL,
+    FUNC_TTDIV,
+    FUNC_MM,
+    FUNC_NORM,
+    FUNC_MEAN,
+    FUNC_CAT,
+    FUNC_VIEW,
+    FUNC_TRANPOSE,
+    FUNC_FLATTEN,
+    FUNC_CLIP,
+    FUNC_CLIPAXIS,
+    FUNC_RANGE,
+    FUNC_WHERE
+};
+
 } // namespace mllm
 #endif

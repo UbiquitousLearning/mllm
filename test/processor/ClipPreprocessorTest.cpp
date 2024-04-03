@@ -36,7 +36,7 @@ TEST_F(TokenizerTest, ClipPreProcess) {
 }
 TEST_F(TokenizerTest,Clip) {
     auto tokenizer = new mllm::BPETokenizer("../vocab/clip_vocab.mllm");
-    mllm::ClipProcessor* clip = new mllm::ClipProcessor(tokenizer);
+    mllm::ClipPreProcessor* clip = new mllm::ClipPreProcessor(tokenizer);
     clip->PreProcessImages({"../assets/bus.png"});
     auto images = clip->pixel_values_[0];
     std::cout << "size: " << images.size()<<" " <<images[0].size()  << " " << images[0][0].size() << std::endl;

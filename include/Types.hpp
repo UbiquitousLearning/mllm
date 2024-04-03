@@ -24,6 +24,12 @@ typedef enum {
     MLLM_QNN
 } BackendType;
 
+enum TensorStatus {
+    TENSOR_DYNAMIC,
+    TENSOR_STATIC_INIT ,
+    TENSOR_STATIC_READY ,
+};
+
 enum ErrorCode {
     MLLM_NO_ERROR = 0,
     OUT_OF_MEMORY = 1,
@@ -55,17 +61,40 @@ enum ChlType {
 
     BCTHW = 3,
     BTHWC = 4,
+    BWCTH = 5,
 
-    SBHD = 10  //not used
+    SBHD = 10,
+    BDHS = 11,
+    BDSH = 12,
+    DBHS = 13
+};
+
+
+inline std::map<std::vector<int>, ChlType> Chls2Type = {
+    {{0, 2, 3, 1}, BDHS},
+    {{0, 1, 3, 2}, BHDS},
+    {{0, 2, 1, 3}, BSHD},
+    {{1, 2, 0, 3}, SBHD},
+    {{0, 3, 2, 1}, BDSH},
+    {{1, 2, 3, 0}, DBHS},
+    {{0, 1, 2, 3, 4}, BTHWC},
+    {{0, 2, 3, 4, 1}, BCTHW},
+    {{0, 3, 4, 1, 2}, BWCTH}
+};
+
+
+enum TensorType {
+    INPUT_TENSOR = 0,
+    NORMAL_TENSOR
 };
 
 enum Chl {
     BATCH = 0,
-    HEAD = 1,
-    SEQUENCE = 2,
+    SEQUENCE = 1,
+    HEAD = 2,
     DIMENSION = 3,
 
-    HD = 113,
+    HD = 113, //only use for split attn.in_proj
     D_HD = 313, //only use for split attn.in_proj
 
     CHANNLE = 1,
@@ -77,6 +106,7 @@ enum Chl {
 
 };
 
+#define ANYDIM -198098
 
 enum PaddingType {
     SAME,
@@ -84,6 +114,7 @@ enum PaddingType {
 };
 
 enum RoPEType {
+    NONE = 0,
     LLAMAROPE = 2,
     PERSIMMONROPE = 3,
     HFHUBROPE = 4,

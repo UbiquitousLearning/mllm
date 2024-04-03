@@ -58,14 +58,14 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 
 |                                                                             | FP32 | INT4 |
 |-----------------------------------------------------------------------------|-----|------|
-| [LLaMA-1/2 7B](https://github.com/facebookresearch/llama)                   | ✔️  | ✔️   |
-| [Alpaca 7B](https://github.com/ymcui/Chinese-LLaMA-Alpaca-2)                | ✔️  | ✔️   |
-| [TinyLLaMA 1.1B](https://github.com/jzhang38/TinyLlama)                     | ✔️  | ✔️   |
-| [Fuyu 8B](https://www.adept.ai/blog/fuyu-8b)                                | ✔️  | ✔️   |
-| [Vision Transformer](https://github.com/google-research/vision_transformer) | ✔️  | ✔️   |
-| [CLIP](https://github.com/openai/CLIP)                                      | ✔️  | ✔️   |
-| [ImageBind](https://github.com/facebookresearch/ImageBind) (3 modalities)   | ✔️  | ✔️   |
-| [LLaVA 7B](https://github.com/haotian-liu/LLaVA)                                                                | ✔️  | ✔️   |
+| [LLaMA-1/2 7B](https://github.com/facebookresearch/llama)                   | [✔️](https://huggingface.co/mllmTeam/llama-2-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/llama-2-7b-mllm/tree/main)   |
+| [Alpaca 7B](https://github.com/ymcui/Chinese-LLaMA-Alpaca-2)                | [✔️](https://huggingface.co/mllmTeam/chinese-alpaca-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/chinese-alpaca-7b-mllm/tree/main)   |
+| [TinyLLaMA 1.1B](https://github.com/jzhang38/TinyLlama)                     | [✔️](https://huggingface.co/mllmTeam/tinyllama-1.1b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/tinyllama-1.1b-mllm/tree/main)   |
+| [Fuyu 8B](https://www.adept.ai/blog/fuyu-8b)                                | [✔️](https://huggingface.co/mllmTeam/fuyu-8b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/fuyu-8b-mllm/tree/main)   |
+| [Vision Transformer](https://github.com/google-research/vision_transformer) | [✔️](https://huggingface.co/mllmTeam/vit-base-patch16-224-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/vit-base-patch16-224-mllm/tree/main)   |
+| [CLIP](https://github.com/openai/CLIP)                                      | [✔️](https://huggingface.co/mllmTeam/clip-vit-base-patch32-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/clip-vit-base-patch32-mllm/tree/main)   |
+| [ImageBind](https://github.com/facebookresearch/ImageBind) (3 modalities)   | [✔️](https://huggingface.co/mllmTeam/imagebind_huge-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/imagebind_huge-mllm/tree/main)   |
+| [LLaVA 7B](https://github.com/haotian-liu/LLaVA)                                                                | [✔️](https://huggingface.co/mllmTeam/llava-1.5-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/llava-1.5-7b-mllm/tree/main)   |
 
 ## Quick Start
 
@@ -96,7 +96,7 @@ Building mllm requires following tools:
 
 #### Run Fuyu-8B
 
-Download the model from [here](https://huggingface.co/mllmTeam), or using the following instructions
+Download the model from [here](https://huggingface.co/mllmTeam/fuyu-8b-mllm/tree/main/), or using the following instructions
 
 ```bash
 mkdir ../models && cd ../models
@@ -114,8 +114,7 @@ cd ../script
 Result are as followed:
 
 ```
-> ./main_fuyu
-Load model: 6.34905 s
+> ./demo_fuyu
 [Q] [../assets/bus.png]Generate a coco-style caption.
 
 [A]  A blue bus driving down▁the▁road next▁to a sidewalk.
@@ -126,7 +125,7 @@ Load model: 6.34905 s
 
 #### Run LLaMA-2-7B
 
-Download model
+Download model from [here](https://huggingface.co/mllmTeam/llama-2-7b-mllm/tree/main/), or using the following instructions
 
 ```bash
 mkdir ../models && cd ../models
@@ -144,8 +143,7 @@ cd ../script
 Result are as followed:
 
 ```
-> ./main_llama
-Load model: 10.0351 s
+> ./demo_llama
 [Q]  Hello, who are you?
 [A]
 
@@ -167,7 +165,7 @@ BUPT offers a wide range of undergraduate and graduate programs in fields such a
 
 #### Run ImageBind
 
-Download model
+Download model from [here](https://huggingface.co/mllmTeam/imagebind_huge-mllm/tree/main), or using the following instructions
 
 ```bash
 mkdir ../models && cd ../models
@@ -184,8 +182,7 @@ cd ../script
 
 Result are as followed:
 ```
-> ./main_imagebind 
-Load model: 2.17264 s
+> ./demo_imagebind 
 vision X text :
 0.9985647 0.0013827 0.0000526 
 0.0000365 0.9998636 0.0000999 
@@ -209,14 +206,14 @@ cd scripts
 
 ```bash
 cd ./bin
-./main_fuyu -m ../models/fuyu-8b-q4_k.mllm -v ../vacob/fuyu_vocab.mllm
+./demo_fuyu -m ../models/fuyu-8b-q4_k.mllm -v ../vacob/fuyu_vocab.mllm
  ```
 
 #### Run LLaMA-2-7B
 
 ```bash
 cd ./bin
-./main_llama -m ../models/llama-2-7b-chat-q4_k.mllm -v ../vacob/llama_vocab.mllm
+./demo_llama -m ../models/llama-2-7b-chat-q4_k.mllm -v ../vacob/llama_vocab.mllm
 ```
 
 
@@ -224,7 +221,7 @@ cd ./bin
 
 ```bash
 cd ./bin
-./main_imagebind -m ../models/imagebind_huge-q4_k.mllm -v ../vacob/clip_vocab.mllm
+./demo_imagebind -m ../models/imagebind_huge-q4_k.mllm -v ../vacob/clip_vocab.mllm
 ```
 
 
