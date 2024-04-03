@@ -148,7 +148,7 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
 
     for (int layer = 0; layer < 1; ++layer) {
         i = _KVCache({i}, cache_max, ".kvcache");
-        i = _LayerNorm({i}, hidden_dim, true, 1e-5, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn_layer_norm");
+        // i = _LayerNorm({i}, hidden_dim, true, 1e-5, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn_layer_norm");
         // _SubgraphBegin(c);
         i = _Quantize({i}, true, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");
         i = NPUAttention(c, i, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn");
