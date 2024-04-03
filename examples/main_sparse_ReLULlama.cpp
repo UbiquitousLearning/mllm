@@ -59,11 +59,18 @@ NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int he
     return o;
 }
 NetTensor *FFN( NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
-    auto *ids = _Predictor({i}, hidden_dim, ffn_hidden_dim, name);
-    auto *x = _SparseIdLinear( {i, ids}, hidden_dim, ffn_hidden_dim, name+".gate_proj");
-    x = _ReLU( {x}, name+".relu");
-    auto *y = _SparseIdLinear( {i, ids}, hidden_dim, ffn_hidden_dim, name+".up_proj");
-    x = *x*y;// x = _Mul( {x, y}, name+".dot");
+//     predictor cost too much time
+//    auto *ids = _Predictor({i}, hidden_dim, ffn_hidden_dim, name);
+//    auto *x = _SparseIdLinear( {i, ids}, hidden_dim, ffn_hidden_dim, name+".gate_proj");
+//    x = _ReLU( {x}, name+".relu");
+//    auto *y = _SparseIdLinear( {i, ids}, hidden_dim, ffn_hidden_dim, name+".up_proj");
+//    x = *x*y;// x = _Mul( {x, y}, name+".dot");
+//    x = _SparseLinear( {x}, ffn_hidden_dim, hidden_dim, name+".down_proj");
+
+    auto *x = _Linear( {i}, hidden_dim, ffn_hidden_dim, false, name+".gate_proj");
+    auto *gate = _ReLU( {x}, name+".relu");
+    auto *y = _SparseIdLinear( {i, x}, hidden_dim, ffn_hidden_dim, name+".up_proj");
+    x = *gate*y;// x = _Mul( {x, y}, name+".dot");
     x = _SparseLinear( {x}, ffn_hidden_dim, hidden_dim, name+".down_proj");
     return x;
 }
@@ -87,7 +94,7 @@ void run_inference(int argc, char **argv){
     cmdline::parser cmdParser;
     //    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/ReLULlama_vocab.mllm");
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/relu_llama_vocab.mllm");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../ReLULlama_new.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../ReLULlama_sparse_q4_k.mllm");
     cmdParser.add<string>("predictor", 'p', "specify mllm model predictor path", false, "../ReLULlama_predictor.mllm");
     cmdParser.add<int>("limits", 'l',  "max KV cache size", false, 600);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
@@ -116,13 +123,12 @@ void run_inference(int argc, char **argv){
     // tokenize input
     std::cout << "start to tokenize input" << std::endl;
     auto tokenizer = BPETokenizer(vocab_path);
-    auto prompt = " Hello! Who are you?";                     // prompt
+    auto prompt = " How to keep healthy?";                     // prompt
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
     input->setName("input");
     auto tokens_id = vector<token_id_t>();
     tokenizer.tokenize(prompt, tokens_id, true);
     BPETokenizer::token2Tensor( &net, tokens_id, input);
-    input->printData<float>();
     printf("token_ids:");
     for (auto id:tokens_id)
         printf("%d ", id);
@@ -137,7 +143,7 @@ void run_inference(int argc, char **argv){
     {
         std::cout << "[Q] " << prompt << std::endl;
         std::cout << "[A] " << std::flush;
-        for (int step = 0; step < 100; step++) {
+        for (int step = 0; step < 20; step++) {
             ex.run(&net, {input});
             auto result = ex.result();
             auto token_idx = postProcessing(result[0], input);

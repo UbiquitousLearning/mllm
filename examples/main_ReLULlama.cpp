@@ -86,7 +86,7 @@ void run_inference(int argc, char **argv){
     cmdline::parser cmdParser;
     //    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/ReLULlama_vocab.mllm");
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/relu_llama_vocab.mllm");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./ReLULlama.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./ReLULlama_q4_k.mllm");
     cmdParser.add<int>("limits", 'l',  "max KV cache size", false, 600);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -113,7 +113,7 @@ void run_inference(int argc, char **argv){
     // tokenize input
     std::cout << "start to tokenize input" << std::endl;
     auto tokenizer = BPETokenizer(vocab_path);
-    auto prompt = " Hello! Who are you?";                     // prompt
+    auto prompt = " How to keep healthy?";                     // prompt
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
     input->setName("input");
     auto tokens_id = vector<token_id_t>();
@@ -133,7 +133,7 @@ void run_inference(int argc, char **argv){
     {
         std::cout << "[Q] " << prompt << std::endl;
         std::cout << "[A] " << std::flush;
-        for (int step = 0; step < 100; step++) {
+        for (int step = 0; step < 20; step++) {
             ex.run(&net, {input});
             auto result = ex.result();
             auto token_idx = postProcessing(result[0], input);

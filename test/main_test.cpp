@@ -8,6 +8,7 @@
 #include "tokenizers/BPE/Bpe.hpp"
 using namespace mllm;
 #include "backends/cpu/compute/Matmul.hpp"
+#include "backends/cpu/type/type.hpp"
 #define FP32(x) (MLLM_FP16_TO_FP32(x))
 #define FP16(x) (MLLM_FP32_TO_FP16(x))
 
@@ -379,7 +380,7 @@ bool Equal(Tensor &t1, Tensor &t2, Tensor *mask){
 }
 
 template<typename T>
-double SparsityRate(Tensor &t){
+double SparsityRate(Tensor &t, bool equal = false){
     // calculate the rate of elements that are smaller than 0.0 in the tensor
     auto B = t.batch();
     auto H = t.head();
@@ -391,11 +392,12 @@ double SparsityRate(Tensor &t){
             for(auto s = 0;s < S;s++){
                 for(auto d = 0;d < D;d++){
                     if constexpr (std::is_same_v<T, float>){
-                        if(t.dataAt<float>(b, h, s, d) <= 0.0){
+                        if((!equal && t.dataAt<float>(b, h, s, d) <= 0.0) || (equal && t.dataAt<float>(b, h, s, d) == 0.0)){
                             rate += 1.0;
                         }
                     }else if(std::is_same_v<T, mllm_fp16_t>){
-                        if(MLLM_FP16_TO_FP32(t.dataAt<mllm_fp16_t>(b, h, s, d)) <= 0.0){
+                        auto tmp = MLLM_FP16_TO_FP32(t.dataAt<mllm_fp16_t>(b, h, s, d));
+                        if((!equal && tmp <= 0.0) || (equal && tmp == 0.0)){
                             rate += 1.0;
                         }
                     }else{
@@ -478,12 +480,13 @@ bool test_sparse_id_linear(AbstructLoader &param_loader, int in_dim, int out_dim
     ids->setName("ids");
     ids->alloc();
     Randn<float>(*ids, 0.0, 1.0);
-    //    ids->printData<float>();
+    auto sparsity = SparsityRate<float>(*ids);
+//        ids->printData<float>();
 
     timer.Tick();
     ex_sparse->execute(net_sparse.get(), {x, ids});
     timer.Tick();
-    printf("\033[31m sparse linear id time: %.2lf us  (sparsity: %.2lf)\033[0m\n", timer.Microseconds(), SparsityRate<float>(*ids));
+    printf("\033[31m sparse linear id time: %.2lf us  (sparsity: %.2lf%)\033[0m\n", timer.Microseconds(), sparsity * 100);
     auto res_sparse = ex_sparse->result()[0];
 //        res_sparse->printData<float>();
 
@@ -523,7 +526,7 @@ bool test_sparse_linear(AbstructLoader &param_loader, int in_dim, int out_dim, c
     timer.Tick();
     ex_sparse->execute(net_sparse.get(), {x});
     timer.Tick();
-    printf("\033[31m sparse linear time: %.2lf us  (sparsity: %.2lf)\033[0m\n", timer.Microseconds(), SparsityRate<float>(*x));
+    printf("\033[31m sparse linear time: %.2lf us  (sparsity: %.2lf %)\033[0m\n", timer.Microseconds(), SparsityRate<float>(*x, true) * 100);
     auto res_sparse = ex_sparse->result()[0];
 //    res_sparse->printData<float>();
 
@@ -544,14 +547,15 @@ bool test_sparse_linear(AbstructLoader &param_loader, int in_dim, int out_dim, c
 }
 
 int main(int argc, char **argv) {
-    auto sparse_model_path = "./ReLULlama_new.mllm";
+    auto sparse_model_path = "./ReLULlama_sparse.mllm";
     auto model_path = "./ReLULlama.mllm";
     auto predictor_path = "./ReLULlama_predictor.mllm";
+    srand(time(NULL));
 
     Ticker timer;
     MultiFileParamLoader param_loader({model_path, sparse_model_path , predictor_path});
     MultiFileParamLoader q4_0_loader({"test_model_sparse_q4_0.mllm", "test_model_dense_q4_0.mllm"});
-    MultiFileParamLoader q4_K_loader({"test_model_sparse_q4_K.mllm", "test_model_dense_q4_K.mllm"});
+    MultiFileParamLoader q4_K_loader({"ReLULlama_sparse_q4_k.mllm", "ReLULlama_q4_k.mllm", "test_model_sparse_q4_K.mllm", "test_model_dense_q4_K.mllm"});
     timer.Tick();
     std::cout << timer.Microseconds() << " us" << std::endl;
 
@@ -559,12 +563,51 @@ int main(int argc, char **argv) {
     int hidden_size = 4096;
     int intermediate_size = 11008;
 
-    assert(test_sparse_id_linear(q4_0_loader, hidden_size, intermediate_size, "up_proj"));
-    assert(test_sparse_id_linear(q4_K_loader, hidden_size, intermediate_size, "up_proj"));
-//    assert(test_sparse_linear(param_loader, intermediate_size, hidden_size, "down_proj"));
-//    assert(test_sparse_id_linear(param_loader, hidden_size, intermediate_size, "up_proj"));
-//    assert(test_sparse_linear(param_loader, intermediate_size, hidden_size, "model.layers.0.mlp.down_proj"));
+    assert(test_sparse_linear(q4_K_loader, intermediate_size, hidden_size, "down_proj"));
+
+//    assert(test_sparse_id_linear(q4_0_loader, hidden_size, intermediate_size, "up_proj"));
+//    assert(test_sparse_id_linear(q4_K_loader, hidden_size, intermediate_size, "up_proj"));
+
+//    assert(test_sparse_linear(param_loader, intermediate_size, hidden_size, "model.layers.1.mlp.down_proj"));
 //    assert(test_sparse_id_linear(param_loader, hidden_size, intermediate_size, "model.layers.0.mlp.up_proj"));
+
+
+    //////////////////////////////////////////////////////////////////
+    const DataType dtype = MLLM_TYPE_Q6_K;
+    const int n_ele = type_traits[dtype].blck_size;
+    const float scale = 2.0;
+    void *src = new float[n_ele];
+    void *dst = new float[n_ele];
+    void *tmp = new float[n_ele];
+
+    auto quantize = type_traits[dtype].from_float;
+    auto dequantize = type_traits[dtype].to_float;
+    auto add_row_to = type_traits[dtype].add_row_to;
+
+    auto print_row = [](const float *row, int n) {
+        for (int i = 0; i < n; i++) {
+            printf("%f ", row[i]);
+        }
+        printf("\n");
+    };
+
+    // set src
+    for(int i = 0;i < n_ele;i++){
+        ((float *)src)[i] = (float) i;
+    }
+
+    printf("src:\n");
+    print_row(static_cast<const float *>(src), n_ele);
+
+    quantize(static_cast<const float *>(src), tmp, n_ele);
+    dequantize(tmp, static_cast<float *>(dst), n_ele);
+
+    printf("after quantize and dequantize:\n");
+    print_row(static_cast<const float *>(dst), n_ele);
+
+    add_row_to(n_ele, tmp, static_cast<float *>(dst), scale);
+    printf("after add_row_to:\n");
+    print_row(static_cast<const float *>(dst), n_ele);
 
     return 0;
 }
