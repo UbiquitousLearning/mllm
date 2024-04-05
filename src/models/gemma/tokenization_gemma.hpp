@@ -4,6 +4,10 @@
  * @version 0.1
  * @date 2024-04-03
  *
+ * @details check https://github.com/google/gemma_pytorch/blob/main/gemma/tokenizer.py
+ * The gemma's tokenizer used a subset of the SentencePiece tokenizer
+ * see tech-report: https://storage.googleapis.com/deepmind-media/gemma/gemma-report.pdf
+ *
  * @copyright Copyright (c) 2024
  *
  */
@@ -17,6 +21,49 @@ using namespace mllm;
 
 class GemmaTokenizer final {
 public:
+    explicit GemmaTokenizer(const std::string &vocab_file) {
+        Module::initBackend(MLLM_CPU);
+        tokenizer = new BPETokenizer(vocab_file);
+    }
+
+    ~GemmaTokenizer() {
+        delete tokenizer;
+    }
+
+    Tensor tokenize(std::string &text, int str_i = 0) const {
+        // add blank char to the front of text as sentence piece did
+        // ['_'] is the beginning symbol of sentencepiece, indicating
+        // that the token is at the beginning of a word or sentence.
+        if (text[0] != ' ') {
+            text = ' ' + text;
+        }
+        auto tokens_id = vector<token_id_t>();
+        tokenizer->tokenize(text, tokens_id, true);
+        // if not the first sentence, add '\n' to first place.
+        if (str_i > 0) {
+            tokens_id[0] = 13;
+        }
+        return BPETokenizer::tokens2Input(tokens_id);
+    }
+
+    std::string detokenize(const std::vector<token_id_t> &tokens) {
+        return tokenizer->detokenize(tokens);
+    }
+
+    std::pair<std::string, unsigned> detokenize(Tensor &result) {
+        assert(result.batch() == 1 && "Batch size of result is not 1. Which is not supported for now.");
+        assert(result.head() == 1 && "The 3rd dim of result should be one. e.g.:[1, 1, seq, hidden]");
+        vector<float> scores;
+        int _dims = result.dimension();
+        int _seq = result.sequence() - 1;
+        for (int i = 0; i < _dims; ++i) {
+            auto value = result.dataAt<float>(0, 0, _seq, i);
+            scores.emplace_back(value);
+        }
+        auto token_idx = this->argmax(scores);
+        return make_pair(tokenizer->detokenize({token_idx}), token_idx);
+    }
+
 private:
     unsigned int argmax(const std::vector<float> &scores) {
         if (scores.empty()) {
