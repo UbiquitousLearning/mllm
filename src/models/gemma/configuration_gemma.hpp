@@ -43,6 +43,24 @@ public:
             lm_head_name = "lm_head";
             break;
         }
+        case RoPEType::LLAMAROPE: /*the gemma is same to llama*/ {
+            blk_name = "layers.";
+            _attn_base_name = "attention.";
+            _ffn_base_name = "feed_forward.";
+            _q_proj_name = "wq";
+            _k_proj_name = "wk";
+            _v_proj_name = "wv";
+            _o_proj_name = "wo";
+            _gate_proj_name = "w1";
+            _up_proj_name = "w3";
+            _down_proj_name = "w2";
+            _attn_norm_name = "attention_norm";
+            _ffn_norm_name = "ffn_norm";
+            token_embd_name = "tok_embeddings";
+            post_norm_name = "norm";
+            lm_head_name = "output";
+            break;
+        }
         default: {
             throw std::runtime_error("Unsupported gemma RoPE type");
         }
@@ -57,7 +75,7 @@ public:
 };
 
 struct GemmaConfig {
-    explicit GemmaConfig(int token_limit, const string billions = "2B") :
+    explicit GemmaConfig(int token_limit, const string billions = "2B", RoPEType type = RoPEType::HFHUBROPE) :
         cache_limit(token_limit) {
         names_config.init(RoPEType::HFHUBROPE);
         if (!(billions == "2B" || billions == "2b")) {

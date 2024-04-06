@@ -15,9 +15,7 @@
 #include "Layer.hpp"
 #include "Module.hpp"
 #include "configuration_gemma.hpp"
-#include "models/transformer/modeling_transformer.hpp"
 #include <cmath>
-
 using namespace mllm;
 
 class GemmaMLP final : public Module {
@@ -33,7 +31,7 @@ public:
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = inputs[0];
         auto gate = gate_proj(x);
-        gate = gelu(x);
+        gate = gelu(gate);
         auto up = up_proj(x);
         auto fuse = gate * up;
         auto outputs = down_proj(fuse);
@@ -53,99 +51,74 @@ private:
 class GemmaAttention final : public Module {
 public:
     GemmaAttention() = default;
-    GemmaAttention(int hidden_size, int num_heads, int num_kv_heads, int head_dim, int cache_limit, const GemmaNameConfig &names, const string &base_name) :
-        hidden_size(hidden_size), num_heads(num_heads), num_kv_heads(num_kv_heads), head_dim(head_dim) {
-        assert(num_heads % num_kv_heads == 0 && "When using MQA/GQA. num_heads mod num_kv_heads should 0");
-
-        // for MQA and GQA
-        num_queries_per_kv = num_heads / num_kv_heads;
-        q_size = num_heads * head_dim;
-        kv_size = num_kv_heads * head_dim;
-
-        // scaling
-        scaling = 1.f / std::sqrt(head_dim);
+    GemmaAttention(const GemmaConfig &config, const GemmaNameConfig &names, const string &base_name) {
+        hidden_size = config.hidden_size;
+        head_dim = config.head_dim;
+        num_heads = config.num_attention_heads;
+        num_key_value_heads = config.num_key_value_heads;
+        num_key_value_groups = num_heads / num_key_value_heads;
 
         // init layers
-        qkv_proj = Linear(hidden_size, (num_heads + 2 * num_kv_heads) * head_dim, false, base_name + names._qkv_proj_name);
-        qkv_split = Split({q_size, kv_size, kv_size}, Chl::DIMENSION, base_name + names._qkv_proj_name + ".split");
+        q_proj = Linear(hidden_size, num_heads * head_dim, false, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._v_proj_name);
         o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
-        // FIXME RoPEType::HFHUBROPE
-        q_rope = RoPE(RoPEType::HFHUBROPE, base_name + "q_rope");
-        k_rope = RoPE(RoPEType::HFHUBROPE, base_name + "k_rope");
-        if (cache_limit > 0) {
-            k_cache = KVCache(num_heads / num_kv_heads, cache_limit, base_name + "k_cache");
-            v_cache = KVCache(num_heads / num_kv_heads, cache_limit, base_name + "v_cache");
-        }
+        q_rope = RoPE(config.RoPE_type, base_name + "q_rope");
+        k_rope = RoPE(config.RoPE_type, base_name + "k_rope");
+        k_cache = KVCache(num_heads / num_key_value_heads, config.cache_limit, base_name + "k_cache");
+        v_cache = KVCache(num_heads / num_key_value_heads, config.cache_limit, base_name + "v_cache");
         mask = Causalmask(base_name + "mask");
         softmax = Softmax(DIMENSION, base_name + "softmax");
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        auto hidden_sates = inputs[0];
-        auto hidden_sates_shape = hidden_sates.shape();
-        auto batch_size = hidden_sates_shape[0];
-        auto input_size = hidden_sates_shape[1];
+        auto query_states = q_proj(inputs[0]);
+        auto key_states = k_proj(inputs[1]);
+        auto value_states = v_proj(inputs[2]);
 
-        auto qkv = qkv_proj(hidden_sates);
-        auto qkv_sp = qkv_split(qkv);
-        auto xq = qkv_sp[0];
-        auto xk = qkv_sp[1];
-        auto xv = qkv_sp[2];
+        // [batch, heads, sequence, dims]
+        query_states = query_states.view(-1, num_heads, -1, head_dim);
+        key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
+        value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
 
-        xq = xq.view(batch_size, -1, num_heads, head_dim);
-        xk = xk.view(batch_size, -1, num_kv_heads, head_dim);
-        xv = xv.view(batch_size, -1, num_kv_heads, head_dim);
-
-        // position embedding
-        xq = q_rope(xq);
-        xk = k_rope(xk);
+        // embedding
+        query_states = q_rope(query_states);
+        key_states = k_rope(key_states);
 
         // kv cache
-        auto key = k_cache(xk);
-        auto value = v_cache(xv);
+        key_states = k_cache(key_states);
+        value_states = v_cache(value_states);
 
-        // repeat
-        if (num_kv_heads != num_heads) {
-            std::vector<Tensor> _key_repeat, _value_repeat;
-            for (int i = 0; i < num_queries_per_kv; ++i) _key_repeat.push_back(key);
-            for (int i = 0; i < num_queries_per_kv; ++i) _value_repeat.push_back(value);
-            key = Tensor::cat(_key_repeat, /*dims*/ Chl::SEQUENCE);
-            value = Tensor::cat(_value_repeat, /*dims*/ Chl::SEQUENCE);
-        }
+        // repeat group times
+        std::vector<Tensor> _ks;
+        std::vector<Tensor> _vs;
+        for (int i = 0; i < num_key_value_groups; ++i) _ks.push_back(key_states);
+        for (int i = 0; i < num_key_value_groups; ++i) _vs.push_back(value_states);
+        key_states = Tensor::cat(_ks, Chl::HEAD);
+        value_states = Tensor::cat(_vs, Chl::HEAD);
 
-        // [batch, head, seq, dim]
-        auto q = xq.transpose(Chl::HEAD, Chl::SEQUENCE);
-        auto k = key.transpose(Chl::HEAD, Chl::SEQUENCE);
-        auto v = value.transpose(Chl::HEAD, Chl::SEQUENCE);
+        // attention weight
+        auto atten_weight = Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION)) / std::sqrt(head_dim);
+        atten_weight = mask(atten_weight);
+        atten_weight = softmax(atten_weight);
 
-        // [batch_size, n_local_heads, input_len, max_seq_len]
-        auto scores = Tensor::mm(q, k.transpose(Chl::SEQUENCE, Chl::DIMENSION)) * scaling;
-        scores = mask(scores);
-        scores = softmax(scores);
-
-        // output
-        auto output = Tensor::mm(scores, v);
-        // FIXME fix vie size.
-        output = output.transpose(Chl::HEAD, Chl::SEQUENCE).view(batch_size, input_size, -1, -1);
-        output = o_proj(output);
-        return {output};
+        // attention output
+        auto atten_output = Tensor::mm(atten_weight, value_states);
+        atten_output = atten_output.view(-1, 1, -1, head_dim * num_heads);
+        atten_output = o_proj(atten_output);
+        return {atten_output};
     }
 
 private:
     int hidden_size;
     int num_heads;
-    int num_kv_heads;
     int head_dim;
-
-    int num_queries_per_kv;
-    int q_size;
-    int kv_size;
-    float scaling;
-
-    // layers
-    Layer qkv_proj;
+    int num_key_value_heads;
+    int num_key_value_groups;
+    Layer q_proj;
+    Layer k_proj;
+    Layer v_proj;
     Layer o_proj;
-    Split qkv_split;
     Layer q_rope;
     Layer k_rope;
     Layer k_cache;
@@ -158,15 +131,8 @@ class GemmaDecoder final : public Module {
 public:
     GemmaDecoder() = default;
     GemmaDecoder(const GemmaConfig &config, const GemmaNameConfig &names, const string &base_name) {
-        self_atten = GemmaAttention(
-            config.hidden_size,
-            config.num_attention_heads,
-            config.num_key_value_heads,
-            config.head_dim,
-            config.cache_limit,
-            names,
-            base_name);
-        mlp = GemmaMLP(config.hidden_size, config.intermediate_size, names, base_name);
+        self_atten = GemmaAttention(config, names, base_name + names._attn_base_name);
+        mlp = GemmaMLP(config.hidden_size, config.intermediate_size, names, base_name + names._ffn_base_name);
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
         post_attention_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
     }
@@ -175,7 +141,7 @@ public:
         // self attention
         auto residual = inputs[0];
         auto hidden_sates = input_layernorm(inputs[0]);
-        hidden_sates = self_atten({hidden_sates})[0];
+        hidden_sates = self_atten({hidden_sates, hidden_sates, hidden_sates})[0];
         hidden_sates = hidden_sates + residual;
 
         // mlp
@@ -198,8 +164,8 @@ class GemmaModle final : public Module {
 public:
     GemmaModle() = default;
     GemmaModle(const GemmaConfig &config, const GemmaNameConfig &names, const string &base_name) {
-        for (int i = 0; i < config.num_hidden_layers; ++i) layers.push_back(GemmaDecoder(config, names, base_name));
-        norm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names.post_norm_name);
+        layers = List<GemmaDecoder>(config.num_hidden_layers, config, names, base_name);
+        norm = RMSNorm(config.hidden_size, config.rms_norm_eps, names.post_norm_name);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
@@ -222,17 +188,20 @@ public:
         auto names = config.names_config;
         embedding = Embedding(config.vocab_size, config.hidden_size, names.token_embd_name);
         model = GemmaModle(config, names, names.blk_name);
+        lm_head = Linear(config.hidden_size, config.vocab_size, false, names.lm_head_name);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = embedding(inputs[0]);
-        auto outputs = model({x});
-        return outputs;
+        auto outputs = model({x})[0];
+        outputs = lm_head(outputs);
+        return {outputs};
     }
 
 private:
     Layer embedding;
     GemmaModle model;
+    Layer lm_head;
 };
 
 #endif //! MODELING_GEMMA_HPP
