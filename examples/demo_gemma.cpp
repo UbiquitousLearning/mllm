@@ -31,13 +31,13 @@ int main(int argc, char **argv) {
 
     auto tokenizer = GemmaTokenizer(vocab_path);
 
-    GemmaConfig config(tokens_limit, "2B");
+    GemmaConfig config(tokens_limit, "2B", RoPEType::HFHUBROPE);
     auto model = GemmaForCausalLM(config);
     model.load(model_path);
 
     vector<string> in_strs = {
-        " Hello, who are you?",
-        " What can you do?",
+        "Hello, who are you?",
+        "What can you do?",
         "Please introduce Beijing University of Posts and Telecommunications."};
 
     for (int i = 0; i < in_strs.size(); ++i) {
@@ -50,9 +50,6 @@ int main(int argc, char **argv) {
             auto outputs = tokenizer.detokenize(result[0]);
             auto out_string = outputs.first;
             auto out_token = outputs.second;
-            if (out_token == 2) {
-                break;
-            }
             std::cout << out_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }

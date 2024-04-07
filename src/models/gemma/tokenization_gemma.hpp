@@ -31,18 +31,9 @@ public:
     }
 
     Tensor tokenize(std::string &text, int str_i = 0) const {
-        // add blank char to the front of text as sentence piece did
-        // ['_'] is the beginning symbol of sentencepiece, indicating
-        // that the token is at the beginning of a word or sentence.
-        if (text[0] != ' ') {
-            text = ' ' + text;
-        }
+        // Returns a tokenized string. The Gemma tokenizer never adds a prefix space
         auto tokens_id = vector<token_id_t>();
         tokenizer->tokenize(text, tokens_id, true);
-        // if not the first sentence, add '\n' to first place.
-        if (str_i > 0) {
-            tokens_id[0] = 13;
-        }
         return BPETokenizer::tokens2Input(tokens_id);
     }
 

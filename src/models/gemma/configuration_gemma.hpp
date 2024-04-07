@@ -40,7 +40,7 @@ public:
             _ffn_norm_name = "post_attention_layernorm";
             token_embd_name = "model.embed_tokens";
             post_norm_name = "model.norm";
-            lm_head_name = "lm_head";
+            lm_head_name = "model.embed_tokens";
             break;
         }
         case RoPEType::LLAMAROPE: /*the gemma is same to llama*/ {
@@ -58,7 +58,7 @@ public:
             _ffn_norm_name = "ffn_norm";
             token_embd_name = "tok_embeddings";
             post_norm_name = "norm";
-            lm_head_name = "output";
+            lm_head_name = "tok_embeddings";
             break;
         }
         default: {
@@ -77,10 +77,11 @@ public:
 struct GemmaConfig {
     explicit GemmaConfig(int token_limit, const string billions = "2B", RoPEType type = RoPEType::HFHUBROPE) :
         cache_limit(token_limit) {
-        names_config.init(RoPEType::HFHUBROPE);
+        names_config.init(type);
         if (!(billions == "2B" || billions == "2b")) {
             throw std::runtime_error("Unsupported model size");
         }
+        RoPE_type = type;
     };
 
     int vocab_size = 256000;
@@ -91,7 +92,7 @@ struct GemmaConfig {
     int hidden_size = 2048;
     int intermediate_size = 16384;
     int head_dim = 256;
-    float rms_norm_eps = 1e-6f;
+    float rms_norm_eps = 1e-6;
 
     int cache_limit;
     RoPEType RoPE_type = RoPEType::HFHUBROPE;

@@ -14,6 +14,7 @@
 #include "Backend.hpp"
 #include "Layer.hpp"
 #include "Module.hpp"
+#include "Tensor.hpp"
 #include "configuration_gemma.hpp"
 #include <cmath>
 using namespace mllm;
@@ -43,7 +44,6 @@ private:
     Layer up_proj;
     Layer down_proj;
 
-    // FIXME: Check the default method is gelu with tanh or not.
     Layer gelu; ///< F.gelu(gate, approximate="tanh")
 };
 
@@ -89,14 +89,6 @@ public:
         key_states = k_cache(key_states);
         value_states = v_cache(value_states);
 
-        // repeat group times
-        std::vector<Tensor> _ks;
-        std::vector<Tensor> _vs;
-        for (int i = 0; i < num_key_value_groups; ++i) _ks.push_back(key_states);
-        for (int i = 0; i < num_key_value_groups; ++i) _vs.push_back(value_states);
-        key_states = Tensor::cat(_ks, Chl::HEAD);
-        value_states = Tensor::cat(_vs, Chl::HEAD);
-
         // attention weight
         auto atten_weight = Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION)) / std::sqrt(head_dim);
         atten_weight = mask(atten_weight);
@@ -138,19 +130,13 @@ public:
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        // self attention
-        auto residual = inputs[0];
-        auto hidden_sates = input_layernorm(inputs[0]);
-        hidden_sates = self_atten({hidden_sates, hidden_sates, hidden_sates})[0];
-        hidden_sates = hidden_sates + residual;
-
-        // mlp
-        residual = hidden_sates;
-        hidden_sates = post_attention_layernorm(hidden_sates);
-        hidden_sates = mlp({hidden_sates})[0];
-        hidden_sates = residual + hidden_sates;
-
-        return {hidden_sates};
+        auto x = input_layernorm(inputs[0]);
+        x = self_atten({x, x, x})[0];
+        auto tmp = x + inputs[0];
+        x = post_attention_layernorm(tmp);
+        x = mlp({x})[0];
+        x = x + tmp;
+        return {x};
     }
 
 private:
@@ -164,21 +150,21 @@ class GemmaModle final : public Module {
 public:
     GemmaModle() = default;
     GemmaModle(const GemmaConfig &config, const GemmaNameConfig &names, const string &base_name) {
-        layers = List<GemmaDecoder>(config.num_hidden_layers, config, names, base_name);
+        blocks = List<GemmaDecoder>(config.num_hidden_layers, config, names, base_name);
         norm = RMSNorm(config.hidden_size, config.rms_norm_eps, names.post_norm_name);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = inputs[0];
-        for (auto &layer : layers) {
-            x = layer({x})[0];
+        for (auto &block : blocks) {
+            x = block({x})[0];
         }
         x = norm(x);
         return {x};
     }
 
 private:
-    std::vector<GemmaDecoder> layers;
+    std::vector<GemmaDecoder> blocks;
     Layer norm;
 };
 
@@ -188,20 +174,23 @@ public:
         auto names = config.names_config;
         embedding = Embedding(config.vocab_size, config.hidden_size, names.token_embd_name);
         model = GemmaModle(config, names, names.blk_name);
-        lm_head = Linear(config.hidden_size, config.vocab_size, false, names.lm_head_name);
+
+        // gemma's lm_head and tok_embedding is tied together.
+        // They share same parameters. Use a Transpose to do the lm_head instead.
+        lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, names.lm_head_name + ".weight");
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = embedding(inputs[0]);
         auto outputs = model({x})[0];
-        outputs = lm_head(outputs);
+        outputs = Tensor::mm(outputs, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         return {outputs};
     }
 
 private:
     Layer embedding;
+    Parameter lm_head;
     GemmaModle model;
-    Layer lm_head;
 };
 
 #endif //! MODELING_GEMMA_HPP
