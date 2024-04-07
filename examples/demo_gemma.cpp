@@ -50,6 +50,7 @@ int main(int argc, char **argv) {
             auto outputs = tokenizer.detokenize(result[0]);
             auto out_string = outputs.first;
             auto out_token = outputs.second;
+            if (out_token == tokenizer.eos_id) break;
             std::cout << out_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }

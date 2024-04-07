@@ -31,9 +31,15 @@ public:
     }
 
     Tensor tokenize(std::string &text, int str_i = 0) const {
+        // replace all blanck to '_'
+        text = BPETokenizer::replaceString(text, ' ', "▁");
+
         // Returns a tokenized string. The Gemma tokenizer never adds a prefix space
         auto tokens_id = vector<token_id_t>();
-        tokenizer->tokenize(text, tokens_id, true);
+        tokenizer->tokenize(text, tokens_id, false);
+
+        // insert <bos>
+        tokens_id.insert(tokens_id.begin(), bos_id);
         return BPETokenizer::tokens2Input(tokens_id);
     }
 
@@ -44,12 +50,12 @@ public:
     std::pair<std::string, unsigned> detokenize(Tensor &result) {
         assert(result.batch() == 1 && "Batch size of result is not 1. Which is not supported for now.");
         assert(result.head() == 1 && "The 3rd dim of result should be one. e.g.:[1, 1, seq, hidden]");
-        vector<float> scores;
+        std::vector<float> scores;
         int _dims = result.dimension();
         int _seq = result.sequence() - 1;
         for (int i = 0; i < _dims; ++i) {
             auto value = result.dataAt<float>(0, 0, _seq, i);
-            scores.emplace_back(value);
+            scores.push_back(value);
         }
         auto token_idx = this->argmax(scores);
         return make_pair(tokenizer->detokenize({token_idx}), token_idx);
@@ -64,6 +70,9 @@ private:
     }
 
     BPETokenizer *tokenizer;
+
+public:
+    token_id_t pad_id = 0, eos_id = 1, bos_id = 2, unk_id = 3;
 };
 
 #endif //! TOKENIZATION_GEMMA_HPP

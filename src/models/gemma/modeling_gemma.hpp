@@ -30,13 +30,12 @@ public:
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        auto x = inputs[0];
-        auto gate = gate_proj(x);
-        gate = gelu(gate);
-        auto up = up_proj(x);
-        auto fuse = gate * up;
-        auto outputs = down_proj(fuse);
-        return {outputs};
+        auto x = gate_proj(inputs[0]);
+        x = gelu(x);
+        auto y = up_proj(inputs[0]);
+        x = x * y;
+        x = down_proj(x);
+        return {x};
     }
 
 private:
