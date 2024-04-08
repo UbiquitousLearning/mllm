@@ -2,6 +2,7 @@
  * @file modeling_gemma.hpp
  * @author Chenghua Wang (chenghua.wang@gmail.com)
  * @brief The defination of gemma model
+ * https://github.com/huggingface/transformers/blob/main/src/transformers/models/gemma/modeling_gemma.py
  * @version 0.1
  * @date 2024-04-03
  *
@@ -124,8 +125,8 @@ public:
     GemmaDecoder(const GemmaConfig &config, const GemmaNameConfig &names, const string &base_name) {
         self_atten = GemmaAttention(config, names, base_name + names._attn_base_name);
         mlp = GemmaMLP(config.hidden_size, config.intermediate_size, names, base_name + names._ffn_base_name);
-        input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
-        post_attention_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
+        input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, true, base_name + names._attn_norm_name);
+        post_attention_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, true, base_name + names._ffn_norm_name);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
@@ -150,7 +151,7 @@ public:
     GemmaModle() = default;
     GemmaModle(const GemmaConfig &config, const GemmaNameConfig &names, const string &base_name) {
         blocks = List<GemmaDecoder>(config.num_hidden_layers, config, names, base_name);
-        norm = RMSNorm(config.hidden_size, config.rms_norm_eps, names.post_norm_name);
+        norm = RMSNorm(config.hidden_size, config.rms_norm_eps, true, names.post_norm_name);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {

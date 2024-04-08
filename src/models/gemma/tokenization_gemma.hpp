@@ -32,11 +32,11 @@ public:
 
     Tensor tokenize(std::string &text, int str_i = 0) const {
         // replace all blanck to '_'
-        text = BPETokenizer::replaceString(text, ' ', "▁");
+        std::string new_text = BPETokenizer::replaceString(text, ' ', "▁");
 
         // Returns a tokenized string. The Gemma tokenizer never adds a prefix space
         auto tokens_id = vector<token_id_t>();
-        tokenizer->tokenize(text, tokens_id, false);
+        tokenizer->tokenize(new_text, tokens_id, false);
 
         // insert <bos>
         tokens_id.insert(tokens_id.begin(), bos_id);
