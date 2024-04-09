@@ -146,10 +146,10 @@ private:
     Layer post_attention_layernorm;
 };
 
-class GemmaModle final : public Module {
+class GemmaModel final : public Module {
 public:
-    GemmaModle() = default;
-    GemmaModle(const GemmaConfig &config, const GemmaNameConfig &names, const string &base_name) {
+    GemmaModel() = default;
+    GemmaModel(const GemmaConfig &config, const GemmaNameConfig &names, const string &base_name) {
         blocks = List<GemmaDecoder>(config.num_hidden_layers, config, names, base_name);
         norm = RMSNorm(config.hidden_size, config.rms_norm_eps, true, names.post_norm_name);
     }
@@ -174,7 +174,7 @@ public:
         auto names = config.names_config;
         hidden_size = config.hidden_size;
         embedding = Embedding(config.vocab_size, config.hidden_size, names.token_embd_name);
-        model = GemmaModle(config, names, names.blk_name);
+        model = GemmaModel(config, names, names.blk_name);
 
         // gemma's lm_head and tok_embedding is tied together.
         // They share same parameters. Use a Transpose to do the lm_head instead.
@@ -197,7 +197,7 @@ private:
     int hidden_size;
     Layer embedding;
     Parameter lm_head;
-    GemmaModle model;
+    GemmaModel model;
 };
 
 #endif //! MODELING_GEMMA_HPP
