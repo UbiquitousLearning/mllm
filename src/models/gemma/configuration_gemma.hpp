@@ -1,6 +1,6 @@
 /**
  * @file configuration_gemma.hpp
- * @author Chenghua Wang (chenghua.wang@gmail.com)
+ * @author Chenghua Wang (chenghua.wang.edu@gmail.com)
  * @brief configuration file of gemma llm.
  * @version 0.1
  * @date 2024-04-03

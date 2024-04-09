@@ -1,6 +1,6 @@
 /**
  * @file modeling_gemma.hpp
- * @author Chenghua Wang (chenghua.wang@gmail.com)
+ * @author Chenghua Wang (chenghua.wang.edu@gmail.com)
  * @brief The defination of gemma model
  * https://github.com/huggingface/transformers/blob/main/src/transformers/models/gemma/modeling_gemma.py
  * @version 0.1
@@ -172,6 +172,7 @@ class GemmaForCausalLM final : public Module {
 public:
     GemmaForCausalLM(GemmaConfig &config) {
         auto names = config.names_config;
+        hidden_size = config.hidden_size;
         embedding = Embedding(config.vocab_size, config.hidden_size, names.token_embd_name);
         model = GemmaModle(config, names, names.blk_name);
 
@@ -182,12 +183,18 @@ public:
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = embedding(inputs[0]);
+
+        // do nomalize
+        x = x * std::sqrt(hidden_size);
+
+        // go through model
         auto outputs = model({x})[0];
         outputs = Tensor::mm(outputs, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         return {outputs};
     }
 
 private:
+    int hidden_size;
     Layer embedding;
     Parameter lm_head;
     GemmaModle model;

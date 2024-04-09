@@ -1,6 +1,6 @@
 /**
  * @file tokenization_gemma.hpp
- * @author Chenghua Wang (chenghua.wang@gmail.com)
+ * @author Chenghua Wang (chenghua.wang.edu@gmail.com)
  * @version 0.1
  * @date 2024-04-03
  *
@@ -16,6 +16,7 @@
 
 #include "tokenizers/BPE/Bpe.hpp"
 #include <algorithm>
+#include <regex>
 
 using namespace mllm;
 
@@ -58,7 +59,9 @@ public:
             scores.push_back(value);
         }
         auto token_idx = this->argmax(scores);
-        return make_pair(tokenizer->detokenize({token_idx}), token_idx);
+        auto text = tokenizer->detokenize({token_idx});
+        text = std::regex_replace(text, std::regex("▁"), " ");
+        return make_pair(text, token_idx);
     }
 
 private:

@@ -1,6 +1,6 @@
 /**
  * @file demo_gemma.cpp
- * @author Chenghua Wang (chenghua.wang@gmail.com)
+ * @author Chenghua Wang (chenghua.wang.edu@gmail.com)
  * @brief
  * @version 0.1
  * @date 2024-04-06
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
             auto outputs = tokenizer.detokenize(result[0]);
             auto out_string = outputs.first;
             auto out_token = outputs.second;
-            if (out_token == tokenizer.eos_id) break;
+            if (out_token == tokenizer.eos_id && step != 0) break;
             std::cout << out_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }
