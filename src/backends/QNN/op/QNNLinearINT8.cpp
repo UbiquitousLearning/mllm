@@ -142,6 +142,7 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     if (!support_bias_) {
         float outputScale = 0;
         outputScale = outputScale_.hostPtr<float>()[0] / 127.0;
+        outputScale = roundf(outputScale * 10000) / 10000;
 
         vector<Qnn_Tensor_t> matmulOut = {{QNN_TENSOR_VERSION_1,
                                            {.v1 = {
@@ -190,6 +191,7 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
     float outputScale = 0;
     outputScale = outputScale_.hostPtr<float>()[0]  / 127.0;
+    outputScale = roundf(outputScale * 10000) / 10000;
 
     // final output
     vector<Qnn_Tensor_t> biasOutput = {{QNN_TENSOR_VERSION_1,
