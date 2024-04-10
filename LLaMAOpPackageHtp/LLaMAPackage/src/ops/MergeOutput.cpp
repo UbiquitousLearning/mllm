@@ -115,7 +115,7 @@ GraphStatus mergeoutputImpl(TensorType& out_0,
   DType dtype = in_0.get_dtype();
   uint32_t bitwidth = 4;
 
-  if (dtype == DType::QUInt8) {
+  if (dtype == DType::QUInt8 || dtype == DType::QInt8) {
 
       bitwidth = 1;
 
