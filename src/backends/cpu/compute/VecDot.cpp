@@ -1429,6 +1429,7 @@ void vec_dot_q8_0_q8_0(const int n, float *__restrict s, const void *__restrict 
 
         for (int j = 0; j < qk; j++) {
             sumi += x[i].qs[j] * y[i].qs[j];
+            std::cout << x[i].qs[j] * scale1 << " " << y[i].qs[j] * scale2 << std::endl;
         }
 
         sumf += sumi * scale;

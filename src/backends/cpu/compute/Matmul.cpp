@@ -352,7 +352,7 @@ ErrorCode mat_mul_i8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias,
                             d_0 = m;
                         }
 
-                        vec_dot_q8_0_q8_0(K, dst->ptrAt<float>(b, h, m, n), src1_cal->hostPtr<float>() + src1_cal->offset(b_1, h_1, s_1, d_1), src0_cal->hostPtr<float>() + src0_cal->offset(b, h, s_0, d_0), scale1, scale2);
+                        vec_dot_q8_0_q8_0(K, dst->ptrAt<float>(b, h, m, n), src1_cal->hostPtr<int8_t>() + src1_cal->offset(b_1, h_1, s_1, d_1), src0_cal->hostPtr<int8_t>() + src0_cal->offset(b, h, s_0, d_0), scale1, scale2);
                         if (support_bias) {
                             *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0, n);
                         }
@@ -367,7 +367,8 @@ ErrorCode mat_mul_i8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias,
 ErrorCode mat_mul_fp32_i8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1, int thread_count, float scale2) {
     assert(src0->dtype() == MLLM_TYPE_F32);
     assert(src1->dtype() == MLLM_TYPE_I8);
-    Tensor src1_fp(src1->shape());
+
+    Tensor src1_fp(src1->batch(), src1->head(), src1->dimension(), src1->sequence());
     src1_fp.setBackend(src1->backend());
     src1_fp.setDtype(MLLM_TYPE_F32);
     src1_fp.alloc();
@@ -378,11 +379,18 @@ ErrorCode mat_mul_fp32_i8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
     //     src0->printShape();
     //     assert(src0->dimension() % QK8_0 == 0);
     // }
-    for (int b = 0; b < src0->batch(); b++) {
-        for (int h = 0; h < src0->head(); h++) {
-            #pragma omp parallel for num_threads(thread_count)
-            for (int s = 0; s < src0->sequence(); s++) {
-                dequantize_row_i8(src1->hostPtr<int8_t>() + src1->offset(b, h, s, 0), src1_fp.hostPtr<float>() + src1_fp.offset(b, h, s, 0), src1->dimension(), scale2);
+
+    float *src1_fpp = src1_fp.hostPtr<float>();
+
+    for (int b = 0; b < src1->batch(); b++) {
+        for (int d = 0; d < src1->dimension(); d++) {
+            // #pragma omp parallel for num_threads(thread_count)
+            for (int h = 0; h < src1->head(); h++) {
+                for (int s = 0; s < src1->sequence(); s++) {
+                    dequantize_row_i8(src1->hostPtr<int8_t>() + (b * src1->dimension() * src1->head() * src1->sequence() + s * src1->head() * src1->dimension()+ h * src1->dimension() + d),  src1_fpp, 1, scale2);
+
+                    src1_fpp ++;
+                }
             }
         }
     }
@@ -397,8 +405,8 @@ ErrorCode mat_mul_fp32_i8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
     assert(dst->dtype() == MLLM_TYPE_F32);
     for (int b = 0; b < src0->batch(); b++) {
         for (int h = 0; h < src0->head(); h++) {
-            const int b_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : b;
-            const int h_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : h;
+            const int b_1 = (src1_fp.batch() == 1 && src1_fp.head() == 1) ? 0 : b;
+            const int h_1 = (src1_fp.batch() == 1 && src1_fp.head() == 1) ? 0 : h;
             for (int m = 0; m < M; m++) {
                 const int num_blocks = N / blck_0;
                 const int remainder = N % blck_0;
@@ -407,21 +415,13 @@ ErrorCode mat_mul_fp32_i8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
                     for (int n = block * blck_0; n < (block + 1) * blck_0 & n < num_blocks * blck_0 + remainder; n++) {
                         int s_1, d_1;
                         int s_0, d_0;
-                        if (!transpose0 && transpose1) {
+                        if (!transpose0 && !transpose1) {
                             s_1 = n;
                             d_1 = 0;
                             s_0 = m;
                             d_0 = 0;
-                        } else if (!transpose0 && !transpose1) {
-                            s_1 = 0;
-                            d_1 = n;
-                            s_0 = m;
-                            d_0 = 0;
                         } else {
-                            s_1 = 0;
-                            d_1 = n;
-                            s_0 = 0;
-                            d_0 = m;
+                            std::cout << "NO support" << std::endl;
                         }
                         vec_dot_fp32(K, dst->ptrAt<float>(b, h, m, n),
                                      src1_cal->hostPtr<float>() + src1_cal->offset(b_1, h_1, s_1, d_1),
