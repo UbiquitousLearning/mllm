@@ -19,7 +19,8 @@ GraphStatus mergeoutputImpl(TensorType& out_0,
                             const TensorType& in_0,
                             const TensorType& in_1,
                             const TensorType& in_2,
-                            const TensorType& in_3);
+                            const TensorType& in_3,
+                            const Tensor& num);
 
 // forward declaration of sample cost function
 static float mergeoutputCostFunc(const Op *op);
@@ -90,7 +91,8 @@ GraphStatus mergeoutputImpl(TensorType& out_0,
                             const TensorType& in_0,
                             const TensorType& in_1,
                             const TensorType& in_2,
-                            const TensorType& in_3)
+                            const TensorType& in_3,
+                            const Tensor& num)
 
 {
   /*

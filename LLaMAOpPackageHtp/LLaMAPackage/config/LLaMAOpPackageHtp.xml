@@ -712,7 +712,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
                 <Description>
                     <Content>merge v input</Content>
                 </Description>
-                <Mandatory>false</Mandatory>
+                <Mandatory>true</Mandatory>
                 <Datatype>BACKEND_SPECIFIC</Datatype>
                 <Shape>
                     <Rank>4D</Rank>
@@ -722,9 +722,9 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Input>
                 <Name>in[3]</Name>
                 <Description>
-                    <Content>merge v input</Content>
+                    <Content>merge x input</Content>
                 </Description>
-                <Mandatory>false</Mandatory>
+                <Mandatory>true</Mandatory>
                 <Datatype>BACKEND_SPECIFIC</Datatype>
                 <Shape>
                     <Rank>4D</Rank>
@@ -1135,24 +1135,28 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Input>
                 <Name>in[0]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
             <Input>
                 <Name>in[1]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
             <Input>
                 <Name>in[2]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
             <Input>
                 <Name>in[3]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
@@ -1173,6 +1177,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Input>
                 <Name>in[0]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
@@ -1185,6 +1190,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Output>
                 <Name>out[0]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Output>
@@ -1192,6 +1198,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Output>
                 <Name>out[1]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Output>
@@ -1199,6 +1206,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Output>
                 <Name>out[2]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Output>
@@ -1206,6 +1214,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Output>
                 <Name>out[3]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Output>
