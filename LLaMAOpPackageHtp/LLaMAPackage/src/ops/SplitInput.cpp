@@ -18,6 +18,7 @@ template<typename TensorType,typename TensorType1>
 GraphStatus splitinputImpl(TensorType& out_0,
                             TensorType& out_1,
                             TensorType& out_2,
+                            TensorType& out_3,
                            const TensorType& in_0,
                            const TensorType1 &in_1);
 
@@ -89,6 +90,7 @@ template<typename TensorType,typename TensorType1>
 GraphStatus splitinputImpl(TensorType& out_0,
                             TensorType& out_1,
                             TensorType& out_2,
+                            TensorType& out_3,
                            const TensorType& in_0,
                            const TensorType1 &in_1)
 
@@ -106,20 +108,18 @@ GraphStatus splitinputImpl(TensorType& out_0,
    * Please check in SDK documentation for more information.
    */
 
+  // default is two.
 
-  size_t q_size = in_1(0,0,0,0);
-  size_t k_size = in_1(0,0,0,1);
-  size_t v_size = in_1(0,0,0,2);
+  size_t o_size = in_1(0,0,0,0);
+  size_t x_size = in_1(0,0,0,1);
 
   auto [b_in, h_in, w_in, d_in] = in_0.dims();
   
-  const size_t dims_0[] = {b_in, q_size, w_in, d_in};
-  const size_t dims_1[] = {b_in, k_size, w_in, d_in};
-  const size_t dims_2[] = {b_in, v_size, w_in, d_in};
+  const size_t dims_0[] = {b_in, o_size, w_in, d_in};
+  const size_t dims_1[] = {b_in, x_size, w_in, d_in};
 
   out_0.set_dims(dims_0);
   out_1.set_dims(dims_1);
-  out_2.set_dims(dims_2);
 
   DType dtype = in_0.get_dtype();
   uint32_t bitwidth = 4;
@@ -140,15 +140,11 @@ GraphStatus splitinputImpl(TensorType& out_0,
 
   uint8_t *out_ptr_0 = (uint8_t*)out_0.raw_data();
   uint8_t *out_ptr_1 = (uint8_t*)out_1.raw_data();
-  uint8_t *out_ptr_2 = (uint8_t*)out_2.raw_data();
 
-  memcpy(out_ptr_0, in_ptr, b_in * q_size * w_in * d_in * bitwidth);
-  in_ptr += b_in * q_size * w_in * d_in * bitwidth;
+  memcpy(out_ptr_0, in_ptr, b_in * o_size * w_in * d_in * bitwidth);
+  in_ptr += b_in * o_size * w_in * d_in * bitwidth;
 
-  memcpy(out_ptr_1, in_ptr, b_in * k_size * w_in * d_in * bitwidth);
-  in_ptr += b_in * k_size * w_in * d_in * bitwidth;
-
-  memcpy(out_ptr_2, in_ptr, b_in * v_size * w_in * d_in * bitwidth);
+  memcpy(out_ptr_1, in_ptr, b_in * x_size * w_in * d_in * bitwidth);
 
   return GraphStatus::Success;
 }
