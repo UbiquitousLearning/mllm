@@ -883,7 +883,7 @@ NetTensor *_MergeOutput(std::vector<NetTensor *> inputs, string name) {
     return out_tensor;
 }
 
-vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, string name) {
+vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, int num, string name) {
     Context *ctx = inputs[0]->ctx;
     if (name.empty()) {
         name = "Split" + std::to_string(ctx->idx);
@@ -893,8 +893,8 @@ vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, 
     net_op_->param["isPrompt"] = (float)isPrompt;
     _UPDATE_INPUT_TENSORS
     vector<NetTensor *> out_tensors;
-    net_op_->out_size = 3;
-    for (int i = 0; i < 3; ++i) {
+    net_op_->out_size = num;
+    for (int i = 0; i < num; ++i) {
         NetTensor *out_tensor = new NetTensor();
         out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
         out_tensor->type = inputs[0]->type;

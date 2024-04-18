@@ -12,17 +12,19 @@ CPUSplitInput::CPUSplitInput(Backend *bn, string opName, bool isPrompt, int thre
 
 ErrorCode CPUSplitInput::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     assert(inputs.size() == 1);
-    assert(outputs.size() == 3);
+    assert(outputs.size() == 4);
 
     if (isPrompt_) {
-        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 3, inputs[0]->dimension());
-        outputs[1]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 3, inputs[0]->dimension());
-        outputs[2]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 3, inputs[0]->dimension());
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 4, inputs[0]->dimension());
+        outputs[1]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 4, inputs[0]->dimension());
+        outputs[2]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 4, inputs[0]->dimension());
+        outputs[3]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 4, inputs[0]->dimension());
 
     } else {
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), 1, inputs[0]->dimension());
-        outputs[1]->reshape(inputs[0]->batch(), inputs[0]->head(), (inputs[0]->sequence() - 1) / 2, inputs[0]->dimension());
-        outputs[2]->reshape(inputs[0]->batch(), inputs[0]->head(), (inputs[0]->sequence() - 1) / 2, inputs[0]->dimension());
+        outputs[1]->reshape(inputs[0]->batch(), inputs[0]->head(), (inputs[0]->sequence() - 1) / 3, inputs[0]->dimension());
+        outputs[2]->reshape(inputs[0]->batch(), inputs[0]->head(), (inputs[0]->sequence() - 1) / 3, inputs[0]->dimension());
+        outputs[3]->reshape(inputs[0]->batch(), inputs[0]->head(), (inputs[0]->sequence() - 1) / 3, inputs[0]->dimension());
     }
 
     return Op::reshape(inputs, outputs);
@@ -41,6 +43,8 @@ ErrorCode CPUSplitInput::execute(vector<shared_ptr<Tensor>> inputs, vector<share
     memcpy(outputs[1]->hostPtr<void>(), inputs[0]->hostPtr<uint8_t>() + offset, outputs[1]->cntSize());
     offset += outputs[1]->cntSize();
     memcpy(outputs[2]->hostPtr<void>(), inputs[0]->hostPtr<uint8_t>() + offset, outputs[2]->cntSize());
+    offset += outputs[2]->cntSize();
+    memcpy(outputs[3]->hostPtr<void>(), inputs[0]->hostPtr<uint8_t>() + offset, outputs[3]->cntSize());
 
     return Op::execute(inputs, outputs);
 }

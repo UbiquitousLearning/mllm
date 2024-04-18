@@ -18,7 +18,7 @@ ErrorCode QNNMergeOutput::reshape(vector<shared_ptr<Tensor>> inputs, vector<shar
     assert(inputs.size() == 3);
     assert(outputs.size() == 1);
 
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() + inputs[1]->sequence() + inputs[2]->sequence(), inputs[0]->dimension());
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() + inputs[1]->sequence() + inputs[2]->sequence() + inputs[3]->sequence(), inputs[0]->dimension());
 
     return Op::reshape(inputs, outputs);
 }
@@ -29,6 +29,12 @@ ErrorCode QNNMergeOutput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared
     for (auto &input : inputs) {
         inputTensorNames.push_back(input->name());
     }
+
+    vector<Qnn_Param_t> paramsMerge = {
+        {.paramType = QNN_PARAMTYPE_SCALAR,
+         .name = "num",
+         {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_UINT_32, {.uint32Value = static_cast<uint32_t>(inputs.size())}}}},
+    };
 
     // outputs[0]->setBackend(qnnBackend_);
     // outputs[0]->alloc();
@@ -71,7 +77,7 @@ ErrorCode QNNMergeOutput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared
 
     };
 
-    return graphAddNode(name() + ".mergeoutput", "MergeOutput", inputTensorNames, outputTensors, {}, "LLaMAPackage");
+    return graphAddNode(name() + ".mergeoutput", "MergeOutput", inputTensorNames, outputTensors, paramsMerge, "LLaMAPackage");
 }
 
 ErrorCode QNNMergeOutput::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
