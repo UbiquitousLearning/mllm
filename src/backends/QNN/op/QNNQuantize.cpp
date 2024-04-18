@@ -4,6 +4,7 @@
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
 #include <cassert>
+#include <cmath>
 
 namespace mllm {
 QNNQuantize::QNNQuantize(Backend *bn, string opName, bool isNSHD) :
@@ -38,6 +39,9 @@ ErrorCode QNNQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 
     float quantScale = 0;
     quantScale = scale_.hostPtr<float>()[0]  / 127.0;
+    quantScale = roundf(quantScale * 10000) / 10000;
+
+    std::cout << name() << quantScale << std::endl;
 
     vector<Qnn_Tensor_t> outputTensor = {{QNN_TENSOR_VERSION_1,
                                           {.v1 = {

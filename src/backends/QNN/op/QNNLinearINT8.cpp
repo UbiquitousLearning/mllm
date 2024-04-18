@@ -11,10 +11,10 @@ QNNLinearINT8::QNNLinearINT8(Backend *bn, string opName, int in_features, int ou
     QNNCommonOp(bn, opName), in_features_(in_features), out_features_(out_features), support_bias_(bias) {
     weight_.setBackend(bn);
     bias_.setBackend(bn);
-#ifdef SMOOTHQUANT
+// #ifdef SMOOTHQUANT
     weightScale_.setBackend(bn);
     biasScale_.setBackend(bn);
-#endif
+// #endif
     outputScale_.setBackend(bn);
 }
 
@@ -105,11 +105,11 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
     auto qnnQuantDefined = QNN_DEFINITION_UNDEFINED;
     float weightScale = 0;
-#ifdef SMOOTHQUANT
+// #ifdef SMOOTHQUANT
     qnnQuantDefined = QNN_DEFINITION_DEFINED;
     weightScale = weightScale_.hostPtr<float>()[0];
     // std::cout << "===================" << weightScale << std::endl;
-#endif
+// #endif
 
     qnnBackend_->modelAddTensor(weight_.name(), (Qnn_Tensor_t){
                                                     .version = QNN_TENSOR_VERSION_1,
@@ -142,6 +142,7 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     if (!support_bias_) {
         float outputScale = 0;
         outputScale = outputScale_.hostPtr<float>()[0] / 127.0;
+        outputScale = roundf(outputScale * 10000) / 10000;
 
         vector<Qnn_Tensor_t> matmulOut = {{QNN_TENSOR_VERSION_1,
                                            {.v1 = {
@@ -164,11 +165,11 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     // add bias tensor to qnn
     uint32_t dimensionsBias[1] = {(uint32_t)out_features_};
     float biasScale = 0;
-#ifdef SMOOTHQUANT
+// #ifdef SMOOTHQUANT
     qnnQuantDefined = QNN_DEFINITION_DEFINED;
     biasScale = biasScale_.hostPtr<float>()[0];
     // std::cout << "===================" << biasScale << std::endl;
-#endif
+// #endif
     qnnBackend_->modelAddTensor(bias_.name(), (Qnn_Tensor_t){
                                                   .version = QNN_TENSOR_VERSION_1,
                                                   {.v1 = {
@@ -190,6 +191,7 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
     float outputScale = 0;
     outputScale = outputScale_.hostPtr<float>()[0]  / 127.0;
+    outputScale = roundf(outputScale * 10000) / 10000;
 
     // final output
     vector<Qnn_Tensor_t> biasOutput = {{QNN_TENSOR_VERSION_1,
@@ -263,7 +265,7 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
     }
     
 
-#ifdef SMOOTHQUANT
+// #ifdef SMOOTHQUANT
     weightScale_.setName(name() + ".weight.scale");
     weightScale_.reshape(1, 1, 1, 1);
     weightScale_.setDtype(MLLM_TYPE_F32);
@@ -276,7 +278,7 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
         biasScale_.alloc();
         loader.load(&biasScale_);
     }
-#endif
+// #endif
 
     outputScale_.setName(name() + ".output_scale");
     outputScale_.reshape(1, 1, 1, 1);

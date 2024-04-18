@@ -70,10 +70,28 @@ ErrorCode CPUMatmulINT8::execute(vector<shared_ptr<Tensor>> inputs, vector<share
 
     switch (inputs[0]->dtype()) {
     case MLLM_TYPE_I8: // q * k
-        mat_mul_i8(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, thread_count, scale1_.dataAt<float>(0, 0, 0, 0), scale2_.dataAt<float>(0, 0, 0, 0));
+        {
+
+        // NSHD
+        float scale1_value = scale1_.dataAt<float>(0, 0, 0, 0) / 127.0;
+        scale1_value = roundf(scale1_value * 10000) / 10000;
+
+        float scale2_value = scale2_.dataAt<float>(0, 0, 0, 0) / 127.0;
+        scale2_value = roundf(scale2_value * 10000) / 10000;
+
+        std::cout << scale1_value << " " << scale2_value << std::endl;
+
+        mat_mul_i8(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, thread_count, scale1_value, scale2_value);
+        }
         break;
     case MLLM_TYPE_F32: // qk * v
-        mat_mul_fp32_i8(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, thread_count, scale2_.dataAt<float>(0, 0, 0, 0));
+        {
+            float scale_value = scale2_.dataAt<float>(0, 0, 0, 0) / 127.0;
+            scale_value = roundf(scale_value * 10000) / 10000;
+
+            mat_mul_fp32_i8(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, thread_count, scale_value);
+        }
+        
         break;
     default:
         break;

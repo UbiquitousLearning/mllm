@@ -18,7 +18,9 @@ template<typename TensorType>
 GraphStatus mergeoutputImpl(TensorType& out_0,
                             const TensorType& in_0,
                             const TensorType& in_1,
-                            const TensorType& in_2);
+                            const TensorType& in_2,
+                            const TensorType& in_3,
+                            const Tensor& num);
 
 // forward declaration of sample cost function
 static float mergeoutputCostFunc(const Op *op);
@@ -88,7 +90,9 @@ template<typename TensorType>
 GraphStatus mergeoutputImpl(TensorType& out_0,
                             const TensorType& in_0,
                             const TensorType& in_1,
-                            const TensorType& in_2)
+                            const TensorType& in_2,
+                            const TensorType& in_3,
+                            const Tensor& num)
 
 {
   /*
@@ -107,15 +111,16 @@ GraphStatus mergeoutputImpl(TensorType& out_0,
   auto [b_in_0, h_in_0, w_in_0, d_in_0] = in_0.dims();
   auto [b_in_1, h_in_1, w_in_1, d_in_1] = in_1.dims();
   auto [b_in_2, h_in_2, w_in_2, d_in_2] = in_2.dims();
+  auto [b_in_3, h_in_3, w_in_3, d_in_3] = in_3.dims();
 
-  const size_t dims[] = {b_in_0, h_in_0 + h_in_1 + h_in_2, w_in_0, d_in_0};
+  const size_t dims[] = {b_in_0, h_in_0 + h_in_1 + h_in_2 + h_in_3 * 4, w_in_0, d_in_0};
 
   out_0.set_dims(dims);
 
   DType dtype = in_0.get_dtype();
   uint32_t bitwidth = 4;
 
-  if (dtype == DType::QUInt8) {
+  if (dtype == DType::QUInt8 || dtype == DType::QInt8) {
 
       bitwidth = 1;
 
@@ -130,6 +135,7 @@ GraphStatus mergeoutputImpl(TensorType& out_0,
   const uint8_t *in_ptr_0 = (uint8_t*)in_0.raw_data_const();
   const uint8_t *in_ptr_1 = (uint8_t*)in_1.raw_data_const();
   const uint8_t *in_ptr_2 = (uint8_t*)in_2.raw_data_const();
+  const uint8_t *in_ptr_3 = (uint8_t*)in_3.raw_data_const();
   
   uint8_t *out_ptr = (uint8_t*)out_0.raw_data();
 
@@ -140,6 +146,9 @@ GraphStatus mergeoutputImpl(TensorType& out_0,
   out_ptr += b_in_1 * h_in_1 * w_in_1 * d_in_1 * bitwidth;
 
   memcpy(out_ptr, in_ptr_2, b_in_2 * h_in_2 * w_in_2 * d_in_2 * bitwidth);
+  out_ptr += b_in_2 * h_in_2 * w_in_2 * d_in_2 * bitwidth;
+
+  memcpy(out_ptr, in_ptr_3, b_in_3 * h_in_3 * w_in_3 * d_in_3 * bitwidth * 4);
 
   return GraphStatus::Success;
 }

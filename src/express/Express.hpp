@@ -47,6 +47,6 @@ NetTensor *_Division(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Replace(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_WNop(std::vector<NetTensor *> inputs, int sync_type, string name = "");
 NetTensor *_MergeOutput(std::vector<NetTensor *> inputs, string name = "");
-vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, string name = "");
+vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, int num, string name = "");
 
 #endif // MLLM_EXPRESS_H

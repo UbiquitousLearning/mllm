@@ -11,10 +11,13 @@ public:
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode load(AbstructLoader &loader) override;
 
 private:
     bool isPrompt_;
     Tensor seqs_;
+    Tensor scale1_;
+    Tensor scale2_;
 };
 
 class QNNSplitInputCreator : public QNNBackend::Creator {

@@ -679,7 +679,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Name>MergeOutput</Name>
             <Description>
                 <Content>
-                    Merge q k v into one tensor for mllm
+                    Merge q k v x into one tensor for mllm
                 </Content>
             </Description>
 
@@ -719,6 +719,18 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
                     <Layout>NHWC</Layout>
                 </Shape>
             </Input>
+            <Input>
+                <Name>in[3]</Name>
+                <Description>
+                    <Content>merge x input</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                </Shape>
+            </Input>
 
             <Output>
                 <Name>out[0]</Name>
@@ -732,6 +744,15 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
                     <Layout>NHWC</Layout>
                 </Shape>
             </Output>
+
+            <Parameter>
+                <Name>num</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+            </Parameter>
 
             <!--This Op is implemented on these Backends-->
             <SupportedBackend>HTP</SupportedBackend>
@@ -798,18 +819,14 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
                 </Shape>
             </Output>
 
-            <Output>
-                <Name>out[2]</Name>
-                <Description>
-                    <Content>v output</Content>
-                </Description>
+            <Parameter>
+                <Name>num</Name>
                 <Mandatory>true</Mandatory>
-                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
                 <Shape>
-                    <Rank>4D</Rank>
-                    <Layout>NHWC</Layout>
+                    <Rank>SCALAR</Rank>
                 </Shape>
-            </Output>
+            </Parameter>
 
             <!--This Op is implemented on these Backends-->
             <SupportedBackend>HTP</SupportedBackend>
@@ -1037,6 +1054,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 
             <Input>
                 <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
@@ -1091,18 +1109,28 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Input>
                 <Name>in[0]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
             <Input>
                 <Name>in[1]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
             <Input>
                 <Name>in[2]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Input>
+            <Input>
+                <Name>in[3]</Name>
+                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
@@ -1112,11 +1140,6 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
-            </Output>
-
-            <Output>
-                <Name>sync_var</Name>
-                <Datatype>QNN_DATATYPE_UINT_32</Datatype>
             </Output>
 
         </SupplementalOpDef>
@@ -1128,6 +1151,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Input>
                 <Name>in[0]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
@@ -1140,6 +1164,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Output>
                 <Name>out[0]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Output>
@@ -1147,17 +1172,10 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Output>
                 <Name>out[1]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Output>
-
-            <Output>
-                <Name>out[2]</Name>
-                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
-                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
-                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
-            </Output>
-
 
         </SupplementalOpDef>
 

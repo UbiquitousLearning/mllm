@@ -43,6 +43,8 @@
 #include "CPURange.hpp"
 #include "CPUWhere.hpp"
 #include "CPUReplace.hpp"
+#include "CPUQuantize.hpp"
+#include "CPUMergeOutput.hpp"
 
 
 
@@ -120,6 +122,8 @@ void CPUBackend::registerOps() {
     addCreator(REPLACE, (CPUBackend::Creator *)(new CPUReplaceCreator()));
     addCreator(POSITIOANL_EMBEDDING, (CPUBackend::Creator *)(new CPUPoEmbeddingCreator()));
     addCreator(SPLITINPUT, (CPUBackend::Creator *)(new CPUSplitInputCreator()));
+    addCreator(QUANTIZE, (CPUBackend::Creator *)(new CPUQuantizeCreator()));
+    addCreator(MERGEOUTPUT, (CPUBackend::Creator *)(new CPUMergeOutputCreator()));
 }
 
 } // namespace mllm

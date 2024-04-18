@@ -54,6 +54,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
 
         if (scale != nullptr) {
             quantScale = scale->hostPtr<float>()[0]  / 127.0;
+            quantScale = roundf(quantScale * 10000) / 10000;
             quantDefine = QNN_DEFINITION_DEFINED;
             quantType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
         }
