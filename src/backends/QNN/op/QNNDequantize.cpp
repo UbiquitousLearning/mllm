@@ -63,6 +63,7 @@ ErrorCode QNNDequantize::load(AbstructLoader &loader) {
 
 
     string scaleName = name();
+    string scaleTypeName =  "output_scale";
 
     std::string wordToRemove = "dequantize";
     int pos = scaleName.find(wordToRemove);
@@ -70,7 +71,14 @@ ErrorCode QNNDequantize::load(AbstructLoader &loader) {
         scaleName.erase(pos, wordToRemove.length());
     }
 
-    scale_.setName(scaleName + "output_scale");
+    wordToRemove = ".x.";
+    pos = scaleName.find(wordToRemove);
+    if (pos != -1) {
+        scaleName.erase(pos, wordToRemove.length());
+        scaleTypeName = ".q_proj.input_scale";
+    }
+
+    scale_.setName(scaleName + scaleTypeName);
     scale_.reshape(1, 1, 1, 1);
     scale_.setDtype(MLLM_TYPE_F32);
     scale_.alloc();

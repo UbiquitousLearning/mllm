@@ -897,7 +897,10 @@ vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, 
     for (int i = 0; i < num; ++i) {
         NetTensor *out_tensor = new NetTensor();
         out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
-        out_tensor->type = inputs[0]->type;
+        if (i < (num - 1))
+            out_tensor->type = inputs[0]->type;
+        else
+            out_tensor->type = MLLM_TYPE_F32;
         ctx->idx++;
         ctx->net_tensors.insert(out_tensor);
         out_tensor->subgraph = sub_param;

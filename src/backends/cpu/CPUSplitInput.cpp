@@ -15,10 +15,12 @@ ErrorCode CPUSplitInput::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
     assert(outputs.size() == 4);
 
     if (isPrompt_) {
-        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 4, inputs[0]->dimension());
-        outputs[1]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 4, inputs[0]->dimension());
-        outputs[2]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 4, inputs[0]->dimension());
-        outputs[3]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 4, inputs[0]->dimension());
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 7, inputs[0]->dimension());
+        outputs[1]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 7, inputs[0]->dimension());
+        outputs[2]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 7, inputs[0]->dimension());
+
+        // do not * 4 since type is FP32
+        outputs[3]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 7, inputs[0]->dimension());
 
     } else {
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), 1, inputs[0]->dimension());
@@ -32,7 +34,16 @@ ErrorCode CPUSplitInput::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 
 ErrorCode CPUSplitInput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     activation_dtype_ = inputs[0]->dtype();
-    return Op::setUp(inputs, outputs);
+    // return Op::setUp(inputs, outputs);
+
+    for ( int i = 0; i<outputs.size(); i++) {
+        if (i < 3)
+            outputs[i]->setDtype(activation_dtype_);
+        else
+            outputs[i]->setDtype(MLLM_TYPE_F32);
+        outputs[i]->alloc();
+    }
+    return MLLM_NO_ERROR; 
 }
 
 ErrorCode CPUSplitInput::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

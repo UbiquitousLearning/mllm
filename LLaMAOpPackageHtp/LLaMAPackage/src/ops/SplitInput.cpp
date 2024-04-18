@@ -17,11 +17,9 @@ BEGIN_PKG_OP_DEFINITION(PKG_SplitInput);
 template<typename TensorType,typename TensorType1>
 GraphStatus splitinputImpl(TensorType& out_0,
                             TensorType& out_1,
-                            TensorType& out_2,
-                            TensorType& out_3,
                            const TensorType& in_0,
                            const TensorType1 &in_1,
-                           const Tensor &num);
+                           const Tensor& num);
 
 // forward declaration of sample cost function
 static float splitinputCostFunc(const Op *op);
@@ -90,12 +88,9 @@ DEF_PACKAGE_OP((splitinputImpl<Tensor, Tensor>), "SplitInput")
 template<typename TensorType,typename TensorType1>
 GraphStatus splitinputImpl(TensorType& out_0,
                             TensorType& out_1,
-                            TensorType& out_2,
-                            TensorType& out_3,
                            const TensorType& in_0,
                            const TensorType1 &in_1,
-                           const Tensor &num)
-
+                           const Tensor& num)
 {
   /*
    * add code here
@@ -126,7 +121,7 @@ GraphStatus splitinputImpl(TensorType& out_0,
   DType dtype = in_0.get_dtype();
   uint32_t bitwidth = 4;
 
-  if (dtype == DType::QUInt8) {
+  if (dtype == DType::QUInt8 || dtype == DType::QInt8) {
 
       bitwidth = 1;
 
@@ -146,7 +141,7 @@ GraphStatus splitinputImpl(TensorType& out_0,
   memcpy(out_ptr_0, in_ptr, b_in * o_size * w_in * d_in * bitwidth);
   in_ptr += b_in * o_size * w_in * d_in * bitwidth;
 
-  memcpy(out_ptr_1, in_ptr, b_in * x_size * w_in * d_in * bitwidth);
+  memcpy(out_ptr_1, in_ptr, b_in * x_size * w_in * d_in * bitwidth * 4);
 
   return GraphStatus::Success;
 }

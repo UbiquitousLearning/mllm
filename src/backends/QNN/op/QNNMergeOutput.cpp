@@ -15,10 +15,10 @@ QNNMergeOutput::QNNMergeOutput(Backend *bn, string opName) :
 }
 
 ErrorCode QNNMergeOutput::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    assert(inputs.size() == 3);
+    assert(inputs.size() == 4);
     assert(outputs.size() == 1);
 
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() + inputs[1]->sequence() + inputs[2]->sequence() + inputs[3]->sequence(), inputs[0]->dimension());
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() + inputs[1]->sequence() + inputs[2]->sequence() + inputs[3]->sequence() * 4, inputs[0]->dimension());
 
     return Op::reshape(inputs, outputs);
 }

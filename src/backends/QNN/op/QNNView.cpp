@@ -70,7 +70,14 @@ ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    return graphAddNode(name(), "Reshape", inputs, outputs, {}, "qti.aisw", true, &scale_);
+
+    std::cout << outputs[0]->dtype() << std::endl;
+    std::cout << inputs[0]->dtype() << std::endl;
+    if( outputs[0]->dtype() == MLLM_TYPE_I8 )
+        return graphAddNode(name(), "Reshape", inputs, outputs, {}, "qti.aisw", true, &scale_);
+    else {
+        return graphAddNode(name(), "Reshape", inputs, outputs, {}, "qti.aisw", true, nullptr);
+    }
 }
 
 ErrorCode QNNView::load(AbstructLoader &loader) {
@@ -79,28 +86,75 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
 
     string scaleName = name();
 
-    std::string wordToRemove = "-00_view_";
-    int pos = scaleName.find(wordToRemove);
-    if (pos != -1) {
-        scaleName.erase(pos, wordToRemove.length());
+
+    std::string wordSplit = ".or_split";
+    
+
+
+    int spos = scaleName.find(wordSplit);
+    if (spos != -1) {
+        // KVMerge
+        scaleName.erase(spos, wordSplit.length());
+
+        string scale_type_name = ".input_scale";
+        std::string split_variable = "";
+        std::string wordToRemove = "-00_view_";
+
+        int pos = scaleName.find(wordToRemove);
+        if (pos != -1) {
+            scaleName.erase(pos, wordToRemove.length());
+            split_variable = ".out_proj";
+        }
+
+        wordToRemove = "-01_view_";
+        pos = scaleName.find(wordToRemove);
+        if (pos != -1) {
+            scaleName.erase(pos, wordToRemove.length());
+            split_variable = ".q_proj";
+        }
+
+        scale_.setName(scaleName + split_variable + scale_type_name);
+        scale_.reshape(1, 1, 1, 1);
+        scale_.setDtype(MLLM_TYPE_F32);
+        scale_.alloc();
+        loader.load(&scale_);
+
+        std::cout << scaleName + split_variable + scale_type_name << std::endl;
+        std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
+        
+    } else {
+
+        // common view
+        std::string wordToRemove = "-00_view_";
+        int pos = scaleName.find(wordToRemove);
+        if (pos != -1) {
+            scaleName.erase(pos, wordToRemove.length());
+        }
+
+        string scale_type_name = ".output_scale";
+
+        wordToRemove = ".quantize";
+        pos = scaleName.find(wordToRemove);
+        if (pos != -1) {
+            scaleName.erase(pos, wordToRemove.length());
+            scale_type_name = ".input_scale";
+        }
+
+        scale_.setName(scaleName + scale_type_name);
+        scale_.reshape(1, 1, 1, 1);
+        scale_.setDtype(MLLM_TYPE_F32);
+        scale_.alloc();
+        loader.load(&scale_);
+
+        std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
+
     }
 
-    string scale_type_name = ".output_scale";
+    
 
-    wordToRemove = ".quantize";
-    pos = scaleName.find(wordToRemove);
-    if (pos != -1) {
-        scaleName.erase(pos, wordToRemove.length());
-        scale_type_name = ".input_scale";
-    }
+    
 
-    scale_.setName(scaleName + scale_type_name);
-    scale_.reshape(1, 1, 1, 1);
-    scale_.setDtype(MLLM_TYPE_F32);
-    scale_.alloc();
-    loader.load(&scale_);
-
-    std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
+    
 
     return Op::load(loader);
 }

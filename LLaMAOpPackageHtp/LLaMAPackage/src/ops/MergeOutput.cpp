@@ -113,7 +113,7 @@ GraphStatus mergeoutputImpl(TensorType& out_0,
   auto [b_in_2, h_in_2, w_in_2, d_in_2] = in_2.dims();
   auto [b_in_3, h_in_3, w_in_3, d_in_3] = in_3.dims();
 
-  const size_t dims[] = {b_in_0, h_in_0 + h_in_1 + h_in_2 + h_in_3, w_in_0, d_in_0};
+  const size_t dims[] = {b_in_0, h_in_0 + h_in_1 + h_in_2 + h_in_3 * 4, w_in_0, d_in_0};
 
   out_0.set_dims(dims);
 
@@ -148,7 +148,7 @@ GraphStatus mergeoutputImpl(TensorType& out_0,
   memcpy(out_ptr, in_ptr_2, b_in_2 * h_in_2 * w_in_2 * d_in_2 * bitwidth);
   out_ptr += b_in_2 * h_in_2 * w_in_2 * d_in_2 * bitwidth;
 
-  memcpy(out_ptr, in_ptr_3, b_in_3 * h_in_3 * w_in_3 * d_in_3 * bitwidth);
+  memcpy(out_ptr, in_ptr_3, b_in_3 * h_in_3 * w_in_3 * d_in_3 * bitwidth * 4);
 
   return GraphStatus::Success;
 }

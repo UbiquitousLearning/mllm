@@ -819,32 +819,6 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
                 </Shape>
             </Output>
 
-            <Output>
-                <Name>out[2]</Name>
-                <Description>
-                    <Content>v output</Content>
-                </Description>
-                <Mandatory>false</Mandatory>
-                <Datatype>BACKEND_SPECIFIC</Datatype>
-                <Shape>
-                    <Rank>4D</Rank>
-                    <Layout>NHWC</Layout>
-                </Shape>
-            </Output>
-
-            <Output>
-                <Name>out[3]</Name>
-                <Description>
-                    <Content>x output</Content>
-                </Description>
-                <Mandatory>false</Mandatory>
-                <Datatype>BACKEND_SPECIFIC</Datatype>
-                <Shape>
-                    <Rank>4D</Rank>
-                    <Layout>NHWC</Layout>
-                </Shape>
-            </Output>
-
             <Parameter>
                 <Name>num</Name>
                 <Mandatory>true</Mandatory>
@@ -1202,23 +1176,6 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Output>
-
-            <Output>
-                <Name>out[2]</Name>
-                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
-                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
-                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
-                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
-            </Output>
-
-            <Output>
-                <Name>out[3]</Name>
-                <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
-                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
-                <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
-                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
-            </Output>
-
 
         </SupplementalOpDef>
 
