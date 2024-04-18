@@ -20,7 +20,8 @@ GraphStatus splitinputImpl(TensorType& out_0,
                             TensorType& out_2,
                             TensorType& out_3,
                            const TensorType& in_0,
-                           const TensorType1 &in_1);
+                           const TensorType1 &in_1,
+                           const Tensor &num);
 
 // forward declaration of sample cost function
 static float splitinputCostFunc(const Op *op);
@@ -92,7 +93,8 @@ GraphStatus splitinputImpl(TensorType& out_0,
                             TensorType& out_2,
                             TensorType& out_3,
                            const TensorType& in_0,
-                           const TensorType1 &in_1)
+                           const TensorType1 &in_1,
+                           const Tensor &num)
 
 {
   /*

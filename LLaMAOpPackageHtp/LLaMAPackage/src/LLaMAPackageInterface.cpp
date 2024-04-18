@@ -228,7 +228,7 @@ Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
         }
     }
     else if (std::string(opConfig.v1.typeName) == "SplitInput"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 4){
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }
