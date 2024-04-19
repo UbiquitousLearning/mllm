@@ -34,30 +34,6 @@ void QNNExecutor::setup(Net *net) {
     }
 }
 
-// void QNNExecutor::QNNGraphThreadExecute(int id, Net* net) {
-
-//     string typeName = "Prompt_Graph.";
-    
-//     std::vector<int> names;
-//     std::vector<QNNGraph*> qnn_graphs;
-//     for (int i = id; i < (int)net->subGraph().size(); i+=this->threadNum_) {
-//         string name = typeName + std::to_string(i);
-//         auto &g = net->subGraph()[name];
-//         auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-        
-//         qnn_graphs.push_back(qnn_graph);
-//         names.push_back(i);
-//     }
-
-//     while(!this->threadVar_[id])
-//         usleep(10);
-
-//     auto ex_time_start = mllm_time_us();
-//     for (int i = 0; i < names.size(); i++) 
-//         result_ = qnn_graphs[i]->forward(typeName + std::to_string(names[i]));
-//     auto ex_time_end = mllm_time_us();
-//     std::cout << "thread execution time" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
-// }
 
 void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     bool init = false;
@@ -432,6 +408,148 @@ void QNNExecutor::execute(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
         auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
         run_time_.push_back(token_run_time);
     }
+}
+
+void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) {
+    bool init = false;
+    bool reshape = false;
+
+    checkReshape(init, reshape, input_tensors);
+
+    // set Input tensor
+    vector<int> flashGid = {};
+    for (int tid = 0; tid < net->inputNames().size(); ++tid) {
+        auto input_name = net->inputNames()[tid];
+        auto input_tensor = input_tensors[tid];
+        input_tensor->setName(input_name);
+        net->tensors()[input_name] = input_tensor;
+        if (std::find(flashGid.begin(), flashGid.end(), net->inGmap()[input_name]) == flashGid.end()) {
+            flashGid.push_back(net->inGmap()[input_name]);
+        }
+    }
+    string typeName;
+    if (executionType_ == PROMPT) {
+        typeName = "Prompt_Graph.";
+    } else if (executionType_ == AUTOREGRESSIVE) {
+        typeName = "Autoregressive_Graph.";
+    }
+    for (auto Gid : flashGid) {
+        net->subGraph()[typeName + std::to_string(Gid)]->reflashInput(net->tensors());
+    }
+
+    std::fstream fs("AR_latency.txt", std::ios::app);
+    auto ex_time_start = mllm_time_us();
+    PRINT_MEMORY_USAGE("before setup all graph");
+    shared_ptr<Backend> a = net->backends()[MLLM_QNN];
+
+    for (int i = 0; i < (int)net->subGraph().size(); ++i) {
+        string name = typeName + std::to_string(i);
+        auto &g = net->subGraph()[name];
+
+        // cast graph to QNNGraph
+        // TODO: if this implementation is used, the setUpTensors(string) should be merged to Graph
+        // the qnn_graph below is where we cast the Graph to QNNGraph
+        auto expectedBackend = ctx->sub_backend_[i];
+        if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
+            std::cout << "=======setup cpu graph " << i << std::endl;
+            g->reshape();
+            g->setUpTensors();
+        } else {
+            std::cout << "Graph" << i << " expectedBackend: " << expectedBackend << std::endl;
+            if (i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
+                std::cout << "=======setup cpu graph " << i << std::endl;
+                g->reshape();
+                g->setUpTensors();
+            } else {
+                std::cout << "=======setup qnn graph " << i << std::endl;
+                auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+                g->reshape();
+                // if ( autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0) {
+                // g->setUpTensors();
+                qnn_graph->setUpTensors(name);
+            }
+        }
+
+        if (false) {
+            if (i < (int)net->subGraph().size() - 1) {
+                g->freeTensors();
+            }
+            net->freeTensors(i);
+        }
+    }
+    auto ex_time_end = mllm_time_us();
+
+    fs << "setup all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+
+    ex_time_start = mllm_time_us();
+
+
+    // execute all graphs here
+    for (int i = 0; i < (int)net->subGraph().size(); ++i) {
+        uint64_t t_start = mllm_time_us();
+
+        auto expectedBackend = ctx->sub_backend_[i];
+        if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
+            std::cout << "=======execute cpu graph " << i << std::endl;
+            string name = typeName + std::to_string(i);
+            auto &g = net->subGraph()[name];
+            result_ = g->forward();
+        } else {
+            std::cout << "Graph" << i << " expectedBackend: " << expectedBackend << std::endl;
+            if (i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
+                std::cout << "=======execute cpu graph " << i << std::endl;
+                string name = typeName + std::to_string(i);
+                auto &g = net->subGraph()[name];
+                result_ = g->forward();
+            } else {
+                std::cout << "=======execute qnn graph " << i << std::endl;
+                string name = typeName + std::to_string(i);
+                auto &g = net->subGraph()[name];
+                auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+                result_ = qnn_graph->forward(name);
+                uint64_t t_end = mllm_time_us();
+                std::cout << "graph forward " << (t_end - t_start) / 1000.0F << "ms" << std::endl;
+                PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
+            }
+        }
+    }
+
+    ex_time_end = mllm_time_us();
+    fs << "execute all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+
+    // free all graphs here
+    for (int i = 0; i < (int)net->subGraph().size(); ++i) {
+        auto expectedBackend = ctx->sub_backend_[i];
+        if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
+            continue;
+        } else if (i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
+            continue;
+        }
+
+        string name = typeName + std::to_string(i);
+        auto &g = net->subGraph()[name];
+        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+        qnn_graph->free(name);
+    }
+
+    // use the first graph to free all context is OK.
+    {
+        string name = typeName + std::to_string(1);
+        auto &g = net->subGraph()[name];
+        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+        qnn_graph->allFree();
+    }
+
+    // open file "AR_latency.txt" to record the time of each token
+
+    fs << "---------------" << std::endl;
+
+    if (input_tensors[0]->sequence() == 1) {
+        auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
+        run_time_.push_back(token_run_time);
+    }
+
+    autoregressive_seq_pos_ += input_tensors[0]->sequence();
 }
 
 } // namespace mllm

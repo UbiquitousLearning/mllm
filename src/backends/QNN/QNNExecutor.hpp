@@ -43,7 +43,7 @@ public:
 
     // void QNNGraphThreadExecute(int id, Net* net);
 
-private:
+protected:
     QNNExecutionType executionType_ = PROMPT;
 
     uint autoregressive_seq_pos_ = 0;
@@ -52,6 +52,12 @@ private:
 
     // uint threadNum_ = 100;
 
+};
+
+class QNNPipelineExecutor : public QNNExecutor {
+public:
+    // used for assigning graph backends execuation
+    void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors);
 };
 
 } // namespace mllm
