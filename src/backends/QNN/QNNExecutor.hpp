@@ -4,7 +4,9 @@
 #include "Executor.hpp"
 #include "Types.hpp"
 #include "express/ExpressBase.hpp"
-#include <numeric>
+#include <condition_variable>
+#include <mutex>
+#include <queue>
 #include <thread>
 
 namespace mllm {
@@ -12,7 +14,6 @@ class QNNExecutor : public Executor {
 public:
     QNNExecutor(ParamLoader *data_loader) :
         Executor(data_loader) {
-
     }
     ~QNNExecutor() = default;
 
@@ -51,10 +52,23 @@ protected:
     // int threadVar_[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
     // uint threadNum_ = 100;
-
 };
 
 class QNNPipelineExecutor : public QNNExecutor {
+    class ThreadPool {
+    public:
+        ThreadPool(size_t num_threads);
+        ~ThreadPool();
+        void enqueue(std::function<void()> f);
+
+    private:
+        std::vector<std::thread> workers_;
+        std::queue<std::function<void()>> tasks_;
+        std::mutex queue_mutex_;
+        std::condition_variable condition_;
+        bool stop_;
+    };
+
 public:
     // used for assigning graph backends execuation
     void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors);
