@@ -159,7 +159,7 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
     _SubgraphBegin(c);
     // loop
 
-    for (int layer = 0; layer < 1; ++layer) {
+    for (int layer = 0; layer < 24; ++layer) {
 
         i = _KVCache({i}, cache_max, std::to_string(layer) + ".kvcache");
         auto res = i;
@@ -185,7 +185,8 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
 
     // end loop
     // _SubgraphBegin(c, MLLM_CPU);
-    // i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
+    i = _LayerNorm({i}, hidden_dim, true, 1e-5, (string) "model.decoder.final_layer_norm");
+    i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
 }
 
 template <typename Dtype>
@@ -200,7 +201,7 @@ void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dty
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/vocab_opt.mllm");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./models/opt-1.3b-static-int8.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./models/opt-1.3b-head-static-int8.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     // cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.add<int>("seq", 's', "num of threads", false, 1);
