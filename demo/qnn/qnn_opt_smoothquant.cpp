@@ -290,7 +290,7 @@ int main(int argc, char **argv) {
 
     // ParamLoader param_loader(model_path);
     ParamLoader param_loader(model_path);
-    QNNExecutor ex(&param_loader);
+    QNNPipelineExecutor ex(&param_loader);
 
     ex.setup(&net);
 
@@ -314,6 +314,8 @@ int main(int argc, char **argv) {
         // delete the last end token
         tokens_id.pop_back();
 
+        tokens_id.resize(32);
+
         BPETokenizer::token2Tensor(&net, tokens_id, input);
         // fullTensor(input, net, {1,1, seqLength, 1}, 2.f);
         input->printData<float>();
@@ -326,7 +328,7 @@ int main(int argc, char **argv) {
             // ex.run(&net, {input});
             auto result = ex.result();
             result[0]->printShape();
-            result[0]->printData<float>();
+            // result[0]->printData<float>();
 
             // for (int n = 0; n < 32 * 7 * 64; n++) {
             //     std::cout << static_cast<float>(result[0]->hostPtr<float>()[n]) << " ";

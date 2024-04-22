@@ -507,9 +507,13 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
     ex_time_start = mllm_time_us();
 
     // execute all graphs here
-    vector<vector<shared_ptr<Tensor>>> chunked_result_list(chunk_num);
+    vector<shared_ptr<Tensor>> chunked_result_list;
+
     // wrap the execute loop in a thread
-    std::function<void(int chunk_id)> executeFunction = [&](int chunk_id) {
+    std::function<void(int chunk_id)> chunkExecutionFunction = [&](int chunk_id) {
+
+        std::cout << "======= chunk:" << chunk_id << " total graph " << net->subGraph().size() << std::endl;
+
         for (int i = 0; i < (int)net->subGraph().size(); ++i) {
             // lock the mutex of mutexes at i
             mutexes[i].lock();
@@ -526,48 +530,51 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
 
             uint64_t t_start = mllm_time_us();
             auto expectedBackend = ctx->sub_backend_[i];
+            std::cout << "Graph" << i << " expectedBackend: " << expectedBackend << std::endl;
             if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
-                std::cout << "=======" << chunk_id << "execute cpu graph " << i << std::endl;
+                std::cout << "======= chunk:" << chunk_id << " execute cpu graph " << i << std::endl;
                 string name = typeName + std::to_string(i);
                 auto &g = net->subGraph()[name];
-                chunked_result_list[chunk_num] = g->forward();
+                chunked_result_list = g->forward();
             } else {
-                std::cout << "Graph" << i << " expectedBackend: " << expectedBackend << std::endl;
                 if (i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
-                    std::cout << "=======" << chunk_id << "execute cpu graph " << i << std::endl;
+                    std::cout << "======= chunk:" << chunk_id << " execute cpu graph " << i << std::endl;
                     string name = typeName + std::to_string(i);
                     auto &g = net->subGraph()[name];
-                    chunked_result_list[chunk_num] = g->forward();
+
+                    result_ = g->forward();
+                    chunked_result_list = g->forward();
                 } else {
-                    std::cout << "=======" << chunk_id << "execute qnn graph " << i << std::endl;
+                    std::cout << "======= chunk:" << chunk_id << " execute qnn graph " << i << std::endl;
                     string name = typeName + std::to_string(i);
                     auto &g = net->subGraph()[name];
                     auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-                    chunked_result_list[chunk_num] = qnn_graph->forward(name);
-                    uint64_t t_end = mllm_time_us();
-                    std::cout << "graph forward " << (t_end - t_start) / 1000.0F << "ms" << std::endl;
-                    PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
+                    chunked_result_list = qnn_graph->forward(name);
                 }
             }
+            uint64_t t_end = mllm_time_us();
+            std::cout << "graph forward " << (t_end - t_start) / 1000.0F << "ms" << std::endl;
+            PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
 
-            // TODO: if it is the last graph, move the result to the final result
+            // if it is the last graph, move the result to the final result
             if (i == (int)net->subGraph().size() - 1) {
-                result_ = vector<shared_ptr<Tensor>>(chunked_result_list[chunk_num].size());
-                if (chunk_num == 0) {
-                    // reshape the result tensor
-                    for (int tid = 0; tid < chunked_result_list[chunk_num].size(); ++tid) {
+                result_.resize(chunked_result_list.size());
+                if (chunk_id == 0) { // reshape the result tensor when first chunk is executed
+                    for (int tid = 0; tid < chunked_result_list.size(); ++tid) {
                         result_[tid] = std::make_shared<Tensor>();
                         result_[tid]->setBackend(net->backends()[BackendType::MLLM_CPU].get());
-                        result_[tid]->reshape(chunked_result_list[chunk_num][tid]->dimension(),
-                                              chunked_result_list[chunk_num][tid]->head(),
+                        result_[tid]->reshape(chunked_result_list[tid]->batch(),
+                                              chunked_result_list[tid]->head(),
                                               chunk_size * chunk_num,
-                                              chunked_result_list[chunk_num][tid]->dimension());
+                                              chunked_result_list[tid]->dimension());
                     }
                 }
                 // move the result to the final result
-                for (int tid = 0; tid < chunked_result_list[chunk_num].size(); ++tid) {
-                    auto result_tensor = chunked_result_list[chunk_num][tid];
-                    memcpy(result_[tid]->ptrAt<float>(0, 0, chunk_size * chunk_num, 0), result_tensor->hostPtr<float>(), result_tensor->count() * sizeof(float));
+                // TODO: segmentation fault
+                for (int tid = 0; tid < chunked_result_list.size(); ++tid) {
+                    auto& result_tensor = chunked_result_list[tid];
+                    chunked_result_list[tid]->printShape();
+                    memcpy(result_[tid]->ptrAt<float>(0, 0, chunk_size * chunk_id, 0), result_tensor->hostPtr<float>(), result_tensor->count() * sizeof(float));
                 }
             }
 
@@ -577,12 +584,19 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
         }
     };
 
-    // create graph_num threads of executeFunction
-    // use thread pool to manage the threads
-    ThreadPool thread_pool(net->subGraph().size());
-    for (int i = 0; i < chunk_num; ++i) {
-        thread_pool.enqueue(std::bind(executeFunction, i));
-    }
+    // wrap the thread pool execution in a function and await the thread pool to finish
+    std::function executeFunction = [&]() {
+        // create graph_num threads of executeFunction
+        // use thread pool to manage the threads
+        ThreadPool thread_pool(net->subGraph().size());
+        for (int i = 0; i < chunk_num; ++i) {
+            thread_pool.enqueue(std::bind(chunkExecutionFunction, i));
+        }
+    };
+    executeFunction();
+
+    std::cout << "CHECK RESULT" << std::endl;
+    std::cout << result_.size();
 
     ex_time_end = mllm_time_us();
     fs << "execute all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;

@@ -70,6 +70,9 @@ class QNNPipelineExecutor : public QNNExecutor {
     };
 
 public:
+    QNNPipelineExecutor(ParamLoader *data_loader) :
+        QNNExecutor(data_loader) {
+    }
     // used for assigning graph backends execuation
     void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors);
 };

@@ -478,7 +478,7 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
         // }
 
         std::cout << "free graphs begin" << std::endl;
-        qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
+        // qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
         m_graphsInfo = nullptr;
     }
 

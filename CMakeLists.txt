@@ -367,15 +367,15 @@ add_executable(qnn_opt_smoothquant ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_opt_smooth
 if(QNN)
     target_link_libraries(qnn_opt_smoothquant MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
 endif()
-add_executable(mat_test ${PROJECT_SOURCE_DIR}/demo/qnn/matmul_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/Tokenizer.hpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/tokenizers/BPE/Bpe.hpp
-)
-if(QNN)
-    target_link_libraries(mat_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
-endif()
+# add_executable(mat_test ${PROJECT_SOURCE_DIR}/demo/qnn/matmul_test.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/Tokenizer.hpp
+#         src/tokenizers/BPE/Bpe.cpp
+#         src/tokenizers/BPE/Bpe.hpp
+# )
+# if(QNN)
+#     target_link_libraries(mat_test MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
+# endif()
 
 if(QNN)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
