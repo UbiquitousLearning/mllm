@@ -122,6 +122,62 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         std::cout << scaleName + split_variable + scale_type_name << std::endl;
         std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
         
+    } else if (scaleName.find(".ires_split") != -1) {
+        
+        spos = scaleName.find(".ires_split");
+
+        wordSplit = ".ires_split";
+        scaleName.erase(spos, wordSplit.length());
+
+        string scale_type_name = ".input_scale";
+        std::string split_variable = "";
+        std::string wordToRemove = "-00_view_";
+
+        int pos = scaleName.find(wordToRemove);
+        if (pos != -1) {
+            scaleName.erase(pos, wordToRemove.length());
+            split_variable = ".q_proj";
+        }
+
+
+        scale_.setName(scaleName + split_variable + scale_type_name);
+        scale_.reshape(1, 1, 1, 1);
+        scale_.setDtype(MLLM_TYPE_F32);
+        scale_.alloc();
+        loader.load(&scale_);
+
+        std::cout << scaleName + split_variable + scale_type_name << std::endl;
+        std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
+
+
+    } else if (scaleName.find(".fres_split") != -1) {
+        
+        spos = scaleName.find(".fres_split");
+
+        wordSplit = ".fres_split";
+        scaleName.erase(spos, wordSplit.length());
+
+        string scale_type_name = ".input_scale";
+        std::string split_variable = "";
+        std::string wordToRemove = "-00_view_";
+
+        int pos = scaleName.find(wordToRemove);
+        if (pos != -1) {
+            scaleName.erase(pos, wordToRemove.length());
+            split_variable = ".fc1";
+        }
+
+
+        scale_.setName(scaleName + split_variable + scale_type_name);
+        scale_.reshape(1, 1, 1, 1);
+        scale_.setDtype(MLLM_TYPE_F32);
+        scale_.alloc();
+        loader.load(&scale_);
+
+        std::cout << scaleName + split_variable + scale_type_name << std::endl;
+        std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
+
+
     } else {
 
         // common view

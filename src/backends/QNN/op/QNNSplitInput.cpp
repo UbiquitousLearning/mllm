@@ -162,6 +162,32 @@ ErrorCode QNNSplitInput::load(AbstructLoader &loader) {
 
         std::cout <<  scale1_.hostPtr<float>()[0] << std::endl;
 
+    } else if (scaleName.find("ires_split") != -1) {
+
+        pos = scaleName.find("ires_split");
+        wordToRemove = "ires_split";
+        scaleName.erase(pos, wordToRemove.length());
+
+        // q
+        scale1_.setName(scaleName + "q_proj.input_scale");
+        scale1_.reshape(1, 1, 1, 1);
+        scale1_.setDtype(MLLM_TYPE_F32);
+        scale1_.alloc();
+        loader.load(&scale1_);
+
+    } else if (scaleName.find("fres_split") != -1) {
+
+        pos = scaleName.find("fres_split");
+        wordToRemove = "fres_split";
+        scaleName.erase(pos, wordToRemove.length());
+
+        // fc1
+        scale1_.setName(scaleName + "fc1.input_scale");
+        scale1_.reshape(1, 1, 1, 1);
+        scale1_.setDtype(MLLM_TYPE_F32);
+        scale1_.alloc();
+        loader.load(&scale1_);
+
     } else {
         exit(-1);
     }
