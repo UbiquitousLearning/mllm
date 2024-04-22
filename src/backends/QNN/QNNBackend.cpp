@@ -270,19 +270,21 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     // for (int i = 0; i < 4; i++) {
     //     dimensionsInput[i] = inputs[0]->shape()[i];
     // }
-    auto data_type = QNN_DATATYPE_FLOAT_32;
-    std::cout << "input 0 type " << inputs[0]->dtype() << std::endl;
-    std::cout << graphName << std::endl;
-    inputs[0]->printShape();
-    if (inputs[0]->dtype() == MLLM_TYPE_I8) {
-        std::cout << "QNN backend INT8 op" << std::endl;
-        data_type = QNN_DATATYPE_SFIXED_POINT_8;
-    }
 
-    if ( graphName != "Prompt_Graph.1") {
-        std::cout << "QNN backend INT8 op" << std::endl;
-        data_type = QNN_DATATYPE_SFIXED_POINT_8;
-    }
+    // all input for QNN is INT8
+    auto data_type = QNN_DATATYPE_SFIXED_POINT_8;
+    // std::cout << "input 0 type " << inputs[0]->dtype() << std::endl;
+    // std::cout << graphName << std::endl;
+    // inputs[0]->printShape();
+    // if (inputs[0]->dtype() == MLLM_TYPE_I8) {
+    //     std::cout << "QNN backend INT8 op" << std::endl;
+    //     data_type = QNN_DATATYPE_SFIXED_POINT_8;
+    // }
+
+    // if ( graphName != "Prompt_Graph.1") {
+    //     std::cout << "QNN backend INT8 op" << std::endl;
+    //     data_type = QNN_DATATYPE_SFIXED_POINT_8;
+    // }
     qnnModels_[qnnModelIndex_].addTensor(inputs[0]->name().c_str(), (Qnn_Tensor_t){
                                                                         .version = QNN_TENSOR_VERSION_1,
                                                                         {.v1 = {

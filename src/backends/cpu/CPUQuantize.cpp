@@ -39,13 +39,21 @@ ErrorCode CPUQuantize::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
             for (int s = 0; s < seq; ++s) {
                 for (int d = 0; d < dim; ++d) {
                     float value = input->dataAt<float>(b, h, s, d);
-                    output->setDataAt<int8_t>(b, h, s, d, static_cast<int8_t>(roundf(value / quantScale)));
+                    int32_t v = static_cast<int32_t>(roundf(value / quantScale));
+                    v = std::max (std::min(v, 128), -127);
+                    output->setDataAt<uint8_t>(b, h, s, d, static_cast<uint8_t>(v));
                 }
             }
         }
     }
     return Op::execute(inputs, outputs);
 }
+
+ErrorCode CPUQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    activation_dtype_ = MLLM_TYPE_I8;
+    return Op::setUp(inputs, outputs);
+}
+
 ErrorCode CPUQuantize::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     return Op::free(inputs, outputs);
 }

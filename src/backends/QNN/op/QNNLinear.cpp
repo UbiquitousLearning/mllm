@@ -51,6 +51,59 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     //     dimensionsInput[i] = inputs[0]->shape()[i];
     // }
 
+    uint32_t dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_dilation[]   = {2};
+    uint32_t InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_dilation[]              = {1, 1};
+    uint32_t dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount[] = {2, 2};
+    uint32_t InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount[]            = {0, 0, 0, 0};
+    uint32_t dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride[]     = {2};
+    uint32_t InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride[]                = {1, 1};
+
+    vector<Qnn_Param_t> params_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D = {
+        {.paramType = QNN_PARAMTYPE_TENSOR,
+         .name = "stride",
+         .tensorParam =
+             (Qnn_Tensor_t){
+                 .version = QNN_TENSOR_VERSION_1,
+                 .v1 = {.id = 0,
+                        .name = "InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride",
+                        .type = QNN_TENSOR_TYPE_STATIC,
+                        .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                        .dataType = QNN_DATATYPE_UINT_32,
+                        .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                           QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                           {.scaleOffsetEncoding = {.scale = 0.0000000000000000f,
+                                                                    .offset = 0}}},
+                        .rank = 1,
+                        .dimensions = dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride,
+                        .memType = QNN_TENSORMEMTYPE_RAW,
+                        .clientBuf =
+                            {.data = (uint8_t *)InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride,
+                             .dataSize = 8}}}},
+        {.paramType = QNN_PARAMTYPE_TENSOR,
+         .name = "pad_amount",
+         .tensorParam =
+             (Qnn_Tensor_t){
+                 .version = QNN_TENSOR_VERSION_1,
+                 .v1 = {.id = 0,
+                        .name = "InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount",
+                        .type = QNN_TENSOR_TYPE_STATIC,
+                        .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                        .dataType = QNN_DATATYPE_UINT_32,
+                        .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                           QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                           {.scaleOffsetEncoding = {.scale = 0.0000000000000000f,
+                                                                    .offset = 0}}},
+                        .rank = 2,
+                        .dimensions =
+                            dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount,
+                        .memType = QNN_TENSORMEMTYPE_RAW,
+                        .clientBuf =
+                            {.data = (uint8_t *)
+                                 InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount,
+                             .dataSize = 16}}}},
+
+    };
+
     // TODO： split into another function
     // if weight is float32, use float matmul
     if (weight_.dtype() == MLLM_TYPE_F32) {
@@ -96,7 +149,8 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                                .memType = QNN_TENSORMEMTYPE_RAW,
                                {.clientBuf = {.data = nullptr,
                                               .dataSize = 0}}}}}};
-        return graphAddNode(name() + ".matmul", "MatMul", {inputs[0]->name(), weight_.name()}, matmulOut, paramsMatmul);
+
+        return graphAddNode(name() + ".matmul", "Conv2d", {inputs[0]->name(), weight_.name()}, matmulOut, params_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D);
     } // TODO： split into another function
 
     vector<Qnn_Tensor_t> quantizedInput = {
@@ -245,7 +299,7 @@ ErrorCode QNNLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 
 ErrorCode QNNLinear::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
-    weight_.reshape(1, 1, out_features_, in_features_);
+    weight_.reshape(1, 1, in_features_, out_features_);
     if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
         weight_.setDtype(loader.getDataType(weight_.name()));
         weight_.alloc();
