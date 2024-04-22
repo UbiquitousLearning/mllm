@@ -221,7 +221,7 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
     // end loop
     // _SubgraphBegin(c, MLLM_CPU);
     i = _LayerNorm({i}, hidden_dim, true, 1e-5, (string) "model.decoder.final_layer_norm");
-    i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
+    // i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
 }
 
 template <typename Dtype>

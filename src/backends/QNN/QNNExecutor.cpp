@@ -511,7 +511,6 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
 
     // wrap the execute loop in a thread
     std::function<void(int chunk_id)> chunkExecutionFunction = [&](int chunk_id) {
-
         std::cout << "======= chunk:" << chunk_id << " total graph " << net->subGraph().size() << std::endl;
 
         for (int i = 0; i < (int)net->subGraph().size(); ++i) {
@@ -567,13 +566,13 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
                                               chunked_result_list[tid]->head(),
                                               chunk_size * chunk_num,
                                               chunked_result_list[tid]->dimension());
+                        result_[tid]->alloc();
                     }
                 }
                 // move the result to the final result
                 // TODO: segmentation fault
                 for (int tid = 0; tid < chunked_result_list.size(); ++tid) {
-                    auto& result_tensor = chunked_result_list[tid];
-                    chunked_result_list[tid]->printShape();
+                    auto &result_tensor = chunked_result_list[tid];
                     memcpy(result_[tid]->ptrAt<float>(0, 0, chunk_size * chunk_id, 0), result_tensor->hostPtr<float>(), result_tensor->count() * sizeof(float));
                 }
             }
