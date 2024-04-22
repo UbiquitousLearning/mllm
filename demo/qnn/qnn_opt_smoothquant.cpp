@@ -159,10 +159,13 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
     // _SubgraphBegin(c);
     // loop
 
-    for (int layer = 0; layer < 1; ++layer) {
+    for (int layer = 0; layer < 4; ++layer) {
 
         // i = _KVCache({i}, cache_max, std::to_string(layer) + ".kvcache");
         // _SubgraphBegin(c, MLLM_CPU);
+
+        if (layer != 0)
+            _SubgraphBegin(c, MLLM_CPU);
 
         auto res = i;
         res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
@@ -213,13 +216,12 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
 
         
         i = *i + res;
-        // _SubgraphBegin(c);
     }
 
     // end loop
     // _SubgraphBegin(c, MLLM_CPU);
-    // i = _LayerNorm({i}, hidden_dim, true, 1e-5, (string) "model.decoder.final_layer_norm");
-    // i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
+    i = _LayerNorm({i}, hidden_dim, true, 1e-5, (string) "model.decoder.final_layer_norm");
+    i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
 }
 
 template <typename Dtype>
@@ -348,11 +350,11 @@ int main(int argc, char **argv) {
         // delete the last end token
         tokens_id.pop_back();
 
-        // tokens_id.resize(32);
+        tokens_id.resize(128);
 
         BPETokenizer::token2Tensor(&net, tokens_id, input);
         // fullTensor(input, net, {1,1, seqLength, 1}, 2.f);
-        input->printData<float>();
+        // input->printData<float>();
 
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
@@ -362,7 +364,7 @@ int main(int argc, char **argv) {
             // ex.run(&net, {input});
             auto result = ex.result();
             result[0]->printShape();
-            result[0]->printData<float>();
+            // result[0]->printData<float>();
 
             // for (int n = 0; n < 32 * 7 * 64; n++) {
             //     std::cout << static_cast<float>(result[0]->hostPtr<float>()[n]) << " ";
