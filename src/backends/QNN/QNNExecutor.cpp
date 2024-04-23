@@ -5,6 +5,7 @@
 #include <fstream>
 #include <functional>
 #include <memory>
+#include <thread>
 #include <vector>
 #include "QNNBackend.hpp"
 #include "QNNGraph.hpp"
@@ -498,15 +499,15 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
     }
     auto ex_time_end = mllm_time_us();
 
-    // creat subGraph().size() mutex to control the pipeline
-    // TODO: if the chunk_num >> subGraph().size(), is there possibility when the latter chunk execute before the former chunk?
-    std::vector<std::mutex> mutexes(net->subGraph().size());
-
     fs << "setup all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     ex_time_start = mllm_time_us();
 
     // execute all graphs here
+    // creat subGraph().size() mutex to control the pipeline
+    std::vector<std::mutex> mutexes(net->subGraph().size());
+    std::mutex chunk_mutex;
+    std::vector<int> graph_chunk_index(net->subGraph().size(), 0);
     vector<shared_ptr<Tensor>> chunked_result_list;
 
     // wrap the execute loop in a thread
@@ -514,9 +515,22 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
         std::cout << "======= chunk:" << chunk_id << " total graph " << net->subGraph().size() << std::endl;
 
         for (int i = 0; i < (int)net->subGraph().size(); ++i) {
+            // make sure chunks execute by order
+            while (true) {
+                chunk_mutex.lock();
+                if (graph_chunk_index[i] == chunk_id) {
+                    graph_chunk_index[i]++;
+                    chunk_mutex.unlock();
+                    break;
+                } else {
+                    chunk_mutex.unlock();
+                    std::this_thread::yield();
+                }
+            }
+
+            // make sure current graph is ready for this chunk
             // lock the mutex of mutexes at i
             mutexes[i].lock();
-            // ------------------------------
 
             if (i == 0) {
                 // update the input tensor for each chunk
@@ -577,7 +591,6 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
                 }
             }
 
-            // ------------------------------
             // unlock the mutex of mutexes at i
             mutexes[i].unlock();
         }

@@ -350,7 +350,7 @@ int main(int argc, char **argv) {
         // delete the last end token
         tokens_id.pop_back();
 
-        tokens_id.resize(32);
+        tokens_id.resize(64);
 
         BPETokenizer::token2Tensor(&net, tokens_id, input);
         // fullTensor(input, net, {1,1, seqLength, 1}, 2.f);
