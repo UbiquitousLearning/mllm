@@ -135,7 +135,7 @@ GraphStatus mergeoutputImpl(TensorType& out_0,
   const uint8_t *in_ptr_0 = (uint8_t*)in_0.raw_data_const();
   const uint8_t *in_ptr_1 = (uint8_t*)in_1.raw_data_const();
   const uint8_t *in_ptr_2 = (uint8_t*)in_2.raw_data_const();
-  const uint8_t *in_ptr_3 = (uint8_t*)in_3.raw_data_const();
+//   const uint8_t *in_ptr_3 = (uint8_t*)in_3.raw_data_const();
   
   uint8_t *out_ptr = (uint8_t*)out_0.raw_data();
 
@@ -148,7 +148,7 @@ GraphStatus mergeoutputImpl(TensorType& out_0,
   memcpy(out_ptr, in_ptr_2, b_in_2 * h_in_2 * w_in_2 * d_in_2 * bitwidth);
   out_ptr += b_in_2 * h_in_2 * w_in_2 * d_in_2 * bitwidth;
 
-  memcpy(out_ptr, in_ptr_3, b_in_3 * h_in_3 * w_in_3 * d_in_3 * bitwidth * 4);
+//   memcpy(out_ptr, in_ptr_3, b_in_3 * h_in_3 * w_in_3 * d_in_3 * bitwidth * 4);
 
   return GraphStatus::Success;
 }

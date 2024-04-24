@@ -15,10 +15,13 @@ QNNMergeOutput::QNNMergeOutput(Backend *bn, string opName) :
 }
 
 ErrorCode QNNMergeOutput::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    assert(inputs.size() == 4);
+    assert(inputs.size() == 4 || inputs.size() == 3);
     assert(outputs.size() == 1);
 
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() + inputs[1]->sequence() + inputs[2]->sequence() + inputs[3]->sequence() * 4, inputs[0]->dimension());
+    if (inputs.size() == 3)
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() + inputs[1]->sequence() + inputs[2]->sequence(), inputs[0]->dimension());
+    else
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() + inputs[1]->sequence() + inputs[2]->sequence() + inputs[3]->sequence() * 4, inputs[0]->dimension());
 
     return Op::reshape(inputs, outputs);
 }
@@ -43,7 +46,7 @@ ErrorCode QNNMergeOutput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared
     std::cout << getOutputTensorType(outputs[0]) << std::endl;
 
     uint32_t dimensions[4] = {static_cast<uint32_t>(outputs[0]->batch()),
-                                  static_cast<uint32_t>(outputs[0]->sequence()),
+                                  static_cast<uint32_t>(outputs[0]->sequence() - (inputs[3]->sequence() * 4)),
                                   static_cast<uint32_t>(outputs[0]->head()),
                                   static_cast<uint32_t>(outputs[0]->dimension())};
 
@@ -84,6 +87,16 @@ ErrorCode QNNMergeOutput::free(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
     outputs[0]->free();
     
+    return MLLM_NO_ERROR;
+}
+
+ErrorCode QNNMergeOutput::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+
+    std::cout << inputs[0]->cntSize() << std::endl;
+    std::cout << inputs[3]->cntSize() << std::endl;
+    if (inputs.size() == 4)
+        memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*3), inputs[3]->hostPtr<uint8_t>(), inputs[3]->cntSize());
+
     return MLLM_NO_ERROR;
 }
 

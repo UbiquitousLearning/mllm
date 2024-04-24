@@ -891,6 +891,7 @@ vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, 
     auto sub_param = get_active_subgraph(ctx);
     _NEW_OP(mllm::SPLITINPUT)
     net_op_->param["isPrompt"] = (float)isPrompt;
+    net_op_->param["num"] = (float)num;
     _UPDATE_INPUT_TENSORS
     vector<NetTensor *> out_tensors;
     net_op_->out_size = num;

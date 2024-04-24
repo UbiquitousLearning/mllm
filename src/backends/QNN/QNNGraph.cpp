@@ -57,8 +57,6 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
     // backend event hook
     // we put all the things to the onExecuteStart.
     // if (autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0)
-        this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]], graphName);
-
     // std::cout << "QNNexecute thread start" << std::endl;
 
     
@@ -98,6 +96,8 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
             //            std::cout<<"op_name:"<<op_name<<" is not do"<<std::endl;
         }
     }
+
+    this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]], graphName);
 //     // backend event hook
 //     // We use a thread to parallel CPU AND QNN execution.
 
