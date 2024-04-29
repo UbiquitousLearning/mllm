@@ -56,6 +56,11 @@ public:
     virtual Op *opCreate(const OpParam &op_param, string name = "", int threadCount = 4) = 0;
     virtual TensorFunction *funcCreate(const TensorFuncType type) = 0;
 
+    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onExecuteEnd(){};
+
     /**
      * \brief Registers all the operations supported by the backend.
      * This function is expected to be overridden by each specific backend implementation.
@@ -63,8 +68,14 @@ public:
     virtual void registerOps() = 0;
     virtual void registerFuncs() = 0;
 
+    BackendType type() const {
+        return type_;
+    }
+
 private:
     shared_ptr<MemoryManager> mem_manager_;
+protected:
+    BackendType type_;
 };
 
 } // namespace mllm

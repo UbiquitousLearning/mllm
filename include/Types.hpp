@@ -25,9 +25,9 @@ typedef enum {
 } BackendType;
 
 enum TensorStatus {
-    TENSOR_DYNAMIC,
-    TENSOR_STATIC_INIT,
-    TENSOR_STATIC_READY,
+    // TENSOR_DYNAMIC,
+    TENSOR_STATIC_INIT ,
+    TENSOR_STATIC_READY ,
 };
 
 enum ErrorCode {

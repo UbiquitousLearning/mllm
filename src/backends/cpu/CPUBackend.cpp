@@ -41,6 +41,7 @@
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager> &mm) :
     Backend(mm) {
+    type_ = BackendType::MLLM_CPU;
     registerOps();
     registerFuncs();
 }
