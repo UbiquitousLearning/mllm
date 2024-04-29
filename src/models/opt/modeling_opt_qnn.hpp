@@ -18,8 +18,6 @@ class OPTEncoderBlockPart1 final : public Module {
     Layer v_proj;
     Layer q_rope;
     Layer k_rope;
-    Layer k_cache;
-    Layer v_cache;
     Layer norm1;
     int head_size_{};
     int kv_head_size_{};
@@ -28,7 +26,7 @@ class OPTEncoderBlockPart1 final : public Module {
 public:
     OPTEncoderBlockPart1() = default;
     OPTEncoderBlockPart1(int hidden_dim, int head_size, int kv_head_size, int attn_hidden_dim,
-                         RoPEType RoPE_type, int cache_limit, bool do_mask, bool bias,
+                         RoPEType RoPE_type, bool bias,
                          const OPTNameConfig &names, const string &base_name) {
         attn_hidden_dim_ = attn_hidden_dim;
         head_size_ = head_size;
@@ -42,10 +40,6 @@ public:
         if (RoPE_type > 0) {
             q_rope = RoPE(RoPE_type, base_name + names._attn_base_name + "q_rope");
             k_rope = RoPE(RoPE_type, base_name + names._attn_base_name + "k_rope");
-        }
-        if (cache_limit > 0) {
-            k_cache = KVCache(head_size / kv_head_size, cache_limit, base_name + names._attn_base_name + "k_cache");
-            v_cache = KVCache(head_size / kv_head_size, cache_limit, base_name + names._attn_base_name + "v_cache");
         }
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
@@ -61,10 +55,6 @@ public:
             q = q_rope(q);
             k = k_rope(k);
         }
-        if (k_cache.ready() && v_cache.ready()) {
-            k = k_cache(k);
-            v = v_cache(v);
-        }
         return {q, k, v, x};
     }
 };
@@ -72,17 +62,23 @@ public:
 class OPTQKVmm final : public Module {
     Layer mask;
     Layer softmax;
+    Layer k_cache;
+    Layer v_cache;
 
     int head_size_{};
     int attn_hidden_dim_{};
 
 public:
     OPTQKVmm() = default;
-    OPTQKVmm(int head_size, int attn_hidden_dim, bool do_mask,
+    OPTQKVmm(int head_size, int kv_head_size, int attn_hidden_dim, bool do_mask, int cache_limit,
              const OPTNameConfig &names, const string &base_name) {
         attn_hidden_dim_ = attn_hidden_dim;
         head_size_ = head_size;
-
+        if(cache_limit>0){
+            k_cache = KVCache(head_size / kv_head_size, cache_limit, false, base_name + names._attn_base_name + "k_cache");
+            v_cache = KVCache(head_size / kv_head_size, cache_limit, false, base_name + names._attn_base_name + "v_cache");
+        }
+        
         if (do_mask) {
             mask = Causalmask(base_name + "mask");
         }
@@ -92,6 +88,11 @@ public:
         Tensor q = inputs[0];
         Tensor k = inputs[1];
         Tensor v = inputs[2];
+
+        if (k_cache.ready() && v_cache.ready()) {
+            k = k_cache(k);
+            v = v_cache(v);
+        }
 
         k = k.transpose(SEQUENCE, DIMENSION);
         auto qk = Tensor::mm(q, k);
@@ -148,10 +149,10 @@ public:
     QNNEncoderBlock() = default;
     QNNEncoderBlock(int hidden_dim, int head_size, int ffn_hidden, int cache_limit, const OPTNameConfig &names, const string &base_name) {
         part1 = OPTEncoderBlockPart1(hidden_dim, head_size, head_size, hidden_dim / head_size,
-                                     HFHUBROPE, cache_limit, true, true, names, base_name);
+                                     HFHUBROPE, true, names, base_name);
         part1.to(MLLM_QNN);
 
-        qkv_mm = OPTQKVmm(head_size, hidden_dim / head_size, true, names, base_name);
+        qkv_mm = OPTQKVmm(head_size, head_size, hidden_dim / head_size, true, cache_limit, names, base_name);
 
         part2 = OPTEncoderBlockPart2(hidden_dim, head_size, ffn_hidden, "ReLU", true,
                                      names, base_name);

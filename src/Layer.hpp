@@ -134,8 +134,10 @@ protected:
                 if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
                     if (param_["type"] == KVCACHE) {
                         layername_2_tensorname[layer_next_name] = layer_next_name;
-                        reset_KVCache(input.name());
-                        in_name = name_X_to_num(in_name, saved_list_idx);
+                        if(param_["share_input"] == 1.0){
+                            reset_KVCache(input.name());
+                            in_name = name_X_to_num(in_name, saved_list_idx);
+                        }
                     } else {
                         layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
                     }
@@ -583,11 +585,25 @@ public:
     explicit KVCache(int cache_max, std::string name, BackendType device = MLLM_CPU) {
         param_["n_rep"] = 1;
         param_["cache_max"] = cache_max;
+        param_["share_input"] = 1.0;
         init(std::move(name), OpType::KVCACHE, device);
     }
     explicit KVCache(int n_rep, int cache_max, std::string name, BackendType device = MLLM_CPU) {
         param_["n_rep"] = n_rep;
         param_["cache_max"] = cache_max;
+        param_["share_input"] = 1.0;
+        init(std::move(name), OpType::KVCACHE, device);
+    }
+    explicit KVCache(int cache_max, bool share_input, std::string name, BackendType device = MLLM_CPU) {
+        param_["n_rep"] = 1;
+        param_["cache_max"] = cache_max;
+        param_["share_input"] = (float)share_input;
+        init(std::move(name), OpType::KVCACHE, device);
+    }
+    explicit KVCache(int n_rep, int cache_max, bool share_input, std::string name, BackendType device = MLLM_CPU) {
+        param_["n_rep"] = n_rep;
+        param_["cache_max"] = cache_max;
+        param_["share_input"] = (float)share_input;
         init(std::move(name), OpType::KVCACHE, device);
     }
     Tensor &operator()(Tensor &input) {
