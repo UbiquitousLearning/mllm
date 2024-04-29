@@ -39,6 +39,15 @@ public:
         return _1I1O_OP(input);
     }
 
+    Tensor &operator()(Tensor &input0, Tensor &input1) {
+        return _2I1O_OP(input0, input1);
+    }
+
+    Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2) {
+        return _3I1O_OP(input0, input1, input2);
+    }
+
+
 private:
     std::string name_num_to_X(const std::string &input_string) {
         std::regex pattern(R"(\.\d{1,3}\.)"); // Matches any number between 1 and 100 between two dots
@@ -438,9 +447,42 @@ public:
         param_["bias"] = (float)bias;
         init(std::move(name), OpType::LINEAR);
     }
-    Tensor &operator()(Tensor &input) {
+    Tensor &operator()(Tensor &input){
         return _1I1O_OP(input);
     }
+};
+
+class SparseIdLinear final : public Layer{
+public:
+    SparseIdLinear(int in_dim, int out_dim, std::string name){
+        param_["in_dim_"] = (float) in_dim;
+        param_["out_dim_"] = (float) out_dim;
+        init(std::move(name), OpType::SPARSEIDLINEAR);
+    }
+
+    // no need to defined a new operator() function, just use the default one
+};
+
+class SparseLinear final : public Layer{
+public:
+    SparseLinear(int in_dim, int out_dim, std::string name){
+        param_["in_dim_"] = (float) in_dim;
+        param_["out_dim_"] = (float) out_dim;
+        init(std::move(name), OpType::SPARSELINEAR);
+    }
+
+    // no need to defined a new operator() function, just use the default one
+};
+
+class Predictor final : public Layer {
+public:
+    Predictor(int in_dim, int out_dim, std::string name){
+        param_["in_dim"] = (float) in_dim;
+        param_["out_dim"] = (float) out_dim;
+        init(std::move(name), OpType::PREDICTOR);
+    }
+
+    // no need to defined a new operator() function, just use the default one
 };
 
 class SiLU final : public Layer {

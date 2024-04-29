@@ -95,8 +95,8 @@ void CPUBackend::registerOps() {
     addCreator(WHERE, (CPUBackend::Creator *)(new CPUWhereCreator()));
     addCreator(REPLACE, (CPUBackend::Creator *)(new CPUReplaceCreator()));
     addCreator(PREDICTOR, (CPUBackend::Creator *)(new CPUPredictorCreator()));
-    addCreator(SparseLinear, (CPUBackend::Creator *)(new CPUSparseLinearCreator()));
-    addCreator(SparseIdLinear, (CPUBackend::Creator *)(new CPUSparseIdLinearCreator()));
+    addCreator(SPARSELINEAR, (CPUBackend::Creator *)(new CPUSparseLinearCreator()));
+    addCreator(SPARSEIDLINEAR, (CPUBackend::Creator *)(new CPUSparseIdLinearCreator()));
 }
 
 TensorFunction *CPUBackend::funcCreate(const TensorFuncType type){

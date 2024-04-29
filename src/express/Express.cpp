@@ -366,13 +366,13 @@ NetTensor *_SparseLinear(std::vector<NetTensor *> inputs, int in_dim, int out_di
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
-        name = "SparseLinear" + std::to_string(ctx->idx);
+        name = "SPARSELINEAR" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
-    _NEW_OP(mllm::SparseLinear)
+    _NEW_OP(mllm::SPARSELINEAR)
     net_op_->param["in_dim_"] = (float)in_dim;
     net_op_->param["out_dim_"] = (float )out_dim;
     _UPDATE_INPUT_TENSORS
@@ -388,13 +388,13 @@ NetTensor *_SparseIdLinear(std::vector<NetTensor *> inputs, int in_dim, int out_
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
-        name = "SparseIdLinear" + std::to_string(ctx->idx);
+        name = "SPARSEIDLINEAR" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
     out_tensor->type = inputs[0]->type;
     ctx->idx++;
     _STORE_OUT_TENSOR
-    _NEW_OP(mllm::SparseIdLinear)
+    _NEW_OP(mllm::SPARSEIDLINEAR)
     net_op_->param["in_dim_"] = (float)in_dim;
     net_op_->param["out_dim_"] = (float )out_dim;
     _UPDATE_INPUT_TENSORS

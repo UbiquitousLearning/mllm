@@ -71,7 +71,8 @@ NetTensor *FFN( NetTensor * i, int hidden_dim, int ffn_hidden_dim, string name){
     auto *gate = _ReLU( {x}, name+".relu");
     auto *y = _SparseIdLinear( {i, x}, hidden_dim, ffn_hidden_dim, name+".up_proj");
     x = *gate*y;// x = _Mul( {x, y}, name+".dot");
-    x = _SparseLinear( {x}, ffn_hidden_dim, hidden_dim, name+".down_proj");
+//    x = _SparseLinear( {x}, ffn_hidden_dim, hidden_dim, name+".down_proj");
+    x = _Linear( {x}, ffn_hidden_dim, hidden_dim, false, name+".down_proj");
     return x;
 }
 void ReLULlama(Context* c, int vocab_size= 32000, int hidden_dim= 2048, int ffn_hidden_dim = 5632, int mutil_head_size = 32, int mutil_key_value_head= 4, int cache_max= 200){
@@ -135,7 +136,7 @@ void run_inference(int argc, char **argv){
     printf("\n");
 
     // set up net and load parameters
-    MultiFileParamLoader param_loader({model_path, predictor_path});
+    MultiFileParamLoader param_loader({model_path, predictor_path, "../ReLULlama_q4_k.mllm"});
     Executor ex(&param_loader);
     ex.setup(&net);  // load params
 
