@@ -17,6 +17,7 @@
 
 #include <regex>
 #include <string>
+#include <vector>
 
 namespace mllm {
 
@@ -194,11 +195,11 @@ protected:
             }
             switch (input0.status()) {
             case TENSOR_STATIC_INIT: {
-                if (Tensor::gph_.find(input0.name()) == Tensor::gph_.end()|| input0.count() != Tensor::gph_[input0.name()].count()) {
+                if (Tensor::gph_.find(input0.name()) == Tensor::gph_.end() || input0.count() != Tensor::gph_[input0.name()].count()) {
                     Tensor::gph_[input0.name()] = input0;
                     Tensor::gph_[input0.name()].setName(input0.name());
                 }
-                if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end()|| input1.count() != Tensor::gph_[input1.name()].count()) {
+                if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end() || input1.count() != Tensor::gph_[input1.name()].count()) {
                     Tensor::gph_[input1.name()] = input1;
                     Tensor::gph_[input1.name()].setName(input1.name());
                 }
@@ -272,11 +273,11 @@ protected:
                     Tensor::gph_[input0.name()] = input0;
                     Tensor::gph_[input0.name()].setName(input0.name());
                 }
-                if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end()|| input1.count() != Tensor::gph_[input1.name()].count()) {
+                if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end() || input1.count() != Tensor::gph_[input1.name()].count()) {
                     Tensor::gph_[input1.name()] = input1;
                     Tensor::gph_[input1.name()].setName(input1.name());
                 }
-                if (Tensor::gph_.find(input2.name()) == Tensor::gph_.end()|| input2.count() != Tensor::gph_[input0.name()].count()) {
+                if (Tensor::gph_.find(input2.name()) == Tensor::gph_.end() || input2.count() != Tensor::gph_[input0.name()].count()) {
                     Tensor::gph_[input2.name()] = input2;
                     Tensor::gph_[input2.name()].setName(input2.name());
                 }
@@ -614,6 +615,14 @@ public:
         param_["epsilon"] = epsilon;
         init(std::move(name), OpType::RMSNORM, device);
     }
+
+    explicit RMSNorm(int norm_size, float epsilon, bool add_unit_offset, std::string name) {
+        param_["norm_size"] = norm_size;
+        param_["epsilon"] = epsilon;
+        param_["add_unit_offset"] = (float)add_unit_offset;
+        init(std::move(name), OpType::RMSNORM);
+    }
+
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
     }
@@ -634,12 +643,24 @@ public:
 class Split final : public Layer {
 public:
     Split() = default;
+  
     explicit Split(int split_num, Chl split_dim, int split_dim_size, std::string name, BackendType device = MLLM_CPU) {
         param_["split_num"] = (float)split_num;
         param_["split_dim"] = (float)split_dim;
         param_["split_dim_size"] = (float)split_dim_size;
         init(std::move(name), OpType::SPLIT, device);
     }
+
+    explicit Split(const std::vector<int> &each_dims, Chl split_dim, const std::string &name, BackendType device = MLLM_CPU) {
+        param_["split_num"] = (float)each_dims.size();
+        param_["split_dim"] = (float)split_dim;
+        // store each dims
+        for (size_t i = 0; i < each_dims.size(); ++i) {
+            param_["split_dim_size_" + std::to_string(i)] = (float)each_dims[i];
+        }
+        init(std::move(name), OpType::SPLIT, device);
+    }
+
     vector<Tensor> operator()(Tensor &input) {
         return _1INO_OP(input, (int)param_["split_num"]);
     }

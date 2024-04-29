@@ -7,7 +7,8 @@ namespace mllm {
 // int32_t opp = 897988541;
 
 // int32_t op_params[1];
-CPURMSNorm::CPURMSNorm(Backend *bn, string opName, int normSize, float epsilon, int threadCount) : thread_count(threadCount),
+CPURMSNorm::CPURMSNorm(Backend *bn, string opName, int normSize, float epsilon, bool add_unit_offset_, int threadCount) :
+    thread_count(threadCount), add_unit_offset_(add_unit_offset_),
     Op(bn, opName), epsilon_(epsilon) {
     // op_params[0] = 897988541;s, sizeof(float));
     // memcpy(&epsilon_, op_param)
@@ -40,13 +41,20 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                     float value = input->dataAt<float>(n, h, s, d);
                     sum_squares += (double)value * value;
                 }
-                const float mean = sum_squares/dim;
-                const float rms = 1.0f/sqrtf(mean + epsilon_);
-                // use memset to set the value of the memory block
-                #pragma omp parallel for num_threads(thread_count)
+                const float mean = sum_squares / dim;
+                const float rms = 1.0f / sqrtf(mean + epsilon_);
+// use memset to set the value of the memory block
+#pragma omp parallel for num_threads(thread_count)
                 for (int d = 0; d < dim; d++) {
                     float value = input->dataAt<float>(n, h, s, d);
-                    outputs[0]->setDataAt<float>(n, h, s, d, weight_.dataAt<float>(0, 0, 0, d) * value * rms);
+                    float weight = weight_.dataAt<float>(0, 0, 0, d);
+                    float output = value * rms;
+                    if (add_unit_offset_) {
+                        output = output * (1 + weight);
+                    } else {
+                        output = output * weight;
+                    }
+                    outputs[0]->setDataAt<float>(n, h, s, d, output);
                 }
             }
         }

@@ -407,6 +407,18 @@ else ()
     target_link_libraries(demo_llava MLLM_CPU)
 endif ()
 
+add_executable(demo_gemma ${PROJECT_SOURCE_DIR}/examples/demo_gemma.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/processor/PreProcess.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_gemma PRIVATE -fopenmp)
+    target_link_libraries(demo_gemma PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_gemma MLLM_CPU)
+endif ()
+
 
 add_executable(test_qnn ${PROJECT_SOURCE_DIR}/examples/test_qnn.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
         src/backends/qnn/QNNBackend.cpp
