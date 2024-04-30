@@ -598,24 +598,21 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
 
     // wrap the thread pool execution in a function and await the thread pool to finish
     std::function executeFunction = [&]() {
-        // create graph_num threads of executeFunction
         // use thread pool to manage the threads
-        ThreadPool thread_pool(net->subGraph().size());
+        ThreadPool thread_pool(4);
         for (int i = 0; i < chunk_num; ++i) {
             thread_pool.enqueue(std::bind(chunkExecutionFunction, i));
         }
     };
     executeFunction();
 
-    std::cout << "CHECK RESULT" << std::endl;
-    std::cout << result_.size();
 
     ex_time_end = mllm_time_us();
     fs << "execute all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
-    // in pipeline execute, don't free the graph
+    // TODO: in pipeline execute, don't free the graph, error will occur in qnn memory manager deconstruct
     // free all graphs here
-    /*
+    // /*
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         auto expectedBackend = ctx->sub_backend_[i];
         if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
@@ -636,7 +633,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
         auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
         qnn_graph->allFree();
     }
-    */
+    // */
 
     // open file "AR_latency.txt" to record the time of each token
     fs << "---------------" << std::endl;

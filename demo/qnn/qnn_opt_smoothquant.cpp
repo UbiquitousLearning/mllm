@@ -73,6 +73,8 @@ std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *re
     // q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize");
     // k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize");
     // v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize");
+    k = _KVCache({k}, 1, false, cache_max, name + ".k_cache");
+    v = _KVCache({v}, 1, false, cache_max, name + ".v_cache");
 
     auto *qk = _MatmulINT8({q, k}, false, true, name + ".qk");
 
@@ -316,6 +318,7 @@ int main(int argc, char **argv) {
             ffnTest(c, vocab_size, 4096, 11008, head_num, 512);
             break;
         case 13:
+            // cache_max should be longer than seqLength
             opt(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
             break;
     }
