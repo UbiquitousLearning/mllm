@@ -29,9 +29,9 @@ int main(int argc, char **argv) {
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     auto tokenizer = QWenTokenizer(vocab_path);
-    QWenConfig config(tokens_limit, "0.5B", RoPEType::HFHUBROPE);
-    auto model = QWenForCausalLM(config);
-    model.load(model_path);
+    // QWenConfig config(tokens_limit, "0.5B", RoPEType::HFHUBROPE);
+    // auto model = QWenForCausalLM(config);
+    // model.load(model_path);
 
     vector<string> in_strs = {
         "Hello world",
@@ -41,16 +41,17 @@ int main(int argc, char **argv) {
     for (int i = 0; i < in_strs.size(); ++i) {
         auto in_str = in_strs[i];
         auto input_tensor = tokenizer.tokenize(in_str, i);
-        std::cout << "[Q] " << in_str << std::endl;
-        std::cout << "[A] " << std::flush;
-        for (int step = 0; step < 100; step++) {
-            auto result = model({input_tensor});
-            auto outputs = tokenizer.detokenize(result[0]);
-            auto out_string = outputs.first;
-            auto out_token = outputs.second;
-            std::cout << out_string << std::flush;
-            chatPostProcessing(out_token, input_tensor, {});
-        }
-        printf("\n");
+        input_tensor.printData<float>();
+        // std::cout << "[Q] " << in_str << std::endl;
+        // std::cout << "[A] " << std::flush;
+        // for (int step = 0; step < 100; step++) {
+        //     auto result = model({input_tensor});
+        //     auto outputs = tokenizer.detokenize(result[0]);
+        //     auto out_string = outputs.first;
+        //     auto out_token = outputs.second;
+        //     std::cout << out_string << std::flush;
+        //     chatPostProcessing(out_token, input_tensor, {});
+        // }
+        // printf("\n");
     }
 }
