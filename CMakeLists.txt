@@ -48,6 +48,9 @@ FetchContent_Declare(
 # set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 option(DEBUG "debug print" OFF)
 
+# icu for utf-8
+find_package(ICU COMPONENTS data uc i18n REQUIRED)
+
 # re2 for regex. The regex in STL has zero-width assertion error
 set(ABSL_ENABLE_INSTALL ON)
 set(ABSL_PROPAGATE_CXX_STD ON)
@@ -448,9 +451,9 @@ add_executable(demo_qwen ${PROJECT_SOURCE_DIR}/examples/demo_qwen.cpp ${DIR_SRC_
 )
 if (ARM AND NOT APK)
     target_compile_options(demo_qwen PRIVATE -fopenmp)
-    target_link_libraries(demo_qwen PUBLIC re2::re2 absl::base absl::strings MLLM_CPU -fopenmp -static-openmp)
+    target_link_libraries(demo_qwen PUBLIC re2::re2 absl::base absl::strings ICU::data ICU::uc ICU::18n MLLM_CPU -fopenmp -static-openmp)
 else ()
-    target_link_libraries(demo_qwen PUBLIC MLLM_CPU re2::re2 absl::base absl::strings)
+    target_link_libraries(demo_qwen PUBLIC MLLM_CPU re2::re2 absl::base absl::strings ICU::data ICU::uc ICU::i18n)
 endif ()
 
 

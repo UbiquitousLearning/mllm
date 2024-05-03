@@ -10,6 +10,7 @@
 #ifndef TOKENIZATION_QWEN_HPP
 #define TOKENIZATION_QWEN_HPP
 
+// regex
 #include <re2/re2.h>
 
 #include "tokenizers/Tokenizer.hpp"
@@ -17,9 +18,21 @@
 #include <optional>
 #include <unordered_map>
 
+// unicode
+#include <unicode/unistr.h>
+#include <unicode/ustring.h>
+#include <unicode/ustream.h>
+
 using namespace mllm;
 
 namespace mllm {
+
+static std::string any_to_utf8(std::string s) {
+    icu::UnicodeString us(s.c_str());
+    std::string utf8;
+    us.toUTF8String(utf8);
+    return utf8;
+}
 
 static auto _byte_pair_merge(
     const std::string &piece,
@@ -105,7 +118,11 @@ static auto byte_pair_encode(
 
     auto func = [&piece, &ranks](int start, int stop) -> int {
         std::string key = piece.substr(start, stop - start);
-        return ranks.at(key);
+
+        // key to utf-8
+        auto nkey = any_to_utf8(key);
+
+        return ranks.at("");
     };
 
     return _byte_pair_merge(piece, ranks, func);
