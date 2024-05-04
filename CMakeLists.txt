@@ -48,15 +48,6 @@ FetchContent_Declare(
 # set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 option(DEBUG "debug print" OFF)
 
-# icu for utf-8
-find_package(ICU COMPONENTS data uc i18n REQUIRED)
-
-# re2 for regex. The regex in STL has zero-width assertion error
-set(ABSL_ENABLE_INSTALL ON)
-set(ABSL_PROPAGATE_CXX_STD ON)
-add_subdirectory(third_party/abseil-cpp)
-add_subdirectory(third_party/re2)
-
 if (CMAKE_HOST_UNIX)
     message(STATUS "current platform: Linux ")
 
@@ -80,8 +71,6 @@ aux_source_directory(${PROJECT_SOURCE_DIR}/third_party/wenet_audio DIR_THIRDPART
 include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/third_party)
-include_directories(${PROJECT_SOURCE_DIR}/third_party/re2)
-include_directories(${PROJECT_SOURCE_DIR}/third_party/abseil-cpp)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 
@@ -432,18 +421,6 @@ else ()
     target_link_libraries(demo_gemma MLLM_CPU)
 endif ()
 
-add_executable(demo_mistral ${PROJECT_SOURCE_DIR}/examples/demo_mistral.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/processor/PreProcess.cpp
-)
-if (ARM AND NOT APK)
-    target_compile_options(demo_mistral PRIVATE -fopenmp)
-    target_link_libraries(demo_mistral PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(demo_mistral MLLM_CPU)
-endif ()
-
 add_executable(demo_qwen ${PROJECT_SOURCE_DIR}/examples/demo_qwen.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/BPE/Bpe.cpp
@@ -451,9 +428,9 @@ add_executable(demo_qwen ${PROJECT_SOURCE_DIR}/examples/demo_qwen.cpp ${DIR_SRC_
 )
 if (ARM AND NOT APK)
     target_compile_options(demo_qwen PRIVATE -fopenmp)
-    target_link_libraries(demo_qwen PUBLIC re2::re2 absl::base absl::strings ICU::data ICU::uc ICU::18n MLLM_CPU -fopenmp -static-openmp)
+    target_link_libraries(demo_qwen PUBLIC -fopenmp -static-openmp)
 else ()
-    target_link_libraries(demo_qwen PUBLIC MLLM_CPU re2::re2 absl::base absl::strings ICU::data ICU::uc ICU::i18n)
+    target_link_libraries(demo_qwen PUBLIC MLLM_CPU)
 endif ()
 
 
@@ -477,6 +454,6 @@ if (APK)
             src/processor/PreProcess.cpp
 
     )
-    target_link_libraries(mllm_lib MLLM_CPU re2::re2)
+    target_link_libraries(mllm_lib MLLM_CPU)
 
 endif ()

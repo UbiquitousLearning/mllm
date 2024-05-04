@@ -10,18 +10,13 @@
 #ifndef TOKENIZATION_QWEN_HPP
 #define TOKENIZATION_QWEN_HPP
 
-// regex
-#include <re2/re2.h>
-
 #include "tokenizers/BPE/Bpe.hpp"
 #include "tokenizers/Tokenizer.hpp"
 #include <algorithm>
 #include <unordered_map>
 
 // unicode
-#include <unicode/unistr.h>
-#include <unicode/ustring.h>
-#include <unicode/ustream.h>
+#include <codecvt>
 
 using namespace mllm;
 
@@ -30,23 +25,22 @@ using namespace mllm;
 #define ORD(x) __ord(x)
 
 static std::string any_to_utf8(std::string s) {
-    icu::UnicodeString us(s.c_str());
-    std::string utf8;
-    us.toUTF8String(utf8);
-    return utf8;
+    // the original input is utf-8 already
+    return s;
 }
 
 static std::string __chr(int v) {
-    icu::UnicodeString us(v);
-    std::string utf8;
-    us.toUTF8String(utf8);
+    std::wstring wString(1, v);
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> convert;
+    std::string utf8 = convert.to_bytes(wString);
     return utf8;
 }
 
 static std::vector<int> __ord(std::string v) {
     std::vector<int> ret;
-    icu::UnicodeString us(v.c_str());
-    for (auto i = 0; i < us.length(); ++i) ret.emplace_back(us[i]);
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> convert;
+    std::wstring utf8str = convert.from_bytes(v);
+    for (auto i = 0; i < utf8str.length(); ++i) ret.emplace_back(utf8str[i]);
     return ret;
 }
 
@@ -57,8 +51,6 @@ public:
     explicit QWenTokenizer(const std::string &vocab_file, const std::string &merge_file) {
         Module::initBackend(MLLM_CPU);
         tokenizer = new BPETokenizer(vocab_file);
-
-        regex_ = std::make_unique<re2::RE2>("(" + PAT_STR + ")");
 
         // init byte encoder
         std::vector<int> bs;
@@ -105,11 +97,29 @@ public:
         delete tokenizer;
     }
 
+    std::vector<std::string> stringSplit(const std::string &str, char delim) {
+        std::size_t previous = 0;
+        std::size_t current = str.find(delim);
+        std::vector<std::string> elems;
+        while (current != std::string::npos) {
+            if (current > previous) {
+                elems.push_back(str.substr(previous, current - previous));
+            }
+            previous = current + 1;
+            current = str.find(delim, previous);
+        }
+        if (previous != str.size()) {
+            elems.push_back(str.substr(previous));
+        }
+        return elems;
+    }
+
     Tensor tokenize(std::string &text, int str_i = 0) {
         std::vector<token_id_t> ret;
-        re2::StringPiece input(text);
-        std::string piece;
-        while (re2::RE2::FindAndConsume(&input, *regex_, &piece)) {
+
+        auto splited = stringSplit(text, ' ');
+        if (text[0] == ' ') splited[0] = " " + splited[0];
+        for (auto piece : splited) {
             // look up table
             std::string token;
             for (auto b : UTF8(piece)) token += byte_encoder_[b];
@@ -159,7 +169,6 @@ private:
 
 public:
     BPETokenizer *tokenizer;
-    std::unique_ptr<re2::RE2> regex_;
     std::unordered_map<int, std::string> byte_encoder_;
     std::unordered_map<std::string, int> byte_decoder_;
     std::unordered_map<std::string, unsigned int> bpe_ranks_;
