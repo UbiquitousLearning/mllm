@@ -118,11 +118,10 @@ public:
             std::vector<token_id_t> tmp;
             tokenizer->tokenize(token, tmp, /*bos*/ false, /*byte fallback*/ true, "");
 
-            // FIXME: why the tokenizer will generate a 2.0000 at the end of all tokens?
             ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
         }
         // FIXME if we need bos or not?
-        ret.insert(ret.begin(), 151643);
+        ret.insert(ret.begin(), bos_id_);
         return Tokenizer::tokens2Input(ret);
     }
 
@@ -164,8 +163,7 @@ public:
     std::unordered_map<int, std::string> byte_encoder_;
     std::unordered_map<std::string, int> byte_decoder_;
     std::unordered_map<std::string, unsigned int> bpe_ranks_;
-    token_id_t eos_id_ = 151643,
-               bos_id_ = 151643, im_start_id_ = 151644, im_end_id_ = 151645;
+    token_id_t eos_id_ = 151645, bos_id_ = 151643;
 };
 
 #undef UTF8

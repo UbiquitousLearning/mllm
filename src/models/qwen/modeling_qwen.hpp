@@ -63,11 +63,12 @@ public:
         k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._k_proj_name);
         v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._v_proj_name);
         o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
-        q_rope = RoPE(config.RoPE_type, base_name + "q_rope");
-        k_rope = RoPE(config.RoPE_type, base_name + "k_rope");
-        k_cache = KVCache(num_heads / num_key_value_heads, config.cache_limit, base_name + "k_cache");
-        v_cache = KVCache(num_heads / num_key_value_heads, config.cache_limit, base_name + "v_cache");
-        mask = SlidingWindowMask(config.sliding_window, base_name + "mask");
+        q_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "q_rope");
+        k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "k_rope");
+        k_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "k_cache");
+        v_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "v_cache");
+        // mask = SlidingWindowMask(config.sliding_window, base_name + "mask");
+        mask = Causalmask(base_name + "mask");
         softmax = Softmax(DIMENSION, base_name + "softmax");
     }
 
@@ -126,8 +127,8 @@ public:
     QWenDecoder(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
         self_atten = QWenAttention(config, names, base_name + names._attn_base_name);
         mlp = QWenMLP(config.hidden_size, config.intermediate_size, names, base_name + names._ffn_base_name);
-        input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, false, base_name + names._attn_norm_name);
-        post_attention_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, false, base_name + names._ffn_norm_name);
+        input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
+        post_attention_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
@@ -147,13 +148,13 @@ private:
     Layer post_attention_layernorm;
 };
 
-// Copied from GemmaModel with Gemma->Qwen
+// Copied from GemmaModel with Gemma->Qwen and set RmsNorm(without add_unit_offset)
 class QWenModel final : public Module {
 public:
     QWenModel() = default;
     QWenModel(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
         blocks = List<QWenDecoder>(config.num_hidden_layers, config, names, base_name);
-        norm = RMSNorm(config.hidden_size, config.rms_norm_eps, false, names.post_norm_name);
+        norm = RMSNorm(config.hidden_size, config.rms_norm_eps, names.post_norm_name);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
@@ -175,10 +176,15 @@ public:
     QWenForCausalLM(QWenConfig &config) {
         auto names = config.names_config;
         hidden_size = config.hidden_size;
+        tie_embedding_words = config.tie_embedding_words;
         embedding = Embedding(config.vocab_size, config.hidden_size, names.token_embd_name);
         model = QWenModel(config, names, names.blk_name);
 
-        lm_head = Linear(config.hidden_size, config.vocab_size, false, names.lm_head_name);
+        // FIXME Qwen-0.5 use tied embedding
+        // Others use nn.Linear()
+        if (tie_embedding_words) {
+            lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, names.token_embd_name + ".weight");
+        }
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
@@ -186,14 +192,17 @@ public:
 
         // go through model
         auto outputs = model({x})[0];
-        outputs = lm_head(outputs);
+        if (tie_embedding_words) {
+            outputs = Tensor::mm(outputs, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
+        }
         return {outputs};
     }
 
 private:
     int hidden_size;
+    bool tie_embedding_words;
     Layer embedding;
-    Layer lm_head;
+    Parameter lm_head;
     QWenModel model;
 };
 

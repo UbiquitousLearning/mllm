@@ -39,7 +39,7 @@ ErrorCode CPUSlidingWindowMask::execute(vector<shared_ptr<Tensor>> inputs, vecto
 #pragma omp parallel for num_threads(thread_count)
                     for (int d = 0; d < dimension; ++d) {
                         if (/*right bound of window*/ d > s + old_dim || /*left bound of window*/ d < s - _t_window_size) {
-                            outputs[0]->setDataAt<float>({n, h, s, d}, std::numeric_limits<float>::min());
+                            outputs[0]->setDataAt<float>({n, h, s, d}, std::numeric_limits<float>::lowest());
                         } else {
                             outputs[0]->setDataAt<float>({n, h, s, d}, inputs[0]->dataAt<float>(n, h, s, d));
                         }

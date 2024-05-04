@@ -41,6 +41,12 @@ int main(int argc, char **argv) {
         "Please introduce Beijing University of Posts and Telecommunications.",
     };
 
+    auto processOutput = [&](std::string &text) -> std::pair<bool, std::string> {
+        if (text == "<|im_start|>" || text == "<|im_end|>" || text == "<unk>") return {true, ""};
+        if (text == "<|endoftext|>") return {false, ""};
+        return {true, text};
+    };
+
     for (int i = 0; i < in_strs.size(); ++i) {
         auto in_str = in_strs[i];
         auto input_tensor = tokenizer.tokenize(in_str, i);
@@ -51,7 +57,12 @@ int main(int argc, char **argv) {
             auto outputs = tokenizer.detokenize(result[0]);
             auto out_string = outputs.first;
             auto out_token = outputs.second;
-            std::cout << out_string << std::flush;
+            auto [isOk, print_string] = processOutput(out_string);
+            if (isOk) {
+                std::cout << print_string << std::flush;
+            } else {
+                break;
+            }
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");

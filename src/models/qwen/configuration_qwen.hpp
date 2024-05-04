@@ -86,7 +86,7 @@ struct QWenConfig {
         if (billionsType == "0.5b") {
             attention_dropout = 0.0;
             bos_token_id = 151643;
-            eos_token_id = 151643;
+            eos_token_id = 151645;
             std::string hidden_act = "silu";
             hidden_size = 1024;
             initializer_range = 0.02;
@@ -97,10 +97,11 @@ struct QWenConfig {
             num_attention_heads = 16;
             num_hidden_layers = 24;
             num_key_value_heads = 16;
-            rms_norm_eps = 1e-06;
+            rms_norm_eps = 1e-6;
             rope_theta = 1000000.0;
             sliding_window = 32768;
             vocab_size = 151936;
+            tie_embedding_words = true;
         } else {
             throw std::runtime_error("Unsupported model size");
         }
@@ -120,10 +121,11 @@ struct QWenConfig {
     int num_attention_heads = 16;
     int num_hidden_layers = 24;
     int num_key_value_heads = 16;
-    double rms_norm_eps = 1e-06;
+    double rms_norm_eps = 1e-6;
     float rope_theta = 1000000.0;
     int sliding_window = 32768;
     int vocab_size = 151936;
+    bool tie_embedding_words = false;
 
     int cache_limit;
     RoPEType RoPE_type = RoPEType::HFHUBROPE;
