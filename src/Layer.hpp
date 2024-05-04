@@ -541,10 +541,27 @@ public:
     }
 };
 
+class SlidingWindowMask final : public Layer {
+public:
+    explicit SlidingWindowMask(int window_size, std::string name) {
+        param_["window_size"] = window_size;
+        init(std::move(name), OpType::SLIDINGWINDOWMASK);
+    }
+    Tensor &operator()(Tensor &input) {
+        return _1I1O_OP(input);
+    }
+};
+
 class RoPE final : public Layer {
 public:
     explicit RoPE(int pose_type, std::string name) {
         param_["pose_type"] = pose_type;
+        init(std::move(name), OpType::ROPE);
+    }
+    explicit RoPE(int pose_type, float rope_theta, int max_position_embeddings, std::string name) {
+        param_["pose_type"] = pose_type;
+        param_["rope_theta"] = rope_theta;
+        param_["max_position_embeddings"] = max_position_embeddings;
         init(std::move(name), OpType::ROPE);
     }
     Tensor &operator()(Tensor &input) {

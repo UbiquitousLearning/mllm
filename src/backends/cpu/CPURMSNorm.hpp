@@ -34,7 +34,7 @@ public:
     virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         int normSize = (int)op_param["norm_size"];
         float epsilon = (float)op_param["epsilon"];
-        bool add_unit_offset_ = (op_param.find("add_unit_offset") == op_param.end()) ? false : true;
+        bool add_unit_offset_ = (op_param.find("add_unit_offset") == op_param.end()) ? false : op_param["add_unit_offset"];
         return new CPURMSNorm(bn, name, normSize, epsilon, add_unit_offset_, threadCount);
     }
 };
