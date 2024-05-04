@@ -428,7 +428,7 @@ add_executable(demo_qwen ${PROJECT_SOURCE_DIR}/examples/demo_qwen.cpp ${DIR_SRC_
 )
 if (ARM AND NOT APK)
     target_compile_options(demo_qwen PRIVATE -fopenmp)
-    target_link_libraries(demo_qwen PUBLIC -fopenmp -static-openmp)
+    target_link_libraries(demo_qwen PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
     target_link_libraries(demo_qwen PUBLIC MLLM_CPU)
 endif ()
