@@ -104,10 +104,23 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string>
 }
 
 Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tensor) const {
-    if (tensor->tensorType() == GRAPH_OUTPUT)
+    if (tensor->tensorType() == GRAPH_OUTPUT) { 
+        qnnBackend_->pushOutputBuffers(tensor->hostPtr<uint8_t>());
         return QNN_TENSOR_TYPE_APP_READ;
-    else
+    } else {
+        auto name = tensor->name();
+
+
+        if (name.find("q_proj-00_view_") != -1 || name.find("k_proj-00_view_") != -1 || name.find("v_proj-00_view_") != -1 ) {
+
+            std::cout << "view output" << std::endl;
+            return QNN_TENSOR_TYPE_APP_READ;
+        }
+            
+
         return QNN_TENSOR_TYPE_NATIVE; // qnn input is set APP_WRITE by backend
+    }
+        
 }
 
 } // namespace mllm

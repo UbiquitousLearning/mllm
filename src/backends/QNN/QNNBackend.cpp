@@ -56,6 +56,8 @@
 #include "op/QNNSplitInput.hpp"
 #include "MemInspect.hpp"
 
+#include "QNN/HTP/QnnHtpGraph.h"
+
 #define DEBUGPRINT
 #ifdef DEBUGPRINT
 #include "Timing.hpp"
@@ -241,7 +243,22 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
 
     // initialize qnn graph info, set graph info, graph count
     // NOTE: currently not using it
-    const QnnGraph_Config_t **graphConfigs = nullptr;
+    QnnHtpGraph_CustomConfig_t customConfig;
+    // customConfig.option = QNN_HTP_GRAPH_CONFIG_OPTION_NUM_HVX_THREADS;
+    // customConfig.numHvxThreads = 4; // set a number. MAX = number of HVX HW blocks for that SoC
+    customConfig.option = QNN_HTP_GRAPH_CONFIG_OPTION_VTCM_SIZE;
+    customConfig.vtcmSizeInMB = 8;
+
+    QnnGraph_Config_t graphConfig;
+    graphConfig.option       = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
+    graphConfig.customConfig = &customConfig;
+
+    const QnnGraph_Config_t* pGraphConfig[] = {&graphConfig, NULL};
+
+    const QnnGraph_Config_t **graphConfigs = pGraphConfig;
+
+    m_graphConfigsInfoCount = 1;
+
     qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::getQnnGraphConfigFromInfo(
         graphName.c_str(), (const qnn_wrapper_api::GraphConfigInfo_t **)m_graphConfigsInfo, m_graphConfigsInfoCount, graphConfigs);
     if (err != qnn_wrapper_api::MODEL_NO_ERROR) {
@@ -324,10 +341,10 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     std::cout << "onSetUpEnd" << std::endl;
 #endif
     // push output tensors to the buffer list
-    currentOutputBuffers = &outputBufferMap[graphName];
-    for (int i = 0; i < outputs.size(); i++) {
-        currentOutputBuffers->push_back(outputs[i]->hostPtr<uint8_t>());
-    }
+    // currentOutputBuffers = &outputBufferMap[graphName];
+    // for (int i = 0; i < outputs.size(); i++) {
+    //     currentOutputBuffers->push_back(outputs[i]->hostPtr<uint8_t>());
+    // }
 
     currentInputBuffers = &inputBufferMap[graphName];
     currentOutputBuffers = &outputBufferMap[graphName];
@@ -458,9 +475,9 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
             returnStatus = StatusCode::FAILURE;
         }
 
-        // if (ProfilingLevel::OFF != m_profilingLevel) {
-        //     extractBackendProfilingInfo(m_profileBackendHandle);
-        // }
+        if (ProfilingLevel::OFF != m_profilingLevel) {
+            extractBackendProfilingInfo(m_profileBackendHandle);
+        }
         // if (StatusCode::SUCCESS == returnStatus) {
         //     QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
         //     for (int oi = 0; oi < graphInfo.numOutputTensors; oi++) {
