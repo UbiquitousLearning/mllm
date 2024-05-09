@@ -44,15 +44,15 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_r
     return token_idx;
 }
 
-std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *res, int embedding_size, int hidden_size, int head_size, int cache_max, string name) {
+std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *res, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq) {
     // x = _Quantize({x}, true, (string)name + ".x.quantize");
-    x = x->view(-1, 1, -1, hidden_size * head_size);
+    x = x->view(1, static_cast<int>(sqrt(seq)), static_cast<int>(sqrt(seq)), hidden_size * head_size);
     auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
     auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".k_proj");
     auto *v = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".v_proj");
-    q = q->view(-1, head_size, -1, hidden_size);
-    k = k->view(-1, head_size, -1, hidden_size);
-    v = v->view(-1, head_size, -1, hidden_size);
+    q = q->view(1, head_size, seq, hidden_size);
+    k = k->view(1, head_size, seq, hidden_size);
+    v = v->view(1, head_size, seq, hidden_size);
     // q = _RoPE({q}, LLAMAROPE, name + ".q_rope");
     // k = _RoPE({k}, LLAMAROPE, name + ".k_rope");
     // k = _KVCache({k}, cache_max, name + ".k_cache");
@@ -97,7 +97,7 @@ std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *re
     o = s[0];
     res = s[1];
     
-    o = o->view(-1, 1, -1, hidden_size * head_size);
+    o = o->view(1, static_cast<int>(sqrt(seq)), static_cast<int>(sqrt(seq)), hidden_size * head_size);
     res = res->view(-1, 1, -1, hidden_size * head_size);
     o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".out_proj");
     o = _Dequantize({o}, true, (string)name + ".out_proj.dequantize");
@@ -144,15 +144,24 @@ NetTensor *NPUAttention(Context *c, NetTensor *x, int embedding_size, int hidden
 NetTensor *FFN(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     // auto *x = _Quantize({i}, true, (string)name + ".fc1.quantize");
     auto *x = i;
-    x = _LinearINT8({x}, hidden_dim, ffn_hidden_dim, false, name + ".fc1");
-    // x = _Dequantize({x}, (string) name + ".relux.dequantize");
+    x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".fc1");
+    // x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, "model.decoder.layers.1.fc1");
+    // x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, "model.decoder.layers.2.fc1");
+    // x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, "model.decoder.layers.2.fc1");
+    // // x = _Dequantize({x}, (string) name + ".relux.dequantize");
     x = _ReLU({x}, name + ".fc2.relu");
+    // y = _ReLU({y}, "model.decoder.layers.5.fc2.relu");
+
     // x = _Quantize({x}, (string) name + ".relux.quantize");
     x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".fc2");
+    // // // y = _LinearINT8({y}, ffn_hidden_dim, hidden_dim, false, "model.decoder.layers.5.fc2");
     x = _Dequantize({x}, true, (string)name + ".fc2.dequantize");
+    // y = _Dequantize({y}, true, "model.decoder.layers.5.fc2.dequantize");
+
+    // x = *x + y;
     return x;
 }
-void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200) {
+void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 1024) {
     auto *i = _Input(c);
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.decoder.embed_tokens");
     // i = _LayerNorm({i}, hidden_dim, true, 1e-6, (string) "model.decoder.layers.0.self_attn_layer_norm");
@@ -184,12 +193,13 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
         i = s[0];
         res = s[1];
         
-        auto ix = CPUNPUAttention(c, i, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn");
+        auto ix = CPUNPUAttention(c, i, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn", seq);
 
         i = ix[0];
         res = ix[1];
 
-        i = *i + res;
+        i = i->view(1, 1, seq, hidden_dim);
+        i = *i + res;        
 
         _SubgraphBegin(c, MLLM_CPU);
         res = i;
@@ -211,10 +221,11 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
         res = s[1];
         res = res->view(-1, 1, -1, hidden_dim);
 
-        i = i->view(-1, 1, -1, hidden_dim);
+        i = i->view(1, static_cast<int>(sqrt(seq)), static_cast<int>(sqrt(seq)), hidden_dim);
         i = FFN(c, i, hidden_dim, ffn_hidden_dim, (string) "model.decoder.layers." + std::to_string(layer));
 
-        
+        i = i->view(1, 1, seq, hidden_dim);
+
         i = *i + res;
     }
 
@@ -239,7 +250,7 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./models/opt-1.3b-head-static-int8.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     // cmdParser.add<int>("thread", 't', "num of threads", false, 4);
-    cmdParser.add<int>("seq", 's', "num of threads", false, 1);
+    cmdParser.add<int>("seq", 's', "seq length", false, 1);
     cmdParser.add<int>("head", 'h', "num of heads", false, 32);
     cmdParser.add<int>("type", 't', "type of test", false, 13);
     cmdParser.parse_check(argc, argv);
@@ -271,7 +282,7 @@ int main(int argc, char **argv) {
 
     int vocab_size = 50272;
     int hidden_dim = 2048;
-    int ffn_hidden_dim = 8192;
+    int ffn_hidden_dim = 16384;
     // int mutil_head_size = 32;
 
     std::unique_ptr<Context> c_ptr(new Context());
@@ -316,7 +327,7 @@ int main(int argc, char **argv) {
             ffnTest(c, vocab_size, 4096, 11008, head_num, 512);
             break;
         case 13:
-            opt(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
+            opt(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512, seqLength);
             break;
     }
 
@@ -350,7 +361,7 @@ int main(int argc, char **argv) {
         // delete the last end token
         tokens_id.pop_back();
 
-        // tokens_id.resize(256);
+        tokens_id.resize(seqLength);
 
         BPETokenizer::token2Tensor(&net, tokens_id, input);
         // fullTensor(input, net, {1,1, seqLength, 1}, 2.f);
@@ -364,7 +375,7 @@ int main(int argc, char **argv) {
             // ex.run(&net, {input});
             auto result = ex.result();
             result[0]->printShape();
-            result[0]->printData<float>();
+            // result[0]->printData<float>();
 
             // for (int n = 0; n < 32 * 7 * 64; n++) {
             //     std::cout << static_cast<float>(result[0]->hostPtr<float>()[n]) << " ";

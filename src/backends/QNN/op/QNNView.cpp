@@ -61,6 +61,16 @@ ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         dim1 = inputs[0]->head();
         dim2 = dim2_;
         dim3 = inputs[0]->dimension();
+    } else if (data_dim0_ == BATCH && data_dim1_ == SEQUENCE && data_dim2_ == SEQUENCE && data_dim3_ ==DIMENSION) {
+        dim0 = inputs[0]->batch();
+        dim1 = dim1_;
+        dim2 = dim1_;
+        dim3 = inputs[0]->dimension();
+    } else if (data_dim0_ == BATCH && data_dim1_ == HEAD && data_dim2_ == SEQUENCE && data_dim3_ ==DIMENSION) {
+        dim0 = dim0_;
+        dim1 = dim1_;
+        dim2 = dim2_;
+        dim3 = dim3_;
     } else {
         std::cout<<"CPUView not support!!!!"<<std::endl;
     }
@@ -171,9 +181,10 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         std::string wordToRemove = "-00_view_";
 
         int pos = scaleName.find(wordToRemove);
-        if (pos != -1) {
+        while (pos != -1) {
             scaleName.erase(pos, wordToRemove.length());
             split_variable = ".fc1";
+            pos = scaleName.find(wordToRemove);
         }
 
 
