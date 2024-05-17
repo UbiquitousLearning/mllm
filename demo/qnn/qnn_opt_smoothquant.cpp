@@ -319,7 +319,8 @@ int main(int argc, char **argv) {
             break;
         case 13:
             // cache_max should be longer than seqLength
-            opt(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
+            // opt(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
+            KVCacheTest(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
             break;
     }
 
@@ -353,7 +354,7 @@ int main(int argc, char **argv) {
         // delete the last end token
         tokens_id.pop_back();
 
-        tokens_id.resize(64);
+        tokens_id.resize(32);
 
         BPETokenizer::token2Tensor(&net, tokens_id, input);
         // fullTensor(input, net, {1,1, seqLength, 1}, 2.f);
@@ -375,12 +376,15 @@ int main(int argc, char **argv) {
             //         std::cout << std::endl;
             // }
 
-            auto token_idx = postProcessing(result[0], input);
-            if (token_idx == 2) { // "</s>"
-                break;
-            }
-            auto out_token = tokenizer.detokenize({token_idx});
-            std::cout << out_token << std::flush;
+            // ----------- no post processing for testing kvcache
+            // auto token_idx = postProcessing(result[0], input);
+            // if (token_idx == 2) { // "</s>"
+            //     break;
+            // }
+            // auto out_token = tokenizer.detokenize({token_idx});
+            // std::cout << out_token << std::flush;
+            // ----------- no post processing for testing kvcache
+            exit(0);
         }
         printf("\n");
     }

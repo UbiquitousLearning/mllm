@@ -3,15 +3,17 @@
 #include "CPUKVCache.hpp"
 #include "ParamLoader.hpp"
 #include "Types.hpp"
+#include <cstdint>
 
 namespace mllm {
 CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max, bool share_input, int threadCount) :
     thread_count(threadCount),
     Op(bn, opName) {
     cache_.setBackend(bn);
-    if (!share_input_)
+    if (!share_input)
         cache_.setDtype(MLLM_TYPE_I8);
-    cache_.setDtype(MLLM_TYPE_F16);
+    else
+        cache_.setDtype(MLLM_TYPE_F16);
     cache_limit_ = cache_max;
     n_rep_ = n_rep;
     share_input_ = share_input;

@@ -44,6 +44,9 @@ public:
 
     // void QNNGraphThreadExecute(int id, Net* net);
 
+    // graph offload rule for qnn execution, used in setup and execution
+    BackendType graphOffloadRule(BackendType expectedBackend, int graphIndex);
+
 protected:
     QNNExecutionType executionType_ = PROMPT;
 

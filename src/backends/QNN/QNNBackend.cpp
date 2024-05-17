@@ -479,9 +479,10 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
         //     exit(-1);
         // }
 
-        std::cout << "free graphs begin" << std::endl;
+        // TODO: set graph info null will cause fault in multi chunk execution
+        // std::cout << "free graphs begin" << std::endl;
         // qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
-        m_graphsInfo = nullptr;
+        // m_graphsInfo = nullptr;
     }
 
 }

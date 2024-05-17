@@ -1,9 +1,11 @@
 #include <cassert>
 #include <csignal>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -16,6 +18,18 @@
 #include "express/ExpressBase.hpp"
 
 namespace mllm {
+BackendType QNNExecutor::graphOffloadRule(BackendType expectedBackend, int graphIndex) {
+    if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
+        return MLLM_CPU;
+    } else {
+        if (graphIndex == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
+            return MLLM_CPU;
+        } else {
+            return MLLM_QNN;
+        }
+    }
+}
+
 void QNNExecutor::setup(Net *net) {
     mllm_time_init();
 
@@ -227,24 +241,20 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
         // TODO: if this implementation is used, the setUpTensors(string) should be merged to Graph
         // the qnn_graph below is where we cast the Graph to QNNGraph
         auto expectedBackend = ctx->sub_backend_[i];
-        if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
+        if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
             std::cout << "=======setup cpu graph " << i << std::endl;
             g->reshape();
             g->setUpTensors();
+        } else if (graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
+            std::cout << "=======setup qnn graph " << i << std::endl;
+            auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+            g->reshape();
+            // if ( autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0) {
+            // g->setUpTensors();
+            qnn_graph->setUpTensors(name);
         } else {
-            std::cout << "Graph" << i << " expectedBackend: " << expectedBackend << std::endl;
-            if (i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
-                std::cout << "=======setup cpu graph " << i << std::endl;
-                g->reshape();
-                g->setUpTensors();
-            } else {
-                std::cout << "=======setup qnn graph " << i << std::endl;
-                auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-                g->reshape();
-                // if ( autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0) {
-                // g->setUpTensors();
-                qnn_graph->setUpTensors(name);
-            }
+            std::cerr << "Backend Not Support" << std::endl;
+            exit(1);
         }
 
         if (false) {
@@ -265,28 +275,23 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
         uint64_t t_start = mllm_time_us();
 
         auto expectedBackend = ctx->sub_backend_[i];
-        if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
+        if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
             std::cout << "=======execute cpu graph " << i << std::endl;
             string name = typeName + std::to_string(i);
             auto &g = net->subGraph()[name];
             result_ = g->forward();
+        } else if (graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
+            std::cout << "=======execute qnn graph " << i << std::endl;
+            string name = typeName + std::to_string(i);
+            auto &g = net->subGraph()[name];
+            auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+            result_ = qnn_graph->forward(name);
+            uint64_t t_end = mllm_time_us();
+            std::cout << "graph forward " << (t_end - t_start) / 1000.0F << "ms" << std::endl;
+            PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
         } else {
-            std::cout << "Graph" << i << " expectedBackend: " << expectedBackend << std::endl;
-            if (i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
-                std::cout << "=======execute cpu graph " << i << std::endl;
-                string name = typeName + std::to_string(i);
-                auto &g = net->subGraph()[name];
-                result_ = g->forward();
-            } else {
-                std::cout << "=======execute qnn graph " << i << std::endl;
-                string name = typeName + std::to_string(i);
-                auto &g = net->subGraph()[name];
-                auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-                result_ = qnn_graph->forward(name);
-                uint64_t t_end = mllm_time_us();
-                std::cout << "graph forward " << (t_end - t_start) / 1000.0F << "ms" << std::endl;
-                PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
-            }
+            std::cerr << "Backend Not Support" << std::endl;
+            exit(1);
         }
     }
 
@@ -479,22 +484,20 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
         // TODO: if this implementation is used, the setUpTensors(string) should be merged to Graph
         // the qnn_graph below is where we cast the Graph to QNNGraph
         auto expectedBackend = ctx->sub_backend_[i];
-        if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
+
+        std::cout << "Graph" << i << " expectedBackend: " << expectedBackend << std::endl;
+        if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
             std::cout << "=======setup cpu graph " << i << std::endl;
             g->reshape();
             g->setUpTensors();
+        } else if (graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
+            std::cout << "=======setup qnn graph " << i << std::endl;
+            auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+            g->reshape();
+            qnn_graph->setUpTensors(name);
         } else {
-            std::cout << "Graph" << i << " expectedBackend: " << expectedBackend << std::endl;
-            if (i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
-                std::cout << "=======setup cpu graph " << i << std::endl;
-                g->reshape();
-                g->setUpTensors();
-            } else {
-                std::cout << "=======setup qnn graph " << i << std::endl;
-                auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-                g->reshape();
-                qnn_graph->setUpTensors(name);
-            }
+            std::cerr << "Backend Not Support" << std::endl;
+            exit(1);
         }
     }
     auto ex_time_end = mllm_time_us();
@@ -544,27 +547,27 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
             uint64_t t_start = mllm_time_us();
             auto expectedBackend = ctx->sub_backend_[i];
             std::cout << "Graph" << i << " expectedBackend: " << expectedBackend << std::endl;
-            if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
+            if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
                 std::cout << "======= chunk:" << chunk_id << " execute cpu graph " << i << std::endl;
                 string name = typeName + std::to_string(i);
                 auto &g = net->subGraph()[name];
-                chunked_result_list = g->forward();
-            } else {
-                if (i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
-                    std::cout << "======= chunk:" << chunk_id << " execute cpu graph " << i << std::endl;
-                    string name = typeName + std::to_string(i);
-                    auto &g = net->subGraph()[name];
-
-                    result_ = g->forward();
-                    chunked_result_list = g->forward();
-                } else {
-                    std::cout << "======= chunk:" << chunk_id << " execute qnn graph " << i << std::endl;
-                    string name = typeName + std::to_string(i);
-                    auto &g = net->subGraph()[name];
-                    auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-                    chunked_result_list = qnn_graph->forward(name);
+                if (chunk_id != 0) {
+                    // cpu graph should reshape and setup for every chunk forward for KVCache op
+                    g->reshape();
+                    g->setUpTensors();
                 }
+                chunked_result_list = g->forward();
+            } else if (graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
+                std::cout << "======= chunk:" << chunk_id << " execute qnn graph " << i << std::endl;
+                string name = typeName + std::to_string(i);
+                auto &g = net->subGraph()[name];
+                auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+                chunked_result_list = qnn_graph->forward(name);
+            } else {
+                std::cerr << "Backend Not Support" << std::endl;
+                exit(1);
             }
+
             uint64_t t_end = mllm_time_us();
             std::cout << "graph forward " << (t_end - t_start) / 1000.0F << "ms" << std::endl;
             PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
@@ -575,6 +578,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
                 if (chunk_id == 0) { // reshape the result tensor when first chunk is executed
                     for (int tid = 0; tid < chunked_result_list.size(); ++tid) {
                         result_[tid] = std::make_shared<Tensor>();
+                        result_[tid]->setDtype(MLLM_TYPE_I8);
                         result_[tid]->setBackend(net->backends()[BackendType::MLLM_CPU].get());
                         result_[tid]->reshape(chunked_result_list[tid]->batch(),
                                               chunked_result_list[tid]->head(),
@@ -583,11 +587,17 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
                         result_[tid]->alloc();
                     }
                 }
+
                 // move the result to the final result
-                // TODO: segmentation fault
                 for (int tid = 0; tid < chunked_result_list.size(); ++tid) {
                     auto &result_tensor = chunked_result_list[tid];
-                    memcpy(result_[tid]->ptrAt<float>(0, 0, chunk_size * chunk_id, 0), result_tensor->hostPtr<float>(), result_tensor->count() * sizeof(float));
+                    auto d = result_tensor->hostPtr<uint8_t>();
+
+                    // TODO: for chunk execution test
+                    result_tensor->printShape();
+                    std::cout << (unsigned int)d[0];
+                    // TODO: the final result is float, currently use int8 for kvcache test
+                    memcpy(result_[tid]->ptrAt<int8_t>(0, 0, chunk_size * chunk_id, 0), result_tensor->hostPtr<int8_t>(), result_tensor->count() * sizeof(int8_t));
                 }
             }
 
@@ -605,7 +615,6 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
         }
     };
     executeFunction();
-
 
     ex_time_end = mllm_time_us();
     fs << "execute all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
