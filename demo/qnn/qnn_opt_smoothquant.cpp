@@ -55,8 +55,8 @@ std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *re
     v = v->view(-1, head_size, -1, hidden_size);
     // q = _RoPE({q}, LLAMAROPE, name + ".q_rope");
     // k = _RoPE({k}, LLAMAROPE, name + ".k_rope");
-    // k = _KVCache({k}, cache_max, name + ".k_cache");
-    // v = _KVCache({v}, cache_max, name + ".v_cache");
+    k = _KVCache({k}, cache_max, name + ".k_cache");
+    v = _KVCache({v}, cache_max, name + ".v_cache");
 
     auto *m = _MergeOutput({q, k, v, res}, name + ".qkv_merge");
 
@@ -241,7 +241,8 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./models/opt-1.3b-head-static-int8.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     // cmdParser.add<int>("thread", 't', "num of threads", false, 4);
-    cmdParser.add<int>("seq", 's', "num of threads", false, 1);
+    cmdParser.add<int>("seq", 's', "num of threads", false, 64);
+    cmdParser.add<int>("chunk", 'c', "use chunk execute", false, 1);
     cmdParser.add<int>("head", 'h', "num of heads", false, 32);
     cmdParser.add<int>("type", 't', "type of test", false, 13);
     cmdParser.parse_check(argc, argv);
@@ -251,6 +252,7 @@ int main(int argc, char **argv) {
     int tokens_limit = cmdParser.get<int>("limits");
     // int thread_num = cmdParser.get<int>("thread");
     int seqLength = cmdParser.get<int>("seq");
+    int executeType = cmdParser.get<int>("chunk");
     int head_num = cmdParser.get<int>("head");
     int type = cmdParser.get<int>("type");
 
@@ -319,8 +321,8 @@ int main(int argc, char **argv) {
             break;
         case 13:
             // cache_max should be longer than seqLength
-            // opt(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
-            KVCacheTest(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
+            opt(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
+            // KVCacheTest(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
             break;
     }
 
@@ -330,7 +332,16 @@ int main(int argc, char **argv) {
 
     // ParamLoader param_loader(model_path);
     ParamLoader param_loader(model_path);
-    QNNPipelineExecutor ex(&param_loader);
+
+    QNNExecutor* exPtr;
+    if (executeType == 1) {
+        std::cout << "use pipeline execute" << std::endl;
+        exPtr = new QNNPipelineExecutor(&param_loader);
+    } else {
+        std::cout << "use normal execute" << std::endl;
+        exPtr = new QNNExecutor(&param_loader);
+    }
+    auto& ex = *exPtr;
 
     ex.setup(&net);
 
@@ -354,7 +365,7 @@ int main(int argc, char **argv) {
         // delete the last end token
         tokens_id.pop_back();
 
-        tokens_id.resize(32);
+        tokens_id.resize(seqLength);
 
         BPETokenizer::token2Tensor(&net, tokens_id, input);
         // fullTensor(input, net, {1,1, seqLength, 1}, 2.f);
@@ -368,7 +379,8 @@ int main(int argc, char **argv) {
             // ex.run(&net, {input});
             auto result = ex.result();
             result[0]->printShape();
-            // result[0]->printData<float>();
+            std::cout << "&========&=======&" << std::endl;
+            // result[0]->printData<unsigned char>();
 
             // for (int n = 0; n < 32 * 7 * 64; n++) {
             //     std::cout << static_cast<float>(result[0]->hostPtr<float>()[n]) << " ";

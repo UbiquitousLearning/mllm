@@ -31,7 +31,7 @@ public:
     void run(Net *net, vector<shared_ptr<Tensor>> input_tensors) override;
 
     // used for assigning graph backends execuation
-    void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor);
+    virtual void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor);
 
     /**
      * \brief Setup&Executes the foreword propagation of provided network
@@ -77,7 +77,7 @@ public:
         QNNExecutor(data_loader) {
     }
     // used for assigning graph backends execuation
-    void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors);
+    void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) override;
 };
 
 } // namespace mllm

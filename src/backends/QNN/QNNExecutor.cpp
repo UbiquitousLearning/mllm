@@ -85,7 +85,6 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     std::fstream fs("AR_latency.txt", std::ios::app);
     auto ex_time_start = mllm_time_us();
     PRINT_MEMORY_USAGE("before setup all graph");
-    shared_ptr<Backend> a = net->backends()[MLLM_QNN];
     // cast to QNNBackend*
     // auto *qnn = dynamic_cast<QNNBackend *>(a.get());
     // qnn->swapMemManager();
@@ -170,7 +169,7 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     // qnnGraphThread_7.join();
 
     ex_time_end = mllm_time_us();
-    fs << "execute all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+    fs << "execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     // free all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
@@ -231,7 +230,6 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
     std::fstream fs("AR_latency.txt", std::ios::app);
     auto ex_time_start = mllm_time_us();
     PRINT_MEMORY_USAGE("before setup all graph");
-    shared_ptr<Backend> a = net->backends()[MLLM_QNN];
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         string name = typeName + std::to_string(i);
@@ -286,17 +284,19 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
             auto &g = net->subGraph()[name];
             auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
             result_ = qnn_graph->forward(name);
-            uint64_t t_end = mllm_time_us();
-            std::cout << "graph forward " << (t_end - t_start) / 1000.0F << "ms" << std::endl;
             PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
         } else {
             std::cerr << "Backend Not Support" << std::endl;
             exit(1);
         }
+
+        uint64_t t_end = mllm_time_us();
+        std::cout << "graph forward " << (t_end - t_start) / 1000.0F << "ms " << i << std::endl;
     }
 
     ex_time_end = mllm_time_us();
-    fs << "execute all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+    std::cout << "execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+    fs << "execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     // free all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
@@ -474,7 +474,6 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
     std::fstream fs("AR_latency.txt", std::ios::app);
     auto ex_time_start = mllm_time_us();
     PRINT_MEMORY_USAGE("before setup all graph");
-    shared_ptr<Backend> a = net->backends()[MLLM_QNN];
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         string name = typeName + std::to_string(i);
@@ -485,7 +484,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
         // the qnn_graph below is where we cast the Graph to QNNGraph
         auto expectedBackend = ctx->sub_backend_[i];
 
-        std::cout << "Graph" << i << " expectedBackend: " << expectedBackend << std::endl;
+        std::cout << "Graph" << i << " expected backend: " << expectedBackend << std::endl;
         if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
             std::cout << "=======setup cpu graph " << i << std::endl;
             g->reshape();
@@ -510,6 +509,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
     // creat subGraph().size() mutex to control the pipeline
     std::vector<std::mutex> mutexes(net->subGraph().size());
     std::mutex chunk_mutex;
+    std::mutex cpu_mutex;
     std::vector<int> graph_chunk_index(net->subGraph().size(), 0);
     vector<shared_ptr<Tensor>> chunked_result_list;
 
@@ -546,8 +546,11 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
 
             uint64_t t_start = mllm_time_us();
             auto expectedBackend = ctx->sub_backend_[i];
-            std::cout << "Graph" << i << " expectedBackend: " << expectedBackend << std::endl;
+
             if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
+                // execute only one cpu graph at a time
+                cpu_mutex.lock();
+
                 std::cout << "======= chunk:" << chunk_id << " execute cpu graph " << i << std::endl;
                 string name = typeName + std::to_string(i);
                 auto &g = net->subGraph()[name];
@@ -557,6 +560,9 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
                     g->setUpTensors();
                 }
                 chunked_result_list = g->forward();
+
+                // execute only one cpu graph at a time
+                cpu_mutex.unlock();
             } else if (graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
                 std::cout << "======= chunk:" << chunk_id << " execute qnn graph " << i << std::endl;
                 string name = typeName + std::to_string(i);
@@ -569,7 +575,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
             }
 
             uint64_t t_end = mllm_time_us();
-            std::cout << "graph forward " << (t_end - t_start) / 1000.0F << "ms" << std::endl;
+            std::cout << "graph forward " << i << " time " << (t_end - t_start) / 1000.0F << "ms" << " ======= chunk:" << chunk_id << std::endl;
             PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
 
             // if it is the last graph, move the result to the final result
@@ -589,16 +595,16 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
                 }
 
                 // move the result to the final result
-                for (int tid = 0; tid < chunked_result_list.size(); ++tid) {
-                    auto &result_tensor = chunked_result_list[tid];
-                    auto d = result_tensor->hostPtr<uint8_t>();
+                // for (int tid = 0; tid < chunked_result_list.size(); ++tid) {
+                //     auto &result_tensor = chunked_result_list[tid];
 
-                    // TODO: for chunk execution test
-                    result_tensor->printShape();
-                    std::cout << (unsigned int)d[0];
-                    // TODO: the final result is float, currently use int8 for kvcache test
-                    memcpy(result_[tid]->ptrAt<int8_t>(0, 0, chunk_size * chunk_id, 0), result_tensor->hostPtr<int8_t>(), result_tensor->count() * sizeof(int8_t));
-                }
+                //     // TODO: for chunk execution test
+                //     std::cout << "result tensor shape" << std::endl;
+                //     result_tensor->printShape();
+
+                //     // TODO: the final result is float, currently use int8 for kvcache test
+                //     memcpy(result_[tid]->ptrAt<int8_t>(0, 0, chunk_size * chunk_id, 0), result_tensor->hostPtr<int8_t>(), result_tensor->count() * sizeof(int8_t));
+                // }
             }
 
             // unlock the mutex of mutexes at i
@@ -617,7 +623,8 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
     executeFunction();
 
     ex_time_end = mllm_time_us();
-    fs << "execute all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+    std::cout << "*execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+    fs << "*execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     // TODO: in pipeline execute, don't free the graph, error will occur in qnn memory manager deconstruct
     // free all graphs here
