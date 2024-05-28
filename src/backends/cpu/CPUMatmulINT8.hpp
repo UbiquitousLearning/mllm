@@ -4,6 +4,7 @@
 
 #include "Op.hpp"
 #include "CPUBackend.hpp"
+#include "compute/StrassenMatmul.hpp"
 
 namespace mllm {
 
@@ -22,6 +23,7 @@ private:
     int thread_count = 4;
     Tensor scale1_;
     Tensor scale2_;
+    StrassenMatmul matmul_;
 };
 
 class CPUMatmulINT8Creator : public CPUBackend::Creator {

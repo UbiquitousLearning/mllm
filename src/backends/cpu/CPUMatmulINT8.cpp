@@ -9,6 +9,7 @@ namespace mllm {
 
 CPUMatmulINT8::CPUMatmulINT8(Backend *bn, string opName, bool transpose0, bool transpose1, int threadCount) :
     thread_count(threadCount),
+    matmul_(backend_, 5, threadCount),
     Op(bn, opName) {
     transpose0_ = transpose0;
     transpose1_ = transpose1;
@@ -61,7 +62,16 @@ ErrorCode CPUMatmulINT8::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
         inputs[1]->transShape(SEQUENCE, DIMENSION);
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[1]->dimension());
     }
-    // outputs[0]->setDtype(activationDtype());
+
+    matmul_.onReset();
+
+    float scale1_value = scale1_.dataAt<float>(0, 0, 0, 0) / 127.0;
+    scale1_value = roundf(scale1_value * 10000) / 10000;
+    float scale2_value = scale2_.dataAt<float>(0, 0, 0, 0) / 127.0;
+    scale2_value = roundf(scale2_value * 10000) / 10000;
+
+    matmul_.onReshape(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, scale1_value, scale2_value);
+
     return Op::reshape(inputs, outputs);
 }
 
@@ -69,9 +79,7 @@ ErrorCode CPUMatmulINT8::execute(vector<shared_ptr<Tensor>> inputs, vector<share
     assert(inputs[1]->dtype() == MLLM_TYPE_I8);
 
     switch (inputs[0]->dtype()) {
-    case MLLM_TYPE_I8: // q * k
-        {
-
+    case MLLM_TYPE_I8: { // q * k
         // NSHD
         float scale1_value = scale1_.dataAt<float>(0, 0, 0, 0) / 127.0;
         scale1_value = roundf(scale1_value * 10000) / 10000;
@@ -82,20 +90,18 @@ ErrorCode CPUMatmulINT8::execute(vector<shared_ptr<Tensor>> inputs, vector<share
         std::cout << scale1_value << " " << scale2_value << std::endl;
 
         mat_mul_i8(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, thread_count, scale1_value, scale2_value);
-        }
-        break;
-    case MLLM_TYPE_F32: // qk * v
-        {
-            float scale_value = scale2_.dataAt<float>(0, 0, 0, 0) / 127.0;
-            scale_value = roundf(scale_value * 10000) / 10000;
+    } break;
+    case MLLM_TYPE_F32: { // qk * v
+        float scale_value = scale2_.dataAt<float>(0, 0, 0, 0) / 127.0;
+        scale_value = roundf(scale_value * 10000) / 10000;
 
-            mat_mul_fp32_i8(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, thread_count, scale_value);
-        }
-        
-        break;
+        mat_mul_fp32_i8(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, transpose0_, transpose1_, thread_count, scale_value);
+    } break;
     default:
         break;
     }
+
+    matmul_.onExecute();
 
     return Op::execute(inputs, outputs);
 }
@@ -116,7 +122,6 @@ ErrorCode CPUMatmulINT8::load(AbstructLoader &loader) {
         scale1_.setDtype(MLLM_TYPE_F32);
         scale1_.alloc();
         loader.load(&scale1_);
-        scale1_.printData<float>();
 
         scale2_.setName(scaleName + ".k_proj.output_scale");
         scale2_.reshape(1, 1, 1, 1);
@@ -124,7 +129,6 @@ ErrorCode CPUMatmulINT8::load(AbstructLoader &loader) {
         scale2_.setDtype(MLLM_TYPE_F32);
         scale2_.alloc();
         loader.load(&scale2_);
-        scale2_.printData<float>();
     } else { // qkv
         scaleName.erase(pos, wordToRemove.length());
 
@@ -134,7 +138,6 @@ ErrorCode CPUMatmulINT8::load(AbstructLoader &loader) {
         scale2_.setDtype(MLLM_TYPE_F32);
         scale2_.alloc();
         loader.load(&scale2_);
-        scale2_.printData<float>();
     }
 
     return Op::load(loader);
