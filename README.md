@@ -68,6 +68,7 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 | [LLaVA 7B](https://github.com/haotian-liu/LLaVA)                            | [✔️](https://huggingface.co/mllmTeam/llava-1.5-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/llava-1.5-7b-mllm/tree/main)   |
 | [Gemma 2B](https://github.com/google/gemma_pytorch)                         | [✔️](https://huggingface.co/mllmTeam/gemma-2b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/gemma-2b-mllm/tree/main)   |
 | [Qwen 0.5B](https://github.com/QwenLM/Qwen)                         | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-0.5b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-0.5b-mllm/tree/main)   |
+| [Mistral 7B](https://github.com/mistralai/mistral-src)                         | [✔️](https://huggingface.co/mllmTeam/mistral-7b-instruct-v0.2-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/mistral-7b-instruct-v0.2-mllm/tree/main)   |
 
 ## Quick Start
 
@@ -208,14 +209,14 @@ cd scripts
 
 ```bash
 cd ./bin
-./demo_fuyu -m ../models/fuyu-8b-q4_k.mllm -v ../vacob/fuyu_vocab.mllm
+./demo_fuyu -m ../models/fuyu-8b-q4_k.mllm -v ../vocab/fuyu_vocab.mllm
  ```
 
 #### Run LLaMA-2-7B
 
 ```bash
 cd ./bin
-./demo_llama -m ../models/llama-2-7b-chat-q4_k.mllm -v ../vacob/llama_vocab.mllm
+./demo_llama -m ../models/llama-2-7b-chat-q4_k.mllm -v ../vocab/llama_vocab.mllm
 ```
 
 
@@ -223,7 +224,7 @@ cd ./bin
 
 ```bash
 cd ./bin
-./demo_imagebind -m ../models/imagebind_huge-q4_k.mllm -v ../vacob/clip_vocab.mllm
+./demo_imagebind -m ../models/imagebind_huge-q4_k.mllm -v ../vocab/clip_vocab.mllm
 ```
 
 
