@@ -1,6 +1,8 @@
 #include "StrassenMatmul.hpp"
 #include "Types.hpp"
+#include <cassert>
 #include <cstddef>
+#include <utility>
 
 namespace mllm {
 
@@ -17,8 +19,6 @@ ErrorCode StrassenMatmul::onReshape(Tensor *src0, Tensor *src1, Tensor *dst, boo
     const int K = transpose0 ? src0->sequence() : src0->dimension();
     const int N = transpose1 ? src1->sequence() : src1->dimension();
 
-    // TODO: save a,b,c in a stack?
-
     return generateStrassenMatmul(M, K, N, src0, src1, dst, support_bias, bias, transpose0, transpose1, scale1, scale2);
 }
 
@@ -31,47 +31,174 @@ ErrorCode StrassenMatmul::onExecute() {
 }
 
 ErrorCode StrassenMatmul::generateTrivalMatmul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1, float scale1, float scale2) {
-    if (src1->dtype() == MLLM_TYPE_I8) { // int8 matmul for smoothquant
-        switch (src1->dtype()) {
-        case MLLM_TYPE_I8: { // q * k
-            // NSHD
-            float scale1_value = scale1 / 127.0;
-            scale1_value = roundf(scale1_value * 10000) / 10000;
+    auto f = [src0, src1, dst, support_bias, bias, transpose0, transpose1, scale1, scale2, this](int tId) {
+        std::cout << "src0 dtype " << src0->dtype() << std::endl;
+        std::cout << "src1 dtype " << src1->dtype() << std::endl;
+        if (src1->dtype() == MLLM_TYPE_I8) { // int8 matmul for smoothquant
+            switch (src1->dtype()) {
+            case MLLM_TYPE_I8: { // q * k
+                // NSHD
+                float scale1_value = scale1 / 127.0;
+                scale1_value = roundf(scale1_value * 10000) / 10000;
 
-            float scale2_value = scale2 / 127.0;
-            scale2_value = roundf(scale2_value * 10000) / 10000;
+                float scale2_value = scale2 / 127.0;
+                scale2_value = roundf(scale2_value * 10000) / 10000;
 
-            mat_mul_i8(src0, src1, dst, false, nullptr, transpose0, transpose1, thread_count, scale1_value, scale2_value);
-            break;
-        }
-        case MLLM_TYPE_F32: { // qk * v
-            float scale_value = scale2 / 127.0;
-            scale_value = roundf(scale_value * 10000) / 10000;
+                mat_mul_i8(src0, src1, dst, false, nullptr, transpose0, transpose1, thread_count, scale1_value, scale2_value);
+                break;
+            }
+            case MLLM_TYPE_F32: { // qk * v
+                float scale_value = scale2 / 127.0;
+                scale_value = roundf(scale_value * 10000) / 10000;
 
-            mat_mul_fp32_i8(src0, src1, dst, false, nullptr, transpose0, transpose1, thread_count, scale_value);
-            break;
+                mat_mul_fp32_i8(src0, src1, dst, false, nullptr, transpose0, transpose1, thread_count, scale_value);
+                break;
+            }   
+            default:
+                break;
+            }
+        } else if (src0->dtype() == MLLM_TYPE_F32) { // cpu common matmul
+            switch (src1->dtype()) {
+            case MLLM_TYPE_F32: {
+                mat_mul_fp32(src0, src1, dst, false, nullptr, transpose0, transpose1, thread_count);
+                break;
+            }
+            case MLLM_TYPE_F16: {
+                mat_mul_fp32_fp16(src0, src1, dst, false, nullptr, transpose0, transpose1, thread_count);
+                break;
+            }
+            default:
+                break;
+            }
+        } else {
+            std::cerr << "Unsupported data type" << std::endl;
+            return NOT_SUPPORT;
         }
-        default:
-            break;
+    };
+    functions_.push_back(std::make_pair(f, 0));
+    return MLLM_NO_ERROR;
+}
+
+void TensorSub(Tensor *src0, Tensor *src1, Tensor *dst, int thread_count) {
+    assert(src0->dtype() == src1->dtype());
+    int N = std::max(src0->batch(), src1->batch());
+    int C = src0->head();
+    int H = src0->sequence();
+    int W = src0->dimension();
+
+    if (src1->dtype() == MLLM_TYPE_I8) {
+        for (int n = 0; n < N; ++n) {
+            auto n_0 = std::min(n, src0->batch() - 1);
+            auto n_1 = std::min(n, src1->batch() - 1);
+            if (src0->masterTensor() == nullptr && src1->masterTensor() == nullptr && src0->ctype() == src1->ctype()) {
+                auto copy_size = C * H * W;
+                auto in0_ptr = src0->ptrAt<int8_t>(n_0, 0, 0, 0);
+                auto in1_ptr = src1->ptrAt<int8_t>(n_1, 0, 0, 0);
+                auto out_ptr = dst->ptrAt<int8_t>(n, 0, 0, 0);
+#pragma omp parallel for num_threads(thread_count)
+                for (int is = 0; is < copy_size; ++is) {
+                    out_ptr[is] = in0_ptr[is] - in1_ptr[is];
+                }
+            } else {
+                for (int c = 0; c < C; ++c) {
+                    for (int h = 0; h < H; ++h) {
+#pragma omp parallel for num_threads(thread_count)
+                        for (int w = 0; w < W; ++w) {
+                            dst->setDataAt<int8_t>(n, c, h, w, src0->dataAt<int8_t>(n_0, c, h, w) - src1->dataAt<int8_t>(n_1, c, h, w));
+                        }
+                    }
+                }
+            }
         }
-    } else if (src0->dtype() == MLLM_TYPE_F32) { // cpu common matmul
-        switch (src1->dtype()) {
-        case MLLM_TYPE_F32: {
-            mat_mul_fp32(src0, src1, dst, false, nullptr, transpose0, transpose1, thread_count);
-            break;
-        }
-        case MLLM_TYPE_F16: {
-            mat_mul_fp32_fp16(src0, src1, dst, false, nullptr, transpose0, transpose1, thread_count);
-            break;
-        }
-        default:
-            break;
+    } else if (src1->dtype() == MLLM_TYPE_F32) {
+        for (int n = 0; n < N; ++n) {
+            auto n_0 = std::min(n, src0->batch() - 1);
+            auto n_1 = std::min(n, src1->batch() - 1);
+            if (src0->masterTensor() == nullptr && src1->masterTensor() == nullptr && src0->ctype() == src1->ctype()) {
+                auto copy_size = C * H * W;
+                auto in0_ptr = src0->ptrAt<float>(n_0, 0, 0, 0);
+                auto in1_ptr = src1->ptrAt<float>(n_1, 0, 0, 0);
+                auto out_ptr = dst->ptrAt<float>(n, 0, 0, 0);
+#pragma omp parallel for num_threads(thread_count)
+                for (int is = 0; is < copy_size; ++is) {
+                    out_ptr[is] = in0_ptr[is] - in1_ptr[is];
+                }
+            } else {
+                for (int c = 0; c < C; ++c) {
+                    for (int h = 0; h < H; ++h) {
+#pragma omp parallel for num_threads(thread_count)
+                        for (int w = 0; w < W; ++w) {
+                            dst->setDataAt<float>(n, c, h, w, src0->dataAt<float>(n_0, c, h, w) - src1->dataAt<float>(n_1, c, h, w));
+                        }
+                    }
+                }
+            }
         }
     } else {
         std::cerr << "Unsupported data type" << std::endl;
-        return NOT_SUPPORT;
+        exit(1);
     }
-    return MLLM_NO_ERROR;
+}
+
+void TensorAdd(Tensor *src0, Tensor *src1, Tensor *dst, int thread_count) {
+    assert(src0->dtype() == src1->dtype());
+    int N = std::max(src0->batch(), src1->batch());
+    int C = src0->head();
+    int H = src0->sequence();
+    int W = src0->dimension();
+
+    if (src1->dtype() == MLLM_TYPE_I8) {
+        for (int n = 0; n < N; ++n) {
+            auto n_0 = std::min(n, src0->batch() - 1);
+            auto n_1 = std::min(n, src1->batch() - 1);
+            if (src0->masterTensor() == nullptr && src1->masterTensor() == nullptr && src0->ctype() == src1->ctype()) {
+                auto copy_size = C * H * W;
+                auto in0_ptr = src0->ptrAt<int8_t>(n_0, 0, 0, 0);
+                auto in1_ptr = src1->ptrAt<int8_t>(n_1, 0, 0, 0);
+                auto out_ptr = dst->ptrAt<int8_t>(n, 0, 0, 0);
+#pragma omp parallel for num_threads(thread_count)
+                for (int is = 0; is < copy_size; ++is) {
+                    out_ptr[is] = in0_ptr[is] + in1_ptr[is];
+                }
+            } else {
+                for (int c = 0; c < C; ++c) {
+                    for (int h = 0; h < H; ++h) {
+#pragma omp parallel for num_threads(thread_count)
+                        for (int w = 0; w < W; ++w) {
+                            dst->setDataAt<int8_t>(n, c, h, w, src0->dataAt<int8_t>(n_0, c, h, w) + src1->dataAt<int8_t>(n_1, c, h, w));
+                        }
+                    }
+                }
+            }
+        }
+    } else if (src1->dtype() == MLLM_TYPE_F32) {
+        for (int n = 0; n < N; ++n) {
+            auto n_0 = std::min(n, src0->batch() - 1);
+            auto n_1 = std::min(n, src1->batch() - 1);
+            if (src0->masterTensor() == nullptr && src1->masterTensor() == nullptr && src0->ctype() == src1->ctype()) {
+                auto copy_size = C * H * W;
+                auto in0_ptr = src0->ptrAt<float>(n_0, 0, 0, 0);
+                auto in1_ptr = src1->ptrAt<float>(n_1, 0, 0, 0);
+                auto out_ptr = dst->ptrAt<float>(n, 0, 0, 0);
+#pragma omp parallel for num_threads(thread_count)
+                for (int is = 0; is < copy_size; ++is) {
+                    out_ptr[is] = in0_ptr[is] + in1_ptr[is];
+                }
+            } else {
+                for (int c = 0; c < C; ++c) {
+                    for (int h = 0; h < H; ++h) {
+#pragma omp parallel for num_threads(thread_count)
+                        for (int w = 0; w < W; ++w) {
+                            dst->setDataAt<float>(n, c, h, w, src0->dataAt<float>(n_0, c, h, w) + src1->dataAt<float>(n_1, c, h, w));
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        std::cerr << "Unsupported data type" << std::endl;
+        exit(1);
+    }
 }
 
 ErrorCode StrassenMatmul::generateStrassenMatmul(int m, int k, int n, Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1, float scale1, float scale2, int depth) {
@@ -81,10 +208,9 @@ ErrorCode StrassenMatmul::generateStrassenMatmul(int m, int k, int n, Tensor *sr
     auto remainM = m - subM * 2;
     auto remainN = n - subN * 2;
 
-    if (depth >= max_depth_ || k <= 64 || k % 2 != 0) {
+    if (depth >= max_depth_ || k <= 16 || k % 2 != 0) {
         return generateTrivalMatmul(src0, src1, dst, support_bias, bias, transpose0, transpose1, scale1, scale2);
     }
-
     auto *A11 = new Tensor();
     A11->setCtype(src0->ctype());
     A11->reshape(src0->batch(), src0->head(), subM, subK);
@@ -137,47 +263,197 @@ ErrorCode StrassenMatmul::generateStrassenMatmul(int m, int k, int n, Tensor *sr
 
     auto *X = new Tensor();
     X->setDtype(src0->dtype());
+    X->setBackend(this->backend_);
     X->reshape(src0->batch(), src0->head(), subM, subK);
     X->alloc();
     auto *Y = new Tensor();
+    Y->setBackend(this->backend_);
     Y->setDtype(src1->dtype());
     Y->reshape(src1->batch(), src1->head(), subK, subN);
     Y->alloc();
-
     {
         // S3=A11-A21, T3=B22-B12, P7=S3*T3
-        auto f = [A11, A21, B22, B12, X, Y, subM, subK, subN](int tId){
-            // sub multi thread
+        auto f = [A11, A21, B22, B12, X, Y, subM, subK, subN, this](int tId) {
+            auto S3 = new Tensor();
+            S3->setCtype(A11->ctype());
+            S3->reshape(A11->batch(), A11->head(), subM, subK);
+            S3->deepCopyFrom(X, false, {0, 0, 0, 0});
+            TensorSub(A11, A21, X, this->thread_count);
+            auto T3 = new Tensor();
+            T3->setCtype(B22->ctype());
+            T3->reshape(B22->batch(), B22->head(), subK, subN);
+            T3->deepCopyFrom(Y, false, {0, 0, 0, 0});
         };
         functions_.push_back(std::make_pair(f, 0));
         auto code = generateStrassenMatmul(subM, subK, subN, A11, B11, X, false, nullptr, transpose0, transpose1, scale1, scale2, depth + 1);
-        if(code != MLLM_NO_ERROR){
+        if (code != MLLM_NO_ERROR) {
             return code;
         }
     }
     {
         // S1=A21+A22, T1=B12-B11, P5=S1T1
+        auto f = [A21, A22, B12, B11, X, Y, subM, subK, subN, this](int tId) {
+            auto S1 = new Tensor();
+            S1->setCtype(A21->ctype());
+            S1->reshape(A21->batch(), A21->head(), subM, subK);
+            S1->deepCopyFrom(X, false, {0, 0, 0, 0});
+            TensorAdd(A21, A22, X, this->thread_count);
+            auto T1 = new Tensor();
+            T1->setCtype(B12->ctype());
+            T1->reshape(B12->batch(), B12->head(), subK, subN);
+            T1->deepCopyFrom(Y, false, {0, 0, 0, 0});
+        };
+        functions_.push_back(std::make_pair(f, 0));
+        auto code = generateStrassenMatmul(subM, subK, subN, A21, B12, Y, false, nullptr, transpose0, transpose1, scale1, scale2, depth + 1);
+        if (code != MLLM_NO_ERROR) {
+            return code;
+        }
     }
     {
         // S2=S1-A11, T2=B22-T1, P6=S2T2
+        auto f = [A11, X, B22, Y, subM, subK, subN, this](int tId) {
+            auto S2 = new Tensor();
+            S2->setCtype(A11->ctype());
+            S2->reshape(A11->batch(), A11->head(), subM, subK);
+            S2->deepCopyFrom(X, false, {0, 0, 0, 0});
+            TensorSub(A11, A11, X, this->thread_count);
+            auto T2 = new Tensor();
+            T2->setCtype(B22->ctype());
+            T2->reshape(B22->batch(), B22->head(), subK, subN);
+            T2->deepCopyFrom(Y, false, {0, 0, 0, 0});
+        };
+        functions_.push_back(std::make_pair(f, 0));
+        auto code = generateStrassenMatmul(subM, subK, subN, A11, B22, X, false, nullptr, transpose0, transpose1, scale1, scale2, depth + 1);
+        if (code != MLLM_NO_ERROR) {
+            return code;
+        }
     }
     {
         // S4=A12-S2, P3=S4*B22, P1=A11*B11
+        auto f = [A12, X, B22, Y, subM, subK, subN, this](int tId) {
+            auto S4 = new Tensor();
+            S4->setCtype(A12->ctype());
+            S4->reshape(A12->batch(), A12->head(), subM, subK);
+            S4->deepCopyFrom(X, false, {0, 0, 0, 0});
+            TensorSub(A12, X, X, this->thread_count);
+        };
+        functions_.push_back(std::make_pair(f, 0));
+        auto code = generateStrassenMatmul(subM, subK, subN, A12, B22, Y, false, nullptr, transpose0, transpose1, scale1, scale2, depth + 1);
+        if (code != MLLM_NO_ERROR) {
+            return code;
+        }
     }
     {
         // U2=P1+P6, U3=U2+P7, U4=U2+P5, U7=U3+P5
         // U5=U4+P3, T4=T2-B21, P4=A22*T4
+        auto f = [B21, C11, C12, C21, C22, X, Y, subM, subK, subN, this](int tId) {
+            auto U2 = new Tensor();
+            U2->setCtype(C11->ctype());
+            U2->reshape(C11->batch(), C11->head(), subM, subN);
+            U2->deepCopyFrom(C11, false, {0, 0, 0, 0});
+            TensorAdd(C11, C12, C11, this->thread_count);
+            auto U3 = new Tensor();
+            U3->setCtype(C11->ctype());
+            U3->reshape(C11->batch(), C11->head(), subM, subN);
+            U3->deepCopyFrom(C11, false, {0, 0, 0, 0});
+            TensorAdd(C11, C21, C11, this->thread_count);
+            auto U4 = new Tensor();
+            U4->setCtype(C11->ctype());
+            U4->reshape(C11->batch(), C11->head(), subM, subN);
+            U4->deepCopyFrom(C11, false, {0, 0, 0, 0});
+            TensorAdd(C11, C22, C11, this->thread_count);
+            auto U7 = new Tensor();
+            U7->setCtype(C11->ctype());
+            U7->reshape(C11->batch(), C11->head(), subM, subN);
+            U7->deepCopyFrom(C11, false, {0, 0, 0, 0});
+            TensorAdd(C11, C22, C11, this->thread_count);
+            auto U5 = new Tensor();
+            U5->setCtype(C11->ctype());
+            U5->reshape(C11->batch(), C11->head(), subM, subN);
+            U5->deepCopyFrom(C11, false, {0, 0, 0, 0});
+            TensorAdd(C11, C22, C11, this->thread_count);
+            auto T4 = new Tensor();
+            T4->setCtype(Y->ctype());
+            T4->reshape(Y->batch(), Y->head(), subK, subN);
+            T4->deepCopyFrom(Y, false, {0, 0, 0, 0});
+            TensorSub(Y, B21, Y, this->thread_count);
+        };
+        functions_.push_back(std::make_pair(f, 0));
+        auto code = generateStrassenMatmul(subM, subK, subN, A22, B21, Y, false, nullptr, transpose0, transpose1, scale1, scale2, depth + 1);
     }
     {
         // U6=U3-P4, P2=A12*B21, U1=P1+P2
+        auto f = [C11, C12, C21, C22, X, Y, subM, subK, subN, this](int tId) {
+            auto U6 = new Tensor();
+            U6->setCtype(C11->ctype());
+            U6->reshape(C11->batch(), C11->head(), subM, subN);
+            U6->deepCopyFrom(C11, false, {0, 0, 0, 0});
+            TensorSub(C11, Y, C11, this->thread_count);
+            auto P2 = new Tensor();
+            P2->setCtype(C11->ctype());
+            P2->reshape(C11->batch(), C11->head(), subM, subN);
+            P2->deepCopyFrom(C11, false, {0, 0, 0, 0});
+            auto U1 = new Tensor();
+            U1->setCtype(C11->ctype());
+            U1->reshape(C11->batch(), C11->head(), subM, subN);
+            U1->deepCopyFrom(C11, false, {0, 0, 0, 0});
+            TensorAdd(C11, C21, C11, this->thread_count);
+        };
+        functions_.push_back(std::make_pair(f, 0));
+        auto code = generateStrassenMatmul(subM, subK, subN, A12, B21, Y, false, nullptr, transpose0, transpose1, scale1, scale2, depth + 1);
+        if (code != MLLM_NO_ERROR) {
+            return code;
+        }
     }
-    if (remainM != 0) {
-        generateTrivalMatmul(src0, src1, dst, false, NULL, transpose0, transpose1);
-    }
-    if (remainN != 0) {
-        generateTrivalMatmul(src0, src1, dst, false, NULL, transpose0, transpose1);
-    }
+    // if (remainM != 0) {
+    //     generateTrivalMatmul(src0, src1, dst, false, NULL, transpose0, transpose1);
+    // }
+    // if (remainN != 0) {
+    //     generateTrivalMatmul(src0, src1, dst, false, NULL, transpose0, transpose1);
+    // }
     return MLLM_NO_ERROR;
+}
+
+StrassenMatmul::ThreadPool::ThreadPool(size_t num_threads) :
+    stop_(false) {
+    for (size_t i = 0; i < num_threads; ++i) {
+        workers_.emplace_back(
+            [this] {
+                while (true) {
+                    std::function<void()> task;
+                    {
+                        std::unique_lock<std::mutex> lock(this->queue_mutex_);
+                        this->condition_.wait(lock,
+                                              [this] { return this->stop_ || !this->tasks_.empty(); });
+                        if (this->stop_ && this->tasks_.empty())
+                            return;
+                        task = std::move(this->tasks_.front());
+                        this->tasks_.pop();
+                    }
+                    task();
+                }
+            });
+    }
+}
+
+StrassenMatmul::ThreadPool::~ThreadPool() {
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex_);
+        stop_ = true;
+    }
+    condition_.notify_all();
+    for (std::thread &worker : workers_)
+        worker.join();
+}
+
+void StrassenMatmul::ThreadPool::enqueue(std::function<void()> f) {
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex_);
+        if (stop_)
+            throw std::runtime_error("enqueue on stopped ThreadPool");
+        tasks_.emplace(std::move(f));
+    }
+    condition_.notify_one();
 }
 
 } // namespace mllm
