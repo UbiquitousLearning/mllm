@@ -41,7 +41,7 @@ ErrorCode CPUSparseLinear::execute(vector<shared_ptr<Tensor>> inputs, vector<sha
 }
 
 ErrorCode CPUSparseLinear::load(AbstructLoader &loader) {
-    // This SparseLinear is different from Linear.
+    // This SPARSELINEAR is different from Linear.
     // The weight is equivalent to the transpose of the Linear's weight
     weight_.setName(name() + ".weight_T");
     auto type = loader.getDataType(weight_.name());

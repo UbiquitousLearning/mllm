@@ -191,6 +191,7 @@ void MultiFileParamLoader::load_file(const string& filename) {
         offsets_[name] = std::make_pair(offset, length);
         data_type_[name] = type;
         files_[name] = fp;
+//        printf("loaded %s\n", name.c_str());
     }
 }
 MultiFileParamLoader::~MultiFileParamLoader() {

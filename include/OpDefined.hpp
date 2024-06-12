@@ -46,8 +46,8 @@ enum OpType {
     WHERE,
     REPLACE,
     PREDICTOR,
-    SparseLinear,  // TODO: should change to uppercase
-    SparseIdLinear, // TODO: should change to uppercase
+    SPARSELINEAR,
+    SPARSEIDLINEAR,
     OP_NUM
 };
 
