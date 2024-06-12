@@ -16,6 +16,7 @@
 
 #include <regex>
 #include <string>
+#include <vector>
 
 namespace mllm {
 
@@ -178,11 +179,11 @@ protected:
             }
             switch (input0.status()) {
             case TENSOR_STATIC_INIT: {
-                if (Tensor::gph_.find(input0.name()) == Tensor::gph_.end()|| input0.count() != Tensor::gph_[input0.name()].count()) {
+                if (Tensor::gph_.find(input0.name()) == Tensor::gph_.end() || input0.count() != Tensor::gph_[input0.name()].count()) {
                     Tensor::gph_[input0.name()] = input0;
                     Tensor::gph_[input0.name()].setName(input0.name());
                 }
-                if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end()|| input1.count() != Tensor::gph_[input1.name()].count()) {
+                if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end() || input1.count() != Tensor::gph_[input1.name()].count()) {
                     Tensor::gph_[input1.name()] = input1;
                     Tensor::gph_[input1.name()].setName(input1.name());
                 }
@@ -252,11 +253,11 @@ protected:
                     Tensor::gph_[input0.name()] = input0;
                     Tensor::gph_[input0.name()].setName(input0.name());
                 }
-                if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end()|| input1.count() != Tensor::gph_[input1.name()].count()) {
+                if (Tensor::gph_.find(input1.name()) == Tensor::gph_.end() || input1.count() != Tensor::gph_[input1.name()].count()) {
                     Tensor::gph_[input1.name()] = input1;
                     Tensor::gph_[input1.name()].setName(input1.name());
                 }
-                if (Tensor::gph_.find(input2.name()) == Tensor::gph_.end()|| input2.count() != Tensor::gph_[input0.name()].count()) {
+                if (Tensor::gph_.find(input2.name()) == Tensor::gph_.end() || input2.count() != Tensor::gph_[input0.name()].count()) {
                     Tensor::gph_[input2.name()] = input2;
                     Tensor::gph_[input2.name()].setName(input2.name());
                 }
@@ -540,10 +541,27 @@ public:
     }
 };
 
+class SlidingWindowMask final : public Layer {
+public:
+    explicit SlidingWindowMask(int window_size, std::string name) {
+        param_["window_size"] = window_size;
+        init(std::move(name), OpType::SLIDINGWINDOWMASK);
+    }
+    Tensor &operator()(Tensor &input) {
+        return _1I1O_OP(input);
+    }
+};
+
 class RoPE final : public Layer {
 public:
     explicit RoPE(int pose_type, std::string name) {
         param_["pose_type"] = pose_type;
+        init(std::move(name), OpType::ROPE);
+    }
+    explicit RoPE(int pose_type, float rope_theta, int max_position_embeddings, std::string name) {
+        param_["pose_type"] = pose_type;
+        param_["rope_theta"] = rope_theta;
+        param_["max_position_embeddings"] = max_position_embeddings;
         init(std::move(name), OpType::ROPE);
     }
     Tensor &operator()(Tensor &input) {
@@ -588,6 +606,14 @@ public:
         param_["epsilon"] = epsilon;
         init(std::move(name), OpType::RMSNORM);
     }
+
+    explicit RMSNorm(int norm_size, float epsilon, bool add_unit_offset, std::string name) {
+        param_["norm_size"] = norm_size;
+        param_["epsilon"] = epsilon;
+        param_["add_unit_offset"] = (float)add_unit_offset;
+        init(std::move(name), OpType::RMSNORM);
+    }
+
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
     }
@@ -608,12 +634,24 @@ public:
 class Split final : public Layer {
 public:
     Split() = default;
+
     explicit Split(int split_num, Chl split_dim, int split_dim_size, std::string name) {
         param_["split_num"] = (float)split_num;
         param_["split_dim"] = (float)split_dim;
         param_["split_dim_size"] = (float)split_dim_size;
         init(std::move(name), OpType::SPLIT);
     }
+
+    explicit Split(const std::vector<int> &each_dims, Chl split_dim, const std::string &name) {
+        param_["split_num"] = (float)each_dims.size();
+        param_["split_dim"] = (float)split_dim;
+        // store each dims
+        for (size_t i = 0; i < each_dims.size(); ++i) {
+            param_["split_dim_size_" + std::to_string(i)] = (float)each_dims[i];
+        }
+        init(std::move(name), OpType::SPLIT);
+    }
+
     vector<Tensor> operator()(Tensor &input) {
         return _1INO_OP(input, (int)param_["split_num"]);
     }

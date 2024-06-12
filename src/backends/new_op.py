@@ -16,7 +16,7 @@ namespace mllm {
 class CPUAbc final : public Op {
 public:
     CPUAbc(Backend *bn, string opName, int threadCount);
-    ~CPUReplace() override = default;
+    ~CPUAbc() override = default;
     ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     ErrorCode load(AbstructLoader &loader) override;

@@ -8,7 +8,7 @@
 
 using namespace mllm;
 
-class LLaMANameConfig : public TransformerNameConfig{
+class LLaMANameConfig : public TransformerNameConfig {
 public:
     std::string blk_name;
     std::string token_embd_name;

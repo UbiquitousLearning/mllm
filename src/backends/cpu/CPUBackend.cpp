@@ -4,6 +4,7 @@
 #include "CPUView.hpp"
 #include "CPUAdd.hpp"
 #include "CPUCausalMask.hpp"
+#include "CPUSlidingWindowMask.hpp"
 #include "CPUMatmul.hpp"
 #include "CPURMSNorm.hpp"
 #include "CPURoPE.hpp"
@@ -62,6 +63,7 @@ void CPUBackend::registerOps() {
     addCreator(PARAMETER, (CPUBackend::Creator *)(new CPUParameterCreator()));
     addCreator(ADD, (CPUBackend::Creator *)(new CPUAddCreator()));
     addCreator(CAUSALMASK, (CPUBackend::Creator *)(new CPUCausalMaskCreator()));
+    addCreator(SLIDINGWINDOWMASK, (CPUBackend::Creator *)(new CPUSlidingWindowMaskCreator()));
     addCreator(MATMUL, (CPUBackend::Creator *)(new CPUMatmulCreator()));
     addCreator(RMSNORM, (CPUBackend::Creator *)(new CPURMSNormCreator()));
     addCreator(ROPE, (CPUBackend::Creator *)(new CPURoPECreator()));
@@ -99,7 +101,7 @@ void CPUBackend::registerOps() {
     addCreator(SparseIdLinear, (CPUBackend::Creator *)(new CPUSparseIdLinearCreator()));
 }
 
-TensorFunction *CPUBackend::funcCreate(const TensorFuncType type){
+TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {
     auto iter = map_function_.find(type);
     if (iter == map_function_.end()) {
         printf("Don't support type \n");
@@ -108,7 +110,7 @@ TensorFunction *CPUBackend::funcCreate(const TensorFuncType type){
     return iter->second;
 }
 
-void CPUBackend::registerFuncs(){
+void CPUBackend::registerFuncs() {
     map_function_[TensorFuncType::FUNC_ADD] = new CPUaddFunction();
     map_function_[TensorFuncType::FUNC_SUB] = new CPUsubFunction();
     map_function_[TensorFuncType::FUNC_MUL] = new CPUmulFunction();
@@ -128,9 +130,7 @@ void CPUBackend::registerFuncs(){
     map_function_[TensorFuncType::FUNC_CLIPAXIS] = new CPUclipaxisFunction();
     map_function_[TensorFuncType::FUNC_RANGE] = new CPURangeFunction();
     map_function_[TensorFuncType::FUNC_WHERE] = new CPUwhereFunction();
-
 };
-
 
 int CPUBackend::cpu_threads = 4;
 
