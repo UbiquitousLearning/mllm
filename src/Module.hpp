@@ -19,7 +19,7 @@ namespace mllm {
 class Module {
 public:
     static map<BackendType, Backend *> backends;
-    static ParamLoader *loader;
+    static AbstructLoader *loader;
     static TensorStatus tensor_status;
     static bool doLoad;
 
@@ -49,6 +49,21 @@ public:
 
     void load(string path) {
         initLoader(path);
+        Module::doLoad = true;
+        vector<Tensor> tmps;
+        int max_in_size = 5;
+        for (int i = 0; i < max_in_size; ++i) {
+            Tensor::gph_[std::to_string(i)] = Tensor(Module::backends[MLLM_CPU]);
+            tmps.push_back(Tensor::gph_[std::to_string(i)]);
+        }
+        vector<int> tmpt = {0, 0};
+        operator()(tmps, tmpt);
+        Module::doLoad = false;
+        Tensor::gph_.clear();
+    }
+
+    void load(AbstructLoader &param_loader) {
+        loader = &param_loader;
         Module::doLoad = true;
         vector<Tensor> tmps;
         int max_in_size = 5;

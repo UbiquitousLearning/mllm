@@ -40,7 +40,7 @@ public:
      * \brief load the weights/bias of Ops in this graph.
      * \param loader A Paramloader
      */
-    void setUpOps(ParamLoader &loader);
+    void setUpOps(AbstructLoader &loader);
 
     /**
      * \brief forward propagation

@@ -41,5 +41,8 @@ NetTensor *_MaxPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vecto
 NetTensor *_Cat(std::vector<NetTensor *> inputs, Chl axis, string name = "");
 NetTensor *_Division(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Replace(std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_SparseLinear(std::vector<NetTensor *> inputs, int in_dim, int out_dim, string name = "");
+NetTensor *_SparseIdLinear(std::vector<NetTensor *> inputs, int in_dim, int out_dim, string name = "");
+NetTensor *_Predictor(std::vector<NetTensor *> inputs, int in_dim, int out_dim, string name = "");
 
 #endif // MLLM_EXPRESS_H
