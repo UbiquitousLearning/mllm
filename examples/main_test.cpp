@@ -486,7 +486,7 @@ bool test_sparse_id_linear(AbstructLoader &param_loader, int in_dim, int out_dim
     timer.Tick();
     ex_sparse->execute(net_sparse.get(), {x, ids});
     timer.Tick();
-    printf("\033[31m sparse linear id time: %.2lf us  (sparsity: %.2lf%)\033[0m\n", timer.Microseconds(), sparsity * 100);
+    printf("\033[31m sparse linear id time: %.2lf us  (sparsity: %.2lf%%)\033[0m\n", timer.Microseconds(), sparsity * 100);
     auto res_sparse = ex_sparse->result()[0];
 //        res_sparse->printData<float>();
 
@@ -526,7 +526,7 @@ bool test_sparse_linear(AbstructLoader &param_loader, int in_dim, int out_dim, c
     timer.Tick();
     ex_sparse->execute(net_sparse.get(), {x});
     timer.Tick();
-    printf("\033[31m sparse linear time: %.2lf us  (sparsity: %.2lf %)\033[0m\n", timer.Microseconds(), SparsityRate<float>(*x, true) * 100);
+    printf("\033[31m sparse linear time: %.2lf us  (sparsity: %.2lf %%)\033[0m\n", timer.Microseconds(), SparsityRate<float>(*x, true) * 100);
     auto res_sparse = ex_sparse->result()[0];
 //    res_sparse->printData<float>();
 
