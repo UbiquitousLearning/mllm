@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./models/opt-1.3b-head-static-int8.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
-    cmdParser.add<int>("seq", 's', "num of threads", false, 64);
+    cmdParser.add<int>("seq", 's', "num of threads", false, 32);
     cmdParser.add<int>("chunk", 'c', "use chunk execute", false, 1);
     cmdParser.add<int>("head", 'h', "num of heads", false, 32);
 
@@ -106,20 +106,21 @@ int main(int argc, char **argv) {
     Net cpuNet(bn);
     cpuNet.convert(cpu_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
 
-    ParamLoader param_loader(model_path);
+    ParamLoader npu_prefill_param_loader(model_path);
+    ParamLoader cpu_decoding_param_loader(model_path);
 
     QNNExecutor *npuExePtr;
     if (executeType == 1) {
         std::cout << "use pipeline execute" << std::endl;
-        npuExePtr = new QNNPipelineExecutor(&param_loader);
+        npuExePtr = new QNNPipelineExecutor(&npu_prefill_param_loader);
     } else {
         std::cout << "use normal execute" << std::endl;
-        npuExePtr = new QNNExecutor(&param_loader);
+        npuExePtr = new QNNExecutor(&npu_prefill_param_loader);
     }
     auto &npuExe = *npuExePtr;
     npuExe.setup(&npuNet);
 
-    Executor cpuExe(&param_loader);
+    Executor cpuExe(&cpu_decoding_param_loader);
     cpuExe.setup(&cpuNet);
 
     vector<string> in_strs = {
@@ -142,6 +143,7 @@ int main(int argc, char **argv) {
         // delete the last end token
         tokens_id.pop_back();
 
+        // resize to the expected seqLength, the seq will be then splited to chunks
         tokens_id.resize(seqLength);
 
         BPETokenizer::token2Tensor(&npuNet, tokens_id, input);
@@ -162,7 +164,7 @@ int main(int argc, char **argv) {
 
             // 2: Decoding stage using CPU execute
             for (int step = 1; step < 100; step++) {
-                cpuExe.run(&npuNet, {input});
+                cpuExe.run(&cpuNet, {input});
                 auto result = cpuExe.result();
                 auto token_idx = postProcessing(result[0], input);
                 if (token_idx == 2) { // "</s>"

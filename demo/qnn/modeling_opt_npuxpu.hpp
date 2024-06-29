@@ -129,7 +129,7 @@ void opt_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_
 
         i = *i + res;
     }
-
+    _SubgraphBegin(c, MLLM_CPU);
     i = _LayerNorm({i}, hidden_dim, true, 1e-5, (string) "model.decoder.final_layer_norm");
     i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
 }
@@ -142,9 +142,6 @@ NetTensor * CPUAttention(Context *c, NetTensor *x, int embedding_size, int hidde
     q = q->view(-1, head_size, -1, hidden_size);
     k = k->view(-1, head_size, -1, hidden_size);
     v = v->view(-1, head_size, -1, hidden_size);
-
-    k = _KVCache({k}, cache_max, name + ".k_cache");
-    v = _KVCache({v}, cache_max, name + ".v_cache");
 
     k = _KVCache({k}, 1, false, cache_max, name + ".k_cache");
     v = _KVCache({v}, 1, false, cache_max, name + ".v_cache");

@@ -11,6 +11,9 @@ namespace mllm {
 
 QNNOptNet::QNNOptNet(BackendConfig config, Context *ctx) :
     Net(config) {
+// #ifdef QNN_ENABLED
+    backends_.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create(config));
+// #endif
     ctx_ = ctx;
 }
 
@@ -150,6 +153,7 @@ void QNNOptNet::convert(vector<NetParameter> &param, BackendType backend_type, i
 }
 
 void QNNOptNet::convert(Context* ctx, BackendType backend_type, int threadCount) {
+    std::cout << "================== 1" << std::endl;
     auto& param = ctx->sub_param_;
     for (int ii = 0; ii < (int)param.size(); ++ii) {
         auto &sub_param = param[ii];
@@ -178,7 +182,7 @@ void QNNOptNet::convert(Context* ctx, BackendType backend_type, int threadCount)
         }
         tensor_names_.push_back(names);
     }
-
+    std::cout << "================== 2" << std::endl;
     for (int i = 0; i < (int)param.size(); ++i) {
         auto expectedBackend = ctx->sub_backend_[i];
 
