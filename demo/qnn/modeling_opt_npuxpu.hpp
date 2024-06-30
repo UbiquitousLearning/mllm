@@ -143,8 +143,9 @@ NetTensor * CPUAttention(Context *c, NetTensor *x, int embedding_size, int hidde
     k = k->view(-1, head_size, -1, hidden_size);
     v = v->view(-1, head_size, -1, hidden_size);
 
-    k = _KVCache({k}, 1, false, cache_max, name + ".k_cache");
-    v = _KVCache({v}, 1, false, cache_max, name + ".v_cache");
+    // NOTE: if share_input is false, the cache dtype will be I8(sq) and not be able to run on CPULinear
+    k = _KVCache({k}, 1, true, cache_max, name + ".k_cache");
+    v = _KVCache({v}, 1, true, cache_max, name + ".v_cache");
 
     auto *qk = _Matmul({q, k}, false, true, name + ".qk");
 

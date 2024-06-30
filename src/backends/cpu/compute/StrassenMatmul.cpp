@@ -89,7 +89,6 @@ void TensorSub(Tensor *src0, Tensor *src1, Tensor *dst, int thread_count) {
     int C = src0->head();
     int H = src0->sequence();
     int W = src0->dimension();
-    std::cout << "tensor sub" << std::endl;
 
     if (src1->dtype() == MLLM_TYPE_I8) {
         for (int n = 0; n < N; ++n) {
@@ -151,8 +150,6 @@ void TensorAdd(Tensor *src0, Tensor *src1, Tensor *dst, int thread_count) {
     int C = src0->head();
     int H = src0->sequence();
     int W = src0->dimension();
-
-    std::cout << "tensor add" << std::endl;
 
     if (src1->dtype() == MLLM_TYPE_I8) {
         for (int n = 0; n < N; ++n) {

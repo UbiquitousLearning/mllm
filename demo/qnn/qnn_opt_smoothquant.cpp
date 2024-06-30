@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
     cpuNet.convert(cpu_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
 
     ParamLoader npu_prefill_param_loader(model_path);
-    ParamLoader cpu_decoding_param_loader(model_path);
+    ParamLoader cpu_decoding_param_loader("./models/opt-1.3b-q40.mllm");
 
     QNNExecutor *npuExePtr;
     if (executeType == 1) {
