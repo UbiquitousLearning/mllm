@@ -240,16 +240,16 @@ cd tools/convertor
 pip install -r ./requirements.txt
 
 # for one file pytorch model
-python convert.py --input_model=model.pth --output_model=model.mllm --type=torch
+python converter.py --input_model=model.pth --output_model=model.mllm --type=torch
 
 # for multi-file pytorch model
-python convert.py --input_model=pytorch_model.bin.index.json --output_model=model.mllm --type=torch
+python converter.py --input_model=pytorch_model.bin.index.json --output_model=model.mllm --type=torch
 
 # for one file safetensor model
-python convert.py --input_model=model.bin --output_model=model.mllm --type=safetensor
+python converter.py --input_model=model.bin --output_model=model.mllm --type=safetensor
 
 # for multi-file safetensor model
-python convert.py --input_model=model.safetensors.index.json --output_model=model.mllm --type=safetensor
+python converter.py --input_model=model.safetensors.index.json --output_model=model.mllm --type=safetensor
 ``` 
 
 ### Convert vocabulary
