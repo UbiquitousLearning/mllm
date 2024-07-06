@@ -16,6 +16,10 @@ std::string intToStringWithLeadingZero(int num) {
 
 namespace mllm {
 
+#ifdef QNN_ENABLED
+static unordered_map<string, Op*> kv_cache_map;
+#endif
+
 Graph::Graph(const NetParameter &param, Backend *bn,
              unordered_map<string, shared_ptr<Tensor>> &external_tensors,
              int threadCount) {
@@ -30,6 +34,26 @@ Graph::Graph(const NetParameter &param, Backend *bn,
         }
     }
     for (auto net_op : param.net_ops) {
+    // for QNN prefill & CPU decoding execution, KVCache should be shared for each block
+#ifdef QNN_ENABLED
+        if (net_op->type == KVCACHE) {
+            std::cout << net_op->name << " is KVCache" << std::endl;
+            shared_ptr<Op> my_op(nullptr);
+            if (kv_cache_map.find(net_op->name) == kv_cache_map.end()) {
+                // for the prefill part, we need to create a new op
+                auto *new_op = backend_->opCreate(net_op->param, net_op->name, threadCount);
+                my_op.reset(new_op);
+                my_op->setOpType(net_op->type);
+                kv_cache_map[net_op->name] = new_op;
+            } else {
+                std::cout << net_op->name << " is shared used" << std::endl;
+                // for the decoding part, we need to get created op from global container
+                my_op.reset(kv_cache_map[net_op->name]);
+            }
+            ops_[net_op->name] = my_op;
+            continue;
+        }
+#endif
         shared_ptr<Op> my_op(nullptr);
         auto *new_op = backend_->opCreate(net_op->param, net_op->name, threadCount);
         my_op.reset(new_op);
