@@ -305,6 +305,30 @@ void QNNExecutor::run(Context* ctx, Net *net, vector<shared_ptr<Tensor>> input_t
                 result_ = qnn_graph->forward(name);
                 uint64_t t_end = mllm_time_us();
                 std::cout << "graph forward " << (t_end - t_start) / 1000.0F << "ms" << std::endl;
+
+                {
+                    FILE *file;
+                    const char *filename = "nas_log.txt";
+
+                    // 打开文件以追加模式 ("a" 模式)
+                    file = fopen(filename, "a");
+
+                    // 检查文件是否成功打开
+                    if (file == NULL) {
+                        perror("Error opening file");
+                        exit(-1);
+                    }
+
+                    // 将文本写入文件
+                    fprintf(file, "%f\n", (t_end - t_start) / 1000.0F);
+
+                    // 关闭文件
+                    if (fclose(file) != 0) {
+                        perror("Error closing file");
+                        exit(-1);
+                    }
+                }
+
                 PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
             }
         }

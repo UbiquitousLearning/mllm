@@ -46,13 +46,18 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_r
 
 std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *res, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq) {
     // x = _Quantize({x}, true, (string)name + ".x.quantize");
-    x = x->view(1, static_cast<int>(sqrt(seq)), static_cast<int>(sqrt(seq)), hidden_size * head_size);
+    x = x->view(1, static_cast<int>(seq/32), static_cast<int>(32), hidden_size * head_size);
     auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
     auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".k_proj");
     auto *v = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".v_proj");
     q = q->view(1, head_size, seq, hidden_size);
     k = k->view(1, head_size, seq, hidden_size);
     v = v->view(1, head_size, seq, hidden_size);
+
+    // q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize");
+    // k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize");
+    // v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize");
+
     // q = _RoPE({q}, LLAMAROPE, name + ".q_rope");
     // k = _RoPE({k}, LLAMAROPE, name + ".k_rope");
     // k = _KVCache({k}, cache_max, name + ".k_cache");
@@ -97,7 +102,7 @@ std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *re
     o = s[0];
     res = s[1];
     
-    o = o->view(1, static_cast<int>(sqrt(seq)), static_cast<int>(sqrt(seq)), hidden_size * head_size);
+    o = o->view(1, static_cast<int>(seq/32), static_cast<int>(32), hidden_size * head_size);
     res = res->view(-1, 1, -1, hidden_size * head_size);
     o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".out_proj");
     o = _Dequantize({o}, true, (string)name + ".out_proj.dequantize");
@@ -145,16 +150,27 @@ NetTensor *FFN(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, str
     // auto *x = _Quantize({i}, true, (string)name + ".fc1.quantize");
     auto *x = i;
     x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".fc1");
+    // auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, "model.decoder.layers.2.fc1");
     // x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, "model.decoder.layers.1.fc1");
     // x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, "model.decoder.layers.2.fc1");
     // x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, "model.decoder.layers.2.fc1");
-    // // x = _Dequantize({x}, (string) name + ".relux.dequantize");
+
     x = _ReLU({x}, name + ".fc2.relu");
+    // x = _Dequantize({x}, true, (string) name + ".relux.dequantize");
+    // y = _Dequantize({y}, true, (string) name + ".reluy.dequantize");
+    // x = *x * y;
     // y = _ReLU({y}, "model.decoder.layers.5.fc2.relu");
 
-    // x = _Quantize({x}, (string) name + ".relux.quantize");
+    // _SubgraphBegin(c, MLLM_CPU);
+
+    // x = *x * x;
+
+    // _SubgraphBegin(c);
+
+    // x = _Quantize({x}, true, (string) name + ".relux.quantize");
     x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".fc2");
     // // // y = _LinearINT8({y}, ffn_hidden_dim, hidden_dim, false, "model.decoder.layers.5.fc2");
+    // x = x->view(1, 1, 1024, hidden_dim);
     x = _Dequantize({x}, true, (string)name + ".fc2.dequantize");
     // y = _Dequantize({y}, true, "model.decoder.layers.5.fc2.dequantize");
 
@@ -168,7 +184,7 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
     // _SubgraphBegin(c);
     // loop
 
-    for (int layer = 0; layer < 1; ++layer) {
+    for (int layer = 0; layer < 12; ++layer) {
 
         // i = _KVCache({i}, cache_max, std::to_string(layer) + ".kvcache");
         // _SubgraphBegin(c, MLLM_CPU);
@@ -221,7 +237,7 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
         res = s[1];
         res = res->view(-1, 1, -1, hidden_dim);
 
-        i = i->view(1, static_cast<int>(sqrt(seq)), static_cast<int>(sqrt(seq)), hidden_dim);
+        i = i->view(1, static_cast<int>(seq/32), static_cast<int>(32), hidden_dim);
         i = FFN(c, i, hidden_dim, ffn_hidden_dim, (string) "model.decoder.layers." + std::to_string(layer));
 
         i = i->view(1, 1, seq, hidden_dim);
@@ -253,6 +269,10 @@ int main(int argc, char **argv) {
     cmdParser.add<int>("seq", 's', "seq length", false, 1);
     cmdParser.add<int>("head", 'h', "num of heads", false, 32);
     cmdParser.add<int>("type", 't', "type of test", false, 13);
+
+    cmdParser.add<int>("ffn", 'f', "size of ffn hidden size", false, 8192);
+    cmdParser.add<int>("hds", 'd', "size of hidden size", false, 2048);
+
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
@@ -281,8 +301,8 @@ int main(int argc, char **argv) {
     tokenizer.setMergeRank(merge_rank);
 
     int vocab_size = 50272;
-    int hidden_dim = 2048;
-    int ffn_hidden_dim = 16384;
+    int hidden_dim = cmdParser.get<int>("hds");;
+    int ffn_hidden_dim = cmdParser.get<int>("ffn");;
     // int mutil_head_size = 32;
 
     std::unique_ptr<Context> c_ptr(new Context());
@@ -361,6 +381,7 @@ int main(int argc, char **argv) {
         // delete the last end token
         tokens_id.pop_back();
 
+        // tokens_id.resize(0);
         tokens_id.resize(seqLength);
 
         BPETokenizer::token2Tensor(&net, tokens_id, input);
@@ -370,12 +391,11 @@ int main(int argc, char **argv) {
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 1; step++) {
-            ex.run(c, &net, {input});
+            
             //  ---------------------------------
-            // ex.run(&net, {input});
+            ex.run(c, &net, {input});
             auto result = ex.result();
-            result[0]->printShape();
-            // result[0]->printData<float>();
+            result[0]->printData<float>();
 
             // for (int n = 0; n < 32 * 7 * 64; n++) {
             //     std::cout << static_cast<float>(result[0]->hostPtr<float>()[n]) << " ";

@@ -277,17 +277,6 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     }
 
     // add input tensor to qnn
-    // TODO: we believe it is NSHD now.
-    uint32_t dimensionsInput[4] = {
-                                static_cast<uint32_t>(inputs[0]->batch()),
-                                static_cast<uint32_t>(inputs[0]->sequence()),
-                                static_cast<uint32_t>(inputs[0]->head()),
-                                static_cast<uint32_t>(inputs[0]->dimension()),
-    };
-    // for (int i = 0; i < 4; i++) {
-    //     dimensionsInput[i] = inputs[0]->shape()[i];
-    // }
-
     // all input for QNN is INT8
     // auto data_type = QNN_DATATYPE_SFIXED_POINT_8;
     // std::cout << "input 0 type " << inputs[0]->dtype() << std::endl;
@@ -306,22 +295,37 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     // 1. activation sint8
     // 2. residual fp
     // input tensor in split ops.
-    // qnnModels_[qnnModelIndex_].addTensor(inputs[0]->name().c_str(), (Qnn_Tensor_t){
-    //                                                                     .version = QNN_TENSOR_VERSION_1,
-    //                                                                     {.v1 = {
-    //                                                                          .id = 0,
-    //                                                                          .name = inputs[0]->name().c_str(),
-    //                                                                          .type = QNN_TENSOR_TYPE_APP_WRITE,
-    //                                                                          .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-    //                                                                          .dataType = data_type,
-    //                                                                          .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-    //                                                                                             QNN_QUANTIZATION_ENCODING_UNDEFINED,
-    //                                                                                             {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-    //                                                                          .rank = 4,
-    //                                                                          .dimensions = dimensionsInput,
-    //                                                                          .memType = QNN_TENSORMEMTYPE_RAW,
-    //                                                                          {.clientBuf = {.data = nullptr,
-    //                                                                                         .dataSize = 0}}}}});
+    
+    // To avoid no input, we put inputs here.
+    // For splitinput op input, the seq will be divided as 5, and we add the input in split ops.
+    if (inputs[0]->sequence() % 5 != 0) {
+        auto data_type = QNN_DATATYPE_SFIXED_POINT_8;
+        uint32_t dimensionsInput[4] = {
+                                static_cast<uint32_t>(inputs[0]->batch()),
+                                static_cast<uint32_t>(inputs[0]->sequence()),
+                                static_cast<uint32_t>(inputs[0]->head()),
+                                static_cast<uint32_t>(inputs[0]->dimension()),
+        };
+
+        qnnModels_[qnnModelIndex_].addTensor(inputs[0]->name().c_str(), (Qnn_Tensor_t){
+                                                                        .version = QNN_TENSOR_VERSION_1,
+                                                                        {.v1 = {
+                                                                             .id = 0,
+                                                                             .name = inputs[0]->name().c_str(),
+                                                                             .type = QNN_TENSOR_TYPE_APP_WRITE,
+                                                                             .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                                                             .dataType = data_type,
+                                                                             .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                                                                QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                                                                {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                                                             .rank = 4,
+                                                                             .dimensions = dimensionsInput,
+                                                                             .memType = QNN_TENSORMEMTYPE_RAW,
+                                                                             {.clientBuf = {.data = nullptr,
+                                                                                            .dataSize = 0}}}}});
+    }
+
+    
     // create a new inputBuffer and outputBuffer for the graph
     inputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>(inputs.size())));
     outputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>(0)));
