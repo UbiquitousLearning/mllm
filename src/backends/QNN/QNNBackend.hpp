@@ -59,7 +59,6 @@ public:
     Op *opCreate(const OpParam &op_param, string name, int threadCount) override {
         OpType optype = OpType(op_param.find("type")->second);
         auto iter = map_creator_.find(optype);
-        std::cout << "QNN: " << optype << std::endl;
         if (iter == map_creator_.end()) {
             printf("Don't support type \n");
             return nullptr;
