@@ -64,7 +64,7 @@ struct intTensor_pair {
 struct Tensor_pair {
     NetTensor* end_i;
 };
-#define ANYDIM -198098
+
 typedef struct TNetTensor {
     string name;
     vector<int> shape_;

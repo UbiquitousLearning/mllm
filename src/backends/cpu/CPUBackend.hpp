@@ -14,7 +14,7 @@ public:
 
     class Creator {
     public:
-        virtual Op *create(OpParam op_param, Backend *bn, string, int threadCount) const = 0;
+        virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const = 0;
     };
     bool addCreator(OpType t, Creator *c) {
         if (map_creator_.find(t) != map_creator_.end()) {
@@ -25,11 +25,16 @@ public:
         return true;
     }
     Op *opCreate(const OpParam &op_param, string name, int threadCount) override;
+    TensorFunction *funcCreate(const TensorFuncType type) override;
 
     void registerOps() override;
+    void registerFuncs() override;
+
+    static int cpu_threads;
 
 private:
     std::map<OpType, CPUBackend::Creator *> map_creator_;
+    std::map<TensorFuncType, TensorFunction *> map_function_;
 };
 
 } // namespace mllm

@@ -27,7 +27,7 @@ Graph::Graph(const NetParameter &param, Backend *bn,
 
     for (auto net_tensor : param.net_tensors) {
         auto it = external_tensors.find(net_tensor->name);
-        if (it == tensors_.end()) { // not in external_tensors
+        if (it == external_tensors.end()) { // not in external_tensors
             tensors_[net_tensor->name] = std::make_shared<Tensor>(backend_);
             tensors_[net_tensor->name]->setName(net_tensor->name);
             tensors_[net_tensor->name]->setDtype(net_tensor->type);
