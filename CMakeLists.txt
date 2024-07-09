@@ -310,150 +310,178 @@ endif ()
 #     target_link_libraries(main_clip MLLM_CPU)
 # endif ()
 
-add_executable(main_imagebind ${PROJECT_SOURCE_DIR}/examples/main_imagebind.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+# add_executable(main_imagebind ${PROJECT_SOURCE_DIR}/examples/main_imagebind.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/Tokenizer.hpp
+#         src/tokenizers/BPE/Bpe.cpp
+#         src/tokenizers/BPE/Bpe.hpp
+#         ${DIR_SRC_PROCESSOE}
+#         ${DIR_THIRDPARTY_AUDIO}
+#         src/processor/PreProcess.hpp
+#         src/processor/PreProcess.cpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(main_imagebind PRIVATE -fopenmp)
+#     target_link_libraries(main_imagebind PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(main_imagebind MLLM_CPU)
+# endif ()
+
+
+
+# add_executable(demo_llama ${PROJECT_SOURCE_DIR}/examples/demo_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/BPE/Bpe.cpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(demo_llama PRIVATE -fopenmp)
+#     target_link_libraries(demo_llama PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(demo_llama MLLM_CPU)
+# endif ()
+
+
+
+# add_executable(demo_fuyu ${PROJECT_SOURCE_DIR}/examples/demo_fuyu.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/Unigram/Unigram.cpp
+#         src/processor/FuyuPreProcess.cpp
+#         src/processor/PreProcess.cpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(demo_fuyu PRIVATE -fopenmp)
+#     target_link_libraries(demo_fuyu PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(demo_fuyu MLLM_CPU)
+# endif ()
+
+
+# add_executable(demo_vit ${PROJECT_SOURCE_DIR}/examples/demo_vit.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+#         src/processor/PreProcess.cpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(demo_vit PRIVATE -fopenmp)
+#     target_link_libraries(demo_vit PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(demo_vit MLLM_CPU)
+# endif ()
+
+# add_executable(demo_clip ${PROJECT_SOURCE_DIR}/examples/demo_clip.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/BPE/Bpe.cpp
+#         src/processor/PreProcess.cpp
+#         src/processor/ClipPreProcess.cpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(demo_clip PRIVATE -fopenmp)
+#     target_link_libraries(demo_clip PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(demo_clip MLLM_CPU)
+# endif ()
+
+# add_executable(demo_imagebind ${PROJECT_SOURCE_DIR}/examples/demo_imagebind.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/BPE/Bpe.cpp
+#         ${DIR_SRC_PROCESSOE}
+#         ${DIR_THIRDPARTY_AUDIO}
+#         src/processor/PreProcess.cpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(demo_imagebind PRIVATE -fopenmp)
+#     target_link_libraries(demo_imagebind PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(demo_imagebind MLLM_CPU)
+# endif ()
+
+# add_executable(demo_tinyllama ${PROJECT_SOURCE_DIR}/examples/demo_tinyllama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/Tokenizer.hpp
+#         src/tokenizers/BPE/Bpe.cpp
+#         src/tokenizers/BPE/Bpe.hpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(demo_tinyllama PRIVATE -fopenmp)
+#     target_link_libraries(demo_tinyllama PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(demo_tinyllama MLLM_CPU)
+# endif ()
+
+# add_executable(demo_llava ${PROJECT_SOURCE_DIR}/examples/demo_llava.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/BPE/Bpe.cpp
+#         src/processor/PreProcess.cpp
+#         src/processor/ClipPreProcess.cpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(demo_llava PRIVATE -fopenmp)
+#     target_link_libraries(demo_llava PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(demo_llava MLLM_CPU)
+# endif ()
+
+# add_executable(demo_gemma ${PROJECT_SOURCE_DIR}/examples/demo_gemma.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/BPE/Bpe.cpp
+#         src/processor/PreProcess.cpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(demo_gemma PRIVATE -fopenmp)
+#     target_link_libraries(demo_gemma PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(demo_gemma MLLM_CPU)
+# endif ()
+
+# add_executable(demo_qwen ${PROJECT_SOURCE_DIR}/examples/demo_qwen.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/BPE/Bpe.cpp
+#         src/processor/PreProcess.cpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(demo_qwen PRIVATE -fopenmp)
+#     target_link_libraries(demo_qwen PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(demo_qwen PUBLIC MLLM_CPU)
+# endif ()
+
+
+# !!! NOT RUNNABLE TEMPLATE FILE !!! 
+# add_executable(test_qnn ${PROJECT_SOURCE_DIR}/examples/test_qnn.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+#         src/backends/qnn/QNNBackend.cpp
+# )
+# target_compile_definitions(test_qnn PRIVATE USE_QNN)
+# if (ARM AND NOT APK)
+#     target_compile_options(test_qnn PRIVATE -fopenmp)
+#     target_link_libraries(test_qnn PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(test_qnn MLLM_CPU)
+# endif ()
+
+
+
+if(QNN)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
+    add_definitions(-DUSE_QNN)
+
+    # if (ARM)
+    #     set(CMAKE_CXX_FLAGS " -fPIC -Wall -pthread -march=armv8-a -O3 -g -Wno-write-strings -fvisibility=hidden -flto")
+    # else()
+    #     set (CMAKE_CXX_FLAGS " -fPIC -Wall  -pg -pthread -march=x86-64 -O3 -g -Wno-write-strings -fvisibility=hidden -flto")
+    # endif()
+    # set(CMAKE_LD_FLAGS "-shared -s -fPIC -pthread -fvisibility=hidden -flto")
+
+    # qnn executables
+    add_executable(qnn_opt_smoothquant ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_opt_smoothquant.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/Tokenizer.hpp
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
-        ${DIR_SRC_PROCESSOE}
-        ${DIR_THIRDPARTY_AUDIO}
-        src/processor/PreProcess.hpp
-        src/processor/PreProcess.cpp
-)
-if (ARM AND NOT APK)
-    target_compile_options(main_imagebind PRIVATE -fopenmp)
-    target_link_libraries(main_imagebind PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(main_imagebind MLLM_CPU)
-endif ()
-
-
-
-add_executable(demo_llama ${PROJECT_SOURCE_DIR}/examples/demo_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/BPE/Bpe.cpp
-)
-if (ARM AND NOT APK)
-    target_compile_options(demo_llama PRIVATE -fopenmp)
-    target_link_libraries(demo_llama PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(demo_llama MLLM_CPU)
-endif ()
-
-
-
-add_executable(demo_fuyu ${PROJECT_SOURCE_DIR}/examples/demo_fuyu.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/Unigram/Unigram.cpp
-        src/processor/FuyuPreProcess.cpp
-        src/processor/PreProcess.cpp
-)
-if (ARM AND NOT APK)
-    target_compile_options(demo_fuyu PRIVATE -fopenmp)
-    target_link_libraries(demo_fuyu PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(demo_fuyu MLLM_CPU)
-endif ()
-
-
-add_executable(demo_vit ${PROJECT_SOURCE_DIR}/examples/demo_vit.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
-        src/processor/PreProcess.cpp
-)
-if (ARM AND NOT APK)
-    target_compile_options(demo_vit PRIVATE -fopenmp)
-    target_link_libraries(demo_vit PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(demo_vit MLLM_CPU)
-endif ()
-
-add_executable(demo_clip ${PROJECT_SOURCE_DIR}/examples/demo_clip.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/processor/PreProcess.cpp
-        src/processor/ClipPreProcess.cpp
-)
-if (ARM AND NOT APK)
-    target_compile_options(demo_clip PRIVATE -fopenmp)
-    target_link_libraries(demo_clip PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(demo_clip MLLM_CPU)
-endif ()
-
-add_executable(demo_imagebind ${PROJECT_SOURCE_DIR}/examples/demo_imagebind.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/BPE/Bpe.cpp
-        ${DIR_SRC_PROCESSOE}
-        ${DIR_THIRDPARTY_AUDIO}
-        src/processor/PreProcess.cpp
-)
-if (ARM AND NOT APK)
-    target_compile_options(demo_imagebind PRIVATE -fopenmp)
-    target_link_libraries(demo_imagebind PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(demo_imagebind MLLM_CPU)
-endif ()
-
-add_executable(demo_tinyllama ${PROJECT_SOURCE_DIR}/examples/demo_tinyllama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/Tokenizer.hpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/tokenizers/BPE/Bpe.hpp
-)
-if (ARM AND NOT APK)
-    target_compile_options(demo_tinyllama PRIVATE -fopenmp)
-    target_link_libraries(demo_tinyllama PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(demo_tinyllama MLLM_CPU)
-endif ()
-
-add_executable(demo_llava ${PROJECT_SOURCE_DIR}/examples/demo_llava.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/processor/PreProcess.cpp
-        src/processor/ClipPreProcess.cpp
-)
-if (ARM AND NOT APK)
-    target_compile_options(demo_llava PRIVATE -fopenmp)
-    target_link_libraries(demo_llava PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(demo_llava MLLM_CPU)
-endif ()
-
-add_executable(demo_gemma ${PROJECT_SOURCE_DIR}/examples/demo_gemma.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/processor/PreProcess.cpp
-)
-if (ARM AND NOT APK)
-    target_compile_options(demo_gemma PRIVATE -fopenmp)
-    target_link_libraries(demo_gemma PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(demo_gemma MLLM_CPU)
-endif ()
-
-add_executable(demo_qwen ${PROJECT_SOURCE_DIR}/examples/demo_qwen.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/processor/PreProcess.cpp
-)
-if (ARM AND NOT APK)
-    target_compile_options(demo_qwen PRIVATE -fopenmp)
-    target_link_libraries(demo_qwen PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(demo_qwen PUBLIC MLLM_CPU)
-endif ()
-
-
-add_executable(test_qnn ${PROJECT_SOURCE_DIR}/examples/test_qnn.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
-        src/backends/qnn/QNNBackend.cpp
-)
-target_compile_definitions(test_qnn PRIVATE USE_QNN)
-if (ARM AND NOT APK)
-    target_compile_options(test_qnn PRIVATE -fopenmp)
-    target_link_libraries(test_qnn PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(test_qnn MLLM_CPU)
-endif ()
+    )
+    target_compile_definitions(qnn_opt_smoothquant PRIVATE USE_QNN)
+    if (ARM)
+        target_compile_options(qnn_opt_smoothquant PRIVATE -fopenmp)
+        target_link_libraries(qnn_opt_smoothquant PUBLIC  MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS} -fopenmp -static-openmp)
+    endif ()
+endif()
 
 
 if (APK)
@@ -479,37 +507,3 @@ if (APK)
     target_link_libraries(mllm_lib MLLM_CPU)
 
 endif ()
-
-# add_executable(qnn_opt ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_opt.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
-#         src/tokenizers/Tokenizer.cpp
-#         src/tokenizers/Tokenizer.hpp
-#         src/tokenizers/BPE/Bpe.cpp
-#         src/tokenizers/BPE/Bpe.hpp
-# )
-# if(QNN)
-#     target_link_libraries(qnn_opt MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
-# endif()
-add_executable(qnn_opt_smoothquant ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_opt_smoothquant.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/Tokenizer.hpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/tokenizers/BPE/Bpe.hpp
-)
-if(QNN)
-    target_link_libraries(qnn_opt_smoothquant MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS})
-endif()
-
-
-if(QNN)
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
-    add_definitions(-DQNN_ENABLED)
-
-    if (ARM)
-        set(CMAKE_CXX_FLAGS " -fPIC -Wall -pthread -march=armv8-a -O3 -g -Wno-write-strings -fvisibility=hidden -flto")
-    else()
-        set (CMAKE_CXX_FLAGS " -fPIC -Wall  -pg -pthread -march=x86-64 -O3 -g -Wno-write-strings -fvisibility=hidden -flto")
-    endif()
-    set(CMAKE_LD_FLAGS "-shared -s -fPIC -pthread -fvisibility=hidden -flto")
-
-
-endif()

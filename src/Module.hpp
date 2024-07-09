@@ -45,12 +45,13 @@ public:
                 break;
             }
 #ifdef USE_QNN
-            case BackendType::MLLM_QNN: {
-                //TODO: QNN
-                shared_ptr<MemoryManager> mm = nullptr;
-                mm = std::make_shared<SystemMemoryManager>();
-                backends[MLLM_QNN] = new QNNBackend(mm);
-            }
+            backends.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create({}).get());
+            // case BackendType::MLLM_QNN: {
+            //     //TODO: QNN
+            //     shared_ptr<MemoryManager> mm = nullptr;
+            //     mm = std::make_shared<SystemMemoryManager>();
+            //     backends[MLLM_QNN] = new QNNBackend(mm);
+            // }
 #endif
             default: {
             }

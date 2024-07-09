@@ -72,11 +72,8 @@ public:
         return type_;
     }
 
-    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
-    virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
-    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
-    virtual void onExecuteEnd(){};
-private:
+protected:
+    BackendType type_;
     shared_ptr<MemoryManager> mem_manager_;
 };
 

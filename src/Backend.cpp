@@ -6,7 +6,7 @@
 
 namespace mllm {
 extern void registerCPUBackendCreator();
-#ifdef QNN_ENABLED
+#ifdef USE_QNN
 extern void registerQNNBackendCreator();
 #endif
 
@@ -14,7 +14,7 @@ static std::once_flag s_flag;
 void registerBackend() {
     std::call_once(s_flag, [&]() {
         registerCPUBackendCreator();
-#ifdef QNN_ENABLED
+#ifdef USE_QNN
         registerQNNBackendCreator();
 #endif
     });

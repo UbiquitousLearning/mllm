@@ -3,6 +3,7 @@
 //
 #include "Graph.hpp"
 #include "MemInspect.hpp"
+#include "Types.hpp"
 #ifdef DEBUGPRINT
 #include "Timing.hpp"
 #endif
@@ -16,7 +17,7 @@ std::string intToStringWithLeadingZero(int num) {
 
 namespace mllm {
 
-#ifdef QNN_ENABLED
+#ifdef USE_QNN
 static unordered_map<string, Op*> kv_cache_map;
 #endif
 
@@ -35,7 +36,7 @@ Graph::Graph(const NetParameter &param, Backend *bn,
     }
     for (auto net_op : param.net_ops) {
     // for QNN prefill & CPU decoding execution, KVCache should be shared for each block
-#ifdef QNN_ENABLED
+#ifdef USE_QNN
         if (net_op->type == KVCACHE) {
             std::cout << net_op->name << " is KVCache" << std::endl;
             shared_ptr<Op> my_op(nullptr);
@@ -143,7 +144,7 @@ void Graph::setUpTensors() {
     // set graph out tensor TensorType
     auto &graph_out_tensors = ops_output_tensors_[op_names_[op_names_.size() - 1]];
     for (auto &t : graph_out_tensors) {
-        t->setTensorType(GRAPH_OUTPUT);
+        t->setTtype(OUTPUT_TENSOT);
     }
 
     this->backend_->onSetUpStart(graph_in_tensors, graph_out_tensors);

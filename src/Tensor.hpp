@@ -77,7 +77,6 @@ private:
     std::map<Chl, int> chls_={{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3},
                                 {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
     string name_;
-    TensorType type_ = GRAPH_INTERNAL; // tensor type in a graph
     DataType dtype_;
     ChlType ctype_ = BSHD;
     TensorType ttype_ = NORMAL_TENSOR;
@@ -479,13 +478,6 @@ public:
     void setBackend(Backend *bn) {
         backend_ = bn;
     };
-
-    void setTensorType(TensorType type) {
-        type_ = type;
-    }
-    TensorType tensorType() const {
-        return type_;
-    }
 
     DataType dtype() const {
         return dtype_;

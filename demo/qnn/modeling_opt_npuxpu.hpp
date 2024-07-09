@@ -17,8 +17,6 @@ std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *re
     k = k->view(-1, head_size, -1, hidden_size);
     v = v->view(-1, head_size, -1, hidden_size);
 
-    k = _KVCache({k}, cache_max, name + ".k_cache");
-    v = _KVCache({v}, cache_max, name + ".v_cache");
 
     auto *m = _MergeOutput({q, k, v, res}, name + ".qkv_merge");
 

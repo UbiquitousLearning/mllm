@@ -79,6 +79,7 @@ CPUBackend::CPUBackend(shared_ptr<MemoryManager> &mm) :
 
 Op *CPUBackend::opCreate(const OpParam &op_param, string name, int threadCount) {
     OpType optype = OpType(op_param.find("type")->second);
+    std::cout << "CPU: " << optype << std::endl;
     auto iter = map_creator_.find(optype);
     if (iter == map_creator_.end()) {
         printf("Don't support type \n");
@@ -125,6 +126,9 @@ void CPUBackend::registerOps() {
     addCreator(RANGE, (CPUBackend::Creator *)(new CPURangeCreator()));
     addCreator(WHERE, (CPUBackend::Creator *)(new CPUWhereCreator()));
     addCreator(REPLACE, (CPUBackend::Creator *)(new CPUReplaceCreator()));
+    addCreator(QUANTIZE, (CPUBackend::Creator *)(new CPUQuantizeCreator()));
+    addCreator(MERGEOUTPUT, (CPUBackend::Creator *)(new CPUMergeOutputCreator()));
+    addCreator(SPLITINPUT, (CPUBackend::Creator *)(new CPUSplitInputCreator()));
 }
 
 TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {

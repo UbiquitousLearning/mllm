@@ -57,13 +57,6 @@ enum DataType {
     MLLM_TYPE_COUNT,
 };
 
-enum TensorType {
-    GRAPH_INTERNAL = 0, // currently weights and intermediate tensors both use this
-    GRAPH_INPUT = 1,
-    GRAPH_OUTPUT = 2,
-    GRAPH_WEIGHT = 3,
-};
-
 enum ChlType {
     BSHD = 0,
     BHDS = 2,
@@ -91,7 +84,8 @@ inline std::map<std::vector<int>, ChlType> Chls2Type = {
 
 enum TensorType {
     INPUT_TENSOR = 0,
-    NORMAL_TENSOR
+    NORMAL_TENSOR,
+    OUTPUT_TENSOT
 };
 
 enum Chl {

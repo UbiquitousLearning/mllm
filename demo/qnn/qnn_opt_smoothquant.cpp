@@ -7,7 +7,6 @@
 #include "Net.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include "backends/QNN/QNNExecutor.hpp"
-#include "TestNet.hpp"
 #include "modeling_opt_npuxpu.hpp"
 
 using namespace mllm;
