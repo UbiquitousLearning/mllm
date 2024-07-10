@@ -110,7 +110,7 @@ int32_t hvx_add_af(
     HVX_Vector sline1p, sline1c, sline1;
     HVX_Vector sline2p, sline2c, sline2;
 
-    HVX_Vector v128 = Q6_Vb_vsplat_R(0x80808080u);
+    // HVX_Vector v128 = Q6_Vb_vsplat_R(0x80808080u);
 
     int32_t block, l2fetch_block;
     int32_t leftover = size & 31;
@@ -140,7 +140,7 @@ int32_t hvx_add_af(
 
 
             // Our add consider uint8->int8 bugs from QNN.
-            sline2 = Q6_Vb_vsub_VbVb(sline2, v128);
+            // sline2 = Q6_Vb_vsub_VbVb(sline2, v128);
             *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(sline1, sline2));
 
             sline1p = sline1c;
@@ -156,7 +156,7 @@ int32_t hvx_add_af(
       sline2c = is_aligned(iptr2, VLEN) && leftover == 0 ? sline2p : *iptr2++;
       sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t) input2);
 
-      sline2 = Q6_Vb_vsub_VbVb(sline2, v128);
+      // sline2 = Q6_Vb_vsub_VbVb(sline2, v128);
       *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(sline1, sline2));
 
     }
@@ -174,7 +174,7 @@ int32_t hvx_add_af(
                       : *iptr2++);
       sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t)input2);
 
-      sline2 = Q6_Vb_vsub_VbVb(sline2, v128);
+      // sline2 = Q6_Vb_vsub_VbVb(sline2, v128);
       vstu_variable(optr, leftover_size,  Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(sline1, sline2)));
     }
 

@@ -210,6 +210,27 @@ NetTensor *_Causalmask(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+NetTensor *_Transpose(std::vector<NetTensor *> inputs, std::vector<int> perm, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Transpose" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::TRANSPOSE)
+    net_op_->param["perm0"] = perm[0];
+    net_op_->param["perm1"] = perm[1];
+    net_op_->param["perm2"] = perm[2];
+    net_op_->param["perm3"] = perm[3];
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
 NetTensor *_SiLU(std::vector<NetTensor *> inputs, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -911,6 +932,7 @@ vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, 
     auto sub_param = get_active_subgraph(ctx);
     _NEW_OP(mllm::SPLITINPUT)
     net_op_->param["isPrompt"] = (float)isPrompt;
+    net_op_->param["num"] = (float)num;
     _UPDATE_INPUT_TENSORS
     vector<NetTensor *> out_tensors;
     net_op_->out_size = num;
