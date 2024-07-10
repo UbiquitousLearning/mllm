@@ -1,17 +1,14 @@
 #include <iostream>
-#include <valarray>
 #include <csignal>
-#include "MockLoader.hpp"
+#include "Executor.hpp"
 #include "Types.hpp"
 #include "backends/QNN/QNNOptNet.hpp"
 #include "cmdline.h"
 #include "Net.hpp"
-#include "Executor.hpp"
-#include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
-#include "backends/QNN/QNNNet.hpp"
 #include "backends/QNN/QNNExecutor.hpp"
 #include "TestNet.hpp"
+#include "modeling_opt_npuxpu.hpp"
 
 using namespace mllm;
 
@@ -43,6 +40,7 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_r
     out_result->setDataAt<float>(0, 0, 0, 0, token_idx);
     return token_idx;
 }
+
 
 std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *res, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq) {
     // x = _Quantize({x}, true, (string)name + ".x.quantize");
@@ -267,101 +265,82 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/vocab_opt.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./models/opt-1.3b-head-static-int8.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
-    // cmdParser.add<int>("thread", 't', "num of threads", false, 4);
-    cmdParser.add<int>("seq", 's', "seq length", false, 1);
+
+    cmdParser.add<int>("thread", 't', "num of threads", false, 4);
+    cmdParser.add<int>("seq", 's', "num of threads", false, 32);
+    cmdParser.add<int>("chunk", 'c', "use chunk execute", false, 1);
     cmdParser.add<int>("head", 'h', "num of heads", false, 32);
-    cmdParser.add<int>("type", 't', "type of test", false, 13);
 
     cmdParser.add<int>("ffn", 'f', "size of ffn hidden size", false, 8192);
     cmdParser.add<int>("hds", 'd', "size of hidden size", false, 2048);
+
 
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
     string model_path = cmdParser.get<string>("model");
     int tokens_limit = cmdParser.get<int>("limits");
-    // int thread_num = cmdParser.get<int>("thread");
+    int thread_num = cmdParser.get<int>("thread");
     int seqLength = cmdParser.get<int>("seq");
+    int executeType = cmdParser.get<int>("chunk");
     int head_num = cmdParser.get<int>("head");
-    int type = cmdParser.get<int>("type");
 
     auto tokenizer = BPETokenizer(vocab_path);
-    std::unordered_map<string,unsigned> merge_rank;
+    std::unordered_map<string, unsigned> merge_rank;
     auto merge_file = std::ifstream("./vocab/opt-merges.txt");
     std::string line;
-    unsigned rank=0;
+    unsigned rank = 0;
     while (std::getline(merge_file, line)) {
         if (line.empty()) {
             continue;
         }
-        if (line[0]=='#'){
+        if (line[0] == '#') {
             continue;
         }
-        merge_rank[line]=rank;
+        merge_rank[line] = rank;
         rank++;
     }
     tokenizer.setMergeRank(merge_rank);
 
     int vocab_size = 50272;
+
     int hidden_dim = cmdParser.get<int>("hds");;
     int ffn_hidden_dim = cmdParser.get<int>("ffn");;
     // int mutil_head_size = 32;
 
-    std::unique_ptr<Context> c_ptr(new Context());
-    auto *c = c_ptr.get();
 
-    // opt(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
-    switch(type){
-        case 1:
-            linearTest2048(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
-            break;
-        case 2:
-            linearTest11008(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
-            break;
-        case 3:
-            attentionMinor(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
-            break;
-        case 4:
-            attentionPlus(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512);
-            break;
-        case 5:
-            ffnTest(c, vocab_size, hidden_dim, 11008, head_num, 512);
-            break;
-        case 6:
-            linearTest4096(c, vocab_size, 4096, ffn_hidden_dim, head_num, 512);
-            break;
-        case 7:
-            attentionMinor(c, vocab_size, 4096, ffn_hidden_dim, head_num, 512);
-            break;
-        case 8:
-            attentionPlus(c, vocab_size, 4096, ffn_hidden_dim, head_num, 512);
-            break;
-        case 9:
-            linearTest409616384(c, vocab_size, 4096, 16384, head_num, 512);
-            break;
-        case 10:
-            ffnTest(c, vocab_size,4096, 16384, head_num, 512);
-            break;
-        case 11:
-            linearTest409611008(c, vocab_size, 4096, 11008, head_num, 512);
-            break;
-        case 12:
-            ffnTest(c, vocab_size, 4096, 11008, head_num, 512);
-            break;
-        case 13:
-            opt(c, vocab_size, hidden_dim, ffn_hidden_dim, head_num, 512, seqLength);
-            break;
-    }
+    std::unique_ptr<Context> npu_ctx_ptr(new Context());
+    auto *npu_ctx = npu_ctx_ptr.get();
+    std::unique_ptr<Context> cpu_ctx_ptr(new Context());
+    auto *cpu_ctx = cpu_ctx_ptr.get();
+
+
+    // cache_max should be longer than seqLength
+    modeling::opt_npu(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
+    modeling::opt_cpu(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
 
     BackendConfig bn;
-    QNNOptNet net(bn, c);
-    net.convert(c, BackendType::MLLM_QNN);
+    QNNOptNet npuNet(bn, npu_ctx);
+    npuNet.convert(npu_ctx, BackendType::MLLM_QNN, thread_num);
+    Net cpuNet(bn);
+    cpuNet.convert(cpu_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
 
-    // ParamLoader param_loader(model_path);
-    ParamLoader param_loader(model_path);
-    QNNExecutor ex(&param_loader);
+    ParamLoader npu_prefill_param_loader(model_path);
+    ParamLoader cpu_decoding_param_loader("./models/opt-1.3b-q40.mllm");
 
-    ex.setup(&net);
+    QNNExecutor *npuExePtr;
+    if (executeType == 1) {
+        std::cout << "use pipeline execute" << std::endl;
+        npuExePtr = new QNNPipelineExecutor(&npu_prefill_param_loader);
+    } else {
+        std::cout << "use normal execute" << std::endl;
+        npuExePtr = new QNNExecutor(&npu_prefill_param_loader);
+    }
+    auto &npuExe = *npuExePtr;
+    npuExe.setup(&npuNet);
+
+    Executor cpuExe(&cpu_decoding_param_loader);
+    cpuExe.setup(&cpuNet);
 
     vector<string> in_strs = {
         "Hello, who are you?",
@@ -372,8 +351,8 @@ int main(int argc, char **argv) {
 
     for (int str_i = 0; str_i < in_strs.size(); ++str_i) {
         auto in_str = in_strs[str_i];
-        in_str = mllm::Tokenizer::replaceString(in_str,' ',"Ġ");
-        tokenizer.setSpecialToken("</s>","");
+        in_str = mllm::Tokenizer::replaceString(in_str, ' ', "Ġ");
+        tokenizer.setSpecialToken("</s>", "");
 
         auto tokens_id = vector<token_id_t>();
         tokenizer.tokenize(in_str, tokens_id, true);
@@ -383,45 +362,48 @@ int main(int argc, char **argv) {
         // delete the last end token
         tokens_id.pop_back();
 
+        // resize to the expected seqLength, the seq will be then splited to chunks
         // tokens_id.resize(0);
         tokens_id.resize(seqLength);
 
-        BPETokenizer::token2Tensor(&net, tokens_id, input);
-        // fullTensor(input, net, {1,1, seqLength, 1}, 2.f);
-        // input->printData<float>();
+        BPETokenizer::token2Tensor(&npuNet, tokens_id, input);
 
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
-        for (int step = 0; step < 1; step++) {
-            
-            //  ---------------------------------
-            ex.run(c, &net, {input});
-            auto result = ex.result();
-            result[0]->printData<float>();
 
-            // for (int n = 0; n < 32 * 7 * 64; n++) {
-            //     std::cout << static_cast<float>(result[0]->hostPtr<float>()[n]) << " ";
-            //     if ((n+1) % 64 == 0)
-            //         std::cout << std::endl;
-            // }
-
+        do {
+            // 1: Prefill stage using NPU chunk execute
+            npuExe.run(npu_ctx, &npuNet, {input});
+            auto result = npuExe.result();
             auto token_idx = postProcessing(result[0], input);
             if (token_idx == 2) { // "</s>"
                 break;
             }
             auto out_token = tokenizer.detokenize({token_idx});
             std::cout << out_token << std::flush;
-        }
+
+            // 2: Decoding stage using CPU execute
+            for (int step = 1; step < 100; step++) {
+                cpuExe.run(&cpuNet, {input});
+                auto result = cpuExe.result();
+                auto token_idx = postProcessing(result[0], input);
+                if (token_idx == 2) { // "</s>"
+                    break;
+                }
+                auto out_token = tokenizer.detokenize({token_idx});
+                std::cout << out_token << std::flush;
+            }
+        } while (false);
         printf("\n");
     }
 
-    ex.perf();
+    npuExe.perf();
 
     // free memory
-    for (auto *op : c->net_ops) {
+    for (auto *op : npu_ctx->net_ops) {
         delete op;
     }
-    for (auto *tensor : c->net_tensors) {
+    for (auto *tensor : npu_ctx->net_tensors) {
         delete tensor;
     }
 

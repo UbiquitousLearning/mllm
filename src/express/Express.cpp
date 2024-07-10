@@ -538,6 +538,26 @@ NetTensor *_KVCache(std::vector<NetTensor *> inputs,int cache_max, string name) 
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+// kvcache for qnn chunk execute
+NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, bool share_input, int cache_max, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "KVCache" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::KVCACHE)
+    net_op_->param["n_rep"] = 1;
+    net_op_->param["share_input"] = share_input;
+    net_op_->param["cache_max"] = (int)cache_max;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
 /**
  * Only for Transformer-based models' Decoder.
  * \param n_rep  if head size of K/V is different with Q, set n_rep > 1, the output will be replicated n_rep times.

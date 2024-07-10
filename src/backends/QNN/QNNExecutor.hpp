@@ -4,7 +4,9 @@
 #include "Executor.hpp"
 #include "Types.hpp"
 #include "express/ExpressBase.hpp"
-#include <numeric>
+#include <condition_variable>
+#include <mutex>
+#include <queue>
 #include <thread>
 
 namespace mllm {
@@ -12,7 +14,6 @@ class QNNExecutor : public Executor {
 public:
     QNNExecutor(ParamLoader *data_loader) :
         Executor(data_loader) {
-
     }
     ~QNNExecutor() = default;
 
@@ -30,7 +31,7 @@ public:
     void run(Net *net, vector<shared_ptr<Tensor>> input_tensors) override;
 
     // used for assigning graph backends execuation
-    void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor);
+    virtual void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor);
 
     /**
      * \brief Setup&Executes the foreword propagation of provided network
@@ -43,7 +44,10 @@ public:
 
     // void QNNGraphThreadExecute(int id, Net* net);
 
-private:
+    // graph offload rule for qnn execution, used in setup and execution
+    BackendType graphOffloadRule(BackendType expectedBackend, int graphIndex);
+
+protected:
     QNNExecutionType executionType_ = PROMPT;
 
     uint autoregressive_seq_pos_ = 0;
@@ -51,7 +55,29 @@ private:
     // int threadVar_[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
     // uint threadNum_ = 100;
+};
 
+class QNNPipelineExecutor : public QNNExecutor {
+    class ThreadPool {
+    public:
+        ThreadPool(size_t num_threads);
+        ~ThreadPool();
+        void enqueue(std::function<void()> f);
+
+    private:
+        std::vector<std::thread> workers_;
+        std::queue<std::function<void()>> tasks_;
+        std::mutex queue_mutex_;
+        std::condition_variable condition_;
+        bool stop_;
+    };
+
+public:
+    QNNPipelineExecutor(ParamLoader *data_loader) :
+        QNNExecutor(data_loader) {
+    }
+    // used for assigning graph backends execuation
+    void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) override;
 };
 
 } // namespace mllm

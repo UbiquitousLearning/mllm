@@ -4,6 +4,8 @@
 
 #include "Op.hpp"
 #include "CPUBackend.hpp"
+#include "compute/StrassenMatmul.hpp"
+#include <memory>
 
 namespace mllm {
 
@@ -15,13 +17,20 @@ public:
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
     bool transpose0_;
     bool transpose1_;
+    bool isInitialized = false;
     int thread_count = 4;
     Tensor scale1_;
     Tensor scale2_;
+    StrassenMatmul matmul_;
+    vector<shared_ptr<StrassenMatmul>> matmul_vec_;
+    vector<shared_ptr<Tensor>> inputs_a_;
+    vector<shared_ptr<Tensor>> inputs_b_;
+    vector<shared_ptr<Tensor>> outputs_;
 };
 
 class CPUMatmulINT8Creator : public CPUBackend::Creator {

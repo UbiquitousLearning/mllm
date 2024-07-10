@@ -9,9 +9,6 @@ namespace mllm {
 
 Net::Net(BackendConfig config) {
     backends_.emplace(MLLM_CPU, GetBackendCreator(MLLM_CPU)->create(config));
-#ifdef QNN_ENABLED
-    backends_.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create(config));
-#endif
 }
 
 void Net::convert(vector<NetParameter> &param, BackendType backend_type, int threadCount) {
