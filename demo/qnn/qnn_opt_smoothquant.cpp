@@ -54,9 +54,11 @@ std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *re
     k = k->view(1, head_size, seq, hidden_size);
     v = v->view(1, head_size, seq, hidden_size);
 
-    // q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize");
-    // k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize");
-    // v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize");
+    q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize");
+    k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize");
+    v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize");
+
+    v = _Transpose({v}, {0,2,3,1}, (string)name + ".v_proj.transpose");
 
     // q = _RoPE({q}, LLAMAROPE, name + ".q_rope");
     // k = _RoPE({k}, LLAMAROPE, name + ".k_rope");
@@ -79,7 +81,7 @@ std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *re
     // k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize");
     // v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize");
 
-    auto *qk = _MatmulINT8({q, k}, false, true, name + ".qk");
+    auto *qk = _Matmul({q, k}, false, true, name + ".qk");
 
     
     // qk = _Dequantize({qk}, false, (string) name + ".qk.dequantize");
@@ -88,7 +90,7 @@ std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *re
     qk = _Causalmask({qk}, name + ".mask");
     qk = _Softmax({qk}, DIMENSION, name + ".softmax");
 
-    auto *o = _MatmulINT8({qk, v}, false, false, name + ".qkv");
+    auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
 
     o = _Quantize({o}, true, (string)name + ".out_proj.quantize");
     m = _MergeOutput({o, res}, name + ".or_merge");
@@ -184,7 +186,7 @@ void opt(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidd
     // _SubgraphBegin(c);
     // loop
 
-    for (int layer = 0; layer < 12; ++layer) {
+    for (int layer = 0; layer < 1; ++layer) {
 
         // i = _KVCache({i}, cache_max, std::to_string(layer) + ".kvcache");
         // _SubgraphBegin(c, MLLM_CPU);

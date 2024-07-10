@@ -111,7 +111,7 @@ Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tenso
         auto name = tensor->name();
 
 
-        if (name.find("q_proj-00_view_") != -1 || name.find("k_proj-00_view_") != -1 || name.find("v_proj-00_view_") != -1 ) {
+        if (name.find("q_proj.dequantize") != -1 || name.find("k_proj.dequantize") != -1 || name.find("v_proj.transpose") != -1 ) {
 
             std::cout << "view output" << std::endl;
             return QNN_TENSOR_TYPE_APP_READ;

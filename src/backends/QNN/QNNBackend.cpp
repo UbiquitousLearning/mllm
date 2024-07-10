@@ -54,6 +54,7 @@
 
 #include "op/QNNMergeOutput.hpp"
 #include "op/QNNSplitInput.hpp"
+#include "op/QNNTranspose.hpp"
 #include "MemInspect.hpp"
 
 #include "QNN/HTP/QnnHtpGraph.h"
@@ -103,6 +104,7 @@ void QNNBackend::registerOps() {
     addCreator(DEQUANTIZE, (QNNBackend::Creator *)(new QNNDequantizeCreator()));
     addCreator(MERGEOUTPUT, (QNNBackend::Creator *)(new QNNMergeOutputCreator()));
     addCreator(SPLITINPUT, (QNNBackend::Creator *)(new QNNSplitInputCreator()));
+    addCreator(TRANSPOSE, (QNNBackend::Creator *)(new QNNTransposeCreator()));
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
