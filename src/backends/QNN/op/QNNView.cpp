@@ -84,6 +84,14 @@ ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
     std::cout << outputs[0]->dtype() << std::endl;
     std::cout << inputs[0]->dtype() << std::endl;
 
+    if (getOutputTensorType(outputs[0]) == QNN_TENSOR_TYPE_APP_READ) {
+        outputs[0]->setBackend(qnnBackend_);
+        outputs[0]->setDtype(MLLM_TYPE_I8);
+        outputs[0]->alloc();
+
+        qnnBackend_->pushOutputBuffers(outputs[0]->hostPtr<uint8_t>());
+    }
+
     if( outputs[0]->dtype() == MLLM_TYPE_I8 )
         return graphAddNode(name(), "Reshape", inputs, outputs, {}, "qti.aisw", true, &scale_);
     else {

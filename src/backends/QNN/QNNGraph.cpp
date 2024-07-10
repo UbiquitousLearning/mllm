@@ -106,6 +106,7 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
         memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*0), inputs[0]->hostPtr<uint8_t>(), inputs[0]->cntSize());
         memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*1), inputs[1]->hostPtr<uint8_t>(), inputs[1]->cntSize());
         memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*2), inputs[2]->hostPtr<uint8_t>(), inputs[2]->cntSize());
+        // outputs[0]->printData<float>();
     }
 //     // backend event hook
 //     // We use a thread to parallel CPU AND QNN execution.
