@@ -31,6 +31,7 @@ NetTensor *_Embedding(std::vector<NetTensor *> inputs, int vocab_size, int hidde
 NetTensor *_Mul(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_KVCache(std::vector<NetTensor *> inputs, int cache_max, string name = "");
 NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, int cache_max, string name = "");
+NetTensor *_KVCacheNPU(std::vector<NetTensor *> inputs, int cache_max, string name = "");
 NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, bool share_input, int cache_max, string name = "");
 NetTensor *_ReLU(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_ReLUSquaredActivation(std::vector<NetTensor *> inputs, string name = "");
