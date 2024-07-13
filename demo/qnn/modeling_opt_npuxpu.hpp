@@ -46,6 +46,7 @@ std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *re
     qk = _Softmax({qk}, DIMENSION, name + ".softmax");
 
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
+    return {o};
 
     o = _Quantize({o}, true, (string)name + ".out_proj.quantize");
     m = _MergeOutput({o, res}, name + ".or_merge");
