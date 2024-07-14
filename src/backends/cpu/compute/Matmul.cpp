@@ -31,14 +31,14 @@ ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bia
                         } else {
                             s_1 = 0; d_1 = n; s_0 = 0; d_0 = m;
                         }
-                        if(dst->dtypeAt(n,h,m,n) == MLLM_TYPE_F32) {
+                        if(dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F32) {
                             vec_dot_fp32(K, dst->ptrAt<float>(b, h, m, n),
                                          src1_cal->hostPtr<float>() + src1_cal->offset(b_1, h_1, s_1, d_1),
                                          src0_cal->hostPtr<float>() + src0_cal->offset(b, h, s_0, d_0));
                             if (support_bias) {
                                 *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0, n);
                             }
-                        }else if (dst->dtypeAt(n,h,m,n) == MLLM_TYPE_F16) {
+                        }else if (dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F16) {
                             float tmp = 0;
                             vec_dot_fp32(K, &tmp,
                                          src1_cal->hostPtr<float>() + src1_cal->offset(b_1, h_1, s_1, d_1),
@@ -217,14 +217,14 @@ ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
 #pragma omp parallel for num_threads(thread_count)
                 for (int block = 0; block < num_blocks + 1; block++) {
                     for (int n = block * blck_0; n < (block + 1) * blck_0 & n < num_blocks * blck_0 + remainder; n++) {
-                        if(dst->dtypeAt(n,h,m,n) == MLLM_TYPE_F32) {
+                        if(dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F32) {
                             vec_dot_q4_K_q8_K(K, dst->ptrAt<float>(b, h, m, n),
                                               src1_cal->hostPtr<block_q4_K>() + src1_cal->offset(b_1, h_1, n, 0) / QK_K,
                                               src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0) / QK_K);
                             if (support_bias) {
                                 *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0, n);
                             }
-                        } else if (dst->dtypeAt(n,h,m,n) == MLLM_TYPE_F16) {
+                        } else if (dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F16) {
                             float tmp = 0;
                             vec_dot_q4_K_q8_K(K, &tmp,
                                               src1_cal->hostPtr<block_q4_K>() + src1_cal->offset(b_1, h_1, n, 0) / QK_K,

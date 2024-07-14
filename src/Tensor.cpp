@@ -6,6 +6,7 @@
 #include "backends/cpu/CPUTensorFunction.hpp"
 
 #include <Module.hpp>
+#include <string>
 #include <vector>
 
 namespace mllm {
@@ -100,6 +101,9 @@ Tensor& Tensor::getFunc(const std::string& suffix, const TensorFuncType type, ve
             tensorPtrs.push_back(other_tensor);
         }
         func->execute(gph_[next_name], tensorPtrs, float_args);
+        if(saveNDataFlag){
+            Tensor::gph_[next_name].saveData<float>();
+        }
         break;
     }
     default: {
@@ -242,6 +246,9 @@ Tensor& Tensor::getStaticFunc(const std::string& suffix, const TensorFuncType ty
     }
     case TENSOR_STATIC_READY: {
         func->execute(gph_[next_name], other_tensors, float_args);
+        if(saveNDataFlag){
+            Tensor::gph_[next_name].saveData<float>();
+        }
         break;
     }
     default: {
@@ -269,5 +276,71 @@ Tensor &Tensor::range(int start, int end) {
     const std::string next_name = "range-" + std::to_string(start) + "-" + std::to_string(end);
     return getStaticFunc(next_name, FUNC_RANGE, {(float)start, (float)end});
 }
+
+std::vector<Tensor> Tensor::getStaticFuncOupts(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, 
+                                    vector<Tensor *> input_tensors){
+    if (Module::doLoad) { 
+        std::vector<Tensor> outPtrs;
+        for (auto out_name: out_names) {
+            outPtrs.push_back(Tensor::gph_["0"]);
+        }
+        return outPtrs; 
+    }
+    auto backend_h = Module::backends[MLLM_CPU];
+    if(!input_tensors.empty() && input_tensors[0]->backend_!= nullptr){
+        backend_h = input_tensors[0]->backend();
+    }
+    TensorFunction *func = backend_h->funcCreate(type);
+    switch (Module::tensor_status) {
+    case TENSOR_STATIC_INIT: {
+        std::vector<Tensor*> outPtrs;
+        for (auto out_name: out_names) {
+            if (gph_.find(out_name) == gph_.end()) {
+                gph_[out_name] = Tensor(backend_h);
+                gph_[out_name].setName(out_name);
+            }
+            outPtrs.push_back(&gph_[out_name]);
+        }
+        
+        func->setup(outPtrs, input_tensors, float_args);
+        break;
+    }
+    case TENSOR_STATIC_READY: {
+        std::vector<Tensor*> outPtrs;
+        for (auto out_name: out_names) {
+            outPtrs.push_back(&gph_[out_name]);
+        }
+        func->execute(outPtrs, input_tensors, float_args);
+        if(saveNDataFlag){
+            for (auto out_name: out_names) {
+                Tensor::gph_[out_name].saveData<float>();
+            }
+        }
+        break;
+    }
+    default: {
+    }
+    }
+    std::vector<Tensor> results;
+    for (auto out_name: out_names) {
+        gph_[out_name].status() = Module::tensor_status;
+        results.push_back(gph_[out_name]);
+    }
+    return results;
+}
+
+vector<Tensor> Tensor::split(Tensor& input, std::vector<int> each_dims, Chl split_dim, int head_size){
+    vector<std::string> next_names;
+    std::vector<float> args;
+    for (int i = 0; i < each_dims.size(); ++i) {
+        args.push_back(each_dims[i]);
+        next_names.push_back(input.name() + "-split-" + std::to_string(i) + "-"+ std::to_string(each_dims[i]));
+    }
+    args.push_back(split_dim);
+    args.push_back(head_size);
+    std::vector<Tensor*> input_tensors = {&gph_[input.name()]};
+    return getStaticFuncOupts(next_names, FUNC_SPLIT, args, input_tensors);
+}
+
 
 } // namespace mllm

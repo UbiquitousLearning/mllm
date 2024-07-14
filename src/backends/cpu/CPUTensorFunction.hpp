@@ -599,7 +599,8 @@ public:
                 }
                 output.setDtype(input.dtype());
                 output.alloc();
-                input.undiffusion() = true;
+                // input.undiffusion() = true;
+                input.setUndiffusion(true);
                 input.deepCopyFrom(output, false);
                 output.transFrom() = axiss;
             }
@@ -875,6 +876,39 @@ public:
                 inputs[idx]->deepCopyFrom(output, false, {cbatch, chead, cseq, cdim}); // b,h,s,d
             }
         }
+        else if (axis == DIMENSION && inputs[0]->head() != 1) {
+            int cbatch = 0;
+            int chead = 0;
+            int cseq = 0;
+            int cdim = 0;
+            for (int idx = 0; idx < inputs.size(); idx++) {
+                if (inputs[idx]->masterTensor() == nullptr) {
+                    inputs[idx]->free();
+                }
+                if (idx > 0) {
+                    cdim += inputs[idx - 1]->dimension();
+                }
+                int tmp_agg_idx;
+                if (inputs[idx]->deaggregated_tensor() != nullptr) {
+                    for (int t=0; t<inputs[idx]->deaggregated_tensor()->aggregated_tensors().size(); t++ ) {
+                        if(inputs[idx]->deaggregated_tensor()->aggregated_tensors()[t].get()==inputs[idx]){
+                            tmp_agg_idx = t;
+                            continue;
+                        }
+                    }
+                }
+                inputs[idx]->deepCopyFrom(output, false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                if (inputs[idx]->deaggregated_tensor() != nullptr) {
+                    vector<shared_ptr<Tensor>> shared_outputs = {};
+                    for (int t=0; t<inputs[idx]->deaggregated_tensor()->aggregated_tensors().size(); t++ ) {
+                        if(t==tmp_agg_idx){
+                            inputs[idx]->deaggregated_tensor()->aggregated_tensors()[t] = 
+                                std::shared_ptr<Tensor>(inputs[idx], [](Tensor *) {});
+                        }
+                    }
+                }
+            }
+        }
     }
     void execute(Tensor &output, vector<Tensor *> inputs, Chl axis) {
         int expd_batch_ = inputs[0]->batch();
@@ -1036,5 +1070,84 @@ public:
     }
 };
 
+class CPUsplitFunction: public TensorFunction {
+public:
+    void setup(Tensor &input, vector<Tensor *> &outputs, const std::vector<int> &each_dims, Chl split_dim, int head_size) {
+        int split_num_ = each_dims.size();
+        // store each dims
+        int split_dim_size_ = 0;
+        std::vector<int> each_dims_;
+        for (size_t i = 0; i < each_dims.size(); ++i) {
+            each_dims_.push_back((float)each_dims[i]);
+            split_dim_size_ += each_dims[i];
+        }
+        assert(split_num_ == outputs.size());
+        switch (split_dim) {
+        case Chl::HEAD: {
+            assert(input.head() == split_dim_size_);
+            for (int i=0; i<split_num_; i++) {
+                outputs[i]->reshape(input.batch(), each_dims_[i], input.sequence(), input.dimension());
+            }
+            break;
+        }
+        case Chl::SEQUENCE: {
+            assert(input.sequence() == split_dim_size_);
+            for (int i=0; i<split_num_; i++) {
+                outputs[i]->reshape(input.batch(), input.head(), each_dims_[i], input.dimension());
+            }
+            break;
+        }
+        case Chl::DIMENSION: {
+            assert(input.dimension() == split_dim_size_);
+            for (int i=0; i<split_num_; i++) {
+                outputs[i]->reshape(input.batch(), input.head(), input.sequence(), each_dims_[i]);
+            }
+            break;
+        }
+        case Chl::D_HD: {
+            assert(input.dimension() == split_dim_size_*head_size);
+            for (int i=0; i<split_num_; i++) {
+                outputs[i]->reshape(input.batch(), head_size, input.sequence(), each_dims_[i]);
+            }
+            break;
+        }
+        case Chl::HD: {
+            assert(input.dimension() == split_dim_size_*head_size);
+            for (int i=0; i<split_num_; i++) {
+                outputs[i]->reshape(input.batch(), head_size, input.sequence(), each_dims_[i]);
+            }
+            break;
+        }
+        default: {
+            break;
+        }
+        }
+        vector<shared_ptr<Tensor>> shared_outputs = {};
+        for (const auto &output : outputs) {
+            shared_outputs.push_back(std::shared_ptr<Tensor>(output, [](Tensor *) {}));
+        }        
+        if (input.masterTensor() == nullptr && input.childTensors().size() > 0) {
+            input.free();
+        }
+        input.addTensors(shared_outputs, split_dim);
+        for (const auto &output : outputs) {
+            output->setDtype(MLLM_TYPE_F32);
+            output->alloc();
+        }
+    }
+    void setup(vector<Tensor*> &output, vector<Tensor*> &inputs, vector<float> args) override{
+        int size = args.size();
+        std::vector<int> each_dims;
+        for (int i=0; i<size-2; i++) {
+            each_dims.push_back(args[i]);
+        }
+        Chl split_dim = (Chl)args[size-2];
+        int head_size = (int)args[size-1];
+        setup(*inputs[0], output, each_dims, split_dim, head_size);
+    }
+    void execute(vector<Tensor*> &output, vector<Tensor*> &inputs, vector<float> args) override{}
+    void setup(Tensor &output, vector<Tensor *> &inputs, vector<float> args) override {}
+    void execute(Tensor &output, vector<Tensor *> &inputs, vector<float> args) override {}  
+};
 } // namespace mllm
 #endif // CPUTENSORFUNCTION_HPP
