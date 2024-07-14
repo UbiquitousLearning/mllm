@@ -37,9 +37,8 @@ std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *re
     v = s[2];
     res = s[3];
 
-    k = _KVCache({k}, 1, false, cache_max, name + ".k_cache");
-    v = _KVCache({v}, 1, false, cache_max, name + ".v_cache");
-
+    k = _KVCacheNPU({k}, cache_max, name + ".k_cache");
+    v = _KVCacheNPU({v}, cache_max, name + ".v_cache");
 
     auto *qk = _Matmul({q, k}, false, true, name + ".qk");
     qk = *qk / std::sqrt(hidden_size);
@@ -47,6 +46,7 @@ std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *re
     qk = _Softmax({qk}, DIMENSION, name + ".softmax");
 
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
+    return {o};
 
     o = _Quantize({o}, true, (string)name + ".out_proj.quantize");
     m = _MergeOutput({o, res}, name + ".or_merge");
@@ -103,6 +103,7 @@ void opt_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_
         res = s[1];
         
         auto ix = CPUNPUAttention(c, i, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.decoder.layers." + std::to_string(layer) + ".self_attn", seq, chunk);
+        return;
 
         i = ix[0];
         res = ix[1];

@@ -1,5 +1,6 @@
 #include <string>
 #include <vector>
+#include "OpDefined.hpp"
 #include "Types.hpp"
 #include "unordered_map"
 #include "Express.hpp"
@@ -575,6 +576,23 @@ NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, int cache_max, s
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::KVCACHE)
     net_op_->param["n_rep"] = (int)n_rep;
+    net_op_->param["cache_max"] = (int)cache_max;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+NetTensor *_KVCacheNPU(std::vector<NetTensor *> inputs, int cache_max, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "KVCache" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::KVCACHENPU)
     net_op_->param["cache_max"] = (int)cache_max;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
