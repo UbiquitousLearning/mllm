@@ -124,6 +124,7 @@ void CPUBackend::registerFuncs() {
     map_function_[TensorFuncType::FUNC_CLIPAXIS] = new CPUclipaxisFunction();
     map_function_[TensorFuncType::FUNC_RANGE] = new CPURangeFunction();
     map_function_[TensorFuncType::FUNC_WHERE] = new CPUwhereFunction();
+    map_function_[TensorFuncType::FUNC_SPLIT] = new CPUsplitFunction();
 };
 
 int CPUBackend::cpu_threads = 4;
