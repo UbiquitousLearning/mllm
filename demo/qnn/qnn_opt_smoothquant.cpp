@@ -173,20 +173,20 @@ int main(int argc, char **argv) {
             auto result = npuExe.result();
 
             // ----------------- TEST PRINT --------------------
-            std::cout << "result size: " << result.size() << std::endl;
-            shared_ptr<Tensor> t;
-            if(result.size() > 1) {
-                std::cout << "getting V" << std::endl;
-                t = result[2];
-            } else {
-                t = result[0];
-            }
-            auto data = t->ptrAt<float>(0,0,0,0);
-            for (int i = 0; i < t->sequence(); i++) {
-                std::cout << data[i] << " ";
-            }
+            // std::cout << "result size: " << result.size() << std::endl;
+            // shared_ptr<Tensor> t;
+            // if(result.size() > 1) {
+            //     std::cout << "getting V" << std::endl;
+            //     t = result[2];
+            // } else {
+            //     t = result[0];
+            // }
+            // auto data = t->ptrAt<float>(0,0,0,0);
+            // for (int i = 0; i < t->sequence(); i++) {
+            //     std::cout << data[i] << " ";
+            // }
 
-            // result[0]->printData<float>();
+            result[0]->printData<float>();
             // auto token_idx = postProcessing(result[0], input);
             // if (token_idx == 2) { // "</s>"
             //     break;
