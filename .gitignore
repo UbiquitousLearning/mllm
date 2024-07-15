@@ -25,5 +25,4 @@ Makefile
 models/*
 /.devcontainer/
 /.vscode/
-# models
 examples/demo_deepseek.cpp

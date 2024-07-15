@@ -45,6 +45,9 @@ enum OpType {
     RANGE,
     WHERE,
     REPLACE,
+    PREDICTOR,
+    SPARSELINEAR,
+    SPARSEIDLINEAR,
     OP_NUM
 };
 
