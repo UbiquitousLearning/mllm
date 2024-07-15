@@ -19,7 +19,7 @@ using namespace mllm;
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/yi_vocab.mllm");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/Yi-1.5-6B_q4_k.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/yi-1.5-6b-chat-q4_k.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
