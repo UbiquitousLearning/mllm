@@ -52,7 +52,7 @@ class AbstructLoader {
 public:
     virtual bool load(mllm::Tensor *tensor) = 0;
     virtual bool load(std::shared_ptr<mllm::Tensor> tensor) = 0;
-    virtual size_t getTensorSize(string name){fprintf(stderr,"loader not support getTensorSize");assert(false);}
+    virtual size_t getTensorSize(string name){fprintf(stderr,"loader not support getTensorSize");return NOT_SUPPORT;}
     virtual DataType getDataType(string name) {return MLLM_TYPE_COUNT;}
 };
 
