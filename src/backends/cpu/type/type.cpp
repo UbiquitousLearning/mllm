@@ -103,7 +103,7 @@ static void vec_dot_fp32_local(const int n, float *__restrict s, const float *__
     vec_dot_fp32_arm(n, s, vx, vy);
 #endif
 }
-
+/*
 void vec_dot_q8_0_q8_0(int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy) {
     const int qk = QK8_0;
     const int nb = n / qk;  // number of blocks
@@ -120,10 +120,10 @@ void vec_dot_q8_0_q8_0(int n, float * __restrict s, const void * __restrict vx, 
     assert(nb % 2 == 0); // TODO: handle odd nb
 
     for (int i = 0; i < nb; i += 2) {
-        const block_q8_0 * restrict x0 = &x[i + 0];
-        const block_q8_0 * restrict x1 = &x[i + 1];
-        const block_q8_0 * restrict y0 = &y[i + 0];
-        const block_q8_0 * restrict y1 = &y[i + 1];
+        const block_q8_0 * x0 = &x[i + 0];
+        const block_q8_0 * x1 = &x[i + 1];
+        const block_q8_0 * y0 = &y[i + 0];
+        const block_q8_0 * y1 = &y[i + 1];
 
         const int8x16_t x0_0 = vld1q_s8(x0->qs);
         const int8x16_t x0_1 = vld1q_s8(x0->qs + 16);
@@ -205,7 +205,7 @@ void vec_dot_q8_0_q8_0(int n, float * __restrict s, const void * __restrict vx, 
     *s = sumf;
 #endif
 }
-
+*/
 void fp32_add_row_to(int n, const float * MLLM_RESTRICT src, float * MLLM_RESTRICT dst, float alpha){
     int i = 0;
 #ifdef __AVX2__
@@ -251,7 +251,7 @@ void fp_16_add_row_to(int n, const mllm_fp16_t * MLLM_RESTRICT src, float * MLLM
         _mm256_storeu_ps(dst + i, res_vec); // store back to dst
     }
 #elif defined(__ARM_NEON)
-    ASSERT(false); // not support now
+    std::cout<<"not support now"<<std::endl;
 #endif
 
     // 处理剩余的元素
@@ -425,15 +425,15 @@ type_traits_t type_traits[] = {
     {},
     {},
     {},
-    /*[MLLM_TYPE_Q8_0] = */{
-        .size = sizeof(block_q8_0),
-        .blck_size = QK8_0,
-        .to_float = (mllm_to_float_func) dequantize_row_q8_0,
-        .from_float = (mllm_from_float_func) quantize_row_q8_0,
-        .vec_dot = (mllm_vec_dot_func) vec_dot_q8_0_q8_0,
-        .vec_dot_type = MLLM_TYPE_Q8_0,
-        .add_row_to = (mllm_vec_add_row_func)q8_0_add_row_to,
-    },
+    // /*[MLLM_TYPE_Q8_0] = */{
+    //     .size = sizeof(block_q8_0),
+    //     .blck_size = QK8_0,
+    //     .to_float = (mllm_to_float_func) dequantize_row_q8_0,
+    //     .from_float = (mllm_from_float_func) quantize_row_q8_0,
+    //     .vec_dot = (mllm_vec_dot_func) vec_dot_q8_0_q8_0,
+    //     .vec_dot_type = MLLM_TYPE_Q8_0,
+    //     .add_row_to = (mllm_vec_add_row_func)q8_0_add_row_to,
+    // },
     /*[MLLM_TYPE_Q8_1] = */{},
     {},
     {},
