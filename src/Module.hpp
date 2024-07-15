@@ -8,15 +8,23 @@
 #include "Op.hpp"
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
+#include "Timing.hpp"
 #include "backends/cpu/CPUBackend.hpp"
 
 #include <any>
 #include <memory/SystemMemoryManager.hpp>
+#include <numeric>
 #include <utility>
+#include <vector>
 
 namespace mllm {
 
 class Module {
+private:
+    double load_time_;
+    int profill_token_size_=0;
+    vector<double> inference_times_;
+    
 public:
     static map<BackendType, Backend *> backends;
     static AbstructLoader *loader;
@@ -48,6 +56,7 @@ public:
     }
 
     void load(string path) {
+        mllm_time_init();
         initLoader(path);
         Module::doLoad = true;
         vector<Tensor> tmps;
@@ -57,7 +66,10 @@ public:
             tmps.push_back(Tensor::gph_[std::to_string(i)]);
         }
         vector<int> tmpt = {0, 0};
+        uint64_t time_start = mllm_time_us();
         operator()(tmps, tmpt);
+        uint64_t time_end = mllm_time_us();
+        load_time_ = (time_end - time_start) / 1000.0F;//ms
         Module::doLoad = false;
         Tensor::gph_.clear();
     }
@@ -99,13 +111,21 @@ public:
             }
             tensor_status = TENSOR_STATIC_INIT;
 
+            uint64_t time_start = mllm_time_us();
             Forward(inputs, anyArgs);
             for (auto &input : inputs) {
                 input.status() = TENSOR_STATIC_READY;
             }
             tensor_status = TENSOR_STATIC_READY;
+            auto output = Forward(inputs, anyArgs);
+            uint64_t time_end = mllm_time_us();
+            if(profill_token_size_==0){
+                profill_token_size_ = inputs[0].sequence();
+            }
+            double inference_time_ = (time_end - time_start) / 1000.0F;//ms
+            inference_times_.push_back(inference_time_);
 
-            return Forward(inputs, anyArgs);
+            return output;
         } else {
             return Forward(inputs, anyArgs);
         }
@@ -150,6 +170,21 @@ public:
         }
         listIdx = 0;
         return modules;
+    }
+
+    void profile() {
+        printf("\n");
+        std::cout << "===========================================" << std::endl;
+        std::cout << "  Load time: " << load_time_/1000.0F << " s" << std::endl;
+        if(profill_token_size_){
+            std::cout << "  Profill speed: " << 1000 * profill_token_size_ / inference_times_[0] << " tokens/s" << std::endl;
+        }
+        if(inference_times_.size()>1){
+            double sum_decoding_time = std::accumulate(std::begin(inference_times_)+1, std::end(inference_times_), 0.0);
+            double mean_decoding_time = sum_decoding_time / (inference_times_.size()-1);
+            std::cout << "  Decoding speed: " << 1000 / mean_decoding_time << " tokens/s" << std::endl;
+        }
+        std::cout << "===========================================" << std::endl;
     }
 };
 
