@@ -15,7 +15,7 @@
 #include "Layer.hpp"
 #include "Module.hpp"
 #include "Tensor.hpp"
-#include "configuration_Yi.hpp"
+#include "configuration_yi.hpp"
 #include <cmath>
 using namespace mllm;
 

@@ -9,9 +9,9 @@
  *
  */
 #include "cmdline.h"
-#include "models/Yi/configuration_Yi.hpp"
-#include "models/Yi/modeling_Yi.hpp"
-#include "models/Yi/tokenization_Yi.hpp"
+#include "models/yi/configuration_yi.hpp"
+#include "models/yi/modeling_yi.hpp"
+#include "models/yi/tokenization_yi.hpp"
 #include "processor/PostProcess.hpp"
 
 using namespace mllm;
