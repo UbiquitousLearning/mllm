@@ -22,7 +22,7 @@ namespace mllm {
 class Module {
 private:
     double load_time_;
-    int profill_token_size_=0;
+    int prefilling_token_size_=0;
     vector<double> inference_times_;
     
 public:
@@ -119,8 +119,8 @@ public:
             tensor_status = TENSOR_STATIC_READY;
             auto output = Forward(inputs, anyArgs);
             uint64_t time_end = mllm_time_us();
-            if(profill_token_size_==0){
-                profill_token_size_ = inputs[0].sequence();
+            if(prefilling_token_size_==0){
+                prefilling_token_size_ = inputs[0].sequence();
             }
             double inference_time_ = (time_end - time_start) / 1000.0F;//ms
             inference_times_.push_back(inference_time_);
@@ -176,8 +176,8 @@ public:
         printf("\n");
         std::cout << "===========================================" << std::endl;
         std::cout << "  Load time: " << load_time_/1000.0F << " s" << std::endl;
-        if(profill_token_size_){
-            std::cout << "  Profill speed: " << 1000 * profill_token_size_ / inference_times_[0] << " tokens/s" << std::endl;
+        if(prefilling_token_size_){
+            std::cout << "  Prefilling speed: " << 1000 * prefilling_token_size_ / inference_times_[0] << " tokens/s" << std::endl;
         }
         if(inference_times_.size()>1){
             double sum_decoding_time = std::accumulate(std::begin(inference_times_)+1, std::end(inference_times_), 0.0);
