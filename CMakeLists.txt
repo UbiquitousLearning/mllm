@@ -459,6 +459,17 @@ else ()
     target_link_libraries(demo_mistral PUBLIC MLLM_CPU)
 endif ()
 
+add_executable(demo_yi ${PROJECT_SOURCE_DIR}/examples/demo_yi.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/processor/PreProcess.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_yi PRIVATE -fopenmp)
+    target_link_libraries(demo_yi PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_yi PUBLIC MLLM_CPU)
+endif ()
 
 # add_executable(demo_deepseek ${PROJECT_SOURCE_DIR}/examples/demo_deepseek.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
 #         src/tokenizers/Tokenizer.cpp
