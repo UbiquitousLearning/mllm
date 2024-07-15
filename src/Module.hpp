@@ -56,6 +56,9 @@ public:
     }
 
     void load(string path) {
+        Tensor::gph_.clear();
+        Module::tensor_status = TENSOR_STATIC_INIT;
+
         mllm_time_init();
         initLoader(path);
         Module::doLoad = true;
@@ -75,6 +78,9 @@ public:
     }
 
     void load(AbstructLoader &param_loader) {
+        Tensor::gph_.clear();
+        Module::tensor_status = TENSOR_STATIC_INIT;
+        
         loader = &param_loader;
         Module::doLoad = true;
         vector<Tensor> tmps;
@@ -172,17 +178,21 @@ public:
         return modules;
     }
 
-    void profiling() {
-        printf("\n");
+    void profiling(string name = "") {
+        // printf("\n");
         std::cout << "===========================================" << std::endl;
-        std::cout << "  Load time: " << load_time_/1000.0F << " s" << std::endl;
-        if(prefilling_token_size_){
-            std::cout << "  Prefilling speed: " << 1000 * prefilling_token_size_ / inference_times_[0] << " tokens/s" << std::endl;
+        if (name != "") {
+            std::cout << "            " << name << std::endl;
+            std::cout << "-------------------------------------------" << std::endl;
         }
+        std::cout << "  Load time: " << load_time_/1000.0F << " s" << std::endl;
         if(inference_times_.size()>1){
+            std::cout << "  Prefilling speed: " << 1000 * prefilling_token_size_ / inference_times_[0] << " tokens/s" << std::endl;
             double sum_decoding_time = std::accumulate(std::begin(inference_times_)+1, std::end(inference_times_), 0.0);
             double mean_decoding_time = sum_decoding_time / (inference_times_.size()-1);
             std::cout << "  Decoding speed: " << 1000 / mean_decoding_time << " tokens/s" << std::endl;
+        } else{
+            std::cout << "  Inference latency: " << inference_times_[0]/1000.0F << " s" << std::endl;
         }
         std::cout << "===========================================" << std::endl;
     }

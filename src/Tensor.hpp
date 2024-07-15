@@ -62,12 +62,14 @@ public:
     Tensor(Backend *bn) :
         backend_(bn), host_ptr_(), capacity_(0), dtype_(MLLM_TYPE_F32) {
     }
+    /*
     ~Tensor() {
         if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_&& gph_.find(name_) == gph_.end()) {
             backend_->free(host_ptr_);
             host_ptr_ = nullptr;
         }
     }
+    */
     static map<string, Tensor> gph_;
     std::map<Chl, int>& chls() {
         return chls_;
