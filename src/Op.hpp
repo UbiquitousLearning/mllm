@@ -5,6 +5,7 @@
 #include "Types.hpp"
 #include <functional>
 #include "ParamLoader.hpp"
+#include "Timing.hpp"
 using std::function;
 namespace mllm {
 
