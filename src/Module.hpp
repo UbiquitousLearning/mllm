@@ -172,7 +172,7 @@ public:
         return modules;
     }
 
-    void profile() {
+    void profiling() {
         printf("\n");
         std::cout << "===========================================" << std::endl;
         std::cout << "  Load time: " << load_time_/1000.0F << " s" << std::endl;
