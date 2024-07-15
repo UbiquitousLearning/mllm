@@ -187,6 +187,7 @@ int main(int argc, char **argv) {
             // }
 
             result[0]->printData<float>();
+            // result[0]->printShape();
             // auto token_idx = postProcessing(result[0], input);
             // if (token_idx == 2) { // "</s>"
             //     break;
