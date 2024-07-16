@@ -8,6 +8,7 @@
 #include <iostream>
 #include <memory>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 #include "QNNBackend.hpp"
 #include "QNNGraph.hpp"
@@ -502,7 +503,10 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
                 for (int tid = 0; tid < net->inputNames().size(); ++tid) {
                     auto input_name = net->inputNames()[tid];
                     auto input_tensor = chunked_tensors_list[chunk_id][tid];
-                    net->tensors()[input_name] = input_tensor;
+                    unordered_map<string, shared_ptr<Tensor>> map;
+                    map[input_name] = input_tensor;
+                    string graphName = typeName + std::to_string(i);
+                    net->subGraph()[graphName]->reflashInput(map);
                 }
             }
 
