@@ -31,6 +31,7 @@ NetTensor *_Embedding(std::vector<NetTensor *> inputs, int vocab_size, int hidde
 NetTensor *_Mul(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_KVCache(std::vector<NetTensor *> inputs, int cache_max, string name = "");
 NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, int cache_max, string name = "");
+NetTensor *_KVCacheNPU(std::vector<NetTensor *> inputs, int cache_max, string name = "");
 NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, bool share_input, int cache_max, string name = "");
 NetTensor *_ReLU(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_ReLUSquaredActivation(std::vector<NetTensor *> inputs, string name = "");
@@ -49,5 +50,6 @@ NetTensor *_Replace(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_WNop(std::vector<NetTensor *> inputs, int sync_type, string name = "");
 NetTensor *_MergeOutput(std::vector<NetTensor *> inputs, string name = "");
 vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, int num, string name = "");
+NetTensor *_Transpose(std::vector<NetTensor *> inputs, std::vector<int> perm, string name = "");
 
 #endif // MLLM_EXPRESS_H

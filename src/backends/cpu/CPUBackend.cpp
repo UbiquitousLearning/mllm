@@ -3,6 +3,7 @@
 #include <math.h>
 #include <memory>
 #include "Backend.hpp"
+#include "CPUKVCacheNPU.hpp"
 #include "CPUMatmulINT8.hpp"
 #include "CPUPoEmbedding.hpp"
 #include "CPUSplitInput.hpp"
@@ -104,6 +105,7 @@ void CPUBackend::registerOps() {
     addCreator(MUL, (CPUBackend::Creator *)(new CPUMulCreator()));
     addCreator(VIEW, (CPUBackend::Creator *)(new CPUViewCreator()));
     addCreator(KVCACHE, (CPUBackend::Creator *)(new CPUKVCacheCreator()));
+    addCreator(KVCACHENPU, (CPUBackend::Creator *)(new CPUKVCacheNPUCreator()));
     addCreator(RELU, (CPUBackend::Creator *)(new CPUReLUCreator()));
     addCreator(RELU2, (CPUBackend::Creator *)(new CPUReLU2Creator()));
     addCreator(OP_GELU, (CPUBackend::Creator *)(new CPUGELUCreator()));

@@ -9,10 +9,12 @@ CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max, boo
     thread_count(threadCount),
     Op(bn, opName) {
     cache_.setBackend(bn);
-    if (!share_input)
-        cache_.setDtype(MLLM_TYPE_I8);
-    else
-        cache_.setDtype(MLLM_TYPE_F16);
+    // if (!share_input)
+    //     cache_.setDtype(MLLM_TYPE_I8);
+    // else
+    //     cache_.setDtype(MLLM_TYPE_F16);
+    // TODO: Chaning it to FP16
+    cache_.setDtype(MLLM_TYPE_F32);
     cache_limit_ = cache_max;
     n_rep_ = n_rep;
     share_input_ = share_input;

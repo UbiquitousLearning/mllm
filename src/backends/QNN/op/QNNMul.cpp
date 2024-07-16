@@ -21,6 +21,7 @@ ErrorCode QNNMul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
 
 ErrorCode QNNMul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     return graphAddNode(name(), "LLaMAMul", inputs, outputs, {}, "LLaMAPackage");
+    // return graphAddNode(name(), "ElementWiseMul", inputs, outputs, {});
 }
 } // namespace mllm
 

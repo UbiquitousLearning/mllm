@@ -251,6 +251,11 @@ NetTensor *TNetTensor::view(int b, int h, int s, int d) {
             dims = {-1, h, -1, d};
             data_dims = {BATCH + SEQUENCE, HEAD, -1, DIMENSION};
         }
+    } else if (b != -1 & d != -1 & h != -1 & s != -1) { // change all dimension.
+        
+        dims = {b, h, s, d};
+        data_dims = {BATCH, HEAD, SEQUENCE, DIMENSION};
+
     } else {
         std::cout << "ERROR: " << name << " view [" << b << ", " << h << ", " << s << ", " << d << "]" << std::endl;
     }

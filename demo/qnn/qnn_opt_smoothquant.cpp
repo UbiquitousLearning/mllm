@@ -1,5 +1,6 @@
 #include <iostream>
 #include <csignal>
+#include <memory>
 #include "Executor.hpp"
 #include "Types.hpp"
 #include "backends/QNN/QNNOptNet.hpp"
@@ -40,6 +41,7 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_r
     return token_idx;
 }
 
+
 template <typename Dtype>
 void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dtype value) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_QNN].get());
@@ -54,10 +56,15 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/vocab_opt.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./models/opt-1.3b-head-static-int8.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
+
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.add<int>("seq", 's', "num of threads", false, 32);
     cmdParser.add<int>("chunk", 'c', "use chunk execute", false, 1);
     cmdParser.add<int>("head", 'h', "num of heads", false, 32);
+
+    cmdParser.add<int>("ffn", 'f', "size of ffn hidden size", false, 8192);
+    cmdParser.add<int>("hds", 'd', "size of hidden size", false, 2048);
+
 
     cmdParser.parse_check(argc, argv);
 
@@ -68,6 +75,10 @@ int main(int argc, char **argv) {
     int seqLength = cmdParser.get<int>("seq");
     int executeType = cmdParser.get<int>("chunk");
     int head_num = cmdParser.get<int>("head");
+    int chunk = 1;
+
+    if (executeType == 1) 
+        chunk = 2;
 
     auto tokenizer = BPETokenizer(vocab_path);
     std::unordered_map<string, unsigned> merge_rank;
@@ -87,16 +98,20 @@ int main(int argc, char **argv) {
     tokenizer.setMergeRank(merge_rank);
 
     int vocab_size = 50272;
-    int hidden_dim = 2048;
-    int ffn_hidden_dim = 8192;
+
+    int hidden_dim = cmdParser.get<int>("hds");;
+    int ffn_hidden_dim = cmdParser.get<int>("ffn");;
+    // int mutil_head_size = 32;
+
 
     std::unique_ptr<Context> npu_ctx_ptr(new Context());
     auto *npu_ctx = npu_ctx_ptr.get();
     std::unique_ptr<Context> cpu_ctx_ptr(new Context());
     auto *cpu_ctx = cpu_ctx_ptr.get();
 
+
     // cache_max should be longer than seqLength
-    modeling::opt_npu(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
+    modeling::opt_npu(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
     modeling::opt_cpu(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
 
     BackendConfig bn;
@@ -143,6 +158,7 @@ int main(int argc, char **argv) {
         tokens_id.pop_back();
 
         // resize to the expected seqLength, the seq will be then splited to chunks
+        // tokens_id.resize(0);
         tokens_id.resize(seqLength);
 
         BPETokenizer::token2Tensor(&npuNet, tokens_id, input);
@@ -154,24 +170,41 @@ int main(int argc, char **argv) {
             // 1: Prefill stage using NPU chunk execute
             npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
-            auto token_idx = postProcessing(result[0], input);
-            if (token_idx == 2) { // "</s>"
-                break;
-            }
-            auto out_token = tokenizer.detokenize({token_idx});
-            std::cout << out_token << std::flush;
 
-            // 2: Decoding stage using CPU execute
-            for (int step = 1; step < 100; step++) {
-                cpuExe.run(&cpuNet, {input});
-                auto result = cpuExe.result();
-                auto token_idx = postProcessing(result[0], input);
-                if (token_idx == 2) { // "</s>"
-                    break;
-                }
-                auto out_token = tokenizer.detokenize({token_idx});
-                std::cout << out_token << std::flush;
-            }
+            // ----------------- TEST PRINT --------------------
+            // std::cout << "result size: " << result.size() << std::endl;
+            // shared_ptr<Tensor> t;
+            // if(result.size() > 1) {
+            //     std::cout << "getting V" << std::endl;
+            //     t = result[2];
+            // } else {
+            //     t = result[0];
+            // }
+            // auto data = t->ptrAt<float>(0,0,0,0);
+            // for (int i = 0; i < t->sequence(); i++) {
+            //     std::cout << data[i] << " ";
+            // }
+
+            result[0]->printData<float>();
+            // result[0]->printShape();
+            // auto token_idx = postProcessing(result[0], input);
+            // if (token_idx == 2) { // "</s>"
+            //     break;
+            // }
+            // auto out_token = tokenizer.detokenize({token_idx});
+            // std::cout << out_token << std::flush;
+
+            // // 2: Decoding stage using CPU execute
+            // for (int step = 1; step < 100; step++) {
+            //     cpuExe.run(&cpuNet, {input});
+            //     auto result = cpuExe.result();
+            //     auto token_idx = postProcessing(result[0], input);
+            //     if (token_idx == 2) { // "</s>"
+            //         break;
+            //     }
+            //     auto out_token = tokenizer.detokenize({token_idx});
+            //     std::cout << out_token << std::flush;
+            // }
         } while (false);
         printf("\n");
     }

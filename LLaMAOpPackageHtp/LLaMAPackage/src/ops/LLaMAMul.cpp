@@ -201,8 +201,14 @@ GraphStatus llamamulImpl(TensorType& out_0,
    auto [b_in, h_in, w_in, d_in] = in_0.dims();
    size_t size = b_in*h_in*w_in*d_in;
 
-   hvx_mul_af(in_ptr, in2_ptr, out_ptr, size);
-   
+  DType dtype = in_0.get_dtype();
+
+  if (dtype == DType::QUInt8) {
+    
+    hvx_mul_af(in_ptr, in2_ptr, out_ptr, size/4);
+  } else {
+    hvx_mul_af(in_ptr, in2_ptr, out_ptr, size);
+  }
 
   return GraphStatus::Success;
 }

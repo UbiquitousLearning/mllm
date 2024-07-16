@@ -123,6 +123,7 @@ private:
     // int32_t backendInitialize();
     // int32_t contextInitialize();
     qnn_wrapper_api::ModelError_t graphFinilize();
+    qnn_wrapper_api::ModelError_t graphConfig();
 
     void release();
 

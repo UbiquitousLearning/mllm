@@ -58,8 +58,6 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
     // backend event hook
     // we put all the things to the onExecuteStart.
     // if (autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0)
-        this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]], graphName);
-
     // std::cout << "QNNexecute thread start" << std::endl;
 
     
@@ -98,6 +96,18 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
         } else {
             //            std::cout<<"op_name:"<<op_name<<" is not do"<<std::endl;
         }
+    }
+
+    this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]], graphName);
+    
+    if (ops_[op_names_[op_names_.size() - 1]]->type() == MERGEOUTPUT) {
+
+        auto inputs = ops_input_tensors_[op_names_[op_names_.size() - 1]];
+        auto outputs = ops_output_tensors_[op_names_[op_names_.size() - 1]];
+        memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*0), inputs[0]->hostPtr<uint8_t>(), inputs[0]->cntSize());
+        memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*1), inputs[1]->hostPtr<uint8_t>(), inputs[1]->cntSize());
+        memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*2), inputs[2]->hostPtr<uint8_t>(), inputs[2]->cntSize());
+        // outputs[0]->printData<float>();
     }
 //     // backend event hook
 //     // We use a thread to parallel CPU AND QNN execution.
