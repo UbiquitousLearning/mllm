@@ -1381,11 +1381,11 @@ void vec_dot_q8_0_q8_0(int n, float * __restrict s, const void * __restrict vx, 
 
         sumv0 = vmlaq_n_f32(sumv0, vcvtq_f32_s32(vaddq_s32(
                                        mllm_vdotq_s32(vdupq_n_s32(0), x0_0, y0_0),
-                                       mllm_vdotq_s32(vdupq_n_s32(0), x0_1, y0_1))), GGML_FP16_TO_FP32(x0->d)*GGML_FP16_TO_FP32(y0->d));
+                                       mllm_vdotq_s32(vdupq_n_s32(0), x0_1, y0_1))), MLLM_FP16_TO_FP32(x0->d)*MLLM_FP16_TO_FP32(y0->d));
 
         sumv1 = vmlaq_n_f32(sumv1, vcvtq_f32_s32(vaddq_s32(
                                        mllm_vdotq_s32(vdupq_n_s32(0), x1_0, y1_0),
-                                       mllm_vdotq_s32(vdupq_n_s32(0), x1_1, y1_1))), GGML_FP16_TO_FP32(x1->d)*GGML_FP16_TO_FP32(y1->d));
+                                       mllm_vdotq_s32(vdupq_n_s32(0), x1_1, y1_1))), MLLM_FP16_TO_FP32(x1->d)*MLLM_FP16_TO_FP32(y1->d));
     }
 
     *s = vaddvq_f32(sumv0) + vaddvq_f32(sumv1);
