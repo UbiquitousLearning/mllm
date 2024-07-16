@@ -61,7 +61,7 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
     // #endif
 
     if (this->fp_ == nullptr) {
-        std::cout << "param open file failed" << std::endl;
+        // std::cout << "param open file failed" << std::endl;
         return;
         int errorCode = errno;
         char *errorMsg = strerror(errorCode);
@@ -123,7 +123,9 @@ std::tuple<uint8_t *, uint64_t> ParamLoader::load(string name) {
 }
 DataType ParamLoader::getDataType(string name) {
     if (data_type_.count(name) != 1) {
-        std::cerr<<name<<" not found"<<std::endl;
+        if (this->fp_ != nullptr) {
+            std::cerr<<name<<" not found"<<std::endl;
+        }
         return DataType::MLLM_TYPE_COUNT;
     }
     int type = data_type_[name];

@@ -80,6 +80,10 @@ class ImagebindVisionModel final : public Module {
 
 public:
     ImagebindVisionModel() = default;
+    ImagebindVisionModel(const ImagebindConfig &config):
+        ImagebindVisionModel(config.vision_hidden_dim, config.vision_head_size, config.vision_ffn_hidden, config.head_hidden_dim,
+                             config.patch, config.patch_time, config.img_hw, config.vision_block_num,
+                             config.names_config){};
     ImagebindVisionModel(int hidden_dim, int head_size, int ffn_hidden, int head_hidden_dim,
                          int patch, int patch_time, int img_hw, int block_num,
                          const ImagebindNameConfig &names) {
@@ -128,6 +132,10 @@ class ImagebindTextModel final : public Module {
 
 public:
     ImagebindTextModel() = default;
+    ImagebindTextModel(const ImagebindConfig &config):
+        ImagebindTextModel(config.text_hidden_dim, config.text_head_size, config.text_ffn_hidden, config.head_hidden_dim,
+                           config.vocab_size, config.max_position_embeddings, config.text_block_num,
+                           config.names_config){};
     ImagebindTextModel(int hidden_dim, int head_size, int ffn_hidden, int head_hidden_dim,
                        int vocab_size, int max_position_embeddings, int block_num,
                        const ImagebindNameConfig &names) {
@@ -186,6 +194,10 @@ class ImagebindAudioModel final : public Module {
 
 public:
     ImagebindAudioModel() = default;
+    ImagebindAudioModel(const ImagebindConfig &config):
+        ImagebindAudioModel(config.audio_hidden_dim, config.audio_head_size, config.audio_ffn_hidden, config.head_hidden_dim,
+                            config.audio_kernal, config.audio_stride, config.audio_h, config.audio_w, config.audio_block_num,
+                            config.names_config){};
     ImagebindAudioModel(int hidden_dim, int head_size, int ffn_hidden, int head_hidden_dim,
                          int patch, int stride, int img_h, int img_w, int block_num,
                          const ImagebindNameConfig &names) {
