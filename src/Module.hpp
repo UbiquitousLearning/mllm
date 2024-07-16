@@ -110,6 +110,14 @@ public:
             return Forward(inputs, anyArgs);
         }
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
+            if(prefilling_token_size_==0){ // first time init
+                if(!Tensor::gph_.empty()){
+                    Tensor::gph_.clear();
+                }
+                prefilling_token_size_ = inputs[0].sequence();
+            }else if(decoding_token_size_==0){
+                decoding_token_size_ = inputs[0].sequence();
+            }
             bool need_setup = true;
             for (int i = 0; i < inputs.size(); i++) {
                 auto &input = inputs[i];
@@ -143,11 +151,6 @@ public:
 
             double inference_time_ = (time_end - time_start) / 1000.0F;//ms
             inference_times_.push_back(inference_time_);
-            if(prefilling_token_size_==0){
-                prefilling_token_size_ = inputs[0].sequence();
-            }else if(decoding_token_size_==0){
-                decoding_token_size_ = inputs[0].sequence();
-            }
             last_shape_bshd_.clear();
             for (auto &input : inputs) {
                 last_shape_bshd_.push_back({input.batch(), input.sequence(), 
