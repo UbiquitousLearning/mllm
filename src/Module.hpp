@@ -23,7 +23,9 @@ class Module {
 private:
     double load_time_;
     int prefilling_token_size_=0;
+    int decoding_token_size_=0;
     vector<double> inference_times_;
+    vector<vector<int>> last_shape_bshd_;
     
 public:
     static map<BackendType, Backend *> backends;
@@ -108,28 +110,49 @@ public:
             return Forward(inputs, anyArgs);
         }
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
-            for (auto &input : inputs) {
+            bool need_setup = true;
+            for (int i = 0; i < inputs.size(); i++) {
+                auto &input = inputs[i];
                 input.setTtype(TensorType::NORMAL_TENSOR);
                 input.status() = TENSOR_STATIC_INIT;
                 if(input.batch() == 0){
                     Tensor::gph_[input.name()] = input;
                 }
+                if(input.sequence()!=1 && !last_shape_bshd_.empty()){
+                    // if LLM/VLLM model, the `need_setup` should be `true`
+                    if(input.batch() == last_shape_bshd_[i][0] & 
+                        input.sequence() == last_shape_bshd_[i][1] & 
+                        input.head() == last_shape_bshd_[i][2] & 
+                        input.dimension() == last_shape_bshd_[i][3]){
+                        need_setup = false;
+                    }
+                }
             }
             tensor_status = TENSOR_STATIC_INIT;
 
             uint64_t time_start = mllm_time_us();
-            Forward(inputs, anyArgs);
+            if(need_setup){
+                Forward(inputs, anyArgs);
+            }
             for (auto &input : inputs) {
                 input.status() = TENSOR_STATIC_READY;
             }
             tensor_status = TENSOR_STATIC_READY;
             auto output = Forward(inputs, anyArgs);
             uint64_t time_end = mllm_time_us();
-            if(prefilling_token_size_==0){
-                prefilling_token_size_ = inputs[0].sequence();
-            }
+
             double inference_time_ = (time_end - time_start) / 1000.0F;//ms
             inference_times_.push_back(inference_time_);
+            if(prefilling_token_size_==0){
+                prefilling_token_size_ = inputs[0].sequence();
+            }else if(decoding_token_size_==0){
+                decoding_token_size_ = inputs[0].sequence();
+            }
+            last_shape_bshd_.clear();
+            for (auto &input : inputs) {
+                last_shape_bshd_.push_back({input.batch(), input.sequence(), 
+                                            input.head(), input.dimension()});
+            }
 
             return output;
         } else {
@@ -186,13 +209,15 @@ public:
             std::cout << "-------------------------------------------" << std::endl;
         }
         std::cout << "  Load time: " << load_time_/1000.0F << " s" << std::endl;
-        if(inference_times_.size()>1){
+        if(inference_times_.size()>1 && decoding_token_size_ != prefilling_token_size_){
             std::cout << "  Prefilling speed: " << 1000 * prefilling_token_size_ / inference_times_[0] << " tokens/s" << std::endl;
             double sum_decoding_time = std::accumulate(std::begin(inference_times_)+1, std::end(inference_times_), 0.0);
             double mean_decoding_time = sum_decoding_time / (inference_times_.size()-1);
             std::cout << "  Decoding speed: " << 1000 / mean_decoding_time << " tokens/s" << std::endl;
         } else{
-            std::cout << "  Inference latency: " << inference_times_[0]/1000.0F << " s" << std::endl;
+            double sum_time = std::accumulate(std::begin(inference_times_), std::end(inference_times_), 0.0);
+            double mean_time = sum_time / (inference_times_.size());
+            std::cout << "  Inference latency: " << mean_time/1000.0F << " s" << std::endl;
         }
         std::cout << "===========================================" << std::endl;
     }
