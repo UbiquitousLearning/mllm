@@ -1,6 +1,6 @@
 
 #include "CPUPredictor.hpp"
-#include "type/type.hpp"
+#include "compute/VecDotType.hpp"
 #include "compute/Matmul.hpp"
 
 #include <utility>
