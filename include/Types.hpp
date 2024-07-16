@@ -85,7 +85,7 @@ inline std::map<std::vector<int>, ChlType> Chls2Type = {
 enum TensorType {
     INPUT_TENSOR = 0,
     NORMAL_TENSOR,
-    OUTPUT_TENSOT
+    OUTPUT_TENSOR,
 };
 
 enum Chl {
