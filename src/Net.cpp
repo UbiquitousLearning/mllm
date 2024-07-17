@@ -11,16 +11,18 @@ shared_ptr<CPUBackend> cpuBn;
 
 Net::Net(BackendConfig config){
     shared_ptr<MemoryManager> mm = nullptr;
-    switch (config.memory) {
-    case BackendConfig::Memory_High:
-        mm = std::make_shared<SystemMemoryManager>();
-        break;
-    default:
-        mm = std::make_shared<SystemMemoryManager>();
-        break;
-    }
+    if (cpuBn == nullptr) {
+        switch (config.memory) {
+        case BackendConfig::Memory_High:
+            mm = std::make_shared<SystemMemoryManager>();
+            break;
+        default:
+            mm = std::make_shared<SystemMemoryManager>();
+            break;
+        }
 
-    cpuBn.reset(new CPUBackend(mm));
+        cpuBn.reset(new CPUBackend(mm));
+    }
     backends_.emplace(BackendType::MLLM_CPU,  cpuBn);
 }
 

@@ -45,6 +45,9 @@ enum OpType {
     RANGE,
     WHERE,
     REPLACE,
+    PREDICTOR,
+    SPARSELINEAR,
+    SPARSEIDLINEAR,
     OP_NUM
 };
 
@@ -107,7 +110,8 @@ enum TensorFuncType {
     FUNC_CLIP,
     FUNC_CLIPAXIS,
     FUNC_RANGE,
-    FUNC_WHERE
+    FUNC_WHERE,
+    FUNC_SPLIT
 };
 
 } // namespace mllm

@@ -236,6 +236,7 @@ add_executable(main_tinyllama ${PROJECT_SOURCE_DIR}/examples/main_tinyllama.cpp 
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
 )
+
 if (ARM AND NOT APK)
     target_compile_options(main_tinyllama PRIVATE -fopenmp)
     target_link_libraries(main_tinyllama PUBLIC MLLM_CPU -fopenmp -static-openmp)
@@ -392,6 +393,20 @@ else ()
     target_link_libraries(demo_imagebind MLLM_CPU)
 endif ()
 
+add_executable(demo_imagebind_1mod ${PROJECT_SOURCE_DIR}/examples/demo_imagebind_1mod.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
+        ${DIR_SRC_PROCESSOE}
+        ${DIR_THIRDPARTY_AUDIO}
+        src/processor/PreProcess.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_imagebind_1mod PRIVATE -fopenmp)
+    target_link_libraries(demo_imagebind_1mod PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_imagebind_1mod MLLM_CPU)
+endif ()
+
 add_executable(demo_tinyllama ${PROJECT_SOURCE_DIR}/examples/demo_tinyllama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/Tokenizer.hpp
@@ -403,6 +418,19 @@ if (ARM AND NOT APK)
     target_link_libraries(demo_tinyllama PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
     target_link_libraries(demo_tinyllama MLLM_CPU)
+endif ()
+
+add_executable(demo_sparse_llama ${PROJECT_SOURCE_DIR}/examples/demo_sparse_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_sparse_llama PRIVATE -fopenmp)
+    target_link_libraries(demo_sparse_llama PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_sparse_llama MLLM_CPU)
 endif ()
 
 add_executable(demo_llava ${PROJECT_SOURCE_DIR}/examples/demo_llava.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
@@ -453,6 +481,30 @@ if (ARM AND NOT APK)
 else ()
     target_link_libraries(demo_mistral PUBLIC MLLM_CPU)
 endif ()
+
+add_executable(demo_yi ${PROJECT_SOURCE_DIR}/examples/demo_yi.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/processor/PreProcess.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_yi PRIVATE -fopenmp)
+    target_link_libraries(demo_yi PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_yi PUBLIC MLLM_CPU)
+endif ()
+
+# add_executable(demo_deepseek ${PROJECT_SOURCE_DIR}/examples/demo_deepseek.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/BPE/Bpe.cpp
+#         src/processor/PreProcess.cpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(demo_deepseek PRIVATE -fopenmp)
+#     target_link_libraries(demo_deepseek PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(demo_deepseek PUBLIC MLLM_CPU)
+# endif ()
 
 if (APK)
     add_library(mllm_lib STATIC ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER}

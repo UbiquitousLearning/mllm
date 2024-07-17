@@ -62,12 +62,14 @@ public:
     Tensor(Backend *bn) :
         backend_(bn), host_ptr_(), capacity_(0), dtype_(MLLM_TYPE_F32) {
     }
+    /*
     ~Tensor() {
         if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_&& gph_.find(name_) == gph_.end()) {
             backend_->free(host_ptr_);
             host_ptr_ = nullptr;
         }
     }
+    */
     static map<string, Tensor> gph_;
     std::map<Chl, int>& chls() {
         return chls_;
@@ -103,6 +105,7 @@ private:
     //  used for AggregatedTensor
     bool aggregated_ = false;
     vector<shared_ptr<Tensor>> aggregated_tensors_;
+    Tensor* deaggregated_tensor_;
     Chl aggregated_dim_;
     vector<int> aggregated_dims_;
 
@@ -340,6 +343,14 @@ public:
     }
 
     /**
+     * \brief obtain the raw pointer to the first address where tensor stores data.
+     * \return the pointer(void *) to the first address where tensor stores data.
+     */
+    void *rawHostPtr() const {
+        return host_ptr_;
+    }
+
+    /**
      * \brief obtain the pointer to the first address where tensor stores data.
      * \tparam Dtype float, mllm_fp16_t, etc.
      * \return the pointer to the first address where tensor stores data.
@@ -456,7 +467,7 @@ public:
      * \param dimension Dimension index
      * \return data type , e.g. MLLM_TYPE_F32, MLLM_TYPE_Q4_K
      */
-    DataType dtypeAt(const int batch, const int head, const int sequence, const int dimension) const {
+    DataType dtypeAt(const int batch, const int head, const int sequence, const int dimension) {
         if (!aggregated_) {
             return dtype_;
         } else {
@@ -691,6 +702,12 @@ public:
     bool& undiffusion() {
         return undiffusion_ ;
     }
+    void setUndiffusion(bool undiffusion) {
+        undiffusion_ = undiffusion;
+        for (auto &child_tensor : child_tensors_) {
+            child_tensor->undiffusion_ = undiffusion;
+        }
+    }
 
     vector<std::pair<Chl, Chl>>& transFrom() {
         return trans_from_;
@@ -735,6 +752,7 @@ public:
     Tensor& norm(int L_n);
     Tensor& where(float value, Chl axis);
     static Tensor& range(int start, int end);
+    static vector<Tensor> split(Tensor& input, std::vector<int> each_dims, Chl split_dim, int head_size = -1);
 
 
     /* Functions used for ChildTensor:
@@ -836,7 +854,6 @@ public:
         }
         allocated_ = source->allocated_;
         dtype_ = source->dtype_;
-
         if (!shape_offset.empty()) {
             shape_offset_ = shape_offset;
             shape_master_ = {source->batch(), source->head(), source->sequence(), source->dimension()};
@@ -857,7 +874,13 @@ public:
             }
         }
         for (auto &child_tensor : child_tensors_) {
-            if (!shape_offset.empty()) {
+            auto origin_shape_offset = child_tensor->shape_offset();
+            if (!origin_shape_offset.empty()){
+                if(!shape_offset.empty()){
+                    origin_shape_offset[2] = shape_offset[2];
+                }
+                child_tensor->deepCopyFrom(source, false, origin_shape_offset, head_rep);
+            }else if (!shape_offset.empty()) {
                 child_tensor->deepCopyFrom(source, false, shape_offset, head_rep);
             } else {
                 child_tensor->deepCopyFrom(source, false, {}, head_rep);
@@ -942,10 +965,22 @@ public:
             assert(sum == dimension());
             break;
         }
+        case D_HD:
+        case HD: {
+            auto sum = 0;
+            for (auto &t : ts) {
+                sum += t->dimension();
+                aggregated_dims_.push_back(sum);
+            }
+            break;
+        }
         default:
             break;
         }
         aggregated_tensors_ = ts;
+        for (auto t : aggregated_tensors_) {
+            t->deaggregated_tensor_ = this;
+        }
     }
     bool aggregated() const {
         return aggregated_;
@@ -953,6 +988,9 @@ public:
 
     vector<shared_ptr<Tensor>>& aggregated_tensors() {
         return aggregated_tensors_;
+    }
+    Tensor *deaggregated_tensor() const {
+        return deaggregated_tensor_;
     }
     Chl aggregated_dim() const {
         return aggregated_dim_;
@@ -1448,7 +1486,7 @@ private:
         return shape_[canonicalAxisIndex(index)];
     }
 
-    int checkDim(int &b, int &h, int &s, int &d) const {
+    int checkDim(int &b, int &h, int &s, int &d) {
         if (!aggregated_) {
             return -1;
         }
@@ -1485,22 +1523,57 @@ private:
             break;
         }
         case D_HD: {
-            int dim_size = aggregated_tensors_[0]->dimension();
-            int aggregated_size = aggregated_tensors_.size();
-            auto h_ = d / (dim_size * aggregated_size);
-            auto d_m = d % (dim_size * aggregated_size);
-            tensor_id = d_m / dim_size;
-            d = d_m % dim_size;
-            h = h_;
+            if(aggregated_tensors_[0]->dimension() ==aggregated_tensors_[1]->dimension()){
+                int dim_size = aggregated_tensors_[0]->dimension();
+                int aggregated_size = aggregated_tensors_.size();
+                h = d / (dim_size * aggregated_size);
+                auto d_m = d % (dim_size * aggregated_size);
+                tensor_id = d_m / dim_size;
+                d = d_m % dim_size;
+                // h = h_;
+            }else {
+                //TODO
+                auto orin_d = d;
+                int head_size = aggregated_tensors_[0]->head();  
+                int dim_t = d%(dimension()/head_size);
+                int old_dim = 0;
+                for (int a = 0; a < aggregated_dims_.size(); ++a) {
+                    if (dim_t < aggregated_dims_[a]) {
+                        tensor_id = a;
+                        break;
+                    }
+                    old_dim += aggregated_tensors_[a]->dimension();
+                }
+                // int dim_size = aggregated_tensors_[tensor_id]->dimension();
+                h = d*head_size/dimension();  
+                d = dim_t - old_dim;
+                // std::cout<<tensor_id<<" "<<h<<" "<<d<<" , "<<orin_d<<std::endl;
+            }
             break;
         }
         case HD: {
             auto orin_d = d;
-            int dim_size = aggregated_tensors_[0]->dimension();
-            int head_size = aggregated_tensors_[0]->head();
-            tensor_id = orin_d / (dim_size * head_size);
-            h = (orin_d - tensor_id * (dim_size * head_size)) / dim_size;
-            d = (orin_d - tensor_id * (dim_size * head_size)) % dim_size;
+            if(aggregated_tensors_[0]->dimension() ==aggregated_tensors_[1]->dimension()){
+                int dim_size = aggregated_tensors_[0]->dimension();
+                int head_size = aggregated_tensors_[0]->head();
+                tensor_id = orin_d / (dim_size * head_size);
+                h = (orin_d - tensor_id * (dim_size * head_size)) / dim_size;
+                d = (orin_d - tensor_id * (dim_size * head_size)) % dim_size;
+            }else {
+                int head_size = aggregated_tensors_[0]->head();
+                int old_dim = 0;
+                for (int a = 0; a < aggregated_dims_.size(); ++a) {
+                    if (d < aggregated_dims_[a]*head_size) {
+                        tensor_id = a;
+                        break;
+                    }
+                    old_dim += aggregated_tensors_[a]->dimension();
+                }
+                int dim_size = aggregated_tensors_[tensor_id]->dimension();
+                h = (orin_d - old_dim * head_size) / dim_size;
+                d = (orin_d - old_dim * head_size) % dim_size;
+                // std::cout<<tensor_id<<" "<<h<<" "<<d<<" , "<<orin_d<<std::endl;
+            }
             break;
         }
         default:
@@ -1511,7 +1584,8 @@ private:
 
     Tensor& getFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
     static Tensor& getStaticFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
-
+    static std::vector<Tensor> getStaticFuncOupts(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, 
+                                    vector<Tensor *> input_tensors);
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H

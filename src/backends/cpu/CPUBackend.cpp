@@ -37,6 +37,9 @@
 #include "CPURange.hpp"
 #include "CPUWhere.hpp"
 #include "CPUReplace.hpp"
+#include "CPUPredictor.hpp"
+#include "CPUSparseIdLinear.hpp"
+#include "CPUSparseLinear.hpp"
 #include "CPUTensorFunction.hpp"
 
 namespace mllm {
@@ -93,6 +96,9 @@ void CPUBackend::registerOps() {
     addCreator(RANGE, (CPUBackend::Creator *)(new CPURangeCreator()));
     addCreator(WHERE, (CPUBackend::Creator *)(new CPUWhereCreator()));
     addCreator(REPLACE, (CPUBackend::Creator *)(new CPUReplaceCreator()));
+    addCreator(PREDICTOR, (CPUBackend::Creator *)(new CPUPredictorCreator()));
+    addCreator(SPARSELINEAR, (CPUBackend::Creator *)(new CPUSparseLinearCreator()));
+    addCreator(SPARSEIDLINEAR, (CPUBackend::Creator *)(new CPUSparseIdLinearCreator()));
 }
 
 TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {
@@ -124,6 +130,7 @@ void CPUBackend::registerFuncs() {
     map_function_[TensorFuncType::FUNC_CLIPAXIS] = new CPUclipaxisFunction();
     map_function_[TensorFuncType::FUNC_RANGE] = new CPURangeFunction();
     map_function_[TensorFuncType::FUNC_WHERE] = new CPUwhereFunction();
+    map_function_[TensorFuncType::FUNC_SPLIT] = new CPUsplitFunction();
 };
 
 int CPUBackend::cpu_threads = 4;

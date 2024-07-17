@@ -61,7 +61,7 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap) :
     // #endif
 
     if (this->fp_ == nullptr) {
-        std::cout << "param open file failed" << std::endl;
+        // std::cout << "param open file failed" << std::endl;
         return;
         int errorCode = errno;
         char *errorMsg = strerror(errorCode);
@@ -123,11 +123,88 @@ std::tuple<uint8_t *, uint64_t> ParamLoader::load(string name) {
 }
 DataType ParamLoader::getDataType(string name) {
     if (data_type_.count(name) != 1) {
-        std::cerr<<name<<" not found"<<std::endl;
+        if (this->fp_ != nullptr) {
+            std::cerr<<name<<" not found"<<std::endl;
+        }
         return DataType::MLLM_TYPE_COUNT;
     }
     int type = data_type_[name];
     // check if exists
     return static_cast<DataType>(type);
 }
+
+MultiFileParamLoader::MultiFileParamLoader(const std::initializer_list<std::string> &filenames) {
+    for(const auto &filename:filenames){
+        load_file(filename);
+    }
+}
+
+bool MultiFileParamLoader::load(mllm::Tensor *tensor) {
+    string name = tensor->name();
+    auto it = files_.find(name);
+    if(it == files_.end())
+        return false;
+    auto fp = it->second;
+    auto [offset, size] = offsets_[name];
+    void *p = tensor->rawHostPtr();
+    fseek(fp, (long)offset, SEEK_SET);
+    fread(p, sizeof(uint8_t), size, fp);
+    return true;
+}
+
+bool MultiFileParamLoader::load(std::shared_ptr<mllm::Tensor> tensor) {
+    return load(tensor.get());
+}
+
+size_t MultiFileParamLoader::getTensorSize(string name) {
+    auto it = files_.find(name);
+    if(it == files_.end())
+        throw std::runtime_error("name not found");
+    auto t = offsets_[name];
+    return t.second;
+}
+
+DataType MultiFileParamLoader::getDataType(string name) {
+    auto it = data_type_.find(name);
+    if(it == data_type_.end())
+        throw std::runtime_error("name not found, can not get data type");
+    return data_type_[name];
+}
+
+void MultiFileParamLoader::load_file(const string& filename) {
+    auto fp = fopen(filename.c_str(), "rb");
+
+    if(fp == nullptr){
+        throw std::ios_base::failure("Failed to open file: " + filename);
+    }
+
+    int magic = readInt(fp);
+    if (magic != _MAGIC_NUMBER) {
+        throw std::runtime_error("Open file "+ filename + "error: Magic number error");
+    }
+
+    uint64_t index_size = readu64(fp);
+    uint64_t index_end = index_size + ftell(fp);
+    while (ftell(fp) < index_end) {
+        std::string name = readString(fp);
+        uint64_t length = readu64(fp);
+        uint64_t offset = readu64(fp);
+        auto type = static_cast<DataType>(readInt(fp));
+        offsets_[name] = std::make_pair(offset, length);
+        data_type_[name] = type;
+        files_[name] = fp;
+//        printf("loaded %s\n", name.c_str());
+    }
+}
+MultiFileParamLoader::~MultiFileParamLoader() {
+#include <set>
+    std::set<FILE *> closed;
+    for(const auto& p:files_){
+        if(closed.find(p.second) != closed.end()) {
+            fclose(p.second);
+            closed.insert(p.second);
+        }
+    }
+}
+
 } // namespace mllm

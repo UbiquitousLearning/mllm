@@ -39,6 +39,16 @@ public:
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
     }
+    bool loaded = false;
+
+    Tensor &operator()(Tensor &input0, Tensor &input1) {
+        return _2I1O_OP(input0, input1);
+    }
+
+    Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2) {
+        return _3I1O_OP(input0, input1, input2);
+    }
+
 
 private:
     std::string name_num_to_X(const std::string &input_string) {
@@ -56,15 +66,26 @@ private:
     void reset_KVCache(string input_name) {
         vector<string> renameX_names;
         renameX_names.push_back(input_name);
-        const vector<string> suffixs = {"-view", ".split-0", ".split-1", ".split-2"};
-        for (auto suffix : suffixs) {
-            if (input_name.rfind(suffix) == (input_name.size() - suffix.size())) {
-                const auto r_name = input_name.substr(0, input_name.size() - suffix.size());
-                renameX_names.push_back(r_name);
-                break;
+        const vector<string> suffixs = {"-view", ".split-0", ".split-1", ".split-2","-cat", "-split-0-48"};
+        for (const auto x_name : renameX_names) {
+            for (auto child : Tensor::gph_[x_name].childTensors()) {
+                if (std::find(renameX_names.begin(), renameX_names.end(), child->name()) == renameX_names.end()) {
+                    renameX_names.push_back(child->name());
+                }
             }
         }
-        for (const auto &x_name : renameX_names) {
+        for (const auto in_x_name : renameX_names) {
+            for (auto suffix : suffixs) {
+                if (in_x_name.rfind(suffix) == (in_x_name.size() - suffix.size())) {
+                    const auto r_name = in_x_name.substr(0, in_x_name.size() - suffix.size());
+                    if (std::find(renameX_names.begin(), renameX_names.end(), r_name) == renameX_names.end()) {
+                        renameX_names.push_back(r_name);
+                    }
+                    break;
+                }
+            }
+        }
+        for (const auto x_name : renameX_names) {
             auto name = name_X_to_num(x_name, saved_list_idx);
             vector<int> shape = {Tensor::gph_[x_name].batch(), Tensor::gph_[x_name].head(), Tensor::gph_[x_name].sequence(), Tensor::gph_[x_name].dimension()};
             layername_2_tensorname[name] = name;
@@ -80,10 +101,20 @@ private:
             if (Tensor::gph_[x_name].aggregated() == true) {
                 vector<shared_ptr<Tensor>> new_aggregated_tensors = {};
                 for (const auto &aggregated_tensor : Tensor::gph_[x_name].aggregated_tensors()) {
+                    auto tmp_name = name_X_to_num(aggregated_tensor->name(), saved_list_idx);
+                    if(layername_2_tensorname[tmp_name] == ""){
+                        layername_2_tensorname[tmp_name] = tmp_name;
+                    }
                     new_aggregated_tensors.push_back(
                         std::shared_ptr<Tensor>(&Tensor::gph_[layername_2_tensorname[name_X_to_num(aggregated_tensor->name(), saved_list_idx)]], [](Tensor *) {}));
                 }
                 Tensor::gph_[name].addTensors(new_aggregated_tensors, Tensor::gph_[x_name].aggregated_dim());
+            }
+            if(Tensor::gph_[x_name].masterTensor() != nullptr){
+                Tensor::gph_[name].deepCopyFrom(
+                    Tensor::gph_[name_X_to_num(Tensor::gph_[x_name].masterTensor()->name(), saved_list_idx)], 
+                    false,Tensor::gph_[x_name].shape_offset()); // b,h,s,d
+                // Tensor::gph_[name].shape_offset()
             }
         }
     }
@@ -95,6 +126,13 @@ protected:
         }
         if (Module::doLoad) {
             op_->load(*Module::loader);
+            loaded=true;
+        } else {
+            if(!loaded){
+                Module::loader= new ParamLoader("");
+                op_->load(*Module::loader);
+                loaded=true;
+            }
         }
         return Module::doLoad;
     }
@@ -157,7 +195,9 @@ protected:
             }
             auto next_name = layername_2_tensorname[layer_next_name];
             Tensor::gph_[next_name].status() = Tensor::gph_[input.name()].status();
-            // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+            if(saveNDataFlag){
+                Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+            }
             return Tensor::gph_[next_name];
         }
     }
@@ -220,9 +260,11 @@ protected:
             }
             auto next_name = layername_2_tensorname[layer_next_name];
             Tensor::gph_[next_name].status() = Tensor::gph_[input0.name()].status();
-            // Tensor::gph_[input0.name()].saveNData<float>(input0.name());
-            // Tensor::gph_[input1.name()].saveNData<float>(input1.name());
-            // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+            if(saveNDataFlag){
+                // Tensor::gph_[input0.name()].saveNData<float>(input0.name());
+                // Tensor::gph_[input1.name()].saveNData<float>(input1.name());
+                Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+            }
             return Tensor::gph_[next_name];
         }
     }
@@ -295,8 +337,10 @@ protected:
             }
             }
             auto next_name = layername_2_tensorname[layer_next_name];
-            Tensor::gph_[next_name].status() = Tensor::gph_[input0.name()].status();
-            // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+            Tensor::gph_[next_name].status() = Tensor::gph_[input0.name()].status();            
+            if(saveNDataFlag){
+                Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+            }
             return Tensor::gph_[next_name];
         }
     }
@@ -341,7 +385,9 @@ protected:
             }
             auto next_name = layername_2_tensorname[layer_next_name];
             Tensor::gph_[next_name].status() = Module::tensor_status;
-            // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+            if(saveNDataFlag){
+                Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+            }
             return Tensor::gph_[next_name];
         }
     }
@@ -416,7 +462,9 @@ protected:
             for (const auto &layer_next_name : layer_next_names) {
                 auto next_name = layername_2_tensorname[layer_next_name];
                 Tensor::gph_[next_name].status() = Tensor::gph_[input.name()].status();
-                // Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+                if(saveNDataFlag){
+                    Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+                }
                 output_result.push_back(Tensor::gph_[next_name]);
             }
             return output_result;
@@ -439,9 +487,42 @@ public:
         param_["bias"] = (float)bias;
         init(std::move(name), OpType::LINEAR);
     }
-    Tensor &operator()(Tensor &input) {
+    Tensor &operator()(Tensor &input){
         return _1I1O_OP(input);
     }
+};
+
+class SparseIdLinear final : public Layer{
+public:
+    SparseIdLinear(int in_dim, int out_dim, std::string name){
+        param_["in_dim_"] = (float) in_dim;
+        param_["out_dim_"] = (float) out_dim;
+        init(std::move(name), OpType::SPARSEIDLINEAR);
+    }
+
+    // no need to defined a new operator() function, just use the default one
+};
+
+class SparseLinear final : public Layer{
+public:
+    SparseLinear(int in_dim, int out_dim, std::string name){
+        param_["in_dim_"] = (float) in_dim;
+        param_["out_dim_"] = (float) out_dim;
+        init(std::move(name), OpType::SPARSELINEAR);
+    }
+
+    // no need to defined a new operator() function, just use the default one
+};
+
+class Predictor final : public Layer {
+public:
+    Predictor(int in_dim, int out_dim, std::string name){
+        param_["in_dim"] = (float) in_dim;
+        param_["out_dim"] = (float) out_dim;
+        init(std::move(name), OpType::PREDICTOR);
+    }
+
+    // no need to defined a new operator() function, just use the default one
 };
 
 class SiLU final : public Layer {

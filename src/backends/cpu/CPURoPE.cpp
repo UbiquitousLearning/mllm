@@ -1,5 +1,6 @@
 
 #include "CPURoPE.hpp"
+#include "Types.hpp"
 #include <cmath>
 
 namespace mllm {
@@ -98,7 +99,7 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
             sinusoidal_position_embedding_llama(pos_max_, ishape, sin_, cos_);
         } else if (pose_type_ == PERSIMMONROPE) {
             sinusoidal_position_embedding_huggingface(pos_max_, ishape / 2, sin_, cos_, 25000);
-        } else if (pose_type_ == HFHUBROPE) {
+        } else if (pose_type_ == HFHUBROPE || pose_type_ == MLAROPE) {
             sinusoidal_position_embedding_huggingface(pos_max_, ishape, sin_, cos_, rope_theta_);
         } else {
         }
@@ -168,6 +169,29 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                         } else {
                             in_value_2 = input->dataAt<float>(n, h, s, d - partial_dimension / 2);
                         }
+                        float sin_value = sin_[s + h_cnt_][d];
+                        float cos_value = cos_[s + h_cnt_][d];
+                        auto value = in_value * cos_value + in_value_2 * sin_value;
+                        if (output->dtypeAt(n, h, s, d) == MLLM_TYPE_F32) {
+                            output->setDataAt<float>(n, h, s, d, value);
+                        } else if (output->dtypeAt(n, h, s, d) == MLLM_TYPE_F16) {
+                            output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
+                        }
+                    } else if (pose_type_ == MLAROPE) {
+                        int half_dim = input->dimension() / 2;
+                        float in_value = input->dataAt<float>(n, h, s, d);
+                        if (d < half_dim) {
+                            in_value = input->dataAt<float>(n, h, s, d * 2);
+                        } else {
+                            in_value = input->dataAt<float>(n, h, s, 2 *(d - half_dim)+1);
+                        }
+                        float in_value_2;
+                        if (d < half_dim) {
+                            in_value_2 = -input->dataAt<float>(n, h, s, 2 *d+1);
+                        } else {
+                            in_value_2 = input->dataAt<float>(n, h, s, 2 *(d - half_dim));
+                        }
+                        // no change
                         float sin_value = sin_[s + h_cnt_][d];
                         float cos_value = cos_[s + h_cnt_][d];
                         auto value = in_value * cos_value + in_value_2 * sin_value;
