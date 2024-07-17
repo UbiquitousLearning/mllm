@@ -3,6 +3,7 @@
 //
 #include "Graph.hpp"
 #include "MemInspect.hpp"
+#include "OpDefined.hpp"
 #include "Types.hpp"
 #ifdef DEBUGPRINT
 #include "Timing.hpp"
@@ -37,7 +38,7 @@ Graph::Graph(const NetParameter &param, Backend *bn,
     for (auto net_op : param.net_ops) {
     // for QNN prefill & CPU decoding execution, KVCache should be shared for each block
 #ifdef USE_QNN
-        if (net_op->type == KVCACHE) {
+        if (net_op->type == KVCACHE || net_op->type == KVCACHENPU) {
             std::cout << net_op->name << " is KVCache" << std::endl;
             shared_ptr<Op> my_op(nullptr);
             if (kv_cache_map.find(net_op->name) == kv_cache_map.end()) {
@@ -156,7 +157,7 @@ void Graph::setUpTensors() {
         if (ops_not_inputs_empty_[op_name] ) {
             ops_[op_name]->setUp(ops_input_tensors_[op_name],
                                  ops_output_tensors_[op_name]);
-            PRINT_MEMORY_USAGE((op_name + " setUp").c_str());
+            // PRINT_MEMORY_USAGE((op_name + " setUp").c_str());
         }else{
 //            std::cout<<"op_name:"<<op_name<<" is not do"<<std::endl;
         }

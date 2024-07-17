@@ -41,7 +41,6 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_r
     return token_idx;
 }
 
-
 template <typename Dtype>
 void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dtype value) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_QNN].get());
@@ -65,7 +64,6 @@ int main(int argc, char **argv) {
     cmdParser.add<int>("ffn", 'f', "size of ffn hidden size", false, 8192);
     cmdParser.add<int>("hds", 'd', "size of hidden size", false, 2048);
 
-
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
@@ -77,7 +75,7 @@ int main(int argc, char **argv) {
     int head_num = cmdParser.get<int>("head");
     int chunk = 1;
 
-    if (executeType == 1) 
+    if (executeType == 1)
         chunk = 2;
 
     auto tokenizer = BPETokenizer(vocab_path);
@@ -99,16 +97,14 @@ int main(int argc, char **argv) {
 
     int vocab_size = 50272;
 
-    int hidden_dim = cmdParser.get<int>("hds");;
-    int ffn_hidden_dim = cmdParser.get<int>("ffn");;
+    int hidden_dim = cmdParser.get<int>("hds");
+    int ffn_hidden_dim = cmdParser.get<int>("ffn");
     // int mutil_head_size = 32;
-
 
     std::unique_ptr<Context> npu_ctx_ptr(new Context());
     auto *npu_ctx = npu_ctx_ptr.get();
     std::unique_ptr<Context> cpu_ctx_ptr(new Context());
     auto *cpu_ctx = cpu_ctx_ptr.get();
-
 
     // cache_max should be longer than seqLength
     modeling::opt_npu(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
@@ -157,6 +153,8 @@ int main(int argc, char **argv) {
         // delete the last end token
         tokens_id.pop_back();
 
+        int real_seq_length = tokens_id.size();
+
         // resize to the expected seqLength, the seq will be then splited to chunks
         // tokens_id.resize(0);
         tokens_id.resize(seqLength);
@@ -171,45 +169,37 @@ int main(int argc, char **argv) {
             npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
 
-            // ----------------- TEST PRINT --------------------
-            // std::cout << "result size: " << result.size() << std::endl;
-            // shared_ptr<Tensor> t;
-            // if(result.size() > 1) {
-            //     std::cout << "getting V" << std::endl;
-            //     t = result[2];
-            // } else {
-            //     t = result[0];
-            // }
-            // auto data = t->ptrAt<float>(0,0,0,0);
-            // for (int i = 0; i < t->sequence(); i++) {
-            //     std::cout << data[i] << " ";
-            // }
+            auto token_idx = postProcessing(result[0], input);
+            if (token_idx == 2) { // "</s>"
+                break;
+            }
+            auto out_token = tokenizer.detokenize({token_idx});
+            std::cout << out_token << std::flush;
 
-            result[0]->printData<float>();
-            // result[0]->printShape();
-            // auto token_idx = postProcessing(result[0], input);
-            // if (token_idx == 2) { // "</s>"
-            //     break;
-            // }
-            // auto out_token = tokenizer.detokenize({token_idx});
-            // std::cout << out_token << std::flush;
+            auto cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
+            cpu_backend->setSequenceLength(real_seq_length);
+            cpu_backend->switchDecodeTag();
 
             // // 2: Decoding stage using CPU execute
-            // for (int step = 1; step < 100; step++) {
-            //     cpuExe.run(&cpuNet, {input});
-            //     auto result = cpuExe.result();
-            //     auto token_idx = postProcessing(result[0], input);
-            //     if (token_idx == 2) { // "</s>"
-            //         break;
-            //     }
-            //     auto out_token = tokenizer.detokenize({token_idx});
-            //     std::cout << out_token << std::flush;
-            // }
+            for (int step = 1; step < 100; step++) {
+                cpuExe.run(&cpuNet, {input});
+                auto result = cpuExe.result();
+                auto token_idx = postProcessing(result[0], input);
+                if (token_idx == 2) { // "</s>"
+                    break;
+                }
+                auto out_token = tokenizer.detokenize({token_idx});
+                std::cout << out_token << std::flush;
+
+                if (step == 1) {
+                    cpu_backend->switchDecodeTag();
+                }
+            }
         } while (false);
         printf("\n");
     }
 
-    npuExe.perf();
+    cpuExe.perf();
 
     // free memory
     for (auto *op : npu_ctx->net_ops) {

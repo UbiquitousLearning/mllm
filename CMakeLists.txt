@@ -47,6 +47,10 @@ if(SMOOTHQUANT)
     add_definitions(-DSMOOTHQUANT)
 endif()
 
+if(QNN)
+    add_definitions(-DUSE_QNN)
+endif()
+
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)
@@ -460,7 +464,6 @@ endif ()
 
 if(QNN)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
-    add_definitions(-DUSE_QNN)
 
     # if (ARM)
     #     set(CMAKE_CXX_FLAGS " -fPIC -Wall -pthread -march=armv8-a -O3 -g -Wno-write-strings -fvisibility=hidden -flto")

@@ -83,7 +83,7 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
         net->subGraph()[typeName + std::to_string(Gid)]->reflashInput(net->tensors());
     }
 
-    std::fstream fs("AR_latency.txt", std::ios::app);
+    // std::fstream fs("AR_latency.txt", std::ios::app);
     auto ex_time_start = mllm_time_us();
     PRINT_MEMORY_USAGE("before setup all graph");
 
@@ -116,7 +116,7 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     }
     auto ex_time_end = mllm_time_us();
 
-    fs << "setup all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+    // fs << "setup all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     ex_time_start = mllm_time_us();
 
@@ -141,7 +141,7 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     }
 
     ex_time_end = mllm_time_us();
-    fs << "execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+    // fs << "execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     // free all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
@@ -162,7 +162,7 @@ void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
 
     // open file "AR_latency.txt" to record the time of each token
 
-    fs << "---------------" << std::endl;
+    // fs << "---------------" << std::endl;
 
     if (input_tensors[0]->sequence() == 1) {
         auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
@@ -199,7 +199,7 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
         net->subGraph()[typeName + std::to_string(Gid)]->reflashInput(net->tensors());
     }
 
-    std::fstream fs("AR_latency.txt", std::ios::app);
+    // std::fstream fs("AR_latency.txt", std::ios::app);
     auto ex_time_start = mllm_time_us();
     PRINT_MEMORY_USAGE("before setup all graph");
 
@@ -227,7 +227,7 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
     }
     auto ex_time_end = mllm_time_us();
 
-    fs << "setup all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+    // fs << "setup all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     ex_time_start = mllm_time_us();
 
@@ -259,7 +259,7 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
 
     ex_time_end = mllm_time_us();
     std::cout << "execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
-    fs << "execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+    // fs << "execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     // free all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
@@ -286,7 +286,7 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
 
     // open file "AR_latency.txt" to record the time of each token
 
-    fs << "---------------" << std::endl;
+    // fs << "---------------" << std::endl;
 
     if (input_tensors[0]->sequence() == 1) {
         auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
@@ -434,7 +434,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
         net->subGraph()[typeName + std::to_string(Gid)]->reflashInput(net->tensors());
     }
 
-    std::fstream fs("AR_latency.txt", std::ios::app);
+    // std::fstream fs("AR_latency.txt", std::ios::app);
     auto ex_time_start = mllm_time_us();
     PRINT_MEMORY_USAGE("before setup all graph");
 
@@ -464,7 +464,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
     }
     auto ex_time_end = mllm_time_us();
 
-    fs << "setup all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+    // fs << "setup all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     ex_time_start = mllm_time_us();
 
@@ -601,7 +601,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
 
     ex_time_end = mllm_time_us();
     std::cout << "*execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
-    fs << "*execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+    // fs << "*execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     // TODO: in pipeline execute, don't free the graph, error will occur in qnn memory manager deconstruct
     // free all graphs here
@@ -627,7 +627,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
     }
 
     // open file "AR_latency.txt" to record the time of each token
-    fs << "---------------" << std::endl;
+    // fs << "---------------" << std::endl;
 
     if (input_tensors[0]->sequence() == 1) {
         auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;

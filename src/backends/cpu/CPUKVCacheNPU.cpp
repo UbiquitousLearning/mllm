@@ -26,6 +26,15 @@ ErrorCode CPUKVCacheNPU::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
         cache_seq_len_ = 0;
     }
 
+    // when the execution is switched from pref to dec, the sequence length should be set to the no padding length
+    auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
+
+#ifdef USE_QNN
+    if (cpuBackend->isStageSwitching()) {
+        cache_seq_len_ = cpuBackend->getSequenceLength();
+    }
+#endif
+
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() + cache_seq_len_, inputs[0]->dimension());
 
     if (inputs[0]->sequence() + cache_seq_len_ > cache_limit_) {

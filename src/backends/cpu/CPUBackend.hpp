@@ -32,9 +32,27 @@ public:
 
     static int cpu_threads;
 
+#ifdef USE_QNN
+    void setSequenceLength(int sequence_length) {
+        sequence_length_ = sequence_length;
+    }
+    int getSequenceLength() {
+        return sequence_length_;
+    }
+    void switchDecodeTag() {
+        isPrefillToDecode = !isPrefillToDecode;
+    }
+    bool isStageSwitching() {
+        return isPrefillToDecode;
+    }
+#endif
 private:
     std::map<OpType, CPUBackend::Creator *> map_creator_;
     std::map<TensorFuncType, TensorFunction *> map_function_;
+#ifdef USE_QNN
+    int sequence_length_ = 0;
+    bool isPrefillToDecode = false;
+#endif
 };
 
 } // namespace mllm
