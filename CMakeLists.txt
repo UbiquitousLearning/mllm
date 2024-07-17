@@ -318,7 +318,16 @@ else ()
     target_link_libraries(main_imagebind MLLM_CPU)
 endif ()
 
-
+add_executable(demo_stablelm ${PROJECT_SOURCE_DIR}/examples/demo_stablelm.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
+)
+if (ARM AND NOT APK)
+    target_compile_options(demo_stablelm PRIVATE -fopenmp)
+    target_link_libraries(demo_stablelm PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_stablelm MLLM_CPU)
+endif ()
 
 add_executable(demo_llama ${PROJECT_SOURCE_DIR}/examples/demo_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
         src/tokenizers/Tokenizer.cpp

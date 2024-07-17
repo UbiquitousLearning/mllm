@@ -13,6 +13,7 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 
 ## Recent update
 - [🔥🔥Comming soon] Supporting Qualcomm NPU: [>1000 tokens/second prefilling!](https://arxiv.org/pdf/2407.05858v1)
+V1- [2024 July 17] Support new model: StableLM V2 1.6B https://github.com/UbiquitousLearning/mllm/pull/94
 - [2024 July 2] Support new model: Yi V1.5 6B https://github.com/UbiquitousLearning/mllm/pull/88
 - [2024 May 29] Support new model: Mistral V0.2 7B https://github.com/UbiquitousLearning/mllm/pull/83
 - [2024 May 4] Support new model: QWen V1.5 0.5B https://github.com/UbiquitousLearning/mllm/pull/79
@@ -74,9 +75,10 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 | [ImageBind](https://github.com/facebookresearch/ImageBind) (3 modalities)   | [✔️](https://huggingface.co/mllmTeam/imagebind_huge-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/imagebind_huge-mllm/tree/main)   |
 | [LLaVA 7B](https://github.com/haotian-liu/LLaVA)                            | [✔️](https://huggingface.co/mllmTeam/llava-1.5-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/llava-1.5-7b-mllm/tree/main)   |
 | [Gemma 2B](https://github.com/google/gemma_pytorch)                         | [✔️](https://huggingface.co/mllmTeam/gemma-2b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/gemma-2b-mllm/tree/main)   |
-| [Qwen 0.5B](https://github.com/QwenLM/Qwen)                         | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-0.5b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-0.5b-mllm/tree/main)   |
-| [Mistral 7B](https://github.com/mistralai/mistral-src)                         | [✔️](https://huggingface.co/mllmTeam/mistral-7b-instruct-v0.2-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/mistral-7b-instruct-v0.2-mllm/tree/main)   |
-| [Yi 6B](https://huggingface.co/01-ai/Yi-1.5-6B)                         | [✔️](https://huggingface.co/mllmTeam/yi-1.5-6b-chat-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/yi-1.5-6b-chat-mllm/tree/main)   |
+| [Qwen 0.5B](https://github.com/QwenLM/Qwen)                                 | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-0.5b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-0.5b-mllm/tree/main)   |
+| [Mistral 7B](https://github.com/mistralai/mistral-src)                      | [✔️](https://huggingface.co/mllmTeam/mistral-7b-instruct-v0.2-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/mistral-7b-instruct-v0.2-mllm/tree/main)   |
+| [Yi 6B](https://huggingface.co/01-ai/Yi-1.5-6B)                             | [✔️](https://huggingface.co/mllmTeam/yi-1.5-6b-chat-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/yi-1.5-6b-chat-mllm/tree/main)   |
+| [StableLM 1.6B](https://github.com/Stability-AI/StableLM)                     | [✔️](https://huggingface.co/mllmTeam/stablelm-2-1.6b-chat-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/stablelm-2-1.6b-chat-mllm/tree/main)   |
 
 ## Quick Start
 
