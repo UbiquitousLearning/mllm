@@ -6,10 +6,14 @@
 #include <pthread.h>
 
 
-ErrorCode mat_mul_elastic_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1, int thread_count) {
+ErrorCode mat_mul_elastic_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, 
+                                int activate_input_dim, int activate_output_dim,
+                                bool transpose0, bool transpose1, int thread_count) {
     const int M = transpose0 ? src0->dimension() : src0->sequence();
     const int K = transpose0 ? src0->sequence() : src0->dimension();
     const int N = transpose1 ? src1->sequence() : src1->dimension();
+    int use_N = (activate_output_dim == -1) ? N : activate_output_dim;
+    int use_K = (activate_input_dim == -1) ? K : activate_input_dim;
     Tensor *src0_cal = src0;
     Tensor *src1_cal = src1;
     const int64_t blck_0 = 16;
@@ -18,7 +22,6 @@ ErrorCode mat_mul_elastic_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool sup
             const int b_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : b;
             const int h_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : h;
             for (int m = 0; m < M; m++) {
-                int use_N = N;
                 const int num_blocks = use_N / blck_0;
                 const int remainder = use_N % blck_0;
 #pragma omp parallel for num_threads(thread_count)
@@ -34,7 +37,7 @@ ErrorCode mat_mul_elastic_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool sup
                             s_1 = 0; d_1 = n; s_0 = 0; d_0 = m;
                         }
                         if(dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F32) {
-                            vec_dot_fp32(K, dst->ptrAt<float>(b, h, m, n),
+                            vec_dot_fp32(use_K, dst->ptrAt<float>(b, h, m, n),
                                          src1_cal->hostPtr<float>() + src1_cal->offset(b_1, h_1, s_1, d_1),
                                          src0_cal->hostPtr<float>() + src0_cal->offset(b, h, s_0, d_0));
                             if (support_bias) {
@@ -42,7 +45,7 @@ ErrorCode mat_mul_elastic_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool sup
                             }
                         }else if (dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F16) {
                             float tmp = 0;
-                            vec_dot_fp32(K, &tmp,
+                            vec_dot_fp32(use_K, &tmp,
                                          src1_cal->hostPtr<float>() + src1_cal->offset(b_1, h_1, s_1, d_1),
                                          src0_cal->hostPtr<float>() + src0_cal->offset(b, h, s_0, d_0));
                             if (support_bias) {
@@ -59,7 +62,9 @@ ErrorCode mat_mul_elastic_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool sup
     return MLLM_NO_ERROR;
 }
 
-ErrorCode mat_mul_elastic_fp32_fp16(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1, int thread_count) {
+ErrorCode mat_mul_elastic_fp32_fp16(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, 
+                                int activate_input_dim, int activate_output_dim,
+                                    bool transpose0, bool transpose1, int thread_count) {
     assert(src1->dtype() == MLLM_TYPE_F16);
     assert(src0_->dtype() == MLLM_TYPE_F32);
     Tensor src0_qf16(src0_->shape());
@@ -77,17 +82,11 @@ ErrorCode mat_mul_elastic_fp32_fp16(Tensor *src0_, Tensor *src1, Tensor *dst, bo
             }
         }
     auto *src0 = &src0_qf16;
-    // for(int b=0; b<src0->dimension(); b++) {
-    //     std::cout<<MLLM_COMPUTE_FP16_TO_FP32(*src0->ptrAt<mllm_fp16_t>(0, 0, 0, b))<<" ";
-    // }
-    // std::cout<<std::endl;
-    // for(int b=0; b<src1->dimension(); b++) {
-    //     std::cout<<MLLM_COMPUTE_FP16_TO_FP32(*src1->ptrAt<mllm_fp16_t>(0, 0, 0, b))<<" ";
-    // }
-    // std::cout<<std::endl;
     const int M = transpose0 ? src0->dimension() : src0->sequence();
     const int K = transpose0 ? src0->sequence() : src0->dimension();
     const int N = transpose1 ? src1->sequence() : src1->dimension();
+    int use_N = (activate_output_dim == -1) ? N : activate_output_dim;
+    int use_K = (activate_input_dim == -1) ? K : activate_input_dim;
     Tensor *src0_cal = src0;
     Tensor *src1_cal = src1;
     const int64_t blck_0 = 16;
@@ -96,7 +95,6 @@ ErrorCode mat_mul_elastic_fp32_fp16(Tensor *src0_, Tensor *src1, Tensor *dst, bo
             const int b_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : b;
             const int h_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : h;
             for (int m = 0; m < M; m++) {
-                int use_N = N;
                 const int num_blocks = use_N / blck_0;
                 const int remainder = use_N % blck_0;
 #pragma omp parallel for num_threads(thread_count)
@@ -111,7 +109,7 @@ ErrorCode mat_mul_elastic_fp32_fp16(Tensor *src0_, Tensor *src1, Tensor *dst, bo
                         } else {
                             s_1 = 0; d_1 = n; s_0 = 0; d_0 = m;
                         }
-                        vec_dot_fp16(K, dst->ptrAt<float>(b, h, m, n),
+                        vec_dot_fp16(use_K, dst->ptrAt<float>(b, h, m, n),
                                      src1_cal->hostPtr<mllm_fp16_t>() + src1_cal->offset(b_1, h_1, s_1, d_1),
                                      src0_cal->hostPtr<mllm_fp16_t>() + src0_cal->offset(b, h, s_0, d_0));
                         if (support_bias) {
@@ -125,7 +123,8 @@ ErrorCode mat_mul_elastic_fp32_fp16(Tensor *src0_, Tensor *src1, Tensor *dst, bo
     return MLLM_NO_ERROR;
 }
 
-ErrorCode mat_mul_elastic_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, int thread_count) {
+ErrorCode mat_mul_elastic_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, 
+                                int activate_input_dim, int activate_output_dim, int thread_count) {
     assert(src1->dtype() == MLLM_TYPE_Q4_0);
     assert(src0_->dtype() == MLLM_TYPE_F32);
     Tensor src0_q8(src0_->shape());
@@ -152,6 +151,8 @@ ErrorCode mat_mul_elastic_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bo
     int M = src0->sequence();
     int K = src0->dimension();
     int N = src1->sequence();
+    int use_N = (activate_output_dim == -1) ? N : activate_output_dim;
+    int use_K = (activate_input_dim == -1) ? K : activate_input_dim;
     Tensor *src0_cal = src0;
     Tensor *src1_cal = src1;
     const int64_t blck_0 = 16;
@@ -160,13 +161,12 @@ ErrorCode mat_mul_elastic_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bo
             const int b_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : b;
             const int h_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : h;
             for (int m = 0; m < M; m++) {
-                int use_N = N;
                 const int num_blocks = use_N / blck_0;
                 const int remainder = use_N % blck_0;
 #pragma omp parallel for num_threads(thread_count)
                 for (int block = 0; block < num_blocks + 1; block++) {
                     for (int n = block * blck_0; n < (block + 1) * blck_0 & n < num_blocks * blck_0 + remainder; n++) {
-                        vec_dot_q4_0_q8_0(K, dst->ptrAt<float>(b, h, m, n),
+                        vec_dot_q4_0_q8_0(use_K, dst->ptrAt<float>(b, h, m, n),
                                           src1_cal->hostPtr<block_q4_0>() + src1_cal->offset(b_1, h_1, n, 0) / QK4_0,
                                           src0_cal->hostPtr<block_q8_0>() + src0_cal->offset(b, h, m, 0) / QK8_0);
                         if (support_bias) {
@@ -180,7 +180,8 @@ ErrorCode mat_mul_elastic_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bo
     return MLLM_NO_ERROR;
 }
 
-ErrorCode mat_mul_elastic_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, int thread_count) {
+ErrorCode mat_mul_elastic_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, 
+                                int activate_input_dim, int activate_output_dim, int thread_count) {
     assert(src1->dtype() == MLLM_TYPE_Q4_K);
     assert(src0_->dtype() == MLLM_TYPE_F32);
     Tensor src0_q8(src0_->shape());
@@ -206,7 +207,9 @@ ErrorCode mat_mul_elastic_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bo
     assert(src0->dtype() == MLLM_TYPE_Q8_K);
     int M = src0->sequence();
     int K = src0->dimension();
-    int N = src1->sequence();
+    int N = src1->sequence();    
+    int use_N = (activate_output_dim == -1) ? N : activate_output_dim;
+    int use_K = (activate_input_dim == -1) ? K : activate_input_dim;
     Tensor *src0_cal = src0;
     Tensor *src1_cal = src1;
     const int64_t blck_0 = 16;
@@ -216,14 +219,13 @@ ErrorCode mat_mul_elastic_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bo
             const int b_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : b;
             const int h_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : h;
             for (int m = 0; m < M; m++) {
-                int use_N = N;
                 const int num_blocks = use_N / blck_0;
                 const int remainder = use_N % blck_0;
 #pragma omp parallel for num_threads(thread_count)
                 for (int block = 0; block < num_blocks + 1; block++) {
                     for (int n = block * blck_0; n < (block + 1) * blck_0 & n < num_blocks * blck_0 + remainder; n++) {
                         if(dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F32) {
-                            vec_dot_q4_K_q8_K(K, dst->ptrAt<float>(b, h, m, n),
+                            vec_dot_q4_K_q8_K(use_K, dst->ptrAt<float>(b, h, m, n),
                                               src1_cal->hostPtr<block_q4_K>() + src1_cal->offset(b_1, h_1, n, 0) / QK_K,
                                               src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0) / QK_K);
                             if (support_bias) {
@@ -231,7 +233,7 @@ ErrorCode mat_mul_elastic_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bo
                             }
                         } else if (dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F16) {
                             float tmp = 0;
-                            vec_dot_q4_K_q8_K(K, &tmp,
+                            vec_dot_q4_K_q8_K(use_K, &tmp,
                                               src1_cal->hostPtr<block_q4_K>() + src1_cal->offset(b_1, h_1, n, 0) / QK_K,
                                               src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0) / QK_K);
                             if (support_bias) {
@@ -248,7 +250,8 @@ ErrorCode mat_mul_elastic_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bo
     return MLLM_NO_ERROR;
 }
 
-ErrorCode mat_mul_elastic_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, int thread_count) {
+ErrorCode mat_mul_elastic_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, 
+                                int activate_input_dim, int activate_output_dim, int thread_count) {
     assert(src1->dtype() == MLLM_TYPE_Q6_K);
     assert(src0_->dtype() == MLLM_TYPE_F32);
     Tensor src0_q8(src0_->shape());
@@ -275,6 +278,8 @@ ErrorCode mat_mul_elastic_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bo
     int M = src0->sequence();
     int K = src0->dimension();
     int N = src1->sequence();
+    int use_N = (activate_output_dim == -1) ? N : activate_output_dim;
+    int use_K = (activate_input_dim == -1) ? K : activate_input_dim;
     Tensor *src0_cal = src0;
     Tensor *src1_cal = src1;
     const int64_t blck_0 = 16;
@@ -283,14 +288,13 @@ ErrorCode mat_mul_elastic_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bo
             const int b_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : b;
             const int h_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : h;
             for (int m = 0; m < M; m++) {
-                int use_N = N;
                 const int num_blocks = use_N / blck_0;
                 const int remainder = use_N % blck_0;
 #pragma omp parallel for num_threads(thread_count)
                 for (int block = 0; block < num_blocks + 1; block++) {
                     for (int n = block * blck_0; n < (block + 1) * blck_0 & n < num_blocks * blck_0 + remainder; n++) {
                         if (dst->dtypeAt(n, h, m, n) == MLLM_TYPE_F32) {
-                            vec_dot_q6_K_q8_K(K, dst->ptrAt<float>(b, h, m, n),
+                            vec_dot_q6_K_q8_K(use_K, dst->ptrAt<float>(b, h, m, n),
                                               src1_cal->hostPtr<block_q6_K>() + src1_cal->offset(b_1, h_1, n, 0) / QK_K,
                                               src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0) / QK_K);
                             if (support_bias) {
@@ -298,7 +302,7 @@ ErrorCode mat_mul_elastic_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bo
                             }
                         } else if (dst->dtypeAt(n, h, m, n) == MLLM_TYPE_F16) {
                             float tmp = 0;
-                            vec_dot_q6_K_q8_K(K, &tmp,
+                            vec_dot_q6_K_q8_K(use_K, &tmp,
                                               src1_cal->hostPtr<block_q6_K>() + src1_cal->offset(b_1, h_1, n, 0) / QK_K,
                                               src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b, h, m, 0) / QK_K);
 
