@@ -5,7 +5,7 @@
 
 using namespace mllm;
 
-class stablelmTokenizer final {
+class StableLMTokenizer final {
     BPETokenizer *tokenizer;
     std::unordered_map<std::string, unsigned> merge_rank;
 
@@ -25,7 +25,7 @@ class stablelmTokenizer final {
     }
 
 public:
-    explicit stablelmTokenizer(const std::string &vocab_file, const std::string &merge_file) {
+    explicit StableLMTokenizer(const std::string &vocab_file, const std::string &merge_file) {
         Module::initBackend(MLLM_CPU);
         tokenizer = new BPETokenizer(vocab_file);
         std::ifstream merge(merge_file);

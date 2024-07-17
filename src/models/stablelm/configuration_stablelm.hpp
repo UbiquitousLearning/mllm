@@ -39,7 +39,7 @@ public:
     }
 };
 
-class stablelmConfig {
+class StableLMConfig {
 public:
     int vocab_size{};
     int hidden_dim{};
@@ -50,7 +50,7 @@ public:
     int cache_limit{};
     stablelmNameConfig names_config;
 
-    explicit stablelmConfig(int token_limit, string billions = "1.6B", RoPEType type = HFHUBROPE, int vocab = 100352) {
+    explicit StableLMConfig(int token_limit, string billions = "1.6B", RoPEType type = HFHUBROPE, int vocab = 100352) {
         names_config.init(type);
         vocab_size = vocab;
         if (billions == "1.6B" || billions == "1.6b") {
@@ -66,4 +66,4 @@ public:
     }
 };
 
-#endif // CONFIG_LLAMA_HPP
+#endif //

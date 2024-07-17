@@ -9,7 +9,7 @@
 
 using namespace mllm;
 
-class MultiHeadAttentionForstablelm final : public Module {
+class StableLMMultiHeadAttention final : public Module {
     Layer qkv_proj;
     Split qkv_split;
     Layer q_proj;
@@ -31,8 +31,8 @@ class MultiHeadAttentionForstablelm final : public Module {
     int attn_hidden_dim_{};
 
 public:
-    MultiHeadAttentionForstablelm() = default;
-    MultiHeadAttentionForstablelm(int hidden_dim, int head_size, int kv_head_size, int attn_hidden_dim,
+    StableLMMultiHeadAttention() = default;
+    StableLMMultiHeadAttention(int hidden_dim, int head_size, int kv_head_size, int attn_hidden_dim,
                                   AttnQKVSplitType do_qkv_proj, bool post_qkv_norm, bool bias_kv_cat,
                                   RoPEType RoPE_type, int cache_limit, bool do_mask, bool bias,
                                   const TransformerNameConfig &names, const string &base_name) {
@@ -96,19 +96,6 @@ public:
         if (q_rope.ready() && k_rope.ready()) {
             q = q_rope(q);
             k = k_rope(k);
-
-            /*
-            auto now = std::chrono::high_resolution_clock::now();
-            auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
-            std::time_t current_time = std::time(nullptr);
-            std::tm *local_time = std::localtime(&current_time);
-            std::stringstream ss;
-            ss << std::put_time(local_time, "%Y%m%d_%H%M%S");
-            ss << std::setfill('0') << std::setw(6) << microseconds;
-            std::string timestamp = ss.str();
-            std::string filename = "tmp_" + timestamp + ".log";
-            q.saveNData<float>("qpos", "_" + timestamp);
-            */
         }
         if (k_cache.ready() && v_cache.ready()) {
             k = k_cache(k);
@@ -128,15 +115,15 @@ public:
     }
 };
 
-class stablelmMLP final : public Module {
+class StableLMMLP final : public Module {
     Layer gate_proj;
     Layer silu;
     Layer up_proj;
     Layer down_proj;
 
 public:
-    stablelmMLP() = default;
-    stablelmMLP(int hidden_dim, int ffn_hidden, const stablelmNameConfig &names, const string &base_name) {
+    StableLMMLP() = default;
+    StableLMMLP(int hidden_dim, int ffn_hidden, const stablelmNameConfig &names, const string &base_name) {
         gate_proj = Linear(hidden_dim, ffn_hidden, false, base_name + names._gate_proj_name);
         silu = SiLU(base_name + "act");
         up_proj = Linear(hidden_dim, ffn_hidden, false, base_name + names._up_proj_name);
@@ -152,38 +139,24 @@ public:
     }
 };
 
-class stablelmBlock final : public Module {
-    MultiHeadAttentionForstablelm attention;
-    stablelmMLP mlp;
+class StableLMBlock final : public Module {
+    StableLMMultiHeadAttention attention;
+    StableLMMLP mlp;
     Layer norm1;
     Layer norm2;
 
 public:
-    stablelmBlock() = default;
-    stablelmBlock(int hidden_dim, int head_size, int ffn_hidden, RoPEType RoPE_type, int cache_limit, const stablelmNameConfig &names, const string &base_name) {
-        attention = MultiHeadAttentionForstablelm(hidden_dim, head_size, head_size, hidden_dim / head_size, SPLIT_NONE, false, false,
+    StableLMBlock() = default;
+    StableLMBlock(int hidden_dim, int head_size, int ffn_hidden, RoPEType RoPE_type, int cache_limit, const stablelmNameConfig &names, const string &base_name) {
+        attention = StableLMMultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size, SPLIT_NONE, false, false,
                                                   RoPE_type, cache_limit, true, true, names, base_name + names._attn_base_name);
-        mlp = stablelmMLP(hidden_dim, ffn_hidden, names, base_name + names._ffn_base_name);
+        mlp = StableLMMLP(hidden_dim, ffn_hidden, names, base_name + names._ffn_base_name);
         norm1 = LayerNorm(hidden_dim, true, 1e-5, base_name + names._attn_norm_name);
         norm2 = LayerNorm(hidden_dim, true, 1e-5, base_name + names._ffn_norm_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = norm1(inputs[0]);
         x = attention({x, x, x})[0];
-
-        /*
-        auto now = std::chrono::high_resolution_clock::now();
-        auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
-        std::time_t current_time = std::time(nullptr);
-        std::tm *local_time = std::localtime(&current_time);
-        std::stringstream ss;
-        ss << std::put_time(local_time, "%Y%m%d_%H%M%S");
-        ss << std::setfill('0') << std::setw(6) << microseconds;
-        std::string timestamp = ss.str();
-        std::string filename = "tmp_" + timestamp + ".log";
-        x.saveNData<float>("x", "_" + timestamp);
-        */
-
         auto tmp = x + inputs[0];
         x = norm2(tmp);
         x = mlp({x})[0];
@@ -192,69 +165,30 @@ public:
     }
 };
 
-class stablelmModel final : public Module {
+class StableLMModel final : public Module {
     Layer embedding;
-    vector<stablelmBlock> blocks;
+    vector<StableLMBlock> blocks;
     Layer norm;
     Layer lm_head;
 
 public:
-    explicit stablelmModel(const stablelmConfig &config) :
-        stablelmModel(config.vocab_size, config.hidden_dim, config.head_size, config.ffn_hidden, config.block_num, config.RoPE_type, config.cache_limit,
+    explicit StableLMModel(const StableLMConfig &config) :
+        StableLMModel(config.vocab_size, config.hidden_dim, config.head_size, config.ffn_hidden, config.block_num, config.RoPE_type, config.cache_limit,
                       config.names_config, config.names_config.blk_name) {
     }
-    stablelmModel(int vocab_size, int hidden_dim, int head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, int cache_limit,
+    StableLMModel(int vocab_size, int hidden_dim, int head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, int cache_limit,
                   const stablelmNameConfig &names, const string &base_name) {
         embedding = Embedding(vocab_size, hidden_dim, names.token_embd_name);
-        blocks = List<stablelmBlock>(block_num, hidden_dim, head_size, ffn_hidden, RoPE_type, cache_limit, names, base_name);
+        blocks = List<StableLMBlock>(block_num, hidden_dim, head_size, ffn_hidden, RoPE_type, cache_limit, names, base_name);
         norm = LayerNorm(hidden_dim, true, 1e-5, names.post_norm_name);
         lm_head = Linear(hidden_dim, vocab_size, false, names.lm_head_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = embedding(inputs[0]);
 
-        /*
-        auto now = std::chrono::high_resolution_clock::now();
-        auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
-        std::time_t current_time = std::time(nullptr);
-        std::tm *local_time = std::localtime(&current_time);
-        std::stringstream ss;
-        ss << std::put_time(local_time, "%Y%m%d_%H%M%S");
-        ss << std::setfill('0') << std::setw(6) << microseconds;
-        std::string timestamp = ss.str();
-        std::string filename = "tmp_" + timestamp + ".log";
-        inputs[0].saveNData<float>("inputs", "_" + timestamp);
-        */
-
-        /*
-        auto now = std::chrono::high_resolution_clock::now();
-        auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
-        std::time_t current_time = std::time(nullptr);
-        std::tm *local_time = std::localtime(&current_time);
-        std::stringstream ss;
-        ss << std::put_time(local_time, "%Y%m%d_%H%M%S");
-        ss << std::setfill('0') << std::setw(6) << microseconds;
-        std::string timestamp = ss.str();
-        std::string filename = "tmp_" + timestamp + ".log";
-        x.saveNData<float>("embedding", "_" + timestamp);
-        */
-
         for (auto &block : blocks) {
             x = block({x})[0];
         }
-
-        /*
-        auto now = std::chrono::high_resolution_clock::now();
-        auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
-        std::time_t current_time = std::time(nullptr);
-        std::tm *local_time = std::localtime(&current_time);
-        std::stringstream ss;
-        ss << std::put_time(local_time, "%Y%m%d_%H%M%S");
-        ss << std::setfill('0') << std::setw(6) << microseconds;
-        std::string timestamp = ss.str();
-        std::string filename = "tmp_" + timestamp + ".log";
-        x.saveNData<float>("attenation", "_" + timestamp);
-        */
 
         x = norm(x);
         x = lm_head(x);
@@ -262,4 +196,4 @@ public:
     }
 };
 
-#endif // MODELING_LLAMA_HPP
+#endif // MODELING_STABLELM_HPP

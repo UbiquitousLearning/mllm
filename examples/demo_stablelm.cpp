@@ -1,7 +1,3 @@
-// ./demo_stablelm -m ../vocab/stablelm_merges.txt -v ../vocab/stablelm_vocab.mllm ../models/stablelm-2-1.6b.mllm
-
-// ./demo_stablelm -m ../vocab/stablelm_merges.txt -v ../vocab/stablelm_vocab.mllm ../models/stablelm-2-1.6b-q4_k.mllm
-
 #include <iostream>
 #include "cmdline.h"
 #include "models/stablelm/modeling_stablelm.hpp"
@@ -14,7 +10,7 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/stablelm_vocab.mllm");
     cmdParser.add<string>("merge", 'm', "specify mllm merge path", false, "../vocab/stablelm_merges.txt");
-    cmdParser.add<string>("model", 'o', "specify mllm model path", false, "../models/stablelm-2-1.6b.mllm");
+    cmdParser.add<string>("model", 'o', "specify mllm model path", false, "../models/stablelm-2-1.6b-chat-q4_k.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -25,10 +21,13 @@ int main(int argc, char **argv) {
     int tokens_limit = cmdParser.get<int>("limits");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
-    auto tokenizer = stablelmTokenizer(vocab_path, merge_path);
+    auto tokenizer = StableLMTokenizer(vocab_path, merge_path);
 
-    stablelmConfig config(tokens_limit, "1.6B", HFHUBROPE);
-    auto model = stablelmModel(config);
+    string system_prompt_start = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n";
+    string system_prompt_end = "<|im_end|>\n<|im_start|>assistant\n";
+
+    StableLMConfig config(tokens_limit, "1.6B", HFHUBROPE);
+    auto model = StableLMModel(config);
     model.load(model_path);
 
     vector<string> in_strs = {
@@ -37,8 +36,9 @@ int main(int argc, char **argv) {
         "Please introduce Beijing University of Posts and Telecommunications."};
 
     for (int i = 0; i < in_strs.size(); ++i) {
-        auto in_str = in_strs[i];
-        std::cout << "[Q] " << in_str << std::endl;
+        const auto& in_str_origin = in_strs[i];
+        auto in_str = system_prompt_start + in_str_origin + system_prompt_end;
+        std::cout << "[Q] " << in_str_origin << std::endl;
         auto input_tensor = tokenizer.tokenize(in_str, i);
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
@@ -49,14 +49,11 @@ int main(int argc, char **argv) {
             if (out_token == 100278) {
                 break;
             }
-
             size_t pos = 0;
             while ((pos = out_string.find("Ċ", pos)) != std::string::npos) {
                 out_string.replace(pos, 2, " ");
             }
-
             pos = 0;
-
             while ((pos = out_string.find("Ġ", pos)) != std::string::npos) {
                 out_string.replace(pos, 2, " ");
             }
