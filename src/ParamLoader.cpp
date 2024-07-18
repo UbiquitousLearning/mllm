@@ -2,6 +2,7 @@
 #include "Types.hpp"
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <string>
@@ -123,7 +124,10 @@ std::tuple<uint8_t *, uint64_t> ParamLoader::load(string name) {
 }
 DataType ParamLoader::getDataType(string name) {
     if (data_type_.count(name) != 1) {
-        if (this->fp_ != nullptr) {
+        if(this->path_ != "" && this->fp_ == nullptr){
+            std::cerr<<this->path_<<" not found"<<std::endl;
+            exit(0);
+        }else if (this->fp_ != nullptr && this->path_ != "") {
             std::cerr<<name<<" not found"<<std::endl;
         }
         return DataType::MLLM_TYPE_COUNT;

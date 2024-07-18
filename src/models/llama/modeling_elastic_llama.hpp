@@ -8,6 +8,7 @@
 #include "Layer.hpp"
 #include "Module.hpp"
 #include "configuration_llama.hpp"
+#include <cassert>
 #include <vector>
 
 using namespace mllm;
@@ -146,6 +147,7 @@ class ElasticLLaMAModel final : public Module {
     vector<ElasticLLaMABlock> blocks;
     Layer norm;
     Layer lm_head;
+    int num_layer_size;
 
 public:
     explicit ElasticLLaMAModel(const LLaMAConfig &config) :
@@ -158,13 +160,23 @@ public:
         blocks = List<ElasticLLaMABlock>(block_num, hidden_dim, head_size, ffn_hidden, RoPE_type, cache_limit, names, base_name);
         norm = RMSNorm(hidden_dim, 1e-6, names.post_norm_name);
         lm_head = Linear(hidden_dim, vocab_size, false, names.lm_head_name);
+        num_layer_size = block_num;
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
-        vector<int> activate_dims = std::any_cast<vector<int>>(args[0]);
+        // vector<int> activate_dims = std::any_cast<vector<int>>(args[0]);
+        // assert(activate_dims.size() == 2*num_layer_size);
+        // auto x = embedding(inputs[0]);
+        // for (int id = 0; id<blocks.size(); id ++){
+        //     vector<int> activate_dims_ = {activate_dims[id], activate_dims[id+1]};
+        //     x = blocks[id]({x}, activate_dims_)[0];
+        // }
 
+
+        vector<vector<int>> activate_dims = std::any_cast<vector<vector<int>>>(args[0]);
+        assert(activate_dims.size() == num_layer_size);
         auto x = embedding(inputs[0]);
-        for (auto &block : blocks) {
-            x = block({x}, activate_dims)[0];
+        for (int id = 0; id<blocks.size(); id ++){
+            x = blocks[id]({x}, activate_dims[id])[0];
         }
         x = norm(x);
         x = lm_head(x);
