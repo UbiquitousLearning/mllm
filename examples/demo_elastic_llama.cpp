@@ -14,7 +14,7 @@ using namespace mllm;
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/llama_vocab.mllm");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/llama-2-7b-chat-q4_k.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/elasticllama-2-7b-chat-q4_k.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -40,8 +40,10 @@ int main(int argc, char **argv) {
         auto input_tensor = tokenizer.tokenize(in_str, i);
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
-        for (int step = 0; step < 1; step++) {
-            auto result = model({input_tensor});
+        for (int step = 0; step < 100; step++) {
+            // vector<int> activate_dims = {32*256,256}; // 32*256 is attn_head*attn_hidden_dim(e.g. llama:32*128); 256 is ffn_hidden_dim(e.g. llama:11008) 
+            vector<int> activate_dims = {-1,-1};
+            auto result = model({input_tensor}, activate_dims);
             auto outputs = tokenizer.detokenize(result[0]);
             auto out_string = outputs.first;
             auto out_token = outputs.second;

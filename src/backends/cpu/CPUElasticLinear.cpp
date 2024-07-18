@@ -18,24 +18,17 @@ ErrorCode CPUElasticLinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<sh
     //std::cout << name() << "  CPUElasticLinear  reshape" << std::endl;
     assert(inputs.size() == 3);
     assert(outputs.size() == 1);
+    int activate_input_dim = (int)inputs[1]->dataAt<float>(0,0,0,0);
+    int activate_output_dim = (int)inputs[2]->dataAt<float>(0,0,0,0);
     if(inputs[0]->count() == 0) {
         outputs[0]->reshape(0,0,0,0);
         return Op::reshape(inputs, outputs);
     }
-    // N     |    C       |   H                   |  W
-    // -----------------------------------------------
-    // 1     |out_channel | in_channel            |  1
-    //       |out_features| in_features           |
-    // -----------------------------------------------
-    // batch |in_channel  | seq_len               |  1
-    //       |in_features | inputs[0]->sequence()   |
-    // -----------------------------------------------
-    // batch |out_channel | seq_len               |  1
-    //       |out_features|  inputs[0]->sequence()  |
+    int in_dimension = (activate_input_dim == -1) ? in_features_ : activate_input_dim;
+    int out_dimension = (activate_output_dim == -1) ? out_features_ : activate_output_dim;
     assert(inputs[0]->head() == 1);
-    assert(in_features_ == inputs[0]->dimension());
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
-    //outputs[0]->setDtype(activationDtype());
+    assert(in_dimension == inputs[0]->dimension());
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_dimension);
     return Op::reshape(inputs, outputs);
 }
 
