@@ -8,7 +8,6 @@
 #include "Layer.hpp"
 #include "Module.hpp"
 #include "configuration_llama.hpp"
-#include "models/transformer/modeling_transformer.hpp"
 #include <vector>
 
 using namespace mllm;
