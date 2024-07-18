@@ -48,6 +48,7 @@ enum OpType {
     PREDICTOR,
     SPARSELINEAR,
     SPARSEIDLINEAR,
+    ELASTICLINEAR,
     OP_NUM
 };
 
@@ -89,6 +90,9 @@ static const vector<string> OpNames = {
     "Range",
     "Where",
     "Replace",
+    "SparseLinear",
+    "SparseIdLinear",
+    "ElasticLinear",
     "OP_NUM"};
 
 enum TensorFuncType {

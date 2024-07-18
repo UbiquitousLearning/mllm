@@ -12,6 +12,7 @@
 #include "backends/cpu/CPUBackend.hpp"
 
 #include <any>
+#include <iostream>
 #include <memory/SystemMemoryManager.hpp>
 #include <numeric>
 #include <utility>
@@ -70,9 +71,27 @@ public:
             Tensor::gph_[std::to_string(i)] = Tensor(Module::backends[MLLM_CPU]);
             tmps.push_back(Tensor::gph_[std::to_string(i)]);
         }
-        vector<int> tmpt = {0, 0};
-        uint64_t time_start = mllm_time_us();
-        operator()(tmps, tmpt);
+        vector<std::any> alternate_args={
+            {},
+            vector<int>{0, 0},
+            std::vector<std::vector<int>>(32, std::vector<int>(2))
+        };
+        uint64_t time_start = 0;
+        for (auto args : alternate_args) {
+            time_start = mllm_time_us();
+            try {
+                operator()(tmps, args);
+                break;
+            } catch (const std::exception& e) {
+                if("bad any_cast" != e.what()) {
+                    std::cerr << e.what() << std::endl;
+                    exit(0);
+                }
+            } catch (...) {
+                std::cerr << "load error" << std::endl;
+                exit(0);
+            }     
+        }
         uint64_t time_end = mllm_time_us();
         load_time_ = (time_end - time_start) / 1000.0F;//ms
         Module::doLoad = false;

@@ -5,6 +5,8 @@
 #ifndef OPERATION_H
 #define OPERATION_H
 
+#include <cstdlib>
+#include <iostream>
 #include <utility>
 
 #include "Tensor.hpp"
@@ -49,6 +51,13 @@ public:
         return _3I1O_OP(input0, input1, input2);
     }
 
+    Tensor &operator()(Tensor &input0, int activate_input_dim, int activate_output_dim) {
+        auto activate_input_dim_tensor = Tensor(1, 1, 1, 1, backend_, true);
+        activate_input_dim_tensor.setDataAt<float>(0,0,0,0,(float)activate_input_dim);
+        auto activate_output_dim_tensor = Tensor(1, 1, 1, 1, backend_, true);
+        activate_output_dim_tensor.setDataAt<float>(0,0,0,0,(float)activate_output_dim);
+        return _3I1O_only1map_OP(input0, activate_input_dim_tensor, activate_output_dim_tensor);
+    }
 
 private:
     std::string name_num_to_X(const std::string &input_string) {
@@ -344,6 +353,62 @@ protected:
             return Tensor::gph_[next_name];
         }
     }
+    Tensor &_3I1O_only1map_OP(Tensor &input0, Tensor &input1, Tensor &input2) {
+        Module::runlistIdx = saved_list_idx;
+        if (INIT_OP()) {
+            return input0;
+        } else {
+            string layer_next_name = "out-" + op_->name();
+            if (Tensor::gph_.find(input0.name()) != Tensor::gph_.end()) {
+                Tensor::gph_[input0.name()].status() = input0.status();
+            }
+            switch (input0.status()) {
+            case TENSOR_STATIC_INIT: {
+                if (Tensor::gph_.find(input0.name()) == Tensor::gph_.end() || input0.count() != Tensor::gph_[input0.name()].count()) {
+                    Tensor::gph_[input0.name()] = input0;
+                    Tensor::gph_[input0.name()].setName(input0.name());
+                }
+                if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
+                    layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                }
+                auto next_name = layername_2_tensorname[layer_next_name];
+                if (Tensor::gph_.find(next_name) == Tensor::gph_.end()) {
+                    Tensor::gph_[next_name] = Tensor(backend_);
+                    Tensor::gph_[next_name].setName(next_name);
+                }
+                vector<shared_ptr<Tensor>> shared_inputs{
+                    std::shared_ptr<Tensor>(&Tensor::gph_[input0.name()], [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&input1, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&input2, [](Tensor *) {})};
+                vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
+                op_->reshape(shared_inputs, shared_outputs);
+                op_->setUp(shared_inputs, shared_outputs);
+                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                break;
+            }
+            case TENSOR_STATIC_READY: {
+                auto next_name = layername_2_tensorname[layer_next_name];
+                vector<shared_ptr<Tensor>> shared_inputs{
+                    std::shared_ptr<Tensor>(&Tensor::gph_[input0.name()], [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&input1, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&input2, [](Tensor *) {})};
+                vector<shared_ptr<Tensor>> shared_outputs{std::shared_ptr<Tensor>(&Tensor::gph_[next_name], [](Tensor *) {})};
+                op_->execute(shared_inputs, shared_outputs);
+                assert(Tensor::gph_[next_name].hostPtr<float>() != nullptr);
+                break;
+            }
+            default: {
+                break;
+            }
+            }
+            auto next_name = layername_2_tensorname[layer_next_name];
+            Tensor::gph_[next_name].status() = Tensor::gph_[input0.name()].status();            
+            if(saveNDataFlag){
+                Tensor::gph_[next_name].saveNData<float>(layer_next_name);
+            }
+            return Tensor::gph_[next_name];
+        }
+    }
     Tensor &_0I1O_OP() {
         Module::runlistIdx = saved_list_idx;
         if (INIT_OP()) {
@@ -524,6 +589,18 @@ public:
 
     // no need to defined a new operator() function, just use the default one
 };
+
+class ElasticLinear final : public Layer {
+public:
+    explicit ElasticLinear(int in_features, int out_features, bool bias, std::string name) {
+        param_["in_features"] = in_features;
+        param_["out_features"] = out_features;
+        param_["bias"] = (float)bias;
+        init(std::move(name), OpType::ELASTICLINEAR);
+    }
+    // Use: Tensor &operator()(Tensor &input0, int activate_input_dim, int activate_output_dim) {
+};
+
 
 class SiLU final : public Layer {
 public:

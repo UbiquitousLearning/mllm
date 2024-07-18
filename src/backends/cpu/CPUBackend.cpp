@@ -40,6 +40,7 @@
 #include "CPUPredictor.hpp"
 #include "CPUSparseIdLinear.hpp"
 #include "CPUSparseLinear.hpp"
+#include "CPUElasticLinear.hpp"
 #include "CPUTensorFunction.hpp"
 
 namespace mllm {
@@ -99,6 +100,7 @@ void CPUBackend::registerOps() {
     addCreator(PREDICTOR, (CPUBackend::Creator *)(new CPUPredictorCreator()));
     addCreator(SPARSELINEAR, (CPUBackend::Creator *)(new CPUSparseLinearCreator()));
     addCreator(SPARSEIDLINEAR, (CPUBackend::Creator *)(new CPUSparseIdLinearCreator()));
+    addCreator(ELASTICLINEAR, (CPUBackend::Creator *)(new CPUElasticLinearCreator()));
 }
 
 TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {

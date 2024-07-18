@@ -335,11 +335,28 @@ static inline float hsum_float_8(const __m256 x) {
         }                                          \
         res = vaddvq_f32(x[0]);                    \
     }
+
+#if !defined(__ARM_FEATURE_DOTPROD)
+
+inline static int32x4_t mllm_vdotq_s32(int32x4_t acc, int8x16_t a, int8x16_t b) {
+    const int16x8_t p0 = vmull_s8(vget_low_s8 (a), vget_low_s8 (b));
+    const int16x8_t p1 = vmull_s8(vget_high_s8(a), vget_high_s8(b));
+
+    return vaddq_s32(acc, vaddq_s32(vpaddlq_s16(p0), vpaddlq_s16(p1)));
+}
+
+#else
+
+#define mllm_vdotq_s32(a, b, c) vdotq_s32(a, b, c)
+
+#endif // !defined(__ARM_FEATURE_DOTPROD)
+
+
 #endif
 
 using namespace mllm;
 
-void vec_dot_fp32(const float * __restrict src0, const float * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf);
+// void vec_dot_fp32(const float * __restrict src0, const float * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf);
 void vec_dot_q4_0_q8_0(const void * __restrict src0, const void * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf);
 void vec_dot_q4_K_q8_K(const void * __restrict src0, const void * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf);
 void vec_dot_q6_K_q8_K(const void * __restrict src0, const void * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf);
@@ -350,5 +367,6 @@ void vec_dot_q6_K_q8_K(const int n, float * __restrict s, const void * __restric
 void vec_dot_q4_0_q8_0(const int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy);
 void vec_dot_fp32(const int n, float * __restrict s, const float * __restrict vx, const float * __restrict vy);
 void vec_dot_fp16(const int n, float * __restrict s, const mllm_fp16_t * __restrict vx, const mllm_fp16_t * __restrict vy);
+void vec_dot_q8_0_q8_0(int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy);
 
 #endif // MLLM_VECDOT_HPP
