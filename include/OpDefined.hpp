@@ -49,6 +49,7 @@ enum OpType {
     SPARSELINEAR,
     SPARSEIDLINEAR,
     ELASTICLINEAR,
+    POSITION,
     OP_NUM
 };
 
@@ -93,6 +94,7 @@ static const vector<string> OpNames = {
     "SparseLinear",
     "SparseIdLinear",
     "ElasticLinear",
+    "Position",
     "OP_NUM"};
 
 enum TensorFuncType {

@@ -42,6 +42,7 @@
 #include "CPUSparseLinear.hpp"
 #include "CPUElasticLinear.hpp"
 #include "CPUTensorFunction.hpp"
+#include "CPUPosition.hpp"
 
 namespace mllm {
 CPUBackend::CPUBackend(shared_ptr<MemoryManager> &mm) :
@@ -101,6 +102,7 @@ void CPUBackend::registerOps() {
     addCreator(SPARSELINEAR, (CPUBackend::Creator *)(new CPUSparseLinearCreator()));
     addCreator(SPARSEIDLINEAR, (CPUBackend::Creator *)(new CPUSparseIdLinearCreator()));
     addCreator(ELASTICLINEAR, (CPUBackend::Creator *)(new CPUElasticLinearCreator()));
+    addCreator(POSITION, (CPUBackend::Creator *)(new CPUPositionCreator()));
 }
 
 TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {
