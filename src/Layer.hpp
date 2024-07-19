@@ -886,6 +886,16 @@ public:
     }
 };
 
+class Position final : public Layer {
+public:
+    explicit Position(std::string name) {
+        init(std::move(name), OpType::POSITION);
+    }
+    Tensor &operator()(Tensor &input) {
+        return _1I1O_OP(input);
+    }
+};
+
 } // namespace mllm
 
 #endif // OPERATION_H
