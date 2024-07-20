@@ -184,6 +184,8 @@ public:
         // Others use nn.Linear()
         if (tie_embedding_words) {
             lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, names.token_embd_name + ".weight");
+        } else{
+            lm_head_layer = Linear(config.hidden_size, config.vocab_size, false, names.lm_head_name);
         }
     }
 
@@ -194,6 +196,8 @@ public:
         auto outputs = model({x})[0];
         if (tie_embedding_words) {
             outputs = Tensor::mm(outputs, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
+        } else {
+            outputs = lm_head_layer(outputs);
         }
         return {outputs};
     }
@@ -203,6 +207,7 @@ private:
     bool tie_embedding_words;
     Layer embedding;
     Parameter lm_head;
+    Layer lm_head_layer;
     QWenModel model;
 };
 
