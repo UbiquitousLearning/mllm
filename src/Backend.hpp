@@ -2,6 +2,7 @@
 #define MLLM_BACKEND_H
 
 #include "MemoryManager.hpp"
+#include "OpDefined.hpp"
 #include "Types.hpp"
 #include <memory>
 using std::shared_ptr;
@@ -11,6 +12,15 @@ class Op;
 
 class Tensor;
 class Backend;
+
+
+
+
+class TensorFunction{
+public:
+    virtual void setup(Tensor &output, vector<Tensor*> &inputs, vector<float> args) = 0;
+    virtual void execute(Tensor &output, vector<Tensor*> &inputs, vector<float> args) = 0;
+};
 class Backend {
 public:
     Backend(shared_ptr<MemoryManager> &mm) :
@@ -44,20 +54,26 @@ public:
      * \return A pointer to the created operation.
      */
     virtual Op *opCreate(const OpParam &op_param, string name = "", int threadCount = 4) = 0;
+    virtual TensorFunction *funcCreate(const TensorFuncType type) = 0;
+
+    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onExecuteEnd(){};
 
     /**
      * \brief Registers all the operations supported by the backend.
      * This function is expected to be overridden by each specific backend implementation.
      */
     virtual void registerOps() = 0;
-    // virtual void* OpCreater(OpParam op_param);
+    virtual void registerFuncs() = 0;
 
-    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
-    virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
-    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
-    virtual void onExecuteEnd(){};
+    BackendType type() const {
+        return type_;
+    }
+
 protected:
-    //
+    BackendType type_;
     shared_ptr<MemoryManager> mem_manager_;
 };
 

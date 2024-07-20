@@ -67,8 +67,15 @@ public:
         exe = iter->second->create(op_param, this, name);
         return exe;
     }
+
+    // currently, qnn don't support tensor function
+    TensorFunction *funcCreate(const TensorFuncType type) override {
+        return nullptr;
+    }
+
     class Creator {
     public:
+        virtual ~Creator() = default;
         virtual Op *create(OpParam op_param, Backend *bn, string name) const = 0;
     };
     bool addCreator(OpType t, Creator *c) {
@@ -121,6 +128,7 @@ private:
     void release();
 
     void registerOps() override;
+    void registerFuncs() override {};
 
     // @brief Print a message to STDERR then exit with a non-zero
     void reportError(const std::string &err);

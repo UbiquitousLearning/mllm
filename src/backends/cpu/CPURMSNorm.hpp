@@ -8,7 +8,7 @@ namespace mllm {
 
 class CPURMSNorm final : public Op {
 public:
-    CPURMSNorm(Backend *bn, string opName,int normSize, float epsilon = 1e-6,  int threadCount=4);
+    CPURMSNorm(Backend *bn, string opName, int normSize, float epsilon = 1e-6, bool add_unit_offset_ = false, int threadCount = 4);
     virtual ~CPURMSNorm() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -25,6 +25,7 @@ private:
     int axis_ = 1;
     Tensor weight_;
     int normSize_;
+    bool add_unit_offset_;
     // Tensor bias_;
 };
 
@@ -33,7 +34,8 @@ public:
     virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         int normSize = (int)op_param["norm_size"];
         float epsilon = (float)op_param["epsilon"];
-        return new CPURMSNorm(bn, name, normSize, epsilon, threadCount);
+        bool add_unit_offset_ = (op_param.find("add_unit_offset") == op_param.end()) ? false : op_param["add_unit_offset"];
+        return new CPURMSNorm(bn, name, normSize, epsilon, add_unit_offset_, threadCount);
     }
 };
 } // namespace mllm

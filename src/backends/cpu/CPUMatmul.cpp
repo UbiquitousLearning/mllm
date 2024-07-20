@@ -11,7 +11,6 @@ CPUMatmul::CPUMatmul(Backend *bn, string opName, bool transpose0, bool transpose
 }
 
 ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-std::cout << "\n\n MATMUL" << std::endl;
     assert(inputs.size() == 2);
     assert(outputs.size() == 1);
     assert(inputs[0]->head() == inputs[1]->head());
@@ -29,7 +28,6 @@ std::cout << "\n\n MATMUL" << std::endl;
          */
         assert(inputs[0]->dimension() == inputs[1]->sequence());
         inputs[1]->transShape(SEQUENCE, DIMENSION);
-        std::cout << "TRANS V:" << inputs[1]->ctype() << std::endl;
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[1]->dimension());
     } else if (transpose1_) {
         /*
@@ -42,7 +40,6 @@ std::cout << "\n\n MATMUL" << std::endl;
          batch |out_channel | seq_len               |  1
          */
         assert(inputs[0]->dimension() == inputs[1]->dimension());
-        std::cout << "TRANS K:" << inputs[1]->ctype() << std::endl;
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[1]->sequence());
     } else {
         /*

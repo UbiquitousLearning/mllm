@@ -1,4 +1,5 @@
 #include "QNNGraph.hpp"
+#include "Types.hpp"
 #include <cstring>
 #ifdef DEBUGPRINT
 #include "Timing.hpp"
@@ -29,7 +30,7 @@ void QNNGraph::setUpTensors(std::string name) {
     // set graph out tensor TensorType
     auto &graph_out_tensors = ops_output_tensors_[op_names_[op_names_.size() - 1]];
     for (auto &t : graph_out_tensors) {
-        t->setTensorType(GRAPH_OUTPUT);
+        t->setTtype(OUTPUT_TENSOR);
         t->alloc();
     }
     for (auto &t : graph_in_tensors) { t->alloc(); }

@@ -45,7 +45,6 @@
 #include "op/QNNSiLU.hpp"
 #include "op/QNNSoftMax.hpp"
 #include "op/QNNView.hpp"
-#include "op/QNNKVCache.hpp"
 #include "op/QNNWNop.hpp"
 
 #include "op/QNNReLU.hpp"
@@ -96,10 +95,9 @@ void QNNBackend::registerOps() {
     // addCreator(EMBEDDING, (QNNBackend::Creator *)(new QNNEmbeddingCreator()));
     addCreator(MUL, (QNNBackend::Creator *)(new QNNMulCreator()));
     addCreator(VIEW, (QNNBackend::Creator *)(new QNNViewCreator()));
-    addCreator(KVCACHE, (QNNBackend::Creator *)(new QNNKVCacheCreator()));
     addCreator(WNOP, (QNNBackend::Creator *)(new QNNWNopCreator()));
     addCreator(RELU, (QNNBackend::Creator *)(new QNNReLUCreator()));
-    addCreator(GELU, (QNNBackend::Creator *)(new QNNGELUCreator()));
+    addCreator(OP_GELU, (QNNBackend::Creator *)(new QNNGELUCreator()));
     addCreator(QUANTIZE, (QNNBackend::Creator *)(new QNNQuantizeCreator()));
     addCreator(DEQUANTIZE, (QNNBackend::Creator *)(new QNNDequantizeCreator()));
     addCreator(MERGEOUTPUT, (QNNBackend::Creator *)(new QNNMergeOutputCreator()));

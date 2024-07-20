@@ -25,6 +25,12 @@ typedef enum {
     MLLM_QNN
 } BackendType;
 
+enum TensorStatus {
+    // TENSOR_DYNAMIC,
+    TENSOR_STATIC_INIT ,
+    TENSOR_STATIC_READY ,
+};
+
 enum ErrorCode {
     MLLM_NO_ERROR = 0,
     OUT_OF_MEMORY = 1,
@@ -51,31 +57,45 @@ enum DataType {
     MLLM_TYPE_COUNT,
 };
 
-enum TensorType {
-    GRAPH_INTERNAL = 0, // currently weights and intermediate tensors both use this
-    GRAPH_INPUT = 1,
-    GRAPH_OUTPUT = 2,
-    GRAPH_WEIGHT = 3,
-};
-
 enum ChlType {
     BSHD = 0,
     BHDS = 2,
 
     BCTHW = 3,
     BTHWC = 4,
+    BWCTH = 5,
 
-    SBHD = 10  //not used
+    SBHD = 10,
+    BDHS = 11,
+    BDSH = 12,
+    DBHS = 13
+};
+
+inline std::map<std::vector<int>, ChlType> Chls2Type = {
+    {{0, 2, 3, 1}, BDHS},
+    {{0, 1, 3, 2}, BHDS},
+    {{0, 2, 1, 3}, BSHD},
+    {{1, 2, 0, 3}, SBHD},
+    {{0, 3, 2, 1}, BDSH},
+    {{1, 2, 3, 0}, DBHS},
+    {{0, 1, 2, 3, 4}, BTHWC},
+    {{0, 2, 3, 4, 1}, BCTHW},
+    {{0, 3, 4, 1, 2}, BWCTH}};
+
+enum TensorType {
+    INPUT_TENSOR = 0,
+    NORMAL_TENSOR,
+    OUTPUT_TENSOR,
 };
 
 enum Chl {
     BATCH = 0,
-    HEAD = 1,
-    SEQUENCE = 2,
+    SEQUENCE = 1,
+    HEAD = 2,
     DIMENSION = 3,
 
-    HD = 113,
-    D_HD = 313, //only use for split attn.in_proj
+    HD = 113,   // only use for split attn.in_proj
+    D_HD = 313, // only use for split attn.in_proj
 
     CHANNLE = 1,
     TIME = 2,
@@ -86,6 +106,7 @@ enum Chl {
 
 };
 
+#define ANYDIM -198098
 
 enum PaddingType {
     SAME,
@@ -93,6 +114,7 @@ enum PaddingType {
 };
 
 enum RoPEType {
+    NONE = 0,
     LLAMAROPE = 2,
     PERSIMMONROPE = 3,
     HFHUBROPE = 4,
@@ -135,7 +157,7 @@ typedef __fp16 mllm_fp16_t;
 typedef uint16_t mllm_fp16_t;
 #endif
 
-//#define MLLM_QKK_64
+// #define MLLM_QKK_64
 #ifdef MLLM_QKK_64
 #define QK_K 64
 #define K_SCALE_SIZE 4
@@ -147,7 +169,7 @@ typedef uint16_t mllm_fp16_t;
 
 #pragma pack(1)
 typedef struct {
-    mllm_fp16_t d;            // delta
+    mllm_fp16_t d;         // delta
     uint8_t qs[QK4_0 / 2]; // nibbles / quants
 } block_q4_0;
 #pragma pack()
@@ -159,7 +181,7 @@ typedef struct {
 #ifdef MLLM_QKK_64
 #pragma pack(1)
 typedef struct {
-    mllm_fp16_t d[2];        // super-block scales/mins
+    mllm_fp16_t d[2];     // super-block scales/mins
     uint8_t scales[2];    // 4-bit block scales/mins
     uint8_t qs[QK_K / 2]; // 4--bit quants
 } block_q4_K;
@@ -168,8 +190,8 @@ static_assert(sizeof(block_q4_K) == 2 * sizeof(uint16_t) + QK_K / 2 + 2, "wrong 
 #else
 #pragma pack(1)
 typedef struct {
-    mllm_fp16_t d;                   // super-block scale for quantized scales
-    mllm_fp16_t dmin;                // super-block scale for quantized mins
+    mllm_fp16_t d;                // super-block scale for quantized scales
+    mllm_fp16_t dmin;             // super-block scale for quantized mins
     uint8_t scales[K_SCALE_SIZE]; // scales and mins, quantized with 6 bits
     uint8_t qs[QK_K / 2];         // 4--bit quants
 } block_q4_K;
@@ -185,12 +207,12 @@ typedef struct {
     mllm_fp16_t d;            // super-block scale
 } block_q6_K;
 #pragma pack()
-static_assert(sizeof(block_q6_K) == sizeof(mllm_fp16_t) + QK_K / 16 + 3*QK_K/4, "wrong q6_K block size/padding");
+static_assert(sizeof(block_q6_K) == sizeof(mllm_fp16_t) + QK_K / 16 + 3 * QK_K / 4, "wrong q6_K block size/padding");
 
 #define QK8_0 32
 #pragma pack(1)
 typedef struct {
-    mllm_fp16_t d;       // delta
+    mllm_fp16_t d;    // delta
     int8_t qs[QK8_0]; // quants
 } block_q8_0;
 #pragma pack()
@@ -244,28 +266,28 @@ static string DataTypeName(DataType dataType) {
         return "Unknown";
     }
 }
-static size_t DataTypeSize(DataType dtype, int count=1) {
+static size_t DataTypeSize(DataType dtype, int count = 1) {
     switch (dtype) {
     case MLLM_TYPE_F32:
-        return sizeof(float) *count;
+        return sizeof(float) * count;
     case MLLM_TYPE_F16:
-        return sizeof(mllm_fp16_t)*count;
+        return sizeof(mllm_fp16_t) * count;
     case MLLM_TYPE_I32:
-        return sizeof(int)*count;
+        return sizeof(int) * count;
     case MLLM_TYPE_I16:
-        return sizeof(short)*count;
+        return sizeof(short) * count;
     case MLLM_TYPE_I8:
-        return sizeof(char)*count;
+        return sizeof(char) * count;
     case MLLM_TYPE_Q4_0:
-        return (sizeof(block_q4_0))*count / (QK4_0);
+        return (sizeof(block_q4_0)) * count / (QK4_0);
     case MLLM_TYPE_Q4_K:
-        return (sizeof(block_q4_K))*count / (QK_K);
+        return (sizeof(block_q4_K)) * count / (QK_K);
     case MLLM_TYPE_Q6_K:
-        return (sizeof(block_q6_K))*count / (QK_K);
+        return (sizeof(block_q6_K)) * count / (QK_K);
     case MLLM_TYPE_Q8_0:
-        return (sizeof(block_q8_0))*count / (QK8_0);
+        return (sizeof(block_q8_0)) * count / (QK8_0);
     case MLLM_TYPE_Q8_K:
-        return (sizeof(block_q8_K))*count / (QK_K);
+        return (sizeof(block_q8_K)) * count / (QK_K);
     case MLLM_TYPE_Q4_1:
     case MLLM_TYPE_Q8_1:
     case MLLM_TYPE_COUNT:
@@ -305,7 +327,6 @@ struct BackendConfig {
     /** user defined context */
     void *sharedContext = nullptr;
 };
-
 
 } // namespace mllm
 #endif //__cplusplus

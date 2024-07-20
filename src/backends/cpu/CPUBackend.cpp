@@ -1,4 +1,5 @@
 #include "CPUBackend.hpp"
+#include <iostream>
 #include <math.h>
 #include <memory>
 #include "Backend.hpp"
@@ -12,6 +13,7 @@
 #include "CPUView.hpp"
 #include "CPUAdd.hpp"
 #include "CPUCausalMask.hpp"
+#include "CPUSlidingWindowMask.hpp"
 #include "CPUMatmul.hpp"
 #include "CPURMSNorm.hpp"
 #include "CPURoPE.hpp"
@@ -47,7 +49,7 @@
 #include "CPUQuantize.hpp"
 #include "CPUMergeOutput.hpp"
 
-
+#include "CPUTensorFunction.hpp"
 
 namespace mllm {
 class CPUBackendCreator : public BackendCreator {
@@ -69,9 +71,11 @@ void registerCPUBackendCreator() {
     InsertBackendCreatorMap(MLLM_CPU, std::make_shared<CPUBackendCreator>());
 }
 
-CPUBackend::CPUBackend(shared_ptr<MemoryManager>& mm) :
+CPUBackend::CPUBackend(shared_ptr<MemoryManager> &mm) :
     Backend(mm) {
+    type_ = BackendType::MLLM_CPU;
     registerOps();
+    registerFuncs();
 }
 
 Op *CPUBackend::opCreate(const OpParam &op_param, string name, int threadCount) {
@@ -81,13 +85,14 @@ Op *CPUBackend::opCreate(const OpParam &op_param, string name, int threadCount) 
         printf("Don't support type \n");
         return nullptr;
     }
-    Op *exe = iter->second->create(op_param, this, name, threadCount);
+    Op *exe = iter->second->create(op_param, this, name, cpu_threads);
     return exe;
 }
 void CPUBackend::registerOps() {
     addCreator(PARAMETER, (CPUBackend::Creator *)(new CPUParameterCreator()));
     addCreator(ADD, (CPUBackend::Creator *)(new CPUAddCreator()));
     addCreator(CAUSALMASK, (CPUBackend::Creator *)(new CPUCausalMaskCreator()));
+    addCreator(SLIDINGWINDOWMASK, (CPUBackend::Creator *)(new CPUSlidingWindowMaskCreator()));
     addCreator(MATMUL, (CPUBackend::Creator *)(new CPUMatmulCreator()));
     addCreator(MATMULINT8, (CPUBackend::Creator *)(new CPUMatmulINT8Creator()));
     addCreator(RMSNORM, (CPUBackend::Creator *)(new CPURMSNormCreator()));
@@ -103,7 +108,7 @@ void CPUBackend::registerOps() {
     addCreator(KVCACHENPU, (CPUBackend::Creator *)(new CPUKVCacheNPUCreator()));
     addCreator(RELU, (CPUBackend::Creator *)(new CPUReLUCreator()));
     addCreator(RELU2, (CPUBackend::Creator *)(new CPUReLU2Creator()));
-    addCreator(GELU, (CPUBackend::Creator *)(new CPUGELUCreator()));
+    addCreator(OP_GELU, (CPUBackend::Creator *)(new CPUGELUCreator()));
     addCreator(QUICKGLUE, (CPUBackend::Creator *)(new CPUQuickGELUCreator()));
     addCreator(LAYERNORM, (CPUBackend::Creator *)(new CPULayerNormCreator()));
     addCreator(SPLIT, (CPUBackend::Creator *)(new CPUSplitCreator()));
@@ -122,10 +127,42 @@ void CPUBackend::registerOps() {
     addCreator(RANGE, (CPUBackend::Creator *)(new CPURangeCreator()));
     addCreator(WHERE, (CPUBackend::Creator *)(new CPUWhereCreator()));
     addCreator(REPLACE, (CPUBackend::Creator *)(new CPUReplaceCreator()));
-    addCreator(POSITIOANL_EMBEDDING, (CPUBackend::Creator *)(new CPUPoEmbeddingCreator()));
-    addCreator(SPLITINPUT, (CPUBackend::Creator *)(new CPUSplitInputCreator()));
     addCreator(QUANTIZE, (CPUBackend::Creator *)(new CPUQuantizeCreator()));
     addCreator(MERGEOUTPUT, (CPUBackend::Creator *)(new CPUMergeOutputCreator()));
+    addCreator(SPLITINPUT, (CPUBackend::Creator *)(new CPUSplitInputCreator()));
 }
+
+TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {
+    auto iter = map_function_.find(type);
+    if (iter == map_function_.end()) {
+        printf("Don't support type \n");
+        return nullptr;
+    }
+    return iter->second;
+}
+
+void CPUBackend::registerFuncs() {
+    map_function_[TensorFuncType::FUNC_ADD] = new CPUaddFunction();
+    map_function_[TensorFuncType::FUNC_SUB] = new CPUsubFunction();
+    map_function_[TensorFuncType::FUNC_MUL] = new CPUmulFunction();
+    map_function_[TensorFuncType::FUNC_DIV] = new CPUdivFunction();
+    map_function_[TensorFuncType::FUNC_TTADD] = new CPUaddTwoFunction();
+    map_function_[TensorFuncType::FUNC_TTSUB] = new CPUsubTwoFunction();
+    map_function_[TensorFuncType::FUNC_TTMUL] = new CPUmulTwoFunction();
+    map_function_[TensorFuncType::FUNC_TTDIV] = new CPUdivTwoFunction();
+    map_function_[TensorFuncType::FUNC_MM] = new CPUmmFunction();
+    map_function_[TensorFuncType::FUNC_NORM] = new CPUnormFunction();
+    map_function_[TensorFuncType::FUNC_MEAN] = new CPUmeanFunction();
+    map_function_[TensorFuncType::FUNC_CAT] = new CPUcatFunction();
+    map_function_[TensorFuncType::FUNC_VIEW] = new CPUviewFunction();
+    map_function_[TensorFuncType::FUNC_TRANPOSE] = new CPUtransposeFunction();
+    map_function_[TensorFuncType::FUNC_FLATTEN] = new CPUflattenFunction();
+    map_function_[TensorFuncType::FUNC_CLIP] = new CPUclipFunction();
+    map_function_[TensorFuncType::FUNC_CLIPAXIS] = new CPUclipaxisFunction();
+    map_function_[TensorFuncType::FUNC_RANGE] = new CPURangeFunction();
+    map_function_[TensorFuncType::FUNC_WHERE] = new CPUwhereFunction();
+};
+
+int CPUBackend::cpu_threads = 4;
 
 } // namespace mllm

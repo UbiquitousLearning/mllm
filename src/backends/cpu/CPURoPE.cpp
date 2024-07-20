@@ -67,13 +67,21 @@ CPURoPE::CPURoPE(Backend *bn, string opName, int pose_type, int threadCount) :
     pose_type_ = pose_type;
 }
 
+CPURoPE::CPURoPE(Backend *bn, string opName, int pose_type, float rope_theta, int max_position_embeddings, int threadCount) :
+    thread_count(threadCount),
+    Op(bn, opName) {
+    pose_type_ = pose_type;
+    rope_theta_ = rope_theta;
+    pos_max_ = max_position_embeddings;
+}
+
 ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // std::cout << name() << "  CPURoPE  reshape" << std::endl;
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     ishape = inputs[0]->dimension();
-    pos_max_ = 16384;
+    // pos_max_ = 16384;
     if (sin_.empty() || ishape_old < ishape || global_pose_type_ != pose_type_) {
         global_pose_type_ = pose_type_;
         ishape_old = ishape;
@@ -82,7 +90,7 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         } else if (pose_type_ == PERSIMMONROPE) {
             sinusoidal_position_embedding_huggingface(pos_max_, ishape / 2, sin_, cos_, 25000);
         } else if (pose_type_ == HFHUBROPE) {
-            sinusoidal_position_embedding_huggingface(pos_max_, ishape, sin_, cos_);
+            sinusoidal_position_embedding_huggingface(pos_max_, ishape, sin_, cos_, rope_theta_);
         } else {
         }
     }
@@ -92,6 +100,7 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto &input = inputs[0];
     auto &output = outputs[0];
+    auto out_dtype = output->dtype();
     for (int n = 0; n < input->batch(); ++n) {
         for (int h = 0; h < input->head(); ++h) {
             for (int s = 0; s < input->sequence(); ++s) { // sequance
@@ -108,9 +117,9 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                         float sin_value = sin_[s + h_cnt_][d];
                         float cos_value = cos_[s + h_cnt_][d];
                         auto value = in_value * cos_value + in_value_2 * sin_value;
-                        if (output->dtypeAt(n, h, s, d) == MLLM_TYPE_F32) {
+                        if (out_dtype == MLLM_TYPE_F32) {
                             output->setDataAt<float>(n, h, s, d, value);
-                        } else if (output->dtypeAt(n, h, s, d) == MLLM_TYPE_F16) {
+                        } else if (out_dtype == MLLM_TYPE_F16) {
                             output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
                         }
                     } else if (pose_type_ == PERSIMMONROPE) {

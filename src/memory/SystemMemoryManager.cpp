@@ -4,7 +4,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstdio>
-#include <iostream>
+#include <malloc.h>
+
 namespace mllm {
 
 static inline void **align(void **ptr, size_t alignment) {
@@ -12,7 +13,6 @@ static inline void **align(void **ptr, size_t alignment) {
 }
 
 void SystemMemoryManager::alloc(void **ptr, size_t size,size_t alignment){
-    std::cout << "==========CPU" << std::endl;
     assert(size > 0);
     // allocate a block of memory, void* is used to store the original pointer
     void **origin = (void **)malloc(size + sizeof(void *) + alignment-1);
@@ -26,7 +26,9 @@ void SystemMemoryManager::alloc(void **ptr, size_t size,size_t alignment){
 }
 
 void SystemMemoryManager::free(void *ptr){
-    ::free(((void**)ptr)[-1]);
+    if (ptr != nullptr && malloc_usable_size(((void**)ptr)[-1]) > 0) {
+        ::free(((void**)ptr)[-1]);
+    }
 }
 
 } // namespace mllm

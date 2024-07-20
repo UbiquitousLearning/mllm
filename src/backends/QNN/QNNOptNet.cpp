@@ -11,7 +11,7 @@ namespace mllm {
 
 QNNOptNet::QNNOptNet(BackendConfig config, Context *ctx) :
     Net(config) {
-// #ifdef QNN_ENABLED
+// #ifdef USE_QNN
     backends_.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create(config));
 // #endif
     ctx_ = ctx;

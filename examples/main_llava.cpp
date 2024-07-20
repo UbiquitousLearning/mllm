@@ -231,7 +231,7 @@ int main(int argc, char **argv) {
         shared_ptr<Tensor> input_text = std::make_shared<Tensor>();
         BPETokenizer::tokens2Tensor(&net, tokens_ids, input_text);
 
-        auto *clip_processor = new ClipProcessor(tokenizer, 336, 336);
+        auto *clip_processor = new ClipPreProcessor(tokenizer, 336, 336);
         clip_processor->PreProcessImages(in_img);
         auto images = clip_processor->pixel_values_[0];
 

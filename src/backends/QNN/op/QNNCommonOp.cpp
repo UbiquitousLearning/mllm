@@ -3,7 +3,6 @@
 #include "QnnTypes.h"
 #include "WrapperUtils/QnnWrapperUtils.hpp"
 #include "Types.hpp"
-#include <memory>
 #include <string>
 
 namespace mllm {
@@ -18,17 +17,6 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
     for (auto &input : inputs) {
         inputTensorNames.push_back(input->name());
     }
-// DEBUGLOG
-// #ifdef DEBUGPRINT
-//     std::cout << "node name:" << name << std::endl;
-//     std::cout << "node type:" << nodeType << std::endl;
-//     for (auto &inputTensorName : inputTensorNames) {
-//         std::cout << "input:" << inputTensorName << std::endl;
-//     }
-//     for (auto &output : outputs) {
-//         std::cout << "output:" << output->name() << std::endl;
-//     }
-// #endif
 
     vector<Qnn_Tensor_t> outputTensors;
     for (auto &output : outputs) {
@@ -85,17 +73,6 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
 }
 
 ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string> inputTensorNames, vector<Qnn_Tensor_t> outputs, vector<Qnn_Param_t> params, string packageName) {
-// DEBUGLOG
-// #ifdef DEBUGPRINT
-//     std::cout << "node name:" << name << std::endl;
-//     std::cout << "node type:" << nodeType << std::endl;
-//     for (auto &inputTensorName : inputTensorNames) {
-//         std::cout << "input:" << inputTensorName << std::endl;
-//     }
-//     for (auto &output : outputs) {
-//         std::cout << "output:" << output.v1.name << std::endl;
-//     }
-// #endif
     if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputs, params, packageName)) {
         exit(1);
         return ErrorCode::INVALID_VALUE;
@@ -104,7 +81,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string>
 }
 
 Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tensor) const {
-    if (tensor->tensorType() == GRAPH_OUTPUT) { 
+    if (tensor->ttype() == OUTPUT_TENSOR) { 
         qnnBackend_->pushOutputBuffers(tensor->hostPtr<uint8_t>());
         return QNN_TENSOR_TYPE_APP_READ;
     } else {

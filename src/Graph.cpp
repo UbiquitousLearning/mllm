@@ -3,6 +3,8 @@
 //
 #include "Graph.hpp"
 #include "MemInspect.hpp"
+#include "OpDefined.hpp"
+#include "Types.hpp"
 #ifdef DEBUGPRINT
 #include "Timing.hpp"
 #endif
@@ -16,7 +18,7 @@ std::string intToStringWithLeadingZero(int num) {
 
 namespace mllm {
 
-#ifdef QNN_ENABLED
+#ifdef USE_QNN
 static unordered_map<string, Op*> kv_cache_map;
 #endif
 
@@ -27,7 +29,7 @@ Graph::Graph(const NetParameter &param, Backend *bn,
 
     for (auto net_tensor : param.net_tensors) {
         auto it = external_tensors.find(net_tensor->name);
-        if (it == tensors_.end()) { // not in external_tensors
+        if (it == external_tensors.end()) { // not in external_tensors
             tensors_[net_tensor->name] = std::make_shared<Tensor>(backend_);
             tensors_[net_tensor->name]->setName(net_tensor->name);
             tensors_[net_tensor->name]->setDtype(net_tensor->type);
@@ -35,8 +37,8 @@ Graph::Graph(const NetParameter &param, Backend *bn,
     }
     for (auto net_op : param.net_ops) {
     // for QNN prefill & CPU decoding execution, KVCache should be shared for each block
-#ifdef QNN_ENABLED
-        if (net_op->type == KVCACHE) {
+#ifdef USE_QNN
+        if (net_op->type == KVCACHE || net_op->type == KVCACHENPU) {
             std::cout << net_op->name << " is KVCache" << std::endl;
             shared_ptr<Op> my_op(nullptr);
             if (kv_cache_map.find(net_op->name) == kv_cache_map.end()) {
@@ -143,7 +145,7 @@ void Graph::setUpTensors() {
     // set graph out tensor TensorType
     auto &graph_out_tensors = ops_output_tensors_[op_names_[op_names_.size() - 1]];
     for (auto &t : graph_out_tensors) {
-        t->setTensorType(GRAPH_OUTPUT);
+        t->setTtype(OUTPUT_TENSOR);
     }
 
     this->backend_->onSetUpStart(graph_in_tensors, graph_out_tensors);
@@ -155,7 +157,7 @@ void Graph::setUpTensors() {
         if (ops_not_inputs_empty_[op_name] ) {
             ops_[op_name]->setUp(ops_input_tensors_[op_name],
                                  ops_output_tensors_[op_name]);
-            PRINT_MEMORY_USAGE((op_name + " setUp").c_str());
+            // PRINT_MEMORY_USAGE((op_name + " setUp").c_str());
         }else{
 //            std::cout<<"op_name:"<<op_name<<" is not do"<<std::endl;
         }
