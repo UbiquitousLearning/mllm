@@ -40,6 +40,8 @@ vector<string> fp32_layers = {"norm", "rope", "bias","rotary_emb", "embed_tokens
                                 "modality_preprocessors", "modality_heads", "modality_postprocessors", "pre_transformer_layer"};
 vector<string> q6_layers = {"w2", "wv", "dense_h_to_4h", "v_proj", "down_proj"};
 
+int tmp_hidden_dim = -1;
+
 bool find_names(const string &name, const vector<string> &layer_names) {
     for (const auto &layer : layer_names) {
         if (name.find(layer) != std::string::npos) {
@@ -58,8 +60,21 @@ void QuantWriter::quantParams(DataType dataType) {
             __exit(-1);
         }
         auto size = param_loader_->offsets_[name].second / sizeof(float);
+        if(find_names(name, {"input_layernorm"})) {
+            tmp_hidden_dim = size;
+        }
         void *quant_ptr = nullptr;
         std::pair<void *, uint64_t> block_t;
+        if (find_names(name, q6_layers)) {
+            if(tmp_hidden_dim>0 && (size/tmp_hidden_dim)%256!=0){
+                std::cout << "Quantize param " << name << " to " << DataTypeName(MLLM_TYPE_F32) << "\t";
+                const auto s = param_loader_->offsets_[name].second / sizeof(float);
+                const auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
+                writeParam(name, MLLM_TYPE_F32, param, tsize);
+                std::cout << "  size:" << tsize << std::endl;
+                continue;
+            }
+        }
         if(find_names(name, fp32_layers)) {
             std::cout << "Quantize param " << name << " to " << DataTypeName(MLLM_TYPE_F32) << "\t";
             const auto s = param_loader_->offsets_[name].second / sizeof(float);
