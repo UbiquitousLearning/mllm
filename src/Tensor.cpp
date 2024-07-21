@@ -74,11 +74,11 @@ bool Tensor::reshape(const int batch, const int channel, const int time, const i
 
 map<string, shared_ptr<Tensor>> Tensor::graphs;
 TensorStatus Tensor::tensor_status;
-double Tensor::forward_times;
-double Tensor::forward_times_2;
+// double Tensor::forward_times;
+// double Tensor::forward_times_2;
 
 Tensor& Tensor::getFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors){
-        auto time_start = mllm_time_us();
+        // auto time_start = mllm_time_us();
     if (Module::doLoad) { return *this; }
     TensorFunction *func = backend_->funcCreate(type);
     const std::string next_name = name_ + "-" + suffix;
@@ -103,11 +103,11 @@ Tensor& Tensor::getFunc(const std::string& suffix, const TensorFuncType type, ve
         for (auto &other_tensor : other_tensors) {
             tensorPtrs.push_back(other_tensor);
         }
-        auto time_start_2 = mllm_time_us();
+        // auto time_start_2 = mllm_time_us();
         func->execute({Tensor::graphs[next_name].get()},tensorPtrs, float_args);
-        uint64_t time_end = mllm_time_us();
-        Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-        Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
+        // uint64_t time_end = mllm_time_us();
+        // Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
+        // Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
         if(saveNDataFlag){
             Tensor::graphs[next_name]->saveData<float>();
         }
@@ -234,7 +234,7 @@ Tensor &Tensor::where(float value, Chl axis) {
  */
 
 Tensor& Tensor::getStaticFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors){
-        auto time_start = mllm_time_us();
+        // auto time_start = mllm_time_us();
     if (Module::doLoad) { return *Tensor::graphs["0"]; }
     auto backend_h = Module::backends[MLLM_CPU];
     if(!other_tensors.empty() && other_tensors[0]->backend_!= nullptr){
@@ -252,11 +252,11 @@ Tensor& Tensor::getStaticFunc(const std::string& suffix, const TensorFuncType ty
         break;
     }
     case TENSOR_STATIC_READY: {
-        auto time_start_2 = mllm_time_us();
+        // auto time_start_2 = mllm_time_us();
         func->execute({Tensor::graphs[next_name].get()}, other_tensors, float_args);
-        uint64_t time_end = mllm_time_us();
-        Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-        Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
+        // uint64_t time_end = mllm_time_us();
+        // Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
+        // Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
         if(saveNDataFlag){
             Tensor::graphs[next_name]->saveData<float>();
         }
@@ -289,7 +289,7 @@ Tensor &Tensor::range(int start, int end) {
 
 std::vector<Tensor> Tensor::getStaticFuncOupts(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, 
                                     vector<Tensor *> input_tensors){
-        auto time_start = mllm_time_us();
+        // auto time_start = mllm_time_us();
     if (Module::doLoad) { 
         std::vector<Tensor> outPtrs;
         for (auto out_name: out_names) {
@@ -321,11 +321,11 @@ std::vector<Tensor> Tensor::getStaticFuncOupts(vector<std::string> out_names, co
         for (auto out_name: out_names) {
             outPtrs.push_back(Tensor::graphs[out_name].get());
         }
-        auto time_start_2 = mllm_time_us();
+        // auto time_start_2 = mllm_time_us();
         func->execute(outPtrs, input_tensors, float_args);
-        uint64_t time_end = mllm_time_us();
-        Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-        Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
+        // uint64_t time_end = mllm_time_us();
+        // Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
+        // Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
         if(saveNDataFlag){
             for (auto out_name: out_names) {
                 Tensor::graphs[out_name]->saveData<float>();

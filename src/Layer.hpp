@@ -150,7 +150,7 @@ protected:
         return Module::doLoad;
     }
     Tensor &_1I1O_OP(Tensor &input) {
-        auto time_start = mllm_time_us();
+        // auto time_start = mllm_time_us();
         Module::runlistIdx = saved_list_idx;
         if (INIT_OP()) {
             return input;
@@ -185,11 +185,11 @@ protected:
             case TENSOR_STATIC_READY: {
                 // auto time_start_2 = mllm_time_us();
                 auto next_name = layername_2_tensorname[layer_next_name];
-                auto time_start_2 = mllm_time_us();
+                // auto time_start_2 = mllm_time_us();
                 op_->execute({Tensor::graphs[input.name()]}, {Tensor::graphs[next_name]});
-                uint64_t time_end = mllm_time_us();
-                Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-                Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
+                // uint64_t time_end = mllm_time_us();
+                //Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
+                //Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
                 break;
             }
             default: {
@@ -204,7 +204,7 @@ protected:
         }
     }
     Tensor &_2I1O_OP(Tensor &input0, Tensor &input1) {
-        auto time_start = mllm_time_us();
+        // auto time_start = mllm_time_us();
         Module::runlistIdx = saved_list_idx;
         if (INIT_OP()) {
             return input0;
@@ -236,11 +236,11 @@ protected:
             case TENSOR_STATIC_READY: {
                 // auto time_start_2 = mllm_time_us();
                 auto next_name = layername_2_tensorname[layer_next_name];
-                auto time_start_2 = mllm_time_us();
+                // auto time_start_2 = mllm_time_us();
                 op_->execute({Tensor::graphs[input0.name()], Tensor::graphs[input1.name()]}, {Tensor::graphs[next_name]});
-                uint64_t time_end = mllm_time_us();
-                Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-                Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
+                // uint64_t time_end = mllm_time_us();
+                //Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
+                //Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
                 break;
             }
             default: {
@@ -255,7 +255,7 @@ protected:
         }
     }
     Tensor &_3I1O_OP(Tensor &input0, Tensor &input1, Tensor &input2) {
-        auto time_start = mllm_time_us();
+        // auto time_start = mllm_time_us();
         Module::runlistIdx = saved_list_idx;
         if (INIT_OP()) {
             return input0;
@@ -293,12 +293,12 @@ protected:
             case TENSOR_STATIC_READY: {
                 // auto time_start_2 = mllm_time_us();
                 auto next_name = layername_2_tensorname[layer_next_name];
-                auto time_start_2 = mllm_time_us();
+                // auto time_start_2 = mllm_time_us();
                 op_->execute({Tensor::graphs[input0.name()], Tensor::graphs[input1.name()], Tensor::graphs[input2.name()]}, 
                             {Tensor::graphs[next_name]});
-                uint64_t time_end = mllm_time_us();
-                Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-                Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
+                // uint64_t time_end = mllm_time_us();
+                //Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
+                //Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
                 break;
             }
             default: {
@@ -313,7 +313,7 @@ protected:
         }
     }
     Tensor &_3I1O_only1map_OP(Tensor &input0, Tensor &input1, Tensor &input2) {
-        auto time_start = mllm_time_us();
+        // auto time_start = mllm_time_us();
         Module::runlistIdx = saved_list_idx;
         if (INIT_OP()) {
             return input0;
@@ -347,14 +347,14 @@ protected:
             case TENSOR_STATIC_READY: {
                 // auto time_start_2 = mllm_time_us();
                 auto next_name = layername_2_tensorname[layer_next_name];
-                auto time_start_2 = mllm_time_us();
+                // auto time_start_2 = mllm_time_us();
                 op_->execute({Tensor::graphs[input0.name()], 
                                 std::shared_ptr<Tensor>(&input1, [](Tensor *) {}), 
                                 std::shared_ptr<Tensor>(&input2, [](Tensor *) {})}, 
                             {Tensor::graphs[next_name]});
-                uint64_t time_end = mllm_time_us();
-                Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-                Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
+                // uint64_t time_end = mllm_time_us();
+                //Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
+                //Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
                 break;
             }
             default: {
@@ -369,7 +369,7 @@ protected:
         }
     }
     Tensor &_0I1O_OP() {
-        auto time_start = mllm_time_us();
+        // auto time_start = mllm_time_us();
         Module::runlistIdx = saved_list_idx;
         if (INIT_OP()) {
             return *Tensor::graphs["0"];
@@ -393,11 +393,11 @@ protected:
             case TENSOR_STATIC_READY: {
                 // auto time_start_2 = mllm_time_us();
                 auto next_name = layername_2_tensorname[layer_next_name];
-                auto time_start_2 = mllm_time_us();
+                // auto time_start_2 = mllm_time_us();
                 op_->execute({}, {Tensor::graphs[next_name]});
-                uint64_t time_end = mllm_time_us();
-                Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-                Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
+                // uint64_t time_end = mllm_time_us();
+                //Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
+                //Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
                 break;
             }
             default: {
@@ -412,7 +412,7 @@ protected:
         }
     }
     vector<Tensor> _1INO_OP(Tensor &input, int N) {
-        auto time_start = mllm_time_us();
+        // auto time_start = mllm_time_us();
         Module::runlistIdx = saved_list_idx;
         if (INIT_OP()) {
             vector<Tensor> out;
@@ -459,11 +459,11 @@ protected:
                     next_names.push_back(next_name);
                     shared_outputs.push_back(Tensor::graphs[next_name]);
                 }
-                auto time_start_2 = mllm_time_us();
+                // auto time_start_2 = mllm_time_us();
                 op_->execute({ Tensor::graphs[input.name()]}, shared_outputs);
-                uint64_t time_end = mllm_time_us();
-                Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-                Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
+                // uint64_t time_end = mllm_time_us();
+                //Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
+                //Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
                 break;
             }
             default: {

@@ -74,8 +74,8 @@ public:
     */
     static map<string, shared_ptr<Tensor>> graphs;
     static TensorStatus tensor_status;
-    static double forward_times;
-    static double forward_times_2;
+    // static double forward_times;
+    // static double forward_times_2;
     std::map<Chl, int>& chls() {
         return chls_;
     }

@@ -236,10 +236,9 @@ public:
             double mean_time = sum_time / (inference_times_.size());
             std::cout << "  Inference latency: " << mean_time/1000.0F << " s" << std::endl;
         }
-        double sum_time = std::accumulate(std::begin(inference_times_), std::end(inference_times_), 0.0);
-        
-        std::cout<<sum_time<< " - "<<Tensor::forward_times<<" = "<<sum_time-Tensor::forward_times<<std::endl;
-        std::cout<<Tensor::forward_times<< " - "<<Tensor::forward_times_2<<" = "<<Tensor::forward_times-Tensor::forward_times_2<<std::endl;
+        // double sum_time = std::accumulate(std::begin(inference_times_), std::end(inference_times_), 0.0);
+        // std::cout<<sum_time<< " - "<<Tensor::forward_times<<" = "<<sum_time-Tensor::forward_times<<std::endl;
+        // std::cout<<Tensor::forward_times<< " - "<<Tensor::forward_times_2<<" = "<<Tensor::forward_times-Tensor::forward_times_2<<std::endl;
 
         std::cout << "===========================================" << std::endl;
     }
