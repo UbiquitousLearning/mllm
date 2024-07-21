@@ -9,6 +9,8 @@
 #include "tokenizers/BPE/Bpe.hpp"
 #include "backends/QNN/QNNExecutor.hpp"
 #include "modeling_opt_npuxpu.hpp"
+#include "modeling_qwen_npuxpu.hpp"
+
 
 using namespace mllm;
 
@@ -107,7 +109,7 @@ int main(int argc, char **argv) {
     auto *cpu_ctx = cpu_ctx_ptr.get();
 
     // cache_max should be longer than seqLength
-    modeling::opt_npu(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
+    modeling::qwen_npu_t1(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
     modeling::opt_cpu(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
 
     BackendConfig bn;
@@ -168,33 +170,34 @@ int main(int argc, char **argv) {
             // 1: Prefill stage using NPU chunk execute
             npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
+            result[0]->printData<float>();
 
-            auto token_idx = postProcessing(result[0], input);
-            if (token_idx == 2) { // "</s>"
-                break;
-            }
-            auto out_token = tokenizer.detokenize({token_idx});
-            std::cout << out_token << std::flush;
+            // auto token_idx = postProcessing(result[0], input);
+            // if (token_idx == 2) { // "</s>"
+            //     break;
+            // }
+            // auto out_token = tokenizer.detokenize({token_idx});
+            // std::cout << out_token << std::flush;
 
-            auto cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
-            cpu_backend->setSequenceLength(real_seq_length);
-            cpu_backend->switchDecodeTag();
+            // auto cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
+            // cpu_backend->setSequenceLength(real_seq_length);
+            // cpu_backend->switchDecodeTag();
 
-            // // 2: Decoding stage using CPU execute
-            for (int step = 1; step < 100; step++) {
-                cpuExe.run(&cpuNet, {input});
-                auto result = cpuExe.result();
-                auto token_idx = postProcessing(result[0], input);
-                if (token_idx == 2) { // "</s>"
-                    break;
-                }
-                auto out_token = tokenizer.detokenize({token_idx});
-                std::cout << out_token << std::flush;
+            // // // 2: Decoding stage using CPU execute
+            // for (int step = 1; step < 100; step++) {
+            //     cpuExe.run(&cpuNet, {input});
+            //     auto result = cpuExe.result();
+            //     auto token_idx = postProcessing(result[0], input);
+            //     if (token_idx == 2) { // "</s>"
+            //         break;
+            //     }
+            //     auto out_token = tokenizer.detokenize({token_idx});
+            //     std::cout << out_token << std::flush;
 
-                if (step == 1) {
-                    cpu_backend->switchDecodeTag();
-                }
-            }
+            //     if (step == 1) {
+            //         cpu_backend->switchDecodeTag();
+            //     }
+            // }
         } while (false);
         printf("\n");
     }

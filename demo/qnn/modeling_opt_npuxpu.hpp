@@ -79,7 +79,7 @@ void opt_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_
     auto *i = _Input(c);
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.decoder.embed_tokens");
 
-    for (int layer = 0; layer < 4; ++layer) {
+    for (int layer = 0; layer < 1; ++layer) {
 
          if (layer != 0) // for graph 0, it will be offloaded to CPU in QNNOptNet::convert
             _SubgraphBegin(c, MLLM_CPU);
@@ -133,9 +133,9 @@ void opt_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_
 
         i = *i + res;
     }
-    _SubgraphBegin(c, MLLM_CPU);
-    i = _LayerNorm({i}, hidden_dim, true, 1e-5, (string) "model.decoder.final_layer_norm");
-    i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
+    // _SubgraphBegin(c, MLLM_CPU);
+    // i = _LayerNorm({i}, hidden_dim, true, 1e-5, (string) "model.decoder.final_layer_norm");
+    // i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
 }
 
 NetTensor * CPUAttention(Context *c, NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name) {
