@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
     auto *cpu_ctx = cpu_ctx_ptr.get();
 
     // cache_max should be longer than seqLength
-    modeling::qwen_npu_t1(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
+    modeling::qwen_npu_t2(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
     modeling::opt_cpu(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
 
     BackendConfig bn;
