@@ -158,13 +158,14 @@ int32_t hvx_rmsnorm_af(
     sum_value.f = 0.0f;
 
 
-    sum = Q6_Vsf_equals_Vqf32(sum);
+    HVX_Vector zero = Q6_V_vzero();
 
-    for (int32_t i = 0; i < 32; i++) {
-      sum_value.f += *((float*)&sum + i);
+    for (int32_t i = 64; i >= 4; i >>= 1)
+    {
+        sum = Q6_Vqf32_vadd_Vqf32Vqf32(sum, Q6_V_vlalign_VVR(sum, zero, i));
     }
 
-    sum_value.f = 1.0f / sqrtf(sum_value.f / size + epsilon_);
+    sum_value.f = 1.0f / sqrtf(sum[31] / size + epsilon_);
 
 
     // x * 1/rsqrt(sum)
