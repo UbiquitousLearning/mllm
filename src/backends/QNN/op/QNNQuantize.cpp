@@ -43,6 +43,29 @@ ErrorCode QNNQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 
     std::cout << name() << quantScale << std::endl;
 
+    uint32_t paramsQuantizeDimension[1] = {1};
+    auto paramsQuantizeName = name() + "quantize_params";
+    vector<Qnn_Param_t> paramsQuantize = {
+        {.paramType = QNN_PARAMTYPE_TENSOR,
+         .name = "scale",
+         {.tensorParam = 
+            (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
+                {.v1 = {
+                    .id = 0,
+                    .name = paramsQuantizeName.c_str(),
+                    .type = QNN_TENSOR_TYPE_STATIC,
+                    .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                    .dataType = QNN_DATATYPE_FLOAT_32,
+                    .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                         QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                         {.scaleOffsetEncoding = {.scale  = 0.0000000000000000f,
+                                                                  .offset = 0}}},
+                    .rank = 1,
+                    .dimensions = paramsQuantizeDimension,
+                    .memType = QNN_TENSORMEMTYPE_RAW,
+                    {.clientBuf = {.data = (uint8_t*)&quantScale,
+                                    .dataSize = sizeof(float)}}}}}}}};
+
     vector<Qnn_Tensor_t> outputTensor = {{QNN_TENSOR_VERSION_1,
                                           {.v1 = {
                                                .id = 0,
@@ -58,7 +81,7 @@ ErrorCode QNNQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
                                                .memType = QNN_TENSORMEMTYPE_RAW,
                                                {.clientBuf = {.data = nullptr,
                                                               .dataSize = 0}}}}}};
-    return graphAddNode(name(), "Quantize", {inputs[0]->name()}, outputTensor);
+    return graphAddNode(name(), "LLaMAQuantize", {inputs[0]->name()}, outputTensor, paramsQuantize, "LLaMAPackage");
 }
 ErrorCode QNNQuantize::load(AbstructLoader &loader) {
 
