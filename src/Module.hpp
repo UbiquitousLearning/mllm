@@ -145,7 +145,7 @@ public:
                 if(input.batch() == 0){
                     Tensor::gph_[input.name()] = input;
                 }
-                if(input.sequence()!=1 && !last_shape_bshd_.empty()){
+                if(inputs[0].sequence()!=1 && !last_shape_bshd_.empty()){
                     // if LLM/VLLM model, the `need_setup` should be `true`
                     if(input.batch() == last_shape_bshd_[i][0] & 
                         input.sequence() == last_shape_bshd_[i][1] & 
