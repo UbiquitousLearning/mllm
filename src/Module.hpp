@@ -31,7 +31,7 @@ private:
 public:
     static map<BackendType, Backend *> backends;
     static AbstructLoader *loader;
-    static TensorStatus tensor_status;
+    // static TensorStatus tensor_status;
     static bool doLoad;
 
     Module() = default;
@@ -59,8 +59,8 @@ public:
     }
 
     void load(string path) {
-        Tensor::gph_.clear();
-        Module::tensor_status = TENSOR_STATIC_INIT;
+        Tensor::graphs.clear();
+        Tensor::tensor_status = TENSOR_STATIC_INIT;
 
         mllm_time_init();
         initLoader(path);
@@ -68,8 +68,8 @@ public:
         vector<Tensor> tmps;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
-            Tensor::gph_[std::to_string(i)] = Tensor(Module::backends[MLLM_CPU]);
-            tmps.push_back(Tensor::gph_[std::to_string(i)]);
+            Tensor::graphs[std::to_string(i)] = std::make_shared<Tensor>(Module::backends[MLLM_CPU]);
+            tmps.push_back(*Tensor::graphs[std::to_string(i)]);
         }
         vector<std::any> alternate_args={
             {},
@@ -95,25 +95,25 @@ public:
         uint64_t time_end = mllm_time_us();
         load_time_ = (time_end - time_start) / 1000.0F;//ms
         Module::doLoad = false;
-        Tensor::gph_.clear();
+        Tensor::graphs.clear();
     }
 
     void load(AbstructLoader &param_loader) {
-        Tensor::gph_.clear();
-        Module::tensor_status = TENSOR_STATIC_INIT;
+        Tensor::graphs.clear();
+        Tensor::tensor_status = TENSOR_STATIC_INIT;
         
         loader = &param_loader;
         Module::doLoad = true;
         vector<Tensor> tmps;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
-            Tensor::gph_[std::to_string(i)] = Tensor(Module::backends[MLLM_CPU]);
-            tmps.push_back(Tensor::gph_[std::to_string(i)]);
+            Tensor::graphs[std::to_string(i)] = std::make_shared<Tensor>(Module::backends[MLLM_CPU]);
+            tmps.push_back(*Tensor::graphs[std::to_string(i)]);
         }
         vector<int> tmpt = {0, 0};
         operator()(tmps, tmpt);
         Module::doLoad = false;
-        Tensor::gph_.clear();
+        Tensor::graphs.clear();
     }
 
     virtual vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) = 0;
@@ -130,8 +130,8 @@ public:
         }
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
             if(prefilling_token_size_==0){ // first time init
-                if(!Tensor::gph_.empty()){
-                    Tensor::gph_.clear();
+                if(!Tensor::graphs.empty()){
+                    Tensor::graphs.clear();
                 }
                 prefilling_token_size_ = inputs[0].sequence();
             }else if(decoding_token_size_==0){
@@ -141,10 +141,7 @@ public:
             for (int i = 0; i < inputs.size(); i++) {
                 auto &input = inputs[i];
                 input.setTtype(TensorType::NORMAL_TENSOR);
-                input.status() = TENSOR_STATIC_INIT;
-                if(input.batch() == 0){
-                    Tensor::gph_[input.name()] = input;
-                }
+                Tensor::graphs[input.name()] = std::shared_ptr<Tensor>(&input, [](Tensor *) {});
                 if(inputs[0].sequence()!=1 && !last_shape_bshd_.empty()){
                     // if LLM/VLLM model, the `need_setup` should be `true`
                     if(input.batch() == last_shape_bshd_[i][0] & 
@@ -155,16 +152,14 @@ public:
                     }
                 }
             }
-            tensor_status = TENSOR_STATIC_INIT;
+            Tensor::tensor_status = TENSOR_STATIC_INIT;
 
-            uint64_t time_start = mllm_time_us();
+            // uint64_t time_start = mllm_time_us();
             if(need_setup){
                 Forward(inputs, anyArgs);
             }
-            for (auto &input : inputs) {
-                input.status() = TENSOR_STATIC_READY;
-            }
-            tensor_status = TENSOR_STATIC_READY;
+            Tensor::tensor_status = TENSOR_STATIC_READY;
+            uint64_t time_start = mllm_time_us();
             auto output = Forward(inputs, anyArgs);
             uint64_t time_end = mllm_time_us();
 
@@ -241,6 +236,11 @@ public:
             double mean_time = sum_time / (inference_times_.size());
             std::cout << "  Inference latency: " << mean_time/1000.0F << " s" << std::endl;
         }
+        double sum_time = std::accumulate(std::begin(inference_times_), std::end(inference_times_), 0.0);
+        
+        std::cout<<sum_time<< " - "<<Tensor::forward_times<<" = "<<sum_time-Tensor::forward_times<<std::endl;
+        std::cout<<Tensor::forward_times<< " - "<<Tensor::forward_times_2<<" = "<<Tensor::forward_times-Tensor::forward_times_2<<std::endl;
+
         std::cout << "===========================================" << std::endl;
     }
 };

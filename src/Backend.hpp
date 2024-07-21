@@ -18,14 +18,8 @@ class Backend;
 
 class TensorFunction{
 public:
-    virtual void setup(Tensor &output, vector<Tensor*> &inputs, vector<float> args) = 0;
-    virtual void execute(Tensor &output, vector<Tensor*> &inputs, vector<float> args) = 0;
-    virtual void setup(vector<Tensor*> &output, vector<Tensor*> &inputs, vector<float> args){
-        setup(*output[0], inputs, args);
-    }
-    virtual void execute(vector<Tensor*> &output, vector<Tensor*> &inputs, vector<float> args){
-        execute(*output[0], inputs, args);
-    }
+    virtual void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args)=0;
+    virtual void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args)=0;
 };
 class Backend {
 public:
