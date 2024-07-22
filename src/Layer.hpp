@@ -37,12 +37,12 @@ public:
     bool ready() {
         return init_;
     }
+    bool loaded = false;
     static map<string, string> layername_2_tensorname;
 
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
     }
-    bool loaded = false;
 
     Tensor &operator()(Tensor &input0, Tensor &input1) {
         return _2I1O_OP(input0, input1);
@@ -50,14 +50,6 @@ public:
 
     Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2) {
         return _3I1O_OP(input0, input1, input2);
-    }
-
-    Tensor &operator()(Tensor &input0, int activate_input_dim, int activate_output_dim) {
-        auto activate_input_dim_tensor = Tensor(1, 1, 1, 1, backend_, true);
-        activate_input_dim_tensor.setDataAt<float>(0,0,0,0,(float)activate_input_dim);
-        auto activate_output_dim_tensor = Tensor(1, 1, 1, 1, backend_, true);
-        activate_output_dim_tensor.setDataAt<float>(0,0,0,0,(float)activate_output_dim);
-        return _3I1O_only1map_OP(input0, activate_input_dim_tensor, activate_output_dim_tensor);
     }
 
 private:
@@ -96,8 +88,6 @@ private:
             }
         }
         for (const auto x_name : renameX_names) {
-        // for (auto it = renameX_names.rbegin(); it != renameX_names.rend(); ++it) {
-            // const auto& x_name = *it;
             auto name = name_X_to_num(x_name, saved_list_idx);
             vector<int> shape = {Tensor::graphs[x_name]->batch(), Tensor::graphs[x_name]->head(), 
                                  Tensor::graphs[x_name]->sequence(), Tensor::graphs[x_name]->dimension()};
@@ -510,8 +500,9 @@ public:
         param_["out_dim_"] = (float) out_dim;
         init(std::move(name), OpType::SPARSEIDLINEAR);
     }
-
-    // no need to defined a new operator() function, just use the default one
+    Tensor &operator()(Tensor &input) {
+            return _1I1O_OP(input);
+    }
 };
 
 class SparseLinear final : public Layer{
@@ -521,8 +512,9 @@ public:
         param_["out_dim_"] = (float) out_dim;
         init(std::move(name), OpType::SPARSELINEAR);
     }
-
-    // no need to defined a new operator() function, just use the default one
+    Tensor &operator()(Tensor &input) {
+            return _1I1O_OP(input);
+    }
 };
 
 class Predictor final : public Layer {
@@ -532,19 +524,27 @@ public:
         param_["out_dim"] = (float) out_dim;
         init(std::move(name), OpType::PREDICTOR);
     }
-
-    // no need to defined a new operator() function, just use the default one
+    Tensor &operator()(Tensor &input) {
+            return _1I1O_OP(input);
+    }
 };
 
 class ElasticLinear final : public Layer {
 public:
+    ElasticLinear() = default;
     explicit ElasticLinear(int in_features, int out_features, bool bias, std::string name) {
         param_["in_features"] = in_features;
         param_["out_features"] = out_features;
         param_["bias"] = (float)bias;
         init(std::move(name), OpType::ELASTICLINEAR);
     }
-    // Use: Tensor &operator()(Tensor &input0, int activate_input_dim, int activate_output_dim) {
+    Tensor &operator()(Tensor &input0, int activate_input_dim, int activate_output_dim) {
+        auto activate_input_dim_tensor = Tensor(1, 1, 1, 1, backend_, true);
+        activate_input_dim_tensor.setDataAt<float>(0,0,0,0,(float)activate_input_dim);
+        auto activate_output_dim_tensor = Tensor(1, 1, 1, 1, backend_, true);
+        activate_output_dim_tensor.setDataAt<float>(0,0,0,0,(float)activate_output_dim);
+        return _3I1O_only1map_OP(input0, activate_input_dim_tensor, activate_output_dim_tensor);
+    }
 };
 
 

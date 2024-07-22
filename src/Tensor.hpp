@@ -76,9 +76,6 @@ public:
     static TensorStatus tensor_status;
     // static double forward_times;
     // static double forward_times_2;
-    std::map<Chl, int>& chls() {
-        return chls_;
-    }
 private:
     std::map<Chl, int> chls_={{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3},
                                 {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
@@ -95,8 +92,6 @@ private:
     int count_{};
     int allocated_ = 0;
     bool transed_ = false;
-
-    TensorStatus status_ = TENSOR_STATIC_INIT;
 
     // used for ChildTensor
     vector<int> shape_offset_;
@@ -181,7 +176,9 @@ public:
      *        no matter what the value of ctype_ is, these functions will return the size of the corresponding dimension.
      * \return the size of the corresponding dimension
      */
-
+    std::map<Chl, int>& chls() {
+        return chls_;
+    }
     /*
     int batch() const {
         if (ctype_ == SBHD) {
@@ -682,9 +679,6 @@ public:
 
     map<string, shared_ptr<Tensor>> getGraph() {
         return  graphs;
-    }
-    TensorStatus& status() {
-        return status_;
     }
 
     void changeCtype(int size = 0) {
@@ -1261,9 +1255,7 @@ public:
 
     template <typename Dtype>
     void saveNData(string new_name = "", string ex = "") {
-        // if (status() == TENSOR_STATIC_ALLOCED || (TENSOR_STATIC_SHAPED == status()&& shape().size()>0)) {
-        // if (status() == TENSOR_STATIC_READY && shape().size()>0) {
-        if ( shape().size()>0) {
+        if (Tensor::tensor_status == TENSOR_STATIC_READY && shape().size()>0) {
             if (ctype() == BTHWC || ctype() == BCTHW) {
                 save5Data<Dtype>(ex);
                 return;
