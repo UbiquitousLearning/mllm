@@ -72,7 +72,7 @@ ErrorCode QNNQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
                                                .name = outName.c_str(),
                                                .type = getOutputTensorType(outputs[0]),
                                                .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                               .dataType = QNN_DATATYPE_SFIXED_POINT_8,
+                                               .dataType = QNN_DATATYPE_UFIXED_POINT_8,
                                                .quantizeParams = {QNN_DEFINITION_DEFINED,
                                                                   QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
                                                                   {.scaleOffsetEncoding = {.scale = quantScale, .offset = 0}}},
