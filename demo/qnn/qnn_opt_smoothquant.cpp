@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
             // 1: Prefill stage using NPU chunk execute
             npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
-            result[0]->printData<float>();
+            // result[0]->printData<int8_t>();
 
             // auto token_idx = postProcessing(result[0], input);
             // if (token_idx == 2) { // "</s>"

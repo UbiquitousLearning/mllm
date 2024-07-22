@@ -223,6 +223,45 @@ int32_t qhmath_hvx_quantize_ahf(
     return 0;
 }
 
+static HVX_INLINE_ALWAYS HVX_Vector qhmath_hvx_rtz_vw(HVX_Vector vout, HVX_Vector vxl, HVX_Vector vexp) {
+
+    // Round to zero adjustment
+    HVX_Vector vzero =  Q6_V_vzero();
+    // Shift mantissa back to check for truncated bits
+    HVX_Vector vchk = Q6_Vw_vasl_VwVw(vout, vexp);
+    // If (bits truncated/differ) && (vout negative) -> round to zero, else no change
+    HVX_VectorPred q1_vxlo_equ = Q6_Q_vcmp_eq_VwVw(vxl, vchk);
+    HVX_VectorPred q1_vxlo_neq = Q6_Q_not_Q(q1_vxlo_equ);
+    HVX_VectorPred q1_vxlo_rtz = Q6_Q_vcmp_gtand_QVwVw(q1_vxlo_neq, vzero, vout);
+    HVX_Vector vone  = Q6_V_vsplat_R(1);
+    HVX_Vector vout1 = Q6_Vw_vadd_VwVw(vout, vone);
+    vout  = Q6_V_vmux_QVV(q1_vxlo_rtz, vout1, vout);
+
+    return vout;
+}
+
+static HVX_INLINE_ALWAYS HVX_Vector qhmath_hvx_vw_convert_vqf32_rmode(HVX_Vector vxl, int rmode) {
+
+    HVX_Vector exp_mask = Q6_V_vsplat_R(0xff);
+    HVX_Vector exp_offset = Q6_V_vsplat_R(149);   // 127 exp0 + 22 frac
+
+    HVX_Vector el_exponent, vout;
+    // Obtain the exponent part: bits (0-7)
+    el_exponent = Q6_V_vand_VV(exp_mask, vxl);
+    // Obtain the un-biased exponent: qfp offset(127) + max normalization factor(22 + 8) - exp = 149 - xp + 8
+    el_exponent = Q6_Vw_vsub_VwVw(exp_offset, el_exponent);
+    // Shift away the exponent (by 8)
+    vxl = Q6_Vw_vasr_VwR(vxl, 8);
+    // obtain the integer by compensating for exponent.
+    vout = Q6_Vw_vasr_VwVw(vxl, el_exponent);
+
+    if (rmode == 0) {   // Round to zero
+        vout = qhmath_hvx_rtz_vw(vout, vxl, el_exponent);
+    }
+
+    return vout;
+}
+
 int32_t qhmath_hvx_quantize_af(
     float *restrict input,
     float *restrict output,
@@ -256,7 +295,7 @@ int32_t qhmath_hvx_quantize_af(
     sline3p = *iptr++;
     sline4p = *iptr++;
 
-    float es = 0.5-1e-6; 
+    float es = 128.0+0.5-1e-6; 
     low_level_vec = Q6_V_vsplat_R(float_to_bits(low_level));
     high_level_vec = Q6_V_vsplat_R(float_to_bits(high_level));
     scale_vec = Q6_V_vsplat_R(float_to_bits(scale));
@@ -285,7 +324,8 @@ int32_t qhmath_hvx_quantize_af(
             sout1 = Q6_Vsf_equals_Vqf32(sout1);
             sout1 = Q6_Vsf_vmin_VsfVsf(sout1, high_level_vec);
             sout1 = Q6_Vsf_vmax_VsfVsf(sout1, low_level_vec);
-            sout1 = Q6_Vw_equals_Vsf(sout1);
+            // sout1 = Q6_Vw_equals_Vsf(sout1);
+            sout1 = qhmath_hvx_vw_convert_vqf32_rmode(Q6_Vqf32_vadd_VsfVsf(sout1, Q6_V_vzero()), 0);
 
             sline2c = *iptr++;
             sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t) (input+1));
@@ -295,7 +335,8 @@ int32_t qhmath_hvx_quantize_af(
             sout2 = Q6_Vsf_equals_Vqf32(sout2);
             sout2 = Q6_Vsf_vmin_VsfVsf(sout2, high_level_vec);
             sout2 = Q6_Vsf_vmax_VsfVsf(sout2, low_level_vec);
-            sout2 = Q6_Vw_equals_Vsf(sout2);
+            // sout2 = Q6_Vw_equals_Vsf(sout2);
+            sout2 = qhmath_hvx_vw_convert_vqf32_rmode(Q6_Vqf32_vadd_VsfVsf(sout2, Q6_V_vzero()), 0);
 
             sline3c = *iptr++;
             sline3 = Q6_V_valign_VVR(sline3c, sline3p, (size_t) (input+2));
@@ -305,7 +346,8 @@ int32_t qhmath_hvx_quantize_af(
             sout3 = Q6_Vsf_equals_Vqf32(sout3);
             sout3 = Q6_Vsf_vmin_VsfVsf(sout3, high_level_vec);
             sout3 = Q6_Vsf_vmax_VsfVsf(sout3, low_level_vec);
-            sout3 = Q6_Vw_equals_Vsf(sout3);
+            // sout3 = Q6_Vw_equals_Vsf(sout3);
+            sout3 = qhmath_hvx_vw_convert_vqf32_rmode(Q6_Vqf32_vadd_VsfVsf(sout3, Q6_V_vzero()), 0);
 
             sline4c = *iptr++;
             sline4 = Q6_V_valign_VVR(sline4c, sline4p, (size_t) (input+3));
@@ -315,7 +357,8 @@ int32_t qhmath_hvx_quantize_af(
             sout4 = Q6_Vsf_equals_Vqf32(sout4);
             sout4 = Q6_Vsf_vmin_VsfVsf(sout4, high_level_vec);
             sout4 = Q6_Vsf_vmax_VsfVsf(sout4, low_level_vec);
-            sout4 = Q6_Vw_equals_Vsf(sout4);
+            // sout4 = Q6_Vw_equals_Vsf(sout4);
+            sout4 = qhmath_hvx_vw_convert_vqf32_rmode(Q6_Vqf32_vadd_VsfVsf(sout4, Q6_V_vzero()), 0);
 
 
             HVX_Vector reql_h = Q6_Vh_vpack_VwVw_sat(sout2, sout1);
@@ -360,6 +403,8 @@ GraphStatus llamaquantizeImpl(TensorType1 &out_0,
 
   float scale_ = scale(0,0,0,0);
 
+  scale_ = 1.0f/scale_;
+
   size_t size = b_in*h_in*w_in*d_in;
   DType dtype = in_0.get_dtype();
 
@@ -368,14 +413,14 @@ GraphStatus llamaquantizeImpl(TensorType1 &out_0,
     auto in_ptr = (__fp16*)in_0.raw_data_const();
     auto out_ptr = (__fp16*)out_0.raw_data();
     
-    qhmath_hvx_quantize_ahf(in_ptr, out_ptr, size, -128.0f, 127.0f, scale_);
+    qhmath_hvx_quantize_ahf(in_ptr, out_ptr, size, 0.0f, 255.0f, scale_);
 
   } else {
   
     // NHWC
     auto in_ptr = (float*)in_0.raw_data_const();
     auto out_ptr = (float*)out_0.raw_data();
-    qhmath_hvx_quantize_af(in_ptr, out_ptr, size, -128.0f, 127.0f, scale_);
+    qhmath_hvx_quantize_af(in_ptr, out_ptr, size, 0.0f, 255.0f, scale_);
 
   }
 

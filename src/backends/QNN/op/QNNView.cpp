@@ -122,7 +122,7 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         int pos = scaleName.find(wordToRemove);
         if (pos != -1) {
             scaleName.erase(pos, wordToRemove.length());
-            split_variable = ".out_proj";
+            split_variable = ".o_proj";
         }
 
         wordToRemove = "-01_view_";

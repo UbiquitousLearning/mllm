@@ -221,7 +221,7 @@ ErrorCode QNNSplitInput::load(AbstructLoader &loader) {
         scaleName.erase(pos, wordToRemove.length());
 
         // o
-        scale1_.setName(scaleName + "out_proj.input_scale");
+        scale1_.setName(scaleName + "o_proj.input_scale");
         scale1_.reshape(1, 1, 1, 1);
         scale1_.setDtype(MLLM_TYPE_F32);
         scale1_.alloc();
@@ -249,7 +249,7 @@ ErrorCode QNNSplitInput::load(AbstructLoader &loader) {
         scaleName.erase(pos, wordToRemove.length());
 
         // fc1
-        scale1_.setName(scaleName + "fc1.input_scale");
+        scale1_.setName(scaleName + "up_proj.input_scale");
         scale1_.reshape(1, 1, 1, 1);
         scale1_.setDtype(MLLM_TYPE_F32);
         scale1_.alloc();
