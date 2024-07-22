@@ -72,45 +72,42 @@ bool Tensor::reshape(const int batch, const int channel, const int time, const i
     return reshape(shape);
 }
 
-map<string, Tensor> Tensor::gph_;
+map<string, shared_ptr<Tensor>> Tensor::graphs;
+TensorStatus Tensor::tensor_status;
 
 Tensor& Tensor::getFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors){
-    if (Module::doLoad) { return *this; }
-    TensorFunction *func = backend_->funcCreate(type);
     const std::string next_name = name_ + "-" + suffix;
-    switch (status_) {
+    if (Tensor::graphs.find(name_) == Tensor::graphs.end()) {
+        Tensor::graphs[name_] = std::shared_ptr<Tensor>(this, [](Tensor *) {});
+    }
+    if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
+        Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
+        Tensor::graphs[next_name]->setName(next_name);
+    }
+    if (Module::doLoad) { 
+        return  *Tensor::graphs[next_name];
+    }
+    TensorFunction *func = backend_->funcCreate(type);
+    std::vector<Tensor*> tensorPtrs = {Tensor::graphs[name_].get()};
+    for (auto &other_tensor : other_tensors) {
+        tensorPtrs.push_back(other_tensor);
+    }
+    switch (Tensor::tensor_status) {
     case TENSOR_STATIC_INIT: {
-        if (gph_.find(name_) == gph_.end()) {
-            gph_[name_] = *this;
-            gph_[name_].status() = status_;
-        }
-        if (gph_.find(next_name) == gph_.end()) {
-            gph_[next_name] = Tensor(backend_);
-            gph_[next_name].setName(next_name);
-        }
-        std::vector<Tensor*> tensorPtrs = {&gph_[name_]};
-        for (auto &other_tensor : other_tensors) {
-            tensorPtrs.push_back(other_tensor);
-        }
-        func->setup(gph_[next_name], tensorPtrs, float_args);
+        func->setup({Tensor::graphs[next_name].get()}, tensorPtrs, float_args);
         break;
     }
     case TENSOR_STATIC_READY: {
-        std::vector<Tensor*> tensorPtrs = {&gph_[name_]};
-        for (auto &other_tensor : other_tensors) {
-            tensorPtrs.push_back(other_tensor);
-        }
-        func->execute(gph_[next_name], tensorPtrs, float_args);
+        func->execute({Tensor::graphs[next_name].get()},tensorPtrs, float_args);
         if(saveNDataFlag){
-            Tensor::gph_[next_name].saveData<float>();
+            Tensor::graphs[next_name]->saveData<float>();
         }
         break;
     }
     default: {
     }
     }
-    gph_[next_name].status() = status_;
-    return gph_[next_name];
+    return  *Tensor::graphs[next_name];
 }
 
 Tensor &Tensor::operator+(float data) {
@@ -228,40 +225,41 @@ Tensor &Tensor::where(float value, Chl axis) {
  */
 
 Tensor& Tensor::getStaticFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors){
-    if (Module::doLoad) { return Tensor::gph_["0"]; }
     auto backend_h = Module::backends[MLLM_CPU];
     if(!other_tensors.empty() && other_tensors[0]->backend_!= nullptr){
         backend_h = other_tensors[0]->backend();
     }
     TensorFunction *func = backend_h->funcCreate(type);
     const std::string next_name = suffix;
-    switch (Module::tensor_status) {
+    if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
+        Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_h);
+        Tensor::graphs[next_name]->setName(next_name);
+    }
+    if (Module::doLoad) { 
+        return  *Tensor::graphs[next_name];
+    }
+    switch (Tensor::tensor_status) {
     case TENSOR_STATIC_INIT: {
-        if (gph_.find(next_name) == gph_.end()) {
-            gph_[next_name] = Tensor(backend_h);
-            gph_[next_name].setName(next_name);
-        }
-        func->setup(gph_[next_name], other_tensors, float_args);
+        func->setup({Tensor::graphs[next_name].get()}, other_tensors, float_args);
         break;
     }
     case TENSOR_STATIC_READY: {
-        func->execute(gph_[next_name], other_tensors, float_args);
+        func->execute({Tensor::graphs[next_name].get()}, other_tensors, float_args);
         if(saveNDataFlag){
-            Tensor::gph_[next_name].saveData<float>();
+            Tensor::graphs[next_name]->saveData<float>();
         }
         break;
     }
     default: {
     }
     }
-    gph_[next_name].status() = Module::tensor_status;
-    return gph_[next_name];
+    return *Tensor::graphs[next_name];
 }
 
 Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
     vector<Tensor *> inputs = {};
     for (const auto &input_tensor : input_tensors) {
-        inputs.push_back(&gph_[input_tensor.name()]);
+        inputs.push_back(Tensor::graphs[input_tensor.name()].get());
     }
     const std::string next_name = input_tensors[0].name() + "-cat";
     return getStaticFunc(next_name, FUNC_CAT, {(float)axis}, inputs);
@@ -269,7 +267,7 @@ Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
 
 Tensor &Tensor::mm(Tensor &input0, Tensor &input1) {
     const std::string next_name = input0.name() + "-mm-" + input1.name();
-    return getStaticFunc(next_name, FUNC_MM, {}, {&gph_[input0.name()], &gph_[input1.name()]});
+    return getStaticFunc(next_name, FUNC_MM, {}, {Tensor::graphs[input0.name()].get(), Tensor::graphs[input1.name()].get()});
 }
 
 Tensor &Tensor::range(int start, int end) {
@@ -279,41 +277,38 @@ Tensor &Tensor::range(int start, int end) {
 
 std::vector<Tensor> Tensor::getStaticFuncOupts(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, 
                                     vector<Tensor *> input_tensors){
-    if (Module::doLoad) { 
-        std::vector<Tensor> outPtrs;
-        for (auto out_name: out_names) {
-            outPtrs.push_back(Tensor::gph_["0"]);
-        }
-        return outPtrs; 
-    }
     auto backend_h = Module::backends[MLLM_CPU];
     if(!input_tensors.empty() && input_tensors[0]->backend_!= nullptr){
         backend_h = input_tensors[0]->backend();
     }
-    TensorFunction *func = backend_h->funcCreate(type);
-    switch (Module::tensor_status) {
-    case TENSOR_STATIC_INIT: {
-        std::vector<Tensor*> outPtrs;
-        for (auto out_name: out_names) {
-            if (gph_.find(out_name) == gph_.end()) {
-                gph_[out_name] = Tensor(backend_h);
-                gph_[out_name].setName(out_name);
-            }
-            outPtrs.push_back(&gph_[out_name]);
+    for (auto out_name: out_names) {
+        if (Tensor::graphs.find(out_name) == Tensor::graphs.end()) {
+            Tensor::graphs[out_name] = std::make_shared<Tensor>(backend_h);
+            Tensor::graphs[out_name]->setName(out_name);
         }
-        
+    }
+    if (Module::doLoad) {
+        std::vector<Tensor> results;
+        for (auto out_name: out_names) {
+            results.push_back(*Tensor::graphs[out_name]);
+        }
+        return results;
+    }
+    TensorFunction *func = backend_h->funcCreate(type);
+    std::vector<Tensor*> outPtrs;
+    for (auto out_name: out_names) {
+        outPtrs.push_back(Tensor::graphs[out_name].get());
+    }
+    switch (Tensor::tensor_status) {
+    case TENSOR_STATIC_INIT: {
         func->setup(outPtrs, input_tensors, float_args);
         break;
     }
     case TENSOR_STATIC_READY: {
-        std::vector<Tensor*> outPtrs;
-        for (auto out_name: out_names) {
-            outPtrs.push_back(&gph_[out_name]);
-        }
         func->execute(outPtrs, input_tensors, float_args);
         if(saveNDataFlag){
             for (auto out_name: out_names) {
-                Tensor::gph_[out_name].saveData<float>();
+                Tensor::graphs[out_name]->saveData<float>();
             }
         }
         break;
@@ -323,8 +318,7 @@ std::vector<Tensor> Tensor::getStaticFuncOupts(vector<std::string> out_names, co
     }
     std::vector<Tensor> results;
     for (auto out_name: out_names) {
-        gph_[out_name].status() = Module::tensor_status;
-        results.push_back(gph_[out_name]);
+        results.push_back(*Tensor::graphs[out_name]);
     }
     return results;
 }
@@ -338,7 +332,7 @@ vector<Tensor> Tensor::split(Tensor& input, std::vector<int> each_dims, Chl spli
     }
     args.push_back(split_dim);
     args.push_back(head_size);
-    std::vector<Tensor*> input_tensors = {&gph_[input.name()]};
+    std::vector<Tensor*> input_tensors = {Tensor::graphs[input.name()].get()};
     return getStaticFuncOupts(next_names, FUNC_SPLIT, args, input_tensors);
 }
 

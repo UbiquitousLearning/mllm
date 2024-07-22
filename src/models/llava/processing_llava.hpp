@@ -18,7 +18,7 @@ class LLaVAProcessor final {
         int width = img[0][0].size();
         Tensor tensor1(1, height, channel, width, Module::backends[type], true);
         tensor1.setName(std::move(name));
-        tensor1.status() = TENSOR_STATIC_INIT;
+        Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);
         for (int h = 0; h < height; ++h) {
             for (int c = 0; c < channel; ++c) {

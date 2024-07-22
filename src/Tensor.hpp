@@ -7,6 +7,8 @@
 #include <iomanip>
 #include <cmath>
 #include <fstream>
+#include <map>
+#include <memory>
 #include <vector>
 #ifdef _WIN32
 #include <direct.h>
@@ -64,16 +66,16 @@ public:
     }
     /*
     ~Tensor() {
-        if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_&& gph_.find(name_) == gph_.end()) {
+        if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_&& graphs.find(name_) == graphs.end()) {
             backend_->free(host_ptr_);
             host_ptr_ = nullptr;
         }
     }
     */
-    static map<string, Tensor> gph_;
-    std::map<Chl, int>& chls() {
-        return chls_;
-    }
+    static map<string, shared_ptr<Tensor>> graphs;
+    static TensorStatus tensor_status;
+    // static double forward_times;
+    // static double forward_times_2;
 private:
     std::map<Chl, int> chls_={{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3},
                                 {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
@@ -90,9 +92,6 @@ private:
     int count_{};
     int allocated_ = 0;
     bool transed_ = false;
-
-    TensorStatus status_ = TENSOR_STATIC_INIT;
-    // map<string, Tensor> gph_;
 
     // used for ChildTensor
     vector<int> shape_offset_;
@@ -177,7 +176,9 @@ public:
      *        no matter what the value of ctype_ is, these functions will return the size of the corresponding dimension.
      * \return the size of the corresponding dimension
      */
-
+    std::map<Chl, int>& chls() {
+        return chls_;
+    }
     /*
     int batch() const {
         if (ctype_ == SBHD) {
@@ -676,11 +677,8 @@ public:
         memcpy(host_ptr_, source->host_ptr_, cntSize());
     }
 
-    map<string, Tensor> getGraph() {
-        return  gph_;
-    }
-    TensorStatus& status() {
-        return status_;
+    map<string, shared_ptr<Tensor>> getGraph() {
+        return  graphs;
     }
 
     void changeCtype(int size = 0) {
@@ -1257,8 +1255,7 @@ public:
 
     template <typename Dtype>
     void saveNData(string new_name = "", string ex = "") {
-        // if (status() == TENSOR_STATIC_ALLOCED || (TENSOR_STATIC_SHAPED == status()&& shape().size()>0)) {
-        if (status() == TENSOR_STATIC_READY && shape().size()>0) {
+        if (Tensor::tensor_status == TENSOR_STATIC_READY && shape().size()>0) {
             if (ctype() == BTHWC || ctype() == BCTHW) {
                 save5Data<Dtype>(ex);
                 return;

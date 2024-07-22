@@ -14,16 +14,16 @@
 using namespace mllm;
 
 class ElasticMultiHeadAttention final : public Module {
-    Layer q_proj;
-    Layer k_proj;
-    Layer v_proj;
+    ElasticLinear q_proj;
+    ElasticLinear k_proj;
+    ElasticLinear v_proj;
     Layer q_rope;
     Layer k_rope;
     Layer k_cache;
     Layer v_cache;
     Layer mask;
     Layer softmax;
-    Layer o_proj;
+    ElasticLinear o_proj;
     int head_size_{};
     int kv_head_size_{};
     int attn_hidden_dim_{};
@@ -88,10 +88,10 @@ public:
 };
 
 class ElasticLLaMAMLP final : public Module {
-    Layer gate_proj;
+    ElasticLinear gate_proj;
     Layer silu;
-    Layer up_proj;
-    Layer down_proj;
+    ElasticLinear up_proj;
+    ElasticLinear down_proj;
 
 public:
     ElasticLLaMAMLP() = default;
