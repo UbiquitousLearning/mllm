@@ -1413,19 +1413,6 @@ void vec_dot_q8_0_q8_0(int n, float * __restrict s, const void * __restrict vx, 
     *s = hsum_float_8(acc);
 #endif
 }
-#if !defined(__ARM_FEATURE_DOTPROD)
-
-inline static int32x4_t mllm_vdotq_s32(int32x4_t acc, int8x16_t a, int8x16_t b) {
-    const int16x8_t p0 = vmull_s8(vget_low_s8(a), vget_low_s8(b));
-    const int16x8_t p1 = vmull_s8(vget_high_s8(a), vget_high_s8(b));
-
-    return vaddq_s32(acc, vaddq_s32(vpaddlq_s16(p0), vpaddlq_s16(p1)));
-}
-#else
-
-#define mllm_vdotq_s32(a, b, c) vdotq_s32(a, b, c)
-
-#endif
 
 void vec_dot_q8_0_q8_0(const int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy, float scale1, float scale2) {
     const int qk = QK8_0;

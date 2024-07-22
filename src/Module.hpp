@@ -10,6 +10,7 @@
 #include "Backend.hpp"
 #include "Timing.hpp"
 #include "backends/cpu/CPUBackend.hpp"
+#include <memory>
 #ifdef USE_QNN
 #include "backends/qnn/QNNBackend.hpp"
 #endif
@@ -30,6 +31,7 @@ private:
     int decoding_token_size_ = 0;
     vector<double> inference_times_;
     vector<vector<int>> last_shape_bshd_;
+    Backend* backend_;
 
 public:
     static map<BackendType, Backend *> backends;
@@ -72,15 +74,15 @@ public:
         vector<int> tmpt;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
-            Tensor::gph_[std::to_string(i)] = Tensor(Module::backends[MLLM_CPU]);
-            tmps.push_back(Tensor::gph_[std::to_string(i)]);
+            Tensor::graphs[std::to_string(i)] = std::make_shared<Tensor>(Module::backends[MLLM_CPU]);
+            tmps.push_back(*Tensor::graphs[std::to_string(i)]);
             tmpt.push_back(0);
         }
         vector<std::any> anyArgs = convertArgsToAnyVector(tmpt);
         Forward(tmps, anyArgs);
         Module::doToDevice = false;
         Module::tmp_device = MLLM_CPU;
-        Tensor::gph_.clear();
+        Tensor::graphs.clear();
     }
 
     BackendType device() const {
@@ -99,46 +101,6 @@ public:
         initLoader(path);
         Module::doLoad = true;
         vector<Tensor> tmps;
-        int max_in_size = 5;
-        for (int i = 0; i < max_in_size; ++i) {
-            Tensor::gph_[std::to_string(i)] = Tensor(Module::backends[MLLM_CPU]);
-            tmps.push_back(Tensor::gph_[std::to_string(i)]);
-        }
-        vector<std::any> alternate_args={
-            {},
-            vector<int>{0, 0},
-            std::vector<std::vector<int>>(32, std::vector<int>(2))
-        };
-        uint64_t time_start = 0;
-        for (auto args : alternate_args) {
-            time_start = mllm_time_us();
-            try {
-                operator()(tmps, args);
-                break;
-            } catch (const std::exception& e) {
-                if("bad any_cast" != e.what()) {
-                    std::cerr << e.what() << std::endl;
-                    exit(0);
-                }
-            } catch (...) {
-                std::cerr << "load error" << std::endl;
-                exit(0);
-            }     
-        }
-        uint64_t time_end = mllm_time_us();
-        load_time_ = (time_end - time_start) / 1000.0F;//ms
-        Module::doLoad = false;
-        Tensor::gph_.clear();
-    }
-
-    void load(AbstructLoader &param_loader) {
-        Tensor::gph_.clear();
-        Module::tensor_status = TENSOR_STATIC_INIT;
-        
-        loader = &param_loader;
-        Module::doLoad = true;
-        vector<Tensor> tmps;
-        vector<int> tmpt;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
             Tensor::graphs["input" + std::to_string(i)] = std::make_shared<Tensor>(Module::backends[MLLM_CPU]);
@@ -184,8 +146,8 @@ public:
             Tensor::graphs["input" + std::to_string(i)]->setName("input" + std::to_string(i));
             tmps.push_back(*Tensor::graphs["input" + std::to_string(i)]);
         }
-        vector<std::any> anyArgs = convertArgsToAnyVector(tmpt);
-        Forward(tmps, anyArgs);
+        vector<int> tmpt = {0, 0};
+        operator()(tmps, tmpt);
         Module::doLoad = false;
         // Tensor::graphs.clear();
     }
