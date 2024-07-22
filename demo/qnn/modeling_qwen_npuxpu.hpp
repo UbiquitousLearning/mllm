@@ -54,11 +54,11 @@ NetTensor *Qwen_CPUNPUAttention_t1(Context *c, NetTensor *x, NetTensor *res, int
 NetTensor *Qwen_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
     auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
-    x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", false);
-    y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", false);
+    x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", true);
+    y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", true);
     x = _SiLU({x}, name + ".silu");
     x = *x * y;
-    x = _Quantize({x}, true, (string)name + ".mlp.down_proj.quantize");
+    x = _Quantize({x}, true, (string)name + ".down_proj.quantize");
     x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
     x = _Dequantize({x}, true, (string)name + ".down_proj.dequantize");
     return x;
@@ -159,7 +159,7 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention_t2(Context *c, NetTensor *x, NetTe
     qk = _Softmax({qk}, DIMENSION, name + ".softmax");
 
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
-    o = _Quantize({o}, true, (string)name + ".out_proj.quantize");
+    o = _Quantize({o}, true, (string)name + ".o_proj.quantize");
     m = _MergeOutput({o, res}, name + ".or_merge");
 
     // --------------------
@@ -173,7 +173,7 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention_t2(Context *c, NetTensor *x, NetTe
     o = o->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_size * head_size);
     res = res->view(-1, 1, -1, hidden_size * head_size);
     o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
-    o = _Dequantize({o}, true, (string)name + ".out_proj.dequantize");
+    o = _Dequantize({o}, true, (string)name + ".o_proj.dequantize");
 
     return {o, res};
 }
@@ -219,6 +219,7 @@ NetTensor *Qwen_FFN_CPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden
 void qwen_cpu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
     auto *i = _Input(c);
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
+
 
     for (int layer = 0; layer < 24; ++layer) {
         auto res = i;
@@ -287,6 +288,7 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
         i = i->view(1, 1, seq / chunk, hidden_dim);
         i = *i + res;
 
+        // _SubgraphBegin(c, MLLM_CPU);
         res = i;
 
         i = _RMSNorm({i}, hidden_dim, 1e-5, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
@@ -294,6 +296,7 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
 
         i = i->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_dim);
         i = Qwen_FFN_NPU(c, i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
+
 
         i = i->view(1, 1, seq / chunk, hidden_dim);
 
