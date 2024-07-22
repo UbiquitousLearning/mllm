@@ -68,8 +68,9 @@ public:
         vector<Tensor> tmps;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
-            Tensor::graphs[std::to_string(i)] = std::make_shared<Tensor>(Module::backends[MLLM_CPU]);
-            tmps.push_back(*Tensor::graphs[std::to_string(i)]);
+            Tensor::graphs["input"+std::to_string(i)] = std::make_shared<Tensor>(Module::backends[MLLM_CPU]);
+            Tensor::graphs["input"+std::to_string(i)]->setName("input"+std::to_string(i));
+            tmps.push_back(*Tensor::graphs["input"+std::to_string(i)]);
         }
         vector<std::any> alternate_args={
             {},
@@ -95,7 +96,7 @@ public:
         uint64_t time_end = mllm_time_us();
         load_time_ = (time_end - time_start) / 1000.0F;//ms
         Module::doLoad = false;
-        Tensor::graphs.clear();
+        // Tensor::graphs.clear();
     }
 
     void load(AbstructLoader &param_loader) {
@@ -107,13 +108,14 @@ public:
         vector<Tensor> tmps;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
-            Tensor::graphs[std::to_string(i)] = std::make_shared<Tensor>(Module::backends[MLLM_CPU]);
-            tmps.push_back(*Tensor::graphs[std::to_string(i)]);
+            Tensor::graphs["input"+std::to_string(i)] = std::make_shared<Tensor>(Module::backends[MLLM_CPU]);
+            Tensor::graphs["input"+std::to_string(i)]->setName("input"+std::to_string(i));
+            tmps.push_back(*Tensor::graphs["input"+std::to_string(i)]);
         }
         vector<int> tmpt = {0, 0};
         operator()(tmps, tmpt);
         Module::doLoad = false;
-        Tensor::graphs.clear();
+        // Tensor::graphs.clear();
     }
 
     virtual vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) = 0;
@@ -130,9 +132,9 @@ public:
         }
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
             if(prefilling_token_size_==0){ // first time init
-                if(!Tensor::graphs.empty()){
-                    Tensor::graphs.clear();
-                }
+                // if(!Tensor::graphs.empty()){
+                //     Tensor::graphs.clear();
+                // }
                 prefilling_token_size_ = inputs[0].sequence();
             }else if(decoding_token_size_==0){
                 decoding_token_size_ = inputs[0].sequence();
@@ -140,6 +142,7 @@ public:
             bool need_setup = true;
             for (int i = 0; i < inputs.size(); i++) {
                 auto &input = inputs[i];
+                input.setName("input"+std::to_string(i));
                 input.setTtype(TensorType::NORMAL_TENSOR);
                 Tensor::graphs[input.name()] = std::shared_ptr<Tensor>(&input, [](Tensor *) {});
                 if(inputs[0].sequence()!=1 && !last_shape_bshd_.empty()){
@@ -216,6 +219,10 @@ public:
         }
         listIdx = 0;
         return modules;
+    }
+    
+    void free(){
+        Tensor::graphs.clear(); 
     }
 
     void profiling(string name = "") {

@@ -37,7 +37,7 @@ public:
     bool ready() {
         return init_;
     }
-    bool loaded = false;
+    bool inited_loaded = false;
     static map<string, string> layername_2_tensorname;
 
     Tensor &operator()(Tensor &input) {
@@ -121,6 +121,29 @@ private:
             }
         }
     }
+    void init_reset_KVCache(string input_name) {
+        vector<string> renameX_names;
+        renameX_names.push_back(input_name);
+        const vector<string> suffixs = {"-view", ".split-0", ".split-1", ".split-2","-cat", "-split-0-48"};
+        for (const auto in_x_name : renameX_names) {
+            for (auto suffix : suffixs) {
+                if (in_x_name.rfind(suffix) == (in_x_name.size() - suffix.size())) {
+                    const auto r_name = in_x_name.substr(0, in_x_name.size() - suffix.size());
+                    if (std::find(renameX_names.begin(), renameX_names.end(), r_name) == renameX_names.end()) {
+                        renameX_names.push_back(r_name);
+                    }
+                    break;
+                }
+            }
+        }
+        for (const auto x_name : renameX_names) {
+            auto name = name_X_to_num(x_name, saved_list_idx);
+            layername_2_tensorname[name] = name;
+            Tensor::graphs[name] = std::make_shared<Tensor>(backend_);
+            Tensor::graphs[name]->initFrom(*Tensor::graphs[x_name]);
+            Tensor::graphs[name]->setName(name);
+        }
+    }
 
 protected:
     bool INIT_OP() {
@@ -129,151 +152,144 @@ protected:
         }
         if (Module::doLoad) {
             op_->load(*Module::loader);
-            loaded=true;
+            inited_loaded=true;
         } else {
-            if(!loaded){
+            if(!inited_loaded){
                 Module::loader= new ParamLoader("");
                 op_->load(*Module::loader);
-                loaded=true;
+                inited_loaded=true;
             }
         }
         return Module::doLoad;
     }
     Tensor &_1I1O_OP(Tensor &input) {
-        // auto time_start = mllm_time_us();
         Module::runlistIdx = saved_list_idx;
-        if (INIT_OP()) {
-            return input;
-        } else {
-                // auto time_start_2 = mllm_time_us();
+        if (Module::doLoad || !inited_loaded) {
+            INIT_OP();
             string layer_next_name = "out-" + op_->name();
-            switch (Tensor::tensor_status) {
+            if (Tensor::graphs.find(input.name()) == Tensor::graphs.end() || input.count() != Tensor::graphs[input.name()]->count()) {
+                Tensor::graphs[input.name()] = std::shared_ptr<Tensor>(&input, [](Tensor *) {});
+                Tensor::graphs[input.name()]->setName(input.name());
+            } 
+            auto in_name = input.name();
+            if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
+                if (param_["type"] == KVCACHE) {
+                    layername_2_tensorname[layer_next_name] = layer_next_name;
+                    init_reset_KVCache(input.name());
+                    in_name = name_X_to_num(in_name, saved_list_idx);
+                } else {
+                    layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                }
+            }
+            auto next_name = layername_2_tensorname[layer_next_name];
+            if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
+                Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
+                Tensor::graphs[next_name]->setName(next_name);
+            }
+            if(Module::doLoad){
+                return *Tensor::graphs[next_name];
+            }
+        }
+        string layer_next_name = "out-" + op_->name();
+        auto next_name = layername_2_tensorname[layer_next_name];
+        switch (Tensor::tensor_status) {
             case TENSOR_STATIC_INIT: {
-                if (Tensor::graphs.find(input.name()) == Tensor::graphs.end() || input.count() != Tensor::graphs[input.name()]->count()) {
-                    Tensor::graphs[input.name()] = std::shared_ptr<Tensor>(&input, [](Tensor *) {});
-                    Tensor::graphs[input.name()]->setName(input.name());
-                } 
-                auto in_name = input.name();
-                if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
-                    if (param_["type"] == KVCACHE) {
-                        layername_2_tensorname[layer_next_name] = layer_next_name;
-                        reset_KVCache(input.name());
-                        in_name = name_X_to_num(in_name, saved_list_idx);
-                    } else {
-                        layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
-                    }
-                }
-                auto next_name = layername_2_tensorname[layer_next_name];
-                if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
-                    Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
-                    Tensor::graphs[next_name]->setName(next_name);
-                }
-                op_->reshape({Tensor::graphs[in_name]}, {Tensor::graphs[next_name]});
-                op_->setUp({Tensor::graphs[in_name]}, {Tensor::graphs[next_name]});
+                op_->reshape({Tensor::graphs[input.name()]}, {Tensor::graphs[next_name]});
+                op_->setUp({Tensor::graphs[input.name()]}, {Tensor::graphs[next_name]});
                 break;
             }
             case TENSOR_STATIC_READY: {
-                // auto time_start_2 = mllm_time_us();
-                auto next_name = layername_2_tensorname[layer_next_name];
-                // auto time_start_2 = mllm_time_us();
                 op_->execute({Tensor::graphs[input.name()]}, {Tensor::graphs[next_name]});
-                // uint64_t time_end = mllm_time_us();
-                //Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-                //Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
                 break;
             }
             default: {
                 break;
             }
-            }
-            auto next_name = layername_2_tensorname[layer_next_name];
-            if(saveNDataFlag){
-                Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
-            }
-            return *Tensor::graphs[next_name];
         }
+        if(saveNDataFlag){
+            Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
+        }
+        return *Tensor::graphs[next_name];        
     }
     Tensor &_2I1O_OP(Tensor &input0, Tensor &input1) {
-        // auto time_start = mllm_time_us();
         Module::runlistIdx = saved_list_idx;
-        if (INIT_OP()) {
-            return input0;
-        } else {
-                // auto time_start_2 = mllm_time_us();
+        if (Module::doLoad || !inited_loaded) {
+            INIT_OP();
             string layer_next_name = "out-" + op_->name();
-            switch (Tensor::tensor_status) {
+            if (Tensor::graphs.find(input0.name()) == Tensor::graphs.end() || input0.count() != Tensor::graphs[input0.name()]->count()) {
+                Tensor::graphs[input0.name()] = std::shared_ptr<Tensor>(&input0, [](Tensor *) {});
+                Tensor::graphs[input0.name()]->setName(input0.name());
+            }
+            if (Tensor::graphs.find(input1.name()) == Tensor::graphs.end() || input1.count() != Tensor::graphs[input1.name()]->count()) {
+                Tensor::graphs[input1.name()] = std::shared_ptr<Tensor>(&input1, [](Tensor *) {});
+                Tensor::graphs[input1.name()]->setName(input1.name());
+            }
+            if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
+                layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+            }
+            auto next_name = layername_2_tensorname[layer_next_name];
+            if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
+                Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
+                Tensor::graphs[next_name]->setName(next_name);
+            }
+            if(Module::doLoad){
+                return *Tensor::graphs[next_name];
+            }
+        }
+        string layer_next_name = "out-" + op_->name();
+        auto next_name = layername_2_tensorname[layer_next_name];
+        switch (Tensor::tensor_status) {
             case TENSOR_STATIC_INIT: {
-                if (Tensor::graphs.find(input0.name()) == Tensor::graphs.end() || input0.count() != Tensor::graphs[input0.name()]->count()) {
-                    Tensor::graphs[input0.name()] = std::shared_ptr<Tensor>(&input0, [](Tensor *) {});
-                    Tensor::graphs[input0.name()]->setName(input0.name());
-                }
-                if (Tensor::graphs.find(input1.name()) == Tensor::graphs.end() || input1.count() != Tensor::graphs[input1.name()]->count()) {
-                    Tensor::graphs[input1.name()] = std::shared_ptr<Tensor>(&input1, [](Tensor *) {});
-                    Tensor::graphs[input1.name()]->setName(input1.name());
-                }
-                if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
-                    layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
-                }
-                auto next_name = layername_2_tensorname[layer_next_name];
-                if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
-                    Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
-                    Tensor::graphs[next_name]->setName(next_name);
-                }
                 op_->reshape({Tensor::graphs[input0.name()], Tensor::graphs[input1.name()]}, {Tensor::graphs[next_name]});
                 op_->setUp({Tensor::graphs[input0.name()], Tensor::graphs[input1.name()]}, {Tensor::graphs[next_name]});
                 break;
             }
             case TENSOR_STATIC_READY: {
-                // auto time_start_2 = mllm_time_us();
-                auto next_name = layername_2_tensorname[layer_next_name];
-                // auto time_start_2 = mllm_time_us();
                 op_->execute({Tensor::graphs[input0.name()], Tensor::graphs[input1.name()]}, {Tensor::graphs[next_name]});
-                // uint64_t time_end = mllm_time_us();
-                //Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-                //Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
                 break;
             }
             default: {
                 break;
             }
-            }
-            auto next_name = layername_2_tensorname[layer_next_name];
-            if(saveNDataFlag){
-                Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
-            }
-            return *Tensor::graphs[next_name];
         }
+        if(saveNDataFlag){
+            Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
+        }
+        return *Tensor::graphs[next_name];
     }
     Tensor &_3I1O_OP(Tensor &input0, Tensor &input1, Tensor &input2) {
-        // auto time_start = mllm_time_us();
         Module::runlistIdx = saved_list_idx;
-        if (INIT_OP()) {
-            return input0;
-        } else {
-                // auto time_start_2 = mllm_time_us();
-            string layer_next_name = "out-" + op_->name();
-            switch (Tensor::tensor_status) {
+        if (Module::doLoad || !inited_loaded) {
+            INIT_OP();
+            string layer_next_name = "out-" + op_->name();   
+            if (Tensor::graphs.find(input0.name()) == Tensor::graphs.end() || input0.count() != Tensor::graphs[input0.name()]->count()) {
+                Tensor::graphs[input0.name()] = std::shared_ptr<Tensor>(&input0, [](Tensor *) {});
+                Tensor::graphs[input0.name()]->setName(input0.name());
+            }
+            if (Tensor::graphs.find(input1.name()) == Tensor::graphs.end() || input1.count() != Tensor::graphs[input1.name()]->count()) {
+                Tensor::graphs[input1.name()] = std::shared_ptr<Tensor>(&input1, [](Tensor *) {});
+                Tensor::graphs[input1.name()]->setName(input1.name());
+            }
+            if (Tensor::graphs.find(input2.name()) == Tensor::graphs.end() || input2.count() != Tensor::graphs[input2.name()]->count()) {
+                Tensor::graphs[input2.name()] = std::shared_ptr<Tensor>(&input2, [](Tensor *) {});
+                Tensor::graphs[input2.name()]->setName(input2.name());
+            }
+            if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
+                layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+            }
+            auto next_name = layername_2_tensorname[layer_next_name];
+            if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
+                Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
+                Tensor::graphs[next_name]->setName(next_name);
+            }
+            if(Module::doLoad){
+                return *Tensor::graphs[next_name];
+            }
+        }
+        string layer_next_name = "out-" + op_->name();
+        auto next_name = layername_2_tensorname[layer_next_name];
+        switch (Tensor::tensor_status) {
             case TENSOR_STATIC_INIT: {
-                if (Tensor::graphs.find(input0.name()) == Tensor::graphs.end() || input0.count() != Tensor::graphs[input0.name()]->count()) {
-                    Tensor::graphs[input0.name()] = std::shared_ptr<Tensor>(&input0, [](Tensor *) {});
-                    Tensor::graphs[input0.name()]->setName(input0.name());
-                }
-                if (Tensor::graphs.find(input1.name()) == Tensor::graphs.end() || input1.count() != Tensor::graphs[input1.name()]->count()) {
-                    Tensor::graphs[input1.name()] = std::shared_ptr<Tensor>(&input1, [](Tensor *) {});
-                    Tensor::graphs[input1.name()]->setName(input1.name());
-                }
-                if (Tensor::graphs.find(input2.name()) == Tensor::graphs.end() || input2.count() != Tensor::graphs[input2.name()]->count()) {
-                    Tensor::graphs[input2.name()] = std::shared_ptr<Tensor>(&input2, [](Tensor *) {});
-                    Tensor::graphs[input2.name()]->setName(input2.name());
-                }
-                if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
-                    layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
-                }
-                auto next_name = layername_2_tensorname[layer_next_name];
-                if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
-                    Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
-                    Tensor::graphs[next_name]->setName(next_name);
-                }
                 op_->reshape({Tensor::graphs[input0.name()], Tensor::graphs[input1.name()], Tensor::graphs[input2.name()]}, 
                             {Tensor::graphs[next_name]});
                 op_->setUp({Tensor::graphs[input0.name()], Tensor::graphs[input1.name()], Tensor::graphs[input2.name()]}, 
@@ -281,49 +297,44 @@ protected:
                 break;
             }
             case TENSOR_STATIC_READY: {
-                // auto time_start_2 = mllm_time_us();
-                auto next_name = layername_2_tensorname[layer_next_name];
-                // auto time_start_2 = mllm_time_us();
                 op_->execute({Tensor::graphs[input0.name()], Tensor::graphs[input1.name()], Tensor::graphs[input2.name()]}, 
                             {Tensor::graphs[next_name]});
-                // uint64_t time_end = mllm_time_us();
-                //Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-                //Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
                 break;
             }
             default: {
                 break;
             }
-            }
-            auto next_name = layername_2_tensorname[layer_next_name];        
-            if(saveNDataFlag){
-                Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
-            }
-            return *Tensor::graphs[next_name];
+        }       
+        if(saveNDataFlag){
+            Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
         }
+        return *Tensor::graphs[next_name];
     }
-    Tensor &_3I1O_only1map_OP(Tensor &input0, Tensor &input1, Tensor &input2) {
-        // auto time_start = mllm_time_us();
+    Tensor &_3I1OO1_OP(Tensor &input0, Tensor &input1, Tensor &input2) {
         Module::runlistIdx = saved_list_idx;
-        if (INIT_OP()) {
-            return input0;
-        } else {
-                // auto time_start_2 = mllm_time_us();
+        if (Module::doLoad || !inited_loaded) {
+            INIT_OP();
             string layer_next_name = "out-" + op_->name();
-            switch (Tensor::tensor_status) {
+            if (Tensor::graphs.find(input0.name()) == Tensor::graphs.end() || input0.count() != Tensor::graphs[input0.name()]->count()) {
+                Tensor::graphs[input0.name()] = std::shared_ptr<Tensor>(&input0, [](Tensor *) {});
+                Tensor::graphs[input0.name()]->setName(input0.name());
+            }
+            if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
+                layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+            }
+            auto next_name = layername_2_tensorname[layer_next_name];
+            if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
+                Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
+                Tensor::graphs[next_name]->setName(next_name);
+            }
+            if(Module::doLoad){
+                return *Tensor::graphs[next_name];
+            }
+        }
+        string layer_next_name = "out-" + op_->name();
+        auto next_name = layername_2_tensorname[layer_next_name];
+        switch (Tensor::tensor_status) {
             case TENSOR_STATIC_INIT: {
-                if (Tensor::graphs.find(input0.name()) == Tensor::graphs.end() || input0.count() != Tensor::graphs[input0.name()]->count()) {
-                    Tensor::graphs[input0.name()] = std::shared_ptr<Tensor>(&input0, [](Tensor *) {});
-                    Tensor::graphs[input0.name()]->setName(input0.name());
-                }
-                if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
-                    layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
-                }
-                auto next_name = layername_2_tensorname[layer_next_name];
-                if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
-                    Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
-                    Tensor::graphs[next_name]->setName(next_name);
-                }
                 op_->reshape({Tensor::graphs[input0.name()], 
                                 std::shared_ptr<Tensor>(&input1, [](Tensor *) {}), 
                                 std::shared_ptr<Tensor>(&input2, [](Tensor *) {})}, 
@@ -335,39 +346,72 @@ protected:
                 break;
             }
             case TENSOR_STATIC_READY: {
-                // auto time_start_2 = mllm_time_us();
-                auto next_name = layername_2_tensorname[layer_next_name];
-                // auto time_start_2 = mllm_time_us();
                 op_->execute({Tensor::graphs[input0.name()], 
                                 std::shared_ptr<Tensor>(&input1, [](Tensor *) {}), 
                                 std::shared_ptr<Tensor>(&input2, [](Tensor *) {})}, 
                             {Tensor::graphs[next_name]});
-                // uint64_t time_end = mllm_time_us();
-                //Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-                //Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
                 break;
             }
             default: {
                 break;
             }
-            }
-            auto next_name = layername_2_tensorname[layer_next_name];      
-            if(saveNDataFlag){
-                Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
-            }
-            return *Tensor::graphs[next_name];
+        }    
+        if(saveNDataFlag){
+            Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
         }
+        return *Tensor::graphs[next_name];
     }
     Tensor &_0I1O_OP() {
-        // auto time_start = mllm_time_us();
         Module::runlistIdx = saved_list_idx;
-        if (INIT_OP()) {
-            return *Tensor::graphs["0"];
-        } else {
-                // auto time_start_2 = mllm_time_us();
+        if (Module::doLoad || !inited_loaded) {
+            INIT_OP();
             string layer_next_name = "param-" + op_->name();
-            switch (Tensor::tensor_status) {
+            if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
+                layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+            }
+            auto next_name = layername_2_tensorname[layer_next_name];
+            if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
+                Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
+                Tensor::graphs[next_name]->setName(next_name);
+            }
+            if(Module::doLoad){
+                return *Tensor::graphs[next_name];
+            }
+        }
+        string layer_next_name = "param-" + op_->name();
+        auto next_name = layername_2_tensorname[layer_next_name];
+        switch (Tensor::tensor_status) {
             case TENSOR_STATIC_INIT: {
+                op_->reshape({}, {Tensor::graphs[next_name]});
+                op_->setUp({}, {Tensor::graphs[next_name]});
+                break;
+            }
+            case TENSOR_STATIC_READY: {
+                op_->execute({}, {Tensor::graphs[next_name]});
+                break;
+            }
+            default: {
+                break;
+            }
+        }
+        if(saveNDataFlag){
+            Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
+        }
+        return *Tensor::graphs[next_name];
+    }
+    vector<Tensor> _1INO_OP(Tensor &input, int N) {
+        Module::runlistIdx = saved_list_idx;
+        if (Module::doLoad || !inited_loaded) {
+            INIT_OP();
+            vector<string> layer_next_names = {};
+            for (int i = 0; i < N; ++i) {
+                layer_next_names.push_back("out-" + op_->name() + "-" + std::to_string(i));
+            }
+            if (Tensor::graphs.find(input.name()) == Tensor::graphs.end()) {
+                Tensor::graphs[input.name()] = std::shared_ptr<Tensor>(&input, [](Tensor *) {});
+                Tensor::graphs[input.name()]->setName(input.name());
+            } 
+            for (const auto &layer_next_name : layer_next_names) {
                 if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
                     layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
                 }
@@ -376,100 +420,50 @@ protected:
                     Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
                     Tensor::graphs[next_name]->setName(next_name);
                 }
-                op_->reshape({}, {Tensor::graphs[next_name]});
-                op_->setUp({}, {Tensor::graphs[next_name]});
-                break;
             }
-            case TENSOR_STATIC_READY: {
-                // auto time_start_2 = mllm_time_us();
-                auto next_name = layername_2_tensorname[layer_next_name];
-                // auto time_start_2 = mllm_time_us();
-                op_->execute({}, {Tensor::graphs[next_name]});
-                // uint64_t time_end = mllm_time_us();
-                //Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-                //Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
-                break;
-            }
-            default: {
-                break;
-            }
-            }
-            auto next_name = layername_2_tensorname[layer_next_name];
-            if(saveNDataFlag){
-                Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
-            }
-            return *Tensor::graphs[next_name];
-        }
-    }
-    vector<Tensor> _1INO_OP(Tensor &input, int N) {
-        // auto time_start = mllm_time_us();
-        Module::runlistIdx = saved_list_idx;
-        if (INIT_OP()) {
-            vector<Tensor> out;
-            for (int i = 0; i < N; ++i) {
-                out.push_back(input);
-            }
-            return out;
-        } else {
-                // auto time_start_2 = mllm_time_us();
-            vector<string> layer_next_names = {};
-            for (int i = 0; i < N; ++i) {
-                layer_next_names.push_back("out-" + op_->name() + "-" + std::to_string(i));
-            }
-            switch (Tensor::tensor_status) {
-            case TENSOR_STATIC_INIT: {
-                if (Tensor::graphs.find(input.name()) == Tensor::graphs.end() || input.count() != Tensor::graphs[input.name()]->count()) {
-                    Tensor::graphs[input.name()] = std::shared_ptr<Tensor>(&input, [](Tensor *) {});
-                    Tensor::graphs[input.name()]->setName(input.name());
-                } 
-                vector<shared_ptr<Tensor>> shared_outputs = {};
-                vector<string> next_names = {};
+            if(Module::doLoad){
+                vector<Tensor> output_result = {};
                 for (const auto &layer_next_name : layer_next_names) {
-                    if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
-                        layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
-                    }
                     auto next_name = layername_2_tensorname[layer_next_name];
-                    if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
-                        Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
-                        Tensor::graphs[next_name]->setName(next_name);
-                    }
-                    next_names.push_back(next_name);
-                    shared_outputs.push_back(Tensor::graphs[next_name]);
+                    output_result.push_back(*Tensor::graphs[next_name]);
                 }
+                return output_result;
+            }
+        }
+        vector<string> layer_next_names = {};
+        for (int i = 0; i < N; ++i) {
+            layer_next_names.push_back("out-" + op_->name() + "-" + std::to_string(i));
+        }
+        vector<shared_ptr<Tensor>> shared_outputs = {};
+        vector<string> next_names = {};
+        for (const auto &layer_next_name : layer_next_names) {
+            auto next_name = layername_2_tensorname[layer_next_name];
+            next_names.push_back(next_name);
+            shared_outputs.push_back(Tensor::graphs[next_name]);
+        }
+        switch (Tensor::tensor_status) {
+            case TENSOR_STATIC_INIT: {
                 op_->reshape({ Tensor::graphs[input.name()]}, shared_outputs);
                 op_->setUp({ Tensor::graphs[input.name()]}, shared_outputs);
                 break;
             }
             case TENSOR_STATIC_READY: {
-                // auto time_start_2 = mllm_time_us();
-                vector<shared_ptr<Tensor>> shared_outputs = {};
-                vector<string> next_names = {};
-                for (const auto &layer_next_name : layer_next_names) {
-                    auto next_name = layername_2_tensorname[layer_next_name];
-                    next_names.push_back(next_name);
-                    shared_outputs.push_back(Tensor::graphs[next_name]);
-                }
-                // auto time_start_2 = mllm_time_us();
                 op_->execute({ Tensor::graphs[input.name()]}, shared_outputs);
-                // uint64_t time_end = mllm_time_us();
-                //Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-                //Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
                 break;
             }
             default: {
                 break;
             }
-            }
-            vector<Tensor> output_result = {};
-            for (const auto &layer_next_name : layer_next_names) {
-                auto next_name = layername_2_tensorname[layer_next_name];
-                if(saveNDataFlag){
-                    Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
-                }
-                output_result.push_back(*Tensor::graphs[next_name]);
-            }
-            return output_result;
         }
+        vector<Tensor> output_result = {};
+        for (const auto &layer_next_name : layer_next_names) {
+            auto next_name = layername_2_tensorname[layer_next_name];
+            if(saveNDataFlag){
+                Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
+            }
+            output_result.push_back(*Tensor::graphs[next_name]);
+        }
+        return output_result;
     }
 
     std::string name_;
@@ -543,7 +537,7 @@ public:
         activate_input_dim_tensor.setDataAt<float>(0,0,0,0,(float)activate_input_dim);
         auto activate_output_dim_tensor = Tensor(1, 1, 1, 1, backend_, true);
         activate_output_dim_tensor.setDataAt<float>(0,0,0,0,(float)activate_output_dim);
-        return _3I1O_only1map_OP(input0, activate_input_dim_tensor, activate_output_dim_tensor);
+        return _3I1OO1_OP(input0, activate_input_dim_tensor, activate_output_dim_tensor);
     }
 };
 

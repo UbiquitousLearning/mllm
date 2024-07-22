@@ -43,6 +43,7 @@ int main(int argc, char **argv) {
         auto result = text_model({input_tensors.text_tensors}, input_tensors.in_len);
     }
     text_model.profiling();
+    text_model.free();
 
     std::cout<<"Vision| input_shape:["<<input_tensors.img_tensors.batch()<<", "<<input_tensors.img_tensors.channel()<<", "<<input_tensors.img_tensors.time()<<", "<<input_tensors.img_tensors.height()<<", "<<input_tensors.img_tensors.width()<<"]"<<std::endl;
     auto vision_model = ImagebindVisionModel(config);
@@ -51,6 +52,7 @@ int main(int argc, char **argv) {
         auto result = vision_model({input_tensors.img_tensors});
     }
     vision_model.profiling();
+    vision_model.free();
 
     std::cout<<"Audio| input_shape:["<<input_tensors.audio_tensors.batch()<<", "<<input_tensors.audio_tensors.sequence()<<", "<<input_tensors.audio_tensors.head()<<", "<<input_tensors.audio_tensors.dimension()<<"]"<<std::endl;
     auto audio_model = ImagebindAudioModel(config);
@@ -59,4 +61,5 @@ int main(int argc, char **argv) {
         auto result = audio_model({input_tensors.audio_tensors});
     }
     audio_model.profiling();
+    audio_model.free();
 }

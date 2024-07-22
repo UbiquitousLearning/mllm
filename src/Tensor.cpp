@@ -74,40 +74,31 @@ bool Tensor::reshape(const int batch, const int channel, const int time, const i
 
 map<string, shared_ptr<Tensor>> Tensor::graphs;
 TensorStatus Tensor::tensor_status;
-// double Tensor::forward_times;
-// double Tensor::forward_times_2;
 
 Tensor& Tensor::getFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors){
-        // auto time_start = mllm_time_us();
-    if (Module::doLoad) { return *this; }
-    TensorFunction *func = backend_->funcCreate(type);
     const std::string next_name = name_ + "-" + suffix;
+    if (Tensor::graphs.find(name_) == Tensor::graphs.end()) {
+        Tensor::graphs[name_] = std::shared_ptr<Tensor>(this, [](Tensor *) {});
+    }
+    if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
+        Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
+        Tensor::graphs[next_name]->setName(next_name);
+    }
+    if (Module::doLoad) { 
+        return  *Tensor::graphs[next_name];
+    }
+    TensorFunction *func = backend_->funcCreate(type);
+    std::vector<Tensor*> tensorPtrs = {Tensor::graphs[name_].get()};
+    for (auto &other_tensor : other_tensors) {
+        tensorPtrs.push_back(other_tensor);
+    }
     switch (Tensor::tensor_status) {
     case TENSOR_STATIC_INIT: {
-        if (Tensor::graphs.find(name_) == Tensor::graphs.end()) {
-            Tensor::graphs[name_] = std::shared_ptr<Tensor>(this, [](Tensor *) {});
-        }
-        if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
-            Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
-            Tensor::graphs[next_name]->setName(next_name);
-        }
-        std::vector<Tensor*> tensorPtrs = {Tensor::graphs[name_].get()};
-        for (auto &other_tensor : other_tensors) {
-            tensorPtrs.push_back(other_tensor);
-        }
         func->setup({Tensor::graphs[next_name].get()}, tensorPtrs, float_args);
         break;
     }
     case TENSOR_STATIC_READY: {
-        std::vector<Tensor*> tensorPtrs = {Tensor::graphs[name_].get()};
-        for (auto &other_tensor : other_tensors) {
-            tensorPtrs.push_back(other_tensor);
-        }
-        // auto time_start_2 = mllm_time_us();
         func->execute({Tensor::graphs[next_name].get()},tensorPtrs, float_args);
-        // uint64_t time_end = mllm_time_us();
-        // Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-        // Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
         if(saveNDataFlag){
             Tensor::graphs[next_name]->saveData<float>();
         }
@@ -234,29 +225,26 @@ Tensor &Tensor::where(float value, Chl axis) {
  */
 
 Tensor& Tensor::getStaticFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors){
-        // auto time_start = mllm_time_us();
-    if (Module::doLoad) { return *Tensor::graphs["0"]; }
     auto backend_h = Module::backends[MLLM_CPU];
     if(!other_tensors.empty() && other_tensors[0]->backend_!= nullptr){
         backend_h = other_tensors[0]->backend();
     }
     TensorFunction *func = backend_h->funcCreate(type);
     const std::string next_name = suffix;
+    if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
+        Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_h);
+        Tensor::graphs[next_name]->setName(next_name);
+    }
+    if (Module::doLoad) { 
+        return  *Tensor::graphs[next_name];
+    }
     switch (Tensor::tensor_status) {
     case TENSOR_STATIC_INIT: {
-        if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
-            Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_h);
-            Tensor::graphs[next_name]->setName(next_name);
-        }
         func->setup({Tensor::graphs[next_name].get()}, other_tensors, float_args);
         break;
     }
     case TENSOR_STATIC_READY: {
-        // auto time_start_2 = mllm_time_us();
         func->execute({Tensor::graphs[next_name].get()}, other_tensors, float_args);
-        // uint64_t time_end = mllm_time_us();
-        // Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-        // Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
         if(saveNDataFlag){
             Tensor::graphs[next_name]->saveData<float>();
         }
@@ -289,43 +277,35 @@ Tensor &Tensor::range(int start, int end) {
 
 std::vector<Tensor> Tensor::getStaticFuncOupts(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, 
                                     vector<Tensor *> input_tensors){
-        // auto time_start = mllm_time_us();
-    if (Module::doLoad) { 
-        std::vector<Tensor> outPtrs;
-        for (auto out_name: out_names) {
-            outPtrs.push_back(*Tensor::graphs["0"]);
-        }
-        return outPtrs; 
-    }
     auto backend_h = Module::backends[MLLM_CPU];
     if(!input_tensors.empty() && input_tensors[0]->backend_!= nullptr){
         backend_h = input_tensors[0]->backend();
     }
+    for (auto out_name: out_names) {
+        if (Tensor::graphs.find(out_name) == Tensor::graphs.end()) {
+            Tensor::graphs[out_name] = std::make_shared<Tensor>(backend_h);
+            Tensor::graphs[out_name]->setName(out_name);
+        }
+    }
+    if (Module::doLoad) {
+        std::vector<Tensor> results;
+        for (auto out_name: out_names) {
+            results.push_back(*Tensor::graphs[out_name]);
+        }
+        return results;
+    }
     TensorFunction *func = backend_h->funcCreate(type);
+    std::vector<Tensor*> outPtrs;
+    for (auto out_name: out_names) {
+        outPtrs.push_back(Tensor::graphs[out_name].get());
+    }
     switch (Tensor::tensor_status) {
     case TENSOR_STATIC_INIT: {
-        std::vector<Tensor*> outPtrs;
-        for (auto out_name: out_names) {
-            if (Tensor::graphs.find(out_name) == Tensor::graphs.end()) {
-                Tensor::graphs[out_name] = std::make_shared<Tensor>(backend_h);
-                Tensor::graphs[out_name]->setName(out_name);
-            }
-            outPtrs.push_back(Tensor::graphs[out_name].get());
-        }
-        
         func->setup(outPtrs, input_tensors, float_args);
         break;
     }
     case TENSOR_STATIC_READY: {
-        std::vector<Tensor*> outPtrs;
-        for (auto out_name: out_names) {
-            outPtrs.push_back(Tensor::graphs[out_name].get());
-        }
-        // auto time_start_2 = mllm_time_us();
         func->execute(outPtrs, input_tensors, float_args);
-        // uint64_t time_end = mllm_time_us();
-        // Tensor::forward_times += (time_end - time_start) / 1000.0F;//ms
-        // Tensor::forward_times_2 += (time_end - time_start_2) / 1000.0F;//ms
         if(saveNDataFlag){
             for (auto out_name: out_names) {
                 Tensor::graphs[out_name]->saveData<float>();
