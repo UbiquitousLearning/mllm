@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
     }
     tokenizer.setMergeRank(merge_rank);
 
-    int vocab_size = 50272;
+    int vocab_size = 151936;
 
     int hidden_dim = cmdParser.get<int>("hds");
     int ffn_hidden_dim = cmdParser.get<int>("ffn");
@@ -179,7 +179,8 @@ int main(int argc, char **argv) {
             // 1: Prefill stage using NPU chunk execute
             npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
-            
+            result[0]->printShape();
+            exit(0);
             // inter model for prefill-decode
             interExe.run(&interNet, {result[0]});
             result = interExe.result();
