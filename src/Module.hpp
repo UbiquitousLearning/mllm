@@ -154,12 +154,12 @@ public:
             }
             Tensor::tensor_status = TENSOR_STATIC_INIT;
 
-            // uint64_t time_start = mllm_time_us();
+            uint64_t time_start = mllm_time_us();
             if(need_setup){
                 Forward(inputs, anyArgs);
             }
             Tensor::tensor_status = TENSOR_STATIC_READY;
-            uint64_t time_start = mllm_time_us();
+            // uint64_t time_start = mllm_time_us();
             auto output = Forward(inputs, anyArgs);
             uint64_t time_end = mllm_time_us();
 
