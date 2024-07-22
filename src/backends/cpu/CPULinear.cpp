@@ -66,6 +66,7 @@ ErrorCode CPULinear::load(AbstructLoader &loader) {
 }
 
 ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+//    auto start = mllm::mllm_time_us();
     if(inputs[0]->count() == 0) {
         return Op::execute(inputs, outputs);
     }
@@ -91,6 +92,8 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     default:
         break;
     }
+//    auto end = mllm::mllm_time_us();
+//    printf("exec time: %ld us\n", end - start);
     return Op::execute(inputs, outputs);
 }
 ErrorCode CPULinear::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

@@ -6,6 +6,7 @@
 #include <utility>
 #include "Tensor.hpp"
 #include "Types.hpp"
+#include <initializer_list>
 #define mllm_file FILE
 
 namespace mllm {
@@ -51,6 +52,7 @@ class AbstructLoader {
 public:
     virtual bool load(mllm::Tensor *tensor) = 0;
     virtual bool load(std::shared_ptr<mllm::Tensor> tensor) = 0;
+    virtual size_t getTensorSize(string name){fprintf(stderr,"loader not support getTensorSize");return NOT_SUPPORT;}
     virtual DataType getDataType(string name) {return MLLM_TYPE_COUNT;}
 };
 
@@ -94,6 +96,27 @@ protected:
     std::map<std::string, std::pair<uint64_t, uint64_t>> offsets_; // offsets,length
     std::map<std::string, int> data_type_;
     bool use_mmap_;
+};
+
+/**
+ * \brief The MultiFileParamLoader class is similar to ParamLoader. The difference is that this class can load weights from multiple files.
+ */
+class MultiFileParamLoader : public AbstructLoader {
+    friend class QuantWriter;
+
+public:
+    MultiFileParamLoader(const std::initializer_list<string>& filenames);
+    ~MultiFileParamLoader();
+    bool load(mllm::Tensor *tensor) override;
+    bool load(std::shared_ptr<mllm::Tensor> tensor) override;
+    size_t getTensorSize(string name) override;
+    DataType getDataType(string name) override;
+private:
+    map<string, mllm_file *> files_; // tensor in which file <tensor_name, fp to file that tensor is in>
+    map<string, DataType> data_type_;
+    map<string, std::pair<uint64_t, uint64_t>> offsets_; // offsets, datasize
+
+    void load_file(const string& filename);
 };
 
 } // namespace mllm

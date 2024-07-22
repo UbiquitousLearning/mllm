@@ -102,6 +102,20 @@ struct QWenConfig {
             sliding_window = 32768;
             vocab_size = 151936;
             tie_embedding_words = true;
+        } else if (billionsType == "1.8b") {
+            attention_dropout = 0.0;
+            std::string hidden_act = "silu";
+            hidden_size = 2048;
+            intermediate_size = 5504;
+            max_position_embeddings = 32768;
+            num_attention_heads = 16;
+            num_hidden_layers = 24;
+            num_key_value_heads = 16;
+            rms_norm_eps = 1e-6;
+            rope_theta = 1000000.0;
+            sliding_window = 32768;
+            vocab_size = 151936;
+            tie_embedding_words = false;
         } else {
             throw std::runtime_error("Unsupported model size");
         }

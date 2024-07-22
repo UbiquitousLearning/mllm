@@ -46,10 +46,15 @@
 #include "CPURange.hpp"
 #include "CPUWhere.hpp"
 #include "CPUReplace.hpp"
+#include "CPUPredictor.hpp"
+#include "CPUSparseIdLinear.hpp"
+#include "CPUSparseLinear.hpp"
+#include "CPUElasticLinear.hpp"
 #include "CPUQuantize.hpp"
 #include "CPUMergeOutput.hpp"
 
 #include "CPUTensorFunction.hpp"
+#include "CPUPosition.hpp"
 
 namespace mllm {
 class CPUBackendCreator : public BackendCreator {
@@ -127,6 +132,11 @@ void CPUBackend::registerOps() {
     addCreator(RANGE, (CPUBackend::Creator *)(new CPURangeCreator()));
     addCreator(WHERE, (CPUBackend::Creator *)(new CPUWhereCreator()));
     addCreator(REPLACE, (CPUBackend::Creator *)(new CPUReplaceCreator()));
+    addCreator(PREDICTOR, (CPUBackend::Creator *)(new CPUPredictorCreator()));
+    addCreator(SPARSELINEAR, (CPUBackend::Creator *)(new CPUSparseLinearCreator()));
+    addCreator(SPARSEIDLINEAR, (CPUBackend::Creator *)(new CPUSparseIdLinearCreator()));
+    addCreator(ELASTICLINEAR, (CPUBackend::Creator *)(new CPUElasticLinearCreator()));
+    addCreator(POSITION, (CPUBackend::Creator *)(new CPUPositionCreator()));
     addCreator(QUANTIZE, (CPUBackend::Creator *)(new CPUQuantizeCreator()));
     addCreator(MERGEOUTPUT, (CPUBackend::Creator *)(new CPUMergeOutputCreator()));
     addCreator(SPLITINPUT, (CPUBackend::Creator *)(new CPUSplitInputCreator()));
@@ -161,6 +171,7 @@ void CPUBackend::registerFuncs() {
     map_function_[TensorFuncType::FUNC_CLIPAXIS] = new CPUclipaxisFunction();
     map_function_[TensorFuncType::FUNC_RANGE] = new CPURangeFunction();
     map_function_[TensorFuncType::FUNC_WHERE] = new CPUwhereFunction();
+    map_function_[TensorFuncType::FUNC_SPLIT] = new CPUsplitFunction();
 };
 
 int CPUBackend::cpu_threads = 4;

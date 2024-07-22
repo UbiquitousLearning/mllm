@@ -49,6 +49,11 @@ enum OpType {
     RANGE,
     WHERE,
     REPLACE,
+    PREDICTOR,
+    SPARSELINEAR,
+    SPARSEIDLINEAR,
+    ELASTICLINEAR,
+    POSITION,
     WNOP,
     QUANTIZE,
     DEQUANTIZE,
@@ -98,6 +103,10 @@ static const vector<string> OpNames = {
     "Range",
     "Where",
     "Replace",
+    "SparseLinear",
+    "SparseIdLinear",
+    "ElasticLinear",
+    "Position",
     "WNop",
     "Quantize",
     "Dequantize",
@@ -124,7 +133,8 @@ enum TensorFuncType {
     FUNC_CLIP,
     FUNC_CLIPAXIS,
     FUNC_RANGE,
-    FUNC_WHERE
+    FUNC_WHERE,
+    FUNC_SPLIT
 };
 
 } // namespace mllm

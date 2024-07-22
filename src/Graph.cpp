@@ -164,7 +164,7 @@ void Graph::setUpTensors() {
     }
 }
 
-void Graph::setUpOps(ParamLoader &loader) {
+void Graph::setUpOps(AbstructLoader &loader) {
     for (const auto &op_name : op_names_) {
         ops_[op_name]->load(loader);
         PRINT_MEMORY_USAGE((op_name + " load").c_str());
