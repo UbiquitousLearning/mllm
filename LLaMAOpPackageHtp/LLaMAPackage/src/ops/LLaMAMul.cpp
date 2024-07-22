@@ -173,6 +173,87 @@ int32_t hvx_mul_af(
     return 0;
 }
 
+int32_t hvx_mul_ahf(
+    __fp16 *restrict input,
+    __fp16 *restrict input2,
+    __fp16 *restrict output,
+    uint32_t size)
+{
+    if ((input == NULL) || (output == NULL) || (size == 0))
+    {
+        return -1;
+    }
+
+    HVX_Vector *iptr = (HVX_Vector *)input;
+    HVX_Vector *iptr2 = (HVX_Vector *)input2;
+    HVX_UVector *optr = (HVX_UVector *)output;
+    HVX_Vector sline1p, sline1c, sline1;
+    HVX_Vector sline2p, sline2c, sline2;
+
+    int32_t block, l2fetch_block;
+    int32_t leftover = size & 31;
+    int32_t vectors_in_rounddown = size / 32;
+    int32_t leftover_size = leftover * sizeof(__fp16);
+
+    sline1p = *iptr++;
+    sline2p = *iptr2++;
+
+    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
+    {
+        block = Q6_R_min_RR(i, BLOCK_SIZE);
+        l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
+
+        if (l2fetch_block > 0)
+        {
+            l2fetch(iptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+            l2fetch(iptr2 + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+        }
+
+        for (int32_t j = 0; j < block; ++j)
+        {
+            sline1c = *iptr++;
+            sline2c = *iptr2++;
+            sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
+            sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t)input2);
+
+            *optr++ = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(sline1, sline2));
+
+            sline1p = sline1c;
+            sline2p = sline2c;
+        }
+    }
+
+    if (vectors_in_rounddown > 0) {
+
+      sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
+      sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+
+      sline2c = is_aligned(iptr2, VLEN) && leftover == 0 ? sline2p : *iptr2++;
+      sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t) input2);
+
+      *optr++ = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(sline1, sline2));
+
+    }
+
+    // Handle leftover elements.
+    if (leftover_size > 0) {
+      sline1c = (is_in_one_chunk(iptr, leftover_size, VLEN)
+                      ? sline1p
+                      : *iptr++);
+      sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
+
+
+      sline2c = (is_in_one_chunk(iptr2, leftover_size, VLEN)
+                      ? sline2p
+                      : *iptr2++);
+      sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t)input2);
+
+      vstu_variable(optr, leftover_size,  Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(sline1, sline2)));
+    }
+
+    return 0;
+}
+
 template<typename TensorType>
 GraphStatus llamamulImpl(TensorType& out_0,
                          const TensorType& in_0,
@@ -193,20 +274,23 @@ GraphStatus llamamulImpl(TensorType& out_0,
    */
    out_0.set_dims(in_0);
 
-
-   auto in_ptr = (float*)in_0.raw_data_const();
-   auto in2_ptr = (float*)in_1.raw_data_const();
-   auto out_ptr = (float*)out_0.raw_data();
-
    auto [b_in, h_in, w_in, d_in] = in_0.dims();
    size_t size = b_in*h_in*w_in*d_in;
 
   DType dtype = in_0.get_dtype();
 
-  if (dtype == DType::QUInt8) {
+  if (dtype == DType::Float16) {
+    auto in_ptr = (__fp16*)in_0.raw_data_const();
+    auto in2_ptr = (__fp16*)in_1.raw_data_const();
+    auto out_ptr = (__fp16*)out_0.raw_data();
     
-    hvx_mul_af(in_ptr, in2_ptr, out_ptr, size/4);
+    hvx_mul_ahf(in_ptr, in2_ptr, out_ptr, size);
+
   } else {
+    auto in_ptr = (float*)in_0.raw_data_const();
+    auto in2_ptr = (float*)in_1.raw_data_const();
+    auto out_ptr = (float*)out_0.raw_data();
+
     hvx_mul_af(in_ptr, in2_ptr, out_ptr, size);
   }
 

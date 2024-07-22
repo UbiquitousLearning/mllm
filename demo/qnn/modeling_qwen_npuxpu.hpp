@@ -57,8 +57,8 @@ NetTensor * Qwen_CPUNPUAttention_t1(Context *c, NetTensor *x, NetTensor *res, in
 NetTensor *Qwen_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
     auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
-    x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize");
-    y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize");
+    x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", false);
+    y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", false);
     x = _SiLU({x}, name + ".silu");
     x = *x * y;
     x = _Quantize({x}, true, (string)name + ".mlp.down_proj.quantize");

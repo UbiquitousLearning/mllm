@@ -265,18 +265,22 @@ NetTensor *_Quantize(std::vector<NetTensor *> inputs, bool isNSHD, string name) 
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_Dequantize(std::vector<NetTensor *> inputs, bool isNSHD, string name) {
+NetTensor *_Dequantize(std::vector<NetTensor *> inputs, bool isNSHD, string name, bool isFP32) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "Dequantize" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    out_tensor->type = MLLM_TYPE_F32;
+    if (isFP32)
+        out_tensor->type = MLLM_TYPE_F32;
+    else
+        out_tensor->type = MLLM_TYPE_F16;
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::DEQUANTIZE)
     net_op_->param["isNSHD"] = isNSHD;
+    net_op_->param["isFP32"] = isFP32;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
