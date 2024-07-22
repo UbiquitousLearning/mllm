@@ -54,35 +54,37 @@ void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dty
 
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/vocab_opt.mllm");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "./models/opt-1.3b-head-static-int8.mllm");
-    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/vocab-qwen.mllm");
+
+    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 1024);
 
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
-    cmdParser.add<int>("seq", 's', "num of threads", false, 32);
+    cmdParser.add<int>("seq", 's', "seqenth length", false, 32);
     cmdParser.add<int>("chunk", 'c', "use chunk execute", false, 1);
-    cmdParser.add<int>("head", 'h', "num of heads", false, 32);
+    cmdParser.add<int>("head", 'h', "num of heads", false, 16);
 
-    cmdParser.add<int>("ffn", 'f', "size of ffn hidden size", false, 8192);
+    cmdParser.add<int>("ffn", 'f', "size of ffn hidden size", false, 5504);
     cmdParser.add<int>("hds", 'd', "size of hidden size", false, 2048);
 
     cmdParser.parse_check(argc, argv);
 
+    const string npu_model_path = "./models/Qwen1.5-1.8B-Chat_10000000_static_int8.mllm";
+    const string cpu_model_path = "./models/qwen-1.8b-chat-q4k.mllm";
+    const string merge_file_path = "./vocab/merges-qwen.txt";
+
     string vocab_path = cmdParser.get<string>("vocab");
-    string model_path = cmdParser.get<string>("model");
     int tokens_limit = cmdParser.get<int>("limits");
     int thread_num = cmdParser.get<int>("thread");
     int seqLength = cmdParser.get<int>("seq");
     int executeType = cmdParser.get<int>("chunk");
     int head_num = cmdParser.get<int>("head");
     int chunk = 1;
-
     if (executeType == 1)
         chunk = 2;
 
     auto tokenizer = BPETokenizer(vocab_path);
     std::unordered_map<string, unsigned> merge_rank;
-    auto merge_file = std::ifstream("./vocab/opt-merges.txt");
+    auto merge_file = std::ifstream(merge_file_path);
     std::string line;
     unsigned rank = 0;
     while (std::getline(merge_file, line)) {
@@ -97,7 +99,7 @@ int main(int argc, char **argv) {
     }
     tokenizer.setMergeRank(merge_rank);
 
-    int vocab_size = 50272;
+    int vocab_size = 151936;
 
     int hidden_dim = cmdParser.get<int>("hds");
     int ffn_hidden_dim = cmdParser.get<int>("ffn");
@@ -107,19 +109,25 @@ int main(int argc, char **argv) {
     auto *npu_ctx = npu_ctx_ptr.get();
     std::unique_ptr<Context> cpu_ctx_ptr(new Context());
     auto *cpu_ctx = cpu_ctx_ptr.get();
+    std::unique_ptr<Context> inter_ctx_ptr(new Context());
+    auto *inter_ctx = inter_ctx_ptr.get();
 
     // cache_max should be longer than seqLength
     modeling::qwen_npu_t2(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
-    modeling::opt_cpu(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
+    modeling::qwen_npu_cpu_inter(inter_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
+    modeling::qwen_cpu_t2(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
 
     BackendConfig bn;
     QNNOptNet npuNet(bn, npu_ctx);
     npuNet.convert(npu_ctx, BackendType::MLLM_QNN, thread_num);
     Net cpuNet(bn);
     cpuNet.convert(cpu_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
+    Net interNet(bn);
+    interNet.convert(cpu_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
 
-    ParamLoader npu_prefill_param_loader(model_path);
-    ParamLoader cpu_decoding_param_loader("./models/opt-1.3b-q40.mllm");
+    ParamLoader npu_prefill_param_loader(npu_model_path);
+    ParamLoader cpu_decoding_param_loader(cpu_model_path);
+    ParamLoader inter_param_loader(cpu_model_path);
 
     QNNExecutor *npuExePtr;
     if (executeType == 1) {
@@ -131,7 +139,8 @@ int main(int argc, char **argv) {
     }
     auto &npuExe = *npuExePtr;
     npuExe.setup(&npuNet);
-
+    Executor interExe(&inter_param_loader);
+    interExe.setup(&interNet);
     Executor cpuExe(&cpu_decoding_param_loader);
     cpuExe.setup(&cpuNet);
 
@@ -170,34 +179,41 @@ int main(int argc, char **argv) {
             // 1: Prefill stage using NPU chunk execute
             npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
-            // result[0]->printData<int8_t>();
+            result[0]->printShape();
+            exit(0);
+            // inter model for prefill-decode
+            interExe.run(&interNet, {result[0]});
+            result = interExe.result();
 
-            // auto token_idx = postProcessing(result[0], input);
-            // if (token_idx == 2) { // "</s>"
-            //     break;
-            // }
-            // auto out_token = tokenizer.detokenize({token_idx});
-            // std::cout << out_token << std::flush;
+            result[0]->printShape();
+            exit(0);
 
-            // auto cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
-            // cpu_backend->setSequenceLength(real_seq_length);
-            // cpu_backend->switchDecodeTag();
+            auto token_idx = postProcessing(result[0], input);
+            if (token_idx == 2) { // "</s>"
+                break;
+            }
+            auto out_token = tokenizer.detokenize({token_idx});
+            std::cout << out_token << std::flush;
 
-            // // // 2: Decoding stage using CPU execute
-            // for (int step = 1; step < 100; step++) {
-            //     cpuExe.run(&cpuNet, {input});
-            //     auto result = cpuExe.result();
-            //     auto token_idx = postProcessing(result[0], input);
-            //     if (token_idx == 2) { // "</s>"
-            //         break;
-            //     }
-            //     auto out_token = tokenizer.detokenize({token_idx});
-            //     std::cout << out_token << std::flush;
+            auto cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
+            cpu_backend->setSequenceLength(real_seq_length);
+            cpu_backend->switchDecodeTag();
 
-            //     if (step == 1) {
-            //         cpu_backend->switchDecodeTag();
-            //     }
-            // }
+            // // 2: Decoding stage using CPU execute
+            for (int step = 1; step < 100; step++) {
+                cpuExe.run(&cpuNet, {input});
+                auto result = cpuExe.result();
+                auto token_idx = postProcessing(result[0], input);
+                if (token_idx == 2) { // "</s>"
+                    break;
+                }
+                auto out_token = tokenizer.detokenize({token_idx});
+                std::cout << out_token << std::flush;
+
+                if (step == 1) {
+                    cpu_backend->switchDecodeTag();
+                }
+            }
         } while (false);
         printf("\n");
     }
