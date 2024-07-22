@@ -136,7 +136,7 @@ ErrorCode CPUKVCacheNPU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
     inputs[0]->setDtype(cache_.dtype());
     // the ctype of output is determined in Matmul::reshape, we set ctype of V to BHDS in setUp
-    if (outputs[0]->ctype() == BHDS) {
+    if (outputs[0]->ctype() == BHDS && inputs[0]->ctype() == BSHD) {
         inputs[0]->transShape(SEQUENCE, DIMENSION);
     }
     return MLLM_NO_ERROR;
