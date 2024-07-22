@@ -165,8 +165,8 @@ int32_t hvx_rmsnorm_af(
         sum = Q6_Vqf32_vadd_Vqf32Vqf32(sum, Q6_V_vlalign_VVR(sum, zero, i));
     }
 
-    sum_value.f = 1.0f / sqrtf(sum[31] / size + epsilon_);
-
+    sum = Q6_Vsf_equals_Vqf32(sum);
+    sum_value.f = 1.0f / sqrtf(*((float*)&sum + 31) / size + epsilon_);
 
     // x * 1/rsqrt(sum)
     iptr = (HVX_Vector *)input;
