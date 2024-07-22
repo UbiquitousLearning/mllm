@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
     cmdParser.parse_check(argc, argv);
 
     const string npu_model_path = "./models/Qwen1.5-1.8B-Chat_10000000_static_int8.mllm";
-    const string cpu_model_path = "./models/qwen-1.8b-chat-q4k.mllm";
+    const string cpu_model_path = "./models/qwen-1.8b-chat-q4k-fp32.mllm";
     const string merge_file_path = "./vocab/merges-qwen.txt";
 
     string vocab_path = cmdParser.get<string>("vocab");
@@ -120,10 +120,10 @@ int main(int argc, char **argv) {
     BackendConfig bn;
     QNNOptNet npuNet(bn, npu_ctx);
     npuNet.convert(npu_ctx, BackendType::MLLM_QNN, thread_num);
+    Net interNet(bn);
+    interNet.convert(inter_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
     Net cpuNet(bn);
     cpuNet.convert(cpu_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
-    Net interNet(bn);
-    interNet.convert(cpu_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
 
     ParamLoader npu_prefill_param_loader(npu_model_path);
     ParamLoader cpu_decoding_param_loader(cpu_model_path);
@@ -179,8 +179,7 @@ int main(int argc, char **argv) {
             // 1: Prefill stage using NPU chunk execute
             npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
-            result[0]->printShape();
-            exit(0);
+
             // inter model for prefill-decode
             interExe.run(&interNet, {result[0]});
             result = interExe.result();
