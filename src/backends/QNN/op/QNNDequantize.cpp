@@ -105,7 +105,8 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                                                .memType = QNN_TENSORMEMTYPE_RAW,
                                                {.clientBuf = {.data = nullptr,
                                                               .dataSize = 0}}}}}};
-        return graphAddNode(name(), "LLaMADequantize", {inputs[0]->name()}, outputTensor, paramsDeQuantize, "LLaMAPackage");
+        // return graphAddNode(name(), "LLaMADequantize", {inputs[0]->name()}, outputTensor, paramsDeQuantize, "LLaMAPackage");
+        return graphAddNode(name(), "Dequantize", inputs, outputs);
 
     } else {
 
