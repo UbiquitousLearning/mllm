@@ -226,7 +226,7 @@ int32_t qhmath_hvx_quantize_ahf(
             sout1 = Q6_Vh_equals_Vhf(sout1);
 
             sline2c = *iptr++;
-            sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t) (input+1));
+            sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t) input);
 
             sout2 = Q6_Vqf16_vmpy_VhfVhf(sline2,scale_vec);
             sout2 = Q6_Vqf16_vadd_Vqf16Vqf16(sout2, es_vec);
@@ -271,7 +271,7 @@ int32_t qhmath_hvx_quantize_ahf(
             sout2 = Q6_Vh_equals_Vhf(sout2);
 
             sline3c = *iptr++;
-            sline3 = Q6_V_valign_VVR(sline3c, sline3p, (size_t) (input+2));
+            sline3 = Q6_V_valign_VVR(sline3c, sline3p, (size_t) input);
 
             sout3 = Q6_Vqf16_vmpy_VhfVhf(sline3,scale_vec);
             sout3 = Q6_Vqf16_vadd_Vqf16Vqf16(sout3, es_vec);
@@ -316,7 +316,7 @@ int32_t qhmath_hvx_quantize_ahf(
             sout3 = Q6_Vh_equals_Vhf(sout3);
 
             sline4c = *iptr++;
-            sline4 = Q6_V_valign_VVR(sline4c, sline4p, (size_t) (input+3));
+            sline4 = Q6_V_valign_VVR(sline4c, sline4p, (size_t) input);
 
             sout4 = Q6_Vqf32_vmpy_VsfVsf(sline4,scale_vec);
             sout4 = Q6_Vqf16_vadd_Vqf16Vqf16(sout4, es_vec);
@@ -496,7 +496,7 @@ int32_t qhmath_hvx_quantize_af(
             // sout1 = qhmath_hvx_vw_convert_vqf32_rmode(Q6_Vqf32_vadd_VsfVsf(sout1, Q6_V_vzero()), 0);
 
             sline2c = *iptr++;
-            sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t) (input+1));
+            sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t) input);
 
             sout2 = Q6_Vqf32_vmpy_VsfVsf(sline2,scale_vec);
             sout2 = Q6_Vqf32_vadd_Vqf32Vqf32(sout2, es_vec);
@@ -542,7 +542,7 @@ int32_t qhmath_hvx_quantize_af(
             // sout2 = qhmath_hvx_vw_convert_vqf32_rmode(Q6_Vqf32_vadd_VsfVsf(sout2, Q6_V_vzero()), 0);
 
             sline3c = *iptr++;
-            sline3 = Q6_V_valign_VVR(sline3c, sline3p, (size_t) (input+2));
+            sline3 = Q6_V_valign_VVR(sline3c, sline3p, (size_t) input);
 
             sout3 = Q6_Vqf32_vmpy_VsfVsf(sline3,scale_vec);
             sout3 = Q6_Vqf32_vadd_Vqf32Vqf32(sout3, es_vec);
@@ -589,7 +589,7 @@ int32_t qhmath_hvx_quantize_af(
             // sout3 = qhmath_hvx_vw_convert_vqf32_rmode(Q6_Vqf32_vadd_VsfVsf(sout3, Q6_V_vzero()), 0);
 
             sline4c = *iptr++;
-            sline4 = Q6_V_valign_VVR(sline4c, sline4p, (size_t) (input+3));
+            sline4 = Q6_V_valign_VVR(sline4c, sline4p, (size_t) input);
 
             sout4 = Q6_Vqf32_vmpy_VsfVsf(sline4,scale_vec);
             sout4 = Q6_Vqf32_vadd_Vqf32Vqf32(sout4, es_vec);
@@ -695,6 +695,8 @@ GraphStatus llamaquantizeImpl(TensorType1 &out_0,
     auto in_ptr = (float*)in_0.raw_data_const();
     auto out_ptr = (float*)out_0.raw_data();
     qhmath_hvx_quantize_af(in_ptr, out_ptr, size, -128.0f, 127.0f, scale_);
+
+    // *((float*)out_ptr+511) = in_0(0,0,0,2047);
 
   }
 
