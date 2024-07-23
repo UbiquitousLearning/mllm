@@ -106,8 +106,8 @@ static inline int32_t float_to_fp16s(float input)
 
 /* execute functions for ops */
 int32_t qhmath_hvx_dequantize_ahf(
-    float *restrict input,
-    float *restrict output,
+    int8_t *restrict input,
+    int8_t *restrict output,
     uint32_t size,
     float scale)
 {
@@ -129,6 +129,9 @@ int32_t qhmath_hvx_dequantize_ahf(
 
     sline1p = *iptr++;
 
+    uint32_t convert = 0x00800080;
+    HVX_Vector convert_vector = Q6_V_vsplat_R(convert);
+
     
     scale_vec = Q6_V_vsplat_R(float_to_fp16s(scale));
     HVX_Vector zero_v_sf = Q6_V_vzero();
@@ -148,10 +151,14 @@ int32_t qhmath_hvx_dequantize_ahf(
             sline1c = *iptr++;
             sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
             HVX_VectorPair temp = Q6_Wh_vadd_VubVub(sline1, zero_v_sf);
-            
 
-            *optr++ =  Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_V_lo_W(temp), scale_vec));
-            *optr++ =  Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_V_hi_W(temp), scale_vec));
+            temp = Q6_W_vshuff_VVR(Q6_V_hi_W(temp), Q6_V_lo_W(temp), -2);
+            HVX_Vector sout1 = Q6_Vh_vsub_VhVh(Q6_V_lo_W(temp), convert_vector);
+            HVX_Vector sout2 = Q6_Vh_vsub_VhVh(Q6_V_hi_W(temp), convert_vector);
+
+
+            *optr++ =  Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), scale_vec));
+            *optr++ =  Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout2), scale_vec));
 
             sline1p = sline1c;
         }
@@ -184,16 +191,18 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
     out_0.set_dims(in_0);
     
     // NHWC
-    auto in_ptr = (float*)in_0.raw_data_const();
-    auto out_ptr = (float*)out_0.raw_data();
+    auto in_ptr = (int8_t*)in_0.raw_data_const();
+    auto out_ptr = (int8_t*)out_0.raw_data();
     auto [b_in, h_in, w_in, d_in] = in_0.dims();
 
     float scale_ = scale(0,0,0,0);
 
 
     size_t size = b_in*h_in*w_in*d_in;
-    
-    qhmath_hvx_dequantize_ahf(in_ptr, out_ptr, size, scale_);
+
+    if (in_0.get_dtype() == DType::QUInt8 && out_0.get_dtype() == DType::Float16)
+        qhmath_hvx_dequantize_ahf(in_ptr, out_ptr, size, scale_);
+        
 
   return GraphStatus::Success;
 }
