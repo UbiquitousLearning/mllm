@@ -222,7 +222,7 @@ void qwen_cpu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
 
 
-    for (int layer = 0; layer < 12; ++layer) {
+    for (int layer = 0; layer < 24; ++layer) {
         auto res = i;
         res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
 
@@ -260,7 +260,7 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
 
     // first 23 layer using NPU-CPU prefilling
-    for (int layer = 0; layer < 11; ++layer) {
+    for (int layer = 0; layer < 23; ++layer) {
         if (layer != 0) // for graph 0, it will be offloaded to CPU in QNNOptNet::convert
             _SubgraphBegin(c, MLLM_CPU);
 
@@ -305,7 +305,7 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
     }
     // for the 24th layer, only calculate to the KVCache
     {
-        int layer = 12;
+        const int layer = 23;
         _SubgraphBegin(c, MLLM_CPU);
 
         auto res = i;
