@@ -50,46 +50,6 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     dequantScale = roundf(dequantScale * 10000) / 10000;
 
     if (isFP32_) {
-        // vector<Qnn_Tensor_t> outputTensor = {{QNN_TENSOR_VERSION_1,
-        //                                   {.v1 = {
-        //                                        .id = 0,
-        //                                        .name = outName.c_str(),
-        //                                        .type = getOutputTensorType(outputs[0]),
-        //                                        .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-        //                                        .dataType = QNN_DATATYPE_FLOAT_32,
-        //                                        .quantizeParams = {QNN_DEFINITION_DEFINED,
-        //                                                           QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
-        //                                                           {.scaleOffsetEncoding = {.scale = dequantScale, .offset = 0}}},
-        //                                        .rank = 4,
-        //                                        .dimensions = dimensionsOutput,
-        //                                        .memType = QNN_TENSORMEMTYPE_RAW,
-        //                                        {.clientBuf = {.data = nullptr,
-        //                                                       .dataSize = 0}}}}}};
-        // return graphAddNode(name(), "Dequantize", {inputs[0]->name()}, outputTensor);
-
-        uint32_t paramsDeQuantizeDimension[1] = {1};
-        auto paramsDeQuantizeName = name() + "dequantize_params";
-        vector<Qnn_Param_t> paramsDeQuantize = {
-            {.paramType = QNN_PARAMTYPE_TENSOR,
-            .name = "scale",
-            {.tensorParam = 
-                (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
-                    {.v1 = {
-                        .id = 0,
-                        .name = paramsDeQuantizeName.c_str(),
-                        .type = QNN_TENSOR_TYPE_STATIC,
-                        .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                        .dataType = QNN_DATATYPE_FLOAT_32,
-                        .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                            QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                            {.scaleOffsetEncoding = {.scale  = 0.0000000000000000f,
-                                                                    .offset = 0}}},
-                        .rank = 1,
-                        .dimensions = paramsDeQuantizeDimension,
-                        .memType = QNN_TENSORMEMTYPE_RAW,
-                        {.clientBuf = {.data = (uint8_t*)&dequantScale,
-                                        .dataSize = sizeof(float)}}}}}}}};
-
         vector<Qnn_Tensor_t> outputTensor = {{QNN_TENSOR_VERSION_1,
                                           {.v1 = {
                                                .id = 0,
@@ -105,8 +65,47 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                                                .memType = QNN_TENSORMEMTYPE_RAW,
                                                {.clientBuf = {.data = nullptr,
                                                               .dataSize = 0}}}}}};
+        return graphAddNode(name(), "Dequantize", {inputs[0]->name()}, outputTensor);
+
+        // uint32_t paramsDeQuantizeDimension[1] = {1};
+        // auto paramsDeQuantizeName = name() + "dequantize_params";
+        // vector<Qnn_Param_t> paramsDeQuantize = {
+        //     {.paramType = QNN_PARAMTYPE_TENSOR,
+        //     .name = "scale",
+        //     {.tensorParam = 
+        //         (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
+        //             {.v1 = {
+        //                 .id = 0,
+        //                 .name = paramsDeQuantizeName.c_str(),
+        //                 .type = QNN_TENSOR_TYPE_STATIC,
+        //                 .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+        //                 .dataType = QNN_DATATYPE_FLOAT_32,
+        //                 .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+        //                                     QNN_QUANTIZATION_ENCODING_UNDEFINED,
+        //                                     {.scaleOffsetEncoding = {.scale  = 0.0000000000000000f,
+        //                                                             .offset = 0}}},
+        //                 .rank = 1,
+        //                 .dimensions = paramsDeQuantizeDimension,
+        //                 .memType = QNN_TENSORMEMTYPE_RAW,
+        //                 {.clientBuf = {.data = (uint8_t*)&dequantScale,
+        //                                 .dataSize = sizeof(float)}}}}}}}};
+
+        // vector<Qnn_Tensor_t> outputTensor = {{QNN_TENSOR_VERSION_1,
+        //                                   {.v1 = {
+        //                                        .id = 0,
+        //                                        .name = outName.c_str(),
+        //                                        .type = getOutputTensorType(outputs[0]),
+        //                                        .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+        //                                        .dataType = QNN_DATATYPE_FLOAT_32,
+        //                                        .quantizeParams = {QNN_DEFINITION_DEFINED,
+        //                                                           QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
+        //                                                           {.scaleOffsetEncoding = {.scale = dequantScale, .offset = 0}}},
+        //                                        .rank = 4,
+        //                                        .dimensions = dimensionsOutput,
+        //                                        .memType = QNN_TENSORMEMTYPE_RAW,
+        //                                        {.clientBuf = {.data = nullptr,
+        //                                                       .dataSize = 0}}}}}};
         // return graphAddNode(name(), "LLaMADequantize", {inputs[0]->name()}, outputTensor, paramsDeQuantize, "LLaMAPackage");
-        return graphAddNode(name(), "Dequantize", inputs, outputs);
 
     } else {
 

@@ -54,8 +54,8 @@ NetTensor *Qwen_CPUNPUAttention_t1(Context *c, NetTensor *x, NetTensor *res, int
 NetTensor *Qwen_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
     auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
-    x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", false);
-    y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", false);
+    x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", true);
+    y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", true);
     
     x = _SiLU({x}, name + ".silu");
     x = *x * y;
@@ -304,35 +304,35 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
         i = *i + res;
     }
     // for the 24th layer, only calculate to the KVCache
-    {
-        int layer = 23;
-        _SubgraphBegin(c, MLLM_CPU);
+    // {
+    //     int layer = 23;
+    //     _SubgraphBegin(c, MLLM_CPU);
 
-        auto res = i;
-        res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
+    //     auto res = i;
+    //     res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
 
-        i = _RMSNorm({i}, hidden_dim, 1e-5, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
-        i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");
+    //     i = _RMSNorm({i}, hidden_dim, 1e-5, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
+    //     i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");
 
-        i = i->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
+    //     i = i->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
 
-        auto *m = _MergeOutput({i, res}, (string) "model.layers." + std::to_string(layer) + ".ires_merge");
+    //     auto *m = _MergeOutput({i, res}, (string) "model.layers." + std::to_string(layer) + ".ires_merge");
 
-        _SubgraphBegin(c);
+    //     _SubgraphBegin(c);
 
-        auto s = _SplitInput({m}, true, 2, (string) "model.layers." + std::to_string(layer) + ".self_attn.ires_split");
+    //     auto s = _SplitInput({m}, true, 2, (string) "model.layers." + std::to_string(layer) + ".self_attn.ires_split");
 
-        i = s[0];
-        res = s[1];
+    //     i = s[0];
+    //     res = s[1];
 
-        auto ix = Qwen_CPUNPUAttention_t2(c, i, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn", seq, chunk);
+    //     auto ix = Qwen_CPUNPUAttention_t2(c, i, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn", seq, chunk);
 
-        i = ix[0];
-        res = ix[1];
+    //     i = ix[0];
+    //     res = ix[1];
 
-        i = i->view(1, 1, seq / chunk, hidden_dim);
-        i = *i + res;
-    }
+    //     i = i->view(1, 1, seq / chunk, hidden_dim);
+    //     i = *i + res;
+    // }
 }
 
 void qwen_npu_cpu_inter(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
