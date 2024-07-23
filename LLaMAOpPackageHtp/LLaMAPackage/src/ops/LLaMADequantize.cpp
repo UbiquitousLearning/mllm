@@ -167,6 +167,74 @@ int32_t qhmath_hvx_dequantize_ahf(
     return 0;
 }
 
+int32_t qhmath_hvx_dequantize_af(
+    int8_t *restrict input,
+    int8_t *restrict output,
+    uint32_t size,
+    float scale)
+{
+    if ((input == NULL) || (output == NULL) || (size == 0))
+    {
+        return -1;
+    }
+
+    HVX_Vector *iptr = (HVX_Vector *) input;
+    HVX_UVector *optr = (HVX_UVector *) output;
+
+    HVX_Vector sline1p, sline1c, sline1;
+    HVX_Vector scale_vec;
+
+    int32_t block, l2fetch_block;
+    // int32_t leftover = size & 31;
+    int32_t vectors_in_rounddown = size / 32;
+    // int32_t leftover_size = leftover * sizeof(float);
+
+    sline1p = *iptr++;
+
+    uint32_t convert = 0x00800080;
+    HVX_Vector convert_vector = Q6_V_vsplat_R(convert);
+
+    
+    scale_vec = Q6_V_vsplat_R(float_to_fp16s(scale));
+    HVX_Vector zero_v_sf = Q6_V_vzero();
+
+    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
+    {
+        block = Q6_R_min_RR(i, BLOCK_SIZE);
+        l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
+
+        if (l2fetch_block > 0)
+        {
+            l2fetch(iptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+        }
+
+        for (int32_t j = 0; j < block; j+=4)
+        {
+            sline1c = *iptr++;
+            sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+            HVX_VectorPair temp = Q6_Wh_vadd_VubVub(sline1, zero_v_sf);
+
+            temp = Q6_W_vshuff_VVR(Q6_V_hi_W(temp), Q6_V_lo_W(temp), -2);
+            HVX_Vector sout1 = Q6_Vh_vsub_VhVh(Q6_V_lo_W(temp), convert_vector);
+            HVX_Vector sout2 = Q6_Vh_vsub_VhVh(Q6_V_hi_W(temp), convert_vector);
+
+            HVX_VectorPair result1 = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), scale_vec);
+            // result1 = Q6_W_vshuff_VVR(Q6_V_hi_W(result1), Q6_V_lo_W(result1), -4);
+
+            HVX_VectorPair result2 = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout2), scale_vec);
+            // result2 = Q6_W_vshuff_VVR(Q6_V_hi_W(result2), Q6_V_lo_W(result2), -4);
+
+            *optr++ =  Q6_Vsf_equals_Vqf32(Q6_V_lo_W(result1));
+            *optr++ =  Q6_Vsf_equals_Vqf32(Q6_V_hi_W(result1));
+            *optr++ =  Q6_Vsf_equals_Vqf32(Q6_V_lo_W(result2));
+            *optr++ =  Q6_Vsf_equals_Vqf32(Q6_V_hi_W(result2));
+
+            sline1p = sline1c;
+        }
+    }
+
+    return 0;
+}
 
 template<typename TensorType,typename TensorType1,typename TensorType2>
 GraphStatus llamadequantizeImpl(TensorType1 &out_0,
@@ -202,6 +270,12 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
 
     if (in_0.get_dtype() == DType::QUInt8 && out_0.get_dtype() == DType::Float16)
         qhmath_hvx_dequantize_ahf(in_ptr, out_ptr, size, scale_);
+
+    // else {
+    //     // *(float*)out_ptr = 1.0f;
+    //     qhmath_hvx_dequantize_af(in_ptr, out_ptr, size, scale_);
+    // }
+        
         
 
   return GraphStatus::Success;
