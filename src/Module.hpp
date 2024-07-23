@@ -84,7 +84,7 @@ public:
                 operator()(tmps, args);
                 break;
             } catch (const std::exception& e) {
-                if("bad any_cast" != e.what()) {
+                if(std::string("bad any_cast") != e.what()) {
                     std::cerr << e.what() << std::endl;
                     exit(0);
                 }
