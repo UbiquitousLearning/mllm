@@ -67,6 +67,8 @@ public:
     void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         bool isSame = std::equal(inputs[0]->chls().begin(), inputs[0]->chls().end(), inputs[1]->chls().begin());
         assert(inputs[0]->dtype() == MLLM_TYPE_F32);
+        mat_mul(inputs[0], inputs[1], outputs[0], false, nullptr, false, isSame, CPUBackend::cpu_threads);
+        /*
         switch (inputs[1]->dtype()) {
         case MLLM_TYPE_F32: {
             mat_mul_fp32(inputs[0], inputs[1], outputs[0], false, nullptr, false, isSame, CPUBackend::cpu_threads);
@@ -79,6 +81,7 @@ public:
         default:
             break;
         }
+        */
     }
     
 };

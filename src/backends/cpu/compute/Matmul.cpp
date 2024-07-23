@@ -169,6 +169,93 @@ ErrorCode mat_mul_sparse(Tensor *x, Tensor *W, Tensor *dst, int thread_count){
     return MLLM_NO_ERROR;
 }
 
+ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1, int thread_count) {
+    // src1 = W  src0 = x
+    // transpose0=false  transpose1=true
+
+    auto src0_dtype = src0->dtype();
+    auto src1_dtype = src1->dtype();
+    auto vec_dot_type = type_traits[src1_dtype].vec_dot_type;
+    auto vec_dot = type_traits[src1_dtype].vec_dot;
+    auto x_to_vec_dot_type = type_traits[vec_dot_type].from_float;
+
+    auto not_vec_dot_type = src0_dtype != vec_dot_type;
+    std::unique_ptr<Tensor> to; // later this tensor will be freed by ~Tensor
+    if(not_vec_dot_type){
+        // convert x.dtype to vec_dot_type
+        // so that we can use vec_dot to calculate dot product
+        ASSERT(src0_dtype == MLLM_TYPE_F32); // x should be fp32
+        to = std::make_unique<Tensor>(src0->shape());
+        to->setBackend(src0->backend());
+        to->setDtype(vec_dot_type);
+        to->alloc();
+        void *row_src = src0->rawHostPtr();
+        void *row_dst = to->rawHostPtr();
+        auto row_size_src = row_size(src0_dtype, src0->dimension());
+        auto row_size_dst = row_size(vec_dot_type, to->dimension());
+        auto n_row = src0->batch() * src0->head() * src0->sequence();
+        auto n_ele = src0->dimension();
+#pragma omp parallel for num_threads(thread_count)
+        for(int i = 0;i < n_row;i++){ // copy row by row
+            auto row1 = (char *)row_src + i * row_size_src;
+            auto row2 = (char *)row_dst + i * row_size_dst;
+            x_to_vec_dot_type(reinterpret_cast<const float *>(row1), row2, n_ele);
+        }
+        src0 = to.get();
+        src0_dtype = src0->dtype();
+    }
+    const auto src1_type_size = type_size(src1_dtype);
+    const auto src1_blck_size = blck_size(src1_dtype);
+    const auto src0_type_size = type_size(src0->dtype());
+    const auto src0_blck_size = blck_size(src0->dtype());
+
+    const int M = transpose0 ? src0->dimension() : src0->sequence();
+    const int K = transpose0 ? src0->sequence() : src0->dimension();
+    const int N = transpose1 ? src1->sequence() : src1->dimension();
+    
+    Tensor *src0_cal = src0;
+    Tensor *src1_cal = src1;
+    const int64_t blck_0 = 16;
+    int is_0 = (src1->batch() == 1 && src1->head() == 1) ? 0 : 1;
+#pragma omp parallel for collapse(4) num_threads(thread_count)
+    for (int b = 0; b < src0->batch(); b++) {
+        for (int h = 0; h < src0->head(); h++) {
+            for (int m = 0; m < M; m++) {
+                for (int block = 0; block < N / blck_0 + 1; block++) {
+                    for (int n = block * blck_0; n < (block + 1) * blck_0 & n < N; n++) {
+                        int s_1, d_1;
+                        int s_0, d_0;
+                        if (!transpose0 && transpose1) {
+                            s_1 = n; d_1 = 0; s_0 = m; d_0 = 0;
+                        } else if (!transpose0 && !transpose1) {
+                            s_1 = 0; d_1 = n; s_0 = m; d_0 = 0;
+                        } else {
+                            s_1 = 0; d_1 = n; s_0 = 0; d_0 = m;
+                        }
+                        float tmp = 0;
+                        vec_dot(K, &tmp,
+                                (char *)src1_cal->rawHostPtr() + src1_cal->offset(b*is_0, h*is_0, s_1, d_1) * src1_type_size / src1_blck_size,
+                                (char *)src0_cal->rawHostPtr() + src0_cal->offset(b, h, s_0, d_0) * src0_type_size / src0_blck_size);
+                        if(dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F32) {
+                            dst->setDataAt<float>(b, h, m, n, tmp);
+                            if (support_bias) {
+                                *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0, n);
+                            }
+                        }else if(dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F16) {
+                            if (support_bias) {
+                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp + bias->dataAt<float>(0, 0, 0, n));
+                            } else {
+                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp);
+                            }
+                        }else{std::cout<<"Not support type [Matmul]"<<std::endl;}
+                    }
+                }
+            }
+        }
+    }
+    return MLLM_NO_ERROR;
+}
+/*
 ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1, int thread_count) {
     const int M = transpose0 ? src0->dimension() : src0->sequence();
     const int K = transpose0 ? src0->sequence() : src0->dimension();
@@ -451,4 +538,96 @@ ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool suppo
     }
     return MLLM_NO_ERROR;
 }
+*/
 
+
+ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, 
+                            int activate_input_dim, int activate_output_dim, 
+                            bool transpose0, bool transpose1, int thread_count) {
+    // src1 = W  src0 = x
+    // transpose0=false  transpose1=true
+
+    auto src0_dtype = src0->dtype();
+    auto src1_dtype = src1->dtype();
+    auto vec_dot_type = type_traits[src1_dtype].vec_dot_type;
+    auto vec_dot = type_traits[src1_dtype].vec_dot;
+    auto x_to_vec_dot_type = type_traits[vec_dot_type].from_float;
+
+    auto not_vec_dot_type = src0_dtype != vec_dot_type;
+    std::unique_ptr<Tensor> to; // later this tensor will be freed by ~Tensor
+    if(not_vec_dot_type){
+        // convert x.dtype to vec_dot_type
+        // so that we can use vec_dot to calculate dot product
+        ASSERT(src0_dtype == MLLM_TYPE_F32); // x should be fp32
+        to = std::make_unique<Tensor>(src0->shape());
+        to->setBackend(src0->backend());
+        to->setDtype(vec_dot_type);
+        to->alloc();
+        void *row_src = src0->rawHostPtr();
+        void *row_dst = to->rawHostPtr();
+        auto row_size_src = row_size(src0_dtype, src0->dimension());
+        auto row_size_dst = row_size(vec_dot_type, to->dimension());
+        auto n_row = src0->batch() * src0->head() * src0->sequence();
+        auto n_ele = src0->dimension();
+#pragma omp parallel for num_threads(thread_count)
+        for(int i = 0;i < n_row;i++){ // copy row by row
+            auto row1 = (char *)row_src + i * row_size_src;
+            auto row2 = (char *)row_dst + i * row_size_dst;
+            x_to_vec_dot_type(reinterpret_cast<const float *>(row1), row2, n_ele);
+        }
+        src0 = to.get();
+        src0_dtype = src0->dtype();
+    }
+    const auto src1_type_size = type_size(src1_dtype);
+    const auto src1_blck_size = blck_size(src1_dtype);
+    const auto src0_type_size = type_size(src0->dtype());
+    const auto src0_blck_size = blck_size(src0->dtype());
+
+    const int M = transpose0 ? src0->dimension() : src0->sequence();
+    const int K = transpose0 ? src0->sequence() : src0->dimension();
+    const int N = transpose1 ? src1->sequence() : src1->dimension();
+    int use_N = (activate_output_dim == -1) ? N : activate_output_dim;
+    int use_K = (activate_input_dim == -1) ? K : activate_input_dim;
+    
+    Tensor *src0_cal = src0;
+    Tensor *src1_cal = src1;
+    const int64_t blck_0 = 16;
+    int is_0 = (src1->batch() == 1 && src1->head() == 1) ? 0 : 1;
+#pragma omp parallel for collapse(4) num_threads(thread_count)
+    for (int b = 0; b < src0->batch(); b++) {
+        for (int h = 0; h < src0->head(); h++) {
+            for (int m = 0; m < M; m++) {
+                for (int block = 0; block < use_N / blck_0 + 1; block++) {
+                    for (int n = block * blck_0; n < (block + 1) * blck_0 & n < use_N; n++) {
+                        int s_1, d_1;
+                        int s_0, d_0;
+                        if (!transpose0 && transpose1) {
+                            s_1 = n; d_1 = 0; s_0 = m; d_0 = 0;
+                        } else if (!transpose0 && !transpose1) {
+                            s_1 = 0; d_1 = n; s_0 = m; d_0 = 0;
+                        } else {
+                            s_1 = 0; d_1 = n; s_0 = 0; d_0 = m;
+                        }
+                        float tmp = 0;
+                        vec_dot(use_K, &tmp,
+                                (char *)src1_cal->rawHostPtr() + src1_cal->offset(b*is_0, h*is_0, s_1, d_1) * src1_type_size / src1_blck_size,
+                                (char *)src0_cal->rawHostPtr() + src0_cal->offset(b, h, s_0, d_0) * src0_type_size / src0_blck_size);
+                        if(dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F32) {
+                            dst->setDataAt<float>(b, h, m, n, tmp);
+                            if (support_bias) {
+                                *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0, n);
+                            }
+                        }else if(dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F16) {
+                            if (support_bias) {
+                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp + bias->dataAt<float>(0, 0, 0, n));
+                            } else {
+                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp);
+                            }
+                        }else{std::cout<<"Not support type [Matmul]"<<std::endl;}
+                    }
+                }
+            }
+        }
+    }
+    return MLLM_NO_ERROR;
+}

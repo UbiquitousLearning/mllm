@@ -70,7 +70,9 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     if(inputs[0]->count() == 0) {
         return Op::execute(inputs, outputs);
     }
+    mat_mul(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true, thread_count);
     // std::cout << name() << "  CPULinear()" << std::endl;
+    /*
     switch (weight_.dtype()) {
     case MLLM_TYPE_F32: {
         mat_mul_fp32(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true, thread_count);
@@ -92,6 +94,7 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     default:
         break;
     }
+    */
 //    auto end = mllm::mllm_time_us();
 //    printf("exec time: %ld us\n", end - start);
     return Op::execute(inputs, outputs);

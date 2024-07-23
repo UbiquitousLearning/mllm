@@ -1,6 +1,6 @@
 
 #include "CPUElasticLinear.hpp"
-#include "compute/MatmulElastic.hpp"
+#include "compute/Matmul.hpp"
 
 namespace mllm {
 
@@ -67,6 +67,8 @@ ErrorCode CPUElasticLinear::execute(vector<shared_ptr<Tensor>> inputs, vector<sh
     if(inputs[0]->count() == 0) {
         return Op::execute(inputs, outputs);
     }
+    mat_mul_elastic(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, activate_input_dim,activate_output_dim, false, true, thread_count);
+    /*
     // std::cout << name() << "  CPUElasticLinear()" << std::endl;
     switch (weight_.dtype()) {
     case MLLM_TYPE_F32: {
@@ -89,6 +91,7 @@ ErrorCode CPUElasticLinear::execute(vector<shared_ptr<Tensor>> inputs, vector<sh
     default:
         break;
     }
+    */
 //    auto end = mllm::mllm_time_us();
 //    printf("exec time: %ld us\n", end - start);
     return Op::execute(inputs, outputs);
