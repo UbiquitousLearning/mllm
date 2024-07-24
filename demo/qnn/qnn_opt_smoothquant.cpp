@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
         tokenizer.setSpecialToken("</s>", "");
 
         auto tokens_id = vector<token_id_t>();
-        tokenizer.tokenize(in_str, tokens_id, true);
+        tokenizer.tokenize(in_str, tokens_id, false, true, "");
         if (str_i > 0) {
             tokens_id[0] = 13;
         }
