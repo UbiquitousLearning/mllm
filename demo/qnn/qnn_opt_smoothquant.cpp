@@ -184,15 +184,13 @@ int main(int argc, char **argv) {
             interExe.run(&interNet, {result[0]});
             result = interExe.result();
 
-            result[0]->printShape();
-            exit(0);
-
             auto token_idx = postProcessing(result[0], input);
             if (token_idx == 2) { // "</s>"
                 break;
             }
             auto out_token = tokenizer.detokenize({token_idx});
             std::cout << out_token << std::flush;
+            exit(0);
 
             auto cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
             cpu_backend->setSequenceLength(real_seq_length);
