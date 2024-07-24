@@ -1027,7 +1027,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
 }
 
 
-bool check_sgemm(int64_t m, int64_t n, int64_t k, DataType Atype, DataType Btype, DataType Ctype) {
+bool check_llamafile_sgemm(int64_t m, int64_t n, int64_t k, DataType Atype, DataType Btype, DataType Ctype) {
 
     int ith=0;
     int nth =1;
