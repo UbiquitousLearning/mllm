@@ -3,8 +3,10 @@
 //
 
 #include "Matmul.hpp"
+#include "Types.hpp"
 #include "VecDotType.hpp"
 #include <pthread.h>
+#include "SGEMM.hpp"
 
 #define ASSERT(x) \
     do { \
@@ -172,12 +174,45 @@ ErrorCode mat_mul_sparse(Tensor *x, Tensor *W, Tensor *dst, int thread_count){
 ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1, int thread_count) {
     // src1 = W  src0 = x
     // transpose0=false  transpose1=true
+    const int M = transpose0 ? src0->dimension() : src0->sequence();
+    const int K = transpose0 ? src0->sequence() : src0->dimension();
+    const int N = transpose1 ? src1->sequence() : src1->dimension();
 
     auto src0_dtype = src0->dtype();
     auto src1_dtype = src1->dtype();
     auto vec_dot_type = type_traits[src1_dtype].vec_dot_type;
     auto vec_dot = type_traits[src1_dtype].vec_dot;
     auto x_to_vec_dot_type = type_traits[vec_dot_type].from_float;
+
+    auto src1_type_size = type_size(src1_dtype);
+    auto src1_blck_size = blck_size(src1_dtype);
+    auto src0_type_size = type_size(src0->dtype());
+    auto src0_blck_size = blck_size(src0->dtype());
+
+    if (check_sgemm(N, M, K/blck_size(src0->dtype()),src1->dtype(),src0->dtype(),dst->dtype())){
+        const int ld_src1 = src1->sequence_skip_dim();
+        const int ld_src0 = src0->sequence_skip_dim();
+        const int ld_dst = dst->sequence_skip_dim();
+#pragma omp parallel for collapse(3) num_threads(thread_count)
+        for (int64_t b = 0; b < dst->batch(); b++){
+            for (int64_t h = 0; h < dst->head(); h++){
+                for (int id = 0; id < thread_count; id++){
+                    llamafile_sgemm(N, M, K/blck_size(src0->dtype()),
+                                    (char *)src1->rawHostPtr() + src1->offset(b, h, 0, 0) * src1_type_size / src1_blck_size,
+                                    ld_src1,
+                                    (char *)src0->rawHostPtr() + src0->offset(b, h, 0, 0) * src0_type_size / src0_blck_size,
+                                    ld_src0,
+                                    (char *)dst->rawHostPtr() + dst->offset(b, h, 0, 0) * type_size(dst->dtype()) / blck_size(dst->dtype()),
+                                    ld_dst,
+                                    id, thread_count,
+                                    src1->dtype(),
+                                    src0->dtype(),
+                                    dst->dtype());
+                }
+            }
+        }
+        return MLLM_NO_ERROR;
+    }
 
     auto not_vec_dot_type = src0_dtype != vec_dot_type;
     std::unique_ptr<Tensor> to; // later this tensor will be freed by ~Tensor
@@ -203,15 +238,9 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
         }
         src0 = to.get();
         src0_dtype = src0->dtype();
+        src0_type_size = type_size(src0->dtype());
+        src0_blck_size = blck_size(src0->dtype());
     }
-    const auto src1_type_size = type_size(src1_dtype);
-    const auto src1_blck_size = blck_size(src1_dtype);
-    const auto src0_type_size = type_size(src0->dtype());
-    const auto src0_blck_size = blck_size(src0->dtype());
-
-    const int M = transpose0 ? src0->dimension() : src0->sequence();
-    const int K = transpose0 ? src0->sequence() : src0->dimension();
-    const int N = transpose1 ? src1->sequence() : src1->dimension();
     
     Tensor *src0_cal = src0;
     Tensor *src1_cal = src1;
@@ -546,12 +575,46 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
                             bool transpose0, bool transpose1, int thread_count) {
     // src1 = W  src0 = x
     // transpose0=false  transpose1=true
+    const int M = transpose0 ? src0->dimension() : src0->sequence();
+    const int K = transpose0 ? src0->sequence() : src0->dimension();
+    const int N = transpose1 ? src1->sequence() : src1->dimension();
 
     auto src0_dtype = src0->dtype();
     auto src1_dtype = src1->dtype();
     auto vec_dot_type = type_traits[src1_dtype].vec_dot_type;
     auto vec_dot = type_traits[src1_dtype].vec_dot;
     auto x_to_vec_dot_type = type_traits[vec_dot_type].from_float;
+
+    auto src1_type_size = type_size(src1_dtype);
+    auto src1_blck_size = blck_size(src1_dtype);
+    auto src0_type_size = type_size(src0->dtype());
+    auto src0_blck_size = blck_size(src0->dtype());
+
+    if (check_sgemm(N, M, K/blck_size(src0->dtype()),src1->dtype(),src0->dtype(),dst->dtype())){
+        const int ld_src1 = src1->sequence_skip_dim();
+        const int ld_src0 = src0->sequence_skip_dim();
+        const int ld_dst = dst->sequence_skip_dim();
+#pragma omp parallel for collapse(3) num_threads(thread_count)
+        for (int64_t b = 0; b < dst->batch(); b++){
+            for (int64_t h = 0; h < dst->head(); h++){
+                for (int id = 0; id < thread_count; id++){
+                    llamafile_sgemm(N, M, K/blck_size(src0->dtype()),
+                                    (char *)src1->rawHostPtr() + src1->offset(b, h, 0, 0) * src1_type_size / src1_blck_size,
+                                    ld_src1,
+                                    (char *)src0->rawHostPtr() + src0->offset(b, h, 0, 0) * src0_type_size / src0_blck_size,
+                                    ld_src0,
+                                    (char *)dst->rawHostPtr() + dst->offset(b, h, 0, 0) * type_size(dst->dtype()) / blck_size(dst->dtype()),
+                                    ld_dst,
+                                    id, thread_count,
+                                    src1->dtype(),
+                                    src0->dtype(),
+                                    dst->dtype());
+                }
+            }
+        }
+        return MLLM_NO_ERROR;
+    }
+
 
     auto not_vec_dot_type = src0_dtype != vec_dot_type;
     std::unique_ptr<Tensor> to; // later this tensor will be freed by ~Tensor
@@ -577,15 +640,10 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
         }
         src0 = to.get();
         src0_dtype = src0->dtype();
+        src0_type_size = type_size(src0->dtype());
+        src0_blck_size = blck_size(src0->dtype());
     }
-    const auto src1_type_size = type_size(src1_dtype);
-    const auto src1_blck_size = blck_size(src1_dtype);
-    const auto src0_type_size = type_size(src0->dtype());
-    const auto src0_blck_size = blck_size(src0->dtype());
 
-    const int M = transpose0 ? src0->dimension() : src0->sequence();
-    const int K = transpose0 ? src0->sequence() : src0->dimension();
-    const int N = transpose1 ? src1->sequence() : src1->dimension();
     int use_N = (activate_output_dim == -1) ? N : activate_output_dim;
     int use_K = (activate_input_dim == -1) ? K : activate_input_dim;
     

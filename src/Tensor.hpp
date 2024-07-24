@@ -343,6 +343,53 @@ public:
         }
     }
 
+    int memshape(int index) const {
+        if(master_tensor_) {
+            if(master_tensor_->master_tensor_) {
+                return master_tensor_->master_tensor_->shape_[index];
+            }else {
+                return master_tensor_->shape_[index];
+            }
+        }else{
+            return shape(index);
+        }
+    }
+    int sequence_skip_dim() const {
+        if(master_tensor_) {
+            if(master_tensor_->master_tensor_) {
+                auto shape = master_tensor_->master_tensor_->shape_;
+                if (master_tensor_->master_tensor_->ctype_ == BSHD) {
+                    return shape[3]*shape[2];
+                } else if (master_tensor_->master_tensor_->ctype_ == BHDS) {
+                    return shape[3];
+                } else {
+                    std::cout << "sequence_skip_dim() only support for BSHD and BHDS" << std::endl;
+                    return -1;
+                }                
+            }else {
+                auto shape = master_tensor_->shape_;
+                 if (master_tensor_->ctype_ == BSHD) {
+                    return shape[3]*shape[2];
+                } else if (master_tensor_->ctype_ == BHDS) {
+                    return shape[3];
+                } else {
+                    std::cout << "sequence_skip_dim() only support for BSHD and BHDS" << std::endl;
+                    return -1;
+                }
+            }
+        }else{
+            if (ctype_ == BSHD) {
+                return shape_[3]*shape_[2];
+            } else if (ctype_ == BHDS) {
+                return shape_[3];
+            } else {
+                std::cout << "sequence_skip_dim() only support for BSHD and BHDS" << std::endl;
+                return -1;
+            }
+            // return shape_[3]*shape_[2];
+        }
+    }
+
     /**
      * \brief obtain the raw pointer to the first address where tensor stores data.
      * \return the pointer(void *) to the first address where tensor stores data.

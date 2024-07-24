@@ -845,11 +845,9 @@ class tinyBLAS_Q0_AVX {
  * @return true if this function was able to service the matmul request
  */
  //TODOYRJ
-bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda, const void *B, int64_t ldb, void *C,
-                     int64_t ldc,  DataType Atype, DataType Btype, DataType Ctype) {
-
-    int ith=0;
-    int nth =1;
+bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda, const void *B, int64_t ldb, void *C,int64_t ldc,                      
+                    int ith, int nth,
+                    DataType Atype, DataType Btype, DataType Ctype) {
     assert(m >= 0);
     assert(n >= 0);
     assert(k >= 0);
@@ -1026,4 +1024,103 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
     (void)Atype;
     (void)Btype;
     (void)Ctype;
+}
+
+
+bool check_sgemm(int64_t m, int64_t n, int64_t k, DataType Atype, DataType Btype, DataType Ctype) {
+
+    int ith=0;
+    int nth =1;
+    assert(m >= 0);
+    assert(n >= 0);
+    assert(k >= 0);
+    assert(nth > 0);
+    assert(ith < nth);
+
+    if (Ctype != MLLM_TYPE_F32)
+        return false;
+
+    switch (Atype) {
+
+    case MLLM_TYPE_F32: {
+        if (Btype != MLLM_TYPE_F32)
+            return false;
+#if defined(__AVX512F__)
+        if (k % 16)
+            return false;
+        return true;
+#elif defined(__AVX__) || defined(__AVX2__)
+        if (k % 8)
+            return false;
+        return true;
+#elif defined(__ARM_NEON)
+        if (n < 4)
+            return false;
+        if (k % 4)
+            return false;
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    case MLLM_TYPE_F16: {
+#if defined(__AVX512F__)
+        if (k % 16)
+            return false;
+        if (Btype != MLLM_TYPE_F32)
+            return false;
+        return true;
+#elif (defined(__AVX__) || defined(__AVX2__)) && defined(__F16C__)
+        if (k % 8)
+            return false;
+        if (Btype != MLLM_TYPE_F32)
+            return false;
+        return true;
+#elif defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC) && !defined(_MSC_VER)
+        if (n < 8)
+            return false;
+        if (k % 8)
+            return false;
+        if (Btype != MLLM_TYPE_F16)
+            return false;
+        return true;
+#elif defined(__ARM_NEON) && !defined(_MSC_VER)
+        if (k % 4)
+            return false;
+        if (Btype != MLLM_TYPE_F32)
+            return false;
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    case MLLM_TYPE_Q8_0: {
+        if (Btype != MLLM_TYPE_Q8_0)
+           return false;
+#if defined(__AVX2__) || defined(__AVX512F__) || defined(__AVX__)
+        return true;
+#elif defined(__ARM_FEATURE_DOTPROD)
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    case MLLM_TYPE_Q4_0: {
+        if (Btype != MLLM_TYPE_Q8_0)
+            return false;
+#if defined(__AVX2__) || defined(__AVX512F__) || defined(__AVX__)
+        return true;
+#elif defined(__ARM_FEATURE_DOTPROD)
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    default:
+        return false;
+    }
 }
