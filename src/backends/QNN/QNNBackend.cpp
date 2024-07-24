@@ -58,7 +58,6 @@
 
 #include "QNN/HTP/QnnHtpGraph.h"
 
-#define DEBUGPRINT
 #ifdef DEBUGPRINT
 #include "Timing.hpp"
 #endif
@@ -417,26 +416,11 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
 }
 
 void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
-#ifdef DEBUGPRINT
-    std::cout << "onExecuteStart" << std::endl;
-#endif
 
     // to support multi-thread, we need local variable.
     // update currentInputBuffers, currentOutputBuffers, qnnModelIndex_
     auto t_qnnModelIndex_ = qnnModelIndexMap_[graphName];
-    // qnn_wrapper_api::GraphInfo_t **m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
 
-    // std::cout << "graph name:" << graphName << std::endl;
-    // std::cout << "output buffers size" << currentOutputBuffers->size() << std::endl;
-
-// #ifdef QNN_ARM
-    // reset the syncvar
-    // for (auto t : syncVarTensors_) {
-    //     t->setDataAt<uint32_t>(0, 0, 0, 0, 0);
-    // }
-
-    
-// #endif
     qnn_wrapper_api::GraphInfo_t **m_graphsInfo = m_graphsInfoMap_[t_qnnModelIndex_];
 
     auto returnStatus = StatusCode::SUCCESS;
@@ -448,7 +432,9 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
         Qnn_Tensor_t *outputs_ = outputsMap_[t_qnnModelIndex_];
 
         Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
+#ifdef DEBUGPRINT
         uint64_t t_start = mllm_time_us();
+#endif
         executeStatus =
             m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
                                                             inputs_,
@@ -457,23 +443,10 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
                                                             graphInfo.numOutputTensors,
                                                             m_profileBackendHandle,
                                                             nullptr);
+#ifdef DEBUGPRINT
         uint64_t t_end = mllm_time_us();
         std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
-
-        // // print autoregressive latency.
-        // FILE *fp = fopen("AR_latency.txt", "a");
-    
-        // // 检查文件是否成功打开
-        // if (fp == NULL) {
-        //     // 文件打开失败，输出错误消息并退出程序
-        //     printf("无法打开文件或文件不存在。\n");
-        // }
-        
-        // // 写入内容到文件
-        // fprintf(fp, "QNN execution time %f ms\n", (t_end - t_start) / 1000.0F);
-        
-        // // 关闭文件
-        // fclose(fp);
+#endif
 
         if (QNN_GRAPH_NO_ERROR != executeStatus) {
             returnStatus = StatusCode::FAILURE;
@@ -845,7 +818,9 @@ StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *
             if (StatusCode::SUCCESS == returnStatus) {
                 QNN_DEBUG("Successfully populated input tensors for graphIdx: %d", graphIdx);
                 Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
+#ifdef DEBUGPRINT
                 uint64_t t_start = mllm_time_us();
+#endif
 
                 executeStatus =
                     m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
@@ -855,8 +830,10 @@ StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *
                                                                     graphInfo.numOutputTensors,
                                                                     m_profileBackendHandle,
                                                                     nullptr);
+#ifdef DEBUGPRINT
                 uint64_t t_end = mllm_time_us();
                 std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
+#endif
 
                 if (QNN_GRAPH_NO_ERROR != executeStatus) {
                     returnStatus = StatusCode::FAILURE;
@@ -912,7 +889,9 @@ StatusCode QNNBackend::executeGraphsShared() {
         Qnn_Tensor_t *outputs_ = outputsMap_[qnnModelIndex_];
 
         Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
+#ifdef DEBUGPRINT
         uint64_t t_start = mllm_time_us();
+#endif
         executeStatus =
             m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
                                                             inputs_,
@@ -921,23 +900,10 @@ StatusCode QNNBackend::executeGraphsShared() {
                                                             graphInfo.numOutputTensors,
                                                             m_profileBackendHandle,
                                                             nullptr);
+#ifdef DEBUGPRINT
         uint64_t t_end = mllm_time_us();
         std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
-
-        // print autoregressive latency.
-        FILE *fp = fopen("AR_latency.txt", "a");
-    
-        // 检查文件是否成功打开
-        if (fp == NULL) {
-            // 文件打开失败，输出错误消息并退出程序
-            printf("无法打开文件或文件不存在。\n");
-        }
-        
-        // 写入内容到文件
-        fprintf(fp, "QNN execution time %f ms\n", (t_end - t_start) / 1000.0F);
-        
-        // 关闭文件
-        fclose(fp);
+#endif
 
         if (QNN_GRAPH_NO_ERROR != executeStatus) {
             returnStatus = StatusCode::FAILURE;
@@ -983,7 +949,9 @@ StatusCode QNNBackend::executeGraphsSharedAutoregressive() {
         auto graphInfo = (*m_graphsInfo)[graphIdx];
 
         Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
+#ifdef DEBUGPRINT
         uint64_t t_start = mllm_time_us();
+#endif
         executeStatus =
             m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
                                                             inputs_,
@@ -992,8 +960,10 @@ StatusCode QNNBackend::executeGraphsSharedAutoregressive() {
                                                             graphInfo.numOutputTensors,
                                                             m_profileBackendHandle,
                                                             nullptr);
+#ifdef DEBUGPRINT
         uint64_t t_end = mllm_time_us();
         std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
+#endif
 
         if (QNN_GRAPH_NO_ERROR != executeStatus) {
             returnStatus = StatusCode::FAILURE;

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <csignal>
 #include <memory>
+#include <vector>
 #include "Executor.hpp"
 #include "Types.hpp"
 #include "backends/QNN/QNNOptNet.hpp"
@@ -145,7 +146,7 @@ int main(int argc, char **argv) {
     cpuExe.setup(&cpuNet);
 
     vector<string> in_strs = {
-        "Hello, who are you?",
+        "Trump spent Tuesday reacting to his changed political fortunes. In a barrage of social media posts, the former president ripped into his likely new opponent, lamented that",
     };
     // " What can you do?",
     // "Please introduce Beijing University of Posts and Telecommunications."};
@@ -175,6 +176,8 @@ int main(int argc, char **argv) {
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
 
+        vector<string> answers;
+
         do {
             // 1: Prefill stage using NPU chunk execute
             npuExe.run(npu_ctx, &npuNet, {input});
@@ -190,7 +193,7 @@ int main(int argc, char **argv) {
             }
             auto out_token = tokenizer.detokenize({token_idx});
             std::cout << out_token << std::flush;
-            exit(0);
+            answers.push_back(out_token);
 
             auto cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
             cpu_backend->setSequenceLength(real_seq_length);
@@ -206,13 +209,17 @@ int main(int argc, char **argv) {
                 }
                 auto out_token = tokenizer.detokenize({token_idx});
                 std::cout << out_token << std::flush;
-
+                answers.push_back(out_token);
                 if (step == 1) {
                     cpu_backend->switchDecodeTag();
                 }
             }
         } while (false);
         printf("\n");
+
+        for (auto answer : answers){
+            std::cout << answer << " ";
+        }
     }
 
     cpuExe.perf();

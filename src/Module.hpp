@@ -9,9 +9,6 @@
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
 #include "backends/cpu/CPUBackend.hpp"
-#ifdef USE_QNN
-#include "backends/qnn/QNNBackend.hpp"
-#endif
 
 #include <any>
 #include <memory/SystemMemoryManager.hpp>
