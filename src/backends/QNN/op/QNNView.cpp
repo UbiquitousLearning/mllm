@@ -183,7 +183,7 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         int pos = scaleName.find(wordToRemove);
         while (pos != -1) {
             scaleName.erase(pos, wordToRemove.length());
-            split_variable = ".fc1";
+            split_variable = ".up_proj";
             pos = scaleName.find(wordToRemove);
         }
 
