@@ -40,7 +40,7 @@ ErrorCode CPUQuantize::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
                 for (int d = 0; d < dim; ++d) {
                     float value = input->dataAt<float>(b, h, s, d);
                     int32_t v = static_cast<int32_t>(roundf(value / quantScale));
-                    v = std::max (std::min(v, 128), -127);
+                    v = std::max (std::min(v, 127), -128);
                     output->setDataAt<uint8_t>(b, h, s, d, static_cast<uint8_t>(v));
                 }
             }
