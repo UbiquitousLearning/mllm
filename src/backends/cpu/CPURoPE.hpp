@@ -10,6 +10,7 @@ class CPURoPE final : public Op {
 public:
     CPURoPE(Backend *bn, string opName, int pose_type, int threadCount);
     CPURoPE(Backend *bn, string opName, int pose_type, float rope_theta, int max_position_embeddings, int threadCount);
+    CPURoPE(Backend *bn, string opName, int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings, int threadCount);
     virtual ~CPURoPE() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -30,6 +31,7 @@ private:
     int pose_type_ = 4;
     int ishape;
     int thread_count = 4;
+    float partial_rotary_factor_ = 1;
 };
 
 class CPURoPECreator : public CPUBackend::Creator {
@@ -41,7 +43,11 @@ public:
         }
         float rope_theta = op_param["rope_theta"];
         int max_position_embeddings = op_param["max_position_embeddings"];
-        return new CPURoPE(bn, name, pose_type, rope_theta, max_position_embeddings, threadCount);
+        if (op_param.find("partial_rotary_factor") == op_param.end()) {
+            return new CPURoPE(bn, name, pose_type, rope_theta, max_position_embeddings, threadCount);
+        }
+        float partial_rotary_factor = op_param["partial_rotary_factor"];
+        return new CPURoPE(bn, name, pose_type, rope_theta, partial_rotary_factor, max_position_embeddings, threadCount);
     }
 };
 } // namespace mllm

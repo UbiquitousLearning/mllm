@@ -163,9 +163,6 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
 ErrorCode QNNDequantize::load(AbstructLoader &loader) {
 
-    std::cout << "load dequantize" << std::endl;
-
-
     string scaleName = name();
     string scaleTypeName =  "output_scale";
 
@@ -187,8 +184,6 @@ ErrorCode QNNDequantize::load(AbstructLoader &loader) {
     scale_.setDtype(MLLM_TYPE_F32);
     scale_.alloc();
     loader.load(&scale_);
-
-    std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
 
     return Op::load(loader);
 }

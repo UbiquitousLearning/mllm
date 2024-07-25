@@ -38,14 +38,14 @@ unsigned int LibHelper::postProcessing(shared_ptr<Tensor> result, shared_ptr<Ten
     }
 }
 
-bool LibHelper::setUp(const std::string &base_path, std::string weights_path, std::string vacab_path, PreDefinedModel model, MLLMBackendType backend_type) {
+bool LibHelper::setUp(const std::string &base_path, std::string weights_path, std::string vocab_path, PreDefinedModel model, MLLMBackendType backend_type) {
     c = new Context();
     BackendConfig bn;
     weights_path = base_path + weights_path;
-    vacab_path = base_path + vacab_path;
+    vocab_path = base_path + vocab_path;
     LOGI("Setup!");
     // check path exists
-    if (!exists_test(weights_path) || !exists_test(vacab_path)) {
+    if (!exists_test(weights_path) || !exists_test(vocab_path)) {
         return false;
     }
 
@@ -68,7 +68,7 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
         int mutil_head_size = 32;
         llama2(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size);
         net_->convert(c->sub_param_, BackendType::MLLM_CPU);
-        tokenizer_ = new BPETokenizer(vacab_path);
+        tokenizer_ = new BPETokenizer(vocab_path);
         eos_id_ = 2;
         break;
     }
@@ -80,7 +80,7 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
         int patch_size = 30;
         Fuyu(c, vocab_size, patch_size, 3, hidden_dim, ffn_hidden_dim, mutil_head_size);
         net_->convert(c->sub_param_, BackendType::MLLM_CPU);
-        tokenizer_ = new UnigramTokenizer(vacab_path);
+        tokenizer_ = new UnigramTokenizer(vocab_path);
         eos_id_ = 71013;
         break;
     }

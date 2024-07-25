@@ -18,6 +18,9 @@ using std::map;
 
 typedef map<std::string, float> OpParam;
 
+
+inline bool saveNDataFlag = false;
+
 typedef enum {
     MLLM_DEFAULT,
     MLLM_CPU,
@@ -118,6 +121,7 @@ enum RoPEType {
     LLAMAROPE = 2,
     PERSIMMONROPE = 3,
     HFHUBROPE = 4,
+    MLAROPE = 5,
 };
 
 enum QNNExecutionType {

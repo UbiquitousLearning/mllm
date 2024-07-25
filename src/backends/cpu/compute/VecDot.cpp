@@ -97,6 +97,7 @@ void vec_dot_fp32(const int n, float *__restrict s, const float *__restrict vx, 
     vec_dot_fp32_arm(n, s, vx, vy);
 #endif
 }
+/*
 void vec_dot_fp32(const float * __restrict src0, const float * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf) {
     float value = 0;
 #ifdef __AVX2__
@@ -113,7 +114,7 @@ void vec_dot_fp32(const float * __restrict src0, const float * __restrict src1, 
     }
     dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, value);
 }
-
+*/
 void vec_dot_fp16(const int n, float * __restrict s, const mllm_fp16_t * __restrict vx, const mllm_fp16_t * __restrict vy) {
     float sumf = 0.0;
 
@@ -1342,6 +1343,75 @@ void vec_dot_q6_K_q8_K(const void * __restrict src0, const void * __restrict src
         value += bias->dataAt<float>(0, head, 0, sec1_outf);
     }
     dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, value);
+}
+
+
+
+void vec_dot_q8_0_q8_0(int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy) {
+    const int qk = QK8_0;
+    const int nb = n / qk;  // number of blocks
+
+    assert(n % qk == 0);
+
+    const auto * __restrict x = static_cast<const block_q8_0 *>(vx);
+    const auto * __restrict y = static_cast<const block_q8_0 *>(vy);
+
+#if defined(__ARM_NEON)
+    float32x4_t sumv0 = vdupq_n_f32(0.0f);
+    float32x4_t sumv1 = vdupq_n_f32(0.0f);
+
+    assert(nb % 2 == 0); // TODO: handle odd nb
+
+    for (int i = 0; i < nb; i += 2) {
+        const block_q8_0 * x0 = &x[i + 0];
+        const block_q8_0 * x1 = &x[i + 1];
+        const block_q8_0 * y0 = &y[i + 0];
+        const block_q8_0 * y1 = &y[i + 1];
+
+        const int8x16_t x0_0 = vld1q_s8(x0->qs);
+        const int8x16_t x0_1 = vld1q_s8(x0->qs + 16);
+        const int8x16_t x1_0 = vld1q_s8(x1->qs);
+        const int8x16_t x1_1 = vld1q_s8(x1->qs + 16);
+
+        // load y
+        const int8x16_t y0_0 = vld1q_s8(y0->qs);
+        const int8x16_t y0_1 = vld1q_s8(y0->qs + 16);
+        const int8x16_t y1_0 = vld1q_s8(y1->qs);
+        const int8x16_t y1_1 = vld1q_s8(y1->qs + 16);
+
+        sumv0 = vmlaq_n_f32(sumv0, vcvtq_f32_s32(vaddq_s32(
+                                       mllm_vdotq_s32(vdupq_n_s32(0), x0_0, y0_0),
+                                       mllm_vdotq_s32(vdupq_n_s32(0), x0_1, y0_1))), MLLM_FP16_TO_FP32(x0->d)*MLLM_FP16_TO_FP32(y0->d));
+
+        sumv1 = vmlaq_n_f32(sumv1, vcvtq_f32_s32(vaddq_s32(
+                                       mllm_vdotq_s32(vdupq_n_s32(0), x1_0, y1_0),
+                                       mllm_vdotq_s32(vdupq_n_s32(0), x1_1, y1_1))), MLLM_FP16_TO_FP32(x1->d)*MLLM_FP16_TO_FP32(y1->d));
+    }
+
+    *s = vaddvq_f32(sumv0) + vaddvq_f32(sumv1);
+#elif defined(__AVX2__) || defined(__AVX__)
+    // Initialize accumulator with zeros
+    __m256 acc = _mm256_setzero_ps();
+
+    // Main loop
+    for (int i = 0; i < nb; ++i) {
+        // Compute combined scale for the block
+        const __m256 d = _mm256_set1_ps(MLLM_FP16_TO_FP32(x[i].d) * MLLM_FP16_TO_FP32(y[i].d));
+        __m256i bx = _mm256_loadu_si256((const __m256i *)x[i].qs);
+        __m256i by = _mm256_loadu_si256((const __m256i *)y[i].qs);
+
+        const __m256 q = mul_sum_i8_pairs_float(bx, by);
+
+        // Multiply q with scale and accumulate
+#if defined(__AVX2__)
+        acc = _mm256_fmadd_ps( d, q, acc );
+#else
+        acc = _mm256_add_ps( _mm256_mul_ps( d, q ), acc );
+#endif
+    }
+
+    *s = hsum_float_8(acc);
+#endif
 }
 
 #if defined(__ARM_NEON)

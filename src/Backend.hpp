@@ -13,13 +13,10 @@ class Op;
 class Tensor;
 class Backend;
 
-
-
-
-class TensorFunction{
+class TensorFunction {
 public:
-    virtual void setup(Tensor &output, vector<Tensor*> &inputs, vector<float> args) = 0;
-    virtual void execute(Tensor &output, vector<Tensor*> &inputs, vector<float> args) = 0;
+    virtual void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) = 0;
+    virtual void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) = 0;
 };
 class Backend {
 public:

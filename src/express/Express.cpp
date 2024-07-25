@@ -463,6 +463,72 @@ NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_fea
     return out_tensor;
 }
 /**
+ * \param in_dim The size of each input sample (i.e., input dimension).
+ * \param out_dim The size of each output sample (i.e., output dimension).
+ */
+NetTensor *_SparseLinear(std::vector<NetTensor *> inputs, int in_dim, int out_dim, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "SPARSELINEAR" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::SPARSELINEAR)
+    net_op_->param["in_dim_"] = (float)in_dim;
+    net_op_->param["out_dim_"] = (float )out_dim;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+/**
+ * \param in_dim The size of each input sample (i.e., input dimension).
+ * \param out_dim The size of each output sample (i.e., output dimension).
+ */
+NetTensor *_SparseIdLinear(std::vector<NetTensor *> inputs, int in_dim, int out_dim, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "SPARSEIDLINEAR" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::SPARSEIDLINEAR)
+    net_op_->param["in_dim_"] = (float)in_dim;
+    net_op_->param["out_dim_"] = (float )out_dim;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+/**
+ * \param in_dim The size of each input sample (i.e., input dimension).
+ * \param out_dim The size of each output sample (i.e., output dimension).
+ */
+NetTensor *_Predictor(std::vector<NetTensor *> inputs, int in_dim, int out_dim, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Predictor" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::PREDICTOR)
+    net_op_->param["in_dim"] = (float)in_dim;
+    net_op_->param["out_dim"] = (float )out_dim;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+/**
  * \param in_features The size of each input sample (i.e., input dimension).
  * \param out_features The size of each output sample (i.e., output dimension).
  * \param bias If set to false, the layer will not learn an additive bias. Default is true.
