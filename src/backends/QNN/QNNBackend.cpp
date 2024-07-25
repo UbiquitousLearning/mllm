@@ -389,14 +389,11 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
         // register input and output tensor to qnn shared buffers
         // TODO: currently must insure the inputs and outputs of mllm graph are the same as the qnn graph
         // op created io tensors (kvcache, wnop...) should be solved
-        for(auto t : inputs) {
-            std::cout << t->name() << std::endl;
-        }
+#ifdef DEBUGPRINT
         std::cout << "input tensors num:" << (*m_graphsInfo)[graphIdx].numInputTensors << std::endl;
         std::cout << "output tensors num:" << (*m_graphsInfo)[graphIdx].numOutputTensors << std::endl;
+#endif
 
-        std::cout << "input tensors num:" << currentInputBuffers->size() << std::endl;
-        std::cout << "output tensors num:" << currentOutputBuffers->size() << std::endl;
 
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {
             qnnMM->registerQnnTensor((*currentInputBuffers)[i], inputs_[i]);

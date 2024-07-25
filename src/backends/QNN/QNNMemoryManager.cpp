@@ -82,7 +82,9 @@ void QNNMemoryManager::setQnnInterfaceAndContext(void *context) {
 
 void QNNMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
     assert(size > 0);
-std::cout <<  "---------QNN alloc" << std::endl;
+#ifdef DEBUGPRINT
+    std::cout << "---------QNN alloc" << std::endl;
+#endif
 #ifdef QNN_ARM
 #define RPCMEM_HEAP_ID_SYSTEM 25
 #define RPCMEM_DEFAULT_FLAGS 1
@@ -138,8 +140,6 @@ void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
         std::cerr << "qnnInterface memRegister failed" << std::endl;
         return;
     }
-
-    std::cout << "registerQnnTensor: " << qnnTensor.v1.memHandle << std::endl;
 
     ptrToFdAndMemHandleMap_.insert(std::make_pair(ptr, std::make_pair(memFd, qnnTensor.v1.memHandle)));
 }
