@@ -1,6 +1,7 @@
 #include <iostream>
 #include <csignal>
 #include <memory>
+#include <vector>
 #include "Executor.hpp"
 #include "Types.hpp"
 #include "backends/QNN/QNNOptNet.hpp"
@@ -69,7 +70,7 @@ int main(int argc, char **argv) {
     cmdParser.parse_check(argc, argv);
 
     const string npu_model_path = "./models/Qwen1.5-1.8B-Chat_10000000_static_int8.mllm";
-    const string cpu_model_path = "./models/qwen-1.8b-chat-q4k.mllm";
+    const string cpu_model_path = "./models/qwen-1.8b-chat-q4k-fp32.mllm";
     const string merge_file_path = "./vocab/merges-qwen.txt";
 
     string vocab_path = cmdParser.get<string>("vocab");
@@ -120,10 +121,10 @@ int main(int argc, char **argv) {
     BackendConfig bn;
     QNNOptNet npuNet(bn, npu_ctx);
     npuNet.convert(npu_ctx, BackendType::MLLM_QNN, thread_num);
+    Net interNet(bn);
+    interNet.convert(inter_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
     Net cpuNet(bn);
     cpuNet.convert(cpu_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
-    Net interNet(bn);
-    interNet.convert(cpu_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
 
     ParamLoader npu_prefill_param_loader(npu_model_path);
     ParamLoader cpu_decoding_param_loader(cpu_model_path);
@@ -145,7 +146,7 @@ int main(int argc, char **argv) {
     cpuExe.setup(&cpuNet);
 
     vector<string> in_strs = {
-        "Hello, who are you?",
+        "Trump spent Tuesday reacting to his changed political fortunes. In a barrage of social media posts, the former president ripped into his likely new opponent, lamented that",
     };
     // " What can you do?",
     // "Please introduce Beijing University of Posts and Telecommunications."};
@@ -157,7 +158,7 @@ int main(int argc, char **argv) {
         tokenizer.setSpecialToken("</s>", "");
 
         auto tokens_id = vector<token_id_t>();
-        tokenizer.tokenize(in_str, tokens_id, true);
+        tokenizer.tokenize(in_str, tokens_id, false, true, "");
         if (str_i > 0) {
             tokens_id[0] = 13;
         }
@@ -175,18 +176,16 @@ int main(int argc, char **argv) {
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
 
+        vector<string> answers;
+
         do {
             // 1: Prefill stage using NPU chunk execute
             npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
-            result[0]->printShape();
-            exit(0);
+
             // inter model for prefill-decode
             interExe.run(&interNet, {result[0]});
             result = interExe.result();
-
-            result[0]->printShape();
-            exit(0);
 
             auto token_idx = postProcessing(result[0], input);
             if (token_idx == 2) { // "</s>"
@@ -194,6 +193,7 @@ int main(int argc, char **argv) {
             }
             auto out_token = tokenizer.detokenize({token_idx});
             std::cout << out_token << std::flush;
+            answers.push_back(out_token);
 
             auto cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
             cpu_backend->setSequenceLength(real_seq_length);
@@ -209,13 +209,17 @@ int main(int argc, char **argv) {
                 }
                 auto out_token = tokenizer.detokenize({token_idx});
                 std::cout << out_token << std::flush;
-
+                answers.push_back(out_token);
                 if (step == 1) {
                     cpu_backend->switchDecodeTag();
                 }
             }
         } while (false);
         printf("\n");
+
+        for (auto answer : answers){
+            std::cout << answer << " ";
+        }
     }
 
     cpuExe.perf();

@@ -136,4 +136,32 @@ DataType ParamLoader::getDataType(string name) {
     // check if exists
     return static_cast<DataType>(type);
 }
+
+bool ParamLoader::partialLoad(mllm::Tensor *tensor, std::set<int> validRow, int rowNum, int colNum) {
+    string name = tensor->name();
+#ifndef USE_MMAP
+    if (offsets_.find(name) == offsets_.end()) { return false; }
+    std::pair<uint64_t, uint64_t> offset = offsets_[name];
+    // for data longer then 1 byte
+    int perValueLength = offset.second / rowNum / colNum;
+    uint8_t *data = new uint8_t[perValueLength * validRow.size() * colNum];
+    size_t totalBytesRead = 0;
+
+    // load begin
+    for (auto row : validRow) {
+        fseek(fp_, offset.first + (row * colNum) * perValueLength, SEEK_SET);
+        fread(data + totalBytesRead, sizeof(uint8_t), perValueLength * colNum, fp_);
+        totalBytesRead += perValueLength * colNum;
+    }
+
+    auto *p = tensor->hostPtr<char>();
+    // Cast pointers to void*
+    memcpy(static_cast<void *>(p), static_cast<void *>(data),
+           perValueLength * validRow.size() * colNum);
+
+    // Free the memory allocated by new
+    delete[] data;
+    return true;
+#endif
+}
 } // namespace mllm

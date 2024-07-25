@@ -15,7 +15,6 @@ public:
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override = 0;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override = 0;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
-        std::cout << name() << std::endl;
         return MLLM_NO_ERROR;
     };
     virtual ErrorCode load(AbstructLoader &loader) override {

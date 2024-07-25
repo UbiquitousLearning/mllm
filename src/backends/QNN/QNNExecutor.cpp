@@ -237,24 +237,32 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
 
         auto expectedBackend = ctx->sub_backend_[i];
         if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
+#ifdef DEBUGPRINT
             std::cout << "=======execute cpu graph " << i << std::endl;
+#endif
             string name = typeName + std::to_string(i);
             auto &g = net->subGraph()[name];
             result_ = g->forward();
         } else if (graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
+#ifdef DEBUGPRINT
             std::cout << "=======execute qnn graph " << i << std::endl;
+#endif
             string name = typeName + std::to_string(i);
             auto &g = net->subGraph()[name];
             auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
             result_ = qnn_graph->forward(name);
+#ifdef DEBUGPRINT
             PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
+#endif
         } else {
             std::cerr << "Backend Not Support" << std::endl;
             exit(1);
         }
 
         uint64_t t_end = mllm_time_us();
+#ifdef DEBUGPRINT
         std::cout << "graph forward " << (t_end - t_start) / 1000.0F << "ms " << i << std::endl;
+#endif
     }
 
     ex_time_end = mllm_time_us();
@@ -358,8 +366,6 @@ void QNNExecutor::execute(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
 
         g->reshape();
         g->setUpTensors();
-
-        std::cout << "QNNGraph forward begin" << std::endl;
 
         result_ = g->forward();
 

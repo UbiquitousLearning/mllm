@@ -165,7 +165,6 @@ ErrorCode CPUMatmulINT8::execute(vector<shared_ptr<Tensor>> inputs, vector<share
 }
 
 ErrorCode CPUMatmulINT8::load(AbstructLoader &loader) {
-    std::cout << name() << "  CPUMatmulInt8 load" << std::endl;
     std::string scaleName = name();
     std::string wordToRemove = ".qkv";
     int pos = scaleName.find(wordToRemove);
