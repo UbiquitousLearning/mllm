@@ -32,16 +32,18 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
         // TODO tensor type = MLLM_TYPE_I8
         auto data_type = QNN_DATATYPE_FLOAT_32;
         if (output->dtype() == MLLM_TYPE_I8) {
+#ifdef DEBUGPRINT
             std::cout << "QNN INT8 op " << name << std::endl;
+#endif
             data_type = QNN_DATATYPE_SFIXED_POINT_8;
         }
-            
+
         float quantScale = 0.0f;
         auto quantDefine = QNN_DEFINITION_UNDEFINED;
         auto quantType = QNN_QUANTIZATION_ENCODING_UNDEFINED;
 
         if (scale != nullptr) {
-            quantScale = scale->hostPtr<float>()[0]  / 127.0;
+            quantScale = scale->hostPtr<float>()[0] / 127.0;
             quantScale = roundf(quantScale * 10000) / 10000;
             quantDefine = QNN_DEFINITION_DEFINED;
             quantType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
@@ -81,23 +83,21 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string>
 }
 
 Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tensor) const {
-    if (tensor->ttype() == OUTPUT_TENSOR) { 
+    if (tensor->ttype() == OUTPUT_TENSOR) {
         qnnBackend_->pushOutputBuffers(tensor->hostPtr<uint8_t>());
         return QNN_TENSOR_TYPE_APP_READ;
     } else {
         auto name = tensor->name();
 
-
-        if (name.find("q_proj.dequantize") != -1 || name.find("k_proj.dequantize") != -1 || name.find("v_proj.transpose") != -1 ) {
-
+        if (name.find("q_proj.dequantize") != -1 || name.find("k_proj.dequantize") != -1 || name.find("v_proj.transpose") != -1) {
+#ifdef DEBUGPRINT
             std::cout << "view output" << std::endl;
+#endif
             return QNN_TENSOR_TYPE_APP_READ;
         }
-            
 
         return QNN_TENSOR_TYPE_NATIVE; // qnn input is set APP_WRITE by backend
     }
-        
 }
 
 } // namespace mllm

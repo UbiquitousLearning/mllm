@@ -104,31 +104,30 @@ int main(int argc, char **argv) {
 
     int hidden_dim = cmdParser.get<int>("hds");
     int ffn_hidden_dim = cmdParser.get<int>("ffn");
-    // int mutil_head_size = 32;
 
     std::unique_ptr<Context> npu_ctx_ptr(new Context());
     auto *npu_ctx = npu_ctx_ptr.get();
-    // std::unique_ptr<Context> cpu_ctx_ptr(new Context());
-    // auto *cpu_ctx = cpu_ctx_ptr.get();
-    // std::unique_ptr<Context> inter_ctx_ptr(new Context());
-    // auto *inter_ctx = inter_ctx_ptr.get();
+    std::unique_ptr<Context> cpu_ctx_ptr(new Context());
+    auto *cpu_ctx = cpu_ctx_ptr.get();
+    std::unique_ptr<Context> inter_ctx_ptr(new Context());
+    auto *inter_ctx = inter_ctx_ptr.get();
 
     // cache_max should be longer than seqLength
     modeling::qwen_npu_t2(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
-    // modeling::qwen_npu_cpu_inter(inter_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
-    // modeling::qwen_cpu_t2(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
+    modeling::qwen_npu_cpu_inter(inter_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
+    modeling::qwen_cpu_t2(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
 
     BackendConfig bn;
     QNNOptNet npuNet(bn, npu_ctx);
     npuNet.convert(npu_ctx, BackendType::MLLM_QNN, thread_num);
     Net interNet(bn);
-    // interNet.convert(inter_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
-    // Net cpuNet(bn);
-    // cpuNet.convert(cpu_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
+    interNet.convert(inter_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
+    Net cpuNet(bn);
+    cpuNet.convert(cpu_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
 
     ParamLoader npu_prefill_param_loader(npu_model_path);
-    // ParamLoader cpu_decoding_param_loader(cpu_model_path);
-    // ParamLoader inter_param_loader(cpu_model_path);
+    ParamLoader cpu_decoding_param_loader(cpu_model_path);
+    ParamLoader inter_param_loader(cpu_model_path);
 
     QNNExecutor *npuExePtr;
     if (executeType == 1) {
@@ -140,13 +139,13 @@ int main(int argc, char **argv) {
     }
     auto &npuExe = *npuExePtr;
     npuExe.setup(&npuNet);
-    // Executor interExe(&inter_param_loader);
-    // interExe.setup(&interNet);
-    // Executor cpuExe(&cpu_decoding_param_loader);
-    // cpuExe.setup(&cpuNet);
+    Executor interExe(&inter_param_loader);
+    interExe.setup(&interNet);
+    Executor cpuExe(&cpu_decoding_param_loader);
+    cpuExe.setup(&cpuNet);
 
     vector<string> in_strs = {
-        "Hello, how are you?",
+        "<|im_start|>system\nYou are a helpful assistant.<| im_end |>\n<| im_start |>user\nGive me a short introduction to large language model.<| im_end |>\n<| im_start |> assistant\n\n",
     };
     // " What can you do?",
     // "Please introduce Beijing University of Posts and Telecommunications."};
@@ -183,12 +182,12 @@ int main(int argc, char **argv) {
             npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
 
-            result[0]->printData<float>();
-            exit(0);
+            // result[0]->printData<float>();
+            // exit(0);
 
             // inter model for prefill-decode
-            // interExe.run(&interNet, {result[0]});
-            // result = interExe.result();
+            interExe.run(&interNet, {result[0]});
+            result = interExe.result();
 
             auto token_idx = postProcessing(result[0], input);
             if (token_idx == 2) { // "</s>"
@@ -204,8 +203,8 @@ int main(int argc, char **argv) {
 
             // // 2: Decoding stage using CPU execute
             for (int step = 1; step < 100; step++) {
-                // cpuExe.run(&cpuNet, {input});
-                // auto result = cpuExe.result();
+                cpuExe.run(&cpuNet, {input});
+                auto result = cpuExe.result();
                 auto token_idx = postProcessing(result[0], input);
                 if (token_idx == 2) { // "</s>"
                     break;
