@@ -192,7 +192,7 @@ int32_t hvx_mul_ahf(
 
     int32_t block, l2fetch_block;
     int32_t leftover = size & 31;
-    int32_t vectors_in_rounddown = size / 32;
+    int32_t vectors_in_rounddown = size / 64;
     int32_t leftover_size = leftover * sizeof(__fp16);
 
     sline1p = *iptr++;
@@ -320,17 +320,32 @@ GraphStatus llamamulImpl(TensorType& out_0,
    */
    out_0.set_dims(in_0);
 
+   DType dtype = in_0.get_dtype();
+
+  
+
    auto [b_in, h_in, w_in, d_in] = in_0.dims();
    for (Idx b = 0; b < b_in; b++) {
       for (Idx h = 0; h < h_in; h++) {
         for (Idx w = 0; w < w_in; w++) {
           // mul
           for (Idx d = 0; d < d_in; d++) {
-            float inval       = in_0(b, h, w, d);
-            float inval2       = in_1(b, h, w, d);
-            float outval      = inval * inval2;
 
-            out_0(b, h, w, d) = outval;
+            if (dtype == DType::Float16) {
+              __fp16 inval       = in_0(b, h, w, d);
+              __fp16 inval2       = in_1(b, h, w, d);
+              __fp16 outval      = inval * inval2;
+
+              out_0(b, h, w, d) = outval;
+            }
+
+            if (dtype == DType::Float32) {
+              float inval       = in_0(b, h, w, d);
+              float inval2       = in_1(b, h, w, d);
+              float outval      = inval * inval2;
+
+              out_0(b, h, w, d) = outval;
+            }
             
           }
         }

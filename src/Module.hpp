@@ -10,11 +10,6 @@
 #include "Backend.hpp"
 #include "Timing.hpp"
 #include "backends/cpu/CPUBackend.hpp"
-#include <memory>
-#ifdef USE_QNN
-#include "backends/qnn/QNNBackend.hpp"
-#endif
-
 #include <any>
 #include <iostream>
 #include <memory/SystemMemoryManager.hpp>

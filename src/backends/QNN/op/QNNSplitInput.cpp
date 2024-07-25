@@ -209,10 +209,6 @@ ErrorCode QNNSplitInput::free(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 }
 
 ErrorCode QNNSplitInput::load(AbstructLoader &loader) {
-
-    std::cout << "load split input quantize" << std::endl;
-
-
     string scaleName = name();
 
     std::string wordToRemove = "or_split";
@@ -226,8 +222,6 @@ ErrorCode QNNSplitInput::load(AbstructLoader &loader) {
         scale1_.setDtype(MLLM_TYPE_F32);
         scale1_.alloc();
         loader.load(&scale1_);
-
-        std::cout <<  scale1_.hostPtr<float>()[0] << std::endl;
 
     } else if (scaleName.find("ires_split") != -1) {
 
@@ -258,8 +252,6 @@ ErrorCode QNNSplitInput::load(AbstructLoader &loader) {
     } else {
         exit(-1);
     }
-
-    
 
     return Op::load(loader);
 }

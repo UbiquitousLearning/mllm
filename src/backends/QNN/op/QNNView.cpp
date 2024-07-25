@@ -100,9 +100,6 @@ ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 }
 
 ErrorCode QNNView::load(AbstructLoader &loader) {
-
-    std::cout << "load view" << std::endl;
-
     string scaleName = name();
 
 
@@ -138,6 +135,7 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         scale_.alloc();
         loader.load(&scale_);
 
+std::cout << "++++++++++++++++++" << std::endl;
         std::cout << scaleName + split_variable + scale_type_name << std::endl;
         std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
         
@@ -164,7 +162,7 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         scale_.setDtype(MLLM_TYPE_F32);
         scale_.alloc();
         loader.load(&scale_);
-
+        std::cout << "++++++++++++++++++" << std::endl;
         std::cout << scaleName + split_variable + scale_type_name << std::endl;
         std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
 
@@ -183,7 +181,7 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         int pos = scaleName.find(wordToRemove);
         while (pos != -1) {
             scaleName.erase(pos, wordToRemove.length());
-            split_variable = ".fc1";
+            split_variable = ".up_proj";
             pos = scaleName.find(wordToRemove);
         }
 
@@ -193,7 +191,7 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         scale_.setDtype(MLLM_TYPE_F32);
         scale_.alloc();
         loader.load(&scale_);
-
+        std::cout << "++++++++++++++++++" << std::endl;
         std::cout << scaleName + split_variable + scale_type_name << std::endl;
         std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
 
@@ -221,7 +219,7 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         scale_.setDtype(MLLM_TYPE_F32);
         scale_.alloc();
         loader.load(&scale_);
-
+        std::cout << "++++++++++++++++++" << std::endl;
         std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
 
     }

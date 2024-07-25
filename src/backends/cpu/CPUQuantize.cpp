@@ -40,7 +40,7 @@ ErrorCode CPUQuantize::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
                 for (int d = 0; d < dim; ++d) {
                     float value = input->dataAt<float>(b, h, s, d);
                     int32_t v = static_cast<int32_t>(roundf(value / quantScale));
-                    v = std::max (std::min(v, 128), -127);
+                    v = std::max (std::min(v, 127), -128);
                     output->setDataAt<uint8_t>(b, h, s, d, static_cast<uint8_t>(v));
                 }
             }
@@ -59,10 +59,6 @@ ErrorCode CPUQuantize::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 }
 
 ErrorCode CPUQuantize::load(AbstructLoader &loader) {
-
-    std::cout << "load cpu quantize" << std::endl;
-
-
     string scaleName = name();
 
     std::string wordToRemove = "quantize";
@@ -76,8 +72,6 @@ ErrorCode CPUQuantize::load(AbstructLoader &loader) {
     scale_.setDtype(MLLM_TYPE_F32);
     scale_.alloc();
     loader.load(&scale_);
-
-    std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
 
     return Op::load(loader);
 }

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <csignal>
 #include <memory>
+#include <vector>
 #include "Executor.hpp"
 #include "Types.hpp"
 #include "backends/QNN/QNNOptNet.hpp"
@@ -103,7 +104,6 @@ int main(int argc, char **argv) {
 
     int hidden_dim = cmdParser.get<int>("hds");
     int ffn_hidden_dim = cmdParser.get<int>("ffn");
-    // int mutil_head_size = 32;
 
     std::unique_ptr<Context> npu_ctx_ptr(new Context());
     auto *npu_ctx = npu_ctx_ptr.get();
@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
     cpuExe.setup(&cpuNet);
 
     vector<string> in_strs = {
-        "Hello, who are you?",
+        "<|im_start|>system\nYou are a helpful assistant.<| im_end |>\n<| im_start |>user\nGive me a short introduction to large language model.<| im_end |>\n<| im_start |> assistant\n\n",
     };
     // " What can you do?",
     // "Please introduce Beijing University of Posts and Telecommunications."};
@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
         tokenizer.setSpecialToken("</s>", "");
 
         auto tokens_id = vector<token_id_t>();
-        tokenizer.tokenize(in_str, tokens_id, true);
+        tokenizer.tokenize(in_str, tokens_id, false, true, "");
         if (str_i > 0) {
             tokens_id[0] = 13;
         }
@@ -175,17 +175,19 @@ int main(int argc, char **argv) {
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
 
+        vector<string> answers;
+
         do {
             // 1: Prefill stage using NPU chunk execute
             npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
 
+            // result[0]->printData<float>();
+            // exit(0);
+
             // inter model for prefill-decode
             interExe.run(&interNet, {result[0]});
             result = interExe.result();
-
-            result[0]->printShape();
-            exit(0);
 
             auto token_idx = postProcessing(result[0], input);
             if (token_idx == 2) { // "</s>"
@@ -193,6 +195,7 @@ int main(int argc, char **argv) {
             }
             auto out_token = tokenizer.detokenize({token_idx});
             std::cout << out_token << std::flush;
+            answers.push_back(out_token);
 
             auto cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
             cpu_backend->setSequenceLength(real_seq_length);
@@ -208,16 +211,20 @@ int main(int argc, char **argv) {
                 }
                 auto out_token = tokenizer.detokenize({token_idx});
                 std::cout << out_token << std::flush;
-
+                answers.push_back(out_token);
                 if (step == 1) {
                     cpu_backend->switchDecodeTag();
                 }
             }
         } while (false);
         printf("\n");
+
+        for (auto answer : answers){
+            std::cout << answer << " ";
+        }
     }
 
-    cpuExe.perf();
+    // cpuExe.perf();
 
     // free memory
     for (auto *op : npu_ctx->net_ops) {
