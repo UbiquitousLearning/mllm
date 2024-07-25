@@ -27,6 +27,7 @@ NetTensor *_PositionalEmbedding(std::vector<NetTensor *> inputs, int max_num, in
 NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale, string name);
 NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
 NetTensor *_LinearINT8(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
+NetTensor *_LinearINT8Shadow(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
 NetTensor *_Embedding(std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name = "");
 NetTensor *_Mul(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_KVCache(std::vector<NetTensor *> inputs, int cache_max, string name = "");

@@ -23,6 +23,7 @@ enum OpType {
     SLIDINGWINDOWMASK,
     LINEAR,
     LINEARINT8,
+    LINEARINT8SHADOW,
     EMBEDDING,
     MUL,
     VIEW,

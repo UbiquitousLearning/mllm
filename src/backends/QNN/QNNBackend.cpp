@@ -54,6 +54,7 @@
 #include "op/QNNMergeOutput.hpp"
 #include "op/QNNSplitInput.hpp"
 #include "op/QNNTranspose.hpp"
+#include "op/QNNLinearINT8Shadow.hpp"
 #include "MemInspect.hpp"
 
 #include "QNN/HTP/QnnHtpGraph.h"
@@ -102,6 +103,7 @@ void QNNBackend::registerOps() {
     addCreator(MERGEOUTPUT, (QNNBackend::Creator *)(new QNNMergeOutputCreator()));
     addCreator(SPLITINPUT, (QNNBackend::Creator *)(new QNNSplitInputCreator()));
     addCreator(TRANSPOSE, (QNNBackend::Creator *)(new QNNTransposeCreator()));
+    addCreator(LINEARINT8SHADOW, (QNNBackend::Creator *)(new QNNLinearINT8ShadowCreator()));
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
