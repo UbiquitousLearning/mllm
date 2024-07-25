@@ -59,10 +59,6 @@ ErrorCode CPUQuantize::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 }
 
 ErrorCode CPUQuantize::load(AbstructLoader &loader) {
-
-    std::cout << "load cpu quantize" << std::endl;
-
-
     string scaleName = name();
 
     std::string wordToRemove = "quantize";
@@ -76,8 +72,6 @@ ErrorCode CPUQuantize::load(AbstructLoader &loader) {
     scale_.setDtype(MLLM_TYPE_F32);
     scale_.alloc();
     loader.load(&scale_);
-
-    std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
 
     return Op::load(loader);
 }

@@ -86,9 +86,6 @@ ErrorCode QNNQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 }
 ErrorCode QNNQuantize::load(AbstructLoader &loader) {
 
-    std::cout << "load quantize" << std::endl;
-
-
     string scaleName = name();
 
     std::string wordToRemove = "quantize";
@@ -102,8 +99,6 @@ ErrorCode QNNQuantize::load(AbstructLoader &loader) {
     scale_.setDtype(MLLM_TYPE_F32);
     scale_.alloc();
     loader.load(&scale_);
-
-    std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
 
     return Op::load(loader);
 }
