@@ -19,10 +19,10 @@ class StableLMMultiHeadAttention final : public Module {
     Layer k_rope;
     Layer q_norm;
     Layer k_norm;
-    Layer k_cache;
-    Layer v_cache;
-    Layer mask;
-    Layer softmax;
+    KVCache k_cache;
+    KVCache v_cache;
+    Causalmask mask;
+    Softmax softmax;
     Layer o_proj;
     Parameter bias_k;
     Parameter bias_v;
@@ -105,9 +105,9 @@ public:
         auto qk = Tensor::mm(q, k);
         qk = qk / std::sqrt(attn_hidden_dim_);
         if (mask.ready()) {
-            qk = mask(qk);
+            qk = mask(qk, k_cache.getCacheSeqLen());
         }
-        qk = softmax(qk);
+        qk = softmax(qk, k_cache.getCacheSeqLen());
         auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
         o = o_proj(o);

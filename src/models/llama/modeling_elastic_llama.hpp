@@ -19,10 +19,10 @@ class ElasticMultiHeadAttention final : public Module {
     ElasticLinear v_proj;
     Layer q_rope;
     Layer k_rope;
-    Layer k_cache;
-    Layer v_cache;
-    Layer mask;
-    Layer softmax;
+    KVCache k_cache;
+    KVCache v_cache;
+    Causalmask mask;
+    Softmax softmax;
     ElasticLinear o_proj;
     int head_size_{};
     int kv_head_size_{};
@@ -77,9 +77,13 @@ public:
         auto qk = Tensor::mm(q, k);
         qk = qk / std::sqrt(activate_hidden_dim);//attn_hidden_dim_
         if (mask.ready()) {
-            qk = mask(qk);
+            qk = mask(qk, k_cache.getCacheSeqLen());
         }
-        qk = softmax(qk);
+        if (k_cache.ready() && v_cache.ready()) {
+            qk = softmax(qk, k_cache.getCacheSeqLen());
+        }else{
+            qk = softmax(qk);
+        }
         auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, activate_hidden_dim * head_size_);
         o = o_proj(o, activate_dim, -1);

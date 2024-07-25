@@ -1,6 +1,7 @@
 
 #include "CPUSoftMax.hpp"
 #include <cmath>
+#include "Tensor.hpp"
 #include "quantize/Quantize.hpp"
 #include "compute/VecDot.hpp"
 namespace mllm {
@@ -31,7 +32,7 @@ CPUSoftMax::CPUSoftMax(Backend *bn, string opName, int axis, int threadCount) : 
 
 ErrorCode CPUSoftMax::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // std::cout << name() << "  CPUSoftMax  reshape" << std::endl;
-    assert(inputs.size() == 1);
+    // assert(inputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     // outputs[0]->setDtype(activationDtype());
     return Op::reshape(inputs, outputs);
@@ -66,13 +67,18 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     // std::cout << name() << "  CPUSoftMax()" << std::endl;
     auto &input = inputs[0];
     auto &output = outputs[0];
-
+    int num_classes_in = -1;
+    if (inputs.size()>1) {
+        num_classes_in = (int)inputs[1]->dataAt<float>(0,0,0,0);
+    }
+    memset(output->hostPtr<float>(),0,output->count() * sizeof(float));
+    // output->printData<float>();
     if (axis_ == DIMENSION) {
         for (int n = 0; n < input->batch(); ++n) {
             #pragma omp parallel for num_threads(thread_count)
             for (int h = 0; h < input->head(); ++h) {
                 for (int s = 0; s < input->sequence(); ++s) {
-                    int num_classes = input->dimension(); // 获取类别数量
+                    int num_classes = num_classes_in>0? num_classes_in:input->dimension(); // 获取类别数量
                     float max = -INFINITY;
                     // #pragma omp parallel for num_threads(thread_count)
                     for (int j = 0; j < num_classes; ++j) {
@@ -95,6 +101,9 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 
                     sum = 1.0 / sum;
                     vec_scale_f32(num_classes, dp, sum);
+                    // for (int i = num_classes; i < input->dimension(); i++) {
+                    //     dp[i] = 0.0F;
+                    // }
                 }
             }
         }
@@ -119,8 +128,8 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                         case DIMENSION:
                             num_classes = input->dimension();
                             break;
-
                         }
+                        num_classes = num_classes_in>0? num_classes_in:num_classes;
                         float max = -INFINITY;
                         for (int j = 0; j < num_classes; ++j) {
                             index[axis_] = j;
@@ -146,6 +155,9 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                             float softmax_value = dp[i] / sum;
                             output->setDataAt<float>(index, softmax_value);
                         }
+                        // for (int i = num_classes; i < input->dimension(); i++) {
+                        //     output->setDataAt<float>(index, 0);
+                        // }
                     }
                 }
             }

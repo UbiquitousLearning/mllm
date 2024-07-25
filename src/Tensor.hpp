@@ -382,6 +382,12 @@ public:
                 return shape_[3]*shape_[2];
             } else if (ctype_ == BHDS) {
                 return shape_[3];
+            } else if (ctype_ == BDHS) {
+                return shape_[3]*shape_[2];
+            } else if (ctype_ == DBHS) {
+                return shape_[3]*shape_[2];
+            } else if (ctype_ == SBHD) {
+                return shape_[3]*shape_[2];
             } else {
                 std::cout << "sequence_skip_dim() only support for BSHD and BHDS" << std::endl;
                 return -1;

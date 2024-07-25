@@ -66,11 +66,14 @@ public:
     int vocab_size{};
     int hidden_dim{};
     int head_size{};
+    int num_key_value_heads{};
     int ffn_hidden{};
     int block_num{};
     RoPEType RoPE_type;
     int cache_limit{};
     LLaMANameConfig names_config;
+    float rope_theta;
+    int max_position_embeddings;
 
     explicit LLaMAConfig(int token_limit, string billions = "7B", RoPEType type = LLAMAROPE, int vocab = 32000) {
         names_config.init(type);
@@ -78,9 +81,22 @@ public:
         if (billions == "7B" || billions == "7b") {
             hidden_dim = 4096;
             head_size = 32;
+            num_key_value_heads = 32;
             ffn_hidden = 11008;
             block_num = 32;
-        } else {
+            max_position_embeddings= 16384;
+            rope_theta = 10000;
+        } else if (billions == "6B" || billions == "6b") {
+            // Yi @https://arxiv.org/abs/2403.04652
+            hidden_dim = 4096;
+            head_size = 32;
+            num_key_value_heads = 4;
+            ffn_hidden = 11008;
+            block_num = 32;
+            max_position_embeddings= 4096;
+            rope_theta = 5000000.0;
+            vocab_size = 64000;
+        }else {
             throw std::runtime_error("Unsupported model size");
         }
         RoPE_type = type;

@@ -188,17 +188,18 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     auto src1_blck_size = blck_size(src1_dtype);
     auto src0_type_size = type_size(src0->dtype());
     auto src0_blck_size = blck_size(src0->dtype());
-
-    if (check_llamafile_sgemm(N, M, K/blck_size(src0->dtype()),src1->dtype(),src0->dtype(),dst->dtype())){
+#ifdef LLAMAFILE_SGEMM
+    if (check_llamafile_sgemm(N, M, K/blck_size(src0->dtype()),src1->dtype(),src0->dtype(),dst->dtype())&&!support_bias){
         const int ld_src1 = src1->sequence_skip_dim();
         const int ld_src0 = src0->sequence_skip_dim();
         const int ld_dst = dst->sequence_skip_dim();
+        int is_0 = (src1->batch() == 1 && src1->head() == 1&&src1->batch()!=src0->batch()) ? 0 : 1;
 #pragma omp parallel for collapse(3) num_threads(thread_count)
         for (int64_t b = 0; b < dst->batch(); b++){
             for (int64_t h = 0; h < dst->head(); h++){
                 for (int id = 0; id < thread_count; id++){
                     llamafile_sgemm(N, M, K/blck_size(src0->dtype()),
-                                    (char *)src1->rawHostPtr() + src1->offset(b, h, 0, 0) * src1_type_size / src1_blck_size,
+                                    (char *)src1->rawHostPtr() + src1->offset(b*is_0, h*is_0, 0, 0) * src1_type_size / src1_blck_size,
                                     ld_src1,
                                     (char *)src0->rawHostPtr() + src0->offset(b, h, 0, 0) * src0_type_size / src0_blck_size,
                                     ld_src0,
@@ -213,7 +214,7 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
         }
         return MLLM_NO_ERROR;
     }
-
+#endif
     auto not_vec_dot_type = src0_dtype != vec_dot_type;
     std::unique_ptr<Tensor> to; // later this tensor will be freed by ~Tensor
     if(not_vec_dot_type){
@@ -245,7 +246,7 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     Tensor *src0_cal = src0;
     Tensor *src1_cal = src1;
     const int64_t blck_0 = 16;
-    int is_0 = (src1->batch() == 1 && src1->head() == 1) ? 0 : 1;
+    int is_0 = (src1->batch() == 1 && src1->head() == 1&&src1->batch()!=src0->batch()) ? 0 : 1;
 #pragma omp parallel for collapse(4) num_threads(thread_count)
     for (int b = 0; b < src0->batch(); b++) {
         for (int h = 0; h < src0->head(); h++) {
@@ -590,16 +591,20 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
     auto src0_type_size = type_size(src0->dtype());
     auto src0_blck_size = blck_size(src0->dtype());
 
-    if (check_llamafile_sgemm(N, M, K/blck_size(src0->dtype()),src1->dtype(),src0->dtype(),dst->dtype())){
+    int use_N = (activate_output_dim == -1) ? N : activate_output_dim;
+    int use_K = (activate_input_dim == -1) ? K : activate_input_dim;
+
+    if (check_llamafile_sgemm(use_N, M, use_K/blck_size(src0->dtype()),src1->dtype(),src0->dtype(),dst->dtype())){
         const int ld_src1 = src1->sequence_skip_dim();
         const int ld_src0 = src0->sequence_skip_dim();
         const int ld_dst = dst->sequence_skip_dim();
+        int is_0 = (src1->batch() == 1 && src1->head() == 1) ? 0 : 1;
 #pragma omp parallel for collapse(3) num_threads(thread_count)
         for (int64_t b = 0; b < dst->batch(); b++){
             for (int64_t h = 0; h < dst->head(); h++){
                 for (int id = 0; id < thread_count; id++){
-                    llamafile_sgemm(N, M, K/blck_size(src0->dtype()),
-                                    (char *)src1->rawHostPtr() + src1->offset(b, h, 0, 0) * src1_type_size / src1_blck_size,
+                    llamafile_sgemm(use_N, M, use_K/blck_size(src0->dtype()),
+                                    (char *)src1->rawHostPtr() + src1->offset(b*is_0, h*is_0, 0, 0) * src1_type_size / src1_blck_size,
                                     ld_src1,
                                     (char *)src0->rawHostPtr() + src0->offset(b, h, 0, 0) * src0_type_size / src0_blck_size,
                                     ld_src0,
@@ -614,7 +619,6 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
         }
         return MLLM_NO_ERROR;
     }
-
 
     auto not_vec_dot_type = src0_dtype != vec_dot_type;
     std::unique_ptr<Tensor> to; // later this tensor will be freed by ~Tensor
@@ -644,8 +648,6 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
         src0_blck_size = blck_size(src0->dtype());
     }
 
-    int use_N = (activate_output_dim == -1) ? N : activate_output_dim;
-    int use_K = (activate_input_dim == -1) ? K : activate_input_dim;
     
     Tensor *src0_cal = src0;
     Tensor *src1_cal = src1;

@@ -18,10 +18,10 @@ class DeepseekMultiHeadLatentAttention final : public Module {
     Layer v_proj;
     Layer q_rope;
     Layer k_rope;
-    Layer k_cache;
-    Layer v_cache;
-    Layer mask;
-    Layer softmax;
+    KVCache k_cache;
+    KVCache v_cache;
+    Causalmask mask;
+    Softmax softmax;
     Layer o_proj;
     int num_heads{};
     int q_head_dim{};
@@ -98,9 +98,9 @@ public:
         auto qk = Tensor::mm(q, k);
         qk = qk * softmax_scale;
         if (mask.ready()) {
-            qk = mask(qk);
+            qk = mask(qk, k_cache.getCacheSeqLen());
         }
-        qk = softmax(qk);
+        qk = softmax(qk, k_cache.getCacheSeqLen());
         auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, v_head_dim * num_heads);
         o = o_proj(o);

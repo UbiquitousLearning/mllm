@@ -11,7 +11,7 @@ CPUCausalMask::CPUCausalMask(Backend *bn, string opName, int threadCount) : thre
 
 ErrorCode CPUCausalMask::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     //std::cout << "CPUMask  reshape" << std::endl;
-    assert(inputs.size() == 1);
+    // assert(inputs.size() == 1);
     assert(outputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     return Op::reshape(inputs, outputs);
@@ -23,12 +23,19 @@ ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<share
         int head_num = inputs[0]->head();
         int sequence = inputs[0]->sequence();
         int dimension = inputs[0]->dimension();
-        int old_dim = dimension - sequence;
+        int old_dim = 0;
+        if (inputs.size()>1) {
+            old_dim = (int)inputs[1]->dataAt<float>(0,0,0,0)-sequence;
+        }else{
+#ifndef LLAMAFILE_SGEMM
+            old_dim = dimension - sequence;
+#endif
+        }
         for (int n = 0; n < batch_size; ++n) {
             for (int h = 0; h < head_num; ++h) {
                 for (int s = 0; s < sequence; ++s) {
                     #pragma omp parallel for num_threads(thread_count)
-                    for (int d = 0; d < dimension; ++d) {
+                    for (int d = 0; d < inputs[0]->dimension(); ++d) {
                         if (d > s + old_dim) {
                             outputs[0]->setDataAt<float>({n, h, s, d}, -INFINITY);
                         }
@@ -47,7 +54,7 @@ ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<share
 }
 
 ErrorCode CPUCausalMask::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    assert(inputs.size() == 1);
+    // assert(inputs.size() == 1);
     assert(outputs.size() == 1);
     if(inputs[0]->masterTensor() == nullptr) {
         inputs[0]->free(); // TODO remove

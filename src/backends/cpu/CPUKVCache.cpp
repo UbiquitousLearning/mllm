@@ -2,12 +2,22 @@
 
 #include "CPUKVCache.hpp"
 #include "ParamLoader.hpp"
+#include "Types.hpp"
 
+int n_pack = 16;
+#define KVCache_TYPE_16
 namespace mllm {
 CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     cache_.setBackend(bn);
+#ifdef KVCache_TYPE_16
     cache_.setDtype(MLLM_TYPE_F16);
+#else
+    cache_.setDtype(MLLM_TYPE_F32);
+#endif
+#ifdef LLAMAFILE_SGEMM
+    cache_max = ((cache_max + (n_pack-1)) / n_pack) * n_pack;
+#endif
     cache_limit_ = cache_max;
     n_rep_ = n_rep;
 }
@@ -20,12 +30,21 @@ ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
         cache_.reshape(inputs[0]->batch(), inputs[0]->head()*n_rep_, cache_limit_, inputs[0]->dimension());
         cache_.setName(name() + ".Cache");
         cache_.alloc();
+#ifdef KVCache_TYPE_16
+        memset(cache_.hostPtr<mllm_fp16_t>(),0,cache_.count() * sizeof(mllm_fp16_t));
+#else
+        memset(cache_.hostPtr<float>(),0,cache_.count() * sizeof(float));
+#endif
         cache_seq_len_ = 0;
     }
-
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head()*n_rep_, inputs[0]->sequence() + cache_seq_len_, inputs[0]->dimension());
-    if(inputs[0]->sequence() + cache_seq_len_ >cache_limit_){
-        std::cerr<<"\n[ERROR]: Current tokens exceed cache limit: "<<inputs[0]->sequence() + cache_seq_len_<<">"<<cache_limit_<<";";
+    int sequence = inputs[0]->sequence() + cache_seq_len_;
+#ifdef LLAMAFILE_SGEMM
+    if(sequence%n_pack != 0)
+        sequence = ((sequence + (n_pack-1)) / n_pack) * n_pack;
+#endif
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head()*n_rep_, sequence, inputs[0]->dimension());
+    if(sequence >cache_limit_){
+        std::cerr<<"\n[ERROR]: Current tokens exceed cache limit: "<<sequence<<">"<<cache_limit_<<";";
         std::cerr<<"\n         Please set args `--limits` >"<<cache_limit_<<std::endl;
 
         exit(1);

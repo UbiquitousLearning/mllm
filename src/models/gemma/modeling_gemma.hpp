@@ -17,6 +17,7 @@
 #include "Module.hpp"
 #include "Tensor.hpp"
 #include "configuration_gemma.hpp"
+#include "models/transformer/modeling_transformer.hpp"
 #include <cmath>
 using namespace mllm;
 
@@ -48,82 +49,13 @@ private:
 };
 
 ///< gemma-2B use MQA while 7B use MHA
-class GemmaAttention final : public Module {
-public:
-    GemmaAttention() = default;
-    GemmaAttention(const GemmaConfig &config, const GemmaNameConfig &names, const string &base_name) {
-        hidden_size = config.hidden_size;
-        head_dim = config.head_dim;
-        num_heads = config.num_attention_heads;
-        num_key_value_heads = config.num_key_value_heads;
-        num_key_value_groups = num_heads / num_key_value_heads;
-
-        // init layers
-        q_proj = Linear(hidden_size, num_heads * head_dim, false, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._v_proj_name);
-        o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
-        q_rope = RoPE(config.RoPE_type, base_name + "q_rope");
-        k_rope = RoPE(config.RoPE_type, base_name + "k_rope");
-        k_cache = KVCache(num_heads / num_key_value_heads, config.cache_limit, base_name + "k_cache");
-        v_cache = KVCache(num_heads / num_key_value_heads, config.cache_limit, base_name + "v_cache");
-        mask = Causalmask(base_name + "mask");
-        softmax = Softmax(DIMENSION, base_name + "softmax");
-    }
-
-    std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        auto query_states = q_proj(inputs[0]);
-        auto key_states = k_proj(inputs[1]);
-        auto value_states = v_proj(inputs[2]);
-
-        // [batch, heads, sequence, dims]
-        query_states = query_states.view(-1, num_heads, -1, head_dim);
-        key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
-        value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
-
-        // embedding
-        query_states = q_rope(query_states);
-        key_states = k_rope(key_states);
-
-        // kv cache
-        key_states = k_cache(key_states);
-        value_states = v_cache(value_states);
-
-        // attention weight
-        auto atten_weight = Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION)) / std::sqrt(head_dim);
-        atten_weight = mask(atten_weight);
-        atten_weight = softmax(atten_weight);
-
-        // attention output
-        auto atten_output = Tensor::mm(atten_weight, value_states);
-        atten_output = atten_output.view(-1, 1, -1, head_dim * num_heads);
-        atten_output = o_proj(atten_output);
-        return {atten_output};
-    }
-
-private:
-    int hidden_size;
-    int num_heads;
-    int head_dim;
-    int num_key_value_heads;
-    int num_key_value_groups;
-    Layer q_proj;
-    Layer k_proj;
-    Layer v_proj;
-    Layer o_proj;
-    Layer q_rope;
-    Layer k_rope;
-    Layer k_cache;
-    Layer v_cache;
-    Layer mask;
-    Layer softmax;
-};
-
 class GemmaDecoder final : public Module {
 public:
     GemmaDecoder() = default;
     GemmaDecoder(const GemmaConfig &config, const GemmaNameConfig &names, const string &base_name) {
-        self_atten = GemmaAttention(config, names, base_name + names._attn_base_name);
+        self_atten = MultiHeadAttention(config.hidden_size, config.num_attention_heads, config.num_key_value_heads, 
+                                        config.hidden_size / config.num_attention_heads, SPLIT_NONE, false, false,
+                                       config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit, true, false, names, base_name + names._attn_base_name);   
         mlp = GemmaMLP(config.hidden_size, config.intermediate_size, names, base_name + names._ffn_base_name);
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, true, base_name + names._attn_norm_name);
         post_attention_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, true, base_name + names._ffn_norm_name);
@@ -140,7 +72,7 @@ public:
     }
 
 private:
-    GemmaAttention self_atten;
+    MultiHeadAttention self_atten;
     GemmaMLP mlp;
     Layer input_layernorm;
     Layer post_attention_layernorm;
