@@ -72,15 +72,13 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
         num_classes_in = (int)inputs[1]->dataAt<float>(0,0,0,0);
     }
     memset(output->hostPtr<float>(),0,output->count() * sizeof(float));
-    // output->printData<float>();
     if (axis_ == DIMENSION) {
+        int num_classes = num_classes_in>0? num_classes_in:input->dimension(); // 获取类别数量
+#pragma omp parallel for collapse(3) num_threads(thread_count)
         for (int n = 0; n < input->batch(); ++n) {
-            #pragma omp parallel for num_threads(thread_count)
             for (int h = 0; h < input->head(); ++h) {
                 for (int s = 0; s < input->sequence(); ++s) {
-                    int num_classes = num_classes_in>0? num_classes_in:input->dimension(); // 获取类别数量
                     float max = -INFINITY;
-                    // #pragma omp parallel for num_threads(thread_count)
                     for (int j = 0; j < num_classes; ++j) {
                         max = MAX(max, input->dataAt<float>(n, h, s, j));
                     }
@@ -108,10 +106,10 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
             }
         }
     } else {
+#pragma omp parallel for collapse(4) num_threads(thread_count)
         for (int n = 0; n < input->batch(); ++n) {
             for (int c = 0; c < input->head(); ++c) {
                 for (int h = 0; h < input->sequence(); ++h) {
-                    // #pragma omp parallel for num_threads(thread_count)
                     for (int w = 0; w < input->dimension(); ++w) {
                         std::vector<int> index = {n, c, h, w};
                         int num_classes = 0; //input->shape(axis_); // 获取类别数量
