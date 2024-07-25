@@ -31,7 +31,7 @@ ErrorCode QNNLinearINT8Shadow::setUp(vector<shared_ptr<Tensor>> inputs, vector<s
         std::cout << "shadow add output buffers" << std::endl;
 
         inputs[0]->setBackend(qnnBackend_);
-        inputs[0]->setDtype(MLLM_TYPE_F16);
+        inputs[0]->setDtype(MLLM_TYPE_F32);
         inputs[0]->alloc();
 
         qnnBackend_->pushOutputBuffers(inputs[0]->hostPtr<uint8_t>());
@@ -119,9 +119,15 @@ ErrorCode QNNLinearINT8Shadow::free(vector<shared_ptr<Tensor>> inputs, vector<sh
 ErrorCode QNNLinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto opName = name();
 
-    // inputs[0] linear dequant input __fp16
+    // inputs[0] linear dequant input __fp32
     // inputs[1] linear quant output  int8_t 
     // inputs[2] res sum              float
+
+    float input_scale = inputScale_.dataAt<float>(0,0,0,0);
+    float weight_scale = weightScale_.dataAt<float>(0,0,0,0);
+    float output_scale = outputScale_.dataAt<float>(0,0,0,0) / 127.0f;
+
+    std::cout << input_scale << " " << weight_scale << " " << output_scale << std::endl;
 
     std::cout << opName << "shadow execution" << std::endl;
 
@@ -136,13 +142,13 @@ ErrorCode QNNLinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
 
                 for (int k = 0; k <inputs[0]->dimension(); k++) {
 
-                    if (inputs[0]->dataAt<__fp16>(i, h, j, k) > inputScale_.dataAt<float>(0,0,0,0)) {
+                    if (fabs(inputs[0]->dataAt<float>(i, h, j, k)) > input_scale) {
 
                         for (int w=0; w < shadowWeight_.dimension(); w++) {
 
                             if (!(inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 ||  inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127))
 
-                                outputs[0]->setDataAt<float>(i,h,j,w, inputs[0]->dataAt<__fp16>(i,h,j,k) * shadowWeight_.dataAt<int8_t>(0,0,k,w) * weightScale_.dataAt<float>(0,0,0,0) + outputs[0]->dataAt<float>(i,h,j,w));
+                                outputs[0]->setDataAt<float>(i,h,j,w, inputs[0]->dataAt<float>(i,h,j,k) * shadowWeight_.dataAt<int8_t>(0,0,k,w) * weight_scale + outputs[0]->dataAt<float>(i,h,j,w));
                         }
 
                     }
@@ -167,15 +173,15 @@ ErrorCode QNNLinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
 
                 for (int k = 0; k <inputs[1]->dimension(); k++) {
 
-                    if (inputs[1]->dataAt<int8_t>(i, 0, j, k) <= -128 ||  inputs[1]->dataAt<int8_t>(i, 0, j, k) >= 127) {
+                    if (inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 ||  inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127) {
 
                         float sum = 0.0f;
-                        for (int w=0; w < shadowWeight_.sequence(); w++) {
-                            sum += inputs[0]->dataAt<__fp16>(i,h,j,w) * shadowWeight_.dataAt<int8_t>(0,0,w,k) * weightScale_.dataAt<float>(0,0,0,0);
-                            
-                            sum = sum - inputs[1]->dataAt<int8_t>(i, h, j, k) * outputScale_.dataAt<float>(0,0,0,0);
 
+                        for (int w=0; w < shadowWeight_.sequence(); w++) {
+                            sum += inputs[0]->dataAt<float>(i,h,j,w) * shadowWeight_.dataAt<int8_t>(0,0,w,k) * weight_scale;
                         }
+
+                        sum = sum - (inputs[1]->dataAt<int8_t>(i, h, j, k) * output_scale);
 
                         outputs[0]->setDataAt<float>(i,h,j,k, sum + outputs[0]->dataAt<float>(i,h,j,k));
 
