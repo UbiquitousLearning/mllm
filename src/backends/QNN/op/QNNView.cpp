@@ -135,7 +135,6 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         scale_.alloc();
         loader.load(&scale_);
 
-std::cout << "++++++++++++++++++" << std::endl;
         std::cout << scaleName + split_variable + scale_type_name << std::endl;
         std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
         
@@ -162,7 +161,6 @@ std::cout << "++++++++++++++++++" << std::endl;
         scale_.setDtype(MLLM_TYPE_F32);
         scale_.alloc();
         loader.load(&scale_);
-        std::cout << "++++++++++++++++++" << std::endl;
         std::cout << scaleName + split_variable + scale_type_name << std::endl;
         std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
 
@@ -191,7 +189,6 @@ std::cout << "++++++++++++++++++" << std::endl;
         scale_.setDtype(MLLM_TYPE_F32);
         scale_.alloc();
         loader.load(&scale_);
-        std::cout << "++++++++++++++++++" << std::endl;
         std::cout << scaleName + split_variable + scale_type_name << std::endl;
         std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
 
@@ -219,16 +216,11 @@ std::cout << "++++++++++++++++++" << std::endl;
         scale_.setDtype(MLLM_TYPE_F32);
         scale_.alloc();
         loader.load(&scale_);
-        std::cout << "++++++++++++++++++" << std::endl;
+
+
         std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
 
     }
-
-    
-
-    
-
-    
 
     return Op::load(loader);
 }
