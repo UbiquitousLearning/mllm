@@ -56,7 +56,6 @@ NetTensor *Qwen_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden
     auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
     x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", false);
     y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", false);
-    
     x = _SiLU({x}, name + ".silu");
     x = *x * y;
     x = _Quantize({x}, true, (string)name + ".down_proj.quantize");
@@ -260,7 +259,7 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
 
     // first 23 layer using NPU-CPU prefilling
-    for (int layer = 0; layer < 23; ++layer) {
+    for (int layer = 0; layer < 1; ++layer) {
         if (layer != 0) // for graph 0, it will be offloaded to CPU in QNNOptNet::convert
             _SubgraphBegin(c, MLLM_CPU);
 

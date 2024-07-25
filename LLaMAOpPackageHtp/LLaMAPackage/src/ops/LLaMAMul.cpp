@@ -192,7 +192,7 @@ int32_t hvx_mul_ahf(
 
     int32_t block, l2fetch_block;
     int32_t leftover = size & 31;
-    int32_t vectors_in_rounddown = size / 32;
+    int32_t vectors_in_rounddown = size / 64;
     int32_t leftover_size = leftover * sizeof(__fp16);
 
     sline1p = *iptr++;

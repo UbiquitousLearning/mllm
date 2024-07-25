@@ -131,7 +131,7 @@ int32_t qhmath_hvx_dequantize_ahf(
 
     int32_t block, l2fetch_block;
     // int32_t leftover = size & 31;
-    int32_t vectors_in_rounddown = size / 32;
+    int32_t vectors_in_rounddown = size / 128;  // element number!
     // int32_t leftover_size = leftover * sizeof(float);
 
     sline1p = *iptr++;
@@ -153,7 +153,7 @@ int32_t qhmath_hvx_dequantize_ahf(
             l2fetch(iptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
         }
 
-        for (int32_t j = 0; j < block; j+=4)
+        for (int32_t j = 0; j < block; ++j)
         {
             sline1c = *iptr++;
             sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
@@ -194,7 +194,7 @@ int32_t qhmath_hvx_dequantize_af(
 
     int32_t block, l2fetch_block;
     // int32_t leftover = size & 31;
-    int32_t vectors_in_rounddown = size / 32;
+    int32_t vectors_in_rounddown = size / 128;
     // int32_t leftover_size = leftover * sizeof(float);
 
     sline1p = *iptr++;
@@ -218,7 +218,7 @@ int32_t qhmath_hvx_dequantize_af(
             l2fetch(iptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
         }
 
-        for (int32_t j = 0; j < block; j+=4)
+        for (int32_t j = 0; j < block; ++j)
         {
             sline1c = *iptr++;
             sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
@@ -278,9 +278,9 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
 
     size_t size = b_in*h_in*w_in*d_in;
 
-    if (in_0.get_dtype() == DType::QUInt8 && out_0.get_dtype() == DType::Float16)
+    if (in_0.get_dtype() == DType::QUInt8 && out_0.get_dtype() == DType::Float16) {
         qhmath_hvx_dequantize_ahf(in_ptr, out_ptr, size, scale_);
-
+    }
     else {
         qhmath_hvx_dequantize_af(in_ptr, out_ptr, size, scale_);
     }
