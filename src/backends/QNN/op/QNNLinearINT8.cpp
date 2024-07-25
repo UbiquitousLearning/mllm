@@ -162,13 +162,15 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
         return graphAddNode(name() + ".linearint8", "Conv2d", {inputs[0]->name(), weight_.name()}, matmulOut, params_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D);
     }
 
+    std::cout << "using bias now!!" << std::endl;
+
     // add bias tensor to qnn
     uint32_t dimensionsBias[1] = {(uint32_t)out_features_};
     float biasScale = 0;
 // #ifdef SMOOTHQUANT
     qnnQuantDefined = QNN_DEFINITION_DEFINED;
     biasScale = biasScale_.hostPtr<float>()[0];
-    // std::cout << "===================" << biasScale << std::endl;
+    std::cout << "===================" << biasScale << std::endl;
 // #endif
     qnnBackend_->modelAddTensor(bias_.name(), (Qnn_Tensor_t){
                                                   .version = QNN_TENSOR_VERSION_1,

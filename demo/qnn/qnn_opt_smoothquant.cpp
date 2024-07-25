@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
 
     cmdParser.parse_check(argc, argv);
 
-    const string npu_model_path = "./models/Qwen1.5-1.8B-Chat_2000_int8.mllm";
+    const string npu_model_path = "./models/Qwen1.5-1.8B-Chat_10000000_static_int8.mllm";
     const string cpu_model_path = "./models/qwen-1.8b-chat-q4k-fp32.mllm";
     const string merge_file_path = "./vocab/merges-qwen.txt";
 
@@ -146,6 +146,7 @@ int main(int argc, char **argv) {
 
     vector<string> in_strs = {
         "<|im_start|>system\nYou are a helpful assistant.<| im_end |>\n<| im_start |>user\nGive me a short introduction to large language model.<| im_end |>\n<| im_start |> assistant\n\n",
+        // "Hello, who are you?",
     };
     // " What can you do?",
     // "Please introduce Beijing University of Posts and Telecommunications."};
@@ -162,7 +163,11 @@ int main(int argc, char **argv) {
             tokens_id[0] = 13;
         }
         // delete the last end token
-        tokens_id.pop_back();
+        // tokens_id.pop_back();
+
+        for (int ti = 0; ti < tokens_id.size(); ti++) {
+            std::cout << tokens_id[ti] << std::endl;
+        }
 
         int real_seq_length = tokens_id.size();
 
@@ -182,8 +187,8 @@ int main(int argc, char **argv) {
             npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
 
-            result[0]->printData<float>();
-            exit(0);
+            // result[0]->printData<float>();
+            // exit(0);
 
             // inter model for prefill-decode
             interExe.run(&interNet, {result[0]});
