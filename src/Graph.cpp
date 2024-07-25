@@ -167,7 +167,9 @@ void Graph::setUpTensors() {
 void Graph::setUpOps(ParamLoader &loader) {
     for (const auto &op_name : op_names_) {
         ops_[op_name]->load(loader);
+#ifdef DEBUGPRINT
         PRINT_MEMORY_USAGE((op_name + " load").c_str());
+#endif
     }
 }
 //#define SAVECHECK

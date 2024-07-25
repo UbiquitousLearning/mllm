@@ -139,6 +139,8 @@ void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
         return;
     }
 
+    std::cout << "registerQnnTensor: " << qnnTensor.v1.memHandle << std::endl;
+
     ptrToFdAndMemHandleMap_.insert(std::make_pair(ptr, std::make_pair(memFd, qnnTensor.v1.memHandle)));
 }
 

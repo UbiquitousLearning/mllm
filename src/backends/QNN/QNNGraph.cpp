@@ -33,11 +33,15 @@ void QNNGraph::setUpTensors(std::string name) {
     // set up tensors of ops
     for (const auto &op_name : op_names_) {
         if (ops_not_inputs_empty_[op_name]) {
+#ifdef DEBUGPRINT
             TIME_COUNT_START()
+#endif
             ops_[op_name]->setUp(ops_input_tensors_[op_name],
                                  ops_output_tensors_[op_name]);
+#ifdef DEBUGPRINT
             PRINT_MEMORY_USAGE(op_name.c_str());
             TIME_COUNT_END();
+#endif
         } else {
             // std::cout << "op_name:" << op_name << " is not do" << std::endl;
         }
@@ -111,10 +115,7 @@ void QNNGraph::allFree() {
 
 const vector<shared_ptr<Tensor>> &QNNGraph::forward(bool autofree) {
     // backend event hook
-    // if (autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0)
-        this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]]);
-
-    std::cout << "QNNexecute thread start" << std::endl;
+    this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]]);
 
 
     for (const auto &op_name : op_names_) {

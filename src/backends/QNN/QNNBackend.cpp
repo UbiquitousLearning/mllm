@@ -384,14 +384,14 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
             returnStatus = StatusCode::FAILURE;
         }
 
-        // QNN_DEBUG("input tensors: %d ", (*m_graphsInfo)[graphIdx].numInputTensors);
-        // QNN_DEBUG("output tensors: %d ", (*m_graphsInfo)[graphIdx].numOutputTensors);
-
         auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
 
         // register input and output tensor to qnn shared buffers
         // TODO: currently must insure the inputs and outputs of mllm graph are the same as the qnn graph
         // op created io tensors (kvcache, wnop...) should be solved
+        for(auto t : inputs) {
+            std::cout << t->name() << std::endl;
+        }
         std::cout << "input tensors num:" << (*m_graphsInfo)[graphIdx].numInputTensors << std::endl;
         std::cout << "output tensors num:" << (*m_graphsInfo)[graphIdx].numOutputTensors << std::endl;
 
@@ -399,12 +399,10 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
         std::cout << "output tensors num:" << currentOutputBuffers->size() << std::endl;
 
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {
-            // std::cout << "input name:" << inputs[i]->name() << std::endl;
             qnnMM->registerQnnTensor((*currentInputBuffers)[i], inputs_[i]);
             QNN_DEBUG("inputBuffers: %p ", (*currentInputBuffers)[i]);
         }
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numOutputTensors; i++) {
-            // std::cout << "output name:" << outputs[i]->name() << std::endl;
             qnnMM->registerQnnTensor((*currentOutputBuffers)[i], outputs_[i]);
             QNN_DEBUG("outputBuffers: %p ", (*currentOutputBuffers)[i]);
         }
@@ -455,34 +453,7 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
         if (ProfilingLevel::OFF != m_profilingLevel) {
             extractBackendProfilingInfo(m_profileBackendHandle);
         }
-        // if (StatusCode::SUCCESS == returnStatus) {
-        //     QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
-        //     for (int oi = 0; oi < graphInfo.numOutputTensors; oi++) {
-        //         auto output = outputs_[oi];
-        //         // DEBUGLOG
-        //         std::cout << "----------------" << std::endl;
-        //         std::cout << "output name:" << output.v1.name << std::endl;
-        //         // std::cout << "output id:" << output.v1.clientBuf.dataSize << std::endl;
-        //         std::cout << "output type:" << output.v1.type << std::endl;
-        //         std::cout << "output type:" << output.v1.dataType << std::endl;
-        //     }
-        // }
-
-        // m_ioTensor.tearDownInputAndOutputTensors(
-        //     inputs_, outputs_, graphInfo.numInputTensors, graphInfo.numOutputTensors);
-        // inputs_ = nullptr;
-        // outputs_ = nullptr;
-        // if (StatusCode::SUCCESS != returnStatus) {
-        //     std::cout << "tear down tensors fail" << std::endl;
-        //     exit(-1);
-        // }
-
-        // TODO: set graph info null will cause fault in multi chunk execution
-        // std::cout << "free graphs begin" << std::endl;
-        // qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
-        // m_graphsInfo = nullptr;
     }
-
 }
 
 void QNNBackend::onExecuteEnd() {

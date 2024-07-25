@@ -109,12 +109,11 @@ ErrorCode CPUView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
         // || (data_dim0_ == BATCH && data_dim3_ == CHANNLE && inputs[0]->ctype()==BTHWC) //
     ){
         noNeedEx_ = true;
-        if(inputs[0]->masterTensor() == nullptr) {
-            inputs[0]->free();
-        }
+        
+        // we let output deepcopy from input, as when the input is a QNN tensor, it can't be deep copied from output 
         outputs[0]->setDtype(activation_dtype());
-        outputs[0]->alloc();
-        inputs[0]->deepCopyFrom(outputs[0].get(), false);
+        outputs[0]->deepCopyFrom(inputs[0].get(), false);
+
         return MLLM_NO_ERROR;
     }
     else {
