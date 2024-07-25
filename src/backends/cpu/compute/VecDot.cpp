@@ -1344,8 +1344,8 @@ void vec_dot_q6_K_q8_K(const void * __restrict src0, const void * __restrict src
     dst->setDataAt<float>({batch, head, src0_inf, sec1_outf}, value);
 }
 
+#if defined(__ARM_NEON)
 #if !defined(__ARM_FEATURE_DOTPROD)
-
 inline static int32x4_t mllm_vdotq_s32(int32x4_t acc, int8x16_t a, int8x16_t b) {
     const int16x8_t p0 = vmull_s8(vget_low_s8(a), vget_low_s8(b));
     const int16x8_t p1 = vmull_s8(vget_high_s8(a), vget_high_s8(b));
@@ -1353,10 +1353,9 @@ inline static int32x4_t mllm_vdotq_s32(int32x4_t acc, int8x16_t a, int8x16_t b) 
     return vaddq_s32(acc, vaddq_s32(vpaddlq_s16(p0), vpaddlq_s16(p1)));
 }
 #else
-
 #define mllm_vdotq_s32(a, b, c) vdotq_s32(a, b, c)
-
 #endif
+#endif // __ARM_NEON
 
 void vec_dot_q8_0_q8_0(const int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy, float scale1, float scale2) {
     const int qk = QK8_0;
@@ -1436,5 +1435,82 @@ void vec_dot_q8_0_q8_0(const int n, float *__restrict s, const void *__restrict 
     }
 
     *s = sumf;
+#endif
+}
+
+#ifdef __AVX2__
+static void vec_value_dot_fp32_avx2(const int n, float *__restrict s, const float *__restrict x, const float *__restrict y, bool addition) {
+    float sumf = 0.0F;
+    const int np = (n & ~(MLLM_F32_STEP - 1));
+
+    MLLM_F32_VEC sum[MLLM_F32_ARR] = {MLLM_F32_VEC_ZERO};
+
+    MLLM_F32_VEC ax[MLLM_F32_ARR];
+    MLLM_F32_VEC ay[MLLM_F32_ARR];
+
+    for (int i = 0; i < np; i += MLLM_F32_STEP) {
+        for (int j = 0; j < MLLM_F32_ARR; j++) {
+            ax[j] = MLLM_F32_VEC_LOAD(x + i + j * MLLM_F32_EPR);
+            ay[j] = MLLM_F32_VEC_LOAD(y + i + j * MLLM_F32_EPR);
+
+            sum[j] = MLLM_F32_VEC_FMA(sum[j], ax[j], ay[j]);
+        }
+    }
+
+    // reduce sum0..sum3 to sum0
+    MLLM_F32_VEC_REDUCE(sumf, sum);
+
+    // leftovers
+    for (int i = np; i < n; ++i) {
+        sumf += x[i] * y[i];
+    }
+
+    *s = sumf;
+}
+#endif
+
+#ifdef __ARM_NEON
+// s:vector k
+// x:value
+// y:vector k
+static void vec_value_dot_fp32_arm(const int n, float *__restrict s, const float x, const float *__restrict y, bool addition) {
+    int i;
+    float32x4_t vec_x;
+    float32x4_t vec_y;
+    float32x4_t vec_s;
+
+    vec_x = vdupq_n_f32(x);
+
+    int n_aligned = n & -4;
+
+    if (addition) {
+        for (i = 0; i < n_aligned; i += 4) {
+            vec_y = vld1q_f32(y + i);
+            vec_s = vmulq_f32(vec_x, vec_y);
+            vec_s = vaddq_f32(vec_s, vld1q_f32(s + i));
+            vst1q_f32(s + i, vec_s);
+        }
+    } else {
+        for (i = 0; i < n_aligned; i += 4) {
+            vec_y = vld1q_f32(y + i);
+            vec_s = vmulq_f32(vec_x, vec_y);
+            vst1q_f32(s + i, vec_s);
+        }
+    }
+    for (; i < n; ++i) {
+        if (addition)
+            s[i] += x * y[i];
+        else {
+            s[i] = x * y[i];
+        }
+    }
+}
+#endif
+
+void vec_value_dot_fp32(const int n, float *__restrict s, const float x, const float *__restrict vy, bool addition) {
+#ifdef __AVX2__
+    vec_value_dot_fp32_avx2(n, s, x, vy, addition);
+#elif defined(__ARM_NEON)
+    vec_value_dot_fp32_arm(n, s, x, vy, addition);
 #endif
 }

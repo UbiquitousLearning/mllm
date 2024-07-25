@@ -52,6 +52,7 @@ public:
     virtual bool load(mllm::Tensor *tensor) = 0;
     virtual bool load(std::shared_ptr<mllm::Tensor> tensor) = 0;
     virtual DataType getDataType(string name) {return MLLM_TYPE_COUNT;}
+    virtual bool partialLoad(mllm::Tensor *tensor, std::set<int> validRow, int rowNum, int colNum) = 0;
 };
 
 /**
@@ -75,6 +76,7 @@ public:
     ~ParamLoader();
     bool load(mllm::Tensor *tensor) override;
     bool load(std::shared_ptr<mllm::Tensor> tensor) override;
+    bool partialLoad(mllm::Tensor *tensor, std::set<int> validRow, int rowNum, int colNum) override;
     vector<std::string> getParamNames();
     std::tuple<uint8_t *, uint64_t> load(string name);
     DataType getDataType(string name) override;
