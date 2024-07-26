@@ -552,6 +552,32 @@ NetTensor *_LinearINT8(std::vector<NetTensor *> inputs, int in_features, int out
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+
+/**
+ * \param in_features The size of each input sample (i.e., input dimension).
+ * \param out_features The size of each output sample (i.e., output dimension).
+ * \param bias If set to false, the layer will not learn an additive bias. Default is true.
+ */
+NetTensor *_LinearINT8Shadow(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "LinearINT8" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::LINEARINT8SHADOW)
+    net_op_->param["in_features"] = in_features;
+    net_op_->param["out_features"] = out_features;
+    net_op_->param["bias"] = (int)bias;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
 /**
  * \param vocab_size The size of the vocabulary.
  * \param hidden_size The size of the hidden layer.

@@ -146,6 +146,7 @@ int main(int argc, char **argv) {
 
     vector<string> in_strs = {
         "<|im_start|>system\nYou are a helpful assistant.<| im_end |>\n<| im_start |>user\nGive me a short introduction to large language model.<| im_end |>\n<| im_start |> assistant\n\n",
+        // "Hello, who are you?",
     };
     // " What can you do?",
     // "Please introduce Beijing University of Posts and Telecommunications."};
@@ -162,7 +163,11 @@ int main(int argc, char **argv) {
             tokens_id[0] = 13;
         }
         // delete the last end token
-        tokens_id.pop_back();
+        // tokens_id.pop_back();
+
+        for (int ti = 0; ti < tokens_id.size(); ti++) {
+            std::cout << tokens_id[ti] << std::endl;
+        }
 
         int real_seq_length = tokens_id.size();
 

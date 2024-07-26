@@ -59,6 +59,8 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
 #ifdef DEBUGPRINT
             uint64_t t_start = mllm_time_us();
 #endif
+            if (ops_[op_name]->type() == LINEARINT8SHADOW)
+                continue;
             ops_[op_name]->execute(ops_input_tensors_[op_name],
                                    ops_output_tensors_[op_name]);
 
@@ -88,6 +90,11 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
         memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*0), inputs[0]->hostPtr<uint8_t>(), inputs[0]->cntSize());
         memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*1), inputs[1]->hostPtr<uint8_t>(), inputs[1]->cntSize());
         memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*2), inputs[2]->hostPtr<uint8_t>(), inputs[2]->cntSize());
+    }
+
+    if (ops_[op_names_[op_names_.size() - 1]]->type() == LINEARINT8SHADOW) {
+        auto op_name = op_names_[op_names_.size() - 1];
+        ops_[op_name]->execute(ops_input_tensors_[op_name], ops_output_tensors_[op_name]);
     }
 
     // this->backend_->onExecuteEnd();
