@@ -19,9 +19,10 @@ GraphStatus llamalinearImpl(TensorType& out_0,
                             const TensorType& in_0,
                             const TensorType& in_1,
                             const TensorType& in_2,
-                            const PlainFloatTensor& weight_scale,
                             const PlainFloatTensor& in_scale,
-                            const PlainFloatTensor& bias_scale);
+                            const PlainFloatTensor& weight_scale,
+                            const PlainFloatTensor& bias_scale,
+                            const PlainFloatTensor& output_scale);
 
 // forward declaration of sample cost function
 static float llamalinearCostFunc(const Op *op);
@@ -84,13 +85,16 @@ DEF_PACKAGE_OP((llamalinearImpl<Tensor>), "LLaMALinear")
  *       Qnn_addNode
  */
 DEF_PACKAGE_PARAM_ORDER("LLaMALinear", 
-                        "weight_scale",
-                        true,
-                        nullptr,
                         "in_scale",
                         true,
                         nullptr,
+                        "weight_scale",
+                        true,
+                        nullptr,
                         "bias_scale",
+                        true,
+                        nullptr,
+                        "output_scale",
                         true,
                         nullptr)
 
@@ -102,9 +106,10 @@ GraphStatus llamalinearImpl(TensorType& out_0,
                             const TensorType& in_0,
                             const TensorType& in_1,
                             const TensorType& in_2,
-                            const PlainFloatTensor& weight_scale,
                             const PlainFloatTensor& in_scale,
-                            const PlainFloatTensor& bias_scale)
+                            const PlainFloatTensor& weight_scale,
+                            const PlainFloatTensor& bias_scale,
+                            const PlainFloatTensor& output_scale)
 
 {
   /*
@@ -119,29 +124,29 @@ GraphStatus llamalinearImpl(TensorType& out_0,
    *
    * Please check in SDK documentation for more information.
    */
-
-    // 假设输入张量是4维的，NHWC格式
-    int batch_size = in_0.dims[0];
-    int height = in_0.dims[1];
-    int width = in_0.dims[2];
-    int in_features = in_0.dims[3]; // 输入的通道数
-    int out_features = in_1.dims[3]; // 输出的特征数（即输出通道数）
+   // 假设输入张量是4维的，NHWC格式
+    int batch_size = in_0.dims()[0];
+    int height = in_0.dims()[1];
+    int width = in_0.dims()[2];
+    int in_features = in_0.dims()[3]; // 输入的通道数
+    int out_features = in_1.dims()[3]; // 输出的特征数（即输出通道数）
 
     // 检查输入张量的形状是否匹配
-    if (in_1.dims[0] != 1 || in_1.dims[1] != 1 || in_1.dims[2] != in_features || in_2.dims[0] != out_features) {
-        return FAILURE;
+    if (in_1.dims()[0] != 1 || in_1.dims()[1] != 1 || in_1.dims()[2] != in_features || in_2.dims()[0] != out_features) {
+        return GraphStatus::ErrorFatal;
     }
 
     
     // 获取量化比例
     float w_scale = weight_scale(0,0,0,0);
-    float i_scale = in_scale.data(0,0,0,0);
-    float b_scale = bias_scale.data(0,0,0,0);
-    float output_scale = w_scale * i_scale / b_scale;
+    float i_scale = in_scale(0,0,0,0);
+    float b_scale = bias_scale(0,0,0,0);
+    float o_scale = output_scale(0,0,0,0);
     
     // 初始化输出张量
 
-    out_0.set_dims({batch_size, height, width, out_features});
+    size_t dims[] = {static_cast<size_t>(batch_size), static_cast<size_t>(height), static_cast<size_t>(width), static_cast<size_t>(out_features)};
+    out_0.set_dims(dims);
 
     auto in0_ptr = (uint8_t*)in_0.raw_data_const();
     auto in1_ptr = (uint8_t*)in_1.raw_data_const();
@@ -160,11 +165,24 @@ GraphStatus llamalinearImpl(TensorType& out_0,
                         acc += (static_cast<int32_t>(in0_ptr[in_index])-128) * (static_cast<int32_t>(in1_ptr[weight_index])-128);
                     }
                     // 加上偏置并进行反量化
-                    acc += static_cast<int32_t>(in2_ptr[n]);
-                    float result = acc * output_scale;
-                    // 将结果限制在int8范围内
+                    float result = acc * i_scale * w_scale;
+                    result += (static_cast<int32_t>(in2_ptr[n]) - 128) * b_scale;
+                    // 将结果限制在uint8范围内
                     int out_index = b * height * width * out_features + h * width * out_features + w * out_features + n;
-                    out_0.data[out_index] = static_cast<int8_t>(std::min(std::max(result, -128.0f), 127.0f));
+
+
+                    long v = lroundf(result / o_scale);
+                
+                    if (v > 127)
+                        v = 127;
+                    
+                    if (v < -128)
+                        v = -128;
+                    
+                    if (out_0.get_dtype() == DType::QUInt8)
+                        v += 128;
+
+                    out_ptr[out_index] = static_cast<uint8_t>(v);
                 }
             }
         }

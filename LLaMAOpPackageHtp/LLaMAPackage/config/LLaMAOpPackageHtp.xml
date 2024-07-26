@@ -156,16 +156,6 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             </Output>
 
             <Parameter>
-                <Name>weight_scale</Name>
-                <Mandatory>false</Mandatory>
-                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
-                <Shape>
-                    <Rank>SCALAR</Rank>
-                </Shape>
-                <Default>N-1</Default>
-            </Parameter>
-
-            <Parameter>
                 <Name>in_scale</Name>
                 <Mandatory>false</Mandatory>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
@@ -176,7 +166,27 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             </Parameter>
 
             <Parameter>
+                <Name>weight_scale</Name>
+                <Mandatory>false</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <Parameter>
                 <Name>bias_scale</Name>
+                <Mandatory>false</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <Parameter>
+                <Name>output_scale</Name>
                 <Mandatory>false</Mandatory>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
                 <Shape>

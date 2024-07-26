@@ -19,30 +19,30 @@ BEGIN_PKG_OPS_OPTS_LIST()
  *  registered to the HTP Core.
  *  Append the latest OpName at the bottom
  */
-DECLARE_PKG_OPS_OPTS_LIST(PKG_MergeOutput)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_QLayerNorm)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_CausalMask)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAMul)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_RMSNorm)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_Attention)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_KVCache)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAAdd)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMALinear)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAQuantize)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAReLU)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_HeadMatmul)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMADequantize)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_WNop)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_SplitInput)
-DECLARE_PKG_OPS_OPTS_LIST(PKG_RoPE)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_SiLU)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_WNop)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_Attention)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAReLU)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAQuantize)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_CausalMask)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_KVCache)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_QLayerNorm)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMALinear)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_HeadMatmul)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_MergeOutput)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAAdd)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_RMSNorm)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_RoPE)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMADequantize)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAMul)
 
 END_PKG_OPS_OPTS_LIST()
 
 // op package info
 static constexpr auto sg_packageName = THIS_PKG_NAME_STR;  // package name passed in as compile flag
 
-static std::array<const char*, 17> sg_opNames{{"MergeOutput", "QLayerNorm", "CausalMask", "LLaMAMul", "RMSNorm", "Attention", "KVCache", "LLaMAAdd", "LLaMALinear", "LLaMAQuantize", "LLaMAReLU", "HeadMatmul", "LLaMADequantize", "WNop", "SplitInput", "RoPE", "SiLU"}};
+static std::array<const char*, 17> sg_opNames{{"SplitInput", "SiLU", "WNop", "Attention", "LLaMAReLU", "LLaMAQuantize", "CausalMask", "KVCache", "QLayerNorm", "LLaMALinear", "HeadMatmul", "MergeOutput", "LLaMAAdd", "RMSNorm", "RoPE", "LLaMADequantize", "LLaMAMul"}};
 
 static Qnn_ApiVersion_t sg_sdkApiVersion  = QNN_HTP_API_VERSION_INIT;
 static QnnOpPackage_Info_t sg_packageInfo = QNN_OP_PACKAGE_INFO_INIT;
@@ -226,13 +226,33 @@ Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
      * Check if op config type matches any registered ops
      * If a match is found, check number of inputs, outputs and params
      */
-    if (std::string(opConfig.v1.typeName) == "MergeOutput"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 4 || opConfig.v1.numOfOutputs != 1){
+    if (std::string(opConfig.v1.typeName) == "SplitInput"){
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 2){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }
-    else if (std::string(opConfig.v1.typeName) == "QLayerNorm"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1){
+    else if (std::string(opConfig.v1.typeName) == "SiLU"){
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1){
+          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    }
+    else if (std::string(opConfig.v1.typeName) == "WNop"){
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 2){
+          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    }
+    else if (std::string(opConfig.v1.typeName) == "Attention"){
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 5 || opConfig.v1.numOfOutputs != 1){
+          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    }
+    else if (std::string(opConfig.v1.typeName) == "LLaMAReLU"){
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1){
+          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    }
+    else if (std::string(opConfig.v1.typeName) == "LLaMAQuantize"){
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }
@@ -241,7 +261,32 @@ Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }
-    else if (std::string(opConfig.v1.typeName) == "LLaMAMul"){
+    else if (std::string(opConfig.v1.typeName) == "KVCache"){
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
+          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    }
+    else if (std::string(opConfig.v1.typeName) == "QLayerNorm"){
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1){
+          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    }
+    else if (std::string(opConfig.v1.typeName) == "LLaMALinear"){
+        if (opConfig.v1.numOfParams != 4 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1){
+          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    }
+    else if (std::string(opConfig.v1.typeName) == "HeadMatmul"){
+        if (opConfig.v1.numOfParams != 2 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
+          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    }
+    else if (std::string(opConfig.v1.typeName) == "MergeOutput"){
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 4 || opConfig.v1.numOfOutputs != 1){
+          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    }
+    else if (std::string(opConfig.v1.typeName) == "LLaMAAdd"){
         if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
@@ -251,38 +296,8 @@ Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }
-    else if (std::string(opConfig.v1.typeName) == "Attention"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 5 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
-        }
-    }
-    else if (std::string(opConfig.v1.typeName) == "KVCache"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
-        }
-    }
-    else if (std::string(opConfig.v1.typeName) == "LLaMAAdd"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
-        }
-    }
-    else if (std::string(opConfig.v1.typeName) == "LLaMALinear"){
-        if (opConfig.v1.numOfParams != 3 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
-        }
-    }
-    else if (std::string(opConfig.v1.typeName) == "LLaMAQuantize"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
-        }
-    }
-    else if (std::string(opConfig.v1.typeName) == "LLaMAReLU"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
-        }
-    }
-    else if (std::string(opConfig.v1.typeName) == "HeadMatmul"){
-        if (opConfig.v1.numOfParams != 2 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
+    else if (std::string(opConfig.v1.typeName) == "RoPE"){
+        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }
@@ -291,23 +306,8 @@ Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }
-    else if (std::string(opConfig.v1.typeName) == "WNop"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 2){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
-        }
-    }
-    else if (std::string(opConfig.v1.typeName) == "SplitInput"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 2){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
-        }
-    }
-    else if (std::string(opConfig.v1.typeName) == "RoPE"){
-        if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1){
-          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
-        }
-    }
-    else if (std::string(opConfig.v1.typeName) == "SiLU"){
-        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 1 || opConfig.v1.numOfOutputs != 1){
+    else if (std::string(opConfig.v1.typeName) == "LLaMAMul"){
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }
