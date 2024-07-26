@@ -84,7 +84,7 @@ DEF_PACKAGE_PARAM_ORDER("LLaMADequantize",
                         true,
                         nullptr)
 
-#ifndef REFERENCE_OP
+#ifdef REFERENCE_OP
 /* execute functions for ops */
 #include "qhmath_hvx.h"
 #include "hvx_internal.h"
@@ -314,6 +314,8 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
 
     float scale_ = scale(0,0,0,0);
 
+    auto in_ptr = (int8_t*)in_0.raw_data_const();
+
     auto [b_in, h_in, w_in, d_in] = in_0.dims();
     for (Idx b = 0; b < b_in; b++) {
         for (Idx h = 0; h < h_in; h++) {
@@ -322,14 +324,14 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
 
                 if (out_0.get_dtype() == DType::Float32) {
 
-                    int32_t inval       = (int32_t)in_0(b, h, w, d);
+                    int32_t inval       = *in_ptr++;
                     out_0(b, h, w, d) = (inval-128) * scale_;
 
                 }
 
                 if (out_0.get_dtype() == DType::Float16) {
 
-                    int32_t inval       =  (int32_t)in_0(b, h, w, d);
+                    int32_t inval       =  *in_ptr++;
                     out_0(b, h, w, d) = (__fp16)((inval-128) * scale_);
 
                 }

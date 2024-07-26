@@ -81,6 +81,7 @@ ErrorCode QNNQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
                                                {.clientBuf = {.data = nullptr,
                                                               .dataSize = 0}}}}}};
     return graphAddNode(name(), "LLaMAQuantize", {inputs[0]->name()}, outputTensor, paramsQuantize, "LLaMAPackage");
+    // return graphAddNode(name(), "Quantize", {inputs[0]->name()}, outputTensor);
 }
 ErrorCode QNNQuantize::load(AbstructLoader &loader) {
 

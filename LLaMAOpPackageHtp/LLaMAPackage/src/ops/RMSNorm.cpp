@@ -83,7 +83,7 @@ DEF_PACKAGE_OP((rmsnormImpl<Tensor>), "RMSNorm")
 
 /* execute functions for ops */
 
-#ifndef REFERENCE_OP
+#ifdef REFERENCE_OP
 
 #include "qhmath_hvx.h"
 #include "hvx_internal.h"
