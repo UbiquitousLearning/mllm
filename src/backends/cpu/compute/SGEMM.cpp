@@ -1043,7 +1043,7 @@ bool check_llamafile_sgemm(int64_t m, int64_t n, int64_t k, DataType Atype, Data
     switch (Atype) {
 
     case MLLM_TYPE_F32: {
-        return false; //TODO CHECK THIS CALUATE
+        // return false; //TODO CHECK THIS CALUATE
         if (Btype != MLLM_TYPE_F32)
             return false;
 #if defined(__AVX512F__)

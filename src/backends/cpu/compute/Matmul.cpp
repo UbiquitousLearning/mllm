@@ -200,11 +200,11 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
                 for (int id = 0; id < thread_count; id++){
                     llamafile_sgemm(N, M, K/blck_size(src0->dtype()),
                                     (char *)src1->rawHostPtr() + src1->offset(b*is_0, h*is_0, 0, 0) * src1_type_size / src1_blck_size,
-                                    ld_src1,
+                                    ld_src1 / src1_blck_size,
                                     (char *)src0->rawHostPtr() + src0->offset(b, h, 0, 0) * src0_type_size / src0_blck_size,
-                                    ld_src0,
+                                    ld_src0/ src0_blck_size,
                                     (char *)dst->rawHostPtr() + dst->offset(b, h, 0, 0) * type_size(dst->dtype()) / blck_size(dst->dtype()),
-                                    ld_dst,
+                                    ld_dst/blck_size(dst->dtype()),
                                     id, thread_count,
                                     src1->dtype(),
                                     src0->dtype(),
@@ -241,6 +241,33 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
         src0_dtype = src0->dtype();
         src0_type_size = type_size(src0->dtype());
         src0_blck_size = blck_size(src0->dtype());
+        
+#ifdef LLAMAFILE_SGEMM
+    if (check_llamafile_sgemm(N, M, K/blck_size(src1->dtype()),src1->dtype(),src0->dtype(),dst->dtype())&&!support_bias){
+        const int ld_src1 = src1->sequence_skip_dim();
+        const int ld_src0 = src0->sequence_skip_dim();
+        const int ld_dst = dst->sequence_skip_dim();
+#pragma omp parallel for collapse(3) num_threads(thread_count)
+        for (int64_t b = 0; b < dst->batch(); b++){
+            for (int64_t h = 0; h < dst->head(); h++){
+                for (int id = 0; id < thread_count; id++){
+                    llamafile_sgemm(N, M, K/blck_size(src1->dtype()),
+                                    (char *)src1->rawHostPtr() + src1->offset(b, h, 0, 0) * src1_type_size / src1_blck_size,
+                                    ld_src1 / src1_blck_size,
+                                    (char *)src0->rawHostPtr() + src0->offset(b, h, 0, 0) * src0_type_size / src0_blck_size,
+                                    ld_src0/ src0_blck_size,
+                                    (char *)dst->rawHostPtr() + dst->offset(b, h, 0, 0) * type_size(dst->dtype()) / blck_size(dst->dtype()),
+                                    ld_dst/blck_size(dst->dtype()),
+                                    id, thread_count,
+                                    src1->dtype(),
+                                    src0->dtype(),
+                                    dst->dtype());
+                }
+            }
+        }
+        return MLLM_NO_ERROR;
+    }
+#endif
     }
     
     Tensor *src0_cal = src0;

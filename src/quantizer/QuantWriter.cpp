@@ -88,6 +88,12 @@ void QuantWriter::quantParams(DataType dataType) {
                 __exit(-1);
                 break;
             case MLLM_TYPE_Q4_0:
+                std::cout << "Quantize param " << name << " to " << DataTypeName(dataType) << "\t";
+                block_t = alloc_quant_block(size, dataType);
+                quant_ptr = block_t.first;
+                quantize_row_q4_0(param, quant_ptr, size);
+                size = block_t.second;
+                break;
             case MLLM_TYPE_Q4_K:
             case MLLM_TYPE_Q6_K:
                 std::cout << "Quantize param " << name << " to " << DataTypeName(MLLM_TYPE_Q6_K) << "\t";
@@ -114,7 +120,7 @@ void QuantWriter::quantParams(DataType dataType) {
                 break;
             }
             if (quant_ptr != nullptr) {
-                if ((dataType == MLLM_TYPE_Q4_0) |(dataType ==MLLM_TYPE_Q4_K)|dataType ==MLLM_TYPE_Q6_K) {
+                if ((dataType ==MLLM_TYPE_Q4_K)|(dataType ==MLLM_TYPE_Q6_K)) {
                     writeParam(name, MLLM_TYPE_Q6_K, quant_ptr, size);
                     std::cout << "  size:" << size <<" type:"<< DataTypeName(MLLM_TYPE_Q6_K)<< std::endl;
                 } else {
