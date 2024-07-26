@@ -35,9 +35,6 @@ void QNNGraph::setUpTensors(std::string name) {
         if (ops_not_inputs_empty_[op_name]) {
             ops_[op_name]->setUp(ops_input_tensors_[op_name],
                                  ops_output_tensors_[op_name]);
-#ifdef DEBUGPRINT
-            PRINT_MEMORY_USAGE(op_name.c_str());
-#endif
         } else {
             // std::cout << "op_name:" << op_name << " is not do" << std::endl;
         }

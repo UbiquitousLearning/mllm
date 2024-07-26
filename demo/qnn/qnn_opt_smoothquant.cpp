@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
 
     cmdParser.parse_check(argc, argv);
 
-    const string npu_model_path = "./models/Qwen1.5-1.8B-Chat_10000000_static_int8.mllm";
+    const string npu_model_path = "./models/Qwen1.5-1.8B-Chat_2000_int8.mllm";
     const string cpu_model_path = "./models/qwen-1.8b-chat-q4k-fp32.mllm";
     const string merge_file_path = "./vocab/merges-qwen.txt";
 
@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
     cpuExe.setup(&cpuNet);
 
     vector<string> in_strs = {
-        "<|im_start|>system\nYou are a helpful assistant.<| im_end |>\n<| im_start |>user\nGive me a short introduction to large language model.<| im_end |>\n<| im_start |> assistant\n\n",
+        "Hello, who are you?",
         // "Hello, who are you?",
     };
     // " What can you do?",
@@ -170,6 +170,8 @@ int main(int argc, char **argv) {
         }
 
         int real_seq_length = tokens_id.size();
+
+        std::cout << "real_seq_length: " << real_seq_length << std::endl;
 
         // resize to the expected seqLength, the seq will be then splited to chunks
         // tokens_id.resize(0);
@@ -210,7 +212,7 @@ int main(int argc, char **argv) {
             inter_cpu_backend->switchDecodeTag();
 
             // // 2: Decoding stage using CPU execute
-            for (int step = 1; step < 100; step++) {
+            for (int step = real_seq_length; step < 100; step++) {
                 cpuExe.run(&cpuNet, {input});
                 auto result = cpuExe.result();
                 auto token_idx = postProcessing(result[0], input);
@@ -221,7 +223,7 @@ int main(int argc, char **argv) {
                 std::cout << out_token << std::flush;
                 answers.push_back(out_token);
 
-                if (step == 1) {
+                if (step == real_seq_length) {
                     prefill_cpu_backend->switchDecodeTag();
                     inter_cpu_backend->switchDecodeTag();
                 }
@@ -234,15 +236,15 @@ int main(int argc, char **argv) {
         }
     }
 
-    // cpuExe.perf();
+    cpuExe.perf();
 
     // free memory
-    for (auto *op : npu_ctx->net_ops) {
-        delete op;
-    }
-    for (auto *tensor : npu_ctx->net_tensors) {
-        delete tensor;
-    }
+    // for (auto *op : npu_ctx->net_ops) {
+    //     delete op;
+    // }
+    // for (auto *tensor : npu_ctx->net_tensors) {
+    //     delete tensor;
+    // }
 
     return 0;
 }
