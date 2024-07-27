@@ -1170,6 +1170,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
                 <Name>in[2]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
                 <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
             </Input>
 
             <Output>
