@@ -17,6 +17,16 @@ public:
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+    float Round(float num) {
+        float floor_num = floor(num);
+        float ceil_num = ceil(num);
+        
+        if (num - floor_num < ceil_num - num) {
+            return floor_num;
+        } else {
+            return ceil_num;
+        }
+    }
 
 
 private:

@@ -47,7 +47,7 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
     float dequantScale = 0;
     dequantScale = scale_.hostPtr<float>()[0]  / 127.0;
-    // dequantScale = roundf(dequantScale * 10000) / 10000;
+    dequantScale = roundf(dequantScale * 100000) / 100000;
 
     if (isFP32_) {
 

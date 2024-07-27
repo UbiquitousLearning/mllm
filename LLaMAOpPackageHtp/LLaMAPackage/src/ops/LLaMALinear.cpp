@@ -101,6 +101,17 @@ DEF_PACKAGE_PARAM_ORDER("LLaMALinear",
 
 /* execute functions for ops */
 
+float Round(float num) {
+    float floor_num = floor(num);
+    float ceil_num = ceil(num);
+    
+    if (num - floor_num < ceil_num - num) {
+        return floor_num;
+    } else {
+        return ceil_num;
+    }
+}
+
 template<typename TensorType>
 GraphStatus llamalinearImpl(TensorType& out_0,
                             const TensorType& in_0,
@@ -140,7 +151,7 @@ GraphStatus llamalinearImpl(TensorType& out_0,
     // 获取量化比例
     float w_scale = weight_scale(0,0,0,0);
     float i_scale = in_scale(0,0,0,0);
-    float b_scale = bias_scale(0,0,0,0);
+    // float b_scale = bias_scale(0,0,0,0);
     float o_scale = output_scale(0,0,0,0);
     
     // 初始化输出张量
@@ -152,7 +163,7 @@ GraphStatus llamalinearImpl(TensorType& out_0,
     auto in0_ptr = (uint8_t*)in_0.raw_data_const();
     auto in1_ptr = (uint8_t*)in_1.raw_data_const();
     auto in2_ptr = (float*)in_2.raw_data_const();
-    auto out_ptr = (uint8_t*)out_0.raw_data();
+    auto out_ptr = (int8_t*)out_0.raw_data();
     
     // 进行量化Linear乘法
     for (int b = 0; b < batch_size; ++b) {
@@ -171,8 +182,9 @@ GraphStatus llamalinearImpl(TensorType& out_0,
                     // 将结果限制在uint8范围内
                     int out_index = b * height * width * out_features + h * width * out_features + w * out_features + n;
 
+                    result = Round(result / o_scale);
 
-                    long v = lroundf(result / o_scale);
+                    long v = lroundf(result);
                 
                     if (v > 127)
                         v = 127;

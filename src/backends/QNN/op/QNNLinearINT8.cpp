@@ -267,7 +267,7 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                                                        .name = bias_.name().c_str(),
                                                        .type = QNN_TENSOR_TYPE_STATIC,
                                                        .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                       .dataType = QNN_DATATYPE_UFIXED_POINT_8,
+                                                       .dataType = QNN_DATATYPE_FLOAT_32,
                                                        .quantizeParams = {qnnQuantDefined,
                                                                           QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
                                                                           {.scaleOffsetEncoding = {.scale = biasScale, .offset = -128}}},
@@ -281,11 +281,11 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
     float outputScale = 0;
     outputScale = outputScale_.hostPtr<float>()[0]  / 127.0;
-    // outputScale = roundf(outputScale * 10000) / 10000;
+    outputScale = roundf(outputScale * 100000) / 100000;
 
     float inputScale = 0;
     inputScale = inputScale_.hostPtr<float>()[0]  / 127.0;
-    // inputScale = roundf(inputScale * 10000) / 10000;
+    inputScale = roundf(inputScale * 100000) / 100000;
 
 
     auto params_in_scaleName = name() + "param.in_scale";
@@ -447,16 +447,21 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
     // if (support_bias_) {
         bias_.setName(name() + ".bias");
         bias_.reshape(1, 1, 1, out_features_);
-        bias_.setDtype(MLLM_TYPE_I8);
+        bias_.setDtype(MLLM_TYPE_F32);
         bias_.alloc();
+
+    if (support_bias_) {
         loader.load(&bias_);
+    } else {
+        memset(bias_.hostPtr<void>(), 0, bias_.cntSize());
+    }
 
         // sign to unsign
-        for (int i=0; i<out_features_; i++) {
-            int32_t val = bias_.dataAt<int8_t>(0,0,0,i);
-            val += 128;
-            bias_.setDataAt<uint8_t>(0,0,0,i, (uint8_t)val);
-        }
+        // for (int i=0; i<out_features_; i++) {
+        //     int32_t val = bias_.dataAt<int8_t>(0,0,0,i);
+        //     val += 128;
+        //     bias_.setDataAt<uint8_t>(0,0,0,i, (uint8_t)val);
+        // }
     // }
     
 

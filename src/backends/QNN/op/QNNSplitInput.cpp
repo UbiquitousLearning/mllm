@@ -147,7 +147,7 @@ ErrorCode QNNSplitInput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
     float quantScale1 = 0;
     quantScale1 = scale1_.hostPtr<float>()[0]  / 127.0;
-    quantScale1 = roundf(quantScale1 * 10000) / 10000;
+    quantScale1 = roundf(quantScale1 * 100000) / 100000;
 
     qnnBackend_->modelAddTensor(inputs[0]->name().c_str(), (Qnn_Tensor_t){
         .version = QNN_TENSOR_VERSION_1,

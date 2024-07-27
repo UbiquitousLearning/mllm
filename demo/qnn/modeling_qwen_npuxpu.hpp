@@ -173,7 +173,7 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention_t2(Context *c, NetTensor *x, NetTe
     o = o->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_size * head_size);
     res = res->view(-1, 1, -1, hidden_size * head_size);
     o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
-    o = _Dequantize({o}, true, (string)name + ".o_proj.dequantize");
+    // o = _Dequantize({o}, true, (string)name + ".o_proj.dequantize");
 
     return {o, res};
 }
