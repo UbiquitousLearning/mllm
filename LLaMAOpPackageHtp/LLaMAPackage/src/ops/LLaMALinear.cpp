@@ -124,7 +124,7 @@ GraphStatus llamalinearImpl(TensorType& out_0,
    *
    * Please check in SDK documentation for more information.
    */
-   // 假设输入张量是4维的，NHWC格式
+  //  假设输入张量是4维的，NHWC格式
     int batch_size = in_0.dims()[0];
     int height = in_0.dims()[1];
     int width = in_0.dims()[2];
@@ -132,7 +132,7 @@ GraphStatus llamalinearImpl(TensorType& out_0,
     int out_features = in_1.dims()[3]; // 输出的特征数（即输出通道数）
 
     // 检查输入张量的形状是否匹配
-    if (in_1.dims()[0] != 1 || in_1.dims()[1] != 1 || in_1.dims()[2] != in_features || in_2.dims()[0] != out_features) {
+    if (in_1.dims()[0] != 1 || in_1.dims()[1] != 1 || in_1.dims()[2] != in_features || in_2.dims()[3] != out_features) {
         return GraphStatus::ErrorFatal;
     }
 
@@ -158,14 +158,14 @@ GraphStatus llamalinearImpl(TensorType& out_0,
         for (int h = 0; h < height; ++h) {
             for (int w = 0; w < width; ++w) {
                 for (int n = 0; n < out_features; ++n) {
-                    int32_t acc = 0;
+                    float acc = 0;
                     for (int k = 0; k < in_features; ++k) {
                         int in_index = b * height * width * in_features + h * width * in_features + w * in_features + k;
                         int weight_index = k * out_features + n;
-                        acc += (static_cast<int32_t>(in0_ptr[in_index])-128) * (static_cast<int32_t>(in1_ptr[weight_index])-128);
+                        acc += ((static_cast<int32_t>(in0_ptr[in_index])-128) * i_scale)  * ((static_cast<int32_t>(in1_ptr[weight_index])-128) * w_scale);
                     }
                     // 加上偏置并进行反量化
-                    float result = acc * i_scale * w_scale;
+                    float result = acc;
                     result += (static_cast<int32_t>(in2_ptr[n]) - 128) * b_scale;
                     // 将结果限制在uint8范围内
                     int out_index = b * height * width * out_features + h * width * out_features + w * out_features + n;

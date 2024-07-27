@@ -83,7 +83,7 @@ DEF_PACKAGE_PARAM_ORDER("LLaMAQuantize",
                         "scale",
                         true,
                         nullptr)
-#ifdef REFERENCE_OP
+#ifndef REFERENCE_OP
 
 
 #include "qhmath_hvx.h"

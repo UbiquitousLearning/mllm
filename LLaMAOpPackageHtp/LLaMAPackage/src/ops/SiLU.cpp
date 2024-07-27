@@ -951,7 +951,7 @@ GraphStatus siluImpl(TensorType& out_0,
    * Please check in SDK documentation for more information.
    */
 
-#ifndef REFERENCE_OP
+#ifdef REFERENCE_OP
    debuglog("silu execute... inval=(%d)", in_0.get_dtype()); 
    debuglog("silu execute... inval=(%d)", out_0.get_dtype()); 
    

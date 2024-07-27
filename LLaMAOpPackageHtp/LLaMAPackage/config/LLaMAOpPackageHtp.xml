@@ -131,7 +131,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Input>
                 <Name>in[2]</Name>
                 <Description>
-                    <Content>weights</Content>
+                    <Content>bias</Content>
                 </Description>
                 <Mandatory>true</Mandatory>
                 <Datatype>BACKEND_SPECIFIC</Datatype>
@@ -157,7 +157,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 
             <Parameter>
                 <Name>in_scale</Name>
-                <Mandatory>false</Mandatory>
+                <Mandatory>true</Mandatory>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
                 <Shape>
                     <Rank>SCALAR</Rank>
@@ -167,7 +167,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 
             <Parameter>
                 <Name>weight_scale</Name>
-                <Mandatory>false</Mandatory>
+                <Mandatory>true</Mandatory>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
                 <Shape>
                     <Rank>SCALAR</Rank>
@@ -177,7 +177,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 
             <Parameter>
                 <Name>bias_scale</Name>
-                <Mandatory>false</Mandatory>
+                <Mandatory>true</Mandatory>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
                 <Shape>
                     <Rank>SCALAR</Rank>
@@ -187,7 +187,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 
             <Parameter>
                 <Name>output_scale</Name>
-                <Mandatory>false</Mandatory>
+                <Mandatory>true</Mandatory>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
                 <Shape>
                     <Rank>SCALAR</Rank>
