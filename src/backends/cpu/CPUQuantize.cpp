@@ -30,7 +30,7 @@ ErrorCode CPUQuantize::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
     float quantScale = 0;
     quantScale = scale_.hostPtr<float>()[0]  / 127.0;
-    quantScale = roundf(quantScale * 10000) / 10000;
+    // quantScale = roundf(quantScale * 10000) / 10000;
 
 
 #pragma omp parallel for collapse(4)
@@ -46,6 +46,10 @@ ErrorCode CPUQuantize::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
             }
         }
     }
+
+    input->printData<float>();
+
+    output->printData<int8_t>();
     return Op::execute(inputs, outputs);
 }
 
