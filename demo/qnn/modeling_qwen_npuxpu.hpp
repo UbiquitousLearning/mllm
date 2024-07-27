@@ -266,7 +266,7 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
         auto res = i;
         res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
 
-        i = _RMSNorm({i}, hidden_dim, 1e-5, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
+        i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
         i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");
 
         i = i->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
@@ -291,7 +291,7 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
         // _SubgraphBegin(c, MLLM_CPU);
         res = i;
 
-        i = _RMSNorm({i}, hidden_dim, 1e-5, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
+        i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
         i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".mlp.up_proj.quantize");
 
         i = i->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_dim);
