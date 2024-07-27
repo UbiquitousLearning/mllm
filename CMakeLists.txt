@@ -101,7 +101,8 @@ endif ()
 if (QUANT)
     include_directories(${PROJECT_SOURCE_DIR}/src/quantizer)
     file(GLOB_RECURSE MLLM_QUANT
-
+            ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GEMM_AArch64.hpp
+            ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GEMM_AArch64.cpp
             ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.hpp
             ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
     )

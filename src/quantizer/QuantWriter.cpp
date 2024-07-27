@@ -1,10 +1,12 @@
 #include "ParamWriter.hpp"
 #include "ParamLoader.hpp"
+#include "Types.hpp"
 #include "backends/cpu/quantize/QuantizeQ4.hpp"
 #include "backends/cpu/quantize/QuantizeQ8.hpp"
 #include <string>
 #include "QuantWriter.hpp"
 #include "backends/cpu/quantize/QuantizeQ6.hpp"
+#include "backends/cpu/compute/GEMM_AArch64.hpp"
 namespace mllm {
 QuantWriter::QuantWriter(std::string output_path, std::string input_path) :
     ParamWriter(output_path), output_path_(output_path) {
@@ -39,6 +41,7 @@ vector<string> fp32_layers = {"norm", "rope", "bias","rotary_emb", "embed_tokens
                                 "embeddings", "logit_scale",  //, "tok_embeddings"};
                                 "modality_preprocessors", "modality_heads", "modality_postprocessors", "pre_transformer_layer"};
 vector<string> q6_layers = {"w2", "wv", "dense_h_to_4h", "v_proj", "down_proj"};
+vector<string> q4x4_2_q4_layers = {"w2", "wv", "dense_h_to_4h", "v_proj", "down_proj"};
 
 int tmp_hidden_dim = -1;
 
@@ -81,7 +84,68 @@ void QuantWriter::quantParams(DataType dataType) {
             const auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
             writeParam(name, MLLM_TYPE_F32, param, tsize);
             std::cout << "  size:" << tsize << std::endl;
-        }else if (find_names(name, q6_layers)) {
+        }else if (find_names(name, q4x4_2_q4_layers) && dataType != MLLM_TYPE_Q6_K) {
+            // std::cout<<"q4x4_2_q4_layers"<<std::endl;
+            switch (dataType) {
+            case MLLM_TYPE_F32:
+                std::cout << "No need to quantize FP32 params\n";
+                __exit(-1);
+                break;
+            case MLLM_TYPE_Q4_0:
+                std::cout << "Quantize param " << name << " to " << DataTypeName(dataType) << "\t";
+                block_t = alloc_quant_block(size, dataType);
+                quant_ptr = block_t.first;
+                quantize_row_q4_0(param, quant_ptr, size);
+                size = block_t.second;
+                break;
+            case MLLM_TYPE_Q4_K:
+                std::cout << "Quantize param " << name << " to " << DataTypeName(dataType) << "\t";
+                block_t = alloc_quant_block(size, dataType);
+                quant_ptr = block_t.first;
+                quantize_row_q4_K(param, quant_ptr, size);
+                size = block_t.second;
+                break;
+            case MLLM_TYPE_Q6_K:
+                std::cout << "Quantize param " << name << " to " << DataTypeName(dataType) << "\t";
+                block_t = alloc_quant_block(size, dataType);
+                quant_ptr = block_t.first;
+                quantize_row_q6_K(param, quant_ptr, size);
+                size = block_t.second;
+                break;
+            case MLLM_TYPE_Q8_0:
+                std::cout << "Quantize param " << name << " to " << DataTypeName(dataType) << "\t";
+                block_t = alloc_quant_block(size, dataType);
+                quant_ptr = block_t.first;
+                quantize_row_q8_0(param, quant_ptr, size);
+                size = block_t.second;
+                break;
+            case MLLM_TYPE_Q8_K:
+                std::cout << "Quantize param " << name << " to " << DataTypeName(dataType) << "\t";
+                block_t = alloc_quant_block(size, dataType);
+                quant_ptr = block_t.first;
+                quantize_row_q8_K(param, quant_ptr, size);
+                size = block_t.second;
+                break;
+            case MLLM_TYPE_Q4_0_4_4:
+                std::cout << "Quantize param " << name << " to " << DataTypeName(MLLM_TYPE_Q4_0) << "\t";
+                block_t = alloc_quant_block(size, dataType);
+                quant_ptr = block_t.first;
+                quantize_row_q4_0(param, quant_ptr, size);
+                size = block_t.second;
+                break;
+            default:
+                break;
+            }
+            if (quant_ptr != nullptr) {
+                if (dataType ==MLLM_TYPE_Q4_0_4_4) {
+                    writeParam(name, MLLM_TYPE_Q4_0, quant_ptr, size);
+                    std::cout << "  size:" << size <<" type:"<< DataTypeName(MLLM_TYPE_Q4_0)<< std::endl;
+                } else {
+                    writeParam(name, quant_type_, quant_ptr, size);
+                    std::cout << "  size:" << size <<" type:"<< DataTypeName(quant_type_)<< std::endl;
+                }
+            }
+        } else if (find_names(name, q6_layers)) {
             switch (dataType) {
             case MLLM_TYPE_F32:
                 std::cout << "No need to quantize FP32 params\n";
@@ -114,6 +178,13 @@ void QuantWriter::quantParams(DataType dataType) {
                 block_t = alloc_quant_block(size, dataType);
                 quant_ptr = block_t.first;
                 quantize_row_q8_K(param, quant_ptr, size);
+                size = block_t.second;
+                break;
+            case MLLM_TYPE_Q4_0_4_4:
+                std::cout << "Quantize param " << name << " to " << DataTypeName(dataType) << "\t";
+                block_t = alloc_quant_block(size, dataType);
+                quant_ptr = block_t.first;
+                quantize_row_q4_0_4x4(param, quant_ptr, size);
                 size = block_t.second;
                 break;
             default:
@@ -163,6 +234,12 @@ void QuantWriter::quantParams(DataType dataType) {
                 block_t = alloc_quant_block(size, dataType);
                 quant_ptr = block_t.first;
                 quantize_row_q8_K(param, quant_ptr, size);
+                size = block_t.second;
+                break;
+            case MLLM_TYPE_Q4_0_4_4:
+                block_t = alloc_quant_block(size, dataType);
+                quant_ptr = block_t.first;
+                quantize_row_q4_0_4x4(param, quant_ptr, size);
                 size = block_t.second;
                 break;
             case MLLM_TYPE_I8:

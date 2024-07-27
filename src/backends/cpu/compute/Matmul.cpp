@@ -183,6 +183,10 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     auto vec_dot_type = type_traits[src1_dtype].vec_dot_type;
     auto vec_dot = type_traits[src1_dtype].vec_dot;
     auto x_to_vec_dot_type = type_traits[vec_dot_type].from_float;
+    auto from_float_to_mat = type_traits[vec_dot_type].from_float_to_mat;
+    mllm_gemv_func const gemv = type_traits[src1_dtype].gemv;
+    mllm_gemm_func const gemm = type_traits[src1_dtype].gemm;
+    auto blck_size_interleave = type_traits[src1_dtype].blck_size_interleave;
 
     auto src1_type_size = type_size(src1_dtype);
     auto src1_blck_size = blck_size(src1_dtype);
@@ -225,22 +229,47 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
         to->setBackend(src0->backend());
         to->setDtype(vec_dot_type);
         to->alloc();
-        void *row_src = src0->rawHostPtr();
-        void *row_dst = to->rawHostPtr();
-        auto row_size_src = row_size(src0_dtype, src0->dimension());
-        auto row_size_dst = row_size(vec_dot_type, to->dimension());
-        auto n_row = src0->batch() * src0->head() * src0->sequence();
-        auto n_ele = src0->dimension();
-#pragma omp parallel for num_threads(thread_count)
-        for(int i = 0;i < n_row;i++){ // copy row by row
-            auto row1 = (char *)row_src + i * row_size_src;
-            auto row2 = (char *)row_dst + i * row_size_dst;
-            x_to_vec_dot_type(reinterpret_cast<const float *>(row1), row2, n_ele);
+//         void *row_src = src0->rawHostPtr();
+//         void *row_dst = to->rawHostPtr();
+//         auto row_size_src = row_size(src0_dtype, src0->dimension());
+//         auto row_size_dst = row_size(vec_dot_type, to->dimension());
+//         auto n_row = src0->batch() * src0->head() * src0->sequence();
+//         auto n_ele = src0->dimension();
+// #pragma omp parallel for num_threads(thread_count)
+//         for(int i = 0;i < n_row;i++){ // copy row by row
+//             auto row1 = (char *)row_src + i * row_size_src;
+//             auto row2 = (char *)row_dst + i * row_size_dst;
+//             x_to_vec_dot_type(reinterpret_cast<const float *>(row1), row2, n_ele);
+//         }
+        int64_t i_processed = 0;
+        if (from_float_to_mat && gemv && dst->masterTensor()==nullptr){
+            for (int b = 0; b < src0->batch(); b++) {
+                for (int h = 0; h < src0->head(); h++) {
+#pragma omp parallel for collapse(1) num_threads(thread_count)
+                    for (int64_t s = 0; s < src0->sequence() - src0->sequence() % 4; s += 4) {
+                            from_float_to_mat(src0->hostPtr<float>() + src0->offset(b, h, s, 0),
+                                            (char *)to->rawHostPtr() + to->offset(b, h, s, 0) * type_size(to->dtype()) / blck_size(to->dtype()),
+                                            4, src0->dimension(), blck_size_interleave);
+                    }
+                    i_processed = src0->sequence() - src0->sequence() % 4;
+                }
+            }
+        }
+#pragma omp parallel for collapse(3) num_threads(thread_count)
+        for (int b = 0; b < src0->batch(); b++) {
+            for (int h = 0; h < src0->head(); h++) {
+                for (int s = i_processed; s < src0->sequence(); s++) {
+                    x_to_vec_dot_type(src0->hostPtr<float>() + src0->offset(b, h, s, 0),
+                                      (char *)to->rawHostPtr() + to->offset(b, h, s, 0) * type_size(to->dtype()) / blck_size(to->dtype()),
+                                      src0->dimension());
+                }
+            }
         }
         src0 = to.get();
         src0_dtype = src0->dtype();
         src0_type_size = type_size(src0->dtype());
         src0_blck_size = blck_size(src0->dtype());
+    }
         
 #ifdef LLAMAFILE_SGEMM
     if (check_llamafile_sgemm(N, M, K/blck_size(src1->dtype()),src1->dtype(),src0->dtype(),dst->dtype())&&!support_bias){
@@ -268,6 +297,28 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
         return MLLM_NO_ERROR;
     }
 #endif
+
+    if(gemv&&!support_bias){
+        int nth=thread_count;
+#pragma omp parallel for collapse(1) num_threads(thread_count)
+        for (int ith = 0; ith < nth; ith++){
+            int64_t i_processed = 0;
+            int64_t seq_start = (ith * N) / nth;
+            int64_t seq_end   = ((ith + 1) * N) / nth;
+            if (gemm && (M > 3) && dst->masterTensor()==nullptr) {
+                gemm(K,  dst->hostPtr<float>() +  dst->offset(0, 0, 0, seq_start),
+                    N, (char *)src1->rawHostPtr()+ src1->offset(0, 0, seq_start, 0) * src1_type_size / src1_blck_size,
+                    (char *)src0->rawHostPtr(), M - M % 4, N/nth);
+                i_processed = M - M % 4;
+            }
+            for (int iter = i_processed; iter < M; iter++) { //M-M%4
+                gemv(K, dst->hostPtr<float>() +  dst->offset(0, 0, iter, seq_start), 
+                    N, (char *)src1->rawHostPtr()+ src1->offset(0, 0, seq_start, 0) * src1_type_size / src1_blck_size, 
+                    (char *)src0->rawHostPtr() + src0->offset(0, 0, iter, 0) * src0_type_size / src0_blck_size,
+                    1,  N/nth);
+            }
+        }
+        return MLLM_NO_ERROR;
     }
     
     Tensor *src0_cal = src0;
