@@ -5,6 +5,8 @@
 #include "VecDot.hpp"
 using namespace mllm;
 
+
+
 // Quantization
 void quantize_q8_0_4x4(const float * __restrict x, void * __restrict y, int64_t k);
 void quantize_q8_0_4x8(const float * __restrict x, void * __restrict y, int64_t k);
