@@ -26,6 +26,9 @@ private:
     Tensor shadowWeight_;
     Tensor shadowTransposeWeight_;
 
+    Tensor inputClip_;
+    Tensor outputClip_;
+
 };
 
 class QNNLinearINT8ShadowCreator : public QNNBackend::Creator {
