@@ -124,9 +124,9 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention_t2(Context *c, NetTensor *x, NetTe
     auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
     auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
     auto *v = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
-    q = q->view(1, head_size, seq / chunk, hidden_size);
-    k = k->view(1, head_size, seq / chunk, hidden_size);
-    v = v->view(1, head_size, seq / chunk, hidden_size);
+    q = q->view(1, head_size, seq / chunk, hidden_size, true);
+    k = k->view(1, head_size, seq / chunk, hidden_size, true);
+    v = v->view(1, head_size, seq / chunk, hidden_size, true);
 
     q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize");
     k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize");
