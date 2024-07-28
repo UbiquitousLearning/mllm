@@ -37,31 +37,7 @@ ErrorCode CPUSoftMax::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     // outputs[0]->setDtype(activationDtype());
     return Op::reshape(inputs, outputs);
 }
-inline static void vec_scale_f32(const int n, float *y, const float v) {
-    const int np = (n & ~(MLLM_F32_STEP - 1));
 
-    MLLM_F32_VEC vx = MLLM_F32_VEC_SET1(v);
-
-    MLLM_F32_VEC ay[MLLM_F32_ARR];
-
-    for (int i = 0; i < np; i += MLLM_F32_STEP) {
-        for (int j = 0; j < MLLM_F32_ARR; j++) {
-            ay[j] = MLLM_F32_VEC_LOAD(y + i + j * MLLM_F32_EPR);
-            ay[j] = MLLM_F32_VEC_MUL(ay[j], vx);
-
-            MLLM_F32_VEC_STORE(y + i + j * MLLM_F32_EPR, ay[j]);
-        }
-    }
-
-    // leftovers
-    for (int i = np; i < n; ++i) {
-        y[i] *= v;
-    }
-
-    //    for (int i = 0; i < n; ++i) {
-    //        y[i] *= v;
-    //    }
-}
 
 ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // std::cout << name() << "  CPUSoftMax()" << std::endl;

@@ -23,6 +23,7 @@ ErrorCode CPUCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<share
         int head_num = inputs[0]->head();
         int sequence = inputs[0]->sequence();
         int dimension = inputs[0]->dimension();
+        // memset(outputs[0]->hostPtr<float>(),-INFINITY,outputs[0]->count() * sizeof(float));
         int old_dim = 0;
         if (inputs.size()>1) {
             old_dim = (int)inputs[1]->dataAt<float>(0,0,0,0)-sequence;

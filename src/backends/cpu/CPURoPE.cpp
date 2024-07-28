@@ -112,10 +112,10 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     auto &output = outputs[0];
     auto out_dtype = output->dtype();
     int partial_dimension = (input->dimension()) * partial_rotary_factor_;
+#pragma omp parallel for collapse(4) num_threads(thread_count)
     for (int n = 0; n < input->batch(); ++n) {
         for (int h = 0; h < input->head(); ++h) {
             for (int s = 0; s < input->sequence(); ++s) { // sequance
-#pragma omp parallel for num_threads(thread_count)
                 for (int d = 0; d < partial_dimension; ++d) {
                     if (pose_type_ == LLAMAROPE) {
                         float in_value = input->dataAt<float>(n, h, s, d);
@@ -212,10 +212,10 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         h_cnt_ = 0;
     }
 
+#pragma omp parallel for collapse(4) num_threads(thread_count)
     for (int n = 0; n < input->batch(); ++n) {
         for (int h = 0; h < input->head(); ++h) {
             for (int s = 0; s < input->sequence(); ++s) {
-#pragma omp parallel for num_threads(thread_count)
                 for (int d = partial_dimension; d < input->dimension(); ++d) {
                     if (output->dtypeAt(n, h, s, d) == MLLM_TYPE_F32) {
                         output->setDataAt<float>(n, h, s, d, input->dataAt<float>(n, h, s, d));
