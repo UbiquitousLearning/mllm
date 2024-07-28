@@ -39,7 +39,7 @@ ErrorCode QNNQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 
     float quantScale = 0;
     quantScale = scale_.hostPtr<float>()[0]  / 127.0;
-    quantScale = roundf(quantScale * 10000) / 10000;
+    quantScale = roundf(quantScale * 100000) / 100000;
 
 
     uint32_t paramsQuantizeDimension[1] = {1};

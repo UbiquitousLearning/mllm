@@ -1258,6 +1258,8 @@ GraphStatus llamaquantizeImpl(TensorType1 &out_0,
 
 #else
 
+extern float Round(float num);
+
 template<typename TensorType,typename TensorType1,typename TensorType2>
 GraphStatus llamaquantizeImpl(TensorType1 &out_0,
                               const TensorType1 &in_0,
@@ -1280,7 +1282,10 @@ GraphStatus llamaquantizeImpl(TensorType1 &out_0,
             
                 float inval       = in_0(b, h, w, d);
 
-                long v = lroundf(inval / scale_);
+                float result = Round(inval / scale_);
+
+
+                long v = lroundf(result);
                 
                 if (v > 127)
                     v = 127;
