@@ -166,6 +166,7 @@ int main(int argc, char **argv) {
         // tokens_id.pop_back();
 
         for (int ti = 0; ti < tokens_id.size(); ti++) {
+            tokens_id[ti] = 9707;
             std::cout << tokens_id[ti] << std::endl;
         }
 
@@ -187,7 +188,7 @@ int main(int argc, char **argv) {
             npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
 
-            result[0]->printData<int8_t>();
+            result[0]->printData<float>();
             exit(0);
 
             // inter model for prefill-decode

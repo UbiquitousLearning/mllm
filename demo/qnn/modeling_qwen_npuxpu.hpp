@@ -173,7 +173,7 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention_t2(Context *c, NetTensor *x, NetTe
     o = o->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_size * head_size);
     res = res->view(-1, 1, -1, hidden_size * head_size);
     o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
-    // o = _Dequantize({o}, true, (string)name + ".o_proj.dequantize");
+    o = _Dequantize({o}, true, (string)name + ".o_proj.dequantize");
 
     return {o, res};
 }
@@ -259,7 +259,7 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
 
     // first 23 layer using NPU-CPU prefilling
-    for (int layer = 0; layer < 1; ++layer) {
+    for (int layer = 0; layer < 2; ++layer) {
         if (layer != 0) // for graph 0, it will be offloaded to CPU in QNNOptNet::convert
             _SubgraphBegin(c, MLLM_CPU);
 
@@ -282,50 +282,52 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
 
         auto ix = Qwen_CPUNPUAttention_t2(c, i, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn", seq, chunk);
 
-        // i = ix[0];
-        // res = ix[1];
+        i = ix[0];
+        res = ix[1];
 
-        // i = i->view(1, 1, seq / chunk, hidden_dim);
-        // i = *i + res;
+        i = i->view(1, 1, seq / chunk, hidden_dim);
+        i = *i + res;
 
-        // // _SubgraphBegin(c, MLLM_CPU);
-        // res = i;
+        res = i;
 
-        // i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
-        // i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".mlp.up_proj.quantize");
+        i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
 
-        // i = i->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_dim);
+        i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".mlp.up_proj.quantize");
 
-        // if (layer != 6) {
-        //     i = Qwen_FFN_NPU(c, i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
+        i = i->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_dim);
 
+        if (layer != 6 && layer != 1) {
 
-        //     i = i->view(1, 1, seq / chunk, hidden_dim);
+            i = Qwen_FFN_NPU(c, i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
 
-        //     i = *i + res;
-        // } else {
+            i = i->view(1, 1, seq / chunk, hidden_dim);
 
-        //     auto name = (string) "model.layers." + std::to_string(layer) + ".mlp";
-        //     auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
-        //     auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
-        //     x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", true);
-        //     y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", true);
-        //     x = _SiLU({x}, name + ".silu");
-        //     x = *x * y;
+            i = *i + res;
+
+        } else {
+
+            auto name = (string) "model.layers." + std::to_string(layer) + ".mlp";
+            auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
+            auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
+            x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", true);
+            y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", true);
+            x = _SiLU({x}, name + ".silu");
+            x = *x * y;
+
+            auto *i1 = x;
+            x = _Quantize({x}, true, (string)name + ".down_proj.quantize");
+
+            x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
+
+            auto *i2 = x;
+            x = _Dequantize({x}, true, (string)name + ".down_proj.dequantize");
+
+            x = x->view(1, 1, seq / chunk, hidden_dim);
+
+            x = *x + res;
             
-        //     auto *i1 = x;
-        //     x = _Quantize({x}, true, (string)name + ".down_proj.quantize");
-        //     x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
-
-        //     auto *i2 = x;
-        //     x = _Dequantize({x}, true, (string)name + ".down_proj.dequantize");
-
-        //     i = i->view(1, 1, seq / chunk, hidden_dim);
-
-        //     i = *i + res;
-            
-        //     i = _LinearINT8Shadow({i1, i2, i}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
-        // }
+            i = _LinearINT8Shadow({i1, i2, x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
+        }
         
 
         

@@ -96,7 +96,7 @@ Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tenso
             return QNN_TENSOR_TYPE_APP_READ;
         }
 
-        if (name == "outtensor-model.layers.6.mlp.down_proj-00" || name == "outtensor-model.layers.6.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.6.mlp.down_proj.dequantize-00_view_-00_add_-00 ") {
+        if (name == "outtensor-model.layers.1.mlp.down_proj-00" || name == "outtensor-model.layers.1.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.1.mlp.down_proj.dequantize-00_view_-00_add_-00") {
 #ifdef DEBUGPRINT
             std::cout << "shadow output" << std::endl;
 #endif

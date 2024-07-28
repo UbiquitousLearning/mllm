@@ -127,42 +127,51 @@ ErrorCode QNNLinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
     float weight_scale = weightScale_.dataAt<float>(0,0,0,0);
     float output_scale = outputScale_.dataAt<float>(0,0,0,0) / 127.0f;
 
+    input_scale = input_scale / 127.0;
+    input_scale = roundf(input_scale * 100000) / 100000;
+
+    output_scale = roundf(output_scale * 100000) / 100000;
+
     std::cout << input_scale << " " << weight_scale << " " << output_scale << std::endl;
 
     std::cout << opName << "shadow execution" << std::endl;
 
     memcpy(outputs[0]->hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->batch()*inputs[2]->head()*inputs[2]->sequence()*inputs[2]->dimension()*sizeof(float));
 
+    inputs[0]->printData<float>();
+    inputs[1]->printData<int8_t>();
+    inputs[2]->printData<float>();
+
     // // input outliers
-    for (int i = 0; i < inputs[0]->batch(); i++) {
+    // for (int i = 0; i < inputs[0]->batch(); i++) {
 
-        for (int h = 0; h < inputs[0]->head(); h++) {
+    //     for (int h = 0; h < inputs[0]->head(); h++) {
 
-            for (int j = 0; j< inputs[0]->sequence(); j++) {
+    //         for (int j = 0; j< inputs[0]->sequence(); j++) {
 
-                for (int k = 0; k <inputs[0]->dimension(); k++) {
+    //             for (int k = 0; k <inputs[0]->dimension(); k++) {
 
-                    if (fabs(inputs[0]->dataAt<float>(i, h, j, k)) > input_scale) {
+    //                 if (fabs(inputs[0]->dataAt<float>(i, h, j, k)) > input_scale) {
 
-                        for (int w=0; w < shadowWeight_.dimension(); w++) {
+    //                     for (int w=0; w < shadowWeight_.dimension(); w++) {
 
-                            if (!(inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 ||  inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127))
+    //                         if (!(inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 ||  inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127))
 
-                                outputs[0]->setDataAt<float>(i,h,j,w, inputs[0]->dataAt<float>(i,h,j,k) * shadowWeight_.dataAt<int8_t>(0,0,k,w) * weight_scale + outputs[0]->dataAt<float>(i,h,j,w));
-                        }
+    //                             outputs[0]->setDataAt<float>(i,h,j,w, inputs[0]->dataAt<float>(i,h,j,k) * shadowWeight_.dataAt<int8_t>(0,0,k,w) * weight_scale + outputs[0]->dataAt<float>(i,h,j,w));
+    //                     }
 
-                    }
+    //                 }
 
 
-                }
+    //             }
 
-            }
+    //         }
 
-        }
+    //     }
         
         
 
-    }
+    // }
 
     // output outliers
     for (int i = 0; i < inputs[1]->batch(); i++) {
@@ -178,12 +187,14 @@ ErrorCode QNNLinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
                         float sum = 0.0f;
 
                         for (int w=0; w < shadowWeight_.sequence(); w++) {
-                            sum += inputs[0]->dataAt<float>(i,h,j,w) * shadowWeight_.dataAt<int8_t>(0,0,w,k) * weight_scale;
+                            sum += roundf(inputs[0]->dataAt<float>(i,h,j,w) / input_scale) * input_scale  * (shadowWeight_.dataAt<int8_t>(0,0,w,k) * weight_scale);
                         }
 
-                        sum = sum - (inputs[1]->dataAt<int8_t>(i, h, j, k) * output_scale);
+                        // sum = sum - (inputs[1]->dataAt<int8_t>(i, h, j, k) * output_scale);
 
-                        outputs[0]->setDataAt<float>(i,h,j,k, sum + outputs[0]->dataAt<float>(i,h,j,k));
+                        // outputs[0]->setDataAt<float>(i,h,j,k, roundf(sum/output_scale) * output_scale);
+
+                        outputs[0]->setDataAt<float>(i,h,j,k, inputs[2]->dataAt<float>(i,h,j,k) - (inputs[1]->dataAt<int8_t>(i, h, j, k) * output_scale) + roundf(sum/output_scale) * output_scale);
 
                     }
 
