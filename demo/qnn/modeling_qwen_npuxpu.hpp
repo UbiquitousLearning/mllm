@@ -124,9 +124,9 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention_t2(Context *c, NetTensor *x, NetTe
     auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
     auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
     auto *v = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
-    q = q->view(1, head_size, seq / chunk, hidden_size, true);
-    k = k->view(1, head_size, seq / chunk, hidden_size, true);
-    v = v->view(1, head_size, seq / chunk, hidden_size, true);
+    q = q->view(1, head_size, seq / chunk, hidden_size);
+    k = k->view(1, head_size, seq / chunk, hidden_size);
+    v = v->view(1, head_size, seq / chunk, hidden_size);
 
     q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize");
     k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize");
@@ -239,7 +239,7 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
 
     // first 23 layer using NPU-CPU prefilling
-    for (int layer = 0; layer < 23; ++layer) {
+    for (int layer = 0; layer < 1; ++layer) {
         if (layer != 0) // for graph 0, it will be offloaded to CPU in QNNOptNet::convert
             _SubgraphBegin(c, MLLM_CPU);
 
@@ -276,7 +276,7 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
 
         i = i->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_dim);
 
-        if (layer != 6 && layer != 1) {
+        if (layer != 6 && layer != 1 && layer != 2) {
 
             i = Qwen_FFN_NPU(c, i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
 

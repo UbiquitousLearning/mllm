@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
     cmdParser.parse_check(argc, argv);
 
 
-    const string npu_model_path = "./models/Qwen1.5-1.8B-Chat_158_int8_biasfp.mllm";
+    const string npu_model_path = "./models/Qwen1.5-1.8B-Chat_152_int8_biasint8.mllm";
     const string cpu_model_path = "./models/qwen-1.8b-chat-q4k-fp32.mllm";
     const string merge_file_path = "./vocab/merges-qwen.txt";
 
@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
             auto result = npuExe.result();
 
             result[0]->printData<float>();
-            // exit(0);
+            exit(0);
 
             // inter model for prefill-decode
             interExe.run(&interNet, {result[0]});
