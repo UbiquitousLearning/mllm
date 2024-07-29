@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
             auto result = npuExe.result();
 
             result[0]->printData<float>();
-            exit(0);
+            // exit(0);
 
             // inter model for prefill-decode
             interExe.run(&interNet, {result[0]});
