@@ -33,7 +33,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
         auto data_type = QNN_DATATYPE_FLOAT_32;
         if (output->dtype() == MLLM_TYPE_I8) {
 #ifdef DEBUGPRINT
-            std::cout << "QNN INT8 op " << name << std::endl;
+            std::cout << name << "is QNN INT8 op " << std::endl;
 #endif
             data_type = QNN_DATATYPE_SFIXED_POINT_8;
         }
@@ -95,6 +95,7 @@ Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tenso
 #endif
             return QNN_TENSOR_TYPE_APP_READ;
         }
+
 
         if (name == "outtensor-model.layers.1.mlp.down_proj-00" || name == "outtensor-model.layers.1.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.1.mlp.down_proj.dequantize-00_view_-00_add_-00") {
 #ifdef DEBUGPRINT

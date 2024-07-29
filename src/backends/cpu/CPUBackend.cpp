@@ -5,6 +5,7 @@
 #include "Backend.hpp"
 #include "CPUKVCacheNPU.hpp"
 #include "CPUMatmulINT8.hpp"
+#include "CPUNPUView.hpp"
 #include "CPUPoEmbedding.hpp"
 #include "CPUSplitInput.hpp"
 #include "OpDefined.hpp"
@@ -109,6 +110,7 @@ void CPUBackend::registerOps() {
     addCreator(EMBEDDING, (CPUBackend::Creator *)(new CPUEmbeddingCreator()));
     addCreator(MUL, (CPUBackend::Creator *)(new CPUMulCreator()));
     addCreator(VIEW, (CPUBackend::Creator *)(new CPUViewCreator()));
+    addCreator(NPUVIEW, (CPUBackend::Creator *)(new CPUNPUViewCreator()));
     addCreator(KVCACHE, (CPUBackend::Creator *)(new CPUKVCacheCreator()));
     addCreator(KVCACHENPU, (CPUBackend::Creator *)(new CPUKVCacheNPUCreator()));
     addCreator(RELU, (CPUBackend::Creator *)(new CPUReLUCreator()));

@@ -92,7 +92,7 @@ typedef struct TNetTensor {
     NetTensor *_clip(intTensor_pair b, intTensor_pair h, intTensor_pair s, intTensor_pair d);
     NetTensor *_clip(Tensor_pair b, Tensor_pair h, Tensor_pair s, Tensor_pair d);
     NetTensor *shape(Chl axis);
-    NetTensor *view(int b, int h, int s, int d);
+    NetTensor *view(int b, int h, int s, int d, bool isCrossBackend = false);
     NetTensor *flatten(Chl axis_start, Chl axis_end);
     NetTensor *transpose(Chl axis1, Chl axis2);
     NetTensor *norm(int L_n);
