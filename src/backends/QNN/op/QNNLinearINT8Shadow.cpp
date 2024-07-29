@@ -16,6 +16,9 @@ QNNLinearINT8Shadow::QNNLinearINT8Shadow(Backend *bn, string opName, int in_feat
 
     shadowWeight_.setBackend(bn);
     shadowTransposeWeight_.setBackend(bn);
+
+    inputClip_.setBackend(bn);
+    outputClip_.setBackend(bn);
 }
 
 ErrorCode QNNLinearINT8Shadow::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -88,6 +91,18 @@ ErrorCode QNNLinearINT8Shadow::load(AbstructLoader &loader) {
     inputScale_.alloc();
     loader.load(&inputScale_);
 
+    inputClip_.setName(opName + ".clip_input");
+    inputClip_.reshape(1, 1, 1, 1);
+    inputClip_.setDtype(MLLM_TYPE_I8);
+    inputClip_.alloc();
+    loader.load(&inputClip_);
+
+
+    outputClip_.setName(opName + ".clip_output");
+    outputClip_.reshape(1, 1, 1, 1);
+    outputClip_.setDtype(MLLM_TYPE_I8);
+    outputClip_.alloc();
+    loader.load(&outputClip_);
 
     
     shadowWeight_.setName(opName + ".shadow.weight");
@@ -127,73 +142,101 @@ ErrorCode QNNLinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
     float weight_scale = weightScale_.dataAt<float>(0,0,0,0);
     float output_scale = outputScale_.dataAt<float>(0,0,0,0) / 127.0f;
 
+    int8_t input_clip = inputClip_.dataAt<int8_t>(0,0,0,0);
+    int8_t output_clip = outputClip_.dataAt<int8_t>(0,0,0,0);
+
+    input_scale = input_scale / 127.0;
+    input_scale = roundf(input_scale * 100000) / 100000;
+
+    output_scale = roundf(output_scale * 100000) / 100000;
+
     std::cout << input_scale << " " << weight_scale << " " << output_scale << std::endl;
+    std::cout << static_cast<float>(input_clip) << " " << static_cast<float>(output_clip) << std::endl;
 
     std::cout << opName << "shadow execution" << std::endl;
 
     memcpy(outputs[0]->hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->batch()*inputs[2]->head()*inputs[2]->sequence()*inputs[2]->dimension()*sizeof(float));
 
-    // // input outliers
-    for (int i = 0; i < inputs[0]->batch(); i++) {
+    inputs[0]->printData<float>();
+    inputs[1]->printData<int8_t>();
+    inputs[2]->printData<float>();
 
-        for (int h = 0; h < inputs[0]->head(); h++) {
+    // input outliers
+    if (!input_clip) {
+        for (int i = 0; i < inputs[0]->batch(); i++) {
 
-            for (int j = 0; j< inputs[0]->sequence(); j++) {
+            for (int h = 0; h < inputs[0]->head(); h++) {
 
-                for (int k = 0; k <inputs[0]->dimension(); k++) {
+                for (int j = 0; j< inputs[0]->sequence(); j++) {
 
-                    if (fabs(inputs[0]->dataAt<float>(i, h, j, k)) > input_scale) {
+                    for (int k = 0; k <inputs[0]->dimension(); k++) {
 
-                        for (int w=0; w < shadowWeight_.dimension(); w++) {
+                        if (roundf(inputs[0]->dataAt<float>(i,h,j,k) / input_scale) > 127.0 || roundf(inputs[0]->dataAt<float>(i,h,j,k) / input_scale) < -128.0) {
 
-                            if (!(inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 ||  inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127))
+                            for (int w=0; w < shadowWeight_.dimension(); w++) {
 
-                                outputs[0]->setDataAt<float>(i,h,j,w, inputs[0]->dataAt<float>(i,h,j,k) * shadowWeight_.dataAt<int8_t>(0,0,k,w) * weight_scale + outputs[0]->dataAt<float>(i,h,j,w));
+                                // if (!(inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 ||  inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127)) {
+                                    
+                                    float origin = roundf(inputs[0]->dataAt<float>(i,h,j,k) / input_scale) * input_scale * (shadowWeight_.dataAt<int8_t>(0,0,k,w) * weight_scale);
+
+                                    float clip = std::fmax (std::fmin(roundf(inputs[0]->dataAt<float>(i,h,j,k) / input_scale), 127), -128) * input_scale  * (shadowWeight_.dataAt<int8_t>(0,0,k,w) * weight_scale);
+
+                                    outputs[0]->setDataAt<float>(i,h,j,w, origin - clip + outputs[0]->dataAt<float>(i,h,j,w));
+
+                                // }
+
+
+                                    
+                            }
+
                         }
 
-                    }
 
+                    }
 
                 }
 
             }
-
         }
-        
-        
-
     }
+    
+
+    
 
     // output outliers
-    for (int i = 0; i < inputs[1]->batch(); i++) {
+    if (!output_clip) {
+        for (int i = 0; i < inputs[1]->batch(); i++) {
         
-        for (int h = 0; h < inputs[1]->head(); h++) {
+            for (int h = 0; h < inputs[1]->head(); h++) {
 
-            for (int j = 0; j< inputs[1]->sequence(); j++) {
+                for (int j = 0; j< inputs[1]->sequence(); j++) {
 
-                for (int k = 0; k <inputs[1]->dimension(); k++) {
+                    for (int k = 0; k <inputs[1]->dimension(); k++) {
 
-                    if (inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 ||  inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127) {
+                        if (inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 ||  inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127) {
 
-                        float sum = 0.0f;
+                            float sum = 0.0f;
 
-                        for (int w=0; w < shadowWeight_.sequence(); w++) {
-                            sum += inputs[0]->dataAt<float>(i,h,j,w) * shadowWeight_.dataAt<int8_t>(0,0,w,k) * weight_scale;
+                            for (int w=0; w < shadowWeight_.sequence(); w++) {
+                                sum += roundf(inputs[0]->dataAt<float>(i,h,j,w) / input_scale) * input_scale  * (shadowWeight_.dataAt<int8_t>(0,0,w,k) * weight_scale);
+                            }
+
+                            // sum = sum - (inputs[1]->dataAt<int8_t>(i, h, j, k) * output_scale);
+
+                            // outputs[0]->setDataAt<float>(i,h,j,k, roundf(sum/output_scale) * output_scale);
+
+                            outputs[0]->setDataAt<float>(i,h,j,k, inputs[2]->dataAt<float>(i,h,j,k) - (inputs[1]->dataAt<int8_t>(i, h, j, k) * output_scale) + roundf(sum/output_scale) * output_scale);
+
                         }
 
-                        sum = sum - (inputs[1]->dataAt<int8_t>(i, h, j, k) * output_scale);
-
-                        outputs[0]->setDataAt<float>(i,h,j,k, sum + outputs[0]->dataAt<float>(i,h,j,k));
 
                     }
 
-
                 }
-
             }
         }
-
     }
+    
 
 
     

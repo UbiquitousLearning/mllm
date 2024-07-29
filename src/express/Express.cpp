@@ -376,7 +376,7 @@ NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilo
  * \param pose_type RoPR type, 4 for HuggingFace Hub, 2 for LLama, 3 for fuyu, NO_USE for 1.
  * This RoPE function is ready for optimization in the future.
  */
-NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name) {
+NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -388,6 +388,8 @@ NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name) {
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::ROPE)
     net_op_->param["pose_type"] = pose_type;
+    net_op_->param["rope_theta"] = rope_theta;
+    net_op_->param["max_position_embeddings"] = max_position_embeddings;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;

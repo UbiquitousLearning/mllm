@@ -147,8 +147,8 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention_t2(Context *c, NetTensor *x, NetTe
     v = s[2];
     res = s[3];
 
-    q = _RoPE({q}, HFHUBROPE, name + ".q_rope");
-    k = _RoPE({k}, HFHUBROPE, name + ".k_rope");
+    q = _RoPE({q}, HFHUBROPE, name + ".q_rope", 1000000, 32768);
+    k = _RoPE({k}, HFHUBROPE, name + ".k_rope", 1000000, 32768);
 
     k = _KVCacheNPU({k}, cache_max, name + ".k_cache");
     v = _KVCacheNPU({v}, cache_max, name + ".v_cache");
@@ -186,8 +186,8 @@ NetTensor * Qwen_CPUAttention_t2(Context *c, NetTensor *x, NetTensor *res, int e
     k = k->view(-1, head_size, -1, hidden_size);
     v = v->view(-1, head_size, -1, hidden_size);
 
-    q = _RoPE({q}, HFHUBROPE, name + ".q_rope");
-    k = _RoPE({k}, HFHUBROPE, name + ".k_rope");
+    q = _RoPE({q}, HFHUBROPE, name + ".q_rope", 1000000, 32768);
+    k = _RoPE({k}, HFHUBROPE, name + ".k_rope", 1000000, 32768);
 
     k = _KVCacheNPU({k}, cache_max, name + ".k_cache");
     v = _KVCacheNPU({v}, cache_max, name + ".v_cache");
@@ -246,7 +246,7 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
         auto res = i;
         res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
 
-        i = _RMSNorm({i}, hidden_dim, 1e-5, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
+        i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
         i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");
 
         i = i->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
@@ -268,44 +268,46 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
         i = i->view(1, 1, seq / chunk, hidden_dim);
         i = *i + res;
 
-        // _SubgraphBegin(c, MLLM_CPU);
         res = i;
 
-        i = _RMSNorm({i}, hidden_dim, 1e-5, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
+        i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
+
         i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".mlp.up_proj.quantize");
 
         i = i->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_dim);
 
-        // if (layer != 6) {
-            i = Qwen_FFN_NPU(c, i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
+        if (layer != 6 && layer != 1) {
 
+            i = Qwen_FFN_NPU(c, i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
 
             i = i->view(1, 1, seq / chunk, hidden_dim);
 
             i = *i + res;
-        // } else {
 
-        //     auto name = (string) "model.layers." + std::to_string(layer) + ".mlp";
-        //     auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
-        //     auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
-        //     x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", true);
-        //     y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", true);
-        //     x = _SiLU({x}, name + ".silu");
-        //     x = *x * y;
+        } else {
+
+            auto name = (string) "model.layers." + std::to_string(layer) + ".mlp";
+            auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
+            auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
+            x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", true);
+            y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", true);
+            x = _SiLU({x}, name + ".silu");
+            x = *x * y;
+
+            auto *i1 = x;
+            x = _Quantize({x}, true, (string)name + ".down_proj.quantize");
+
+            x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
+
+            auto *i2 = x;
+            x = _Dequantize({x}, true, (string)name + ".down_proj.dequantize");
+
+            x = x->view(1, 1, seq / chunk, hidden_dim);
+
+            x = *x + res;
             
-        //     auto *i1 = x;
-        //     x = _Quantize({x}, true, (string)name + ".down_proj.quantize");
-        //     x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
-
-        //     auto *i2 = x;
-        //     x = _Dequantize({x}, true, (string)name + ".down_proj.dequantize");
-
-        //     i = i->view(1, 1, seq / chunk, hidden_dim);
-
-        //     i = *i + res;
-            
-        //     i = _LinearINT8Shadow({i1, i2, i}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
-        // }
+            i = _LinearINT8Shadow({i1, i2, x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
+        }
         
 
         
@@ -318,15 +320,16 @@ void qwen_npu_cpu_inter(Context *c, int vocab_size = 32000, int hidden_dim = 409
     // the 24th layer
     const int layer = 24 - 1;
 
-    auto res = _RMSNorm({i}, hidden_dim, 1e-5, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
+
+    auto res = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
 
     i = *Qwen_CPUAttention_t2(c, i, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn", seq, chunk) + i;
 
-    res = _RMSNorm({i}, hidden_dim, 1e-5, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
+    res = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
 
     i = *Qwen_FFN_CPU(c, res, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp") + i;
 
-    i = _RMSNorm({i}, hidden_dim, 1e-5, (string) "model.norm");
+    i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
     i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
 }
 } // namespace modeling

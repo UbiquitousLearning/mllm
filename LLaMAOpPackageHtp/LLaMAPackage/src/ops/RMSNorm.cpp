@@ -276,7 +276,7 @@ GraphStatus rmsnormImpl(TensorType& out_0,
    out_0.set_dims(in_0);
     // NHWC
 
-    float epsilon_ = 1e-5;
+    float epsilon_ = 1e-6;
     auto [b_in, h_in, w_in, d_in] = in_0.dims();
     for (Idx b = 0; b < b_in; b++) {
       for (Idx h = 0; h < h_in; h++) {

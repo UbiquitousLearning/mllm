@@ -44,7 +44,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
 
         if (scale != nullptr) {
             quantScale = scale->hostPtr<float>()[0] / 127.0;
-            quantScale = roundf(quantScale * 10000) / 10000;
+            quantScale = roundf(quantScale * 100000) / 100000;
             quantDefine = QNN_DEFINITION_DEFINED;
             quantType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
         }
@@ -96,12 +96,20 @@ Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tenso
             return QNN_TENSOR_TYPE_APP_READ;
         }
 
-//         if (name == "outtensor-model.layers.6.mlp.down_proj-00" || name == "outtensor-model.layers.6.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.6.mlp.down_proj.dequantize-00_view_-00_add_-00 ") {
-// #ifdef DEBUGPRINT
-//             std::cout << "shadow output" << std::endl;
-// #endif
-//             return QNN_TENSOR_TYPE_APP_READ;
-//         }
+
+        if (name == "outtensor-model.layers.1.mlp.down_proj-00" || name == "outtensor-model.layers.1.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.1.mlp.down_proj.dequantize-00_view_-00_add_-00") {
+#ifdef DEBUGPRINT
+            std::cout << "shadow output" << std::endl;
+#endif
+            return QNN_TENSOR_TYPE_APP_READ;
+        }
+
+        if (name == "outtensor-model.layers.6.mlp.down_proj-00" || name == "outtensor-model.layers.6.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.6.mlp.down_proj.dequantize-00_view_-00_add_-00") {
+#ifdef DEBUGPRINT
+            std::cout << "shadow output" << std::endl;
+#endif
+            return QNN_TENSOR_TYPE_APP_READ;
+        }
 
         return QNN_TENSOR_TYPE_NATIVE; // qnn input is set APP_WRITE by backend
     }
