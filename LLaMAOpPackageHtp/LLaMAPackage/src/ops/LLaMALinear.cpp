@@ -151,7 +151,7 @@ GraphStatus llamalinearImpl(TensorType& out_0,
     // 获取量化比例
     float w_scale = weight_scale(0,0,0,0);
     float i_scale = in_scale(0,0,0,0);
-    // float b_scale = bias_scale(0,0,0,0);
+    float b_scale = bias_scale(0,0,0,0);
     float o_scale = output_scale(0,0,0,0);
     
     // 初始化输出张量
@@ -162,7 +162,7 @@ GraphStatus llamalinearImpl(TensorType& out_0,
     // only support float bias now.
     auto in0_ptr = (uint8_t*)in_0.raw_data_const();
     auto in1_ptr = (uint8_t*)in_1.raw_data_const();
-    auto in2_ptr = (float*)in_2.raw_data_const();
+    auto in2_ptr = (uint8_t*)in_2.raw_data_const();
     auto out_ptr = (int8_t*)out_0.raw_data();
     
     // 进行量化Linear乘法
@@ -178,7 +178,7 @@ GraphStatus llamalinearImpl(TensorType& out_0,
                     }
                     // 加上偏置并进行反量化
                     float result = acc;
-                    result += in2_ptr[n];
+                    result += (static_cast<int32_t>(in2_ptr[n])-128) * b_scale;
                     // 将结果限制在uint8范围内
                     int out_index = b * height * width * out_features + h * width * out_features + w * out_features + n;
 
