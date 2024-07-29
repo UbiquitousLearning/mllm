@@ -187,8 +187,8 @@ std::vector<NetTensor *> Qwen_CPUAttention_t2(Context *c, NetTensor *x, NetTenso
     k = k->view(1, head_size, seq / chunk, hidden_size);
     v = v->view(1, head_size, seq / chunk, hidden_size);
 
-    q = _RoPE({q}, HFHUBROPE, name + ".q_rope");
-    k = _RoPE({k}, HFHUBROPE, name + ".k_rope");
+    q = _RoPE({q}, HFHUBROPE, name + ".q_rope", 1000000, 32768);
+    k = _RoPE({k}, HFHUBROPE, name + ".k_rope", 1000000, 32768);
 
     k = _KVCacheNPU({k}, cache_max, name + ".k_cache");
     v = _KVCacheNPU({v}, cache_max, name + ".v_cache");
@@ -259,7 +259,7 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
 
     // first 23 layer using NPU-CPU prefilling
-    for (int layer = 0; layer < 7; ++layer) {
+    for (int layer = 0; layer < 23; ++layer) {
         if (layer != 0) // for graph 0, it will be offloaded to CPU in QNNOptNet::convert
             _SubgraphBegin(c, MLLM_CPU);
 
@@ -413,7 +413,7 @@ void qwen_npu_cpu_inter(Context *c, int vocab_size = 32000, int hidden_dim = 409
         auto res = i;
         res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
 
-        i = _RMSNorm({i}, hidden_dim, 1e-5, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
+        i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
         i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");
 
         i = i->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
@@ -428,7 +428,7 @@ void qwen_npu_cpu_inter(Context *c, int vocab_size = 32000, int hidden_dim = 409
 
         res = i;
 
-        i = _RMSNorm({i}, hidden_dim, 1e-5, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
+        i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
 
         i = i->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_dim);
         i = Qwen_FFN_CPU(c, i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
