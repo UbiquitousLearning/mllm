@@ -259,7 +259,7 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
 
     // first 23 layer using NPU-CPU prefilling
-    for (int layer = 0; layer < 2; ++layer) {
+    for (int layer = 0; layer < 7; ++layer) {
         if (layer != 0) // for graph 0, it will be offloaded to CPU in QNNOptNet::convert
             _SubgraphBegin(c, MLLM_CPU);
 

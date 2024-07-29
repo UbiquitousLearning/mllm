@@ -171,13 +171,22 @@ ErrorCode QNNLinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
 
                     for (int k = 0; k <inputs[0]->dimension(); k++) {
 
-                        if (fabs(inputs[0]->dataAt<float>(i, h, j, k)) > input_scale) {
+                        if (roundf(inputs[0]->dataAt<float>(i,h,j,k) / input_scale) > 127.0 || roundf(inputs[0]->dataAt<float>(i,h,j,k) / input_scale) < -128.0) {
 
                             for (int w=0; w < shadowWeight_.dimension(); w++) {
 
-                                if (!(inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 ||  inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127))
+                                // if (!(inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 ||  inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127)) {
+                                    
+                                    float origin = roundf(inputs[0]->dataAt<float>(i,h,j,k) / input_scale) * input_scale * (shadowWeight_.dataAt<int8_t>(0,0,k,w) * weight_scale);
 
-                                    outputs[0]->setDataAt<float>(i,h,j,w, inputs[0]->dataAt<float>(i,h,j,k) * shadowWeight_.dataAt<int8_t>(0,0,k,w) * weight_scale + outputs[0]->dataAt<float>(i,h,j,w));
+                                    float clip = std::fmax (std::fmin(roundf(inputs[0]->dataAt<float>(i,h,j,k) / input_scale), 127), -128) * input_scale  * (shadowWeight_.dataAt<int8_t>(0,0,k,w) * weight_scale);
+
+                                    outputs[0]->setDataAt<float>(i,h,j,w, origin - clip + outputs[0]->dataAt<float>(i,h,j,w));
+
+                                // }
+
+
+                                    
                             }
 
                         }
