@@ -29,5 +29,6 @@ void mllm_gemm_q4_0_4x8_q8_0(int n, float * __restrict s, size_t bs, const void 
 void mllm_gemm_q4_0_8x8_q8_0(int n, float * __restrict s, size_t bs, const void * __restrict vx, const void * __restrict vy, int nr, int nc);
 
 void quantize_row_q4_0_4x4(const float * __restrict x, void * __restrict y, int k);
+void quantize_row_q4_0_4x4(const float * __restrict x, void * __restrict y, int k, int raw);
 
 #endif // MLLM_GEMM_HPP

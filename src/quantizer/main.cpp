@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
     } else if (quant_type == "Q8_K") {
         quant_writer.quantParams(MLLM_TYPE_Q8_K);
     }  else if (quant_type == "Q4_0_4_4") {
-        quant_writer.quantParams(MLLM_TYPE_Q4_0_4_4);
+        quant_writer.quantParams_q4_(MLLM_TYPE_Q4_0_4_4);
     } else {
         std::cout << "Quant type " << quant_type << " is not supported\n";
         return -1;

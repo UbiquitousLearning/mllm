@@ -2202,3 +2202,10 @@ void quantize_row_q4_0_4x4(const float * __restrict x, void * __restrict y, int 
     std::cout<<"Quantize 4x4:"<<k<<"/4096="<<k/4096;
     auto size = quantize_q4_0_nr_bl(x, y, k/4096, 4096, 4, 4);
 }
+
+
+void quantize_row_q4_0_4x4(const float * __restrict x, void * __restrict y, int k, int raw){   
+    assert(k%QK4_0 == 0); 
+    std::cout<<"Quantize 4x4:"<<k<<"/"<<raw<<"="<<k/raw;
+    auto size = quantize_q4_0_nr_bl(x, y, k/raw, raw, 4, 4);
+}
