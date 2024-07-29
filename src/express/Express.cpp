@@ -228,7 +228,7 @@ NetTensor *_SiLU(std::vector<NetTensor *> inputs, string name) {
 /**
  * \param axis The axis along which the softmax is performed. e.g. DIMENSION.
  */
-NetTensor *_Softmax(std::vector<NetTensor *> inputs, int axis, string name) {
+NetTensor *_Softmax(std::vector<NetTensor *> inputs, int axis, int do_causal_mask, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -240,6 +240,7 @@ NetTensor *_Softmax(std::vector<NetTensor *> inputs, int axis, string name) {
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::SOFTMAX)
     net_op_->param["axis"] = axis;
+    net_op_->param["do_causal_mask"] = do_causal_mask;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;

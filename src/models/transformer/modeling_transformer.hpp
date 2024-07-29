@@ -30,7 +30,6 @@ class MultiHeadAttention final : public Module {
     Layer k_norm;
     KVCache k_cache;
     KVCache v_cache;
-    Causalmask mask;
     Softmax softmax;
     Layer o_proj;
     Parameter bias_k;
@@ -69,10 +68,7 @@ public:
             k_cache = KVCache(head_size/kv_head_size, cache_limit, base_name + "k_cache");
             v_cache = KVCache(head_size/kv_head_size, cache_limit, base_name + "v_cache");
         }
-        if (do_mask) {
-            mask = Causalmask(base_name + "mask");
-        }
-        softmax = Softmax(DIMENSION, base_name + "softmax");
+        softmax = Softmax(DIMENSION, do_mask, base_name + "softmax");
         o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, bias, base_name + names._o_proj_name);
         if (bias_kv_cat) {
             bias_k = Parameter(1, 1, head_size, attn_hidden_dim, base_name + "bias_k");
@@ -115,14 +111,8 @@ public:
         auto qk = Tensor::mm(q, k);
         qk = qk / std::sqrt(attn_hidden_dim_);
         if (k_cache.ready() && v_cache.ready()) {
-            if (mask.ready()) {
-                qk = mask(qk, k_cache.getCacheSeqLen());
-            }  
             qk = softmax(qk, k_cache.getCacheSeqLen());          
         }else{
-            if (mask.ready()) {
-                qk = mask(qk);
-            }
             qk = softmax(qk);
         }
         auto o = Tensor::mm(qk, v);

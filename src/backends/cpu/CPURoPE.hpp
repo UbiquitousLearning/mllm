@@ -32,6 +32,12 @@ private:
     int ishape;
     int thread_count = 4;
     float partial_rotary_factor_ = 1;
+
+
+    void rope_llama(shared_ptr<Tensor> input, shared_ptr<Tensor> output);
+    void rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output);
+    void rope_permission(shared_ptr<Tensor> input, shared_ptr<Tensor> output);
+    void rope_mla(shared_ptr<Tensor> input, shared_ptr<Tensor> output);
 };
 
 class CPURoPECreator : public CPUBackend::Creator {

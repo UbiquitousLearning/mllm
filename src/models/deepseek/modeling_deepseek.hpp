@@ -20,7 +20,6 @@ class DeepseekMultiHeadLatentAttention final : public Module {
     Layer k_rope;
     KVCache k_cache;
     KVCache v_cache;
-    Causalmask mask;
     Softmax softmax;
     Layer o_proj;
     int num_heads{};
@@ -69,10 +68,7 @@ public:
             k_cache = KVCache(num_heads/num_heads, config.cache_limit, base_name + "k_cache");
             v_cache = KVCache(num_heads/num_heads, config.cache_limit, base_name + "v_cache");
         }
-        if (config.do_mask) {
-            mask = Causalmask(base_name + "mask");
-        }
-        softmax = Softmax(DIMENSION, base_name + "softmax");
+        softmax = Softmax(DIMENSION, config.do_mask, base_name + "softmax");
         softmax_scale = 1/std::sqrt(q_head_dim);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
@@ -97,9 +93,6 @@ public:
         k = k.transpose(SEQUENCE, DIMENSION);
         auto qk = Tensor::mm(q, k);
         qk = qk * softmax_scale;
-        if (mask.ready()) {
-            qk = mask(qk, k_cache.getCacheSeqLen());
-        }
         qk = softmax(qk, k_cache.getCacheSeqLen());
         auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, v_head_dim * num_heads);

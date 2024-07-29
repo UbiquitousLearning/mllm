@@ -21,7 +21,6 @@ class ElasticMultiHeadAttention final : public Module {
     Layer k_rope;
     KVCache k_cache;
     KVCache v_cache;
-    Causalmask mask;
     Softmax softmax;
     ElasticLinear o_proj;
     int head_size_{};
@@ -48,10 +47,7 @@ public:
             k_cache = KVCache(head_size/kv_head_size, cache_limit, base_name + "k_cache");
             v_cache = KVCache(head_size/kv_head_size, cache_limit, base_name + "v_cache");
         }
-        if (do_mask) {
-            mask = Causalmask(base_name + "mask");
-        }
-        softmax = Softmax(DIMENSION, base_name + "softmax");
+        softmax = Softmax(DIMENSION, do_mask, base_name + "softmax");
         o_proj = ElasticLinear(head_size * attn_hidden_dim, hidden_dim, bias, base_name + names._o_proj_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
@@ -76,9 +72,6 @@ public:
         k = k.transpose(SEQUENCE, DIMENSION);
         auto qk = Tensor::mm(q, k);
         qk = qk / std::sqrt(activate_hidden_dim);//attn_hidden_dim_
-        if (mask.ready()) {
-            qk = mask(qk, k_cache.getCacheSeqLen());
-        }
         if (k_cache.ready() && v_cache.ready()) {
             qk = softmax(qk, k_cache.getCacheSeqLen());
         }else{

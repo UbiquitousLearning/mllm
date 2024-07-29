@@ -614,6 +614,11 @@ public:
         param_["axis"] = axis;
         init(std::move(name), OpType::SOFTMAX);
     }
+    explicit Softmax(Chl axis, bool do_causal_mask, std::string name) {
+        param_["axis"] = axis;
+        param_["do_causal_mask"] = do_causal_mask;
+        init(std::move(name), OpType::SOFTMAX);
+    }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
     }

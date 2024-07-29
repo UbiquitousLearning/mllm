@@ -226,15 +226,15 @@ inline void init_table_silu_f16() {
         mllm_table_silu_f16[i] = MLLM_FP32_TO_FP16(mllm_silu_f32(f));
     }
 }
-inline static void mllm_vec_silu_f32(const int n, float * y, const float * x) {
-    uint16_t t;
-//#pragma omp parallel for num_threads(thread_count)
-    for (int i = 0; i < n; ++i) {
-        mllm_fp16_t fp16 = MLLM_FP32_TO_FP16(x[i]);
-        memcpy(&t, &fp16, sizeof(uint16_t));
-        y[i] = MLLM_FP16_TO_FP32(mllm_table_silu_f16[t]);
-    }
-}
+// inline static void mllm_vec_silu_f32(const int n, float * y, const float * x) {
+//     uint16_t t;
+// //#pragma omp parallel for num_threads(thread_count)
+//     for (int i = 0; i < n; ++i) {
+//         mllm_fp16_t fp16 = MLLM_FP32_TO_FP16(x[i]);
+//         memcpy(&t, &fp16, sizeof(uint16_t));
+//         y[i] = MLLM_FP16_TO_FP32(mllm_table_silu_f16[t]);
+//     }
+// }
 
 
 

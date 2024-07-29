@@ -3,28 +3,14 @@
 #include <cmath>
 #include "Tensor.hpp"
 #include "quantize/Quantize.hpp"
-#include "compute/VecDot.hpp"
+#include "compute/ActivationFunction.hpp"
 namespace mllm {
 
-//static mllm_fp16_t table_exp_f16[1 << 16];
-//static bool init_table_exp_f16_flag = false;
-//void init_table_exp_f16() {
-//    mllm_fp16_t ii;
-//    for (int i = 0; i < (1 << 16); ++i) {
-//        uint16_t ui = i;
-//        memcpy(&ii, &ui, sizeof(ii));
-//        const float f = MLLM_COMPUTE_FP16_TO_FP32(ii);
-//        table_exp_f16[i] = MLLM_FP32_TO_FP16(expf(f));
-//        //        float val = MLLM_FP16_TO_FP32(expf(f));
-//        //        std::cout<<i<<"  "<<f<<" "<<expf(f)<<"  "<<val<<std::endl;
-//        //        printf("%d  %f %f  %f\n", i, f, expf(f), val);
-//    }
-//}
-
-CPUSoftMax::CPUSoftMax(Backend *bn, string opName, int axis, int threadCount) : thread_count(threadCount),
+CPUSoftMax::CPUSoftMax(Backend *bn, string opName, int axis,  bool do_causal_mask, int threadCount) : thread_count(threadCount),
     Op(bn, opName) {
     axis_ = axis;
-    if (!init_table_exp_f16_flag) {
+    do_causal_mask_ = do_causal_mask;
+    if (axis_ != DIMENSION &&!init_table_exp_f16_flag) {
         init_table_exp_f16();
         init_table_exp_f16_flag = true;
     }
@@ -44,8 +30,14 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     auto &input = inputs[0];
     auto &output = outputs[0];
     int num_classes_in = -1;
+    int old_dim = 0;
     if (inputs.size()>1) {
         num_classes_in = (int)inputs[1]->dataAt<float>(0,0,0,0);
+        old_dim = num_classes_in -input->sequence();
+    }else{
+#ifndef LLAMAFILE_SGEMM
+        old_dim = input->dimension() - input->sequence();
+#endif
     }
     memset(output->hostPtr<float>(),0,output->count() * sizeof(float));
     if (axis_ == DIMENSION) {
@@ -54,30 +46,18 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
         for (int n = 0; n < input->batch(); ++n) {
             for (int h = 0; h < input->head(); ++h) {
                 for (int s = 0; s < input->sequence(); ++s) {
+                    int masked_num_classes = num_classes;
+                    if(do_causal_mask_ && input->sequence()>1){
+                        masked_num_classes = s+1+old_dim;
+                    }
                     float max = -INFINITY;
-                    for (int j = 0; j < num_classes; ++j) {
+                    for (int j = 0; j < masked_num_classes; ++j) {
                         max = MAX(max, input->dataAt<float>(n, h, s, j));
                     }
                     float *dp = output->ptrAt<float>(n, h, s, 0);
-                    double sum = 0.0;
-                    uint16_t scvt;
-                    for (int i = 0; i < num_classes; i++) {
-                        if (input->dataAt<float>(n, h, s, i) == -INFINITY) {
-                            dp[i] = 0.0F;
-                        } else {
-                            mllm_fp16_t tmp = MLLM_FP32_TO_FP16(input->dataAt<float>(n, h, s, i) - max);
-                            memcpy(&scvt, &tmp, sizeof(scvt));
-                            const float val = MLLM_FP16_TO_FP32(table_exp_f16[scvt]);
-                            sum += (double)val;
-                            dp[i] = val;
-                        }
-                    }
-
+                    float sum = mllm_vec_soft_max_f32(masked_num_classes, dp,  input->ptrAt<float>(n, h, s, 0), max);
                     sum = 1.0 / sum;
-                    vec_scale_f32(num_classes, dp, sum);
-                    // for (int i = num_classes; i < input->dimension(); i++) {
-                    //     dp[i] = 0.0F;
-                    // }
+                    vec_scale_f32(masked_num_classes, dp, sum);
                 }
             }
         }
@@ -137,7 +117,6 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
             }
         }
     }
-
     return Op::execute(inputs, outputs);
 }
 
