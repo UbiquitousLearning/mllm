@@ -151,7 +151,7 @@ enum RoPEType {
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-// #define LLAMAFILE_SGEMM
+#define LLAMAFILE_SGEMM
 
 #if defined(__ARM_NEON) && !defined(_MSC_VER)
 typedef __fp16 mllm_fp16_t;
