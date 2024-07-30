@@ -33,7 +33,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
         auto data_type = QNN_DATATYPE_FLOAT_32;
         if (output->dtype() == MLLM_TYPE_I8) {
 #ifdef DEBUGPRINT
-            std::cout << "QNN INT8 op " << name << std::endl;
+            std::cout << name << "is QNN INT8 op " << std::endl;
 #endif
             data_type = QNN_DATATYPE_SFIXED_POINT_8;
         }
@@ -44,7 +44,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
 
         if (scale != nullptr) {
             quantScale = scale->hostPtr<float>()[0] / 127.0;
-            quantScale = roundf(quantScale * 10000) / 10000;
+            quantScale = roundf(quantScale * 100000) / 100000;
             quantDefine = QNN_DEFINITION_DEFINED;
             quantType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
         }
@@ -96,7 +96,22 @@ Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tenso
             return QNN_TENSOR_TYPE_APP_READ;
         }
 
-        if (name == "outtensor-model.layers.6.mlp.down_proj-00" || name == "outtensor-model.layers.6.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.6.mlp.down_proj.dequantize-00_view_-00_add_-00 ") {
+
+        if (name == "outtensor-model.layers.1.mlp.down_proj-00" || name == "outtensor-model.layers.1.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.1.mlp.down_proj.dequantize-00_view_-00_add_-00") {
+#ifdef DEBUGPRINT
+            std::cout << "shadow output" << std::endl;
+#endif
+            return QNN_TENSOR_TYPE_APP_READ;
+        }
+
+                if (name == "outtensor-model.layers.2.mlp.down_proj-00" || name == "outtensor-model.layers.2.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.2.mlp.down_proj.dequantize-00_view_-00_add_-00") {
+#ifdef DEBUGPRINT
+            std::cout << "shadow output" << std::endl;
+#endif
+            return QNN_TENSOR_TYPE_APP_READ;
+        }
+
+        if (name == "outtensor-model.layers.6.mlp.down_proj-00" || name == "outtensor-model.layers.6.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.6.mlp.down_proj.dequantize-00_view_-00_add_-00") {
 #ifdef DEBUGPRINT
             std::cout << "shadow output" << std::endl;
 #endif

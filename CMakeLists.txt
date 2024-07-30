@@ -218,7 +218,18 @@ endif ()
 # else ()
 #     target_link_libraries(main_llama MLLM_CPU)
 # endif ()
-
+# add_executable(main_qwen ${PROJECT_SOURCE_DIR}/demo/qnn/main_qwen.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/Tokenizer.hpp
+#         src/tokenizers/BPE/Bpe.cpp
+#         src/tokenizers/BPE/Bpe.hpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(main_qwen PRIVATE -fopenmp)
+#     target_link_libraries(main_qwen PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(main_qwen MLLM_CPU)
+# endif ()
 # add_executable(main_alpaca ${PROJECT_SOURCE_DIR}/examples/main_alpaca.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
 #         src/tokenizers/Tokenizer.cpp
 #         src/tokenizers/Tokenizer.hpp

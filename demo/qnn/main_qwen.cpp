@@ -7,11 +7,11 @@
 #include "backends/QNN/QNNOptNet.hpp"
 #include "cmdline.h"
 #include "Net.hpp"
+#include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include "backends/QNN/QNNExecutor.hpp"
 #include "modeling_opt_npuxpu.hpp"
 #include "modeling_qwen_npuxpu.hpp"
-
 
 using namespace mllm;
 
@@ -53,6 +53,60 @@ void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dty
     input_tensor->fullData<Dtype>(value);
 }
 
+NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name) {
+    auto *q = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
+
+    auto *k = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
+    auto *v = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
+
+    q = q->view(-1, head_size, -1, hidden_size);
+    k = k->view(-1, head_size, -1, hidden_size);
+    v = v->view(-1, head_size, -1, hidden_size);
+
+    q = _RoPE({q}, HFHUBROPE, name + ".q_rope", 1000000, 32768);
+    k = _RoPE({k}, HFHUBROPE, name + ".k_rope", 1000000, 32768);
+    k = _KVCache({k}, cache_max, name + ".k_cache");
+    v = _KVCache({v}, cache_max, name + ".v_cache");
+    auto *qk = _Matmul({q, k}, false, true, name + ".qk");
+    qk = *qk / std::sqrt(hidden_size);
+
+    qk = _Causalmask({qk}, name + ".mask");
+
+    qk = _Softmax({qk}, DIMENSION, name + ".softmax");
+
+    auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
+
+    o = o->view(-1, 1, -1, hidden_size * head_size);
+    o = _Linear({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
+    return o;
+}
+NetTensor *FFN(NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
+    auto *x = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
+    x = _SiLU({x}, name + ".silu");
+    auto *y = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
+    x = *x * y; // x = _Mul( {x, y}, name+".dot");
+    x = _Linear({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
+    return x;
+}
+void qwen_model(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200) {
+    auto *i = _Input(c);
+    i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
+
+    for (int layer = 0; layer < 24; ++layer) {
+        auto res = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
+
+        auto tmp = Attention(res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn");
+
+        i = *tmp+i;
+
+        res = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
+
+        i = *FFN(res, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp") + i;
+    }
+    i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
+    i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
+}
+
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/vocab-qwen.mllm");
@@ -69,8 +123,6 @@ int main(int argc, char **argv) {
 
     cmdParser.parse_check(argc, argv);
 
-
-    const string npu_model_path = "./models/Qwen1.5-1.8B-Chat_152_int8_biasint8_ns.mllm";
     const string cpu_model_path = "./models/qwen-1.8b-chat-q4k-fp32.mllm";
     const string merge_file_path = "./vocab/merges-qwen.txt";
 
@@ -80,9 +132,6 @@ int main(int argc, char **argv) {
     int seqLength = cmdParser.get<int>("seq");
     int executeType = cmdParser.get<int>("chunk");
     int head_num = cmdParser.get<int>("head");
-    int chunk = 1;
-    if (executeType == 1)
-        chunk = 2;
 
     auto tokenizer = BPETokenizer(vocab_path);
     std::unordered_map<string, unsigned> merge_rank;
@@ -106,47 +155,24 @@ int main(int argc, char **argv) {
     int hidden_dim = cmdParser.get<int>("hds");
     int ffn_hidden_dim = cmdParser.get<int>("ffn");
 
-    std::unique_ptr<Context> npu_ctx_ptr(new Context());
-    auto *npu_ctx = npu_ctx_ptr.get();
     std::unique_ptr<Context> cpu_ctx_ptr(new Context());
     auto *cpu_ctx = cpu_ctx_ptr.get();
-    std::unique_ptr<Context> inter_ctx_ptr(new Context());
-    auto *inter_ctx = inter_ctx_ptr.get();
 
     // cache_max should be longer than seqLength
-    modeling::qwen_npu_t2(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
-    modeling::qwen_npu_cpu_inter(inter_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
-    modeling::qwen_cpu_t2(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
+    qwen_model(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
 
     BackendConfig bn;
-    QNNOptNet npuNet(bn, npu_ctx);
-    npuNet.convert(npu_ctx, BackendType::MLLM_QNN, thread_num);
-    Net interNet(bn);
-    interNet.convert(inter_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
     Net cpuNet(bn);
     cpuNet.convert(cpu_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
 
-    ParamLoader npu_prefill_param_loader(npu_model_path);
     ParamLoader cpu_decoding_param_loader(cpu_model_path);
-    ParamLoader inter_param_loader(cpu_model_path);
 
-    QNNExecutor *npuExePtr;
-    if (executeType == 1) {
-        std::cout << "use pipeline execute" << std::endl;
-        npuExePtr = new QNNPipelineExecutor(&npu_prefill_param_loader);
-    } else {
-        std::cout << "use normal execute" << std::endl;
-        npuExePtr = new QNNExecutor(&npu_prefill_param_loader);
-    }
-    auto &npuExe = *npuExePtr;
-    npuExe.setup(&npuNet);
-    Executor interExe(&inter_param_loader);
-    interExe.setup(&interNet);
+
     Executor cpuExe(&cpu_decoding_param_loader);
     cpuExe.setup(&cpuNet);
 
     vector<string> in_strs = {
-        "<|im_start|>system\nYou are a helpful assistant.<| im_end |>\n<| im_start |>user\nGive me a short introduction to large language model.<| im_end |>\n<| im_start |> assistant\n\n",
+        "Hello, who are you?",
         // "Hello, who are you?",
     };
     // " What can you do?",
@@ -158,84 +184,41 @@ int main(int argc, char **argv) {
         in_str = mllm::Tokenizer::replaceString(in_str, ' ', "Ġ");
         tokenizer.setSpecialToken("</s>", "");
 
+        // auto tokens_id = vector<token_id_t>({151643, 21927, 11, 14623, 546, 9330, 30});
         auto tokens_id = vector<token_id_t>();
         tokenizer.tokenize(in_str, tokens_id, false, true, "");
         if (str_i > 0) {
             tokens_id[0] = 13;
         }
-        // delete the last end token
-        // tokens_id.pop_back();
 
-        for (int ti = 0; ti < tokens_id.size(); ti++) {
-            tokens_id[ti] = 9707;
-            std::cout << tokens_id[ti] << std::endl;
-        }
+        BPETokenizer::token2Tensor(&cpuNet, tokens_id, input);
 
-        int real_seq_length = tokens_id.size();
-
-        std::cout << "real_seq_length: " << real_seq_length << std::endl;
-
-        // resize to the expected seqLength, the seq will be then splited to chunks
-        // tokens_id.resize(0);
-        tokens_id.resize(seqLength);
-
-        BPETokenizer::token2Tensor(&npuNet, tokens_id, input);
 
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
 
         vector<string> answers;
 
-        do {
-            // 1: Prefill stage using NPU chunk execute
-            npuExe.run(npu_ctx, &npuNet, {input});
-            auto result = npuExe.result();
-
-            result[0]->printData<float>();
-            // exit(0);
-
-            // inter model for prefill-decode
-            interExe.run(&interNet, {result[0]});
-            result = interExe.result();
+        for (int step = 0; step < 100; step++) {
+            cpuExe.run(&cpuNet, {input});
+            auto result = cpuExe.result();
 
             auto token_idx = postProcessing(result[0], input);
-            if (token_idx == 2) { // "</s>"
+            if (token_idx == 151645) { // "</s>"
                 break;
             }
             auto out_token = tokenizer.detokenize({token_idx});
+            // replace "Ġ" with " " using std
+            if(out_token.find("Ġ") != std::string::npos)
+                out_token = out_token.replace(out_token.find("Ġ"), string("Ġ").length(), " ");
             std::cout << out_token << std::flush;
             answers.push_back(out_token);
-
-            auto prefill_cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
-            auto inter_cpu_backend = dynamic_cast<CPUBackend *>(interNet.backends()[MLLM_CPU].get());
-            prefill_cpu_backend->setSequenceLength(real_seq_length);
-            prefill_cpu_backend->switchDecodeTag();
-            inter_cpu_backend->setSequenceLength(real_seq_length);
-            inter_cpu_backend->switchDecodeTag();
-
-            // // 2: Decoding stage using CPU execute
-            for (int step = real_seq_length; step < 100; step++) {
-                cpuExe.run(&cpuNet, {input});
-                auto result = cpuExe.result();
-                auto token_idx = postProcessing(result[0], input);
-                if (token_idx == 2) { // "</s>"
-                    break;
-                }
-                auto out_token = tokenizer.detokenize({token_idx});
-                std::cout << out_token << std::flush;
-                answers.push_back(out_token);
-
-                if (step == real_seq_length) {
-                    prefill_cpu_backend->switchDecodeTag();
-                    inter_cpu_backend->switchDecodeTag();
-                }
-            }
-        } while (false);
-        printf("\n");
-
-        for (auto answer : answers){
-            std::cout << answer << " ";
         }
+
+        for (auto answer : answers) {
+            std::cout << answer;
+        }
+        printf("\n");
     }
 
     cpuExe.perf();

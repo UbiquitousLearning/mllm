@@ -39,7 +39,7 @@ ErrorCode QNNQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 
     float quantScale = 0;
     quantScale = scale_.hostPtr<float>()[0]  / 127.0;
-    quantScale = roundf(quantScale * 10000) / 10000;
+    quantScale = roundf(quantScale * 100000) / 100000;
 
 
     uint32_t paramsQuantizeDimension[1] = {1};
@@ -81,6 +81,7 @@ ErrorCode QNNQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
                                                {.clientBuf = {.data = nullptr,
                                                               .dataSize = 0}}}}}};
     return graphAddNode(name(), "LLaMAQuantize", {inputs[0]->name()}, outputTensor, paramsQuantize, "LLaMAPackage");
+    // return graphAddNode(name(), "Quantize", {inputs[0]->name()}, outputTensor);
 }
 ErrorCode QNNQuantize::load(AbstructLoader &loader) {
 

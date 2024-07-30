@@ -80,9 +80,10 @@ ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-
-    std::cout << outputs[0]->dtype() << std::endl;
-    std::cout << inputs[0]->dtype() << std::endl;
+#ifdef DEBUGPRINT
+    std::cout << name() << " input type:" << outputs[0]->dtype() << std::endl;
+    std::cout << name() << " output type:" << inputs[0]->dtype() << std::endl;
+#endif
 
     if (getOutputTensorType(outputs[0]) == QNN_TENSOR_TYPE_APP_READ) {
         outputs[0]->setBackend(qnnBackend_);
@@ -102,10 +103,7 @@ ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 ErrorCode QNNView::load(AbstructLoader &loader) {
     string scaleName = name();
 
-
     std::string wordSplit = ".or_split";
-    
-
 
     int spos = scaleName.find(wordSplit);
     if (spos != -1) {
@@ -135,7 +133,6 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         scale_.alloc();
         loader.load(&scale_);
 
-std::cout << "++++++++++++++++++" << std::endl;
         std::cout << scaleName + split_variable + scale_type_name << std::endl;
         std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
         
@@ -156,15 +153,15 @@ std::cout << "++++++++++++++++++" << std::endl;
             split_variable = ".q_proj";
         }
 
-
         scale_.setName(scaleName + split_variable + scale_type_name);
         scale_.reshape(1, 1, 1, 1);
         scale_.setDtype(MLLM_TYPE_F32);
         scale_.alloc();
         loader.load(&scale_);
-        std::cout << "++++++++++++++++++" << std::endl;
+#ifdef DEBUGPRINT
         std::cout << scaleName + split_variable + scale_type_name << std::endl;
         std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
+#endif
 
 
     } else if (scaleName.find(".fres_split") != -1) {
@@ -191,10 +188,10 @@ std::cout << "++++++++++++++++++" << std::endl;
         scale_.setDtype(MLLM_TYPE_F32);
         scale_.alloc();
         loader.load(&scale_);
-        std::cout << "++++++++++++++++++" << std::endl;
+#ifdef DEBUGPRINT
         std::cout << scaleName + split_variable + scale_type_name << std::endl;
         std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
-
+#endif
 
     } else {
 
@@ -219,16 +216,11 @@ std::cout << "++++++++++++++++++" << std::endl;
         scale_.setDtype(MLLM_TYPE_F32);
         scale_.alloc();
         loader.load(&scale_);
-        std::cout << "++++++++++++++++++" << std::endl;
+
+#ifdef DEBUGPRINT
         std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
-
+#endif
     }
-
-    
-
-    
-
-    
 
     return Op::load(loader);
 }

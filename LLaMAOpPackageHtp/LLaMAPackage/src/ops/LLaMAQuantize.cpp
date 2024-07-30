@@ -1258,13 +1258,51 @@ GraphStatus llamaquantizeImpl(TensorType1 &out_0,
 
 #else
 
+extern float Round(float num);
+
 template<typename TensorType,typename TensorType1,typename TensorType2>
 GraphStatus llamaquantizeImpl(TensorType1 &out_0,
                               const TensorType1 &in_0,
                               const PlainFloatTensor& scale)
 
 {
-  out_0.set_dims(in_0);
+    out_0.set_dims(in_0);
+
+    float scale_ = scale(0,0,0,0); 
+
+    auto out_ptr = (int8_t*)out_0.raw_data();
+
+    auto [b_in, h_in, w_in, d_in] = in_0.dims();
+    for (Idx b = 0; b < b_in; b++) {
+        for (Idx h = 0; h < h_in; h++) {
+        
+        for (Idx w = 0; w < w_in; w++) {
+            
+            for (Idx d = 0; d < d_in; d++) {
+            
+                float inval       = in_0(b, h, w, d);
+
+                float result = Round(inval / scale_);
+
+
+                long v = lroundf(result);
+                
+                if (v > 127)
+                    v = 127;
+                
+                if (v < -128)
+                    v = -128;
+                
+                if (out_0.get_dtype() == DType::QUInt8)
+                    v += 128;
+
+                *out_ptr++ = static_cast<uint8_t>(v);
+            }
+
+            }
+        }
+    }
+
   return GraphStatus::Success;
 }
 #endif
