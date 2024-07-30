@@ -19,10 +19,9 @@ class StableLMMultiHeadAttention final : public Module {
     Layer k_rope;
     Layer q_norm;
     Layer k_norm;
-    Layer k_cache;
-    Layer v_cache;
-    Layer mask;
-    Layer softmax;
+    KVCache k_cache;
+    KVCache v_cache;
+    Softmax softmax;
     Layer o_proj;
     Parameter bias_k;
     Parameter bias_v;
@@ -59,10 +58,7 @@ public:
             k_cache = KVCache(head_size / kv_head_size, cache_limit, base_name + "k_cache");
             v_cache = KVCache(head_size / kv_head_size, cache_limit, base_name + "v_cache");
         }
-        if (do_mask) {
-            mask = Causalmask(base_name + "mask");
-        }
-        softmax = Softmax(DIMENSION, base_name + "softmax");
+        softmax = Softmax(DIMENSION, do_mask, base_name + "softmax");
         o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, false, base_name + names._o_proj_name);
         if (bias_kv_cat) {
             bias_k = Parameter(1, 1, head_size, attn_hidden_dim, base_name + "bias_k");
@@ -104,10 +100,7 @@ public:
         k = k.transpose(SEQUENCE, DIMENSION);
         auto qk = Tensor::mm(q, k);
         qk = qk / std::sqrt(attn_hidden_dim_);
-        if (mask.ready()) {
-            qk = mask(qk);
-        }
-        qk = softmax(qk);
+        qk = softmax(qk, k_cache.getCacheSeqLen());
         auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
         o = o_proj(o);

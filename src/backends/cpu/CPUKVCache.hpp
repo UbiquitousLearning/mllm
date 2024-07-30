@@ -20,6 +20,10 @@ public:
 
     Tensor cache_;
 
+    int getCacheSeqLen() override{
+        return cache_seq_len_;
+    }
+
 private:
     int thread_count = 4;
 

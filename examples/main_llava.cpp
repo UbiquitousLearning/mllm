@@ -72,8 +72,8 @@ NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head
     v = _KVCache({v}, cache_max, name + ".v_cache");
     auto *qk = _Matmul({q, k}, false, true, name + ".qk");
     qk = *qk / std::sqrt(hidden_size);
-    qk = _Causalmask({qk}, name + ".mask");
-    qk = _Softmax({qk}, DIMENSION, name + ".softmax");
+    // qk = _Causalmask({qk}, name + ".mask");
+    qk = _Softmax({qk}, DIMENSION, true, name + ".softmax");
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
     o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _Linear({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
@@ -117,9 +117,10 @@ NetTensor *VisionAttention(NetTensor *x, int embedding_size, int hidden_size, in
     auto *qk = _Matmul({q, k}, false, true, name + ".qk");
     qk = _Scale({qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
     if (name.find("text_model") != std::string::npos) {
-        qk = _Causalmask({qk}, name + ".mask");
+        qk = _Softmax( {qk}, DIMENSION, true, name + ".softmax");
+    } else{
+        qk = _Softmax( {qk}, DIMENSION, false, name + ".softmax");
     }
-    qk = _Softmax({qk}, DIMENSION, name + ".softmax");
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
     o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _Linear({o}, hidden_size * head_size, embedding_size, true, name + ".out_proj");

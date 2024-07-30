@@ -56,6 +56,10 @@ enum DataType {
     MLLM_TYPE_I8,
     MLLM_TYPE_I16,
     MLLM_TYPE_I32,
+    MLLM_TYPE_Q4_0_4_4=19,
+    MLLM_TYPE_Q4_0_4_8=20,
+    MLLM_TYPE_Q4_0_8_8=21,
+    MLLM_TYPE_Q8_0_4_4,
     MLLM_TYPE_COUNT,
 };
 enum ChlType {
@@ -147,6 +151,8 @@ enum RoPEType {
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+// #define LLAMAFILE_SGEMM
+
 #if defined(__ARM_NEON) && !defined(_MSC_VER)
 typedef __fp16 mllm_fp16_t;
 #else
@@ -223,6 +229,39 @@ typedef struct {
 #pragma pack()
 static_assert(sizeof(block_q8_K) == sizeof(float) + QK_K + QK_K / 16 * sizeof(int16_t), "wrong q8_K block size/padding");
 
+
+#pragma pack(1)
+typedef struct {
+    mllm_fp16_t d[4];        // deltas for 4 q4_0 blocks
+    uint8_t qs[QK4_0 * 2]; // nibbles / quants for 4 q4_0 blocks
+} block_q4_0x4;
+#pragma pack()
+static_assert(sizeof(block_q4_0x4) == 4 * sizeof(mllm_fp16_t) + QK4_0 * 2, "wrong q4_0x4 block size/padding");
+
+#pragma pack(1)
+typedef struct {
+    mllm_fp16_t d[8];        // deltas for 8 q4_0 blocks
+    uint8_t qs[QK4_0 * 4]; // nibbles / quants for 8 q4_0 blocks
+} block_q4_0x8;
+#pragma pack()
+static_assert(sizeof(block_q4_0x8) == 8 * sizeof(mllm_fp16_t) + QK4_0 * 4, "wrong q4_0x8 block size/padding");
+
+#pragma pack(1)
+typedef struct {
+    mllm_fp16_t d[4];        // deltas for 4 q8_0 blocks
+    int8_t qs[QK8_0 * 4];  // quants for 4 q8_0 blocks
+} block_q8_0x4;
+#pragma pack()
+static_assert(sizeof(block_q8_0x4) == 4 * sizeof(mllm_fp16_t) + QK8_0 * 4, "wrong q8_0x4 block size/padding");
+
+#pragma pack(1)
+typedef struct {
+    mllm_fp16_t d[8];        // deltas for 8 q8_0 blocks
+    int8_t qs[QK8_0 * 8];  // quants for 8 q8_0 blocks
+} block_q8_0x8;
+#pragma pack()
+static_assert(sizeof(block_q8_0x8) == 8 * sizeof(mllm_fp16_t) + QK8_0 * 8, "wrong q8_0x8 block size/padding");
+
 //
 
 static string DataTypeName(DataType dataType) {
@@ -251,6 +290,14 @@ static string DataTypeName(DataType dataType) {
         return "Q4_1";
     case MLLM_TYPE_Q8_1:
         return "Q8_1";
+    case MLLM_TYPE_Q4_0_4_4:
+        return "Q4_0_4_4";
+    case MLLM_TYPE_Q4_0_4_8:
+        return "Q4_0_4_8";
+    case MLLM_TYPE_Q4_0_8_8:
+        return "Q4_0_8_8";
+    case MLLM_TYPE_Q8_0_4_4:
+        return "Q8_0_4_4";
     case MLLM_TYPE_COUNT:
         return "COUNT";
     default:
@@ -281,6 +328,15 @@ static size_t DataTypeSize(DataType dtype, int count = 1) {
         return (sizeof(block_q8_K)) * count / (QK_K);
     case MLLM_TYPE_Q4_1:
     case MLLM_TYPE_Q8_1:
+        return -1;
+    case MLLM_TYPE_Q4_0_4_4:
+        return (sizeof(block_q4_0x4)) * count / (QK4_0 * 4);
+    case MLLM_TYPE_Q4_0_4_8:
+        return (sizeof(block_q4_0x8)) * count / (QK4_0 * 8);
+    case MLLM_TYPE_Q4_0_8_8:
+        return (sizeof(block_q4_0x8)) * count / (QK4_0 * 8);
+    case MLLM_TYPE_Q8_0_4_4:
+        return (sizeof(block_q8_0x4)) * count / (QK8_0 * 4);
     case MLLM_TYPE_COUNT:
         return 0;
     default:

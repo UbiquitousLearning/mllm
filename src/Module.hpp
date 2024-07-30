@@ -84,10 +84,12 @@ public:
                 operator()(tmps, args);
                 break;
             } catch (const std::exception& e) {
-                if("bad any_cast" != e.what()) {
+#if not defined(__ARM_NEON)
+                if(std::string("bad any_cast") != e.what()) {
                     std::cerr << e.what() << std::endl;
                     exit(0);
                 }
+#endif
             } catch (...) {
                 std::cerr << "load error" << std::endl;
                 exit(0);

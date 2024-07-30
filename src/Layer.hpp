@@ -5,6 +5,7 @@
 #ifndef OPERATION_H
 #define OPERATION_H
 
+#include <cstddef>
 #include <cstdlib>
 #include <iostream>
 #include <utility>
@@ -608,12 +609,23 @@ inline std::map<std::string, ActFnConstructor> ACT_FN = {
 
 class Softmax final : public Layer {
 public:
+    Softmax() = default;
     explicit Softmax(Chl axis, std::string name) {
         param_["axis"] = axis;
         init(std::move(name), OpType::SOFTMAX);
     }
+    explicit Softmax(Chl axis, bool do_causal_mask, std::string name) {
+        param_["axis"] = axis;
+        param_["do_causal_mask"] = do_causal_mask;
+        init(std::move(name), OpType::SOFTMAX);
+    }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
+    }
+    Tensor &operator()(Tensor &input, int axis_classes) {
+        auto axis_classes_tensor = Tensor(1, 1, 1, 1, backend_, true);
+        axis_classes_tensor.setDataAt<float>(0,0,0,0,(float)axis_classes);
+        return _3I1OO1_OP(input, axis_classes_tensor, axis_classes_tensor);
     }
 };
 
@@ -631,11 +643,17 @@ public:
 
 class Causalmask final : public Layer {
 public:
+    Causalmask() = default;
     explicit Causalmask(std::string name) {
         init(std::move(name), OpType::CAUSALMASK);
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
+    }
+    Tensor &operator()(Tensor &input0, int kvcache_seq) {
+        auto kvcache_seq_tensor = Tensor(1, 1, 1, 1, backend_, true);
+        kvcache_seq_tensor.setDataAt<float>(0,0,0,0,(float)kvcache_seq);
+        return _3I1OO1_OP(input0, kvcache_seq_tensor, kvcache_seq_tensor);
     }
 };
 
@@ -676,6 +694,7 @@ public:
 
 class KVCache final : public Layer {
 public:
+    KVCache() = default;
     explicit KVCache(int cache_max, std::string name) {
         param_["n_rep"] = 1;
         param_["cache_max"] = cache_max;
@@ -688,6 +707,9 @@ public:
     }
     Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
+    }
+    int getCacheSeqLen(){
+        return op_->getCacheSeqLen();
     }
 };
 

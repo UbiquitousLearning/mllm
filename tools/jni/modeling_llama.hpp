@@ -19,8 +19,8 @@ inline NetTensor *Attention_LLAMA(Context *ctx, NetTensor *x, int embedding_size
     v = _KVCache( {v}, 500, name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
     qk = _Scale( {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
-    qk = _Causalmask( {qk}, name + ".mask");
-    qk = _Softmax( {qk}, DIMENSION, name + ".softmax");
+    // qk = _Causalmask( {qk}, name + ".mask");
+    qk = _Softmax( {qk}, DIMENSION, true, name + ".softmax");
     auto *o = _Matmul( {qk, v}, false, false, name + ".qkv");
     o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _Linear( {o}, hidden_size * head_size, embedding_size, false, name + ".wo");

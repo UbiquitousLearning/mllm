@@ -27,6 +27,7 @@ ErrorCode CPUNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     int dim = input->dimension();
     int seq = input->sequence();
     int head = input->head();
+#pragma omp parallel for collapse(3) num_threads(thread_count)
     for (int h = 0; h < head; h++) {
         for (int n = 0; n < batch; n++) {
             for (int s = 0; s < seq; s++) {

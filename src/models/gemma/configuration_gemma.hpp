@@ -93,6 +93,7 @@ struct GemmaConfig {
     int intermediate_size = 16384;
     int head_dim = 256;
     float rms_norm_eps = 1e-6;
+    float rope_theta= 10000;
 
     int cache_limit;
     RoPEType RoPE_type = RoPEType::HFHUBROPE;
