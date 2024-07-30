@@ -69,7 +69,7 @@ void QuantWriter::quantParams(DataType dataType) {
         }
         void *quant_ptr = nullptr;
         std::pair<void *, uint64_t> block_t;
-        if (find_names(name, q6_layers)) {
+        if (find_names(name, q6_layers) && (dataType== MLLM_TYPE_Q6_K ||dataType == MLLM_TYPE_Q4_K)) {
             if(tmp_hidden_dim>0 && (size/tmp_hidden_dim)%256!=0){
                 std::cout << "Quantize param " << name << " to " << DataTypeName(MLLM_TYPE_F32) << "\t";
                 const auto s = param_loader_->offsets_[name].second / sizeof(float);

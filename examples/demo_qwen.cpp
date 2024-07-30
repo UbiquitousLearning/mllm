@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-1.5-0.5b-q4_k.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-1.5-1.8b-q8_0.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
-    QWenConfig config(tokens_limit, "0.5B", RoPEType::HFHUBROPE);
+    QWenConfig config(tokens_limit, "1.8B", RoPEType::HFHUBROPE);
     auto model = QWenForCausalLM(config);
     model.load(model_path);
 
