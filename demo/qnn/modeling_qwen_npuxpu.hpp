@@ -239,12 +239,12 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
 
     // first 23 layer using NPU-CPU prefilling
-    for (int layer = 0; layer < 1; ++layer) {
+    for (int layer = 0; layer < 2; ++layer) {
         if (layer != 0) // for graph 0, it will be offloaded to CPU in QNNOptNet::convert
             _SubgraphBegin(c, MLLM_CPU);
 
         auto res = i;
-        res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
+        res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size, (layer != 0));
 
         i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
         i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");

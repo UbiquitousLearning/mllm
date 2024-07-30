@@ -114,6 +114,8 @@ ErrorCode CPUNPUView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
         outputs[0]->setDtype(activation_dtype());
         outputs[0]->deepCopyFrom(inputs[0].get(), false);
 
+        return MLLM_NO_ERROR;
+
     } else {
         std::cout << "CPUNPUView not support!!!!" << std::endl;
         return Op::setUp(inputs, outputs);
