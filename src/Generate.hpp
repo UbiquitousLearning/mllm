@@ -41,8 +41,8 @@ public:
     virtual ~_LlmTextGenerateMethod() = default;
     virtual unsigned int generate(Tensor &t) = 0;
     inline void _tensor_to_vec(Tensor &t, std::vector<float> &scores) {
-        assert(result.batch() == 1 && "Batch size of result is not 1. Which is not supported for now.");
-        assert(result.head() == 1 && "The 3rd dim of result should be one. e.g.:[1, 1, seq, hidden]");
+        assert(t.batch() == 1 && "Batch size of result is not 1. Which is not supported for now.");
+        assert(t.head() == 1 && "The 3rd dim of result should be one. e.g.:[1, 1, seq, hidden]");
         int _dims = t.dimension();
         int _seq = t.sequence() - 1;
         for (int i = 0; i < _dims; ++i) {
@@ -52,8 +52,8 @@ public:
     }
 
     inline void _tensor_to_vec_with_idx(Tensor &t, std::vector<std::pair<float, unsigned int>> &scores) {
-        assert(result.batch() == 1 && "Batch size of result is not 1. Which is not supported for now.");
-        assert(result.head() == 1 && "The 3rd dim of result should be one. e.g.:[1, 1, seq, hidden]");
+        assert(t.batch() == 1 && "Batch size of result is not 1. Which is not supported for now.");
+        assert(t.head() == 1 && "The 3rd dim of result should be one. e.g.:[1, 1, seq, hidden]");
         int _dims = t.dimension();
         int _seq = t.sequence() - 1;
         for (int i = 0; i < _dims; ++i) {
@@ -111,7 +111,7 @@ public:
         case LLmTextGeneratorType::kTopkSampling: m_method_class = new _LlmTextGenerateTopkSamplingMethod(k, temperature); break;
         case LLmTextGeneratorType::kToppSampling: m_method_class = new _LlmTextGenerateToppSamplingMethod(p, temperature); break;
         default:
-            assert(false & "NIY");
+            assert(false && "NIY");
             break;
         }
     }
