@@ -44,6 +44,21 @@ unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_r
     return token_idx;
 }
 
+unsigned int postProcessing_prefill(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_result, int seq) {
+    assert(result->batch() == 1);
+    assert(result->head() == 1);
+    out_result->reshape(1, 1, 1, 1);
+    out_result->alloc();
+    vector<float> scores;
+    for (int i = 0; i < result->dimension(); ++i) {
+        auto value = result->dataAt<float>(0, 0, seq - 1, i);
+        scores.push_back(value);
+    }
+    auto token_idx = argmax(scores);
+    out_result->setDataAt<float>(0, 0, 0, 0, token_idx);
+    return token_idx;
+}
+
 template <typename Dtype>
 void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dtype value) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_QNN].get());
@@ -167,7 +182,7 @@ int main(int argc, char **argv) {
         // tokens_id.pop_back();
 
         for (int ti = 0; ti < tokens_id.size(); ti++) {
-            tokens_id[ti] = 9707;
+            // tokens_id[ti] = 9707;
             std::cout << tokens_id[ti] << std::endl;
         }
 
@@ -198,7 +213,15 @@ int main(int argc, char **argv) {
             interExe.run(&interNet, {result[0]});
             result = interExe.result();
 
-            auto token_idx = postProcessing(result[0], input);
+            std::cout << "=============prefilling tokens output: =============" << std::endl;
+            for (int ti = 1; ti <= real_seq_length; ti++) {
+                auto token_idx = postProcessing_prefill(result[0], input, real_seq_length);
+                auto out_token = tokenizer.detokenize({token_idx});
+                std::cout << out_token << " " << std::flush;
+            }
+            std::cout << std::endl;
+
+            auto token_idx = postProcessing_prefill(result[0], input, real_seq_length);
             if (token_idx == 2) { // "</s>"
                 break;
             }

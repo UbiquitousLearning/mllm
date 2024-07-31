@@ -143,7 +143,7 @@ ErrorCode QNNLinearINT8::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 //     if (!support_bias_) {
 //         float outputScale = 0;
 //         outputScale = outputScale_.hostPtr<float>()[0] / 127.0;
-//         outputScale = roundf(outputScale * 10000) / 10000;
+//         outputScale = roundf(outputScale * 100000) / 100000;
 
 //         vector<Qnn_Tensor_t> matmulOut = {{QNN_TENSOR_VERSION_1,
 //                                            {.v1 = {
@@ -194,7 +194,7 @@ ErrorCode QNNLinearINT8::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 
 //     float outputScale = 0;
 //     outputScale = outputScale_.hostPtr<float>()[0]  / 127.0;
-//     outputScale = roundf(outputScale * 10000) / 10000;
+//     outputScale = roundf(outputScale * 100000) / 100000;
 
 //     // final output
 //     vector<Qnn_Tensor_t> biasOutput = {{QNN_TENSOR_VERSION_1,
