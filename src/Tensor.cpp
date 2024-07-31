@@ -2,6 +2,7 @@
 
 #include <express/ExpressBase.hpp>
 #include "OpDefined.hpp"
+#include "Timing.hpp"
 #include "Types.hpp"
 #include "backends/cpu/CPUTensorFunction.hpp"
 
@@ -92,6 +93,9 @@ Tensor& Tensor::getFunc(const std::string& suffix, const TensorFuncType type, ve
     for (auto &other_tensor : other_tensors) {
         tensorPtrs.push_back(other_tensor);
     }
+#ifdef DEBUGOPTIME
+    auto start_t = mllm_time_us();
+#endif
     switch (Tensor::tensor_status) {
     case TENSOR_STATIC_INIT: {
         func->setup({Tensor::graphs[next_name].get()}, tensorPtrs, float_args);
@@ -99,14 +103,18 @@ Tensor& Tensor::getFunc(const std::string& suffix, const TensorFuncType type, ve
     }
     case TENSOR_STATIC_READY: {
         func->execute({Tensor::graphs[next_name].get()},tensorPtrs, float_args);
-        if(saveNDataFlag){
-            Tensor::graphs[next_name]->saveData<float>();
-        }
         break;
     }
     default: {
     }
     }
+#ifdef DEBUGOPTIME
+    auto end_t = mllm_time_us();
+    std::cout<<next_name << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+#endif
+#ifdef DEBUGSAVETENSOR
+    Tensor::graphs[next_name]->saveNData<float>();
+#endif
     return  *Tensor::graphs[next_name];
 }
 
@@ -238,6 +246,9 @@ Tensor& Tensor::getStaticFunc(const std::string& suffix, const TensorFuncType ty
     if (Module::doLoad) { 
         return  *Tensor::graphs[next_name];
     }
+#ifdef DEBUGOPTIME
+    auto start_t = mllm_time_us();
+#endif
     switch (Tensor::tensor_status) {
     case TENSOR_STATIC_INIT: {
         func->setup({Tensor::graphs[next_name].get()}, other_tensors, float_args);
@@ -245,14 +256,18 @@ Tensor& Tensor::getStaticFunc(const std::string& suffix, const TensorFuncType ty
     }
     case TENSOR_STATIC_READY: {
         func->execute({Tensor::graphs[next_name].get()}, other_tensors, float_args);
-        if(saveNDataFlag){
-            Tensor::graphs[next_name]->saveData<float>();
-        }
         break;
     }
     default: {
     }
     }
+#ifdef DEBUGOPTIME
+    auto end_t = mllm_time_us();
+    std::cout<<next_name << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+#endif
+#ifdef DEBUGSAVETENSOR
+    Tensor::graphs[next_name]->saveNData<float>();
+#endif
     return *Tensor::graphs[next_name];
 }
 
@@ -299,6 +314,9 @@ std::vector<Tensor> Tensor::getStaticFuncOupts(vector<std::string> out_names, co
     for (auto out_name: out_names) {
         outPtrs.push_back(Tensor::graphs[out_name].get());
     }
+#ifdef DEBUGOPTIME
+    auto start_t = mllm_time_us();
+#endif
     switch (Tensor::tensor_status) {
     case TENSOR_STATIC_INIT: {
         func->setup(outPtrs, input_tensors, float_args);
@@ -306,16 +324,20 @@ std::vector<Tensor> Tensor::getStaticFuncOupts(vector<std::string> out_names, co
     }
     case TENSOR_STATIC_READY: {
         func->execute(outPtrs, input_tensors, float_args);
-        if(saveNDataFlag){
-            for (auto out_name: out_names) {
-                Tensor::graphs[out_name]->saveData<float>();
-            }
-        }
         break;
     }
     default: {
     }
     }
+#ifdef DEBUGOPTIME
+    auto end_t = mllm_time_us();
+    std::cout<<out_names[0] << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+#endif
+#ifdef DEBUGSAVETENSOR
+    for (auto out_name: out_names) {
+        Tensor::graphs[out_name]->saveNData<float>();
+    }
+#endif
     std::vector<Tensor> results;
     for (auto out_name: out_names) {
         results.push_back(*Tensor::graphs[out_name]);

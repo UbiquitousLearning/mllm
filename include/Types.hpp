@@ -19,7 +19,11 @@ using std::map;
 typedef map<std::string, float> OpParam;
 
 
-inline bool saveNDataFlag = false;
+// #define DEBUGSAVETENSOR
+// #define DEBUGOPTIME
+
+
+#define LLAMAFILE_SGEMM
 
 typedef enum {
     MLLM_CPU,
@@ -151,7 +155,6 @@ enum RoPEType {
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#define LLAMAFILE_SGEMM
 
 #if defined(__ARM_NEON) && !defined(_MSC_VER)
 typedef __fp16 mllm_fp16_t;
