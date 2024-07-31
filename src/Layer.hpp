@@ -193,6 +193,9 @@ protected:
         }
         string layer_next_name = "out-" + op_->name();
         auto next_name = layername_2_tensorname[layer_next_name];
+#ifdef DEBUGOPTIME
+        auto start_t = mllm_time_us();
+#endif
         switch (Tensor::tensor_status) {
             case TENSOR_STATIC_INIT: {
                 op_->reshape({Tensor::graphs[input.name()]}, {Tensor::graphs[next_name]});
@@ -207,9 +210,13 @@ protected:
                 break;
             }
         }
-        if(saveNDataFlag){
-            Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
-        }
+#ifdef DEBUGOPTIME
+        auto end_t = mllm_time_us();
+        std::cout<<op_->name() << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+#endif
+#ifdef DEBUGSAVETENSOR
+        Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
+#endif     
         return *Tensor::graphs[next_name];        
     }
     Tensor &_2I1O_OP(Tensor &input0, Tensor &input1) {
@@ -239,6 +246,9 @@ protected:
         }
         string layer_next_name = "out-" + op_->name();
         auto next_name = layername_2_tensorname[layer_next_name];
+#ifdef DEBUGOPTIME
+        auto start_t = mllm_time_us();
+#endif
         switch (Tensor::tensor_status) {
             case TENSOR_STATIC_INIT: {
                 op_->reshape({Tensor::graphs[input0.name()], Tensor::graphs[input1.name()]}, {Tensor::graphs[next_name]});
@@ -253,9 +263,13 @@ protected:
                 break;
             }
         }
-        if(saveNDataFlag){
-            Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
-        }
+#ifdef DEBUGOPTIME
+        auto end_t = mllm_time_us();
+        std::cout<<op_->name() << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+#endif
+#ifdef DEBUGSAVETENSOR
+        Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
+#endif
         return *Tensor::graphs[next_name];
     }
     Tensor &_3I1O_OP(Tensor &input0, Tensor &input1, Tensor &input2) {
@@ -289,6 +303,9 @@ protected:
         }
         string layer_next_name = "out-" + op_->name();
         auto next_name = layername_2_tensorname[layer_next_name];
+#ifdef DEBUGOPTIME
+        auto start_t = mllm_time_us();
+#endif
         switch (Tensor::tensor_status) {
             case TENSOR_STATIC_INIT: {
                 op_->reshape({Tensor::graphs[input0.name()], Tensor::graphs[input1.name()], Tensor::graphs[input2.name()]}, 
@@ -305,10 +322,14 @@ protected:
             default: {
                 break;
             }
-        }       
-        if(saveNDataFlag){
-            Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
         }
+#ifdef DEBUGOPTIME
+        auto end_t = mllm_time_us();
+        std::cout<<op_->name() << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+#endif
+#ifdef DEBUGSAVETENSOR
+        Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
+#endif
         return *Tensor::graphs[next_name];
     }
     Tensor &_3I1OO1_OP(Tensor &input0, Tensor &input1, Tensor &input2) {
@@ -334,6 +355,9 @@ protected:
         }
         string layer_next_name = "out-" + op_->name();
         auto next_name = layername_2_tensorname[layer_next_name];
+#ifdef DEBUGOPTIME
+        auto start_t = mllm_time_us();
+#endif
         switch (Tensor::tensor_status) {
             case TENSOR_STATIC_INIT: {
                 op_->reshape({Tensor::graphs[input0.name()], 
@@ -356,10 +380,14 @@ protected:
             default: {
                 break;
             }
-        }    
-        if(saveNDataFlag){
-            Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
         }
+#ifdef DEBUGOPTIME
+        auto end_t = mllm_time_us();
+        std::cout<<op_->name() << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+#endif
+#ifdef DEBUGSAVETENSOR
+        Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
+ #endif
         return *Tensor::graphs[next_name];
     }
     Tensor &_0I1O_OP() {
@@ -381,6 +409,9 @@ protected:
         }
         string layer_next_name = "param-" + op_->name();
         auto next_name = layername_2_tensorname[layer_next_name];
+#ifdef DEBUGOPTIME
+        auto start_t = mllm_time_us();
+#endif
         switch (Tensor::tensor_status) {
             case TENSOR_STATIC_INIT: {
                 op_->reshape({}, {Tensor::graphs[next_name]});
@@ -395,9 +426,13 @@ protected:
                 break;
             }
         }
-        if(saveNDataFlag){
-            Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
-        }
+#ifdef DEBUGOPTIME
+        auto end_t = mllm_time_us();
+        std::cout<<op_->name() << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+#endif
+#ifdef DEBUGSAVETENSOR
+        Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
+#endif
         return *Tensor::graphs[next_name];
     }
     vector<Tensor> _1INO_OP(Tensor &input, int N) {
@@ -442,6 +477,9 @@ protected:
             next_names.push_back(next_name);
             shared_outputs.push_back(Tensor::graphs[next_name]);
         }
+#ifdef DEBUGOPTIME
+        auto start_t = mllm_time_us();
+#endif
         switch (Tensor::tensor_status) {
             case TENSOR_STATIC_INIT: {
                 op_->reshape({ Tensor::graphs[input.name()]}, shared_outputs);
@@ -456,12 +494,16 @@ protected:
                 break;
             }
         }
+#ifdef DEBUGOPTIME
+        auto end_t = mllm_time_us();
+        std::cout<<op_->name() << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+#endif
         vector<Tensor> output_result = {};
         for (const auto &layer_next_name : layer_next_names) {
             auto next_name = layername_2_tensorname[layer_next_name];
-            if(saveNDataFlag){
-                Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
-            }
+#ifdef DEBUGSAVETENSOR
+            Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
+#endif
             output_result.push_back(*Tensor::graphs[next_name]);
         }
         return output_result;

@@ -14,7 +14,7 @@ using namespace mllm;
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/llama_vocab.mllm");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/llama-2-7b-chat-q4_k.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/llama-2-7b-chat-q4_0_4_4.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -44,7 +44,8 @@ int main(int argc, char **argv) {
             // vecor<vector<int>> activate_dims = {{32*8,256}}; 
             // 32*8 is attn_head*attn_hidden_dim(e.g. llama:32*128); 256 is ffn_hidden_dim(e.g. llama:11008) 
             vector<vector<int>> activate_dims = {
-                                        {-1,-1},  //0
+                                        // {(int)(32*128*0.5),(int)(11008*0.5)},  //0
+                                        {-1,-1}, //0
                                         {-1,-1}, //1
                                         {-1,-1}, //2
                                         {-1,-1}, //3
