@@ -4,7 +4,6 @@
 #include <memory>
 #include "Backend.hpp"
 #include "CPUKVCacheNPU.hpp"
-#include "CPUMatmulINT8.hpp"
 #include "CPUNPUView.hpp"
 #include "CPUPoEmbedding.hpp"
 #include "CPUSplitInput.hpp"
@@ -100,7 +99,6 @@ void CPUBackend::registerOps() {
     addCreator(CAUSALMASK, (CPUBackend::Creator *)(new CPUCausalMaskCreator()));
     addCreator(SLIDINGWINDOWMASK, (CPUBackend::Creator *)(new CPUSlidingWindowMaskCreator()));
     addCreator(MATMUL, (CPUBackend::Creator *)(new CPUMatmulCreator()));
-    addCreator(MATMULINT8, (CPUBackend::Creator *)(new CPUMatmulINT8Creator()));
     addCreator(RMSNORM, (CPUBackend::Creator *)(new CPURMSNormCreator()));
     addCreator(ROPE, (CPUBackend::Creator *)(new CPURoPECreator()));
     addCreator(SCALE, (CPUBackend::Creator *)(new CPUScaleCreator()));

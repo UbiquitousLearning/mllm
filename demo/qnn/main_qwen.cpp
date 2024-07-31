@@ -72,7 +72,7 @@ NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head
 
     qk = _Causalmask({qk}, name + ".mask");
 
-    qk = _Softmax({qk}, DIMENSION, name + ".softmax");
+    qk = _Softmax({qk}, DIMENSION, false, name + ".softmax");
 
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
 

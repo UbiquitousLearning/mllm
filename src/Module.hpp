@@ -63,30 +63,9 @@ public:
             }
         }
     }
-    void to(BackendType backend_type) {
-        initBackend(backend_type);
-        backend_ = backends[backend_type];
-        Module::tmp_device = backend_->type();
-        Module::doToDevice = true;
-        vector<Tensor> tmps;
-        vector<int> tmpt;
-        int max_in_size = 5;
-        for (int i = 0; i < max_in_size; ++i) {
-            Tensor::graphs[std::to_string(i)] = std::make_shared<Tensor>(Module::backends[MLLM_CPU]);
-            tmps.push_back(*Tensor::graphs[std::to_string(i)]);
-            tmpt.push_back(0);
-        }
-        vector<std::any> anyArgs = convertArgsToAnyVector(tmpt);
-        Forward(tmps, anyArgs);
-        Module::doToDevice = false;
-        Module::tmp_device = MLLM_CPU;
-        Tensor::graphs.clear();
+    void to(BackendType type) {
+        initBackend(type);
     }
-
-    BackendType device() const {
-        return backend_->type();
-    }
-    
     static void initLoader(string path) {
         loader = new ParamLoader(std::move(path));
     }

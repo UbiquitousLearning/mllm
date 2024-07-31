@@ -379,11 +379,15 @@ public:
 
 class CPUviewFunction : public TensorFunction {
 public:
-    void setup(Tensor &input, Tensor &output, int b, int h, int s, int d) {
-        int dim_b = input.batch();
-        int dim_h = input.head();
-        int dim_s = input.sequence();
-        int dim_d = input.dimension();
+    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+        int b = (int)args[0];
+        int h = (int)args[1];
+        int s = (int)args[2];
+        int d = (int)args[3];
+        int dim_b = inputs[0]->batch();
+        int dim_h = inputs[0]->head();
+        int dim_s = inputs[0]->sequence();
+        int dim_d = inputs[0]->dimension();
         if (b == -1 && h != -1 && s == -1 && d != -1) { // head & dimension
             if (h != ANYDIM && d != ANYDIM) {
                 assert(inputs[0]->dimension() * inputs[0]->head() == h * d);
@@ -444,20 +448,16 @@ public:
             std::cout << "[TODO]Tensor.View not support!!!!" << std::endl;
         }
     }
-    void execute(Tensor &input, Tensor &output, int b, int h, int s, int d) {
-    }
-    void setup(Tensor &output, vector<Tensor*> &inputs, vector<float> args) override {
-        setup( *inputs[0], output, (int)args[0], (int)args[1], (int)args[2], (int)args[3]);
-    }
-    void execute(Tensor &output, vector<Tensor*> &inputs, vector<float> args) override {
-        execute(*inputs[0], output, (int)args[0], (int)args[1], (int)args[2], (int)args[3]);
+    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
     }
 };
 
 class CPUflattenFunction : public TensorFunction {
 public:
-    void setup(Tensor &input, Tensor &output, Chl axis_start, Chl axis_end) {
-        int dim_b = input.batch();
+    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+        Chl axis_start = (Chl)args[0];
+        Chl axis_end = (Chl)args[1];
+        int dim_b = inputs[0]->batch();
         int dim_h = 0;
         int dim_s = 0;
         int dim_d = 0;
@@ -510,8 +510,9 @@ public:
             std::cout << "[TODO]Tensor.Flatten not support!!!!" << std::endl;
         }
     }
-    
-    void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {}
+
+    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    }
 };
 class CPUtransposeFunction : public TensorFunction {
 public:
@@ -886,9 +887,11 @@ public:
 
 class CPUwhereFunction : public TensorFunction {
 public:
-    void setup(Tensor &input, Tensor &output, float value, Chl axis) {
+    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
     }
-    void execute(Tensor &input, Tensor &output, float value, Chl axis) {
+    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+        float value = args[0];
+        Chl axis = (Chl)args[1];
         vector<float> b_vec = {};
         vector<float> s_vec = {};
         vector<float> h_vec = {};

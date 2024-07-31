@@ -121,7 +121,7 @@ public:
         return -1;
     }
 
-private:
+protected:
     Backend *backend_;
     vector<Tensor *> inputs_;
     vector<Tensor *> outputs_;

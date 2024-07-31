@@ -14,7 +14,6 @@ enum OpType {
     SOFTMAX,
     SILU,
     MATMUL,
-    MATMULINT8,
     SCALE,
     ROPE,
     POSITIOANL_EMBEDDING,

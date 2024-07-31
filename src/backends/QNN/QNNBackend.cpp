@@ -78,8 +78,6 @@ void QNNBackend::registerOps() {
     addCreator(ADD, (QNNBackend::Creator *)new QNNAddCreator());
     addCreator(CAUSALMASK, (QNNBackend::Creator *)(new QNNCausalMaskCreator()));
     addCreator(MATMUL, (QNNBackend::Creator *)(new QNNMatmulCreator()));
-    // addCreator(MATMUL, (QNNBackend::Creator *)(new QNNMatmulNTCreator()));
-    addCreator(MATMULINT8, (QNNBackend::Creator *)(new QNNMatmulINT8Creator()));
     addCreator(RMSNORM, (QNNBackend::Creator *)(new QNNRMSNormCreator()));
     addCreator(LAYERNORM, (QNNBackend::Creator *)(new QNNLayerNormCreator()));
     addCreator(ROPE, (QNNBackend::Creator *)(new QNNRoPECreator()));
@@ -87,9 +85,6 @@ void QNNBackend::registerOps() {
     addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
     addCreator(SOFTMAX, (QNNBackend::Creator *)(new QNNSoftMaxCreator()));
     addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearCreator()));
-    // addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearFPCreator()));
-    // addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearTestCreator()));
-    // addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinear3DCreator()));
     addCreator(LINEARINT8, (QNNBackend::Creator *)(new QNNLinearINT8Creator()));
     // addCreator(ATTENTION, (QNNBackend::Creator *)(new QNNAttentionCreator()));
     // addCreator(EMBEDDING, (QNNBackend::Creator *)(new QNNEmbeddingCreator()));
