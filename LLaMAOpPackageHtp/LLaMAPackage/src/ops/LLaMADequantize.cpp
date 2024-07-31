@@ -84,7 +84,7 @@ DEF_PACKAGE_PARAM_ORDER("LLaMADequantize",
                         true,
                         nullptr)
 
-#ifdef REFERENCE_OP
+#ifndef REFERENCE_OP
 /* execute functions for ops */
 #include "qhmath_hvx.h"
 #include "hvx_internal.h"
