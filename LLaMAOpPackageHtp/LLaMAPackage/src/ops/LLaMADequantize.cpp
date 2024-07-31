@@ -130,7 +130,7 @@ int32_t qhmath_hvx_dequantize_ahf(
     HVX_Vector scale_vec;
 
     int32_t block, l2fetch_block;
-    int32_t leftover = size & 128;
+    int32_t leftover = size & 63;
     int32_t vectors_in_rounddown = size / 128;  // element number!
     // int32_t leftover_size = leftover * sizeof(float);
 
@@ -212,7 +212,7 @@ int32_t qhmath_hvx_dequantize_af(
     HVX_Vector one_vec;
 
     int32_t block, l2fetch_block;
-    int32_t leftover = size & 128;
+    int32_t leftover = size & 127;
     int32_t vectors_in_rounddown = size / 128;
     // int32_t leftover_size = leftover * sizeof(float);
 
