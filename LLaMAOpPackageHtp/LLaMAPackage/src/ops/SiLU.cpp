@@ -81,7 +81,7 @@ DEF_PACKAGE_OP((siluImpl<Tensor>), "SiLU")
 
 
 /* execute functions for ops */
-#ifndef REFERENCE_OP
+#ifdef REFERENCE_OP
 /**=============================================================================
 @file
     qhmath_hvx_sigmoid_af.c
@@ -951,7 +951,7 @@ GraphStatus siluImpl(TensorType& out_0,
    * Please check in SDK documentation for more information.
    */
 
-#ifdef REFERENCE_OP
+#ifndef REFERENCE_OP
    debuglog("silu execute... inval=(%d)", in_0.get_dtype()); 
    debuglog("silu execute... inval=(%d)", out_0.get_dtype()); 
    
