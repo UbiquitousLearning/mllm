@@ -19,6 +19,16 @@
 #include "Tensor.hpp"
 
 namespace mllm {
+
+struct LlmTextGeneratorOpts {
+    size_t max_new_tokens = 100;
+    size_t min_new_tokens = 10;
+    bool do_sample = true;
+    float temperature = 0.7;
+    int top_k = 5;
+    float top_p = 0.92;
+};
+
 template <typename T>
 T _sample_element(const std::vector<T> &elements, const std::vector<float> &probabilities) {
     std::random_device rd;
@@ -98,18 +108,38 @@ private:
     float m_temperature = 0.f;
 };
 
+// Usage:
+// LlmTextGeneratorOpts opt{
+//     .max_new_tokens = 100,
+//     .do_sample = true,
+//     .temperature = 0.7f,
+//     .top_k = 50,
+//     .top_p = 0.f,
+// };
+// model.generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
+//     auto out_string = tokenizer.detokenize({out_token});
+//     auto [isOk, print_string] = processOutput(out_string);
+//     if (isOk) {
+//         std::cout << print_string << std::flush;
+//     } else {
+//         return false;
+//     }
+//     return true;
+// });
+// printf("\n");
+
 class LlmTextGenerator {
 public:
     ~LlmTextGenerator() {
         delete m_method_class;
     }
 
-    LlmTextGenerator(const LLmTextGeneratorType &type, int32_t k = 5, float temperature = 0.f, float p = 0.f) :
+    LlmTextGenerator(const LLmTextGeneratorType &type, const LlmTextGeneratorOpts &opt) :
         m_type(type) {
         switch (type) {
         case LLmTextGeneratorType::kGreedySearch: m_method_class = new _LlmTextGenerateGreedySearchMethod(); break;
-        case LLmTextGeneratorType::kTopkSampling: m_method_class = new _LlmTextGenerateTopkSamplingMethod(k, temperature); break;
-        case LLmTextGeneratorType::kToppSampling: m_method_class = new _LlmTextGenerateToppSamplingMethod(p, temperature); break;
+        case LLmTextGeneratorType::kTopkSampling: m_method_class = new _LlmTextGenerateTopkSamplingMethod(opt.top_k, opt.temperature); break;
+        case LLmTextGeneratorType::kToppSampling: m_method_class = new _LlmTextGenerateToppSamplingMethod(opt.top_p, opt.temperature); break;
         default:
             assert(false && "NIY");
             break;
@@ -118,6 +148,10 @@ public:
 
     inline unsigned int generate(Tensor &t) {
         return m_method_class->generate(t);
+    }
+
+    inline LLmTextGeneratorType type() {
+        return m_type;
     }
 
 private:
