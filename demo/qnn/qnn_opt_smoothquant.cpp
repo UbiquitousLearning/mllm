@@ -261,7 +261,9 @@ int main(int argc, char **argv) {
                 if (token_idx == 2) { // "</s>"
                     break;
                 }
-                auto out_token = tokenizer.detokenize({token_idx});
+                auto qwen_tokenizer = QWenTokenizer(vocab_path, merge_file_path);
+                
+                auto out_token = qwen_tokenizer.detokenize({token_idx});
                 std::cout << "decode output token id: " << token_idx << std::endl;
                 std::cout << out_token << std::flush;
                 answers.push_back(out_token);
