@@ -23,6 +23,9 @@ public:
     int getCacheSeqLen() override{
         return cache_seq_len_;
     }
+    void clearCache() override{
+        cache_seq_len_ = 0 ;
+    }
 
 private:
     int thread_count = 4;
