@@ -52,19 +52,24 @@ int main(int argc, char **argv) {
         auto input_tensor = tokenizer.tokenize(in_str, i);
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
-        for (int step = 0; step < 100; step++) {
-            auto result = model({input_tensor});
-            auto outputs = tokenizer.detokenize(result[0]);
-            auto out_string = outputs.first;
-            auto out_token = outputs.second;
+
+        LlmTextGeneratorOpts opt{
+            .max_new_tokens = 100,
+            .do_sample = true,
+            .temperature = 0.3f,
+            .top_k = 50,
+            .top_p = 0.f,
+        };
+        model.generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
+            auto out_string = tokenizer.detokenize({out_token});
             auto [isOk, print_string] = processOutput(out_string);
             if (isOk) {
                 std::cout << print_string << std::flush;
             } else {
-                break;
+                return false;
             }
-            chatPostProcessing(out_token, input_tensor, {});
-        }
+            return true;
+        });
         printf("\n");
     }
 }
