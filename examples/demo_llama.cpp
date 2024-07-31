@@ -13,7 +13,7 @@ using namespace mllm;
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/llama_vocab.mllm");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/llama-2-7b-chat-q4_k.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/llama-2-7b-chat-q4_0_4_4.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -32,7 +32,8 @@ int main(int argc, char **argv) {
     vector<string> in_strs = {
         " Hello, who are you?",
         " What can you do?",
-        "Please introduce Beijing University of Posts and Telecommunications."};
+        "Please introduce Beijing University of Posts and Telecommunications."
+        };
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto in_str = in_strs[i];
@@ -51,6 +52,7 @@ int main(int argc, char **argv) {
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");
+        model.profiling();
     }
 
     return 0;

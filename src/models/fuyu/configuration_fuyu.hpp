@@ -40,6 +40,8 @@ public:
     int patch_size{};
     int chl_size{};
     int cache_limit{};
+    float rope_theta;
+    int max_position_embeddings;
 
     FuyuNameConfig name_config;
 
@@ -53,6 +55,8 @@ public:
             block_num = 36;
             patch_size = 30;
             chl_size = 3;
+            max_position_embeddings= 16384;
+            rope_theta = 25000;
         } else {
             throw std::runtime_error("Unsupported model size");
         }

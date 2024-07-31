@@ -118,9 +118,10 @@ NetTensor *Attention(Context *c,NetTensor *x, int embedding_size, int hidden_siz
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
     qk = *qk/std::sqrt(hidden_size);
     if(name.find("text") != std::string::npos){
-        qk = _Causalmask( {qk}, name + ".mask");
+        qk = _Softmax( {qk}, DIMENSION, true, name + ".softmax");
+    } else{
+        qk = _Softmax( {qk}, DIMENSION, false, name + ".softmax");
     }
-    qk = _Softmax( {qk}, DIMENSION, name + ".softmax");
     auto *o = _Matmul( {qk, v}, false, false, name + ".qkv");
     o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _Linear( {o}, hidden_size * head_size, embedding_size, true, name + ".out_proj");
@@ -227,10 +228,10 @@ void ImageBind(Context* c) {
     a = a->transpose(BATCH, SEQUENCE);
 
     auto *j1 = _Matmul( {p, i}, false, true, "final.vision@text");
-    j1 = _Softmax( {j1}, DIMENSION, "final.vision@text.softmax");
+    j1 = _Softmax( {j1}, DIMENSION, false, "final.vision@text.softmax");
 
      auto *j2 = _Matmul( {p, a}, false, true, "final.vision@audio");
-    j2 = _Softmax( {j2}, DIMENSION, "final.vision@audio.softmax");
+    j2 = _Softmax( {j2}, DIMENSION, false, "final.vision@audio.softmax");
 
     i = _Cat( {j1, j2}, BATCH, "final.cat");
 }

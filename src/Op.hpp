@@ -3,7 +3,9 @@
 // #define DEBUGPRINT
 #include "Tensor.hpp"
 #include "Types.hpp"
+#include <cassert>
 #include <functional>
+#include <iostream>
 #include "ParamLoader.hpp"
 #include "Timing.hpp"
 using std::function;
@@ -113,7 +115,13 @@ public:
         type_ = type;
     }
 
-protected:
+    virtual int getCacheSeqLen(){
+        assert(type_ == OpType::KVCACHE);
+        std::cout << "only for KVCache" << std::endl;
+        return -1;
+    }
+
+private:
     Backend *backend_;
     vector<Tensor *> inputs_;
     vector<Tensor *> outputs_;

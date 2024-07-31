@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-1.5-0.5b-q4_k.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-1.5-1.8b-q8_0.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
-    QWenConfig config(tokens_limit, "0.5B", RoPEType::HFHUBROPE);
+    QWenConfig config(tokens_limit, "1.8B", RoPEType::HFHUBROPE);
     auto model = QWenForCausalLM(config);
     model.load(model_path);
 
@@ -52,19 +52,24 @@ int main(int argc, char **argv) {
         auto input_tensor = tokenizer.tokenize(in_str, i);
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
-        for (int step = 0; step < 100; step++) {
-            auto result = model({input_tensor});
-            auto outputs = tokenizer.detokenize(result[0]);
-            auto out_string = outputs.first;
-            auto out_token = outputs.second;
+
+        LlmTextGeneratorOpts opt{
+            .max_new_tokens = 100,
+            .do_sample = true,
+            .temperature = 0.3f,
+            .top_k = 50,
+            .top_p = 0.f,
+        };
+        model.generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
+            auto out_string = tokenizer.detokenize({out_token});
             auto [isOk, print_string] = processOutput(out_string);
             if (isOk) {
                 std::cout << print_string << std::flush;
             } else {
-                break;
+                return false;
             }
-            chatPostProcessing(out_token, input_tensor, {});
-        }
+            return true;
+        });
         printf("\n");
     }
 }

@@ -21,6 +21,11 @@ endif ()
 
 if (ARM)
     set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin-arm)
+    add_compile_definitions(__ARM_FEATURE_DOTPROD)
+    # 检查是否使用的是 GCC 或 Clang 编译器
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8.2-a+dotprod")
+    endif()
 else ()
     set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
 endif ()
@@ -113,7 +118,8 @@ endif ()
 if (QUANT)
     include_directories(${PROJECT_SOURCE_DIR}/src/quantizer)
     file(GLOB_RECURSE MLLM_QUANT
-
+            ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GEMM_AArch64.hpp
+            ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GEMM_AArch64.cpp
             ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.hpp
             ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
     )

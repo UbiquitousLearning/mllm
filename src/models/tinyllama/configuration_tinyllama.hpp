@@ -19,6 +19,8 @@ public:
     RoPEType RoPE_type;
     int cache_limit{};
     LLaMANameConfig names_config;
+    float rope_theta;
+    int max_position_embeddings;
 
     explicit TinyLLaMAConfig(int token_limit, string billions = "1.5B", RoPEType type = HFHUBROPE, int vocab = 32000) {
         names_config.init(type);
@@ -29,6 +31,8 @@ public:
             kv_head_size = 4;
             ffn_hidden = 5632;
             block_num = 22;
+            max_position_embeddings= 16384;
+            rope_theta = 10000;
         } else {
             throw std::runtime_error("Unsupported model size");
         }

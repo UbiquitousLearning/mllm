@@ -18,7 +18,7 @@ class ImagebindProcessor final {
         const auto bsize = static_cast<int>(tokens.size());
         Tensor tensor1(bsize, 1, max_pos, 1, Module::backends[type], true);
         tensor1.setName(name);
-        tensor1.status() = TENSOR_STATIC_INIT;
+        Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);
         for (int b = 0; b < bsize; ++b) {
             for (int idx = 0; idx < max_pos; ++idx) {
@@ -40,7 +40,7 @@ class ImagebindProcessor final {
         tensor1.setDtype(MLLM_TYPE_F32);
         tensor1.alloc();
         tensor1.setName(std::move(name));
-        tensor1.status() = TENSOR_STATIC_INIT;
+        Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);
         for (int bi = 0; bi < imgs.size(); ++bi) {
             for (int t = 0; t < 2; ++t) {
@@ -69,7 +69,7 @@ class ImagebindProcessor final {
 
         Tensor tensor1(batch, height, channel, width, Module::backends[type], true);
         tensor1.setName(std::move(name));
-        tensor1.status() = TENSOR_STATIC_INIT;
+        Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);
 
         for (int bi = 0; bi < audio_new.size(); ++bi) {

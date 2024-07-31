@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <cmath>
 #include <fstream>
+#include <map>
 #include <memory>
 #include <vector>
 #ifdef _WIN32
@@ -74,10 +75,8 @@ public:
     */
     static map<string, shared_ptr<Tensor>> graphs;
     static TensorStatus tensor_status;
-
-    std::map<Chl, int>& chls() {
-        return chls_;
-    }
+    // static double forward_times;
+    // static double forward_times_2;
 private:
     std::map<Chl, int> chls_={{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3},
                                 {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
@@ -94,9 +93,6 @@ private:
     int count_{};
     int allocated_ = 0;
     bool transed_ = false;
-
-    TensorStatus status_ = TENSOR_STATIC_INIT;
-    // map<string, Tensor> graphs;
 
     // used for ChildTensor
     vector<int> shape_offset_;
@@ -183,7 +179,9 @@ public:
      *        no matter what the value of ctype_ is, these functions will return the size of the corresponding dimension.
      * \return the size of the corresponding dimension
      */
-
+    std::map<Chl, int>& chls() {
+        return chls_;
+    }
     /*
     int batch() const {
         if (ctype_ == SBHD) {
@@ -345,6 +343,59 @@ public:
                 }
             }
             return offset;
+        }
+    }
+
+    int memshape(int index) const {
+        if(master_tensor_) {
+            if(master_tensor_->master_tensor_) {
+                return master_tensor_->master_tensor_->shape_[index];
+            }else {
+                return master_tensor_->shape_[index];
+            }
+        }else{
+            return shape(index);
+        }
+    }
+    int sequence_skip_dim() const {
+        if(master_tensor_) {
+            if(master_tensor_->master_tensor_) {
+                auto shape = master_tensor_->master_tensor_->shape_;
+                if (master_tensor_->master_tensor_->ctype_ == BSHD) {
+                    return shape[3]*shape[2];
+                } else if (master_tensor_->master_tensor_->ctype_ == BHDS) {
+                    return shape[3];
+                } else {
+                    std::cout << "sequence_skip_dim() only support for BSHD and BHDS" << std::endl;
+                    return -1;
+                }                
+            }else {
+                auto shape = master_tensor_->shape_;
+                 if (master_tensor_->ctype_ == BSHD) {
+                    return shape[3]*shape[2];
+                } else if (master_tensor_->ctype_ == BHDS) {
+                    return shape[3];
+                } else {
+                    std::cout << "sequence_skip_dim() only support for BSHD and BHDS" << std::endl;
+                    return -1;
+                }
+            }
+        }else{
+            if (ctype_ == BSHD) {
+                return shape_[3]*shape_[2];
+            } else if (ctype_ == BHDS) {
+                return shape_[3];
+            } else if (ctype_ == BDHS) {
+                return shape_[3]*shape_[2];
+            } else if (ctype_ == DBHS) {
+                return shape_[3]*shape_[2];
+            } else if (ctype_ == SBHD) {
+                return shape_[3]*shape_[2];
+            } else {
+                std::cout << "sequence_skip_dim() only support for BSHD and BHDS" << std::endl;
+                return -1;
+            }
+            // return shape_[3]*shape_[2];
         }
     }
 
@@ -683,11 +734,7 @@ public:
     }
 
     map<string, shared_ptr<Tensor>> getGraph() {
-        return graphs;
-    }
-
-    TensorStatus& status() {
-        return status_;
+        return  graphs;
     }
 
     void changeCtype(int size = 0) {
@@ -1280,8 +1327,7 @@ public:
 
     template <typename Dtype>
     void saveNData(string new_name = "", string ex = "") {
-        // if (status() == TENSOR_STATIC_ALLOCED || (TENSOR_STATIC_SHAPED == status()&& shape().size()>0)) {
-        if (status() == TENSOR_STATIC_READY && shape().size()>0) {
+        if (Tensor::tensor_status == TENSOR_STATIC_READY && shape().size()>0) {
             if (ctype() == BTHWC || ctype() == BCTHW) {
                 save5Data<Dtype>(ex);
                 return;

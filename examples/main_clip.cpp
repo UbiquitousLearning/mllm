@@ -45,9 +45,11 @@ NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
     qk = _Scale( {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
     if(name.find("text_model") != std::string::npos){
-        qk = _Causalmask( {qk}, name + ".mask");
+        // qk = _Causalmask( {qk}, name + ".mask");
+        qk = _Softmax( {qk}, DIMENSION, true, name + ".softmax");
+    } else{
+        qk = _Softmax( {qk}, DIMENSION, false, name + ".softmax");
     }
-    qk = _Softmax( {qk}, DIMENSION, name + ".softmax");
     auto *o = _Matmul( {qk, v}, false, false, name + ".qkv");
     o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _Linear( {o}, hidden_size * head_size, embedding_size, true, name + ".out_proj");

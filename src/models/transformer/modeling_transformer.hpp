@@ -5,6 +5,7 @@
 #ifndef MODELING_TRANSFORMER_HPP
 #define MODELING_TRANSFORMER_HPP
 
+#include "Layer.hpp"
 #include "configuration_transformer.hpp"
 
 using namespace mllm;
@@ -27,10 +28,9 @@ class MultiHeadAttention final : public Module {
     Layer k_rope;
     Layer q_norm;
     Layer k_norm;
-    Layer k_cache;
-    Layer v_cache;
-    Layer mask;
-    Layer softmax;
+    KVCache k_cache;
+    KVCache v_cache;
+    Softmax softmax;
     Layer o_proj;
     Parameter bias_k;
     Parameter bias_v;
@@ -42,7 +42,8 @@ public:
     MultiHeadAttention() = default;
     MultiHeadAttention(int hidden_dim, int head_size,int kv_head_size, int attn_hidden_dim,
                        AttnQKVSplitType do_qkv_proj, bool post_qkv_norm, bool bias_kv_cat,
-                       RoPEType RoPE_type, int cache_limit, bool do_mask, bool bias,
+                       RoPEType RoPE_type, float rope_theta, int max_position_embeddings, 
+                       int cache_limit, bool do_mask, bool bias,
                        const TransformerNameConfig &names, const string &base_name) {
         attn_hidden_dim_ = attn_hidden_dim;
         head_size_ = head_size;
@@ -60,17 +61,14 @@ public:
             k_norm = LayerNorm(attn_hidden_dim, true, 1e-6, base_name + names._k_norm_name);
         }
         if (RoPE_type > 0) {
-            q_rope = RoPE(RoPE_type, base_name + "q_rope");
-            k_rope = RoPE(RoPE_type, base_name + "k_rope");
+            q_rope = RoPE(RoPE_type, rope_theta, max_position_embeddings, base_name + "q_rope");
+            k_rope = RoPE(RoPE_type, rope_theta, max_position_embeddings, base_name + "k_rope");
         }
         if (cache_limit > 0) {
             k_cache = KVCache(head_size/kv_head_size, cache_limit, base_name + "k_cache");
             v_cache = KVCache(head_size/kv_head_size, cache_limit, base_name + "v_cache");
         }
-        if (do_mask) {
-            mask = Causalmask(base_name + "mask");
-        }
-        softmax = Softmax(DIMENSION, base_name + "softmax");
+        softmax = Softmax(DIMENSION, do_mask, base_name + "softmax");
         o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, bias, base_name + names._o_proj_name);
         if (bias_kv_cat) {
             bias_k = Parameter(1, 1, head_size, attn_hidden_dim, base_name + "bias_k");
@@ -112,10 +110,11 @@ public:
         k = k.transpose(SEQUENCE, DIMENSION);
         auto qk = Tensor::mm(q, k);
         qk = qk / std::sqrt(attn_hidden_dim_);
-        if (mask.ready()) {
-            qk = mask(qk);
+        if (k_cache.ready() && v_cache.ready()) {
+            qk = softmax(qk, k_cache.getCacheSeqLen());          
+        }else{
+            qk = softmax(qk);
         }
-        qk = softmax(qk);
         auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
         o = o_proj(o);

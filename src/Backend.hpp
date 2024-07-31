@@ -15,8 +15,8 @@ class Backend;
 
 class TensorFunction {
 public:
-    virtual void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) = 0;
-    virtual void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) = 0;
+    virtual void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args)=0;
+    virtual void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args)=0;
 };
 class Backend {
 public:
