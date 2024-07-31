@@ -194,6 +194,14 @@ if (TEST)
     endif ()
 endif ()
 
+# find re2 and abseil
+set(ABSL_ENABLE_INSTALL ON)
+set(ABSL_PROPAGATE_CXX_STD ON)
+add_subdirectory(third_party/abseil-cpp)
+add_subdirectory(third_party/re2)
+include_directories(${PROJECT_SOURCE_DIR}/third_party/re2)
+include_directories(${PROJECT_SOURCE_DIR}/third_party/abseil-cpp)
+
 # else ()
 # No Unit Test.
 add_executable(main_llama ${PROJECT_SOURCE_DIR}/examples/main_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
@@ -486,8 +494,10 @@ add_executable(demo_qwen ${PROJECT_SOURCE_DIR}/examples/demo_qwen.cpp ${DIR_SRC_
 if (ARM AND NOT APK)
     target_compile_options(demo_qwen PRIVATE -fopenmp)
     target_link_libraries(demo_qwen PUBLIC MLLM_CPU -fopenmp -static-openmp)
+    target_link_libraries(demo_qwen PRIVATE re2::re2)
 else ()
     target_link_libraries(demo_qwen PUBLIC MLLM_CPU)
+    target_link_libraries(demo_qwen PRIVATE re2::re2)
 endif ()
 
 add_executable(demo_mistral ${PROJECT_SOURCE_DIR}/examples/demo_mistral.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}

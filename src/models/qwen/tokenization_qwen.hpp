@@ -18,6 +18,9 @@
 // unicode
 #include <codecvt>
 
+// regex
+#include <re2/re2.h>
+
 using namespace mllm;
 
 #define UTF8(x) any_to_utf8(x)
@@ -45,12 +48,16 @@ static std::vector<int> __ord(std::string v) {
 }
 
 static const std::string PAT_STR = R"((?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?:$|[^\S])|\s+)";
+static const std::string SPLIT_PAT_STR = R"(<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>)";
 
 class QWenTokenizer final {
 public:
-    explicit QWenTokenizer(const std::string &vocab_file, const std::string &merge_file) {
+    explicit QWenTokenizer(const std::string &vocab_file, const std::string &merge_file, bool split_special_tokens = false) :
+        split_special_tokens_(split_special_tokens) {
         Module::initBackend(MLLM_CPU);
         tokenizer = new BPETokenizer(vocab_file);
+
+        regex_ = std::make_unique<re2::RE2>("(" + PAT_STR + ")");
 
         // init byte encoder
         std::vector<int> bs;
@@ -114,28 +121,95 @@ public:
         return elems;
     }
 
+    std::vector<std::string> _splitWithDelimiters(const std::string &str, const std::vector<std::string> &delimiters) {
+        std::string s = str;
+        std::vector<std::string> result;
+        size_t pos = 0;
+        auto isDelimiter = [&](size_t currentPos) {
+            for (const auto &delimiter : delimiters) {
+                if (currentPos + delimiter.length() <= s.length() && s.substr(currentPos, delimiter.length()) == delimiter) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        while (pos < s.length()) {
+            if (isDelimiter(pos)) {
+                if (pos != 0) {
+                    result.push_back(s.substr(0, pos));
+                }
+                size_t delimiterLength = delimiters.front().length();
+                for (const auto &delimiter : delimiters) {
+                    if (s.substr(pos, delimiter.length()) == delimiter) {
+                        delimiterLength = delimiter.length();
+                        result.push_back(delimiter);
+                        break;
+                    }
+                }
+                pos += delimiterLength;
+                s = s.substr(pos);
+                pos = 0;
+            } else {
+                ++pos;
+            }
+        }
+
+        if (!s.empty()) {
+            result.push_back(s);
+        }
+
+        return result;
+    }
+
     Tensor tokenize(std::string &text, int str_i = 0) {
         std::vector<token_id_t> ret;
 
-        auto splited = stringSplit(text, ' ');
-        if (text[0] == ' ') splited[0] = " " + splited[0];
-        for (auto piece : splited) {
-            // look up table
-            std::string token;
-            for (auto b : UTF8(piece)) token += byte_encoder_[b];
+        if (split_special_tokens_) {
+            re2::StringPiece input(text);
+            std::string piece;
+            while (re2::RE2::FindAndConsume(&input, *regex_, &piece)) {
+                // look up table
+                std::string token;
+                for (auto b : UTF8(piece)) token += byte_encoder_[b];
 
-            // using bpe
-            std::vector<token_id_t> tmp;
-            tokenizer->tokenize(token, tmp, /*bos*/ false, /*byte fallback*/ true, "");
+                // using bpe
+                std::vector<token_id_t> tmp;
+                tokenizer->tokenize(token, tmp, false, true, "");
+                ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+            }
+        } else {
+            auto parts = _splitWithDelimiters(text, special_tokens);
+            // for (auto p : parts) {
+            //     std::cout << "\"" << p << "\"" << std::endl;
+            // }
+            for (auto &p : parts) {
+                if (std::find(special_tokens.begin(), special_tokens.end(), p) != special_tokens.end()) {
+                    std::string token;
+                    for (auto b : UTF8(p)) token += byte_encoder_[b];
+                    std::vector<token_id_t> tmp;
+                    tokenizer->tokenize(token, tmp, false, special_tokens, true);
+                    ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+                } else {
+                    re2::StringPiece input(p);
+                    std::string piece;
+                    while (re2::RE2::FindAndConsume(&input, *regex_, &piece)) {
+                        // look up table
+                        std::string token;
+                        for (auto b : UTF8(piece)) token += byte_encoder_[b];
 
-            ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+                        // using bpe
+                        std::vector<token_id_t> tmp;
+                        tokenizer->tokenize(token, tmp, false, true, "");
+                        ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+                    }
+                }
+            }
         }
-        // FIXME if we need bos or not?
-        ret.insert(ret.begin(), bos_id_);
+
         return Tokenizer::tokens2Input(ret);
     }
 
-    // FIXME std::string += std::string has performance issues when string is large.
     std::string _byte_decode_(const std::string &text) {
         std::string ret;
         auto _ = ORD(text);
@@ -168,11 +242,18 @@ private:
     }
 
 public:
+    bool split_special_tokens_ = false;
+    std::unique_ptr<re2::RE2> regex_;
     BPETokenizer *tokenizer;
     std::unordered_map<int, std::string> byte_encoder_;
     std::unordered_map<std::string, int> byte_decoder_;
     std::unordered_map<std::string, unsigned int> bpe_ranks_;
     token_id_t eos_id_ = 151645, bos_id_ = 151643;
+    std::vector<std::string> special_tokens = {
+        "<|endoftext|>",
+        "<|im_start|>",
+        "<|im_end|>",
+    };
 };
 
 #undef UTF8

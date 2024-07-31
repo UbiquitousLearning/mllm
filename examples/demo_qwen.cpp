@@ -11,11 +11,12 @@
 #include "models/qwen/configuration_qwen.hpp"
 #include "models/qwen/modeling_qwen.hpp"
 #include "models/qwen/tokenization_qwen.hpp"
-#include "processor/PostProcess.hpp"
 
 using namespace mllm;
 
 int main(int argc, char **argv) {
+    // std::iostream::sync_with_stdio(false);
+
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen_merges.txt");
@@ -31,15 +32,20 @@ int main(int argc, char **argv) {
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
-    QWenConfig config(tokens_limit, "1.8B", RoPEType::HFHUBROPE);
+    QWenConfig config(tokens_limit, "0.5B", RoPEType::HFHUBROPE);
     auto model = QWenForCausalLM(config);
     model.load(model_path);
 
     vector<string> in_strs = {
         " Hello, who are you?",
-        " What can you do?",
+        "<|im_start|> <|im_end|> What can you do?",
+        "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\nGive me a short introduction to large language model.<|im_end|>\n<|im_start|> assistant\n\n",
         "Please introduce Beijing University of Posts and Telecommunications.",
     };
+
+    auto input_tensor = tokenizer.tokenize(in_strs[2]);
+    input_tensor.printData<float>();
+    exit(0);
 
     auto processOutput = [&](std::string &text) -> std::pair<bool, std::string> {
         if (text == "<|im_start|>" || text == "<|im_end|>" || text == "<unk>") return {true, ""};
@@ -70,6 +76,6 @@ int main(int argc, char **argv) {
             }
             return true;
         });
-        printf("\n");
+        std::cout << "\n";
     }
 }
