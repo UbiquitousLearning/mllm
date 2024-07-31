@@ -84,7 +84,7 @@ DEF_PACKAGE_PARAM_ORDER("LLaMADequantize",
                         true,
                         nullptr)
 
-#ifndef REFERENCE_OP
+#ifdef REFERENCE_OP
 /* execute functions for ops */
 #include "qhmath_hvx.h"
 #include "hvx_internal.h"
@@ -130,7 +130,7 @@ int32_t qhmath_hvx_dequantize_ahf(
     HVX_Vector scale_vec;
 
     int32_t block, l2fetch_block;
-    // int32_t leftover = size & 31;
+    int32_t leftover = size & 128;
     int32_t vectors_in_rounddown = size / 128;  // element number!
     // int32_t leftover_size = leftover * sizeof(float);
 
@@ -171,9 +171,28 @@ int32_t qhmath_hvx_dequantize_ahf(
         }
     }
 
+    if (vectors_in_rounddown > 0) {
+
+        sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
+        sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+
+        HVX_VectorPair temp = Q6_Wh_vadd_VubVub(sline1, zero_v_sf);
+
+        temp = Q6_W_vshuff_VVR(Q6_V_hi_W(temp), Q6_V_lo_W(temp), -2);
+        HVX_Vector sout1 = Q6_Vh_vsub_VhVh(Q6_V_lo_W(temp), convert_vector);
+        HVX_Vector sout2 = Q6_Vh_vsub_VhVh(Q6_V_hi_W(temp), convert_vector);
+
+
+        *optr++ =  Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), scale_vec));
+        *optr++ =  Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout2), scale_vec));
+
+    }
+
+
     return 0;
 }
 
+// Only support 128x dimension 
 int32_t qhmath_hvx_dequantize_af(
     int8_t *restrict input,
     int8_t *restrict output,
@@ -193,7 +212,7 @@ int32_t qhmath_hvx_dequantize_af(
     HVX_Vector one_vec;
 
     int32_t block, l2fetch_block;
-    // int32_t leftover = size & 31;
+    int32_t leftover = size & 128;
     int32_t vectors_in_rounddown = size / 128;
     // int32_t leftover_size = leftover * sizeof(float);
 
@@ -241,6 +260,30 @@ int32_t qhmath_hvx_dequantize_af(
 
             sline1p = sline1c;
         }
+    }
+
+    if (vectors_in_rounddown > 0) {
+
+        sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
+        sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+
+        HVX_VectorPair temp = Q6_Wh_vadd_VubVub(sline1, zero_v_sf);
+
+        temp = Q6_W_vshuff_VVR(Q6_V_hi_W(temp), Q6_V_lo_W(temp), -2);
+        HVX_Vector sout1 = Q6_Vh_vsub_VhVh(Q6_V_lo_W(temp), convert_vector);
+        HVX_Vector sout2 = Q6_Vh_vsub_VhVh(Q6_V_hi_W(temp), convert_vector);
+
+        HVX_VectorPair result1 = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), one_vec);
+        result1 = Q6_W_vshuff_VVR(Q6_V_hi_W(result1), Q6_V_lo_W(result1), -4);
+
+        HVX_VectorPair result2 = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout2), one_vec);
+        result2 = Q6_W_vshuff_VVR(Q6_V_hi_W(result2), Q6_V_lo_W(result2), -4);
+
+        *optr++ =  Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result1), scale_vec));
+        *optr++ =  Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result1), scale_vec));
+        *optr++ =  Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result2), scale_vec));
+        *optr++ =  Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result2), scale_vec));
+
     }
 
     return 0;
