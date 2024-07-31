@@ -250,6 +250,12 @@ public:
         // std::cout<<Tensor::forward_times<< " - "<<Tensor::forward_times_2<<" = "<<Tensor::forward_times-Tensor::forward_times_2<<std::endl;
 
         std::cout << "===========================================" << std::endl;
+
+
+        prefilling_token_size_=0;
+        decoding_token_size_=0;
+        inference_times_.clear();
+        last_shape_bshd_.clear();
     }
 };
 
