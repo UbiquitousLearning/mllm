@@ -83,7 +83,7 @@ DEF_PACKAGE_OP((rmsnormImpl<Tensor>), "RMSNorm")
 
 /* execute functions for ops */
 
-#ifndef REFERENCE_OP
+#ifdef REFERENCE_OP
 
 #include "qhmath_hvx.h"
 #include "hvx_internal.h"
@@ -150,7 +150,7 @@ int32_t hvx_rmsnorm_af(
 
     }
 
-    float epsilon_ = 1e-5;
+    float epsilon_ = 1e-6;
     union {
       float f;
       uint32_t ui;
