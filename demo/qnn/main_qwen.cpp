@@ -54,10 +54,10 @@ void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dty
 }
 
 NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name) {
-    auto *q = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
+    auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
 
-    auto *k = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
-    auto *v = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
+    auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
+    auto *v = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
 
     q = q->view(-1, head_size, -1, hidden_size);
     k = k->view(-1, head_size, -1, hidden_size);
@@ -77,15 +77,15 @@ NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
 
     o = o->view(-1, 1, -1, hidden_size * head_size);
-    o = _Linear({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
+    o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
     return o;
 }
 NetTensor *FFN(NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
-    auto *x = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
+    auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
     x = _SiLU({x}, name + ".silu");
-    auto *y = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
+    auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
     x = *x * y; // x = _Mul( {x, y}, name+".dot");
-    x = _Linear({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
+    x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
     return x;
 }
 void qwen_model(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200) {
@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
 
     cmdParser.parse_check(argc, argv);
 
-    const string cpu_model_path = "./models/qwen-1.8b-chat-q4k-fp32.mllm";
+    const string cpu_model_path = "./models/Qwen1.5-1.8B-Chat_152_int8_biasint8_ns.mllm";
     const string merge_file_path = "./vocab/merges-qwen.txt";
 
     string vocab_path = cmdParser.get<string>("vocab");

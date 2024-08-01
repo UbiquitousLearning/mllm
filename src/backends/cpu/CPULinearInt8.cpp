@@ -47,6 +47,7 @@ ErrorCode CPULinearInt8::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, out_features_, in_features_);
     if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
+        std::cout << "load weight: " << loader.getDataType(weight_.name()) <<  std::endl;
         weight_.setDtype(loader.getDataType(weight_.name()));
         weight_.alloc();
         loader.load(&weight_);
