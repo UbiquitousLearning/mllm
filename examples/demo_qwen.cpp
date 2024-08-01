@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
-    QWenConfig config(tokens_limit, "1.8B", RoPEType::HFHUBROPE);
+    QWenConfig config(tokens_limit, "0.5B", RoPEType::HFHUBROPE);
     auto model = QWenForCausalLM(config);
     model.load(model_path);
 

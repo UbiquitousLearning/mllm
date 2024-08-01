@@ -12,14 +12,12 @@
 
 #include "tokenizers/BPE/Bpe.hpp"
 #include "tokenizers/Tokenizer.hpp"
+#include "tokenizers/Unicode.hpp"
 #include <algorithm>
 #include <unordered_map>
 
 // unicode
 #include <codecvt>
-
-// regex
-#include <re2/re2.h>
 
 using namespace mllm;
 
@@ -49,6 +47,9 @@ static std::vector<int> __ord(std::string v) {
 
 static const std::string PAT_STR = R"((?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?:$|[^\S])|\s+)";
 static const std::string SPLIT_PAT_STR = R"(<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>)";
+static const std::vector<std::string> FIXED_PAT_STRS = {
+    "(?:'[sS]|'[tT]|'[rR][eE]|'[vV][eE]|'[mM]|'[lL][lL]|'[dD])|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+",
+};
 
 class QWenTokenizer final {
 public:
@@ -56,8 +57,6 @@ public:
         split_special_tokens_(split_special_tokens) {
         Module::initBackend(MLLM_CPU);
         tokenizer = new BPETokenizer(vocab_file);
-
-        regex_ = std::make_unique<re2::RE2>("(" + PAT_STR + ")");
 
         // init byte encoder
         std::vector<int> bs;
@@ -166,16 +165,15 @@ public:
         std::vector<token_id_t> ret;
 
         if (split_special_tokens_) {
-            re2::StringPiece input(text);
-            std::string piece;
-            while (re2::RE2::FindAndConsume(&input, *regex_, &piece)) {
+            const auto word_collection = unicode_regex_split(text, FIXED_PAT_STRS);
+            for (auto &piece : word_collection) {
                 // look up table
-                std::string token;
-                for (auto b : UTF8(piece)) token += byte_encoder_[b];
+                // std::string token;
+                // for (auto b : UTF8(piece)) token += byte_encoder_[b];
 
                 // using bpe
                 std::vector<token_id_t> tmp;
-                tokenizer->tokenize(token, tmp, false, true, "");
+                tokenizer->tokenize(piece, tmp, false, true, "");
                 ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
             }
         } else {
@@ -187,20 +185,21 @@ public:
                 if (std::find(special_tokens.begin(), special_tokens.end(), p) != special_tokens.end()) {
                     std::string token;
                     for (auto b : UTF8(p)) token += byte_encoder_[b];
+
                     std::vector<token_id_t> tmp;
                     tokenizer->tokenize(token, tmp, false, special_tokens, true);
                     ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
                 } else {
-                    re2::StringPiece input(p);
-                    std::string piece;
-                    while (re2::RE2::FindAndConsume(&input, *regex_, &piece)) {
+                    const auto word_collection = unicode_regex_split(p, FIXED_PAT_STRS);
+                    for (auto &piece : word_collection) {
                         // look up table
-                        std::string token;
-                        for (auto b : UTF8(piece)) token += byte_encoder_[b];
+                        // std::string token;
+                        // for (auto b : UTF8(piece)) token += byte_encoder_[b];
 
                         // using bpe
                         std::vector<token_id_t> tmp;
-                        tokenizer->tokenize(token, tmp, false, true, "");
+                        tokenizer->tokenize(piece, tmp, false, true, "");
+                        assert(tmp.size() != 0);
                         ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
                     }
                 }
@@ -243,7 +242,6 @@ private:
 
 public:
     bool split_special_tokens_ = false;
-    std::unique_ptr<re2::RE2> regex_;
     BPETokenizer *tokenizer;
     std::unordered_map<int, std::string> byte_encoder_;
     std::unordered_map<std::string, int> byte_decoder_;
