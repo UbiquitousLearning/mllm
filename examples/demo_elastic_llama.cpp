@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
-            float ratio = 0.25; //-1
+            float ratio = -1;//0.25; //
             vector<vector<int>> activate_dims = {
                                         {(int)(32*128*ratio),(int)(11008*ratio)}, //0
                                         {(int)(32*128*ratio),(int)(11008*ratio)}, //1
