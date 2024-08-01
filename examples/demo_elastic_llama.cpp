@@ -41,42 +41,40 @@ int main(int argc, char **argv) {
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
-            // vecor<vector<int>> activate_dims = {{32*8,256}}; 
-            // 32*8 is attn_head*attn_hidden_dim(e.g. llama:32*128); 256 is ffn_hidden_dim(e.g. llama:11008) 
+            float ratio = 0.25; //-1
             vector<vector<int>> activate_dims = {
-                                        // {(int)(32*128*0.5),(int)(11008*0.5)},  //0
-                                        {-1,-1}, //0
-                                        {-1,-1}, //1
-                                        {-1,-1}, //2
-                                        {-1,-1}, //3
-                                        {-1,-1}, //4
-                                        {-1,-1}, //5
-                                        {-1,-1}, //6
-                                        {-1,-1}, //7
-                                        {-1,-1}, //8
-                                        {-1,-1}, //9
-                                        {-1,-1}, //10
-                                        {-1,-1}, //11
-                                        {-1,-1}, //12
-                                        {-1,-1}, //13
-                                        {-1,-1}, //14
-                                        {-1,-1}, //15
-                                        {-1,-1}, //16
-                                        {-1,-1}, //17
-                                        {-1,-1}, //18
-                                        {-1,-1}, //19
-                                        {-1,-1}, //20
-                                        {-1,-1}, //21
-                                        {-1,-1}, //22
-                                        {-1,-1}, //23
-                                        {-1,-1}, //24
-                                        {-1,-1}, //25
-                                        {-1,-1}, //26
-                                        {-1,-1}, //27
-                                        {-1,-1}, //28
-                                        {-1,-1}, //29
-                                        {-1,-1}, //30
-                                        {-1,-1} //31
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //0
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //1
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //2
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //3
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //4
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //5
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //6
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //7
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //8
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //9
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //10
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //11
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //12
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //13
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //14
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //15
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //16
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //17
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //18
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //19
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //20
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //21
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //22
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //23
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //24
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //25
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //26
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //27
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //28
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //29
+                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //30
+                                        {(int)(32*128*ratio),(int)(11008*ratio)} //31
             };
             auto result = model({input_tensor}, activate_dims);
             auto outputs = tokenizer.detokenize(result[0]);

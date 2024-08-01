@@ -743,7 +743,7 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
     }
         
 #ifdef LLAMAFILE_SGEMM
-    if (check_llamafile_sgemm(N, M, use_K/blck_size(src1->dtype()),src1->dtype(),src0->dtype(),dst->dtype())&&!support_bias){
+    if (check_llamafile_sgemm(use_N, M, use_K/blck_size(src1->dtype()),src1->dtype(),src0->dtype(),dst->dtype())&&!support_bias){
         const int ld_src1 = src1->sequence_skip_dim();
         const int ld_src0 = src0->sequence_skip_dim();
         const int ld_dst = dst->sequence_skip_dim();
@@ -751,7 +751,7 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
         for (int64_t b = 0; b < dst->batch(); b++){
             for (int64_t h = 0; h < dst->head(); h++){
                 for (int id = 0; id < thread_count; id++){
-                    llamafile_sgemm(N, M, use_K/blck_size(src1->dtype()),
+                    llamafile_sgemm(use_N, M, use_K/blck_size(src1->dtype()),
                                     (char *)src1->rawHostPtr() + src1->offset(b, h, 0, 0) * src1_type_size / src1_blck_size,
                                     ld_src1 / src1_blck_size,
                                     (char *)src0->rawHostPtr() + src0->offset(b, h, 0, 0) * src0_type_size / src0_blck_size,
@@ -774,19 +774,19 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
 #pragma omp parallel for collapse(1) num_threads(thread_count)
         for (int ith = 0; ith < nth; ith++){
             int64_t i_processed = 0;
-            int64_t seq_start = (ith * N) / nth;
-            int64_t seq_end   = ((ith + 1) * N) / nth;
+            int64_t seq_start = (ith * use_N) / nth;
+            int64_t seq_end   = ((ith + 1) * use_N) / nth;
             if (gemm && (M > 3) && dst->masterTensor()==nullptr) {
                 gemm(use_K,  dst->hostPtr<float>() +  dst->offset(0, 0, 0, seq_start),
-                    N, (char *)src1->rawHostPtr()+ src1->offset(0, 0, seq_start, 0) * src1_type_size / src1_blck_size,
-                    (char *)src0->rawHostPtr(), M - M % 4, N/nth);
+                    use_N, (char *)src1->rawHostPtr()+ src1->offset(0, 0, seq_start, 0) * src1_type_size / src1_blck_size,
+                    (char *)src0->rawHostPtr(), M - M % 4, use_N/nth);
                 i_processed = M - M % 4;
             }
             for (int iter = i_processed; iter < M; iter++) { //M-M%4
                 gemv(use_K, dst->hostPtr<float>() +  dst->offset(0, 0, iter, seq_start), 
-                    N, (char *)src1->rawHostPtr()+ src1->offset(0, 0, seq_start, 0) * src1_type_size / src1_blck_size, 
+                    use_N, (char *)src1->rawHostPtr()+ src1->offset(0, 0, seq_start, 0) * src1_type_size / src1_blck_size, 
                     (char *)src0->rawHostPtr() + src0->offset(0, 0, iter, 0) * src0_type_size / src0_blck_size,
-                    1,  N/nth);
+                    1,  use_N/nth);
             }
         }
         return MLLM_NO_ERROR;
