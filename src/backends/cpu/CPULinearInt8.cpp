@@ -14,7 +14,13 @@ CPULinearInt8::CPULinearInt8(Backend *bn, string opName, int in_features, int ou
     support_bias_ = bias;
     thread_count = threadCount;
     weight_.setBackend(bn);
+    originWeight_.setBackend(bn);
     bias_.setBackend(bn);
+
+    weightScale_.setBackend(bn);
+    biasScale_.setBackend(bn);
+    inputActivatationScale_.setBackend(bn);
+    outputActivatationScale_.setBackend(bn);
 }
 
 ErrorCode CPULinearInt8::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -44,12 +50,34 @@ ErrorCode CPULinearInt8::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 
 ErrorCode CPULinearInt8::load(AbstructLoader &loader) {
     //std::cout << name() << "  CPULinearInt8 load" << std::endl;
-    weight_.setName(name() + ".weight");
-    weight_.reshape(1, 1, out_features_, in_features_);
-    if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
-        weight_.setDtype(loader.getDataType(weight_.name()));
+    originWeight_.setName(name() + ".weight");
+    // origin weight is [in, out], while the linear weight is [out, in]
+    originWeight_.reshape(1, 1, in_features_, out_features_);
+    if (loader.getDataType(originWeight_.name()) != MLLM_TYPE_COUNT) {
+        originWeight_.setDtype(loader.getDataType(originWeight_.name()));
+        originWeight_.alloc();
+        loader.load(&originWeight_);
+
+
+        weight_.setName(name() + ".linear.weight");
+        weight_.reshape(1, 1, out_features_, in_features_);
+        weight_.setDtype(MLLM_TYPE_I8);
         weight_.alloc();
-        loader.load(&weight_);
+
+        for (int i = 0; i < in_features_; ++i) {
+            for (int j = 0; j < out_features_; ++j) {
+                weight_.setDataAt<int8_t>(0, 0, j, i, originWeight_.dataAt<int8_t>(0,0, i,j));
+            }
+        }
+
+        originWeight_.free();
+
+        weightScale_.setName(name() + ".weight.scale");
+        weightScale_.reshape(1, 1, 1, 1);
+        weightScale_.setDtype(MLLM_TYPE_F32);
+        weightScale_.alloc();
+        loader.load(&weightScale_);
+
     } else {
         weight_.setDtype(MLLM_TYPE_F32);
         weight_.alloc();
@@ -61,11 +89,32 @@ ErrorCode CPULinearInt8::load(AbstructLoader &loader) {
             bias_.setDtype(loader.getDataType(bias_.name()));
             bias_.alloc();
             loader.load(&bias_);
+
+            biasScale_.setName(name() + ".bias.scale");
+            biasScale_.reshape(1, 1, 1, 1);
+            biasScale_.setDtype(MLLM_TYPE_F32);
+            biasScale_.alloc();
+            loader.load(&biasScale_);
         } else {
             bias_.setDtype(MLLM_TYPE_F32);
             bias_.alloc();
         }
     }
+
+
+    inputActivatationScale_.setName(name() + ".input_scale");
+    inputActivatationScale_.reshape(1, 1, 1, 1);
+    inputActivatationScale_.setDtype(MLLM_TYPE_F32);
+    inputActivatationScale_.alloc();
+    loader.load(&inputActivatationScale_);
+
+    outputActivatationScale_.setName(name() + ".output_scale");
+    outputActivatationScale_.reshape(1, 1, 1, 1);
+    outputActivatationScale_.setDtype(MLLM_TYPE_F32);
+    outputActivatationScale_.alloc();
+    loader.load(&outputActivatationScale_);
+
+
     return Op::load(loader);
 }
 
@@ -90,9 +139,19 @@ ErrorCode CPULinearInt8::free(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 
 ErrorCode CPULinearInt8::mat_mul_fp32_i8(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, int thread_count){
     // todo: load scale from loader
-    const float scale1 = 1.0, scale2 = 1.0;
+    float scale1 = inputActivatationScale_.hostPtr<float>()[0]  / 127.0;
+    scale1 = roundf(scale1 * 100000) / 100000;
 
-    assert(src1->dtype() == MLLM_TYPE_Q4_0);
+    float scale2 = weightScale_.hostPtr<float>()[0];
+
+    float scale3 = 0.0;
+    if(support_bias_)
+        scale3 = biasScale_.hostPtr<float>()[0];
+
+    float scale4 = outputActivatationScale_.hostPtr<float>()[0]/ 127.0;
+    scale4 = roundf(scale4 * 100000) / 100000;
+
+    assert(src1->dtype() == MLLM_TYPE_I8);
     assert(src0_->dtype() == MLLM_TYPE_F32);
     Tensor src0_i8(src0_->shape());
     src0_i8.setBackend(src0_->backend());
@@ -124,7 +183,7 @@ ErrorCode CPULinearInt8::mat_mul_fp32_i8(Tensor *src0_, Tensor *src1, Tensor *ds
     Tensor *src0_cal = src0;
     Tensor *src1_cal = src1;
     const int64_t blck_0 = 16;
-#pragma omp parallel for collapse(4) num_threads(thread_count)
+// #pragma omp parallel for collapse(4) num_threads(thread_count)
     for (int b = 0; b < src0->batch(); b++) {
         for (int h = 0; h < src0->head(); h++) {
             const int b_1 = (src1->batch() == 1 && src1->head() == 1) ? 0 : b;
@@ -143,8 +202,9 @@ ErrorCode CPULinearInt8::mat_mul_fp32_i8(Tensor *src0_, Tensor *src1, Tensor *ds
 
                         vec_dot_i8_i8(K, dst->ptrAt<float>(b, h, m, n), src1_cal->hostPtr<int8_t>() + src1_cal->offset(b_1, h_1, s_1, d_1), src0_cal->hostPtr<int8_t>() + src0_cal->offset(b, h, s_0, d_0), scale1, scale2);
                         if (support_bias) {
-                            *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0, n);
+                            *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<int8_t>(0, 0, 0, n) * scale3;    
                         }
+                        *dst->ptrAt<float>(b, h, m, n) = std::fmaxf(std::fminf(roundf(*dst->ptrAt<float>(b, h, m, n) / scale4), 127), -128) * scale4;
                     }
                 }
             }

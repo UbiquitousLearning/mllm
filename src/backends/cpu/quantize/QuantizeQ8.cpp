@@ -278,6 +278,9 @@ void quantize_row_i8(const float *__restrict x, void *__restrict vy, int k, floa
     const float d = scale;
     const float id = d ? 1.0f / d : 0.0f;
 
+    const int32x4_t min_128 = vdupq_n_s32(-128);
+    const int32x4_t max127 = vdupq_n_s32( 127);
+
 #if defined(__ARM_NEON)
     for (int i = 0; i < nb; i++) {
         float32x4_t srcv[8];
@@ -285,7 +288,10 @@ void quantize_row_i8(const float *__restrict x, void *__restrict vy, int k, floa
 
         for (int j = 0; j < 8; j++) {
             const float32x4_t v = vmulq_n_f32(srcv[j], id);
-            const int32x4_t vi = vcvtnq_s32_f32(v);
+            int32x4_t vi = vcvtnq_s32_f32(v);
+
+            vi = vminq_s32(vi, max127);
+            vi = vmaxq_s32(vi, min_128);
 
             y[i*32+ 4 * j + 0] = vgetq_lane_s32(vi, 0);
             y[i*32+ 4 * j + 1] = vgetq_lane_s32(vi, 1);
