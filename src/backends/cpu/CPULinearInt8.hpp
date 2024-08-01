@@ -30,7 +30,13 @@ private:
     bool support_bias_;
     int thread_count = 4;
     Tensor weight_;
+    Tensor originWeight_;
     Tensor bias_;
+
+    Tensor weightScale_;
+    Tensor biasScale_;
+    Tensor inputActivatationScale_;
+    Tensor outputActivatationScale_;
 
     ErrorCode mat_mul_fp32_i8(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias = nullptr, int thread_count = 4);
 };
