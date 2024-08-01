@@ -4,6 +4,7 @@
 #include <memory>
 #include "Backend.hpp"
 #include "CPUKVCacheNPU.hpp"
+#include "CPULinearInt8.hpp"
 #include "CPUNPUView.hpp"
 #include "CPUPoEmbedding.hpp"
 #include "CPUSplitInput.hpp"
@@ -105,6 +106,7 @@ void CPUBackend::registerOps() {
     addCreator(SILU, (CPUBackend::Creator *)(new CPUSiLUCreator()));
     addCreator(SOFTMAX, (CPUBackend::Creator *)(new CPUSoftMaxCreator()));
     addCreator(LINEAR, (CPUBackend::Creator *)(new CPULinearCreator()));
+    addCreator(LINEARINT8, (CPUBackend::Creator *)(new CPULinearInt8Creator()));
     addCreator(EMBEDDING, (CPUBackend::Creator *)(new CPUEmbeddingCreator()));
     addCreator(MUL, (CPUBackend::Creator *)(new CPUMulCreator()));
     addCreator(VIEW, (CPUBackend::Creator *)(new CPUViewCreator()));

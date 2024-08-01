@@ -78,6 +78,7 @@ static const vector<string> OpNames = {
     "SlidingWindowMask",
     "Linear",
     "LinearINT8",
+    "LinearINT8Shadow",
     "Embedding",
     "Mul",
     "VIEW",
