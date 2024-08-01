@@ -41,40 +41,40 @@ int main(int argc, char **argv) {
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
-            float ratio = -1;//0.25; //
+            float ratio = 1.0;//0.25; //0.5;
             vector<vector<int>> activate_dims = {
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //0
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //1
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //2
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //3
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //4
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //5
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //6
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //7
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //8
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //9
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //10
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //11
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //12
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //13
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //14
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //15
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //16
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //17
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //18
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //19
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //20
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //21
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //22
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //23
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //24
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //25
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //26
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //27
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //28
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //29
-                                        {(int)(32*128*ratio),(int)(11008*ratio)}, //30
-                                        {(int)(32*128*ratio),(int)(11008*ratio)} //31
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //0
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //1
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //2
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //3
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //4
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //5
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //6
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //7
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //8
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //9
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //10
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //11
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //12
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //13
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //14
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //15
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //16
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //17
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //18
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //19
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //20
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //21
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //22
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //23
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //24
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //25
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //26
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //27
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //28
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //29
+                                        {(int)(32*ratio),(int)(11008*ratio)}, //30
+                                        {(int)(32*ratio),(int)(11008*ratio)} //31
             };
             auto result = model({input_tensor}, activate_dims);
             auto outputs = tokenizer.detokenize(result[0]);
@@ -87,6 +87,7 @@ int main(int argc, char **argv) {
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");
+        model.clear_kvcache();
     }
 
     return 0;
