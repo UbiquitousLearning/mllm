@@ -34,8 +34,8 @@ ErrorCode CPUKVCacheNPU::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
         cache_seq_len_ = cpuBackend->getSequenceLength();
         isDecoding = true;
     }
-
-    if (isDecoding && name().find("v_cache") != std::string::npos) { // when decoding, the input of kvcache should be transposed for execute copy
+  
+    if (name().find("v_cache") != std::string::npos) { // when decoding, the input of kvcache should be transposed for execute copy
         inputs[0]->transShape(SEQUENCE, DIMENSION);
     }
 #else

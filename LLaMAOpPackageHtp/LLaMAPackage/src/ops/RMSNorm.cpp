@@ -150,7 +150,7 @@ int32_t hvx_rmsnorm_af(
 
     }
 
-    float epsilon_ = 1e-5;
+    float epsilon_ = 1e-6;
     union {
       float f;
       uint32_t ui;

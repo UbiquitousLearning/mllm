@@ -12,6 +12,11 @@
 #include "modeling_opt_npuxpu.hpp"
 #include "modeling_qwen_npuxpu.hpp"
 
+#include "models/qwen/configuration_qwen.hpp"
+#include "models/qwen/modeling_qwen.hpp"
+#include "models/qwen/tokenization_qwen.hpp"
+#include "processor/PostProcess.hpp"
+
 
 using namespace mllm;
 
@@ -87,7 +92,7 @@ int main(int argc, char **argv) {
 
     const string npu_model_path = "./models/Qwen1.5-1.8B-Chat_152_int8_biasint8_ns.mllm";
     const string cpu_model_path = "./models/qwen-1.8b-chat-q4k-fp32.mllm";
-    const string merge_file_path = "./vocab/merges-qwen.txt";
+    const string merge_file_path = "./vocab/merges_qwen.txt";
 
     string vocab_path = cmdParser.get<string>("vocab");
     int tokens_limit = cmdParser.get<int>("limits");
@@ -181,6 +186,11 @@ int main(int argc, char **argv) {
         // delete the last end token
         // tokens_id.pop_back();
 
+        tokens_id = {151644,   8948,    198,   2610,    525,    264,  10950,  17847,     13,
+         151645,    198, 151644,    872,    198,  35127,    752,    264,   2805,
+          16800,    311,   3460,   4128,   1614,     13, 151645,    198, 151644,
+          77091,    198};
+
         for (int ti = 0; ti < tokens_id.size(); ti++) {
             // tokens_id[ti] = 9707;
             std::cout << tokens_id[ti] << std::endl;
@@ -194,11 +204,13 @@ int main(int argc, char **argv) {
         // tokens_id.resize(0);
         tokens_id.resize(seqLength);
 
+
         BPETokenizer::token2Tensor(&npuNet, tokens_id, input);
 
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
 
+        input->printData<float>();
         vector<string> answers;
 
         do {
@@ -215,7 +227,8 @@ int main(int argc, char **argv) {
 
             std::cout << "=============prefilling tokens output: =============" << std::endl;
             for (int ti = 1; ti <= real_seq_length; ti++) {
-                auto token_idx = postProcessing_prefill(result[0], input, real_seq_length);
+                auto token_idx = postProcessing_prefill(result[0], input, ti);
+                std::cout << "prefill output token id: " << token_idx << std::endl;
                 auto out_token = tokenizer.detokenize({token_idx});
                 std::cout << out_token << " " << std::flush;
             }
@@ -225,6 +238,7 @@ int main(int argc, char **argv) {
             if (token_idx == 2) { // "</s>"
                 break;
             }
+            std::cout << "prefill output token id: " << token_idx << std::endl;
             auto out_token = tokenizer.detokenize({token_idx});
             std::cout << out_token << std::flush;
             answers.push_back(out_token);
@@ -247,7 +261,10 @@ int main(int argc, char **argv) {
                 if (token_idx == 2) { // "</s>"
                     break;
                 }
-                auto out_token = tokenizer.detokenize({token_idx});
+                auto qwen_tokenizer = QWenTokenizer(vocab_path, merge_file_path);
+                
+                auto out_token = qwen_tokenizer.detokenize({token_idx});
+                std::cout << "decode output token id: " << token_idx << std::endl;
                 std::cout << out_token << std::flush;
                 answers.push_back(out_token);
 
