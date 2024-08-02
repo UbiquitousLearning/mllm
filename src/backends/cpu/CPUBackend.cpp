@@ -54,7 +54,6 @@
 #include "CPUQuantize.hpp"
 #include "CPUMergeOutput.hpp"
 #include "CPULinearINT8Shadow.hpp"
-#include "CPULinearHead.hpp"
 
 #include "CPUTensorFunction.hpp"
 #include "CPUPosition.hpp"
