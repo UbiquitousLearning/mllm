@@ -54,10 +54,9 @@ void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dty
 }
 
 NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name) {
-    auto *q = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
-
-    auto *k = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
-    auto *v = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
+    auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
+    auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
+    auto *v = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
 
     q = q->view(-1, head_size, -1, hidden_size);
     k = k->view(-1, head_size, -1, hidden_size);
@@ -65,27 +64,27 @@ NetTensor *Attention(NetTensor *x, int embedding_size, int hidden_size, int head
 
     q = _RoPE({q}, HFHUBROPE, name + ".q_rope", 1000000, 32768);
     k = _RoPE({k}, HFHUBROPE, name + ".k_rope", 1000000, 32768);
-    k = _KVCache({k}, cache_max, name + ".k_cache");
-    v = _KVCache({v}, cache_max, name + ".v_cache");
+    k = _KVCacheNPU({k}, cache_max, name + ".k_cache");
+    v = _KVCacheNPU({v}, cache_max, name + ".v_cache");
     auto *qk = _Matmul({q, k}, false, true, name + ".qk");
     qk = *qk / std::sqrt(hidden_size);
 
     qk = _Causalmask({qk}, name + ".mask");
 
-    qk = _Softmax({qk}, DIMENSION, name + ".softmax");
+    qk = _Softmax({qk}, DIMENSION, false, name + ".softmax");
 
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
 
     o = o->view(-1, 1, -1, hidden_size * head_size);
-    o = _Linear({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
+    o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
     return o;
 }
 NetTensor *FFN(NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
-    auto *x = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
+    auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
     x = _SiLU({x}, name + ".silu");
-    auto *y = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
+    auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
     x = *x * y; // x = _Mul( {x, y}, name+".dot");
-    x = _Linear({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
+    x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
     return x;
 }
 void qwen_model(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200) {
@@ -97,6 +96,7 @@ void qwen_model(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int f
 
         auto tmp = Attention(res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn");
 
+        return ;
         i = *tmp+i;
 
         res = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
@@ -123,8 +123,8 @@ int main(int argc, char **argv) {
 
     cmdParser.parse_check(argc, argv);
 
-    const string cpu_model_path = "./models/qwen-1.8b-chat-q4k-fp32.mllm";
-    const string merge_file_path = "./vocab/merges-qwen.txt";
+    const string cpu_model_path = "./models/Qwen1.5-1.8B-Chat_152_int8_biasint8_ns.mllm";
+    const string merge_file_path = "./vocab/merges_qwen.txt";
 
     string vocab_path = cmdParser.get<string>("vocab");
     int tokens_limit = cmdParser.get<int>("limits");
@@ -191,6 +191,11 @@ int main(int argc, char **argv) {
             tokens_id[0] = 13;
         }
 
+        for (int ti = 0; ti < tokens_id.size(); ti++) {
+            tokens_id[ti] = 9707;
+            std::cout << tokens_id[ti] << std::endl;
+        }
+
         BPETokenizer::token2Tensor(&cpuNet, tokens_id, input);
 
 
@@ -202,6 +207,9 @@ int main(int argc, char **argv) {
         for (int step = 0; step < 100; step++) {
             cpuExe.run(&cpuNet, {input});
             auto result = cpuExe.result();
+
+            result[0]->printData<float>();
+            exit(-1);
 
             auto token_idx = postProcessing(result[0], input);
             if (token_idx == 151645) { // "</s>"

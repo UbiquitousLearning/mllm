@@ -49,9 +49,9 @@ class SparseLLaMABlock final : public Module {
 
 public:
     SparseLLaMABlock() = default;
-    SparseLLaMABlock(bool is_down_sparse, int hidden_dim, int head_size, int ffn_hidden, RoPEType RoPE_type, int cache_limit, const LLaMANameConfig &names, const string &base_name) {
+    SparseLLaMABlock(bool is_down_sparse, int hidden_dim, int head_size, int ffn_hidden, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit, const LLaMANameConfig &names, const string &base_name) {
         attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size, SPLIT_NONE, false, false,
-                                       RoPE_type, cache_limit, true, false, names, base_name + names._attn_base_name);
+                                       RoPE_type, rope_theta, max_position_embeddings, cache_limit, true, false, names, base_name + names._attn_base_name);
         mlp = SparseLLaMAMLP(hidden_dim, ffn_hidden, names, base_name + names._ffn_base_name, is_down_sparse);
         norm1 = RMSNorm(hidden_dim, 1e-6, base_name + names._attn_norm_name);
         norm2 = RMSNorm(hidden_dim, 1e-6, base_name + names._ffn_norm_name);
@@ -75,13 +75,15 @@ class SparseLLaMAModel final : public Module {
 
 public:
     explicit SparseLLaMAModel(const LLaMAConfig &config, bool is_down_sparse = false) :
-        SparseLLaMAModel(config.vocab_size, config.hidden_dim, config.head_size, config.ffn_hidden, config.block_num, config.RoPE_type, config.cache_limit,
+        SparseLLaMAModel(config.vocab_size, config.hidden_dim, config.head_size, config.ffn_hidden, config.block_num, config.RoPE_type, 
+                    config.rope_theta, config.max_position_embeddings, config.cache_limit,
                    config.names_config, config.names_config.blk_name, is_down_sparse) {
     }
-    SparseLLaMAModel(int vocab_size, int hidden_dim, int head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, int cache_limit,
+    SparseLLaMAModel(int vocab_size, int hidden_dim, int head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, 
+               float rope_theta, int max_position_embeddings, int cache_limit,
                const LLaMANameConfig &names, const string &base_name, bool is_down_sparse) {
         embedding = Embedding(vocab_size, hidden_dim, names.token_embd_name);
-        blocks = List<SparseLLaMABlock>(block_num, is_down_sparse, hidden_dim, head_size, ffn_hidden, RoPE_type, cache_limit, names, base_name);
+        blocks = List<SparseLLaMABlock>(block_num, is_down_sparse, hidden_dim, head_size, ffn_hidden, RoPE_type, rope_theta, max_position_embeddings, cache_limit, names, base_name);
         norm = RMSNorm(hidden_dim, 1e-6, names.post_norm_name);
         lm_head = Linear(hidden_dim, vocab_size, false, names.lm_head_name);
     }

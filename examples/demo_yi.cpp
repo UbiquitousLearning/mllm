@@ -9,9 +9,9 @@
  *
  */
 #include "cmdline.h"
-#include "models/yi/configuration_yi.hpp"
-#include "models/yi/modeling_yi.hpp"
-#include "models/yi/tokenization_yi.hpp"
+#include "models/llama/configuration_llama.hpp"
+#include "models/llama/modeling_llama.hpp"
+#include "models/llama/tokenization_llama.hpp"
 #include "processor/PostProcess.hpp"
 
 using namespace mllm;
@@ -29,9 +29,9 @@ int main(int argc, char **argv) {
     int tokens_limit = cmdParser.get<int>("limits");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
-    auto tokenizer = YiTokenizer(vocab_path);
-    YiConfig config(tokens_limit, "6B", RoPEType::HFHUBROPE);
-    auto model = YiForCausalLM(config);
+    auto tokenizer = LLaMATokenizer(vocab_path, false);
+    LLaMAConfig config(tokens_limit, "6B", RoPEType::HFHUBROPE, 64000);
+    auto model = LLaMAModel(config);
     model.load(model_path);
 
     vector<string> in_strs = {

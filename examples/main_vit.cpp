@@ -1089,7 +1089,7 @@ NetTensor *Attention(NetTensor * x, int embedded_size, int hidden_size, int head
     qk = *qk/std::sqrt(hidden_size);
     // qk = _Scale( {qk}, 1.0F / std::sqrt(hidden_size), 0.0F, false, name + ".scale");
     // qk = _Causalmask( {qk}, name + ".mask");
-    qk = _Softmax( {qk}, DIMENSION, name + ".softmax");
+    qk = _Softmax( {qk}, DIMENSION, false, name + ".softmax");
     auto *o = _Matmul( {qk, v}, false, false, name + ".qkv");
     o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _Linear( {o}, hidden_size * head_size, embedded_size, true, name + ".output.dense");

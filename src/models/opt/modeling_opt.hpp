@@ -18,7 +18,7 @@ public:
     OPTBlock() = default;
     OPTBlock(int hidden_dim, int head_size, int ffn_hidden, int cache_limit, const optNameConfig &names, const string &base_name) {
         attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size, SPLIT_NONE, false, false,
-                                       NONE, cache_limit, true, true, names, base_name + names._attn_base_name);
+                                       NONE, -1, -1, cache_limit, true, true, names, base_name + names._attn_base_name);
         mlp = FeedForward(hidden_dim, ffn_hidden, "ReLU", true,
                           names, base_name + names._ffn_base_name);
         norm1 = LayerNorm(hidden_dim, true, 1e-05, base_name + names._attn_norm_name);

@@ -14,16 +14,15 @@
 using namespace mllm;
 
 class ElasticMultiHeadAttention final : public Module {
-    Layer q_proj;
-    Layer k_proj;
-    Layer v_proj;
+    ElasticLinear q_proj;
+    ElasticLinear k_proj;
+    ElasticLinear v_proj;
     Layer q_rope;
     Layer k_rope;
-    Layer k_cache;
-    Layer v_cache;
-    Layer mask;
-    Layer softmax;
-    Layer o_proj;
+    KVCache k_cache;
+    KVCache v_cache;
+    Softmax softmax;
+    ElasticLinear o_proj;
     int head_size_{};
     int kv_head_size_{};
     int attn_hidden_dim_{};
@@ -48,10 +47,7 @@ public:
             k_cache = KVCache(head_size/kv_head_size, cache_limit, base_name + "k_cache");
             v_cache = KVCache(head_size/kv_head_size, cache_limit, base_name + "v_cache");
         }
-        if (do_mask) {
-            mask = Causalmask(base_name + "mask");
-        }
-        softmax = Softmax(DIMENSION, base_name + "softmax");
+        softmax = Softmax(DIMENSION, do_mask, base_name + "softmax");
         o_proj = ElasticLinear(head_size * attn_hidden_dim, hidden_dim, bias, base_name + names._o_proj_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
@@ -76,10 +72,11 @@ public:
         k = k.transpose(SEQUENCE, DIMENSION);
         auto qk = Tensor::mm(q, k);
         qk = qk / std::sqrt(activate_hidden_dim);//attn_hidden_dim_
-        if (mask.ready()) {
-            qk = mask(qk);
+        if (k_cache.ready() && v_cache.ready()) {
+            qk = softmax(qk, k_cache.getCacheSeqLen());
+        }else{
+            qk = softmax(qk);
         }
-        qk = softmax(qk);
         auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, activate_hidden_dim * head_size_);
         o = o_proj(o, activate_dim, -1);
@@ -88,10 +85,10 @@ public:
 };
 
 class ElasticLLaMAMLP final : public Module {
-    Layer gate_proj;
+    ElasticLinear gate_proj;
     Layer silu;
-    Layer up_proj;
-    Layer down_proj;
+    ElasticLinear up_proj;
+    ElasticLinear down_proj;
 
 public:
     ElasticLLaMAMLP() = default;

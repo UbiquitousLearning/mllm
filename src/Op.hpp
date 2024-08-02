@@ -3,7 +3,9 @@
 // #define DEBUGPRINT
 #include "Tensor.hpp"
 #include "Types.hpp"
+#include <cassert>
 #include <functional>
+#include <iostream>
 #include "ParamLoader.hpp"
 #include "Timing.hpp"
 using std::function;
@@ -111,6 +113,12 @@ public:
     }
     void setOpType(OpType type) {
         type_ = type;
+    }
+
+    virtual int getCacheSeqLen(){
+        assert(type_ == OpType::KVCACHE);
+        std::cout << "only for KVCache" << std::endl;
+        return -1;
     }
 
 protected:

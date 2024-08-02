@@ -4,6 +4,7 @@
 
 #ifndef MODULE_HPP
 #define MODULE_HPP
+#include "Generate.hpp"
 #include "Tensor.hpp"
 #include "Op.hpp"
 #include "ParamLoader.hpp"
@@ -11,8 +12,10 @@
 #include "Timing.hpp"
 #include "backends/cpu/CPUBackend.hpp"
 #include <any>
+#include <functional>
 #include <iostream>
 #include <memory/SystemMemoryManager.hpp>
+#include <memory>
 #include <numeric>
 #include <utility>
 #include <vector>
@@ -26,7 +29,7 @@ private:
     int decoding_token_size_ = 0;
     vector<double> inference_times_;
     vector<vector<int>> last_shape_bshd_;
-    Backend* backend_;
+    std::shared_ptr<LlmTextGenerator> text_generator_ = nullptr;
 
 public:
     static map<BackendType, Backend *> backends;
@@ -60,30 +63,9 @@ public:
             }
         }
     }
-    void to(BackendType backend_type) {
-        initBackend(backend_type);
-        backend_ = backends[backend_type];
-        Module::tmp_device = backend_->type();
-        Module::doToDevice = true;
-        vector<Tensor> tmps;
-        vector<int> tmpt;
-        int max_in_size = 5;
-        for (int i = 0; i < max_in_size; ++i) {
-            Tensor::graphs[std::to_string(i)] = std::make_shared<Tensor>(Module::backends[MLLM_CPU]);
-            tmps.push_back(*Tensor::graphs[std::to_string(i)]);
-            tmpt.push_back(0);
-        }
-        vector<std::any> anyArgs = convertArgsToAnyVector(tmpt);
-        Forward(tmps, anyArgs);
-        Module::doToDevice = false;
-        Module::tmp_device = MLLM_CPU;
-        Tensor::graphs.clear();
+    void to(BackendType type) {
+        initBackend(type);
     }
-
-    BackendType device() const {
-        return backend_->type();
-    }
-    
     static void initLoader(string path) {
         loader = new ParamLoader(std::move(path));
     }
@@ -113,10 +95,12 @@ public:
                 operator()(tmps, args);
                 break;
             } catch (const std::exception &e) {
-                if ("bad any_cast" != e.what()) {
+#if not defined(__ARM_NEON)
+                if (std::string("bad any_cast") != e.what()) {
                     std::cerr << e.what() << std::endl;
                     exit(0);
                 }
+#endif
             } catch (...) {
                 std::cerr << "load error" << std::endl;
                 exit(0);
@@ -274,6 +258,46 @@ public:
         // std::cout<<Tensor::forward_times<< " - "<<Tensor::forward_times_2<<" = "<<Tensor::forward_times-Tensor::forward_times_2<<std::endl;
 
         std::cout << "===========================================" << std::endl;
+
+        prefilling_token_size_ = 0;
+        decoding_token_size_ = 0;
+        inference_times_.clear();
+        last_shape_bshd_.clear();
+    }
+
+    virtual void generate(
+        Tensor &input_ids, const LlmTextGeneratorOpts &opt, const std::function<bool(unsigned int)> &call_back = [](unsigned int) -> bool { return true; }) {
+        auto chatPostProcessing = [](unsigned token_idx, Tensor &tokens_tensor, const vector<Tensor *> &clean_tensors) {
+            tokens_tensor.reshape(1, 1, 1, 1);
+            tokens_tensor.alloc();
+            tokens_tensor.setDataAt<float>(0, 0, 0, 0, token_idx);
+
+            for (auto tensor : clean_tensors) {
+                tensor->reshape(0, 0, 0, 0);
+                tensor->alloc();
+            }
+        };
+
+        if (!opt.do_sample) {
+            // fail to greedy search
+            if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kGreedySearch)
+                text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kGreedySearch, opt);
+        } else if (opt.do_sample && !opt.top_k && opt.top_p != 0.f) {
+            // fail to top p sampling
+            if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kToppSampling)
+                text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kToppSampling, opt);
+        } else if (opt.do_sample && opt.top_k) {
+            // fail to top k sampling
+            if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kTopkSampling)
+                text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kTopkSampling, opt);
+        }
+
+        for (int step = 0; step < opt.max_new_tokens; ++step) {
+            auto _out = (*this)({input_ids});
+            auto out_token = text_generator_->generate(_out[0]);
+            if (!call_back(out_token)) break;
+            chatPostProcessing(out_token, input_ids, {});
+        }
     }
 };
 

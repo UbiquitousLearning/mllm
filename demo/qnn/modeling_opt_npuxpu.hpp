@@ -43,7 +43,7 @@ std::vector<NetTensor *> CPUNPUAttention(Context *c, NetTensor *x, NetTensor *re
     auto *qk = _Matmul({q, k}, false, true, name + ".qk");
     qk = *qk / std::sqrt(hidden_size);
     qk = _Causalmask({qk}, name + ".mask");
-    qk = _Softmax({qk}, DIMENSION, name + ".softmax");
+    qk = _Softmax({qk}, DIMENSION, false, name + ".softmax");
 
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
 
@@ -157,7 +157,7 @@ NetTensor * CPUAttention(Context *c, NetTensor *x, int embedding_size, int hidde
 
     qk = *qk / std::sqrt(hidden_size);
     qk = _Causalmask({qk}, name + ".mask");
-    qk = _Softmax({qk}, DIMENSION, name + ".softmax");
+    qk = _Softmax({qk}, DIMENSION, false, name + ".softmax");
 
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
 

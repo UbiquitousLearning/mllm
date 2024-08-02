@@ -1,6 +1,8 @@
 #include <cmath>
 #include "CPURMSNorm.hpp"
 #include "Tensor.hpp"
+#include "Timing.hpp"
+#include "compute/VecDot.hpp"
 
 namespace mllm {
 
@@ -31,39 +33,42 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     int dim = input->dimension();
     int seq = input->sequence();
     int head = input->head();
+#pragma omp parallel for collapse(3) num_threads(thread_count)
     for (int h = 0; h < head; h++) {
         for (int n = 0; n < batch; n++) {
             for (int s = 0; s < seq; s++) {
                 double sum_squares = 0.0F;
                 // sum
-                // #pragma omp parallel for reduction(+ : sum_squares) num_threads(thread_count)
                 for (int d = 0; d < dim; d++) {
                     float value = input->dataAt<float>(n, h, s, d);
                     sum_squares += (double)value * value;
                 }
                 const float mean = sum_squares / dim;
                 const float rms = 1.0f / sqrtf(mean + epsilon_);
-// use memset to set the value of the memory block
-#pragma omp parallel for num_threads(thread_count)
+
+                memcpy( outputs[0]->ptrAt<float>(n, h, s, 0), 
+                        inputs[0]->ptrAt<float>(n, h, s, 0), 
+                        dim * sizeof(float));
+                vec_scale_f32(dim, outputs[0]->ptrAt<float>(n, h, s, 0), rms);
+                }
+            }
+        }
+
+#pragma omp parallel for collapse(4) num_threads(thread_count)
+    for (int h = 0; h < head; h++) {
+        for (int n = 0; n < batch; n++) {
+            for (int s = 0; s < seq; s++) {
                 for (int d = 0; d < dim; d++) {
-                    float value = input->dataAt<float>(n, h, s, d);
                     float weight = weight_.dataAt<float>(0, 0, 0, d);
-                    float output = value * rms;
                     if (add_unit_offset_) {
-                        output = output * (1 + weight);
+                        *outputs[0]->ptrAt<float>(n, h, s,d) *= (1 + weight);
                     } else {
-                        output = output * weight;
+                        *outputs[0]->ptrAt<float>(n, h, s,d) *= (weight);
                     }
-                    outputs[0]->setDataAt<float>(n, h, s, d, output);
                 }
             }
         }
     }
-    //    input->printData<float>();
-    //    weight_.printData<float>();
-    //    outputs[0]->printData<float>();
-
-    // std::cout << name() << "  CPURMSNorm()" << std::endl;
     return Op::execute(inputs, outputs);
 }
 ErrorCode CPURMSNorm::load(AbstructLoader &loader) {

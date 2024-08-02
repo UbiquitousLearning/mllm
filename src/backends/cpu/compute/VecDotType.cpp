@@ -25,6 +25,7 @@
 * SOFTWARE.
 */
 
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include "VecDotType.hpp"
@@ -32,6 +33,7 @@
 #include "quantize/Quantize.hpp"
 #include "quantize/QuantizeQ6.hpp"
 #include "compute/VecDot.hpp"
+#include "compute/GEMM_AArch64.hpp"
 
 
 void fp32_add_row_to(int n, const float * MLLM_RESTRICT src, float * MLLM_RESTRICT dst, float alpha){
@@ -258,6 +260,7 @@ type_traits_t type_traits[] = {
         .blck_size = QK8_0,
         .to_float = (mllm_to_float_func) dequantize_row_q8_0,
         .from_float = (mllm_from_float_func) quantize_row_q8_0,
+        .from_float_to_mat = (mllm_from_float_to_mat_func)quantize_mat_q8_0,
         .vec_dot = (mllm_vec_dot_func) vec_dot_q8_0_q8_0,
         .vec_dot_type = MLLM_TYPE_Q8_0,
         .add_row_to = (mllm_vec_add_row_func)q8_0_add_row_to,
@@ -293,9 +296,50 @@ type_traits_t type_traits[] = {
         .vec_dot_type = MLLM_TYPE_Q8_K,
         .add_row_to = (mllm_vec_add_row_func)q8_k_add_row_to,
     },
-    /*[MLLM_TYPE_I_8] = */{},
+    /*[MLLM_TYPE_I_8] = */{}, // TODO: not implemented, integrate linear-int8 to common linear
     /*[MLLM_TYPE_I_16] = */{},
     /*[MLLM_TYPE_I_32] = */{},
+    /*[MLLM_TYPE_Q4_0_4_4] = */{
+        .size                = sizeof(block_q4_0),
+        .blck_size                = QK4_0,
+        .blck_size_interleave     = 4,
+        .to_float                 = NULL,
+        .from_float               = NULL,
+        .vec_dot                  = NULL,
+        .vec_dot_type             = MLLM_TYPE_Q8_0,
+        // .nrows                    = 1,
+        // .ncols                    = 4,
+        .gemv                     = (mllm_gemv_func)mllm_gemv_q4_0_4x4_q8_0,
+        .gemm                     = (mllm_gemm_func)mllm_gemm_q4_0_4x4_q8_0,
+    },
+    /*[MLLM_TYPE_Q4_0_4_8] = */{
+        .size                = sizeof(block_q4_0),
+        .blck_size                = QK4_0,
+        .blck_size_interleave     = 8,
+        // .is_quantized             = true,
+        .to_float                 = NULL,
+        .from_float               = NULL,
+        .vec_dot                  = NULL,
+        .vec_dot_type             = MLLM_TYPE_Q8_0,
+        // .nrows                    = 1,
+        // .ncols                    = 4,
+        .gemv                     = (mllm_gemv_func)mllm_gemv_q4_0_4x8_q8_0,
+        .gemm                     = (mllm_gemv_func)mllm_gemm_q4_0_4x8_q8_0,
+    },
+    /*[MLLM_TYPE_Q4_0_8_8] = */{
+        .size                = sizeof(block_q4_0),
+        .blck_size                = QK4_0,
+        .blck_size_interleave     = 8,
+        // .is_quantized             = true,
+        .to_float                 = NULL,
+        .from_float               = NULL,
+        .vec_dot                  = NULL,
+        .vec_dot_type             = MLLM_TYPE_Q8_0,
+        // .nrows                    = 1,
+        // .ncols                    = 8,
+        .gemv                     = (mllm_gemv_func)mllm_gemv_q4_0_8x8_q8_0,
+        .gemm                     = (mllm_gemv_func)mllm_gemm_q4_0_8x8_q8_0,
+    },
     {},
     // TODO: add support to more type
 };

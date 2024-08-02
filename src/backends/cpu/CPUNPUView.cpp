@@ -98,8 +98,6 @@ ErrorCode CPUNPUView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
 
-    activation_dtype_ = inputs[0]->dtype();
-
     if ((data_dim0_ == BATCH && data_dim2_ == SEQUENCE && inputs[0]->ctype() != BCTHW)                                                    // head & dimension
         || (data_dim0_ == BATCH && data_dim3_ == DIMENSION && inputs[0]->ctype() == BSHD)                                                 // head & sequence
         || (data_dim0_ == SEQUENCE && data_dim1_ == HEAD && data_dim2_ == BATCH && data_dim3_ == DIMENSION && inputs[0]->ctype() == BSHD) // head & sequence

@@ -1414,7 +1414,7 @@ void vec_dot_q8_0_q8_0(int n, float * __restrict s, const void * __restrict vx, 
 #endif
 }
 
-void vec_dot_q8_0_q8_0(const int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy, float scale1, float scale2) {
+void vec_dot_i8_i8(const int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy, float scale1, float scale2) {
     const int qk = QK8_0;
     const int nb = n / qk;
 
@@ -1422,8 +1422,8 @@ void vec_dot_q8_0_q8_0(const int n, float *__restrict s, const void *__restrict 
 
     assert(n % qk == 0);
 
-    const block_q8_0_sq *__restrict x = (block_q8_0_sq *)vx;
-    const block_q8_0_sq *__restrict y = (block_q8_0_sq *)vy;
+    const block_q8_per_tensor *__restrict x = (block_q8_per_tensor *)vx;
+    const block_q8_per_tensor *__restrict y = (block_q8_per_tensor *)vy;
 
 #if defined(__ARM_NEON)
     float32x4_t sumv0 = vdupq_n_f32(0.0f);
@@ -1432,10 +1432,10 @@ void vec_dot_q8_0_q8_0(const int n, float *__restrict s, const void *__restrict 
     assert(nb % 2 == 0); // TODO: handle odd nb
 
     for (int i = 0; i < nb; i += 2) {
-        const block_q8_0_sq *__restrict x0 = &x[i + 0];
-        const block_q8_0_sq *__restrict x1 = &x[i + 1];
-        const block_q8_0_sq *__restrict y0 = &y[i + 0];
-        const block_q8_0_sq *__restrict y1 = &y[i + 1];
+        const block_q8_per_tensor *__restrict x0 = &x[i + 0];
+        const block_q8_per_tensor *__restrict x1 = &x[i + 1];
+        const block_q8_per_tensor *__restrict y0 = &y[i + 0];
+        const block_q8_per_tensor *__restrict y1 = &y[i + 1];
 
         const int8x16_t x0_0 = vld1q_s8(x0->qs);
         const int8x16_t x0_1 = vld1q_s8(x0->qs + 16);
@@ -1485,7 +1485,6 @@ void vec_dot_q8_0_q8_0(const int n, float *__restrict s, const void *__restrict 
 
         for (int j = 0; j < qk; j++) {
             sumi += x[i].qs[j] * y[i].qs[j];
-            std::cout << x[i].qs[j] * scale1 << " " << y[i].qs[j] * scale2 << std::endl;
         }
 
         sumf += sumi * scale;

@@ -18,27 +18,21 @@ class LLaMATokenizer final {
         if (scores.empty()) {
             throw std::invalid_argument("Input vector is empty");
         }
-        unsigned int maxIndex = 0;
-        float maxValue = scores[0];
-        for (size_t i = 1; i < scores.size(); ++i) {
-            if (scores[i] > maxValue) {
-                maxIndex = i;
-                maxValue = scores[i];
-            }
-        }
-        return maxIndex;
+        return std::max_element(scores.begin(), scores.end()) - scores.begin();
     }
+    bool bos_=true;
 public:
-    explicit LLaMATokenizer(const std::string &vocab_file) {
+    explicit LLaMATokenizer(const std::string &vocab_file, bool bos=true) {
         Module::initBackend(MLLM_CPU);
         tokenizer = new BPETokenizer(vocab_file);
+        bos_ = bos;
     }
     Tensor tokenize(std::string &text, int str_i = 0) const {
         if (text[0] != ' ') {
             text = ' ' + text;
         }
         auto tokens_id = vector<token_id_t>();
-        tokenizer->tokenize(text, tokens_id, true);
+        tokenizer->tokenize(text, tokens_id, bos_);
         if (str_i > 0){
             tokens_id[0] = 13;
         }

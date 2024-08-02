@@ -40,7 +40,7 @@ class FuyuProcessor final {
         }
         Tensor tensor1(batch, 1, seq, dims, Module::backends[type], true);
         tensor1.setName(name);
-        tensor1.status() = TENSOR_STATIC_INIT;
+        Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);
         for (int i = 0; i < batch; ++i) {
             for (int j = 0; j < seq; ++j) {
@@ -61,7 +61,7 @@ class FuyuProcessor final {
         }
         Tensor tensor1(batch, 1, seq, 1, Module::backends[type], true);
         tensor1.setName(name);
-        tensor1.status() = TENSOR_STATIC_INIT;
+        Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);
         for (int i = 0; i < batch; ++i) {
             for (int j = 0; j < seq; ++j) {

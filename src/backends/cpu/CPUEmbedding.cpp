@@ -115,6 +115,7 @@ ErrorCode CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     case MLLM_TYPE_I16: break;
     case MLLM_TYPE_I32: break;
     case MLLM_TYPE_COUNT: break;
+    default: break;
     }
     return MLLM_NO_ERROR;
 }

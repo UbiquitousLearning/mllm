@@ -35,6 +35,7 @@ public:
     explicit QuantWriter(std::string output_path, std::string input_path);
     int readParams();
     void quantParams(DataType dataType);
+    void quantParams_q4_(DataType dataType);
 
 #ifdef TEST
     std::unordered_map<string, char *> data_;

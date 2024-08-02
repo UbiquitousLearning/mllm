@@ -51,8 +51,8 @@ NetTensor *Attention( NetTensor * x, int embedding_size, int hidden_size, int he
     v = _KVCache( {v}, cache_max, name + ".v_cache");
     auto *qk = _Matmul( {q, k}, false, true, name + ".qk");
     qk = *qk/std::sqrt(hidden_size);
-    qk = _Causalmask( {qk}, name + ".mask");
-    qk = _Softmax( {qk}, DIMENSION, name + ".softmax");
+    // qk = _Causalmask( {qk}, name + ".mask");
+    qk = _Softmax( {qk}, DIMENSION, true, name + ".softmax");
     auto *o = _Matmul( {qk, v}, false, false, name + ".qkv");
     o = o->view(-1, 1, -1, hidden_size * head_size);
     o = _Linear( {o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");

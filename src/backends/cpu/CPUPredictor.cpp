@@ -62,6 +62,9 @@ ErrorCode CPUPredictor::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     if(x->count() == 0){
         return Op::execute(inputs, outputs);
     }
+    mat_mul(x.get(), &up_, &hidden_, false, nullptr, false, true, thread_count);
+    mat_mul(&hidden_, &down_, o.get(), false, nullptr, false, true, thread_count);
+    /*
     switch (up_.dtype()) { // TODO: add support to more type
     case MLLM_TYPE_F32: {
         mat_mul_fp32(x.get(), &up_, &hidden_, false, nullptr, false, true, thread_count);
@@ -77,6 +80,7 @@ ErrorCode CPUPredictor::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
         fprintf(stderr, "type not support yet");
         assert(false);
     }
+    */
     return Op::execute(inputs, outputs);
 }
 

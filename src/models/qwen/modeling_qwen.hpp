@@ -92,8 +92,8 @@ public:
 
         // attention weight
         auto atten_weight = Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION)) / std::sqrt(head_dim);
-        atten_weight = mask(atten_weight);
-        atten_weight = softmax(atten_weight);
+        atten_weight = mask(atten_weight, k_cache.getCacheSeqLen());
+        atten_weight = softmax(atten_weight, k_cache.getCacheSeqLen());
 
         // attention output
         auto atten_output = Tensor::mm(atten_weight, value_states);
@@ -114,10 +114,10 @@ private:
     Layer o_proj;
     Layer q_rope;
     Layer k_rope;
-    Layer k_cache;
-    Layer v_cache;
-    Layer mask;
-    Layer softmax;
+    KVCache k_cache;
+    KVCache v_cache;
+    Causalmask mask;
+    Softmax softmax;
 };
 
 // Copied from GemmaDecoder with Gemma->Qwen and set RmsNorm(without add_unit_offset)

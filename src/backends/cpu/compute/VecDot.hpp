@@ -356,6 +356,32 @@ inline static int32x4_t mllm_vdotq_s32(int32x4_t acc, int8x16_t a, int8x16_t b) 
 
 using namespace mllm;
 
+inline static void vec_scale_f32(const int n, float *y, const float v) {
+    const int np = (n & ~(MLLM_F32_STEP - 1));
+
+    MLLM_F32_VEC vx = MLLM_F32_VEC_SET1(v);
+
+    MLLM_F32_VEC ay[MLLM_F32_ARR];
+
+    for (int i = 0; i < np; i += MLLM_F32_STEP) {
+        for (int j = 0; j < MLLM_F32_ARR; j++) {
+            ay[j] = MLLM_F32_VEC_LOAD(y + i + j * MLLM_F32_EPR);
+            ay[j] = MLLM_F32_VEC_MUL(ay[j], vx);
+
+            MLLM_F32_VEC_STORE(y + i + j * MLLM_F32_EPR, ay[j]);
+        }
+    }
+
+    // leftovers
+    for (int i = np; i < n; ++i) {
+        y[i] *= v;
+    }
+
+    //    for (int i = 0; i < n; ++i) {
+    //        y[i] *= v;
+    //    }
+}
+
 // void vec_dot_fp32(const float * __restrict src0, const float * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf);
 void vec_dot_q4_0_q8_0(const void * __restrict src0, const void * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf);
 void vec_dot_q4_K_q8_K(const void * __restrict src0, const void * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf);
@@ -365,11 +391,13 @@ void vec_dot_q6_K_q8_K(const void * __restrict src0, const void * __restrict src
 void vec_dot_q4_K_q8_K(const int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy);
 void vec_dot_q6_K_q8_K(const int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy);
 void vec_dot_q4_0_q8_0(const int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy);
-void vec_dot_q8_0_q8_0(const int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy, float scale1 = 1, float scale2 = 1);
 void vec_dot_fp32(const int n, float * __restrict s, const float * __restrict vx, const float * __restrict vy);
 void vec_dot_fp16(const int n, float * __restrict s, const mllm_fp16_t * __restrict vx, const mllm_fp16_t * __restrict vy);
 void vec_dot_q8_0_q8_0(int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy);
+
 // for sparse linear
 void vec_value_dot_fp32(const int n, float *__restrict s, const float x, const float *__restrict vy, bool addition);
+// for per-tensor i8, currently not suitable for vecdot trait
+void vec_dot_i8_i8(const int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy, float scale1 = 1, float scale2 = 1);
 
 #endif // MLLM_VECDOT_HPP

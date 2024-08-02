@@ -1,6 +1,7 @@
 
 #include "CPUSiLU.hpp"
 #include <cmath>
+#include "compute/ActivationFunction.hpp"
 
 namespace mllm {
 

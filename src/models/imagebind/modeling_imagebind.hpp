@@ -30,7 +30,7 @@ public:
         }
         attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size,
                                        SPLIT_HD, false, bias_kv_cat,
-                                       RoPEType::NONE, 0, do_mask, true,
+                                       RoPEType::NONE, -1,-1,0, do_mask, true,
                                        names, base_name + names._attn_base_name);
         ffn = FeedForward(hidden_dim, ffn_hidden, "GELU", true,
                           names, base_name + names._ffn_base_name);

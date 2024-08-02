@@ -11,7 +11,7 @@ map<BackendType, Backend*> Module::backends;
 AbstructLoader *Module::loader;
 int Module::listIdx;
 int Module::runlistIdx;
-// TensorStatus Module::tensor_status;
+// TensorStatus Tensor::tensor_status;
 bool Module::doLoad = false;
 bool Module::doToDevice = false;
 BackendType Module::tmp_device = MLLM_CPU;
