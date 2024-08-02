@@ -38,14 +38,9 @@ int main(int argc, char **argv) {
 
     vector<string> in_strs = {
         " Hello, who are you?",
-        "<|im_start|> <|im_end|> What can you do?",
-        "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\nGive me a short introduction to large language model.<|im_end|>\n<|im_start|> assistant\n\n",
+        " What can you do?",
         "Please introduce Beijing University of Posts and Telecommunications.",
     };
-
-    // auto input_tensor = tokenizer.tokenize(in_strs[2]);
-    // input_tensor.printData<float>();
-    // exit(0);
 
     auto processOutput = [&](std::string &text) -> std::pair<bool, std::string> {
         if (text == "<|im_start|>" || text == "<|im_end|>" || text == "<unk>") return {true, ""};
