@@ -113,12 +113,12 @@ ErrorCode QNNLinearINT8Shadow::load(AbstructLoader &loader) {
     memcpy(shadowWeight_.hostPtr<int8_t>(), weight_.hostPtr<int8_t>(), in_features_*out_features_);
     
 
-    shadowTransposeWeight_.setName(opName + ".shadow.transpose.weight");
-    shadowTransposeWeight_.reshape(1, 1, out_features_, in_features_);
-    shadowTransposeWeight_.setDtype(MLLM_TYPE_I8);
-    shadowTransposeWeight_.alloc();
+    // shadowTransposeWeight_.setName(opName + ".shadow.transpose.weight");
+    // shadowTransposeWeight_.reshape(1, 1, out_features_, in_features_);
+    // shadowTransposeWeight_.setDtype(MLLM_TYPE_I8);
+    // shadowTransposeWeight_.alloc();
 
-    memcpy(shadowTransposeWeight_.hostPtr<int8_t>(), weight_.hostPtr<int8_t>(), in_features_*out_features_);
+    // memcpy(shadowTransposeWeight_.hostPtr<int8_t>(), weight_.hostPtr<int8_t>(), in_features_*out_features_);
 
 
     weight_.free();

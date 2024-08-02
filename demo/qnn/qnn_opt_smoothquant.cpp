@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
 
 
     const string npu_model_path = "./models/Qwen1.5-1.8B-Chat_152_int8_biasint8_ns.mllm";
-    const string cpu_model_path = "./models/qwen-1.8b-chat-q4k-fp32.mllm";
+    const string cpu_model_path = "./models/Qwen1.5-1.8B-Chat_152_int8_biasint8_ns.mllm";
     const string merge_file_path = "./vocab/merges_qwen.txt";
 
     string vocab_path = cmdParser.get<string>("vocab");
@@ -254,7 +254,7 @@ int main(int argc, char **argv) {
             decode_cpu_backend->switchDecodeTag();
 
             // // 2: Decoding stage using CPU execute
-            for (int step = real_seq_length; step < 100; step++) {
+            for (int step = real_seq_length; step < 64; step++) {
                 cpuExe.run(&cpuNet, {input});
                 auto result = cpuExe.result();
                 auto token_idx = postProcessing(result[0], input);

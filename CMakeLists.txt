@@ -224,18 +224,18 @@ endif ()
 # else ()
 #     target_link_libraries(main_llama MLLM_CPU)
 # endif ()
-add_executable(main_qwen ${PROJECT_SOURCE_DIR}/demo/qnn/main_qwen.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/Tokenizer.hpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/tokenizers/BPE/Bpe.hpp
-)
-if (ARM AND NOT APK)
-    target_compile_options(main_qwen PRIVATE -fopenmp)
-    target_link_libraries(main_qwen PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(main_qwen MLLM_CPU)
-endif ()
+# add_executable(main_qwen ${PROJECT_SOURCE_DIR}/demo/qnn/main_qwen.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/Tokenizer.hpp
+#         src/tokenizers/BPE/Bpe.cpp
+#         src/tokenizers/BPE/Bpe.hpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(main_qwen PRIVATE -fopenmp)
+#     target_link_libraries(main_qwen PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(main_qwen MLLM_CPU)
+# endif ()
 # add_executable(main_alpaca ${PROJECT_SOURCE_DIR}/examples/main_alpaca.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
 #         src/tokenizers/Tokenizer.cpp
 #         src/tokenizers/Tokenizer.hpp
@@ -503,31 +503,31 @@ endif ()
 #     target_link_libraries(demo_sparse_llama MLLM_CPU)
 # endif ()
 
-add_executable(demo_qwen ${PROJECT_SOURCE_DIR}/examples/demo_qwen.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/tokenizers/Unicode.cpp
-        src/tokenizers/UnicodeData.cpp
-        src/processor/PreProcess.cpp
-)
-if (ARM AND NOT APK)
-    target_compile_options(demo_qwen PRIVATE -fopenmp)
-    target_link_libraries(demo_qwen PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(demo_qwen PUBLIC MLLM_CPU)
-endif ()
+# add_executable(demo_qwen ${PROJECT_SOURCE_DIR}/examples/demo_qwen.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/BPE/Bpe.cpp
+#         src/tokenizers/Unicode.cpp
+#         src/tokenizers/UnicodeData.cpp
+#         src/processor/PreProcess.cpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(demo_qwen PRIVATE -fopenmp)
+#     target_link_libraries(demo_qwen PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(demo_qwen PUBLIC MLLM_CPU)
+# endif ()
 
-add_executable(demo_mistral ${PROJECT_SOURCE_DIR}/examples/demo_mistral.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
-        src/tokenizers/Tokenizer.cpp
-        src/tokenizers/BPE/Bpe.cpp
-        src/processor/PreProcess.cpp
-)
-if (ARM AND NOT APK)
-    target_compile_options(demo_mistral PRIVATE -fopenmp)
-    target_link_libraries(demo_mistral PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_link_libraries(demo_mistral PUBLIC MLLM_CPU)
-endif ()
+# add_executable(demo_mistral ${PROJECT_SOURCE_DIR}/examples/demo_mistral.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/BPE/Bpe.cpp
+#         src/processor/PreProcess.cpp
+# )
+# if (ARM AND NOT APK)
+#     target_compile_options(demo_mistral PRIVATE -fopenmp)
+#     target_link_libraries(demo_mistral PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(demo_mistral PUBLIC MLLM_CPU)
+# endif ()
 
 # add_executable(demo_yi ${PROJECT_SOURCE_DIR}/examples/demo_yi.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
 #         src/tokenizers/Tokenizer.cpp
@@ -566,29 +566,29 @@ endif ()
 
 
 
-# if(QNN)
-#     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
-# 
-#     # if (ARM)
-#     #     set(CMAKE_CXX_FLAGS " -fPIC -Wall -pthread -march=armv8-a -O3 -g -Wno-write-strings -fvisibility=hidden -flto")
-#     # else()
-#     #     set (CMAKE_CXX_FLAGS " -fPIC -Wall  -pg -pthread -march=x86-64 -O3 -g -Wno-write-strings -fvisibility=hidden -flto")
-#     # endif()
-#     # set(CMAKE_LD_FLAGS "-shared -s -fPIC -pthread -fvisibility=hidden -flto")
-# 
-#     # qnn executables
-#     add_executable(qnn_opt_smoothquant ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_opt_smoothquant.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
-#         src/tokenizers/Tokenizer.cpp
-#         src/tokenizers/Tokenizer.hpp
-#         src/tokenizers/BPE/Bpe.cpp
-#         src/tokenizers/BPE/Bpe.hpp
-#     )
-#     target_compile_definitions(qnn_opt_smoothquant PRIVATE USE_QNN)
-#     if (ARM)
-#         target_compile_options(qnn_opt_smoothquant PRIVATE -fopenmp)
-#         target_link_libraries(qnn_opt_smoothquant PUBLIC  MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS} -fopenmp -static-openmp)
-#     endif ()
-# endif()
+if(QNN)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
+
+    # if (ARM)
+    #     set(CMAKE_CXX_FLAGS " -fPIC -Wall -pthread -march=armv8-a -O3 -g -Wno-write-strings -fvisibility=hidden -flto")
+    # else()
+    #     set (CMAKE_CXX_FLAGS " -fPIC -Wall  -pg -pthread -march=x86-64 -O3 -g -Wno-write-strings -fvisibility=hidden -flto")
+    # endif()
+    # set(CMAKE_LD_FLAGS "-shared -s -fPIC -pthread -fvisibility=hidden -flto")
+
+    # qnn executables
+    add_executable(qnn_opt_smoothquant ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_opt_smoothquant.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/BPE/Bpe.hpp
+    )
+    target_compile_definitions(qnn_opt_smoothquant PRIVATE USE_QNN)
+    if (ARM)
+        target_compile_options(qnn_opt_smoothquant PRIVATE -fopenmp)
+        target_link_libraries(qnn_opt_smoothquant PUBLIC  MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS} -fopenmp -static-openmp)
+    endif ()
+endif()
 
 if (APK)
     add_library(mllm_lib STATIC ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER}

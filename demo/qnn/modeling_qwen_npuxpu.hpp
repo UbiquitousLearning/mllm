@@ -179,9 +179,9 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention_t2(Context *c, NetTensor *x, NetTe
 }
 
 NetTensor * Qwen_CPUAttention_t2(Context *c, NetTensor *x, NetTensor *res, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk) {
-    auto *q = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
-    auto *k = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
-    auto *v = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
+    auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
+    auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
+    auto *v = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
     q = q->view(-1, head_size, -1, hidden_size);
     k = k->view(-1, head_size, -1, hidden_size);
     v = v->view(-1, head_size, -1, hidden_size);
@@ -201,17 +201,17 @@ NetTensor * Qwen_CPUAttention_t2(Context *c, NetTensor *x, NetTensor *res, int e
 
     o = o->view(-1, 1, -1, hidden_size * head_size);
 
-    o = _Linear({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
+    o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
 
     return o;
 }
 
 NetTensor *Qwen_FFN_CPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
-    auto *x = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
-    auto *y = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
+    auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
+    auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
     x = _SiLU({x}, name + ".silu");
     x = *x * y;
-    x = _Linear({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
+    x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
     return x;
 }
 
@@ -226,7 +226,26 @@ void qwen_cpu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
 
         res = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
 
-        i = *Qwen_FFN_CPU(c, res, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp") + i;
+        if (layer != 6 && layer != 1 && layer != 2) {
+            i = *Qwen_FFN_CPU(c, res, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp") + i;
+        } else {
+
+            auto name = (string) "model.layers." + std::to_string(layer) + ".mlp";
+
+            auto *x = _LinearINT8({res}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
+            x = _SiLU({x}, name + ".silu");
+            auto *y = _LinearINT8({res}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
+            x = *x * y; // x = _Mul( {x, y}, name+".dot");
+
+            auto *i1 = x;
+            x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
+
+            auto *i2 = x;
+
+            i = *x + i;
+
+            i = _LinearINT8Shadow({i1, i2, i}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
+        }
 
     }
     i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
