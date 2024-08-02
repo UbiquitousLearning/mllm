@@ -26,7 +26,7 @@ class BPETokenizer final : public Tokenizer {
         int last;
         int next;
     };
-    std::unordered_map<string,unsigned> merge_rank;
+    std::unordered_map<string, unsigned> merge_rank;
     std::vector<CharSymbol> symbols_;
     std::priority_queue<TokenItem, std::vector<TokenItem>, TokenItem::Compare> queue_;
     void tryMergeSymbol(size_t start, size_t end);
@@ -35,9 +35,10 @@ class BPETokenizer final : public Tokenizer {
 public:
     void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) override;
     vector<std::string> bpe(const std::string &token, std::string end_symbol);
+    void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, std::vector<std::string> &special_tokens, bool byte_fallback = false);
     void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, bool byte_fallback, std::string end_symbol);
-    void tokenize(const std::string &text, std::vector<token_id_t> &tokens,const std::vector<std::string>& special);
-    void setMergeRank(const std::unordered_map<string,unsigned> &merge_rank);
+    void tokenize(const std::string &text, std::vector<token_id_t> &tokens, const std::vector<std::string> &special);
+    void setMergeRank(const std::unordered_map<string, unsigned> &merge_rank);
     explicit BPETokenizer(const std::string &vocab_file);
 };
 } // namespace mllm

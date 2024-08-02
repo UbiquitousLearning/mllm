@@ -13,14 +13,14 @@ static size_t utf8_len(char src) {
     uint8_t highbits = static_cast<uint8_t>(src) >> 4;
     return lookup[highbits];
 }
-static std::vector<std::pair<string, string>> get_pairs( vector<string> word) {
+static std::vector<std::pair<string, string>> get_pairs(vector<string> word) {
     std::vector<std::pair<string, string>> pairs;
     for (int i = 1; i < word.size(); ++i) {
-        pairs.emplace_back(word[i-1],word[i] );
+        pairs.emplace_back(word[i - 1], word[i]);
     }
     return pairs;
 }
-vector<std::string> mllm::BPETokenizer::bpe(const std::string& token, std::string end_symbol) {
+vector<std::string> mllm::BPETokenizer::bpe(const std::string &token, std::string end_symbol) {
     std::wstring_convert<std::codecvt_utf8_utf16<char32_t>, char32_t> converter;
     std::u32string u32_token = converter.from_bytes(token);
 
@@ -33,7 +33,6 @@ vector<std::string> mllm::BPETokenizer::bpe(const std::string& token, std::strin
     // word_splits.push_back(last_str + "</w>");
     word_splits.push_back(last_str + end_symbol);
 
-
     auto pairs = get_pairs(word_splits);
     if (pairs.empty()) {
         // return {token + "</w>"};
@@ -41,14 +40,14 @@ vector<std::string> mllm::BPETokenizer::bpe(const std::string& token, std::strin
     }
 
     while (true) {
-        auto bigram = *std::min_element(pairs.begin(), pairs.end(), [this](const auto& a, const auto& b) {
-            auto string_a = std::string(a.first)+" " + std::string(a.second);
-            auto string_b = std::string(b.first)+" " + std::string(b.second);
+        auto bigram = *std::min_element(pairs.begin(), pairs.end(), [this](const auto &a, const auto &b) {
+            auto string_a = std::string(a.first) + " " + std::string(a.second);
+            auto string_b = std::string(b.first) + " " + std::string(b.second);
             auto rank_a = merge_rank.count(string_a) ? merge_rank.at(string_a) : INFINITY;
             auto rank_b = merge_rank.count(string_b) ? merge_rank.at(string_b) : INFINITY;
             return rank_a < rank_b;
         });
-        auto bigram_string = std::string(bigram.first)+" " + std::string(bigram.second);
+        auto bigram_string = std::string(bigram.first) + " " + std::string(bigram.second);
         if (merge_rank.find(bigram_string) == merge_rank.end()) {
             break;
         }
@@ -56,7 +55,7 @@ vector<std::string> mllm::BPETokenizer::bpe(const std::string& token, std::strin
         string first = bigram.first, second = bigram.second;
         vector<std::string> new_word;
         int i = 0;
-        int j=0;
+        int j = 0;
         while (i < word_splits.size()) {
             // find first at word_splits[i:]
             bool found = false;
@@ -74,27 +73,38 @@ vector<std::string> mllm::BPETokenizer::bpe(const std::string& token, std::strin
                 new_word.insert(new_word.end(), word_splits.begin() + i, word_splits.end());
                 break;
             }
-            if (word_splits[i]==first && i<word_splits.size() -1&& word_splits[i+1]==second){
-                new_word.emplace_back(first+second);
-                i+=2;
-            }else {
+            if (word_splits[i] == first && i < word_splits.size() - 1 && word_splits[i + 1] == second) {
+                new_word.emplace_back(first + second);
+                i += 2;
+            } else {
                 new_word.emplace_back(word_splits[i]);
                 i++;
             }
         }
-            word_splits = new_word;
-            if (word_splits.size() == 1) {
-                break;
-            } else {
-                pairs = get_pairs(word_splits);
-
+        word_splits = new_word;
+        if (word_splits.size() == 1) {
+            break;
+        } else {
+            pairs = get_pairs(word_splits);
         }
     }
 
-        // cache[token] = word_splits;
-        return word_splits;
-
+    // cache[token] = word_splits;
+    return word_splits;
 }
+
+void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, std::vector<std::string> &special_tokens, bool byte_fallback) {
+    if (std::find(special_tokens.begin(), special_tokens.end(), text) != special_tokens.end()) {
+        auto it = this->vocab_map_.find(text);
+        if (it != this->vocab_map_.end()) {
+            tokens.emplace_back(it->second);
+            tokens.emplace_back(2.0);
+        }
+        return;
+    }
+    tokenize(text, tokens, bos, byte_fallback, "");
+}
+
 void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, bool byte_fallback = false, std::string end_symbol = "") {
     if (text.empty()) {
         return;
@@ -110,7 +120,7 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
     if (bos) {
         tokens.emplace_back(mllm::BPETokenizer::TokenBos);
     }
-    if (!merge_rank.empty()){
+    if (!merge_rank.empty()) {
         std::vector<std::string> words;
         std::regex pattern("<\\|startoftext\\|>|<\\|endoftext\\|>|'s|'t|'re|'ve|'m|'ll|'d|\\w+|\\d+|\\S+");
         std::smatch match;
@@ -121,11 +131,11 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
             searchStart = match.suffix().first;
         }
 
-        for (const auto& word:words){
+        for (const auto &word : words) {
             auto word_splits = bpe(word, end_symbol);
-            for (const auto& word_split:word_splits){
+            for (const auto &word_split : word_splits) {
                 if (auto result = this->vocab_map_.find(word_split); result != this->vocab_map_.end()) {
-                    auto token_idx =  result->second ;
+                    auto token_idx = result->second;
                     tokens.emplace_back(id_token_[token_idx].score);
                 } else {
                     if (!byte_fallback) {
@@ -138,9 +148,8 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
                     }
                 }
             }
-
         }
-        if (TokenEos>0) {
+        if (TokenEos > 0) {
             tokens.push_back(TokenEos);
         }
         return;
@@ -229,7 +238,7 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
 std::pair<size_t, std::string> find_special(const std::string &text, const std::vector<std::string> &special, size_t pos) {
     for (const std::string &delimiter : special) {
         size_t found = text.find(delimiter, pos);
-        if((found != std::string::npos) ) {
+        if ((found != std::string::npos)) {
             return {found, delimiter};
         }
     }
@@ -248,11 +257,11 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
             this->tokenize(text.substr(startPos, found - startPos), tokens_id, true, true);
             tokens.insert(tokens.end(), tokens_id.begin() + 1, tokens_id.end() - 1);
         }
-        std::string  delimiter_;
+        std::string delimiter_;
         if (delimiter == "\n") {
             delimiter_ = "<0x0A>";
         } else {
-            delimiter_  = delimiter;
+            delimiter_ = delimiter;
         }
         auto result = this->vocab_map_.find(delimiter_);
         if (result != this->vocab_map_.end()) {
