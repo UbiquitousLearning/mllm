@@ -13,6 +13,11 @@
 #include "modeling_opt_npuxpu.hpp"
 #include "modeling_qwen_npuxpu.hpp"
 
+#include "models/qwen/configuration_qwen.hpp"
+#include "models/qwen/modeling_qwen.hpp"
+#include "models/qwen/tokenization_qwen.hpp"
+#include "processor/PostProcess.hpp"
+
 using namespace mllm;
 
 unsigned int argmax(const std::vector<float> &scores) {
@@ -95,13 +100,33 @@ void qwen_model(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int f
         auto res = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
 
         auto tmp = Attention(res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn");
-
-        return ;
         i = *tmp+i;
+
+        
 
         res = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
 
-        i = *FFN(res, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp") + i;
+        if (layer != 6 && layer != 1 && layer != 2) {
+            i = *FFN(res, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp") + i;
+        } else {
+
+            auto name = (string) "model.layers." + std::to_string(layer) + ".mlp";
+
+            auto *x = _LinearINT8({res}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
+            x = _SiLU({x}, name + ".silu");
+            auto *y = _LinearINT8({res}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
+            x = *x * y; // x = _Mul( {x, y}, name+".dot");
+
+            auto *i1 = x;
+            x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
+
+            auto *i2 = x;
+
+            i = *x + i;
+
+            i = _LinearINT8Shadow({i1, i2, i}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
+        }
+
     }
     i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
     i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
@@ -191,13 +216,17 @@ int main(int argc, char **argv) {
             tokens_id[0] = 13;
         }
 
+        tokens_id = {151644,   8948,    198,   2610,    525,    264,  10950,  17847,     13,
+         151645,    198, 151644,    872,    198,  35127,    752,    264,   2805,
+          16800,    311,   3460,   4128,   1614,     13, 151645,    198, 151644,
+          77091,    198};
+
         for (int ti = 0; ti < tokens_id.size(); ti++) {
-            tokens_id[ti] = 9707;
+            // tokens_id[ti] = 9707;
             std::cout << tokens_id[ti] << std::endl;
         }
 
         BPETokenizer::token2Tensor(&cpuNet, tokens_id, input);
-
 
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
@@ -208,17 +237,16 @@ int main(int argc, char **argv) {
             cpuExe.run(&cpuNet, {input});
             auto result = cpuExe.result();
 
-            result[0]->printData<float>();
-            exit(-1);
+            // result[0]->printData<float>();
+            // exit(-1);
 
             auto token_idx = postProcessing(result[0], input);
             if (token_idx == 151645) { // "</s>"
                 break;
             }
-            auto out_token = tokenizer.detokenize({token_idx});
-            // replace "Ġ" with " " using std
-            if(out_token.find("Ġ") != std::string::npos)
-                out_token = out_token.replace(out_token.find("Ġ"), string("Ġ").length(), " ");
+            auto qwen_tokenizer = QWenTokenizer(vocab_path, merge_file_path);
+                
+            auto out_token = qwen_tokenizer.detokenize({token_idx});
             std::cout << out_token << std::flush;
             answers.push_back(out_token);
         }

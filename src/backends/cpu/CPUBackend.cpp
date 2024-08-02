@@ -53,6 +53,8 @@
 #include "CPUElasticLinear.hpp"
 #include "CPUQuantize.hpp"
 #include "CPUMergeOutput.hpp"
+#include "CPULinearINT8Shadow.hpp"
+#include "CPULinearHead.hpp"
 
 #include "CPUTensorFunction.hpp"
 #include "CPUPosition.hpp"
@@ -142,6 +144,7 @@ void CPUBackend::registerOps() {
     addCreator(QUANTIZE, (CPUBackend::Creator *)(new CPUQuantizeCreator()));
     addCreator(MERGEOUTPUT, (CPUBackend::Creator *)(new CPUMergeOutputCreator()));
     addCreator(SPLITINPUT, (CPUBackend::Creator *)(new CPUSplitInputCreator()));
+    addCreator(LINEARINT8SHADOW, (CPUBackend::Creator *)(new CPULinearINT8ShadowCreator()));
 }
 
 TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {
