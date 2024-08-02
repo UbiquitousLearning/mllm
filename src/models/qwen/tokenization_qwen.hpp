@@ -12,6 +12,7 @@
 
 #include "tokenizers/BPE/Bpe.hpp"
 #include "tokenizers/Tokenizer.hpp"
+#include "tokenizers/Unicode.hpp"
 #include <algorithm>
 #include <unordered_map>
 
@@ -45,10 +46,15 @@ static std::vector<int> __ord(std::string v) {
 }
 
 static const std::string PAT_STR = R"((?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?:$|[^\S])|\s+)";
+static const std::string SPLIT_PAT_STR = R"(<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>)";
+static const std::vector<std::string> FIXED_PAT_STRS = {
+    "(?:'[sS]|'[tT]|'[rR][eE]|'[vV][eE]|'[mM]|'[lL][lL]|'[dD])|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+",
+};
 
 class QWenTokenizer final {
 public:
-    explicit QWenTokenizer(const std::string &vocab_file, const std::string &merge_file) {
+    explicit QWenTokenizer(const std::string &vocab_file, const std::string &merge_file, bool split_special_tokens = false) :
+        split_special_tokens_(split_special_tokens) {
         Module::initBackend(MLLM_CPU);
         tokenizer = new BPETokenizer(vocab_file);
 
@@ -114,28 +120,95 @@ public:
         return elems;
     }
 
+    std::vector<std::string> _splitWithDelimiters(const std::string &str, const std::vector<std::string> &delimiters) {
+        std::string s = str;
+        std::vector<std::string> result;
+        size_t pos = 0;
+        auto isDelimiter = [&](size_t currentPos) {
+            for (const auto &delimiter : delimiters) {
+                if (currentPos + delimiter.length() <= s.length() && s.substr(currentPos, delimiter.length()) == delimiter) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        while (pos < s.length()) {
+            if (isDelimiter(pos)) {
+                if (pos != 0) {
+                    result.push_back(s.substr(0, pos));
+                }
+                size_t delimiterLength = delimiters.front().length();
+                for (const auto &delimiter : delimiters) {
+                    if (s.substr(pos, delimiter.length()) == delimiter) {
+                        delimiterLength = delimiter.length();
+                        result.push_back(delimiter);
+                        break;
+                    }
+                }
+                pos += delimiterLength;
+                s = s.substr(pos);
+                pos = 0;
+            } else {
+                ++pos;
+            }
+        }
+
+        if (!s.empty()) {
+            result.push_back(s);
+        }
+
+        return result;
+    }
+
     Tensor tokenize(std::string &text, int str_i = 0) {
         std::vector<token_id_t> ret;
 
-        auto splited = stringSplit(text, ' ');
-        if (text[0] == ' ') splited[0] = " " + splited[0];
-        for (auto piece : splited) {
-            // look up table
-            std::string token;
-            for (auto b : UTF8(piece)) token += byte_encoder_[b];
+        if (split_special_tokens_) {
+            const auto word_collection = unicode_regex_split(text, FIXED_PAT_STRS);
+            for (auto &piece : word_collection) {
+                // look up table
+                // std::string token;
+                // for (auto b : UTF8(piece)) token += byte_encoder_[b];
 
-            // using bpe
-            std::vector<token_id_t> tmp;
-            tokenizer->tokenize(token, tmp, /*bos*/ false, /*byte fallback*/ true, "");
+                // using bpe
+                std::vector<token_id_t> tmp;
+                tokenizer->tokenize(piece, tmp, false, true, "");
+                ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+            }
+        } else {
+            auto parts = _splitWithDelimiters(text, special_tokens);
+            // for (auto p : parts) {
+            //     std::cout << "\"" << p << "\"" << std::endl;
+            // }
+            for (auto &p : parts) {
+                if (std::find(special_tokens.begin(), special_tokens.end(), p) != special_tokens.end()) {
+                    std::string token;
+                    for (auto b : UTF8(p)) token += byte_encoder_[b];
 
-            ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+                    std::vector<token_id_t> tmp;
+                    tokenizer->tokenize(token, tmp, false, special_tokens, true);
+                    ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+                } else {
+                    const auto word_collection = unicode_regex_split(p, FIXED_PAT_STRS);
+                    for (auto &piece : word_collection) {
+                        // look up table
+                        // std::string token;
+                        // for (auto b : UTF8(piece)) token += byte_encoder_[b];
+
+                        // using bpe
+                        std::vector<token_id_t> tmp;
+                        tokenizer->tokenize(piece, tmp, false, true, "");
+                        assert(tmp.size() != 0);
+                        ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+                    }
+                }
+            }
         }
-        // FIXME if we need bos or not?
-        ret.insert(ret.begin(), bos_id_);
+
         return Tokenizer::tokens2Input(ret);
     }
 
-    // FIXME std::string += std::string has performance issues when string is large.
     std::string _byte_decode_(const std::string &text) {
         std::string ret;
         auto _ = ORD(text);
@@ -168,11 +241,17 @@ private:
     }
 
 public:
+    bool split_special_tokens_ = false;
     BPETokenizer *tokenizer;
     std::unordered_map<int, std::string> byte_encoder_;
     std::unordered_map<std::string, int> byte_decoder_;
     std::unordered_map<std::string, unsigned int> bpe_ranks_;
     token_id_t eos_id_ = 151645, bos_id_ = 151643;
+    std::vector<std::string> special_tokens = {
+        "<|endoftext|>",
+        "<|im_start|>",
+        "<|im_end|>",
+    };
 };
 
 #undef UTF8
