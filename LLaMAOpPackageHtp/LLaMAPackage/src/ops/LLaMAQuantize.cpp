@@ -1282,10 +1282,10 @@ GraphStatus llamaquantizeImpl(TensorType1 &out_0,
             
                 float inval       = in_0(b, h, w, d);
 
-                float result = Round(inval / scale_);
+                // float result = Round(inval / scale_);
 
 
-                long v = lroundf(result);
+                long v = lroundf(inval / scale_);
                 
                 if (v > 127)
                     v = 127;

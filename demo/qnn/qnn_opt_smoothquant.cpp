@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
           77091,    198};
 
         for (int ti = 0; ti < tokens_id.size(); ti++) {
-            // tokens_id[ti] = 9707;
+            tokens_id[ti] = 9707;
             std::cout << tokens_id[ti] << std::endl;
         }
 
@@ -224,6 +224,7 @@ int main(int argc, char **argv) {
             // inter model for prefill-decode
             interExe.run(&interNet, {result[0]});
             result = interExe.result();
+            result[0]->printData<float>();
 
             std::cout << "=============prefilling tokens output: =============" << std::endl;
             for (int ti = 1; ti <= real_seq_length; ti++) {
@@ -254,9 +255,10 @@ int main(int argc, char **argv) {
             decode_cpu_backend->switchDecodeTag();
 
             // // 2: Decoding stage using CPU execute
-            for (int step = real_seq_length; step < 64; step++) {
+            for (int step = real_seq_length; step < 32; step++) {
                 cpuExe.run(&cpuNet, {input});
                 auto result = cpuExe.result();
+                result[0]->printData<float>();
                 auto token_idx = postProcessing(result[0], input);
                 if (token_idx == 2) { // "</s>"
                     break;

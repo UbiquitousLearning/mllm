@@ -174,6 +174,7 @@ ErrorCode CPULinearInt8::mat_mul_fp32_i8(Tensor *src0_, Tensor *src1, Tensor *ds
         std::cout << "[ERROR]: " << src0_->dimension() << "%" << QK8_0 << "!=0" << std::endl;
         assert(src0_->dimension() % QK8_0 == 0);
     }
+    src0_i8.printData<int8_t>();
     auto *src0 = &src0_i8;
     assert(src0->dtype() == MLLM_TYPE_I8);
 

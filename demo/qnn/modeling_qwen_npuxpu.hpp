@@ -247,6 +247,9 @@ void qwen_cpu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
             i = _LinearINT8Shadow({i1, i2, i}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
         }
 
+        if (layer == 0)
+                break;      
+
     }
     i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
     i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
@@ -326,9 +329,10 @@ void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
             x = *x + res;
             
             i = _LinearINT8Shadow({i1, i2, x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
-        }
-        
+        }  
 
+        if (layer == 0)
+                break;      
         
     }
 }
