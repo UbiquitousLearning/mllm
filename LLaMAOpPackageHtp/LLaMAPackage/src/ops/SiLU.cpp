@@ -82,31 +82,6 @@ DEF_PACKAGE_OP((siluImpl<Tensor>), "SiLU")
 
 /* execute functions for ops */
 #ifndef REFERENCE_OP
-/**=============================================================================
-@file
-    qhmath_hvx_sigmoid_af.c
-
-@brief
-    Calculate polynomial approximation of the function below in
-    floating-point arithmetic using HVX instructions.
-
-    Function: 1.0/(exp(-x)+1.0)
-
-    Function is approximated in specified input range from -8.0 to 8.0,
-    where inputs and outputs are arrays of 32-bit float values.
-
-    Approximation is performed using the following method:
-
-    1) Input range is split into 16 equidistant segments
-    2) For each segment, Numpy’s polynomial package is used to find the best
-       polynomial approximation of order N with the corresponding C0, C1, ..., Cn.
-    3) VLUT instructions are used to select appropriate coefficients for each input sample
-    4) Horner's method is used to compute polynomial values:
-       f(x) = ((((Cn*x + Cn-1)*x + Cn-2)*x + ...)*x + C1)*x + C0
-
-Copyright (c) 2020 Qualcomm Technologies Incorporated.
-All Rights Reserved. Qualcomm Proprietary and Confidential.
-=============================================================================**/
 
 #include "qhmath_hvx.h"
 #include "hvx_internal.h"
@@ -115,6 +90,22 @@ All Rights Reserved. Qualcomm Proprietary and Confidential.
 
 #define BLOCK_SIZE       (8*1024/VLEN)  /* vector chunks */
 #define L2FETCH_AHEAD    (BLOCK_SIZE)
+
+static inline int32_t float_to_fp16s(float input)
+{
+    union {
+        int32_t i;
+        __fp16 f[2];
+    } fp32 = {.f = {(__fp16)input, (__fp16)input}};
+    return fp32.i;
+}
+
+static HVX_INLINE_ALWAYS uint32_t float_to_bits(float x)
+{
+    union { float f; uint32_t i; } fp32 = { .f = x };
+    return fp32.i;
+}
+
 
 /* Polynomial coefficients */
 static const float c0_coeffs[32] __attribute__((aligned(VLEN))) =
@@ -177,7 +168,6 @@ int32_t hvx_silu_af(float *restrict input, float *restrict output, uint32_t size
     HVX_Vector slinep;
     HVX_Vector slinec;
     HVX_Vector sline;
-    HVX_Vector sout;
     int32_t block, l2fetch_block;
     int32_t leftover = size & 31;
     int32_t vectors_in_rounddown = size / 32;
@@ -198,6 +188,8 @@ int32_t hvx_silu_af(float *restrict input, float *restrict output, uint32_t size
     HVX_VectorPair c4_coeff_vp;
     HVX_Vector c4_coeff_v;
 
+    HVX_Vector f8, f_8;
+
     /* Check input arguments. Return error status if some argument has invalid value */
     if ((input == 0) || (output == 0) || (size == 0))
     {
@@ -206,6 +198,9 @@ int32_t hvx_silu_af(float *restrict input, float *restrict output, uint32_t size
 
     input_v_ptr = (HVX_Vector *) input;
     output_v_ptr = (HVX_UVector *) output;
+
+    f8 = Q6_V_vsplat_R(float_to_bits(8.0f));
+    f_8 = Q6_V_vsplat_R(float_to_bits(-8.0f));
 
     /*
      * If input data is not aligned to HVX vector size, compose aligned vectors
@@ -346,9 +341,17 @@ int32_t hvx_silu_af(float *restrict input, float *restrict output, uint32_t size
             // x * sigmod
             output_v = Q6_Vqf32_vmpy_Vqf32Vqf32(input_v_qf32, output_v);
             
+            HVX_Vector out_v = Q6_Vsf_equals_Vqf32(output_v);
+
+            HVX_VectorPred islf8 = Q6_Q_vcmp_gt_VsfVsf(sline, f8);
+            out_v = Q6_V_vmux_QVV(islf8, sline, out_v);
+
+            HVX_VectorPred islf_8 = Q6_Q_vcmp_gt_VsfVsf(f_8, sline);
+            out_v = Q6_V_vmux_QVV(islf_8, zero_v_sf, out_v);
+
 
             /* Store results to the output buffer and convert from qf32 to sf */
-            *((HVX_UVector *)(output_v_ptr++)) = Q6_Vsf_equals_Vqf32(output_v);
+            *((HVX_UVector *)(output_v_ptr++)) = out_v;
 
             /* Prepare slinep for next iteration */
             slinep = slinec;
@@ -415,8 +418,16 @@ int32_t hvx_silu_af(float *restrict input, float *restrict output, uint32_t size
         // x * sigmod
         output_v = Q6_Vqf32_vmpy_Vqf32Vqf32(input_v_qf32, output_v);
 
+        HVX_Vector out_v = Q6_Vsf_equals_Vqf32(output_v);
+
+        HVX_VectorPred islf8 = Q6_Q_vcmp_gt_VsfVsf(sline, f8);
+        out_v = Q6_V_vmux_QVV(islf8, sline, out_v);
+
+        HVX_VectorPred islf_8 = Q6_Q_vcmp_gt_VsfVsf(f_8, sline);
+        out_v = Q6_V_vmux_QVV(islf_8, zero_v_sf, out_v);
+
         /* Convert from qf32 to sf, store output and go to handle leftover */
-        *((HVX_UVector *)(output_v_ptr++)) = Q6_Vsf_equals_Vqf32(output_v);
+        *((HVX_UVector *)(output_v_ptr++)) = out_v;
 
         slinep = slinec;
     }
@@ -484,11 +495,16 @@ int32_t hvx_silu_af(float *restrict input, float *restrict output, uint32_t size
         // x * sigmod
         output_v = Q6_Vqf32_vmpy_Vqf32Vqf32(input_v_qf32, output_v);
 
-        /* Convert from qf32 to sf */
-        sout = Q6_Vsf_equals_Vqf32(output_v);
+        HVX_Vector out_v = Q6_Vsf_equals_Vqf32(output_v);
+
+        HVX_VectorPred islf8 = Q6_Q_vcmp_gt_VsfVsf(sline, f8);
+        out_v = Q6_V_vmux_QVV(islf8, sline, out_v);
+
+        HVX_VectorPred islf_8 = Q6_Q_vcmp_gt_VsfVsf(f_8, sline);
+        out_v = Q6_V_vmux_QVV(islf_8, zero_v_sf, out_v);
 
         /* Store output */
-        vstu_variable(output_v_ptr, leftover_size, sout);
+        vstu_variable(output_v_ptr, leftover_size, out_v);
     }
 
     return 0;
@@ -1007,25 +1023,6 @@ GraphStatus siluImpl(TensorType& out_0,
       auto in_ptr = (float*)in_0.raw_data_const();
       auto out_ptr = (float*)out_0.raw_data();
       hvx_silu_af(in_ptr, out_ptr, size);
-
-      auto [b_in, h_in, w_in, d_in] = in_0.dims();
-      for (Idx b = 0; b < b_in; b++) {
-        for (Idx h = 0; h < h_in; h++) {
-          for (Idx w = 0; w < w_in; w++) {
-            // SiLU
-            for (Idx d = 0; d < d_in; d++) {
-              float inval       = in_0(b, h, w, d);
-
-              if (fabs(inval) >= 8.0) {
-                float outval      = 1 / (1 + expf(-inval));
-                out_0(b, h, w, d) = inval * outval;
-              }
-              
-              
-            }
-          }
-        }
-      }
     }
 
     return GraphStatus::Success;
