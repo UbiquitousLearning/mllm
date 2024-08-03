@@ -178,7 +178,7 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention_t2(Context *c, NetTensor *x, NetTe
     return {o, res};
 }
 
-NetTensor * Qwen_CPUAttention_t2(Context *c, NetTensor *x, NetTensor *res, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk) {
+NetTensor * Qwen_CPUAttention_t2(Context *c, NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk) {
     auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
     auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
     auto *v = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
@@ -222,7 +222,7 @@ void qwen_cpu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
     for (int layer = 0; layer < 24; ++layer) {
         auto res = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
 
-        i = *Qwen_CPUAttention_t2(c, i, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn", seq, chunk) + i;
+        i = *Qwen_CPUAttention_t2(c, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn", seq, chunk) + i;
 
         res = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
 
