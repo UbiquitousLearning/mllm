@@ -316,6 +316,9 @@ void QuantWriter::quantParams_q4_(DataType dataType) {
             if (find_names(name, {"w2"})){
                 tmp_hidden_dim_q4 =(size/tmp_hidden_dim);
             }
+            else if (find_names(name, {"down_proj"})){
+                tmp_hidden_dim_q4 =(size/tmp_hidden_dim);
+            }
             quantize_row_q4_0_4x4(param, quant_ptr, size, tmp_hidden_dim_q4);
             size = block_t.second;
             if (quant_ptr != nullptr) {

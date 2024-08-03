@@ -7,6 +7,7 @@
 
 #include "Layer.hpp"
 #include "configuration_transformer.hpp"
+#include <vector>
 
 using namespace mllm;
 
@@ -119,6 +120,9 @@ public:
         o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
         o = o_proj(o);
         return {o};
+    }
+    vector<KVCache*> get_cache() {
+        return {&k_cache,&v_cache};
     }
 };
 

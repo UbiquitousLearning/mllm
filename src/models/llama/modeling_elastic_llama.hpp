@@ -32,6 +32,7 @@ public:
     ElasticMultiHeadAttention(int hidden_dim, int head_size,int kv_head_size, int attn_hidden_dim,
                        RoPEType RoPE_type, int cache_limit, bool do_mask, bool bias,
                        const TransformerNameConfig &names, const string &base_name) {
+        assert(kv_head_size_ == head_size_);
         attn_hidden_dim_ = attn_hidden_dim;
         head_size_ = head_size;
         kv_head_size_ = kv_head_size;
@@ -51,16 +52,16 @@ public:
         o_proj = ElasticLinear(head_size * attn_hidden_dim, hidden_dim, bias, base_name + names._o_proj_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
-        vector<int> activate_dims = std::any_cast<vector<int>>(args[0]);
-        int activate_dim = activate_dims[0];
-        int activate_hidden_dim = (activate_dim==-1)? attn_hidden_dim_: (activate_dim/head_size_);
+        vector<int> activate_head_dims = std::any_cast<vector<int>>(args[0]);
+        int activate_head_dim = activate_head_dims[0];
+        activate_head_dim = (activate_head_dim==-1)? kv_head_size_: (activate_head_dim);
         Tensor q, k, v;
-        q = q_proj(inputs[0], -1, activate_dim);
-        k = k_proj(inputs[1], -1, activate_dim);
-        v = v_proj(inputs[2], -1, activate_dim);
-        q = q.view(-1, head_size_, -1, activate_hidden_dim);
-        k = k.view(-1, kv_head_size_, -1, activate_hidden_dim);
-        v = v.view(-1, kv_head_size_, -1, activate_hidden_dim);
+        q = q_proj(inputs[0], -1, activate_head_dim*attn_hidden_dim_);
+        k = k_proj(inputs[1], -1, activate_head_dim*attn_hidden_dim_);
+        v = v_proj(inputs[2], -1, activate_head_dim*attn_hidden_dim_);
+        q = q.view(-1, activate_head_dim, -1, attn_hidden_dim_);
+        k = k.view(-1, activate_head_dim, -1, attn_hidden_dim_);
+        v = v.view(-1, activate_head_dim, -1, attn_hidden_dim_);
         if (q_rope.ready() && k_rope.ready()) {
             q = q_rope(q);
             k = k_rope(k);
@@ -71,16 +72,19 @@ public:
         }
         k = k.transpose(SEQUENCE, DIMENSION);
         auto qk = Tensor::mm(q, k);
-        qk = qk / std::sqrt(activate_hidden_dim);//attn_hidden_dim_
+        qk = qk / std::sqrt(attn_hidden_dim_);//attn_hidden_dim_
         if (k_cache.ready() && v_cache.ready()) {
             qk = softmax(qk, k_cache.getCacheSeqLen());
         }else{
             qk = softmax(qk);
         }
         auto o = Tensor::mm(qk, v);
-        o = o.view(-1, 1, -1, activate_hidden_dim * head_size_);
-        o = o_proj(o, activate_dim, -1);
+        o = o.view(-1, 1, -1, attn_hidden_dim_ * activate_head_dim);
+        o = o_proj(o, activate_head_dim*attn_hidden_dim_, -1);
         return {o};
+    }
+    vector<KVCache*> get_cache() {
+        return {&k_cache,&v_cache};
     }
 };
 
@@ -137,6 +141,9 @@ public:
         x = x + tmp;
         return {x};
     }
+    ElasticMultiHeadAttention& get_attention() {
+        return attention;
+    }
 };
 
 class ElasticLLaMAModel final : public Module {
@@ -169,6 +176,15 @@ public:
         x = norm(x);
         x = lm_head(x);
         return {x};
+    }
+
+    void clear_kvcache() {
+        for (auto &block : blocks) {
+            auto kvcahce =block.get_attention().get_cache();
+            for (auto &cache : kvcahce) {
+                cache->clearCache();
+            }
+        }
     }
 };
 
