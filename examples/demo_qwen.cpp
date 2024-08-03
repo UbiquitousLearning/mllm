@@ -11,11 +11,12 @@
 #include "models/qwen/configuration_qwen.hpp"
 #include "models/qwen/modeling_qwen.hpp"
 #include "models/qwen/tokenization_qwen.hpp"
-#include "processor/PostProcess.hpp"
 
 using namespace mllm;
 
 int main(int argc, char **argv) {
+    // std::iostream::sync_with_stdio(false);
+
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen_merges.txt");
@@ -70,6 +71,6 @@ int main(int argc, char **argv) {
             }
             return true;
         });
-        printf("\n");
+        std::cout << "\n";
     }
 }

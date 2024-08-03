@@ -481,6 +481,8 @@ endif ()
 add_executable(demo_qwen ${PROJECT_SOURCE_DIR}/examples/demo_qwen.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/Unicode.cpp
+        src/tokenizers/UnicodeData.cpp
         src/processor/PreProcess.cpp
 )
 if (ARM AND NOT APK)
@@ -546,6 +548,8 @@ if (APK)
             src/tokenizers/Unigram/trie.hpp
             src/tokenizers/BPE/Bpe.cpp
             src/tokenizers/BPE/Bpe.hpp
+            src/tokenizers/Unicode.cpp
+            src/tokenizers/UnicodeData.cpp
             src/processor/PreProcess.hpp
             src/processor/FuyuPreProcess.hpp
             src/processor/FuyuPreProcess.cpp
