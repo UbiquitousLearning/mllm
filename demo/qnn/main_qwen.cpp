@@ -127,8 +127,6 @@ void qwen_model(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int f
             i = _LinearINT8Shadow({i1, i2, i}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
         }
 
-        if (layer == 0)
-            break;
     }
     
     
@@ -226,7 +224,7 @@ int main(int argc, char **argv) {
           77091,    198};
 
         for (int ti = 0; ti < tokens_id.size(); ti++) {
-            tokens_id[ti] = 9707;
+            // tokens_id[ti] = 9707;
             std::cout << tokens_id[ti] << std::endl;
         }
 
@@ -237,7 +235,10 @@ int main(int argc, char **argv) {
 
         vector<string> answers;
 
-        for (int step = 29; step < 32; step++) {
+        for (int step = 0; step < 100; step++) {
+
+            input->printData<float>();
+            
             cpuExe.run(&cpuNet, {input});
             auto result = cpuExe.result();
 

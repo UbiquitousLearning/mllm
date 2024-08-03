@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
           77091,    198};
 
         for (int ti = 0; ti < tokens_id.size(); ti++) {
-            tokens_id[ti] = 9707;
+            // tokens_id[ti] = 9707;
             std::cout << tokens_id[ti] << std::endl;
         }
 
@@ -255,7 +255,10 @@ int main(int argc, char **argv) {
             decode_cpu_backend->switchDecodeTag();
 
             // // 2: Decoding stage using CPU execute
-            for (int step = real_seq_length; step < 32; step++) {
+            for (int step = real_seq_length; step < 100; step++) {
+
+                input->printData<float>();
+
                 cpuExe.run(&cpuNet, {input});
                 auto result = cpuExe.result();
                 result[0]->printData<float>();

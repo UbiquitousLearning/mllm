@@ -117,6 +117,9 @@ ErrorCode CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     case MLLM_TYPE_COUNT: break;
     default: break;
     }
+
+    outputs[0]->printData<float>();
+
     return MLLM_NO_ERROR;
 }
 ErrorCode CPUEmbedding::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
