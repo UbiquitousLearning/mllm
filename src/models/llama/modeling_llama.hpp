@@ -60,6 +60,10 @@ public:
         x = x + tmp;
         return {x};
     }
+    
+    MultiHeadAttention& get_attention() {
+        return attention;
+    }
 };
 
 class LLaMAModel final : public Module {
@@ -89,6 +93,15 @@ public:
         x = norm(x);
         x = lm_head(x);
         return {x};
+    }
+
+    void clear_kvcache() {
+        for (auto &block : blocks) {
+            auto kvcahce =block.get_attention().get_cache();
+            for (auto &cache : kvcahce) {
+                cache->clearCache();
+            }
+        }
     }
 };
 

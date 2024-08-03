@@ -120,6 +120,10 @@ public:
         std::cout << "only for KVCache" << std::endl;
         return -1;
     }
+    virtual void clearCache(){
+        assert(type_ == OpType::KVCACHE);
+        std::cout << "only for KVCache" << std::endl;
+    }
 
 private:
     Backend *backend_;

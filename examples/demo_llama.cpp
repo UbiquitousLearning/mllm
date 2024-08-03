@@ -52,6 +52,7 @@ int main(int argc, char **argv) {
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");
+        model.clear_kvcache();
         model.profiling();
     }
 

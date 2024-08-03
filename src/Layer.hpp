@@ -753,6 +753,9 @@ public:
     int getCacheSeqLen(){
         return op_->getCacheSeqLen();
     }
+    void clearCache(){
+        return op_->clearCache();
+    }
 };
 
 class LayerNorm final : public Layer {

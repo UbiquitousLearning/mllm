@@ -101,6 +101,9 @@ public:
         atten_output = o_proj(atten_output);
         return {atten_output};
     }
+    vector<KVCache*> get_cache() {
+        return {&k_cache,&v_cache};
+    }
 
 private:
     int hidden_size;
@@ -140,6 +143,9 @@ public:
         x = x + tmp;
         return {x};
     }
+    QWenAttention& get_attention() {
+        return self_atten;
+    }
 
 private:
     QWenAttention self_atten;
@@ -164,6 +170,14 @@ public:
         }
         x = norm(x);
         return {x};
+    }
+    void clear_kvcache() {
+        for (auto &block : blocks) {
+            auto kvcahce =block.get_attention().get_cache();
+            for (auto &cache : kvcahce) {
+                cache->clearCache();
+            }
+        }
     }
 
 private:
@@ -200,6 +214,9 @@ public:
             outputs = lm_head_layer(outputs);
         }
         return {outputs};
+    }
+    void clear_kvcache() {
+        model.clear_kvcache();
     }
 
 private:
