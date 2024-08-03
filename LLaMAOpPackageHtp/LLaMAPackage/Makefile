@@ -322,7 +322,7 @@ $(WORK)/hexagon-v75/%.o: $(SRC_DIR)/%.cpp | $(WORK)/hexagon-v75
 	$(HEXAGON_CXX_V75) $(HEXAGON_CXX_FLAGS_V75) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -c $< -o $@
 
 $(WORK)/hexagon-v75/ops/%.o: $(OP_SRC_DIR)/%.cpp | $(WORK)/hexagon-v75
-	$(HEXAGON_CXX_V75) $(HEXAGON_CXX_FLAGS_V75) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD  -DREFERENCE_OP $(INCLUDES) -DHVX_OP -c $< -o $@
+	$(HEXAGON_CXX_V75) $(HEXAGON_CXX_FLAGS_V75) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD $(INCLUDES) -DHVX_OP -c $< -o $@
 
 $(WORK)/hexagon-v75/ops/%.o: $(OP_SRC_DIR)/v75_asm/%.S | $(WORK)/hexagon-v75
 	$(HEXAGON_CXX_V75) $(HEXAGON_CXX_FLAGS_V75) -DTHIS_PKG_NAME=$(PACKAGE_NAME) -MMD -c $< -o $@

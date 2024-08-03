@@ -128,9 +128,6 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
 
     memcpy(outputs[0]->hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->batch()*inputs[2]->head()*inputs[2]->sequence()*inputs[2]->dimension()*sizeof(float));
 
-    inputs[0]->printData<float>();
-    inputs[1]->printData<float>();
-    inputs[2]->printData<float>();
 
     // input outliers
     if (!input_clip) {
