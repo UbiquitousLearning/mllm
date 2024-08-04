@@ -150,16 +150,7 @@ ErrorCode QNNLinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
 
     output_scale = roundf(output_scale * 100000) / 100000;
 
-    std::cout << input_scale << " " << weight_scale << " " << output_scale << std::endl;
-    std::cout << static_cast<float>(input_clip) << " " << static_cast<float>(output_clip) << std::endl;
-
-    std::cout << opName << "shadow execution" << std::endl;
-
     memcpy(outputs[0]->hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->batch()*inputs[2]->head()*inputs[2]->sequence()*inputs[2]->dimension()*sizeof(float));
-
-    inputs[0]->printData<float>();
-    inputs[1]->printData<int8_t>();
-    inputs[2]->printData<float>();
 
     // input outliers
     if (!input_clip) {
