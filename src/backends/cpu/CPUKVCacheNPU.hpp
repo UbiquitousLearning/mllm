@@ -33,7 +33,6 @@ private:
     int n_rep_ = 1;
 
     int cache_limit_;
-    bool isDecoding = false;
 };
 
 class CPUKVCacheNPUCreator : public CPUBackend::Creator {

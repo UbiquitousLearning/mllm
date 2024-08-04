@@ -24,24 +24,20 @@ ErrorCode CPUKVCacheNPU::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
         cache_.setName(name() + ".Cache");
         cache_.alloc();
         cache_seq_len_ = 0;
-    }
 
-    // when the execution is switched from pref to dec, the sequence length should be set to the no padding length
-    auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-
+        // when the execution is switched from pref to dec, the sequence length should be set to the no padding length
+        auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
 #ifdef USE_QNN
-    if (cpuBackend->isStageSwitching()) {
-        cache_seq_len_ = cpuBackend->getSequenceLength();
-        isDecoding = true;
-    }
-  
-    if (name().find("v_cache") != std::string::npos) { // when decoding, the input of kvcache should be transposed for execute copy
-        inputs[0]->transShape(SEQUENCE, DIMENSION);
-    }
-#else
-    if (name().find("v_cache") != std::string::npos)
-        inputs[0]->transShape(SEQUENCE, DIMENSION);
+        if (cpuBackend->isStageSwitching()) {
+            cache_seq_len_ = cpuBackend->getSequenceLength();
+        }
 #endif
+        // the input is from QNN linear, the V is not transposed, so we need to transpose it here
+        if (name().find("v_cache") != std::string::npos) {
+            inputs[0]->transShape(SEQUENCE, DIMENSION);
+        }
+    }
+
 
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() + cache_seq_len_, inputs[0]->dimension());
 
