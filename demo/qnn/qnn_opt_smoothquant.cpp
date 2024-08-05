@@ -128,27 +128,27 @@ int main(int argc, char **argv) {
 
     std::unique_ptr<Context> npu_ctx_ptr(new Context());
     auto *npu_ctx = npu_ctx_ptr.get();
-    std::unique_ptr<Context> cpu_ctx_ptr(new Context());
-    auto *cpu_ctx = cpu_ctx_ptr.get();
+    // std::unique_ptr<Context> cpu_ctx_ptr(new Context());
+    // auto *cpu_ctx = cpu_ctx_ptr.get();
     std::unique_ptr<Context> inter_ctx_ptr(new Context());
     auto *inter_ctx = inter_ctx_ptr.get();
 
     // cache_max should be longer than seqLength
     modeling::qwen_npu_t2(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
     modeling::qwen_npu_cpu_inter(inter_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
-    modeling::qwen_cpu_q4k(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
+    // modeling::qwen_cpu_q4k(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
 
     BackendConfig bn;
     QNNOptNet npuNet(bn, npu_ctx);
     npuNet.convert(npu_ctx, BackendType::MLLM_QNN, thread_num);
     Net interNet(bn);
     interNet.convert(inter_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
-    Net cpuNet(bn);
-    cpuNet.convert(cpu_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
+    // Net cpuNet(bn);
+    // cpuNet.convert(cpu_ctx->sub_param_, BackendType::MLLM_CPU, thread_num);
 
     ParamLoader npu_prefill_param_loader(npu_model_path);
-    ParamLoader cpu_decoding_param_loader(cpu_model_path);
-    ParamLoader inter_param_loader(cpu_model_path);
+    // ParamLoader cpu_decoding_param_loader(cpu_model_path);
+    ParamLoader inter_param_loader(npu_model_path);
 
     QNNExecutor *npuExePtr;
     if (executeType == 1) {
@@ -162,8 +162,8 @@ int main(int argc, char **argv) {
     npuExe.setup(&npuNet);
     Executor interExe(&inter_param_loader);
     interExe.setup(&interNet);
-    Executor cpuExe(&cpu_decoding_param_loader);
-    cpuExe.setup(&cpuNet);
+    // Executor cpuExe(&cpu_decoding_param_loader);
+    // cpuExe.setup(&cpuNet);
 
     vector<string> in_strs = {
         "<|im_start|>system\nYou are a helpful assistant.<| im_end |>\n<| im_start |>user\nGive me a short introduction to large language model.<| im_end |>\n<| im_start |> assistant\n\n",
@@ -218,13 +218,13 @@ int main(int argc, char **argv) {
             npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
 
-            result[0]->printData<float>();
+            // result[0]->printData<float>();
             // exit(0);
 
             // inter model for prefill-decode
             interExe.run(&interNet, {result[0]});
             result = interExe.result();
-            result[0]->printData<float>();
+            // result[0]->printData<float>();
 
             std::cout << "=============prefilling tokens output: =============" << std::endl;
             for (int ti = 1; ti <= real_seq_length; ti++) {
@@ -244,41 +244,41 @@ int main(int argc, char **argv) {
             std::cout << out_token << std::flush;
             answers.push_back(out_token);
 
-            auto prefill_cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
-            auto inter_cpu_backend = dynamic_cast<CPUBackend *>(interNet.backends()[MLLM_CPU].get());
-            auto decode_cpu_backend = dynamic_cast<CPUBackend *>(cpuNet.backends()[MLLM_CPU].get());
-            prefill_cpu_backend->setSequenceLength(real_seq_length);
-            prefill_cpu_backend->switchDecodeTag();
-            inter_cpu_backend->setSequenceLength(real_seq_length);
-            inter_cpu_backend->switchDecodeTag();
-            decode_cpu_backend->setSequenceLength(real_seq_length);
-            decode_cpu_backend->switchDecodeTag();
+            // auto prefill_cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
+            // auto inter_cpu_backend = dynamic_cast<CPUBackend *>(interNet.backends()[MLLM_CPU].get());
+            // auto decode_cpu_backend = dynamic_cast<CPUBackend *>(cpuNet.backends()[MLLM_CPU].get());
+            // prefill_cpu_backend->setSequenceLength(real_seq_length);
+            // prefill_cpu_backend->switchDecodeTag();
+            // inter_cpu_backend->setSequenceLength(real_seq_length);
+            // inter_cpu_backend->switchDecodeTag();
+            // decode_cpu_backend->setSequenceLength(real_seq_length);
+            // decode_cpu_backend->switchDecodeTag();
 
-            // // 2: Decoding stage using CPU execute
-            for (int step = real_seq_length; step < 100; step++) {
+            // // // 2: Decoding stage using CPU execute
+            // for (int step = real_seq_length; step < 100; step++) {
 
-                input->printData<float>();
+            //     input->printData<float>();
 
-                cpuExe.run(&cpuNet, {input});
-                auto result = cpuExe.result();
-                result[0]->printData<float>();
-                auto token_idx = postProcessing(result[0], input);
-                if (token_idx == 2) { // "</s>"
-                    break;
-                }
-                auto qwen_tokenizer = QWenTokenizer(vocab_path, merge_file_path);
+            //     cpuExe.run(&cpuNet, {input});
+            //     auto result = cpuExe.result();
+            //     result[0]->printData<float>();
+            //     auto token_idx = postProcessing(result[0], input);
+            //     if (token_idx == 2) { // "</s>"
+            //         break;
+            //     }
+            //     auto qwen_tokenizer = QWenTokenizer(vocab_path, merge_file_path);
                 
-                auto out_token = qwen_tokenizer.detokenize({token_idx});
-                std::cout << "decode output token id: " << token_idx << std::endl;
-                std::cout << out_token << std::flush;
-                answers.push_back(out_token);
+            //     auto out_token = qwen_tokenizer.detokenize({token_idx});
+            //     std::cout << "decode output token id: " << token_idx << std::endl;
+            //     std::cout << out_token << std::flush;
+            //     answers.push_back(out_token);
 
-                if (step == real_seq_length) {
-                    prefill_cpu_backend->switchDecodeTag();
-                    inter_cpu_backend->switchDecodeTag();
-                    decode_cpu_backend->switchDecodeTag();
-                }
-            }
+            //     if (step == real_seq_length) {
+            //         prefill_cpu_backend->switchDecodeTag();
+            //         inter_cpu_backend->switchDecodeTag();
+            //         decode_cpu_backend->switchDecodeTag();
+            //     }
+            // }
         } while (false);
         printf("\n");
 
@@ -287,7 +287,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    cpuExe.perf();
+    // cpuExe.perf();
 
     // free memory
     // for (auto *op : npu_ctx->net_ops) {
