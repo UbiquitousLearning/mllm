@@ -162,8 +162,8 @@ int main(int argc, char **argv) {
     npuExe.setup(&npuNet);
     Executor interExe(&inter_param_loader);
     interExe.setup(&interNet);
-    Executor cpuExe(&cpu_decoding_param_loader);
-    cpuExe.setup(&cpuNet);
+    // Executor cpuExe(&cpu_decoding_param_loader);
+    // cpuExe.setup(&cpuNet);
 
     vector<string> in_strs = {
         "<|im_start|>system\nYou are a helpful assistant.<| im_end |>\n<| im_start |>user\nGive me a short introduction to large language model.<| im_end |>\n<| im_start |> assistant\n\n",
@@ -287,7 +287,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    cpuExe.perf();
+    // cpuExe.perf();
 
     // free memory
     // for (auto *op : npu_ctx->net_ops) {
