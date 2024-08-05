@@ -46,15 +46,21 @@ ErrorCode CPUSplitInput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
 ErrorCode CPUSplitInput::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // copy data from input to output
-    int offset = 0;
-    memcpy(outputs[0]->hostPtr<void>(), inputs[0]->hostPtr<void>(), outputs[0]->cntSize());
-    offset += outputs[0]->cntSize();
-    memcpy(outputs[1]->hostPtr<void>(), inputs[0]->hostPtr<uint8_t>() + offset, outputs[1]->cntSize());
-    offset += outputs[1]->cntSize();
-    memcpy(outputs[2]->hostPtr<void>(), inputs[0]->hostPtr<uint8_t>() + offset, outputs[2]->cntSize());
-    offset += outputs[2]->cntSize();
-    if (outputs.size() == 4)
-        memcpy(outputs[3]->hostPtr<void>(), inputs[0]->hostPtr<uint8_t>() + offset, outputs[3]->cntSize());
+    int offset = outputs[0]->cntSize();
+
+#pragma omp parallel for collapse(1) num_threads(thread_count)
+    for(int i=0; i<4; i++) {
+        memcpy(outputs[i]->hostPtr<void>(), inputs[0]->hostPtr<int8_t>() + i*offset , outputs[i]->cntSize());
+    }
+
+    // memcpy(outputs[0]->hostPtr<void>(), inputs[0]->hostPtr<void>(), outputs[0]->cntSize());
+    // offset += outputs[0]->cntSize();
+    // memcpy(outputs[1]->hostPtr<void>(), inputs[0]->hostPtr<uint8_t>() + offset, outputs[1]->cntSize());
+    // offset += outputs[1]->cntSize();
+    // memcpy(outputs[2]->hostPtr<void>(), inputs[0]->hostPtr<uint8_t>() + offset, outputs[2]->cntSize());
+    // offset += outputs[2]->cntSize();
+    // if (outputs.size() == 4)
+    //     memcpy(outputs[3]->hostPtr<void>(), inputs[0]->hostPtr<uint8_t>() + offset, outputs[3]->cntSize());
 
     // outputs[3]->printData<float>();
 
