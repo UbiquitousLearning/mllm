@@ -49,6 +49,12 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     dequantScale = scale_.hostPtr<float>()[0]  / 127.0;
     dequantScale = roundf(dequantScale * 100000) / 100000;
 
+    if (name().find("q_proj") != -1) {
+        std::cout << "q proj dequantize needs divide." << std::endl;
+        dequantScale = dequantScale / std::sqrt(outputs[0]->dimension());
+    }
+
+
     if (isFP32_) {
 
         // auto inName = inputs[0]->name();

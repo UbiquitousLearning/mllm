@@ -154,9 +154,9 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention_t2(Context *c, NetTensor *x, NetTe
     v = _KVCacheNPU({v}, cache_max, name + ".v_cache");
 
     auto *qk = _Matmul({q, k}, false, true, name + ".qk");
-    qk = *qk / std::sqrt(hidden_size);
-    qk = _Causalmask({qk}, name + ".mask");
-    qk = _Softmax({qk}, DIMENSION, false, name + ".softmax");
+    // qk = *qk / std::sqrt(hidden_size);
+    // qk = _Causalmask({qk}, name + ".mask");
+    qk = _Softmax({qk}, DIMENSION, true, name + ".softmax");
 
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
     o = _Quantize({o}, true, (string)name + ".o_proj.quantize");
@@ -194,8 +194,8 @@ NetTensor * Qwen_CPUAttention_t2(Context *c, NetTensor *x, int embedding_size, i
 
     auto *qk = _Matmul({q, k}, false, true, name + ".qk");
     qk = *qk / std::sqrt(hidden_size);
-    qk = _Causalmask({qk}, name + ".mask");
-    qk = _Softmax({qk}, DIMENSION, false, name + ".softmax");
+    // qk = _Causalmask({qk}, name + ".mask");
+    qk = _Softmax({qk}, DIMENSION, true, name + ".softmax");
 
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
 
@@ -222,8 +222,8 @@ NetTensor * Qwen_CPUAttention_q4k(Context *c, NetTensor *x, int embedding_size, 
 
     auto *qk = _Matmul({q, k}, false, true, name + ".qk");
     qk = *qk / std::sqrt(hidden_size);
-    qk = _Causalmask({qk}, name + ".mask");
-    qk = _Softmax({qk}, DIMENSION, false, name + ".softmax");
+    // qk = _Causalmask({qk}, name + ".mask");
+    qk = _Softmax({qk}, DIMENSION, true, name + ".softmax");
 
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
 
