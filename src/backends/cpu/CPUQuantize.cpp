@@ -3,6 +3,7 @@
 //
 
 #include "CPUQuantize.hpp"
+#include "compute/Matmul.hpp"
 
 #include <utility>
 
@@ -32,21 +33,36 @@ ErrorCode CPUQuantize::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
     quantScale = scale_.hostPtr<float>()[0]  / 127.0;
     quantScale = roundf(quantScale * 100000) / 100000;
 
+    auto src0 = inputs[0];
+    auto src0_i8 = outputs[0];
 
 // #pragma omp parallel for collapse(4)
-    for (int b = 0; b <batch ; ++b) {
-        for (int h = 0; h < head; ++h) {
-            for (int s = 0; s < seq; ++s) {
-                for (int d = 0; d < dim; ++d) {
-                    float value = input->dataAt<float>(b, h, s, d);
-                    int32_t v = static_cast<int32_t>(Round(value / quantScale));
-                    v = std::max (std::min(v, 127), -128);
-                    output->setDataAt<uint8_t>(b, h, s, d, static_cast<uint8_t>(v));
-                }
+    // for (int b = 0; b <batch ; ++b) {
+    //     for (int h = 0; h < head; ++h) {
+    //         for (int s = 0; s < seq; ++s) {
+    //             for (int d = 0; d < dim; ++d) {
+    //                 float value = input->dataAt<float>(b, h, s, d);
+    //                 int32_t v = static_cast<int32_t>(Round(value / quantScale));
+    //                 v = std::max (std::min(v, 127), -128);
+    //                 output->setDataAt<uint8_t>(b, h, s, d, static_cast<uint8_t>(v));
+    //             }
+    //         }
+    //         std::cout << std::endl;
+    //     }
+    // }
+
+#pragma omp parallel for collapse(3) num_threads(thread_count)
+    for (int b = 0; b < batch; b++) {
+        for (int h = 0; h <head; h++) {
+            for (int s = 0; s <seq; s++) {
+                quantize_row_i8(src0->hostPtr<float>() + src0->offset(b, h, s, 0),
+                                    src0_i8->hostPtr<int8_t>() + src0_i8->offset(b, h, s, 0),
+                                    dim, quantScale);
             }
-            std::cout << std::endl;
         }
     }
+      
+
     return Op::execute(inputs, outputs);
 }
 
