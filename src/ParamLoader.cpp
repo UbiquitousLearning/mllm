@@ -35,7 +35,7 @@ bool ParamLoader::load(mllm::Tensor *tensor) {
     std::pair<uint64_t, uint64_t> offset = offsets_[name];
     uint8_t *data = new uint8_t[offset.second];
     fseek(fp_, offset.first, SEEK_SET);
-    fread(data, sizeof(uint8_t), offset.second, fp_);
+    auto _ = fread(data, sizeof(uint8_t), offset.second, fp_);
     // TODO:Data?
     //  tenor. = data;
     auto *p = tensor->hostPtr<char>();
@@ -110,7 +110,7 @@ vector<std::string> ParamLoader::getParamNames() {
     // get keys of data_type_
     vector<std::string> keys;
     keys.reserve(data_type_.size());
-for (auto &[fst, snd] : data_type_) {
+    for (auto &[fst, snd] : data_type_) {
         keys.push_back(fst);
     }
     return keys;
@@ -119,16 +119,16 @@ std::tuple<uint8_t *, uint64_t> ParamLoader::load(string name) {
     auto [offset, length] = offsets_[name];
     auto *data = new uint8_t[length];
     fseek(fp_, offset, SEEK_SET);
-    fread(data, sizeof(uint8_t), length, fp_);
+    auto _ = fread(data, sizeof(uint8_t), length, fp_);
     return std::make_tuple(data, length);
 }
 DataType ParamLoader::getDataType(string name) {
     if (data_type_.count(name) != 1) {
-        if(this->path_ != "" && this->fp_ == nullptr){
-            std::cerr<<this->path_<<" not found"<<std::endl;
+        if (this->path_ != "" && this->fp_ == nullptr) {
+            std::cerr << this->path_ << " not found" << std::endl;
             exit(0);
-        }else if (this->fp_ != nullptr && this->path_ != "") {
-            std::cerr<<name<<" not found"<<std::endl;
+        } else if (this->fp_ != nullptr && this->path_ != "") {
+            std::cerr << name << " not found" << std::endl;
         }
         return DataType::MLLM_TYPE_COUNT;
     }
@@ -138,7 +138,7 @@ DataType ParamLoader::getDataType(string name) {
 }
 
 MultiFileParamLoader::MultiFileParamLoader(const std::initializer_list<std::string> &filenames) {
-    for(const auto &filename:filenames){
+    for (const auto &filename : filenames) {
         load_file(filename);
     }
 }
@@ -146,13 +146,13 @@ MultiFileParamLoader::MultiFileParamLoader(const std::initializer_list<std::stri
 bool MultiFileParamLoader::load(mllm::Tensor *tensor) {
     string name = tensor->name();
     auto it = files_.find(name);
-    if(it == files_.end())
+    if (it == files_.end())
         return false;
     auto fp = it->second;
     auto [offset, size] = offsets_[name];
     void *p = tensor->rawHostPtr();
     fseek(fp, (long)offset, SEEK_SET);
-    fread(p, sizeof(uint8_t), size, fp);
+    auto _ = fread(p, sizeof(uint8_t), size, fp);
     return true;
 }
 
@@ -162,7 +162,7 @@ bool MultiFileParamLoader::load(std::shared_ptr<mllm::Tensor> tensor) {
 
 size_t MultiFileParamLoader::getTensorSize(string name) {
     auto it = files_.find(name);
-    if(it == files_.end())
+    if (it == files_.end())
         throw std::runtime_error("name not found");
     auto t = offsets_[name];
     return t.second;
@@ -170,21 +170,21 @@ size_t MultiFileParamLoader::getTensorSize(string name) {
 
 DataType MultiFileParamLoader::getDataType(string name) {
     auto it = data_type_.find(name);
-    if(it == data_type_.end())
+    if (it == data_type_.end())
         throw std::runtime_error("name not found, can not get data type");
     return data_type_[name];
 }
 
-void MultiFileParamLoader::load_file(const string& filename) {
+void MultiFileParamLoader::load_file(const string &filename) {
     auto fp = fopen(filename.c_str(), "rb");
 
-    if(fp == nullptr){
+    if (fp == nullptr) {
         throw std::ios_base::failure("Failed to open file: " + filename);
     }
 
     int magic = readInt(fp);
     if (magic != _MAGIC_NUMBER) {
-        throw std::runtime_error("Open file "+ filename + "error: Magic number error");
+        throw std::runtime_error("Open file " + filename + "error: Magic number error");
     }
 
     uint64_t index_size = readu64(fp);
@@ -197,14 +197,14 @@ void MultiFileParamLoader::load_file(const string& filename) {
         offsets_[name] = std::make_pair(offset, length);
         data_type_[name] = type;
         files_[name] = fp;
-//        printf("loaded %s\n", name.c_str());
+        //        printf("loaded %s\n", name.c_str());
     }
 }
 MultiFileParamLoader::~MultiFileParamLoader() {
 #include <set>
     std::set<FILE *> closed;
-    for(const auto& p:files_){
-        if(closed.find(p.second) != closed.end()) {
+    for (const auto &p : files_) {
+        if (closed.find(p.second) != closed.end()) {
             fclose(p.second);
             closed.insert(p.second);
         }
