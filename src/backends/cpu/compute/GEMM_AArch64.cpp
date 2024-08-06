@@ -2123,7 +2123,7 @@ void _mllm_gemm_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
         for (int x = 0; x < nc / ncols_interleaved; x++) {
             const block_q4_0x4 *b_ptr = (const block_q4_0x4 *)vx + (x * nb);
             for (int m = 0; m < 4; m++) {
-                for (int j = 0; j < ncols_interleaved; j++) sumf[m][j] = bias_ptr[(y * 4 + m) * bs + x * ncols_interleaved + j];
+                for (int j = 0; j < ncols_interleaved; j++) sumf[m][j] = bias_ptr[x * ncols_interleaved + j];
             }
             for (int l = 0; l < nb; l++) {
                 for (int k = 0; k < (qk / (2 * blocklen)); k++) {
@@ -3047,7 +3047,7 @@ void _mllm_gemm_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
         for (int x = 0; x < nc / ncols_interleaved; x++) {
             const block_q4_0x4 *b_ptr = (const block_q4_0x4 *)vx + (x * nb);
             for (int m = 0; m < 4; m++) {
-                for (int j = 0; j < ncols_interleaved; j++) sumf[m][j] = bias_ptr[(y * 4 + m) * bs + x * ncols_interleaved + j];
+                for (int j = 0; j < ncols_interleaved; j++) sumf[m][j] = bias_ptr[x * ncols_interleaved + j];
             }
             for (int l = 0; l < nb; l++) {
                 for (int k = 0; k < (qk / (2 * blocklen)); k++) {
@@ -4009,7 +4009,7 @@ void _mllm_gemm_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
         for (int x = 0; x < nc / ncols_interleaved; x++) {
             const block_q4_0x8 *b_ptr = (const block_q4_0x8 *)vx + (x * nb);
             for (int m = 0; m < 4; m++) {
-                for (int j = 0; j < ncols_interleaved; j++) sumf[m][j] = bias_ptr[(y * 4 + m) * bs + x * ncols_interleaved + j];
+                for (int j = 0; j < ncols_interleaved; j++) sumf[m][j] = bias_ptr[x * ncols_interleaved + j];
             }
             for (int l = 0; l < nb; l++) {
                 for (int k = 0; k < (qk / (2 * blocklen)); k++) {

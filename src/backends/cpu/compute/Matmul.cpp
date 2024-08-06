@@ -191,7 +191,7 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     auto src0_type_size = type_size(src0->dtype());
     auto src0_blck_size = blck_size(src0->dtype());
 #ifdef LLAMAFILE_SGEMM
-    if (check_llamafile_sgemm(N, M, K / blck_size(src0->dtype()), src1->dtype(), src0->dtype(), dst->dtype()) && !support_bias) {
+    if (check_llamafile_sgemm(N, M, K / blck_size(src0->dtype()), src1->dtype(), src0->dtype(), dst->dtype())) {
         const int ld_src1 = src1->sequence_skip_dim();
         const int ld_src0 = src0->sequence_skip_dim();
         const int ld_dst = dst->sequence_skip_dim();
@@ -210,7 +210,9 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
                                     id, thread_count,
                                     src1->dtype(),
                                     src0->dtype(),
-                                    dst->dtype());
+                                    dst->dtype(),
+                                    /*bias=*/support_bias ? bias->hostPtr<float>() : nullptr,
+                                    /*BiasType=*/support_bias ? bias->dtype() : DataType::MLLM_TYPE_F32);
                 }
             }
         }
@@ -276,19 +278,9 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
                                     id, thread_count,
                                     src1->dtype(),
                                     src0->dtype(),
-                                    dst->dtype());
-                }
-            }
-        }
-        if (support_bias) {
-#pragma omp parallel for collapse(4) num_threads(thread_count)
-            for (int b = 0; b < dst->batch(); b++) {
-                for (int h = 0; h < dst->head(); h++) {
-                    for (int m = 0; m < M; m++) {
-                        for (int n = 0; n < N; n++) {
-                            *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0, n);
-                        }
-                    }
+                                    dst->dtype(),
+                                    /*bias=*/support_bias ? bias->hostPtr<float>() + bias->offset(b, h, 0, 0) : nullptr,
+                                    /*BiasType=*/support_bias ? bias->dtype() : DataType::MLLM_TYPE_F32);
                 }
             }
         }
