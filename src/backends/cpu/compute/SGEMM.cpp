@@ -48,7 +48,6 @@
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
 
-
 #include "SGEMM.hpp"
 
 #ifdef _MSC_VER
@@ -75,33 +74,63 @@ inline float unhalf(mllm_fp16_t d) {
 // VECTORIZED ARITHMETIC OPERATIONS
 
 #if defined(__SSE__) || defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__)
-inline __m128 add(__m128 x, __m128 y) { return _mm_add_ps(x, y); }
-inline __m128 sub(__m128 x, __m128 y) { return _mm_sub_ps(x, y); }
-inline __m128 mul(__m128 x, __m128 y) { return _mm_mul_ps(x, y); }
-#endif  // __SSE__
+inline __m128 add(__m128 x, __m128 y) {
+    return _mm_add_ps(x, y);
+}
+inline __m128 sub(__m128 x, __m128 y) {
+    return _mm_sub_ps(x, y);
+}
+inline __m128 mul(__m128 x, __m128 y) {
+    return _mm_mul_ps(x, y);
+}
+#endif // __SSE__
 
 #if defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__)
-inline __m256 add(__m256 x, __m256 y) { return _mm256_add_ps(x, y); }
-inline __m256 sub(__m256 x, __m256 y) { return _mm256_sub_ps(x, y); }
-inline __m256 mul(__m256 x, __m256 y) { return _mm256_mul_ps(x, y); }
+inline __m256 add(__m256 x, __m256 y) {
+    return _mm256_add_ps(x, y);
+}
+inline __m256 sub(__m256 x, __m256 y) {
+    return _mm256_sub_ps(x, y);
+}
+inline __m256 mul(__m256 x, __m256 y) {
+    return _mm256_mul_ps(x, y);
+}
 #endif // __AVX__
 
 #if defined(__AVX512F__)
-inline __m512 add(__m512 x, __m512 y) { return _mm512_add_ps(x, y); }
-inline __m512 sub(__m512 x, __m512 y) { return _mm512_sub_ps(x, y); }
-inline __m512 mul(__m512 x, __m512 y) { return _mm512_mul_ps(x, y); }
+inline __m512 add(__m512 x, __m512 y) {
+    return _mm512_add_ps(x, y);
+}
+inline __m512 sub(__m512 x, __m512 y) {
+    return _mm512_sub_ps(x, y);
+}
+inline __m512 mul(__m512 x, __m512 y) {
+    return _mm512_mul_ps(x, y);
+}
 #endif // __AVX512F__
 
 #if defined(__ARM_NEON)
-inline float32x4_t add(float32x4_t x, float32x4_t y) { return vaddq_f32(x, y); }
-inline float32x4_t sub(float32x4_t x, float32x4_t y) { return vsubq_f32(x, y); }
-inline float32x4_t mul(float32x4_t x, float32x4_t y) { return vmulq_f32(x, y); }
+inline float32x4_t add(float32x4_t x, float32x4_t y) {
+    return vaddq_f32(x, y);
+}
+inline float32x4_t sub(float32x4_t x, float32x4_t y) {
+    return vsubq_f32(x, y);
+}
+inline float32x4_t mul(float32x4_t x, float32x4_t y) {
+    return vmulq_f32(x, y);
+}
 #endif // __ARM_NEON
 
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-inline float16x8_t add(float16x8_t x, float16x8_t y) { return vaddq_f16(x, y); }
-inline float16x8_t sub(float16x8_t x, float16x8_t y) { return vsubq_f16(x, y); }
-inline float16x8_t mul(float16x8_t x, float16x8_t y) { return vmulq_f16(x, y); }
+inline float16x8_t add(float16x8_t x, float16x8_t y) {
+    return vaddq_f16(x, y);
+}
+inline float16x8_t sub(float16x8_t x, float16x8_t y) {
+    return vsubq_f16(x, y);
+}
+inline float16x8_t mul(float16x8_t x, float16x8_t y) {
+    return vmulq_f16(x, y);
+}
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -191,45 +220,54 @@ inline float hsum(__m512 x) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // VECTORIZED MEMORY LOADING
 
-template <typename T, typename U> T load(const U *);
+template <typename T, typename U>
+T load(const U *);
 
 #if defined(__ARM_NEON)
-template <> inline float32x4_t load(const float *p) {
+template <>
+inline float32x4_t load(const float *p) {
     return vld1q_f32(p);
 }
 #if !defined(_MSC_VER)
-template <> inline float16x8_t load(const mllm_fp16_t *p) {
+template <>
+inline float16x8_t load(const mllm_fp16_t *p) {
     return vld1q_f16((const float16_t *)p);
 }
-template <> inline float32x4_t load(const mllm_fp16_t *p) {
+template <>
+inline float32x4_t load(const mllm_fp16_t *p) {
     return vcvt_f32_f16(vld1_f16((const float16_t *)p));
 }
 #endif // _MSC_VER
 #endif // __ARM_NEON
 
 #if defined(__SSE__) || defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__)
-template <> inline __m128 load(const float *p) {
+template <>
+inline __m128 load(const float *p) {
     return _mm_loadu_ps(p);
 }
-#endif  // __SSE__
+#endif // __SSE__
 
 #if defined(__AVX__) || defined(__AVX2__) || defined(__AVX512F__)
-template <> inline __m256 load(const float *p) {
+template <>
+inline __m256 load(const float *p) {
     return _mm256_loadu_ps(p);
 }
 #endif // __AVX__
 
 #if defined(__F16C__)
-template <> inline __m256 load(const mllm_fp16_t *p) {
+template <>
+inline __m256 load(const mllm_fp16_t *p) {
     return _mm256_cvtph_ps(_mm_loadu_si128((const __m128i *)p));
 }
 #endif // __F16C__
 
 #if defined(__AVX512F__)
-template <> inline __m512 load(const float *p) {
+template <>
+inline __m512 load(const float *p) {
     return _mm512_loadu_ps(p);
 }
-template <> inline __m512 load(const mllm_fp16_t *p) {
+template <>
+inline __m512 load(const mllm_fp16_t *p) {
     return _mm512_cvtph_ps(_mm256_loadu_si256((const __m256i *)p));
 }
 #endif // __AVX512F__
@@ -239,20 +277,21 @@ template <> inline __m512 load(const mllm_fp16_t *p) {
 
 template <int KN, typename D, typename V, typename TA, typename TB, typename TC>
 class tinyBLAS {
-  public:
+public:
     tinyBLAS(int64_t k,
              const TA *A, int64_t lda,
              const TB *B, int64_t ldb,
              TC *C, int64_t ldc,
-             int ith, int nth)
-        : A(A), B(B), C(C), k(k), lda(lda), ldb(ldb), ldc(ldc), ith(ith), nth(nth) {
+             int ith, int nth, float *bias = nullptr) :
+        A(A),
+        B(B), C(C), k(k), lda(lda), ldb(ldb), ldc(ldc), ith(ith), nth(nth), bias(bias) {
     }
 
     void matmul(int64_t m, int64_t n) {
         mnpack(0, m, 0, n);
     }
 
-  private:
+private:
     NOINLINE void mnpack(int64_t m0, int64_t m, int64_t n0, int64_t n) {
         int64_t mc, nc, mp, np;
         switch ((MIN(m - m0, 5) << 4) | MIN(n - n0, 5)) {
@@ -424,14 +463,22 @@ class tinyBLAS {
                         Cv[j][i] = madd(load<V>(A + lda * (ii + i) + l),
                                         load<V>(B + ldb * (jj + j) + l),
                                         Cv[j][i]);
-            for (int64_t j = 0; j < RN; ++j)
-                for (int64_t i = 0; i < RM; ++i)
-                    C[ldc * (jj + j) + (ii + i)] = hsum(Cv[j][i]);
+
+            if (bias) {
+                for (int64_t j = 0; j < RN; ++j)
+                    for (int64_t i = 0; i < RM; ++i)
+                        C[ldc * (jj + j) + (ii + i)] = bias[ii + i] + hsum(Cv[j][i]);
+            } else {
+                for (int64_t j = 0; j < RN; ++j)
+                    for (int64_t i = 0; i < RM; ++i)
+                        C[ldc * (jj + j) + (ii + i)] = hsum(Cv[j][i]);
+            }
         }
     }
 
     const TA *const A;
     const TB *const B;
+    const float *const bias;
     TC *const C;
     const int64_t k;
     const int64_t lda;
@@ -447,20 +494,21 @@ class tinyBLAS {
 #if defined(__ARM_FEATURE_DOTPROD)
 template <typename TA>
 class tinyBLAS_Q0_ARM {
-  public:
+public:
     tinyBLAS_Q0_ARM(int64_t k,
                     const TA *A, int64_t lda,
                     const block_q8_0 *B, int64_t ldb,
                     float *C, int64_t ldc,
-                    int ith, int nth)
-        : A(A), B(B), C(C), k(k), lda(lda), ldb(ldb), ldc(ldc), ith(ith), nth(nth) {
+                    int ith, int nth, float *bias = nullptr) :
+        A(A),
+        B(B), C(C), k(k), lda(lda), ldb(ldb), ldc(ldc), ith(ith), nth(nth), bias(bias) {
     }
 
     void matmul(int64_t m, int64_t n) {
         mnpack(0, m, 0, n);
     }
 
-  private:
+private:
     NOINLINE void mnpack(int64_t m0, int64_t m, int64_t n0, int64_t n) {
         int64_t mc, nc, mp, np;
         switch ((MIN(m - m0, 3) << 4) | MIN(n - n0, 3ll)) {
@@ -542,11 +590,16 @@ class tinyBLAS_Q0_ARM {
                                                              load_lo(B + ldb * (jj + j) + l)),
                                                    load_hi(A + lda * (ii + i) + l),
                                                    load_hi(B + ldb * (jj + j) + l))),
-                                               unhalf(A[lda * (ii + i) + l].d) *
-                                               unhalf(B[ldb * (jj + j) + l].d));
-            for (int64_t j = 0; j < RN; ++j)
-                for (int64_t i = 0; i < RM; ++i)
-                    C[ldc * (jj + j) + (ii + i)] = hsum(Cv[j][i]);
+                                               unhalf(A[lda * (ii + i) + l].d) * unhalf(B[ldb * (jj + j) + l].d));
+            if (bias) {
+                for (int64_t j = 0; j < RN; ++j)
+                    for (int64_t i = 0; i < RM; ++i)
+                        C[ldc * (jj + j) + (ii + i)] = bias[ii + i] + hsum(Cv[j][i]);
+            } else {
+                for (int64_t j = 0; j < RN; ++j)
+                    for (int64_t i = 0; i < RM; ++i)
+                        C[ldc * (jj + j) + (ii + i)] = hsum(Cv[j][i]);
+            }
         }
     }
 
@@ -571,6 +624,7 @@ class tinyBLAS_Q0_ARM {
 
     const TA *const A;
     const block_q8_0 *const B;
+    const float *const bias;
     float *const C;
     const int64_t k;
     const int64_t lda;
@@ -584,20 +638,21 @@ class tinyBLAS_Q0_ARM {
 #if defined(__AVX2__) || defined(__AVX512F__) || defined(__AVX__)
 template <typename TA, typename TB, typename TC>
 class tinyBLAS_Q0_AVX {
-  public:
+public:
     tinyBLAS_Q0_AVX(int64_t k,
                     const TA *A, int64_t lda,
                     const TB *B, int64_t ldb,
                     TC *C, int64_t ldc,
-                    int ith, int nth)
-        : A(A), B(B), C(C), k(k), lda(lda), ldb(ldb), ldc(ldc), ith(ith), nth(nth) {
+                    int ith, int nth, float *bias = nullptr) :
+        A(A),
+        B(B), C(C), k(k), lda(lda), ldb(ldb), ldc(ldc), ith(ith), nth(nth), bias(bias) {
     }
 
     void matmul(int64_t m, int64_t n) {
         mnpack(0, m, 0, n);
     }
 
-  private:
+private:
     void mnpack(int64_t m0, int64_t m, int64_t n0, int64_t n) {
         int64_t mc, nc, mp, np;
         switch ((MIN(m - m0, 4) << 4) | MIN(n - n0, 4)) {
@@ -746,14 +801,19 @@ class tinyBLAS_Q0_AVX {
                         __m128i mad1 = _mm_maddubs_epi16(sepAA1, sepBA1);
                         __m256 udTmp = _mm256_cvtepi32_ps(MM256_SET_M128I(_mm_madd_epi16(oneFill, mad1), _mm_madd_epi16(oneFill, mad0)));
 #endif
-                        Cv[j][i] = madd(_mm256_set1_ps(unhalf(A[lda * (ii + i) + l].d) *
-                                                       unhalf(B[ldb * (jj + j) + l].d)),
-                                                       udTmp,
-                                                       Cv[j][i]);
+                        Cv[j][i] = madd(_mm256_set1_ps(unhalf(A[lda * (ii + i) + l].d) * unhalf(B[ldb * (jj + j) + l].d)),
+                                        udTmp,
+                                        Cv[j][i]);
                     }
-            for (int64_t j = 0; j < RN; ++j)
-                for (int64_t i = 0; i < RM; ++i)
-                    C[ldc * (jj + j) + (ii + i)] = hsum(Cv[j][i]);
+            if (bias) {
+                for (int64_t j = 0; j < RN; ++j)
+                    for (int64_t i = 0; i < RM; ++i)
+                        C[ldc * (jj + j) + (ii + i)] = bias[ii + i] + hsum(Cv[j][i]);
+            } else {
+                for (int64_t j = 0; j < RN; ++j)
+                    for (int64_t i = 0; i < RM; ++i)
+                        C[ldc * (jj + j) + (ii + i)] = hsum(Cv[j][i]);
+            }
         }
     }
 
@@ -802,6 +862,7 @@ class tinyBLAS_Q0_AVX {
 
     const TA *const A;
     const TB *const B;
+    const float *const bias;
     TC *const C;
     const int64_t k;
     const int64_t lda;
@@ -842,12 +903,14 @@ class tinyBLAS_Q0_AVX {
  * @param Atype is GGML data type of `A`
  * @param Btype is GGML data type of `B`
  * @param Ctype is GGML data type of `C`
+ * @param bias bias pointer
+ * @param BiasType check the bias type if is fp32.
  * @return true if this function was able to service the matmul request
  */
- //TODOYRJ
-bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda, const void *B, int64_t ldb, void *C,int64_t ldc,                      
-                    int ith, int nth,
-                    DataType Atype, DataType Btype, DataType Ctype) {
+// TODOYRJ
+bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda, const void *B, int64_t ldb, void *C, int64_t ldc,
+                     int ith, int nth,
+                     DataType Atype, DataType Btype, DataType Ctype, void *bias, DataType BiasType) {
     assert(m >= 0);
     assert(n >= 0);
     assert(k >= 0);
@@ -857,11 +920,12 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
     assert(nth > 0);
     assert(ith < nth);
 
+    if (bias && BiasType != MLLM_TYPE_F32) return false;
+
     if (Ctype != MLLM_TYPE_F32)
         return false;
 
     switch (Atype) {
-
     case MLLM_TYPE_F32: {
         if (Btype != MLLM_TYPE_F32)
             return false;
@@ -872,7 +936,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             k, (const float *)A, lda,
             (const float *)B, ldb,
             (float *)C, ldc,
-            ith, nth};
+            ith, nth, (float *)bias};
         tb.matmul(m, n);
         return true;
 #elif defined(__AVX__) || defined(__AVX2__)
@@ -882,7 +946,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             k, (const float *)A, lda,
             (const float *)B, ldb,
             (float *)C, ldc,
-            ith, nth};
+            ith, nth, (float *)bias};
         tb.matmul(m, n);
         return true;
 #elif defined(__ARM_NEON)
@@ -894,7 +958,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             k, (const float *)A, lda,
             (const float *)B, ldb,
             (float *)C, ldc,
-            ith, nth};
+            ith, nth, (float *)bias};
         tb.matmul(m, n);
         return true;
 #else
@@ -912,7 +976,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             k, (const mllm_fp16_t *)A, lda,
             (const float *)B, ldb,
             (float *)C, ldc,
-            ith, nth};
+            ith, nth, (float *)bias};
         tb.matmul(m, n);
         return true;
 #elif (defined(__AVX__) || defined(__AVX2__)) && defined(__F16C__)
@@ -924,7 +988,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             k, (const mllm_fp16_t *)A, lda,
             (const float *)B, ldb,
             (float *)C, ldc,
-            ith, nth};
+            ith, nth, (float *)bias};
         tb.matmul(m, n);
         return true;
 #elif defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC) && !defined(_MSC_VER)
@@ -938,7 +1002,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             k, (const mllm_fp16_t *)A, lda,
             (const mllm_fp16_t *)B, ldb,
             (float *)C, ldc,
-            ith, nth};
+            ith, nth, (float *)bias};
         tb.matmul(m, n);
         return true;
 #elif defined(__ARM_NEON) && !defined(_MSC_VER)
@@ -950,7 +1014,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             k, (const mllm_fp16_t *)A, lda,
             (const float *)B, ldb,
             (float *)C, ldc,
-            ith, nth};
+            ith, nth, (float *)bias};
         tb.matmul(m, n);
         return true;
 #else
@@ -960,13 +1024,13 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
 
     case MLLM_TYPE_Q8_0: {
         if (Btype != MLLM_TYPE_Q8_0)
-           return false;
+            return false;
 #if defined(__AVX2__) || defined(__AVX512F__) || defined(__AVX__)
         tinyBLAS_Q0_AVX<block_q8_0, block_q8_0, float> tb{
             k, (const block_q8_0 *)A, lda,
             (const block_q8_0 *)B, ldb,
             (float *)C, ldc,
-            ith, nth};
+            ith, nth, (float *)bias};
         tb.matmul(m, n);
         return true;
 #elif defined(__ARM_FEATURE_DOTPROD)
@@ -974,7 +1038,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             k, (const block_q8_0 *)A, lda,
             (const block_q8_0 *)B, ldb,
             (float *)C, ldc,
-            ith, nth};
+            ith, nth, (float *)bias};
         tb.matmul(m, n);
         return true;
 #else
@@ -990,7 +1054,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             k, (const block_q4_0 *)A, lda,
             (const block_q8_0 *)B, ldb,
             (float *)C, ldc,
-            ith, nth};
+            ith, nth, (float *)bias};
         tb.matmul(m, n);
         return true;
 #elif defined(__ARM_FEATURE_DOTPROD)
@@ -998,7 +1062,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
             k, (const block_q4_0 *)A, lda,
             (const block_q8_0 *)B, ldb,
             (float *)C, ldc,
-            ith, nth};
+            ith, nth, (float *)bias};
         tb.matmul(m, n);
         return true;
 #else
@@ -1026,11 +1090,9 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
     (void)Ctype;
 }
 
-
 bool check_llamafile_sgemm(int64_t m, int64_t n, int64_t k, DataType Atype, DataType Btype, DataType Ctype) {
-
-    int ith=0;
-    int nth =1;
+    int ith = 0;
+    int nth = 1;
     assert(m >= 0);
     assert(n >= 0);
     assert(k >= 0);
@@ -1041,7 +1103,6 @@ bool check_llamafile_sgemm(int64_t m, int64_t n, int64_t k, DataType Atype, Data
         return false;
 
     switch (Atype) {
-
     case MLLM_TYPE_F32: {
         // return false; //TODO CHECK THIS CALUATE
         if (Btype != MLLM_TYPE_F32)
@@ -1099,7 +1160,7 @@ bool check_llamafile_sgemm(int64_t m, int64_t n, int64_t k, DataType Atype, Data
 
     case MLLM_TYPE_Q8_0: {
         if (Btype != MLLM_TYPE_Q8_0)
-           return false;
+            return false;
 #if defined(__AVX2__) || defined(__AVX512F__) || defined(__AVX__)
         return true;
 #elif defined(__ARM_FEATURE_DOTPROD)
