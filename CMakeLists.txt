@@ -53,7 +53,8 @@ FetchContent_Declare(
 # find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
 # set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 option(DEBUG "debug print" OFF)
-
+option(MLLM_OPENMP "openmp" ON)
+option(MLLM_OPENMP_STATIC "openmp static" OFF)
 if (CMAKE_HOST_UNIX)
     message(STATUS "current platform: Linux ")
 
@@ -64,12 +65,13 @@ else ()
     message(STATUS "current platform: unknown ")
 endif ()
 if (ARM AND NOT APK)
-    set(MLLM_OPENMP ON)
+    set(MLLM_OPENMP_STATIC ON)
 endif ()
 # turn off openmp when build on mac or for mac
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING)
     message(STATUS "mac detected, turn off openmp")
     set(MLLM_OPENMP OFF)
+    set(MLLM_OPENMP_STATIC OFF)
 endif ()
 aux_source_directory(${PROJECT_SOURCE_DIR}/src DIR_SRC)
 
@@ -210,7 +212,7 @@ add_executable(main_llama ${PROJECT_SOURCE_DIR}/examples/main_llama.cpp ${DIR_SR
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(main_llama PRIVATE -fopenmp)
     target_link_libraries(main_llama PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -223,7 +225,7 @@ add_executable(main_alpaca ${PROJECT_SOURCE_DIR}/examples/main_alpaca.cpp ${DIR_
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(main_alpaca PRIVATE -fopenmp)
     target_link_libraries(main_alpaca PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -236,7 +238,7 @@ add_executable(main_llava ${PROJECT_SOURCE_DIR}/examples/main_llava.cpp ${DIR_SR
         src/processor/PreProcess.cpp
         src/processor/ClipPreProcess.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(main_llava PRIVATE -fopenmp)
     target_link_libraries(main_llava PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -251,7 +253,7 @@ add_executable(main_tinyllama ${PROJECT_SOURCE_DIR}/examples/main_tinyllama.cpp 
         src/tokenizers/BPE/Bpe.hpp
 )
 
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(main_tinyllama PRIVATE -fopenmp)
     target_link_libraries(main_tinyllama PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -271,7 +273,7 @@ add_executable(main_fuyu ${PROJECT_SOURCE_DIR}/examples/main_fuyu.cpp ${DIR_SRC_
         src/processor/FuyuPreProcess.cpp
         src/processor/PreProcess.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(main_fuyu PRIVATE -fopenmp)
     target_link_libraries(main_fuyu PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -289,7 +291,7 @@ add_executable(main_vit ${PROJECT_SOURCE_DIR}/examples/main_vit.cpp ${DIR_SRC_CP
         src/processor/PreProcess.hpp
         src/processor/PreProcess.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(main_vit PRIVATE -fopenmp)
     target_link_libraries(main_vit PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -306,7 +308,7 @@ add_executable(main_clip ${PROJECT_SOURCE_DIR}/examples/main_clip.cpp ${DIR_SRC_
         src/processor/ClipPreProcess.cpp
         src/processor/ClipPreProcess.hpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(main_clip PRIVATE -fopenmp)
     target_link_libraries(main_clip PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -325,7 +327,7 @@ add_executable(main_imagebind ${PROJECT_SOURCE_DIR}/examples/main_imagebind.cpp 
         src/processor/PreProcess.hpp
         src/processor/PreProcess.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(main_imagebind PRIVATE -fopenmp)
     target_link_libraries(main_imagebind PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -336,7 +338,7 @@ add_executable(demo_stablelm ${PROJECT_SOURCE_DIR}/examples/demo_stablelm.cpp ${
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/BPE/Bpe.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_stablelm PRIVATE -fopenmp)
     target_link_libraries(demo_stablelm PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -347,7 +349,7 @@ add_executable(demo_llama ${PROJECT_SOURCE_DIR}/examples/demo_llama.cpp ${DIR_SR
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/BPE/Bpe.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_llama PRIVATE -fopenmp)
     target_link_libraries(demo_llama PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -362,7 +364,7 @@ add_executable(demo_fuyu ${PROJECT_SOURCE_DIR}/examples/demo_fuyu.cpp ${DIR_SRC_
         src/processor/FuyuPreProcess.cpp
         src/processor/PreProcess.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_fuyu PRIVATE -fopenmp)
     target_link_libraries(demo_fuyu PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -373,7 +375,7 @@ endif ()
 add_executable(demo_vit ${PROJECT_SOURCE_DIR}/examples/demo_vit.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
         src/processor/PreProcess.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_vit PRIVATE -fopenmp)
     target_link_libraries(demo_vit PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -386,7 +388,7 @@ add_executable(demo_clip ${PROJECT_SOURCE_DIR}/examples/demo_clip.cpp ${DIR_SRC_
         src/processor/PreProcess.cpp
         src/processor/ClipPreProcess.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_clip PRIVATE -fopenmp)
     target_link_libraries(demo_clip PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -400,7 +402,7 @@ add_executable(demo_imagebind ${PROJECT_SOURCE_DIR}/examples/demo_imagebind.cpp 
         ${DIR_THIRDPARTY_AUDIO}
         src/processor/PreProcess.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_imagebind PRIVATE -fopenmp)
     target_link_libraries(demo_imagebind PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -414,7 +416,7 @@ add_executable(demo_imagebind_1mod ${PROJECT_SOURCE_DIR}/examples/demo_imagebind
         ${DIR_THIRDPARTY_AUDIO}
         src/processor/PreProcess.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_imagebind_1mod PRIVATE -fopenmp)
     target_link_libraries(demo_imagebind_1mod PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -427,7 +429,7 @@ add_executable(demo_tinyllama ${PROJECT_SOURCE_DIR}/examples/demo_tinyllama.cpp 
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_tinyllama PRIVATE -fopenmp)
     target_link_libraries(demo_tinyllama PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -440,7 +442,7 @@ add_executable(demo_sparse_llama ${PROJECT_SOURCE_DIR}/examples/demo_sparse_llam
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_sparse_llama PRIVATE -fopenmp)
     target_link_libraries(demo_sparse_llama PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -454,7 +456,7 @@ add_executable(demo_elastic_llama ${PROJECT_SOURCE_DIR}/examples/demo_elastic_ll
         src/tokenizers/BPE/Bpe.hpp
 )
 # target_compile_definitions(demo_elastic_llama PRIVATE MLLM_QKK_64)
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_elastic_llama PRIVATE -fopenmp)
     target_link_libraries(demo_elastic_llama PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -467,7 +469,7 @@ add_executable(demo_llava ${PROJECT_SOURCE_DIR}/examples/demo_llava.cpp ${DIR_SR
         src/processor/PreProcess.cpp
         src/processor/ClipPreProcess.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_llava PRIVATE -fopenmp)
     target_link_libraries(demo_llava PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -479,7 +481,7 @@ add_executable(demo_gemma ${PROJECT_SOURCE_DIR}/examples/demo_gemma.cpp ${DIR_SR
         src/tokenizers/BPE/Bpe.cpp
         src/processor/PreProcess.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_gemma PRIVATE -fopenmp)
     target_link_libraries(demo_gemma PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -493,7 +495,7 @@ add_executable(demo_qwen ${PROJECT_SOURCE_DIR}/examples/demo_qwen.cpp ${DIR_SRC_
         src/tokenizers/UnicodeData.cpp
         src/processor/PreProcess.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_qwen PRIVATE -fopenmp)
     target_link_libraries(demo_qwen PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -505,7 +507,7 @@ add_executable(demo_mistral ${PROJECT_SOURCE_DIR}/examples/demo_mistral.cpp ${DI
         src/tokenizers/BPE/Bpe.cpp
         src/processor/PreProcess.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_mistral PRIVATE -fopenmp)
     target_link_libraries(demo_mistral PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -517,7 +519,7 @@ add_executable(demo_yi ${PROJECT_SOURCE_DIR}/examples/demo_yi.cpp ${DIR_SRC_CPU}
         src/tokenizers/BPE/Bpe.cpp
         src/processor/PreProcess.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_yi PRIVATE -fopenmp)
     target_link_libraries(demo_yi PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -528,7 +530,7 @@ add_executable(demo_opt ${PROJECT_SOURCE_DIR}/examples/demo_opt.cpp ${DIR_SRC_CP
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/BPE/Bpe.cpp
 )
-if (MLLM_OPENMP)
+if (MLLM_OPENMP_STATIC)
     target_compile_options(demo_opt PRIVATE -fopenmp)
     target_link_libraries(demo_opt PUBLIC MLLM_CPU -fopenmp -static-openmp)
 else ()
@@ -540,7 +542,7 @@ endif ()
 #         src/tokenizers/BPE/Bpe.cpp
 #         src/processor/PreProcess.cpp
 # )
-# if (MLLM_OPENMP)
+# if (MLLM_OPENMP_STATIC)
 #     target_compile_options(demo_deepseek PRIVATE -fopenmp)
 #     target_link_libraries(demo_deepseek PUBLIC MLLM_CPU -fopenmp -static-openmp)
 # else ()
