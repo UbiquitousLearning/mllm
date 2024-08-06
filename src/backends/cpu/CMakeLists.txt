@@ -12,7 +12,7 @@ file(GLOB MLLM_CPU_SRC
         ${CMAKE_CURRENT_LIST_DIR}/type/*.hpp
 )
 
-
+if (MLLM_OPENMP)
 find_package(OpenMP REQUIRED)
 if(OpenMP_FOUND)
     message(STATUS "found openmp")
@@ -20,6 +20,7 @@ if(OpenMP_FOUND)
     set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} ${OPENMP_CXX_FLAGS})
 else()
     message(FATAL_ERROR "openmp not found!")
+endif()
 endif()
 if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
     message(STATUS "ARM detected")

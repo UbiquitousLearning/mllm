@@ -98,6 +98,8 @@ Building mllm requires following tools:
 - CMake >= 3.18
 - Android NDK Toolchains >= 26
 
+> Note that building OpenMP libs on macOS may fail due to Apple LLVM compiler, so we disable OpenMP on macOS by default, you may experience slower performance on macOS. Build mllm is more recommended on Linux.
+
 ### Try it on Android
 
 #### Build
