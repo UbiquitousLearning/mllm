@@ -101,8 +101,8 @@ public:
         atten_output = o_proj(atten_output);
         return {atten_output};
     }
-    vector<KVCache*> get_cache() {
-        return {&k_cache,&v_cache};
+    vector<KVCache *> get_cache() {
+        return {&k_cache, &v_cache};
     }
 
 private:
@@ -143,7 +143,8 @@ public:
         x = x + tmp;
         return {x};
     }
-    QWenAttention& get_attention() {
+
+    QWenAttention &get_attention() {
         return self_atten;
     }
 
@@ -171,9 +172,10 @@ public:
         x = norm(x);
         return {x};
     }
+
     void clear_kvcache() {
         for (auto &block : blocks) {
-            auto kvcahce =block.get_attention().get_cache();
+            auto kvcahce = block.get_attention().get_cache();
             for (auto &cache : kvcahce) {
                 cache->clearCache();
             }
@@ -194,11 +196,11 @@ public:
         embedding = Embedding(config.vocab_size, config.hidden_size, names.token_embd_name);
         model = QWenModel(config, names, names.blk_name);
 
-        // FIXME Qwen-0.5 use tied embedding
+        // Qwen-0.5 use tied embedding
         // Others use nn.Linear()
         if (tie_embedding_words) {
             lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, names.token_embd_name + ".weight");
-        } else{
+        } else {
             lm_head_layer = Linear(config.hidden_size, config.vocab_size, false, names.lm_head_name);
         }
     }
