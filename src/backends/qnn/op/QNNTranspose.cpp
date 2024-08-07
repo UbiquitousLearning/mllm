@@ -32,8 +32,6 @@ ErrorCode QNNTranspose::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 
     uint32_t transposeParamsDimension[4] = {4};
 
-    std::cout << "transpose" << perm[0] << perm[1] << perm[2] << perm[3] << std::endl;
-
     auto paramsTransposeName = name() + "transpose_params";
     vector<Qnn_Param_t> paramsTranspose = {
         {.paramType = QNN_PARAMTYPE_TENSOR,

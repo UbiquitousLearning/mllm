@@ -39,7 +39,9 @@ Graph::Graph(const NetParameter &param, Backend *bn,
     // for QNN prefill & CPU decoding execution, KVCache should be shared for each block
 #ifdef USE_QNN
         if (net_op->type == KVCACHE || net_op->type == KVCACHENPU) {
+#ifdef DEBUGPRINT
             std::cout << net_op->name << " is KVCache" << std::endl;
+#endif
             shared_ptr<Op> my_op(nullptr);
             if (kv_cache_map.find(net_op->name) == kv_cache_map.end()) {
                 // for the prefill part, we need to create a new op
@@ -48,7 +50,9 @@ Graph::Graph(const NetParameter &param, Backend *bn,
                 my_op->setOpType(net_op->type);
                 kv_cache_map[net_op->name] = new_op;
             } else {
+#ifdef DEBUGPRINT
                 std::cout << net_op->name << " is shared used" << std::endl;
+#endif
                 // for the decoding part, we need to get created op from global container
                 my_op.reset(kv_cache_map[net_op->name]);
             }

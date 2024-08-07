@@ -11,10 +11,9 @@ QNNLinearINT8::QNNLinearINT8(Backend *bn, string opName, int in_features, int ou
     QNNCommonOp(bn, opName), in_features_(in_features), out_features_(out_features), support_bias_(bias) {
     weight_.setBackend(bn);
     bias_.setBackend(bn);
-// #ifdef SMOOTHQUANT
+
     weightScale_.setBackend(bn);
     biasScale_.setBackend(bn);
-// #endif
     outputScale_.setBackend(bn);
     inputScale_.setBackend(bn);
 }
@@ -106,11 +105,9 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
     auto qnnQuantDefined = QNN_DEFINITION_UNDEFINED;
     float weightScale = 0;
-// #ifdef SMOOTHQUANT
+
     qnnQuantDefined = QNN_DEFINITION_DEFINED;
     weightScale = weightScale_.hostPtr<float>()[0];
-    // std::cout << "===================" << weightScale << std::endl;
-// #endif
 
     qnnBackend_->modelAddTensor(weight_.name(), (Qnn_Tensor_t){
                                                     .version = QNN_TENSOR_VERSION_1,
@@ -163,16 +160,13 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
         return graphAddNode(name() + ".linearint8", "Conv2d", {inputs[0]->name(), weight_.name()}, matmulOut, params_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D);
     }
 
-    std::cout << "using bias now!!" << std::endl;
-
     // add bias tensor to qnn
     uint32_t dimensionsBias[1] = {(uint32_t)out_features_};
     float biasScale = 0;
-// #ifdef SMOOTHQUANT
+
     qnnQuantDefined = QNN_DEFINITION_DEFINED;
     biasScale = biasScale_.hostPtr<float>()[0];
-    std::cout << "===================" << biasScale << std::endl;
-// #endif
+
     qnnBackend_->modelAddTensor(bias_.name(), (Qnn_Tensor_t){
                                                   .version = QNN_TENSOR_VERSION_1,
                                                   {.v1 = {
@@ -215,241 +209,17 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     return graphAddNode(name() + ".linearint8", "Conv2d", {inputs[0]->name(), weight_.name(), bias_.name()}, biasOutput, params_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D);
 }
 
-// ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-
-//     uint32_t dimensionsWeight[4] = {1, 1, static_cast<uint32_t>(weight_.sequence()), static_cast<uint32_t>(weight_.dimension())};
-
-//     auto qnnQuantDefined = QNN_DEFINITION_UNDEFINED;
-//     float weightScale = 0;
-
-//     qnnQuantDefined = QNN_DEFINITION_DEFINED;
-//     weightScale = weightScale_.hostPtr<float>()[0];
-
-
-//     qnnBackend_->modelAddTensor(weight_.name(), (Qnn_Tensor_t){
-//                                                     .version = QNN_TENSOR_VERSION_1,
-//                                                     {.v1 = {
-//                                                          .id = 0,
-//                                                          .name = weight_.name().c_str(),
-//                                                          .type = QNN_TENSOR_TYPE_STATIC,
-//                                                          .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-//                                                          .dataType = QNN_DATATYPE_SFIXED_POINT_8,
-//                                                          .quantizeParams = {qnnQuantDefined,
-//                                                                             QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
-//                                                                             {.scaleOffsetEncoding = {.scale = weightScale, .offset = 0}}},
-//                                                          .rank = 4,
-//                                                          .dimensions = dimensionsWeight,
-//                                                          .memType = QNN_TENSORMEMTYPE_RAW,
-//                                                          {.clientBuf = {.data = weight_.hostPtr<void>(),
-//                                                                         .dataSize = (uint32_t)weight_.cntSize()}}}}});
-//     // free weight host memory
-//     weight_.free();
-
-//     // dimensions of matmul output and bias
-//     uint32_t dimensionsOutput[4] = {static_cast<uint32_t>(outputs[0]->batch()),
-//                                     static_cast<uint32_t>(outputs[0]->sequence()),
-//                                     static_cast<uint32_t>(outputs[0]->head()),
-//                                     static_cast<uint32_t>(outputs[0]->dimension())};
-
-//     auto outName = outputs[0]->name();
-
-//     std::cout << "using bias now!!" << std::endl;
-
-//     uint32_t dimensionsBias[4] = {1,1,1,(uint32_t)out_features_};
-//     float biasScale = 0;
-//     qnnQuantDefined = QNN_DEFINITION_DEFINED;
-//     biasScale = biasScale_.hostPtr<float>()[0];
-//     std::cout << "===================" << biasScale << std::endl;
-//     qnnBackend_->modelAddTensor(bias_.name(), (Qnn_Tensor_t){
-//                                                   .version = QNN_TENSOR_VERSION_1,
-//                                                   {.v1 = {
-//                                                        .id = 0,
-//                                                        .name = bias_.name().c_str(),
-//                                                        .type = QNN_TENSOR_TYPE_STATIC,
-//                                                        .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-//                                                        .dataType = QNN_DATATYPE_UFIXED_POINT_8,
-//                                                        .quantizeParams = {qnnQuantDefined,
-//                                                                           QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
-//                                                                           {.scaleOffsetEncoding = {.scale = biasScale, .offset = -128}}},
-//                                                        .rank = 4,
-//                                                        .dimensions = dimensionsBias,
-//                                                        .memType = QNN_TENSORMEMTYPE_RAW,
-//                                                        {.clientBuf = {.data = bias_.hostPtr<void>(),
-//                                                                       .dataSize = (uint32_t)bias_.cntSize()}}}}});
-//     // free bias host memory
-//     bias_.free();
-
-//     float outputScale = 0;
-//     outputScale = outputScale_.hostPtr<float>()[0]  / 127.0;
-//     outputScale = roundf(outputScale * 100000) / 100000;
-
-//     float inputScale = 0;
-//     inputScale = inputScale_.hostPtr<float>()[0]  / 127.0;
-//     inputScale = roundf(inputScale * 100000) / 100000;
-
-
-//     auto params_in_scaleName = name() + "param.in_scale";
-//     auto params_weight_scaleName = name() + "param.weight_scale";
-//     auto params_bias_scaleName = name() + "param.bias_scale";
-//     auto params_output_scaleName = name() + "param.output_scale";
-
-//     uint32_t paramsDimension[1] = {1};
-
-//      // add matmul param to qnn
-//      vector<Qnn_Param_t> paramsLinear = {
-//         {.paramType = QNN_PARAMTYPE_TENSOR,
-//          .name = "in_scale",
-//          {.tensorParam = 
-//             (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
-//                 {.v1 = {
-//                     .id = 0,
-//                     .name = params_in_scaleName.c_str(),
-//                     .type = QNN_TENSOR_TYPE_STATIC,
-//                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-//                     .dataType = QNN_DATATYPE_FLOAT_32,
-//                     .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-//                                          QNN_QUANTIZATION_ENCODING_UNDEFINED,
-//                                          {.scaleOffsetEncoding = {.scale  = 0.0000000000000000f,
-//                                                                   .offset = 0}}},
-//                     .rank = 1,
-//                     .dimensions = paramsDimension,
-//                     .memType = QNN_TENSORMEMTYPE_RAW,
-//                     {.clientBuf = {.data = (uint8_t*)&inputScale,
-//                                     .dataSize = sizeof(float)}}}}}}},
-//         {.paramType = QNN_PARAMTYPE_TENSOR,
-//          .name = "weight_scale",
-//          {.tensorParam = 
-//             (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
-//                 {.v1 = {
-//                     .id = 0,
-//                     .name = params_weight_scaleName.c_str(),
-//                     .type = QNN_TENSOR_TYPE_STATIC,
-//                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-//                     .dataType = QNN_DATATYPE_FLOAT_32,
-//                     .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-//                                          QNN_QUANTIZATION_ENCODING_UNDEFINED,
-//                                          {.scaleOffsetEncoding = {.scale  = 0.0000000000000000f,
-//                                                                   .offset = 0}}},
-//                     .rank = 1,
-//                     .dimensions = paramsDimension,
-//                     .memType = QNN_TENSORMEMTYPE_RAW,
-//                     {.clientBuf = {.data = (uint8_t*)&weightScale,
-//                                     .dataSize = sizeof(float)}}}}}}},
-//         {.paramType = QNN_PARAMTYPE_TENSOR,
-//          .name = "bias_scale",
-//          {.tensorParam = 
-//             (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
-//                 {.v1 = {
-//                     .id = 0,
-//                     .name = params_bias_scaleName.c_str(),
-//                     .type = QNN_TENSOR_TYPE_STATIC,
-//                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-//                     .dataType = QNN_DATATYPE_FLOAT_32,
-//                     .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-//                                          QNN_QUANTIZATION_ENCODING_UNDEFINED,
-//                                          {.scaleOffsetEncoding = {.scale  = 0.0000000000000000f,
-//                                                                   .offset = 0}}},
-//                     .rank = 1,
-//                     .dimensions = paramsDimension,
-//                     .memType = QNN_TENSORMEMTYPE_RAW,
-//                     {.clientBuf = {.data = (uint8_t*)&biasScale,
-//                                     .dataSize = sizeof(float)}}}}}}},
-//         {.paramType = QNN_PARAMTYPE_TENSOR,
-//          .name = "output_scale",
-//          {.tensorParam = 
-//             (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
-//                 {.v1 = {
-//                     .id = 0,
-//                     .name = params_output_scaleName.c_str(),
-//                     .type = QNN_TENSOR_TYPE_STATIC,
-//                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-//                     .dataType = QNN_DATATYPE_FLOAT_32,
-//                     .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-//                                          QNN_QUANTIZATION_ENCODING_UNDEFINED,
-//                                          {.scaleOffsetEncoding = {.scale  = 0.0000000000000000f,
-//                                                                   .offset = 0}}},
-//                     .rank = 1,
-//                     .dimensions = paramsDimension,
-//                     .memType = QNN_TENSORMEMTYPE_RAW,
-//                     {.clientBuf = {.data = (uint8_t*)&outputScale,
-//                                     .dataSize = sizeof(float)}}}}}}}};
-
-//     // vector<Qnn_Param_t> paramsLinear = {
-//     //     {.paramType = QNN_PARAMTYPE_SCALAR,
-//     //      .name = "in_scale",
-//     //      {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_FLOAT_32, {.floatValue = inputScale}}}},
-//     //     {.paramType = QNN_PARAMTYPE_SCALAR,
-//     //      .name = "weight_scale",
-//     //      {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_FLOAT_32, {.floatValue = weightScale}}}},
-//     //      {.paramType = QNN_PARAMTYPE_SCALAR,
-//     //      .name = "bias_scale",
-//     //      {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_FLOAT_32, {.floatValue = biasScale}}}},
-//     //     {.paramType = QNN_PARAMTYPE_SCALAR,
-//     //      .name = "output_scale",
-//     //      {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_FLOAT_32, {.floatValue = outputScale}}}}};
-
-//     // final output
-//     vector<Qnn_Tensor_t> biasOutput = {{QNN_TENSOR_VERSION_1,
-//                                         {.v1 = {
-//                                              .id = 0,
-//                                              .name = outName.c_str(),
-//                                              .type = getOutputTensorType(outputs[0]),
-//                                              .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-//                                              .dataType = QNN_DATATYPE_SFIXED_POINT_8,
-//                                              .quantizeParams = {QNN_DEFINITION_DEFINED,
-//                                                                 QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
-//                                                                 {.scaleOffsetEncoding = {.scale = outputScale, .offset = 0}}},
-//                                              .rank = 4,
-//                                              .dimensions = dimensionsOutput,
-//                                              .memType = QNN_TENSORMEMTYPE_RAW,
-//                                              {.clientBuf = {.data = nullptr,
-//                                                             .dataSize = 0}}}}}};
-//     return graphAddNode(name() + ".linearint8", "LLaMALinear", {inputs[0]->name(), weight_.name(), bias_.name()}, biasOutput, paramsLinear, "LLaMAPackage");
-// }
-
 ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
-    // weight_.setName(name() + ".weight");
-    // weight_.reshape(1, 1, out_features_, in_features_);
-    // if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
-    //     weight_.setDtype(loader.getDataType(weight_.name()));
-    //     weight_.alloc();
-    //     loader.load(&weight_);
-    // } else {
-    //     weight_.setDtype(MLLM_TYPE_F32);
-    //     weight_.alloc();
-    // }
-    // if (support_bias_) {
-    //     bias_.setName(name() + ".bias");
-    //     bias_.reshape(1, 1, 1, out_features_);
-    //     if (loader.getDataType(bias_.name()) != MLLM_TYPE_COUNT) {
-    //         bias_.setDtype(loader.getDataType(bias_.name()));
-    //         bias_.alloc();
-    //         loader.load(&bias_);
-    //     } else {
-    //         bias_.setDtype(MLLM_TYPE_F32);
-    //         bias_.alloc();
-    //     }
-    // }
-
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, in_features_, out_features_);
     weight_.setDtype(MLLM_TYPE_I8);
     weight_.alloc();
     loader.load(&weight_);
-    // sign to unsign
-    // for (int i=0; i<in_features_; i++) {
-    //     for (int j=0; j<out_features_; j++) {
-    //         int32_t val = weight_.dataAt<int8_t>(0,0,i,j);
-    //         val += 128;
-    //         weight_.setDataAt<uint8_t>(0,0,i,j, (uint8_t)val);
-    //     }
-    // }
-    // if (support_bias_) {
-        bias_.setName(name() + ".bias");
-        bias_.reshape(1, 1, 1, out_features_);
-        bias_.setDtype(MLLM_TYPE_I8);
-        bias_.alloc();
 
+    bias_.setName(name() + ".bias");
+    bias_.reshape(1, 1, 1, out_features_);
+    bias_.setDtype(MLLM_TYPE_I8);
+    bias_.alloc();
     if (support_bias_) {
         loader.load(&bias_);
         // sign to unsign
@@ -462,30 +232,23 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
         memset(bias_.hostPtr<void>(), 0, bias_.cntSize());
     }
 
-        
-    
-
-// #ifdef SMOOTHQUANT
     weightScale_.setName(name() + ".weight.scale");
     weightScale_.reshape(1, 1, 1, 1);
     weightScale_.setDtype(MLLM_TYPE_F32);
     weightScale_.alloc();
     loader.load(&weightScale_);
-    // if (support_bias_) {
-        biasScale_.setName(name() + ".bias.scale");
-        biasScale_.reshape(1, 1, 1, 1);
-        biasScale_.setDtype(MLLM_TYPE_F32);
-        biasScale_.alloc();
-        loader.load(&biasScale_);
-    // }
-// #endif
+
+    biasScale_.setName(name() + ".bias.scale");
+    biasScale_.reshape(1, 1, 1, 1);
+    biasScale_.setDtype(MLLM_TYPE_F32);
+    biasScale_.alloc();
+    loader.load(&biasScale_);
 
     outputScale_.setName(name() + ".output_scale");
     outputScale_.reshape(1, 1, 1, 1);
     outputScale_.setDtype(MLLM_TYPE_F32);
     outputScale_.alloc();
     loader.load(&outputScale_);
-
 
     inputScale_.setName(name() + ".input_scale");
     inputScale_.reshape(1, 1, 1, 1);

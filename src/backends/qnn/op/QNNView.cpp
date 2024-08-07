@@ -132,9 +132,6 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         scale_.setDtype(MLLM_TYPE_F32);
         scale_.alloc();
         loader.load(&scale_);
-
-        std::cout << scaleName + split_variable + scale_type_name << std::endl;
-        std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
         
     } else if (scaleName.find(".ires_split") != -1) {
         
@@ -158,11 +155,6 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         scale_.setDtype(MLLM_TYPE_F32);
         scale_.alloc();
         loader.load(&scale_);
-#ifdef DEBUGPRINT
-        std::cout << scaleName + split_variable + scale_type_name << std::endl;
-        std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
-#endif
-
 
     } else if (scaleName.find(".fres_split") != -1) {
         
@@ -188,10 +180,6 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         scale_.setDtype(MLLM_TYPE_F32);
         scale_.alloc();
         loader.load(&scale_);
-#ifdef DEBUGPRINT
-        std::cout << scaleName + split_variable + scale_type_name << std::endl;
-        std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
-#endif
 
     } else {
 
@@ -216,10 +204,6 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         scale_.setDtype(MLLM_TYPE_F32);
         scale_.alloc();
         loader.load(&scale_);
-
-#ifdef DEBUGPRINT
-        std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
-#endif
     }
 
     return Op::load(loader);

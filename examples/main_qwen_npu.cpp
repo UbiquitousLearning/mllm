@@ -10,10 +10,7 @@
 #include "tokenizers/BPE/Bpe.hpp"
 #include "backends/qnn/QNNExecutor.hpp"
 
-#include "models/qwen/configuration_qwen.hpp"
-#include "models/qwen/modeling_qwen.hpp"
 #include "models/qwen/tokenization_qwen.hpp"
-#include "processor/PostProcess.hpp"
 #include "main_qwen_npu.hpp"
 
 using namespace mllm;
@@ -149,10 +146,8 @@ int main(int argc, char **argv) {
 
     QNNExecutor *npuExePtr;
     if (executeType == 1) {
-        std::cout << "use pipeline execute" << std::endl;
         npuExePtr = new QNNPipelineExecutor(&npu_prefill_param_loader);
     } else {
-        std::cout << "use normal execute" << std::endl;
         npuExePtr = new QNNExecutor(&npu_prefill_param_loader);
     }
     auto &npuExe = *npuExePtr;
@@ -188,17 +183,8 @@ int main(int argc, char **argv) {
                      16800, 311, 3460, 4128, 1614, 13, 151645, 198, 151644,
                      77091, 198};
 
-        for (int ti = 0; ti < tokens_id.size(); ti++) {
-            // tokens_id[ti] = 9707;
-            std::cout << tokens_id[ti] << std::endl;
-        }
-
         int real_seq_length = tokens_id.size();
-
-        std::cout << "real_seq_length: " << real_seq_length << std::endl;
-
         // resize to the expected seqLength, the seq will be then splited to chunks
-        // tokens_id.resize(0);
         tokens_id.resize(seqLength, vocab_size);
 
         BPETokenizer::token2Tensor(&npuNet, tokens_id, input);
@@ -206,7 +192,6 @@ int main(int argc, char **argv) {
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
 
-        input->printData<float>();
         vector<string> answers;
 
         do {
@@ -214,28 +199,15 @@ int main(int argc, char **argv) {
             npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
 
-            // result[0]->printData<float>();
-            // exit(0);
-
             // inter model for prefill-decode
             interExe.run(&interNet, {result[0]});
             result = interExe.result();
-            // result[0]->printData<float>();
-
-            std::cout << "=============prefilling tokens output: =============" << std::endl;
-            for (int ti = 1; ti <= real_seq_length; ti++) {
-                auto token_idx = postProcessing_prefill(result[0], input, ti);
-                std::cout << "prefill output token id: " << token_idx << std::endl;
-                auto out_token = tokenizer.detokenize({token_idx});
-                std::cout << out_token << " " << std::flush;
-            }
-            std::cout << std::endl;
 
             auto token_idx = postProcessing_prefill(result[0], input, real_seq_length);
             if (token_idx == 2) { // "</s>"
                 break;
             }
-            std::cout << "prefill output token id: " << token_idx << std::endl;
+
             auto out_token = tokenizer.detokenize({token_idx});
             std::cout << out_token << std::flush;
             answers.push_back(out_token);
@@ -252,11 +224,9 @@ int main(int argc, char **argv) {
 
             // // 2: Decoding stage using CPU execute
             for (int step = real_seq_length; step < 100; step++) {
-                input->printData<float>();
-
                 cpuExe.run(&cpuNet, {input});
                 auto result = cpuExe.result();
-                // result[0]->printData<float>();
+
                 auto token_idx = postProcessing(result[0], input);
                 if (token_idx == 2) { // "</s>"
                     break;
@@ -264,7 +234,6 @@ int main(int argc, char **argv) {
                 auto qwen_tokenizer = QWenTokenizer(vocab_path, merge_file_path);
 
                 auto out_token = qwen_tokenizer.detokenize({token_idx});
-                std::cout << "decode output token id: " << token_idx << std::endl;
                 std::cout << out_token << std::flush;
                 answers.push_back(out_token);
 
@@ -276,10 +245,6 @@ int main(int argc, char **argv) {
             }
         } while (false);
         printf("\n");
-
-        for (auto answer : answers) {
-            std::cout << answer << " ";
-        }
     }
 
     std::cout << "====================" << std::endl;

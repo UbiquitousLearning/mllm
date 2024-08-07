@@ -8,21 +8,14 @@
 #include "QNNBackend.hpp"
 #include "QnnModel.hpp"
 #include "Utils/BuildId.hpp"
-#include "Utils/DataUtil.hpp"
 #include "Utils/QnnSampleAppUtils.hpp"
 #include "Utils/IOTensor.hpp"
 #include "Utils/DynamicLoadUtil.hpp"
 #include "Log/Logger.hpp"
-#include "PAL/Directory.hpp"
-#include "PAL/FileOp.hpp"
-#include "PAL/Path.hpp"
-#include "PAL/StringOp.hpp"
-#include "PAL/DynamicLoading.hpp"
-#include "PAL/GetOpt.hpp"
 #include "WrapperUtils/QnnWrapperUtils.hpp"
 #include "QNNMemoryManager.hpp"
 #include "QnnTypes.h"
-#include "QnnTypeMacros.hpp"
+#include "QNN/HTP/QnnHtpGraph.h"
 
 #include "Types.hpp"
 #include "op/QNNAdd.hpp"
@@ -39,18 +32,15 @@
 #include "op/QNNSiLU.hpp"
 #include "op/QNNSoftMax.hpp"
 #include "op/QNNView.hpp"
-
 #include "op/QNNReLU.hpp"
 #include "op/QNNQuantize.hpp"
 #include "op/QNNDequantize.hpp"
-
 #include "op/QNNMergeOutput.hpp"
 #include "op/QNNSplitInput.hpp"
 #include "op/QNNTranspose.hpp"
 #include "op/QNNLinearINT8Shadow.hpp"
-#include "MemInspect.hpp"
 
-#include "QNN/HTP/QnnHtpGraph.h"
+#include "MemInspect.hpp"
 
 #ifdef DEBUGPRINT
 #include "Timing.hpp"
