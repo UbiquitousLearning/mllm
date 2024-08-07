@@ -566,9 +566,10 @@ if(QNN)
     # qnn executables
     add_executable(main_qwen_npu ${PROJECT_SOURCE_DIR}/examples/main_qwen_npu.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
         src/tokenizers/Tokenizer.cpp
-        src/tokenizers/Tokenizer.hpp
+        src/tokenizers/Unicode.cpp
+        src/tokenizers/UnicodeData.cpp
         src/tokenizers/BPE/Bpe.cpp
-        src/tokenizers/BPE/Bpe.hpp
+        src/processor/PreProcess.cpp
     )
     target_compile_definitions(main_qwen_npu PRIVATE USE_QNN)
     if (ARM)

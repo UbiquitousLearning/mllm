@@ -209,6 +209,56 @@ public:
         return Tokenizer::tokens2Input(ret);
     }
 
+    std::pair<int, Tensor> tokenizeWithPadding(std::string &text, int seqLength, int vocab_size) {
+        std::vector<token_id_t> ret;
+
+        if (split_special_tokens_) {
+            const auto word_collection = unicode_regex_split(text, FIXED_PAT_STRS);
+            for (auto &piece : word_collection) {
+                // look up table
+                // std::string token;
+                // for (auto b : UTF8(piece)) token += byte_encoder_[b];
+
+                // using bpe
+                std::vector<token_id_t> tmp;
+                tokenizer->tokenize(piece, tmp, false, true, "");
+                ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+            }
+        } else {
+            auto parts = _splitWithDelimiters(text, special_tokens);
+            // for (auto p : parts) {
+            //     std::cout << "\"" << p << "\"" << std::endl;
+            // }
+            for (auto &p : parts) {
+                if (std::find(special_tokens.begin(), special_tokens.end(), p) != special_tokens.end()) {
+                    std::string token;
+                    for (auto b : UTF8(p)) token += byte_encoder_[b];
+
+                    std::vector<token_id_t> tmp;
+                    tokenizer->tokenize(token, tmp, false, special_tokens, true);
+                    ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+                } else {
+                    const auto word_collection = unicode_regex_split(p, FIXED_PAT_STRS);
+                    for (auto &piece : word_collection) {
+                        // look up table
+                        // std::string token;
+                        // for (auto b : UTF8(piece)) token += byte_encoder_[b];
+
+                        // using bpe
+                        std::vector<token_id_t> tmp;
+                        tokenizer->tokenize(piece, tmp, false, true, "");
+                        assert(tmp.size() != 0);
+                        ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+                    }
+                }
+            }
+        }
+
+        auto realLength = ret.size();
+        ret.resize(seqLength, vocab_size);
+        return std::make_pair(realLength, Tokenizer::tokens2Input(ret));
+    }
+
     std::string _byte_decode_(const std::string &text) {
         std::string ret;
         auto _ = ORD(text);

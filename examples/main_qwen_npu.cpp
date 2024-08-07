@@ -7,7 +7,6 @@
 #include "backends/qnn/QNNNet.hpp"
 #include "cmdline.h"
 #include "Net.hpp"
-#include "tokenizers/BPE/Bpe.hpp"
 #include "backends/qnn/QNNExecutor.hpp"
 
 #include "models/qwen/tokenization_qwen.hpp"
@@ -16,19 +15,9 @@
 using namespace mllm;
 
 unsigned int argmax(const std::vector<float> &scores) {
-    if (scores.empty()) {
-        throw std::invalid_argument("Input vector is empty");
-    }
-    unsigned int maxIndex = 0;
-    float maxValue = scores[0];
-    for (size_t i = 1; i < scores.size(); ++i) {
-        if (scores[i] > maxValue) {
-            maxIndex = i;
-            maxValue = scores[i];
-        }
-    }
-    return maxIndex;
+    return std::max_element(scores.begin(), scores.end()) - scores.begin();
 }
+
 unsigned int postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_result) {
     assert(result->batch() == 1);
     assert(result->head() == 1);
@@ -59,18 +48,9 @@ unsigned int postProcessing_prefill(shared_ptr<Tensor> result, shared_ptr<Tensor
     return token_idx;
 }
 
-template <typename Dtype>
-void fullTensor(shared_ptr<Tensor> input_tensor, Net net, vector<int> shape, Dtype value) {
-    input_tensor->setBackend(net.backends()[BackendType::MLLM_QNN].get());
-    input_tensor->setCtype(ChlType::BSHD);
-    input_tensor->reshape(shape[0], shape[1], shape[2], shape[3]);
-    input_tensor->alloc();
-    input_tensor->fullData<Dtype>(value);
-}
-
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/vocab-qwen.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/qwen_vocab.mllm");
 
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 1024);
 
@@ -98,27 +78,17 @@ int main(int argc, char **argv) {
     if (executeType == 1)
         chunk = 2;
 
-    auto tokenizer = BPETokenizer(vocab_path);
-    std::unordered_map<string, unsigned> merge_rank;
-    auto merge_file = std::ifstream(merge_file_path);
-    std::string line;
-    unsigned rank = 0;
-    while (std::getline(merge_file, line)) {
-        if (line.empty()) {
-            continue;
-        }
-        if (line[0] == '#') {
-            continue;
-        }
-        merge_rank[line] = rank;
-        rank++;
-    }
-    tokenizer.setMergeRank(merge_rank);
-
     int vocab_size = 151936;
-
     int hidden_dim = cmdParser.get<int>("hds");
     int ffn_hidden_dim = cmdParser.get<int>("ffn");
+
+    vector<string> in_strs = {
+        "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\nGive me a short introduction to large language model.<|im_end|>\n<|im_start|>assistant\n",
+        // " What can you do?",
+        // "Please introduce Beijing University of Posts and Telecommunications."};
+    };
+    auto tokenizer = QWenTokenizer(vocab_path, merge_file_path);
+    auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(in_strs[0], seqLength, vocab_size);
 
     std::unique_ptr<Context> npu_ctx_ptr(new Context());
     auto *npu_ctx = npu_ctx_ptr.get();
@@ -157,42 +127,16 @@ int main(int argc, char **argv) {
     Executor cpuExe(&cpu_decoding_param_loader);
     cpuExe.setup(&cpuNet);
 
-    vector<string> in_strs = {
-        "<|im_start|>system\nYou are a helpful assistant.<| im_end |>\n<| im_start |>user\nGive me a short introduction to large language model.<| im_end |>\n<| im_start |> assistant\n\n",
-        // "Hello, who are you?",
-    };
-    // " What can you do?",
-    // "Please introduce Beijing University of Posts and Telecommunications."};
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
 
     for (int str_i = 0; str_i < in_strs.size(); ++str_i) {
         auto in_str = in_strs[str_i];
-        in_str = mllm::Tokenizer::replaceString(in_str, ' ', "Ġ");
-        tokenizer.setSpecialToken("</s>", "");
 
-        auto tokens_id = vector<token_id_t>();
-        tokenizer.tokenize(in_str, tokens_id, false, true, "");
-        if (str_i > 0) {
-            tokens_id[0] = 13;
-        }
-        // delete the last end token
-        // tokens_id.pop_back();
-
-        tokens_id = {151644, 8948, 198, 2610, 525, 264, 10950, 17847, 13,
-                     151645, 198, 151644, 872, 198, 35127, 752, 264, 2805,
-                     16800, 311, 3460, 4128, 1614, 13, 151645, 198, 151644,
-                     77091, 198};
-
-        int real_seq_length = tokens_id.size();
-        // resize to the expected seqLength, the seq will be then splited to chunks
-        tokens_id.resize(seqLength, vocab_size);
-
-        BPETokenizer::token2Tensor(&npuNet, tokens_id, input);
+        auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(in_str, seqLength, vocab_size);
+        auto input = std::make_shared<Tensor>(input_tensor);
 
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
-
-        vector<string> answers;
 
         do {
             // 1: Prefill stage using NPU chunk execute
@@ -210,7 +154,6 @@ int main(int argc, char **argv) {
 
             auto out_token = tokenizer.detokenize({token_idx});
             std::cout << out_token << std::flush;
-            answers.push_back(out_token);
 
             auto prefill_cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
             auto inter_cpu_backend = dynamic_cast<CPUBackend *>(interNet.backends()[MLLM_CPU].get());
@@ -231,11 +174,9 @@ int main(int argc, char **argv) {
                 if (token_idx == 2) { // "</s>"
                     break;
                 }
-                auto qwen_tokenizer = QWenTokenizer(vocab_path, merge_file_path);
 
-                auto out_token = qwen_tokenizer.detokenize({token_idx});
+                auto out_token = tokenizer.detokenize({token_idx});
                 std::cout << out_token << std::flush;
-                answers.push_back(out_token);
 
                 if (step == real_seq_length) {
                     prefill_cpu_backend->switchDecodeTag();
