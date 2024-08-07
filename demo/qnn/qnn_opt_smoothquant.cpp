@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
 
         // resize to the expected seqLength, the seq will be then splited to chunks
         // tokens_id.resize(0);
-        tokens_id.resize(seqLength);
+        tokens_id.resize(seqLength, vocab_size);
 
 
         BPETokenizer::token2Tensor(&npuNet, tokens_id, input);
@@ -287,6 +287,8 @@ int main(int argc, char **argv) {
         }
     }
 
+    std::cout << "====================" << std::endl;
+    npuExe.perf();
     cpuExe.perf();
 
     // free memory
