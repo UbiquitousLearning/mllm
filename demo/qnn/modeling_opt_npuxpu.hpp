@@ -81,7 +81,7 @@ void opt_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_
 
     for (int layer = 0; layer < 1; ++layer) {
 
-         if (layer != 0) // for graph 0, it will be offloaded to CPU in QNNOptNet::convert
+         if (layer != 0) // for graph 0, it will be offloaded to CPU in QNNNet::convert
             _SubgraphBegin(c, MLLM_CPU);
 
         auto res = i;

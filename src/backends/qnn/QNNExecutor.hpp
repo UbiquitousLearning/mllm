@@ -5,6 +5,7 @@
 #include "Types.hpp"
 #include "express/ExpressBase.hpp"
 #include <condition_variable>
+#include <iostream>
 #include <mutex>
 #include <queue>
 #include <thread>
@@ -40,21 +41,22 @@ public:
      *
      * execute(net, input_tensors) is equivalent to setup(net) + run(net, input_tensors)
      */
-    void execute(Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
-
-    // void QNNGraphThreadExecute(int id, Net* net);
+    void execute(Net *net, vector<shared_ptr<Tensor>> input_tensor) override { std::cerr << "QNNExecutor::execute Not implemented" << std::endl; };
 
     // graph offload rule for qnn execution, used in setup and execution
-    BackendType graphOffloadRule(BackendType expectedBackend, int graphIndex);
+    static BackendType graphOffloadRule(BackendType expectedBackend, int graphIndex);
 
+    // graph naming rule for qnn execution
+    string graphNamingRule(int graphIndex) {
+        switch (executionType_) {
+        case PROMPT:
+            return "Prompt_Graph." + std::to_string(graphIndex);
+        case AUTOREGRESSIVE:
+            return "Autoregressive_Graph." + std::to_string(graphIndex);
+        }
+    };
 protected:
     QNNExecutionType executionType_ = PROMPT;
-
-    uint autoregressive_seq_pos_ = 0;
-
-    // int threadVar_[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-
-    // uint threadNum_ = 100;
 };
 
 class QNNPipelineExecutor : public QNNExecutor {

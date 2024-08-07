@@ -96,10 +96,6 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
 
     // this->backend_->onExecuteEnd();
 
-    autoregressive_seq_pos_ += ops_input_tensors_[op_names_[0]][0]->sequence();
-
-    
-
     return ops_output_tensors_[op_names_[op_names_.size() - 1]];
 }
 
@@ -153,8 +149,6 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(bool autofree) {
             //            std::cout<<"op_name:"<<op_name<<" is not do"<<std::endl;
         }
     }
-
-    autoregressive_seq_pos_ += ops_input_tensors_[op_names_[0]][0]->sequence();
 
     return ops_output_tensors_[op_names_[op_names_.size() - 1]];
 }

@@ -115,13 +115,7 @@ public:
         outputTensors_.push_back(t);
     }
 
-    void pushSyncVarTensor(Tensor* t) {
-        syncVarTensors_.push_back(t);
-    }
-
 private:
-    // int32_t backendInitialize();
-    // int32_t contextInitialize();
     qnn_wrapper_api::ModelError_t graphFinilize();
     qnn_wrapper_api::ModelError_t graphConfig();
 
@@ -133,29 +127,16 @@ private:
     // @brief Print a message to STDERR then exit with a non-zero
     void reportError(const std::string &err);
 
-    // StatusCode initialize();
-
-    // StatusCode initializeBackend();
-
     StatusCode createContext();
-
-    // StatusCode composeGraphs();
-
-    // StatusCode finalizeGraphs();
 
     StatusCode executeGraphs(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap);
     StatusCode executeGraphsShared();
-    StatusCode executeGraphsSharedAutoregressive();
 
     StatusCode registerOpPackages();
 
     StatusCode freeContext();
 
     StatusCode terminateBackend();
-
-    // StatusCode freeGraphs();
-
-    // Qnn_ContextHandle_t getContext();
 
     StatusCode initializeProfiling();
 
@@ -182,14 +163,11 @@ private:
     static const std::string s_defaultOutputPath;
 
     std::map<std::string, std::vector<uint8_t *>> inputBufferMap;
-    // std::vector<uint8_t *> inputBuffers;
     std::vector<uint8_t *>* currentInputBuffers;
     std::map<std::string, std::vector<uint8_t *>> outputBufferMap;
-    // std::vector<uint8_t *> outputBuffers;
     std::vector<uint8_t *>* currentOutputBuffers;
 
     std::map<OpType, QNNBackend::Creator *> map_creator_;
-    // qnn_wrapper_api::QnnModel qnnModel;
 
     std::map<std::string, int> qnnModelIndexMap_;
     std::vector<qnn_wrapper_api::QnnModel> qnnModels_;
@@ -207,7 +185,6 @@ private:
     iotensor::InputDataType m_inputDataType;
     sample_app::ProfilingLevel m_profilingLevel;
 
-    // qnn_wrapper_api::GraphInfo_t **m_graphsInfo;
     std::map<int, qnn_wrapper_api::GraphInfo_t **> m_graphsInfoMap_;
     // for mllm single graph execute
     qnn_wrapper_api::GraphInfo_t graphInfo;
@@ -228,10 +205,6 @@ private:
     Qnn_DeviceHandle_t m_deviceHandle = nullptr;
 
     std::vector<Tensor> outputTensors_;
-    std::vector<Tensor*> syncVarTensors_;
-
-    // Qnn_Tensor_t *inputs_ = nullptr;
-    // Qnn_Tensor_t *outputs_ = nullptr;
 
     std::map<int, Qnn_Tensor_t *> inputsMap_;
     std::map<int, Qnn_Tensor_t *> outputsMap_;

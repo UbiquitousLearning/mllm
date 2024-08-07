@@ -1,6 +1,6 @@
 #!/bin/bash
-mkdir ../build-arm
-cd ../build-arm || exit
+mkdir ../build
+cd ../build || exit
 
 cmake .. \
 -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
@@ -13,6 +13,5 @@ cmake .. \
 -DDEBUG=ON \
 -DTEST=OFF \
 -DQUANT=OFF \
--DSMOOTHQUANT=ON\
 
 make -j4

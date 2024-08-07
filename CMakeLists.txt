@@ -46,12 +46,6 @@ endif()
 
 # backend options
 option(QNN "Enable QNN" ON)
-
-option(SMOOTHQUANT "Enable SmoothQuant" ON)
-if(SMOOTHQUANT)
-    add_definitions(-DSMOOTHQUANT)
-endif()
-
 if(QNN)
     add_definitions(-DUSE_QNN)
 endif()
@@ -567,26 +561,19 @@ endif ()
 
 
 if(QNN)
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/QNN)
-
-    # if (ARM)
-    #     set(CMAKE_CXX_FLAGS " -fPIC -Wall -pthread -march=armv8-a -O3 -g -Wno-write-strings -fvisibility=hidden -flto")
-    # else()
-    #     set (CMAKE_CXX_FLAGS " -fPIC -Wall  -pg -pthread -march=x86-64 -O3 -g -Wno-write-strings -fvisibility=hidden -flto")
-    # endif()
-    # set(CMAKE_LD_FLAGS "-shared -s -fPIC -pthread -fvisibility=hidden -flto")
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn)
 
     # qnn executables
-    add_executable(qnn_opt_smoothquant ${PROJECT_SOURCE_DIR}/demo/qnn/qnn_opt_smoothquant.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+    add_executable(main_qwen_npu ${PROJECT_SOURCE_DIR}/examples/main_qwen_npu.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/Tokenizer.hpp
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/BPE/Bpe.hpp
     )
-    target_compile_definitions(qnn_opt_smoothquant PRIVATE USE_QNN)
+    target_compile_definitions(main_qwen_npu PRIVATE USE_QNN)
     if (ARM)
-        target_compile_options(qnn_opt_smoothquant PRIVATE -fopenmp)
-        target_link_libraries(qnn_opt_smoothquant PUBLIC  MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS} -fopenmp -static-openmp)
+        target_compile_options(main_qwen_npu PRIVATE -fopenmp)
+        target_link_libraries(main_qwen_npu PUBLIC  MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS} -fopenmp -static-openmp)
     endif ()
 endif()
 

@@ -1563,10 +1563,12 @@ static void vec_value_dot_fp32_arm(const int n, float *__restrict s, const float
 }
 #endif
 
-void vec_value_dot_fp32(const int n, float *__restrict s, const float x, const float *__restrict vy, bool addition) {
 #ifdef __AVX2__
+void vec_value_dot_fp32(const int n, float *__restrict s, const float *x, const float *__restrict vy, bool addition) {
     vec_value_dot_fp32_avx2(n, s, x, vy, addition);
-#elif defined(__ARM_NEON)
-    vec_value_dot_fp32_arm(n, s, x, vy, addition);
-#endif
 }
+#elif defined(__ARM_NEON)
+void vec_value_dot_fp32(const int n, float *__restrict s, const float x, const float *__restrict vy, bool addition) {
+    vec_value_dot_fp32_arm(n, s, x, vy, addition);
+}
+#endif

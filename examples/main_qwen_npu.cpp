@@ -9,14 +9,12 @@
 #include "Net.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include "backends/qnn/QNNExecutor.hpp"
-#include "modeling_opt_npuxpu.hpp"
-#include "modeling_qwen_npuxpu.hpp"
 
 #include "models/qwen/configuration_qwen.hpp"
 #include "models/qwen/modeling_qwen.hpp"
 #include "models/qwen/tokenization_qwen.hpp"
 #include "processor/PostProcess.hpp"
-
+#include "main_qwen_npu.hpp"
 
 using namespace mllm;
 
@@ -88,7 +86,6 @@ int main(int argc, char **argv) {
     cmdParser.add<int>("hds", 'd', "size of hidden size", false, 2048);
 
     cmdParser.parse_check(argc, argv);
-
 
     const string npu_model_path = "./models/Qwen1.5-1.8B-Chat_152_int8_biasint8_ns.mllm";
     const string cpu_model_path = "./models/qwen-1.8b-chat-q4k-fp32.mllm";
@@ -186,10 +183,10 @@ int main(int argc, char **argv) {
         // delete the last end token
         // tokens_id.pop_back();
 
-        tokens_id = {151644,   8948,    198,   2610,    525,    264,  10950,  17847,     13,
-         151645,    198, 151644,    872,    198,  35127,    752,    264,   2805,
-          16800,    311,   3460,   4128,   1614,     13, 151645,    198, 151644,
-          77091,    198};
+        tokens_id = {151644, 8948, 198, 2610, 525, 264, 10950, 17847, 13,
+                     151645, 198, 151644, 872, 198, 35127, 752, 264, 2805,
+                     16800, 311, 3460, 4128, 1614, 13, 151645, 198, 151644,
+                     77091, 198};
 
         for (int ti = 0; ti < tokens_id.size(); ti++) {
             // tokens_id[ti] = 9707;
@@ -203,7 +200,6 @@ int main(int argc, char **argv) {
         // resize to the expected seqLength, the seq will be then splited to chunks
         // tokens_id.resize(0);
         tokens_id.resize(seqLength, vocab_size);
-
 
         BPETokenizer::token2Tensor(&npuNet, tokens_id, input);
 
@@ -256,7 +252,6 @@ int main(int argc, char **argv) {
 
             // // 2: Decoding stage using CPU execute
             for (int step = real_seq_length; step < 100; step++) {
-
                 input->printData<float>();
 
                 cpuExe.run(&cpuNet, {input});
@@ -267,7 +262,7 @@ int main(int argc, char **argv) {
                     break;
                 }
                 auto qwen_tokenizer = QWenTokenizer(vocab_path, merge_file_path);
-                
+
                 auto out_token = qwen_tokenizer.detokenize({token_idx});
                 std::cout << "decode output token id: " << token_idx << std::endl;
                 std::cout << out_token << std::flush;
@@ -282,7 +277,7 @@ int main(int argc, char **argv) {
         } while (false);
         printf("\n");
 
-        for (auto answer : answers){
+        for (auto answer : answers) {
             std::cout << answer << " ";
         }
     }

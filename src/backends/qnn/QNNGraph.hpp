@@ -40,12 +40,6 @@ public:
     void free(std::string graphName);
     void allFree();
 
-private:
-    uint autoregressive_seq_pos_ = 0;
-    std::thread *qnnThread_;
-
-    bool threadVar_ = false;
-
 };
 
 } // namespace mllm

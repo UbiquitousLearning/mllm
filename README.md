@@ -26,7 +26,7 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 - [Quick Start](#quick-start)
     - [Get the Code](#get-the-code)
     - [Check prerequisites](#check-prerequisites)
-    - [Run for Android](#run-for-android)
+    - [Try it on Android](#try-it-on-android)
     - [Run for Linux](#run-for-linux)
 - [Customization](#customization)
     - [Convert models](#convert-models)
@@ -107,6 +107,24 @@ Building mllm requires following tools:
   cd scripts
   ./build_android.sh
   ```
+
+#### Run Qwen with NPU accelerating using QNN
+
+We support running Qwen-1.5-1.8B model using [Qualcomm QNN](https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk) to get Hexagon NPU acceleration. The details of QNN environment set up and design is [here](./src/backends/qnn/README.md).
+
+Build the target with QNN backend.
+
+```bash
+cd ../script
+./build_qnn_anroid.sh
+```
+
+Run on an android phone with at least 20GB of memory.
+
+```bash
+cd ../script
+./run_qwen_npu.sh
+```
 
 #### Run Fuyu-8B
 

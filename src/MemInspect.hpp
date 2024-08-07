@@ -9,18 +9,14 @@
 
 namespace mllm {
 
+#ifdef DEBUGPRINT
 #define PRINT_MEMORY_USAGE(message) \
     printf("\nMemory Usage: %ld MB(%ld) at: %s\n", physical_memory_used_by_process() / 1000, virtual_memory_used_by_process()/1000, message);
+#else
+#define PRINT_MEMORY_USAGE(message)
+#endif
 
-#define TIME_COUNT_START() \
-    struct timespec start, end; \
-    clock_gettime(CLOCK_MONOTONIC, &start);
-
-#define TIME_COUNT_END() \
-    clock_gettime(CLOCK_MONOTONIC, &end); \
-    printf("Time: %ld ms", (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000);
-
-// 实时获取程序占用的内存，单位：kb。
+// get memory in kb in unix env
 size_t physical_memory_used_by_process();
 size_t virtual_memory_used_by_process();
 } // namespace mllm

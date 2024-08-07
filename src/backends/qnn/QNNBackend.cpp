@@ -2,7 +2,6 @@
 #include <inttypes.h>
 
 #include <cstring>
-#include <fstream>
 #include <iostream>
 
 #include "OpDefined.hpp"
@@ -30,13 +29,8 @@
 #include "op/QNNCausalMask.hpp"
 #include "op/QNNGELU.hpp"
 #include "op/QNNLinear.hpp"
-#include "op/QNNLinear3D.hpp"
-#include "op/QNNLinearFP.hpp"
-#include "op/QNNLinearTest.hpp"
 #include "op/QNNLinearINT8.hpp"
 #include "op/QNNMatmul.hpp"
-#include "op/QNNMatmulNT.hpp"
-#include "op/QNNMatmulINT8.hpp"
 #include "op/QNNMul.hpp"
 #include "op/QNNLayerNorm.hpp"
 #include "op/QNNRMSNorm.hpp"
@@ -45,7 +39,6 @@
 #include "op/QNNSiLU.hpp"
 #include "op/QNNSoftMax.hpp"
 #include "op/QNNView.hpp"
-#include "op/QNNWNop.hpp"
 
 #include "op/QNNReLU.hpp"
 #include "op/QNNQuantize.hpp"
@@ -86,11 +79,8 @@ void QNNBackend::registerOps() {
     addCreator(SOFTMAX, (QNNBackend::Creator *)(new QNNSoftMaxCreator()));
     addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearCreator()));
     addCreator(LINEARINT8, (QNNBackend::Creator *)(new QNNLinearINT8Creator()));
-    // addCreator(ATTENTION, (QNNBackend::Creator *)(new QNNAttentionCreator()));
-    // addCreator(EMBEDDING, (QNNBackend::Creator *)(new QNNEmbeddingCreator()));
     addCreator(MUL, (QNNBackend::Creator *)(new QNNMulCreator()));
     addCreator(VIEW, (QNNBackend::Creator *)(new QNNViewCreator()));
-    addCreator(WNOP, (QNNBackend::Creator *)(new QNNWNopCreator()));
     addCreator(RELU, (QNNBackend::Creator *)(new QNNReLUCreator()));
     addCreator(OP_GELU, (QNNBackend::Creator *)(new QNNGELUCreator()));
     addCreator(QUANTIZE, (QNNBackend::Creator *)(new QNNQuantizeCreator()));
@@ -204,10 +194,6 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
 }
 
 void QNNBackend::release() {
-    // if (StatusCode::SUCCESS != this->freeContext()) {
-    //     this->reportError("Context Free failure");
-    // }
-
     auto devicePropertySupportStatus = this->isDevicePropertySupported();
     if (StatusCode::FAILURE != devicePropertySupportStatus) {
         auto freeDeviceStatus = this->freeDevice();
@@ -218,10 +204,6 @@ void QNNBackend::release() {
 }
 
 void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
-#ifdef DEBUGPRINT
-    std::cout << "onSetUpStart" << std::endl;
-#endif
-
     auto returnStatus = StatusCode::SUCCESS;
 
     // create a new graph
@@ -271,26 +253,6 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     if (err != qnn_wrapper_api::MODEL_NO_ERROR) {
         this->reportError("Graph Initialization failure: " + graphName);
     }
-
-    // add input tensor to qnn
-    // all input for QNN is INT8
-    // auto data_type = QNN_DATATYPE_SFIXED_POINT_8;
-    // std::cout << "input 0 type " << inputs[0]->dtype() << std::endl;
-    // std::cout << graphName << std::endl;
-    // inputs[0]->printShape();
-    // if (inputs[0]->dtype() == MLLM_TYPE_I8) {
-    //     std::cout << "QNN backend INT8 op" << std::endl;
-    //     data_type = QNN_DATATYPE_SFIXED_POINT_8;
-    // }
-
-    // if ( graphName != "Prompt_Graph.1") {
-    //     std::cout << "QNN backend INT8 op" << std::endl;
-    //     data_type = QNN_DATATYPE_SFIXED_POINT_8;
-    // }
-    // we assume all qnn graphs have two inputs:
-    // 1. activation sint8
-    // 2. residual fp
-    // input tensor in split ops.
     
     // To avoid no input, we put inputs here.
     // For splitinput op input, the seq will be divided as 5, and we add the input in split ops.
@@ -337,15 +299,6 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
 }
 
 void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
-#ifdef DEBUGPRINT
-    std::cout << "onSetUpEnd" << std::endl;
-#endif
-    // push output tensors to the buffer list
-    // currentOutputBuffers = &outputBufferMap[graphName];
-    // for (int i = 0; i < outputs.size(); i++) {
-    //     currentOutputBuffers->push_back(outputs[i]->hostPtr<uint8_t>());
-    // }
-
     currentInputBuffers = &inputBufferMap[graphName];
     currentOutputBuffers = &outputBufferMap[graphName];
     qnnModelIndex_ = qnnModelIndexMap_[graphName];
@@ -365,9 +318,6 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
 
     for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
         auto graphInfo = (*m_graphsInfo)[graphIdx];
-
-        // QNN_DEBUG("input tensors: %d ", inputBuffers.size());
-        // QNN_DEBUG("output tensors: %d ", outputBuffers.size());
 
         if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&inputs_, &outputs_, (*m_graphsInfo)[graphIdx])) {
             QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
@@ -391,7 +341,6 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
         std::cout << "output tensors num:" << (*m_graphsInfo)[graphIdx].numOutputTensors << std::endl;
 #endif
 
-
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {
             qnnMM->registerQnnTensor((*currentInputBuffers)[i], inputs_[i]);
             QNN_DEBUG("inputBuffers: %p ", (*currentInputBuffers)[i]);
@@ -404,7 +353,6 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
 
     inputsMap_[qnnModelIndex_] = inputs_;
     outputsMap_[qnnModelIndex_] = outputs_;
-
 }
 
 void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
@@ -462,7 +410,6 @@ void QNNBackend::freeGraphDataStructure(string graphName) {
 
     auto it = qnnModelIndexMap_.find(graphName);
     if(it != qnnModelIndexMap_.end()) {
-        std::cout << "free graph tensors begin" << std::endl;
         qnnModelIndex_ = it->second;
 
         qnnModels_[qnnModelIndex_].freeTensors();
@@ -474,20 +421,14 @@ void QNNBackend::freeGraphDataStructure(string graphName) {
 }
 
 void QNNBackend::afterAllGraphsExecute() {
-
-    //TODO: dynamic free no useable graph.
     // clear old models.
     qnnModelIndexMap_.clear();
 
     auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
     qnnMM->deRegisterQnnTensor();
-
-
-    syncVarTensors_.resize(0);
     
     this->freeContext();
 
-    // TODO: dynamic do not clear all the map.
     inputBufferMap.clear();
     outputBufferMap.clear();
 
@@ -803,20 +744,6 @@ StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *
                 if (QNN_GRAPH_NO_ERROR != executeStatus) {
                     returnStatus = StatusCode::FAILURE;
                 }
-                if (StatusCode::SUCCESS == returnStatus) {
-                    QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
-                    for (int oi = 0; oi < graphInfo.numOutputTensors; oi++) {
-                        auto output = outputs_[oi];
-                        // DEBUGLOG
-                        std::cout << "----------------" << std::endl;
-                        std::cout << "output name:" << output.v1.name << std::endl;
-                        std::cout << "output id:" << output.v1.clientBuf.dataSize << std::endl;
-                        std::cout << "output type:" << output.v1.type << std::endl;
-                        std::cout << "output type:" << output.v1.dataType << std::endl;
-                        // m_ioTensor.writeOutputTensor(&output, outputBufferMap["graph"][oi]);
-                        memcpy((*currentOutputBuffers)[oi], output.v1.clientBuf.data, output.v1.clientBuf.dataSize);
-                    }
-                }
             }
             if (StatusCode::SUCCESS != returnStatus) {
                 QNN_ERROR("Execution of Graph: %d failed!", graphIdx);
@@ -873,79 +800,8 @@ StatusCode QNNBackend::executeGraphsShared() {
         if (QNN_GRAPH_NO_ERROR != executeStatus) {
             returnStatus = StatusCode::FAILURE;
         }
-        if (StatusCode::SUCCESS == returnStatus) {
-            QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
-            for (int oi = 0; oi < graphInfo.numOutputTensors; oi++) {
-                auto output = outputs_[oi];
-                // DEBUGLOG
-                std::cout << "----------------" << std::endl;
-                std::cout << "output name:" << output.v1.name << std::endl;
-                // std::cout << "output id:" << output.v1.clientBuf.dataSize << std::endl;
-                std::cout << "output type:" << output.v1.type << std::endl;
-                std::cout << "output type:" << output.v1.dataType << std::endl;
-            }
-        }
-
-        // m_ioTensor.tearDownInputAndOutputTensors(
-        //     inputs_, outputs_, graphInfo.numInputTensors, graphInfo.numOutputTensors);
-        // inputs_ = nullptr;
-        // outputs_ = nullptr;
-        // if (StatusCode::SUCCESS != returnStatus) {
-        //     std::cout << "tear down tensors fail" << std::endl;
-        //     exit(-1);
-        // }
-
-        // std::cout << "free graphs begin" << std::endl;
-        // qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
-        // m_graphsInfo = nullptr;
     }
     return returnStatus;
 }
 
-StatusCode QNNBackend::executeGraphsSharedAutoregressive() {
-    qnn_wrapper_api::GraphInfo_t **m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
-
-    auto returnStatus = StatusCode::SUCCESS;
-
-    Qnn_Tensor_t *inputs_ = inputsMap_[qnnModelIndex_];
-    Qnn_Tensor_t *outputs_ = outputsMap_[qnnModelIndex_];
-
-    for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
-        auto graphInfo = (*m_graphsInfo)[graphIdx];
-
-        Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
-#ifdef DEBUGPRINT
-        uint64_t t_start = mllm_time_us();
-#endif
-        executeStatus =
-            m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
-                                                            inputs_,
-                                                            graphInfo.numInputTensors,
-                                                            outputs_,
-                                                            graphInfo.numOutputTensors,
-                                                            m_profileBackendHandle,
-                                                            nullptr);
-#ifdef DEBUGPRINT
-        uint64_t t_end = mllm_time_us();
-        std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
-#endif
-
-        if (QNN_GRAPH_NO_ERROR != executeStatus) {
-            returnStatus = StatusCode::FAILURE;
-        }
-        if (StatusCode::SUCCESS == returnStatus) {
-            QNN_DEBUG("Successfully executed graphIdx: %d ", graphIdx);
-            for (int oi = 0; oi < graphInfo.numOutputTensors; oi++) {
-                auto output = outputs_[oi];
-                // DEBUGLOG
-                std::cout << "----------------" << std::endl;
-                std::cout << "output name:" << output.v1.name << std::endl;
-                // std::cout << "output id:" << output.v1.clientBuf.dataSize << std::endl;
-                std::cout << "output type:" << output.v1.type << std::endl;
-                std::cout << "output type:" << output.v1.dataType << std::endl;
-            }
-        }
-    }
-    return returnStatus;
-}
 } // namespace mllm

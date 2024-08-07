@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <fstream>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -38,15 +37,7 @@ void QNNExecutor::setup(Net *net) {
     uint64_t time_end;
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        string name;
-        if (executionType_ == PROMPT) {
-            name = "Prompt_Graph." + std::to_string(i);
-        } else if (executionType_ == AUTOREGRESSIVE) {
-            name = "Autoregressive_Graph." + std::to_string(i);
-        }
-
-        auto &g = net->subGraph()[name];
-
+        auto &g = net->subGraph()[graphNamingRule(i)];
         g->setUpOps(*data_loader_);
     }
     time_end = mllm_time_us();
@@ -57,119 +48,8 @@ void QNNExecutor::setup(Net *net) {
 }
 
 void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
-    bool init = false;
-    bool reshape = false;
-
-    checkReshape(init, reshape, input_tensors);
-
-    // set Input tensor
-    vector<int> flashGid = {};
-    for (int tid = 0; tid < net->inputNames().size(); ++tid) {
-        auto input_name = net->inputNames()[tid];
-        auto input_tensor = input_tensors[tid];
-        input_tensor->setName(input_name);
-        net->tensors()[input_name] = input_tensor;
-        if (std::find(flashGid.begin(), flashGid.end(), net->inGmap()[input_name]) == flashGid.end()) {
-            flashGid.push_back(net->inGmap()[input_name]);
-        }
-    }
-    string typeName;
-    if (executionType_ == PROMPT) {
-        typeName = "Prompt_Graph.";
-    } else if (executionType_ == AUTOREGRESSIVE) {
-        typeName = "Autoregressive_Graph.";
-    }
-    for (auto Gid : flashGid) {
-        net->subGraph()[typeName + std::to_string(Gid)]->reflashInput(net->tensors());
-    }
-
-    // std::fstream fs("AR_latency.txt", std::ios::app);
-    auto ex_time_start = mllm_time_us();
-    PRINT_MEMORY_USAGE("before setup all graph");
-
-    for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        string name = typeName + std::to_string(i);
-        auto &g = net->subGraph()[name];
-
-        // cast graph to QNNGraph
-        // TODO: if this implementation is used, the setUpTensors(string) should be merged to Graph
-        // the qnn_graph below is where we cast the Graph to QNNGraph
-        if (i == 0) {
-            std::cout << "=======setup cpu graph " << i << std::endl;
-            g->reshape();
-            g->setUpTensors();
-        } else {
-            std::cout << "=======setup qnn graph " << i << std::endl;
-            auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-            g->reshape();
-            // if ( autoregressive_seq_pos_ % 32 == 31 || autoregressive_seq_pos_ == 0) {
-            // g->setUpTensors();
-            qnn_graph->setUpTensors(name);
-            // }
-        }
-        if (false) {
-            if (i < (int)net->subGraph().size() - 1) {
-                g->freeTensors();
-            }
-            net->freeTensors(i);
-        }
-    }
-    auto ex_time_end = mllm_time_us();
-
-    // fs << "setup all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
-
-    ex_time_start = mllm_time_us();
-
-    // execute all graphs here
-    for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        uint64_t t_start = mllm_time_us();
-        if (i == 0) {
-            std::cout << "======= cpu graph execute" << i << std::endl;
-            string name = typeName + std::to_string(i);
-            auto &g = net->subGraph()[name];
-            result_ = g->forward();
-        } else {
-            std::cout << "=======qnn graph execute" << i << std::endl;
-            string name = typeName + std::to_string(i);
-            auto &g = net->subGraph()[name];
-            auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-            result_ = qnn_graph->forward(name);
-            uint64_t t_end = mllm_time_us();
-            std::cout << "graph forward " << (t_end - t_start) / 1000.0F << "ms" << std::endl;
-            PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
-        }
-    }
-
-    ex_time_end = mllm_time_us();
-    // fs << "execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
-
-    // free all graphs here
-    for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        if (i == 0) continue;
-        string name = typeName + std::to_string(i);
-        auto &g = net->subGraph()[name];
-        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-        qnn_graph->free(name);
-    }
-
-    // use the first graph to free all context is OK.
-    {
-        string name = typeName + std::to_string(1);
-        auto &g = net->subGraph()[name];
-        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-        qnn_graph->allFree();
-    }
-
-    // open file "AR_latency.txt" to record the time of each token
-
-    // fs << "---------------" << std::endl;
-
-    if (input_tensors[0]->sequence() == 1) {
-        auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
-        run_time_.push_back(token_run_time);
-    }
-
-    autoregressive_seq_pos_ += input_tensors[0]->sequence();
+    std::cerr << "QNN Executor do not support this method" << std::endl;
+    exit(1);
 }
 
 void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) {
@@ -189,34 +69,25 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
             flashGid.push_back(net->inGmap()[input_name]);
         }
     }
-    string typeName;
-    if (executionType_ == PROMPT) {
-        typeName = "Prompt_Graph.";
-    } else if (executionType_ == AUTOREGRESSIVE) {
-        typeName = "Autoregressive_Graph.";
-    }
+
     for (auto Gid : flashGid) {
-        net->subGraph()[typeName + std::to_string(Gid)]->reflashInput(net->tensors());
+        net->subGraph()[graphNamingRule(Gid)]->reflashInput(net->tensors());
     }
 
-    // std::fstream fs("AR_latency.txt", std::ios::app);
     auto ex_time_start = mllm_time_us();
     PRINT_MEMORY_USAGE("before setup all graph");
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        string name = typeName + std::to_string(i);
+        string name = graphNamingRule(i);
         auto &g = net->subGraph()[name];
 
         // cast graph to QNNGraph
-        // TODO: if this implementation is used, the setUpTensors(string) should be merged to Graph
         // the qnn_graph below is where we cast the Graph to QNNGraph
         auto expectedBackend = ctx->sub_backend_[i];
         if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
-            std::cout << "=======setup cpu graph " << i << std::endl;
             g->reshape();
             g->setUpTensors();
         } else if (graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
-            std::cout << "=======setup qnn graph " << i << std::endl;
             auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
             g->reshape();
             qnn_graph->setUpTensors(name);
@@ -227,8 +98,6 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
     }
     auto ex_time_end = mllm_time_us();
 
-    // fs << "setup all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
-
     ex_time_start = mllm_time_us();
 
     // execute all graphs here
@@ -236,24 +105,16 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
         uint64_t t_start = mllm_time_us();
 
         auto expectedBackend = ctx->sub_backend_[i];
+        string name = graphNamingRule(i);
         if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
-#ifdef DEBUGPRINT
-            std::cout << "=======execute cpu graph " << i << std::endl;
-#endif
-            string name = typeName + std::to_string(i);
             auto &g = net->subGraph()[name];
             result_ = g->forward();
         } else if (graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
-#ifdef DEBUGPRINT
-            std::cout << "=======execute qnn graph " << i << std::endl;
-#endif
-            string name = typeName + std::to_string(i);
             auto &g = net->subGraph()[name];
             auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
             result_ = qnn_graph->forward(name);
-#ifdef DEBUGPRINT
+
             PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
-#endif
         } else {
             std::cerr << "Backend Not Support" << std::endl;
             exit(1);
@@ -266,122 +127,27 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
     }
 
     ex_time_end = mllm_time_us();
-    std::cout << "execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
-    // fs << "execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     // free all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         auto expectedBackend = ctx->sub_backend_[i];
-        if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
-            continue;
-        } else if (i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
+        if (graphOffloadRule(expectedBackend, i) != MLLM_QNN) {
             continue;
         }
 
-        string name = typeName + std::to_string(i);
+        string name = graphNamingRule(i);
         auto &g = net->subGraph()[name];
         auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
         qnn_graph->free(name);
     }
-
-    // use the first graph to free all context is OK.
+    // use the second graph to free all context is OK.
     {
-        string name = typeName + std::to_string(1);
+        string name = graphNamingRule(1);
         auto &g = net->subGraph()[name];
         auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
         qnn_graph->allFree();
     }
 
-    // open file "AR_latency.txt" to record the time of each token
-
-    // fs << "---------------" << std::endl;
-
-    if (input_tensors[0]->sequence() == 1) {
-        auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
-        run_time_.push_back(token_run_time);
-    }
-
-    autoregressive_seq_pos_ += input_tensors[0]->sequence();
-}
-
-// #define DYNAMIC
-void QNNExecutor::execute(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
-    bool init = false;
-    bool reshape = false;
-    // TODO: when reshape begin
-    checkReshape(init, reshape, input_tensors);
-    // set Input tensor
-
-    uint64_t time_start = mllm_time_us();
-    uint64_t time_end;
-
-    // Init inputs
-    vector<int> flashGid = {};
-    for (int tid = 0; tid < net->inputNames().size(); ++tid) {
-        auto input_name = net->inputNames()[tid];
-        auto input_tensor = input_tensors[tid];
-        input_tensor->setName(input_name);
-        net->tensors()[input_name] = input_tensor;
-        if (std::find(flashGid.begin(), flashGid.end(), net->inGmap()[input_name]) == flashGid.end()) {
-            flashGid.push_back(net->inGmap()[input_name]);
-        }
-    }
-
-    string typeName;
-    if (executionType_ == PROMPT) {
-        typeName = "Prompt_Graph.";
-    } else if (executionType_ == AUTOREGRESSIVE) {
-        typeName = "Autoregressive_Graph.";
-    }
-
-    for (auto Gid : flashGid) {
-        net->subGraph()[typeName + std::to_string(Gid)]->reflashInput(net->tensors());
-    }
-
-    for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        string name = typeName + std::to_string(i);
-        auto &g = net->subGraph()[name];
-        if (init || reshape) {
-            g->reshape();
-        }
-        // load params
-        if (!paramloaded) {
-            g->setUpOps(*data_loader_);
-        }
-#ifndef DYNAMIC
-    }
-    paramloaded = true;
-    time_end = mllm_time_us();
-    if (load_time_ == 0) {
-        load_time_ = (time_end - time_start) / 1000.0F;
-    }
-
-    auto ex_time_start = mllm_time_us();
-    float exe_time = 0;
-
-    for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        string name = typeName + std::to_string(i);
-        auto &g = net->subGraph()[name];
-#endif
-
-        g->reshape();
-        g->setUpTensors();
-
-        result_ = g->forward();
-
-        // free
-        if (freeGraph) {
-#ifdef DYNAMIC
-            g->freeOps();
-            paramloaded = false;
-#endif
-            if (i < (int)net->subGraph().size() - 1) {
-                g->freeTensors();
-            }
-            net->freeTensors(i);
-        }
-    }
-    auto ex_time_end = mllm_time_us();
     if (input_tensors[0]->sequence() == 1) {
         auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
         run_time_.push_back(token_run_time);
@@ -430,36 +196,26 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
             flashGid.push_back(net->inGmap()[input_name]);
         }
     }
-    string typeName;
-    if (executionType_ == PROMPT) {
-        typeName = "Prompt_Graph.";
-    } else if (executionType_ == AUTOREGRESSIVE) {
-        typeName = "Autoregressive_Graph.";
-    }
+
     for (auto Gid : flashGid) {
-        net->subGraph()[typeName + std::to_string(Gid)]->reflashInput(net->tensors());
+        net->subGraph()[graphNamingRule(Gid)]->reflashInput(net->tensors());
     }
 
-    // std::fstream fs("AR_latency.txt", std::ios::app);
     auto ex_time_start = mllm_time_us();
     PRINT_MEMORY_USAGE("before setup all graph");
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        string name = typeName + std::to_string(i);
+        string name = graphNamingRule(i);
         auto &g = net->subGraph()[name];
 
         // cast graph to QNNGraph
-        // TODO: if this implementation is used, the setUpTensors(string) should be merged to Graph
         // the qnn_graph below is where we cast the Graph to QNNGraph
         auto expectedBackend = ctx->sub_backend_[i];
 
-        std::cout << "Graph" << i << " expected backend: " << expectedBackend << std::endl;
         if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
-            std::cout << "=======setup cpu graph " << i << std::endl;
             g->reshape();
             g->setUpTensors();
         } else if (graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
-            std::cout << "=======setup qnn graph " << i << std::endl;
             auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
             g->reshape();
             qnn_graph->setUpTensors(name);
@@ -469,8 +225,6 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
         }
     }
     auto ex_time_end = mllm_time_us();
-
-    // fs << "setup all graph" << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     ex_time_start = mllm_time_us();
 
@@ -484,8 +238,6 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
 
     // wrap the execute loop in a thread
     std::function<void(int chunk_id)> chunkExecutionFunction = [&](int chunk_id) {
-        std::cout << "======= chunk:" << chunk_id << " total graph " << net->subGraph().size() << std::endl;
-
         for (int i = 0; i < (int)net->subGraph().size(); ++i) {
             // make sure chunks execute by order
             while (true) {
@@ -511,29 +263,29 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
                     auto input_tensor = chunked_tensors_list[chunk_id][tid];
                     unordered_map<string, shared_ptr<Tensor>> map;
                     map[input_name] = input_tensor;
-                    string graphName = typeName + std::to_string(i);
+                    string graphName = graphNamingRule(i);
                     net->subGraph()[graphName]->reflashInput(map);
                 }
             }
 
-            uint64_t t_start = mllm_time_us();
             auto expectedBackend = ctx->sub_backend_[i];
-
+            string name = graphNamingRule(i);
             if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
                 // execute only one cpu graph at a time
                 cpu_mutex.lock();
+#ifdef DEBUGPRINT
+                std::cout << "chunk:" << chunk_id << " execute cpu graph " << i << std::endl;
+#endif
 
-                std::cout << "======= chunk:" << chunk_id << " execute cpu graph " << i << std::endl;
-                string name = typeName + std::to_string(i);
                 auto &g = net->subGraph()[name];
                 if (chunk_id != 0) {
                     // cpu graph should reshape and setup for every chunk forward for KVCache op
                     g->reshape();
                     g->setUpTensors();
                 }
-                
+
                 // only get the result at the last graph
-                if(i == net->subGraph().size() - 1) {
+                if (i == net->subGraph().size() - 1) {
                     chunked_result_list = g->forward();
                 } else {
                     g->forward();
@@ -542,8 +294,9 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
                 // execute only one cpu graph at a time
                 cpu_mutex.unlock();
             } else if (graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
-                std::cout << "======= chunk:" << chunk_id << " execute qnn graph " << i << std::endl;
-                string name = typeName + std::to_string(i);
+#ifdef DEBUGPRINT
+                std::cout << "chunk:" << chunk_id << " execute qnn graph " << i << std::endl;
+#endif
                 auto &g = net->subGraph()[name];
                 auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
                 qnn_graph->forward(name);
@@ -559,8 +312,6 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
                 exit(1);
             }
 
-            uint64_t t_end = mllm_time_us();
-            std::cout << "graph forward " << i << " time " << (t_end - t_start) / 1000.0F << "ms" << " ======= chunk:" << chunk_id << std::endl;
             PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
 
             // if it is the last graph, move the result to the final result
@@ -582,10 +333,6 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
                 for (int tid = 0; tid < chunked_result_list.size(); ++tid) {
                     auto &result_tensor = chunked_result_list[tid];
 
-                    // TODO: for chunk execution test
-                    std::cout << "result tensor shape" << std::endl;
-                    result_tensor->printShape();
-
                     memcpy(result_[tid]->ptrAt<float>(0, 0, chunk_size * chunk_id, 0), result_tensor->hostPtr<float>(), result_tensor->count() * sizeof(float));
                 }
             }
@@ -606,8 +353,6 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
     executeFunction();
 
     ex_time_end = mllm_time_us();
-    std::cout << "*execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
-    // fs << "*execute all graph " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 
     // TODO: in pipeline execute, don't free the graph, error will occur in qnn memory manager deconstruct
     // free all graphs here
@@ -619,28 +364,23 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
             continue;
         }
 
-        string name = typeName + std::to_string(i);
+        string name = graphNamingRule(i);
         auto &g = net->subGraph()[name];
         auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
         qnn_graph->free(name);
     }
-    // use the first graph to free all context is OK.
+    // use the second graph to free all context is OK.
     {
-        string name = typeName + std::to_string(1);
+        string name = graphNamingRule(1);
         auto &g = net->subGraph()[name];
         auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
         qnn_graph->allFree();
     }
 
-    // open file "AR_latency.txt" to record the time of each token
-    // fs << "---------------" << std::endl;
-
     if (input_tensors[0]->sequence() == 1) {
         auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
         run_time_.push_back(token_run_time);
     }
-
-    autoregressive_seq_pos_ += input_tensors[0]->sequence();
 }
 
 QNNPipelineExecutor::ThreadPool::ThreadPool(size_t num_threads) :

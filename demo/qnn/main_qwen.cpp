@@ -4,12 +4,12 @@
 #include <vector>
 #include "Executor.hpp"
 #include "Types.hpp"
-#include "backends/QNN/QNNOptNet.hpp"
+#include "backends/qnn/QNNNet.hpp"
 #include "cmdline.h"
 #include "Net.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
-#include "backends/QNN/QNNExecutor.hpp"
+#include "backends/qnn/QNNExecutor.hpp"
 #include "modeling_opt_npuxpu.hpp"
 #include "modeling_qwen_npuxpu.hpp"
 

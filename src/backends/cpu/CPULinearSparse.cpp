@@ -165,35 +165,7 @@ ErrorCode sparse_mat_mul_fp32_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool
 
 ErrorCode sparse_mat_mul_fp32_int8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, int thread_count, std::map<int, std::set<int>> validIndex, std::map<int, int> colToRow) {
     // TODO
-
-    //     const int M = src0->sequence();
-    //     const int K = src0->dimension();
-    //     const int N = src1->dimension();
-    //     Tensor *src0_cal = src0;
-    //     Tensor *src1_cal = src1;
-    //     const int64_t blck_0 = 16;
-    //     const int num_blocks = M / blck_0;
-    //     const int remainder = M % blck_0;
-    // #pragma omp parallel for num_threads(thread_count)
-    //     for (int block = 0; block < num_blocks + 1; block++) {
-    //         for (int m = block * blck_0; m < (block + 1) * blck_0 & m < num_blocks * blck_0 + remainder; m++) {
-    //             for (int n = 0; n < N; n++) {
-    //                 *dst->ptrAt<float>(0, 0, m, n) = 0;
-    //             }
-    //             if (support_bias) {
-    //                 for (int n = 0; n < N; n++) {
-    //                     *dst->ptrAt<float>(0, 0, m, n) += bias->dataAt<float>(0, 0, 0, n);
-    //                 }
-    //             }
-    //             if (validIndex.find(m) == validIndex.end()) continue;
-    //             for (auto n : validIndex[m]) {
-    //                 vec_value_dot_fp32(K, dst->ptrAt<float>(0, 0, m, 0),
-    //                                         src0_cal->dataAt<float>(0, 0, m, n),
-    //                                        src1_cal->hostPtr<float>() + src1_cal->offset(0, 0, colToRow[n], 0), true);
-    //             }
-    //         }
-    //     }
-    //     return MLLM_NO_ERROR;
+    return NOT_SUPPORT;
 }
 
 } // namespace mllm
