@@ -64,9 +64,9 @@ int main(int argc, char **argv) {
 
     cmdParser.parse_check(argc, argv);
 
-    const string npu_model_path = "./models/qwen-1.5-1.8b-chat-int8.mllm";
-    const string cpu_model_path = "./models/qwen-1.5-1.8b-chat-q4k.mllm";
-    const string merge_file_path = "./vocab/qwen_merges.txt";
+    const string npu_model_path = "../models/qwen-1.5-1.8b-chat-int8.mllm";
+    const string cpu_model_path = "../models/qwen-1.5-1.8b-chat-q4k.mllm";
+    const string merge_file_path = "../vocab/qwen_merges.txt";
 
     string vocab_path = cmdParser.get<string>("vocab");
     int tokens_limit = cmdParser.get<int>("limits");
