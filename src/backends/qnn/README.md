@@ -5,7 +5,7 @@ The QNN backend relies on the Qualcomm QNN framework and Hexagon SDK to compile 
 
 Version requirements:
 * QNN: [Linux v2.20](https://qpm.qualcomm.com/#/main/tools/details/qualcomm_neural_processing_sdk)
-* Hexagon SDK: [Linux 5.5.0.1](https://qpm.qualcomm.com/#/main/tools/details/HexagonSDK5.x)  (Some accounts may have no permission to access this SDK and may need to contact Qualcomm support.)
+* Hexagon SDK: [Linux 5.5.0.1](https://qpm.qualcomm.com/#/main/tools/details/HexagonSDK5.x)  (Some accounts may have no permission to access this SDK and may need to contact Qualcomm for support.)
 
 After downloading and installing the two SDKs use "qpm-cli", copy the SDK directories into the following paths:
 * mllm/src/backends/qnn/qualcomm_ai_engine_direct_220/
