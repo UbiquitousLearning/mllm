@@ -4,12 +4,12 @@
 The QNN backend relies on the Qualcomm QNN framework and Hexagon SDK to compile LLM-specific operators. Please download them using [QPM](https://qpm.qualcomm.com/). The compiling environment only supports Linux now.
 
 Version requirements:
-* QNN: tools/Qualcomm® AI Stack/Qualcomm® AI Stack/v2.20
-* Hexagon SDK: tools/Qualcomm Hexagon SDK Products/Qualcomm® Hexagon™ SDK 5.x/5.5.0.1
+* QNN: [Linux v2.20](https://qpm.qualcomm.com/#/main/tools/details/qualcomm_neural_processing_sdk)
+* Hexagon SDK: [Linux 5.5.0.1](https://qpm.qualcomm.com/#/main/tools/details/HexagonSDK5.x)  (Some accounts may have no permission to access this SDK and may need to contact Qualcomm for support.)
 
-Install the SDK into the following paths:
-* /mllm/src/backends/qnn/qualcomm_ai_engine_direct_220/
-* /mllm/src/backends/qnn/HexagonSDK/
+After downloading and installing the two SDKs use "qpm-cli", copy the SDK directories into the following paths:
+* mllm/src/backends/qnn/qualcomm_ai_engine_direct_220/
+* mllm/src/backends/qnn/HexagonSDK/
 
 ## Op Package Compile
 
