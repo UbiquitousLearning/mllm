@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
 
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.add<int>("seq", 's', "seqenth length", false, 64);
-    cmdParser.add<int>("chunk", 'c', "use chunk execute", false, 1);
+    cmdParser.add<bool>("chunk", 'c', "use chunk execute", false, true);
     cmdParser.add<int>("head", 'h', "num of heads", false, 16);
 
     cmdParser.add<int>("ffn", 'f', "size of ffn hidden size", false, 5504);
@@ -66,16 +66,16 @@ int main(int argc, char **argv) {
 
     const string npu_model_path = "./models/qwen-1.5-1.8b-chat-int8.mllm";
     const string cpu_model_path = "./models/qwen-1.5-1.8b-chat-q4k.mllm";
-    const string merge_file_path = "./vocab/merges_qwen.txt";
+    const string merge_file_path = "./vocab/qwen_merges.txt";
 
     string vocab_path = cmdParser.get<string>("vocab");
     int tokens_limit = cmdParser.get<int>("limits");
     int thread_num = cmdParser.get<int>("thread");
     int seqLength = cmdParser.get<int>("seq");
-    int executeType = cmdParser.get<int>("chunk");
+    bool isChunkExecute = cmdParser.get<bool>("chunk");
     int head_num = cmdParser.get<int>("head");
     int chunk = 1;
-    if (executeType == 1)
+    if (isChunkExecute)
         chunk = 2;
 
     int vocab_size = 151936;
@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
     auto *inter_ctx = inter_ctx_ptr.get();
 
     // cache_max should be longer than seqLength
-    modeling::qwen_npu_t2(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
+    modeling::qwen_npu(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
     modeling::qwen_npu_cpu_inter(inter_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
     modeling::qwen_cpu_q4k(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
 
@@ -115,9 +115,11 @@ int main(int argc, char **argv) {
     ParamLoader inter_param_loader(npu_model_path);
 
     QNNExecutor *npuExePtr;
-    if (executeType == 1) {
+    if (isChunkExecute) {
+        std::cout << "pipeline" << std::endl;
         npuExePtr = new QNNPipelineExecutor(&npu_prefill_param_loader);
     } else {
+        std::cout << "no" << std::endl;
         npuExePtr = new QNNExecutor(&npu_prefill_param_loader);
     }
     auto &npuExe = *npuExePtr;

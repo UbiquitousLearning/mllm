@@ -206,7 +206,7 @@ void qwen_cpu_q4k(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int
 }
 
 // merge o and FFN.
-void qwen_npu_t2(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
+void qwen_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
     auto *i = _Input(c);
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
 
