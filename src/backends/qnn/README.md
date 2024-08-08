@@ -7,9 +7,7 @@ Version requirements:
 * QNN: [Linux v2.20](https://qpm.qualcomm.com/#/main/tools/details/qualcomm_neural_processing_sdk)
 * Hexagon SDK: [Linux 5.5.0.1](https://qpm.qualcomm.com/#/main/tools/details/HexagonSDK5.x)
 
-After downloading 
-
-Copy the SDK into the following paths:
+After downloading and installing the two SDKs use "qpm-cli", copy the SDK directories into the following paths:
 * mllm/src/backends/qnn/qualcomm_ai_engine_direct_220/
 * mllm/src/backends/qnn/HexagonSDK/
 
