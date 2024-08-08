@@ -8,8 +8,8 @@ adb shell mkdir /data/local/tmp/mllm/qnn-lib
 
 adb push ../vocab/qwen_vocab.mllm /data/local/tmp/mllm/vocab/
 adb push ../bin-arm/main_qwen_npu /data/local/tmp/mllm/bin/
-adb push ../models/qwen1.5-1.8B-Chat_152_int8_biasint8_ns.mllm /data/local/tmp/mllm/models/
-adb push ../models/qwen-1.8b-chat-q4k-fp32.mllm /data/local/tmp/mllm/models/
+adb push ../models/qwen-1.5-1.8b-chat-int8.mllm /data/local/tmp/mllm/models/
+adb push ../models/qwen-1.5-1.8b-chat-q4k.mllm /data/local/tmp/mllm/models/
 
 # check if qnn env is set up
 if [ -z "$QNN_SDK_ROOT" ]; then

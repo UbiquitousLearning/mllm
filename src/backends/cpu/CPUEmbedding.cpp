@@ -49,7 +49,6 @@ ErrorCode CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
                 for (int seq = 0; seq < input->sequence(); ++seq) {
 #ifdef USE_QNN
                     if ((int)input->dataAt<float>(batch, head, seq, 0) == vocabSize_) {
-                        auto data = output->hostPtr<float>() + output->offset(batch, head, seq, 0);
                         continue;
                     }
 #endif

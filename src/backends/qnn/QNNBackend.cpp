@@ -40,7 +40,7 @@
 #include "op/QNNTranspose.hpp"
 #include "op/QNNLinearINT8Shadow.hpp"
 
-#include "MemInspect.hpp"
+#include "memory/MemInspect.hpp"
 
 #ifdef DEBUGPRINT
 #include "Timing.hpp"

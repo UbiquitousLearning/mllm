@@ -13,7 +13,7 @@
 #include "QNNGraph.hpp"
 #include "Timing.hpp"
 #include "QNNExecutor.hpp"
-#include "MemInspect.hpp"
+#include "memory/MemInspect.hpp"
 #include "Types.hpp"
 #include "express/ExpressBase.hpp"
 

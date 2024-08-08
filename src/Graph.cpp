@@ -2,7 +2,7 @@
 // Created by Rongjie Yi.
 //
 #include "Graph.hpp"
-#include "MemInspect.hpp"
+#include "memory/MemInspect.hpp"
 #include "OpDefined.hpp"
 #include "Types.hpp"
 #ifdef DEBUGPRINT

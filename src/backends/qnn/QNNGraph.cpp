@@ -6,7 +6,6 @@
 #endif
 
 #include "QNNBackend.hpp"
-#include "MemInspect.hpp"
 
 namespace mllm {
 
