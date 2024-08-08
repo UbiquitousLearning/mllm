@@ -64,8 +64,8 @@ int main(int argc, char **argv) {
 
     cmdParser.parse_check(argc, argv);
 
-    const string npu_model_path = "./models/Qwen1.5-1.8B-Chat_152_int8_biasint8_ns.mllm";
-    const string cpu_model_path = "./models/qwen-1.8b-chat-q4k-fp32.mllm";
+    const string npu_model_path = "./models/qwen-1.5-1.8b-chat-int8.mllm";
+    const string cpu_model_path = "./models/qwen-1.5-1.8b-chat-q4k.mllm";
     const string merge_file_path = "./vocab/merges_qwen.txt";
 
     string vocab_path = cmdParser.get<string>("vocab");

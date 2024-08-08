@@ -110,7 +110,7 @@ Building mllm requires following tools:
 
 #### Run Qwen with NPU accelerating using QNN
 
-We support running Qwen-1.5-1.8B model using [Qualcomm QNN](https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk) to get Hexagon NPU acceleration. The details of QNN environment set up and design is [here](./src/backends/qnn/README.md). The prefilling stage is performered by QNN & CPU, and the inference stage is performed by CPU.
+We support running Qwen-1.5-1.8B model using [Qualcomm QNN](https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk) to get Hexagon NPU acceleration on devices with Snapdragon 8 Gen3. The details of QNN environment set up and design is [here](./src/backends/qnn/README.md). The prefilling stage is performered by QNN & CPU, and the inference stage is performed by CPU.
 
 Build the target with QNN backend.
 
@@ -121,13 +121,11 @@ cd ../script
 
 Download the model from [here](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/blob/main/), or using the following instructions
 
-TODO***
-
 ```bash
 mkdir ../models && cd ../models
 # Download int8 model used by npu & q4k model used by cpu
-wget https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/resolve/main/qwen-1.5-1.8b-chat-int8.mllm?download=true  -O int8.mllm
-wget https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/resolve/main/qwen-1.5-1.8b-chat-q4k.mllm?download=true  -O /qwen-1.5-1.8b-chat-q4k.mllm
+wget https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/resolve/main/qwen-1.5-1.8b-chat-int8.mllm?download=true  -O qwen-1.5-1.8b-chat-int8.mllm
+wget https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/resolve/main/qwen-1.5-1.8b-chat-q4k.mllm?download=true  -O qwen-1.5-1.8b-chat-q4k.mllm
 ```
 
 Run on an android phone with at least 16GB of memory.
