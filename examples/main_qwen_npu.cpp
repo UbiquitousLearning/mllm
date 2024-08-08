@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 1024);
 
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
-    cmdParser.add<int>("seq", 's', "seqenth length", false, 32);
+    cmdParser.add<int>("seq", 's', "seqenth length", false, 64);
     cmdParser.add<int>("chunk", 'c', "use chunk execute", false, 1);
     cmdParser.add<int>("head", 'h', "num of heads", false, 16);
 

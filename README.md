@@ -110,7 +110,7 @@ Building mllm requires following tools:
 
 #### Run Qwen with NPU accelerating using QNN
 
-We support running Qwen-1.5-1.8B model using [Qualcomm QNN](https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk) to get Hexagon NPU acceleration. The details of QNN environment set up and design is [here](./src/backends/qnn/README.md).
+We support running Qwen-1.5-1.8B model using [Qualcomm QNN](https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk) to get Hexagon NPU acceleration. The details of QNN environment set up and design is [here](./src/backends/qnn/README.md). The prefilling stage is performered by QNN & CPU, and the inference stage is performed by CPU.
 
 Build the target with QNN backend.
 
@@ -119,11 +119,37 @@ cd ../script
 ./build_qnn_anroid.sh
 ```
 
-Run on an android phone with at least 20GB of memory.
+Download the model from [here](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/blob/main/), or using the following instructions
+
+TODO***
+
+```bash
+mkdir ../models && cd ../models
+# Download int8 model used by npu & q4k model used by cpu
+wget https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/resolve/main/qwen-1.5-1.8b-chat-int8.mllm?download=true  -O int8.mllm
+wget https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/resolve/main/qwen-1.5-1.8b-chat-q4k.mllm?download=true  -O /qwen-1.5-1.8b-chat-q4k.mllm
+```
+
+Run on an android phone with at least 16GB of memory.
 
 ```bash
 cd ../script
 ./run_qwen_npu.sh
+```
+
+There are two arguments in the executable. `-s` is for the sequence length of prefilling, the default value is 64 in the demo we provided. `-c` for type of QNN prefilling options, when it is set to 1, the input will be splited into many chunks of sequence 32 and be executed in a pipeline. When it is set to 0, the input will be executed in one chunk.
+
+Result are as followed:
+
+```
+> ./main_qwen_npu -s 64 -c 1
+[Q] <|im_start|>system
+You are a helpful assistant.<|im_end|>
+<|im_start|>user
+Give me a short introduction to large language model.<|im_end|>
+<|im_start|>assistant
+
+[A] A short introduction to a large language model is a type of artificial intelligence language model that is designed to understand and generate human language text. These models are typically trained on large amounts of text data, such as books, articles, and other written materials, to learn the patterns and structures of human language. They use a combination of natural language processing (NLP)
 ```
 
 #### Run Fuyu-8B

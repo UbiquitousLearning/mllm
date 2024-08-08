@@ -97,7 +97,7 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
         }
     }
     auto ex_time_end = mllm_time_us();
-    std::cout << "QNN setup time: " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+
     ex_time_start = mllm_time_us();
 
     // execute all graphs here
@@ -225,7 +225,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
         }
     }
     auto ex_time_end = mllm_time_us();
-    std::cout << "QNN setup time: " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
+
     ex_time_start = mllm_time_us();
 
     // execute all graphs here
