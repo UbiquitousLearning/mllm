@@ -116,10 +116,8 @@ int main(int argc, char **argv) {
 
     QNNExecutor *npuExePtr;
     if (isChunkExecute) {
-        std::cout << "pipeline" << std::endl;
         npuExePtr = new QNNPipelineExecutor(&npu_prefill_param_loader);
     } else {
-        std::cout << "no" << std::endl;
         npuExePtr = new QNNExecutor(&npu_prefill_param_loader);
     }
     auto &npuExe = *npuExePtr;
