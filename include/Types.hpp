@@ -26,15 +26,16 @@ typedef map<std::string, float> OpParam;
 #define LLAMAFILE_SGEMM
 
 typedef enum {
+    MLLM_DEFAULT,
     MLLM_CPU,
     MLLM_OPENCL,
     MLLM_QNN
 } BackendType;
 
 enum TensorStatus {
-    TENSOR_DYNAMIC,
-    TENSOR_STATIC_INIT,
-    TENSOR_STATIC_READY,
+    // TENSOR_DYNAMIC,
+    TENSOR_STATIC_INIT ,
+    TENSOR_STATIC_READY ,
 };
 
 enum ErrorCode {
@@ -53,6 +54,7 @@ enum DataType {
     MLLM_TYPE_Q4_1 = 3,
     MLLM_TYPE_Q8_0 = 8,
     MLLM_TYPE_Q8_1 = 9,
+    MLLM_TYPE_Q8_PER_TENSOR = 10,
     // k-quantizations
     MLLM_TYPE_Q4_K = 12,
     MLLM_TYPE_Q6_K = 14,
@@ -66,6 +68,7 @@ enum DataType {
     MLLM_TYPE_Q8_0_4_4,
     MLLM_TYPE_COUNT,
 };
+
 enum ChlType {
     BSHD = 0,
     BHDS = 2,
@@ -93,7 +96,8 @@ inline std::map<std::vector<int>, ChlType> Chls2Type = {
 
 enum TensorType {
     INPUT_TENSOR = 0,
-    NORMAL_TENSOR
+    NORMAL_TENSOR,
+    OUTPUT_TENSOR,
 };
 
 enum Chl {
@@ -127,6 +131,11 @@ enum RoPEType {
     PERSIMMONROPE = 3,
     HFHUBROPE = 4,
     MLAROPE = 5,
+};
+
+enum QNNExecutionType {
+    PROMPT = 0,
+    AUTOREGRESSIVE = 1,
 };
 
 /*
@@ -221,6 +230,11 @@ typedef struct {
     int8_t qs[QK8_0]; // quants
 } block_q8_0;
 #pragma pack()
+#pragma pack(1)
+typedef struct {
+    int8_t qs[QK8_0]; // quants
+} block_q8_per_tensor; // used in vecdot_i8_i8, TODO: remove
+#pragma pack()
 
 // This is only used for intermediate quantization and dot products
 #pragma pack(1)
@@ -279,6 +293,8 @@ static string DataTypeName(DataType dataType) {
         return "I16";
     case MLLM_TYPE_I8:
         return "I8";
+    case MLLM_TYPE_Q8_PER_TENSOR:
+        return "Q8_PER_TENSOR";
     case MLLM_TYPE_Q4_0:
         return "Q4_0";
     case MLLM_TYPE_Q4_K:
@@ -325,6 +341,8 @@ static size_t DataTypeSize(DataType dtype, int count = 1) {
         return (sizeof(block_q4_K)) * count / (QK_K);
     case MLLM_TYPE_Q6_K:
         return (sizeof(block_q6_K)) * count / (QK_K);
+    case MLLM_TYPE_Q8_PER_TENSOR:
+        return sizeof(char) * count;
     case MLLM_TYPE_Q8_0:
         return (sizeof(block_q8_0)) * count / (QK8_0);
     case MLLM_TYPE_Q8_K:

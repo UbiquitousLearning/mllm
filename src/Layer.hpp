@@ -69,7 +69,7 @@ private:
     void reset_KVCache(string input_name) {
         vector<string> renameX_names;
         renameX_names.push_back(input_name);
-        const vector<string> suffixs = {"-view", ".split-0", ".split-1", ".split-2","-cat", "-split-0-48"};
+        const vector<string> suffixs = {"-view", ".split-0", ".split-1", ".split-2", "-cat", "-split-0-48"};
         for (const auto x_name : renameX_names) {
             for (auto child : Tensor::graphs[x_name]->childTensors()) {
                 if (std::find(renameX_names.begin(), renameX_names.end(), child->name()) == renameX_names.end()) {
@@ -107,7 +107,7 @@ private:
                 vector<shared_ptr<Tensor>> new_aggregated_tensors = {};
                 for (const auto &aggregated_tensor : Tensor::graphs[x_name]->aggregated_tensors()) {
                     auto tmp_name = name_X_to_num(aggregated_tensor->name(), saved_list_idx);
-                    if(layername_2_tensorname[tmp_name] == ""){
+                    if (layername_2_tensorname[tmp_name] == "") {
                         layername_2_tensorname[tmp_name] = tmp_name;
                     }
                     new_aggregated_tensors.push_back(
@@ -525,16 +525,16 @@ public:
         param_["bias"] = (float)bias;
         init(std::move(name), OpType::LINEAR);
     }
-    Tensor &operator()(Tensor &input){
+    Tensor &operator()(Tensor &input) {
         return _1I1O_OP(input);
     }
 };
 
-class SparseIdLinear final : public Layer{
+class SparseIdLinear final : public Layer {
 public:
-    SparseIdLinear(int in_dim, int out_dim, std::string name){
-        param_["in_dim_"] = (float) in_dim;
-        param_["out_dim_"] = (float) out_dim;
+    SparseIdLinear(int in_dim, int out_dim, std::string name) {
+        param_["in_dim_"] = (float)in_dim;
+        param_["out_dim_"] = (float)out_dim;
         init(std::move(name), OpType::SPARSEIDLINEAR);
     }
     Tensor &operator()(Tensor &input) {
@@ -542,11 +542,11 @@ public:
     }
 };
 
-class SparseLinear final : public Layer{
+class SparseLinear final : public Layer {
 public:
-    SparseLinear(int in_dim, int out_dim, std::string name){
-        param_["in_dim_"] = (float) in_dim;
-        param_["out_dim_"] = (float) out_dim;
+    SparseLinear(int in_dim, int out_dim, std::string name) {
+        param_["in_dim_"] = (float)in_dim;
+        param_["out_dim_"] = (float)out_dim;
         init(std::move(name), OpType::SPARSELINEAR);
     }
     Tensor &operator()(Tensor &input) {
@@ -556,9 +556,9 @@ public:
 
 class Predictor final : public Layer {
 public:
-    Predictor(int in_dim, int out_dim, std::string name){
-        param_["in_dim"] = (float) in_dim;
-        param_["out_dim"] = (float) out_dim;
+    Predictor(int in_dim, int out_dim, std::string name) {
+        param_["in_dim"] = (float)in_dim;
+        param_["out_dim"] = (float)out_dim;
         init(std::move(name), OpType::PREDICTOR);
     }
     Tensor &operator()(Tensor &input) {

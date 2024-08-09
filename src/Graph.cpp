@@ -2,6 +2,12 @@
 // Created by Rongjie Yi.
 //
 #include "Graph.hpp"
+#include "memory/MemInspect.hpp"
+#include "OpDefined.hpp"
+#include "Types.hpp"
+#ifdef DEBUGPRINT
+#include "Timing.hpp"
+#endif
 
 std::string intToStringWithLeadingZero(int num) {
     if (num < 10) {
@@ -11,6 +17,10 @@ std::string intToStringWithLeadingZero(int num) {
 }
 
 namespace mllm {
+
+#ifdef USE_QNN
+static unordered_map<string, Op*> kv_cache_map;
+#endif
 
 Graph::Graph(const NetParameter &param, Backend *bn,
              unordered_map<string, shared_ptr<Tensor>> &external_tensors,
@@ -22,9 +32,34 @@ Graph::Graph(const NetParameter &param, Backend *bn,
         if (it == external_tensors.end()) { // not in external_tensors
             tensors_[net_tensor->name] = std::make_shared<Tensor>(backend_);
             tensors_[net_tensor->name]->setName(net_tensor->name);
+            tensors_[net_tensor->name]->setDtype(net_tensor->type);
         }
     }
     for (auto net_op : param.net_ops) {
+    // for QNN prefill & CPU decoding execution, KVCache should be shared for each block
+#ifdef USE_QNN
+        if (net_op->type == KVCACHE || net_op->type == KVCACHENPU) {
+#ifdef DEBUGPRINT
+            std::cout << net_op->name << " is KVCache" << std::endl;
+#endif
+            shared_ptr<Op> my_op(nullptr);
+            if (kv_cache_map.find(net_op->name) == kv_cache_map.end()) {
+                // for the prefill part, we need to create a new op
+                auto *new_op = backend_->opCreate(net_op->param, net_op->name, threadCount);
+                my_op.reset(new_op);
+                my_op->setOpType(net_op->type);
+                kv_cache_map[net_op->name] = new_op;
+            } else {
+#ifdef DEBUGPRINT
+                std::cout << net_op->name << " is shared used" << std::endl;
+#endif
+                // for the decoding part, we need to get created op from global container
+                my_op.reset(kv_cache_map[net_op->name]);
+            }
+            ops_[net_op->name] = my_op;
+            continue;
+        }
+#endif
         shared_ptr<Op> my_op(nullptr);
         auto *new_op = backend_->opCreate(net_op->param, net_op->name, threadCount);
         my_op.reset(new_op);
@@ -111,11 +146,22 @@ void Graph::reshape() {
 
 void Graph::setUpTensors() {
     auto &graph_in_tensors = ops_input_tensors_[op_names_[0]];
+    // set graph out tensor TensorType
+    auto &graph_out_tensors = ops_output_tensors_[op_names_[op_names_.size() - 1]];
+    for (auto &t : graph_out_tensors) {
+        t->setTtype(OUTPUT_TENSOR);
+    }
+
+    this->backend_->onSetUpStart(graph_in_tensors, graph_out_tensors);
+
     for (auto &t : graph_in_tensors) { t->alloc(); }
+
+    // set up tensors of ops
     for (const auto &op_name : op_names_) {
         if (ops_not_inputs_empty_[op_name] ) {
             ops_[op_name]->setUp(ops_input_tensors_[op_name],
                                  ops_output_tensors_[op_name]);
+            // PRINT_MEMORY_USAGE((op_name + " setUp").c_str());
         }else{
 //            std::cout<<"op_name:"<<op_name<<" is not do"<<std::endl;
         }
@@ -125,10 +171,15 @@ void Graph::setUpTensors() {
 void Graph::setUpOps(AbstructLoader &loader) {
     for (const auto &op_name : op_names_) {
         ops_[op_name]->load(loader);
+#ifdef DEBUGPRINT
+        PRINT_MEMORY_USAGE((op_name + " load").c_str());
+#endif
     }
 }
 //#define SAVECHECK
 const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
+    // backend event hook
+    this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]]);
 
     for (const auto &op_name : op_names_) {
         if (ops_not_inputs_empty_[op_name] ) {
@@ -165,6 +216,8 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
 //            std::cout<<"op_name:"<<op_name<<" is not do"<<std::endl;
         }
     }
+    // backend event hook
+    this->backend_->onExecuteEnd();
     return ops_output_tensors_[op_names_[op_names_.size() - 1]];
 }
 

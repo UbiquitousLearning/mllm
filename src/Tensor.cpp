@@ -1,12 +1,17 @@
 #include "Tensor.hpp"
 
+#include <cassert>
+#include <cstdlib>
+#include <exception>
 #include <express/ExpressBase.hpp>
+#include "Backend.hpp"
 #include "OpDefined.hpp"
 #include "Timing.hpp"
 #include "Types.hpp"
 #include "backends/cpu/CPUTensorFunction.hpp"
 
 #include <Module.hpp>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -119,43 +124,43 @@ Tensor& Tensor::getFunc(const std::string& suffix, const TensorFuncType type, ve
 }
 
 Tensor &Tensor::operator+(float data) {
-    return getFunc( "add", FUNC_ADD, {data});
+    return getFunc("add", FUNC_ADD, {data});
 }
 
 Tensor &Tensor::operator-(float data) {
-    return getFunc( "sub", FUNC_SUB, {data});
+    return getFunc("sub", FUNC_SUB, {data});
 }
 
 Tensor &Tensor::operator*(float data) {
-    return getFunc( "mul", FUNC_MUL, {data});
+    return getFunc("mul", FUNC_MUL, {data});
 }
 
 Tensor &Tensor::operator/(float data) {
-    return getFunc( "div", FUNC_DIV, {data});
+    return getFunc("div", FUNC_DIV, {data});
 }
 
 Tensor &Tensor::operator/(double data) {
-    return getFunc( "div", FUNC_DIV, {static_cast<float>(data)});
+    return getFunc("div", FUNC_DIV, {static_cast<float>(data)});
 }
 
 Tensor &Tensor::operator+(Tensor &other) {
-    return getFunc( "TTadd", FUNC_TTADD, {}, {&other});
+    return getFunc("TTadd", FUNC_TTADD, {}, {&other});
 }
 
 Tensor &Tensor::operator-(Tensor &other) {
-    return getFunc( "TTsub", FUNC_TTSUB, {}, {&other});
+    return getFunc("TTsub", FUNC_TTSUB, {}, {&other});
 }
 
 Tensor &Tensor::operator*(Tensor &other) {
-    return getFunc( "TTmul", FUNC_TTMUL, {}, {&other});
+    return getFunc("TTmul", FUNC_TTMUL, {}, {&other});
 }
 
 Tensor &Tensor::operator/(Tensor &other) {
-    return getFunc( "TTdiv", FUNC_TTDIV, {}, {&other});
+    return getFunc("TTdiv", FUNC_TTDIV, {}, {&other});
 }
 
 Tensor &Tensor::mean(Chl axis) {
-    return getFunc( "mean", FUNC_MEAN, {(float)axis});
+    return getFunc("mean", FUNC_MEAN, {(float)axis});
 }
 
 Tensor &Tensor::view(int b, int h, int s, int d) {
@@ -163,7 +168,7 @@ Tensor &Tensor::view(int b, int h, int s, int d) {
 }
 
 Tensor &Tensor::flatten(Chl axis_start, Chl axis_end) {
-    return getFunc( "flatten", FUNC_FLATTEN, {(float)axis_start, (float)axis_end});
+    return getFunc("flatten", FUNC_FLATTEN, {(float)axis_start, (float)axis_end});
 }
 
 Tensor &Tensor::transpose(vector<std::pair<Chl, Chl>> axiss) {
@@ -172,7 +177,7 @@ Tensor &Tensor::transpose(vector<std::pair<Chl, Chl>> axiss) {
         axis_s.push_back((float)axis.first);
         axis_s.push_back((float)axis.second);
     }
-    return getFunc( "transpose", FUNC_TRANPOSE, axis_s);
+    return getFunc("transpose", FUNC_TRANPOSE, axis_s);
 }
 
 Tensor &Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
@@ -193,7 +198,7 @@ Tensor &Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d)
     for (auto &axis : d) {
         axis_s.push_back((float)axis);
     }
-    return getFunc( "clip", FUNC_CLIP, axis_s);
+    return getFunc("clip", FUNC_CLIP, axis_s);
 }
 
 Tensor &Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
@@ -214,7 +219,7 @@ Tensor &Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s,
     for (auto &axis : d) {
         axis_s.push_back((float)axis);
     }
-    return getFunc( "clipaxis", FUNC_CLIPAXIS, axis_s);
+    return getFunc("clipaxis", FUNC_CLIPAXIS, axis_s);
 }
 
 Tensor &Tensor::norm(int L_n) {
@@ -225,16 +230,13 @@ Tensor &Tensor::where(float value, Chl axis) {
     return getFunc("where", FUNC_WHERE, {(float)value, (float)axis});
 }
 
-
-
-
 /**
  * static function
  */
 
 Tensor& Tensor::getStaticFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors){
     auto backend_h = Module::backends[MLLM_CPU];
-    if(!other_tensors.empty() && other_tensors[0]->backend_!= nullptr){
+    if (!other_tensors.empty() && other_tensors[0]->backend_ != nullptr) {
         backend_h = other_tensors[0]->backend();
     }
     TensorFunction *func = backend_h->funcCreate(type);
@@ -293,7 +295,7 @@ Tensor &Tensor::range(int start, int end) {
 std::vector<Tensor> Tensor::getStaticFuncOupts(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, 
                                     vector<Tensor *> input_tensors){
     auto backend_h = Module::backends[MLLM_CPU];
-    if(!input_tensors.empty() && input_tensors[0]->backend_!= nullptr){
+    if (!input_tensors.empty() && input_tensors[0]->backend_ != nullptr) {
         backend_h = input_tensors[0]->backend();
     }
     for (auto out_name: out_names) {
@@ -345,18 +347,17 @@ std::vector<Tensor> Tensor::getStaticFuncOupts(vector<std::string> out_names, co
     return results;
 }
 
-vector<Tensor> Tensor::split(Tensor& input, std::vector<int> each_dims, Chl split_dim, int head_size){
+vector<Tensor> Tensor::split(Tensor &input, std::vector<int> each_dims, Chl split_dim, int head_size) {
     vector<std::string> next_names;
     std::vector<float> args;
     for (int i = 0; i < each_dims.size(); ++i) {
         args.push_back(each_dims[i]);
-        next_names.push_back(input.name() + "-split-" + std::to_string(i) + "-"+ std::to_string(each_dims[i]));
+        next_names.push_back(input.name() + "-split-" + std::to_string(i) + "-" + std::to_string(each_dims[i]));
     }
     args.push_back(split_dim);
     args.push_back(head_size);
     std::vector<Tensor*> input_tensors = {Tensor::graphs[input.name()].get()};
     return getStaticFuncOupts(next_names, FUNC_SPLIT, args, input_tensors);
 }
-
 
 } // namespace mllm

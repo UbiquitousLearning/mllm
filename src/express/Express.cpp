@@ -1,5 +1,7 @@
 #include <string>
 #include <vector>
+#include "OpDefined.hpp"
+#include "Types.hpp"
 #include "unordered_map"
 #include "Express.hpp"
 #include <algorithm>
@@ -209,6 +211,27 @@ NetTensor *_Causalmask(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+NetTensor *_Transpose(std::vector<NetTensor *> inputs, std::vector<int> perm, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Transpose" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::TRANSPOSE)
+    net_op_->param["perm0"] = perm[0];
+    net_op_->param["perm1"] = perm[1];
+    net_op_->param["perm2"] = perm[2];
+    net_op_->param["perm3"] = perm[3];
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
 NetTensor *_SiLU(std::vector<NetTensor *> inputs, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -220,6 +243,44 @@ NetTensor *_SiLU(std::vector<NetTensor *> inputs, string name) {
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::SILU)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+NetTensor *_Quantize(std::vector<NetTensor *> inputs, bool isNSHD, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Quantize" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = MLLM_TYPE_I8;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::QUANTIZE)
+    net_op_->param["isNSHD"] = isNSHD;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+NetTensor *_Dequantize(std::vector<NetTensor *> inputs, bool isNSHD, string name, bool isFP32) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Dequantize" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    if (isFP32)
+        out_tensor->type = MLLM_TYPE_F32;
+    else
+        out_tensor->type = MLLM_TYPE_F16;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::DEQUANTIZE)
+    net_op_->param["isNSHD"] = isNSHD;
+    net_op_->param["isFP32"] = isFP32;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
@@ -294,7 +355,7 @@ NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilo
  * \param pose_type RoPR type, 4 for HuggingFace Hub, 2 for LLama, 3 for fuyu, NO_USE for 1.
  * This RoPE function is ready for optimization in the future.
  */
-NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name) {
+NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -306,6 +367,29 @@ NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name) {
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::ROPE)
     net_op_->param["pose_type"] = pose_type;
+    net_op_->param["rope_theta"] = rope_theta;
+    net_op_->param["max_position_embeddings"] = max_position_embeddings;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+/**
+ * \param max_num The maximum number of positions.
+ */
+NetTensor *_PositionalEmbedding(std::vector<NetTensor *> inputs, int max_num, int hidden_dim, string name){
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "PE" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::POSITIOANL_EMBEDDING)
+    net_op_->param["max_num"] = max_num;
+    net_op_->param["hidden_dim"] = hidden_dim;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
@@ -426,6 +510,56 @@ NetTensor *_Predictor(std::vector<NetTensor *> inputs, int in_dim, int out_dim, 
     return out_tensor;
 }
 /**
+ * \param in_features The size of each input sample (i.e., input dimension).
+ * \param out_features The size of each output sample (i.e., output dimension).
+ * \param bias If set to false, the layer will not learn an additive bias. Default is true.
+ */
+NetTensor *_LinearINT8(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "LinearINT8" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::LINEARINT8)
+    net_op_->param["in_features"] = in_features;
+    net_op_->param["out_features"] = out_features;
+    net_op_->param["bias"] = (int)bias;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
+/**
+ * \param in_features The size of each input sample (i.e., input dimension).
+ * \param out_features The size of each output sample (i.e., output dimension).
+ * \param bias If set to false, the layer will not learn an additive bias. Default is true.
+ */
+NetTensor *_LinearINT8Shadow(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "LinearINT8" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::LINEARINT8SHADOW)
+    net_op_->param["in_features"] = in_features;
+    net_op_->param["out_features"] = out_features;
+    net_op_->param["bias"] = (int)bias;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
+/**
  * \param vocab_size The size of the vocabulary.
  * \param hidden_size The size of the hidden layer.
  */
@@ -482,6 +616,26 @@ NetTensor *_KVCache(std::vector<NetTensor *> inputs,int cache_max, string name) 
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+// kvcache for qnn chunk execute
+NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, bool share_input, int cache_max, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "KVCache" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::KVCACHE)
+    net_op_->param["n_rep"] = 1;
+    net_op_->param["share_input"] = share_input;
+    net_op_->param["cache_max"] = (int)cache_max;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
 /**
  * Only for Transformer-based models' Decoder.
  * \param n_rep  if head size of K/V is different with Q, set n_rep > 1, the output will be replicated n_rep times.
@@ -499,6 +653,23 @@ NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, int cache_max, s
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::KVCACHE)
     net_op_->param["n_rep"] = (int)n_rep;
+    net_op_->param["cache_max"] = (int)cache_max;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+NetTensor *_KVCacheNPU(std::vector<NetTensor *> inputs, int cache_max, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "KVCache" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::KVCACHENPU)
     net_op_->param["cache_max"] = (int)cache_max;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
@@ -812,6 +983,73 @@ NetTensor *_Replace(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-void _SubgraphBegin(Context *ctx) {
+
+NetTensor *_WNop(std::vector<NetTensor *> inputs, int sync_type, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "WNop" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::WNOP)
+    net_op_->param["sync_type"] = (float)sync_type;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
+NetTensor *_MergeOutput(std::vector<NetTensor *> inputs, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Merge" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::MERGEOUTPUT)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
+vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, int num, string name) {
+    Context *ctx = inputs[0]->ctx;
+    if (name.empty()) {
+        name = "Split" + std::to_string(ctx->idx);
+    }
+    auto sub_param = get_active_subgraph(ctx);
+    _NEW_OP(mllm::SPLITINPUT)
+    net_op_->param["isPrompt"] = (float)isPrompt;
+    net_op_->param["num"] = (float)num;
+    _UPDATE_INPUT_TENSORS
+    vector<NetTensor *> out_tensors;
+    net_op_->out_size = num;
+    for (int i = 0; i < num; ++i) {
+        NetTensor *out_tensor = new NetTensor();
+        out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
+        if (i < (num - 1))
+            out_tensor->type = inputs[0]->type;
+        else
+            out_tensor->type = MLLM_TYPE_F32;
+        ctx->idx++;
+        ctx->net_tensors.insert(out_tensor);
+        out_tensor->subgraph = sub_param;
+        sub_param->net_tensors.push_back(out_tensor);
+        out_tensor->in = net_op_;
+        out_tensor->ctx = ctx;
+        out_tensors.push_back(out_tensor);
+    }
+    return out_tensors;
+}
+
+void _SubgraphBegin(Context *ctx, BackendType backend) {
     ctx->active_sub++;
+    ctx->next_backend = backend;
 }

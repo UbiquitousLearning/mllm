@@ -10,7 +10,7 @@ namespace mllm {
 
 class CPUKVCache final : public Op {
 public:
-    CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max=100, int threadCount=4);
+    CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max = 100, int threadCount = 4);
     virtual ~CPUKVCache() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -30,10 +30,10 @@ public:
 private:
     int thread_count = 4;
 
-    int cache_seq_len_= -999;
+    int cache_seq_len_ = -999;
     int n_rep_ = 1;
 
-    int cache_limit_ ;
+    int cache_limit_;
 };
 
 class CPUKVCacheCreator : public CPUBackend::Creator {

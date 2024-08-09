@@ -11,7 +11,6 @@ CPUMatmul::CPUMatmul(Backend *bn, string opName, bool transpose0, bool transpose
 }
 
 ErrorCode CPUMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-
     assert(inputs.size() == 2);
     assert(outputs.size() == 1);
     assert(inputs[0]->head() == inputs[1]->head());

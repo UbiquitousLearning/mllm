@@ -25,6 +25,7 @@
  * SOFTWARE.
  */
 
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include "VecDotType.hpp"
@@ -298,7 +299,7 @@ type_traits_t type_traits[] = {
         .vec_dot_type = MLLM_TYPE_Q8_K,
         .add_row_to = (mllm_vec_add_row_func)q8_k_add_row_to,
     },
-    /*[MLLM_TYPE_I_8] = */ {},
+    /*[MLLM_TYPE_I_8] = */ {}, // TODO: not implemented, integrate linear-int8 to common linear
     /*[MLLM_TYPE_I_16] = */ {},
     /*[MLLM_TYPE_I_32] = */ {},
     /*[MLLM_TYPE_Q4_0_4_4] = */ {

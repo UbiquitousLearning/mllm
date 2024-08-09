@@ -15,14 +15,14 @@ public:
      * \brief Setup graphs in net
      * \param net  An instance of the Net class
      */
-    void setup(Net *net);
+    virtual void setup(Net *net);
 
     /**
      * \brief Executes the foreword propagation of provided network
      * \param net       An instance of the Net class representing the network to be run
      * \param input_tensors     A vector of input tensors to be processed by the network
      */
-    void run(Net *net, vector<shared_ptr<Tensor>> input_tensors);
+    virtual void run(Net *net, vector<shared_ptr<Tensor>> input_tensors);
 
     /**
      * \brief Setup&Executes the foreword propagation of provided network
@@ -31,7 +31,7 @@ public:
      *
      * execute(net, input_tensors) is equivalent to setup(net) + run(net, input_tensors)
      */
-    void execute(Net *net, vector<shared_ptr<Tensor>> input_tensor);
+    virtual void execute(Net *net, vector<shared_ptr<Tensor>> input_tensor);
 
     bool checkSame(vector<shared_ptr<Tensor>> input_tensor) {
         if (input_tensor.size() != input_sizes_.size()) {
@@ -84,13 +84,16 @@ public:
         std::cout << "inference speed: " << 1000 / mean_time << " tokens/s" << std::endl;
     }
 
-private:
+protected:
     vector<vector<int>> input_sizes_;
     vector<shared_ptr<Tensor>> result_;
     AbstructLoader *data_loader_;
 
     double load_time_ = 0;
     vector<double> run_time_;
+
+    bool paramloaded = false;
+    bool freeGraph = false;
 };
 
 } // namespace mllm

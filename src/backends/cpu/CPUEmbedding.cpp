@@ -47,6 +47,11 @@ ErrorCode CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
             for (int head = 0; head < input->head(); ++head) { // NOLINT(*-use-default-none)
                 #pragma omp parallel for num_threads(thread_count)
                 for (int seq = 0; seq < input->sequence(); ++seq) {
+#ifdef USE_QNN
+                    if ((int)input->dataAt<float>(batch, head, seq, 0) == vocabSize_) {
+                        continue;
+                    }
+#endif
                     memcpy(output->hostPtr<float>() + output->offset(batch, head, seq, 0),
                            weight_.hostPtr<float>() + weight_.offset(0, 0, (int)input->dataAt<float>(batch, head, seq, 0), 0),
                            weight_.dtypeSize() * hiddenSize_);
@@ -117,6 +122,7 @@ ErrorCode CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     case MLLM_TYPE_COUNT: break;
     default: break;
     }
+
     return MLLM_NO_ERROR;
 }
 ErrorCode CPUEmbedding::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

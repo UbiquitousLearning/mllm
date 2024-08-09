@@ -40,6 +40,18 @@ option(QUANT "quantize tools" ON)
 option(APK "Build for Android APK Lib." OFF)
 option(FROM_GGUF "convert from gguf" OFF)
 
+option(DEBUG "debug print" OFF)
+if(DEBUG)
+    add_definitions(-DDEBUGPRINT)
+endif()
+
+# backend options
+option(QNN "Enable QNN" OFF)
+if(QNN)
+    add_definitions(-DUSE_QNN)
+endif()
+
+
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)
 endif ()
@@ -52,9 +64,10 @@ FetchContent_Declare(
 
 # find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
 # set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
-option(DEBUG "debug print" OFF)
+
 option(MLLM_OPENMP "openmp" ON)
 option(MLLM_OPENMP_STATIC "openmp static" OFF)
+
 if (CMAKE_HOST_UNIX)
     message(STATUS "current platform: Linux ")
 
@@ -204,8 +217,8 @@ if (TEST)
     endif ()
 endif ()
 
-# else ()
-# No Unit Test.
+# cpu executables
+if(NOT QNN) 
 add_executable(main_llama ${PROJECT_SOURCE_DIR}/examples/main_llama.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} # ${DIR_SRC_QUANT}
         src/tokenizers/Tokenizer.cpp
         src/tokenizers/Tokenizer.hpp
@@ -548,6 +561,27 @@ endif ()
 # else ()
 #     target_link_libraries(demo_deepseek PUBLIC MLLM_CPU)
 # endif ()
+
+endif() # end of cpu executables
+
+# QNN demo
+if(QNN)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn)
+
+    # qnn executables
+    add_executable(main_qwen_npu ${PROJECT_SOURCE_DIR}/examples/main_qwen_npu.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/Unicode.cpp
+        src/tokenizers/UnicodeData.cpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/processor/PreProcess.cpp
+    )
+    target_compile_definitions(main_qwen_npu PRIVATE USE_QNN)
+    if (ARM)
+        target_compile_options(main_qwen_npu PRIVATE -fopenmp)
+        target_link_libraries(main_qwen_npu PUBLIC  MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS} -fopenmp -static-openmp)
+    endif ()
+endif()
 
 if (APK)
     add_library(mllm_lib STATIC ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER}

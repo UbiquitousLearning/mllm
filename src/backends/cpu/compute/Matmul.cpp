@@ -260,7 +260,7 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     }
 
 #ifdef LLAMAFILE_SGEMM
-    if (check_llamafile_sgemm(N, M, K / blck_size(src1->dtype()), src1->dtype(), src0->dtype(), dst->dtype()) && dst->dtypeAt(0, 0, 0, 0) == MLLM_TYPE_F32) {
+        if (check_llamafile_sgemm(N, M, K / blck_size(src1->dtype()), src1->dtype(), src0->dtype(), dst->dtype()) && dst->dtypeAt(0, 0, 0, 0) == MLLM_TYPE_F32 && dst->ctype()==BSHD) {
         const int ld_src1 = src1->sequence_skip_dim();
         const int ld_src0 = src0->sequence_skip_dim();
         const int ld_dst = dst->sequence_skip_dim();
@@ -764,7 +764,7 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
     }
 
 #ifdef LLAMAFILE_SGEMM
-    if (check_llamafile_sgemm(use_N, M, use_K / blck_size(src1->dtype()), src1->dtype(), src0->dtype(), dst->dtype()) && !support_bias) {
+    if (check_llamafile_sgemm(use_N, M, use_K / blck_size(src1->dtype()), src1->dtype(), src0->dtype(), dst->dtype()) && !support_bias && dst->ctype()==BSHD) {
         const int ld_src1 = src1->sequence_skip_dim();
         const int ld_src0 = src0->sequence_skip_dim();
         const int ld_dst = dst->sequence_skip_dim();

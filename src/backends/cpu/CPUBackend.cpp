@@ -1,6 +1,16 @@
 #include "CPUBackend.hpp"
 #include <iostream>
 #include <math.h>
+#include <memory>
+#include "Backend.hpp"
+#include "CPUKVCacheNPU.hpp"
+#include "CPULinearInt8.hpp"
+#include "CPUNPUView.hpp"
+#include "CPUPoEmbedding.hpp"
+#include "CPUSplitInput.hpp"
+#include "OpDefined.hpp"
+#include "Types.hpp"
+#include "memory/SystemMemoryManager.hpp"
 #include "CPUView.hpp"
 #include "CPUAdd.hpp"
 #include "CPUCausalMask.hpp"
@@ -41,12 +51,36 @@
 #include "CPUSparseIdLinear.hpp"
 #include "CPUSparseLinear.hpp"
 #include "CPUElasticLinear.hpp"
+#include "CPUQuantize.hpp"
+#include "CPUMergeOutput.hpp"
+#include "CPULinearINT8Shadow.hpp"
+
 #include "CPUTensorFunction.hpp"
 #include "CPUPosition.hpp"
 
 namespace mllm {
+class CPUBackendCreator : public BackendCreator {
+    shared_ptr<Backend> create(BackendConfig config) {
+        shared_ptr<MemoryManager> mm = nullptr;
+        switch (config.memory) {
+        case BackendConfig::Memory_High:
+            mm = std::make_shared<SystemMemoryManager>();
+            break;
+        default:
+            mm = std::make_shared<SystemMemoryManager>();
+            break;
+        }
+        return std::make_shared<CPUBackend>(mm);
+    };
+};
+
+void registerCPUBackendCreator() {
+    InsertBackendCreatorMap(MLLM_CPU, std::make_shared<CPUBackendCreator>());
+}
+
 CPUBackend::CPUBackend(shared_ptr<MemoryManager> &mm) :
     Backend(mm) {
+    type_ = BackendType::MLLM_CPU;
     registerOps();
     registerFuncs();
 }
@@ -73,10 +107,13 @@ void CPUBackend::registerOps() {
     addCreator(SILU, (CPUBackend::Creator *)(new CPUSiLUCreator()));
     addCreator(SOFTMAX, (CPUBackend::Creator *)(new CPUSoftMaxCreator()));
     addCreator(LINEAR, (CPUBackend::Creator *)(new CPULinearCreator()));
+    addCreator(LINEARINT8, (CPUBackend::Creator *)(new CPULinearInt8Creator()));
     addCreator(EMBEDDING, (CPUBackend::Creator *)(new CPUEmbeddingCreator()));
     addCreator(MUL, (CPUBackend::Creator *)(new CPUMulCreator()));
     addCreator(VIEW, (CPUBackend::Creator *)(new CPUViewCreator()));
+    addCreator(NPUVIEW, (CPUBackend::Creator *)(new CPUNPUViewCreator()));
     addCreator(KVCACHE, (CPUBackend::Creator *)(new CPUKVCacheCreator()));
+    addCreator(KVCACHENPU, (CPUBackend::Creator *)(new CPUKVCacheNPUCreator()));
     addCreator(RELU, (CPUBackend::Creator *)(new CPUReLUCreator()));
     addCreator(RELU2, (CPUBackend::Creator *)(new CPUReLU2Creator()));
     addCreator(OP_GELU, (CPUBackend::Creator *)(new CPUGELUCreator()));
@@ -103,6 +140,10 @@ void CPUBackend::registerOps() {
     addCreator(SPARSEIDLINEAR, (CPUBackend::Creator *)(new CPUSparseIdLinearCreator()));
     addCreator(ELASTICLINEAR, (CPUBackend::Creator *)(new CPUElasticLinearCreator()));
     addCreator(POSITION, (CPUBackend::Creator *)(new CPUPositionCreator()));
+    addCreator(QUANTIZE, (CPUBackend::Creator *)(new CPUQuantizeCreator()));
+    addCreator(MERGEOUTPUT, (CPUBackend::Creator *)(new CPUMergeOutputCreator()));
+    addCreator(SPLITINPUT, (CPUBackend::Creator *)(new CPUSplitInputCreator()));
+    addCreator(LINEARINT8SHADOW, (CPUBackend::Creator *)(new CPULinearINT8ShadowCreator()));
 }
 
 TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {

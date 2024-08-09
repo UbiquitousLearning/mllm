@@ -11,7 +11,6 @@
 #include "Backend.hpp"
 #include "Timing.hpp"
 #include "backends/cpu/CPUBackend.hpp"
-
 #include <any>
 #include <functional>
 #include <iostream>
@@ -37,12 +36,15 @@ public:
     static AbstructLoader *loader;
     // static TensorStatus tensor_status;
     static bool doLoad;
+    static bool doToDevice;
+    static BackendType tmp_device;
+    static std::unordered_map<string, shared_ptr<Op>> tensor_func_ops; //use for QNN
 
     Module() = default;
     virtual ~Module() = default;
 
     static void initBackend(BackendType type = BackendType::MLLM_CPU) {
-        if (Module::backends.find(type) == Module::backends.end()) {
+        if (Module::backends.find(type) == Module::backends.end() || Module::backends[type] == nullptr) {
             switch (type) {
             case BackendType::MLLM_CPU: {
                 shared_ptr<MemoryManager> mm = nullptr;
@@ -50,6 +52,12 @@ public:
                 backends[MLLM_CPU] = new CPUBackend(mm);
                 break;
             }
+#ifdef USE_QNN
+            case BackendType::MLLM_QNN: {
+                backends.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create({}).get());
+                break;
+            }
+#endif
             default: {
             }
             }

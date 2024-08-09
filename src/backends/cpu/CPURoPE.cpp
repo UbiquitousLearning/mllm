@@ -107,6 +107,12 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         } else {
         }
     }
+#ifdef USE_QNN
+    auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
+    if (cpuBackend->isStageSwitching()) {
+        h_cnt_ = cpuBackend->getSequenceLength();
+    }
+#endif
     return Op::reshape(inputs, outputs);
 }
 

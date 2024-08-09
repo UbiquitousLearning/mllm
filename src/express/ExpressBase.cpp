@@ -219,12 +219,19 @@ NetTensor *TNetTensor::where(float data, Chl axis) {
     return out_tensor;
 }
 
-NetTensor *TNetTensor::view(int b, int h, int s, int d) {
+NetTensor *TNetTensor::view(int b, int h, int s, int d, bool isCrossBackend) {
     Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
     _SET_OUT_TENSOR_NAME(out_tensor, name, net_op_, "_view_")
-    net_op_->type = VIEW;
-    net_op_->param["type"] = VIEW;
+
+    if (isCrossBackend) {
+        net_op_->type = NPUVIEW;
+        net_op_->param["type"] = NPUVIEW;
+    } else {
+        net_op_->type = VIEW;
+        net_op_->param["type"] = VIEW;
+    }
+    
     vector<int> dims;
     vector<int> data_dims;
     if (b == -1 & s == -1 & h != -1 & d != -1) { // keep b&s change h&d
@@ -251,6 +258,11 @@ NetTensor *TNetTensor::view(int b, int h, int s, int d) {
             dims = {-1, h, -1, d};
             data_dims = {BATCH + SEQUENCE, HEAD, -1, DIMENSION};
         }
+    } else if (b != -1 & d != -1 & h != -1 & s != -1) { // change all dimension.
+        
+        dims = {b, h, s, d};
+        data_dims = {BATCH, HEAD, SEQUENCE, DIMENSION};
+
     } else {
         std::cout << "ERROR: " << name << " view [" << b << ", " << h << ", " << s << ", " << d << "]" << std::endl;
     }
@@ -263,6 +275,7 @@ NetTensor *TNetTensor::view(int b, int h, int s, int d) {
     net_op_->param["data_dim2"] = data_dims[2];
     net_op_->param["data_dim3"] = data_dims[3];
     _SET_NET_OP(ctx, net_op_, this, sub_param, out_tensor)
+    out_tensor->type = this->type;
     return out_tensor;
 }
 

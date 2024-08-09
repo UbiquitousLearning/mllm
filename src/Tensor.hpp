@@ -2,6 +2,7 @@
 #define MLLM_TENSOR_H
 #include <climits>
 #include "Backend.hpp"
+#include "OpDefined.hpp"
 #include <iostream>
 #include <cstdio>
 #include <iomanip>
@@ -147,6 +148,8 @@ public:
         alloc();
     }
     void alloc();
+
+    void alloc(vector<uint> alloc_size);
     /**
      * \brief free the memory of Tensor.
      */
@@ -1047,6 +1050,22 @@ public:
         return aggregated_dim_;
     }
 
+    BackendType device() const {
+        return backend_->type();
+    }
+
+    Tensor&  to(BackendType backend_type);
+    static vector<Tensor> toDevice(vector<Tensor> inputs, BackendType backend_type);
+    static vector<Tensor> toCPU(vector<Tensor> inputs){
+        return toDevice(inputs, MLLM_CPU);
+    }
+    static vector<Tensor> toQNN(vector<Tensor> inputs){
+        return toDevice(inputs, MLLM_QNN);
+    }
+
+    static void reshape_alloc_cross_bn(Tensor &src_t, Tensor &dst_t);
+    static void copy_data_cross_bn(Tensor &src_t, Tensor &dst_t);
+
     /* Functions used for 5-D Tensor:
      * - reshape
      * - channel
@@ -1068,7 +1087,7 @@ public:
      * \param height Height of the 2D grid
      * \param width Width of the 2D grid
      * \return Whether the reshape operation was successful.
-    */
+     */
     bool reshape(const int batch, const int channel, const int time, const int height, const int width);
     /**
      * \brief get the size of the corresponding dimension for 5-D Tensor, contains: batch, head, sequence, dimension.
@@ -1211,7 +1230,7 @@ public:
         if (N == 1 && C == 1) {
             for (int h = 0; h < H; ++h) {
                 for (int c = 0; c < W; ++c) {
-                    std::cout << std::fixed << std::setprecision(7) << dataAt<Dtype>(0, 0, h, c) << " ";
+                    std::cout << std::fixed << std::setprecision(7) << static_cast<float>(dataAt<Dtype>(0, 0, h, c)) << " ";
                 }
                 std::cout << std::endl;
                 std::cout << "---------" << std::endl;
@@ -1219,7 +1238,7 @@ public:
         } else if (N == 1 && W == 1) {
             for (int h = 0; h < H; ++h) {
                 for (int c = 0; c < C; ++c) {
-                    std::cout << std::fixed << std::setprecision(7) << dataAt<Dtype>(0, c, h, 0) << " ";
+                    std::cout << std::fixed << std::setprecision(7) << static_cast<float>(dataAt<Dtype>(0, c, h, 0)) << " ";
                 }
                 std::cout << std::endl;
             }
@@ -1228,7 +1247,7 @@ public:
                 for (int c = 0; c < C; ++c) {
                     for (int h = 0; h < H; ++h) {
                         for (int w = 0; w < W; ++w) {
-                            std::cout << std::fixed << std::setprecision(7) << dataAt<Dtype>(n, c, h, w) << " ";
+                            std::cout << std::fixed << std::setprecision(7) << static_cast<float>(dataAt<Dtype>(n, c, h, w)) << " ";
                         }
                         std::cout << std::endl;
                     }
@@ -1631,11 +1650,15 @@ private:
         }
         return tensor_id;
     }
-
     Tensor& getFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
     static Tensor& getStaticFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
     static std::vector<Tensor> getStaticFuncOupts(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, 
                                     vector<Tensor *> input_tensors);
+#ifdef USE_QNN
+    Tensor& getOp(const std::string& suffix, const OpType type,  OpParam param, vector<Tensor *> other_tensors={});
+    static Tensor& getStaticOp(const std::string& suffix, const OpType type,  OpParam param, vector<Tensor *> other_tensors={});
+    static bool checkgetOps(Backend *bn);
+#endif
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H

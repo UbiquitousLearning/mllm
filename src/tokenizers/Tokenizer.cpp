@@ -27,7 +27,7 @@ bool Tokenizer::load_vocab(const std::string &vocab_file) {
 // #endif
 
     if (fp == nullptr) {
-        std::cout << "open file failed" << std::endl;
+        std::cout<<vocab_file << " open file failed" << std::endl;
         return false;
     }
     // Use a unique_ptr with a custom deleter to ensure the file is closed.

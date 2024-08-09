@@ -1413,3 +1413,162 @@ void vec_dot_q8_0_q8_0(int n, float * __restrict s, const void * __restrict vx, 
     *s = hsum_float_8(acc);
 #endif
 }
+
+void vec_dot_i8_i8(const int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy, float scale1, float scale2) {
+    const int qk = QK8_0;
+    const int nb = n / qk;
+
+    const float scale = scale1 * scale2;
+
+    assert(n % qk == 0);
+
+    const block_q8_per_tensor *__restrict x = (block_q8_per_tensor *)vx;
+    const block_q8_per_tensor *__restrict y = (block_q8_per_tensor *)vy;
+
+#if defined(__ARM_NEON)
+    float32x4_t sumv0 = vdupq_n_f32(0.0f);
+    float32x4_t sumv1 = vdupq_n_f32(0.0f);
+
+    assert(nb % 2 == 0); // TODO: handle odd nb
+
+    for (int i = 0; i < nb; i += 2) {
+        const block_q8_per_tensor *__restrict x0 = &x[i + 0];
+        const block_q8_per_tensor *__restrict x1 = &x[i + 1];
+        const block_q8_per_tensor *__restrict y0 = &y[i + 0];
+        const block_q8_per_tensor *__restrict y1 = &y[i + 1];
+
+        const int8x16_t x0_0 = vld1q_s8(x0->qs);
+        const int8x16_t x0_1 = vld1q_s8(x0->qs + 16);
+        const int8x16_t x1_0 = vld1q_s8(x1->qs);
+        const int8x16_t x1_1 = vld1q_s8(x1->qs + 16);
+
+        // load y
+        const int8x16_t y0_0 = vld1q_s8(y0->qs);
+        const int8x16_t y0_1 = vld1q_s8(y0->qs + 16);
+        const int8x16_t y1_0 = vld1q_s8(y1->qs);
+        const int8x16_t y1_1 = vld1q_s8(y1->qs + 16);
+
+        sumv0 = vmlaq_n_f32(sumv0, vcvtq_f32_s32(vaddq_s32(mllm_vdotq_s32(vdupq_n_s32(0), x0_0, y0_0), mllm_vdotq_s32(vdupq_n_s32(0), x0_1, y0_1))), scale);
+
+        sumv1 = vmlaq_n_f32(sumv1, vcvtq_f32_s32(vaddq_s32(mllm_vdotq_s32(vdupq_n_s32(0), x1_0, y1_0), mllm_vdotq_s32(vdupq_n_s32(0), x1_1, y1_1))), scale);
+    }
+
+    *s = vaddvq_f32(sumv0) + vaddvq_f32(sumv1);
+#elif defined(__AVX2__) || defined(__AVX__)
+    // Initialize accumulator with zeros
+    __m256 acc = _mm256_setzero_ps();
+
+    // Main loop
+    for (int i = 0; i < nb; ++i) {
+        // Compute combined scale for the block
+        const __m256 d = _mm256_set1_ps(scale);
+        __m256i qx = _mm256_loadu_si256((const __m256i *)x[i].qs);
+        __m256i qy = _mm256_loadu_si256((const __m256i *)y[i].qs);
+
+        const __m256 q = mul_sum_i8_pairs_float(qx, qy);
+
+        // Multiply q with scale and accumulate
+#if defined(__AVX2__)
+        acc = _mm256_fmadd_ps(d, q, acc);
+#else
+        acc = _mm256_add_ps(_mm256_mul_ps(d, q), acc);
+#endif
+    }
+
+    *s = hsum_float_8(acc);
+#else
+    // scalar
+    float sumf = 0.0;
+
+    for (int i = 0; i < nb; i++) {
+        int sumi = 0;
+
+        for (int j = 0; j < qk; j++) {
+            sumi += x[i].qs[j] * y[i].qs[j];
+        }
+
+        sumf += sumi * scale;
+    }
+
+    *s = sumf;
+#endif
+}
+
+#ifdef __AVX2__
+static void vec_value_dot_fp32_avx2(const int n, float *__restrict s, const float *__restrict x, const float *__restrict y, bool addition) {
+    float sumf = 0.0F;
+    const int np = (n & ~(MLLM_F32_STEP - 1));
+
+    MLLM_F32_VEC sum[MLLM_F32_ARR] = {MLLM_F32_VEC_ZERO};
+
+    MLLM_F32_VEC ax[MLLM_F32_ARR];
+    MLLM_F32_VEC ay[MLLM_F32_ARR];
+
+    for (int i = 0; i < np; i += MLLM_F32_STEP) {
+        for (int j = 0; j < MLLM_F32_ARR; j++) {
+            ax[j] = MLLM_F32_VEC_LOAD(x + i + j * MLLM_F32_EPR);
+            ay[j] = MLLM_F32_VEC_LOAD(y + i + j * MLLM_F32_EPR);
+
+            sum[j] = MLLM_F32_VEC_FMA(sum[j], ax[j], ay[j]);
+        }
+    }
+
+    // reduce sum0..sum3 to sum0
+    MLLM_F32_VEC_REDUCE(sumf, sum);
+
+    // leftovers
+    for (int i = np; i < n; ++i) {
+        sumf += x[i] * y[i];
+    }
+
+    *s = sumf;
+}
+#endif
+
+#ifdef __ARM_NEON
+// s:vector k
+// x:value
+// y:vector k
+static void vec_value_dot_fp32_arm(const int n, float *__restrict s, const float x, const float *__restrict y, bool addition) {
+    int i;
+    float32x4_t vec_x;
+    float32x4_t vec_y;
+    float32x4_t vec_s;
+
+    vec_x = vdupq_n_f32(x);
+
+    int n_aligned = n & -4;
+
+    if (addition) {
+        for (i = 0; i < n_aligned; i += 4) {
+            vec_y = vld1q_f32(y + i);
+            vec_s = vmulq_f32(vec_x, vec_y);
+            vec_s = vaddq_f32(vec_s, vld1q_f32(s + i));
+            vst1q_f32(s + i, vec_s);
+        }
+    } else {
+        for (i = 0; i < n_aligned; i += 4) {
+            vec_y = vld1q_f32(y + i);
+            vec_s = vmulq_f32(vec_x, vec_y);
+            vst1q_f32(s + i, vec_s);
+        }
+    }
+    for (; i < n; ++i) {
+        if (addition)
+            s[i] += x * y[i];
+        else {
+            s[i] = x * y[i];
+        }
+    }
+}
+#endif
+
+#ifdef __AVX2__
+void vec_value_dot_fp32(const int n, float *__restrict s, const float *x, const float *__restrict vy, bool addition) {
+    vec_value_dot_fp32_avx2(n, s, x, vy, addition);
+}
+#elif defined(__ARM_NEON)
+void vec_value_dot_fp32(const int n, float *__restrict s, const float x, const float *__restrict vy, bool addition) {
+    vec_value_dot_fp32_arm(n, s, x, vy, addition);
+}
+#endif

@@ -1,29 +1,14 @@
 #include "Net.hpp"
-#include "memory/SystemMemoryManager.hpp"
 #include "Op.hpp"
 #include "Types.hpp"
-#include "backends/cpu/CPUBackend.hpp"
+#include "Backend.hpp"
 #include <vector>
+
 
 namespace mllm {
 
-shared_ptr<CPUBackend> cpuBn;
-
-Net::Net(BackendConfig config){
-    shared_ptr<MemoryManager> mm = nullptr;
-    if (cpuBn == nullptr) {
-        switch (config.memory) {
-        case BackendConfig::Memory_High:
-            mm = std::make_shared<SystemMemoryManager>();
-            break;
-        default:
-            mm = std::make_shared<SystemMemoryManager>();
-            break;
-        }
-
-        cpuBn.reset(new CPUBackend(mm));
-    }
-    backends_.emplace(BackendType::MLLM_CPU,  cpuBn);
+Net::Net(BackendConfig config) {
+    backends_.emplace(MLLM_CPU, GetBackendCreator(MLLM_CPU)->create(config));
 }
 
 void Net::convert(vector<NetParameter> &param, BackendType backend_type, int threadCount) {

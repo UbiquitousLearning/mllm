@@ -339,7 +339,7 @@ static inline float hsum_float_8(const __m256 x) {
 #if !defined(__ARM_FEATURE_DOTPROD)
 
 inline static int32x4_t mllm_vdotq_s32(int32x4_t acc, int8x16_t a, int8x16_t b) {
-    const int16x8_t p0 = vmull_s8(vget_low_s8 (a), vget_low_s8 (b));
+    const int16x8_t p0 = vmull_s8(vget_low_s8(a), vget_low_s8(b));
     const int16x8_t p1 = vmull_s8(vget_high_s8(a), vget_high_s8(b));
 
     return vaddq_s32(acc, vaddq_s32(vpaddlq_s16(p0), vpaddlq_s16(p1)));
@@ -394,5 +394,10 @@ void vec_dot_q4_0_q8_0(const int n, float * __restrict s, const void * __restric
 void vec_dot_fp32(const int n, float * __restrict s, const float * __restrict vx, const float * __restrict vy);
 void vec_dot_fp16(const int n, float * __restrict s, const mllm_fp16_t * __restrict vx, const mllm_fp16_t * __restrict vy);
 void vec_dot_q8_0_q8_0(int n, float * __restrict s, const void * __restrict vx, const void * __restrict vy);
+
+// for sparse linear
+void vec_value_dot_fp32(const int n, float *__restrict s, const float x, const float *__restrict vy, bool addition);
+// for per-tensor i8, currently not suitable for vecdot trait
+void vec_dot_i8_i8(const int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy, float scale1 = 1, float scale2 = 1);
 
 #endif // MLLM_VECDOT_HPP

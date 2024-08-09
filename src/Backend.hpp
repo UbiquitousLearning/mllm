@@ -13,10 +13,7 @@ class Op;
 class Tensor;
 class Backend;
 
-
-
-
-class TensorFunction{
+class TensorFunction {
 public:
     virtual void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args)=0;
     virtual void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args)=0;
@@ -56,6 +53,11 @@ public:
     virtual Op *opCreate(const OpParam &op_param, string name = "", int threadCount = 4) = 0;
     virtual TensorFunction *funcCreate(const TensorFuncType type) = 0;
 
+    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onExecuteEnd(){};
+
     /**
      * \brief Registers all the operations supported by the backend.
      * This function is expected to be overridden by each specific backend implementation.
@@ -63,9 +65,37 @@ public:
     virtual void registerOps() = 0;
     virtual void registerFuncs() = 0;
 
-private:
+    BackendType type() const {
+        return type_;
+    }
+
+protected:
+    BackendType type_;
     shared_ptr<MemoryManager> mem_manager_;
 };
+
+/**
+ * \brief abstract Runtime register
+ */
+class BackendCreator {
+public:
+    virtual shared_ptr<Backend> create(BackendConfig config) = 0;
+};
+
+/**
+ * \brief get registered backend creator for given backend type.
+ * \param type  given backend type.
+ * \return backend creator pointer if registered, nullptr otherwise.
+ */
+const std::shared_ptr<BackendCreator> GetBackendCreator(BackendType type);
+
+/**
+ * \brief register backend creator for given backend type.
+ * \param type given backend type.
+ * \param creator registering backend creator.
+ * \return true if backend creator for given backend type was not registered before, false otherwise.
+ */
+bool InsertBackendCreatorMap(BackendType type, shared_ptr<BackendCreator> creator);
 
 } // namespace mllm
 

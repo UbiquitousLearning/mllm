@@ -62,16 +62,17 @@ void Executor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
             net->freeTensors(i);
         }
     }
+
     auto ex_time_end = mllm_time_us();
     if (input_tensors[0]->sequence() == 1) {
         auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
         run_time_.push_back(token_run_time);
     }
+    auto token_run_time = (ex_time_end - ex_time_start) / 1000.0F;
+    run_time_.push_back(token_run_time);
 }
 
 // #define DYNAMIC
-bool paramloaded = false;
-bool freeGraph = false;
 void Executor::execute(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     bool init = false;
     bool reshape = false;

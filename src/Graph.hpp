@@ -47,7 +47,7 @@ public:
      * \param autofree Whether to release the memory of weights. Set to false
      * \return The last output tensor
      */
-    const vector<shared_ptr<Tensor>> &forward(bool autofree = false);
+    virtual const vector<shared_ptr<Tensor>> &forward(bool autofree = false);
 
     /**
      * \brief free the memory of Ops' weights in this graph.
