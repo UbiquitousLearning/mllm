@@ -4,6 +4,7 @@ project(mllm)
 cmake_policy(SET CMP0074 NEW)
 set(CMAKE_CXX_STANDARD 17)
 option(ARM "build on ARM" OFF)
+
 if(MSVC)
     message(STATUS "Using MSVC as the compiler")
 else()
@@ -63,6 +64,7 @@ FetchContent_Declare(
 
 # find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
 # set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
+option(DEBUG "debug print" OFF)
 
 if (CMAKE_HOST_UNIX)
     message(STATUS "current platform: Linux ")
@@ -73,7 +75,15 @@ elseif (CMAKE_HOST_WIN32)
 else ()
     message(STATUS "current platform: unknown ")
 endif ()
-
+if (ARM AND NOT APK)
+    set(MLLM_OPENMP_STATIC ON)
+endif ()
+# turn off openmp when build on mac or for mac
+if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING)
+    message(STATUS "mac detected, turn off openmp")
+    set(MLLM_OPENMP OFF)
+    set(MLLM_OPENMP_STATIC OFF)
+endif ()
 aux_source_directory(${PROJECT_SOURCE_DIR}/src DIR_SRC)
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/express DIR_SRC_EXP)

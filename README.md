@@ -102,6 +102,8 @@ Building mllm requires following tools:
 - Android NDK Toolchains >= 26
 
 
+> Note that building OpenMP libs on macOS may fail due to Apple LLVM compiler, so we disable OpenMP on macOS by default, you may experience slower performance on macOS. Build mllm is more recommended on Linux.
+
 ### Run Qwen with Hexagon NPU accelerating using QNN
 
 *`NOTE:` The QNN backend is preliminary version which can do end-to-end inference. It is still under active development for better performance and more supported models.*
