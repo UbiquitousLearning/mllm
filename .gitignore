@@ -27,5 +27,5 @@ models/*
 /.vscode/
 examples/demo_deepseek.cpp
 workflow.py
-mllm/src/backends/qnn/qualcomm_ai_engine_direct_220/
-mllm/src/backends/qnn/HexagonSDK
+mllm/src/backends/qnn/qualcomm_ai_engine_direct_220/*
+mllm/src/backends/qnn/HexagonSDK/*
