@@ -109,7 +109,7 @@ OP_INCLUDES =  #$(wildcard $(OP_INCLUDE_DIR)/*.h) user defined if any op specifi
 LIBRARY_NAME := libQnn$(PACKAGE_NAME).so
 SUPPORTED_TARGETS = x86_64-linux-clang hexagon-v68 hexagon-v69 hexagon-v73 hexagon-v75 aarch64-android
 
-INCLUDES = $(addprefix -I,$(QHL_INC_DIRS)) $(addprefix -I,$(QHL_HVX_INC_DIRS)) $(addprefix -I,$(WORKER_POOL_INC)) -I/mllm/HexagonSDK/libs/qhl_hvx/inc/qhmath_hvx/
+INCLUDES = $(addprefix -I,$(QHL_INC_DIRS)) $(addprefix -I,$(QHL_HVX_INC_DIRS)) $(addprefix -I,$(WORKER_POOL_INC)) -I$(HEXAGON_SDK_BASE)/HexagonSDK/libs/qhl_hvx/inc/qhmath_hvx/
 
 
 COMMON_CXX_FLAGS = -std=c++17 -I$(QNN_INCLUDE) -fPIC -Wall -Wreorder -Wno-missing-braces -fno-builtin -Wno-unused-function
