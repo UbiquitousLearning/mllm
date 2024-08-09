@@ -13,28 +13,28 @@ namespace mllm {
 class Tensor;
 static int readInt(mllm_file *fp_) {
     int tmp;
-    fread(&tmp, sizeof(int32_t), 1, fp_);
+    auto _ = fread(&tmp, sizeof(int32_t), 1, fp_);
     return tmp;
 }
 static uint64_t readu64(mllm_file *fp_) {
     uint64_t tmp;
-    fread(&tmp, sizeof(uint64_t), 1, fp_);
+    auto _ = fread(&tmp, sizeof(uint64_t), 1, fp_);
     return tmp;
 }
 static float readf32(mllm_file *fp_) {
     float tmp;
-    fread(&tmp, sizeof(float), 1, fp_);
+    auto _ = fread(&tmp, sizeof(float), 1, fp_);
     return tmp;
 }
 static double readf64(mllm_file *fp_) {
     double tmp;
-    fread(&tmp, sizeof(double), 1, fp_);
+    auto _ = fread(&tmp, sizeof(double), 1, fp_);
     return tmp;
 }
 static std::string readString(mllm_file *fp_) {
     int len = readInt(fp_);
     char *tmp = new char[len + 1];
-    fread(tmp, sizeof(char), len, fp_);
+    auto _ = fread(tmp, sizeof(char), len, fp_);
     tmp[len] = '\0';
     std::string str(tmp);
     if (len == 0) {
@@ -46,14 +46,20 @@ static std::string readString(mllm_file *fp_) {
 
 #define _MAGIC_NUMBER 20012
 /**
- * \brief The AbstructLoader abstract class provides an interface for loading parameters. 
+ * \brief The AbstructLoader abstract class provides an interface for loading parameters.
  */
 class AbstructLoader {
 public:
     virtual bool load(mllm::Tensor *tensor) = 0;
     virtual bool load(std::shared_ptr<mllm::Tensor> tensor) = 0;
-    virtual size_t getTensorSize(string name){fprintf(stderr,"loader not support getTensorSize");return NOT_SUPPORT;}
-    virtual DataType getDataType(string name) {return MLLM_TYPE_COUNT;}
+
+    virtual size_t getTensorSize(string name) {
+        fprintf(stderr, "loader not support getTensorSize");
+        return NOT_SUPPORT;
+    }
+    virtual DataType getDataType(string name) {
+        return MLLM_TYPE_COUNT;
+    }
     // virtual bool partialLoad(mllm::Tensor *tensor, std::set<int> validRow, int rowNum, int colNum) = 0;
 };
 
@@ -83,7 +89,7 @@ public:
     std::tuple<uint8_t *, uint64_t> load(string name);
     DataType getDataType(string name) override;
     bool isAvailible() const {
-        return fp_ != nullptr&& !offsets_.empty();
+        return fp_ != nullptr && !offsets_.empty();
     }
     unsigned int getParamSize() const {
         return offsets_.size();
@@ -107,18 +113,19 @@ class MultiFileParamLoader : public AbstructLoader {
     friend class QuantWriter;
 
 public:
-    MultiFileParamLoader(const std::initializer_list<string>& filenames);
+    MultiFileParamLoader(const std::initializer_list<string> &filenames);
     ~MultiFileParamLoader();
     bool load(mllm::Tensor *tensor) override;
     bool load(std::shared_ptr<mllm::Tensor> tensor) override;
     size_t getTensorSize(string name) override;
     DataType getDataType(string name) override;
+
 private:
     map<string, mllm_file *> files_; // tensor in which file <tensor_name, fp to file that tensor is in>
     map<string, DataType> data_type_;
     map<string, std::pair<uint64_t, uint64_t>> offsets_; // offsets, datasize
 
-    void load_file(const string& filename);
+    void load_file(const string &filename);
 };
 
 } // namespace mllm
