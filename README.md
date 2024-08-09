@@ -26,7 +26,8 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 - [Quick Start](#quick-start)
     - [Get the Code](#get-the-code)
     - [Check prerequisites](#check-prerequisites)
-    - [Try it on Android](#try-it-on-android)
+    - [Run Qwen with Hexagon NPU accelerating using QNN](#run-qwen-with-hexagon-npu-accelerating-using-qnn)
+    - [Run with the CPU of Android](#run-with-the-cpu-of-android)
     - [Run for Linux](#run-for-linux)
 - [Customization](#customization)
     - [Convert models](#convert-models)
@@ -65,9 +66,8 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 [//]: # (* ❌  : Not support yet.)
 
 
-| Model                                                                       | CPU | CPU | Hexagon NPU |
+| Model                                                                       | CPU <br> FP32 | CPU <br> INT4  | Hexagon NPU <br> INT8 |
 |-----------------------------------------------------------------------------|------|-----|----------------------------|
-|                                                                             | FP32 | INT4 | INT8 |
 | [LLaMA-1/2 7B](https://github.com/facebookresearch/llama)                   | [✔️](https://huggingface.co/mllmTeam/llama-2-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/llama-2-7b-mllm/tree/main)   | ✔️ |
 | [Alpaca 7B](https://github.com/ymcui/Chinese-LLaMA-Alpaca-2)                | [✔️](https://huggingface.co/mllmTeam/chinese-alpaca-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/chinese-alpaca-7b-mllm/tree/main)   |  |
 | [TinyLLaMA 1.1B](https://github.com/jzhang38/TinyLlama)                     | [✔️](https://huggingface.co/mllmTeam/tinyllama-1.1b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/tinyllama-1.1b-mllm/tree/main)   | ✔️ |
@@ -78,7 +78,7 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 | [LLaVA 7B](https://github.com/haotian-liu/LLaVA)                            | [✔️](https://huggingface.co/mllmTeam/llava-1.5-7b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/llava-1.5-7b-mllm/tree/main)   |  |
 | [Gemma 2B](https://github.com/google/gemma_pytorch)                         | [✔️](https://huggingface.co/mllmTeam/gemma-2b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/gemma-2b-mllm/tree/main)   |  |
 | [Qwen 0.5B](https://github.com/QwenLM/Qwen)                                 | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-0.5b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-0.5b-mllm/tree/main)   | ✔️ |
-| [Qwen 1.8B Chat](https://github.com/QwenLM/Qwen)                                 | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm)  | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm)   | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm) |
+| [Qwen 1.8B Chat](https://github.com/QwenLM/Qwen)                            | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm)  | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm)   | [✔️](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm) |
 | [Mistral 7B](https://github.com/mistralai/mistral-src)                      | [✔️](https://huggingface.co/mllmTeam/mistral-7b-instruct-v0.2-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/mistral-7b-instruct-v0.2-mllm/tree/main)   | ✔️ |
 | [Yi 6B](https://huggingface.co/01-ai/Yi-1.5-6B)                             | [✔️](https://huggingface.co/mllmTeam/yi-1.5-6b-chat-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/yi-1.5-6b-chat-mllm/tree/main)   |  |
 | [StableLM 1.6B](https://github.com/Stability-AI/StableLM)                     | [✔️](https://huggingface.co/mllmTeam/stablelm-2-1.6b-chat-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/stablelm-2-1.6b-chat-mllm/tree/main)   |  |
@@ -101,17 +101,8 @@ Building mllm requires following tools:
 - CMake >= 3.18
 - Android NDK Toolchains >= 26
 
-### Try it on Android
 
-#### Build
-
-  ```bash
-  export ANDROID_NDK=/path/to/your/ndk
-  cd scripts
-  ./build_android.sh
-  ```
-
-#### Run Qwen with Hexagon NPU accelerating using QNN
+### Run Qwen with Hexagon NPU accelerating using QNN
 
 *`NOTE:` The QNN backend is preliminary version which can do end-to-end inference. It is still under active development for better performance and more supported models.*
 
@@ -154,6 +145,16 @@ Give me a short introduction to large language model.<|im_end|>
 
 [A] A short introduction to a large language model is a type of artificial intelligence language model that is designed to understand and generate human language text. These models are typically trained on large amounts of text data, such as books, articles, and other written materials, to learn the patterns and structures of human language. They use a combination of natural language processing (NLP)
 ```
+
+### Run with the CPU of Android
+
+#### Build
+
+  ```bash
+  export ANDROID_NDK=/path/to/your/ndk
+  cd scripts
+  ./build_android.sh
+  ```
 
 #### Run Fuyu-8B
 
