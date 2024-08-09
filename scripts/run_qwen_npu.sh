@@ -12,14 +12,14 @@ adb push ../models/qwen-1.5-1.8b-chat-int8.mllm /data/local/tmp/mllm/models/
 adb push ../models/qwen-1.5-1.8b-chat-q4k.mllm /data/local/tmp/mllm/models/
 
 # check if qnn env is set up
-if [ -z "$QNN_SDK_ROOT" ]; then
-    echo "QNN_SDK_ROOT is not set"
-    exit 1
-else 
-    echo "QNN_SDK_ROOT is set to $QNN_SDK_ROOT"
-fi
+# if [ -z "$QNN_SDK_ROOT" ]; then
+#     echo "QNN_SDK_ROOT is not set"
+#     exit 1
+# else 
+#     echo "QNN_SDK_ROOT is set to $QNN_SDK_ROOT"
+# fi
 
-LIBPATH=$QNN_SDK_ROOT
+LIBPATH=../src/backends/qnn/qualcomm_ai_engine_direct_220/
 ANDR_LIB=$LIBPATH/lib/aarch64-android
 OP_PATH=../src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/build
 DEST=/data/local/tmp/mllm/qnn-lib
