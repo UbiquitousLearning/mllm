@@ -64,7 +64,9 @@ FetchContent_Declare(
 
 # find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
 # set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
-option(DEBUG "debug print" OFF)
+
+option(MLLM_OPENMP "openmp" ON)
+option(MLLM_OPENMP_STATIC "openmp static" OFF)
 
 if (CMAKE_HOST_UNIX)
     message(STATUS "current platform: Linux ")
