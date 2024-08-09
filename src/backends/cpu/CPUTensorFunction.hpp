@@ -16,7 +16,7 @@
 namespace mllm {
 class Tensor;
 
-class CPUmmFunction : public TensorFunction {
+class CPUmmFunction: public TensorFunction {
     static void tranTensorChl(Tensor &input) {
         assert(input.ctype() == BSHD);
         auto b = input.batch();
@@ -55,7 +55,7 @@ class CPUmmFunction : public TensorFunction {
     }
 
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {    
         if (inputs[1]->chls()[SEQUENCE] != 3) {
             tranTensorChl(*inputs[1]);
         }
@@ -86,9 +86,9 @@ public:
     
 };
 
-class CPUnormFunction : public TensorFunction {
+class CPUnormFunction: public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         int L_n = (int)args[0];
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
         outputs[0]->setDtype(inputs[0]->dtype());
@@ -157,7 +157,7 @@ public:
     }
 };
 
-class CPUaddFunction : public TensorFunction, public CPUbinaryFunction {
+class CPUaddFunction: public TensorFunction, public CPUbinaryFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         float data = (float)args[0];
@@ -168,7 +168,7 @@ public:
         CPUbinaryFunction::execute( inputs[0], outputs[0], std::plus<float>(), data);
     }
 };
-class CPUsubFunction : public TensorFunction, public CPUbinaryFunction {
+class CPUsubFunction: public TensorFunction, public CPUbinaryFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         float data = (float)args[0];
@@ -179,7 +179,7 @@ public:
         CPUbinaryFunction::execute( inputs[0], outputs[0], std::minus<float>(), data);
     }
 };
-class CPUmulFunction : public TensorFunction, public CPUbinaryFunction {
+class CPUmulFunction: public TensorFunction, public CPUbinaryFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         float data = (float)args[0];
@@ -190,7 +190,7 @@ public:
         CPUbinaryFunction::execute( inputs[0], outputs[0], std::multiplies<float>(), data);
     }
 };
-class CPUdivFunction : public TensorFunction, public CPUbinaryFunction {
+class CPUdivFunction: public TensorFunction, public CPUbinaryFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         float data = (float)args[0];
@@ -243,7 +243,7 @@ public:
         }
     }
 };
-class CPUaddTwoFunction : public TensorFunction, public CPUbinaryTwoFunction {
+class CPUaddTwoFunction: public TensorFunction, public CPUbinaryTwoFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         CPUbinaryTwoFunction::setup( inputs[0], inputs[1], outputs[0], std::plus<float>());
@@ -252,7 +252,7 @@ public:
         CPUbinaryTwoFunction::execute( inputs[0], inputs[1], outputs[0], std::plus<float>());
     };
 };
-class CPUsubTwoFunction : public TensorFunction, public CPUbinaryTwoFunction {
+class CPUsubTwoFunction: public TensorFunction, public CPUbinaryTwoFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         CPUbinaryTwoFunction::setup( inputs[0], inputs[1], outputs[0], std::minus<float>());
@@ -261,7 +261,7 @@ public:
         CPUbinaryTwoFunction::execute( inputs[0], inputs[1], outputs[0], std::minus<float>());
     };
 };
-class CPUmulTwoFunction : public TensorFunction, public CPUbinaryTwoFunction {
+class CPUmulTwoFunction: public TensorFunction, public CPUbinaryTwoFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         CPUbinaryTwoFunction::setup( inputs[0], inputs[1], outputs[0], std::multiplies<float>());
@@ -270,7 +270,7 @@ public:
         CPUbinaryTwoFunction::execute( inputs[0], inputs[1], outputs[0], std::multiplies<float>());
     };
 };
-class CPUdivTwoFunction : public TensorFunction, public CPUbinaryTwoFunction {
+class CPUdivTwoFunction: public TensorFunction, public CPUbinaryTwoFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         CPUbinaryTwoFunction::setup( inputs[0], inputs[1], outputs[0], std::divides<float>());
@@ -280,7 +280,7 @@ public:
     };
 };
 
-class CPUmeanFunction : public TensorFunction {
+class CPUmeanFunction: public TensorFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         Chl axis = (Chl)args[0];
@@ -377,9 +377,9 @@ public:
     }
 };
 
-class CPUviewFunction : public TensorFunction {
+class CPUviewFunction: public TensorFunction{
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         int b = (int)args[0];
         int h = (int)args[1];
         int s = (int)args[2];
@@ -448,13 +448,12 @@ public:
             std::cout << "[TODO]Tensor.View not support!!!!" << std::endl;
         }
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
-    }
+    void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {}
 };
 
-class CPUflattenFunction : public TensorFunction {
+class CPUflattenFunction: public TensorFunction{
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         Chl axis_start = (Chl)args[0];
         Chl axis_end = (Chl)args[1];
         int dim_b = inputs[0]->batch();
@@ -510,9 +509,8 @@ public:
             std::cout << "[TODO]Tensor.Flatten not support!!!!" << std::endl;
         }
     }
-
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
-    }
+    
+    void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {}
 };
 class CPUtransposeFunction : public TensorFunction {
 public:
@@ -569,14 +567,14 @@ public:
         vector<int> h = {};
         vector<int> s = {};
         vector<int> d = {};
-        for (int i = 0; i < b_size; i++) {
-            b.push_back(args[4 + i]);
+        for (int i=0; i<b_size; i++) {
+            b.push_back(args[4+i]);        
         }
-        for (int i = 0; i < h_size; i++) {
-            h.push_back(args[4 + b_size + i]);
+        for (int i=0; i<h_size; i++) {
+            h.push_back(args[4+b_size+i]);        
         }
-        for (int i = 0; i < s_size; i++) {
-            s.push_back(args[4 + b_size + h_size + i]);
+        for (int i=0; i<s_size; i++) {
+            s.push_back(args[4+b_size+h_size+i]);        
         }
         for (int i=0; i<d_size; i++) {
             d.push_back(args[4+b_size+h_size+s_size+i]);        
@@ -606,17 +604,17 @@ public:
         vector<int> h = {};
         vector<int> s = {};
         vector<int> d = {};
-        for (int i = 0; i < b_size; i++) {
-            b.push_back(args[5 + i]);
+        for (int i=0; i<b_size; i++) {
+            b.push_back(args[4+i]);        
         }
-        for (int i = 0; i < h_size; i++) {
-            h.push_back(args[5 + b_size + i]);
+        for (int i=0; i<h_size; i++) {
+            h.push_back(args[4+b_size+i]);        
         }
-        for (int i = 0; i < s_size; i++) {
-            s.push_back(args[5 + b_size + h_size + i]);
+        for (int i=0; i<s_size; i++) {
+            s.push_back(args[4+b_size+h_size+i]);        
         }
-        for (int i = 0; i < d_size; i++) {
-            d.push_back(args[5 + b_size + h_size + s_size + i]);
+        for (int i=0; i<d_size; i++) {
+            d.push_back(args[4+b_size+h_size+s_size+i]);        
         }
         if (s.size() == 2) {
             for (int b = 0; b < inputs[0]->batch(); ++b) {
@@ -722,17 +720,17 @@ public:
         vector<int> h = {};
         vector<int> s = {};
         vector<int> d = {};
-        for (int i = 0; i < b_size; i++) {
-            b.push_back(args[5 + i]);
+        for (int i=0; i<b_size; i++) {
+            b.push_back(args[5+i]);        
         }
-        for (int i = 0; i < h_size; i++) {
-            h.push_back(args[5 + b_size + i]);
+        for (int i=0; i<h_size; i++) {
+            h.push_back(args[5+b_size+i]);        
         }
-        for (int i = 0; i < s_size; i++) {
-            s.push_back(args[5 + b_size + h_size + i]);
+        for (int i=0; i<s_size; i++) {
+            s.push_back(args[5+b_size+h_size+i]);        
         }
-        for (int i = 0; i < d_size; i++) {
-            d.push_back(args[5 + b_size + h_size + s_size + i]);
+        for (int i=0; i<d_size; i++) {
+            d.push_back(args[5+b_size+h_size+s_size+i]);        
         }
         if (axis == BATCH) {
             if (s.size() > 0) {
@@ -749,7 +747,7 @@ public:
     }
 };
 
-class CPUcatFunction : public TensorFunction {
+class CPUcatFunction: public TensorFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         Chl axis = (Chl)args[0];
@@ -795,7 +793,8 @@ public:
                 }
                 inputs[idx]->deepCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
             }
-        } else if (axis == DIMENSION && inputs[0]->head() != 1) {
+        }
+        else if (axis == DIMENSION && inputs[0]->head() != 1) {
             int cbatch = 0;
             int chead = 0;
             int cseq = 0;
@@ -809,8 +808,8 @@ public:
                 }
                 int tmp_agg_idx;
                 if (inputs[idx]->deaggregated_tensor() != nullptr) {
-                    for (int t = 0; t < inputs[idx]->deaggregated_tensor()->aggregated_tensors().size(); t++) {
-                        if (inputs[idx]->deaggregated_tensor()->aggregated_tensors()[t].get() == inputs[idx]) {
+                    for (int t=0; t<inputs[idx]->deaggregated_tensor()->aggregated_tensors().size(); t++ ) {
+                        if(inputs[idx]->deaggregated_tensor()->aggregated_tensors()[t].get()==inputs[idx]){
                             tmp_agg_idx = t;
                             continue;
                         }
@@ -819,9 +818,9 @@ public:
                 inputs[idx]->deepCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
                 if (inputs[idx]->deaggregated_tensor() != nullptr) {
                     vector<shared_ptr<Tensor>> shared_outputs = {};
-                    for (int t = 0; t < inputs[idx]->deaggregated_tensor()->aggregated_tensors().size(); t++) {
-                        if (t == tmp_agg_idx) {
-                            inputs[idx]->deaggregated_tensor()->aggregated_tensors()[t] =
+                    for (int t=0; t<inputs[idx]->deaggregated_tensor()->aggregated_tensors().size(); t++ ) {
+                        if(t==tmp_agg_idx){
+                            inputs[idx]->deaggregated_tensor()->aggregated_tensors()[t] = 
                                 std::shared_ptr<Tensor>(inputs[idx], [](Tensor *) {});
                         }
                     }
@@ -885,11 +884,10 @@ public:
     }
 };
 
-class CPUwhereFunction : public TensorFunction {
+class CPUwhereFunction: public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
-    }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {}
+    void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         float value = args[0];
         Chl axis = (Chl)args[1];
         vector<float> b_vec = {};
@@ -960,7 +958,7 @@ public:
     }
 };
 
-class CPURangeFunction : public TensorFunction {
+class CPURangeFunction: public TensorFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         int start = (int)args[0];
@@ -978,7 +976,7 @@ public:
     }
 };
 
-class CPUsplitFunction : public TensorFunction {
+class CPUsplitFunction: public TensorFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override{
         int size = args.size();
