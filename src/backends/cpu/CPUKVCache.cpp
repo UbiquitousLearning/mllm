@@ -5,7 +5,9 @@
 #include "Types.hpp"
 
 int n_pack = 16;
-// #define KVCache_TYPE_16
+#ifndef USE_QNN
+#define KVCache_TYPE_16
+#endif
 namespace mllm {
 CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max, int threadCount) :
     thread_count(threadCount),
