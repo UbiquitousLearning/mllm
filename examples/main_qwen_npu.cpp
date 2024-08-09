@@ -50,7 +50,7 @@ unsigned int postProcessing_prefill(shared_ptr<Tensor> result, shared_ptr<Tensor
 
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "./vocab/qwen_vocab.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen_vocab.mllm");
 
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 1024);
 
