@@ -19,8 +19,8 @@ To use QNN offload, the CPU & HTP QNN op package are needed, the following scrip
 
 ```bash
 export QNN_SDK_ROOT=mllm/src/backends/qnn/qualcomm_ai_engine_direct_220/
-export ANDROID_NDK=/path/to/your/ndk
-export PATH=$PATH:$ANDROID_NDK
+export ANDROID_NDK_ROOT=/path/to/your/ndk
+export PATH=$PATH:$ANDROID_NDK_ROOT
 
 source mllm/src/backends/qnn/HexagonSDK/setup_sdk_env.source
 source $QNN_SDK_ROOT/bin/envsetup.sh
