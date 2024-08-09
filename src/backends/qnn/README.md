@@ -1,5 +1,7 @@
 # Qualcomm AI Engine Direct(QNN) backend
 
+Currently, this is only preliminary support and is under active development for better performance and more supported models.
+
 ## QNN Environment Set Up
 The QNN backend relies on the Qualcomm QNN framework and Hexagon SDK to compile LLM-specific operators. Please download them using [QPM](https://qpm.qualcomm.com/). The compiling environment only supports Linux now.
 
