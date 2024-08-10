@@ -12,7 +12,7 @@
 Wait.. why on-device multimodal LLM? - It's a key building block for [intelligent personal agent](https://arxiv.org/pdf/2401.05459.pdf), text-based image searching/retrieval, screen VQA, and many more exciting mobile apps, without giving away your private data (chat history, screenshots, taken photos, etc).
 
 ## Recent update
-- [🔥🔥Comming soon] Supporting Qualcomm NPU: [>1000 tokens/second prefilling!](https://arxiv.org/pdf/2407.05858v1)
+- [2024 Aug 10] Supporting Qualcomm NPU: [try it out](https://github.com/UbiquitousLearning/mllm/tree/main/src/backends/qnn) | [paper](https://arxiv.org/pdf/2407.05858v1)
 - [2024 July 17] Support new model: StableLM V2 1.6B https://github.com/UbiquitousLearning/mllm/pull/94
 - [2024 July 2] Support new model: Yi V1.5 6B https://github.com/UbiquitousLearning/mllm/pull/88
 - [2024 May 29] Support new model: Mistral V0.2 7B https://github.com/UbiquitousLearning/mllm/pull/83
