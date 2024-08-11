@@ -31,7 +31,7 @@ public:
         name_ = std::move(name);
         param_["type"] = type;
         Module::initBackend(MLLM_CPU);
-        backend_ = Module::backends[MLLM_CPU];
+        backend_ = Backend::global_backends[MLLM_CPU];
         saved_list_idx = Module::listIdx;
         init_ = true;
     }

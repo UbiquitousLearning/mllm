@@ -30,6 +30,14 @@ Tensor::Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bo
     }
 }
 
+Tensor::Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type, bool do_alloc){
+    setBackend(Backend::global_backends[bn_type]);
+    reshape(batch, head, sequence, dimension);
+    if (do_alloc) {
+        alloc();
+    }
+}
+
 Tensor::Tensor(const vector<int> &shape) :
     host_ptr_(), capacity_(0) {
     reshape(shape);
@@ -235,7 +243,7 @@ Tensor &Tensor::where(float value, Chl axis) {
  */
 
 Tensor& Tensor::getStaticFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors){
-    auto backend_h = Module::backends[MLLM_CPU];
+    auto backend_h = Backend::global_backends[MLLM_CPU];
     if (!other_tensors.empty() && other_tensors[0]->backend_ != nullptr) {
         backend_h = other_tensors[0]->backend();
     }
@@ -294,7 +302,7 @@ Tensor &Tensor::range(int start, int end) {
 
 std::vector<Tensor> Tensor::getStaticFuncOupts(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, 
                                     vector<Tensor *> input_tensors){
-    auto backend_h = Module::backends[MLLM_CPU];
+    auto backend_h = Backend::global_backends[MLLM_CPU];
     if (!input_tensors.empty() && input_tensors[0]->backend_ != nullptr) {
         backend_h = input_tensors[0]->backend();
     }

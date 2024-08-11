@@ -68,6 +68,7 @@ public:
     BackendType type() const {
         return type_;
     }
+    static map<BackendType, Backend *> global_backends;
 
 protected:
     BackendType type_;

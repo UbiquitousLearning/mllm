@@ -120,6 +120,7 @@ public:
      */
     explicit Tensor(const int batch, const int head, const int sequence, const int dimension);
     explicit Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bool do_alloc = true);
+    explicit Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU, bool do_alloc = true);
     /**
      * \brief build Tensor with shape.
      *        [ATTENTION] this function only used to build Tensor which other Tensor's shape !!!
@@ -765,6 +766,18 @@ public:
 
     vector<std::pair<Chl, Chl>>& transFrom() {
         return trans_from_;
+    }
+
+
+    static Tensor zeros(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU) {
+        Tensor tensor1(batch, head, sequence, dimension, bn_type, true);
+        memset(tensor1.hostPtr<float>(),0,tensor1.count() * sizeof(float));
+        return tensor1;
+    }
+    static Tensor ones(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU) {
+        Tensor tensor1(batch, head, sequence, dimension, bn_type, true);
+        memset(tensor1.hostPtr<float>(),1,tensor1.count() * sizeof(float));
+        return tensor1;
     }
 
     /**

@@ -16,7 +16,7 @@ using namespace mllm;
 
 class ViTProcessor final {
     Tensor img2Tensor(float *img, int height, int width, int channel, string name = "input", BackendType type = MLLM_CPU) {
-        Tensor tensor1(1, height, channel, width, Module::backends[type], true);
+        Tensor tensor1(1, height, channel, width, Backend::global_backends[type], true);
         tensor1.setName(std::move(name));
         Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);

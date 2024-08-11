@@ -32,9 +32,7 @@ private:
     std::shared_ptr<LlmTextGenerator> text_generator_ = nullptr;
 
 public:
-    static map<BackendType, Backend *> backends;
     static AbstructLoader *loader;
-    // static TensorStatus tensor_status;
     static bool doLoad;
     static bool doToDevice;
     static BackendType tmp_device;
@@ -44,17 +42,17 @@ public:
     virtual ~Module() = default;
 
     static void initBackend(BackendType type = BackendType::MLLM_CPU) {
-        if (Module::backends.find(type) == Module::backends.end() || Module::backends[type] == nullptr) {
+        if (Backend::global_backends.find(type) == Backend::global_backends.end() || Backend::global_backends[type] == nullptr) {
             switch (type) {
             case BackendType::MLLM_CPU: {
                 shared_ptr<MemoryManager> mm = nullptr;
                 mm = std::make_shared<SystemMemoryManager>();
-                backends[MLLM_CPU] = new CPUBackend(mm);
+                Backend::global_backends[MLLM_CPU] = new CPUBackend(mm);
                 break;
             }
 #ifdef USE_QNN
             case BackendType::MLLM_QNN: {
-                backends.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create({}).get());
+                Backend::global_backends.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create({}).get());
                 break;
             }
 #endif
@@ -80,7 +78,7 @@ public:
         vector<Tensor> tmps;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
-            Tensor::graphs["input" + std::to_string(i)] = std::make_shared<Tensor>(Module::backends[MLLM_CPU]);
+            Tensor::graphs["input" + std::to_string(i)] = std::make_shared<Tensor>(Backend::global_backends[MLLM_CPU]);
             Tensor::graphs["input" + std::to_string(i)]->setName("input" + std::to_string(i));
             tmps.push_back(*Tensor::graphs["input" + std::to_string(i)]);
         }
@@ -121,7 +119,7 @@ public:
         vector<Tensor> tmps;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
-            Tensor::graphs["input" + std::to_string(i)] = std::make_shared<Tensor>(Module::backends[MLLM_CPU]);
+            Tensor::graphs["input" + std::to_string(i)] = std::make_shared<Tensor>(Backend::global_backends[MLLM_CPU]);
             Tensor::graphs["input" + std::to_string(i)]->setName("input" + std::to_string(i));
             tmps.push_back(*Tensor::graphs["input" + std::to_string(i)]);
         }
