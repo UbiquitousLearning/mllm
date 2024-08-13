@@ -93,6 +93,7 @@ private:
     int count_{};
     int allocated_ = 0;
     bool transed_ = false;
+    bool should_in_graphs_ = true;
 
     // used for ChildTensor
     vector<int> shape_offset_;
@@ -128,6 +129,10 @@ public:
      * \param shape
      */
     explicit Tensor(const vector<int> &shape);
+
+    Tensor(int value, Backend *bn);
+
+    Tensor(int value, BackendType bn_type = MLLM_CPU);
 
     /**
      * \brief reshape 4-D Tensor with four dimensions: [batch, head, sequence, dimension].
@@ -768,15 +773,20 @@ public:
         return trans_from_;
     }
 
+    bool& should_in_graphs(){
+        return should_in_graphs_;
+    } 
 
     static Tensor zeros(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU) {
         Tensor tensor1(batch, head, sequence, dimension, bn_type, true);
         memset(tensor1.hostPtr<float>(),0,tensor1.count() * sizeof(float));
+        tensor1.should_in_graphs()= false;
         return tensor1;
     }
     static Tensor ones(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU) {
         Tensor tensor1(batch, head, sequence, dimension, bn_type, true);
         memset(tensor1.hostPtr<float>(),1,tensor1.count() * sizeof(float));
+        tensor1.should_in_graphs()= false;
         return tensor1;
     }
 

@@ -43,6 +43,24 @@ Tensor::Tensor(const vector<int> &shape) :
     reshape(shape);
 }
 
+Tensor::Tensor(int value, Backend *bn){
+    dtype_ = MLLM_TYPE_F32;
+    setBackend(bn);
+    reshape(1, 1, 1, 1);
+    alloc();
+    should_in_graphs()= false;
+    setDataAt<float>(0,0,0,0,(float)value);    
+}
+
+Tensor::Tensor(int value, BackendType bn_type){
+    dtype_ = MLLM_TYPE_F32;
+    setBackend(Backend::global_backends[bn_type]);
+    reshape(1, 1, 1, 1);
+    alloc();
+    should_in_graphs()= false;
+    setDataAt<float>(0,0,0,0,(float)value);    
+}
+
 bool Tensor::reshape(const int batch, const int head, const int sequence, const int dimension) {
     vector<int> shape(4);
     shape[chls()[BATCH]] = batch;

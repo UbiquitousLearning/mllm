@@ -104,7 +104,8 @@ public:
         init(std::move(name), OpType::REPLACE);
     }
     Tensor &operator()(Tensor &text, Tensor &vision, Tensor &where_indices) {
-        return _3I1O_OP(text, vision, where_indices);
+        auto ts = run({text, vision, where_indices}, 1);
+        return ts[0].get();
     }
 };
 
