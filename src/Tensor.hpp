@@ -829,7 +829,7 @@ public:
     Tensor& norm(int L_n);
     Tensor& where(float value, Chl axis);
     static Tensor& range(int start, int end);
-    static vector<Tensor> split(Tensor& input, std::vector<int> each_dims, Chl split_dim, int head_size = -1);
+    static vector<std::reference_wrapper<Tensor>> split(Tensor& input, std::vector<int> each_dims, Chl split_dim, int head_size = -1);
 
 
     /* Functions used for ChildTensor:
@@ -1674,14 +1674,8 @@ private:
         return tensor_id;
     }
     Tensor& getFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
-    static Tensor& getStaticFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
-    static std::vector<Tensor> getStaticFuncOupts(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, 
-                                    vector<Tensor *> input_tensors);
-#ifdef USE_QNN
-    Tensor& getOp(const std::string& suffix, const OpType type,  OpParam param, vector<Tensor *> other_tensors={});
-    static Tensor& getStaticOp(const std::string& suffix, const OpType type,  OpParam param, vector<Tensor *> other_tensors={});
-    static bool checkgetOps(Backend *bn);
-#endif
+
+    static std::vector<std::reference_wrapper<Tensor>> getStaticFunc(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors);
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H
