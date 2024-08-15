@@ -9,7 +9,7 @@ using namespace mllm;
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/phi3_vocab.mllm");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/mllm-Phi-3-mini_q4_k.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/phi-3-mini-instruct-q4_k.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -25,13 +25,17 @@ int main(int argc, char **argv) {
     auto model = Phi3Model(config);
     model.load(model_path);
 
+    string system_prompt_start = "<|user|>\n";
+    string system_prompt_end = " <|end|>\n<|assistant|>";
+
     vector<string> in_strs = {
         "who are you?",
         "What can you do?",
         "Please introduce Beijing University of Posts and Telecommunications."};
 
     for (int i = 0; i < in_strs.size(); ++i) {
-        auto in_str = in_strs[i];
+        auto in_str_origin = in_strs[i];
+        auto in_str = system_prompt_start + in_str_origin + system_prompt_end;
         auto input_tensor = tokenizer.tokenize(in_str, i);
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;

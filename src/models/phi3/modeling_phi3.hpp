@@ -6,6 +6,7 @@
 
 #include "Layer.hpp"
 #include "Module.hpp"
+#include "Tensor.hpp"
 #include "configuration_phi3.hpp"
 #include "models/transformer/modeling_transformer.hpp"
 
@@ -15,20 +16,21 @@ class Phi3MLP final : public Module {
     Layer gate_up_proj;
     Layer silu;
     Layer down_proj;
+    int ffn_hidden_;
 
 public:
     Phi3MLP() = default;
     Phi3MLP(int hidden_dim, int ffn_hidden, const Phi3NameConfig &names, const string &base_name) {
+        ffn_hidden_ = ffn_hidden;
         gate_up_proj = Linear(hidden_dim, 2 * ffn_hidden, false, base_name + names._gate_up_proj_name);
         silu = SiLU(base_name + "act");
         down_proj = Linear(ffn_hidden, hidden_dim, false, base_name + names._down_proj_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = gate_up_proj(inputs[0]);
-        auto split = Split(2, DIMENSION, 32, "out-model.layers.X.mlp.gate_up_proj.split");
-        auto split_tensors = split(x);
-        x = split_tensors[1];
-        x = x * silu(split_tensors[0]);
+        auto split_tensors = Tensor::split(x, {ffn_hidden_, ffn_hidden_}, DIMENSION);
+        Tensor hidden = split_tensors[1];
+        x = hidden * silu(split_tensors[0]);
         x = down_proj(x);
         return {x};
     }
