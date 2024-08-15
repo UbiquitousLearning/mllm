@@ -157,6 +157,10 @@ string Tokenizer::detokenize(const vector<token_id_t> &tokens) {
                 result += " ";
             }
         }
+        if (token_id == TokenNl) {
+            result += "\n";
+            continue;
+        }
         result += this->id_token_[token_id].token;
     }
     return result;
