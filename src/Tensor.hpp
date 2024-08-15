@@ -795,11 +795,11 @@ public:
      * \param data binary data
      * \return Tensor
     */
-    Tensor& operator+(float data);
-    Tensor& operator-(float data);
-    Tensor& operator*(float data);
-    Tensor& operator/(float data);
-    Tensor& operator/(double data);
+    Tensor operator+(float data);
+    Tensor operator-(float data);
+    Tensor operator*(float data);
+    Tensor operator/(float data);
+    Tensor operator/(double data);
 
 
 
@@ -808,28 +808,27 @@ public:
      * \param other The Other Tensor
      * \return Tensor
     */
-    Tensor& operator+(Tensor& other);
-    Tensor& operator-(Tensor& other);
-    Tensor& operator*(Tensor& other);
-    Tensor& operator/(Tensor& other);
+    Tensor operator+(Tensor other);
+    Tensor operator-(Tensor other);
+    Tensor operator*(Tensor other);
+    Tensor operator/(Tensor other);
 
-    Tensor& mean(Chl axis);
+    Tensor mean(Chl axis);
 
-
-    Tensor& view(int b, int h, int s, int d);
-    Tensor& flatten(Chl axis_start, Chl axis_end);
-    Tensor& transpose(Chl axis0, Chl axis1){
+    Tensor view(int b, int h, int s, int d);
+    Tensor flatten(Chl axis_start, Chl axis_end);
+    Tensor transpose(Chl axis0, Chl axis1){
         return transpose({{axis0, axis1}});
     }
-    Tensor& transpose(vector<std::pair<Chl, Chl>> axiss);
-    Tensor& clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d);
-    Tensor &clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d);
-    static Tensor& cat(vector<Tensor> input_tensors, Chl dims);;
-    static Tensor& mm(Tensor& input0, Tensor& input1);
-    Tensor& norm(int L_n);
-    Tensor& where(float value, Chl axis);
-    static Tensor& range(int start, int end);
-    static vector<std::reference_wrapper<Tensor>> split(Tensor& input, std::vector<int> each_dims, Chl split_dim, int head_size = -1);
+    Tensor transpose(vector<std::pair<Chl, Chl>> axiss);
+    Tensor clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d);
+    Tensor clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d);
+    static Tensor cat(vector<Tensor> input_tensors, Chl dims);;
+    static Tensor mm(Tensor input0, Tensor input1);
+    Tensor norm(int L_n);
+    Tensor where(float value, Chl axis);
+    static Tensor range(int start, int end);
+    static vector<Tensor> split(Tensor input, std::vector<int> each_dims, Chl split_dim, int head_size = -1);
 
 
     /* Functions used for ChildTensor:
@@ -1673,9 +1672,9 @@ private:
         }
         return tensor_id;
     }
-    Tensor& getFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
+    Tensor getFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
 
-    static std::vector<std::reference_wrapper<Tensor>> getStaticFunc(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors);
+    static std::vector<Tensor> getStaticFunc(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors);
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H
