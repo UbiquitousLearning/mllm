@@ -51,4 +51,8 @@ bool InsertBackendCreatorMap(BackendType type, shared_ptr<BackendCreator> creato
     return true;
 }
 
+
+
+map<BackendType, Backend*> Backend::global_backends;
+
 } // namespace mllm

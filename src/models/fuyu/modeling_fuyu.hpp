@@ -70,7 +70,8 @@ public:
         init(std::move(name), OpType::GATHER);
     }
     Tensor &operator()(Tensor &input_ids, Tensor &image_patches, Tensor &image_patches_indices) {
-        return _3I1O_OP(input_ids, image_patches, image_patches_indices);
+        auto ts = run({input_ids, image_patches, image_patches_indices}, 1);
+        return ts[0].get();
     }
 };
 

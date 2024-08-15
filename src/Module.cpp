@@ -7,7 +7,6 @@
 
 namespace mllm {
 
-map<BackendType, Backend*> Module::backends;
 AbstructLoader *Module::loader;
 int Module::listIdx;
 int Module::runlistIdx;
