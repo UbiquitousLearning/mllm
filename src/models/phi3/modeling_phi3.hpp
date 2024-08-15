@@ -27,7 +27,8 @@ public:
         auto x = gate_up_proj(inputs[0]);
         auto split = Split(2, DIMENSION, 32, "out-model.layers.X.mlp.gate_up_proj.split");
         auto split_tensors = split(x);
-        x = split_tensors[1] * silu(split_tensors[0]);
+        x = split_tensors[1];
+        x = x * silu(split_tensors[0]);
         x = down_proj(x);
         return {x};
     }
