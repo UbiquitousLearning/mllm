@@ -550,6 +550,17 @@ else ()
     target_link_libraries(demo_opt MLLM_CPU)
 endif ()
 
+add_executable(demo_phi3 ${PROJECT_SOURCE_DIR}/examples/demo_phi3.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
+)
+if (MLLM_OPENMP_STATIC)
+    target_compile_options(demo_phi3 PRIVATE -fopenmp)
+    target_link_libraries(demo_phi3 PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_link_libraries(demo_phi3 MLLM_CPU)
+endif ()
+
 # add_executable(demo_deepseek ${PROJECT_SOURCE_DIR}/examples/demo_deepseek.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
 #         src/tokenizers/Tokenizer.cpp
 #         src/tokenizers/BPE/Bpe.cpp
