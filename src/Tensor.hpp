@@ -93,6 +93,7 @@ private:
     int count_{};
     int allocated_ = 0;
     bool transed_ = false;
+    bool should_in_graphs_ = true;
 
     // used for ChildTensor
     vector<int> shape_offset_;
@@ -120,6 +121,7 @@ public:
      */
     explicit Tensor(const int batch, const int head, const int sequence, const int dimension);
     explicit Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bool do_alloc = true);
+    explicit Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU, bool do_alloc = true);
     /**
      * \brief build Tensor with shape.
      *        [ATTENTION] this function only used to build Tensor which other Tensor's shape !!!
@@ -127,6 +129,10 @@ public:
      * \param shape
      */
     explicit Tensor(const vector<int> &shape);
+
+    Tensor(int value, Backend *bn);
+
+    Tensor(int value, BackendType bn_type = MLLM_CPU);
 
     /**
      * \brief reshape 4-D Tensor with four dimensions: [batch, head, sequence, dimension].
@@ -767,6 +773,23 @@ public:
         return trans_from_;
     }
 
+    bool& should_in_graphs(){
+        return should_in_graphs_;
+    } 
+
+    static Tensor zeros(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU) {
+        Tensor tensor1(batch, head, sequence, dimension, bn_type, true);
+        memset(tensor1.hostPtr<float>(),0,tensor1.count() * sizeof(float));
+        tensor1.should_in_graphs()= false;
+        return tensor1;
+    }
+    static Tensor ones(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU) {
+        Tensor tensor1(batch, head, sequence, dimension, bn_type, true);
+        memset(tensor1.hostPtr<float>(),1,tensor1.count() * sizeof(float));
+        tensor1.should_in_graphs()= false;
+        return tensor1;
+    }
+
     /**
      * \brief Overload the operators.
      * \param data binary data
@@ -806,7 +829,7 @@ public:
     Tensor& norm(int L_n);
     Tensor& where(float value, Chl axis);
     static Tensor& range(int start, int end);
-    static vector<Tensor> split(Tensor& input, std::vector<int> each_dims, Chl split_dim, int head_size = -1);
+    static vector<std::reference_wrapper<Tensor>> split(Tensor& input, std::vector<int> each_dims, Chl split_dim, int head_size = -1);
 
 
     /* Functions used for ChildTensor:
@@ -1651,14 +1674,8 @@ private:
         return tensor_id;
     }
     Tensor& getFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
-    static Tensor& getStaticFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
-    static std::vector<Tensor> getStaticFuncOupts(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, 
-                                    vector<Tensor *> input_tensors);
-#ifdef USE_QNN
-    Tensor& getOp(const std::string& suffix, const OpType type,  OpParam param, vector<Tensor *> other_tensors={});
-    static Tensor& getStaticOp(const std::string& suffix, const OpType type,  OpParam param, vector<Tensor *> other_tensors={});
-    static bool checkgetOps(Backend *bn);
-#endif
+
+    static std::vector<std::reference_wrapper<Tensor>> getStaticFunc(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors);
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H
