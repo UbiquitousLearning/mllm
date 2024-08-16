@@ -103,9 +103,9 @@ public:
     explicit VisionEmbdReplace(std::string name) {
         init(std::move(name), OpType::REPLACE);
     }
-    Tensor &operator()(Tensor &text, Tensor &vision, Tensor &where_indices) {
+    Tensor operator()(Tensor text, Tensor vision, Tensor where_indices) {
         auto ts = run({text, vision, where_indices}, 1);
-        return ts[0].get();
+        return ts[0];
     }
 };
 
