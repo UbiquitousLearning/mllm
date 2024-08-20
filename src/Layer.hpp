@@ -193,8 +193,10 @@ protected:
             }
         }
 #ifdef DEBUGOPTIME
-        auto end_t = mllm_time_us();
-        std::cout<<op_->name() << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+        if(Tensor::tensor_status == TENSOR_STATIC_READY){
+            auto end_t = mllm_time_us();
+            std::cout<<op_->name() << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+        }
 #endif
         vector<Tensor> output_result = {};
         for (const auto &layer_next_name : layer_next_names) {
