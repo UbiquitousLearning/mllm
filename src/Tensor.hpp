@@ -155,7 +155,7 @@ public:
     }
     void alloc();
 
-    void alloc(vector<uint> alloc_size);
+    void alloc(vector<unsigned int> alloc_size);
     /**
      * \brief free the memory of Tensor.
      */
