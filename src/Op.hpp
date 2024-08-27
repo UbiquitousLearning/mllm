@@ -125,6 +125,10 @@ public:
         std::cout << "only for KVCache" << std::endl;
     }
 
+    static DataType& no_load_weights_dtype() {
+        return no_load_weights_dtype_;
+    }
+
 protected:
     Backend *backend_;
     vector<Tensor *> inputs_;
@@ -132,6 +136,7 @@ protected:
     string name_;
     DataType activation_dtype_ = MLLM_TYPE_F32;
     OpType type_;
+    static DataType no_load_weights_dtype_;
 };
 
 } // namespace mllm
