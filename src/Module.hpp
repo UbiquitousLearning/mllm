@@ -10,6 +10,7 @@
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
 #include "Timing.hpp"
+#include "Types.hpp"
 #include "backends/cpu/CPUBackend.hpp"
 #include <any>
 #include <functional>
@@ -231,6 +232,10 @@ public:
 
     void free() {
         Tensor::graphs.clear();
+    }
+
+    void setNoLoadWeightsDtype(DataType dtype){
+        Op::no_load_weights_dtype() = dtype;
     }
 
     void profiling(string name = "") {

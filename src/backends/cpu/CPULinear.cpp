@@ -48,7 +48,7 @@ ErrorCode CPULinear::load(AbstructLoader &loader) {
         weight_.alloc();
         loader.load(&weight_);
     } else {
-        weight_.setDtype(MLLM_TYPE_F32);
+        weight_.setDtype(Op::no_load_weights_dtype());
         weight_.alloc();
     }
     if (support_bias_) {
