@@ -573,6 +573,23 @@ endif ()
 #     target_link_libraries(demo_deepseek PUBLIC MLLM_CPU)
 # endif ()
 
+
+# add_executable(demo_xllm ${PROJECT_SOURCE_DIR}/examples/demo_xllm.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+#         src/tokenizers/Tokenizer.cpp
+#         src/tokenizers/BPE/Bpe.cpp
+#         src/tokenizers/Unicode.cpp
+#         src/tokenizers/UnicodeData.cpp
+#         src/processor/PreProcess.cpp
+# )
+# if (MLLM_OPENMP_STATIC)
+#     target_compile_options(demo_xllm PRIVATE -fopenmp)
+#     target_link_libraries(demo_xllm PUBLIC MLLM_CPU -fopenmp -static-openmp)
+# else ()
+#     target_link_libraries(demo_xllm PUBLIC MLLM_CPU)
+# endif ()
+
+
+
 endif() # end of cpu executables
 
 # QNN demo

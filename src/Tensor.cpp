@@ -140,8 +140,10 @@ Tensor& Tensor::getFunc(const std::string& suffix, const TensorFuncType type, ve
     }
     }
 #ifdef DEBUGOPTIME
-    auto end_t = mllm_time_us();
-    std::cout<<next_name << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+    if(Tensor::tensor_status == TENSOR_STATIC_READY){
+        auto end_t = mllm_time_us();
+        std::cout<<next_name << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+    }
 #endif
 #ifdef DEBUGSAVETENSOR
     Tensor::graphs[next_name]->saveNData<float>();
@@ -192,8 +194,10 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
     }
     }
 #ifdef DEBUGOPTIME
-    auto end_t = mllm_time_us();
-    std::cout<<out_names[0] << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+    if(Tensor::tensor_status == TENSOR_STATIC_READY){
+        auto end_t = mllm_time_us();
+        std::cout<<out_names[0] << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+    }
 #endif
 #ifdef DEBUGSAVETENSOR
     for (auto out_name: out_names) {

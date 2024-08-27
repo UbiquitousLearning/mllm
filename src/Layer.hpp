@@ -193,8 +193,10 @@ protected:
             }
         }
 #ifdef DEBUGOPTIME
-        auto end_t = mllm_time_us();
-        std::cout<<op_->name() << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+        if(Tensor::tensor_status == TENSOR_STATIC_READY){
+            auto end_t = mllm_time_us();
+            std::cout<<op_->name() << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+        }
 #endif
         vector<std::reference_wrapper<Tensor>> output_result = {};
         for (const auto &layer_next_name : layer_next_names) {
@@ -438,6 +440,31 @@ public:
         param_["max_position_embeddings"] = max_position_embeddings;
         param_["partial_rotary_factor"] = partial_rotary_factor;
         init(std::move(name), OpType::ROPE);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class IRoPE final : public Layer {
+public:
+    explicit IRoPE(int pose_type, std::string name) {
+        param_["pose_type"] = pose_type;
+        init(std::move(name), OpType::IROPE);
+    }
+    explicit IRoPE(int pose_type, float rope_theta, int max_position_embeddings, std::string name) {
+        param_["pose_type"] = pose_type;
+        param_["rope_theta"] = rope_theta;
+        param_["max_position_embeddings"] = max_position_embeddings;
+        init(std::move(name), OpType::IROPE);
+    }
+    explicit IRoPE(int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings, std::string name) {
+        param_["pose_type"] = pose_type;
+        param_["rope_theta"] = rope_theta;
+        param_["max_position_embeddings"] = max_position_embeddings;
+        param_["partial_rotary_factor"] = partial_rotary_factor;
+        init(std::move(name), OpType::IROPE);
     }
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);

@@ -8,6 +8,7 @@
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include "compute/Matmul.hpp"
+#include "compute/Arithmetic.hpp"
 
 // #include <Layer.hpp>
 #include <iostream>
@@ -124,7 +125,7 @@ public:
         }
     }
 };
-
+/*
 class CPUbinaryFunction {
 public:
     template <typename Func>
@@ -156,52 +157,116 @@ public:
         }
     }
 };
-
-class CPUaddFunction: public TensorFunction, public CPUbinaryFunction {
+*/
+class CPUaddFunction: public TensorFunction{//, public CPUbinaryFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
-        float data = (float)args[0];
-        CPUbinaryFunction::setup( inputs[0], outputs[0], std::plus<float>(), data);
+        // float data = (float)args[0];
+        auto input = inputs[0];
+        auto output = outputs[0];
+        output->reshape(input->batch(), input->head(), input->sequence(), input->dimension());
+        output->setDtype(input->dtype());
+        output->alloc();
+        // CPUbinaryFunction::setup( inputs[0], outputs[0], std::plus<float>(), data);
     }
     void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         float data = (float)args[0];
-        CPUbinaryFunction::execute( inputs[0], outputs[0], std::plus<float>(), data);
+        auto input = inputs[0];
+        auto output = outputs[0];
+#pragma omp parallel for collapse(3) num_threads(CPUBackend::cpu_threads)
+        for (int n = 0; n < input->batch(); ++n) {
+            for (int c = 0; c < input->head(); ++c) {
+                for (int h = 0; h < input->sequence(); ++h) {
+                    mllm_add_fp32(input->ptrAt<float>(n, c, h, 0),data, 
+                    outputs[0]->ptrAt<float>(n, c, h, 0), input->dimension());
+                }
+            }
+        }
+        // CPUbinaryFunction::execute( inputs[0], outputs[0], std::plus<float>(), data);
     }
 };
-class CPUsubFunction: public TensorFunction, public CPUbinaryFunction {
+class CPUsubFunction: public TensorFunction{//, public CPUbinaryFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
-        float data = (float)args[0];
-        CPUbinaryFunction::setup( inputs[0], outputs[0], std::minus<float>(), data);
+        // float data = (float)args[0];
+        auto input = inputs[0];
+        auto output = outputs[0];
+        output->reshape(input->batch(), input->head(), input->sequence(), input->dimension());
+        output->setDtype(input->dtype());
+        output->alloc();
+        // CPUbinaryFunction::setup( inputs[0], outputs[0], std::minus<float>(), data);
     }
     void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         float data = (float)args[0];
-        CPUbinaryFunction::execute( inputs[0], outputs[0], std::minus<float>(), data);
+        auto input = inputs[0];
+        auto output = outputs[0];
+#pragma omp parallel for collapse(3) num_threads(CPUBackend::cpu_threads)
+        for (int n = 0; n < input->batch(); ++n) {
+            for (int c = 0; c < input->head(); ++c) {
+                for (int h = 0; h < input->sequence(); ++h) {
+                    mllm_sub_fp32(input->ptrAt<float>(n, c, h, 0),data, 
+                    outputs[0]->ptrAt<float>(n, c, h, 0), input->dimension());
+                }
+            }
+        }
+        //CPUbinaryFunction::execute( inputs[0], outputs[0], std::minus<float>(), data);
     }
 };
-class CPUmulFunction: public TensorFunction, public CPUbinaryFunction {
+class CPUmulFunction: public TensorFunction{//, public CPUbinaryFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
-        float data = (float)args[0];
-        CPUbinaryFunction::setup( inputs[0], outputs[0], std::multiplies<float>(), data);
+        // float data = (float)args[0];
+        auto input = inputs[0];
+        auto output = outputs[0];
+        output->reshape(input->batch(), input->head(), input->sequence(), input->dimension());
+        output->setDtype(input->dtype());
+        output->alloc();
+        // CPUbinaryFunction::setup( inputs[0], outputs[0], std::multiplies<float>(), data);
     }
     void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         float data = (float)args[0];
-        CPUbinaryFunction::execute( inputs[0], outputs[0], std::multiplies<float>(), data);
+        auto input = inputs[0];
+        auto output = outputs[0];
+#pragma omp parallel for collapse(3) num_threads(CPUBackend::cpu_threads)
+        for (int n = 0; n < input->batch(); ++n) {
+            for (int c = 0; c < input->head(); ++c) {
+                for (int h = 0; h < input->sequence(); ++h) {
+                    mllm_mul_fp32(input->ptrAt<float>(n, c, h, 0),data, 
+                    outputs[0]->ptrAt<float>(n, c, h, 0), input->dimension());
+                }
+            }
+        }
+        //CPUbinaryFunction::execute( inputs[0], outputs[0], std::multiplies<float>(), data);
     }
 };
-class CPUdivFunction: public TensorFunction, public CPUbinaryFunction {
+class CPUdivFunction: public TensorFunction{//, public CPUbinaryFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
-        float data = (float)args[0];
-        CPUbinaryFunction::setup( inputs[0], outputs[0], std::divides<float>(), data);
+        // float data = (float)args[0];
+        auto input = inputs[0];
+        auto output = outputs[0];
+        output->reshape(input->batch(), input->head(), input->sequence(), input->dimension());
+        output->setDtype(input->dtype());
+        output->alloc();
+        // CPUbinaryFunction::setup( inputs[0], outputs[0], std::divides<float>(), data);
     }
     void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
         float data = (float)args[0];
-        CPUbinaryFunction::execute( inputs[0], outputs[0], std::divides<float>(), data);
+        auto input = inputs[0];
+        auto output = outputs[0];
+#pragma omp parallel for collapse(3) num_threads(CPUBackend::cpu_threads)
+        for (int n = 0; n < input->batch(); ++n) {
+            for (int c = 0; c < input->head(); ++c) {
+                for (int h = 0; h < input->sequence(); ++h) {
+                    mllm_div_fp32(input->ptrAt<float>(n, c, h, 0),data, 
+                    outputs[0]->ptrAt<float>(n, c, h, 0), input->dimension());
+                }
+            }
+        }
+        //CPUbinaryFunction::execute( inputs[0], outputs[0], std::divides<float>(), data);
     }
 };
-
+/*
 class CPUbinaryTwoFunction {
 public:
     template <typename Func>
@@ -243,40 +308,113 @@ public:
         }
     }
 };
-class CPUaddTwoFunction: public TensorFunction, public CPUbinaryTwoFunction {
+*/
+class CPUaddTwoFunction: public TensorFunction{//, public CPUbinaryTwoFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
-        CPUbinaryTwoFunction::setup( inputs[0], inputs[1], outputs[0], std::plus<float>());
+        outputs[0]->reshape(std::max(inputs[0]->batch(), inputs[1]->batch()), 
+                        inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+        outputs[0]->setDtype(inputs[0]->dtype());
+        outputs[0]->alloc();
+        // CPUbinaryTwoFunction::setup( inputs[0], inputs[1], outputs[0], std::plus<float>());
     };
     void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
-        CPUbinaryTwoFunction::execute( inputs[0], inputs[1], outputs[0], std::plus<float>());
+        auto input0 = inputs[0];
+        auto input1 = inputs[1];
+        int batch_ = std::max(input0->batch(), input1->batch());
+        for (int n = 0; n < batch_; ++n) {
+            auto n_0 = std::min(n, input0->batch() - 1);
+            auto n_1 = std::min(n, input1->batch() - 1);
+#pragma omp parallel for collapse(2) num_threads(CPUBackend::cpu_threads)
+            for (int c = 0; c < input0->head(); ++c) {
+                for (int h = 0; h < input0->sequence(); ++h) {
+                    mllm_add_fp32(input0->ptrAt<float>(n_0, c, h, 0),input1->ptrAt<float>(n_0, c, h, 0), 
+                    outputs[0]->ptrAt<float>(n_0, c, h, 0), input0->dimension());
+                }
+            }
+        }
+        // CPUbinaryTwoFunction::execute( inputs[0], inputs[1], outputs[0], std::plus<float>());
     };
 };
-class CPUsubTwoFunction: public TensorFunction, public CPUbinaryTwoFunction {
+class CPUsubTwoFunction: public TensorFunction{//, public CPUbinaryTwoFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
-        CPUbinaryTwoFunction::setup( inputs[0], inputs[1], outputs[0], std::minus<float>());
+        outputs[0]->reshape(std::max(inputs[0]->batch(), inputs[1]->batch()), 
+                        inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+        outputs[0]->setDtype(inputs[0]->dtype());
+        outputs[0]->alloc();
+        // CPUbinaryTwoFunction::setup( inputs[0], inputs[1], outputs[0], std::minus<float>());
     };
     void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
-        CPUbinaryTwoFunction::execute( inputs[0], inputs[1], outputs[0], std::minus<float>());
+        auto input0 = inputs[0];
+        auto input1 = inputs[1];
+        int batch_ = std::max(input0->batch(), input1->batch());
+        for (int n = 0; n < batch_; ++n) {
+            auto n_0 = std::min(n, input0->batch() - 1);
+            auto n_1 = std::min(n, input1->batch() - 1);
+#pragma omp parallel for collapse(2) num_threads(CPUBackend::cpu_threads)
+            for (int c = 0; c < input0->head(); ++c) {
+                for (int h = 0; h < input0->sequence(); ++h) {
+                    mllm_sub_fp32(input0->ptrAt<float>(n_0, c, h, 0),input1->ptrAt<float>(n_0, c, h, 0), 
+                    outputs[0]->ptrAt<float>(n_0, c, h, 0), input0->dimension());
+                }
+            }
+        }
+        // CPUbinaryTwoFunction::execute( inputs[0], inputs[1], outputs[0], std::minus<float>());
     };
 };
-class CPUmulTwoFunction: public TensorFunction, public CPUbinaryTwoFunction {
+class CPUmulTwoFunction: public TensorFunction{//, public CPUbinaryTwoFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
-        CPUbinaryTwoFunction::setup( inputs[0], inputs[1], outputs[0], std::multiplies<float>());
+        outputs[0]->reshape(std::max(inputs[0]->batch(), inputs[1]->batch()), 
+                        inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+        outputs[0]->setDtype(inputs[0]->dtype());
+        outputs[0]->alloc();
+        // CPUbinaryTwoFunction::setup( inputs[0], inputs[1], outputs[0], std::multiplies<float>());
     };
     void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
-        CPUbinaryTwoFunction::execute( inputs[0], inputs[1], outputs[0], std::multiplies<float>());
+       auto input0 = inputs[0];
+        auto input1 = inputs[1];
+        int batch_ = std::max(input0->batch(), input1->batch());
+        for (int n = 0; n < batch_; ++n) {
+            auto n_0 = std::min(n, input0->batch() - 1);
+            auto n_1 = std::min(n, input1->batch() - 1);
+#pragma omp parallel for collapse(2) num_threads(CPUBackend::cpu_threads)
+            for (int c = 0; c < input0->head(); ++c) {
+                for (int h = 0; h < input0->sequence(); ++h) {
+                    mllm_mul_fp32(input0->ptrAt<float>(n_0, c, h, 0),input1->ptrAt<float>(n_0, c, h, 0), 
+                    outputs[0]->ptrAt<float>(n_0, c, h, 0), input0->dimension());
+                }
+            }
+        }
+        //  CPUbinaryTwoFunction::execute( inputs[0], inputs[1], outputs[0], std::multiplies<float>());
     };
 };
-class CPUdivTwoFunction: public TensorFunction, public CPUbinaryTwoFunction {
+class CPUdivTwoFunction: public TensorFunction{//, public CPUbinaryTwoFunction {
 public:
     void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
-        CPUbinaryTwoFunction::setup( inputs[0], inputs[1], outputs[0], std::divides<float>());
+        outputs[0]->reshape(std::max(inputs[0]->batch(), inputs[1]->batch()), 
+                        inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+        outputs[0]->setDtype(inputs[0]->dtype());
+        outputs[0]->alloc();
+        // CPUbinaryTwoFunction::setup( inputs[0], inputs[1], outputs[0], std::divides<float>());
     };
     void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args) override {
-        CPUbinaryTwoFunction::execute( inputs[0], inputs[1], outputs[0], std::divides<float>());
+        auto input0 = inputs[0];
+        auto input1 = inputs[1];
+        int batch_ = std::max(input0->batch(), input1->batch());
+        for (int n = 0; n < batch_; ++n) {
+            auto n_0 = std::min(n, input0->batch() - 1);
+            auto n_1 = std::min(n, input1->batch() - 1);
+#pragma omp parallel for collapse(2) num_threads(CPUBackend::cpu_threads)
+            for (int c = 0; c < input0->head(); ++c) {
+                for (int h = 0; h < input0->sequence(); ++h) {
+                    mllm_div_fp32(input0->ptrAt<float>(n_0, c, h, 0),input1->ptrAt<float>(n_0, c, h, 0), 
+                    outputs[0]->ptrAt<float>(n_0, c, h, 0), input0->dimension());
+                }
+            }
+        }
+        // CPUbinaryTwoFunction::execute( inputs[0], inputs[1], outputs[0], std::divides<float>());
     };
 };
 

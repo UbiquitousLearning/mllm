@@ -1,5 +1,6 @@
 
 #include "CPUAdd.hpp"
+#include "compute/Arithmetic.hpp"
 
 namespace mllm {
 
@@ -25,6 +26,22 @@ ErrorCode CPUAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
 }
 
 ErrorCode CPUAdd::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    auto input0 = inputs[0];
+    auto input1 = inputs[1];
+    int batch_ = std::max(input0->batch(), input1->batch());
+    for (int n = 0; n < batch_; ++n) {
+        auto n_0 = std::min(n, input0->batch() - 1);
+        auto n_1 = std::min(n, input1->batch() - 1);
+#pragma omp parallel for collapse(2) num_threads(CPUBackend::cpu_threads)
+        for (int c = 0; c < input0->head(); ++c) {
+            for (int h = 0; h < input0->sequence(); ++h) {
+                mllm_add_fp32(input0->ptrAt<float>(n_0, c, h, 0),input1->ptrAt<float>(n_0, c, h, 0), 
+                outputs[0]->ptrAt<float>(n_0, c, h, 0), input0->dimension());
+            }
+        }
+    }
+    return Op::execute(inputs, outputs);
+/*
     int N = std::max(inputs[0]->batch(), inputs[1]->batch());
     int C = inputs[0]->head();
     int H = inputs[0]->sequence();
@@ -53,5 +70,6 @@ ErrorCode CPUAdd::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         }
     }
     return Op::execute(inputs, outputs);
+    */
 }
 } // namespace mllm
