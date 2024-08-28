@@ -15,7 +15,7 @@ void test_batch_allocate(size_t alloc_times,size_t size,size_t alignment){
     }
 
     for (int i=0;i<alloc_times;i++){
-        manager.free(&pointers[i]);
+        manager.free(pointers[i]);
     }
     printf("pass test_batch_allocate,size=%ld,times=%ld,alignment=%ld\n",size,alloc_times,alignment);
 
