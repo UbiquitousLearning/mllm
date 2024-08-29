@@ -1,7 +1,3 @@
-//
-// Created by Rongjie Yi on 2024/2/4 0004.
-//
-
 #ifndef CONFIG_MINICPM_HPP
 #define CONFIG_MINICPM_HPP
 #include "models/transformer/configuration_transformer.hpp"
@@ -16,55 +12,30 @@ public:
     std::string lm_head_name;
     std::string _gate_proj_name;
 
-    void init(RoPEType type = HFHUBROPE) {
-        switch (type) {
-        case LLAMAROPE: {
-            blk_name = "layers.";
-            _attn_base_name = "attention.";
-            _ffn_base_name = "feed_forward.";
-            _q_proj_name = "wq";
-            _k_proj_name = "wk";
-            _v_proj_name = "wv";
-            _o_proj_name = "wo";
-            _gate_proj_name = "w1";
-            _up_proj_name = "w3";
-            _down_proj_name = "w2";
-            _attn_norm_name = "attention_norm";
-            _ffn_norm_name = "ffn_norm";
-            token_embd_name = "tok_embeddings";
-            post_norm_name = "norm";
-            lm_head_name = "output";
-            break;
-        }
-        case HFHUBROPE: {
-            blk_name = "model.layers.";
-            _attn_base_name = "self_attn.";
-            _ffn_base_name = "mlp.";
-            _q_proj_name = "q_proj";
-            _k_proj_name = "k_proj";
-            _v_proj_name = "v_proj";
-            _o_proj_name = "o_proj";
-            _gate_proj_name = "gate_proj";
-            _up_proj_name = "up_proj";
-            _down_proj_name = "down_proj";
-            _attn_norm_name = "input_layernorm";
-            _ffn_norm_name = "post_attention_layernorm";
-            token_embd_name = "model.embed_tokens";
-            post_norm_name = "model.norm";
-            lm_head_name = "lm_head";
-            break;
-        }
-        default: {
-            throw std::runtime_error("Unsupported RoPE type");
-        }
-        }
+    void init() {
+        blk_name = "model.layers.";
+        _attn_base_name = "self_attn.";
+        _ffn_base_name = "mlp.";
+        _q_proj_name = "q_proj";
+        _k_proj_name = "k_proj";
+        _v_proj_name = "v_proj";
+        _o_proj_name = "o_proj";
+        _gate_proj_name = "gate_proj";
+        _up_proj_name = "up_proj";
+        _down_proj_name = "down_proj";
+        _attn_norm_name = "input_layernorm";
+        _ffn_norm_name = "post_attention_layernorm";
+        token_embd_name = "model.embed_tokens";
+        post_norm_name = "model.norm";
+        lm_head_name = "lm_head";
+        
     }
 };
 
 struct MiniCPMConfig {
-    explicit MiniCPMConfig(int token_limit, string billions = "2B", RoPEType type = RoPEType::HFHUBROPE) :
+    explicit MiniCPMConfig(int token_limit, string billions = "2B") :
         cache_limit(token_limit) {
-        names_config.init(type);
+        names_config.init();
         string billionsType;
         std::transform(billions.begin(), billions.end(), std::back_inserter(billionsType),
                        ::tolower);
@@ -86,10 +57,11 @@ struct MiniCPMConfig {
             vocab_size = 122753;
             head_dim = 64;
             scale_depth = 1.4;
+            scale_emb = 12;
+            dim_model_base = 256;
         } else {
             throw std::runtime_error("Unsupported model size");
         }
-        RoPE_type = type;
     }
 
     float attention_dropout = 0.0;
@@ -109,6 +81,8 @@ struct MiniCPMConfig {
     int vocab_size = 122753;
     int head_dim = 64; //self.hidden_size // self.num_heads
     float scale_depth = 1.4;
+    float scale_emb = 12;
+    float dim_model_base = 256;
 
     int cache_limit;
     RoPEType RoPE_type = RoPEType::HFHUBROPE;

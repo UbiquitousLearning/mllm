@@ -2,6 +2,7 @@
 #define TOKENIZATION_MINICPM_HPP
 
 #include "tokenizers/BPE/Bpe.hpp"
+#include <regex>
 
 using namespace mllm;
 
@@ -13,15 +14,7 @@ class MiniCPMTokenizer final {
         if (scores.empty()) {
             throw std::invalid_argument("Input vector is empty");
         }
-        unsigned int maxIndex = 0;
-        float maxValue = scores[0];
-        for (size_t i = 1; i < scores.size(); ++i) {
-            if (scores[i] > maxValue) {
-                maxIndex = i;
-                maxValue = scores[i];
-            }
-        }
-        return maxIndex;
+        return std::max_element(scores.begin(), scores.end()) - scores.begin();
     }
 
 public:
