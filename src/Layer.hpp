@@ -544,7 +544,7 @@ public:
         return ts[0].get();
     }
 };
-
+/*
 class Split final : public Layer {
 public:
     Split() = default;
@@ -570,7 +570,7 @@ public:
         return run({input}, (int)param_["split_num"]);
     }
 };
-
+*/
 class Convolution2D final : public Layer {
 public:
     explicit Convolution2D(int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, std::string name) {

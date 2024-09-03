@@ -21,7 +21,6 @@ enum AttnQKVSplitType {
 
 class MultiHeadAttention final : public Module {
     Layer qkv_proj;
-    Split qkv_split;
     Layer q_proj;
     Layer k_proj;
     Layer v_proj;
@@ -38,6 +37,7 @@ class MultiHeadAttention final : public Module {
     int head_size_{};
     int kv_head_size_{};
     int attn_hidden_dim_{};
+    Chl split_chl_{};
 
 public:
     MultiHeadAttention() = default;
@@ -51,7 +51,7 @@ public:
         kv_head_size_ = kv_head_size;
         if (do_qkv_proj > 0) {
             qkv_proj = Linear(hidden_dim, head_size * attn_hidden_dim * 3, bias, base_name + names._qkv_proj_name);
-            qkv_split = Split(3, (Chl)do_qkv_proj, head_size, base_name + names._qkv_proj_name + ".split");
+            split_chl_ = (Chl)do_qkv_proj;
         } else {
             q_proj = Linear(hidden_dim, head_size * attn_hidden_dim, bias, base_name + names._q_proj_name);
             k_proj = Linear(hidden_dim, kv_head_size * attn_hidden_dim, bias, base_name + names._k_proj_name);
@@ -80,7 +80,7 @@ public:
         Tensor q, k, v;
         if (qkv_proj.ready()) {
             auto qkv = qkv_proj(inputs[0]);
-            auto qkv_sp = qkv_split(qkv);
+            auto qkv_sp = Tensor::split(qkv, {attn_hidden_dim_, attn_hidden_dim_, attn_hidden_dim_}, split_chl_, head_size_);
             q = qkv_sp[0];
             k = qkv_sp[1];
             v = qkv_sp[2];

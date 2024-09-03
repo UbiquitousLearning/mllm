@@ -31,3 +31,4 @@ src/backends/qnn/HexagonSDK/*
 examples/demo_deepseek.cpp
 examples/demo_xllm.cpp
 src/models/xllm/*
+src/models/deepseek/*

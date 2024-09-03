@@ -342,7 +342,8 @@ vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<
     std::vector<float> args;
     for (int i = 0; i < each_dims.size(); ++i) {
         args.push_back(each_dims[i]);
-        next_names.push_back(input.name() + "-split-" + std::to_string(i) + "-" + std::to_string(each_dims[i]));
+        // next_names.push_back(input.name() + "-split-" + std::to_string(i) + "-" + std::to_string(each_dims[i]));
+        next_names.push_back(input.name() + ".split-" + std::to_string(i));
     }
     args.push_back(split_dim);
     args.push_back(head_size);
