@@ -33,6 +33,7 @@ public:
 
     // used for assigning graph backends execuation
     virtual void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor);
+    virtual void runExp(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) {};
 
     /**
      * \brief Setup&Executes the foreword propagation of provided network
@@ -41,7 +42,9 @@ public:
      *
      * execute(net, input_tensors) is equivalent to setup(net) + run(net, input_tensors)
      */
-    void execute(Net *net, vector<shared_ptr<Tensor>> input_tensor) override { std::cerr << "QNNExecutor::execute Not implemented" << std::endl; };
+    void execute(Net *net, vector<shared_ptr<Tensor>> input_tensor) override {
+        std::cerr << "QNNExecutor::execute Not implemented" << std::endl;
+    };
 
     // graph offload rule for qnn execution, used in setup and execution
     static BackendType graphOffloadRule(BackendType expectedBackend, int graphIndex);
@@ -55,6 +58,7 @@ public:
             return "Autoregressive_Graph." + std::to_string(graphIndex);
         }
     };
+
 protected:
     QNNExecutionType executionType_ = PROMPT;
 };
@@ -80,6 +84,7 @@ public:
     }
     // used for assigning graph backends execuation
     void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) override;
+    virtual void runExp(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
 };
 
 } // namespace mllm
