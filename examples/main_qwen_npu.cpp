@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
             if (token_idx == 2) { // "</s>"
                 break;
             }
-            exit(0);
+            // exit(0);
 
             auto out_token = tokenizer.detokenize({token_idx});
             std::cout << out_token << std::flush;

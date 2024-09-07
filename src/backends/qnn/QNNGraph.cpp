@@ -83,9 +83,10 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
     if (ops_[op_names_[op_names_.size() - 1]]->type() == MERGEOUTPUT) {
         auto inputs = ops_input_tensors_[op_names_[op_names_.size() - 1]];
         auto outputs = ops_output_tensors_[op_names_[op_names_.size() - 1]];
-        memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*0), inputs[0]->hostPtr<uint8_t>(), inputs[0]->cntSize());
-        memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*1), inputs[1]->hostPtr<uint8_t>(), inputs[1]->cntSize());
-        memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*2), inputs[2]->hostPtr<uint8_t>(), inputs[2]->cntSize());
+#pragma omp parallel for collapse(1) num_threads(thread_count)
+        for(int t=0; t<3; t++) {
+            memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[t]->cntSize()*t), inputs[t]->hostPtr<uint8_t>(), inputs[t]->cntSize());
+        }
     }
 
     if (ops_[op_names_[op_names_.size() - 1]]->type() == LINEARINT8SHADOW) {
