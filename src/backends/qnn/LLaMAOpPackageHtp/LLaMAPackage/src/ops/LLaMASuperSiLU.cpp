@@ -983,8 +983,12 @@ GraphStatus llamasupersiluImpl(TensorType& out_0,
 
     auto out_ptr = (uint8_t*)out_0.raw_data();
 
-    hvx_supersilu_ahf(in_ptr, in_ptr2, out_ptr, a_scale_, b_scale_, 1.0f/o_scale_, size);
 
+    DType dtype = in_0.get_dtype();
+
+  if (dtype == DType::QUInt8 && out_0.get_dtype() == DType::QUInt8) {
+    hvx_supersilu_ahf(in_ptr, in_ptr2, out_ptr, a_scale_, b_scale_, 1.0f/o_scale_, size);
+  }
 
   return GraphStatus::Success;
 }
