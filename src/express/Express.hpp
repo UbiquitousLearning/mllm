@@ -16,6 +16,7 @@ NetTensor *_Range(Context *ctx, std::vector<NetTensor *> inputs, int start, int 
 NetTensor *_Add(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Causalmask(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_SiLU(std::vector<NetTensor *> inputs, string name = "");
+NetTensor *_SuperSiLU(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_Quantize(std::vector<NetTensor *> inputs, bool isNSHD = true, string name = "");
 NetTensor *_Dequantize(std::vector<NetTensor *> inputs, bool isNSHD = true, string name = "", bool isFP32 = true);
 NetTensor *_Softmax(std::vector<NetTensor *> inputs, int axis, int do_causal_mask, string name = "");

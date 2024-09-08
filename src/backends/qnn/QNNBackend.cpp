@@ -39,6 +39,7 @@
 #include "op/QNNSplitInput.hpp"
 #include "op/QNNTranspose.hpp"
 #include "op/QNNLinearINT8Shadow.hpp"
+#include "op/QNNSuperSiLU.hpp"
 
 #include "memory/MemInspect.hpp"
 
@@ -79,6 +80,7 @@ void QNNBackend::registerOps() {
     addCreator(SPLITINPUT, (QNNBackend::Creator *)(new QNNSplitInputCreator()));
     addCreator(TRANSPOSE, (QNNBackend::Creator *)(new QNNTransposeCreator()));
     addCreator(LINEARINT8SHADOW, (QNNBackend::Creator *)(new QNNLinearINT8ShadowCreator()));
+    addCreator(SUPERSILU, (QNNBackend::Creator *)(new QNNSuperSiLUCreator()));
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
