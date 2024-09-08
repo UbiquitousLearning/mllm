@@ -85,7 +85,7 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
         auto outputs = ops_output_tensors_[op_names_[op_names_.size() - 1]];
 #pragma omp parallel for collapse(1) num_threads(thread_count)
         for(int t=0; t<3; t++) {
-            memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[t]->cntSize()*t), inputs[t]->hostPtr<uint8_t>(), inputs[t]->cntSize());
+            memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*t), inputs[t]->hostPtr<uint8_t>(), inputs[t]->cntSize());
         }
     }
 

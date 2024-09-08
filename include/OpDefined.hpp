@@ -60,6 +60,7 @@ enum OpType {
     DEQUANTIZE,
     MERGEOUTPUT,
     SPLITINPUT,
+    SUPERSILU,
     OP_NUM
 };
 

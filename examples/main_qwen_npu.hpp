@@ -29,9 +29,9 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention(Context *c, NetTensor *x, NetTenso
     k = k->view(1, head_size, seq / chunk, hidden_size);
     v = v->view(1, head_size, seq / chunk, hidden_size);
 
-    q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize");
-    k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize");
-    v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize");
+    q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize", true);
+    k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", false);
+    v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize", false);
 
     v = _Transpose({v}, {0, 2, 3, 1}, (string)name + ".v_proj.transpose");
 
