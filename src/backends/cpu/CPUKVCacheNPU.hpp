@@ -31,6 +31,7 @@ private:
 
     int cache_seq_len_ = -999;
     int n_rep_ = 1;
+    bool isDecoding = false;
 
     int cache_limit_;
 };
