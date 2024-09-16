@@ -42,14 +42,14 @@ public:
     bool inited_loaded = false;
     static map<string, string> layername_2_tensorname;
 
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 
-    Tensor operator()(Tensor input0, Tensor input1) {
+    Tensor &operator()(Tensor &input0, Tensor &input1) {
         auto ts = run({input0, input1}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 
 private:
@@ -106,7 +106,7 @@ protected:
         }
         return Module::doLoad;
     }
-    vector<Tensor> run(vector<Tensor> inputs, int N=1) {
+    vector<std::reference_wrapper<Tensor>> run(vector<Tensor> inputs, int N=1) {
         Module::runlistIdx = saved_list_idx;
         if (Module::doLoad || !inited_loaded) {
             init_run();
@@ -142,7 +142,7 @@ protected:
                 }
             }
             if(Module::doLoad){
-                vector<Tensor> output_result = {};
+                vector<std::reference_wrapper<Tensor>> output_result = {};
                 for (const auto &layer_next_name : layer_next_names) {
                     auto next_name = layername_2_tensorname[layer_next_name];
                     output_result.push_back(*Tensor::graphs[next_name]);
@@ -193,10 +193,12 @@ protected:
             }
         }
 #ifdef DEBUGOPTIME
-        auto end_t = mllm_time_us();
-        std::cout<<op_->name() << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+        if(Tensor::tensor_status == TENSOR_STATIC_READY){
+            auto end_t = mllm_time_us();
+            std::cout<<op_->name() << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+        }
 #endif
-        vector<Tensor> output_result = {};
+        vector<std::reference_wrapper<Tensor>> output_result = {};
         for (const auto &layer_next_name : layer_next_names) {
             auto next_name = layername_2_tensorname[layer_next_name];
 #ifdef DEBUGSAVETENSOR
@@ -223,9 +225,9 @@ public:
         param_["bias"] = (float)bias;
         init(std::move(name), OpType::LINEAR);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -236,9 +238,9 @@ public:
         param_["out_dim_"] = (float)out_dim;
         init(std::move(name), OpType::SPARSEIDLINEAR);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -249,9 +251,9 @@ public:
         param_["out_dim_"] = (float)out_dim;
         init(std::move(name), OpType::SPARSELINEAR);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -262,9 +264,9 @@ public:
         param_["out_dim"] = (float)out_dim;
         init(std::move(name), OpType::PREDICTOR);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -277,11 +279,11 @@ public:
         param_["bias"] = (float)bias;
         init(std::move(name), OpType::ELASTICLINEAR);
     }
-    Tensor operator()(Tensor input0, int activate_input_dim, int activate_output_dim) {
+    Tensor &operator()(Tensor &input0, int activate_input_dim, int activate_output_dim) {
         auto activate_input_dim_tensor = Tensor(activate_input_dim, backend_);
         auto activate_output_dim_tensor = Tensor(activate_output_dim, backend_);
         auto ts = run({input0, activate_input_dim_tensor, activate_output_dim_tensor}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -292,9 +294,9 @@ public:
     SiLU(std::string name) {
         init(std::move(name), OpType::SILU);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -304,9 +306,9 @@ public:
     ReLU(std::string name) {
         init(std::move(name), OpType::RELU);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -316,9 +318,9 @@ public:
     ReLUSquaredActivation(std::string name) {
         init(std::move(name), OpType::RELU2);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -328,9 +330,9 @@ public:
     GELU(std::string name) {
         init(std::move(name), OpType::OP_GELU);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -340,9 +342,9 @@ public:
     explicit QuickGELU(std::string name) {
         init(std::move(name), OpType::QUICKGLUE);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -367,14 +369,14 @@ public:
         param_["do_causal_mask"] = do_causal_mask;
         init(std::move(name), OpType::SOFTMAX);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
-    Tensor operator()(Tensor input, int axis_classes) {
+    Tensor &operator()(Tensor &input, int axis_classes) {
         auto axis_classes_tensor = Tensor(axis_classes, backend_);
         auto ts = run({input, axis_classes_tensor}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -385,9 +387,9 @@ public:
         param_["vocab_size"] = vocab_size;
         init(std::move(name), OpType::EMBEDDING);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -397,14 +399,14 @@ public:
     explicit Causalmask(std::string name) {
         init(std::move(name), OpType::CAUSALMASK);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
-    Tensor operator()(Tensor input0, int kvcache_seq) {
+    Tensor &operator()(Tensor &input0, int kvcache_seq) {
         auto kvcache_seq_tensor = Tensor(kvcache_seq, backend_);
         auto ts = run({input0, kvcache_seq_tensor}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -414,9 +416,9 @@ public:
         param_["window_size"] = window_size;
         init(std::move(name), OpType::SLIDINGWINDOWMASK);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -439,9 +441,34 @@ public:
         param_["partial_rotary_factor"] = partial_rotary_factor;
         init(std::move(name), OpType::ROPE);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
+    }
+};
+
+class IRoPE final : public Layer {
+public:
+    explicit IRoPE(int pose_type, std::string name) {
+        param_["pose_type"] = pose_type;
+        init(std::move(name), OpType::IROPE);
+    }
+    explicit IRoPE(int pose_type, float rope_theta, int max_position_embeddings, std::string name) {
+        param_["pose_type"] = pose_type;
+        param_["rope_theta"] = rope_theta;
+        param_["max_position_embeddings"] = max_position_embeddings;
+        init(std::move(name), OpType::IROPE);
+    }
+    explicit IRoPE(int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings, std::string name) {
+        param_["pose_type"] = pose_type;
+        param_["rope_theta"] = rope_theta;
+        param_["max_position_embeddings"] = max_position_embeddings;
+        param_["partial_rotary_factor"] = partial_rotary_factor;
+        init(std::move(name), OpType::IROPE);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
     }
 };
 
@@ -458,9 +485,9 @@ public:
         param_["cache_max"] = cache_max;
         init(std::move(name), OpType::KVCACHE);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
     int getCacheSeqLen(){
         return op_->getCacheSeqLen();
@@ -478,9 +505,9 @@ public:
         param_["bias"] = (float)bias;
         init(std::move(name), OpType::LAYERNORM);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -499,9 +526,9 @@ public:
         init(std::move(name), OpType::RMSNORM);
     }
 
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -512,12 +539,12 @@ public:
         param_["transpose1"] = transpose1;
         init(std::move(name), OpType::MATMUL);
     }
-    Tensor operator()(Tensor input0, Tensor input1) {
+    Tensor &operator()(Tensor &input0, Tensor &input1) {
         auto ts = run({input0, input1}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
-
+/*
 class Split final : public Layer {
 public:
     Split() = default;
@@ -539,11 +566,11 @@ public:
         init(std::move(name), OpType::SPLIT);
     }
 
-    vector<Tensor> operator()(Tensor input) {
+    vector<std::reference_wrapper<Tensor>> operator()(Tensor &input) {
         return run({input}, (int)param_["split_num"]);
     }
 };
-
+*/
 class Convolution2D final : public Layer {
 public:
     explicit Convolution2D(int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, std::string name) {
@@ -557,9 +584,9 @@ public:
         param_["bias"] = (float)bias;
         init(std::move(name), OpType::CONVOLUTION2D);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -578,9 +605,9 @@ public:
         param_["bias"] = (float)bias;
         init(std::move(name), OpType::CONVOLUTION3D);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -590,9 +617,9 @@ public:
         param_["axis"] = (float)axis;
         init(std::move(name), OpType::CAT);
     }
-    Tensor operator()(Tensor input0, Tensor input1) {
+    Tensor &operator()(Tensor &input0, Tensor &input1) {
         auto ts = run({input0, input1}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -606,9 +633,9 @@ public:
         param_["dim"] = dim;
         init(std::move(name), OpType::PARAMETER);
     }
-    Tensor operator()() {
+    Tensor &operator()() {
         auto ts = run({}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 
@@ -617,9 +644,9 @@ public:
     explicit Position(std::string name) {
         init(std::move(name), OpType::POSITION);
     }
-    Tensor operator()(Tensor input) {
+    Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
-        return ts[0];
+        return ts[0].get();
     }
 };
 

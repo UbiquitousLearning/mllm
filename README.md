@@ -12,6 +12,7 @@
 Wait.. why on-device multimodal LLM? - It's a key building block for [intelligent personal agent](https://arxiv.org/pdf/2401.05459.pdf), text-based image searching/retrieval, screen VQA, and many more exciting mobile apps, without giving away your private data (chat history, screenshots, taken photos, etc).
 
 ## Recent update
+- [2024 August 30] Support new model: MiniCPM 2B https://github.com/UbiquitousLearning/mllm/pull/132
 - [2024 August 15] Support new model: Phi 3 mini https://github.com/UbiquitousLearning/mllm/pull/119
 - [2024 Aug 10] Supporting Qualcomm NPU: https://github.com/UbiquitousLearning/mllm/pull/112 | [try it out](https://github.com/UbiquitousLearning/mllm/tree/main/src/backends/qnn) | [paper](https://arxiv.org/pdf/2407.05858v1)
 - [2024 July 17] Support new model: StableLM V2 1.6B https://github.com/UbiquitousLearning/mllm/pull/94
@@ -85,6 +86,7 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 | [StableLM 1.6B](https://github.com/Stability-AI/StableLM)                     | [✔️](https://huggingface.co/mllmTeam/stablelm-2-1.6b-chat-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/stablelm-2-1.6b-chat-mllm/tree/main)   |  |
 | [OPT 1.3B](https://github.com/facebookresearch/metaseq/tree/main/projects/OPT)                     | [✔️](https://huggingface.co/mllmTeam/opt-1.3b-mllm/tree/main)  | [✔️](https://huggingface.co/mllmTeam/opt-1.3b-mllm/tree/main)   |  |
 | [Phi-3-mini 3.8B](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)                     |  [✔️](https://huggingface.co/mllmTeam/phi-3-mini-instruct-mllm/tree/main)   | [✔️](https://huggingface.co/mllmTeam/phi-3-mini-instruct-mllm/tree/main)   |  |
+| [MiniCPM 2B](https://huggingface.co/openbmb/MiniCPM-2B-dpo-fp32)                     |  [✔️](https://huggingface.co/mllmTeam/minicpm-2b-dpo-mllm/tree/main)   | [✔️](https://huggingface.co/mllmTeam/minicpm-2b-dpo-mllm/tree/main)   |  |
 
 ## Quick Start
 

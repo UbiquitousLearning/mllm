@@ -54,6 +54,7 @@
 #include "CPUQuantize.hpp"
 #include "CPUMergeOutput.hpp"
 #include "CPULinearINT8Shadow.hpp"
+#include "CPUIRoPE.hpp"
 
 #include "CPUTensorFunction.hpp"
 #include "CPUPosition.hpp"
@@ -144,8 +145,8 @@ void CPUBackend::registerOps() {
     addCreator(MERGEOUTPUT, (CPUBackend::Creator *)(new CPUMergeOutputCreator()));
     addCreator(SPLITINPUT, (CPUBackend::Creator *)(new CPUSplitInputCreator()));
     addCreator(LINEARINT8SHADOW, (CPUBackend::Creator *)(new CPULinearINT8ShadowCreator()));
+    addCreator(IROPE, (CPUBackend::Creator *)(new CPUIRoPECreator()));
 }
-
 TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {
     auto iter = map_function_.find(type);
     if (iter == map_function_.end()) {

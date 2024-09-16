@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <cassert>
+#include <cstdint>
 using std::string;
 using std::vector;
 using std::map;

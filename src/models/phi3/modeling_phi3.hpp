@@ -29,7 +29,8 @@ public:
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = gate_up_proj(inputs[0]);
         auto split_tensors = Tensor::split(x, {ffn_hidden_, ffn_hidden_}, DIMENSION);
-        x = split_tensors[1] * silu(split_tensors[0]);
+        Tensor gate = split_tensors[1];
+        x = gate * silu(split_tensors[0]);
         x = down_proj(x);
         return {x};
     }

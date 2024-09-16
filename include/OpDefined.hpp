@@ -60,6 +60,7 @@ enum OpType {
     DEQUANTIZE,
     MERGEOUTPUT,
     SPLITINPUT,
+    IROPE,
     OP_NUM
 };
 
@@ -115,6 +116,7 @@ static const vector<string> OpNames = {
     "Dequantize",
     "MergeOutput",
     "SplitInput",
+    "IRoPE",
     "OP_NUM"};
 
 enum TensorFuncType {
