@@ -649,6 +649,20 @@ if(QNN)
         target_compile_options(main_qwen_npu PRIVATE -fopenmp)
         target_link_libraries(main_qwen_npu PUBLIC  MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS} -fopenmp -static-openmp)
     endif ()
+
+    add_executable(demo_qnn ${PROJECT_SOURCE_DIR}/examples/demo_qnn.cpp ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC}
+        src/tokenizers/Tokenizer.cpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/Unicode.cpp
+        src/tokenizers/UnicodeData.cpp
+        src/processor/PreProcess.cpp
+    )
+    target_compile_definitions(demo_qnn PRIVATE USE_QNN)
+    if (ARM)
+        target_compile_options(demo_qnn PRIVATE -fopenmp)
+        target_link_libraries(demo_qnn PUBLIC  MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS} -fopenmp -static-openmp)
+    endif ()
+
 endif()
 
 if (APK)
