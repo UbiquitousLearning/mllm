@@ -8,8 +8,8 @@
   # portability-*,
 Checks: >
   -*,
-  -openmp-exception-escape，
-  -openmp-use-default-none，
+  -openmp-exception-escape,
+  -openmp-use-default-none,
   readability-identifier-naming,
   readability-*,
   -readability-convert-member-functions-to-static,
@@ -22,7 +22,7 @@ Checks: >
 
 # Turn all the warnings from the checks above into errors.
 WarningsAsErrors: "*"
-HeaderFilterRegex: ".*\.hpp$&!gguf\.hpp"
+HeaderFilterRegex: ".*\\.hpp$&!gguf\\.hpp"
 CheckOptions:
   - key: readability-identifier-naming.NamespaceCase
     value: lower_case
