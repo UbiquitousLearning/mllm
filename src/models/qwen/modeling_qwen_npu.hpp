@@ -5,15 +5,122 @@
 #include "Layer.hpp"
 #include "Module.hpp"
 #include "Tensor.hpp"
+#include "Types.hpp"
 #include "configuration_qwen.hpp"
 #include <cmath>
+#include <type_traits>
 using namespace mllm;
 
-// Copied from GemmaMLP with Gemma->Qwen and using silu
-class QWenMLP final : public Module {
+// NPU QKV part
+class QwenDecoderNPUPart1 final : public Module {
+    int hidden_size;
+    int num_heads;
+    int head_dim;
+    int num_key_value_heads;
+    int num_key_value_groups;
+    Layer q_proj;
+    Layer k_proj;
+    Layer v_proj;
+    Layer o_proj;
+
 public:
-    QWenMLP() = default;
-    QWenMLP(int hidden_size, int intermediate_size, const QWenNameConfig &names, const std::string &base_name) {
+    QwenDecoderNPUPart1() = default;
+    QwenDecoderNPUPart1(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
+        hidden_size = config.hidden_size;
+        num_heads = config.num_attention_heads;
+        head_dim = config.hidden_size / num_heads;
+        num_key_value_heads = config.num_key_value_heads;
+        num_key_value_groups = num_heads / num_key_value_heads;
+
+        q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._v_proj_name);
+        o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
+    }
+
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
+        auto query_states = q_proj(inputs[0]);
+        auto key_states = k_proj(inputs[0]);
+        auto value_states = v_proj(inputs[0]);
+
+        // [batch, heads, sequence, dims]
+        query_states = query_states.view(-1, num_heads, -1, head_dim);
+        key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
+        value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
+
+        // TODO: dequantize q,k,v, transpose v using qnn layer
+        // query_states = query_states.toFloat(); ??
+
+        value_states = value_states.transpose(SEQUENCE, DIMENSION);
+        return {query_states, key_states, value_states};
+    }
+};
+
+// CPU QKV MM part
+class QwenQKVmm final : public Module {
+    Layer softmax;
+    Layer q_rope;
+    Layer k_rope;
+    Layer k_cache;
+    Layer v_cache;
+
+    int head_size_{};
+    int attn_hidden_dim_{};
+
+public:
+    QwenQKVmm() = default;
+    QwenQKVmm(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
+        attn_hidden_dim_ = config.hidden_size;
+        head_size_ = config.num_attention_heads * config.hidden_size / config.num_attention_heads;
+
+        q_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "q_rope");
+        k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "k_rope");
+
+        if (config.cache_limit > 0) {
+            k_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + names._attn_base_name + "k_cache");
+            v_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + names._attn_base_name + "v_cache");
+        }
+
+        softmax = Softmax(DIMENSION, true, base_name + "softmax");
+    }
+
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
+        auto q = inputs[0];
+        auto k = inputs[1];
+        auto v = inputs[2];
+
+        q = q_rope(q);
+        k = k_rope(k);
+
+        if (k_cache.ready() && v_cache.ready()) {
+            k = k_cache(k);
+            v = v_cache(v);
+        }
+
+        k = k.transpose(SEQUENCE, DIMENSION);
+        auto qk = Tensor::mm(q, k);
+        qk = qk / std::sqrt(attn_hidden_dim_);
+        qk = softmax(qk);
+        auto o = Tensor::mm(qk, v);
+
+        return {o};
+    }
+};
+
+// QNN mlp part
+class QwenDecoderNPUPart2 final : public Module {
+    Layer gate_proj;
+    Layer up_proj;
+    Layer down_proj;
+
+    Layer silu;
+
+public:
+    QwenDecoderNPUPart2() = default;
+    QwenDecoderNPUPart2(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
+        int hidden_size = config.hidden_size;
+        int intermediate_size = config.intermediate_size;
+
         gate_proj = Linear(hidden_size, intermediate_size, false, base_name + names._gate_proj_name);
         silu = SiLU(base_name + "act");
         up_proj = Linear(hidden_size, intermediate_size, false, base_name + names._up_proj_name);
@@ -28,121 +135,47 @@ public:
         x = down_proj(x);
         return {x};
     }
-
-private:
-    Layer gate_proj;
-    Layer up_proj;
-    Layer down_proj;
-
-    Layer silu;
 };
 
-// Copied from GemmaAttention with Gemma->Qwen and using SWA
-class QWenAttention final : public Module {
+class QwenNPU_CPUDecoder final : public Module {
+    Layer input_layernorm;
+    QwenDecoderNPUPart1 part1;
+    QwenQKVmm qkv_mm;
+    QwenDecoderNPUPart2 part2;
+
 public:
-    QWenAttention() = default;
-    QWenAttention(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
-        hidden_size = config.hidden_size;
-        num_heads = config.num_attention_heads;
-        head_dim = config.hidden_size / num_heads;
-        num_key_value_heads = config.num_key_value_heads;
-        num_key_value_groups = num_heads / num_key_value_heads;
-
-        // init layers
-        q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._v_proj_name);
-        o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
-        q_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "q_rope");
-        k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "k_rope");
-        k_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "k_cache");
-        v_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "v_cache");
-        // mask = SlidingWindowMask(config.sliding_window, base_name + "mask");
-        mask = Causalmask(base_name + "mask");
-        softmax = Softmax(DIMENSION, base_name + "softmax");
-    }
-
-    std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        auto query_states = q_proj(inputs[0]);
-        auto key_states = k_proj(inputs[1]);
-        auto value_states = v_proj(inputs[2]);
-
-        // [batch, heads, sequence, dims]
-        query_states = query_states.view(-1, num_heads, -1, head_dim);
-        key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
-        value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
-
-        // embedding
-        query_states = q_rope(query_states);
-        key_states = k_rope(key_states);
-
-        // kv cache
-        key_states = k_cache(key_states);
-        value_states = v_cache(value_states);
-
-        // attention weight
-        auto atten_weight = Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION)) / std::sqrt(head_dim);
-        atten_weight = mask(atten_weight, k_cache.getCacheSeqLen());
-        atten_weight = softmax(atten_weight, k_cache.getCacheSeqLen());
-
-        // attention output
-        auto atten_output = Tensor::mm(atten_weight, value_states);
-        atten_output = atten_output.view(-1, 1, -1, head_dim * num_heads);
-        atten_output = o_proj(atten_output);
-        return {atten_output};
-    }
-    vector<KVCache *> get_cache() {
-        return {&k_cache, &v_cache};
-    }
-
-private:
-    int hidden_size;
-    int num_heads;
-    int head_dim;
-    int num_key_value_heads;
-    int num_key_value_groups;
-    Layer q_proj;
-    Layer k_proj;
-    Layer v_proj;
-    Layer o_proj;
-    Layer q_rope;
-    Layer k_rope;
-    KVCache k_cache;
-    KVCache v_cache;
-    Causalmask mask;
-    Softmax softmax;
-};
-
-// Copied from GemmaDecoder with Gemma->Qwen and set RmsNorm(without add_unit_offset)
-class QWenDecoder final : public Module {
-public:
-    QWenDecoder() = default;
-    QWenDecoder(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
-        self_atten = QWenAttention(config, names, base_name + names._attn_base_name);
-        mlp = QWenMLP(config.hidden_size, config.intermediate_size, names, base_name + names._ffn_base_name);
+    QwenNPU_CPUDecoder() = default;
+    QwenNPU_CPUDecoder(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
-        post_attention_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
+
+        part1 = QwenDecoderNPUPart1(config, names, base_name);
+        part1.to(MLLM_QNN);
+
+        qkv_mm = QwenQKVmm(config, names, base_name);
+        qkv_mm.to(MLLM_CPU);
+
+        part2 = QwenDecoderNPUPart2(config, names, base_name);
+        part2.to(MLLM_QNN);
     }
 
-    std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = input_layernorm(inputs[0]);
-        x = self_atten({x, x, x})[0];
-        auto tmp = x + inputs[0];
-        x = post_attention_layernorm(tmp);
-        x = mlp({x})[0];
+        // TODO: quantize x to int8
+        if (x.device() != MLLM_QNN) {
+            x = Tensor::toQNN({x})[0];
+        }
+
+        auto q_k_v = part1({x}); // q,k,v
+        auto o_x = qkv_mm(q_k_v);
+
+        auto tmp = o_x[0] + inputs[0];
+
+        o_x = Tensor::toQNN(o_x);
+        x = part2(o_x)[0];
         x = x + tmp;
+
         return {x};
     }
-
-    QWenAttention &get_attention() {
-        return self_atten;
-    }
-
-private:
-    QWenAttention self_atten;
-    QWenMLP mlp;
-    Layer input_layernorm;
-    Layer post_attention_layernorm;
 };
 
 // Copied from GemmaModel with Gemma->Qwen and set RmsNorm(without add_unit_offset)
@@ -151,7 +184,7 @@ public:
     QWenModel() = default;
     QWenModel(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
         // TODO: only one block, change it to config.num_hidden_layers
-        blocks = List<QWenDecoder>(1, config, names, base_name);
+        blocks = List<QwenNPU_CPUDecoder>(1, config, names, base_name);
         norm = RMSNorm(config.hidden_size, config.rms_norm_eps, names.post_norm_name);
     }
 
@@ -164,17 +197,8 @@ public:
         return {x};
     }
 
-    void clear_kvcache() {
-        for (auto &block : blocks) {
-            auto kvcahce = block.get_attention().get_cache();
-            for (auto &cache : kvcahce) {
-                cache->clearCache();
-            }
-        }
-    }
-
 private:
-    std::vector<QWenDecoder> blocks;
+    std::vector<QwenNPU_CPUDecoder> blocks;
     Layer norm;
 };
 
@@ -208,8 +232,42 @@ public:
         }
         return {outputs};
     }
-    void clear_kvcache() {
-        model.clear_kvcache();
+
+    virtual void generate(
+        Tensor &input_ids, const LlmTextGeneratorOpts &opt, const std::function<bool(unsigned int)> &call_back = [](unsigned int) -> bool { return true; }) override{
+        auto chatPostProcessing = [](unsigned token_idx, Tensor &tokens_tensor, const vector<Tensor *> &clean_tensors) {
+            tokens_tensor.reshape(1, 1, 1, 1);
+            tokens_tensor.alloc();
+            tokens_tensor.setDataAt<float>(0, 0, 0, 0, token_idx);
+
+            for (auto tensor : clean_tensors) {
+                tensor->reshape(0, 0, 0, 0);
+                tensor->alloc();
+            }
+        };
+
+        if (!opt.do_sample) {
+            // fail to greedy search
+            if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kGreedySearch)
+                text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kGreedySearch, opt);
+        } else if (opt.do_sample && !opt.top_k && opt.top_p != 0.f) {
+            // fail to top p sampling
+            if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kToppSampling)
+                text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kToppSampling, opt);
+        } else if (opt.do_sample && opt.top_k) {
+            // fail to top k sampling
+            if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kTopkSampling)
+                text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kTopkSampling, opt);
+        }
+
+        for (int step = 0; step < opt.max_new_tokens; ++step) {
+            auto _out = (*this)({input_ids});
+            auto out_token = text_generator_->generate(_out[0]);
+            if (!call_back(out_token)) break;
+            chatPostProcessing(out_token, input_ids, {});
+            std::cout << "========AFTER PREFILL=========" << std::endl;
+            return;
+        }
     }
 
 private:

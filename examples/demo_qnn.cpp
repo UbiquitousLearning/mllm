@@ -28,9 +28,7 @@ int main(int argc, char **argv) {
     model.load(model_path);
 
     vector<string> in_strs = {
-        " Hello, who are you?",
-        " What can you do?",
-        "Please introduce Beijing University of Posts and Telecommunications.",
+        " Give me a short introduction to large language model.",
     };
 
     auto processOutput = [&](std::string &text) -> std::pair<bool, std::string> {

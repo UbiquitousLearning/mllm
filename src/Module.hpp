@@ -24,7 +24,7 @@
 namespace mllm {
 
 class Module {
-private:
+protected:
     double load_time_;
     int prefilling_token_size_ = 0;
     int decoding_token_size_ = 0;

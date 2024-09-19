@@ -650,6 +650,18 @@ public:
     }
 };
 
+class Quantize final : public Layer {
+public:
+    explicit Quantize(bool isNSHD, std::string name) {
+        param_["isNSHD"] = (float)isNSHD;
+        init(std::move(name), OpType::QUANTIZE);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
 } // namespace mllm
 
 #endif // OPERATION_H
