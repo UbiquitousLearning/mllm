@@ -95,6 +95,12 @@ include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/third_party)
 
+# NOTE: The include below is just for clang to get the include path
+# NOTE: The include below is just for clang to get the include path
+# NOTE: The include below is just for clang to get the include path
+# You can remove those lines if you just want to build mllm instead dev on it.
+include_directories(${PROJECT_SOURCE_DIR}/third_party/pybind11/include)
+
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 
 #add tokenizers
