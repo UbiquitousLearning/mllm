@@ -6,12 +6,11 @@
 
 int n_pack = 16;
 #ifndef USE_QNN
-#define KVCache_TYPE_16
+// #define KVCache_TYPE_16
 #endif
 namespace mllm {
 CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max, int threadCount) :
-    thread_count(threadCount),
-    Op(bn, opName) {
+    thread_count(threadCount), Op(bn, opName) {
     cache_.setBackend(bn);
 #ifdef KVCache_TYPE_16
     cache_.setDtype(MLLM_TYPE_F16);
@@ -19,38 +18,42 @@ CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max, int
     cache_.setDtype(MLLM_TYPE_F32);
 #endif
 #ifdef LLAMAFILE_SGEMM
-    cache_max = ((cache_max + (n_pack-1)) / n_pack) * n_pack;
+    cache_max = ((cache_max + (n_pack - 1)) / n_pack) * n_pack;
 #endif
     cache_limit_ = cache_max;
     n_rep_ = n_rep;
 }
 
-ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs,
+                              vector<shared_ptr<Tensor>> outputs) {
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
     if (cache_seq_len_ < 0) {
-        cache_.reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, cache_limit_, inputs[0]->dimension());
+        cache_.reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, cache_limit_,
+                       inputs[0]->dimension());
         cache_.setName(name() + ".Cache");
         cache_.alloc();
 #ifdef KVCache_TYPE_16
-        memset(cache_.hostPtr<mllm_fp16_t>(),0,cache_.count() * sizeof(mllm_fp16_t));
+        memset(cache_.hostPtr<mllm_fp16_t>(), 0, cache_.count() * sizeof(mllm_fp16_t));
 #else
-        memset(cache_.hostPtr<float>(),0,cache_.count() * sizeof(float));
+        memset(cache_.hostPtr<float>(), 0, cache_.count() * sizeof(float));
 #endif
         cache_seq_len_ = 0;
     }
     int sequence = inputs[0]->sequence() + cache_seq_len_;
 #ifdef LLAMAFILE_SGEMM
-    if(sequence%n_pack != 0)
-        sequence = ((sequence + (n_pack-1)) / n_pack) * n_pack;
+    if (sequence % n_pack != 0) sequence = ((sequence + (n_pack - 1)) / n_pack) * n_pack;
 #endif
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head()*n_rep_, sequence, inputs[0]->dimension());
-    if(sequence >cache_limit_){
-        std::cerr<<"\n[ERROR]: Current tokens exceed cache limit: "<<sequence<<">"<<cache_limit_<<";";
-        std::cerr<<"\n         Please set args `--limits` >"<<cache_limit_<<std::endl;
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, sequence,
+                        inputs[0]->dimension());
+    if (sequence > cache_limit_) {
+        std::cerr << "\n[ERROR]: Current tokens exceed cache limit: " << sequence << ">"
+                  << cache_limit_ << ";";
+        std::cerr << "\n         Please set args `--limits` >" << cache_limit_ << std::endl;
 
         exit(1);
-        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, cache_limit_, inputs[0]->dimension());
+        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, cache_limit_,
+                            inputs[0]->dimension());
     }
     return Op::reshape(inputs, outputs);
 }
@@ -59,7 +62,8 @@ ErrorCode CPUKVCache::load(AbstructLoader &loader) {
     return Op::load(loader);
 }
 
-ErrorCode CPUKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+ErrorCode CPUKVCache::execute(vector<shared_ptr<Tensor>> inputs,
+                              vector<shared_ptr<Tensor>> outputs) {
     int cache_seq_len_old = cache_seq_len_;
     cache_seq_len_ += inputs[0]->sequence();
     if (n_rep_ > 1) {
@@ -71,12 +75,14 @@ ErrorCode CPUKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                         for (int i_rep = 0; i_rep < n_rep_; ++i_rep) {
                             auto cache_head = h * n_rep_ + i_rep;
                             if (cache_.dtype() == MLLM_TYPE_F32) {
-                                auto src_ptr = inputs[0]->ptrAt<float>(b, h, seq - cache_seq_len_old, 0);
+                                auto src_ptr =
+                                    inputs[0]->ptrAt<float>(b, h, seq - cache_seq_len_old, 0);
                                 auto dest_ptr = cache_.ptrAt<float>(b, cache_head, seq, 0);
                                 int copy_size = cache_.dimension();
                                 memcpy(dest_ptr, src_ptr, copy_size * sizeof(float));
                             } else if (cache_.dtype() == MLLM_TYPE_F16) {
-                                auto src_ptr = inputs[0]->ptrAt<mllm_fp16_t>(b, h, seq - cache_seq_len_old, 0);
+                                auto src_ptr =
+                                    inputs[0]->ptrAt<mllm_fp16_t>(b, h, seq - cache_seq_len_old, 0);
                                 auto dest_ptr = cache_.ptrAt<mllm_fp16_t>(b, cache_head, seq, 0);
                                 int copy_size = cache_.dimension();
                                 memcpy(dest_ptr, src_ptr, copy_size * sizeof(mllm_fp16_t));
@@ -94,12 +100,14 @@ ErrorCode CPUKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                             auto cache_head = h * n_rep_ + i_rep;
                             if (cache_.dtype() == MLLM_TYPE_F32) {
                                 auto src_ptr = inputs[0]->ptrAt<float>(b, h, 0, d);
-                                auto dest_ptr = cache_.ptrAt<float>(b, cache_head, cache_seq_len_old, d);
+                                auto dest_ptr =
+                                    cache_.ptrAt<float>(b, cache_head, cache_seq_len_old, d);
                                 int copy_size = cache_seq_len_ - cache_seq_len_old;
                                 memcpy(dest_ptr, src_ptr, copy_size * sizeof(float));
                             } else if (cache_.dtype() == MLLM_TYPE_F16) {
                                 auto src_ptr = inputs[0]->ptrAt<mllm_fp16_t>(b, h, 0, d);
-                                auto dest_ptr = cache_.ptrAt<mllm_fp16_t>(b, cache_head, cache_seq_len_old, d);
+                                auto dest_ptr =
+                                    cache_.ptrAt<mllm_fp16_t>(b, cache_head, cache_seq_len_old, d);
                                 int copy_size = cache_seq_len_ - cache_seq_len_old;
                                 memcpy(dest_ptr, src_ptr, copy_size * sizeof(mllm_fp16_t));
                             }
@@ -126,9 +134,7 @@ ErrorCode CPUKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     if (inputs[0]->sequence() + cache_seq_len_ > cache_limit_) {
         outputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_ + 1, 0});
     }
-    if (inputs[0]->masterTensor() == nullptr) {
-        inputs[0]->free();
-    }
+    if (inputs[0]->masterTensor() == nullptr) { inputs[0]->free(); }
     inputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_, 0});
     return MLLM_NO_ERROR;
 }
