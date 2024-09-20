@@ -80,7 +80,7 @@ protected:
  */
 class BackendCreator {
 public:
-    virtual shared_ptr<Backend> create(BackendConfig config) = 0;
+    virtual Backend* create(BackendConfig config) = 0;
 };
 
 /**

@@ -32,10 +32,10 @@ public:
         num_key_value_heads = config.num_key_value_heads;
         num_key_value_groups = num_heads / num_key_value_heads;
 
-        q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._v_proj_name);
-        o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
+        q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._attn_base_name + names._q_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._attn_base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._attn_base_name + names._v_proj_name);
+        o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._attn_base_name + names._o_proj_name);
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
@@ -44,14 +44,15 @@ public:
         auto value_states = v_proj(inputs[0]);
 
         // [batch, heads, sequence, dims]
-        query_states = query_states.view(-1, num_heads, -1, head_dim);
-        key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
-        value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
+        // TODO: qnn tensorFunc
+        // query_states = query_states.view(-1, num_heads, -1, head_dim);
+        // key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
+        // value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
 
         // TODO: dequantize q,k,v, transpose v using qnn layer
         // query_states = query_states.toFloat(); ??
 
-        value_states = value_states.transpose(SEQUENCE, DIMENSION);
+        // value_states = value_states.transpose(SEQUENCE, DIMENSION);
         return {query_states, key_states, value_states};
     }
 };

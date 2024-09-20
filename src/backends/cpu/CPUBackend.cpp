@@ -61,7 +61,7 @@
 
 namespace mllm {
 class CPUBackendCreator : public BackendCreator {
-    shared_ptr<Backend> create(BackendConfig config) {
+    Backend* create(BackendConfig config) {
         shared_ptr<MemoryManager> mm = nullptr;
         switch (config.memory) {
         case BackendConfig::Memory_High:
@@ -71,7 +71,7 @@ class CPUBackendCreator : public BackendCreator {
             mm = std::make_shared<SystemMemoryManager>();
             break;
         }
-        return std::make_shared<CPUBackend>(mm);
+        return new CPUBackend(mm);
     };
 };
 

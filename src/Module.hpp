@@ -31,6 +31,7 @@ protected:
     vector<double> inference_times_;
     vector<vector<int>> last_shape_bshd_;
     std::shared_ptr<LlmTextGenerator> text_generator_ = nullptr;
+    BackendType device_ = BackendType::MLLM_CPU;
 
 public:
     static AbstructLoader *loader;
@@ -53,7 +54,7 @@ public:
             }
 #ifdef USE_QNN
             case BackendType::MLLM_QNN: {
-                Backend::global_backends.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create({}).get());
+                Backend::global_backends.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create({}));
                 break;
             }
 #endif
@@ -64,6 +65,7 @@ public:
     }
     void to(BackendType type) {
         initBackend(type);
+        device_ = type;
     }
     static void initLoader(string path) {
         loader = new ParamLoader(std::move(path));
@@ -139,6 +141,8 @@ public:
     template <typename... Args>
     vector<Tensor> operator()(vector<Tensor> inputs, Args... args) {
         vector<std::any> anyArgs = convertArgsToAnyVector(args...);
+        // set static tmp_device to device_ to init layers' op
+        Module::tmp_device = device_;
         if (doLoad) {
             return Forward(inputs, anyArgs);
         }

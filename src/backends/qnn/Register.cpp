@@ -7,10 +7,10 @@ namespace mllm {
 
 class QNNBackendRegister : public BackendCreator {
 public:
-    shared_ptr<Backend> create(BackendConfig config) {
+    Backend* create(BackendConfig config) {
         shared_ptr<MemoryManager> mm = nullptr;
         mm = std::make_shared<QNNMemoryManager>();
-        return std::make_shared<QNNBackend>(mm);
+        return new QNNBackend(mm);
     };
 };
 

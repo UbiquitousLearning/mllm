@@ -108,6 +108,9 @@ protected:
     }
     vector<std::reference_wrapper<Tensor>> run(vector<Tensor> inputs, int N=1) {
         Module::runlistIdx = saved_list_idx;
+        // set backend to current module device and try to create op
+        // TODO: backend fallback
+        backend_ = Backend::global_backends[Module::tmp_device];
         if (Module::doLoad || !inited_loaded) {
             init_run();
             vector<string> layer_next_names = {};
