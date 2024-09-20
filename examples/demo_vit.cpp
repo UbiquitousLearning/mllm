@@ -21,7 +21,6 @@ int main(int argc, char **argv) {
     auto model = ViTModel(config);
     model.load(model_path);
 
-
     auto input_tensor = processor.process("../assets/cat.jpg", 224);
     auto result = model({input_tensor});
     auto token_idx = processor.postProcess(result[0]);

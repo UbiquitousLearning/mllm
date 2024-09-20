@@ -36,7 +36,7 @@ const std::shared_ptr<BackendCreator> GetBackendCreator(BackendType type) {
     if (iter == gExtraCreator.end()) {
         return nullptr;
     }
-    if (nullptr != iter->second.get()) {
+    if (nullptr != iter->second) {
         return iter->second;
     }
     return nullptr;
@@ -51,8 +51,6 @@ bool InsertBackendCreatorMap(BackendType type, shared_ptr<BackendCreator> creato
     return true;
 }
 
-
-
-map<BackendType, Backend*> Backend::global_backends;
+map<BackendType, Backend *> Backend::global_backends;
 
 } // namespace mllm

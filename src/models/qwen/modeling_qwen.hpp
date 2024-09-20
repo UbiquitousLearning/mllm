@@ -1,7 +1,8 @@
 /**
  * @file modeling_qwen.hpp
  * @author Chenghua Wang (chenghua.wang.edu@gmail.com)
- * @brief https://github.com/huggingface/transformers/blob/main/src/transformers/models/qwen2/modeling_qwen2.py
+ * @brief
+ * https://github.com/huggingface/transformers/blob/main/src/transformers/models/qwen2/modeling_qwen2.py
  * @version 0.1
  * @date 2024-04-29
  *
@@ -23,11 +24,14 @@ using namespace mllm;
 class QWenMLP final : public Module {
 public:
     QWenMLP() = default;
-    QWenMLP(int hidden_size, int intermediate_size, const QWenNameConfig &names, const std::string &base_name) {
-        gate_proj = Linear(hidden_size, intermediate_size, false, base_name + names._gate_proj_name);
+    QWenMLP(int hidden_size, int intermediate_size, const QWenNameConfig &names,
+            const std::string &base_name) {
+        gate_proj =
+            Linear(hidden_size, intermediate_size, false, base_name + names._gate_proj_name);
         silu = SiLU(base_name + "act");
         up_proj = Linear(hidden_size, intermediate_size, false, base_name + names._up_proj_name);
-        down_proj = Linear(intermediate_size, hidden_size, false, base_name + names._down_proj_name);
+        down_proj =
+            Linear(intermediate_size, hidden_size, false, base_name + names._down_proj_name);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
@@ -60,11 +64,15 @@ public:
 
         // init layers
         q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._v_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true,
+                        base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true,
+                        base_name + names._v_proj_name);
         o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
-        q_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "q_rope");
-        k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "k_rope");
+        q_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings,
+                      base_name + "q_rope");
+        k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings,
+                      base_name + "k_rope");
         k_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "k_cache");
         v_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "v_cache");
         // mask = SlidingWindowMask(config.sliding_window, base_name + "mask");
@@ -91,7 +99,9 @@ public:
         value_states = v_cache(value_states);
 
         // attention weight
-        auto atten_weight = Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION)) / std::sqrt(head_dim);
+        auto atten_weight =
+            Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION))
+            / std::sqrt(head_dim);
         atten_weight = mask(atten_weight, k_cache.getCacheSeqLen());
         atten_weight = softmax(atten_weight, k_cache.getCacheSeqLen());
 
@@ -101,6 +111,7 @@ public:
         atten_output = o_proj(atten_output);
         return {atten_output};
     }
+
     vector<KVCache *> get_cache() {
         return {&k_cache, &v_cache};
     }
@@ -129,9 +140,12 @@ public:
     QWenDecoder() = default;
     QWenDecoder(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
         self_atten = QWenAttention(config, names, base_name + names._attn_base_name);
-        mlp = QWenMLP(config.hidden_size, config.intermediate_size, names, base_name + names._ffn_base_name);
-        input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
-        post_attention_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
+        mlp = QWenMLP(config.hidden_size, config.intermediate_size, names,
+                      base_name + names._ffn_base_name);
+        input_layernorm =
+            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
+        post_attention_layernorm =
+            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
@@ -166,9 +180,7 @@ public:
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = inputs[0];
-        for (auto &block : blocks) {
-            x = block({x})[0];
-        }
+        for (auto &block : blocks) { x = block({x})[0]; }
         x = norm(x);
         return {x};
     }
@@ -176,9 +188,7 @@ public:
     void clear_kvcache() {
         for (auto &block : blocks) {
             auto kvcahce = block.get_attention().get_cache();
-            for (auto &cache : kvcahce) {
-                cache->clearCache();
-            }
+            for (auto &cache : kvcahce) { cache->clearCache(); }
         }
     }
 
@@ -199,9 +209,11 @@ public:
         // Qwen-0.5 use tied embedding
         // Others use nn.Linear()
         if (tie_embedding_words) {
-            lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, names.token_embd_name + ".weight");
+            lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size,
+                                names.token_embd_name + ".weight");
         } else {
-            lm_head_layer = Linear(config.hidden_size, config.vocab_size, false, names.lm_head_name);
+            lm_head_layer =
+                Linear(config.hidden_size, config.vocab_size, false, names.lm_head_name);
         }
     }
 

@@ -282,7 +282,7 @@ public:
              const TA *A, int64_t lda,
              const TB *B, int64_t ldb,
              TC *C, int64_t ldc,
-             int ith, int nth, float *bias = nullptr) :
+             int ith, int nth, const float *bias = nullptr) :
         A(A),
         B(B), C(C), k(k), lda(lda), ldb(ldb), ldc(ldc), ith(ith), nth(nth), bias(bias) {
     }
@@ -643,7 +643,7 @@ public:
                     const TA *A, int64_t lda,
                     const TB *B, int64_t ldb,
                     TC *C, int64_t ldc,
-                    int ith, int nth, float *bias = nullptr) :
+                    int ith, int nth, const float *bias = nullptr) :
         A(A),
         B(B), C(C), k(k), lda(lda), ldb(ldb), ldc(ldc), ith(ith), nth(nth), bias(bias) {
     }

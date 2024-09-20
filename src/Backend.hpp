@@ -15,8 +15,8 @@ class Backend;
 
 class TensorFunction {
 public:
-    virtual void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args)=0;
-    virtual void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args)=0;
+    virtual void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) = 0;
+    virtual void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) = 0;
 };
 class Backend {
 public:
@@ -51,7 +51,7 @@ public:
      * \return A pointer to the created operation.
      */
     virtual Op *opCreate(const OpParam &op_param, string name = "", int threadCount = 4) = 0;
-    virtual TensorFunction *funcCreate(const TensorFuncType type) = 0;
+    virtual TensorFunction *funcCreate(TensorFuncType type) = 0;
 
     virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
     virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};

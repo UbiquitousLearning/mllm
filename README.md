@@ -1,8 +1,21 @@
+<h1 align="center">
+MLLM
+</h1>
+
+<h3 align="center">
+fast and lightweight <ins>multimodal LLM</ins> inference engine for mobile and edge devices
+</h3>
+
+<h4 align="center">
+| Arm CPU | X86 CPU | Qualcomm DSP(QNN) |
+</h4>
+
+<h4 align="center">
+
 [![Website](https://img.shields.io/badge/website-visit-green)](https://ubiquitouslearning.github.io/mllm_website/)
 [![Documentation](https://img.shields.io/badge/view-docs-blue)](https://ubiquitouslearning.github.io/mllm_website/introduction/getstarted/)
 [![Actions Status](https://github.com/UbiquitousLearning/mllm/workflows/Tests/badge.svg)](https://github.com/UbiquitousLearning/mllm/actions)
-
-**mllm** is a fast and lightweight <ins>multimodal LLM</ins> inference engine for mobile and edge devices.
+</h4>
 
 - Plain C/C++ implementation without dependencies
 - Optimized for multimodal LLMs like fuyu-8B

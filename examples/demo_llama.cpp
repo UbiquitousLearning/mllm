@@ -32,8 +32,7 @@ int main(int argc, char **argv) {
     vector<string> in_strs = {
         " Hello, who are you?",
         " What can you do?",
-        "Please introduce Beijing University of Posts and Telecommunications."
-        };
+        "Please introduce Beijing University of Posts and Telecommunications."};
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto in_str = in_strs[i];

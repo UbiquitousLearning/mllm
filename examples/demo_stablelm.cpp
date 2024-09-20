@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
         "Please introduce Beijing University of Posts and Telecommunications."};
 
     for (int i = 0; i < in_strs.size(); ++i) {
-        const auto& in_str_origin = in_strs[i];
+        const auto &in_str_origin = in_strs[i];
         auto in_str = system_prompt_start + in_str_origin + system_prompt_end;
         std::cout << "[Q] " << in_str_origin << std::endl;
         auto input_tensor = tokenizer.tokenize(in_str, i);

@@ -19,15 +19,15 @@
 
 namespace mllm {
 bool Tokenizer::load_vocab(const std::string &vocab_file) {
-// #ifdef ANDROID_API
-//    auto *fp= AAssetManager_open(asset_manager_, vocab_file.c_str(), AASSET_MODE_RANDOM);
-// #else
+    // #ifdef ANDROID_API
+    //    auto *fp= AAssetManager_open(asset_manager_, vocab_file.c_str(), AASSET_MODE_RANDOM);
+    // #else
 
     FILE *fp = fopen(vocab_file.c_str(), "rb");
-// #endif
+    // #endif
 
     if (fp == nullptr) {
-        std::cout<<vocab_file << " open file failed" << std::endl;
+        std::cout << vocab_file << " open file failed" << std::endl;
         return false;
     }
     // Use a unique_ptr with a custom deleter to ensure the file is closed.
@@ -64,7 +64,7 @@ bool Tokenizer::load_vocab(const std::string &vocab_file) {
     return true;
 }
 
-std::string Tokenizer::replaceString(const std::string &str, char old_char, const std::string& new_char) {
+std::string Tokenizer::replaceString(const std::string &str, char old_char, const std::string &new_char) {
     std::string result;
     for (auto &ch : str) {
         if (ch == old_char) {
@@ -106,7 +106,6 @@ void Tokenizer::token2Tensor(Net *net, vector<token_id_t> tokens, shared_ptr<Ten
     for (int idx = 0; idx < tokens.size(); ++idx) {
         input_tensor->setDataAt<float>(0, 0, idx, 0, tokens[idx]);
     }
-    return;
 }
 
 void Tokenizer::tokens2Tensor(Net *net, vector<vector<token_id_t>> tokens, shared_ptr<Tensor> input_tensor) {
@@ -115,13 +114,11 @@ void Tokenizer::tokens2Tensor(Net *net, vector<vector<token_id_t>> tokens, share
     const auto bsize = static_cast<int>(tokens.size());
     input_tensor->reshape(bsize, 1, static_cast<int>(tokens[0].size()), 1);
     input_tensor->alloc();
-    for (int b = 0; b < bsize; ++b){
+    for (int b = 0; b < bsize; ++b) {
         for (int idx = 0; idx < tokens[b].size(); ++idx) {
             input_tensor->setDataAt<float>(b, 0, idx, 0, tokens[b][idx]);
         }
     }
-
-    return;
 }
 
 // #ifdef ANDROID_API
@@ -132,15 +129,14 @@ void Tokenizer::tokens2Tensor(Net *net, vector<vector<token_id_t>> tokens, share
 //
 // }
 // #endif
-Tokenizer::Tokenizer(const std::string &vocab_file):vocab_file_name_(vocab_file) {
-
-// #ifndef ANDROID_API
-    if(!load_vocab(vocab_file)) exit(-1);
-// #endif
-
+Tokenizer::Tokenizer(const std::string &vocab_file) :
+    vocab_file_name_(vocab_file) {
+    // #ifndef ANDROID_API
+    if (!load_vocab(vocab_file)) exit(-1);
+    // #endif
 }
 string Tokenizer::detokenize(const vector<token_id_t> &tokens) {
-    //int size = tokens.size() - 1;
+    // int size = tokens.size() - 1;
     int size = tokens.size();
     string result;
     for (int i = 0; i < size; i++) {

@@ -30,11 +30,19 @@ add_compile_options(-mavx2)
 add_compile_options(-march=native)
 endif()
 
+if(${MLLM_ENABLE_PYTHON})
+add_library(
+    MLLM_CPU
+    SHARED
+    ${MLLM_CPU_SRC}
+)
+else()
 add_library(
         MLLM_CPU
         OBJECT
         ${MLLM_CPU_SRC}
 )
+endif()
 
 target_include_directories(
         MLLM_CPU

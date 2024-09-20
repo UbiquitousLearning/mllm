@@ -68,7 +68,7 @@ private:
     void init_reset_KVCache(string input_name) {
         vector<string> renameX_names;
         renameX_names.push_back(input_name);
-        const vector<string> suffixs = {"-view", ".split-0", ".split-1", ".split-2","-cat", "-split-0-48"};
+        const vector<string> suffixs = {"-view", ".split-0", ".split-1", ".split-2", "-cat", "-split-0-48"};
         for (const auto in_x_name : renameX_names) {
             for (auto suffix : suffixs) {
                 if (in_x_name.rfind(suffix) == (in_x_name.size() - suffix.size())) {
@@ -96,17 +96,17 @@ protected:
         }
         if (Module::doLoad) {
             op_->load(*Module::loader);
-            inited_loaded=true;
+            inited_loaded = true;
         } else {
-            if(!inited_loaded){
-                Module::loader= new ParamLoader("");
+            if (!inited_loaded) {
+                Module::loader = new ParamLoader("");
                 op_->load(*Module::loader);
-                inited_loaded=true;
+                inited_loaded = true;
             }
         }
         return Module::doLoad;
     }
-    vector<std::reference_wrapper<Tensor>> run(vector<Tensor> inputs, int N=1) {
+    vector<std::reference_wrapper<Tensor>> run(vector<Tensor> inputs, int N = 1) {
         Module::runlistIdx = saved_list_idx;
         // set backend to current module device and try to create op
         // TODO: backend fallback
@@ -114,15 +114,15 @@ protected:
         if (Module::doLoad || !inited_loaded) {
             init_run();
             vector<string> layer_next_names = {};
-            if(N>1){
+            if (N > 1) {
                 for (int i = 0; i < N; ++i) {
                     layer_next_names.push_back("out-" + op_->name() + "-" + std::to_string(i));
                 }
-            }else{
+            } else {
                 layer_next_names = {"out-" + op_->name()};
             }
             for (auto &input : inputs) {
-                if(input.should_in_graphs()){
+                if (input.shouldInGraphs()) {
                     if (Tensor::graphs.find(input.name()) == Tensor::graphs.end() || input.count() != Tensor::graphs[input.name()]->count()) {
                         Tensor::graphs[input.name()] = std::shared_ptr<Tensor>(&input, [](Tensor *) {});
                         Tensor::graphs[input.name()]->setName(input.name());
@@ -144,7 +144,7 @@ protected:
                     Tensor::graphs[next_name]->setName(next_name);
                 }
             }
-            if(Module::doLoad){
+            if (Module::doLoad) {
                 vector<std::reference_wrapper<Tensor>> output_result = {};
                 for (const auto &layer_next_name : layer_next_names) {
                     auto next_name = layername_2_tensorname[layer_next_name];
@@ -156,19 +156,19 @@ protected:
         // input_tensors
         vector<shared_ptr<Tensor>> input_tensors;
         for (auto &input : inputs) {
-            if(input.should_in_graphs()){
+            if (input.shouldInGraphs()) {
                 input_tensors.push_back(Tensor::graphs[input.name()]);
-            }else{
+            } else {
                 input_tensors.push_back(std::shared_ptr<Tensor>(&input, [](Tensor *) {}));
             }
         }
         // output_tensors
         vector<string> layer_next_names = {};
-        if(N>1){
+        if (N > 1) {
             for (int i = 0; i < N; ++i) {
                 layer_next_names.push_back("out-" + op_->name() + "-" + std::to_string(i));
             }
-        }else{
+        } else {
             layer_next_names = {"out-" + op_->name()};
         }
         vector<shared_ptr<Tensor>> output_tensors = {};
@@ -182,23 +182,23 @@ protected:
         auto start_t = mllm_time_us();
 #endif
         switch (Tensor::tensor_status) {
-            case TENSOR_STATIC_INIT: {
-                op_->reshape(input_tensors, output_tensors);
-                op_->setUp(input_tensors, output_tensors);
-                break;
-            }
-            case TENSOR_STATIC_READY: {
-                op_->execute(input_tensors, output_tensors);
-                break;
-            }
-            default: {
-                break;
-            }
+        case TENSOR_STATIC_INIT: {
+            op_->reshape(input_tensors, output_tensors);
+            op_->setUp(input_tensors, output_tensors);
+            break;
+        }
+        case TENSOR_STATIC_READY: {
+            op_->execute(input_tensors, output_tensors);
+            break;
+        }
+        default: {
+            break;
+        }
         }
 #ifdef DEBUGOPTIME
-        if(Tensor::tensor_status == TENSOR_STATIC_READY){
+        if (Tensor::tensor_status == TENSOR_STATIC_READY) {
             auto end_t = mllm_time_us();
-            std::cout<<op_->name() << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+            std::cout << op_->name() << " | " << Tensor::tensor_status << " time: " << (end_t - start_t) / 1000.0F << "ms" << std::endl;
         }
 #endif
         vector<std::reference_wrapper<Tensor>> output_result = {};
@@ -289,7 +289,6 @@ public:
         return ts[0].get();
     }
 };
-
 
 class SiLU final : public Layer {
 public:
@@ -492,10 +491,10 @@ public:
         auto ts = run({input}, 1);
         return ts[0].get();
     }
-    int getCacheSeqLen(){
+    int getCacheSeqLen() {
         return op_->getCacheSeqLen();
     }
-    void clearCache(){
+    void clearCache() {
         return op_->clearCache();
     }
 };

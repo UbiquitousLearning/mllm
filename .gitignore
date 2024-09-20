@@ -32,3 +32,6 @@ examples/demo_deepseek.cpp
 examples/demo_xllm.cpp
 src/models/xllm/*
 src/models/deepseek/*
+tmp/
+py-build-out/
+mllm.egg-info/

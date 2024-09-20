@@ -40,13 +40,13 @@ bool ParamLoader::load(mllm::Tensor *tensor) {
     //  tenor. = data;
     auto *p = tensor->hostPtr<char>();
 
-    if (tensor->cntSize() >= offset.second )
+    if (tensor->cntSize() >= offset.second)
         memcpy(static_cast<void *>(p), static_cast<void *>(data),
-            offset.second); // Cast pointers to void*
+               offset.second); // Cast pointers to void*
     else
         memcpy(static_cast<void *>(p), static_cast<void *>(data),
-            tensor->cntSize()); // Cast pointers to void*
-    delete[] data;         // Free the memory allocated by new
+               tensor->cntSize()); // Cast pointers to void*
+    delete[] data;                 // Free the memory allocated by new
     return true;
 #endif
 }
@@ -129,10 +129,10 @@ std::tuple<uint8_t *, uint64_t> ParamLoader::load(string name) {
 }
 DataType ParamLoader::getDataType(string name) {
     if (data_type_.count(name) != 1) {
-        if (this->path_ != "" && this->fp_ == nullptr) {
+        if (!this->path_.empty() && this->fp_ == nullptr) {
             std::cerr << this->path_ << " not found" << std::endl;
             exit(0);
-        } else if (this->fp_ != nullptr && this->path_ != "") {
+        } else if (this->fp_ != nullptr && !this->path_.empty()) {
             std::cerr << name << " not found" << std::endl;
         }
         return DataType::MLLM_TYPE_COUNT;
@@ -215,7 +215,6 @@ MultiFileParamLoader::~MultiFileParamLoader() {
         }
     }
 }
-
 
 bool ParamLoader::partialLoad(mllm::Tensor *tensor, std::set<int> validRow, int rowNum, int colNum) {
     string name = tensor->name();

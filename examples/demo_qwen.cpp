@@ -52,7 +52,8 @@ int main(int argc, char **argv) {
 
     auto addSystemPrompt = [](const std::string &text) -> std::string {
         std::string ret;
-        std::string pre = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n";
+        std::string pre =
+            "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n";
         ret = pre + text;
         std::string end = "<|im_end|>\n<|im_start|>assistant\n";
         ret = ret + end;
@@ -68,9 +69,9 @@ int main(int argc, char **argv) {
         LlmTextGeneratorOpts opt{
             .max_new_tokens = 100,
             .do_sample = true,
-            .temperature = 0.3f,
+            .temperature = 0.3F,
             .top_k = 50,
-            .top_p = 0.f,
+            .top_p = 0.F,
         };
         model.generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
             auto out_string = tokenizer.detokenize({out_token});

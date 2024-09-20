@@ -18,7 +18,7 @@
 #endif
 #include <Types.hpp>
 #include <assert.h>
-#include <sys/stat.h>
+// #include <sys/stat.h>
 
 namespace mllm {
 class Backend;
@@ -78,8 +78,7 @@ public:
     // static double forward_times;
     // static double forward_times_2;
 private:
-    std::map<Chl, int> chls_={{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3},
-                                {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
+    std::map<Chl, int> chls_ = {{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
     string name_;
     DataType dtype_;
     ChlType ctype_ = BSHD;
@@ -106,7 +105,7 @@ private:
     //  used for AggregatedTensor
     bool aggregated_ = false;
     vector<shared_ptr<Tensor>> aggregated_tensors_;
-    Tensor* deaggregated_tensor_;
+    Tensor *deaggregated_tensor_;
     Chl aggregated_dim_;
     vector<int> aggregated_dims_;
 
@@ -119,7 +118,7 @@ public:
      * \param sequence  tokens numbers in a sequence
      * \param dimension the hidden size
      */
-    explicit Tensor(const int batch, const int head, const int sequence, const int dimension);
+    explicit Tensor(int batch, int head, int sequence, int dimension);
     explicit Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bool do_alloc = true);
     explicit Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU, bool do_alloc = true);
     /**
@@ -143,7 +142,7 @@ public:
      * \param dimension the hidden size
      * \return whether reshape success.
      */
-    bool reshape(const int batch, const int head, const int sequence, const int dimension);
+    bool reshape(int batch, int head, int sequence, int dimension);
 
     /**
      * \brief alloc the memory of Tensor.
@@ -185,7 +184,7 @@ public:
      *        no matter what the value of ctype_ is, these functions will return the size of the corresponding dimension.
      * \return the size of the corresponding dimension
      */
-    std::map<Chl, int>& chls() {
+    std::map<Chl, int> &chls() {
         return chls_;
     }
     /*
@@ -258,7 +257,7 @@ public:
     int numAxes() const {
         return shape_.size();
     }
-    string ShapeString() const {
+    string shapeString() const {
         std::ostringstream stream;
         for (int i : shape_) {
             stream << i << " ";
@@ -291,7 +290,7 @@ public:
     int offset(const int b, const int h = 0, const int s = 0,
                const int d = 0) {
         // batch, head, sequence, dimension
-        if (shape_offset_.size() == 4 & shape_master_.size() == 4) {
+        if (shape_offset_.size() == 4 && shape_master_.size() == 4) {
             const int base_batch_ = shape_master_[0];
             const int base_head_ = shape_master_[1];
             const int base_sequence_ = shape_master_[2];
@@ -338,7 +337,7 @@ public:
      * \return the offset compared to 'host_ptr_'.
      */
     int offset(const vector<int> &indices) {
-        if (shape_offset_.size() == 4 & shape_master_.size() == 4) {
+        if (shape_offset_.size() == 4 && shape_master_.size() == 4) {
             return offset(indices[0], indices[1], indices[2], indices[3]);
         } else {
             int offset = 0;
@@ -353,52 +352,52 @@ public:
     }
 
     int memshape(int index) const {
-        if(master_tensor_) {
-            if(master_tensor_->master_tensor_) {
+        if (master_tensor_ != NULL) {
+            if (master_tensor_->master_tensor_ != NULL) {
                 return master_tensor_->master_tensor_->shape_[index];
-            }else {
+            } else {
                 return master_tensor_->shape_[index];
             }
-        }else{
+        } else {
             return shape(index);
         }
     }
-    int sequence_skip_dim() const {
-        if(master_tensor_) {
-            if(master_tensor_->master_tensor_) {
+    int sequenceSkipDim() const {
+        if (master_tensor_ != NULL) {
+            if (master_tensor_->master_tensor_ != NULL) {
                 auto shape = master_tensor_->master_tensor_->shape_;
                 if (master_tensor_->master_tensor_->ctype_ == BSHD) {
-                    return shape[3]*shape[2];
+                    return shape[3] * shape[2];
                 } else if (master_tensor_->master_tensor_->ctype_ == BHDS) {
                     return shape[3];
                 } else {
-                    std::cout << "sequence_skip_dim() only support for BSHD and BHDS" << std::endl;
+                    std::cout << "sequenceSkipDim() only support for BSHD and BHDS" << std::endl;
                     return -1;
-                }                
-            }else {
+                }
+            } else {
                 auto shape = master_tensor_->shape_;
-                 if (master_tensor_->ctype_ == BSHD) {
-                    return shape[3]*shape[2];
+                if (master_tensor_->ctype_ == BSHD) {
+                    return shape[3] * shape[2];
                 } else if (master_tensor_->ctype_ == BHDS) {
                     return shape[3];
                 } else {
-                    std::cout << "sequence_skip_dim() only support for BSHD and BHDS" << std::endl;
+                    std::cout << "sequenceSkipDim() only support for BSHD and BHDS" << std::endl;
                     return -1;
                 }
             }
-        }else{
+        } else {
             if (ctype_ == BSHD) {
-                return shape_[3]*shape_[2];
+                return shape_[3] * shape_[2];
             } else if (ctype_ == BHDS) {
                 return shape_[3];
             } else if (ctype_ == BDHS) {
-                return shape_[3]*shape_[2];
+                return shape_[3] * shape_[2];
             } else if (ctype_ == DBHS) {
-                return shape_[3]*shape_[2];
+                return shape_[3] * shape_[2];
             } else if (ctype_ == SBHD) {
-                return shape_[3]*shape_[2];
+                return shape_[3] * shape_[2];
             } else {
-                std::cout << "sequence_skip_dim() only support for BSHD and BHDS" << std::endl;
+                std::cout << "sequenceSkipDim() only support for BSHD and BHDS" << std::endl;
                 return -1;
             }
             // return shape_[3]*shape_[2];
@@ -728,7 +727,7 @@ public:
         ctype_ = source.ctype_;
         shape_ = source.shape_;
         count_ = source.count_;
-        if(source.host_ptr_!= nullptr) {
+        if (source.host_ptr_ != nullptr) {
             alloc();
         }
     }
@@ -740,27 +739,27 @@ public:
     }
 
     map<string, shared_ptr<Tensor>> getGraph() {
-        return  graphs;
+        return graphs;
     }
 
     void changeCtype(int size = 0) {
-        if(shape().size() >0) {
+        if (!shape().empty()) {
             size = shape().size();
         }
-        if(size == 4) {
-            vector<int> a = {chls()[BATCH] , chls()[HEAD] , chls()[SEQUENCE] , chls()[DIMENSION]};
+        if (size == 4) {
+            vector<int> a = {chls()[BATCH], chls()[HEAD], chls()[SEQUENCE], chls()[DIMENSION]};
             ctype_ = Chls2Type[a];
-        }else {
-            vector<int> a = {chls()[BATCH] , chls()[TIME] , chls()[HEIGHT] , chls()[WIDTH] , chls()[CHANNLE]};
+        } else {
+            vector<int> a = {chls()[BATCH], chls()[TIME], chls()[HEIGHT], chls()[WIDTH], chls()[CHANNLE]};
             ctype_ = Chls2Type[a];
         }
     }
 
-    bool& transed() {
-        return transed_ ;
+    bool &transed() {
+        return transed_;
     }
-    bool& undiffusion() {
-        return undiffusion_ ;
+    bool &undiffusion() {
+        return undiffusion_;
     }
     void setUndiffusion(bool undiffusion) {
         undiffusion_ = undiffusion;
@@ -769,24 +768,24 @@ public:
         }
     }
 
-    vector<std::pair<Chl, Chl>>& transFrom() {
+    vector<std::pair<Chl, Chl>> &transFrom() {
         return trans_from_;
     }
 
-    bool& should_in_graphs(){
+    bool &shouldInGraphs() {
         return should_in_graphs_;
-    } 
+    }
 
     static Tensor zeros(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU) {
         Tensor tensor1(batch, head, sequence, dimension, bn_type, true);
-        memset(tensor1.hostPtr<float>(),0,tensor1.count() * sizeof(float));
-        tensor1.should_in_graphs()= false;
+        memset(tensor1.hostPtr<float>(), 0, tensor1.count() * sizeof(float));
+        tensor1.shouldInGraphs() = false;
         return tensor1;
     }
     static Tensor ones(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU) {
         Tensor tensor1(batch, head, sequence, dimension, bn_type, true);
-        memset(tensor1.hostPtr<float>(),1,tensor1.count() * sizeof(float));
-        tensor1.should_in_graphs()= false;
+        memset(tensor1.hostPtr<float>(), 1, tensor1.count() * sizeof(float));
+        tensor1.shouldInGraphs() = false;
         return tensor1;
     }
 
@@ -794,43 +793,39 @@ public:
      * \brief Overload the operators.
      * \param data binary data
      * \return Tensor
-    */
-    Tensor& operator+(float data);
-    Tensor& operator-(float data);
-    Tensor& operator*(float data);
-    Tensor& operator/(float data);
-    Tensor& operator/(double data);
-
-
+     */
+    Tensor &operator+(float data);
+    Tensor &operator-(float data);
+    Tensor &operator*(float data);
+    Tensor &operator/(float data);
+    Tensor &operator/(double data);
 
     /**
      * \brief Overload the operators.
      * \param other The Other Tensor
      * \return Tensor
-    */
-    Tensor& operator+(Tensor& other);
-    Tensor& operator-(Tensor& other);
-    Tensor& operator*(Tensor& other);
-    Tensor& operator/(Tensor& other);
+     */
+    Tensor &operator+(Tensor &other);
+    Tensor &operator-(Tensor &other);
+    Tensor &operator*(Tensor &other);
+    Tensor &operator/(Tensor &other);
 
-    Tensor& mean(Chl axis);
+    Tensor &mean(Chl axis);
 
-
-    Tensor& view(int b, int h, int s, int d);
-    Tensor& flatten(Chl axis_start, Chl axis_end);
-    Tensor& transpose(Chl axis0, Chl axis1){
+    Tensor &view(int b, int h, int s, int d);
+    Tensor &flatten(Chl axis_start, Chl axis_end);
+    Tensor &transpose(Chl axis0, Chl axis1) {
         return transpose({{axis0, axis1}});
     }
-    Tensor& transpose(vector<std::pair<Chl, Chl>> axiss);
-    Tensor& clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d);
+    Tensor &transpose(vector<std::pair<Chl, Chl>> axiss);
+    Tensor &clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d);
     Tensor &clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d);
-    static Tensor& cat(vector<Tensor> input_tensors, Chl dims);;
-    static Tensor& mm(Tensor& input0, Tensor& input1);
-    Tensor& norm(int L_n);
-    Tensor& where(float value, Chl axis);
-    static Tensor& range(int start, int end);
-    static vector<std::reference_wrapper<Tensor>> split(Tensor& input, std::vector<int> each_dims, Chl split_dim, int head_size = -1);
-
+    static Tensor &cat(vector<Tensor> input_tensors, Chl dims);
+    static Tensor &mm(Tensor &input0, Tensor &input1);
+    Tensor &norm(int L_n);
+    Tensor &where(float value, Chl axis);
+    static Tensor &range(int start, int end);
+    static vector<std::reference_wrapper<Tensor>> split(Tensor &input, std::vector<int> each_dims, Chl split_dim, int head_size = -1);
 
     /* Functions used for ChildTensor:
      * - deepCopyFrom
@@ -893,8 +888,8 @@ public:
             changeCtype();
             child_tensors_[0]->changeCtype();
             child_tensors_[0]->reshape(b, h, s, d);
-            trans_copy_shape(child_tensors_[0]->shape());
-        } else if (child_tensors_.size() == 1 && child_tensors_[0]->ctype() == BCTHW && master_tensor_->ctype_== BSHD && ctype() != BCTHW) {
+            transCopyShape(child_tensors_[0]->shape());
+        } else if (child_tensors_.size() == 1 && child_tensors_[0]->ctype() == BCTHW && master_tensor_->ctype_ == BSHD && ctype() != BCTHW) {
             auto b = child_tensors_[0]->batch();
             auto c = child_tensors_[0]->channel();
             auto t = child_tensors_[0]->time();
@@ -905,7 +900,7 @@ public:
             // chls_ = origin_c_0;
             // child_tensors_[0]->chls_ = origin_c_1;
 
-            chls_ ={{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
+            chls_ = {{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
             child_tensors_[0]->chls_ = {{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
             for (int i = trans_from_.size() - 1; i >= 0; --i) {
                 auto tf = trans_from_[i];
@@ -921,7 +916,7 @@ public:
             changeCtype();
             child_tensors_[0]->changeCtype();
             child_tensors_[0]->reshape(b, c, t, h, w);
-            trans_copy_shape(child_tensors_[0]->shape());
+            transCopyShape(child_tensors_[0]->shape());
         }
         host_ptr_ = source->hostPtr<void>();
         capacity_ = source->capacity_;
@@ -935,11 +930,11 @@ public:
             shape_offset_ = shape_offset;
             shape_master_ = {source->batch(), source->head(), source->sequence(), source->dimension()};
             if (!std::equal(source->chls_.begin(), source->chls_.end(), chls_.begin())) {
-                if(chls()[SEQUENCE] == source->chls()[DIMENSION] && source->chls()[SEQUENCE] == chls()[DIMENSION]) {
+                if (chls()[SEQUENCE] == source->chls()[DIMENSION] && source->chls()[SEQUENCE] == chls()[DIMENSION]) {
                     shape_master_ = {source->batch(), source->head(), source->dimension(), source->sequence()};
                     shape_offset_ = {shape_offset[0], shape_offset[1], shape_offset[3], shape_offset[2]};
                 } else {
-                    std::cout<<"TOSUPPORT"<<std::endl;
+                    std::cout << "TOSUPPORT" << std::endl;
                 }
             }
             if (source->head() != head()) { // TODO: need to check
@@ -951,13 +946,13 @@ public:
             }
         }
         for (auto &child_tensor : child_tensors_) {
-            auto origin_shape_offset = child_tensor->shape_offset();
-            if (!origin_shape_offset.empty()){
-                if(!shape_offset.empty()){
+            auto origin_shape_offset = child_tensor->shapeOffset();
+            if (!origin_shape_offset.empty()) {
+                if (!shape_offset.empty()) {
                     origin_shape_offset[2] = shape_offset[2];
                 }
                 child_tensor->deepCopyFrom(source, false, origin_shape_offset, head_rep);
-            }else if (!shape_offset.empty()) {
+            } else if (!shape_offset.empty()) {
                 child_tensor->deepCopyFrom(source, false, shape_offset, head_rep);
             } else {
                 child_tensor->deepCopyFrom(source, false, {}, head_rep);
@@ -970,10 +965,10 @@ public:
         deepCopyFrom(&source, copyshape, shape_offset, head_rep);
     }
 
-    vector<int> shape_offset() const {
+    vector<int> shapeOffset() const {
         return shape_offset_;
     }
-    vector<int> shape_master() const {
+    vector<int> shapeMaster() const {
         return shape_master_;
     }
 
@@ -1063,13 +1058,13 @@ public:
         return aggregated_;
     }
 
-    vector<shared_ptr<Tensor>>& aggregated_tensors() {
+    vector<shared_ptr<Tensor>> &aggregatedTensors() {
         return aggregated_tensors_;
     }
-    Tensor *deaggregated_tensor() const {
+    Tensor *deaggregatedTensor() const {
         return deaggregated_tensor_;
     }
-    Chl aggregated_dim() const {
+    Chl aggregatedDim() const {
         return aggregated_dim_;
     }
 
@@ -1077,20 +1072,21 @@ public:
         return backend_->type();
     }
 
-    Tensor&  to(BackendType backend_type);
+    Tensor &to(BackendType backend_type);
     static vector<Tensor> toDevice(vector<Tensor> inputs, BackendType backend_type) {
+        // TODO: implement
         std::cout << "tensor should be transfered across backend" << std::endl;
         return inputs;
     };
     static vector<Tensor> toCPU(vector<Tensor> inputs){
         return toDevice(inputs, MLLM_CPU);
     }
-    static vector<Tensor> toQNN(vector<Tensor> inputs){
+    static vector<Tensor> toQNN(vector<Tensor> inputs) {
         return toDevice(inputs, MLLM_QNN);
     }
 
-    static void reshape_alloc_cross_bn(Tensor &src_t, Tensor &dst_t);
-    static void copy_data_cross_bn(Tensor &src_t, Tensor &dst_t);
+    static void reshapeAllocCrossBn(Tensor &src_t, Tensor &dst_t);
+    static void copyDataCrossBn(Tensor &src_t, Tensor &dst_t);
 
     /* Functions used for 5-D Tensor:
      * - reshape
@@ -1114,7 +1110,7 @@ public:
      * \param width Width of the 2D grid
      * \return Whether the reshape operation was successful.
      */
-    bool reshape(const int batch, const int channel, const int time, const int height, const int width);
+    bool reshape(int batch, int channel, int time, int height, int width);
     /**
      * \brief get the size of the corresponding dimension for 5-D Tensor, contains: batch, head, sequence, dimension.
      *        each Tensor has private variable 'ctype_', which indicates the order of the dimensions in the memory.
@@ -1146,7 +1142,7 @@ public:
         default: return -1;
         }
     }
-    int height()  {
+    int height() {
         assert(shape().size() == 5);
         return legacyShape(chls()[HEIGHT]);
         // switch (ctype_) {
@@ -1157,7 +1153,7 @@ public:
         // default: return -1;
         // }
     }
-    int width()  {
+    int width() {
         assert(shape().size() == 5);
         return legacyShape(chls()[WIDTH]);
         // switch (ctype_) {
@@ -1168,7 +1164,7 @@ public:
         // default: return -1;
         // }
     }
-    int offset(const int b, const int c, const int t, const int h, const int w)  {
+    int offset(const int b, const int c, const int t, const int h, const int w) {
         assert(ctype_ == BCTHW || ctype_ == BTHWC);
         switch (ctype_) {
         case BCTHW:
@@ -1179,7 +1175,7 @@ public:
         }
     }
     template <typename Dtype>
-    Dtype dataAt(const int batch, const int channel, const int time, const int height, const int width)  {
+    Dtype dataAt(const int batch, const int channel, const int time, const int height, const int width) {
         assert(ctype_ == BCTHW || ctype_ == BTHWC);
         return ((Dtype *)host_ptr_)[offset(batch, channel, time, height, width)];
     }
@@ -1194,7 +1190,6 @@ public:
         Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
         typed_ptr[offset(batch, channel, time, height, width)] = value;
     }
-
 
 public:
     /* Functions used for TEST & DEBUG
@@ -1353,7 +1348,7 @@ public:
 
     template <typename Dtype>
     void saveNData(string new_name = "", string ex = "") {
-        if (Tensor::tensor_status == TENSOR_STATIC_READY && shape().size()>0) {
+        if (Tensor::tensor_status == TENSOR_STATIC_READY && !shape().empty()) {
             if (ctype() == BTHWC || ctype() == BCTHW) {
                 save5Data<Dtype>(ex);
                 return;
@@ -1377,7 +1372,7 @@ public:
                 mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
 #endif
             }
-           auto tmp_name =  name();
+            auto tmp_name = name();
             if (new_name.empty()) {
             } else {
                 tmp_name = new_name;
@@ -1555,9 +1550,10 @@ public:
         }
     }
 
-    void trans_copy_shape(const vector<int> &shape) {
+    void transCopyShape(const vector<int> &shape) {
         reshape(shape);
     }
+
 private:
     bool reshape(const vector<int> &shape) {
         assert(shape.size() <= 32);
@@ -1618,7 +1614,7 @@ private:
             break;
         }
         case D_HD: {
-            if(aggregated_tensors_[0]->dimension() ==aggregated_tensors_[1]->dimension()){
+            if (aggregated_tensors_[0]->dimension() == aggregated_tensors_[1]->dimension()) {
                 int dim_size = aggregated_tensors_[0]->dimension();
                 int aggregated_size = aggregated_tensors_.size();
                 h = d / (dim_size * aggregated_size);
@@ -1626,11 +1622,11 @@ private:
                 tensor_id = d_m / dim_size;
                 d = d_m % dim_size;
                 // h = h_;
-            }else {
-                //TODO
+            } else {
+                // TODO
                 auto orin_d = d;
-                int head_size = aggregated_tensors_[0]->head();  
-                int dim_t = d%(dimension()/head_size);
+                int head_size = aggregated_tensors_[0]->head();
+                int dim_t = d % (dimension() / head_size);
                 int old_dim = 0;
                 for (int a = 0; a < aggregated_dims_.size(); ++a) {
                     if (dim_t < aggregated_dims_[a]) {
@@ -1640,7 +1636,7 @@ private:
                     old_dim += aggregated_tensors_[a]->dimension();
                 }
                 // int dim_size = aggregated_tensors_[tensor_id]->dimension();
-                h = d*head_size/dimension();  
+                h = d * head_size / dimension();
                 d = dim_t - old_dim;
                 // std::cout<<tensor_id<<" "<<h<<" "<<d<<" , "<<orin_d<<std::endl;
             }
@@ -1648,17 +1644,17 @@ private:
         }
         case HD: {
             auto orin_d = d;
-            if(aggregated_tensors_[0]->dimension() ==aggregated_tensors_[1]->dimension()){
+            if (aggregated_tensors_[0]->dimension() == aggregated_tensors_[1]->dimension()) {
                 int dim_size = aggregated_tensors_[0]->dimension();
                 int head_size = aggregated_tensors_[0]->head();
                 tensor_id = orin_d / (dim_size * head_size);
                 h = (orin_d - tensor_id * (dim_size * head_size)) / dim_size;
                 d = (orin_d - tensor_id * (dim_size * head_size)) % dim_size;
-            }else {
+            } else {
                 int head_size = aggregated_tensors_[0]->head();
                 int old_dim = 0;
                 for (int a = 0; a < aggregated_dims_.size(); ++a) {
-                    if (d < aggregated_dims_[a]*head_size) {
+                    if (d < aggregated_dims_[a] * head_size) {
                         tensor_id = a;
                         break;
                     }
@@ -1676,9 +1672,9 @@ private:
         }
         return tensor_id;
     }
-    Tensor& getFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors={});
+    Tensor &getFunc(const std::string &suffix, TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors = {});
 
-    static std::vector<std::reference_wrapper<Tensor>> getStaticFunc(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors);
+    static std::vector<std::reference_wrapper<Tensor>> getStaticFunc(vector<std::string> out_names, TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors);
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H

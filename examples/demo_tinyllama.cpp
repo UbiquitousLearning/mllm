@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/tinyllama_vocab.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/tinyllama-1.1b-chat-q4_k.mllm");
-    cmdParser.add<int>("limits", 'l',  "max KV cache size", false, 600);
+    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 600);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
@@ -34,8 +34,7 @@ int main(int argc, char **argv) {
 
     vector<string> in_strs = {
         "Hello, who are you?",
-        "Please introduce Beijing University of Posts and Telecommunications."
-    };
+        "Please introduce Beijing University of Posts and Telecommunications."};
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto in_str_origin = in_strs[i];

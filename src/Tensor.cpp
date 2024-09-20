@@ -25,17 +25,14 @@ Tensor::Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bo
     dtype_ = MLLM_TYPE_F32;
     setBackend(bn);
     reshape(batch, head, sequence, dimension);
-    if (do_alloc) {
-        alloc();
-    }
+    if (do_alloc) { alloc(); }
 }
 
-Tensor::Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type, bool do_alloc){
+Tensor::Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type,
+               bool do_alloc) {
     setBackend(Backend::global_backends[bn_type]);
     reshape(batch, head, sequence, dimension);
-    if (do_alloc) {
-        alloc();
-    }
+    if (do_alloc) { alloc(); }
 }
 
 Tensor::Tensor(const vector<int> &shape) :
@@ -43,22 +40,22 @@ Tensor::Tensor(const vector<int> &shape) :
     reshape(shape);
 }
 
-Tensor::Tensor(int value, Backend *bn){
+Tensor::Tensor(int value, Backend *bn) {
     dtype_ = MLLM_TYPE_F32;
     setBackend(bn);
     reshape(1, 1, 1, 1);
     alloc();
-    should_in_graphs()= false;
-    setDataAt<float>(0,0,0,0,(float)value);    
+    shouldInGraphs() = false;
+    setDataAt<float>(0, 0, 0, 0, (float)value);
 }
 
-Tensor::Tensor(int value, BackendType bn_type){
+Tensor::Tensor(int value, BackendType bn_type) {
     dtype_ = MLLM_TYPE_F32;
     setBackend(Backend::global_backends[bn_type]);
     reshape(1, 1, 1, 1);
     alloc();
-    should_in_graphs()= false;
-    setDataAt<float>(0,0,0,0,(float)value);    
+    shouldInGraphs() = false;
+    setDataAt<float>(0, 0, 0, 0, (float)value);
 }
 
 bool Tensor::reshape(const int batch, const int head, const int sequence, const int dimension) {
@@ -73,28 +70,30 @@ bool Tensor::reshape(const int batch, const int head, const int sequence, const 
 void Tensor::alloc() {
     if (aggregated_) { return; }
     assert(backend_ != nullptr);
-    if (masterTensor() != nullptr) {
-        return;
-    }
-    if (!shape_offset_.empty() & !shape_master_.empty()) {
-        return;
-    }
+    if (masterTensor() != nullptr) { return; }
+    if (!shape_offset_.empty() && !shape_master_.empty()) { return; }
     if (allocated_ != count_) {
         if (host_ptr_ != nullptr) {
             backend_->free(host_ptr_);
             host_ptr_ = nullptr;
         }
         if (count_ > 0) {
-            backend_->alloc(&host_ptr_, cntSize(), 8);
+            // Arm neon should be 16B
+            // AVX 128 should be 16B
+            // AVX 256 should be 32B
+#if defined(__ARM_NEON) && defined(__aarch64__)
+            backend_->alloc(&host_ptr_, cntSize(), 16);
+#else
+            backend_->alloc(&host_ptr_, cntSize(), 32);
+#endif
         }
         allocated_ = count_;
     }
 }
 
-bool Tensor::reshape(const int batch, const int channel, const int time, const int height, const int width) {
-    if (ctype_ != BTHWC) {
-        ctype_ = BCTHW;
-    }
+bool Tensor::reshape(const int batch, const int channel, const int time, const int height,
+                     const int width) {
+    if (ctype_ != BTHWC) { ctype_ = BCTHW; }
     vector<int> shape(5);
     shape[chls()[BATCH]] = batch;
     shape[chls()[CHANNLE]] = channel;
@@ -107,7 +106,8 @@ bool Tensor::reshape(const int batch, const int channel, const int time, const i
 map<string, shared_ptr<Tensor>> Tensor::graphs;
 TensorStatus Tensor::tensor_status;
 
-Tensor& Tensor::getFunc(const std::string& suffix, const TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors){
+Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
+                        vector<float> float_args, vector<Tensor *> other_tensors) {
     const std::string next_name = name_ + "-" + suffix;
     if (Tensor::graphs.find(name_) == Tensor::graphs.end()) {
         Tensor::graphs[name_] = std::shared_ptr<Tensor>(this, [](Tensor *) {});
@@ -116,14 +116,10 @@ Tensor& Tensor::getFunc(const std::string& suffix, const TensorFuncType type, ve
         Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
         Tensor::graphs[next_name]->setName(next_name);
     }
-    if (Module::doLoad) { 
-        return  *Tensor::graphs[next_name];
-    }
+    if (Module::doLoad) { return *Tensor::graphs[next_name]; }
     TensorFunction *func = backend_->funcCreate(type);
-    std::vector<Tensor*> tensorPtrs = {Tensor::graphs[name_].get()};
-    for (auto &other_tensor : other_tensors) {
-        tensorPtrs.push_back(other_tensor);
-    }
+    std::vector<Tensor *> tensorPtrs = {Tensor::graphs[name_].get()};
+    for (auto &other_tensor : other_tensors) { tensorPtrs.push_back(other_tensor); }
 #ifdef DEBUGOPTIME
     auto start_t = mllm_time_us();
 #endif
@@ -133,34 +129,38 @@ Tensor& Tensor::getFunc(const std::string& suffix, const TensorFuncType type, ve
         break;
     }
     case TENSOR_STATIC_READY: {
-        func->execute({Tensor::graphs[next_name].get()},tensorPtrs, float_args);
+        func->execute({Tensor::graphs[next_name].get()}, tensorPtrs, float_args);
         break;
     }
     default: {
     }
     }
 #ifdef DEBUGOPTIME
-    if(Tensor::tensor_status == TENSOR_STATIC_READY){
+    if (Tensor::tensor_status == TENSOR_STATIC_READY) {
         auto end_t = mllm_time_us();
-        std::cout<<next_name << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+        std::cout << next_name << " | " << Tensor::tensor_status
+                  << " time: " << (end_t - start_t) / 1000.0F << "ms" << std::endl;
     }
 #endif
 #ifdef DEBUGSAVETENSOR
     Tensor::graphs[next_name]->saveNData<float>();
 #endif
-    return  *Tensor::graphs[next_name];
+    return *Tensor::graphs[next_name];
 }
 
 /**
  * static function
  */
 
-std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::string> out_names, const TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors){
-    auto backend_h = Backend::global_backends[MLLM_CPU];
+std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::string> out_names,
+                                                                  const TensorFuncType type,
+                                                                  vector<float> float_args,
+                                                                  vector<Tensor *> input_tensors) {
+    auto *backend_h = Backend::global_backends[MLLM_CPU];
     if (!input_tensors.empty() && input_tensors[0]->backend_ != nullptr) {
         backend_h = input_tensors[0]->backend();
     }
-    for (auto out_name: out_names) {
+    for (auto out_name : out_names) {
         if (Tensor::graphs.find(out_name) == Tensor::graphs.end()) {
             Tensor::graphs[out_name] = std::make_shared<Tensor>(backend_h);
             Tensor::graphs[out_name]->setName(out_name);
@@ -168,16 +168,12 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
     }
     if (Module::doLoad) {
         std::vector<std::reference_wrapper<Tensor>> results;
-        for (auto out_name: out_names) {
-            results.push_back(*Tensor::graphs[out_name]);
-        }
+        for (auto out_name : out_names) { results.push_back(*Tensor::graphs[out_name]); }
         return results;
     }
     TensorFunction *func = backend_h->funcCreate(type);
-    std::vector<Tensor*> outPtrs;
-    for (auto out_name: out_names) {
-        outPtrs.push_back(Tensor::graphs[out_name].get());
-    }
+    std::vector<Tensor *> outPtrs;
+    for (auto out_name : out_names) { outPtrs.push_back(Tensor::graphs[out_name].get()); }
 #ifdef DEBUGOPTIME
     auto start_t = mllm_time_us();
 #endif
@@ -194,20 +190,17 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
     }
     }
 #ifdef DEBUGOPTIME
-    if(Tensor::tensor_status == TENSOR_STATIC_READY){
+    if (Tensor::tensor_status == TENSOR_STATIC_READY) {
         auto end_t = mllm_time_us();
-        std::cout<<out_names[0] << " | "<<Tensor::tensor_status<<" time: " << (end_t - start_t)/1000.0F <<"ms"<< std::endl;
+        std::cout << out_names[0] << " | " << Tensor::tensor_status
+                  << " time: " << (end_t - start_t) / 1000.0F << "ms" << std::endl;
     }
 #endif
 #ifdef DEBUGSAVETENSOR
-    for (auto out_name: out_names) {
-        Tensor::graphs[out_name]->saveNData<float>();
-    }
+    for (auto out_name : out_names) { Tensor::graphs[out_name]->saveNData<float>(); }
 #endif
     std::vector<std::reference_wrapper<Tensor>> results;
-    for (auto out_name: out_names) {
-        results.push_back(*Tensor::graphs[out_name]);
-    }
+    for (auto out_name : out_names) { results.push_back(*Tensor::graphs[out_name]); }
     return results;
 }
 
@@ -274,18 +267,10 @@ Tensor &Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d)
     axis_s.push_back(h.size());
     axis_s.push_back(s.size());
     axis_s.push_back(d.size());
-    for (auto &axis : b) {
-        axis_s.push_back((float)axis);
-    }
-    for (auto &axis : h) {
-        axis_s.push_back((float)axis);
-    }
-    for (auto &axis : s) {
-        axis_s.push_back((float)axis);
-    }
-    for (auto &axis : d) {
-        axis_s.push_back((float)axis);
-    }
+    for (auto &axis : b) { axis_s.push_back((float)axis); }
+    for (auto &axis : h) { axis_s.push_back((float)axis); }
+    for (auto &axis : s) { axis_s.push_back((float)axis); }
+    for (auto &axis : d) { axis_s.push_back((float)axis); }
     return getFunc("clip", FUNC_CLIP, axis_s);
 }
 
@@ -295,18 +280,10 @@ Tensor &Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s,
     axis_s.push_back(h.size());
     axis_s.push_back(s.size());
     axis_s.push_back(d.size());
-    for (auto &axis : b) {
-        axis_s.push_back((float)axis);
-    }
-    for (auto &axis : h) {
-        axis_s.push_back((float)axis);
-    }
-    for (auto &axis : s) {
-        axis_s.push_back((float)axis);
-    }
-    for (auto &axis : d) {
-        axis_s.push_back((float)axis);
-    }
+    for (auto &axis : b) { axis_s.push_back((float)axis); }
+    for (auto &axis : h) { axis_s.push_back((float)axis); }
+    for (auto &axis : s) { axis_s.push_back((float)axis); }
+    for (auto &axis : d) { axis_s.push_back((float)axis); }
     return getFunc("clipaxis", FUNC_CLIPAXIS, axis_s);
 }
 
@@ -323,32 +300,35 @@ Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
     for (const auto &input_tensor : input_tensors) {
         inputs.push_back(Tensor::graphs[input_tensor.name()].get());
     }
-    return getStaticFunc({input_tensors[0].name() + "-cat"}, FUNC_CAT, 
-                        {(float)axis}, inputs)[0].get();
+    return getStaticFunc({input_tensors[0].name() + "-cat"}, FUNC_CAT, {(float)axis}, inputs)[0].get();
 }
 
 Tensor &Tensor::mm(Tensor &input0, Tensor &input1) {
-    return getStaticFunc({input0.name() + "-mm-" + input1.name()}, FUNC_MM, 
-                        {}, {Tensor::graphs[input0.name()].get(), Tensor::graphs[input1.name()].get()})[0].get();
+    return getStaticFunc(
+               {input0.name() + "-mm-" + input1.name()}, FUNC_MM, {},
+               {Tensor::graphs[input0.name()].get(), Tensor::graphs[input1.name()].get()})[0]
+        .get();
 }
 
 Tensor &Tensor::range(int start, int end) {
-    return getStaticFunc({"range-" + std::to_string(start) + "-" + std::to_string(end)}, FUNC_RANGE, 
-                        {(float)start, (float)end}, {})[0].get();
+    return getStaticFunc({"range-" + std::to_string(start) + "-" + std::to_string(end)}, FUNC_RANGE,
+                         {(float)start, (float)end}, {})[0]
+        .get();
 }
 
-vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<int> each_dims, Chl split_dim, int head_size) {
+vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<int> each_dims,
+                                                     Chl split_dim, int head_size) {
     vector<std::string> next_names;
     std::vector<float> args;
     for (int i = 0; i < each_dims.size(); ++i) {
         args.push_back(each_dims[i]);
-        // next_names.push_back(input.name() + "-split-" + std::to_string(i) + "-" + std::to_string(each_dims[i]));
+        // next_names.push_back(input.name() + "-split-" + std::to_string(i) + "-" +
+        // std::to_string(each_dims[i]));
         next_names.push_back(input.name() + ".split-" + std::to_string(i));
     }
     args.push_back(split_dim);
     args.push_back(head_size);
-    return getStaticFunc(next_names, FUNC_SPLIT, 
-                        args, {Tensor::graphs[input.name()].get()});
+    return getStaticFunc(next_names, FUNC_SPLIT, args, {Tensor::graphs[input.name()].get()});
 }
 
 } // namespace mllm

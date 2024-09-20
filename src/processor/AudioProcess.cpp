@@ -149,8 +149,8 @@ std::vector<std::vector<float>> readFeats(const std::shared_ptr<wenet::FeaturePi
     bool end_flag = false;
     std::vector<std::vector<float>> chunk_feats;
     while (!end_flag) {
-        // Read `num_frames_` of frame and extract features. 
-        if (!feature_pipeline->Read(num_frames_, &chunk_feats)){ 
+        // Read `num_frames_` of frame and extract features.
+        if (!feature_pipeline->Read(num_frames_, &chunk_feats)) {
             // If the feat is end, pad the feat to `num_frames_` frames.
             int padding_len = num_frames_ - chunk_feats.size();
             std::vector<float> zero_vector(feature_dim_, 0);
