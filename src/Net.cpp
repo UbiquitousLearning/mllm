@@ -4,7 +4,6 @@
 #include "Backend.hpp"
 #include <vector>
 
-
 namespace mllm {
 
 Net::Net(BackendConfig config) {
@@ -25,8 +24,8 @@ void Net::convert(vector<NetParameter> &param, BackendType backend_type, int thr
             names.push_back(out_t->name);
         }
 
-        for (auto *t:sub_param.net_tensors) {
-            if(t->in == NULL){
+        for (auto *t : sub_param.net_tensors) {
+            if (t->in == NULL) {
                 auto *in_tensor = t;
                 tensors_[in_tensor->name] = std::make_shared<Tensor>(backends_[backend_type].get());
                 tensors_[in_tensor->name]->setName(in_tensor->name);
@@ -41,7 +40,7 @@ void Net::convert(vector<NetParameter> &param, BackendType backend_type, int thr
     for (int i = 0; i < (int)param.size(); ++i) {
         param[i].topologySort();
         shared_ptr<Graph> subg_1;
-        subg_1.reset(new Graph( param[i], backends_[backend_type].get(), tensors_, threadCount));
+        subg_1.reset(new Graph(param[i], backends_[backend_type].get(), tensors_, threadCount));
         subGraphs_["G" + std::to_string(i)] = subg_1;
     }
 }

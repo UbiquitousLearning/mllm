@@ -5,7 +5,6 @@
 #include <functional>
 #include "ParamLoader.hpp"
 
-
 #include <chrono>
 #ifdef __ARM_NEON
 #include <arm_neon.h>
@@ -16,13 +15,13 @@
 
 using namespace mllm;
 
-void mllm_add_fp32(float* a, float*b, float*c, int n);
-void mllm_sub_fp32(float* a, float* b, float* c, int n);
-void mllm_mul_fp32(float* a, float* b, float* c, int n);
-void mllm_div_fp32(float* a, float* b, float* c, int n);
+void mllm_add_fp32(float *a, float *b, float *c, int n);
+void mllm_sub_fp32(float *a, float *b, float *c, int n);
+void mllm_mul_fp32(float *a, float *b, float *c, int n);
+void mllm_div_fp32(float *a, float *b, float *c, int n);
 
-void mllm_add_fp32(float* a, float value, float* c, int n);
-void mllm_sub_fp32(float* a, float value, float* c, int n);
-void mllm_mul_fp32(float* a, float value, float* c, int n);
-void mllm_div_fp32(float* a, float value, float* c, int n);
-#endif //MLLM_ARITHMETIC_HPP
+void mllm_add_fp32(float *a, float value, float *c, int n);
+void mllm_sub_fp32(float *a, float value, float *c, int n);
+void mllm_mul_fp32(float *a, float value, float *c, int n);
+void mllm_div_fp32(float *a, float value, float *c, int n);
+#endif // MLLM_ARITHMETIC_HPP

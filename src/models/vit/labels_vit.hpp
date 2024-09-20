@@ -5,7 +5,8 @@
 #ifndef LABELS_FUYU_HPP
 #define LABELS_FUYU_HPP
 
-
+#include <map>
+#include <string>
 std::map<int, std::string> imagenet_id2label = {
     {0, "tench, Tinca tinca"},
     {1, "goldfish, Carassius auratus"},
@@ -1009,5 +1010,4 @@ std::map<int, std::string> imagenet_id2label = {
     {999, "toilet tissue, toilet paper, bathroom tissue"},
 };
 
-
-#endif //LABELS_FUYU_HPP
+#endif // LABELS_FUYU_HPP

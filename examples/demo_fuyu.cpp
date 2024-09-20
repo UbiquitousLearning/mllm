@@ -31,12 +31,10 @@ int main(int argc, char **argv) {
 
     std::vector<vector<string>> in_imgs = {
         {"../assets/bus.png"},
-        {"../assets/two_cats.jpg"}
-    };
+        {"../assets/two_cats.jpg"}};
     vector<string> in_strs = {
         "Generate a coco-style caption.\n",
-        "What's this?\n"
-    };
+        "What's this?\n"};
 
     for (int inId = 0; inId < in_strs.size(); ++inId) {
         auto in_str = in_strs[inId];

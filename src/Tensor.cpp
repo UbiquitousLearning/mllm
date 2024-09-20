@@ -35,7 +35,8 @@ Tensor::Tensor(int batch, int head, int sequence, int dimension, BackendType bn_
     if (do_alloc) { alloc(); }
 }
 
-Tensor::Tensor(const vector<int> &shape) : host_ptr_(), capacity_(0) {
+Tensor::Tensor(const vector<int> &shape) :
+    host_ptr_(), capacity_(0) {
     reshape(shape);
 }
 
@@ -44,7 +45,7 @@ Tensor::Tensor(int value, Backend *bn) {
     setBackend(bn);
     reshape(1, 1, 1, 1);
     alloc();
-    should_in_graphs() = false;
+    shouldInGraphs() = false;
     setDataAt<float>(0, 0, 0, 0, (float)value);
 }
 
@@ -53,7 +54,7 @@ Tensor::Tensor(int value, BackendType bn_type) {
     setBackend(Backend::global_backends[bn_type]);
     reshape(1, 1, 1, 1);
     alloc();
-    should_in_graphs() = false;
+    shouldInGraphs() = false;
     setDataAt<float>(0, 0, 0, 0, (float)value);
 }
 
@@ -70,7 +71,7 @@ void Tensor::alloc() {
     if (aggregated_) { return; }
     assert(backend_ != nullptr);
     if (masterTensor() != nullptr) { return; }
-    if (!shape_offset_.empty() & !shape_master_.empty()) { return; }
+    if (!shape_offset_.empty() && !shape_master_.empty()) { return; }
     if (allocated_ != count_) {
         if (host_ptr_ != nullptr) {
             backend_->free(host_ptr_);
@@ -155,7 +156,7 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
                                                                   const TensorFuncType type,
                                                                   vector<float> float_args,
                                                                   vector<Tensor *> input_tensors) {
-    auto backend_h = Backend::global_backends[MLLM_CPU];
+    auto *backend_h = Backend::global_backends[MLLM_CPU];
     if (!input_tensors.empty() && input_tensors[0]->backend_ != nullptr) {
         backend_h = input_tensors[0]->backend();
     }
@@ -299,8 +300,7 @@ Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
     for (const auto &input_tensor : input_tensors) {
         inputs.push_back(Tensor::graphs[input_tensor.name()].get());
     }
-    return getStaticFunc({input_tensors[0].name() + "-cat"}, FUNC_CAT, {(float)axis}, inputs)[0]
-        .get();
+    return getStaticFunc({input_tensors[0].name() + "-cat"}, FUNC_CAT, {(float)axis}, inputs)[0].get();
 }
 
 Tensor &Tensor::mm(Tensor &input0, Tensor &input1) {

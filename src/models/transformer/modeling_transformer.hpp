@@ -11,13 +11,11 @@
 
 using namespace mllm;
 
-
 enum AttnQKVSplitType {
     SPLIT_NONE = 0,
     SPLIT_HD = Chl::HD,
     SPLIT_D_HD = Chl::D_HD,
 };
-
 
 class MultiHeadAttention final : public Module {
     Layer qkv_proj;
@@ -41,9 +39,9 @@ class MultiHeadAttention final : public Module {
 
 public:
     MultiHeadAttention() = default;
-    MultiHeadAttention(int hidden_dim, int head_size,int kv_head_size, int attn_hidden_dim,
+    MultiHeadAttention(int hidden_dim, int head_size, int kv_head_size, int attn_hidden_dim,
                        AttnQKVSplitType do_qkv_proj, bool post_qkv_norm, bool bias_kv_cat,
-                       RoPEType RoPE_type, float rope_theta, int max_position_embeddings, 
+                       RoPEType RoPE_type, float rope_theta, int max_position_embeddings,
                        int cache_limit, bool do_mask, bool bias,
                        const TransformerNameConfig &names, const string &base_name) {
         attn_hidden_dim_ = attn_hidden_dim;
@@ -66,8 +64,8 @@ public:
             k_rope = RoPE(RoPE_type, rope_theta, max_position_embeddings, base_name + "k_rope");
         }
         if (cache_limit > 0) {
-            k_cache = KVCache(head_size/kv_head_size, cache_limit, base_name + "k_cache");
-            v_cache = KVCache(head_size/kv_head_size, cache_limit, base_name + "v_cache");
+            k_cache = KVCache(head_size / kv_head_size, cache_limit, base_name + "k_cache");
+            v_cache = KVCache(head_size / kv_head_size, cache_limit, base_name + "v_cache");
         }
         softmax = Softmax(DIMENSION, do_mask, base_name + "softmax");
         o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, bias, base_name + names._o_proj_name);
@@ -76,7 +74,7 @@ public:
             bias_v = Parameter(1, 1, head_size, attn_hidden_dim, base_name + "bias_v");
         }
     }
-    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         Tensor q, k, v;
         if (qkv_proj.ready()) {
             auto qkv = qkv_proj(inputs[0]);
@@ -112,8 +110,8 @@ public:
         auto qk = Tensor::mm(q, k);
         qk = qk / std::sqrt(attn_hidden_dim_);
         if (k_cache.ready() && v_cache.ready()) {
-            qk = softmax(qk, k_cache.getCacheSeqLen());          
-        }else{
+            qk = softmax(qk, k_cache.getCacheSeqLen());
+        } else {
             qk = softmax(qk);
         }
         auto o = Tensor::mm(qk, v);
@@ -121,8 +119,8 @@ public:
         o = o_proj(o);
         return {o};
     }
-    vector<KVCache*> get_cache() {
-        return {&k_cache,&v_cache};
+    vector<KVCache *> get_cache() {
+        return {&k_cache, &v_cache};
     }
 };
 

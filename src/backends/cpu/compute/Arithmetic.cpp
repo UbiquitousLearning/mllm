@@ -1,21 +1,21 @@
 #include "Arithmetic.hpp"
 
-void mllm_add_fp32(float* a, float*b, float*c, int n){
-    int i=0;
-        // 使用AVX/AVX2寄存器进行8个浮点数的批量处理
+void mllm_add_fp32(float *a, float *b, float *c, int n) {
+    int i = 0;
+    // 使用AVX/AVX2寄存器进行8个浮点数的批量处理
 #if defined(__ARM_NEON)
     // 使用NEON寄存器进行4个浮点数的批量处理
     for (i = 0; i <= n - 4; i += 4) {
         // 加载向量
         float32x4_t vec_a = vld1q_f32(&a[i]);
         float32x4_t vec_b = vld1q_f32(&b[i]);
-        
+
         // 向量加法
         float32x4_t vec_c = vaddq_f32(vec_a, vec_b);
-        
+
         // 存储结果
         vst1q_f32(&c[i], vec_c);
-    }   
+    }
 #elif defined(__AVX2__) || defined(__AVX__)
     for (i = 0; i <= n - 8; i += 8) {
         // 加载向量
@@ -27,14 +27,14 @@ void mllm_add_fp32(float* a, float*b, float*c, int n){
 
         // 存储结果
         _mm256_storeu_ps(&c[i], vec_c);
-    } 
+    }
 #endif
     // 处理剩余元素
     for (; i < n; i++) {
         c[i] = a[i] + b[i];
     }
 }
-void mllm_sub_fp32(float* a, float* b, float* c, int n) {
+void mllm_sub_fp32(float *a, float *b, float *c, int n) {
     int i = 0;
 
     // 使用NEON寄存器进行4个浮点数的批量处理
@@ -43,13 +43,13 @@ void mllm_sub_fp32(float* a, float* b, float* c, int n) {
         // 加载向量
         float32x4_t vec_a = vld1q_f32(&a[i]);
         float32x4_t vec_b = vld1q_f32(&b[i]);
-        
+
         // 向量减法
         float32x4_t vec_c = vsubq_f32(vec_a, vec_b);
-        
+
         // 存储结果
         vst1q_f32(&c[i], vec_c);
-    }   
+    }
 #elif defined(__AVX2__) || defined(__AVX__)
     // 使用AVX/AVX2寄存器进行8个浮点数的批量处理
     for (i = 0; i <= n - 8; i += 8) {
@@ -62,14 +62,14 @@ void mllm_sub_fp32(float* a, float* b, float* c, int n) {
 
         // 存储结果
         _mm256_storeu_ps(&c[i], vec_c);
-    } 
+    }
 #endif
     // 处理剩余元素
     for (; i < n; i++) {
         c[i] = a[i] - b[i];
     }
 }
-void mllm_mul_fp32(float* a, float* b, float* c, int n) {
+void mllm_mul_fp32(float *a, float *b, float *c, int n) {
     int i = 0;
 
     // 使用NEON寄存器进行4个浮点数的批量处理
@@ -78,13 +78,13 @@ void mllm_mul_fp32(float* a, float* b, float* c, int n) {
         // 加载向量
         float32x4_t vec_a = vld1q_f32(&a[i]);
         float32x4_t vec_b = vld1q_f32(&b[i]);
-        
+
         // 向量乘法
         float32x4_t vec_c = vmulq_f32(vec_a, vec_b);
-        
+
         // 存储结果
         vst1q_f32(&c[i], vec_c);
-    }   
+    }
 #elif defined(__AVX2__) || defined(__AVX__)
     // 使用AVX/AVX2寄存器进行8个浮点数的批量处理
     for (i = 0; i <= n - 8; i += 8) {
@@ -97,14 +97,14 @@ void mllm_mul_fp32(float* a, float* b, float* c, int n) {
 
         // 存储结果
         _mm256_storeu_ps(&c[i], vec_c);
-    } 
+    }
 #endif
     // 处理剩余元素
     for (; i < n; i++) {
         c[i] = a[i] * b[i];
     }
 }
-void mllm_div_fp32(float* a, float* b, float* c, int n) {
+void mllm_div_fp32(float *a, float *b, float *c, int n) {
     int i = 0;
 
     // 使用NEON寄存器进行4个浮点数的批量处理
@@ -113,13 +113,13 @@ void mllm_div_fp32(float* a, float* b, float* c, int n) {
         // 加载向量
         float32x4_t vec_a = vld1q_f32(&a[i]);
         float32x4_t vec_b = vld1q_f32(&b[i]);
-        
+
         // 向量除法
         float32x4_t vec_c = vdivq_f32(vec_a, vec_b);
-        
+
         // 存储结果
         vst1q_f32(&c[i], vec_c);
-    }   
+    }
 #elif defined(__AVX2__) || defined(__AVX__)
     // 使用AVX/AVX2寄存器进行8个浮点数的批量处理
     for (i = 0; i <= n - 8; i += 8) {
@@ -132,7 +132,7 @@ void mllm_div_fp32(float* a, float* b, float* c, int n) {
 
         // 存储结果
         _mm256_storeu_ps(&c[i], vec_c);
-    } 
+    }
 #endif
     // 处理剩余元素
     for (; i < n; i++) {
@@ -140,8 +140,7 @@ void mllm_div_fp32(float* a, float* b, float* c, int n) {
     }
 }
 
-
-void mllm_add_fp32(float* a, float value, float* c, int n) {
+void mllm_add_fp32(float *a, float value, float *c, int n) {
     int i = 0;
 
     // 使用NEON寄存器进行4个浮点数的批量处理
@@ -183,7 +182,7 @@ void mllm_add_fp32(float* a, float value, float* c, int n) {
         c[i] = a[i] + value;
     }
 }
-void mllm_sub_fp32(float* a, float value, float* c, int n) {
+void mllm_sub_fp32(float *a, float value, float *c, int n) {
     int i = 0;
 
 #if defined(__ARM_NEON)
@@ -211,7 +210,7 @@ void mllm_sub_fp32(float* a, float value, float* c, int n) {
         c[i] = a[i] - value;
     }
 }
-void mllm_mul_fp32(float* a, float value, float* c, int n) {
+void mllm_mul_fp32(float *a, float value, float *c, int n) {
     int i = 0;
 
 #if defined(__ARM_NEON)
@@ -237,7 +236,7 @@ void mllm_mul_fp32(float* a, float value, float* c, int n) {
         c[i] = a[i] * value;
     }
 }
-void mllm_div_fp32(float* a, float value, float* c, int n) {
+void mllm_div_fp32(float *a, float value, float *c, int n) {
     int i = 0;
 
 #if defined(__ARM_NEON)
@@ -263,4 +262,3 @@ void mllm_div_fp32(float* a, float value, float* c, int n) {
         c[i] = a[i] / value;
     }
 }
-

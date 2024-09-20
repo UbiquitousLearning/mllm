@@ -8,13 +8,13 @@
 #include <pthread.h>
 #include "SGEMM.hpp"
 
-#define ASSERT(x)                                                                                  \
-    do {                                                                                           \
-        if (!(x)) {                                                                                \
-            fflush(stdout);                                                                        \
-            fprintf(stderr, "MLLM_ASSERT: %s:%d: %s\n", __FILE__, __LINE__, #x);                   \
-            abort();                                                                               \
-        }                                                                                          \
+#define ASSERT(x)                                                                \
+    do {                                                                         \
+        if (!(x)) {                                                              \
+            fflush(stdout);                                                      \
+            fprintf(stderr, "MLLM_ASSERT: %s:%d: %s\n", __FILE__, __LINE__, #x); \
+            abort();                                                             \
+        }                                                                        \
     } while (0)
 
 ErrorCode sparse_mat_mul_id(Tensor *x, Tensor *W, Tensor *ids, Tensor *dst, int thread_count) {
@@ -152,7 +152,7 @@ ErrorCode mat_mul_sparse(Tensor *x, Tensor *W, Tensor *dst, int thread_count) {
         for (int h = 0; h < H; h++) {
             auto b_W = b % B_W;
             auto h_W = h % H_W;
-#pragma omp parallel for num_threads(                                                              \
+#pragma omp parallel for num_threads( \
         thread_count) // can not put above for(int n = 0;n < N;n++). that will cause accessing dst
                       // line n at the same time
             for (int m = 0; m < M; m++) {
@@ -200,10 +200,10 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
 #ifdef LLAMAFILE_SGEMM
     if (check_llamafile_sgemm(N, M, K / blck_size(src0->dtype()), src1->dtype(), src0->dtype(),
                               dst->dtype())
-        && dst->aggregated_tensors().empty()) {
-        const int ld_src1 = src1->sequence_skip_dim();
-        const int ld_src0 = src0->sequence_skip_dim();
-        const int ld_dst = dst->sequence_skip_dim();
+        && dst->aggregatedTensors().empty()) {
+        const int ld_src1 = src1->sequenceSkipDim();
+        const int ld_src0 = src0->sequenceSkipDim();
+        const int ld_dst = dst->sequenceSkipDim();
         int is_0 =
             (src1->batch() == 1 && src1->head() == 1 && src1->batch() != src0->batch()) ? 0 : 1;
 #pragma omp parallel for collapse(3) num_threads(thread_count)
@@ -280,10 +280,10 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     if (check_llamafile_sgemm(N, M, K / blck_size(src1->dtype()), src1->dtype(), src0->dtype(),
                               dst->dtype())
         && dst->dtypeAt(0, 0, 0, 0) == MLLM_TYPE_F32 && dst->ctype() == BSHD
-        && dst->aggregated_tensors().empty()) {
-        const int ld_src1 = src1->sequence_skip_dim();
-        const int ld_src0 = src0->sequence_skip_dim();
-        const int ld_dst = dst->sequence_skip_dim();
+        && dst->aggregatedTensors().empty()) {
+        const int ld_src1 = src1->sequenceSkipDim();
+        const int ld_src0 = src0->sequenceSkipDim();
+        const int ld_dst = dst->sequenceSkipDim();
 #pragma omp parallel for collapse(3) num_threads(thread_count)
         for (int64_t b = 0; b < dst->batch(); b++) {
             for (int64_t h = 0; h < dst->head(); h++) {
@@ -820,10 +820,10 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
 
     if (check_llamafile_sgemm(use_N, M, use_K / blck_size(src0->dtype()), src1->dtype(),
                               src0->dtype(), dst->dtype())
-        && dst->aggregated_tensors().empty()) {
-        const int ld_src1 = src1->sequence_skip_dim();
-        const int ld_src0 = src0->sequence_skip_dim();
-        const int ld_dst = dst->sequence_skip_dim();
+        && dst->aggregatedTensors().empty()) {
+        const int ld_src1 = src1->sequenceSkipDim();
+        const int ld_src0 = src0->sequenceSkipDim();
+        const int ld_dst = dst->sequenceSkipDim();
         int is_0 = (src1->batch() == 1 && src1->head() == 1) ? 0 : 1;
 #pragma omp parallel for collapse(3) num_threads(thread_count)
         for (int64_t b = 0; b < dst->batch(); b++) {
@@ -895,10 +895,10 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
 #ifdef LLAMAFILE_SGEMM
     if (check_llamafile_sgemm(use_N, M, use_K / blck_size(src1->dtype()), src1->dtype(),
                               src0->dtype(), dst->dtype())
-        && !support_bias && dst->ctype() == BSHD && dst->aggregated_tensors().empty()) {
-        const int ld_src1 = src1->sequence_skip_dim();
-        const int ld_src0 = src0->sequence_skip_dim();
-        const int ld_dst = dst->sequence_skip_dim();
+        && !support_bias && dst->ctype() == BSHD && dst->aggregatedTensors().empty()) {
+        const int ld_src1 = src1->sequenceSkipDim();
+        const int ld_src0 = src0->sequenceSkipDim();
+        const int ld_dst = dst->sequenceSkipDim();
 #pragma omp parallel for collapse(3) num_threads(thread_count)
         for (int64_t b = 0; b < dst->batch(); b++) {
             for (int64_t h = 0; h < dst->head(); h++) {

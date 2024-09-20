@@ -89,7 +89,7 @@ protected:
     unordered_map<string, vector<shared_ptr<Tensor>>> ops_output_tensors_; // opname: op's output Tensors
     unordered_map<string, shared_ptr<Tensor>> tensors_;                    // opname: Tensors
     unordered_map<string, shared_ptr<Op>> ops_;                            // opname: op
-    unordered_map<string, bool> ops_not_inputs_empty_;                      // opname: ops_not_inputs_empty
+    unordered_map<string, bool> ops_not_inputs_empty_;                     // opname: ops_not_inputs_empty
 
     vector<string> op_names_;
 
