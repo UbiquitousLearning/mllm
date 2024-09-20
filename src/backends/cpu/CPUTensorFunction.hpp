@@ -327,8 +327,9 @@ public:
 #pragma omp parallel for collapse(2) num_threads(CPUBackend::cpu_threads)
             for (int c = 0; c < input0->head(); ++c) {
                 for (int h = 0; h < input0->sequence(); ++h) {
-                    mllm_add_fp32(input0->ptrAt<float>(n_0, c, h, 0), input1->ptrAt<float>(n_0, c, h, 0),
-                                  outputs[0]->ptrAt<float>(n_0, c, h, 0), input0->dimension());
+                    mllm_add_fp32(input0->ptrAt<float>(n_0, c, h, 0),
+                                  input1->ptrAt<float>(n_1, c, h, 0),
+                                  outputs[0]->ptrAt<float>(n, c, h, 0), input0->dimension());
                 }
             }
         }
@@ -354,8 +355,9 @@ public:
 #pragma omp parallel for collapse(2) num_threads(CPUBackend::cpu_threads)
             for (int c = 0; c < input0->head(); ++c) {
                 for (int h = 0; h < input0->sequence(); ++h) {
-                    mllm_sub_fp32(input0->ptrAt<float>(n_0, c, h, 0), input1->ptrAt<float>(n_0, c, h, 0),
-                                  outputs[0]->ptrAt<float>(n_0, c, h, 0), input0->dimension());
+                    mllm_sub_fp32(input0->ptrAt<float>(n_0, c, h, 0),
+                                  input1->ptrAt<float>(n_1, c, h, 0),
+                                  outputs[0]->ptrAt<float>(n, c, h, 0), input0->dimension());
                 }
             }
         }
@@ -381,8 +383,9 @@ public:
 #pragma omp parallel for collapse(2) num_threads(CPUBackend::cpu_threads)
             for (int c = 0; c < input0->head(); ++c) {
                 for (int h = 0; h < input0->sequence(); ++h) {
-                    mllm_mul_fp32(input0->ptrAt<float>(n_0, c, h, 0), input1->ptrAt<float>(n_0, c, h, 0),
-                                  outputs[0]->ptrAt<float>(n_0, c, h, 0), input0->dimension());
+                    mllm_mul_fp32(input0->ptrAt<float>(n_0, c, h, 0),
+                                  input1->ptrAt<float>(n_1, c, h, 0),
+                                  outputs[0]->ptrAt<float>(n, c, h, 0), input0->dimension());
                 }
             }
         }
@@ -408,8 +411,9 @@ public:
 #pragma omp parallel for collapse(2) num_threads(CPUBackend::cpu_threads)
             for (int c = 0; c < input0->head(); ++c) {
                 for (int h = 0; h < input0->sequence(); ++h) {
-                    mllm_div_fp32(input0->ptrAt<float>(n_0, c, h, 0), input1->ptrAt<float>(n_0, c, h, 0),
-                                  outputs[0]->ptrAt<float>(n_0, c, h, 0), input0->dimension());
+                    mllm_div_fp32(input0->ptrAt<float>(n_0, c, h, 0),
+                                  input1->ptrAt<float>(n_1, c, h, 0),
+                                  outputs[0]->ptrAt<float>(n, c, h, 0), input0->dimension());
                 }
             }
         }
