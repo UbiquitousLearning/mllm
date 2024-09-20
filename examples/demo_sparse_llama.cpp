@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/relu_llama_vocab.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/ReLULlama_sparse_q4_k.mllm");
     // cmdParser.add<string>("predictor", 'p', "specify mllm model predictor path", false, "../models/ReLULlama_predictor.mllm");
-    cmdParser.add<int>("limits", 'l',  "max KV cache size", false, 600);
+    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 600);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 

@@ -4,11 +4,10 @@
 #include "PreProcess.hpp"
 
 #include <cassert>
-#ifndef  STB_IMAGE_RESIZE_IMPLEMENTATION
+#ifndef STB_IMAGE_RESIZE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_STATIC
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #endif
-#include "PreProcess.hpp"
 #include "stb/stb_image_resize2.h"
 using namespace mllm;
 
@@ -85,21 +84,23 @@ std::vector<ImageInfo> PreProcessor::ResizeImages(std::vector<ImageInfo> &images
     assert(resample_type == ResampleType::BILINEAR);
     stbir_filter filter = stbir_filter::STBIR_FILTER_DEFAULT;
     switch (resample_type) {
-    case ResampleType::BILINEAR: filter = stbir_filter::STBIR_FILTER_TRIANGLE;
+    case ResampleType::BILINEAR:
+        filter = stbir_filter::STBIR_FILTER_TRIANGLE;
         break;
-    default: std::cerr << "Not implemented Reshape Filter yet" << std::endl;
-    // exit(-1);
+    default:
+        std::cerr << "Not implemented Reshape Filter yet" << std::endl;
+        // exit(-1);
         filter = stbir_filter::STBIR_FILTER_DEFAULT;
     }
     auto resized_images = std::vector<ImageInfo>();
     for (auto image : images) {
-        if (image.height <= height && image.width <= width && image.channels == 3 && (strict_size == false&&fit == false)) {
+        if (image.height <= height && image.width <= width && image.channels == 3 && (strict_size == false && fit == false)) {
             resized_images.emplace_back(image.data, image.width, image.height, image.channels, image.original_width, image.original_height);
             continue;
         }
         auto height_ = height;
         auto width_ = width;
-        if (strict_size == false&&fit == false) {
+        if (strict_size == false && fit == false) {
             auto height_ratio = static_cast<float>(height) / image.height;
             auto width_ratio = static_cast<float>(width) / image.width;
             auto ratio = std::min(height_ratio, width_ratio);
@@ -108,7 +109,7 @@ std::vector<ImageInfo> PreProcessor::ResizeImages(std::vector<ImageInfo> &images
             height_ = std::round(image.height * ratio);
             width_ = std::round(image.width * ratio);
         }
-        if (fit && fit_edge!=none) {
+        if (fit && fit_edge != none) {
             auto shortest_ = std::min(image.height, image.width);
             auto longest_ = std::max(image.height, image.width);
             switch (fit_edge) {
@@ -126,7 +127,7 @@ std::vector<ImageInfo> PreProcessor::ResizeImages(std::vector<ImageInfo> &images
             if (image.height > image.width) {
                 height_ = longest_;
                 width_ = shortest_;
-            }else {
+            } else {
                 width_ = longest_;
                 height_ = shortest_;
             }
@@ -211,7 +212,6 @@ std::vector<ImageInfo> PreProcessor::CenterCropImages(std::vector<ImageInfo> &im
                 }
             }
             cropped_images.emplace_back(cropped_image, width_, height_, image.channels, image.original_width, image.original_height);
-
         }
 
         if (free_source) {
@@ -241,7 +241,7 @@ std::vector<ImageInfo> PreProcessor::NormalizeImages(std::vector<ImageInfo> &ima
                 for (int k = 0; k < channel; k++) {
                     // std::cout << "Pixel at (" << i << ", " << j << ", " << k << "): " <<  image.data[(i * width + j) * channel + k] << std::endl;
                     auto vv = image.data[(i * width + j) * channel + k];
-                    normalized_image[(i * width + j) * channel + k] = (vv - means[k])/(stds[k]);
+                    normalized_image[(i * width + j) * channel + k] = (vv - means[k]) / (stds[k]);
                 }
             }
         }
@@ -257,4 +257,3 @@ std::vector<ImageInfo> PreProcessor::NormalizeImages(std::vector<ImageInfo> &ima
     }
     return normalized_images;
 }
-

@@ -4,7 +4,6 @@
 #include "OpDefined.hpp"
 #include <iostream>
 #include <algorithm>
-#include <iostream>
 #include <map>
 #include <set>
 #include <sstream>
@@ -19,10 +18,8 @@ using std::map;
 
 typedef map<std::string, float> OpParam;
 
-
 // #define DEBUGSAVETENSOR
 // #define DEBUGOPTIME
-
 
 #define LLAMAFILE_SGEMM
 
@@ -35,8 +32,8 @@ typedef enum {
 
 enum TensorStatus {
     // TENSOR_DYNAMIC,
-    TENSOR_STATIC_INIT ,
-    TENSOR_STATIC_READY ,
+    TENSOR_STATIC_INIT,
+    TENSOR_STATIC_READY,
 };
 
 enum ErrorCode {
@@ -63,9 +60,9 @@ enum DataType {
     MLLM_TYPE_I8,
     MLLM_TYPE_I16,
     MLLM_TYPE_I32,
-    MLLM_TYPE_Q4_0_4_4=19,
-    MLLM_TYPE_Q4_0_4_8=20,
-    MLLM_TYPE_Q4_0_8_8=21,
+    MLLM_TYPE_Q4_0_4_4 = 19,
+    MLLM_TYPE_Q4_0_4_8 = 20,
+    MLLM_TYPE_Q4_0_8_8 = 21,
     MLLM_TYPE_Q8_0_4_4,
     MLLM_TYPE_COUNT,
 };
@@ -233,7 +230,7 @@ typedef struct {
 #pragma pack()
 #pragma pack(1)
 typedef struct {
-    int8_t qs[QK8_0]; // quants
+    int8_t qs[QK8_0];  // quants
 } block_q8_per_tensor; // used in vecdot_i8_i8, TODO: remove
 #pragma pack()
 
@@ -247,10 +244,9 @@ typedef struct {
 #pragma pack()
 static_assert(sizeof(block_q8_K) == sizeof(float) + QK_K + QK_K / 16 * sizeof(int16_t), "wrong q8_K block size/padding");
 
-
 #pragma pack(1)
 typedef struct {
-    mllm_fp16_t d[4];        // deltas for 4 q4_0 blocks
+    mllm_fp16_t d[4];      // deltas for 4 q4_0 blocks
     uint8_t qs[QK4_0 * 2]; // nibbles / quants for 4 q4_0 blocks
 } block_q4_0x4;
 #pragma pack()
@@ -258,7 +254,7 @@ static_assert(sizeof(block_q4_0x4) == 4 * sizeof(mllm_fp16_t) + QK4_0 * 2, "wron
 
 #pragma pack(1)
 typedef struct {
-    mllm_fp16_t d[8];        // deltas for 8 q4_0 blocks
+    mllm_fp16_t d[8];      // deltas for 8 q4_0 blocks
     uint8_t qs[QK4_0 * 4]; // nibbles / quants for 8 q4_0 blocks
 } block_q4_0x8;
 #pragma pack()
@@ -266,16 +262,16 @@ static_assert(sizeof(block_q4_0x8) == 8 * sizeof(mllm_fp16_t) + QK4_0 * 4, "wron
 
 #pragma pack(1)
 typedef struct {
-    mllm_fp16_t d[4];        // deltas for 4 q8_0 blocks
-    int8_t qs[QK8_0 * 4];  // quants for 4 q8_0 blocks
+    mllm_fp16_t d[4];     // deltas for 4 q8_0 blocks
+    int8_t qs[QK8_0 * 4]; // quants for 4 q8_0 blocks
 } block_q8_0x4;
 #pragma pack()
 static_assert(sizeof(block_q8_0x4) == 4 * sizeof(mllm_fp16_t) + QK8_0 * 4, "wrong q8_0x4 block size/padding");
 
 #pragma pack(1)
 typedef struct {
-    mllm_fp16_t d[8];        // deltas for 8 q8_0 blocks
-    int8_t qs[QK8_0 * 8];  // quants for 8 q8_0 blocks
+    mllm_fp16_t d[8];     // deltas for 8 q8_0 blocks
+    int8_t qs[QK8_0 * 8]; // quants for 8 q8_0 blocks
 } block_q8_0x8;
 #pragma pack()
 static_assert(sizeof(block_q8_0x8) == 8 * sizeof(mllm_fp16_t) + QK8_0 * 8, "wrong q8_0x8 block size/padding");

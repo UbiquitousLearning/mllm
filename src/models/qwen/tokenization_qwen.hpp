@@ -199,7 +199,7 @@ public:
                         // using bpe
                         std::vector<token_id_t> tmp;
                         tokenizer->tokenize(piece, tmp, false, true, "");
-                        assert(tmp.size() != 0);
+                        assert(!tmp.empty());
                         ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
                     }
                 }
@@ -247,7 +247,7 @@ public:
                         // using bpe
                         std::vector<token_id_t> tmp;
                         tokenizer->tokenize(piece, tmp, false, true, "");
-                        assert(tmp.size() != 0);
+                        assert(!tmp.empty());
                         ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
                     }
                 }

@@ -5,12 +5,12 @@ include_directories(${PROJECT_SOURCE_DIR}/test)
 
 # MLLM Tests
 file(GLOB_RECURSE MLLM_TEST
-        ${CMAKE_CURRENT_LIST_DIR}/test/*.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/test/*.hpp
+        ${PROJECT_SOURCE_DIR}/test/*.cpp
+        ${PROJECT_SOURCE_DIR}/test/*.hpp
 )
-list(REMOVE_ITEM MLLM_TEST ${CMAKE_CURRENT_LIST_DIR}/test/TestSystemMemoryManager.cpp)
-list(REMOVE_ITEM MLLM_TEST ${CMAKE_CURRENT_LIST_DIR}/test/TestMemoryPoolManager.cpp)
-# list(REMOVE_ITEM MLLM_TEST ${CMAKE_CURRENT_LIST_DIR}/test/clip_tokenizer_test.cpp)
+list(REMOVE_ITEM MLLM_TEST ${PROJECT_SOURCE_DIR}/test/TestSystemMemoryManager.cpp)
+list(REMOVE_ITEM MLLM_TEST ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp)
+# list(REMOVE_ITEM MLLM_TEST ${PROJECT_SOURCE_DIR}/test/clip_tokenizer_test.cpp)
 
 message(STATUS "MLLM_TEST: ${MLLM_TEST}")
 

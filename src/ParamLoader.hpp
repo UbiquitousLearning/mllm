@@ -95,7 +95,6 @@ public:
         return offsets_.size();
     }
 
-
 protected:
     mllm_file *fp_;
     uint8_t *buffer_;

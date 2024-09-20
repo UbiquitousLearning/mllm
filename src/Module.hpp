@@ -37,7 +37,7 @@ public:
     static bool doLoad;
     static bool doToDevice;
     static BackendType tmp_device;
-    static std::unordered_map<string, shared_ptr<Op>> tensor_func_ops; //use for QNN
+    static std::unordered_map<string, shared_ptr<Op>> tensor_func_ops; // use for QNN
 
     Module() = default;
     virtual ~Module() = default;
@@ -234,14 +234,14 @@ public:
         Tensor::graphs.clear();
     }
 
-    void setNoLoadWeightsDtype(DataType dtype){
+    void setNoLoadWeightsDtype(DataType dtype) {
         Op::no_load_weights_dtype() = dtype;
     }
 
     void profiling(string name = "") {
         // printf("\n");
         std::cout << "===========================================" << std::endl;
-        if (name != "") {
+        if (!name.empty()) {
             std::cout << "            " << name << std::endl;
             std::cout << "-------------------------------------------" << std::endl;
         }
@@ -285,7 +285,7 @@ public:
             // fail to greedy search
             if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kGreedySearch)
                 text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kGreedySearch, opt);
-        } else if (opt.do_sample && !opt.top_k && opt.top_p != 0.f) {
+        } else if (opt.do_sample && !opt.top_k && opt.top_p != 0.F) {
             // fail to top p sampling
             if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kToppSampling)
                 text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kToppSampling, opt);

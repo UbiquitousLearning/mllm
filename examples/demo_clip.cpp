@@ -31,5 +31,5 @@ int main(int argc, char **argv) {
     for (auto prob : token_idx) {
         std::cout << prob << "  ";
     }
-    std::cout<<std::endl;
+    std::cout << std::endl;
 }

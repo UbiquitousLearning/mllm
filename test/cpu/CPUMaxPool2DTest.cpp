@@ -5,7 +5,7 @@
 
 #include "CPUTest.hpp"
 TEST_F(CPUTest, CPUMaxPool2D1) {
-    SETUP_OP(CPUMaxPool2D, {3,3}, {1,1},VALID, 4);
+    SETUP_OP(CPUMaxPool2D, {3, 3}, {1, 1}, VALID, 4);
     TENSOR(input0)
     TENSOR(output)
     TENSOR(test_output);
@@ -19,9 +19,8 @@ TEST_F(CPUTest, CPUMaxPool2D1) {
     COMPARE_TENSOR(output.get(), test_output.get(), true);
 }
 
-
 TEST_F(CPUTest, CPUMaxPool2D2) {
-    SETUP_OP(CPUMaxPool2D, {3,3}, {1,1}, SAME, 4);
+    SETUP_OP(CPUMaxPool2D, {3, 3}, {1, 1}, SAME, 4);
     TENSOR(input0)
     TENSOR(output)
     TENSOR(test_output);
