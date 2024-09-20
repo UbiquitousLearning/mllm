@@ -69,6 +69,7 @@ private:
         vector<string> renameX_names;
         renameX_names.push_back(input_name);
         const vector<string> suffixs = {"-view", ".split-0", ".split-1", ".split-2", "-cat", "-split-0-48"};
+        /*
         for (const auto in_x_name : renameX_names) {
             for (auto suffix : suffixs) {
                 if (in_x_name.rfind(suffix) == (in_x_name.size() - suffix.size())) {
@@ -80,6 +81,20 @@ private:
                 }
             }
         }
+        */
+        vector<string> new_names;
+        for (const auto &in_x_name : renameX_names) {
+            for (const auto &suffix : suffixs) {
+                if (in_x_name.rfind(suffix) == (in_x_name.size() - suffix.size())) {
+                    const auto r_name = in_x_name.substr(0, in_x_name.size() - suffix.size());
+                    if (std::find(renameX_names.begin(), renameX_names.end(), r_name) == renameX_names.end() && std::find(new_names.begin(), new_names.end(), r_name) == new_names.end()) {
+                        new_names.push_back(r_name);
+                    }
+                    break;
+                }
+            }
+        }
+        renameX_names.insert(renameX_names.end(), new_names.begin(), new_names.end());
         for (const auto x_name : renameX_names) {
             auto name = name_X_to_num(x_name, saved_list_idx);
             layername_2_tensorname[name] = name;
