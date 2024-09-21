@@ -59,6 +59,9 @@ if(OpenMP_FOUND)
     else()
     target_link_libraries(MLLM_CPU
             PUBLIC
-            OpenMP::OpenMP_CXX )
+            OpenMP::OpenMP_CXX
+        )
     endif()
 endif()
+
+set_target_properties(MLLM_CPU PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)

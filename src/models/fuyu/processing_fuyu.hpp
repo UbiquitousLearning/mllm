@@ -5,6 +5,7 @@
 #ifndef TOKENIZATION_FUYU_HPP
 #define TOKENIZATION_FUYU_HPP
 
+#include <array>
 #include "processor/FuyuPreProcess.hpp"
 #include "tokenizers/Unigram/Unigram.hpp"
 

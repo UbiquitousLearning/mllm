@@ -5,6 +5,8 @@ cmake_policy(SET CMP0074 NEW)
 set(CMAKE_CXX_STANDARD 17)
 option(ARM "build on ARM" OFF)
 
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
 option(MLLM_ENABLE_PYTHON "build mllm pybinding" OFF)
 
 if(MSVC)

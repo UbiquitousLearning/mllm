@@ -6,7 +6,7 @@
 #define TOKENIZATION_CLIP_HPP
 
 #include <utility>
-
+#include <array>
 #include "processor/ClipPreProcess.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 
