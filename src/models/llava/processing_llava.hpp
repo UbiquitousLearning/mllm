@@ -8,6 +8,7 @@
 #include "processor/ClipPreProcess.hpp"
 #include <numeric>
 #include <utility>
+#include <array>
 
 using namespace mllm;
 

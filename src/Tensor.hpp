@@ -945,7 +945,9 @@ public:
                 }
             }
         }
-        for (auto &child_tensor : child_tensors_) {
+        auto it = child_tensors_.begin();
+        while (it != child_tensors_.end()) {
+            auto &child_tensor = *it;
             auto origin_shape_offset = child_tensor->shapeOffset();
             if (!origin_shape_offset.empty()) {
                 if (!shape_offset.empty()) {
@@ -957,7 +959,7 @@ public:
             } else {
                 child_tensor->deepCopyFrom(source, false, {}, head_rep);
             }
-            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
+            it = child_tensors_.erase(it);
         }
         source->addChildTensor(this);
     }
