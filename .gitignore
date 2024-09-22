@@ -28,10 +28,13 @@ models/*
 workflow.py
 src/backends/qnn/qualcomm_ai_engine_direct_220/*
 src/backends/qnn/HexagonSDK/*
-examples/demo_deepseek.cpp
-examples/demo_xllm.cpp
-src/models/xllm/*
-src/models/deepseek/*
 tmp/
 py-build-out/
 mllm.egg-info/
+
+examples/demo_deepseek.cpp
+src/models/deepseek/*
+examples/demo_xllm.cpp
+src/models/xllm/*
+examples/demo_minicpm3.cpp
+src/models/minicpm3/*
