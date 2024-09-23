@@ -49,6 +49,7 @@ endif()
 option(QNN "Enable QNN" OFF)
 if(QNN)
     add_definitions(-DUSE_QNN)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn)
 endif()
 
 

@@ -510,8 +510,6 @@ endif() # end of cpu executables
 
 # QNN demo
 if(QNN)
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn)
-
     # qnn executables
     add_executable(main_qwen_npu 
         ${PROJECT_SOURCE_DIR}/examples/main_qwen_npu.cpp 
