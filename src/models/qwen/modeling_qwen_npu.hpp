@@ -43,16 +43,7 @@ public:
         auto key_states = k_proj(inputs[0]);
         auto value_states = v_proj(inputs[0]);
 
-        // [batch, heads, sequence, dims]
-        // TODO: qnn tensorFunc
-        // query_states = query_states.view(-1, num_heads, -1, head_dim);
-        // key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
-        // value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
-
-        // TODO: dequantize q,k,v, transpose v using qnn layer
-        // query_states = query_states.toFloat(); ??
-
-        // value_states = value_states.transpose(SEQUENCE, DIMENSION);
+        value_states = value_states.transpose(SEQUENCE, DIMENSION);
         return {query_states, key_states, value_states};
     }
 };
@@ -65,22 +56,23 @@ class QwenQKVmm final : public Module {
     Layer k_cache;
     Layer v_cache;
 
-    int head_size_{};
-    int attn_hidden_dim_{};
+    int hidden_size;
+    int num_heads;
+    int head_dim;
+    int num_key_value_heads;
+    int num_key_value_groups;
 
 public:
     QwenQKVmm() = default;
     QwenQKVmm(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
-        attn_hidden_dim_ = config.hidden_size;
-        head_size_ = config.num_attention_heads * config.hidden_size / config.num_attention_heads;
+        hidden_size = config.hidden_size;
+        num_heads = config.num_attention_heads * config.hidden_size / config.num_attention_heads;
 
         q_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "q_rope");
         k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "k_rope");
 
-        if (config.cache_limit > 0) {
-            k_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + names._attn_base_name + "k_cache");
-            v_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + names._attn_base_name + "v_cache");
-        }
+        k_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + names._attn_base_name + "k_cache");
+        v_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + names._attn_base_name + "v_cache");
 
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
@@ -89,6 +81,10 @@ public:
         auto q = inputs[0];
         auto k = inputs[1];
         auto v = inputs[2];
+
+        q = q.view(-1, num_heads, -1, head_dim);
+        k = k.view(-1, num_heads, -1, head_dim);
+        v = v.view(-1, num_heads, -1, head_dim);
 
         q = q_rope(q);
         k = k_rope(k);
@@ -100,7 +96,7 @@ public:
 
         k = k.transpose(SEQUENCE, DIMENSION);
         auto qk = Tensor::mm(q, k);
-        qk = qk / std::sqrt(attn_hidden_dim_);
+        qk = qk / std::sqrt(hidden_size);
         qk = softmax(qk);
         auto o = Tensor::mm(qk, v);
 
@@ -110,35 +106,65 @@ public:
 
 // QNN mlp part
 class QwenDecoderNPUPart2 final : public Module {
+    int hidden_size;
+    int num_heads;
+    int head_dim;
+    int num_key_value_heads;
+    int num_key_value_groups;
+    int intermediate_size;
+
+    Layer out_proj;
     Layer gate_proj;
     Layer up_proj;
     Layer down_proj;
-
     Layer silu;
+    Layer post_attention_layernorm;
 
 public:
     QwenDecoderNPUPart2() = default;
     QwenDecoderNPUPart2(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
-        int hidden_size = config.hidden_size;
-        int intermediate_size = config.intermediate_size;
+        hidden_size = config.hidden_size;
+        num_heads = config.num_attention_heads;
+        head_dim = config.hidden_size / num_heads;
+        intermediate_size = config.intermediate_size;
+        num_key_value_heads = config.num_key_value_heads;
+        num_key_value_groups = num_heads / num_key_value_heads;
 
+        out_proj = Linear(hidden_size, hidden_size, false, base_name + names._o_proj_name);
         gate_proj = Linear(hidden_size, intermediate_size, false, base_name + names._gate_proj_name);
         silu = SiLU(base_name + "act");
         up_proj = Linear(hidden_size, intermediate_size, false, base_name + names._up_proj_name);
         down_proj = Linear(intermediate_size, hidden_size, false, base_name + names._down_proj_name);
+        post_attention_layernorm =
+            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        auto x = gate_proj(inputs[0]);
+        auto atten_output = inputs[0];
+        auto res = inputs[1];
+
+        atten_output = atten_output.view(-1, 1, -1, head_dim * num_heads);
+        atten_output = out_proj(atten_output);
+
+        auto tmp = atten_output + res;
+        auto x = post_attention_layernorm(tmp);
+        x = gate_proj(x);
         x = silu(x);
-        auto y = up_proj(inputs[0]);
+        auto y = up_proj(tmp);
         x = x * y;
         x = down_proj(x);
+        x = x + tmp;
         return {x};
     }
 };
 
 class QwenNPU_CPUDecoder final : public Module {
+    int hidden_size;
+    int num_heads;
+    int head_dim;
+    int num_key_value_heads;
+    int num_key_value_groups;
+
     Layer input_layernorm;
     QwenDecoderNPUPart1 part1;
     QwenQKVmm qkv_mm;
@@ -147,6 +173,12 @@ class QwenNPU_CPUDecoder final : public Module {
 public:
     QwenNPU_CPUDecoder() = default;
     QwenNPU_CPUDecoder(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
+        hidden_size = config.hidden_size;
+        num_heads = config.num_attention_heads;
+        head_dim = config.hidden_size / num_heads;
+        num_key_value_heads = config.num_key_value_heads;
+        num_key_value_groups = num_heads / num_key_value_heads;
+
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
 
         part1 = QwenDecoderNPUPart1(config, names, base_name);
@@ -167,13 +199,10 @@ public:
         }
 
         auto q_k_v = part1({x}); // q,k,v
-        auto o_x = qkv_mm(q_k_v);
+        auto o_x = qkv_mm(q_k_v)[0];
 
-        auto tmp = o_x[0] + inputs[0];
-
-        o_x = Tensor::toQNN(o_x);
-        x = part2(o_x)[0];
-        x = x + tmp;
+        o_x = Tensor::toQNN({o_x})[0];
+        x = part2({o_x, inputs[0]})[0];
 
         return {x};
     }
@@ -235,7 +264,7 @@ public:
     }
 
     virtual void generate(
-        Tensor &input_ids, const LlmTextGeneratorOpts &opt, const std::function<bool(unsigned int)> &call_back = [](unsigned int) -> bool { return true; }) override{
+        Tensor &input_ids, const LlmTextGeneratorOpts &opt, const std::function<bool(unsigned int)> &call_back = [](unsigned int) -> bool { return true; }) override {
         auto chatPostProcessing = [](unsigned token_idx, Tensor &tokens_tensor, const vector<Tensor *> &clean_tensors) {
             tokens_tensor.reshape(1, 1, 1, 1);
             tokens_tensor.alloc();
