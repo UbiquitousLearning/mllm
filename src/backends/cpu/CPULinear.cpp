@@ -1,10 +1,12 @@
 
 #include "CPULinear.hpp"
+#include "Types.hpp"
 #include <iostream>
 
 namespace mllm {
 
-CPULinear::CPULinear(Backend *bn, string opName, int in_features, int out_features, bool bias, int threadCount) : thread_count(threadCount),
+CPULinear::CPULinear(Backend *bn, string opName, int in_features, int out_features, bool bias, int threadCount) :
+    thread_count(threadCount),
     Op(bn, opName) {
     in_features_ = in_features;
     out_features_ = out_features;
@@ -15,11 +17,11 @@ CPULinear::CPULinear(Backend *bn, string opName, int in_features, int out_featur
 }
 
 ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout << name() << "  CPULinear  reshape" << std::endl;
+    // std::cout << name() << "  CPULinear  reshape" << std::endl;
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
-    if(inputs[0]->count() == 0) {
-        outputs[0]->reshape(0,0,0,0);
+    if (inputs[0]->count() == 0) {
+        outputs[0]->reshape(0, 0, 0, 0);
         return Op::reshape(inputs, outputs);
     }
     // N     |    C       |   H                   |  W
@@ -35,12 +37,12 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     assert(inputs[0]->head() == 1);
     assert(in_features_ == inputs[0]->dimension());
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
-    //outputs[0]->setDtype(activationDtype());
+    // outputs[0]->setDtype(activationDtype());
     return Op::reshape(inputs, outputs);
 }
 
 ErrorCode CPULinear::load(AbstructLoader &loader) {
-    //std::cout << name() << "  CPULinear load" << std::endl;
+    // std::cout << name() << "  CPULinear load" << std::endl;
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, out_features_, in_features_);
     if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
@@ -48,7 +50,11 @@ ErrorCode CPULinear::load(AbstructLoader &loader) {
         weight_.alloc();
         loader.load(&weight_);
     } else {
-        weight_.setDtype(Op::no_load_weights_dtype());
+        if (weight_.name().find('v') != std::string::npos && Op::noLoadWeightsDtype() == MLLM_TYPE_Q4_0_4_4) {
+            weight_.setDtype(MLLM_TYPE_Q4_0);
+        } else {
+            weight_.setDtype(Op::noLoadWeightsDtype());
+        }
         weight_.alloc();
     }
     if (support_bias_) {
@@ -67,8 +73,8 @@ ErrorCode CPULinear::load(AbstructLoader &loader) {
 }
 
 ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-//    auto start = mllm::mllm_time_us();
-    if(inputs[0]->count() == 0) {
+    //    auto start = mllm::mllm_time_us();
+    if (inputs[0]->count() == 0) {
         return Op::execute(inputs, outputs);
     }
     mat_mul(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true, thread_count);
@@ -96,8 +102,8 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         break;
     }
     */
-//    auto end = mllm::mllm_time_us();
-//    printf("exec time: %ld us\n", end - start);
+    //    auto end = mllm::mllm_time_us();
+    //    printf("exec time: %ld us\n", end - start);
     return Op::execute(inputs, outputs);
 }
 ErrorCode CPULinear::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

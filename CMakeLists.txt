@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.10)
 
 project(mllm)
+
+# 添加编译选项来禁用所有警告
+# if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+#     add_compile_options(-w)
+# elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+#     add_compile_options(/w)
+# endif()
+
 cmake_policy(SET CMP0074 NEW)
 set(CMAKE_CXX_STANDARD 17)
 option(ARM "build on ARM" OFF)
@@ -30,7 +38,18 @@ if (ARM)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8.2-a+dotprod")
     endif()
 else ()
-    set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
+    if (MSVC)
+        # 设置多配置生成器的输出路径
+        set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../bin)
+        # 如果使用多配置生成器，还需要为每个配置单独设置输出路径
+        foreach(OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES})
+            string(TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG)
+            set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${PROJECT_BINARY_DIR}/../bin/)
+        endforeach()
+    else()
+        # 设置单配置生成器的输出路径
+        set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
+    endif()
 endif ()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
