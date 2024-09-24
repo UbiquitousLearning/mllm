@@ -123,7 +123,9 @@ protected:
     }
     vector<std::reference_wrapper<Tensor>> run(vector<Tensor> inputs, int N = 1) {
         Module::runlistIdx = saved_list_idx;
+        bool do_init = false;
         if (Module::doLoad || !inited_loaded) {
+            do_init = !inited_loaded;
             init_run();
             vector<string> layer_next_names = {};
             if (N > 1) {
@@ -169,7 +171,11 @@ protected:
         vector<shared_ptr<Tensor>> input_tensors;
         for (auto &input : inputs) {
             if (input.shouldInGraphs()) {
-                input_tensors.push_back(Tensor::graphs[input.name()]);
+                auto input_name = input.name();
+                if (param_["type"] == KVCACHE && do_init) {
+                    input_name = name_X_to_num(input_name, saved_list_idx);
+                }
+                input_tensors.push_back(Tensor::graphs[input_name]);
             } else {
                 input_tensors.push_back(std::shared_ptr<Tensor>(&input, [](Tensor *) {}));
             }
