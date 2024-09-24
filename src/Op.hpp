@@ -125,7 +125,7 @@ public:
         std::cout << "only for KVCache" << std::endl;
     }
 
-    static DataType &no_load_weights_dtype() {
+    static DataType &noLoadWeightsDtype() {
         return no_load_weights_dtype_;
     }
 
