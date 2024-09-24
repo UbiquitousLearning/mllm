@@ -5,7 +5,7 @@
 #include "Matmul.hpp"
 #include "Types.hpp"
 #include "VecDotType.hpp"
-#include <pthread.h>
+// #include <pthread.h>
 #include "SGEMM.hpp"
 
 #define ASSERT(x)                                                                \

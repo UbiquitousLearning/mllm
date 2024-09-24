@@ -239,7 +239,7 @@ public:
     }
 
     void setNoLoadWeightsDtype(DataType dtype) {
-        Op::no_load_weights_dtype() = dtype;
+        Op::noLoadWeightsDtype() = dtype;
     }
 
     void profiling(string name = "") {

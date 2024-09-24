@@ -34,6 +34,7 @@ target_link_libraries(
         MLLM_TEST
         GTest::gtest_main
         MLLM_CPU
+        -fopenmp
 )
 add_executable(
         memoryPoolTest

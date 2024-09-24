@@ -945,7 +945,9 @@ public:
                 }
             }
         }
-        for (auto &child_tensor : child_tensors_) {
+        auto it = child_tensors_.begin();
+        while (it != child_tensors_.end()) {
+            auto &child_tensor = *it;
             auto origin_shape_offset = child_tensor->shapeOffset();
             if (!origin_shape_offset.empty()) {
                 if (!shape_offset.empty()) {
@@ -957,7 +959,7 @@ public:
             } else {
                 child_tensor->deepCopyFrom(source, false, {}, head_rep);
             }
-            child_tensors_.erase(std::remove(child_tensors_.begin(), child_tensors_.end(), child_tensor), child_tensors_.end());
+            it = child_tensors_.erase(it);
         }
         source->addChildTensor(this);
     }
@@ -1288,22 +1290,18 @@ public:
         // std::filesystem::create_directory("save_out");
         string directory = "save_out";
         struct stat info;
-
+#ifdef _WIN32
+        _mkdir(directory.c_str());
+#else
         if (stat(directory.c_str(), &info) != 0) {
-            // if the directory does not exist, create it
-#ifdef _WIN32
-            _mkdir(directory.c_str());
-#else
-            mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
-#endif
-        } else if (!(info.st_mode & S_IFDIR)) {
-            // if the path exists but it is not a directory, also create it
-#ifdef _WIN32
-            _mkdir(directory.c_str());
-#else
-            mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
-#endif
+            if (stat(directory.c_str(), &info) != 0) {
+                mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+            } else if (!(info.st_mode & S_IFDIR)) {
+                // if the path exists but it is not a directory, also create it
+                mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+            }
         }
+#endif
         std::ofstream outFile(directory + "/" + name() + ex + ".log");
 
         outFile << "----------------------------------------" << std::endl;
@@ -1357,21 +1355,18 @@ public:
             string directory = "save_out";
             struct stat info;
 
+#ifdef _WIN32
+            _mkdir(directory.c_str());
+#else
             if (stat(directory.c_str(), &info) != 0) {
-                // if the directory does not exist, create it
-#ifdef _WIN32
-                _mkdir(directory.c_str());
-#else
-                mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
-#endif
-            } else if (!(info.st_mode & S_IFDIR)) {
-                // if the path exists but it is not a directory, also create it
-#ifdef _WIN32
-                _mkdir(directory.c_str());
-#else
-                mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
-#endif
+                if (stat(directory.c_str(), &info) != 0) {
+                    mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+                } else if (!(info.st_mode & S_IFDIR)) {
+                    // if the path exists but it is not a directory, also create it
+                    mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+                }
             }
+#endif
             auto tmp_name = name();
             if (new_name.empty()) {
             } else {
@@ -1456,21 +1451,18 @@ public:
         string directory = "save_out";
         struct stat info;
 
+#ifdef _WIN32
+        _mkdir(directory.c_str());
+#else
         if (stat(directory.c_str(), &info) != 0) {
-            // if the directory does not exist, create it
-#ifdef _WIN32
-            _mkdir(directory.c_str());
-#else
-            mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
-#endif
-        } else if (!(info.st_mode & S_IFDIR)) {
-            // if the path exists but it is not a directory, also create it
-#ifdef _WIN32
-            _mkdir(directory.c_str());
-#else
-            mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
-#endif
+            if (stat(directory.c_str(), &info) != 0) {
+                mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+            } else if (!(info.st_mode & S_IFDIR)) {
+                // if the path exists but it is not a directory, also create it
+                mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+            }
         }
+#endif
         std::ofstream outFile(directory + "/" + name() + ex + ".log");
         outFile << "----------------------------------------" << std::endl;
         outFile << name() << ": shape:[" << batch() << " " << channel() << " " << time() << " " << height() << " " << width() << "]" << std::endl;

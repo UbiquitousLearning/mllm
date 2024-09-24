@@ -4,6 +4,7 @@
 
 #include "AudioProcess.hpp"
 #include <iomanip>
+#include <numeric>
 #include <utility>
 #include <iostream>
 #include <memory>

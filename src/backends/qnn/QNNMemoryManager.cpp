@@ -96,7 +96,8 @@ void QNNMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
     qnnMemPtrMap_.insert(memPointer);
     *ptr = memPointer;
 #else
-    void **origin = (void **)malloc(size + sizeof(void *) + alignment - 1);
+    // void **origin = (void **)malloc(size + sizeof(void *) + alignment - 1);
+    void *origin = (void *)malloc(size + sizeof(void *) + alignment - 1);
     assert(origin != nullptr);
     if (origin == nullptr) {
         *ptr = nullptr;
