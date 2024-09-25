@@ -6,16 +6,11 @@
 #define MODELING_TRANSFORMER_HPP
 
 #include "Layer.hpp"
+#include "Types.hpp"
 #include "configuration_transformer.hpp"
 #include <vector>
 
 using namespace mllm;
-
-enum AttnQKVSplitType {
-    SPLIT_NONE = 0,
-    SPLIT_HD = Chl::HD,
-    SPLIT_D_HD = Chl::D_HD,
-};
 
 class MultiHeadAttention final : public Module {
     Layer qkv_proj;
@@ -78,10 +73,17 @@ public:
         Tensor q, k, v;
         if (qkv_proj.ready()) {
             auto qkv = qkv_proj(inputs[0]);
-            auto qkv_sp = Tensor::split(qkv, {attn_hidden_dim_, attn_hidden_dim_, attn_hidden_dim_}, split_chl_, head_size_);
-            q = qkv_sp[0];
-            k = qkv_sp[1];
-            v = qkv_sp[2];
+            if (split_chl_ == (Chl)SPLIT_D_DH) {
+                auto qkv_sp = qkv.split({head_size_, kv_head_size_, kv_head_size_}, split_chl_, attn_hidden_dim_);
+                q = qkv_sp[0];
+                k = qkv_sp[1];
+                v = qkv_sp[2];
+            } else {
+                auto qkv_sp = qkv.split({attn_hidden_dim_, attn_hidden_dim_, attn_hidden_dim_}, split_chl_, head_size_);
+                q = qkv_sp[0];
+                k = qkv_sp[1];
+                v = qkv_sp[2];
+            }
         } else {
             q = q_proj(inputs[0]);
             k = k_proj(inputs[1]);

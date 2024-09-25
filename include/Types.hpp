@@ -106,6 +106,7 @@ enum Chl {
 
     HD = 113,   // only use for split attn.in_proj
     D_HD = 313, // only use for split attn.in_proj
+    D_DH = 331, // only use for split attn.in_proj
 
     CHANNLE = 1,
     TIME = 2,
@@ -114,6 +115,13 @@ enum Chl {
 
     THW = 234,
 
+};
+
+enum AttnQKVSplitType {
+    SPLIT_NONE = 0,
+    SPLIT_HD = Chl::HD,
+    SPLIT_D_HD = Chl::D_HD,
+    SPLIT_D_DH = Chl::D_DH,
 };
 
 #define ANYDIM -198098
