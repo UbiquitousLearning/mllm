@@ -21,10 +21,10 @@ ErrorCode QNNSoftMax::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     vector<Qnn_Param_t> params = {
         {.paramType = QNN_PARAMTYPE_SCALAR,
          .name = "axis",
-         {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_UINT_32, {.uint32Value = static_cast<uint32_t>(axis_)}}}},
+         .scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_UINT_32, {.uint32Value = static_cast<uint32_t>(axis_)}}},
         {.paramType = QNN_PARAMTYPE_SCALAR,
          .name = "beta",
-         {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_FLOAT_32, {.floatValue = 1.000000000000f}}}}};
+         .scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_FLOAT_32, {.floatValue = 1.000000000000f}}}};
     return graphAddNode(name(), "Softmax", inputs, outputs, params, "qti.aisw", false);
 }
 } // namespace mllm

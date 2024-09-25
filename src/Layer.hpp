@@ -124,6 +124,9 @@ protected:
     vector<std::reference_wrapper<Tensor>> run(vector<Tensor> inputs, int N = 1) {
         Module::runlistIdx = saved_list_idx;
         bool do_init = false;
+        // set backend to current module device and try to create op
+        // TODO: backend fallback
+        backend_ = Backend::global_backends[Module::tmp_device];
         if (Module::doLoad || !inited_loaded) {
             do_init = !inited_loaded;
             init_run();
@@ -663,6 +666,18 @@ class Position final : public Layer {
 public:
     explicit Position(std::string name) {
         init(std::move(name), OpType::POSITION);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class Quantize final : public Layer {
+public:
+    explicit Quantize(bool isNSHD, std::string name) {
+        param_["isNSHD"] = (float)isNSHD;
+        init(std::move(name), OpType::QUANTIZE);
     }
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);

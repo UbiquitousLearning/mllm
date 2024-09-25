@@ -68,10 +68,6 @@ endif()
 
 # backend options
 option(QNN "Enable QNN" OFF)
-if(QNN)
-    add_definitions(-DUSE_QNN)
-endif()
-
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)
@@ -121,6 +117,11 @@ include_directories(${PROJECT_SOURCE_DIR}/third_party)
 include_directories(${PROJECT_SOURCE_DIR}/third_party/pybind11/include)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
+
+if(QNN)
+    add_definitions(-DUSE_QNN)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn)
+endif()
 
 #add tokenizers
 file(GLOB_RECURSE SRC_TOKENIZERS

@@ -121,8 +121,10 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
         for (int i = 0; i < inputs[0]->batch(); i++) {
             for (int h = 0; h < inputs[0]->head(); h++) {
                 for (int j = 0; j < inputs[0]->sequence(); j++) {
+#pragma omp parallel for num_threads(thread_count)
                     for (int k = 0; k < inputs[0]->dimension(); k++) {
                         if (roundf(inputs[0]->dataAt<float>(i, h, j, k) / input_scale) > 127.0 || roundf(inputs[0]->dataAt<float>(i, h, j, k) / input_scale) < -128.0) {
+#pragma omp parallel for num_threads(thread_count)
                             for (int w = 0; w < shadowWeight_.dimension(); w++) {
                                 // if (!(inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 ||  inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127)) {
 

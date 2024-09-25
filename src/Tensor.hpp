@@ -1075,8 +1075,12 @@ public:
     }
 
     Tensor &to(BackendType backend_type);
-    static vector<Tensor> toDevice(vector<Tensor> inputs, BackendType backend_type);
-    static vector<Tensor> toCPU(vector<Tensor> inputs) {
+    static vector<Tensor> toDevice(vector<Tensor> inputs, BackendType backend_type) {
+        // TODO: implement
+        std::cout << "tensor should be transfered across backend" << std::endl;
+        return inputs;
+    };
+    static vector<Tensor> toCPU(vector<Tensor> inputs){
         return toDevice(inputs, MLLM_CPU);
     }
     static vector<Tensor> toQNN(vector<Tensor> inputs) {
