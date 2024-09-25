@@ -826,6 +826,7 @@ public:
     Tensor &where(float value, Chl axis);
     static Tensor &range(int start, int end);
     static vector<std::reference_wrapper<Tensor>> split(Tensor &input, std::vector<int> each_dims, Chl split_dim, int head_size = -1);
+    static vector<std::reference_wrapper<Tensor>> split(Tensor &input, std::vector<int> each_dims, Chl split_dim, Chl same_chl, int same_chl_size = -1);
 
     /* Functions used for ChildTensor:
      * - deepCopyFrom
@@ -1080,7 +1081,7 @@ public:
         std::cout << "tensor should be transfered across backend" << std::endl;
         return inputs;
     };
-    static vector<Tensor> toCPU(vector<Tensor> inputs){
+    static vector<Tensor> toCPU(vector<Tensor> inputs) {
         return toDevice(inputs, MLLM_CPU);
     }
     static vector<Tensor> toQNN(vector<Tensor> inputs) {

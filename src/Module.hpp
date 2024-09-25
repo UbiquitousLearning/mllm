@@ -242,23 +242,30 @@ public:
         Op::noLoadWeightsDtype() = dtype;
     }
 
-    void profiling(string name = "") {
+    vector<double> profiling(string name = "") {
+        vector<double> output;
         // printf("\n");
         std::cout << "===========================================" << std::endl;
         if (!name.empty()) {
             std::cout << "            " << name << std::endl;
             std::cout << "-------------------------------------------" << std::endl;
         }
+        double load_time_s = load_time_ / 1000.0F;
         std::cout << "  Load time: " << load_time_ / 1000.0F << " s" << std::endl;
         if (inference_times_.size() > 1 && decoding_token_size_ != prefilling_token_size_) {
-            std::cout << "  Prefilling speed: " << 1000 * prefilling_token_size_ / inference_times_[0] << " tokens/s" << std::endl;
+            double prefile_speed = 1000 * prefilling_token_size_ / inference_times_[0];
+            std::cout << "  Prefilling speed: " << prefile_speed << " tokens/s" << std::endl;
             double sum_decoding_time = std::accumulate(std::begin(inference_times_) + 1, std::end(inference_times_), 0.0);
             double mean_decoding_time = sum_decoding_time / (inference_times_.size() - 1);
-            std::cout << "  Decoding speed: " << 1000 / mean_decoding_time << " tokens/s" << std::endl;
+            double decoding_speed = 1000 / mean_decoding_time;
+            std::cout << "  Decoding speed: " << decoding_speed << " tokens/s" << std::endl;
+            output = {load_time_s, prefile_speed, decoding_speed};
         } else {
             double sum_time = std::accumulate(std::begin(inference_times_), std::end(inference_times_), 0.0);
             double mean_time = sum_time / (inference_times_.size());
+            double inference_time_s = mean_time / 1000.0F;
             std::cout << "  Inference latency: " << mean_time / 1000.0F << " s" << std::endl;
+            output = {load_time_s, inference_time_s};
         }
         // double sum_time = std::accumulate(std::begin(inference_times_), std::end(inference_times_), 0.0);
         // std::cout<<sum_time<< " - "<<Tensor::forward_times<<" = "<<sum_time-Tensor::forward_times<<std::endl;
@@ -270,6 +277,8 @@ public:
         decoding_token_size_ = 0;
         inference_times_.clear();
         last_shape_bshd_.clear();
+
+        return output;
     }
 
     virtual void generate(

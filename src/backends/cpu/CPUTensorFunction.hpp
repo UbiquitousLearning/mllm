@@ -11,6 +11,7 @@
 #include "compute/Arithmetic.hpp"
 
 // #include <Layer.hpp>
+#include <cstdlib>
 #include <iostream>
 #include <vector>
 
@@ -1125,11 +1126,12 @@ public:
     void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
         int size = args.size();
         std::vector<int> each_dims;
-        for (int i = 0; i < size - 2; i++) {
+        for (int i = 0; i < size - 3; i++) {
             each_dims.push_back(args[i]);
         }
-        Chl split_dim = (Chl)args[size - 2];
-        int head_size = (int)args[size - 1];
+        Chl split_dim = (Chl)args[size - 3];
+        int same_chl_size = (int)args[size - 2];
+        Chl same_chl = (Chl)args[size - 1];
         int split_num_ = each_dims.size();
         // store each dims
         int split_dim_size_ = 0;
@@ -1162,16 +1164,25 @@ public:
             break;
         }
         case Chl::D_HD: {
-            assert(inputs[0]->dimension() == split_dim_size_ * head_size);
-            for (int i = 0; i < split_num_; i++) {
-                outputs[i]->reshape(inputs[0]->batch(), head_size, inputs[0]->sequence(), each_dims_[i]);
+            assert(inputs[0]->dimension() == split_dim_size_ * same_chl_size);
+            if (same_chl == DIMENSION) {
+                for (int i = 0; i < split_num_; i++) {
+                    outputs[i]->reshape(inputs[0]->batch(), same_chl_size, inputs[0]->sequence(), each_dims_[i]);
+                }
+            } else if (same_chl == HEAD) {
+                for (int i = 0; i < split_num_; i++) {
+                    outputs[i]->reshape(inputs[0]->batch(), each_dims_[i], inputs[0]->sequence(), same_chl_size);
+                }
+            } else {
+                std::cerr << "split dim error" << std::endl;
+                exit(-1);
             }
             break;
         }
         case Chl::HD: {
-            assert(inputs[0]->dimension() == split_dim_size_ * head_size);
+            assert(inputs[0]->dimension() == split_dim_size_ * same_chl_size);
             for (int i = 0; i < split_num_; i++) {
-                outputs[i]->reshape(inputs[0]->batch(), head_size, inputs[0]->sequence(), each_dims_[i]);
+                outputs[i]->reshape(inputs[0]->batch(), same_chl_size, inputs[0]->sequence(), each_dims_[i]);
             }
             break;
         }

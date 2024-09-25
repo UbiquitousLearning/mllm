@@ -6,6 +6,7 @@
 #define MODELING_TRANSFORMER_HPP
 
 #include "Layer.hpp"
+#include "Types.hpp"
 #include "configuration_transformer.hpp"
 #include <vector>
 
@@ -78,7 +79,7 @@ public:
         Tensor q, k, v;
         if (qkv_proj.ready()) {
             auto qkv = qkv_proj(inputs[0]);
-            auto qkv_sp = Tensor::split(qkv, {attn_hidden_dim_, attn_hidden_dim_, attn_hidden_dim_}, split_chl_, head_size_);
+            auto qkv_sp = Tensor::split(qkv, {head_size_, kv_head_size_, kv_head_size_}, split_chl_, HEAD, attn_hidden_dim_);
             q = qkv_sp[0];
             k = qkv_sp[1];
             v = qkv_sp[2];
