@@ -328,23 +328,6 @@ vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<
     }
     args.push_back(split_dim);
     args.push_back(head_size);
-    args.push_back(-1);
-    return getStaticFunc(next_names, FUNC_SPLIT, args, {Tensor::graphs[input.name()].get()});
-}
-
-vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<int> each_dims, Chl split_dim,
-                                                     Chl same_chl, int same_chl_size) {
-    vector<std::string> next_names;
-    std::vector<float> args;
-    for (int i = 0; i < each_dims.size(); ++i) {
-        args.push_back(each_dims[i]);
-        // next_names.push_back(input.name() + "-split-" + std::to_string(i) + "-" +
-        // std::to_string(each_dims[i]));
-        next_names.push_back(input.name() + ".split-" + std::to_string(i));
-    }
-    args.push_back(split_dim);
-    args.push_back(same_chl_size);
-    args.push_back(same_chl);
     return getStaticFunc(next_names, FUNC_SPLIT, args, {Tensor::graphs[input.name()].get()});
 }
 
