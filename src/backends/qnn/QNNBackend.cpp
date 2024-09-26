@@ -21,7 +21,6 @@
 #include "op/QNNAdd.hpp"
 #include "op/QNNCausalMask.hpp"
 #include "op/QNNGELU.hpp"
-#include "op/QNNLinear.hpp"
 #include "op/QNNLinearINT8.hpp"
 #include "op/QNNMatmul.hpp"
 #include "op/QNNMul.hpp"
