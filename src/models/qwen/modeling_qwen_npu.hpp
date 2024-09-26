@@ -8,7 +8,7 @@
 #include "Types.hpp"
 #include "configuration_qwen.hpp"
 #include <cmath>
-#include <type_traits>
+
 using namespace mllm;
 
 // NPU QKV part
@@ -21,7 +21,10 @@ class QwenDecoderNPUPart1 final : public Module {
     Layer q_proj;
     Layer k_proj;
     Layer v_proj;
-    Layer o_proj;
+    Layer q_dequant;
+    Layer k_dequant;
+    Layer v_dequant;
+    Layer v_transpose;
 
 public:
     QwenDecoderNPUPart1() = default;
@@ -35,7 +38,12 @@ public:
         q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._attn_base_name + names._q_proj_name);
         k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._attn_base_name + names._k_proj_name);
         v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._attn_base_name + names._v_proj_name);
-        o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._attn_base_name + names._o_proj_name);
+
+        q_dequant = Dequantize(true, base_name + names._attn_base_name + "._q_dequant");
+        k_dequant = Dequantize(true, base_name + names._attn_base_name + "._k_dequant");
+        v_dequant = Dequantize(true, base_name + names._attn_base_name + "._v_dequant");
+
+        v_transpose = Transpose({0, 2, 3, 1}, base_name + names._attn_base_name + "._v_transpose");
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
@@ -43,7 +51,11 @@ public:
         auto key_states = k_proj(inputs[0]);
         auto value_states = v_proj(inputs[0]);
 
-        value_states = value_states.transpose(SEQUENCE, DIMENSION);
+        query_states = q_dequant(query_states);
+        key_states = k_dequant(key_states);
+        value_states = v_dequant(value_states);
+
+        value_states = v_transpose(value_states);
         return {query_states, key_states, value_states};
     }
 };
@@ -55,6 +67,7 @@ class QwenQKVmm final : public Module {
     Layer k_rope;
     Layer k_cache;
     Layer v_cache;
+    Layer o_quantize;
 
     int hidden_size;
     int num_heads;
@@ -75,6 +88,8 @@ public:
         v_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + names._attn_base_name + "v_cache");
 
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
+
+        o_quantize = Quantize(true, base_name + "quantize");
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
@@ -89,16 +104,16 @@ public:
         q = q_rope(q);
         k = k_rope(k);
 
-        if (k_cache.ready() && v_cache.ready()) {
-            k = k_cache(k);
-            v = v_cache(v);
-        }
+        // k = k_cache(k);
+        // v = v_cache(v);
 
         k = k.transpose(SEQUENCE, DIMENSION);
         auto qk = Tensor::mm(q, k);
-        qk = qk / std::sqrt(hidden_size);
+        // qk = qk / std::sqrt(hidden_size);
         qk = softmax(qk);
         auto o = Tensor::mm(qk, v);
+
+        o = o_quantize(o);
 
         return {o};
     }
@@ -113,12 +128,17 @@ class QwenDecoderNPUPart2 final : public Module {
     int num_key_value_groups;
     int intermediate_size;
 
+    Layer attention_out_view;
     Layer out_proj;
     Layer gate_proj;
     Layer up_proj;
     Layer down_proj;
     Layer silu;
     Layer post_attention_layernorm;
+
+    Layer post_atten_res;
+    Layer post_mlp_res;
+    Layer mlp_mul;
 
 public:
     QwenDecoderNPUPart2() = default;
@@ -130,6 +150,7 @@ public:
         num_key_value_heads = config.num_key_value_heads;
         num_key_value_groups = num_heads / num_key_value_heads;
 
+        attention_out_view = View(-1, 1, -1, head_dim * num_heads, ".view");
         out_proj = Linear(hidden_size, hidden_size, false, base_name + names._o_proj_name);
         gate_proj = Linear(hidden_size, intermediate_size, false, base_name + names._gate_proj_name);
         silu = SiLU(base_name + "act");
@@ -137,23 +158,27 @@ public:
         down_proj = Linear(intermediate_size, hidden_size, false, base_name + names._down_proj_name);
         post_attention_layernorm =
             RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
+        post_atten_res = Add(base_name +".post_atten_add");
+        post_mlp_res = Add(base_name + "post_mlp_res");
+        mlp_mul = Mul(base_name + "mlp_mul");
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto atten_output = inputs[0];
         auto res = inputs[1];
 
-        atten_output = atten_output.view(-1, 1, -1, head_dim * num_heads);
+        atten_output = attention_out_view(atten_output);
         atten_output = out_proj(atten_output);
 
-        auto tmp = atten_output + res;
+        auto tmp = post_atten_res(atten_output, res);
         auto x = post_attention_layernorm(tmp);
         x = gate_proj(x);
         x = silu(x);
         auto y = up_proj(tmp);
-        x = x * y;
+        x = mlp_mul(x, y);
         x = down_proj(x);
-        x = x + tmp;
+
+        x = post_mlp_res(x, tmp);
         return {x};
     }
 };

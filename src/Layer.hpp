@@ -685,6 +685,70 @@ public:
     }
 };
 
+class Dequantize final : public Layer {
+public:
+    explicit Dequantize(bool isNSHD, std::string name) {
+        param_["isNSHD"] = (float)isNSHD;
+        init(std::move(name), OpType::DEQUANTIZE);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class Add final : public Layer {
+public:
+    explicit Add(std::string name) {
+        init(std::move(name), OpType::ADD);
+    }
+    Tensor &operator()(Tensor &input0, Tensor &input1) {
+        auto ts = run({input0, input1}, 1);
+        return ts[0].get();
+    }
+};
+
+class Mul final : public Layer {
+public:
+    explicit Mul(std::string name) {
+        init(std::move(name), OpType::MUL);
+    }
+    Tensor &operator()(Tensor &input0, Tensor &input1) {
+        auto ts = run({input0, input1}, 1);
+        return ts[0].get();
+    }
+};
+
+class View final : public Layer {
+public:
+    explicit View(int batch, int seq, int head, int dim, std::string name) {
+        param_["batch"] = batch;
+        param_["seq"] = seq;
+        param_["head"] = head;
+        param_["dim"] = dim;
+        init(std::move(name), OpType::VIEW);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class Transpose final : public Layer {
+public:
+    explicit Transpose(std::vector<int> perm, std::string name) {
+        param_["perm0"] = perm[0];
+        param_["perm1"] = perm[1];
+        param_["perm2"] = perm[2];
+        param_["perm3"] = perm[3];
+        init(std::move(name), OpType::TRANSPOSE);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
 } // namespace mllm
 
 #endif // OPERATION_H

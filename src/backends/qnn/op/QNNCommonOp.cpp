@@ -63,8 +63,8 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
                                       .rank = 4,
                                       .dimensions = dimensions,
                                       .memType = QNN_TENSORMEMTYPE_RAW,
-                                      {.clientBuf = {.data = nullptr,
-                                                     .dataSize = 0}}}}});
+                                      .clientBuf = {.data = nullptr,
+                                                     .dataSize = 0}}}});
     }
 
     if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputTensors, params, packageName)) {
