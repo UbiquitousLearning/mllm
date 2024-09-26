@@ -28,7 +28,7 @@ public:
     void init(RoPEType type = RoPEType::HFHUBROPE) {
         switch (type) {
         case RoPEType::HFHUBROPE: {
-            blk_name = "model.layers.";
+            blk_name = "transformer.layers.";
             _attn_base_name = "self_attn.";
             _ffn_base_name = "mlp.";
             _q_proj_name = "q_proj";
@@ -43,24 +43,6 @@ public:
             token_embd_name = "model.embed_tokens";
             post_norm_name = "model.norm";
             lm_head_name = "lm_head";
-            break;
-        }
-        case RoPEType::LLAMAROPE: /*the OpenELM2 is same to llama*/ {
-            blk_name = "layers.";
-            _attn_base_name = "attention.";
-            _ffn_base_name = "feed_forward.";
-            _q_proj_name = "wq";
-            _k_proj_name = "wk";
-            _v_proj_name = "wv";
-            _o_proj_name = "wo";
-            _gate_proj_name = "w1";
-            _up_proj_name = "w3";
-            _down_proj_name = "w2";
-            _attn_norm_name = "attention_norm";
-            _ffn_norm_name = "ffn_norm";
-            token_embd_name = "tok_embeddings";
-            post_norm_name = "norm";
-            lm_head_name = "output";
             break;
         }
         default: {
@@ -131,7 +113,7 @@ struct OpenELMConfig {
     int max_context_length = 2048;
     int model_dim = 2048;
     int num_gqa_groups = 4;
-    std::vector<int> num_key_heads{
+    std::vector<int> num_kv_heads{
         4,
         4,
         4,
@@ -196,7 +178,7 @@ struct OpenELMConfig {
         0.5,
         1.0,
     };
-    int rope_freq_constant = 10000;
+    float rope_freq_constant = 10000;
     int rope_max_length = 4096;
     int vocab_size = 32000;
     int cache_limit;

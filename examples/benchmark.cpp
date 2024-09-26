@@ -52,7 +52,7 @@ Tensor tokens2Input(int tokens_size, string name = "input", BackendType type = M
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<std::string>("model_name", 'n', "the name of model", false);
-    cmdParser.add<int>("input_size", 'i', "input size", false, 256);
+    cmdParser.add<int>("input_size", 'i', "input size", false, 64);
     cmdParser.add<int>("loop", 'p', "loop", false, 100);
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     if (model_name == "tinyllama-1.1B") {
-        TinyLLaMAConfig config(tokens_limit, "1.5B", HFHUBROPE);
+        TinyLLaMAConfig config(tokens_limit, "1.1B", HFHUBROPE);
         auto model = TinyLLaMAModel(config);
         model.setNoLoadWeightsDtype(MLLM_TYPE_Q4_0_4_4);
 
