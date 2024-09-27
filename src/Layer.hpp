@@ -721,10 +721,10 @@ public:
 
 class View final : public Layer {
 public:
-    explicit View(int batch, int seq, int head, int dim, std::string name) {
+    explicit View(int batch, int head, int seq, int dim, std::string name) {
         param_["batch"] = batch;
-        param_["seq"] = seq;
         param_["head"] = head;
+        param_["seq"] = seq;
         param_["dim"] = dim;
         init(std::move(name), OpType::VIEW);
     }

@@ -18,9 +18,18 @@ class QwenDecoderNPUPart1 final : public Module {
     int head_dim;
     int num_key_value_heads;
     int num_key_value_groups;
+
+    // it is for speed up the QNN linear implemented by conv, TODO: should integrate into QNNLinear
+    Layer pre_attn_view;
+
     Layer q_proj;
     Layer k_proj;
     Layer v_proj;
+
+    Layer q_view;
+    Layer k_view;
+    Layer v_view;
+
     Layer q_dequant;
     Layer k_dequant;
     Layer v_dequant;
@@ -35,9 +44,15 @@ public:
         num_key_value_heads = config.num_key_value_heads;
         num_key_value_groups = num_heads / num_key_value_heads;
 
+        pre_attn_view = View(1, -1, 32, head_dim * num_heads, base_name + ".view");
+
         q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._attn_base_name + names._q_proj_name);
         k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._attn_base_name + names._k_proj_name);
         v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._attn_base_name + names._v_proj_name);
+
+        q_view = View(-1, num_heads, -1, head_dim, base_name + names._attn_base_name + "._q_view");
+        k_view = View(-1, num_heads, -1, head_dim, base_name + names._attn_base_name + "._k_view");
+        v_view = View(-1, num_heads, -1, head_dim, base_name + names._attn_base_name + "._v_view");
 
         q_dequant = Dequantize(true, base_name + names._attn_base_name + "._q_dequant");
         k_dequant = Dequantize(true, base_name + names._attn_base_name + "._k_dequant");
@@ -47,9 +62,15 @@ public:
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
-        auto query_states = q_proj(inputs[0]);
-        auto key_states = k_proj(inputs[0]);
-        auto value_states = v_proj(inputs[0]);
+        auto x = pre_attn_view(inputs[0]);
+
+        auto query_states = q_proj(x);
+        auto key_states = k_proj(x);
+        auto value_states = v_proj(x);
+
+        query_states = q_view(query_states);
+        key_states = k_view(key_states);
+        value_states = v_view(value_states);
 
         query_states = q_dequant(query_states);
         key_states = k_dequant(key_states);
@@ -97,9 +118,9 @@ public:
         auto k = inputs[1];
         auto v = inputs[2];
 
-        q = q.view(-1, num_heads, -1, head_dim);
-        k = k.view(-1, num_heads, -1, head_dim);
-        v = v.view(-1, num_heads, -1, head_dim);
+        // q = q.view(-1, num_heads, -1, head_dim);
+        // k = k.view(-1, num_heads, -1, head_dim);
+        // v = v.view(-1, num_heads, -1, head_dim);
 
         q = q_rope(q);
         k = k_rope(k);
@@ -128,16 +149,29 @@ class QwenDecoderNPUPart2 final : public Module {
     int num_key_value_groups;
     int intermediate_size;
 
-    Layer attention_out_view;
+    // NPU part2 of attention
+    Layer pre_oproj_view;
     Layer out_proj;
+    Layer post_oproj_view;
+    Layer post_oproj_dequantize;
+
+    // NPU mlp
+    Layer pre_mlp_quantize;
+    Layer pre_mlp_view;
     Layer gate_proj;
     Layer up_proj;
-    Layer down_proj;
+    Layer post_up_proj_dequantize;
+    Layer post_gate_proj_dequantize;
     Layer silu;
-    Layer post_attention_layernorm;
+    Layer post_attn_layernorm;
 
-    Layer post_atten_res;
-    Layer post_mlp_res;
+    Layer down_proj;
+    Layer pre_down_proj_quantize;
+    Layer post_down_proj_dequantize;
+    Layer post_mlp_view;
+
+    Layer post_atten_res_add;
+    Layer post_mlp_res_add;
     Layer mlp_mul;
 
 public:
@@ -150,35 +184,63 @@ public:
         num_key_value_heads = config.num_key_value_heads;
         num_key_value_groups = num_heads / num_key_value_heads;
 
-        attention_out_view = View(-1, 1, -1, head_dim * num_heads, ".view");
+        // for QNN linear speed up
+        pre_oproj_view = View(1, -1, 32, head_dim * num_heads, ".view");
         out_proj = Linear(hidden_size, hidden_size, false, base_name + names._o_proj_name);
+        post_oproj_dequantize = Dequantize(true, base_name + "post_proj_dequantize");
+        post_oproj_view = View(1, 1, -1, hidden_size, base_name + "post_proj_view");
+        post_atten_res_add = Add(base_name + ".post_atten_add");
+
+        post_attn_layernorm =
+            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
+        pre_mlp_quantize = Quantize(true, base_name + "pre_mlp_quantize");
+        pre_mlp_view = View(1, -1, 32, hidden_size, base_name + "pre_mlp_view");
         gate_proj = Linear(hidden_size, intermediate_size, false, base_name + names._gate_proj_name);
         silu = SiLU(base_name + "act");
         up_proj = Linear(hidden_size, intermediate_size, false, base_name + names._up_proj_name);
+        post_up_proj_dequantize = Dequantize(true, base_name + "post_up_proj_dequantize");
+        post_gate_proj_dequantize = Dequantize(true, base_name + "post_down_proj_dequantize");
+
         down_proj = Linear(intermediate_size, hidden_size, false, base_name + names._down_proj_name);
-        post_attention_layernorm =
-            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
-        post_atten_res = Add(base_name +".post_atten_add");
-        post_mlp_res = Add(base_name + "post_mlp_res");
+        pre_down_proj_quantize = Quantize(true, base_name + "pre_down_proj_quantize");
+        post_down_proj_dequantize = Dequantize(true, base_name + "post_down_proj_dequantize");
+        post_mlp_view = View(1, 1, -1, hidden_size, base_name + "post_mlp_view");
+
         mlp_mul = Mul(base_name + "mlp_mul");
+        post_mlp_res_add = Add(base_name + "post_mlp_res");
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto atten_output = inputs[0];
         auto res = inputs[1];
 
-        atten_output = attention_out_view(atten_output);
+        atten_output = pre_oproj_view(atten_output);
         atten_output = out_proj(atten_output);
+        atten_output = post_oproj_dequantize(atten_output);
+        atten_output = post_oproj_view(atten_output);
 
-        auto tmp = post_atten_res(atten_output, res);
-        auto x = post_attention_layernorm(tmp);
+        auto tmp = post_atten_res_add(atten_output, res);
+
+        auto x = post_attn_layernorm(tmp);
+
+        x = pre_mlp_quantize(x);
+        x = pre_mlp_view(x);
+
         x = gate_proj(x);
+        x = post_gate_proj_dequantize(x);
         x = silu(x);
-        auto y = up_proj(tmp);
-        x = mlp_mul(x, y);
-        x = down_proj(x);
 
-        x = post_mlp_res(x, tmp);
+        auto y = up_proj(x);
+        y = post_up_proj_dequantize(y);
+        x = mlp_mul(x, y);
+
+        x = pre_down_proj_quantize(x);
+        x = down_proj(x);
+        x = post_down_proj_dequantize(x);
+
+        x = post_mlp_view(x);
+
+        x = post_mlp_res_add(x, tmp);
         return {x};
     }
 };
@@ -191,6 +253,7 @@ class QwenNPU_CPUDecoder final : public Module {
     int num_key_value_groups;
 
     Layer input_layernorm;
+    Layer pre_attn_quantize;
     QwenDecoderNPUPart1 part1;
     QwenQKVmm qkv_mm;
     QwenDecoderNPUPart2 part2;
@@ -205,6 +268,7 @@ public:
         num_key_value_groups = num_heads / num_key_value_heads;
 
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
+        pre_attn_quantize = Quantize(true, base_name + "pre_attn_quantize");
 
         part1 = QwenDecoderNPUPart1(config, names, base_name);
         part1.to(MLLM_QNN);
@@ -218,7 +282,8 @@ public:
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = input_layernorm(inputs[0]);
-        // TODO: quantize x to int8
+        x = pre_attn_quantize(x);
+
         if (x.device() != MLLM_QNN) {
             x = Tensor::toQNN({x})[0];
         }
