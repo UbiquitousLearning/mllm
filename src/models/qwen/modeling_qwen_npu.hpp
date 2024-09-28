@@ -44,21 +44,21 @@ public:
         num_key_value_heads = config.num_key_value_heads;
         num_key_value_groups = num_heads / num_key_value_heads;
 
-        pre_attn_view = View(1, -1, 32, head_dim * num_heads, base_name + ".view");
+        pre_attn_view = View(1, -1, 32, head_dim * num_heads, base_name + "ires_split-00_view_");
 
-        q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._attn_base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._attn_base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._attn_base_name + names._v_proj_name);
+        q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._v_proj_name);
 
-        q_view = View(-1, num_heads, -1, head_dim, base_name + names._attn_base_name + "._q_view");
-        k_view = View(-1, num_heads, -1, head_dim, base_name + names._attn_base_name + "._k_view");
-        v_view = View(-1, num_heads, -1, head_dim, base_name + names._attn_base_name + "._v_view");
+        q_view = View(-1, num_heads, -1, head_dim, base_name + names._q_proj_name + "-00_view_");
+        k_view = View(-1, num_heads, -1, head_dim, base_name + names._k_proj_name + "-00_view_");
+        v_view = View(-1, num_heads, -1, head_dim, base_name + names._v_proj_name + "-00_view_");
 
-        q_dequant = Dequantize(true, base_name + names._attn_base_name + "._q_dequant");
-        k_dequant = Dequantize(true, base_name + names._attn_base_name + "._k_dequant");
-        v_dequant = Dequantize(true, base_name + names._attn_base_name + "._v_dequant");
+        q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize");
+        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize");
+        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize");
 
-        v_transpose = Transpose({0, 2, 3, 1}, base_name + names._attn_base_name + "._v_transpose");
+        v_transpose = Transpose({0, 2, 3, 1}, base_name + names._v_proj_name + ".transpose");
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
@@ -110,7 +110,7 @@ public:
 
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
 
-        o_quantize = Quantize(true, base_name + "quantize");
+        o_quantize = Quantize(true, base_name + names._o_proj_name + "quantize");
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
@@ -185,29 +185,31 @@ public:
         num_key_value_groups = num_heads / num_key_value_heads;
 
         // for QNN linear speed up
-        pre_oproj_view = View(1, -1, 32, head_dim * num_heads, ".view");
-        out_proj = Linear(hidden_size, hidden_size, false, base_name + names._o_proj_name);
-        post_oproj_dequantize = Dequantize(true, base_name + "post_proj_dequantize");
-        post_oproj_view = View(1, 1, -1, hidden_size, base_name + "post_proj_view");
-        post_atten_res_add = Add(base_name + ".post_atten_add");
+        pre_oproj_view = View(1, -1, 32, head_dim * num_heads, base_name + names._attn_base_name + "or_split-00_view_");
+        out_proj = Linear(hidden_size, hidden_size, false, base_name + names._attn_base_name + names._o_proj_name);
+        post_oproj_dequantize = Dequantize(true, base_name + names._attn_base_name + names._o_proj_name + ".dequantize");
+        post_oproj_view = View(1, 1, -1, hidden_size, base_name + names._attn_base_name + names._o_proj_name + ".dequantize-00_view_");
+        post_atten_res_add = Add(base_name + names._attn_base_name + ".post_atten_add");
 
         post_attn_layernorm =
             RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
-        pre_mlp_quantize = Quantize(true, base_name + "pre_mlp_quantize");
-        pre_mlp_view = View(1, -1, 32, hidden_size, base_name + "pre_mlp_view");
-        gate_proj = Linear(hidden_size, intermediate_size, false, base_name + names._gate_proj_name);
-        silu = SiLU(base_name + "act");
+
+        auto mlp_base_name = base_name + names._ffn_base_name;
+        pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
+        pre_mlp_view = View(1, -1, 32, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
+        gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
+        silu = SiLU(mlp_base_name + "act");
         up_proj = Linear(hidden_size, intermediate_size, false, base_name + names._up_proj_name);
-        post_up_proj_dequantize = Dequantize(true, base_name + "post_up_proj_dequantize");
-        post_gate_proj_dequantize = Dequantize(true, base_name + "post_down_proj_dequantize");
+        post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
+        post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");
 
-        down_proj = Linear(intermediate_size, hidden_size, false, base_name + names._down_proj_name);
-        pre_down_proj_quantize = Quantize(true, base_name + "pre_down_proj_quantize");
-        post_down_proj_dequantize = Dequantize(true, base_name + "post_down_proj_dequantize");
-        post_mlp_view = View(1, 1, -1, hidden_size, base_name + "post_mlp_view");
+        down_proj = Linear(intermediate_size, hidden_size, false, mlp_base_name + names._down_proj_name);
+        pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize");
+        post_down_proj_dequantize = Dequantize(true, mlp_base_name + names._down_proj_name + ".dequantize");
+        post_mlp_view = View(1, 1, -1, hidden_size, mlp_base_name + names._down_proj_name + ".dequantize-00_view_");
 
-        mlp_mul = Mul(base_name + "mlp_mul");
-        post_mlp_res_add = Add(base_name + "post_mlp_res");
+        mlp_mul = Mul(mlp_base_name + "mul");
+        post_mlp_res_add = Add(mlp_base_name + "res_add");
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
@@ -227,10 +229,11 @@ public:
         x = pre_mlp_view(x);
 
         x = gate_proj(x);
+        auto y = up_proj(x);
+
         x = post_gate_proj_dequantize(x);
         x = silu(x);
 
-        auto y = up_proj(x);
         y = post_up_proj_dequantize(y);
         x = mlp_mul(x, y);
 
@@ -268,12 +271,12 @@ public:
         num_key_value_groups = num_heads / num_key_value_heads;
 
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
-        pre_attn_quantize = Quantize(true, base_name + "pre_attn_quantize");
+        pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize");
 
-        part1 = QwenDecoderNPUPart1(config, names, base_name);
+        part1 = QwenDecoderNPUPart1(config, names, base_name + names._attn_base_name);
         part1.to(MLLM_QNN);
 
-        qkv_mm = QwenQKVmm(config, names, base_name);
+        qkv_mm = QwenQKVmm(config, names, base_name + names._attn_base_name);
         qkv_mm.to(MLLM_CPU);
 
         part2 = QwenDecoderNPUPart2(config, names, base_name);

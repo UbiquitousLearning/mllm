@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-1.5-1.8b-q8_0.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-1.5-1.8b-chat-int8.mllm");
     cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B]", false, "1.8B");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
@@ -48,7 +48,8 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto input_str = addSystemPrompt(in_strs[i]);
-        auto input_tensor = tokenizer.tokenize(input_str, i);
+        // auto input_tensor = tokenizer.tokenize(input_str, i);
+        auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(in_strs[0], 64, 151936);
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
 

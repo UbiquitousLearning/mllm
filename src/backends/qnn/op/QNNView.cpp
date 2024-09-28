@@ -72,7 +72,7 @@ ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         dim2 = dim2_;
         dim3 = dim3_;
     } else {
-        std::cout << "CPUView not support!!!!" << std::endl;
+        std::cout << "QNNView not support!!!!" << std::endl;
     }
     outputs[0]->reshape(dim0, dim1, dim2, dim3);
 

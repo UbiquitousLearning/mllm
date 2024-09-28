@@ -1074,10 +1074,18 @@ public:
         return backend_->type();
     }
 
-    Tensor &to(BackendType backend_type);
+    Tensor &to(BackendType backend_type) {
+        backend_ = Backend::global_backends[backend_type];
+        // TODO: check if the data is shared between devices
+        // if so, return the origin tensor
+        // if not, return the new tensor
+        // TODO: if need copy, should implement copyDataCrossBn and do copy when Tensor::TENSOR_STATIC_READY
+        return *this;
+    };
     static vector<Tensor> toDevice(vector<Tensor> inputs, BackendType backend_type) {
-        // TODO: implement
-        std::cout << "tensor should be transfered across backend" << std::endl;
+        for (auto &input : inputs) {
+            input.to(backend_type);
+        }
         return inputs;
     };
     static vector<Tensor> toCPU(vector<Tensor> inputs){
