@@ -1,5 +1,6 @@
+# FIXME. TEST was defined twice.
 add_definitions(-DTEST)
-FetchContent_MakeAvailable(googletest)
+
 enable_testing()
 include_directories(${PROJECT_SOURCE_DIR}/test)
 

@@ -1,0 +1,1 @@
+add_subdirectory(third_party/XNNPACK EXCLUDE_FROM_ALL)
