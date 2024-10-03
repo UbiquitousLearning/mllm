@@ -13,8 +13,6 @@ list(REMOVE_ITEM MLLM_TEST ${PROJECT_SOURCE_DIR}/test/TestSystemMemoryManager.cp
 list(REMOVE_ITEM MLLM_TEST ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp)
 # list(REMOVE_ITEM MLLM_TEST ${PROJECT_SOURCE_DIR}/test/clip_tokenizer_test.cpp)
 
-message(STATUS "MLLM_TEST: ${MLLM_TEST}")
-
 # Add ${DIR_SRC_QUANT} to ${DIR_SRC}
 # if ()
 add_executable(

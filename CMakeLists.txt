@@ -123,8 +123,9 @@ endif()
 
 option(MLLM_BUILD_XNNPACK_BACKEND "Build mllm's XNNPACK backend" ON)
 if(MLLM_BUILD_XNNPACK_BACKEND)
+    add_compile_options(-fPIC)
     add_definitions(-DMLLM_BUILD_XNNPACK_BACKEND)
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/xnnpack)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/Xnnpack)
 endif()
 
 #add tokenizers
@@ -159,8 +160,6 @@ if (QUANT)
             ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
             ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp)
     list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/main.cpp)
-
-    message(STATUS "MLLM_Quant: ${MLLM_QUANT}")
 
     add_executable(
             quantize
