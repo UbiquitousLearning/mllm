@@ -11,7 +11,7 @@
 
 #include "Backend.hpp"
 #include "Op.hpp"
-#include "backends/Xnnpack/XnnpackBackend.hpp"
+#include "backends/xnnpack/XnnpackBackend.hpp"
 
 namespace mllm::xnnpack {
 

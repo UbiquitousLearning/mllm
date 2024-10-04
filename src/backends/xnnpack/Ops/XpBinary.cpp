@@ -1,4 +1,4 @@
-#include "backends/Xnnpack/Ops/XpBinary.hpp"
+#include "backends/xnnpack/Ops/XpBinary.hpp"
 
 namespace mllm::xnnpack {
 

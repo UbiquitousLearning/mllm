@@ -125,7 +125,7 @@ option(MLLM_BUILD_XNNPACK_BACKEND "Build mllm's XNNPACK backend" ON)
 if(MLLM_BUILD_XNNPACK_BACKEND)
     add_compile_options(-fPIC)
     add_definitions(-DMLLM_BUILD_XNNPACK_BACKEND)
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/Xnnpack)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/xnnpack)
 endif()
 
 #add tokenizers

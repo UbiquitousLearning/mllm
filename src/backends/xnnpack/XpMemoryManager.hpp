@@ -9,7 +9,7 @@
  */
 #pragma once
 
-#include "Xnnpack/Utils/Logger.hpp"
+#include "backends/xnnpack/Utils/Logger.hpp"
 
 namespace mllm::xnnpack {
 

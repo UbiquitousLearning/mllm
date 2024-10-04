@@ -1,6 +1,6 @@
-#include "backends/Xnnpack/XnnpackBackend.hpp"
+#include "backends/xnnpack/XnnpackBackend.hpp"
 #include "Backend.hpp"
-#include "backends/Xnnpack/Utils/Logger.hpp"
+#include "backends/xnnpack/Utils/Logger.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
