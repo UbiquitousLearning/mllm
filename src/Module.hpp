@@ -37,7 +37,7 @@ public:
     static AbstructLoader *loader;
     static bool doLoad;
     static bool doToDevice;
-    static BackendType tmp_device;
+    static BackendType tmp_device, previous_device;
     static std::unordered_map<string, shared_ptr<Op>> tensor_func_ops; // use for QNN
 
     Module() = default;
@@ -142,9 +142,19 @@ public:
     vector<Tensor> operator()(vector<Tensor> inputs, Args... args) {
         vector<std::any> anyArgs = convertArgsToAnyVector(args...);
         // set static tmp_device to device_ to init layers' op
+        Module::previous_device = Module::tmp_device;
         Module::tmp_device = device_;
         if (doLoad) {
-            return Forward(inputs, anyArgs);
+            // set tensor ttype for device compute graph building
+            if (inputs[0].ttype() == TensorType::INPUT_TENSOR) { // XPUs' module should not be the outermost input tensor
+                return Forward(inputs, anyArgs);
+            }
+            // for inner module, set output tensors to GRAPH_OUTPUT
+            auto outputs = Forward(inputs, anyArgs);
+            for (auto &output : outputs) {
+                Tensor::graphs[output.name()]->setTtype(GRAPH_OUTPUT);
+            }
+            return outputs;
         }
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
             if (prefilling_token_size_ == 0) { // first time init
@@ -189,6 +199,43 @@ public:
 
             return output;
         } else {
+            if (Tensor::tensor_status == TENSOR_STATIC_INIT && Module::tmp_device != Module::previous_device) {
+                std::cout << "------------ onSetUpStart " << device_ << std::endl;
+                auto inputs_vec = vector<shared_ptr<Tensor>>();
+                auto outputs_vec = vector<shared_ptr<Tensor>>();
+                for (auto &i : inputs) {
+                    inputs_vec.push_back(Tensor::graphs[i.name()]);
+                }
+                auto getUinqueName = [this]() -> string {
+                    std::ostringstream oss;
+                    oss << "Module@" << this;
+                    return oss.str();
+                };
+                Backend::global_backends[device_]->onSetUpStart(inputs_vec, outputs_vec, getUinqueName());
+                auto outputs = Forward(inputs, anyArgs);
+                for (auto &output : outputs) {
+                    outputs_vec.push_back(Tensor::graphs[output.name()]);
+                }
+                Backend::global_backends[device_]->onSetUpEnd(inputs_vec, outputs_vec, getUinqueName());
+                std::cout << "------------ onSetUpEnd" << std::endl;
+                return outputs;
+            } else if(Tensor::tensor_status == TENSOR_STATIC_READY && Module::tmp_device != Module::previous_device) {
+                auto inputs_vec = vector<shared_ptr<Tensor>>(inputs.size());
+                auto outputs_vec = vector<shared_ptr<Tensor>>();
+                for (auto &i : inputs) {
+                    inputs_vec.push_back(std::make_shared<Tensor>(i));
+                }
+                auto getUinqueName = [this]() -> string {
+                    std::ostringstream oss;
+                    oss << "Module@" << this;
+                    return oss.str();
+                };
+                Backend::global_backends[device_]->onExecuteStart(inputs_vec, outputs_vec, getUinqueName());
+                auto outputs = Forward(inputs, anyArgs);
+                Backend::global_backends[device_]->onExecuteEnd();
+                return outputs;
+            }
+            std::cout << "common setUp" << std::endl;
             return Forward(inputs, anyArgs);
         }
     }

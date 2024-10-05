@@ -91,6 +91,7 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                                                                 .dataSize = 0}}}};
         return graphAddNode(name(), "LLaMADequantize", {inputs[0]->name()}, outputTensor, paramsDeQuantize, "LLaMAPackage");
     } else {
+        outputs[0]->setDtype(MLLM_TYPE_F16);
         uint32_t paramsDeQuantizeDimension[1] = {1};
         auto paramsDeQuantizeName = name() + "dequantize_params";
         vector<Qnn_Param_t> paramsDeQuantize = {

@@ -83,7 +83,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string>
 }
 
 Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tensor) const {
-    if (tensor->ttype() == OUTPUT_TENSOR) {
+    if (tensor->ttype() == GRAPH_OUTPUT) {
         qnnBackend_->pushOutputBuffers(tensor->hostPtr<uint8_t>());
         return QNN_TENSOR_TYPE_APP_READ;
     } else {

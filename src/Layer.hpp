@@ -687,8 +687,9 @@ public:
 
 class Dequantize final : public Layer {
 public:
-    explicit Dequantize(bool isNSHD, std::string name) {
+    explicit Dequantize(bool isNSHD, std::string name, bool isFP32 = true) {
         param_["isNSHD"] = (float)isNSHD;
+        param_["isFP32"] = (float)isFP32;
         init(std::move(name), OpType::DEQUANTIZE);
     }
     Tensor &operator()(Tensor &input) {
@@ -722,10 +723,48 @@ public:
 class View final : public Layer {
 public:
     explicit View(int batch, int head, int seq, int dim, std::string name) {
-        param_["batch"] = batch;
-        param_["head"] = head;
-        param_["seq"] = seq;
-        param_["dim"] = dim;
+        vector<int> dims;
+        vector<int> data_dims;
+        if (batch == -1 & seq == -1 & head != -1 & dim != -1) { // keep b&s change h&d
+            if (head != 1) {
+                dims = {batch, head, seq, -1};
+                data_dims = {BATCH, DIMENSION, SEQUENCE, DIMENSION};
+            } else {
+                dims = {batch, -1, seq, -1};
+                data_dims = {BATCH, -1, SEQUENCE, HEAD + DIMENSION};
+            }
+        } else if (batch == -1 & dim == -1 & head != -1 & seq != -1) { // keep b&d change h&s
+            if (head != 1) {
+                dims = {batch, head, -1, dim};
+                data_dims = {BATCH, SEQUENCE, SEQUENCE, DIMENSION};
+            } else {
+                dims = {batch, -1, -1, dim};
+                data_dims = {BATCH, -1, HEAD + SEQUENCE, DIMENSION};
+            }
+        } else if (head == -1 & dim == -1 & batch != -1 & seq != -1) { // keep h&d change b&s
+            if (seq != 1) {
+                dims = {-1, head, seq, dim};
+                data_dims = {BATCH, HEAD, BATCH, DIMENSION};
+            } else {
+                dims = {-1, head, -1, dim};
+                data_dims = {BATCH + SEQUENCE, HEAD, -1, DIMENSION};
+            }
+        } else if (batch != -1 & dim != -1 & head != -1 & seq != -1) { // change all dimension.
+
+            dims = {batch, head, seq, dim};
+            data_dims = {BATCH, HEAD, SEQUENCE, DIMENSION};
+
+        } else {
+            std::cout << "ERROR: " << name << " view [" << batch << ", " << head << ", " << seq << ", " << dim << "]" << std::endl;
+        }
+        param_["dim0"] = dims[0];
+        param_["dim1"] = dims[1];
+        param_["dim2"] = dims[2];
+        param_["dim3"] = dims[3];
+        param_["data_dim0"] = data_dims[0];
+        param_["data_dim1"] = data_dims[1];
+        param_["data_dim2"] = data_dims[2];
+        param_["data_dim3"] = data_dims[3];
         init(std::move(name), OpType::VIEW);
     }
     Tensor &operator()(Tensor &input) {

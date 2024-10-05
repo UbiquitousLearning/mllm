@@ -80,6 +80,7 @@ ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    outputs[0]->setDtype(inputs[0]->dtype());
     if (getOutputTensorType(outputs[0]) == QNN_TENSOR_TYPE_APP_READ) {
         outputs[0]->setBackend(qnnBackend_);
         outputs[0]->setDtype(MLLM_TYPE_I8);
