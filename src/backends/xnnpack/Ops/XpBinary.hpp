@@ -17,8 +17,13 @@ namespace mllm::xnnpack {
 
 class XpAdd final : public Op {
 public:
-    XpAdd(Backend *bk, const std::string &op_name, int thread_count);
+    XpAdd(Backend *bk, const std::string &op_name, int thread_count) :
+        Op(bk, op_name), thread_count_(thread_count) {
+    }
+
     ~XpAdd() override = default;
+
+    ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
     ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 

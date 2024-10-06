@@ -1,6 +1,7 @@
 #include "backends/xnnpack/XnnpackBackend.hpp"
 #include "Backend.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
+#include "xnnpack.h"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
@@ -23,8 +24,8 @@ XnnpackModelRuntime::~XnnpackModelRuntime() {
     }
 }
 
-bool XnnpackModelRuntime::createModel(const std::function<xnn_subgraph_t()> &model_factory) {
-    model_.reset(model_factory());
+bool XnnpackModelRuntime::createModel(const xnn_subgraph_t &model_factory) {
+    model_.reset(model_factory);
     if (!model_) {
         Log::error("failed to create model");
         return false;
@@ -45,7 +46,7 @@ bool XnnpackModelRuntime::createModel(const std::function<xnn_subgraph_t()> &mod
 }
 
 bool XnnpackModelRuntime::createRuntime(uint32_t flags) {
-    assert(!runtime);
+    assert(!runtime_);
     return xnn_status_success == xnn_create_runtime_v4(model_.get(), nullptr, nullptr, threadpool_, flags, &runtime_);
 }
 
@@ -63,6 +64,7 @@ bool XnnpackModelRuntime::invoke() {
 
 XnnpackBackend::XnnpackBackend(std::shared_ptr<MemoryManager> mm, const XnnpackBackendOpts &opts) :
     Backend(mm), opts_(opts) {
+    model_runtime_ = std::make_shared<XnnpackModelRuntime>(opts_.num_threads);
 }
 
 XnnpackBackend::~XnnpackBackend() {
@@ -106,4 +108,16 @@ void XnnpackBackend::registerFuncs() {
     // TODO
 }
 
+std::shared_ptr<XnnpackModelRuntime> XnnpackBackend::getModelRuntime() {
+    return model_runtime_;
+}
+
+std::shared_ptr<XnnpackModelRuntime> XnnpackBackend::recreateModelRuntime(int thread_count) {
+    model_runtime_ = std::make_shared<XnnpackModelRuntime>(thread_count);
+    return model_runtime_;
+}
+
+xnn_subgraph_t XnnpackBackend::getXnnSubgraph() {
+    return subgraph_;
+}
 } // namespace mllm::xnnpack

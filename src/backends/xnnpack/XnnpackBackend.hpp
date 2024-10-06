@@ -11,9 +11,10 @@
 
 #include "MemoryManager.hpp"
 #include "Backend.hpp"
-#include <functional>
 #include <memory>
 #include <cstdint>
+#include <string>
+#include <unordered_map>
 
 #include "Types.hpp"
 #include "xnnpack.h"
@@ -25,7 +26,7 @@ public:
     explicit XnnpackModelRuntime(int32_t num_threads);
     ~XnnpackModelRuntime();
 
-    bool createModel(const std::function<xnn_subgraph_t()> &model_factory);
+    bool createModel(const xnn_subgraph_t &model_factory);
 
     bool createRuntime(uint32_t flags);
 
@@ -41,6 +42,20 @@ private:
     xnn_runtime_t runtime_ = nullptr;
     std::vector<xnn_external_value> external_values_;
     int32_t num_threads_;
+};
+
+class XnnpackTensorSymbolTable {
+public:
+private:
+    // user side tensor:
+    // user should free these tensor manually
+    std::unordered_map<std::string, uint32_t> user_side_tensor_;
+
+    // xnnpack will free this tensor when necessary
+    std::unordered_map<std::string, uint32_t> xnn_side_tensor_;
+
+    // all tensors
+    std::unordered_map<std::string, uint32_t> all_tensor_;
 };
 
 struct XnnpackBackendOpts {
@@ -67,8 +82,19 @@ public:
 
     void registerFuncs() override;
 
+    std::shared_ptr<XnnpackModelRuntime> getModelRuntime();
+
+    std::shared_ptr<XnnpackModelRuntime> recreateModelRuntime(int thread_count = 1);
+
+    xnn_subgraph_t getXnnSubgraph();
+
 private:
     XnnpackBackendOpts opts_;
+
+    // xnn stuff
+    xnn_subgraph_t subgraph_ = nullptr;
+    std::shared_ptr<XnnpackModelRuntime> model_runtime_ = nullptr;
+
     std::map<OpType, XnnpackBackend::Creator *> map_op_creator_;
     std::map<TensorFuncType, TensorFunction *> map_tensor_function_;
 };

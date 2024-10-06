@@ -7,6 +7,11 @@ add_library(MllmXnnpackBackend
     Utils/Logger.cpp
 
     Ops/XpBinary.cpp
+    Ops/XpDispatch.cpp
+    Ops/XpLinear.cpp
+    Ops/XpMatmul.cpp
+    Ops/XpRoPE.cpp
+    Ops/XpSoftmax.cpp
 
     XnnpackBackend.cpp
     XpMemoryManager.cpp
