@@ -1074,12 +1074,12 @@ public:
         return backend_->type();
     }
 
-    Tensor &to(BackendType backend_type) {
-        backend_ = Backend::global_backends[backend_type];
+    Tensor &to(BackendType backend_type) { 
         // TODO: check if the data is shared between devices
         // if so, return the origin tensor
         // if not, return the new tensor
         // TODO: if need copy, should implement copyDataCrossBn and do copy when Tensor::TENSOR_STATIC_READY
+        Tensor::graphs[name()]->setBackend(Backend::global_backends[backend_type]);
         return *this;
     };
     static vector<Tensor> toDevice(vector<Tensor> inputs, BackendType backend_type) {

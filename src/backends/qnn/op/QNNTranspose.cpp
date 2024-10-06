@@ -13,8 +13,10 @@ QNNTranspose::QNNTranspose(Backend *bn, int perm0, int perm1, int perm2, int per
 }
 
 ErrorCode QNNTranspose::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    if (perm[0] == 0 && perm[1] == 2 && perm[2] == 3 && perm[3] == 1)
-        outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[0]->sequence());
+    // if (perm[0] == 0 && perm[1] == 2 && perm[2] == 3 && perm[3] == 1)
+    //     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[0]->sequence());
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+    outputs[0]->transShape(SEQUENCE, DIMENSION);
 
     return Op::reshape(inputs, outputs);
 }
@@ -55,8 +57,8 @@ ErrorCode QNNTranspose::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     uint32_t dimVTranspose[4];
     dimVTranspose[0] = outputs[0]->batch();
     dimVTranspose[1] = outputs[0]->head();
-    dimVTranspose[2] = outputs[0]->sequence();
-    dimVTranspose[3] = outputs[0]->dimension();
+    dimVTranspose[2] = outputs[0]->dimension();
+    dimVTranspose[3] = outputs[0]->sequence();
 
     auto outVTransposeName = outputs[0]->name();
     vector<Qnn_Tensor_t> outVTranspose = {

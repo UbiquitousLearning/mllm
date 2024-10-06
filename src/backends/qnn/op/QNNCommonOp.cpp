@@ -84,6 +84,10 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string>
 
 Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tensor) const {
     if (tensor->ttype() == GRAPH_OUTPUT) {
+        // in Module API, the outputs of a graph is not allocated before setUp, alloc here
+        if(tensor->allocted() == 0) {
+            tensor->alloc();
+        }
         qnnBackend_->pushOutputBuffers(tensor->hostPtr<uint8_t>());
         return QNN_TENSOR_TYPE_APP_READ;
     } else {

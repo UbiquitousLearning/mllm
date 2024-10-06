@@ -9,14 +9,13 @@
 
 namespace mllm {
 CPUQuantize::CPUQuantize(Backend *bn, string opName, int threadCount):thread_count(threadCount), Op(bn, std::move(opName))  {
-
+    activation_dtype_ = MLLM_TYPE_I8;
     scale_.setBackend(bn);
 }
 
 ErrorCode CPUQuantize::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
-    activation_dtype_ = MLLM_TYPE_I8;
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     return Op::reshape(inputs, outputs);
 }

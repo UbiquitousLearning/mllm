@@ -88,6 +88,8 @@ class QwenQKVmm final : public Module {
     Layer k_rope;
     Layer k_cache;
     Layer v_cache;
+    Layer qk_mm;
+    Layer qkv_mm;
     Layer o_quantize;
 
     int hidden_size;
@@ -105,8 +107,11 @@ public:
         q_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "q_rope");
         k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "k_rope");
 
-        k_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + names._attn_base_name + "k_cache");
-        v_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + names._attn_base_name + "v_cache");
+        k_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + names._attn_base_name + "k_cache", true);
+        v_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + names._attn_base_name + "v_cache", true);
+
+        qk_mm = Matmul(false, true, base_name + names._attn_base_name + "qk");
+        qkv_mm = Matmul(false, false, base_name + names._attn_base_name + "qkv");
 
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
 
@@ -124,11 +129,17 @@ public:
         // k = k_cache(k);
         // v = v_cache(v);
 
-        k = k.transpose(SEQUENCE, DIMENSION);
-        auto qk = Tensor::mm(q, k);
-        // qk = qk / std::sqrt(hidden_size);
+        // k = k.transpose(SEQUENCE, DIMENSION);
+        // auto qk = Tensor::mm(q, k);
+        // // qk = qk / std::sqrt(hidden_size);
+        // qk = softmax(qk);
+        // auto o = Tensor::mm(qk, v);
+
+        k = k_cache(k);
+        v = v_cache(v);
+        auto qk = qk_mm(q, k);
         qk = softmax(qk);
-        auto o = Tensor::mm(qk, v);
+        auto o = qkv_mm(qk, v);
 
         o = o_quantize(o);
 
@@ -185,7 +196,7 @@ public:
         out_proj = Linear(hidden_size, hidden_size, false, base_name + names._attn_base_name + names._o_proj_name);
         post_oproj_dequantize = Dequantize(true, base_name + names._attn_base_name + names._o_proj_name + ".dequantize");
         post_oproj_view = View(1, 1, 64, hidden_size, base_name + names._attn_base_name + names._o_proj_name + ".dequantize-00_view_");
-        post_atten_res_add = Add(base_name + names._attn_base_name + ".post_atten_add");
+        post_atten_res_add = Add(base_name + names._attn_base_name + "post_atten_add");
 
         post_attn_layernorm =
             RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
@@ -222,25 +233,27 @@ public:
         auto x = post_attn_layernorm(tmp);
 
         x = pre_mlp_quantize(x);
-        x = pre_mlp_view(x);
+        // reshape to 32,2
+        // x = pre_mlp_view(x);
 
-        x = gate_proj(x);
-        auto y = up_proj(x);
+        auto gate_out = gate_proj(x);
+        auto up_out = up_proj(x);
 
-        x = post_gate_proj_dequantize(x);
-        x = silu(x);
+        gate_out = post_gate_proj_dequantize(gate_out);
+        gate_out = silu(gate_out);
 
-        y = post_up_proj_dequantize(y);
-        x = mlp_mul(x, y);
+        up_out = post_up_proj_dequantize(up_out);
+        gate_out = mlp_mul(gate_out, up_out);
 
-        x = pre_down_proj_quantize(x);
-        x = down_proj(x);
-        x = post_down_proj_dequantize(x);
+        gate_out = pre_down_proj_quantize(gate_out);
+        gate_out = down_proj(gate_out);
+        gate_out = post_down_proj_dequantize(gate_out);
 
-        x = post_mlp_view(x);
+        // reshape to 64,1
+        // gate_out = post_mlp_view(gate_out);
 
-        x = post_mlp_res_add(x, tmp);
-        return {x};
+        gate_out = post_mlp_res_add(gate_out, tmp);
+        return {gate_out};
     }
 };
 
@@ -290,7 +303,12 @@ public:
         auto q_k_v = part1({x}); // q,k,v
         auto o_x = qkv_mm(q_k_v)[0];
 
-        o_x = Tensor::toQNN({o_x})[0];
+        if(o_x.device() != MLLM_QNN) {
+            o_x = Tensor::toQNN({o_x})[0];
+        }
+        if(inputs[0].device() != MLLM_QNN) {
+            inputs[0] = Tensor::toQNN({inputs[0]})[0];
+        }
         x = part2({o_x, inputs[0]})[0];
 
         return {x};

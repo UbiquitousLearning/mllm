@@ -32,8 +32,8 @@ ErrorCode CPUKVCacheNPU::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
             cache_seq_len_ = cpuBackend->getSequenceLength();
         }
 #endif
-        // the input is from QNN linear, the V is not transposed, so we need to transpose it here
-        if (name().find("v_cache") != std::string::npos) {
+        // when using the old frontend, the V will be transposed here; while in the module API, the V will be transposed in the QNNTranspose
+        if (name().find("v_cache") != std::string::npos && inputs[0]->ctype() != BHDS) {
             inputs[0]->transShape(SEQUENCE, DIMENSION);
         }
     }

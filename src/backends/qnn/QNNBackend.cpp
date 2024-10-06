@@ -82,6 +82,7 @@ void QNNBackend::registerOps() {
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
     Backend(mm) {
+    type_ = BackendType::MLLM_QNN; // used in Tensor.device()
     if (!log::initializeLogging()) {
         std::cerr << "ERROR: Unable to initialize logging!\n";
         return;
@@ -245,20 +246,21 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
 
     // To avoid no input, we put inputs here.
     // For splitinput op input, the seq will be divided as 5, and we add the input in split ops.
-    if (inputs[0]->sequence() % 5 != 0) {
-        auto data_type = QNN_DATATYPE_SFIXED_POINT_8;
-        uint32_t dimensionsInput[4] = {
-            static_cast<uint32_t>(inputs[0]->batch()),
-            static_cast<uint32_t>(inputs[0]->sequence()),
-            static_cast<uint32_t>(inputs[0]->head()),
-            static_cast<uint32_t>(inputs[0]->dimension()),
-        };
+    for (auto &input : inputs) {
+        if (input->sequence() % 5 != 0) {
+            auto data_type = QNN_DATATYPE_SFIXED_POINT_8;
+            uint32_t dimensionsInput[4] = {
+                static_cast<uint32_t>(input->batch()),
+                static_cast<uint32_t>(input->sequence()),
+                static_cast<uint32_t>(input->head()),
+                static_cast<uint32_t>(input->dimension()),
+            };
 
-        qnnModels_[qnnModelIndex_].addTensor(inputs[0]->name().c_str(), (Qnn_Tensor_t){
+            qnnModels_[qnnModelIndex_].addTensor(input->name().c_str(), (Qnn_Tensor_t){
                                                                             .version = QNN_TENSOR_VERSION_1,
                                                                             .v1 = {
                                                                                 .id = 0,
-                                                                                .name = inputs[0]->name().c_str(),
+                                                                                .name = input->name().c_str(),
                                                                                 .type = QNN_TENSOR_TYPE_APP_WRITE,
                                                                                 .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                                                                 .dataType = data_type,
@@ -270,6 +272,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
                                                                                 .memType = QNN_TENSORMEMTYPE_RAW,
                                                                                 .clientBuf = {.data = nullptr,
                                                                                               .dataSize = 0}}});
+        }
     }
 
     // create a new inputBuffer and outputBuffer for the graph

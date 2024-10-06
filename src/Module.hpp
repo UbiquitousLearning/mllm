@@ -156,8 +156,8 @@ public:
             }
             return outputs;
         }
-        if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
-            if (prefilling_token_size_ == 0) { // first time init
+        if (inputs[0].ttype() == TensorType::INPUT_TENSOR) { // outmost Module
+            if (prefilling_token_size_ == 0) {               // first time init
                 // if(!Tensor::graphs.empty()){
                 //     Tensor::graphs.clear();
                 // }
@@ -198,8 +198,9 @@ public:
             }
 
             return output;
-        } else {
-            if (Tensor::tensor_status == TENSOR_STATIC_INIT && Module::tmp_device != Module::previous_device) {
+        } else { // inner Modules
+            // TODO: should not use the previous_device for graph setup, offload according to the backends' info inited during loading
+            if (Tensor::tensor_status == TENSOR_STATIC_INIT && Module::tmp_device != Module::previous_device) { // backend specific module reshape & setup
                 std::cout << "------------ onSetUpStart " << device_ << std::endl;
                 auto inputs_vec = vector<shared_ptr<Tensor>>();
                 auto outputs_vec = vector<shared_ptr<Tensor>>();
@@ -219,7 +220,7 @@ public:
                 Backend::global_backends[device_]->onSetUpEnd(inputs_vec, outputs_vec, getUinqueName());
                 std::cout << "------------ onSetUpEnd" << std::endl;
                 return outputs;
-            } else if(Tensor::tensor_status == TENSOR_STATIC_READY && Module::tmp_device != Module::previous_device) {
+            } else if (Tensor::tensor_status == TENSOR_STATIC_READY && Module::tmp_device != Module::previous_device) { // backend specific module execute
                 auto inputs_vec = vector<shared_ptr<Tensor>>(inputs.size());
                 auto outputs_vec = vector<shared_ptr<Tensor>>();
                 for (auto &i : inputs) {
@@ -235,7 +236,6 @@ public:
                 Backend::global_backends[device_]->onExecuteEnd();
                 return outputs;
             }
-            std::cout << "common setUp" << std::endl;
             return Forward(inputs, anyArgs);
         }
     }

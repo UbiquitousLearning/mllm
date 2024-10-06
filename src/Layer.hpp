@@ -508,6 +508,15 @@ public:
         param_["cache_max"] = cache_max;
         init(std::move(name), OpType::KVCACHE);
     }
+    explicit KVCache(int n_rep, int cache_max, std::string name, bool npuEnbaled) {
+        param_["n_rep"] = n_rep;
+        param_["cache_max"] = cache_max;
+        if(npuEnbaled) {
+            init(std::move(name), OpType::KVCACHENPU);
+        } else {
+            init(std::move(name), OpType::KVCACHE);
+        }
+    }
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
         return ts[0].get();
