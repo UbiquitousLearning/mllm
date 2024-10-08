@@ -14,6 +14,8 @@ public:
     virtual ErrorCode load(AbstructLoader &loader) override;
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
+    void shadow_vec_dot_fp32_arm(float* s, float* x, int8_t* y, int n, float input_scale, float weight_scale);
+
 private:
     int in_features_;
     int out_features_;
@@ -28,6 +30,8 @@ private:
 
     Tensor inputClip_;
     Tensor outputClip_;
+
+    Tensor output_i8_buffer_;
 
 };
 
