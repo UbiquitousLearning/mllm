@@ -10,10 +10,8 @@ namespace mllm {
  */
 class MemoryManager {
 public:
-    MemoryManager() {
-    }
-    virtual ~MemoryManager() {
-    }
+    MemoryManager() = default;
+    virtual ~MemoryManager() = default;
 
     virtual void alloc(void **ptr, size_t size, size_t alignment) = 0;
 
