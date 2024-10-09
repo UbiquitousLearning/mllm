@@ -1,5 +1,5 @@
 /**
- * @file configuration_SmolLM.hpp
+ * @file configuration_smollm.hpp
  * @author Chenghua Wang (chenghua.wang.edu@gmail.com)
  * @version 0.1
  * @date 2024-09-25
@@ -8,8 +8,8 @@
  *
  */
 #pragma once
-#ifndef CONFIG_SmolLM_HPP
-#define CONFIG_SmolLM_HPP
+#ifndef CONFIG_SMOLLM_HPP
+#define CONFIG_SMOLLM_HPP
 #include "Types.hpp"
 #include "models/transformer/configuration_transformer.hpp"
 
@@ -109,4 +109,4 @@ public:
     }
 };
 
-#endif // CONFIG_SmolLM_HPP
+#endif // CONFIG_SMOLLM_HPP

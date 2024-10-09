@@ -1,5 +1,5 @@
 /**
- * @file tokenization_SmolLM.hpp
+ * @file tokenization_smollm.hpp
  * @author Chenghua Wang (chenghua.wang.edu@gmail.com)
  * @brief
  * @version 0.1
@@ -8,8 +8,8 @@
  * @copyright Copyright (c) 2024
  *
  */
-#ifndef DCLMTOKENIZATION_SmolLM_HPP
-#define DCLMTOKENIZATION_SmolLM_HPP
+#ifndef DCLMTOKENIZATION_SMOLLM_HPP
+#define DCLMTOKENIZATION_SMOLLM_HPP
 
 #include "tokenizers/BPE/Bpe.hpp"
 #include "tokenizers/Tokenizer.hpp"
@@ -323,4 +323,4 @@ public:
 #undef CHR
 #undef ORD
 
-#endif //! DCLMTOKENIZATION_SmolLM_HPP
+#endif // TOKENIZATION_SMOLLM_HPP

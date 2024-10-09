@@ -1,5 +1,5 @@
 /**
- * @file tokenization_SmolLM.hpp
+ * @file tokenization_smollm.hpp
  * @author Chenghua Wang (chenghua.wang.edu@gmail.com)
  * @version 0.1
  * @date 2024-09-25
@@ -8,8 +8,8 @@
  *
  */
 #pragma once
-#ifndef MODELING_SmolLM_HPP
-#define MODELING_SmolLM_HPP
+#ifndef MODELING_SMOLLM_HPP
+#define MODELING_SMOLLM_HPP
 
 #include "Layer.hpp"
 #include "Module.hpp"
@@ -112,4 +112,4 @@ public:
     }
 };
 
-#endif // MODELING_SmolLM_HPP
+#endif // MODELING_SMOLLM_HPP
