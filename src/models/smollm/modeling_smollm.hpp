@@ -18,15 +18,15 @@
 
 using namespace mllm;
 
-class SmoLlmMLP final : public Module {
+class SmolLMMLP final : public Module {
     Layer gate_proj;
     Layer silu;
     Layer up_proj;
     Layer down_proj;
 
 public:
-    SmoLlmMLP() = default;
-    SmoLlmMLP(int hidden_dim, int ffn_hidden, const SmoLlMNameConfig &names, const string &base_name) {
+    SmolLMMLP() = default;
+    SmolLMMLP(int hidden_dim, int ffn_hidden, const SmolLMNameConfig &names, const string &base_name) {
         gate_proj = Linear(hidden_dim, ffn_hidden, false, base_name + names._gate_proj_name);
         silu = SiLU(base_name + "act");
         up_proj = Linear(hidden_dim, ffn_hidden, false, base_name + names._up_proj_name);
@@ -42,18 +42,18 @@ public:
     }
 };
 
-class SmoLlmBlock final : public Module {
+class SmolLMBlock final : public Module {
     MultiHeadAttention attention;
-    SmoLlmMLP mlp;
+    SmolLMMLP mlp;
     Layer norm1;
     Layer norm2;
 
 public:
-    SmoLlmBlock() = default;
-    SmoLlmBlock(int hidden_dim, int head_size, int kv_head_size, int ffn_hidden, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit, const SmoLlMNameConfig &names, const string &base_name) {
+    SmolLMBlock() = default;
+    SmolLMBlock(int hidden_dim, int head_size, int kv_head_size, int ffn_hidden, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit, const SmolLMNameConfig &names, const string &base_name) {
         attention = MultiHeadAttention(hidden_dim, head_size, kv_head_size, hidden_dim / head_size, SPLIT_NONE, false, false,
                                        RoPE_type, rope_theta, max_position_embeddings, cache_limit, true, false, names, base_name + names._attn_base_name);
-        mlp = SmoLlmMLP(hidden_dim, ffn_hidden, names, base_name + names._ffn_base_name);
+        mlp = SmolLMMLP(hidden_dim, ffn_hidden, names, base_name + names._ffn_base_name);
         norm1 = RMSNorm(hidden_dim, 1e-6, base_name + names._attn_norm_name);
         norm2 = RMSNorm(hidden_dim, 1e-6, base_name + names._ffn_norm_name);
     }
@@ -72,22 +72,22 @@ public:
     }
 };
 
-class SmoLlmModel final : public Module {
+class SmolLMModel final : public Module {
     Layer embedding;
-    vector<SmoLlmBlock> blocks;
+    vector<SmolLMBlock> blocks;
     Layer norm;
     Parameter lm_head;
 
 public:
-    explicit SmoLlmModel(const SmoLlmConfig &config) :
-        SmoLlmModel(config.vocab_size, config.hidden_dim, config.head_size, config.num_key_value_heads, config.ffn_hidden, config.block_num,
+    explicit SmolLMModel(const SmolLMConfig &config) :
+        SmolLMModel(config.vocab_size, config.hidden_dim, config.head_size, config.num_key_value_heads, config.ffn_hidden, config.block_num,
                     config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit,
                     config.names_config, config.names_config.blk_name) {
     }
-    SmoLlmModel(int vocab_size, int hidden_dim, int head_size, int kv_head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit,
-                const SmoLlMNameConfig &names, const string &base_name) {
+    SmolLMModel(int vocab_size, int hidden_dim, int head_size, int kv_head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit,
+                const SmolLMNameConfig &names, const string &base_name) {
         embedding = Embedding(vocab_size, hidden_dim, names.token_embd_name);
-        blocks = List<SmoLlmBlock>(block_num, hidden_dim, head_size, kv_head_size, ffn_hidden, RoPE_type, rope_theta, max_position_embeddings, cache_limit, names, base_name);
+        blocks = List<SmolLMBlock>(block_num, hidden_dim, head_size, kv_head_size, ffn_hidden, RoPE_type, rope_theta, max_position_embeddings, cache_limit, names, base_name);
         norm = RMSNorm(hidden_dim, 1e-6, names.post_norm_name);
         lm_head = Parameter(1, vocab_size, 1, hidden_dim,
                             names.token_embd_name + ".weight");

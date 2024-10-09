@@ -142,8 +142,8 @@ int main(int argc, char **argv) {
         }
         model.profiling();
     } else if (model_name == "smollm-360M") {
-        SmoLlmConfig config(tokens_limit, "360M", RoPEType::HFHUBROPE, 49152);
-        auto model = SmoLlmModel(config);
+        SmolLMConfig config(tokens_limit, "360M", RoPEType::HFHUBROPE, 49152);
+        auto model = SmolLMModel(config);
         model.setNoLoadWeightsDtype(MLLM_TYPE_Q4_0_4_4);
 
         auto input_tensor = tokens2Input(input_size);
@@ -153,8 +153,8 @@ int main(int argc, char **argv) {
         }
         model.profiling();
     } else if (model_name == "smollm-1.7B") {
-        SmoLlmConfig config(tokens_limit, "1.7B", RoPEType::HFHUBROPE, 49152);
-        auto model = SmoLlmModel(config);
+        SmolLMConfig config(tokens_limit, "1.7B", RoPEType::HFHUBROPE, 49152);
+        auto model = SmolLMModel(config);
         model.setNoLoadWeightsDtype(MLLM_TYPE_Q4_0_4_4);
 
         auto input_tensor = tokens2Input(input_size);
