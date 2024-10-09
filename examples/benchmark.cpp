@@ -31,8 +31,8 @@
 #include "models/smollm/modeling_smollm.hpp"
 
 // qwen2.5
-#include "models/qwen2_5/configuration_qwen2_5.hpp"
-#include "models/qwen2_5/modeling_qwen2_5.hpp"
+// #include "models/qwen2_5/configuration_qwen2_5.hpp"
+// #include "models/qwen2_5/modeling_qwen2_5.hpp"
 
 #include "processor/PostProcess.hpp"
 
@@ -170,27 +170,27 @@ int main(int argc, char **argv) {
     } else if (model_name == "openelm-450M") {
         // TODO
     } else if (model_name == "qwen2.5-0.5B") {
-        QWen2_5Config config(tokens_limit, "0.5B", RoPEType::HFHUBROPE);
-        auto model = QWen2_5ForCausalLM(config);
-        model.setNoLoadWeightsDtype(MLLM_TYPE_Q4_0_4_4);
+        // QWen2_5Config config(tokens_limit, "0.5B", RoPEType::HFHUBROPE);
+        // auto model = QWen2_5ForCausalLM(config);
+        // model.setNoLoadWeightsDtype(MLLM_TYPE_Q4_0_4_4);
 
-        auto input_tensor = tokens2Input(input_size);
-        for (int step = 0; step < loop + 1; step++) {
-            auto result = model({input_tensor});
-            chatPostProcessing(0, input_tensor, {});
-        }
-        model.profiling();
+        // auto input_tensor = tokens2Input(input_size);
+        // for (int step = 0; step < loop + 1; step++) {
+        //     auto result = model({input_tensor});
+        //     chatPostProcessing(0, input_tensor, {});
+        // }
+        // model.profiling();
     } else if (model_name == "qwen2.5-1.5B") {
-        QWen2_5Config config(tokens_limit, "1.5B", RoPEType::HFHUBROPE);
-        auto model = QWen2_5ForCausalLM(config);
-        model.setNoLoadWeightsDtype(MLLM_TYPE_Q4_0_4_4);
+        // QWen2_5Config config(tokens_limit, "1.5B", RoPEType::HFHUBROPE);
+        // auto model = QWen2_5ForCausalLM(config);
+        // model.setNoLoadWeightsDtype(MLLM_TYPE_Q4_0_4_4);
 
-        auto input_tensor = tokens2Input(input_size);
-        for (int step = 0; step < loop + 1; step++) {
-            auto result = model({input_tensor});
-            chatPostProcessing(0, input_tensor, {});
-        }
-        model.profiling();
+        // auto input_tensor = tokens2Input(input_size);
+        // for (int step = 0; step < loop + 1; step++) {
+        //     auto result = model({input_tensor});
+        //     chatPostProcessing(0, input_tensor, {});
+        // }
+        // model.profiling();
     }
     return 0;
 }
