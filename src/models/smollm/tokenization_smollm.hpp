@@ -52,9 +52,9 @@ static const std::vector<std::string> FIXED_PAT_STRS = {
     "(?:'[sS]|'[tT]|'[rR][eE]|'[vV][eE]|'[mM]|'[lL][lL]|'[dD])|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+",
 };
 
-class SmoLlmTokenizer final {
+class SmolLMTokenizer final {
 public:
-    explicit SmoLlmTokenizer(const std::string &vocab_file, const std::string &merge_file, bool split_special_tokens = false) :
+    explicit SmolLMTokenizer(const std::string &vocab_file, const std::string &merge_file, bool split_special_tokens = false) :
         split_special_tokens_(split_special_tokens) {
         Module::initBackend(MLLM_CPU);
         tokenizer = new BPETokenizer(vocab_file);
@@ -100,7 +100,7 @@ public:
         tokenizer->setMergeRank(bpe_ranks_);
     }
 
-    ~SmoLlmTokenizer() {
+    ~SmolLMTokenizer() {
         delete tokenizer;
     }
 
@@ -323,4 +323,4 @@ public:
 #undef CHR
 #undef ORD
 
-#endif //! DCLMTOKENIZATION_SMOLLM_HPP
+#endif // TOKENIZATION_SMOLLM_HPP
