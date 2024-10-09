@@ -73,11 +73,9 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)
 endif ()
 
-include(FetchContent)
-FetchContent_Declare(
-        googletest
-        URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
-)
+# for XNNPACK, avoid invovle googltest twice.
+set(GOOGLETEST_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/third_party/googletest)
+add_subdirectory(third_party/googletest EXCLUDE_FROM_ALL)
 
 option(MLLM_OPENMP "openmp" ON)
 option(MLLM_OPENMP_STATIC "openmp static" OFF)
@@ -123,6 +121,13 @@ if(QNN)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn)
 endif()
 
+option(MLLM_BUILD_XNNPACK_BACKEND "Build mllm's XNNPACK backend" OFF)
+if(MLLM_BUILD_XNNPACK_BACKEND)
+    add_compile_options(-fPIC)
+    add_definitions(-DMLLM_BUILD_XNNPACK_BACKEND)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/xnnpack)
+endif()
+
 #add tokenizers
 file(GLOB_RECURSE SRC_TOKENIZERS
         ${PROJECT_SOURCE_DIR}/src/tokenizers/*.cpp
@@ -155,8 +160,6 @@ if (QUANT)
             ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
             ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp)
     list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/main.cpp)
-
-    message(STATUS "MLLM_Quant: ${MLLM_QUANT}")
 
     add_executable(
             quantize

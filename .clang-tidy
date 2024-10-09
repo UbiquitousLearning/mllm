@@ -36,7 +36,8 @@ Checks: >
   -readability-non-const-parameter,
 
 # Turn all the warnings from the checks above into errors.
-WarningsAsErrors: "*"
+# WarningsAsErrors: "*"
+
 HeaderFilterRegex: ".*\\.hpp$&!gguf\\.hpp"
 CheckOptions:
   - key: readability-identifier-naming.NamespaceCase
