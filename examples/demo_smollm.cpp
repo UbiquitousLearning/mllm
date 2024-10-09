@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/smollm_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/smollm_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/SmoLlm-1.7B-q4_0x4.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/SmolLM-1.7B-q4_0x4.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -32,9 +32,9 @@ int main(int argc, char **argv) {
     int tokens_limit = cmdParser.get<int>("limits");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
-    auto tokenizer = SmoLlmTokenizer(vocab_path, merge_path);
-    SmoLlmConfig config(tokens_limit, "1.7B", RoPEType::HFHUBROPE, 49152);
-    auto model = SmoLlmModel(config);
+    auto tokenizer = SmolLMTokenizer(vocab_path, merge_path);
+    SmolLMConfig config(tokens_limit, "1.7B", RoPEType::HFHUBROPE, 49152);
+    auto model = SmolLMModel(config);
     model.load(model_path);
 
     vector<string> in_strs = {

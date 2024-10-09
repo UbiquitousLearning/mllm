@@ -1,5 +1,5 @@
 /**
- * @file configuration_smollm.hpp
+ * @file configuration_SmolLM.hpp
  * @author Chenghua Wang (chenghua.wang.edu@gmail.com)
  * @version 0.1
  * @date 2024-09-25
@@ -8,14 +8,14 @@
  *
  */
 #pragma once
-#ifndef CONFIG_SMOLLM_HPP
-#define CONFIG_SMOLLM_HPP
+#ifndef CONFIG_SmolLM_HPP
+#define CONFIG_SmolLM_HPP
 #include "Types.hpp"
 #include "models/transformer/configuration_transformer.hpp"
 
 using namespace mllm;
 
-class SmoLlMNameConfig : public TransformerNameConfig {
+class SmolLMNameConfig : public TransformerNameConfig {
 public:
     std::string blk_name;
     std::string token_embd_name;
@@ -68,7 +68,7 @@ public:
     }
 };
 
-class SmoLlmConfig {
+class SmolLMConfig {
 public:
     int vocab_size{};
     int hidden_dim{};
@@ -78,11 +78,11 @@ public:
     int block_num{};
     RoPEType RoPE_type;
     int cache_limit{};
-    SmoLlMNameConfig names_config;
+    SmolLMNameConfig names_config;
     float rope_theta;
     int max_position_embeddings;
 
-    explicit SmoLlmConfig(int token_limit, string billions = "1.7B", RoPEType type = HFHUBROPE, int vocab = 32000) {
+    explicit SmolLMConfig(int token_limit, string billions = "1.7B", RoPEType type = HFHUBROPE, int vocab = 32000) {
         names_config.init(type);
         vocab_size = vocab;
         if (billions == "1.7B" || billions == "1.7b") {
@@ -109,4 +109,4 @@ public:
     }
 };
 
-#endif // CONFIG_SMOLLM_HPP
+#endif // CONFIG_SmolLM_HPP
