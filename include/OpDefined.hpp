@@ -61,7 +61,11 @@ enum OpType {
     MERGEOUTPUT,
     SPLITINPUT,
     IROPE,
-    OP_NUM
+    OP_NUM,
+
+    // add in xnnpack
+    DIRECT,
+    DISPATCH,
 };
 
 static const vector<string> OpNames = {
@@ -117,7 +121,12 @@ static const vector<string> OpNames = {
     "MergeOutput",
     "SplitInput",
     "IRoPE",
-    "OP_NUM"};
+    "OP_NUM",
+
+    // in xnnpack
+    "Direct",
+    "Dispatch",
+};
 
 enum TensorFuncType {
     FUNC_ADD,

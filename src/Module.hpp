@@ -20,6 +20,7 @@
 #include <numeric>
 #include <utility>
 #include <vector>
+#include <unordered_map>
 
 namespace mllm {
 
@@ -55,6 +56,12 @@ public:
 #ifdef USE_QNN
             case BackendType::MLLM_QNN: {
                 Backend::global_backends.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create({}));
+                break;
+            }
+#endif
+#ifdef MLLM_BUILD_XNNPACK_BACKEND
+            case BackendType::MLLM_XNNPACK: {
+                Backend::global_backends.emplace(MLLM_XNNPACK, GetBackendCreator(MLLM_XNNPACK)->create({}));
                 break;
             }
 #endif

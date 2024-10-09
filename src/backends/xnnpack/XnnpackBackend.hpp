@@ -35,11 +35,14 @@ public:
 
     bool invoke();
 
+    void resetUuidExternalValuesMap(const std::unordered_map<uint32_t, xnn_external_value> &ext_vals);
+
 private:
     std::unique_ptr<xnn_subgraph, decltype(&xnn_delete_subgraph)> model_;
     pthreadpool_t threadpool_ = nullptr;
     xnn_runtime_t runtime_ = nullptr;
     std::vector<xnn_external_value> external_values_;
+    std::unordered_map<uint32_t, xnn_external_value> uuid_2_externals_v_;
     int32_t num_threads_;
 };
 
@@ -74,8 +77,6 @@ public:
     xnn_subgraph_t getXnnSubgraph();
 
     void registerExternalValue(uint32_t uuid, const xnn_external_value &ext_v);
-
-    std::vector<xnn_external_value> getExternalVals();
 
     static xnn_datatype mllmDType2XnnDType(DataType mllm_dtype);
 

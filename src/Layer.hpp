@@ -685,6 +685,36 @@ public:
     }
 };
 
+class Direct final : public Layer {
+public:
+    enum DirectType : uint32_t {
+        Normal = 0,
+        ExternalInput = 1,
+        ExternalOutput = 2,
+        KeepLive = 3,
+    };
+
+    Direct(DirectType t, const std::string &name) {
+        init(name, OpType::DIRECT);
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class Dispatch final : public Layer {
+    explicit Dispatch(const std::string &name) {
+        init(name, OpType::DISPATCH);
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
 } // namespace mllm
 
 #endif // OPERATION_H

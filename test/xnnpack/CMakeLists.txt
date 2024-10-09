@@ -1,0 +1,19 @@
+add_definitions(-DMLLM_XNNPACK_BACKEND_TEST)
+
+add_executable(
+        XpExternalTensorTest
+        XpExternalTensorTest.cpp
+        ${DIR_SRC_CPU} 
+        ${DIR_SRC_MEM_MANAGER} 
+        ${DIR_SRC_EXP} 
+        ${DIR_SRC} 
+        ${MLLM_QUANTIZER} 
+        ${SRC_TOKENIZERS}
+)
+target_link_libraries(
+        XpExternalTensorTest
+        PUBLIC
+        GTest::gtest_main
+        MLLM_CPU
+        MllmXnnpackBackend
+)

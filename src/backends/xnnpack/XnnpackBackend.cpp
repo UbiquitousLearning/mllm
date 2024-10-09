@@ -3,22 +3,32 @@
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include "xnnpack.h"
 #include "xnnpack/Ops/XpBinary.hpp"
-#include "xnnpack/XpMemoryManager.hpp"
+#include "backends/xnnpack/XpMemoryManager.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
-namespace mllm::xnnpack {
+namespace mllm {
 
 class XpBackendCreator : public BackendCreator {
     Backend *create(BackendConfig config) override {
-        auto mm = std::make_shared<XpMemoryManager>();
-        return new XnnpackBackend(mm);
+        // create xnnpack
+        if (xnn_initialize(nullptr /* allocator */) != xnn_status_success) {
+            ::mllm::xnnpack::Log::error("failed to initialize XNNPACK");
+            return nullptr;
+        }
+
+        auto mm = std::make_shared<::mllm::xnnpack::XpMemoryManager>();
+        return new ::mllm::xnnpack::XnnpackBackend(mm);
     };
 };
 
 void registerXNNBackendCreator() {
+    ::mllm::xnnpack::Log::info("xnnpack backend registered");
     InsertBackendCreatorMap(MLLM_XNNPACK, std::make_shared<XpBackendCreator>());
 }
+} // namespace mllm
+
+namespace mllm::xnnpack {
 
 XnnpackModelRuntime::XnnpackModelRuntime(int32_t num_threads) :
     num_threads_(num_threads), model_(nullptr, xnn_delete_subgraph) {
@@ -33,8 +43,12 @@ XnnpackModelRuntime::~XnnpackModelRuntime() {
     if (threadpool_) {
         pthreadpool_destroy(threadpool_);
     }
-    for (auto &i : external_values_) {
-        xnn_release_simd_memory(i.data);
+
+    // not release output external memory
+    for (auto i = 0; i < external_values_.size(); ++i) {
+        if ((model_->values[i].flags & ((uint32_t)XNN_VALUE_FLAG_EXTERNAL_INPUT)) == 1) {
+            xnn_release_simd_memory(uuid_2_externals_v_[i].data);
+        }
     }
 }
 
@@ -46,7 +60,14 @@ bool XnnpackModelRuntime::createModel(const xnn_subgraph_t &model_factory) {
     }
 
     for (uint32_t i = 0; i < model_->num_values; ++i) {
+        // if not external values. ignore alloc memory
         if ((model_->values[i].flags & ((uint32_t)XNN_VALUE_FLAG_EXTERNAL_INPUT | (uint32_t)XNN_VALUE_FLAG_EXTERNAL_OUTPUT)) == 0) {
+            continue;
+        }
+
+        // if already alloced by user, ignore alloc memory
+        if (uuid_2_externals_v_[i].data) {
+            external_values_.push_back(xnn_external_value{i, uuid_2_externals_v_[i].data});
             continue;
         }
 
@@ -74,6 +95,10 @@ bool XnnpackModelRuntime::setupRuntime() {
 
 bool XnnpackModelRuntime::invoke() {
     return xnn_status_success == xnn_invoke_runtime(runtime_);
+}
+
+void XnnpackModelRuntime::resetUuidExternalValuesMap(const std::unordered_map<uint32_t, xnn_external_value> &ext_vals) {
+    uuid_2_externals_v_ = ext_vals;
 }
 
 XnnpackBackend::XnnpackBackend(std::shared_ptr<MemoryManager> mm, const XnnpackBackendOpts &opts) :
@@ -129,6 +154,10 @@ std::shared_ptr<XnnpackModelRuntime> XnnpackBackend::getModelRuntime() {
 
 std::shared_ptr<XnnpackModelRuntime> XnnpackBackend::recreateModelRuntime(int thread_count) {
     model_runtime_ = std::make_shared<XnnpackModelRuntime>(thread_count);
+
+    // set external values
+    model_runtime_->resetUuidExternalValuesMap(uuid_2_externals_v_);
+
     return model_runtime_;
 }
 
@@ -143,16 +172,6 @@ void XnnpackBackend::registerExternalValue(uint32_t uuid, const xnn_external_val
     }
 
     uuid_2_externals_v_.insert({uuid, ext_v});
-}
-
-std::vector<xnn_external_value> XnnpackBackend::getExternalVals() {
-    std::vector<xnn_external_value> ret(uuid_2_externals_v_.size());
-
-    for (auto &item : uuid_2_externals_v_) {
-        ret.push_back(item.second);
-    }
-
-    return ret;
 }
 
 xnn_datatype XnnpackBackend::mllmDType2XnnDType(DataType mllm_dtype) {
