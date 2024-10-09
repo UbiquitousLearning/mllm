@@ -131,7 +131,7 @@ Build the target with QNN backend.
 
 ```bash
 cd ../script
-./build_qnn_anroid.sh
+./build_qnn_android.sh
 ```
 
 Download the model from [here](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/blob/main/), or using the following instructions
