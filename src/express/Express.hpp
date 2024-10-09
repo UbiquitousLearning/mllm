@@ -21,7 +21,7 @@ NetTensor *_Quantize(std::vector<NetTensor *> inputs, bool isNSHD = true, string
 NetTensor *_Dequantize(std::vector<NetTensor *> inputs, bool isNSHD = true, string name = "", bool isFP32 = true);
 NetTensor *_Softmax(std::vector<NetTensor *> inputs, int axis, int do_causal_mask, string name = "");
 NetTensor *_Matmul(std::vector<NetTensor *> inputs,  bool transpose0, bool transpose1, string name = "");
-NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilon= 1e-6, string name = "");
+NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilon= 1e-6, string name = "", bool isFP32 = true);
 NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name = "", int rope_theta = 10000, int max_position_embeddings = 16384);
 NetTensor *_PositionalEmbedding(std::vector<NetTensor *> inputs, int max_num, int hidden_dim, string name = "");
 NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale, string name);

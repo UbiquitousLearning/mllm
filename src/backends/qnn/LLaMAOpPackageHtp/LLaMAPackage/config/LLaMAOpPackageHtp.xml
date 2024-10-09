@@ -1192,6 +1192,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 
     <SupplementalOpDefList Backend="HTP">
         <SupportedOps>
+            <OpName>LLaMASuperSiLU</OpName>
             <OpName>SiLU</OpName>
             <OpName>Attention</OpName>
             <OpName>RMSNorm</OpName>
@@ -1368,6 +1369,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
                 <Name>out[0]</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
             </Output>
         </SupplementalOpDef>
 

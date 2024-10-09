@@ -11,6 +11,11 @@ NetTensor *Qwen_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden
     auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
     auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
     x = _SuperSiLU({x,y}, name + ".supersilu");
+    // x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", false);
+    // y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", false);
+    // x = _SiLU({x}, name + ".silu");
+    // x = *x * y;
+    // x = _Quantize({x}, true, (string)name + ".down_proj.quantize");
     x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
     x = _Dequantize({x}, true, (string)name + ".down_proj.dequantize");
     return x;
@@ -238,9 +243,9 @@ void qwen_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn
 
         res = i;
 
-        i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
+        i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm", false);
 
-        i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".mlp.up_proj.quantize");
+        // i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".mlp.up_proj.quantize");
 
         i = i->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_dim);
 
