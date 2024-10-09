@@ -1,5 +1,6 @@
+# FIXME. TEST was defined twice.
 add_definitions(-DTEST)
-FetchContent_MakeAvailable(googletest)
+
 enable_testing()
 include_directories(${PROJECT_SOURCE_DIR}/test)
 
@@ -11,8 +12,6 @@ file(GLOB_RECURSE MLLM_TEST
 list(REMOVE_ITEM MLLM_TEST ${PROJECT_SOURCE_DIR}/test/TestSystemMemoryManager.cpp)
 list(REMOVE_ITEM MLLM_TEST ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp)
 # list(REMOVE_ITEM MLLM_TEST ${PROJECT_SOURCE_DIR}/test/clip_tokenizer_test.cpp)
-
-message(STATUS "MLLM_TEST: ${MLLM_TEST}")
 
 # Add ${DIR_SRC_QUANT} to ${DIR_SRC}
 # if ()
