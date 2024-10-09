@@ -8,6 +8,8 @@ namespace mllm {
 extern void registerCPUBackendCreator();
 #ifdef USE_QNN
 extern void registerQNNBackendCreator();
+#elif defined(MLLM_BUILD_XNNPACK_BACKEND)
+extern void registerXNNBackendCreator();
 #endif
 
 static std::once_flag s_flag;
@@ -16,6 +18,8 @@ void registerBackend() {
         registerCPUBackendCreator();
 #ifdef USE_QNN
         registerQNNBackendCreator();
+#elif defined(MLLM_BUILD_XNNPACK_BACKEND)
+        registerXNNBackendCreator();
 #endif
     });
 }

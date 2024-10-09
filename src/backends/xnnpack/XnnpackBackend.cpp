@@ -2,10 +2,24 @@
 #include "Backend.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include "xnnpack.h"
+#include "xnnpack/Ops/XpBinary.hpp"
+#include "xnnpack/XpMemoryManager.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
 namespace mllm::xnnpack {
+
+class XpBackendCreator : public BackendCreator {
+    Backend *create(BackendConfig config) override {
+        auto mm = std::make_shared<XpMemoryManager>();
+        return new XnnpackBackend(mm);
+    };
+};
+
+void registerXNNBackendCreator() {
+    InsertBackendCreatorMap(MLLM_XNNPACK, std::make_shared<XpBackendCreator>());
+}
+
 XnnpackModelRuntime::XnnpackModelRuntime(int32_t num_threads) :
     num_threads_(num_threads), model_(nullptr, xnn_delete_subgraph) {
     xnn_delete_runtime(runtime_);
@@ -98,10 +112,11 @@ Op *XnnpackBackend::opCreate(const OpParam &op_param, string name, int thread_co
 
 TensorFunction *XnnpackBackend::funcCreate(TensorFuncType type) {
     // TODO
+    return nullptr;
 }
 
 void XnnpackBackend::registerOps() {
-    // TODO
+    addCreator(ADD, (XnnpackBackend::Creator *)(new XpAddCreator()));
 }
 
 void XnnpackBackend::registerFuncs() {
@@ -119,5 +134,38 @@ std::shared_ptr<XnnpackModelRuntime> XnnpackBackend::recreateModelRuntime(int th
 
 xnn_subgraph_t XnnpackBackend::getXnnSubgraph() {
     return subgraph_;
+}
+
+void XnnpackBackend::registerExternalValue(uint32_t uuid, const xnn_external_value &ext_v) {
+    if (uuid_2_externals_v_.count(uuid)) {
+        Log::error("when reigster a external value, found exists uuid: {}", uuid);
+        exit(-1);
+    }
+
+    uuid_2_externals_v_.insert({uuid, ext_v});
+}
+
+std::vector<xnn_external_value> XnnpackBackend::getExternalVals() {
+    std::vector<xnn_external_value> ret(uuid_2_externals_v_.size());
+
+    for (auto &item : uuid_2_externals_v_) {
+        ret.push_back(item.second);
+    }
+
+    return ret;
+}
+
+xnn_datatype XnnpackBackend::mllmDType2XnnDType(DataType mllm_dtype) {
+    switch (mllm_dtype) {
+    case MLLM_TYPE_F32:
+        return xnn_datatype_fp32;
+    case MLLM_TYPE_F16:
+        return xnn_datatype_fp16;
+    case MLLM_TYPE_I32:
+        return xnn_datatype_int32;
+    default:
+        return xnn_datatype_invalid;
+    }
+    return xnn_datatype_invalid;
 }
 } // namespace mllm::xnnpack

@@ -9,8 +9,18 @@
  */
 #pragma once
 
-#include "backends/xnnpack/Utils/Logger.hpp"
+#include "MemoryManager.hpp"
 
 namespace mllm::xnnpack {
 
-}
+class XpMemoryManager : public MemoryManager {
+public:
+    XpMemoryManager() = default;
+    ~XpMemoryManager() override;
+
+    void alloc(void **ptr, size_t size, size_t alignment) override;
+
+    void free(void *ptr) override;
+};
+
+} // namespace mllm::xnnpack

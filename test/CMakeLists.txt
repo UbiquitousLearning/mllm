@@ -1,7 +1,8 @@
+enable_testing()
+
+if(NOT QNN AND NOT MLLM_BUILD_XNNPACK_BACKEND)
 # FIXME. TEST was defined twice.
 add_definitions(-DTEST)
-
-enable_testing()
 include_directories(${PROJECT_SOURCE_DIR}/test)
 
 # MLLM Tests
@@ -45,9 +46,17 @@ add_executable(
         ${PROJECT_SOURCE_DIR}/test/TestSystemMemoryManager.cpp
         ${DIR_SRC_MEM_MANAGER} ${PROJECT_SOURCE_DIR}/src/MemoryManager.hpp
 )
+endif()
+
+if(MLLM_BUILD_XNNPACK_BACKEND)
+    add_subdirectory(xnnpack)
+endif()
+
 include(GoogleTest)
 
+if(NOT QNN AND NOT MLLM_BUILD_XNNPACK_BACKEND)
 # if not cross-compiling
 if (NOT ARM)
     gtest_discover_tests(MLLM_TEST)
 endif ()
+endif() # the above is for cpu

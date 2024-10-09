@@ -331,4 +331,7 @@ vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<
     return getStaticFunc(next_names, FUNC_SPLIT, args, {Tensor::graphs[input.name()].get()});
 }
 
+uint32_t &Tensor::uuid() {
+    return uuid_;
+}
 } // namespace mllm

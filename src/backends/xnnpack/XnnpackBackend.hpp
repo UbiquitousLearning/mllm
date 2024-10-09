@@ -13,7 +13,6 @@
 #include "Backend.hpp"
 #include <memory>
 #include <cstdint>
-#include <string>
 #include <unordered_map>
 
 #include "Types.hpp"
@@ -44,27 +43,13 @@ private:
     int32_t num_threads_;
 };
 
-class XnnpackTensorSymbolTable {
-public:
-private:
-    // user side tensor:
-    // user should free these tensor manually
-    std::unordered_map<std::string, uint32_t> user_side_tensor_;
-
-    // xnnpack will free this tensor when necessary
-    std::unordered_map<std::string, uint32_t> xnn_side_tensor_;
-
-    // all tensors
-    std::unordered_map<std::string, uint32_t> all_tensor_;
-};
-
 struct XnnpackBackendOpts {
     int32_t num_threads = 4;
 };
 
 class XnnpackBackend : public Backend {
 public:
-    XnnpackBackend(std::shared_ptr<MemoryManager> mm, const XnnpackBackendOpts &opts);
+    explicit XnnpackBackend(std::shared_ptr<MemoryManager> mm, const XnnpackBackendOpts &opts = XnnpackBackendOpts{.num_threads = 4});
     ~XnnpackBackend();
 
 public:
@@ -88,11 +73,21 @@ public:
 
     xnn_subgraph_t getXnnSubgraph();
 
+    void registerExternalValue(uint32_t uuid, const xnn_external_value &ext_v);
+
+    std::vector<xnn_external_value> getExternalVals();
+
+    static xnn_datatype mllmDType2XnnDType(DataType mllm_dtype);
+
 private:
     XnnpackBackendOpts opts_;
 
+    // external values
+    std::unordered_map<uint32_t, xnn_external_value> uuid_2_externals_v_;
+
     // xnn stuff
     xnn_subgraph_t subgraph_ = nullptr;
+
     std::shared_ptr<XnnpackModelRuntime> model_runtime_ = nullptr;
 
     std::map<OpType, XnnpackBackend::Creator *> map_op_creator_;

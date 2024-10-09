@@ -1,8 +1,8 @@
 /**
- * @file XpBinary.hpp
+ * @file XpDirect.hpp
  * @author Chenghua Wang (chenghua.wang.edu@gmail.com)
  * @version 0.1
- * @date 2024-10-03
+ * @date 2024-10-09
  *
  * @copyright Copyright (c) 2024
  *
@@ -12,17 +12,17 @@
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "backends/xnnpack/XnnpackBackend.hpp"
-#include "xnnpack/XpInterface.hpp"
+#include "backends/xnnpack/XpInterface.hpp"
 
 namespace mllm::xnnpack {
 
-class XpAdd final : public Op, public XpTensorDefineInterface<XpAdd> {
+class XpDirect final : public Op, public XpTensorDefineInterface<XpDirect> {
 public:
-    XpAdd(Backend *bk, const std::string &op_name, int thread_count) :
+    XpDirect(Backend *bk, const std::string &op_name, int thread_count) :
         Op(bk, op_name), thread_count_(thread_count) {
     }
 
-    ~XpAdd() override = default;
+    ~XpDirect() override = default;
 
     ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
@@ -31,10 +31,11 @@ public:
     ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
+    XpTensorType type_ = XpTensorType::Normal;
     int thread_count_ = 4;
 };
 
-struct XpAddCreator : public XnnpackBackend::Creator {
+struct XpDirectCreator : public XnnpackBackend::Creator {
     Op *create(OpParam op_param, Backend *bk, const string &name, int thread_count) const override;
 };
 

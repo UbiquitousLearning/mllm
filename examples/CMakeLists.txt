@@ -1,5 +1,5 @@
 # cpu executables
-if(NOT QNN) 
+if(NOT QNN AND NOT MLLM_BUILD_XNNPACK_BACKEND) 
 add_executable(main_llama ${PROJECT_SOURCE_DIR}/examples/main_llama.cpp 
     ${DIR_SRC_CPU} 
     ${DIR_SRC_MEM_MANAGER} 
@@ -506,8 +506,6 @@ else ()
     target_link_libraries(demo_minicpm PUBLIC MLLM_CPU -fopenmp)
 endif ()
 
-endif() # end of cpu executables
-
 add_executable(demo_smollm
     ${PROJECT_SOURCE_DIR}/examples/demo_smollm.cpp 
     ${DIR_SRC_CPU} 
@@ -587,6 +585,9 @@ else ()
     target_compile_options(benchmark_llm PRIVATE -fopenmp)
     target_link_libraries(benchmark_llm PUBLIC MLLM_CPU -fopenmp)
 endif ()
+
+
+endif() # end of cpu executables
 
 # QNN demo
 if(QNN)

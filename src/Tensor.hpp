@@ -109,6 +109,10 @@ private:
     Chl aggregated_dim_;
     vector<int> aggregated_dims_;
 
+private:
+    // XNN_INVALID_VALUE_ID = 4294967295U
+    uint32_t uuid_ = 4294967295U;
+
 public:
     /**
      * \brief build 4-D Tensor with four dimensions: [batch, head, sequence, dimension].
@@ -1080,7 +1084,7 @@ public:
         std::cout << "tensor should be transfered across backend" << std::endl;
         return inputs;
     };
-    static vector<Tensor> toCPU(vector<Tensor> inputs){
+    static vector<Tensor> toCPU(vector<Tensor> inputs) {
         return toDevice(inputs, MLLM_CPU);
     }
     static vector<Tensor> toQNN(vector<Tensor> inputs) {
@@ -1667,6 +1671,9 @@ private:
     Tensor &getFunc(const std::string &suffix, TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors = {});
 
     static std::vector<std::reference_wrapper<Tensor>> getStaticFunc(vector<std::string> out_names, TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors);
+
+public:
+    uint32_t &uuid();
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H

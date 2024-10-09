@@ -6,6 +6,9 @@ add_library(MllmXnnpackBackend
 
     Utils/Logger.cpp
 
+    XpInterface.cpp
+
+    Ops/XpDirect.cpp
     Ops/XpBinary.cpp
     Ops/XpDispatch.cpp
     Ops/XpLinear.cpp
