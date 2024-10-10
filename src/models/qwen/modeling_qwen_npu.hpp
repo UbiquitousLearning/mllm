@@ -234,7 +234,7 @@ public:
 
         x = pre_mlp_quantize(x);
         // reshape to 32,2
-        // x = pre_mlp_view(x);
+        x = pre_mlp_view(x);
 
         auto gate_out = gate_proj(x);
         auto up_out = up_proj(x);
@@ -250,7 +250,7 @@ public:
         gate_out = post_down_proj_dequantize(gate_out);
 
         // reshape to 64,1
-        // gate_out = post_mlp_view(gate_out);
+        gate_out = post_mlp_view(gate_out);
 
         gate_out = post_mlp_res_add(gate_out, tmp);
         return {gate_out};

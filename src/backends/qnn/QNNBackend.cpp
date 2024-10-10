@@ -249,6 +249,10 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     for (auto &input : inputs) {
         if (input->sequence() % 5 != 0) {
             auto data_type = QNN_DATATYPE_SFIXED_POINT_8;
+
+            if (input->dtype() == MLLM_TYPE_F32)
+                data_type = QNN_DATATYPE_FLOAT_32;
+
             uint32_t dimensionsInput[4] = {
                 static_cast<uint32_t>(input->batch()),
                 static_cast<uint32_t>(input->sequence()),
