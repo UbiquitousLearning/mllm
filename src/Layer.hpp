@@ -695,6 +695,7 @@ public:
     };
 
     Direct(DirectType t, const std::string &name) {
+        param_["DirectType"] = (float)t;
         init(name, OpType::DIRECT);
     }
 
@@ -705,6 +706,7 @@ public:
 };
 
 class Dispatch final : public Layer {
+public:
     explicit Dispatch(const std::string &name) {
         init(name, OpType::DISPATCH);
     }

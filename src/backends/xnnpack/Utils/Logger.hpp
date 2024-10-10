@@ -10,6 +10,7 @@
  */
 #pragma once
 
+#include "fmt/base.h"
 #include "fmt/core.h"
 
 namespace mllm::xnnpack {
@@ -28,7 +29,8 @@ public:
     static inline void info(Args &&...args) {
         switch (Log::log_level) {
         case INFO:
-            fmt::print("<I> {}", std::forward<Args>(args)...);
+            fmt::print("<I> ");
+            fmt::println(std::forward<Args>(args)...);
             break;
         case WARN:
         case ERROR: break;
@@ -40,7 +42,8 @@ public:
         switch (Log::log_level) {
         case INFO:
         case WARN:
-            fmt::print("<W> {}", std::forward<Args>(args)...);
+            fmt::print("<W> ");
+            fmt::println(std::forward<Args>(args)...);
             break;
         case ERROR: break;
         }
@@ -52,7 +55,8 @@ public:
         case INFO:
         case WARN:
         case ERROR:
-            fmt::print("<E> {}", std::forward<Args>(args)...);
+            fmt::print("<E> ");
+            fmt::println(std::forward<Args>(args)...);
             break;
         }
     }

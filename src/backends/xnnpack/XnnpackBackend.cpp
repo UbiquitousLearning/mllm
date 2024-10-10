@@ -1,9 +1,12 @@
 #include "backends/xnnpack/XnnpackBackend.hpp"
 #include "Backend.hpp"
+#include "OpDefined.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include "xnnpack.h"
 #include "xnnpack/Ops/XpBinary.hpp"
 #include "backends/xnnpack/XpMemoryManager.hpp"
+#include "xnnpack/Ops/XpDirect.hpp"
+#include "xnnpack/Ops/XpDispatch.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
@@ -11,7 +14,7 @@ namespace mllm {
 
 class XpBackendCreator : public BackendCreator {
     Backend *create(BackendConfig config) override {
-        // create xnnpack
+        // initialize xnnpack
         if (xnn_initialize(nullptr /* allocator */) != xnn_status_success) {
             ::mllm::xnnpack::Log::error("failed to initialize XNNPACK");
             return nullptr;
@@ -103,11 +106,22 @@ void XnnpackModelRuntime::resetUuidExternalValuesMap(const std::unordered_map<ui
 
 XnnpackBackend::XnnpackBackend(std::shared_ptr<MemoryManager> mm, const XnnpackBackendOpts &opts) :
     Backend(mm), opts_(opts) {
+    // runtime
     model_runtime_ = std::make_shared<XnnpackModelRuntime>(opts_.num_threads);
+
+    // subgraph
+    createSubgraph(16);
+
+    // register ops
+    type_ = BackendType::MLLM_XNNPACK;
+    registerOps();
+    registerFuncs();
 }
 
 XnnpackBackend::~XnnpackBackend() {
-    // TODO
+    if (subgraph_) {
+        xnn_delete_subgraph(subgraph_);
+    }
 }
 
 bool XnnpackBackend::addCreator(OpType t, Creator *c) {
@@ -142,6 +156,8 @@ TensorFunction *XnnpackBackend::funcCreate(TensorFuncType type) {
 
 void XnnpackBackend::registerOps() {
     addCreator(ADD, (XnnpackBackend::Creator *)(new XpAddCreator()));
+    addCreator(DIRECT, (XnnpackBackend::Creator *)(new XpDirectCreator()));
+    addCreator(DISPATCH, (XnnpackBackend::Creator *)(new XpDispatchCreator()));
 }
 
 void XnnpackBackend::registerFuncs() {
@@ -165,6 +181,31 @@ xnn_subgraph_t XnnpackBackend::getXnnSubgraph() {
     return subgraph_;
 }
 
+void XnnpackBackend::createSubgraph(int32_t external_nums) {
+    if (subgraph_) {
+        Log::error("The subgraph has already been created. Use recreateSubGraph instead.");
+        exit(-1);
+    }
+
+    auto status = xnn_create_subgraph(external_nums, 0, &subgraph_);
+    if (status != xnn_status_success) {
+        Log::error("Failed to create subgrpah");
+        exit(-1);
+    }
+}
+
+void XnnpackBackend::recreateSubgraph(int32_t external_nums) {
+    if (subgraph_) {
+        xnn_delete_subgraph(subgraph_);
+    }
+
+    auto status = xnn_create_subgraph(external_nums, 0, &subgraph_);
+    if (status != xnn_status_success) {
+        Log::error("Failed to create subgrpah");
+        exit(-1);
+    }
+}
+
 void XnnpackBackend::registerExternalValue(uint32_t uuid, const xnn_external_value &ext_v) {
     if (uuid_2_externals_v_.count(uuid)) {
         Log::error("when reigster a external value, found exists uuid: {}", uuid);
@@ -186,5 +227,9 @@ xnn_datatype XnnpackBackend::mllmDType2XnnDType(DataType mllm_dtype) {
         return xnn_datatype_invalid;
     }
     return xnn_datatype_invalid;
+}
+
+uint32_t XnnpackBackend::getNewEXternalId() {
+    return (uint32_t)uuid_2_externals_v_.size();
 }
 } // namespace mllm::xnnpack

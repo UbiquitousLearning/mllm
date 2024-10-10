@@ -39,6 +39,7 @@ struct XpTensorDefineInterface {
         dims[3] = t->dimension();
 
         uint32_t flags;
+        uint32_t external_id = XNN_INVALID_VALUE_ID;
 
         switch (ttype) {
         case XpTensorType::Normal:
@@ -46,9 +47,11 @@ struct XpTensorDefineInterface {
             break;
         case XpTensorType::ExternalInput:
             flags = XNN_VALUE_FLAG_EXTERNAL_INPUT;
+            external_id = xpb->getNewEXternalId();
             break;
         case XpTensorType::ExternalOutput:
             flags = XNN_VALUE_FLAG_EXTERNAL_OUTPUT;
+            external_id = xpb->getNewEXternalId();
             break;
         }
 
@@ -58,7 +61,7 @@ struct XpTensorDefineInterface {
                 xpb->getXnnSubgraph(), xp_dtype,
                 dims.size(), dims.data(),
                 /*data=*/nullptr,
-                0, flags, &t->uuid());
+                external_id, flags, &t->uuid());
         }
         default:
             break;

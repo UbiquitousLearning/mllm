@@ -30,6 +30,8 @@ public:
 
     ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
+    void setType(XpTensorType type);
+
 private:
     XpTensorType type_ = XpTensorType::Normal;
     int thread_count_ = 4;

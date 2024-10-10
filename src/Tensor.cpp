@@ -334,4 +334,8 @@ vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<
 uint32_t &Tensor::uuid() {
     return uuid_;
 }
+
+void Tensor::forceResetHostPointer(void *ptr) {
+    host_ptr_ = ptr;
+}
 } // namespace mllm

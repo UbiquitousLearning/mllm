@@ -76,9 +76,15 @@ public:
 
     xnn_subgraph_t getXnnSubgraph();
 
+    void createSubgraph(int32_t external_nums = 16);
+
+    void recreateSubgraph(int32_t external_nums = 16);
+
     void registerExternalValue(uint32_t uuid, const xnn_external_value &ext_v);
 
     static xnn_datatype mllmDType2XnnDType(DataType mllm_dtype);
+
+    uint32_t getNewEXternalId();
 
 private:
     XnnpackBackendOpts opts_;

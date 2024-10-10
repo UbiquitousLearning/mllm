@@ -1674,6 +1674,8 @@ private:
 
 public:
     uint32_t &uuid();
+
+    void forceResetHostPointer(void *ptr);
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H

@@ -1,45 +1,29 @@
-#include "backends/xnnpack/Ops/XpDirect.hpp"
+
 #include "Types.hpp"
-#include "xnnpack.h"
 #include "backends/xnnpack/Utils/Logger.hpp"
+#include "backends/xnnpack/Ops/XpDirect.hpp"
+#include "xnnpack/XpInterface.hpp"
 
 namespace mllm::xnnpack {
 
 ErrorCode XpDirect::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xnnbk = (XnnpackBackend *)(this->backend());
-
-    switch (type_) {
-    case XpTensorType::Normal: {
-        for (auto i = 0; i < inputs.size(); ++i) {
-            inputs[i]->uuid() = XNN_INVALID_VALUE_ID;
-            outputs[i]->uuid() = XNN_INVALID_VALUE_ID;
+    for (int i = 0; i < inputs.size(); ++i) {
+        switch (type_) {
+        case XpTensorType::ExternalInput:
+            inputs[i]->setTtype(TensorType::INPUT_TENSOR);
+            outputs[i]->setTtype(TensorType::INPUT_TENSOR);
+            break;
+        case XpTensorType::ExternalOutput:
+            inputs[i]->setTtype(TensorType::OUTPUT_TENSOR);
+            outputs[i]->setTtype(TensorType::OUTPUT_TENSOR);
+            break;
+        default:
+            inputs[i]->setTtype(TensorType::NORMAL_TENSOR);
+            outputs[i]->setTtype(TensorType::NORMAL_TENSOR);
+            break;
         }
-
-        Log::warn("XpDirect Op with XpTensorType::Normal will do nothing for you.");
-        break;
     }
-    case XpTensorType::ExternalInput: {
-        for (auto i = 0; i < inputs.size(); ++i) {
-            inputs[i]->uuid() = XNN_INVALID_VALUE_ID;
-
-            defineXpTensor(xnnbk, inputs[i], type_);
-
-            outputs[i]->uuid() = inputs[i]->uuid();
-        }
-        break;
-    }
-    case XpTensorType::ExternalOutput: {
-        for (auto i = 0; i < inputs.size(); ++i) {
-            inputs[i]->uuid() = XNN_INVALID_VALUE_ID;
-
-            defineXpTensor(xnnbk, inputs[i], type_);
-
-            outputs[i]->uuid() = inputs[i]->uuid();
-        }
-        break;
-    }
-    };
-
     return MLLM_NO_ERROR;
 }
 
@@ -60,10 +44,28 @@ ErrorCode XpDirect::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 }
 
 ErrorCode XpDirect::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    auto xnnbk = (XnnpackBackend *)(this->backend());
+
+    // define and register in xnnpack
+    for (auto i = 0; i < inputs.size(); ++i) {
+        auto in = inputs[i];
+        auto out = outputs[i];
+
+        defineXpTensor(xnnbk, in, type_);
+
+        out->uuid() = in->uuid();
+        out->forceResetHostPointer(in->rawHostPtr());
+    }
     return MLLM_NO_ERROR;
 }
 
+void XpDirect::setType(XpTensorType type) {
+    type_ = type;
+}
+
 Op *XpDirectCreator::create(OpParam op_param, Backend *bk, const string &name, int thread_count) const {
-    return new XpDirect(bk, name, thread_count);
+    auto ret = new XpDirect(bk, name, thread_count);
+    ret->setType((XpTensorType)op_param["DirectType"]);
+    return ret;
 }
 } // namespace mllm::xnnpack

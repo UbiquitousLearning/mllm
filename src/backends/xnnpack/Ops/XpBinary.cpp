@@ -1,6 +1,6 @@
 #include "backends/xnnpack/Ops/XpBinary.hpp"
 #include "Types.hpp"
-#include "xnnpack/XpInterface.hpp"
+#include "backends/xnnpack/XpInterface.hpp"
 
 namespace mllm::xnnpack {
 
@@ -8,7 +8,7 @@ ErrorCode XpAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tens
     auto xnnbk = (XnnpackBackend *)(this->backend());
 
     // define output tensor
-    defineXpTensor(xnnbk, outputs[0], XpTensorType::Normal);
+    // defineXpTensor(xnnbk, outputs[0], XpTensorType::Normal);
 
     // the inputs should already has uuid.
 
