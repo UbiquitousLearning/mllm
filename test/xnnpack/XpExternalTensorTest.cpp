@@ -1,6 +1,6 @@
 #include "Module.hpp"
 #include "Types.hpp"
-#include "xnnpack/XpWrapper.hpp"
+#include "backends/xnnpack/XpWrapper.hpp"
 #include <gtest/gtest.h>
 
 using namespace mllm;
