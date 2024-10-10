@@ -9,6 +9,7 @@ add_library(MllmXnnpackBackend
     XpInterface.cpp
     XnnpackBackend.cpp
     XpMemoryManager.cpp
+    XpWrapper.cpp
 
     Ops/XpDirect.cpp
     Ops/XpBinary.cpp

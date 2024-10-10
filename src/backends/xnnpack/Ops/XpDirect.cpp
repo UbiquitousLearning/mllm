@@ -11,16 +11,16 @@ ErrorCode XpDirect::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     for (int i = 0; i < inputs.size(); ++i) {
         switch (type_) {
         case XpTensorType::ExternalInput:
-            inputs[i]->setTtype(TensorType::INPUT_TENSOR);
-            outputs[i]->setTtype(TensorType::INPUT_TENSOR);
+            inputs[i]->xnnTensorType() = TensorType::INPUT_TENSOR;
+            outputs[i]->xnnTensorType() = TensorType::INPUT_TENSOR;
             break;
         case XpTensorType::ExternalOutput:
-            inputs[i]->setTtype(TensorType::OUTPUT_TENSOR);
-            outputs[i]->setTtype(TensorType::OUTPUT_TENSOR);
+            inputs[i]->xnnTensorType() = TensorType::OUTPUT_TENSOR;
+            outputs[i]->xnnTensorType() = TensorType::OUTPUT_TENSOR;
             break;
         default:
-            inputs[i]->setTtype(TensorType::NORMAL_TENSOR);
-            outputs[i]->setTtype(TensorType::NORMAL_TENSOR);
+            inputs[i]->xnnTensorType() = TensorType::NORMAL_TENSOR;
+            outputs[i]->xnnTensorType() = TensorType::NORMAL_TENSOR;
             break;
         }
     }

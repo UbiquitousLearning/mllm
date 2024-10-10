@@ -112,6 +112,7 @@ private:
 private:
     // XNN_INVALID_VALUE_ID = 4294967295U
     uint32_t uuid_ = 4294967295U;
+    TensorType xnn_tensor_type_ = TensorType::NORMAL_TENSOR;
 
 public:
     /**
@@ -1674,6 +1675,8 @@ private:
 
 public:
     uint32_t &uuid();
+
+    TensorType &xnnTensorType();
 
     Tensor &xnn();
 

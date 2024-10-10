@@ -1,38 +1,26 @@
-#include "Layer.hpp"
 #include "Module.hpp"
 #include "Types.hpp"
+#include "xnnpack/XpWrapper.hpp"
 #include <gtest/gtest.h>
 
 using namespace mllm;
 
 class AddModule : public Module {
-    Layer DirectInput1;
-    Layer DirectInput2;
-    Layer DirectOutput;
-    Layer DispatchAll;
-
 public:
-    AddModule() {
-        DirectInput1 = Direct(Direct::ExternalInput, "directinput1");
-        DirectInput2 = Direct(Direct::ExternalInput, "directinput2");
-        DirectOutput = Direct(Direct::ExternalOutput, "directoutput");
-        DispatchAll = Dispatch("dispatch");
-    }
+    AddModule() = default;
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
-        auto x1 = DirectInput1(inputs[0]);
-        auto x2 = DirectInput2(inputs[1]);
+        auto x1 = inputs[0];
+        auto x2 = inputs[1];
 
         auto out = x1 + x2;
-        out = DirectOutput(out);
-        DispatchAll(out);
+
         return {out};
     }
 };
 
 TEST(XpExternalTensorTest, AddModule) {
-    auto model = AddModule();
-    model.to(MLLM_XNNPACK);
+    auto model = ::mllm::xnnpack::wrap2xnn<AddModule>(2, 1);
 
     EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
 
@@ -53,5 +41,10 @@ TEST(XpExternalTensorTest, AddModule) {
 
     auto out = model({x1, x2})[0];
 
-    out.xnn().printData<float>();
+    cnt = 0.f;
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            EXPECT_EQ(out.dataAt<float>(0, 0, i, j), cnt++);
+        }
+    }
 }

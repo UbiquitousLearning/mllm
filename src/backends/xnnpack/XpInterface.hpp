@@ -29,7 +29,7 @@ struct XpTensorDefineInterface {
     void tryDefineAllXpTensors(XnnpackBackend *xpb, std::vector<std::shared_ptr<Tensor>> &ts) {
         for (auto &t : ts) {
             XpTensorType _t;
-            switch (t->ttype()) {
+            switch (t->xnnTensorType()) {
             case TensorType::INPUT_TENSOR:
                 _t = XpTensorType::ExternalInput;
                 break;
@@ -48,7 +48,7 @@ struct XpTensorDefineInterface {
     void tryDefineAllXpTensors(XnnpackBackend *xpb, std::vector<Tensor *> &ts) {
         for (auto &t : ts) {
             XpTensorType _t;
-            switch (t->ttype()) {
+            switch (t->xnnTensorType()) {
             case TensorType::INPUT_TENSOR:
                 _t = XpTensorType::ExternalInput;
                 break;

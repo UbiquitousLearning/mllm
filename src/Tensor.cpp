@@ -339,6 +339,10 @@ uint32_t &Tensor::uuid() {
     return uuid_;
 }
 
+TensorType &Tensor::xnnTensorType() {
+    return xnn_tensor_type_;
+}
+
 Tensor &Tensor::xnn() {
     switch (backend_->type()) {
 #ifdef MLLM_BUILD_XNNPACK_BACKEND
