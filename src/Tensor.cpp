@@ -10,6 +10,10 @@
 #include "Types.hpp"
 #include "backends/cpu/CPUTensorFunction.hpp"
 
+#ifdef MLLM_BUILD_XNNPACK_BACKEND
+#include "backends/xnnpack/XnnpackBackend.hpp"
+#endif
+
 #include <Module.hpp>
 #include <memory>
 #include <string>
@@ -333,6 +337,21 @@ vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<
 
 uint32_t &Tensor::uuid() {
     return uuid_;
+}
+
+Tensor &Tensor::xnn() {
+    switch (backend_->type()) {
+#ifdef MLLM_BUILD_XNNPACK_BACKEND
+    case MLLM_XNNPACK: {
+        auto ptr = ((xnnpack::XnnpackBackend *)backend_)->getExternalValueptr(uuid());
+        this->forceResetHostPointer(ptr);
+        return *this;
+    }
+#endif
+    default: {
+        return *this;
+    }
+    }
 }
 
 void Tensor::forceResetHostPointer(void *ptr) {

@@ -12,7 +12,7 @@
 #include "Tensor.hpp"
 #include "xnnpack.h"
 #include "backends/xnnpack/XnnpackBackend.hpp"
-#include "xnnpack/Utils/Logger.hpp"
+#include "backends/xnnpack/Utils/Logger.hpp"
 #include <memory>
 #include <array>
 
@@ -26,7 +26,45 @@ enum class XpTensorType : uint32_t {
 
 template <typename T>
 struct XpTensorDefineInterface {
-    void defineXpTensor(XnnpackBackend *xpb, std::shared_ptr<Tensor> &t, XpTensorType ttype) {
+    void tryDefineAllXpTensors(XnnpackBackend *xpb, std::vector<std::shared_ptr<Tensor>> &ts) {
+        for (auto &t : ts) {
+            XpTensorType _t;
+            switch (t->ttype()) {
+            case TensorType::INPUT_TENSOR:
+                _t = XpTensorType::ExternalInput;
+                break;
+            case TensorType::OUTPUT_TENSOR:
+                _t = XpTensorType::ExternalOutput;
+                break;
+            case TensorType::NORMAL_TENSOR:
+                _t = XpTensorType::Normal;
+                break;
+            }
+
+            defineXpTensor(xpb, t.get(), _t);
+        }
+    }
+
+    void tryDefineAllXpTensors(XnnpackBackend *xpb, std::vector<Tensor *> &ts) {
+        for (auto &t : ts) {
+            XpTensorType _t;
+            switch (t->ttype()) {
+            case TensorType::INPUT_TENSOR:
+                _t = XpTensorType::ExternalInput;
+                break;
+            case TensorType::OUTPUT_TENSOR:
+                _t = XpTensorType::ExternalOutput;
+                break;
+            case TensorType::NORMAL_TENSOR:
+                _t = XpTensorType::Normal;
+                break;
+            }
+
+            defineXpTensor(xpb, t, _t);
+        }
+    }
+
+    void defineXpTensor(XnnpackBackend *xpb, Tensor *t, XpTensorType ttype) {
         if (t->uuid() != XNN_INVALID_VALUE_ID) return;
 
         auto xp_dtype = XnnpackBackend::mllmDType2XnnDType(t->dtype());
@@ -73,6 +111,7 @@ struct XpTensorDefineInterface {
         case XpTensorType::ExternalInput:
         case XpTensorType::ExternalOutput:
             xpb->registerExternalValue(t->uuid(), xnn_external_value{.id = t->uuid(), .data = t->rawHostPtr()});
+            xpb->registerUuidTensor(t->uuid(), t);
             break;
         }
 

@@ -1,6 +1,5 @@
 #include "backends/xnnpack/Ops/XpBinary.hpp"
 #include "Types.hpp"
-#include "backends/xnnpack/XpInterface.hpp"
 
 namespace mllm::xnnpack {
 

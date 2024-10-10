@@ -31,6 +31,9 @@ ErrorCode XpDispatch::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
         return ErrorCode::NO_EXECUTION;
     }
 
+    // update all output's ptr
+    xnnbk->assignPtrToTensor();
+
     return ErrorCode::MLLM_NO_ERROR;
 }
 

@@ -3,10 +3,11 @@
 #include "OpDefined.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include "xnnpack.h"
-#include "xnnpack/Ops/XpBinary.hpp"
+#include "backends/xnnpack/Functions/XpBinaryFunc.hpp"
+#include "backends/xnnpack/Ops/XpBinary.hpp"
 #include "backends/xnnpack/XpMemoryManager.hpp"
-#include "xnnpack/Ops/XpDirect.hpp"
-#include "xnnpack/Ops/XpDispatch.hpp"
+#include "backends/xnnpack/Ops/XpDirect.hpp"
+#include "backends/xnnpack/Ops/XpDispatch.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
@@ -68,16 +69,20 @@ bool XnnpackModelRuntime::createModel(const xnn_subgraph_t &model_factory) {
             continue;
         }
 
-        // if already alloced by user, ignore alloc memory
-        if (uuid_2_externals_v_[i].data) {
-            external_values_.push_back(xnn_external_value{i, uuid_2_externals_v_[i].data});
-            continue;
-        }
+        // The prepared external_num > actually external_num, ignore redundant part.
+        if (uuid_2_externals_v_.count(i)) {
+            // if already alloced by user, ignore alloc memory
+            if (uuid_2_externals_v_[i].data) {
+                external_values_.push_back(xnn_external_value{i, uuid_2_externals_v_[i].data});
+                continue;
+            }
 
-        // Make a buffer for this external value.
-        size_t size = xnn_tensor_get_size(&model_->values[i]) + XNN_EXTRA_BYTES;
-        external_values_.push_back(
-            xnn_external_value{i, xnn_allocate_zero_simd_memory(size)});
+            // Make a buffer for this external value.
+            size_t size = xnn_tensor_get_size(&model_->values[i]) + XNN_EXTRA_BYTES;
+            auto ev = xnn_external_value{i, xnn_allocate_zero_simd_memory(size)};
+            uuid_2_externals_v_[i] = ev;
+            external_values_.push_back(ev);
+        }
     }
 
     return model_ != nullptr;
@@ -102,6 +107,10 @@ bool XnnpackModelRuntime::invoke() {
 
 void XnnpackModelRuntime::resetUuidExternalValuesMap(const std::unordered_map<uint32_t, xnn_external_value> &ext_vals) {
     uuid_2_externals_v_ = ext_vals;
+}
+
+std::unordered_map<uint32_t, xnn_external_value> &XnnpackModelRuntime::__uuidToExternalsV() {
+    return uuid_2_externals_v_;
 }
 
 XnnpackBackend::XnnpackBackend(std::shared_ptr<MemoryManager> mm, const XnnpackBackendOpts &opts) :
@@ -150,8 +159,12 @@ Op *XnnpackBackend::opCreate(const OpParam &op_param, string name, int thread_co
 }
 
 TensorFunction *XnnpackBackend::funcCreate(TensorFuncType type) {
-    // TODO
-    return nullptr;
+    auto iter = map_tensor_function_.find(type);
+    if (iter == map_tensor_function_.end()) {
+        Log::error("Xnnpack backend don't support func type {}", (int32_t)type);
+        return nullptr;
+    }
+    return iter->second;
 }
 
 void XnnpackBackend::registerOps() {
@@ -161,7 +174,7 @@ void XnnpackBackend::registerOps() {
 }
 
 void XnnpackBackend::registerFuncs() {
-    // TODO
+    map_tensor_function_[TensorFuncType::FUNC_TTADD] = new XpTTAddFunction();
 }
 
 std::shared_ptr<XnnpackModelRuntime> XnnpackBackend::getModelRuntime() {
@@ -187,6 +200,8 @@ void XnnpackBackend::createSubgraph(int32_t external_nums) {
         exit(-1);
     }
 
+    uuid_2_externals_v_.clear();
+    uuid_2_mllm_tensor_.clear();
     auto status = xnn_create_subgraph(external_nums, 0, &subgraph_);
     if (status != xnn_status_success) {
         Log::error("Failed to create subgrpah");
@@ -197,6 +212,8 @@ void XnnpackBackend::createSubgraph(int32_t external_nums) {
 void XnnpackBackend::recreateSubgraph(int32_t external_nums) {
     if (subgraph_) {
         xnn_delete_subgraph(subgraph_);
+        uuid_2_mllm_tensor_.clear();
+        uuid_2_externals_v_.clear();
     }
 
     auto status = xnn_create_subgraph(external_nums, 0, &subgraph_);
@@ -215,6 +232,18 @@ void XnnpackBackend::registerExternalValue(uint32_t uuid, const xnn_external_val
     uuid_2_externals_v_.insert({uuid, ext_v});
 }
 
+void XnnpackBackend::registerUuidTensor(uint32_t uuid, Tensor *t) {
+    if (uuid_2_mllm_tensor_.count(uuid)) {
+        Log::error("when reigster a tensor value, found exists uuid: {}", uuid);
+        exit(-1);
+    }
+
+    uuid_2_mllm_tensor_.insert({uuid, t});
+}
+
+void *XnnpackBackend::getExternalValueptr(uint32_t uuid) {
+    return uuid_2_externals_v_[uuid].data;
+}
 xnn_datatype XnnpackBackend::mllmDType2XnnDType(DataType mllm_dtype) {
     switch (mllm_dtype) {
     case MLLM_TYPE_F32:
@@ -231,5 +260,17 @@ xnn_datatype XnnpackBackend::mllmDType2XnnDType(DataType mllm_dtype) {
 
 uint32_t XnnpackBackend::getNewEXternalId() {
     return (uint32_t)uuid_2_externals_v_.size();
+}
+
+void XnnpackBackend::assignPtrToTensor() {
+    // update from runtime
+    uuid_2_externals_v_ = getModelRuntime()->__uuidToExternalsV();
+
+    for (auto &iter : uuid_2_mllm_tensor_) {
+        auto t = iter.second;
+        auto uuid = iter.first;
+        auto ext_v = uuid_2_externals_v_[uuid];
+        t->forceResetHostPointer(ext_v.data);
+    }
 }
 } // namespace mllm::xnnpack

@@ -7,6 +7,8 @@ add_library(MllmXnnpackBackend
     Utils/Logger.cpp
 
     XpInterface.cpp
+    XnnpackBackend.cpp
+    XpMemoryManager.cpp
 
     Ops/XpDirect.cpp
     Ops/XpBinary.cpp
@@ -16,8 +18,7 @@ add_library(MllmXnnpackBackend
     Ops/XpRoPE.cpp
     Ops/XpSoftmax.cpp
 
-    XnnpackBackend.cpp
-    XpMemoryManager.cpp
+    Functions/XpBinaryFunc.cpp
 )
 target_include_directories(MllmXnnpackBackend PUBLIC third_party/XNNPACK/src/)
 target_include_directories(MllmXnnpackBackend PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../)

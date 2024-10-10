@@ -51,7 +51,7 @@ ErrorCode XpDirect::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
         auto in = inputs[i];
         auto out = outputs[i];
 
-        defineXpTensor(xnnbk, in, type_);
+        defineXpTensor(xnnbk, in.get(), type_);
 
         out->uuid() = in->uuid();
         out->forceResetHostPointer(in->rawHostPtr());

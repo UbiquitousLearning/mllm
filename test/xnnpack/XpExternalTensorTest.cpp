@@ -8,12 +8,14 @@ using namespace mllm;
 class AddModule : public Module {
     Layer DirectInput1;
     Layer DirectInput2;
+    Layer DirectOutput;
     Layer DispatchAll;
 
 public:
     AddModule() {
         DirectInput1 = Direct(Direct::ExternalInput, "directinput1");
         DirectInput2 = Direct(Direct::ExternalInput, "directinput2");
+        DirectOutput = Direct(Direct::ExternalOutput, "directoutput");
         DispatchAll = Dispatch("dispatch");
     }
 
@@ -22,8 +24,9 @@ public:
         auto x2 = DirectInput2(inputs[1]);
 
         auto out = x1 + x2;
+        out = DirectOutput(out);
         DispatchAll(out);
-        return {x1};
+        return {out};
     }
 };
 
@@ -38,10 +41,17 @@ TEST(XpExternalTensorTest, AddModule) {
     x1.setTtype(TensorType::INPUT_TENSOR);
     x2.setTtype(TensorType::INPUT_TENSOR);
 
+    float cnt = 0.f;
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            x1.setDataAt<float>(0, 0, i, j, cnt++);
+        }
+    }
+
     x1.printData<float>();
     x2.printData<float>();
 
     auto out = model({x1, x2})[0];
 
-    out.printData<float>();
+    out.xnn().printData<float>();
 }
