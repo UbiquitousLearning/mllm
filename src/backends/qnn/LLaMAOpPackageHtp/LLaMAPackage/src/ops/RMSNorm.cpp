@@ -270,6 +270,7 @@ int32_t hvx_rmsnorm_auint8(
     es_vec = Q6_V_vsplat_R(float_to_bits(es));
 
     HVX_Vector zero_v_sf = Q6_V_vzero();
+    scale_vec = Q6_Vqf32_vadd_VsfVsf(scale_vec, zero_v_sf);
     es_vec = Q6_Vqf32_vadd_VsfVsf(es_vec, zero_v_sf);
 
     HVX_Vector uintconvert = Q6_V_vsplat_R(0x80808080);
@@ -373,12 +374,12 @@ int32_t hvx_rmsnorm_auint8(
               slinew = Q6_V_valign_VVR(slinewc, slinewp, (size_t)weights);
 
               HVX_Vector middle_value_qf32 = Q6_Vqf32_vmpy_VsfVsf(sline1, slinew);
-              sline1 = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(middle_value_qf32, irsqrt_vqf32));
+              sline1 = Q6_Vqf32_vmpy_Vqf32Vqf32(middle_value_qf32, irsqrt_vqf32);
 
               slinewp = slinewc;
             }
             
-            sout1 = Q6_Vqf32_vmpy_VsfVsf(sline1,scale_vec);
+            sout1 = Q6_Vqf32_vmpy_Vqf32Vqf32(sline1,scale_vec);
             sout1 = Q6_Vqf32_vadd_Vqf32Vqf32(sout1, es_vec);
             sout1 = Q6_Vsf_equals_Vqf32(sout1);
             sout1 = Q6_Vsf_vmin_VsfVsf(sout1, high_level_vec);
@@ -428,13 +429,13 @@ int32_t hvx_rmsnorm_auint8(
               slinew = Q6_V_valign_VVR(slinewc, slinewp, (size_t)weights);
 
               HVX_Vector middle_value_qf32 = Q6_Vqf32_vmpy_VsfVsf(sline2, slinew);
-              sline2 = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(middle_value_qf32, irsqrt_vqf32));
+              sline2 = Q6_Vqf32_vmpy_Vqf32Vqf32(middle_value_qf32, irsqrt_vqf32);
 
               slinewp = slinewc;
             }
             
 
-            sout2 = Q6_Vqf32_vmpy_VsfVsf(sline2,scale_vec);
+            sout2 = Q6_Vqf32_vmpy_Vqf32Vqf32(sline2,scale_vec);
             sout2 = Q6_Vqf32_vadd_Vqf32Vqf32(sout2, es_vec);
             sout2 = Q6_Vsf_equals_Vqf32(sout2);
             sout2 = Q6_Vsf_vmin_VsfVsf(sout2, high_level_vec);
@@ -484,13 +485,13 @@ int32_t hvx_rmsnorm_auint8(
               slinew = Q6_V_valign_VVR(slinewc, slinewp, (size_t)weights);
 
               HVX_Vector middle_value_qf32 = Q6_Vqf32_vmpy_VsfVsf(sline3, slinew);
-              sline3 = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(middle_value_qf32, irsqrt_vqf32));
+              sline3 = Q6_Vqf32_vmpy_Vqf32Vqf32(middle_value_qf32, irsqrt_vqf32);
 
               slinewp = slinewc;
             }
             
 
-            sout3 = Q6_Vqf32_vmpy_VsfVsf(sline3,scale_vec);
+            sout3 = Q6_Vqf32_vmpy_Vqf32Vqf32(sline3,scale_vec);
             sout3 = Q6_Vqf32_vadd_Vqf32Vqf32(sout3, es_vec);
             sout3 = Q6_Vsf_equals_Vqf32(sout3);
             sout3 = Q6_Vsf_vmin_VsfVsf(sout3, high_level_vec);
@@ -541,13 +542,13 @@ int32_t hvx_rmsnorm_auint8(
               slinew = Q6_V_valign_VVR(slinewc, slinewp, (size_t)weights);
 
               HVX_Vector middle_value_qf32 = Q6_Vqf32_vmpy_VsfVsf(sline4, slinew);
-              sline4 = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(middle_value_qf32, irsqrt_vqf32));
+              sline4 = Q6_Vqf32_vmpy_Vqf32Vqf32(middle_value_qf32, irsqrt_vqf32);
 
               slinewp = slinewc;
             }
             
 
-            sout4 = Q6_Vqf32_vmpy_VsfVsf(sline4,scale_vec);
+            sout4 = Q6_Vqf32_vmpy_Vqf32Vqf32(sline4,scale_vec);
             sout4 = Q6_Vqf32_vadd_Vqf32Vqf32(sout4, es_vec);
             sout4 = Q6_Vsf_equals_Vqf32(sout4);
             sout4 = Q6_Vsf_vmin_VsfVsf(sout4, high_level_vec);
