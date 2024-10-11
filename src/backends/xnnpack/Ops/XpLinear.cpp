@@ -53,10 +53,13 @@ ErrorCode XpLinear::load(AbstructLoader &loader) {
         weight_params_.setDtype(loader.getDataType(weight_params_.name()));
         weight_params_.alloc();
         loader.load(&weight_params_);
-
-        // xnn
-        defineWeightTensor(xpb, &weight_params_);
+    } else {
+        weight_params_.setDtype(Op::noLoadWeightsDtype());
+        weight_params_.alloc();
     }
+
+    // xnn
+    defineWeightTensor(xpb, &weight_params_);
 
     if (bias_) {
         bias_params_.setName(name() + ".bias");
@@ -65,10 +68,13 @@ ErrorCode XpLinear::load(AbstructLoader &loader) {
             bias_params_.setDtype(loader.getDataType(bias_params_.name()));
             bias_params_.alloc();
             loader.load(&bias_params_);
-
-            // xnn
-            defineWeightTensor(xpb, &bias_params_);
+        } else {
+            bias_params_.setDtype(Op::noLoadWeightsDtype());
+            bias_params_.alloc();
         }
+
+        // xnn
+        defineWeightTensor(xpb, &bias_params_);
     }
     return Op::load(loader);
 }

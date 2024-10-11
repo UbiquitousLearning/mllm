@@ -8,6 +8,7 @@
 #include "backends/xnnpack/XpMemoryManager.hpp"
 #include "backends/xnnpack/Ops/XpDirect.hpp"
 #include "backends/xnnpack/Ops/XpDispatch.hpp"
+#include "backends/xnnpack/Ops/XpLinear.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
@@ -168,9 +169,10 @@ TensorFunction *XnnpackBackend::funcCreate(TensorFuncType type) {
 }
 
 void XnnpackBackend::registerOps() {
-    addCreator(ADD, (XnnpackBackend::Creator *)(new XpAddCreator()));
-    addCreator(DIRECT, (XnnpackBackend::Creator *)(new XpDirectCreator()));
-    addCreator(DISPATCH, (XnnpackBackend::Creator *)(new XpDispatchCreator()));
+    addCreator(ADD, new XpAddCreator());
+    addCreator(DIRECT, new XpDirectCreator());
+    addCreator(DISPATCH, new XpDispatchCreator());
+    addCreator(LINEAR, new XpLinearCreator());
 }
 
 void XnnpackBackend::registerFuncs() {
