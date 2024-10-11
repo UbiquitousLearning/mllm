@@ -46,13 +46,13 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                 const float mean = sum_squares / dim;
                 const float rms = 1.0f / sqrtf(mean + epsilon_);
 
-                memcpy( outputs[0]->ptrAt<float>(n, h, s, 0), 
-                        inputs[0]->ptrAt<float>(n, h, s, 0), 
-                        dim * sizeof(float));
+                memcpy(outputs[0]->ptrAt<float>(n, h, s, 0),
+                       inputs[0]->ptrAt<float>(n, h, s, 0),
+                       dim * sizeof(float));
                 vec_scale_f32(dim, outputs[0]->ptrAt<float>(n, h, s, 0), rms);
-                }
             }
         }
+    }
 
 #pragma omp parallel for collapse(4) num_threads(thread_count)
     for (int h = 0; h < head; h++) {
@@ -61,9 +61,9 @@ ErrorCode CPURMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                 for (int d = 0; d < dim; d++) {
                     float weight = weight_.dataAt<float>(0, 0, 0, d);
                     if (add_unit_offset_) {
-                        *outputs[0]->ptrAt<float>(n, h, s,d) *= (1 + weight);
+                        *outputs[0]->ptrAt<float>(n, h, s, d) *= (1 + weight);
                     } else {
-                        *outputs[0]->ptrAt<float>(n, h, s,d) *= (weight);
+                        *outputs[0]->ptrAt<float>(n, h, s, d) *= (weight);
                     }
                 }
             }
