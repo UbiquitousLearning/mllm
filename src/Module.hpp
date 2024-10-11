@@ -154,6 +154,8 @@ public:
             for (auto &output : outputs) {
                 Tensor::graphs[output.name()]->setTtype(GRAPH_OUTPUT);
             }
+            // when inner module return, the tmp_device should be set to the previous_device in case of afterwards layers' op init
+            Module::tmp_device = Module::previous_device;
             return outputs;
         }
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) { // outmost Module
@@ -201,7 +203,6 @@ public:
         } else { // inner Modules
             // TODO: should not use the previous_device for graph setup, offload according to the backends' info inited during loading
             if (Tensor::tensor_status == TENSOR_STATIC_INIT && Module::tmp_device != Module::previous_device) { // backend specific module reshape & setup
-                std::cout << "------------ onSetUpStart " << device_ << std::endl;
                 auto inputs_vec = vector<shared_ptr<Tensor>>();
                 auto outputs_vec = vector<shared_ptr<Tensor>>();
                 for (auto &i : inputs) {
@@ -218,7 +219,6 @@ public:
                     outputs_vec.push_back(Tensor::graphs[output.name()]);
                 }
                 Backend::global_backends[device_]->onSetUpEnd(inputs_vec, outputs_vec, getUinqueName());
-                std::cout << "------------ onSetUpEnd" << std::endl;
                 return outputs;
             } else if (Tensor::tensor_status == TENSOR_STATIC_READY && Module::tmp_device != Module::previous_device) { // backend specific module execute
                 auto inputs_vec = vector<shared_ptr<Tensor>>(inputs.size());

@@ -152,7 +152,13 @@ protected:
                         layername_2_tensorname[layer_next_name] = layer_next_name;
                         init_reset_KVCache(inputs[0].name());
                     } else {
+#ifdef USE_QNN
+                        // when use QNN, tensors are not reused
+                        // TODO: tensor reuse and pipeline support
+                        layername_2_tensorname[layer_next_name] = layer_next_name;
+#else
                         layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+#endif
                     }
                 }
                 auto next_name = layername_2_tensorname[layer_next_name];

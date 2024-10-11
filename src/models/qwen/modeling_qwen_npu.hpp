@@ -330,6 +330,9 @@ public:
         for (auto &block : blocks) {
             x = block({x})[0];
         }
+        if (x.device() != MLLM_CPU) {
+            x = Tensor::toCPU({x})[0];
+        }
         x = norm(x);
         return {x};
     }

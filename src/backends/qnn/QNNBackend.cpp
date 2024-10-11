@@ -248,7 +248,18 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     // For splitinput op input, the seq will be divided as 5, and we add the input in split ops.
     for (auto &input : inputs) {
         if (input->sequence() % 5 != 0) {
-            auto data_type = QNN_DATATYPE_SFIXED_POINT_8;
+            Qnn_DataType_t data_type;
+            switch (input->dtype()) {
+            case MLLM_TYPE_F32:
+                data_type = QNN_DATATYPE_FLOAT_32;
+                break;
+            case MLLM_TYPE_I8:
+                data_type = QNN_DATATYPE_SFIXED_POINT_8;
+                break;
+            default:
+                data_type = QNN_DATATYPE_FLOAT_32;
+            }
+            
             uint32_t dimensionsInput[4] = {
                 static_cast<uint32_t>(input->batch()),
                 static_cast<uint32_t>(input->sequence()),
@@ -388,11 +399,11 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
 }
 
 void QNNBackend::onExecuteEnd() {
-#ifdef QNN_ARM
-    executeGraphsShared();
-#else
-    executeGraphs(inputBufferMap, outputBufferMap);
-#endif
+// #ifdef QNN_ARM
+//     executeGraphsShared();
+// #else
+//     executeGraphs(inputBufferMap, outputBufferMap);
+// #endif
 }
 
 void QNNBackend::freeGraphDataStructure(string graphName) {
