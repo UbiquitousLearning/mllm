@@ -1,28 +1,29 @@
 #include "Module.hpp"
 #include "Types.hpp"
 #include "backends/xnnpack/XpWrapper.hpp"
+#include "backends/xnnpack/Utils/Logger.hpp"
 #include <gtest/gtest.h>
 
 using namespace mllm;
 
-class AddModule : public Module {
+class TTSubModule : public Module {
 public:
-    AddModule() = default;
+    TTSubModule() = default;
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x1 = inputs[0];
         auto x2 = inputs[1];
 
-        auto out = x1 + x2;
+        auto out = x1 - x2;
 
         return {out};
     }
 };
 
-TEST(XpExternalTensorTest, AddModule) {
-    auto model = ::mllm::xnnpack::wrap2xnn<AddModule>(2, 1);
+TEST(XpTensorFunctionTest, TTSub) {
+    mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::ERROR;
 
-    EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
+    auto model = ::mllm::xnnpack::wrap2xnn<TTSubModule>(2, 1);
 
     Tensor x1(1, 1, 4, 4, Backend::global_backends[MLLM_XNNPACK], true);
     Tensor x2(1, 1, 4, 4, Backend::global_backends[MLLM_XNNPACK], true);
@@ -32,7 +33,7 @@ TEST(XpExternalTensorTest, AddModule) {
     float cnt = 0.f;
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
-            x1.setDataAt<float>(0, 0, i, j, cnt++);
+            x2.setDataAt<float>(0, 0, i, j, cnt++);
         }
     }
 
@@ -44,7 +45,7 @@ TEST(XpExternalTensorTest, AddModule) {
     cnt = 0.f;
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
-            EXPECT_EQ(out.dataAt<float>(0, 0, i, j), cnt++);
+            EXPECT_EQ(out.dataAt<float>(0, 0, i, j), -(cnt++));
         }
     }
 }

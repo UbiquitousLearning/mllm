@@ -5,6 +5,11 @@ namespace mllm::xnnpack {
 
 XpWrapperModule::XpWrapperModule(int input_num, int output_num) :
     intput_nums_(input_num), output_nums_(output_num) {
+    if (input_num + output_num > 16) {
+        Log::error("input_num + output_num > 16, pls recompile with larger external values num with createSubgraph(k); where k > 16");
+        exit(-1);
+    }
+
     for (int i = 0; i < input_num; ++i) {
         direct_input_layers_.emplace_back(Direct(Direct::ExternalInput, "directinput_" + std::to_string(i)));
     }

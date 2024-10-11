@@ -174,7 +174,17 @@ void XnnpackBackend::registerOps() {
 }
 
 void XnnpackBackend::registerFuncs() {
+    // broadcast element wise tensor func
+    map_tensor_function_[TensorFuncType::FUNC_ADD] = new XpBroadcastAddFunction();
+    map_tensor_function_[TensorFuncType::FUNC_SUB] = new XpBroadcastSubFunction();
+    map_tensor_function_[TensorFuncType::FUNC_MUL] = new XpBroadcastMulFunction();
+    map_tensor_function_[TensorFuncType::FUNC_DIV] = new XpBroadcastDivFunction();
+
+    // element wise tensor func
     map_tensor_function_[TensorFuncType::FUNC_TTADD] = new XpTTAddFunction();
+    map_tensor_function_[TensorFuncType::FUNC_TTSUB] = new XpTTSubFunction();
+    map_tensor_function_[TensorFuncType::FUNC_TTMUL] = new XpTTMulFunction();
+    map_tensor_function_[TensorFuncType::FUNC_TTDIV] = new XpTTDivFunction();
 }
 
 std::shared_ptr<XnnpackModelRuntime> XnnpackBackend::getModelRuntime() {
