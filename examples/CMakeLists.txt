@@ -506,8 +506,6 @@ else ()
     target_link_libraries(demo_minicpm PUBLIC MLLM_CPU -fopenmp)
 endif ()
 
-endif() # end of cpu executables
-
 add_executable(demo_smollm
     ${PROJECT_SOURCE_DIR}/examples/demo_smollm.cpp 
     ${DIR_SRC_CPU} 
@@ -588,6 +586,7 @@ else ()
     target_link_libraries(benchmark_llm PUBLIC MLLM_CPU -fopenmp)
 endif ()
 
+endif() # end of cpu executables
 # QNN demo
 if(QNN)
     # qnn executables
