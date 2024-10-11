@@ -4,27 +4,7 @@
 namespace mllm::xnnpack {
 
 ErrorCode XpAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    auto xnnbk = (XnnpackBackend *)(this->backend());
-
-    // define output tensor
-    // defineXpTensor(xnnbk, outputs[0], XpTensorType::Normal);
-
-    // the inputs should already has uuid.
-
-    // create binary op: add
-    auto status = xnn_define_binary(
-        xnnbk->getXnnSubgraph(),
-        xnn_binary_add,
-        nullptr,
-        inputs[0]->uuid(),
-        inputs[1]->uuid(),
-        outputs[0]->uuid(),
-        0);
-
-    if (status != xnn_status_success) {
-        Log::error("XpAdd::setUp Error");
-        exit(-1);
-    }
+    // do nothing
     return MLLM_NO_ERROR;
 }
 
@@ -44,7 +24,25 @@ ErrorCode XpAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 }
 
 ErrorCode XpAdd::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // do not execute this op
+    auto xpb = (XnnpackBackend *)inputs[0]->backend();
+    tryDefineAllXpTensors(xpb, inputs);
+    tryDefineAllXpTensors(xpb, outputs);
+
+    // define xnnpack op.
+    auto status = xnn_define_binary(
+        xpb->getXnnSubgraph(),
+        xnn_binary_add,
+        nullptr,
+        inputs[0]->uuid(),
+        inputs[1]->uuid(),
+        outputs[0]->uuid(),
+        0);
+
+    if (status != xnn_status_success) {
+        Log::error("XpAdd::execute Error");
+        exit(-1);
+    }
+
     return MLLM_NO_ERROR;
 }
 

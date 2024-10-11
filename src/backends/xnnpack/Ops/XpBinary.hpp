@@ -12,7 +12,7 @@
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "backends/xnnpack/XnnpackBackend.hpp"
-#include "xnnpack/XpInterface.hpp"
+#include "backends/xnnpack/XpInterface.hpp"
 
 namespace mllm::xnnpack {
 

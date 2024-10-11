@@ -14,7 +14,6 @@
 #include "backends/xnnpack/XnnpackBackend.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include <memory>
-#include <array>
 
 namespace mllm::xnnpack {
 
@@ -26,6 +25,33 @@ enum class XpTensorType : uint32_t {
 
 template <typename T>
 struct XpTensorDefineInterface {
+    void defineWeightTensor(XnnpackBackend *xpb, Tensor *t) {
+        if (t->uuid() != XNN_INVALID_VALUE_ID) return;
+
+        auto xp_dtype = XnnpackBackend::mllmDType2XnnDType(t->dtype());
+
+        xnn_status status;
+        std::vector<size_t> dims;
+        for (auto d : t->shape()) dims.push_back(d);
+
+        switch (xp_dtype) {
+        case xnn_datatype_fp32: {
+            status = xnn_define_tensor_value(
+                xpb->getXnnSubgraph(), xp_dtype,
+                dims.size(), dims.data(),
+                /*data=*/t->rawHostPtr(),
+                XNN_INVALID_VALUE_ID, 0, &t->uuid());
+        }
+        default:
+            break;
+        }
+
+        if (status != xnn_status_success) {
+            Log::error("xnnpack backend defineWeightTensor Error");
+            exit(-1);
+        }
+    }
+
     void tryDefineAllXpTensors(XnnpackBackend *xpb, std::vector<std::shared_ptr<Tensor>> &ts) {
         for (auto &t : ts) {
             XpTensorType _t;
@@ -70,11 +96,8 @@ struct XpTensorDefineInterface {
         auto xp_dtype = XnnpackBackend::mllmDType2XnnDType(t->dtype());
 
         xnn_status status;
-        std::array<size_t, 4> dims = {0, 0, 0, 0};
-        dims[0] = t->batch();
-        dims[1] = t->head();
-        dims[2] = t->sequence();
-        dims[3] = t->dimension();
+        std::vector<size_t> dims;
+        for (auto d : t->shape()) dims.push_back(d);
 
         uint32_t flags;
         uint32_t external_id = XNN_INVALID_VALUE_ID;
