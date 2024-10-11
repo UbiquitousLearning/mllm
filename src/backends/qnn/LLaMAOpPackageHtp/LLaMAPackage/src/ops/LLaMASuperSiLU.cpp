@@ -112,6 +112,8 @@ DEF_PACKAGE_PARAM_ORDER("LLaMASuperSiLU",
 #define FP16_MANTISA_MASK 0x000003ff
 #define FP16_SIGN 15
 #define FP16_NEG_1 0xbc00
+#define ROUND_2_SCALE 22
+#define ROUND_SCALSE ((1 << ROUND_2_SCALE) * 1.0f)
 
 static inline int32_t float_to_fp16s(float input)
 {
@@ -121,6 +123,13 @@ static inline int32_t float_to_fp16s(float input)
     } fp32 = {.f = {(__fp16)input, (__fp16)input}};
     return fp32.i;
 }
+
+static HVX_INLINE_ALWAYS uint32_t float_to_bits(float x)
+{
+    union { float f; uint32_t i; } fp32 = { .f = x };
+    return fp32.i;
+}
+
 
 static const float fp16_c0_coeffs[32] __attribute__((aligned(VLEN))) =
 {
@@ -279,17 +288,20 @@ int32_t hvx_supersilu_ahf(
 
 
     // quantize
-    HVX_Vector low_level_vec, high_level_vec, o_scale_vec, es_vec;
+    HVX_Vector low_level_vec, high_level_vec, o_scale_vec, es_vec, round_scale_vec, one_vec;
     HVX_Vector uintconvert = Q6_V_vsplat_R(0x80808080);
 
     float es = 0.5; 
     low_level_vec = Q6_V_vsplat_R(float_to_fp16s(-128.0f));
     high_level_vec = Q6_V_vsplat_R(float_to_fp16s(127.0f));
     o_scale_vec = Q6_V_vsplat_R(float_to_fp16s(o_scale));
+    one_vec = Q6_V_vsplat_R(float_to_fp16s(1.0f));
     // o_scale_vec = Q6_Vqf16_vadd_VhfVhf(o_scale_vec, zero_v_hf);
     es_vec = Q6_V_vsplat_R(float_to_fp16s(es));
+    round_scale_vec = Q6_V_vsplat_R(float_to_bits(ROUND_SCALSE));
 
     es_vec = Q6_Vqf16_vadd_VhfVhf(es_vec, zero_v_sf);
+    round_scale_vec = Q6_Vqf32_vadd_VsfVsf(round_scale_vec, zero_v_sf);
 
     HVX_Vector expmask = Q6_Vh_vsplat_R(FP16_EXPONENT_MASK);
     HVX_Vector expbias = Q6_Vh_vsplat_R(FP16_EXPONENT_BIAS);
@@ -528,42 +540,53 @@ int32_t hvx_supersilu_ahf(
               sout1 = Q6_Vhf_equals_Vqf16(sout1);
               sout1 = Q6_Vhf_vmin_VhfVhf(sout1, high_level_vec);
               sout1 = Q6_Vhf_vmax_VhfVhf(sout1, low_level_vec);
+              HVX_VectorPair sout1_pair =  Q6_Wqf32_vmpy_VhfVhf(sout1, one_vec);
+              HVX_Vector sout1_low = Q6_Vsf_equals_Vqf32( Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(sout1_pair),  round_scale_vec));
+              HVX_Vector sout1_high = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(sout1_pair), round_scale_vec));
 
-              {
-                  HVX_Vector exp = Q6_Vh_vasr_VhR(sout1, FP16_MANTISA);
-                  exp = Q6_V_vand_VV(exp, expmask);
-                  exp = Q6_Vh_vsub_VhVh(exp, expbias);
+              sout1_pair = Q6_W_vshuff_VVR(sout1_high, sout1_low, -4);
+              sout1_low = Q6_V_lo_W(sout1_pair);
+              sout1_high = Q6_V_hi_W(sout1_pair);
 
-                  HVX_Vector man = Q6_Vh_vasr_VhVh(manmask, exp);
-                  HVX_Vector manzero = Q6_V_vand_VV(sout1, man);
 
-                  HVX_Vector sign = Q6_Vh_vasr_VhR(sout1, FP16_SIGN);
-                  HVX_Vector issignpos = Q6_Q_vcmp_eq_VhVh(sign, zero);
+              // {
+              //     HVX_Vector exp = Q6_Vh_vasr_VhR(sout1, FP16_MANTISA);
+              //     exp = Q6_V_vand_VV(exp, expmask);
+              //     exp = Q6_Vh_vsub_VhVh(exp, expbias);
 
-                  HVX_Vector expgte23 = Q6_Q_vcmp_gt_VhVh(exp, exp23);
-                  HVX_Vector expgte0 = Q6_Q_vcmp_gt_VhVh(exp, exp0);
-                  HVX_Vector maneqzero = Q6_Q_vcmp_eq_VhVh(manzero, zero);
+              //     HVX_Vector man = Q6_Vh_vasr_VhVh(manmask, exp);
+              //     HVX_Vector manzero = Q6_V_vand_VV(sout1, man);
 
-                  HVX_Vector exppos_signneg = Q6_Vh_vadd_VhVh(sout1, man);
-                  man = Q6_V_vnot_V(man);
-                  HVX_Vector exppos_signpos = Q6_V_vand_VV(sout1, man);
-                  exppos_signneg = Q6_V_vand_VV(exppos_signneg, man);
-                  HVX_Vector shift1 = Q6_Vh_vasl_VhR(sout1, 1);
-                  HVX_Vector iszero = Q6_Q_vcmp_eq_VhVh(shift1, zero);
+              //     HVX_Vector sign = Q6_Vh_vasr_VhR(sout1, FP16_SIGN);
+              //     HVX_Vector issignpos = Q6_Q_vcmp_eq_VhVh(sign, zero);
 
-                  // exp >= 0
-                  HVX_Vector tsout1 = Q6_V_vmux_QVV(issignpos, exppos_signpos, exppos_signneg);
-                  tsout1 = Q6_V_vmux_QVV(maneqzero, sout1, tsout1);
+              //     HVX_Vector expgte23 = Q6_Q_vcmp_gt_VhVh(exp, exp23);
+              //     HVX_Vector expgte0 = Q6_Q_vcmp_gt_VhVh(exp, exp0);
+              //     HVX_Vector maneqzero = Q6_Q_vcmp_eq_VhVh(manzero, zero);
 
-                  // exp < 0 (-1, 1)
-                  HVX_Vector tsout2 = Q6_V_vmux_QVV(iszero, sout1, negone);
-                  tsout2 = Q6_V_vmux_QVV(issignpos, zero, tsout2);
+              //     HVX_Vector exppos_signneg = Q6_Vh_vadd_VhVh(sout1, man);
+              //     man = Q6_V_vnot_V(man);
+              //     HVX_Vector exppos_signpos = Q6_V_vand_VV(sout1, man);
+              //     exppos_signneg = Q6_V_vand_VV(exppos_signneg, man);
+              //     HVX_Vector shift1 = Q6_Vh_vasl_VhR(sout1, 1);
+              //     HVX_Vector iszero = Q6_Q_vcmp_eq_VhVh(shift1, zero);
 
-                  tsout1 = Q6_V_vmux_QVV(expgte0, tsout1, tsout2);
-                  sout1 = Q6_V_vmux_QVV(expgte23, sout1, tsout1);
-              }
+              //     // exp >= 0
+              //     HVX_Vector tsout1 = Q6_V_vmux_QVV(issignpos, exppos_signpos, exppos_signneg);
+              //     tsout1 = Q6_V_vmux_QVV(maneqzero, sout1, tsout1);
 
-              sout1 = Q6_Vh_equals_Vhf(sout1);
+              //     // exp < 0 (-1, 1)
+              //     HVX_Vector tsout2 = Q6_V_vmux_QVV(iszero, sout1, negone);
+              //     tsout2 = Q6_V_vmux_QVV(issignpos, zero, tsout2);
+
+              //     tsout1 = Q6_V_vmux_QVV(expgte0, tsout1, tsout2);
+              //     sout1 = Q6_V_vmux_QVV(expgte23, sout1, tsout1);
+              // }
+
+              sout1_low = Q6_Vw_equals_Vsf(sout1_low);
+              sout1_low = Q6_Vw_vasr_VwR(sout1_low, ROUND_2_SCALE);
+              sout1_high = Q6_Vw_equals_Vsf(sout1_high);
+              sout1_high = Q6_Vw_vasr_VwR(sout1_high, ROUND_2_SCALE);
 
 
               HVX_Vector sout2 = Q6_Vqf16_vmpy_VhfVhf(sline_high, o_scale_vec);
@@ -571,45 +594,58 @@ int32_t hvx_supersilu_ahf(
               sout2 = Q6_Vhf_equals_Vqf16(sout2);
               sout2 = Q6_Vhf_vmin_VhfVhf(sout2, high_level_vec);
               sout2 = Q6_Vhf_vmax_VhfVhf(sout2, low_level_vec);
+              HVX_VectorPair sout2_pair =  Q6_Wqf32_vmpy_VhfVhf(sout2, one_vec);
+              HVX_Vector sout2_low = Q6_Vsf_equals_Vqf32( Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(sout2_pair),  round_scale_vec));
+              HVX_Vector sout2_high = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(sout2_pair), round_scale_vec));
 
-              {
-                  HVX_Vector exp = Q6_Vh_vasr_VhR(sout2, FP16_MANTISA);
-                  exp = Q6_V_vand_VV(exp, expmask);
-                  exp = Q6_Vh_vsub_VhVh(exp, expbias);
+              sout2_pair = Q6_W_vshuff_VVR(sout2_high, sout2_low, -4);
+              sout2_low = Q6_V_lo_W(sout2_pair);
+              sout2_high = Q6_V_hi_W(sout2_pair);
 
-                  HVX_Vector man = Q6_Vh_vasr_VhVh(manmask, exp);
-                  HVX_Vector manzero = Q6_V_vand_VV(sout2, man);
+              // {
+              //     HVX_Vector exp = Q6_Vh_vasr_VhR(sout2, FP16_MANTISA);
+              //     exp = Q6_V_vand_VV(exp, expmask);
+              //     exp = Q6_Vh_vsub_VhVh(exp, expbias);
 
-                  HVX_Vector sign = Q6_Vh_vasr_VhR(sout2, FP16_SIGN);
-                  HVX_Vector issignpos = Q6_Q_vcmp_eq_VhVh(sign, zero);
+              //     HVX_Vector man = Q6_Vh_vasr_VhVh(manmask, exp);
+              //     HVX_Vector manzero = Q6_V_vand_VV(sout2, man);
 
-                  HVX_Vector expgte23 = Q6_Q_vcmp_gt_VhVh(exp, exp23);
-                  HVX_Vector expgte0 = Q6_Q_vcmp_gt_VhVh(exp, exp0);
-                  HVX_Vector maneqzero = Q6_Q_vcmp_eq_VhVh(manzero, zero);
+              //     HVX_Vector sign = Q6_Vh_vasr_VhR(sout2, FP16_SIGN);
+              //     HVX_Vector issignpos = Q6_Q_vcmp_eq_VhVh(sign, zero);
 
-                  HVX_Vector exppos_signneg = Q6_Vh_vadd_VhVh(sout2, man);
-                  man = Q6_V_vnot_V(man);
-                  HVX_Vector exppos_signpos = Q6_V_vand_VV(sout2, man);
-                  exppos_signneg = Q6_V_vand_VV(exppos_signneg, man);
-                  HVX_Vector shift1 = Q6_Vh_vasl_VhR(sout2, 1);
-                  HVX_Vector iszero = Q6_Q_vcmp_eq_VhVh(shift1, zero);
+              //     HVX_Vector expgte23 = Q6_Q_vcmp_gt_VhVh(exp, exp23);
+              //     HVX_Vector expgte0 = Q6_Q_vcmp_gt_VhVh(exp, exp0);
+              //     HVX_Vector maneqzero = Q6_Q_vcmp_eq_VhVh(manzero, zero);
 
-                  // exp >= 0
-                  HVX_Vector tsout1 = Q6_V_vmux_QVV(issignpos, exppos_signpos, exppos_signneg);
-                  tsout1 = Q6_V_vmux_QVV(maneqzero, sout2, tsout1);
+              //     HVX_Vector exppos_signneg = Q6_Vh_vadd_VhVh(sout2, man);
+              //     man = Q6_V_vnot_V(man);
+              //     HVX_Vector exppos_signpos = Q6_V_vand_VV(sout2, man);
+              //     exppos_signneg = Q6_V_vand_VV(exppos_signneg, man);
+              //     HVX_Vector shift1 = Q6_Vh_vasl_VhR(sout2, 1);
+              //     HVX_Vector iszero = Q6_Q_vcmp_eq_VhVh(shift1, zero);
 
-                  // exp < 0 (-1, 1)
-                  HVX_Vector tsout2 = Q6_V_vmux_QVV(iszero, sout2, negone);
-                  tsout2 = Q6_V_vmux_QVV(issignpos, zero, tsout2);
+              //     // exp >= 0
+              //     HVX_Vector tsout1 = Q6_V_vmux_QVV(issignpos, exppos_signpos, exppos_signneg);
+              //     tsout1 = Q6_V_vmux_QVV(maneqzero, sout2, tsout1);
 
-                  tsout1 = Q6_V_vmux_QVV(expgte0, tsout1, tsout2);
-                  sout2 = Q6_V_vmux_QVV(expgte23, sout2, tsout1);
-              }
+              //     // exp < 0 (-1, 1)
+              //     HVX_Vector tsout2 = Q6_V_vmux_QVV(iszero, sout2, negone);
+              //     tsout2 = Q6_V_vmux_QVV(issignpos, zero, tsout2);
 
-              sout2 = Q6_Vh_equals_Vhf(sout2);
+              //     tsout1 = Q6_V_vmux_QVV(expgte0, tsout1, tsout2);
+              //     sout2 = Q6_V_vmux_QVV(expgte23, sout2, tsout1);
+              // }
 
-              HVX_Vector reql_h = Q6_Vb_vpack_VhVh_sat(sout2, sout1);
-              *optr++ = Q6_Vb_vadd_VbVb(reql_h, uintconvert);
+              sout2_low = Q6_Vw_equals_Vsf(sout2_low);
+              sout2_low = Q6_Vw_vasr_VwR(sout2_low, ROUND_2_SCALE);
+              sout2_high = Q6_Vw_equals_Vsf(sout2_high);
+              sout2_high = Q6_Vw_vasr_VwR(sout2_high, ROUND_2_SCALE);
+
+              HVX_Vector reql_h = Q6_Vh_vpack_VwVw_sat(sout1_high, sout1_low);
+              HVX_Vector reqh_h = Q6_Vh_vpack_VwVw_sat(sout2_high, sout2_low);
+              HVX_Vector req_b = Q6_Vb_vpack_VhVh_sat(reqh_h, reql_h);
+
+              *optr++ = Q6_Vb_vadd_VbVb(req_b, uintconvert);
             }
 
             
