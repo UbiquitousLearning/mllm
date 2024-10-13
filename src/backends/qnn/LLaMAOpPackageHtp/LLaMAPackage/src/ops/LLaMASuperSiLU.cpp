@@ -290,11 +290,12 @@ int32_t hvx_supersilu_ahf(
     // quantize
     HVX_Vector low_level_vec, high_level_vec, o_scale_vec, es_vec, round_scale_vec, one_vec;
     HVX_Vector uintconvert = Q6_V_vsplat_R(0x80808080);
+    HVX_Vector vmb = Q6_V_vsplat_R(0x40004000);
 
     float es = 0.5; 
     low_level_vec = Q6_V_vsplat_R(float_to_fp16s(-128.0f));
     high_level_vec = Q6_V_vsplat_R(float_to_fp16s(127.0f));
-    o_scale_vec = Q6_V_vsplat_R(float_to_fp16s(o_scale));
+    o_scale_vec = Q6_V_vsplat_R(float_to_fp16s(a_scale * b_scale * o_scale));
     one_vec = Q6_V_vsplat_R(float_to_fp16s(1.0f));
     // o_scale_vec = Q6_Vqf16_vadd_VhfVhf(o_scale_vec, zero_v_hf);
     es_vec = Q6_V_vsplat_R(float_to_fp16s(es));
@@ -332,8 +333,8 @@ int32_t hvx_supersilu_ahf(
 
             HVX_Vector sline1_high;
             HVX_Vector sline1_low;
-            HVX_Vector sline2_high;
-            HVX_Vector sline2_low;
+            // HVX_Vector sline2_high;
+            // HVX_Vector sline2_low;
 
             {
               // dequantize  sline1 qf16
@@ -350,19 +351,19 @@ int32_t hvx_supersilu_ahf(
             }
 
 
-            {
-              // dequantize  sline2 qf16
-              HVX_VectorPair temp = Q6_Wh_vadd_VubVub(sline2, zero_v_sf);
+            // {
+            //   // dequantize  sline2 qf16
+            //   HVX_VectorPair temp = Q6_Wh_vadd_VubVub(sline2, zero_v_sf);
 
-              temp = Q6_W_vshuff_VVR(Q6_V_hi_W(temp), Q6_V_lo_W(temp), -2);
-              HVX_Vector sout1 = Q6_Vh_vsub_VhVh(Q6_V_lo_W(temp), convert_vector);
-              HVX_Vector sout2 = Q6_Vh_vsub_VhVh(Q6_V_hi_W(temp), convert_vector);
+            //   temp = Q6_W_vshuff_VVR(Q6_V_hi_W(temp), Q6_V_lo_W(temp), -2);
+            //   HVX_Vector sout1 = Q6_Vh_vsub_VhVh(Q6_V_lo_W(temp), convert_vector);
+            //   HVX_Vector sout2 = Q6_Vh_vsub_VhVh(Q6_V_hi_W(temp), convert_vector);
 
-              sline2_low = Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), b_scale_vec);
-              sline2_low = Q6_Vhf_equals_Vqf16(sline2_low);
-              sline2_high = Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout2), b_scale_vec);
-              sline2_high = Q6_Vhf_equals_Vqf16(sline2_high);
-            }
+            //   sline2_low = Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), b_scale_vec);
+            //   sline2_low = Q6_Vhf_equals_Vqf16(sline2_low);
+            //   sline2_high = Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout2), b_scale_vec);
+            //   sline2_high = Q6_Vhf_equals_Vqf16(sline2_high);
+            // }
 
             {
               // silu  sline1_low
@@ -435,8 +436,8 @@ int32_t hvx_supersilu_ahf(
               output_dv.V.hi = Q6_Vqf32_vadd_Vqf32Vqf32(output_dv.V.hi, Q6_V_hi_W(c0_coeff_vp));
 
               // x * sigmod
-              output_dv.V.lo = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(input_vp_qf32), output_dv.V.lo);
-              output_dv.V.hi = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(input_vp_qf32), output_dv.V.hi);
+              // output_dv.V.lo = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(input_vp_qf32), output_dv.V.lo);
+              // output_dv.V.hi = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(input_vp_qf32), output_dv.V.hi);
 
               sline1_low = Q6_Vhf_equals_Wqf32(output_dv.VV);
             }
@@ -513,8 +514,8 @@ int32_t hvx_supersilu_ahf(
               output_dv.V.hi = Q6_Vqf32_vadd_Vqf32Vqf32(output_dv.V.hi, Q6_V_hi_W(c0_coeff_vp));
 
               // x * sigmod
-              output_dv.V.lo = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(input_vp_qf32), output_dv.V.lo);
-              output_dv.V.hi = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(input_vp_qf32), output_dv.V.hi);
+              // output_dv.V.lo = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(input_vp_qf32), output_dv.V.lo);
+              // output_dv.V.hi = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(input_vp_qf32), output_dv.V.hi);
 
               sline1_high = Q6_Vhf_equals_Wqf32(output_dv.VV);
             }
@@ -523,19 +524,32 @@ int32_t hvx_supersilu_ahf(
             HVX_Vector sline_high;
             HVX_Vector sline_low;
             
-            {
-              // mul
-              sline_high = Q6_Vqf16_vmpy_VhfVhf(sline1_high, sline2_high);
-              sline_low = Q6_Vqf16_vmpy_VhfVhf(sline1_low, sline2_low);
+            // {
+            //   // mul
+            //   sline_high = Q6_Vqf16_vmpy_VhfVhf(sline1_high, sline2_high);
+            //   sline_low = Q6_Vqf16_vmpy_VhfVhf(sline1_low, sline2_low);
 
-              sline_high = Q6_Vhf_equals_Vqf16(sline_high);
-              sline_low = Q6_Vhf_equals_Vqf16(sline_low);
-            }
+            //   sline_high = Q6_Vhf_equals_Vqf16(sline_high);
+            //   sline_low = Q6_Vhf_equals_Vqf16(sline_low);
+            // }
             
+            {
+              // uint8 mul
+              // (a-128)*(b-128) = a*b - 128 (a+b) + 128*128
+              HVX_VectorPair prod1 = Q6_Wuh_vmpyacc_WuhVubVub(Q6_W_vcombine_VV(vmb,vmb), sline1, sline2);
+              HVX_VectorPair prod2 = Q6_Wh_vmpa_WubRub( Q6_W_vcombine_VV(sline2, sline1), 0x80808080);
+              HVX_VectorPair mul_output = Q6_Wh_vsub_WhWh(prod1, prod2);
+
+              mul_output =  Q6_W_vshuff_VVR(Q6_V_hi_W(mul_output), Q6_V_lo_W(mul_output), -2);
+
+              sline_low = Q6_Vqf16_vmpy_VhfVhf(sline1_low, Q6_Vhf_equals_Vh(Q6_V_lo_W(mul_output)));
+              sline_high = Q6_Vqf16_vmpy_VhfVhf(sline1_high, Q6_Vhf_equals_Vh(Q6_V_hi_W(mul_output)));
+
+            }
 
             {
               // quantize
-              HVX_Vector sout1 = Q6_Vqf16_vmpy_VhfVhf(sline_low, o_scale_vec);
+              HVX_Vector sout1 = Q6_Vqf16_vmpy_Vqf16Vhf(sline_low, o_scale_vec);
               sout1 = Q6_Vqf16_vadd_Vqf16Vqf16(sout1, es_vec);
               sout1 = Q6_Vhf_equals_Vqf16(sout1);
               sout1 = Q6_Vhf_vmin_VhfVhf(sout1, high_level_vec);
@@ -589,7 +603,7 @@ int32_t hvx_supersilu_ahf(
               sout1_high = Q6_Vw_vasr_VwR(sout1_high, ROUND_2_SCALE);
 
 
-              HVX_Vector sout2 = Q6_Vqf16_vmpy_VhfVhf(sline_high, o_scale_vec);
+              HVX_Vector sout2 = Q6_Vqf16_vmpy_Vqf16Vhf(sline_high, o_scale_vec);
               sout2 = Q6_Vqf16_vadd_Vqf16Vqf16(sout2, es_vec);
               sout2 = Q6_Vhf_equals_Vqf16(sout2);
               sout2 = Q6_Vhf_vmin_VhfVhf(sout2, high_level_vec);
@@ -658,6 +672,8 @@ int32_t hvx_supersilu_ahf(
     }
 
     if (vectors_in_rounddown > 0) {
+
+      o_scale_vec = Q6_V_vsplat_R(float_to_fp16s(o_scale));
 
       sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
       sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
