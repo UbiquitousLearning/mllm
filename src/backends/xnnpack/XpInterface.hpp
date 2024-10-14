@@ -25,6 +25,31 @@ enum class XpTensorType : uint32_t {
 
 template <typename T>
 struct XpTensorDefineInterface {
+    uint32_t defineTemporaryTensor(XnnpackBackend *xpb, const std::vector<size_t> &dims, DataType dtype) {
+        auto xp_dtype = XnnpackBackend::mllmDType2XnnDType(dtype);
+        xnn_status status;
+
+        uint32_t ret = XNN_INVALID_VALUE_ID;
+        switch (xp_dtype) {
+        case xnn_datatype_fp32: {
+            status = xnn_define_tensor_value(
+                xpb->getXnnSubgraph(), xp_dtype,
+                dims.size(), dims.data(),
+                nullptr,
+                XNN_INVALID_VALUE_ID, 0, &ret);
+        }
+        default:
+            break;
+        }
+
+        if (status != xnn_status_success) {
+            Log::error("xnnpack backend defineTemporaryTensor Error");
+            exit(-1);
+        }
+
+        return ret;
+    }
+
     void defineWeightTensor(XnnpackBackend *xpb, Tensor *t) {
         if (t->uuid() != XNN_INVALID_VALUE_ID) return;
 
