@@ -24,6 +24,10 @@ ErrorCode XpLinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     auto xpb = (XnnpackBackend *)backend();
     tryDefineAllXpTensors(xpb, inputs);
     tryDefineAllXpTensors(xpb, outputs);
+    defineWeightTensor(xpb, &weight_params_);
+    if (bias_) {
+        defineWeightTensor(xpb, &bias_params_);
+    }
 
     // FIXME: output_min and output_max should be judged based on outputs' dtype
     auto status = xnn_define_fully_connected(
@@ -58,9 +62,6 @@ ErrorCode XpLinear::load(AbstructLoader &loader) {
         weight_params_.alloc();
     }
 
-    // xnn
-    defineWeightTensor(xpb, &weight_params_);
-
     if (bias_) {
         bias_params_.setName(name() + ".bias");
         bias_params_.reshape(1, 1, 1, out_features_);
@@ -72,9 +73,6 @@ ErrorCode XpLinear::load(AbstructLoader &loader) {
             bias_params_.setDtype(Op::noLoadWeightsDtype());
             bias_params_.alloc();
         }
-
-        // xnn
-        defineWeightTensor(xpb, &bias_params_);
     }
     return Op::load(loader);
 }

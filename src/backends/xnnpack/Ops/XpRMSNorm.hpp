@@ -1,5 +1,5 @@
 /**
- * @file XpRoPE.hpp
+ * @file XpRMSNorm.hpp
  * @author Chenghua Wang (chenghua.wang.edu@gmail.com)
  * @version 0.1
  * @date 2024-10-14
@@ -16,15 +16,14 @@
 
 namespace mllm::xnnpack {
 
-class XpRoPE final : public Op, public XpTensorDefineInterface<XpRoPE> {
+class XpRMSNorm final : public Op, public XpTensorDefineInterface<XpRMSNorm> {
 public:
-    XpRoPE(Backend *bk, float rope_theta, int max_position_embeddings, const std::string &op_name, int thread_count) :
-        Op(bk, op_name), rope_theta_(rope_theta), max_position_embeddings_(max_position_embeddings), thread_count_(thread_count) {
-        sin_params_.setBackend(bk);
-        cos_params_.setBackend(bk);
+    XpRMSNorm(Backend *bk, const std::string &op_name, int norm_size, float epsilon = 1e-6, bool add_unit_offset = false, int thread_count = 4) :
+        Op(bk, op_name), norm_size_(norm_size), epsilon_(epsilon), add_unit_offset_(add_unit_offset), thread_count_(thread_count) {
+        weight_.setBackend(bk);
     }
 
-    ~XpRoPE() override = default;
+    ~XpRMSNorm() override = default;
 
     ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
@@ -37,16 +36,15 @@ public:
     ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
-    static int input_dims_previous_;
-    static Tensor sin_params_;
-    static Tensor cos_params_;
-    float rope_theta_ = 0.f;
-    int max_position_embeddings_ = 0;
+    Tensor weight_;
+    float epsilon_;
+    int norm_size_;
+    bool add_unit_offset_;
+    int axis_ = 1;
     int thread_count_ = 4;
 };
 
-struct XpRoPECreator : public XnnpackBackend::Creator {
+struct XpRMSNormCreator : public XnnpackBackend::Creator {
     Op *create(OpParam op_param, Backend *bk, const string &name, int thread_count) const override;
 };
-
 } // namespace mllm::xnnpack

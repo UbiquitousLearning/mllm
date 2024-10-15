@@ -717,6 +717,42 @@ public:
     }
 };
 
+class SubgraphStart final : public Layer {
+public:
+    explicit SubgraphStart(const std::string &name) {
+        init(name, OpType::SUBGRAPHSTART);
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class SubgraphFinalize final : public Layer {
+public:
+    explicit SubgraphFinalize(const std::string &name) {
+        init(name, OpType::SUBGRAPHFINALIZE);
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class Device2Host final : public Layer {
+public:
+    explicit Device2Host(const std::string &name) {
+        init(name, OpType::D2H);
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
 } // namespace mllm
 
 #endif // OPERATION_H

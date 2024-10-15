@@ -42,5 +42,11 @@ TEST(XpLinearTest, LinearModule) {
         EXPECT_EQ(*(out.hostPtr<float>() + i) < 1e-18, true);
     }
 
+    out = model({x})[0];
+
+    for (int i = 0; i < 256 * 2048; ++i) {
+        EXPECT_EQ(*(out.hostPtr<float>() + i) < 1e-18, true);
+    }
+
     out.printShape();
 }

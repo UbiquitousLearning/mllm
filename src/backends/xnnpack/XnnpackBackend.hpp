@@ -88,7 +88,11 @@ public:
 
     void registerUuidTensor(uint32_t uuid, Tensor *t);
 
+    void registerUuidWeightTensor(uint32_t uuid, Tensor *t);
+
     void *getExternalValueptr(uint32_t uuid);
+
+    bool hasExternalValue(uint32_t uuid);
 
     static xnn_datatype mllmDType2XnnDType(DataType mllm_dtype);
 
@@ -96,12 +100,17 @@ public:
 
     void assignPtrToTensor();
 
+    void setSubgraphDispatched(bool b);
+
 private:
     XnnpackBackendOpts opts_;
+
+    bool subgraph_dispatched_ = false;
 
     // external values
     std::unordered_map<uint32_t, Tensor *> uuid_2_mllm_tensor_;
     std::unordered_map<uint32_t, xnn_external_value> uuid_2_externals_v_;
+    std::unordered_map<uint32_t, Tensor *> uuid_2_mllm_weight_tensor_;
 
     // xnn stuff
     xnn_subgraph_t subgraph_ = nullptr;

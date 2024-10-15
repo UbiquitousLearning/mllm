@@ -9,6 +9,11 @@
 #include "backends/xnnpack/Ops/XpDirect.hpp"
 #include "backends/xnnpack/Ops/XpDispatch.hpp"
 #include "backends/xnnpack/Ops/XpLinear.hpp"
+#include "backends/xnnpack/Ops/XpMatmul.hpp"
+#include "backends/xnnpack/Ops/XpRoPE.hpp"
+#include "backends/xnnpack/Ops/XpSubGraphStart.hpp"
+#include "backends/xnnpack/Ops/XpSubGraphFinalize.hpp"
+#include "backends/xnnpack/Ops/XpD2H.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
@@ -49,12 +54,19 @@ XnnpackModelRuntime::~XnnpackModelRuntime() {
         pthreadpool_destroy(threadpool_);
     }
 
-    // not release output external memory
-    for (auto i = 0; i < external_values_.size(); ++i) {
-        if ((model_->values[i].flags & ((uint32_t)XNN_VALUE_FLAG_EXTERNAL_INPUT)) == 1) {
-            xnn_release_simd_memory(uuid_2_externals_v_[i].data);
-        }
-    }
+    // not release all
+    // NOTE: explicit memory leak.
+    // NOTE: explicit memory leak.
+    // NOTE: explicit memory leak.
+    // NOTE: explicit memory leak.
+    // NOTE: explicit memory leak.
+    // NOTE: explicit memory leak.
+    //
+    // for (auto i = 0; i < external_values_.size(); ++i) {
+    //     if ((model_->values[i].flags & ((uint32_t)XNN_VALUE_FLAG_EXTERNAL_INPUT)) == 1) {
+    //         xnn_release_simd_memory(uuid_2_externals_v_[i].data);
+    //     }
+    // }
 }
 
 bool XnnpackModelRuntime::createModel(const xnn_subgraph_t &model_factory) {
@@ -169,10 +181,15 @@ TensorFunction *XnnpackBackend::funcCreate(TensorFuncType type) {
 }
 
 void XnnpackBackend::registerOps() {
+    addCreator(D2H, new XpD2HCreator());
     addCreator(ADD, new XpAddCreator());
     addCreator(DIRECT, new XpDirectCreator());
     addCreator(DISPATCH, new XpDispatchCreator());
+    addCreator(SUBGRAPHSTART, new XpSubGraphStartCreator());
+    addCreator(SUBGRAPHFINALIZE, new XpSubGraphFinalizeCreator());
     addCreator(LINEAR, new XpLinearCreator());
+    addCreator(MATMUL, new XpMatMulCreator());
+    addCreator(ROPE, new XpRoPECreator());
 }
 
 void XnnpackBackend::registerFuncs() {
@@ -214,6 +231,7 @@ void XnnpackBackend::createSubgraph(int32_t external_nums) {
 
     uuid_2_externals_v_.clear();
     uuid_2_mllm_tensor_.clear();
+    uuid_2_mllm_weight_tensor_.clear();
     auto status = xnn_create_subgraph(external_nums, 0, &subgraph_);
     if (status != xnn_status_success) {
         Log::error("Failed to create subgrpah");
@@ -223,8 +241,10 @@ void XnnpackBackend::createSubgraph(int32_t external_nums) {
 
 void XnnpackBackend::recreateSubgraph(int32_t external_nums) {
     if (subgraph_) {
-        xnn_delete_subgraph(subgraph_);
+        // no need to delete this, the previous xnnpack runtime will manage it.
+        // xnn_delete_subgraph(subgraph_);
         uuid_2_mllm_tensor_.clear();
+        uuid_2_mllm_weight_tensor_.clear();
         uuid_2_externals_v_.clear();
     }
 
@@ -253,9 +273,27 @@ void XnnpackBackend::registerUuidTensor(uint32_t uuid, Tensor *t) {
     uuid_2_mllm_tensor_.insert({uuid, t});
 }
 
-void *XnnpackBackend::getExternalValueptr(uint32_t uuid) {
-    return uuid_2_externals_v_[uuid].data;
+void XnnpackBackend::registerUuidWeightTensor(uint32_t uuid, Tensor *t) {
+    if (uuid_2_mllm_weight_tensor_.count(uuid)) {
+        Log::error("when reigster a weight tensor value, found exists uuid: {}", uuid);
+        exit(-1);
+    }
+
+    uuid_2_mllm_weight_tensor_.insert({uuid, t});
 }
+
+void *XnnpackBackend::getExternalValueptr(uint32_t uuid) {
+    if (uuid_2_externals_v_.count(uuid)) {
+        return uuid_2_externals_v_[uuid].data;
+    }
+    Log::error("getExternalValueptr return nullptr for uuid: {}", uuid);
+    return nullptr;
+}
+
+bool XnnpackBackend::hasExternalValue(uint32_t uuid) {
+    return uuid_2_externals_v_.count(uuid);
+}
+
 xnn_datatype XnnpackBackend::mllmDType2XnnDType(DataType mllm_dtype) {
     switch (mllm_dtype) {
     case MLLM_TYPE_F32:
@@ -284,5 +322,14 @@ void XnnpackBackend::assignPtrToTensor() {
         auto ext_v = uuid_2_externals_v_[uuid];
         t->forceResetHostPointer(ext_v.data);
     }
+
+    for (auto &iter : uuid_2_mllm_weight_tensor_) {
+        iter.second->uuid() = XNN_INVALID_VALUE_ID;
+    }
 }
+
+void XnnpackBackend::setSubgraphDispatched(bool b) {
+    subgraph_dispatched_ = b;
+}
+
 } // namespace mllm::xnnpack

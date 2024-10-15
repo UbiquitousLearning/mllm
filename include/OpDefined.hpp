@@ -66,6 +66,9 @@ enum OpType {
     // add in xnnpack
     DIRECT,
     DISPATCH,
+    SUBGRAPHSTART,
+    SUBGRAPHFINALIZE,
+    D2H,
 };
 
 static const vector<string> OpNames = {
@@ -126,6 +129,9 @@ static const vector<string> OpNames = {
     // in xnnpack
     "Direct",
     "Dispatch",
+    "SubgraphStart",
+    "SubgraphFinalize",
+    "D2H",
 };
 
 enum TensorFuncType {

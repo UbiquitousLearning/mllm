@@ -1678,8 +1678,6 @@ public:
 
     TensorType &xnnTensorType();
 
-    Tensor &xnn();
-
     void forceResetHostPointer(void *ptr);
 };
 } // namespace mllm

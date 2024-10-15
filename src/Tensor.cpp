@@ -343,21 +343,6 @@ TensorType &Tensor::xnnTensorType() {
     return xnn_tensor_type_;
 }
 
-Tensor &Tensor::xnn() {
-    switch (backend_->type()) {
-#ifdef MLLM_BUILD_XNNPACK_BACKEND
-    case MLLM_XNNPACK: {
-        auto ptr = ((xnnpack::XnnpackBackend *)backend_)->getExternalValueptr(uuid());
-        this->forceResetHostPointer(ptr);
-        return *this;
-    }
-#endif
-    default: {
-        return *this;
-    }
-    }
-}
-
 void Tensor::forceResetHostPointer(void *ptr) {
     host_ptr_ = ptr;
 }

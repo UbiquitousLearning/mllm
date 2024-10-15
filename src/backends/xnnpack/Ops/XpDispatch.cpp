@@ -34,6 +34,8 @@ ErrorCode XpDispatch::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     // update all output's ptr
     xnnbk->assignPtrToTensor();
 
+    xnnbk->setSubgraphDispatched(true);
+
     return ErrorCode::MLLM_NO_ERROR;
 }
 

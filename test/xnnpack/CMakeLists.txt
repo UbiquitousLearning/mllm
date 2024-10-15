@@ -53,3 +53,21 @@ target_link_libraries(
         MLLM_CPU
         MllmXnnpackBackend
 )
+
+add_executable(
+        XpRoPETest
+        XpRoPETest.cpp
+        ${DIR_SRC_CPU} 
+        ${DIR_SRC_MEM_MANAGER} 
+        ${DIR_SRC_EXP} 
+        ${DIR_SRC} 
+        ${MLLM_QUANTIZER} 
+        ${SRC_TOKENIZERS}
+)
+target_link_libraries(
+        XpRoPETest
+        PUBLIC
+        GTest::gtest_main
+        MLLM_CPU
+        MllmXnnpackBackend
+)

@@ -33,7 +33,11 @@ private:
     std::shared_ptr<Module> wrapped_module_ = nullptr;
     std::vector<Layer> direct_input_layers_;
     std::vector<Layer> direct_output_layers_;
+    std::vector<Layer> d2h_inputs_layers_;
+    std::vector<Layer> d2h_outputs_layers_;
     Layer dispatch_all_;
+    Layer subgraph_start_;
+    Layer subgraph_finalize_;
 };
 
 template <typename T, typename... Args>

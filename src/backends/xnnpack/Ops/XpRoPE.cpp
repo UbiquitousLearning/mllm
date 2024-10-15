@@ -11,59 +11,73 @@ int XpRoPE::input_dims_previous_ = 0;
 
 namespace {
 void sinusoidal_position_embedding_huggingface(int seq_len, int output_dim, Tensor &sin, Tensor &cos, float base = 10000) {
+    auto *sin_ptr = sin.hostPtr<float>();
+    auto *cos_ptr = cos.hostPtr<float>();
+
 #pragma omp parallel for num_threads(4)
     for (int s = 0; s < seq_len; ++s) {
         for (int d = 0; d < output_dim / 2; d += 1) {
             int i = (int)d / 1;
             float sin_value = sinf((float)s / (float)std::pow(base, 2.0 * i / output_dim));
             float cos_value = cosf((float)s / (float)std::pow(base, 2.0 * i / output_dim));
-            sin.setDataAt<float>(1, s, 1, d, sin_value);
-            cos.setDataAt<float>(1, s, 1, d, cos_value);
+
+            *(sin_ptr + s * seq_len + d) = sin_value;
+            *(cos_ptr + s * seq_len + d) = cos_value;
         }
         for (int d = output_dim / 2; d < output_dim; d += 1) {
             int i = (int)(d - output_dim / 2);
             float sin_value = sinf((float)s / (float)std::pow(base, 2.0 * i / output_dim));
             float cos_value = cosf((float)s / (float)std::pow(base, 2.0 * i / output_dim));
-            sin.setDataAt<float>(1, s, 1, d, sin_value);
-            cos.setDataAt<float>(1, s, 1, d, cos_value);
+
+            *(sin_ptr + s * seq_len + d) = sin_value;
+            *(cos_ptr + s * seq_len + d) = cos_value;
         }
     }
 }
 } // namespace
 
 ErrorCode XpRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    auto xpb = (XnnpackBackend *)inputs[0]->backend();
-
-    // the inputs should in [b, s, h, d] shape layout.
-    auto b = inputs[0]->shape()[0];
-    auto s = inputs[0]->shape()[1];
-    auto h = inputs[0]->shape()[2];
-    auto d = inputs[0]->shape()[3];
-
-    // PENDING: making rope weight.
-    if (sin_params_.rawHostPtr() == nullptr || cos_params_.rawHostPtr() == nullptr || input_dims_previous_ < inputs[0]->dimension()) {
-        input_dims_previous_ = inputs[0]->dimension();
-
-        sin_params_.reshape(1, max_position_embeddings_, 1, d);
-        cos_params_.reshape(1, max_position_embeddings_, 1, d);
-        sin_params_.alloc();
-        cos_params_.alloc();
-        defineWeightTensor(xpb, &sin_params_);
-        defineWeightTensor(xpb, &cos_params_);
-
-        sinusoidal_position_embedding_huggingface(max_position_embeddings_, d, sin_params_, cos_params_, rope_theta_);
-    }
+    // do nothing
     return MLLM_NO_ERROR;
 }
 
 ErrorCode XpRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    auto xpb = (XnnpackBackend *)inputs[0]->backend();
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     return Op::reshape(inputs, outputs);
 }
 
 ErrorCode XpRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
+
+    {
+        // the inputs should in [b, s, h, d] shape layout.
+        auto b = inputs[0]->shape()[0];
+        auto s = inputs[0]->shape()[1];
+        auto h = inputs[0]->shape()[2];
+        auto d = inputs[0]->shape()[3];
+
+        // PENDING: making rope weight.
+        if (sin_params_.rawHostPtr() == nullptr || cos_params_.rawHostPtr() == nullptr || input_dims_previous_ < inputs[0]->dimension()) {
+            input_dims_previous_ = inputs[0]->dimension();
+
+            sin_params_.reshape(1, max_position_embeddings_, 1, d);
+            cos_params_.reshape(1, max_position_embeddings_, 1, d);
+            sin_params_.alloc();
+            cos_params_.alloc();
+
+            sin_params_.uuid() = XNN_INVALID_VALUE_ID;
+            cos_params_.uuid() = XNN_INVALID_VALUE_ID;
+
+            defineWeightTensor(xpb, &sin_params_);
+            defineWeightTensor(xpb, &cos_params_);
+
+            sinusoidal_position_embedding_huggingface(max_position_embeddings_, d, sin_params_, cos_params_, rope_theta_);
+        } else {
+            defineWeightTensor(xpb, &sin_params_);
+            defineWeightTensor(xpb, &cos_params_);
+        }
+    }
+
     tryDefineAllXpTensors(xpb, inputs);
     tryDefineAllXpTensors(xpb, outputs);
 
@@ -100,8 +114,9 @@ ErrorCode XpRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     }
 
     // torch.cat((-x2, x1), dim = -1)
+    auto x2_neg = defineTemporaryTensor(xpb, {b, s, h, d / 2}, dtype);
     {
-        auto status = xnn_define_negate(xpb->getXnnSubgraph(), x2, x2, 0);
+        auto status = xnn_define_negate(xpb->getXnnSubgraph(), x2, x2_neg, 0);
         if (status != xnn_status_success) {
             Log::error("XpRoPE, xnn_define_negate failed");
             exit(-1);
@@ -109,7 +124,7 @@ ErrorCode XpRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     }
     auto x_new = defineTemporaryTensor(xpb, {b, s, h, d}, dtype);
     {
-        auto status = xnn_define_concatenate2(xpb->getXnnSubgraph(), 3, x2, x1, x_new, 0);
+        auto status = xnn_define_concatenate2(xpb->getXnnSubgraph(), 3, x2_neg, x1, x_new, 0);
         if (status != xnn_status_success) {
             Log::error("XpRoPE, xnn_define_concatenate2 failed");
             exit(-1);
@@ -117,17 +132,34 @@ ErrorCode XpRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     }
 
     // (x * cos) + (x_new * sin)
+    auto sliced_cos = defineTemporaryTensor(xpb, {1, s, 1, d}, dtype);
+    auto sliced_sin = defineTemporaryTensor(xpb, {1, s, 1, d}, dtype);
+    {
+        std::array<size_t, 4> offsets = {0, 0, 0, 0};
+        std::array<size_t, 4> new_size = {1, s, 1, d};
+        auto status = xnn_define_static_slice(xpb->getXnnSubgraph(), 4, offsets.data(), new_size.data(), sin_params_.uuid(), sliced_sin, 0);
+        if (status != xnn_status_success) {
+            Log::error("xnn_define_static_slice failed");
+            exit(-1);
+        }
+        status = xnn_define_static_slice(xpb->getXnnSubgraph(), 4, offsets.data(), new_size.data(), cos_params_.uuid(), sliced_cos, 0);
+        if (status != xnn_status_success) {
+            Log::error("xnn_define_static_slice failed");
+            exit(-1);
+        }
+    }
+
     auto x_cosined = defineTemporaryTensor(xpb, {b, s, h, d}, dtype);
     auto x_new_sined = defineTemporaryTensor(xpb, {b, s, h, d}, dtype);
     {
-        auto status = xnn_define_binary(xpb->getXnnSubgraph(), xnn_binary_multiply, nullptr, inputs[0]->uuid(), cos_params_.uuid(), x_cosined, 0);
+        auto status = xnn_define_binary(xpb->getXnnSubgraph(), xnn_binary_multiply, nullptr, inputs[0]->uuid(), sliced_cos, x_cosined, 0);
         if (status != xnn_status_success) {
             Log::error("XpRoPE, xnn_define_binary failed");
             exit(-1);
         }
     }
     {
-        auto status = xnn_define_binary(xpb->getXnnSubgraph(), xnn_binary_multiply, nullptr, x_new, sin_params_.uuid(), x_new_sined, 0);
+        auto status = xnn_define_binary(xpb->getXnnSubgraph(), xnn_binary_multiply, nullptr, x_new, sliced_sin, x_new_sined, 0);
         if (status != xnn_status_success) {
             Log::error("XpRoPE, xnn_define_binary failed");
             exit(-1);
@@ -154,6 +186,12 @@ ErrorCode XpRoPE::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tens
     sin_params_.free();
     cos_params_.free();
     return MLLM_NO_ERROR;
+}
+
+Op *XpRoPECreator::create(OpParam op_param, Backend *bk, const string &name, int thread_count) const {
+    float rope_theta = op_param["rope_theta"];
+    int max_position_embeddings = static_cast<int>(op_param["max_position_embeddings"]);
+    return new XpRoPE(bk, rope_theta, max_position_embeddings, name, thread_count);
 }
 
 } // namespace mllm::xnnpack

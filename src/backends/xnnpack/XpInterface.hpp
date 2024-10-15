@@ -13,6 +13,7 @@
 #include "xnnpack.h"
 #include "backends/xnnpack/XnnpackBackend.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
+#include <cassert>
 #include <memory>
 
 namespace mllm::xnnpack {
@@ -75,6 +76,8 @@ struct XpTensorDefineInterface {
             Log::error("xnnpack backend defineWeightTensor Error");
             exit(-1);
         }
+
+        xpb->registerUuidWeightTensor(t->uuid(), t);
     }
 
     void tryDefineAllXpTensors(XnnpackBackend *xpb, std::vector<std::shared_ptr<Tensor>> &ts) {
@@ -116,7 +119,9 @@ struct XpTensorDefineInterface {
     }
 
     void defineXpTensor(XnnpackBackend *xpb, Tensor *t, XpTensorType ttype) {
-        if (t->uuid() != XNN_INVALID_VALUE_ID) return;
+        if (t->uuid() != XNN_INVALID_VALUE_ID) {
+            if (xpb->hasExternalValue(t->uuid())) return;
+        }
 
         auto xp_dtype = XnnpackBackend::mllmDType2XnnDType(t->dtype());
 

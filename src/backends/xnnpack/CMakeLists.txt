@@ -18,6 +18,15 @@ add_library(MllmXnnpackBackend
     Ops/XpMatmul.cpp
     Ops/XpRoPE.cpp
     Ops/XpSoftmax.cpp
+    Ops/XpRMSNorm.cpp
+    Ops/XpTranspose.cpp
+    Ops/XpKVCache.cpp
+    Ops/XpSiLU.cpp
+    Ops/XpReLU.cpp
+    Ops/XpGeLU.cpp
+    Ops/XpSubGraphStart.cpp
+    Ops/XpSubGraphFinalize.cpp
+    Ops/XpD2H.cpp
 
     Functions/XpBinaryFunc.cpp
 )
