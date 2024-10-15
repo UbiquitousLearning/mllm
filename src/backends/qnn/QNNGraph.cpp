@@ -79,7 +79,7 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
     }
 
     this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]], graphName);
-    
+
     if (ops_[op_names_[op_names_.size() - 1]]->type() == MERGEOUTPUT) {
         auto inputs = ops_input_tensors_[op_names_[op_names_.size() - 1]];
         auto outputs = ops_output_tensors_[op_names_[op_names_.size() - 1]];

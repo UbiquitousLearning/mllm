@@ -4,6 +4,7 @@
 #include <cstring>
 #include <iostream>
 
+#include "Module.hpp"
 #include "OpDefined.hpp"
 #include "QNNBackend.hpp"
 #include "QnnModel.hpp"
@@ -249,17 +250,44 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     for (auto &input : inputs) {
         if (input->sequence() % 5 != 0) {
             Qnn_DataType_t data_type;
+            auto quantizeDefined = QNN_DEFINITION_UNDEFINED;
+            auto quantizeType = QNN_QUANTIZATION_ENCODING_UNDEFINED;
+            float scale = 0.0f;
+            auto loader = Module::loader;
+            Tensor scaleTensor(this);
+            scaleTensor.reshape(1, 1, 1, 1);
+            scaleTensor.setDtype(MLLM_TYPE_F32);
+            scaleTensor.alloc();
+
             switch (input->dtype()) {
             case MLLM_TYPE_F32:
                 data_type = QNN_DATATYPE_FLOAT_32;
                 break;
-            case MLLM_TYPE_I8:
+            case MLLM_TYPE_I8: {
                 data_type = QNN_DATATYPE_SFIXED_POINT_8;
+                quantizeDefined = QNN_DEFINITION_DEFINED;
+                quantizeType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
+
+                std::string prefix = "out-", suffix = ".quantize", scaleName;
+                if (input->name().find(prefix) != std::string::npos) {
+                    scaleName = input->name().substr(prefix.length());
+                }
+                if (scaleName.find(suffix) != std::string::npos) {
+                    scaleName = scaleName.substr(0, scaleName.length() - suffix.length());
+                }
+                scaleName += ".input_scale";
+
+                scaleTensor.setName(scaleName);
+                loader->load(&scaleTensor);
+                scale = roundf(scaleTensor.hostPtr<float>()[0] / 127.0 * 100000) / 100000;
+                scaleTensor.free();
                 break;
+            }
             default:
+                std::cerr << "[ERROR] QNNBackend not support dtype: " << input->dtype() << std::endl;
                 data_type = QNN_DATATYPE_FLOAT_32;
             }
-            
+
             uint32_t dimensionsInput[4] = {
                 static_cast<uint32_t>(input->batch()),
                 static_cast<uint32_t>(input->sequence()),
@@ -267,28 +295,29 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
                 static_cast<uint32_t>(input->dimension()),
             };
 
-            qnnModels_[qnnModelIndex_].addTensor(input->name().c_str(), (Qnn_Tensor_t){
-                                                                            .version = QNN_TENSOR_VERSION_1,
-                                                                            .v1 = {
-                                                                                .id = 0,
-                                                                                .name = input->name().c_str(),
-                                                                                .type = QNN_TENSOR_TYPE_APP_WRITE,
-                                                                                .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                                                .dataType = data_type,
-                                                                                .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                                                                                   QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                                                                                   {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-                                                                                .rank = 4,
-                                                                                .dimensions = dimensionsInput,
-                                                                                .memType = QNN_TENSORMEMTYPE_RAW,
-                                                                                .clientBuf = {.data = nullptr,
-                                                                                              .dataSize = 0}}});
+            qnnModels_[qnnModelIndex_].addTensor(input->name().c_str(),
+                                                 (Qnn_Tensor_t){
+                                                     .version = QNN_TENSOR_VERSION_1,
+                                                     .v1 = {
+                                                         .id = 0,
+                                                         .name = input->name().c_str(),
+                                                         .type = QNN_TENSOR_TYPE_APP_WRITE,
+                                                         .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                                         .dataType = data_type,
+                                                         .quantizeParams = {quantizeDefined,
+                                                                            quantizeType,
+                                                                            {.scaleOffsetEncoding = {.scale = scale, .offset = 0}}},
+                                                         .rank = 4,
+                                                         .dimensions = dimensionsInput,
+                                                         .memType = QNN_TENSORMEMTYPE_RAW,
+                                                         .clientBuf = {.data = nullptr,
+                                                                       .dataSize = 0}}});
         }
     }
 
     // create a new inputBuffer and outputBuffer for the graph
     inputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>(inputs.size())));
-    outputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>(0)));
+    outputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>()));
 
     currentInputBuffers = &inputBufferMap[graphName];
     currentOutputBuffers = &outputBufferMap[graphName];
@@ -312,15 +341,15 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
 
     auto returnStatus = StatusCode::SUCCESS;
 
-    Qnn_Tensor_t *inputs_ = nullptr;
-    Qnn_Tensor_t *outputs_ = nullptr;
+    Qnn_Tensor_t *qnnInputs = nullptr;
+    Qnn_Tensor_t *qnnOutputs = nullptr;
 
     auto m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
 
     for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
         auto graphInfo = (*m_graphsInfo)[graphIdx];
 
-        if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&inputs_, &outputs_, (*m_graphsInfo)[graphIdx])) {
+        if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&qnnInputs, &qnnOutputs, (*m_graphsInfo)[graphIdx])) {
             QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
             returnStatus = StatusCode::FAILURE;
             break;
@@ -328,7 +357,7 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
 
         // Todo only one graph now
         size_t totalCount = currentInputBuffers->size();
-        if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(graphIdx, *currentInputBuffers, inputs_, graphInfo, m_inputDataType)) {
+        if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(graphIdx, *currentInputBuffers, qnnInputs, graphInfo, m_inputDataType)) {
             returnStatus = StatusCode::FAILURE;
         }
 
@@ -343,17 +372,25 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
 #endif
 
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {
-            qnnMM->registerQnnTensor((*currentInputBuffers)[i], inputs_[i]);
-            QNN_DEBUG("inputBuffers: %p ", (*currentInputBuffers)[i]);
+            qnnMM->registerQnnTensor((*currentInputBuffers)[i], qnnInputs[i]);
+#ifdef DEBUGPRINT
+            std::cout << "registered input tensor: " << inputs[i]->hostPtr<void>() << " backend staged ptr: " << (void *)(*currentInputBuffers)[i] << std::endl;
+            std::cout << "qnn input tensor name: " << qnnInputs[i].v1.name << std::endl;
+            std::cout << "qnn input tensor scale: " << qnnInputs[i].v1.quantizeParams.scaleOffsetEncoding.scale << std::endl;
+#endif
         }
         for (int i = 0; i < (*m_graphsInfo)[graphIdx].numOutputTensors; i++) {
-            qnnMM->registerQnnTensor((*currentOutputBuffers)[i], outputs_[i]);
-            QNN_DEBUG("outputBuffers: %p ", (*currentOutputBuffers)[i]);
+            qnnMM->registerQnnTensor((*currentOutputBuffers)[i], qnnOutputs[i]);
+#ifdef DEBUGPRINT
+            std::cout << "registered output tensor: " << outputs[i]->hostPtr<void>() << " backend staged ptr: " << (void *)(*currentOutputBuffers)[i] << std::endl;
+            std::cout << "qnn output tensor name: " << qnnOutputs[i].v1.name << std::endl;
+            std::cout << "qnn output tensor scale: " << qnnOutputs[i].v1.quantizeParams.scaleOffsetEncoding.scale << std::endl;
+#endif
         }
     }
 
-    inputsMap_[qnnModelIndex_] = inputs_;
-    outputsMap_[qnnModelIndex_] = outputs_;
+    inputsMap_[qnnModelIndex_] = qnnInputs;
+    outputsMap_[qnnModelIndex_] = qnnOutputs;
 }
 
 void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
@@ -399,11 +436,11 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
 }
 
 void QNNBackend::onExecuteEnd() {
-// #ifdef QNN_ARM
-//     executeGraphsShared();
-// #else
-//     executeGraphs(inputBufferMap, outputBufferMap);
-// #endif
+    // #ifdef QNN_ARM
+    //     executeGraphsShared();
+    // #else
+    //     executeGraphs(inputBufferMap, outputBufferMap);
+    // #endif
 }
 
 void QNNBackend::freeGraphDataStructure(string graphName) {

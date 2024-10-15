@@ -36,8 +36,7 @@ protected:
 public:
     static AbstructLoader *loader;
     static bool doLoad;
-    static bool doToDevice;
-    static BackendType tmp_device, previous_device;
+    static BackendType tmp_device;
     static std::unordered_map<string, shared_ptr<Op>> tensor_func_ops; // use for QNN
 
     Module() = default;
@@ -142,7 +141,7 @@ public:
     vector<Tensor> operator()(vector<Tensor> inputs, Args... args) {
         vector<std::any> anyArgs = convertArgsToAnyVector(args...);
         // set static tmp_device to device_ to init layers' op
-        Module::previous_device = Module::tmp_device;
+        auto previoud_device = tmp_device;
         Module::tmp_device = device_;
         if (doLoad) {
             // set tensor ttype for device compute graph building
@@ -154,8 +153,8 @@ public:
             for (auto &output : outputs) {
                 Tensor::graphs[output.name()]->setTtype(GRAPH_OUTPUT);
             }
-            // when inner module return, the tmp_device should be set to the previous_device in case of afterwards layers' op init
-            Module::tmp_device = Module::previous_device;
+            // set Module::tmp_device to previous device
+            Module::tmp_device = previoud_device;
             return outputs;
         }
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) { // outmost Module
@@ -201,8 +200,8 @@ public:
 
             return output;
         } else { // inner Modules
-            // TODO: should not use the previous_device for graph setup, offload according to the backends' info inited during loading
-            if (Tensor::tensor_status == TENSOR_STATIC_INIT && Module::tmp_device != Module::previous_device) { // backend specific module reshape & setup
+            // offload according to the backends' info inited during loading
+            if (Tensor::tensor_status == TENSOR_STATIC_INIT && device_ != MLLM_CPU) { // backend specific module reshape & setup
                 auto inputs_vec = vector<shared_ptr<Tensor>>();
                 auto outputs_vec = vector<shared_ptr<Tensor>>();
                 for (auto &i : inputs) {
@@ -220,11 +219,11 @@ public:
                 }
                 Backend::global_backends[device_]->onSetUpEnd(inputs_vec, outputs_vec, getUinqueName());
                 return outputs;
-            } else if (Tensor::tensor_status == TENSOR_STATIC_READY && Module::tmp_device != Module::previous_device) { // backend specific module execute
-                auto inputs_vec = vector<shared_ptr<Tensor>>(inputs.size());
+            } else if (Tensor::tensor_status == TENSOR_STATIC_READY && device_ != MLLM_CPU) { // backend specific module execute
+                auto inputs_vec = vector<shared_ptr<Tensor>>();
                 auto outputs_vec = vector<shared_ptr<Tensor>>();
                 for (auto &i : inputs) {
-                    inputs_vec.push_back(std::make_shared<Tensor>(i));
+                    inputs_vec.push_back(Tensor::graphs[i.name()]);
                 }
                 auto getUinqueName = [this]() -> string {
                     std::ostringstream oss;

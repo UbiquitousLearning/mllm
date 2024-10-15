@@ -32,9 +32,6 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
         // TODO tensor type = MLLM_TYPE_I8
         auto data_type = QNN_DATATYPE_FLOAT_32;
         if (output->dtype() == MLLM_TYPE_I8) {
-#ifdef DEBUGPRINT
-            std::cout << name << "is QNN INT8 op " << std::endl;
-#endif
             data_type = QNN_DATATYPE_SFIXED_POINT_8;
         }
 

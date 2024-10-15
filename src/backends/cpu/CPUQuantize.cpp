@@ -3,7 +3,7 @@
 //
 
 #include "CPUQuantize.hpp"
-#include "compute/Matmul.hpp"
+#include "backends/cpu/quantize/QuantizeQ8.hpp"
 
 #include <utility>
 

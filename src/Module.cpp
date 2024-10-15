@@ -12,8 +12,6 @@ int Module::listIdx;
 int Module::runlistIdx;
 // TensorStatus Tensor::tensor_status;
 bool Module::doLoad = false;
-bool Module::doToDevice = false;
 BackendType Module::tmp_device = MLLM_CPU;
-BackendType Module::previous_device = MLLM_CPU;
 std::unordered_map<string, shared_ptr<Op>> Module::tensor_func_ops;
 } // namespace mllm

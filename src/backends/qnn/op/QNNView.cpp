@@ -81,9 +81,7 @@ ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 
 ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     outputs[0]->setDtype(inputs[0]->dtype());
-    std::cout << "QNNView::setUp" << std::endl;
-    std::cout << "input dtype: " << inputs[0]->dtype() << std::endl;
-    std::cout << "output dtype: " << outputs[0]->dtype() << std::endl;
+    #ifdef OLD_QNN
     if (getOutputTensorType(outputs[0]) == QNN_TENSOR_TYPE_APP_READ) {
         outputs[0]->setBackend(qnnBackend_);
         outputs[0]->setDtype(MLLM_TYPE_I8);
@@ -91,6 +89,7 @@ ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 
         qnnBackend_->pushOutputBuffers(outputs[0]->hostPtr<uint8_t>());
     }
+    #endif
 
     if (outputs[0]->dtype() == MLLM_TYPE_I8)
         return graphAddNode(name(), "Reshape", inputs, outputs, {}, "qti.aisw", true, &scale_);

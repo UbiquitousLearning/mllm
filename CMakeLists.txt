@@ -68,8 +68,12 @@ endif()
 
 # backend options
 option(QNN "Enable QNN" OFF)
+option(QNN_OLD_FRONTEND "Enable Old QNN" OFF)
 if(QNN)
     add_definitions(-DUSE_QNN) # the USE_QNN should come before cpu subdirectory
+endif()
+if(QNN_OLD_FRONTEND)
+    add_definitions(-DOLD_QNN)
 endif()
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")

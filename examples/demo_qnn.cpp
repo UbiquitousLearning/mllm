@@ -48,17 +48,18 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto input_str = addSystemPrompt(in_strs[i]);
-        // auto input_tensor = tokenizer.tokenize(input_str, i);
-        auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(in_strs[0], 64, 151936);
+        auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(input_str, 64, config.vocab_size);
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
 
         LlmTextGeneratorOpts opt{
             .max_new_tokens = 100,
-            .do_sample = true,
+            .do_sample = false,
             .temperature = 0.3f,
             .top_k = 50,
             .top_p = 0.f,
+            .is_padding = true,
+            .seq_before_padding = real_seq_length,
         };
         model.generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
             auto out_string = tokenizer.detokenize({out_token});
@@ -70,6 +71,5 @@ int main(int argc, char **argv) {
             }
             return true;
         });
-        std::cout << "FINISH\n";
     }
 }

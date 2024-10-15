@@ -7,7 +7,6 @@
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include "configuration_qwen.hpp"
-#include <cmath>
 
 using namespace mllm;
 
@@ -126,20 +125,14 @@ public:
         q = q_rope(q);
         k = k_rope(k);
 
-        // k = k_cache(k);
-        // v = v_cache(v);
-
-        // k = k.transpose(SEQUENCE, DIMENSION);
-        // auto qk = Tensor::mm(q, k);
-        // // qk = qk / std::sqrt(hidden_size);
-        // qk = softmax(qk);
-        // auto o = Tensor::mm(qk, v);
-
         k = k_cache(k);
         v = v_cache(v);
-        auto qk = qk_mm(q, k);
+
+        // auto qk = qk_mm(q, k);
+        auto qk = Tensor::mm(q, k.transpose(Chl::SEQUENCE, Chl::DIMENSION));
         qk = softmax(qk);
-        auto o = qkv_mm(qk, v);
+        // auto o = qkv_mm(qk, v);
+        auto o = Tensor::mm(qk, v);
 
         o = o_quantize(o);
 
@@ -206,7 +199,7 @@ public:
         pre_mlp_view = View(1, 2, 32, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
         silu = SiLU(mlp_base_name + "act");
-        up_proj = Linear(hidden_size, intermediate_size, false, base_name + names._up_proj_name);
+        up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
         post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
         post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");
 
@@ -303,10 +296,10 @@ public:
         auto q_k_v = part1({x}); // q,k,v
         auto o_x = qkv_mm(q_k_v)[0];
 
-        if(o_x.device() != MLLM_QNN) {
+        if (o_x.device() != MLLM_QNN) {
             o_x = Tensor::toQNN({o_x})[0];
         }
-        if(inputs[0].device() != MLLM_QNN) {
+        if (inputs[0].device() != MLLM_QNN) {
             inputs[0] = Tensor::toQNN({inputs[0]})[0];
         }
         x = part2({o_x, inputs[0]})[0];
@@ -405,7 +398,7 @@ public:
             auto out_token = text_generator_->generate(_out[0]);
             if (!call_back(out_token)) break;
             chatPostProcessing(out_token, input_ids, {});
-            std::cout << "========AFTER PREFILL=========" << std::endl;
+            std::cout << "\n========AFTER PREFILL=========" << std::endl;
             return;
         }
     }

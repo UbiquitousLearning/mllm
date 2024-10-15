@@ -20,6 +20,7 @@ ErrorCode QNNDequantize::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 }
 
 ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    #ifdef OLD_QNN
     if (getOutputTensorType(outputs[0]) == QNN_TENSOR_TYPE_APP_READ) {
         outputs[0]->setBackend(qnnBackend_);
         outputs[0]->setDtype(MLLM_TYPE_F32);
@@ -27,6 +28,7 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
         qnnBackend_->pushOutputBuffers(outputs[0]->hostPtr<uint8_t>());
     }
+    #endif
 
     auto outName = outputs[0]->name();
     uint32_t dimensionsOutput[4];
