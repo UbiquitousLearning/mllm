@@ -22,10 +22,6 @@ ErrorCode QNNReLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 }
 
 ErrorCode QNNReLU::load(AbstructLoader &loader) {
-
-    std::cout << "load relu" << std::endl;
-
-
     string scaleName = name();
 
     std::string wordToRemove = "relu";

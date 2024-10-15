@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.10)
 
 project(mllm)
+
+# 添加编译选项来禁用所有警告
+# if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+#     add_compile_options(-w)
+# elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+#     add_compile_options(/w)
+# endif()
+
 cmake_policy(SET CMP0074 NEW)
 set(CMAKE_CXX_STANDARD 17)
 option(ARM "build on ARM" OFF)
@@ -30,7 +38,18 @@ if (ARM)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8.2-a+dotprod")
     endif()
 else ()
-    set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
+    if (MSVC)
+        # 设置多配置生成器的输出路径
+        set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../bin)
+        # 如果使用多配置生成器，还需要为每个配置单独设置输出路径
+        foreach(OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES})
+            string(TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG)
+            set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${PROJECT_BINARY_DIR}/../bin/)
+        endforeach()
+    else()
+        # 设置单配置生成器的输出路径
+        set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
+    endif()
 endif ()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -49,20 +68,14 @@ endif()
 
 # backend options
 option(QNN "Enable QNN" OFF)
-if(QNN)
-    add_definitions(-DUSE_QNN)
-endif()
-
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)
 endif ()
 
-include(FetchContent)
-FetchContent_Declare(
-        googletest
-        URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
-)
+# for XNNPACK, avoid invovle googltest twice.
+set(GOOGLETEST_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/third_party/googletest)
+add_subdirectory(third_party/googletest EXCLUDE_FROM_ALL)
 
 option(MLLM_OPENMP "openmp" ON)
 option(MLLM_OPENMP_STATIC "openmp static" OFF)
@@ -103,6 +116,18 @@ include_directories(${PROJECT_SOURCE_DIR}/third_party/pybind11/include)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 
+if(QNN)
+    add_definitions(-DUSE_QNN)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn)
+endif()
+
+option(MLLM_BUILD_XNNPACK_BACKEND "Build mllm's XNNPACK backend" OFF)
+if(MLLM_BUILD_XNNPACK_BACKEND)
+    add_compile_options(-fPIC)
+    add_definitions(-DMLLM_BUILD_XNNPACK_BACKEND)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/xnnpack)
+endif()
+
 #add tokenizers
 file(GLOB_RECURSE SRC_TOKENIZERS
         ${PROJECT_SOURCE_DIR}/src/tokenizers/*.cpp
@@ -135,8 +160,6 @@ if (QUANT)
             ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
             ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp)
     list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/main.cpp)
-
-    message(STATUS "MLLM_Quant: ${MLLM_QUANT}")
 
     add_executable(
             quantize

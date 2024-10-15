@@ -83,7 +83,7 @@ void QNNMemoryManager::setQnnInterfaceAndContext(void *context) {
 void QNNMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
     assert(size > 0);
 #ifdef DEBUGPRINT
-    std::cout << "---------QNN alloc" << std::endl;
+    std::cout << "QNN alloc size: " << size << std::endl;
 #endif
 #ifdef QNN_ARM
 #define RPCMEM_HEAP_ID_SYSTEM 25
@@ -96,7 +96,8 @@ void QNNMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
     qnnMemPtrMap_.insert(memPointer);
     *ptr = memPointer;
 #else
-    void **origin = (void **)malloc(size + sizeof(void *) + alignment - 1);
+    // void **origin = (void **)malloc(size + sizeof(void *) + alignment - 1);
+    void *origin = (void *)malloc(size + sizeof(void *) + alignment - 1);
     assert(origin != nullptr);
     if (origin == nullptr) {
         *ptr = nullptr;

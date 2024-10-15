@@ -42,17 +42,17 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     vector<Qnn_Param_t> paramsMatmul = {
         {.paramType = QNN_PARAMTYPE_SCALAR,
          .name = "transpose_in0",
-         {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = 0}}}},
+         .scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = 0}}},
         {.paramType = QNN_PARAMTYPE_SCALAR,
          .name = "transpose_in1",
-         {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = 1}}}}};
+         .scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_BOOL_8, {.bool8Value = 1}}}};
 
-    uint32_t dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_dilation[]   = {2};
-    uint32_t InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_dilation[]              = {1, 1};
+    uint32_t dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_dilation[] = {2};
+    uint32_t InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_dilation[] = {1, 1};
     uint32_t dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount[] = {2, 2};
-    uint32_t InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount[]            = {0, 0, 0, 0};
-    uint32_t dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride[]     = {2};
-    uint32_t InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride[]                = {1, 1};
+    uint32_t InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount[] = {0, 0, 0, 0};
+    uint32_t dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride[] = {2};
+    uint32_t InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride[] = {1, 1};
 
     vector<Qnn_Param_t> params_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D = {
         {.paramType = QNN_PARAMTYPE_TENSOR,
@@ -111,20 +111,20 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
     qnnBackend_->modelAddTensor(weight_.name(), (Qnn_Tensor_t){
                                                     .version = QNN_TENSOR_VERSION_1,
-                                                    {.v1 = {
-                                                         .id = 0,
-                                                         .name = weight_.name().c_str(),
-                                                         .type = QNN_TENSOR_TYPE_STATIC,
-                                                         .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                         .dataType = QNN_DATATYPE_SFIXED_POINT_8,
-                                                         .quantizeParams = {qnnQuantDefined,
-                                                                            QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
-                                                                            {.scaleOffsetEncoding = {.scale = weightScale, .offset = 0}}},
-                                                         .rank = 4,
-                                                         .dimensions = dimensionsWeight,
-                                                         .memType = QNN_TENSORMEMTYPE_RAW,
-                                                         {.clientBuf = {.data = weight_.hostPtr<void>(),
-                                                                        .dataSize = (uint32_t)weight_.cntSize()}}}}});
+                                                    .v1 = {
+                                                        .id = 0,
+                                                        .name = weight_.name().c_str(),
+                                                        .type = QNN_TENSOR_TYPE_STATIC,
+                                                        .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                                        .dataType = QNN_DATATYPE_SFIXED_POINT_8,
+                                                        .quantizeParams = {qnnQuantDefined,
+                                                                           QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
+                                                                           {.scaleOffsetEncoding = {.scale = weightScale, .offset = 0}}},
+                                                        .rank = 4,
+                                                        .dimensions = dimensionsWeight,
+                                                        .memType = QNN_TENSORMEMTYPE_RAW,
+                                                        .clientBuf = {.data = weight_.hostPtr<void>(),
+                                                                      .dataSize = (uint32_t)weight_.cntSize()}}});
     // free weight host memory
     weight_.free();
 
@@ -155,8 +155,8 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                                                 .rank = 4,
                                                 .dimensions = dimensionsOutput,
                                                 .memType = QNN_TENSORMEMTYPE_RAW,
-                                                {.clientBuf = {.data = nullptr,
-                                                               .dataSize = 0}}}}}};
+                                                .clientBuf = {.data = nullptr,
+                                                              .dataSize = 0}}}}};
         return graphAddNode(name() + ".linearint8", "Conv2d", {inputs[0]->name(), weight_.name()}, matmulOut, params_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D);
     }
 
@@ -169,25 +169,25 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
     qnnBackend_->modelAddTensor(bias_.name(), (Qnn_Tensor_t){
                                                   .version = QNN_TENSOR_VERSION_1,
-                                                  {.v1 = {
-                                                       .id = 0,
-                                                       .name = bias_.name().c_str(),
-                                                       .type = QNN_TENSOR_TYPE_STATIC,
-                                                       .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                       .dataType = QNN_DATATYPE_UFIXED_POINT_8,
-                                                       .quantizeParams = {qnnQuantDefined,
-                                                                          QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
-                                                                          {.scaleOffsetEncoding = {.scale = biasScale, .offset = -128}}},
-                                                       .rank = 1,
-                                                       .dimensions = dimensionsBias,
-                                                       .memType = QNN_TENSORMEMTYPE_RAW,
-                                                       {.clientBuf = {.data = bias_.hostPtr<void>(),
-                                                                      .dataSize = (uint32_t)bias_.cntSize()}}}}});
+                                                  .v1 = {
+                                                      .id = 0,
+                                                      .name = bias_.name().c_str(),
+                                                      .type = QNN_TENSOR_TYPE_STATIC,
+                                                      .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                                      .dataType = QNN_DATATYPE_UFIXED_POINT_8,
+                                                      .quantizeParams = {qnnQuantDefined,
+                                                                         QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
+                                                                         {.scaleOffsetEncoding = {.scale = biasScale, .offset = -128}}},
+                                                      .rank = 1,
+                                                      .dimensions = dimensionsBias,
+                                                      .memType = QNN_TENSORMEMTYPE_RAW,
+                                                      .clientBuf = {.data = bias_.hostPtr<void>(),
+                                                                    .dataSize = (uint32_t)bias_.cntSize()}}});
     // free bias host memory
     bias_.free();
 
     float outputScale = 0;
-    outputScale = outputScale_.hostPtr<float>()[0]  / 127.0;
+    outputScale = outputScale_.hostPtr<float>()[0] / 127.0;
     outputScale = roundf(outputScale * 100000) / 100000;
 
     // final output
@@ -204,8 +204,8 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                                              .rank = 4,
                                              .dimensions = dimensionsOutput,
                                              .memType = QNN_TENSORMEMTYPE_RAW,
-                                             {.clientBuf = {.data = nullptr,
-                                                            .dataSize = 0}}}}}};
+                                             .clientBuf = {.data = nullptr,
+                                                           .dataSize = 0}}}}};
     return graphAddNode(name() + ".linearint8", "Conv2d", {inputs[0]->name(), weight_.name(), bias_.name()}, biasOutput, params_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D);
 }
 
@@ -223,10 +223,10 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
     if (support_bias_) {
         loader.load(&bias_);
         // sign to unsign
-        for (int i=0; i<out_features_; i++) {
-            int32_t val = bias_.dataAt<int8_t>(0,0,0,i);
+        for (int i = 0; i < out_features_; i++) {
+            int32_t val = bias_.dataAt<int8_t>(0, 0, 0, i);
             val += 128;
-            bias_.setDataAt<uint8_t>(0,0,0,i, (uint8_t)val);
+            bias_.setDataAt<uint8_t>(0, 0, 0, i, (uint8_t)val);
         }
     } else {
         memset(bias_.hostPtr<void>(), 0, bias_.cntSize());
@@ -260,10 +260,6 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
 }
 
 ErrorCode QNNLinearINT8::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // weight_.free();
-    // if (support_bias_) {
-    //     bias_.free();
-    // }
     return Op::free(inputs, outputs);
 }
 } // namespace mllm
