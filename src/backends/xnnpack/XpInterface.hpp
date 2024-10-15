@@ -129,12 +129,12 @@ struct XpTensorDefineInterface {
         std::vector<size_t> dims;
         for (auto d : t->shape()) dims.push_back(d);
 
-        uint32_t flags;
+        uint32_t flags = 0;
         uint32_t external_id = XNN_INVALID_VALUE_ID;
 
         switch (ttype) {
         case XpTensorType::Normal:
-            flags = XNN_INVALID_VALUE_ID;
+            flags = 0;
             break;
         case XpTensorType::ExternalInput:
             flags = XNN_VALUE_FLAG_EXTERNAL_INPUT;

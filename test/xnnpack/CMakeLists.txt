@@ -7,8 +7,6 @@ add_executable(
         ${DIR_SRC_MEM_MANAGER} 
         ${DIR_SRC_EXP} 
         ${DIR_SRC} 
-        ${MLLM_QUANTIZER} 
-        ${SRC_TOKENIZERS}
 )
 target_link_libraries(
         XpExternalTensorTest
@@ -25,8 +23,6 @@ add_executable(
         ${DIR_SRC_MEM_MANAGER} 
         ${DIR_SRC_EXP} 
         ${DIR_SRC} 
-        ${MLLM_QUANTIZER} 
-        ${SRC_TOKENIZERS}
 )
 target_link_libraries(
         XpTensorFunctionTest
@@ -43,8 +39,6 @@ add_executable(
         ${DIR_SRC_MEM_MANAGER} 
         ${DIR_SRC_EXP} 
         ${DIR_SRC} 
-        ${MLLM_QUANTIZER} 
-        ${SRC_TOKENIZERS}
 )
 target_link_libraries(
         XpLinearTest
@@ -61,11 +55,25 @@ add_executable(
         ${DIR_SRC_MEM_MANAGER} 
         ${DIR_SRC_EXP} 
         ${DIR_SRC} 
-        ${MLLM_QUANTIZER} 
-        ${SRC_TOKENIZERS}
 )
 target_link_libraries(
         XpRoPETest
+        PUBLIC
+        GTest::gtest_main
+        MLLM_CPU
+        MllmXnnpackBackend
+)
+
+add_executable(
+        XpReLUTest
+        XpReLUTest.cpp
+        ${DIR_SRC_CPU} 
+        ${DIR_SRC_MEM_MANAGER} 
+        ${DIR_SRC_EXP} 
+        ${DIR_SRC} 
+)
+target_link_libraries(
+        XpReLUTest
         PUBLIC
         GTest::gtest_main
         MLLM_CPU

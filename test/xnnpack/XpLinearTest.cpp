@@ -7,16 +7,22 @@
 using namespace mllm;
 
 class LinearModule : public Module {
-    Layer linear;
+    Layer linear_1_;
+    Layer linear_2_;
+    Layer linear_3_;
 
 public:
     LinearModule() {
-        linear = Linear(1024, 2048, true, "linear");
+        linear_1_ = Linear(1024, 2048, true, "linear_1");
+        linear_2_ = Linear(2048, 2048, true, "linear_2");
+        linear_3_ = Linear(2048, 2048, true, "linear_3");
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = inputs[0];
-        auto out = linear(x);
+        x = linear_1_(x);
+        x = linear_2_(x);
+        auto out = linear_3_(x);
         return {out};
     }
 };
