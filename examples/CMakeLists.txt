@@ -487,6 +487,25 @@ else ()
     target_link_libraries(demo_phi3 PUBLIC MLLM_CPU -fopenmp)
 endif ()
 
+add_executable(demo_phi3v 
+    ${PROJECT_SOURCE_DIR}/examples/demo_phi3v.cpp 
+    ${DIR_SRC_CPU} 
+    ${DIR_SRC_MEM_MANAGER} 
+    ${DIR_SRC_EXP} 
+    ${DIR_SRC}
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp    
+    ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
+    ${PROJECT_SOURCE_DIR}/src/processor/ClipPreProcess.cpp
+)
+if (MLLM_OPENMP_STATIC)
+    target_compile_options(demo_phi3v PRIVATE -fopenmp)
+    target_link_libraries(demo_phi3v PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_compile_options(demo_phi3v PRIVATE -fopenmp)
+    target_link_libraries(demo_phi3v PUBLIC MLLM_CPU -fopenmp)
+endif ()
+
 
 add_executable(demo_minicpm 
     ${PROJECT_SOURCE_DIR}/examples/demo_minicpm.cpp 
