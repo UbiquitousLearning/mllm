@@ -117,7 +117,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
                                                               &m_qnnFunctionPointers,
                                                               &m_backendLibraryHandle,
                                                               false,
-                                                              &m_modelHandle);
+                                                              nullptr);
     if (dynamicloadutil::StatusCode::SUCCESS != statusCode) {
         if (dynamicloadutil::StatusCode::FAIL_LOAD_BACKEND == statusCode) {
             exitWithMessage(
@@ -344,49 +344,44 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     Qnn_Tensor_t *qnnInputs = nullptr;
     Qnn_Tensor_t *qnnOutputs = nullptr;
 
-    auto m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
+    auto graphInfo = graphInfoMap_[qnnModelIndex_];
 
-    for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
-        auto graphInfo = (*m_graphsInfo)[graphIdx];
+    if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&qnnInputs, &qnnOutputs, *graphInfo)) {
+        QNN_ERROR("Error in setting up Input and output Tensors for qnnModelIndex_: %d", qnnModelIndex_);
+        returnStatus = StatusCode::FAILURE;
+    }
 
-        if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&qnnInputs, &qnnOutputs, (*m_graphsInfo)[graphIdx])) {
-            QNN_ERROR("Error in setting up Input and output Tensors for graphIdx: %d", graphIdx);
-            returnStatus = StatusCode::FAILURE;
-            break;
-        }
+    // Todo only one graph now
+    size_t totalCount = currentInputBuffers->size();
+    if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(qnnModelIndex_, *currentInputBuffers, qnnInputs, *graphInfo, m_inputDataType)) {
+        returnStatus = StatusCode::FAILURE;
+    }
 
-        // Todo only one graph now
-        size_t totalCount = currentInputBuffers->size();
-        if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(graphIdx, *currentInputBuffers, qnnInputs, graphInfo, m_inputDataType)) {
-            returnStatus = StatusCode::FAILURE;
-        }
+    auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
 
-        auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
-
-        // register input and output tensor to qnn shared buffers
-        // TODO: currently must insure the inputs and outputs of mllm graph are the same as the qnn graph
-        // op created io tensors (kvcache, wnop...) should be solved
+    // register input and output tensor to qnn shared buffers
+    // TODO: currently must insure the inputs and outputs of mllm graph are the same as the qnn graph
+    // op created io tensors (kvcache, wnop...) should be solved
 #ifdef DEBUGPRINT
-        std::cout << "input tensors num:" << (*m_graphsInfo)[graphIdx].numInputTensors << std::endl;
-        std::cout << "output tensors num:" << (*m_graphsInfo)[graphIdx].numOutputTensors << std::endl;
+    std::cout << "input tensors num:" << graphInfo->numInputTensors << std::endl;
+    std::cout << "output tensors num:" << graphInfo->numOutputTensors << std::endl;
 #endif
 
-        for (int i = 0; i < (*m_graphsInfo)[graphIdx].numInputTensors; i++) {
-            qnnMM->registerQnnTensor((*currentInputBuffers)[i], qnnInputs[i]);
+    for (int i = 0; i < graphInfo->numInputTensors; i++) {
+        qnnMM->registerQnnTensor((*currentInputBuffers)[i], qnnInputs[i]);
 #ifdef DEBUGPRINT
-            std::cout << "registered input tensor: " << inputs[i]->hostPtr<void>() << " backend staged ptr: " << (void *)(*currentInputBuffers)[i] << std::endl;
-            std::cout << "qnn input tensor name: " << qnnInputs[i].v1.name << std::endl;
-            std::cout << "qnn input tensor scale: " << qnnInputs[i].v1.quantizeParams.scaleOffsetEncoding.scale << std::endl;
+        std::cout << "registered input tensor: " << inputs[i]->hostPtr<void>() << " backend staged ptr: " << (void *)(*currentInputBuffers)[i] << std::endl;
+        std::cout << "qnn input tensor name: " << qnnInputs[i].v1.name << std::endl;
+        std::cout << "qnn input tensor scale: " << qnnInputs[i].v1.quantizeParams.scaleOffsetEncoding.scale << std::endl;
 #endif
-        }
-        for (int i = 0; i < (*m_graphsInfo)[graphIdx].numOutputTensors; i++) {
-            qnnMM->registerQnnTensor((*currentOutputBuffers)[i], qnnOutputs[i]);
+    }
+    for (int i = 0; i < graphInfo->numOutputTensors; i++) {
+        qnnMM->registerQnnTensor((*currentOutputBuffers)[i], qnnOutputs[i]);
 #ifdef DEBUGPRINT
-            std::cout << "registered output tensor: " << outputs[i]->hostPtr<void>() << " backend staged ptr: " << (void *)(*currentOutputBuffers)[i] << std::endl;
-            std::cout << "qnn output tensor name: " << qnnOutputs[i].v1.name << std::endl;
-            std::cout << "qnn output tensor scale: " << qnnOutputs[i].v1.quantizeParams.scaleOffsetEncoding.scale << std::endl;
+        std::cout << "registered output tensor: " << outputs[i]->hostPtr<void>() << " backend staged ptr: " << (void *)(*currentOutputBuffers)[i] << std::endl;
+        std::cout << "qnn output tensor name: " << qnnOutputs[i].v1.name << std::endl;
+        std::cout << "qnn output tensor scale: " << qnnOutputs[i].v1.quantizeParams.scaleOffsetEncoding.scale << std::endl;
 #endif
-        }
     }
 
     inputsMap_[qnnModelIndex_] = qnnInputs;
@@ -398,49 +393,38 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
     // update currentInputBuffers, currentOutputBuffers, qnnModelIndex_
     auto t_qnnModelIndex_ = qnnModelIndexMap_[graphName];
 
-    qnn_wrapper_api::GraphInfo_t **m_graphsInfo = m_graphsInfoMap_[t_qnnModelIndex_];
+    qnn_wrapper_api::GraphInfo_t *graphInfo = graphInfoMap_[t_qnnModelIndex_];
 
-    auto returnStatus = StatusCode::SUCCESS;
+    Qnn_Tensor_t *inputs_ = inputsMap_[t_qnnModelIndex_];
+    Qnn_Tensor_t *outputs_ = outputsMap_[t_qnnModelIndex_];
 
-    for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
-        auto graphInfo = (*m_graphsInfo)[graphIdx];
-
-        Qnn_Tensor_t *inputs_ = inputsMap_[t_qnnModelIndex_];
-        Qnn_Tensor_t *outputs_ = outputsMap_[t_qnnModelIndex_];
-
-        Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
+    Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
 #ifdef DEBUGPRINT
-        uint64_t t_start = mllm_time_us();
+    uint64_t t_start = mllm_time_us();
 #endif
-        executeStatus =
-            m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
-                                                            inputs_,
-                                                            graphInfo.numInputTensors,
-                                                            outputs_,
-                                                            graphInfo.numOutputTensors,
-                                                            m_profileBackendHandle,
-                                                            nullptr);
+    executeStatus =
+        m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo->graph,
+                                                        inputs_,
+                                                        graphInfo->numInputTensors,
+                                                        outputs_,
+                                                        graphInfo->numOutputTensors,
+                                                        m_profileBackendHandle,
+                                                        nullptr);
 #ifdef DEBUGPRINT
-        uint64_t t_end = mllm_time_us();
-        std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
+    uint64_t t_end = mllm_time_us();
+    std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 #endif
 
-        if (QNN_GRAPH_NO_ERROR != executeStatus) {
-            returnStatus = StatusCode::FAILURE;
-        }
+    if (QNN_GRAPH_NO_ERROR != executeStatus) {
+        std::cerr << "Error in executing graph: " << graphName << std::endl;
+    }
 
-        if (ProfilingLevel::OFF != m_profilingLevel) {
-            extractBackendProfilingInfo(m_profileBackendHandle);
-        }
+    if (ProfilingLevel::OFF != m_profilingLevel) {
+        extractBackendProfilingInfo(m_profileBackendHandle);
     }
 }
 
 void QNNBackend::onExecuteEnd() {
-    // #ifdef QNN_ARM
-    //     executeGraphsShared();
-    // #else
-    //     executeGraphs(inputBufferMap, outputBufferMap);
-    // #endif
 }
 
 void QNNBackend::freeGraphDataStructure(string graphName) {
@@ -468,7 +452,7 @@ void QNNBackend::afterAllGraphsExecute() {
     inputBufferMap.clear();
     outputBufferMap.clear();
 
-    m_graphsInfoMap_.clear();
+    graphInfoMap_.clear();
     inputsMap_.clear();
     outputsMap_.clear();
 }
@@ -509,22 +493,21 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
 }
 
 qnn_wrapper_api::ModelError_t QNNBackend::graphFinilize() {
-    // Add all models to array to get graphsInfo
-    qnn_wrapper_api::QnnModel *models[] = {&qnnModels_[qnnModelIndex_]};
-    m_graphsCount = 1;
     // Populate the constructed graphs in provided output variables
     qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::MODEL_NO_ERROR;
-    qnn_wrapper_api::GraphInfo_t **m_graphsInfo = nullptr;
+    qnn_wrapper_api::GraphInfo_t *graphInfo = nullptr;
 
-    VALIDATE(getGraphInfoFromModels(*models, m_graphsCount, &m_graphsInfo), err);
+    VALIDATE(getSingleGraphInfoFromModel(qnnModels_[qnnModelIndex_], &graphInfo), err);
+
     // Graph finalize
-    if (QNN_GRAPH_NO_ERROR != m_qnnFunctionPointers.qnnInterface.graphFinalize((*m_graphsInfo)[0].graph, m_profileBackendHandle, nullptr)) {
+    if (QNN_GRAPH_NO_ERROR != m_qnnFunctionPointers.qnnInterface.graphFinalize(graphInfo->graph, m_profileBackendHandle, nullptr)) {
         return qnn_wrapper_api::ModelError_t::MODEL_GRAPH_ERROR;
     }
     if (ProfilingLevel::OFF != m_profilingLevel) {
         extractBackendProfilingInfo(m_profileBackendHandle);
     }
-    m_graphsInfoMap_[qnnModelIndex_] = m_graphsInfo;
+
+    graphInfoMap_[qnnModelIndex_] = graphInfo;
 
     return qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
 }
@@ -731,109 +714,6 @@ StatusCode QNNBackend::freeDevice() {
         }
     }
     return StatusCode::SUCCESS;
-}
-
-// executeGraphs() that load input/output buffers from CPU context
-// inputBufferMap and outputBufferMap: graph_name -> graph input/output CPU buffers.
-StatusCode QNNBackend::executeGraphs(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap) {
-    qnn_wrapper_api::GraphInfo_t **m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
-
-    auto returnStatus = StatusCode::SUCCESS;
-    for (size_t graphIdx = 0; graphIdx < m_graphsCount; graphIdx++) {
-        QNN_DEBUG("Starting execution for graphIdx: %d", graphIdx);
-        if (graphIdx >= inputBufferMap.size()) {
-            QNN_ERROR("No Inputs available for: %d", graphIdx);
-            returnStatus = StatusCode::FAILURE;
-            break;
-        }
-
-        Qnn_Tensor_t *inputs_ = inputsMap_[qnnModelIndex_];
-        Qnn_Tensor_t *outputs_ = outputsMap_[qnnModelIndex_];
-
-        auto graphInfo = (*m_graphsInfo)[graphIdx];
-        if (!inputBufferMap.empty()) {
-            size_t startIdx = 0;
-
-            if (StatusCode::SUCCESS == returnStatus) {
-                QNN_DEBUG("Successfully populated input tensors for graphIdx: %d", graphIdx);
-                Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
-#ifdef DEBUGPRINT
-                uint64_t t_start = mllm_time_us();
-#endif
-
-                executeStatus =
-                    m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
-                                                                    inputs_,
-                                                                    graphInfo.numInputTensors,
-                                                                    outputs_,
-                                                                    graphInfo.numOutputTensors,
-                                                                    m_profileBackendHandle,
-                                                                    nullptr);
-#ifdef DEBUGPRINT
-                uint64_t t_end = mllm_time_us();
-                std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
-#endif
-
-                if (QNN_GRAPH_NO_ERROR != executeStatus) {
-                    returnStatus = StatusCode::FAILURE;
-                }
-            }
-            if (StatusCode::SUCCESS != returnStatus) {
-                QNN_ERROR("Execution of Graph: %d failed!", graphIdx);
-                break;
-            }
-            if (ProfilingLevel::OFF != m_profilingLevel) {
-                extractBackendProfilingInfo(m_profileBackendHandle);
-            }
-        }
-
-        m_ioTensor.tearDownInputAndOutputTensors(
-            inputs_, outputs_, graphInfo.numInputTensors, graphInfo.numOutputTensors);
-        inputs_ = nullptr;
-        outputs_ = nullptr;
-        if (StatusCode::SUCCESS != returnStatus) {
-            break;
-        }
-    }
-
-    qnn_wrapper_api::freeGraphsInfo(&m_graphsInfo, m_graphsCount);
-    m_graphsInfo = nullptr;
-    return returnStatus;
-}
-
-StatusCode QNNBackend::executeGraphsShared() {
-    qnn_wrapper_api::GraphInfo_t **m_graphsInfo = m_graphsInfoMap_[qnnModelIndex_];
-
-    auto returnStatus = StatusCode::SUCCESS;
-
-    for (size_t graphIdx = 0; graphIdx < 1; graphIdx++) {
-        auto graphInfo = (*m_graphsInfo)[graphIdx];
-
-        Qnn_Tensor_t *inputs_ = inputsMap_[qnnModelIndex_];
-        Qnn_Tensor_t *outputs_ = outputsMap_[qnnModelIndex_];
-
-        Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
-#ifdef DEBUGPRINT
-        uint64_t t_start = mllm_time_us();
-#endif
-        executeStatus =
-            m_qnnFunctionPointers.qnnInterface.graphExecute(graphInfo.graph,
-                                                            inputs_,
-                                                            graphInfo.numInputTensors,
-                                                            outputs_,
-                                                            graphInfo.numOutputTensors,
-                                                            m_profileBackendHandle,
-                                                            nullptr);
-#ifdef DEBUGPRINT
-        uint64_t t_end = mllm_time_us();
-        std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
-#endif
-
-        if (QNN_GRAPH_NO_ERROR != executeStatus) {
-            returnStatus = StatusCode::FAILURE;
-        }
-    }
-    return returnStatus;
 }
 
 } // namespace mllm
