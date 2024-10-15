@@ -417,27 +417,6 @@ else ()
     target_link_libraries(demo_qwen PUBLIC MLLM_CPU -fopenmp)
 endif ()
 
-
-add_executable(demo_qwen2 
-    ${PROJECT_SOURCE_DIR}/examples/demo_qwen2.cpp 
-    ${DIR_SRC_CPU} 
-    ${DIR_SRC_MEM_MANAGER} 
-    ${DIR_SRC_EXP} 
-    ${DIR_SRC}
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
-    ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
-    ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
-)
-if (MLLM_OPENMP_STATIC)
-    target_compile_options(demo_qwen2 PRIVATE -fopenmp)
-    target_link_libraries(demo_qwen2 PUBLIC MLLM_CPU -fopenmp -static-openmp)
-else ()
-    target_compile_options(demo_qwen2 PRIVATE -fopenmp)
-    target_link_libraries(demo_qwen2 PUBLIC MLLM_CPU -fopenmp)
-endif ()
-
 add_executable(demo_mistral 
     ${PROJECT_SOURCE_DIR}/examples/demo_mistral.cpp 
     ${DIR_SRC_CPU} 
