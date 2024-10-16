@@ -29,6 +29,7 @@ add_library(MllmXnnpackBackend
     Ops/XpD2H.cpp
 
     Functions/XpBinaryFunc.cpp
+    Functions/XpTransposeFunc.cpp
 )
 target_include_directories(MllmXnnpackBackend PUBLIC third_party/XNNPACK/src/)
 target_include_directories(MllmXnnpackBackend PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../)

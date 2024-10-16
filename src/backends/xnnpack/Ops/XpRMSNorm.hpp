@@ -20,7 +20,8 @@ class XpRMSNorm final : public Op, public XpTensorDefineInterface<XpRMSNorm> {
 public:
     XpRMSNorm(Backend *bk, const std::string &op_name, int norm_size, float epsilon = 1e-6, bool add_unit_offset = false, int thread_count = 4) :
         Op(bk, op_name), norm_size_(norm_size), epsilon_(epsilon), add_unit_offset_(add_unit_offset), thread_count_(thread_count) {
-        weight_.setBackend(bk);
+        weight_params_.setBackend(bk);
+        epsilon_param_.setBackend(bk);
     }
 
     ~XpRMSNorm() override = default;
@@ -36,7 +37,8 @@ public:
     ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
-    Tensor weight_;
+    Tensor weight_params_;
+    Tensor epsilon_param_;
     float epsilon_;
     int norm_size_;
     bool add_unit_offset_;

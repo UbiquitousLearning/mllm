@@ -18,6 +18,9 @@
 #include "backends/xnnpack/Ops/XpSoftmax.hpp"
 #include "backends/xnnpack/Ops/XpGeLU.hpp"
 #include "backends/xnnpack/Ops/XpSiLU.hpp"
+#include "backends/xnnpack/Ops/XpTranspose.hpp"
+#include "backends/xnnpack/Functions/XpTransposeFunc.hpp"
+#include "backends/xnnpack/Ops/XpRMSNorm.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
@@ -59,6 +62,7 @@ XnnpackModelRuntime::~XnnpackModelRuntime() {
     }
 
     // not release all
+    // FIXME: explicit memory leak.
     // NOTE: explicit memory leak.
     // NOTE: explicit memory leak.
     // NOTE: explicit memory leak.
@@ -198,6 +202,8 @@ void XnnpackBackend::registerOps() {
     addCreator(SOFTMAX, new XpSoftmaxCreator());
     addCreator(OP_GELU, new XpGeLUCreator());
     addCreator(SILU, new XpSiLUCreator());
+    addCreator(TRANSPOSE, new XpTransposeCreator());
+    addCreator(RMSNORM, new XpRMSNormCreator());
 }
 
 void XnnpackBackend::registerFuncs() {
@@ -212,6 +218,9 @@ void XnnpackBackend::registerFuncs() {
     map_tensor_function_[TensorFuncType::FUNC_TTSUB] = new XpTTSubFunction();
     map_tensor_function_[TensorFuncType::FUNC_TTMUL] = new XpTTMulFunction();
     map_tensor_function_[TensorFuncType::FUNC_TTDIV] = new XpTTDivFunction();
+
+    // others
+    map_tensor_function_[TensorFuncType::FUNC_TRANPOSE] = new XpTransposeFunction();
 }
 
 std::shared_ptr<XnnpackModelRuntime> XnnpackBackend::getModelRuntime() {

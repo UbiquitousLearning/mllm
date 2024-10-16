@@ -1,15 +1,12 @@
-#include "backends/xnnpack/Ops/XpTranspose.hpp"
-#include "Types.hpp"
-#include "xnnpack.h"
-#include <utility>
+#include <array>
+#include "backends/xnnpack/Functions/XpTransposeFunc.hpp"
 
 namespace mllm::xnnpack {
 
-ErrorCode XpTranspose::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    return MLLM_NO_ERROR;
-}
+void XpTransposeFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+    Chl axis0_ = (Chl)args[0];
+    Chl axis1_ = (Chl)args[1];
 
-ErrorCode XpTranspose::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // inputs[0]->transShape(SEQUENCE, DIMENSION);
     if (axis0_ == SEQUENCE && axis1_ == DIMENSION) {
         if (inputs[0]->ctype() == BSHD) {
@@ -24,15 +21,17 @@ ErrorCode XpTranspose::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_
             outputs[0]->reshape(inputs[0]->sequence(), inputs[0]->head(), inputs[0]->batch(), inputs[0]->dimension());
         }
     }
-    return MLLM_NO_ERROR;
 }
 
-ErrorCode XpTranspose::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+void XpTransposeFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
     tryDefineAllXpTensors(xpb, inputs);
     tryDefineAllXpTensors(xpb, outputs);
 
     std::array<size_t, 4> perm{3, 2, 1, 0};
+
+    Chl axis0_ = (Chl)args[0];
+    Chl axis1_ = (Chl)args[1];
 
     // inputs[0]->transShape(SEQUENCE, DIMENSION);
     if (axis0_ == SEQUENCE && axis1_ == DIMENSION) {
@@ -72,13 +71,6 @@ ErrorCode XpTranspose::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
         Log::error("XpGeLU::execute Error");
         exit(-1);
     }
-
-    return MLLM_NO_ERROR;
 }
 
-Op *XpTransposeCreator::create(OpParam op_param, Backend *bk, const string &name, int thread_count) const {
-    int axis0 = (int)op_param["axis0"];
-    int axis1 = (int)op_param["axis1"];
-    return new XpTranspose(bk, axis0, axis1, name, thread_count);
-}
 } // namespace mllm::xnnpack
