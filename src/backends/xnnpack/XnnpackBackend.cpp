@@ -15,6 +15,9 @@
 #include "backends/xnnpack/Ops/XpSubGraphFinalize.hpp"
 #include "backends/xnnpack/Ops/XpD2H.hpp"
 #include "backends/xnnpack/Ops/XpReLU.hpp"
+#include "backends/xnnpack/Ops/XpSoftmax.hpp"
+#include "backends/xnnpack/Ops/XpGeLU.hpp"
+#include "backends/xnnpack/Ops/XpSiLU.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
@@ -192,6 +195,9 @@ void XnnpackBackend::registerOps() {
     addCreator(MATMUL, new XpMatMulCreator());
     addCreator(ROPE, new XpRoPECreator());
     addCreator(RELU, new XpReLUCreator());
+    addCreator(SOFTMAX, new XpSoftmaxCreator());
+    addCreator(OP_GELU, new XpGeLUCreator());
+    addCreator(SILU, new XpSiLUCreator());
 }
 
 void XnnpackBackend::registerFuncs() {
