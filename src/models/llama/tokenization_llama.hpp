@@ -9,10 +9,8 @@
 
 using namespace mllm;
 
-
 class LLaMATokenizer final {
-    BPETokenizer* tokenizer;
-
+    BPETokenizer *tokenizer;
 
     unsigned int argmax(const std::vector<float> &scores) {
         if (scores.empty()) {
@@ -20,22 +18,17 @@ class LLaMATokenizer final {
         }
         return std::max_element(scores.begin(), scores.end()) - scores.begin();
     }
-    bool bos_=true;
+    bool bos_ = true;
+
 public:
-    explicit LLaMATokenizer(const std::string &vocab_file, bool bos=true) {
+    explicit LLaMATokenizer(const std::string &vocab_file, bool bos = true) {
         Module::initBackend(MLLM_CPU);
         tokenizer = new BPETokenizer(vocab_file);
         bos_ = bos;
     }
     Tensor tokenize(std::string &text, int str_i = 0) const {
-        if (text[0] != ' ') {
-            text = ' ' + text;
-        }
         auto tokens_id = vector<token_id_t>();
         tokenizer->tokenize(text, tokens_id, bos_);
-        if (str_i > 0){
-            tokens_id[0] = 13;
-        }
         return BPETokenizer::tokens2Input(tokens_id);
     }
 
@@ -43,7 +36,7 @@ public:
         return tokenizer->detokenize(tokens);
     }
 
-    std::pair<std::string, unsigned> detokenize(Tensor& result) {
+    std::pair<std::string, unsigned> detokenize(Tensor &result) {
         assert(result.batch() == 1);
         assert(result.head() == 1);
         vector<float> scores;
@@ -54,9 +47,6 @@ public:
         auto token_idx = this->argmax(scores);
         return {tokenizer->detokenize({token_idx}), token_idx};
     }
-
-
-
 };
 
-#endif //TOKENIZATION_LLAMA_HPP
+#endif // TOKENIZATION_LLAMA_HPP

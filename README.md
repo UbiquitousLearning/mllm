@@ -295,7 +295,7 @@ cd ./bin
 
 ```bash
 cd ./bin
-./demo_llama -m ../models/llama-2-7b-chat-q4_k.mllm -v ../vocab/llama_vocab.mllm
+./demo_llama -m ../models/llama-2-7b-chat-q4_k.mllm -v ../vocab/llama2_vocab.mllm
 ```
 
 

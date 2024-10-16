@@ -548,25 +548,25 @@ endif ()
 #     target_link_libraries(demo_phonellm PUBLIC MLLM_CPU -fopenmp)
 # endif ()
 
-# add_executable(demo_openelm
-#     ${PROJECT_SOURCE_DIR}/examples/demo_openelm.cpp 
-#     ${DIR_SRC_CPU} 
-#     ${DIR_SRC_MEM_MANAGER} 
-#     ${DIR_SRC_EXP} 
-#     ${DIR_SRC}
-#     ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
-#     ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
-#     ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
-#     ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
-#     ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
-# )
-# if (MLLM_OPENMP_STATIC)
-#     target_compile_options(demo_openelm PRIVATE -fopenmp)
-#     target_link_libraries(demo_openelm PUBLIC MLLM_CPU -fopenmp -static-openmp)
-# else ()
-#     target_compile_options(demo_openelm PRIVATE -fopenmp)
-#     target_link_libraries(demo_openelm PUBLIC MLLM_CPU -fopenmp)
-# endif ()
+add_executable(demo_openelm
+    ${PROJECT_SOURCE_DIR}/examples/demo_openelm.cpp 
+    ${DIR_SRC_CPU} 
+    ${DIR_SRC_MEM_MANAGER} 
+    ${DIR_SRC_EXP} 
+    ${DIR_SRC}
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
+    ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
+)
+if (MLLM_OPENMP_STATIC)
+    target_compile_options(demo_openelm PRIVATE -fopenmp)
+    target_link_libraries(demo_openelm PUBLIC MLLM_CPU -fopenmp -static-openmp)
+else ()
+    target_compile_options(demo_openelm PRIVATE -fopenmp)
+    target_link_libraries(demo_openelm PUBLIC MLLM_CPU -fopenmp)
+endif ()
 
 add_executable(demo_dclm
     ${PROJECT_SOURCE_DIR}/examples/demo_dclm.cpp 

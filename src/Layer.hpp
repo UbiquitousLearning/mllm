@@ -41,6 +41,7 @@ public:
     }
     bool inited_loaded = false;
     static map<string, string> layername_2_tensorname;
+    static bool use_layername_2_tensorname;
 
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
@@ -143,7 +144,6 @@ protected:
         Module::runlistIdx = saved_list_idx;
         bool do_init = false;
         // set backend to current module device and try to create op
-        // TODO: backend fallback
         backend_ = Backend::global_backends[Module::tmp_device];
         if (Module::doLoad || !inited_loaded) {
             do_init = !inited_loaded;
@@ -165,15 +165,20 @@ protected:
                 }
             }
             for (const auto &layer_next_name : layer_next_names) {
-                if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
-                    if (param_["type"] == KVCACHE) {
-                        layername_2_tensorname[layer_next_name] = layer_next_name;
-                        init_reset_KVCache(inputs[0].name());
-                    } else {
-                        layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                string next_name;
+                if (use_layername_2_tensorname) {
+                    if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
+                        if (param_["type"] == KVCACHE) {
+                            layername_2_tensorname[layer_next_name] = layer_next_name;
+                            init_reset_KVCache(inputs[0].name());
+                        } else {
+                            layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                        }
                     }
+                    next_name = layername_2_tensorname[layer_next_name];
+                } else {
+                    next_name = layer_next_name;
                 }
-                auto next_name = layername_2_tensorname[layer_next_name];
                 if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
                     Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
                     Tensor::graphs[next_name]->setName(next_name);
@@ -182,7 +187,12 @@ protected:
             if (Module::doLoad) {
                 vector<std::reference_wrapper<Tensor>> output_result = {};
                 for (const auto &layer_next_name : layer_next_names) {
-                    auto next_name = layername_2_tensorname[layer_next_name];
+                    string next_name;
+                    if (use_layername_2_tensorname) {
+                        next_name = layername_2_tensorname[layer_next_name];
+                    } else {
+                        next_name = layer_next_name;
+                    }
                     output_result.push_back(*Tensor::graphs[next_name]);
                 }
                 return output_result;
@@ -213,7 +223,12 @@ protected:
         vector<shared_ptr<Tensor>> output_tensors = {};
         vector<string> next_names = {};
         for (const auto &layer_next_name : layer_next_names) {
-            auto next_name = layername_2_tensorname[layer_next_name];
+            string next_name;
+            if (use_layername_2_tensorname) {
+                next_name = layername_2_tensorname[layer_next_name];
+            } else {
+                next_name = layer_next_name;
+            }
             next_names.push_back(next_name);
             output_tensors.push_back(Tensor::graphs[next_name]);
         }
@@ -242,7 +257,12 @@ protected:
 #endif
         vector<std::reference_wrapper<Tensor>> output_result = {};
         for (const auto &layer_next_name : layer_next_names) {
-            auto next_name = layername_2_tensorname[layer_next_name];
+            string next_name;
+            if (use_layername_2_tensorname) {
+                next_name = layername_2_tensorname[layer_next_name];
+            } else {
+                next_name = layer_next_name;
+            }
 #ifdef DEBUGSAVETENSOR
             Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
 #endif

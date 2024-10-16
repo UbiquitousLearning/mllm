@@ -225,6 +225,7 @@ void QuantWriter::quantParams(DataType dataType) {
 vector<string> q4x4_2_q4_layers = {
     "wv",
     "v_proj",
+    "qkv_proj",
     // dclm
     "in_proj",
     "w12",
