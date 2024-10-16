@@ -21,7 +21,8 @@ QNNLinearINT8Shadow::QNNLinearINT8Shadow(Backend *bn, string opName, int in_feat
     inputClip_.setBackend(bn);
     outputClip_.setBackend(bn);
 
-    output_i8_buffer_.setBackend(bn);
+    weight_f32_buffer_.setBackend(bn);
+    input_f32_buffer_.setBackend(bn);
 }
 
 ErrorCode QNNLinearINT8Shadow::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -119,10 +120,15 @@ ErrorCode QNNLinearINT8Shadow::load(AbstructLoader &loader) {
         }
     }
 
-    output_i8_buffer_.setName(opName + ".shadow.output_i8_buffer");
-    output_i8_buffer_.reshape(1, 1, 1, in_features_);
-    output_i8_buffer_.setDtype(MLLM_TYPE_I8);
-    output_i8_buffer_.alloc();
+    weight_f32_buffer_.setName(opName + ".shadow.weight_f32_buffer");
+    weight_f32_buffer_.reshape(1, 1, 1, in_features_);
+    weight_f32_buffer_.setDtype(MLLM_TYPE_F32);
+    weight_f32_buffer_.alloc();
+
+    input_f32_buffer_.setName(opName + ".shadow.input_f32_buffer");
+    input_f32_buffer_.reshape(1, 1, 1, in_features_);
+    input_f32_buffer_.setDtype(MLLM_TYPE_F32);
+    input_f32_buffer_.alloc();
 
     weight_.free();
 
@@ -163,6 +169,45 @@ ErrorCode QNNLinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
                         float round_value = roundf(inputs[0]->dataAt<float>(i, h, j, k) / input_scale);
                         if (round_value > (127.0 * 1.5) || round_value < (-128.0 * 1.5)) {
 
+#if defined(__ARM_NEON)
+                            float origin_value = round_value * input_scale * weight_scale;  
+                            float clip_value = std::fmax(std::fmin(round_value, 127), -128) * input_scale * weight_scale;  
+
+                            int w_max = shadowWeight_.dimension();  
+                            int vector_size = 4;  
+                            
+#pragma omp parallel for num_threads(4)  
+                            for (int w = 0; w <= w_max - vector_size; w += vector_size) {  
+                                // Load shadow weights into a NEON vector  
+                                int8x8_t weight_vec_int8 = vld1_s8(shadowWeight_.ptrAt<int8_t>(0, 0, k, w));  
+                                int16x8_t weight_vec_int16 = vmovl_s8(weight_vec_int8);  
+
+                                // Convert to float  
+                                float32x4_t weight_vec = vcvtq_f32_s32(vmovl_s16(vget_low_s16(weight_vec_int16)));  
+
+                                // Compute origin and clip vectors with NEON  
+                                float32x4_t origin_vec = vmulq_n_f32(weight_vec, origin_value);  
+                                float32x4_t clip_vec = vmulq_n_f32(weight_vec, clip_value);  
+
+                                // Load previous output values  
+                                float32x4_t output_vec = vld1q_f32(outputs[0]->ptrAt<float>(i, h, j, w));  
+
+                                // Calculate and store the result  
+                                float32x4_t result_vec = vsubq_f32(origin_vec, clip_vec);  
+                                result_vec = vaddq_f32(result_vec, output_vec);  
+
+                                vst1q_f32(outputs[0]->ptrAt<float>(i, h, j, w), result_vec);
+                            }  
+
+                            // Handle remaining elements, if any  
+                            for (int w = (w_max / vector_size) * vector_size; w < w_max; ++w) {  
+                                float origin = origin_value * shadowWeight_.dataAt<int8_t>(0, 0, k, w);  
+                                float clip = clip_value * shadowWeight_.dataAt<int8_t>(0, 0, k, w);  
+
+                                outputs[0]->setDataAt<float>(i, h, j, w, origin - clip + outputs[0]->dataAt<float>(i, h, j, w));  
+                            }  
+
+#else
                             float origin_value = round_value * input_scale * weight_scale;
                             float clip_value = std::fmax(std::fmin(round_value, 127), -128) * input_scale * weight_scale;
 
@@ -178,7 +223,7 @@ ErrorCode QNNLinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
 
                                 // }
                             }
-
+#endif
                         }
                     }
                 }
@@ -218,8 +263,9 @@ ErrorCode QNNLinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
 
 void QNNLinearINT8Shadow::shadow_vec_dot_fp32_arm(float* s, float* x, int8_t* y, int n, float input_scale, float weight_scale) {
 
-    quantize_row_i8(x, output_i8_buffer_.hostPtr<int8_t>(), n, input_scale);
-    vec_dot_i8_i8(n, s, y, output_i8_buffer_.hostPtr<int8_t>(), input_scale, weight_scale);
+    quantize_round_dequantize_row_i8(x, input_f32_buffer_.hostPtr<float>(), n , input_scale);
+    dequantize_row_i8(y, weight_f32_buffer_.hostPtr<float>(), n, weight_scale);
+    vec_dot_fp32(n, s, input_f32_buffer_.hostPtr<float>(), weight_f32_buffer_.hostPtr<float>());
 }
 
 } // namespace mllm

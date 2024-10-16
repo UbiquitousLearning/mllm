@@ -31,7 +31,10 @@ private:
     Tensor inputClip_;
     Tensor outputClip_;
 
-    Tensor output_i8_buffer_;
+    // i16 for accuracy
+    Tensor weight_f32_buffer_;
+    Tensor input_f32_buffer_;
+
 
 };
 
