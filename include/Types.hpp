@@ -121,7 +121,6 @@ enum AttnQKVSplitType {
     SPLIT_NONE = 0,
     SPLIT_HD = Chl::HD,
     SPLIT_D_HD = Chl::D_HD,
-    SPLIT_D_DH = Chl::D_DH,
 };
 
 #define ANYDIM -198098

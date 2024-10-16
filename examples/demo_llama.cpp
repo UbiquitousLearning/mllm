@@ -29,15 +29,25 @@ int main(int argc, char **argv) {
     auto model = LLaMAModel(config);
     model.load(model_path);
 
+    auto addSystemPrompt = [](const std::string &text) -> std::string {
+        std::string ret;
+        std::string pre =
+            "<s>[INST] ";
+        ret = pre + text;
+        std::string end = " [/INST]";
+        ret = ret + end;
+        return ret;
+    };
+
     vector<string> in_strs = {
-        " Hello, who are you?",
-        " What can you do?",
+        "Hello, who are you?",
+        "What can you do?",
         "Please introduce Beijing University of Posts and Telecommunications."};
 
     for (int i = 0; i < in_strs.size(); ++i) {
-        auto in_str = in_strs[i];
+        auto in_str = addSystemPrompt(in_strs[i]);
         auto input_tensor = tokenizer.tokenize(in_str, i);
-        std::cout << "[Q] " << in_str << std::endl;
+        std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
             auto result = model({input_tensor});

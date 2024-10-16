@@ -83,7 +83,7 @@ public:
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto qkv = in_proj(inputs[0]);
-        auto qkv_sp = Tensor::split(qkv, {attn_hidden_dim_, attn_hidden_dim_, attn_hidden_dim_}, DIMENSION);
+        auto qkv_sp = qkv.split({attn_hidden_dim_, attn_hidden_dim_, attn_hidden_dim_}, DIMENSION);
 
         Tensor q, k, v;
         q = qkv_sp[0];
