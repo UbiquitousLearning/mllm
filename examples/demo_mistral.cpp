@@ -35,16 +35,9 @@ int main(int argc, char **argv) {
     model.load(model_path);
 
     vector<string> in_strs = {
-        " Hello, who are you?",
-        " What can you do?",
+        "Hello, who are you?",
+        "What can you do?",
         "Please introduce Beijing University of Posts and Telecommunications.",
-    };
-
-    auto processOutput = [&](std::string &text) -> std::pair<bool, std::string> {
-        text = std::regex_replace(text, std::regex("▁"), " ");
-        if (text == "<0x0A>") return {true, "\n"};
-        if (text == "</s>") return {false, ""};
-        return {true, text};
     };
 
     for (int i = 0; i < in_strs.size(); ++i) {
@@ -54,15 +47,10 @@ int main(int argc, char **argv) {
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
             auto result = model({input_tensor});
-            auto outputs = tokenizer.detokenize(result[0]);
-            auto out_string = outputs.first;
-            auto out_token = outputs.second;
-            auto [isOk, print_string] = processOutput(out_string);
-            if (isOk) {
-                std::cout << print_string << std::flush;
-            } else {
-                break;
-            }
+            auto [out_string, out_token] = tokenizer.detokenize(result[0]);
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { break; }
+            std::cout << output_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");

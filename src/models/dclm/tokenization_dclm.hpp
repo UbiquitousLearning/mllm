@@ -18,22 +18,13 @@ using namespace mllm;
 
 using namespace mllm;
 
-class DCLMTokenizer final {
-    BPETokenizer *tokenizer;
+class DCLMTokenizer final : public BPETokenizer {
     std::unordered_map<std::string, unsigned> merge_rank;
 
-    unsigned int argmax(const std::vector<float> &scores) {
-        if (scores.empty()) {
-            throw std::invalid_argument("Input vector is empty");
-        }
-        return std::max_element(scores.begin(), scores.end()) - scores.begin();
-    }
-    bool bos_ = true;
-
 public:
-    explicit DCLMTokenizer(const std::string &vocab_file, const std::string &merge_file) {
+    explicit DCLMTokenizer(const std::string &vocab_file, const std::string &merge_file) :
+        BPETokenizer(vocab_file) {
         Module::initBackend(MLLM_CPU);
-        tokenizer = new BPETokenizer(vocab_file);
         std::ifstream merge(merge_file);
         std::string line;
         unsigned rank = 0;
@@ -43,21 +34,21 @@ public:
             }
             merge_rank[line] = rank++;
         }
-        tokenizer->setMergeRank(merge_rank);
-        tokenizer->setSpecialToken("<|endoftext|>", "<|endoftext|>", "<|endoftext|>");
+        BPETokenizer::setMergeRank(merge_rank);
+        BPETokenizer::setSpecialToken("<|endoftext|>", "<|endoftext|>", "<|endoftext|>");
     }
-    Tensor tokenize(std::string &text) const {
+    Tensor tokenize(std::string &text) override {
         text = Tokenizer::replaceString(text, ' ', "Ġ");
         std::vector<token_id_t> tokens_id;
-        tokenizer->tokenize(text, tokens_id, false);
+        BPETokenizer::tokenize(text, tokens_id, false);
         return BPETokenizer::tokens2Input(tokens_id);
     }
 
-    std::string detokenize(const std::vector<token_id_t> &tokens) {
-        return tokenizer->detokenize(tokens);
+    std::string detokenize(const std::vector<token_id_t> &tokens) override {
+        return BPETokenizer::detokenize(tokens);
     }
 
-    std::pair<std::string, unsigned> detokenize(Tensor &result) {
+    std::pair<std::string, unsigned> detokenize(Tensor &result) override {
         assert(result.batch() == 1);
         assert(result.head() == 1);
         vector<float> scores;
@@ -66,7 +57,20 @@ public:
             scores.push_back(value);
         }
         auto token_idx = this->argmax(scores);
-        return {tokenizer->detokenize({token_idx}), token_idx};
+        return {BPETokenizer::detokenize({token_idx}), token_idx};
+    }
+
+    std::pair<bool, std::string> postprocess(std::string &text) override {
+        size_t pos = 0;
+        while ((pos = text.find("Ċ", pos)) != std::string::npos) {
+            text.replace(pos, 2, " ");
+            break;
+        }
+        pos = 0;
+        while ((pos = text.find("Ġ", pos)) != std::string::npos) {
+            text.replace(pos, 2, " ");
+        }
+        return {true, text};
     }
 };
 

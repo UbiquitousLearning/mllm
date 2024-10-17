@@ -49,19 +49,9 @@ int main(int argc, char **argv) {
         auto input_tensor = tokenizer.tokenize(in_str);
         for (int step = 0; step < 100; step++) {
             auto result = model({input_tensor});
-            auto outputs = tokenizer.detokenize(result[0]);
-            auto out_string = outputs.first;
-            auto out_token = outputs.second;
-            size_t pos = 0;
-            while ((pos = out_string.find("Ċ", pos)) != std::string::npos) {
-                out_string.replace(pos, 2, " ");
-                break;
-            }
-            pos = 0;
-            while ((pos = out_string.find("Ġ", pos)) != std::string::npos) {
-                out_string.replace(pos, 2, " ");
-            }
-            std::cout << out_string << std::flush;
+            auto [out_string, out_token] = tokenizer.detokenize(result[0]);
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            std::cout << output_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");

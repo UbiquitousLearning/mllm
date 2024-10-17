@@ -1,5 +1,4 @@
 #include <iostream>
-#include <utility>
 #include "cmdline.h"
 #include "models/clip/modeling_clip.hpp"
 #include "models/clip/processing_clip.hpp"

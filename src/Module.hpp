@@ -315,6 +315,42 @@ public:
             chatPostProcessing(out_token, input_ids, {});
         }
     }
+
+    vector<unsigned> generate(Tensor &input_ids, const LlmTextGeneratorOpts &opt, int end_token = -1) {
+        auto chatPostProcessing = [](unsigned token_idx, Tensor &tokens_tensor, const vector<Tensor *> &clean_tensors) {
+            tokens_tensor.reshape(1, 1, 1, 1);
+            tokens_tensor.alloc();
+            tokens_tensor.setDataAt<float>(0, 0, 0, 0, token_idx);
+
+            for (auto tensor : clean_tensors) {
+                tensor->reshape(0, 0, 0, 0);
+                tensor->alloc();
+            }
+        };
+
+        if (!opt.do_sample) {
+            // fail to greedy search
+            if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kGreedySearch)
+                text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kGreedySearch, opt);
+        } else if (opt.do_sample && !opt.top_k && opt.top_p != 0.F) {
+            // fail to top p sampling
+            if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kToppSampling)
+                text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kToppSampling, opt);
+        } else if (opt.do_sample && opt.top_k) {
+            // fail to top k sampling
+            if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kTopkSampling)
+                text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kTopkSampling, opt);
+        }
+        vector<unsigned> result;
+        for (int step = 0; step < opt.max_new_tokens; ++step) {
+            auto _out = (*this)({input_ids});
+            auto out_token = text_generator_->generate(_out[0]);
+            result.push_back(out_token);
+            if (end_token != -1 && out_token == end_token) break;
+            chatPostProcessing(out_token, input_ids, {});
+        }
+        return result;
+    }
 };
 
 } // namespace mllm

@@ -76,13 +76,10 @@ int main(int argc, char **argv) {
                 {(int)(32 * ratio), (int)(11008 * ratio)}  // 31
             };
             auto result = model({input_tensor}, activate_dims);
-            auto outputs = tokenizer.detokenize(result[0]);
-            auto out_string = outputs.first;
-            auto out_token = outputs.second;
-            if (out_token == 2) {
-                break;
-            }
-            std::cout << out_string << std::flush;
+            auto [out_string, out_token] = tokenizer.detokenize(result[0]);
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { break; }
+            std::cout << output_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");

@@ -25,9 +25,6 @@ int main(int argc, char **argv) {
     auto model = Phi3Model(config);
     model.load(model_path);
 
-    string system_prompt_start = "<|user|>\n";
-    string system_prompt_end = " <|end|>\n<|assistant|>";
-
     vector<string> in_strs = {
         "who are you?",
         "What can you do?",
@@ -35,19 +32,16 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto in_str_origin = in_strs[i];
-        auto in_str = system_prompt_start + in_str_origin + system_prompt_end;
+        auto in_str = tokenizer.apply_chat_template(in_str_origin);
         auto input_tensor = tokenizer.tokenize(in_str);
-        std::cout << "[Q] " << in_str << std::endl;
+        std::cout << "[Q] " << in_str_origin << std::endl;
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
             auto result = model({input_tensor});
-            auto outputs = tokenizer.detokenize(result[0]);
-            auto out_string = outputs.first;
-            auto out_token = outputs.second;
-            if (out_token == tokenizer.end_id && step != 0) {
-                break;
-            }
-            std::cout << out_string << std::flush;
+            auto [out_string, out_token] = tokenizer.detokenize(result[0]);
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { break; }
+            std::cout << output_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");

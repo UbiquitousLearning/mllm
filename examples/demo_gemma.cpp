@@ -47,11 +47,10 @@ int main(int argc, char **argv) {
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
             auto result = model({input_tensor});
-            auto outputs = tokenizer.detokenize(result[0]);
-            auto out_string = outputs.first;
-            auto out_token = outputs.second;
-            if (out_token == tokenizer.eos_id && step != 0) break;
-            std::cout << out_string << std::flush;
+            auto [out_string, out_token] = tokenizer.detokenize(result[0]);
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { break; }
+            std::cout << output_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");

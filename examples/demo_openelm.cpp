@@ -40,30 +40,8 @@ int main(int argc, char **argv) {
         "Please introduce Beijing University of Posts and Telecommunications.",
     };
 
-    auto processOutput = [&](std::string &text, unsigned int &out_token) -> std::pair<bool, std::string> {
-        size_t pos = 0;
-        std::string from = "▁";
-        std::string to = " ";
-        while ((pos = text.find(from, pos)) != std::string::npos) {
-            text.replace(pos, from.length(), to);
-            pos += to.length();
-        }
-        if (out_token == 2) return {false, ""};
-        return {true, text};
-    };
-
-    auto addSystemPrompt = [](const std::string &text) -> std::string {
-        std::string ret;
-        std::string pre =
-            "<s>[INST] ";
-        ret = pre + text;
-        std::string end = " [/INST]";
-        ret = ret + end;
-        return ret;
-    };
-
     for (int i = 0; i < in_strs.size(); ++i) {
-        auto input_str = addSystemPrompt(in_strs[i]);
+        auto input_str = tokenizer.apply_chat_template(in_strs[i]);
         auto input_tensor = tokenizer.tokenize(input_str);
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
@@ -77,12 +55,9 @@ int main(int argc, char **argv) {
         };
         model.generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
             auto out_string = tokenizer.detokenize({out_token});
-            auto [isOk, print_string] = processOutput(out_string, out_token);
-            if (isOk) {
-                std::cout << print_string << std::flush;
-            } else {
-                return false;
-            }
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { return false; }
+            std::cout << output_string << std::flush;
             return true;
         });
         std::cout << "\n";

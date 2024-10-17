@@ -6,14 +6,12 @@
 #define PROCESSING_IMAGEBIND_HPP
 #include <utility>
 
-#include "processor/ClipPreProcess.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
+#include "models/clip/processing_clip.hpp"
 
 using namespace mllm;
 
-class ImagebindProcessor final {
-    BPETokenizer *tokenizer;
-    ClipPreProcessor *clip_processor;
+class ImagebindProcessor final : public ClipProcessor {
     static Tensor tokens2Input(vector<vector<token_id_t>> tokens, int max_pos, string name = "input", BackendType type = MLLM_CPU) {
         const auto bsize = static_cast<int>(tokens.size());
         Tensor tensor1(bsize, 1, max_pos, 1, Backend::global_backends[type], true);
@@ -22,9 +20,9 @@ class ImagebindProcessor final {
         tensor1.setTtype(INPUT_TENSOR);
         for (int b = 0; b < bsize; ++b) {
             for (int idx = 0; idx < max_pos; ++idx) {
-                if(idx < tokens[b].size()) {
+                if (idx < tokens[b].size()) {
                     tensor1.setDataAt<float>(b, 0, idx, 0, tokens[b][idx]);
-                }else{
+                } else {
                     tensor1.setDataAt<float>(b, 0, idx, 0, 0);
                 }
             }
@@ -82,45 +80,28 @@ class ImagebindProcessor final {
         return tensor1;
     }
 
-    std::string toLowercase(const std::string& input) {
+    std::string toLowercase(const std::string &input) {
         std::string output = input;
         std::transform(output.begin(), output.end(), output.begin(),
-                       [](unsigned char c){ return std::tolower(c); });
+                       [](unsigned char c) { return std::tolower(c); });
         return output;
     }
 
 public:
-    explicit ImagebindProcessor(const string &vocab_path, const string &merges_path) {
+    explicit ImagebindProcessor(const string &vocab_path, const string &merges_path) :
+        ClipProcessor(vocab_path, merges_path) {
         Module::initBackend(MLLM_CPU);
-        tokenizer = new BPETokenizer(vocab_path);
-        std::unordered_map<string, unsigned> merge_rank;
-        auto merge_file = std::ifstream(merges_path);
-        std::string line;
-        unsigned rank = 0;
-        while (std::getline(merge_file, line)) {
-            if (line.empty()) {
-                continue;
-            }
-            if (line[0] == '#') {
-                continue;
-            }
-            merge_rank[line] = rank;
-            rank++;
-        }
-        tokenizer->setMergeRank(merge_rank);
-        tokenizer->setSpecialToken("<|startoftext|>", "<|endoftext|>");
-        clip_processor = new ClipPreProcessor(tokenizer);
     }
 
-    struct imagebind_out{
+    struct imagebind_out {
         Tensor text_tensors;
         Tensor img_tensors;
         Tensor audio_tensors;
         vector<int> in_len;
     };
     imagebind_out process(vector<string> in_strs, int max_pos, vector<string> img_path, int hw, vector<string> wav_path,
-                                                       string text_name = "input_text", string img_name = "input_vision", string wav_name = "input_audio",
-                                                       BackendType type = MLLM_CPU) {
+                          string text_name = "input_text", string img_name = "input_vision", string wav_name = "input_audio",
+                          BackendType type = MLLM_CPU) {
         auto tokens_ids = vector<vector<token_id_t>>();
         for (auto in_str : in_strs) {
             in_str = toLowercase(in_str);
@@ -128,29 +109,29 @@ public:
             tokenizer->tokenize(in_str, tokens_id, true, true, "</w>");
             tokens_ids.push_back(tokens_id);
         }
-        vector<int> input_text_lens ={};
+        vector<int> input_text_lens = {};
         for (auto tokens_id : tokens_ids) {
             input_text_lens.push_back(tokens_id.size() - 1);
         }
 
-        clip_processor->PreProcessImages(img_path, hw, hw);
-        auto images = clip_processor->pixel_values_;
+        PreProcessImages(img_path, hw, hw);
+        auto images = pixel_values_;
 
         auto audios = PreProcessor::ProcessAudio(std::move(wav_path));
 
         return {tokens2Input(tokens_ids, max_pos, std::move(text_name)),
-                 img2Tensor(images, std::move(img_name)),
-                 audio2Tensor(audios, std::move(wav_name)), input_text_lens};
+                img2Tensor(images, std::move(img_name)),
+                audio2Tensor(audios, std::move(wav_name)), input_text_lens};
     }
 
-    void showResult(Tensor& tensor){
+    void showResult(Tensor &tensor) {
         // std::cout<<"vision X text :"<<std::endl;
         // std::cout<<std::endl;
         for (int s = 0; s < tensor.sequence(); ++s) {
             for (int d = 0; d < tensor.dimension(); ++d) {
-                std::cout<<tensor.dataAt<float>(0, 0, s, d)<<" ";
+                std::cout << tensor.dataAt<float>(0, 0, s, d) << " ";
             }
-            std::cout<<std::endl;
+            std::cout << std::endl;
         }
         // std::cout<<"vision X audio :"<<std::endl;
         // for (int s = 0; s < tensor.sequence(); ++s) {
@@ -163,11 +144,10 @@ public:
     void showResult(vector<Tensor> tensors) {
         vector<string> shows = {"vision X text :", "vision X audio :"};
         for (int i = 0; i < tensors.size(); ++i) {
-            std::cout<<shows[i]<<std::endl;
+            std::cout << shows[i] << std::endl;
             showResult(tensors[i]);
         }
     }
-
 };
 
 #endif // PROCESSING_IMAGEBIND_HPP
