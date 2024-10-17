@@ -131,7 +131,7 @@ ErrorCode QNNLinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
 
     output_scale = roundf(output_scale * 100000) / 100000;
 
-    memcpy(outputs[0]->hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->batch() * inputs[2]->head() * inputs[2]->sequence() * inputs[2]->dimension() * sizeof(float));
+    memcpy(outputs[0]->hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->cntSize());
 
     // input outliers
     if (!input_clip) {

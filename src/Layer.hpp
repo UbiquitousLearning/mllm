@@ -52,6 +52,11 @@ public:
         return ts[0].get();
     }
 
+    Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2) {
+        auto ts = run({input0, input1, input2}, 1);
+        return ts[0].get();
+    }
+
 private:
     std::string name_num_to_X(const std::string &input_string) {
         std::regex pattern(R"(\.\d{1,3}\.)"); // Matches any number between 1 and 100 between two dots
@@ -317,6 +322,21 @@ public:
     }
 };
 
+class ShadowLinear final : public Layer {
+public:
+    ShadowLinear() = default;
+    explicit ShadowLinear(int in_features, int out_features, bool bias, std::string name) {
+        param_["in_features"] = in_features;
+        param_["out_features"] = out_features;
+        param_["bias"] = (float)bias;
+        init(std::move(name), OpType::LINEARINT8SHADOW);
+    }
+    Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2) {
+        auto ts = run({input0, input1, input2}, 1);
+        return ts[0].get();
+    }
+};
+
 class SiLU final : public Layer {
 public:
     SiLU() = default;
@@ -517,7 +537,7 @@ public:
     explicit KVCache(int n_rep, int cache_max, std::string name, bool npuEnbaled) {
         param_["n_rep"] = n_rep;
         param_["cache_max"] = cache_max;
-        if(npuEnbaled) {
+        if (npuEnbaled) {
             init(std::move(name), OpType::KVCACHENPU);
         } else {
             init(std::move(name), OpType::KVCACHE);
