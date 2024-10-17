@@ -111,3 +111,19 @@ target_link_libraries(
         MLLM_CPU
         MllmXnnpackBackend
 )
+
+add_executable(
+        XpKVCacheTest
+        XpKVCacheTest.cpp
+        ${DIR_SRC_CPU} 
+        ${DIR_SRC_MEM_MANAGER} 
+        ${DIR_SRC_EXP} 
+        ${DIR_SRC} 
+)
+target_link_libraries(
+        XpKVCacheTest
+        PUBLIC
+        GTest::gtest_main
+        MLLM_CPU
+        MllmXnnpackBackend
+)

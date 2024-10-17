@@ -21,6 +21,7 @@
 #include "backends/xnnpack/Ops/XpTranspose.hpp"
 #include "backends/xnnpack/Functions/XpTransposeFunc.hpp"
 #include "backends/xnnpack/Ops/XpRMSNorm.hpp"
+#include "backends/xnnpack/Ops/XpKVCache.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
@@ -140,7 +141,7 @@ XnnpackBackend::XnnpackBackend(std::shared_ptr<MemoryManager> mm, const XnnpackB
     model_runtime_ = std::make_shared<XnnpackModelRuntime>(opts_.num_threads);
 
     // subgraph
-    createSubgraph(16);
+    createSubgraph();
 
     // register ops
     type_ = BackendType::MLLM_XNNPACK;
@@ -204,6 +205,7 @@ void XnnpackBackend::registerOps() {
     addCreator(SILU, new XpSiLUCreator());
     addCreator(TRANSPOSE, new XpTransposeCreator());
     addCreator(RMSNORM, new XpRMSNormCreator());
+    addCreator(XP_KVCACHE, new XpKVCacheCreator());
 }
 
 void XnnpackBackend::registerFuncs() {

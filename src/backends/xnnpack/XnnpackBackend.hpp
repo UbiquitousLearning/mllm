@@ -80,9 +80,9 @@ public:
 
     xnn_subgraph_t getXnnSubgraph();
 
-    void createSubgraph(int32_t external_nums = 16);
+    void createSubgraph(int32_t external_nums = 256);
 
-    void recreateSubgraph(int32_t external_nums = 16);
+    void recreateSubgraph(int32_t external_nums = 256);
 
     void registerExternalValue(uint32_t uuid, const xnn_external_value &ext_v);
 

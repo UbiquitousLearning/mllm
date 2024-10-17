@@ -69,6 +69,7 @@ enum OpType {
     SUBGRAPHSTART,
     SUBGRAPHFINALIZE,
     D2H,
+    XP_KVCACHE,
 };
 
 static const vector<string> OpNames = {
@@ -132,6 +133,7 @@ static const vector<string> OpNames = {
     "SubgraphStart",
     "SubgraphFinalize",
     "D2H",
+    "XP_KVCACHE",
 };
 
 enum TensorFuncType {

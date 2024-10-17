@@ -9,7 +9,7 @@ ErrorCode XpSubGraphFinalize::setUp(vector<shared_ptr<Tensor>> inputs, vector<sh
 
 ErrorCode XpSubGraphFinalize::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xpb = (XnnpackBackend *)(this->backend());
-    xpb->recreateSubgraph(16);
+    xpb->recreateSubgraph();
     return MLLM_NO_ERROR;
 }
 

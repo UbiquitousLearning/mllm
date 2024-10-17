@@ -753,6 +753,20 @@ public:
     }
 };
 
+class XP_KVCache final : public Layer {
+public:
+    explicit XP_KVCache(int n_rep, int cache_max, std::string name) {
+        param_["n_rep"] = (float)n_rep;
+        param_["cache_max"] = (float)cache_max;
+        init(std::move(name), OpType::XP_KVCACHE);
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
 } // namespace mllm
 
 #endif // OPERATION_H

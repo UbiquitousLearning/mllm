@@ -173,6 +173,39 @@ struct XpTensorDefineInterface {
             exit(-1);
         }
     }
+
+    uint32_t defineKVCacheTensorAsExternalOutput(XnnpackBackend *xpb, Tensor *t, size_t offset, const std::vector<size_t> &dims) {
+        Log::error("The function defineKVCacheTensorAsExternalOutput is deprecated!!!");
+        exit(-1);
+
+        auto xp_dtype = XnnpackBackend::mllmDType2XnnDType(t->dtype());
+
+        uint32_t flags = XNN_VALUE_FLAG_EXTERNAL_OUTPUT;
+        uint32_t external_id = xpb->getNewEXternalId();
+
+        uint32_t uuid;
+        xnn_status status;
+
+        switch (xp_dtype) {
+        case xnn_datatype_fp32: {
+            status = xnn_define_tensor_value(
+                xpb->getXnnSubgraph(), xp_dtype,
+                dims.size(), dims.data(),
+                /*data=*/nullptr,
+                external_id, flags, &uuid);
+            xpb->registerExternalValue(uuid, xnn_external_value{.id = uuid, .data = t->hostPtr<float>() + offset});
+        }
+        default:
+            break;
+        }
+
+        if (status != xnn_status_success) {
+            Log::error("xnnpack backend defineKVCacheTensorAsExternalOutput Error");
+            exit(-1);
+        }
+
+        xpb->registerUuidTensor(uuid, t);
+    }
 };
 
 } // namespace mllm::xnnpack
