@@ -26,7 +26,7 @@ public:
         tokenizer = new BPETokenizer(vocab_file);
         bos_ = bos;
     }
-    Tensor tokenize(std::string &text, int str_i = 0) const {
+    Tensor tokenize(std::string &text) const {
         auto tokens_id = vector<token_id_t>();
         tokenizer->tokenize(text, tokens_id, bos_);
         return BPETokenizer::tokens2Input(tokens_id);

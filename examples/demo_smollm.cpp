@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto input_str = addSystemPrompt(in_strs[i]);
-        auto input_tensor = tokenizer.tokenize(input_str, i);
+        auto input_tensor = tokenizer.tokenize(input_str);
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
 

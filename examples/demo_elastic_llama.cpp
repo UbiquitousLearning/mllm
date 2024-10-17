@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto in_str = in_strs[i];
-        auto input_tensor = tokenizer.tokenize(in_str, i);
+        auto input_tensor = tokenizer.tokenize(in_str);
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {

@@ -46,15 +46,10 @@ public:
         tokenizer->setMergeRank(merge_rank);
         tokenizer->setSpecialToken("<|endoftext|>", "<|endoftext|>", "<|endoftext|>");
     }
-    Tensor tokenize(std::string &text, int str_i = 0) const {
-        // if (text[0] != ' ') {
-        //     text = ' ' + text;
-        // }
+    Tensor tokenize(std::string &text) const {
         text = Tokenizer::replaceString(text, ' ', "Ġ");
         std::vector<token_id_t> tokens_id;
         tokenizer->tokenize(text, tokens_id, false);
-        // tokens_id.erase(tokens_id.begin());
-        // tokens_id.pop_back();
         return BPETokenizer::tokens2Input(tokens_id);
     }
 

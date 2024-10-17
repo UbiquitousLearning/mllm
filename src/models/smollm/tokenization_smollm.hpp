@@ -162,7 +162,7 @@ public:
         return result;
     }
 
-    Tensor tokenize(std::string &text, int str_i = 0) {
+    Tensor tokenize(std::string &text) {
         std::vector<token_id_t> ret;
 
         if (split_special_tokens_) {

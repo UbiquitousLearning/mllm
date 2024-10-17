@@ -34,7 +34,7 @@ public:
         tokenizer->setSpecialToken("<unk>", "<s>", "</s>");
     }
 
-    Tensor tokenize(std::string &text, int str_i = 0) const {
+    Tensor tokenize(std::string &text) const {
         auto new_text = " " + text;
         new_text = std::regex_replace(new_text, std::regex(" "), "▁");
 

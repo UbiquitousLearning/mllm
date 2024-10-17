@@ -41,7 +41,7 @@ public:
         tokenizer->setSpecialToken("</s>", "");
     }
 
-    Tensor tokenize(std::string &text, int str_i = 0) const {
+    Tensor tokenize(std::string &text) const {
         if (text[0] != ' ') {
             text = ' ' + text;
         }

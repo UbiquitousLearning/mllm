@@ -31,7 +31,7 @@ public:
         delete tokenizer;
     }
 
-    Tensor tokenize(std::string &text, int str_i = 0) const {
+    Tensor tokenize(std::string &text) const {
         // replace all blanck to '_'
         std::string new_text = BPETokenizer::replaceString(text, ' ', "▁");
 

@@ -31,15 +31,15 @@ int main(int argc, char **argv) {
     model.load(model_path);
 
     vector<string> in_strs = {
-        " Hello, who are you?",
-        " What can you do?",
+        "Hello, who are you?",
+        "What can you do?",
         "Please introduce Beijing University of Posts and Telecommunications."};
 
     for (int i = 0; i < in_strs.size(); ++i) {
         const auto &in_str_origin = in_strs[i];
         auto in_str = system_prompt_start + in_str_origin + system_prompt_end;
         std::cout << "[Q] " << in_str_origin << std::endl;
-        auto input_tensor = tokenizer.tokenize(in_str, i);
+        auto input_tensor = tokenizer.tokenize(in_str);
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
             auto result = model({input_tensor});

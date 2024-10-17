@@ -28,7 +28,7 @@ public:
         delete tokenizer;
     }
 
-    Tensor tokenize(std::string &text, int str_i = 0) const {
+    Tensor tokenize(std::string &text) const {
         auto newText = token_start + token_user_o + " " + text + token_user_c + token_end;
         auto tokens_id = vector<token_id_t>();
         tokenizer->tokenize(text, tokens_id, false);
