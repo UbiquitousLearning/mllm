@@ -53,7 +53,7 @@ endmacro()
 ## new demos
 
 func_llm_add_executable(benchmark)
-func_llm_add_executable(demo)
+# func_llm_add_executable(demo)
 func_llm_add_executable(demo_llama)
 func_llm_add_executable(demo_tinyllama)
 func_llm_add_executable(demo_stablelm)
