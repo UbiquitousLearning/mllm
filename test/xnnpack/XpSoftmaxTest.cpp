@@ -22,7 +22,7 @@ public:
     }
 };
 
-TEST(XpReLUTest, ReLUModule) {
+TEST(XpSoftmaxTest, SoftmaxModule) {
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::ERROR;
 
     auto model = ::mllm::xnnpack::wrap2xnn<ReLUModule>(1, 1);

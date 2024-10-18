@@ -1,3 +1,4 @@
+#include "Layer.hpp"
 #include "Module.hpp"
 #include "Types.hpp"
 #include "backends/xnnpack/XpWrapper.hpp"
@@ -8,15 +9,18 @@ using namespace mllm;
 
 class KVCacheModule : public Module {
     Layer kvcache_;
+    Layer linear_in_;
 
 public:
     KVCacheModule() {
-        kvcache_ = XP_KVCache(1, 1024, "kvcache");
+        kvcache_ = XP_KVCache(3, 10, "kvcache");
+        linear_in_ = Linear(8, 8, true, "linear");
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = inputs[0];
-        auto out = kvcache_(x);
+        auto out = linear_in_(x);
+        out = kvcache_(out);
         return {out};
     }
 };
@@ -38,6 +42,8 @@ TEST(XpKVCAcheTest, KVCacheModule) {
 
     auto start = std::chrono::high_resolution_clock::now();
     auto out = model({x})[0];
+    out.printData<float>();
+    out = model({x})[0];
     out.printData<float>();
     out = model({x})[0];
     out.printData<float>();

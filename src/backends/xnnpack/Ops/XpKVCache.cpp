@@ -1,5 +1,8 @@
 #include "backends/xnnpack/Ops/XpKVCache.hpp"
+#include "Types.hpp"
 #include "xnnpack.h"
+#include <cassert>
+#include <cstddef>
 
 namespace mllm::xnnpack {
 
@@ -46,48 +49,44 @@ ErrorCode XpKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     size_t d = inputs[0]->dimension();
     auto o_dtype = outputs[0]->dtype();
 
-    for (int i = 0; i < 8; ++i) {
-        Log::error("cache idx={}, number={}", i, *(cache_params_.hostPtr<float>() + i));
-    }
+    // step 1. inputs[0] copy to cache_params_(wrap to external output)
+    {
+        for (int i = 0; i < n_rep_; ++i) {
+            std::array<size_t, 4> new_shape{b, s, h, d};
+            std::array<size_t, 4> offsets{0, (size_t)cache_seq_len_old, i * h, 0};
 
-    // TODO buggy
-    // copy inputs[0] to cache_params_
-    for (int i = 0; i < n_rep_; ++i) {
-        // slice a tensor from cache_param_, but share same memory
-        // SHAPE: [b, s, h, d]
-        // OFFSET: [0, cache_seq_len_old, i * h, 0]
-        std::array<size_t, 4> new_shape{b, s, h, d};
-        std::array<size_t, 4> offsets{0, (size_t)cache_seq_len_old, i * h, 0};
+            auto o1 = defineKVCacheTensorAsExternalOutput(xpb, &cache_params_, cache_params_.offset(0, (int)i * h, cache_seq_len_old, 0), {b, s, h, d});
 
-        uint32_t o1 = 0;
-
-        auto status = xnn_define_tensor_value(
-            xpb->getXnnSubgraph(), xnn_datatype_fp32,
-            new_shape.size(), new_shape.data(),
-            /*data=*/cache_params_.hostPtr<float>() + cache_params_.offset(0, i * (int)h, cache_seq_len_old, 0),
-            XNN_INVALID_VALUE_ID, 0, &o1);
-
-        status = xnn_define_copy(xpb->getXnnSubgraph(), inputs[0]->uuid(), o1, 0);
-        if (status != xnn_status_success) {
-            Log::error("XpKVCache xnn_define_copy from inputs to cache_params_ failed");
-            exit(-1);
+            auto status = xnn_define_copy(xpb->getXnnSubgraph(), inputs[0]->uuid(), o1, 0);
+            if (status != xnn_status_success) {
+                Log::error("xnn_define_copy inputs[0] copy to cache_params_(wrap to external output) failed");
+                exit(-1);
+            }
         }
     }
 
-    // copy cache_params_ to outputs[0]
+    // step 2. cache_params_(sliced) to outputs[0]
     {
-        std::array<size_t, 4> new_shape{b, (size_t)cache_seq_len_old, h * n_rep_, d};
+        std::array<size_t, 4> new_shape{b, (size_t)cache_seq_len_, h * n_rep_, d};
+
+        assert(b == outputs[0]->batch());
+        assert(cache_seq_len_ == outputs[0]->sequence());
+        assert(h * n_rep_ == outputs[0]->head());
+        assert(d == outputs[0]->dimension());
+
         std::array<size_t, 4> offsets{0, 0, 0, 0};
-        auto o1 = defineTemporaryTensor(xpb, {b, (size_t)cache_seq_len_old, h * n_rep_, d}, cache_params_.dtype());
+
+        auto o1 = defineTemporaryTensor(xpb, {b, (size_t)cache_seq_len_, h * n_rep_, d}, cache_params_.dtype());
+
         auto status = xnn_define_static_slice(xpb->getXnnSubgraph(), 4, offsets.data(), new_shape.data(), cache_params_.uuid(), o1, 0);
         if (status != xnn_status_success) {
-            Log::error("XpKVCache xnn_define_static_slice for cache_params_ failed");
+            Log::error("xnn_define_static_slice cache_params_(sliced) copy to outputs[0] failed");
             exit(-1);
         }
 
         status = xnn_define_copy(xpb->getXnnSubgraph(), o1, outputs[0]->uuid(), 0);
         if (status != xnn_status_success) {
-            Log::error("XpKVCache xnn_define_copy from cache_params to outputs failed");
+            Log::error("xnn_define_copy cache_params_(wrap to external inputs) copy to outputs[0] failed");
             exit(-1);
         }
     }

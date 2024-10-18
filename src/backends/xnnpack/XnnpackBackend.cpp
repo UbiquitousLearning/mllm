@@ -335,12 +335,12 @@ void XnnpackBackend::assignPtrToTensor() {
     // update from runtime
     uuid_2_externals_v_ = getModelRuntime()->__uuidToExternalsV();
 
-    for (auto &iter : uuid_2_mllm_tensor_) {
-        auto t = iter.second;
-        auto uuid = iter.first;
-        auto ext_v = uuid_2_externals_v_[uuid];
-        t->forceResetHostPointer(ext_v.data);
-    }
+    // for (auto &iter : uuid_2_mllm_tensor_) {
+    //     auto t = iter.second;
+    //     auto uuid = iter.first;
+    //     auto ext_v = uuid_2_externals_v_[uuid];
+    //     t->forceResetHostPointer(ext_v.data);
+    // }
 
     for (auto &iter : uuid_2_mllm_weight_tensor_) {
         iter.second->uuid() = XNN_INVALID_VALUE_ID;
