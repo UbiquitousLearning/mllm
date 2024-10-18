@@ -38,28 +38,17 @@ int main(int argc, char **argv) {
         "请介绍北京邮电大学，推荐同学们报考。",
     };
 
-    auto processOutput = [&](std::string &text) -> std::pair<bool, std::string> {
-        text = std::regex_replace(text, std::regex("▁"), " ");
-        if (text == "<|endoftext|>" || text == "<|im_end|>") return {false, ""};
-        return {true, text};
-    };
-
     for (int i = 0; i < in_strs.size(); ++i) {
         auto in_str = in_strs[i];
         std::cout << "[Q] " << in_str << std::endl;
-        auto input_tensor = tokenizer.tokenize(in_str, i);
+        auto input_tensor = tokenizer.tokenize(in_str);
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 1000; step++) {
             auto result = model({input_tensor});
-            auto outputs = tokenizer.detokenize(result[0]);
-            auto out_string = outputs.first;
-            auto out_token = outputs.second;
-            auto [isOk, print_string] = processOutput(out_string);
-            if (isOk) {
-                std::cout << print_string << std::flush;
-            } else {
-                break;
-            }
+            auto [out_string, out_token] = tokenizer.detokenize(result[0]);
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { break; }
+            std::cout << output_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");

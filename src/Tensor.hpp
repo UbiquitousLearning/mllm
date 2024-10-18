@@ -825,7 +825,10 @@ public:
     Tensor &norm(int L_n);
     Tensor &where(float value, Chl axis);
     static Tensor &range(int start, int end);
-    static vector<std::reference_wrapper<Tensor>> split(Tensor &input, std::vector<int> each_dims, Chl split_dim, int head_size = -1);
+    static vector<std::reference_wrapper<Tensor>> split(Tensor &input, std::vector<int> each_dims, Chl split_dim, int same_dim_size = -1);
+    vector<std::reference_wrapper<Tensor>> split(std::vector<int> each_dims, Chl split_dim, int same_dim_size = -1) {
+        return split(*this, each_dims, split_dim, same_dim_size);
+    }
 
     /* Functions used for ChildTensor:
      * - deepCopyFrom
@@ -1048,6 +1051,14 @@ public:
             }
             break;
         }
+        case D_DH: {
+            auto sum = 0;
+            for (auto &t : ts) {
+                sum += t->head();
+                aggregated_dims_.push_back(sum);
+            }
+            break;
+        }
         default:
             break;
         }
@@ -1108,7 +1119,7 @@ public:
         }
         return inputs;
     };
-    static vector<Tensor> toCPU(vector<Tensor> inputs){
+    static vector<Tensor> toCPU(vector<Tensor> inputs) {
         return toDevice(inputs, MLLM_CPU);
     }
     static vector<Tensor> toQNN(vector<Tensor> inputs) {
@@ -1685,6 +1696,23 @@ private:
                 d = (orin_d - old_dim * head_size) % dim_size;
                 // std::cout<<tensor_id<<" "<<h<<" "<<d<<" , "<<orin_d<<std::endl;
             }
+            break;
+        }
+        case D_DH: {
+            auto orin_d = d;
+            int dim_size = aggregated_tensors_[0]->dimension();
+            int total_head_idx = d / dim_size;
+            d = d % dim_size;
+            int old_head_idx = 0;
+            for (int a = 0; a < aggregated_dims_.size(); ++a) {
+                old_head_idx += aggregated_dims_[a];
+                if (total_head_idx < old_head_idx) {
+                    tensor_id = a;
+                    old_head_idx -= aggregated_dims_[a];
+                    break;
+                }
+            }
+            h = total_head_idx - old_head_idx;
             break;
         }
         default:

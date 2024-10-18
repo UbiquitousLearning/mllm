@@ -48,10 +48,12 @@ int main(int argc, char **argv) {
             auto outputs = processor.detokenize(result[0]);
             auto out_string = outputs.first;
             auto out_token = outputs.second;
-            if (out_token == 2) {
+            auto [isOk, print_string] = processor.postprocess(out_string);
+            if (isOk) {
+                std::cout << print_string << std::flush;
+            } else {
                 break;
             }
-            std::cout << out_string << std::flush;
             chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1]});
         }
         printf("\n");

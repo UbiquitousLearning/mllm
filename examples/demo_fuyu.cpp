@@ -51,10 +51,9 @@ int main(int argc, char **argv) {
             auto outputs = processor.detokenize(result[0]);
             auto out_string = outputs.first;
             auto out_token = outputs.second;
-            if (out_token == 71013) {
-                break;
-            }
-            std::cout << out_string << std::flush;
+            auto [end, string] = processor.postprocess(out_string);
+            if (!end) { break; }
+            std::cout << string << std::flush;
             chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
         }
         printf("\n");

@@ -317,7 +317,7 @@ Tensor &Tensor::range(int start, int end) {
 }
 
 vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<int> each_dims,
-                                                     Chl split_dim, int head_size) {
+                                                     Chl split_dim, int same_dim_size) {
     vector<std::string> next_names;
     std::vector<float> args;
     for (int i = 0; i < each_dims.size(); ++i) {
@@ -327,7 +327,7 @@ vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<
         next_names.push_back(input.name() + ".split-" + std::to_string(i));
     }
     args.push_back(split_dim);
-    args.push_back(head_size);
+    args.push_back(same_dim_size);
     return getStaticFunc(next_names, FUNC_SPLIT, args, {Tensor::graphs[input.name()].get()});
 }
 

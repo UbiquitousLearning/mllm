@@ -3,7 +3,8 @@
 //
 
 #include "ClipPreProcess.hpp"
-#ifndef  STB_IMAGE_IMPLEMENTATION
+#include <cstdlib>
+#ifndef STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
 #endif
@@ -36,8 +37,7 @@ void ClipPreProcessor::PreProcessImages(const std::vector<uint8_t *> &images, co
         imageinfos.emplace_back(ImageInfo(f32_data, width, height, channels));
     }
     if (do_resize_) {
-
-        imageinfos = PreProcessor::ResizeImages(imageinfos, height_, width_, false,true,shortest);
+        imageinfos = PreProcessor::ResizeImages(imageinfos, height_, width_, false, true, shortest);
     }
     // std::cout<<imageinfos[0].height<< imageinfos[0].width <<std::endl;
     // Use height_ or crop_size?
@@ -46,7 +46,7 @@ void ClipPreProcessor::PreProcessImages(const std::vector<uint8_t *> &images, co
     if (do_normalize_) {
         imageinfos = PreProcessor::NormalizeImages(imageinfos, mean_, std_);
     }
-    //todo: Optimize this!
+    // todo: Optimize this!
     for (auto &imageinfo : imageinfos) {
         auto pixel_values = vector<vector<vector<float>>>();
         for (int k = 0; k < imageinfo.channels; k++) {
@@ -87,11 +87,10 @@ void ClipPreProcessor::PreProcessImages(const std::vector<std::string> &images_p
     PreProcessImages(image_data, image_length);
 }
 
-
-void ClipPreProcessor::Img2Tensor(Backend *bn, shared_ptr<Tensor> input_tensor,vector<vector<vector<float>>> img) {
+void ClipPreProcessor::Img2Tensor(Backend *bn, shared_ptr<Tensor> input_tensor, vector<vector<vector<float>>> img) {
     int channel = img.size();
     int height = img[0].size();
-    int width= img[0][0].size();
+    int width = img[0][0].size();
     input_tensor->setBackend(bn);
     input_tensor->reshape(1, height, channel, width);
     input_tensor->setDtype(MLLM_TYPE_F32);
@@ -105,5 +104,35 @@ void ClipPreProcessor::Img2Tensor(Backend *bn, shared_ptr<Tensor> input_tensor,v
     }
 }
 
+// vector<Tensor> ClipPreProcessor::process(std::string &text, vector<string> image) {
+//     // auto tokens_ids = vector<vector<token_id_t>>();
+//     // for (auto in_str : text) {
+//     //     vector<mllm::token_id_t> tokens_id = {};
+//     //     tokenizer_->tokenize(in_str, tokens_id, true, true, "</w>");
+//     //     tokens_ids.push_back(tokens_id);
+//     // }
+//     // this->PreProcessImages({std::move(image)}, 224, 224);
+//     // auto images = this->pixel_values_[0];
 
-}
+//     // return {Tokenizer::tokens2Input(tokens_ids), img2Tensor(images, std::move("input_vision"))};
+//     std::cout << "TODO clip::process" << std::endl;
+//     exit(-1);
+//     return {};
+// }
+// std::pair<std::string, unsigned> ClipPreProcessor::detokenize(Tensor &result) {
+//     return tokenizer_->detokenize(result);
+// }
+
+// std::pair<bool, std::string> ClipPreProcessor::postprocess(std::string &text) {
+//     // size_t pos = 0;
+//     // std::string from = "▁";
+//     // std::string to = " ";
+//     // while ((pos = text.find(from, pos)) != std::string::npos) {
+//     //     text.replace(pos, from.length(), to);
+//     //     pos += to.length();
+//     // }
+//     // if (text == "|ENDOFTEXT|") return {false, ""};
+//     return {true, text};
+// }
+
+} // namespace mllm

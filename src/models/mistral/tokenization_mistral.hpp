@@ -12,34 +12,31 @@
 #define TOKENIZATION_MISTRAL_HPP
 
 #include "tokenizers/BPE/Bpe.hpp"
-#include <algorithm>
 #include <regex>
 
 using namespace mllm;
 
-class MistralTokenizer final {
+class MistralTokenizer final : public BPETokenizer {
 public:
-    explicit MistralTokenizer(const std::string &vocab_file) {
+    explicit MistralTokenizer(const std::string &vocab_file) :
+        BPETokenizer(vocab_file) {
         Module::initBackend(MLLM_CPU);
-        tokenizer = new BPETokenizer(vocab_file);
+        chat_template_pre = "<s>[INST] ";
+        chat_template_end = " [/INST]";
     }
 
-    ~MistralTokenizer() {
-        delete tokenizer;
-    }
-
-    Tensor tokenize(std::string &text, int str_i = 0) const {
+    Tensor tokenize(std::string &text) override {
         auto newText = token_start + token_user_o + " " + text + token_user_c + token_end;
         auto tokens_id = vector<token_id_t>();
-        tokenizer->tokenize(text, tokens_id, false);
+        BPETokenizer::tokenize(text, tokens_id, false);
         return BPETokenizer::tokens2Input(tokens_id);
     }
 
-    std::string detokenize(const std::vector<token_id_t> &tokens) {
-        return tokenizer->detokenize(tokens);
+    std::string detokenize(const std::vector<token_id_t> &tokens) override {
+        return BPETokenizer::detokenize(tokens);
     }
 
-    std::pair<std::string, unsigned> detokenize(Tensor &result) {
+    std::pair<std::string, unsigned> detokenize(Tensor &result) override {
         assert(result.batch() == 1 && "Batch size of result is not 1. Which is not supported for now.");
         assert(result.head() == 1 && "The 3rd dim of result should be one. e.g.:[1, 1, seq, hidden]");
         std::vector<float> scores;
@@ -50,19 +47,15 @@ public:
             scores.push_back(value);
         }
         auto token_idx = this->argmax(scores);
-        auto text = tokenizer->detokenize({token_idx});
+        auto text = BPETokenizer::detokenize({token_idx});
         return make_pair(text, token_idx);
     }
-
-private:
-    unsigned int argmax(const std::vector<float> &scores) {
-        if (scores.empty()) {
-            throw std::invalid_argument("Input vector is empty");
-        }
-        return std::max_element(scores.begin(), scores.end()) - scores.begin();
+    std::pair<bool, std::string> postprocess(std::string &text) override {
+        text = std::regex_replace(text, std::regex("▁"), " ");
+        if (text == "<0x0A>") return {true, "\n"};
+        if (text == "</s>") return {false, ""};
+        return {true, text};
     }
-
-    BPETokenizer *tokenizer;
 
 public:
     token_id_t eos_id = 2, bos_id = 1;
