@@ -1,15 +1,28 @@
-#ifndef TOKENIZATION_OPT_HPP
-#define TOKENIZATION_OPT_HPP
+/**
+ * @file tokenization_dclm.hpp
+ * @author chenghua Wang (chenghua.wang.edu@gmail.com)
+ * @version 0.1
+ * @date 2024-09-26
+ *
+ * @copyright Copyright (c) 2024
+ *
+ */
+#ifndef TOKENIZATION_DCLM_HPP
+#define TOKENIZATION_DCLM_HPP
 
 #include "tokenizers/BPE/Bpe.hpp"
+#include "tokenizers/Tokenizer.hpp"
+#include <algorithm>
 
 using namespace mllm;
 
-class OPTTokenizer final : public BPETokenizer {
+using namespace mllm;
+
+class DCLMTokenizer final : public BPETokenizer {
     std::unordered_map<std::string, unsigned> merge_rank;
 
 public:
-    explicit OPTTokenizer(const std::string &vocab_file, const std::string &merge_file) :
+    explicit DCLMTokenizer(const std::string &vocab_file, const std::string &merge_file) :
         BPETokenizer(vocab_file) {
         Module::initBackend(MLLM_CPU);
         std::ifstream merge(merge_file);
@@ -22,19 +35,12 @@ public:
             merge_rank[line] = rank++;
         }
         BPETokenizer::setMergeRank(merge_rank);
-        BPETokenizer::setSpecialToken("</s>", "");
+        BPETokenizer::setSpecialToken("<|endoftext|>", "<|endoftext|>", "<|endoftext|>");
     }
-
     Tensor tokenize(std::string &text) override {
-        if (text[0] != ' ') {
-            text = ' ' + text;
-        }
         text = Tokenizer::replaceString(text, ' ', "Ġ");
         std::vector<token_id_t> tokens_id;
-        BPETokenizer::tokenize(text, tokens_id, true);
-
-        tokens_id.pop_back();
-
+        BPETokenizer::tokenize(text, tokens_id, false);
         return BPETokenizer::tokens2Input(tokens_id);
     }
 
@@ -43,8 +49,9 @@ public:
     }
 
     std::pair<std::string, unsigned> detokenize(Tensor &result) override {
-        assert(result.batch() == 1 && result.head() == 1);
-        std::vector<float> scores;
+        assert(result.batch() == 1);
+        assert(result.head() == 1);
+        vector<float> scores;
         for (int i = 0; i < result.dimension(); ++i) {
             auto value = result.dataAt<float>(0, 0, result.sequence() - 1, i);
             scores.push_back(value);
@@ -52,18 +59,19 @@ public:
         auto token_idx = this->argmax(scores);
         return {BPETokenizer::detokenize({token_idx}), token_idx};
     }
+
     std::pair<bool, std::string> postprocess(std::string &text) override {
         size_t pos = 0;
         while ((pos = text.find("Ċ", pos)) != std::string::npos) {
             text.replace(pos, 2, " ");
+            break;
         }
         pos = 0;
         while ((pos = text.find("Ġ", pos)) != std::string::npos) {
             text.replace(pos, 2, " ");
         }
-        if (text == "</s>") return {false, ""};
         return {true, text};
     }
 };
 
-#endif // TOKENIZATION_OPT_HPP
+#endif //! TOKENIZATION_DCLM_HPP
