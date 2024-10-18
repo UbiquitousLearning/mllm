@@ -46,16 +46,9 @@ jobs:
           PR_NUMBER: ${{ github.event.number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          working-directory: bin
+          working-directory: scripts
           run: |
-            for file in *Test *TEST; do
-              if [ -x "$file" ]; then
-                echo "Running $file..."
-                "$file" --gtest_output=json
-              else
-                echo "Skipping non-executable $file..."
-              fi
-            done
+            bash run_test.sh
           post: |
             COMMIT_MESSAGE="$(git show -s --format=%s)" python3 ../tools/ci/report.py
           
