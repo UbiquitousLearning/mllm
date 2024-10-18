@@ -72,6 +72,7 @@ void QNNBackend::registerOps() {
     addCreator(LINEARINT8, (QNNBackend::Creator *)(new QNNLinearINT8Creator()));
     addCreator(MUL, (QNNBackend::Creator *)(new QNNMulCreator()));
     addCreator(VIEW, (QNNBackend::Creator *)(new QNNViewCreator()));
+    addCreator(NPUVIEW, (QNNBackend::Creator *)(new QNNNPUViewCreator()));
     addCreator(RELU, (QNNBackend::Creator *)(new QNNReLUCreator()));
     addCreator(OP_GELU, (QNNBackend::Creator *)(new QNNGELUCreator()));
     addCreator(QUANTIZE, (QNNBackend::Creator *)(new QNNQuantizeCreator()));

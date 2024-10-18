@@ -408,7 +408,7 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
     bool reshape = false;
 
     // input will be split into chunks and execute in pipeline
-    const int chunk_size = 128;
+    const int chunk_size = 256;
     int chunk_num = (input_tensors[0]->sequence() + chunk_size - 1) / chunk_size;
     // create a new tensor for each chunk
     vector<vector<shared_ptr<Tensor>>> chunked_tensors_list(chunk_num, vector<shared_ptr<Tensor>>(input_tensors.size()));
