@@ -241,6 +241,9 @@ public:
     void setNoLoadWeightsDtype(DataType dtype) {
         Op::noLoadWeightsDtype() = dtype;
     }
+    virtual void clear_kvcache() {
+        ;
+    }
 
     vector<double> profiling(string name = "") {
         vector<double> output;

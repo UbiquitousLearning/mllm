@@ -23,7 +23,7 @@ public:
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = gate_proj(inputs[0]);
         x = silu(x);
-        auto y = up_proj(inputs[0]); //ERROR
+        auto y = up_proj(inputs[0]); // ERROR
         x = x * y;
         x = down_proj(x);
         return {x};
@@ -41,10 +41,10 @@ class MiniCPMDecoder final : public Module {
 public:
     MiniCPMDecoder() = default;
     MiniCPMDecoder(const MiniCPMConfig &config, const MiniCPMNameConfig &names, const string &base_name) {
-        self_atten = MultiHeadAttention(config.hidden_size, config.num_attention_heads, config.num_key_value_heads, 
+        self_atten = MultiHeadAttention(config.hidden_size, config.num_attention_heads, config.num_key_value_heads,
                                         config.hidden_size / config.num_attention_heads, SPLIT_NONE, false, false,
-                                       config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit, 
-                                       true, false, names, base_name + names._attn_base_name);   
+                                        config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit,
+                                        true, false, names, base_name + names._attn_base_name);
         mlp = MiniCPMMLP(config.hidden_size, config.intermediate_size, names, base_name + names._ffn_base_name);
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
         post_attention_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
@@ -61,7 +61,7 @@ public:
         hidden_states = hidden_states * (scale_depth / std::sqrt(num_hidden_layers)) + tmp;
         return {hidden_states};
     }
-    
+
     MultiHeadAttention &get_attention() {
         return self_atten;
     }
@@ -82,7 +82,7 @@ public:
         blocks = List<MiniCPMDecoder>(config.num_hidden_layers, config, names, base_name);
         norm = RMSNorm(config.hidden_size, config.rms_norm_eps, names.post_norm_name);
     }
-    //receive embeds
+    // receive embeds
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto hidden_states = inputs[0];
         for (auto &block : blocks) {
@@ -92,7 +92,7 @@ public:
         return {hidden_states};
     }
 
-    void clear_kvcache() {
+    void clear_kvcache() override {
         for (auto &block : blocks) {
             auto kvcahce = block.get_attention().get_cache();
             for (auto &cache : kvcahce) {
@@ -100,6 +100,7 @@ public:
             }
         }
     }
+
 private:
     std::vector<MiniCPMDecoder> blocks;
     Layer norm;
@@ -118,13 +119,13 @@ public:
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        auto x = embedding(inputs[0])*scale_emb;
+        auto x = embedding(inputs[0]) * scale_emb;
         auto outputs = model({x})[0];
-        outputs = outputs/(hidden_size / dim_model_base);
+        outputs = outputs / (hidden_size / dim_model_base);
         outputs = Tensor::mm(outputs, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         return {outputs};
     }
-    void clear_kvcache() {
+    void clear_kvcache() override {
         model.clear_kvcache();
     }
 
