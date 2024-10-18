@@ -193,6 +193,13 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
             scale_type_name = ".input_scale";
         }
 
+        wordToRemove = ".post_attention_layernorm";
+        pos = scaleName.find(wordToRemove);
+        if (pos != -1) {
+            scaleName.erase(pos, wordToRemove.length());
+            scale_type_name = ".mlp.up_proj.input_scale";
+        }
+
         scale_.setName(scaleName + scale_type_name);
         scale_.reshape(1, 1, 1, 1);
         scale_.setDtype(MLLM_TYPE_F32);

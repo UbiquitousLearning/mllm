@@ -140,7 +140,10 @@ int main(int argc, char **argv) {
 
         do {
             // 1: Prefill stage using NPU chunk execute
-            npuExe.run(npu_ctx, &npuNet, {input});
+            if (chunk == 1)
+                npuExe.run(npu_ctx, &npuNet, {input});
+            else
+                npuExe.runExp(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
 
             // inter model for prefill-decode
