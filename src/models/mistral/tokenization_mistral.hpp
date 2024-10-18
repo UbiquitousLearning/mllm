@@ -21,6 +21,8 @@ public:
     explicit MistralTokenizer(const std::string &vocab_file) :
         BPETokenizer(vocab_file) {
         Module::initBackend(MLLM_CPU);
+        chat_template_pre = "<s>[INST] ";
+        chat_template_end = " [/INST]";
     }
 
     Tensor tokenize(std::string &text) override {

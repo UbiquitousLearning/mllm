@@ -62,6 +62,7 @@ public:
         while ((pos = text.find("Ġ", pos)) != std::string::npos) {
             text.replace(pos, 2, " ");
         }
+        if (text == "<|im_end|>") return {false, ""};
         if (text == "<|endoftext|>") return {false, ""};
         return {true, text};
     }
