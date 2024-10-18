@@ -183,6 +183,7 @@ protected:
                             layername_2_tensorname[layer_next_name] = layer_next_name;
 #else
                             layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+#endif
                         }
                     }
                     next_name = layername_2_tensorname[layer_next_name];
