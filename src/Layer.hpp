@@ -11,6 +11,7 @@
 #include <memory>
 #include <utility>
 
+#include "OpDefined.hpp"
 #include "Tensor.hpp"
 #include "Op.hpp"
 #include "ParamLoader.hpp"
@@ -112,7 +113,26 @@ private:
 protected:
     bool init_run() {
         if (op_ == nullptr) {
+#ifdef USE_QNN
+            if (param_["type"] == KVCACHE || param_["type"] == KVCACHENPU) {
+                if (kv_cache_map.find(name_) == kv_cache_map.end()) {
+                    // for the prefill part, we need to create a new op
+                    param_["type"] = KVCACHENPU;
+                    op_ = backend_->opCreate(param_, name_);
+                    kv_cache_map[name_] = op_;
+                } else {
+#ifdef DEBUGPRINT
+                    std::cout << name_ << " is shared used" << std::endl;
+#endif
+                    // for the decoding part, we need to get created op from global container
+                    op_ = kv_cache_map[name_];
+                }
+            } else {
+                op_ = backend_->opCreate(param_, name_);
+            }
+#else
             op_ = backend_->opCreate(param_, name_);
+#endif
         }
         if (Module::doLoad) {
             op_->load(*Module::loader);

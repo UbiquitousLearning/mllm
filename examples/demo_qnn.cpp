@@ -1,6 +1,7 @@
 #include "cmdline.h"
 #include "models/qwen/configuration_qwen.hpp"
 #include "models/qwen/modeling_qwen_npu.hpp"
+#include "models/qwen/modeling_qwen.hpp"
 #include "models/qwen/tokenization_qwen.hpp"
 
 using namespace mllm;
@@ -24,8 +25,10 @@ int main(int argc, char **argv) {
 
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
     QWenConfig config(tokens_limit, model_billion, RoPEType::HFHUBROPE);
-    auto model = QWenForCausalLM(config);
+    auto model = QWenForCausalLM_NPU(config);
     model.load(model_path);
+    auto decoding_model = QWenForCausalLM(config);
+    decoding_model.load("../models/qwen-1.5-1.8b-chat-q4k.mllm");
 
     vector<string> in_strs = {
         " Give me a short introduction to large language model.",
@@ -71,5 +74,24 @@ int main(int argc, char **argv) {
             }
             return true;
         });
+
+        LlmTextGeneratorOpts decoding_opt{
+            .max_new_tokens = 100,
+            .do_sample = false,
+            .temperature = 0.3f,
+            .top_k = 50,
+            .top_p = 0.f,
+            .is_padding = false,
+        };
+        // decoding_model.generate(input_tensor, decoding_opt, [&](unsigned int out_token) -> bool {
+        //     auto out_string = tokenizer.detokenize({out_token});
+        //     auto [isOk, print_string] = processOutput(out_string);
+        //     if (isOk) {
+        //         std::cout << print_string << std::flush;
+        //     } else {
+        //         return false;
+        //     }
+        //     return true;
+        // });
     }
 }

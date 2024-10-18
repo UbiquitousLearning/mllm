@@ -1,5 +1,5 @@
-#ifndef MODELING_QWEN_HPP
-#define MODELING_QWEN_HPP
+#ifndef MODELING_QWENNPU_HPP
+#define MODELING_QWENNPU_HPP
 
 #include "Backend.hpp"
 #include "Layer.hpp"
@@ -489,7 +489,7 @@ public:
 };
 
 // Copied from GemmaModel with Gemma->Qwen and set RmsNorm(without add_unit_offset)
-class QWenModel final : public Module {
+class QWenModel_NPU final : public Module {
     template <typename T1, typename SHADOW, typename... Args>
     static vector<unique_ptr<Module>> ListWithShadow(int n, Args &&...args) {
         static_assert(std::is_base_of<Module, T1>::value, "T1 must be a subclass of Module");
@@ -512,9 +512,8 @@ class QWenModel final : public Module {
     }
 
 public:
-    QWenModel() = default;
-    QWenModel(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
-        // TODO: only one block, change it to config.num_hidden_layers
+    QWenModel_NPU() = default;
+    QWenModel_NPU(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
         // blocks = List<QwenNPU_CPUDecoder>(1, config, names, base_name);
         blocks = ListWithShadow<QwenNPU_CPUDecoder, QwenNPU_CPUDecoderWithShadow>(24, config, names, base_name);
         norm = RMSNorm(config.hidden_size, config.rms_norm_eps, names.post_norm_name);
@@ -534,14 +533,14 @@ private:
     Layer norm;
 };
 
-class QWenForCausalLM final : public Module {
+class QWenForCausalLM_NPU final : public Module {
 public:
-    QWenForCausalLM(QWenConfig &config) {
+    QWenForCausalLM_NPU(QWenConfig &config) {
         auto names = config.names_config;
         hidden_size = config.hidden_size;
         tie_embedding_words = config.tie_embedding_words;
         embedding = Embedding(config.vocab_size, config.hidden_size, names.token_embd_name);
-        model = QWenModel(config, names, names.blk_name);
+        model = QWenModel_NPU(config, names, names.blk_name);
 
         // Qwen-0.5 use tied embedding
         // Others use nn.Linear()
@@ -608,7 +607,7 @@ private:
     Layer embedding;
     Parameter lm_head;
     Layer lm_head_layer;
-    QWenModel model;
+    QWenModel_NPU model;
 };
 
-#endif //! MODELING_QWEN_HPP
+#endif //! MODELING_QWENNPU_HPP

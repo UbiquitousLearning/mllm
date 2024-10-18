@@ -63,6 +63,7 @@ public:
         assert(t.head() == 1 && "The 3rd dim of result should be one. e.g.:[1, 1, seq, hidden]");
         int _dims = t.dimension();
         int _seq = t.sequence() - 1;
+        // padding prefill for QNN
         if (is_padding) {
             _seq = seq_before_padding - 1;
         }
