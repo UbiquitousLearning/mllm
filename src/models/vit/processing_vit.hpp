@@ -14,7 +14,7 @@
 
 using namespace mllm;
 
-class ViTProcessor final {
+class ViTProcessor final : public PreProcessor {
     Tensor img2Tensor(float *img, int height, int width, int channel, string name = "input", BackendType type = MLLM_CPU) {
         Tensor tensor1(1, height, channel, width, Backend::global_backends[type], true);
         tensor1.setName(std::move(name));
@@ -45,7 +45,9 @@ class ViTProcessor final {
     }
 
 public:
-    explicit ViTProcessor() {
+    explicit ViTProcessor() :
+        PreProcessor(224, 224, false, true, true,
+                     true, {0.5}, {0.5}) {
         Module::initBackend(MLLM_CPU);
     }
 
@@ -55,10 +57,10 @@ public:
         if (data == nullptr) {
             std::cout << "load image failed" << std::endl;
         }
-        auto data_f32 = PreProcessor::RescaleImage(data, 255.0, height_ * width_ * channel_);
+        auto data_f32 = RescaleImage(data, 255.0, height_ * width_ * channel_);
         auto images = std::vector<ImageInfo>({ImageInfo(data_f32, width_, height_, channel_)});
-        images = PreProcessor::ResizeImages(images, hw, hw, true);
-        images = PreProcessor::NormalizeImages(images, 0.5, 0.5);
+        images = ResizeImages(images, hw, hw, true);
+        images = NormalizeImages(images, 0.5, 0.5);
         data_f32 = images[0].data;
         stbi_image_free(data);
         auto input_tensor = img2Tensor(data_f32, hw, hw, channel_);
@@ -75,6 +77,9 @@ public:
         auto token_idx = argmax(scores);
         return token_idx;
     }
+
+    void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) override{};
+    void Process(const std::string &text) override{};
 };
 
 #endif // TOKENIZATION_VIT_HPP

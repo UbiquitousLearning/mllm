@@ -34,24 +34,9 @@ int main(int argc, char **argv) {
         " Give me a short introduction to large language model.",
     };
 
-    auto processOutput = [&](std::string &text) -> std::pair<bool, std::string> {
-        if (text == "<|im_start|>" || text == "<|im_end|>" || text == "<unk>") return {true, ""};
-        if (text == "<|endoftext|>") return {false, ""};
-        return {true, text};
-    };
-
-    auto addSystemPrompt = [](const std::string &text) -> std::string {
-        std::string ret;
-        std::string pre = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n";
-        ret = pre + text;
-        std::string end = "<|im_end|>\n<|im_start|>assistant\n";
-        ret = ret + end;
-        return ret;
-    };
-
     for (int i = 0; i < in_strs.size(); ++i) {
-        auto input_str = addSystemPrompt(in_strs[i]);
-        auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(input_str, 64, config.vocab_size);
+        auto input_str = tokenizer.apply_chat_template(in_strs[i]);
+        auto input_tensor = tokenizer.tokenize(input_str);
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
 
@@ -66,12 +51,9 @@ int main(int argc, char **argv) {
         };
         model.generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
             auto out_string = tokenizer.detokenize({out_token});
-            auto [isOk, print_string] = processOutput(out_string);
-            if (isOk) {
-                std::cout << print_string << std::flush;
-            } else {
-                return false;
-            }
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { return false; }
+            std::cout << output_string << std::flush;
             return true;
         });
 

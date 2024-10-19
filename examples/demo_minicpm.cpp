@@ -30,34 +30,17 @@ int main(int argc, char **argv) {
         "Please introduce Beijing University of Posts and Telecommunications.",
     };
 
-    string system_prompt_start = tokenizer.token_user_o;
-    string system_prompt_end = tokenizer.token_user_c;
-
-    auto processOutput = [&](unsigned int id, std::string &text) -> std::pair<bool, std::string> {
-        text = std::regex_replace(text, std::regex("▁"), " ");
-        if (text == "<0x0A>") return {true, "\n"};
-        if (text == "</s>") return {false, ""};
-        if (id == 2) return {false, ""};
-        return {true, text};
-    };
-
     for (int i = 0; i < in_strs.size(); ++i) {
-        auto in_str_origin = in_strs[i];
-        auto in_str = system_prompt_start + in_str_origin + system_prompt_end;
+        auto in_str = tokenizer.apply_chat_template(in_strs[i]);
         auto input_tensor = tokenizer.tokenize(in_str);
-        std::cout << "[Q] " << in_str << std::endl;
+        std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
             auto result = model({input_tensor});
-            auto outputs = tokenizer.detokenize(result[0]);
-            auto out_string = outputs.first;
-            auto out_token = outputs.second;
-            auto [isOk, print_string] = processOutput(out_token, out_string);
-            if (isOk) {
-                std::cout << print_string << std::flush;
-            } else {
-                break;
-            }
+            auto [out_string, out_token] = tokenizer.detokenize(result[0]);
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { break; }
+            std::cout << output_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");
