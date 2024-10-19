@@ -87,6 +87,12 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
         for(int t=0; t<3; t++) {
             memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*t), inputs[t]->hostPtr<uint8_t>(), inputs[t]->cntSize());
         }
+
+        string name = op_names_[op_names_.size() - 1];
+        if ( !(name.find("layers.0.") != -1 || name.find("layers.2.") != -1 || name.find("layers.3.") != -1 || name.find("layers.7.") != -1 ) ) {
+            std::cout << "use NPU view output res" << std::endl;
+            memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*3), inputs[3]->hostPtr<uint8_t>(), inputs[3]->cntSize());
+        }
     }
 
     if (ops_[op_names_[op_names_.size() - 1]]->type() == LINEARINT8SHADOW) {

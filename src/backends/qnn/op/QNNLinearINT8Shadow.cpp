@@ -236,7 +236,7 @@ ErrorCode QNNLinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
         for (int i = 0; i < inputs[1]->batch(); i++) {
             for (int h = 0; h < inputs[1]->head(); h++) {
                 for (int j = 0; j < inputs[1]->sequence(); j++) {
-#pragma omp parallel for collapse(1) num_threads(4)
+// #pragma omp parallel for collapse(1) num_threads(4)
                     for (int k = 0; k < inputs[1]->dimension(); k++) {
                         if (inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 || inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127) {
                             float sum = 0.0f;
