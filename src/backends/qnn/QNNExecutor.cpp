@@ -590,11 +590,21 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
     executeFunc(0, 0);
     omp_set_max_active_levels(3);
     for (int i = 1; i < (int)net->subGraph().size(); ++i) {
-#pragma omp parallel for num_threads(chunk_num)
+        if (i > 25) {
+
+        
+#pragma omp parallel for num_threads(2)
         for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
             executeFunc(chunk_id, i);
         }
 #pragma omp barrier  
+        }
+        else {
+            for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
+            executeFunc(chunk_id, i);
+        }
+        }
+        std::cout << "---------------------------" << std::endl;
     }
     // the last graph of chunk 1
     {
@@ -626,7 +636,7 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
         } else if (graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
             auto &g = net->subGraph()[name];
             auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-            qnn_graph->forward(name);
+            // qnn_graph->forward(name);
 
             // only get the result at the last graph
             if (i == net->subGraph().size() - 1) {
