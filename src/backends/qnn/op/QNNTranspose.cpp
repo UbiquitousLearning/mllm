@@ -59,8 +59,8 @@ ErrorCode QNNTranspose::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     uint32_t dimVTranspose[4];
     dimVTranspose[0] = outputs[0]->batch();
     dimVTranspose[1] = outputs[0]->head();
-    dimVTranspose[2] = outputs[0]->sequence();
-    dimVTranspose[3] = outputs[0]->dimension();
+    dimVTranspose[2] = outputs[0]->dimension();
+    dimVTranspose[3] = outputs[0]->sequence();
 
     auto type = QNN_DATATYPE_FLOAT_32;
 

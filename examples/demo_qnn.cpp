@@ -27,8 +27,8 @@ int main(int argc, char **argv) {
     QWenConfig config(tokens_limit, model_billion, RoPEType::HFHUBROPE);
     auto model = QWenForCausalLM_NPU(config);
     model.load(model_path);
-    auto decoding_model = QWenForCausalLM(config);
-    decoding_model.load("../models/qwen-1.5-1.8b-chat-q4k.mllm");
+    // auto decoding_model = QWenForCausalLM(config);
+    // decoding_model.load("../models/qwen-1.5-1.8b-chat-q4k.mllm");
 
     vector<string> in_strs = {
         " Give me a short introduction to large language model.",
@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto input_str = tokenizer.apply_chat_template(in_strs[i]);
-        auto input_tensor = tokenizer.tokenize(input_str);
+        auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(input_str, 64, config.vocab_size);
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
 
