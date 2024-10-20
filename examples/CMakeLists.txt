@@ -608,3 +608,17 @@ if(QNN)
         target_link_libraries(main_qwen_npu PUBLIC  MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS} -fopenmp -static-openmp)
     endif ()
 endif()
+
+# Xnn demo
+if(MLLM_BUILD_XNNPACK_BACKEND)
+    add_executable(demo_llama_xp
+        ${PROJECT_SOURCE_DIR}/examples/demo_llama_xp.cpp 
+        ${DIR_SRC_CPU} 
+        ${DIR_SRC_MEM_MANAGER} 
+        ${DIR_SRC_EXP} 
+        ${DIR_SRC}
+        ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
+        ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
+    )
+    target_link_libraries(demo_llama_xp PUBLIC MllmXnnpackBackend MLLM_CPU)
+endif()

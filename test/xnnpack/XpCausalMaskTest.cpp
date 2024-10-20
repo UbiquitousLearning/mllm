@@ -2,6 +2,7 @@
 #include "Types.hpp"
 #include "Layer.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
+#include "backends/xnnpack/XpWrapper.hpp"
 #include <gtest/gtest.h>
 
 using namespace mllm;
@@ -24,14 +25,13 @@ public:
 TEST(XpCausalTest, CausalMaskModule) {
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::INFO;
 
-    // no need to wrap `model` to xnnpack module
-    auto model = CausalMaskModule();
+    auto model = mllm::xnnpack::wrap2xnn<CausalMaskModule>(1, 1);
     model.setNoLoadWeightsDtype(DataType::MLLM_TYPE_F32);
-    model.to(MLLM_XNNPACK);
 
     EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
 
     Tensor x(1, 1, 8, 8, Backend::global_backends[MLLM_XNNPACK], true);
+    x.setTtype(TensorType::INPUT_TENSOR);
 
     auto start = std::chrono::high_resolution_clock::now();
     auto out = model({x})[0];

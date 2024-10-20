@@ -24,6 +24,7 @@
 #include "backends/xnnpack/Ops/XpKVCache.hpp"
 #include "backends/xnnpack/Ops/XpCausalMask.hpp"
 #include "backends/xnnpack/Ops/XpSDPA.hpp"
+#include "backends/xnnpack/Functions/XpViewFunc.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
@@ -175,7 +176,7 @@ Op *XnnpackBackend::opCreate(const OpParam &op_param, string name, int thread_co
     }
 
     if (iter == map_op_creator_.end()) {
-        Log::error("Op is not supported yet.");
+        Log::error("OpType={}, Name={} is not supported yet.", int(op_param.find("type")->second), name);
         return nullptr;
     }
     auto op = iter->second->create(op_param, this, name, thread_count);
@@ -227,6 +228,7 @@ void XnnpackBackend::registerFuncs() {
 
     // others
     map_tensor_function_[TensorFuncType::FUNC_TRANPOSE] = new XpTransposeFunction();
+    map_tensor_function_[TensorFuncType::FUNC_VIEW] = new XpViewFunction();
 }
 
 std::shared_ptr<XnnpackModelRuntime> XnnpackBackend::getModelRuntime() {

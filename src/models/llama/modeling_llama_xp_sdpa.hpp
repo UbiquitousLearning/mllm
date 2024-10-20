@@ -1,9 +1,12 @@
-//
-// Created by Rongjie Yi on 2024/2/4 0004.
-//
-
-#ifndef MODELING_LLAMA_HPP
-#define MODELING_LLAMA_HPP
+/**
+ * @file modeling_llama_xp_sdpa.hpp
+ * @author your name (you@domain.com)
+ * @version 0.1
+ * @date 2024-10-20
+ *
+ * @copyright Copyright (c) 2024
+ *
+ */
 
 #include "Layer.hpp"
 #include "Module.hpp"
@@ -11,6 +14,70 @@
 #include "models/transformer/modeling_transformer.hpp"
 
 using namespace mllm;
+
+class XpLLaMAMHA final : public Module {
+    Layer q_proj;
+    Layer k_proj;
+    Layer v_proj;
+    Layer q_rope;
+    Layer k_rope;
+    Layer k_cache;
+    Layer v_cache;
+    Layer sdpa;
+    Layer o_proj;
+
+public:
+    XpLLaMAMHA() = default;
+
+    XpLLaMAMHA(
+        int hidden_dim,
+        int head_size,
+        int kv_head_size,
+        int attn_hidden_dim,
+        RoPEType RoPE_type,
+        float rope_theta,
+        int max_position_embeddings,
+        int cache_limit,
+        const TransformerNameConfig &names,
+        const string &base_name) {
+        q_proj = Linear(hidden_dim, head_size * attn_hidden_dim, false, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_dim, kv_head_size * attn_hidden_dim, false, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_dim, kv_head_size * attn_hidden_dim, false, base_name + names._v_proj_name);
+
+        q_rope = RoPE(RoPE_type, rope_theta, max_position_embeddings, base_name + "q_rope");
+        k_rope = RoPE(RoPE_type, rope_theta, max_position_embeddings, base_name + "k_rope");
+
+        k_cache = KVCache(head_size / kv_head_size, cache_limit, base_name + "k_cache");
+        v_cache = KVCache(head_size / kv_head_size, cache_limit, base_name + "v_cache");
+
+        sdpa = ScaledDotProductAttention(base_name + "sdpa");
+
+        o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, false, base_name + names._o_proj_name);
+    }
+
+    vector<Tensor>
+    Forward(vector<Tensor> inputs, vector<std::any> args) override {
+        // inputs is [B, S, H, D]
+        // Q, K, V is also [B, S, H, D]
+        auto q = q_proj(inputs[0]);
+        auto k = k_proj(inputs[1]);
+        auto v = v_proj(inputs[2]);
+
+        // [B, S, H, D]
+        q = q_rope(q);
+        k = k_rope(k);
+
+        // [B, S, H, D]
+        k = k_cache(k);
+        v = v_cache(v);
+
+        // TODO Transpose Q,K,V to [B, H, S, D]
+        auto o = sdpa(q, k, v);
+        o = o_proj(o);
+
+        return {o};
+    }
+};
 
 class LLaMAMLP final : public Module {
     Layer gate_proj;
@@ -47,7 +114,10 @@ public:
     LLaMABlock(int hidden_dim, int head_size, int kv_head_size, int ffn_hidden, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit, const LLaMANameConfig &names, const string &base_name) {
         attention = MultiHeadAttention(hidden_dim, head_size, kv_head_size, hidden_dim / head_size, SPLIT_NONE, false, false,
                                        RoPE_type, rope_theta, max_position_embeddings, cache_limit, true, false, names, base_name + names._attn_base_name);
+
         mlp = LLaMAMLP(hidden_dim, ffn_hidden, names, base_name + names._ffn_base_name);
+        mlp.to(BackendType::MLLM_XNNPACK);
+
         norm1 = RMSNorm(hidden_dim, 1e-6, base_name + names._attn_norm_name);
         norm2 = RMSNorm(hidden_dim, 1e-6, base_name + names._ffn_norm_name);
     }
@@ -104,5 +174,3 @@ public:
         }
     }
 };
-
-#endif // MODELING_LLAMA_HPP

@@ -21,16 +21,16 @@ void sinusoidal_position_embedding_huggingface(int seq_len, int output_dim, Tens
             float sin_value = sinf((float)s / (float)std::pow(base, 2.0 * i / output_dim));
             float cos_value = cosf((float)s / (float)std::pow(base, 2.0 * i / output_dim));
 
-            *(sin_ptr + s * seq_len + d) = sin_value;
-            *(cos_ptr + s * seq_len + d) = cos_value;
+            *(sin_ptr + s * output_dim + d) = sin_value;
+            *(cos_ptr + s * output_dim + d) = cos_value;
         }
         for (int d = output_dim / 2; d < output_dim; d += 1) {
             int i = (int)(d - output_dim / 2);
             float sin_value = sinf((float)s / (float)std::pow(base, 2.0 * i / output_dim));
             float cos_value = cosf((float)s / (float)std::pow(base, 2.0 * i / output_dim));
 
-            *(sin_ptr + s * seq_len + d) = sin_value;
-            *(cos_ptr + s * seq_len + d) = cos_value;
+            *(sin_ptr + s * output_dim + d) = sin_value;
+            *(cos_ptr + s * output_dim + d) = cos_value;
         }
     }
 }
@@ -60,8 +60,8 @@ ErrorCode XpRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         if (sin_params_.rawHostPtr() == nullptr || cos_params_.rawHostPtr() == nullptr || input_dims_previous_ < inputs[0]->dimension()) {
             input_dims_previous_ = inputs[0]->dimension();
 
-            sin_params_.reshape(1, max_position_embeddings_, 1, d);
-            cos_params_.reshape(1, max_position_embeddings_, 1, d);
+            sin_params_.reshape(1, 1, max_position_embeddings_, d);
+            cos_params_.reshape(1, 1, max_position_embeddings_, d);
             sin_params_.alloc();
             cos_params_.alloc();
 

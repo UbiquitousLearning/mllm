@@ -20,8 +20,6 @@ class XpCausalMask final : public Op, public XpTensorDefineInterface<XpCausalMas
 public:
     XpCausalMask(Backend *bk, const std::string &op_name, int thread_count) :
         Op(bk, op_name), thread_count_(thread_count) {
-        Log::warn("The XpCausalMask works different with the mllm CPUCausalMask. "
-                  "It will return a mask tensor for scaled dot product rather add the mask tensor to inputs");
         mask_param_.setBackend(backend());
     }
 

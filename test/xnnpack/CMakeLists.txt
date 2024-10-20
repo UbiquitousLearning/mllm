@@ -159,3 +159,19 @@ target_link_libraries(
         MLLM_CPU
         MllmXnnpackBackend
 )
+
+add_executable(
+        XpLlamaMHATest
+        XpLlamaMHATest.cpp
+        ${DIR_SRC_CPU} 
+        ${DIR_SRC_MEM_MANAGER} 
+        ${DIR_SRC_EXP} 
+        ${DIR_SRC} 
+)
+target_link_libraries(
+        XpLlamaMHATest
+        PUBLIC
+        GTest::gtest_main
+        MLLM_CPU
+        MllmXnnpackBackend
+)

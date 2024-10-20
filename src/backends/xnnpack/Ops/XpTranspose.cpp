@@ -69,7 +69,7 @@ ErrorCode XpTranspose::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
     auto status = xnn_define_static_transpose(xpb->getXnnSubgraph(), 4, perm.data(), inputs[0]->uuid(), outputs[0]->uuid(), 0);
 
     if (status != xnn_status_success) {
-        Log::error("XpGeLU::execute Error");
+        Log::error("XpTranspose::execute Error");
         exit(-1);
     }
 
