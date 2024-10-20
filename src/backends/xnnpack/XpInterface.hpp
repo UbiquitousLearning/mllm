@@ -51,7 +51,7 @@ struct XpTensorDefineInterface {
         return ret;
     }
 
-    void defineWeightTensor(XnnpackBackend *xpb, Tensor *t) {
+    void defineWeightTensor(XnnpackBackend *xpb, Tensor *t, const std::vector<size_t> &forceDims = {}) {
         if (t->uuid() != XNN_INVALID_VALUE_ID) return;
 
         auto xp_dtype = XnnpackBackend::mllmDType2XnnDType(t->dtype());
@@ -59,6 +59,10 @@ struct XpTensorDefineInterface {
         xnn_status status;
         std::vector<size_t> dims;
         for (auto d : t->shape()) dims.push_back(d);
+
+        if (!forceDims.empty()) {
+            dims = forceDims;
+        }
 
         switch (xp_dtype) {
         case xnn_datatype_fp32: {

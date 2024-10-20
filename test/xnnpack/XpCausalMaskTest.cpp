@@ -1,0 +1,44 @@
+#include "Module.hpp"
+#include "Types.hpp"
+#include "Layer.hpp"
+#include "backends/xnnpack/Utils/Logger.hpp"
+#include <gtest/gtest.h>
+
+using namespace mllm;
+
+class CausalMaskModule : public Module {
+    Layer causal_mask_;
+
+public:
+    CausalMaskModule() {
+        causal_mask_ = Causalmask("mask");
+    }
+
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
+        auto x = inputs[0];
+        auto out = causal_mask_(x);
+        return {out};
+    }
+};
+
+TEST(XpCausalTest, CausalMaskModule) {
+    mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::INFO;
+
+    // no need to wrap `model` to xnnpack module
+    auto model = CausalMaskModule();
+    model.setNoLoadWeightsDtype(DataType::MLLM_TYPE_F32);
+    model.to(MLLM_XNNPACK);
+
+    EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
+
+    Tensor x(1, 1, 8, 8, Backend::global_backends[MLLM_XNNPACK], true);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    auto out = model({x})[0];
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    mllm::xnnpack::Log::warn("Causal Mask 1, time={} microseconds", duration.count());
+
+    out.printData<float>();
+    out.printShape();
+}

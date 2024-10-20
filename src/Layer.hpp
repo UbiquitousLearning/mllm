@@ -52,6 +52,16 @@ public:
         return ts[0].get();
     }
 
+    Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2) {
+        auto ts = run({input0, input1, input2}, 1);
+        return ts[0].get();
+    }
+
+    Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2, Tensor &input3) {
+        auto ts = run({input0, input1, input2, input3}, 1);
+        return ts[0].get();
+    }
+
 private:
     std::string name_num_to_X(const std::string &input_string) {
         std::regex pattern(R"(\.\d{1,3}\.)"); // Matches any number between 1 and 100 between two dots
@@ -763,6 +773,19 @@ public:
 
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class ScaledDotProductAttention final : public Layer {
+public:
+    explicit ScaledDotProductAttention(std::string name) {
+        init(std::move(name), OpType::SDPA);
+    }
+
+    // Q, K, V
+    Tensor &operator()(Tensor &Q, Tensor &K, Tensor &V) {
+        auto ts = run({Q, K, V}, 1); // Q, K, V
         return ts[0].get();
     }
 };

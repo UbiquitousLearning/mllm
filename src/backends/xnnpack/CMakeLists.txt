@@ -28,6 +28,7 @@ add_library(MllmXnnpackBackend
     Ops/XpSubGraphFinalize.cpp
     Ops/XpD2H.cpp
     Ops/XpCausalMask.cpp
+    Ops/XpSDPA.cpp
 
     Functions/XpBinaryFunc.cpp
     Functions/XpTransposeFunc.cpp

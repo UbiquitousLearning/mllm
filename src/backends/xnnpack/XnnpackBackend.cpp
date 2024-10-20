@@ -22,6 +22,8 @@
 #include "backends/xnnpack/Functions/XpTransposeFunc.hpp"
 #include "backends/xnnpack/Ops/XpRMSNorm.hpp"
 #include "backends/xnnpack/Ops/XpKVCache.hpp"
+#include "backends/xnnpack/Ops/XpCausalMask.hpp"
+#include "backends/xnnpack/Ops/XpSDPA.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
@@ -206,6 +208,8 @@ void XnnpackBackend::registerOps() {
     addCreator(TRANSPOSE, new XpTransposeCreator());
     addCreator(RMSNORM, new XpRMSNormCreator());
     addCreator(XP_KVCACHE, new XpKVCacheCreator());
+    addCreator(CAUSALMASK, new XpCausalMaskCreator());
+    addCreator(SDPA, new XpSDPACreator());
 }
 
 void XnnpackBackend::registerFuncs() {

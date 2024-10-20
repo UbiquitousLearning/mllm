@@ -1,0 +1,62 @@
+#include "backends/xnnpack/Ops/XpCausalMask.hpp"
+
+namespace mllm::xnnpack {
+ErrorCode XpCausalMask::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    if (outputs[0]->xnnTensorType() == TensorType::OUTPUT_TENSOR || outputs[0]->xnnTensorType() == TensorType::INPUT_TENSOR) {
+        Log::error("XpCausalMask dose not support EXTERNAL OUTPUT tesnor.");
+        return NOT_SUPPORT;
+    }
+    return MLLM_NO_ERROR;
+}
+
+ErrorCode XpCausalMask::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    outputs[0]->reshape(1, 1, inputs[0]->sequence(), inputs[0]->dimension());
+
+    //  mask_param_ reshape and alloc
+    mask_param_.reshape(1, 1, inputs[0]->sequence(), inputs[0]->dimension());
+    if (mask_param_.hostPtr<float>()) mask_param_.free();
+    mask_param_.alloc();
+
+    memset(mask_param_.hostPtr<float>(), 0, mask_param_.count() * sizeof(float));
+
+    outputs[0]->uuid() = mask_param_.uuid();
+    outputs[0]->forceResetHostPointer(mask_param_.rawHostPtr());
+
+    auto xpb = (XnnpackBackend *)backend();
+
+    defineWeightTensor(xpb, &mask_param_, {(size_t)inputs[0]->sequence(), (size_t)inputs[0]->dimension()});
+
+    // recompute mask
+    int b = inputs[0]->batch();
+    int h = inputs[0]->head();
+    int s = inputs[0]->sequence();
+    int d = inputs[0]->dimension();
+
+    if (s == 1) return MLLM_NO_ERROR;
+
+#pragma omp parallel for collapse(4) num_threads(thread_count)
+    for (int i_b = 0; i_b < b; ++i_b) {
+        for (int i_h = 0; i_h < h; ++i_h) {
+            for (int i_s = 0; i_s < s; ++i_s) {
+                for (int i_d = 0; i_d < d; ++i_d) {
+                    if (i_d > i_s) {
+                        mask_param_.setDataAt<float>({i_b, i_h, i_s, i_d}, std::numeric_limits<float>::lowest());
+                    }
+                }
+            }
+        }
+    }
+
+    return Op::reshape(inputs, outputs);
+}
+
+ErrorCode XpCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    outputs[0]->uuid() = mask_param_.uuid();
+    outputs[0]->forceResetHostPointer(mask_param_.rawHostPtr());
+    return MLLM_NO_ERROR;
+}
+
+Op *XpCausalMaskCreator::create(OpParam op_param, Backend *bk, const string &name, int thread_count) const {
+    return new XpCausalMask(bk, name, thread_count);
+}
+} // namespace mllm::xnnpack

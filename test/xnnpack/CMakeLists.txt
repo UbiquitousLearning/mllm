@@ -127,3 +127,35 @@ target_link_libraries(
         MLLM_CPU
         MllmXnnpackBackend
 )
+
+add_executable(
+        XpCausalMaskTest
+        XpCausalMaskTest.cpp
+        ${DIR_SRC_CPU} 
+        ${DIR_SRC_MEM_MANAGER} 
+        ${DIR_SRC_EXP} 
+        ${DIR_SRC} 
+)
+target_link_libraries(
+        XpCausalMaskTest
+        PUBLIC
+        GTest::gtest_main
+        MLLM_CPU
+        MllmXnnpackBackend
+)
+
+add_executable(
+        XpSDPATest
+        XpSDPATest.cpp
+        ${DIR_SRC_CPU} 
+        ${DIR_SRC_MEM_MANAGER} 
+        ${DIR_SRC_EXP} 
+        ${DIR_SRC} 
+)
+target_link_libraries(
+        XpSDPATest
+        PUBLIC
+        GTest::gtest_main
+        MLLM_CPU
+        MllmXnnpackBackend
+)

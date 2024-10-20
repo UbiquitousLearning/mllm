@@ -70,6 +70,7 @@ enum OpType {
     SUBGRAPHFINALIZE,
     D2H,
     XP_KVCACHE,
+    SDPA,
 };
 
 static const vector<string> OpNames = {
@@ -134,6 +135,7 @@ static const vector<string> OpNames = {
     "SubgraphFinalize",
     "D2H",
     "XP_KVCACHE",
+    "SDPA",
 };
 
 enum TensorFuncType {

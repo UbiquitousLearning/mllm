@@ -1,8 +1,9 @@
 /**
- * @file XpCausalMask.hpp
+ * @file XpSDPA.hpp
  * @author chenghua Wang (chenghua.wang.edu@gmail.com)
+ * @brief
  * @version 0.1
- * @date 2024-10-18
+ * @date 2024-10-19
  *
  * @copyright Copyright (c) 2024
  *
@@ -16,16 +17,15 @@
 
 namespace mllm::xnnpack {
 
-class XpCausalMask final : public Op, public XpTensorDefineInterface<XpCausalMask> {
+class XpSDPA final : public Op, public XpTensorDefineInterface<XpSDPA> {
 public:
-    XpCausalMask(Backend *bk, const std::string &op_name, int thread_count) :
+    XpSDPA(Backend *bk, const std::string &op_name, int thread_count) :
         Op(bk, op_name), thread_count_(thread_count) {
-        Log::warn("The XpCausalMask works different with the mllm CPUCausalMask. "
-                  "It will return a mask tensor for scaled dot product rather add the mask tensor to inputs");
-        mask_param_.setBackend(backend());
+        scale_params_.setBackend(backend());
+        mask_params_.setBackend(backend());
     }
 
-    ~XpCausalMask() override = default;
+    ~XpSDPA() override = default;
 
     ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
@@ -33,12 +33,17 @@ public:
 
     ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
+    ErrorCode load(AbstructLoader &loader) override;
+
+    ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
+
 private:
-    Tensor mask_param_;
+    Tensor mask_params_;
+    Tensor scale_params_;
     int thread_count_ = 4;
 };
 
-struct XpCausalMaskCreator : public XnnpackBackend::Creator {
+struct XpSDPACreator : public XnnpackBackend::Creator {
     Op *create(OpParam op_param, Backend *bk, const string &name, int thread_count) const override;
 };
 
