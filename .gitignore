@@ -38,3 +38,4 @@ examples/demo_phonellm.cpp
 src/models/phonellm/*
 examples/demo_minicpm3.cpp
 src/models/minicpm3/*
+examples/demo.cpp

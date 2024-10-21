@@ -31,7 +31,7 @@ public:
     }
 };
 
-class OPTConfig {
+class OPTConfig : public TransformerConfig {
 public:
     optNameConfig names_config;
     int vocab_size{};

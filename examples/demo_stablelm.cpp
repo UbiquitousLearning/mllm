@@ -23,42 +23,27 @@ int main(int argc, char **argv) {
 
     auto tokenizer = StableLMTokenizer(vocab_path, merge_path);
 
-    string system_prompt_start = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n";
-    string system_prompt_end = "<|im_end|>\n<|im_start|>assistant\n";
-
     StableLMConfig config(tokens_limit, "1.6B", HFHUBROPE);
     auto model = StableLMModel(config);
     model.load(model_path);
 
     vector<string> in_strs = {
-        " Hello, who are you?",
-        " What can you do?",
+        "Hello, who are you?",
+        "What can you do?",
         "Please introduce Beijing University of Posts and Telecommunications."};
 
     for (int i = 0; i < in_strs.size(); ++i) {
         const auto &in_str_origin = in_strs[i];
-        auto in_str = system_prompt_start + in_str_origin + system_prompt_end;
+        auto in_str = tokenizer.apply_chat_template(in_str_origin);
+        auto input_tensor = tokenizer.tokenize(in_str);
         std::cout << "[Q] " << in_str_origin << std::endl;
-        auto input_tensor = tokenizer.tokenize(in_str, i);
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
             auto result = model({input_tensor});
-            auto outputs = tokenizer.detokenize(result[0]);
-            auto out_string = outputs.first;
-            auto out_token = outputs.second;
-            if (out_token == 100278) {
-                break;
-            }
-            size_t pos = 0;
-            while ((pos = out_string.find("Ċ", pos)) != std::string::npos) {
-                out_string.replace(pos, 2, " ");
-            }
-            pos = 0;
-            while ((pos = out_string.find("Ġ", pos)) != std::string::npos) {
-                out_string.replace(pos, 2, " ");
-            }
-
-            std::cout << out_string << std::flush;
+            auto [out_string, out_token] = tokenizer.detokenize(result[0]);
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { break; }
+            std::cout << output_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");

@@ -30,8 +30,7 @@ struct ImageInfo {
         data(data), width(width), height(height), original_height(height), original_width(width), channels(channels) {
     }
 
-    ImageInfo(float *data, int width, int height, int channels, int original_width, int original_height
-        ) :
+    ImageInfo(float *data, int width, int height, int channels, int original_width, int original_height) :
         data(data), width(width), height(height), channels(channels), original_width(original_width), original_height(original_height) {
     }
 
@@ -57,21 +56,22 @@ struct ImageInfo {
     float get_cwh_pixel(size_t idx) const {
         return data[convert_index_to_cwh(idx)];
     }
-
-
 };
 
 class PreProcessor {
 public:
-
     virtual ~PreProcessor() = default;
 
-    explicit PreProcessor(Tokenizer *tokenizer, int height, int width, bool do_pad, bool do_resize, bool do_normalize , bool do_rescale , std::vector<float> mean ={} , std::vector<float> std = {}) :
+    explicit PreProcessor(Tokenizer *tokenizer, int height, int width, bool do_pad, bool do_resize, bool do_normalize, bool do_rescale, std::vector<float> mean = {}, std::vector<float> std = {}) :
         tokenizer_(tokenizer), height_(height), width_(width), do_pad_(do_pad), do_resize_(do_resize), do_normalize_(do_normalize), do_rescale_(do_rescale), mean_(std::move(mean)), std_(std::move(std)) {
     }
 
-    virtual void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) =0;
-    virtual void Process(const std::string &text) =0;
+    explicit PreProcessor(int height, int width, bool do_pad, bool do_resize, bool do_normalize, bool do_rescale, std::vector<float> mean = {}, std::vector<float> std = {}) :
+        height_(height), width_(width), do_pad_(do_pad), do_resize_(do_resize), do_normalize_(do_normalize), do_rescale_(do_rescale), mean_(std::move(mean)), std_(std::move(std)) {
+    }
+
+    virtual void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) = 0;
+    virtual void Process(const std::string &text) = 0;
     virtual void PreProcessImages(const std::vector<std::string> &images_path);
     void PreProcessImages(const std::vector<std::string> &images_path, int height, int width) {
         height_ = height;
@@ -95,10 +95,11 @@ protected:
         shortest,
         longest,
     };
+
 public:
     static float *RescaleImage(const uint8_t *data, float scale, unsigned int length);
     static std::vector<ImageInfo> PadImages(std::vector<ImageInfo> &images, int height, int width, size_t patch_width = 30, size_t patch_height = 30, float pad_value = 1.0 / 255.0, PaddingType padding_type = PaddingType::CONSTANT, bool free_source = true);
-    static std::vector<ImageInfo> ResizeImages(std::vector<ImageInfo> &images, int height, int width, bool strict_size = false,bool fit =false,ResizeFitEdge fit_edge = none, ResampleType resample_type = ResampleType::BILINEAR, bool free_source = true);
+    static std::vector<ImageInfo> ResizeImages(std::vector<ImageInfo> &images, int height, int width, bool strict_size = false, bool fit = false, ResizeFitEdge fit_edge = none, ResampleType resample_type = ResampleType::BILINEAR, bool free_source = true);
     static std::vector<ImageInfo> NormalizeImages(std::vector<ImageInfo> &images, float mean, float std, bool free_source = true);
     static std::vector<ImageInfo> NormalizeImages(std::vector<ImageInfo> &images, vector<float> means, vector<float> stds, bool free_source = true);
     static std::vector<ImageInfo> CenterCropImages(std::vector<ImageInfo> &images, int height, int width, float pad = 0.0F, bool free_source = true);
@@ -106,7 +107,12 @@ public:
     static std::vector<std::vector<std::vector<std::vector<float>>>> ProcessAudio(std::vector<std::string> waves) {
         return ProcessWAV(waves);
     }
-};
-}
 
-#endif //PREPROCESS_HPP
+    // virtual vector<Tensor> process(std::string &text, vector<string> image) = 0;
+    // virtual std::pair<std::string, unsigned> detokenize(Tensor &result) = 0;
+
+    // virtual std::pair<bool, std::string> postprocess(std::string &text) = 0;
+};
+} // namespace mllm
+
+#endif // PREPROCESS_HPP

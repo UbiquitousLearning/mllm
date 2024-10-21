@@ -73,7 +73,7 @@ public:
         _audio_blocks_name = "modality_trunks.audio.blocks.";
     }
 };
-class ImagebindConfig {
+class ImagebindConfig : public TransformerConfig {
 public:
     ImagebindNameConfig names_config;
 
@@ -99,13 +99,13 @@ public:
     int audio_stride = 10;
     int audio_h = 128;
     int audio_w = 204;
-    int audio_block_num =12;
+    int audio_block_num = 12;
 
     int head_hidden_dim = 1024;
 
-    explicit ImagebindConfig(const string& model_type = "huge") {
+    explicit ImagebindConfig(const string &model_type = "huge") {
         if (model_type != "huge") {
-            std::cerr<<"model type not supported"<<std::endl;
+            std::cerr << "model type not supported" << std::endl;
         }
         names_config.init();
     }

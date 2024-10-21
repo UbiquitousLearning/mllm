@@ -24,33 +24,28 @@ int main(int argc, char **argv) {
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     auto tokenizer = LLaMATokenizer(vocab_path);
+    string system_prompt_start = " You are a Q&A assistant. Your goal is to answer questions as accurately as possible based on the instructions and context provided.<|USER|>";
+    string system_prompt_end = "<|ASSISTANT|>";
+    tokenizer.set_chat_template(system_prompt_start, system_prompt_end);
 
     TinyLLaMAConfig config(tokens_limit, "1.5B", HFHUBROPE);
     auto model = TinyLLaMAModel(config);
     model.load(model_path);
-
-    string system_prompt_start = " You are a Q&A assistant. Your goal is to answer questions as accurately as possible based on the instructions and context provided.<|USER|>";
-    string system_prompt_end = "<|ASSISTANT|>";
 
     vector<string> in_strs = {
         "Hello, who are you?",
         "Please introduce Beijing University of Posts and Telecommunications."};
 
     for (int i = 0; i < in_strs.size(); ++i) {
-        auto in_str_origin = in_strs[i];
-        auto in_str = system_prompt_start + in_str_origin + system_prompt_end;
-        auto input_tensor = tokenizer.tokenize(in_str, i);
+        auto in_str = tokenizer.apply_chat_template(in_strs[i]);
+        auto input_tensor = tokenizer.tokenize(in_str);
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
             auto result = model({input_tensor});
-            auto outputs = tokenizer.detokenize(result[0]);
-            auto out_string = outputs.first;
-            auto out_token = outputs.second;
-            if (out_token == 2) {
-                break;
-            }
-            std::cout << out_string << std::flush;
+            auto [out_string, out_token] = tokenizer.detokenize(result[0]);
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { break; }
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");

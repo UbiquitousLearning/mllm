@@ -68,7 +68,7 @@ public:
     }
 };
 
-class SmolLMConfig {
+class SmolLMConfig : public TransformerConfig {
 public:
     int vocab_size{};
     int hidden_dim{};
@@ -82,7 +82,7 @@ public:
     float rope_theta;
     int max_position_embeddings;
 
-    explicit SmolLMConfig(int token_limit, string billions = "1.7B", RoPEType type = HFHUBROPE, int vocab = 32000) {
+    explicit SmolLMConfig(int token_limit, string billions = "1.7B", RoPEType type = HFHUBROPE, int vocab = 49152) {
         names_config.init(type);
         vocab_size = vocab;
         if (billions == "1.7B" || billions == "1.7b") {

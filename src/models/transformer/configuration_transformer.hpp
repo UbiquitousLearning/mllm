@@ -6,6 +6,7 @@
 #define CONFIGURATION_TRANSFORMER_HPP
 
 #include "Layer.hpp"
+#include "Types.hpp"
 
 using namespace mllm;
 using namespace std;
@@ -31,4 +32,10 @@ public:
     string _bias_k_name = "bias_k";
     string _bias_v_name = "bias_v";
 };
-#endif //CONFIGURATION_TRANSFORMER_HPP
+
+class TransformerConfig {
+public:
+    TransformerConfig() {
+    }
+};
+#endif // CONFIGURATION_TRANSFORMER_HPP

@@ -7,7 +7,7 @@
 #define MLLM_UNIGRAM_HPP
 namespace mllm {
 const static float K_UNK_PENALTY = 10.0;
-class UnigramTokenizer final : public Tokenizer {
+class UnigramTokenizer : public Tokenizer {
     struct BestPath {
         uint64_t id = 0;
         float best_path_score = 0.0;
@@ -20,7 +20,6 @@ public:
     explicit UnigramTokenizer(const std::string &vocab_file);
     void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, bool byte_fallback);
     std::string detokenize(const std::vector<token_id_t> &tokens) override;
-
 };
 } // namespace mllm
 

@@ -33,6 +33,9 @@ public:
 
     void Img2Tensor(Backend *bn, shared_ptr<Tensor> input_tensor, vector<vector<vector<float>>> img);
 
+    // vector<Tensor> process(std::string &text, vector<string> image) override;
+    // std::pair<std::string, unsigned> detokenize(Tensor &result) override;
+    // std::pair<bool, std::string> postprocess(std::string &text) override;
 };
 } // namespace mllm
 #endif // CLIPPREPROCESS_HPP
