@@ -28,11 +28,10 @@ public:
         token_embd_name = "model.embed_tokens";
         post_norm_name = "model.norm";
         lm_head_name = "lm_head";
-        
     }
 };
 
-struct MiniCPMConfig {
+struct MiniCPMConfig : public TransformerConfig {
     explicit MiniCPMConfig(int token_limit, string billions = "2B") :
         cache_limit(token_limit) {
         names_config.init();
@@ -79,7 +78,7 @@ struct MiniCPMConfig {
     double rms_norm_eps = 1e-05;
     float rope_theta = 10000.0;
     int vocab_size = 122753;
-    int head_dim = 64; //self.hidden_size // self.num_heads
+    int head_dim = 64; // self.hidden_size // self.num_heads
     float scale_depth = 1.4;
     float scale_emb = 12;
     float dim_model_base = 256;

@@ -71,7 +71,7 @@ public:
     std::string _gate_proj_name;
 };
 
-struct MistralConfig {
+struct MistralConfig : public TransformerConfig {
     explicit MistralConfig(int token_limit, string billions = "7B", RoPEType type = RoPEType::HFHUBROPE) :
         cache_limit(token_limit) {
         names_config.init(type);

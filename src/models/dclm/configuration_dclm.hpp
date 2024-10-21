@@ -27,14 +27,15 @@ public:
     }
 };
 
-struct DCLMConfig {
-    explicit DCLMConfig(int token_limit, const string billions = "1B", RoPEType type = RoPEType::HFHUBROPE) :
+struct DCLMConfig : public TransformerConfig {
+    explicit DCLMConfig(int token_limit, const string billions = "1B", RoPEType type = RoPEType::HFHUBROPE, int vocab = 50432) :
         cache_limit(token_limit) {
         names_config.init(type);
         if (!(billions == "1B" || billions == "1b")) {
             throw std::runtime_error("Unsupported model size");
         }
         RoPE_type = type;
+        vocab_size = vocab;
     };
 
     int dim = 2048;
