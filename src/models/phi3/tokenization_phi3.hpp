@@ -59,13 +59,14 @@ public:
     }
 
 private:
+    BPETokenizer *tokenizer;
     unsigned int argmax(const std::vector<float> &scores) {
         if (scores.empty()) {
             throw std::invalid_argument("Input vector is empty");
         }
         return std::max_element(scores.begin(), scores.end()) - scores.begin();
     }
-    BPETokenizer *tokenizer;
+    
 
 public:
     token_id_t pad_id = 32000, eos_id = 32000, bos_id = 1, user_id = 32010, assistant_id = 32001, end_id = 32007;
