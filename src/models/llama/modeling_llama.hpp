@@ -26,7 +26,7 @@ public:
         up_proj = Linear(hidden_dim, ffn_hidden, false, base_name + names._up_proj_name);
         down_proj = Linear(ffn_hidden, hidden_dim, false, base_name + names._down_proj_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = gate_proj(inputs[0]);
         x = silu(x);
         auto y = up_proj(inputs[0]);
@@ -51,7 +51,7 @@ public:
         norm1 = RMSNorm(hidden_dim, 1e-6, base_name + names._attn_norm_name);
         norm2 = RMSNorm(hidden_dim, 1e-6, base_name + names._ffn_norm_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = norm1(inputs[0]);
         x = attention({x, x, x})[0];
         auto tmp = x + inputs[0];
@@ -60,8 +60,8 @@ public:
         x = x + tmp;
         return {x};
     }
-    
-    MultiHeadAttention& get_attention() {
+
+    MultiHeadAttention &get_attention() {
         return attention;
     }
 };
@@ -74,8 +74,8 @@ class LLaMAModel final : public Module {
 
 public:
     explicit LLaMAModel(const LLaMAConfig &config) :
-        LLaMAModel(config.vocab_size, config.hidden_dim, config.head_size, config.num_key_value_heads, config.ffn_hidden, config.block_num, 
-                  config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit,
+        LLaMAModel(config.vocab_size, config.hidden_dim, config.head_size, config.num_key_value_heads, config.ffn_hidden, config.block_num,
+                   config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit,
                    config.names_config, config.names_config.blk_name) {
     }
     LLaMAModel(int vocab_size, int hidden_dim, int head_size, int kv_head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit,
@@ -85,7 +85,7 @@ public:
         norm = RMSNorm(hidden_dim, 1e-6, names.post_norm_name);
         lm_head = Linear(hidden_dim, vocab_size, false, names.lm_head_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = embedding(inputs[0]);
         for (auto &block : blocks) {
             x = block({x})[0];
@@ -95,9 +95,9 @@ public:
         return {x};
     }
 
-    void clear_kvcache() {
+    void clear_kvcache() override {
         for (auto &block : blocks) {
-            auto kvcahce =block.get_attention().get_cache();
+            auto kvcahce = block.get_attention().get_cache();
             for (auto &cache : kvcahce) {
                 cache->clearCache();
             }

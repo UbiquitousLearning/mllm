@@ -61,7 +61,7 @@ public:
     }
 };
 
-class LLaMAConfig {
+class LLaMAConfig : public TransformerConfig {
 public:
     int vocab_size{};
     int hidden_dim{};
@@ -84,7 +84,7 @@ public:
             num_key_value_heads = 32;
             ffn_hidden = 11008;
             block_num = 32;
-            max_position_embeddings= 16384;
+            max_position_embeddings = 16384;
             rope_theta = 10000;
         } else if (billions == "6B" || billions == "6b") {
             // Yi @https://arxiv.org/abs/2403.04652
@@ -93,10 +93,10 @@ public:
             num_key_value_heads = 4;
             ffn_hidden = 11008;
             block_num = 32;
-            max_position_embeddings= 4096;
+            max_position_embeddings = 4096;
             rope_theta = 5000000.0;
             vocab_size = 64000;
-        }else {
+        } else {
             throw std::runtime_error("Unsupported model size");
         }
         RoPE_type = type;

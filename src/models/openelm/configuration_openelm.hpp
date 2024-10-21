@@ -58,7 +58,7 @@ public:
     std::string _gate_proj_name;
 };
 
-struct OpenELMConfig {
+struct OpenELMConfig : public TransformerConfig {
     explicit OpenELMConfig(int token_limit, string billions = "1.1B", RoPEType type = RoPEType::HFHUBROPE) :
         cache_limit(token_limit) {
         names_config.init(type);

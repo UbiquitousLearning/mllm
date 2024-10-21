@@ -8,7 +8,7 @@
 
 using namespace mllm;
 
-class TinyLLaMAConfig {
+class TinyLLaMAConfig : public TransformerConfig {
 public:
     int vocab_size{};
     int hidden_dim{};

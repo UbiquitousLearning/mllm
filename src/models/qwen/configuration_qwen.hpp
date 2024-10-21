@@ -76,7 +76,7 @@ public:
     std::string _gate_proj_name;
 };
 
-struct QWenConfig {
+struct QWenConfig : public TransformerConfig {
     explicit QWenConfig(int token_limit, string billions = "0.5B", RoPEType type = RoPEType::HFHUBROPE) :
         cache_limit(token_limit) {
         names_config.init(type);

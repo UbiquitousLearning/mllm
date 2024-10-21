@@ -40,6 +40,8 @@ macro(func_vlm_add_executable target)
         ${DIR_SRC}
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Unigram/Unigram.cpp
+        ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
+        ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
         ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
         ${DIR_SRC_PROCESSOE}
@@ -53,7 +55,6 @@ endmacro()
 ## new demos
 if (NOT QNN)
 func_llm_add_executable(benchmark)
-# func_llm_add_executable(demo)
 func_llm_add_executable(demo_llama)
 func_llm_add_executable(demo_tinyllama)
 func_llm_add_executable(demo_stablelm)
@@ -77,7 +78,7 @@ func_vlm_add_executable(demo_vit)
 func_vlm_add_executable(demo_clip)
 func_vlm_add_executable(demo_imagebind)
 func_vlm_add_executable(demo_imagebind_1mod)
-endif()
+# func_vlm_add_executable(demo)
 
 # QNN demo
 if(QNN)
