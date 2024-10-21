@@ -53,7 +53,6 @@ endmacro()
 
 
 ## new demos
-if (NOT QNN)
 func_llm_add_executable(benchmark)
 func_llm_add_executable(demo_llama)
 func_llm_add_executable(demo_tinyllama)
