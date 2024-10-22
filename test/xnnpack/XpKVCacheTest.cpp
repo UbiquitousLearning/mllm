@@ -10,6 +10,7 @@ using namespace mllm;
 class KVCacheModule : public Module {
     Layer kvcache_;
     Layer linear_in_;
+    Layer linear_out_;
 
 public:
     KVCacheModule() {

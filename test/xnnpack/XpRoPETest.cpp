@@ -9,15 +9,18 @@ using namespace mllm;
 
 class RoPEModule : public Module {
     Layer rope_;
+    Layer linear_;
 
 public:
     RoPEModule() {
         rope_ = RoPE(RoPEType::HFHUBROPE, 1e5, 1024, "linear");
+        linear_ = Linear(1024, 1024, true, "linear");
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = inputs[0];
-        auto out = rope_(x);
+        auto bias = linear_(x);
+        auto out = rope_(x) + bias;
         return {out};
     }
 };
@@ -31,7 +34,7 @@ TEST(XpRoPETest, RoPEModule) {
     EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
 
     // rope accpect b, s, h, d.
-    Tensor x(1, 256, 1, 1024, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor x(1, 1, 256, 1024, Backend::global_backends[MLLM_XNNPACK], true);
     x.setTtype(TensorType::INPUT_TENSOR);
 
     {

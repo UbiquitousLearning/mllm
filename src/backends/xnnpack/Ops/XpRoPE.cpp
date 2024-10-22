@@ -124,7 +124,7 @@ ErrorCode XpRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     }
     auto x_new = defineTemporaryTensor(xpb, {b, s, h, d}, dtype);
     {
-        auto status = xnn_define_concatenate2(xpb->getXnnSubgraph(), 3, x2_neg, x1, x_new, 0);
+        auto status = xnn_define_concatenate2(xpb->getXnnSubgraph(), -1, x2_neg, x1, x_new, 0);
         if (status != xnn_status_success) {
             Log::error("XpRoPE, xnn_define_concatenate2 failed");
             exit(-1);

@@ -79,11 +79,11 @@ public:
         q = q_rope(q);
         k = k_rope(k);
 
-        return {q, k, v};
-
         // [B, S-new, H=heads, D=dim]
         k = k_cache(k);
         v = v_cache(v);
+
+        return {q, k, v};
 
         // TODO Check new shape.
         k = k.transpose(SEQUENCE, DIMENSION);
@@ -105,13 +105,13 @@ TEST(XpLLaMAMHATest, XpLLaMAMHA) {
     auto model = ::mllm::xnnpack::wrap2xnn<XpLLaMAMHA>(
         1,
         3,
-        /*hidden_dim*/ 128,
-        /*head_size*/ 1,
-        /*kv_headsize*/ 2,
-        /*attn_headdim*/ 256,
+        /*hidden_dim*/ 4096,
+        /*head_size*/ 32,
+        /*kv_headsize*/ 32,
+        /*attn_headdim*/ 4096 / 32,
         /*rope*/ RoPEType::HFHUBROPE,
         /*rope_theta*/ 10000.0f,
-        /*max_position_embeddings*/ 2048,
+        /*max_position_embeddings*/ 16384,
         /*cache_limit*/ 2048,
         model_cfg,
         "base-");

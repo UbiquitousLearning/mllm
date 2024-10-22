@@ -49,6 +49,11 @@ ErrorCode XpKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     size_t d = inputs[0]->dimension();
     auto o_dtype = outputs[0]->dtype();
 
+    if (n_rep_ == 0) {
+        Log::warn("XpKVCache found n_rep_=0, XpKVCache will reset it to 1");
+        n_rep_ = 1;
+    }
+
     // step 1. inputs[0] copy to cache_params_(wrap to external output)
     {
         for (int i = 0; i < n_rep_; ++i) {
