@@ -26,15 +26,15 @@ ErrorCode XpLinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     auto xpb = (XnnpackBackend *)backend();
     tryDefineAllXpTensors(xpb, inputs);
     tryDefineAllXpTensors(xpb, outputs);
-    defineWeightTensor(xpb, &weight_params_);
+    defineWeightTensor(xpb, &weight_params_, {(size_t)out_features_, (size_t)in_features_});
     if (bias_) {
-        defineWeightTensor(xpb, &bias_params_);
+        defineWeightTensor(xpb, &bias_params_, {(size_t)out_features_});
     }
 
     // FIXME: output_min and output_max should be judged based on outputs' dtype
     auto status = xnn_define_fully_connected(
         xpb->getXnnSubgraph(),
-        std::numeric_limits<float>::min(),
+        std::numeric_limits<float>::lowest(),
         std::numeric_limits<float>::max(),
         inputs[0]->uuid(),
         weight_params_.uuid(),

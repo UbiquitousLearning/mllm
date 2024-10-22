@@ -34,9 +34,10 @@ void XpTransposeFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inp
     Chl axis1_ = (Chl)args[1];
 
     // inputs[0]->transShape(SEQUENCE, DIMENSION);
+    // B, S, H, D
     if (axis0_ == SEQUENCE && axis1_ == DIMENSION) {
         if (inputs[0]->ctype() == BSHD) {
-            std::swap(perm[2], perm[3]);
+            std::swap(perm[1], perm[3]);
         } else {
             Log::error("XpTransposeFunction NYI");
             exit(-1);
