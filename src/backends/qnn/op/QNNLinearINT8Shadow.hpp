@@ -10,32 +10,8 @@ public:
     virtual ~QNNLinearINT8Shadow() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-    virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-
-    void shadow_vec_dot_fp32_arm(float* s, float* x, int8_t* y, int n, float input_scale, float weight_scale);
-
-private:
-    int in_features_;
-    int out_features_;
-    bool support_bias_;
-    Tensor weight_;
-    Tensor weightScale_;
-    Tensor outputScale_;
-    Tensor inputScale_;
-
-    Tensor shadowWeight_;
-    Tensor shadowTransposeWeight_;
-
-    Tensor inputClip_;
-    Tensor outputClip_;
-
-    // i16 for accuracy
-    Tensor weight_f32_buffer_;
-    Tensor input_f32_buffer_;
-
-
 };
 
 class QNNLinearINT8ShadowCreator : public QNNBackend::Creator {

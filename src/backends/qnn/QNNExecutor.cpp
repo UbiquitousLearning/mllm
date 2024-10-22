@@ -590,7 +590,7 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
     executeFunc(0, 0);
     omp_set_max_active_levels(3);
     for (int i = 1; i < (int)net->subGraph().size(); ++i) {
-        if (i > 25) {
+        // if (i > 25) {
 
         
 #pragma omp parallel for num_threads(2)
@@ -598,12 +598,12 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
             executeFunc(chunk_id, i);
         }
 #pragma omp barrier  
-        }
-        else {
-            for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
-            executeFunc(chunk_id, i);
-        }
-        }
+        // }
+        // else {
+        //     for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
+        //     executeFunc(chunk_id, i);
+        // }
+        // }
         std::cout << "---------------------------" << std::endl;
     }
     // the last graph of chunk 1

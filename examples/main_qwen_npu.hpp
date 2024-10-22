@@ -182,7 +182,7 @@ void qwen_cpu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn
 
             i = *x + i;
 
-            i = _LinearINT8Shadow({i1, i2, i}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
+            i = _LinearINT8ShadowCPU({i1, i2, i}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
         }
     }
     i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
@@ -277,9 +277,10 @@ void qwen_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn
 
             x = *x + res;
 
-            i = _LinearINT8Shadow({i1, i2, x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
+            auto shadow = _LinearINT8ShadowMerge({i1, i2, x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow.qnn");
 
-            _SubgraphBegin(c, MLLM_CPU);            
+            _SubgraphBegin(c, MLLM_CPU);
+            i = _LinearINT8ShadowCPU(shadow, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
         }
     }
 }

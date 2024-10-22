@@ -18,6 +18,7 @@ public:
 private:
     int in_features_;
     int out_features_;
+    int thread_count;
     bool support_bias_;
     Tensor weight_;
     Tensor weightScale_;
@@ -30,8 +31,11 @@ private:
     Tensor inputClip_;
     Tensor outputClip_;
 
-    int thread_count = 4;
+    // i16 for accuracy
+    Tensor weight_f32_buffer_;
+    Tensor input_f32_buffer_;
 
+    void shadow_vec_dot_fp32_arm(float *s, float *x, int8_t *y, int n, float input_scale, float weight_scale);
 };
 
 class CPULinearINT8ShadowCreator : public CPUBackend::Creator {
