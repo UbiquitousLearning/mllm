@@ -15,13 +15,13 @@ class KVCacheModule : public Module {
 public:
     KVCacheModule() {
         kvcache_ = XP_KVCache(3, 10, "kvcache");
-        linear_in_ = Linear(8, 8, true, "linear");
+        // linear_in_ = Linear(8, 8, true, "linear");
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = inputs[0];
-        auto out = linear_in_(x);
-        out = kvcache_(out);
+        // auto out = linear_in_(x);
+        auto out = kvcache_(x);
         return {out};
     }
 };

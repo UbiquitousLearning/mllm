@@ -124,7 +124,7 @@ struct XpTensorDefineInterface {
 
     void defineXpTensor(XnnpackBackend *xpb, Tensor *t, XpTensorType ttype) {
         if (t->uuid() != XNN_INVALID_VALUE_ID) {
-            if (xpb->hasExternalValue(t->uuid())) return;
+            if (xpb->hasExternalValue(t->uuid()) || xpb->hasNormalValue(t->uuid())) return;
         }
 
         auto xp_dtype = XnnpackBackend::mllmDType2XnnDType(t->dtype());
@@ -164,6 +164,7 @@ struct XpTensorDefineInterface {
 
         switch (ttype) {
         case XpTensorType::Normal:
+            xpb->registerNormalValue(t->uuid());
             break;
         case XpTensorType::ExternalInput:
             xpb->registerExternalValue(t->uuid(), xnn_external_value{.id = t->uuid(), .data = t->rawHostPtr()});

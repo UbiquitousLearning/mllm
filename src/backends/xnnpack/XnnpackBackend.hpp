@@ -86,6 +86,8 @@ public:
 
     void registerExternalValue(uint32_t uuid, const xnn_external_value &ext_v);
 
+    void registerNormalValue(uint32_t uuid);
+
     void registerUuidTensor(uint32_t uuid, Tensor *t);
 
     void registerUuidWeightTensor(uint32_t uuid, Tensor *t);
@@ -93,6 +95,8 @@ public:
     void *getExternalValueptr(uint32_t uuid);
 
     bool hasExternalValue(uint32_t uuid);
+
+    bool hasNormalValue(uint32_t uuid);
 
     static xnn_datatype mllmDType2XnnDType(DataType mllm_dtype);
 
@@ -111,6 +115,7 @@ private:
     std::unordered_map<uint32_t, Tensor *> uuid_2_mllm_tensor_;
     std::unordered_map<uint32_t, xnn_external_value> uuid_2_externals_v_;
     std::unordered_map<uint32_t, Tensor *> uuid_2_mllm_weight_tensor_;
+    std::unordered_map<uint32_t, bool> uuid_2_normal_tensor_;
 
     // xnn stuff
     xnn_subgraph_t subgraph_ = nullptr;

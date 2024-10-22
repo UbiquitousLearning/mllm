@@ -258,6 +258,7 @@ void XnnpackBackend::createSubgraph(int32_t external_nums) {
     uuid_2_externals_v_.clear();
     uuid_2_mllm_tensor_.clear();
     uuid_2_mllm_weight_tensor_.clear();
+    uuid_2_normal_tensor_.clear();
     auto status = xnn_create_subgraph(external_nums, 0, &subgraph_);
     if (status != xnn_status_success) {
         Log::error("Failed to create subgrpah");
@@ -272,6 +273,7 @@ void XnnpackBackend::recreateSubgraph(int32_t external_nums) {
         uuid_2_mllm_tensor_.clear();
         uuid_2_mllm_weight_tensor_.clear();
         uuid_2_externals_v_.clear();
+        uuid_2_normal_tensor_.clear();
     }
 
     auto status = xnn_create_subgraph(external_nums, 0, &subgraph_);
@@ -288,6 +290,15 @@ void XnnpackBackend::registerExternalValue(uint32_t uuid, const xnn_external_val
     }
 
     uuid_2_externals_v_.insert({uuid, ext_v});
+}
+
+void XnnpackBackend::registerNormalValue(uint32_t uuid) {
+    if (uuid_2_normal_tensor_.count(uuid)) {
+        Log::error("when reigster a normal value, found exists uuid: {}", uuid);
+        exit(-1);
+    }
+
+    uuid_2_normal_tensor_.insert({uuid, true});
 }
 
 void XnnpackBackend::registerUuidTensor(uint32_t uuid, Tensor *t) {
@@ -318,6 +329,10 @@ void *XnnpackBackend::getExternalValueptr(uint32_t uuid) {
 
 bool XnnpackBackend::hasExternalValue(uint32_t uuid) {
     return uuid_2_externals_v_.count(uuid);
+}
+
+bool XnnpackBackend::hasNormalValue(uint32_t uuid) {
+    return uuid_2_normal_tensor_.count(uuid);
 }
 
 xnn_datatype XnnpackBackend::mllmDType2XnnDType(DataType mllm_dtype) {
