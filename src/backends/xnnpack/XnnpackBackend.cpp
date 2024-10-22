@@ -115,6 +115,7 @@ bool XnnpackModelRuntime::createModel(const xnn_subgraph_t &model_factory) {
 
 bool XnnpackModelRuntime::createRuntime(uint32_t flags) {
     assert(!runtime_);
+    // flags |= XNN_FLAG_NO_OPERATOR_FUSION;
     return xnn_status_success == xnn_create_runtime_v4(model_.get(), nullptr, nullptr, threadpool_, flags, &runtime_);
 }
 

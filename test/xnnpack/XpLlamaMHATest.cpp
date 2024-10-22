@@ -75,6 +75,8 @@ public:
         k = k.view(-1, kv_head_size_, -1, attn_hidden_dim_);
         v = v.view(-1, kv_head_size_, -1, attn_hidden_dim_);
 
+        return {q, k, v};
+
         // [B, S, H=heads, D=dim]
         q = q_rope(q);
         k = k_rope(k);
@@ -99,7 +101,7 @@ public:
 };
 
 TEST(XpLLaMAMHATest, XpLLaMAMHA) {
-    mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::ERROR;
+    mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::WARN;
 
     XpLLaMAMHANameCfg model_cfg;
     auto model = ::mllm::xnnpack::wrap2xnn<XpLLaMAMHA>(
@@ -119,10 +121,12 @@ TEST(XpLLaMAMHATest, XpLLaMAMHA) {
 
     EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
 
-    Tensor x(1, 1, 16, 128, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor x(1, 1, 16, 4096, Backend::global_backends[MLLM_XNNPACK], true);
     x.setTtype(TensorType::INPUT_TENSOR);
 
-    auto out = model({x})[0];
-
-    out.printShape();
+    auto start = std::chrono::high_resolution_clock::now();
+    auto out_1 = model({x})[0];
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    mllm::xnnpack::Log::warn("XpLLaMAMHA 1, time={} microseconds", duration.count());
 }

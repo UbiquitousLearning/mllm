@@ -12,10 +12,11 @@
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include "Backend.hpp"
+#include "backends/xnnpack/XpInterface.hpp"
 
 namespace mllm::xnnpack {
 
-class XpViewFunction : public TensorFunction {
+class XpViewFunction : public TensorFunction, XpTensorDefineInterface<XpViewFunction> {
 public:
     void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override;
     void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override;

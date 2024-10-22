@@ -68,7 +68,7 @@ void XpTransposeFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inp
     auto status = xnn_define_static_transpose(xpb->getXnnSubgraph(), 4, perm.data(), inputs[0]->uuid(), outputs[0]->uuid(), 0);
 
     if (status != xnn_status_success) {
-        Log::error("XpGeLU::execute Error");
+        Log::error("XpTransposeFunction::execute Error");
         exit(-1);
     }
 }

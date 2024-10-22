@@ -149,7 +149,10 @@ ErrorCode XpRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         }
     }
 
+    // FIXME: When enable xnnpack operation fusion.
+    // x_cosined will occured no cunsumer error.
     auto x_cosined = defineTemporaryTensor(xpb, {b, s, h, d}, dtype);
+
     auto x_new_sined = defineTemporaryTensor(xpb, {b, s, h, d}, dtype);
     {
         auto status = xnn_define_binary(xpb->getXnnSubgraph(), xnn_binary_multiply, nullptr, inputs[0]->uuid(), sliced_cos, x_cosined, 0);
