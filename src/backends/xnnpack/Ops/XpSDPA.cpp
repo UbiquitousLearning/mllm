@@ -40,14 +40,10 @@ ErrorCode XpSDPA::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     int s = Q_SEQUENCE;
     int d = Q_DIMENSION;
 #pragma omp parallel for collapse(4) num_threads(thread_count)
-    for (int i_b = 0; i_b < b; ++i_b) {
-        for (int i_h = 0; i_h < h; ++i_h) {
-            for (int i_s = 0; i_s < s; ++i_s) {
-                for (int i_d = 0; i_d < d; ++i_d) {
-                    if (i_d > i_s) {
-                        mask_params_.setDataAt<float>({i_b, i_h, i_s, i_d}, std::numeric_limits<float>::lowest());
-                    }
-                }
+    for (int i_s = 0; i_s < s; ++i_s) {
+        for (int i_d = 0; i_d < d; ++i_d) {
+            if (i_d > i_s) {
+                mask_params_.setDataAt<float>({0, 0, i_s, i_d}, std::numeric_limits<float>::lowest());
             }
         }
     }

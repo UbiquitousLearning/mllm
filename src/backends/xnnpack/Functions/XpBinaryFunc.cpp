@@ -1,5 +1,6 @@
 #include "backends/xnnpack/Functions/XpBinaryFunc.hpp"
 #include "Tensor.hpp"
+#include "Types.hpp"
 #include "backends/xnnpack/XnnpackBackend.hpp"
 #include "xnnpack.h"
 
@@ -18,13 +19,22 @@ void XpBroadcastAddFunction::execute(vector<Tensor *> outputs, vector<Tensor *> 
     tryDefineAllXpTensors(xpb, inputs);
     tryDefineAllXpTensors(xpb, outputs);
 
+    // TODO memory leak;
+    Tensor constant_v;
+    constant_v.setBackend(xpb);
+    constant_v.reshape(1, 1, 1, 1);
+    constant_v.setDtype(DataType::MLLM_TYPE_F32);
+    constant_v.alloc();
+    constant_v.setDataAt(0, 0, 0, 0, (float)args[0]);
+    defineWeightTensor(xpb, &constant_v);
+
     // define xnnpack op.
     auto status = xnn_define_binary(
         xpb->getXnnSubgraph(),
         xnn_binary_add,
         nullptr,
         inputs[0]->uuid(),
-        inputs[1]->uuid(),
+        constant_v.uuid(),
         outputs[0]->uuid(),
         0);
 
@@ -47,13 +57,22 @@ void XpBroadcastSubFunction::execute(vector<Tensor *> outputs, vector<Tensor *> 
     tryDefineAllXpTensors(xpb, inputs);
     tryDefineAllXpTensors(xpb, outputs);
 
+    // TODO memory leak;
+    Tensor constant_v;
+    constant_v.setBackend(xpb);
+    constant_v.reshape(1, 1, 1, 1);
+    constant_v.setDtype(DataType::MLLM_TYPE_F32);
+    constant_v.alloc();
+    constant_v.setDataAt(0, 0, 0, 0, (float)args[0]);
+    defineWeightTensor(xpb, &constant_v);
+
     // define xnnpack op.
     auto status = xnn_define_binary(
         xpb->getXnnSubgraph(),
         xnn_binary_subtract,
         nullptr,
         inputs[0]->uuid(),
-        inputs[1]->uuid(),
+        constant_v.uuid(),
         outputs[0]->uuid(),
         0);
 
@@ -76,13 +95,22 @@ void XpBroadcastMulFunction::execute(vector<Tensor *> outputs, vector<Tensor *> 
     tryDefineAllXpTensors(xpb, inputs);
     tryDefineAllXpTensors(xpb, outputs);
 
+    // TODO memory leak;
+    Tensor constant_v;
+    constant_v.setBackend(xpb);
+    constant_v.reshape(1, 1, 1, 1);
+    constant_v.setDtype(DataType::MLLM_TYPE_F32);
+    constant_v.alloc();
+    constant_v.setDataAt(0, 0, 0, 0, (float)args[0]);
+    defineWeightTensor(xpb, &constant_v);
+
     // define xnnpack op.
     auto status = xnn_define_binary(
         xpb->getXnnSubgraph(),
         xnn_binary_multiply,
         nullptr,
         inputs[0]->uuid(),
-        inputs[1]->uuid(),
+        constant_v.uuid(),
         outputs[0]->uuid(),
         0);
 
@@ -105,13 +133,22 @@ void XpBroadcastDivFunction::execute(vector<Tensor *> outputs, vector<Tensor *> 
     tryDefineAllXpTensors(xpb, inputs);
     tryDefineAllXpTensors(xpb, outputs);
 
+    // TODO memory leak;
+    Tensor constant_v;
+    constant_v.setBackend(xpb);
+    constant_v.reshape(1, 1, 1, 1);
+    constant_v.setDtype(DataType::MLLM_TYPE_F32);
+    constant_v.alloc();
+    constant_v.setDataAt(0, 0, 0, 0, (float)args[0]);
+    defineWeightTensor(xpb, &constant_v);
+
     // define xnnpack op.
     auto status = xnn_define_binary(
         xpb->getXnnSubgraph(),
         xnn_binary_divide,
         nullptr,
         inputs[0]->uuid(),
-        inputs[1]->uuid(),
+        constant_v.uuid(),
         outputs[0]->uuid(),
         0);
 
