@@ -22,6 +22,8 @@
 
 namespace mllm {
 class Backend;
+class Module;
+
 /* Tensor is the baseic data structure of mllm. It is used to store the data of the model's weights and activations(the intermediate data of the calculation).
  * The Tensor class contained 3 kinds of Tensors: BasicTensor, ChildTensor. AggregatedTensor.
  *
@@ -67,16 +69,14 @@ public:
     }
     /*
     ~Tensor() {
-        if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_&& graphs.find(name_) == graphs.end()) {
+        if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_) {
             backend_->free(host_ptr_);
             host_ptr_ = nullptr;
         }
     }
     */
-    static map<string, shared_ptr<Tensor>> graphs;
     static TensorStatus tensor_status;
-    // static double forward_times;
-    // static double forward_times_2;
+
 private:
     std::map<Chl, int> chls_ = {{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
     string name_;
@@ -108,6 +108,7 @@ private:
     Tensor *deaggregated_tensor_;
     Chl aggregated_dim_;
     vector<int> aggregated_dims_;
+    Module *module_{};
 
 public:
     /**
@@ -738,10 +739,6 @@ public:
         memcpy(host_ptr_, source->host_ptr_, cntSize());
     }
 
-    map<string, shared_ptr<Tensor>> getGraph() {
-        return graphs;
-    }
-
     void changeCtype(int size = 0) {
         if (!shape().empty()) {
             size = shape().size();
@@ -1202,6 +1199,12 @@ public:
         assert(ctype_ == BCTHW || ctype_ == BTHWC);
         Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
         typed_ptr[offset(batch, channel, time, height, width)] = value;
+    }
+    Module *module() const {
+        return module_;
+    }
+    void setModule(Module *module) {
+        module_ = module;
     }
 
 public:

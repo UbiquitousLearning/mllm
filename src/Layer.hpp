@@ -5,6 +5,7 @@
 #ifndef OPERATION_H
 #define OPERATION_H
 
+#include <cassert>
 #include <cstddef>
 #include <cstdlib>
 #include <iostream>
@@ -66,23 +67,11 @@ private:
         std::string output_string = std::regex_replace(input_string, pattern, replacement);
         return output_string;
     }
-    void init_reset_KVCache(string input_name) {
+    void init_reset_KVCache(string input_name, Module *module) {
+        map<string, shared_ptr<Tensor>> &activation_tensors = module->activation_tensors;
         vector<string> renameX_names;
         renameX_names.push_back(input_name);
         const vector<string> suffixs = {"-view", ".split-0", ".split-1", ".split-2", "-cat", "-split-0-48"};
-        /*
-        for (const auto in_x_name : renameX_names) {
-            for (auto suffix : suffixs) {
-                if (in_x_name.rfind(suffix) == (in_x_name.size() - suffix.size())) {
-                    const auto r_name = in_x_name.substr(0, in_x_name.size() - suffix.size());
-                    if (std::find(renameX_names.begin(), renameX_names.end(), r_name) == renameX_names.end()) {
-                        renameX_names.push_back(r_name);
-                    }
-                    break;
-                }
-            }
-        }
-        */
         vector<string> new_names;
         bool can_break = true;
         auto in_x_name = renameX_names[0];
@@ -100,54 +89,45 @@ private:
                 }
             }
         }
-        /*
-        for (const auto &in_x_name : renameX_names) {
-            for (const auto &suffix : suffixs) {
-                if (in_x_name.rfind(suffix) == (in_x_name.size() - suffix.size())) {
-                    const auto r_name = in_x_name.substr(0, in_x_name.size() - suffix.size());
-                    if (std::find(renameX_names.begin(), renameX_names.end(), r_name) == renameX_names.end() && std::find(new_names.begin(), new_names.end(), r_name) == new_names.end()) {
-                        new_names.push_back(r_name);
-                    }
-                    break;
-                }
-            }
-        }
-        */
         renameX_names.insert(renameX_names.end(), new_names.begin(), new_names.end());
         for (const auto x_name : renameX_names) {
             auto name = name_X_to_num(x_name, saved_list_idx);
             layername_2_tensorname[name] = name;
-            Tensor::graphs[name] = std::make_shared<Tensor>(backend_);
-            Tensor::graphs[name]->initFrom(*Tensor::graphs[x_name]);
-            Tensor::graphs[name]->setName(name);
+            activation_tensors[name] = std::make_shared<Tensor>(backend_);
+            activation_tensors[name]->initFrom(*activation_tensors[x_name]);
+            activation_tensors[name]->setName(name);
+            activation_tensors[name]->setModule(module);
         }
     }
 
 protected:
-    bool init_run() {
-        if (op_ == nullptr) {
-            op_ = backend_->opCreate(param_, name_);
-        }
-        if (Module::doLoad) {
-            op_->load(*Module::loader);
-            inited_loaded = true;
-        } else {
-            if (!inited_loaded) {
-                Module::loader = new ParamLoader("");
-                op_->load(*Module::loader);
-                inited_loaded = true;
-            }
-        }
-        return Module::doLoad;
-    }
     vector<std::reference_wrapper<Tensor>> run(vector<Tensor> inputs, int N = 1) {
+        Module *module;
+        if (!inputs.empty()) {
+            module = inputs[0].module();
+        } else {
+            module = Module::llm_model_ptr;
+        }
+        map<string, shared_ptr<Tensor>> &activation_tensors = module->activation_tensors;
         Module::runlistIdx = saved_list_idx;
         bool do_init = false;
         // set backend to current module device and try to create op
         backend_ = Backend::global_backends[Module::tmp_device];
-        if (Module::doLoad || !inited_loaded) {
+        if (module->doLoad || !inited_loaded) {
             do_init = !inited_loaded;
-            init_run();
+            if (op_ == nullptr) {
+                op_ = backend_->opCreate(param_, name_);
+            }
+            if (module->doLoad) {
+                op_->load(*module->loader);
+                inited_loaded = true;
+            } else {
+                if (!inited_loaded) {
+                    module->loader = new ParamLoader("");
+                    op_->load(*module->loader);
+                    inited_loaded = true;
+                }
+            }
             vector<string> layer_next_names = {};
             if (N > 1) {
                 for (int i = 0; i < N; ++i) {
@@ -156,21 +136,13 @@ protected:
             } else {
                 layer_next_names = {"out-" + op_->name()};
             }
-            for (auto &input : inputs) {
-                if (input.shouldInGraphs()) {
-                    if (Tensor::graphs.find(input.name()) == Tensor::graphs.end() || input.count() != Tensor::graphs[input.name()]->count()) {
-                        Tensor::graphs[input.name()] = std::shared_ptr<Tensor>(&input, [](Tensor *) {});
-                        Tensor::graphs[input.name()]->setName(input.name());
-                    }
-                }
-            }
             for (const auto &layer_next_name : layer_next_names) {
                 string next_name;
                 if (use_layername_2_tensorname) {
                     if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
                         if (param_["type"] == KVCACHE) {
                             layername_2_tensorname[layer_next_name] = layer_next_name;
-                            init_reset_KVCache(inputs[0].name());
+                            init_reset_KVCache(inputs[0].name(), module);
                         } else {
                             layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
                         }
@@ -179,21 +151,17 @@ protected:
                 } else {
                     next_name = layer_next_name;
                 }
-                if (Tensor::graphs.find(next_name) == Tensor::graphs.end()) {
-                    Tensor::graphs[next_name] = std::make_shared<Tensor>(backend_);
-                    Tensor::graphs[next_name]->setName(next_name);
+                if (activation_tensors.find(next_name) == activation_tensors.end()) {
+                    activation_tensors[next_name] = std::make_shared<Tensor>(backend_);
+                    activation_tensors[next_name]->setName(next_name);
+                    activation_tensors[next_name]->setModule(module);
                 }
             }
-            if (Module::doLoad) {
+            if (module->doLoad) {
                 vector<std::reference_wrapper<Tensor>> output_result = {};
                 for (const auto &layer_next_name : layer_next_names) {
-                    string next_name;
-                    if (use_layername_2_tensorname) {
-                        next_name = layername_2_tensorname[layer_next_name];
-                    } else {
-                        next_name = layer_next_name;
-                    }
-                    output_result.push_back(*Tensor::graphs[next_name]);
+                    string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : layer_next_name;
+                    output_result.push_back(*activation_tensors[next_name]);
                 }
                 return output_result;
             }
@@ -206,7 +174,7 @@ protected:
                 if (param_["type"] == KVCACHE && do_init) {
                     input_name = name_X_to_num(input_name, saved_list_idx);
                 }
-                input_tensors.push_back(Tensor::graphs[input_name]);
+                input_tensors.push_back(activation_tensors[input_name]);
             } else {
                 input_tensors.push_back(std::shared_ptr<Tensor>(&input, [](Tensor *) {}));
             }
@@ -221,16 +189,9 @@ protected:
             layer_next_names = {"out-" + op_->name()};
         }
         vector<shared_ptr<Tensor>> output_tensors = {};
-        vector<string> next_names = {};
         for (const auto &layer_next_name : layer_next_names) {
-            string next_name;
-            if (use_layername_2_tensorname) {
-                next_name = layername_2_tensorname[layer_next_name];
-            } else {
-                next_name = layer_next_name;
-            }
-            next_names.push_back(next_name);
-            output_tensors.push_back(Tensor::graphs[next_name]);
+            string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : layer_next_name;
+            output_tensors.push_back(activation_tensors[next_name]);
         }
 #ifdef DEBUGOPTIME
         auto start_t = mllm_time_us();
@@ -257,16 +218,11 @@ protected:
 #endif
         vector<std::reference_wrapper<Tensor>> output_result = {};
         for (const auto &layer_next_name : layer_next_names) {
-            string next_name;
-            if (use_layername_2_tensorname) {
-                next_name = layername_2_tensorname[layer_next_name];
-            } else {
-                next_name = layer_next_name;
-            }
+            string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : layer_next_name;
 #ifdef DEBUGSAVETENSOR
-            Tensor::graphs[next_name]->saveNData<float>(layer_next_name);
+            activation_tensors[next_name]->saveNData<float>(layer_next_name);
 #endif
-            output_result.push_back(*Tensor::graphs[next_name]);
+            output_result.push_back(*activation_tensors[next_name]);
         }
         return output_result;
     }
