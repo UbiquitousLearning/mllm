@@ -13,14 +13,13 @@ class RoPEModule : public Module {
 
 public:
     RoPEModule() {
-        rope_ = RoPE(RoPEType::HFHUBROPE, 1e5, 1024, "linear");
+        rope_ = RoPE(RoPEType::HFHUBROPE, 1e5, 1024, "rope");
         linear_ = Linear(1024, 1024, true, "linear");
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = inputs[0];
-        auto bias = linear_(x);
-        auto out = rope_(x) + bias;
+        auto out = linear_(x) + rope_(x);
         return {out};
     }
 };
