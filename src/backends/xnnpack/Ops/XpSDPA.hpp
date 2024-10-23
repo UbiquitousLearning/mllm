@@ -38,8 +38,8 @@ public:
     ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
-    Tensor mask_params_;
     Tensor scale_params_;
+    Tensor mask_params_;
     int thread_count_ = 4;
 };
 

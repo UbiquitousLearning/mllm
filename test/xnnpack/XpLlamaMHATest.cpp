@@ -24,6 +24,7 @@ class XpLLaMAMHA final : public Module {
     Layer v_cache;
     Layer o_proj;
     Layer mask;
+    Layer softmax;
 
     int head_size_ = 0;
     int kv_head_size_ = 0;
@@ -57,6 +58,8 @@ public:
 
         mask = Causalmask("mask");
 
+        softmax = Softmax(DIMENSION, "softmax");
+
         head_size_ = head_size;
         kv_head_size_ = kv_head_size;
         attn_hidden_dim_ = attn_hidden_dim;
@@ -75,8 +78,6 @@ public:
         k = k.view(-1, kv_head_size_, -1, attn_hidden_dim_);
         v = v.view(-1, kv_head_size_, -1, attn_hidden_dim_);
 
-        return {q, k, v};
-
         // [B, S, H=heads, D=dim]
         q = q_rope(q);
         k = k_rope(k);
@@ -85,18 +86,18 @@ public:
         k = k_cache(k);
         v = v_cache(v);
 
-        return {q, k, v};
+        // TODO
+        // shape maybe error
+        auto qk = Tensor::mm(q, k.transpose(SEQUENCE, DIMENSION));
+        qk = qk / std::sqrt(attn_hidden_dim_);
+        qk = mask(qk);
+        qk = softmax(qk);
 
-        // TODO Check new shape.
-        k = k.transpose(SEQUENCE, DIMENSION);
+        auto o = Tensor::mm(qk, v);
+        o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
+        o = o_proj(o);
 
-        return {q, k, v};
-
-        auto qk = Tensor::mm(q, k);
-
-        // TODO SDPA
-
-        return {};
+        return {o};
     }
 };
 
@@ -106,7 +107,7 @@ TEST(XpLLaMAMHATest, XpLLaMAMHA) {
     XpLLaMAMHANameCfg model_cfg;
     auto model = ::mllm::xnnpack::wrap2xnn<XpLLaMAMHA>(
         1,
-        3,
+        1,
         /*hidden_dim*/ 4096,
         /*head_size*/ 32,
         /*kv_headsize*/ 32,
@@ -129,4 +130,6 @@ TEST(XpLLaMAMHATest, XpLLaMAMHA) {
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     mllm::xnnpack::Log::warn("XpLLaMAMHA 1, time={} microseconds", duration.count());
+
+    out_1.printShape();
 }

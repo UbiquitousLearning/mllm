@@ -33,6 +33,7 @@ add_library(MllmXnnpackBackend
     Functions/XpBinaryFunc.cpp
     Functions/XpTransposeFunc.cpp
     Functions/XpViewFunc.cpp
+    Functions/XpMatmulFunc.cpp
 )
 target_include_directories(MllmXnnpackBackend PUBLIC third_party/XNNPACK/src/)
 target_include_directories(MllmXnnpackBackend PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../)

@@ -1,5 +1,6 @@
 #include <array>
 #include "backends/xnnpack/Functions/XpTransposeFunc.hpp"
+#include "Types.hpp"
 
 namespace mllm::xnnpack {
 
@@ -19,6 +20,10 @@ void XpTransposeFunction::setup(vector<Tensor *> outputs, vector<Tensor *> input
     } else if (axis0_ == BATCH && axis1_ == SEQUENCE) {
         if (inputs[0]->ctype() == BSHD) {
             outputs[0]->reshape(inputs[0]->sequence(), inputs[0]->head(), inputs[0]->batch(), inputs[0]->dimension());
+        }
+    } else if (axis0_ == SEQUENCE && axis1_ == HEAD) {
+        if (inputs[0]->ctype() == BSHD) {
+            outputs[0]->reshape(inputs[0]->batch(), inputs[0]->sequence(), inputs[0]->head(), inputs[0]->dimension());
         }
     }
 }
@@ -61,6 +66,14 @@ void XpTransposeFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inp
             Log::error("XpTransposeFunction NYI");
             exit(-1);
         }
+    } else if (axis0_ == SEQUENCE && axis1_ == HEAD) {
+        if (inputs[0]->ctype() == BSHD) {
+            std::swap(perm[1], perm[2]);
+        } else {
+            Log::error("XpTransposeFunction NYI");
+            exit(-1);
+        }
+
     } else {
         Log::error("XpTransposeFunction NYI");
         exit(-1);

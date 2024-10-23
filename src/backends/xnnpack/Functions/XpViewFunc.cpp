@@ -61,6 +61,8 @@ void XpViewFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, ve
     outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
 }
 void XpViewFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+    Log::warn("XpViewFunction will use reshape instead of view. Which will involve extra copy.");
+
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
     tryDefineAllXpTensors(xpb, inputs);
     tryDefineAllXpTensors(xpb, outputs);

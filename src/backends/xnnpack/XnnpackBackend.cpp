@@ -25,6 +25,7 @@
 #include "backends/xnnpack/Ops/XpCausalMask.hpp"
 #include "backends/xnnpack/Ops/XpSDPA.hpp"
 #include "backends/xnnpack/Functions/XpViewFunc.hpp"
+#include "backends/xnnpack/Functions/XpMatmulFunc.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
@@ -230,6 +231,7 @@ void XnnpackBackend::registerFuncs() {
     // others
     map_tensor_function_[TensorFuncType::FUNC_TRANPOSE] = new XpTransposeFunction();
     map_tensor_function_[TensorFuncType::FUNC_VIEW] = new XpViewFunction();
+    map_tensor_function_[TensorFuncType::FUNC_MM] = new XpMatmulFunction();
 }
 
 std::shared_ptr<XnnpackModelRuntime> XnnpackBackend::getModelRuntime() {

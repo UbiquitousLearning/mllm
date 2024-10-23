@@ -84,7 +84,7 @@ struct XpTensorDefineInterface {
         xpb->registerUuidWeightTensor(t->uuid(), t);
     }
 
-    void tryDefineAllXpTensors(XnnpackBackend *xpb, std::vector<std::shared_ptr<Tensor>> &ts) {
+    void tryDefineAllXpTensors(XnnpackBackend *xpb, const std::vector<std::shared_ptr<Tensor>> &ts) {
         for (auto &t : ts) {
             XpTensorType _t;
             switch (t->xnnTensorType()) {
@@ -103,7 +103,7 @@ struct XpTensorDefineInterface {
         }
     }
 
-    void tryDefineAllXpTensors(XnnpackBackend *xpb, std::vector<Tensor *> &ts) {
+    void tryDefineAllXpTensors(XnnpackBackend *xpb, const std::vector<Tensor *> &ts) {
         for (auto &t : ts) {
             XpTensorType _t;
             switch (t->xnnTensorType()) {
