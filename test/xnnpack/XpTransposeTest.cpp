@@ -10,19 +10,15 @@
 using namespace mllm;
 
 class TransposeModule : public Module {
-    Layer linear_;
-
 public:
-    TransposeModule() {
-        linear_ = Linear(2048, 4096, true, "linear");
-    }
+    explicit TransposeModule() = default;
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = inputs[0];
 
-        // B, S, H, D -> B, S, D, H
-        auto out = x.transpose(SEQUENCE, DIMENSION);
-        return {linear_(out)};
+        // B, S, H, D -> B, H, S, D
+        auto out = x.transpose(SEQUENCE, HEAD);
+        return {out};
     }
 };
 
@@ -35,8 +31,17 @@ TEST(TransposeTest, TransposeModule) {
     EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
 
     // B, S ,H, D
-    Tensor x(1, 1, 2048, 1024, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor x(1, 6, 8, 1, Backend::global_backends[MLLM_XNNPACK], true);
     x.setTtype(TensorType::INPUT_TENSOR);
+
+    float cnt = 0.f;
+    for (int i = 0; i < x.sequence(); ++i) {
+        for (int j = 0; j < x.head(); ++j) {
+            x.setDataAt(0, j, i, 0, cnt++);
+        }
+    }
+
+    x.printData<float>();
 
     auto start = std::chrono::high_resolution_clock::now();
     auto out = model({x})[0];
@@ -44,6 +49,7 @@ TEST(TransposeTest, TransposeModule) {
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     mllm::xnnpack::Log::warn("Transpose + Linear 1, time={} microseconds", duration.count());
 
+    out.printData<float>();
     out.printShape();
 }
 

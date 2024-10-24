@@ -26,7 +26,7 @@ ErrorCode XpSDPA::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     scale_params_.alloc();
 
     // scale = \sqrt{d_k}
-    scale_params_.fullData(1 / std::sqrt(V->shape()[3]));
+    scale_params_.fullData<float>(1.f / (float)std::sqrt(V->shape()[3]));
 
     // mask
     //  mask_param_ reshape and alloc
@@ -38,7 +38,7 @@ ErrorCode XpSDPA::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     int b = Q_BATCH;
     int h = Q_HEAD;
     int s = Q_SEQUENCE;
-    int d = Q_DIMENSION;
+    int d = V->shape()[2];
 #pragma omp parallel for collapse(4) num_threads(thread_count)
     for (int i_s = 0; i_s < s; ++i_s) {
         for (int i_d = 0; i_d < d; ++i_d) {

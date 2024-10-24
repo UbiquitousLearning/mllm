@@ -23,8 +23,7 @@ class XpLLaMAMHA final : public Module {
     Layer k_cache;
     Layer v_cache;
     Layer o_proj;
-    Layer mask;
-    Layer softmax;
+    Layer sdpa;
 
     int head_size_ = 0;
     int kv_head_size_ = 0;
@@ -56,9 +55,7 @@ public:
 
         o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, false, base_name + names._o_proj_name);
 
-        mask = Causalmask("mask");
-
-        softmax = Softmax(DIMENSION, "softmax");
+        sdpa = ScaledDotProductAttention("sdpa");
 
         head_size_ = head_size;
         kv_head_size_ = kv_head_size;
@@ -73,27 +70,29 @@ public:
         auto k = k_proj(inputs[0]);
         auto v = v_proj(inputs[0]);
 
+        // q = q.view(bsz, q_len, num_heads, head_dim)
         // [B, S, H=heads, D=dim]
         q = q.view(-1, head_size_, -1, attn_hidden_dim_);
         k = k.view(-1, kv_head_size_, -1, attn_hidden_dim_);
         v = v.view(-1, kv_head_size_, -1, attn_hidden_dim_);
 
-        // [B, S, H=heads, D=dim]
         q = q_rope(q);
         k = k_rope(k);
 
-        // [B, S-new, H=heads, D=dim]
         k = k_cache(k);
         v = v_cache(v);
 
-        // TODO
-        // shape maybe error
-        auto qk = Tensor::mm(q, k.transpose(SEQUENCE, DIMENSION));
-        qk = qk / std::sqrt(attn_hidden_dim_);
-        qk = mask(qk);
-        qk = softmax(qk);
+        // [B, S, H, D] -> [B, H, S, D]
+        q = q.transpose(SEQUENCE, HEAD);
+        k = k.transpose(SEQUENCE, HEAD);
+        v = v.transpose(SEQUENCE, HEAD);
 
-        auto o = Tensor::mm(qk, v);
+        auto o = sdpa(q, k, v);
+
+        // o is [B, H, S, D]
+        // [B, H, S, D] -> [B, S, H, D]
+        o = o.transpose(SEQUENCE, HEAD);
+        // [B, S, H, D] -> [B, S, 1, H * D]
         o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
         o = o_proj(o);
 

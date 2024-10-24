@@ -32,7 +32,7 @@ ErrorCode XpTranspose::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
     tryDefineAllXpTensors(xpb, inputs);
     tryDefineAllXpTensors(xpb, outputs);
 
-    std::array<size_t, 4> perm{3, 2, 1, 0};
+    std::array<size_t, 4> perm{0, 1, 2, 3};
 
     // inputs[0]->transShape(SEQUENCE, DIMENSION);
     if (axis0_ == SEQUENCE && axis1_ == DIMENSION) {

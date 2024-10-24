@@ -33,7 +33,7 @@ void XpTransposeFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inp
     tryDefineAllXpTensors(xpb, inputs);
     tryDefineAllXpTensors(xpb, outputs);
 
-    std::array<size_t, 4> perm{3, 2, 1, 0};
+    std::array<size_t, 4> perm{0, 1, 2, 3};
 
     Chl axis0_ = (Chl)args[0];
     Chl axis1_ = (Chl)args[1];
