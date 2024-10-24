@@ -281,7 +281,8 @@ public:
         return {_byte_decode_(BPETokenizer::detokenize({token_idx})), token_idx};
     }
     std::pair<bool, std::string> postprocess(std::string &text) override {
-        if (text == "<|im_start|>" || text == "<|im_end|>" || text == "<unk>") return {true, ""};
+        if (text == "<|im_start|>" || text == "<unk>") return {true, ""};
+        if (text == "<|im_end|>") return {false, ""};
         if (text == "<|endoftext|>") return {false, ""};
         return {true, text};
     }
