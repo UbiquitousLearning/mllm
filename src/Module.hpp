@@ -147,7 +147,7 @@ public:
         vector<std::any> anyArgs = convertArgsToAnyVector(args...);
         // set static tmp_device to device_ to init layers' op
         Module::tmp_device = device_;
-        if (doLoad) {
+        if (llm_model_ptr->doLoad) {
             return Forward(inputs, anyArgs);
         }
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
