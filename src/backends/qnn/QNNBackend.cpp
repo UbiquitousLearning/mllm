@@ -255,7 +255,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
             auto quantizeDefined = QNN_DEFINITION_UNDEFINED;
             auto quantizeType = QNN_QUANTIZATION_ENCODING_UNDEFINED;
             float scale = 0.0f;
-            auto loader = inputs[0]->module()->loader;
+            auto loader = Module::llm_model_ptr->loader;
             Tensor scaleTensor(this);
             scaleTensor.reshape(1, 1, 1, 1);
             scaleTensor.setDtype(MLLM_TYPE_F32);

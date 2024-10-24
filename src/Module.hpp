@@ -33,7 +33,7 @@ protected:
     BackendType device_ = BackendType::MLLM_CPU;
 
 public:
-    map<string, shared_ptr<Tensor>> activation_tensors = {};
+    map<string, shared_ptr<Tensor>> activation_tensors;
     AbstructLoader *loader;
     bool doLoad = false;
 
@@ -95,14 +95,14 @@ public:
     }
 
     void load(string path) {
-        ParamLoader param_loader(std::move(path));
-        load(param_loader);
+        // create global loader and save to llm_model_ptr.loader as QNNBackend needs to load weights in runtime
+        loader = new ParamLoader(std::move(path));
+        load(*loader);
     }
     void load(AbstructLoader &param_loader) {
         Tensor::tensor_status = TENSOR_STATIC_INIT;
         mllm_time_init();
 
-        loader = &param_loader;
         Module::doLoad = true;
         vector<Tensor> tmps;
         int max_in_size = 5;
@@ -148,18 +148,20 @@ public:
         // set static tmp_device to device_ to init layers' op
         auto previoud_device = tmp_device;
         Module::tmp_device = device_;
-        if (doLoad) {
+        // Module Loading
+        if (llm_model_ptr->doLoad) {
             auto outputs = Forward(inputs, anyArgs);
             // for inner module, set output tensors to GRAPH_OUTPUT
             if (inputs[0].ttype() != TensorType::INPUT_TENSOR) { // XPUs' module should not be the outermost input tensor
                 for (auto &output : outputs) {
                     inputs[0].module()->activation_tensors[output.name()]->setTtype(GRAPH_OUTPUT);
                 }
-                // set Module::tmp_device to previous device
-                Module::tmp_device = previoud_device;
             }
+            // set Module::tmp_device to previous device
+            Module::tmp_device = previoud_device;
             return outputs;
         }
+        // Module setUp & execute
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
             if (prefilling_token_size_ == 0) { // first time init
                 // if(!Tensor::graphs.empty()){
