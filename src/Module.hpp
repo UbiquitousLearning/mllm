@@ -148,7 +148,7 @@ public:
         // set static tmp_device to device_ to init layers' op
         auto previoud_device = tmp_device;
         Module::tmp_device = device_;
-        if (doLoad) {
+        if (llm_model_ptr->doLoad) {
             auto outputs = Forward(inputs, anyArgs);
             // for inner module, set output tensors to GRAPH_OUTPUT
             if (inputs[0].ttype() != TensorType::INPUT_TENSOR) { // XPUs' module should not be the outermost input tensor
