@@ -34,8 +34,6 @@ mllm.egg-info/
 
 examples/demo_deepseek.cpp
 src/models/deepseek/*
-# examples/demo_phonelm.cpp
-# src/models/phonelm/*
 examples/demo_minicpm3.cpp
 src/models/minicpm3/*
 examples/demo.cpp
