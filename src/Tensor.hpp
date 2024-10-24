@@ -22,6 +22,8 @@
 
 namespace mllm {
 class Backend;
+class Module;
+
 /* Tensor is the baseic data structure of mllm. It is used to store the data of the model's weights and activations(the intermediate data of the calculation).
  * The Tensor class contained 3 kinds of Tensors: BasicTensor, ChildTensor. AggregatedTensor.
  *
@@ -67,16 +69,14 @@ public:
     }
     /*
     ~Tensor() {
-        if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_&& graphs.find(name_) == graphs.end()) {
+        if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_) {
             backend_->free(host_ptr_);
             host_ptr_ = nullptr;
         }
     }
     */
-    static map<string, shared_ptr<Tensor>> graphs;
     static TensorStatus tensor_status;
-    // static double forward_times;
-    // static double forward_times_2;
+
 private:
     std::map<Chl, int> chls_ = {{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
     string name_;
@@ -108,6 +108,7 @@ private:
     Tensor *deaggregated_tensor_;
     Chl aggregated_dim_;
     vector<int> aggregated_dims_;
+    Module *module_{};
 
 public:
     /**
@@ -738,10 +739,6 @@ public:
         memcpy(host_ptr_, source->host_ptr_, cntSize());
     }
 
-    map<string, shared_ptr<Tensor>> getGraph() {
-        return graphs;
-    }
-
     void changeCtype(int size = 0) {
         if (!shape().empty()) {
             size = shape().size();
@@ -1085,34 +1082,7 @@ public:
         return backend_->type();
     }
 
-    Tensor &to(BackendType backend_type) { 
-        // TODO: check if the data is shared between devices
-        // if so, return the origin tensor
-        // if not, return the new tensor
-        // TODO: if need copy, should implement copyDataCrossBn and do copy when Tensor::TENSOR_STATIC_READY
-
-        /**
-         * Currently, there are following cases:
-         * CPU -> QNN, QNN -> CPU
-         * if it is CPU -> QNN, the buffer should be realloced
-         * (NOTE: not handling data copy as the tensor.to() shoudld be called before the data is set and tensor.device() should be checked in frontend)
-         * if it is QNN -> CPU, the data is sharable between CPU and QNN, no need to copy or realloc
-         */
-        if (device() == backend_type) {
-            return *this;
-        }
-        if(backend_type == MLLM_CPU && device() == MLLM_QNN) {
-            // data is sharable between CPU and QNN
-            return *this;
-        }
-        // realloc the tensor
-        if (backend_type == MLLM_QNN && device() == MLLM_CPU) {
-            this->free();
-        }
-        Tensor::graphs[name()]->setBackend(Backend::global_backends[backend_type]);
-        this->alloc(); 
-        return *this;
-    };
+    Tensor &to(BackendType backend_type);
     static vector<Tensor> toDevice(vector<Tensor> inputs, BackendType backend_type) {
         for (auto &input : inputs) {
             input.to(backend_type);
@@ -1230,6 +1200,12 @@ public:
         assert(ctype_ == BCTHW || ctype_ == BTHWC);
         Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
         typed_ptr[offset(batch, channel, time, height, width)] = value;
+    }
+    Module *module() const {
+        return module_;
+    }
+    void setModule(Module *module) {
+        module_ = module;
     }
 
 public:
