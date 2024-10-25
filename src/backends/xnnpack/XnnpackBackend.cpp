@@ -26,6 +26,7 @@
 #include "backends/xnnpack/Ops/XpSDPA.hpp"
 #include "backends/xnnpack/Functions/XpViewFunc.hpp"
 #include "backends/xnnpack/Functions/XpMatmulFunc.hpp"
+#include "backends/xnnpack/Ops/XpEmbedding.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
@@ -213,6 +214,7 @@ void XnnpackBackend::registerOps() {
     addCreator(XP_KVCACHE, new XpKVCacheCreator());
     addCreator(CAUSALMASK, new XpCausalMaskCreator());
     addCreator(SDPA, new XpSDPACreator());
+    addCreator(EMBEDDING, new XpEmbeddingCreator());
 }
 
 void XnnpackBackend::registerFuncs() {

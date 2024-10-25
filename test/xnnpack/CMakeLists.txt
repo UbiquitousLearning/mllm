@@ -191,3 +191,35 @@ target_link_libraries(
         MLLM_CPU
         MllmXnnpackBackend
 )
+
+add_executable(
+        XpSliceTest
+        XpSliceTest.cpp
+        ${DIR_SRC_CPU} 
+        ${DIR_SRC_MEM_MANAGER} 
+        ${DIR_SRC_EXP} 
+        ${DIR_SRC} 
+)
+target_link_libraries(
+        XpSliceTest
+        PUBLIC
+        GTest::gtest_main
+        MLLM_CPU
+        MllmXnnpackBackend
+)
+
+add_executable(
+        XpEmbeddingTest
+        XpEmbeddingTest.cpp
+        ${DIR_SRC_CPU} 
+        ${DIR_SRC_MEM_MANAGER} 
+        ${DIR_SRC_EXP} 
+        ${DIR_SRC} 
+)
+target_link_libraries(
+        XpEmbeddingTest
+        PUBLIC
+        GTest::gtest_main
+        MLLM_CPU
+        MllmXnnpackBackend
+)

@@ -20,6 +20,8 @@ namespace mllm::xnnpack {
 
 class XpWrapperModule : public Module {
 public:
+    XpWrapperModule() = default;
+
     XpWrapperModule(int input_num, int output_num);
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override;

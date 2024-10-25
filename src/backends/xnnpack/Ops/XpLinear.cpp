@@ -17,7 +17,7 @@ ErrorCode XpLinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
 }
 
 ErrorCode XpLinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    assert(inputs[0]->sequence() != in_features_);
+    assert(inputs[0]->dimension() == in_features_);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
     return Op::reshape(inputs, outputs);
 }
