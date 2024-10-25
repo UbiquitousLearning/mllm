@@ -32,8 +32,9 @@ int main(int argc, char **argv) {
     auto tokenizer = LLaMATokenizer(vocab_path);
 
     LLaMAConfig config(tokens_limit, "7B", LLAMAROPE);
-    auto model = ::mllm::xnnpack::wrap2xnn<LLaMAModel>(1, 1, config);
-    model.load(model_path);
+    auto model = LLaMAModel(config);
+    // model.load(model_path);
+    model.setNoLoadWeightsDtype(DataType::MLLM_TYPE_F32);
 
     vector<string> in_strs = {
         " Hello, who are you?",
@@ -60,7 +61,7 @@ int main(int argc, char **argv) {
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");
-        model.clear_kvcache();
+        // model.clear_kvcache();
         model.profiling();
     }
 
