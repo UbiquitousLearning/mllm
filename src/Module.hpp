@@ -17,7 +17,6 @@
 #include <iostream>
 #include <memory/SystemMemoryManager.hpp>
 #include <memory>
-#include <numeric>
 #include <utility>
 #include <vector>
 #include <unordered_map>
@@ -35,12 +34,39 @@ protected:
     BackendType device_ = BackendType::MLLM_CPU;
 
 public:
-    static AbstructLoader *loader;
-    static bool doLoad;
+    map<string, shared_ptr<Tensor>> activation_tensors = {};
+    AbstructLoader *loader;
+    bool doLoad = false;
+
+    static Module *llm_model_ptr;
+
+    static int listIdx;
+    static int runlistIdx;
+
     static bool doToDevice;
     static BackendType tmp_device;
+
     static std::unordered_map<string, shared_ptr<Op>> tensor_func_ops; // use for QNN
 
+private:
+    template <typename... Args>
+    vector<std::any> convertArgsToAnyVector(Args... args) {
+        return vector<std::any>{std::any(args)...};
+    }
+
+    // 递归终止函数
+    template <typename T>
+    static auto change_last(T value) {
+        return std::make_tuple(value + std::to_string(listIdx) + ".");
+    }
+    // 递归函数
+    template <typename T, typename... Args>
+    static auto change_last(T head, Args... tail) {
+        auto tail_tuple = change_last(tail...);
+        return std::tuple_cat(std::make_tuple(head), tail_tuple);
+    }
+
+public:
     Module() = default;
     virtual ~Module() = default;
 
@@ -74,24 +100,26 @@ public:
         initBackend(type);
         device_ = type;
     }
-    static void initLoader(string path) {
-        loader = new ParamLoader(std::move(path));
-    }
 
     void load(string path) {
-        Tensor::graphs.clear();
+        ParamLoader param_loader(std::move(path));
+        load(param_loader);
+    }
+    void load(AbstructLoader &param_loader) {
         Tensor::tensor_status = TENSOR_STATIC_INIT;
-
         mllm_time_init();
-        initLoader(path);
+
+        loader = &param_loader;
         Module::doLoad = true;
         vector<Tensor> tmps;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
-            Tensor::graphs["input" + std::to_string(i)] = std::make_shared<Tensor>(Backend::global_backends[MLLM_CPU]);
-            Tensor::graphs["input" + std::to_string(i)]->setName("input" + std::to_string(i));
-            tmps.push_back(*Tensor::graphs["input" + std::to_string(i)]);
+            Tensor t(Backend::global_backends[MLLM_CPU]);
+            t.setName("input" + std::to_string(i));
+            t.setModule(this);
+            tmps.push_back(t);
         }
+        llm_model_ptr = this;
         vector<std::any> alternate_args = {
             {},
             vector<int>{0, 0},
@@ -117,47 +145,20 @@ public:
         uint64_t time_end = mllm_time_us();
         load_time_ = (time_end - time_start) / 1000.0F; // ms
         Module::doLoad = false;
-        // Tensor::graphs.clear();
-    }
-
-    void load(AbstructLoader &param_loader) {
-        Tensor::graphs.clear();
-        Tensor::tensor_status = TENSOR_STATIC_INIT;
-
-        loader = &param_loader;
-        Module::doLoad = true;
-        vector<Tensor> tmps;
-        int max_in_size = 5;
-        for (int i = 0; i < max_in_size; ++i) {
-            Tensor::graphs["input" + std::to_string(i)] = std::make_shared<Tensor>(Backend::global_backends[MLLM_CPU]);
-            Tensor::graphs["input" + std::to_string(i)]->setName("input" + std::to_string(i));
-            tmps.push_back(*Tensor::graphs["input" + std::to_string(i)]);
-        }
-        vector<int> tmpt = {0, 0};
-        operator()(tmps, tmpt);
-        Module::doLoad = false;
-        // Tensor::graphs.clear();
     }
 
     virtual vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) = 0;
 
     template <typename... Args>
-    vector<std::any> convertArgsToAnyVector(Args... args) {
-        return vector<std::any>{std::any(args)...};
-    }
-    template <typename... Args>
     vector<Tensor> operator()(vector<Tensor> inputs, Args... args) {
         vector<std::any> anyArgs = convertArgsToAnyVector(args...);
         // set static tmp_device to device_ to init layers' op
         Module::tmp_device = device_;
-        if (doLoad) {
+        if (llm_model_ptr->doLoad) {
             return Forward(inputs, anyArgs);
         }
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
             if (prefilling_token_size_ == 0) { // first time init
-                // if(!Tensor::graphs.empty()){
-                //     Tensor::graphs.clear();
-                // }
                 prefilling_token_size_ = inputs[0].sequence();
             } else if (decoding_token_size_ == 0) {
                 decoding_token_size_ = inputs[0].sequence();
@@ -167,7 +168,10 @@ public:
                 auto &input = inputs[i];
                 input.setName("input" + std::to_string(i));
                 input.setTtype(TensorType::NORMAL_TENSOR);
-                Tensor::graphs[input.name()] = std::shared_ptr<Tensor>(&input, [](Tensor *) {});
+                activation_tensors[input.name()] = std::shared_ptr<Tensor>(&input, [](Tensor *) {});
+                activation_tensors[input.name()]->setName(input.name());
+                activation_tensors[input.name()]->setModule(this);
+                llm_model_ptr = this;
                 if (inputs[0].sequence() != 1 && !last_shape_bshd_.empty()) {
                     // if LLM/VLLM model, the `need_setup` should be `true`
                     if (input.batch() == last_shape_bshd_[i][0] & input.sequence() == last_shape_bshd_[i][1] & input.head() == last_shape_bshd_[i][2] & input.dimension() == last_shape_bshd_[i][3]) {
@@ -200,40 +204,13 @@ public:
         }
     }
 
-    static int listIdx;
-    static int runlistIdx;
-
-    template <typename T>
-    static vector<T> List(int n) {
-        static_assert(std::is_base_of<Module, T>::value, "T must be a subclass of Module");
-        listIdx = 0;
-        vector<T> modules;
-        for (int i = 0; i < n; i++) {
-            modules.push_back(T());
-            listIdx++;
-        }
-        listIdx = 0;
-        return modules;
-    }
-
-    // 递归终止函数
-    template <typename T>
-    static auto change_last(T value) {
-        return std::make_tuple(value + std::to_string(listIdx) + ".");
-    }
-    // 递归函数
-    template <typename T, typename... Args>
-    static auto change_last(T head, Args... tail) {
-        auto tail_tuple = change_last(tail...);
-        return std::tuple_cat(std::make_tuple(head), tail_tuple);
-    }
     template <typename T, typename... Args>
     static vector<T> List(int n, Args &&...args) {
         static_assert(std::is_base_of<Module, T>::value, "T must be a subclass of Module");
         listIdx = 0;
         vector<T> modules;
         for (int i = 0; i < n; i++) {
-            auto new_args = change_last(args...); // 创建新的参数包，最后一个参数被修改为原来的值+ std::to_string(listIdx)+ "."
+            auto new_args = change_last(args...);
             modules.push_back(std::move(T(std::apply([&](auto &&...args) { return T(std::forward<decltype(args)>(args)...); }, new_args))));
             listIdx++;
         }
@@ -242,77 +219,20 @@ public:
     }
 
     void free() {
-        Tensor::graphs.clear();
+        activation_tensors.clear();
     }
 
     void setNoLoadWeightsDtype(DataType dtype) {
         Op::noLoadWeightsDtype() = dtype;
     }
-
-    void profiling(string name = "") {
-        // printf("\n");
-        std::cout << "===========================================" << std::endl;
-        if (!name.empty()) {
-            std::cout << "            " << name << std::endl;
-            std::cout << "-------------------------------------------" << std::endl;
-        }
-        std::cout << "  Load time: " << load_time_ / 1000.0F << " s" << std::endl;
-        if (inference_times_.size() > 1 && decoding_token_size_ != prefilling_token_size_) {
-            std::cout << "  Prefilling speed: " << 1000 * prefilling_token_size_ / inference_times_[0] << " tokens/s" << std::endl;
-            double sum_decoding_time = std::accumulate(std::begin(inference_times_) + 1, std::end(inference_times_), 0.0);
-            double mean_decoding_time = sum_decoding_time / (inference_times_.size() - 1);
-            std::cout << "  Decoding speed: " << 1000 / mean_decoding_time << " tokens/s" << std::endl;
-        } else {
-            double sum_time = std::accumulate(std::begin(inference_times_), std::end(inference_times_), 0.0);
-            double mean_time = sum_time / (inference_times_.size());
-            std::cout << "  Inference latency: " << mean_time / 1000.0F << " s" << std::endl;
-        }
-        // double sum_time = std::accumulate(std::begin(inference_times_), std::end(inference_times_), 0.0);
-        // std::cout<<sum_time<< " - "<<Tensor::forward_times<<" = "<<sum_time-Tensor::forward_times<<std::endl;
-        // std::cout<<Tensor::forward_times<< " - "<<Tensor::forward_times_2<<" = "<<Tensor::forward_times-Tensor::forward_times_2<<std::endl;
-
-        std::cout << "===========================================" << std::endl;
-
-        prefilling_token_size_ = 0;
-        decoding_token_size_ = 0;
-        inference_times_.clear();
-        last_shape_bshd_.clear();
+    virtual void clear_kvcache() {
+        ;
     }
-
+    vector<double> profiling(string name = "");
     virtual void generate(
-        Tensor &input_ids, const LlmTextGeneratorOpts &opt, const std::function<bool(unsigned int)> &call_back = [](unsigned int) -> bool { return true; }) {
-        auto chatPostProcessing = [](unsigned token_idx, Tensor &tokens_tensor, const vector<Tensor *> &clean_tensors) {
-            tokens_tensor.reshape(1, 1, 1, 1);
-            tokens_tensor.alloc();
-            tokens_tensor.setDataAt<float>(0, 0, 0, 0, token_idx);
+        Tensor &input_ids, const LlmTextGeneratorOpts &opt, const std::function<bool(unsigned int)> &call_back = [](unsigned int) -> bool { return true; });
 
-            for (auto tensor : clean_tensors) {
-                tensor->reshape(0, 0, 0, 0);
-                tensor->alloc();
-            }
-        };
-
-        if (!opt.do_sample) {
-            // fail to greedy search
-            if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kGreedySearch)
-                text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kGreedySearch, opt);
-        } else if (opt.do_sample && !opt.top_k && opt.top_p != 0.F) {
-            // fail to top p sampling
-            if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kToppSampling)
-                text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kToppSampling, opt);
-        } else if (opt.do_sample && opt.top_k) {
-            // fail to top k sampling
-            if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kTopkSampling)
-                text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kTopkSampling, opt);
-        }
-
-        for (int step = 0; step < opt.max_new_tokens; ++step) {
-            auto _out = (*this)({input_ids});
-            auto out_token = text_generator_->generate(_out[0]);
-            if (!call_back(out_token)) break;
-            chatPostProcessing(out_token, input_ids, {});
-        }
-    }
+    vector<unsigned> generate(Tensor &input_ids, const LlmTextGeneratorOpts &opt, int end_token = -1);
 };
 
 } // namespace mllm

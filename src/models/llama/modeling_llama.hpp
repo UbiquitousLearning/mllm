@@ -95,7 +95,7 @@ public:
         return {x};
     }
 
-    void clear_kvcache() {
+    void clear_kvcache() override {
         for (auto &block : blocks) {
             auto kvcahce = block.get_attention().get_cache();
             for (auto &cache : kvcahce) {

@@ -185,7 +185,7 @@ public:
         return {x};
     }
 
-    void clear_kvcache() {
+    void clear_kvcache() override {
         for (auto &block : blocks) {
             auto kvcahce = block.get_attention().get_cache();
             for (auto &cache : kvcahce) { cache->clearCache(); }
@@ -229,7 +229,7 @@ public:
         }
         return {outputs};
     }
-    void clear_kvcache() {
+    void clear_kvcache() override {
         model.clear_kvcache();
     }
 

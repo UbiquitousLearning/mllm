@@ -7,7 +7,8 @@
 #include <utility>
 
 namespace mllm {
-CPUReLU::CPUReLU(Backend *bn, string opName, int threadCount):thread_count(threadCount), Op(bn, std::move(opName))  {
+CPUReLU::CPUReLU(Backend *bn, string opName, int threadCount) :
+    thread_count(threadCount), Op(bn, std::move(opName)) {
 }
 ErrorCode CPUReLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     assert(inputs.size() == 1);
@@ -23,8 +24,8 @@ ErrorCode CPUReLU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     int head = input->head();
     int seq = input->sequence();
     int dim = input->dimension();
-#pragma omp parallel for collapse(4)
-    for (int b = 0; b <batch ; ++b) {
+#pragma omp parallel for collapse(4) num_threads(thread_count)
+    for (int b = 0; b < batch; ++b) {
         for (int h = 0; h < head; ++h) {
             for (int s = 0; s < seq; ++s) {
                 for (int d = 0; d < dim; ++d) {

@@ -22,6 +22,8 @@
 
 namespace mllm {
 class Backend;
+class Module;
+
 /* Tensor is the baseic data structure of mllm. It is used to store the data of the model's weights and activations(the intermediate data of the calculation).
  * The Tensor class contained 3 kinds of Tensors: BasicTensor, ChildTensor. AggregatedTensor.
  *
@@ -67,16 +69,14 @@ public:
     }
     /*
     ~Tensor() {
-        if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_&& graphs.find(name_) == graphs.end()) {
+        if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_) {
             backend_->free(host_ptr_);
             host_ptr_ = nullptr;
         }
     }
     */
-    static map<string, shared_ptr<Tensor>> graphs;
     static TensorStatus tensor_status;
-    // static double forward_times;
-    // static double forward_times_2;
+
 private:
     std::map<Chl, int> chls_ = {{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
     string name_;
@@ -108,6 +108,7 @@ private:
     Tensor *deaggregated_tensor_;
     Chl aggregated_dim_;
     vector<int> aggregated_dims_;
+    Module *module_{};
 
 private:
     // XNN_INVALID_VALUE_ID = 4294967295U
@@ -743,10 +744,6 @@ public:
         memcpy(host_ptr_, source->host_ptr_, cntSize());
     }
 
-    map<string, shared_ptr<Tensor>> getGraph() {
-        return graphs;
-    }
-
     void changeCtype(int size = 0) {
         if (!shape().empty()) {
             size = shape().size();
@@ -830,7 +827,10 @@ public:
     Tensor &norm(int L_n);
     Tensor &where(float value, Chl axis);
     static Tensor &range(int start, int end);
-    static vector<std::reference_wrapper<Tensor>> split(Tensor &input, std::vector<int> each_dims, Chl split_dim, int head_size = -1);
+    static vector<std::reference_wrapper<Tensor>> split(Tensor &input, std::vector<int> each_dims, Chl split_dim, int same_dim_size = -1);
+    vector<std::reference_wrapper<Tensor>> split(std::vector<int> each_dims, Chl split_dim, int same_dim_size = -1) {
+        return split(*this, each_dims, split_dim, same_dim_size);
+    }
 
     /* Functions used for ChildTensor:
      * - deepCopyFrom
@@ -1053,6 +1053,14 @@ public:
             }
             break;
         }
+        case D_DH: {
+            auto sum = 0;
+            for (auto &t : ts) {
+                sum += t->head();
+                aggregated_dims_.push_back(sum);
+            }
+            break;
+        }
         default:
             break;
         }
@@ -1196,6 +1204,12 @@ public:
         assert(ctype_ == BCTHW || ctype_ == BTHWC);
         Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
         typed_ptr[offset(batch, channel, time, height, width)] = value;
+    }
+    Module *module() const {
+        return module_;
+    }
+    void setModule(Module *module) {
+        module_ = module;
     }
 
 public:
@@ -1662,6 +1676,23 @@ private:
                 d = (orin_d - old_dim * head_size) % dim_size;
                 // std::cout<<tensor_id<<" "<<h<<" "<<d<<" , "<<orin_d<<std::endl;
             }
+            break;
+        }
+        case D_DH: {
+            auto orin_d = d;
+            int dim_size = aggregated_tensors_[0]->dimension();
+            int total_head_idx = d / dim_size;
+            d = d % dim_size;
+            int old_head_idx = 0;
+            for (int a = 0; a < aggregated_dims_.size(); ++a) {
+                old_head_idx += aggregated_dims_[a];
+                if (total_head_idx < old_head_idx) {
+                    tensor_id = a;
+                    old_head_idx -= aggregated_dims_[a];
+                    break;
+                }
+            }
+            h = total_head_idx - old_head_idx;
             break;
         }
         default:

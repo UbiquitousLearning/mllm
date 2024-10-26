@@ -4,11 +4,10 @@
 
 #include "FuyuPreProcess.hpp"
 
-
 #include <cassert>
 #include <fstream>
 #include <iostream>
-#ifndef  STB_IMAGE_IMPLEMENTATION
+#ifndef STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
 #endif
@@ -16,7 +15,7 @@
 #include "PreProcess.hpp"
 #include "stb/stb_image_resize2.h"
 namespace mllm {
-void FuyuPreProcess::PreProcessImages(const std::vector<uint8_t*> &images,const std::vector<size_t> &image_length) {
+void FuyuPreProcess::PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) {
     assert(height_ > 0 && width_ > 0);
 
     for (int i = 0; i < images.size(); i++) {
@@ -41,15 +40,15 @@ void FuyuPreProcess::PreProcessImages(const std::vector<uint8_t*> &images,const 
         images_ = PadImages(images_, height_, width_, patch_size_.second, patch_size_.first);
     }
     if (do_normalize_) {
-        if (mean_.size()!=std_.size()||mean_.size()!=1&&mean_.size()!=3) {
+        if (mean_.size() != std_.size() || mean_.size() != 1 && mean_.size() != 3) {
             std::cerr << "MEAN should be of same size of std and length should be (1 or 3) !" << std::endl;
             exit(-1);
         }
-        if (mean_.size()==1) {
-            mean_.resize(3,mean_[0]);
+        if (mean_.size() == 1) {
+            mean_.resize(3, mean_[0]);
         }
-        if (std_.size()==1) {
-            std_.resize(3,std_[0]);
+        if (std_.size() == 1) {
+            std_.resize(3, std_[0]);
         }
         images_ = NormalizeImages(images_, mean_, std_);
     }
@@ -126,8 +125,8 @@ void FuyuPreProcess::get_sample_encoding(const std::string &text) {
     }
     // TODO: _transform_coordinates_and_tokenize
     //_tokenize_prompts_with_image_and_batch
-    //Now handle the text
-    //TODO: More than One line of text.
+    // Now handle the text
+    // TODO: More than One line of text.
     // tokenizer_->setSpecialToken("|ENDOFTEXT|");
     tokenizer_->setSpecialToken("<s>");
 
@@ -154,16 +153,16 @@ void FuyuPreProcess::get_sample_encoding(const std::string &text) {
     //     std::cerr << "END_OF_TEXT token not found in vocab file." << std::endl;
     // }
     text_ids_.push_back(text_ids);
-    //TODO: Should we Pad the prompt tokens? HF pad & cut off the padding in `construct_full_unpacked_stream`.
+    // TODO: Should we Pad the prompt tokens? HF pad & cut off the padding in `construct_full_unpacked_stream`.
     text_lengths_.push_back(text_ids.size());
-    //construct_full_unpacked_stream
+    // construct_full_unpacked_stream
     auto image_padded_unpacked_tokens = vector<vector<token_id_t>>(images_.size(), vector<token_id_t>());
     auto unpacked_image_patch_indices_per_batch = vector<vector<int>>(images_.size(), vector<int>());
     size_t max_prompt_length = 0;
     for (int i = 0; i < images_.size(); i++) {
         auto &image_padded_unpacked_token = image_padded_unpacked_tokens[i];
         auto &unpacked_image_patch_indice_per_batch = unpacked_image_patch_indices_per_batch[i];
-        //TODO:
+        // TODO:
         auto text_length = text_lengths_[0];
         auto image_token_length = image_input_ids_[i].size();
         if (text_lengths_.size() > 1) {
@@ -181,7 +180,7 @@ void FuyuPreProcess::get_sample_encoding(const std::string &text) {
     }
     size_t max_seq_len_batch = std::min(max_prompt_length + max_tokens_to_generate, max_position_embeddings);
     auto tokens_to_place = std::min(max_seq_len_batch, max_prompt_length);
-    //full_unpacked_stream_to_tensor
+    // full_unpacked_stream_to_tensor
     image_patch_input_indices_.resize(images_.size());
     // for (auto &image_patch_input_indice : image_patch_input_indices_) {
     for (int i = 0; i < image_patch_input_indices_.size(); i++) {
@@ -254,4 +253,82 @@ std::vector<vector<float>> FuyuPreProcess::PatchImages(ImageInfo &images, size_t
 
 void FuyuPreProcess::_left_pad_inputs_with_attention_mask() {
 }
-} // mllm
+
+Tensor FuyuPreProcess::vector3d2Tensor(vector<vector<vector<float>>> image_patches, string name, BackendType type) {
+    int batch = 0;
+    int seq = 0;
+    int dims = 0;
+    if (!image_patches.empty()) {
+        batch = image_patches.size();
+        seq = image_patches[0].size();
+        dims = image_patches[0][0].size();
+    }
+    Tensor tensor1(batch, 1, seq, dims, Backend::global_backends[type], true);
+    tensor1.setName(name);
+    Tensor::tensor_status = TENSOR_STATIC_INIT;
+    tensor1.setTtype(INPUT_TENSOR);
+    for (int i = 0; i < batch; ++i) {
+        for (int j = 0; j < seq; ++j) {
+            for (int k = 0; k < dims; ++k) {
+                tensor1.setDataAt<float>(i, 0, j, k, image_patches[i][j][k]);
+            }
+        }
+    }
+    return tensor1;
+}
+
+Tensor FuyuPreProcess::vector2d2Tensor(vector<vector<int>> image_patches_indices, string name, BackendType type) {
+    int batch = 0;
+    int seq = 0;
+    if (!image_patches_indices.empty()) {
+        batch = image_patches_indices.size();
+        seq = image_patches_indices[0].size();
+    }
+    Tensor tensor1(batch, 1, seq, 1, Backend::global_backends[type], true);
+    tensor1.setName(name);
+    Tensor::tensor_status = TENSOR_STATIC_INIT;
+    tensor1.setTtype(INPUT_TENSOR);
+    for (int i = 0; i < batch; ++i) {
+        for (int j = 0; j < seq; ++j) {
+            tensor1.setDataAt<float>(i, 0, j, 0, image_patches_indices[i][j]);
+        }
+    }
+    return tensor1;
+}
+
+// vector<Tensor> FuyuPreProcess::process(std::string &text, vector<string> image) {
+//     this->images_.clear();
+//     this->image_input_ids_.clear();
+//     this->image_patches_indices_.clear();
+//     this->image_patches_.clear();
+//     this->image_patch_input_indices_.clear();
+//     this->PreProcessImages(image);
+//     this->Process(text);
+//     auto input_ids = this->image_input_ids_;
+//     auto image_patches_indices = this->image_patches_indices_;
+//     auto image_patches = this->image_patches_;
+//     if (input_ids.empty()) {
+//         input_ids = this->text_ids_;
+//     }
+//     vector<Tensor> result = {mllm::Tokenizer::tokens2Input(input_ids[0], "input_ids"),
+//                              this->vector3d2Tensor(image_patches, "image_patches"),
+//                              this->vector2d2Tensor(image_patches_indices, "image_patches_indices")};
+//     return result;
+// }
+// std::pair<std::string, unsigned> FuyuPreProcess::detokenize(Tensor &result) {
+//     return tokenizer_->detokenize(result);
+// }
+
+// std::pair<bool, std::string> FuyuPreProcess::postprocess(std::string &text) {
+//     size_t pos = 0;
+//     std::string from = "▁";
+//     std::string to = " ";
+//     while ((pos = text.find(from, pos)) != std::string::npos) {
+//         text.replace(pos, from.length(), to);
+//         pos += to.length();
+//     }
+//     if (text == "|ENDOFTEXT|") return {false, ""};
+//     return {true, text};
+// }
+
+} // namespace mllm

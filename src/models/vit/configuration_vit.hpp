@@ -10,7 +10,7 @@
 
 using namespace mllm;
 
-class ViTNameConfig: public TransformerNameConfig{
+class ViTNameConfig : public TransformerNameConfig {
 public:
     string vison_model_name;
     string _layer_name;
@@ -67,7 +67,7 @@ public:
     }
 };
 
-class ViTConfig {
+class ViTConfig : public TransformerConfig {
 public:
     ViTNameConfig names_config;
     int class_size;
