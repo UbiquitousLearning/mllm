@@ -347,4 +347,15 @@ vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<
                          {module->activation_tensors[input.name()].get()});
 }
 
+uint32_t &Tensor::uuid() {
+    return uuid_;
+}
+
+TensorType &Tensor::xnnTensorType() {
+    return xnn_tensor_type_;
+}
+
+void Tensor::forceResetHostPointer(void *ptr) {
+    host_ptr_ = ptr;
+}
 } // namespace mllm
