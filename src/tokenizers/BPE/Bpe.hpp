@@ -8,7 +8,7 @@
 #include "tokenizers/Tokenizer.hpp"
 #include <unordered_map>
 namespace mllm {
-class BPETokenizer final : public Tokenizer {
+class BPETokenizer : public Tokenizer {
     struct TokenItem {
         struct Compare {
             bool operator()(const TokenItem &lhs, const TokenItem &rhs) const {
