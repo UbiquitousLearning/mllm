@@ -46,6 +46,7 @@ int main(int argc, char **argv) {
             auto [out_string, out_token] = tokenizer.detokenize(result[0]);
             auto [not_end, output_string] = tokenizer.postprocess(out_string);
             if (!not_end) { break; }
+            std::cout << output_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");

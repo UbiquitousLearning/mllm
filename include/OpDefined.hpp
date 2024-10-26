@@ -61,6 +61,7 @@ enum OpType {
     MERGEOUTPUT,
     SPLITINPUT,
     IROPE,
+    SUPERSILU,
     OP_NUM
 };
 
@@ -107,6 +108,7 @@ static const vector<string> OpNames = {
     "Range",
     "Where",
     "Replace",
+    "Predictor",
     "SparseLinear",
     "SparseIdLinear",
     "ElasticLinear",
@@ -117,6 +119,7 @@ static const vector<string> OpNames = {
     "MergeOutput",
     "SplitInput",
     "IRoPE",
+    "SuperSiLU",
     "OP_NUM"};
 
 enum TensorFuncType {

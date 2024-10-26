@@ -248,6 +248,23 @@ NetTensor *_SiLU(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+
+NetTensor *_SuperSiLU(std::vector<NetTensor *> inputs, string name) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "Silu" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::SUPERSILU)
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
 NetTensor *_Quantize(std::vector<NetTensor *> inputs, bool isNSHD, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -333,19 +350,23 @@ NetTensor *_Matmul(std::vector<NetTensor *> inputs, bool transpose0, bool transp
  * \param norm_size The size of the normed dimension.
  * \param epsilon Default is 1e-6.
  */
-NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilon, string name) {
+NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilon, string name, bool isFP32) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "RMSNorm" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    out_tensor->type = inputs[0]->type;
+    if (isFP32)
+        out_tensor->type = inputs[0]->type;
+    else
+        out_tensor->type =  MLLM_TYPE_I8;
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::RMSNORM)
     net_op_->param["norm_size"] = (float) norm_size;
     net_op_->param["epsilon"] = (float) epsilon;
+    net_op_->param["isFP32"] = (float) isFP32;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
