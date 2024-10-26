@@ -10,12 +10,12 @@ namespace mllm {
 // AbstructLoader *Module::loader;
 // TensorStatus Tensor::tensor_status;
 // bool Module::doLoad = false;
+// The llm_model_ptr is a pointer to the outmost module
 Module *Module::llm_model_ptr;
 
 int Module::listIdx;
 int Module::runlistIdx;
-
-bool Module::doToDevice = false;
+// TensorStatus Tensor::tensor_status;
 BackendType Module::tmp_device = MLLM_CPU;
 std::unordered_map<string, shared_ptr<Op>> Module::tensor_func_ops;
 

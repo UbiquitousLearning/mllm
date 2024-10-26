@@ -38,6 +38,7 @@ ErrorCode QNNLinearINT8::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 }
 
 ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    outputs[0]->setDtype(MLLM_TYPE_I8);
     // add matmul param to qnn
     vector<Qnn_Param_t> paramsMatmul = {
         {.paramType = QNN_PARAMTYPE_SCALAR,

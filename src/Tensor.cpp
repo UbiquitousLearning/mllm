@@ -347,4 +347,33 @@ vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<
                          {module->activation_tensors[input.name()].get()});
 }
 
+Tensor &Tensor::to(BackendType backend_type) {
+    // TODO: check if the data is shared between devices
+    // if so, return the origin tensor
+    // if not, return the new tensor
+    // TODO: if need copy, should implement copyDataCrossBn and do copy when Tensor::TENSOR_STATIC_READY
+
+    /**
+     * Currently, there are following cases:
+     * CPU -> QNN, QNN -> CPU
+     * if it is CPU -> QNN, the buffer should be realloced
+     * (NOTE: not handling data copy as the tensor.to() shoudld be called before the data is set and tensor.device() should be checked in frontend)
+     * if it is QNN -> CPU, the data is sharable between CPU and QNN, no need to copy or realloc
+     */
+    if (device() == backend_type) {
+        return *this;
+    }
+    if (backend_type == MLLM_CPU && device() == MLLM_QNN) {
+        // data is sharable between CPU and QNN
+        return *this;
+    }
+    // realloc the tensor
+    if (backend_type == MLLM_QNN && device() == MLLM_CPU) {
+        this->free();
+    }
+    module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
+    this->alloc();
+    return *this;
+};
+
 } // namespace mllm

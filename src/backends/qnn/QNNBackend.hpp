@@ -50,9 +50,6 @@ public:
         if (m_backendLibraryHandle) {
             pal::dynamicloading::dlClose(m_backendLibraryHandle);
         }
-        if (m_modelHandle) {
-            pal::dynamicloading::dlClose(m_modelHandle);
-        }
         QNN_INFO("Free handle");
     }
 
@@ -129,9 +126,6 @@ private:
 
     StatusCode createContext();
 
-    StatusCode executeGraphs(std::map<std::string, std::vector<uint8_t *>> inputBufferMap, std::map<std::string, std::vector<uint8_t *>> outputBufferMap);
-    StatusCode executeGraphsShared();
-
     StatusCode registerOpPackages();
 
     StatusCode freeContext();
@@ -185,15 +179,12 @@ private:
     iotensor::InputDataType m_inputDataType;
     sample_app::ProfilingLevel m_profilingLevel;
 
-    std::map<int, qnn_wrapper_api::GraphInfo_t **> m_graphsInfoMap_;
-    // for mllm single graph execute
-    qnn_wrapper_api::GraphInfo_t graphInfo;
+    std::map<int, qnn_wrapper_api::GraphInfo_t *> graphInfoMap_;
 
     const QnnGraph_Config_t **graphConfigs = nullptr;
-    uint32_t m_graphsCount;
     // these two pointers is .so library handle
     void *m_backendLibraryHandle = nullptr;
-    void *m_modelHandle = nullptr; // m_modelHandle is always nullptr cause we build graph in runtime
+
     iotensor::IOTensor m_ioTensor;
     bool m_isBackendInitialized;
     bool m_isContextCreated;

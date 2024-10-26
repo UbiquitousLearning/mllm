@@ -138,17 +138,12 @@ int main(int argc, char **argv) {
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
 
-        // cpuExe.run(&cpuNet, {input});
-        // auto result = cpuExe.result();
-        // auto token_idx = postProcessing(result[0], input);
-
-        // auto out_token = tokenizer.detokenize({token_idx});
-        // std::cout << out_token << std::flush;
-        // exit(0);
-
         do {
             // 1: Prefill stage using NPU chunk execute
-            npuExe.run(npu_ctx, &npuNet, {input});
+            if (chunk == 1)
+                npuExe.run(npu_ctx, &npuNet, {input});
+            else
+                npuExe.runExp(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
 
             // inter model for prefill-decode

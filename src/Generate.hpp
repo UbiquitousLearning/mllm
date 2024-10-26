@@ -27,6 +27,8 @@ struct LlmTextGeneratorOpts {
     float temperature = 0.7;
     int top_k = 5;
     float top_p = 0.92;
+    bool is_padding = false;
+    int seq_before_padding = 0;
 };
 
 template <typename T>
@@ -47,14 +49,24 @@ enum class LLmTextGeneratorType : int32_t {
 };
 
 class _LlmTextGenerateMethod {
+    bool is_padding = false;
+    int seq_before_padding = 0;
 public:
     virtual ~_LlmTextGenerateMethod() = default;
     virtual unsigned int generate(Tensor &t) = 0;
+    inline void setPadding(bool is_padding, int seq_before_padding) {
+        this->is_padding = is_padding;
+        this->seq_before_padding = seq_before_padding;
+    }
     inline void _tensor_to_vec(Tensor &t, std::vector<float> &scores) {
         assert(t.batch() == 1 && "Batch size of result is not 1. Which is not supported for now.");
         assert(t.head() == 1 && "The 3rd dim of result should be one. e.g.:[1, 1, seq, hidden]");
         int _dims = t.dimension();
         int _seq = t.sequence() - 1;
+        // padding prefill for QNN
+        if (is_padding) {
+            _seq = seq_before_padding - 1;
+        }
         for (int i = 0; i < _dims; ++i) {
             auto value = t.dataAt<float>(0, 0, _seq, i);
             scores.push_back(value);
@@ -143,6 +155,11 @@ public:
         default:
             assert(false && "NIY");
             break;
+        }
+
+        // padding prefill for QNN
+        if (opt.is_padding) {
+            m_method_class->setPadding(opt.is_padding, opt.seq_before_padding);
         }
     }
 

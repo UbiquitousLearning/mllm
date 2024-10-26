@@ -12,6 +12,7 @@
 #include <memory>
 #include <utility>
 
+#include "OpDefined.hpp"
 #include "Tensor.hpp"
 #include "Op.hpp"
 #include "ParamLoader.hpp"
@@ -51,6 +52,11 @@ public:
 
     Tensor &operator()(Tensor &input0, Tensor &input1) {
         auto ts = run({input0, input1}, 1);
+        return ts[0].get();
+    }
+
+    Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2) {
+        auto ts = run({input0, input1, input2}, 1);
         return ts[0].get();
     }
 
@@ -116,7 +122,26 @@ protected:
         if (module->doLoad || !inited_loaded) {
             do_init = !inited_loaded;
             if (op_ == nullptr) {
+#ifdef USE_QNN
+                if (param_["type"] == KVCACHE || param_["type"] == KVCACHENPU) {
+                    if (kv_cache_map.find(name_) == kv_cache_map.end()) {
+                        // for the prefill part, we need to create a new op
+                        param_["type"] = KVCACHENPU;
+                        op_ = backend_->opCreate(param_, name_);
+                        kv_cache_map[name_] = op_;
+                    } else {
+#ifdef DEBUGPRINT
+                        std::cout << name_ << " is shared used" << std::endl;
+#endif
+                        // for the decoding part, we need to get created op from global container
+                        op_ = kv_cache_map[name_];
+                    }
+                } else {
+                    op_ = backend_->opCreate(param_, name_);
+                }
+#else
                 op_ = backend_->opCreate(param_, name_);
+#endif
             }
             if (module->doLoad) {
                 op_->load(*module->loader);
@@ -301,6 +326,21 @@ public:
         auto activate_input_dim_tensor = Tensor(activate_input_dim, backend_);
         auto activate_output_dim_tensor = Tensor(activate_output_dim, backend_);
         auto ts = run({input0, activate_input_dim_tensor, activate_output_dim_tensor}, 1);
+        return ts[0].get();
+    }
+};
+
+class ShadowLinear final : public Layer {
+public:
+    ShadowLinear() = default;
+    explicit ShadowLinear(int in_features, int out_features, bool bias, std::string name) {
+        param_["in_features"] = in_features;
+        param_["out_features"] = out_features;
+        param_["bias"] = (float)bias;
+        init(std::move(name), OpType::LINEARINT8SHADOW);
+    }
+    Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2) {
+        auto ts = run({input0, input1, input2}, 1);
         return ts[0].get();
     }
 };
@@ -502,6 +542,15 @@ public:
         param_["cache_max"] = cache_max;
         init(std::move(name), OpType::KVCACHE);
     }
+    explicit KVCache(int n_rep, int cache_max, std::string name, bool npuEnbaled) {
+        param_["n_rep"] = n_rep;
+        param_["cache_max"] = cache_max;
+        if (npuEnbaled) {
+            init(std::move(name), OpType::KVCACHENPU);
+        } else {
+            init(std::move(name), OpType::KVCACHE);
+        }
+    }
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
         return ts[0].get();
@@ -540,6 +589,14 @@ public:
         param_["norm_size"] = norm_size;
         param_["epsilon"] = epsilon;
         param_["add_unit_offset"] = (float)add_unit_offset;
+        init(std::move(name), OpType::RMSNORM);
+    }
+
+    // int8 output rmsnorm for qnn
+    explicit RMSNorm(int norm_size, float epsilon, std::string name, bool isFP32) {
+        param_["norm_size"] = norm_size;
+        param_["epsilon"] = epsilon;
+        param_["isFP32"] = (float)isFP32;
         init(std::move(name), OpType::RMSNORM);
     }
 
@@ -667,6 +724,8 @@ public:
     }
 };
 
+//  Only for QNN START
+
 class Quantize final : public Layer {
 public:
     explicit Quantize(bool isNSHD, std::string name) {
@@ -678,6 +737,111 @@ public:
         return ts[0].get();
     }
 };
+
+class Dequantize final : public Layer {
+public:
+    explicit Dequantize(bool isNSHD, std::string name, bool isFP32 = true) {
+        param_["isNSHD"] = (float)isNSHD;
+        param_["isFP32"] = (float)isFP32;
+        init(std::move(name), OpType::DEQUANTIZE);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class Add final : public Layer {
+public:
+    explicit Add(std::string name) {
+        init(std::move(name), OpType::ADD);
+    }
+    Tensor &operator()(Tensor &input0, Tensor &input1) {
+        auto ts = run({input0, input1}, 1);
+        return ts[0].get();
+    }
+};
+
+class Mul final : public Layer {
+public:
+    explicit Mul(std::string name) {
+        init(std::move(name), OpType::MUL);
+    }
+    Tensor &operator()(Tensor &input0, Tensor &input1) {
+        auto ts = run({input0, input1}, 1);
+        return ts[0].get();
+    }
+};
+
+class View final : public Layer {
+public:
+    explicit View(int batch, int head, int seq, int dim, std::string name) {
+        vector<int> dims;
+        vector<int> data_dims;
+        if (batch == -1 & seq == -1 & head != -1 & dim != -1) { // keep b&s change h&d
+            if (head != 1) {
+                dims = {batch, head, seq, -1};
+                data_dims = {BATCH, DIMENSION, SEQUENCE, DIMENSION};
+            } else {
+                dims = {batch, -1, seq, -1};
+                data_dims = {BATCH, -1, SEQUENCE, HEAD + DIMENSION};
+            }
+        } else if (batch == -1 & dim == -1 & head != -1 & seq != -1) { // keep b&d change h&s
+            if (head != 1) {
+                dims = {batch, head, -1, dim};
+                data_dims = {BATCH, SEQUENCE, SEQUENCE, DIMENSION};
+            } else {
+                dims = {batch, -1, -1, dim};
+                data_dims = {BATCH, -1, HEAD + SEQUENCE, DIMENSION};
+            }
+        } else if (head == -1 & dim == -1 & batch != -1 & seq != -1) { // keep h&d change b&s
+            if (seq != 1) {
+                dims = {-1, head, seq, dim};
+                data_dims = {BATCH, HEAD, BATCH, DIMENSION};
+            } else {
+                dims = {-1, head, -1, dim};
+                data_dims = {BATCH + SEQUENCE, HEAD, -1, DIMENSION};
+            }
+        } else if (batch != -1 & dim != -1 & head != -1 & seq != -1) { // change all dimension.
+
+            dims = {batch, head, seq, dim};
+            data_dims = {BATCH, HEAD, SEQUENCE, DIMENSION};
+
+        } else {
+            std::cout << "ERROR: " << name << " view [" << batch << ", " << head << ", " << seq << ", " << dim << "]" << std::endl;
+        }
+        param_["dim0"] = dims[0];
+        param_["dim1"] = dims[1];
+        param_["dim2"] = dims[2];
+        param_["dim3"] = dims[3];
+        param_["data_dim0"] = data_dims[0];
+        param_["data_dim1"] = data_dims[1];
+        param_["data_dim2"] = data_dims[2];
+        param_["data_dim3"] = data_dims[3];
+        init(std::move(name), OpType::VIEW);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class Transpose final : public Layer {
+public:
+    explicit Transpose(std::vector<int> perm, std::string name) {
+        param_["perm0"] = perm[0];
+        param_["perm1"] = perm[1];
+        param_["perm2"] = perm[2];
+        param_["perm3"] = perm[3];
+        init(std::move(name), OpType::TRANSPOSE);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+//  Only for QNN END
 
 } // namespace mllm
 
