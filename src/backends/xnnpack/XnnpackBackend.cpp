@@ -27,6 +27,7 @@
 #include "backends/xnnpack/Functions/XpViewFunc.hpp"
 #include "backends/xnnpack/Functions/XpMatmulFunc.hpp"
 #include "backends/xnnpack/Ops/XpEmbedding.hpp"
+#include "backends/xnnpack/Ops/XpParameter.hpp"
 #include "xnnpack/allocator.h"
 #include "xnnpack/subgraph.h"
 
@@ -215,6 +216,7 @@ void XnnpackBackend::registerOps() {
     addCreator(CAUSALMASK, new XpCausalMaskCreator());
     addCreator(SDPA, new XpSDPACreator());
     addCreator(EMBEDDING, new XpEmbeddingCreator());
+    addCreator(PARAMETER, new XpParameterCreator());
 }
 
 void XnnpackBackend::registerFuncs() {

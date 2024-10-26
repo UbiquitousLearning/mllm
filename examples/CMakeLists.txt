@@ -611,14 +611,16 @@ endif()
 
 # Xnn demo
 if(MLLM_BUILD_XNNPACK_BACKEND)
-    add_executable(demo_llama_xp
-        ${PROJECT_SOURCE_DIR}/examples/demo_llama_xp.cpp 
+    add_executable(demo_qwen_xp
+        ${PROJECT_SOURCE_DIR}/examples/demo_qwen_xp.cpp 
         ${DIR_SRC_CPU} 
         ${DIR_SRC_MEM_MANAGER} 
         ${DIR_SRC_EXP} 
         ${DIR_SRC}
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
+        ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
+        ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
     )
-    target_link_libraries(demo_llama_xp PUBLIC MllmXnnpackBackend MLLM_CPU)
+    target_link_libraries(demo_qwen_xp PUBLIC MllmXnnpackBackend MLLM_CPU)
 endif()

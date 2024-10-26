@@ -30,6 +30,7 @@ add_library(MllmXnnpackBackend
     Ops/XpCausalMask.cpp
     Ops/XpSDPA.cpp
     Ops/XpEmbedding.cpp
+    Ops/XpParameter.cpp
 
     Functions/XpBinaryFunc.cpp
     Functions/XpTransposeFunc.cpp
