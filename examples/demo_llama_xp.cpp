@@ -12,7 +12,6 @@
 #include "models/llama/modeling_llama_xp_sdpa.hpp"
 #include "models/llama/tokenization_llama.hpp"
 #include "processor/PostProcess.hpp"
-#include "xnnpack/XpWrapper.hpp"
 
 using namespace mllm;
 

@@ -4,6 +4,7 @@
 #include "backends/xnnpack/Utils/Logger.hpp"
 
 namespace mllm::xnnpack {
+
 void XpViewFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
     int b = (int)args[0];
     int h = (int)args[1];
@@ -60,6 +61,7 @@ void XpViewFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, ve
     }
     outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
 }
+
 void XpViewFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
     Log::warn("XpViewFunction will use reshape instead of view. Which will involve extra copy.");
 

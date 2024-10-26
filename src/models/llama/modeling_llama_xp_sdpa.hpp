@@ -13,6 +13,7 @@
 #include "Types.hpp"
 #include "configuration_llama.hpp"
 #include "backends/xnnpack/XpWrapper.hpp"
+#include "backends/xnnpack/Utils/Logger.hpp"
 
 using namespace mllm;
 
@@ -189,11 +190,13 @@ public:
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = inputs[0];
         // TODO bug here. one block is ok but fews
-        for (auto &block : blocks) {
-            x = block({x})[0];
-        }
-        x = norm(x);
-        x = lm_head(x);
+        // for (auto &block : blocks) {
+        //     x = block({x})[0];
+        // };
+        x = blocks[0]({x})[0];
+        x = blocks[1]({x})[0];
+        // x = norm(x);
+        // x = lm_head(x);
         return {x};
     }
 };
