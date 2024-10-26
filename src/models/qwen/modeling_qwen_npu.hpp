@@ -54,8 +54,8 @@ public:
         v_view = View(-1, num_heads, -1, head_dim, base_name + names._v_proj_name + "-00_view_");
 
         q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize");
-        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize");
-        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize");
+        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false);
+        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false);
 
         v_transpose = Transpose({0, 2, 3, 1}, base_name + names._v_proj_name + ".transpose");
     }
@@ -106,11 +106,11 @@ public:
         q_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "q_rope");
         k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "k_rope");
 
-        k_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + names._attn_base_name + "k_cache", true);
-        v_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + names._attn_base_name + "v_cache", true);
+        k_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + "k_cache", true);
+        v_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + "v_cache", true);
 
-        qk_mm = Matmul(false, true, base_name + names._attn_base_name + "qk");
-        qkv_mm = Matmul(false, false, base_name + names._attn_base_name + "qkv");
+        qk_mm = Matmul(false, true, base_name + "qk");
+        qkv_mm = Matmul(false, false, base_name + "qkv");
 
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
 
@@ -192,7 +192,7 @@ public:
         post_atten_res_add = Add(base_name + names._attn_base_name + "post_atten_add");
 
         post_attn_layernorm =
-            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
+            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name, false);
 
         auto mlp_base_name = base_name + names._ffn_base_name;
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
@@ -200,8 +200,8 @@ public:
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
         silu = SiLU(mlp_base_name + "act");
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
-        post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
-        post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");
+        post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize", false);
+        post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize", false);
 
         down_proj = Linear(intermediate_size, hidden_size, false, mlp_base_name + names._down_proj_name);
         pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize");
@@ -225,7 +225,7 @@ public:
 
         auto x = post_attn_layernorm(tmp);
 
-        x = pre_mlp_quantize(x);
+        // x = pre_mlp_quantize(x);
         // reshape to 32,2
         x = pre_mlp_view(x);
 
@@ -301,7 +301,7 @@ public:
         post_atten_res_add = Add(base_name + names._attn_base_name + "post_atten_add");
 
         post_attn_layernorm =
-            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
+            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name, false);
 
         auto mlp_base_name = base_name + names._ffn_base_name;
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
@@ -309,8 +309,8 @@ public:
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
         silu = SiLU(mlp_base_name + "act");
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
-        post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
-        post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");
+        post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize", false);
+        post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize", false);
 
         down_proj = Linear(intermediate_size, hidden_size, false, mlp_base_name + names._down_proj_name);
         pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize");
@@ -334,7 +334,7 @@ public:
 
         auto x = post_attn_layernorm(tmp);
 
-        x = pre_mlp_quantize(x);
+        // x = pre_mlp_quantize(x);
         // reshape to 32,2
         x = pre_mlp_view(x);
 

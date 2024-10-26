@@ -592,6 +592,14 @@ public:
         init(std::move(name), OpType::RMSNORM);
     }
 
+    // int8 output rmsnorm for qnn
+    explicit RMSNorm(int norm_size, float epsilon, std::string name, bool isFP32) {
+        param_["norm_size"] = norm_size;
+        param_["epsilon"] = epsilon;
+        param_["isFP32"] = (float)isFP32;
+        init(std::move(name), OpType::RMSNORM);
+    }
+
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
         return ts[0].get();

@@ -46,6 +46,7 @@ ErrorCode QNNRMSNorm::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     auto outName = outputs[0]->name();
 
     if (isFP32_) {
+        outputs[0]->setDtype(MLLM_TYPE_F32);
         vector<Qnn_Tensor_t>
             out = {
                 (Qnn_Tensor_t){
@@ -67,6 +68,7 @@ ErrorCode QNNRMSNorm::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
         return graphAddNode(name(), "RMSNorm", {inputs[0]->name(), weight_.name()}, out, {}, "LLaMAPackage");
 
     } else {
+        outputs[0]->setDtype(MLLM_TYPE_I8);
         vector<Qnn_Tensor_t>
             out = {
                 (Qnn_Tensor_t){
