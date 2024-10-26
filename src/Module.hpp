@@ -103,7 +103,8 @@ public:
         Tensor::tensor_status = TENSOR_STATIC_INIT;
         mllm_time_init();
 
-        Module::doLoad = true;
+        loader = &param_loader;
+        doLoad = true;
         vector<Tensor> tmps;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
@@ -137,7 +138,7 @@ public:
         }
         uint64_t time_end = mllm_time_us();
         load_time_ = (time_end - time_start) / 1000.0F; // ms
-        Module::doLoad = false;
+        doLoad = false;
     }
 
     virtual vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) = 0;
@@ -149,7 +150,7 @@ public:
         auto previoud_device = tmp_device;
         Module::tmp_device = device_;
         // Module Loading
-        if (llm_model_ptr->doLoad) {
+        if (llm_model_ptr && llm_model_ptr->doLoad) {
             auto outputs = Forward(inputs, anyArgs);
             // for inner module, set output tensors to GRAPH_OUTPUT
             if (inputs[0].ttype() != TensorType::INPUT_TENSOR) { // XPUs' module should not be the outermost input tensor
