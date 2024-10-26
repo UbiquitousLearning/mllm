@@ -103,7 +103,7 @@ public:
         mllm_time_init();
 
         loader = &param_loader;
-        Module::doLoad = true;
+        doLoad = true;
         vector<Tensor> tmps;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
@@ -137,7 +137,7 @@ public:
         }
         uint64_t time_end = mllm_time_us();
         load_time_ = (time_end - time_start) / 1000.0F; // ms
-        Module::doLoad = false;
+        doLoad = false;
     }
 
     virtual vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) = 0;
@@ -147,7 +147,7 @@ public:
         vector<std::any> anyArgs = convertArgsToAnyVector(args...);
         // set static tmp_device to device_ to init layers' op
         Module::tmp_device = device_;
-        if (llm_model_ptr->doLoad) {
+        if (llm_model_ptr && llm_model_ptr->doLoad) {
             return Forward(inputs, anyArgs);
         }
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
