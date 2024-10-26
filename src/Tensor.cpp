@@ -10,10 +10,6 @@
 #include "Types.hpp"
 #include "backends/cpu/CPUTensorFunction.hpp"
 
-#ifdef MLLM_BUILD_XNNPACK_BACKEND
-#include "backends/xnnpack/XnnpackBackend.hpp"
-#endif
-
 #include <Module.hpp>
 #include <memory>
 #include <string>
