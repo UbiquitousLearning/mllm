@@ -53,7 +53,6 @@ endmacro()
 
 
 ## new demos
-if(NOT QNN)
 func_llm_add_executable(benchmark)
 func_llm_add_executable(demo_llama)
 func_llm_add_executable(demo_tinyllama)
@@ -79,7 +78,6 @@ func_vlm_add_executable(demo_clip)
 func_vlm_add_executable(demo_imagebind)
 func_vlm_add_executable(demo_imagebind_1mod)
 # func_vlm_add_executable(demo)
-endif() # if not QNN
 
 # QNN demo
 if(QNN)

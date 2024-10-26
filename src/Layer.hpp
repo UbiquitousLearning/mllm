@@ -724,6 +724,8 @@ public:
     }
 };
 
+//  Only for QNN START
+
 class Quantize final : public Layer {
 public:
     explicit Quantize(bool isNSHD, std::string name) {
@@ -838,6 +840,8 @@ public:
         return ts[0].get();
     }
 };
+
+//  Only for QNN END
 
 } // namespace mllm
 

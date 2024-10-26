@@ -165,9 +165,6 @@ public:
         // Module setUp & execute
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
             if (prefilling_token_size_ == 0) { // first time init
-                // if(!Tensor::graphs.empty()){
-                //     Tensor::graphs.clear();
-                // }
                 prefilling_token_size_ = inputs[0].sequence();
             } else if (decoding_token_size_ == 0) {
                 decoding_token_size_ = inputs[0].sequence();
