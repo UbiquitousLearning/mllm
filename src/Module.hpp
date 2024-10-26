@@ -223,6 +223,7 @@ public:
     }
 
     void setNoLoadWeightsDtype(DataType dtype) {
+        llm_model_ptr = this;
         Op::noLoadWeightsDtype() = dtype;
     }
     virtual void clear_kvcache() {
