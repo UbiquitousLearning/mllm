@@ -139,28 +139,35 @@ public:
         if (text[0] != ' ') {
             text = ' ' + text;
         }
-
-
-        clip_processor = new ClipPreProcessor(tokenizer, hw, hw);
-        clip_processor->PreProcessImages({std::move(img_path)}, hw, hw);
-        auto images = clip_processor->pixel_values_[0];
-
-        // shapes = [[im.size[1], im.size[0]] for im in elems]
-        // num_img_tokens = [int((h//336*w//336+1)*144 + 1 + (h//336+1)*12) for h, w in shapes]
-
-        auto img_tensor = img2Tensor(images, std::move(img_name), type);
-        vector<int> num_img_tokens;
-        for(auto &img: images){
-            int h = img.size();
-            int w = img[0].size();
-            num_img_tokens.push_back(int((h/336*w/336+1)*144 + 1 + (h/336+1)*12));
-        }
         vector<mllm::token_id_t> tokens_id = {};
-        vector<std::pair<size_t, size_t>> img_pos;
-        tokenize(BPETokenizer::replaceString(text, ' ', "▁"), tokens_id, {"<|image|>", "<pad>", "<|user|>", " <|end|>", "<|assistant|>", "\n"}, num_img_tokens, img_pos);
-        tokens_ids.push_back(tokens_id);
+        if (img_path != "") {
+            clip_processor = new ClipPreProcessor(tokenizer, hw, hw);
+            clip_processor->PreProcessImages({std::move(img_path)}, hw, hw);
+            auto images = clip_processor->pixel_values_[0];
 
-        return {Tokenizer::tokens2Input(tokens_ids, std::move(text_name)), img_tensor,imgpos2Tensor(img_pos)};
+            // shapes = [[im.size[1], im.size[0]] for im in elems]
+            // num_img_tokens = [int((h//336*w//336+1)*144 + 1 + (h//336+1)*12) for h, w in shapes]
+
+            auto img_tensor = img2Tensor(images, std::move(img_name), type);
+            vector<int> num_img_tokens;
+            for (auto &img : images) {
+                int h = img.size();
+                int w = img[0].size();
+                num_img_tokens.push_back(int((h / 336 * w / 336 + 1) * 144 + 1 + (h / 336 + 1) * 12));
+            }
+            
+            vector<std::pair<size_t, size_t>> img_pos;
+            tokenize(BPETokenizer::replaceString(text, ' ', "▁"), tokens_id, {"<|image|>", "<pad>", "<|user|>", " <|end|>", "<|assistant|>", "\n"}, num_img_tokens, img_pos);
+            tokens_ids.push_back(tokens_id);
+
+            return {Tokenizer::tokens2Input(tokens_ids, std::move(text_name)), img_tensor, imgpos2Tensor(img_pos)};
+        } else {
+            tokenizer->tokenize(BPETokenizer::replaceString(text, ' ', "▁"), tokens_id, {"<|image|>", "<pad>", "<|user|>", " <|end|>", "<|assistant|>", "\n"});
+            tokens_ids.push_back(tokens_id);
+            return {Tokenizer::tokens2Input(tokens_ids, std::move(text_name))};
+        }
+        
+        
     }
 
     

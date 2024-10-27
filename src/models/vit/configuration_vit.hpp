@@ -19,7 +19,7 @@ public:
     string _embd_name;
     string _patch_embedding_name;
     string _cls_token_name;
-    string _position_ids_name;
+    // string _position_ids_name;
     string _position_embeddings_name;
     string _vision_pre_layrnorm_name;
 
@@ -28,7 +28,7 @@ public:
             vison_model_name = "vit";
             _patch_embedding_name = "patch_embeddings.projection";
             _cls_token_name = "cls_token";
-            _position_ids_name = "position_ids";
+            // _position_ids_name = "position_ids";
             _position_embeddings_name = "position_embeddings";
             _layer_name = ".encoder.layer.";
             _attn_base_name = "attention.";
@@ -47,7 +47,7 @@ public:
             vison_model_name = "vision_model";
             _patch_embedding_name = "patch_embedding";
             _cls_token_name = "class_embedding";
-            _position_ids_name = "position_ids";
+            // _position_ids_name = "position_ids";
             _position_embeddings_name = "position_embedding";
             _layer_name = ".encoder.layers.";
             _attn_base_name = "self_attn.";
