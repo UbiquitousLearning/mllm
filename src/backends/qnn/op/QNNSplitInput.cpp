@@ -9,7 +9,6 @@
 namespace mllm {
 QNNSplitInput::QNNSplitInput(Backend *bn, string opName, bool isPrompt, int num) :
     QNNCommonOp(bn, opName) {
-    
     isPrompt_ = isPrompt;
     num_ = num;
     scale1_.setBackend(bn);
@@ -23,23 +22,19 @@ ErrorCode QNNSplitInput::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
     assert(outputs.size() == 2 || outputs.size() == 1);
 
     if (isPrompt_) {
-
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 5, inputs[0]->dimension());
         if (num_ == 2)
             outputs[1]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 5, inputs[0]->dimension());
 
     } else {
-
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 2, inputs[0]->dimension());
         outputs[1]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 2, inputs[0]->dimension());
-
     }
-    
 
     return Op::reshape(inputs, outputs);
 }
 
-// ErrorCode QNNSplitInput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {  
+// ErrorCode QNNSplitInput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
 
 //     seqs_.setName(name() + ".seqs");
 //     seqs_.reshape(1, 1, 1, outputs.size());
@@ -95,12 +90,9 @@ ErrorCode QNNSplitInput::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 //                                     static_cast<uint32_t>(outputs[1]->head()),
 //                                     static_cast<uint32_t>(outputs[1]->dimension())};
 
-
-
 //     float quantScale1 = 0;
 //     quantScale1 = scale1_.hostPtr<float>()[0]  / 127.0;
 //     quantScale1 = roundf(quantScale1 * 10000) / 10000;
-
 
 //     vector<Qnn_Tensor_t> activation_outputs = {
 //                                             (Qnn_Tensor_t){QNN_TENSOR_VERSION_1,
@@ -117,7 +109,7 @@ ErrorCode QNNSplitInput::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 //                                                  .dimensions = dimensionsOut_0,
 //                                                  .memType = QNN_TENSORMEMTYPE_RAW,
 //                                                  {.clientBuf = {.data = nullptr,
-//                                                                 .dataSize = 0}}}}},            
+//                                                                 .dataSize = 0}}}}},
 //                                             (Qnn_Tensor_t){QNN_TENSOR_VERSION_1,
 //                                             {.v1 = {
 //                                                  .id = 1,
@@ -137,72 +129,68 @@ ErrorCode QNNSplitInput::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 //     return graphAddNode(name() + ".split", "SplitInput", {inputs[0]->name(), seqs_.name()}, activation_outputs, paramsSplit, "LLaMAPackage");
 // }
 
-ErrorCode QNNSplitInput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {  
+ErrorCode QNNSplitInput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // we add input tensor in setup.
-    
+
     uint32_t dimensionsOut_0[4] = {static_cast<uint32_t>(outputs[0]->batch()),
-                                    static_cast<uint32_t>(outputs[0]->sequence()),
-                                    static_cast<uint32_t>(outputs[0]->head()),
-                                    static_cast<uint32_t>(outputs[0]->dimension())};
+                                   static_cast<uint32_t>(outputs[0]->sequence()),
+                                   static_cast<uint32_t>(outputs[0]->head()),
+                                   static_cast<uint32_t>(outputs[0]->dimension())};
 
     float quantScale1 = 0;
-    quantScale1 = scale1_.hostPtr<float>()[0]  / 127.0;
+    quantScale1 = scale1_.hostPtr<float>()[0] / 127.0;
     quantScale1 = roundf(quantScale1 * 100000) / 100000;
 
-    qnnBackend_->modelAddTensor(inputs[0]->name().c_str(), (Qnn_Tensor_t){
-        .version = QNN_TENSOR_VERSION_1,
-        {.v1 = {
-                .id = 0,
-                .name = outputs[0]->name().c_str(),
-                .type = QNN_TENSOR_TYPE_APP_WRITE,
-                .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                .dataType = QNN_DATATYPE_SFIXED_POINT_8,
-                .quantizeParams = {QNN_DEFINITION_DEFINED,
-                                    QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
-                                    {.scaleOffsetEncoding = {.scale = quantScale1, .offset = 0}}},
-                .rank = 4,
-                .dimensions = dimensionsOut_0,
-                .memType = QNN_TENSORMEMTYPE_RAW,
-                {.clientBuf = {.data = nullptr,
-                            .dataSize = 0}}}}});
+    qnnBackend_->modelAddTensor(name(), (Qnn_Tensor_t){
+                                                       .version = QNN_TENSOR_VERSION_1,
+                                                       .v1 = {
+                                                           .id = 0,
+                                                           .name = outputs[0]->name().c_str(),
+                                                           .type = QNN_TENSOR_TYPE_APP_WRITE,
+                                                           .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                                           .dataType = QNN_DATATYPE_SFIXED_POINT_8,
+                                                           .quantizeParams = {QNN_DEFINITION_DEFINED,
+                                                                              QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
+                                                                              {.scaleOffsetEncoding = {.scale = quantScale1, .offset = 0}}},
+                                                           .rank = 4,
+                                                           .dimensions = dimensionsOut_0,
+                                                           .memType = QNN_TENSORMEMTYPE_RAW,
+                                                           .clientBuf = {.data = nullptr,
+                                                                         .dataSize = 0}}});
 
     if (num_ == 2) {
-
         outputs[1]->setDtype(MLLM_TYPE_F32);
         outputs[1]->alloc();
 
         uint32_t dimensionsOut_1[4] = {static_cast<uint32_t>(outputs[1]->batch()),
-                                static_cast<uint32_t>(outputs[1]->sequence()),
-                                static_cast<uint32_t>(outputs[1]->head()),
-                                static_cast<uint32_t>(outputs[1]->dimension())};
-                                
-        qnnBackend_->modelAddTensor(inputs[0]->name().c_str(), (Qnn_Tensor_t){
-            .version = QNN_TENSOR_VERSION_1,
-            {.v1 = {
-                    .id = 0,
-                    .name = outputs[1]->name().c_str(),
-                    .type = QNN_TENSOR_TYPE_APP_WRITE,
-                    .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                    .dataType = QNN_DATATYPE_FLOAT_32,
-                    .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                    QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                    {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-                    .rank = 4,
-                    .dimensions = dimensionsOut_0,
-                    .memType = QNN_TENSORMEMTYPE_RAW,
-                    {.clientBuf = {.data = nullptr,
-                                .dataSize = 0}}}}});
+                                       static_cast<uint32_t>(outputs[1]->sequence()),
+                                       static_cast<uint32_t>(outputs[1]->head()),
+                                       static_cast<uint32_t>(outputs[1]->dimension())};
+
+        qnnBackend_->modelAddTensor(name(), (Qnn_Tensor_t){
+                                                           .version = QNN_TENSOR_VERSION_1,
+                                                           .v1 = {
+                                                               .id = 0,
+                                                               .name = outputs[1]->name().c_str(),
+                                                               .type = QNN_TENSOR_TYPE_APP_WRITE,
+                                                               .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                                               .dataType = QNN_DATATYPE_FLOAT_32,
+                                                               .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                                                  QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                                                  {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                                               .rank = 4,
+                                                               .dimensions = dimensionsOut_0,
+                                                               .memType = QNN_TENSORMEMTYPE_RAW,
+                                                               .clientBuf = {.data = nullptr,
+                                                                             .dataSize = 0}}});
 
         qnnBackend_->pushInputBuffers(outputs[1]->hostPtr<uint8_t>());
-
     }
 
     return MLLM_NO_ERROR;
-    
 }
 
 ErrorCode QNNSplitInput::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    
     seqs_.free();
 
     return MLLM_NO_ERROR;
@@ -224,7 +212,6 @@ ErrorCode QNNSplitInput::load(AbstructLoader &loader) {
         loader.load(&scale1_);
 
     } else if (scaleName.find("ires_split") != -1) {
-
         pos = scaleName.find("ires_split");
         wordToRemove = "ires_split";
         scaleName.erase(pos, wordToRemove.length());
@@ -237,7 +224,6 @@ ErrorCode QNNSplitInput::load(AbstructLoader &loader) {
         loader.load(&scale1_);
 
     } else if (scaleName.find("fres_split") != -1) {
-
         pos = scaleName.find("fres_split");
         wordToRemove = "fres_split";
         scaleName.erase(pos, wordToRemove.length());
@@ -256,9 +242,7 @@ ErrorCode QNNSplitInput::load(AbstructLoader &loader) {
     return Op::load(loader);
 }
 
-
 ErrorCode QNNSplitInput::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-
     memcpy(outputs[1]->hostPtr<uint8_t>(), inputs[0]->hostPtr<uint8_t>() + outputs[0]->cntSize(), outputs[1]->cntSize());
 
     return MLLM_NO_ERROR;

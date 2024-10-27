@@ -2,7 +2,7 @@
 
 namespace mllm {
 
-void mllm_vec_silu_f32(const int n, float * y, const float * x) {
+void mllm_vec_silu_f32(const int n, float *y, const float *x) {
     int i = 0;
 #if defined(__AVX512F__) && defined(__AVX512DQ__)
     for (; i + 15 < n; i += 16) {
@@ -26,7 +26,7 @@ void mllm_vec_silu_f32(const int n, float * y, const float * x) {
     }
 }
 
-float mllm_vec_soft_max_f32(const int n, float * y, const float * x, float max) {
+float mllm_vec_soft_max_f32(const int n, float *y, const float *x, float max) {
     int i = 0;
     float sum = 0;
 #if defined(__AVX512F__) && defined(__AVX512DQ__)

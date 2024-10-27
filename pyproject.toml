@@ -1,0 +1,46 @@
+[build-system]
+requires = [
+  "cmake",  # For building binary targets in the wheel.
+  "pip>=23",  # For building the pip package.
+  "setuptools>=63",  # For building the pip package contents.
+  "wheel",  # For building the pip package archive.
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mllm"
+dynamic = [
+  # version is in setup.py file
+  'version',
+]
+description = "fast and lightweight multimodal LLM inference engine for mobile and edge devices"
+readme = "README.md"
+authors = [
+  {name="chenghua.wang", email="chenghua.wang.edu@gmail.com"},
+]
+keywords = ["mllm", "llm", "inference", "machine learning"]
+
+# Python dependencies
+requires-python = ">=3.10"
+dependencies=[
+  "flatbuffers",
+  "numpy==1.21.3; python_version == '3.10'",
+  "numpy==1.23.2; python_version == '3.11'",
+  "numpy; python_version >= '3.12'",
+  "packaging",
+  "pandas==2.0.3; python_version == '3.10'",
+  "pandas; python_version >= '3.11'",
+  "pytest",
+  "pytest-html",
+  "pybind11-stubgen>=2.5.1",
+]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["*.pyc"]
+
+[tool.usort]
+# Do not try to put "first-party" imports in their own section.
+first_party_detection = false
+
+[tool.black]
+target-version = ["py310", "py311", "py312"]

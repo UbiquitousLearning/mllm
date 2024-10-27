@@ -107,7 +107,8 @@ namespace mllm {
                     free_blocks_.erase(nxt);
 
                     #ifdef MLLM_ALLOCATOR_DEBUG
-                    debug_free_blocks.erase((uint64_t)nxt->addr);
+                    // win有概率出现错误
+                    // debug_free_blocks.erase((uint64_t)nxt->addr);
                     #endif
                 }
                 return;

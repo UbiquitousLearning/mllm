@@ -8,7 +8,7 @@
 
 using namespace mllm;
 
-class TinyLLaMAConfig {
+class TinyLLaMAConfig : public TransformerConfig {
 public:
     int vocab_size{};
     int hidden_dim{};
@@ -31,7 +31,15 @@ public:
             kv_head_size = 4;
             ffn_hidden = 5632;
             block_num = 22;
-            max_position_embeddings= 16384;
+            max_position_embeddings = 16384;
+            rope_theta = 10000;
+        } else if (billions == "1.1B" || billions == "1.1b") {
+            hidden_dim = 2048;
+            head_size = 32;
+            kv_head_size = 4;
+            ffn_hidden = 5632;
+            block_num = 22;
+            max_position_embeddings = 16384;
             rope_theta = 10000;
         } else {
             throw std::runtime_error("Unsupported model size");

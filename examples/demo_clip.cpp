@@ -1,5 +1,4 @@
 #include <iostream>
-#include <utility>
 #include "cmdline.h"
 #include "models/clip/modeling_clip.hpp"
 #include "models/clip/processing_clip.hpp"
@@ -31,5 +30,5 @@ int main(int argc, char **argv) {
     for (auto prob : token_idx) {
         std::cout << prob << "  ";
     }
-    std::cout<<std::endl;
+    std::cout << std::endl;
 }

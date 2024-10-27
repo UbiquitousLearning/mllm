@@ -39,7 +39,7 @@ public:
     }
 };
 
-class Phi3Config {
+class Phi3Config : public TransformerConfig {
 public:
     int vocab_size{};
     int hidden_dim{};

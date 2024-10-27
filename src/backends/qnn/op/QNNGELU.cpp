@@ -17,16 +17,11 @@ ErrorCode QNNGELU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode QNNGELU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-
     //Todo: gelu do not supprt signed fix int8
     return graphAddNode(name(), "Gelu", inputs, outputs, {}, "qti.aisw", true, &scale_);
 }
 
 ErrorCode QNNGELU::load(AbstructLoader &loader) {
-
-    std::cout << "load gelu" << std::endl;
-
-
     string scaleName = name();
 
     std::string wordToRemove = "gelu";
@@ -40,8 +35,6 @@ ErrorCode QNNGELU::load(AbstructLoader &loader) {
     scale_.setDtype(MLLM_TYPE_F32);
     scale_.alloc();
     loader.load(&scale_);
-
-    std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
 
     return Op::load(loader);
 }

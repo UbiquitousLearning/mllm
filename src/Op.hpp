@@ -39,11 +39,11 @@ public:
         std::cout << "" << name() << "     reshape:";
         std::cout << "\n    || ";
         for (auto input : inputs) {
-            std::cout << "Input " << input->name() << " shape: " << input->ShapeString() << " |";
+            std::cout << "Input " << input->name() << " shape: " << input->shapeString() << " |";
         }
         std::cout << "\n    || ";
         for (auto output : outputs) {
-            std::cout << "Output " << output->name() << " shape: " << output->ShapeString() << " |";
+            std::cout << "Output " << output->name() << " shape: " << output->shapeString() << " |";
         }
         std::cout << std::endl;
 #endif
@@ -115,14 +115,18 @@ public:
         type_ = type;
     }
 
-    virtual int getCacheSeqLen(){
+    virtual int getCacheSeqLen() {
         assert(type_ == OpType::KVCACHE);
         std::cout << "only for KVCache" << std::endl;
         return -1;
     }
-    virtual void clearCache(){
+    virtual void clearCache() {
         assert(type_ == OpType::KVCACHE);
         std::cout << "only for KVCache" << std::endl;
+    }
+
+    static DataType &noLoadWeightsDtype() {
+        return no_load_weights_dtype_;
     }
 
 protected:
@@ -132,6 +136,7 @@ protected:
     string name_;
     DataType activation_dtype_ = MLLM_TYPE_F32;
     OpType type_;
+    static DataType no_load_weights_dtype_;
 };
 
 } // namespace mllm

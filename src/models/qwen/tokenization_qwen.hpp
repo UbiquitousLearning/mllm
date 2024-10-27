@@ -51,12 +51,12 @@ static const std::vector<std::string> FIXED_PAT_STRS = {
     "(?:'[sS]|'[tT]|'[rR][eE]|'[vV][eE]|'[mM]|'[lL][lL]|'[dD])|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+",
 };
 
-class QWenTokenizer final {
+class QWenTokenizer final : public BPETokenizer {
 public:
     explicit QWenTokenizer(const std::string &vocab_file, const std::string &merge_file, bool split_special_tokens = false) :
+        BPETokenizer(vocab_file),
         split_special_tokens_(split_special_tokens) {
         Module::initBackend(MLLM_CPU);
-        tokenizer = new BPETokenizer(vocab_file);
 
         // init byte encoder
         std::vector<int> bs;
@@ -96,11 +96,9 @@ public:
             bpe_ranks_[line] = rank;
             rank++;
         }
-        tokenizer->setMergeRank(bpe_ranks_);
-    }
-
-    ~QWenTokenizer() {
-        delete tokenizer;
+        BPETokenizer::setMergeRank(bpe_ranks_);
+        chat_template_pre = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n";
+        chat_template_end = "<|im_end|>\n<|im_start|>assistant\n";
     }
 
     std::vector<std::string> stringSplit(const std::string &str, char delim) {
@@ -161,7 +159,7 @@ public:
         return result;
     }
 
-    Tensor tokenize(std::string &text, int str_i = 0) {
+    Tensor tokenize(std::string &text) override {
         std::vector<token_id_t> ret;
 
         if (split_special_tokens_) {
@@ -173,7 +171,7 @@ public:
 
                 // using bpe
                 std::vector<token_id_t> tmp;
-                tokenizer->tokenize(piece, tmp, false, true, "");
+                BPETokenizer::tokenize(piece, tmp, false, true, "");
                 ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
             }
         } else {
@@ -187,7 +185,7 @@ public:
                     for (auto b : UTF8(p)) token += byte_encoder_[b];
 
                     std::vector<token_id_t> tmp;
-                    tokenizer->tokenize(token, tmp, false, special_tokens, true);
+                    BPETokenizer::tokenize(token, tmp, false, special_tokens, true);
                     ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
                 } else {
                     const auto word_collection = unicode_regex_split(p, FIXED_PAT_STRS);
@@ -198,8 +196,8 @@ public:
 
                         // using bpe
                         std::vector<token_id_t> tmp;
-                        tokenizer->tokenize(piece, tmp, false, true, "");
-                        assert(tmp.size() != 0);
+                        BPETokenizer::tokenize(piece, tmp, false, true, "");
+                        assert(!tmp.empty());
                         ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
                     }
                 }
@@ -221,7 +219,7 @@ public:
 
                 // using bpe
                 std::vector<token_id_t> tmp;
-                tokenizer->tokenize(piece, tmp, false, true, "");
+                BPETokenizer::tokenize(piece, tmp, false, true, "");
                 ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
             }
         } else {
@@ -235,7 +233,7 @@ public:
                     for (auto b : UTF8(p)) token += byte_encoder_[b];
 
                     std::vector<token_id_t> tmp;
-                    tokenizer->tokenize(token, tmp, false, special_tokens, true);
+                    BPETokenizer::tokenize(token, tmp, false, special_tokens, true);
                     ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
                 } else {
                     const auto word_collection = unicode_regex_split(p, FIXED_PAT_STRS);
@@ -246,8 +244,8 @@ public:
 
                         // using bpe
                         std::vector<token_id_t> tmp;
-                        tokenizer->tokenize(piece, tmp, false, true, "");
-                        assert(tmp.size() != 0);
+                        BPETokenizer::tokenize(piece, tmp, false, true, "");
+                        assert(!tmp.empty());
                         ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
                     }
                 }
@@ -266,11 +264,11 @@ public:
         return ret;
     }
 
-    std::string detokenize(const std::vector<token_id_t> &tokens) {
-        return _byte_decode_(tokenizer->detokenize(tokens));
+    std::string detokenize(const std::vector<token_id_t> &tokens) override {
+        return _byte_decode_(BPETokenizer::detokenize(tokens));
     }
 
-    std::pair<std::string, unsigned> detokenize(Tensor &result) {
+    std::pair<std::string, unsigned> detokenize(Tensor &result) override {
         assert(result.batch() == 1);
         assert(result.head() == 1);
         vector<float> scores;
@@ -279,20 +277,16 @@ public:
             scores.push_back(value);
         }
         auto token_idx = this->argmax(scores);
-        return {_byte_decode_(tokenizer->detokenize({token_idx})), token_idx};
+        return {_byte_decode_(BPETokenizer::detokenize({token_idx})), token_idx};
     }
-
-private:
-    unsigned int argmax(const std::vector<float> &scores) {
-        if (scores.empty()) {
-            throw std::invalid_argument("Input vector is empty");
-        }
-        return std::max_element(scores.begin(), scores.end()) - scores.begin();
+    std::pair<bool, std::string> postprocess(std::string &text) override {
+        if (text == "<|im_start|>" || text == "<|im_end|>" || text == "<unk>") return {true, ""};
+        if (text == "<|endoftext|>") return {false, ""};
+        return {true, text};
     }
 
 public:
     bool split_special_tokens_ = false;
-    BPETokenizer *tokenizer;
     std::unordered_map<int, std::string> byte_encoder_;
     std::unordered_map<std::string, int> byte_decoder_;
     std::unordered_map<std::string, unsigned int> bpe_ranks_;

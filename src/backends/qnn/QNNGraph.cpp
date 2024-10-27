@@ -22,7 +22,7 @@ void QNNGraph::setUpTensors(std::string name) {
     // set graph out tensor TensorType
     auto &graph_out_tensors = ops_output_tensors_[op_names_[op_names_.size() - 1]];
     for (auto &t : graph_out_tensors) {
-        t->setTtype(OUTPUT_TENSOR);
+        t->setTtype(GRAPH_OUTPUT);
         t->alloc();
     }
     for (auto &t : graph_in_tensors) { t->alloc(); }
@@ -79,7 +79,7 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
     }
 
     this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]], graphName);
-    
+
     if (ops_[op_names_[op_names_.size() - 1]]->type() == MERGEOUTPUT) {
         auto inputs = ops_input_tensors_[op_names_[op_names_.size() - 1]];
         auto outputs = ops_output_tensors_[op_names_[op_names_.size() - 1]];

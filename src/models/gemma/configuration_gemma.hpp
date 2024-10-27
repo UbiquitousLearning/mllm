@@ -74,7 +74,7 @@ public:
     std::string _gate_proj_name;
 };
 
-struct GemmaConfig {
+struct GemmaConfig : public TransformerConfig {
     explicit GemmaConfig(int token_limit, const string billions = "2B", RoPEType type = RoPEType::HFHUBROPE) :
         cache_limit(token_limit) {
         names_config.init(type);
@@ -93,7 +93,7 @@ struct GemmaConfig {
     int intermediate_size = 16384;
     int head_dim = 256;
     float rms_norm_eps = 1e-6;
-    float rope_theta= 10000;
+    float rope_theta = 10000;
 
     int cache_limit;
     RoPEType RoPE_type = RoPEType::HFHUBROPE;

@@ -13,10 +13,15 @@ class Op;
 class Tensor;
 class Backend;
 
+// KVCache map for QNN-CPU KVCache sharing
+#ifdef USE_QNN
+static std::unordered_map<string, Op *> kv_cache_map;
+#endif
+
 class TensorFunction {
 public:
-    virtual void setup(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args)=0;
-    virtual void execute(vector<Tensor*> outputs, vector<Tensor*> inputs, vector<float> args)=0;
+    virtual void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) = 0;
+    virtual void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) = 0;
 };
 class Backend {
 public:
@@ -51,7 +56,7 @@ public:
      * \return A pointer to the created operation.
      */
     virtual Op *opCreate(const OpParam &op_param, string name = "", int threadCount = 4) = 0;
-    virtual TensorFunction *funcCreate(const TensorFuncType type) = 0;
+    virtual TensorFunction *funcCreate(TensorFuncType type) = 0;
 
     virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
     virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
@@ -80,7 +85,7 @@ protected:
  */
 class BackendCreator {
 public:
-    virtual shared_ptr<Backend> create(BackendConfig config) = 0;
+    virtual Backend* create(BackendConfig config) = 0;
 };
 
 /**

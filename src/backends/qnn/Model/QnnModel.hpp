@@ -256,6 +256,7 @@ class QnnModel {
 ModelError_t getGraphInfoFromModels(QnnModel* models,
                                     uint32_t numModels,
                                     GraphInfoPtr_t** graphsInfo);
+ModelError_t getSingleGraphInfoFromModel(QnnModel &model, GraphInfoPtr_t* graphInfoPtr);
 
 /**
  * @brief A helper function to free memory malloced for communicating the Graph for a model(s)

@@ -27,7 +27,7 @@ using namespace mllm;
     do {                                                                                                    \
         auto __tensors__ = {__VA_ARGS__};                                                                   \
         for (const auto &tensor : __tensors__) {                                                            \
-            std::cout << "Tensor " << tensor->name() << ": [" << tensor->ShapeString() << "]" << std::endl; \
+            std::cout << "Tensor " << tensor->name() << ": [" << tensor->shapeString() << "]" << std::endl; \
         }                                                                                                   \
     } while (false)
 class CPUTest : public ::testing::Test {
@@ -53,7 +53,7 @@ protected:
 };
 static bool isSame(Tensor *a, Tensor *b, bool unstrict = false) {
     if (a->legacyShape(0) != b->legacyShape(0) || a->legacyShape(1) != b->legacyShape(1) || a->legacyShape(2) != b->legacyShape(2) || a->legacyShape(3) != b->legacyShape(3)) {
-        std::cout << "Shape a: " << a->ShapeString() << " Shape b: " << b->ShapeString() << std::endl;
+        std::cout << "Shape a: " << a->shapeString() << " Shape b: " << b->shapeString() << std::endl;
         return false;
     }
     double eps = 0.000001;
@@ -64,32 +64,32 @@ static bool isSame(Tensor *a, Tensor *b, bool unstrict = false) {
             for (int j = 0; j < a->channel(); ++j) {
                 for (int k = 0; k < a->time(); ++k) {
                     for (int l = 0; l < a->height(); ++l) {
-                    for (int m = 0; m < a->width(); ++m) {
-                        double a_ = a->dataAt<float>(i, j, k, l, m);
-                        double b_ = b->dataAt<float>(i, j, k, l, m);
+                        for (int m = 0; m < a->width(); ++m) {
+                            double a_ = a->dataAt<float>(i, j, k, l, m);
+                            double b_ = b->dataAt<float>(i, j, k, l, m);
 
-                        //                     if ((a_ < b_) || (a_ > b_)) {
-                        if ((abs(a_ - b_) / std::max(a_, b_)) > eps && !unstrict) {
-                            std::cout << std::setprecision(8) << std::setiosflags(std::ios::fixed | std::ios::showpoint) << "a[" << i << "," << j << "," << k << "," << l <<"," << m << "]: " << (double)a->dataAt<float>(i, j, k, l, m) << "!= b[" << i << "," << j << "," << k << "," << l <<"," << m<< "]: " << (double)b->dataAt<float>(i, j, k, l, m) << std::endl;
-                            //                        return false;
-                            std::cout << std::setprecision(8) << std::setiosflags(std::ios::fixed | std::ios::showpoint) << "Diff:" << abs(a_ - b_) / std::max(a_, b_) << std::endl;
-                            flag += 1;
-                            if (flag > 10) {
-                                return false;
-                            }
-                        }
-                        if (unstrict) {
-                            if (abs(a_ - b_) > 1e-4) {
-                                std::cout << std::setprecision(8) << std::setiosflags(std::ios::fixed | std::ios::showpoint) << "a[" << i << "," << j << "," << k << "," << l <<"," << m<< "]: " << (double)a->dataAt<float>(i, j, k, l, m) << "!= b[" << i << "," << j << "," << k << "," << l <<"," << m<< "]: " << (double)b->dataAt<float>(i, j, k, l, m) << std::endl;
+                            //                     if ((a_ < b_) || (a_ > b_)) {
+                            if ((abs(a_ - b_) / std::max(a_, b_)) > eps && !unstrict) {
+                                std::cout << std::setprecision(8) << std::setiosflags(std::ios::fixed | std::ios::showpoint) << "a[" << i << "," << j << "," << k << "," << l << "," << m << "]: " << (double)a->dataAt<float>(i, j, k, l, m) << "!= b[" << i << "," << j << "," << k << "," << l << "," << m << "]: " << (double)b->dataAt<float>(i, j, k, l, m) << std::endl;
                                 //                        return false;
-                                std::cout << std::setprecision(8) << std::setiosflags(std::ios::fixed | std::ios::showpoint) << "Diff:" << abs(a_ - b_) << std::endl;
+                                std::cout << std::setprecision(8) << std::setiosflags(std::ios::fixed | std::ios::showpoint) << "Diff:" << abs(a_ - b_) / std::max(a_, b_) << std::endl;
                                 flag += 1;
                                 if (flag > 10) {
                                     return false;
                                 }
                             }
+                            if (unstrict) {
+                                if (abs(a_ - b_) > 1e-4) {
+                                    std::cout << std::setprecision(8) << std::setiosflags(std::ios::fixed | std::ios::showpoint) << "a[" << i << "," << j << "," << k << "," << l << "," << m << "]: " << (double)a->dataAt<float>(i, j, k, l, m) << "!= b[" << i << "," << j << "," << k << "," << l << "," << m << "]: " << (double)b->dataAt<float>(i, j, k, l, m) << std::endl;
+                                    //                        return false;
+                                    std::cout << std::setprecision(8) << std::setiosflags(std::ios::fixed | std::ios::showpoint) << "Diff:" << abs(a_ - b_) << std::endl;
+                                    flag += 1;
+                                    if (flag > 10) {
+                                        return false;
+                                    }
+                                }
+                            }
                         }
-                    }
                     }
                 }
             }

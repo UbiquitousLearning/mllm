@@ -25,7 +25,8 @@ inline static float32x4_t mllm_v_expf(float32x4_t x) {
     const float32x4_t j = vfmaq_f32(
         vmulq_f32(vdupq_n_f32(0x1.ffffecp-1f), b),
         vfmaq_f32(vfmaq_f32(vdupq_n_f32(0x1.fffdb6p-2f), vdupq_n_f32(0x1.555e66p-3f), b),
-                  vfmaq_f32(vdupq_n_f32(0x1.573e2ep-5f), vdupq_n_f32(0x1.0e4020p-7f), b), u), u);
+                  vfmaq_f32(vdupq_n_f32(0x1.573e2ep-5f), vdupq_n_f32(0x1.0e4020p-7f), b), u),
+        u);
     if (!vpaddd_u64(vreinterpretq_u64_u32(c)))
         return vfmaq_f32(k, j, k);
     const uint32x4_t d = vandq_u32(vclezq_f32(n), vdupq_n_u32(0x82000000));
@@ -52,30 +53,30 @@ inline static float32x4_t mllm_v_silu(float32x4_t x) {
 // numbers above 88.38 will flush to infinity
 // numbers beneath -103.97 will flush to zero
 inline static __m512 mllm_v_expf(__m512 x) {
-  const __m512 r = _mm512_set1_ps(0x1.8p23f);
-  const __m512 z = _mm512_fmadd_ps(x, _mm512_set1_ps(0x1.715476p+0f), r);
-  const __m512 n = _mm512_sub_ps(z, r);
-  const __m512 b =
-      _mm512_fnmadd_ps(n, _mm512_set1_ps(0x1.7f7d1cp-20f),
-                       _mm512_fnmadd_ps(n, _mm512_set1_ps(0x1.62e4p-1f), x));
-  const __mmask16 d =
-      _mm512_cmp_ps_mask(_mm512_abs_ps(n), _mm512_set1_ps(192), _CMP_GT_OQ);
-  const __m512 u = _mm512_mul_ps(b, b);
-  const __m512 j = _mm512_fmadd_ps(
-      _mm512_fmadd_ps(_mm512_fmadd_ps(_mm512_set1_ps(0x1.0e4020p-7f), b,
-                                      _mm512_set1_ps(0x1.573e2ep-5f)),
-                      u,
-                      _mm512_fmadd_ps(_mm512_set1_ps(0x1.555e66p-3f), b,
-                                      _mm512_set1_ps(0x1.fffdb6p-2f))),
-      u,
-      _mm512_fmadd_ps(_mm512_set1_ps(0x1.ffffecp-1f), b, _mm512_set1_ps(1.0F)));
-  const __m512 res = _mm512_scalef_ps(j, n);
-  if (_mm512_kortestz(d, d))
-    return res;
-  const __m512 zero = _mm512_setzero_ps();
-  const __m512 alt = _mm512_mask_blend_ps(
-      _mm512_cmp_ps_mask(n, zero, _CMP_LE_OQ), _mm512_set1_ps(INFINITY), zero);
-  return _mm512_mask_blend_ps(d, res, alt);
+    const __m512 r = _mm512_set1_ps(0x1.8p23f);
+    const __m512 z = _mm512_fmadd_ps(x, _mm512_set1_ps(0x1.715476p+0f), r);
+    const __m512 n = _mm512_sub_ps(z, r);
+    const __m512 b =
+        _mm512_fnmadd_ps(n, _mm512_set1_ps(0x1.7f7d1cp-20f),
+                         _mm512_fnmadd_ps(n, _mm512_set1_ps(0x1.62e4p-1f), x));
+    const __mmask16 d =
+        _mm512_cmp_ps_mask(_mm512_abs_ps(n), _mm512_set1_ps(192), _CMP_GT_OQ);
+    const __m512 u = _mm512_mul_ps(b, b);
+    const __m512 j = _mm512_fmadd_ps(
+        _mm512_fmadd_ps(_mm512_fmadd_ps(_mm512_set1_ps(0x1.0e4020p-7f), b,
+                                        _mm512_set1_ps(0x1.573e2ep-5f)),
+                        u,
+                        _mm512_fmadd_ps(_mm512_set1_ps(0x1.555e66p-3f), b,
+                                        _mm512_set1_ps(0x1.fffdb6p-2f))),
+        u,
+        _mm512_fmadd_ps(_mm512_set1_ps(0x1.ffffecp-1f), b, _mm512_set1_ps(1.0F)));
+    const __m512 res = _mm512_scalef_ps(j, n);
+    if (_mm512_kortestz(d, d))
+        return res;
+    const __m512 zero = _mm512_setzero_ps();
+    const __m512 alt = _mm512_mask_blend_ps(
+        _mm512_cmp_ps_mask(n, zero, _CMP_LE_OQ), _mm512_set1_ps(INFINITY), zero);
+    return _mm512_mask_blend_ps(d, res, alt);
 }
 
 // computes silu x/(1+exp(-x)) in single precision vector
@@ -95,42 +96,43 @@ inline static __m512 mllm_v_silu(__m512 x) {
 // numbers above 88.38 will flush to infinity
 // numbers beneath -103.97 will flush to zero
 inline static __m256 mllm_v_expf(__m256 x) {
-  const __m256 r = _mm256_set1_ps(0x1.8p23f);
-  const __m256 z = _mm256_fmadd_ps(x, _mm256_set1_ps(0x1.715476p+0f), r);
-  const __m256 n = _mm256_sub_ps(z, r);
-  const __m256 b = _mm256_fnmadd_ps(n, _mm256_set1_ps(0x1.7f7d1cp-20f),
-                                    _mm256_fnmadd_ps(n, _mm256_set1_ps(0x1.62e4p-1f), x));
-  const __m256i e = _mm256_slli_epi32(_mm256_castps_si256(z), 23);
-  const __m256 k = _mm256_castsi256_ps(
-      _mm256_add_epi32(e, _mm256_castps_si256(_mm256_set1_ps(1))));
-  const __m256i c = _mm256_castps_si256(
-      _mm256_cmp_ps(_mm256_andnot_ps(_mm256_set1_ps(-0.f), n),
-                    _mm256_set1_ps(126), _CMP_GT_OQ));
-  const __m256 u = _mm256_mul_ps(b, b);
-  const __m256 j = _mm256_fmadd_ps(_mm256_fmadd_ps(_mm256_fmadd_ps(_mm256_set1_ps(0x1.0e4020p-7f), b,
-                                                                   _mm256_set1_ps(0x1.573e2ep-5f)), u,
-                                                   _mm256_fmadd_ps(_mm256_set1_ps(0x1.555e66p-3f), b,
-                                                                   _mm256_set1_ps(0x1.fffdb6p-2f))),
-                                   u, _mm256_mul_ps(_mm256_set1_ps(0x1.ffffecp-1f), b));
-  if (!_mm256_movemask_ps(_mm256_castsi256_ps(c)))
-    return _mm256_fmadd_ps(j, k, k);
-  const __m256i g = _mm256_and_si256(
-      _mm256_castps_si256(_mm256_cmp_ps(n, _mm256_setzero_ps(), _CMP_LE_OQ)),
-      _mm256_set1_epi32(0x82000000u));
-  const __m256 s1 =
-      _mm256_castsi256_ps(_mm256_add_epi32(g, _mm256_set1_epi32(0x7f000000u)));
-  const __m256 s2 = _mm256_castsi256_ps(_mm256_sub_epi32(e, g));
-  const __m256i d = _mm256_castps_si256(
-      _mm256_cmp_ps(_mm256_andnot_ps(_mm256_set1_ps(-0.f), n),
-                    _mm256_set1_ps(192), _CMP_GT_OQ));
-  return _mm256_or_ps(
-      _mm256_and_ps(_mm256_castsi256_ps(d), _mm256_mul_ps(s1, s1)),
-      _mm256_andnot_ps(
-          _mm256_castsi256_ps(d),
-          _mm256_or_ps(
-              _mm256_and_ps(_mm256_castsi256_ps(c),
-                            _mm256_mul_ps(_mm256_fmadd_ps(s2, j, s2), s1)),
-              _mm256_andnot_ps(_mm256_castsi256_ps(c), _mm256_fmadd_ps(k, j, k)))));
+    const __m256 r = _mm256_set1_ps(0x1.8p23f);
+    const __m256 z = _mm256_fmadd_ps(x, _mm256_set1_ps(0x1.715476p+0f), r);
+    const __m256 n = _mm256_sub_ps(z, r);
+    const __m256 b = _mm256_fnmadd_ps(n, _mm256_set1_ps(0x1.7f7d1cp-20f),
+                                      _mm256_fnmadd_ps(n, _mm256_set1_ps(0x1.62e4p-1f), x));
+    const __m256i e = _mm256_slli_epi32(_mm256_castps_si256(z), 23);
+    const __m256 k = _mm256_castsi256_ps(
+        _mm256_add_epi32(e, _mm256_castps_si256(_mm256_set1_ps(1))));
+    const __m256i c = _mm256_castps_si256(
+        _mm256_cmp_ps(_mm256_andnot_ps(_mm256_set1_ps(-0.f), n),
+                      _mm256_set1_ps(126), _CMP_GT_OQ));
+    const __m256 u = _mm256_mul_ps(b, b);
+    const __m256 j = _mm256_fmadd_ps(_mm256_fmadd_ps(_mm256_fmadd_ps(_mm256_set1_ps(0x1.0e4020p-7f), b,
+                                                                     _mm256_set1_ps(0x1.573e2ep-5f)),
+                                                     u,
+                                                     _mm256_fmadd_ps(_mm256_set1_ps(0x1.555e66p-3f), b,
+                                                                     _mm256_set1_ps(0x1.fffdb6p-2f))),
+                                     u, _mm256_mul_ps(_mm256_set1_ps(0x1.ffffecp-1f), b));
+    if (!_mm256_movemask_ps(_mm256_castsi256_ps(c)))
+        return _mm256_fmadd_ps(j, k, k);
+    const __m256i g = _mm256_and_si256(
+        _mm256_castps_si256(_mm256_cmp_ps(n, _mm256_setzero_ps(), _CMP_LE_OQ)),
+        _mm256_set1_epi32(0x82000000u));
+    const __m256 s1 =
+        _mm256_castsi256_ps(_mm256_add_epi32(g, _mm256_set1_epi32(0x7f000000u)));
+    const __m256 s2 = _mm256_castsi256_ps(_mm256_sub_epi32(e, g));
+    const __m256i d = _mm256_castps_si256(
+        _mm256_cmp_ps(_mm256_andnot_ps(_mm256_set1_ps(-0.f), n),
+                      _mm256_set1_ps(192), _CMP_GT_OQ));
+    return _mm256_or_ps(
+        _mm256_and_ps(_mm256_castsi256_ps(d), _mm256_mul_ps(s1, s1)),
+        _mm256_andnot_ps(
+            _mm256_castsi256_ps(d),
+            _mm256_or_ps(
+                _mm256_and_ps(_mm256_castsi256_ps(c),
+                              _mm256_mul_ps(_mm256_fmadd_ps(s2, j, s2), s1)),
+                _mm256_andnot_ps(_mm256_castsi256_ps(c), _mm256_fmadd_ps(k, j, k)))));
 }
 
 // computes silu x/(1+exp(-x)) in single precision vector
@@ -199,9 +201,9 @@ inline static __m128 mllm_v_silu(__m128 x) {
 
 #endif // __ARM_NEON / __AVX2__ / __SSE2__
 
-void mllm_vec_silu_f32(const int n, float * y, const float * x);
+void mllm_vec_silu_f32(const int n, float *y, const float *x);
 
-float mllm_vec_soft_max_f32(const int n, float * y, const float * x, float max);
+float mllm_vec_soft_max_f32(const int n, float *y, const float *x, float max);
 
 } // namespace mllm
-#endif //ACTFUNC_HPP
+#endif // ACTFUNC_HPP

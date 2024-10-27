@@ -12,7 +12,7 @@ public:
     explicit Net(BackendConfig config);
     virtual ~Net() = default;
 
-    virtual void convert(vector<NetParameter> &param, BackendType backend_type = BackendType::MLLM_CPU, int threadCount=4);
+    virtual void convert(vector<NetParameter> &param, BackendType backend_type = BackendType::MLLM_CPU, int threadCount = 4);
 
     unordered_map<string, shared_ptr<Graph>> &subGraph() {
         return subGraphs_;
@@ -21,17 +21,17 @@ public:
         return tensors_;
     }
 
-    unordered_map<BackendType,  shared_ptr<Backend>> &backends() {
+    unordered_map<BackendType, shared_ptr<Backend>> &backends() {
         return backends_;
     }
     vector<vector<string>> &tensorNames() {
         return tensor_names_;
     }
     void freeTensors(int graph_idx);
-    vector<string> inputNames() const{
+    vector<string> inputNames() const {
         return input_names_;
     }
-    map<string, int> inGmap() const{
+    map<string, int> inGmap() const {
         return inputname_graphidx_;
     }
 
@@ -41,9 +41,8 @@ protected:
     vector<vector<string>> tensor_names_;
     vector<NetOp *> ops_;
     unordered_map<BackendType, shared_ptr<Backend>> backends_;
-    vector<string> input_names_ ;
+    vector<string> input_names_;
     map<string, int> inputname_graphidx_;
-
 };
 
 } // namespace mllm

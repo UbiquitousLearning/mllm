@@ -37,26 +37,15 @@ int main(int argc, char **argv) {
     for (int i = 0; i < in_strs.size(); ++i) {
         auto in_str = in_strs[i];
         std::cout << "[Q] " << in_str << std::endl;
-        auto input_tensor = tokenizer.tokenize(in_str, i);
+        auto input_tensor = tokenizer.tokenize(in_str);
         std::cout << "[A] " << std::flush;
 
         for (int step = 0; step < 50; step++) {
             auto result = model({input_tensor});
-            auto outputs = tokenizer.detokenize(result[0]);
-            auto out_string = outputs.first;
-            auto out_token = outputs.second;
-            if (out_token == 2) {
-                break;
-            }
-            size_t pos = 0;
-            while ((pos = out_string.find("Ċ", pos)) != std::string::npos) {
-                out_string.replace(pos, 2, " ");
-            }
-            pos = 0;
-            while ((pos = out_string.find("Ġ", pos)) != std::string::npos) {
-                out_string.replace(pos, 2, " ");
-            }
-            std::cout << out_string << std::flush;
+            auto [out_string, out_token] = tokenizer.detokenize(result[0]);
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { break; }
+            std::cout << output_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");

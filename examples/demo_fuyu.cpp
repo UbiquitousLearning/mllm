@@ -31,12 +31,10 @@ int main(int argc, char **argv) {
 
     std::vector<vector<string>> in_imgs = {
         {"../assets/bus.png"},
-        {"../assets/two_cats.jpg"}
-    };
+        {"../assets/two_cats.jpg"}};
     vector<string> in_strs = {
         "Generate a coco-style caption.\n",
-        "What's this?\n"
-    };
+        "What's this?\n"};
 
     for (int inId = 0; inId < in_strs.size(); ++inId) {
         auto in_str = in_strs[inId];
@@ -53,10 +51,9 @@ int main(int argc, char **argv) {
             auto outputs = processor.detokenize(result[0]);
             auto out_string = outputs.first;
             auto out_token = outputs.second;
-            if (out_token == 71013) {
-                break;
-            }
-            std::cout << out_string << std::flush;
+            auto [end, string] = processor.postprocess(out_string);
+            if (!end) { break; }
+            std::cout << string << std::flush;
             chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
         }
         printf("\n");

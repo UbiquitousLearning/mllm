@@ -14,7 +14,7 @@ ErrorCode CPUSplit::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
         switch (split_dim_size_) {
         case -1: /*using each_dims*/ {
             // check shape
-            assert(each_dims_.size() > 0 && "split op with split_dims_size_ == 1 should has each_dims_ params");
+            assert(!each_dims_.empty() && "split op with split_dims_size_ == 1 should has each_dims_ params");
             {
                 int head_sum = 0;
                 for (auto item : each_dims_) head_sum += item;
@@ -42,7 +42,7 @@ ErrorCode CPUSplit::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
         switch (split_dim_size_) {
         case -1: /*using each_dims*/ {
             // check shape
-            assert(each_dims_.size() > 0 && "split op with split_dims_size_ == 1 should has each_dims_ params");
+            assert(!each_dims_.empty() && "split op with split_dims_size_ == 1 should has each_dims_ params");
             {
                 int seq_sum = 0;
                 for (auto item : each_dims_) seq_sum += item;
@@ -70,7 +70,7 @@ ErrorCode CPUSplit::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
         switch (split_dim_size_) {
         case -1: /*using each_dims*/ {
             // check shape
-            assert(each_dims_.size() > 0 && "split op with split_dims_size_ == 1 should has each_dims_ params");
+            assert(!each_dims_.empty() && "split op with split_dims_size_ == 1 should has each_dims_ params");
             {
                 int dimension_sum = 0;
                 for (auto item : each_dims_) dimension_sum += item;
