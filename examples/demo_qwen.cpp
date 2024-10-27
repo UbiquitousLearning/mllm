@@ -46,6 +46,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < in_strs.size(); ++i) {
         auto input_str = tokenizer.apply_chat_template(in_strs[i]);
         auto input_tensor = tokenizer.tokenize(input_str);
+        input_tensor.printData<float>();
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
 

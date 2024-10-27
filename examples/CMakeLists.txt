@@ -24,6 +24,7 @@ macro(func_llm_add_executable target)
         ${DIR_SRC}
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
+        ${PROJECT_SOURCE_DIR}/src/tokenizers/WordPiece/WordPiece.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
         ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
@@ -69,7 +70,9 @@ func_llm_add_executable(demo_minicpm)
 func_llm_add_executable(demo_smollm)
 func_llm_add_executable(demo_openelm)
 func_llm_add_executable(demo_dclm)
+func_llm_add_executable(demo_bert)
 func_llm_add_executable(demo_phonelm)
+
 
 func_vlm_add_executable(demo_llava)
 func_vlm_add_executable(demo_fuyu)
