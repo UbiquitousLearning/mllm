@@ -20,6 +20,7 @@ ErrorCode QNNQuantize::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_
 }
 
 ErrorCode QNNQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    outputs[0]->setDtype(MLLM_TYPE_I8);
     auto outName = outputs[0]->name();
 
     uint32_t dimensionsOutput[4];

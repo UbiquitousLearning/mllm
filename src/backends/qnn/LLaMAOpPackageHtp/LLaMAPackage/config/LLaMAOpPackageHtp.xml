@@ -12,6 +12,92 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
     <OpDefList>
         <!--Example Op Package which shows how a package can be defined using supplemental info-->
         <OpDef>
+            <Name>LLaMASuperSiLU</Name>
+            <Description>
+                <Content>
+                    fused SiLU function
+                </Content>
+            </Description>
+
+            <Reference Source="Torch"
+                       Url="https://pytorch.org/docs/stable/generated/torch.nn.SiLU.html"/>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Input>
+                <Name>in[1]</Name>
+                <Description>
+                    <Content>input activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Layout>NHWC</Layout>
+                    <Text>[N, C, H , W]</Text>
+                </Shape>
+            </Input>
+
+            <Output>
+                <Name>out[0]</Name>
+                <Description>
+                    <Content>output activation</Content>
+                </Description>
+                <Mandatory>true</Mandatory>
+                <Datatype>BACKEND_SPECIFIC</Datatype>
+                <Shape>
+                    <Rank>4D</Rank>
+                    <Text> [N, C, H , W] </Text>
+                </Shape>
+            </Output>
+
+            <Parameter>
+                <Name>a_scale</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <Parameter>
+                <Name>b_scale</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <Parameter>
+                <Name>o_scale</Name>
+                <Mandatory>true</Mandatory>
+                <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Shape>
+                    <Rank>SCALAR</Rank>
+                </Shape>
+                <Default>N-1</Default>
+            </Parameter>
+
+            <!--This Op is implemented on these Backends-->
+            <SupportedBackend>HTP</SupportedBackend>
+        </OpDef>
+
+        <OpDef>
             <Name>SiLU</Name>
             <Description>
                 <Content>
@@ -1106,6 +1192,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
 
     <SupplementalOpDefList Backend="HTP">
         <SupportedOps>
+            <OpName>LLaMASuperSiLU</OpName>
             <OpName>SiLU</OpName>
             <OpName>Attention</OpName>
             <OpName>RMSNorm</OpName>
@@ -1133,6 +1220,27 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
                 <Name>out[0]</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+            </Output>
+        </SupplementalOpDef>
+
+        <!--SiLU-->
+        <SupplementalOpDef>
+            <Name>LLaMASuperSiLU</Name>
+
+            <Input>
+                <Name>in[0]</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+            </Input>
+            <Input>
+                <Name>in[1]</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
+            </Input>
+
+
+
+            <Output>
+                <Name>out[0]</Name>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
             </Output>
         </SupplementalOpDef>
 
@@ -1261,6 +1369,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
                 <Name>out[0]</Name>
                 <Datatype>QNN_DATATYPE_FLOAT_16</Datatype>
                 <Datatype>QNN_DATATYPE_FLOAT_32</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
             </Output>
         </SupplementalOpDef>
 

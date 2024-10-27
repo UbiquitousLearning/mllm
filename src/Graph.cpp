@@ -18,9 +18,6 @@ std::string intToStringWithLeadingZero(int num) {
 
 namespace mllm {
 
-#ifdef USE_QNN
-static unordered_map<string, Op *> kv_cache_map;
-#endif
 
 Graph::Graph(const NetParameter &param, Backend *bn,
              unordered_map<string, shared_ptr<Tensor>> &external_tensors,
@@ -149,7 +146,7 @@ void Graph::setUpTensors() {
     // set graph out tensor TensorType
     auto &graph_out_tensors = ops_output_tensors_[op_names_[op_names_.size() - 1]];
     for (auto &t : graph_out_tensors) {
-        t->setTtype(OUTPUT_TENSOR);
+        t->setTtype(GRAPH_OUTPUT);
     }
 
     this->backend_->onSetUpStart(graph_in_tensors, graph_out_tensors);

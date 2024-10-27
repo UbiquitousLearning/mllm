@@ -79,13 +79,6 @@ ErrorCode CPULinearINT8Shadow::load(AbstructLoader &loader) {
 
     memcpy(shadowWeight_.hostPtr<int8_t>(), weight_.hostPtr<int8_t>(), in_features_ * out_features_);
 
-    // shadowTransposeWeight_.setName(opName + ".shadow.transpose.weight");
-    // shadowTransposeWeight_.reshape(1, 1, out_features_, in_features_);
-    // shadowTransposeWeight_.setDtype(MLLM_TYPE_I8);
-    // shadowTransposeWeight_.alloc();
-
-    // memcpy(shadowTransposeWeight_.hostPtr<int8_t>(), weight_.hostPtr<int8_t>(), in_features_*out_features_);
-
     weight_.free();
 
     return Op::load(loader);
@@ -114,7 +107,7 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
 
     output_scale = roundf(output_scale * 100000) / 100000;
 
-    memcpy(outputs[0]->hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->batch() * inputs[2]->head() * inputs[2]->sequence() * inputs[2]->dimension() * sizeof(float));
+    memcpy(outputs[0]->hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->cntSize());
 
     // input outliers
     if (!input_clip) {
@@ -124,7 +117,6 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
 #pragma omp parallel for num_threads(thread_count)
                     for (int k = 0; k < inputs[0]->dimension(); k++) {
                         if (roundf(inputs[0]->dataAt<float>(i, h, j, k) / input_scale) > 127.0 || roundf(inputs[0]->dataAt<float>(i, h, j, k) / input_scale) < -128.0) {
-#pragma omp parallel for num_threads(thread_count)
                             for (int w = 0; w < shadowWeight_.dimension(); w++) {
                                 // if (!(inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 ||  inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127)) {
 
@@ -148,19 +140,16 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
         for (int i = 0; i < inputs[1]->batch(); i++) {
             for (int h = 0; h < inputs[1]->head(); h++) {
                 for (int j = 0; j < inputs[1]->sequence(); j++) {
+#pragma omp parallel for num_threads(thread_count)
                     for (int k = 0; k < inputs[1]->dimension(); k++) {
-                        if (inputs[1]->dataAt<float>(i, h, j, k) <= (output_scale * -127.9) || inputs[1]->dataAt<float>(i, h, j, k) >= (output_scale * -126.9)) {
+                        if (inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 || inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127) {
                             float sum = 0.0f;
 
                             for (int w = 0; w < shadowWeight_.sequence(); w++) {
                                 sum += roundf(inputs[0]->dataAt<float>(i, h, j, w) / input_scale) * input_scale * (shadowWeight_.dataAt<int8_t>(0, 0, w, k) * weight_scale);
                             }
 
-                            // sum = sum - (inputs[1]->dataAt<int8_t>(i, h, j, k) * output_scale);
-
-                            // outputs[0]->setDataAt<float>(i,h,j,k, roundf(sum/output_scale) * output_scale);
-
-                            outputs[0]->setDataAt<float>(i, h, j, k, inputs[2]->dataAt<float>(i, h, j, k) - inputs[1]->dataAt<float>(i, h, j, k) + roundf(sum / output_scale) * output_scale);
+                            outputs[0]->setDataAt<float>(i, h, j, k, inputs[2]->dataAt<float>(i, h, j, k) - (inputs[1]->dataAt<int8_t>(i, h, j, k) * output_scale) + roundf(sum / output_scale) * output_scale);
                         }
                     }
                 }

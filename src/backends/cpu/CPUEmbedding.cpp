@@ -11,7 +11,6 @@ CPUEmbedding::CPUEmbedding(Backend *bn,  string opName, int hiddenSize, int voca
     weight_.setBackend(bn);
 }
 ErrorCode CPUEmbedding::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
     auto input = inputs[0];

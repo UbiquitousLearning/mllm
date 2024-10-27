@@ -54,7 +54,6 @@ endmacro()
 
 
 ## new demos
-
 func_llm_add_executable(benchmark)
 func_llm_add_executable(demo_llama)
 func_llm_add_executable(demo_tinyllama)
@@ -72,7 +71,8 @@ func_llm_add_executable(demo_smollm)
 func_llm_add_executable(demo_openelm)
 func_llm_add_executable(demo_dclm)
 func_llm_add_executable(demo_bert)
-# func_llm_add_executable(demo_phonellm)
+func_llm_add_executable(demo_phonelm)
+
 
 func_vlm_add_executable(demo_llava)
 func_vlm_add_executable(demo_fuyu)
@@ -84,6 +84,7 @@ func_vlm_add_executable(demo_imagebind_1mod)
 
 # QNN demo
 if(QNN)
+    func_llm_add_executable(demo_qnn)
     func_llm_add_executable(main_qwen_npu)
 endif()
 
