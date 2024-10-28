@@ -579,9 +579,10 @@ public:
 
 class RMSNorm final : public Layer {
 public:
-    explicit RMSNorm(int norm_size, float epsilon, std::string name) {
+    explicit RMSNorm(int norm_size, float epsilon, std::string name, bool isFP32 = true) {
         param_["norm_size"] = norm_size;
         param_["epsilon"] = epsilon;
+        param_["isFP32"] = (float)isFP32;
         init(std::move(name), OpType::RMSNORM);
     }
 
@@ -589,14 +590,6 @@ public:
         param_["norm_size"] = norm_size;
         param_["epsilon"] = epsilon;
         param_["add_unit_offset"] = (float)add_unit_offset;
-        init(std::move(name), OpType::RMSNORM);
-    }
-
-    // int8 output rmsnorm for qnn
-    explicit RMSNorm(int norm_size, float epsilon, std::string name, bool isFP32) {
-        param_["norm_size"] = norm_size;
-        param_["epsilon"] = epsilon;
-        param_["isFP32"] = (float)isFP32;
         init(std::move(name), OpType::RMSNORM);
     }
 
