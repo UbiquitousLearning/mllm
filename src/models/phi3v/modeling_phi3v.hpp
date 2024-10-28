@@ -38,20 +38,23 @@ public:
     string project_cls;
     
 
-    Phi3ImageEmbedding(int vocab_size, int hidden_dim, int img_dim, string &projection_cls, const Phi3VNameConfig &nameconfig, const string &base_name, const string &embd_name) :
+    Phi3ImageEmbedding(int vocab_size, int hidden_dim, int head_size, int ffn,int img_dim, string &projection_cls, const Phi3VNameConfig &nameconfig, const string &base_name, const string &embd_name) :
         embed_tokens(vocab_size, hidden_dim, embd_name) {
         image_dim_out = img_dim;
         project_cls = projection_cls;
         if (project_cls == "Linear") {
-            img_projector_linear1 = Linear(image_dim_out, hidden_dim, false, nameconfig._vision_model_prefix+nameconfig._projection+".0");
+            img_projector_linear1 = Linear(hidden_dim, hidden_dim, false, nameconfig._vision_model_prefix+nameconfig._projection+".0");
         } else if (project_cls == "MLP") {
-            img_projector_linear1 = Linear(image_dim_out, hidden_dim, false, nameconfig._projection);
+            img_projector_linear1 = Linear(hidden_dim, hidden_dim, false, nameconfig._projection);
             img_projector_relu = GELU(nameconfig._projection);
             img_projector_linear2 = Linear(hidden_dim, hidden_dim, false, nameconfig._projection);
         } else {
             throw std::runtime_error("Unsupported projection_cls");
         }
-        img_processor = CLipVisionModel(1024, 16, 4096, "QuickGELU", 14, 336, 12, nameconfig, nameconfig.vison_model_name);
+        // img_processor = CLipVisionModel(img_dim, vision_head_size, vision_ffn_hidden, "QuickGELU", patch, img_hw, vision_block_num,
+        //                                 nameconfig, nameconfig.vison_model_name);
+
+        img_processor = CLipVisionModel(hidden_dim,head_size, ffn, "QuickGELU", 14, 336, 12, nameconfig, nameconfig.vison_model_name);
         embd_replace = VisionEmbdReplace("embd_replace");
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
@@ -102,7 +105,7 @@ public:
     }
     Phi3VModel(int vocab_size, int hidden_dim, int head_size, int kv_head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit, int img_dim, string projection_cls, const Phi3VNameConfig &visionconfig,
                const Phi3NameConfig &names, const string &base_name) :
-        norm(hidden_dim, 1e-6, names.post_norm_name), vision_embed_tokens(vocab_size, hidden_dim, img_dim, projection_cls, visionconfig, base_name, names.token_embd_name) {
+        norm(hidden_dim, 1e-6, names.post_norm_name), vision_embed_tokens(vocab_size, hidden_dim, head_size,ffn_hidden, img_dim, projection_cls, visionconfig, base_name, names.token_embd_name) {
         blocks = List<Phi3Block>(block_num, hidden_dim, head_size, kv_head_size, ffn_hidden, RoPE_type, rope_theta, max_position_embeddings, cache_limit, names, base_name);
         norm = RMSNorm(hidden_dim, 1e-6, names.post_norm_name);
         lm_head = Linear(hidden_dim, vocab_size, false, names.lm_head_name);

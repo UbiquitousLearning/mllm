@@ -34,15 +34,15 @@ class Phi3VProcessor final {
     }
     Tensor imgpos2Tensor(vector<std::pair<size_t, size_t>> img_pos, string name = "input_img_pos", BackendType type = MLLM_CPU) {
         int num_imgs = img_pos.size();
-        Tensor tensor1(1, 1, num_imgs, 2, type, true);
-        tensor1.setName(std::move(name));
+        Tensor tensor2(1, 1, num_imgs, 2, type,true);
+        tensor2.setName(std::move(name));
         Tensor::tensor_status = TENSOR_STATIC_INIT;
-        tensor1.setTtype(INPUT_TENSOR);
+        tensor2.setTtype(INPUT_TENSOR);
         for (int i = 0; i < num_imgs; ++i) {
-            tensor1.setDataAt<size_t>(0,0, i, 0, img_pos[i].first);
-            tensor1.setDataAt<size_t>(0, 0,i, 1, img_pos[i].second);
+            tensor2.setDataAt<size_t>(0,0, i, 0, img_pos[i].first);
+            tensor2.setDataAt<size_t>(0, 0,i, 1, img_pos[i].second);
         }
-        return tensor1;
+        return tensor2;
     }
     unsigned int argmax(const vector<float> &scores) {
         if (scores.empty()) {
@@ -160,7 +160,7 @@ public:
             tokenize(BPETokenizer::replaceString(text, ' ', "▁"), tokens_id, {"<|image|>", "<pad>", "<|user|>", " <|end|>", "<|assistant|>", "\n"}, num_img_tokens, img_pos);
             tokens_ids.push_back(tokens_id);
 
-            return {Tokenizer::tokens2Input(tokens_ids, std::move(text_name)), img_tensor, imgpos2Tensor(img_pos)};
+            return {Tokenizer::tokens2Input(tokens_ids, std::move(text_name)), img_tensor};
         } else {
             tokenizer->tokenize(BPETokenizer::replaceString(text, ' ', "▁"), tokens_id, {"<|image|>", "<pad>", "<|user|>", " <|end|>", "<|assistant|>", "\n"});
             tokens_ids.push_back(tokens_id);

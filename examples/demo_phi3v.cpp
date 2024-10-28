@@ -42,13 +42,13 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto in_str_origin = in_strs[i];
-        // auto in_str = system_prompt_start + img_prompt + in_str_origin + system_prompt_end;
-        auto in_str = system_prompt_start + in_str_origin + system_prompt_end;
+        auto in_str = system_prompt_start + img_prompt + in_str_origin + system_prompt_end;
+        // auto in_str = system_prompt_start + in_str_origin + system_prompt_end;
 
         // 图片版，有问题，参数层的问题疑似解决了
-        // auto input_tensor = processor.process(in_str, in_imgs[i], 336);
+        auto input_tensor = processor.process(in_str, in_imgs[i], 336);
         // 目前的仅文字版的结果，能正常推理
-        auto input_tensor = processor.process(in_str, "", 336);
+        // auto input_tensor = processor.process(in_str, "", 336);
 
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
