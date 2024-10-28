@@ -89,6 +89,16 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
         }
     }
 }
+std::string LibHelper::runForResult(std::string &input_str) {
+    if (model_ == Bert) {
+        auto input_tensor = tokenizer_->tokenize(input_str);
+        auto result = (*module_)({input_tensor});
+        auto outputs = tokenizer_->detokenize(result[0]);
+        return outputs.first;
+    } else {
+        return "";
+    }
+}
 
 LibHelper::~LibHelper() {
     delete processor_;
