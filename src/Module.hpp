@@ -19,6 +19,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <unordered_map>
 
 namespace mllm {
 
