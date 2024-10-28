@@ -596,7 +596,6 @@ public:
             auto out_token = text_generator_->generate(_out[0]);
             if (!call_back(out_token)) break;
             chatPostProcessing(out_token, input_ids, {});
-            std::cout << "\n========AFTER PREFILL=========" << std::endl;
             return;
         }
     }
