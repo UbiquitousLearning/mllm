@@ -60,7 +60,7 @@ public:
 
         o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
 
-        sdpa = ScaledDotProductAttention("sdpa");
+        sdpa = ScaledDotProductAttention(base_name + "sdpa");
     }
 
     vector<Tensor>
@@ -180,9 +180,9 @@ public:
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = inputs[0];
-        // for (auto &block : blocks) { x = block({x})[0]; }
+        for (auto &block : blocks) { x = block({x})[0]; }
         // TODO: BUG, for loop failed to init, xnn says its node is error.
-        x = blocks[0]({x})[0];
+        // x = blocks[0]({x})[0];
         x = norm(x);
         return {x};
     }

@@ -12,10 +12,13 @@
 #include "models/qwen/configuration_qwen.hpp"
 #include "models/qwen/tokenization_qwen.hpp"
 #include "models/qwen/modeling_qwen_xp_sdpa.hpp"
+#include "backends/xnnpack/Utils/Logger.hpp"
 
 using namespace mllm;
 
 int main(int argc, char **argv) {
+    mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::LogLevel::ERROR;
+
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen_merges.txt");
@@ -35,8 +38,7 @@ int main(int argc, char **argv) {
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
     QWenConfig config(tokens_limit, model_billion, RoPEType::HFHUBROPE);
     auto model = QWenForCausalLM(config);
-    // model.load(model_path);
-    model.setNoLoadWeightsDtype(DataType::MLLM_TYPE_F32);
+    model.load(model_path);
 
     vector<string> in_strs = {
         " Hello, who are you?",
@@ -76,6 +78,7 @@ int main(int argc, char **argv) {
         model.generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
             auto out_string = tokenizer.detokenize({out_token});
             auto [isOk, print_string] = processOutput(out_string);
+            exit(0);
             if (isOk) {
                 std::cout << print_string << std::flush;
             } else {

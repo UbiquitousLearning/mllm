@@ -6,7 +6,7 @@
 namespace mllm::xnnpack {
 
 XpLinear::XpLinear(Backend *bk, const std::string &op_name, int in_features, int out_features, bool bias, int thread_count) :
-    Op(bk, op_name), in_features_(in_features), out_features_(out_features), thread_count_(thread_count) {
+    Op(bk, op_name), in_features_(in_features), out_features_(out_features), bias_(bias), thread_count_(thread_count) {
     weight_params_.setBackend(bk);
     bias_params_.setBackend(bk);
 }
