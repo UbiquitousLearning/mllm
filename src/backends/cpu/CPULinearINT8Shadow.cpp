@@ -22,6 +22,12 @@ CPULinearINT8Shadow::CPULinearINT8Shadow(Backend *bn, string opName, int in_feat
 
     weight_f32_buffer_.setBackend(bn);
     input_f32_buffer_.setBackend(bn);
+
+    input0_buffer_.setBackend(bn);
+    input1_buffer_.setBackend(bn);
+    input2_buffer_.setBackend(bn);
+
+
 }
 
 ErrorCode CPULinearINT8Shadow::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -29,6 +35,11 @@ ErrorCode CPULinearINT8Shadow::reshape(vector<shared_ptr<Tensor>> inputs, vector
     assert(outputs.size() == 1);
 
     outputs[0]->reshape(inputs[2]->batch(), inputs[2]->head(), inputs[2]->sequence(), inputs[2]->dimension());
+
+    // inputs[0] linear dequant input __fp32
+    // inputs[1] linear quant output  int8_t
+    // inputs[2] res sum              float
+
     return Op::reshape(inputs, outputs);
 }
 
@@ -105,6 +116,22 @@ ErrorCode CPULinearINT8Shadow::load(AbstructLoader &loader) {
 
     weight_.free();
 
+    input0_buffer_.setName(opName + ".input0");
+    input0_buffer_.reshape(input0_dimension[0], input0_dimension[1],  input0_dimension[2], input0_dimension[3]);
+    input0_buffer_.setDtype(MLLM_TYPE_F32);
+    input0_buffer_.alloc();
+
+    input1_buffer_.setName(opName + ".input1");
+    input1_buffer_.reshape(input1_dimension[0], input1_dimension[1],  input1_dimension[2], input1_dimension[3]);
+    input1_buffer_.setDtype(MLLM_TYPE_I8);
+    input1_buffer_.alloc();
+
+    input2_buffer_.setName(opName + ".input2");
+    input2_buffer_.reshape(input2_dimension[0], input2_dimension[1],  input2_dimension[2], input2_dimension[3]);
+    input2_buffer_.setDtype(MLLM_TYPE_F32);
+    input2_buffer_.alloc();
+
+
     return Op::load(loader);
 }
 
@@ -133,13 +160,21 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
 
     memcpy(outputs[0]->hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->batch() * inputs[2]->head() * inputs[2]->sequence() * inputs[2]->dimension() * sizeof(float));
 
+    memcpy(input0_buffer_.hostPtr<float>(), inputs[0]->hostPtr<float>(), inputs[0]->batch() * inputs[0]->head() * inputs[0]->sequence() * inputs[0]->dimension() * sizeof(float));
+    memcpy(input1_buffer_.hostPtr<int8_t>(), inputs[1]->hostPtr<int8_t>(), inputs[1]->batch() * inputs[1]->head() * inputs[1]->sequence() * inputs[1]->dimension() * sizeof(int8_t));
+    memcpy(input2_buffer_.hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->batch() * inputs[2]->head() * inputs[2]->sequence() * inputs[2]->dimension() * sizeof(float));
+
+    input0_buffer_.reshape(inputs[0]->batch() , inputs[0]->head() , inputs[0]->sequence() , inputs[0]->dimension());
+    input1_buffer_.reshape(inputs[1]->batch() , inputs[1]->head() , inputs[1]->sequence() , inputs[1]->dimension());
+    input2_buffer_.reshape(inputs[2]->batch() , inputs[2]->head() , inputs[2]->sequence() , inputs[2]->dimension());
+
     // input outliers
     if (!input_clip) {
         for (int i = 0; i < inputs[0]->batch(); i++) {
             for (int h = 0; h < inputs[0]->head(); h++) {
                 for (int j = 0; j < inputs[0]->sequence(); j++) {
                     for (int k = 0; k < inputs[0]->dimension(); k++) {
-                        float round_value = roundf(inputs[0]->dataAt<float>(i, h, j, k) / input_scale);
+                        float round_value = roundf(input0_buffer_.dataAt<float>(i, h, j, k) / input_scale);
                         if (round_value > (127.0 * 1.5) || round_value < (-128.0 * 1.5)) {
 #if defined(__ARM_NEON)
                             float origin_value = round_value * input_scale * weight_scale;
@@ -210,18 +245,18 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
                 for (int j = 0; j < inputs[1]->sequence(); j++) {
                     // #pragma omp parallel for collapse(1) num_threads(4)
                     for (int k = 0; k < inputs[1]->dimension(); k++) {
-                        if (inputs[1]->dataAt<int8_t>(i, h, j, k) <= -128 || inputs[1]->dataAt<int8_t>(i, h, j, k) >= 127) {
+                        if (input1_buffer_.dataAt<int8_t>(i, h, j, k) <= -128 || input1_buffer_.dataAt<int8_t>(i, h, j, k) >= 127) {
                             float sum = 0.0f;
 
 #if defined(__ARM_NEON)
-                            shadow_vec_dot_fp32_arm(&sum, inputs[0]->ptrAt<float>(i, h, j, 0), shadowTransposeWeight_.ptrAt<int8_t>(0, 0, k, 0), shadowTransposeWeight_.dimension(), input_scale, weight_scale);
+                            shadow_vec_dot_fp32_arm(&sum, input0_buffer_.ptrAt<float>(i, h, j, 0), shadowTransposeWeight_.ptrAt<int8_t>(0, 0, k, 0), shadowTransposeWeight_.dimension(), input_scale, weight_scale);
 #else
 
                             for (int w = 0; w < shadowTransposeWeight_.dimension(); w++) {
-                                sum += roundf(inputs[0]->dataAt<float>(i, h, j, w) / input_scale) * input_scale * (shadowTransposeWeight_.dataAt<int8_t>(0, 0, k, w) * weight_scale);
+                                sum += roundf(input0_buffer_.dataAt<float>(i, h, j, w) / input_scale) * input_scale * (shadowTransposeWeight_.dataAt<int8_t>(0, 0, k, w) * weight_scale);
                             }
 #endif
-                            outputs[0]->setDataAt<float>(i, h, j, k, inputs[2]->dataAt<float>(i, h, j, k) - (inputs[1]->dataAt<int8_t>(i, h, j, k) * output_scale) + roundf(sum / output_scale) * output_scale);
+                            outputs[0]->setDataAt<float>(i, h, j, k, input2_buffer_.dataAt<float>(i, h, j, k) - (input1_buffer_.dataAt<int8_t>(i, h, j, k) * output_scale) + roundf(sum / output_scale) * output_scale);
                         }
                     }
                 }
