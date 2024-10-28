@@ -371,6 +371,8 @@ public:
                     return shape[3] * shape[2];
                 } else if (master_tensor_->master_tensor_->ctype_ == BHDS) {
                     return shape[3];
+                } else if (master_tensor_->master_tensor_->ctype_ == BDHS) {
+                    return shape[3] * shape_[2];
                 } else {
                     std::cout << "sequenceSkipDim() only support for BSHD and BHDS" << std::endl;
                     return -1;
@@ -381,6 +383,8 @@ public:
                     return shape[3] * shape[2];
                 } else if (master_tensor_->ctype_ == BHDS) {
                     return shape[3];
+                } else if (master_tensor_->ctype_ == BDHS) {
+                    return shape[3] * shape_[2];
                 } else {
                     std::cout << "sequenceSkipDim() only support for BSHD and BHDS" << std::endl;
                     return -1;

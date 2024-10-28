@@ -1092,7 +1092,7 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
     (void)Ctype;
 }
 
-bool check_llamafile_sgemm(int64_t m, int64_t n, int64_t k, DataType Atype, DataType Btype, DataType Ctype) {
+bool check_llamafile_sgemm(int64_t m, int64_t n, int64_t k, DataType Atype, DataType Btype, DataType Ctype, int64_t lda, int64_t ldb, int64_t ldc) {
     int ith = 0;
     int nth = 1;
     assert(m >= 0);
@@ -1100,6 +1100,13 @@ bool check_llamafile_sgemm(int64_t m, int64_t n, int64_t k, DataType Atype, Data
     assert(k >= 0);
     assert(nth > 0);
     assert(ith < nth);
+
+    if (lda < k)
+        return false;
+    if (ldb < k)
+        return false;
+    if (ldc < m)
+        return false;
 
     if (Ctype != MLLM_TYPE_F32)
         return false;

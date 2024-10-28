@@ -5,14 +5,14 @@
 #include "models/bert/modeling_bert.hpp"
 #include "models/bert/tokenization_bert.hpp"
 
-string vocab_file = "vocab/all-MiniLM-L6-v2.mllm";
-string model_file = "models/gte.mllm";
+string vocab_file = "../vocab/gte_vocab.mllm";
+string model_file = "../models/gte-small-fp32.mllm";
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[]) {
     BertTokenizer tokenizer(vocab_file, false);
     string text = "Hello, my dog is cute.";
     auto [token_ids, type_ids, position_ids] = tokenizer.process(text);
-    token_ids.printData<float>();
+    // token_ids.printData<float>();
 
     auto config = BertConfig();
     auto model = BertModel(config);

@@ -20,10 +20,10 @@ public:
         blk_name = "model.layers.";
         _attn_base_name = "self.";
         _ffn_base_name = "mlp.";
-        _q_proj_name = "query";
-        _k_proj_name = "key";
-        _v_proj_name = "value";
-        _o_proj_name = "o_proj";
+        _q_proj_name = "self.query";
+        _k_proj_name = "self.key";
+        _v_proj_name = "self.value";
+        _o_proj_name = "output.dense";
         _gate_proj_name = "gate_proj";
         _up_proj_name = "up_proj";
         _down_proj_name = "down_proj";
@@ -43,7 +43,7 @@ public:
 };
 
 struct BertConfig : public TransformerConfig {
-    explicit BertConfig(){
+    explicit BertConfig() {
         attention_dropout = 0.0;
         bos_token_id = 151643;
         eos_token_id = 151645;
