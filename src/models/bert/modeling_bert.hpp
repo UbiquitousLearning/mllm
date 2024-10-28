@@ -34,23 +34,66 @@ private:
     Layer layer_norm;
 };
 
+class BertLayer : public Module {
+public:
+    BertLayer() = default;
+    BertLayer(const BertConfig &config, const string &base_name) {
+        // base_name: encoder.layer.n.
+        attention = MultiHeadAttention(config.hidden_size, config.num_attention_heads, config.num_attention_heads,
+                           config.hidden_size / config.num_attention_heads, SPLIT_NONE, false, false, RoPEType::NONE, -1, -1, 0, false, true, config.names_config,
+                                       base_name + config.names_config._attn_base_name);
+
+        feed_forward = FeedForward(config.hidden_size, config.intermediate_size,
+                                   config.hidden_act, true, config.names_config, base_name);
+
+        attn_norm = LayerNorm(config.hidden_size, true, config.layer_norm_eps,
+                              base_name + config.names_config._attn_base_name + config.names_config._attn_norm_name);
+
+        ff_norm = LayerNorm(config.hidden_size, true, config.layer_norm_eps,
+                            base_name + config.names_config._ffn_norm_name);
+    }
+
+    std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
+        auto hidden_states = inputs[0];
+
+        auto attn_out = attention({hidden_states, hidden_states, hidden_states})[0];
+
+        hidden_states = attn_norm({hidden_states + attn_out});
+
+        auto ff_out = feed_forward({hidden_states})[0];
+
+        hidden_states = ff_norm({hidden_states + ff_out});
+
+        return {hidden_states};
+    }
+
+private:
+    MultiHeadAttention attention;
+    FeedForward feed_forward;
+
+    Layer attn_norm, ff_norm;
+};
+
 class BertModel : public Module {
 public:
     BertModel(BertConfig &config) {
         embeddings = BertEmbeddings(config.vocab_size, config.hidden_size, config.type_vocab_size, config.max_position_embeddings, config.layer_norm_eps, config.names_config);
-
-        attention = MultiHeadAttention(config.hidden_size, config.num_attention_heads, config.num_attention_heads, config.hidden_size / config.num_attention_heads, SPLIT_NONE, false, false, RoPEType::NONE, -1, -1, 0, false, true, config.names_config, "encoder.layer.0.attention.");
+        layers = List<BertLayer>(config.num_hidden_layers, config, "encoder.layer.");
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        auto emb = embeddings(inputs, args)[0];
-        auto attn = attention({emb, emb, emb});
-        return {attn[0]};
+        auto x = embeddings(inputs, args)[0];
+
+        for (auto &layer : layers) {
+            x = layer({x})[0];
+        }
+
+        return {x};
     }
 
 private:
     BertEmbeddings embeddings;
-    MultiHeadAttention attention;
+    std::vector<BertLayer> layers;
 };
 
 #endif //! MODELING_BERT_HPP

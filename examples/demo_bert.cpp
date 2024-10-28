@@ -5,8 +5,8 @@
 #include "models/bert/modeling_bert.hpp"
 #include "models/bert/tokenization_bert.hpp"
 
-string vocab_file = "../vocab/gte_vocab.mllm";
-string model_file = "../models/gte-small-fp32.mllm";
+string vocab_file = "./vocab/gte_vocab.mllm";
+string model_file = "./models/gte-small-fp32.mllm";
 
 int main(int argc, char *argv[]) {
     BertTokenizer tokenizer(vocab_file, false);

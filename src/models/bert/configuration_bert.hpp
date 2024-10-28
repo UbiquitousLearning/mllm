@@ -18,17 +18,17 @@ public:
         embedding_base_name = "embeddings.";
 
         blk_name = "model.layers.";
-        _attn_base_name = "self.";
+        _attn_base_name = "attention.";
         _ffn_base_name = "mlp.";
         _q_proj_name = "self.query";
         _k_proj_name = "self.key";
         _v_proj_name = "self.value";
         _o_proj_name = "output.dense";
         _gate_proj_name = "gate_proj";
-        _up_proj_name = "up_proj";
-        _down_proj_name = "down_proj";
-        _attn_norm_name = "input_layernorm";
-        _ffn_norm_name = "post_attention_layernorm";
+        _up_proj_name = "intermediate.dense";
+        _down_proj_name = "output.dense";
+        _attn_norm_name = "output.LayerNorm";
+        _ffn_norm_name = "output.LayerNorm";
         token_embd_name = "model.embed_tokens";
         post_norm_name = "model.norm";
         lm_head_name = "lm_head";
@@ -47,7 +47,7 @@ struct BertConfig : public TransformerConfig {
         attention_dropout = 0.0;
         bos_token_id = 151643;
         eos_token_id = 151645;
-        std::string hidden_act = "gelu";
+        hidden_act = "GELU";
         hidden_size = 384;
         initializer_range = 0.02;
         intermediate_size = 1536;
@@ -72,7 +72,7 @@ struct BertConfig : public TransformerConfig {
     float attention_dropout = 0.0;
     int bos_token_id = 151643;
     int eos_token_id = 151643;
-    std::string hidden_act = "silu";
+    std::string hidden_act = "GELU";
     int hidden_size = 1024;
     float initializer_range = 0.02;
     int intermediate_size = 2816;
