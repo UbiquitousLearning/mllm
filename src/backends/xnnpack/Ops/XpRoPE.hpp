@@ -43,6 +43,7 @@ private:
     float rope_theta_ = 0.f;
     int max_position_embeddings_ = 0;
     int thread_count_ = 4;
+    int h_cnt_ = 0;
 };
 
 struct XpRoPECreator : public XnnpackBackend::Creator {

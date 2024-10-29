@@ -135,7 +135,7 @@ ErrorCode XpRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     auto sliced_cos = defineTemporaryTensor(xpb, {1, s, 1, d}, dtype);
     auto sliced_sin = defineTemporaryTensor(xpb, {1, s, 1, d}, dtype);
     {
-        std::array<size_t, 4> offsets = {0, 0, 0, 0};
+        std::array<size_t, 4> offsets = {0, (size_t)h_cnt_, 0, 0};
         std::array<size_t, 4> new_size = {1, s, 1, d};
         auto status = xnn_define_static_slice(xpb->getXnnSubgraph(), 4, offsets.data(), new_size.data(), sin_params_.uuid(), sliced_sin, 0);
         if (status != xnn_status_success) {
@@ -149,10 +149,7 @@ ErrorCode XpRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         }
     }
 
-    // FIXME: When enable xnnpack operation fusion.
-    // x_cosined will occured no cunsumer error.
     auto x_cosined = defineTemporaryTensor(xpb, {b, s, h, d}, dtype);
-
     auto x_new_sined = defineTemporaryTensor(xpb, {b, s, h, d}, dtype);
     {
         auto status = xnn_define_binary(xpb->getXnnSubgraph(), xnn_binary_multiply, nullptr, inputs[0]->uuid(), sliced_cos, x_cosined, 0);
@@ -174,6 +171,11 @@ ErrorCode XpRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
             Log::error("XpRoPE, xnn_define_binary failed");
             exit(-1);
         }
+    }
+
+    h_cnt_ += inputs[0]->sequence();
+    if (h_cnt_ > max_position_embeddings_) {
+        h_cnt_ = 0;
     }
 
     return MLLM_NO_ERROR;

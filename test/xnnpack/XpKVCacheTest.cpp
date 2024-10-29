@@ -44,10 +44,22 @@ TEST(XpKVCAcheTest, KVCacheModule) {
     auto start = std::chrono::high_resolution_clock::now();
     auto out = model({x})[0];
     out.printData<float>();
+
+    for (int i = 0; i < 8; ++i) {
+        *(x.hostPtr<float>() + i) = (float)i * 2;
+    }
     out = model({x})[0];
     out.printData<float>();
+
+    for (int i = 0; i < 8; ++i) {
+        *(x.hostPtr<float>() + i) = (float)i * 3;
+    }
     out = model({x})[0];
     out.printData<float>();
+
+    for (int i = 0; i < 8; ++i) {
+        *(x.hostPtr<float>() + i) = (float)i * 4;
+    }
     out = model({x})[0];
     out.printData<float>();
     auto end = std::chrono::high_resolution_clock::now();
