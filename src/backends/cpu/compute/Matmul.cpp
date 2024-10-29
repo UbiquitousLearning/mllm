@@ -198,12 +198,11 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     auto src0_blck_size = blck_size(src0->dtype());
 
 #ifdef LLAMAFILE_SGEMM
-    if (check_llamafile_sgemm(N, M, K / blck_size(src0->dtype()), src1->dtype(), src0->dtype(),
-                              dst->dtype())
+    int ld_src1 = src1->sequenceSkipDim();
+    int ld_src0 = src0->sequenceSkipDim();
+    int ld_dst = dst->sequenceSkipDim();
+    if (check_llamafile_sgemm(N, M, K / blck_size(src0->dtype()), src1->dtype(), src0->dtype(), dst->dtype(), ld_src1 / src1_blck_size, ld_src0 / src0_blck_size, ld_dst / blck_size(dst->dtype()))
         && dst->aggregatedTensors().empty()) {
-        const int ld_src1 = src1->sequenceSkipDim();
-        const int ld_src0 = src0->sequenceSkipDim();
-        const int ld_dst = dst->sequenceSkipDim();
         int is_0 =
             (src1->batch() == 1 && src1->head() == 1 && src1->batch() != src0->batch()) ? 0 : 1;
 #pragma omp parallel for collapse(3) num_threads(thread_count)
@@ -277,13 +276,13 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     }
 
 #ifdef LLAMAFILE_SGEMM
+    ld_src1 = src1->sequenceSkipDim();
+    ld_src0 = src0->sequenceSkipDim();
+    ld_dst = dst->sequenceSkipDim();
     if (check_llamafile_sgemm(N, M, K / blck_size(src1->dtype()), src1->dtype(), src0->dtype(),
-                              dst->dtype())
+                              dst->dtype(), ld_src1 / src1_blck_size, ld_src0 / src0_blck_size, ld_dst / blck_size(dst->dtype()))
         && dst->dtypeAt(0, 0, 0, 0) == MLLM_TYPE_F32 && dst->ctype() == BSHD
         && dst->aggregatedTensors().empty()) {
-        const int ld_src1 = src1->sequenceSkipDim();
-        const int ld_src0 = src0->sequenceSkipDim();
-        const int ld_dst = dst->sequenceSkipDim();
 #pragma omp parallel for collapse(3) num_threads(thread_count)
         for (int64_t b = 0; b < dst->batch(); b++) {
             for (int64_t h = 0; h < dst->head(); h++) {
@@ -425,278 +424,6 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     }
     return MLLM_NO_ERROR;
 }
-/*
-ErrorCode mat_mul_fp32(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias,
-bool transpose0, bool transpose1, int thread_count) { const int M = transpose0 ? src0->dimension() :
-src0->sequence(); const int K = transpose0 ? src0->sequence() : src0->dimension(); const int N =
-transpose1 ? src1->sequence() : src1->dimension(); Tensor *src0_cal = src0; Tensor *src1_cal = src1;
-    const int64_t blck_0 = 16;
-    int is_0 = (src1->batch() == 1 && src1->head() == 1) ? 0 : 1;
-#pragma omp parallel for collapse(4) num_threads(thread_count)
-    for (int b = 0; b < src0->batch(); b++) {
-        for (int h = 0; h < src0->head(); h++) {
-            for (int m = 0; m < M; m++) {
-                for (int block = 0; block < N / blck_0 + 1; block++) {
-                    for (int n = block * blck_0; n < (block + 1) * blck_0 & n < N; n++) {
-                        int s_1, d_1;
-                        int s_0, d_0;
-                        if (!transpose0 && transpose1) {
-                            s_1 = n; d_1 = 0; s_0 = m; d_0 = 0;
-                        } else if (!transpose0 && !transpose1) {
-                            s_1 = 0; d_1 = n; s_0 = m; d_0 = 0;
-                        } else {
-                            s_1 = 0; d_1 = n; s_0 = 0; d_0 = m;
-                        }
-                        if(dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F32) {
-                            vec_dot_fp32(K, dst->ptrAt<float>(b, h, m, n),
-                                         src1_cal->hostPtr<float>() + src1_cal->offset(b*is_0,
-h*is_0, s_1, d_1), src0_cal->hostPtr<float>() + src0_cal->offset(b, h, s_0, d_0)); if (support_bias)
-{ *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0, n);
-                            }
-                        }else if (dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F16) {
-                            float tmp = 0;
-                            vec_dot_fp32(K, &tmp,
-                                         src1_cal->hostPtr<float>() + src1_cal->offset(b*is_0,
-h*is_0, s_1, d_1), src0_cal->hostPtr<float>() + src0_cal->offset(b, h, s_0, d_0)); if (support_bias)
-{ *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp + bias->dataAt<float>(0, 0, 0, n));
-                            } else {
-                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp);
-                            }
-                        }else{std::cout<<"Not support type [Matmul]"<<std::endl;}
-                    }
-                }
-            }
-        }
-    }
-    return MLLM_NO_ERROR;
-}
-
-ErrorCode mat_mul_fp32_fp16(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor
-*bias, bool transpose0, bool transpose1, int thread_count) { assert(src1->dtype() == MLLM_TYPE_F16);
-    assert(src0_->dtype() == MLLM_TYPE_F32);
-    Tensor src0_qf16(src0_->shape());
-    src0_qf16.setBackend(src0_->backend());
-    src0_qf16.setDtype(MLLM_TYPE_F16);
-    src0_qf16.alloc();
-#pragma omp parallel for collapse(3) num_threads(thread_count)
-        for (int b = 0; b < src0_->batch(); b++) {
-            for (int h = 0; h < src0_->head(); h++) {
-                for (int s = 0; s < src0_->sequence(); s++) {
-                    mllm_fp32_to_fp16_row(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
-                                      src0_qf16.hostPtr<mllm_fp16_t>() + src0_qf16.offset(b, h, s,
-0), src0_->dimension());
-                }
-            }
-        }
-    auto *src0 = &src0_qf16;
-    const int M = transpose0 ? src0->dimension() : src0->sequence();
-    const int K = transpose0 ? src0->sequence() : src0->dimension();
-    const int N = transpose1 ? src1->sequence() : src1->dimension();
-    Tensor *src0_cal = src0;
-    Tensor *src1_cal = src1;
-    const int64_t blck_0 = 16;
-    int is_0 = (src1->batch() == 1 && src1->head() == 1) ? 0 : 1;
-#pragma omp parallel for collapse(4) num_threads(thread_count)
-    for (int b = 0; b < src0->batch(); b++) {
-        for (int h = 0; h < src0->head(); h++) {
-            for (int m = 0; m < M; m++) {
-                for (int block = 0; block < N / blck_0 + 1; block++) {
-                    for (int n = block * blck_0; n < (block + 1) * blck_0 & n < N; n++) {
-                        int s_1, d_1;
-                        int s_0, d_0;
-                        if (!transpose0 && transpose1) {
-                            s_1 = n; d_1 = 0; s_0 = m; d_0 = 0;
-                        } else if (!transpose0 && !transpose1) {
-                            s_1 = 0; d_1 = n; s_0 = m; d_0 = 0;
-                        } else {
-                            s_1 = 0; d_1 = n; s_0 = 0; d_0 = m;
-                        }
-                        vec_dot_fp16(K, dst->ptrAt<float>(b, h, m, n),
-                                     src1_cal->hostPtr<mllm_fp16_t>() + src1_cal->offset(b*is_0,
-h*is_0, s_1, d_1), src0_cal->hostPtr<mllm_fp16_t>() + src0_cal->offset(b, h, s_0, d_0)); if
-(support_bias) { *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0, n);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return MLLM_NO_ERROR;
-}
-
-ErrorCode mat_mul_fp32_q4_0(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor
-*bias, int thread_count) { assert(src1->dtype() == MLLM_TYPE_Q4_0); assert(src0_->dtype() ==
-MLLM_TYPE_F32); Tensor src0_q8(src0_->shape()); src0_q8.setBackend(src0_->backend());
-    src0_q8.setDtype(MLLM_TYPE_Q8_0);
-    src0_q8.alloc();
-    if (src0_->dimension() % QK8_0 == 0) {
-#pragma omp parallel for collapse(3) num_threads(thread_count)
-        for (int b = 0; b < src0_->batch(); b++) {
-            for (int h = 0; h < src0_->head(); h++) {
-                for (int s = 0; s < src0_->sequence(); s++) {
-                    quantize_row_q8_0(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
-                                      src0_q8.hostPtr<block_q8_0>() + src0_q8.offset(b, h, s, 0) /
-QK8_0, src0_->dimension());
-                }
-            }
-        }
-    } else {
-        std::cout << "[ERROR]: " << src0_->dimension() << "%" << QK8_0 << "!=0" << std::endl;
-        assert(src0_->dimension() % QK8_0 == 0);
-    }
-    auto *src0 = &src0_q8;
-    assert(src0->dtype() == MLLM_TYPE_Q8_0);
-    int M = src0->sequence();
-    int K = src0->dimension();
-    int N = src1->sequence();
-    Tensor *src0_cal = src0;
-    Tensor *src1_cal = src1;
-    const int64_t blck_0 = 16;
-    int is_0 = (src1->batch() == 1 && src1->head() == 1) ? 0 : 1;
-#pragma omp parallel for collapse(4) num_threads(thread_count)
-    for (int b = 0; b < src0->batch(); b++) {
-        for (int h = 0; h < src0->head(); h++) {
-            for (int m = 0; m < M; m++) {
-                for (int block = 0; block < N / blck_0 + 1; block++) {
-                    for (int n = block * blck_0; n < (block + 1) * blck_0 & n < N; n++) {
-                        vec_dot_q4_0_q8_0(K, dst->ptrAt<float>(b, h, m, n),
-                                          src1_cal->hostPtr<block_q4_0>() + src1_cal->offset(b*is_0,
-h*is_0, n, 0) / QK4_0, src0_cal->hostPtr<block_q8_0>() + src0_cal->offset(b, h, m, 0) / QK8_0); if
-(support_bias) { *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0, n);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return MLLM_NO_ERROR;
-}
-
-ErrorCode mat_mul_fp32_q4_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor
-*bias, int thread_count) { assert(src1->dtype() == MLLM_TYPE_Q4_K); assert(src0_->dtype() ==
-MLLM_TYPE_F32); Tensor src0_q8(src0_->shape()); src0_q8.setBackend(src0_->backend());
-    src0_q8.setDtype(MLLM_TYPE_Q8_K);
-    src0_q8.alloc();
-    if (src0_->dimension() % QK_K == 0) {
-#pragma omp parallel for collapse(3) num_threads(thread_count)
-        for (int b = 0; b < src0_->batch(); b++) {
-            for (int h = 0; h < src0_->head(); h++) {
-                for (int s = 0; s < src0_->sequence(); s++) {
-                    quantize_row_q8_K(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
-                                      src0_q8.hostPtr<block_q8_K>() + src0_q8.offset(b, h, s, 0) /
-QK_K, src0_->dimension());
-                }
-            }
-        }
-    } else {
-        std::cout << "[ERROR]: " << src0_->dimension() << "%" << QK_K << "!=0" << std::endl;
-        assert(src0_->dimension() % QK_K == 0);
-    }
-    auto *src0 = &src0_q8;
-    assert(src0->dtype() == MLLM_TYPE_Q8_K);
-    int M = src0->sequence();
-    int K = src0->dimension();
-    int N = src1->sequence();
-    Tensor *src0_cal = src0;
-    Tensor *src1_cal = src1;
-    const int64_t blck_0 = 16;
-    int is_0 = (src1->batch() == 1 && src1->head() == 1) ? 0 : 1;
-#pragma omp parallel for collapse(4) num_threads(thread_count)
-    for (int b = 0; b < src0->batch(); b++) {
-        for (int h = 0; h < src0->head(); h++) {
-            for (int m = 0; m < M; m++) {
-                for (int block = 0; block < N / blck_0 + 1; block++) {
-                    for (int n = block * blck_0; n < (block + 1) * blck_0 & n < N; n++) {
-                        if(dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F32) {
-                            vec_dot_q4_K_q8_K(K, dst->ptrAt<float>(b, h, m, n),
-                                              src1_cal->hostPtr<block_q4_K>() +
-src1_cal->offset(b*is_0, h*is_0, n, 0) / QK_K, src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b,
-h, m, 0) / QK_K); if (support_bias) { *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0,
-n);
-                            }
-                        } else if (dst->dtypeAt(b,h,m,n) == MLLM_TYPE_F16) {
-                            float tmp = 0;
-                            vec_dot_q4_K_q8_K(K, &tmp,
-                                              src1_cal->hostPtr<block_q4_K>() +
-src1_cal->offset(b*is_0, h*is_0, n, 0) / QK_K, src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b,
-h, m, 0) / QK_K); if (support_bias) { *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp +
-bias->dataAt<float>(0, 0, 0, n)); } else { *dst->ptrAt<mllm_fp16_t>(b, h, m, n) =
-MLLM_FP32_TO_FP16(tmp);
-                            }
-                        }else{std::cout<<"Not support type [Matmul]"<<std::endl;}
-                    }
-                }
-            }
-        }
-    }
-    return MLLM_NO_ERROR;
-}
-
-ErrorCode mat_mul_fp32_q6_K(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor
-*bias, int thread_count) { assert(src1->dtype() == MLLM_TYPE_Q6_K); assert(src0_->dtype() ==
-MLLM_TYPE_F32); Tensor src0_q8(src0_->shape()); src0_q8.setBackend(src0_->backend());
-    src0_q8.setDtype(MLLM_TYPE_Q8_K);
-    src0_q8.alloc();
-    if (src0_->dimension() % QK_K == 0) {
-#pragma omp parallel for collapse(3) num_threads(thread_count)
-        for (int b = 0; b < src0_->batch(); b++) {
-            for (int h = 0; h < src0_->head(); h++) {
-                for (int s = 0; s < src0_->sequence(); s++) {
-                    quantize_row_q8_K(src0_->hostPtr<float>() + src0_->offset(b, h, s, 0),
-                                      src0_q8.hostPtr<block_q8_K>() + src0_q8.offset(b, h, s, 0) /
-QK_K, src0_->dimension());
-                }
-            }
-        }
-    } else {
-        std::cout << "[ERROR]: " << src0_->dimension() << "%" << QK_K << "!=0" << std::endl;
-        assert(src0_->dimension() % QK_K == 0);
-    }
-    auto *src0 = &src0_q8;
-    assert(src0->dtype() == MLLM_TYPE_Q8_K);
-    int M = src0->sequence();
-    int K = src0->dimension();
-    int N = src1->sequence();
-    Tensor *src0_cal = src0;
-    Tensor *src1_cal = src1;
-    const int64_t blck_0 = 16;
-    int is_0 = (src1->batch() == 1 && src1->head() == 1) ? 0 : 1;
-#pragma omp parallel for collapse(4) num_threads(thread_count)
-    for (int b = 0; b < src0->batch(); b++) {
-        for (int h = 0; h < src0->head(); h++) {
-            for (int m = 0; m < M; m++) {
-                for (int block = 0; block <  N / blck_0 + 1; block++) {
-                    for (int n = block * blck_0; n < (block + 1) * blck_0 & n <  N; n++) {
-                        if (dst->dtypeAt(n, h, m, n) == MLLM_TYPE_F32) {
-                            vec_dot_q6_K_q8_K(K, dst->ptrAt<float>(b, h, m, n),
-                                              src1_cal->hostPtr<block_q6_K>() +
-src1_cal->offset(b*is_0, h*is_0, n, 0) / QK_K, src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b,
-h, m, 0) / QK_K); if (support_bias) { *dst->ptrAt<float>(b, h, m, n) += bias->dataAt<float>(0, 0, 0,
-n);
-                            }
-                        } else if (dst->dtypeAt(n, h, m, n) == MLLM_TYPE_F16) {
-                            float tmp = 0;
-                            vec_dot_q6_K_q8_K(K, &tmp,
-                                              src1_cal->hostPtr<block_q6_K>() +
-src1_cal->offset(b*is_0, h*is_0, n, 0) / QK_K, src0_cal->hostPtr<block_q8_K>() + src0_cal->offset(b,
-h, m, 0) / QK_K);
-
-                            if (support_bias) {
-                                *dst->ptrAt<mllm_fp16_t>(b, h, m, n) = MLLM_FP32_TO_FP16(tmp +
-bias->dataAt<float>(0, 0, 0, n)); } else { *dst->ptrAt<mllm_fp16_t>(b, h, m, n) =
-MLLM_FP32_TO_FP16(tmp);
-                            }
-                        } else {
-                            std::cout << "Not support tupe [Matmul]" << std::endl;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return MLLM_NO_ERROR;
-}
-*/
 
 ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias,
                           int activate_input_dim, int activate_output_dim, bool transpose0,
@@ -725,12 +452,12 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
     int use_N = (activate_output_dim == -1) ? N : activate_output_dim;
     int use_K = (activate_input_dim == -1) ? K : activate_input_dim;
 
-    if (check_llamafile_sgemm(use_N, M, use_K / blck_size(src0->dtype()), src1->dtype(),
-                              src0->dtype(), dst->dtype())
+#ifdef LLAMAFILE_SGEMM
+    int ld_src1 = src1->sequenceSkipDim();
+    int ld_src0 = src0->sequenceSkipDim();
+    int ld_dst = dst->sequenceSkipDim();
+    if (check_llamafile_sgemm(N, M, K / blck_size(src0->dtype()), src1->dtype(), src0->dtype(), dst->dtype(), ld_src1 / src1_blck_size, ld_src0 / src0_blck_size, ld_dst / blck_size(dst->dtype()))
         && dst->aggregatedTensors().empty()) {
-        const int ld_src1 = src1->sequenceSkipDim();
-        const int ld_src0 = src0->sequenceSkipDim();
-        const int ld_dst = dst->sequenceSkipDim();
         int is_0 = (src1->batch() == 1 && src1->head() == 1) ? 0 : 1;
 #pragma omp parallel for collapse(3) num_threads(thread_count)
         for (int64_t b = 0; b < dst->batch(); b++) {
@@ -754,7 +481,7 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
         }
         return MLLM_NO_ERROR;
     }
-
+#endif
     auto not_vec_dot_type = src0_dtype != vec_dot_type;
     std::unique_ptr<Tensor> to; // later this tensor will be freed by ~Tensor
     if (not_vec_dot_type) {
@@ -800,12 +527,12 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
     }
 
 #ifdef LLAMAFILE_SGEMM
-    if (check_llamafile_sgemm(use_N, M, use_K / blck_size(src1->dtype()), src1->dtype(),
-                              src0->dtype(), dst->dtype())
+    ld_src1 = src1->sequenceSkipDim();
+    ld_src0 = src0->sequenceSkipDim();
+    ld_dst = dst->sequenceSkipDim();
+    if (check_llamafile_sgemm(N, M, K / blck_size(src1->dtype()), src1->dtype(), src0->dtype(),
+                              dst->dtype(), ld_src1 / src1_blck_size, ld_src0 / src0_blck_size, ld_dst / blck_size(dst->dtype()))
         && !support_bias && dst->ctype() == BSHD && dst->aggregatedTensors().empty()) {
-        const int ld_src1 = src1->sequenceSkipDim();
-        const int ld_src0 = src0->sequenceSkipDim();
-        const int ld_dst = dst->sequenceSkipDim();
 #pragma omp parallel for collapse(3) num_threads(thread_count)
         for (int64_t b = 0; b < dst->batch(); b++) {
             for (int64_t h = 0; h < dst->head(); h++) {
