@@ -1,4 +1,6 @@
 #include "backends/xnnpack/Ops/XpParameter.hpp"
+#include "backends/xnnpack/Utils/Logger.hpp"
+#include "xnnpack.h"
 
 namespace mllm::xnnpack {
 
@@ -32,37 +34,23 @@ ErrorCode XpParameter::load(AbstructLoader &loader) {
 }
 
 ErrorCode XpParameter::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    if (outputs[0]->masterTensor()->name() != weight_.name()) {
-        if (outputs[0]->masterTensor() == nullptr) {
-            // outputs[0]->copyFrom(weight_);
-            for (int n = 0; n < outputs[0]->batch(); ++n) {
-                for (int c = 0; c < outputs[0]->head(); ++c) {
-                    for (int h = 0; h < outputs[0]->sequence(); ++h) {
-                        for (int w = 0; w < outputs[0]->dimension(); ++w) {
-                            outputs[0]->setDataAt<float>(n, c, h, w, weight_.dataAt<float>(n, c, h, w));
-                        }
-                    }
-                }
-            }
-        } else {
-            if (weight_.batch() == 1) {
-                auto off = outputs[0]->shapeOffset();
-                auto off_b = off[0];
-                auto off_h = off[1];
-                auto off_s_ = off[2];
-                auto off_d = off[3];
-                for (int n = 0; n < outputs[0]->masterTensor()->batch(); ++n) {
-                    for (int c = 0; c < outputs[0]->head(); ++c) {
-                        for (int h = 0; h < outputs[0]->sequence(); ++h) {
-                            for (int w = 0; w < outputs[0]->dimension(); ++w) {
-                                outputs[0]->masterTensor()->setDataAt<float>(n + off_b, c + off_h, h + off_s_, w + off_d, weight_.dataAt<float>(0, c, h, w));
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    Log::warn("XpParameter::execute will copy weight's value, may have perfromance issues");
+    auto xpb = (XnnpackBackend *)backend();
+    tryDefineAllXpTensors(xpb, inputs);
+    tryDefineAllXpTensors(xpb, outputs);
+    defineWeightTensor(xpb, &weight_);
+
+    // copy
+    auto status = xnn_define_copy(
+        xpb->getXnnSubgraph(),
+        weight_.uuid(),
+        outputs[0]->uuid(),
+        0);
+    if (status != xnn_status_success) {
+        Log::error("XpParameter::execute xnn_define_copy failed");
+        exit(-1);
     }
+
     return Op::execute(inputs, outputs);
 }
 

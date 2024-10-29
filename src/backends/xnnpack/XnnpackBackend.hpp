@@ -98,6 +98,8 @@ public:
 
     bool hasNormalValue(uint32_t uuid);
 
+    bool hasWeightValue(uint32_t uuid);
+
     static xnn_datatype mllmDType2XnnDType(DataType mllm_dtype);
 
     uint32_t getNewEXternalId();

@@ -29,6 +29,7 @@
 #include "backends/xnnpack/Ops/XpEmbedding.hpp"
 #include "backends/xnnpack/Ops/XpParameter.hpp"
 #include "xnnpack/allocator.h"
+#include "xnnpack/memory.h"
 #include "xnnpack/subgraph.h"
 
 namespace mllm {
@@ -339,6 +340,10 @@ bool XnnpackBackend::hasExternalValue(uint32_t uuid) {
 
 bool XnnpackBackend::hasNormalValue(uint32_t uuid) {
     return uuid_2_normal_tensor_.count(uuid);
+}
+
+bool XnnpackBackend::hasWeightValue(uint32_t uuid) {
+    return uuid_2_mllm_weight_tensor_.count(uuid);
 }
 
 xnn_datatype XnnpackBackend::mllmDType2XnnDType(DataType mllm_dtype) {

@@ -11,10 +11,11 @@
 
 #include "Op.hpp"
 #include "backends/xnnpack/XnnpackBackend.hpp"
+#include "backends/xnnpack/XpInterface.hpp"
 
 namespace mllm::xnnpack {
 
-class XpParameter final : public Op {
+class XpParameter final : public Op, public XpTensorDefineInterface<XpParameter> {
 public:
     XpParameter(Backend *bn, const string &op_name, int batch, int head, int seq, int dim, int thread_count);
     ~XpParameter() override = default;
@@ -25,6 +26,8 @@ public:
     ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
     Tensor &weight() {
+        auto xpb = (XnnpackBackend *)backend();
+        defineWeightTensor(xpb, &weight_);
         return weight_;
     }
 

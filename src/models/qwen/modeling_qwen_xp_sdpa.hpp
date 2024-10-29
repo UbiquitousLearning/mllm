@@ -168,6 +168,36 @@ private:
 };
 
 // all in xnn
+class QWenModel_0_5 final : public Module {
+public:
+    QWenModel_0_5() = default;
+    QWenModel_0_5(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
+        blocks = List<QWenDecoder>(config.num_hidden_layers, config, names, base_name);
+        for (auto &b : blocks) b.to(BackendType::MLLM_XNNPACK);
+
+        norm = RMSNorm(config.hidden_size, (float)config.rms_norm_eps, names.post_norm_name);
+
+        lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, names.token_embd_name + ".weight");
+    }
+
+    std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
+        auto x = inputs[0];
+        for (auto &block : blocks) { x = block({x})[0]; }
+        x = norm(x);
+
+        // x is [B, S, H ,D]
+        // lm_head() is [1, Vocab, 1, D]
+        // TODO Bug, transpose S and D will output [1, D, 1, Vaocb]. the third dim is 1!!!.
+        x = Tensor::mm(x, lm_head().transpose(SEQUENCE, DIMENSION));
+        return {x};
+    }
+
+private:
+    std::vector<QWenDecoder> blocks;
+    Layer norm;
+    Parameter lm_head;
+};
+
 class QWenModel final : public Module {
 public:
     QWenModel() = default;
@@ -176,20 +206,22 @@ public:
         for (auto &b : blocks) b.to(BackendType::MLLM_XNNPACK);
 
         norm = RMSNorm(config.hidden_size, (float)config.rms_norm_eps, names.post_norm_name);
+
+        lm_head = Linear(config.hidden_size, config.vocab_size, false, names.lm_head_name);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = inputs[0];
         for (auto &block : blocks) { x = block({x})[0]; }
-        // TODO: BUG, for loop failed to init, xnn says its node is error.
-        // x = blocks[0]({x})[0];
         x = norm(x);
+        x = lm_head(x);
         return {x};
     }
 
 private:
     std::vector<QWenDecoder> blocks;
     Layer norm;
+    Layer lm_head;
 };
 
 // all in xnnpack
@@ -204,14 +236,10 @@ public:
         // Qwen-0.5 use tied embedding
         // Others use nn.Linear()
         if (tie_embedding_words) {
-            lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size,
-                                names.token_embd_name + ".weight");
+            model = xnnpack::wrap2xnn<QWenModel_0_5>(1, 1, config, names, names.blk_name);
         } else {
-            lm_head_layer =
-                Linear(config.hidden_size, config.vocab_size, false, names.lm_head_name);
+            model = xnnpack::wrap2xnn<QWenModel>(1, 1, config, names, names.blk_name);
         }
-
-        model = xnnpack::wrap2xnn<QWenModel>(1, 1, config, names, names.blk_name);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
@@ -221,21 +249,11 @@ public:
         auto outputs = model({x})[0];
 
         return {outputs};
-
-        // TODO: BUG, xnn conflict with cpu backend.
-        if (tie_embedding_words) {
-            outputs = Tensor::mm(outputs, lm_head().transpose(SEQUENCE, DIMENSION));
-        } else {
-            outputs = lm_head_layer(outputs);
-        }
-        return {outputs};
     }
 
 private:
     int hidden_size;
     bool tie_embedding_words;
     Layer embedding;
-    Parameter lm_head;
-    Layer lm_head_layer;
     xnnpack::XpWrapperModule model;
 };

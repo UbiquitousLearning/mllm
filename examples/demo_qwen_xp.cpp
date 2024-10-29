@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen_merges.txt");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-1.5-1.8b-q8_0.mllm");
-    cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B]", false, "0.5B");
+    cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B]", false, "1.8B");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -38,7 +38,8 @@ int main(int argc, char **argv) {
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
     QWenConfig config(tokens_limit, model_billion, RoPEType::HFHUBROPE);
     auto model = QWenForCausalLM(config);
-    model.load(model_path);
+    // model.load(model_path);
+    model.setNoLoadWeightsDtype(DataType::MLLM_TYPE_F32);
 
     vector<string> in_strs = {
         " Hello, who are you?",
