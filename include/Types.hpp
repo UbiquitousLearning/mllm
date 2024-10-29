@@ -97,6 +97,7 @@ enum TensorType {
     INPUT_TENSOR = 0, // used for input of the model
     NORMAL_TENSOR,
     GRAPH_OUTPUT, // used for output of a graph
+    OUTPUT_TENSOR,
 };
 
 enum Chl {
