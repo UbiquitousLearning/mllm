@@ -11,6 +11,12 @@ QNNSplitInput::QNNSplitInput(Backend *bn, string opName, bool isPrompt, int num)
     QNNCommonOp(bn, opName) {
     isPrompt_ = isPrompt;
     num_ = num;
+
+    if (opName.find("ires_split") != -1) {
+        num_ = 1;
+    }
+        
+
     scale1_.setBackend(bn);
     scale2_.setBackend(bn);
 
@@ -23,8 +29,7 @@ ErrorCode QNNSplitInput::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 
     if (isPrompt_) {
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 5, inputs[0]->dimension());
-        if (num_ == 2)
-            outputs[1]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 5, inputs[0]->dimension());
+        outputs[1]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 5, inputs[0]->dimension());
 
     } else {
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() / 2, inputs[0]->dimension());
@@ -158,9 +163,10 @@ ErrorCode QNNSplitInput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                                                            .clientBuf = {.data = nullptr,
                                                                          .dataSize = 0}}});
 
+    outputs[1]->setDtype(MLLM_TYPE_F32);
+    outputs[1]->alloc();
+    
     if (num_ == 2) {
-        outputs[1]->setDtype(MLLM_TYPE_F32);
-        outputs[1]->alloc();
 
         uint32_t dimensionsOut_1[4] = {static_cast<uint32_t>(outputs[1]->batch()),
                                        static_cast<uint32_t>(outputs[1]->sequence()),

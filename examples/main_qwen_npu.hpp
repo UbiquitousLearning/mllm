@@ -178,26 +178,28 @@ void qwen_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn
 
     // first 23 layer using NPU-CPU prefilling
     for (int layer = 0; layer < 24; ++layer) {
-        if (layer != 0) // for graph 0, it will be offloaded to CPU in QNNNet::convert
-            _SubgraphBegin(c, MLLM_CPU);
 
         auto res = i;
         res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size, (layer != 0));
 
         i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
-        i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");
+        i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");        
 
-        i = i->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
+        // only CPU graphs need merge and split
+        if (layer == 7 || layer == 2 || layer == 3 || layer == 0) {
+        // SHADOW
+        // if (layer == 2 || layer == 0) {
+            i = i->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
 
-        auto *m = _MergeOutput({i, res}, (string) "model.layers." + std::to_string(layer) + ".ires_merge");
+            auto *m = _MergeOutput({i, res}, (string) "model.layers." + std::to_string(layer) + ".ires_merge");
+            
+            _SubgraphBegin(c);
+            auto s = _SplitInput({m}, true, 2, (string) "model.layers." + std::to_string(layer) + ".self_attn.ires_split");
 
-        _SubgraphBegin(c);
-
-        auto s = _SplitInput({m}, true, 2, (string) "model.layers." + std::to_string(layer) + ".self_attn.ires_split");
-
-        i = s[0];
-        res = s[1];
-
+            i = s[0];
+            res = s[1];
+        }
+        
         auto ix = Qwen_CPUNPUAttention(c, i, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn", seq, chunk);
 
         i = ix[0];
@@ -214,7 +216,9 @@ void qwen_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn
 
         i = i->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_dim);
 
+        // SHADOW
         if (layer != 6 && layer != 1 && layer != 2) {
+        // if (layer != 1) {
             i = Qwen_FFN_NPU(c, i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
 
             i = i->view(1, 1, seq / chunk, hidden_dim);
@@ -242,7 +246,10 @@ void qwen_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn
 
             x = *x + res;
 
-            i = _LinearINT8Shadow({i1, i2, x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
+            auto shadow = _LinearINT8ShadowMerge({i1, i2, x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow.qnn");
+
+            _SubgraphBegin(c, MLLM_CPU);
+            i = _LinearINT8ShadowCPU(shadow, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
         }
     }
 }
