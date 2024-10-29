@@ -8,8 +8,8 @@
   # portability-*,
 Checks: >
   -*,
-  -openmp-exception-escape，
-  -openmp-use-default-none，
+  -openmp-exception-escape,
+  -openmp-use-default-none,
   readability-identifier-naming,
   readability-*,
   -readability-convert-member-functions-to-static,
@@ -18,11 +18,27 @@ Checks: >
   -readability-magic-numbers,
   -readability-identifier-length,
   -readability-avoid-const-params-in-,
-  -readability-function-cognitive-complexity
+  -readability-function-cognitive-complexity,
+  -readability-else-after-return,
+  -readability-simplify-boolean-expr,
+  -readability-redundant-access-specifiers,
+  -readability-inconsistent-declaration-parameter-name,
+  -readability-implicit-bool-conversion,
+  -readability-identifier-naming,
+  -readability-isolate-declaration,
+  -readability-qualified-auto,
+  -readability-uppercase-literal-suffix,
+  -readability-make-member-function-const,
+  -readability-const-return-type,
+  -readability-use-anyofallof,
+  -readability-container-data-pointer,
+  -readability-avoid-const-params-in-decls,
+  -readability-non-const-parameter,
 
 # Turn all the warnings from the checks above into errors.
-WarningsAsErrors: "*"
-HeaderFilterRegex: ".*\.hpp$&!gguf\.hpp"
+# WarningsAsErrors: "*"
+
+HeaderFilterRegex: ".*\\.hpp$&!gguf\\.hpp"
 CheckOptions:
   - key: readability-identifier-naming.NamespaceCase
     value: lower_case

@@ -154,41 +154,6 @@ NetTensor *Qwen_FFN_CPU_q4k(Context *c, NetTensor *i, int hidden_dim, int ffn_hi
     return x;
 }
 
-void qwen_cpu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
-    auto *i = _Input(c);
-    i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
-
-    for (int layer = 0; layer < 24; ++layer) {
-        auto res = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
-
-        i = *Qwen_CPUAttention(c, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn", seq, chunk) + i;
-
-        res = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm");
-
-        if (layer != 6 && layer != 1 && layer != 2) {
-            i = *Qwen_FFN_CPU(c, res, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp") + i;
-        } else {
-            auto name = (string) "model.layers." + std::to_string(layer) + ".mlp";
-
-            auto *x = _LinearINT8({res}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
-            x = _SiLU({x}, name + ".silu");
-            auto *y = _LinearINT8({res}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
-            x = *x * y; // x = _Mul( {x, y}, name+".dot");
-
-            auto *i1 = x;
-            x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
-
-            auto *i2 = x;
-
-            i = *x + i;
-
-            i = _LinearINT8ShadowCPU({i1, i2, i}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
-        }
-    }
-    i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
-    i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");
-}
-
 void qwen_cpu_q4k(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
     auto *i = _Input(c);
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
@@ -222,6 +187,8 @@ void qwen_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn
 
         // only CPU graphs need merge and split
         if (layer == 7 || layer == 2 || layer == 3 || layer == 0) {
+        // SHADOW
+        // if (layer == 2 || layer == 0) {
             i = i->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
 
             auto *m = _MergeOutput({i, res}, (string) "model.layers." + std::to_string(layer) + ".ires_merge");
@@ -249,7 +216,9 @@ void qwen_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn
 
         i = i->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_dim);
 
+        // SHADOW
         if (layer != 6 && layer != 1 && layer != 2) {
+        // if (layer != 1) {
             i = Qwen_FFN_NPU(c, i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
 
             i = i->view(1, 1, seq / chunk, hidden_dim);

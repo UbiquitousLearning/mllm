@@ -12,10 +12,10 @@ using namespace mllm;
 
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/relu_llama_vocab.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/llama2_vocab.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/ReLULlama_sparse_q4_k.mllm");
     // cmdParser.add<string>("predictor", 'p', "specify mllm model predictor path", false, "../models/ReLULlama_predictor.mllm");
-    cmdParser.add<int>("limits", 'l',  "max KV cache size", false, 600);
+    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 600);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
@@ -41,18 +41,16 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto in_str = in_strs[i];
-        auto input_tensor = tokenizer.tokenize(in_str, i);
+        // in_str = tokenizer.apply_chat_template(in_str);
+        auto input_tensor = tokenizer.tokenize(in_str);
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
             auto result = model({input_tensor});
-            auto outputs = tokenizer.detokenize(result[0]);
-            auto out_string = outputs.first;
-            auto out_token = outputs.second;
-            if (out_token == 2) {
-                break;
-            }
-            std::cout << out_string << std::flush;
+            auto [out_string, out_token] = tokenizer.detokenize(result[0]);
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { break; }
+            std::cout << output_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");

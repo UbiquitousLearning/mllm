@@ -14,11 +14,9 @@ ErrorCode QNNSiLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode QNNSiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-
     auto outName = outputs[0]->name();
 
     uint32_t dimensionsOutput[4];
-
 
     dimensionsOutput[0] = static_cast<uint32_t>(outputs[0]->batch());
     dimensionsOutput[1] = static_cast<uint32_t>(outputs[0]->sequence());
@@ -27,9 +25,11 @@ ErrorCode QNNSiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 
 
     auto type = QNN_DATATYPE_FLOAT_32;
+    outputs[0]->setDtype(MLLM_TYPE_F32);
 
     if (inputs[0]->dtype() == MLLM_TYPE_F16) {
         type = QNN_DATATYPE_FLOAT_16;
+        outputs[0]->setDtype(MLLM_TYPE_F16);
     }
         
 
@@ -41,15 +41,14 @@ ErrorCode QNNSiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
                                                .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                                .dataType = type,
                                                .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                                    QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                                    {.scaleOffsetEncoding = {.scale  = 0.0000000000000000f,
-                                                                            .offset = 0}}},
+                                                                  QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                                  {.scaleOffsetEncoding = {.scale = 0.0000000000000000f,
+                                                                                           .offset = 0}}},
                                                .rank = 4,
                                                .dimensions = dimensionsOutput,
                                                .memType = QNN_TENSORMEMTYPE_RAW,
-                                               {.clientBuf = {.data = nullptr,
-                                                              .dataSize = 0}}}}}};
+                                               .clientBuf = {.data = nullptr,
+                                                             .dataSize = 0}}}}};
     return graphAddNode(name(), "SiLU", {inputs[0]->name()}, outputTensor, {}, "LLaMAPackage");
 }
 } // namespace mllm
-

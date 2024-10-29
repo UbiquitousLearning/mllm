@@ -32,9 +32,6 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
         // TODO tensor type = MLLM_TYPE_I8
         auto data_type = QNN_DATATYPE_FLOAT_32;
         if (output->dtype() == MLLM_TYPE_I8) {
-#ifdef DEBUGPRINT
-            std::cout << name << "is QNN INT8 op " << std::endl;
-#endif
             data_type = QNN_DATATYPE_SFIXED_POINT_8;
         }
 
@@ -63,8 +60,8 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
                                       .rank = 4,
                                       .dimensions = dimensions,
                                       .memType = QNN_TENSORMEMTYPE_RAW,
-                                      {.clientBuf = {.data = nullptr,
-                                                     .dataSize = 0}}}}});
+                                      .clientBuf = {.data = nullptr,
+                                                     .dataSize = 0}}}});
     }
 
     if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputTensors, params, packageName)) {
@@ -83,7 +80,11 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string>
 }
 
 Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tensor) const {
-    if (tensor->ttype() == OUTPUT_TENSOR) {
+    if (tensor->ttype() == GRAPH_OUTPUT) {
+        // in Module API, the outputs of a graph is not allocated before setUp, alloc here
+        if(tensor->allocted() == 0) {
+            tensor->alloc();
+        }
         qnnBackend_->pushOutputBuffers(tensor->hostPtr<uint8_t>());
         return QNN_TENSOR_TYPE_APP_READ;
     } else {
@@ -96,7 +97,7 @@ Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tenso
             return QNN_TENSOR_TYPE_APP_READ;
         }
 
-
+// SHADOW
         if (name == "outtensor-model.layers.1.mlp.down_proj-00" || name == "outtensor-model.layers.1.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.1.mlp.down_proj.dequantize-00_view_-00_add_-00") {
 #ifdef DEBUGPRINT
             std::cout << "shadow output" << std::endl;

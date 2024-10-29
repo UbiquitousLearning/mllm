@@ -25,7 +25,7 @@ public:
         return true;
     }
     Op *opCreate(const OpParam &op_param, string name, int threadCount) override;
-    TensorFunction *funcCreate(const TensorFuncType type) override;
+    TensorFunction *funcCreate(TensorFuncType type) override;
 
     void registerOps() override;
     void registerFuncs() override;

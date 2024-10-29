@@ -40,40 +40,40 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
     qnnBackend_->modelAddTensor(sin_.name(), // Node Name
                                 (Qnn_Tensor_t){
                                     .version = QNN_TENSOR_VERSION_1,
-                                    {.v1 = {
-                                         .id = 0,
-                                         .name = sin_.name().c_str(),
-                                         .type = QNN_TENSOR_TYPE_STATIC,
-                                         .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                         .dataType = QNN_DATATYPE_FLOAT_32,
-                                         .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                                            QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                                            {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-                                         .rank = 2,
-                                         .dimensions = sin_dimensions,
-                                         .memType = QNN_TENSORMEMTYPE_RAW,
-                                         {.clientBuf = {.data = sin_.hostPtr<void>(),
-                                                        .dataSize = static_cast<uint32_t>(sin_.cntSize())}}}}});
+                                    .v1 = {
+                                        .id = 0,
+                                        .name = sin_.name().c_str(),
+                                        .type = QNN_TENSOR_TYPE_STATIC,
+                                        .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                        .dataType = QNN_DATATYPE_FLOAT_32,
+                                        .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                           QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                           {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                        .rank = 2,
+                                        .dimensions = sin_dimensions,
+                                        .memType = QNN_TENSORMEMTYPE_RAW,
+                                        .clientBuf = {.data = sin_.hostPtr<void>(),
+                                                      .dataSize = static_cast<uint32_t>(sin_.cntSize())}}});
     // free sin_
     // sin_.free();
 
     qnnBackend_->modelAddTensor(cos_.name(), // Node Name
                                 (Qnn_Tensor_t){
                                     .version = QNN_TENSOR_VERSION_1,
-                                    {.v1 = {
-                                         .id = 0,
-                                         .name = cos_.name().c_str(),
-                                         .type = QNN_TENSOR_TYPE_STATIC,
-                                         .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                         .dataType = QNN_DATATYPE_FLOAT_32,
-                                         .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                                            QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                                            {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-                                         .rank = 2,
-                                         .dimensions = cos_dimensions,
-                                         .memType = QNN_TENSORMEMTYPE_RAW,
-                                         {.clientBuf = {.data = cos_.hostPtr<void>(),
-                                                        .dataSize = static_cast<uint32_t>(cos_.cntSize())}}}}});
+                                    .v1 = {
+                                        .id = 0,
+                                        .name = cos_.name().c_str(),
+                                        .type = QNN_TENSOR_TYPE_STATIC,
+                                        .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                        .dataType = QNN_DATATYPE_FLOAT_32,
+                                        .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                                           QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                                           {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                                        .rank = 2,
+                                        .dimensions = cos_dimensions,
+                                        .memType = QNN_TENSORMEMTYPE_RAW,
+                                        .clientBuf = {.data = cos_.hostPtr<void>(),
+                                                      .dataSize = static_cast<uint32_t>(cos_.cntSize())}}});
     // free cos_
     // cos_.free();
 
@@ -81,7 +81,7 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
     vector<Qnn_Param_t> params_rope = {
         {.paramType = QNN_PARAMTYPE_SCALAR,
          .name = "pose_type",
-         {.scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_UINT_32, {.uint32Value = pose_type}}}}};
+         .scalarParam = (Qnn_Scalar_t){QNN_DATATYPE_UINT_32, {.uint32Value = pose_type}}}};
 
     uint32_t dimOut[4] = {static_cast<uint32_t>(inputs[0]->batch()),
                           static_cast<uint32_t>(inputs[0]->sequence()),
@@ -91,20 +91,20 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
     vector<Qnn_Tensor_t> out = {
         (Qnn_Tensor_t){
             .version = QNN_TENSOR_VERSION_1,
-            {.v1 = {
-                 .id = 0,
-                 .name = outName.c_str(),
-                 .type = getOutputTensorType(outputs[0]),
-                 .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                 .dataType = QNN_DATATYPE_FLOAT_32,
-                 .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                    QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                    {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
-                 .rank = 4,
-                 .dimensions = dimOut,
-                 .memType = QNN_TENSORMEMTYPE_RAW,
-                 {.clientBuf = {.data = nullptr,
-                                .dataSize = 0}}}}}};
+            .v1 = {
+                .id = 0,
+                .name = outName.c_str(),
+                .type = getOutputTensorType(outputs[0]),
+                .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                .dataType = QNN_DATATYPE_FLOAT_32,
+                .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                   QNN_QUANTIZATION_ENCODING_UNDEFINED,
+                                   {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
+                .rank = 4,
+                .dimensions = dimOut,
+                .memType = QNN_TENSORMEMTYPE_RAW,
+                .clientBuf = {.data = nullptr,
+                              .dataSize = 0}}}};
     return graphAddNode(name(), "RoPE", {inputs[0]->name(), sin_.name(), cos_.name()}, out, params_rope, "LLaMAPackage");
 }
 
@@ -116,8 +116,6 @@ ErrorCode QNNRoPE::load(AbstructLoader &loader) {
 }
 
 ErrorCode QNNRoPE::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //     sin_.free();
-    //     cos_.free();
     return Op::free(inputs, outputs);
 }
 
@@ -178,7 +176,6 @@ void QNNRoPE::sinusoidal_position_embedding_hf(int batch_size, int nums_head, in
 }
 
 ErrorCode QNNRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-
     // TODO: h_cnt_ as an input to ROPE.
     h_cnt_ += inputs[0]->sequence();
 

@@ -30,11 +30,19 @@ add_compile_options(-mavx2)
 add_compile_options(-march=native)
 endif()
 
+if(${MLLM_ENABLE_PYTHON})
+add_library(
+    MLLM_CPU
+    SHARED
+    ${MLLM_CPU_SRC}
+)
+else()
 add_library(
         MLLM_CPU
         OBJECT
         ${MLLM_CPU_SRC}
 )
+endif()
 
 target_include_directories(
         MLLM_CPU
@@ -46,11 +54,14 @@ if(OpenMP_FOUND)
     message(STATUS "found openmp")
     if(ARM AND NOT APK)
         message(STATUS "[ARM]  found openmp")
-        target_compile_options(MLLM_CPU PRIVATE -fopenmp)
+        target_compile_options(MLLM_CPU PUBLIC -fopenmp)
         target_link_libraries(MLLM_CPU PUBLIC -fopenmp -static-openmp)
     else()
     target_link_libraries(MLLM_CPU
             PUBLIC
-            OpenMP::OpenMP_CXX )
+            OpenMP::OpenMP_CXX
+        )
     endif()
 endif()
+
+set_target_properties(MLLM_CPU PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)

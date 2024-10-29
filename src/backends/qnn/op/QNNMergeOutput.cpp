@@ -37,9 +37,11 @@ ErrorCode QNNMergeOutput::free(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
 ErrorCode QNNMergeOutput::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     if (inputs.size() == 4) {
-        if (name().find("layers.0.") != -1 || name().find("layers.2.") != -1 || name().find("layers.3.") != -1 || name().find("layers.7.") != -1 ) {
-            memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize() * 3), inputs[3]->hostPtr<uint8_t>(), inputs[3]->cntSize());
-        }
+        // if (name().find("layers.0.") != -1 || name().find("layers.2.") != -1 || name().find("layers.3.") != -1 || name().find("layers.7.") != -1 ) {
+        // SHADOW
+        // if (name().find("layers.0.") != -1 || name().find("layers.2.") != -1) {
+        //     memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize() * 3), inputs[3]->hostPtr<uint8_t>(), inputs[3]->cntSize());
+        // }
     }
 
     return MLLM_NO_ERROR;

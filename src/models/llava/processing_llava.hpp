@@ -5,30 +5,13 @@
 #ifndef PROCESSING_LLAVA_HPP
 #define PROCESSING_LLAVA_HPP
 #include "tokenizers/BPE/Bpe.hpp"
-#include "processor/ClipPreProcess.hpp"
-#include <numeric>
+#include "models/clip/processing_clip.hpp"
 #include <utility>
+#include <array>
 
 using namespace mllm;
 
-class LLaVAProcessor final {
-    Tensor img2Tensor(vector<vector<vector<float>>> img, string name = "input", BackendType type = MLLM_CPU) {
-        int channel = img.size();
-        int height = img[0].size();
-        int width = img[0][0].size();
-        Tensor tensor1(1, height, channel, width, Backend::global_backends[type], true);
-        tensor1.setName(std::move(name));
-        Tensor::tensor_status = TENSOR_STATIC_INIT;
-        tensor1.setTtype(INPUT_TENSOR);
-        for (int h = 0; h < height; ++h) {
-            for (int c = 0; c < channel; ++c) {
-                for (int w = 0; w < width; ++w) {
-                    tensor1.setDataAt<float>(0, h, c, w, img[c][h][w]);
-                }
-            }
-        }
-        return tensor1;
-    }
+class LLaVAProcessor final : public ClipProcessor {
     unsigned int argmax(const std::vector<float> &scores) {
         if (scores.empty()) {
             throw std::invalid_argument("Input vector is empty");
@@ -44,42 +27,25 @@ class LLaVAProcessor final {
         return maxIndex;
     }
 
-    BPETokenizer *tokenizer;
-    ClipPreProcessor *clip_processor;
-
 public:
-    explicit LLaVAProcessor(const string &vocab_path, const string &merges_path) {
+    explicit LLaVAProcessor(const string &vocab_path, const string &merges_path, int height = 336, int width = 336) :
+        ClipProcessor(vocab_path, merges_path, height, width, false) {
         Module::initBackend(MLLM_CPU);
-        tokenizer = new BPETokenizer(vocab_path);
-        std::unordered_map<string,unsigned> merge_rank;
-        auto merge_file = std::ifstream(merges_path);
-        std::string line;
-        unsigned rank=0;
-        while (std::getline(merge_file, line)) {
-            if (line.empty()) {
-                continue;
-            }
-            if (line[0]=='#'){
-                continue;
-            }
-            merge_rank[line]=rank;
-            rank++;
-        }
-        tokenizer->setMergeRank(merge_rank);
     }
 
     std::array<Tensor, 2> process(string text, string img_path, int hw = 336,
                                   string img_name = "input_vision", string text_name = "input_text", BackendType type = MLLM_CPU) {
+        input_ids_.clear();
+        pixel_values_.clear();
         auto tokens_ids = vector<vector<token_id_t>>();
-        if (text[0] != ' ') {
-            text = ' ' + text;
-        }
+        // if (text[0] != ' ') {
+        //     text = ' ' + text;
+        // }
         vector<mllm::token_id_t> tokens_id = {};
         tokenizer->tokenize(BPETokenizer::replaceString(text, ' ', "▁"), tokens_id, {"<image>", "<pad>", "\n"});
         tokens_ids.push_back(tokens_id);
-        clip_processor = new ClipPreProcessor(tokenizer, hw, hw);
-        clip_processor->PreProcessImages({std::move(img_path)}, hw, hw);
-        auto images = clip_processor->pixel_values_[0];
+        PreProcessImages({std::move(img_path)}, hw, hw);
+        auto images = pixel_values_[0];
 
         return {Tokenizer::tokens2Input(tokens_ids, std::move(text_name)), img2Tensor(images, std::move(img_name))};
     }
@@ -98,6 +64,17 @@ public:
         }
         auto token_idx = this->argmax(scores);
         return {tokenizer->detokenize({token_idx}), token_idx};
+    }
+    std::pair<bool, std::string> postprocess(std::string &text) {
+        size_t pos = 0;
+        std::string from = "▁";
+        std::string to = " ";
+        while ((pos = text.find(from, pos)) != std::string::npos) {
+            text.replace(pos, from.length(), to);
+            pos += to.length();
+        }
+        if (text == "</s>") return {false, ""};
+        return {true, text};
     }
 };
 

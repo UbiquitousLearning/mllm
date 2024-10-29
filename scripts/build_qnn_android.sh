@@ -12,6 +12,7 @@ cmake .. \
 -DQNN=ON \
 -DDEBUG=OFF \
 -DTEST=OFF \
--DQUANT=OFF
+-DQUANT=OFF \
+-DQNN_OLD_FRONTEND=OFF
 
 make -j4

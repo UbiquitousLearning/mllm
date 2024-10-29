@@ -25,7 +25,15 @@ Makefile
 models/*
 /.devcontainer/
 /.vscode/
-examples/demo_deepseek.cpp
 workflow.py
 src/backends/qnn/qualcomm_ai_engine_direct_220/*
 src/backends/qnn/HexagonSDK/*
+tmp/
+py-build-out/
+mllm.egg-info/
+
+examples/demo_deepseek.cpp
+src/models/deepseek/*
+examples/demo_minicpm3.cpp
+src/models/minicpm3/*
+examples/demo.cpp

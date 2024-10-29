@@ -1,11 +1,11 @@
 #include "GEMM_AArch64.hpp"
 #include "Types.hpp"
-#include <math.h>
-#include <string.h>
 #include <assert.h>
 #include <float.h>
-#include <stdlib.h> // for qsort
+#include <math.h>
 #include <stdio.h>  // for assert
+#include <stdlib.h> // for qsort
+#include <string.h>
 
 int mllm_cpu_has_sve(void) {
 #if defined(__ARM_FEATURE_SVE)
@@ -28,21 +28,23 @@ int mllm_cpu_has_matmul_int8(void) {
 // interleave 4 block_q4_0s in blocks of blck_size_interleave
 // returns an interleaved block_q4_0x4
 // in the interleaved block_q4_0x4, place deltas for 4 block_q4_0 blocks
-// first, then interleave quants from 4 block_q4_0s in blocks of blck_size_interleave
+// first, then interleave quants from 4 block_q4_0s in blocks of
+// blck_size_interleave
 //
 // - in                  : an array of block_q4_0 pointers
-// - blck_size_interleave : the block_q4_0 quants bytes are interleaved in blocks of
+// - blck_size_interleave : the block_q4_0 quants bytes are interleaved in
+// blocks of
 //                         blck_size_interleave bytes
-// - xor_mask            : the mask to convert the nibbles in block_q4_0 quants bytes
-//                         from bias offset form to pure sign form (this saves subtract
-//                         operations durin unpacking)
+// - xor_mask            : the mask to convert the nibbles in block_q4_0 quants
+// bytes
+//                         from bias offset form to pure sign form (this saves
+//                         subtract operations durin unpacking)
 //
-static block_q4_0x4 make_block_q4_0x4(block_q4_0 *in, unsigned int blck_size_interleave, unsigned int xor_mask) {
+static block_q4_0x4 make_block_q4_0x4(block_q4_0 *in, unsigned int blck_size_interleave,
+                                      unsigned int xor_mask) {
     block_q4_0x4 out;
 
-    for (int i = 0; i < 4; i++) {
-        out.d[i] = in[i].d;
-    }
+    for (int i = 0; i < 4; i++) { out.d[i] = in[i].d; }
 
     for (int i = 0; i < QK4_0 * 2; i++) {
         int src_offset = (i / (4 * blck_size_interleave)) * blck_size_interleave;
@@ -58,13 +60,13 @@ static block_q4_0x4 make_block_q4_0x4(block_q4_0 *in, unsigned int blck_size_int
 // interleave 8 block_q4_0s in blocks of blck_size_interleave
 // returns an interleaved block_q4_0x8
 // in the interleaved block_q4_0x8, place deltas for 8 block_q4_0 blocks
-// first, then interleave quants from 8 block_q4_0s in blocks of blck_size_interleave
-static block_q4_0x8 make_block_q4_0x8(block_q4_0 *in, unsigned int blck_size_interleave, unsigned int xor_mask) {
+// first, then interleave quants from 8 block_q4_0s in blocks of
+// blck_size_interleave
+static block_q4_0x8 make_block_q4_0x8(block_q4_0 *in, unsigned int blck_size_interleave,
+                                      unsigned int xor_mask) {
     block_q4_0x8 out;
 
-    for (int i = 0; i < 8; i++) {
-        out.d[i] = in[i].d;
-    }
+    for (int i = 0; i < 8; i++) { out.d[i] = in[i].d; }
 
     for (int i = 0; i < QK4_0 * 4; i++) {
         int src_offset = (i / (8 * blck_size_interleave)) * blck_size_interleave;
@@ -93,7 +95,8 @@ void quantize_q8_0_4x4(const float *__restrict x, void *__restrict vy, int64_t k
         float32x4_t amaxv[8];
 
         for (int row_iter = 0; row_iter < 4; row_iter++) {
-            for (int j = 0; j < 8; j++) srcv[row_iter][j] = vld1q_f32(x + row_iter * k + i * 32 + 4 * j);
+            for (int j = 0; j < 8; j++)
+                srcv[row_iter][j] = vld1q_f32(x + row_iter * k + i * 32 + 4 * j);
             for (int j = 0; j < 8; j++) asrcv[j] = vabsq_f32(srcv[row_iter][j]);
 
             for (int j = 0; j < 4; j++) amaxv[2 * j] = vmaxq_f32(asrcv[2 * j], asrcv[2 * j + 1]);
@@ -146,7 +149,7 @@ void quantize_q8_0_4x4(const float *__restrict x, void *__restrict vy, int64_t k
 
     for (int i = 0; i < nb; i++) {
         for (int row_iter = 0; row_iter < 4; row_iter++) {
-            float amax = 0.0f; // absolute max
+            float amax = 0.0F; // absolute max
 
             for (int j = 0; j < QK8_0; j++) {
                 srcv[row_iter][j] = x[row_iter * k + i * QK8_0 + j];
@@ -154,7 +157,7 @@ void quantize_q8_0_4x4(const float *__restrict x, void *__restrict vy, int64_t k
             }
 
             const float d = amax / ((1 << 7) - 1);
-            id[row_iter] = d ? 1.0f / d : 0.0f;
+            id[row_iter] = (d != 0.0F) ? 1.0F / d : 0.0F;
 
             y[i].d[row_iter] = MLLM_FP32_TO_FP16(d);
         }
@@ -187,7 +190,8 @@ void quantize_q8_0_4x8(const float *__restrict x, void *__restrict vy, int64_t k
         float32x4_t amaxv[8];
 
         for (int row_iter = 0; row_iter < 4; row_iter++) {
-            for (int j = 0; j < 8; j++) srcv[row_iter][j] = vld1q_f32(x + row_iter * k + i * 32 + 4 * j);
+            for (int j = 0; j < 8; j++)
+                srcv[row_iter][j] = vld1q_f32(x + row_iter * k + i * 32 + 4 * j);
             for (int j = 0; j < 8; j++) asrcv[j] = vabsq_f32(srcv[row_iter][j]);
 
             for (int j = 0; j < 4; j++) amaxv[2 * j] = vmaxq_f32(asrcv[2 * j], asrcv[2 * j + 1]);
@@ -264,7 +268,7 @@ void quantize_q8_0_4x8(const float *__restrict x, void *__restrict vy, int64_t k
 
     for (int i = 0; i < nb; i++) {
         for (int row_iter = 0; row_iter < 4; row_iter++) {
-            float amax = 0.0f; // absolute max
+            float amax = 0.0F; // absolute max
 
             for (int j = 0; j < QK8_0; j++) {
                 srcv[row_iter][j] = x[row_iter * k + i * QK8_0 + j];
@@ -272,7 +276,7 @@ void quantize_q8_0_4x8(const float *__restrict x, void *__restrict vy, int64_t k
             }
 
             const float d = amax / ((1 << 7) - 1);
-            id[row_iter] = d ? 1.0f / d : 0.0f;
+            id[row_iter] = (d != 0.0F) ? 1.0F / d : 0.0F;
 
             y[i].d[row_iter] = MLLM_FP32_TO_FP16(d);
         }
@@ -289,7 +293,8 @@ void quantize_q8_0_4x8(const float *__restrict x, void *__restrict vy, int64_t k
 #endif
 }
 
-void quantize_mat_q8_0(const float *__restrict x, void *__restrict vy, int64_t nrow, int64_t n_per_row, int64_t blck_size_interleave) {
+void quantize_mat_q8_0(const float *__restrict x, void *__restrict vy, int64_t nrow,
+                       int64_t n_per_row, int64_t blck_size_interleave) {
     assert(nrow == 4);
     (void)nrow;
     if (blck_size_interleave == 4) {
@@ -301,7 +306,9 @@ void quantize_mat_q8_0(const float *__restrict x, void *__restrict vy, int64_t n
     }
 }
 
-static size_t quantize_q4_0_nr_bl(const float *__restrict src, void *__restrict dst, int64_t nrow, int64_t n_per_row, int nrows_interleaved, int blck_size_interleave) {
+static size_t quantize_q4_0_nr_bl(const float *__restrict src, void *__restrict dst, int64_t nrow,
+                                  int64_t n_per_row, int nrows_interleaved,
+                                  int blck_size_interleave) {
     assert(n_per_row % QK4_0 == 0);
     const int nb = n_per_row / QK4_0;
 
@@ -317,7 +324,8 @@ static size_t quantize_q4_0_nr_bl(const float *__restrict src, void *__restrict 
     for (int b = 0; b < (nrow * n_per_row); b += nrows_interleaved * n_per_row) {
         for (int64_t x = 0; x < nb; x++) {
             for (int i = 0; i < nrows_interleaved; i++) {
-                quantize_row_q4_0(src + b + i * n_per_row + x * QK4_0, (block_q4_0 *)dst_tmp + i, QK4_0);
+                quantize_row_q4_0(src + b + i * n_per_row + x * QK4_0, (block_q4_0 *)dst_tmp + i,
+                                  QK4_0);
             }
 
             if (nrows_interleaved == 8) {
@@ -333,34 +341,30 @@ static size_t quantize_q4_0_nr_bl(const float *__restrict src, void *__restrict 
     return ((nrow * n_per_row) / QK4_0 * sizeof(block_q4_0));
 }
 
-size_t quantize_q4_0_4x4(const float *__restrict src, void *__restrict dst, int64_t nrow, int64_t n_per_row, const float *quant_weights) {
-    if (!quant_weights) {
-        return quantize_q4_0_nr_bl(src, dst, nrow, n_per_row, 4, 4);
-    } else {
-        assert(false);
-        return 0;
-    }
+size_t quantize_q4_0_4x4(const float *__restrict src, void *__restrict dst, int64_t nrows,
+                         int64_t n_per_row, const float *imatrix) {
+    if (imatrix != nullptr) { return quantize_q4_0_nr_bl(src, dst, nrows, n_per_row, 4, 4); }
+    assert(false);
+    return 0;
 }
 
-size_t quantize_q4_0_4x8(const float *__restrict src, void *__restrict dst, int64_t nrow, int64_t n_per_row, const float *quant_weights) {
-    if (!quant_weights) {
-        return quantize_q4_0_nr_bl(src, dst, nrow, n_per_row, 4, 8);
-    } else {
-        assert(false);
-        return 0;
-    }
+size_t quantize_q4_0_4x8(const float *__restrict src, void *__restrict dst, int64_t nrows,
+                         int64_t n_per_row, const float *imatrix) {
+    if (imatrix == nullptr) { return quantize_q4_0_nr_bl(src, dst, nrows, n_per_row, 4, 8); }
+    assert(false);
+    return 0;
 }
 
-size_t quantize_q4_0_8x8(const float *__restrict src, void *__restrict dst, int64_t nrow, int64_t n_per_row, const float *quant_weights) {
-    if (!quant_weights) {
-        return quantize_q4_0_nr_bl(src, dst, nrow, n_per_row, 8, 8);
-    } else {
-        assert(false);
-        return 0;
-    }
+size_t quantize_q4_0_8x8(const float *__restrict src, void *__restrict dst, int64_t nrows,
+                         int64_t n_per_row, const float *imatrix) {
+    if (imatrix == nullptr) { return quantize_q4_0_nr_bl(src, dst, nrows, n_per_row, 8, 8); }
+    assert(false);
+    return 0;
 }
 
-void mllm_gemv_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx, const void *__restrict vy, int nr, int nc, const void *__restrict bias) {
+void mllm_gemv_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                             const void *__restrict vy, int nr, int nc,
+                             const void *__restrict bias) {
     if (bias != nullptr) {
         _mllm_gemv_q4_0_4x4_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
         return;
@@ -386,67 +390,71 @@ void mllm_gemv_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
 
 #if defined(__ARM_FEATURE_SVE)
     if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8)) && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format for optimal performance");
+        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+                  "for optimal performance");
     }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
-    assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 quantization format for optimal performance");
+    assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8())
+           && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 "
+              "quantization format for optimal performance");
 #elif defined(__ARM_NEON) && defined(__aarch64__)
     const void *b_ptr = vx;
     const void *a_ptr = vy;
     float *res_ptr = s;
 
-    __asm__ __volatile__(
-        "movi v31.16b, #0x4\n"
-        "movi v30.16b, #0xf0\n"
-        "add %x[b_ptr], %x[b_ptr], #0x8\n"
-        "1:" // Column loop
-        "add x22, %x[a_ptr], #0x2\n"
-        "movi v29.16b, #0x0\n"
-        "mov x21, %x[nb]\n"
-        "2:" // Block loop
-        "ldr q28, [%x[b_ptr], #0x0]\n"
-        "ldr q27, [x22, #0x0]\n"
-        "movi v26.4s, #0x0\n"
-        "sub x20, x22, #0x2\n"
-        "ldr q25, [x22, #0x10]\n"
-        "ldr q24, [%x[b_ptr], #0x10]\n"
-        "sub x21, x21, #0x1\n"
-        "add x22, x22, #0x22\n"
-        "ldr q23, [%x[b_ptr], #0x20]\n"
-        "ldr q22, [%x[b_ptr], #0x30]\n"
-        "ld1r { v21.8h }, [x20]\n"
-        "ldr q20, [%x[b_ptr], #-0x8]\n"
-        "sshl v16.16b, v28.16b, v31.16b\n"
-        "and v28.16b, v28.16b, v30.16b\n"
-        "sshl v19.16b, v24.16b, v31.16b\n"
-        "and v24.16b, v24.16b, v30.16b\n"
-        "add %x[b_ptr], %x[b_ptr], #0x48\n"
-        "sshl v18.16b, v23.16b, v31.16b\n"
-        "and v23.16b, v23.16b, v30.16b\n"
-        ".inst 0x4f9be21a  // sdot v26.4s, v16.16b, v27.4b[0]\n"
-        "sshl v17.16b, v22.16b, v31.16b\n"
-        "and v22.16b, v22.16b, v30.16b\n"
-        "fcvtl v21.4s, v21.4h\n"
-        "fcvtl v16.4s, v20.4h\n"
-        ".inst 0x4f99e39a  // sdot v26.4s, v28.16b, v25.4b[0]\n"
-        "fmul v16.4s, v16.4s, v21.4s\n"
-        ".inst 0x4fbbe27a  // sdot v26.4s, v19.16b, v27.4b[1]\n"
-        ".inst 0x4fb9e31a  // sdot v26.4s, v24.16b, v25.4b[1]\n"
-        ".inst 0x4f9bea5a  // sdot v26.4s, v18.16b, v27.4b[2]\n"
-        ".inst 0x4f99eafa  // sdot v26.4s, v23.16b, v25.4b[2]\n"
-        ".inst 0x4fbbea3a  // sdot v26.4s, v17.16b, v27.4b[3]\n"
-        ".inst 0x4fb9eada  // sdot v26.4s, v22.16b, v25.4b[3]\n"
-        "scvtf v26.4s, v26.4s, #0x4\n"
-        "fmla v29.4s, v26.4s, v16.4s\n"
-        "cbnz x21, 2b\n"
-        "sub %x[nc], %x[nc], #0x4\n"
-        "str q29, [%x[res_ptr], #0x0]\n"
-        "add %x[res_ptr], %x[res_ptr], #0x10\n"
-        "cbnz %x[nc], 1b\n"
-        : [b_ptr] "+&r"(b_ptr), [res_ptr] "+&r"(res_ptr), [nc] "+&r"(nc)
-        : [a_ptr] "r"(a_ptr), [nb] "r"(nb)
-        : "memory", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x20", "x21", "x22");
+    __asm__ __volatile__("movi v31.16b, #0x4\n"
+                         "movi v30.16b, #0xf0\n"
+                         "add %x[b_ptr], %x[b_ptr], #0x8\n"
+                         "1:" // Column loop
+                         "add x22, %x[a_ptr], #0x2\n"
+                         "movi v29.16b, #0x0\n"
+                         "mov x21, %x[nb]\n"
+                         "2:" // Block loop
+                         "ldr q28, [%x[b_ptr], #0x0]\n"
+                         "ldr q27, [x22, #0x0]\n"
+                         "movi v26.4s, #0x0\n"
+                         "sub x20, x22, #0x2\n"
+                         "ldr q25, [x22, #0x10]\n"
+                         "ldr q24, [%x[b_ptr], #0x10]\n"
+                         "sub x21, x21, #0x1\n"
+                         "add x22, x22, #0x22\n"
+                         "ldr q23, [%x[b_ptr], #0x20]\n"
+                         "ldr q22, [%x[b_ptr], #0x30]\n"
+                         "ld1r { v21.8h }, [x20]\n"
+                         "ldr q20, [%x[b_ptr], #-0x8]\n"
+                         "sshl v16.16b, v28.16b, v31.16b\n"
+                         "and v28.16b, v28.16b, v30.16b\n"
+                         "sshl v19.16b, v24.16b, v31.16b\n"
+                         "and v24.16b, v24.16b, v30.16b\n"
+                         "add %x[b_ptr], %x[b_ptr], #0x48\n"
+                         "sshl v18.16b, v23.16b, v31.16b\n"
+                         "and v23.16b, v23.16b, v30.16b\n"
+                         ".inst 0x4f9be21a  // sdot v26.4s, v16.16b, v27.4b[0]\n"
+                         "sshl v17.16b, v22.16b, v31.16b\n"
+                         "and v22.16b, v22.16b, v30.16b\n"
+                         "fcvtl v21.4s, v21.4h\n"
+                         "fcvtl v16.4s, v20.4h\n"
+                         ".inst 0x4f99e39a  // sdot v26.4s, v28.16b, v25.4b[0]\n"
+                         "fmul v16.4s, v16.4s, v21.4s\n"
+                         ".inst 0x4fbbe27a  // sdot v26.4s, v19.16b, v27.4b[1]\n"
+                         ".inst 0x4fb9e31a  // sdot v26.4s, v24.16b, v25.4b[1]\n"
+                         ".inst 0x4f9bea5a  // sdot v26.4s, v18.16b, v27.4b[2]\n"
+                         ".inst 0x4f99eafa  // sdot v26.4s, v23.16b, v25.4b[2]\n"
+                         ".inst 0x4fbbea3a  // sdot v26.4s, v17.16b, v27.4b[3]\n"
+                         ".inst 0x4fb9eada  // sdot v26.4s, v22.16b, v25.4b[3]\n"
+                         "scvtf v26.4s, v26.4s, #0x4\n"
+                         "fmla v29.4s, v26.4s, v16.4s\n"
+                         "cbnz x21, 2b\n"
+                         "sub %x[nc], %x[nc], #0x4\n"
+                         "str q29, [%x[res_ptr], #0x0]\n"
+                         "add %x[res_ptr], %x[res_ptr], #0x10\n"
+                         "cbnz %x[nc], 1b\n"
+                         : [b_ptr] "+&r"(b_ptr), [res_ptr] "+&r"(res_ptr), [nc] "+&r"(nc)
+                         : [a_ptr] "r"(a_ptr), [nb] "r"(nb)
+                         : "memory", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24",
+                           "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x20", "x21", "x22");
 #else
     float sumf[4];
     int sumi;
@@ -461,11 +469,20 @@ void mllm_gemv_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
                 for (int j = 0; j < ncols_interleaved; j++) {
                     sumi = 0;
                     for (int i = 0; i < blocklen; ++i) {
-                        const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] << 4);
-                        const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] & 0xF0);
-                        sumi += ((v0 * a_ptr[l].qs[k * blocklen + i]) + (v1 * a_ptr[l].qs[k * blocklen + i + qk / 2])) >> 4;
+                        const int v0 =
+                            (int8_t)(b_ptr[l]
+                                         .qs[k * ncols_interleaved * blocklen + j * blocklen + i]
+                                     << 4);
+                        const int v1 =
+                            (int8_t)(b_ptr[l]
+                                         .qs[k * ncols_interleaved * blocklen + j * blocklen + i]
+                                     & 0xF0);
+                        sumi += ((v0 * a_ptr[l].qs[k * blocklen + i])
+                                 + (v1 * a_ptr[l].qs[k * blocklen + i + qk / 2]))
+                                >> 4;
                     }
-                    sumf[j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d);
+                    sumf[j] +=
+                        sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d);
                 }
             }
         }
@@ -474,7 +491,9 @@ void mllm_gemv_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
 #endif
 }
 
-void _mllm_gemv_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx, const void *__restrict vy, int nr, int nc, const void *__restrict bias) {
+void _mllm_gemv_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                                   const void *__restrict vy, int nr, int nc,
+                                   const void *__restrict bias) {
     const int qk = QK8_0;
     const int nb = n / qk;
     const int ncols_interleaved = 4;
@@ -496,11 +515,15 @@ void _mllm_gemv_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
 
 #if defined(__ARM_FEATURE_SVE)
     if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8)) && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format for optimal performance");
+        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+                  "for optimal performance");
     }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
-    assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 quantization format for optimal performance");
+    assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8())
+           && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 "
+              "quantization format for optimal performance");
 #elif defined(__ARM_NEON) && defined(__aarch64__)
     const void *b_ptr = vx;
     const void *a_ptr = vy;
@@ -562,7 +585,8 @@ void _mllm_gemv_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
         "cbnz %x[nc], 1b\n"
         : [b_ptr] "+&r"(b_ptr), [bias_ptr] "+&r"(bias_ptr), [res_ptr] "+&r"(res_ptr), [nc] "+&r"(nc)
         : [a_ptr] "r"(a_ptr), [nb] "r"(nb)
-        : "memory", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x20", "x21", "x22");
+        : "memory", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26",
+          "v27", "v28", "v29", "v30", "v31", "x20", "x21", "x22");
 #else
     float sumf[4];
     int sumi;
@@ -583,11 +607,20 @@ void _mllm_gemv_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
                 for (int j = 0; j < ncols_interleaved; j++) {
                     sumi = 0;
                     for (int i = 0; i < blocklen; ++i) {
-                        const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] << 4);
-                        const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] & 0xF0);
-                        sumi += ((v0 * a_ptr[l].qs[k * blocklen + i]) + (v1 * a_ptr[l].qs[k * blocklen + i + qk / 2])) >> 4;
+                        const int v0 =
+                            (int8_t)(b_ptr[l]
+                                         .qs[k * ncols_interleaved * blocklen + j * blocklen + i]
+                                     << 4);
+                        const int v1 =
+                            (int8_t)(b_ptr[l]
+                                         .qs[k * ncols_interleaved * blocklen + j * blocklen + i]
+                                     & 0xF0);
+                        sumi += ((v0 * a_ptr[l].qs[k * blocklen + i])
+                                 + (v1 * a_ptr[l].qs[k * blocklen + i + qk / 2]))
+                                >> 4;
                     }
-                    sumf[j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d);
+                    sumf[j] +=
+                        sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d);
                 }
             }
         }
@@ -596,7 +629,9 @@ void _mllm_gemv_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
 #endif
 }
 
-void mllm_gemv_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx, const void *__restrict vy, int nr, int nc, const void *__restrict bias) {
+void mllm_gemv_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                             const void *__restrict vy, int nr, int nc,
+                             const void *__restrict bias) {
     if (bias != nullptr) {
         _mllm_gemv_q4_0_4x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
         return;
@@ -622,7 +657,9 @@ void mllm_gemv_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *
 
 #if defined(__ARM_FEATURE_SVE)
     if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8)) && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format for optimal performance");
+        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+                  "for optimal performance");
     }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
@@ -630,65 +667,68 @@ void mllm_gemv_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *
     const void *a_ptr = vy;
     float *res_ptr = s;
 
-    __asm__ __volatile__(
-        "movi v2.16b, #0x4\n"
-        "movi v1.16b, #0xf0\n"
-        "add %x[b_ptr], %x[b_ptr], #0x8\n"
-        "1:" // Column loop
-        "add x23, %x[a_ptr], #0x2\n"
-        "movi v0.16b, #0x0\n"
-        "mov x22, %x[nb]\n"
-        "2:" // Block loop
-        "ldr q31, [%x[b_ptr], #0x0]\n"
-        "ldr q30, [%x[b_ptr], #0x10]\n"
-        "mov x21, x23\n"
-        "movi v29.4s, #0x0\n"
-        "ldr q28, [%x[b_ptr], #0x20]\n"
-        "ldr q27, [%x[b_ptr], #0x30]\n"
-        "movi v26.4s, #0x0\n"
-        "sub x20, x23, #0x2\n"
-        "ld1r { v25.8h }, [x20]\n"
-        "ldr q24, [%x[b_ptr], #-0x8]\n"
-        "sub x22, x22, #0x1\n"
-        "add x23, x23, #0x22\n"
-        "ld1r { v23.2d }, [x21], #0x8\n"
-        "sshl v22.16b, v31.16b, v2.16b\n"
-        "sshl v16.16b, v30.16b, v2.16b\n"
-        "add %x[b_ptr], %x[b_ptr], #0x48\n"
-        "ld1r { v21.2d }, [x21], #0x8\n"
-        "sshl v20.16b, v28.16b, v2.16b\n"
-        "sshl v19.16b, v27.16b, v2.16b\n"
-        "ld1r { v18.2d }, [x21], #0x8\n"
-        "ld1r { v17.2d }, [x21], #0x8\n"
-        "and v31.16b, v31.16b, v1.16b\n"
-        "and v30.16b, v30.16b, v1.16b\n"
-        ".inst 0x4e9796dd  // sdot v29.4s, v22.16b, v23.16b\n"
-        ".inst 0x4e97961a  // sdot v26.4s, v16.16b, v23.16b\n"
-        "and v28.16b, v28.16b, v1.16b\n"
-        "and v27.16b, v27.16b, v1.16b\n"
-        "fcvtl v25.4s, v25.4h\n"
-        "fcvtl v16.4s, v24.4h\n"
-        ".inst 0x4e95969d  // sdot v29.4s, v20.16b, v21.16b\n"
-        ".inst 0x4e95967a  // sdot v26.4s, v19.16b, v21.16b\n"
-        "fmul v16.4s, v16.4s, v25.4s\n"
-        ".inst 0x4e9297fd  // sdot v29.4s, v31.16b, v18.16b\n"
-        ".inst 0x4e9297da  // sdot v26.4s, v30.16b, v18.16b\n"
-        ".inst 0x4e91979d  // sdot v29.4s, v28.16b, v17.16b\n"
-        ".inst 0x4e91977a  // sdot v26.4s, v27.16b, v17.16b\n"
-        "addp v29.4s, v29.4s, v26.4s\n"
-        "scvtf v29.4s, v29.4s, #0x4\n"
-        "fmla v0.4s, v29.4s, v16.4s\n"
-        "cbnz x22, 2b\n"
-        "sub %x[nc], %x[nc], #0x4\n"
-        "str q0, [%x[res_ptr], #0x0]\n"
-        "add %x[res_ptr], %x[res_ptr], #0x10\n"
-        "cbnz %x[nc], 1b\n"
-        : [b_ptr] "+&r"(b_ptr), [res_ptr] "+&r"(res_ptr), [nc] "+&r"(nc)
-        : [a_ptr] "r"(a_ptr), [nb] "r"(nb)
-        : "memory", "v0", "v1", "v2", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x20", "x21", "x22", "x23");
+    __asm__ __volatile__("movi v2.16b, #0x4\n"
+                         "movi v1.16b, #0xf0\n"
+                         "add %x[b_ptr], %x[b_ptr], #0x8\n"
+                         "1:" // Column loop
+                         "add x23, %x[a_ptr], #0x2\n"
+                         "movi v0.16b, #0x0\n"
+                         "mov x22, %x[nb]\n"
+                         "2:" // Block loop
+                         "ldr q31, [%x[b_ptr], #0x0]\n"
+                         "ldr q30, [%x[b_ptr], #0x10]\n"
+                         "mov x21, x23\n"
+                         "movi v29.4s, #0x0\n"
+                         "ldr q28, [%x[b_ptr], #0x20]\n"
+                         "ldr q27, [%x[b_ptr], #0x30]\n"
+                         "movi v26.4s, #0x0\n"
+                         "sub x20, x23, #0x2\n"
+                         "ld1r { v25.8h }, [x20]\n"
+                         "ldr q24, [%x[b_ptr], #-0x8]\n"
+                         "sub x22, x22, #0x1\n"
+                         "add x23, x23, #0x22\n"
+                         "ld1r { v23.2d }, [x21], #0x8\n"
+                         "sshl v22.16b, v31.16b, v2.16b\n"
+                         "sshl v16.16b, v30.16b, v2.16b\n"
+                         "add %x[b_ptr], %x[b_ptr], #0x48\n"
+                         "ld1r { v21.2d }, [x21], #0x8\n"
+                         "sshl v20.16b, v28.16b, v2.16b\n"
+                         "sshl v19.16b, v27.16b, v2.16b\n"
+                         "ld1r { v18.2d }, [x21], #0x8\n"
+                         "ld1r { v17.2d }, [x21], #0x8\n"
+                         "and v31.16b, v31.16b, v1.16b\n"
+                         "and v30.16b, v30.16b, v1.16b\n"
+                         ".inst 0x4e9796dd  // sdot v29.4s, v22.16b, v23.16b\n"
+                         ".inst 0x4e97961a  // sdot v26.4s, v16.16b, v23.16b\n"
+                         "and v28.16b, v28.16b, v1.16b\n"
+                         "and v27.16b, v27.16b, v1.16b\n"
+                         "fcvtl v25.4s, v25.4h\n"
+                         "fcvtl v16.4s, v24.4h\n"
+                         ".inst 0x4e95969d  // sdot v29.4s, v20.16b, v21.16b\n"
+                         ".inst 0x4e95967a  // sdot v26.4s, v19.16b, v21.16b\n"
+                         "fmul v16.4s, v16.4s, v25.4s\n"
+                         ".inst 0x4e9297fd  // sdot v29.4s, v31.16b, v18.16b\n"
+                         ".inst 0x4e9297da  // sdot v26.4s, v30.16b, v18.16b\n"
+                         ".inst 0x4e91979d  // sdot v29.4s, v28.16b, v17.16b\n"
+                         ".inst 0x4e91977a  // sdot v26.4s, v27.16b, v17.16b\n"
+                         "addp v29.4s, v29.4s, v26.4s\n"
+                         "scvtf v29.4s, v29.4s, #0x4\n"
+                         "fmla v0.4s, v29.4s, v16.4s\n"
+                         "cbnz x22, 2b\n"
+                         "sub %x[nc], %x[nc], #0x4\n"
+                         "str q0, [%x[res_ptr], #0x0]\n"
+                         "add %x[res_ptr], %x[res_ptr], #0x10\n"
+                         "cbnz %x[nc], 1b\n"
+                         : [b_ptr] "+&r"(b_ptr), [res_ptr] "+&r"(res_ptr), [nc] "+&r"(nc)
+                         : [a_ptr] "r"(a_ptr), [nb] "r"(nb)
+                         : "memory", "v0", "v1", "v2", "v16", "v17", "v18", "v19", "v20", "v21",
+                           "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31",
+                           "x20", "x21", "x22", "x23");
 #elif defined(__ARM_NEON) && defined(__aarch64__)
-    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8()) && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 quantization format for optimal "
-                                                                 "performance");
+    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8())
+           && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the "
+              "Q4_0_4_4 quantization format for optimal "
+              "performance");
 #else
     float sumf[4];
     int sumi;
@@ -703,11 +743,20 @@ void mllm_gemv_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *
                 for (int j = 0; j < ncols_interleaved; j++) {
                     sumi = 0;
                     for (int i = 0; i < blocklen; ++i) {
-                        const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] << 4);
-                        const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] & 0xF0);
-                        sumi += ((v0 * a_ptr[l].qs[k * blocklen + i]) + (v1 * a_ptr[l].qs[k * blocklen + i + qk / 2])) >> 4;
+                        const int v0 =
+                            (int8_t)(b_ptr[l]
+                                         .qs[k * ncols_interleaved * blocklen + j * blocklen + i]
+                                     << 4);
+                        const int v1 =
+                            (int8_t)(b_ptr[l]
+                                         .qs[k * ncols_interleaved * blocklen + j * blocklen + i]
+                                     & 0xF0);
+                        sumi += ((v0 * a_ptr[l].qs[k * blocklen + i])
+                                 + (v1 * a_ptr[l].qs[k * blocklen + i + qk / 2]))
+                                >> 4;
                     }
-                    sumf[j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d);
+                    sumf[j] +=
+                        sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d);
                 }
             }
         }
@@ -716,7 +765,9 @@ void mllm_gemv_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *
 #endif
 }
 
-void _mllm_gemv_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx, const void *__restrict vy, int nr, int nc, const void *__restrict bias) {
+void _mllm_gemv_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                                   const void *__restrict vy, int nr, int nc,
+                                   const void *__restrict bias) {
     const int qk = QK8_0;
     const int nb = n / qk;
     const int ncols_interleaved = 4;
@@ -737,7 +788,9 @@ void _mllm_gemv_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
 
 #if defined(__ARM_FEATURE_SVE)
     if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8)) && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format for optimal performance");
+        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+                  "for optimal performance");
     }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
@@ -806,10 +859,13 @@ void _mllm_gemv_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
         "cbnz %x[nc], 1b\n"
         : [b_ptr] "+&r"(b_ptr), [bias_ptr] "+&r"(bias_ptr), [res_ptr] "+&r"(res_ptr), [nc] "+&r"(nc)
         : [a_ptr] "r"(a_ptr), [nb] "r"(nb)
-        : "memory", "v0", "v1", "v2", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x20", "x21", "x22", "x23");
+        : "memory", "v0", "v1", "v2", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24",
+          "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x20", "x21", "x22", "x23");
 #elif defined(__ARM_NEON) && defined(__aarch64__)
-    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8()) && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 quantization format for optimal "
-                                                                 "performance");
+    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8())
+           && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the "
+              "Q4_0_4_4 quantization format for optimal "
+              "performance");
 #else
     float sumf[4];
     int sumi;
@@ -827,11 +883,20 @@ void _mllm_gemv_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
                 for (int j = 0; j < ncols_interleaved; j++) {
                     sumi = 0;
                     for (int i = 0; i < blocklen; ++i) {
-                        const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] << 4);
-                        const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] & 0xF0);
-                        sumi += ((v0 * a_ptr[l].qs[k * blocklen + i]) + (v1 * a_ptr[l].qs[k * blocklen + i + qk / 2])) >> 4;
+                        const int v0 =
+                            (int8_t)(b_ptr[l]
+                                         .qs[k * ncols_interleaved * blocklen + j * blocklen + i]
+                                     << 4);
+                        const int v1 =
+                            (int8_t)(b_ptr[l]
+                                         .qs[k * ncols_interleaved * blocklen + j * blocklen + i]
+                                     & 0xF0);
+                        sumi += ((v0 * a_ptr[l].qs[k * blocklen + i])
+                                 + (v1 * a_ptr[l].qs[k * blocklen + i + qk / 2]))
+                                >> 4;
                     }
-                    sumf[j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d);
+                    sumf[j] +=
+                        sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d);
                 }
             }
         }
@@ -840,7 +905,9 @@ void _mllm_gemv_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
 #endif
 }
 
-void mllm_gemv_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx, const void *__restrict vy, int nr, int nc, const void *__restrict bias) {
+void mllm_gemv_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                             const void *__restrict vy, int nr, int nc,
+                             const void *__restrict bias) {
     if (bias != nullptr) {
         _mllm_gemv_q4_0_8x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
         return;
@@ -870,77 +937,86 @@ void mllm_gemv_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *
         const void *a_ptr = vy;
         float *res_ptr = s;
 
-        __asm__ __volatile__(
-            "ptrue p0.b\n"
-            "add %x[b_ptr], %x[b_ptr], #0x10\n"
-            "1:" // Column loop
-            "add x22, %x[a_ptr], #0x2\n"
-            "mov z31.b, #0x0\n"
-            "mov x21, %x[nb]\n"
-            "2:" // Block loop
-            "ld1b { z30.b }, p0/Z, [%x[b_ptr]]\n"
-            "ld1b { z29.b }, p0/Z, [%x[b_ptr], #1, MUL VL]\n"
-            "mov z28.s, #0x0\n"
-            "mov z27.s, #0x0\n"
-            "ld1rd { z26.d }, p0/Z, [x22]\n"
-            "ld1b { z25.b }, p0/Z, [%x[b_ptr], #2, MUL VL]\n"
-            "sub x20, x22, #0x2\n"
-            "sub x21, x21, #0x1\n"
-            "ld1b { z24.b }, p0/Z, [%x[b_ptr], #3, MUL VL]\n"
-            "ld1rd { z23.d }, p0/Z, [x22, #8]\n"
-            "lsl z22.b, z30.b, #0x4\n"
-            "lsl z16.b, z29.b, #0x4\n"
-            "and z30.b, z30.b, #0xf0\n"
-            "and z29.b, z29.b, #0xf0\n"
-            "ld1rd { z21.d }, p0/Z, [x22, #16]\n"
-            "ld1rd { z20.d }, p0/Z, [x22, #24]\n"
-            "lsl z19.b, z25.b, #0x4\n"
-            "and z25.b, z25.b, #0xf0\n"
-            "ld1rh { z17.h }, p0/Z, [x20]\n"
-            "ld1h { z18.s }, p0/Z, [%x[b_ptr], #-1, MUL VL]\n"
-            "sdot z28.s, z22.b, z26.b\n"
-            "sdot z27.s, z16.b, z26.b\n"
-            "lsl z16.b, z24.b, #0x4\n"
-            "add x22, x22, #0x22\n"
-            "and z24.b, z24.b, #0xf0\n"
-            "add %x[b_ptr], %x[b_ptr], #0x90\n"
-            "fcvt z17.s, p0/m, z17.h\n"
-            "fcvt z18.s, p0/m, z18.h\n"
-            "sdot z28.s, z19.b, z23.b\n"
-            "sdot z27.s, z16.b, z23.b\n"
-            "fmul z18.s, z18.s, z17.s\n"
-            "sdot z28.s, z30.b, z21.b\n"
-            "sdot z27.s, z29.b, z21.b\n"
-            "sdot z28.s, z25.b, z20.b\n"
-            "sdot z27.s, z24.b, z20.b\n"
-            "uzp1 z17.s, z28.s, z27.s\n"
-            "uzp2 z16.s, z28.s, z27.s\n"
-            "add z17.s, z17.s, z16.s\n"
-            "asr z17.s, z17.s, #0x4\n"
-            "scvtf z17.s, p0/m, z17.s\n"
-            "fmla z31.s, p0/M, z17.s, z18.s\n"
-            "cbnz x21, 2b\n"
-            "sub %x[nc], %x[nc], #0x8\n"
-            "st1w { z31.s }, p0, [%x[res_ptr]]\n"
-            "add %x[res_ptr], %x[res_ptr], #0x20\n"
-            "cbnz %x[nc], 1b\n"
-            : [b_ptr] "+&r"(b_ptr), [res_ptr] "+&r"(res_ptr), [nc] "+&r"(nc)
-            : [a_ptr] "r"(a_ptr), [nb] "r"(nb)
-            : "memory", "p0", "x20", "x21", "x22", "z16", "z17", "z18", "z19", "z20", "z21", "z22", "z23", "z24", "z25", "z26", "z27", "z28", "z29", "z30", "z31");
+        __asm__ __volatile__("ptrue p0.b\n"
+                             "add %x[b_ptr], %x[b_ptr], #0x10\n"
+                             "1:" // Column loop
+                             "add x22, %x[a_ptr], #0x2\n"
+                             "mov z31.b, #0x0\n"
+                             "mov x21, %x[nb]\n"
+                             "2:" // Block loop
+                             "ld1b { z30.b }, p0/Z, [%x[b_ptr]]\n"
+                             "ld1b { z29.b }, p0/Z, [%x[b_ptr], #1, MUL VL]\n"
+                             "mov z28.s, #0x0\n"
+                             "mov z27.s, #0x0\n"
+                             "ld1rd { z26.d }, p0/Z, [x22]\n"
+                             "ld1b { z25.b }, p0/Z, [%x[b_ptr], #2, MUL VL]\n"
+                             "sub x20, x22, #0x2\n"
+                             "sub x21, x21, #0x1\n"
+                             "ld1b { z24.b }, p0/Z, [%x[b_ptr], #3, MUL VL]\n"
+                             "ld1rd { z23.d }, p0/Z, [x22, #8]\n"
+                             "lsl z22.b, z30.b, #0x4\n"
+                             "lsl z16.b, z29.b, #0x4\n"
+                             "and z30.b, z30.b, #0xf0\n"
+                             "and z29.b, z29.b, #0xf0\n"
+                             "ld1rd { z21.d }, p0/Z, [x22, #16]\n"
+                             "ld1rd { z20.d }, p0/Z, [x22, #24]\n"
+                             "lsl z19.b, z25.b, #0x4\n"
+                             "and z25.b, z25.b, #0xf0\n"
+                             "ld1rh { z17.h }, p0/Z, [x20]\n"
+                             "ld1h { z18.s }, p0/Z, [%x[b_ptr], #-1, MUL VL]\n"
+                             "sdot z28.s, z22.b, z26.b\n"
+                             "sdot z27.s, z16.b, z26.b\n"
+                             "lsl z16.b, z24.b, #0x4\n"
+                             "add x22, x22, #0x22\n"
+                             "and z24.b, z24.b, #0xf0\n"
+                             "add %x[b_ptr], %x[b_ptr], #0x90\n"
+                             "fcvt z17.s, p0/m, z17.h\n"
+                             "fcvt z18.s, p0/m, z18.h\n"
+                             "sdot z28.s, z19.b, z23.b\n"
+                             "sdot z27.s, z16.b, z23.b\n"
+                             "fmul z18.s, z18.s, z17.s\n"
+                             "sdot z28.s, z30.b, z21.b\n"
+                             "sdot z27.s, z29.b, z21.b\n"
+                             "sdot z28.s, z25.b, z20.b\n"
+                             "sdot z27.s, z24.b, z20.b\n"
+                             "uzp1 z17.s, z28.s, z27.s\n"
+                             "uzp2 z16.s, z28.s, z27.s\n"
+                             "add z17.s, z17.s, z16.s\n"
+                             "asr z17.s, z17.s, #0x4\n"
+                             "scvtf z17.s, p0/m, z17.s\n"
+                             "fmla z31.s, p0/M, z17.s, z18.s\n"
+                             "cbnz x21, 2b\n"
+                             "sub %x[nc], %x[nc], #0x8\n"
+                             "st1w { z31.s }, p0, [%x[res_ptr]]\n"
+                             "add %x[res_ptr], %x[res_ptr], #0x20\n"
+                             "cbnz %x[nc], 1b\n"
+                             : [b_ptr] "+&r"(b_ptr), [res_ptr] "+&r"(res_ptr), [nc] "+&r"(nc)
+                             : [a_ptr] "r"(a_ptr), [nb] "r"(nb)
+                             : "memory", "p0", "x20", "x21", "x22", "z16", "z17", "z18", "z19",
+                               "z20", "z21", "z22", "z23", "z24", "z25", "z26", "z27", "z28", "z29",
+                               "z30", "z31");
         return;
     } else if (mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) {
-        assert((mllm_cpu_has_sve() && (svcntw() == 8)) && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the Q4_0_4_8 quantization format for optimal "
-                                                          "performance");
+        assert((mllm_cpu_has_sve() && (svcntw() == 8))
+               && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the "
+                  "Q4_0_4_8 quantization format for optimal "
+                  "performance");
     } else if (mllm_cpu_has_neon()) {
-        assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8()) && "__ARM_FEATURE_SVE for vector size of 256-bits and __ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
-                                                                                          "quantization format for optimal performance");
+        assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8())
+               && "__ARM_FEATURE_SVE for vector size of 256-bits and "
+                  "__ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
+                  "quantization format for optimal performance");
     }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
-    assert(mllm_cpu_has_sve() && "__ARM_FEATURE_SVE not defined, use the Q4_0_4_8 quantization format for optimal performance");
+    assert(mllm_cpu_has_sve()
+           && "__ARM_FEATURE_SVE not defined, use the Q4_0_4_8 quantization format "
+              "for optimal performance");
 #elif defined(__ARM_NEON) && defined(__aarch64__)
-    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8()) && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 quantization format for optimal "
-                                                                 "performance");
+    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8())
+           && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the "
+              "Q4_0_4_4 quantization format for optimal "
+              "performance");
 #else
     float sumf[8];
     int sumi;
@@ -955,11 +1031,20 @@ void mllm_gemv_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *
                 for (int j = 0; j < ncols_interleaved; j++) {
                     sumi = 0;
                     for (int i = 0; i < blocklen; ++i) {
-                        const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] << 4);
-                        const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] & 0xF0);
-                        sumi += ((v0 * a_ptr[l].qs[k * blocklen + i]) + (v1 * a_ptr[l].qs[k * blocklen + i + qk / 2])) >> 4;
+                        const int v0 =
+                            (int8_t)(b_ptr[l]
+                                         .qs[k * ncols_interleaved * blocklen + j * blocklen + i]
+                                     << 4);
+                        const int v1 =
+                            (int8_t)(b_ptr[l]
+                                         .qs[k * ncols_interleaved * blocklen + j * blocklen + i]
+                                     & 0xF0);
+                        sumi += ((v0 * a_ptr[l].qs[k * blocklen + i])
+                                 + (v1 * a_ptr[l].qs[k * blocklen + i + qk / 2]))
+                                >> 4;
                     }
-                    sumf[j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d);
+                    sumf[j] +=
+                        sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d);
                 }
             }
         }
@@ -968,7 +1053,9 @@ void mllm_gemv_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *
 #endif
 }
 
-void _mllm_gemv_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx, const void *__restrict vy, int nr, int nc, const void *__restrict bias) {
+void _mllm_gemv_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                                   const void *__restrict vy, int nr, int nc,
+                                   const void *__restrict bias) {
     const int qk = QK8_0;
     const int nb = n / qk;
     const int ncols_interleaved = 8;
@@ -994,82 +1081,92 @@ void _mllm_gemv_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
         const void *bias_ptr = bias;
         float *res_ptr = s;
 
-        __asm__ __volatile__(
-            "ptrue p0.b\n"
-            "add %x[b_ptr], %x[b_ptr], #0x10\n"
-            "1:" // Column loop
-            "add x22, %x[a_ptr], #0x2\n"
-            "mov z31.b, #0x0\n"
-            "mov x21, %x[nb]\n"
-            "2:" // Block loop
-            "ld1b { z30.b }, p0/Z, [%x[b_ptr]]\n"
-            "ld1b { z29.b }, p0/Z, [%x[b_ptr], #1, MUL VL]\n"
-            "mov z28.s, #0x0\n"
-            "mov z27.s, #0x0\n"
-            "ld1rd { z26.d }, p0/Z, [x22]\n"
-            "ld1b { z25.b }, p0/Z, [%x[b_ptr], #2, MUL VL]\n"
-            "sub x20, x22, #0x2\n"
-            "sub x21, x21, #0x1\n"
-            "ld1b { z24.b }, p0/Z, [%x[b_ptr], #3, MUL VL]\n"
-            "ld1rd { z23.d }, p0/Z, [x22, #8]\n"
-            "lsl z22.b, z30.b, #0x4\n"
-            "lsl z16.b, z29.b, #0x4\n"
-            "and z30.b, z30.b, #0xf0\n"
-            "and z29.b, z29.b, #0xf0\n"
-            "ld1rd { z21.d }, p0/Z, [x22, #16]\n"
-            "ld1rd { z20.d }, p0/Z, [x22, #24]\n"
-            "lsl z19.b, z25.b, #0x4\n"
-            "and z25.b, z25.b, #0xf0\n"
-            "ld1rh { z17.h }, p0/Z, [x20]\n"
-            "ld1h { z18.s }, p0/Z, [%x[b_ptr], #-1, MUL VL]\n"
-            "sdot z28.s, z22.b, z26.b\n"
-            "sdot z27.s, z16.b, z26.b\n"
-            "lsl z16.b, z24.b, #0x4\n"
-            "add x22, x22, #0x22\n"
-            "and z24.b, z24.b, #0xf0\n"
-            "add %x[b_ptr], %x[b_ptr], #0x90\n"
-            "fcvt z17.s, p0/m, z17.h\n"
-            "fcvt z18.s, p0/m, z18.h\n"
-            "sdot z28.s, z19.b, z23.b\n"
-            "sdot z27.s, z16.b, z23.b\n"
-            "fmul z18.s, z18.s, z17.s\n"
-            "sdot z28.s, z30.b, z21.b\n"
-            "sdot z27.s, z29.b, z21.b\n"
-            "sdot z28.s, z25.b, z20.b\n"
-            "sdot z27.s, z24.b, z20.b\n"
-            "uzp1 z17.s, z28.s, z27.s\n"
-            "uzp2 z16.s, z28.s, z27.s\n"
-            "add z17.s, z17.s, z16.s\n"
-            "asr z17.s, z17.s, #0x4\n"
-            "scvtf z17.s, p0/m, z17.s\n"
-            "fmla z31.s, p0/M, z17.s, z18.s\n"
-            "cbnz x21, 2b\n"
-            "sub %x[nc], %x[nc], #0x8\n"
-            // --bias code start
-            "ld1b { z17.b }, p0/Z, [%x[bias_ptr]]\n"
-            "fadd z31.s, p0/M, z31.s, z17.s\n"
-            "add %x[bias_ptr], %x[bias_ptr], #0x20\n"
-            // --bias code end
-            "st1w { z31.s }, p0, [%x[res_ptr]]\n"
-            "add %x[res_ptr], %x[res_ptr], #0x20\n"
-            "cbnz %x[nc], 1b\n"
-            : [b_ptr] "+&r"(b_ptr), [bias_ptr] "+&r"(bias_ptr), [res_ptr] "+&r"(res_ptr), [nc] "+&r"(nc)
-            : [a_ptr] "r"(a_ptr), [nb] "r"(nb)
-            : "memory", "p0", "x20", "x21", "x22", "z16", "z17", "z18", "z19", "z20", "z21", "z22", "z23", "z24", "z25", "z26", "z27", "z28", "z29", "z30", "z31");
+        __asm__ __volatile__("ptrue p0.b\n"
+                             "add %x[b_ptr], %x[b_ptr], #0x10\n"
+                             "1:" // Column loop
+                             "add x22, %x[a_ptr], #0x2\n"
+                             "mov z31.b, #0x0\n"
+                             "mov x21, %x[nb]\n"
+                             "2:" // Block loop
+                             "ld1b { z30.b }, p0/Z, [%x[b_ptr]]\n"
+                             "ld1b { z29.b }, p0/Z, [%x[b_ptr], #1, MUL VL]\n"
+                             "mov z28.s, #0x0\n"
+                             "mov z27.s, #0x0\n"
+                             "ld1rd { z26.d }, p0/Z, [x22]\n"
+                             "ld1b { z25.b }, p0/Z, [%x[b_ptr], #2, MUL VL]\n"
+                             "sub x20, x22, #0x2\n"
+                             "sub x21, x21, #0x1\n"
+                             "ld1b { z24.b }, p0/Z, [%x[b_ptr], #3, MUL VL]\n"
+                             "ld1rd { z23.d }, p0/Z, [x22, #8]\n"
+                             "lsl z22.b, z30.b, #0x4\n"
+                             "lsl z16.b, z29.b, #0x4\n"
+                             "and z30.b, z30.b, #0xf0\n"
+                             "and z29.b, z29.b, #0xf0\n"
+                             "ld1rd { z21.d }, p0/Z, [x22, #16]\n"
+                             "ld1rd { z20.d }, p0/Z, [x22, #24]\n"
+                             "lsl z19.b, z25.b, #0x4\n"
+                             "and z25.b, z25.b, #0xf0\n"
+                             "ld1rh { z17.h }, p0/Z, [x20]\n"
+                             "ld1h { z18.s }, p0/Z, [%x[b_ptr], #-1, MUL VL]\n"
+                             "sdot z28.s, z22.b, z26.b\n"
+                             "sdot z27.s, z16.b, z26.b\n"
+                             "lsl z16.b, z24.b, #0x4\n"
+                             "add x22, x22, #0x22\n"
+                             "and z24.b, z24.b, #0xf0\n"
+                             "add %x[b_ptr], %x[b_ptr], #0x90\n"
+                             "fcvt z17.s, p0/m, z17.h\n"
+                             "fcvt z18.s, p0/m, z18.h\n"
+                             "sdot z28.s, z19.b, z23.b\n"
+                             "sdot z27.s, z16.b, z23.b\n"
+                             "fmul z18.s, z18.s, z17.s\n"
+                             "sdot z28.s, z30.b, z21.b\n"
+                             "sdot z27.s, z29.b, z21.b\n"
+                             "sdot z28.s, z25.b, z20.b\n"
+                             "sdot z27.s, z24.b, z20.b\n"
+                             "uzp1 z17.s, z28.s, z27.s\n"
+                             "uzp2 z16.s, z28.s, z27.s\n"
+                             "add z17.s, z17.s, z16.s\n"
+                             "asr z17.s, z17.s, #0x4\n"
+                             "scvtf z17.s, p0/m, z17.s\n"
+                             "fmla z31.s, p0/M, z17.s, z18.s\n"
+                             "cbnz x21, 2b\n"
+                             "sub %x[nc], %x[nc], #0x8\n"
+                             // --bias code start
+                             "ld1b { z17.b }, p0/Z, [%x[bias_ptr]]\n"
+                             "fadd z31.s, p0/M, z31.s, z17.s\n"
+                             "add %x[bias_ptr], %x[bias_ptr], #0x20\n"
+                             // --bias code end
+                             "st1w { z31.s }, p0, [%x[res_ptr]]\n"
+                             "add %x[res_ptr], %x[res_ptr], #0x20\n"
+                             "cbnz %x[nc], 1b\n"
+                             : [b_ptr] "+&r"(b_ptr), [bias_ptr] "+&r"(bias_ptr),
+                               [res_ptr] "+&r"(res_ptr), [nc] "+&r"(nc)
+                             : [a_ptr] "r"(a_ptr), [nb] "r"(nb)
+                             : "memory", "p0", "x20", "x21", "x22", "z16", "z17", "z18", "z19",
+                               "z20", "z21", "z22", "z23", "z24", "z25", "z26", "z27", "z28", "z29",
+                               "z30", "z31");
         return;
     } else if (mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) {
-        assert((mllm_cpu_has_sve() && (svcntw() == 8)) && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the Q4_0_4_8 quantization format for optimal "
-                                                          "performance");
+        assert((mllm_cpu_has_sve() && (svcntw() == 8))
+               && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the "
+                  "Q4_0_4_8 quantization format for optimal "
+                  "performance");
     } else if (mllm_cpu_has_neon()) {
-        assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8()) && "__ARM_FEATURE_SVE for vector size of 256-bits and __ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
-                                                                                          "quantization format for optimal performance");
+        assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8())
+               && "__ARM_FEATURE_SVE for vector size of 256-bits and "
+                  "__ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
+                  "quantization format for optimal performance");
     }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
-    assert(mllm_cpu_has_sve() && "__ARM_FEATURE_SVE not defined, use the Q4_0_4_8 quantization format for optimal performance");
+    assert(mllm_cpu_has_sve()
+           && "__ARM_FEATURE_SVE not defined, use the Q4_0_4_8 quantization format "
+              "for optimal performance");
 #elif defined(__ARM_NEON) && defined(__aarch64__)
-    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8()) && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 quantization format for optimal "
-                                                                 "performance");
+    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8())
+           && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the "
+              "Q4_0_4_4 quantization format for optimal "
+              "performance");
 #else
     float sumf[8];
     int sumi;
@@ -1087,11 +1184,20 @@ void _mllm_gemv_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
                 for (int j = 0; j < ncols_interleaved; j++) {
                     sumi = 0;
                     for (int i = 0; i < blocklen; ++i) {
-                        const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] << 4);
-                        const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] & 0xF0);
-                        sumi += ((v0 * a_ptr[l].qs[k * blocklen + i]) + (v1 * a_ptr[l].qs[k * blocklen + i + qk / 2])) >> 4;
+                        const int v0 =
+                            (int8_t)(b_ptr[l]
+                                         .qs[k * ncols_interleaved * blocklen + j * blocklen + i]
+                                     << 4);
+                        const int v1 =
+                            (int8_t)(b_ptr[l]
+                                         .qs[k * ncols_interleaved * blocklen + j * blocklen + i]
+                                     & 0xF0);
+                        sumi += ((v0 * a_ptr[l].qs[k * blocklen + i])
+                                 + (v1 * a_ptr[l].qs[k * blocklen + i + qk / 2]))
+                                >> 4;
                     }
-                    sumf[j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d);
+                    sumf[j] +=
+                        sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d);
                 }
             }
         }
@@ -1100,7 +1206,10 @@ void _mllm_gemv_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
 #endif
 }
 
-void mllm_gemm_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx, const void *__restrict vy, int nr, int nc, const void *__restrict bias) {
+// lhs: q8_0, rhs: q4_0x4
+void mllm_gemm_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                             const void *__restrict vy, int nr, int nc,
+                             const void *__restrict bias) {
     if (bias != nullptr) {
         _mllm_gemm_q4_0_4x4_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
         return;
@@ -1127,11 +1236,15 @@ void mllm_gemm_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
 
 #if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_MATMUL_INT8)
     if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8)) && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format for optimal performance");
+        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+                  "for optimal performance");
     }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
-    assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 quantization format for optimal performance");
+    assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8())
+           && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 "
+              "quantization format for optimal performance");
 #elif defined(__ARM_NEON) && defined(__aarch64__)
     const void *b_ptr = vx;
     const void *a_ptr = vy;
@@ -1586,7 +1699,10 @@ void mllm_gemm_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
         "9:" // Row tail: Row loop skip
         : [a_ptr] "+&r"(a_ptr), [res_ptr] "+&r"(res_ptr)
         : [b_ptr] "r"(b_ptr), [nr] "r"(nr), [nb] "r"(nb), [res_stride] "r"(res_stride), [nc] "r"(nc)
-        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x9", "x10", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28");
+        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11",
+          "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24",
+          "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x9", "x10", "x20", "x21", "x22", "x23",
+          "x24", "x25", "x26", "x27", "x28");
 #else
     float sumf[4][4];
     int sumi;
@@ -1604,11 +1720,20 @@ void mllm_gemm_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
                         for (int j = 0; j < ncols_interleaved; j++) {
                             sumi = 0;
                             for (int i = 0; i < blocklen; ++i) {
-                                const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] << 4);
-                                const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] & 0xF0);
-                                sumi += ((v0 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i]) + (v1 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i + qk / 2 * 4])) >> 4;
+                                const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen
+                                                                    + j * blocklen + i]
+                                                        << 4);
+                                const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen
+                                                                    + j * blocklen + i]
+                                                        & 0xF0);
+                                sumi += ((v0 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i])
+                                         + (v1
+                                            * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i
+                                                          + qk / 2 * 4]))
+                                        >> 4;
                             }
-                            sumf[m][j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d[m]);
+                            sumf[m][j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j])
+                                          * MLLM_FP16_TO_FP32(a_ptr[l].d[m]);
                         }
                     }
                 }
@@ -1622,7 +1747,9 @@ void mllm_gemm_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
 #endif
 }
 
-void _mllm_gemm_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx, const void *__restrict vy, int nr, int nc, const void *__restrict bias) {
+void _mllm_gemm_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                                   const void *__restrict vy, int nr, int nc,
+                                   const void *__restrict bias) {
     const int qk = QK8_0;
     const int nb = n / qk;
     const int ncols_interleaved = 4;
@@ -1644,11 +1771,15 @@ void _mllm_gemm_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
 
 #if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_MATMUL_INT8)
     if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8)) && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format for optimal performance");
+        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+                  "for optimal performance");
     }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
-    assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 quantization format for optimal performance");
+    assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8())
+           && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 "
+              "quantization format for optimal performance");
 #elif defined(__ARM_NEON) && defined(__aarch64__)
     const void *b_ptr = vx;
     const void *a_ptr = vy;
@@ -2111,7 +2242,10 @@ void _mllm_gemm_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
         "9:" // Row tail: Row loop skip
         : [a_ptr] "+&r"(a_ptr), [bias_ptr] "+&r"(bias_ptr), [res_ptr] "+&r"(res_ptr)
         : [b_ptr] "r"(b_ptr), [nr] "r"(nr), [nb] "r"(nb), [res_stride] "r"(res_stride), [nc] "r"(nc)
-        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x9", "x10", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28");
+        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11",
+          "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24",
+          "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x9", "x10", "x20", "x21", "x22", "x23",
+          "x24", "x25", "x26", "x27", "x28");
 #else
     float sumf[4][4];
     int sumi;
@@ -2123,7 +2257,8 @@ void _mllm_gemm_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
         for (int x = 0; x < nc / ncols_interleaved; x++) {
             const block_q4_0x4 *b_ptr = (const block_q4_0x4 *)vx + (x * nb);
             for (int m = 0; m < 4; m++) {
-                for (int j = 0; j < ncols_interleaved; j++) sumf[m][j] = bias_ptr[x * ncols_interleaved + j];
+                for (int j = 0; j < ncols_interleaved; j++)
+                    sumf[m][j] = bias_ptr[x * ncols_interleaved + j];
             }
             for (int l = 0; l < nb; l++) {
                 for (int k = 0; k < (qk / (2 * blocklen)); k++) {
@@ -2131,11 +2266,20 @@ void _mllm_gemm_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
                         for (int j = 0; j < ncols_interleaved; j++) {
                             sumi = 0;
                             for (int i = 0; i < blocklen; ++i) {
-                                const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] << 4);
-                                const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] & 0xF0);
-                                sumi += ((v0 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i]) + (v1 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i + qk / 2 * 4])) >> 4;
+                                const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen
+                                                                    + j * blocklen + i]
+                                                        << 4);
+                                const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen
+                                                                    + j * blocklen + i]
+                                                        & 0xF0);
+                                sumi += ((v0 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i])
+                                         + (v1
+                                            * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i
+                                                          + qk / 2 * 4]))
+                                        >> 4;
                             }
-                            sumf[m][j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d[m]);
+                            sumf[m][j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j])
+                                          * MLLM_FP16_TO_FP32(a_ptr[l].d[m]);
                         }
                     }
                 }
@@ -2149,7 +2293,9 @@ void _mllm_gemm_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
 #endif
 }
 
-void mllm_gemm_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx, const void *__restrict vy, int nr, int nc, const void *__restrict bias) {
+void mllm_gemm_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                             const void *__restrict vy, int nr, int nc,
+                             const void *__restrict bias) {
     if (bias != nullptr) {
         _mllm_gemm_q4_0_4x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
         return;
@@ -2176,7 +2322,9 @@ void mllm_gemm_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *
 
 #if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_MATMUL_INT8)
     if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8)) && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format for optimal performance");
+        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+                  "for optimal performance");
     }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
@@ -2573,10 +2721,15 @@ void mllm_gemm_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *
         "9:" // Row tail: Row loop skip
         : [a_ptr] "+&r"(a_ptr), [res_ptr] "+&r"(res_ptr)
         : [b_ptr] "r"(b_ptr), [nr] "r"(nr), [nb] "r"(nb), [res_stride] "r"(res_stride), [nc] "r"(nc)
-        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x9", "x10", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28");
+        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11",
+          "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24",
+          "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x9", "x10", "x20", "x21", "x22", "x23",
+          "x24", "x25", "x26", "x27", "x28");
 #elif defined(__ARM_NEON) && defined(__aarch64__)
-    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8()) && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 quantization format for optimal "
-                                                                 "performance");
+    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8())
+           && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the "
+              "Q4_0_4_4 quantization format for optimal "
+              "performance");
 #else
     float sumf[4][4];
     int sumi;
@@ -2594,11 +2747,20 @@ void mllm_gemm_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *
                         for (int j = 0; j < ncols_interleaved; j++) {
                             sumi = 0;
                             for (int i = 0; i < blocklen; ++i) {
-                                const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] << 4);
-                                const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] & 0xF0);
-                                sumi += ((v0 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i]) + (v1 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i + qk / 2 * 4])) >> 4;
+                                const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen
+                                                                    + j * blocklen + i]
+                                                        << 4);
+                                const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen
+                                                                    + j * blocklen + i]
+                                                        & 0xF0);
+                                sumi += ((v0 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i])
+                                         + (v1
+                                            * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i
+                                                          + qk / 2 * 4]))
+                                        >> 4;
                             }
-                            sumf[m][j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d[m]);
+                            sumf[m][j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j])
+                                          * MLLM_FP16_TO_FP32(a_ptr[l].d[m]);
                         }
                     }
                 }
@@ -2612,7 +2774,9 @@ void mllm_gemm_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *
 #endif
 }
 
-void _mllm_gemm_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx, const void *__restrict vy, int nr, int nc, const void *__restrict bias) {
+void _mllm_gemm_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                                   const void *__restrict vy, int nr, int nc,
+                                   const void *__restrict bias) {
     const int qk = QK8_0;
     const int nb = n / qk;
     const int ncols_interleaved = 4;
@@ -2634,7 +2798,9 @@ void _mllm_gemm_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
 
 #if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_MATMUL_INT8)
     if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8)) && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format for optimal performance");
+        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+                  "for optimal performance");
     }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
@@ -3032,10 +3198,15 @@ void _mllm_gemm_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
         "9:" // Row tail: Row loop skip
         : [a_ptr] "+&r"(a_ptr), [res_ptr] "+&r"(res_ptr)
         : [b_ptr] "r"(b_ptr), [nr] "r"(nr), [nb] "r"(nb), [res_stride] "r"(res_stride), [nc] "r"(nc)
-        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x9", "x10", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28");
+        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11",
+          "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24",
+          "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x9", "x10", "x20", "x21", "x22", "x23",
+          "x24", "x25", "x26", "x27", "x28");
 #elif defined(__ARM_NEON) && defined(__aarch64__)
-    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8()) && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 quantization format for optimal "
-                                                                 "performance");
+    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8())
+           && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the "
+              "Q4_0_4_4 quantization format for optimal "
+              "performance");
 #else
     float sumf[4][4];
     int sumi;
@@ -3047,7 +3218,8 @@ void _mllm_gemm_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
         for (int x = 0; x < nc / ncols_interleaved; x++) {
             const block_q4_0x4 *b_ptr = (const block_q4_0x4 *)vx + (x * nb);
             for (int m = 0; m < 4; m++) {
-                for (int j = 0; j < ncols_interleaved; j++) sumf[m][j] = bias_ptr[x * ncols_interleaved + j];
+                for (int j = 0; j < ncols_interleaved; j++)
+                    sumf[m][j] = bias_ptr[x * ncols_interleaved + j];
             }
             for (int l = 0; l < nb; l++) {
                 for (int k = 0; k < (qk / (2 * blocklen)); k++) {
@@ -3055,11 +3227,20 @@ void _mllm_gemm_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
                         for (int j = 0; j < ncols_interleaved; j++) {
                             sumi = 0;
                             for (int i = 0; i < blocklen; ++i) {
-                                const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] << 4);
-                                const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] & 0xF0);
-                                sumi += ((v0 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i]) + (v1 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i + qk / 2 * 4])) >> 4;
+                                const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen
+                                                                    + j * blocklen + i]
+                                                        << 4);
+                                const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen
+                                                                    + j * blocklen + i]
+                                                        & 0xF0);
+                                sumi += ((v0 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i])
+                                         + (v1
+                                            * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i
+                                                          + qk / 2 * 4]))
+                                        >> 4;
                             }
-                            sumf[m][j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d[m]);
+                            sumf[m][j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j])
+                                          * MLLM_FP16_TO_FP32(a_ptr[l].d[m]);
                         }
                     }
                 }
@@ -3073,7 +3254,9 @@ void _mllm_gemm_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
 #endif
 }
 
-void mllm_gemm_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx, const void *__restrict vy, int nr, int nc, const void *__restrict bias) {
+void mllm_gemm_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                             const void *__restrict vy, int nr, int nc,
+                             const void *__restrict bias) {
     if (bias != nullptr) {
         _mllm_gemm_q4_0_8x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
         return;
@@ -3105,421 +3288,433 @@ void mllm_gemm_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *
         float *res_ptr = s;
         size_t res_stride = bs * sizeof(float);
 
-        __asm__ __volatile__(
-            "mov x20, #0x4\n"
-            "mov x13, %x[nr]\n"
-            "mov z28.s, #-0x4\n"
-            "mov x12, #0x88\n"
-            "ptrue p1.b\n"
-            "whilelt p0.s, XZR, x20\n"
-            "cmp x13, #0x10\n"
-            "mul x12, %x[nb], x12\n"
-            "blt 4f\n"
-            "1:" // Row loop
-            "add x11, %x[b_ptr], #0x10\n"
-            "mov x10, %x[nc]\n"
-            "add x9, %x[res_ptr], %x[res_stride], LSL #4\n"
-            "2:" // Column loop
-            "add x28, %x[a_ptr], #0x8\n"
-            "mov z24.b, #0x0\n"
-            "mov z15.b, #0x0\n"
-            "mov x27, %x[nb]\n"
-            "add x26, x28, x12\n"
-            "mov z12.b, #0x0\n"
-            "mov z0.b, #0x0\n"
-            "add x25, x26, x12\n"
-            "mov z13.b, #0x0\n"
-            "mov z1.b, #0x0\n"
-            "add x24, x25, x12\n"
-            "mov z20.b, #0x0\n"
-            "mov z25.b, #0x0\n"
-            "mov z11.b, #0x0\n"
-            "mov z16.b, #0x0\n"
-            "mov z19.b, #0x0\n"
-            "mov z26.b, #0x0\n"
-            "mov z8.b, #0x0\n"
-            "mov z29.b, #0x0\n"
-            "mov z27.b, #0x0\n"
-            "mov z10.b, #0x0\n"
-            "3:" // Block loop
-            "ld1b { z30.b }, p1/Z, [x11]\n"
-            "ld1b { z21.b }, p1/Z, [x11, #1, MUL VL]\n"
-            "mov z18.s, #0x0\n"
-            "mov z7.s, #0x0\n"
-            "ld1rqb { z3.b }, p1/Z, [x28]\n"
-            "ld1rqb { z5.b }, p1/Z, [x28, #16]\n"
-            "mov z9.s, #0x0\n"
-            "mov z22.s, #0x0\n"
-            "ld1b { z4.b }, p1/Z, [x11, #2, MUL VL]\n"
-            "ld1b { z17.b }, p1/Z, [x11, #3, MUL VL]\n"
-            "sub x20, x11, #0x10\n"
-            "sub x23, x28, #0x8\n"
-            "lsl z31.b, z30.b, #0x4\n"
-            "lsl z6.b, z21.b, #0x4\n"
-            "ld1h { z23.s }, p1/Z, [x20]\n"
-            "sub x22, x26, #0x8\n"
-            "and z30.b, z30.b, #0xf0\n"
-            "and z21.b, z21.b, #0xf0\n"
-            "sub x21, x25, #0x8\n"
-            "sub x20, x24, #0x8\n"
-            "lsl z14.b, z4.b, #0x4\n"
-            "lsl z2.b, z17.b, #0x4\n"
-            "subs x27, x27, #0x1\n"
-            "add x11, x11, #0x90\n"
-            ".inst 0x451f9872  // smmla z18.s, z3.b, z31.b\n"
-            ".inst 0x45069867  // smmla z7.s, z3.b, z6.b\n"
-            "ld1rqb { z3.b }, p1/Z, [x28, #32]\n"
-            "and z4.b, z4.b, #0xf0\n"
-            ".inst 0x451f98a9  // smmla z9.s, z5.b, z31.b\n"
-            ".inst 0x450698b6  // smmla z22.s, z5.b, z6.b\n"
-            "ld1rqb { z5.b }, p1/Z, [x28, #48]\n"
-            "and z17.b, z17.b, #0xf0\n"
-            "fcvt z23.s, p1/m, z23.h\n"
-            ".inst 0x450e9872  // smmla z18.s, z3.b, z14.b\n"
-            ".inst 0x45029867  // smmla z7.s, z3.b, z2.b\n"
-            "ld1rqb { z3.b }, p1/Z, [x28, #64]\n"
-            ".inst 0x450e98a9  // smmla z9.s, z5.b, z14.b\n"
-            ".inst 0x450298b6  // smmla z22.s, z5.b, z2.b\n"
-            "ld1rqb { z5.b }, p1/Z, [x28, #80]\n"
-            "fscale z23.s, p1/m, z23.s, z28.s\n"
-            ".inst 0x451e9872  // smmla z18.s, z3.b, z30.b\n"
-            ".inst 0x45159867  // smmla z7.s, z3.b, z21.b\n"
-            "ld1rqb { z3.b }, p1/Z, [x28, #96]\n"
-            ".inst 0x451e98a9  // smmla z9.s, z5.b, z30.b\n"
-            ".inst 0x451598b6  // smmla z22.s, z5.b, z21.b\n"
-            "ld1rqb { z5.b }, p1/Z, [x28, #112]\n"
-            "add x28, x28, #0x88\n"
-            ".inst 0x45049872  // smmla z18.s, z3.b, z4.b\n"
-            ".inst 0x45119867  // smmla z7.s, z3.b, z17.b\n"
-            "ld1h { z3.s }, p0/Z, [x23]\n"
-            ".inst 0x450498a9  // smmla z9.s, z5.b, z4.b\n"
-            ".inst 0x451198b6  // smmla z22.s, z5.b, z17.b\n"
-            "fcvt z3.s, p1/m, z3.h\n"
-            "uzp1 z5.d, z18.d, z7.d\n"
-            "uzp2 z18.d, z18.d, z7.d\n"
-            "mov z3.q, z3.q[0]\n"
-            "uzp1 z7.d, z9.d, z22.d\n"
-            "uzp2 z22.d, z9.d, z22.d\n"
-            "fmul z9.s, z23.s, z3.s[0]\n"
-            "scvtf z5.s, p1/m, z5.s\n"
-            "scvtf z18.s, p1/m, z18.s\n"
-            "scvtf z7.s, p1/m, z7.s\n"
-            "scvtf z22.s, p1/m, z22.s\n"
-            "fmla z24.s, p1/M, z5.s, z9.s\n"
-            "ld1rqb { z5.b }, p1/Z, [x26]\n"
-            "fmul z9.s, z23.s, z3.s[1]\n"
-            "fmla z15.s, p1/M, z18.s, z9.s\n"
-            "ld1rqb { z18.b }, p1/Z, [x26, #16]\n"
-            "fmul z9.s, z23.s, z3.s[2]\n"
-            "fmul z3.s, z23.s, z3.s[3]\n"
-            "fmla z12.s, p1/M, z7.s, z9.s\n"
-            "mov z9.s, #0x0\n"
-            "ld1h { z7.s }, p0/Z, [x22]\n"
-            ".inst 0x451f98a9  // smmla z9.s, z5.b, z31.b\n"
-            "fmla z0.s, p1/M, z22.s, z3.s\n"
-            "mov z22.s, #0x0\n"
-            "ld1h { z3.s }, p0/Z, [x21]\n"
-            ".inst 0x450698b6  // smmla z22.s, z5.b, z6.b\n"
-            "ld1rqb { z5.b }, p1/Z, [x26, #32]\n"
-            "fcvt z7.s, p1/m, z7.h\n"
-            "fcvt z3.s, p1/m, z3.h\n"
-            ".inst 0x450e98a9  // smmla z9.s, z5.b, z14.b\n"
-            ".inst 0x450298b6  // smmla z22.s, z5.b, z2.b\n"
-            "ld1rqb { z5.b }, p1/Z, [x26, #64]\n"
-            "mov z7.q, z7.q[0]\n"
-            "mov z3.q, z3.q[0]\n"
-            ".inst 0x451e98a9  // smmla z9.s, z5.b, z30.b\n"
-            ".inst 0x451598b6  // smmla z22.s, z5.b, z21.b\n"
-            "ld1rqb { z5.b }, p1/Z, [x26, #96]\n"
-            ".inst 0x450498a9  // smmla z9.s, z5.b, z4.b\n"
-            ".inst 0x451198b6  // smmla z22.s, z5.b, z17.b\n"
-            "uzp1 z5.d, z9.d, z22.d\n"
-            "scvtf z5.s, p1/m, z5.s\n"
-            "uzp2 z22.d, z9.d, z22.d\n"
-            "fmul z9.s, z23.s, z7.s[0]\n"
-            "scvtf z22.s, p1/m, z22.s\n"
-            "fmla z13.s, p1/M, z5.s, z9.s\n"
-            "ld1rqb { z9.b }, p1/Z, [x25]\n"
-            "fmul z5.s, z23.s, z7.s[1]\n"
-            "fmla z1.s, p1/M, z22.s, z5.s\n"
-            "mov z5.s, #0x0\n"
-            "mov z22.s, #0x0\n"
-            ".inst 0x451f9a45  // smmla z5.s, z18.b, z31.b\n"
-            ".inst 0x45069a56  // smmla z22.s, z18.b, z6.b\n"
-            "ld1rqb { z18.b }, p1/Z, [x26, #48]\n"
-            ".inst 0x450e9a45  // smmla z5.s, z18.b, z14.b\n"
-            ".inst 0x45029a56  // smmla z22.s, z18.b, z2.b\n"
-            "ld1rqb { z18.b }, p1/Z, [x26, #80]\n"
-            ".inst 0x451e9a45  // smmla z5.s, z18.b, z30.b\n"
-            ".inst 0x45159a56  // smmla z22.s, z18.b, z21.b\n"
-            "ld1rqb { z18.b }, p1/Z, [x26, #112]\n"
-            "add x26, x26, #0x88\n"
-            ".inst 0x45049a45  // smmla z5.s, z18.b, z4.b\n"
-            ".inst 0x45119a56  // smmla z22.s, z18.b, z17.b\n"
-            "uzp1 z18.d, z5.d, z22.d\n"
-            "scvtf z18.s, p1/m, z18.s\n"
-            "uzp2 z22.d, z5.d, z22.d\n"
-            "fmul z5.s, z23.s, z7.s[2]\n"
-            "fmul z7.s, z23.s, z7.s[3]\n"
-            "scvtf z22.s, p1/m, z22.s\n"
-            "fmla z20.s, p1/M, z18.s, z5.s\n"
-            "ld1rqb { z18.b }, p1/Z, [x25, #16]\n"
-            "ld1h { z5.s }, p0/Z, [x20]\n"
-            "fcvt z5.s, p1/m, z5.h\n"
-            "fmla z25.s, p1/M, z22.s, z7.s\n"
-            "mov z22.s, #0x0\n"
-            "mov z7.s, #0x0\n"
-            ".inst 0x451f9936  // smmla z22.s, z9.b, z31.b\n"
-            ".inst 0x45069927  // smmla z7.s, z9.b, z6.b\n"
-            "ld1rqb { z9.b }, p1/Z, [x25, #32]\n"
-            "mov z5.q, z5.q[0]\n"
-            ".inst 0x450e9936  // smmla z22.s, z9.b, z14.b\n"
-            ".inst 0x45029927  // smmla z7.s, z9.b, z2.b\n"
-            "ld1rqb { z9.b }, p1/Z, [x25, #64]\n"
-            ".inst 0x451e9936  // smmla z22.s, z9.b, z30.b\n"
-            ".inst 0x45159927  // smmla z7.s, z9.b, z21.b\n"
-            "ld1rqb { z9.b }, p1/Z, [x25, #96]\n"
-            ".inst 0x45049936  // smmla z22.s, z9.b, z4.b\n"
-            ".inst 0x45119927  // smmla z7.s, z9.b, z17.b\n"
-            "uzp1 z9.d, z22.d, z7.d\n"
-            "scvtf z9.s, p1/m, z9.s\n"
-            "uzp2 z22.d, z22.d, z7.d\n"
-            "fmul z7.s, z23.s, z3.s[0]\n"
-            "scvtf z22.s, p1/m, z22.s\n"
-            "fmla z11.s, p1/M, z9.s, z7.s\n"
-            "ld1rqb { z9.b }, p1/Z, [x24]\n"
-            "fmul z7.s, z23.s, z3.s[1]\n"
-            "fmla z16.s, p1/M, z22.s, z7.s\n"
-            "mov z22.s, #0x0\n"
-            "mov z7.s, #0x0\n"
-            ".inst 0x451f9a56  // smmla z22.s, z18.b, z31.b\n"
-            ".inst 0x45069a47  // smmla z7.s, z18.b, z6.b\n"
-            "ld1rqb { z18.b }, p1/Z, [x25, #48]\n"
-            ".inst 0x450e9a56  // smmla z22.s, z18.b, z14.b\n"
-            ".inst 0x45029a47  // smmla z7.s, z18.b, z2.b\n"
-            "ld1rqb { z18.b }, p1/Z, [x25, #80]\n"
-            ".inst 0x451e9a56  // smmla z22.s, z18.b, z30.b\n"
-            ".inst 0x45159a47  // smmla z7.s, z18.b, z21.b\n"
-            "ld1rqb { z18.b }, p1/Z, [x25, #112]\n"
-            "add x25, x25, #0x88\n"
-            ".inst 0x45049a56  // smmla z22.s, z18.b, z4.b\n"
-            ".inst 0x45119a47  // smmla z7.s, z18.b, z17.b\n"
-            "uzp1 z18.d, z22.d, z7.d\n"
-            "scvtf z18.s, p1/m, z18.s\n"
-            "uzp2 z7.d, z22.d, z7.d\n"
-            "fmul z22.s, z23.s, z3.s[2]\n"
-            "fmul z3.s, z23.s, z3.s[3]\n"
-            "scvtf z7.s, p1/m, z7.s\n"
-            "fmla z19.s, p1/M, z18.s, z22.s\n"
-            "ld1rqb { z18.b }, p1/Z, [x24, #16]\n"
-            "fmul z22.s, z23.s, z5.s[0]\n"
-            "fmla z26.s, p1/M, z7.s, z3.s\n"
-            "mov z3.s, #0x0\n"
-            "mov z7.s, #0x0\n"
-            ".inst 0x451f9923  // smmla z3.s, z9.b, z31.b\n"
-            ".inst 0x45069927  // smmla z7.s, z9.b, z6.b\n"
-            "ld1rqb { z9.b }, p1/Z, [x24, #32]\n"
-            ".inst 0x450e9923  // smmla z3.s, z9.b, z14.b\n"
-            ".inst 0x45029927  // smmla z7.s, z9.b, z2.b\n"
-            "mov z9.s, #0x0\n"
-            ".inst 0x451f9a49  // smmla z9.s, z18.b, z31.b\n"
-            "mov z31.s, #0x0\n"
-            ".inst 0x45069a5f  // smmla z31.s, z18.b, z6.b\n"
-            "ld1rqb { z6.b }, p1/Z, [x24, #48]\n"
-            "ld1rqb { z18.b }, p1/Z, [x24, #64]\n"
-            ".inst 0x450e98c9  // smmla z9.s, z6.b, z14.b\n"
-            "fmul z14.s, z23.s, z5.s[1]\n"
-            ".inst 0x450298df  // smmla z31.s, z6.b, z2.b\n"
-            "ld1rqb { z6.b }, p1/Z, [x24, #80]\n"
-            "fmul z2.s, z23.s, z5.s[2]\n"
-            "fmul z23.s, z23.s, z5.s[3]\n"
-            ".inst 0x451e9a43  // smmla z3.s, z18.b, z30.b\n"
-            ".inst 0x45159a47  // smmla z7.s, z18.b, z21.b\n"
-            "ld1rqb { z5.b }, p1/Z, [x24, #96]\n"
-            ".inst 0x451e98c9  // smmla z9.s, z6.b, z30.b\n"
-            ".inst 0x451598df  // smmla z31.s, z6.b, z21.b\n"
-            "ld1rqb { z18.b }, p1/Z, [x24, #112]\n"
-            "add x24, x24, #0x88\n"
-            ".inst 0x450498a3  // smmla z3.s, z5.b, z4.b\n"
-            ".inst 0x451198a7  // smmla z7.s, z5.b, z17.b\n"
-            ".inst 0x45049a49  // smmla z9.s, z18.b, z4.b\n"
-            ".inst 0x45119a5f  // smmla z31.s, z18.b, z17.b\n"
-            "uzp1 z18.d, z3.d, z7.d\n"
-            "uzp2 z5.d, z3.d, z7.d\n"
-            "scvtf z18.s, p1/m, z18.s\n"
-            "uzp1 z6.d, z9.d, z31.d\n"
-            "uzp2 z9.d, z9.d, z31.d\n"
-            "scvtf z5.s, p1/m, z5.s\n"
-            "fmla z8.s, p1/M, z18.s, z22.s\n"
-            "scvtf z6.s, p1/m, z6.s\n"
-            "scvtf z9.s, p1/m, z9.s\n"
-            "fmla z29.s, p1/M, z5.s, z14.s\n"
-            "fmla z27.s, p1/M, z6.s, z2.s\n"
-            "fmla z10.s, p1/M, z9.s, z23.s\n"
-            "bgt 3b\n"
-            "mov x20, %x[res_ptr]\n"
-            "subs x10, x10, #0x8\n"
-            "add %x[res_ptr], %x[res_ptr], #0x20\n"
-            "st1w { z24.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z15.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z12.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z0.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z13.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z1.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z20.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z25.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z11.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z16.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z19.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z26.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z8.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z29.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z27.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z10.s }, p1, [x20]\n"
-            "bne 2b\n"
-            "mov x20, #0x4\n"
-            "sub x13, x13, #0x10\n"
-            "cmp x13, #0x10\n"
-            "mov %x[res_ptr], x9\n"
-            "madd %x[a_ptr], x20, x12, %x[a_ptr]\n"
-            "bge 1b\n"
-            "4:" // Row loop skip
-            "cbz x13, 9f\n"
-            "5:" // Row tail: Row loop
-            "add x25, %x[b_ptr], #0x10\n"
-            "mov x24, %x[nc]\n"
-            "add x23, %x[res_ptr], %x[res_stride], LSL #2\n"
-            "6:" // Row tail: Column loop
-            "mov z24.b, #0x0\n"
-            "mov z15.b, #0x0\n"
-            "add x28, %x[a_ptr], #0x8\n"
-            "mov x22, %x[nb]\n"
-            "mov z12.b, #0x0\n"
-            "mov z0.b, #0x0\n"
-            "7:" // Row tail: Block loop
-            "ld1b { z3.b }, p1/Z, [x25]\n"
-            "ld1b { z6.b }, p1/Z, [x25, #1, MUL VL]\n"
-            "mov z2.s, #0x0\n"
-            "mov z25.s, #0x0\n"
-            "ld1rqb { z26.b }, p1/Z, [x28]\n"
-            "ld1rqb { z21.b }, p1/Z, [x28, #16]\n"
-            "mov z27.s, #0x0\n"
-            "mov z19.s, #0x0\n"
-            "ld1b { z29.b }, p1/Z, [x25, #2, MUL VL]\n"
-            "ld1b { z16.b }, p1/Z, [x25, #3, MUL VL]\n"
-            "sub x21, x25, #0x10\n"
-            "sub x20, x28, #0x8\n"
-            "lsl z20.b, z3.b, #0x4\n"
-            "lsl z4.b, z6.b, #0x4\n"
-            "ld1rqb { z10.b }, p1/Z, [x28, #32]\n"
-            "ld1rqb { z23.b }, p1/Z, [x28, #48]\n"
-            "and z3.b, z3.b, #0xf0\n"
-            "and z6.b, z6.b, #0xf0\n"
-            "ld1rqb { z11.b }, p1/Z, [x28, #64]\n"
-            "ld1rqb { z7.b }, p1/Z, [x28, #80]\n"
-            "lsl z8.b, z29.b, #0x4\n"
-            "lsl z14.b, z16.b, #0x4\n"
-            "ld1rqb { z18.b }, p1/Z, [x28, #96]\n"
-            "ld1rqb { z30.b }, p1/Z, [x28, #112]\n"
-            ".inst 0x45149b42  // smmla z2.s, z26.b, z20.b\n"
-            ".inst 0x45049b59  // smmla z25.s, z26.b, z4.b\n"
-            "and z29.b, z29.b, #0xf0\n"
-            "ld1h { z17.s }, p1/Z, [x21]\n"
-            ".inst 0x45149abb  // smmla z27.s, z21.b, z20.b\n"
-            ".inst 0x45049ab3  // smmla z19.s, z21.b, z4.b\n"
-            "and z16.b, z16.b, #0xf0\n"
-            "ld1h { z4.s }, p0/Z, [x20]\n"
-            "subs x22, x22, #0x1\n"
-            "add x28, x28, #0x88\n"
-            "fcvt z17.s, p1/m, z17.h\n"
-            "add x25, x25, #0x90\n"
-            ".inst 0x45089942  // smmla z2.s, z10.b, z8.b\n"
-            ".inst 0x450e9959  // smmla z25.s, z10.b, z14.b\n"
-            "fcvt z4.s, p1/m, z4.h\n"
-            ".inst 0x45089afb  // smmla z27.s, z23.b, z8.b\n"
-            ".inst 0x450e9af3  // smmla z19.s, z23.b, z14.b\n"
-            "fscale z17.s, p1/m, z17.s, z28.s\n"
-            "mov z4.q, z4.q[0]\n"
-            ".inst 0x45039962  // smmla z2.s, z11.b, z3.b\n"
-            ".inst 0x45069979  // smmla z25.s, z11.b, z6.b\n"
-            "fmul z23.s, z17.s, z4.s[0]\n"
-            "fmul z9.s, z17.s, z4.s[1]\n"
-            "fmul z21.s, z17.s, z4.s[2]\n"
-            "fmul z4.s, z17.s, z4.s[3]\n"
-            ".inst 0x450398fb  // smmla z27.s, z7.b, z3.b\n"
-            ".inst 0x450698f3  // smmla z19.s, z7.b, z6.b\n"
-            ".inst 0x451d9a42  // smmla z2.s, z18.b, z29.b\n"
-            ".inst 0x45109a59  // smmla z25.s, z18.b, z16.b\n"
-            ".inst 0x451d9bdb  // smmla z27.s, z30.b, z29.b\n"
-            ".inst 0x45109bd3  // smmla z19.s, z30.b, z16.b\n"
-            "uzp1 z31.d, z2.d, z25.d\n"
-            "uzp2 z13.d, z2.d, z25.d\n"
-            "scvtf z31.s, p1/m, z31.s\n"
-            "uzp1 z17.d, z27.d, z19.d\n"
-            "uzp2 z18.d, z27.d, z19.d\n"
-            "scvtf z13.s, p1/m, z13.s\n"
-            "fmla z24.s, p1/M, z31.s, z23.s\n"
-            "scvtf z17.s, p1/m, z17.s\n"
-            "scvtf z18.s, p1/m, z18.s\n"
-            "fmla z15.s, p1/M, z13.s, z9.s\n"
-            "fmla z12.s, p1/M, z17.s, z21.s\n"
-            "fmla z0.s, p1/M, z18.s, z4.s\n"
-            "bgt 7b\n"
-            "mov x20, %x[res_ptr]\n"
-            "cmp x13, #0x1\n"
-            "st1w { z24.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "ble 8f\n"
-            "cmp x13, #0x2\n"
-            "st1w { z15.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "ble 8f\n"
-            "cmp x13, #0x3\n"
-            "st1w { z12.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "ble 8f\n"
-            "st1w { z0.s }, p1, [x20]\n"
-            "8:" // Row tail: Accumulator store skip
-            "subs x24, x24, #0x8\n"
-            "add %x[res_ptr], %x[res_ptr], #0x20\n"
-            "bne 6b\n"
-            "subs x13, x13, #0x4\n"
-            "add %x[a_ptr], %x[a_ptr], x12\n"
-            "mov %x[res_ptr], x23\n"
-            "bgt 5b\n"
-            "9:" // Row tail: Row loop skip
-            : [a_ptr] "+&r"(a_ptr), [res_ptr] "+&r"(res_ptr)
-            : [b_ptr] "r"(b_ptr), [nr] "r"(nr), [nb] "r"(nb), [res_stride] "r"(res_stride), [nc] "r"(nc)
-            : "cc", "memory", "p0", "p1", "x9", "x10", "x11", "x12", "x13", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "z0", "z1", "z2", "z3", "z4", "z5", "z6", "z7", "z8", "z9", "z10", "z11", "z12", "z13", "z14", "z15", "z16", "z17", "z18", "z19", "z20", "z21", "z22", "z23", "z24", "z25", "z26", "z27", "z28", "z29", "z30", "z31");
+        __asm__ __volatile__("mov x20, #0x4\n"
+                             "mov x13, %x[nr]\n"
+                             "mov z28.s, #-0x4\n"
+                             "mov x12, #0x88\n"
+                             "ptrue p1.b\n"
+                             "whilelt p0.s, XZR, x20\n"
+                             "cmp x13, #0x10\n"
+                             "mul x12, %x[nb], x12\n"
+                             "blt 4f\n"
+                             "1:" // Row loop
+                             "add x11, %x[b_ptr], #0x10\n"
+                             "mov x10, %x[nc]\n"
+                             "add x9, %x[res_ptr], %x[res_stride], LSL #4\n"
+                             "2:" // Column loop
+                             "add x28, %x[a_ptr], #0x8\n"
+                             "mov z24.b, #0x0\n"
+                             "mov z15.b, #0x0\n"
+                             "mov x27, %x[nb]\n"
+                             "add x26, x28, x12\n"
+                             "mov z12.b, #0x0\n"
+                             "mov z0.b, #0x0\n"
+                             "add x25, x26, x12\n"
+                             "mov z13.b, #0x0\n"
+                             "mov z1.b, #0x0\n"
+                             "add x24, x25, x12\n"
+                             "mov z20.b, #0x0\n"
+                             "mov z25.b, #0x0\n"
+                             "mov z11.b, #0x0\n"
+                             "mov z16.b, #0x0\n"
+                             "mov z19.b, #0x0\n"
+                             "mov z26.b, #0x0\n"
+                             "mov z8.b, #0x0\n"
+                             "mov z29.b, #0x0\n"
+                             "mov z27.b, #0x0\n"
+                             "mov z10.b, #0x0\n"
+                             "3:" // Block loop
+                             "ld1b { z30.b }, p1/Z, [x11]\n"
+                             "ld1b { z21.b }, p1/Z, [x11, #1, MUL VL]\n"
+                             "mov z18.s, #0x0\n"
+                             "mov z7.s, #0x0\n"
+                             "ld1rqb { z3.b }, p1/Z, [x28]\n"
+                             "ld1rqb { z5.b }, p1/Z, [x28, #16]\n"
+                             "mov z9.s, #0x0\n"
+                             "mov z22.s, #0x0\n"
+                             "ld1b { z4.b }, p1/Z, [x11, #2, MUL VL]\n"
+                             "ld1b { z17.b }, p1/Z, [x11, #3, MUL VL]\n"
+                             "sub x20, x11, #0x10\n"
+                             "sub x23, x28, #0x8\n"
+                             "lsl z31.b, z30.b, #0x4\n"
+                             "lsl z6.b, z21.b, #0x4\n"
+                             "ld1h { z23.s }, p1/Z, [x20]\n"
+                             "sub x22, x26, #0x8\n"
+                             "and z30.b, z30.b, #0xf0\n"
+                             "and z21.b, z21.b, #0xf0\n"
+                             "sub x21, x25, #0x8\n"
+                             "sub x20, x24, #0x8\n"
+                             "lsl z14.b, z4.b, #0x4\n"
+                             "lsl z2.b, z17.b, #0x4\n"
+                             "subs x27, x27, #0x1\n"
+                             "add x11, x11, #0x90\n"
+                             ".inst 0x451f9872  // smmla z18.s, z3.b, z31.b\n"
+                             ".inst 0x45069867  // smmla z7.s, z3.b, z6.b\n"
+                             "ld1rqb { z3.b }, p1/Z, [x28, #32]\n"
+                             "and z4.b, z4.b, #0xf0\n"
+                             ".inst 0x451f98a9  // smmla z9.s, z5.b, z31.b\n"
+                             ".inst 0x450698b6  // smmla z22.s, z5.b, z6.b\n"
+                             "ld1rqb { z5.b }, p1/Z, [x28, #48]\n"
+                             "and z17.b, z17.b, #0xf0\n"
+                             "fcvt z23.s, p1/m, z23.h\n"
+                             ".inst 0x450e9872  // smmla z18.s, z3.b, z14.b\n"
+                             ".inst 0x45029867  // smmla z7.s, z3.b, z2.b\n"
+                             "ld1rqb { z3.b }, p1/Z, [x28, #64]\n"
+                             ".inst 0x450e98a9  // smmla z9.s, z5.b, z14.b\n"
+                             ".inst 0x450298b6  // smmla z22.s, z5.b, z2.b\n"
+                             "ld1rqb { z5.b }, p1/Z, [x28, #80]\n"
+                             "fscale z23.s, p1/m, z23.s, z28.s\n"
+                             ".inst 0x451e9872  // smmla z18.s, z3.b, z30.b\n"
+                             ".inst 0x45159867  // smmla z7.s, z3.b, z21.b\n"
+                             "ld1rqb { z3.b }, p1/Z, [x28, #96]\n"
+                             ".inst 0x451e98a9  // smmla z9.s, z5.b, z30.b\n"
+                             ".inst 0x451598b6  // smmla z22.s, z5.b, z21.b\n"
+                             "ld1rqb { z5.b }, p1/Z, [x28, #112]\n"
+                             "add x28, x28, #0x88\n"
+                             ".inst 0x45049872  // smmla z18.s, z3.b, z4.b\n"
+                             ".inst 0x45119867  // smmla z7.s, z3.b, z17.b\n"
+                             "ld1h { z3.s }, p0/Z, [x23]\n"
+                             ".inst 0x450498a9  // smmla z9.s, z5.b, z4.b\n"
+                             ".inst 0x451198b6  // smmla z22.s, z5.b, z17.b\n"
+                             "fcvt z3.s, p1/m, z3.h\n"
+                             "uzp1 z5.d, z18.d, z7.d\n"
+                             "uzp2 z18.d, z18.d, z7.d\n"
+                             "mov z3.q, z3.q[0]\n"
+                             "uzp1 z7.d, z9.d, z22.d\n"
+                             "uzp2 z22.d, z9.d, z22.d\n"
+                             "fmul z9.s, z23.s, z3.s[0]\n"
+                             "scvtf z5.s, p1/m, z5.s\n"
+                             "scvtf z18.s, p1/m, z18.s\n"
+                             "scvtf z7.s, p1/m, z7.s\n"
+                             "scvtf z22.s, p1/m, z22.s\n"
+                             "fmla z24.s, p1/M, z5.s, z9.s\n"
+                             "ld1rqb { z5.b }, p1/Z, [x26]\n"
+                             "fmul z9.s, z23.s, z3.s[1]\n"
+                             "fmla z15.s, p1/M, z18.s, z9.s\n"
+                             "ld1rqb { z18.b }, p1/Z, [x26, #16]\n"
+                             "fmul z9.s, z23.s, z3.s[2]\n"
+                             "fmul z3.s, z23.s, z3.s[3]\n"
+                             "fmla z12.s, p1/M, z7.s, z9.s\n"
+                             "mov z9.s, #0x0\n"
+                             "ld1h { z7.s }, p0/Z, [x22]\n"
+                             ".inst 0x451f98a9  // smmla z9.s, z5.b, z31.b\n"
+                             "fmla z0.s, p1/M, z22.s, z3.s\n"
+                             "mov z22.s, #0x0\n"
+                             "ld1h { z3.s }, p0/Z, [x21]\n"
+                             ".inst 0x450698b6  // smmla z22.s, z5.b, z6.b\n"
+                             "ld1rqb { z5.b }, p1/Z, [x26, #32]\n"
+                             "fcvt z7.s, p1/m, z7.h\n"
+                             "fcvt z3.s, p1/m, z3.h\n"
+                             ".inst 0x450e98a9  // smmla z9.s, z5.b, z14.b\n"
+                             ".inst 0x450298b6  // smmla z22.s, z5.b, z2.b\n"
+                             "ld1rqb { z5.b }, p1/Z, [x26, #64]\n"
+                             "mov z7.q, z7.q[0]\n"
+                             "mov z3.q, z3.q[0]\n"
+                             ".inst 0x451e98a9  // smmla z9.s, z5.b, z30.b\n"
+                             ".inst 0x451598b6  // smmla z22.s, z5.b, z21.b\n"
+                             "ld1rqb { z5.b }, p1/Z, [x26, #96]\n"
+                             ".inst 0x450498a9  // smmla z9.s, z5.b, z4.b\n"
+                             ".inst 0x451198b6  // smmla z22.s, z5.b, z17.b\n"
+                             "uzp1 z5.d, z9.d, z22.d\n"
+                             "scvtf z5.s, p1/m, z5.s\n"
+                             "uzp2 z22.d, z9.d, z22.d\n"
+                             "fmul z9.s, z23.s, z7.s[0]\n"
+                             "scvtf z22.s, p1/m, z22.s\n"
+                             "fmla z13.s, p1/M, z5.s, z9.s\n"
+                             "ld1rqb { z9.b }, p1/Z, [x25]\n"
+                             "fmul z5.s, z23.s, z7.s[1]\n"
+                             "fmla z1.s, p1/M, z22.s, z5.s\n"
+                             "mov z5.s, #0x0\n"
+                             "mov z22.s, #0x0\n"
+                             ".inst 0x451f9a45  // smmla z5.s, z18.b, z31.b\n"
+                             ".inst 0x45069a56  // smmla z22.s, z18.b, z6.b\n"
+                             "ld1rqb { z18.b }, p1/Z, [x26, #48]\n"
+                             ".inst 0x450e9a45  // smmla z5.s, z18.b, z14.b\n"
+                             ".inst 0x45029a56  // smmla z22.s, z18.b, z2.b\n"
+                             "ld1rqb { z18.b }, p1/Z, [x26, #80]\n"
+                             ".inst 0x451e9a45  // smmla z5.s, z18.b, z30.b\n"
+                             ".inst 0x45159a56  // smmla z22.s, z18.b, z21.b\n"
+                             "ld1rqb { z18.b }, p1/Z, [x26, #112]\n"
+                             "add x26, x26, #0x88\n"
+                             ".inst 0x45049a45  // smmla z5.s, z18.b, z4.b\n"
+                             ".inst 0x45119a56  // smmla z22.s, z18.b, z17.b\n"
+                             "uzp1 z18.d, z5.d, z22.d\n"
+                             "scvtf z18.s, p1/m, z18.s\n"
+                             "uzp2 z22.d, z5.d, z22.d\n"
+                             "fmul z5.s, z23.s, z7.s[2]\n"
+                             "fmul z7.s, z23.s, z7.s[3]\n"
+                             "scvtf z22.s, p1/m, z22.s\n"
+                             "fmla z20.s, p1/M, z18.s, z5.s\n"
+                             "ld1rqb { z18.b }, p1/Z, [x25, #16]\n"
+                             "ld1h { z5.s }, p0/Z, [x20]\n"
+                             "fcvt z5.s, p1/m, z5.h\n"
+                             "fmla z25.s, p1/M, z22.s, z7.s\n"
+                             "mov z22.s, #0x0\n"
+                             "mov z7.s, #0x0\n"
+                             ".inst 0x451f9936  // smmla z22.s, z9.b, z31.b\n"
+                             ".inst 0x45069927  // smmla z7.s, z9.b, z6.b\n"
+                             "ld1rqb { z9.b }, p1/Z, [x25, #32]\n"
+                             "mov z5.q, z5.q[0]\n"
+                             ".inst 0x450e9936  // smmla z22.s, z9.b, z14.b\n"
+                             ".inst 0x45029927  // smmla z7.s, z9.b, z2.b\n"
+                             "ld1rqb { z9.b }, p1/Z, [x25, #64]\n"
+                             ".inst 0x451e9936  // smmla z22.s, z9.b, z30.b\n"
+                             ".inst 0x45159927  // smmla z7.s, z9.b, z21.b\n"
+                             "ld1rqb { z9.b }, p1/Z, [x25, #96]\n"
+                             ".inst 0x45049936  // smmla z22.s, z9.b, z4.b\n"
+                             ".inst 0x45119927  // smmla z7.s, z9.b, z17.b\n"
+                             "uzp1 z9.d, z22.d, z7.d\n"
+                             "scvtf z9.s, p1/m, z9.s\n"
+                             "uzp2 z22.d, z22.d, z7.d\n"
+                             "fmul z7.s, z23.s, z3.s[0]\n"
+                             "scvtf z22.s, p1/m, z22.s\n"
+                             "fmla z11.s, p1/M, z9.s, z7.s\n"
+                             "ld1rqb { z9.b }, p1/Z, [x24]\n"
+                             "fmul z7.s, z23.s, z3.s[1]\n"
+                             "fmla z16.s, p1/M, z22.s, z7.s\n"
+                             "mov z22.s, #0x0\n"
+                             "mov z7.s, #0x0\n"
+                             ".inst 0x451f9a56  // smmla z22.s, z18.b, z31.b\n"
+                             ".inst 0x45069a47  // smmla z7.s, z18.b, z6.b\n"
+                             "ld1rqb { z18.b }, p1/Z, [x25, #48]\n"
+                             ".inst 0x450e9a56  // smmla z22.s, z18.b, z14.b\n"
+                             ".inst 0x45029a47  // smmla z7.s, z18.b, z2.b\n"
+                             "ld1rqb { z18.b }, p1/Z, [x25, #80]\n"
+                             ".inst 0x451e9a56  // smmla z22.s, z18.b, z30.b\n"
+                             ".inst 0x45159a47  // smmla z7.s, z18.b, z21.b\n"
+                             "ld1rqb { z18.b }, p1/Z, [x25, #112]\n"
+                             "add x25, x25, #0x88\n"
+                             ".inst 0x45049a56  // smmla z22.s, z18.b, z4.b\n"
+                             ".inst 0x45119a47  // smmla z7.s, z18.b, z17.b\n"
+                             "uzp1 z18.d, z22.d, z7.d\n"
+                             "scvtf z18.s, p1/m, z18.s\n"
+                             "uzp2 z7.d, z22.d, z7.d\n"
+                             "fmul z22.s, z23.s, z3.s[2]\n"
+                             "fmul z3.s, z23.s, z3.s[3]\n"
+                             "scvtf z7.s, p1/m, z7.s\n"
+                             "fmla z19.s, p1/M, z18.s, z22.s\n"
+                             "ld1rqb { z18.b }, p1/Z, [x24, #16]\n"
+                             "fmul z22.s, z23.s, z5.s[0]\n"
+                             "fmla z26.s, p1/M, z7.s, z3.s\n"
+                             "mov z3.s, #0x0\n"
+                             "mov z7.s, #0x0\n"
+                             ".inst 0x451f9923  // smmla z3.s, z9.b, z31.b\n"
+                             ".inst 0x45069927  // smmla z7.s, z9.b, z6.b\n"
+                             "ld1rqb { z9.b }, p1/Z, [x24, #32]\n"
+                             ".inst 0x450e9923  // smmla z3.s, z9.b, z14.b\n"
+                             ".inst 0x45029927  // smmla z7.s, z9.b, z2.b\n"
+                             "mov z9.s, #0x0\n"
+                             ".inst 0x451f9a49  // smmla z9.s, z18.b, z31.b\n"
+                             "mov z31.s, #0x0\n"
+                             ".inst 0x45069a5f  // smmla z31.s, z18.b, z6.b\n"
+                             "ld1rqb { z6.b }, p1/Z, [x24, #48]\n"
+                             "ld1rqb { z18.b }, p1/Z, [x24, #64]\n"
+                             ".inst 0x450e98c9  // smmla z9.s, z6.b, z14.b\n"
+                             "fmul z14.s, z23.s, z5.s[1]\n"
+                             ".inst 0x450298df  // smmla z31.s, z6.b, z2.b\n"
+                             "ld1rqb { z6.b }, p1/Z, [x24, #80]\n"
+                             "fmul z2.s, z23.s, z5.s[2]\n"
+                             "fmul z23.s, z23.s, z5.s[3]\n"
+                             ".inst 0x451e9a43  // smmla z3.s, z18.b, z30.b\n"
+                             ".inst 0x45159a47  // smmla z7.s, z18.b, z21.b\n"
+                             "ld1rqb { z5.b }, p1/Z, [x24, #96]\n"
+                             ".inst 0x451e98c9  // smmla z9.s, z6.b, z30.b\n"
+                             ".inst 0x451598df  // smmla z31.s, z6.b, z21.b\n"
+                             "ld1rqb { z18.b }, p1/Z, [x24, #112]\n"
+                             "add x24, x24, #0x88\n"
+                             ".inst 0x450498a3  // smmla z3.s, z5.b, z4.b\n"
+                             ".inst 0x451198a7  // smmla z7.s, z5.b, z17.b\n"
+                             ".inst 0x45049a49  // smmla z9.s, z18.b, z4.b\n"
+                             ".inst 0x45119a5f  // smmla z31.s, z18.b, z17.b\n"
+                             "uzp1 z18.d, z3.d, z7.d\n"
+                             "uzp2 z5.d, z3.d, z7.d\n"
+                             "scvtf z18.s, p1/m, z18.s\n"
+                             "uzp1 z6.d, z9.d, z31.d\n"
+                             "uzp2 z9.d, z9.d, z31.d\n"
+                             "scvtf z5.s, p1/m, z5.s\n"
+                             "fmla z8.s, p1/M, z18.s, z22.s\n"
+                             "scvtf z6.s, p1/m, z6.s\n"
+                             "scvtf z9.s, p1/m, z9.s\n"
+                             "fmla z29.s, p1/M, z5.s, z14.s\n"
+                             "fmla z27.s, p1/M, z6.s, z2.s\n"
+                             "fmla z10.s, p1/M, z9.s, z23.s\n"
+                             "bgt 3b\n"
+                             "mov x20, %x[res_ptr]\n"
+                             "subs x10, x10, #0x8\n"
+                             "add %x[res_ptr], %x[res_ptr], #0x20\n"
+                             "st1w { z24.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z15.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z12.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z0.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z13.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z1.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z20.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z25.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z11.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z16.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z19.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z26.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z8.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z29.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z27.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z10.s }, p1, [x20]\n"
+                             "bne 2b\n"
+                             "mov x20, #0x4\n"
+                             "sub x13, x13, #0x10\n"
+                             "cmp x13, #0x10\n"
+                             "mov %x[res_ptr], x9\n"
+                             "madd %x[a_ptr], x20, x12, %x[a_ptr]\n"
+                             "bge 1b\n"
+                             "4:" // Row loop skip
+                             "cbz x13, 9f\n"
+                             "5:" // Row tail: Row loop
+                             "add x25, %x[b_ptr], #0x10\n"
+                             "mov x24, %x[nc]\n"
+                             "add x23, %x[res_ptr], %x[res_stride], LSL #2\n"
+                             "6:" // Row tail: Column loop
+                             "mov z24.b, #0x0\n"
+                             "mov z15.b, #0x0\n"
+                             "add x28, %x[a_ptr], #0x8\n"
+                             "mov x22, %x[nb]\n"
+                             "mov z12.b, #0x0\n"
+                             "mov z0.b, #0x0\n"
+                             "7:" // Row tail: Block loop
+                             "ld1b { z3.b }, p1/Z, [x25]\n"
+                             "ld1b { z6.b }, p1/Z, [x25, #1, MUL VL]\n"
+                             "mov z2.s, #0x0\n"
+                             "mov z25.s, #0x0\n"
+                             "ld1rqb { z26.b }, p1/Z, [x28]\n"
+                             "ld1rqb { z21.b }, p1/Z, [x28, #16]\n"
+                             "mov z27.s, #0x0\n"
+                             "mov z19.s, #0x0\n"
+                             "ld1b { z29.b }, p1/Z, [x25, #2, MUL VL]\n"
+                             "ld1b { z16.b }, p1/Z, [x25, #3, MUL VL]\n"
+                             "sub x21, x25, #0x10\n"
+                             "sub x20, x28, #0x8\n"
+                             "lsl z20.b, z3.b, #0x4\n"
+                             "lsl z4.b, z6.b, #0x4\n"
+                             "ld1rqb { z10.b }, p1/Z, [x28, #32]\n"
+                             "ld1rqb { z23.b }, p1/Z, [x28, #48]\n"
+                             "and z3.b, z3.b, #0xf0\n"
+                             "and z6.b, z6.b, #0xf0\n"
+                             "ld1rqb { z11.b }, p1/Z, [x28, #64]\n"
+                             "ld1rqb { z7.b }, p1/Z, [x28, #80]\n"
+                             "lsl z8.b, z29.b, #0x4\n"
+                             "lsl z14.b, z16.b, #0x4\n"
+                             "ld1rqb { z18.b }, p1/Z, [x28, #96]\n"
+                             "ld1rqb { z30.b }, p1/Z, [x28, #112]\n"
+                             ".inst 0x45149b42  // smmla z2.s, z26.b, z20.b\n"
+                             ".inst 0x45049b59  // smmla z25.s, z26.b, z4.b\n"
+                             "and z29.b, z29.b, #0xf0\n"
+                             "ld1h { z17.s }, p1/Z, [x21]\n"
+                             ".inst 0x45149abb  // smmla z27.s, z21.b, z20.b\n"
+                             ".inst 0x45049ab3  // smmla z19.s, z21.b, z4.b\n"
+                             "and z16.b, z16.b, #0xf0\n"
+                             "ld1h { z4.s }, p0/Z, [x20]\n"
+                             "subs x22, x22, #0x1\n"
+                             "add x28, x28, #0x88\n"
+                             "fcvt z17.s, p1/m, z17.h\n"
+                             "add x25, x25, #0x90\n"
+                             ".inst 0x45089942  // smmla z2.s, z10.b, z8.b\n"
+                             ".inst 0x450e9959  // smmla z25.s, z10.b, z14.b\n"
+                             "fcvt z4.s, p1/m, z4.h\n"
+                             ".inst 0x45089afb  // smmla z27.s, z23.b, z8.b\n"
+                             ".inst 0x450e9af3  // smmla z19.s, z23.b, z14.b\n"
+                             "fscale z17.s, p1/m, z17.s, z28.s\n"
+                             "mov z4.q, z4.q[0]\n"
+                             ".inst 0x45039962  // smmla z2.s, z11.b, z3.b\n"
+                             ".inst 0x45069979  // smmla z25.s, z11.b, z6.b\n"
+                             "fmul z23.s, z17.s, z4.s[0]\n"
+                             "fmul z9.s, z17.s, z4.s[1]\n"
+                             "fmul z21.s, z17.s, z4.s[2]\n"
+                             "fmul z4.s, z17.s, z4.s[3]\n"
+                             ".inst 0x450398fb  // smmla z27.s, z7.b, z3.b\n"
+                             ".inst 0x450698f3  // smmla z19.s, z7.b, z6.b\n"
+                             ".inst 0x451d9a42  // smmla z2.s, z18.b, z29.b\n"
+                             ".inst 0x45109a59  // smmla z25.s, z18.b, z16.b\n"
+                             ".inst 0x451d9bdb  // smmla z27.s, z30.b, z29.b\n"
+                             ".inst 0x45109bd3  // smmla z19.s, z30.b, z16.b\n"
+                             "uzp1 z31.d, z2.d, z25.d\n"
+                             "uzp2 z13.d, z2.d, z25.d\n"
+                             "scvtf z31.s, p1/m, z31.s\n"
+                             "uzp1 z17.d, z27.d, z19.d\n"
+                             "uzp2 z18.d, z27.d, z19.d\n"
+                             "scvtf z13.s, p1/m, z13.s\n"
+                             "fmla z24.s, p1/M, z31.s, z23.s\n"
+                             "scvtf z17.s, p1/m, z17.s\n"
+                             "scvtf z18.s, p1/m, z18.s\n"
+                             "fmla z15.s, p1/M, z13.s, z9.s\n"
+                             "fmla z12.s, p1/M, z17.s, z21.s\n"
+                             "fmla z0.s, p1/M, z18.s, z4.s\n"
+                             "bgt 7b\n"
+                             "mov x20, %x[res_ptr]\n"
+                             "cmp x13, #0x1\n"
+                             "st1w { z24.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "ble 8f\n"
+                             "cmp x13, #0x2\n"
+                             "st1w { z15.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "ble 8f\n"
+                             "cmp x13, #0x3\n"
+                             "st1w { z12.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "ble 8f\n"
+                             "st1w { z0.s }, p1, [x20]\n"
+                             "8:" // Row tail: Accumulator store skip
+                             "subs x24, x24, #0x8\n"
+                             "add %x[res_ptr], %x[res_ptr], #0x20\n"
+                             "bne 6b\n"
+                             "subs x13, x13, #0x4\n"
+                             "add %x[a_ptr], %x[a_ptr], x12\n"
+                             "mov %x[res_ptr], x23\n"
+                             "bgt 5b\n"
+                             "9:" // Row tail: Row loop skip
+                             : [a_ptr] "+&r"(a_ptr), [res_ptr] "+&r"(res_ptr)
+                             : [b_ptr] "r"(b_ptr), [nr] "r"(nr), [nb] "r"(nb),
+                               [res_stride] "r"(res_stride), [nc] "r"(nc)
+                             : "cc", "memory", "p0", "p1", "x9", "x10", "x11", "x12", "x13", "x20",
+                               "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "z0", "z1",
+                               "z2", "z3", "z4", "z5", "z6", "z7", "z8", "z9", "z10", "z11", "z12",
+                               "z13", "z14", "z15", "z16", "z17", "z18", "z19", "z20", "z21", "z22",
+                               "z23", "z24", "z25", "z26", "z27", "z28", "z29", "z30", "z31");
         return;
     } else if (mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) {
-        assert((mllm_cpu_has_sve() && (svcntw() == 8)) && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the Q4_0_4_8 quantization format for optimal "
-                                                          "performance");
+        assert((mllm_cpu_has_sve() && (svcntw() == 8))
+               && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the "
+                  "Q4_0_4_8 quantization format for optimal "
+                  "performance");
     } else if (mllm_cpu_has_neon()) {
-        assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8()) && "__ARM_FEATURE_SVE for vector size of 256-bits and __ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
-                                                                                          "quantization format for optimal performance");
+        assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8())
+               && "__ARM_FEATURE_SVE for vector size of 256-bits and "
+                  "__ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
+                  "quantization format for optimal performance");
     }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
-    assert(mllm_cpu_has_sve() && "__ARM_FEATURE_SVE not defined, use the Q4_0_4_8 quantization format for optimal performance");
+    assert(mllm_cpu_has_sve()
+           && "__ARM_FEATURE_SVE not defined, use the Q4_0_4_8 quantization format "
+              "for optimal performance");
 #elif defined(__ARM_NEON) && defined(__aarch64__)
-    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8()) && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 quantization format for optimal "
-                                                                 "performance");
+    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8())
+           && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the "
+              "Q4_0_4_4 quantization format for optimal "
+              "performance");
 #else
     float sumf[4][8];
     int sumi;
@@ -3537,11 +3732,20 @@ void mllm_gemm_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *
                         for (int j = 0; j < ncols_interleaved; j++) {
                             sumi = 0;
                             for (int i = 0; i < blocklen; ++i) {
-                                const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] << 4);
-                                const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] & 0xF0);
-                                sumi += ((v0 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i]) + (v1 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i + qk / 2 * 4])) >> 4;
+                                const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen
+                                                                    + j * blocklen + i]
+                                                        << 4);
+                                const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen
+                                                                    + j * blocklen + i]
+                                                        & 0xF0);
+                                sumi += ((v0 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i])
+                                         + (v1
+                                            * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i
+                                                          + qk / 2 * 4]))
+                                        >> 4;
                             }
-                            sumf[m][j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d[m]);
+                            sumf[m][j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j])
+                                          * MLLM_FP16_TO_FP32(a_ptr[l].d[m]);
                         }
                     }
                 }
@@ -3555,7 +3759,9 @@ void mllm_gemm_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *
 #endif
 }
 
-void _mllm_gemm_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx, const void *__restrict vy, int nr, int nc, const void *__restrict bias) {
+void _mllm_gemm_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                                   const void *__restrict vy, int nr, int nc,
+                                   const void *__restrict bias) {
     const int qk = QK8_0;
     const int nb = n / qk;
     const int ncols_interleaved = 8;
@@ -3583,421 +3789,433 @@ void _mllm_gemm_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
         float *res_ptr = s;
         size_t res_stride = bs * sizeof(float);
 
-        __asm__ __volatile__(
-            "mov x20, #0x4\n"
-            "mov x13, %x[nr]\n"
-            "mov z28.s, #-0x4\n"
-            "mov x12, #0x88\n"
-            "ptrue p1.b\n"
-            "whilelt p0.s, XZR, x20\n"
-            "cmp x13, #0x10\n"
-            "mul x12, %x[nb], x12\n"
-            "blt 4f\n"
-            "1:" // Row loop
-            "add x11, %x[b_ptr], #0x10\n"
-            "mov x10, %x[nc]\n"
-            "add x9, %x[res_ptr], %x[res_stride], LSL #4\n"
-            "2:" // Column loop
-            "add x28, %x[a_ptr], #0x8\n"
-            "mov z24.b, #0x0\n"
-            "mov z15.b, #0x0\n"
-            "mov x27, %x[nb]\n"
-            "add x26, x28, x12\n"
-            "mov z12.b, #0x0\n"
-            "mov z0.b, #0x0\n"
-            "add x25, x26, x12\n"
-            "mov z13.b, #0x0\n"
-            "mov z1.b, #0x0\n"
-            "add x24, x25, x12\n"
-            "mov z20.b, #0x0\n"
-            "mov z25.b, #0x0\n"
-            "mov z11.b, #0x0\n"
-            "mov z16.b, #0x0\n"
-            "mov z19.b, #0x0\n"
-            "mov z26.b, #0x0\n"
-            "mov z8.b, #0x0\n"
-            "mov z29.b, #0x0\n"
-            "mov z27.b, #0x0\n"
-            "mov z10.b, #0x0\n"
-            "3:" // Block loop
-            "ld1b { z30.b }, p1/Z, [x11]\n"
-            "ld1b { z21.b }, p1/Z, [x11, #1, MUL VL]\n"
-            "mov z18.s, #0x0\n"
-            "mov z7.s, #0x0\n"
-            "ld1rqb { z3.b }, p1/Z, [x28]\n"
-            "ld1rqb { z5.b }, p1/Z, [x28, #16]\n"
-            "mov z9.s, #0x0\n"
-            "mov z22.s, #0x0\n"
-            "ld1b { z4.b }, p1/Z, [x11, #2, MUL VL]\n"
-            "ld1b { z17.b }, p1/Z, [x11, #3, MUL VL]\n"
-            "sub x20, x11, #0x10\n"
-            "sub x23, x28, #0x8\n"
-            "lsl z31.b, z30.b, #0x4\n"
-            "lsl z6.b, z21.b, #0x4\n"
-            "ld1h { z23.s }, p1/Z, [x20]\n"
-            "sub x22, x26, #0x8\n"
-            "and z30.b, z30.b, #0xf0\n"
-            "and z21.b, z21.b, #0xf0\n"
-            "sub x21, x25, #0x8\n"
-            "sub x20, x24, #0x8\n"
-            "lsl z14.b, z4.b, #0x4\n"
-            "lsl z2.b, z17.b, #0x4\n"
-            "subs x27, x27, #0x1\n"
-            "add x11, x11, #0x90\n"
-            ".inst 0x451f9872  // smmla z18.s, z3.b, z31.b\n"
-            ".inst 0x45069867  // smmla z7.s, z3.b, z6.b\n"
-            "ld1rqb { z3.b }, p1/Z, [x28, #32]\n"
-            "and z4.b, z4.b, #0xf0\n"
-            ".inst 0x451f98a9  // smmla z9.s, z5.b, z31.b\n"
-            ".inst 0x450698b6  // smmla z22.s, z5.b, z6.b\n"
-            "ld1rqb { z5.b }, p1/Z, [x28, #48]\n"
-            "and z17.b, z17.b, #0xf0\n"
-            "fcvt z23.s, p1/m, z23.h\n"
-            ".inst 0x450e9872  // smmla z18.s, z3.b, z14.b\n"
-            ".inst 0x45029867  // smmla z7.s, z3.b, z2.b\n"
-            "ld1rqb { z3.b }, p1/Z, [x28, #64]\n"
-            ".inst 0x450e98a9  // smmla z9.s, z5.b, z14.b\n"
-            ".inst 0x450298b6  // smmla z22.s, z5.b, z2.b\n"
-            "ld1rqb { z5.b }, p1/Z, [x28, #80]\n"
-            "fscale z23.s, p1/m, z23.s, z28.s\n"
-            ".inst 0x451e9872  // smmla z18.s, z3.b, z30.b\n"
-            ".inst 0x45159867  // smmla z7.s, z3.b, z21.b\n"
-            "ld1rqb { z3.b }, p1/Z, [x28, #96]\n"
-            ".inst 0x451e98a9  // smmla z9.s, z5.b, z30.b\n"
-            ".inst 0x451598b6  // smmla z22.s, z5.b, z21.b\n"
-            "ld1rqb { z5.b }, p1/Z, [x28, #112]\n"
-            "add x28, x28, #0x88\n"
-            ".inst 0x45049872  // smmla z18.s, z3.b, z4.b\n"
-            ".inst 0x45119867  // smmla z7.s, z3.b, z17.b\n"
-            "ld1h { z3.s }, p0/Z, [x23]\n"
-            ".inst 0x450498a9  // smmla z9.s, z5.b, z4.b\n"
-            ".inst 0x451198b6  // smmla z22.s, z5.b, z17.b\n"
-            "fcvt z3.s, p1/m, z3.h\n"
-            "uzp1 z5.d, z18.d, z7.d\n"
-            "uzp2 z18.d, z18.d, z7.d\n"
-            "mov z3.q, z3.q[0]\n"
-            "uzp1 z7.d, z9.d, z22.d\n"
-            "uzp2 z22.d, z9.d, z22.d\n"
-            "fmul z9.s, z23.s, z3.s[0]\n"
-            "scvtf z5.s, p1/m, z5.s\n"
-            "scvtf z18.s, p1/m, z18.s\n"
-            "scvtf z7.s, p1/m, z7.s\n"
-            "scvtf z22.s, p1/m, z22.s\n"
-            "fmla z24.s, p1/M, z5.s, z9.s\n"
-            "ld1rqb { z5.b }, p1/Z, [x26]\n"
-            "fmul z9.s, z23.s, z3.s[1]\n"
-            "fmla z15.s, p1/M, z18.s, z9.s\n"
-            "ld1rqb { z18.b }, p1/Z, [x26, #16]\n"
-            "fmul z9.s, z23.s, z3.s[2]\n"
-            "fmul z3.s, z23.s, z3.s[3]\n"
-            "fmla z12.s, p1/M, z7.s, z9.s\n"
-            "mov z9.s, #0x0\n"
-            "ld1h { z7.s }, p0/Z, [x22]\n"
-            ".inst 0x451f98a9  // smmla z9.s, z5.b, z31.b\n"
-            "fmla z0.s, p1/M, z22.s, z3.s\n"
-            "mov z22.s, #0x0\n"
-            "ld1h { z3.s }, p0/Z, [x21]\n"
-            ".inst 0x450698b6  // smmla z22.s, z5.b, z6.b\n"
-            "ld1rqb { z5.b }, p1/Z, [x26, #32]\n"
-            "fcvt z7.s, p1/m, z7.h\n"
-            "fcvt z3.s, p1/m, z3.h\n"
-            ".inst 0x450e98a9  // smmla z9.s, z5.b, z14.b\n"
-            ".inst 0x450298b6  // smmla z22.s, z5.b, z2.b\n"
-            "ld1rqb { z5.b }, p1/Z, [x26, #64]\n"
-            "mov z7.q, z7.q[0]\n"
-            "mov z3.q, z3.q[0]\n"
-            ".inst 0x451e98a9  // smmla z9.s, z5.b, z30.b\n"
-            ".inst 0x451598b6  // smmla z22.s, z5.b, z21.b\n"
-            "ld1rqb { z5.b }, p1/Z, [x26, #96]\n"
-            ".inst 0x450498a9  // smmla z9.s, z5.b, z4.b\n"
-            ".inst 0x451198b6  // smmla z22.s, z5.b, z17.b\n"
-            "uzp1 z5.d, z9.d, z22.d\n"
-            "scvtf z5.s, p1/m, z5.s\n"
-            "uzp2 z22.d, z9.d, z22.d\n"
-            "fmul z9.s, z23.s, z7.s[0]\n"
-            "scvtf z22.s, p1/m, z22.s\n"
-            "fmla z13.s, p1/M, z5.s, z9.s\n"
-            "ld1rqb { z9.b }, p1/Z, [x25]\n"
-            "fmul z5.s, z23.s, z7.s[1]\n"
-            "fmla z1.s, p1/M, z22.s, z5.s\n"
-            "mov z5.s, #0x0\n"
-            "mov z22.s, #0x0\n"
-            ".inst 0x451f9a45  // smmla z5.s, z18.b, z31.b\n"
-            ".inst 0x45069a56  // smmla z22.s, z18.b, z6.b\n"
-            "ld1rqb { z18.b }, p1/Z, [x26, #48]\n"
-            ".inst 0x450e9a45  // smmla z5.s, z18.b, z14.b\n"
-            ".inst 0x45029a56  // smmla z22.s, z18.b, z2.b\n"
-            "ld1rqb { z18.b }, p1/Z, [x26, #80]\n"
-            ".inst 0x451e9a45  // smmla z5.s, z18.b, z30.b\n"
-            ".inst 0x45159a56  // smmla z22.s, z18.b, z21.b\n"
-            "ld1rqb { z18.b }, p1/Z, [x26, #112]\n"
-            "add x26, x26, #0x88\n"
-            ".inst 0x45049a45  // smmla z5.s, z18.b, z4.b\n"
-            ".inst 0x45119a56  // smmla z22.s, z18.b, z17.b\n"
-            "uzp1 z18.d, z5.d, z22.d\n"
-            "scvtf z18.s, p1/m, z18.s\n"
-            "uzp2 z22.d, z5.d, z22.d\n"
-            "fmul z5.s, z23.s, z7.s[2]\n"
-            "fmul z7.s, z23.s, z7.s[3]\n"
-            "scvtf z22.s, p1/m, z22.s\n"
-            "fmla z20.s, p1/M, z18.s, z5.s\n"
-            "ld1rqb { z18.b }, p1/Z, [x25, #16]\n"
-            "ld1h { z5.s }, p0/Z, [x20]\n"
-            "fcvt z5.s, p1/m, z5.h\n"
-            "fmla z25.s, p1/M, z22.s, z7.s\n"
-            "mov z22.s, #0x0\n"
-            "mov z7.s, #0x0\n"
-            ".inst 0x451f9936  // smmla z22.s, z9.b, z31.b\n"
-            ".inst 0x45069927  // smmla z7.s, z9.b, z6.b\n"
-            "ld1rqb { z9.b }, p1/Z, [x25, #32]\n"
-            "mov z5.q, z5.q[0]\n"
-            ".inst 0x450e9936  // smmla z22.s, z9.b, z14.b\n"
-            ".inst 0x45029927  // smmla z7.s, z9.b, z2.b\n"
-            "ld1rqb { z9.b }, p1/Z, [x25, #64]\n"
-            ".inst 0x451e9936  // smmla z22.s, z9.b, z30.b\n"
-            ".inst 0x45159927  // smmla z7.s, z9.b, z21.b\n"
-            "ld1rqb { z9.b }, p1/Z, [x25, #96]\n"
-            ".inst 0x45049936  // smmla z22.s, z9.b, z4.b\n"
-            ".inst 0x45119927  // smmla z7.s, z9.b, z17.b\n"
-            "uzp1 z9.d, z22.d, z7.d\n"
-            "scvtf z9.s, p1/m, z9.s\n"
-            "uzp2 z22.d, z22.d, z7.d\n"
-            "fmul z7.s, z23.s, z3.s[0]\n"
-            "scvtf z22.s, p1/m, z22.s\n"
-            "fmla z11.s, p1/M, z9.s, z7.s\n"
-            "ld1rqb { z9.b }, p1/Z, [x24]\n"
-            "fmul z7.s, z23.s, z3.s[1]\n"
-            "fmla z16.s, p1/M, z22.s, z7.s\n"
-            "mov z22.s, #0x0\n"
-            "mov z7.s, #0x0\n"
-            ".inst 0x451f9a56  // smmla z22.s, z18.b, z31.b\n"
-            ".inst 0x45069a47  // smmla z7.s, z18.b, z6.b\n"
-            "ld1rqb { z18.b }, p1/Z, [x25, #48]\n"
-            ".inst 0x450e9a56  // smmla z22.s, z18.b, z14.b\n"
-            ".inst 0x45029a47  // smmla z7.s, z18.b, z2.b\n"
-            "ld1rqb { z18.b }, p1/Z, [x25, #80]\n"
-            ".inst 0x451e9a56  // smmla z22.s, z18.b, z30.b\n"
-            ".inst 0x45159a47  // smmla z7.s, z18.b, z21.b\n"
-            "ld1rqb { z18.b }, p1/Z, [x25, #112]\n"
-            "add x25, x25, #0x88\n"
-            ".inst 0x45049a56  // smmla z22.s, z18.b, z4.b\n"
-            ".inst 0x45119a47  // smmla z7.s, z18.b, z17.b\n"
-            "uzp1 z18.d, z22.d, z7.d\n"
-            "scvtf z18.s, p1/m, z18.s\n"
-            "uzp2 z7.d, z22.d, z7.d\n"
-            "fmul z22.s, z23.s, z3.s[2]\n"
-            "fmul z3.s, z23.s, z3.s[3]\n"
-            "scvtf z7.s, p1/m, z7.s\n"
-            "fmla z19.s, p1/M, z18.s, z22.s\n"
-            "ld1rqb { z18.b }, p1/Z, [x24, #16]\n"
-            "fmul z22.s, z23.s, z5.s[0]\n"
-            "fmla z26.s, p1/M, z7.s, z3.s\n"
-            "mov z3.s, #0x0\n"
-            "mov z7.s, #0x0\n"
-            ".inst 0x451f9923  // smmla z3.s, z9.b, z31.b\n"
-            ".inst 0x45069927  // smmla z7.s, z9.b, z6.b\n"
-            "ld1rqb { z9.b }, p1/Z, [x24, #32]\n"
-            ".inst 0x450e9923  // smmla z3.s, z9.b, z14.b\n"
-            ".inst 0x45029927  // smmla z7.s, z9.b, z2.b\n"
-            "mov z9.s, #0x0\n"
-            ".inst 0x451f9a49  // smmla z9.s, z18.b, z31.b\n"
-            "mov z31.s, #0x0\n"
-            ".inst 0x45069a5f  // smmla z31.s, z18.b, z6.b\n"
-            "ld1rqb { z6.b }, p1/Z, [x24, #48]\n"
-            "ld1rqb { z18.b }, p1/Z, [x24, #64]\n"
-            ".inst 0x450e98c9  // smmla z9.s, z6.b, z14.b\n"
-            "fmul z14.s, z23.s, z5.s[1]\n"
-            ".inst 0x450298df  // smmla z31.s, z6.b, z2.b\n"
-            "ld1rqb { z6.b }, p1/Z, [x24, #80]\n"
-            "fmul z2.s, z23.s, z5.s[2]\n"
-            "fmul z23.s, z23.s, z5.s[3]\n"
-            ".inst 0x451e9a43  // smmla z3.s, z18.b, z30.b\n"
-            ".inst 0x45159a47  // smmla z7.s, z18.b, z21.b\n"
-            "ld1rqb { z5.b }, p1/Z, [x24, #96]\n"
-            ".inst 0x451e98c9  // smmla z9.s, z6.b, z30.b\n"
-            ".inst 0x451598df  // smmla z31.s, z6.b, z21.b\n"
-            "ld1rqb { z18.b }, p1/Z, [x24, #112]\n"
-            "add x24, x24, #0x88\n"
-            ".inst 0x450498a3  // smmla z3.s, z5.b, z4.b\n"
-            ".inst 0x451198a7  // smmla z7.s, z5.b, z17.b\n"
-            ".inst 0x45049a49  // smmla z9.s, z18.b, z4.b\n"
-            ".inst 0x45119a5f  // smmla z31.s, z18.b, z17.b\n"
-            "uzp1 z18.d, z3.d, z7.d\n"
-            "uzp2 z5.d, z3.d, z7.d\n"
-            "scvtf z18.s, p1/m, z18.s\n"
-            "uzp1 z6.d, z9.d, z31.d\n"
-            "uzp2 z9.d, z9.d, z31.d\n"
-            "scvtf z5.s, p1/m, z5.s\n"
-            "fmla z8.s, p1/M, z18.s, z22.s\n"
-            "scvtf z6.s, p1/m, z6.s\n"
-            "scvtf z9.s, p1/m, z9.s\n"
-            "fmla z29.s, p1/M, z5.s, z14.s\n"
-            "fmla z27.s, p1/M, z6.s, z2.s\n"
-            "fmla z10.s, p1/M, z9.s, z23.s\n"
-            "bgt 3b\n"
-            "mov x20, %x[res_ptr]\n"
-            "subs x10, x10, #0x8\n"
-            "add %x[res_ptr], %x[res_ptr], #0x20\n"
-            "st1w { z24.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z15.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z12.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z0.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z13.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z1.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z20.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z25.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z11.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z16.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z19.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z26.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z8.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z29.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z27.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "st1w { z10.s }, p1, [x20]\n"
-            "bne 2b\n"
-            "mov x20, #0x4\n"
-            "sub x13, x13, #0x10\n"
-            "cmp x13, #0x10\n"
-            "mov %x[res_ptr], x9\n"
-            "madd %x[a_ptr], x20, x12, %x[a_ptr]\n"
-            "bge 1b\n"
-            "4:" // Row loop skip
-            "cbz x13, 9f\n"
-            "5:" // Row tail: Row loop
-            "add x25, %x[b_ptr], #0x10\n"
-            "mov x24, %x[nc]\n"
-            "add x23, %x[res_ptr], %x[res_stride], LSL #2\n"
-            "6:" // Row tail: Column loop
-            "mov z24.b, #0x0\n"
-            "mov z15.b, #0x0\n"
-            "add x28, %x[a_ptr], #0x8\n"
-            "mov x22, %x[nb]\n"
-            "mov z12.b, #0x0\n"
-            "mov z0.b, #0x0\n"
-            "7:" // Row tail: Block loop
-            "ld1b { z3.b }, p1/Z, [x25]\n"
-            "ld1b { z6.b }, p1/Z, [x25, #1, MUL VL]\n"
-            "mov z2.s, #0x0\n"
-            "mov z25.s, #0x0\n"
-            "ld1rqb { z26.b }, p1/Z, [x28]\n"
-            "ld1rqb { z21.b }, p1/Z, [x28, #16]\n"
-            "mov z27.s, #0x0\n"
-            "mov z19.s, #0x0\n"
-            "ld1b { z29.b }, p1/Z, [x25, #2, MUL VL]\n"
-            "ld1b { z16.b }, p1/Z, [x25, #3, MUL VL]\n"
-            "sub x21, x25, #0x10\n"
-            "sub x20, x28, #0x8\n"
-            "lsl z20.b, z3.b, #0x4\n"
-            "lsl z4.b, z6.b, #0x4\n"
-            "ld1rqb { z10.b }, p1/Z, [x28, #32]\n"
-            "ld1rqb { z23.b }, p1/Z, [x28, #48]\n"
-            "and z3.b, z3.b, #0xf0\n"
-            "and z6.b, z6.b, #0xf0\n"
-            "ld1rqb { z11.b }, p1/Z, [x28, #64]\n"
-            "ld1rqb { z7.b }, p1/Z, [x28, #80]\n"
-            "lsl z8.b, z29.b, #0x4\n"
-            "lsl z14.b, z16.b, #0x4\n"
-            "ld1rqb { z18.b }, p1/Z, [x28, #96]\n"
-            "ld1rqb { z30.b }, p1/Z, [x28, #112]\n"
-            ".inst 0x45149b42  // smmla z2.s, z26.b, z20.b\n"
-            ".inst 0x45049b59  // smmla z25.s, z26.b, z4.b\n"
-            "and z29.b, z29.b, #0xf0\n"
-            "ld1h { z17.s }, p1/Z, [x21]\n"
-            ".inst 0x45149abb  // smmla z27.s, z21.b, z20.b\n"
-            ".inst 0x45049ab3  // smmla z19.s, z21.b, z4.b\n"
-            "and z16.b, z16.b, #0xf0\n"
-            "ld1h { z4.s }, p0/Z, [x20]\n"
-            "subs x22, x22, #0x1\n"
-            "add x28, x28, #0x88\n"
-            "fcvt z17.s, p1/m, z17.h\n"
-            "add x25, x25, #0x90\n"
-            ".inst 0x45089942  // smmla z2.s, z10.b, z8.b\n"
-            ".inst 0x450e9959  // smmla z25.s, z10.b, z14.b\n"
-            "fcvt z4.s, p1/m, z4.h\n"
-            ".inst 0x45089afb  // smmla z27.s, z23.b, z8.b\n"
-            ".inst 0x450e9af3  // smmla z19.s, z23.b, z14.b\n"
-            "fscale z17.s, p1/m, z17.s, z28.s\n"
-            "mov z4.q, z4.q[0]\n"
-            ".inst 0x45039962  // smmla z2.s, z11.b, z3.b\n"
-            ".inst 0x45069979  // smmla z25.s, z11.b, z6.b\n"
-            "fmul z23.s, z17.s, z4.s[0]\n"
-            "fmul z9.s, z17.s, z4.s[1]\n"
-            "fmul z21.s, z17.s, z4.s[2]\n"
-            "fmul z4.s, z17.s, z4.s[3]\n"
-            ".inst 0x450398fb  // smmla z27.s, z7.b, z3.b\n"
-            ".inst 0x450698f3  // smmla z19.s, z7.b, z6.b\n"
-            ".inst 0x451d9a42  // smmla z2.s, z18.b, z29.b\n"
-            ".inst 0x45109a59  // smmla z25.s, z18.b, z16.b\n"
-            ".inst 0x451d9bdb  // smmla z27.s, z30.b, z29.b\n"
-            ".inst 0x45109bd3  // smmla z19.s, z30.b, z16.b\n"
-            "uzp1 z31.d, z2.d, z25.d\n"
-            "uzp2 z13.d, z2.d, z25.d\n"
-            "scvtf z31.s, p1/m, z31.s\n"
-            "uzp1 z17.d, z27.d, z19.d\n"
-            "uzp2 z18.d, z27.d, z19.d\n"
-            "scvtf z13.s, p1/m, z13.s\n"
-            "fmla z24.s, p1/M, z31.s, z23.s\n"
-            "scvtf z17.s, p1/m, z17.s\n"
-            "scvtf z18.s, p1/m, z18.s\n"
-            "fmla z15.s, p1/M, z13.s, z9.s\n"
-            "fmla z12.s, p1/M, z17.s, z21.s\n"
-            "fmla z0.s, p1/M, z18.s, z4.s\n"
-            "bgt 7b\n"
-            "mov x20, %x[res_ptr]\n"
-            "cmp x13, #0x1\n"
-            "st1w { z24.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "ble 8f\n"
-            "cmp x13, #0x2\n"
-            "st1w { z15.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "ble 8f\n"
-            "cmp x13, #0x3\n"
-            "st1w { z12.s }, p1, [x20]\n"
-            "add x20, x20, %x[res_stride]\n"
-            "ble 8f\n"
-            "st1w { z0.s }, p1, [x20]\n"
-            "8:" // Row tail: Accumulator store skip
-            "subs x24, x24, #0x8\n"
-            "add %x[res_ptr], %x[res_ptr], #0x20\n"
-            "bne 6b\n"
-            "subs x13, x13, #0x4\n"
-            "add %x[a_ptr], %x[a_ptr], x12\n"
-            "mov %x[res_ptr], x23\n"
-            "bgt 5b\n"
-            "9:" // Row tail: Row loop skip
-            : [a_ptr] "+&r"(a_ptr), [res_ptr] "+&r"(res_ptr)
-            : [b_ptr] "r"(b_ptr), [nr] "r"(nr), [nb] "r"(nb), [res_stride] "r"(res_stride), [nc] "r"(nc)
-            : "cc", "memory", "p0", "p1", "x9", "x10", "x11", "x12", "x13", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "z0", "z1", "z2", "z3", "z4", "z5", "z6", "z7", "z8", "z9", "z10", "z11", "z12", "z13", "z14", "z15", "z16", "z17", "z18", "z19", "z20", "z21", "z22", "z23", "z24", "z25", "z26", "z27", "z28", "z29", "z30", "z31");
+        __asm__ __volatile__("mov x20, #0x4\n"
+                             "mov x13, %x[nr]\n"
+                             "mov z28.s, #-0x4\n"
+                             "mov x12, #0x88\n"
+                             "ptrue p1.b\n"
+                             "whilelt p0.s, XZR, x20\n"
+                             "cmp x13, #0x10\n"
+                             "mul x12, %x[nb], x12\n"
+                             "blt 4f\n"
+                             "1:" // Row loop
+                             "add x11, %x[b_ptr], #0x10\n"
+                             "mov x10, %x[nc]\n"
+                             "add x9, %x[res_ptr], %x[res_stride], LSL #4\n"
+                             "2:" // Column loop
+                             "add x28, %x[a_ptr], #0x8\n"
+                             "mov z24.b, #0x0\n"
+                             "mov z15.b, #0x0\n"
+                             "mov x27, %x[nb]\n"
+                             "add x26, x28, x12\n"
+                             "mov z12.b, #0x0\n"
+                             "mov z0.b, #0x0\n"
+                             "add x25, x26, x12\n"
+                             "mov z13.b, #0x0\n"
+                             "mov z1.b, #0x0\n"
+                             "add x24, x25, x12\n"
+                             "mov z20.b, #0x0\n"
+                             "mov z25.b, #0x0\n"
+                             "mov z11.b, #0x0\n"
+                             "mov z16.b, #0x0\n"
+                             "mov z19.b, #0x0\n"
+                             "mov z26.b, #0x0\n"
+                             "mov z8.b, #0x0\n"
+                             "mov z29.b, #0x0\n"
+                             "mov z27.b, #0x0\n"
+                             "mov z10.b, #0x0\n"
+                             "3:" // Block loop
+                             "ld1b { z30.b }, p1/Z, [x11]\n"
+                             "ld1b { z21.b }, p1/Z, [x11, #1, MUL VL]\n"
+                             "mov z18.s, #0x0\n"
+                             "mov z7.s, #0x0\n"
+                             "ld1rqb { z3.b }, p1/Z, [x28]\n"
+                             "ld1rqb { z5.b }, p1/Z, [x28, #16]\n"
+                             "mov z9.s, #0x0\n"
+                             "mov z22.s, #0x0\n"
+                             "ld1b { z4.b }, p1/Z, [x11, #2, MUL VL]\n"
+                             "ld1b { z17.b }, p1/Z, [x11, #3, MUL VL]\n"
+                             "sub x20, x11, #0x10\n"
+                             "sub x23, x28, #0x8\n"
+                             "lsl z31.b, z30.b, #0x4\n"
+                             "lsl z6.b, z21.b, #0x4\n"
+                             "ld1h { z23.s }, p1/Z, [x20]\n"
+                             "sub x22, x26, #0x8\n"
+                             "and z30.b, z30.b, #0xf0\n"
+                             "and z21.b, z21.b, #0xf0\n"
+                             "sub x21, x25, #0x8\n"
+                             "sub x20, x24, #0x8\n"
+                             "lsl z14.b, z4.b, #0x4\n"
+                             "lsl z2.b, z17.b, #0x4\n"
+                             "subs x27, x27, #0x1\n"
+                             "add x11, x11, #0x90\n"
+                             ".inst 0x451f9872  // smmla z18.s, z3.b, z31.b\n"
+                             ".inst 0x45069867  // smmla z7.s, z3.b, z6.b\n"
+                             "ld1rqb { z3.b }, p1/Z, [x28, #32]\n"
+                             "and z4.b, z4.b, #0xf0\n"
+                             ".inst 0x451f98a9  // smmla z9.s, z5.b, z31.b\n"
+                             ".inst 0x450698b6  // smmla z22.s, z5.b, z6.b\n"
+                             "ld1rqb { z5.b }, p1/Z, [x28, #48]\n"
+                             "and z17.b, z17.b, #0xf0\n"
+                             "fcvt z23.s, p1/m, z23.h\n"
+                             ".inst 0x450e9872  // smmla z18.s, z3.b, z14.b\n"
+                             ".inst 0x45029867  // smmla z7.s, z3.b, z2.b\n"
+                             "ld1rqb { z3.b }, p1/Z, [x28, #64]\n"
+                             ".inst 0x450e98a9  // smmla z9.s, z5.b, z14.b\n"
+                             ".inst 0x450298b6  // smmla z22.s, z5.b, z2.b\n"
+                             "ld1rqb { z5.b }, p1/Z, [x28, #80]\n"
+                             "fscale z23.s, p1/m, z23.s, z28.s\n"
+                             ".inst 0x451e9872  // smmla z18.s, z3.b, z30.b\n"
+                             ".inst 0x45159867  // smmla z7.s, z3.b, z21.b\n"
+                             "ld1rqb { z3.b }, p1/Z, [x28, #96]\n"
+                             ".inst 0x451e98a9  // smmla z9.s, z5.b, z30.b\n"
+                             ".inst 0x451598b6  // smmla z22.s, z5.b, z21.b\n"
+                             "ld1rqb { z5.b }, p1/Z, [x28, #112]\n"
+                             "add x28, x28, #0x88\n"
+                             ".inst 0x45049872  // smmla z18.s, z3.b, z4.b\n"
+                             ".inst 0x45119867  // smmla z7.s, z3.b, z17.b\n"
+                             "ld1h { z3.s }, p0/Z, [x23]\n"
+                             ".inst 0x450498a9  // smmla z9.s, z5.b, z4.b\n"
+                             ".inst 0x451198b6  // smmla z22.s, z5.b, z17.b\n"
+                             "fcvt z3.s, p1/m, z3.h\n"
+                             "uzp1 z5.d, z18.d, z7.d\n"
+                             "uzp2 z18.d, z18.d, z7.d\n"
+                             "mov z3.q, z3.q[0]\n"
+                             "uzp1 z7.d, z9.d, z22.d\n"
+                             "uzp2 z22.d, z9.d, z22.d\n"
+                             "fmul z9.s, z23.s, z3.s[0]\n"
+                             "scvtf z5.s, p1/m, z5.s\n"
+                             "scvtf z18.s, p1/m, z18.s\n"
+                             "scvtf z7.s, p1/m, z7.s\n"
+                             "scvtf z22.s, p1/m, z22.s\n"
+                             "fmla z24.s, p1/M, z5.s, z9.s\n"
+                             "ld1rqb { z5.b }, p1/Z, [x26]\n"
+                             "fmul z9.s, z23.s, z3.s[1]\n"
+                             "fmla z15.s, p1/M, z18.s, z9.s\n"
+                             "ld1rqb { z18.b }, p1/Z, [x26, #16]\n"
+                             "fmul z9.s, z23.s, z3.s[2]\n"
+                             "fmul z3.s, z23.s, z3.s[3]\n"
+                             "fmla z12.s, p1/M, z7.s, z9.s\n"
+                             "mov z9.s, #0x0\n"
+                             "ld1h { z7.s }, p0/Z, [x22]\n"
+                             ".inst 0x451f98a9  // smmla z9.s, z5.b, z31.b\n"
+                             "fmla z0.s, p1/M, z22.s, z3.s\n"
+                             "mov z22.s, #0x0\n"
+                             "ld1h { z3.s }, p0/Z, [x21]\n"
+                             ".inst 0x450698b6  // smmla z22.s, z5.b, z6.b\n"
+                             "ld1rqb { z5.b }, p1/Z, [x26, #32]\n"
+                             "fcvt z7.s, p1/m, z7.h\n"
+                             "fcvt z3.s, p1/m, z3.h\n"
+                             ".inst 0x450e98a9  // smmla z9.s, z5.b, z14.b\n"
+                             ".inst 0x450298b6  // smmla z22.s, z5.b, z2.b\n"
+                             "ld1rqb { z5.b }, p1/Z, [x26, #64]\n"
+                             "mov z7.q, z7.q[0]\n"
+                             "mov z3.q, z3.q[0]\n"
+                             ".inst 0x451e98a9  // smmla z9.s, z5.b, z30.b\n"
+                             ".inst 0x451598b6  // smmla z22.s, z5.b, z21.b\n"
+                             "ld1rqb { z5.b }, p1/Z, [x26, #96]\n"
+                             ".inst 0x450498a9  // smmla z9.s, z5.b, z4.b\n"
+                             ".inst 0x451198b6  // smmla z22.s, z5.b, z17.b\n"
+                             "uzp1 z5.d, z9.d, z22.d\n"
+                             "scvtf z5.s, p1/m, z5.s\n"
+                             "uzp2 z22.d, z9.d, z22.d\n"
+                             "fmul z9.s, z23.s, z7.s[0]\n"
+                             "scvtf z22.s, p1/m, z22.s\n"
+                             "fmla z13.s, p1/M, z5.s, z9.s\n"
+                             "ld1rqb { z9.b }, p1/Z, [x25]\n"
+                             "fmul z5.s, z23.s, z7.s[1]\n"
+                             "fmla z1.s, p1/M, z22.s, z5.s\n"
+                             "mov z5.s, #0x0\n"
+                             "mov z22.s, #0x0\n"
+                             ".inst 0x451f9a45  // smmla z5.s, z18.b, z31.b\n"
+                             ".inst 0x45069a56  // smmla z22.s, z18.b, z6.b\n"
+                             "ld1rqb { z18.b }, p1/Z, [x26, #48]\n"
+                             ".inst 0x450e9a45  // smmla z5.s, z18.b, z14.b\n"
+                             ".inst 0x45029a56  // smmla z22.s, z18.b, z2.b\n"
+                             "ld1rqb { z18.b }, p1/Z, [x26, #80]\n"
+                             ".inst 0x451e9a45  // smmla z5.s, z18.b, z30.b\n"
+                             ".inst 0x45159a56  // smmla z22.s, z18.b, z21.b\n"
+                             "ld1rqb { z18.b }, p1/Z, [x26, #112]\n"
+                             "add x26, x26, #0x88\n"
+                             ".inst 0x45049a45  // smmla z5.s, z18.b, z4.b\n"
+                             ".inst 0x45119a56  // smmla z22.s, z18.b, z17.b\n"
+                             "uzp1 z18.d, z5.d, z22.d\n"
+                             "scvtf z18.s, p1/m, z18.s\n"
+                             "uzp2 z22.d, z5.d, z22.d\n"
+                             "fmul z5.s, z23.s, z7.s[2]\n"
+                             "fmul z7.s, z23.s, z7.s[3]\n"
+                             "scvtf z22.s, p1/m, z22.s\n"
+                             "fmla z20.s, p1/M, z18.s, z5.s\n"
+                             "ld1rqb { z18.b }, p1/Z, [x25, #16]\n"
+                             "ld1h { z5.s }, p0/Z, [x20]\n"
+                             "fcvt z5.s, p1/m, z5.h\n"
+                             "fmla z25.s, p1/M, z22.s, z7.s\n"
+                             "mov z22.s, #0x0\n"
+                             "mov z7.s, #0x0\n"
+                             ".inst 0x451f9936  // smmla z22.s, z9.b, z31.b\n"
+                             ".inst 0x45069927  // smmla z7.s, z9.b, z6.b\n"
+                             "ld1rqb { z9.b }, p1/Z, [x25, #32]\n"
+                             "mov z5.q, z5.q[0]\n"
+                             ".inst 0x450e9936  // smmla z22.s, z9.b, z14.b\n"
+                             ".inst 0x45029927  // smmla z7.s, z9.b, z2.b\n"
+                             "ld1rqb { z9.b }, p1/Z, [x25, #64]\n"
+                             ".inst 0x451e9936  // smmla z22.s, z9.b, z30.b\n"
+                             ".inst 0x45159927  // smmla z7.s, z9.b, z21.b\n"
+                             "ld1rqb { z9.b }, p1/Z, [x25, #96]\n"
+                             ".inst 0x45049936  // smmla z22.s, z9.b, z4.b\n"
+                             ".inst 0x45119927  // smmla z7.s, z9.b, z17.b\n"
+                             "uzp1 z9.d, z22.d, z7.d\n"
+                             "scvtf z9.s, p1/m, z9.s\n"
+                             "uzp2 z22.d, z22.d, z7.d\n"
+                             "fmul z7.s, z23.s, z3.s[0]\n"
+                             "scvtf z22.s, p1/m, z22.s\n"
+                             "fmla z11.s, p1/M, z9.s, z7.s\n"
+                             "ld1rqb { z9.b }, p1/Z, [x24]\n"
+                             "fmul z7.s, z23.s, z3.s[1]\n"
+                             "fmla z16.s, p1/M, z22.s, z7.s\n"
+                             "mov z22.s, #0x0\n"
+                             "mov z7.s, #0x0\n"
+                             ".inst 0x451f9a56  // smmla z22.s, z18.b, z31.b\n"
+                             ".inst 0x45069a47  // smmla z7.s, z18.b, z6.b\n"
+                             "ld1rqb { z18.b }, p1/Z, [x25, #48]\n"
+                             ".inst 0x450e9a56  // smmla z22.s, z18.b, z14.b\n"
+                             ".inst 0x45029a47  // smmla z7.s, z18.b, z2.b\n"
+                             "ld1rqb { z18.b }, p1/Z, [x25, #80]\n"
+                             ".inst 0x451e9a56  // smmla z22.s, z18.b, z30.b\n"
+                             ".inst 0x45159a47  // smmla z7.s, z18.b, z21.b\n"
+                             "ld1rqb { z18.b }, p1/Z, [x25, #112]\n"
+                             "add x25, x25, #0x88\n"
+                             ".inst 0x45049a56  // smmla z22.s, z18.b, z4.b\n"
+                             ".inst 0x45119a47  // smmla z7.s, z18.b, z17.b\n"
+                             "uzp1 z18.d, z22.d, z7.d\n"
+                             "scvtf z18.s, p1/m, z18.s\n"
+                             "uzp2 z7.d, z22.d, z7.d\n"
+                             "fmul z22.s, z23.s, z3.s[2]\n"
+                             "fmul z3.s, z23.s, z3.s[3]\n"
+                             "scvtf z7.s, p1/m, z7.s\n"
+                             "fmla z19.s, p1/M, z18.s, z22.s\n"
+                             "ld1rqb { z18.b }, p1/Z, [x24, #16]\n"
+                             "fmul z22.s, z23.s, z5.s[0]\n"
+                             "fmla z26.s, p1/M, z7.s, z3.s\n"
+                             "mov z3.s, #0x0\n"
+                             "mov z7.s, #0x0\n"
+                             ".inst 0x451f9923  // smmla z3.s, z9.b, z31.b\n"
+                             ".inst 0x45069927  // smmla z7.s, z9.b, z6.b\n"
+                             "ld1rqb { z9.b }, p1/Z, [x24, #32]\n"
+                             ".inst 0x450e9923  // smmla z3.s, z9.b, z14.b\n"
+                             ".inst 0x45029927  // smmla z7.s, z9.b, z2.b\n"
+                             "mov z9.s, #0x0\n"
+                             ".inst 0x451f9a49  // smmla z9.s, z18.b, z31.b\n"
+                             "mov z31.s, #0x0\n"
+                             ".inst 0x45069a5f  // smmla z31.s, z18.b, z6.b\n"
+                             "ld1rqb { z6.b }, p1/Z, [x24, #48]\n"
+                             "ld1rqb { z18.b }, p1/Z, [x24, #64]\n"
+                             ".inst 0x450e98c9  // smmla z9.s, z6.b, z14.b\n"
+                             "fmul z14.s, z23.s, z5.s[1]\n"
+                             ".inst 0x450298df  // smmla z31.s, z6.b, z2.b\n"
+                             "ld1rqb { z6.b }, p1/Z, [x24, #80]\n"
+                             "fmul z2.s, z23.s, z5.s[2]\n"
+                             "fmul z23.s, z23.s, z5.s[3]\n"
+                             ".inst 0x451e9a43  // smmla z3.s, z18.b, z30.b\n"
+                             ".inst 0x45159a47  // smmla z7.s, z18.b, z21.b\n"
+                             "ld1rqb { z5.b }, p1/Z, [x24, #96]\n"
+                             ".inst 0x451e98c9  // smmla z9.s, z6.b, z30.b\n"
+                             ".inst 0x451598df  // smmla z31.s, z6.b, z21.b\n"
+                             "ld1rqb { z18.b }, p1/Z, [x24, #112]\n"
+                             "add x24, x24, #0x88\n"
+                             ".inst 0x450498a3  // smmla z3.s, z5.b, z4.b\n"
+                             ".inst 0x451198a7  // smmla z7.s, z5.b, z17.b\n"
+                             ".inst 0x45049a49  // smmla z9.s, z18.b, z4.b\n"
+                             ".inst 0x45119a5f  // smmla z31.s, z18.b, z17.b\n"
+                             "uzp1 z18.d, z3.d, z7.d\n"
+                             "uzp2 z5.d, z3.d, z7.d\n"
+                             "scvtf z18.s, p1/m, z18.s\n"
+                             "uzp1 z6.d, z9.d, z31.d\n"
+                             "uzp2 z9.d, z9.d, z31.d\n"
+                             "scvtf z5.s, p1/m, z5.s\n"
+                             "fmla z8.s, p1/M, z18.s, z22.s\n"
+                             "scvtf z6.s, p1/m, z6.s\n"
+                             "scvtf z9.s, p1/m, z9.s\n"
+                             "fmla z29.s, p1/M, z5.s, z14.s\n"
+                             "fmla z27.s, p1/M, z6.s, z2.s\n"
+                             "fmla z10.s, p1/M, z9.s, z23.s\n"
+                             "bgt 3b\n"
+                             "mov x20, %x[res_ptr]\n"
+                             "subs x10, x10, #0x8\n"
+                             "add %x[res_ptr], %x[res_ptr], #0x20\n"
+                             "st1w { z24.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z15.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z12.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z0.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z13.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z1.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z20.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z25.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z11.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z16.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z19.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z26.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z8.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z29.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z27.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "st1w { z10.s }, p1, [x20]\n"
+                             "bne 2b\n"
+                             "mov x20, #0x4\n"
+                             "sub x13, x13, #0x10\n"
+                             "cmp x13, #0x10\n"
+                             "mov %x[res_ptr], x9\n"
+                             "madd %x[a_ptr], x20, x12, %x[a_ptr]\n"
+                             "bge 1b\n"
+                             "4:" // Row loop skip
+                             "cbz x13, 9f\n"
+                             "5:" // Row tail: Row loop
+                             "add x25, %x[b_ptr], #0x10\n"
+                             "mov x24, %x[nc]\n"
+                             "add x23, %x[res_ptr], %x[res_stride], LSL #2\n"
+                             "6:" // Row tail: Column loop
+                             "mov z24.b, #0x0\n"
+                             "mov z15.b, #0x0\n"
+                             "add x28, %x[a_ptr], #0x8\n"
+                             "mov x22, %x[nb]\n"
+                             "mov z12.b, #0x0\n"
+                             "mov z0.b, #0x0\n"
+                             "7:" // Row tail: Block loop
+                             "ld1b { z3.b }, p1/Z, [x25]\n"
+                             "ld1b { z6.b }, p1/Z, [x25, #1, MUL VL]\n"
+                             "mov z2.s, #0x0\n"
+                             "mov z25.s, #0x0\n"
+                             "ld1rqb { z26.b }, p1/Z, [x28]\n"
+                             "ld1rqb { z21.b }, p1/Z, [x28, #16]\n"
+                             "mov z27.s, #0x0\n"
+                             "mov z19.s, #0x0\n"
+                             "ld1b { z29.b }, p1/Z, [x25, #2, MUL VL]\n"
+                             "ld1b { z16.b }, p1/Z, [x25, #3, MUL VL]\n"
+                             "sub x21, x25, #0x10\n"
+                             "sub x20, x28, #0x8\n"
+                             "lsl z20.b, z3.b, #0x4\n"
+                             "lsl z4.b, z6.b, #0x4\n"
+                             "ld1rqb { z10.b }, p1/Z, [x28, #32]\n"
+                             "ld1rqb { z23.b }, p1/Z, [x28, #48]\n"
+                             "and z3.b, z3.b, #0xf0\n"
+                             "and z6.b, z6.b, #0xf0\n"
+                             "ld1rqb { z11.b }, p1/Z, [x28, #64]\n"
+                             "ld1rqb { z7.b }, p1/Z, [x28, #80]\n"
+                             "lsl z8.b, z29.b, #0x4\n"
+                             "lsl z14.b, z16.b, #0x4\n"
+                             "ld1rqb { z18.b }, p1/Z, [x28, #96]\n"
+                             "ld1rqb { z30.b }, p1/Z, [x28, #112]\n"
+                             ".inst 0x45149b42  // smmla z2.s, z26.b, z20.b\n"
+                             ".inst 0x45049b59  // smmla z25.s, z26.b, z4.b\n"
+                             "and z29.b, z29.b, #0xf0\n"
+                             "ld1h { z17.s }, p1/Z, [x21]\n"
+                             ".inst 0x45149abb  // smmla z27.s, z21.b, z20.b\n"
+                             ".inst 0x45049ab3  // smmla z19.s, z21.b, z4.b\n"
+                             "and z16.b, z16.b, #0xf0\n"
+                             "ld1h { z4.s }, p0/Z, [x20]\n"
+                             "subs x22, x22, #0x1\n"
+                             "add x28, x28, #0x88\n"
+                             "fcvt z17.s, p1/m, z17.h\n"
+                             "add x25, x25, #0x90\n"
+                             ".inst 0x45089942  // smmla z2.s, z10.b, z8.b\n"
+                             ".inst 0x450e9959  // smmla z25.s, z10.b, z14.b\n"
+                             "fcvt z4.s, p1/m, z4.h\n"
+                             ".inst 0x45089afb  // smmla z27.s, z23.b, z8.b\n"
+                             ".inst 0x450e9af3  // smmla z19.s, z23.b, z14.b\n"
+                             "fscale z17.s, p1/m, z17.s, z28.s\n"
+                             "mov z4.q, z4.q[0]\n"
+                             ".inst 0x45039962  // smmla z2.s, z11.b, z3.b\n"
+                             ".inst 0x45069979  // smmla z25.s, z11.b, z6.b\n"
+                             "fmul z23.s, z17.s, z4.s[0]\n"
+                             "fmul z9.s, z17.s, z4.s[1]\n"
+                             "fmul z21.s, z17.s, z4.s[2]\n"
+                             "fmul z4.s, z17.s, z4.s[3]\n"
+                             ".inst 0x450398fb  // smmla z27.s, z7.b, z3.b\n"
+                             ".inst 0x450698f3  // smmla z19.s, z7.b, z6.b\n"
+                             ".inst 0x451d9a42  // smmla z2.s, z18.b, z29.b\n"
+                             ".inst 0x45109a59  // smmla z25.s, z18.b, z16.b\n"
+                             ".inst 0x451d9bdb  // smmla z27.s, z30.b, z29.b\n"
+                             ".inst 0x45109bd3  // smmla z19.s, z30.b, z16.b\n"
+                             "uzp1 z31.d, z2.d, z25.d\n"
+                             "uzp2 z13.d, z2.d, z25.d\n"
+                             "scvtf z31.s, p1/m, z31.s\n"
+                             "uzp1 z17.d, z27.d, z19.d\n"
+                             "uzp2 z18.d, z27.d, z19.d\n"
+                             "scvtf z13.s, p1/m, z13.s\n"
+                             "fmla z24.s, p1/M, z31.s, z23.s\n"
+                             "scvtf z17.s, p1/m, z17.s\n"
+                             "scvtf z18.s, p1/m, z18.s\n"
+                             "fmla z15.s, p1/M, z13.s, z9.s\n"
+                             "fmla z12.s, p1/M, z17.s, z21.s\n"
+                             "fmla z0.s, p1/M, z18.s, z4.s\n"
+                             "bgt 7b\n"
+                             "mov x20, %x[res_ptr]\n"
+                             "cmp x13, #0x1\n"
+                             "st1w { z24.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "ble 8f\n"
+                             "cmp x13, #0x2\n"
+                             "st1w { z15.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "ble 8f\n"
+                             "cmp x13, #0x3\n"
+                             "st1w { z12.s }, p1, [x20]\n"
+                             "add x20, x20, %x[res_stride]\n"
+                             "ble 8f\n"
+                             "st1w { z0.s }, p1, [x20]\n"
+                             "8:" // Row tail: Accumulator store skip
+                             "subs x24, x24, #0x8\n"
+                             "add %x[res_ptr], %x[res_ptr], #0x20\n"
+                             "bne 6b\n"
+                             "subs x13, x13, #0x4\n"
+                             "add %x[a_ptr], %x[a_ptr], x12\n"
+                             "mov %x[res_ptr], x23\n"
+                             "bgt 5b\n"
+                             "9:" // Row tail: Row loop skip
+                             : [a_ptr] "+&r"(a_ptr), [res_ptr] "+&r"(res_ptr)
+                             : [b_ptr] "r"(b_ptr), [nr] "r"(nr), [nb] "r"(nb),
+                               [res_stride] "r"(res_stride), [nc] "r"(nc)
+                             : "cc", "memory", "p0", "p1", "x9", "x10", "x11", "x12", "x13", "x20",
+                               "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "z0", "z1",
+                               "z2", "z3", "z4", "z5", "z6", "z7", "z8", "z9", "z10", "z11", "z12",
+                               "z13", "z14", "z15", "z16", "z17", "z18", "z19", "z20", "z21", "z22",
+                               "z23", "z24", "z25", "z26", "z27", "z28", "z29", "z30", "z31");
         return;
     } else if (mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) {
-        assert((mllm_cpu_has_sve() && (svcntw() == 8)) && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the Q4_0_4_8 quantization format for optimal "
-                                                          "performance");
+        assert((mllm_cpu_has_sve() && (svcntw() == 8))
+               && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the "
+                  "Q4_0_4_8 quantization format for optimal "
+                  "performance");
     } else if (mllm_cpu_has_neon()) {
-        assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8()) && "__ARM_FEATURE_SVE for vector size of 256-bits and __ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
-                                                                                          "quantization format for optimal performance");
+        assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8())
+               && "__ARM_FEATURE_SVE for vector size of 256-bits and "
+                  "__ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
+                  "quantization format for optimal performance");
     }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
-    assert(mllm_cpu_has_sve() && "__ARM_FEATURE_SVE not defined, use the Q4_0_4_8 quantization format for optimal performance");
+    assert(mllm_cpu_has_sve()
+           && "__ARM_FEATURE_SVE not defined, use the Q4_0_4_8 quantization format "
+              "for optimal performance");
 #elif defined(__ARM_NEON) && defined(__aarch64__)
-    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8()) && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 quantization format for optimal "
-                                                                 "performance");
+    assert((mllm_cpu_has_sve() || mllm_cpu_has_matmul_int8())
+           && "__ARM_FEATURE_SVE and __ARM_FEATURE_MATMUL_INT8 not defined, use the "
+              "Q4_0_4_4 quantization format for optimal "
+              "performance");
 #else
     float sumf[4][8];
     int sumi;
@@ -4009,7 +4227,8 @@ void _mllm_gemm_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
         for (int x = 0; x < nc / ncols_interleaved; x++) {
             const block_q4_0x8 *b_ptr = (const block_q4_0x8 *)vx + (x * nb);
             for (int m = 0; m < 4; m++) {
-                for (int j = 0; j < ncols_interleaved; j++) sumf[m][j] = bias_ptr[x * ncols_interleaved + j];
+                for (int j = 0; j < ncols_interleaved; j++)
+                    sumf[m][j] = bias_ptr[x * ncols_interleaved + j];
             }
             for (int l = 0; l < nb; l++) {
                 for (int k = 0; k < (qk / (2 * blocklen)); k++) {
@@ -4017,11 +4236,20 @@ void _mllm_gemm_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
                         for (int j = 0; j < ncols_interleaved; j++) {
                             sumi = 0;
                             for (int i = 0; i < blocklen; ++i) {
-                                const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] << 4);
-                                const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen + j * blocklen + i] & 0xF0);
-                                sumi += ((v0 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i]) + (v1 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i + qk / 2 * 4])) >> 4;
+                                const int v0 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen
+                                                                    + j * blocklen + i]
+                                                        << 4);
+                                const int v1 = (int8_t)(b_ptr[l].qs[k * ncols_interleaved * blocklen
+                                                                    + j * blocklen + i]
+                                                        & 0xF0);
+                                sumi += ((v0 * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i])
+                                         + (v1
+                                            * a_ptr[l].qs[k * 4 * blocklen + m * blocklen + i
+                                                          + qk / 2 * 4]))
+                                        >> 4;
                             }
-                            sumf[m][j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j]) * MLLM_FP16_TO_FP32(a_ptr[l].d[m]);
+                            sumf[m][j] += sumi * MLLM_FP16_TO_FP32(b_ptr[l].d[j])
+                                          * MLLM_FP16_TO_FP32(a_ptr[l].d[m]);
                         }
                     }
                 }

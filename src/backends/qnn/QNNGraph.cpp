@@ -22,7 +22,7 @@ void QNNGraph::setUpTensors(std::string name) {
     // set graph out tensor TensorType
     auto &graph_out_tensors = ops_output_tensors_[op_names_[op_names_.size() - 1]];
     for (auto &t : graph_out_tensors) {
-        t->setTtype(OUTPUT_TENSOR);
+        t->setTtype(GRAPH_OUTPUT);
         t->alloc();
     }
     for (auto &t : graph_in_tensors) { t->alloc(); }
@@ -79,19 +79,19 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
     }
 
     this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]], graphName);
-    
+
     if (ops_[op_names_[op_names_.size() - 1]]->type() == MERGEOUTPUT) {
         auto inputs = ops_input_tensors_[op_names_[op_names_.size() - 1]];
         auto outputs = ops_output_tensors_[op_names_[op_names_.size() - 1]];
-#pragma omp parallel for collapse(1) num_threads(4)
-        for(int t=0; t<3; t++) {
+// #pragma omp parallel for collapse(1) num_threads(4)
+        for(int t=0; t<4; t++) {
             memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*t), inputs[t]->hostPtr<uint8_t>(), inputs[t]->cntSize());
         }
 
-        string name = op_names_[op_names_.size() - 1];
-        if ( !(name.find("layers.0.") != -1 || name.find("layers.2.") != -1 || name.find("layers.3.") != -1 || name.find("layers.7.") != -1 ) ) {
-            memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*3), inputs[3]->hostPtr<uint8_t>(), inputs[3]->cntSize());
-        }
+        // string name = op_names_[op_names_.size() - 1];
+        // if ( !(name.find("layers.0.") != -1 || name.find("layers.2.") != -1 || name.find("layers.3.") != -1 || name.find("layers.7.") != -1 ) ) {
+        //     memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*3), inputs[3]->hostPtr<uint8_t>(), inputs[3]->cntSize());
+        // }
     }
 
     if (ops_[op_names_[op_names_.size() - 1]]->type() == LINEARINT8SHADOW) {

@@ -39,7 +39,7 @@ public:
     }
 };
 
-class StableLMConfig {
+class StableLMConfig : public TransformerConfig {
 public:
     int vocab_size{};
     int hidden_dim{};
