@@ -34,6 +34,9 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention(Context *c, NetTensor *x, NetTenso
     k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", false);
     v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize", false);
 
+    q = _RoPE({q}, HFHUBROPE, name + ".q_rope", 1000000, 32768);
+    k = _RoPE({k}, HFHUBROPE, name + ".k_rope", 1000000, 32768);
+    
     v = _Transpose({v}, {0, 2, 3, 1}, (string)name + ".v_proj.transpose");
 
     auto *m = _MergeOutput({q, k, v, res}, name + ".qkv_merge");
@@ -49,8 +52,6 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention(Context *c, NetTensor *x, NetTenso
     v = s[2];
     res = s[3];
 
-    q = _RoPE({q}, HFHUBROPE, name + ".q_rope", 1000000, 32768);
-    k = _RoPE({k}, HFHUBROPE, name + ".k_rope", 1000000, 32768);
 
     k = _KVCacheNPU({k}, cache_max, name + ".k_cache");
     v = _KVCacheNPU({v}, cache_max, name + ".v_cache");

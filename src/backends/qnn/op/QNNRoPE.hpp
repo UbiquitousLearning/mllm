@@ -7,6 +7,8 @@ namespace mllm {
 class QNNRoPE : public QNNCommonOp {
 public:
     QNNRoPE(Backend *bn, string opName, int pose_type);
+    QNNRoPE(Backend *bn, string opName, int pose_type, float rope_theta, int max_position_embeddings);
+    QNNRoPE(Backend *bn, string opName, int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings);
     virtual ~QNNRoPE() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
@@ -16,24 +18,35 @@ public:
 
 private:
 
-    Tensor sin_;
-    Tensor cos_;
-
-    void sinusoidal_position_embedding(int batch_size, int nums_head, int seq_len, int output_dim, Tensor &sin, Tensor &cos);
-    void sinusoidal_position_embedding_hf(int batch_size, int nums_head, int seq_len, int output_dim, Tensor &sin, Tensor &cos);
-
-    int pose_type_ = 4;
-
+    static vector<vector<float>> sin_;
+    static vector<vector<float>> cos_;
+    static int global_pose_type_;
+    static int ishape_old;
+    int rope_theta_ = 10000;
     int h_cnt_ = 0;
     int pos_max_ = 16384;
+    int pose_type_ = 4;
     int ishape;
+    float partial_rotary_factor_ = 1;
+
+    Tensor sinTensor_;
+    Tensor cosTensor_;
 };
 
 class QNNRoPECreator : public QNNBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
         int pose_type = op_param["pose_type"];
-        return new QNNRoPE(bn, name, pose_type);
+        if (op_param.find("rope_theta") == op_param.end()) {
+            return new QNNRoPE(bn, name, pose_type);
+        }
+        float rope_theta = op_param["rope_theta"];
+        int max_position_embeddings = op_param["max_position_embeddings"];
+        if (op_param.find("partial_rotary_factor") == op_param.end()) {
+            return new QNNRoPE(bn, name, pose_type, rope_theta, max_position_embeddings);
+        }
+        float partial_rotary_factor = op_param["partial_rotary_factor"];
+        return new QNNRoPE(bn, name, pose_type, rope_theta, partial_rotary_factor, max_position_embeddings);
     }
 };
 

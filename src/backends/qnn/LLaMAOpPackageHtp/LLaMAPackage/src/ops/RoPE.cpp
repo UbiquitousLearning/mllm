@@ -89,224 +89,224 @@ DEF_PACKAGE_PARAM_ORDER("RoPE",
 
 /* execute functions for ops */
 
-#ifndef REFERENCE_OP
+// #ifndef REFERENCE_OP
 
-#include "qhmath_hvx.h"
-#include "hvx_internal.h"
-#include <hexagon_types.h>
-#include <stddef.h>
+// #include "qhmath_hvx.h"
+// #include "hvx_internal.h"
+// #include <hexagon_types.h>
+// #include <stddef.h>
 
-#define BLOCK_SIZE       (8*1024/VLEN)  /* vector chunks */
-#define L2FETCH_AHEAD    (BLOCK_SIZE)
-#define ONE      0x3F800000
-#define M_ONE    0xAF800000
+// #define BLOCK_SIZE       (8*1024/VLEN)  /* vector chunks */
+// #define L2FETCH_AHEAD    (BLOCK_SIZE)
+// #define ONE      0x3F800000
+// #define M_ONE    0xAF800000
 
-int32_t hvx_rope_af(
-    float *restrict input,
-    float *restrict sin,
-    float *restrict cos,
-    float *restrict output,
-    uint32_t size)
-{
-    if ((input == NULL) || (output == NULL) || (size == 0))
-    {
-        return -1;
-    }
+// int32_t hvx_rope_af(
+//     float *restrict input,
+//     float *restrict sin,
+//     float *restrict cos,
+//     float *restrict output,
+//     uint32_t size)
+// {
+//     if ((input == NULL) || (output == NULL) || (size == 0))
+//     {
+//         return -1;
+//     }
 
-    HVX_Vector *iptr = (HVX_Vector *)input;
-    HVX_Vector *iptr2 = (HVX_Vector *)sin;
-    HVX_Vector *iptr3 = (HVX_Vector *)cos;
-    HVX_UVector *optr = (HVX_UVector *)output;
-    HVX_Vector sline1p, sline1c, sline1;
-    HVX_Vector sline2c, sline2;
-    HVX_Vector sinline1p, sinline1c, sinline1;
-    HVX_Vector cosline1p, cosline1c, cosline1;
+//     HVX_Vector *iptr = (HVX_Vector *)input;
+//     HVX_Vector *iptr2 = (HVX_Vector *)sin;
+//     HVX_Vector *iptr3 = (HVX_Vector *)cos;
+//     HVX_UVector *optr = (HVX_UVector *)output;
+//     HVX_Vector sline1p, sline1c, sline1;
+//     HVX_Vector sline2c, sline2;
+//     HVX_Vector sinline1p, sinline1c, sinline1;
+//     HVX_Vector cosline1p, cosline1c, cosline1;
 
-    int32_t block, l2fetch_block;
-    int32_t leftover = size & 31;
-    int32_t vectors_in_rounddown = size / 32;
-    int32_t leftover_size = leftover * sizeof(float);
+//     int32_t block, l2fetch_block;
+//     int32_t leftover = size & 31;
+//     int32_t vectors_in_rounddown = size / 32;
+//     int32_t leftover_size = leftover * sizeof(float);
 
-    sline1p = *iptr++;
-    sinline1p = *iptr2++;
-    cosline1p = *iptr3++;
-
-
-
-    // in_val2 calculation method
-    // HVX_VectorPair a =  Q6_W_vdeal_VVR(s2, s1, -4);
-    // a[1] = Q6_Vqf32_vmpy_Vqf32Vqf32(a[1], -1.0f);
-    // Q6_W_vshuff_VVR(a[0], a[1],  -4);
-
-
-    HVX_Vector one_vsf = Q6_V_vsplat_R(ONE);
-    HVX_Vector m_one_vqf32 = Q6_Vqf32_vsub_VsfVsf(Q6_V_vzero(), one_vsf);
-
-    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
-    {
-        block = Q6_R_min_RR(i, BLOCK_SIZE);
-        l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
-
-        if (l2fetch_block > 0)
-        {
-            l2fetch(iptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
-            l2fetch(iptr2 + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
-            l2fetch(iptr3 + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
-        }
-
-        for (int32_t j = 0; j < block; j+=2)
-        {
-            // in_value_2 calculation
-            sline1c = *iptr++;
-            sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
-            sline1p = sline1c;
-
-            sline2c = *iptr++;
-            sline2 = Q6_V_valign_VVR(sline2c, sline1p, (size_t)input);
-
-            HVX_VectorPair ss =  Q6_W_vdeal_VVR(sline2, sline1, -4);
-
-            HVX_Vector ss1_vqf32 = Q6_Vqf32_vadd_VsfVsf(Q6_V_hi_W(ss), Q6_V_vzero());
-            HVX_Vector ss0_vqf32 = Q6_Vqf32_vadd_VsfVsf(Q6_V_lo_W(ss), Q6_V_vzero());
-
-            ss1_vqf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(ss1_vqf32, m_one_vqf32);
-
-            ss = Q6_W_vshuff_VVR(ss0_vqf32, ss1_vqf32,  -4);
-
-            // in_value_2 0,1 
-            ss0_vqf32 = Q6_V_lo_W(ss);
-            ss1_vqf32 = Q6_V_hi_W(ss);
+//     sline1p = *iptr++;
+//     sinline1p = *iptr2++;
+//     cosline1p = *iptr3++;
 
 
 
-            // in_value * cos_value + in_value_2 * sin_value;
-            // first vector
-            cosline1c = *iptr3++;
-            cosline1 = Q6_V_valign_VVR(cosline1c, cosline1p, (size_t)input);
-            cosline1p = cosline1c;
-
-            HVX_Vector cos_middle_value_qf32 = Q6_Vqf32_vmpy_VsfVsf(sline1, cosline1);
-
-            sinline1c = *iptr2++;
-            sinline1 = Q6_V_valign_VVR(sinline1c, sinline1p, (size_t)input);
-            sinline1p = sinline1c;
-
-            HVX_Vector sinline1_vqf32 = Q6_Vqf32_vadd_VsfVsf(sinline1, Q6_V_vzero());
-
-            HVX_Vector sin_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(ss0_vqf32, sinline1_vqf32);
-
-            *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32));
+//     // in_val2 calculation method
+//     // HVX_VectorPair a =  Q6_W_vdeal_VVR(s2, s1, -4);
+//     // a[1] = Q6_Vqf32_vmpy_Vqf32Vqf32(a[1], -1.0f);
+//     // Q6_W_vshuff_VVR(a[0], a[1],  -4);
 
 
+//     HVX_Vector one_vsf = Q6_V_vsplat_R(ONE);
+//     HVX_Vector m_one_vqf32 = Q6_Vqf32_vsub_VsfVsf(Q6_V_vzero(), one_vsf);
 
-            // second vector
-            cosline1c = *iptr3++;
-            cosline1 = Q6_V_valign_VVR(cosline1c, cosline1p, (size_t)input);
-            cosline1p = cosline1c;
+//     for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
+//     {
+//         block = Q6_R_min_RR(i, BLOCK_SIZE);
+//         l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
 
-            cos_middle_value_qf32 = Q6_Vqf32_vmpy_VsfVsf(sline2, cosline1);
+//         if (l2fetch_block > 0)
+//         {
+//             l2fetch(iptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+//             l2fetch(iptr2 + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+//             l2fetch(iptr3 + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+//         }
 
-            sinline1c = *iptr2++;
-            sinline1 = Q6_V_valign_VVR(sinline1c, sinline1p, (size_t)input);
-            sinline1p = sinline1c;
+//         for (int32_t j = 0; j < block; j+=2)
+//         {
+//             // in_value_2 calculation
+//             sline1c = *iptr++;
+//             sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
+//             sline1p = sline1c;
 
-            sinline1_vqf32 = Q6_Vqf32_vadd_VsfVsf(sinline1, Q6_V_vzero());
+//             sline2c = *iptr++;
+//             sline2 = Q6_V_valign_VVR(sline2c, sline1p, (size_t)input);
 
-            sin_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(ss1_vqf32, sinline1_vqf32);
+//             HVX_VectorPair ss =  Q6_W_vdeal_VVR(sline2, sline1, -4);
+
+//             HVX_Vector ss1_vqf32 = Q6_Vqf32_vadd_VsfVsf(Q6_V_hi_W(ss), Q6_V_vzero());
+//             HVX_Vector ss0_vqf32 = Q6_Vqf32_vadd_VsfVsf(Q6_V_lo_W(ss), Q6_V_vzero());
+
+//             ss1_vqf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(ss1_vqf32, m_one_vqf32);
+
+//             ss = Q6_W_vshuff_VVR(ss0_vqf32, ss1_vqf32,  -4);
+
+//             // in_value_2 0,1 
+//             ss0_vqf32 = Q6_V_lo_W(ss);
+//             ss1_vqf32 = Q6_V_hi_W(ss);
+
+
+
+//             // in_value * cos_value + in_value_2 * sin_value;
+//             // first vector
+//             cosline1c = *iptr3++;
+//             cosline1 = Q6_V_valign_VVR(cosline1c, cosline1p, (size_t)input);
+//             cosline1p = cosline1c;
+
+//             HVX_Vector cos_middle_value_qf32 = Q6_Vqf32_vmpy_VsfVsf(sline1, cosline1);
+
+//             sinline1c = *iptr2++;
+//             sinline1 = Q6_V_valign_VVR(sinline1c, sinline1p, (size_t)input);
+//             sinline1p = sinline1c;
+
+//             HVX_Vector sinline1_vqf32 = Q6_Vqf32_vadd_VsfVsf(sinline1, Q6_V_vzero());
+
+//             HVX_Vector sin_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(ss0_vqf32, sinline1_vqf32);
+
+//             *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32));
+
+
+
+//             // second vector
+//             cosline1c = *iptr3++;
+//             cosline1 = Q6_V_valign_VVR(cosline1c, cosline1p, (size_t)input);
+//             cosline1p = cosline1c;
+
+//             cos_middle_value_qf32 = Q6_Vqf32_vmpy_VsfVsf(sline2, cosline1);
+
+//             sinline1c = *iptr2++;
+//             sinline1 = Q6_V_valign_VVR(sinline1c, sinline1p, (size_t)input);
+//             sinline1p = sinline1c;
+
+//             sinline1_vqf32 = Q6_Vqf32_vadd_VsfVsf(sinline1, Q6_V_vzero());
+
+//             sin_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(ss1_vqf32, sinline1_vqf32);
             
-            *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32));
+//             *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32));
 
-            sline1p = sline2c;
-        }
-    }
+//             sline1p = sline2c;
+//         }
+//     }
 
-    // if (vectors_in_rounddown > 0) {
+//     // if (vectors_in_rounddown > 0) {
 
-    //   sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
-    //   sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
-    //   sum = Q6_Vqf32_vadd_Vqf32Vqf32(sum,  Q6_Vqf32_vmpy_VsfVsf(sline1, sline1));
+//     //   sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
+//     //   sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+//     //   sum = Q6_Vqf32_vadd_Vqf32Vqf32(sum,  Q6_Vqf32_vmpy_VsfVsf(sline1, sline1));
 
-    // }
-
-
-    if (leftover_size > 0)
-      return -1;
-
-    return 0;
-}
-
-template<typename TensorType>
-GraphStatus ropeImpl(TensorType& out_0,
-                     const TensorType& in_0,
-                     const TensorType& sin,
-                     const TensorType& cos,
-                     const Tensor& pose_type)
-
-{
-
-  out_0.set_dims(in_0);
-
-  auto pose_type_ = pose_type(0,0,0,0);
-
-  if (pose_type_ == 2) {
-
-    // calculation method
-    // HVX_VectorPair a =  Q6_W_vdeal_VVR(s2, s1, -4);
-    // a[1] = Q6_Vqf32_vmpy_Vqf32Vqf32(a[1], -1.0f);
-    // Q6_W_vshuff_VVR(a[0], a[1],  -4);
-
-    auto in_ptr = (float*)in_0.raw_data_const();
-    auto sin_ptr = (float*)sin.raw_data_const();
-    auto cos_ptr = (float*)cos.raw_data_const();
-    auto out_ptr = (float*)out_0.raw_data();
+//     // }
 
 
-    auto [b_in, h_in, w_in, d_in] = in_0.dims();
+//     if (leftover_size > 0)
+//       return -1;
 
-    uint32_t h_cnt_ = 0;
+//     return 0;
+// }
 
-    sin_ptr += d_in * h_cnt_;
-    cos_ptr += d_in * h_cnt_;
+// template<typename TensorType>
+// GraphStatus ropeImpl(TensorType& out_0,
+//                      const TensorType& in_0,
+//                      const TensorType& sin,
+//                      const TensorType& cos,
+//                      const Tensor& pose_type)
+
+// {
+
+//   out_0.set_dims(in_0);
+
+//   auto pose_type_ = pose_type(0,0,0,0);
+
+//   if (pose_type_ == 2) {
+
+//     // calculation method
+//     // HVX_VectorPair a =  Q6_W_vdeal_VVR(s2, s1, -4);
+//     // a[1] = Q6_Vqf32_vmpy_Vqf32Vqf32(a[1], -1.0f);
+//     // Q6_W_vshuff_VVR(a[0], a[1],  -4);
+
+//     auto in_ptr = (float*)in_0.raw_data_const();
+//     auto sin_ptr = (float*)sin.raw_data_const();
+//     auto cos_ptr = (float*)cos.raw_data_const();
+//     auto out_ptr = (float*)out_0.raw_data();
 
 
-    // NSHD
-    for (Idx b = 0; b < b_in; b++) {
-      for (Idx h = 0; h < h_in; h++) {
+//     auto [b_in, h_in, w_in, d_in] = in_0.dims();
 
-        // for (Idx w = 0; w < w_in; w++) {
-          // RoPE
+//     uint32_t h_cnt_ = 0;
+
+//     sin_ptr += d_in * h_cnt_;
+//     cos_ptr += d_in * h_cnt_;
+
+
+//     // NSHD
+//     for (Idx b = 0; b < b_in; b++) {
+//       for (Idx h = 0; h < h_in; h++) {
+
+//         // for (Idx w = 0; w < w_in; w++) {
+//           // RoPE
           
 
-          hvx_rope_af(in_ptr, sin_ptr, cos_ptr, out_ptr, d_in * w_in);
+//           hvx_rope_af(in_ptr, sin_ptr, cos_ptr, out_ptr, d_in * w_in);
         
-          in_ptr += d_in * w_in;
-          out_ptr += d_in * w_in;
-        // }
+//           in_ptr += d_in * w_in;
+//           out_ptr += d_in * w_in;
+//         // }
 
-        sin_ptr += d_in;
-        cos_ptr += d_in;
-      }
-    }
+//         sin_ptr += d_in;
+//         cos_ptr += d_in;
+//       }
+//     }
 
 
-  } else {
+//   } else {
 
-    // only support pose_type == 2 (LLaMA) now
-    return GraphStatus::ErrorFatal;
+//     // only support pose_type == 2 (LLaMA) now
+//     return GraphStatus::ErrorFatal;
 
-  }
+//   }
 
 
   
   
   
-  return GraphStatus::Success;
+//   return GraphStatus::Success;
 
-}
+// }
 
 
 
-#else
+// #else
 
 
 template<typename TensorType>
@@ -344,71 +344,132 @@ GraphStatus ropeImpl(TensorType& out_0,
 
   out_0.set_dims(in_0);
   auto [b_in, h_in, w_in, d_in] = in_0.dims();
-  for (Idx b = 0; b < b_in; b++) {
-    for (Idx h = 0; h < h_in; h++) {
-      for (Idx w = 0; w < w_in; w++) {
-        // RoPE
-        for (Idx d = 0; d < d_in; d++) {
-          
+  if (pose_type_ == 4) {
+    DType dtype = out_0.get_dtype();
 
-          int s = h; //  BSHD order
-          if (pose_type_ == 1) {
-              float in_value = in_0(b, h, w, d);
-              float in_value_2;
-              if (d < d_in / 2) { // 偶數 0,2,4
-                  in_value_2 = -in_0(b, h, w, d + d_in / 2);
-              } else {
-                  in_value_2 = in_0(b, h, w, d - d_in / 2);
-              }
-              float sin_value = sin(0, 0, s +h_cnt_, d);
-              float cos_value = cos(0, 0, s +h_cnt_, d);
-              auto value = in_value * cos_value + in_value_2 * sin_value;
-              out_0(b, h, w, d) = value;
+    if (dtype == DType::Float32) {
+      for (Idx b = 0; b < b_in; b++) {
+        for (Idx h = 0; h < h_in; h++) {
+          for (Idx w = 0; w < w_in; w++) {
+
+            int s = h; //  BSHD order
+            int partial_dimension = d_in;
+            int half = (int)(partial_dimension / 2);
+            for (Idx d = 0; d < partial_dimension / 2; ++d) {
+                float in_value = in_0(b, h, w, d);
+                float in_value_2 = in_0(b, h, w, d + half);
+                float sin_value = sin(0, 0, s + h_cnt_, d);
+                float cos_value = cos(0, 0, s + h_cnt_, d);
+                auto value = in_value * cos_value - in_value_2 * sin_value;
+                auto value2 = in_value * sin_value + in_value_2 * cos_value;
+                out_0(b, h, w, d) = value;
+                out_0(b, h, w, d + half) = value2;
+            }
           }
-          else if (pose_type_ == 2) {
-              float in_value = in_0(b, h, w, d);
-              debuglog("rope execute... in_value=(%f)", in_value);
-              float in_value_2;
-              if (d % 2 == 0) { // 偶數 0,2,4
-                  in_value_2 = -in_0(b, h, w, d + 1);
-              } else {
-                  in_value_2 = in_0(b, h, w, d - 1);
-              }
-              debuglog("rope execute... in_value_2=(%f)", in_value_2);
-              float sin_value = sin(0, 0, s +h_cnt_, d);
-              float cos_value = cos(0, 0, s +h_cnt_, d);
-              auto value = in_value * cos_value + in_value_2 * sin_value;
-
-              debuglog("rope execute... sin_value=(%f)", sin_value);
-              debuglog("rope execute... cos_value=(%f)", cos_value);
-
-              debuglog("rope execute... value=(%f)", value);
-              out_0(b, h, w, d) = value;
-          } else {
-              float in_value = in_0(b, h, w, d);
-              float in_value_2;
-              float sin_value = sin(0, 0, s +h_cnt_, d);
-              float cos_value = cos(0, 0, s +h_cnt_, d);
-              if (d < d_in / 4) {
-                  in_value_2 = -in_0(b, h, w, d + d_in / 4);
-                  auto value = in_value * cos_value + in_value_2 * sin_value;
-
-                  out_0(b ,h , w, d) = value;
-              } else if(d < d_in / 2){
-                  in_value_2 = in_0(b, h, w, d - d_in / 4);
-                  auto value = in_value * cos_value + in_value_2 * sin_value;
-                  
-                  out_0(b ,h , w, d) = value;
-              }else {
-                  
-                  out_0(b ,h , w, d) = in_value;
-              }
-          }
-
         }
       }
-    }
+    } else if (dtype == DType::Float16) {
+
+      auto in_ptr = (__fp16*)in_0.raw_data_const();
+      auto sin_ptr = (__fp16*)sin.raw_data_const();
+      auto cos_ptr = (__fp16*)cos.raw_data_const();
+      auto out_ptr = (__fp16*)out_0.raw_data();
+
+      for (Idx b = 0; b < b_in; b++) {
+        for (Idx h = 0; h < h_in; h++) {
+          for (Idx w = 0; w < w_in; w++) {
+
+            int s = h; //  BSHD order
+            int partial_dimension = d_in;
+            int half = (int)(partial_dimension / 2);
+            for (Idx d = 0; d < partial_dimension / 2; ++d) {
+                __fp16 in_value = *in_ptr;
+                __fp16 in_value_2 = *(in_ptr + half);
+                __fp16 sin_value = *(sin_ptr + s*d_in + d);
+                __fp16 cos_value = *(cos_ptr + s*d_in + d);
+                auto value = in_value * cos_value - in_value_2 * sin_value;
+                auto value2 = in_value * sin_value + in_value_2 * cos_value;
+                *out_ptr = value;
+                *(out_ptr + half) = value2;
+
+                out_ptr++;
+                in_ptr++;
+            }
+
+            out_ptr += half;
+            in_ptr += half;
+          }
+        }
+      }
+    } 
   }
+
+  // for (Idx b = 0; b < b_in; b++) {
+  //   for (Idx h = 0; h < h_in; h++) {
+  //     for (Idx w = 0; w < w_in; w++) {
+  //       // RoPE
+  //       for (Idx d = 0; d < d_in; d++) {
+          
+
+  //         int s = h; //  BSHD order
+  //         if (pose_type_ == 1) {
+  //             float in_value = in_0(b, h, w, d);
+  //             float in_value_2;
+  //             if (d < d_in / 2) { // 偶數 0,2,4
+  //                 in_value_2 = -in_0(b, h, w, d + d_in / 2);
+  //             } else {
+  //                 in_value_2 = in_0(b, h, w, d - d_in / 2);
+  //             }
+  //             float sin_value = sin(0, 0, s +h_cnt_, d);
+  //             float cos_value = cos(0, 0, s +h_cnt_, d);
+  //             auto value = in_value * cos_value + in_value_2 * sin_value;
+  //             out_0(b, h, w, d) = value;
+  //         }
+  //         else if (pose_type_ == 2) {
+  //             float in_value = in_0(b, h, w, d);
+  //             debuglog("rope execute... in_value=(%f)", in_value);
+  //             float in_value_2;
+  //             if (d % 2 == 0) { // 偶數 0,2,4
+  //                 in_value_2 = -in_0(b, h, w, d + 1);
+  //             } else {
+  //                 in_value_2 = in_0(b, h, w, d - 1);
+  //             }
+  //             debuglog("rope execute... in_value_2=(%f)", in_value_2);
+  //             float sin_value = sin(0, 0, s +h_cnt_, d);
+  //             float cos_value = cos(0, 0, s +h_cnt_, d);
+  //             auto value = in_value * cos_value + in_value_2 * sin_value;
+
+  //             debuglog("rope execute... sin_value=(%f)", sin_value);
+  //             debuglog("rope execute... cos_value=(%f)", cos_value);
+
+  //             debuglog("rope execute... value=(%f)", value);
+  //             out_0(b, h, w, d) = value;
+  //         } else if (pose_type_ == 4) {
+  //         } else {
+  //             float in_value = in_0(b, h, w, d);
+  //             float in_value_2;
+  //             float sin_value = sin(0, 0, s +h_cnt_, d);
+  //             float cos_value = cos(0, 0, s +h_cnt_, d);
+  //             if (d < d_in / 4) {
+  //                 in_value_2 = -in_0(b, h, w, d + d_in / 4);
+  //                 auto value = in_value * cos_value + in_value_2 * sin_value;
+
+  //                 out_0(b ,h , w, d) = value;
+  //             } else if(d < d_in / 2){
+  //                 in_value_2 = in_0(b, h, w, d - d_in / 4);
+  //                 auto value = in_value * cos_value + in_value_2 * sin_value;
+                  
+  //                 out_0(b ,h , w, d) = value;
+  //             }else {
+                  
+  //                 out_0(b ,h , w, d) = in_value;
+  //             }
+  //         }
+
+  //       }
+  //     }
+  //   }
+  // }
 
 
 //   auto &input = inputs[0];
@@ -501,7 +562,7 @@ GraphStatus ropeImpl(TensorType& out_0,
   return GraphStatus::Success;
 }
 
-#endif
+// #endif
 
 
 __attribute__((unused)) static float ropeCostFunc(const Op *op)
