@@ -57,7 +57,7 @@ endmacro()
 
 ## new demos
 
-if(NOT MLLM_BUILD_XNNPACK_BACKEND)
+# if(NOT MLLM_BUILD_XNNPACK_BACKEND)
 func_llm_add_executable(mllm_benchmark)
 func_llm_add_executable(demo_llama)
 func_llm_add_executable(demo_tinyllama)
@@ -82,7 +82,7 @@ func_vlm_add_executable(demo_vit)
 func_vlm_add_executable(demo_clip)
 func_vlm_add_executable(demo_imagebind)
 func_vlm_add_executable(demo_imagebind_1mod)
-endif()
+# endif()
 
 # QNN demo
 if(QNN)

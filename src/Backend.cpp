@@ -20,7 +20,7 @@ void registerBackend() {
 #ifdef USE_QNN
         registerQNNBackendCreator();
 #elif defined(MLLM_BUILD_XNNPACK_BACKEND)
-        registerXNNBackendCreator();
+            registerXNNBackendCreator();
 #endif
     });
 }
@@ -34,7 +34,7 @@ static std::unordered_map<BackendType, std::shared_ptr<BackendCreator>> &GetBack
 }
 
 const std::shared_ptr<BackendCreator> GetBackendCreator(BackendType type) {
-    if (type == MLLM_QNN) {
+    if (type == MLLM_QNN || type == MLLM_XNNPACK) {
         Layer::use_layername_2_tensorname = false;
     }
     registerBackend();
