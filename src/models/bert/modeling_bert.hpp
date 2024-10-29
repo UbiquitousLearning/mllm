@@ -89,7 +89,7 @@ class BertModel : public Module {
 public:
     BertModel(BertConfig &config) {
         embeddings = BertEmbeddings(config.vocab_size, config.hidden_size, config.type_vocab_size, config.max_position_embeddings, config.layer_norm_eps, config.names_config);
-        layers = List<BertLayer>(config.num_hidden_layers, config, "encoder.layer.");
+        layers = List<BertLayer>(config.num_hidden_layers, config, config.names_config.blk_name);
 
         if(config.pooling_type == "mean") {
             pooler = make_unique<AvgPooler>();
