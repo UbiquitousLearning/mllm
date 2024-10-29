@@ -90,7 +90,7 @@ Op *CPUBackend::opCreate(const OpParam &op_param, string name, int threadCount) 
     OpType optype = OpType(op_param.find("type")->second);
     auto iter = map_creator_.find(optype);
     if (iter == map_creator_.end()) {
-        printf("Don't support type \n");
+        std::cout << "CPU Op Don't support type : " << name << std::endl;
         return nullptr;
     }
     Op *exe = iter->second->create(op_param, this, name, cpu_threads);
@@ -150,7 +150,7 @@ void CPUBackend::registerOps() {
 TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {
     auto iter = map_function_.find(type);
     if (iter == map_function_.end()) {
-        printf("Don't support type \n");
+        std::cout << "CPU funcCreate Don't support type : " << type << std::endl;
         return nullptr;
     }
     return iter->second;
