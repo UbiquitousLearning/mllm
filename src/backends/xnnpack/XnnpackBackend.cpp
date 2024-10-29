@@ -120,7 +120,7 @@ bool XnnpackModelRuntime::createModel(const xnn_subgraph_t &model_factory) {
 bool XnnpackModelRuntime::createRuntime(uint32_t flags) {
     assert(!runtime_);
     // flags |= XNN_FLAG_NO_OPERATOR_FUSION;
-    return xnn_status_success == xnn_create_runtime_v4(model_.get(), nullptr, nullptr, threadpool_, flags, &runtime_);
+    return xnn_status_success == xnn_create_runtime_v4(model_.get(), weight_cache_, nullptr, threadpool_, flags, &runtime_);
 }
 
 bool XnnpackModelRuntime::reshapeRuntime() {
@@ -139,6 +139,10 @@ void XnnpackModelRuntime::resetUuidExternalValuesMap(const std::unordered_map<ui
     uuid_2_externals_v_ = ext_vals;
 }
 
+void XnnpackModelRuntime::setWeightCache(xnn_weights_cache_t weight_cache) {
+    weight_cache_ = weight_cache;
+}
+
 std::unordered_map<uint32_t, xnn_external_value> &XnnpackModelRuntime::__uuidToExternalsV() {
     return uuid_2_externals_v_;
 }
@@ -150,6 +154,9 @@ XnnpackBackend::XnnpackBackend(std::shared_ptr<MemoryManager> mm, const XnnpackB
 
     // subgraph
     createSubgraph();
+
+    // init weight_cache_
+    // xnn_create_weights_cache(&weight_cache_);
 
     // register ops
     type_ = BackendType::MLLM_XNNPACK;
@@ -248,6 +255,7 @@ std::shared_ptr<XnnpackModelRuntime> XnnpackBackend::recreateModelRuntime(int th
 
     // set external values
     model_runtime_->resetUuidExternalValuesMap(uuid_2_externals_v_);
+    model_runtime_->setWeightCache(weight_cache_);
 
     return model_runtime_;
 }
@@ -382,6 +390,18 @@ void XnnpackBackend::assignPtrToTensor() {
 
 void XnnpackBackend::setSubgraphDispatched(bool b) {
     subgraph_dispatched_ = b;
+}
+
+xnn_weights_cache_t XnnpackBackend::getWeightCache() {
+    return weight_cache_;
+}
+
+bool XnnpackBackend::isWeightCacheFinalized() const {
+    return weight_cache_finalized;
+}
+
+void XnnpackBackend::setWeightCacheFinalized(bool b) {
+    weight_cache_finalized = b;
 }
 
 } // namespace mllm::xnnpack

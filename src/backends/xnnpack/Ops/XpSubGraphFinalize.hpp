@@ -28,6 +28,8 @@ public:
 
     ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
+    ErrorCode load(AbstructLoader &loader) override;
+
 private:
     int thread_count_;
 };

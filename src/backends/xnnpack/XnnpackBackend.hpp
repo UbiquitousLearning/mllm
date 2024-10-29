@@ -37,17 +37,19 @@ public:
 
     void resetUuidExternalValuesMap(const std::unordered_map<uint32_t, xnn_external_value> &ext_vals);
 
+    void setWeightCache(xnn_weights_cache_t weight_cache);
+
 public:
     std::unordered_map<uint32_t, xnn_external_value> &__uuidToExternalsV();
 
 private:
-    std::unique_ptr<xnn_subgraph, decltype(&xnn_delete_subgraph)>
-        model_;
+    std::unique_ptr<xnn_subgraph, decltype(&xnn_delete_subgraph)> model_;
     pthreadpool_t threadpool_ = nullptr;
     xnn_runtime_t runtime_ = nullptr;
     std::vector<xnn_external_value> external_values_;
     std::unordered_map<uint32_t, xnn_external_value> uuid_2_externals_v_;
     int32_t num_threads_;
+    xnn_weights_cache_t weight_cache_ = nullptr;
 };
 
 struct XnnpackBackendOpts {
@@ -108,6 +110,12 @@ public:
 
     void setSubgraphDispatched(bool b);
 
+    xnn_weights_cache_t getWeightCache();
+
+    bool isWeightCacheFinalized() const;
+
+    void setWeightCacheFinalized(bool b);
+
 private:
     XnnpackBackendOpts opts_;
 
@@ -124,7 +132,12 @@ private:
 
     std::shared_ptr<XnnpackModelRuntime> model_runtime_ = nullptr;
 
-    std::map<OpType, XnnpackBackend::Creator *> map_op_creator_;
+    // weight cache
+    xnn_weights_cache_t weight_cache_ = nullptr;
+    bool weight_cache_finalized = false;
+
+    std::map<OpType, XnnpackBackend::Creator *>
+        map_op_creator_;
     std::map<TensorFuncType, TensorFunction *> map_tensor_function_;
 };
 
