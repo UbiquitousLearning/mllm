@@ -10,7 +10,7 @@
 #include "Types.hpp"
 #include "cmdline.h"
 #include "models/qwen/configuration_qwen.hpp"
-#include "models/qwen/tokenization_qwen.hpp"
+#include "models/qwen/tokenization_qwen_xp.hpp"
 #include "models/qwen/modeling_qwen_xp_sdpa.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
 
@@ -42,6 +42,8 @@ int main(int argc, char **argv) {
     // model.setNoLoadWeightsDtype(DataType::MLLM_TYPE_F32);
 
     vector<string> in_strs = {
+        "Whats your name?",
+        "Behave as a linux terminal",
         "Say Hello!",
         " Hello, who are you?",
         " What can you do?",
