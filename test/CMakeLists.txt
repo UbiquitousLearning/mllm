@@ -7,8 +7,12 @@ include_directories(${PROJECT_SOURCE_DIR}/test)
 
 # MLLM Tests
 file(GLOB_RECURSE MLLM_TEST
-        ${PROJECT_SOURCE_DIR}/test/*.cpp
-        ${PROJECT_SOURCE_DIR}/test/*.hpp
+        ${PROJECT_SOURCE_DIR}/test/cpu/*.cpp
+        ${PROJECT_SOURCE_DIR}/test/cpu/*.hpp
+        ${PROJECT_SOURCE_DIR}/test/quantizer/*.cpp
+        ${PROJECT_SOURCE_DIR}/test/quantizer/*.hpp
+        ${PROJECT_SOURCE_DIR}/test/processor/*.cpp
+        ${PROJECT_SOURCE_DIR}/test/processor/*.hpp
 )
 list(REMOVE_ITEM MLLM_TEST ${PROJECT_SOURCE_DIR}/test/TestSystemMemoryManager.cpp)
 list(REMOVE_ITEM MLLM_TEST ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp)
@@ -19,6 +23,7 @@ list(REMOVE_ITEM MLLM_TEST ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp)
 add_executable(
         MLLM_TEST
         ${PROJECT_SOURCE_DIR}/test/main.cpp
+        ${PROJECT_SOURCE_DIR}/test/TestLoader.cpp
         ${MLLM_TEST}
         ${DIR_SRC_CPU} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_EXP} ${DIR_SRC} ${MLLM_QUANTIZER} ${SRC_TOKENIZERS}
         ${PROJECT_SOURCE_DIR}/src/processor/ClipPreProcess.hpp
