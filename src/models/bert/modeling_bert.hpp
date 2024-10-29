@@ -40,7 +40,7 @@ public:
     BertLayer(const BertConfig &config, const string &base_name) {
         // base_name: encoder.layer.n.
         attention = MultiHeadAttention(config.hidden_size, config.num_attention_heads, config.num_attention_heads,
-                           config.hidden_size / config.num_attention_heads, SPLIT_NONE, false, false, RoPEType::NONE, -1, -1, 0, false, true, config.names_config,
+                                       config.hidden_size / config.num_attention_heads, SPLIT_NONE, false, false, RoPEType::NONE, -1, -1, 0, false, true, config.names_config,
                                        base_name + config.names_config._attn_base_name);
 
         feed_forward = FeedForward(config.hidden_size, config.intermediate_size,
@@ -74,10 +74,9 @@ private:
     Layer attn_norm, ff_norm;
 };
 
-
-class AvgPooler : public Module{
+class BertAvgPooler : public Module {
 public:
-    AvgPooler() = default;
+    BertAvgPooler() = default;
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = inputs[0];
         x = x.mean(SEQUENCE);
@@ -91,9 +90,9 @@ public:
         embeddings = BertEmbeddings(config.vocab_size, config.hidden_size, config.type_vocab_size, config.max_position_embeddings, config.layer_norm_eps, config.names_config);
         layers = List<BertLayer>(config.num_hidden_layers, config, config.names_config.blk_name);
 
-        if(config.pooling_type == "mean") {
-            pooler = make_unique<AvgPooler>();
-        }else {
+        if (config.pooling_type == "mean") {
+            pooler = BertAvgPooler();
+        } else {
             // print not support pooling type and exit
             std::cout << "Not support pooling type: " << config.pooling_type << std::endl;
             exit(0);
@@ -102,21 +101,17 @@ public:
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = embeddings(inputs, args)[0];
-
         for (auto &layer : layers) {
             x = layer({x})[0];
         }
-
-        x = (*pooler)({x})[0];
-
+        x = pooler({x})[0];
         return {x};
     }
 
 private:
     BertEmbeddings embeddings;
     std::vector<BertLayer> layers;
-
-    unique_ptr<Module> pooler;
+    BertAvgPooler pooler;
 };
 
 #endif //! MODELING_BERT_HPP
