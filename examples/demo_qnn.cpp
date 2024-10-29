@@ -59,13 +59,6 @@ int main(int argc, char **argv) {
             return true;
         });
 
-        // auto result = model({input_tensor});
-        // auto [out_string, out_token] = tokenizer.detokenize(result[0]);
-        // auto [not_end, output_string] = tokenizer.postprocess(out_string);
-        // if (!not_end) { break; }
-        // std::cout << output_string << std::flush;
-        // chatPostProcessing(out_token, input_tensor, {});
-
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();
 
