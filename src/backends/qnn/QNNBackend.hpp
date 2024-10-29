@@ -57,7 +57,7 @@ public:
         OpType optype = OpType(op_param.find("type")->second);
         auto iter = map_creator_.find(optype);
         if (iter == map_creator_.end()) {
-            printf("Don't support type \n");
+            std::cout << "NPU Op Don't support type : " << name << std::endl;
             return nullptr;
         }
         Op *exe = nullptr;

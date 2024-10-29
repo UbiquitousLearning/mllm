@@ -192,7 +192,7 @@ public:
         post_atten_res_add = Add(base_name + names._attn_base_name + "post_atten_add");
 
         post_attn_layernorm =
-            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name, false);
+            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
 
         auto mlp_base_name = base_name + names._ffn_base_name;
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
@@ -225,7 +225,7 @@ public:
 
         auto x = post_attn_layernorm(tmp);
 
-        // x = pre_mlp_quantize(x);
+        x = pre_mlp_quantize(x);
         // reshape to 32,2
         x = pre_mlp_view(x);
 
@@ -301,7 +301,7 @@ public:
         post_atten_res_add = Add(base_name + names._attn_base_name + "post_atten_add");
 
         post_attn_layernorm =
-            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name, false);
+            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
 
         auto mlp_base_name = base_name + names._ffn_base_name;
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
@@ -309,8 +309,8 @@ public:
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
         silu = SiLU(mlp_base_name + "act");
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
-        post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize", false);
-        post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize", false);
+        post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
+        post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");
 
         down_proj = Linear(intermediate_size, hidden_size, false, mlp_base_name + names._down_proj_name);
         pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize");
@@ -334,7 +334,7 @@ public:
 
         auto x = post_attn_layernorm(tmp);
 
-        // x = pre_mlp_quantize(x);
+        x = pre_mlp_quantize(x);
         // reshape to 32,2
         x = pre_mlp_view(x);
 
@@ -596,7 +596,6 @@ public:
             auto out_token = text_generator_->generate(_out[0]);
             if (!call_back(out_token)) break;
             chatPostProcessing(out_token, input_ids, {});
-            std::cout << "\n========AFTER PREFILL=========" << std::endl;
             return;
         }
     }
