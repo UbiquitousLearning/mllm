@@ -4,6 +4,7 @@
 #include "models/qwen/modeling_qwen_npu.hpp"
 #include "models/qwen/modeling_qwen.hpp"
 #include "models/qwen/tokenization_qwen.hpp"
+#include "processor/PostProcess.hpp"
 
 using namespace mllm;
 
@@ -42,7 +43,7 @@ int main(int argc, char **argv) {
         std::cout << "[A] " << std::flush;
 
         LlmTextGeneratorOpts opt{
-            .max_new_tokens = 100,
+            .max_new_tokens = 1,
             .do_sample = false,
             .temperature = 0.3f,
             .top_k = 50,
@@ -57,6 +58,13 @@ int main(int argc, char **argv) {
             std::cout << output_string << std::flush;
             return true;
         });
+
+        // auto result = model({input_tensor});
+        // auto [out_string, out_token] = tokenizer.detokenize(result[0]);
+        // auto [not_end, output_string] = tokenizer.postprocess(out_string);
+        // if (!not_end) { break; }
+        // std::cout << output_string << std::flush;
+        // chatPostProcessing(out_token, input_tensor, {});
 
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();
