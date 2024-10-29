@@ -26,11 +26,19 @@ public:
 
     Tensor cache_;
 
+    int getCacheSeqLen() override {
+        return cache_seq_len_;
+    }
+    void clearCache() override {
+        cache_seq_len_ = 0;
+    }
+
 private:
     int thread_count = 4;
 
     int cache_seq_len_ = -999;
     int n_rep_ = 1;
+    bool isDecoding = false;
 
     int cache_limit_;
 };

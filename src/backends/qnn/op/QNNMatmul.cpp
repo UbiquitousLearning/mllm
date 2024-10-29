@@ -57,7 +57,7 @@ ErrorCode QNNMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         inputs[1]->transShape(SEQUENCE, DIMENSION);
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[1]->dimension());
     }
-    // outputs[0]->setDtype(activationDtype());
+
     return Op::reshape(inputs, outputs);
 }
 

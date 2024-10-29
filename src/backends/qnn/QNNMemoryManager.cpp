@@ -112,7 +112,7 @@ void QNNMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
 void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
     auto it = qnnMemPtrMap_.find(ptr);
     if (it == qnnMemPtrMap_.end()) {
-        std::cerr << "getMemHandle failed" << std::endl;
+        std::cerr << "getMemHandle failed " << ptr << std::endl;
         return;
     }
 

@@ -72,7 +72,7 @@ ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         dim2 = dim2_;
         dim3 = dim3_;
     } else {
-        std::cout << "CPUView not support!!!!" << std::endl;
+        std::cout << "QNNView not support!!!!" << std::endl;
     }
     outputs[0]->reshape(dim0, dim1, dim2, dim3);
 
@@ -80,6 +80,8 @@ ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    outputs[0]->setDtype(inputs[0]->dtype());
+    #ifdef OLD_QNN
     if (getOutputTensorType(outputs[0]) == QNN_TENSOR_TYPE_APP_READ) {
         outputs[0]->setBackend(qnnBackend_);
         outputs[0]->setDtype(MLLM_TYPE_I8);
@@ -87,6 +89,7 @@ ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 
         qnnBackend_->pushOutputBuffers(outputs[0]->hostPtr<uint8_t>());
     }
+    #endif
 
     if (outputs[0]->dtype() == MLLM_TYPE_I8)
         return graphAddNode(name(), "Reshape", inputs, outputs, {}, "qti.aisw", true, &scale_);
@@ -188,6 +191,13 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
         if (pos != -1) {
             scaleName.erase(pos, wordToRemove.length());
             scale_type_name = ".input_scale";
+        }
+
+        wordToRemove = ".post_attention_layernorm";
+        pos = scaleName.find(wordToRemove);
+        if (pos != -1) {
+            scaleName.erase(pos, wordToRemove.length());
+            scale_type_name = ".mlp.up_proj.input_scale";
         }
 
         scale_.setName(scaleName + scale_type_name);

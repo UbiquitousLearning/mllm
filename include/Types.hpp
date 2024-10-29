@@ -94,9 +94,9 @@ inline std::map<std::vector<int>, ChlType> Chls2Type = {
     {{0, 3, 4, 1, 2}, BWCTH}};
 
 enum TensorType {
-    INPUT_TENSOR = 0,
+    INPUT_TENSOR = 0, // used for input of the model
     NORMAL_TENSOR,
-    OUTPUT_TENSOR,
+    GRAPH_OUTPUT, // used for output of a graph
 };
 
 enum Chl {

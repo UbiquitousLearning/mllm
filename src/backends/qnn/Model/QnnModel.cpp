@@ -570,6 +570,47 @@ ModelError_t getGraphInfoFromModels(QnnModel *models,
   return err;
 }
 
+ModelError_t getSingleGraphInfoFromModel(QnnModel &model, GraphInfoPtr_t* graphInfoPtr) {
+    ModelError_t err = MODEL_NO_ERROR;
+
+    *graphInfoPtr = (GraphInfo_t *)malloc(sizeof(GraphInfo_t));
+    auto graphInfo = *graphInfoPtr;
+    if (graphInfo == nullptr) {
+        PRINT_ERROR("getGraphInfoFromModels() graphsInfo malloc returned nullptr.\n");
+        return MODEL_GRAPH_ERROR;
+    }
+
+    graphInfo->graph = model.getQnnGraph();
+    graphInfo->graphName =
+        strnDup(model.getQnnGraphName().c_str(), model.getQnnGraphName().size());
+    if (graphInfo->graphName == nullptr) {
+        PRINT_ERROR("getGraphInfoFromModels() failed to construct graphName. Received nullptr.\n");
+        return MODEL_GRAPH_ERROR;
+    }
+
+    // allocate and add graph input/output TensorsWrapper. Note: no need to make deep copies of
+    // the tensor's pointer members as they are already allocated on heap in the addTensor
+    // function call.
+    std::vector<Qnn_Tensor_t> graphInputTensors = model.getGraphInputTensors();
+    size_t numInputTensors = graphInputTensors.size();
+    size_t inputTensorsSize = numInputTensors * sizeof(Qnn_Tensor_t);
+    graphInfo->inputTensors = (Qnn_Tensor_t *)malloc(inputTensorsSize);
+    memscpy(graphInfo->inputTensors, inputTensorsSize, graphInputTensors.data(), inputTensorsSize);
+    graphInfo->numInputTensors = (uint32_t)numInputTensors;
+    // allocate and add graph outputTensors
+    std::vector<Qnn_Tensor_t> graphOutputTensors = model.getGraphOutputTensors();
+    size_t numOutputTensors = graphOutputTensors.size();
+    size_t outputTensorsSize = numOutputTensors * sizeof(Qnn_Tensor_t);
+    graphInfo->outputTensors = (Qnn_Tensor_t *)malloc(outputTensorsSize);
+    memscpy(
+        graphInfo->outputTensors, outputTensorsSize, graphOutputTensors.data(), outputTensorsSize);
+    graphInfo->numOutputTensors = (uint32_t)numOutputTensors;
+
+    // graph composition is complete by this stage, free if any cached tensors remaining
+    VALIDATE(model.freeCachedTensors(), err);
+    return err;
+}
+
 ModelError_t freeGraphsInfo(GraphInfoPtr_t **graphsInfo, uint32_t numGraphs) {
   if (graphsInfo == nullptr || *graphsInfo == nullptr) {
     PRINT_ERROR("freeGraphsInfo() invalid graphsInfo.");

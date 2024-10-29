@@ -34,7 +34,7 @@ protected:
     BackendType device_ = BackendType::MLLM_CPU;
 
 public:
-    map<string, shared_ptr<Tensor>> activation_tensors = {};
+    map<string, shared_ptr<Tensor>> activation_tensors;
     AbstructLoader *loader;
     bool doLoad = false;
 
@@ -102,8 +102,9 @@ public:
     }
 
     void load(string path) {
-        ParamLoader param_loader(std::move(path));
-        load(param_loader);
+        // create global loader and save to llm_model_ptr.loader as QNNBackend needs to load weights in runtime
+        loader = new ParamLoader(std::move(path));
+        load(*loader);
     }
     void load(AbstructLoader &param_loader) {
         Tensor::tensor_status = TENSOR_STATIC_INIT;
@@ -153,10 +154,22 @@ public:
     vector<Tensor> operator()(vector<Tensor> inputs, Args... args) {
         vector<std::any> anyArgs = convertArgsToAnyVector(args...);
         // set static tmp_device to device_ to init layers' op
+        auto previoud_device = tmp_device;
         Module::tmp_device = device_;
+        // Module Loading
         if (llm_model_ptr && llm_model_ptr->doLoad) {
-            return Forward(inputs, anyArgs);
+            auto outputs = Forward(inputs, anyArgs);
+            // for inner module, set output tensors to GRAPH_OUTPUT
+            if (inputs[0].ttype() != TensorType::INPUT_TENSOR) { // XPUs' module should not be the outermost input tensor
+                for (auto &output : outputs) {
+                    inputs[0].module()->activation_tensors[output.name()]->setTtype(GRAPH_OUTPUT);
+                }
+            }
+            // set Module::tmp_device to previous device
+            Module::tmp_device = previoud_device;
+            return outputs;
         }
+        // Module setUp & execute
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
             if (prefilling_token_size_ == 0) { // first time init
                 prefilling_token_size_ = inputs[0].sequence();
@@ -199,7 +212,42 @@ public:
             }
 
             return output;
-        } else {
+        } else { // inner Modules
+            // offload according to the backends' info inited during loading
+            if (Tensor::tensor_status == TENSOR_STATIC_INIT && device_ != MLLM_CPU) { // backend specific module reshape & setup
+                auto inputs_vec = vector<shared_ptr<Tensor>>();
+                auto outputs_vec = vector<shared_ptr<Tensor>>();
+                for (auto &i : inputs) {
+                    inputs_vec.push_back(inputs[0].module()->activation_tensors[i.name()]);
+                }
+                auto getUinqueName = [this]() -> string {
+                    std::ostringstream oss;
+                    oss << "Module@" << this;
+                    return oss.str();
+                };
+                Backend::global_backends[device_]->onSetUpStart(inputs_vec, outputs_vec, getUinqueName());
+                auto outputs = Forward(inputs, anyArgs);
+                for (auto &output : outputs) {
+                    outputs_vec.push_back(inputs[0].module()->activation_tensors[output.name()]);
+                }
+                Backend::global_backends[device_]->onSetUpEnd(inputs_vec, outputs_vec, getUinqueName());
+                return outputs;
+            } else if (Tensor::tensor_status == TENSOR_STATIC_READY && device_ != MLLM_CPU) { // backend specific module execute
+                auto inputs_vec = vector<shared_ptr<Tensor>>();
+                auto outputs_vec = vector<shared_ptr<Tensor>>();
+                for (auto &i : inputs) {
+                    inputs_vec.push_back(inputs[0].module()->activation_tensors[i.name()]);
+                }
+                auto getUinqueName = [this]() -> string {
+                    std::ostringstream oss;
+                    oss << "Module@" << this;
+                    return oss.str();
+                };
+                Backend::global_backends[device_]->onExecuteStart(inputs_vec, outputs_vec, getUinqueName());
+                auto outputs = Forward(inputs, anyArgs);
+                Backend::global_backends[device_]->onExecuteEnd();
+                return outputs;
+            }
             return Forward(inputs, anyArgs);
         }
     }

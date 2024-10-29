@@ -71,6 +71,9 @@ enum OpType {
     D2H,
     XP_KVCACHE,
     SDPA,
+
+    // new front-end
+    SUPERSILU,
 };
 
 static const vector<string> OpNames = {
@@ -116,6 +119,7 @@ static const vector<string> OpNames = {
     "Range",
     "Where",
     "Replace",
+    "Predictor",
     "SparseLinear",
     "SparseIdLinear",
     "ElasticLinear",
@@ -136,6 +140,7 @@ static const vector<string> OpNames = {
     "D2H",
     "XP_KVCACHE",
     "SDPA",
+    "SuperSiLU",
 };
 
 enum TensorFuncType {

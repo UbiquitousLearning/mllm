@@ -12,7 +12,7 @@ CPUKVCacheNPU::CPUKVCacheNPU(Backend *bn, string opName, int n_rep, int cache_ma
     cache_.setBackend(bn);
 
     // TODO: Chaning it to FP16
-    cache_.setDtype(MLLM_TYPE_F32);
+    cache_.setDtype(MLLM_TYPE_F16);
     cache_limit_ = cache_max;
 }
 
@@ -25,19 +25,20 @@ ErrorCode CPUKVCacheNPU::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
         cache_.alloc();
         cache_seq_len_ = 0;
 
-        // when the execution is switched from pref to dec, the sequence length should be set to the no padding length
-        auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-#ifdef USE_QNN
-        if (cpuBackend->isStageSwitching()) {
-            cache_seq_len_ = cpuBackend->getSequenceLength();
-        }
-#endif
-        // the input is from QNN linear, the V is not transposed, so we need to transpose it here
-        if (name().find("v_cache") != std::string::npos) {
+        // when using the old frontend, the V will be transposed here; while in the module API, the V will be transposed in the QNNTranspose
+        if (name().find("v_cache") != std::string::npos && inputs[0]->ctype() != BHDS) {
             inputs[0]->transShape(SEQUENCE, DIMENSION);
         }
     }
 
+#ifdef USE_QNN
+    // when the execution is switched from pref to dec, the sequence length should be set to the no padding length
+    auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
+    if (cpuBackend->isStageSwitching()) {
+        cache_seq_len_ = cpuBackend->getSequenceLength();
+        isDecoding = true;
+    }
+#endif
 
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() + cache_seq_len_, inputs[0]->dimension());
 
@@ -56,6 +57,13 @@ ErrorCode CPUKVCacheNPU::load(AbstructLoader &loader) {
 }
 
 ErrorCode CPUKVCacheNPU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    // when decoding, the input will deepCopy from cache, no need to execute
+    if (isDecoding) {
+        int cache_seq_len_old = cache_seq_len_;
+        cache_seq_len_ += inputs[0]->sequence();
+        return MLLM_NO_ERROR;
+    }
+
     if (cache_.ctype() == BSHD && inputs[0]->ctype() == BSHD) { // 'K'
 #pragma omp parallel for collapse(3) num_threads(thread_count)
         for (int b = 0; b < cache_.batch(); ++b) {
@@ -130,6 +138,20 @@ ErrorCode CPUKVCacheNPU::free(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 ErrorCode CPUKVCacheNPU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
+
+    // when decoding, the input will deepCopy from cache, no need to execute
+    if (isDecoding) {
+        outputs[0]->setDtype(cache_.dtype());
+        outputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ / cache_limit_, 0});
+        if (inputs[0]->sequence() + cache_seq_len_ > cache_limit_) {
+            outputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_ + 1, 0});
+        }
+        if (inputs[0]->masterTensor() == nullptr) {
+            inputs[0]->free();
+        }
+        inputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_, 0});
+        return MLLM_NO_ERROR;
+    }
 
     // output setup
     outputs[0]->setDtype(cache_.dtype());

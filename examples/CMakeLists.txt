@@ -86,6 +86,7 @@ endif()
 
 # QNN demo
 if(QNN)
+    func_llm_add_executable(demo_qnn)
     func_llm_add_executable(main_qwen_npu)
 endif()
 

@@ -3,6 +3,7 @@
 #include <memory>
 #include <unordered_map>
 #include <mutex>
+#include "Layer.hpp"
 
 namespace mllm {
 extern void registerCPUBackendCreator();
@@ -33,6 +34,9 @@ static std::unordered_map<BackendType, std::shared_ptr<BackendCreator>> &GetBack
 }
 
 const std::shared_ptr<BackendCreator> GetBackendCreator(BackendType type) {
+    if (type == MLLM_QNN) {
+        Layer::use_layername_2_tensorname = false;
+    }
     registerBackend();
 
     auto &gExtraCreator = GetBackendCreatorMap();
