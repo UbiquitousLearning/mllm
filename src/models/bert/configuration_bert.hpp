@@ -48,6 +48,7 @@ struct BertConfig : public TransformerConfig {
         bos_token_id = 151643;
         eos_token_id = 151645;
         hidden_act = "GELU";
+        pooling_type = "mean";
         hidden_size = 384;
         initializer_range = 0.02;
         intermediate_size = 1536;
@@ -73,6 +74,7 @@ struct BertConfig : public TransformerConfig {
     int bos_token_id = 151643;
     int eos_token_id = 151643;
     std::string hidden_act = "GELU";
+    std::string pooling_type = "mean";
     int hidden_size = 1024;
     float initializer_range = 0.02;
     int intermediate_size = 2816;

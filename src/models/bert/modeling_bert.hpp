@@ -74,11 +74,30 @@ private:
     Layer attn_norm, ff_norm;
 };
 
+
+class AvgPooler : public Module{
+public:
+    AvgPooler() = default;
+    std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
+        auto x = inputs[0];
+        x = x.mean(SEQUENCE);
+        return {x};
+    }
+};
+
 class BertModel : public Module {
 public:
     BertModel(BertConfig &config) {
         embeddings = BertEmbeddings(config.vocab_size, config.hidden_size, config.type_vocab_size, config.max_position_embeddings, config.layer_norm_eps, config.names_config);
         layers = List<BertLayer>(config.num_hidden_layers, config, "encoder.layer.");
+
+        if(config.pooling_type == "mean") {
+            pooler = make_unique<AvgPooler>();
+        }else {
+            // print not support pooling type and exit
+            std::cout << "Not support pooling type: " << config.pooling_type << std::endl;
+            exit(0);
+        }
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
@@ -88,12 +107,16 @@ public:
             x = layer({x})[0];
         }
 
+        x = (*pooler)({x})[0];
+
         return {x};
     }
 
 private:
     BertEmbeddings embeddings;
     std::vector<BertLayer> layers;
+
+    unique_ptr<Module> pooler;
 };
 
 #endif //! MODELING_BERT_HPP

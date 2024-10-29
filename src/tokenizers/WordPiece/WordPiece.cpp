@@ -104,11 +104,52 @@ bool mllm::BasicTokenizer::is_chinese_char(wchar_t cp) {
            (cp >= 0x20000 && cp <= 0x2A6DF);
 }
 
+std::vector<std::wstring> splitBySet(const std::wstring& text, const std::unordered_set<std::wstring>& words) {
+    std::vector<std::wstring> result;
+    size_t pos = 0;
+
+    while (pos < text.length()) {
+        size_t minPos = std::wstring::npos;
+        std::wstring foundWord;
+
+        // 查找最近的匹配项
+        for (const auto& word : words) {
+            size_t found = text.find(word, pos);
+            if (found != std::wstring::npos && (found < minPos)) {
+                minPos = found;
+                foundWord = word;
+            }
+        }
+
+        // 如果找到匹配项，处理之前的文本和匹配项
+        if (minPos != std::wstring::npos) {
+            if (minPos > pos) {
+                // 添加匹配项前的文本
+                result.push_back(text.substr(pos, minPos - pos));
+            }
+            // 添加匹配项
+            result.push_back(foundWord);
+            pos = minPos + foundWord.size();
+        } else {
+            // 没有更多匹配项，添加剩余所有文本
+            result.push_back(text.substr(pos));
+            break;
+        }
+    }
+
+    return result;
+}
+
 std::vector<std::wstring> mllm::BasicTokenizer::tokenize(const std::wstring& text) {
     std::wstring cleaned = clean_text(text);
     if (_tokenize_chinese_chars)
         cleaned = tokenize_chinese_chars(cleaned);
-    std::vector<std::wstring> split_tokens = whitespace_tokenize(cleaned);
+    std::vector<std::wstring> white_space_splited_tokens = whitespace_tokenize(cleaned);
+    std::vector<std::wstring> split_tokens;
+    for (const auto& token : white_space_splited_tokens) {
+        auto sub_tokens = splitBySet(token, never_split);
+        split_tokens.insert(split_tokens.end(), sub_tokens.begin(), sub_tokens.end());
+    }
     std::vector<std::wstring> output_tokens;
 
     for (auto& token : split_tokens) {
@@ -137,6 +178,9 @@ std::vector<std::wstring> mllm::BasicTokenizer::tokenize(const std::wstring& tex
     }
 
     return output_tokens;
+}
+void mllm::BasicTokenizer::add_never_split(const std::wstring &token) {
+    never_split.insert(token);
 }
 
 void mllm::WordPieceTokenizer::tokenize(const string &text, vector<token_id_t> &tokens, bool bos) {
@@ -167,6 +211,7 @@ void mllm::WordPieceTokenizer::tokenize(const string &text, vector<token_id_t> &
                 break;
             } else{
                 token_strs.push_back(str);
+//                printf("word: %s\n", str.c_str());
             }
             start = end;
         }
@@ -175,5 +220,11 @@ void mllm::WordPieceTokenizer::tokenize(const string &text, vector<token_id_t> &
     for (const auto& token_str : token_strs) {
 //        std::cout << "token: " << token_str << std::endl;
         tokens.push_back(vocab_map_[token_str]);
+    }
+}
+void mllm::WordPieceTokenizer::add_special_tokens(const vector<std::string> &special_tokens) {
+    // add never split tokens to basic tokenizer
+    for (const auto& token : special_tokens) {
+        basic_tokenizer.add_never_split(utf8_to_wstring(token));
     }
 }

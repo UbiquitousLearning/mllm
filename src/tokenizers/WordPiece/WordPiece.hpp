@@ -33,6 +33,8 @@ public:
 
     std::vector<std::wstring> tokenize(const std::wstring& text);
 
+    void add_never_split(const std::wstring& token);
+
 private:
     bool do_lower_case;
     bool _tokenize_chinese_chars;
@@ -55,6 +57,8 @@ public:
 
     WordPieceTokenizer(const std::string &vocab_file);
     void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) override;
+
+    void add_special_tokens(const std::vector<std::string> &special_tokens);
 };
 
 }
