@@ -135,6 +135,9 @@ int main(int argc, char **argv) {
         auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(in_str, seqLength, vocab_size);
         auto input = std::make_shared<Tensor>(input_tensor);
 
+        if (chunk != 1)
+            npuExe.warmup(npu_ctx, &npuNet, {input});
+
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
 
