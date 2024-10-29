@@ -29,7 +29,7 @@ cd mllm/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/
 make htp_aarch64 && make htp_v75
 ```
 
-## Build & Run
+## Build & Rung 
 
 Build the target with QNN backend.
 
@@ -37,6 +37,8 @@ Build the target with QNN backend.
 cd ../script
 ./build_qnn_android.sh
 ```
+
+Currently, there are two style of modeling, the Module API and the old implementation. The demo of the Module API is in `examples/demo_qnn.cpp` which is in a **user friendly style**, and the old implementation is in `examples/main_qwen_npu.cpp` which supports **the chunk pipeline prefilling**. When building the Module API executable, the `QNN_OLD_FRONTEND` option in build_qnn_android.sh should be set to OFF, and when building the old implementation, it should be set to ON.
 
 Download the model from [here](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/blob/main/), or using the following instructions
 
@@ -54,17 +56,17 @@ cd ../script
 ./run_qwen_npu.sh
 ```
 
-There are two arguments in the executable. `-s` is for the sequence length of prefilling, the default value is 64 in the demo we provided. `-c` for type of QNN prefilling options, when it is set to 1, the input will be splited into many chunks of sequence 32 and be executed in a pipeline. When it is set to 0, the input will be executed in one chunk.
+There are two arguments in the executable. `-s` is for the sequence length of prefilling, the default value is 64 in the demo we provided. `-c` for type of QNN prefilling options, when it is set to 1, the input will be splited into many chunks of sequence 256 and be executed in a pipeline. When it is set to 0, the input will be executed in one chunk.
 
 Result are as followed:
 
 ```
-> ./main_qwen_npu -s 64 -c 1
+> ./main_qwen_npu -s 512 -c 1
 [Q] <|im_start|>system
 You are a helpful assistant.<|im_end|>
 <|im_start|>user
 Give me a short introduction to large language model.<|im_end|>
 <|im_start|>assistant
 
-[A] A short introduction to a large language model is a type of artificial intelligence language model that is designed to understand and generate human language text. These models are typically trained on large amounts of text data, such as books, articles, and other written materials, to learn the patterns and structures of human language. They use a combination of natural language processing (NLP)
+[A] The large language model is a type of artificial intelligence that is designed to generate human-like text based on the input it receives It is typically trained on large datasets of text, such as books, articles, and web pages, and uses statistical models to learn patterns and relationships in the data The goal of a large language model is to generate text that is coherent
 ```
