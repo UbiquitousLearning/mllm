@@ -35,6 +35,8 @@ public:
     virtual void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor);
     virtual void runExp(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) {};
 
+    virtual void warmup(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) {};
+
     /**
      * \brief Setup&Executes the foreword propagation of provided network
      * \param net       An instance of the Net class representing the network to be run
@@ -60,6 +62,7 @@ public:
     };
 
 protected:
+    bool isSetup_ = false;
     QNNExecutionType executionType_ = PROMPT;
 };
 
@@ -78,6 +81,8 @@ class QNNPipelineExecutor : public QNNExecutor {
         bool stop_;
     };
 
+    vector<vector<shared_ptr<Tensor>>> chunked_tensors_list;
+
 public:
     QNNPipelineExecutor(ParamLoader *data_loader) :
         QNNExecutor(data_loader) {
@@ -85,6 +90,7 @@ public:
     // used for assigning graph backends execuation
     void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) override;
     virtual void runExp(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
+    virtual void warmup(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
 };
 
 } // namespace mllm

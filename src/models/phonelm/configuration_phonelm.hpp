@@ -99,13 +99,13 @@ struct PhoneLMConfig : public TransformerConfig {
     int hidden_size = 1024;
     float initializer_range = 0.02;
     int intermediate_size = 2816;
-    int max_position_embeddings = 32768;
+    int max_position_embeddings = 2048;
     int max_window_layers = 21;
     int num_attention_heads = 16;
     int num_hidden_layers = 24;
     int num_key_value_heads = 16;
     double rms_norm_eps = 1e-6;
-    float rope_theta = 1000000.0;
+    float rope_theta = 10000.0;
     int vocab_size = 49152;
     bool tie_embedding_words = true;
 

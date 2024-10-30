@@ -403,76 +403,102 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
     std::cout << "prefill time: " << (ex_time_end - ex_time_start) / 1000.0F << "ms" << std::endl;
 }
 
-void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) {
-    bool init = false;
-    bool reshape = false;
-
+void QNNPipelineExecutor::warmup(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) {
+    auto ex_time_start = mllm_time_us();
     // input will be split into chunks and execute in pipeline
-    const int chunk_size = 128;
+    const int chunk_size = 256;
     int chunk_num = (input_tensors[0]->sequence() + chunk_size - 1) / chunk_size;
-    // create a new tensor for each chunk
-    vector<vector<shared_ptr<Tensor>>> chunked_tensors_list(chunk_num, vector<shared_ptr<Tensor>>(input_tensors.size()));
     // we suppose the tensor(s) of input_tensors is the only one or all have the same seq length
     for (int i = 0; i < input_tensors.size(); ++i) {
         if (i != 0) {
             assert(input_tensors[i]->sequence() == input_tensors[i - 1]->sequence());
         }
     }
-    // split the tensor in chunks
-    for (int i = 0; i < chunk_num; ++i) {
-        // for all inputs in input_tensors
-        auto &chunked_tensors = chunked_tensors_list[i];
-        for (int j = 0; j < input_tensors.size(); ++j) {
-            chunked_tensors[j] = std::make_shared<Tensor>();
-            chunked_tensors[j]->setBackend(net->backends()[BackendType::MLLM_CPU].get());
-            chunked_tensors[j]->reshape(1, 1, chunk_size, 1);
-            chunked_tensors[j]->setName(net->inputNames()[j]);
-            // use deepCopyFrom for each chunk to avoid memcpy
-            chunked_tensors[j]->deepCopyFrom(input_tensors[j].get(), false, {0, 0, i * chunk_size, 0});
+
+    // create a new tensor for each chunk
+    // (chunk_num, vector<shared_ptr<Tensor>>(input_tensors.size()));
+    chunked_tensors_list.resize(chunk_num, vector<shared_ptr<Tensor>>(input_tensors.size()));
+
+    if (!isSetup_) {
+        bool init = false;
+        bool reshape = false;
+        // split the tensor in chunks
+        for (int i = 0; i < chunk_num; ++i) {
+            // for all inputs in input_tensors
+            auto &chunked_tensors = chunked_tensors_list[i];
+            for (int j = 0; j < input_tensors.size(); ++j) {
+                chunked_tensors[j] = std::make_shared<Tensor>();
+                chunked_tensors[j]->setBackend(net->backends()[BackendType::MLLM_CPU].get());
+                chunked_tensors[j]->reshape(1, 1, chunk_size, 1);
+                chunked_tensors[j]->setName(net->inputNames()[j]);
+                // use deepCopyFrom for each chunk to avoid memcpy
+                chunked_tensors[j]->deepCopyFrom(input_tensors[j].get(), false, {0, 0, i * chunk_size, 0});
+            }
         }
-    }
 
-    checkReshape(init, reshape, chunked_tensors_list[0]);
+        checkReshape(init, reshape, chunked_tensors_list[0]);
 
-    // set Input tensor
-    vector<int> flashGid = {};
-    for (int tid = 0; tid < net->inputNames().size(); ++tid) {
-        auto input_name = net->inputNames()[tid];
-        auto input_tensor = chunked_tensors_list[0][tid];
-        input_tensor->setName(input_name);
-        net->tensors()[input_name] = input_tensor;
-        if (std::find(flashGid.begin(), flashGid.end(), net->inGmap()[input_name]) == flashGid.end()) {
-            flashGid.push_back(net->inGmap()[input_name]);
+        // set Input tensor
+        vector<int> flashGid = {};
+        for (int tid = 0; tid < net->inputNames().size(); ++tid) {
+            auto input_name = net->inputNames()[tid];
+            auto input_tensor = chunked_tensors_list[0][tid];
+            input_tensor->setName(input_name);
+            net->tensors()[input_name] = input_tensor;
+            if (std::find(flashGid.begin(), flashGid.end(), net->inGmap()[input_name]) == flashGid.end()) {
+                flashGid.push_back(net->inGmap()[input_name]);
+            }
         }
-    }
 
-    for (auto Gid : flashGid) {
-        net->subGraph()[graphNamingRule(Gid)]->reflashInput(net->tensors());
-    }
+        for (auto Gid : flashGid) {
+            net->subGraph()[graphNamingRule(Gid)]->reflashInput(net->tensors());
+        }
 
+        PRINT_MEMORY_USAGE("before setup all graph");
+
+        for (int i = 0; i < (int)net->subGraph().size(); ++i) {
+            string name = graphNamingRule(i);
+            auto &g = net->subGraph()[name];
+
+            // cast graph to QNNGraph
+            // the qnn_graph below is where we cast the Graph to QNNGraph
+            auto expectedBackend = ctx->sub_backend_[i];
+
+            if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
+                g->reshape();
+                g->setUpTensors();
+            } else if (graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
+                auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
+                g->reshape();
+                qnn_graph->setUpTensors(name);
+            } else {
+                std::cerr << "Backend Not Support" << std::endl;
+                exit(1);
+            }
+        }
+        isSetup_ = true;
+    }
+    auto ex_time_end = mllm_time_us();
+    std::cout << "warmup done for " << (ex_time_end - ex_time_start) / 1000000.0 << "s" << std::endl;
+}
+
+void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     auto ex_time_start = mllm_time_us();
-    PRINT_MEMORY_USAGE("before setup all graph");
 
-    for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        string name = graphNamingRule(i);
-        auto &g = net->subGraph()[name];
-
-        // cast graph to QNNGraph
-        // the qnn_graph below is where we cast the Graph to QNNGraph
-        auto expectedBackend = ctx->sub_backend_[i];
-
-        if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
-            g->reshape();
-            g->setUpTensors();
-        } else if (graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
-            auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-            g->reshape();
-            qnn_graph->setUpTensors(name);
-        } else {
-            std::cerr << "Backend Not Support" << std::endl;
-            exit(1);
+    // input will be split into chunks and execute in pipeline
+    const int chunk_size = 256;
+    int chunk_num = (input_tensors[0]->sequence() + chunk_size - 1) / chunk_size;
+    // we suppose the tensor(s) of input_tensors is the only one or all have the same seq length
+    for (int i = 0; i < input_tensors.size(); ++i) {
+        if (i != 0) {
+            assert(input_tensors[i]->sequence() == input_tensors[i - 1]->sequence());
         }
     }
+
+    if (!isSetup_) {
+        warmup(ctx, net, input_tensors);
+    }
+
     auto ex_time_end = mllm_time_us();
 
     ex_time_start = mllm_time_us();
@@ -590,88 +616,15 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
     executeFunc(0, 0);
     omp_set_max_active_levels(3);
     for (int i = 1; i < (int)net->subGraph().size(); ++i) {
-#pragma omp parallel for num_threads(chunk_num)
+#pragma omp parallel for num_threads(2)
         for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
             executeFunc(chunk_id, i);
         }
-#pragma omp barrier  
+#pragma omp barrier
+        std::cout << "---------------------------" << std::endl;
     }
     // the last graph of chunk 1
-    {
-        auto chunk_id = 1;
-        auto i = net->subGraph().size() - 1;
-        auto expectedBackend = ctx->sub_backend_[i];
-        string name = graphNamingRule(i);
-        auto t_start = mllm_time_us();
-        if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
-            // execute only one cpu graph at a time
-            cpu_mutex.lock();
-
-            auto &g = net->subGraph()[name];
-            if (chunk_id != 0) {
-                // cpu graph should reshape and setup for every chunk forward for KVCache op
-                g->reshape();
-                g->setUpTensors();
-            }
-
-            // only get the result at the last graph
-            if (i == net->subGraph().size() - 1) {
-                chunked_result_list = g->forward();
-            } else {
-                g->forward();
-            }
-
-            // execute only one cpu graph at a time
-            cpu_mutex.unlock();
-        } else if (graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
-            auto &g = net->subGraph()[name];
-            auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-            qnn_graph->forward(name);
-
-            // only get the result at the last graph
-            if (i == net->subGraph().size() - 1) {
-                chunked_result_list = qnn_graph->forward(name);
-            } else {
-                qnn_graph->forward(name);
-            }
-        } else {
-            std::cerr << "Backend Not Support" << std::endl;
-            exit(1);
-        }
-
-        auto t_end = mllm_time_us();
-
-        if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
-            std::cout << chunk_id << " TIME of CPU Graph " << i << ": " << (t_end - t_start) / 1000.0F << "ms, End at " << (t_end - ex_time_start) / 1000.f << std::endl;
-        } else {
-            std::cout << chunk_id << " TIME of QNN Graph " << i << ": " << (t_end - t_start) / 1000.0F << "ms, End at " << (t_end - ex_time_start) / 1000.f << std::endl;
-        }
-
-        PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
-
-        // if it is the last graph, move the result to the final result
-        if (i == (int)net->subGraph().size() - 1) {
-            result_.resize(chunked_result_list.size());
-            if (chunk_id == 0) { // reshape the result tensor when first chunk is executed
-                for (int tid = 0; tid < chunked_result_list.size(); ++tid) {
-                    result_[tid] = std::make_shared<Tensor>();
-                    result_[tid]->setBackend(net->backends()[BackendType::MLLM_CPU].get());
-                    result_[tid]->reshape(chunked_result_list[tid]->batch(),
-                                          chunked_result_list[tid]->head(),
-                                          chunk_size * chunk_num,
-                                          chunked_result_list[tid]->dimension());
-                    result_[tid]->alloc();
-                }
-            }
-
-            // move the result to the final result
-            for (int tid = 0; tid < chunked_result_list.size(); ++tid) {
-                auto &result_tensor = chunked_result_list[tid];
-
-                memcpy(result_[tid]->ptrAt<float>(0, 0, chunk_size * chunk_id, 0), result_tensor->hostPtr<float>(), result_tensor->count() * sizeof(float));
-            }
-        }
-    }
+    executeFunc(1, net->subGraph().size() - 1);
 
     ex_time_end = mllm_time_us();
 
