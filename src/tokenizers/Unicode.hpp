@@ -14,11 +14,13 @@
 #pragma once
 
 #include <cstdint>
+#include <locale>
 #include <string>
 #include <vector>
+// unicode
+#include <codecvt>
 
 // TODO: prefix all symbols with "llama_"
-
 struct codepoint_flags {
     enum {
         UNDEFINED = 0x0001,
@@ -78,3 +80,29 @@ uint8_t unicode_utf8_to_byte(const std::string &utf8);
 uint32_t unicode_tolower(uint32_t cp);
 
 std::vector<std::string> unicode_regex_split(const std::string &text, const std::vector<std::string> &regex_exprs);
+
+static std::string any_to_utf8(std::string s) {
+    // the original input is utf-8 already
+    return s;
+}
+
+static std::string __chr(int v) {
+    std::wstring wString(1, v);
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> convert;
+    std::string utf8 = convert.to_bytes(wString);
+    return utf8;
+}
+
+static std::vector<int> __ord(std::string v) {
+    std::vector<int> ret;
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> convert;
+    std::wstring utf8str = convert.from_bytes(v);
+    for (auto i = 0; i < utf8str.length(); ++i) ret.emplace_back(utf8str[i]);
+    return ret;
+}
+
+static const std::string PAT_STR = R"((?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?:$|[^\S])|\s+)";
+static const std::string SPLIT_PAT_STR = R"(<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>)";
+static const std::vector<std::string> FIXED_PAT_STRS = {
+    "(?:'[sS]|'[tT]|'[rR][eE]|'[vV][eE]|'[mM]|'[lL][lL]|'[dD])|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+",
+};
