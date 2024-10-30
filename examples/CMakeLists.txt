@@ -47,6 +47,7 @@ macro(func_vlm_add_executable target)
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
+        ${PROJECT_SOURCE_DIR}/src/tokenizers/WordPiece/WordPiece.cpp
         ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
         ${DIR_SRC_PROCESSOE}
         ${DIR_THIRDPARTY_AUDIO}
