@@ -8,6 +8,9 @@
 #include <Types.hpp>
 #include <memory>
 #include <utility>
+#include <vector>
+#include "models/bert/modeling_bert.hpp"
+#include "models/bert/tokenization_bert.hpp"
 #include "models/fuyu/configuration_fuyu.hpp"
 #include "models/fuyu/modeling_fuyu.hpp"
 #include "models/qwen/configuration_qwen.hpp"
@@ -47,6 +50,10 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
         processor_ = new FuyuProcessor(vocab_path);
         module_ = make_shared<FuyuModel>(fuyuconfig);
         break;
+    case Bert:
+        tokenizer_ = make_shared<BertTokenizer>(vocab_path, true);
+        module_ = make_shared<BertModel>(BertConfig());
+        break;
     }
     module_->load(weights_path);
     is_first_run_cond_ = true;
@@ -73,6 +80,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
             auto [not_end, output_string] = tokenizer_->postprocess(out_string);
             callback_(output_string, !not_end);
             if (!not_end) { return false; }
+            return true;
         });
         module_->clear_kvcache();
     } else if (model_ == FUYU) {
@@ -87,16 +95,19 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
             callback_(string, !end);
             if (!end) { break; }
         }
+    } else if (model_ == Bert) {
+        LOGE("Bert model is not supported in this version.");
     }
 }
-std::string LibHelper::runForResult(std::string &input_str) {
+std::vector<float> LibHelper::runForResult(std::string &input_str) {
     if (model_ == Bert) {
-        auto input_tensor = tokenizer_->tokenize(input_str);
-        auto result = (*module_)({input_tensor});
-        auto outputs = tokenizer_->detokenize(result[0]);
-        return outputs.first;
+        auto bert_tokenizer = dynamic_pointer_cast<BertTokenizer>(tokenizer_);
+        auto [token_ids, type_ids, position_ids] = bert_tokenizer->process(input_str);
+        auto result = (*module_)({token_ids, type_ids, position_ids})[0];
+        auto output_arr = result.hostPtr<float>();
+        return std::vector<float>(output_arr, output_arr + result.count());
     } else {
-        return "";
+        return {};
     }
 }
 

@@ -8,6 +8,7 @@
 #include <string>
 // #ifdef ANDROID_API
 #include <android/log.h>
+#include <vector>
 #define TAG "MLLM"
 #define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG,TAG,__VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR,TAG,__VA_ARGS__)
@@ -54,7 +55,7 @@ public:
     bool setUp(const std::string &base_path, std::string weights_path, std::string vocab_path, std::string merge_path, PreDefinedModel model, MLLMBackendType backend_type = MLLMBackendType::CPU);
     void setCallback(callback_t callback);
     void run(std::string &input_str, uint8_t *image, unsigned max_step, unsigned image_length) ;
-    std::string runForResult(std::string &input_str);
+    std::vector<float> runForResult(std::string &input_str);
     ~LibHelper();
 };
 } // namespace mllm
