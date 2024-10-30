@@ -40,35 +40,17 @@ int main(int argc, char **argv) {
     auto model = QWenForCausalLM(config);
     model.to(BackendType::MLLM_XNNPACK);
     model.load(model_path);
-    // model.setNoLoadWeightsDtype(DataType::MLLM_TYPE_F32);
 
     vector<string> in_strs = {
         "Whats your name?",
         "Behave as a linux terminal",
         "Say Hello!",
-        " Hello, who are you?",
-        " What can you do?",
+        "Hello, who are you?",
+        "What can you do?",
         "Please introduce Beijing University of Posts and Telecommunications.",
     };
-
-    auto processOutput = [&](std::string &text) -> std::pair<bool, std::string> {
-        if (text == "<|im_start|>" || text == "<|im_end|>" || text == "<unk>") return {true, ""};
-        if (text == "<|endoftext|>") return {false, ""};
-        return {true, text};
-    };
-
-    auto addSystemPrompt = [](const std::string &text) -> std::string {
-        std::string ret;
-        std::string pre =
-            "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n";
-        ret = pre + text;
-        std::string end = "<|im_end|>\n<|im_start|>assistant\n";
-        ret = ret + end;
-        return ret;
-    };
-
     for (const auto &in_str : in_strs) {
-        auto input_str = addSystemPrompt(in_str);
+        auto input_str = tokenizer.apply_chat_template(in_str);
         auto input_tensor = tokenizer.tokenize(input_str);
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
