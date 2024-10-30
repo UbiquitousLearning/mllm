@@ -1,25 +1,24 @@
 //
 // Created by Xiang Li on 2023/12/16.
 //
-#include "helper.hpp"
-#include "processor/FuyuPreProcess.hpp"
 
-#ifdef ANDROID_API
+// #ifdef ANDROID_API
 
 #include "LibHelper.hpp"
-#include <iostream>
 #include <Types.hpp>
+#include <memory>
 #include <utility>
-#include <valarray>
-#include "Net.hpp"
-#include "Executor.hpp"
-// #include "NetParameter.hpp"
-#include "express/Express.hpp"
-#include "tokenizers/BPE/Bpe.hpp"
-#include "modeling_llama.hpp"
-#include "modeling_fuyu.hpp"
+#include <vector>
+#include "models/bert/modeling_bert.hpp"
+#include "models/bert/tokenization_bert.hpp"
+#include "models/fuyu/configuration_fuyu.hpp"
+#include "models/fuyu/modeling_fuyu.hpp"
+#include "models/qwen/configuration_qwen.hpp"
+#include "models/qwen/modeling_qwen.hpp"
+#include "models/qwen/tokenization_qwen.hpp"
 #include "tokenizers/Unigram/Unigram.hpp"
 using namespace mllm;
+#include "models/fuyu/processing_fuyu.hpp"
 
 inline bool exists_test(const std::string &name) {
     std::ifstream f(name.c_str());
@@ -27,75 +26,36 @@ inline bool exists_test(const std::string &name) {
 }
 
 unsigned int LibHelper::postProcessing(shared_ptr<Tensor> result, shared_ptr<Tensor> &out_result) const {
-    switch (model_) {
-    case LLAMA: {
-        return postProcessing_llama(result, out_result);
-    }
-    case FUYU: {
-        return postProcessing_Fuyu(result, out_result);
-    }
-    default: return 0;
-    }
+    // switch (model_) {
+    // case LLAMA: {
+    //     return 0;
+    // }
+    // case FUYU: {
+    //     // return chatPostProcessing(unsigned int token_idx, Tensor &tokens_tensor, const int &clean_tensors);
+    // }
+    // default: return 0;
+    // }
 }
 
-bool LibHelper::setUp(const std::string &base_path, std::string weights_path, std::string vocab_path, PreDefinedModel model, MLLMBackendType backend_type) {
-    c = new Context();
-    BackendConfig bn;
-    weights_path = base_path + weights_path;
-    vocab_path = base_path + vocab_path;
-    LOGI("Setup!");
-    // check path exists
-    if (!exists_test(weights_path) || !exists_test(vocab_path)) {
-        return false;
-    }
-
-    const auto param_loader = new ParamLoader(std::move(weights_path));
-    executor_ = new Executor(param_loader);
-    net_ = new Net(bn);
-    if (net_ == nullptr || executor_ == nullptr || !param_loader->isAvailible()) {
-        return false;
-    }
-    auto size = param_loader->getParamSize();
-    LOGI("param size:%d", size);
-    model_ = model;
-    LOGI("MODEL TYPE:%d", model_);
-
+bool LibHelper::setUp(const std::string &base_path, std::string weights_path, std::string vocab_path, std::string merge_path, PreDefinedModel model, MLLMBackendType backend_type) {
+    FuyuConfig fuyuconfig(tokens_limit, "8B");
+    QWenConfig qwconfig(tokens_limit, "1.5B");
     switch (model) {
-    case LLAMA: {
-        int vocab_size = 32000;
-        int hidden_dim = 4096;
-        int ffn_hidden_dim = 11008;
-        int mutil_head_size = 32;
-        llama2(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size);
-        net_->convert(c->sub_param_, BackendType::MLLM_CPU);
-        tokenizer_ = new BPETokenizer(vocab_path);
-        eos_id_ = 2;
+    case LLAMA:
+        tokenizer_ = make_shared<QWenTokenizer>(vocab_path, merge_path);
+        module_ = make_shared<QWenForCausalLM>(qwconfig);
+        break;
+
+    case FUYU:
+        processor_ = new FuyuProcessor(vocab_path);
+        module_ = make_shared<FuyuModel>(fuyuconfig);
+        break;
+    case Bert:
+        tokenizer_ = make_shared<BertTokenizer>(vocab_path, true);
+        module_ = make_shared<BertModel>(BertConfig());
         break;
     }
-    case FUYU: {
-        int vocab_size = 262144;
-        int hidden_dim = 4096;
-        int ffn_hidden_dim = 4096 * 4;
-        int mutil_head_size = 64;
-        int patch_size = 30;
-        Fuyu(c, vocab_size, patch_size, 3, hidden_dim, ffn_hidden_dim, mutil_head_size);
-        net_->convert(c->sub_param_, BackendType::MLLM_CPU);
-        tokenizer_ = new UnigramTokenizer(vocab_path);
-        eos_id_ = 71013;
-        break;
-    }
-    default: {
-        return false;
-    }
-    }
-    size = tokenizer_->getVocabSize();
-    LOGI("tokenizer size:%d", size);
-    if (!tokenizer_->isAvailible()) {
-        return false;
-    }
-
-    executor_->setup(net_);
-
+    module_->load(weights_path);
     is_first_run_cond_ = true;
     return true;
 }
@@ -105,95 +65,53 @@ void LibHelper::setCallback(callback_t callback) {
 }
 
 void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, unsigned int image_length) {
-    // PreProcess
-    switch (model_) {
-    case LLAMA: {
-        if (input_str[0] != ' ') {
-            input_str = ' ' + input_str;
+    if (model_ == LLAMA) {
+        auto in_str = tokenizer_->apply_chat_template(input_str);
+        auto input_tensor = tokenizer_->tokenize(in_str);
+        LlmTextGeneratorOpts opt{
+            .max_new_tokens = max_step,
+            .do_sample = true,
+            .temperature = 0.3F,
+            .top_k = 50,
+            .top_p = 0.F,
+        };
+        module_->generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
+            auto out_string = tokenizer_->detokenize({out_token});
+            auto [not_end, output_string] = tokenizer_->postprocess(out_string);
+            callback_(output_string, !not_end);
+            if (!not_end) { return false; }
+            return true;
+        });
+        module_->clear_kvcache();
+    } else if (model_ == FUYU) {
+        auto processor = dynamic_cast<FuyuProcessor *>(processor_);
+        auto input_tensors = processor->process(input_str, {image}, {image_length});
+        for (int step = 0; step < max_step; step++) {
+            auto result = (*module_)({input_tensors[0], input_tensors[1], input_tensors[2]});
+            auto outputs = processor->detokenize(result[0]);
+            auto out_string = outputs.first;
+            auto out_token = outputs.second;
+            auto [end, string] = processor->postprocess(out_string);
+            callback_(string, !end);
+            if (!end) { break; }
         }
-        break;
+    } else if (model_ == Bert) {
+        LOGE("Bert model is not supported in this version.");
     }
-    case FUYU: {
-        if (input_str[input_str.length() - 1] != '\n') {
-            input_str = input_str + '\n';
-        }
-    }
-    }
-    auto tokens_id = vector<token_id_t>();
-    shared_ptr<Tensor> input = std::make_shared<Tensor>();
-    shared_ptr<Tensor> input_id = std::make_shared<Tensor>();
-    shared_ptr<Tensor> img_patch = std::make_shared<Tensor>();
-    shared_ptr<Tensor> img_patch_id = std::make_shared<Tensor>();
-
-    if (model_ == FUYU) {
-        LOGI("Image Found!");
-        LOGI("%s\n", input_str.c_str());
-        auto pre_processor = FuyuPreProcess(tokenizer_);
-        pre_processor.images_.clear();
-        pre_processor.image_input_ids_.clear();
-        pre_processor.image_patches_indices_.clear();
-        pre_processor.image_patches_.clear();
-        if (image != nullptr && image_length > 0) {
-            pre_processor.PreProcessImages({image}, {image_length});
-        } else {
-            pre_processor.PreProcessImages({}, {0});
-        }
-        pre_processor.Process(input_str);
-        auto input_ids = pre_processor.image_input_ids_;
-        if (input_ids.empty()) {
-            input_ids = pre_processor.text_ids_;
-        }
-
-        UnigramTokenizer::token2Tensor(net_, input_ids[0], input_id);
-        const auto image_patches = pre_processor.image_patches_;
-        const auto image_patch_indices = pre_processor.image_patches_indices_;
-        patches2Tensor(img_patch, net_, image_patches);
-        patchIdx2Tensor(img_patch_id, net_, image_patch_indices);
-
-    } else if (model_ == LLAMA) {
-        tokenizer_->tokenize(input_str, tokens_id, true);
-        LOGI("is_first_run_cond_:%d", is_first_run_cond_);
-        if (is_first_run_cond_) {
-            is_first_run_cond_ = false;
-        } else {
-            LOGI("Keep Speaker!");
-            if (tokens_id[0] > 0) {
-                tokens_id[0] = 13;
-            }
-        }
-        mllm::Tokenizer::token2Tensor(net_, tokens_id, input);
-    }
-
-    auto out_string = std::string();
-
-    for (int step = 0; step < max_step; step++) {
-        unsigned int token_idx;
-        if (model_ == FUYU) {
-            LOGI("Image Patch!");
-            executor_->run(net_, {input_id, img_patch, img_patch_id});
-            auto result = executor_->result();
-            token_idx = postProcessing(result[0], input_id);
-            fullTensor(img_patch, net_, {0, 0, 0, 0}, 1.0F);
-            fullTensor(img_patch_id, net_, {0, 0, 0, 0}, 1.0F);
-        } else {
-            executor_->run(net_, {input});
-            auto result = executor_->result();
-            token_idx = postProcessing(result[0], input);
-        }
-        const auto out_token = tokenizer_->detokenize({token_idx});
-        if (out_token == "</s>" || token_idx == eos_id_) {
-            callback_(out_string, true);
-            break;
-        }
-        out_string += out_token;
-        callback_(out_string, step == max_step - 1);
+}
+std::vector<float> LibHelper::runForResult(std::string &input_str) {
+    if (model_ == Bert) {
+        auto bert_tokenizer = dynamic_pointer_cast<BertTokenizer>(tokenizer_);
+        auto [token_ids, type_ids, position_ids] = bert_tokenizer->process(input_str);
+        auto result = (*module_)({token_ids, type_ids, position_ids})[0];
+        auto output_arr = result.hostPtr<float>();
+        return std::vector<float>(output_arr, output_arr + result.count());
+    } else {
+        return {};
     }
 }
 
 LibHelper::~LibHelper() {
-    delete c;
-    delete net_;
-    delete executor_;
-    delete tokenizer_;
+    delete processor_;
 }
-#endif
+// #endif

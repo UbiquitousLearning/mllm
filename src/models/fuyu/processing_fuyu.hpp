@@ -305,6 +305,29 @@ public:
         // auto batch_size = images_.size();
         get_sample_encoding(text);
     }
+    vector<Tensor> process(const std::string &text, const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) {
+        image_patch_indices_per_batch.clear();
+        image_patch_indices_per_subseq.clear();
+        image_patch_input_indices_.clear();
+        text_lengths_.clear();
+        image_input_ids_.clear();
+        attention_mask_.clear();
+        image_patches_indices_.clear();
+        image_patches_.clear();
+        text_ids_.clear();
+        images_.clear();
+
+        PreProcessImages(images, image_length);
+        Process(text);
+        auto input_ids = image_input_ids_;
+        if (input_ids.empty()) {
+            input_ids = text_ids_;
+        }
+        vector<Tensor> result = {mllm::Tokenizer::tokens2Input(input_ids[0], "input_ids"),
+                                 vector3d2Tensor(image_patches_, "image_patches"),
+                                 vector2d2Tensor(image_patches_indices_, "image_patches_indices")};
+        return result;
+    }
 
     vector<Tensor> process(std::string &text, vector<string> image) {
         image_patch_indices_per_batch.clear();
