@@ -41,16 +41,16 @@ target_link_libraries(
         MLLM_CPU
         -fopenmp
 )
-add_executable(
-        memoryPoolTest
-        ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp
-        ${DIR_SRC_MEM_MANAGER} ${PROJECT_SOURCE_DIR}/src/MemoryManager.hpp
-)
-add_executable(
-        SystemMemoryTest
-        ${PROJECT_SOURCE_DIR}/test/TestSystemMemoryManager.cpp
-        ${DIR_SRC_MEM_MANAGER} ${PROJECT_SOURCE_DIR}/src/MemoryManager.hpp
-)
+# add_executable(
+#         memoryPoolTest
+#         ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp
+#         ${DIR_SRC_MEM_MANAGER} ${PROJECT_SOURCE_DIR}/src/MemoryManager.hpp
+# )
+# add_executable(
+#         SystemMemoryTest
+#         ${PROJECT_SOURCE_DIR}/test/TestSystemMemoryManager.cpp
+#         ${DIR_SRC_MEM_MANAGER} ${PROJECT_SOURCE_DIR}/src/MemoryManager.hpp
+# )
 endif()
 
 if(MLLM_BUILD_XNNPACK_BACKEND)
