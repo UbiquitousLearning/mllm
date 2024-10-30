@@ -38,6 +38,7 @@ int main(int argc, char **argv) {
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
     QWenConfig config(tokens_limit, model_billion, RoPEType::HFHUBROPE);
     auto model = QWenForCausalLM(config);
+    model.to(BackendType::MLLM_XNNPACK);
     model.load(model_path);
     // model.setNoLoadWeightsDtype(DataType::MLLM_TYPE_F32);
 

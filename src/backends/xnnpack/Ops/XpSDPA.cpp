@@ -34,6 +34,8 @@ ErrorCode XpSDPA::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     if (mask_params_.hostPtr<float>()) mask_params_.free();
     mask_params_.alloc();
 
+    memset(mask_params_.hostPtr<float>(), 0, mask_params_.count() * sizeof(float));
+
     // recompute mask
     int b = Q_BATCH;
     int h = Q_HEAD;

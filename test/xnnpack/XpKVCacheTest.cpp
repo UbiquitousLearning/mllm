@@ -14,7 +14,7 @@ class KVCacheModule : public Module {
 
 public:
     KVCacheModule() {
-        kvcache_ = XP_KVCache(3, 10, "kvcache");
+        kvcache_ = XP_KVCache(1, 10, "kvcache");
         // linear_in_ = Linear(8, 8, true, "linear");
     }
 
