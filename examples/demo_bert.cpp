@@ -25,14 +25,12 @@ int main(int argc, char *argv[]) {
 
     BertTokenizer tokenizer(vocab_path, true);
     string text = "Help me set an alarm at 21:30";
-    auto [token_ids, type_ids, position_ids] = tokenizer.process(text);
-    // token_ids.printData<float>();
-
+    auto inputs = tokenizer.tokenizes(text);
     auto config = BertConfig();
     auto model = BertModel(config);
     model.load(model_path);
 
-    auto res = model({token_ids, type_ids, position_ids})[0];
+    auto res = model({inputs[0], inputs[1], inputs[2]})[0];
 
     res.printData<float>();
 

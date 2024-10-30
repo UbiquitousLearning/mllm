@@ -108,6 +108,9 @@ public:
         this->tokenize(text, tokens_id, bos_flag);
         return tokens2Input(tokens_id);
     }
+    virtual vector<Tensor> tokenizes(std::string &text) {
+        return {tokenize(text)};
+    }
     virtual std::string detokenize(const std::vector<token_id_t> &tokens);
 
     virtual std::pair<std::string, unsigned> detokenize(Tensor &result) {
