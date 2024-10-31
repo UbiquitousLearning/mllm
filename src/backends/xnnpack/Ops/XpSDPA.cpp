@@ -41,11 +41,13 @@ ErrorCode XpSDPA::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     int h = Q_HEAD;
     int s = Q_SEQUENCE;
     int d = V->shape()[2];
+    if (s > 1) {
 #pragma omp parallel for collapse(4) num_threads(thread_count)
-    for (int i_s = 0; i_s < s; ++i_s) {
-        for (int i_d = 0; i_d < d; ++i_d) {
-            if (i_d > i_s) {
-                mask_params_.setDataAt<float>({0, 0, i_s, i_d}, std::numeric_limits<float>::lowest());
+        for (int i_s = 0; i_s < s; ++i_s) {
+            for (int i_d = 0; i_d < d; ++i_d) {
+                if (i_d > i_s) {
+                    mask_params_.setDataAt<float>({0, 0, i_s, i_d}, std::numeric_limits<float>::lowest());
+                }
             }
         }
     }

@@ -21,12 +21,13 @@ ErrorCode XpCausalMask::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
     int h = inputs[0]->head();
     int s = inputs[0]->sequence();
     int d = inputs[0]->dimension();
-
+    if (s > 1) {
 #pragma omp parallel for collapse(4) num_threads(thread_count)
-    for (int i_s = 0; i_s < s; ++i_s) {
-        for (int i_d = 0; i_d < d; ++i_d) {
-            if (i_d > i_s) {
-                mask_param_.setDataAt<float>({0, 0, i_s, i_d}, std::numeric_limits<float>::lowest());
+        for (int i_s = 0; i_s < s; ++i_s) {
+            for (int i_d = 0; i_d < d; ++i_d) {
+                if (i_d > i_s) {
+                    mask_param_.setDataAt<float>({0, 0, i_s, i_d}, std::numeric_limits<float>::lowest());
+                }
             }
         }
     }
