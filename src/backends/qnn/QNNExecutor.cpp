@@ -624,7 +624,7 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
         std::cout << "---------------------------" << std::endl;
     }
     // the last graph of chunk 1
-    executeFunc(1, net->subGraph().size() - 1);
+    executeFunc(1, net->subGraph().size());
 
     ex_time_end = mllm_time_us();
 
