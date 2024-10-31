@@ -37,6 +37,8 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     }else{
 #ifndef LLAMAFILE_SGEMM
         old_dim = input->dimension() - input->sequence();
+#elif defined(USE_QNN)
+        old_dim = input->dimension() - input->sequence();
 #endif
     }
     memset(output->hostPtr<float>(),0,output->count() * sizeof(float));

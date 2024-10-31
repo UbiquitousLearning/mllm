@@ -4,6 +4,7 @@
 #include "models/qwen/modeling_qwen_npu.hpp"
 #include "models/qwen/modeling_qwen.hpp"
 #include "models/qwen/tokenization_qwen.hpp"
+#include "processor/PostProcess.hpp"
 
 using namespace mllm;
 
@@ -42,7 +43,7 @@ int main(int argc, char **argv) {
         std::cout << "[A] " << std::flush;
 
         LlmTextGeneratorOpts opt{
-            .max_new_tokens = 100,
+            .max_new_tokens = 1,
             .do_sample = false,
             .temperature = 0.3f,
             .top_k = 50,
