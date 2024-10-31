@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen_vocab.mllm");
 
-    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 1024);
+    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 1124);
 
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.add<int>("seq", 's', "seqenth length", false, 64);
@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
 
     int chunk = 1;
     if (isChunkExecute)
-        chunk = 2;
+        chunk = seqLength / 256;
 
     int vocab_size = 151936;
     int hidden_dim = cmdParser.get<int>("hds");
@@ -157,6 +157,7 @@ int main(int argc, char **argv) {
         if (chunk != 1)
             npuExe.warmup(npu_ctx, &npuNet, {input});
 
+        std::cout << "real_seq_length: " << real_seq_length << std::endl;
         std::cout << "[Q] " << input_string << std::endl;
         std::cout << "[A] " << std::flush;
 
