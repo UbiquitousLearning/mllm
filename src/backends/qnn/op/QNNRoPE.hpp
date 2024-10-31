@@ -29,6 +29,8 @@ private:
     int ishape;
     float partial_rotary_factor_ = 1;
 
+    Tensor hcntTensor_;
+
     Tensor sinTensor_;
     Tensor cosTensor_;
 };

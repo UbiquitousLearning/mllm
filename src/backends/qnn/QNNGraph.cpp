@@ -55,7 +55,7 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
 #ifdef DEBUGPRINT
             uint64_t t_start = mllm_time_us();
 #endif
-            if (ops_[op_name]->type() == LINEARINT8SHADOW)
+            if (ops_[op_name]->type() == LINEARINT8SHADOW || ops_[op_name]->type() == ROPE)
                 continue;
             ops_[op_name]->execute(ops_input_tensors_[op_name],
                                    ops_output_tensors_[op_name]);
@@ -92,6 +92,17 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
         // if ( !(name.find("layers.0.") != -1 || name.find("layers.2.") != -1 || name.find("layers.3.") != -1 || name.find("layers.7.") != -1 ) ) {
         //     memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*3), inputs[3]->hostPtr<uint8_t>(), inputs[3]->cntSize());
         // }
+    }
+
+    for (const auto &op_name : op_names_) {
+        if (ops_not_inputs_empty_[op_name]) {
+
+            if (ops_[op_name]->type() == ROPE)
+                ops_[op_name]->execute(ops_input_tensors_[op_name],
+                                   ops_output_tensors_[op_name]);
+        } else {
+            //            std::cout<<"op_name:"<<op_name<<" is not do"<<std::endl;
+        }
     }
 
     if (ops_[op_names_[op_names_.size() - 1]]->type() == LINEARINT8SHADOW) {

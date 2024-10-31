@@ -14,12 +14,14 @@ BEGIN_PKG_OP_DEFINITION(PKG_RoPE);
 
 
 // op execute function declarations
-template<typename TensorType>
+template<typename TensorType,typename TensorType1>
 GraphStatus ropeImpl(TensorType& out_0,
                      const TensorType& in_0,
                      const TensorType& sin,
                      const TensorType& cos,
+                     const TensorType1 &h_cnt,
                      const Tensor& pose_type);
+
 
 // forward declaration of sample cost function
 static float ropeCostFunc(const Op *op);
@@ -29,7 +31,7 @@ static float ropeCostFunc(const Op *op);
  * syntax: DEF_PACKAGE_OP(F,OP)
  * e.g. DEF_PACKAGE_OP((ropeImpl<Tensor>), "RoPE")
  */
-DEF_PACKAGE_OP((ropeImpl<Tensor>), "RoPE")
+DEF_PACKAGE_OP((ropeImpl<Tensor, Tensor>), "RoPE")
 
 /*
  * method 2 for defining op with specified cost value (one of GLACIAL, SNAIL, FAST, FREE)
@@ -309,11 +311,12 @@ DEF_PACKAGE_PARAM_ORDER("RoPE",
 // #else
 
 
-template<typename TensorType>
+template<typename TensorType,typename TensorType1>
 GraphStatus ropeImpl(TensorType& out_0,
                      const TensorType& in_0,
                      const TensorType& sin,
                      const TensorType& cos,
+                     const TensorType1 &h_cnt,
                      const Tensor& pose_type)
 
 {
@@ -336,11 +339,10 @@ GraphStatus ropeImpl(TensorType& out_0,
 
   // BSHD =>  NHWC
 
-  int h_cnt_ = 0; // history sequence position
-
   // Todo: We need consider to store the sequence position if we have KV Cache
 
   auto pose_type_ = pose_type(0,0,0,0);
+  auto h_cnt_ = static_cast<uint32_t>(h_cnt(0,0,0,0));
 
   out_0.set_dims(in_0);
   auto [b_in, h_in, w_in, d_in] = in_0.dims();
@@ -371,8 +373,8 @@ GraphStatus ropeImpl(TensorType& out_0,
     } else if (dtype == DType::Float16) {
 
       auto in_ptr = (__fp16*)in_0.raw_data_const();
-      auto sin_ptr = (__fp16*)sin.raw_data_const();
-      auto cos_ptr = (__fp16*)cos.raw_data_const();
+      // auto sin_ptr = (__fp16*)sin.raw_data_const();
+      // auto cos_ptr = (__fp16*)cos.raw_data_const();
       auto out_ptr = (__fp16*)out_0.raw_data();
 
       for (Idx b = 0; b < b_in; b++) {
@@ -385,12 +387,12 @@ GraphStatus ropeImpl(TensorType& out_0,
             for (Idx d = 0; d < partial_dimension / 2; ++d) {
                 __fp16 in_value = *in_ptr;
                 __fp16 in_value_2 = *(in_ptr + half);
-                __fp16 sin_value = *(sin_ptr + s*d_in + d);
-                __fp16 cos_value = *(cos_ptr + s*d_in + d);
+                float sin_value = sin(0, 0, s + h_cnt_, d);
+                float cos_value = cos(0, 0, s + h_cnt_, d);
                 auto value = in_value * cos_value - in_value_2 * sin_value;
                 auto value2 = in_value * sin_value + in_value_2 * cos_value;
-                *out_ptr = value;
-                *(out_ptr + half) = value2;
+                *out_ptr = static_cast<__fp16>(value);
+                *(out_ptr + half) = static_cast<__fp16>(value2);
 
                 out_ptr++;
                 in_ptr++;
