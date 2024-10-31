@@ -12,13 +12,16 @@
 
 #include "gtest/gtest.h"
 #include "backends/xnnpack/XnnpackBackend.hpp"
+#include "xnnpack/XpMemoryManager.hpp"
 
 using namespace mllm;
 using namespace mllm::xnnpack;
 
 class XpTest : public ::testing::Test {
 public:
-    XpTest() = default;
+    XpTest() {
+        mm_ = std::shared_ptr<MemoryManager>(new XpMemoryManager());
+    }
     ~XpTest() override = default;
 
     void SetUp() override;
