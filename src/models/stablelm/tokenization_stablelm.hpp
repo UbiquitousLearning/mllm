@@ -27,7 +27,7 @@ public:
         chat_template_end = "<|im_end|>\n<|im_start|>assistant\n";
     }
 
-    Tensor tokenize(std::string &text) override {
+    Tensor tokenize(std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
         if (text[0] != ' ') {
             text = ' ' + text;
         }
