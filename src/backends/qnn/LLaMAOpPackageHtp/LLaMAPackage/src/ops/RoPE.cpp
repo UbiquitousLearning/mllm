@@ -137,9 +137,6 @@ int32_t hvx_rope_af(
     sinline1p = *iptr2++;
     cosline1p = *iptr3++;
 
-    HVX_Vector one_vsf = Q6_V_vsplat_R(ONE);
-    HVX_Vector m_one_vqf32 = Q6_Vqf32_vsub_VsfVsf(Q6_V_vzero(), one_vsf);
-
     for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
     {
         block = Q6_R_min_RR(i, BLOCK_SIZE);
@@ -164,44 +161,30 @@ int32_t hvx_rope_af(
             sline1_half = Q6_V_valign_VVR(sline1c_half, sline1p_half, (size_t)input);
             sline1p_half = sline1c_half;
 
-            sline1_half = Q6_Vqf32_vadd_VsfVsf(sline1_half, Q6_V_vzero());
-            sline1 = Q6_Vqf32_vadd_VsfVsf(sline1, Q6_V_vzero());
-
-            HVX_Vector m_sline1_half = Q6_Vqf32_vmpy_Vqf32Vqf32(sline1_half, m_one_vqf32);
-
-
             // auto value = in_value * cos_value - in_value_2 * sin_value;
             
 
             // first vector
             cosline1c = *iptr3++;
-            cosline1 = Q6_V_valign_VVR(cosline1c, cosline1p, (size_t)sin);
+            cosline1 = Q6_V_valign_VVR(cosline1c, cosline1p, (size_t)cos);
             cosline1p = cosline1c;
 
             sinline1c = *iptr2++;
-            sinline1 = Q6_V_valign_VVR(sinline1c, sinline1p, (size_t)cos);
+            sinline1 = Q6_V_valign_VVR(sinline1c, sinline1p, (size_t)sin);
             sinline1p = sinline1c;
 
             {
-              HVX_Vector cosline1_vqf32 = Q6_Vqf32_vadd_VsfVsf(cosline1, Q6_V_vzero());
-              HVX_Vector cos_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(sline1, cosline1_vqf32);
-
-              HVX_Vector sinline1_vqf32 = Q6_Vqf32_vadd_VsfVsf(sinline1, Q6_V_vzero());
-
-              HVX_Vector sin_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(m_sline1_half, sinline1_vqf32);
-              *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32));
+              HVX_Vector cos_middle_value_qf32 = Q6_Vqf32_vmpy_VsfVsf(sline1, cosline1);
+              HVX_Vector sin_middle_value_qf32 = Q6_Vqf32_vmpy_VsfVsf(sline1_half, sinline1);
+              *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vsub_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32));
             }
             
 
 
             // auto value2 = in_value * sin_value + in_value_2 * cos_value;
             {
-              HVX_Vector cosline1_vqf32 = Q6_Vqf32_vadd_VsfVsf(cosline1, Q6_V_vzero());
-              HVX_Vector cos_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(sline1_half, cosline1_vqf32);
-
-              HVX_Vector sinline1_vqf32 = Q6_Vqf32_vadd_VsfVsf(sinline1, Q6_V_vzero());
-              HVX_Vector sin_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(sline1, sinline1_vqf32);
-
+              HVX_Vector cos_middle_value_qf32 = Q6_Vqf32_vmpy_VsfVsf(sline1_half, cosline1);
+              HVX_Vector sin_middle_value_qf32 = Q6_Vqf32_vmpy_VsfVsf(sline1, sinline1);
               *optr_half++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32));
             }
             
@@ -312,11 +295,11 @@ int32_t hvx_rope_ahf(
             
             // first qf16 vector
             cosline1c = *iptr3++;
-            cosline1 = Q6_V_valign_VVR(cosline1c, cosline1p, (size_t)sin);
+            cosline1 = Q6_V_valign_VVR(cosline1c, cosline1p, (size_t)cos);
             cosline1p = cosline1c;
 
             sinline1c = *iptr2++;
-            sinline1 = Q6_V_valign_VVR(sinline1c, sinline1p, (size_t)cos);
+            sinline1 = Q6_V_valign_VVR(sinline1c, sinline1p, (size_t)sin);
             sinline1p = sinline1c;
 
             HVX_Vector middle_value_low;
