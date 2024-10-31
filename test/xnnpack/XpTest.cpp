@@ -12,7 +12,10 @@
 #include "xnnpack/XnnpackBackend.hpp"
 
 void XpTest::SetUp() {
-    xnn_initialize(nullptr /* allocator */);
+    if (!inited_) {
+        xnn_initialize(nullptr /* allocator */);
+        inited_ = true;
+    }
     bk_ = new ::mllm::xnnpack::XnnpackBackend(mm_);
     std::cout << "XnnpackBackend SetUp()" << std::endl;
 }

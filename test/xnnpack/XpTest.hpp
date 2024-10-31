@@ -29,6 +29,7 @@ public:
     void TearDown() override;
 
 private:
+    bool inited_ = false;
     Backend *bk_ = nullptr;
     std::shared_ptr<MemoryManager> mm_ = nullptr;
 };
