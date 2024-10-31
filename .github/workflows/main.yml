@@ -46,9 +46,8 @@ jobs:
           PR_NUMBER: ${{ github.event.number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          working-directory: scripts
-          run: |
-            bash run_test.sh
+          working-directory: bin
+          run: ls && ./MLLM_TEST --gtest_output=json
           post: |
             COMMIT_MESSAGE="$(git show -s --format=%s)" python3 ../tools/ci/report.py
           

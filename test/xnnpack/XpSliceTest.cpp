@@ -7,10 +7,11 @@
 #include <cstdint>
 #include <cstdlib>
 #include <gtest/gtest.h>
+#include "XpTest.hpp"
 
 using namespace mllm;
 
-TEST(XpSliceTest, XNNPACK) {
+TEST_F(XpTest, XNNPACK) {
     Backend::global_backends.emplace(MLLM_XNNPACK, GetBackendCreator(MLLM_XNNPACK)->create({}));
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::INFO;
 

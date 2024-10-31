@@ -5,6 +5,7 @@
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include <cstdlib>
 #include <gtest/gtest.h>
+#include "XpTest.hpp"
 
 using namespace mllm;
 
@@ -25,7 +26,7 @@ public:
     }
 };
 
-TEST(XpSPDATest, SDPAModule) {
+TEST_F(XpTest, SDPAModule) {
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::ERROR;
 
     auto model = ::mllm::xnnpack::wrap2xnn<SDPAModule>(3, 1);

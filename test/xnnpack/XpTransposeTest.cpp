@@ -6,6 +6,7 @@
 #include "xnnpack.h"
 #include <gtest/gtest.h>
 #include <limits>
+#include "XpTest.hpp"
 
 using namespace mllm;
 
@@ -22,7 +23,7 @@ public:
     }
 };
 
-TEST(TransposeTest, TransposeModule) {
+TEST_F(XpTest, TransposeModule) {
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::WARN;
 
     auto model = ::mllm::xnnpack::wrap2xnn<TransposeModule>(1, 1);

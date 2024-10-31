@@ -150,7 +150,7 @@ std::unordered_map<uint32_t, xnn_external_value> &XnnpackModelRuntime::__uuidToE
 XnnpackBackend::XnnpackBackend(std::shared_ptr<MemoryManager> mm, const XnnpackBackendOpts &opts) :
     Backend(mm), opts_(opts) {
     // runtime
-    model_runtime_ = std::make_shared<XnnpackModelRuntime>(opts_.num_threads);
+    model_runtime_ = std::make_shared<XnnpackModelRuntime>(xnn_threads);
 
     // subgraph
     createSubgraph();
@@ -403,5 +403,7 @@ bool XnnpackBackend::isWeightCacheFinalized() const {
 void XnnpackBackend::setWeightCacheFinalized(bool b) {
     weight_cache_finalized = b;
 }
+
+int XnnpackBackend::xnn_threads = 0;
 
 } // namespace mllm::xnnpack

@@ -4,6 +4,7 @@
 #include "backends/xnnpack/XpWrapper.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include <gtest/gtest.h>
+#include "XpTest.hpp"
 
 using namespace mllm;
 
@@ -26,7 +27,7 @@ public:
     }
 };
 
-TEST(XpKVCAcheTest, KVCacheModule) {
+TEST_F(XpTest, KVCacheModule) {
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::ERROR;
 
     auto model = ::mllm::xnnpack::wrap2xnn<KVCacheModule>(1, 1);

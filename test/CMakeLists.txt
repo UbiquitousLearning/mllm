@@ -1,9 +1,20 @@
 enable_testing()
 
-if(NOT QNN AND NOT MLLM_BUILD_XNNPACK_BACKEND)
+if(NOT QNN)
 # FIXME. TEST was defined twice.
 add_definitions(-DTEST)
 include_directories(${PROJECT_SOURCE_DIR}/test)
+
+set(MLLM_XNNPACK_BACKEND_TEST_SRC)
+set(MLLM_XNNPACK_BACKEND_TEST_DEP_LIB)
+if(MLLM_BUILD_XNNPACK_BACKEND)
+    add_definitions(-DMLLM_XNNPACK_BACKEND_TEST)
+    file(GLOB_RECURSE _MLLM_XNNPACK_BACKEND_TEST_SRC
+            ${PROJECT_SOURCE_DIR}/test/xnnpack/*.cpp
+    )
+    list(APPEND MLLM_XNNPACK_BACKEND_TEST_SRC ${_MLLM_XNNPACK_BACKEND_TEST_SRC})
+    list(APPEND MLLM_XNNPACK_BACKEND_TEST_DEP_LIB MllmXnnpackBackend)
+endif()
 
 # MLLM Tests
 file(GLOB_RECURSE MLLM_TEST
@@ -33,6 +44,9 @@ add_executable(
         ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.hpp
         ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
         ${PROJECT_SOURCE_DIR}/test/processor/ClipPreprocessorTest.cpp
+
+        # xnnpack
+        ${MLLM_XNNPACK_BACKEND_TEST_SRC}
 )
 
 target_link_libraries(
@@ -40,6 +54,7 @@ target_link_libraries(
         GTest::gtest_main
         MLLM_CPU
         -fopenmp
+        ${MLLM_XNNPACK_BACKEND_TEST_DEP_LIB}
 )
 # add_executable(
 #         memoryPoolTest
@@ -51,10 +66,6 @@ target_link_libraries(
 #         ${PROJECT_SOURCE_DIR}/test/TestSystemMemoryManager.cpp
 #         ${DIR_SRC_MEM_MANAGER} ${PROJECT_SOURCE_DIR}/src/MemoryManager.hpp
 # )
-endif()
-
-if(MLLM_BUILD_XNNPACK_BACKEND)
-    add_subdirectory(xnnpack)
 endif()
 
 include(GoogleTest)

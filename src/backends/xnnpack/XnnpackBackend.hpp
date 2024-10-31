@@ -116,6 +116,8 @@ public:
 
     void setWeightCacheFinalized(bool b);
 
+    static int xnn_threads;
+
 private:
     XnnpackBackendOpts opts_;
 

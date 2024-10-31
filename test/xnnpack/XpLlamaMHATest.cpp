@@ -4,6 +4,7 @@
 #include "backends/xnnpack/XpWrapper.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include <gtest/gtest.h>
+#include "XpTest.hpp"
 
 using namespace mllm;
 
@@ -100,7 +101,7 @@ public:
     }
 };
 
-TEST(XpLLaMAMHATest, XpLLaMAMHA) {
+TEST_F(XpTest, XpLLaMAMHA) {
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::WARN;
 
     XpLLaMAMHANameCfg model_cfg;

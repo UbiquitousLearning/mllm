@@ -4,6 +4,7 @@
 #include "backends/xnnpack/XpWrapper.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include <gtest/gtest.h>
+#include "XpTest.hpp"
 
 using namespace mllm;
 
@@ -22,7 +23,7 @@ public:
     }
 };
 
-TEST(XpSoftmaxTest, SoftmaxModule) {
+TEST_F(XpTest, SoftmaxModule) {
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::ERROR;
 
     auto model = ::mllm::xnnpack::wrap2xnn<ReLUModule>(1, 1);

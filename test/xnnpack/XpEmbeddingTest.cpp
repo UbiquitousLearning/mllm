@@ -4,6 +4,7 @@
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include "backends/xnnpack/XpWrapper.hpp"
 #include <gtest/gtest.h>
+#include "XpTest.hpp"
 
 using namespace mllm;
 
@@ -39,7 +40,7 @@ public:
     }
 };
 
-TEST(EmbeddingModuleTest, CPUAndXnnMixed) {
+TEST_F(XpTest, CPUAndXnnMixed) {
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::INFO;
 
     auto model = EmbeddingModule();

@@ -3,6 +3,7 @@
 #include "backends/xnnpack/XpWrapper.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include <gtest/gtest.h>
+#include "XpTest.hpp"
 
 using namespace mllm;
 
@@ -27,7 +28,7 @@ public:
     }
 };
 
-TEST(XpLinearTest, LinearModule) {
+TEST_F(XpTest, LinearModule) {
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::ERROR;
 
     auto model = ::mllm::xnnpack::wrap2xnn<LinearModule>(1, 1);

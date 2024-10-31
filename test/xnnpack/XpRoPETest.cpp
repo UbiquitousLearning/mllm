@@ -4,6 +4,7 @@
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include <chrono>
 #include <gtest/gtest.h>
+#include "XpTest.hpp"
 
 using namespace mllm;
 
@@ -24,7 +25,7 @@ public:
     }
 };
 
-TEST(XpRoPETest, RoPEModule) {
+TEST_F(XpTest, RoPEModule) {
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::WARN;
 
     auto model = ::mllm::xnnpack::wrap2xnn<RoPEModule>(1, 1);

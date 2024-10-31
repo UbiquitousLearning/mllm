@@ -2,6 +2,7 @@
 #include "Types.hpp"
 #include "backends/xnnpack/XpWrapper.hpp"
 #include <gtest/gtest.h>
+#include "XpTest.hpp"
 
 using namespace mllm;
 
@@ -19,7 +20,7 @@ public:
     }
 };
 
-TEST(XpExternalTensorTest, AddModule) {
+TEST_F(XpTest, AddModule) {
     auto model = ::mllm::xnnpack::wrap2xnn<AddModule>(2, 1);
 
     EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);

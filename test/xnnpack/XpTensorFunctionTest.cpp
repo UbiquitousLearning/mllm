@@ -3,6 +3,7 @@
 #include "backends/xnnpack/XpWrapper.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include <gtest/gtest.h>
+#include "XpTest.hpp"
 
 using namespace mllm;
 
@@ -20,7 +21,7 @@ public:
     }
 };
 
-TEST(XpTensorFunctionTest, TTSub) {
+TEST_F(XpTest, TTSub) {
     mllm::xnnpack::Log::log_level = mllm::xnnpack::Log::ERROR;
 
     auto model = ::mllm::xnnpack::wrap2xnn<TTSubModule>(2, 1);

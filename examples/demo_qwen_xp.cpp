@@ -13,6 +13,7 @@
 #include "models/qwen/tokenization_qwen_xp.hpp"
 #include "models/qwen/modeling_qwen_xp_sdpa.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
+#include "xnnpack/XnnpackBackend.hpp"
 
 using namespace mllm;
 
@@ -33,7 +34,7 @@ int main(int argc, char **argv) {
     string model_path = cmdParser.get<string>("model");
     string model_billion = cmdParser.get<string>("billion");
     int tokens_limit = cmdParser.get<int>("limits");
-    CPUBackend::cpu_threads = cmdParser.get<int>("thread");
+    mllm::xnnpack::XnnpackBackend::xnn_threads = cmdParser.get<int>("thread");
 
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
     QWenConfig config(tokens_limit, model_billion, RoPEType::HFHUBROPE);
