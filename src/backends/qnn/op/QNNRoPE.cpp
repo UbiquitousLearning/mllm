@@ -251,7 +251,6 @@ ErrorCode QNNRoPE::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Ten
 
 ErrorCode QNNRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
 
-    std::cout << name() << h_cnt_ << std::endl;
     h_cnt_ += inputs[0]->sequence();
     hcntTensor_.setDataAt(0,0,0,0, h_cnt_);
 
