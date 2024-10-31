@@ -91,10 +91,6 @@ ErrorCode XpSDPA::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
 }
 
 ErrorCode XpSDPA::load(AbstructLoader &loader) {
-    scale_params_.setName(name() + ".scale");
-    scale_params_.reshape(1, 1, 1, 1);
-    scale_params_.setDtype(MLLM_TYPE_F32);
-    scale_params_.alloc();
     return Op::load(loader);
 }
 

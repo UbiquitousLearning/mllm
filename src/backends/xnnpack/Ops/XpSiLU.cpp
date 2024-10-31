@@ -1,5 +1,6 @@
 #include "backends/xnnpack/Ops/XpSiLU.hpp"
 #include "Types.hpp"
+#include "xnnpack.h"
 
 namespace mllm::xnnpack {
 
@@ -17,7 +18,29 @@ ErrorCode XpSiLU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     tryDefineAllXpTensors(xpb, inputs);
     tryDefineAllXpTensors(xpb, outputs);
 
-    auto status = xnn_define_hardswish(xpb->getXnnSubgraph(), inputs[0]->uuid(), outputs[0]->uuid(), 0);
+    // o = x * sigmoid(x)
+    std::vector<size_t> tmp_shape{
+        (size_t)inputs[0]->batch(),
+        (size_t)inputs[0]->sequence(),
+        (size_t)inputs[0]->head(),
+        (size_t)inputs[0]->dimension(),
+    };
+    auto tmp = defineTemporaryTensor(xpb, tmp_shape, inputs[0]->dtype());
+    auto status = xnn_define_unary(
+        xpb->getXnnSubgraph(),
+        xnn_unary_sigmoid,
+        nullptr,
+        inputs[0]->uuid(),
+        tmp, 0);
+
+    status = xnn_define_binary(
+        xpb->getXnnSubgraph(),
+        xnn_binary_multiply,
+        nullptr,
+        inputs[0]->uuid(),
+        tmp,
+        outputs[0]->uuid(),
+        0);
 
     if (status != xnn_status_success) {
         Log::error("XpSiLU::execute Error");
