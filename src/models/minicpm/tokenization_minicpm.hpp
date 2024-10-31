@@ -31,7 +31,7 @@ public:
         chat_template_end = "<AI>";
     }
 
-    Tensor tokenize(std::string &text) override {
+    Tensor tokenize(std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
         auto new_text = " " + text;
         new_text = std::regex_replace(new_text, std::regex(" "), "▁");
 

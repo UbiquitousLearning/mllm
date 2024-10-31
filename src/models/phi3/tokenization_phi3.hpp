@@ -19,7 +19,7 @@ public:
         chat_template_end = " <|end|>\n<|assistant|>";
     }
 
-    Tensor tokenize(std::string &text) override {
+    Tensor tokenize(std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
         // replace all blanck to '_'
         std::string new_text = BPETokenizer::replaceString(text, ' ', "▁");
 

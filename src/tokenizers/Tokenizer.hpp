@@ -102,11 +102,11 @@ public:
         return std::max_element(scores.begin(), scores.end()) - scores.begin();
     }
 
-    virtual Tensor tokenize(std::string &text) {
+    virtual Tensor tokenize(std::string &text, string name = "input", BackendType type = MLLM_CPU) {
         bool bos_flag = true;
         auto tokens_id = std::vector<token_id_t>();
         this->tokenize(text, tokens_id, bos_flag);
-        return tokens2Input(tokens_id);
+        return tokens2Input(tokens_id, name, type);
     }
     virtual vector<Tensor> tokenizes(std::string &text) {
         return {tokenize(text)};

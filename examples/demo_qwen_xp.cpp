@@ -10,7 +10,7 @@
 #include "Types.hpp"
 #include "cmdline.h"
 #include "models/qwen/configuration_qwen.hpp"
-#include "models/qwen/tokenization_qwen_xp.hpp"
+#include "models/qwen/tokenization_qwen.hpp"
 #include "models/qwen/modeling_qwen_xp_sdpa.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
 #include "xnnpack/XnnpackBackend.hpp"
@@ -43,16 +43,13 @@ int main(int argc, char **argv) {
     model.load(model_path);
 
     vector<string> in_strs = {
-        "Whats your name?",
-        "Behave as a linux terminal",
-        "Say Hello!",
         "Hello, who are you?",
         "What can you do?",
         "Please introduce Beijing University of Posts and Telecommunications.",
     };
     for (const auto &in_str : in_strs) {
         auto input_str = tokenizer.apply_chat_template(in_str);
-        auto input_tensor = tokenizer.tokenize(input_str);
+        auto input_tensor = tokenizer.tokenize(input_str, "name", MLLM_XNNPACK);
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
 
