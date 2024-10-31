@@ -127,9 +127,16 @@ if(QNN) # QNN lib
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn)
 endif()
 
-option(MLLM_BUILD_XNNPACK_BACKEND "Build mllm's XNNPACK backend" OFF)
+option(MLLM_BUILD_XNNPACK_BACKEND "Build mllm's XNNPACK backend" ON)
 if(MLLM_BUILD_XNNPACK_BACKEND)
+if(NOT WIN32)
     add_compile_options(-fPIC)
+else()
+    # -fPIC is not a windows flag
+    set(CMAKE_POSITION_INDEPENDENT_CODE FALSE)
+endif()
+    set(XNNPACK_BUILD_TESTS OFF)
+    set(XNNPACK_BUILD_BENCHMARKS OFF)
     add_definitions(-DMLLM_BUILD_XNNPACK_BACKEND)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/xnnpack)
 endif()

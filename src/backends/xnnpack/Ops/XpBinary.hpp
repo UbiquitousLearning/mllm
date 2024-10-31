@@ -12,10 +12,11 @@
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "backends/xnnpack/XnnpackBackend.hpp"
+#include "backends/xnnpack/XpInterface.hpp"
 
 namespace mllm::xnnpack {
 
-class XpAdd final : public Op {
+class XpAdd final : public Op, public XpTensorDefineInterface<XpAdd> {
 public:
     XpAdd(Backend *bk, const std::string &op_name, int thread_count) :
         Op(bk, op_name), thread_count_(thread_count) {

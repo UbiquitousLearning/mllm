@@ -4,19 +4,45 @@
 namespace mllm::xnnpack {
 
 ErrorCode XpAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // do not alloc memory.
-    // setup tensor and grapgh in xnnpack subgraph.
-    // TODO
+    // do nothing
     return MLLM_NO_ERROR;
 }
 
 ErrorCode XpAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // xnnpack will do reshape for us.
-    return MLLM_NO_ERROR;
+    assert(inputs.size() == 2);
+    assert(outputs.size() == 1);
+    if (inputs[0]->batch() == 1 || inputs[1]->batch() == 1) {
+    } else {
+        assert(inputs[0]->batch() == inputs[1]->batch());
+    }
+    assert(inputs[0]->head() == inputs[1]->head());
+    assert(inputs[0]->sequence() == inputs[1]->sequence());
+    assert(inputs[0]->dimension() == inputs[1]->dimension());
+    outputs[0]->reshape(std::max(inputs[0]->batch(), inputs[1]->batch()), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+    // outputs[0]->setDtype(activationDtype());
+    return Op::reshape(inputs, outputs);
 }
 
 ErrorCode XpAdd::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // do not execute this op
+    auto xpb = (XnnpackBackend *)inputs[0]->backend();
+    tryDefineAllXpTensors(xpb, inputs);
+    tryDefineAllXpTensors(xpb, outputs);
+
+    // define xnnpack op.
+    auto status = xnn_define_binary(
+        xpb->getXnnSubgraph(),
+        xnn_binary_add,
+        nullptr,
+        inputs[0]->uuid(),
+        inputs[1]->uuid(),
+        outputs[0]->uuid(),
+        0);
+
+    if (status != xnn_status_success) {
+        Log::error("XpAdd::execute Error");
+        exit(-1);
+    }
+
     return MLLM_NO_ERROR;
 }
 

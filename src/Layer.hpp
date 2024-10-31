@@ -5,10 +5,8 @@
 #ifndef OPERATION_H
 #define OPERATION_H
 
-#include <cassert>
 #include <cstddef>
 #include <cstdlib>
-#include <iostream>
 #include <memory>
 #include <utility>
 
@@ -17,7 +15,6 @@
 #include "Op.hpp"
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
-#include "Timing.hpp"
 
 #include <Module.hpp>
 
@@ -57,6 +54,11 @@ public:
 
     Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2) {
         auto ts = run({input0, input1, input2}, 1);
+        return ts[0].get();
+    }
+
+    Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2, Tensor &input3) {
+        auto ts = run({input0, input1, input2, input3}, 1);
         return ts[0].get();
     }
 
@@ -731,6 +733,21 @@ public:
     }
 };
 
+class Direct final : public Layer {
+public:
+    enum DirectType : uint32_t {
+        Normal = 0,
+        ExternalInput = 1,
+        ExternalOutput = 2,
+        KeepLive = 3,
+    };
+
+    Direct(DirectType t, const std::string &name) {
+        param_["DirectType"] = (float)t;
+        init(name, OpType::DIRECT);
+    }
+};
+
 class Dequantize final : public Layer {
 public:
     explicit Dequantize(bool isNSHD, std::string name, bool isFP32 = true) {
@@ -738,6 +755,18 @@ public:
         param_["isFP32"] = (float)isFP32;
         init(std::move(name), OpType::DEQUANTIZE);
     }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class Dispatch final : public Layer {
+public:
+    explicit Dispatch(const std::string &name) {
+        init(name, OpType::DISPATCH);
+    }
+
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
         return ts[0].get();
@@ -819,6 +848,18 @@ public:
     }
 };
 
+class SubgraphStart final : public Layer {
+public:
+    explicit SubgraphStart(const std::string &name) {
+        init(name, OpType::SUBGRAPHSTART);
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
 class Transpose final : public Layer {
 public:
     explicit Transpose(std::vector<int> perm, std::string name) {
@@ -834,6 +875,56 @@ public:
     }
 };
 
+class SubgraphFinalize final : public Layer {
+public:
+    explicit SubgraphFinalize(const std::string &name) {
+        init(name, OpType::SUBGRAPHFINALIZE);
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class Device2Host final : public Layer {
+public:
+    explicit Device2Host(const std::string &name) {
+        init(name, OpType::D2H);
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class XP_KVCache final : public Layer {
+public:
+    explicit XP_KVCache(int n_rep, int cache_max, std::string name) {
+        param_["n_rep"] = (float)n_rep;
+        param_["cache_max"] = (float)cache_max;
+        init(std::move(name), OpType::XP_KVCACHE);
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class ScaledDotProductAttention final : public Layer {
+public:
+    explicit ScaledDotProductAttention(std::string name) {
+        init(std::move(name), OpType::SDPA);
+    }
+
+    // Q, K, V
+    Tensor &operator()(Tensor &Q, Tensor &K, Tensor &V) {
+        auto ts = run({Q, K, V}, 1); // Q, K, V
+        return ts[0].get();
+    }
+};
 //  Only for QNN END
 
 } // namespace mllm

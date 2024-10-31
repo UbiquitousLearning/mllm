@@ -12,6 +12,9 @@ macro(func_link_libaries target)
             target_link_libraries(${target} PUBLIC  MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS} -fopenmp -static-openmp)
         endif ()
     endif()
+    if (MLLM_BUILD_XNNPACK_BACKEND)
+        target_link_libraries(${target} PRIVATE MLLM_CPU MllmXnnpackBackend)
+    endif()
 endmacro()
 
 
@@ -55,7 +58,9 @@ endmacro()
 
 
 ## new demos
-func_llm_add_executable(benchmark)
+
+# if(NOT MLLM_BUILD_XNNPACK_BACKEND)
+func_llm_add_executable(mllm_benchmark)
 func_llm_add_executable(demo_llama)
 func_llm_add_executable(demo_tinyllama)
 func_llm_add_executable(demo_stablelm)
@@ -81,7 +86,7 @@ func_vlm_add_executable(demo_vit)
 func_vlm_add_executable(demo_clip)
 func_vlm_add_executable(demo_imagebind)
 func_vlm_add_executable(demo_imagebind_1mod)
-# func_vlm_add_executable(demo)
+# endif()
 
 # QNN demo
 if(QNN)
@@ -90,7 +95,9 @@ if(QNN)
 endif()
 
 
-
+if(MLLM_BUILD_XNNPACK_BACKEND)
+    func_llm_add_executable(demo_qwen_xp)
+endif()
 
 
 # old main

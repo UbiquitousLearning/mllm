@@ -85,6 +85,12 @@ public:
                 break;
             }
 #endif
+#ifdef MLLM_BUILD_XNNPACK_BACKEND
+            case BackendType::MLLM_XNNPACK: {
+                Backend::global_backends.emplace(MLLM_XNNPACK, GetBackendCreator(MLLM_XNNPACK)->create({}));
+                break;
+            }
+#endif
             default: {
             }
             }
@@ -265,6 +271,7 @@ public:
     }
 
     void setNoLoadWeightsDtype(DataType dtype) {
+        llm_model_ptr = this;
         Op::noLoadWeightsDtype() = dtype;
     }
     virtual void clear_kvcache() {

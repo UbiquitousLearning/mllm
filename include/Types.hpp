@@ -27,7 +27,8 @@ typedef enum {
     MLLM_DEFAULT,
     MLLM_CPU,
     MLLM_OPENCL,
-    MLLM_QNN
+    MLLM_QNN,
+    MLLM_XNNPACK,
 } BackendType;
 
 enum TensorStatus {
@@ -96,6 +97,7 @@ enum TensorType {
     INPUT_TENSOR = 0, // used for input of the model
     NORMAL_TENSOR,
     GRAPH_OUTPUT, // used for output of a graph
+    OUTPUT_TENSOR,
 };
 
 enum Chl {
