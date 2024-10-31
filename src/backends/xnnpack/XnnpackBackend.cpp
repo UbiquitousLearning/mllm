@@ -404,6 +404,6 @@ void XnnpackBackend::setWeightCacheFinalized(bool b) {
     weight_cache_finalized = b;
 }
 
-int XnnpackBackend::xnn_threads = 0;
+int XnnpackBackend::xnn_threads = 4;
 
 } // namespace mllm::xnnpack
