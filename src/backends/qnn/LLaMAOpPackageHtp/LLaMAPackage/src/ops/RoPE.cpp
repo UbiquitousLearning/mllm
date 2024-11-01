@@ -418,8 +418,9 @@ GraphStatus ropeImpl(TensorType& out_0,
 
       auto [b_in, h_in, w_in, d_in] = in_0.dims();
 
-      sin_ptr += d_in * h_cnt_;
-      cos_ptr += d_in * h_cnt_;
+      uint32_t half_dimension = d_in / 2;
+      sin_ptr += half_dimension * h_cnt_;
+      cos_ptr += half_dimension * h_cnt_;
 
       int partial_dimension = d_in;
 
@@ -434,8 +435,8 @@ GraphStatus ropeImpl(TensorType& out_0,
             out_ptr += d_in;
           }
 
-          sin_ptr += d_in;
-          cos_ptr += d_in;
+          sin_ptr += half_dimension;
+          cos_ptr += half_dimension;
         }
       }
     } else if (dtype == DType::Float16) {
@@ -482,8 +483,9 @@ GraphStatus ropeImpl(TensorType& out_0,
 
       auto [b_in, h_in, w_in, d_in] = in_0.dims();
 
-      sin_ptr += d_in * h_cnt_;
-      cos_ptr += d_in * h_cnt_;
+      uint32_t half_dimension = d_in / 2;
+      sin_ptr += half_dimension * h_cnt_;
+      cos_ptr += half_dimension * h_cnt_;
 
       int partial_dimension = d_in;
 
@@ -498,8 +500,8 @@ GraphStatus ropeImpl(TensorType& out_0,
             out_ptr += d_in;
           }
 
-          sin_ptr += d_in;
-          cos_ptr += d_in;
+          sin_ptr += half_dimension;
+          cos_ptr += half_dimension;
         }
       }
     } 

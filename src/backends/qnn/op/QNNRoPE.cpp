@@ -87,18 +87,18 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
     if (inputs[0]->dtype() == MLLM_TYPE_F32) {
 
         sinTensor_.setName(name() + ".sin");
-        sinTensor_.reshape(1, 1, pos_max_, ishape);
+        sinTensor_.reshape(1, 1, pos_max_, ishape/2);
         sinTensor_.setDtype(MLLM_TYPE_F32);
         sinTensor_.alloc();
 
 
         cosTensor_.setName(name() + ".cos");
-        cosTensor_.reshape(1, 1, pos_max_, ishape);
+        cosTensor_.reshape(1, 1, pos_max_, ishape/2);
         cosTensor_.setDtype(MLLM_TYPE_F32);
         cosTensor_.alloc();
 
         for (int i = 0; i<pos_max_; i++) {
-            for (int j=0; j<ishape; j++) {
+            for (int j=0; j<ishape/2; j++) {
                 sinTensor_.setDataAt<float>(0, 0, i, j, sin_[i][j]);
                 cosTensor_.setDataAt<float>(0, 0, i, j, cos_[i][j]);
             }
@@ -107,18 +107,18 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
     }  else if (inputs[0]->dtype() == MLLM_TYPE_F16) {
         
         sinTensor_.setName(name() + ".sin");
-        sinTensor_.reshape(1, 1, pos_max_, ishape);
+        sinTensor_.reshape(1, 1, pos_max_, ishape/2);
         sinTensor_.setDtype(MLLM_TYPE_F32);
         sinTensor_.alloc();
 
 
         cosTensor_.setName(name() + ".cos");
-        cosTensor_.reshape(1, 1, pos_max_, ishape);
+        cosTensor_.reshape(1, 1, pos_max_, ishape/2);
         cosTensor_.setDtype(MLLM_TYPE_F32);
         cosTensor_.alloc();
 
         for (int i = 0; i<pos_max_; i++) {
-            for (int j=0; j<ishape; j++) {
+            for (int j=0; j<ishape/2; j++) {
                 sinTensor_.setDataAt<float>(0, 0, i, j, static_cast<float>(sin_[i][j]));
                 cosTensor_.setDataAt<float>(0, 0, i, j, static_cast<float>(cos_[i][j]));
             }
@@ -134,8 +134,8 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
     
 
 
-    uint32_t sin_dimensions[] = {static_cast<uint32_t>(pos_max_), static_cast<uint32_t>(ishape)};
-    uint32_t cos_dimensions[] = {static_cast<uint32_t>(pos_max_), static_cast<uint32_t>(ishape)};
+    uint32_t sin_dimensions[] = {static_cast<uint32_t>(pos_max_), static_cast<uint32_t>(ishape/2)};
+    uint32_t cos_dimensions[] = {static_cast<uint32_t>(pos_max_), static_cast<uint32_t>(ishape/2)};
 
     auto sinWeightsName = name() + ".sin.weights";
 
