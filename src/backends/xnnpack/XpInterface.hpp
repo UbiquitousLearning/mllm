@@ -51,8 +51,17 @@ struct XpTensorDefineInterface {
         return ret;
     }
 
+    /**
+     * @brief Define a Weight Tensor as External Input Tensor in order to avoid extra alloc each epoch in xnnpack
+     *
+     * @param xpb
+     * @param t
+     * @param forceDims
+     */
     void defineWeightTensor(XnnpackBackend *xpb, Tensor *t, const std::vector<size_t> &forceDims = {}) {
-        if (t->uuid() != XNN_INVALID_VALUE_ID) return;
+        if (t->uuid() != XNN_INVALID_VALUE_ID) {
+            if (xpb->hasExternalValue(t->uuid())) return;
+        }
 
         auto xp_dtype = XnnpackBackend::mllmDType2XnnDType(t->dtype());
 
@@ -69,8 +78,8 @@ struct XpTensorDefineInterface {
             status = xnn_define_tensor_value(
                 xpb->getXnnSubgraph(), xp_dtype,
                 dims.size(), dims.data(),
-                /*data=*/t->rawHostPtr(),
-                XNN_INVALID_VALUE_ID, 0, &t->uuid());
+                nullptr,
+                xpb->getNewEXternalId(), XNN_VALUE_FLAG_EXTERNAL_INPUT, &t->uuid());
         }
         default:
             break;
@@ -81,6 +90,7 @@ struct XpTensorDefineInterface {
             exit(-1);
         }
 
+        xpb->registerExternalValue(t->uuid(), xnn_external_value{.id = t->uuid(), .data = t->rawHostPtr()});
         xpb->registerUuidWeightTensor(t->uuid(), t);
     }
 
