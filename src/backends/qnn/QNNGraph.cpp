@@ -86,6 +86,8 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
 // #pragma omp parallel for collapse(1) num_threads(4)
         for(int t=0; t<4; t++) {
             memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*t), inputs[t]->hostPtr<uint8_t>(), inputs[t]->cntSize());
+            // inputs[1]->printData<__fp16>();
+            // exit(0);
         }
 
         // string name = op_names_[op_names_.size() - 1];

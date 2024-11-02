@@ -22,6 +22,8 @@ QNNRoPE::QNNRoPE(Backend *bn, string opName, int pose_type) :
     sinTensor_.setBackend(bn);
     cosTensor_.setBackend(bn);
     hcntTensor_.setBackend(bn);
+
+    scale_.setBackend(bn);
 }
 
 QNNRoPE::QNNRoPE(Backend *bn, string opName, int pose_type, float rope_theta, int max_position_embeddings) :
@@ -33,6 +35,8 @@ QNNRoPE::QNNRoPE(Backend *bn, string opName, int pose_type, float rope_theta, in
     sinTensor_.setBackend(bn);
     cosTensor_.setBackend(bn);
     hcntTensor_.setBackend(bn);
+
+    scale_.setBackend(bn);
 }
 
 QNNRoPE::QNNRoPE(Backend *bn, string opName, int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings) :
@@ -45,6 +49,8 @@ QNNRoPE::QNNRoPE(Backend *bn, string opName, int pose_type, float rope_theta, fl
     sinTensor_.setBackend(bn);
     cosTensor_.setBackend(bn);
     hcntTensor_.setBackend(bn);
+
+    scale_.setBackend(bn);
 }
 
 ErrorCode QNNRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -53,6 +59,9 @@ ErrorCode QNNRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
 
     ishape = inputs[0]->dimension() * partial_rotary_factor_;
+
+    // UINT8 input, FP32 ouput, only support dimension == 128
+    assert(inputs[0]->dimension() == 128);
 
     return Op::reshape(inputs, outputs);
 }
@@ -76,15 +85,23 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 #ifdef OLD_QNN
     if (getOutputTensorType(outputs[0]) == QNN_TENSOR_TYPE_APP_READ) {
         outputs[0]->setBackend(qnnBackend_);
-        outputs[0]->setDtype(MLLM_TYPE_F32);
+        outputs[0]->setDtype(outputs[0]->dtype());
         outputs[0]->alloc();
 
         qnnBackend_->pushOutputBuffers(outputs[0]->hostPtr<uint8_t>());
     }
 #endif
 
+    float dequantScale = 0;
+    dequantScale = scale_.hostPtr<float>()[0] / 127.0;
+    dequantScale = roundf(dequantScale * 100000) / 100000;
+
+    if (name().find("q_proj") != -1) {
+        dequantScale = dequantScale / std::sqrt(outputs[0]->dimension());
+    }
+
     auto type = QNN_DATATYPE_FLOAT_32;
-    if (inputs[0]->dtype() == MLLM_TYPE_F32) {
+    if (outputs[0]->dtype() == MLLM_TYPE_F32) {
 
         sinTensor_.setName(name() + ".sin");
         sinTensor_.reshape(1, 1, pos_max_, ishape/2);
@@ -99,12 +116,12 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 
         for (int i = 0; i<pos_max_; i++) {
             for (int j=0; j<ishape/2; j++) {
-                sinTensor_.setDataAt<float>(0, 0, i, j, sin_[i][j]);
-                cosTensor_.setDataAt<float>(0, 0, i, j, cos_[i][j]);
+                sinTensor_.setDataAt<float>(0, 0, i, j, sin_[i][j] * dequantScale);
+                cosTensor_.setDataAt<float>(0, 0, i, j, cos_[i][j] * dequantScale);
             }
         }
         
-    }  else if (inputs[0]->dtype() == MLLM_TYPE_F16) {
+    }  else if (outputs[0]->dtype() == MLLM_TYPE_F16) {
         
         sinTensor_.setName(name() + ".sin");
         sinTensor_.reshape(1, 1, pos_max_, ishape/2);
@@ -241,6 +258,22 @@ ErrorCode QNNRoPE::load(AbstructLoader &loader) {
     hcntTensor_.reshape(1, 1, 1, 1);
     hcntTensor_.setDtype(MLLM_TYPE_I32);
     hcntTensor_.alloc();
+
+
+    string scaleName = name();
+    string scaleTypeName = "output_scale";
+
+    std::string wordToRemove = "rope";
+    int pos = scaleName.find(wordToRemove);
+    if (pos != -1) {
+        scaleName.erase(pos, wordToRemove.length());
+    }
+
+    scale_.setName(scaleName + scaleTypeName);
+    scale_.reshape(1, 1, 1, 1);
+    scale_.setDtype(MLLM_TYPE_F32);
+    scale_.alloc();
+    loader.load(&scale_);
 
     return Op::load(loader);
 }

@@ -30,12 +30,12 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention(Context *c, NetTensor *x, NetTenso
     k = k->view(1, head_size, seq / chunk, hidden_size);
     v = v->view(1, head_size, seq / chunk, hidden_size);
 
-    q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize", true);
-    k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", false);
+    // q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize", true);
+    // k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", false);
     v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize", false);
 
-    q = _RoPE({q}, HFHUBROPE, name + ".q_rope", 1000000, 1024);
-    k = _RoPE({k}, HFHUBROPE, name + ".k_rope", 1000000, 1024);
+    q = _QNNRoPE({q}, HFHUBROPE, name + ".q_proj.rope", 1000000, 1024, true);
+    k = _QNNRoPE({k}, HFHUBROPE, name + ".k_proj.rope", 1000000, 1024, false);
     
     v = _Transpose({v}, {0, 2, 3, 1}, (string)name + ".v_proj.transpose");
 

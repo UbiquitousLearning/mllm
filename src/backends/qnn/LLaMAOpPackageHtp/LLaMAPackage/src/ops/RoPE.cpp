@@ -218,6 +218,265 @@ static inline int32_t float_to_fp16s(float input)
     return fp32.i;
 }
 
+int32_t hvx_rope_uint8_af(
+    uint8_t *restrict input,
+    float *restrict sin,
+    float *restrict cos,
+    float *restrict output,
+    uint32_t size,
+    uint32_t partial_dimension)
+{
+    if ((input == NULL) || (output == NULL) || (size == 0))
+    {
+        return -1;
+    }
+
+    HVX_Vector *iptr = (HVX_Vector *)input;
+    HVX_Vector *iptr2 = (HVX_Vector *)sin;
+    HVX_Vector *iptr3 = (HVX_Vector *)cos;
+    HVX_UVector *optr = (HVX_UVector *)output;
+
+    int32_t l2fetch_block;
+    int32_t leftover = size & 127;
+    int32_t vectors_in_rounddown = size / 128;
+    int32_t leftover_size = leftover * sizeof(float);
+
+    HVX_Vector zero_v_sf = Q6_V_vzero();
+    uint32_t convert = 0x00800080;
+    HVX_Vector convert_vector = Q6_V_vsplat_R(convert);
+    HVX_Vector one_vec = Q6_V_vsplat_R(float_to_fp16s(1.0));
+
+    // 
+    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
+    {
+        l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
+
+        if (l2fetch_block > 0)
+        {
+            l2fetch(iptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+        }
+
+        // 
+        HVX_Vector sinline1_low = *iptr2;
+        HVX_Vector cosline1_low = *iptr3;
+        sinline1_low = Q6_Vqf32_vadd_VsfVsf(sinline1_low, Q6_V_vzero());
+        cosline1_low = Q6_Vqf32_vadd_VsfVsf(cosline1_low, Q6_V_vzero());
+        
+
+        HVX_Vector sinline1_high = *(iptr2+1);
+        HVX_Vector cosline1_high = *(iptr3+1);
+        sinline1_high = Q6_Vqf32_vadd_VsfVsf(sinline1_high, Q6_V_vzero());
+        cosline1_high = Q6_Vqf32_vadd_VsfVsf(cosline1_high, Q6_V_vzero());
+        
+        for (int32_t j = 0; j < size/partial_dimension; j++) {
+
+          HVX_Vector sline1 = *iptr++;
+
+          HVX_VectorPair temp = Q6_Wh_vadd_VubVub(sline1, zero_v_sf);
+
+          temp = Q6_W_vshuff_VVR(Q6_V_hi_W(temp), Q6_V_lo_W(temp), -2);
+          HVX_Vector sout1 = Q6_Vh_vsub_VhVh(Q6_V_lo_W(temp), convert_vector);
+          HVX_Vector sout2 = Q6_Vh_vsub_VhVh(Q6_V_hi_W(temp), convert_vector);
+
+          HVX_VectorPair result1 = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), one_vec);
+          result1 = Q6_W_vshuff_VVR(Q6_V_hi_W(result1), Q6_V_lo_W(result1), -4);
+
+          HVX_VectorPair result2 = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout2), one_vec);
+          result2 = Q6_W_vshuff_VVR(Q6_V_hi_W(result2), Q6_V_lo_W(result2), -4);
+
+
+
+          // auto value = in_value * cos_value - in_value_2 * sin_value;
+          {
+            HVX_Vector cos_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result1), cosline1_low);
+            HVX_Vector sin_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result2), sinline1_low);
+            *optr = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vsub_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32));
+          }
+          
+
+
+          // auto value2 = in_value * sin_value + in_value_2 * cos_value;
+          {
+            HVX_Vector cos_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result2), cosline1_low);
+            HVX_Vector sin_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result1), sinline1_low);
+            *(optr+2) = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32));
+          }
+
+
+          // auto value = in_value * cos_value - in_value_2 * sin_value;
+          {
+            HVX_Vector cos_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result1), cosline1_high);
+            HVX_Vector sin_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result2), sinline1_high);
+            *(optr+1) = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vsub_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32));
+          }
+          
+
+
+          // auto value2 = in_value * sin_value + in_value_2 * cos_value;
+          {
+            HVX_Vector cos_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result2), cosline1_high);
+            HVX_Vector sin_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result1), sinline1_high);
+            *(optr+3) = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32));
+          }
+
+          optr+=4;
+
+        }
+        
+    }
+
+    // if (vectors_in_rounddown > 0) {
+
+    //   sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
+    //   sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+    //   sum = Q6_Vqf32_vadd_Vqf32Vqf32(sum,  Q6_Vqf32_vmpy_VsfVsf(sline1, sline1));
+
+    // }
+
+
+    if (leftover_size > 0)
+      return -1;
+
+    return 0;
+}
+
+int32_t hvx_rope_uint8_ahf(
+    uint8_t *restrict input,
+    float *restrict sin,
+    float *restrict cos,
+    __fp16 *restrict output,
+    uint32_t size,
+    uint32_t partial_dimension,
+    float scale)
+{
+    if ((input == NULL) || (output == NULL) || (size == 0))
+    {
+        return -1;
+    }
+
+    HVX_Vector *iptr = (HVX_Vector *)input;
+    HVX_Vector *iptr2 = (HVX_Vector *)sin;
+    HVX_Vector *iptr3 = (HVX_Vector *)cos;
+    HVX_UVector *optr = (HVX_UVector *)output;
+
+    int32_t l2fetch_block;
+    int32_t leftover = size & 127;
+    int32_t vectors_in_rounddown = size / 128;
+    int32_t leftover_size = leftover * sizeof(float);
+
+    HVX_Vector zero_v_sf = Q6_V_vzero();
+    uint32_t convert = 0x00800080;
+    HVX_Vector convert_vector = Q6_V_vsplat_R(convert);
+
+    HVX_Vector scale_vec = Q6_V_vsplat_R(float_to_fp16s(scale));
+
+    // 
+    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
+    {
+        l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
+
+        if (l2fetch_block > 0)
+        {
+            l2fetch(iptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+        }
+
+        // 
+        HVX_Vector sinline1_low = *iptr2;
+        HVX_Vector cosline1_low = *iptr3;
+        sinline1_low = Q6_Vqf32_vadd_VsfVsf(sinline1_low, Q6_V_vzero());
+        cosline1_low = Q6_Vqf32_vadd_VsfVsf(cosline1_low, Q6_V_vzero());
+        
+
+        HVX_Vector sinline1_high = *(iptr2+1);
+        HVX_Vector cosline1_high = *(iptr3+1);
+        sinline1_high = Q6_Vqf32_vadd_VsfVsf(sinline1_high, Q6_V_vzero());
+        cosline1_high = Q6_Vqf32_vadd_VsfVsf(cosline1_high, Q6_V_vzero());
+        
+        for (int32_t j = 0; j < size/partial_dimension; j++) {
+
+          HVX_Vector sline1 = *iptr++;
+
+          HVX_VectorPair temp = Q6_Wh_vadd_VubVub(sline1, zero_v_sf);
+
+          temp = Q6_W_vshuff_VVR(Q6_V_hi_W(temp), Q6_V_lo_W(temp), -2);
+          HVX_Vector sout1 = Q6_Vh_vsub_VhVh(Q6_V_lo_W(temp), convert_vector);
+          HVX_Vector sout2 = Q6_Vh_vsub_VhVh(Q6_V_hi_W(temp), convert_vector);
+
+          HVX_VectorPair result1 = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), scale_vec);
+          result1 = Q6_W_vshuff_VVR(Q6_V_hi_W(result1), Q6_V_lo_W(result1), -4);
+
+          HVX_VectorPair result2 = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout2), scale_vec);
+          result2 = Q6_W_vshuff_VVR(Q6_V_hi_W(result2), Q6_V_lo_W(result2), -4);
+
+
+
+          
+          {
+            HVX_Vector first;
+            HVX_Vector second;
+            // auto value = in_value * cos_value - in_value_2 * sin_value;
+            {
+              HVX_Vector cos_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result1), cosline1_low);
+              HVX_Vector sin_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result2), sinline1_low);
+              first = Q6_Vqf32_vsub_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32);
+            }
+
+            // auto value = in_value * cos_value - in_value_2 * sin_value;
+            {
+              HVX_Vector cos_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result1), cosline1_high);
+              HVX_Vector sin_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result2), sinline1_high);
+              second = Q6_Vqf32_vsub_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32);
+            }
+
+            HVX_Vector r = Q6_Vhf_equals_Wqf32(Q6_W_vcombine_VV(second, first));
+            r = Q6_Vh_vdeal_Vh(r);
+            *optr = r;
+          }
+
+          {
+            HVX_Vector first;
+            HVX_Vector second;
+            // auto value2 = in_value * sin_value + in_value_2 * cos_value;
+            {
+              HVX_Vector cos_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result2), cosline1_low);
+              HVX_Vector sin_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result1), sinline1_low);
+              first = Q6_Vqf32_vadd_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32);
+            }          
+
+
+            // auto value2 = in_value * sin_value + in_value_2 * cos_value;
+            {
+              HVX_Vector cos_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result2), cosline1_high);
+              HVX_Vector sin_middle_value_qf32 = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result1), sinline1_high);
+              second = Q6_Vqf32_vadd_Vqf32Vqf32(cos_middle_value_qf32, sin_middle_value_qf32);
+            }
+            HVX_Vector r = Q6_Vhf_equals_Wqf32(Q6_W_vcombine_VV(second, first));
+            r = Q6_Vh_vdeal_Vh(r);
+            *(optr+1) = r;
+          }
+          
+
+          optr+=2;
+
+        }
+        
+    }
+
+    // if (vectors_in_rounddown > 0) {
+
+    //   sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
+    //   sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+    //   sum = Q6_Vqf32_vadd_Vqf32Vqf32(sum,  Q6_Vqf32_vmpy_VsfVsf(sline1, sline1));
+
+    // }
+
+
+    if (leftover_size > 0)
+      return -1;
+
+    return 0;
+}
+
 
 int32_t hvx_rope_ahf(
     __fp16 *restrict input,
@@ -398,7 +657,7 @@ GraphStatus ropeImpl(TensorType& out_0,
 
     DType dtype = out_0.get_dtype();
 
-    if (dtype == DType::Float32) {
+    if (in_0.get_dtype() == DType::Float32 && dtype == DType::Float32) {
       auto in_ptr = (float*)in_0.raw_data_const();
       auto sin_ptr = (float*)sin.raw_data_const();
       auto cos_ptr = (float*)cos.raw_data_const();
@@ -428,41 +687,7 @@ GraphStatus ropeImpl(TensorType& out_0,
           cos_ptr += half_dimension;
         }
       }
-    } else if (dtype == DType::Float16) {
-
-      // auto [b_in, h_in, w_in, d_in] = in_0.dims();
-
-      // auto in_ptr = (__fp16*)in_0.raw_data_const();
-      // // auto sin_ptr = (__fp16*)sin.raw_data_const();
-      // // auto cos_ptr = (__fp16*)cos.raw_data_const();
-      // auto out_ptr = (__fp16*)out_0.raw_data();
-
-      // for (Idx b = 0; b < b_in; b++) {
-      //   for (Idx h = 0; h < h_in; h++) {
-      //     for (Idx w = 0; w < w_in; w++) {
-
-      //       int s = h; //  BSHD order
-      //       int partial_dimension = d_in;
-      //       int half = (int)(partial_dimension / 2);
-      //       for (Idx d = 0; d < partial_dimension / 2; ++d) {
-      //           __fp16 in_value = *in_ptr;
-      //           __fp16 in_value_2 = *(in_ptr + half);
-      //           float sin_value = sin(0, 0, s + h_cnt_, d);
-      //           float cos_value = cos(0, 0, s + h_cnt_, d);
-      //           auto value = in_value * cos_value - in_value_2 * sin_value;
-      //           auto value2 = in_value * sin_value + in_value_2 * cos_value;
-      //           *out_ptr = static_cast<__fp16>(value);
-      //           *(out_ptr + half) = static_cast<__fp16>(value2);
-
-      //           out_ptr++;
-      //           in_ptr++;
-      //       }
-
-      //       out_ptr += half;
-      //       in_ptr += half;
-      //     }
-      //   }
-      // }
+    } else if (in_0.get_dtype() == DType::Float16 && dtype == DType::Float16) {
 
       auto in_ptr = (__fp16*)in_0.raw_data_const();
       auto sin_ptr = (float*)sin.raw_data_const();
@@ -493,7 +718,69 @@ GraphStatus ropeImpl(TensorType& out_0,
           cos_ptr += half_dimension;
         }
       }
-    } 
+    } else if (in_0.get_dtype() == DType::QUInt8 && dtype == DType::Float32) {
+      auto in_ptr = (uint8_t*)in_0.raw_data_const();
+      auto sin_ptr = (float*)sin.raw_data_const();
+      auto cos_ptr = (float*)cos.raw_data_const();
+      auto out_ptr = (float*)out_0.raw_data();
+
+
+      auto [b_in, h_in, w_in, d_in] = in_0.dims();
+
+      uint32_t half_dimension = d_in / 2;
+      sin_ptr += half_dimension * h_cnt_;
+      cos_ptr += half_dimension * h_cnt_;
+
+      int partial_dimension = d_in;
+
+      // NSHD
+      for (Idx b = 0; b < b_in; b++) {
+        for (Idx h = 0; h < h_in; h++) {
+            
+          // for (Idx w = 0; w < w_in; w++) {
+            hvx_rope_uint8_af(in_ptr, sin_ptr, cos_ptr, out_ptr, w_in * d_in, partial_dimension);
+          
+            in_ptr += w_in * d_in;
+            out_ptr += w_in * d_in;
+          // }
+
+          sin_ptr += half_dimension;
+          cos_ptr += half_dimension;
+        }
+      }
+    } else if (in_0.get_dtype() == DType::QUInt8 && dtype == DType::Float16) {
+
+      auto in_ptr = (uint8_t*)in_0.raw_data_const();
+      auto sin_ptr = (float*)sin.raw_data_const();
+      auto cos_ptr = (float*)cos.raw_data_const();
+      auto out_ptr = (__fp16*)out_0.raw_data();
+
+      float scale_ = in_0.get_interface_scale();
+
+      auto [b_in, h_in, w_in, d_in] = in_0.dims();
+
+      uint32_t half_dimension = d_in / 2;
+      sin_ptr += half_dimension * h_cnt_;
+      cos_ptr += half_dimension * h_cnt_;
+
+      int partial_dimension = d_in;
+
+      // NSHD
+      for (Idx b = 0; b < b_in; b++) {
+        for (Idx h = 0; h < h_in; h++) {
+            
+          // for (Idx w = 0; w < w_in; w++) {
+            hvx_rope_uint8_ahf(in_ptr, sin_ptr, cos_ptr, out_ptr, w_in * d_in, partial_dimension, scale_);
+          
+            in_ptr += w_in * d_in;
+            out_ptr += w_in * d_in;
+          // }
+
+          sin_ptr += half_dimension;
+          cos_ptr += half_dimension;
+        }
+      }
+    }
 
 
   } else {
