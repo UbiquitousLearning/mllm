@@ -18,7 +18,8 @@ ErrorCode QNNReLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode QNNReLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    return graphAddNode(name(), "Relu", inputs, outputs, {}, "qti.aisw", true, &scale_);
+    //TODO: support INT8 relu
+    return graphAddNode(name(), "LLaMAReLU", inputs, outputs, {}, "LLaMAPackage", true, nullptr);
 }
 
 ErrorCode QNNReLU::load(AbstructLoader &loader) {
@@ -36,7 +37,7 @@ ErrorCode QNNReLU::load(AbstructLoader &loader) {
     scale_.alloc();
     loader.load(&scale_);
 
-    std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
+    // std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
 
     return Op::load(loader);
 }

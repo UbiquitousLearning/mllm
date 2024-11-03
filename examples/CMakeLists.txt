@@ -69,7 +69,7 @@ endmacro()
 # func_llm_add_executable(demo_smollm)
 # func_llm_add_executable(demo_openelm)
 # func_llm_add_executable(demo_dclm)
-# func_llm_add_executable(demo_phonelm)
+func_llm_add_executable(demo_phonelm)
 
 # func_vlm_add_executable(demo_llava)
 # func_vlm_add_executable(demo_fuyu)
@@ -83,6 +83,7 @@ endmacro()
 if(QNN)
     func_llm_add_executable(demo_qnn)
     func_llm_add_executable(main_qwen_npu)
+    func_llm_add_executable(main_phonelm_npu)
 endif()
 
 

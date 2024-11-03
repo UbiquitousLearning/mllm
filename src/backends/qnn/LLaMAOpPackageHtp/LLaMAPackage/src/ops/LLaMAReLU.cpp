@@ -82,138 +82,138 @@ DEF_PACKAGE_OP((llamareluImpl<Tensor>), "LLaMAReLU")
 
 /* execute functions for ops */
 
-#ifndef REFERENCE_OP
+// #ifndef REFERENCE_OP
 
-#include "qhmath_hvx.h"
-#include "hvx_internal.h"
-#include <hexagon_types.h>
-#include <stddef.h>
+// #include "qhmath_hvx.h"
+// #include "hvx_internal.h"
+// #include <hexagon_types.h>
+// #include <stddef.h>
 
-#define BLOCK_SIZE       (8*1024/VLEN)  /* vector chunks */
-#define L2FETCH_AHEAD    (BLOCK_SIZE)
-#define ONE      0x3F800000
-#define M_ONE    0xAF800000
-
-
-int32_t hvx_relu_au8(uint8_t *restrict input, uint8_t *restrict output, uint32_t size)
-{
-    HVX_Vector *input_v_ptr;
-    HVX_UVector *output_v_ptr;
-    HVX_Vector slinep;
-    HVX_Vector slinec;
-    HVX_Vector sline;
-    int32_t block, l2fetch_block;
-    int32_t leftover = size & 128;
-    int32_t vectors_in_rounddown = size / 128;
-    int32_t leftover_size = leftover * sizeof(uint8_t);
+// #define BLOCK_SIZE       (8*1024/VLEN)  /* vector chunks */
+// #define L2FETCH_AHEAD    (BLOCK_SIZE)
+// #define ONE      0x3F800000
+// #define M_ONE    0xAF800000
 
 
-    /* Check input arguments. Return error status if some argument has invalid value */
-    if ((input == 0) || (output == 0) || (size == 0))
-    {
-        return -1;
-    }
+// int32_t hvx_relu_au8(uint8_t *restrict input, uint8_t *restrict output, uint32_t size)
+// {
+//     HVX_Vector *input_v_ptr;
+//     HVX_UVector *output_v_ptr;
+//     HVX_Vector slinep;
+//     HVX_Vector slinec;
+//     HVX_Vector sline;
+//     int32_t block, l2fetch_block;
+//     int32_t leftover = size & 128;
+//     int32_t vectors_in_rounddown = size / 128;
+//     int32_t leftover_size = leftover * sizeof(uint8_t);
 
-    input_v_ptr = (HVX_Vector *) input;
-    output_v_ptr = (HVX_UVector *) output;
 
-    HVX_Vector vO  = Q6_Vb_vsplat_R(0x80808080u);
+//     /* Check input arguments. Return error status if some argument has invalid value */
+//     if ((input == 0) || (output == 0) || (size == 0))
+//     {
+//         return -1;
+//     }
 
-    /*
-     * If input data is not aligned to HVX vector size, compose aligned vectors
-     * from data loaded in slinep and slinec
-     */
-    slinep = *input_v_ptr++;
+//     input_v_ptr = (HVX_Vector *) input;
+//     output_v_ptr = (HVX_UVector *) output;
 
-    /*
-     * Handle number of whole vectors in input data.
-     * Don't process last vector in order to avoid out-of-boundary load.
-     */
-    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
-    {
-        block = Q6_R_min_RR(i, BLOCK_SIZE);
-        l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
+//     HVX_Vector vO  = Q6_Vb_vsplat_R(0x80808080u);
 
-        if (l2fetch_block > 0)
-        {
-            l2fetch(input_v_ptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
-        }
+//     /*
+//      * If input data is not aligned to HVX vector size, compose aligned vectors
+//      * from data loaded in slinep and slinec
+//      */
+//     slinep = *input_v_ptr++;
 
-        /* Process one vector at a time */
-        for (int32_t j = 0; j < block; ++j)
-        {
-            slinec = *input_v_ptr++;
+//     /*
+//      * Handle number of whole vectors in input data.
+//      * Don't process last vector in order to avoid out-of-boundary load.
+//      */
+//     for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
+//     {
+//         block = Q6_R_min_RR(i, BLOCK_SIZE);
+//         l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
 
-            /* Compose vector of input data from slinec and slinep */
-            sline = Q6_V_valign_VVR(slinec, slinep, (size_t) input);
+//         if (l2fetch_block > 0)
+//         {
+//             l2fetch(input_v_ptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+//         }
 
-            /* Store results to the output buffer and convert from qf32 to sf */
-            *((HVX_UVector *)(output_v_ptr++)) =  Q6_Vub_vmax_VubVub(vO, sline);
+//         /* Process one vector at a time */
+//         for (int32_t j = 0; j < block; ++j)
+//         {
+//             slinec = *input_v_ptr++;
 
-            /* Prepare slinep for next iteration */
-            slinep = slinec;
-        }
-    }
+//             /* Compose vector of input data from slinec and slinep */
+//             sline = Q6_V_valign_VVR(slinec, slinep, (size_t) input);
 
-    /* Handle last whole vector from input data */
-    if (vectors_in_rounddown > 0)
-    {
-        slinec = is_aligned(input_v_ptr, VLEN) && leftover == 0 ? slinep : *input_v_ptr++;
-        sline = Q6_V_valign_VVR(slinec, slinep, (size_t) input);
+//             /* Store results to the output buffer and convert from qf32 to sf */
+//             *((HVX_UVector *)(output_v_ptr++)) =  Q6_Vub_vmax_VubVub(vO, sline);
 
-        /* Convert from qf32 to sf, store output and go to handle leftover */
-        *((HVX_UVector *)(output_v_ptr++)) = Q6_Vub_vmax_VubVub(vO, sline);
+//             /* Prepare slinep for next iteration */
+//             slinep = slinec;
+//         }
+//     }
 
-        slinep = slinec;
-    }
+//     /* Handle last whole vector from input data */
+//     if (vectors_in_rounddown > 0)
+//     {
+//         slinec = is_aligned(input_v_ptr, VLEN) && leftover == 0 ? slinep : *input_v_ptr++;
+//         sline = Q6_V_valign_VVR(slinec, slinep, (size_t) input);
 
-    /* Handle leftover elements */
-    if (leftover > 0)
-    {
-        slinec = (is_in_one_chunk(input_v_ptr, leftover_size, VLEN)
-                   ? slinep
-                   : *input_v_ptr++);
+//         /* Convert from qf32 to sf, store output and go to handle leftover */
+//         *((HVX_UVector *)(output_v_ptr++)) = Q6_Vub_vmax_VubVub(vO, sline);
 
-        sline = Q6_V_valign_VVR(slinec, slinep, (size_t) input);
+//         slinep = slinec;
+//     }
 
-        /* Store output */
-        vstu_variable(output_v_ptr, leftover_size, Q6_Vub_vmax_VubVub(vO, sline));
-    }
+//     /* Handle leftover elements */
+//     if (leftover > 0)
+//     {
+//         slinec = (is_in_one_chunk(input_v_ptr, leftover_size, VLEN)
+//                    ? slinep
+//                    : *input_v_ptr++);
 
-    return 0;
-}
+//         sline = Q6_V_valign_VVR(slinec, slinep, (size_t) input);
 
-template<typename TensorType>
-GraphStatus llamareluImpl(TensorType& out_0,
-                          const TensorType& in_0)
+//         /* Store output */
+//         vstu_variable(output_v_ptr, leftover_size, Q6_Vub_vmax_VubVub(vO, sline));
+//     }
 
-{
-  /*
-   * add code here
-   * */
-  /*
-   * To have good performance and stability, it is required to avoid heap memory
-   * allocation in this function. The heap memory allocation includes but not
-   * limited to calling malloc, operator new, constructing STL container objects
-   * like std::vector with default allocator, and adding items like calling
-   * std::vector::push_back to STL container objects with default allocator.
-   *
-   * Please check in SDK documentation for more information.
-   */
+//     return 0;
+// }
+
+// template<typename TensorType>
+// GraphStatus llamareluImpl(TensorType& out_0,
+//                           const TensorType& in_0)
+
+// {
+//   /*
+//    * add code here
+//    * */
+//   /*
+//    * To have good performance and stability, it is required to avoid heap memory
+//    * allocation in this function. The heap memory allocation includes but not
+//    * limited to calling malloc, operator new, constructing STL container objects
+//    * like std::vector with default allocator, and adding items like calling
+//    * std::vector::push_back to STL container objects with default allocator.
+//    *
+//    * Please check in SDK documentation for more information.
+//    */
   
 
-  out_0.set_dims(in_0);
+//   out_0.set_dims(in_0);
 
-  const auto [bIn, hIn, wIn, dIn] = in_0.dims();
+//   const auto [bIn, hIn, wIn, dIn] = in_0.dims();
 
-  auto in_ptr = (uint8_t*)in_0.raw_data_const();
-  auto out_ptr = (uint8_t*)out_0.raw_data();
+//   auto in_ptr = (uint8_t*)in_0.raw_data_const();
+//   auto out_ptr = (uint8_t*)out_0.raw_data();
 
-  hvx_relu_au8(out_ptr, in_ptr, bIn * hIn * wIn * dIn * sizeof (uint8_t));
+//   hvx_relu_au8(out_ptr, in_ptr, bIn * hIn * wIn * dIn * sizeof (uint8_t));
 
-  return GraphStatus::Success;
-}
-#else
+//   return GraphStatus::Success;
+// }
+// #else
 template<typename TensorType>
 GraphStatus llamareluImpl(TensorType& out_0,
                           const TensorType& in_0)
@@ -222,27 +222,67 @@ GraphStatus llamareluImpl(TensorType& out_0,
   out_0.set_dims(in_0);
     // NHWC
 
-  auto [b_in, h_in, w_in, d_in] = in_0.dims();
-  for (Idx b = 0; b < b_in; b++) {
-    for (Idx h = 0; h < h_in; h++) {
-      for (Idx w = 0; w < w_in; w++) {
-        // SiLU
-        for (Idx d = 0; d < d_in; d++) {
-          uint8_t inval       = in_0(b, h, w, d);
-          if (inval < 0)
-            inval = 0;
+  if (in_0.get_dtype() == DType::QUInt8) {
+    auto [b_in, h_in, w_in, d_in] = in_0.dims();
+    for (Idx b = 0; b < b_in; b++) {
+      for (Idx h = 0; h < h_in; h++) {
+        for (Idx w = 0; w < w_in; w++) {
+          // SiLU
+          for (Idx d = 0; d < d_in; d++) {
+            uint8_t inval       = in_0(b, h, w, d);
+            if (inval < 0)
+              inval = 0;
 
-          out_0(b, h, w, d) = inval;
-          
+            out_0(b, h, w, d) = inval;
+            
+          }
         }
       }
     }
-  }
+  } else if (in_0.get_dtype() == DType::Float16) {
+    auto [b_in, h_in, w_in, d_in] = in_0.dims();
+
+    auto out_ptr = (__fp16*)out_0.raw_data();
+    auto in_ptr = (__fp16*)in_0.raw_data_const();
+
+    for (Idx b = 0; b < b_in; b++) {
+      for (Idx h = 0; h < h_in; h++) {
+        for (Idx w = 0; w < w_in; w++) {
+          
+          for (Idx d = 0; d < d_in; d++) {
+            __fp16 inval       = *in_ptr;
+            if (inval < 0)
+              inval = 0;
+
+            *out_ptr = inval;
+            
+          }
+        }
+      }
+    }
+  } else if(in_0.get_dtype() == DType::Float32) {
+    auto [b_in, h_in, w_in, d_in] = in_0.dims();
+    for (Idx b = 0; b < b_in; b++) {
+      for (Idx h = 0; h < h_in; h++) {
+        for (Idx w = 0; w < w_in; w++) {
+          for (Idx d = 0; d < d_in; d++) {
+            float inval       = in_0(b, h, w, d);
+            if (inval < 0)
+              inval = 0;
+
+            out_0(b, h, w, d) = inval;
+            
+          }
+        }
+      }
+    }
+  } 
+  
 
   return GraphStatus::Success;
 }
 
-#endif
+// #endif
 
 
 __attribute__((unused)) static float llamareluCostFunc(const Op *op)

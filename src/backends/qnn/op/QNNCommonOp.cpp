@@ -35,6 +35,11 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
             data_type = QNN_DATATYPE_SFIXED_POINT_8;
         }
 
+        if (output->dtype() == MLLM_TYPE_F16) {
+            data_type = QNN_DATATYPE_FLOAT_16;
+        }
+
+
         float quantScale = 0.0f;
         auto quantDefine = QNN_DEFINITION_UNDEFINED;
         auto quantType = QNN_QUANTIZATION_ENCODING_UNDEFINED;
@@ -90,7 +95,38 @@ Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tenso
     } else {
         auto name = tensor->name();
 
-        if (name.find("q_proj.rope") != -1 || name.find("k_proj.rope") != -1 || name.find("v_proj.transpose") != -1) {
+        // qwen 1.5-1.8B
+//         if (name.find("q_proj.rope") != -1 || name.find("k_proj.rope") != -1 || name.find("v_proj.transpose") != -1) {
+// #ifdef DEBUGPRINT
+//             std::cout << "view output" << std::endl;
+// #endif
+//             return QNN_TENSOR_TYPE_APP_READ;
+//         }
+
+// // SHADOW
+//         if (name == "outtensor-model.layers.1.mlp.down_proj-00" || name == "outtensor-model.layers.1.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.1.mlp.down_proj.dequantize-00_view_-00_add_-00") {
+// #ifdef DEBUGPRINT
+//             std::cout << "shadow output" << std::endl;
+// #endif
+//             return QNN_TENSOR_TYPE_APP_READ;
+//         }
+
+//                 if (name == "outtensor-model.layers.2.mlp.down_proj-00" || name == "outtensor-model.layers.2.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.2.mlp.down_proj.dequantize-00_view_-00_add_-00") {
+// #ifdef DEBUGPRINT
+//             std::cout << "shadow output" << std::endl;
+// #endif
+//             return QNN_TENSOR_TYPE_APP_READ;
+//         }
+
+//         if (name == "outtensor-model.layers.6.mlp.down_proj-00" || name == "outtensor-model.layers.6.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.6.mlp.down_proj.dequantize-00_view_-00_add_-00") {
+// #ifdef DEBUGPRINT
+//             std::cout << "shadow output" << std::endl;
+// #endif
+//             return QNN_TENSOR_TYPE_APP_READ;
+//         }
+
+        // PhoneLM 1.5B
+        if (name.find("q_proj.dequantize") != -1 || name.find("k_proj.dequantize") != -1 || name.find("v_proj.transpose") != -1) {
 #ifdef DEBUGPRINT
             std::cout << "view output" << std::endl;
 #endif
@@ -98,21 +134,21 @@ Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tenso
         }
 
 // SHADOW
-        if (name == "outtensor-model.layers.1.mlp.down_proj-00" || name == "outtensor-model.layers.1.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.1.mlp.down_proj.dequantize-00_view_-00_add_-00") {
+        if (name == "outtensor-model.layers.1.mlp.down_proj-00" || name == "outtensor-model.layers.1.mlp.relu-00_mul_-00" || name == "outtensor-model.layers.1.mlp.down_proj.dequantize-00_view_-00_add_-00") {
 #ifdef DEBUGPRINT
             std::cout << "shadow output" << std::endl;
 #endif
             return QNN_TENSOR_TYPE_APP_READ;
         }
 
-                if (name == "outtensor-model.layers.2.mlp.down_proj-00" || name == "outtensor-model.layers.2.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.2.mlp.down_proj.dequantize-00_view_-00_add_-00") {
+                if (name == "outtensor-model.layers.3.mlp.down_proj-00" || name == "outtensor-model.layers.3.mlp.relu-00_mul_-00" || name == "outtensor-model.layers.3.mlp.down_proj.dequantize-00_view_-00_add_-00") {
 #ifdef DEBUGPRINT
             std::cout << "shadow output" << std::endl;
 #endif
             return QNN_TENSOR_TYPE_APP_READ;
         }
 
-        if (name == "outtensor-model.layers.6.mlp.down_proj-00" || name == "outtensor-model.layers.6.mlp.silu-00_mul_-00" || name == "outtensor-model.layers.6.mlp.down_proj.dequantize-00_view_-00_add_-00") {
+        if (name == "outtensor-model.layers.4.mlp.down_proj-00" || name == "outtensor-model.layers.4.mlp.relu-00_mul_-00" || name == "outtensor-model.layers.4.mlp.down_proj.dequantize-00_view_-00_add_-00") {
 #ifdef DEBUGPRINT
             std::cout << "shadow output" << std::endl;
 #endif

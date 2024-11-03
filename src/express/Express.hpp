@@ -23,6 +23,7 @@ NetTensor *_Softmax(std::vector<NetTensor *> inputs, int axis, int do_causal_mas
 NetTensor *_Matmul(std::vector<NetTensor *> inputs,  bool transpose0, bool transpose1, string name = "");
 NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilon= 1e-6, string name = "", bool isFP32 = true);
 NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name = "", int rope_theta = 10000, int max_position_embeddings = 16384);
+NetTensor *_IRoPE(std::vector<NetTensor *> inputs, int pose_type, string name = "", int rope_theta = 10000, int max_position_embeddings = 16384);
 NetTensor *_QNNRoPE(std::vector<NetTensor *> inputs, int pose_type, string name = "", int rope_theta = 10000, int max_position_embeddings = 16384, bool isFP32 = true);
 NetTensor *_PositionalEmbedding(std::vector<NetTensor *> inputs, int max_num, int hidden_dim, string name = "");
 NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale, string name);

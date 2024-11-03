@@ -153,6 +153,8 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
     int8_t input_clip = inputClip_.dataAt<int8_t>(0, 0, 0, 0);
     int8_t output_clip = outputClip_.dataAt<int8_t>(0, 0, 0, 0);
 
+    std::cout << name() << input_clip * 1.0 << " " << output_clip * 1.0 << std::endl;
+
     input_scale = input_scale / 127.0;
     input_scale = roundf(input_scale * 100000) / 100000;
 
@@ -175,7 +177,7 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
                 for (int j = 0; j < inputs[0]->sequence(); j++) {
                     for (int k = 0; k < inputs[0]->dimension(); k++) {
                         float round_value = roundf(input0_buffer_.dataAt<float>(i, h, j, k) / input_scale);
-                        if (round_value > (127.0 * 1.5) || round_value < (-128.0 * 1.5)) {
+                        if (round_value > (127.0 ) || round_value < (-128.0)) {
 #if defined(__ARM_NEON)
                             float origin_value = round_value * input_scale * weight_scale;
                             float clip_value = std::fmax(std::fmin(round_value, 127), -128) * input_scale * weight_scale;
