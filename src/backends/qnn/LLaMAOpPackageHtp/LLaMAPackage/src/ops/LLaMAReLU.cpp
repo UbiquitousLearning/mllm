@@ -250,11 +250,11 @@ GraphStatus llamareluImpl(TensorType& out_0,
         for (Idx w = 0; w < w_in; w++) {
           
           for (Idx d = 0; d < d_in; d++) {
-            __fp16 inval       = *in_ptr;
+            __fp16 inval       = *in_ptr++;
             if (inval < 0)
               inval = 0;
 
-            *out_ptr = inval;
+            *out_ptr++ = inval;
             
           }
         }
