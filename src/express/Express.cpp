@@ -1055,21 +1055,29 @@ NetTensor *_WNop(std::vector<NetTensor *> inputs, int sync_type, string name) {
     return out_tensor;
 }
 
-NetTensor *_MergeOutput(std::vector<NetTensor *> inputs, string name) {
+vector<NetTensor *>  _MergeOutput(std::vector<NetTensor *> inputs, string name) {
     Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "Merge" + std::to_string(ctx->idx);
     }
-    out_tensor->name = "outtensor-" + name + "-00";
-    out_tensor->type = inputs[0]->type;
-    ctx->idx++;
-    _STORE_OUT_TENSOR
+    auto sub_param = get_active_subgraph(ctx);
     _NEW_OP(mllm::MERGEOUTPUT)
     _UPDATE_INPUT_TENSORS
-    out_tensor->in = net_op_;
-    out_tensor->ctx = ctx;
-    return out_tensor;
+    vector<NetTensor *> out_tensors;
+    net_op_->out_size = inputs.size();
+    for (int i = 0; i < inputs.size(); ++i) {
+        NetTensor *out_tensor = new NetTensor();
+        out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
+        out_tensor->type = inputs[i]->type;
+        ctx->idx++;
+        ctx->net_tensors.insert(out_tensor);
+        out_tensor->subgraph = sub_param;
+        sub_param->net_tensors.push_back(out_tensor);
+        out_tensor->in = net_op_;
+        out_tensor->ctx = ctx;
+        out_tensors.push_back(out_tensor);
+    }
+    return out_tensors;
 }
 
 vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, int num, string name) {
@@ -1083,14 +1091,11 @@ vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, 
     net_op_->param["num"] = (float)num;
     _UPDATE_INPUT_TENSORS
     vector<NetTensor *> out_tensors;
-    net_op_->out_size = num;
-    for (int i = 0; i < num; ++i) {
+    net_op_->out_size = inputs.size();
+    for (int i = 0; i < inputs.size(); ++i) {
         NetTensor *out_tensor = new NetTensor();
         out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
-        if (i < (num - 1))
-            out_tensor->type = inputs[0]->type;
-        else
-            out_tensor->type = MLLM_TYPE_F32;
+        out_tensor->type = inputs[i]->type;
         ctx->idx++;
         ctx->net_tensors.insert(out_tensor);
         out_tensor->subgraph = sub_param;

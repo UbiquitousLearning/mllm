@@ -1,6 +1,8 @@
 #include "QNNGraph.hpp"
+#include "OpDefined.hpp"
 #include "Types.hpp"
 #include <cstring>
+#include <memory>
 #ifdef DEBUGPRINT
 #include "Timing.hpp"
 #endif
@@ -18,14 +20,28 @@ QNNGraph::QNNGraph(const NetParameter &param, Backend *bn,
 
 
 void QNNGraph::setUpTensors(std::string name) {
-    auto &graph_in_tensors = ops_input_tensors_[op_names_[0]];
+
+    // change to use merge op output as graph input tensor
+    vector<shared_ptr<Tensor>> graph_in_tensors;
+    if (ops_[op_names_[0]]->type() == SPLITINPUT) {
+        graph_in_tensors = ops_output_tensors_[op_names_[0]];
+        if (op_names_[0].find(".or_split") == string::npos) {
+            // NOTE: in no copy merge/split, the ires_split is the pre-attn split, which don't take res as input
+#ifdef DEBUGPRINT
+            std::cout << "WARNING: " << op_names_[0] << " don't take tensor " << graph_in_tensors.back()->name() << " as input" << std::endl;
+#endif
+            graph_in_tensors.pop_back();
+        }
+    } else {
+        graph_in_tensors = ops_input_tensors_[op_names_[0]];
+    }
+    
     // set graph out tensor TensorType
     auto &graph_out_tensors = ops_output_tensors_[op_names_[op_names_.size() - 1]];
     for (auto &t : graph_out_tensors) {
         t->setTtype(GRAPH_OUTPUT);
         t->alloc();
     }
-    for (auto &t : graph_in_tensors) { t->alloc(); }
 
     this->backend_->onSetUpStart(graph_in_tensors, graph_out_tensors, name);
 
@@ -77,29 +93,8 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
             //            std::cout<<"op_name:"<<op_name<<" is not do"<<std::endl;
         }
     }
-
+    
     this->backend_->onExecuteStart(ops_input_tensors_[op_names_[0]], ops_output_tensors_[op_names_[op_names_.size() - 1]], graphName);
-
-    if (ops_[op_names_[op_names_.size() - 1]]->type() == MERGEOUTPUT) {
-        auto inputs = ops_input_tensors_[op_names_[op_names_.size() - 1]];
-        auto outputs = ops_output_tensors_[op_names_[op_names_.size() - 1]];
-// #pragma omp parallel for collapse(1) num_threads(4)
-        for(int t=0; t<4; t++) {
-            memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*t), inputs[t]->hostPtr<uint8_t>(), inputs[t]->cntSize());
-        }
-
-        // string name = op_names_[op_names_.size() - 1];
-        // if ( !(name.find("layers.0.") != -1 || name.find("layers.2.") != -1 || name.find("layers.3.") != -1 || name.find("layers.7.") != -1 ) ) {
-        //     memcpy(outputs[0]->hostPtr<uint8_t>() + (inputs[0]->cntSize()*3), inputs[3]->hostPtr<uint8_t>(), inputs[3]->cntSize());
-        // }
-    }
-
-    if (ops_[op_names_[op_names_.size() - 1]]->type() == LINEARINT8SHADOW) {
-        auto op_name = op_names_[op_names_.size() - 1];
-        ops_[op_name]->execute(ops_input_tensors_[op_name], ops_output_tensors_[op_name]);
-    }
-
-    // this->backend_->onExecuteEnd();
 
     return ops_output_tensors_[op_names_[op_names_.size() - 1]];
 }

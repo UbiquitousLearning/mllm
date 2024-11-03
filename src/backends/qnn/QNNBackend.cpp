@@ -7,6 +7,7 @@
 #include "Module.hpp"
 #include "OpDefined.hpp"
 #include "QNNBackend.hpp"
+#include "ParamLoader.hpp"
 #include "QnnModel.hpp"
 #include "Utils/BuildId.hpp"
 #include "Utils/QnnSampleAppUtils.hpp"
@@ -251,27 +252,60 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     // To avoid no input, we put inputs here.
     // For splitinput op input, the seq will be divided as 5, and we add the input in split ops.
     for (auto &input : inputs) {
-        if (input->sequence() % 5 != 0) {
-            Qnn_DataType_t data_type;
-            auto quantizeDefined = QNN_DEFINITION_UNDEFINED;
-            auto quantizeType = QNN_QUANTIZATION_ENCODING_UNDEFINED;
-            float scale = 0.0f;
-            auto loader = Module::llm_model_ptr->loader;
-            Tensor scaleTensor(this);
-            scaleTensor.reshape(1, 1, 1, 1);
-            scaleTensor.setDtype(MLLM_TYPE_F32);
-            scaleTensor.alloc();
+        Qnn_DataType_t data_type;
+        auto quantizeDefined = QNN_DEFINITION_UNDEFINED;
+        auto quantizeType = QNN_QUANTIZATION_ENCODING_UNDEFINED;
+        float scale = 0.0f;
+        AbstructLoader *loader = nullptr;
+        if (Module::llm_model_ptr == nullptr) { // old frontend
+            loader = dataLoader_;
+        } else { // new frontend
+            loader = Module::llm_model_ptr->loader;
+        }
+        Tensor scaleTensor(this);
+        scaleTensor.reshape(1, 1, 1, 1);
+        scaleTensor.setDtype(MLLM_TYPE_F32);
+        scaleTensor.alloc();
 
-            switch (input->dtype()) {
-            case MLLM_TYPE_F32:
-                data_type = QNN_DATATYPE_FLOAT_32;
-                break;
-            case MLLM_TYPE_I8: {
-                data_type = QNN_DATATYPE_SFIXED_POINT_8;
-                quantizeDefined = QNN_DEFINITION_DEFINED;
-                quantizeType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
+        switch (input->dtype()) {
+        case MLLM_TYPE_F32:
+            data_type = QNN_DATATYPE_FLOAT_32;
+            break;
+        case MLLM_TYPE_I8: {
+            data_type = QNN_DATATYPE_SFIXED_POINT_8;
+            quantizeDefined = QNN_DEFINITION_DEFINED;
+            quantizeType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
 
-                std::string prefix = "out-", suffix = ".quantize", scaleName;
+            string scaleName = input->name();
+
+            std::string wordToRemove = "outtensor-";
+            int pos = scaleName.find(wordToRemove);
+            if (pos != -1) { // old frontend merge/split generated tensor
+                scaleName = scaleName.substr(wordToRemove.length());
+                wordToRemove = "or_split";
+                if (scaleName.find(wordToRemove) != -1) {
+                    pos = scaleName.find("or_split");
+                    // scaleName.erase(pos, wordToRemove.length());
+                    scaleName = scaleName.substr(0, pos);
+                    // o
+                    scaleName += "o_proj.input_scale";
+                } else if (scaleName.find("ires_split") != -1) {
+                    pos = scaleName.find("ires_split");
+                    wordToRemove = "ires_split";
+                    // scaleName.erase(pos, wordToRemove.length());
+                    scaleName = scaleName.substr(0, pos);
+                    // q
+                    scaleName += "q_proj.input_scale";
+                } else if (scaleName.find("fres_split") != -1) {
+                    pos = scaleName.find("fres_split");
+                    wordToRemove = "fres_split";
+                    // scaleName.erase(pos, wordToRemove.length());
+                    scaleName = scaleName.substr(0, pos);
+                    // fc1
+                    scaleName += "up_proj.input_scale";
+                }
+            } else { // new frontend no merge/split condition
+                std::string prefix = "out-", suffix = ".quantize";
                 if (input->name().find(prefix) != std::string::npos) {
                     scaleName = input->name().substr(prefix.length());
                 }
@@ -279,43 +313,43 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
                     scaleName = scaleName.substr(0, scaleName.length() - suffix.length());
                 }
                 scaleName += ".input_scale";
-
-                scaleTensor.setName(scaleName);
-                loader->load(&scaleTensor);
-                scale = roundf(scaleTensor.hostPtr<float>()[0] / 127.0 * 100000) / 100000;
-                scaleTensor.free();
-                break;
             }
-            default:
-                std::cerr << "[ERROR] QNNBackend not support dtype: " << input->dtype() << std::endl;
-                data_type = QNN_DATATYPE_FLOAT_32;
-            }
+            scaleTensor.setName(scaleName);
+            loader->load(&scaleTensor);
+            scale = roundf(scaleTensor.hostPtr<float>()[0] / 127.0 * 100000) / 100000;
+            scaleTensor.free();
 
-            uint32_t dimensionsInput[4] = {
-                static_cast<uint32_t>(input->batch()),
-                static_cast<uint32_t>(input->sequence()),
-                static_cast<uint32_t>(input->head()),
-                static_cast<uint32_t>(input->dimension()),
-            };
-
-            qnnModels_[qnnModelIndex_].addTensor(input->name().c_str(),
-                                                 (Qnn_Tensor_t){
-                                                     .version = QNN_TENSOR_VERSION_1,
-                                                     .v1 = {
-                                                         .id = 0,
-                                                         .name = input->name().c_str(),
-                                                         .type = QNN_TENSOR_TYPE_APP_WRITE,
-                                                         .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                         .dataType = data_type,
-                                                         .quantizeParams = {quantizeDefined,
-                                                                            quantizeType,
-                                                                            {.scaleOffsetEncoding = {.scale = scale, .offset = 0}}},
-                                                         .rank = 4,
-                                                         .dimensions = dimensionsInput,
-                                                         .memType = QNN_TENSORMEMTYPE_RAW,
-                                                         .clientBuf = {.data = nullptr,
-                                                                       .dataSize = 0}}});
+            break;
         }
+        default:
+            std::cerr << "[ERROR] QNNBackend not support dtype: " << input->dtype() << std::endl;
+            data_type = QNN_DATATYPE_FLOAT_32;
+        }
+
+        uint32_t dimensionsInput[4] = {
+            static_cast<uint32_t>(input->batch()),
+            static_cast<uint32_t>(input->sequence()),
+            static_cast<uint32_t>(input->head()),
+            static_cast<uint32_t>(input->dimension()),
+        };
+
+        qnnModels_[qnnModelIndex_].addTensor(input->name().c_str(),
+                                             (Qnn_Tensor_t){
+                                                 .version = QNN_TENSOR_VERSION_1,
+                                                 .v1 = {
+                                                     .id = 0,
+                                                     .name = input->name().c_str(),
+                                                     .type = QNN_TENSOR_TYPE_APP_WRITE,
+                                                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                                     .dataType = data_type,
+                                                     .quantizeParams = {quantizeDefined,
+                                                                        quantizeType,
+                                                                        {.scaleOffsetEncoding = {.scale = scale, .offset = 0}}},
+                                                     .rank = 4,
+                                                     .dimensions = dimensionsInput,
+                                                     .memType = QNN_TENSORMEMTYPE_RAW,
+                                                     .clientBuf = {.data = nullptr,
+                                                                   .dataSize = 0}}});
     }
 
     // create a new inputBuffer and outputBuffer for the graph
@@ -373,7 +407,7 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     for (int i = 0; i < graphInfo->numInputTensors; i++) {
         qnnMM->registerQnnTensor((*currentInputBuffers)[i], qnnInputs[i]);
 #ifdef DEBUGPRINT
-        std::cout << "registered input tensor: " << inputs[i]->hostPtr<void>() << " backend staged ptr: " << (void *)(*currentInputBuffers)[i] << std::endl;
+        std::cout << "\nregistered input tensor: " << inputs[i]->hostPtr<void>() << " backend staged ptr: " << (void *)(*currentInputBuffers)[i] << std::endl;
         std::cout << "qnn input tensor name: " << qnnInputs[i].v1.name << std::endl;
         std::cout << "qnn input tensor scale: " << qnnInputs[i].v1.quantizeParams.scaleOffsetEncoding.scale << std::endl;
 #endif
@@ -381,7 +415,7 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     for (int i = 0; i < graphInfo->numOutputTensors; i++) {
         qnnMM->registerQnnTensor((*currentOutputBuffers)[i], qnnOutputs[i]);
 #ifdef DEBUGPRINT
-        std::cout << "registered output tensor: " << outputs[i]->hostPtr<void>() << " backend staged ptr: " << (void *)(*currentOutputBuffers)[i] << std::endl;
+        std::cout << "\nregistered output tensor: " << outputs[i]->hostPtr<void>() << " backend staged ptr: " << (void *)(*currentOutputBuffers)[i] << std::endl;
         std::cout << "qnn output tensor name: " << qnnOutputs[i].v1.name << std::endl;
         std::cout << "qnn output tensor scale: " << qnnOutputs[i].v1.quantizeParams.scaleOffsetEncoding.scale << std::endl;
 #endif

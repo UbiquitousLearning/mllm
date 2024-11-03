@@ -13,6 +13,5 @@ cmake .. \
 -DDEBUG=OFF \
 -DTEST=OFF \
 -DQUANT=OFF \
--DQNN_OLD_FRONTEND=ON
 
 make -j16
