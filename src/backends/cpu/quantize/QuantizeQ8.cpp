@@ -273,7 +273,7 @@ void quantize_row_i8(const float *__restrict x, void *__restrict vy, int k, floa
     const float id = d ? 1.0f / d : 0.0f;
 
 #if defined(__ARM_NEON)
-    const int32x4_t min_128 = vdupq_n_s32(-128);
+    const int32x4_t min_128 = vdupq_n_s32(-127);
     const int32x4_t max127 = vdupq_n_s32(127);
 
     for (int i = 0; i < nb; i++) {

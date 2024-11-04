@@ -1306,8 +1306,8 @@ GraphStatus llamaquantizeImpl(TensorType1 &out_0,
                 if (v > 127)
                     v = 127;
                 
-                if (v < -128)
-                    v = -128;
+                if (v < -127)
+                    v = -127;
                 
                 if (out_0.get_dtype() == DType::QUInt8)
                     v += 128;
