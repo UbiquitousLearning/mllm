@@ -71,7 +71,7 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
 #ifdef DEBUGPRINT
             uint64_t t_start = mllm_time_us();
 #endif
-            if (ops_[op_name]->type() == LINEARINT8SHADOW)
+            if (ops_[op_name]->type() == LINEARINT8SHADOW || ops_[op_name]->type() == ROPE)
                 continue;
             ops_[op_name]->execute(ops_input_tensors_[op_name],
                                    ops_output_tensors_[op_name]);
