@@ -130,8 +130,8 @@ void phonelm_cpu_q40(Context *c, int vocab_size = 32000, int hidden_dim = 4096, 
 
         i = *PhoneLM_FFN_CPU_q40(c, res, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp") + i;
     }
-    // i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
-    // i = _Linear({i}, hidden_dim, vocab_size, false, "model.embed_tokens");
+    i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
+    i = _Linear({i}, hidden_dim, vocab_size, false, "model.embed_tokens");
 }
 
 // merge o and FFN.

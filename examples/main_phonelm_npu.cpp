@@ -197,10 +197,6 @@ int main(int argc, char **argv) {
                 cpuExe.run(&cpuNet, {input});
                 auto result = cpuExe.result();
 
-                // inter model for CPU decode as we do not have q40 lm_head weights.
-                interExe.run(&interNet, {result[0]});
-                result = interExe.result();
-
                 auto token_idx = postProcessing(result[0], input);
                 if (token_idx == 2) { // "</s>"
                     break;
