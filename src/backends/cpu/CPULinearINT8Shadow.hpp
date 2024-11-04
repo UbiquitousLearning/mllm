@@ -39,9 +39,15 @@ private:
     Tensor input1_buffer_;
     Tensor input2_buffer_;
 
-    std::vector<int> input0_dimension = {1,1,1024,5504};
-    std::vector<int> input1_dimension = {1,1,1024,5504};
-    std::vector<int> input2_dimension = {1,1,1024,2048};
+    // Qwen
+    // std::vector<int> input0_dimension = {1,1,1024,5504};
+    // std::vector<int> input1_dimension = {1,1,1024,5504};
+    // std::vector<int> input2_dimension = {1,1,1024,2048};
+
+    // PhoneLM
+    std::vector<int> input0_dimension = {1,1,1024,6816};
+    std::vector<int> input1_dimension = {1,1,1024,6816};
+    std::vector<int> input2_dimension = {1,1,1024,2560};
 
     void shadow_vec_dot_fp32_arm(float *s, float *x, int8_t *y, int n, float input_scale, float weight_scale);
 };
