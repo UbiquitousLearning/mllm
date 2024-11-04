@@ -48,7 +48,7 @@ ErrorCode CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
                 for (int seq = 0; seq < input->sequence(); ++seq) {
 #ifdef USE_QNN
                     if ((int)input->dataAt<float>(batch, head, seq, 0) == vocabSize_) {
-                        memset(output->hostPtr<float>() + output->offset(batch, head, seq, 0), 0, output->cntSize());
+                        memset(output->hostPtr<float>() + output->offset(batch, head, seq, 0), 0, output->dimension() * sizeof(float));
                         continue;
                     }
 #endif
@@ -122,6 +122,8 @@ ErrorCode CPUEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     case MLLM_TYPE_COUNT: break;
     default: break;
     }
+
+    // outputs[0]->printData<float>();
 
     return MLLM_NO_ERROR;
 }
