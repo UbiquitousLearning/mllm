@@ -66,8 +66,8 @@ int main(int argc, char **argv) {
 
     cmdParser.parse_check(argc, argv);
 
-    const string npu_model_path = "../models/xllm-1.5B-DroidCall-coder-128.mllm";
-    const string cpu_model_path = "../models/phonelm-1.5b-droidcall-q4_0_4_4.mllm";
+    const string npu_model_path = "../models/PhoneLM-1.5B-Instruct-128.mllm";
+    const string cpu_model_path = "../models/phonelm-with-head-q4k.mllm";
     const string merge_file_path = "../vocab/phonelm_merges.txt";
 
     string vocab_path = cmdParser.get<string>("vocab");
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
     int ffn_hidden_dim = cmdParser.get<int>("ffn");
 
     vector<string> in_strs = {
-        "Give me a short introduction to large language model.",
+        "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\nGive me a short introduction to large language model.<|im_end|>\n<|im_start|>assistant\n",
         // " What can you do?",
         // "Please introduce Beijing University of Posts and Telecommunications."};
     };
