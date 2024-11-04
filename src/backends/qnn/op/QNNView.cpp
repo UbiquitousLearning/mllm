@@ -220,7 +220,7 @@ ErrorCode QNNNPUView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     //Qwen TODO
     // if (name().find("layers.1.") != -1 || name().find("layers.2.") != -1 || name().find("layers.6.") != -1 ) {
     // PhoneLM
-    if (name().find("layers.1.") != -1 || name().find("layers.3.") != -1 || name().find("layers.4.") != -1 ) {
+    if (name().find("layers.0.") != -1 || name().find("layers.1.") != -1 || name().find("layers.3.") != -1 || name().find("layers.4.") != -1 ) {
         type = QNN_TENSOR_TYPE_NATIVE;
     } else {
         outputs[0]->setBackend(qnnBackend_);

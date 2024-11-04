@@ -149,7 +149,7 @@ void phonelm_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
         i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");        
 
         // only CPU graphs need merge and split
-        if (layer == 5 || layer == 2 || layer == 4 || layer == 0) {
+        if (layer == 1 || layer == 2 || layer == 4 || layer == 5 || layer == 0) {
         // SHADOW
         // if (layer == 2 || layer == 0) {
             i = i->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
@@ -180,7 +180,7 @@ void phonelm_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
         i = i->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_dim);
 
         // SHADOW
-        if (layer != 4 && layer != 1 && layer != 3) {
+        if (layer != 0 && layer != 1 && layer != 3 && layer != 4) {
         // if (layer != 1) {
             i = PhoneLM_FFN_NPU(c, i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
 
