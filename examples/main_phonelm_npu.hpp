@@ -11,8 +11,8 @@ NetTensor *PhoneLM_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hid
     auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
     auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
     // x = _SuperSiLU({x,y}, name + ".supersilu");
-    x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", false);
-    y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", false);
+    x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", true);
+    y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", true);
     x = _ReLU({x}, name + ".relu");
     x = *x * y;
     x = _Quantize({x}, true, (string)name + ".down_proj.quantize");
@@ -31,8 +31,8 @@ std::vector<NetTensor *> PhoneLM_CPUNPUAttention(Context *c, NetTensor *x, NetTe
     v = v->view(1, head_size, seq / chunk, hidden_size);
 
     q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize", true);
-    k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", false);
-    v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize", false);
+    k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", true);
+    v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize", true);
     
     v = _Transpose({v}, {0, 2, 3, 1}, (string)name + ".v_proj.transpose");
 
@@ -173,9 +173,9 @@ void phonelm_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
 
         res = i;
 
-        i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm", false);
+        i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".post_attention_layernorm", true);
 
-        // i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".mlp.up_proj.quantize");
+        i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".mlp.up_proj.quantize");
 
         i = i->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_dim);
 
