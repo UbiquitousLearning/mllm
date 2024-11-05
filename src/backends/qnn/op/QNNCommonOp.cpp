@@ -134,27 +134,27 @@ Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tenso
         }
 
 // SHADOW
-        if (name == "outtensor-model.layers.0.mlp.down_proj-00" || name == "outtensor-model.layers.0.mlp.relu-00_mul_-00" || name == "outtensor-model.layers.0.mlp.down_proj.dequantize-00_view_-00_add_-00") {
+        if (name == "outtensor-model.layers.0.mlp.down_proj-00" || name == "outtensor-model.layers.0.mlp.gate_proj.dequantize-00_mul_-00" || name == "outtensor-model.layers.0.mlp.down_proj.dequantize-00_view_-00_add_-00") {
 #ifdef DEBUGPRINT
             std::cout << "shadow output" << std::endl;
 #endif
             return QNN_TENSOR_TYPE_APP_READ;
         }
-        if (name == "outtensor-model.layers.1.mlp.down_proj-00" || name == "outtensor-model.layers.1.mlp.relu-00_mul_-00" || name == "outtensor-model.layers.1.mlp.down_proj.dequantize-00_view_-00_add_-00") {
-#ifdef DEBUGPRINT
-            std::cout << "shadow output" << std::endl;
-#endif
-            return QNN_TENSOR_TYPE_APP_READ;
-        }
-
-                if (name == "outtensor-model.layers.3.mlp.down_proj-00" || name == "outtensor-model.layers.3.mlp.relu-00_mul_-00" || name == "outtensor-model.layers.3.mlp.down_proj.dequantize-00_view_-00_add_-00") {
+        if (name == "outtensor-model.layers.1.mlp.down_proj-00" || name == "outtensor-model.layers.1.mlp.gate_proj.dequantize-00_mul_-00" || name == "outtensor-model.layers.1.mlp.down_proj.dequantize-00_view_-00_add_-00") {
 #ifdef DEBUGPRINT
             std::cout << "shadow output" << std::endl;
 #endif
             return QNN_TENSOR_TYPE_APP_READ;
         }
 
-        if (name == "outtensor-model.layers.4.mlp.down_proj-00" || name == "outtensor-model.layers.4.mlp.relu-00_mul_-00" || name == "outtensor-model.layers.4.mlp.down_proj.dequantize-00_view_-00_add_-00") {
+                if (name == "outtensor-model.layers.3.mlp.down_proj-00" || name == "outtensor-model.layers.3.mlp.gate_proj.dequantize-00_mul_-00" || name == "outtensor-model.layers.3.mlp.down_proj.dequantize-00_view_-00_add_-00") {
+#ifdef DEBUGPRINT
+            std::cout << "shadow output" << std::endl;
+#endif
+            return QNN_TENSOR_TYPE_APP_READ;
+        }
+
+        if (name == "outtensor-model.layers.4.mlp.down_proj-00" || name == "outtensor-model.layers.4.mlp.gate_proj.dequantize-00_mul_-00" || name == "outtensor-model.layers.4.mlp.down_proj.dequantize-00_view_-00_add_-00") {
 #ifdef DEBUGPRINT
             std::cout << "shadow output" << std::endl;
 #endif
