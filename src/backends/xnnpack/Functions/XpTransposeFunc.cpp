@@ -30,8 +30,10 @@ void XpTransposeFunction::setup(vector<Tensor *> outputs, vector<Tensor *> input
 
 void XpTransposeFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return;
 
     std::array<size_t, 4> perm{0, 1, 2, 3};
 
@@ -79,7 +81,7 @@ void XpTransposeFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inp
         exit(-1);
     }
 
-    auto status = xnn_define_static_transpose(xpb->getXnnSubgraph(), 4, perm.data(), inputs[0]->uuid(), outputs[0]->uuid(), 0);
+    auto status = xnn_define_static_transpose(xpb->getCurProcessingGraph()->getXnnSubgraph(), 4, perm.data(), inputs[0]->uuid(), outputs[0]->uuid(), 0);
 
     if (status != xnn_status_success) {
         Log::error("XpTransposeFunction::execute Error");

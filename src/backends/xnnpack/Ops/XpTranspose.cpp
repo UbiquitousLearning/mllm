@@ -29,8 +29,10 @@ ErrorCode XpTranspose::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_
 
 ErrorCode XpTranspose::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return MLLM_NO_ERROR;
 
     std::array<size_t, 4> perm{0, 1, 2, 3};
 
@@ -66,13 +68,12 @@ ErrorCode XpTranspose::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
         exit(-1);
     }
 
-    auto status = xnn_define_static_transpose(xpb->getXnnSubgraph(), 4, perm.data(), inputs[0]->uuid(), outputs[0]->uuid(), 0);
+    auto status = xnn_define_static_transpose(xpb->getCurProcessingGraph()->getXnnSubgraph(), 4, perm.data(), inputs[0]->uuid(), outputs[0]->uuid(), 0);
 
     if (status != xnn_status_success) {
         Log::error("XpTranspose::execute Error");
         exit(-1);
     }
-
     return MLLM_NO_ERROR;
 }
 

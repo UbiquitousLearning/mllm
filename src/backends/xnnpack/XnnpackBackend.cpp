@@ -2,6 +2,7 @@
 #include "Backend.hpp"
 #include "OpDefined.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
+#include "pthreadpool.h"
 #include "xnnpack.h"
 #include "backends/xnnpack/Functions/XpBinaryFunc.hpp"
 #include "backends/xnnpack/Ops/XpBinary.hpp"
@@ -31,6 +32,8 @@
 #include "xnnpack/allocator.h"
 #include "xnnpack/memory.h"
 #include "xnnpack/subgraph.h"
+#include <cstdlib>
+#include <memory>
 
 namespace mllm {
 
@@ -55,18 +58,14 @@ void registerXNNBackendCreator() {
 
 namespace mllm::xnnpack {
 
-XnnpackModelRuntime::XnnpackModelRuntime(int32_t num_threads) :
-    num_threads_(num_threads), model_(nullptr, xnn_delete_subgraph) {
-    xnn_delete_runtime(runtime_);
-    threadpool_ = pthreadpool_create(num_threads_);
+XnnpackModelRuntime::XnnpackModelRuntime(pthreadpool_t threadpool) :
+    threadpool_(threadpool), model_(nullptr, xnn_delete_subgraph) {
+    num_threads_ = pthreadpool_get_threads_count(threadpool);
 }
 
 XnnpackModelRuntime::~XnnpackModelRuntime() {
     if (runtime_) {
         xnn_delete_runtime(runtime_);
-    }
-    if (threadpool_) {
-        pthreadpool_destroy(threadpool_);
     }
 
     // not release all
@@ -143,18 +142,16 @@ void XnnpackModelRuntime::setWeightCache(xnn_weights_cache_t weight_cache) {
     weight_cache_ = weight_cache;
 }
 
+xnn_runtime_t XnnpackModelRuntime::getXnnRt() {
+    return runtime_;
+}
+
 std::unordered_map<uint32_t, xnn_external_value> &XnnpackModelRuntime::__uuidToExternalsV() {
     return uuid_2_externals_v_;
 }
 
 XnnpackBackend::XnnpackBackend(std::shared_ptr<MemoryManager> mm, const XnnpackBackendOpts &opts) :
     Backend(mm), opts_(opts) {
-    // runtime
-    model_runtime_ = std::make_shared<XnnpackModelRuntime>(xnn_threads);
-
-    // subgraph
-    createSubgraph();
-
     // init weight_cache_
     // xnn_create_weights_cache(&weight_cache_);
 
@@ -165,9 +162,6 @@ XnnpackBackend::XnnpackBackend(std::shared_ptr<MemoryManager> mm, const XnnpackB
 }
 
 XnnpackBackend::~XnnpackBackend() {
-    if (subgraph_) {
-        xnn_delete_subgraph(subgraph_);
-    }
 }
 
 bool XnnpackBackend::addCreator(OpType t, Creator *c) {
@@ -246,12 +240,25 @@ void XnnpackBackend::registerFuncs() {
     map_tensor_function_[TensorFuncType::FUNC_MM] = new XpMatmulFunction();
 }
 
-std::shared_ptr<XnnpackModelRuntime> XnnpackBackend::getModelRuntime() {
+uint32_t XnnpackCargo::getExecCnt() {
+    return exec_cnt_;
+}
+
+uint32_t XnnpackCargo::incExecCnt() {
+    exec_cnt_++;
+    return exec_cnt_;
+}
+
+void XnnpackCargo::setThreadPool(pthreadpool_t tp) {
+    threadpool_ = tp;
+}
+
+std::shared_ptr<XnnpackModelRuntime> XnnpackCargo::getModelRuntime() {
     return model_runtime_;
 }
 
-std::shared_ptr<XnnpackModelRuntime> XnnpackBackend::recreateModelRuntime(int thread_count) {
-    model_runtime_ = std::make_shared<XnnpackModelRuntime>(thread_count);
+std::shared_ptr<XnnpackModelRuntime> XnnpackCargo::recreateModelRuntime() {
+    model_runtime_ = std::make_shared<XnnpackModelRuntime>(threadpool_);
 
     // set external values
     model_runtime_->resetUuidExternalValuesMap(uuid_2_externals_v_);
@@ -260,12 +267,12 @@ std::shared_ptr<XnnpackModelRuntime> XnnpackBackend::recreateModelRuntime(int th
     return model_runtime_;
 }
 
-xnn_subgraph_t XnnpackBackend::getXnnSubgraph() {
-    return subgraph_;
+xnn_subgraph_t XnnpackCargo::getXnnSubgraph() {
+    return graph_;
 }
 
-void XnnpackBackend::createSubgraph(int32_t external_nums) {
-    if (subgraph_) {
+void XnnpackCargo::createSubgraph(int32_t external_nums) {
+    if (graph_) {
         Log::error("The subgraph has already been created. Use recreateSubGraph instead.");
         exit(-1);
     }
@@ -274,31 +281,33 @@ void XnnpackBackend::createSubgraph(int32_t external_nums) {
     uuid_2_mllm_tensor_.clear();
     uuid_2_mllm_weight_tensor_.clear();
     uuid_2_normal_tensor_.clear();
-    auto status = xnn_create_subgraph(external_nums, 0, &subgraph_);
+    activation_name_2_uuid_.clear();
+    auto status = xnn_create_subgraph(external_nums, 0, &graph_);
     if (status != xnn_status_success) {
         Log::error("Failed to create subgrpah");
         exit(-1);
     }
 }
 
-void XnnpackBackend::recreateSubgraph(int32_t external_nums) {
-    if (subgraph_) {
+void XnnpackCargo::recreateSubgraph(int32_t external_nums) {
+    if (graph_) {
         // no need to delete this, the previous xnnpack runtime will manage it.
         // xnn_delete_subgraph(subgraph_);
         uuid_2_mllm_tensor_.clear();
         uuid_2_mllm_weight_tensor_.clear();
         uuid_2_externals_v_.clear();
         uuid_2_normal_tensor_.clear();
+        activation_name_2_uuid_.clear();
     }
 
-    auto status = xnn_create_subgraph(external_nums, 0, &subgraph_);
+    auto status = xnn_create_subgraph(external_nums, 0, &graph_);
     if (status != xnn_status_success) {
         Log::error("Failed to create subgrpah");
         exit(-1);
     }
 }
 
-void XnnpackBackend::registerExternalValue(uint32_t uuid, const xnn_external_value &ext_v) {
+void XnnpackCargo::registerExternalValue(uint32_t uuid, const xnn_external_value &ext_v) {
     if (uuid_2_externals_v_.count(uuid)) {
         Log::error("when reigster a external value, found exists uuid: {}", uuid);
         exit(-1);
@@ -307,7 +316,15 @@ void XnnpackBackend::registerExternalValue(uint32_t uuid, const xnn_external_val
     uuid_2_externals_v_.insert({uuid, ext_v});
 }
 
-void XnnpackBackend::registerNormalValue(uint32_t uuid) {
+void XnnpackCargo::updateExternalValue(uint32_t uuid, const xnn_external_value &ext_v) {
+    if (!uuid_2_externals_v_.count(uuid)) {
+        Log::error("when update a external value, found exists uuid: {}", uuid);
+        exit(-1);
+    }
+    uuid_2_externals_v_[uuid] = ext_v;
+}
+
+void XnnpackCargo::registerNormalValue(uint32_t uuid) {
     if (uuid_2_normal_tensor_.count(uuid)) {
         Log::error("when reigster a normal value, found exists uuid: {}", uuid);
         exit(-1);
@@ -316,7 +333,7 @@ void XnnpackBackend::registerNormalValue(uint32_t uuid) {
     uuid_2_normal_tensor_.insert({uuid, true});
 }
 
-void XnnpackBackend::registerUuidTensor(uint32_t uuid, Tensor *t) {
+void XnnpackCargo::registerUuidTensor(uint32_t uuid, Tensor *t) {
     if (uuid_2_mllm_tensor_.count(uuid)) {
         Log::error("when reigster a tensor value, found exists uuid: {}", uuid);
         exit(-1);
@@ -325,7 +342,16 @@ void XnnpackBackend::registerUuidTensor(uint32_t uuid, Tensor *t) {
     uuid_2_mllm_tensor_.insert({uuid, t});
 }
 
-void XnnpackBackend::registerUuidWeightTensor(uint32_t uuid, Tensor *t) {
+void XnnpackCargo::updateUuidTensor(uint32_t uuid, Tensor *t) {
+    if (!uuid_2_mllm_tensor_.count(uuid)) {
+        Log::error("XnnpackCargo::updateUuidTensor failed. {} is not exists", uuid);
+        exit(-1);
+    }
+
+    uuid_2_mllm_tensor_[uuid] = t;
+}
+
+void XnnpackCargo::registerUuidWeightTensor(uint32_t uuid, Tensor *t) {
     if (uuid_2_mllm_weight_tensor_.count(uuid)) {
         Log::error("when reigster a weight tensor value, found exists uuid: {}", uuid);
         exit(-1);
@@ -334,7 +360,7 @@ void XnnpackBackend::registerUuidWeightTensor(uint32_t uuid, Tensor *t) {
     uuid_2_mllm_weight_tensor_.insert({uuid, t});
 }
 
-void *XnnpackBackend::getExternalValueptr(uint32_t uuid) {
+void *XnnpackCargo::getExternalValueptr(uint32_t uuid) {
     if (uuid_2_externals_v_.count(uuid)) {
         return uuid_2_externals_v_[uuid].data;
     }
@@ -342,15 +368,15 @@ void *XnnpackBackend::getExternalValueptr(uint32_t uuid) {
     return nullptr;
 }
 
-bool XnnpackBackend::hasExternalValue(uint32_t uuid) {
+bool XnnpackCargo::hasExternalValue(uint32_t uuid) {
     return uuid_2_externals_v_.count(uuid);
 }
 
-bool XnnpackBackend::hasNormalValue(uint32_t uuid) {
+bool XnnpackCargo::hasNormalValue(uint32_t uuid) {
     return uuid_2_normal_tensor_.count(uuid);
 }
 
-bool XnnpackBackend::hasWeightValue(uint32_t uuid) {
+bool XnnpackCargo::hasWeightValue(uint32_t uuid) {
     return uuid_2_mllm_weight_tensor_.count(uuid);
 }
 
@@ -368,11 +394,11 @@ xnn_datatype XnnpackBackend::mllmDType2XnnDType(DataType mllm_dtype) {
     return xnn_datatype_invalid;
 }
 
-uint32_t XnnpackBackend::getNewEXternalId() {
+uint32_t XnnpackCargo::getNewEXternalId() {
     return (uint32_t)uuid_2_externals_v_.size();
 }
 
-void XnnpackBackend::assignPtrToTensor() {
+void XnnpackCargo::assignPtrToTensor() {
     // update from runtime
     uuid_2_externals_v_ = getModelRuntime()->__uuidToExternalsV();
 
@@ -388,22 +414,264 @@ void XnnpackBackend::assignPtrToTensor() {
     }
 }
 
-void XnnpackBackend::setSubgraphDispatched(bool b) {
+void XnnpackCargo::setSubgraphDispatched(bool b) {
     subgraph_dispatched_ = b;
 }
 
-xnn_weights_cache_t XnnpackBackend::getWeightCache() {
+xnn_weights_cache_t XnnpackCargo::getWeightCache() {
     return weight_cache_;
 }
 
-bool XnnpackBackend::isWeightCacheFinalized() const {
-    return weight_cache_finalized;
+bool XnnpackCargo::isWeightCacheFinalized() const {
+    return weight_cache_finalized_;
 }
 
-void XnnpackBackend::setWeightCacheFinalized(bool b) {
-    weight_cache_finalized = b;
+void XnnpackCargo::setWeightCacheFinalized(bool b) {
+    weight_cache_finalized_ = b;
+}
+
+bool XnnpackCargo::inActivationName(const std::string &name) {
+    return activation_name_2_uuid_.count(name);
+}
+
+uint32_t XnnpackCargo::getUUIDByActivationName(const std::string &name) {
+    if (inActivationName(name)) return activation_name_2_uuid_[name];
+    Log::error("XnnpackCargo::getUUIDByActivationName, {} not in activation name", name);
+    exit(-1);
+}
+
+void XnnpackCargo::registerActivationNameAndUUID(const std::string &name, uint32_t uuid) {
+    if (inActivationName(name)) {
+        Log::error("XnnpackCargo::registerActivationNameAndUUID, {} already exists", name);
+        exit(-1);
+    }
+    activation_name_2_uuid_.insert({name, uuid});
+}
+
+void XnnpackBackend::createNewGraph(const std::string &name) {
+    if (graphs_.count(name)) {
+        if (enable_dynamic_shape) {
+            Log::error("XnnpackBackend::createNewGraph, {} graph already exists", name);
+            exit(-1);
+        } else {
+            graphs_.erase(graphs_.find(name));
+        }
+    }
+
+    graphs_.insert({name, std::make_shared<XnnpackCargo>()});
+    graphs_[name]->setThreadPool(threadpool_);
+    graphs_[name]->createSubgraph();
+}
+
+std::shared_ptr<XnnpackCargo> XnnpackBackend::getGraph(const std::string &name) {
+    if (!graphs_.count(name)) {
+        Log::error("XnnpackBackend::getGraph, {} graph not exists");
+        exit(-1);
+    }
+    return graphs_[name];
+}
+
+bool XnnpackBackend::hasGraph(const std::string &name) {
+    return graphs_.count(name);
+}
+
+void XnnpackBackend::onSetUpStart(std::vector<std::shared_ptr<Tensor>> &inputs, std::vector<std::shared_ptr<Tensor>> &outputs, std::string graph_name) {
+    // 0. create graph
+    cur_processing_graph_name_ = graph_name;
+
+    if (!hasGraph(graph_name) || !XnnpackBackend::enable_dynamic_shape) {
+        createNewGraph(graph_name);
+        auto cargo = getGraph(graph_name);
+
+        if (XnnpackBackend::enable_legacy_wrapper) Backend::onSetUpStart(inputs, outputs, graph_name);
+
+        // 1. register all inputs
+        for (auto &t : inputs) {
+            auto xp_dtype = XnnpackBackend::mllmDType2XnnDType(t->dtype());
+
+            xnn_status status;
+            std::vector<size_t> dims;
+            for (auto d : t->shape()) dims.push_back(d);
+
+            uint32_t flags = XNN_VALUE_FLAG_EXTERNAL_INPUT;
+            uint32_t external_id = cargo->getNewEXternalId();
+
+            switch (xp_dtype) {
+            case xnn_datatype_fp32: {
+                status = xnn_define_tensor_value(
+                    cargo->getXnnSubgraph(), xp_dtype,
+                    dims.size(), dims.data(),
+                    /*data=*/nullptr,
+                    external_id, flags, &t->uuid());
+                break;
+            }
+            default:
+                Log::error("XnnpackBackend::onSetUpStart, Unsupported datatype.");
+                break;
+            }
+
+            cargo->registerExternalValue(t->uuid(), xnn_external_value{.id = t->uuid(), .data = t->rawHostPtr()});
+            cargo->registerUuidTensor(t->uuid(), t.get());
+            cargo->registerActivationNameAndUUID(t->name(), t->uuid());
+
+            if (status != xnn_status_success) {
+                Log::error("xnnpack backend defineXpTensor Error");
+                exit(-1);
+            }
+        }
+    } else {
+        // do not create a new graph. Reuse already exists runtime
+        auto cargo = getGraph(graph_name);
+
+        for (auto &t : inputs) {
+            t->uuid() = cargo->getUUIDByActivationName(t->name());
+            cargo->updateExternalValue(t->uuid(), xnn_external_value{.id = t->uuid(), .data = t->rawHostPtr()});
+            cargo->updateUuidTensor(t->uuid(), t.get());
+            std::vector<size_t> dims;
+            for (auto d : t->shape()) dims.push_back(d);
+            xnn_reshape_external_value(cargo->getModelRuntime()->getXnnRt(), t->uuid(), dims.size(), dims.data());
+        }
+    }
+}
+
+void XnnpackBackend::onSetUpEnd(std::vector<shared_ptr<Tensor>> &inputs, std::vector<std::shared_ptr<Tensor>> &outputs, std::string graph_name) {
+    cur_processing_graph_name_ = graph_name;
+
+    if (getGraph(graph_name)->getExecCnt() == 0 || !XnnpackBackend::enable_dynamic_shape) {
+        if (XnnpackBackend::enable_legacy_wrapper) Backend::onSetUpEnd(inputs, outputs, graph_name);
+
+        // 0. get graph
+        auto cargo = getGraph(graph_name);
+
+        // 1. register all outputs
+        for (auto &t : outputs) {
+            auto xp_dtype = XnnpackBackend::mllmDType2XnnDType(t->dtype());
+
+            xnn_status status;
+            std::vector<size_t> dims;
+            for (auto d : t->shape()) dims.push_back(d);
+
+            uint32_t flags = XNN_VALUE_FLAG_EXTERNAL_OUTPUT;
+            uint32_t external_id = cargo->getNewEXternalId();
+
+            switch (xp_dtype) {
+            case xnn_datatype_fp32: {
+                status = xnn_define_tensor_value(
+                    cargo->getXnnSubgraph(), xp_dtype,
+                    dims.size(), dims.data(),
+                    /*data=*/nullptr,
+                    external_id, flags, &t->uuid());
+                break;
+            }
+            default:
+                break;
+            }
+
+            cargo->registerExternalValue(t->uuid(), xnn_external_value{.id = t->uuid(), .data = t->rawHostPtr()});
+            cargo->registerUuidTensor(t->uuid(), t.get());
+            cargo->registerActivationNameAndUUID(t->name(), t->uuid());
+
+            if (status != xnn_status_success) {
+                Log::error("xnnpack backend defineXpTensor Error");
+                exit(-1);
+            }
+        }
+    } else {
+        // do not create a new graph. Reuse already exists runtime
+        auto cargo = getGraph(graph_name);
+
+        for (auto &t : outputs) {
+            t->uuid() = cargo->getUUIDByActivationName(t->name());
+            cargo->updateExternalValue(t->uuid(), xnn_external_value{.id = t->uuid(), .data = t->rawHostPtr()});
+            cargo->updateUuidTensor(t->uuid(), t.get());
+            std::vector<size_t> dims;
+            for (auto d : t->shape()) dims.push_back(d);
+            xnn_reshape_external_value(cargo->getModelRuntime()->getXnnRt(), t->uuid(), dims.size(), dims.data());
+        }
+    }
+}
+
+void XnnpackBackend::onExecuteStart(std::vector<shared_ptr<Tensor>> &inputs, std::vector<shared_ptr<Tensor>> &outputs, std::string graph_name) {
+    cur_processing_graph_name_ = graph_name;
+}
+
+void XnnpackBackend::onExecuteEnd(std::vector<std::shared_ptr<Tensor>> &outputs, const string &graph_name) {
+    cur_processing_graph_name_ = graph_name;
+    auto cargo = getCurProcessingGraph();
+
+    if (getGraph(graph_name)->getExecCnt() == 0 || !XnnpackBackend::enable_dynamic_shape) {
+        // recreate runtime
+        auto m_rt = cargo->recreateModelRuntime();
+
+        // create Model
+        m_rt->createModel(cargo->getXnnSubgraph());
+
+        // create runtime
+        m_rt->createRuntime(0);
+
+        // auto wc = xnnbk->getWeightCache();
+        // if (!xnnbk->isWeightCacheFinalized()) {
+        //     xnn_finalize_weights_cache(wc, xnn_weights_cache_finalization_kind_hard);
+        //     xnnbk->setWeightCacheFinalized(true);
+        // }
+
+        // reshape
+        m_rt->reshapeRuntime();
+
+        // setup
+        m_rt->setupRuntime();
+
+        // run
+        if (!m_rt->invoke()) {
+            Log::error("XnnpackBackend::onExecuteStart xnn invoke failed");
+            return;
+        }
+
+        // update all output's ptr
+        cargo->assignPtrToTensor();
+
+        cargo->setSubgraphDispatched(true);
+
+        cargo->incExecCnt();
+    } else {
+        // recreate runtime
+        auto m_rt = cargo->getModelRuntime();
+
+        // setup
+        m_rt->setupRuntime();
+
+        // run
+        if (!m_rt->invoke()) {
+            Log::error("XnnpackBackend::onExecuteStart xnn invoke failed");
+            return;
+        }
+
+        // update all output's ptr
+        cargo->assignPtrToTensor();
+
+        cargo->setSubgraphDispatched(true);
+
+        cargo->incExecCnt();
+    }
+
+    for (auto &o : outputs) {
+        o->forceResetHostPointer(getCurProcessingGraph()->getExternalValueptr(o->uuid()));
+        o->uuid() = XNN_INVALID_VALUE_ID;
+    }
+}
+
+XnnpackCargo *XnnpackBackend::getCurProcessingGraph() {
+    if (!graphs_.count(cur_processing_graph_name_)) {
+        Log::error("XnnpackBackend::getCurProcessingGraph, {} graph not exists");
+        exit(-1);
+    }
+    return graphs_[cur_processing_graph_name_].get();
 }
 
 int XnnpackBackend::xnn_threads = 4;
+
+bool XnnpackBackend::enable_dynamic_shape = true;
+
+bool XnnpackBackend::enable_legacy_wrapper = false;
 
 } // namespace mllm::xnnpack

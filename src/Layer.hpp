@@ -537,16 +537,25 @@ public:
     explicit KVCache(int cache_max, std::string name) {
         param_["n_rep"] = 1;
         param_["cache_max"] = cache_max;
+        param_["for_xnn"] = false;
         init(std::move(name), OpType::KVCACHE);
     }
     explicit KVCache(int n_rep, int cache_max, std::string name) {
         param_["n_rep"] = n_rep;
         param_["cache_max"] = cache_max;
+        param_["for_xnn"] = false;
+        init(std::move(name), OpType::KVCACHE);
+    }
+    explicit KVCache(int n_rep, int cache_max, bool for_xnn, std::string name) {
+        param_["n_rep"] = n_rep;
+        param_["cache_max"] = cache_max;
+        param_["for_xnn"] = for_xnn;
         init(std::move(name), OpType::KVCACHE);
     }
     explicit KVCache(int n_rep, int cache_max, std::string name, bool npuEnbaled) {
         param_["n_rep"] = n_rep;
         param_["cache_max"] = cache_max;
+        param_["for_xnn"] = false;
         if (npuEnbaled) {
             init(std::move(name), OpType::KVCACHENPU);
         } else {

@@ -88,15 +88,17 @@ xp_matmul_process_outputs:
 
 ErrorCode XpMatMul::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return MLLM_NO_ERROR;
 
     uint32_t flag = 0;
 
     if (transpose_a_) flag |= XNN_FLAG_TRANSPOSE_A;
     if (transpose_b_) flag |= XNN_FLAG_TRANSPOSE_B;
 
-    auto status = xnn_define_batch_matrix_multiply(xpb->getXnnSubgraph(), inputs[0]->uuid(), inputs[1]->uuid(), outputs[0]->uuid(), flag);
+    auto status = xnn_define_batch_matrix_multiply(xpb->getCurProcessingGraph()->getXnnSubgraph(), inputs[0]->uuid(), inputs[1]->uuid(), outputs[0]->uuid(), flag);
 
     if (status != xnn_status_success) {
         Log::error("XpMatMul::execute Error");

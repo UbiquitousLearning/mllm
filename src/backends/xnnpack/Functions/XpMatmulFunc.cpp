@@ -23,11 +23,13 @@ void XpMatmulFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, 
 
 void XpMatmulFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)(inputs[0]->backend());
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return;
 
     auto status = xnn_define_batch_matrix_multiply(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         inputs[0]->uuid(),
         inputs[1]->uuid(),
         outputs[0]->uuid(),

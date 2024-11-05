@@ -21,9 +21,9 @@ ErrorCode XpD2H::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
     auto o = outputs[0];
     auto i = inputs[0];
     o->uuid() = inputs[0]->uuid();
-    o->forceResetHostPointer(((XnnpackBackend *)backend())->getExternalValueptr(o->uuid()));
+    o->forceResetHostPointer(((XnnpackBackend *)backend())->getCurProcessingGraph()->getExternalValueptr(o->uuid()));
     o->uuid() = XNN_INVALID_VALUE_ID;
-    i->forceResetHostPointer(((XnnpackBackend *)backend())->getExternalValueptr(i->uuid()));
+    i->forceResetHostPointer(((XnnpackBackend *)backend())->getCurProcessingGraph()->getExternalValueptr(i->uuid()));
     i->uuid() = XNN_INVALID_VALUE_ID;
     return MLLM_NO_ERROR;
 }

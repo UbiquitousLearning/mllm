@@ -24,16 +24,19 @@ ErrorCode XpLinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 
 ErrorCode XpLinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xpb = (XnnpackBackend *)backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
-    defineWeightTensor(xpb, &weight_params_, {(size_t)out_features_, (size_t)in_features_});
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return MLLM_NO_ERROR;
+
+    defineWeightTensor(xpb->getCurProcessingGraph(), &weight_params_, {(size_t)out_features_, (size_t)in_features_});
     if (bias_) {
-        defineWeightTensor(xpb, &bias_params_, {(size_t)out_features_});
+        defineWeightTensor(xpb->getCurProcessingGraph(), &bias_params_, {(size_t)out_features_});
     }
 
     // FIXME: output_min and output_max should be judged based on outputs' dtype
     auto status = xnn_define_fully_connected(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         std::numeric_limits<float>::lowest(),
         std::numeric_limits<float>::max(),
         inputs[0]->uuid(),
@@ -46,7 +49,6 @@ ErrorCode XpLinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
         Log::error("XpLinear::execute Error");
         exit(-1);
     }
-
     return MLLM_NO_ERROR;
 }
 

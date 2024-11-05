@@ -20,11 +20,15 @@ public:
 
     Tensor cache_;
 
-    int getCacheSeqLen() override{
+    int getCacheSeqLen() override {
         return cache_seq_len_;
     }
-    void clearCache() override{
-        cache_seq_len_ = 0 ;
+    void clearCache() override {
+        cache_seq_len_ = 0;
+    }
+
+    void setForXnn(bool for_xnn) {
+        for_xnn_ = for_xnn;
     }
 
 private:
@@ -33,6 +37,7 @@ private:
     int cache_seq_len_ = -999;
     int n_rep_ = 1;
 
+    bool for_xnn_ = false;
     int cache_limit_;
 };
 
@@ -41,7 +46,10 @@ public:
     virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         int n_rep = (int)op_param["n_rep"];
         int cache_max = (int)op_param["cache_max"];
-        return new CPUKVCache(bn, name, n_rep, cache_max, threadCount);
+        bool for_xnn = (bool)op_param["for_xnn"];
+        auto ret = new CPUKVCache(bn, name, n_rep, cache_max, threadCount);
+        ret->setForXnn(for_xnn);
+        return ret;
     }
 };
 

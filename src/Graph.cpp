@@ -18,7 +18,6 @@ std::string intToStringWithLeadingZero(int num) {
 
 namespace mllm {
 
-
 Graph::Graph(const NetParameter &param, Backend *bn,
              unordered_map<string, shared_ptr<Tensor>> &external_tensors,
              int threadCount) {
@@ -214,7 +213,8 @@ const vector<shared_ptr<Tensor>> &Graph::forward(bool autofree) {
         }
     }
     // backend event hook
-    this->backend_->onExecuteEnd();
+    auto &_ = ops_output_tensors_[op_names_[op_names_.size() - 1]];
+    this->backend_->onExecuteEnd(_, "");
     return ops_output_tensors_[op_names_[op_names_.size() - 1]];
 }
 

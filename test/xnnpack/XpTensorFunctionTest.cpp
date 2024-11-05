@@ -26,6 +26,11 @@ TEST_F(XpTest, TTSub) {
 
     auto model = ::mllm::xnnpack::wrap2xnn<TTSubModule>(2, 1);
 
+    if (XnnpackBackend::enable_legacy_wrapper == false) {
+        Log::warn("This test method is dropped. But tested ok in legacy wrapper mode");
+        return;
+    }
+
     Tensor x1(1, 1, 4, 4, Backend::global_backends[MLLM_XNNPACK], true);
     Tensor x2(1, 1, 4, 4, Backend::global_backends[MLLM_XNNPACK], true);
     x1.setTtype(TensorType::INPUT_TENSOR);

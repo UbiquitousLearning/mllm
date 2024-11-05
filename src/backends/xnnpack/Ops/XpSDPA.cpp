@@ -60,20 +60,22 @@ ErrorCode XpSDPA::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
 
 ErrorCode XpSDPA::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xpb = (XnnpackBackend *)backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return MLLM_NO_ERROR;
 
     auto Q = inputs[0];
     auto K = inputs[1];
     auto V = inputs[2];
 
-    defineWeightTensor(xpb, &scale_params_, {(size_t)K->dimension()});
+    defineWeightTensor(xpb->getCurProcessingGraph(), &scale_params_, {(size_t)K->dimension()});
     // B, H, S, D
-    defineWeightTensor(xpb, &mask_params_, {(size_t)Q->shape()[2], (size_t)K->shape()[2]});
+    defineWeightTensor(xpb->getCurProcessingGraph(), &mask_params_, {(size_t)Q->shape()[2], (size_t)K->shape()[2]});
 
     // B, H, S, D
     auto status = xnn_define_scaled_dot_product_attention(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         xnn_attention_logits_cap_type_none,
         nullptr,
         Q->uuid(),

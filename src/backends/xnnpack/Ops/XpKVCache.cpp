@@ -30,10 +30,19 @@ ErrorCode XpKVCache::load(AbstructLoader &loader) {
 }
 
 ErrorCode XpKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    return MLLM_NO_ERROR;
+}
+
+ErrorCode XpKVCache::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    cache_params_.free();
+    return MLLM_NO_ERROR;
+}
+
+ErrorCode XpKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xpb = (XnnpackBackend *)backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
-    defineWeightTensor(xpb, &cache_params_);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+    defineWeightTensor(xpb->getCurProcessingGraph(), &cache_params_);
 
     int cache_seq_len_old = cache_seq_len_;
     cache_seq_len_ += inputs[0]->sequence();
@@ -60,9 +69,9 @@ ErrorCode XpKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
             std::array<size_t, 4> new_shape{b, s, h, d};
             std::array<size_t, 4> offsets{0, (size_t)cache_seq_len_old, i * h, 0};
 
-            auto o1 = defineKVCacheTensorAsExternalOutput(xpb, &cache_params_, cache_params_.offset(0, (int)i * h, cache_seq_len_old, 0), {b, s, h, d});
+            auto o1 = defineKVCacheTensorAsExternalOutput(xpb->getCurProcessingGraph(), &cache_params_, cache_params_.offset(0, (int)i * h, cache_seq_len_old, 0), {b, s, h, d});
 
-            auto status = xnn_define_copy(xpb->getXnnSubgraph(), inputs[0]->uuid(), o1, 0);
+            auto status = xnn_define_copy(xpb->getCurProcessingGraph()->getXnnSubgraph(), inputs[0]->uuid(), o1, 0);
             if (status != xnn_status_success) {
                 Log::error("xnn_define_copy inputs[0] copy to cache_params_(wrap to external output) failed");
                 exit(-1);
@@ -81,30 +90,20 @@ ErrorCode XpKVCache::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 
         std::array<size_t, 4> offsets{0, 0, 0, 0};
 
-        auto o1 = defineTemporaryTensor(xpb, {b, (size_t)cache_seq_len_, h * n_rep_, d}, cache_params_.dtype());
+        auto o1 = defineTemporaryTensor(xpb->getCurProcessingGraph(), {b, (size_t)cache_seq_len_, h * n_rep_, d}, cache_params_.dtype());
 
-        auto status = xnn_define_static_slice(xpb->getXnnSubgraph(), 4, offsets.data(), new_shape.data(), cache_params_.uuid(), o1, 0);
+        auto status = xnn_define_static_slice(xpb->getCurProcessingGraph()->getXnnSubgraph(), 4, offsets.data(), new_shape.data(), cache_params_.uuid(), o1, 0);
         if (status != xnn_status_success) {
             Log::error("xnn_define_static_slice cache_params_(sliced) copy to outputs[0] failed");
             exit(-1);
         }
 
-        status = xnn_define_copy(xpb->getXnnSubgraph(), o1, outputs[0]->uuid(), 0);
+        status = xnn_define_copy(xpb->getCurProcessingGraph()->getXnnSubgraph(), o1, outputs[0]->uuid(), 0);
         if (status != xnn_status_success) {
             Log::error("xnn_define_copy cache_params_(wrap to external inputs) copy to outputs[0] failed");
             exit(-1);
         }
     }
-
-    return MLLM_NO_ERROR;
-}
-
-ErrorCode XpKVCache::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    cache_params_.free();
-    return MLLM_NO_ERROR;
-}
-
-ErrorCode XpKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     return MLLM_NO_ERROR;
 }
 
