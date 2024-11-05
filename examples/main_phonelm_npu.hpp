@@ -31,8 +31,8 @@ std::vector<NetTensor *> PhoneLM_CPUNPUAttention(Context *c, NetTensor *x, NetTe
     v = v->view(1, head_size, seq / chunk, hidden_size);
 
     q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize", true);
-    k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", true);
-    v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize", true);
+    k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", false);
+    v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize", false);
     
     v = _Transpose({v}, {0, 2, 3, 1}, (string)name + ".v_proj.transpose");
 

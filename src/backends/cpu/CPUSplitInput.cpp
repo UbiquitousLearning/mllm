@@ -42,13 +42,13 @@ ErrorCode CPUSplitInput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
         outputs[i]->alloc();
     }
 
-    // for ( int i = 0; i<outputs.size(); i++) {
-    //     if(i == 0 || i==3)
-    //         outputs[i]->setDtype(MLLM_TYPE_F32);
-    //     else
-    //         outputs[i]->setDtype(MLLM_TYPE_F16);
-    //     outputs[i]->alloc();
-    // }
+    for ( int i = 0; i<outputs.size(); i++) {
+        if(i == 0 || i==3)
+            outputs[i]->setDtype(MLLM_TYPE_F32);
+        else
+            outputs[i]->setDtype(MLLM_TYPE_F16);
+        outputs[i]->alloc();
+    }
     return MLLM_NO_ERROR; 
 }
 
