@@ -166,16 +166,16 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
     memcpy(input1_buffer_.hostPtr<int8_t>(), inputs[1]->hostPtr<int8_t>(), inputs[1]->batch() * inputs[1]->head() * inputs[1]->sequence() * inputs[1]->dimension() * sizeof(int8_t));
     memcpy(input2_buffer_.hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->batch() * inputs[2]->head() * inputs[2]->sequence() * inputs[2]->dimension() * sizeof(float));
 
-    input0_buffer_.reshape(inputs[0]->batch() , inputs[0]->head() , inputs[0]->sequence() , inputs[0]->dimension());
-    input1_buffer_.reshape(inputs[1]->batch() , inputs[1]->head() , inputs[1]->sequence() , inputs[1]->dimension());
+    input0_buffer_.reshape(inputs[2]->batch() , inputs[2]->head() , inputs[2]->sequence() , inputs[0]->dimension());
+    input1_buffer_.reshape(inputs[2]->batch() , inputs[2]->head() , inputs[2]->sequence() , inputs[1]->dimension());
     input2_buffer_.reshape(inputs[2]->batch() , inputs[2]->head() , inputs[2]->sequence() , inputs[2]->dimension());
 
     // input outliers
     if (!input_clip) {
-        for (int i = 0; i < inputs[0]->batch(); i++) {
-            for (int h = 0; h < inputs[0]->head(); h++) {
-                for (int j = 0; j < inputs[0]->sequence(); j++) {
-                    for (int k = 0; k < inputs[0]->dimension(); k++) {
+        for (int i = 0; i < input0_buffer_.batch(); i++) {
+            for (int h = 0; h < input0_buffer_.head(); h++) {
+                for (int j = 0; j < input0_buffer_.sequence(); j++) {
+                    for (int k = 0; k < input0_buffer_.dimension(); k++) {
                         float round_value = roundf(input0_buffer_.dataAt<float>(i, h, j, k) / input_scale);
                         if (round_value > (127.0 ) || round_value < (-128.0)) {
 #if defined(__ARM_NEON)
@@ -242,11 +242,11 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
 
     // output outliers
     if (!output_clip) {
-        for (int i = 0; i < inputs[1]->batch(); i++) {
-            for (int h = 0; h < inputs[1]->head(); h++) {
-                for (int j = 0; j < inputs[1]->sequence(); j++) {
+        for (int i = 0; i < input1_buffer_.batch(); i++) {
+            for (int h = 0; h < input1_buffer_.head(); h++) {
+                for (int j = 0; j < input1_buffer_.sequence(); j++) {
                     // #pragma omp parallel for collapse(1) num_threads(4)
-                    for (int k = 0; k < inputs[1]->dimension(); k++) {
+                    for (int k = 0; k < input1_buffer_.dimension(); k++) {
                         if (input1_buffer_.dataAt<int8_t>(i, h, j, k) <= -128 || input1_buffer_.dataAt<int8_t>(i, h, j, k) >= 127) {
                             float sum = 0.0f;
 

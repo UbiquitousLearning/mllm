@@ -169,9 +169,6 @@ int main(int argc, char **argv) {
                 npuExe.runExp(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
 
-            // result[0]->printData<int8_t>();
-            // exit(0);
-
             // inter model for prefill-decode
             interExe.run(&interNet, {result[0]});
             result = interExe.result();
