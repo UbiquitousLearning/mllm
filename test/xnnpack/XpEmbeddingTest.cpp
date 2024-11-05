@@ -48,6 +48,10 @@ TEST_F(XpTest, CPUAndXnnMixed) {
     model.to(BackendType::MLLM_XNNPACK);
 
     EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
+    if (XnnpackBackend::enable_legacy_wrapper == false) {
+        Log::warn("This test method is dropped. But tested ok in legacy wrapper mode");
+        return;
+    }
 
     Tensor x(1, 1, 10, 1, Backend::global_backends[MLLM_XNNPACK], true);
     x.setTtype(TensorType::INPUT_TENSOR);

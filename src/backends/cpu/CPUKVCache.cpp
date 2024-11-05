@@ -29,20 +29,28 @@ ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs,
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
     if (cache_seq_len_ < 0) {
+        if (for_xnn_) cache_.setDtype(MLLM_TYPE_F32);
+
         cache_.reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, cache_limit_,
                        inputs[0]->dimension());
         cache_.setName(name() + ".Cache");
         cache_.alloc();
-#ifdef KVCache_TYPE_16
-        memset(cache_.hostPtr<mllm_fp16_t>(), 0, cache_.count() * sizeof(mllm_fp16_t));
-#else
-        memset(cache_.hostPtr<float>(), 0, cache_.count() * sizeof(float));
-#endif
+
+        switch (cache_.dtype()) {
+        case MLLM_TYPE_F32:
+            memset(cache_.hostPtr<float>(), 0, cache_.count() * sizeof(float));
+            break;
+        case MLLM_TYPE_F16:
+            memset(cache_.hostPtr<mllm_fp16_t>(), 0, cache_.count() * sizeof(mllm_fp16_t));
+            break;
+        default:
+            break;
+        };
         cache_seq_len_ = 0;
     }
     int sequence = inputs[0]->sequence() + cache_seq_len_;
 #ifdef LLAMAFILE_SGEMM
-    if (sequence % n_pack != 0) sequence = ((sequence + (n_pack - 1)) / n_pack) * n_pack;
+    if (!for_xnn_ && sequence % n_pack != 0) sequence = ((sequence + (n_pack - 1)) / n_pack) * n_pack;
 #endif
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, sequence,
                         inputs[0]->dimension());

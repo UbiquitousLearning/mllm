@@ -13,7 +13,7 @@
 #include "models/qwen/tokenization_qwen.hpp"
 #include "models/qwen/modeling_qwen_xp_sdpa.hpp"
 #include "backends/xnnpack/Utils/Logger.hpp"
-#include "xnnpack/XnnpackBackend.hpp"
+#include "backends/xnnpack/XnnpackBackend.hpp"
 
 using namespace mllm;
 
@@ -36,10 +36,13 @@ int main(int argc, char **argv) {
     int tokens_limit = cmdParser.get<int>("limits");
     mllm::xnnpack::XnnpackBackend::xnn_threads = cmdParser.get<int>("thread");
 
+    Layer::use_layername_2_tensorname = false;
+    mllm::xnnpack::XnnpackBackend::enable_dynamic_shape = false;
+    mllm::xnnpack::XnnpackBackend::enable_legacy_wrapper = false;
+
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
     QWenConfig config(tokens_limit, model_billion, RoPEType::HFHUBROPE);
     auto model = QWenForCausalLM(config);
-    model.to(BackendType::MLLM_XNNPACK);
     model.load(model_path);
 
     vector<string> in_strs = {
@@ -49,7 +52,7 @@ int main(int argc, char **argv) {
     };
     for (const auto &in_str : in_strs) {
         auto input_str = tokenizer.apply_chat_template(in_str);
-        auto input_tensor = tokenizer.tokenize(input_str, "name", MLLM_XNNPACK);
+        auto input_tensor = tokenizer.tokenize(input_str, "name", MLLM_CPU);
         std::cout << "[Q] " << in_str << std::endl;
         std::cout << "[A] " << std::flush;
 

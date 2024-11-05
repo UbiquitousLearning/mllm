@@ -18,10 +18,13 @@ ErrorCode XpRMSNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 
 ErrorCode XpRMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xpb = (XnnpackBackend *)backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
-    defineWeightTensor(xpb, &weight_params_);
-    defineWeightTensor(xpb, &epsilon_param_);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return MLLM_NO_ERROR;
+
+    defineWeightTensor(xpb->getCurProcessingGraph(), &weight_params_);
+    defineWeightTensor(xpb->getCurProcessingGraph(), &epsilon_param_);
 
     auto dtype = inputs[0]->dtype();
     size_t b = inputs[0]->shape()[0];
@@ -30,42 +33,42 @@ ErrorCode XpRMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     size_t d = inputs[0]->shape()[3];
 
     // x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
-    auto x_powed = defineTemporaryTensor(xpb, {b, s, h, d}, dtype);
+    auto x_powed = defineTemporaryTensor(xpb->getCurProcessingGraph(), {b, s, h, d}, dtype);
     {
-        auto status = xnn_define_square(xpb->getXnnSubgraph(), inputs[0]->uuid(), x_powed, 0);
+        auto status = xnn_define_square(xpb->getCurProcessingGraph()->getXnnSubgraph(), inputs[0]->uuid(), x_powed, 0);
         if (status != xnn_status_success) {
             Log::error("XpRMSNorm: xnn_define_square failed");
             exit(-1);
         }
     }
-    auto x_powed_mean = defineTemporaryTensor(xpb, {b, s, h, d}, dtype);
+    auto x_powed_mean = defineTemporaryTensor(xpb->getCurProcessingGraph(), {b, s, h, d}, dtype);
     {
         std::array<size_t, 1> along_axes{3};
-        auto status = xnn_define_static_mean(xpb->getXnnSubgraph(), 1, along_axes.data(), x_powed, x_powed_mean, XNN_FLAG_KEEP_DIMS);
+        auto status = xnn_define_static_mean(xpb->getCurProcessingGraph()->getXnnSubgraph(), 1, along_axes.data(), x_powed, x_powed_mean, XNN_FLAG_KEEP_DIMS);
         if (status != xnn_status_success) {
             Log::error("XpRMSNorm: xnn_define_static_mean failed");
             exit(-1);
         }
     }
-    auto x_pow_mean_eps = defineTemporaryTensor(xpb, {b, s, h, d}, dtype);
+    auto x_pow_mean_eps = defineTemporaryTensor(xpb->getCurProcessingGraph(), {b, s, h, d}, dtype);
     {
-        auto status = xnn_define_binary(xpb->getXnnSubgraph(), xnn_binary_add, nullptr, x_powed_mean, epsilon_param_.uuid(), x_pow_mean_eps, 0);
+        auto status = xnn_define_binary(xpb->getCurProcessingGraph()->getXnnSubgraph(), xnn_binary_add, nullptr, x_powed_mean, epsilon_param_.uuid(), x_pow_mean_eps, 0);
         if (status != xnn_status_success) {
             Log::error("XpRMSNorm: xnn_define_binary xnn_binary_add failed");
             exit(-1);
         }
     }
-    auto x_pme_rsqrt = defineTemporaryTensor(xpb, {b, s, h, d}, dtype);
+    auto x_pme_rsqrt = defineTemporaryTensor(xpb->getCurProcessingGraph(), {b, s, h, d}, dtype);
     {
-        auto status = xnn_define_reciprocal_square_root(xpb->getXnnSubgraph(), x_pow_mean_eps, x_pme_rsqrt, 0);
+        auto status = xnn_define_reciprocal_square_root(xpb->getCurProcessingGraph()->getXnnSubgraph(), x_pow_mean_eps, x_pme_rsqrt, 0);
         if (status != xnn_status_success) {
             Log::error("XpRMSNorm: xnn_define_reciprocal_square_root failed");
             exit(-1);
         }
     }
-    auto x_1 = defineTemporaryTensor(xpb, {b, s, h, d}, dtype);
+    auto x_1 = defineTemporaryTensor(xpb->getCurProcessingGraph(), {b, s, h, d}, dtype);
     {
-        auto status = xnn_define_binary(xpb->getXnnSubgraph(), xnn_binary_multiply, nullptr, inputs[0]->uuid(), x_pme_rsqrt, x_1, 0);
+        auto status = xnn_define_binary(xpb->getCurProcessingGraph()->getXnnSubgraph(), xnn_binary_multiply, nullptr, inputs[0]->uuid(), x_pme_rsqrt, x_1, 0);
         if (status != xnn_status_success) {
             Log::error("XpRMSNorm: xnn_define_binary xnn_binary_multiply x * epsed failed");
             exit(-1);
@@ -73,7 +76,7 @@ ErrorCode XpRMSNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     }
 
     {
-        auto status = xnn_define_binary(xpb->getXnnSubgraph(), xnn_binary_multiply, nullptr, x_1, weight_params_.uuid(), outputs[0]->uuid(), 0);
+        auto status = xnn_define_binary(xpb->getCurProcessingGraph()->getXnnSubgraph(), xnn_binary_multiply, nullptr, x_1, weight_params_.uuid(), outputs[0]->uuid(), 0);
         if (status != xnn_status_success) {
             Log::error("XpRMSNorm: xnn_define_binary xnn_binary_multiply x * weight failed");
             exit(-1);

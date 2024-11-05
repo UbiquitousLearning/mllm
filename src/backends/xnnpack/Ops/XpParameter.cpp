@@ -36,13 +36,13 @@ ErrorCode XpParameter::load(AbstructLoader &loader) {
 ErrorCode XpParameter::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     Log::warn("XpParameter::execute will copy weight's value, may have perfromance issues");
     auto xpb = (XnnpackBackend *)backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
-    defineWeightTensor(xpb, &weight_);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+    defineWeightTensor(xpb->getCurProcessingGraph(), &weight_);
 
     // copy
     auto status = xnn_define_copy(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         weight_.uuid(),
         outputs[0]->uuid(),
         0);
@@ -69,6 +69,8 @@ Op *XpParameterCreator::create(OpParam op_param, Backend *bk, const string &name
     int head = (int)op_param["head"];
     int seq = (int)op_param["seq"];
     int dim = (int)op_param["dim"];
+    Log::error("XpParameterCreator::create, Xnnpack backend not support XpParameter yet");
+    exit(-1);
     return new XpParameter(bk, name, batch, head, seq, dim, thread_count);
 }
 } // namespace mllm::xnnpack

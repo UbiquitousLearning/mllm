@@ -16,8 +16,10 @@ void XpBroadcastAddFunction::setup(vector<Tensor *> outputs, vector<Tensor *> in
 
 void XpBroadcastAddFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return;
 
     // TODO memory leak;
     Tensor constant_v;
@@ -26,11 +28,11 @@ void XpBroadcastAddFunction::execute(vector<Tensor *> outputs, vector<Tensor *> 
     constant_v.setDtype(DataType::MLLM_TYPE_F32);
     constant_v.alloc();
     constant_v.setDataAt(0, 0, 0, 0, (float)args[0]);
-    defineWeightTensor(xpb, &constant_v);
+    defineWeightTensor(xpb->getCurProcessingGraph(), &constant_v);
 
     // define xnnpack op.
     auto status = xnn_define_binary(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         xnn_binary_add,
         nullptr,
         inputs[0]->uuid(),
@@ -54,8 +56,10 @@ void XpBroadcastSubFunction::setup(vector<Tensor *> outputs, vector<Tensor *> in
 
 void XpBroadcastSubFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return;
 
     // TODO memory leak;
     Tensor constant_v;
@@ -64,11 +68,11 @@ void XpBroadcastSubFunction::execute(vector<Tensor *> outputs, vector<Tensor *> 
     constant_v.setDtype(DataType::MLLM_TYPE_F32);
     constant_v.alloc();
     constant_v.setDataAt(0, 0, 0, 0, (float)args[0]);
-    defineWeightTensor(xpb, &constant_v);
+    defineWeightTensor(xpb->getCurProcessingGraph(), &constant_v);
 
     // define xnnpack op.
     auto status = xnn_define_binary(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         xnn_binary_subtract,
         nullptr,
         inputs[0]->uuid(),
@@ -92,8 +96,10 @@ void XpBroadcastMulFunction::setup(vector<Tensor *> outputs, vector<Tensor *> in
 
 void XpBroadcastMulFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return;
 
     // TODO memory leak;
     Tensor constant_v;
@@ -102,11 +108,11 @@ void XpBroadcastMulFunction::execute(vector<Tensor *> outputs, vector<Tensor *> 
     constant_v.setDtype(DataType::MLLM_TYPE_F32);
     constant_v.alloc();
     constant_v.setDataAt(0, 0, 0, 0, (float)args[0]);
-    defineWeightTensor(xpb, &constant_v);
+    defineWeightTensor(xpb->getCurProcessingGraph(), &constant_v);
 
     // define xnnpack op.
     auto status = xnn_define_binary(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         xnn_binary_multiply,
         nullptr,
         inputs[0]->uuid(),
@@ -130,8 +136,10 @@ void XpBroadcastDivFunction::setup(vector<Tensor *> outputs, vector<Tensor *> in
 
 void XpBroadcastDivFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return;
 
     // TODO memory leak;
     Tensor constant_v;
@@ -140,11 +148,11 @@ void XpBroadcastDivFunction::execute(vector<Tensor *> outputs, vector<Tensor *> 
     constant_v.setDtype(DataType::MLLM_TYPE_F32);
     constant_v.alloc();
     constant_v.setDataAt(0, 0, 0, 0, (float)args[0]);
-    defineWeightTensor(xpb, &constant_v);
+    defineWeightTensor(xpb->getCurProcessingGraph(), &constant_v);
 
     // define xnnpack op.
     auto status = xnn_define_binary(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         xnn_binary_divide,
         nullptr,
         inputs[0]->uuid(),
@@ -168,12 +176,14 @@ void XpTTAddFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, v
 
 void XpTTAddFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return;
 
     // define xnnpack op.
     auto status = xnn_define_binary(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         xnn_binary_add,
         nullptr,
         inputs[0]->uuid(),
@@ -197,12 +207,14 @@ void XpTTSubFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, v
 
 void XpTTSubFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return;
 
     // define xnnpack op.
     auto status = xnn_define_binary(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         xnn_binary_subtract,
         nullptr,
         inputs[0]->uuid(),
@@ -226,12 +238,14 @@ void XpTTMulFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, v
 
 void XpTTMulFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return;
 
     // define xnnpack op.
     auto status = xnn_define_binary(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         xnn_binary_multiply,
         nullptr,
         inputs[0]->uuid(),
@@ -255,12 +269,14 @@ void XpTTDivFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, v
 
 void XpTTDivFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return;
 
     // define xnnpack op.
     auto status = xnn_define_binary(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         xnn_binary_divide,
         nullptr,
         inputs[0]->uuid(),

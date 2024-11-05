@@ -38,12 +38,14 @@ ErrorCode XpCausalMask::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
 
 ErrorCode XpCausalMask::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xpb = (XnnpackBackend *)backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
-    defineWeightTensor(xpb, &mask_param_);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return MLLM_NO_ERROR;
+
+    defineWeightTensor(xpb->getCurProcessingGraph(), &mask_param_);
 
     auto statuts = xnn_define_binary(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         xnn_binary_add,
         nullptr,
         inputs[0]->uuid(),

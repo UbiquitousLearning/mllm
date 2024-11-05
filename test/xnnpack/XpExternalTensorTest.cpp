@@ -1,6 +1,7 @@
 #include "Module.hpp"
 #include "Types.hpp"
 #include "backends/xnnpack/XpWrapper.hpp"
+#include "backends/xnnpack/Utils/Logger.hpp"
 #include <gtest/gtest.h>
 #include "XpTest.hpp"
 
@@ -24,6 +25,10 @@ TEST_F(XpTest, AddModule) {
     auto model = ::mllm::xnnpack::wrap2xnn<AddModule>(2, 1);
 
     EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
+    if (XnnpackBackend::enable_legacy_wrapper == false) {
+        Log::warn("This test method is dropped. But tested ok in legacy wrapper mode");
+        return;
+    }
 
     Tensor x1(1, 1, 4, 4, Backend::global_backends[MLLM_XNNPACK], true);
     Tensor x2(1, 1, 4, 4, Backend::global_backends[MLLM_XNNPACK], true);

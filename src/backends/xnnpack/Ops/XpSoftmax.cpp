@@ -24,11 +24,13 @@ ErrorCode XpSoftmax::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 
 ErrorCode XpSoftmax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return MLLM_NO_ERROR;
 
     // always perform softmax on the last dim.
-    auto status = xnn_define_softmax(xpb->getXnnSubgraph(), inputs[0]->uuid(), outputs[0]->uuid(), 0);
+    auto status = xnn_define_softmax(xpb->getCurProcessingGraph()->getXnnSubgraph(), inputs[0]->uuid(), outputs[0]->uuid(), 0);
 
     if (status != xnn_status_success) {
         Log::error("XpSoftmax::execute Error");

@@ -15,8 +15,10 @@ ErrorCode XpSiLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
 
 ErrorCode XpSiLU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return MLLM_NO_ERROR;
 
     // o = x * sigmoid(x)
     std::vector<size_t> tmp_shape{
@@ -25,16 +27,16 @@ ErrorCode XpSiLU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         (size_t)inputs[0]->head(),
         (size_t)inputs[0]->dimension(),
     };
-    auto tmp = defineTemporaryTensor(xpb, tmp_shape, inputs[0]->dtype());
+    auto tmp = defineTemporaryTensor(xpb->getCurProcessingGraph(), tmp_shape, inputs[0]->dtype());
     auto status = xnn_define_unary(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         xnn_unary_sigmoid,
         nullptr,
         inputs[0]->uuid(),
         tmp, 0);
 
     status = xnn_define_binary(
-        xpb->getXnnSubgraph(),
+        xpb->getCurProcessingGraph()->getXnnSubgraph(),
         xnn_binary_multiply,
         nullptr,
         inputs[0]->uuid(),

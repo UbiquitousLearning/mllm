@@ -10,12 +10,13 @@ ErrorCode XpDispatch::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 
 ErrorCode XpDispatch::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xnnbk = (XnnpackBackend *)(this->backend());
+    auto cargo = xnnbk->getCurProcessingGraph();
 
     // recreate runtime
-    auto m_rt = xnnbk->recreateModelRuntime(thread_count_);
+    auto m_rt = cargo->recreateModelRuntime();
 
     // create Model
-    m_rt->createModel(xnnbk->getXnnSubgraph());
+    m_rt->createModel(cargo->getXnnSubgraph());
 
     // create runtime
     m_rt->createRuntime(0);
@@ -38,9 +39,9 @@ ErrorCode XpDispatch::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     }
 
     // update all output's ptr
-    xnnbk->assignPtrToTensor();
+    cargo->assignPtrToTensor();
 
-    xnnbk->setSubgraphDispatched(true);
+    cargo->setSubgraphDispatched(true);
 
     return ErrorCode::MLLM_NO_ERROR;
 }

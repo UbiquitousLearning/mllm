@@ -66,8 +66,10 @@ void XpViewFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, 
     Log::warn("XpViewFunction will use reshape instead of view. Which will involve extra copy.");
 
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
+
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return;
 
     int b = (int)args[0];
     int h = (int)args[1];
@@ -124,7 +126,7 @@ void XpViewFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, 
     }
 
     std::array<size_t, 4> new_shape{(size_t)dim_b, (size_t)dim_s, (size_t)dim_h, (size_t)dim_d};
-    auto status = xnn_define_static_reshape(xpb->getXnnSubgraph(), 4, new_shape.data(), inputs[0]->uuid(), outputs[0]->uuid(), 0);
+    auto status = xnn_define_static_reshape(xpb->getCurProcessingGraph()->getXnnSubgraph(), 4, new_shape.data(), inputs[0]->uuid(), outputs[0]->uuid(), 0);
     if (status != xnn_status_success) {
         Log::error("XpViewFunc xnn_define_static_reshape error");
     }

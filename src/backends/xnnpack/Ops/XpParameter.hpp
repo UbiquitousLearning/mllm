@@ -27,7 +27,7 @@ public:
 
     Tensor &weight() {
         auto xpb = (XnnpackBackend *)backend();
-        defineWeightTensor(xpb, &weight_);
+        defineWeightTensor(xpb->getCurProcessingGraph(), &weight_);
         return weight_;
     }
 

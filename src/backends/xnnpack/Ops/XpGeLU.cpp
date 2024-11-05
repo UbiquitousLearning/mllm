@@ -15,10 +15,12 @@ ErrorCode XpGeLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
 
 ErrorCode XpGeLU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
-    tryDefineAllXpTensors(xpb, inputs);
-    tryDefineAllXpTensors(xpb, outputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
+    tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
 
-    auto status = xnn_define_gelu(xpb->getXnnSubgraph(), inputs[0]->uuid(), outputs[0]->uuid(), 0);
+    if (xpb->getCurProcessingGraph()->getExecCnt()) return MLLM_NO_ERROR;
+
+    auto status = xnn_define_gelu(xpb->getCurProcessingGraph()->getXnnSubgraph(), inputs[0]->uuid(), outputs[0]->uuid(), 0);
 
     if (status != xnn_status_success) {
         Log::error("XpGeLU::execute Error");

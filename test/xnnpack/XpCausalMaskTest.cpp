@@ -5,6 +5,7 @@
 #include "backends/xnnpack/XpWrapper.hpp"
 #include <gtest/gtest.h>
 #include "XpTest.hpp"
+#include "xnnpack/XnnpackBackend.hpp"
 
 using namespace mllm;
 
@@ -30,6 +31,10 @@ TEST_F(XpTest, CausalMaskModule) {
     model.setNoLoadWeightsDtype(DataType::MLLM_TYPE_F32);
 
     EXPECT_EQ(Backend::global_backends[MLLM_XNNPACK] != nullptr, true);
+    if (XnnpackBackend::enable_legacy_wrapper == false) {
+        Log::warn("This test method is dropped. But tested ok in legacy wrapper mode");
+        return;
+    }
 
     Tensor x(1, 1, 8, 8, Backend::global_backends[MLLM_XNNPACK], true);
     x.setTtype(TensorType::INPUT_TENSOR);

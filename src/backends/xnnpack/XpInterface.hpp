@@ -26,7 +26,7 @@ enum class XpTensorType : uint32_t {
 
 template <typename T>
 struct XpTensorDefineInterface {
-    uint32_t defineTemporaryTensor(XnnpackBackend *xpb, const std::vector<size_t> &dims, DataType dtype) {
+    uint32_t defineTemporaryTensor(XnnpackCargo *xpb, const std::vector<size_t> &dims, DataType dtype) {
         auto xp_dtype = XnnpackBackend::mllmDType2XnnDType(dtype);
         xnn_status status;
 
@@ -38,6 +38,7 @@ struct XpTensorDefineInterface {
                 dims.size(), dims.data(),
                 nullptr,
                 XNN_INVALID_VALUE_ID, 0, &ret);
+            break;
         }
         default:
             break;
@@ -58,7 +59,7 @@ struct XpTensorDefineInterface {
      * @param t
      * @param forceDims
      */
-    void defineWeightTensor(XnnpackBackend *xpb, Tensor *t, const std::vector<size_t> &forceDims = {}) {
+    void defineWeightTensor(XnnpackCargo *xpb, Tensor *t, const std::vector<size_t> &forceDims = {}) {
         if (t->uuid() != XNN_INVALID_VALUE_ID) {
             if (xpb->hasExternalValue(t->uuid())) return;
         }
@@ -80,6 +81,7 @@ struct XpTensorDefineInterface {
                 dims.size(), dims.data(),
                 nullptr,
                 xpb->getNewEXternalId(), XNN_VALUE_FLAG_EXTERNAL_INPUT, &t->uuid());
+            break;
         }
         default:
             break;
@@ -94,7 +96,7 @@ struct XpTensorDefineInterface {
         xpb->registerUuidWeightTensor(t->uuid(), t);
     }
 
-    void tryDefineAllXpTensors(XnnpackBackend *xpb, const std::vector<std::shared_ptr<Tensor>> &ts) {
+    void tryDefineAllXpTensors(XnnpackCargo *xpb, const std::vector<std::shared_ptr<Tensor>> &ts) {
         for (auto &t : ts) {
             XpTensorType _t;
             switch (t->xnnTensorType()) {
@@ -113,7 +115,7 @@ struct XpTensorDefineInterface {
         }
     }
 
-    void tryDefineAllXpTensors(XnnpackBackend *xpb, const std::vector<Tensor *> &ts) {
+    void tryDefineAllXpTensors(XnnpackCargo *xpb, const std::vector<Tensor *> &ts) {
         for (auto &t : ts) {
             XpTensorType _t;
             switch (t->xnnTensorType()) {
@@ -132,7 +134,17 @@ struct XpTensorDefineInterface {
         }
     }
 
-    void defineXpTensor(XnnpackBackend *xpb, Tensor *t, XpTensorType ttype) {
+    void defineXpTensor(XnnpackCargo *xpb, Tensor *t, XpTensorType ttype) {
+        // for inputs and outputs
+        if (xpb->inActivationName(t->name())) {
+            t->uuid() = xpb->getUUIDByActivationName(t->name());
+            xpb->updateExternalValue(t->uuid(), xnn_external_value{.id = t->uuid(), .data = t->rawHostPtr()});
+            return;
+        }
+
+        if (xpb->getExecCnt()) return;
+
+        // for normal values and weights.
         if (t->uuid() != XNN_INVALID_VALUE_ID) {
             if (xpb->hasExternalValue(t->uuid()) || xpb->hasNormalValue(t->uuid()) || xpb->hasWeightValue(t->uuid())) return;
         }
@@ -167,6 +179,7 @@ struct XpTensorDefineInterface {
                 dims.size(), dims.data(),
                 /*data=*/nullptr,
                 external_id, flags, &t->uuid());
+            break;
         }
         default:
             break;
@@ -192,7 +205,7 @@ struct XpTensorDefineInterface {
         }
     }
 
-    uint32_t defineKVCacheTensorAsExternalInput(XnnpackBackend *xpb, Tensor *t, int offset, const std::vector<size_t> &dims) {
+    uint32_t defineKVCacheTensorAsExternalInput(XnnpackCargo *xpb, Tensor *t, int offset, const std::vector<size_t> &dims) {
         auto xp_dtype = XnnpackBackend::mllmDType2XnnDType(t->dtype());
 
         uint32_t flags = XNN_VALUE_FLAG_EXTERNAL_INPUT;
@@ -209,6 +222,7 @@ struct XpTensorDefineInterface {
                 /*data=*/nullptr,
                 external_id, flags, &uuid);
             xpb->registerExternalValue(uuid, xnn_external_value{.id = uuid, .data = t->hostPtr<float>() + offset});
+            break;
         }
         default:
             break;
@@ -225,7 +239,7 @@ struct XpTensorDefineInterface {
     }
 
     uint32_t
-    defineKVCacheTensorAsExternalOutput(XnnpackBackend *xpb, Tensor *t, int offset, const std::vector<size_t> &dims) {
+    defineKVCacheTensorAsExternalOutput(XnnpackCargo *xpb, Tensor *t, int offset, const std::vector<size_t> &dims) {
         auto xp_dtype = XnnpackBackend::mllmDType2XnnDType(t->dtype());
 
         uint32_t flags = XNN_VALUE_FLAG_EXTERNAL_OUTPUT;
@@ -242,6 +256,7 @@ struct XpTensorDefineInterface {
                 /*data=*/nullptr,
                 external_id, flags, &uuid);
             xpb->registerExternalValue(uuid, xnn_external_value{.id = uuid, .data = t->hostPtr<float>() + offset});
+            break;
         }
         default:
             break;

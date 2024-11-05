@@ -137,7 +137,7 @@ else()
 endif()
     set(XNNPACK_BUILD_TESTS OFF)
     set(XNNPACK_BUILD_BENCHMARKS OFF)
-    add_definitions(-DMLLM_BUILD_XNNPACK_BACKEND)
+    add_definitions(-DMLLM_BUILD_XNNPACK_BACKEND=1)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/xnnpack)
 endif()
 
