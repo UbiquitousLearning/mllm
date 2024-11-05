@@ -24,19 +24,19 @@ ErrorCode QNNLinearINT8Shadow::reshape(vector<shared_ptr<Tensor>> inputs, vector
 
 ErrorCode QNNLinearINT8Shadow::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     inputs[0]->setBackend(qnnBackend_);
-    inputs[0]->setDtype(MLLM_TYPE_F32);
+    // inputs[0]->setDtype(MLLM_TYPE_F32);
     inputs[0]->alloc();
 
     qnnBackend_->pushOutputBuffers(inputs[0]->hostPtr<uint8_t>());
 
     inputs[1]->setBackend(qnnBackend_);
-    inputs[1]->setDtype(MLLM_TYPE_I8);
+    // inputs[1]->setDtype(MLLM_TYPE_I8);
     inputs[1]->alloc();
 
     qnnBackend_->pushOutputBuffers(inputs[1]->hostPtr<uint8_t>());
 
     inputs[2]->setBackend(qnnBackend_);
-    inputs[2]->setDtype(MLLM_TYPE_F32);
+    // inputs[2]->setDtype(MLLM_TYPE_F32);
     inputs[2]->alloc();
 
     qnnBackend_->pushOutputBuffers(inputs[2]->hostPtr<uint8_t>());

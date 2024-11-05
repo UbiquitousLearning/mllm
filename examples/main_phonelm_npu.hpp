@@ -193,8 +193,8 @@ void phonelm_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
             auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
             auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
             x = _ReLU({x}, name + ".gate_proj.relu");
-            x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", true);
-            y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", true);
+            x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", false);
+            y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", false);
             x = *x * y;
 
             auto *i1 = x;
@@ -212,7 +212,7 @@ void phonelm_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
             auto shadow = _LinearINT8ShadowMerge({i1, i2, x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow.qnn");
 
             _SubgraphBegin(c, MLLM_CPU);
-            i = _LinearINT8ShadowCPU(shadow, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
+            i = _LinearINT8ShadowCPU(shadow, ffn_hidden_dim, hidden_dim, 1024, false, name + ".down_proj.shadow");
         }
     }
 }
