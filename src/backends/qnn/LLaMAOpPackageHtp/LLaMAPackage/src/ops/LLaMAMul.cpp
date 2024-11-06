@@ -323,6 +323,9 @@ GraphStatus llamamulImpl(TensorType& out_0,
    DType dtype = in_0.get_dtype();
 
   
+  auto out_ptr = (__fp16*)out_0.raw_data();
+  auto in_ptr = (__fp16*)in_0.raw_data_const();
+  auto in_ptr2 = (__fp16*)in_1.raw_data_const();
 
    auto [b_in, h_in, w_in, d_in] = in_0.dims();
    for (Idx b = 0; b < b_in; b++) {
@@ -332,11 +335,12 @@ GraphStatus llamamulImpl(TensorType& out_0,
           for (Idx d = 0; d < d_in; d++) {
 
             if (dtype == DType::Float16) {
-              __fp16 inval       = in_0(b, h, w, d);
-              __fp16 inval2       = in_1(b, h, w, d);
+
+              __fp16 inval       = *in_ptr++;
+              __fp16 inval2       = *in_ptr2++;
               __fp16 outval      = inval * inval2;
 
-              out_0(b, h, w, d) = outval;
+              *out_ptr++ = outval;
             }
 
             if (dtype == DType::Float32) {

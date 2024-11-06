@@ -395,6 +395,27 @@ NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name, in
     return out_tensor;
 }
 
+NetTensor *_IRoPE(std::vector<NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "IRoPE" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::IROPE)
+    net_op_->param["pose_type"] = pose_type;
+    net_op_->param["rope_theta"] = rope_theta;
+    net_op_->param["max_position_embeddings"] = max_position_embeddings;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
+
 NetTensor *_QNNRoPE(std::vector<NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings, bool isFP32) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -617,7 +638,7 @@ vector<NetTensor *> _LinearINT8ShadowMerge(std::vector<NetTensor *> inputs, int 
  * \param out_features The size of each output sample (i.e., output dimension).
  * \param bias If set to false, the layer will not learn an additive bias. Default is true.
  */
-NetTensor *_LinearINT8ShadowCPU(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
+NetTensor *_LinearINT8ShadowCPU(std::vector<NetTensor *> inputs, int in_features, int out_features, int max_position, bool bias, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -630,6 +651,7 @@ NetTensor *_LinearINT8ShadowCPU(std::vector<NetTensor *> inputs, int in_features
     _NEW_OP(mllm::LINEARINT8SHADOW)
     net_op_->param["in_features"] = in_features;
     net_op_->param["out_features"] = out_features;
+    net_op_->param["max_position"] = max_position;
     net_op_->param["bias"] = (int)bias;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;

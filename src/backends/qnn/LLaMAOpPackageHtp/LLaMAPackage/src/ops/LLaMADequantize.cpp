@@ -358,29 +358,38 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
     float scale_ = scale(0,0,0,0);
 
     auto in_ptr = (uint8_t*)in_0.raw_data_const();
-    auto out_ptr = (float*)out_0.raw_data();
-
     auto [b_in, h_in, w_in, d_in] = in_0.dims();
-    for (Idx b = 0; b < b_in; b++) {
-        for (Idx h = 0; h < h_in; h++) {
-            for (Idx w = 0; w < w_in; w++) {
-            for (Idx d = 0; d < d_in; d++) {
 
-                if (out_0.get_dtype() == DType::Float32) {
+    
+    if (out_0.get_dtype() == DType::Float32) {
+        auto out_ptr = (float*)out_0.raw_data();
+
+        for (Idx b = 0; b < b_in; b++) {
+            for (Idx h = 0; h < h_in; h++) {
+                for (Idx w = 0; w < w_in; w++) {
+                for (Idx d = 0; d < d_in; d++) {
 
                     int32_t inval       = static_cast<int32_t>(*in_ptr++);
-                    *out_ptr++ = (inval-128) * scale_;
-
+                    *out_ptr++ = (inval-128) * scale_;                  
+                    
                 }
-
-                if (out_0.get_dtype() == DType::Float16) {
-
-                    // int32_t inval       = *in_ptr++;
-                    // *((__fp16*)out_ptr)++ = (__fp16)((inval-128) * scale_);
-
                 }
-                
             }
+        }
+    } else if (out_0.get_dtype() == DType::Float16) {
+
+        auto out_ptr = (__fp16*)out_0.raw_data();
+
+        for (Idx b = 0; b < b_in; b++) {
+            for (Idx h = 0; h < h_in; h++) {
+                for (Idx w = 0; w < w_in; w++) {
+                for (Idx d = 0; d < d_in; d++) {
+                    
+                        int32_t inval       = static_cast<int32_t>(*in_ptr++);
+                        *out_ptr++ = (__fp16)((inval-128) * scale_);
+                    
+                    }
+                }
             }
         }
     }

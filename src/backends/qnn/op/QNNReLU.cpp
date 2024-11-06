@@ -18,7 +18,13 @@ ErrorCode QNNReLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode QNNReLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    return graphAddNode(name(), "Relu", inputs, outputs, {}, "qti.aisw", true, &scale_);
+    // Only support QUINT8 ReLU
+
+    if (inputs[0]->dtype() == MLLM_TYPE_I8)
+        return graphAddNode(name(), "Relu", inputs, outputs, {}, "qti.aisw", true, &scale_);
+    else {
+        return graphAddNode(name(), "LLaMAReLU", inputs, outputs, {}, "LLaMAPackage", true, nullptr);
+    }
 }
 
 ErrorCode QNNReLU::load(AbstructLoader &loader) {
@@ -30,13 +36,13 @@ ErrorCode QNNReLU::load(AbstructLoader &loader) {
         scaleName.erase(pos, wordToRemove.length());
     }
 
-    scale_.setName(scaleName + "input_scale");
+    scale_.setName(scaleName + "output_scale");
     scale_.reshape(1, 1, 1, 1);
     scale_.setDtype(MLLM_TYPE_F32);
     scale_.alloc();
     loader.load(&scale_);
 
-    std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
+    // std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
 
     return Op::load(loader);
 }

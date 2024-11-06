@@ -35,6 +35,11 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
             data_type = QNN_DATATYPE_SFIXED_POINT_8;
         }
 
+        if (output->dtype() == MLLM_TYPE_F16) {
+            data_type = QNN_DATATYPE_FLOAT_16;
+        }
+
+
         float quantScale = 0.0f;
         auto quantDefine = QNN_DEFINITION_UNDEFINED;
         auto quantType = QNN_QUANTIZATION_ENCODING_UNDEFINED;

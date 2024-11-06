@@ -61,6 +61,8 @@ ErrorCode CPUQuantize::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
             }
         }
     }
+
+    // outputs[0]->printData<int8_t>();
       
 
     return Op::execute(inputs, outputs);
