@@ -214,7 +214,7 @@ void qwen_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn
 
             _SubgraphBegin(c, MLLM_CPU);
             shadow = _SplitInput(shadow, true, 3);
-            i = _LinearINT8ShadowCPU(shadow, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow");
+            i = _LinearINT8ShadowCPU(shadow, ffn_hidden_dim, hidden_dim, 1024, false, name + ".down_proj.shadow");
         }
     }
 }

@@ -7,6 +7,8 @@ using namespace mllm;
 
 namespace modeling {
 
+const std::set phonelm_shadow_layers = {1, 3, 4};
+
 NetTensor *PhoneLM_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
     auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
@@ -21,7 +23,7 @@ NetTensor *PhoneLM_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hid
     return x;
 }
 
-std::vector<NetTensor *> PhoneLM_CPUNPUAttention(Context *c, NetTensor *x, NetTensor *res, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk) {
+std::vector<NetTensor *> PhoneLM_CPUNPUAttention(Context *c, NetTensor *x, NetTensor *res, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk, int layer) {
     x = x->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_size * head_size);
     auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
     auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".k_proj");
@@ -33,21 +35,31 @@ std::vector<NetTensor *> PhoneLM_CPUNPUAttention(Context *c, NetTensor *x, NetTe
     q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize", true);
     k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", false);
     v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize", false);
-    
+
     v = _Transpose({v}, {0, 2, 3, 1}, (string)name + ".v_proj.transpose");
 
-    auto *m = _MergeOutput({q, k, v, res}, name + ".qkv_merge");
-
-    // --------------------
-    _SubgraphBegin(c, MLLM_CPU);
-    // --------------------
-
-    auto s = _SplitInput({m}, true, 4, name + ".qkv_split");
-
-    q = s[0];
-    k = s[1];
-    v = s[2];
-    res = s[3];
+    // before attention is CPU, so don't output res
+    vector<NetTensor *> m, s;
+    if (layer == 0 || phonelm_shadow_layers.find(layer - 1) != phonelm_shadow_layers.end()) { // res is from cpu
+        m = _MergeOutput({q, k, v}, name + ".qkv_merge");
+        // --------------------
+        _SubgraphBegin(c, MLLM_CPU);
+        // --------------------
+        s = _SplitInput({m}, true, 4, name + ".qkv_split");
+        q = s[0];
+        k = s[1];
+        v = s[2];
+    } else { // res is from qnn
+        m = _MergeOutput({q, k, v, res}, name + ".qkv_merge");
+        // --------------------
+        _SubgraphBegin(c, MLLM_CPU);
+        // --------------------
+        s = _SplitInput({m}, true, 4, name + ".qkv_split");
+        q = s[0];
+        k = s[1];
+        v = s[2];
+        res = s[3];
+    }
 
     q = _IRoPE({q}, HFHUBROPE, name + ".q_rope", 10000, 2048);
     k = _IRoPE({k}, HFHUBROPE, name + ".k_rope", 10000, 2048);
@@ -141,29 +153,22 @@ void phonelm_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
 
     // first 23 layer using NPU-CPU prefilling
     for (int layer = 0; layer < 19; ++layer) {
-
         auto res = i;
         res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size, (layer != 0));
 
         i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
-        i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");        
+        i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");
 
-        // only CPU graphs need merge and split
-        if (layer == 1 || layer == 2 || layer == 4 || layer == 5 || layer == 0) {
-        // SHADOW
-        // if (layer == 2 || layer == 0) {
+        // above is from CPU, needs merge and split
+        if (layer == 0 || phonelm_shadow_layers.find(layer - 1) != phonelm_shadow_layers.end()) {
             i = i->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
-
-            auto *m = _MergeOutput({i, res}, (string) "model.layers." + std::to_string(layer) + ".ires_merge");
-            
+            auto m = _MergeOutput({i}, "model.layers." + std::to_string(layer) + ".ires_merge");
             _SubgraphBegin(c);
-            auto s = _SplitInput({m}, true, 2, (string) "model.layers." + std::to_string(layer) + ".self_attn.ires_split");
-
+            auto s = _SplitInput(m, true, 2, "model.layers." + std::to_string(layer) + ".self_attn.ires_split");
             i = s[0];
-            res = s[1];
         }
-        
-        auto ix = PhoneLM_CPUNPUAttention(c, i, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn", seq, chunk);
+
+        auto ix = PhoneLM_CPUNPUAttention(c, i, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn", seq, chunk, layer);
 
         i = ix[0];
         res = ix[1];
@@ -179,15 +184,13 @@ void phonelm_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
 
         i = i->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_dim);
 
-        // SHADOW
-        if (layer != 0 && layer != 1 && layer != 3 && layer != 4) {
-        // if (layer != 1) {
+        if (phonelm_shadow_layers.find(layer) == phonelm_shadow_layers.end()) { // normal ffn layers
+            // if (layer != 1) {
             i = PhoneLM_FFN_NPU(c, i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
 
             i = i->view(1, 1, seq / chunk, hidden_dim);
 
             i = *i + res;
-
         } else {
             auto name = (string) "model.layers." + std::to_string(layer) + ".mlp";
             auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
