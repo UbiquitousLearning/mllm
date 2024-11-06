@@ -7,7 +7,7 @@ using namespace mllm;
 
 namespace modeling {
 
-const std::set phonelm_shadow_layers = {0, 1, 3, 4};
+const std::set phonelm_shadow_layers = {1, 3, 4};
 
 NetTensor *PhoneLM_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
