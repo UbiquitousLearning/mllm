@@ -30,9 +30,11 @@ std::vector<NetTensor *> PhoneLM_CPUNPUAttention(Context *c, NetTensor *x, NetTe
     k = k->view(1, head_size, seq / chunk, hidden_size);
     v = v->view(1, head_size, seq / chunk, hidden_size);
 
-    q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize", true);
-    k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", false);
+    // q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize", true);
+    // k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", false);
     v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize", false);
+    q = _QNNIRoPE({q}, HFHUBROPE, name + ".q_proj.rope", 10000, 2048, true);
+    k = _QNNIRoPE({k}, HFHUBROPE, name + ".k_proj.rope", 10000, 2048, false);
     
     v = _Transpose({v}, {0, 2, 3, 1}, (string)name + ".v_proj.transpose");
 
@@ -48,9 +50,6 @@ std::vector<NetTensor *> PhoneLM_CPUNPUAttention(Context *c, NetTensor *x, NetTe
     k = s[1];
     v = s[2];
     res = s[3];
-
-    q = _IRoPE({q}, HFHUBROPE, name + ".q_rope", 10000, 2048);
-    k = _IRoPE({k}, HFHUBROPE, name + ".k_rope", 10000, 2048);
 
     k = _KVCacheNPU({k}, cache_max, name + ".k_cache");
     v = _KVCacheNPU({v}, cache_max, name + ".v_cache");
@@ -193,8 +192,8 @@ void phonelm_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
             auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
             auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
             x = _ReLU({x}, name + ".gate_proj.relu");
-            x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", false);
-            y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", false);
+            x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", true);
+            y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", true);
             x = *x * y;
 
             auto *i1 = x;

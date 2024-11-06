@@ -40,6 +40,7 @@
 #include "op/QNNTranspose.hpp"
 #include "op/QNNLinearINT8Shadow.hpp"
 #include "op/QNNSuperSiLU.hpp"
+#include "op/QNNIRoPE.hpp"
 
 #include "memory/MemInspect.hpp"
 
@@ -65,6 +66,7 @@ void QNNBackend::registerOps() {
     addCreator(RMSNORM, (QNNBackend::Creator *)(new QNNRMSNormCreator()));
     addCreator(LAYERNORM, (QNNBackend::Creator *)(new QNNLayerNormCreator()));
     addCreator(ROPE, (QNNBackend::Creator *)(new QNNRoPECreator()));
+    addCreator(IROPE, (QNNBackend::Creator *)(new QNNIRoPECreator()));
     addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
     addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
     addCreator(SOFTMAX, (QNNBackend::Creator *)(new QNNSoftMaxCreator()));

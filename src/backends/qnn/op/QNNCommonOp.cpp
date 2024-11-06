@@ -126,7 +126,8 @@ Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tenso
 //         }
 
         // PhoneLM 1.5B
-        if (name.find("q_proj.dequantize") != -1 || name.find("k_proj.dequantize") != -1 || name.find("v_proj.transpose") != -1) {
+        if (name.find("q_proj.rope") != -1 || name.find("k_proj.rope") != -1 || name.find("v_proj.transpose") != -1) {
+        // if (name.find("q_proj.dequantize") != -1 || name.find("k_proj.dequantize") != -1 || name.find("v_proj.transpose") != -1) {
 #ifdef DEBUGPRINT
             std::cout << "view output" << std::endl;
 #endif

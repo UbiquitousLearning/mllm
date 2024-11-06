@@ -37,10 +37,10 @@ ErrorCode CPUSplitInput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     activation_dtype_ = inputs[0]->dtype();
     // return Op::setUp(inputs, outputs);
 
-    for ( int i = 0; i<outputs.size(); i++) {
-        outputs[i]->setDtype(MLLM_TYPE_F32);
-        outputs[i]->alloc();
-    }
+    // for ( int i = 0; i<outputs.size(); i++) {
+    //     outputs[i]->setDtype(MLLM_TYPE_F32);
+    //     outputs[i]->alloc();
+    // }
 
     for ( int i = 0; i<outputs.size(); i++) {
         if(i == 0 || i==3)
