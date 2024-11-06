@@ -23,13 +23,14 @@ NetTensor *_Softmax(std::vector<NetTensor *> inputs, int axis, int do_causal_mas
 NetTensor *_Matmul(std::vector<NetTensor *> inputs,  bool transpose0, bool transpose1, string name = "");
 NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilon= 1e-6, string name = "", bool isFP32 = true);
 NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name = "", int rope_theta = 10000, int max_position_embeddings = 16384);
+NetTensor *_IRoPE(std::vector<NetTensor *> inputs, int pose_type, string name = "", int rope_theta = 10000, int max_position_embeddings = 16384);
 NetTensor *_QNNRoPE(std::vector<NetTensor *> inputs, int pose_type, string name = "", int rope_theta = 10000, int max_position_embeddings = 16384, bool isFP32 = true);
 NetTensor *_PositionalEmbedding(std::vector<NetTensor *> inputs, int max_num, int hidden_dim, string name = "");
 NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale, string name);
 NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
 NetTensor *_LinearINT8(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
 vector<NetTensor *> _LinearINT8ShadowMerge(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
-NetTensor * _LinearINT8ShadowCPU(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
+NetTensor * _LinearINT8ShadowCPU(std::vector<NetTensor *> inputs, int in_features, int out_features, int max_position = 1024, bool bias = false, string name = "");
 NetTensor *_Embedding(std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name = "");
 NetTensor *_Mul(std::vector<NetTensor *> inputs, string name = "");
 NetTensor *_KVCache(std::vector<NetTensor *> inputs, int cache_max, string name = "");
@@ -54,7 +55,7 @@ NetTensor *_SparseLinear(std::vector<NetTensor *> inputs, int in_dim, int out_di
 NetTensor *_SparseIdLinear(std::vector<NetTensor *> inputs, int in_dim, int out_dim, string name = "");
 NetTensor *_Predictor(std::vector<NetTensor *> inputs, int in_dim, int out_dim, string name = "");
 NetTensor *_WNop(std::vector<NetTensor *> inputs, int sync_type, string name = "");
-NetTensor *_MergeOutput(std::vector<NetTensor *> inputs, string name = "");
+vector<NetTensor *> _MergeOutput(std::vector<NetTensor *> inputs, string name = "");
 vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, int num, string name = "");
 NetTensor *_Transpose(std::vector<NetTensor *> inputs, std::vector<int> perm, string name = "");
 

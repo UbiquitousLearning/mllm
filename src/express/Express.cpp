@@ -395,6 +395,27 @@ NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name, in
     return out_tensor;
 }
 
+NetTensor *_IRoPE(std::vector<NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "IRoPE" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::IROPE)
+    net_op_->param["pose_type"] = pose_type;
+    net_op_->param["rope_theta"] = rope_theta;
+    net_op_->param["max_position_embeddings"] = max_position_embeddings;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
+
 NetTensor *_QNNRoPE(std::vector<NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings, bool isFP32) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
@@ -617,19 +638,20 @@ vector<NetTensor *> _LinearINT8ShadowMerge(std::vector<NetTensor *> inputs, int 
  * \param out_features The size of each output sample (i.e., output dimension).
  * \param bias If set to false, the layer will not learn an additive bias. Default is true.
  */
-NetTensor *_LinearINT8ShadowCPU(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
+NetTensor *_LinearINT8ShadowCPU(std::vector<NetTensor *> inputs, int in_features, int out_features, int max_position, bool bias, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "LinearINT8SHADOWCPU" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    out_tensor->type = inputs[0]->type;
+    out_tensor->type = MLLM_TYPE_F32;
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::LINEARINT8SHADOW)
     net_op_->param["in_features"] = in_features;
     net_op_->param["out_features"] = out_features;
+    net_op_->param["max_position"] = max_position;
     net_op_->param["bias"] = (int)bias;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
@@ -1079,21 +1101,29 @@ NetTensor *_WNop(std::vector<NetTensor *> inputs, int sync_type, string name) {
     return out_tensor;
 }
 
-NetTensor *_MergeOutput(std::vector<NetTensor *> inputs, string name) {
+vector<NetTensor *>  _MergeOutput(std::vector<NetTensor *> inputs, string name) {
     Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "Merge" + std::to_string(ctx->idx);
     }
-    out_tensor->name = "outtensor-" + name + "-00";
-    out_tensor->type = inputs[0]->type;
-    ctx->idx++;
-    _STORE_OUT_TENSOR
+    auto sub_param = get_active_subgraph(ctx);
     _NEW_OP(mllm::MERGEOUTPUT)
     _UPDATE_INPUT_TENSORS
-    out_tensor->in = net_op_;
-    out_tensor->ctx = ctx;
-    return out_tensor;
+    vector<NetTensor *> out_tensors;
+    net_op_->out_size = inputs.size();
+    for (int i = 0; i < inputs.size(); ++i) {
+        NetTensor *out_tensor = new NetTensor();
+        out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
+        out_tensor->type = inputs[i]->type;
+        ctx->idx++;
+        ctx->net_tensors.insert(out_tensor);
+        out_tensor->subgraph = sub_param;
+        sub_param->net_tensors.push_back(out_tensor);
+        out_tensor->in = net_op_;
+        out_tensor->ctx = ctx;
+        out_tensors.push_back(out_tensor);
+    }
+    return out_tensors;
 }
 
 vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, int num, string name) {
@@ -1107,14 +1137,11 @@ vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, 
     net_op_->param["num"] = (float)num;
     _UPDATE_INPUT_TENSORS
     vector<NetTensor *> out_tensors;
-    net_op_->out_size = num;
-    for (int i = 0; i < num; ++i) {
+    net_op_->out_size = inputs.size();
+    for (int i = 0; i < inputs.size(); ++i) {
         NetTensor *out_tensor = new NetTensor();
         out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
-        if (i < (num - 1))
-            out_tensor->type = inputs[0]->type;
-        else
-            out_tensor->type = MLLM_TYPE_F32;
+        out_tensor->type = inputs[i]->type;
         ctx->idx++;
         ctx->net_tensors.insert(out_tensor);
         out_tensor->subgraph = sub_param;

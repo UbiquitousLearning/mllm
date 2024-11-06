@@ -25,29 +25,12 @@ private:
     Tensor scale_;
 };
 
-class QNNNPUView : public QNNView {
-
-public:
-    QNNNPUView(Backend *bn, string opName, vector<int> dims, vector<int> data_dims) : QNNView(bn, opName, dims, data_dims) {
-    }
-    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-};
-
 class QNNViewCreator : public QNNBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
         vector<int> dims = {(int)op_param["dim0"], (int)op_param["dim1"], (int)op_param["dim2"], (int)op_param["dim3"]};
         vector<int> data_dims = {(int)op_param["data_dim0"], (int)op_param["data_dim1"], (int)op_param["data_dim2"], (int)op_param["data_dim3"]};
         return new QNNView(bn, name, dims, data_dims);
-    }
-};
-
-class QNNNPUViewCreator : public QNNBackend::Creator {
-public:
-    virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        vector<int> dims = {(int)op_param["dim0"], (int)op_param["dim1"], (int)op_param["dim2"], (int)op_param["dim3"]};
-        vector<int> data_dims = {(int)op_param["data_dim0"], (int)op_param["data_dim1"], (int)op_param["data_dim2"], (int)op_param["data_dim3"]};
-        return new QNNNPUView(bn, name, dims, data_dims);
     }
 };
 

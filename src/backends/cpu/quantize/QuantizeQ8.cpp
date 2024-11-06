@@ -436,6 +436,59 @@ void dequantize_row_i8(const void *__restrict vx, float *__restrict y, int k, fl
 
 #endif
 
+#if defined(__ARM_NEON)
+
+void dequantize_row_i8_to_fp16(const void *__restrict vx, __fp16 *__restrict y, int k, float scale) {  
+    const int8_t *__restrict x = (int8_t *)vx;  
+
+    int i;  
+    // Load the scale factor into a NEON register and convert it to __fp16  
+    float32x4_t scale_f32 = vdupq_n_f32(scale);  
+    float16x4_t scale_f16 = vcvt_f16_f32(scale_f32);  
+
+    for (i = 0; i <= k - 8; i += 8) {  
+        // Load 8 int8_t values  
+        int8x8_t x_i8 = vld1_s8(&x[i]);  
+
+        // Convert int8_t values to int16_t  
+        int16x8_t x_i16 = vmovl_s8(x_i8);  
+
+        // Convert int16_t values to float32  
+        float32x4_t x_f32_low = vcvtq_f32_s32(vmovl_s16(vget_low_s16(x_i16)));  
+        float32x4_t x_f32_high = vcvtq_f32_s32(vmovl_s16(vget_high_s16(x_i16)));  
+        
+        // Multiply by scale  
+        x_f32_low = vmulq_f32(x_f32_low, scale_f32);  
+        x_f32_high = vmulq_f32(x_f32_high, scale_f32);  
+
+        // Convert float32 values to float16  
+        float16x4_t y_f16_low = vcvt_f16_f32(x_f32_low);  
+        float16x4_t y_f16_high = vcvt_f16_f32(x_f32_high);  
+
+        // Store the results  
+        vst1_f16(&y[i], y_f16_low);  
+        vst1_f16(&y[i + 4], y_f16_high);  
+    }  
+
+    // Process any remaining elements  
+    for (; i < k; i++) {  
+        y[i] = static_cast<__fp16>(x[i] * scale);  
+    }  
+}
+
+#else
+
+void dequantize_row_i8_to_fp16(const void *__restrict vx, __fp16 *__restrict y, int k, float scale) {
+    const int8_t *__restrict x = (int8_t *)vx;
+
+    for (int i = 0; i < k; i++) {
+        y[i] = static_cast<__fp16>(x[i] * scale);
+    }
+}
+
+#endif
+
+
 // #if defined(__ARM_NEON)
 
 // void quantize_round_dequantize_row_i8(const float *__restrict vx, float *__restrict y, int k, float scale) {  
