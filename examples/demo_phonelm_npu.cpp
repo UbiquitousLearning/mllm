@@ -29,12 +29,14 @@ int main(int argc, char **argv) {
     decoding_model.load("../models/phonelm-with-head-q4k.mllm");
 
     vector<string> in_strs = {
-        " Give me a short introduction to large language model.",
+        "Give me a short introduction to large language model.",
     };
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto input_str = tokenizer.apply_chat_template(in_strs[i]);
         auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(input_str, 64, config.vocab_size);
+        std::cout << real_seq_length << endl;
+        std::cout << input_str << std::endl;
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
 
