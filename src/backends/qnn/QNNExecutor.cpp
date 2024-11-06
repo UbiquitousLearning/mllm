@@ -213,6 +213,8 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
     auto ex_time_start = mllm_time_us();
     PRINT_MEMORY_USAGE("before setup all graph");
 
+    static_cast<QNNBackend *>(net->backends()[MLLM_QNN].get())->setDataLoader(data_loader_);
+
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         string name = graphNamingRule(i);
         auto &g = net->subGraph()[name];
@@ -457,6 +459,8 @@ void QNNPipelineExecutor::warmup(Context *ctx, Net *net, vector<shared_ptr<Tenso
         }
 
         PRINT_MEMORY_USAGE("before setup all graph");
+
+        static_cast<QNNBackend *>(net->backends()[MLLM_QNN].get())->setDataLoader(data_loader_);
 
         for (int i = 0; i < (int)net->subGraph().size(); ++i) {
             string name = graphNamingRule(i);
