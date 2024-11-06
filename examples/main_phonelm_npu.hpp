@@ -154,7 +154,7 @@ void phonelm_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
     // first 23 layer using NPU-CPU prefilling
     for (int layer = 0; layer < 19; ++layer) {
         auto res = i;
-        res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size, (layer != 0));
+        res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
 
         i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
         i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");

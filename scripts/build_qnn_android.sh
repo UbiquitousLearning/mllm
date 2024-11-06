@@ -13,5 +13,6 @@ cmake .. \
 -DDEBUG=OFF \
 -DTEST=OFF \
 -DQUANT=OFF \
+-DQNN_VALIDATE_NODE=ON
 
 make -j16

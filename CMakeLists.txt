@@ -72,6 +72,10 @@ option(QNN_OLD_FRONTEND "Enable Old QNN" OFF)
 if(QNN)
     add_definitions(-DUSE_QNN) # the USE_QNN should come before cpu subdirectory
 endif()
+option(QNN_VALIDATE_NODE "Enable QNN Validate Node When Building Graph" ON)
+if(QNN_VALIDATE_NODE)
+    add_definitions(-DQNN_VALIDATE_NODE)
+endif()
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)

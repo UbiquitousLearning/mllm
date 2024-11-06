@@ -39,7 +39,6 @@
 #include "op/QNNMergeOutput.hpp"
 #include "op/QNNSplitInput.hpp"
 #include "op/QNNTranspose.hpp"
-#include "op/QNNLinearINT8Shadow.hpp"
 #include "op/QNNSuperSiLU.hpp"
 
 #include "memory/MemInspect.hpp"
@@ -53,7 +52,11 @@ using namespace qnn::tools;
 using namespace qnn::tools::sample_app;
 
 // Flag to determine if Backend should node validation for each opNode added
-#define DO_GRAPH_NODE_VALIDATIONS 1
+#ifdef QNN_VALIDATE_NODE
+    #define DO_GRAPH_NODE_VALIDATIONS 1
+#else
+    #define DO_GRAPH_NODE_VALIDATIONS 0
+#endif
 
 namespace mllm {
 
@@ -73,7 +76,6 @@ void QNNBackend::registerOps() {
     addCreator(LINEARINT8, (QNNBackend::Creator *)(new QNNLinearINT8Creator()));
     addCreator(MUL, (QNNBackend::Creator *)(new QNNMulCreator()));
     addCreator(VIEW, (QNNBackend::Creator *)(new QNNViewCreator()));
-    addCreator(NPUVIEW, (QNNBackend::Creator *)(new QNNNPUViewCreator()));
     addCreator(RELU, (QNNBackend::Creator *)(new QNNReLUCreator()));
     addCreator(OP_GELU, (QNNBackend::Creator *)(new QNNGELUCreator()));
     addCreator(QUANTIZE, (QNNBackend::Creator *)(new QNNQuantizeCreator()));
@@ -81,7 +83,6 @@ void QNNBackend::registerOps() {
     addCreator(MERGEOUTPUT, (QNNBackend::Creator *)(new QNNMergeOutputCreator()));
     addCreator(SPLITINPUT, (QNNBackend::Creator *)(new QNNSplitInputCreator()));
     addCreator(TRANSPOSE, (QNNBackend::Creator *)(new QNNTransposeCreator()));
-    addCreator(LINEARINT8SHADOW, (QNNBackend::Creator *)(new QNNLinearINT8ShadowCreator()));
     addCreator(SUPERSILU, (QNNBackend::Creator *)(new QNNSuperSiLUCreator()));
 }
 
@@ -102,7 +103,7 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
     m_debug = false; // when set true, NATIVE tensor will be regared as APP_READ tensor
     m_outputDataType = iotensor::OutputDataType::FLOAT_AND_NATIVE;
     m_inputDataType = iotensor::InputDataType::NATIVE;
-    m_profilingLevel = ProfilingLevel::BASIC;
+    m_profilingLevel = ProfilingLevel::OFF;
 
     m_isBackendInitialized = false;
     m_isContextCreated = false;

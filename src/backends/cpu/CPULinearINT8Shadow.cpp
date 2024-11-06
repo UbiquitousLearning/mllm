@@ -158,8 +158,6 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
     int8_t input_clip = inputClip_.dataAt<int8_t>(0, 0, 0, 0);
     int8_t output_clip = outputClip_.dataAt<int8_t>(0, 0, 0, 0);
 
-    std::cout << name() << input_clip * 1.0 << " " << output_clip * 1.0 << std::endl;
-
     input_scale = input_scale / 127.0;
     input_scale = roundf(input_scale * 100000) / 100000;
 

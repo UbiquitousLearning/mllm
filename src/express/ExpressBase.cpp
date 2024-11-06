@@ -219,18 +219,13 @@ NetTensor *TNetTensor::where(float data, Chl axis) {
     return out_tensor;
 }
 
-NetTensor *TNetTensor::view(int b, int h, int s, int d, bool isCrossBackend) {
+NetTensor *TNetTensor::view(int b, int h, int s, int d) {
     Context *ctx = this->ctx;
     NetTensor *out_tensor = new NetTensor();
     _SET_OUT_TENSOR_NAME(out_tensor, name, net_op_, "_view_")
 
-    if (isCrossBackend) {
-        net_op_->type = NPUVIEW;
-        net_op_->param["type"] = NPUVIEW;
-    } else {
-        net_op_->type = VIEW;
-        net_op_->param["type"] = VIEW;
-    }
+    net_op_->type = VIEW;
+    net_op_->param["type"] = VIEW;
     
     vector<int> dims;
     vector<int> data_dims;
