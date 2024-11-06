@@ -146,11 +146,11 @@ GraphStatus iropeImpl(TensorType& out_0,
                 
                 int sin_value = *(sin_ptr+d);
                 int cos_value = *(cos_ptr+d);
-                int value = (in_value-128) * (cos_value-128) - (in_value_2-128) * (sin_value-128);
-                int value2 = (in_value-128) * (sin_value-128) + (in_value_2-128) * (cos_value-128);
+                float value = (in_value-128) * (cos_value-128) * cos.get_interface_scale() - (in_value_2-128) * (sin_value-128) * sin.get_interface_scale();
+                float value2 = (in_value-128) * (sin_value-128) * sin.get_interface_scale() + (in_value_2-128) * (cos_value-128) * cos.get_interface_scale();
                 
-                *out_ptr = value * in_0.get_interface_scale() * sin.get_interface_scale() * cos.get_interface_scale();
-                *(out_ptr + half_dimension) = value2 * in_0.get_interface_scale() * sin.get_interface_scale() * cos.get_interface_scale();
+                *out_ptr = value;
+                *(out_ptr + half_dimension) = value2;
 
                 out_ptr++;
                 in_ptr++;
@@ -179,11 +179,11 @@ GraphStatus iropeImpl(TensorType& out_0,
                 
                 int sin_value = *(sin_ptr+d);
                 int cos_value = *(cos_ptr+d);
-                int value = (in_value-128) * (cos_value-128) - (in_value_2-128) * (sin_value-128);
-                int value2 = (in_value-128) * (sin_value-128) + (in_value_2-128) * (cos_value-128);
+                float value = (in_value-128) * (cos_value-128) * cos.get_interface_scale() - (in_value_2-128) * (sin_value-128) * sin.get_interface_scale();
+                float value2 = (in_value-128) * (sin_value-128) * sin.get_interface_scale() + (in_value_2-128) * (cos_value-128) * cos.get_interface_scale();
                 
-                *out_ptr = static_cast<__fp16>(value * in_0.get_interface_scale() * sin.get_interface_scale() * cos.get_interface_scale());
-                *(out_ptr + half_dimension) = static_cast<__fp16>(value2 * in_0.get_interface_scale() * sin.get_interface_scale() * cos.get_interface_scale());
+                *out_ptr = static_cast<__fp16>(value);
+                *(out_ptr + half_dimension) = static_cast<__fp16>(value2);
 
                 out_ptr++;
                 in_ptr++;

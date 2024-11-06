@@ -169,7 +169,7 @@ ErrorCode QNNIRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
                                         .dataType = QNN_DATATYPE_SFIXED_POINT_8,
                                         .quantizeParams = {QNN_DEFINITION_DEFINED,
                                                            QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
-                                                           {.scaleOffsetEncoding = {.scale = sin_max/127*dequantScale, .offset = 0}}},
+                                                           {.scaleOffsetEncoding = {.scale = static_cast<float>(1.0*sin_max/127*dequantScale), .offset = 0}}},
                                         .rank = 2,
                                         .dimensions = sin_dimensions,
                                         .memType = QNN_TENSORMEMTYPE_RAW,
@@ -183,7 +183,6 @@ ErrorCode QNNIRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
                                 (Qnn_Tensor_t){
                                     .version = QNN_TENSOR_VERSION_1,
                                     .v1 = {
-
                                         .id = 0,
                                         .name = cosWeightsName.c_str(),
                                         .type = QNN_TENSOR_TYPE_STATIC,
@@ -191,7 +190,7 @@ ErrorCode QNNIRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
                                         .dataType = QNN_DATATYPE_SFIXED_POINT_8,
                                         .quantizeParams = {QNN_DEFINITION_DEFINED,
                                                            QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
-                                                           {.scaleOffsetEncoding = {.scale = cos_max/127*dequantScale, .offset = 0}}},
+                                                           {.scaleOffsetEncoding = {.scale = static_cast<float>(1.0*cos_max/127*dequantScale), .offset = 0}}},
                                         .rank = 2,
                                         .dimensions = cos_dimensions,
                                         .memType = QNN_TENSORMEMTYPE_RAW,
