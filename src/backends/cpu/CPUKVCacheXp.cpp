@@ -58,7 +58,7 @@ ErrorCode CPUKVCacheXp::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     }
 
     // copy cache to output
-    memcpy(outputs[0]->rawHostPtr(), cache_.rawHostPtr(), outputs[0]->count() * sizeof(float));
+    // memcpy(outputs[0]->rawHostPtr(), cache_.rawHostPtr(), outputs[0]->count() * sizeof(float));
 
     return MLLM_NO_ERROR;
 }
@@ -68,6 +68,7 @@ ErrorCode CPUKVCacheXp::free(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 }
 
 ErrorCode CPUKVCacheXp::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    return Op::setUp(inputs, outputs);
+    outputs[0]->forceResetHostPointer(cache_.rawHostPtr());
+    return MLLM_NO_ERROR;
 }
 } // namespace mllm
