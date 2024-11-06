@@ -165,9 +165,9 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
 
     memcpy(outputs[0]->hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->cntSize());
 
-    memcpy(input0_buffer_.hostPtr<float>(), inputs[0]->hostPtr<float>(), inputs[0]->batch() * inputs[0]->head() * inputs[0]->sequence() * inputs[0]->dimension() * sizeof(float));
-    memcpy(input1_buffer_.hostPtr<int8_t>(), inputs[1]->hostPtr<int8_t>(), inputs[1]->batch() * inputs[1]->head() * inputs[1]->sequence() * inputs[1]->dimension() * sizeof(int8_t));
-    memcpy(input2_buffer_.hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->batch() * inputs[2]->head() * inputs[2]->sequence() * inputs[2]->dimension() * sizeof(float));
+    memcpy(input0_buffer_.hostPtr<int8_t>(), inputs[0]->hostPtr<int8_t>(), inputs[0]->cntSize());
+    memcpy(input1_buffer_.hostPtr<int8_t>(), inputs[1]->hostPtr<int8_t>(), inputs[1]->cntSize());
+    memcpy(input2_buffer_.hostPtr<int8_t>(), inputs[2]->hostPtr<int8_t>(), inputs[2]->cntSize());
 
     
     if (input0_buffer_.dtype() == MLLM_TYPE_F32) {
