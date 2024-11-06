@@ -626,10 +626,10 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
     // based on chunk_num, execute it every 2 chunk in pipeline
     for (int chunk_id = 0; chunk_id < chunk_num / 2; ++chunk_id) {
         // for every two chunk, start at chunk_id * 2 to avoid no execute for
-        for (int i = chunk_id * 2; i < (int)net->subGraph().size() + chunk_id * 2 + 1; ++i) {
+        for (int i = chunk_id * 2; i < (int)net->subGraph().size() + chunk_id * 2 + 5; ++i) {
 #pragma omp parallel for num_threads(2)
             for (int pair_idx = 0; pair_idx < 2; ++pair_idx) {
-                executeFunc(chunk_id * 2 + pair_idx, i);
+                executeFunc(chunk_id * 2 + pair_idx, i - pair_idx * 4);
             }
 #pragma omp barrier
             std::cout << "---------------------------" << std::endl;
