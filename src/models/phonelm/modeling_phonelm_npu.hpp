@@ -198,7 +198,7 @@ public:
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
         pre_mlp_view = View(1, 2, 32, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
-        relu = ReLU(mlp_base_name + "relu");
+        relu = ReLU(mlp_base_name + names._gate_proj_name + ".relu");
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
         post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize", false);
         post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize", false);
@@ -208,7 +208,7 @@ public:
         post_down_proj_dequantize = Dequantize(true, mlp_base_name + names._down_proj_name + ".dequantize");
         post_mlp_view = View(1, 1, 64, hidden_size, mlp_base_name + names._down_proj_name + ".dequantize-00_view_");
 
-        mlp_mul = Mul(mlp_base_name + "mul");
+        mlp_mul = Mul(mlp_base_name + names._gate_proj_name + ".relu-00_mul_");
         post_mlp_res_add = Add(mlp_base_name + "res_add");
     }
 
@@ -307,7 +307,7 @@ public:
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
         pre_mlp_view = View(1, 2, 32, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
-        relu = ReLU(mlp_base_name + "act");
+        relu = ReLU(mlp_base_name + names._gate_proj_name + ".relu");
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
         post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
         post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");
@@ -496,7 +496,7 @@ class PhoneLMModel_NPU final : public Module {
         static_assert(std::is_base_of<Module, SHADOW>::value, "SHADOW must be a subclass of Module");
         listIdx = 0;
         vector<unique_ptr<Module>> modules;
-        std::set shadowLayers = {1, 3, 4};
+        std::set shadowLayers = {0, 1, 3, 4};
         // for index in shadowLayers, create shadow decoder, for others, create normal decoder
         for (int i = 0; i < n; i++) {
             auto new_args = change_last(args...); // 创建新的参数包，最后一个参数被修改为原来的值+ std::to_string(listIdx)+ "."
@@ -542,13 +542,7 @@ public:
         embedding = Embedding(config.vocab_size, config.hidden_size, names.token_embd_name);
         model = PhoneLMModel_NPU(config, names, names.blk_name);
 
-        // PhoneLM-0.5 use tied embedding
-        // Others use nn.Linear()
-        if (tie_embedding_words) {
-            lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, names.token_embd_name + ".weight");
-        } else {
-            lm_head_layer = Linear(config.hidden_size, config.vocab_size, false, names.lm_head_name);
-        }
+        lm_head_layer = Linear(config.hidden_size, config.vocab_size, false, names.lm_head_name);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
@@ -556,11 +550,9 @@ public:
 
         // go through model
         auto outputs = model({x})[0];
-        if (tie_embedding_words) {
-            outputs = Tensor::mm(outputs, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
-        } else {
-            outputs = lm_head_layer(outputs);
-        }
+       
+        outputs = lm_head_layer(outputs);
+
         return {outputs};
     }
 
