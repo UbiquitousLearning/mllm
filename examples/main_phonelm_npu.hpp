@@ -32,15 +32,12 @@ std::vector<NetTensor *> PhoneLM_CPUNPUAttention(Context *c, NetTensor *x, NetTe
     k = k->view(1, head_size, seq / chunk, hidden_size);
     v = v->view(1, head_size, seq / chunk, hidden_size);
 
-    // q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize", true);
-    // k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", false);
+    q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize", true);
+    k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", false);
     v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize", false);
-    q = _QNNIRoPE({q}, HFHUBROPE, name + ".q_proj.rope", 10000, 2048, true);
-    k = _QNNIRoPE({k}, HFHUBROPE, name + ".k_proj.rope", 10000, 2048, false);
+    // q = _QNNIRoPE({q}, HFHUBROPE, name + ".q_proj.rope", 10000, 2048, true);
+    // k = _QNNIRoPE({k}, HFHUBROPE, name + ".k_proj.rope", 10000, 2048, false);
     
-    v = _Transpose({v}, {0, 2, 3, 1}, (string)name + ".v_proj.transpose");
-
-
     v = _Transpose({v}, {0, 2, 3, 1}, (string)name + ".v_proj.transpose");
 
     // before attention is CPU, so don't output res
@@ -65,6 +62,9 @@ std::vector<NetTensor *> PhoneLM_CPUNPUAttention(Context *c, NetTensor *x, NetTe
         v = s[2];
         res = s[3];
     }
+
+    q = _IRoPE({q}, HFHUBROPE, name + ".q_proj.rope", 10000, 2048);
+    k = _IRoPE({k}, HFHUBROPE, name + ".k_proj.rope", 10000, 2048);
 
     k = _KVCacheNPU({k}, cache_max, name + ".k_cache");
     v = _KVCacheNPU({v}, cache_max, name + ".v_cache");
