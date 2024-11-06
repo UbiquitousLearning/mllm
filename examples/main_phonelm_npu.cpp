@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
 
     cmdParser.parse_check(argc, argv);
 
-    const string npu_model_path = "../models/PhoneLM-1.5B-Instruct-64.mllm";
+    const string npu_model_path = "../models/PhoneLM-1.5B-Instruct-128.mllm";
     const string cpu_model_path = "../models/phonelm-with-head-q4k.mllm";
     const string merge_file_path = "../vocab/phonelm_merges.txt";
 
@@ -168,6 +168,9 @@ int main(int argc, char **argv) {
             else
                 npuExe.runExp(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
+
+            // result[0]->printData<float>();
+            // exit(0);
 
             // inter model for prefill-decode
             interExe.run(&interNet, {result[0]});

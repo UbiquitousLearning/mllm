@@ -7,10 +7,12 @@ using namespace mllm;
 
 namespace modeling {
 
+const std::set qwen_shadow_layers = {1, 2, 6};
+
 NetTensor *Qwen_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
     auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
-    x = _SuperSiLU({x,y}, name + ".supersilu");
+    x = _SuperSiLU({x, y}, name + ".supersilu");
     // x = _Dequantize({x}, true, (string)name + ".gate_proj.dequantize", false);
     // y = _Dequantize({y}, true, (string)name + ".up_proj.dequantize", false);
     // x = _SiLU({x}, name + ".silu");
@@ -21,7 +23,7 @@ NetTensor *Qwen_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden
     return x;
 }
 
-std::vector<NetTensor *> Qwen_CPUNPUAttention(Context *c, NetTensor *x, NetTensor *res, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk) {
+std::vector<NetTensor *> Qwen_CPUNPUAttention(Context *c, NetTensor *x, NetTensor *res, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk, int layer = 0) {
     x = x->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_size * head_size);
     auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
     auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
@@ -30,28 +32,37 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention(Context *c, NetTensor *x, NetTenso
     k = k->view(1, head_size, seq / chunk, hidden_size);
     v = v->view(1, head_size, seq / chunk, hidden_size);
 
-    // q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize", true);
-    // k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", false);
+    q = _Dequantize({q}, true, (string)name + ".q_proj.dequantize", true);
+    k = _Dequantize({k}, true, (string)name + ".k_proj.dequantize", false);
     v = _Dequantize({v}, true, (string)name + ".v_proj.dequantize", false);
 
-    q = _QNNRoPE({q}, HFHUBROPE, name + ".q_proj.rope", 1000000, 1024, true);
-    k = _QNNRoPE({k}, HFHUBROPE, name + ".k_proj.rope", 1000000, 1024, false);
-    
     v = _Transpose({v}, {0, 2, 3, 1}, (string)name + ".v_proj.transpose");
 
-    auto *m = _MergeOutput({q, k, v, res}, name + ".qkv_merge");
+    // before attention is CPU, so don't output res
+    vector<NetTensor *> m, s;
+    if (layer == 0 || qwen_shadow_layers.find(layer - 1) != qwen_shadow_layers.end()) { // res is from cpu
+        m = _MergeOutput({q, k, v}, name + ".qkv_merge");
+        // --------------------
+        _SubgraphBegin(c, MLLM_CPU);
+        // --------------------
+        s = _SplitInput({m}, true, 4, name + ".qkv_split");
+        q = s[0];
+        k = s[1];
+        v = s[2];
+    } else { // res is from qnn
+        m = _MergeOutput({q, k, v, res}, name + ".qkv_merge");
+        // --------------------
+        _SubgraphBegin(c, MLLM_CPU);
+        // --------------------
+        s = _SplitInput({m}, true, 4, name + ".qkv_split");
+        q = s[0];
+        k = s[1];
+        v = s[2];
+        res = s[3];
+    }
 
-    // --------------------
-    _SubgraphBegin(c, MLLM_CPU);
-    // --------------------
-
-    auto s = _SplitInput({m}, true, 4, name + ".qkv_split");
-
-    q = s[0];
-    k = s[1];
-    v = s[2];
-    res = s[3];
-
+    q = _RoPE({q}, HFHUBROPE, name + ".q_proj.rope", 1000000, 1024);
+    k = _RoPE({k}, HFHUBROPE, name + ".k_proj.rope", 1000000, 1024);
 
     k = _KVCacheNPU({k}, cache_max, name + ".k_cache");
     v = _KVCacheNPU({v}, cache_max, name + ".v_cache");
@@ -63,12 +74,12 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention(Context *c, NetTensor *x, NetTenso
 
     auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
     o = _Quantize({o}, true, (string)name + ".o_proj.quantize");
-    m = _MergeOutput({o, res}, name + ".or_merge");
 
+    auto merge = _MergeOutput({o, res}, name + ".or_merge");
     // --------------------
     _SubgraphBegin(c);
     // --------------------
-    s = _SplitInput({m}, true, 2, name + ".or_split");
+    s = _SplitInput(merge, true, 2, name + ".or_split");
 
     o = s[0];
     res = s[1];
@@ -79,34 +90,6 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention(Context *c, NetTensor *x, NetTenso
     o = _Dequantize({o}, true, (string)name + ".o_proj.dequantize");
 
     return {o, res};
-}
-
-NetTensor *Qwen_CPUAttention(Context *c, NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk) {
-    auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
-    auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
-    auto *v = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
-    q = q->view(-1, head_size, -1, hidden_size);
-    k = k->view(-1, head_size, -1, hidden_size);
-    v = v->view(-1, head_size, -1, hidden_size);
-
-    q = _RoPE({q}, HFHUBROPE, name + ".q_rope", 1000000, 32768);
-    k = _RoPE({k}, HFHUBROPE, name + ".k_rope", 1000000, 32768);
-
-    k = _KVCacheNPU({k}, cache_max, name + ".k_cache");
-    v = _KVCacheNPU({v}, cache_max, name + ".v_cache");
-
-    auto *qk = _Matmul({q, k}, false, true, name + ".qk");
-    qk = *qk / std::sqrt(hidden_size);
-    // qk = _Causalmask({qk}, name + ".mask");
-    qk = _Softmax({qk}, DIMENSION, true, name + ".softmax");
-
-    auto *o = _Matmul({qk, v}, false, false, name + ".qkv");
-
-    o = o->view(-1, 1, -1, hidden_size * head_size);
-
-    o = _LinearINT8({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
-
-    return o;
 }
 
 NetTensor *Qwen_CPUAttention_q4k(Context *c, NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk) {
@@ -135,15 +118,6 @@ NetTensor *Qwen_CPUAttention_q4k(Context *c, NetTensor *x, int embedding_size, i
     o = _Linear({o}, hidden_size * head_size, embedding_size, false, name + ".o_proj");
 
     return o;
-}
-
-NetTensor *Qwen_FFN_CPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
-    auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
-    auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
-    x = _SiLU({x}, name + ".silu");
-    x = *x * y;
-    x = _LinearINT8({x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj");
-    return x;
 }
 
 NetTensor *Qwen_FFN_CPU_q4k(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
@@ -179,29 +153,21 @@ void qwen_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn
 
     // first 23 layer using NPU-CPU prefilling
     for (int layer = 0; layer < 24; ++layer) {
-
         auto res = i;
-        res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size, (layer != 0));
-
+        res = res->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
         i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.layers." + std::to_string(layer) + ".input_layernorm");
-        i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");        
+        i = _Quantize({i}, true, (string) "model.layers." + std::to_string(layer) + ".self_attn.q_proj.quantize");
 
-        // only CPU graphs need merge and split
-        if (layer == 7 || layer == 2 || layer == 3 || layer == 0) {
-        // SHADOW
-        // if (layer == 2 || layer == 0) {
+        // above is from CPU, needs merge and split
+        if (layer == 0 || qwen_shadow_layers.find(layer - 1) != qwen_shadow_layers.end()) {
             i = i->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
-
-            auto *m = _MergeOutput({i, res}, (string) "model.layers." + std::to_string(layer) + ".ires_merge");
-            
+            auto m = _MergeOutput({i}, "model.layers." + std::to_string(layer) + ".ires_merge");
             _SubgraphBegin(c);
-            auto s = _SplitInput({m}, true, 2, (string) "model.layers." + std::to_string(layer) + ".self_attn.ires_split");
-
+            auto s = _SplitInput(m, true, 2, "model.layers." + std::to_string(layer) + ".self_attn.ires_split");
             i = s[0];
-            res = s[1];
         }
-        
-        auto ix = Qwen_CPUNPUAttention(c, i, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn", seq, chunk);
+
+        auto ix = Qwen_CPUNPUAttention(c, i, res, hidden_dim, hidden_dim / mutil_head_size, mutil_head_size, cache_max, (string) "model.layers." + std::to_string(layer) + ".self_attn", seq, chunk, layer);
 
         i = ix[0];
         res = ix[1];
@@ -217,16 +183,13 @@ void qwen_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn
 
         i = i->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_dim);
 
-        // SHADOW
-        if (layer != 6 && layer != 1 && layer != 2) {
-        // if (layer != 1) {
+        if (qwen_shadow_layers.find(layer) == qwen_shadow_layers.end()) { // normal ffn layers
             i = Qwen_FFN_NPU(c, i, hidden_dim, ffn_hidden_dim, (string) "model.layers." + std::to_string(layer) + ".mlp");
 
             i = i->view(1, 1, seq / chunk, hidden_dim);
 
             i = *i + res;
-
-        } else {
+        } else { // shadow layers
             auto name = (string) "model.layers." + std::to_string(layer) + ".mlp";
             auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
             auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
@@ -247,9 +210,10 @@ void qwen_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn
 
             x = *x + res;
 
-            auto shadow = _LinearINT8ShadowMerge({i1, i2, x}, ffn_hidden_dim, hidden_dim, false, name + ".down_proj.shadow.qnn");
+            auto shadow = _MergeOutput({i1, i2, x}, name + ".down_proj.shadow.qnn");
 
             _SubgraphBegin(c, MLLM_CPU);
+            shadow = _SplitInput(shadow, true, 3);
             i = _LinearINT8ShadowCPU(shadow, ffn_hidden_dim, hidden_dim, 1024, false, name + ".down_proj.shadow");
         }
     }

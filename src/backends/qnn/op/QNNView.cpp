@@ -81,15 +81,6 @@ ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 
 ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     outputs[0]->setDtype(inputs[0]->dtype());
-    #ifdef OLD_QNN
-    if (getOutputTensorType(outputs[0]) == QNN_TENSOR_TYPE_APP_READ) {
-        outputs[0]->setBackend(qnnBackend_);
-        outputs[0]->setDtype(MLLM_TYPE_I8);
-        outputs[0]->alloc();
-
-        qnnBackend_->pushOutputBuffers(outputs[0]->hostPtr<uint8_t>());
-    }
-    #endif
 
     if (outputs[0]->dtype() == MLLM_TYPE_I8)
         return graphAddNode(name(), "Reshape", inputs, outputs, {}, "qti.aisw", true, &scale_);
@@ -208,58 +199,6 @@ ErrorCode QNNView::load(AbstructLoader &loader) {
     }
 
     return Op::load(loader);
-}
-
-ErrorCode QNNNPUView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-#ifdef DEBUGPRINT
-    std::cout << name() << " input type:" << outputs[0]->dtype() << std::endl;
-    std::cout << name() << " output type:" << inputs[0]->dtype() << std::endl;
-#endif
-
-    auto type = QNN_TENSOR_TYPE_APP_READ;
-    //Qwen TODO
-    // if (name().find("layers.1.") != -1 || name().find("layers.2.") != -1 || name().find("layers.6.") != -1 ) {
-    // PhoneLM
-    if (name().find("layers.0.") != -1 || name().find("layers.1.") != -1 || name().find("layers.3.") != -1 || name().find("layers.4.") != -1 ) {
-        type = QNN_TENSOR_TYPE_NATIVE;
-    } else {
-        outputs[0]->setBackend(qnnBackend_);
-        outputs[0]->setDtype(MLLM_TYPE_F32);
-        outputs[0]->alloc();
-
-        qnnBackend_->pushOutputBuffers(outputs[0]->hostPtr<uint8_t>());
-    }
-        
-    
-
-    uint32_t dimensionsOutput[4];
-    dimensionsOutput[0] = static_cast<uint32_t>(outputs[0]->batch());
-    dimensionsOutput[1] = static_cast<uint32_t>(outputs[0]->sequence());
-    dimensionsOutput[2] = static_cast<uint32_t>(outputs[0]->head());
-    dimensionsOutput[3] = static_cast<uint32_t>(outputs[0]->dimension());
-
-
-    
-    
-    auto outName = outputs[0]->name();
-    vector<Qnn_Tensor_t> outputTensor = {{QNN_TENSOR_VERSION_1,
-                                          {.v1 = {
-                                               .id = 0,
-                                               .name = outName.c_str(),
-                                               .type = type,
-                                               .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                               .dataType = QNN_DATATYPE_FLOAT_32,
-                                               .quantizeParams = {QNN_DEFINITION_UNDEFINED,
-                                                    QNN_QUANTIZATION_ENCODING_UNDEFINED,
-                                                    {.scaleOffsetEncoding = {.scale  = 0.0000000000000000f,
-                                                                            .offset = 0}}},
-                                               .rank = 4,
-                                               .dimensions = dimensionsOutput,
-                                               .memType = QNN_TENSORMEMTYPE_RAW,
-                                               {.clientBuf = {.data = nullptr,
-                                                              .dataSize = 0}}}}}};
-    return graphAddNode(name(), "Reshape", {inputs[0]->name()}, outputTensor, {}, "qti.aisw");
-
 }
 
 

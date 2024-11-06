@@ -82,16 +82,6 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
         }
     }
 
-#ifdef OLD_QNN
-    if (getOutputTensorType(outputs[0]) == QNN_TENSOR_TYPE_APP_READ) {
-        outputs[0]->setBackend(qnnBackend_);
-        outputs[0]->setDtype(outputs[0]->dtype());
-        outputs[0]->alloc();
-
-        qnnBackend_->pushOutputBuffers(outputs[0]->hostPtr<uint8_t>());
-    }
-#endif
-
     float dequantScale = 0;
     dequantScale = scale_.hostPtr<float>()[0] / 127.0;
     dequantScale = roundf(dequantScale * 100000) / 100000;

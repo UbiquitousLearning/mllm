@@ -56,7 +56,7 @@ NetTensor *_SparseLinear(std::vector<NetTensor *> inputs, int in_dim, int out_di
 NetTensor *_SparseIdLinear(std::vector<NetTensor *> inputs, int in_dim, int out_dim, string name = "");
 NetTensor *_Predictor(std::vector<NetTensor *> inputs, int in_dim, int out_dim, string name = "");
 NetTensor *_WNop(std::vector<NetTensor *> inputs, int sync_type, string name = "");
-NetTensor *_MergeOutput(std::vector<NetTensor *> inputs, string name = "");
+vector<NetTensor *> _MergeOutput(std::vector<NetTensor *> inputs, string name = "");
 vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, int num, string name = "");
 NetTensor *_Transpose(std::vector<NetTensor *> inputs, std::vector<int> perm, string name = "");
 

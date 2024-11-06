@@ -158,8 +158,6 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
     int8_t input_clip = inputClip_.dataAt<int8_t>(0, 0, 0, 0);
     int8_t output_clip = outputClip_.dataAt<int8_t>(0, 0, 0, 0);
 
-    std::cout << name() << input_clip * 1.0 << " " << output_clip * 1.0 << std::endl;
-
     input_scale = input_scale / 127.0;
     input_scale = roundf(input_scale * 100000) / 100000;
 
@@ -167,9 +165,9 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
 
     memcpy(outputs[0]->hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->cntSize());
 
-    memcpy(input0_buffer_.hostPtr<float>(), inputs[0]->hostPtr<float>(), inputs[0]->batch() * inputs[0]->head() * inputs[0]->sequence() * inputs[0]->dimension() * sizeof(float));
-    memcpy(input1_buffer_.hostPtr<int8_t>(), inputs[1]->hostPtr<int8_t>(), inputs[1]->batch() * inputs[1]->head() * inputs[1]->sequence() * inputs[1]->dimension() * sizeof(int8_t));
-    memcpy(input2_buffer_.hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->batch() * inputs[2]->head() * inputs[2]->sequence() * inputs[2]->dimension() * sizeof(float));
+    memcpy(input0_buffer_.hostPtr<int8_t>(), inputs[0]->hostPtr<int8_t>(), inputs[0]->cntSize());
+    memcpy(input1_buffer_.hostPtr<int8_t>(), inputs[1]->hostPtr<int8_t>(), inputs[1]->cntSize());
+    memcpy(input2_buffer_.hostPtr<int8_t>(), inputs[2]->hostPtr<int8_t>(), inputs[2]->cntSize());
 
     
     if (input0_buffer_.dtype() == MLLM_TYPE_F32) {
@@ -180,7 +178,7 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
                     for (int j = 0; j < input0_buffer_.sequence(); j++) {
                         for (int k = 0; k < input0_buffer_.dimension(); k++) {
                             float round_value = roundf(input0_buffer_.dataAt<float>(i, h, j, k) / input_scale);
-                            if (round_value > (127.0 ) || round_value < (-128.0)) {
+                            if (round_value > (127.0 * 8) || round_value < (-128.0 * 8)) {
 #if defined(__ARM_NEON)
                                 float origin_value = round_value * input_scale * weight_scale;
                                 float clip_value = std::fmax(std::fmin(round_value, 127), -128) * input_scale * weight_scale;
