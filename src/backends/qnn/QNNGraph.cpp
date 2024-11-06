@@ -25,13 +25,6 @@ void QNNGraph::setUpTensors(std::string name) {
     vector<shared_ptr<Tensor>> graph_in_tensors;
     if (ops_[op_names_[0]]->type() == SPLITINPUT) {
         graph_in_tensors = ops_output_tensors_[op_names_[0]];
-        if (op_names_[0].find(".or_split") == string::npos) {
-            // NOTE: in no copy merge/split, the ires_split is the pre-attn split, which don't take res as input
-#ifdef DEBUGPRINT
-            std::cout << "WARNING: " << op_names_[0] << " don't take tensor " << graph_in_tensors.back()->name() << " as input" << std::endl;
-#endif
-            graph_in_tensors.pop_back();
-        }
     } else {
         graph_in_tensors = ops_input_tensors_[op_names_[0]];
     }
