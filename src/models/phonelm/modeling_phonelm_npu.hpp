@@ -1,17 +1,17 @@
-#ifndef MODELING_QWENNPU_HPP
-#define MODELING_QWENNPU_HPP
+#ifndef MODELING_PHONELMNPU_HPP
+#define MODELING_PHONELMNPU_HPP
 
 #include "Backend.hpp"
 #include "Layer.hpp"
 #include "Module.hpp"
 #include "Tensor.hpp"
 #include "Types.hpp"
-#include "configuration_qwen.hpp"
+#include "configuration_phonelm.hpp"
 
 using namespace mllm;
 
 // NPU QKV part
-class QwenDecoderNPUPart1 final : public Module {
+class PhoneLMDecoderNPUPart1 final : public Module {
     int hidden_size;
     int num_heads;
     int head_dim;
@@ -35,8 +35,8 @@ class QwenDecoderNPUPart1 final : public Module {
     Layer v_transpose;
 
 public:
-    QwenDecoderNPUPart1() = default;
-    QwenDecoderNPUPart1(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
+    PhoneLMDecoderNPUPart1() = default;
+    PhoneLMDecoderNPUPart1(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -45,9 +45,9 @@ public:
 
         pre_attn_view = View(-1, 1, -1, num_heads * head_dim, base_name + "ires_split-00_view_");
 
-        q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._v_proj_name);
+        q_proj = Linear(hidden_size, num_heads * head_dim, false, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._v_proj_name);
 
         q_view = View(-1, num_heads, -1, head_dim, base_name + names._q_proj_name + "-00_view_");
         k_view = View(-1, num_heads, -1, head_dim, base_name + names._k_proj_name + "-00_view_");
@@ -81,7 +81,7 @@ public:
 };
 
 // CPU QKV MM part
-class QwenQKVmm final : public Module {
+class PhoneLMQKVmm final : public Module {
     Layer softmax;
     Layer q_rope;
     Layer k_rope;
@@ -98,13 +98,13 @@ class QwenQKVmm final : public Module {
     int num_key_value_groups;
 
 public:
-    QwenQKVmm() = default;
-    QwenQKVmm(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
+    PhoneLMQKVmm() = default;
+    PhoneLMQKVmm(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads * config.hidden_size / config.num_attention_heads;
 
-        q_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "q_rope");
-        k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "k_rope");
+        q_rope = IRoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "q_rope");
+        k_rope = IRoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "k_rope");
 
         k_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + "k_cache", true);
         v_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + "v_cache", true);
@@ -141,7 +141,7 @@ public:
 };
 
 // QNN mlp part
-class QwenDecoderNPUPart2 final : public Module {
+class PhoneLMDecoderNPUPart2 final : public Module {
     int hidden_size;
     int num_heads;
     int head_dim;
@@ -162,7 +162,7 @@ class QwenDecoderNPUPart2 final : public Module {
     Layer up_proj;
     Layer post_up_proj_dequantize;
     Layer post_gate_proj_dequantize;
-    Layer silu;
+    Layer relu;
     Layer post_attn_layernorm;
 
     Layer down_proj;
@@ -175,8 +175,8 @@ class QwenDecoderNPUPart2 final : public Module {
     Layer mlp_mul;
 
 public:
-    QwenDecoderNPUPart2() = default;
-    QwenDecoderNPUPart2(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
+    PhoneLMDecoderNPUPart2() = default;
+    PhoneLMDecoderNPUPart2(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -198,7 +198,7 @@ public:
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
         pre_mlp_view = View(1, 2, 32, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
-        silu = SiLU(mlp_base_name + "act");
+        relu = ReLU(mlp_base_name + "relu");
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
         post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize", false);
         post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize", false);
@@ -232,13 +232,13 @@ public:
         auto gate_out = gate_proj(x);
         auto up_out = up_proj(x);
 
-        gate_out = post_gate_proj_dequantize(gate_out);
-        gate_out = silu(gate_out);
+        // gate_out = post_gate_proj_dequantize(gate_out);
+        gate_out = relu(gate_out);
 
-        up_out = post_up_proj_dequantize(up_out);
+        // up_out = post_up_proj_dequantize(up_out);
         gate_out = mlp_mul(gate_out, up_out);
 
-        gate_out = pre_down_proj_quantize(gate_out);
+        // gate_out = pre_down_proj_quantize(gate_out);
         gate_out = down_proj(gate_out);
         gate_out = post_down_proj_dequantize(gate_out);
 
@@ -250,7 +250,7 @@ public:
     }
 };
 
-class QwenDecoderNPUPart2WithShadow final : public Module {
+class PhoneLMDecoderNPUPart2WithShadow final : public Module {
     int hidden_size;
     int num_heads;
     int head_dim;
@@ -271,7 +271,7 @@ class QwenDecoderNPUPart2WithShadow final : public Module {
     Layer up_proj;
     Layer post_up_proj_dequantize;
     Layer post_gate_proj_dequantize;
-    Layer silu;
+    Layer relu;
     Layer post_attn_layernorm;
 
     Layer down_proj;
@@ -284,8 +284,8 @@ class QwenDecoderNPUPart2WithShadow final : public Module {
     Layer mlp_mul;
 
 public:
-    QwenDecoderNPUPart2WithShadow() = default;
-    QwenDecoderNPUPart2WithShadow(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
+    PhoneLMDecoderNPUPart2WithShadow() = default;
+    PhoneLMDecoderNPUPart2WithShadow(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -307,7 +307,7 @@ public:
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
         pre_mlp_view = View(1, 2, 32, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
-        silu = SiLU(mlp_base_name + "act");
+        relu = ReLU(mlp_base_name + "act");
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
         post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
         post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");
@@ -341,8 +341,8 @@ public:
         auto gate_out = gate_proj(x);
         auto up_out = up_proj(x);
 
+        gate_out = relu(gate_out);
         gate_out = post_gate_proj_dequantize(gate_out);
-        gate_out = silu(gate_out);
 
         up_out = post_up_proj_dequantize(up_out);
         gate_out = mlp_mul(gate_out, up_out);
@@ -362,7 +362,7 @@ public:
     }
 };
 
-class QwenNPU_CPUDecoder final : public Module {
+class PhoneLMNPU_CPUDecoder final : public Module {
     int hidden_size;
     int num_heads;
     int head_dim;
@@ -371,13 +371,13 @@ class QwenNPU_CPUDecoder final : public Module {
 
     Layer input_layernorm;
     Layer pre_attn_quantize;
-    QwenDecoderNPUPart1 part1;
-    QwenQKVmm qkv_mm;
-    QwenDecoderNPUPart2 part2;
+    PhoneLMDecoderNPUPart1 part1;
+    PhoneLMQKVmm qkv_mm;
+    PhoneLMDecoderNPUPart2 part2;
 
 public:
-    QwenNPU_CPUDecoder() = default;
-    QwenNPU_CPUDecoder(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
+    PhoneLMNPU_CPUDecoder() = default;
+    PhoneLMNPU_CPUDecoder(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -387,13 +387,13 @@ public:
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
         pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize");
 
-        part1 = QwenDecoderNPUPart1(config, names, base_name + names._attn_base_name);
+        part1 = PhoneLMDecoderNPUPart1(config, names, base_name + names._attn_base_name);
         part1.to(MLLM_QNN);
 
-        qkv_mm = QwenQKVmm(config, names, base_name + names._attn_base_name);
+        qkv_mm = PhoneLMQKVmm(config, names, base_name + names._attn_base_name);
         qkv_mm.to(MLLM_CPU);
 
-        part2 = QwenDecoderNPUPart2(config, names, base_name);
+        part2 = PhoneLMDecoderNPUPart2(config, names, base_name);
         part2.to(MLLM_QNN);
     }
 
@@ -420,7 +420,7 @@ public:
     }
 };
 
-class QwenNPU_CPUDecoderWithShadow final : public Module {
+class PhoneLMNPU_CPUDecoderWithShadow final : public Module {
     int hidden_size;
     int num_heads;
     int head_dim;
@@ -430,13 +430,13 @@ class QwenNPU_CPUDecoderWithShadow final : public Module {
     Layer input_layernorm;
     Layer pre_attn_quantize;
     Layer shadow_linear;
-    QwenDecoderNPUPart1 part1;
-    QwenQKVmm qkv_mm;
-    QwenDecoderNPUPart2WithShadow part2;
+    PhoneLMDecoderNPUPart1 part1;
+    PhoneLMQKVmm qkv_mm;
+    PhoneLMDecoderNPUPart2WithShadow part2;
 
 public:
-    QwenNPU_CPUDecoderWithShadow() = default;
-    QwenNPU_CPUDecoderWithShadow(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
+    PhoneLMNPU_CPUDecoderWithShadow() = default;
+    PhoneLMNPU_CPUDecoderWithShadow(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -446,13 +446,13 @@ public:
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
         pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize");
 
-        part1 = QwenDecoderNPUPart1(config, names, base_name + names._attn_base_name);
+        part1 = PhoneLMDecoderNPUPart1(config, names, base_name + names._attn_base_name);
         part1.to(MLLM_QNN);
 
-        qkv_mm = QwenQKVmm(config, names, base_name + names._attn_base_name);
+        qkv_mm = PhoneLMQKVmm(config, names, base_name + names._attn_base_name);
         qkv_mm.to(MLLM_CPU);
 
-        part2 = QwenDecoderNPUPart2WithShadow(config, names, base_name);
+        part2 = PhoneLMDecoderNPUPart2WithShadow(config, names, base_name);
         part2.to(MLLM_QNN);
 
         shadow_linear = ShadowLinear(config.intermediate_size, hidden_size, 1024, false, base_name + names._ffn_base_name + names._down_proj_name + ".shadow");
@@ -488,15 +488,15 @@ public:
     }
 };
 
-// Copied from GemmaModel with Gemma->Qwen and set RmsNorm(without add_unit_offset)
-class QWenModel_NPU final : public Module {
+// Copied from GemmaModel with Gemma->PhoneLM and set RmsNorm(without add_unit_offset)
+class PhoneLMModel_NPU final : public Module {
     template <typename T1, typename SHADOW, typename... Args>
     static vector<unique_ptr<Module>> ListWithShadow(int n, Args &&...args) {
         static_assert(std::is_base_of<Module, T1>::value, "T1 must be a subclass of Module");
         static_assert(std::is_base_of<Module, SHADOW>::value, "SHADOW must be a subclass of Module");
         listIdx = 0;
         vector<unique_ptr<Module>> modules;
-        std::set shadowLayers = {1, 2, 6};
+        std::set shadowLayers = {1, 3, 4};
         // for index in shadowLayers, create shadow decoder, for others, create normal decoder
         for (int i = 0; i < n; i++) {
             auto new_args = change_last(args...); // 创建新的参数包，最后一个参数被修改为原来的值+ std::to_string(listIdx)+ "."
@@ -512,10 +512,10 @@ class QWenModel_NPU final : public Module {
     }
 
 public:
-    QWenModel_NPU() = default;
-    QWenModel_NPU(const QWenConfig &config, const QWenNameConfig &names, const string &base_name) {
-        // blocks = List<QwenNPU_CPUDecoder>(1, config, names, base_name);
-        blocks = ListWithShadow<QwenNPU_CPUDecoder, QwenNPU_CPUDecoderWithShadow>(24, config, names, base_name);
+    PhoneLMModel_NPU() = default;
+    PhoneLMModel_NPU(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name) {
+        // blocks = List<PhoneLMNPU_CPUDecoder>(1, config, names, base_name);
+        blocks = ListWithShadow<PhoneLMNPU_CPUDecoder, PhoneLMNPU_CPUDecoderWithShadow>(config.num_hidden_layers, config, names, base_name);
         norm = RMSNorm(config.hidden_size, config.rms_norm_eps, names.post_norm_name);
     }
 
@@ -533,16 +533,16 @@ private:
     Layer norm;
 };
 
-class QWenForCausalLM_NPU final : public Module {
+class PhoneLMForCausalLM_NPU final : public Module {
 public:
-    QWenForCausalLM_NPU(QWenConfig &config) {
+    PhoneLMForCausalLM_NPU(PhoneLMConfig &config) {
         auto names = config.names_config;
         hidden_size = config.hidden_size;
         tie_embedding_words = config.tie_embedding_words;
         embedding = Embedding(config.vocab_size, config.hidden_size, names.token_embd_name);
-        model = QWenModel_NPU(config, names, names.blk_name);
+        model = PhoneLMModel_NPU(config, names, names.blk_name);
 
-        // Qwen-0.5 use tied embedding
+        // PhoneLM-0.5 use tied embedding
         // Others use nn.Linear()
         if (tie_embedding_words) {
             lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, names.token_embd_name + ".weight");
@@ -606,7 +606,7 @@ private:
     Layer embedding;
     Parameter lm_head;
     Layer lm_head_layer;
-    QWenModel_NPU model;
+    PhoneLMModel_NPU model;
 };
 
-#endif //! MODELING_QWENNPU_HPP
+#endif //! MODELING_PHONELMNPU_HPP

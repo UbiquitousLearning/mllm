@@ -20,9 +20,10 @@ ErrorCode QNNReLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 ErrorCode QNNReLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // Only support QUINT8 ReLU
 
-    if (inputs[0]->dtype() == MLLM_TYPE_I8)
+    if (inputs[0]->dtype() == MLLM_TYPE_I8) {
+        outputs[0]->setDtype(MLLM_TYPE_I8);
         return graphAddNode(name(), "Relu", inputs, outputs, {}, "qti.aisw", true, &scale_);
-    else {
+    } else {
         return graphAddNode(name(), "LLaMAReLU", inputs, outputs, {}, "LLaMAPackage", true, nullptr);
     }
 }

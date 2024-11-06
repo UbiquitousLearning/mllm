@@ -38,7 +38,7 @@ cd ../script
 ./build_qnn_android.sh
 ```
 
-Currently, there are two style of modeling, the Module API and the old implementation. The demo of the Module API is in `examples/demo_qnn.cpp` which is in a **user friendly style**, and the old implementation is in `examples/main_qwen_npu.cpp` which supports **the chunk pipeline prefilling**.
+Currently, there are two style of modeling, the Module API and the old implementation. The demo of the Module API is in `examples/demo_qwen_npu.cpp` which is in a **user friendly style**, and the old implementation is in `examples/main_qwen_npu.cpp` which supports **the chunk pipeline prefilling**.
 
 Download the model from [here](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/blob/main/), or using the following instructions
 
