@@ -25,6 +25,7 @@ NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilo
 NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name = "", int rope_theta = 10000, int max_position_embeddings = 16384);
 NetTensor *_IRoPE(std::vector<NetTensor *> inputs, int pose_type, string name = "", int rope_theta = 10000, int max_position_embeddings = 16384);
 NetTensor *_QNNRoPE(std::vector<NetTensor *> inputs, int pose_type, string name = "", int rope_theta = 10000, int max_position_embeddings = 16384, bool isFP32 = true);
+NetTensor *_QNNIRoPE(std::vector<NetTensor *> inputs, int pose_type, string name = "", int rope_theta = 10000, int max_position_embeddings = 16384, bool isFP32 = true);
 NetTensor *_PositionalEmbedding(std::vector<NetTensor *> inputs, int max_num, int hidden_dim, string name = "");
 NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale, string name);
 NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name = "");
