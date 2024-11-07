@@ -4,6 +4,7 @@
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "OpDefined.hpp"
+#include "ParamLoader.hpp"
 #include "QNN/QnnTypes.h"
 #include "Types.hpp"
 #include "MemoryManager.hpp"
@@ -94,7 +95,7 @@ public:
     virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) override;
     virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) override;
     virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") override;
-    virtual void onExecuteEnd(std::vector<Tensor> &outputs, const string &graph_name) override;
+    virtual void onExecuteEnd(std::vector<shared_ptr<Tensor>> &outputs, const string &graph_name) override;
 
     void freeGraphDataStructure(string graphName);
 
@@ -107,8 +108,8 @@ public:
         currentOutputBuffers->push_back(ptr);
     }
 
-    void pushOutputTensor(Tensor t) {
-        outputTensors_.push_back(t);
+    void setDataLoader(AbstructLoader *dataLoader) {
+        dataLoader_ = dataLoader;
     }
 
 private:
@@ -152,6 +153,8 @@ private:
     static qnn_wrapper_api::ModelError_t QnnModel_freeGraphsInfo(qnn_wrapper_api::GraphInfoPtr_t **graphsInfo, uint32_t numGraphsInfo) {
         return qnn_wrapper_api::freeGraphsInfo(graphsInfo, numGraphsInfo);
     }
+
+    AbstructLoader *dataLoader_;
 
     static const std::string s_defaultOutputPath;
 

@@ -1,15 +1,15 @@
 
-#ifndef MLLM_QNNROPE_H
-#define MLLM_QNNROPE_H
+#ifndef MLLM_QNNIROPE_H
+#define MLLM_QNNIROPE_H
 
 #include "QNNCommonOp.hpp"
 namespace mllm {
-class QNNRoPE : public QNNCommonOp {
+class QNNIRoPE : public QNNCommonOp {
 public:
-    QNNRoPE(Backend *bn, string opName, int pose_type);
-    QNNRoPE(Backend *bn, string opName, int pose_type, float rope_theta, int max_position_embeddings);
-    QNNRoPE(Backend *bn, string opName, int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings);
-    virtual ~QNNRoPE() = default;
+    QNNIRoPE(Backend *bn, string opName, int pose_type);
+    QNNIRoPE(Backend *bn, string opName, int pose_type, float rope_theta, int max_position_embeddings);
+    QNNIRoPE(Backend *bn, string opName, int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings);
+    virtual ~QNNIRoPE() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -18,8 +18,10 @@ public:
 
 private:
 
-    static vector<vector<float>> sin_;
-    static vector<vector<float>> cos_;
+    static vector<vector<int>> sin_;
+    static vector<vector<int>> cos_;
+    static int sin_max;
+    static int cos_max;
     static int global_pose_type_;
     static int ishape_old;
     int rope_theta_ = 10000;
@@ -37,20 +39,20 @@ private:
     Tensor scale_;
 };
 
-class QNNRoPECreator : public QNNBackend::Creator {
+class QNNIRoPECreator : public QNNBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
         int pose_type = op_param["pose_type"];
         if (op_param.find("rope_theta") == op_param.end()) {
-            return new QNNRoPE(bn, name, pose_type);
+            return new QNNIRoPE(bn, name, pose_type);
         }
         float rope_theta = op_param["rope_theta"];
         int max_position_embeddings = op_param["max_position_embeddings"];
         if (op_param.find("partial_rotary_factor") == op_param.end()) {
-            return new QNNRoPE(bn, name, pose_type, rope_theta, max_position_embeddings);
+            return new QNNIRoPE(bn, name, pose_type, rope_theta, max_position_embeddings);
         }
         float partial_rotary_factor = op_param["partial_rotary_factor"];
-        return new QNNRoPE(bn, name, pose_type, rope_theta, partial_rotary_factor, max_position_embeddings);
+        return new QNNIRoPE(bn, name, pose_type, rope_theta, partial_rotary_factor, max_position_embeddings);
     }
 };
 
