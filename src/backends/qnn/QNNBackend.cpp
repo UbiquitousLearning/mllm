@@ -3,6 +3,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <memory>
 
 #include "Module.hpp"
 #include "OpDefined.hpp"
@@ -470,7 +471,7 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
     }
 }
 
-void QNNBackend::onExecuteEnd() {
+void QNNBackend::onExecuteEnd(std::vector<std::shared_ptr<Tensor>> &outputs, const string &graph_name) {
 }
 
 void QNNBackend::freeGraphDataStructure(string graphName) {

@@ -229,7 +229,7 @@ bool ParamLoader::partialLoad(mllm::Tensor *tensor, std::set<int> validRow, int 
     // load begin
     for (auto row : validRow) {
         fseek(fp_, offset.first + (row * colNum) * perValueLength, SEEK_SET);
-        fread(data + totalBytesRead, sizeof(uint8_t), perValueLength * colNum, fp_);
+        auto s = fread(data + totalBytesRead, sizeof(uint8_t), perValueLength * colNum, fp_);
         totalBytesRead += perValueLength * colNum;
     }
 

@@ -82,9 +82,9 @@ void Tensor::alloc() {
             // AVX 128 should be 16B
             // AVX 256 should be 32B
 #if defined(__ARM_NEON) && defined(__aarch64__)
-            backend_->alloc(&host_ptr_, cntSize(), 16);
+            backend_->alloc(&host_ptr_, cntSize() + 16, 128);
 #else
-            backend_->alloc(&host_ptr_, cntSize(), 32);
+            backend_->alloc(&host_ptr_, cntSize() + 16, 128);
 #endif
         }
         allocated_ = count_;
@@ -347,6 +347,18 @@ vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<
                          {module->activation_tensors[input.name()].get()});
 }
 
+uint32_t &Tensor::uuid() {
+    return uuid_;
+}
+
+TensorType &Tensor::xnnTensorType() {
+    return xnn_tensor_type_;
+}
+
+void Tensor::forceResetHostPointer(void *ptr) {
+    host_ptr_ = ptr;
+}
+
 Tensor &Tensor::to(BackendType backend_type) {
     // TODO: check if the data is shared between devices
     // if so, return the origin tensor
@@ -370,6 +382,16 @@ Tensor &Tensor::to(BackendType backend_type) {
     // realloc the tensor
     if (backend_type == MLLM_QNN && device() == MLLM_CPU) {
         this->free();
+    }
+    if (backend_type == MLLM_CPU && device() == MLLM_XNNPACK) {
+        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
+        this->setBackend(Backend::global_backends[backend_type]);
+        return *this;
+    }
+    if (backend_type == MLLM_XNNPACK && device() == MLLM_CPU) {
+        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
+        this->setBackend(Backend::global_backends[backend_type]);
+        return *this;
     }
     module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
     this->alloc();

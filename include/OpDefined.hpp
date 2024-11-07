@@ -60,8 +60,19 @@ enum OpType {
     MERGEOUTPUT,
     SPLITINPUT,
     IROPE,
+    OP_NUM,
+
+    // add in xnnpack
+    DIRECT,
+    DISPATCH,
+    SUBGRAPHSTART,
+    SUBGRAPHFINALIZE,
+    D2H,
+    XP_KVCACHE,
+    SDPA,
+
+    // new front-end
     SUPERSILU,
-    OP_NUM
 };
 
 static const vector<string> OpNames = {
@@ -117,8 +128,18 @@ static const vector<string> OpNames = {
     "MergeOutput",
     "SplitInput",
     "IRoPE",
+    "OP_NUM",
+
+    // in xnnpack
+    "Direct",
+    "Dispatch",
+    "SubgraphStart",
+    "SubgraphFinalize",
+    "D2H",
+    "XP_KVCACHE",
+    "SDPA",
     "SuperSiLU",
-    "OP_NUM"};
+};
 
 enum TensorFuncType {
     FUNC_ADD,

@@ -678,7 +678,8 @@ public:
                 outputs[0]->changeCtype(inputs[0]->shape().size());
                 outputs[0]->undiffusion() = true;
             }
-            if (inputs[0]->masterTensor() != nullptr) {
+            // if (inputs[0]->masterTensor() != nullptr) {
+            if (inputs[0]->masterTensor() != nullptr && (inputs[0]->masterTensor()->name().find("Cache") != std::string::npos || inputs[0]->masterTensor()->name().find("weight") != std::string::npos)) {
                 if (outputs[0]->masterTensor() == nullptr) {
                     outputs[0]->setDtype(inputs[0]->dtype());
                     outputs[0]->deepCopyFrom(inputs[0], false);

@@ -110,6 +110,11 @@ private:
     vector<int> aggregated_dims_;
     Module *module_{};
 
+private:
+    // XNN_INVALID_VALUE_ID = 4294967295U
+    uint32_t uuid_ = 4294967295U;
+    TensorType xnn_tensor_type_ = TensorType::NORMAL_TENSOR;
+
 public:
     /**
      * \brief build 4-D Tensor with four dimensions: [batch, head, sequence, dimension].
@@ -371,6 +376,8 @@ public:
                     return shape[3] * shape[2];
                 } else if (master_tensor_->master_tensor_->ctype_ == BHDS) {
                     return shape[3];
+                } else if (master_tensor_->master_tensor_->ctype_ == BDHS) {
+                    return shape[3] * shape_[2];
                 } else {
                     std::cout << "sequenceSkipDim() only support for BSHD and BHDS" << std::endl;
                     return -1;
@@ -381,6 +388,8 @@ public:
                     return shape[3] * shape[2];
                 } else if (master_tensor_->ctype_ == BHDS) {
                     return shape[3];
+                } else if (master_tensor_->ctype_ == BDHS) {
+                    return shape[3] * shape_[2];
                 } else {
                     std::cout << "sequenceSkipDim() only support for BSHD and BHDS" << std::endl;
                     return -1;
@@ -1699,6 +1708,13 @@ private:
     Tensor &getFunc(const std::string &suffix, TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors = {});
 
     static std::vector<std::reference_wrapper<Tensor>> getStaticFunc(vector<std::string> out_names, TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors);
+
+public:
+    uint32_t &uuid();
+
+    TensorType &xnnTensorType();
+
+    void forceResetHostPointer(void *ptr);
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H

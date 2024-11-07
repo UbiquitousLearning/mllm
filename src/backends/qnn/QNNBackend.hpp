@@ -95,17 +95,16 @@ public:
     virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) override;
     virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) override;
     virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") override;
-    virtual void onExecuteEnd() override;
+    virtual void onExecuteEnd(std::vector<Tensor> &outputs, const string &graph_name) override;
 
     void freeGraphDataStructure(string graphName);
 
     void afterAllGraphsExecute();
 
-
-    void pushInputBuffers(uint8_t* ptr) {
+    void pushInputBuffers(uint8_t *ptr) {
         currentInputBuffers->push_back(ptr);
     }
-    void pushOutputBuffers(uint8_t* ptr) {
+    void pushOutputBuffers(uint8_t *ptr) {
         currentOutputBuffers->push_back(ptr);
     }
 
@@ -160,9 +159,9 @@ private:
     static const std::string s_defaultOutputPath;
 
     std::map<std::string, std::vector<uint8_t *>> inputBufferMap;
-    std::vector<uint8_t *>* currentInputBuffers;
+    std::vector<uint8_t *> *currentInputBuffers;
     std::map<std::string, std::vector<uint8_t *>> outputBufferMap;
-    std::vector<uint8_t *>* currentOutputBuffers;
+    std::vector<uint8_t *> *currentOutputBuffers;
 
     std::map<OpType, QNNBackend::Creator *> map_creator_;
 
@@ -202,7 +201,6 @@ private:
 
     std::map<int, Qnn_Tensor_t *> inputsMap_;
     std::map<int, Qnn_Tensor_t *> outputsMap_;
-
 };
 
 } // namespace mllm

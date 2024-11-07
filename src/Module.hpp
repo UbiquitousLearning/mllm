@@ -19,6 +19,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <unordered_map>
 
 namespace mllm {
 
@@ -81,6 +82,12 @@ public:
 #ifdef USE_QNN
             case BackendType::MLLM_QNN: {
                 Backend::global_backends.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create({}));
+                break;
+            }
+#endif
+#ifdef MLLM_BUILD_XNNPACK_BACKEND
+            case BackendType::MLLM_XNNPACK: {
+                Backend::global_backends.emplace(MLLM_XNNPACK, GetBackendCreator(MLLM_XNNPACK)->create({}));
                 break;
             }
 #endif
@@ -219,11 +226,23 @@ public:
                     return oss.str();
                 };
                 Backend::global_backends[device_]->onSetUpStart(inputs_vec, outputs_vec, getUinqueName());
+
+                // for xnnpack currently
+                for (auto &i : inputs) {
+                    i.uuid() = inputs[0].module()->activation_tensors[i.name()]->uuid();
+                }
+
                 auto outputs = Forward(inputs, anyArgs);
                 for (auto &output : outputs) {
                     outputs_vec.push_back(inputs[0].module()->activation_tensors[output.name()]);
                 }
                 Backend::global_backends[device_]->onSetUpEnd(inputs_vec, outputs_vec, getUinqueName());
+
+                // for xnnpack currently
+                for (auto &o : outputs) {
+                    o.uuid() = outputs[0].module()->activation_tensors[o.name()]->uuid();
+                }
+
                 return outputs;
             } else if (Tensor::tensor_status == TENSOR_STATIC_READY && device_ != MLLM_CPU) { // backend specific module execute
                 auto inputs_vec = vector<shared_ptr<Tensor>>();
@@ -237,8 +256,21 @@ public:
                     return oss.str();
                 };
                 Backend::global_backends[device_]->onExecuteStart(inputs_vec, outputs_vec, getUinqueName());
+
                 auto outputs = Forward(inputs, anyArgs);
-                Backend::global_backends[device_]->onExecuteEnd();
+
+                for (auto &output : outputs) {
+                    outputs_vec.push_back(inputs[0].module()->activation_tensors[output.name()]);
+                }
+
+                Backend::global_backends[device_]->onExecuteEnd(outputs_vec, getUinqueName());
+
+                // for xnnpack currently
+                for (auto &o : outputs) {
+                    o.uuid() = outputs[0].module()->activation_tensors[o.name()]->uuid();
+                    o.forceResetHostPointer(outputs[0].module()->activation_tensors[o.name()]->rawHostPtr());
+                }
+
                 return outputs;
             }
             return Forward(inputs, anyArgs);
@@ -264,6 +296,7 @@ public:
     }
 
     void setNoLoadWeightsDtype(DataType dtype) {
+        llm_model_ptr = this;
         Op::noLoadWeightsDtype() = dtype;
     }
     virtual void clear_kvcache() {

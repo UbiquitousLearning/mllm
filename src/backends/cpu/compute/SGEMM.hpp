@@ -12,7 +12,6 @@ bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda
                      int ith, int nth,
                      DataType Atype, DataType Btype, DataType Ctype, void *bias = nullptr, DataType BiasType = DataType::MLLM_TYPE_F32);
 
-bool check_llamafile_sgemm(int64_t, int64_t, int64_t,
-                           DataType, DataType, DataType);
+bool check_llamafile_sgemm(int64_t m, int64_t n, int64_t k, DataType Atype, DataType Btype, DataType Ctype, int64_t lda, int64_t ldb, int64_t ldc);
 
 #endif // MLLM_GEMM_HPP

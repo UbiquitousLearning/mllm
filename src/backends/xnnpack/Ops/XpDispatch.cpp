@@ -10,15 +10,22 @@ ErrorCode XpDispatch::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 
 ErrorCode XpDispatch::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto xnnbk = (XnnpackBackend *)(this->backend());
+    auto cargo = xnnbk->getCurProcessingGraph();
 
     // recreate runtime
-    auto m_rt = xnnbk->recreateModelRuntime(thread_count_);
+    auto m_rt = cargo->recreateModelRuntime();
 
     // create Model
-    m_rt->createModel(xnnbk->getXnnSubgraph());
+    m_rt->createModel(cargo->getXnnSubgraph());
 
     // create runtime
     m_rt->createRuntime(0);
+
+    // auto wc = xnnbk->getWeightCache();
+    // if (!xnnbk->isWeightCacheFinalized()) {
+    //     xnn_finalize_weights_cache(wc, xnn_weights_cache_finalization_kind_hard);
+    //     xnnbk->setWeightCacheFinalized(true);
+    // }
 
     // reshape
     m_rt->reshapeRuntime();
@@ -30,6 +37,11 @@ ErrorCode XpDispatch::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     if (!m_rt->invoke()) {
         return ErrorCode::NO_EXECUTION;
     }
+
+    // update all output's ptr
+    cargo->assignPtrToTensor();
+
+    cargo->setSubgraphDispatched(true);
 
     return ErrorCode::MLLM_NO_ERROR;
 }

@@ -54,13 +54,14 @@
 #include "CPUMergeOutput.hpp"
 #include "CPULinearINT8Shadow.hpp"
 #include "CPUIRoPE.hpp"
+#include "CPUKVCacheXp.hpp"
 
 #include "CPUTensorFunction.hpp"
 #include "CPUPosition.hpp"
 
 namespace mllm {
 class CPUBackendCreator : public BackendCreator {
-    Backend* create(BackendConfig config) {
+    Backend *create(BackendConfig config) {
         shared_ptr<MemoryManager> mm = nullptr;
         switch (config.memory) {
         case BackendConfig::Memory_High:
@@ -144,6 +145,7 @@ void CPUBackend::registerOps() {
     addCreator(SPLITINPUT, (CPUBackend::Creator *)(new CPUSplitInputCreator()));
     addCreator(LINEARINT8SHADOW, (CPUBackend::Creator *)(new CPULinearINT8ShadowCreator()));
     addCreator(IROPE, (CPUBackend::Creator *)(new CPUIRoPECreator()));
+    addCreator(XP_KVCACHE, (CPUBackend::Creator *)(new CPUKVCacheXpCreator()));
 }
 TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {
     auto iter = map_function_.find(type);
