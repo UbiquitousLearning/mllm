@@ -38,7 +38,7 @@ void dequantize_row_q8_K(const block_q8_K *__restrict x, float *__restrict y, in
 // for per-tensor int8 quantize
 void quantize_row_i8(const float *__restrict x, void *__restrict y, int k, float scale = 1.f);
 void dequantize_row_i8(const void *__restrict vx, float *__restrict y, int k, float scale = 1.f);
-void dequantize_row_i8_to_fp16(const void *__restrict vx, __fp16 *__restrict y, int k, float scale = 1.f);
+void dequantize_row_i8_to_fp16(const void *__restrict vx, void *__restrict vy, int k, float scale = 1.f);
 void quantize_round_dequantize_row_i8(const float *__restrict vx, float *__restrict y, int k, float scale = 1.f);
 
 #endif // MLLM_QUANTIZEQ8_HPP

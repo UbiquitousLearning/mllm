@@ -82,13 +82,11 @@ public:
 
 // CPU QKV MM part
 class PhoneLMQKVmm final : public Module {
-    Layer softmax;
     Layer q_rope;
     Layer k_rope;
-    Layer k_cache;
-    Layer v_cache;
-    Layer qk_mm;
-    Layer qkv_mm;
+    KVCache k_cache;
+    KVCache v_cache;
+    Softmax softmax;
     Layer o_quantize;
 
     int hidden_size;
@@ -109,9 +107,6 @@ public:
         k_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + "k_cache", true);
         v_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + "v_cache", true);
 
-        qk_mm = Matmul(false, true, base_name + "qk");
-        qkv_mm = Matmul(false, false, base_name + "qkv");
-
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
 
         o_quantize = Quantize(true, base_name + names._o_proj_name + ".quantize");
@@ -128,10 +123,8 @@ public:
         k = k_cache(k);
         v = v_cache(v);
 
-        // auto qk = qk_mm(q, k);
         auto qk = Tensor::mm(q, k.transpose(Chl::SEQUENCE, Chl::DIMENSION));
-        qk = softmax(qk);
-        // auto o = qkv_mm(qk, v);
+        qk = softmax(qk, k_cache.getCacheSeqLen());
         auto o = Tensor::mm(qk, v);
 
         o = o_quantize(o);
@@ -550,7 +543,7 @@ public:
 
         // go through model
         auto outputs = model({x})[0];
-       
+
         outputs = lm_head_layer(outputs);
 
         return {outputs};

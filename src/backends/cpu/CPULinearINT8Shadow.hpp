@@ -51,7 +51,7 @@ private:
     // std::vector<int> input2_dimension = {1,1,1024,2560};
 
     void shadow_vec_dot_fp32_arm(float *s, float *x, int8_t *y, int n, float input_scale, float weight_scale);
-    void shadow_vec_dot_fp16_arm(float *s, __fp16 *x, int8_t *y, int n, float input_scale, float weight_scale);
+    void shadow_vec_dot_fp16_arm(float *s, mllm_fp16_t *x, int8_t *y, int n, float input_scale, float weight_scale);
 };
 
 class CPULinearINT8ShadowCreator : public CPUBackend::Creator {

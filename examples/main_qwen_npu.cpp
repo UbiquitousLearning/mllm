@@ -1,3 +1,4 @@
+#ifdef USE_QNN
 #include <iostream>
 #include <csignal>
 #include <memory>
@@ -229,3 +230,4 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+#endif

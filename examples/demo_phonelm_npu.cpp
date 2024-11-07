@@ -1,3 +1,4 @@
+#ifdef USE_QNN
 #include "backends/cpu/CPUBackend.hpp"
 #include "cmdline.h"
 #include "models/phonelm/modeling_phonelm.hpp"
@@ -87,3 +88,4 @@ int main(int argc, char **argv) {
         std::cout << "\n---------------" << std::endl;
     }
 }
+#endif

@@ -25,8 +25,6 @@ CPULinearINT8Shadow::CPULinearINT8Shadow(Backend *bn, string opName, int in_feat
     input0_buffer_.setBackend(bn);
     input1_buffer_.setBackend(bn);
     input2_buffer_.setBackend(bn);
-
-
 }
 
 ErrorCode CPULinearINT8Shadow::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -39,16 +37,15 @@ ErrorCode CPULinearINT8Shadow::reshape(vector<shared_ptr<Tensor>> inputs, vector
     // inputs[1] linear quant output  int8_t
     // inputs[2] res sum              float
 
-    input0_buffer_.reshape(inputs[2]->batch() , inputs[2]->head() , inputs[2]->sequence() , inputs[0]->dimension());
-    input1_buffer_.reshape(inputs[2]->batch() , inputs[2]->head() , inputs[2]->sequence() , inputs[1]->dimension());
-    input2_buffer_.reshape(inputs[2]->batch() , inputs[2]->head() , inputs[2]->sequence() , inputs[2]->dimension());
+    input0_buffer_.reshape(inputs[2]->batch(), inputs[2]->head(), inputs[2]->sequence(), inputs[0]->dimension());
+    input1_buffer_.reshape(inputs[2]->batch(), inputs[2]->head(), inputs[2]->sequence(), inputs[1]->dimension());
+    input2_buffer_.reshape(inputs[2]->batch(), inputs[2]->head(), inputs[2]->sequence(), inputs[2]->dimension());
 
     input0_buffer_.setDtype(inputs[0]->dtype());
     input1_buffer_.setDtype(inputs[1]->dtype());
     input2_buffer_.setDtype(inputs[2]->dtype());
 
     weight_f32_buffer_.setDtype(inputs[0]->dtype());
-
 
     return Op::reshape(inputs, outputs);
 }
@@ -122,20 +119,19 @@ ErrorCode CPULinearINT8Shadow::load(AbstructLoader &loader) {
     weight_.free();
 
     input0_buffer_.setName(opName + ".input0");
-    input0_buffer_.reshape(1, 1,  max_position_, in_features_);
+    input0_buffer_.reshape(1, 1, max_position_, in_features_);
     input0_buffer_.setDtype(MLLM_TYPE_F32);
     input0_buffer_.alloc();
 
     input1_buffer_.setName(opName + ".input1");
-    input1_buffer_.reshape(1, 1,  max_position_, in_features_);
+    input1_buffer_.reshape(1, 1, max_position_, in_features_);
     input1_buffer_.setDtype(MLLM_TYPE_I8);
     input1_buffer_.alloc();
 
     input2_buffer_.setName(opName + ".input2");
-    input2_buffer_.reshape(1, 1,  max_position_, out_features_);
+    input2_buffer_.reshape(1, 1, max_position_, out_features_);
     input2_buffer_.setDtype(MLLM_TYPE_F32);
     input2_buffer_.alloc();
-
 
     return Op::load(loader);
 }
@@ -169,7 +165,6 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
     memcpy(input1_buffer_.hostPtr<int8_t>(), inputs[1]->hostPtr<int8_t>(), inputs[1]->cntSize());
     memcpy(input2_buffer_.hostPtr<int8_t>(), inputs[2]->hostPtr<int8_t>(), inputs[2]->cntSize());
 
-    
     if (input0_buffer_.dtype() == MLLM_TYPE_F32) {
         // input outliers
         if (!input_clip) {
@@ -218,7 +213,7 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
                                 }
 
 #else
-                                __fp16 origin_value = round_value * input_scale * weight_scale;
+                                mllm_fp16_t origin_value = round_value * input_scale * weight_scale;
                                 float clip_value = std::fmax(std::fmin(round_value, 127), -128) * input_scale * weight_scale;
 
 #pragma omp parallel for collapse(1) num_threads(4)
@@ -267,14 +262,13 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
             }
         }
     } else if (input0_buffer_.dtype() == MLLM_TYPE_F16) {
-
-         if (!input_clip) {
+        if (!input_clip) {
             for (int i = 0; i < input0_buffer_.batch(); i++) {
                 for (int h = 0; h < input0_buffer_.head(); h++) {
                     for (int j = 0; j < input0_buffer_.sequence(); j++) {
                         for (int k = 0; k < input0_buffer_.dimension(); k++) {
-                            float round_value = roundf(input0_buffer_.dataAt<__fp16>(i, h, j, k) / input_scale);
-                            if (round_value > (127.0 ) || round_value < (-128.0)) {
+                            float round_value = roundf(input0_buffer_.dataAt<mllm_fp16_t>(i, h, j, k) / input_scale);
+                            if (round_value > (127.0) || round_value < (-128.0)) {
 #if defined(__ARM_NEON)
                                 float origin_value = round_value * input_scale * weight_scale;
                                 float clip_value = std::fmax(std::fmin(round_value, 127), -128) * input_scale * weight_scale;
@@ -348,11 +342,11 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
                                 float sum = 0.0f;
 
 #if defined(__ARM_NEON)
-                                shadow_vec_dot_fp16_arm(&sum, input0_buffer_.ptrAt<__fp16>(i, h, j, 0), shadowTransposeWeight_.ptrAt<int8_t>(0, 0, k, 0), shadowTransposeWeight_.dimension(), input_scale, weight_scale);
+                                shadow_vec_dot_fp16_arm(&sum, input0_buffer_.ptrAt<mllm_fp16_t>(i, h, j, 0), shadowTransposeWeight_.ptrAt<int8_t>(0, 0, k, 0), shadowTransposeWeight_.dimension(), input_scale, weight_scale);
 #else
 
                                 for (int w = 0; w < shadowTransposeWeight_.dimension(); w++) {
-                                    sum += roundf(input0_buffer_.dataAt<__fp16>(i, h, j, w) / input_scale) * input_scale * (shadowTransposeWeight_.dataAt<int8_t>(0, 0, k, w) * weight_scale);
+                                    sum += roundf(input0_buffer_.dataAt<mllm_fp16_t>(i, h, j, w) / input_scale) * input_scale * (shadowTransposeWeight_.dataAt<int8_t>(0, 0, k, w) * weight_scale);
                                 }
 #endif
                                 outputs[0]->setDataAt<float>(i, h, j, k, input2_buffer_.dataAt<float>(i, h, j, k) - (input1_buffer_.dataAt<int8_t>(i, h, j, k) * output_scale) + roundf(sum / output_scale) * output_scale);
@@ -362,9 +356,7 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
                 }
             }
         }
-
     }
-    
 
     return MLLM_NO_ERROR;
 }
@@ -375,10 +367,10 @@ void CPULinearINT8Shadow::shadow_vec_dot_fp32_arm(float *s, float *x, int8_t *y,
     vec_dot_fp32(n, s, x, weight_f32_buffer_.hostPtr<float>());
 }
 
-void CPULinearINT8Shadow::shadow_vec_dot_fp16_arm(float *s, __fp16 *x, int8_t *y, int n, float input_scale, float weight_scale) {
+void CPULinearINT8Shadow::shadow_vec_dot_fp16_arm(float *s, mllm_fp16_t *x, int8_t *y, int n, float input_scale, float weight_scale) {
     // quantize_round_dequantize_row_i8(x, input_f32_buffer_.hostPtr<float>(), n, input_scale);
-    dequantize_row_i8_to_fp16(y, weight_f32_buffer_.hostPtr<__fp16>(), n, weight_scale);
-    vec_dot_fp16(n, s, x, weight_f32_buffer_.hostPtr<__fp16>());
+    dequantize_row_i8_to_fp16(y, weight_f32_buffer_.hostPtr<mllm_fp16_t>(), n, weight_scale);
+    vec_dot_fp16(n, s, x, weight_f32_buffer_.hostPtr<mllm_fp16_t>());
 }
 
 } // namespace mllm
