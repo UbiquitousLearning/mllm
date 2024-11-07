@@ -10,7 +10,7 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/phonelm_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/phonelm_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/PhoneLM-1.5B-Instruct-64.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/PhoneLM-1.5B-Instruct-128.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
     auto model = PhoneLMForCausalLM_NPU(config);
     model.load(model_path);
     auto decoding_model = PhoneLMForCausalLM(config);
-    decoding_model.load("../models/phonelm-with-head-q4k.mllm");
+    decoding_model.load("../models/phonelm-1.5b-instruct-q4_0_4_4.mllm");
 
     vector<string> in_strs = {
         "Give me a short introduction to large language model.",
@@ -70,7 +70,6 @@ int main(int argc, char **argv) {
         };
         bool isSwitched = false;
         decoding_model.generate(input_tensor, decoding_opt, [&](unsigned int out_token) -> bool {
-            std::cout << "?";
             // call only once of switchDecodeTag
             if (!isSwitched) {
                 static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();

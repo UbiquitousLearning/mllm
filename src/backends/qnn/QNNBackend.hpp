@@ -95,7 +95,7 @@ public:
     virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) override;
     virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) override;
     virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") override;
-    virtual void onExecuteEnd(std::vector<Tensor> &outputs, const string &graph_name) override;
+    virtual void onExecuteEnd(std::vector<shared_ptr<Tensor>> &outputs, const string &graph_name) override;
 
     void freeGraphDataStructure(string graphName);
 
