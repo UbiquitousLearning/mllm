@@ -135,7 +135,7 @@ public:
         std::vector<token_id_t> ret;
 
         if (split_special_tokens_) {
-            const auto word_collection = unicode_regex_split(text, FIXED_PAT_STRS);
+            const auto word_collection = unicode_regex_split(text, regex_exprs);
             for (auto &piece : word_collection) {
                 // look up table
                 // std::string token;
@@ -160,7 +160,7 @@ public:
                     BPETokenizer::tokenize(token, tmp, false, special_tokens, true);
                     ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
                 } else {
-                    const auto word_collection = unicode_regex_split(p, FIXED_PAT_STRS);
+                    const auto word_collection = unicode_regex_split(p, regex_exprs);
                     for (auto &piece : word_collection) {
                         // look up table
                         // std::string token;
@@ -183,7 +183,7 @@ public:
         std::vector<token_id_t> ret;
 
         if (split_special_tokens_) {
-            const auto word_collection = unicode_regex_split(text, FIXED_PAT_STRS);
+            const auto word_collection = unicode_regex_split(text, regex_exprs);
             for (auto &piece : word_collection) {
                 // look up table
                 // std::string token;
@@ -208,7 +208,7 @@ public:
                     BPETokenizer::tokenize(token, tmp, false, special_tokens, true);
                     ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
                 } else {
-                    const auto word_collection = unicode_regex_split(p, FIXED_PAT_STRS);
+                    const auto word_collection = unicode_regex_split(p, regex_exprs);
                     for (auto &piece : word_collection) {
                         // look up table
                         // std::string token;
@@ -259,6 +259,10 @@ public:
     }
 
 public:
+    std::vector<std::string> regex_exprs = {
+        "\\p{N}",
+        "'s|'t|'re|'ve|'m|'ll|'d| ?\\p{L}+| ?\\p{N}+| ?[^\\s\\p{L}\\p{N}]+|\\s+(?!\\S)",
+    };
     bool split_special_tokens_ = false;
     std::unordered_map<int, std::string> byte_encoder_;
     std::unordered_map<std::string, int> byte_decoder_;
