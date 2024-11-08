@@ -100,6 +100,7 @@ if(MLLM_BUILD_XNNPACK_BACKEND)
     func_llm_add_executable(demo_qwenqkvmm)
     func_llm_add_executable(demo_qwenqkvmm_cpu)
     func_llm_add_executable(demo_qdint8_gemm)
+    func_llm_add_executable(demo_fp32gemmperf)
 endif()
 
 
