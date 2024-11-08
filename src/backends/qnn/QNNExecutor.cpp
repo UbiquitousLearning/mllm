@@ -78,6 +78,8 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
     auto ex_time_start = mllm_time_us();
     PRINT_MEMORY_USAGE("before setup all graph");
 
+    static_cast<QNNBackend *>(net->backends()[MLLM_QNN].get())->setDataLoader(data_loader_);
+
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         string name = graphNamingRule(i);
         auto &g = net->subGraph()[name];
@@ -210,6 +212,8 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
 
     auto ex_time_start = mllm_time_us();
     PRINT_MEMORY_USAGE("before setup all graph");
+
+    static_cast<QNNBackend *>(net->backends()[MLLM_QNN].get())->setDataLoader(data_loader_);
 
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         string name = graphNamingRule(i);
@@ -456,6 +460,8 @@ void QNNPipelineExecutor::warmup(Context *ctx, Net *net, vector<shared_ptr<Tenso
 
         PRINT_MEMORY_USAGE("before setup all graph");
 
+        static_cast<QNNBackend *>(net->backends()[MLLM_QNN].get())->setDataLoader(data_loader_);
+
         for (int i = 0; i < (int)net->subGraph().size(); ++i) {
             string name = graphNamingRule(i);
             auto &g = net->subGraph()[name];
@@ -514,7 +520,10 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
     std::condition_variable cv;
 
     std::function<void(int, int)> executeFunc = [&](int chunk_id, int graphIdx) {
-        int i = chunk_id == 0 ? graphIdx : graphIdx - 1;
+        int i = graphIdx - chunk_id;
+        if (i < 0 || i >= (int)net->subGraph().size()) {
+            return;
+        }
         // make sure chunks execute by order
         // while (true) {
         //     chunk_mutex.lock();
@@ -613,18 +622,25 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
         }
     };
 
-    executeFunc(0, 0);
     omp_set_max_active_levels(3);
-    for (int i = 1; i < (int)net->subGraph().size(); ++i) {
+    // based on chunk_num, execute it every 2 chunk in pipeline
+    for (int chunk_id = 0; chunk_id < chunk_num / 2; ++chunk_id) {
+        // for every two chunk, start at chunk_id * 2 to avoid no execute for
+        for (int i = chunk_id * 2; i < (int)net->subGraph().size() + chunk_id * 2 + 5; ++i) {
 #pragma omp parallel for num_threads(2)
-        for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
-            executeFunc(chunk_id, i);
-        }
+            for (int pair_idx = 0; pair_idx < 2; ++pair_idx) {
+                executeFunc(chunk_id * 2 + pair_idx, i - pair_idx * 4);
+            }
 #pragma omp barrier
-        std::cout << "---------------------------" << std::endl;
+            std::cout << "---------------------------" << std::endl;
+        }
     }
-    // the last graph of chunk 1
-    executeFunc(1, net->subGraph().size() - 1);
+    // the last chunk if there is odd chunks
+    if (chunk_num % 2 == 1) {
+        for (int i = 0; i < (int)net->subGraph().size(); ++i) {
+            executeFunc(chunk_num - 1, i);
+        }
+    }
 
     ex_time_end = mllm_time_us();
 
