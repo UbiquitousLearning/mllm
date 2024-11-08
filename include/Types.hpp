@@ -140,7 +140,7 @@ enum RoPEType {
     MLAROPE = 5,
 };
 
-enum QNNExecutionType {
+enum ExecutionType {
     PROMPT = 0,
     AUTOREGRESSIVE = 1,
 };

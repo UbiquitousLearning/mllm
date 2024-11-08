@@ -1,3 +1,4 @@
+#include "Types.hpp"
 #ifdef USE_QNN
 #include "backends/cpu/CPUBackend.hpp"
 #include "cmdline.h"
@@ -31,6 +32,8 @@ int main(int argc, char **argv) {
 
     vector<string> in_strs = {
         "Give me a short introduction to large language model.",
+        "What is the Beijing University of Posts and Telecommunications.",
+        "What is the meaning of life?",
     };
 
     for (int i = 0; i < in_strs.size(); ++i) {
@@ -50,7 +53,13 @@ int main(int argc, char **argv) {
             .is_padding = true,
             .seq_before_padding = real_seq_length,
         };
+        bool isSwitched = false;
         model.generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
+            if (i != 0 && !isSwitched) {
+                // turn off switching
+                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+                isSwitched = true;
+            }
             auto out_string = tokenizer.detokenize({out_token});
             auto [not_end, output_string] = tokenizer.postprocess(out_string);
             if (!not_end) { return false; }
@@ -58,8 +67,10 @@ int main(int argc, char **argv) {
             return true;
         });
 
+        // turn on switching, set sequence length and execution type
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
 
         LlmTextGeneratorOpts decoding_opt{
             .max_new_tokens = 100,
@@ -69,11 +80,11 @@ int main(int argc, char **argv) {
             .top_p = 0.f,
             .is_padding = false,
         };
-        bool isSwitched = false;
+        isSwitched = false;
         decoding_model.generate(input_tensor, decoding_opt, [&](unsigned int out_token) -> bool {
-            // call only once of switchDecodeTag
             if (!isSwitched) {
-                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();
+                // turn off switching
+                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
                 isSwitched = true;
             }
             auto out_string = tokenizer.detokenize({out_token});
@@ -86,6 +97,10 @@ int main(int argc, char **argv) {
             return true;
         });
         std::cout << "\n---------------" << std::endl;
+        // turn on switching, set sequence length and execution type
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(0);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
     }
 }
 #endif

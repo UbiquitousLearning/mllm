@@ -37,7 +37,7 @@ ErrorCode CPUSoftMax::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     } else {
 #ifndef LLAMAFILE_SGEMM
         old_dim = input->dimension() - input->sequence();
-#elif defined(USE_QNN) // TODO: 就前端才用到，一定要记得删除
+#elif defined(USE_QNN) // TODO: 旧前端才用到，一定要记得删除
         old_dim = input->dimension() - input->sequence();
 #endif
     }

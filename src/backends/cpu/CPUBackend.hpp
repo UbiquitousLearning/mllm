@@ -39,11 +39,17 @@ public:
     int getSequenceLength() {
         return sequence_length_;
     }
-    void switchDecodeTag() {
-        isPrefillToDecode = !isPrefillToDecode;
+    void toggleSwitching() {
+        isSwitchingStage = !isSwitchingStage;
     }
     bool isStageSwitching() {
-        return isPrefillToDecode;
+        return isSwitchingStage;
+    }
+    void setExecutionType(ExecutionType type) {
+        execution_type = type;
+    }
+    ExecutionType getExecutionType() {
+        return execution_type;
     }
 #endif
 private:
@@ -51,7 +57,8 @@ private:
     std::map<TensorFuncType, TensorFunction *> map_function_;
 #ifdef USE_QNN
     int sequence_length_ = 0;
-    bool isPrefillToDecode = false;
+    bool isSwitchingStage = false;
+    ExecutionType execution_type = PROMPT;
 #endif
 };
 

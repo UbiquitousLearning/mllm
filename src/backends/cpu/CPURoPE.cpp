@@ -331,6 +331,13 @@ void CPURoPE::rope_mla(shared_ptr<Tensor> input, shared_ptr<Tensor> output) {
 }
 
 ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    // if use QNN, when a new prompt input, the seq should be reset to 0 here as the setUp is not called
+#ifdef USE_QNN
+    auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
+    if (cpuBackend->isStageSwitching() && cpuBackend->getExecutionType() == PROMPT) {
+        h_cnt_ = 0;
+    }
+#endif
     auto &input = inputs[0];
     auto &output = outputs[0];
     auto out_dtype = output->dtype();

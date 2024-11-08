@@ -34,7 +34,7 @@ ErrorCode CPUKVCacheNPU::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 #ifdef USE_QNN
     // when the execution is switched from pref to dec, the sequence length should be set to the no padding length
     auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-    if (cpuBackend->isStageSwitching()) {
+    if (cpuBackend->isStageSwitching() && cpuBackend->getExecutionType() == AUTOREGRESSIVE) {
         cache_seq_len_ = cpuBackend->getSequenceLength();
         isDecoding = true;
     }
@@ -57,9 +57,16 @@ ErrorCode CPUKVCacheNPU::load(AbstructLoader &loader) {
 }
 
 ErrorCode CPUKVCacheNPU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    // if a new prompt is given, the cache should be updated
+    auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
+    if (cpuBackend->isStageSwitching() && cpuBackend->getExecutionType() == PROMPT) {
+        isDecoding = false;
+        cache_seq_len_ = 0;
+        outputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ / cache_limit_, 0});
+    }
+
     // when decoding, the input will deepCopy from cache, no need to execute
     if (isDecoding) {
-        int cache_seq_len_old = cache_seq_len_;
         cache_seq_len_ += inputs[0]->sequence();
         return MLLM_NO_ERROR;
     }
@@ -125,7 +132,6 @@ ErrorCode CPUKVCacheNPU::execute(vector<shared_ptr<Tensor>> inputs, vector<share
         }
     }
 
-    int cache_seq_len_old = cache_seq_len_;
     cache_seq_len_ += inputs[0]->sequence();
 
     return Op::execute(inputs, outputs);
