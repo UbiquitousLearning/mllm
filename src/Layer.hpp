@@ -335,9 +335,10 @@ public:
 class ShadowLinear final : public Layer {
 public:
     ShadowLinear() = default;
-    explicit ShadowLinear(int in_features, int out_features, bool bias, std::string name) {
+    explicit ShadowLinear(int in_features, int out_features, int max_position, bool bias, std::string name) {
         param_["in_features"] = in_features;
         param_["out_features"] = out_features;
+        param_["max_position"] = max_position;
         param_["bias"] = (float)bias;
         init(std::move(name), OpType::LINEARINT8SHADOW);
     }

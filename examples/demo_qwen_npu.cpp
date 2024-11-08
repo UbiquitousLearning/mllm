@@ -1,3 +1,4 @@
+#ifdef USE_QNN
 #include "backends/cpu/CPUBackend.hpp"
 #include "cmdline.h"
 #include "models/qwen/configuration_qwen.hpp"
@@ -89,3 +90,4 @@ int main(int argc, char **argv) {
         std::cout << "\n---------------" << std::endl;
     }
 }
+#endif

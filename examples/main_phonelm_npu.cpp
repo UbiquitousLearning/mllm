@@ -10,8 +10,8 @@
 #include "Net.hpp"
 #include "backends/qnn/QNNExecutor.hpp"
 
-#include "models/qwen/tokenization_qwen.hpp"
-#include "main_qwen_npu.hpp"
+#include "models/smollm/tokenization_smollm.hpp"
+#include "main_phonelm_npu.hpp"
 
 using namespace mllm;
 
@@ -51,7 +51,7 @@ unsigned int postProcessing_prefill(shared_ptr<Tensor> result, shared_ptr<Tensor
 
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen_vocab.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/phonelm_vocab.mllm");
 
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 1124);
 
@@ -60,16 +60,16 @@ int main(int argc, char **argv) {
     cmdParser.add<bool>("chunk", 'c', "use chunk execute", false, true);
     cmdParser.add<int>("head", 'h', "num of heads", false, 16);
 
-    cmdParser.add<int>("ffn", 'f', "size of ffn hidden size", false, 5504);
-    cmdParser.add<int>("hds", 'd', "size of hidden size", false, 2048);
+    cmdParser.add<int>("ffn", 'f', "size of ffn hidden size", false, 6816);
+    cmdParser.add<int>("hds", 'd', "size of hidden size", false, 2560);
 
     cmdParser.add<bool>("readfile", 'r', "read prompt from file", false, false);
 
     cmdParser.parse_check(argc, argv);
 
-    const string npu_model_path = "../models/qwen-1.5-1.8b-chat-int8.mllm";
-    const string cpu_model_path = "../models/qwen-1.5-1.8b-chat-q4k.mllm";
-    const string merge_file_path = "../vocab/qwen_merges.txt";
+    const string npu_model_path = "../models/PhoneLM-1.5B-Instruct-128.mllm";
+    const string cpu_model_path = "../models/phonelm-with-head-q4k.mllm";
+    const string merge_file_path = "../vocab/phonelm_merges.txt";
 
     string vocab_path = cmdParser.get<string>("vocab");
     int tokens_limit = cmdParser.get<int>("limits");
@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
     if (isChunkExecute)
         chunk = seqLength / 256;
 
-    int vocab_size = 151936;
+    int vocab_size = 49152;
     int hidden_dim = cmdParser.get<int>("hds");
     int ffn_hidden_dim = cmdParser.get<int>("ffn");
 
@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
         input_string = in_strs[0];
     }
 
-    auto tokenizer = QWenTokenizer(vocab_path, merge_file_path);
+    auto tokenizer = SmolLMTokenizer(vocab_path, merge_file_path);
 
     std::unique_ptr<Context> npu_ctx_ptr(new Context());
     auto *npu_ctx = npu_ctx_ptr.get();
@@ -119,9 +119,9 @@ int main(int argc, char **argv) {
     auto *inter_ctx = inter_ctx_ptr.get();
 
     // cache_max should be longer than seqLength
-    modeling::qwen_npu(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
-    modeling::qwen_npu_cpu_inter(inter_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
-    modeling::qwen_cpu_q4k(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
+    modeling::phonelm_npu(npu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
+    modeling::phonelm_npu_cpu_inter(inter_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit, seqLength, chunk);
+    modeling::phonelm_cpu_q40(cpu_ctx, vocab_size, hidden_dim, ffn_hidden_dim, head_num, tokens_limit);
 
     BackendConfig bn;
     QNNNet npuNet(bn, npu_ctx);
@@ -169,6 +169,9 @@ int main(int argc, char **argv) {
             else
                 npuExe.runExp(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
+
+            // result[0]->printData<float>();
+            // exit(0);
 
             // inter model for prefill-decode
             interExe.run(&interNet, {result[0]});
