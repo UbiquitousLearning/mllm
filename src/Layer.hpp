@@ -125,7 +125,7 @@ protected:
             do_init = !inited_loaded;
             if (op_ == nullptr) {
 #ifdef USE_QNN
-                if (param_["type"] == KVCACHE || param_["type"] == KVCACHENPU) {
+                if ((param_["type"] == KVCACHE || param_["type"] == KVCACHENPU) && (Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end())) {
                     if (kv_cache_map.find(name_) == kv_cache_map.end()) {
                         // for the prefill part, we need to create a new op
                         param_["type"] = KVCACHENPU;
