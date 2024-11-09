@@ -5,6 +5,7 @@
 #include "tokenizers/WordPiece/WordPiece.hpp"
 
 // unicode
+#include <string>
 #include <vector>
 
 using namespace mllm;
@@ -17,12 +18,13 @@ public:
         _add_special_tokens = add_special_tokens;
         this->add_special_tokens({"[PAD]", "[CLS]", "[SEP]", "[MASK]"});
     }
-    std::vector<Tensor> tokenizes(std::string &text) override {
+    std::vector<Tensor> tokenizes(const std::string &text) override {
+        string new_text;
         if (_add_special_tokens) {
-            text = "[CLS] " + text + " [SEP]";
+            new_text = "[CLS] " + text + " [SEP]";
         }
         auto tokens_id = vector<token_id_t>();
-        WordPieceTokenizer::tokenize(text, tokens_id, false);
+        WordPieceTokenizer::tokenize(new_text, tokens_id, false);
         auto tokens_type = vector<token_id_t>(tokens_id.size(), 0);
         auto position_ids = vector<token_id_t>(tokens_id.size());
         for (size_t i = 0; i < tokens_id.size(); i++) {

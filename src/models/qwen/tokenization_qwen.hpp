@@ -129,7 +129,7 @@ public:
         return result;
     }
 
-    Tensor tokenize(std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
+    Tensor tokenize(const std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
         std::vector<token_id_t> ret;
 
         if (split_special_tokens_) {

@@ -21,7 +21,7 @@ public:
         chat_template_pre = "<s>[INST] ";
         chat_template_end = " [/INST]";
     }
-    Tensor tokenize(std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
+    Tensor tokenize(const std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
         auto tokens_id = vector<token_id_t>();
         BPETokenizer::tokenize(text, tokens_id, bos_);
         return tokens2Input(tokens_id);
