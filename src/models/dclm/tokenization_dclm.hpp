@@ -37,10 +37,10 @@ public:
         BPETokenizer::setMergeRank(merge_rank);
         BPETokenizer::setSpecialToken("<|endoftext|>", "<|endoftext|>", "<|endoftext|>");
     }
-    Tensor tokenize(std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
-        text = Tokenizer::replaceString(text, ' ', "Ġ");
+    Tensor tokenize(const std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
+        auto new_text = Tokenizer::replaceString(text, ' ', "Ġ");
         std::vector<token_id_t> tokens_id;
-        BPETokenizer::tokenize(text, tokens_id, false);
+        BPETokenizer::tokenize(new_text, tokens_id, false);
         return BPETokenizer::tokens2Input(tokens_id);
     }
 

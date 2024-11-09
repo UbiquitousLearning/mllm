@@ -5,6 +5,7 @@
 #include "OpDefined.hpp"
 #include "Types.hpp"
 #include <memory>
+#include <unordered_map>
 using std::shared_ptr;
 
 namespace mllm {
