@@ -9,12 +9,17 @@ cmake .. \
 -DANDROID_ABI="arm64-v8a" \
 -DANDROID_NATIVE_API_LEVEL=android-28  \
 -DNATIVE_LIBRARY_OUTPUT=. -DNATIVE_INCLUDE_OUTPUT=. $1 $2 $3 \
+-DARM=ON \
+-DAPK=ON \
+-DQNN=ON \
 -DDEBUG=OFF \
 -DTEST=OFF \
--DARM=ON \
--DAPK=ON 
+-DQUANT=OFF \
+-DQNN_VALIDATE_NODE=ON \
+-DMLLM_BUILD_XNNPACK_BACKEND=OFF
 
-make mllm_lib -j4
+
+make mllm_lib -j16
 
 # 2. copy libs
 cp ./libmllm_lib.a ../android/app/src/main/cpp/libs/

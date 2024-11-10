@@ -130,10 +130,10 @@ std::tuple<uint8_t *, uint64_t> ParamLoader::load(string name) {
 DataType ParamLoader::getDataType(string name) {
     if (data_type_.count(name) != 1) {
         if (!this->path_.empty() && this->fp_ == nullptr) {
-            std::cerr << this->path_ << " not found" << std::endl;
+            MLLM_LOG_ERROR_STREAM << this->path_ << " not found" << std::endl;
             exit(0);
         } else if (this->fp_ != nullptr && !this->path_.empty()) {
-            std::cerr << name << " not found" << std::endl;
+            MLLM_LOG_ERROR_STREAM << name << " not found" << std::endl;
         }
         return DataType::MLLM_TYPE_COUNT;
     }

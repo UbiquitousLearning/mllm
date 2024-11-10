@@ -24,7 +24,7 @@ void FuyuPreProcess::PreProcessImages(const std::vector<uint8_t *> &images, cons
         // Data is [height * width * channels],RGB
         const unsigned char *data = stbi_load_from_memory(image, image_length[i], &width_, &height_, &channels_, 3);
         if (data == nullptr) {
-            std::cerr << "load image failed" << std::endl;
+            MLLM_LOG_ERROR_STREAM << "load image failed" << std::endl;
             exit(-1);
         }
         auto float_data = RescaleImage(data, 255.0, width_ * height_ * channels_);
@@ -41,7 +41,7 @@ void FuyuPreProcess::PreProcessImages(const std::vector<uint8_t *> &images, cons
     }
     if (do_normalize_) {
         if (mean_.size() != std_.size() || mean_.size() != 1 && mean_.size() != 3) {
-            std::cerr << "MEAN should be of same size of std and length should be (1 or 3) !" << std::endl;
+            MLLM_LOG_ERROR_STREAM << "MEAN should be of same size of std and length should be (1 or 3) !" << std::endl;
             exit(-1);
         }
         if (mean_.size() == 1) {
@@ -62,7 +62,7 @@ void FuyuPreProcess::PreProcessImages(const std::vector<std::string> &images_pat
         // read all file contents
         std::ifstream file(i, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
-            std::cerr << "Cannot open file: " << i << std::endl;
+            MLLM_LOG_ERROR_STREAM << "Cannot open file: " << i << std::endl;
             exit(-1);
         }
         auto size = file.tellg();
@@ -137,20 +137,20 @@ void FuyuPreProcess::get_sample_encoding(const std::string &text) {
     // if (tokenizer_->getTokenId("<s>", bos_token_id)) {
     //     text_ids.push_back(bos_token_id);
     // } else {
-    //     std::cerr << "BOS token not found in vocab file." << std::endl;
+    //     MLLM_LOG_ERROR_STREAM << "BOS token not found in vocab file." << std::endl;
     // }
     tokenizer_->tokenize(text_, text_ids, true);
     token_id_t answer_start_token = 0;
     if (tokenizer_->getTokenId("<0x04>", answer_start_token)) {
         text_ids.push_back(answer_start_token);
     } else {
-        std::cerr << "ANSWER_START token not found in vocab file." << std::endl;
+        MLLM_LOG_ERROR_STREAM << "ANSWER_START token not found in vocab file." << std::endl;
     }
     // token_id_t end_of_text_token = 0;
     // if (tokenizer_->getTokenId("|ENDOFTEXT|", end_of_text_token)) {
     //     text_ids.push_back(end_of_text_token);
     // } else {
-    //     std::cerr << "END_OF_TEXT token not found in vocab file." << std::endl;
+    //     MLLM_LOG_ERROR_STREAM << "END_OF_TEXT token not found in vocab file." << std::endl;
     // }
     text_ids_.push_back(text_ids);
     // TODO: Should we Pad the prompt tokens? HF pad & cut off the padding in `construct_full_unpacked_stream`.

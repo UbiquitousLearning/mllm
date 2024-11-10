@@ -29,7 +29,7 @@ ErrorCode XpEmbedding::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
 #pragma omp parallel for num_threads(thread_count)
                 for (int seq = 0; seq < input->sequence(); ++seq) {
 #ifdef USE_QNN
-                    if ((int)input->dataAt<float>(batch, head, seq, 0) == vocabSize_) {
+                    if ((int)input->dataAt<float>(batch, head, seq, 0) == vocab_size_) {
                         memset(output->hostPtr<float>() + output->offset(batch, head, seq, 0), 0, output->dimension() * sizeof(float));
                         continue;
                     }

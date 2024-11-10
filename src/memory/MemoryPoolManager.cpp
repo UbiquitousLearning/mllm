@@ -52,7 +52,7 @@ namespace mllm {
                 best_fit_block = last_block;
                 best_fit_size = block_size;
             }else{
-                std::cerr<<"Not enough space,max available is "<<max_avail;
+                MLLM_LOG_ERROR_STREAM << "Not enough space,max available is " << max_avail;
             }
         }
         #ifdef MLLM_ALLOCATOR_DEBUG

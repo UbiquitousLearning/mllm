@@ -134,12 +134,12 @@ public:
             } catch (const std::exception &e) {
 #if not defined(__ARM_NEON)
                 if (std::string("bad any_cast") != e.what()) {
-                    std::cerr << e.what() << std::endl;
+                    MLLM_LOG_ERROR_STREAM << e.what() << std::endl;
                     exit(0);
                 }
 #endif
             } catch (...) {
-                std::cerr << "load error" << std::endl;
+                MLLM_LOG_ERROR_STREAM << "load error" << std::endl;
                 exit(0);
             }
         }

@@ -49,7 +49,7 @@ void QNNExecutor::setup(Net *net) {
 }
 
 void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
-    std::cerr << "QNN Executor do not support this method" << std::endl;
+    MLLM_LOG_ERROR_STREAM << "QNN Executor do not support this method" << std::endl;
     exit(1);
 }
 
@@ -95,7 +95,7 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
             g->reshape();
             qnn_graph->setUpTensors(name);
         } else {
-            std::cerr << "Backend Not Support" << std::endl;
+            MLLM_LOG_ERROR_STREAM << "Backend Not Support" << std::endl;
             exit(1);
         }
     }
@@ -119,7 +119,7 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
 
             PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
         } else {
-            std::cerr << "Backend Not Support" << std::endl;
+            MLLM_LOG_ERROR_STREAM << "Backend Not Support" << std::endl;
             exit(1);
         }
 
@@ -231,7 +231,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
             g->reshape();
             qnn_graph->setUpTensors(name);
         } else {
-            std::cerr << "Backend Not Support" << std::endl;
+            MLLM_LOG_ERROR_STREAM << "Backend Not Support" << std::endl;
             exit(1);
         }
     }
@@ -333,7 +333,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
                     qnn_graph->forward(name);
                 }
             } else {
-                std::cerr << "Backend Not Support" << std::endl;
+                MLLM_LOG_ERROR_STREAM << "Backend Not Support" << std::endl;
                 exit(1);
             }
 
@@ -478,7 +478,7 @@ void QNNPipelineExecutor::warmup(Context *ctx, Net *net, vector<shared_ptr<Tenso
                 g->reshape();
                 qnn_graph->setUpTensors(name);
             } else {
-                std::cerr << "Backend Not Support" << std::endl;
+                MLLM_LOG_ERROR_STREAM << "Backend Not Support" << std::endl;
                 exit(1);
             }
         }
@@ -584,7 +584,7 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
                 qnn_graph->forward(name);
             }
         } else {
-            std::cerr << "Backend Not Support" << std::endl;
+            MLLM_LOG_ERROR_STREAM << "Backend Not Support" << std::endl;
             exit(1);
         }
 

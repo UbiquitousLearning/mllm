@@ -1,5 +1,4 @@
 add_subdirectory(third_party/XNNPACK)
-add_subdirectory(third_party/fmt EXCLUDE_FROM_ALL)
 
 add_library(MllmXnnpackBackend
     OBJECT

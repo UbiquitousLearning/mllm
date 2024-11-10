@@ -1,4 +1,5 @@
 macro(func_link_libaries target)
+    target_link_libraries(${target} PUBLIC fmt::fmt-header-only)
     if (MLLM_OPENMP_STATIC)
         target_compile_options(${target} PRIVATE -fopenmp)
         target_link_libraries(${target} PUBLIC MLLM_CPU -fopenmp -static-openmp)
