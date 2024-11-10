@@ -146,7 +146,7 @@ if(QNN) # QNN lib
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn)
 endif()
 
-option(MLLM_BUILD_XNNPACK_BACKEND "Build mllm's XNNPACK backend" ON)
+option(MLLM_BUILD_XNNPACK_BACKEND "Build mllm's XNNPACK backend" OFF)
 
 if(MLLM_BUILD_XNNPACK_BACKEND)
     if(NOT WIN32)
