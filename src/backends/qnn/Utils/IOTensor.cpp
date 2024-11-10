@@ -14,6 +14,7 @@
 
 #include "DataUtil.hpp"
 #include "IOTensor.hpp"
+#include "Log.h"
 #include "Logger.hpp"
 #include "PAL/Directory.hpp"
 #include "PAL/FileOp.hpp"
@@ -58,8 +59,8 @@ iotensor::StatusCode iotensor::IOTensor::readDataAndAllocateBuffer(
 iotensor::StatusCode iotensor::IOTensor::copyFromFloatToNative(float* floatBuffer,
                                                                Qnn_Tensor_t* tensor) {
   if (nullptr == floatBuffer || nullptr == tensor) {
-    QNN_ERROR("copyFromFloatToNative(): received a nullptr");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("copyFromFloatToNative(): received a nullptr");
+      return StatusCode::FAILURE;
   }
 
   StatusCode returnStatus = StatusCode::SUCCESS;
@@ -89,8 +90,8 @@ iotensor::StatusCode iotensor::IOTensor::copyFromFloatToNative(float* floatBuffe
               static_cast<__fp16*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               floatBuffer,
               datautil::calculateElementCount(dims))) {
-        QNN_ERROR("failure in castFromFloat<__fp16>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castFromFloat<__fp16>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -100,8 +101,8 @@ iotensor::StatusCode iotensor::IOTensor::copyFromFloatToNative(float* floatBuffe
               static_cast<uint8_t*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               floatBuffer,
               datautil::calculateElementCount(dims))) {
-        QNN_ERROR("failure in castFromFloat<uint8_t>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castFromFloat<uint8_t>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -111,8 +112,8 @@ iotensor::StatusCode iotensor::IOTensor::copyFromFloatToNative(float* floatBuffe
               static_cast<uint16_t*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               floatBuffer,
               datautil::calculateElementCount(dims))) {
-        QNN_ERROR("failure in castFromFloat<uint16_t>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castFromFloat<uint16_t>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -122,8 +123,8 @@ iotensor::StatusCode iotensor::IOTensor::copyFromFloatToNative(float* floatBuffe
               static_cast<uint32_t*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               floatBuffer,
               datautil::calculateElementCount(dims))) {
-        QNN_ERROR("failure in castFromFloat<uint32_t>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castFromFloat<uint32_t>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -133,8 +134,8 @@ iotensor::StatusCode iotensor::IOTensor::copyFromFloatToNative(float* floatBuffe
               static_cast<int8_t*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               floatBuffer,
               datautil::calculateElementCount(dims))) {
-        QNN_ERROR("failure in castFromFloat<int8_t>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castFromFloat<int8_t>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -144,8 +145,8 @@ iotensor::StatusCode iotensor::IOTensor::copyFromFloatToNative(float* floatBuffe
               static_cast<int16_t*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               floatBuffer,
               datautil::calculateElementCount(dims))) {
-        QNN_ERROR("failure in castFromFloat<int16_t>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castFromFloat<int16_t>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -155,8 +156,8 @@ iotensor::StatusCode iotensor::IOTensor::copyFromFloatToNative(float* floatBuffe
               static_cast<int32_t*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               floatBuffer,
               datautil::calculateElementCount(dims))) {
-        QNN_ERROR("failure in castFromFloat<int32_t>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castFromFloat<int32_t>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -166,15 +167,15 @@ iotensor::StatusCode iotensor::IOTensor::copyFromFloatToNative(float* floatBuffe
               static_cast<uint8_t*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               floatBuffer,
               datautil::calculateElementCount(dims))) {
-        QNN_ERROR("failure in castFromFloat<bool>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castFromFloat<bool>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
     default:
-      QNN_ERROR("Datatype not supported yet!");
-      returnStatus = StatusCode::FAILURE;
-      break;
+        MLLM_LOG_ERROR_LEGACY("Datatype not supported yet!");
+        returnStatus = StatusCode::FAILURE;
+        break;
   }
   return returnStatus;
 }
@@ -186,8 +187,8 @@ iotensor::StatusCode iotensor::IOTensor::populateInputTensor(
     Qnn_Tensor_t* input,
     iotensor::InputDataType inputDataType) {
   if (nullptr == input) {
-    QNN_ERROR("input is nullptr");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("input is nullptr");
+      return StatusCode::FAILURE;
   }
 
   auto returnStatus = StatusCode::SUCCESS;
@@ -230,18 +231,18 @@ iotensor::StatusCode iotensor::IOTensor::populateInputTensors(
     iotensor::InputDataType inputDataType) {
   QNN_DEBUG("populateInputTensors() graphIndx %d", graphIdx);
   if (nullptr == inputs) {
-    QNN_ERROR("inputs is nullptr");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("inputs is nullptr");
+      return StatusCode::FAILURE;
   }
   auto inputCount = graphInfo.numInputTensors;
   if (filePathsQueue.size() != inputCount) {
-    QNN_ERROR(
-        "Incorrect amount of Input files for graphIdx: %d. Expected: %d, "
-        "received: %d",
-        graphIdx,
-        inputCount,
-        filePathsQueue.size());
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY(
+          "Incorrect amount of Input files for graphIdx: %d. Expected: %d, "
+          "received: %d",
+          graphIdx,
+          inputCount,
+          filePathsQueue.size());
+      return StatusCode::FAILURE;
   }
 
   for (size_t inputIdx = 0; inputIdx < inputCount; inputIdx++) {
@@ -259,8 +260,8 @@ iotensor::StatusCode iotensor::IOTensor::populateInputTensors(
 iotensor::StatusCode iotensor::IOTensor::populateInputTensor(
     uint8_t* buffer, Qnn_Tensor_t* input, iotensor::InputDataType inputDataType) {
   if (nullptr == input) {
-    QNN_ERROR("input is nullptr");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("input is nullptr");
+      return StatusCode::FAILURE;
   }
   std::vector<size_t> dims;
   fillDims(dims, QNN_TENSOR_GET_DIMENSIONS(input), QNN_TENSOR_GET_RANK(input));
@@ -293,16 +294,16 @@ iotensor::StatusCode iotensor::IOTensor::populateInputTensors(
     qnn_wrapper_api::GraphInfo_t graphInfo,
     iotensor::InputDataType inputDataType) {
   if (nullptr == inputs) {
-    QNN_ERROR("inputs is nullptr");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("inputs is nullptr");
+      return StatusCode::FAILURE;
   }
   auto inputCount = graphInfo.numInputTensors;
   if (inputBuffers.size() != inputCount) {
-    QNN_ERROR("Incorrect amount of Input Buffers for graphIdx: %d. Expected: %d, received: %d",
-              graphIdx,
-              inputCount,
-              inputBuffers.size());
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("Incorrect amount of Input Buffers for graphIdx: %d. Expected: %d, received: %d",
+                            graphIdx,
+                            inputCount,
+                            inputBuffers.size());
+      return StatusCode::FAILURE;
   }
   for (size_t inputIdx = 0; inputIdx < inputCount; inputIdx++) {
     if (StatusCode::SUCCESS !=
@@ -320,8 +321,8 @@ iotensor::StatusCode iotensor::IOTensor::setupTensors(Qnn_Tensor_t** tensors,
                                                       uint32_t tensorCount,
                                                       Qnn_Tensor_t* tensorWrappers) {
   if (nullptr == tensorWrappers) {
-    QNN_ERROR("tensorWrappers is nullptr");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("tensorWrappers is nullptr");
+      return StatusCode::FAILURE;
   }
   if (0 == tensorCount) {
     QNN_INFO("tensor count is 0. Nothing to setup.");
@@ -330,9 +331,9 @@ iotensor::StatusCode iotensor::IOTensor::setupTensors(Qnn_Tensor_t** tensors,
   auto returnStatus = StatusCode::SUCCESS;
   *tensors          = (Qnn_Tensor_t*)calloc(1, tensorCount * sizeof(Qnn_Tensor_t));
   if (nullptr == *tensors) {
-    QNN_ERROR("mem alloc failed for *tensors");
-    returnStatus = StatusCode::FAILURE;
-    return returnStatus;
+      MLLM_LOG_ERROR_LEGACY("mem alloc failed for *tensors");
+      returnStatus = StatusCode::FAILURE;
+      return returnStatus;
   }
   for (size_t tensorIdx = 0; tensorIdx < tensorCount; tensorIdx++) {
     Qnn_Tensor_t wrapperTensor = tensorWrappers[tensorIdx];
@@ -364,14 +365,14 @@ iotensor::StatusCode iotensor::IOTensor::setupTensors(Qnn_Tensor_t** tensors,
     clientBuffer.dataSize = length;
     QNN_TENSOR_SET_CLIENT_BUF(((*tensors) + tensorIdx), clientBuffer);
     if (StatusCode::SUCCESS != returnStatus) {
-      QNN_ERROR("Failure in setupTensors, cleaning up resources");
-      if (nullptr != (QNN_TENSOR_GET_CLIENT_BUF((*tensors) + tensorIdx)).data) {
-        free(QNN_TENSOR_GET_CLIENT_BUF((*tensors) + tensorIdx).data);
+        MLLM_LOG_ERROR_LEGACY("Failure in setupTensors, cleaning up resources");
+        if (nullptr != (QNN_TENSOR_GET_CLIENT_BUF((*tensors) + tensorIdx)).data) {
+            free(QNN_TENSOR_GET_CLIENT_BUF((*tensors) + tensorIdx).data);
       }
       tearDownTensors(*tensors, tensorIdx);
       *tensors     = nullptr;
       returnStatus = StatusCode::FAILURE;
-      QNN_ERROR("Failure in setupTensors, done cleaning up resources");
+      MLLM_LOG_ERROR_LEGACY("Failure in setupTensors, done cleaning up resources");
       return returnStatus;
     }
   }
@@ -382,7 +383,7 @@ iotensor::StatusCode iotensor::IOTensor::setupTensorsNoCopy(Qnn_Tensor_t** tenso
                                                       uint32_t tensorCount,
                                                       Qnn_Tensor_t* tensorWrappers){
     if (nullptr == tensorWrappers) {
-        QNN_ERROR("tensorWrappers is nullptr");
+        MLLM_LOG_ERROR_LEGACY("tensorWrappers is nullptr");
         return StatusCode::FAILURE;
     }
     if (0 == tensorCount) {
@@ -392,7 +393,7 @@ iotensor::StatusCode iotensor::IOTensor::setupTensorsNoCopy(Qnn_Tensor_t** tenso
     auto returnStatus = StatusCode::SUCCESS;
     *tensors = (Qnn_Tensor_t *)calloc(1, tensorCount * sizeof(Qnn_Tensor_t));
     if (nullptr == *tensors) {
-        QNN_ERROR("mem alloc failed for *tensors");
+        MLLM_LOG_ERROR_LEGACY("mem alloc failed for *tensors");
         returnStatus = StatusCode::FAILURE;
         return returnStatus;
     }
@@ -420,36 +421,36 @@ iotensor::StatusCode iotensor::IOTensor::setupInputAndOutputTensors(
   auto returnStatus = StatusCode::SUCCESS;
 #ifdef QNN_ARM
   if (StatusCode::SUCCESS != setupTensorsNoCopy(inputs, graphInfo.numInputTensors, (graphInfo.inputTensors))) {
-      QNN_ERROR("Failure in setting up input tensors");
+      MLLM_LOG_ERROR_LEGACY("Failure in setting up input tensors");
       returnStatus = StatusCode::FAILURE;
   }
   if (StatusCode::SUCCESS != setupTensorsNoCopy(outputs, graphInfo.numOutputTensors, (graphInfo.outputTensors))) {
-      QNN_ERROR("Failure in setting up output tensors");
+      MLLM_LOG_ERROR_LEGACY("Failure in setting up output tensors");
       returnStatus = StatusCode::FAILURE;
   }
 #else
   if (StatusCode::SUCCESS != setupTensors(inputs, graphInfo.numInputTensors, (graphInfo.inputTensors))) {
-      QNN_ERROR("Failure in setting up input tensors");
+      MLLM_LOG_ERROR_LEGACY("Failure in setting up input tensors");
       returnStatus = StatusCode::FAILURE;
   }
   if (StatusCode::SUCCESS != setupTensors(outputs, graphInfo.numOutputTensors, (graphInfo.outputTensors))) {
-      QNN_ERROR("Failure in setting up output tensors");
+      MLLM_LOG_ERROR_LEGACY("Failure in setting up output tensors");
       returnStatus = StatusCode::FAILURE;
   }
 #endif
   if (StatusCode::SUCCESS != returnStatus) {
-    QNN_ERROR("Failure in setupInputAndOutputTensors, cleaning up resources");
-    if (nullptr != *inputs) {
-      QNN_DEBUG("cleaning up input tensors");
-      tearDownTensors(*inputs, graphInfo.numInputTensors);
-      *inputs = nullptr;
+      MLLM_LOG_ERROR_LEGACY("Failure in setupInputAndOutputTensors, cleaning up resources");
+      if (nullptr != *inputs) {
+          QNN_DEBUG("cleaning up input tensors");
+          tearDownTensors(*inputs, graphInfo.numInputTensors);
+          *inputs = nullptr;
     }
     if (nullptr != *outputs) {
       QNN_DEBUG("cleaning up output tensors");
       tearDownTensors(*outputs, graphInfo.numOutputTensors);
       *outputs = nullptr;
     }
-    QNN_ERROR("Failure in setupInputAndOutputTensors, done cleaning up resources");
+    MLLM_LOG_ERROR_LEGACY("Failure in setupInputAndOutputTensors, done cleaning up resources");
   }
   return returnStatus;
 }
@@ -545,9 +546,9 @@ iotensor::StatusCode iotensor::IOTensor::allocateBuffer(uint8_t** buffer,
       break;
 
     default:
-      QNN_ERROR("Datatype not supported yet!");
-      returnStatus = StatusCode::FAILURE;
-      break;
+        MLLM_LOG_ERROR_LEGACY("Datatype not supported yet!");
+        returnStatus = StatusCode::FAILURE;
+        break;
   }
   return returnStatus;
 }
@@ -561,8 +562,8 @@ iotensor::StatusCode iotensor::IOTensor::allocateBuffer(T** buffer, size_t& elem
             elementCount * sizeof(T));
   *buffer = (T*)malloc(elementCount * sizeof(T));
   if (nullptr == *buffer) {
-    QNN_ERROR("mem alloc failed for *buffer");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("mem alloc failed for *buffer");
+      return StatusCode::FAILURE;
   }
   return StatusCode::SUCCESS;
 }
@@ -572,8 +573,8 @@ iotensor::StatusCode iotensor::IOTensor::allocateBuffer(T** buffer, size_t& elem
 // non-float output.
 iotensor::StatusCode iotensor::IOTensor::convertToFloat(float** out, Qnn_Tensor_t* tensor) {
   if (nullptr == tensor) {
-    QNN_ERROR("tensors is nullptr");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("tensors is nullptr");
+      return StatusCode::FAILURE;
   }
   std::vector<size_t> dims;
   fillDims(dims, QNN_TENSOR_GET_DIMENSIONS(tensor), QNN_TENSOR_GET_RANK(tensor));
@@ -581,8 +582,8 @@ iotensor::StatusCode iotensor::IOTensor::convertToFloat(float** out, Qnn_Tensor_
   size_t elementCount = datautil::calculateElementCount(dims);
   returnStatus        = allocateBuffer<float>(out, elementCount);
   if (StatusCode::SUCCESS != returnStatus) {
-    QNN_ERROR("failure in allocateBuffer<float>");
-    return returnStatus;
+      MLLM_LOG_ERROR_LEGACY("failure in allocateBuffer<float>");
+      return returnStatus;
   }
   switch (QNN_TENSOR_GET_DATA_TYPE(tensor)) {
     case QNN_DATATYPE_UFIXED_POINT_8:
@@ -593,8 +594,8 @@ iotensor::StatusCode iotensor::IOTensor::convertToFloat(float** out, Qnn_Tensor_
               QNN_TENSOR_GET_QUANT_PARAMS(tensor).scaleOffsetEncoding.offset,
               QNN_TENSOR_GET_QUANT_PARAMS(tensor).scaleOffsetEncoding.scale,
               elementCount)) {
-        QNN_ERROR("failure in tfNToFloat<uint8_t>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in tfNToFloat<uint8_t>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -606,8 +607,8 @@ iotensor::StatusCode iotensor::IOTensor::convertToFloat(float** out, Qnn_Tensor_
               QNN_TENSOR_GET_QUANT_PARAMS(tensor).scaleOffsetEncoding.offset,
               QNN_TENSOR_GET_QUANT_PARAMS(tensor).scaleOffsetEncoding.scale,
               elementCount)) {
-        QNN_ERROR("failure in tfNToFloat<uint8_t>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in tfNToFloat<uint8_t>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -617,8 +618,8 @@ iotensor::StatusCode iotensor::IOTensor::convertToFloat(float** out, Qnn_Tensor_
               *out,
               reinterpret_cast<__fp16*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               elementCount)) {
-        QNN_ERROR("failure in castToFloat<__fp16>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castToFloat<__fp16>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -628,8 +629,8 @@ iotensor::StatusCode iotensor::IOTensor::convertToFloat(float** out, Qnn_Tensor_
               *out,
               reinterpret_cast<uint8_t*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               elementCount)) {
-        QNN_ERROR("failure in castToFloat<uint8_t>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castToFloat<uint8_t>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -639,8 +640,8 @@ iotensor::StatusCode iotensor::IOTensor::convertToFloat(float** out, Qnn_Tensor_
               *out,
               reinterpret_cast<uint16_t*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               elementCount)) {
-        QNN_ERROR("failure in castToFloat<uint16_t>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castToFloat<uint16_t>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -650,8 +651,8 @@ iotensor::StatusCode iotensor::IOTensor::convertToFloat(float** out, Qnn_Tensor_
               *out,
               reinterpret_cast<uint32_t*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               elementCount)) {
-        QNN_ERROR("failure in castToFloat<uint32_t>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castToFloat<uint32_t>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -661,8 +662,8 @@ iotensor::StatusCode iotensor::IOTensor::convertToFloat(float** out, Qnn_Tensor_
               *out,
               reinterpret_cast<int8_t*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               elementCount)) {
-        QNN_ERROR("failure in castToFloat<int8_t>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castToFloat<int8_t>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -672,8 +673,8 @@ iotensor::StatusCode iotensor::IOTensor::convertToFloat(float** out, Qnn_Tensor_
               *out,
               reinterpret_cast<int16_t*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               elementCount)) {
-        QNN_ERROR("failure in castToFloat<int16_t>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castToFloat<int16_t>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -683,8 +684,8 @@ iotensor::StatusCode iotensor::IOTensor::convertToFloat(float** out, Qnn_Tensor_
               *out,
               reinterpret_cast<int32_t*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               elementCount)) {
-        QNN_ERROR("failure in castToFloat<int32_t>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castToFloat<int32_t>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
@@ -694,15 +695,15 @@ iotensor::StatusCode iotensor::IOTensor::convertToFloat(float** out, Qnn_Tensor_
               *out,
               reinterpret_cast<uint8_t*>(QNN_TENSOR_GET_CLIENT_BUF(tensor).data),
               elementCount)) {
-        QNN_ERROR("failure in castToFloat<bool>");
-        returnStatus = StatusCode::FAILURE;
+          MLLM_LOG_ERROR_LEGACY("failure in castToFloat<bool>");
+          returnStatus = StatusCode::FAILURE;
       }
       break;
 
     default:
-      QNN_ERROR("Datatype not supported yet!");
-      returnStatus = StatusCode::FAILURE;
-      break;
+        MLLM_LOG_ERROR_LEGACY("Datatype not supported yet!");
+        returnStatus = StatusCode::FAILURE;
+        break;
   }
   if (StatusCode::SUCCESS != returnStatus) {
     QNN_DEBUG("freeing *out");
@@ -719,8 +720,8 @@ iotensor::StatusCode iotensor::IOTensor::convertToFloat(float** out, Qnn_Tensor_
 iotensor::StatusCode iotensor::IOTensor::convertAndWriteOutputTensorInFloat(
     Qnn_Tensor_t* output, std::vector<std::string> outputPaths, std::string fileName) {
   if (nullptr == output) {
-    QNN_ERROR("output is nullptr");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("output is nullptr");
+      return StatusCode::FAILURE;
   }
 
   auto returnStatus = StatusCode::SUCCESS;
@@ -729,15 +730,15 @@ iotensor::StatusCode iotensor::IOTensor::convertAndWriteOutputTensorInFloat(
   float* floatBuffer = nullptr;
   returnStatus       = convertToFloat(&floatBuffer, output);
   if (StatusCode::SUCCESS != returnStatus) {
-    QNN_ERROR("failure in convertToFloat");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("failure in convertToFloat");
+      return StatusCode::FAILURE;
   }
   uint8_t* bufferToWrite = reinterpret_cast<uint8_t*>(floatBuffer);
   if (datautil::StatusCode::SUCCESS !=
       datautil::writeBatchDataToFile(
           outputPaths, fileName, dims, QNN_DATATYPE_FLOAT_32, bufferToWrite, m_batchSize)) {
-    QNN_ERROR("failure in writeBatchDataToFile");
-    returnStatus = StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("failure in writeBatchDataToFile");
+      returnStatus = StatusCode::FAILURE;
   }
   if (nullptr != floatBuffer) {
     QNN_DEBUG("freeing floatBuffer");
@@ -753,8 +754,8 @@ iotensor::StatusCode iotensor::IOTensor::writeOutputTensor(Qnn_Tensor_t* output,
                                                            std::vector<std::string> outputPaths,
                                                            std::string fileName) {
   if (nullptr == output) {
-    QNN_ERROR("output is nullptr");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("output is nullptr");
+      return StatusCode::FAILURE;
   }
   auto returnStatus = StatusCode::SUCCESS;
   std::vector<size_t> dims;
@@ -767,8 +768,8 @@ iotensor::StatusCode iotensor::IOTensor::writeOutputTensor(Qnn_Tensor_t* output,
                                      QNN_TENSOR_GET_DATA_TYPE(output),
                                      bufferToWrite,
                                      m_batchSize)) {
-    QNN_ERROR("failure in writeBatchDataToFile");
-    returnStatus = StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("failure in writeBatchDataToFile");
+      returnStatus = StatusCode::FAILURE;
   }
   return returnStatus;
 }
@@ -777,8 +778,8 @@ iotensor::StatusCode iotensor::IOTensor::writeOutputTensor(Qnn_Tensor_t* output,
 // Just write output as is to files.
 iotensor::StatusCode iotensor::IOTensor::writeOutputTensor(Qnn_Tensor_t* output, uint8_t* output_buffer) {
   if (nullptr == output) {
-    QNN_ERROR("output is nullptr");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("output is nullptr");
+      return StatusCode::FAILURE;
   }
   auto returnStatus = StatusCode::SUCCESS;
   std::vector<size_t> dims;
@@ -786,8 +787,8 @@ iotensor::StatusCode iotensor::IOTensor::writeOutputTensor(Qnn_Tensor_t* output,
   float* floatBuffer = nullptr;
   returnStatus       = convertToFloat(&floatBuffer, output);
   if (StatusCode::SUCCESS != returnStatus) {
-    QNN_ERROR("failure in convertToFloat");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("failure in convertToFloat");
+      return StatusCode::FAILURE;
   }
   uint8_t* bufferToWrite = reinterpret_cast<uint8_t*>(floatBuffer);
 
@@ -818,8 +819,8 @@ iotensor::StatusCode iotensor::IOTensor::writeOutputTensors(uint32_t graphIdx,
                                                             uint32_t graphsCount,
                                                             std::string outputPath) {
   if (nullptr == outputs) {
-    QNN_ERROR("Received nullptr");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("Received nullptr");
+      return StatusCode::FAILURE;
   }
   if (graphsCount > 1) {
     if (nullptr != graphName && strlen(graphName) > 0) {
@@ -884,8 +885,8 @@ iotensor::StatusCode iotensor::IOTensor::allocateAndCopyBuffer(uint8_t** buffer,
     return StatusCode::FAILURE;
   }
   if (StatusCode::SUCCESS != allocateBuffer(buffer, dims, QNN_TENSOR_GET_DATA_TYPE(tensor))) {
-    QNN_ERROR("failure in allocateBuffer");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("failure in allocateBuffer");
+      return StatusCode::FAILURE;
   }
   pal::StringOp::memscpy(*buffer,
                          length * sizeof(uint8_t),
@@ -898,8 +899,8 @@ iotensor::StatusCode iotensor::IOTensor::fillDims(std::vector<size_t>& dims,
                                                   uint32_t* inDimensions,
                                                   uint32_t rank) {
   if (nullptr == inDimensions) {
-    QNN_ERROR("input dimensions is nullptr");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("input dimensions is nullptr");
+      return StatusCode::FAILURE;
   }
   for (size_t r = 0; r < rank; r++) {
     dims.push_back(inDimensions[r]);

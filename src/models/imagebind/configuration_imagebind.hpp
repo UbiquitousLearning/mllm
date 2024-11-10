@@ -105,7 +105,7 @@ public:
 
     explicit ImagebindConfig(const string &model_type = "huge") {
         if (model_type != "huge") {
-            std::cerr << "model type not supported" << std::endl;
+            MLLM_LOG_ERROR_STREAM << "model type not supported" << std::endl;
         }
         names_config.init();
     }

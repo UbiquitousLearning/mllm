@@ -64,4 +64,6 @@ if(OpenMP_FOUND)
     endif()
 endif()
 
+target_link_libraries(MLLM_CPU PUBLIC fmt::fmt-header-only)
+
 set_target_properties(MLLM_CPU PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)

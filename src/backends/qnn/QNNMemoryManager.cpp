@@ -1,4 +1,5 @@
 #include "QNNMemoryManager.hpp"
+#include "Log.h"
 #include "Logger.hpp"
 #include "QnnTypes.h"
 #include <cassert>
@@ -15,9 +16,9 @@ template <class T>
 static inline T resolveSymbol(void *libHandle, const char *sym) {
     T ptr = (T)pal::dynamicloading::dlSym(libHandle, sym);
     if (ptr == nullptr) {
-        QNN_ERROR("Unable to access symbol [%s]. pal::dynamicloading::dlError(): %s",
-                  sym,
-                  pal::dynamicloading::dlError());
+        MLLM_LOG_ERROR("Unable to access symbol {}. pal::dynamicloading::dlError(): {}",
+                       sym,
+                       pal::dynamicloading::dlError());
     }
     return ptr;
 }
@@ -27,7 +28,7 @@ QNNMemoryManager::QNNMemoryManager() {
     // load libcdsprpc.so
     void *libCdspHandle = pal::dynamicloading::dlOpen("libcdsprpc.so", pal::dynamicloading::DL_NOW | pal::dynamicloading::DL_LOCAL);
     if (nullptr == libCdspHandle) {
-        std::cerr << "dlopen libcdsprpc.so failed" << std::endl;
+        MLLM_LOG_ERROR_STREAM << "dlopen libcdsprpc.so failed" << std::endl;
     }
 
     rpcmem_alloc = (RpcMemAllocFn_t)dlsym(libCdspHandle, "rpcmem_alloc");
@@ -36,7 +37,7 @@ QNNMemoryManager::QNNMemoryManager() {
 
     if (nullptr == rpcmem_alloc || nullptr == rpcmem_free || nullptr == rpcmem_to_fd) {
         dlclose(libCdspHandle);
-        std::cerr << "dlsym failed" << std::endl;
+        MLLM_LOG_ERROR_STREAM << "dlsym failed" << std::endl;
     }
 #endif
     // Get QNN Interface
@@ -48,7 +49,7 @@ QNNMemoryManager::QNNMemoryManager() {
     QnnInterface_t **interfaceProviders{nullptr};
     uint32_t numProviders{0};
     if (QNN_SUCCESS != getInterfaceProviders((const QnnInterface_t ***)&interfaceProviders, &numProviders)) {
-        std::cerr << "Failed to get interface providers." << std::endl;
+        MLLM_LOG_ERROR_STREAM << "Failed to get interface providers." << std::endl;
     }
     for (size_t pIdx = 0; pIdx < numProviders; pIdx++) {
         if (QNN_API_VERSION_MAJOR == interfaceProviders[pIdx]->apiVersion.coreApiVersion.major && QNN_API_VERSION_MINOR <= interfaceProviders[pIdx]->apiVersion.coreApiVersion.minor) {
@@ -64,7 +65,7 @@ QNNMemoryManager::~QNNMemoryManager() {
         Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&mem.second.second, 1);
         if (QNN_SUCCESS != deregisterRet) {
             // handle errors
-            std::cerr << "qnnInterface_.memDeRegister failed" << std::endl;
+            MLLM_LOG_ERROR_STREAM << "qnnInterface_.memDeRegister failed" << std::endl;
         }
         rpcmem_free(mem.first);
         ptrToFdAndMemHandleMap_.erase(mem.first);
@@ -75,7 +76,7 @@ QNNMemoryManager::~QNNMemoryManager() {
 void QNNMemoryManager::setQnnInterfaceAndContext(void *context) {
     context_ = context;
     if (context_ == nullptr) {
-        std::cerr << "context is null" << std::endl;
+        MLLM_LOG_ERROR_STREAM << "context is null" << std::endl;
         exit(1);
     }
 }
@@ -91,7 +92,7 @@ void QNNMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
     // Allocate the shared buffer
     uint8_t *memPointer = (uint8_t *)rpcmem_alloc(RPCMEM_HEAP_ID_SYSTEM, RPCMEM_DEFAULT_FLAGS, size);
     if (nullptr == memPointer) {
-        std::cerr << "rpcmem_alloc failed" << std::endl;
+        MLLM_LOG_ERROR_STREAM << "rpcmem_alloc failed" << std::endl;
     }
     qnnMemPtrMap_.insert(memPointer);
     *ptr = memPointer;
@@ -112,7 +113,7 @@ void QNNMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
 void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
     auto it = qnnMemPtrMap_.find(ptr);
     if (it == qnnMemPtrMap_.end()) {
-        std::cerr << "getMemHandle failed " << ptr << std::endl;
+        MLLM_LOG_ERROR_STREAM << "getMemHandle failed " << ptr << std::endl;
         return;
     }
 
@@ -126,7 +127,7 @@ void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
 
     int memFd = rpcmem_to_fd(ptr);
     if (-1 == memFd) {
-        std::cerr << "rpcmem_to_fd failed" << std::endl;
+        MLLM_LOG_ERROR_STREAM << "rpcmem_to_fd failed" << std::endl;
         return;
     }
 
@@ -138,7 +139,7 @@ void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
     qnnTensor.v1.memType = QNN_TENSORMEMTYPE_MEMHANDLE;
     Qnn_ErrorHandle_t registRet = qnnInterface_.memRegister(context_, &memDescriptor, 1u, &(qnnTensor.v1.memHandle));
     if (registRet != QNN_SUCCESS) {
-        std::cerr << "qnnInterface memRegister failed" << std::endl;
+        MLLM_LOG_ERROR_STREAM << "qnnInterface memRegister failed" << std::endl;
         return;
     }
 
@@ -152,7 +153,7 @@ void QNNMemoryManager::deRegisterQnnTensor() {
         Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&mem.second.second, 1);
         if (QNN_SUCCESS != deregisterRet) {
             // handle errors
-            std::cerr << "qnnInterface_.memDeRegister failed" << std::endl;
+            MLLM_LOG_ERROR_STREAM << "qnnInterface_.memDeRegister failed" << std::endl;
         }
         // rpcmem_free(mem.first);
         // clear the map outside the loop.
@@ -170,7 +171,7 @@ void QNNMemoryManager::free(void *ptr) {
         Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&it->second.second, 1);
         if (QNN_SUCCESS != deregisterRet) {
             // handle errors
-            std::cerr << "qnnInterface_.memDeRegister failed" << std::endl;
+            MLLM_LOG_ERROR_STREAM << "qnnInterface_.memDeRegister failed" << std::endl;
         }
         ptrToFdAndMemHandleMap_.erase(it);
     }

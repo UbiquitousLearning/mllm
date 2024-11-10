@@ -5,6 +5,7 @@
 #ifndef LIBHELPER_HPP
 #define LIBHELPER_HPP
 
+#include <memory>
 #include <string>
 // #ifdef ANDROID_API
 #include <android/log.h>
@@ -21,14 +22,14 @@ class PreProcessor;
 class Module;
 class Tensor;
 enum PreDefinedModel {
-    LLAMA = 0,
+    QWEN = 0,
     FUYU,
     Bert,
+    PhoneLM
 };
 
 enum MLLMBackendType {
     CPU = 0,
-    GPU,
     QNN,
 };
 
@@ -44,17 +45,19 @@ class LibHelper {
     std::shared_ptr<Tokenizer> tokenizer_;
     PreProcessor *processor_;
     std::shared_ptr<Module> module_;
+    std::shared_ptr<Module> prefill_module_;
 
     // Tokenizer *tokenizer_ = nullptr;
     unsigned int eos_id_ = 2;
-    PreDefinedModel model_ = PreDefinedModel::LLAMA;
+    PreDefinedModel model_ = PreDefinedModel::QWEN;
+    MLLMBackendType backend_ = MLLMBackendType::CPU;
     bool is_first_run_cond_ = true;
-    int tokens_limit = 1000;
+    int tokens_limit = 4000;
     unsigned postProcessing(std::shared_ptr<Tensor> result, std::shared_ptr<Tensor> &out_result) const;
 public:
     bool setUp(const std::string &base_path, std::string weights_path, std::string vocab_path, std::string merge_path, PreDefinedModel model, MLLMBackendType backend_type = MLLMBackendType::CPU);
     void setCallback(callback_t callback);
-    void run(std::string &input_str, uint8_t *image, unsigned max_step, unsigned image_length) ;
+    void run(std::string &input_str, uint8_t *image, unsigned max_step, unsigned image_length, bool chat_template = false);
     std::vector<float> runForResult(std::string &input_str);
     ~LibHelper();
 };

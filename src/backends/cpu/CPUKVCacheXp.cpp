@@ -25,9 +25,8 @@ ErrorCode CPUKVCacheXp::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, sequence, inputs[0]->dimension());
 
     if (sequence > cache_limit_) {
-        std::cerr << "\n[ERROR]: Current tokens exceed cache limit: " << sequence << ">"
-                  << cache_limit_ << ";";
-        std::cerr << "\n         Please set args `--limits` >" << cache_limit_ << std::endl;
+        MLLM_LOG_ERROR_STREAM << "\n[ERROR]: Current tokens exceed cache limit: " << sequence << ">"
+                              << cache_limit_ << ";" << "\n         Please set args `--limits` >" << cache_limit_ << std::endl;
         exit(-1);
     }
     return Op::reshape(inputs, outputs);
