@@ -59,14 +59,14 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 
 <table>
     <tr>
-        <td>Demo of LLM chatting</td>
-        <td>Demo of image understanding</td>
-        <td>Demo of UI screen understanding</td>
+        <td>Demo of Chatting</td>
+        <td>Demo of Android Intent Invocation</td>
+        <td>Demo of Image Understanding</td>
     </tr>
     <tr>
-        <td> <video src="https://github.com/UbiquitousLearning/mllm/assets/38753457/7a1eb892-8259-41ff-8c97-b773d16fce7f"> </td>
-        <td> <video src="https://github.com/UbiquitousLearning/mllm/assets/38753457/32549658-5c74-4ce0-962f-6621c919faad"> </td>
-        <td>  <video src="https://github.com/UbiquitousLearning/mllm/assets/38753457/fe234f27-1393-4ee2-84ce-254cee91a27f"> </td>
+        <td>  <video src="https://github.com/user-attachments/assets/30dec62e-50ba-4b39-a8ad-2c76ece551c2"> </td>
+        <td>  <video src="https://github.com/user-attachments/assets/fc0abe83-6263-4a3a-aaf0-4313e084e3ed"> </td>
+        <td>  <video src="https://github.com/user-attachments/assets/188b8b18-a96e-41af-bef9-c059b06a4c25">  </td>
     </tr>
 </table>
             
@@ -390,4 +390,16 @@ Certain component([wenet](https://github.com/wenet-e2e/wenet)) of this project i
 These component is clearly identified in their respective subdirectories along with a copy of the Apache License 2.0.
 For the full text of the Apache License 2.0, please refer to the [LICENSE-APACHE](third_party/wenet_audio/LICENSE) file
 located in the relevant subdirectories.
+
+## Citation
+```
+@misc{mllm,
+  title = {mllm: fast and lightweight multimodal LLM inference engine for mobile and edge devices},
+  author = {Rongjie Yi and Xiang Li and Qichen Qiu and Zhenyan Lu and Hao Zhang and Daliang Xu and Liming Yang and Weikai Xie and Chenghua Wang and Mengwei Xu},
+  year = {2023},
+  publisher = {mllm Team},
+  url = {https://github.com/UbiquitousLearning/mllm}
+}
+```
+
 
