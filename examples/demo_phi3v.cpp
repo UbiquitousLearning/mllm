@@ -35,8 +35,8 @@ int main(int argc, char **argv) {
         "../assets/australia.jpg"};
    
     vector<string> in_strs = {
-        // "What's the content of the image?",
-        "What can you do?",
+        "What's the content of the image?",
+        // "What can you do?",
         // "Please introduce Beijing University of Posts and Telecommunications."
         };
 

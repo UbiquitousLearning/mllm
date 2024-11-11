@@ -58,27 +58,16 @@ public:
         embd_replace = VisionEmbdReplace("embd_replace");
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
-        //  return {Tokenizer::tokens2Input(tokens_ids, std::move(text_name)), img_tensor,imgpos2Tensor(img_pos)};
-    
-        // img_processor_output = self.img_processor(img_embeds, output_hidden_states=True)
-        // img_feature = img_processor_output.hidden_states[LAYER_IDX]
-
-        // if TYPE_FEATURE == "patch":
-        //     patch_feature = img_feature[:, 1:]
-        //     return patch_feature
         bool have_img = inputs.size() > 1;
         auto text_features = embed_tokens({inputs[0]});
         if (have_img) {
             auto image_features = img_processor({inputs[1]})[0];
-            // TODO check global_image_features
-            // TODO check shape and all magic numbers
             // img projection
             auto image_features_proj = img_projector_linear1(image_features);
             if(project_cls == "MLP") {
                 image_features_proj = img_projector_relu(image_features_proj);
                 image_features_proj = img_projector_linear2(image_features_proj);
             }
-            // TODO check dimension
             for (int i = 0; i < inputs[2].sequence(); i++) {
                 auto where_idx = inputs[0].where(32044 * (i + 1), SEQUENCE);
                 // TODO 现在这个实现只支持只有一图的情况
