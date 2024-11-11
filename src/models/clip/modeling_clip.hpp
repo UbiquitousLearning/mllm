@@ -14,7 +14,6 @@ class ClipVisionEmbedding final : public Module {
     Parameter cls_token;
     Parameter position_ids;
     Layer position_embedding;
-    int range_len_{};
 
 public:
     ClipVisionEmbedding() = default;
