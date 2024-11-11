@@ -66,10 +66,11 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
     <tr>
         <td>  <video src="https://github.com/user-attachments/assets/30dec62e-50ba-4b39-a8ad-2c76ece551c2"> </td>
         <td>  <video src="https://github.com/user-attachments/assets/fc0abe83-6263-4a3a-aaf0-4313e084e3ed"> </td>
-        <td>  <video src="https://github.com/user-attachments/assets/188b8b18-a96e-41af-bef9-c059b06a4c25">  </td>
+        <td>  <video src="https://github.com/user-attachments/assets/d54d1efe-e2be-4b54-83b2-6d1a36619afe">  </td>
     </tr>
 </table>
-            
+
+
 ## Support models
 
 [//]: # (* ✔️ : Support and test well on mobile devices.)
