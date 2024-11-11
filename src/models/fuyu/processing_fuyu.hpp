@@ -6,6 +6,7 @@
 #define TOKENIZATION_FUYU_HPP
 
 #include <vector>
+#include "Log.h"
 #include "Tensor.hpp"
 #include <utility>
 // #include "processor/FuyuPreProcess.hpp"
@@ -246,6 +247,10 @@ public:
             if (data == nullptr) {
                 MLLM_LOG_ERROR_STREAM << "load image failed" << std::endl;
                 exit(-1);
+            }
+            if (channels_ != 3) {
+                MLLM_LOG_ERROR("Image data channel not 3 but {},change to 3", channels_);
+                channels_ = 3;
             }
             auto float_data = RescaleImage(data, 255.0, width_ * height_ * channels_);
             images_.emplace_back(float_data, width_, height_, channels_);
