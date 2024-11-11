@@ -12,7 +12,7 @@
 class ClipVisionEmbedding final : public Module {
     Layer patch_embedding;
     Parameter cls_token;
-    // Parameter position_ids;
+    Parameter position_ids;
     Layer position_embedding;
     int range_len_{};
 
@@ -21,9 +21,7 @@ public:
     ClipVisionEmbedding(int hidden_dim, int patch, int img_hw, const ViTNameConfig &names, const string &base_name) {
         patch_embedding = Convolution2D(3, hidden_dim, {patch, patch}, {patch, patch}, VALID, false, base_name + names._patch_embedding_name);
         cls_token = Parameter(1, 1, 1, hidden_dim, base_name + names._cls_token_name);
-        // position_ids = Parameter(1, std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1, 1, 1, base_name + names._position_ids_name);
-        range_len_ = std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1;
-        
+        position_ids = Parameter(1, std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1, 1, 1, base_name + names._position_ids_name);
         position_embedding = Embedding(std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1, hidden_dim, base_name + names._position_embeddings_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
@@ -31,8 +29,7 @@ public:
         embd = embd.transpose({{SEQUENCE, DIMENSION}, {HEAD, SEQUENCE}}); // BSHD->BDHS->BDSH
         embd = embd.flatten(HEAD, SEQUENCE);
         embd = Tensor::cat({cls_token(), embd}, SEQUENCE);
-        auto position_ids = Tensor::range(0, range_len_);
-        embd = position_embedding(position_ids) + embd;
+        embd = position_embedding(position_ids()) + embd;
         return {embd};
     }
 };

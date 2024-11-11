@@ -16,7 +16,7 @@ public:
     string _vision_model = "img_processor.vision_model";
     string _projection = "img_projection";
     void init_phi3V() {
-        init("clip");
+        init("phi3v");
         vison_model_name = _vision_model_prefix + _vision_model;
     }
 };
