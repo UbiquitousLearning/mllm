@@ -7,6 +7,8 @@
 #include "VecDotType.hpp"
 // #include <pthread.h>
 #include "SGEMM.hpp"
+#include "compute/qt8_qt8_fp32_gemm.hpp"
+#include <cstdlib>
 
 #define ASSERT(x)                                                                \
     do {                                                                         \
@@ -639,5 +641,27 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
             }
         }
     }
+    return MLLM_NO_ERROR;
+}
+
+ErrorCode mat_mul_i8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1, int thread_count, float scale1, float scale2) {
+    if (support_bias) {
+        std::cout << "Not support bias in mat_mul_i8" << std::endl;
+        abort();
+    }
+
+    if (!transpose1) {
+        std::cout << "Not support transpose1==false in mat_mul_i8" << std::endl;
+        abort();
+    }
+
+#ifdef __ARM_NEON
+    qt8_qt8_fp32_gemm_sdot_omp(src0->rawHostPtr(), src1->rawHostPtr(), dst->rawHostPtr(), src0->sequence(), src1->sequence(), src0->dimension(),
+                               float scale1, float scale2, transpose1);
+#else
+    std::cout << "mat_mul_i8 is only supported in armv8.2+" << std::endl;
+    abort();
+#endif
+
     return MLLM_NO_ERROR;
 }

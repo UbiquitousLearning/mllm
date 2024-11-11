@@ -19,7 +19,6 @@
 #include <Types.hpp>
 #include <assert.h>
 // #include <sys/stat.h>
-#include "TensorImpl.hpp"
 
 namespace mllm {
 class Backend;
@@ -1717,9 +1716,8 @@ public:
 
     void forceResetHostPointer(void *ptr);
 
-private:
-    std::shared_ptr<TensorImplBase<QuantizedPerTensorImpl>> per_tensor_quantized_impl_ = nullptr;
-    std::shared_ptr<TensorImplBase<QunatizedPerChannelImpl>> per_channel_quantized_impl_ = nullptr;
+public:
+    float i8_scale = 1.f;
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H
