@@ -23,8 +23,9 @@
 #include "models/qwen/tokenization_qwen.hpp"
 #include "models/smollm/tokenization_smollm.hpp"
 #include "tokenizers/Unigram/Unigram.hpp"
-using namespace mllm;
 #include "models/fuyu/processing_fuyu.hpp"
+#include "processor/PostProcess.hpp"
+using namespace mllm;
 
 #ifdef USE_QNN
 #include "models/qwen/modeling_qwen_npu.hpp"
@@ -50,8 +51,8 @@ unsigned int LibHelper::postProcessing(shared_ptr<Tensor> result, shared_ptr<Ten
 }
 
 bool LibHelper::setUp(const std::string &base_path, std::string weights_path, std::string vocab_path, std::string merge_path, PreDefinedModel model, MLLMBackendType backend_type) {
-    FuyuConfig fuyuconfig(tokens_limit, "8B");
-    QWenConfig qwconfig(tokens_limit, "1.8B");
+    FuyuConfig fuyuconfig(500, "8B");
+    QWenConfig qwconfig(tokens_limit, "1.5B");
     BertConfig bertconfig;
     PhoneLMConfig phone_config(tokens_limit, "1.5B");
     vocab_path = base_path + vocab_path;
@@ -107,18 +108,16 @@ void LibHelper::setCallback(callback_t callback) {
 void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, unsigned int image_length, bool chat_template) {
     std::string output_string_;
     LOGE("Running model %d", model_);
-    bool isSwitched = false;
+    unsigned max_new_tokens = 500;
 
     if (model_ == QWEN) {
         auto tokenizer = dynamic_pointer_cast<QWenTokenizer>(tokenizer_);
         if (chat_template) input_str = tokenizer_->apply_chat_template(input_str);
         auto input_tensor = tokenizer_->tokenize(input_str);
+        max_new_tokens = tokens_limit - input_tensor.sequence();
         LlmTextGeneratorOpts opt{
-            .max_new_tokens = max_step,
-            .do_sample = true,
-            .temperature = 0.3F,
-            .top_k = 50,
-            .top_p = 0.F,
+            .max_new_tokens = max_new_tokens,
+            .do_sample = false,
         };
         if (backend_ == MLLMBackendType::QNN) {
             auto res = tokenizer->tokenizeWithPadding(input_str, 64, 151936);
@@ -139,7 +138,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
             static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
             static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();
             opt = LlmTextGeneratorOpts{
-                .max_new_tokens = 100,
+                .max_new_tokens = max_new_tokens,
                 .do_sample = false,
                 .temperature = 0.3f,
                 .top_k = 50,
@@ -147,6 +146,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 .is_padding = false,
             };
         }
+        bool isSwitched = false;
         module_->generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
             if (!isSwitched && backend_ == MLLMBackendType::QNN) {
                 static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();
@@ -165,30 +165,28 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
     } else if (model_ == FUYU) {
         auto processor = dynamic_cast<FuyuProcessor *>(processor_);
         auto input_tensors = processor->process(input_str, {image}, {image_length});
-        for (int step = 0; step < max_step; step++) {
+        for (int step = 0; step < 100; step++) {
             auto result = (*module_)({input_tensors[0], input_tensors[1], input_tensors[2]});
             auto outputs = processor->detokenize(result[0]);
             auto out_string = outputs.first;
             auto out_token = outputs.second;
             auto [end, string] = processor->postprocess(out_string);
             output_string_ += string;
-
             callback_(output_string_, !end);
             if (!end) { break; }
+            chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
         }
+        module_->clear_kvcache();
     } else if (model_ == Bert) {
         LOGE("Bert model is not supported in this version.");
     } else if (model_ == PhoneLM) {
         auto tokenizer = dynamic_pointer_cast<SmolLMTokenizer>(tokenizer_);
-
         if (chat_template) input_str = tokenizer_->apply_chat_template(input_str);
         auto input_tensor = tokenizer_->tokenize(input_str);
+        max_new_tokens = tokens_limit - input_tensor.sequence();
         LlmTextGeneratorOpts opt{
-            .max_new_tokens = 100,
+            .max_new_tokens = max_new_tokens,
             .do_sample = false,
-            // .temperature = 0.3F,
-            // .top_k = 50,
-            // .top_p = 0.F,
         };
         if (backend_ == MLLMBackendType::QNN) {
             auto res = tokenizer->tokenizeWithPadding(input_str, 64, 49152);
@@ -210,7 +208,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
             static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();
 
             opt = LlmTextGeneratorOpts{
-                .max_new_tokens = 100,
+                .max_new_tokens = max_new_tokens,
                 .do_sample = false,
                 .temperature = 0.3f,
                 .top_k = 50,
@@ -218,9 +216,9 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 .is_padding = false,
             };
         }
-
+        bool isSwitched = false;
         module_->generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
-            if (!isSwitched) {
+            if (!isSwitched && backend_ == MLLMBackendType::QNN) {
                 static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();
                 isSwitched = true;
             }
