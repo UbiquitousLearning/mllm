@@ -82,13 +82,11 @@ public:
 
 // CPU QKV MM part
 class QwenQKVmm final : public Module {
-    Layer softmax;
     Layer q_rope;
     Layer k_rope;
-    Layer k_cache;
-    Layer v_cache;
-    Layer qk_mm;
-    Layer qkv_mm;
+    KVCache k_cache;
+    KVCache v_cache;
+    Softmax softmax;
     Layer o_quantize;
 
     int hidden_size;
@@ -109,9 +107,6 @@ public:
         k_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + "k_cache", true);
         v_cache = KVCache(config.num_attention_heads / config.num_key_value_heads, config.cache_limit, base_name + "v_cache", true);
 
-        qk_mm = Matmul(false, true, base_name + "qk");
-        qkv_mm = Matmul(false, false, base_name + "qkv");
-
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
 
         o_quantize = Quantize(true, base_name + names._o_proj_name + ".quantize");
@@ -128,10 +123,8 @@ public:
         k = k_cache(k);
         v = v_cache(v);
 
-        // auto qk = qk_mm(q, k);
         auto qk = Tensor::mm(q, k.transpose(Chl::SEQUENCE, Chl::DIMENSION));
-        qk = softmax(qk);
-        // auto o = qkv_mm(qk, v);
+        qk = softmax(qk, k_cache.getCacheSeqLen());
         auto o = Tensor::mm(qk, v);
 
         o = o_quantize(o);
@@ -192,7 +185,7 @@ public:
         post_atten_res_add = Add(base_name + names._attn_base_name + "post_atten_add");
 
         post_attn_layernorm =
-            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name, false);
+            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
 
         auto mlp_base_name = base_name + names._ffn_base_name;
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
@@ -225,7 +218,7 @@ public:
 
         auto x = post_attn_layernorm(tmp);
 
-        // x = pre_mlp_quantize(x);
+        x = pre_mlp_quantize(x);
         // reshape to 32,2
         x = pre_mlp_view(x);
 
@@ -301,7 +294,7 @@ public:
         post_atten_res_add = Add(base_name + names._attn_base_name + "post_atten_add");
 
         post_attn_layernorm =
-            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name, false);
+            RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
 
         auto mlp_base_name = base_name + names._ffn_base_name;
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
@@ -309,8 +302,8 @@ public:
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
         silu = SiLU(mlp_base_name + "act");
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
-        post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize", false);
-        post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize", false);
+        post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
+        post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");
 
         down_proj = Linear(intermediate_size, hidden_size, false, mlp_base_name + names._down_proj_name);
         pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize");
@@ -334,7 +327,7 @@ public:
 
         auto x = post_attn_layernorm(tmp);
 
-        // x = pre_mlp_quantize(x);
+        x = pre_mlp_quantize(x);
         // reshape to 32,2
         x = pre_mlp_view(x);
 
@@ -455,7 +448,7 @@ public:
         part2 = QwenDecoderNPUPart2WithShadow(config, names, base_name);
         part2.to(MLLM_QNN);
 
-        shadow_linear = ShadowLinear(config.intermediate_size, hidden_size, false, base_name + names._ffn_base_name + names._down_proj_name + ".shadow");
+        shadow_linear = ShadowLinear(config.intermediate_size, hidden_size, 1024, false, base_name + names._ffn_base_name + names._down_proj_name + ".shadow");
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
@@ -596,7 +589,6 @@ public:
             auto out_token = text_generator_->generate(_out[0]);
             if (!call_back(out_token)) break;
             chatPostProcessing(out_token, input_ids, {});
-            std::cout << "\n========AFTER PREFILL=========" << std::endl;
             return;
         }
     }

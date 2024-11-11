@@ -23,7 +23,7 @@ void ClipPreProcessor::PreProcessImages(const std::vector<uint8_t *> &images, co
         int width, height, channels;
         auto data = stbi_load_from_memory(images[i], image_length[i], &width, &height, &channels, 3);
         if (data == nullptr) {
-            std::cerr << "Error: Failed to load image from memory." << std::endl;
+            MLLM_LOG_ERROR_STREAM << "Error: Failed to load image from memory." << std::endl;
             exit(-1);
         }
         float *f32_data = nullptr;
@@ -73,7 +73,7 @@ void ClipPreProcessor::PreProcessImages(const std::vector<std::string> &images_p
         // read all file contents
         std::ifstream file(i, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
-            std::cerr << "Cannot open file: " << i << std::endl;
+            MLLM_LOG_ERROR_STREAM << "Cannot open file: " << i << std::endl;
             exit(-1);
         }
         auto size = file.tellg();

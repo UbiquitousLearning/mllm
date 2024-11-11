@@ -5,8 +5,9 @@
 #include "OpDefined.hpp"
 #include "Types.hpp"
 #include <memory>
+#include <unordered_map>
 using std::shared_ptr;
-
+using std::unordered_map;
 namespace mllm {
 class Op;
 
@@ -58,10 +59,10 @@ public:
     virtual Op *opCreate(const OpParam &op_param, string name = "", int threadCount = 4) = 0;
     virtual TensorFunction *funcCreate(TensorFuncType type) = 0;
 
-    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
-    virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
-    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
-    virtual void onExecuteEnd(){};
+    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") {};
+    virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") {};
+    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") {};
+    virtual void onExecuteEnd(std::vector<std::shared_ptr<Tensor>> &outputs, const string &graph_name = "") {};
 
     /**
      * \brief Registers all the operations supported by the backend.
@@ -85,7 +86,7 @@ protected:
  */
 class BackendCreator {
 public:
-    virtual Backend* create(BackendConfig config) = 0;
+    virtual Backend *create(BackendConfig config) = 0;
 };
 
 /**

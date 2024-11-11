@@ -17,40 +17,11 @@
 #include <algorithm>
 #include <unordered_map>
 
-// unicode
-#include <codecvt>
-
 using namespace mllm;
 
 #define UTF8(x) any_to_utf8(x)
 #define CHR(x) __chr(x)
 #define ORD(x) __ord(x)
-
-static std::string any_to_utf8(std::string s) {
-    // the original input is utf-8 already
-    return s;
-}
-
-static std::string __chr(int v) {
-    std::wstring wString(1, v);
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> convert;
-    std::string utf8 = convert.to_bytes(wString);
-    return utf8;
-}
-
-static std::vector<int> __ord(std::string v) {
-    std::vector<int> ret;
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> convert;
-    std::wstring utf8str = convert.from_bytes(v);
-    for (auto i = 0; i < utf8str.length(); ++i) ret.emplace_back(utf8str[i]);
-    return ret;
-}
-
-static const std::string PAT_STR = R"((?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\r\n\p{L}\p{N}]?\p{L}+|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n]*|\s*[\r\n]+|\s+(?:$|[^\S])|\s+)";
-static const std::string SPLIT_PAT_STR = R"(<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>)";
-static const std::vector<std::string> FIXED_PAT_STRS = {
-    "(?:'[sS]|'[tT]|'[rR][eE]|'[vV][eE]|'[mM]|'[lL][lL]|'[dD])|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+",
-};
 
 class SmolLMTokenizer final : public BPETokenizer {
 public:
@@ -160,11 +131,11 @@ public:
         return result;
     }
 
-    Tensor tokenize(std::string &text) override {
+    Tensor tokenize(const std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
         std::vector<token_id_t> ret;
 
         if (split_special_tokens_) {
-            const auto word_collection = unicode_regex_split(text, FIXED_PAT_STRS);
+            const auto word_collection = unicode_regex_split(text, regex_exprs);
             for (auto &piece : word_collection) {
                 // look up table
                 // std::string token;
@@ -189,7 +160,7 @@ public:
                     BPETokenizer::tokenize(token, tmp, false, special_tokens, true);
                     ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
                 } else {
-                    const auto word_collection = unicode_regex_split(p, FIXED_PAT_STRS);
+                    const auto word_collection = unicode_regex_split(p, regex_exprs);
                     for (auto &piece : word_collection) {
                         // look up table
                         // std::string token;
@@ -212,7 +183,7 @@ public:
         std::vector<token_id_t> ret;
 
         if (split_special_tokens_) {
-            const auto word_collection = unicode_regex_split(text, FIXED_PAT_STRS);
+            const auto word_collection = unicode_regex_split(text, regex_exprs);
             for (auto &piece : word_collection) {
                 // look up table
                 // std::string token;
@@ -237,7 +208,7 @@ public:
                     BPETokenizer::tokenize(token, tmp, false, special_tokens, true);
                     ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
                 } else {
-                    const auto word_collection = unicode_regex_split(p, FIXED_PAT_STRS);
+                    const auto word_collection = unicode_regex_split(p, regex_exprs);
                     for (auto &piece : word_collection) {
                         // look up table
                         // std::string token;
@@ -288,6 +259,10 @@ public:
     }
 
 public:
+    std::vector<std::string> regex_exprs = {
+        "\\p{N}",
+        "'s|'t|'re|'ve|'m|'ll|'d| ?\\p{L}+| ?\\p{N}+| ?[^\\s\\p{L}\\p{N}]+|\\s+(?!\\S)",
+    };
     bool split_special_tokens_ = false;
     std::unordered_map<int, std::string> byte_encoder_;
     std::unordered_map<std::string, int> byte_decoder_;

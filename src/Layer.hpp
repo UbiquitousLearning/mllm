@@ -5,10 +5,8 @@
 #ifndef OPERATION_H
 #define OPERATION_H
 
-#include <cassert>
 #include <cstddef>
 #include <cstdlib>
-#include <iostream>
 #include <memory>
 #include <utility>
 
@@ -17,7 +15,6 @@
 #include "Op.hpp"
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
-#include "Timing.hpp"
 
 #include <Module.hpp>
 
@@ -57,6 +54,11 @@ public:
 
     Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2) {
         auto ts = run({input0, input1, input2}, 1);
+        return ts[0].get();
+    }
+
+    Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2, Tensor &input3) {
+        auto ts = run({input0, input1, input2, input3}, 1);
         return ts[0].get();
     }
 
@@ -123,7 +125,7 @@ protected:
             do_init = !inited_loaded;
             if (op_ == nullptr) {
 #ifdef USE_QNN
-                if (param_["type"] == KVCACHE || param_["type"] == KVCACHENPU) {
+                if ((param_["type"] == KVCACHE || param_["type"] == KVCACHENPU) && (Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end())) {
                     if (kv_cache_map.find(name_) == kv_cache_map.end()) {
                         // for the prefill part, we need to create a new op
                         param_["type"] = KVCACHENPU;
@@ -333,9 +335,10 @@ public:
 class ShadowLinear final : public Layer {
 public:
     ShadowLinear() = default;
-    explicit ShadowLinear(int in_features, int out_features, bool bias, std::string name) {
+    explicit ShadowLinear(int in_features, int out_features, int max_position, bool bias, std::string name) {
         param_["in_features"] = in_features;
         param_["out_features"] = out_features;
+        param_["max_position"] = max_position;
         param_["bias"] = (float)bias;
         init(std::move(name), OpType::LINEARINT8SHADOW);
     }
@@ -535,16 +538,25 @@ public:
     explicit KVCache(int cache_max, std::string name) {
         param_["n_rep"] = 1;
         param_["cache_max"] = cache_max;
+        param_["for_xnn"] = false;
         init(std::move(name), OpType::KVCACHE);
     }
     explicit KVCache(int n_rep, int cache_max, std::string name) {
         param_["n_rep"] = n_rep;
         param_["cache_max"] = cache_max;
+        param_["for_xnn"] = false;
+        init(std::move(name), OpType::KVCACHE);
+    }
+    explicit KVCache(int n_rep, int cache_max, bool for_xnn, std::string name) {
+        param_["n_rep"] = n_rep;
+        param_["cache_max"] = cache_max;
+        param_["for_xnn"] = for_xnn;
         init(std::move(name), OpType::KVCACHE);
     }
     explicit KVCache(int n_rep, int cache_max, std::string name, bool npuEnbaled) {
         param_["n_rep"] = n_rep;
         param_["cache_max"] = cache_max;
+        param_["for_xnn"] = false;
         if (npuEnbaled) {
             init(std::move(name), OpType::KVCACHENPU);
         } else {
@@ -579,9 +591,10 @@ public:
 
 class RMSNorm final : public Layer {
 public:
-    explicit RMSNorm(int norm_size, float epsilon, std::string name) {
+    explicit RMSNorm(int norm_size, float epsilon, std::string name, bool isFP32 = true) {
         param_["norm_size"] = norm_size;
         param_["epsilon"] = epsilon;
+        param_["isFP32"] = (float)isFP32;
         init(std::move(name), OpType::RMSNORM);
     }
 
@@ -589,14 +602,6 @@ public:
         param_["norm_size"] = norm_size;
         param_["epsilon"] = epsilon;
         param_["add_unit_offset"] = (float)add_unit_offset;
-        init(std::move(name), OpType::RMSNORM);
-    }
-
-    // int8 output rmsnorm for qnn
-    explicit RMSNorm(int norm_size, float epsilon, std::string name, bool isFP32) {
-        param_["norm_size"] = norm_size;
-        param_["epsilon"] = epsilon;
-        param_["isFP32"] = (float)isFP32;
         init(std::move(name), OpType::RMSNORM);
     }
 
@@ -738,6 +743,21 @@ public:
     }
 };
 
+class Direct final : public Layer {
+public:
+    enum DirectType : uint32_t {
+        Normal = 0,
+        ExternalInput = 1,
+        ExternalOutput = 2,
+        KeepLive = 3,
+    };
+
+    Direct(DirectType t, const std::string &name) {
+        param_["DirectType"] = (float)t;
+        init(name, OpType::DIRECT);
+    }
+};
+
 class Dequantize final : public Layer {
 public:
     explicit Dequantize(bool isNSHD, std::string name, bool isFP32 = true) {
@@ -745,6 +765,18 @@ public:
         param_["isFP32"] = (float)isFP32;
         init(std::move(name), OpType::DEQUANTIZE);
     }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class Dispatch final : public Layer {
+public:
+    explicit Dispatch(const std::string &name) {
+        init(name, OpType::DISPATCH);
+    }
+
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
         return ts[0].get();
@@ -826,6 +858,18 @@ public:
     }
 };
 
+class SubgraphStart final : public Layer {
+public:
+    explicit SubgraphStart(const std::string &name) {
+        init(name, OpType::SUBGRAPHSTART);
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
 class Transpose final : public Layer {
 public:
     explicit Transpose(std::vector<int> perm, std::string name) {
@@ -841,6 +885,56 @@ public:
     }
 };
 
+class SubgraphFinalize final : public Layer {
+public:
+    explicit SubgraphFinalize(const std::string &name) {
+        init(name, OpType::SUBGRAPHFINALIZE);
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class Device2Host final : public Layer {
+public:
+    explicit Device2Host(const std::string &name) {
+        init(name, OpType::D2H);
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class XP_KVCache final : public Layer {
+public:
+    explicit XP_KVCache(int n_rep, int cache_max, std::string name) {
+        param_["n_rep"] = (float)n_rep;
+        param_["cache_max"] = (float)cache_max;
+        init(std::move(name), OpType::XP_KVCACHE);
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class ScaledDotProductAttention final : public Layer {
+public:
+    explicit ScaledDotProductAttention(std::string name) {
+        init(std::move(name), OpType::SDPA);
+    }
+
+    // Q, K, V
+    Tensor &operator()(Tensor &Q, Tensor &K, Tensor &V) {
+        auto ts = run({Q, K, V}, 1); // Q, K, V
+        return ts[0].get();
+    }
+};
 //  Only for QNN END
 
 } // namespace mllm

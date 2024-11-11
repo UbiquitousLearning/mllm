@@ -116,15 +116,14 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     return Op::reshape(inputs, outputs);
 }
 
-
-void CPURoPE::rope_llama(shared_ptr<Tensor> input, shared_ptr<Tensor> output){
+void CPURoPE::rope_llama(shared_ptr<Tensor> input, shared_ptr<Tensor> output) {
     auto out_dtype = output->dtype();
     int partial_dimension = (input->dimension()) * partial_rotary_factor_;
 #pragma omp parallel for collapse(4) num_threads(thread_count)
     for (int n = 0; n < input->batch(); ++n) {
         for (int h = 0; h < input->head(); ++h) {
             for (int s = 0; s < input->sequence(); ++s) { // sequance
-                for (int d = 0; d < partial_dimension; d+=2) {
+                for (int d = 0; d < partial_dimension; d += 2) {
                     float in_value = input->dataAt<float>(n, h, s, d);
                     float in_value_2 = input->dataAt<float>(n, h, s, d + 1);
                     float sin_value = sin_[s + h_cnt_][d];
@@ -133,29 +132,28 @@ void CPURoPE::rope_llama(shared_ptr<Tensor> input, shared_ptr<Tensor> output){
                     auto value2 = in_value * sin_value + in_value_2 * cos_value;
                     if (out_dtype == MLLM_TYPE_F32) {
                         output->setDataAt<float>(n, h, s, d, value);
-                        output->setDataAt<float>(n, h, s, d+1, value2);
+                        output->setDataAt<float>(n, h, s, d + 1, value2);
                     } else if (out_dtype == MLLM_TYPE_F16) {
                         output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
-                        output->setDataAt<mllm_fp16_t>(n, h, s, d+1, MLLM_FP32_TO_FP16(value2));
+                        output->setDataAt<mllm_fp16_t>(n, h, s, d + 1, MLLM_FP32_TO_FP16(value2));
                     }
                 }
             }
         }
     }
 }
-void CPURoPE::rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output){
+void CPURoPE::rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output) {
     auto out_dtype = output->dtype();
     int partial_dimension = (input->dimension()) * partial_rotary_factor_;
     int half = (int)(partial_dimension / 2);
-    assert(partial_dimension%2==0);
-    if(output->ctype() == BSHD){     
-        if (input->dtype() == MLLM_TYPE_F16)   {
-
+    assert(partial_dimension % 2 == 0);
+    if (output->ctype() == BSHD) {
+        if (input->dtype() == MLLM_TYPE_F16) {
 #pragma omp parallel for collapse(4) num_threads(thread_count)
             for (int n = 0; n < input->batch(); ++n) {
                 for (int h = 0; h < input->head(); ++h) {
                     for (int s = 0; s < input->sequence(); ++s) { // sequance
-                        for (int d = 0; d < partial_dimension/2; ++d) {
+                        for (int d = 0; d < partial_dimension / 2; ++d) {
                             auto v = input->ptrAt<mllm_fp16_t>(n, h, s, d);
                             auto o = output->ptrAt<mllm_fp16_t>(n, h, s, d);
                             float in_value = static_cast<float>(v[0]);
@@ -172,13 +170,12 @@ void CPURoPE::rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output){
             }
 
         } else {
-        
-            if (out_dtype == MLLM_TYPE_F32){
+            if (out_dtype == MLLM_TYPE_F32) {
 #pragma omp parallel for collapse(4) num_threads(thread_count)
                 for (int n = 0; n < input->batch(); ++n) {
                     for (int h = 0; h < input->head(); ++h) {
                         for (int s = 0; s < input->sequence(); ++s) { // sequance
-                            for (int d = 0; d < partial_dimension/2; ++d) {
+                            for (int d = 0; d < partial_dimension / 2; ++d) {
                                 auto v = input->ptrAt<float>(n, h, s, d);
                                 auto o = output->ptrAt<float>(n, h, s, d);
                                 float in_value = v[0];
@@ -193,12 +190,12 @@ void CPURoPE::rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output){
                         }
                     }
                 }
-            }else if(out_dtype == MLLM_TYPE_F16){
+            } else if (out_dtype == MLLM_TYPE_F16) {
 #pragma omp parallel for collapse(4) num_threads(thread_count)
                 for (int n = 0; n < input->batch(); ++n) {
                     for (int h = 0; h < input->head(); ++h) {
                         for (int s = 0; s < input->sequence(); ++s) { // sequance
-                            for (int d = 0; d < partial_dimension/2; ++d) {
+                            for (int d = 0; d < partial_dimension / 2; ++d) {
                                 auto v = input->ptrAt<float>(n, h, s, d);
                                 auto o = output->ptrAt<mllm_fp16_t>(n, h, s, d);
                                 float in_value = v[0];
@@ -221,10 +218,8 @@ void CPURoPE::rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output){
     for (int n = 0; n < input->batch(); ++n) {
         for (int h = 0; h < input->head(); ++h) {
             for (int s = 0; s < input->sequence(); ++s) { // sequance
-                for (int d = 0; d < partial_dimension/2; ++d) {
-
-                    if (input->dtype()== MLLM_TYPE_F16) {
-
+                for (int d = 0; d < partial_dimension / 2; ++d) {
+                    if (input->dtype() == MLLM_TYPE_F16) {
                         float in_value = static_cast<float>(input->dataAt<mllm_fp16_t>(n, h, s, d));
                         float in_value_2 = static_cast<float>(input->dataAt<mllm_fp16_t>(n, h, s, d + partial_dimension / 2));
                         float sin_value = sin_[s + h_cnt_][d];
@@ -233,10 +228,10 @@ void CPURoPE::rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output){
                         auto value2 = in_value * sin_value + in_value_2 * cos_value;
                         if (out_dtype == MLLM_TYPE_F32) {
                             output->setDataAt<float>(n, h, s, d, value);
-                            output->setDataAt<float>(n, h, s, d+ partial_dimension / 2, value2);
+                            output->setDataAt<float>(n, h, s, d + partial_dimension / 2, value2);
                         } else if (out_dtype == MLLM_TYPE_F16) {
                             output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
-                            output->setDataAt<mllm_fp16_t>(n, h, s, d+ partial_dimension / 2, MLLM_FP32_TO_FP16(value2));
+                            output->setDataAt<mllm_fp16_t>(n, h, s, d + partial_dimension / 2, MLLM_FP32_TO_FP16(value2));
                         }
 
                     } else {
@@ -248,19 +243,18 @@ void CPURoPE::rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output){
                         auto value2 = in_value * sin_value + in_value_2 * cos_value;
                         if (out_dtype == MLLM_TYPE_F32) {
                             output->setDataAt<float>(n, h, s, d, value);
-                            output->setDataAt<float>(n, h, s, d+ partial_dimension / 2, value2);
+                            output->setDataAt<float>(n, h, s, d + partial_dimension / 2, value2);
                         } else if (out_dtype == MLLM_TYPE_F16) {
                             output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
-                            output->setDataAt<mllm_fp16_t>(n, h, s, d+ partial_dimension / 2, MLLM_FP32_TO_FP16(value2));
+                            output->setDataAt<mllm_fp16_t>(n, h, s, d + partial_dimension / 2, MLLM_FP32_TO_FP16(value2));
                         }
                     }
-                    
                 }
             }
         }
     }
 }
-void CPURoPE::rope_permission(shared_ptr<Tensor> input, shared_ptr<Tensor> output){
+void CPURoPE::rope_permission(shared_ptr<Tensor> input, shared_ptr<Tensor> output) {
     auto out_dtype = output->dtype();
     int partial_dimension = (input->dimension()) * partial_rotary_factor_;
 #pragma omp parallel for collapse(4) num_threads(thread_count)
@@ -268,7 +262,7 @@ void CPURoPE::rope_permission(shared_ptr<Tensor> input, shared_ptr<Tensor> outpu
         for (int h = 0; h < input->head(); ++h) {
             for (int s = 0; s < input->sequence(); ++s) { // sequance
                 for (int d = 0; d < partial_dimension; ++d) {
-                float in_value = input->dataAt<float>(n, h, s, d);
+                    float in_value = input->dataAt<float>(n, h, s, d);
                     float in_value_2;
                     float sin_value = sin_[s + h_cnt_][d];
                     float cos_value = cos_[s + h_cnt_][d];
@@ -300,7 +294,7 @@ void CPURoPE::rope_permission(shared_ptr<Tensor> input, shared_ptr<Tensor> outpu
         }
     }
 }
-void CPURoPE::rope_mla(shared_ptr<Tensor> input, shared_ptr<Tensor> output){
+void CPURoPE::rope_mla(shared_ptr<Tensor> input, shared_ptr<Tensor> output) {
     auto out_dtype = output->dtype();
     int partial_dimension = (input->dimension()) * partial_rotary_factor_;
 #pragma omp parallel for collapse(4) num_threads(thread_count)
@@ -313,13 +307,13 @@ void CPURoPE::rope_mla(shared_ptr<Tensor> input, shared_ptr<Tensor> output){
                     if (d < half_dim) {
                         in_value = input->dataAt<float>(n, h, s, d * 2);
                     } else {
-                        in_value = input->dataAt<float>(n, h, s, 2 *(d - half_dim)+1);
+                        in_value = input->dataAt<float>(n, h, s, 2 * (d - half_dim) + 1);
                     }
                     float in_value_2;
                     if (d < half_dim) {
-                        in_value_2 = -input->dataAt<float>(n, h, s, 2 *d+1);
+                        in_value_2 = -input->dataAt<float>(n, h, s, 2 * d + 1);
                     } else {
-                        in_value_2 = input->dataAt<float>(n, h, s, 2 *(d - half_dim));
+                        in_value_2 = input->dataAt<float>(n, h, s, 2 * (d - half_dim));
                     }
                     // no change
                     float sin_value = sin_[s + h_cnt_][d];
@@ -351,8 +345,7 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     } else if (pose_type_ == MLAROPE) {
         rope_mla(input, output);
     } else {
-        std::cerr << "RoPE type error" << std::endl;
-    
+        MLLM_LOG_ERROR_STREAM << "RoPE type error" << std::endl;
     }
     /*
 #pragma omp parallel for collapse(4) num_threads(thread_count)

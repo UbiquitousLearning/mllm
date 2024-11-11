@@ -19,7 +19,7 @@ void PreProcessor::PreProcessImages(const std::vector<std::string> &images_path)
         // read all file contents
         std::ifstream file(i, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
-            std::cerr << "Cannot open file: " << i << std::endl;
+            MLLM_LOG_ERROR_STREAM << "Cannot open file: " << i << std::endl;
             exit(-1);
         }
         auto size = file.tellg();
@@ -88,7 +88,7 @@ std::vector<ImageInfo> PreProcessor::ResizeImages(std::vector<ImageInfo> &images
         filter = stbir_filter::STBIR_FILTER_TRIANGLE;
         break;
     default:
-        std::cerr << "Not implemented Reshape Filter yet" << std::endl;
+        MLLM_LOG_ERROR_STREAM << "Not implemented Reshape Filter yet" << std::endl;
         // exit(-1);
         filter = stbir_filter::STBIR_FILTER_DEFAULT;
     }

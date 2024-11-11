@@ -8,10 +8,12 @@
 
 #include <dlfcn.h>
 #include <stdlib.h>
+#include <vector>
 
+#include "Log.h"
 #include "PAL/Debug.hpp"
 #include "PAL/DynamicLoading.hpp"
-
+const std::vector<std::string> LIB_PREFIX = {"/system/lib64/", "/odm/lib64/", "/vendor/lib64/", "/data/local/tmp/mllm/qnn-lib/", "/system_ext/lib64/"};
 void *pal::dynamicloading::dlOpen(const char *filename, int flags) {
   int realFlags = 0;
 
@@ -27,12 +29,23 @@ void *pal::dynamicloading::dlOpen(const char *filename, int flags) {
     realFlags |= RTLD_GLOBAL;
   }
 
-  return ::dlopen(filename, realFlags);
+  auto res = ::dlopen(filename, realFlags);
+  if (!res) {
+      for (auto prefix_ : LIB_PREFIX) {
+          std::string prefix = prefix_ + filename;
+          res = ::dlopen(prefix.c_str(), realFlags);
+          if (res) {
+              break;
+          }
+          MLLM_LOG_ERROR("{} not found", prefix);
+      }
+  }
+  return res;
 }
 
 void *pal::dynamicloading::dlSym(void *handle, const char *symbol) {
   if (handle == DL_DEFAULT) {
-    return ::dlsym(RTLD_DEFAULT, symbol);
+      handle = RTLD_DEFAULT;
   }
 
   return ::dlsym(handle, symbol);

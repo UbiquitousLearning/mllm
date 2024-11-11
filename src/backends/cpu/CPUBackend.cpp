@@ -5,7 +5,6 @@
 #include "Backend.hpp"
 #include "CPUKVCacheNPU.hpp"
 #include "CPULinearInt8.hpp"
-#include "CPUNPUView.hpp"
 #include "CPUPoEmbedding.hpp"
 #include "CPUSplitInput.hpp"
 #include "OpDefined.hpp"
@@ -55,13 +54,14 @@
 #include "CPUMergeOutput.hpp"
 #include "CPULinearINT8Shadow.hpp"
 #include "CPUIRoPE.hpp"
+#include "CPUKVCacheXp.hpp"
 
 #include "CPUTensorFunction.hpp"
 #include "CPUPosition.hpp"
 
 namespace mllm {
 class CPUBackendCreator : public BackendCreator {
-    Backend* create(BackendConfig config) {
+    Backend *create(BackendConfig config) {
         shared_ptr<MemoryManager> mm = nullptr;
         switch (config.memory) {
         case BackendConfig::Memory_High:
@@ -90,7 +90,7 @@ Op *CPUBackend::opCreate(const OpParam &op_param, string name, int threadCount) 
     OpType optype = OpType(op_param.find("type")->second);
     auto iter = map_creator_.find(optype);
     if (iter == map_creator_.end()) {
-        printf("Don't support type \n");
+        std::cout << "CPU Op Don't support type : " << name << std::endl;
         return nullptr;
     }
     Op *exe = iter->second->create(op_param, this, name, cpu_threads);
@@ -112,7 +112,6 @@ void CPUBackend::registerOps() {
     addCreator(EMBEDDING, (CPUBackend::Creator *)(new CPUEmbeddingCreator()));
     addCreator(MUL, (CPUBackend::Creator *)(new CPUMulCreator()));
     addCreator(VIEW, (CPUBackend::Creator *)(new CPUViewCreator()));
-    addCreator(NPUVIEW, (CPUBackend::Creator *)(new CPUNPUViewCreator()));
     addCreator(KVCACHE, (CPUBackend::Creator *)(new CPUKVCacheCreator()));
     addCreator(KVCACHENPU, (CPUBackend::Creator *)(new CPUKVCacheNPUCreator()));
     addCreator(RELU, (CPUBackend::Creator *)(new CPUReLUCreator()));
@@ -146,11 +145,12 @@ void CPUBackend::registerOps() {
     addCreator(SPLITINPUT, (CPUBackend::Creator *)(new CPUSplitInputCreator()));
     addCreator(LINEARINT8SHADOW, (CPUBackend::Creator *)(new CPULinearINT8ShadowCreator()));
     addCreator(IROPE, (CPUBackend::Creator *)(new CPUIRoPECreator()));
+    addCreator(XP_KVCACHE, (CPUBackend::Creator *)(new CPUKVCacheXpCreator()));
 }
 TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {
     auto iter = map_function_.find(type);
     if (iter == map_function_.end()) {
-        printf("Don't support type \n");
+        std::cout << "CPU funcCreate Don't support type : " << type << std::endl;
         return nullptr;
     }
     return iter->second;

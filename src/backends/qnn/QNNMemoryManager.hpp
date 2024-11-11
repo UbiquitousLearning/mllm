@@ -1,6 +1,6 @@
 #ifndef MLLM_QNNMEMORY_SYSTEM_H
 #define MLLM_QNNMEMORY_SYSTEM_H
-
+#include "Log.h"
 #include "Log/Logger.hpp"
 #include "MemoryManager.hpp"
 #include "PAL/DynamicLoading.hpp"

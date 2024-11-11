@@ -1,3 +1,4 @@
+#ifdef USE_QNN
 #include <iostream>
 #include <csignal>
 #include <memory>
@@ -52,7 +53,7 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen_vocab.mllm");
 
-    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 1024);
+    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 1124);
 
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.add<int>("seq", 's', "seqenth length", false, 64);
@@ -61,6 +62,8 @@ int main(int argc, char **argv) {
 
     cmdParser.add<int>("ffn", 'f', "size of ffn hidden size", false, 5504);
     cmdParser.add<int>("hds", 'd', "size of hidden size", false, 2048);
+
+    cmdParser.add<bool>("readfile", 'r', "read prompt from file", false, false);
 
     cmdParser.parse_check(argc, argv);
 
@@ -74,9 +77,12 @@ int main(int argc, char **argv) {
     int seqLength = cmdParser.get<int>("seq");
     bool isChunkExecute = cmdParser.get<bool>("chunk");
     int head_num = cmdParser.get<int>("head");
+
+    bool read_file = cmdParser.get<bool>("readfile");
+
     int chunk = 1;
     if (isChunkExecute)
-        chunk = 2;
+        chunk = seqLength / 256;
 
     int vocab_size = 151936;
     int hidden_dim = cmdParser.get<int>("hds");
@@ -87,8 +93,23 @@ int main(int argc, char **argv) {
         // " What can you do?",
         // "Please introduce Beijing University of Posts and Telecommunications."};
     };
+
+    string input_string;
+    if (read_file) {
+        std::ifstream file("./func_prompt.txt");
+        if (!file) {
+            std::cerr << "无法打开文件！" << std::endl;
+            return 1;
+        }
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        input_string = buffer.str();
+        file.close(); // 关闭文件
+    } else {
+        input_string = in_strs[0];
+    }
+
     auto tokenizer = QWenTokenizer(vocab_path, merge_file_path);
-    auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(in_strs[0], seqLength, vocab_size);
 
     std::unique_ptr<Context> npu_ctx_ptr(new Context());
     auto *npu_ctx = npu_ctx_ptr.get();
@@ -130,12 +151,15 @@ int main(int argc, char **argv) {
     shared_ptr<Tensor> input = std::make_shared<Tensor>();
 
     for (int str_i = 0; str_i < in_strs.size(); ++str_i) {
-        auto in_str = in_strs[str_i];
-
-        auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(in_str, seqLength, vocab_size);
+        // auto in_str = in_strs[str_i];
+        auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(input_string, seqLength, vocab_size);
         auto input = std::make_shared<Tensor>(input_tensor);
 
-        std::cout << "[Q] " << in_str << std::endl;
+        if (chunk != 1)
+            npuExe.warmup(npu_ctx, &npuNet, {input});
+
+        std::cout << "real_seq_length: " << real_seq_length << std::endl;
+        std::cout << "[Q] " << input_string << std::endl;
         std::cout << "[A] " << std::flush;
 
         do {
@@ -170,7 +194,7 @@ int main(int argc, char **argv) {
             decode_cpu_backend->switchDecodeTag();
 
             // // 2: Decoding stage using CPU execute
-            for (int step = real_seq_length; step < 100; step++) {
+            for (int step = real_seq_length; step < real_seq_length + 100; step++) {
                 cpuExe.run(&cpuNet, {input});
                 auto result = cpuExe.result();
 
@@ -206,3 +230,4 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+#endif

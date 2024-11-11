@@ -1,4 +1,5 @@
 macro(func_link_libaries target)
+    target_link_libraries(${target} PUBLIC fmt::fmt-header-only)
     if (MLLM_OPENMP_STATIC)
         target_compile_options(${target} PRIVATE -fopenmp)
         target_link_libraries(${target} PUBLIC MLLM_CPU -fopenmp -static-openmp)
@@ -12,6 +13,9 @@ macro(func_link_libaries target)
             target_link_libraries(${target} PUBLIC  MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS} -fopenmp -static-openmp)
         endif ()
     endif()
+    if (MLLM_BUILD_XNNPACK_BACKEND)
+        target_link_libraries(${target} PRIVATE MLLM_CPU MllmXnnpackBackend)
+    endif()
 endmacro()
 
 
@@ -24,6 +28,7 @@ macro(func_llm_add_executable target)
         ${DIR_SRC}
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
+        ${PROJECT_SOURCE_DIR}/src/tokenizers/WordPiece/WordPiece.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
         ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
@@ -43,6 +48,7 @@ macro(func_vlm_add_executable target)
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
+        ${PROJECT_SOURCE_DIR}/src/tokenizers/WordPiece/WordPiece.cpp
         ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
         ${DIR_SRC_PROCESSOE}
         ${DIR_THIRDPARTY_AUDIO}
@@ -53,7 +59,9 @@ endmacro()
 
 
 ## new demos
-func_llm_add_executable(benchmark)
+
+# if(NOT MLLM_BUILD_XNNPACK_BACKEND)
+func_llm_add_executable(mllm_benchmark)
 func_llm_add_executable(demo_llama)
 func_llm_add_executable(demo_tinyllama)
 func_llm_add_executable(demo_stablelm)
@@ -69,7 +77,9 @@ func_llm_add_executable(demo_minicpm)
 func_llm_add_executable(demo_smollm)
 func_llm_add_executable(demo_openelm)
 func_llm_add_executable(demo_dclm)
+func_llm_add_executable(demo_bert)
 func_llm_add_executable(demo_phonelm)
+
 
 func_vlm_add_executable(demo_llava)
 func_vlm_add_executable(demo_fuyu)
@@ -79,15 +89,24 @@ func_vlm_add_executable(demo_imagebind)
 func_vlm_add_executable(demo_imagebind_1mod)
 func_vlm_add_executable(demo_phi3v)
 # func_vlm_add_executable(demo)
+# endif()
 
 # QNN demo
 if(QNN)
-    func_llm_add_executable(demo_qnn)
+    func_llm_add_executable(demo_qwen_npu)
     func_llm_add_executable(main_qwen_npu)
+    func_llm_add_executable(demo_phonelm_npu)
+    func_llm_add_executable(main_phonelm_npu)
 endif()
 
 
-
+if(MLLM_BUILD_XNNPACK_BACKEND)
+    func_llm_add_executable(demo_qwen_xp)
+    # func_llm_add_executable(demo_qwenqkvmm)
+    # func_llm_add_executable(demo_qwenqkvmm_cpu)
+    # func_llm_add_executable(demo_qdint8_gemm)
+    # func_llm_add_executable(demo_fp32gemmperf)
+endif()
 
 
 # old main

@@ -1,5 +1,6 @@
 
 #include "CPUMergeOutput.hpp"
+#include "Types.hpp"
 #include <cstring>
 
 namespace mllm {
@@ -10,28 +11,35 @@ CPUMergeOutput::CPUMergeOutput(Backend *bn, string opName, int threadCount) :
 }
 
 ErrorCode CPUMergeOutput::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    assert(inputs.size() == 2);
-    assert(outputs.size() == 1);
+    assert(inputs.size() == outputs.size());
 
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() + inputs[1]->sequence() * 4, inputs[0]->dimension());
+    for (int i = 0; i < inputs.size(); i++) {
+        outputs[i]->setDtype(inputs[i]->dtype());
+        outputs[i]->reshape(inputs[i]->batch(), inputs[i]->head(), inputs[i]->sequence(), inputs[i]->dimension());
+    }
 
     return Op::reshape(inputs, outputs);
 }
 
 ErrorCode CPUMergeOutput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    activation_dtype_ = inputs[0]->dtype();
-    return Op::setUp(inputs, outputs);
+    for (int i = 0; i < inputs.size(); i++) {
+        if (inputs[i]->device() == MLLM_QNN || (inputs[i]->masterTensor() && inputs[i]->masterTensor()->device() == MLLM_QNN)) {
+            outputs[i]->deepCopyFrom(inputs[i].get(), true);
+            // set output backend to QNN to let the device() be QNN
+            outputs[i]->setBackend(inputs[i]->backend());
+        } else {
+            if (inputs[i]->allocted() != 0) inputs[i]->free();
+            outputs[i]->alloc();
+            inputs[i]->deepCopyFrom(outputs[i].get(), true);
+            // set inputput backend to QNN to let the device() be QNN
+            inputs[i]->setBackend(outputs[i]->backend());
+        }
+    }
+
+    return MLLM_NO_ERROR;
 }
 
 ErrorCode CPUMergeOutput::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // copy data from input to output
-    int offset = 0;
-    memcpy(outputs[0]->hostPtr<int8_t>(), inputs[0]->hostPtr<uint8_t>(), inputs[0]->cntSize());
-    offset += inputs[0]->cntSize();
-    memcpy(outputs[0]->hostPtr<int8_t>() + offset, inputs[1]->hostPtr<uint8_t>(), inputs[1]->cntSize());
-    
-
     return Op::execute(inputs, outputs);
 }
 } // namespace mllm
-

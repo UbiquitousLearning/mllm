@@ -25,13 +25,14 @@ public:
         BPETokenizer::setSpecialToken("</s>", "");
     }
 
-    Tensor tokenize(std::string &text) override {
+    Tensor tokenize(const std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
+        string new_text;
         if (text[0] != ' ') {
-            text = ' ' + text;
+            new_text = ' ' + text;
         }
-        text = Tokenizer::replaceString(text, ' ', "Ġ");
+        new_text = Tokenizer::replaceString(new_text, ' ', "Ġ");
         std::vector<token_id_t> tokens_id;
-        BPETokenizer::tokenize(text, tokens_id, true);
+        BPETokenizer::tokenize(new_text, tokens_id, true);
 
         tokens_id.pop_back();
 

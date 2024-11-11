@@ -4,6 +4,7 @@
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "OpDefined.hpp"
+#include "ParamLoader.hpp"
 #include "QNN/QnnTypes.h"
 #include "Types.hpp"
 #include "MemoryManager.hpp"
@@ -57,7 +58,7 @@ public:
         OpType optype = OpType(op_param.find("type")->second);
         auto iter = map_creator_.find(optype);
         if (iter == map_creator_.end()) {
-            printf("Don't support type \n");
+            std::cout << "NPU Op Don't support type : " << name << std::endl;
             return nullptr;
         }
         Op *exe = nullptr;
@@ -94,22 +95,21 @@ public:
     virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) override;
     virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) override;
     virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") override;
-    virtual void onExecuteEnd() override;
+    virtual void onExecuteEnd(std::vector<shared_ptr<Tensor>> &outputs, const string &graph_name) override;
 
     void freeGraphDataStructure(string graphName);
 
     void afterAllGraphsExecute();
 
-
-    void pushInputBuffers(uint8_t* ptr) {
+    void pushInputBuffers(uint8_t *ptr) {
         currentInputBuffers->push_back(ptr);
     }
-    void pushOutputBuffers(uint8_t* ptr) {
+    void pushOutputBuffers(uint8_t *ptr) {
         currentOutputBuffers->push_back(ptr);
     }
 
-    void pushOutputTensor(Tensor t) {
-        outputTensors_.push_back(t);
+    void setDataLoader(AbstructLoader *dataLoader) {
+        dataLoader_ = dataLoader;
     }
 
 private:
@@ -154,12 +154,14 @@ private:
         return qnn_wrapper_api::freeGraphsInfo(graphsInfo, numGraphsInfo);
     }
 
+    AbstructLoader *dataLoader_;
+
     static const std::string s_defaultOutputPath;
 
     std::map<std::string, std::vector<uint8_t *>> inputBufferMap;
-    std::vector<uint8_t *>* currentInputBuffers;
+    std::vector<uint8_t *> *currentInputBuffers;
     std::map<std::string, std::vector<uint8_t *>> outputBufferMap;
-    std::vector<uint8_t *>* currentOutputBuffers;
+    std::vector<uint8_t *> *currentOutputBuffers;
 
     std::map<OpType, QNNBackend::Creator *> map_creator_;
 
@@ -199,7 +201,6 @@ private:
 
     std::map<int, Qnn_Tensor_t *> inputsMap_;
     std::map<int, Qnn_Tensor_t *> outputsMap_;
-
 };
 
 } // namespace mllm

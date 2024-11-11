@@ -23,6 +23,7 @@ else()
     add_compile_options(-Wno-deprecated-declarations)
 endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+add_compile_options(-Wno-gnu-string-literal-operator-template)
 
 if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
     message(STATUS "ARM detected")
@@ -72,8 +73,9 @@ option(QNN_OLD_FRONTEND "Enable Old QNN" OFF)
 if(QNN)
     add_definitions(-DUSE_QNN) # the USE_QNN should come before cpu subdirectory
 endif()
-if(QNN_OLD_FRONTEND)
-    add_definitions(-DOLD_QNN)
+option(QNN_VALIDATE_NODE "Enable QNN Validate Node When Building Graph" ON)
+if(QNN_VALIDATE_NODE)
+    add_definitions(-DQNN_VALIDATE_NODE)
 endif()
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
@@ -83,6 +85,7 @@ endif ()
 # for XNNPACK, avoid invovle googltest twice.
 set(GOOGLETEST_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/third_party/googletest)
 add_subdirectory(third_party/googletest EXCLUDE_FROM_ALL)
+add_subdirectory(third_party/fmt EXCLUDE_FROM_ALL)
 
 option(MLLM_OPENMP "openmp" ON)
 option(MLLM_OPENMP_STATIC "openmp static" OFF)
@@ -103,6 +106,21 @@ if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING)
     set(MLLM_OPENMP OFF)
     set(MLLM_OPENMP_STATIC OFF)
 endif ()
+
+if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$")
+    message(STATUS "x86_64 detected")
+    add_compile_options(-mf16c)
+    add_compile_options(-mavx2)
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
+    message(STATUS "ARM detected")
+    add_definitions(-DARM)
+
+    if(APK)
+        message(STATUS "Build for Android APK Lib.")
+        add_definitions("-DANDROID_API")
+    endif()
+endif()
+
 aux_source_directory(${PROJECT_SOURCE_DIR}/src DIR_SRC)
 
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/express DIR_SRC_EXP)
@@ -116,6 +134,7 @@ aux_source_directory(${PROJECT_SOURCE_DIR}/third_party/wenet_audio DIR_THIRDPART
 include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/third_party)
+include_directories(${PROJECT_SOURCE_DIR}/third_party/fmt/include)
 
 # NOTE: The include below is just for clang to get the include path
 # You can remove those lines if you just want to build mllm instead dev on it.
@@ -128,98 +147,115 @@ if(QNN) # QNN lib
 endif()
 
 option(MLLM_BUILD_XNNPACK_BACKEND "Build mllm's XNNPACK backend" OFF)
+
 if(MLLM_BUILD_XNNPACK_BACKEND)
-    add_compile_options(-fPIC)
-    add_definitions(-DMLLM_BUILD_XNNPACK_BACKEND)
+    if(NOT WIN32)
+        add_compile_options(-fPIC)
+    else()
+        # -fPIC is not a windows flag
+        set(CMAKE_POSITION_INDEPENDENT_CODE FALSE)
+    endif()
+
+    set(XNNPACK_BUILD_TESTS OFF)
+    set(XNNPACK_BUILD_BENCHMARKS OFF)
+    add_definitions(-DMLLM_BUILD_XNNPACK_BACKEND=1)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/xnnpack)
 endif()
 
-#add tokenizers
+# add tokenizers
 file(GLOB_RECURSE SRC_TOKENIZERS
-        ${PROJECT_SOURCE_DIR}/src/tokenizers/*.cpp
-        ${PROJECT_SOURCE_DIR}/src/tokenizers/*.hpp
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/*.cpp
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/*.hpp
 )
-# if compile to x86_64
-if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$")
-    message(STATUS "x86_64 detected")
-    add_compile_options(-mf16c)
-    add_compile_options(-mavx2)
-elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
-    message(STATUS "ARM detected")
-    add_definitions(-DARM)
-    if (APK)
-        message(STATUS "Build for Android APK Lib.")
-        add_definitions("-DANDROID_API")
-    endif ()
-endif ()
 
-if (QUANT)
+# if compile to x86_64
+if(QUANT)
     include_directories(${PROJECT_SOURCE_DIR}/src/quantizer)
     file(GLOB_RECURSE MLLM_QUANT
-            ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GEMM_AArch64.hpp
-            ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GEMM_AArch64.cpp
-            ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.hpp
-            ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GEMM_AArch64.hpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GEMM_AArch64.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.hpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
     )
 
     file(GLOB_RECURSE MLLM_QUANTIZER
-            ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
-            ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp)
+        ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp)
     list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/main.cpp)
 
     add_executable(
-            quantize
-            ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
+        quantize
+        ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
+        ${MLLM_QUANT}
+        ${MLLM_QUANTIZER}
+
+        # ${DIR_SRC}
+        ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
+    )
+    target_link_libraries(quantize fmt::fmt-header-only)
+
+    if(FROM_GGUF)
+        add_executable(
+            from_gguf
+            ${PROJECT_SOURCE_DIR}/tools/gguf_convertor/gguf.cpp
+            ${PROJECT_SOURCE_DIR}/tools/gguf_convertor/gguf.hpp
             ${MLLM_QUANT}
             ${MLLM_QUANTIZER}
 
             # ${DIR_SRC}
             ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
-    )
-    if (FROM_GGUF)
-        add_executable(
-                from_gguf
-                ${PROJECT_SOURCE_DIR}/tools/gguf_convertor/gguf.cpp
-                ${PROJECT_SOURCE_DIR}/tools/gguf_convertor/gguf.hpp
-                ${MLLM_QUANT}
-                ${MLLM_QUANTIZER}
-                # ${DIR_SRC}
-                ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
-
         )
-    endif ()
+        target_link_libraries(from_gguf fmt::fmt-header-only)
+    endif()
+endif()
 
-endif ()
+if(TEST)
+    add_subdirectory(test)
+endif()
 
-if (TEST)
-add_subdirectory(test)
-endif ()
-
+# add_executable(demo examples/demo.cpp)
+# target_link_libraries(demo fmt::fmt-header-only)
 add_subdirectory(examples)
 
-if (APK)
-    add_library(mllm_lib STATIC ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER}
-            src/tokenizers/Tokenizer.cpp
-            src/tokenizers/Tokenizer.hpp
-            src/tokenizers/Unigram/Unigram.hpp
-            src/tokenizers/Unigram/Unigram.cpp
-            src/tokenizers/Unigram/trie.hpp
-            src/tokenizers/BPE/Bpe.cpp
-            src/tokenizers/BPE/Bpe.hpp
-            src/tokenizers/Unicode.cpp
-            src/tokenizers/UnicodeData.cpp
-            src/processor/PreProcess.hpp
-            src/processor/FuyuPreProcess.hpp
-            src/processor/FuyuPreProcess.cpp
-            tools/jni/LibHelper.cpp
-            tools/jni/LibHelper.hpp
-            tools/jni/modeling_llama.hpp
-            tools/jni/modeling_fuyu.hpp
-            tools/jni/helper.hpp
-            src/processor/PreProcess.cpp
+if(APK)
+    add_library(mllm_lib STATIC ${DIR_SRC_CPU} ${DIR_SRC_EXP} ${DIR_SRC} ${DIR_SRC_MEM_MANAGER} ${DIR_SRC_PROCESSOE}
+        ${DIR_THIRDPARTY_AUDIO}
+        src/tokenizers/Tokenizer.cpp
+        tools/jni/LibHelper.cpp
+
+        # src/tokenizers/Tokenizer.hpp
+        # src/tokenizers/Unigram/Unigram.hpp
+        src/tokenizers/Unigram/Unigram.cpp
+
+        # src/tokenizers/Unigram/trie.hpp
+        src/tokenizers/BPE/Bpe.cpp
+
+        # src/tokenizers/BPE/Bpe.hpp
+        src/tokenizers/Unicode.cpp
+        src/tokenizers/UnicodeData.cpp
+        src/tokenizers/BPE/Bpe.cpp
+        src/tokenizers/WordPiece/WordPiece.cpp
+
+        # models/bert/configuration_bert.hpp
+        # models/bert/modeling_bert.hpp
+        # models/bert/tokenization_bert.hpp
+        # models/fuyu/configuration_fuyu.hpp
+        # models/fuyu/modeling_fuyu.hpp
+        # models/fuyu/processing_fuyu.hpp
+        # models/phonelm/configuration_phonelm.hpp
+        # models/phonelm/modeling_phonelm.hpp
+        # models/qwen/configuration_qwen.hpp
+        # models/qwen/modeling_qwen.hpp
+        # models/qwen/tokenization_qwen.hpp
+        # models/smollm/tokenization_smollm.hpp
+        # tokenizers/Unigram/Unigram.hpp
     )
     target_link_libraries(mllm_lib MLLM_CPU)
-endif ()
+
+    if(QNN)
+        target_link_libraries(mllm_lib MLLM_QNN)
+    endif()
+endif()
 
 if(MLLM_ENABLE_PYTHON)
     target_compile_options(MLLM_CPU PRIVATE -fPIC)
@@ -229,13 +265,15 @@ if(MLLM_ENABLE_PYTHON)
     add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/pybind11)
 
     set(_py_dep_libs
-        MLLM_CPU 
+        MLLM_CPU
+
         # MLLM_QNN
         # ${CMAKE_DL_LIBS}
     )
 
     # pybind compile options
     set(_py_compile_opts
+
         # Override depends on RTTI.
         # -frtti
         # -fexceptions

@@ -13,8 +13,6 @@ QNNTranspose::QNNTranspose(Backend *bn, int perm0, int perm1, int perm2, int per
 }
 
 ErrorCode QNNTranspose::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // if (perm[0] == 0 && perm[1] == 2 && perm[2] == 3 && perm[3] == 1)
-    //     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[0]->sequence());
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     outputs[0]->transShape(SEQUENCE, DIMENSION);
 
@@ -22,16 +20,6 @@ ErrorCode QNNTranspose::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
 }
 
 ErrorCode QNNTranspose::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    #ifdef OLD_QNN
-    if (getOutputTensorType(outputs[0]) == QNN_TENSOR_TYPE_APP_READ) {
-        outputs[0]->setBackend(qnnBackend_);
-        outputs[0]->setDtype(MLLM_TYPE_F32);
-        outputs[0]->alloc();
-
-        qnnBackend_->pushOutputBuffers(outputs[0]->hostPtr<uint8_t>());
-    }
-    #endif
-
     uint32_t transposeParamsDimension[4] = {4};
 
     auto paramsTransposeName = name() + "transpose_params";
@@ -66,6 +54,7 @@ ErrorCode QNNTranspose::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 
     if (inputs[0]->dtype() == MLLM_TYPE_F16) {
         type = QNN_DATATYPE_FLOAT_16;
+        outputs[0]->setDtype(MLLM_TYPE_F16);
     }
     
     auto outVTransposeName = outputs[0]->name();

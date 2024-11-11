@@ -89,7 +89,7 @@ class FuyuProcessor final : public PreProcessor {
         if (tokenizer_->getTokenId("<0x04>", answer_start_token)) {
             text_ids.push_back(answer_start_token);
         } else {
-            std::cerr << "ANSWER_START token not found in vocab file." << std::endl;
+            MLLM_LOG_ERROR_STREAM << "ANSWER_START token not found in vocab file." << std::endl;
         }
         text_ids_.push_back(text_ids);
         text_lengths_.push_back(text_ids.size());
@@ -244,7 +244,7 @@ public:
             // Data is [height * width * channels],RGB
             const unsigned char *data = stbi_load_from_memory(image, image_length[i], &width_, &height_, &channels_, 3);
             if (data == nullptr) {
-                std::cerr << "load image failed" << std::endl;
+                MLLM_LOG_ERROR_STREAM << "load image failed" << std::endl;
                 exit(-1);
             }
             auto float_data = RescaleImage(data, 255.0, width_ * height_ * channels_);
@@ -260,7 +260,7 @@ public:
         }
         if (do_normalize_) {
             if (mean_.size() != std_.size() || mean_.size() != 1 && mean_.size() != 3) {
-                std::cerr << "MEAN should be of same size of std and length should be (1 or 3) !" << std::endl;
+                MLLM_LOG_ERROR_STREAM << "MEAN should be of same size of std and length should be (1 or 3) !" << std::endl;
                 exit(-1);
             }
             if (mean_.size() == 1) {
@@ -281,7 +281,7 @@ public:
             // read all file contents
             std::ifstream file(i, std::ios::binary | std::ios::ate);
             if (!file.is_open()) {
-                std::cerr << "Cannot open file: " << i << std::endl;
+                MLLM_LOG_ERROR_STREAM << "Cannot open file: " << i << std::endl;
                 exit(-1);
             }
             auto size = file.tellg();
@@ -304,6 +304,29 @@ public:
         }
         // auto batch_size = images_.size();
         get_sample_encoding(text);
+    }
+    vector<Tensor> process(const std::string &text, const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) {
+        image_patch_indices_per_batch.clear();
+        image_patch_indices_per_subseq.clear();
+        image_patch_input_indices_.clear();
+        text_lengths_.clear();
+        image_input_ids_.clear();
+        attention_mask_.clear();
+        image_patches_indices_.clear();
+        image_patches_.clear();
+        text_ids_.clear();
+        images_.clear();
+
+        PreProcessImages(images, image_length);
+        Process(text);
+        auto input_ids = image_input_ids_;
+        if (input_ids.empty()) {
+            input_ids = text_ids_;
+        }
+        vector<Tensor> result = {mllm::Tokenizer::tokens2Input(input_ids[0], "input_ids"),
+                                 vector3d2Tensor(image_patches_, "image_patches"),
+                                 vector2d2Tensor(image_patches_indices_, "image_patches_indices")};
+        return result;
     }
 
     vector<Tensor> process(std::string &text, vector<string> image) {

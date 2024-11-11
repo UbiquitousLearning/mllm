@@ -1,6 +1,6 @@
 
 #include "CPUIRoPE.hpp"
-#include "Timing.hpp"
+#include "Log.h"
 #include "Types.hpp"
 #include <cassert>
 #include <cmath>
@@ -177,7 +177,30 @@ void CPUIRoPE::rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output){
     int partial_dimension = (input->dimension()) * partial_rotary_factor_;
     int half = (int)(partial_dimension / 2);
     assert(partial_dimension%2==0);
-    if(output->ctype() == BSHD){        
+    if(output->ctype() == BSHD){     
+        if (input->dtype() == MLLM_TYPE_F16) {
+#pragma omp parallel for collapse(4) num_threads(thread_count)
+            for (int n = 0; n < input->batch(); ++n) {
+                for (int h = 0; h < input->head(); ++h) {
+                    for (int s = 0; s < input->sequence(); ++s) { // sequance
+                        for (int d = 0; d < partial_dimension / 2; ++d) {
+                            auto v = input->ptrAt<mllm_fp16_t>(n, h, s, d);
+                            auto o = output->ptrAt<mllm_fp16_t>(n, h, s, d);
+                            float in_value = static_cast<float>(v[0]);
+                            float in_value_2 = static_cast<float>(v[half]);
+                            float sin_value = static_cast<float>(sin_[s + h_cnt_][d])/127 * sin_max;
+                            auto c = static_cast<float>(cos_[s + h_cnt_][d]);
+                            float cos_value = c/127 * cos_max;
+                            auto value = in_value * cos_value - in_value_2 * sin_value;
+                            auto value2 = in_value * sin_value + in_value_2 * cos_value;
+                            o[0] = MLLM_FP32_TO_FP16(value);
+                            o[half] = MLLM_FP32_TO_FP16(value2);
+                        }
+                    }
+                }
+            }
+
+        } else   
         if (out_dtype == MLLM_TYPE_F32){
 #pragma omp parallel for collapse(4) num_threads(thread_count)
             for (int n = 0; n < input->batch(); ++n) {
@@ -227,18 +250,35 @@ void CPUIRoPE::rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output){
         for (int h = 0; h < input->head(); ++h) {
             for (int s = 0; s < input->sequence(); ++s) { // sequance
                 for (int d = 0; d < partial_dimension/2; ++d) {
-                    float in_value = input->dataAt<float>(n, h, s, d);
-                    float in_value_2 = input->dataAt<float>(n, h, s, d + partial_dimension / 2);
-                    float sin_value = static_cast<float>(sin_[s + h_cnt_][d])/127 * sin_max;
-                    float cos_value = static_cast<float>(cos_[s + h_cnt_][d])/127 * cos_max;
-                    auto value = in_value * cos_value - in_value_2 * sin_value;
-                    auto value2 = in_value * sin_value + in_value_2 * cos_value;
-                    if (out_dtype == MLLM_TYPE_F32) {
-                        output->setDataAt<float>(n, h, s, d, value);
-                        output->setDataAt<float>(n, h, s, d+ partial_dimension / 2, value2);
-                    } else if (out_dtype == MLLM_TYPE_F16) {
-                        output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
-                        output->setDataAt<mllm_fp16_t>(n, h, s, d+ partial_dimension / 2, MLLM_FP32_TO_FP16(value2));
+                    if (input->dtype() == MLLM_TYPE_F16) {
+                        float in_value = static_cast<float>(input->dataAt<mllm_fp16_t>(n, h, s, d));
+                        float in_value_2 = static_cast<float>(input->dataAt<mllm_fp16_t>(n, h, s, d + partial_dimension / 2));
+                        float sin_value = sin_[s + h_cnt_][d];
+                        float cos_value = cos_[s + h_cnt_][d];
+                        auto value = in_value * cos_value - in_value_2 * sin_value;
+                        auto value2 = in_value * sin_value + in_value_2 * cos_value;
+                        if (out_dtype == MLLM_TYPE_F32) {
+                            output->setDataAt<float>(n, h, s, d, value);
+                            output->setDataAt<float>(n, h, s, d + partial_dimension / 2, value2);
+                        } else if (out_dtype == MLLM_TYPE_F16) {
+                            output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
+                            output->setDataAt<mllm_fp16_t>(n, h, s, d + partial_dimension / 2, MLLM_FP32_TO_FP16(value2));
+                        }
+
+                    } else {
+                        float in_value = input->dataAt<float>(n, h, s, d);
+                        float in_value_2 = input->dataAt<float>(n, h, s, d + partial_dimension / 2);
+                        float sin_value = static_cast<float>(sin_[s + h_cnt_][d])/127 * sin_max;
+                        float cos_value = static_cast<float>(cos_[s + h_cnt_][d])/127 * cos_max;
+                        auto value = in_value * cos_value - in_value_2 * sin_value;
+                        auto value2 = in_value * sin_value + in_value_2 * cos_value;
+                        if (out_dtype == MLLM_TYPE_F32) {
+                            output->setDataAt<float>(n, h, s, d, value);
+                            output->setDataAt<float>(n, h, s, d+ partial_dimension / 2, value2);
+                        } else if (out_dtype == MLLM_TYPE_F16) {
+                            output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
+                            output->setDataAt<mllm_fp16_t>(n, h, s, d+ partial_dimension / 2, MLLM_FP32_TO_FP16(value2));
+                        }
                     }
                 }
             }
@@ -336,8 +376,7 @@ ErrorCode CPUIRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     } else if (pose_type_ == MLAROPE) {
         rope_mla(input, output);
     } else {
-        std::cerr << "RoPE type error" << std::endl;
-    
+        MLLM_LOG_ERROR_STREAM << "RoPE type error" << std::endl;
     }
     /*
 #pragma omp parallel for collapse(4) num_threads(thread_count)

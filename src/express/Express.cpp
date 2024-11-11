@@ -149,7 +149,6 @@ NetTensor *_Parameter(Context *ctx, std::vector<NetTensor *> inputs, int batch, 
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
     return out_tensor;
-
 }
 /**
  * \brief Creates a range tensor from start to end. [start, end)
@@ -360,13 +359,13 @@ NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilo
     if (isFP32)
         out_tensor->type = inputs[0]->type;
     else
-        out_tensor->type =  MLLM_TYPE_I8;
+        out_tensor->type = MLLM_TYPE_I8;
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::RMSNORM)
-    net_op_->param["norm_size"] = (float) norm_size;
-    net_op_->param["epsilon"] = (float) epsilon;
-    net_op_->param["isFP32"] = (float) isFP32;
+    net_op_->param["norm_size"] = (float)norm_size;
+    net_op_->param["epsilon"] = (float)epsilon;
+    net_op_->param["isFP32"] = (float)isFP32;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
@@ -395,10 +394,78 @@ NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name, in
     out_tensor->ctx = ctx;
     return out_tensor;
 }
+
+NetTensor *_IRoPE(std::vector<NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "IRoPE" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    out_tensor->type = inputs[0]->type;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::IROPE)
+    net_op_->param["pose_type"] = pose_type;
+    net_op_->param["rope_theta"] = rope_theta;
+    net_op_->param["max_position_embeddings"] = max_position_embeddings;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
+
+NetTensor *_QNNRoPE(std::vector<NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings, bool isFP32) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "RoPE" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    if (isFP32)
+        out_tensor->type = MLLM_TYPE_F32;
+    else
+        out_tensor->type = MLLM_TYPE_F16;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::ROPE)
+    net_op_->param["pose_type"] = pose_type;
+    net_op_->param["rope_theta"] = rope_theta;
+    net_op_->param["max_position_embeddings"] = max_position_embeddings;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
+NetTensor *_QNNIRoPE(std::vector<NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings, bool isFP32) {
+    Context *ctx = inputs[0]->ctx;
+    NetTensor *out_tensor = new NetTensor();
+    if (name.empty()) {
+        name = "RoPE" + std::to_string(ctx->idx);
+    }
+    out_tensor->name = "outtensor-" + name + "-00";
+    if (isFP32)
+        out_tensor->type = MLLM_TYPE_F32;
+    else
+        out_tensor->type = MLLM_TYPE_F16;
+    ctx->idx++;
+    _STORE_OUT_TENSOR
+    _NEW_OP(mllm::IROPE)
+    net_op_->param["pose_type"] = pose_type;
+    net_op_->param["rope_theta"] = rope_theta;
+    net_op_->param["max_position_embeddings"] = max_position_embeddings;
+    _UPDATE_INPUT_TENSORS
+    out_tensor->in = net_op_;
+    out_tensor->ctx = ctx;
+    return out_tensor;
+}
+
 /**
  * \param max_num The maximum number of positions.
  */
-NetTensor *_PositionalEmbedding(std::vector<NetTensor *> inputs, int max_num, int hidden_dim, string name){
+NetTensor *_PositionalEmbedding(std::vector<NetTensor *> inputs, int max_num, int hidden_dim, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -421,7 +488,7 @@ NetTensor *_PositionalEmbedding(std::vector<NetTensor *> inputs, int max_num, in
  * \param bias default is 0.
  * \param bias_after_scale whether to add bias after scale.
  */
-NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale,string name) {
+NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -480,7 +547,7 @@ NetTensor *_SparseLinear(std::vector<NetTensor *> inputs, int in_dim, int out_di
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::SPARSELINEAR)
     net_op_->param["in_dim_"] = (float)in_dim;
-    net_op_->param["out_dim_"] = (float )out_dim;
+    net_op_->param["out_dim_"] = (float)out_dim;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
@@ -502,7 +569,7 @@ NetTensor *_SparseIdLinear(std::vector<NetTensor *> inputs, int in_dim, int out_
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::SPARSEIDLINEAR)
     net_op_->param["in_dim_"] = (float)in_dim;
-    net_op_->param["out_dim_"] = (float )out_dim;
+    net_op_->param["out_dim_"] = (float)out_dim;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
@@ -524,7 +591,7 @@ NetTensor *_Predictor(std::vector<NetTensor *> inputs, int in_dim, int out_dim, 
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::PREDICTOR)
     net_op_->param["in_dim"] = (float)in_dim;
-    net_op_->param["out_dim"] = (float )out_dim;
+    net_op_->param["out_dim"] = (float)out_dim;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
@@ -560,19 +627,54 @@ NetTensor *_LinearINT8(std::vector<NetTensor *> inputs, int in_features, int out
  * \param out_features The size of each output sample (i.e., output dimension).
  * \param bias If set to false, the layer will not learn an additive bias. Default is true.
  */
-NetTensor *_LinearINT8Shadow(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
+vector<NetTensor *> _LinearINT8ShadowMerge(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
+    Context *ctx = inputs[0]->ctx;
+    if (name.empty()) {
+        name = "LinearINT8SHADOW" + std::to_string(ctx->idx);
+    }
+    auto sub_param = get_active_subgraph(ctx);
+    _NEW_OP(mllm::LINEARINT8SHADOW)
+    net_op_->param["in_features"] = in_features;
+    net_op_->param["out_features"] = out_features;
+    net_op_->param["bias"] = (int)bias;
+    _UPDATE_INPUT_TENSORS
+    vector<NetTensor *> out_tensors;
+    net_op_->out_size = 3;
+    for (int i = 0; i < 3; ++i) {
+        NetTensor *out_tensor = new NetTensor();
+        out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
+        out_tensor->type = inputs[0]->type;
+        ctx->idx++;
+        ctx->net_tensors.insert(out_tensor);
+        out_tensor->subgraph = sub_param;
+        sub_param->net_tensors.push_back(out_tensor);
+        out_tensor->in = net_op_;
+        out_tensor->ctx = ctx;
+        out_tensors.push_back(out_tensor);
+    }
+    return out_tensors;
+}
+
+/**
+ * Shadow linear for cpu graph in qnn model and cpu models
+ * \param in_features The size of each input sample (i.e., input dimension).
+ * \param out_features The size of each output sample (i.e., output dimension).
+ * \param bias If set to false, the layer will not learn an additive bias. Default is true.
+ */
+NetTensor *_LinearINT8ShadowCPU(std::vector<NetTensor *> inputs, int in_features, int out_features, int max_position, bool bias, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
-        name = "LinearINT8" + std::to_string(ctx->idx);
+        name = "LinearINT8SHADOWCPU" + std::to_string(ctx->idx);
     }
     out_tensor->name = "outtensor-" + name + "-00";
-    out_tensor->type = inputs[0]->type;
+    out_tensor->type = MLLM_TYPE_F32;
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::LINEARINT8SHADOW)
     net_op_->param["in_features"] = in_features;
     net_op_->param["out_features"] = out_features;
+    net_op_->param["max_position"] = max_position;
     net_op_->param["bias"] = (int)bias;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
@@ -619,7 +721,7 @@ NetTensor *_Mul(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_KVCache(std::vector<NetTensor *> inputs,int cache_max, string name) {
+NetTensor *_KVCache(std::vector<NetTensor *> inputs, int cache_max, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -766,7 +868,7 @@ NetTensor *_QuickGELU(std::vector<NetTensor *> inputs, string name) {
  * \param bias If set to false, the layer will not learn an additive bias.
  * \param epsilon Default is 1e-6.
  */
-NetTensor *_LayerNorm(std::vector<NetTensor *> inputs, int norm_size, bool bias,  float epsilon, string name) {
+NetTensor *_LayerNorm(std::vector<NetTensor *> inputs, int norm_size, bool bias, float epsilon, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -777,8 +879,8 @@ NetTensor *_LayerNorm(std::vector<NetTensor *> inputs, int norm_size, bool bias,
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::LAYERNORM)
-    net_op_->param["bias"] =(int) bias;
-    net_op_->param["norm_size"] = (int) norm_size;
+    net_op_->param["bias"] = (int)bias;
+    net_op_->param["norm_size"] = (int)norm_size;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
@@ -790,16 +892,16 @@ NetTensor *_LayerNorm(std::vector<NetTensor *> inputs, int norm_size, bool bias,
  * \param split_dim_size The size of the dimension along which to split.
  * This _Split function is ready for optimization in the future.
  */
-vector<NetTensor *> _Split(std::vector<NetTensor *> inputs, int split_num, Chl split_dim, int split_dim_size, string name){
+vector<NetTensor *> _Split(std::vector<NetTensor *> inputs, int split_num, Chl split_dim, int split_dim_size, string name) {
     Context *ctx = inputs[0]->ctx;
     if (name.empty()) {
         name = "Split" + std::to_string(ctx->idx);
     }
     auto sub_param = get_active_subgraph(ctx);
     _NEW_OP(mllm::SPLIT)
-    net_op_->param["split_num"] =(int) split_num;
-    net_op_->param["split_dim"] =(int) split_dim;
-    net_op_->param["split_dim_size"] =(int) split_dim_size;
+    net_op_->param["split_num"] = (int)split_num;
+    net_op_->param["split_dim"] = (int)split_dim;
+    net_op_->param["split_dim_size"] = (int)split_dim_size;
     _UPDATE_INPUT_TENSORS
     vector<NetTensor *> out_tensors;
     net_op_->out_size = split_num;
@@ -816,7 +918,6 @@ vector<NetTensor *> _Split(std::vector<NetTensor *> inputs, int split_num, Chl s
         out_tensors.push_back(out_tensor);
     }
     return out_tensors;
-
 }
 NetTensor *_Gather(std::vector<NetTensor *> inputs, string name) {
     Context *ctx = inputs[0]->ctx;
@@ -853,14 +954,14 @@ NetTensor *_Convolution2D(std::vector<NetTensor *> inputs, int in_channel, int o
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::CONVOLUTION2D)
-    net_op_->param["in_channel"] =(float) in_channel;
-    net_op_->param["out_channel"] =(float) out_channel;
-    net_op_->param["kernal_h"] =(float) kernal[0];
-    net_op_->param["kernal_w"] =(float) kernal[1];
-    net_op_->param["stride_h"] =(float) stride[0];
-    net_op_->param["stride_w"] =(float) stride[1];
-    net_op_->param["padding"] =(float) padding;
-    net_op_->param["bias"] =(float) bias;
+    net_op_->param["in_channel"] = (float)in_channel;
+    net_op_->param["out_channel"] = (float)out_channel;
+    net_op_->param["kernal_h"] = (float)kernal[0];
+    net_op_->param["kernal_w"] = (float)kernal[1];
+    net_op_->param["stride_h"] = (float)stride[0];
+    net_op_->param["stride_w"] = (float)stride[1];
+    net_op_->param["padding"] = (float)padding;
+    net_op_->param["bias"] = (float)bias;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
@@ -885,16 +986,16 @@ NetTensor *_Convolution3D(std::vector<NetTensor *> inputs, int in_channel, int o
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::CONVOLUTION3D)
-    net_op_->param["in_channel"] =(float) in_channel;
-    net_op_->param["out_channel"] =(float) out_channel;
-    net_op_->param["kernal_t"] =(float) kernal[0];
-    net_op_->param["kernal_h"] =(float) kernal[1];
-    net_op_->param["kernal_w"] =(float) kernal[2];
-    net_op_->param["stride_t"] =(float) stride[1];
-    net_op_->param["stride_h"] =(float) stride[1];
-    net_op_->param["stride_w"] =(float) stride[2];
-    net_op_->param["padding"] =(float) padding;
-    net_op_->param["bias"] =(float) bias;
+    net_op_->param["in_channel"] = (float)in_channel;
+    net_op_->param["out_channel"] = (float)out_channel;
+    net_op_->param["kernal_t"] = (float)kernal[0];
+    net_op_->param["kernal_h"] = (float)kernal[1];
+    net_op_->param["kernal_w"] = (float)kernal[2];
+    net_op_->param["stride_t"] = (float)stride[1];
+    net_op_->param["stride_h"] = (float)stride[1];
+    net_op_->param["stride_w"] = (float)stride[2];
+    net_op_->param["padding"] = (float)padding;
+    net_op_->param["bias"] = (float)bias;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
@@ -905,7 +1006,7 @@ NetTensor *_Convolution3D(std::vector<NetTensor *> inputs, int in_channel, int o
  * \param stride The stride of the convolution.
  * \param padding The type of padding applied to the input.
  */
-NetTensor *_AvgPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name ){
+NetTensor *_AvgPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -916,11 +1017,11 @@ NetTensor *_AvgPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vecto
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::AVGPOOL2D)
-    net_op_->param["kernal_h"] =(float) kernal[0];
-    net_op_->param["kernal_w"] =(float) kernal[1];
-    net_op_->param["stride_h"] =(float) stride[0];
-    net_op_->param["stride_w"] =(float) stride[1];
-    net_op_->param["padding"] =(float) padding;
+    net_op_->param["kernal_h"] = (float)kernal[0];
+    net_op_->param["kernal_w"] = (float)kernal[1];
+    net_op_->param["stride_h"] = (float)stride[0];
+    net_op_->param["stride_w"] = (float)stride[1];
+    net_op_->param["padding"] = (float)padding;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
@@ -931,7 +1032,7 @@ NetTensor *_AvgPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vecto
  * \param stride The stride of the convolution.
  * \param padding The type of padding applied to the input.
  */
-NetTensor *_MaxPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name ){
+NetTensor *_MaxPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name) {
     Context *ctx = inputs[0]->ctx;
     NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
@@ -942,11 +1043,11 @@ NetTensor *_MaxPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vecto
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::MAXPOOL2D)
-    net_op_->param["kernal_h"] =(float) kernal[0];
-    net_op_->param["kernal_w"] =(float) kernal[1];
-    net_op_->param["stride_h"] =(float) stride[0];
-    net_op_->param["stride_w"] =(float) stride[1];
-    net_op_->param["padding"] =(float) padding;
+    net_op_->param["kernal_h"] = (float)kernal[0];
+    net_op_->param["kernal_w"] = (float)kernal[1];
+    net_op_->param["stride_h"] = (float)stride[0];
+    net_op_->param["stride_w"] = (float)stride[1];
+    net_op_->param["padding"] = (float)padding;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
@@ -966,7 +1067,7 @@ NetTensor *_Cat(std::vector<NetTensor *> inputs, Chl axis, string name) {
     ctx->idx++;
     _STORE_OUT_TENSOR
     _NEW_OP(mllm::CAT)
-    net_op_->param["axis"] =(float)axis;
+    net_op_->param["axis"] = (float)axis;
     _UPDATE_INPUT_TENSORS
     out_tensor->in = net_op_;
     out_tensor->ctx = ctx;
@@ -1023,21 +1124,29 @@ NetTensor *_WNop(std::vector<NetTensor *> inputs, int sync_type, string name) {
     return out_tensor;
 }
 
-NetTensor *_MergeOutput(std::vector<NetTensor *> inputs, string name) {
+vector<NetTensor *>  _MergeOutput(std::vector<NetTensor *> inputs, string name) {
     Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
     if (name.empty()) {
         name = "Merge" + std::to_string(ctx->idx);
     }
-    out_tensor->name = "outtensor-" + name + "-00";
-    out_tensor->type = inputs[0]->type;
-    ctx->idx++;
-    _STORE_OUT_TENSOR
+    auto sub_param = get_active_subgraph(ctx);
     _NEW_OP(mllm::MERGEOUTPUT)
     _UPDATE_INPUT_TENSORS
-    out_tensor->in = net_op_;
-    out_tensor->ctx = ctx;
-    return out_tensor;
+    vector<NetTensor *> out_tensors;
+    net_op_->out_size = inputs.size();
+    for (int i = 0; i < inputs.size(); ++i) {
+        NetTensor *out_tensor = new NetTensor();
+        out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
+        out_tensor->type = inputs[i]->type;
+        ctx->idx++;
+        ctx->net_tensors.insert(out_tensor);
+        out_tensor->subgraph = sub_param;
+        sub_param->net_tensors.push_back(out_tensor);
+        out_tensor->in = net_op_;
+        out_tensor->ctx = ctx;
+        out_tensors.push_back(out_tensor);
+    }
+    return out_tensors;
 }
 
 vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, int num, string name) {
@@ -1051,14 +1160,11 @@ vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, 
     net_op_->param["num"] = (float)num;
     _UPDATE_INPUT_TENSORS
     vector<NetTensor *> out_tensors;
-    net_op_->out_size = num;
-    for (int i = 0; i < num; ++i) {
+    net_op_->out_size = inputs.size();
+    for (int i = 0; i < inputs.size(); ++i) {
         NetTensor *out_tensor = new NetTensor();
         out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
-        if (i < (num - 1))
-            out_tensor->type = inputs[0]->type;
-        else
-            out_tensor->type = MLLM_TYPE_F32;
+        out_tensor->type = inputs[i]->type;
         ctx->idx++;
         ctx->net_tensors.insert(out_tensor);
         out_tensor->subgraph = sub_param;
