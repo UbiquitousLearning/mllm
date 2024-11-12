@@ -59,17 +59,16 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 
 <table>
     <tr>
-        <td>Demo of Chatting</td>
-        <td>Demo of Android Intent Invocation</td>
-        <td>Demo of Image Understanding</td>
+        <td>Chatting</td>
+        <td>Android Intent Invocation</td>
+        <td>Image Understanding</td>
     </tr>
     <tr>
-        <td>  <video src="https://github.com/user-attachments/assets/30dec62e-50ba-4b39-a8ad-2c76ece551c2"> </td>
-        <td>  <video src="https://github.com/user-attachments/assets/fc0abe83-6263-4a3a-aaf0-4313e084e3ed"> </td>
-        <td>  <video src="https://github.com/user-attachments/assets/d54d1efe-e2be-4b54-83b2-6d1a36619afe">  </td>
+        <td>  <video src="https://github.com/user-attachments/assets/972b3bad-d659-4d76-9141-64ad0ad34d64"> </td>
+        <td>  <video src="https://github.com/user-attachments/assets/deb99f8d-9727-4519-9ca7-c39deb7c5b47"> </td>
+        <td>  <video src="https://github.com/user-attachments/assets/55321a43-8484-4f74-b7b2-d4495f3626d9">  </td>
     </tr>
 </table>
-
 
 ## Support models
 
@@ -394,7 +393,7 @@ located in the relevant subdirectories.
 
 ## Citation
 ```
-@misc{mllm,
+@misc{yi2023mllm,
   title = {mllm: fast and lightweight multimodal LLM inference engine for mobile and edge devices},
   author = {Rongjie Yi and Xiang Li and Qichen Qiu and Zhenyan Lu and Hao Zhang and Daliang Xu and Liming Yang and Weikai Xie and Chenghua Wang and Mengwei Xu},
   year = {2023},
