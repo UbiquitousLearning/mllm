@@ -12,6 +12,7 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/phonelm_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/phonelm_merges.txt");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/PhoneLM-1.5B-Instruct-128.mllm");
+    cmdParser.add<string>("decoding", 'd', "specify mllm decoding model path", false, "../models/phonelm-1.5b-droidcall-q4_0_4_4.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -19,6 +20,7 @@ int main(int argc, char **argv) {
     string vocab_path = cmdParser.get<string>("vocab");
     string merge_path = cmdParser.get<string>("merge");
     string model_path = cmdParser.get<string>("model");
+    string decoding_path = cmdParser.get<string>("decoding");
     int tokens_limit = cmdParser.get<int>("limits");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
@@ -27,7 +29,7 @@ int main(int argc, char **argv) {
     auto model = PhoneLMForCausalLM_NPU(config);
     model.load(model_path);
     auto decoding_model = PhoneLMForCausalLM(config);
-    decoding_model.load("../models/phonelm-1.5b-instruct-q4_0_4_4.mllm");
+    decoding_model.load(decoding_path);
 
     vector<string> in_strs = {
         "Give me a short introduction to large language model.",
