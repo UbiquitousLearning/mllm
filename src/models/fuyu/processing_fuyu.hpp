@@ -223,7 +223,7 @@ class FuyuProcessor final : public PreProcessor {
 
 public:
     explicit FuyuProcessor(const std::string &vocab_file) :
-        PreProcessor(1080, 1920, true, true, true, true, {0.5}, {0.5}) {
+        PreProcessor(224, 224, true, true, true, true, {0.5}, {0.5}) {
         Module::initBackend(MLLM_CPU);
         tokenizer_ = new UnigramTokenizer(vocab_file);
         auto tmp_token = vector<token_id_t>();
