@@ -51,7 +51,7 @@ unsigned int LibHelper::postProcessing(shared_ptr<Tensor> result, shared_ptr<Ten
 }
 
 bool LibHelper::setUp(const std::string &base_path, std::string weights_path, std::string vocab_path, std::string merge_path, PreDefinedModel model, MLLMBackendType backend_type) {
-    FuyuConfig fuyuconfig(500, "8B");
+    FuyuConfig fuyuconfig(tokens_limit, "8B");
     QWenConfig qwconfig(tokens_limit, "1.5B");
     BertConfig bertconfig;
     PhoneLMConfig phone_config(tokens_limit, "1.5B");
