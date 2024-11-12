@@ -1,18 +1,20 @@
 #ifdef USE_QNN
 #include "backends/cpu/CPUBackend.hpp"
 #include "cmdline.h"
-#include "models/phonelm/modeling_phonelm.hpp"
-#include "models/phonelm/modeling_phonelm_npu.hpp"
-#include "models/smollm/tokenization_smollm.hpp"
+#include "models/qwen/configuration_qwen.hpp"
+#include "models/qwen/modeling_qwen_npu.hpp"
+#include "models/qwen/modeling_qwen.hpp"
+#include "models/qwen/tokenization_qwen.hpp"
+#include "processor/PostProcess.hpp"
 
 using namespace mllm;
 
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/phonelm_vocab.mllm");
-    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/phonelm_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/PhoneLM-1.5B-Instruct-128.mllm");
-    cmdParser.add<string>("decoding", 'd', "specify mllm decoding model path", false, "../models/phonelm-1.5b-droidcall-q4_0_4_4.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2.5_vocab.mllm");
+    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2.5_merges.txt");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/Qwen2.5-1.5B-Instruct.mllm");
+    cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B | 1.5B]", false, "1.8B");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -20,26 +22,24 @@ int main(int argc, char **argv) {
     string vocab_path = cmdParser.get<string>("vocab");
     string merge_path = cmdParser.get<string>("merge");
     string model_path = cmdParser.get<string>("model");
-    string decoding_path = cmdParser.get<string>("decoding");
+    string model_billion = cmdParser.get<string>("billion");
     int tokens_limit = cmdParser.get<int>("limits");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
-    auto tokenizer = SmolLMTokenizer(vocab_path, merge_path);
-    PhoneLMConfig config(tokens_limit, "1.5B");
-    auto model = PhoneLMForCausalLM_NPU(config);
+    auto tokenizer = QWenTokenizer(vocab_path, merge_path);
+    QWenConfig config(tokens_limit, "1.5B", RoPEType::HFHUBROPE);
+    auto model = QWenForCausalLM_NPU(config);
     model.load(model_path);
-    auto decoding_model = PhoneLMForCausalLM(config);
-    decoding_model.load(decoding_path);
+    auto decoding_model = QWenForCausalLM(config);
+    decoding_model.load("../models/qwen-2.5-1.5b-instruct-q4_0_4_4.mllm");
 
     vector<string> in_strs = {
-        "Give me a short introduction to large language model.",
+        " Give me a short introduction to large language model.",
     };
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto input_str = tokenizer.apply_chat_template(in_strs[i]);
         auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(input_str, 64, config.vocab_size);
-        std::cout << real_seq_length << endl;
-        std::cout << input_str << std::endl;
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
 
