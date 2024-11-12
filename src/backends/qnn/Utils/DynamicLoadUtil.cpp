@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "DynamicLoadUtil.hpp"
+#include "Log.h"
 #include "Logger.hpp"
 #include "PAL/DynamicLoading.hpp"
 
@@ -25,9 +26,9 @@ template <class T>
 static inline T resolveSymbol(void* libHandle, const char* sym) {
   T ptr = (T)pal::dynamicloading::dlSym(libHandle, sym);
   if (ptr == nullptr) {
-    QNN_ERROR("Unable to access symbol [%s]. pal::dynamicloading::dlError(): %s",
-              sym,
-              pal::dynamicloading::dlError());
+      MLLM_LOG_ERROR_LEGACY("Unable to access symbol [%s]. pal::dynamicloading::dlError(): %s",
+                            sym,
+                            pal::dynamicloading::dlError());
   }
   return ptr;
 }
@@ -42,9 +43,9 @@ dynamicloadutil::StatusCode dynamicloadutil::getQnnFunctionPointers(
   void* libBackendHandle = pal::dynamicloading::dlOpen(
       backendPath.c_str(), pal::dynamicloading::DL_NOW | pal::dynamicloading::DL_GLOBAL);
   if (nullptr == libBackendHandle) {
-    QNN_ERROR("Unable to load backend. pal::dynamicloading::dlError(): %s",
-              pal::dynamicloading::dlError());
-    return StatusCode::FAIL_LOAD_BACKEND;
+      MLLM_LOG_ERROR_LEGACY("Unable to load backend. pal::dynamicloading::dlError(): %s",
+                            pal::dynamicloading::dlError());
+      return StatusCode::FAIL_LOAD_BACKEND;
   }
   if (nullptr != backendHandleRtn) {
     *backendHandleRtn = libBackendHandle;
@@ -60,16 +61,16 @@ dynamicloadutil::StatusCode dynamicloadutil::getQnnFunctionPointers(
   uint32_t numProviders{0};
   if (QNN_SUCCESS !=
       getInterfaceProviders((const QnnInterface_t***)&interfaceProviders, &numProviders)) {
-    QNN_ERROR("Failed to get interface providers.");
-    return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
+      MLLM_LOG_ERROR_LEGACY("Failed to get interface providers.");
+      return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
   }
   if (nullptr == interfaceProviders) {
-    QNN_ERROR("Failed to get interface providers: null interface providers received.");
-    return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
+      MLLM_LOG_ERROR_LEGACY("Failed to get interface providers: null interface providers received.");
+      return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
   }
   if (0 == numProviders) {
-    QNN_ERROR("Failed to get interface providers: 0 interface providers.");
-    return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
+      MLLM_LOG_ERROR_LEGACY("Failed to get interface providers: 0 interface providers.");
+      return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
   }
   bool foundValidInterface{false};
   for (size_t pIdx = 0; pIdx < numProviders; pIdx++) {
@@ -81,9 +82,9 @@ dynamicloadutil::StatusCode dynamicloadutil::getQnnFunctionPointers(
     }
   }
   if (!foundValidInterface) {
-    QNN_ERROR("Unable to find a valid interface.");
-    libBackendHandle = nullptr;
-    return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
+      MLLM_LOG_ERROR_LEGACY("Unable to find a valid interface.");
+      libBackendHandle = nullptr;
+      return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
   }
 
   if (true == loadModelLib) {
@@ -91,9 +92,9 @@ dynamicloadutil::StatusCode dynamicloadutil::getQnnFunctionPointers(
     void* libModelHandle = pal::dynamicloading::dlOpen(
         modelPath.c_str(), pal::dynamicloading::DL_NOW | pal::dynamicloading::DL_LOCAL);
     if (nullptr == libModelHandle) {
-      QNN_ERROR("Unable to load model. pal::dynamicloading::dlError(): %s",
-                pal::dynamicloading::dlError());
-      return StatusCode::FAIL_LOAD_MODEL;
+        MLLM_LOG_ERROR_LEGACY("Unable to load model. pal::dynamicloading::dlError(): %s",
+                              pal::dynamicloading::dlError());
+        return StatusCode::FAIL_LOAD_MODEL;
     }
     if (nullptr != modelHandleRtn) {
       *modelHandleRtn = libModelHandle;
@@ -124,15 +125,15 @@ dynamicloadutil::StatusCode dynamicloadutil::getQnnSystemFunctionPointers(
     std::string systemLibraryPath, sample_app::QnnFunctionPointers* qnnFunctionPointers) {
   QNN_FUNCTION_ENTRY_LOG;
   if (!qnnFunctionPointers) {
-    QNN_ERROR("nullptr provided for qnnFunctionPointers");
-    return StatusCode::FAILURE;
+      MLLM_LOG_ERROR_LEGACY("nullptr provided for qnnFunctionPointers");
+      return StatusCode::FAILURE;
   }
   void* systemLibraryHandle = pal::dynamicloading::dlOpen(
       systemLibraryPath.c_str(), pal::dynamicloading::DL_NOW | pal::dynamicloading::DL_LOCAL);
   if (nullptr == systemLibraryHandle) {
-    QNN_ERROR("Unable to load system library. pal::dynamicloading::dlError(): %s",
-              pal::dynamicloading::dlError());
-    return StatusCode::FAIL_LOAD_SYSTEM_LIB;
+      MLLM_LOG_ERROR_LEGACY("Unable to load system library. pal::dynamicloading::dlError(): %s",
+                            pal::dynamicloading::dlError());
+      return StatusCode::FAIL_LOAD_SYSTEM_LIB;
   }
   QnnSystemInterfaceGetProvidersFn_t getSystemInterfaceProviders{nullptr};
   getSystemInterfaceProviders = resolveSymbol<QnnSystemInterfaceGetProvidersFn_t>(
@@ -144,16 +145,16 @@ dynamicloadutil::StatusCode dynamicloadutil::getQnnSystemFunctionPointers(
   uint32_t numProviders{0};
   if (QNN_SUCCESS != getSystemInterfaceProviders(
                          (const QnnSystemInterface_t***)&systemInterfaceProviders, &numProviders)) {
-    QNN_ERROR("Failed to get system interface providers.");
-    return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
+      MLLM_LOG_ERROR_LEGACY("Failed to get system interface providers.");
+      return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
   }
   if (nullptr == systemInterfaceProviders) {
-    QNN_ERROR("Failed to get system interface providers: null interface providers received.");
-    return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
+      MLLM_LOG_ERROR_LEGACY("Failed to get system interface providers: null interface providers received.");
+      return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
   }
   if (0 == numProviders) {
-    QNN_ERROR("Failed to get interface providers: 0 interface providers.");
-    return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
+      MLLM_LOG_ERROR_LEGACY("Failed to get interface providers: 0 interface providers.");
+      return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
   }
   bool foundValidSystemInterface{false};
   for (size_t pIdx = 0; pIdx < numProviders; pIdx++) {
@@ -166,8 +167,8 @@ dynamicloadutil::StatusCode dynamicloadutil::getQnnSystemFunctionPointers(
     }
   }
   if (!foundValidSystemInterface) {
-    QNN_ERROR("Unable to find a valid system interface.");
-    return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
+      MLLM_LOG_ERROR_LEGACY("Unable to find a valid system interface.");
+      return StatusCode::FAIL_GET_INTERFACE_PROVIDERS;
   }
   QNN_FUNCTION_EXIT_LOG;
   return StatusCode::SUCCESS;

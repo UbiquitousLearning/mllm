@@ -25,9 +25,8 @@ ErrorCode CPUKVCacheXp::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, sequence, inputs[0]->dimension());
 
     if (sequence > cache_limit_) {
-        std::cerr << "\n[ERROR]: Current tokens exceed cache limit: " << sequence << ">"
-                  << cache_limit_ << ";";
-        std::cerr << "\n         Please set args `--limits` >" << cache_limit_ << std::endl;
+        MLLM_LOG_ERROR_STREAM << "\n[ERROR]: Current tokens exceed cache limit: " << sequence << ">"
+                              << cache_limit_ << ";" << "\n         Please set args `--limits` >" << cache_limit_ << std::endl;
         exit(-1);
     }
     return Op::reshape(inputs, outputs);
@@ -58,7 +57,7 @@ ErrorCode CPUKVCacheXp::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
     }
 
     // copy cache to output
-    memcpy(outputs[0]->rawHostPtr(), cache_.rawHostPtr(), outputs[0]->count() * sizeof(float));
+    // memcpy(outputs[0]->rawHostPtr(), cache_.rawHostPtr(), outputs[0]->count() * sizeof(float));
 
     return MLLM_NO_ERROR;
 }
@@ -68,6 +67,7 @@ ErrorCode CPUKVCacheXp::free(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 }
 
 ErrorCode CPUKVCacheXp::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    return Op::setUp(inputs, outputs);
+    outputs[0]->forceResetHostPointer(cache_.rawHostPtr());
+    return MLLM_NO_ERROR;
 }
 } // namespace mllm

@@ -5,9 +5,9 @@
 #include "Types.hpp"
 
 int n_pack = 16;
-#ifndef USE_QNN
+// #ifndef USE_QNN
 #define KVCache_TYPE_16
-#endif
+// #endif
 namespace mllm {
 CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max, int threadCount) :
     thread_count(threadCount), Op(bn, opName) {
@@ -55,9 +55,8 @@ ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs,
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, sequence,
                         inputs[0]->dimension());
     if (sequence > cache_limit_) {
-        std::cerr << "\n[ERROR]: Current tokens exceed cache limit: " << sequence << ">"
-                  << cache_limit_ << ";";
-        std::cerr << "\n         Please set args `--limits` >" << cache_limit_ << std::endl;
+        MLLM_LOG_ERROR_STREAM << "\n[ERROR]: Current tokens exceed cache limit: " << sequence << ">"
+                              << cache_limit_ << ";" << "\n         Please set args `--limits` >" << cache_limit_ << std::endl;
 
         exit(1);
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, cache_limit_,

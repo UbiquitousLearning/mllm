@@ -34,7 +34,7 @@ jobs:
       - run: cd test && pip install -r requirements.txt && pip install cmake
       - name: Build
         run: |
-          cmake -DCMAKE_BUILD_TYPE=Debug -DTEST=on -Bbuild && cmake --build build --target all -j $(nproc)
+          cmake -DCMAKE_BUILD_TYPE=Debug -DTEST=on -DMLLM_BUILD_XNNPACK_BACKEND=ON -Bbuild && cmake --build build --target all -j $(nproc)
       - name: Make Data
         run:
           cd test && bash test.sh

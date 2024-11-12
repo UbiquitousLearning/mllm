@@ -12,6 +12,7 @@
 #include <queue>
 
 #include "DataUtil.hpp"
+#include "Log.h"
 #include "Logger.hpp"
 #include "PAL/Directory.hpp"
 #include "PAL/FileOp.hpp"
@@ -22,8 +23,8 @@ using namespace qnn::tools;
 
 std::tuple<datautil::StatusCode, size_t> datautil::getDataTypeSizeInBytes(Qnn_DataType_t dataType) {
   if (g_dataTypeToSize.find(dataType) == g_dataTypeToSize.end()) {
-    QNN_ERROR("Invalid qnn data type provided");
-    return std::make_tuple(StatusCode::INVALID_DATA_TYPE, 0);
+      MLLM_LOG_ERROR_LEGACY("Invalid qnn data type provided");
+      return std::make_tuple(StatusCode::INVALID_DATA_TYPE, 0);
   }
   return std::make_tuple(StatusCode::SUCCESS, g_dataTypeToSize.find(dataType)->second);
 }
@@ -38,8 +39,8 @@ size_t datautil::calculateElementCount(std::vector<size_t> dims) {
 std::tuple<datautil::StatusCode, size_t> datautil::calculateLength(std::vector<size_t> dims,
                                                                    Qnn_DataType_t dataType) {
   if (dims.size() == 0) {
-    QNN_ERROR("dims.size() is zero");
-    return std::make_tuple(StatusCode::INVALID_DIMENSIONS, 0);
+      MLLM_LOG_ERROR_LEGACY("dims.size() is zero");
+      return std::make_tuple(StatusCode::INVALID_DIMENSIONS, 0);
   }
   StatusCode returnStatus{StatusCode::SUCCESS};
   size_t length{0};
@@ -56,13 +57,13 @@ datautil::StatusCode datautil::readDataFromFile(std::string filePath,
                                                 Qnn_DataType_t dataType,
                                                 uint8_t* buffer) {
   if (nullptr == buffer) {
-    QNN_ERROR("buffer is nullptr");
-    return StatusCode::INVALID_BUFFER;
+      MLLM_LOG_ERROR_LEGACY("buffer is nullptr");
+      return StatusCode::INVALID_BUFFER;
   }
   std::ifstream in(filePath, std::ifstream::binary);
   if (!in) {
-    QNN_ERROR("Failed to open input file: %s", filePath.c_str());
-    return StatusCode::FILE_OPEN_FAIL;
+      MLLM_LOG_ERROR_LEGACY("Failed to open input file: %s", filePath.c_str());
+      return StatusCode::FILE_OPEN_FAIL;
   }
   in.seekg(0, in.end);
   const size_t length = in.tellg();
@@ -74,16 +75,16 @@ datautil::StatusCode datautil::readDataFromFile(std::string filePath,
     return err;
   }
   if (length != l) {
-    QNN_ERROR("Input file %s: file size in bytes (%d), should be equal to: %d",
-              filePath.c_str(),
-              length,
-              l);
-    return StatusCode::DATA_SIZE_MISMATCH;
+      MLLM_LOG_ERROR_LEGACY("Input file %s: file size in bytes (%d), should be equal to: %d",
+                            filePath.c_str(),
+                            length,
+                            l);
+      return StatusCode::DATA_SIZE_MISMATCH;
   }
 
   if (!in.read(reinterpret_cast<char*>(buffer), length)) {
-    QNN_ERROR("Failed to read the contents of: %s", filePath.c_str());
-    return StatusCode::DATA_READ_FAIL;
+      MLLM_LOG_ERROR_LEGACY("Failed to read the contents of: %s", filePath.c_str());
+      return StatusCode::DATA_READ_FAIL;
   }
   return StatusCode::SUCCESS;
 }
@@ -94,8 +95,8 @@ datautil::ReadBatchDataRetType_t datautil::readBatchDataAndUpdateQueue(
     Qnn_DataType_t dataType,
     uint8_t* buffer) {
   if (nullptr == buffer) {
-    QNN_ERROR("buffer is nullptr");
-    return std::make_tuple(StatusCode::INVALID_BUFFER, 0, 0);
+      MLLM_LOG_ERROR_LEGACY("buffer is nullptr");
+      return std::make_tuple(StatusCode::INVALID_BUFFER, 0, 0);
   }
   StatusCode err{StatusCode::SUCCESS};
   size_t l{0};
@@ -115,22 +116,22 @@ datautil::ReadBatchDataRetType_t datautil::readBatchDataAndUpdateQueue(
     } else {
       std::ifstream in(filePaths.front(), std::ifstream::binary);
       if (!in) {
-        QNN_ERROR("Failed to open input file: %s", filePaths.front().c_str());
-        return std::make_tuple(StatusCode::FILE_OPEN_FAIL, numInputsCopied, numBatchSize);
+          MLLM_LOG_ERROR_LEGACY("Failed to open input file: %s", filePaths.front().c_str());
+          return std::make_tuple(StatusCode::FILE_OPEN_FAIL, numInputsCopied, numBatchSize);
       }
       in.seekg(0, in.end);
       const size_t length = in.tellg();
       in.seekg(0, in.beg);
       if ((l % length) != 0 || length > l || length == 0) {
-        QNN_ERROR("Input file %s: file size in bytes (%d), should be multiples of: %d",
-                  filePaths.front().c_str(),
-                  length,
-                  l);
-        return std::make_tuple(StatusCode::DATA_SIZE_MISMATCH, numInputsCopied, numBatchSize);
+          MLLM_LOG_ERROR_LEGACY("Input file %s: file size in bytes (%d), should be multiples of: %d",
+                                filePaths.front().c_str(),
+                                length,
+                                l);
+          return std::make_tuple(StatusCode::DATA_SIZE_MISMATCH, numInputsCopied, numBatchSize);
       }
       if (!in.read(reinterpret_cast<char*>(buffer + (numInputsCopied * length)), length)) {
-        QNN_ERROR("Failed to read the contents of: %s", filePaths.front().c_str());
-        return std::make_tuple(StatusCode::DATA_READ_FAIL, numInputsCopied, numBatchSize);
+          MLLM_LOG_ERROR_LEGACY("Failed to read the contents of: %s", filePaths.front().c_str());
+          return std::make_tuple(StatusCode::DATA_READ_FAIL, numInputsCopied, numBatchSize);
       }
       QNN_VERBOSE("Return from readDataFromFile()");
       totalLength += length;
@@ -145,8 +146,8 @@ datautil::ReadBatchDataRetType_t datautil::readBatchDataAndUpdateQueue(
 std::tuple<datautil::StatusCode, size_t> datautil::getFileSize(std::string filePath) {
   std::ifstream in(filePath, std::ifstream::binary);
   if (!in) {
-    QNN_ERROR("Failed to open input file: %s", filePath.c_str());
-    return std::make_tuple(StatusCode::FILE_OPEN_FAIL, 0);
+      MLLM_LOG_ERROR_LEGACY("Failed to open input file: %s", filePath.c_str());
+      return std::make_tuple(StatusCode::FILE_OPEN_FAIL, 0);
   }
   in.seekg(0, in.end);
   const size_t length = in.tellg();
@@ -158,17 +159,17 @@ datautil::StatusCode datautil::readBinaryFromFile(std::string filePath,
                                                   uint8_t* buffer,
                                                   size_t bufferSize) {
   if (nullptr == buffer) {
-    QNN_ERROR("buffer is nullptr");
-    return StatusCode::INVALID_BUFFER;
+      MLLM_LOG_ERROR_LEGACY("buffer is nullptr");
+      return StatusCode::INVALID_BUFFER;
   }
   std::ifstream in(filePath, std::ifstream::binary);
   if (!in) {
-    QNN_ERROR("Failed to open input file: %s", filePath.c_str());
-    return StatusCode::FILE_OPEN_FAIL;
+      MLLM_LOG_ERROR_LEGACY("Failed to open input file: %s", filePath.c_str());
+      return StatusCode::FILE_OPEN_FAIL;
   }
   if (!in.read(reinterpret_cast<char*>(buffer), bufferSize)) {
-    QNN_ERROR("Failed to read the contents of: %s", filePath.c_str());
-    return StatusCode::DATA_READ_FAIL;
+      MLLM_LOG_ERROR_LEGACY("Failed to read the contents of: %s", filePath.c_str());
+      return StatusCode::DATA_READ_FAIL;
   }
   return StatusCode::SUCCESS;
 }
@@ -179,18 +180,18 @@ datautil::StatusCode datautil::writeDataToFile(std::string fileDir,
                                                Qnn_DataType_t dataType,
                                                uint8_t* buffer) {
   if (nullptr == buffer) {
-    QNN_ERROR("buffer is nullptr");
-    return StatusCode::INVALID_BUFFER;
+      MLLM_LOG_ERROR_LEGACY("buffer is nullptr");
+      return StatusCode::INVALID_BUFFER;
   }
   if (!pal::Directory::makePath(fileDir)) {
-    QNN_ERROR("Failed to create output directory: %s", fileDir.c_str());
-    return StatusCode::DIRECTORY_CREATE_FAIL;
+      MLLM_LOG_ERROR_LEGACY("Failed to create output directory: %s", fileDir.c_str());
+      return StatusCode::DIRECTORY_CREATE_FAIL;
   }
   const std::string outputPath(fileDir + pal::Path::getSeparator() + fileName);
   std::ofstream os(outputPath, std::ofstream::binary);
   if (!os) {
-    QNN_ERROR("Failed to open output file for writing: %s", outputPath.c_str());
-    return StatusCode::FILE_OPEN_FAIL;
+      MLLM_LOG_ERROR_LEGACY("Failed to open output file for writing: %s", outputPath.c_str());
+      return StatusCode::FILE_OPEN_FAIL;
   }
   StatusCode err{StatusCode::SUCCESS};
   size_t length{0};
@@ -211,8 +212,8 @@ datautil::StatusCode datautil::writeBatchDataToFile(std::vector<std::string> fil
                                                     uint8_t* buffer,
                                                     const size_t batchSize) {
   if (nullptr == buffer) {
-    QNN_ERROR("buffer is nullptr");
-    return StatusCode::INVALID_BUFFER;
+      MLLM_LOG_ERROR_LEGACY("buffer is nullptr");
+      return StatusCode::INVALID_BUFFER;
   }
   StatusCode err{StatusCode::SUCCESS};
   size_t length{0};
@@ -224,14 +225,14 @@ datautil::StatusCode datautil::writeBatchDataToFile(std::vector<std::string> fil
   for (size_t batchIndex = 0; batchIndex < fileDirs.size(); batchIndex++) {
     std::string fileDir = fileDirs[batchIndex];
     if (!pal::Directory::makePath(fileDir)) {
-      QNN_ERROR("Failed to create output directory: %s", fileDir.c_str());
-      return StatusCode::DIRECTORY_CREATE_FAIL;
+        MLLM_LOG_ERROR_LEGACY("Failed to create output directory: %s", fileDir.c_str());
+        return StatusCode::DIRECTORY_CREATE_FAIL;
     }
     const std::string outputPath(fileDir + pal::Path::getSeparator() + fileName);
     std::ofstream os(outputPath, std::ofstream::binary);
     if (!os) {
-      QNN_ERROR("Failed to open output file for writing: %s", outputPath.c_str());
-      return StatusCode::FILE_OPEN_FAIL;
+        MLLM_LOG_ERROR_LEGACY("Failed to open output file for writing: %s", outputPath.c_str());
+        return StatusCode::FILE_OPEN_FAIL;
     }
     for (size_t l = 0; l < outputSize; l++) {
       size_t bufferIndex = l + (batchIndex * outputSize);
@@ -246,18 +247,18 @@ datautil::StatusCode datautil::writeBinaryToFile(std::string fileDir,
                                                  uint8_t* buffer,
                                                  size_t bufferSize) {
   if (nullptr == buffer) {
-    QNN_ERROR("buffer is nullptr");
-    return StatusCode::INVALID_BUFFER;
+      MLLM_LOG_ERROR_LEGACY("buffer is nullptr");
+      return StatusCode::INVALID_BUFFER;
   }
   if (!pal::Directory::makePath(fileDir)) {
-    QNN_ERROR("Failed to create output directory: %s", fileDir.c_str());
-    return StatusCode::DIRECTORY_CREATE_FAIL;
+      MLLM_LOG_ERROR_LEGACY("Failed to create output directory: %s", fileDir.c_str());
+      return StatusCode::DIRECTORY_CREATE_FAIL;
   }
   const std::string outputPath(fileDir + pal::Path::getSeparator() + fileName);
   std::ofstream os(outputPath, std::ofstream::binary);
   if (!os) {
-    QNN_ERROR("Failed to open output file for writing: %s", outputPath.c_str());
-    return StatusCode::FILE_OPEN_FAIL;
+      MLLM_LOG_ERROR_LEGACY("Failed to open output file for writing: %s", outputPath.c_str());
+      return StatusCode::FILE_OPEN_FAIL;
   }
   os.write(reinterpret_cast<char*>(buffer), bufferSize);
   return StatusCode::SUCCESS;
@@ -269,8 +270,8 @@ datautil::StatusCode datautil::floatToTfN(
   static_assert(std::is_unsigned<T_QuantType>::value, "floatToTfN supports unsigned only!");
 
   if (nullptr == out || nullptr == in) {
-    QNN_ERROR("Received a nullptr");
-    return StatusCode::INVALID_BUFFER;
+      MLLM_LOG_ERROR_LEGACY("Received a nullptr");
+      return StatusCode::INVALID_BUFFER;
   }
 
   size_t dataTypeSizeInBytes = sizeof(T_QuantType);
@@ -303,8 +304,8 @@ datautil::StatusCode datautil::tfNToFloat(
   static_assert(std::is_unsigned<T_QuantType>::value, "tfNToFloat supports unsigned only!");
 
   if (nullptr == out || nullptr == in) {
-    QNN_ERROR("Received a nullptr");
-    return StatusCode::INVALID_BUFFER;
+      MLLM_LOG_ERROR_LEGACY("Received a nullptr");
+      return StatusCode::INVALID_BUFFER;
   }
   for (size_t i = 0; i < numElements; i++) {
     double quantizedValue = static_cast<double>(in[i]);
@@ -323,8 +324,8 @@ template datautil::StatusCode datautil::tfNToFloat<uint16_t>(
 template <typename T_QuantType>
 datautil::StatusCode datautil::castToFloat(float* out, T_QuantType* in, size_t numElements) {
   if (nullptr == out || nullptr == in) {
-    QNN_ERROR("Received a nullptr");
-    return StatusCode::INVALID_BUFFER;
+      MLLM_LOG_ERROR_LEGACY("Received a nullptr");
+      return StatusCode::INVALID_BUFFER;
   }
   for (size_t i = 0; i < numElements; i++) {
     out[i] = static_cast<float>(in[i]);
@@ -364,8 +365,8 @@ template datautil::StatusCode datautil::castToFloat<__fp16>(float* out,
 template <typename T_QuantType>
 datautil::StatusCode datautil::castFromFloat(T_QuantType* out, float* in, size_t numElements) {
   if (nullptr == out || nullptr == in) {
-    QNN_ERROR("Received a nullptr");
-    return StatusCode::INVALID_BUFFER;
+      MLLM_LOG_ERROR_LEGACY("Received a nullptr");
+      return StatusCode::INVALID_BUFFER;
   }
   for (size_t i = 0; i < numElements; i++) {
     out[i] = static_cast<T_QuantType>(in[i]);

@@ -26,7 +26,7 @@ public:
         Module::initBackend(MLLM_CPU);
     }
 
-    Tensor tokenize(std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
+    Tensor tokenize(const std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
         // replace all blanck to '_'
         std::string new_text = BPETokenizer::replaceString(text, ' ', "▁");
 

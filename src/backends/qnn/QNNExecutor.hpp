@@ -45,7 +45,7 @@ public:
      * execute(net, input_tensors) is equivalent to setup(net) + run(net, input_tensors)
      */
     void execute(Net *net, vector<shared_ptr<Tensor>> input_tensor) override {
-        std::cerr << "QNNExecutor::execute Not implemented" << std::endl;
+        MLLM_LOG_ERROR_STREAM << "QNNExecutor::execute Not implemented" << std::endl;
     };
 
     // graph offload rule for qnn execution, used in setup and execution

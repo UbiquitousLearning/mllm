@@ -107,7 +107,7 @@ void UnigramTokenizer::tokenize(const std::string &text, std::vector<token_id_t>
                     if (result != this->vocab_map_.end()) {
                         tokens.emplace_back(result->second);
                     }else {
-                        std::cerr<< "byte_fallback error"<< byte_string << std::endl;
+                        MLLM_LOG_ERROR_STREAM << "byte_fallback error" << byte_string << std::endl;
                     }
                 }
             }else tokens.emplace_back(TokenUnk);

@@ -12,6 +12,7 @@
 #include <vector>
 #include <cassert>
 #include <cstdint>
+#include <Log.h>
 using std::string;
 using std::vector;
 using std::map;

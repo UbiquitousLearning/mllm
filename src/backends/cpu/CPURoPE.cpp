@@ -352,7 +352,7 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     } else if (pose_type_ == MLAROPE) {
         rope_mla(input, output);
     } else {
-        std::cerr << "RoPE type error" << std::endl;
+        MLLM_LOG_ERROR_STREAM << "RoPE type error" << std::endl;
     }
     /*
 #pragma omp parallel for collapse(4) num_threads(thread_count)

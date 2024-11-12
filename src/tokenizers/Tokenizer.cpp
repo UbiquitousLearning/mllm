@@ -167,7 +167,7 @@ void Tokenizer::setSpecialToken(const string &bos, const string &eos, const stri
         if (bos_token != this->vocab_map_.end()) {
             TokenBos = bos_token->second;
         } else {
-            std::cerr << "BOS token not found in vocab file." << std::endl;
+            MLLM_LOG_ERROR_STREAM << "BOS token not found in vocab file." << std::endl;
         }
     }
     if (!eos.empty()) {
@@ -175,7 +175,7 @@ void Tokenizer::setSpecialToken(const string &bos, const string &eos, const stri
         if (eos_token != this->vocab_map_.end()) {
             TokenEos = eos_token->second;
         } else {
-            std::cerr << "EOS token not found in vocab file." << std::endl;
+            MLLM_LOG_ERROR_STREAM << "EOS token not found in vocab file." << std::endl;
         }
     }
     if (!unk.empty()) {
@@ -183,7 +183,7 @@ void Tokenizer::setSpecialToken(const string &bos, const string &eos, const stri
         if (unk_token != this->vocab_map_.end()) {
             TokenUnk = unk_token->second;
         } else {
-            std::cerr << "UNK token not found in vocab file." << std::endl;
+            MLLM_LOG_ERROR_STREAM << "UNK token not found in vocab file." << std::endl;
         }
     }
 }

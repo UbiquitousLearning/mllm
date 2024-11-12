@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <unordered_map>
 #include<list>
-
+#include <Log.h>
 using std::unordered_map;
 using std::uint64_t;
 using std::list;

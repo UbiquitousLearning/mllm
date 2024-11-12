@@ -27,13 +27,14 @@ public:
         chat_template_end = "<|im_end|>\n<|im_start|>assistant\n";
     }
 
-    Tensor tokenize(std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
+    Tensor tokenize(const std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
+        string new_text;
         if (text[0] != ' ') {
-            text = ' ' + text;
+            new_text = ' ' + text;
         }
-        text = Tokenizer::replaceString(text, ' ', "Ġ");
+        new_text = Tokenizer::replaceString(new_text, ' ', "Ġ");
         std::vector<token_id_t> tokens_id;
-        BPETokenizer::tokenize(text, tokens_id, true);
+        BPETokenizer::tokenize(new_text, tokens_id, true);
         tokens_id.erase(tokens_id.begin());
         tokens_id.pop_back();
         return BPETokenizer::tokens2Input(tokens_id);
