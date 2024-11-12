@@ -76,7 +76,7 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
         break;
 
     case FUYU:
-        processor_ = new FuyuProcessor(vocab_path);
+        processor_ = new FuyuProcessor(vocab_path, 224, 224);
         module_ = make_shared<FuyuModel>(fuyuconfig);
         break;
     case Bert:
