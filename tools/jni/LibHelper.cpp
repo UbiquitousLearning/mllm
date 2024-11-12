@@ -109,6 +109,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
     std::string output_string_;
     LOGE("Running model %d", model_);
     unsigned max_new_tokens = 500;
+    LOGE("Running backend %d", backend_);
 
     if (model_ == QWEN) {
         auto tokenizer = dynamic_pointer_cast<QWenTokenizer>(tokenizer_);
