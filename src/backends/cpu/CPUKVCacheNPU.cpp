@@ -38,6 +38,11 @@ ErrorCode CPUKVCacheNPU::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
         cache_seq_len_ = cpuBackend->getSequenceLength();
         isDecoding = true;
     }
+    // if a new prompt is given, the cache should be updated
+    if (cpuBackend->isStageSwitching() && cpuBackend->getExecutionType() == PROMPT) {
+        cache_seq_len_ = cpuBackend->getSequenceLength();
+        isDecoding = false;
+    }
 #endif
 
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence() + cache_seq_len_, inputs[0]->dimension());
@@ -56,13 +61,6 @@ ErrorCode CPUKVCacheNPU::load(AbstructLoader &loader) {
 }
 
 ErrorCode CPUKVCacheNPU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // if a new prompt is given, the cache should be updated
-    auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-    if (cpuBackend->isStageSwitching() && cpuBackend->getExecutionType() == PROMPT) {
-        isDecoding = false;
-        cache_seq_len_ = 0;
-        outputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ / cache_limit_, 0});
-    }
 
     // when decoding, the input will deepCopy from cache, no need to execute
     if (isDecoding) {
