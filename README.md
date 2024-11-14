@@ -59,17 +59,17 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 
 <table>
     <tr>
-        <td>Demo of LLM chatting</td>
-        <td>Demo of image understanding</td>
-        <td>Demo of UI screen understanding</td>
+        <td>Chatting</td>
+        <td>Android Intent Invocation</td>
+        <td>Image Understanding</td>
     </tr>
     <tr>
-        <td> <video src="https://github.com/UbiquitousLearning/mllm/assets/38753457/7a1eb892-8259-41ff-8c97-b773d16fce7f"> </td>
-        <td> <video src="https://github.com/UbiquitousLearning/mllm/assets/38753457/32549658-5c74-4ce0-962f-6621c919faad"> </td>
-        <td>  <video src="https://github.com/UbiquitousLearning/mllm/assets/38753457/fe234f27-1393-4ee2-84ce-254cee91a27f"> </td>
+        <td>  <video src="https://github.com/user-attachments/assets/972b3bad-d659-4d76-9141-64ad0ad34d64"> </td>
+        <td>  <video src="https://github.com/user-attachments/assets/deb99f8d-9727-4519-9ca7-c39deb7c5b47"> </td>
+        <td>  <video src="https://github.com/user-attachments/assets/55321a43-8484-4f74-b7b2-d4495f3626d9">  </td>
     </tr>
 </table>
-            
+
 ## Support models
 
 [//]: # (* ✔️ : Support and test well on mobile devices.)
@@ -390,4 +390,16 @@ Certain component([wenet](https://github.com/wenet-e2e/wenet)) of this project i
 These component is clearly identified in their respective subdirectories along with a copy of the Apache License 2.0.
 For the full text of the Apache License 2.0, please refer to the [LICENSE-APACHE](third_party/wenet_audio/LICENSE) file
 located in the relevant subdirectories.
+
+## Citation
+```
+@misc{yi2023mllm,
+  title = {mllm: fast and lightweight multimodal LLM inference engine for mobile and edge devices},
+  author = {Rongjie Yi and Xiang Li and Qichen Qiu and Zhenyan Lu and Hao Zhang and Daliang Xu and Liming Yang and Weikai Xie and Chenghua Wang and Mengwei Xu},
+  year = {2023},
+  publisher = {mllm Team},
+  url = {https://github.com/UbiquitousLearning/mllm}
+}
+```
+
 
