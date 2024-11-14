@@ -1,7 +1,6 @@
 #include "Module.hpp"
 #include "Types.hpp"
 #include <memory>
-#ifdef USE_QNN
 #include "backends/cpu/CPUBackend.hpp"
 #include "cmdline.h"
 #include "models/phonelm/modeling_phonelm.hpp"
@@ -15,7 +14,7 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/phonelm_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/phonelm_merges.txt");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/PhoneLM-1.5B-Instruct-128.mllm");
-    cmdParser.add<string>("decoding", 'd', "specify mllm decoding model path", false, "../models/phonelm-1.5b-droidcall-q4_0_4_4.mllm");
+    cmdParser.add<string>("decoding", 'd', "specify mllm decoding model path", false, "../models/phonelm-1.5b-instruct-q4_0_4_4.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.add<int>("chunk", 'c', "chunk size", false, 64);
@@ -40,6 +39,9 @@ int main(int argc, char **argv) {
         "Give me a short introduction to large language model.",
         "What is the Beijing University of Posts and Telecommunications.",
         "What is the meaning of life?",
+        "Hello, who are you?",
+        "What can you do?",
+        "Please introduce Beijing University of Posts and Telecommunications.",
     };
 
     // turn on the multi-chunk prefilling
@@ -48,13 +50,10 @@ int main(int argc, char **argv) {
     for (int i = 0; i < in_strs.size(); ++i) {
         auto input_str = tokenizer.apply_chat_template(in_strs[i]);
         auto [real_seq_length, input_tensor] = tokenizer.tokenizePaddingByChunk(input_str, chunk_size, config.vocab_size);
-
         const int seq_length_padding = (chunk_size - real_seq_length % chunk_size) + real_seq_length;
         const int chunk_num = seq_length_padding / chunk_size;
         bool isSwitched = false;
-
-        std::cout << "real seq length: " << real_seq_length << " padding to: " << seq_length_padding << " chunk num: " << chunk_num << std::endl;
-
+        // std::cout << "real seq length: " << real_seq_length << " padding to: " << seq_length_padding << " chunk num: " << chunk_num << std::endl;
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
 
@@ -84,13 +83,11 @@ int main(int argc, char **argv) {
                 auto out_string = tokenizer.detokenize({out_token});
                 auto [not_end, output_string] = tokenizer.postprocess(out_string);
                 if (!not_end) { return false; }
-
                 if (chunk_id == chunk_num - 1) { // print the output of the last chunk
                     std::cout << output_string << std::flush;
                 }
                 return true;
             });
-
             Module::isFirstChunk = false;
         }
 
@@ -107,30 +104,23 @@ int main(int argc, char **argv) {
             .top_p = 0.f,
             .is_padding = false,
         };
-
         isSwitched = false;
         decoding_model.generate(chunked_tensors.back(), decoding_opt, [&](unsigned int out_token) -> bool {
-            if (!isSwitched) {
-                // turn off switching
+            if (!isSwitched) { // turn off switching
                 static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
                 isSwitched = true;
             }
             auto out_string = tokenizer.detokenize({out_token});
-            auto [isOk, print_string] = tokenizer.postprocess(out_string);
-            if (isOk) {
-                std::cout << print_string << std::flush;
-            } else {
-                return false;
-            }
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { return false; }
+            std::cout << output_string << std::flush;
             return true;
         });
-        std::cout << "\n---------------" << std::endl;
+
         // turn on switching, set sequence length and execution type
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(0);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
-        model.clear_kvcache();
-        decoding_model.clear_kvcache();
+        std::cout << "\n";
     }
 }
-#endif

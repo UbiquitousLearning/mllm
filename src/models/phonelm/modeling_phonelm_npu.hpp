@@ -135,12 +135,6 @@ public:
 
         return {o};
     }
-    vector<KVCache *> get_cache() {
-        return {&k_cache, &v_cache};
-    }
-    vector<IRoPE *> get_rope() {
-        return {&q_rope, &k_rope};
-    }
 };
 
 // QNN mlp part
@@ -421,9 +415,6 @@ public:
 
         return {x};
     }
-    PhoneLMQKVmm &get_mm() {
-        return qkv_mm;
-    }
 };
 
 class PhoneLMNPU_CPUDecoderWithShadow final : public Module {
@@ -492,9 +483,6 @@ public:
 
         return {x};
     }
-    PhoneLMQKVmm &get_mm() {
-        return qkv_mm;
-    }
 };
 
 // Copied from GemmaModel with Gemma->PhoneLM and set RmsNorm(without add_unit_offset)
@@ -535,18 +523,6 @@ public:
         }
         x = norm(x);
         return {x};
-    }
-
-    void clear_kvcache() override {
-        for (auto &block : blocks) {
-            auto decoder = dynamic_cast<PhoneLMNPU_CPUDecoder *>(block.get());
-            if (decoder) {
-                auto kvcache = decoder->get_mm().get_cache();
-                for (auto &cache : kvcache) { cache->clearCache(); }
-                auto ropes = decoder->get_mm().get_rope();
-                for (auto &rope : ropes) { rope->clearCache(); }
-            }
-        }
     }
 
 private:
@@ -606,14 +582,11 @@ public:
 
         for (int step = 0; step < opt.max_new_tokens; ++step) {
             auto _out = (*this)({input_ids});
-            auto out_token = text_generator_->generate(_out[0]);
+            auto out_token = text_generator_->generate(_out[0], opt);
             if (!call_back(out_token)) break;
             chatPostProcessing(out_token, input_ids, {});
             return;
         }
-    }
-    void clear_kvcache() override {
-        model.clear_kvcache();
     }
 
 private:

@@ -53,6 +53,7 @@ class _LlmTextGenerateMethod {
     bool is_padding = false;
     int seq_before_padding = 0;
     int chunk_size = -1;
+
 public:
     virtual ~_LlmTextGenerateMethod() = default;
     virtual unsigned int generate(Tensor &t) = 0;
@@ -171,6 +172,13 @@ public:
     }
 
     inline unsigned int generate(Tensor &t) {
+        return m_method_class->generate(t);
+    }
+
+    inline unsigned int generate(Tensor &t, const LlmTextGeneratorOpts &opt) {
+        if (opt.is_padding) {
+            m_method_class->setPadding(opt.is_padding, opt.seq_before_padding, opt.chunk_size);
+        }
         return m_method_class->generate(t);
     }
 

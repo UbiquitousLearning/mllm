@@ -586,7 +586,7 @@ public:
 
         for (int step = 0; step < opt.max_new_tokens; ++step) {
             auto _out = (*this)({input_ids});
-            auto out_token = text_generator_->generate(_out[0]);
+            auto out_token = text_generator_->generate(_out[0], opt);
             if (!call_back(out_token)) break;
             chatPostProcessing(out_token, input_ids, {});
             return;
