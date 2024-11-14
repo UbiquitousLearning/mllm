@@ -137,7 +137,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 return true;
             });
             static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();
+            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
             opt = LlmTextGeneratorOpts{
                 .max_new_tokens = max_new_tokens,
                 .do_sample = false,
@@ -150,7 +150,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
         bool isSwitched = false;
         module_->generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
             if (!isSwitched && backend_ == MLLMBackendType::QNN) {
-                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();
+                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
                 isSwitched = true;
             }
             auto out_token_string = tokenizer_->detokenize({out_token});
@@ -206,7 +206,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 return true;
             });
             static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();
+            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
 
             opt = LlmTextGeneratorOpts{
                 .max_new_tokens = max_new_tokens,
@@ -220,7 +220,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
         bool isSwitched = false;
         module_->generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
             if (!isSwitched && backend_ == MLLMBackendType::QNN) {
-                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();
+                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
                 isSwitched = true;
             }
             auto out_token_string = tokenizer_->detokenize({out_token});

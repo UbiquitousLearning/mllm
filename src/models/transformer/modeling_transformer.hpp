@@ -17,8 +17,8 @@ class MultiHeadAttention final : public Module {
     Layer q_proj;
     Layer k_proj;
     Layer v_proj;
-    Layer q_rope;
-    Layer k_rope;
+    RoPE q_rope;
+    RoPE k_rope;
     Layer q_norm;
     Layer k_norm;
     KVCache k_cache;
@@ -116,6 +116,9 @@ public:
     }
     vector<KVCache *> get_cache() {
         return {&k_cache, &v_cache};
+    }
+    vector<RoPE *> get_rope() {
+        return {&q_rope, &k_rope};
     }
 };
 

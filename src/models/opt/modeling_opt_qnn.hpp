@@ -16,8 +16,8 @@ class OPTEncoderBlockPart1 final : public Module {
     Layer q_proj;
     Layer k_proj;
     Layer v_proj;
-    Layer q_rope;
-    Layer k_rope;
+    RoPE q_rope;
+    RoPE k_rope;
     Layer norm1;
     int head_size_{};
     int kv_head_size_{};
@@ -74,11 +74,11 @@ public:
              const OPTNameConfig &names, const string &base_name) {
         attn_hidden_dim_ = attn_hidden_dim;
         head_size_ = head_size;
-        if(cache_limit>0){
+        if (cache_limit > 0) {
             k_cache = KVCache(head_size / kv_head_size, cache_limit, false, base_name + names._attn_base_name + "k_cache");
             v_cache = KVCache(head_size / kv_head_size, cache_limit, false, base_name + names._attn_base_name + "v_cache");
         }
-        
+
         if (do_mask) {
             mask = Causalmask(base_name + "mask");
         }

@@ -26,7 +26,7 @@ public:
     }
 
     Tensor tokenize(const std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
-        string new_text;
+        string new_text = text;
         if (text[0] != ' ') {
             new_text = ' ' + text;
         }

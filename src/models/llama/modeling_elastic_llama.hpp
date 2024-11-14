@@ -17,8 +17,8 @@ class ElasticMultiHeadAttention final : public Module {
     ElasticLinear q_proj;
     ElasticLinear k_proj;
     ElasticLinear v_proj;
-    Layer q_rope;
-    Layer k_rope;
+    RoPE q_rope;
+    RoPE k_rope;
     KVCache k_cache;
     KVCache v_cache;
     Softmax softmax;
@@ -85,6 +85,9 @@ public:
     }
     vector<KVCache *> get_cache() {
         return {&k_cache, &v_cache};
+    }
+    vector<RoPE *> get_rope() {
+        return {&q_rope, &k_rope};
     }
 };
 
@@ -180,10 +183,10 @@ public:
 
     void clear_kvcache() override {
         for (auto &block : blocks) {
-            auto kvcahce = block.get_attention().get_cache();
-            for (auto &cache : kvcahce) {
-                cache->clearCache();
-            }
+            auto kvcache = block.get_attention().get_cache();
+            for (auto &cache : kvcache) { cache->clearCache(); }
+            auto ropes = block.get_attention().get_rope();
+            for (auto &rope : ropes) { rope->clearCache(); }
         }
     }
 };

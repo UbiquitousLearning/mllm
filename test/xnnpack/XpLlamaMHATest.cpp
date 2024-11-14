@@ -19,8 +19,8 @@ class XpLLaMAMHA final : public Module {
     Layer q_proj;
     Layer k_proj;
     Layer v_proj;
-    Layer q_rope;
-    Layer k_rope;
+    RoPE q_rope;
+    RoPE k_rope;
     Layer k_cache;
     Layer v_cache;
     Layer o_proj;

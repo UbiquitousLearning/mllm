@@ -39,8 +39,8 @@ class OpenELMMultiHeadCausalAttention final : public Module {
     int v_heads_;
 
     Layer qkv_proj;
-    Layer q_rope;
-    Layer k_rope;
+    RoPE q_rope;
+    RoPE k_rope;
     Layer q_norm;
     Layer k_norm;
     Layer out_proj;
