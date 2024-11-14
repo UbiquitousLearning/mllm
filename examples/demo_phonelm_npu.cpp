@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
 
     auto tokenizer = SmolLMTokenizer(vocab_path, merge_path);
     PhoneLMConfig config(tokens_limit, "1.5B");
-    auto model = PhoneLMForCausalLM_NPU(config);
+    auto model = PhoneLMForCausalLM_NPU(config, chunk_size);
     model.load(model_path);
     auto decoding_model = PhoneLMForCausalLM(config);
     decoding_model.load(decoding_path);
