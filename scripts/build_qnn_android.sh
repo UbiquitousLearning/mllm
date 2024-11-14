@@ -16,4 +16,4 @@ cmake .. \
 -DQNN_VALIDATE_NODE=ON \
 -DMLLM_BUILD_XNNPACK_BACKEND=OFF
 
-make -j16
+make -j40

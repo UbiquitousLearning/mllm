@@ -82,8 +82,8 @@ public:
 
 // CPU QKV MM part
 class QwenQKVmm final : public Module {
-    Layer q_rope;
-    Layer k_rope;
+    RoPE q_rope;
+    RoPE k_rope;
     KVCache k_cache;
     KVCache v_cache;
     Softmax softmax;

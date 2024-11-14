@@ -21,9 +21,9 @@ cmake .. \
 
 make mllm_lib -j16
 
-# 2. copy libs
-cp ./libmllm_lib.a ../android/app/src/main/cpp/libs/
+# # 2. copy libs
+# cp ./libmllm_lib.a ../android/app/src/main/cpp/libs/
 
-# 3. build android apk
-cd ../android || exit
-./gradlew assembleDebug
+# # 3. build android apk
+# cd ../android || exit
+# ./gradlew assembleDebug

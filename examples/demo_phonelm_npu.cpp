@@ -129,6 +129,8 @@ int main(int argc, char **argv) {
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(0);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+        model.clear_kvcache();
+        decoding_model.clear_kvcache();
     }
 }
 #endif

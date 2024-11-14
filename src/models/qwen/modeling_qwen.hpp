@@ -115,6 +115,9 @@ public:
     vector<KVCache *> get_cache() {
         return {&k_cache, &v_cache};
     }
+    vector<RoPE *> get_rope() {
+        return {&q_rope, &k_rope};
+    }
 
 private:
     int hidden_size;
@@ -126,8 +129,8 @@ private:
     Layer k_proj;
     Layer v_proj;
     Layer o_proj;
-    Layer q_rope;
-    Layer k_rope;
+    RoPE q_rope;
+    RoPE k_rope;
     KVCache k_cache;
     KVCache v_cache;
     Causalmask mask;
@@ -187,8 +190,10 @@ public:
 
     void clear_kvcache() override {
         for (auto &block : blocks) {
-            auto kvcahce = block.get_attention().get_cache();
-            for (auto &cache : kvcahce) { cache->clearCache(); }
+            auto kvcache = block.get_attention().get_cache();
+            for (auto &cache : kvcache) { cache->clearCache(); }
+            auto ropes = block.get_attention().get_rope();
+            for (auto &rope : ropes) { rope->clearCache(); }
         }
     }
 

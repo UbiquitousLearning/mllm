@@ -21,8 +21,8 @@ class XpDecoderSeperatedPart_1_Xnn : public Module {
     Layer q_proj;
     Layer k_proj;
     Layer v_proj;
-    Layer q_rope;
-    Layer k_rope;
+    RoPE q_rope;
+    RoPE k_rope;
     Layer input_layernorm;
 
     int hidden_size = 0;
