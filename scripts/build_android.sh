@@ -13,4 +13,4 @@ cmake .. \
 -DARM=ON \
 -DAPK=OFF
 
-make -j4
+make -j$(nproc)
