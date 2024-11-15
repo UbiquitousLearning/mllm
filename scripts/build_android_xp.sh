@@ -1,6 +1,6 @@
 #!/bin/bash
-mkdir ../build-arm
-cd ../build-arm || exit
+mkdir ../build-arm-xp
+cd ../build-arm-xp || exit
 
 cmake .. \
 -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
@@ -9,11 +9,10 @@ cmake .. \
 -DANDROID_STL=c++_static \
 -DANDROID_NATIVE_API_LEVEL=android-28  \
 -DNATIVE_LIBRARY_OUTPUT=. -DNATIVE_INCLUDE_OUTPUT=. $1 $2 $3 \
--DQNN=ON \
+-DQNN=OFF \
 -DDEBUG=OFF \
 -DTEST=OFF \
 -DQUANT=OFF \
--DQNN_VALIDATE_NODE=ON \
--DMLLM_BUILD_XNNPACK_BACKEND=OFF
+-DMLLM_BUILD_XNNPACK_BACKEND=ON
 
-make -j40
+make -j$(nproc)
