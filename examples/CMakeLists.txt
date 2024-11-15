@@ -1,23 +1,21 @@
 macro(func_link_libaries target)
-    target_link_libraries(${target} PUBLIC fmt::fmt-header-only)
-    if (MLLM_OPENMP_STATIC)
+    target_link_libraries(${target} PUBLIC MLLM_CPU fmt::fmt-header-only)
+    if (MLLM_OPENMP)
         target_compile_options(${target} PRIVATE -fopenmp)
-        target_link_libraries(${target} PUBLIC MLLM_CPU -fopenmp -static-openmp)
-    else ()
-        target_compile_options(${target} PRIVATE -fopenmp)
-        target_link_libraries(${target} PUBLIC MLLM_CPU -fopenmp)
-    endif ()
-    if(QNN)
-        target_compile_definitions(${target} PRIVATE USE_QNN)
         if (ARM)
-            target_link_libraries(${target} PUBLIC  MLLM_CPU MLLM_QNN ${CMAKE_DL_LIBS} -fopenmp -static-openmp)
+            target_link_libraries(${target} PUBLIC -fopenmp -static-openmp)
+        else ()
+            target_link_libraries(${target} PUBLIC -fopenmp)
         endif ()
+    endif ()
+    if (QNN)
+        target_compile_definitions(${target} PRIVATE USE_QNN)
+        target_link_libraries(${target} PUBLIC MLLM_QNN ${CMAKE_DL_LIBS})
     endif()
     if (MLLM_BUILD_XNNPACK_BACKEND)
-        target_link_libraries(${target} PRIVATE MLLM_CPU MllmXnnpackBackend)
+        target_link_libraries(${target} PRIVATE MllmXnnpackBackend)
     endif()
 endmacro()
-
 
 macro(func_llm_add_executable target)
     add_executable(${target}
@@ -56,11 +54,6 @@ macro(func_vlm_add_executable target)
     func_link_libaries(${target})
 endmacro()
 
-
-
-## new demos
-
-# if(NOT MLLM_BUILD_XNNPACK_BACKEND)
 func_llm_add_executable(mllm_benchmark)
 func_llm_add_executable(demo_llama)
 func_llm_add_executable(demo_tinyllama)
@@ -87,23 +80,19 @@ func_vlm_add_executable(demo_vit)
 func_vlm_add_executable(demo_clip)
 func_vlm_add_executable(demo_imagebind)
 func_vlm_add_executable(demo_imagebind_1mod)
-# endif()
 
-# QNN demo
+
 if(QNN)
     func_llm_add_executable(demo_qwen_npu)
     func_llm_add_executable(main_qwen_npu)
     func_llm_add_executable(demo_phonelm_npu)
     func_llm_add_executable(main_phonelm_npu)
+    func_llm_add_executable(demo_qwen2.5_npu)
 endif()
 
 
 if(MLLM_BUILD_XNNPACK_BACKEND)
     func_llm_add_executable(demo_qwen_xp)
-    # func_llm_add_executable(demo_qwenqkvmm)
-    # func_llm_add_executable(demo_qwenqkvmm_cpu)
-    # func_llm_add_executable(demo_qdint8_gemm)
-    # func_llm_add_executable(demo_fp32gemmperf)
 endif()
 
 

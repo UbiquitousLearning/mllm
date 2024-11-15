@@ -63,7 +63,7 @@ public:
 
 protected:
     bool isSetup_ = false;
-    QNNExecutionType executionType_ = PROMPT;
+    ExecutionType executionType_ = PROMPT;
 };
 
 class QNNPipelineExecutor : public QNNExecutor {

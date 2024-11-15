@@ -116,12 +116,12 @@ public:
     }
 
     virtual int getCacheSeqLen() {
-        assert(type_ == OpType::KVCACHE);
+        assert(type_ == OpType::KVCACHE || type_ == OpType::KVCACHENPU);
         std::cout << "only for KVCache" << std::endl;
         return -1;
     }
     virtual void clearCache() {
-        assert(type_ == OpType::KVCACHE);
+        assert(type_ == OpType::KVCACHE || type_ == OpType::KVCACHENPU || type_ == OpType::IROPE || type_ == OpType::ROPE);
         std::cout << "only for KVCache" << std::endl;
     }
 

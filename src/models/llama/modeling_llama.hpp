@@ -97,10 +97,10 @@ public:
 
     void clear_kvcache() override {
         for (auto &block : blocks) {
-            auto kvcahce = block.get_attention().get_cache();
-            for (auto &cache : kvcahce) {
-                cache->clearCache();
-            }
+            auto kvcache = block.get_attention().get_cache();
+            for (auto &cache : kvcache) { cache->clearCache(); }
+            auto ropes = block.get_attention().get_rope();
+            for (auto &rope : ropes) { rope->clearCache(); }
         }
     }
 };

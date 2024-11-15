@@ -50,8 +50,8 @@ public:
         v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._v_proj_name);
 
         q_view = View(-1, num_heads, -1, head_dim, base_name + names._q_proj_name + "-00_view_");
-        k_view = View(-1, num_heads, -1, head_dim, base_name + names._k_proj_name + "-00_view_");
-        v_view = View(-1, num_heads, -1, head_dim, base_name + names._v_proj_name + "-00_view_");
+        k_view = View(-1, num_key_value_heads, -1, head_dim, base_name + names._k_proj_name + "-00_view_");
+        v_view = View(-1, num_key_value_heads, -1, head_dim, base_name + names._v_proj_name + "-00_view_");
 
         q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize");
         k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false);
@@ -82,8 +82,8 @@ public:
 
 // CPU QKV MM part
 class QwenQKVmm final : public Module {
-    Layer q_rope;
-    Layer k_rope;
+    RoPE q_rope;
+    RoPE k_rope;
     KVCache k_cache;
     KVCache v_cache;
     Softmax softmax;
@@ -489,7 +489,7 @@ class QWenModel_NPU final : public Module {
         static_assert(std::is_base_of<Module, SHADOW>::value, "SHADOW must be a subclass of Module");
         listIdx = 0;
         vector<unique_ptr<Module>> modules;
-        std::set shadowLayers = {1, 2, 6};
+        std::set shadowLayers = {1, 2, 26};
         // for index in shadowLayers, create shadow decoder, for others, create normal decoder
         for (int i = 0; i < n; i++) {
             auto new_args = change_last(args...); // 创建新的参数包，最后一个参数被修改为原来的值+ std::to_string(listIdx)+ "."
@@ -586,7 +586,7 @@ public:
 
         for (int step = 0; step < opt.max_new_tokens; ++step) {
             auto _out = (*this)({input_ids});
-            auto out_token = text_generator_->generate(_out[0]);
+            auto out_token = text_generator_->generate(_out[0], opt);
             if (!call_back(out_token)) break;
             chatPostProcessing(out_token, input_ids, {});
             return;

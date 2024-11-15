@@ -99,7 +99,7 @@ struct PhoneLMConfig : public TransformerConfig {
     int hidden_size = 1024;
     float initializer_range = 0.02;
     int intermediate_size = 2816;
-    int max_position_embeddings = 2048;
+    int max_position_embeddings = 32768;
     int max_window_layers = 21;
     int num_attention_heads = 16;
     int num_hidden_layers = 24;

@@ -447,7 +447,7 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     // auto end_t = mllm_time_us();
     // std::cout << "RoPE time: " << (end_t - start_t)/1000.0F << " ms " <<partial_dimension<<"  "<<out_dtype<< std::endl;
     h_cnt_ += input->sequence();
-    if (h_cnt_ > pos_max_) {
+    if (h_cnt_ >= pos_max_) {
         h_cnt_ = 0;
     }
 

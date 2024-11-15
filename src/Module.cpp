@@ -13,6 +13,9 @@ namespace mllm {
 // The llm_model_ptr is a pointer to the outmost module
 Module *Module::llm_model_ptr;
 
+bool Module::isMultiChunkPrefilling = false;
+bool Module::isFirstChunk = true;
+
 int Module::listIdx;
 int Module::runlistIdx;
 // TensorStatus Tensor::tensor_status;
