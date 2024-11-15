@@ -12,8 +12,8 @@ class StableLMMultiHeadAttention final : public Module {
     Layer q_proj;
     Layer k_proj;
     Layer v_proj;
-    Layer q_rope;
-    Layer k_rope;
+    RoPE q_rope;
+    RoPE k_rope;
     KVCache k_cache;
     KVCache v_cache;
     Softmax softmax;
@@ -26,8 +26,8 @@ class StableLMMultiHeadAttention final : public Module {
 public:
     StableLMMultiHeadAttention() = default;
     StableLMMultiHeadAttention(int hidden_dim, int head_size, int kv_head_size, int attn_hidden_dim,
-                                  RoPEType RoPE_type, int cache_limit, bool do_mask, bool bias,
-                                  const TransformerNameConfig &names, const string &base_name) {
+                               RoPEType RoPE_type, int cache_limit, bool do_mask, bool bias,
+                               const TransformerNameConfig &names, const string &base_name) {
         attn_hidden_dim_ = attn_hidden_dim;
         head_size_ = head_size;
         kv_head_size_ = kv_head_size;
@@ -44,7 +44,6 @@ public:
         }
         softmax = Softmax(DIMENSION, do_mask, base_name + "softmax");
         o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, false, base_name + names._o_proj_name);
-
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         Tensor q, k, v;
@@ -107,7 +106,7 @@ public:
     StableLMBlock() = default;
     StableLMBlock(int hidden_dim, int head_size, int ffn_hidden, RoPEType RoPE_type, int cache_limit, const stablelmNameConfig &names, const string &base_name) {
         attention = StableLMMultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size,
-                                                  RoPE_type, cache_limit, true, true, names, base_name + names._attn_base_name);
+                                               RoPE_type, cache_limit, true, true, names, base_name + names._attn_base_name);
         mlp = StableLMMLP(hidden_dim, ffn_hidden, names, base_name + names._ffn_base_name);
         norm1 = LayerNorm(hidden_dim, true, 1e-5, base_name + names._attn_norm_name);
         norm2 = LayerNorm(hidden_dim, true, 1e-5, base_name + names._ffn_norm_name);

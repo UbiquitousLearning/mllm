@@ -39,6 +39,10 @@ public:
     bool doLoad = false;
 
     static Module *llm_model_ptr;
+    // tag to indicate the multi-chunk prefilling
+    static bool isMultiChunkPrefilling;
+    // tag to indicate the first chunk
+    static bool isFirstChunk;
 
     static int listIdx;
     static int runlistIdx;
@@ -188,6 +192,11 @@ public:
                 if (inputs[0].sequence() != 1 && !last_shape_bshd_.empty()) {
                     // if LLM/VLLM model, the `need_setup` should be `true`
                     if (input.batch() == last_shape_bshd_[i][0] & input.sequence() == last_shape_bshd_[i][1] & input.head() == last_shape_bshd_[i][2] & input.dimension() == last_shape_bshd_[i][3]) {
+                        // if it is the QNN multi-chunk prefilling, the `need_setup` should be `true` to reshape & setUp CPU Ops
+                        if (Module::isMultiChunkPrefilling) {
+                            need_setup = true;
+                            break;
+                        }
                         need_setup = false;
                     }
                 }
@@ -215,6 +224,12 @@ public:
         } else { // inner Modules
             // offload according to the backends' info inited during loading
             if (Tensor::tensor_status == TENSOR_STATIC_INIT && device_ != MLLM_CPU) { // backend specific module reshape & setup
+                if (Module::isMultiChunkPrefilling && !Module::isFirstChunk) {        // set to TENSOR_UNDEFINED and SKIP executing qnn layers
+                    Tensor::tensor_status = TENSOR_UNDEFINED;
+                    auto outputs =  Forward(inputs, anyArgs);
+                    Tensor::tensor_status = TENSOR_STATIC_INIT;
+                    return outputs;
+                }
                 auto inputs_vec = vector<shared_ptr<Tensor>>();
                 auto outputs_vec = vector<shared_ptr<Tensor>>();
                 for (auto &i : inputs) {

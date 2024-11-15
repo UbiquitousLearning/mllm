@@ -53,8 +53,8 @@ class DCLMAttention final : public Module {
     Layer out_proj;
     Layer q_norm;
     Layer k_norm;
-    Layer q_rope;
-    Layer k_rope;
+    RoPE q_rope;
+    RoPE k_rope;
     KVCache k_cache;
     KVCache v_cache;
     Layer softmax;

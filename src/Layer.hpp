@@ -484,6 +484,7 @@ public:
 
 class RoPE final : public Layer {
 public:
+    RoPE() = default;
     explicit RoPE(int pose_type, std::string name) {
         param_["pose_type"] = pose_type;
         init(std::move(name), OpType::ROPE);
@@ -505,10 +506,14 @@ public:
         auto ts = run({input}, 1);
         return ts[0].get();
     }
+    void clearCache() {
+        return op_->clearCache();
+    }
 };
 
 class IRoPE final : public Layer {
 public:
+    IRoPE() = default;
     explicit IRoPE(int pose_type, std::string name) {
         param_["pose_type"] = pose_type;
         init(std::move(name), OpType::IROPE);
@@ -529,6 +534,9 @@ public:
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
         return ts[0].get();
+    }
+    void clearCache() {
+        return op_->clearCache();
     }
 };
 
