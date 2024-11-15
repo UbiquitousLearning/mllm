@@ -656,8 +656,8 @@ ErrorCode mat_mul_i8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias,
     }
 
 #ifdef __ARM_NEON
-    qt8_qt8_fp32_gemm_sdot_omp(src0->rawHostPtr(), src1->rawHostPtr(), dst->rawHostPtr(), src0->sequence(), src1->sequence(), src0->dimension(),
-                               float scale1, float scale2, transpose1);
+    armv8::qt8_qt8_fp32_gemm_sdot_omp(src0->rawHostPtr(), src1->rawHostPtr(), dst->rawHostPtr(), src0->sequence(), src1->sequence(), src0->dimension(),
+                                      src0->i8_scale, src1->i8_scale, transpose1);
 #else
     std::cout << "mat_mul_i8 is only supported in armv8.2+" << std::endl;
     abort();

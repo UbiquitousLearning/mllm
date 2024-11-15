@@ -89,6 +89,9 @@ func_vlm_add_executable(demo_imagebind)
 func_vlm_add_executable(demo_imagebind_1mod)
 # endif()
 
+func_llm_add_executable(demo_gemm_q40_perf)
+
+
 # QNN demo
 if(QNN)
     func_llm_add_executable(demo_qwen_npu)
