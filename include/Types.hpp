@@ -36,6 +36,7 @@ enum TensorStatus {
     // TENSOR_DYNAMIC,
     TENSOR_STATIC_INIT,
     TENSOR_STATIC_READY,
+    TENSOR_UNDEFINED,
 };
 
 enum ErrorCode {
@@ -141,7 +142,7 @@ enum RoPEType {
     MLAROPE = 5,
 };
 
-enum QNNExecutionType {
+enum ExecutionType {
     PROMPT = 0,
     AUTOREGRESSIVE = 1,
 };

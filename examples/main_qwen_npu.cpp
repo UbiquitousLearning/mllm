@@ -187,11 +187,11 @@ int main(int argc, char **argv) {
             auto inter_cpu_backend = dynamic_cast<CPUBackend *>(interNet.backends()[MLLM_CPU].get());
             auto decode_cpu_backend = dynamic_cast<CPUBackend *>(cpuNet.backends()[MLLM_CPU].get());
             prefill_cpu_backend->setSequenceLength(real_seq_length);
-            prefill_cpu_backend->switchDecodeTag();
+            prefill_cpu_backend->toggleSwitching();
             inter_cpu_backend->setSequenceLength(real_seq_length);
-            inter_cpu_backend->switchDecodeTag();
+            inter_cpu_backend->toggleSwitching();
             decode_cpu_backend->setSequenceLength(real_seq_length);
-            decode_cpu_backend->switchDecodeTag();
+            decode_cpu_backend->toggleSwitching();
 
             // // 2: Decoding stage using CPU execute
             for (int step = real_seq_length; step < real_seq_length + 100; step++) {
@@ -207,9 +207,9 @@ int main(int argc, char **argv) {
                 std::cout << out_token << std::flush;
 
                 if (step == real_seq_length) {
-                    prefill_cpu_backend->switchDecodeTag();
-                    inter_cpu_backend->switchDecodeTag();
-                    decode_cpu_backend->switchDecodeTag();
+                    prefill_cpu_backend->toggleSwitching();
+                    inter_cpu_backend->toggleSwitching();
+                    decode_cpu_backend->toggleSwitching();
                 }
             }
         } while (false);

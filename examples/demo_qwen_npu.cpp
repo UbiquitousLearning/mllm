@@ -1,4 +1,3 @@
-#ifdef USE_QNN
 #include "backends/cpu/CPUBackend.hpp"
 #include "cmdline.h"
 #include "models/qwen/configuration_qwen.hpp"
@@ -61,7 +60,7 @@ int main(int argc, char **argv) {
         });
 
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
 
         LlmTextGeneratorOpts decoding_opt{
             .max_new_tokens = 100,
@@ -75,7 +74,7 @@ int main(int argc, char **argv) {
         decoding_model.generate(input_tensor, decoding_opt, [&](unsigned int out_token) -> bool {
             // call only once of switchDecodeTag
             if (!isSwitched) {
-                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->switchDecodeTag();
+                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
                 isSwitched = true;
             }
             auto out_string = tokenizer.detokenize({out_token});
@@ -90,4 +89,3 @@ int main(int argc, char **argv) {
         std::cout << "\n---------------" << std::endl;
     }
 }
-#endif

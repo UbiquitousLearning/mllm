@@ -98,9 +98,11 @@ public:
         return {o};
     }
 
-    vector<KVCache *>
-    get_cache() {
+    vector<KVCache *> get_cache() {
         return {&k_cache, &v_cache};
+    }
+    vector<IRoPE *> get_rope() {
+        return {&q_rope, &k_rope};
     }
 
 private:
@@ -113,8 +115,8 @@ private:
     Layer k_proj;
     Layer v_proj;
     Layer o_proj;
-    Layer q_rope;
-    Layer k_rope;
+    IRoPE q_rope;
+    IRoPE k_rope;
     KVCache k_cache;
     KVCache v_cache;
     Softmax softmax;
@@ -170,8 +172,10 @@ public:
 
     void clear_kvcache() override {
         for (auto &block : blocks) {
-            auto kvcahce = block.get_attention().get_cache();
-            for (auto &cache : kvcahce) { cache->clearCache(); }
+            auto kvcache = block.get_attention().get_cache();
+            for (auto &cache : kvcache) { cache->clearCache(); }
+            auto ropes = block.get_attention().get_rope();
+            for (auto &rope : ropes) { rope->clearCache(); }
         }
     }
 

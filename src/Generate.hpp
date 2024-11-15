@@ -29,6 +29,7 @@ struct LlmTextGeneratorOpts {
     float top_p = 0.92;
     bool is_padding = false;
     int seq_before_padding = 0;
+    int chunk_size = -1;
 };
 
 template <typename T>
@@ -51,12 +52,15 @@ enum class LLmTextGeneratorType : int32_t {
 class _LlmTextGenerateMethod {
     bool is_padding = false;
     int seq_before_padding = 0;
+    int chunk_size = -1;
+
 public:
     virtual ~_LlmTextGenerateMethod() = default;
     virtual unsigned int generate(Tensor &t) = 0;
-    inline void setPadding(bool is_padding, int seq_before_padding) {
+    inline void setPadding(bool is_padding, int seq_before_padding, int chunk_size) {
         this->is_padding = is_padding;
         this->seq_before_padding = seq_before_padding;
+        this->chunk_size = chunk_size;
     }
     inline void _tensor_to_vec(Tensor &t, std::vector<float> &scores) {
         assert(t.batch() == 1 && "Batch size of result is not 1. Which is not supported for now.");
@@ -65,7 +69,11 @@ public:
         int _seq = t.sequence() - 1;
         // padding prefill for QNN
         if (is_padding) {
-            _seq = seq_before_padding - 1;
+            if (chunk_size > 0) {
+                _seq = (seq_before_padding - 1) % chunk_size;
+            } else {
+                _seq = seq_before_padding - 1;
+            }
         }
         for (int i = 0; i < _dims; ++i) {
             auto value = t.dataAt<float>(0, 0, _seq, i);
@@ -159,11 +167,18 @@ public:
 
         // padding prefill for QNN
         if (opt.is_padding) {
-            m_method_class->setPadding(opt.is_padding, opt.seq_before_padding);
+            m_method_class->setPadding(opt.is_padding, opt.seq_before_padding, opt.chunk_size);
         }
     }
 
     inline unsigned int generate(Tensor &t) {
+        return m_method_class->generate(t);
+    }
+
+    inline unsigned int generate(Tensor &t, const LlmTextGeneratorOpts &opt) {
+        if (opt.is_padding) {
+            m_method_class->setPadding(opt.is_padding, opt.seq_before_padding, opt.chunk_size);
+        }
         return m_method_class->generate(t);
     }
 

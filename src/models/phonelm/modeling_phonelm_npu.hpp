@@ -82,8 +82,8 @@ public:
 
 // CPU QKV MM part
 class PhoneLMQKVmm final : public Module {
-    Layer q_rope;
-    Layer k_rope;
+    IRoPE q_rope;
+    IRoPE k_rope;
     KVCache k_cache;
     KVCache v_cache;
     Softmax softmax;
@@ -124,7 +124,11 @@ public:
         v = v_cache(v);
 
         auto qk = Tensor::mm(q, k.transpose(Chl::SEQUENCE, Chl::DIMENSION));
-        qk = softmax(qk, k_cache.getCacheSeqLen());
+        if (k_cache.ready() && v_cache.ready()) {
+            qk = softmax(qk, k_cache.getCacheSeqLen());
+        } else {
+            qk = softmax(qk);
+        }
         auto o = Tensor::mm(qk, v);
 
         o = o_quantize(o);
@@ -578,7 +582,7 @@ public:
 
         for (int step = 0; step < opt.max_new_tokens; ++step) {
             auto _out = (*this)({input_ids});
-            auto out_token = text_generator_->generate(_out[0]);
+            auto out_token = text_generator_->generate(_out[0], opt);
             if (!call_back(out_token)) break;
             chatPostProcessing(out_token, input_ids, {});
             return;
