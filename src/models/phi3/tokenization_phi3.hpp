@@ -27,11 +27,11 @@ public:
         BPETokenizer::tokenize(new_text, tokens_id, false);
 
         // chat template is as follows: <|user|>\n Question <|end|>\n <|assistant|>
-        tokens_id.insert(tokens_id.begin(), user_id);
-        tokens_id.insert(tokens_id.begin() + 1, 13);
-        tokens_id.insert(tokens_id.end(), end_id);
-        tokens_id.insert(tokens_id.end(), 13);
-        tokens_id.insert(tokens_id.end(), assistant_id);
+        // tokens_id.insert(tokens_id.begin(), user_id);
+        // tokens_id.insert(tokens_id.begin() + 1, 13);
+        // tokens_id.insert(tokens_id.end(), end_id);
+        // tokens_id.insert(tokens_id.end(), 13);
+        // tokens_id.insert(tokens_id.end(), assistant_id);
 
         return BPETokenizer::tokens2Input(tokens_id);
     }

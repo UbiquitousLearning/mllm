@@ -34,13 +34,13 @@ class Phi3VProcessor final {
     }
     Tensor imgpos2Tensor(vector<std::pair<size_t, size_t>> img_pos, string name = "input_img_pos", BackendType type = MLLM_CPU) {
         int num_imgs = img_pos.size();
-        Tensor tensor2(1, 1, num_imgs, 2, type,true);
+        Tensor tensor2(1, 1, num_imgs, 2, type, true);
         tensor2.setName(std::move(name));
         Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor2.setTtype(INPUT_TENSOR);
         for (int i = 0; i < num_imgs; ++i) {
-            tensor2.setDataAt<size_t>(0,0, i, 0, img_pos[i].first);
-            tensor2.setDataAt<size_t>(0, 0,i, 1, img_pos[i].second);
+            tensor2.setDataAt<size_t>(0, 0, i, 0, img_pos[i].first);
+            tensor2.setDataAt<size_t>(0, 0, i, 1, img_pos[i].second);
         }
         return tensor2;
     }
@@ -83,11 +83,11 @@ class Phi3VProcessor final {
             const auto vocab_map = tokenizer->getVocabMap();
             auto result = vocab_map.find(delimiter_);
             if (result != tokenizer->getVocabMap().end()) {
-                if(delimiter_ != "<|image|>"){
+                if (delimiter_ != "<|image|>") {
                     tokens.push_back(result->second);
                     startPos = found + delimiter.length();
                 } else {
-                    vector<mllm::token_id_t> img_token(num_img_tokens[cnt_imgs], 32044*(cnt_imgs+1));
+                    vector<mllm::token_id_t> img_token(num_img_tokens[cnt_imgs], 32044 * (cnt_imgs + 1));
                     tokens.insert(tokens.end(), img_token.begin(), img_token.end());
                     img_pos.push_back({found, found + num_img_tokens[cnt_imgs]});
                     startPos = found + num_img_tokens[cnt_imgs];
@@ -96,7 +96,7 @@ class Phi3VProcessor final {
             } else {
                 startPos = found + delimiter.length();
             }
-            
+
             auto result_ = find_special(text, special, startPos);
             found = result_.first;
             delimiter = result_.second;
@@ -108,39 +108,42 @@ class Phi3VProcessor final {
         }
     }
 
-    BPETokenizer *tokenizer;
     ClipPreProcessor *clip_processor;
 
+    std::vector<std::string> special_ = {"<|image|>", "<pad>", "<|user|>", " <|end|>", "<|assistant|>", "\n"};
+
 public:
-    explicit Phi3VProcessor(const string &vocab_path, const string &merges_path) {
+    BPETokenizer *tokenizer;
+    explicit Phi3VProcessor(const string &vocab_path, const string &merges_path = "") {
         Module::initBackend(MLLM_CPU);
         tokenizer = new BPETokenizer(vocab_path);
-        std::unordered_map<string,unsigned> merge_rank;
-        auto merge_file = std::ifstream(merges_path);
-        std::string line;
-        unsigned rank=0;
-        while (std::getline(merge_file, line)) {
-            if (line.empty()) {
-                continue;
+        if (!merges_path.empty()) {
+            std::unordered_map<string, unsigned> merge_rank;
+            auto merge_file = std::ifstream(merges_path);
+            std::string line;
+            unsigned rank = 0;
+            while (std::getline(merge_file, line)) {
+                if (line.empty()) {
+                    continue;
+                }
+                if (line[0] == '#') {
+                    continue;
+                }
+                merge_rank[line] = rank;
+                rank++;
             }
-            if (line[0]=='#'){
-                continue;
-            }
-            merge_rank[line]=rank;
-            rank++;
+            tokenizer->setMergeRank(merge_rank);
         }
-        tokenizer->setMergeRank(merge_rank);
+        tokenizer->set_chat_template("<|user|>\n", " <|end|>\n<|assistant|>");
     }
-    
 
     vector<Tensor> process(string text, string img_path, int hw = 336,
-                                  string img_name = "input_vision", string text_name = "input_text", BackendType type = MLLM_CPU) {
+                           string img_name = "input_vision", string text_name = "input_text", BackendType type = MLLM_CPU) {
         auto tokens_ids = vector<vector<token_id_t>>();
-        if (text[0] != ' ') {
-            text = ' ' + text;
-        }
+        std::string new_text = (text[0] != ' ') ? (' ' + text) : text;
+        new_text = BPETokenizer::replaceString(new_text, ' ', "▁");
         vector<mllm::token_id_t> tokens_id = {};
-        if (img_path != "") {
+        if (!img_path.empty()) {
             clip_processor = new ClipPreProcessor(tokenizer, hw, hw);
             clip_processor->PreProcessImages({std::move(img_path)}, hw, hw);
             auto images = clip_processor->pixel_values_[0];
@@ -155,22 +158,18 @@ public:
                 int w = img[0].size();
                 num_img_tokens.push_back(int((h / 336 * w / 336 + 1) * 144 + 1 + (h / 336 + 1) * 12));
             }
-            
+
             vector<std::pair<size_t, size_t>> img_pos;
-            tokenize(BPETokenizer::replaceString(text, ' ', "▁"), tokens_id, {"<|image|>", "<pad>", "<|user|>", " <|end|>", "<|assistant|>", "\n"}, num_img_tokens, img_pos);
+            tokenize(new_text, tokens_id, special_, num_img_tokens, img_pos);
             tokens_ids.push_back(tokens_id);
 
             return {Tokenizer::tokens2Input(tokens_ids, std::move(text_name)), img_tensor};
         } else {
-            tokenizer->tokenize(BPETokenizer::replaceString(text, ' ', "▁"), tokens_id, {"<|image|>", "<pad>", "<|user|>", " <|end|>", "<|assistant|>", "\n"});
+            tokenizer->tokenize(new_text, tokens_id, special_);
             tokens_ids.push_back(tokens_id);
             return {Tokenizer::tokens2Input(tokens_ids, std::move(text_name))};
         }
-        
-        
     }
-
-    
 
     std::string detokenize(const vector<token_id_t> &tokens) {
         return tokenizer->detokenize(tokens);
