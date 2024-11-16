@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
 
     cmdParser.parse_check(argc, argv);
 
-    const string npu_model_path = "../models/PhoneLM-1.5B-Instruct-128.mllm";
+    const string npu_model_path = "../models/phonelm-1.5b-instruct-int8.mllm";
     const string cpu_model_path = "../models/phonelm-with-head-q4k.mllm";
     const string merge_file_path = "../vocab/phonelm_merges.txt";
 
