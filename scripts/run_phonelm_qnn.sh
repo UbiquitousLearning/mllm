@@ -6,10 +6,10 @@ adb shell mkdir -p /data/local/tmp/mllm/qnn-lib
 adb push ../vocab/phonelm_vocab.mllm /data/local/tmp/mllm/vocab/
 
 
-if ! adb shell [ -f "/data/local/tmp/mllm/models/PhoneLM-1.5B-Instruct-128.mllm" ]; then
-    adb push ../models/PhoneLM-1.5B-Instruct-128.mllm "/data/local/tmp/mllm/models/PhoneLM-1.5B-Instruct-128.mllm"
+if ! adb shell [ -f "/data/local/tmp/mllm/models/phonelm-1.5b-instruct-int8.mllm" ]; then
+    adb push ../models/phonelm-1.5b-instruct-int8.mllm "/data/local/tmp/mllm/models/phonelm-1.5b-instruct-int8.mllm"
 else
-    echo "PhoneLM-1.5B-Instruct-128 file already exists"
+    echo "phonelm-1.5b-instruct-int8 file already exists"
 fi
 
 
