@@ -34,29 +34,29 @@ ErrorCode CPUConvolution2D::reshape(vector<shared_ptr<Tensor>> inputs, vector<sh
     // dimension = width
     assert(in_channel_ == inputs[0]->sequence());
 
-#ifdef __ARM_NEON
-    if (kernel_size_[0] == 16 && kernel_size_[1] == 16 && padding_h_ == 0 && padding_w_ == 0 && stride_[0] == 16 && stride_[1] == 16) {
-        im2col_layout_.setDtype(inputs[0]->dtype());
-        im2col_layout_.reshape(inputs[0]->batch(), 1, (inputs[0]->head() / 16) * (inputs[0]->dimension() / 16), 16 * 16 * in_channel_);
-        im2col_layout_.alloc();
-        output_not_transposed_.setDtype(inputs[0]->dtype());
-        output_not_transposed_.reshape(inputs[0]->batch(), 1, (inputs[0]->head() / 16) * (inputs[0]->dimension() / 16), out_channel_);
-        output_not_transposed_.alloc();
-        outputs[0]->reshape(inputs[0]->batch(), (inputs[0]->head() / 16), out_channel_, (inputs[0]->dimension() / 16));
-        return Op::reshape(inputs, outputs);
-    }
+    // #ifdef __ARM_NEON
+    //     if (kernel_size_[0] == 16 && kernel_size_[1] == 16 && padding_h_ == 0 && padding_w_ == 0 && stride_[0] == 16 && stride_[1] == 16) {
+    //         im2col_layout_.setDtype(inputs[0]->dtype());
+    //         im2col_layout_.reshape(inputs[0]->batch(), 1, (inputs[0]->head() / 16) * (inputs[0]->dimension() / 16), 16 * 16 * in_channel_);
+    //         im2col_layout_.alloc();
+    //         output_not_transposed_.setDtype(inputs[0]->dtype());
+    //         output_not_transposed_.reshape(inputs[0]->batch(), 1, (inputs[0]->head() / 16) * (inputs[0]->dimension() / 16), out_channel_);
+    //         output_not_transposed_.alloc();
+    //         outputs[0]->reshape(inputs[0]->batch(), (inputs[0]->head() / 16), out_channel_, (inputs[0]->dimension() / 16));
+    //         return Op::reshape(inputs, outputs);
+    //     }
 
-    if (kernel_size_[0] == kernel_size_[1] && kernel_size_[0] == stride_[0] && kernel_size_[1] == stride_[1] && padding_h_ == 0 && padding_w_ == 0) {
-        im2col_layout_.setDtype(inputs[0]->dtype());
-        im2col_layout_.reshape(inputs[0]->batch(), 1, (inputs[0]->head() / kernel_size_[0]) * (inputs[0]->dimension() / kernel_size_[0]), kernel_size_[0] * kernel_size_[0] * in_channel_);
-        im2col_layout_.alloc();
-        output_not_transposed_.setDtype(inputs[0]->dtype());
-        output_not_transposed_.reshape(inputs[0]->batch(), 1, (inputs[0]->head() / kernel_size_[0]) * (inputs[0]->dimension() / kernel_size_[0]), out_channel_);
-        output_not_transposed_.alloc();
-        outputs[0]->reshape(inputs[0]->batch(), (inputs[0]->head() / kernel_size_[0]), out_channel_, (inputs[0]->dimension() / kernel_size_[0]));
-        return Op::reshape(inputs, outputs);
-    }
-#endif
+    //     if (kernel_size_[0] == kernel_size_[1] && kernel_size_[0] == stride_[0] && kernel_size_[1] == stride_[1] && padding_h_ == 0 && padding_w_ == 0) {
+    //         im2col_layout_.setDtype(inputs[0]->dtype());
+    //         im2col_layout_.reshape(inputs[0]->batch(), 1, (inputs[0]->head() / kernel_size_[0]) * (inputs[0]->dimension() / kernel_size_[0]), kernel_size_[0] * kernel_size_[0] * in_channel_);
+    //         im2col_layout_.alloc();
+    //         output_not_transposed_.setDtype(inputs[0]->dtype());
+    //         output_not_transposed_.reshape(inputs[0]->batch(), 1, (inputs[0]->head() / kernel_size_[0]) * (inputs[0]->dimension() / kernel_size_[0]), out_channel_);
+    //         output_not_transposed_.alloc();
+    //         outputs[0]->reshape(inputs[0]->batch(), (inputs[0]->head() / kernel_size_[0]), out_channel_, (inputs[0]->dimension() / kernel_size_[0]));
+    //         return Op::reshape(inputs, outputs);
+    //     }
+    // #endif
 
     switch (padding_type_) {
     case SAME: {
@@ -86,15 +86,15 @@ ErrorCode CPUConvolution2D::load(AbstructLoader &loader) {
         weight_.setDtype(loader.getDataType(weight_.name()));
         weight_.alloc();
         loader.load(&weight_);
-#ifndef __ARM_NEON
+        // #ifndef __ARM_NEON
         kernal_ = reshape_conv2d_kernal_fp32(&weight_);
-#endif
+        // #endif
     } else {
         weight_.setDtype(MLLM_TYPE_F32);
         weight_.alloc();
-#ifndef __ARM_NEON
+        // #ifndef __ARM_NEON
         kernal_ = reshape_conv2d_kernal_fp32(&weight_);
-#endif
+        // #endif
     }
     if (support_bias_) {
         bias_.setName(name() + ".bias");
@@ -112,31 +112,31 @@ ErrorCode CPUConvolution2D::load(AbstructLoader &loader) {
 }
 
 ErrorCode CPUConvolution2D::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-#ifdef __ARM_NEON
-    if (kernel_size_[0] == 16 && kernel_size_[1] == 16 && padding_h_ == 0 && padding_w_ == 0 && stride_[0] == 16 && stride_[1] == 16) {
-        auto start = std::chrono::high_resolution_clock::now();
-        im2col_fp32_src_k16x16_s16_p0_to(inputs[0]->rawHostPtr(), im2col_layout_.rawHostPtr(), inputs[0]->head(), inputs[0]->dimension(), in_channel_);
-        weight_.reshape(1, 1, out_channel_, 16 * 16 * in_channel_);
-        mat_mul(&im2col_layout_, &weight_, &output_not_transposed_, true, &bias_, false, true, thread_count);
-        transpose_fp32(output_not_transposed_.rawHostPtr(), outputs[0]->rawHostPtr(), (inputs[0]->head() / 16) * ((inputs[0]->dimension() / 16)), out_channel_);
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-        std::cout << duration.count() << std::endl;
-        return Op::execute(inputs, outputs);
-    }
+    // #ifdef __ARM_NEON
+    //     if (kernel_size_[0] == 16 && kernel_size_[1] == 16 && padding_h_ == 0 && padding_w_ == 0 && stride_[0] == 16 && stride_[1] == 16) {
+    //         auto start = std::chrono::high_resolution_clock::now();
+    //         im2col_fp32_src_k16x16_s16_p0_to(inputs[0]->rawHostPtr(), im2col_layout_.rawHostPtr(), inputs[0]->head(), inputs[0]->dimension(), in_channel_);
+    //         weight_.reshape(1, 1, out_channel_, 16 * 16 * in_channel_);
+    //         mat_mul(&im2col_layout_, &weight_, &output_not_transposed_, true, &bias_, false, true, thread_count);
+    //         transpose_fp32(output_not_transposed_.rawHostPtr(), outputs[0]->rawHostPtr(), (inputs[0]->head() / 16) * ((inputs[0]->dimension() / 16)), out_channel_);
+    //         auto end = std::chrono::high_resolution_clock::now();
+    //         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    //         std::cout << duration.count() << std::endl;
+    //         return Op::execute(inputs, outputs);
+    //     }
 
-    if (kernel_size_[0] == kernel_size_[1] && kernel_size_[0] == stride_[0] && kernel_size_[1] == stride_[1] && padding_h_ == 0 && padding_w_ == 0) {
-        auto start = std::chrono::high_resolution_clock::now();
-        im2col_fp32_src_knxn_sn_p0_to(inputs[0]->rawHostPtr(), im2col_layout_.rawHostPtr(), inputs[0]->head(), inputs[0]->dimension(), in_channel_, kernel_size_[0]);
-        weight_.reshape(1, 1, out_channel_, kernel_size_[0] * kernel_size_[0] * in_channel_);
-        mat_mul(&im2col_layout_, &weight_, &output_not_transposed_, true, &bias_, false, true, thread_count);
-        transpose_fp32(output_not_transposed_.rawHostPtr(), outputs[0]->rawHostPtr(), (inputs[0]->head() / kernel_size_[0]) * ((inputs[0]->dimension() / kernel_size_[0])), out_channel_);
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-        std::cout << duration.count() << std::endl;
-        return Op::execute(inputs, outputs);
-    }
-#endif
+    //     if (kernel_size_[0] == kernel_size_[1] && kernel_size_[0] == stride_[0] && kernel_size_[1] == stride_[1] && padding_h_ == 0 && padding_w_ == 0) {
+    //         auto start = std::chrono::high_resolution_clock::now();
+    //         im2col_fp32_src_knxn_sn_p0_to(inputs[0]->rawHostPtr(), im2col_layout_.rawHostPtr(), inputs[0]->head(), inputs[0]->dimension(), in_channel_, kernel_size_[0]);
+    //         weight_.reshape(1, 1, out_channel_, kernel_size_[0] * kernel_size_[0] * in_channel_);
+    //         mat_mul(&im2col_layout_, &weight_, &output_not_transposed_, true, &bias_, false, true, thread_count);
+    //         transpose_fp32(output_not_transposed_.rawHostPtr(), outputs[0]->rawHostPtr(), (inputs[0]->head() / kernel_size_[0]) * ((inputs[0]->dimension() / kernel_size_[0])), out_channel_);
+    //         auto end = std::chrono::high_resolution_clock::now();
+    //         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    //         std::cout << duration.count() << std::endl;
+    //         return Op::execute(inputs, outputs);
+    //     }
+    // #endif
 
     switch (padding_type_) {
     case SAME: {
