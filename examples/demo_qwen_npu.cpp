@@ -60,6 +60,7 @@ int main(int argc, char **argv) {
         });
 
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
 
         LlmTextGeneratorOpts decoding_opt{
@@ -86,6 +87,11 @@ int main(int argc, char **argv) {
             }
             return true;
         });
-        std::cout << "\n---------------" << std::endl;
+
+        // turn on switching, set sequence length and execution type
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(0);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+        std::cout << "\n";
     }
 }
