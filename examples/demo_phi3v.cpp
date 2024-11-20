@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
 
     ParamLoader param_loader(model_path);
     auto processor = Phi3VProcessor(vocab_path);
-    Phi3VConfig config(tokens_limit, "3.8B", HFHUBROPE, 32064, "vision", "Linear", 1024);
+    Phi3VConfig config(tokens_limit, "3.8B", HFHUBROPE, 32064, "vision", "MLP", 1024);
     auto model_config = Phi3VConfig(config);
     auto model = Phi3VModel(model_config);
     model.load(model_path);
@@ -41,13 +41,13 @@ int main(int argc, char **argv) {
         in_str = processor.tokenizer->apply_chat_template(in_str);
 
         // 图片版，有问题，参数层的问题疑似解决了
-        auto input_tensor = processor.process(in_str, in_imgs[i], 336);
+        auto input_tensor = processor.process(in_str, in_imgs[i]);
         // 目前的仅文字版的结果，能正常推理
-        // auto input_tensor = processor.process(in_str, "", 336);
+        // auto input_tensor = processor.process(in_str, "");
 
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
-        for (int step = 0; step < 100; step++) {
+        for (int step = 0; step < 1; step++) {
             auto result = model(input_tensor);
             auto outputs = processor.detokenize(result[0]);
             auto out_string = outputs.first;

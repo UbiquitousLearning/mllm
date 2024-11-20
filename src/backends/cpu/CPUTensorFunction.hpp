@@ -52,6 +52,16 @@ class CPUmmFunction : public TensorFunction {
                 child->changeCtype();
                 child->reshape(b, h, s, d);
             }
+        } else {
+            for (auto child : input.childTensors()) {
+                auto b = child->batch();
+                auto h = child->head();
+                auto d = child->dimension();
+                auto s = child->sequence();
+                child->chls() = input.chls();
+                child->changeCtype();
+                child->reshape(b, h, s, d);
+            }
         }
     }
 

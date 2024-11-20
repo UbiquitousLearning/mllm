@@ -94,6 +94,44 @@ public:
         return tensor1;
     }
 
+    std::vector<std::string> _splitWithDelimiters(const std::string &str, const std::vector<std::string> &delimiters) {
+        std::string s = str;
+        std::vector<std::string> result;
+        size_t pos = 0;
+        auto isDelimiter = [&](size_t currentPos) {
+            for (const auto &delimiter : delimiters) {
+                if (currentPos + delimiter.length() <= s.length() && s.substr(currentPos, delimiter.length()) == delimiter) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        while (pos < s.length()) {
+            if (isDelimiter(pos)) {
+                if (pos != 0) {
+                    result.push_back(s.substr(0, pos));
+                }
+                size_t delimiterLength = delimiters.front().length();
+                for (const auto &delimiter : delimiters) {
+                    if (s.substr(pos, delimiter.length()) == delimiter) {
+                        delimiterLength = delimiter.length();
+                        result.push_back(delimiter);
+                        break;
+                    }
+                }
+                pos += delimiterLength;
+                s = s.substr(pos);
+                pos = 0;
+            } else {
+                ++pos;
+            }
+        }
+        if (!s.empty()) {
+            result.push_back(s);
+        }
+        return result;
+    }
+
 public:
     unsigned int argmax(const std::vector<float> &scores) {
         if (scores.empty()) {

@@ -1327,15 +1327,31 @@ public:
         }
 #endif
         std::ofstream outFile(directory + "/" + name() + ex + ".log");
-
         outFile << "----------------------------------------" << std::endl;
-        outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] " << dtype() << " " << ctype() << std::endl;
+        if (ctype_ == BSHD) {
+            outFile << name() << ": [BSHD]shape:[" << batch() << " " << sequence() << " " << head() << " " << dimension() << "] " << dtype() << " " << ctype() << std::endl;
+        } else {
+            outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] " << dtype() << " " << ctype() << std::endl;
+        }
 
         int N = batch();
         int C = head();
         int H = sequence();
         int W = dimension();
-        if (N == 1 && C == 1) {
+        if (H == 3) {
+            for (int n = 0; n < N; ++n) {
+                for (int h = 0; h < H; ++h) {
+                    for (int c = 0; c < C; ++c) {
+                        for (int w = 0; w < W; ++w) {
+                            outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(n, c, h, w) << " ";
+                        }
+                        outFile << std::endl;
+                    }
+                    outFile << std::endl;
+                }
+                outFile << std::endl;
+            }
+        } else if (N == 1 && C == 1) {
             for (int h = 0; h < H; ++h) {
                 for (int c = 0; c < W; ++c) {
                     outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(0, 0, h, c) << " ";

@@ -17,7 +17,6 @@ using namespace mllm;
 class Phi3VisionEmbedding final : public Module {
     Layer patch_embedding;
     Parameter cls_token;
-    // Parameter position_ids;
     Layer position_embedding;
     int range_len_{};
 
@@ -26,10 +25,8 @@ public:
     Phi3VisionEmbedding(int hidden_dim, int patch, int img_hw, const Phi3VNameConfig &names, const string &base_name) {
         patch_embedding = Convolution2D(3, hidden_dim, {patch, patch}, {patch, patch}, VALID, false, base_name + names._patch_embedding_name);
         cls_token = Parameter(1, 1, 1, hidden_dim, base_name + names._cls_token_name);
-        // position_ids = Parameter(1, std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1, 1, 1, base_name + names._position_ids_name);
         range_len_ = std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1;
-
-        position_embedding = Embedding(std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1, hidden_dim, base_name + names._position_embeddings_name);
+        position_embedding = Embedding(range_len_, hidden_dim, base_name + names._position_embeddings_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto embd = patch_embedding(inputs[0]);
@@ -46,16 +43,18 @@ class Phi3VisionModel final : public Module {
     Phi3VisionEmbedding embedding;
     Layer pre_layrnorm;
     vector<ViTBlock> blocks;
-    Layer norm;
+    // Layer norm;
+    int clip_len_{};
 
 public:
     Phi3VisionModel() = default;
     Phi3VisionModel(int hidden_dim, int head_size, int ffn_hidden, const string &act_fn_type, int patch, int img_hw, int block_num,
                     const Phi3VNameConfig &names, const string &base_name) {
         embedding = Phi3VisionEmbedding(hidden_dim, patch, img_hw, names, base_name + names._embd_name);
-        pre_layrnorm = LayerNorm(hidden_dim, true, 1e-6, base_name + names._vision_pre_layrnorm_name);
+        pre_layrnorm = LayerNorm(hidden_dim, true, 1e-5, base_name + names._vision_pre_layrnorm_name);
+        clip_len_ = std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1;
         blocks = List<ViTBlock>(block_num, hidden_dim, head_size, ffn_hidden, act_fn_type, names, base_name + names._layer_name);
-        norm = LayerNorm(hidden_dim, true, 1e-6, base_name + names._post_norm_name);
+        // norm = LayerNorm(hidden_dim, true, 1e-6, base_name + names._post_norm_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = embedding(inputs)[0];
@@ -63,8 +62,9 @@ public:
         for (auto &block : blocks) {
             x = block({x})[0];
         }
-        x = x.clip({}, {}, {0}, {});
-        x = norm(x);
+        x = x.clip({}, {}, {1, clip_len_}, {});
+
+        // x = norm(x);
         return {x};
     }
 };
@@ -80,50 +80,54 @@ public:
         return ts[0];
     }
 };
-class Phi3VMultiModalModel final : public Module {
-public:
+class Phi3Embedding final : public Module {
     Phi3VisionModel img_processor;
-    Embedding embed_tokens;
+    Layer embed_tokens;
     VisionEmbdReplace embd_replace;
     int image_dim_out;
     Layer img_projector_linear1;
     Layer img_projector_relu;
     Layer img_projector_linear2;
     string project_cls;
-    
 
-    Phi3VMultiModalModel(int vocab_size, int hidden_dim, int head_size, int ffn,int img_dim, string &projection_cls, const Phi3VNameConfig &nameconfig, const string &base_name, const string &embd_name) :
-        embed_tokens(vocab_size, hidden_dim, embd_name) {
-        image_dim_out = img_dim;
+public:
+    Phi3Embedding() = default;
+    explicit Phi3Embedding(int vocab_size, int hidden_dim, int head_size, int ffn, int img_dim, string &projection_cls, const Phi3VNameConfig &nameconfig, const string &base_name, const string &embd_name) {
+        embed_tokens = Embedding(vocab_size, hidden_dim, embd_name);
+
+        // img_processor = Phi3VisionModel(vision_hidden_dim, vision_head_size, vision_ffn_hidden, "QuickGELU", patch, img_hw, vision_block_num,
+        //                                 nameconfig, nameconfig.vison_model_name);
+
+        img_processor = Phi3VisionModel(1024, 16, 4096, "QuickGELU", 14, 336, 23, nameconfig, nameconfig.vison_model_name);
+
         project_cls = projection_cls;
         if (project_cls == "Linear") {
-            img_projector_linear1 = Linear(hidden_dim, hidden_dim, false, nameconfig._vision_model_prefix+nameconfig._projection+".0");
+            img_projector_linear1 = Linear(hidden_dim, hidden_dim, true, nameconfig._vision_model_prefix + nameconfig._projection + ".0");
         } else if (project_cls == "MLP") {
-            img_projector_linear1 = Linear(hidden_dim, hidden_dim, false, nameconfig._projection);
-            img_projector_relu = GELU(nameconfig._projection);
-            img_projector_linear2 = Linear(hidden_dim, hidden_dim, false, nameconfig._projection);
+            img_projector_linear1 = Linear(hidden_dim, hidden_dim, true, nameconfig._vision_model_prefix + nameconfig._projection + ".0");
+            img_projector_relu = GELU(nameconfig._vision_model_prefix + nameconfig._projection + ".1");
+            img_projector_linear2 = Linear(hidden_dim, hidden_dim, true, nameconfig._vision_model_prefix + nameconfig._projection + ".2");
         } else {
             throw std::runtime_error("Unsupported projection_cls");
         }
-        // img_processor = Phi3VisionModel(img_dim, vision_head_size, vision_ffn_hidden, "QuickGELU", patch, img_hw, vision_block_num,
-        //                                 nameconfig, nameconfig.vison_model_name);
 
-        img_processor = Phi3VisionModel(hidden_dim,head_size, ffn, "QuickGELU", 14, 336, 12, nameconfig, nameconfig.vison_model_name);
         embd_replace = VisionEmbdReplace("embd_replace");
     }
+
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         bool have_img = inputs.size() > 1;
         auto text_features = embed_tokens({inputs[0]});
         if (have_img) {
             auto image_features = img_processor({inputs[1]})[0];
-            // img projection
+            // TODO something here @11.18
+            //  img projection
             auto image_features_proj = img_projector_linear1(image_features);
-            if(project_cls == "MLP") {
+            if (project_cls == "MLP") {
                 image_features_proj = img_projector_relu(image_features_proj);
                 image_features_proj = img_projector_linear2(image_features_proj);
             }
             for (int i = 0; i < inputs[2].sequence(); i++) {
-                auto where_idx = inputs[0].where(32044 * (i + 1), SEQUENCE);
+                auto where_idx = inputs[0].where(-1 * (i + 1), SEQUENCE);
                 // TODO 现在这个实现只支持只有一图的情况
                 text_features = embd_replace(text_features, image_features_proj, where_idx);
             }
@@ -131,12 +135,37 @@ public:
 
         return {text_features};
     }
+
+    /*
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
+        // bool have_img = inputs.size() > 1;
+        // auto text_features = embed_tokens({inputs[0]});
+        // if (have_img) {
+        auto image_features = img_processor({inputs[1]})[0];
+        // TODO something here @11.18
+        //  img projection
+        // auto image_features_proj = img_projector_linear1(image_features);
+        // if (project_cls == "MLP") {
+        //     image_features_proj = img_projector_relu(image_features_proj);
+        //     image_features_proj = img_projector_linear2(image_features_proj);
+        // }
+        // for (int i = 0; i < inputs[2].sequence(); i++) {
+        //     auto where_idx = inputs[0].where(-1 * (i + 1), SEQUENCE);
+        //     // TODO 现在这个实现只支持只有一图的情况
+        //     text_features = embd_replace(text_features, image_features_proj, where_idx);
+        // }
+        // }
+        // image_features.saveNData<float>();
+
+        return {image_features};
+    }
+    */
 };
 
 class Phi3VModel final : public Module {
-    Phi3VMultiModalModel vision_embed_tokens;
+    Phi3Embedding vision_embed_tokens;
     vector<Phi3Block> blocks;
-    RMSNorm norm;
+    Layer norm;
     Layer lm_head;
     string embed_layer;
 
@@ -147,8 +176,9 @@ public:
                    config.names_config, config.names_config.blk_name) {
     }
     Phi3VModel(int vocab_size, int hidden_dim, int head_size, int kv_head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit, int img_dim, string projection_cls, const Phi3VNameConfig &visionconfig,
-               const Phi3NameConfig &names, const string &base_name) :
-        norm(hidden_dim, 1e-6, names.post_norm_name), vision_embed_tokens(vocab_size, hidden_dim, head_size,ffn_hidden, img_dim, projection_cls, visionconfig, base_name, names.token_embd_name) {
+               const Phi3NameConfig &names, const string &base_name) {
+        norm = RMSNorm(hidden_dim, 1e-6, names.post_norm_name);
+        vision_embed_tokens = Phi3Embedding(vocab_size, hidden_dim, head_size, ffn_hidden, img_dim, projection_cls, visionconfig, base_name, names.token_embd_name);
         blocks = List<Phi3Block>(block_num, hidden_dim, head_size, kv_head_size, ffn_hidden, RoPE_type, rope_theta, max_position_embeddings, cache_limit, names, base_name);
         norm = RMSNorm(hidden_dim, 1e-6, names.post_norm_name);
         lm_head = Linear(hidden_dim, vocab_size, false, names.lm_head_name);

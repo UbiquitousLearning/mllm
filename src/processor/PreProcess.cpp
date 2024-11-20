@@ -2,6 +2,7 @@
 // Created by Xiang Li on 2023/12/23.
 //
 #include "PreProcess.hpp"
+#include <omp.h>
 
 #include <cassert>
 #ifndef STB_IMAGE_RESIZE_IMPLEMENTATION
@@ -80,12 +81,15 @@ std::vector<ImageInfo> PreProcessor::PadImages(std::vector<ImageInfo> &images, i
     return padded_images;
 }
 
-std::vector<ImageInfo> PreProcessor::ResizeImages(std::vector<ImageInfo> &images, int height, int width, bool strict_size, bool fit, PreProcessor::ResizeFitEdge fit_edge, ResampleType resample_type, bool free_source) {
-    assert(resample_type == ResampleType::BILINEAR);
+std::vector<ImageInfo> PreProcessor::ResizeImages(std::vector<ImageInfo> &images, int height, int width, bool strict_size, bool fit, ResizeFitEdge fit_edge, ResampleType resample_type, bool free_source) {
+    // assert(resample_type == ResampleType::BILINEAR);
     stbir_filter filter = stbir_filter::STBIR_FILTER_DEFAULT;
     switch (resample_type) {
     case ResampleType::BILINEAR:
         filter = stbir_filter::STBIR_FILTER_TRIANGLE;
+        break;
+    case ResampleType::BICUBIC:
+        filter = stbir_filter::STBIR_FILTER_CUBICBSPLINE;
         break;
     default:
         MLLM_LOG_ERROR_STREAM << "Not implemented Reshape Filter yet" << std::endl;
@@ -256,4 +260,114 @@ std::vector<ImageInfo> PreProcessor::NormalizeImages(std::vector<ImageInfo> &ima
         images.clear();
     }
     return normalized_images;
+}
+
+float cubicWeight(float t, float a = -0.5f) {
+    t = std::abs(t);
+    if (t <= 1.0f) {
+        return (a + 2.0f) * t * t * t - (a + 3.0f) * t * t + 1.0f;
+    } else if (t < 2.0f) {
+        return a * t * t * t - 5.0f * a * t * t + 8.0f * a * t - 4.0f * a;
+    }
+    return 0.0f;
+}
+ImageInfo PreProcessor::ImageInterpolation(ImageInfo &image, int new_height, int new_width, ResampleType mode, bool free_source) {
+    auto scaled_data = new float[new_width * new_height * image.channels];
+    float heightScale = static_cast<float>(image.height) / new_height;
+    float widthScale = static_cast<float>(image.width) / new_width;
+
+    switch (mode) {
+    case ResampleType::BICUBIC: {
+#pragma omp parallel for collapse(3) num_threads(CPUBackend::cpu_threads)
+        for (int c = 0; c < image.channels; ++c) {
+            for (int y = 0; y < new_height; ++y) {
+                for (int x = 0; x < new_width; ++x) {
+                    float srcY = y * heightScale;
+                    float srcX = x * widthScale;
+                    int y0 = static_cast<int>(std::floor(srcY));
+                    int x0 = static_cast<int>(std::floor(srcX));
+                    float dy = srcY - y0;
+                    float dx = srcX - x0;
+                    float result = 0.0f;
+                    for (int j = -1; j <= 2; ++j) {
+                        for (int i = -1; i <= 2; ++i) {
+                            int sampleY = std::clamp(y0 + j, 0, image.height - 1);
+                            int sampleX = std::clamp(x0 + i, 0, image.width - 1);
+                            float pixelValue = image.data[(sampleY * image.width + sampleX) * image.channels + c];
+                            float weight = cubicWeight(j - dy) * cubicWeight(i - dx);
+                            result += pixelValue * weight;
+                        }
+                    }
+                    scaled_data[(y * new_width + x) * image.channels + c] = result;
+                }
+            }
+        }
+        break;
+    }
+    case ResampleType::BILINEAR: {
+#pragma omp parallel for collapse(3) num_threads(CPUBackend::cpu_threads)
+        for (int c = 0; c < image.channels; ++c) {
+            for (int y = 0; y < new_height; ++y) {
+                for (int x = 0; x < new_width; ++x) {
+                    float srcY = y * heightScale;
+                    float srcX = x * widthScale;
+                    int y0 = static_cast<int>(srcY);
+                    int x0 = static_cast<int>(srcX);
+                    int y1 = std::min(y0 + 1, image.height - 1);
+                    int x1 = std::min(x0 + 1, image.width - 1);
+                    float ly = srcY - y0;
+                    float lx = srcX - x0;
+                    float hy = 1.0f - ly;
+                    float hx = 1.0f - lx;
+                    float v0 = hx * hy * image.data[(y0 * image.width + x0) * image.channels + c];
+                    float v1 = lx * hy * image.data[(y0 * image.width + x1) * image.channels + c];
+                    float v2 = hx * ly * image.data[(y1 * image.width + x0) * image.channels + c];
+                    float v3 = lx * ly * image.data[(y1 * image.width + x1) * image.channels + c];
+                    scaled_data[(y * new_width + x) * image.channels + c] = v0 + v1 + v2 + v3;
+                }
+            }
+        }
+        break;
+    }
+    case ResampleType::DEFAULT:
+    default: {
+#pragma omp parallel for collapse(4) num_threads(CPUBackend::cpu_threads)
+        for (int i = 0; i < image.height * image.width * image.channels; ++i) {
+            for (int c = 0; c < image.channels; ++c) {
+                for (int y = 0; y < new_height; ++y) {
+                    for (int x = 0; x < new_width; ++x) {
+                        int originalY = static_cast<int>(y * heightScale);
+                        int originalX = static_cast<int>(x * widthScale);
+                        scaled_data[(y * new_width + x) * image.channels + c] =
+                            image.data[(originalY * image.width + originalX) * image.channels + c];
+                    }
+                }
+            }
+        }
+    }
+    }
+    auto scaledImageInfo = ImageInfo(scaled_data, new_width, new_height, image.channels);
+    if (free_source) {
+        free(image.data);
+        image.data = nullptr;
+    }
+    return scaledImageInfo;
+}
+
+void PreProcessor::ImageInfos2Pixels(std::vector<ImageInfo> &imageinfos, vector<vector<vector<vector<float>>>> &pixel_values_) {
+    for (auto &imageinfo : imageinfos) {
+        auto pixel_values = vector<vector<vector<float>>>(imageinfo.channels, vector<vector<float>>(imageinfo.height, vector<float>(imageinfo.width)));
+#pragma omp parallel for collapse(3) num_threads(CPUBackend::cpu_threads)
+        for (int k = 0; k < imageinfo.channels; ++k) {
+            for (int i = 0; i < imageinfo.height; ++i) {
+                for (int j = 0; j < imageinfo.width; ++j) {
+                    pixel_values[k][i][j] = imageinfo.get_whc_pixel(i * imageinfo.width + j + k * imageinfo.width * imageinfo.height);
+                }
+            }
+        }
+#pragma omp critical
+        {
+            pixel_values_.push_back(pixel_values);
+        }
+    }
 }

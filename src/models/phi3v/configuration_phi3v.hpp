@@ -29,9 +29,9 @@ public:
     Phi3VNameConfig vision_model_config;
     Phi3NameConfig text_model_config;
 
-    Phi3VConfig(int token_limit, string billions = "3.8B", RoPEType type = HFHUBROPE, int vocab = 32064, string embed_modal = "default", string project_cls = "Linear",int imgdim = 1024) :
-    Phi3Config(token_limit, billions, type, vocab) {
-    // names_config.init(type);
+    Phi3VConfig(int token_limit, string billions = "3.8B", RoPEType type = HFHUBROPE, int vocab = 32064, string embed_modal = "default", string project_cls = "MLP", int imgdim = 1024) :
+        Phi3Config(token_limit, billions, type, vocab) {
+        // names_config.init(type);
         embed_layer = embed_modal;
         projection_cls = project_cls;
         img_dim = imgdim;

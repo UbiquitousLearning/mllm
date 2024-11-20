@@ -22,7 +22,7 @@ typedef map<std::string, float> OpParam;
 // #define DEBUGSAVETENSOR
 // #define DEBUGOPTIME
 
-#define LLAMAFILE_SGEMM
+// #define LLAMAFILE_SGEMM
 
 typedef enum {
     MLLM_DEFAULT,
