@@ -105,28 +105,25 @@ public:
             width = image_info.width;
             int new_w = width;
             int new_h = height;
-            if (width >= height) {
-                float ratio = float(width) / float(height);
-                auto scale = 1;
-                while (scale * std::ceil(scale / ratio) <= hd_num) {
-                    scale += 1;
-                }
-                scale -= 1;
-                new_w = int(scale * 336);
-                new_h = int(new_w / ratio);
-            } else {
-                float ratio = float(height) / float(width);
-                auto scale = 1;
-                while (scale * std::ceil(scale / ratio) <= hd_num) {
-                    scale += 1;
-                }
-                scale -= 1;
-                new_h = int(scale * 336);
-                new_w = int(new_h / ratio);
+            bool trans = false;
+            if (width < height) {
+                trans = true;
+                image_info = PreProcessor::ImageTranspose(image_info);
             }
+            float ratio = float(width) / float(height);
+            auto scale = 1;
+            while (scale * std::ceil(scale / ratio) <= hd_num) {
+                scale += 1;
+            }
+            scale -= 1;
+            new_w = int(scale * 336);
+            new_h = int(new_w / ratio);
             std::vector<ImageInfo> temp_image_info = {image_info};
             temp_image_info = PreProcessor::ResizeImages(temp_image_info, new_h, new_w, true, false, ResizeFitEdge::shortest, BILINEAR, true);
             image_info = padding_336(temp_image_info[0], 1, true);
+            if (trans) {
+                image_info = PreProcessor::ImageTranspose(image_info);
+            }
             imageinfos.emplace_back(image_info);
         }
         imageinfos = PreProcessor::NormalizeImages(imageinfos, mean_, std_);
@@ -141,10 +138,7 @@ public:
         auto global_image = vector<ImageInfo>();
         for (int i = 0; i < imageinfos.size(); i++) {
             global_image.push_back(PreProcessor::ImageInterpolation(imageinfos[i], 336, 336, ResampleType::BICUBIC, false));
-            // imageinfos[i] = PreProcessor::ImageInterpolation(imageinfos[i], 336, 336, ResampleType::BICUBIC, true);
-            // imageinfos = PreProcessor::ResizeImages(imageinfos, 336, 336, true, false, shortest, ResampleType::BICUBIC, true);
         }
-        // output_reault  todo: Optimize this!
         PreProcessor::ImageInfos2Pixels(imageinfos, pixel_values);
         PreProcessor::ImageInfos2Pixels(global_image, global_pixel_values);
     }
@@ -461,8 +455,5 @@ public:
         text = std::regex_replace(text, std::regex("▁"), " ");
         return make_pair(text, token_idx);
     }
-
-public:
-    token_id_t pad_id = 32000, eos_id = 32000, bos_id = 1, user_id = 32010, assistant_id = 32001, end_id = 32007;
 };
 #endif // PROCESSING_Phi3V_HPP

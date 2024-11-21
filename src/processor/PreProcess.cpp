@@ -354,6 +354,28 @@ ImageInfo PreProcessor::ImageInterpolation(ImageInfo &image, int new_height, int
     return scaledImageInfo;
 }
 
+ImageInfo PreProcessor::ImageTranspose(ImageInfo &image, bool free_source) {
+    int new_height = image.width;
+    int new_width = image.height;
+    auto scaled_data = new float[new_width * new_height * image.channels];
+#pragma omp parallel for collapse(3) num_threads(CPUBackend::cpu_threads)
+    for (int c = 0; c < image.channels; ++c) {
+        for (int y = 0; y < new_height; ++y) {
+            for (int x = 0; x < new_width; ++x) {
+                scaled_data[(y * new_width + x) * image.channels + c] =
+                    image.data[(x * image.width + y) * image.channels + c];
+            }
+        }
+    }
+
+    auto scaledImageInfo = ImageInfo(scaled_data, new_width, new_height, image.channels);
+    if (free_source) {
+        delete[] image.data;
+        image.data = nullptr;
+    }
+    return scaledImageInfo;
+}
+
 void PreProcessor::ImageInfos2Pixels(std::vector<ImageInfo> &imageinfos, vector<vector<vector<vector<float>>>> &pixel_values_) {
     for (auto &imageinfo : imageinfos) {
         auto pixel_values = vector<vector<vector<float>>>(imageinfo.channels, vector<vector<float>>(imageinfo.height, vector<float>(imageinfo.width)));

@@ -11,6 +11,7 @@
 #include "compute/Arithmetic.hpp"
 
 // #include <Layer.hpp>
+#include <cassert>
 #include <iostream>
 #include <vector>
 
@@ -787,6 +788,19 @@ public:
                        inputs[0]->hostPtr<float>() + inputs[0]->offset(b, 0, seq_idx, 0),
                        inputs[0]->head() * 1 * inputs[0]->dimension() * sizeof(float));
             }
+        } else if (b.size() == 1) {
+            int bth_idx = b[0];
+            if (bth_idx < 0) {
+                bth_idx = inputs[0]->batch() + bth_idx;
+            }
+            memcpy(outputs[0]->hostPtr<float>(),
+                   inputs[0]->hostPtr<float>() + inputs[0]->offset(bth_idx, 0, 0, 0),
+                   inputs[0]->head() * inputs[0]->sequence() * inputs[0]->dimension() * sizeof(float));
+        } else if (b.size() == 2) {
+            assert(b[1] - b[0] > 0);
+            memcpy(outputs[0]->hostPtr<float>(),
+                   inputs[0]->hostPtr<float>() + inputs[0]->offset(b[0], 0, 0, 0),
+                   (b[1] - b[0]) * inputs[0]->head() * inputs[0]->sequence() * inputs[0]->dimension() * sizeof(float));
         } else {
             std::cout << "[TODO]Tensor.CLip not support!!!!" << std::endl;
         }
@@ -1034,6 +1048,91 @@ public:
                     h += inputs[idx]->sequence();
                 }
             }
+        } else if (axis == HEAD) {
+            for (int b = 0; b < expd_batch_; ++b) {
+#pragma omp parallel for collapse(1) num_threads(CPUBackend::cpu_threads)
+                for (int s = 0; s < inputs[0]->sequence(); ++s) {
+                    // for (int h = 0; h < inputs[0]->head(); ++h) {
+                    int head_i = 0;
+                    for (int idx = 0; idx < inputs.size(); idx++) {
+                        auto b_ = b;
+                        if (idx != expd_batch_input_idx) {
+                            b_ = 0;
+                        }
+                        int dim_size = inputs[idx]->dimension() * inputs[idx]->head();
+                        memcpy(outputs[0]->ptrAt<float>(b, head_i, s, 0),
+                               inputs[idx]->ptrAt<float>(b_, 0, s, 0),
+                               sizeof(float) * (dim_size));
+                        head_i += inputs[idx]->head();
+                    }
+                    // }
+                }
+            }
+        }
+    }
+};
+
+class CPUexpandFunction : public TensorFunction {
+public:
+    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+        int b = (int)args[0];
+        int h = (int)args[1];
+        int s = (int)args[2];
+        int d = (int)args[3];
+        assert(b * h * d * s < 0);
+        int dim_b = inputs[0]->batch();
+        int dim_h = inputs[0]->head();
+        int dim_s = inputs[0]->sequence();
+        int dim_d = inputs[0]->dimension();
+        if (b != -1) {
+            assert(dim_b == 1);
+            dim_b = b;
+        } else if (s != -1) {
+            assert(dim_s == 1);
+            dim_s = s;
+        } else if (h != -1) {
+            assert(dim_h == 1);
+            dim_h = h;
+        } else if (d != -1) {
+            assert(dim_d == 1);
+            dim_d = d;
+        }
+        outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
+        outputs[0]->alloc();
+    }
+    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+        int b = (int)args[0];
+        int h = (int)args[1];
+        int s = (int)args[2];
+        int d = (int)args[3];
+        int dim_b = inputs[0]->batch();
+        int dim_s = inputs[0]->sequence();
+        int dim_h = inputs[0]->head();
+        int dim_d = inputs[0]->dimension();
+        if (b != -1) {
+            std::cerr << "expand tp support" << std::endl;
+        } else if (s != -1) {
+#pragma omp parallel for collapse(2) num_threads(CPUBackend::cpu_threads)
+            for (int b_ = 0; b_ < dim_b; ++b_) {
+                for (int s_ = 0; s_ < s; ++s_) {
+                    memcpy(outputs[0]->ptrAt<float>(b_, 0, s_, 0),
+                           inputs[0]->ptrAt<float>(b_, 0, 0, 0),
+                           dim_d * dim_h * sizeof(float));
+                }
+            }
+        } else if (h != -1) {
+#pragma omp parallel for collapse(3) num_threads(CPUBackend::cpu_threads)
+            for (int b_ = 0; b_ < dim_b; ++b_) {
+                for (int s_ = 0; s_ < dim_s; ++s_) {
+                    for (int h_ = 0; h_ < h; ++h_) {
+                        memcpy(outputs[0]->ptrAt<float>(b_, h_, s_, 0),
+                               inputs[0]->ptrAt<float>(b_, h_, 0, 0),
+                               dim_d * sizeof(float));
+                    }
+                }
+            }
+        } else if (d != -1) {
+            std::cerr << "expand tp support" << std::endl;
         }
     }
 };
@@ -1049,16 +1148,33 @@ public:
         vector<float> s_vec = {};
         vector<float> h_vec = {};
         vector<float> d_vec = {};
+        if (inputs[0]->count() % CPUBackend::cpu_threads == 0) {
 #pragma omp parallel for collapse(4) num_threads(CPUBackend::cpu_threads)
-        for (int b = 0; b < inputs[0]->batch(); b++) {
-            for (auto s = 0; s < inputs[0]->sequence(); s++) {
-                for (auto h = 0; h < inputs[0]->head(); h++) {
-                    for (auto d = 0; d < inputs[0]->dimension(); d++) {
-                        if (inputs[0]->dataAt<float>(b, h, h, s) == value) {
-                            b_vec.push_back(b);
-                            s_vec.push_back(s);
-                            h_vec.push_back(h);
-                            d_vec.push_back(d);
+            for (int b = 0; b < inputs[0]->batch(); b++) {
+                for (auto s = 0; s < inputs[0]->sequence(); s++) {
+                    for (auto h = 0; h < inputs[0]->head(); h++) {
+                        for (auto d = 0; d < inputs[0]->dimension(); d++) {
+                            if (inputs[0]->dataAt<float>(b, h, s, d) == value) {
+                                b_vec.push_back(b);
+                                s_vec.push_back(s);
+                                h_vec.push_back(h);
+                                d_vec.push_back(d);
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            for (int b = 0; b < inputs[0]->batch(); b++) {
+                for (auto s = 0; s < inputs[0]->sequence(); s++) {
+                    for (auto h = 0; h < inputs[0]->head(); h++) {
+                        for (auto d = 0; d < inputs[0]->dimension(); d++) {
+                            if (inputs[0]->dataAt<float>(b, h, s, d) == value) {
+                                b_vec.push_back(b);
+                                s_vec.push_back(s);
+                                h_vec.push_back(h);
+                                d_vec.push_back(d);
+                            }
                         }
                     }
                 }
@@ -1206,5 +1322,69 @@ public:
     void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
     }
 };
+
+class CPPhi3VhdmergeFunction : public TensorFunction {
+public:
+    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+        assert(args.size() == 2);
+        int h_crop = (int)args[0];
+        int w_crop = (int)args[1];
+        int N = inputs[0]->batch();
+        int L = inputs[0]->sequence();
+        int C = inputs[0]->dimension();
+        assert(L == 24 * 24);
+        assert(C == 1024);
+        assert(N % (h_crop * w_crop) == 0);
+        int num_images = N / (h_crop * w_crop);
+        int H = static_cast<int>(std::sqrt(L));
+
+        int b = num_images;
+        int s = h_crop * H / 2;
+        int h = w_crop * H / 2;
+        int d = 4 * C;
+
+        outputs[0]->reshape(b, h, s, d);
+        outputs[0]->setDtype(inputs[0]->dtype());
+        outputs[0]->alloc();
+    }
+    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+        int h_crop = (int)args[0];
+        int w_crop = (int)args[1];
+        int N = inputs[0]->batch();
+        int L = inputs[0]->sequence();
+        int C = inputs[0]->dimension();
+        int num_images = N / (h_crop * w_crop);
+        int H = static_cast<int>(std::sqrt(L));
+
+        int b = num_images;
+        int s = h_crop * H / 2;
+        int h = w_crop * H / 2;
+        int d = 4 * C;
+
+#pragma omp parallel for collapse(3) num_threads(CPUBackend::cpu_threads)
+        for (int ob = 0; ob < b; ob++) {
+            for (int os = 0; os < s; os++) {
+                for (int oh = 0; oh < h; oh++) {
+                    int base_s = int(oh / 12) * (24 * 24) + os * 48 + 2 * (oh % 12);
+                    int hed = base_s % L;
+                    int btch = int(base_s / L);
+                    auto i_ptr_0 = inputs[0]->ptrAt<float>(btch, hed, 0, 0);
+                    auto i_ptr_1 = inputs[0]->ptrAt<float>(btch, hed + 1, 0, 0);
+                    auto i_ptr_2 = inputs[0]->ptrAt<float>(btch, hed + 24, 0, 0);
+                    auto i_ptr_3 = inputs[0]->ptrAt<float>(btch, hed + 25, 0, 0);
+                    memcpy(outputs[0]->ptrAt<float>(ob, oh, os, 0),
+                           i_ptr_0, C * sizeof(float));
+                    memcpy(outputs[0]->ptrAt<float>(ob, oh, os, C),
+                           i_ptr_1, C * sizeof(float));
+                    memcpy(outputs[0]->ptrAt<float>(ob, oh, os, C * 2),
+                           i_ptr_2, C * sizeof(float));
+                    memcpy(outputs[0]->ptrAt<float>(ob, oh, os, C * 3),
+                           i_ptr_3, C * sizeof(float));
+                }
+            }
+        }
+    }
+};
+
 } // namespace mllm
 #endif // CPUTENSORFUNCTION_HPP

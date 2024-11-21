@@ -11,7 +11,8 @@ using namespace mllm;
 class Phi3VNameConfig : public ViTNameConfig {
 public:
     // string vision_name = "model.vision_embed_tokens.";
-    string _GN = "glb.GN";
+    string _glb_GN = "glb_GN";
+    string _sub_GN = "sub_GN";
     string _vision_model_prefix = "model.vision_embed_tokens.";
     string _vision_model = "img_processor.vision_model";
     string _projection = "img_projection";
@@ -23,19 +24,15 @@ public:
 
 class Phi3VConfig : public Phi3Config {
 public:
-    string embed_layer;
-    int img_dim;
+    int vision_hidden_dim;
     string projection_cls;
-    Phi3VNameConfig vision_model_config;
-    Phi3NameConfig text_model_config;
-
-    Phi3VConfig(int token_limit, string billions = "3.8B", RoPEType type = HFHUBROPE, int vocab = 32064, string embed_modal = "default", string project_cls = "MLP", int imgdim = 1024) :
+    Phi3VNameConfig name_config;
+    Phi3VConfig(int token_limit, string billions = "3.8B", RoPEType type = HFHUBROPE, int vocab = 32064, string project_cls = "MLP") :
         Phi3Config(token_limit, billions, type, vocab) {
         // names_config.init(type);
-        embed_layer = embed_modal;
         projection_cls = project_cls;
-        img_dim = imgdim;
-        vision_model_config.init_phi3V();
+        vision_hidden_dim = 1024;
+        name_config.init_phi3V();
     }
 };
 

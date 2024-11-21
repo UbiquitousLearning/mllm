@@ -106,6 +106,7 @@ public:
     static std::vector<ImageInfo> NormalizeImages(std::vector<ImageInfo> &images, vector<float> means, vector<float> stds, bool free_source = true);
     static std::vector<ImageInfo> CenterCropImages(std::vector<ImageInfo> &images, int height, int width, float pad = 0.0F, bool free_source = true);
     static ImageInfo ImageInterpolation(ImageInfo &image, int new_height, int new_width, ResampleType mode = ResampleType::BICUBIC, bool free_source = true);
+    static ImageInfo ImageTranspose(ImageInfo &image, bool free_source = true);
     static std::vector<ImageInfo> ImagesInterpolation(std::vector<ImageInfo> &images, int new_height, int new_width, ResampleType mode = ResampleType::BICUBIC, bool free_source = true) {
         std::vector<ImageInfo> scaled_images;
         for (auto &image : images) {
