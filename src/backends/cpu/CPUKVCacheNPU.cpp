@@ -78,13 +78,13 @@ ErrorCode CPUKVCacheNPU::execute(vector<shared_ptr<Tensor>> inputs, vector<share
                                 auto cache_head = h * n_rep_ + i_rep;
                                 if (cache_.dtype() == MLLM_TYPE_F32) {
                                     auto src_ptr =
-                                        inputs[0]->ptrAt<float>(b, h, input_seq, 0);
+                                        inputs[0]->ptrAt<float>(b, h, seq - cache_seq_len_old, 0);
                                     auto dest_ptr = cache_.ptrAt<float>(b, cache_head, seq, 0);
                                     int copy_size = cache_.dimension();
                                     memcpy(dest_ptr, src_ptr, copy_size * sizeof(float));
                                 } else if (cache_.dtype() == MLLM_TYPE_F16) {
                                     auto src_ptr =
-                                        inputs[0]->ptrAt<mllm_fp16_t>(b, h, input_seq, 0);
+                                        inputs[0]->ptrAt<mllm_fp16_t>(b, h, seq - cache_seq_len_old, 0);
                                     auto dest_ptr = cache_.ptrAt<mllm_fp16_t>(b, cache_head, seq, 0);
                                     int copy_size = cache_.dimension();
                                     memcpy(dest_ptr, src_ptr, copy_size * sizeof(mllm_fp16_t));
