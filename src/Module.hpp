@@ -121,6 +121,8 @@ public:
         for (int i = 0; i < max_in_size; ++i) {
             Tensor t(Backend::global_backends[MLLM_CPU]);
             t.setName("input" + std::to_string(i));
+            t.reshape(1, 1, 1, 10);
+            t.alloc();
             t.setModule(this);
             tmps.push_back(t);
         }
@@ -226,7 +228,7 @@ public:
             if (Tensor::tensor_status == TENSOR_STATIC_INIT && device_ != MLLM_CPU) { // backend specific module reshape & setup
                 if (Module::isMultiChunkPrefilling && !Module::isFirstChunk) {        // set to TENSOR_UNDEFINED and SKIP executing qnn layers
                     Tensor::tensor_status = TENSOR_UNDEFINED;
-                    auto outputs =  Forward(inputs, anyArgs);
+                    auto outputs = Forward(inputs, anyArgs);
                     Tensor::tensor_status = TENSOR_STATIC_INIT;
                     return outputs;
                 }

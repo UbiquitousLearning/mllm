@@ -16,6 +16,13 @@ enum PaddingType {
 
 enum ResampleType {
     BILINEAR,
+    BICUBIC,
+    DEFAULT,
+};
+enum ResizeFitEdge {
+    none,
+    shortest,
+    longest,
 };
 
 struct ImageInfo {
@@ -90,11 +97,6 @@ protected:
     float scale_ = 255.0;
     std::vector<float> mean_ = {0.5};
     std::vector<float> std_ = {0.5};
-    enum ResizeFitEdge {
-        none,
-        shortest,
-        longest,
-    };
 
 public:
     static float *RescaleImage(const uint8_t *data, float scale, unsigned int length);
@@ -103,6 +105,16 @@ public:
     static std::vector<ImageInfo> NormalizeImages(std::vector<ImageInfo> &images, float mean, float std, bool free_source = true);
     static std::vector<ImageInfo> NormalizeImages(std::vector<ImageInfo> &images, vector<float> means, vector<float> stds, bool free_source = true);
     static std::vector<ImageInfo> CenterCropImages(std::vector<ImageInfo> &images, int height, int width, float pad = 0.0F, bool free_source = true);
+    static ImageInfo ImageInterpolation(ImageInfo &image, int new_height, int new_width, ResampleType mode = ResampleType::BICUBIC, bool free_source = true);
+    static ImageInfo ImageTranspose(ImageInfo &image, bool free_source = true);
+    static std::vector<ImageInfo> ImagesInterpolation(std::vector<ImageInfo> &images, int new_height, int new_width, ResampleType mode = ResampleType::BICUBIC, bool free_source = true) {
+        std::vector<ImageInfo> scaled_images;
+        for (auto &image : images) {
+            scaled_images.push_back(ImageInterpolation(image, new_height, new_width, mode, free_source));
+        }
+        return scaled_images;
+    }
+    static void ImageInfos2Pixels(std::vector<ImageInfo> &imageinfos, vector<vector<vector<vector<float>>>> &pixel_values_);
 
     static std::vector<std::vector<std::vector<std::vector<float>>>> ProcessAudio(std::vector<std::string> waves) {
         return ProcessWAV(waves);
