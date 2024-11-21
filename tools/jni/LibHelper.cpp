@@ -66,7 +66,10 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
     LOGI("Loading model from %s", weights_path.c_str());
 
     switch (model) {
-    case QWEN:
+    case QWEN25:
+        qwconfig = QWenConfig(tokens_limit, "1.5B");
+    case QWEN15:
+        qwconfig = QWenConfig(tokens_limit, "1.8B");
         tokenizer_ = make_shared<QWenTokenizer>(vocab_path, merge_path);
         module_ = make_shared<QWenForCausalLM>(qwconfig);
 #ifdef USE_QNN
@@ -169,7 +172,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
     unsigned max_new_tokens = 500;
     LOGE("Running backend %d", backend_);
 
-    if (model_ == QWEN) {
+    if (model_ == QWEN15 || model_ == QWEN25) {
         auto tokenizer = dynamic_pointer_cast<QWenTokenizer>(tokenizer_);
         if (chat_template) input_str = tokenizer_->apply_chat_template(input_str);
         if (backend_ == MLLMBackendType::QNN) {
