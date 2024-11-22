@@ -1,5 +1,5 @@
 <h1 align="center">
-MLLM
+mllm
 </h1>
 
 <h3 align="center">
@@ -14,6 +14,7 @@ fast and lightweight <ins>multimodal LLM</ins> inference engine for mobile and e
 
 [![Website](https://img.shields.io/badge/website-visit-green)](https://ubiquitouslearning.github.io/mllm_website/)
 [![Documentation](https://img.shields.io/badge/view-docs-blue)](https://ubiquitouslearning.github.io/mllm_website/introduction/getstarted/)
+[![Android App](https://img.shields.io/badge/android-app-pink)](https://github.com/lx200916/ChatBotApp/)
 [![Actions Status](https://github.com/UbiquitousLearning/mllm/workflows/Tests/badge.svg)](https://github.com/UbiquitousLearning/mllm/actions)
 </h4>
 

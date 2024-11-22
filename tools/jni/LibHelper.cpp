@@ -201,8 +201,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 chunked_tensors[chunk_id].deepCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
 
                 prefill_module_->generate(chunked_tensors[chunk_id], opt, [&](unsigned int out_token) -> bool {
-                    // if (switch_flag && !isSwitched && chunk_id == 0) {
-                    if (!isSwitched && chunk_id == 0) {
+                    if (!isSwitched && chunk_id == 0 && static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->isStageSwitching()) {
                         // turn off switching at the first chunk of following inputs
                         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
                         isSwitched = true;
@@ -214,7 +213,6 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                         output_string_ += output_string;
                         callback_(output_string_, !not_end);
                     }
-                    if (!not_end) { return false; }
                     return true;
                 });
                 Module::isFirstChunk = false;
