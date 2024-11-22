@@ -22,10 +22,11 @@ class PreProcessor;
 class Module;
 class Tensor;
 enum PreDefinedModel {
-    QWEN = 0,
+    QWEN25 = 0,
     FUYU,
     Bert,
-    PhoneLM
+    PhoneLM,
+    QWEN15
 };
 
 enum MLLMBackendType {
@@ -49,7 +50,7 @@ class LibHelper {
 
     // Tokenizer *tokenizer_ = nullptr;
     unsigned int eos_id_ = 2;
-    PreDefinedModel model_ = PreDefinedModel::QWEN;
+    PreDefinedModel model_ = PreDefinedModel::QWEN25;
     MLLMBackendType backend_ = MLLMBackendType::CPU;
     bool is_first_run_cond_ = true;
     int tokens_limit = 4000;
