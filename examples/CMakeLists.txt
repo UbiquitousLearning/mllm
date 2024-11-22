@@ -83,9 +83,6 @@ func_vlm_add_executable(demo_imagebind_1mod)
 func_vlm_add_executable(demo_phi3v)
 # func_vlm_add_executable(demo)
 
-func_llm_add_executable(demo_gemm_q40_perf)
-
-
 # QNN demo
 
 if(QNN)
