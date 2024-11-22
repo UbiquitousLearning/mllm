@@ -56,14 +56,22 @@ Wait.. why on-device multimodal LLM? - It's a key building block for [intelligen
 
 <table>
     <tr>
-        <td>Chatting</td>
+<!--         <td>Chatting</td> -->
         <td>Android Intent Invocation</td>
         <td>Image Understanding</td>
     </tr>
     <tr>
-        <td>  <video src="https://github.com/user-attachments/assets/972b3bad-d659-4d76-9141-64ad0ad34d64"> </td>
+<!--         <td>  <video src="https://github.com/user-attachments/assets/972b3bad-d659-4d76-9141-64ad0ad34d64"> </td> -->
         <td>  <video src="https://github.com/user-attachments/assets/deb99f8d-9727-4519-9ca7-c39deb7c5b47"> </td>
-        <td>  <video src="https://github.com/user-attachments/assets/55321a43-8484-4f74-b7b2-d4495f3626d9">  </td>
+        <td>  <video src="https://github.com/user-attachments/assets/55321a43-8484-4f74-b7b2-d4495f3626d9"> </td>
+    </tr>
+    <tr>
+        <td>Chat CPU</td>
+        <td>Chat NPU</td>
+    </tr>    
+    <tr>
+        <td>  <video src="https://github.com/user-attachments/assets/2b0ab0d6-6727-4b85-9ee3-b39d23de5dde"> </td>
+        <td>  <video src="https://github.com/user-attachments/assets/395f8e6e-2ab9-40bc-bf26-164ba5695c64"> </td>
     </tr>
 </table>
 
