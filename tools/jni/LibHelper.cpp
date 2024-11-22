@@ -81,7 +81,7 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
             // warmup START
             std::string input_str = " ";
             int chunk_size = 64;
-            auto res = tokenizer->tokenizePaddingByChunk(input_str, chunk_size, 49152);
+            auto res = tokenizer->tokenizePaddingByChunk(input_str, chunk_size, 151936);
             auto input_tensor = res.second;
             auto real_seq_length = res.first;
             LlmTextGeneratorOpts opt{
@@ -177,7 +177,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
         if (chat_template) input_str = tokenizer_->apply_chat_template(input_str);
         if (backend_ == MLLMBackendType::QNN) {
             int chunk_size = 64;
-            auto res = tokenizer->tokenizePaddingByChunk(input_str, chunk_size, 49152);
+            auto res = tokenizer->tokenizePaddingByChunk(input_str, chunk_size, 151936);
             auto input_tensor = res.second;
             max_new_tokens = tokens_limit - input_tensor.sequence();
             auto real_seq_length = res.first;
