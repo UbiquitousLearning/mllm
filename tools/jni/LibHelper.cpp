@@ -66,7 +66,10 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
     LOGI("Loading model from %s", weights_path.c_str());
 
     switch (model) {
-    case QWEN:
+    case QWEN25:
+        qwconfig = QWenConfig(tokens_limit, "1.5B");
+    case QWEN15:
+        qwconfig = QWenConfig(tokens_limit, "1.8B");
         tokenizer_ = make_shared<QWenTokenizer>(vocab_path, merge_path);
         module_ = make_shared<QWenForCausalLM>(qwconfig);
 #ifdef USE_QNN
@@ -78,7 +81,7 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
             // warmup START
             std::string input_str = " ";
             int chunk_size = 64;
-            auto res = tokenizer->tokenizePaddingByChunk(input_str, chunk_size, 49152);
+            auto res = tokenizer->tokenizePaddingByChunk(input_str, chunk_size, 151936);
             auto input_tensor = res.second;
             auto real_seq_length = res.first;
             LlmTextGeneratorOpts opt{
@@ -169,12 +172,12 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
     unsigned max_new_tokens = 500;
     LOGE("Running backend %d", backend_);
 
-    if (model_ == QWEN) {
+    if (model_ == QWEN15 || model_ == QWEN25) {
         auto tokenizer = dynamic_pointer_cast<QWenTokenizer>(tokenizer_);
         if (chat_template) input_str = tokenizer_->apply_chat_template(input_str);
         if (backend_ == MLLMBackendType::QNN) {
             int chunk_size = 64;
-            auto res = tokenizer->tokenizePaddingByChunk(input_str, chunk_size, 49152);
+            auto res = tokenizer->tokenizePaddingByChunk(input_str, chunk_size, 151936);
             auto input_tensor = res.second;
             max_new_tokens = tokens_limit - input_tensor.sequence();
             auto real_seq_length = res.first;
@@ -198,8 +201,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 chunked_tensors[chunk_id].deepCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
 
                 prefill_module_->generate(chunked_tensors[chunk_id], opt, [&](unsigned int out_token) -> bool {
-                    // if (switch_flag && !isSwitched && chunk_id == 0) {
-                    if (!isSwitched && chunk_id == 0) {
+                    if (!isSwitched && chunk_id == 0 && static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->isStageSwitching()) {
                         // turn off switching at the first chunk of following inputs
                         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
                         isSwitched = true;
@@ -211,7 +213,6 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                         output_string_ += output_string;
                         callback_(output_string_, !not_end);
                     }
-                    if (!not_end) { return false; }
                     return true;
                 });
                 Module::isFirstChunk = false;
