@@ -1760,6 +1760,9 @@ public:
     TensorType &xnnTensorType();
 
     void forceResetHostPointer(void *ptr);
+
+public:
+    float i8_scale = 1.f;
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H
