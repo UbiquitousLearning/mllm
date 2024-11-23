@@ -161,7 +161,10 @@ enum TensorFuncType {
     FUNC_CLIPAXIS,
     FUNC_RANGE,
     FUNC_WHERE,
-    FUNC_SPLIT
+    FUNC_SPLIT,
+    FUNC_EXPPAND,
+    // models use only
+    FUNC_PHI3V_HD_MERGE,
 };
 
 } // namespace mllm

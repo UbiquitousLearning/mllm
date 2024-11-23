@@ -62,6 +62,25 @@ public:
             _ffn_norm_name = "layer_norm2";
             _post_norm_name = ".post_layernorm";
             _vision_pre_layrnorm_name = ".pre_layrnorm";
+        } else if (name_type == "phi3v") {
+            vison_model_name = "vision_model";
+            _patch_embedding_name = "patch_embedding";
+            _cls_token_name = "class_embedding";
+            // _position_ids_name = "";
+            _position_embeddings_name = "position_embedding";
+            _layer_name = ".encoder.layers.";
+            _attn_base_name = "self_attn.";
+            _ffn_base_name = "mlp.";
+            _q_proj_name = "q_proj";
+            _k_proj_name = "k_proj";
+            _v_proj_name = "v_proj";
+            _o_proj_name = "out_proj";
+            _up_proj_name = "fc1";
+            _down_proj_name = _ffn_base_name + "fc2";
+            _attn_norm_name = "layer_norm1";
+            _ffn_norm_name = "layer_norm2";
+            _post_norm_name = ".post_layernorm";
+            _vision_pre_layrnorm_name = ".pre_layrnorm";
         }
         _embd_name = ".embeddings.";
     }

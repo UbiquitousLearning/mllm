@@ -1,6 +1,7 @@
 #include "GEMM_AArch64.hpp"
 #include "Types.hpp"
 #include <assert.h>
+#include <cstdlib>
 #include <float.h>
 #include <math.h>
 #include <stdio.h>  // for assert
@@ -1212,6 +1213,10 @@ void mllm_gemm_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
                              const void *__restrict bias) {
     if (bias != nullptr) {
         _mllm_gemm_q4_0_4x4_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
+#if defined(__ARM_NEON)
+        std::cout << "_mllm_gemm_q4_0_4x4_q8_0_bias not implemented";
+        abort();
+#endif
         return;
     }
 
@@ -2297,6 +2302,10 @@ void mllm_gemm_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *
                              const void *__restrict vy, int nr, int nc,
                              const void *__restrict bias) {
     if (bias != nullptr) {
+#if defined(__ARM_NEON)
+        std::cout << "_mllm_gemm_q4_0_4x4_q8_0_bias not implemented";
+        abort();
+#endif
         _mllm_gemm_q4_0_4x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
         return;
     }
@@ -3258,6 +3267,10 @@ void mllm_gemm_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *
                              const void *__restrict vy, int nr, int nc,
                              const void *__restrict bias) {
     if (bias != nullptr) {
+#if defined(__ARM_NEON)
+        std::cout << "_mllm_gemm_q4_0_4x4_q8_0_bias not implemented";
+        abort();
+#endif
         _mllm_gemm_q4_0_8x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
         return;
     }

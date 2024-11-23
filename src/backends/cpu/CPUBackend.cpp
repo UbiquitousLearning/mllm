@@ -177,6 +177,9 @@ void CPUBackend::registerFuncs() {
     map_function_[TensorFuncType::FUNC_RANGE] = new CPURangeFunction();
     map_function_[TensorFuncType::FUNC_WHERE] = new CPUwhereFunction();
     map_function_[TensorFuncType::FUNC_SPLIT] = new CPUsplitFunction();
+    map_function_[TensorFuncType::FUNC_EXPPAND] = new CPUexpandFunction();
+    // models use only
+    map_function_[TensorFuncType::FUNC_PHI3V_HD_MERGE] = new CPPhi3VhdmergeFunction();
 };
 
 int CPUBackend::cpu_threads = 4;

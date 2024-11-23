@@ -21,7 +21,7 @@ public:
         up_proj = Linear(hidden_dim, ffn_hidden, true, base_name + names._up_proj_name);
         act = ACT_FN[act_fn_type](base_name + names._ffn_base_name + "act");
     }
-    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = up_proj(inputs[0]);
         x = act(x);
         return {x};
@@ -38,14 +38,16 @@ class ViTBlock final : public Module {
 public:
     ViTBlock() = default;
     ViTBlock(int hidden_dim, int head_size, int ffn_hidden, const string &act_fn_type, const ViTNameConfig &names, const string &base_name) {
-        attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size, SPLIT_NONE, false, false,
-                                       RoPEType::NONE, -1,-1,0, false, true, names, base_name + names._attn_base_name);
+        attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size, SPLIT_NONE,
+                                       false, false, RoPEType::NONE,
+                                       -1, -1, 0, false, true,
+                                       names, base_name + names._attn_base_name);
         mlp = ViTMLP(hidden_dim, ffn_hidden, act_fn_type, names, base_name + names._ffn_base_name);
         down_proj = Linear(ffn_hidden, hidden_dim, true, base_name + names._down_proj_name);
-        norm1 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._attn_norm_name);
-        norm2 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._ffn_norm_name);
+        norm1 = LayerNorm(hidden_dim, true, 1e-5, base_name + names._attn_norm_name);
+        norm2 = LayerNorm(hidden_dim, true, 1e-5, base_name + names._ffn_norm_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = norm1(inputs[0]);
         x = attention({x, x, x})[0];
         auto tmp = x + inputs[0];
@@ -69,7 +71,7 @@ public:
         cls_token = Parameter(1, 1, 1, hidden_dim, base_name + names._cls_token_name);
         position_embeddings = Parameter(1, int(img_hw / patch) * int(img_hw / patch) + 1, 1, hidden_dim, base_name + names._position_embeddings_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto embd = patch_embedding(inputs[0]);
         embd = embd.transpose({{SEQUENCE, DIMENSION}, {HEAD, SEQUENCE}});
         embd = embd.flatten(HEAD, SEQUENCE);
@@ -97,7 +99,7 @@ public:
         norm = LayerNorm(hidden_dim, true, 1e-6, base_name + names._post_norm_name);
         lm_head = Linear(hidden_dim, class_size, false, names.lm_head_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = embedding(inputs)[0];
         for (auto &block : blocks) {
             x = block({x})[0];

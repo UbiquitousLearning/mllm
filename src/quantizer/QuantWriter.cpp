@@ -36,6 +36,9 @@ float *QuantWriter::getParam(std::string param_name) {
     return static_cast<float *>((void *)data);
 }
 bool find_names(const string &name, const vector<string> &layer_names) {
+    if ("vision_embed_tokens" == name) { // for FUYU
+        return true;
+    }
     for (const auto &layer : layer_names) {
         if (name.find(layer) != std::string::npos) {
             return true;
@@ -49,8 +52,10 @@ vector<string> fp32_layers = {
     "rope",
     "bias",
     "rotary_emb",
-    "embed_tokens",
-    "vision_embed_tokens",
+    // "embed_tokens",
+    "_GN",
+    "class_embedding",
+    // "vision_embed_tokens",
     "embeddings",
     "logit_scale",
     //"tok_embeddings",

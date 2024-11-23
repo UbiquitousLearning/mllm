@@ -105,6 +105,58 @@ bool Tensor::reshape(const int batch, const int channel, const int time, const i
 
 TensorStatus Tensor::tensor_status;
 
+uint32_t &Tensor::uuid() {
+    return uuid_;
+}
+
+TensorType &Tensor::xnnTensorType() {
+    return xnn_tensor_type_;
+}
+
+void Tensor::forceResetHostPointer(void *ptr) {
+    host_ptr_ = ptr;
+}
+
+Tensor &Tensor::to(BackendType backend_type) {
+    // TODO: check if the data is shared between devices
+    // if so, return the origin tensor
+    // if not, return the new tensor
+    // TODO: if need copy, should implement copyDataCrossBn and do copy when Tensor::TENSOR_STATIC_READY
+
+    /**
+     * Currently, there are following cases:
+     * CPU -> QNN, QNN -> CPU
+     * if it is CPU -> QNN, the buffer should be realloced
+     * (NOTE: not handling data copy as the tensor.to() shoudld be called before the data is set and tensor.device() should be checked in frontend)
+     * if it is QNN -> CPU, the data is sharable between CPU and QNN, no need to copy or realloc
+     */
+    if (device() == backend_type) {
+        return *this;
+    }
+    if (backend_type == MLLM_CPU && device() == MLLM_QNN) {
+        // data is sharable between CPU and QNN
+        return *this;
+    }
+    // realloc the tensor
+    if (backend_type == MLLM_QNN && device() == MLLM_CPU) {
+        this->free();
+    }
+    if (backend_type == MLLM_CPU && device() == MLLM_XNNPACK) {
+        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
+        this->setBackend(Backend::global_backends[backend_type]);
+        return *this;
+    }
+    if (backend_type == MLLM_XNNPACK && device() == MLLM_CPU) {
+        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
+        this->setBackend(Backend::global_backends[backend_type]);
+        return *this;
+    }
+    module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
+    this->alloc();
+    return *this;
+};
+
+// TensorFuctions
 Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
                         vector<float> float_args, vector<Tensor *> other_tensors) {
     assert(module() != nullptr);
@@ -285,7 +337,11 @@ Tensor &Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d)
     for (auto &axis : h) { axis_s.push_back((float)axis); }
     for (auto &axis : s) { axis_s.push_back((float)axis); }
     for (auto &axis : d) { axis_s.push_back((float)axis); }
-    return getFunc("clip", FUNC_CLIP, axis_s);
+    string name = "clip-";
+    for (auto as : axis_s) {
+        name += std::to_string(int(as)) + "_";
+    }
+    return getFunc(name, FUNC_CLIP, axis_s);
 }
 
 Tensor &Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
@@ -299,6 +355,10 @@ Tensor &Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s,
     for (auto &axis : s) { axis_s.push_back((float)axis); }
     for (auto &axis : d) { axis_s.push_back((float)axis); }
     return getFunc("clipaxis", FUNC_CLIPAXIS, axis_s);
+}
+
+Tensor &Tensor::expand(int b, int h, int s, int d) {
+    return getFunc("expand", FUNC_EXPPAND, {(float)b, (float)h, (float)s, (float)d});
 }
 
 Tensor &Tensor::norm(int L_n) {
@@ -347,55 +407,12 @@ vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<
                          {module->activation_tensors[input.name()].get()});
 }
 
-uint32_t &Tensor::uuid() {
-    return uuid_;
+Tensor &Tensor::phi3v_hd_merge(Tensor &input, int h_crop, int w_crop) {
+    Module *module = input.module();
+    return getStaticFunc({input.name() + ".phi3v_hd_merge"}, FUNC_PHI3V_HD_MERGE,
+                         {(float)h_crop, (float)w_crop},
+                         {module->activation_tensors[input.name()].get()})[0]
+        .get();
 }
-
-TensorType &Tensor::xnnTensorType() {
-    return xnn_tensor_type_;
-}
-
-void Tensor::forceResetHostPointer(void *ptr) {
-    host_ptr_ = ptr;
-}
-
-Tensor &Tensor::to(BackendType backend_type) {
-    // TODO: check if the data is shared between devices
-    // if so, return the origin tensor
-    // if not, return the new tensor
-    // TODO: if need copy, should implement copyDataCrossBn and do copy when Tensor::TENSOR_STATIC_READY
-
-    /**
-     * Currently, there are following cases:
-     * CPU -> QNN, QNN -> CPU
-     * if it is CPU -> QNN, the buffer should be realloced
-     * (NOTE: not handling data copy as the tensor.to() shoudld be called before the data is set and tensor.device() should be checked in frontend)
-     * if it is QNN -> CPU, the data is sharable between CPU and QNN, no need to copy or realloc
-     */
-    if (device() == backend_type) {
-        return *this;
-    }
-    if (backend_type == MLLM_CPU && device() == MLLM_QNN) {
-        // data is sharable between CPU and QNN
-        return *this;
-    }
-    // realloc the tensor
-    if (backend_type == MLLM_QNN && device() == MLLM_CPU) {
-        this->free();
-    }
-    if (backend_type == MLLM_CPU && device() == MLLM_XNNPACK) {
-        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
-        this->setBackend(Backend::global_backends[backend_type]);
-        return *this;
-    }
-    if (backend_type == MLLM_XNNPACK && device() == MLLM_CPU) {
-        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
-        this->setBackend(Backend::global_backends[backend_type]);
-        return *this;
-    }
-    module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
-    this->alloc();
-    return *this;
-};
 
 } // namespace mllm
