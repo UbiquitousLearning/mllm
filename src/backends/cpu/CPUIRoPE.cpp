@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cmath>
 #include <iostream>
+#include "backends/cpu/quantize/QuantizeQ8.hpp"
 
 namespace mllm {
 
@@ -359,7 +360,37 @@ void CPUIRoPE::rope_mla(shared_ptr<Tensor> input, shared_ptr<Tensor> output) {
     }
 }
 
+// TODO: Q8_0 KVCache can not use!!
 ErrorCode CPUIRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    if (outputs[0]->dtype() == MLLM_TYPE_Q8_0) {
+        auto tmp_out = std::make_shared<Tensor>(outputs[0]->backend());
+        // tmp_out->setBackend(outputs[0]->backend());
+        auto b = outputs[0]->batch();
+        auto h = outputs[0]->head();
+        auto d = outputs[0]->dimension();
+        auto s = outputs[0]->sequence();
+        tmp_out->chls() = outputs[0]->chls();
+        tmp_out->setCtype(outputs[0]->ctype());
+        tmp_out->reshape(b, h, s, d);
+        tmp_out->setDtype(MLLM_TYPE_F32);
+        tmp_out->alloc();
+        doExecute(inputs, {tmp_out});
+#pragma omp parallel for collapse(3) num_threads(thread_count)
+        for (int b = 0; b < tmp_out->batch(); b++) {
+            for (int h = 0; h < tmp_out->head(); h++) {
+                for (int s = 0; s < tmp_out->sequence(); s++) {
+                    quantize_row_q8_0(tmp_out->hostPtr<float>() + tmp_out->offset(b, h, s, 0),
+                                      (char *)outputs[0]->rawHostPtr()
+                                          + outputs[0]->offset(b, h, s, 0) * sizeof(block_q8_0) / QK8_0,
+                                      tmp_out->dimension());
+                }
+            }
+        }
+    } else {
+        return doExecute(inputs, outputs);
+    }
+}
+ErrorCode CPUIRoPE::doExecute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // if use QNN, when a new prompt input, the seq should be reset to 0 here as the setUp is not called
 #ifdef USE_QNN
     auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
@@ -384,106 +415,6 @@ ErrorCode CPUIRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     } else {
         MLLM_LOG_ERROR_STREAM << "RoPE type error" << std::endl;
     }
-    /*
-#pragma omp parallel for collapse(4) num_threads(thread_count)
-    for (int n = 0; n < input->batch(); ++n) {
-        for (int h = 0; h < input->head(); ++h) {
-            for (int s = 0; s < input->sequence(); ++s) { // sequance
-                for (int d = 0; d < partial_dimension; ++d) {
-                    if (pose_type_ == LLAMAROPE) {
-                        float in_value = input->dataAt<float>(n, h, s, d);
-                        float in_value_2;
-                        if (d % 2 == 0) { // if is even number: 0,2,4
-                            in_value_2 = -input->dataAt<float>(n, h, s, d + 1);
-                        } else {
-                            in_value_2 = input->dataAt<float>(n, h, s, d - 1);
-                        }
-                        float sin_value = sin_[s + h_cnt_][d];
-                        float cos_value = cos_[s + h_cnt_][d];
-                        auto value = in_value * cos_value + in_value_2 * sin_value;
-                        if (out_dtype == MLLM_TYPE_F32) {
-                            output->setDataAt<float>(n, h, s, d, value);
-                        } else if (out_dtype == MLLM_TYPE_F16) {
-                            output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
-                        }
-                    } else if (pose_type_ == PERSIMMONROPE) {
-                        float in_value = input->dataAt<float>(n, h, s, d);
-                        float in_value_2;
-                        float sin_value = sin_[s + h_cnt_][d];
-                        float cos_value = cos_[s + h_cnt_][d];
-                        if (d < partial_dimension / 4) {
-                            in_value_2 = -input->dataAt<float>(n, h, s, d + partial_dimension / 4);
-                            auto value = in_value * cos_value + in_value_2 * sin_value;
-                            if (out_dtype == MLLM_TYPE_F32) {
-                                output->setDataAt<float>(n, h, s, d, value);
-                            } else if (out_dtype == MLLM_TYPE_F16) {
-                                output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
-                            }
-                        } else if (d < (partial_dimension / 2)) {
-                            in_value_2 = input->dataAt<float>(n, h, s, d - partial_dimension / 4);
-                            auto value = in_value * cos_value + in_value_2 * sin_value;
-                            if (out_dtype == MLLM_TYPE_F32) {
-                                output->setDataAt<float>(n, h, s, d, value);
-                            } else if (out_dtype == MLLM_TYPE_F16) {
-                                output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
-                            }
-                        } else {
-                            if (out_dtype == MLLM_TYPE_F32) {
-                                output->setDataAt<float>(n, h, s, d, in_value);
-                            } else if (out_dtype == MLLM_TYPE_F16) {
-                                output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(in_value));
-                            }
-                        }
-                    } else if (pose_type_ == HFHUBROPE) {
-                        float in_value = input->dataAt<float>(n, h, s, d);
-                        float in_value_2;
-                        if (d < (partial_dimension / 2)) {
-                            in_value_2 = -input->dataAt<float>(n, h, s, d + partial_dimension / 2);
-                        // } else {
-                            in_value_2 = input->dataAt<float>(n, h, s, d - partial_dimension / 2);
-                        }
-                        float sin_value = sin_[s + h_cnt_][d];
-                        float cos_value = cos_[s + h_cnt_][d];
-                        auto value = in_value * cos_value + in_value_2 * sin_value;
-                        if (output->dtypeAt(n, h, s, d) == MLLM_TYPE_F32) {
-                            output->setDataAt<float>(n, h, s, d, value);
-                        } else if (output->dtypeAt(n, h, s, d) == MLLM_TYPE_F16) {
-                            output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
-                        }
-                    } else if (pose_type_ == MLAROPE) {
-                        int half_dim = input->dimension() / 2;
-                        float in_value = input->dataAt<float>(n, h, s, d);
-                        if (d < half_dim) {
-                            in_value = input->dataAt<float>(n, h, s, d * 2);
-                        } else {
-                            in_value = input->dataAt<float>(n, h, s, 2 *(d - half_dim)+1);
-                        }
-                        float in_value_2;
-                        if (d < half_dim) {
-                            in_value_2 = -input->dataAt<float>(n, h, s, 2 *d+1);
-                        } else {
-                            in_value_2 = input->dataAt<float>(n, h, s, 2 *(d - half_dim));
-                        }
-                        // no change
-                        float sin_value = sin_[s + h_cnt_][d];
-                        float cos_value = cos_[s + h_cnt_][d];
-                        auto value = in_value * cos_value + in_value_2 * sin_value;
-                        if (out_dtype == MLLM_TYPE_F32) {
-                            output->setDataAt<float>(n, h, s, d, value);
-                        } else if (out_dtype == MLLM_TYPE_F16) {
-                            output->setDataAt<mllm_fp16_t>(n, h, s, d, MLLM_FP32_TO_FP16(value));
-                        }
-                    } else {
-                        std::cerr << "RoPE type error" << std::endl;
-                    }
-                }
-            }
-        }
-    }
-    */
-    // auto end_t = mllm_time_us();
-    // std::cout << "RoPE time: " << (end_t - start_t)/1000.0F << " ms " <<partial_dimension<<"  "<<out_dtype<< std::endl;
-    h_cnt_ += input->sequence();
     if (h_cnt_ >= pos_max_) {
         h_cnt_ = 0;
     }

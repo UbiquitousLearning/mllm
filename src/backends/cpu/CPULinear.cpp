@@ -77,7 +77,48 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     if (inputs[0]->count() == 0) {
         return Op::execute(inputs, outputs);
     }
-    mat_mul(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true, thread_count);
+    // TODO: Q8_0 KVCache can not use!!
+    if (outputs[0]->dtype() == MLLM_TYPE_Q8_0) {
+        auto tmp_out = std::make_shared<Tensor>(outputs[0]->backend());
+        // tmp_out->setBackend(outputs[0]->backend());
+        auto b = outputs[0]->batch();
+        auto h = outputs[0]->head();
+        auto d = outputs[0]->dimension();
+        auto s = outputs[0]->sequence();
+        tmp_out->chls() = outputs[0]->chls();
+        tmp_out->setCtype(outputs[0]->ctype());
+        tmp_out->reshape(b, h, s, d);
+        tmp_out->setDtype(MLLM_TYPE_F32);
+        tmp_out->alloc();
+        mat_mul(inputs[0].get(), &weight_, tmp_out.get(), support_bias_, &bias_, false, true, thread_count);
+        if (tmp_out->ctype() == BSHD) {
+#pragma omp parallel for collapse(3) num_threads(thread_count)
+            for (int b = 0; b < tmp_out->batch(); b++) {
+                for (int h = 0; h < tmp_out->head(); h++) {
+                    for (int s = 0; s < tmp_out->sequence(); s++) {
+                        quantize_row_q8_0(tmp_out->hostPtr<float>() + tmp_out->offset(b, h, s, 0),
+                                          (char *)outputs[0]->rawHostPtr()
+                                              + outputs[0]->offset(b, h, s, 0) * sizeof(block_q8_0) / QK8_0,
+                                          tmp_out->dimension());
+                    }
+                }
+            }
+        } else { // BHDS
+#pragma omp parallel for collapse(3) num_threads(thread_count)
+            for (int b = 0; b < tmp_out->batch(); b++) {
+                for (int h = 0; h < tmp_out->head(); h++) {
+                    for (int d = 0; d < tmp_out->dimension(); d++) {
+                        quantize_row_q8_0(tmp_out->hostPtr<float>() + tmp_out->offset(b, h, 0, d),
+                                          (char *)outputs[0]->rawHostPtr()
+                                              + outputs[0]->offset(b, h, 0, d) * sizeof(block_q8_0) / QK8_0,
+                                          outputs[0]->sequence());
+                    }
+                }
+            }
+        }
+    } else {
+        mat_mul(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true, thread_count);
+    }
     // std::cout << name() << "  CPULinear()" << std::endl;
     /*
     switch (weight_.dtype()) {
