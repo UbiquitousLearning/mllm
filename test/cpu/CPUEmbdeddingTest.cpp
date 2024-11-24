@@ -2,7 +2,7 @@
 // Created by Xiang Li on 23-10-15.
 //
 #include "CPUTest.hpp"
-#include "backends/cpu/CPUEmbedding.hpp"
+#include "backends/cpu/op/CPUEmbedding.hpp"
 
 TEST_F(CPUTest, CPUEmbedding1) {
     SETUP_OP(CPUEmbedding, 128, 180, 4);

@@ -2,7 +2,7 @@
 // Created by Xiang Li on 23-10-16.
 //
 #include "CPUTest.hpp"
-#include "backends/cpu/CPUScale.hpp"
+#include "backends/cpu/op/CPUScale.hpp"
 TEST_F(CPUTest, CPUScale1) {
     SETUP_OP(CPUScale, 1);
     TENSOR(input0);

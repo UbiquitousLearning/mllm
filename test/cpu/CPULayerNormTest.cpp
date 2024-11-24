@@ -3,7 +3,7 @@
 //
 
 #include "CPUTest.hpp"
-#include "backends/cpu/CPULayerNorm.hpp"
+#include "backends/cpu/op/CPULayerNorm.hpp"
 TEST_F(CPUTest, CPULayerNorm1) {
     SETUP_OP(CPULayerNorm, 32000, false, 1e-5);
     TENSOR(input0);

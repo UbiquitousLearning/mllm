@@ -2,7 +2,7 @@
 // Created by Xiang Li on 23-10-16.
 //
 #include "CPUTest.hpp"
-#include "backends/cpu/CPUSoftMax.hpp"
+#include "backends/cpu/op/CPUSoftMax.hpp"
 TEST_F(CPUTest, CPUSoftMax1) {
     SETUP_OP(CPUSoftMax, DIMENSION, false, 4);
     TENSOR(input0);
