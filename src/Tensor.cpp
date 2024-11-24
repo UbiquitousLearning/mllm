@@ -8,8 +8,6 @@
 #include "OpDefined.hpp"
 #include "Timing.hpp"
 #include "Types.hpp"
-#include "backends/cpu/CPUTensorFunction.hpp"
-
 #include <Module.hpp>
 #include <memory>
 #include <string>

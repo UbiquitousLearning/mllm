@@ -2,9 +2,9 @@
 // Created by Xiang Li on 23-10-15.
 //
 #include "CPUTest.hpp"
-#include "backends/cpu/CPUConvolution3D.hpp"
+#include "backends/cpu/op/CPUConvolution3D.hpp"
 TEST_F(CPUTest, CPUConvolution3D1) {
-    SETUP_OP(CPUConvolution3D, 3, 1280, {2, 14, 14}, {2, 14,14},VALID, false, 4);
+    SETUP_OP(CPUConvolution3D, 3, 1280, {2, 14, 14}, {2, 14, 14}, VALID, false, 4);
     TENSOR(input0)
     TENSOR(output)
     TENSOR(test_output);
@@ -20,7 +20,6 @@ TEST_F(CPUTest, CPUConvolution3D1) {
     TEST_EXCUTE({input0}, {test_output});
     COMPARE_TENSOR(output.get(), test_output.get(), true);
 }
-
 
 // TEST_F(CPUTest, CPUConvolution3D2) {
 //     SETUP_OP(CPUConvolution3D,  3, 1280, {2, 14, 14}, {2, 14,14},SAME, true, 4);
