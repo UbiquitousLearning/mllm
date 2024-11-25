@@ -74,10 +74,10 @@
 #if defined(__ARM_NEON) && !defined(_MSC_VER)
 #include <arm_neon.h>
 #define MLLM_COMPUTE_FP16_TO_FP32(x) ((float)(x))
-#define MLLM_COMPUTE_FP32_TO_FP16(x) (x)
+#define MLLM_COMPUTE_FP32_TO_FP16(x) ((mllm_fp16_t)x)
 
 #define MLLM_FP16_TO_FP32(x) ((float)(x))
-#define MLLM_FP32_TO_FP16(x) (x)
+#define MLLM_FP32_TO_FP16(x) ((mllm_fp16_t)x)
 
 #elif defined _MSC_VER
 #define MLLM_COMPUTE_FP16_TO_FP32(x) _mm_cvtss_f32(_mm_cvtph_ps(_mm_cvtsi32_si128(x)))
@@ -154,24 +154,24 @@ inline double mllm_table_exp(float input){
 }
 */
 
-static const float GELU_COEF_A     = 0.044715f;
+static const float GELU_COEF_A = 0.044715f;
 static const float GELU_QUICK_COEF = -1.702f;
-static const float SQRT_2_OVER_PI  = 0.79788456080286535587989211986876f;
+static const float SQRT_2_OVER_PI = 0.79788456080286535587989211986876f;
 
 inline static float mllm_gelu_f32(float x) {
-    return 0.5f*x*(1.0f + tanhf(SQRT_2_OVER_PI*x*(1.0f + GELU_COEF_A*x*x)));
+    return 0.5f * x * (1.0f + tanhf(SQRT_2_OVER_PI * x * (1.0f + GELU_COEF_A * x * x)));
 }
 
 inline static float mllm_gelu_quick_f32(float x) {
-    return x*(1.0f/(1.0f+expf(GELU_QUICK_COEF*x)));
+    return x * (1.0f / (1.0f + expf(GELU_QUICK_COEF * x)));
 }
 
 // Sigmoid Linear Unit (SiLU) function
 inline static float mllm_silu_f32(float x) {
-    return x/(1.0f + expf(-x));
+    return x / (1.0f + expf(-x));
 }
 
-//GELU
+// GELU
 static mllm_fp16_t mllm_table_gelu_f16[1 << 16];
 static bool init_table_gelu_f16_flag = false;
 inline void init_table_gelu_f16() {
@@ -183,9 +183,9 @@ inline void init_table_gelu_f16() {
         mllm_table_gelu_f16[i] = MLLM_FP32_TO_FP16(mllm_gelu_f32(f));
     }
 }
-inline static void mllm_vec_gelu_f32(const int n, float * y, const float * x) {
+inline static void mllm_vec_gelu_f32(const int n, float *y, const float *x) {
     uint16_t t;
-//#pragma omp parallel for num_threads(thread_count)
+    // #pragma omp parallel for num_threads(thread_count)
     for (int i = 0; i < n; ++i) {
         mllm_fp16_t fp16 = MLLM_FP32_TO_FP16(x[i]);
         memcpy(&t, &fp16, sizeof(uint16_t));
@@ -193,7 +193,7 @@ inline static void mllm_vec_gelu_f32(const int n, float * y, const float * x) {
     }
 }
 
-//QuickGELU
+// QuickGELU
 static mllm_fp16_t mllm_table_gelu_quick_f16[1 << 16];
 static bool init_table_gelu_quick_f16_flag = false;
 inline void init_table_gelu_quick_f16() {
@@ -205,16 +205,16 @@ inline void init_table_gelu_quick_f16() {
         mllm_table_gelu_quick_f16[i] = MLLM_FP32_TO_FP16(mllm_gelu_quick_f32(f));
     }
 }
-inline static void mllm_vec_gelu_quick_f32(const int n, float * y, const float * x) {
+inline static void mllm_vec_gelu_quick_f32(const int n, float *y, const float *x) {
     uint16_t t;
-//#pragma omp parallel for num_threads(thread_count)
+    // #pragma omp parallel for num_threads(thread_count)
     for (int i = 0; i < n; ++i) {
         mllm_fp16_t fp16 = MLLM_FP32_TO_FP16(x[i]);
         memcpy(&t, &fp16, sizeof(uint16_t));
         y[i] = MLLM_FP16_TO_FP32(mllm_table_gelu_quick_f16[t]);
     }
 }
-//SiLU
+// SiLU
 static mllm_fp16_t mllm_table_silu_f16[1 << 16];
 static bool init_table_silu_f16_flag = false;
 inline void init_table_silu_f16() {
@@ -236,8 +236,6 @@ inline void init_table_silu_f16() {
 //     }
 // }
 
-
-
 #if __AVX__ || __AVX2__ || defined(__AVX512F__)
 static inline __m256i get_scale_shuffle_k4(int i) {
     static const uint8_t KShuffle[256] = {
@@ -258,11 +256,10 @@ static inline __m128i get_scale_shuffle(int i) {
         4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5,
         6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7,
         8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9,
-        10,10,10,10,10,10,10,10, 11,11,11,11,11,11,11,11,
-        12,12,12,12,12,12,12,12, 13,13,13,13,13,13,13,13,
-        14,14,14,14,14,14,14,14, 15,15,15,15,15,15,15,15
-    };
-    return _mm_loadu_si128((const __m128i*)k_shuffle + i);
+        10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+        12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13,
+        14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15};
+    return _mm_loadu_si128((const __m128i *)k_shuffle + i);
 }
 #endif
 
@@ -274,12 +271,15 @@ static inline int nearest_int(float fval) {
     return (i & 0x007fffff) - 0x00400000;
 }
 
-static float make_qx_quants(int n, int nmax, const float * __restrict x, int8_t * __restrict L, int rmse_type) {
+static float make_qx_quants(int n, int nmax, const float *__restrict x, int8_t *__restrict L, int rmse_type) {
     float max = 0;
     float amax = 0;
     for (int i = 0; i < n; ++i) {
         float ax = fabsf(x[i]);
-        if (ax > amax) { amax = ax; max = x[i]; }
+        if (ax > amax) {
+            amax = ax;
+            max = x[i];
+        }
     }
     if (amax < 1e-30f) { // all zero
         for (int i = 0; i < n; ++i) {
@@ -291,65 +291,62 @@ static float make_qx_quants(int n, int nmax, const float * __restrict x, int8_t 
     if (rmse_type == 0) {
         for (int i = 0; i < n; ++i) {
             int l = nearest_int(iscale * x[i]);
-            L[i] = nmax + MAX(-nmax, MIN(nmax-1, l));
+            L[i] = nmax + MAX(-nmax, MIN(nmax - 1, l));
         }
-        return 1/iscale;
+        return 1 / iscale;
     }
     bool return_early = false;
     if (rmse_type < 0) {
         rmse_type = -rmse_type;
         return_early = true;
     }
-    int weight_type = rmse_type%2;
+    int weight_type = rmse_type % 2;
     float sumlx = 0;
     float suml2 = 0;
     for (int i = 0; i < n; ++i) {
         int l = nearest_int(iscale * x[i]);
-        l = MAX(-nmax, MIN(nmax-1, l));
+        l = MAX(-nmax, MIN(nmax - 1, l));
         L[i] = l + nmax;
         float w = weight_type == 1 ? x[i] * x[i] : 1;
-        sumlx += w*x[i]*l;
-        suml2 += w*l*l;
+        sumlx += w * x[i] * l;
+        suml2 += w * l * l;
     }
-    float scale = sumlx/suml2;
-    if (return_early) return suml2 > 0 ? 0.5f*(scale + 1/iscale) : 1/iscale;
+    float scale = sumlx / suml2;
+    if (return_early) return suml2 > 0 ? 0.5f * (scale + 1 / iscale) : 1 / iscale;
     float best = scale * sumlx;
     for (int is = -9; is <= 9; ++is) {
         if (is == 0) {
             continue;
         }
-        iscale = -(nmax + 0.1f*is) / max;
+        iscale = -(nmax + 0.1f * is) / max;
         sumlx = suml2 = 0;
         for (int i = 0; i < n; ++i) {
             int l = nearest_int(iscale * x[i]);
-            l = MAX(-nmax, MIN(nmax-1, l));
+            l = MAX(-nmax, MIN(nmax - 1, l));
             float w = weight_type == 1 ? x[i] * x[i] : 1;
-            sumlx += w*x[i]*l;
-            suml2 += w*l*l;
+            sumlx += w * x[i] * l;
+            suml2 += w * l * l;
         }
-        if (suml2 > 0 && sumlx*sumlx > best*suml2) {
+        if (suml2 > 0 && sumlx * sumlx > best * suml2) {
             for (int i = 0; i < n; ++i) {
                 int l = nearest_int(iscale * x[i]);
-                L[i] = nmax + MAX(-nmax, MIN(nmax-1, l));
+                L[i] = nmax + MAX(-nmax, MIN(nmax - 1, l));
             }
-            scale = sumlx/suml2; best = scale*sumlx;
+            scale = sumlx / suml2;
+            best = scale * sumlx;
         }
     }
     return scale;
 }
 
-
-
-
 // FP32_FP16
-
 
 inline mllm_fp16_t mllm_fp32_to_fp16(float x) {
     return MLLM_FP32_TO_FP16(x);
 }
 
 inline float mllm_fp16_to_fp32(mllm_fp16_t x) {
-    return (float) MLLM_FP16_TO_FP32(x);
+    return (float)MLLM_FP16_TO_FP32(x);
 }
 
 inline void mllm_fp16_to_fp32_row(const mllm_fp16_t *x, float *y, int n) {

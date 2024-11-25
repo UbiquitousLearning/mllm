@@ -17,6 +17,7 @@
 #include <iostream>
 #include <memory/SystemMemoryManager.hpp>
 #include <memory>
+#include <ostream>
 #include <utility>
 #include <vector>
 #include <unordered_map>

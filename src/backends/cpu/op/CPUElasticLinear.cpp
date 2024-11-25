@@ -1,6 +1,6 @@
 
 #include "CPUElasticLinear.hpp"
-#include "../compute/Matmul.hpp"
+#include "../compute/MatmulElastic.hpp"
 
 namespace mllm {
 
