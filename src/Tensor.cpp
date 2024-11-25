@@ -367,6 +367,11 @@ Tensor &Tensor::where(float value, Chl axis) {
     return getFunc("where", FUNC_WHERE, {(float)value, (float)axis});
 }
 
+Tensor &Tensor::index_put(Tensor &value, Tensor &indices, bool accumulate) {
+    return getFunc({"index_put"}, FUNC_INDEX_PUT, {(float)accumulate},
+                   {&value, &indices});
+}
+
 Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
     Module *module = input_tensors[0].module();
     vector<Tensor *> inputs = {};
@@ -403,6 +408,17 @@ vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<
     Module *module = input.module();
     return getStaticFunc(next_names, FUNC_SPLIT, args,
                          {module->activation_tensors[input.name()].get()});
+}
+Tensor &Tensor::fuyu_gather_embd(Tensor &word, Tensor &image_patches, Tensor &image_patches_indices) {
+    Module *module = word.module();
+    return getStaticFunc({word.name() + ".fuyu_gather_embd"}, FUNC_FUYU_GATHER_EMBD,
+                         {},
+                         {
+                             module->activation_tensors[word.name()].get(),
+                             module->activation_tensors[image_patches.name()].get(),
+                             module->activation_tensors[image_patches_indices.name()].get(),
+                         })[0]
+        .get();
 }
 
 Tensor &Tensor::phi3v_hd_merge(Tensor &input, int h_crop, int w_crop) {
