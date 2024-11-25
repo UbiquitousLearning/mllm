@@ -1,6 +1,6 @@
 
 #include "CPUSparseLinear.hpp"
-#include "../compute/Matmul.hpp"
+#include "../compute/MatmulSparse.hpp"
 
 namespace mllm {
 

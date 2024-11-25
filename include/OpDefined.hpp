@@ -161,9 +161,11 @@ enum TensorFuncType {
     FUNC_CLIPAXIS,
     FUNC_RANGE,
     FUNC_WHERE,
+    FUNC_INDEX_PUT,
     FUNC_SPLIT,
     FUNC_EXPPAND,
     // models use only
+    FUNC_FUYU_GATHER_EMBD,
     FUNC_PHI3V_HD_MERGE,
 };
 

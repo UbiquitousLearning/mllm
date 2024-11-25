@@ -2,7 +2,7 @@
 #include "CPUSparseIdLinear.hpp"
 
 #include <utility>
-#include "../compute/Matmul.hpp"
+#include "../compute/MatmulSparse.hpp"
 
 namespace mllm {
 

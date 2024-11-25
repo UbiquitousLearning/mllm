@@ -96,24 +96,9 @@ public:
         return {x};
     }
 };
-
-class VisionEmbdReplace final : public Layer {
-public:
-    VisionEmbdReplace() = default;
-    explicit VisionEmbdReplace(std::string name) {
-        param_["accumulate"] = true;
-        init(std::move(name), OpType::REPLACE);
-    }
-    Tensor operator()(Tensor text, Tensor vision, Tensor where_indices) {
-        auto ts = run({text, vision, where_indices}, 1);
-        return ts[0];
-    }
-};
-
 class LLaVAModel final : public Module {
     Layer text_embedding;
     LLaVAVisionModel vision_tower;
-    VisionEmbdReplace embd_replace;
     LLaMABodyModel llama_body;
 
 public:
@@ -135,14 +120,13 @@ public:
                                     names_config, names_config.blk_name);
         vision_tower = LLaVAVisionModel(vision_hidden_dim, vision_head_size, vision_ffn_hidden, patch, img_hw, vision_block_num,
                                         vit_names_config, vit_names_config.vison_model_name);
-        embd_replace = VisionEmbdReplace("embd_replace");
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto embd = text_embedding(inputs[0]);
         if (inputs[1].batch() > 0) {
             auto vision = vision_tower({inputs[1]})[0];
             auto where_idx = inputs[0].where(32000, SEQUENCE);
-            embd = embd_replace(embd, vision, where_idx);
+            embd = embd.index_put(vision, where_idx, true);
         }
         embd = llama_body({embd})[0];
         embd = embd.clip({}, {}, {-1}, {});

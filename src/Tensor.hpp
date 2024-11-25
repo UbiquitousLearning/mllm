@@ -159,6 +159,7 @@ public:
         alloc();
     }
     void alloc();
+    void dealloc();
 
     void alloc(vector<unsigned int> alloc_size);
     /**
@@ -862,7 +863,10 @@ public:
     vector<std::reference_wrapper<Tensor>> split(std::vector<int> each_dims, Chl split_dim, int same_dim_size = -1) {
         return split(*this, each_dims, split_dim, same_dim_size);
     }
+    Tensor &index_put(Tensor &value, Tensor &indices, bool accumulate);
 
+    // models use only
+    static Tensor &fuyu_gather_embd(Tensor &word, Tensor &image_patches, Tensor &image_patches_indices);
     static Tensor &phi3v_hd_merge(Tensor &input, int h_crop, int w_crop);
 
     /* Functions used for ChildTensor:
