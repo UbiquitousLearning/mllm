@@ -209,8 +209,6 @@ public:
             uint64_t time_start = mllm_time_us();
             if (need_setup) {
                 Forward(inputs, anyArgs);
-            } else {
-                std::cout << "no need_setup" << std::endl;
             }
             Tensor::tensor_status = TENSOR_STATIC_READY;
             // uint64_t time_start = mllm_time_us();
