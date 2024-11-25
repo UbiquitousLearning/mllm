@@ -34,13 +34,13 @@ enum MLLMBackendType {
     QNN,
 };
 
-typedef std::function<void(std::string, bool)> callback_t;
+typedef std::function<void(std::string, bool, std::vector<double>)> callback_t;
 
 class LibHelper {
     // Context *c = nullptr;
     // Net *net_ = nullptr;
     // Executor *executor_ = nullptr;
-    callback_t callback_ = [](std::string, bool) {
+    callback_t callback_ = [](std::string, bool, std::vector<double>) {
     };
 
     std::shared_ptr<Tokenizer> tokenizer_;
