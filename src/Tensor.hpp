@@ -159,6 +159,7 @@ public:
         alloc();
     }
     void alloc();
+    void dealloc();
 
     void alloc(vector<unsigned int> alloc_size);
     /**

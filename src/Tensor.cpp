@@ -88,6 +88,16 @@ void Tensor::alloc() {
         allocated_ = count_;
     }
 }
+void Tensor::dealloc() {
+    if (aggregated_) { return; }
+    assert(backend_ != nullptr);
+    if (masterTensor() != nullptr) { return; }
+    if (!shape_offset_.empty() && !shape_master_.empty()) { return; }
+    backend_->free(host_ptr_);
+    host_ptr_ = nullptr;
+    allocated_ = 0;
+    count_ = 0;
+}
 
 bool Tensor::reshape(const int batch, const int channel, const int time, const int height,
                      const int width) {
