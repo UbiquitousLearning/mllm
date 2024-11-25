@@ -6,6 +6,7 @@
 #define CPUTRANSPOSEFUNC_HPP
 #include "Tensor.hpp"
 #include "Types.hpp"
+#include "Module.hpp"
 
 namespace mllm {
 class Tensor;
@@ -19,19 +20,21 @@ public:
         }
         if (outputs[0]->count() <= 0 || outputs[0]->shape() != inputs[0]->shape()) {
             outputs[0]->transCopyShape(inputs[0]->shape());
-            std::map<Chl, int> origin_chls = {{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
-            if (std::equal(outputs[0]->chls().begin(), outputs[0]->chls().end(), origin_chls.begin())) {
-                outputs[0]->chls() = inputs[0]->chls();
-                for (auto axis : axiss) {
-                    auto axis0 = axis.first;
-                    auto axis1 = axis.second;
-                    auto ori_0_idx = outputs[0]->chls()[axis0];
-                    auto ori_1_idx = outputs[0]->chls()[axis1];
-                    outputs[0]->chls()[axis0] = ori_1_idx;
-                    outputs[0]->chls()[axis1] = ori_0_idx;
+            if (!Module::llm_model_ptr->op_transposed_flag) {
+                std::map<Chl, int> origin_chls = {{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
+                if (std::equal(outputs[0]->chls().begin(), outputs[0]->chls().end(), origin_chls.begin())) {
+                    outputs[0]->chls() = inputs[0]->chls();
+                    for (auto axis : axiss) {
+                        auto axis0 = axis.first;
+                        auto axis1 = axis.second;
+                        auto ori_0_idx = outputs[0]->chls()[axis0];
+                        auto ori_1_idx = outputs[0]->chls()[axis1];
+                        outputs[0]->chls()[axis0] = ori_1_idx;
+                        outputs[0]->chls()[axis1] = ori_0_idx;
+                    }
+                    outputs[0]->changeCtype(inputs[0]->shape().size());
+                    outputs[0]->undiffusion() = true;
                 }
-                outputs[0]->changeCtype(inputs[0]->shape().size());
-                outputs[0]->undiffusion() = true;
             }
             // if (inputs[0]->masterTensor() != nullptr) {
             if (inputs[0]->masterTensor() != nullptr && (inputs[0]->masterTensor()->name().find("Cache") != std::string::npos || inputs[0]->masterTensor()->name().find("weight") != std::string::npos)) {

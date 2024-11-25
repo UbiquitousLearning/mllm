@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include "cmdline.h"
 #include "models/vit/modeling_vit.hpp"
 #include "models/vit/labels_vit.hpp"
@@ -21,8 +22,15 @@ int main(int argc, char **argv) {
     auto model = ViTModel(config);
     model.load(model_path);
 
-    auto input_tensor = processor.process("../assets/cat.jpg", 224);
-    auto result = model({input_tensor});
-    auto token_idx = processor.postProcess(result[0]);
-    std::cout << imagenet_id2label[token_idx] << std::endl;
+    vector<string> imgs = {"../assets/cat.jpg",
+                           "../assets/dog_image.jpg",
+                           "../assets/bird_image.jpg",
+                           "../assets/car_image.jpg",
+                           "../assets/bus.png"};
+    for (auto &img : imgs) {
+        auto input_tensor = processor.process(img, 224);
+        auto result = model({input_tensor});
+        auto token_idx = processor.postProcess(result[0]);
+        std::cout << imagenet_id2label[token_idx] << std::endl;
+    }
 }

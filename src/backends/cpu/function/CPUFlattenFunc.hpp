@@ -6,6 +6,7 @@
 #define CPUFLATTENFUNC_HPP
 #include "Tensor.hpp"
 #include "Types.hpp"
+#include "Module.hpp"
 
 namespace mllm {
 class Tensor;
@@ -64,6 +65,8 @@ public:
             outputs[0]->setDtype(inputs[0]->dtype());
             outputs[0]->alloc();
             inputs[0]->deepCopyFrom(outputs[0], false);
+        } else if (Module::llm_model_ptr->op_transposed_flag) {
+            return;
         } else {
             std::cout << "[TODO]Tensor.Flatten not support!!!!" << std::endl;
         }
