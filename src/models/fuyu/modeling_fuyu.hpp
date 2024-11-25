@@ -5,6 +5,7 @@
 #ifndef MODELING_FUYU_HPP
 #define MODELING_FUYU_HPP
 
+#include "Backend.hpp"
 #include "Layer.hpp"
 #include "Module.hpp"
 #include "configuration_fuyu.hpp"
@@ -75,22 +76,9 @@ public:
     }
 };
 
-class FuyuGather final : public Layer {
-public:
-    FuyuGather() = default;
-    explicit FuyuGather(std::string name) {
-        init(std::move(name), OpType::GATHER);
-    }
-    Tensor operator()(Tensor input_ids, Tensor image_patches, Tensor image_patches_indices) {
-        auto ts = run({input_ids, image_patches, image_patches_indices}, 1);
-        return ts[0];
-    }
-};
-
 class FuyuModel final : public Module {
     Layer embed_tokens;
     Layer vision_embed_tokens;
-    FuyuGather fuyu_gather;
     Persimmon persimmon;
 
 public:
@@ -106,14 +94,13 @@ public:
               const FuyuNameConfig &names) {
         embed_tokens = Embedding(vocab_size, hidden_dim, names.token_embd_name);
         vision_embed_tokens = Linear(patch_size * patch_size * chl_size, hidden_dim, true, names.vision_embed_tokens_name);
-        fuyu_gather = FuyuGather("gather");
         persimmon = Persimmon(hidden_dim, head_size, ffn_hidden, rope_theta, max_position_embeddings, cache_limit, block_num, vocab_size, names);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto input_ids = embed_tokens(inputs[0]);
         if (inputs[1].batch() > 0) {
             auto image_patches = vision_embed_tokens(inputs[1]);
-            input_ids = fuyu_gather(input_ids, image_patches, inputs[2]);
+            input_ids = Tensor::fuyu_gather_embd(input_ids, image_patches, inputs[2]);
         }
         return persimmon({input_ids});
     }

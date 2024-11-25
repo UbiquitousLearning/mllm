@@ -416,6 +416,7 @@ ErrorCode CPUIRoPE::doExecute(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     } else {
         MLLM_LOG_ERROR_STREAM << "RoPE type error" << std::endl;
     }
+    h_cnt_ += input->sequence();
     if (h_cnt_ >= pos_max_) {
         h_cnt_ = 0;
     }

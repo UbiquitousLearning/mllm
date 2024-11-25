@@ -72,7 +72,9 @@
 #include "function/CPUTransposeFunc.hpp"
 #include "function/CPUViewFunc.hpp"
 #include "function/CPUWhereFunc.hpp"
+#include "function/CPUIndexPutFunc.hpp"
 
+#include "function/CPUFuyuGatherEmbdFunc.hpp"
 #include "function/CPUPhi3VhdmergeFunc.hpp"
 
 namespace mllm {
@@ -192,9 +194,11 @@ void CPUBackend::registerFuncs() {
     map_function_[TensorFuncType::FUNC_CLIPAXIS] = new CPUclipaxisFunction();
     map_function_[TensorFuncType::FUNC_RANGE] = new CPURangeFunction();
     map_function_[TensorFuncType::FUNC_WHERE] = new CPUwhereFunction();
+    map_function_[TensorFuncType::FUNC_INDEX_PUT] = new CPUIndexPutFunction();
     map_function_[TensorFuncType::FUNC_SPLIT] = new CPUsplitFunction();
     map_function_[TensorFuncType::FUNC_EXPPAND] = new CPUexpandFunction();
     // models use only
+    map_function_[TensorFuncType::FUNC_FUYU_GATHER_EMBD] = new CPUFuyuGatherEmbdFunc();
     map_function_[TensorFuncType::FUNC_PHI3V_HD_MERGE] = new CPUPhi3VhdmergeFunction();
 };
 
