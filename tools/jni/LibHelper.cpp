@@ -171,6 +171,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
     LOGE("Running model %d", model_);
     unsigned max_new_tokens = 500;
     LOGE("Running backend %d", backend_);
+    vector<double> profiling_data(3);
 
     if (model_ == QWEN15 || model_ == QWEN25) {
         auto tokenizer = dynamic_pointer_cast<QWenTokenizer>(tokenizer_);
@@ -211,7 +212,15 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                     auto [not_end, output_string] = tokenizer_->postprocess(out_string);
                     if (chunk_id == chunk_num - 1) { // print the output of the last chunk
                         output_string_ += output_string;
-                        callback_(output_string_, !not_end);
+                        if (!not_end) {
+                            auto profile_res = prefill_module_->profiling("Prefilling");
+                            if (profile_res.size() == 3) {
+                                profiling_data[0] += profile_res[0];
+                                profiling_data[1] = profile_res[1];
+                            }
+                            callback_(output_string_, !not_end, profiling_data);
+                        }
+                        callback_(output_string_, !not_end, {});
                     }
                     return true;
                 });
@@ -238,7 +247,15 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 auto out_token_string = tokenizer_->detokenize({out_token});
                 auto [not_end, output_string] = tokenizer_->postprocess(out_token_string);
                 output_string_ += output_string;
-                callback_(output_string_, !not_end);
+                if (!not_end) {
+                    auto profile_res = module_->profiling("Inference");
+                    if (profile_res.size() == 3) {
+                        profiling_data[0] += profile_res[0];
+                        profiling_data[2] = profile_res[2];
+                    }
+                    callback_(output_string_, !not_end, profiling_data);
+                }
+                callback_(output_string_, !not_end, {});
                 if (!not_end) { return false; }
                 return true;
             });
@@ -256,7 +273,14 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 auto out_token_string = tokenizer_->detokenize({out_token});
                 auto [not_end, output_string] = tokenizer_->postprocess(out_token_string);
                 output_string_ += output_string;
-                callback_(output_string_, !not_end);
+                if (!not_end) {
+                    auto profile_res = module_->profiling("Inference");
+                    if (profile_res.size() == 3) {
+                        profiling_data = profile_res;
+                    }
+                    callback_(output_string_, !not_end, profiling_data);
+                }
+                callback_(output_string_, !not_end, {});
                 if (!not_end) { return false; }
                 return true;
             });
@@ -273,7 +297,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
             auto out_token = outputs.second;
             auto [end, string] = processor->postprocess(out_string);
             output_string_ += string;
-            callback_(output_string_, !end);
+            callback_(output_string_, !end, {});
             if (!end) { break; }
             chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
         }
@@ -321,7 +345,15 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                     auto [not_end, output_string] = tokenizer_->postprocess(out_string);
                     if (chunk_id == chunk_num - 1) { // print the output of the last chunk
                         output_string_ += output_string;
-                        callback_(output_string_, !not_end);
+                        if (!not_end) {
+                            auto profile_res = prefill_module_->profiling("Prefilling");
+                            if (profile_res.size() == 3) {
+                                profiling_data[0] += profile_res[0];
+                                profiling_data[1] = profile_res[1];
+                            }
+                            callback_(output_string_, !not_end, profiling_data);
+                        }
+                        callback_(output_string_, !not_end, {});
                     }
                     if (!not_end) { return false; }
                     return true;
@@ -349,7 +381,15 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 auto out_token_string = tokenizer_->detokenize({out_token});
                 auto [not_end, output_string] = tokenizer_->postprocess(out_token_string);
                 output_string_ += output_string;
-                callback_(output_string_, !not_end);
+                if (!not_end) {
+                    auto profile_res = module_->profiling("Inference");
+                    if (profile_res.size() == 3) {
+                        profiling_data[0] += profile_res[0];
+                        profiling_data[2] = profile_res[2];
+                    }
+                    callback_(output_string_, !not_end, profiling_data);
+                }
+                callback_(output_string_, !not_end, {});
                 if (!not_end) { return false; }
                 return true;
             });
@@ -367,7 +407,14 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 auto out_token_string = tokenizer_->detokenize({out_token});
                 auto [not_end, output_string] = tokenizer_->postprocess(out_token_string);
                 output_string_ += output_string;
-                callback_(output_string_, !not_end);
+                if (!not_end) {
+                    auto profile_res = module_->profiling("Inference");
+                    if (profile_res.size() == 3) {
+                        profiling_data = profile_res;
+                    }
+                    callback_(output_string_, !not_end, profiling_data);
+                }
+                callback_(output_string_, !not_end, {});
                 if (!not_end) { return false; }
                 return true;
             });
