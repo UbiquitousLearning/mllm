@@ -2,7 +2,7 @@
 // Created by Xiang Li on 2023/11/27.
 //
 #include "CPUTest.hpp"
-#include "backends/cpu/CPUReLU2.hpp"
+#include "backends/cpu/op/CPUReLU2.hpp"
 TEST_F(CPUTest, CPUReLU21) {
     SETUP_OP(CPUReLU2, 4);
     TENSOR(input0);

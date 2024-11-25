@@ -2,7 +2,7 @@
 // Created by Xiang Li on 23-10-16.
 //
 #include "CPUTest.hpp"
-#include "backends/cpu/CPUMul.hpp"
+#include "backends/cpu/op/CPUMul.hpp"
 TEST_F(CPUTest, CPUMul1) {
     SETUP_OP(CPUMul, 4);
     TENSOR(input0);
