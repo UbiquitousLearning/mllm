@@ -71,16 +71,17 @@ public:
         }
         vector<shared_ptr<Tensor>> shared_outputs = {};
         for (const auto &output : outputs) {
+            output->alloc();
             shared_outputs.push_back(std::shared_ptr<Tensor>(output, [](Tensor *) {}));
         }
         if (inputs[0]->masterTensor() == nullptr && !inputs[0]->childTensors().empty()) {
             inputs[0]->free();
         }
         inputs[0]->addTensors(shared_outputs, split_dim);
-        for (const auto &output : outputs) {
-            output->setDtype(MLLM_TYPE_F32);
-            output->alloc();
-        }
+        //     for (const auto &output : outputs) {
+        //         output->setDtype(MLLM_TYPE_F32);
+        //         output->alloc();
+        //     }
     }
     void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
     }

@@ -1655,7 +1655,8 @@ private:
                     break;
                 }
             }
-            h = h - aggregated_dims_[tensor_id - 1];
+            if (tensor_id > 0)
+                h = h - aggregated_dims_[tensor_id - 1];
             break;
         }
         case SEQUENCE: {
@@ -1665,7 +1666,8 @@ private:
                     break;
                 }
             }
-            s = s - aggregated_dims_[tensor_id - 1];
+            if (tensor_id > 0)
+                s = s - aggregated_dims_[tensor_id - 1];
             break;
         }
         case DIMENSION: {
@@ -1675,7 +1677,9 @@ private:
                     break;
                 }
             }
-            d = d - aggregated_dims_[tensor_id - 1];
+            if (tensor_id > 0) {
+                d = d - aggregated_dims_[tensor_id - 1];
+            }
             break;
         }
         case D_HD: {
