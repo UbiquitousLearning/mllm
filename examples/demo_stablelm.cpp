@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/stablelm_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge path", false, "../vocab/stablelm_merges.txt");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/stablelm-2-1.6b-chat-q4_k.mllm");
-    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
+    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 600);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 

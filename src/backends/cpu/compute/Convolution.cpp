@@ -62,7 +62,7 @@ void conv2d_fp32_VALID(Tensor *input, Tensor *output, float **k_new, int kernel_
             }
         }
 
-#pragma omp parallel for num_threads(thread_count)
+#pragma omp parallel for collapse(3) num_threads(thread_count)
         for (int out_ch = 0; out_ch < out_channel; ++out_ch) {
             for (int out_h = 0; out_h < out_height; ++out_h) {
                 for (int out_w = 0; out_w < out_width; ++out_w) {
@@ -73,7 +73,8 @@ void conv2d_fp32_VALID(Tensor *input, Tensor *output, float **k_new, int kernel_
                     if (support_bias) {
                         value += *bias->ptrAt<float>(0, 0, 0, out_ch);
                     }
-                    *output->ptrAt<float>(b, out_h, out_ch, out_w) = value;
+                    // *output->ptrAt<float>(b, out_h, out_ch, out_w) = value;
+                    output->setDataAt<float>(b, out_h, out_ch, out_w, value);
                 }
             }
         }
@@ -127,7 +128,7 @@ void conv2d_fp32_SAME(Tensor *input, Tensor *output, float **k_new, int kernel_h
                 }
             }
         }
-#pragma omp parallel for num_threads(thread_count)
+#pragma omp parallel for collapse(3) num_threads(thread_count)
         for (int out_ch = 0; out_ch < out_channel; ++out_ch) {
             for (int out_h = 0; out_h < out_height; ++out_h) {
                 for (int out_w = 0; out_w < out_width; ++out_w) {
@@ -137,7 +138,8 @@ void conv2d_fp32_SAME(Tensor *input, Tensor *output, float **k_new, int kernel_h
                     if (support_bias) {
                         value += *bias->ptrAt<float>(0, 0, 0, out_ch);
                     }
-                    *output->ptrAt<float>(b, out_h, out_ch, out_w) = value;
+                    // *output->ptrAt<float>(b, out_h, out_ch, out_w) = value;
+                    output->setDataAt<float>(b, out_h, out_ch, out_w, value);
                 }
             }
         }
@@ -212,7 +214,7 @@ void conv3d_fp32_VALID(Tensor *input, Tensor *output, float **k_new, int kernel_
             }
         }
 
-#pragma omp parallel for num_threads(thread_count)
+#pragma omp parallel for collapse(4) num_threads(thread_count)
         for (int out_ch = 0; out_ch < out_channel; ++out_ch) {
             for (int out_t = 0; out_t < out_time; ++out_t) {
                 for (int out_h = 0; out_h < out_height; ++out_h) {
@@ -223,7 +225,8 @@ void conv3d_fp32_VALID(Tensor *input, Tensor *output, float **k_new, int kernel_
                         if (support_bias) {
                             value += *bias->ptrAt<float>(0, 0, 0, 0, out_ch);
                         }
-                        *output->ptrAt<float>(b, out_ch, out_t, out_h, out_w) = value;
+                        // *output->ptrAt<float>(b, out_ch, out_t, out_h, out_w) = value;
+                        output->setDataAt<float>(b, out_ch, out_t, out_h, out_w, value);
                     }
                 }
             }

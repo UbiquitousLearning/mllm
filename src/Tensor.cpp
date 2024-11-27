@@ -10,6 +10,7 @@
 #include "Types.hpp"
 #include <Module.hpp>
 #include <memory>
+#include <regex>
 #include <string>
 #include <vector>
 
@@ -91,10 +92,12 @@ void Tensor::alloc() {
 void Tensor::dealloc() {
     if (aggregated_) { return; }
     assert(backend_ != nullptr);
-    if (masterTensor() != nullptr) { return; }
-    if (!shape_offset_.empty() && !shape_master_.empty()) { return; }
-    backend_->free(host_ptr_);
-    host_ptr_ = nullptr;
+    // if (masterTensor() != nullptr) { return; }
+    // if (!shape_offset_.empty() && !shape_master_.empty()) { return; }
+    if (masterTensor() == nullptr) {
+        backend_->free(host_ptr_);
+        host_ptr_ = nullptr;
+    }
     allocated_ = 0;
     count_ = 0;
 }
@@ -169,6 +172,7 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
                         vector<float> float_args, vector<Tensor *> other_tensors) {
     assert(module() != nullptr);
     auto &module_tensors = module()->activation_tensors;
+    auto &activation_tensors_num = module()->activation_tensors_num;
     const std::string next_name = name_ + "-" + suffix;
     // if (module_tensors.find(name_) == module_tensors.end()) {
     //     module_tensors[name_] = std::shared_ptr<Tensor>(this, [](Tensor *) {});
@@ -177,6 +181,7 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
         module_tensors[next_name] = std::make_shared<Tensor>(backend_);
         module_tensors[next_name]->setName(next_name);
         module_tensors[next_name]->setModule(module());
+        activation_tensors_num[next_name] = 0;
     }
     if (module()->doLoad) { return *module_tensors[next_name]; }
     TensorFunction *func = backend_->funcCreate(type);
@@ -196,6 +201,26 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
     }
     default: {
     }
+    }
+    for (auto input_tensor : tensorPtrs) {
+        if (activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end()) {
+            switch (Tensor::tensor_status) {
+            case TENSOR_STATIC_INIT: {
+                activation_tensors_num[input_tensor->name()] += 1;
+                break;
+            }
+            case TENSOR_STATIC_READY: {
+                activation_tensors_num[input_tensor->name()] -= 1;
+                break;
+            }
+            default: {
+            }
+            }
+            if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                module_tensors[input_tensor->name()]->dealloc();
+                // std::cout << input_tensor->name() << " |F" << std::endl;
+            }
+        }
     }
 #ifdef DEBUGOPTIME
     if (Tensor::tensor_status == TENSOR_STATIC_READY) {
@@ -227,6 +252,7 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
     }
     assert(module != nullptr);
     auto &module_tensors = module->activation_tensors;
+    auto &activation_tensors_num = module->activation_tensors_num;
     auto *backend_h = Backend::global_backends[MLLM_CPU];
     if (!input_tensors.empty() && input_tensors[0]->backend_ != nullptr) {
         backend_h = input_tensors[0]->backend();
@@ -236,6 +262,7 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
             module_tensors[out_name] = std::make_shared<Tensor>(backend_h);
             module_tensors[out_name]->setName(out_name);
             module_tensors[out_name]->setModule(module);
+            activation_tensors_num[out_name] = 0;
         }
     }
     if (module->doLoad) {
@@ -262,6 +289,26 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
     }
     default: {
     }
+    }
+    for (auto input_tensor : input_tensors) {
+        if (activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end()) {
+            switch (Tensor::tensor_status) {
+            case TENSOR_STATIC_INIT: {
+                activation_tensors_num[input_tensor->name()] += 1;
+                break;
+            }
+            case TENSOR_STATIC_READY: {
+                activation_tensors_num[input_tensor->name()] -= 1;
+                break;
+            }
+            default: {
+            }
+            }
+            if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                module_tensors[input_tensor->name()]->dealloc();
+                // std::cout << input_tensor->name() << " |S "<< std::endl;// << out_names[0] << std::endl;
+            }
+        }
     }
 #ifdef DEBUGOPTIME
     if (Tensor::tensor_status == TENSOR_STATIC_READY) {
@@ -391,10 +438,19 @@ Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
     return getStaticFunc({input_tensors[0].name() + "-cat"}, FUNC_CAT, {(float)axis}, inputs)[0].get();
 }
 
+std::string _name_num_to_X(const std::string &input_string) {
+    std::regex pattern(R"(\.\d{1,3}\.)"); // Matches any number between 1 and 100 between two dots
+    std::string replacement = ".X.";      // The string to replace the matched pattern with
+    std::string output_string = std::regex_replace(input_string, pattern, replacement);
+    return output_string;
+}
+
 Tensor &Tensor::mm(Tensor &input0, Tensor &input1) {
     Module *module = input0.module();
+    string nname = input0.name() + "-mm-" + input1.name();
+    nname = _name_num_to_X(nname);
     return getStaticFunc(
-               {input0.name() + "-mm-" + input1.name()}, FUNC_MM, {},
+               {nname}, FUNC_MM, {},
                {module->activation_tensors[input0.name()].get(), module->activation_tensors[input1.name()].get()})[0]
         .get();
 }

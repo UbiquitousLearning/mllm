@@ -25,33 +25,33 @@ std::unordered_map<string, shared_ptr<Op>> Module::tensor_func_ops;
 vector<double> Module::profiling(string name) {
     vector<double> output;
     // printf("\n");
-    MLLM_LOG_INFO_STREAM << "===========================================" << std::endl;
+    std::cout << "===========================================" << std::endl;
     if (!name.empty()) {
-        MLLM_LOG_INFO_STREAM << "            " << name << std::endl;
-        MLLM_LOG_INFO_STREAM << "-------------------------------------------" << std::endl;
+        std::cout << "            " << name << std::endl;
+        std::cout << "-------------------------------------------" << std::endl;
     }
     double load_time_s = load_time_ / 1000.0F;
-    MLLM_LOG_INFO_STREAM << "  Load time: " << load_time_ / 1000.0F << " s" << std::endl;
+    std::cout << "  Load time: " << load_time_ / 1000.0F << " s" << std::endl;
     if (inference_times_.size() > 1 && decoding_token_size_ != prefilling_token_size_) {
         double prefile_speed = 1000 * prefilling_token_size_ / inference_times_[0];
-        MLLM_LOG_INFO_STREAM << "  Prefilling speed: " << prefile_speed << " tokens/s" << std::endl;
+        std::cout << "  Prefilling speed: " << prefile_speed << " tokens/s" << std::endl;
         double sum_decoding_time = std::accumulate(std::begin(inference_times_) + 1, std::end(inference_times_), 0.0);
         double mean_decoding_time = sum_decoding_time / (inference_times_.size() - 1);
         double decoding_speed = 1000 / mean_decoding_time;
-        MLLM_LOG_INFO_STREAM << "  Decoding speed: " << decoding_speed << " tokens/s" << std::endl;
+        std::cout << "  Decoding speed: " << decoding_speed << " tokens/s" << std::endl;
         output = {load_time_s, prefile_speed, decoding_speed};
     } else {
         double sum_time = std::accumulate(std::begin(inference_times_), std::end(inference_times_), 0.0);
         double mean_time = sum_time / (inference_times_.size());
         double inference_time_s = mean_time / 1000.0F;
-        MLLM_LOG_INFO_STREAM << "  Inference latency: " << mean_time / 1000.0F << " s" << std::endl;
+        std::cout << "  Inference latency: " << mean_time / 1000.0F << " s" << std::endl;
         output = {load_time_s, inference_time_s};
     }
     // double sum_time = std::accumulate(std::begin(inference_times_), std::end(inference_times_), 0.0);
-    // MLLM_LOG_INFO_STREAM<<sum_time<< " - "<<Tensor::forward_times<<" = "<<sum_time-Tensor::forward_times<<std::endl;
-    // MLLM_LOG_INFO_STREAM<<Tensor::forward_times<< " - "<<Tensor::forward_times_2<<" = "<<Tensor::forward_times-Tensor::forward_times_2<<std::endl;
+    // std::cout<<sum_time<< " - "<<Tensor::forward_times<<" = "<<sum_time-Tensor::forward_times<<std::endl;
+    // std::cout<<Tensor::forward_times<< " - "<<Tensor::forward_times_2<<" = "<<Tensor::forward_times-Tensor::forward_times_2<<std::endl;
 
-    MLLM_LOG_INFO_STREAM << "===========================================" << std::endl;
+    std::cout << "===========================================" << std::endl;
 
     prefilling_token_size_ = 0;
     decoding_token_size_ = 0;

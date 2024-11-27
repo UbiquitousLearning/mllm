@@ -105,7 +105,7 @@ public:
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
-        bool have_img = inputs.size() > 1;
+        bool have_img = inputs[1].batch() > 0;
         auto text_features = embed_tokens({inputs[0]});
         if (have_img) {
             auto image_features = img_processor({inputs[1]})[0];

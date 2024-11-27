@@ -36,6 +36,7 @@ protected:
 
 public:
     map<string, shared_ptr<Tensor>> activation_tensors;
+    map<string, int> activation_tensors_num;
     AbstructLoader *loader;
     bool doLoad = false;
     bool op_transposed_flag = false;
