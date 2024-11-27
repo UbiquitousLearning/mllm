@@ -57,7 +57,7 @@ class DCLMAttention final : public Module {
     RoPE k_rope;
     KVCache k_cache;
     KVCache v_cache;
-    Layer softmax;
+    Softmax softmax;
 
     int attn_hidden_dim_;
     int head_dim_;
@@ -106,7 +106,7 @@ public:
         auto qk = Tensor::mm(q, k);
         qk = qk / std::sqrt(head_dim_);
 
-        qk = softmax(qk);
+        qk = softmax(qk, k_cache.getCacheSeqLen());
 
         auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, n_heads_ * head_dim_);

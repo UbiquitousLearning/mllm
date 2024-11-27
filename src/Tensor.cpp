@@ -448,7 +448,8 @@ std::string _name_num_to_X(const std::string &input_string) {
 Tensor &Tensor::mm(Tensor &input0, Tensor &input1) {
     Module *module = input0.module();
     string nname = input0.name() + "-mm-" + input1.name();
-    nname = _name_num_to_X(nname);
+    if (nname.find(".X.") != string::npos)
+        nname = _name_num_to_X(nname);
     return getStaticFunc(
                {nname}, FUNC_MM, {},
                {module->activation_tensors[input0.name()].get(), module->activation_tensors[input1.name()].get()})[0]
