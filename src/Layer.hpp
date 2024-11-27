@@ -239,23 +239,25 @@ protected:
             break;
         }
         }
-        for (auto input_tensor : input_tensors) {
-            if ((activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end())) {
-                switch (Tensor::tensor_status) {
-                case TENSOR_STATIC_INIT: {
-                    activation_tensors_num[input_tensor->name()] += 1;
-                    break;
-                }
-                case TENSOR_STATIC_READY: {
-                    activation_tensors_num[input_tensor->name()] -= 1;
-                    break;
-                }
-                default: {
-                }
-                }
-                if (activation_tensors_num[input_tensor->name()] == 0 && activation_tensors[input_tensor->name()]->sequence() > 1) {
-                    activation_tensors[input_tensor->name()]->dealloc();
-                    // std::cout << input_tensor->name() << "|" << std::endl;
+        if (Backend::global_backends.size() == 1) {
+            for (auto input_tensor : input_tensors) {
+                if ((activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end())) {
+                    switch (Tensor::tensor_status) {
+                    case TENSOR_STATIC_INIT: {
+                        activation_tensors_num[input_tensor->name()] += 1;
+                        break;
+                    }
+                    case TENSOR_STATIC_READY: {
+                        activation_tensors_num[input_tensor->name()] -= 1;
+                        break;
+                    }
+                    default: {
+                    }
+                    }
+                    if (activation_tensors_num[input_tensor->name()] == 0 && activation_tensors[input_tensor->name()]->sequence() > 1) {
+                        activation_tensors[input_tensor->name()]->dealloc();
+                        // std::cout << input_tensor->name() << "|" << std::endl;
+                    }
                 }
             }
         }

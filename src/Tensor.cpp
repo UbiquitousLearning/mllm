@@ -202,23 +202,25 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
     default: {
     }
     }
-    for (auto input_tensor : tensorPtrs) {
-        if (activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end()) {
-            switch (Tensor::tensor_status) {
-            case TENSOR_STATIC_INIT: {
-                activation_tensors_num[input_tensor->name()] += 1;
-                break;
-            }
-            case TENSOR_STATIC_READY: {
-                activation_tensors_num[input_tensor->name()] -= 1;
-                break;
-            }
-            default: {
-            }
-            }
-            if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
-                module_tensors[input_tensor->name()]->dealloc();
-                // std::cout << input_tensor->name() << " |F" << std::endl;
+    if (Backend::global_backends.size() == 1) {
+        for (auto input_tensor : tensorPtrs) {
+            if (activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end()) {
+                switch (Tensor::tensor_status) {
+                case TENSOR_STATIC_INIT: {
+                    activation_tensors_num[input_tensor->name()] += 1;
+                    break;
+                }
+                case TENSOR_STATIC_READY: {
+                    activation_tensors_num[input_tensor->name()] -= 1;
+                    break;
+                }
+                default: {
+                }
+                }
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                    module_tensors[input_tensor->name()]->dealloc();
+                    // std::cout << input_tensor->name() << " |F" << std::endl;
+                }
             }
         }
     }
@@ -290,23 +292,25 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
     default: {
     }
     }
-    for (auto input_tensor : input_tensors) {
-        if (activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end()) {
-            switch (Tensor::tensor_status) {
-            case TENSOR_STATIC_INIT: {
-                activation_tensors_num[input_tensor->name()] += 1;
-                break;
-            }
-            case TENSOR_STATIC_READY: {
-                activation_tensors_num[input_tensor->name()] -= 1;
-                break;
-            }
-            default: {
-            }
-            }
-            if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
-                module_tensors[input_tensor->name()]->dealloc();
-                // std::cout << input_tensor->name() << " |S "<< std::endl;// << out_names[0] << std::endl;
+    if (Backend::global_backends.size() == 1) {
+        for (auto input_tensor : input_tensors) {
+            if (activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end()) {
+                switch (Tensor::tensor_status) {
+                case TENSOR_STATIC_INIT: {
+                    activation_tensors_num[input_tensor->name()] += 1;
+                    break;
+                }
+                case TENSOR_STATIC_READY: {
+                    activation_tensors_num[input_tensor->name()] -= 1;
+                    break;
+                }
+                default: {
+                }
+                }
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                    module_tensors[input_tensor->name()]->dealloc();
+                    // std::cout << input_tensor->name() << " |S "<< std::endl;// << out_names[0] << std::endl;
+                }
             }
         }
     }
