@@ -8,10 +8,9 @@
 #include "OpDefined.hpp"
 #include "Timing.hpp"
 #include "Types.hpp"
-#include "backends/cpu/CPUTensorFunction.hpp"
-
 #include <Module.hpp>
 #include <memory>
+#include <regex>
 #include <string>
 #include <vector>
 
@@ -90,6 +89,18 @@ void Tensor::alloc() {
         allocated_ = count_;
     }
 }
+void Tensor::dealloc() {
+    if (aggregated_) { return; }
+    assert(backend_ != nullptr);
+    // if (masterTensor() != nullptr) { return; }
+    // if (!shape_offset_.empty() && !shape_master_.empty()) { return; }
+    if (masterTensor() == nullptr) {
+        backend_->free(host_ptr_);
+        host_ptr_ = nullptr;
+    }
+    allocated_ = 0;
+    count_ = 0;
+}
 
 bool Tensor::reshape(const int batch, const int channel, const int time, const int height,
                      const int width) {
@@ -105,10 +116,63 @@ bool Tensor::reshape(const int batch, const int channel, const int time, const i
 
 TensorStatus Tensor::tensor_status;
 
+uint32_t &Tensor::uuid() {
+    return uuid_;
+}
+
+TensorType &Tensor::xnnTensorType() {
+    return xnn_tensor_type_;
+}
+
+void Tensor::forceResetHostPointer(void *ptr) {
+    host_ptr_ = ptr;
+}
+
+Tensor &Tensor::to(BackendType backend_type) {
+    // TODO: check if the data is shared between devices
+    // if so, return the origin tensor
+    // if not, return the new tensor
+    // TODO: if need copy, should implement copyDataCrossBn and do copy when Tensor::TENSOR_STATIC_READY
+
+    /**
+     * Currently, there are following cases:
+     * CPU -> QNN, QNN -> CPU
+     * if it is CPU -> QNN, the buffer should be realloced
+     * (NOTE: not handling data copy as the tensor.to() shoudld be called before the data is set and tensor.device() should be checked in frontend)
+     * if it is QNN -> CPU, the data is sharable between CPU and QNN, no need to copy or realloc
+     */
+    if (device() == backend_type) {
+        return *this;
+    }
+    if (backend_type == MLLM_CPU && device() == MLLM_QNN) {
+        // data is sharable between CPU and QNN
+        return *this;
+    }
+    // realloc the tensor
+    if (backend_type == MLLM_QNN && device() == MLLM_CPU) {
+        this->free();
+    }
+    if (backend_type == MLLM_CPU && device() == MLLM_XNNPACK) {
+        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
+        this->setBackend(Backend::global_backends[backend_type]);
+        return *this;
+    }
+    if (backend_type == MLLM_XNNPACK && device() == MLLM_CPU) {
+        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
+        this->setBackend(Backend::global_backends[backend_type]);
+        return *this;
+    }
+    module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
+    this->alloc();
+    return *this;
+};
+
+// TensorFuctions
 Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
                         vector<float> float_args, vector<Tensor *> other_tensors) {
     assert(module() != nullptr);
     auto &module_tensors = module()->activation_tensors;
+    auto &activation_tensors_num = module()->activation_tensors_num;
     const std::string next_name = name_ + "-" + suffix;
     // if (module_tensors.find(name_) == module_tensors.end()) {
     //     module_tensors[name_] = std::shared_ptr<Tensor>(this, [](Tensor *) {});
@@ -117,6 +181,7 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
         module_tensors[next_name] = std::make_shared<Tensor>(backend_);
         module_tensors[next_name]->setName(next_name);
         module_tensors[next_name]->setModule(module());
+        activation_tensors_num[next_name] = 0;
     }
     if (module()->doLoad) { return *module_tensors[next_name]; }
     TensorFunction *func = backend_->funcCreate(type);
@@ -136,6 +201,28 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
     }
     default: {
     }
+    }
+    if (Backend::global_backends.size() == 1) {
+        for (auto input_tensor : tensorPtrs) {
+            if (activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end()) {
+                switch (Tensor::tensor_status) {
+                case TENSOR_STATIC_INIT: {
+                    activation_tensors_num[input_tensor->name()] += 1;
+                    break;
+                }
+                case TENSOR_STATIC_READY: {
+                    activation_tensors_num[input_tensor->name()] -= 1;
+                    break;
+                }
+                default: {
+                }
+                }
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                    module_tensors[input_tensor->name()]->dealloc();
+                    // std::cout << input_tensor->name() << " |F" << std::endl;
+                }
+            }
+        }
     }
 #ifdef DEBUGOPTIME
     if (Tensor::tensor_status == TENSOR_STATIC_READY) {
@@ -167,6 +254,7 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
     }
     assert(module != nullptr);
     auto &module_tensors = module->activation_tensors;
+    auto &activation_tensors_num = module->activation_tensors_num;
     auto *backend_h = Backend::global_backends[MLLM_CPU];
     if (!input_tensors.empty() && input_tensors[0]->backend_ != nullptr) {
         backend_h = input_tensors[0]->backend();
@@ -176,6 +264,7 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
             module_tensors[out_name] = std::make_shared<Tensor>(backend_h);
             module_tensors[out_name]->setName(out_name);
             module_tensors[out_name]->setModule(module);
+            activation_tensors_num[out_name] = 0;
         }
     }
     if (module->doLoad) {
@@ -202,6 +291,28 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
     }
     default: {
     }
+    }
+    if (Backend::global_backends.size() == 1) {
+        for (auto input_tensor : input_tensors) {
+            if (activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end()) {
+                switch (Tensor::tensor_status) {
+                case TENSOR_STATIC_INIT: {
+                    activation_tensors_num[input_tensor->name()] += 1;
+                    break;
+                }
+                case TENSOR_STATIC_READY: {
+                    activation_tensors_num[input_tensor->name()] -= 1;
+                    break;
+                }
+                default: {
+                }
+                }
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                    module_tensors[input_tensor->name()]->dealloc();
+                    // std::cout << input_tensor->name() << " |S "<< std::endl;// << out_names[0] << std::endl;
+                }
+            }
+        }
     }
 #ifdef DEBUGOPTIME
     if (Tensor::tensor_status == TENSOR_STATIC_READY) {
@@ -285,7 +396,11 @@ Tensor &Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d)
     for (auto &axis : h) { axis_s.push_back((float)axis); }
     for (auto &axis : s) { axis_s.push_back((float)axis); }
     for (auto &axis : d) { axis_s.push_back((float)axis); }
-    return getFunc("clip", FUNC_CLIP, axis_s);
+    string name = "clip-";
+    for (auto as : axis_s) {
+        name += std::to_string(int(as)) + "_";
+    }
+    return getFunc(name, FUNC_CLIP, axis_s);
 }
 
 Tensor &Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
@@ -301,12 +416,21 @@ Tensor &Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s,
     return getFunc("clipaxis", FUNC_CLIPAXIS, axis_s);
 }
 
+Tensor &Tensor::expand(int b, int h, int s, int d) {
+    return getFunc("expand", FUNC_EXPPAND, {(float)b, (float)h, (float)s, (float)d});
+}
+
 Tensor &Tensor::norm(int L_n) {
     return getFunc("norm", FUNC_NORM, {(float)L_n});
 }
 
 Tensor &Tensor::where(float value, Chl axis) {
     return getFunc("where", FUNC_WHERE, {(float)value, (float)axis});
+}
+
+Tensor &Tensor::index_put(Tensor &value, Tensor &indices, bool accumulate) {
+    return getFunc({"index_put"}, FUNC_INDEX_PUT, {(float)accumulate},
+                   {&value, &indices});
 }
 
 Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
@@ -318,10 +442,20 @@ Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
     return getStaticFunc({input_tensors[0].name() + "-cat"}, FUNC_CAT, {(float)axis}, inputs)[0].get();
 }
 
+std::string _name_num_to_X(const std::string &input_string) {
+    std::regex pattern(R"(\.\d{1,3}\.)"); // Matches any number between 1 and 100 between two dots
+    std::string replacement = ".X.";      // The string to replace the matched pattern with
+    std::string output_string = std::regex_replace(input_string, pattern, replacement);
+    return output_string;
+}
+
 Tensor &Tensor::mm(Tensor &input0, Tensor &input1) {
     Module *module = input0.module();
+    string nname = input0.name() + "-mm-" + input1.name();
+    if (nname.find(".X.") != string::npos)
+        nname = _name_num_to_X(nname);
     return getStaticFunc(
-               {input0.name() + "-mm-" + input1.name()}, FUNC_MM, {},
+               {nname}, FUNC_MM, {},
                {module->activation_tensors[input0.name()].get(), module->activation_tensors[input1.name()].get()})[0]
         .get();
 }
@@ -346,56 +480,24 @@ vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<
     return getStaticFunc(next_names, FUNC_SPLIT, args,
                          {module->activation_tensors[input.name()].get()});
 }
-
-uint32_t &Tensor::uuid() {
-    return uuid_;
+Tensor &Tensor::fuyu_gather_embd(Tensor &word, Tensor &image_patches, Tensor &image_patches_indices) {
+    Module *module = word.module();
+    return getStaticFunc({word.name() + ".fuyu_gather_embd"}, FUNC_FUYU_GATHER_EMBD,
+                         {},
+                         {
+                             module->activation_tensors[word.name()].get(),
+                             module->activation_tensors[image_patches.name()].get(),
+                             module->activation_tensors[image_patches_indices.name()].get(),
+                         })[0]
+        .get();
 }
 
-TensorType &Tensor::xnnTensorType() {
-    return xnn_tensor_type_;
+Tensor &Tensor::phi3v_hd_merge(Tensor &input, int h_crop, int w_crop) {
+    Module *module = input.module();
+    return getStaticFunc({input.name() + ".phi3v_hd_merge"}, FUNC_PHI3V_HD_MERGE,
+                         {(float)h_crop, (float)w_crop},
+                         {module->activation_tensors[input.name()].get()})[0]
+        .get();
 }
-
-void Tensor::forceResetHostPointer(void *ptr) {
-    host_ptr_ = ptr;
-}
-
-Tensor &Tensor::to(BackendType backend_type) {
-    // TODO: check if the data is shared between devices
-    // if so, return the origin tensor
-    // if not, return the new tensor
-    // TODO: if need copy, should implement copyDataCrossBn and do copy when Tensor::TENSOR_STATIC_READY
-
-    /**
-     * Currently, there are following cases:
-     * CPU -> QNN, QNN -> CPU
-     * if it is CPU -> QNN, the buffer should be realloced
-     * (NOTE: not handling data copy as the tensor.to() shoudld be called before the data is set and tensor.device() should be checked in frontend)
-     * if it is QNN -> CPU, the data is sharable between CPU and QNN, no need to copy or realloc
-     */
-    if (device() == backend_type) {
-        return *this;
-    }
-    if (backend_type == MLLM_CPU && device() == MLLM_QNN) {
-        // data is sharable between CPU and QNN
-        return *this;
-    }
-    // realloc the tensor
-    if (backend_type == MLLM_QNN && device() == MLLM_CPU) {
-        this->free();
-    }
-    if (backend_type == MLLM_CPU && device() == MLLM_XNNPACK) {
-        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
-        this->setBackend(Backend::global_backends[backend_type]);
-        return *this;
-    }
-    if (backend_type == MLLM_XNNPACK && device() == MLLM_CPU) {
-        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
-        this->setBackend(Backend::global_backends[backend_type]);
-        return *this;
-    }
-    module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
-    this->alloc();
-    return *this;
-};
 
 } // namespace mllm

@@ -9,7 +9,7 @@ code_hpp = """
 #define MLLM_CPUABC_H
 
 #include "Op.hpp"
-#include "CPUBackend.hpp"
+#include "../CPUBackend.hpp"
 
 namespace mllm {
 
@@ -84,13 +84,13 @@ if __name__ == "__main__":
     if dirname == "CPU":
         new_code_hpp = code_hpp.replace("CPUAbc", op_name)
         new_code_hpp = new_code_hpp.replace("CPUABC", op_name_upper)
-        file_hpp = os.getcwd() + "/cpu/" + op_name + ".hpp"
+        file_hpp = os.getcwd() + "/cpu/op/" + op_name + ".hpp"
         file = open(file_hpp, "w")
         file.write(new_code_hpp)
         file.close()
         new_code_cpp = code_cpp.replace("CPUAbc", op_name)
         new_code_cpp = new_code_cpp.replace("CPUABC", op_name_upper)
-        file_hpp = os.getcwd() + "/cpu/" + op_name + ".cpp"
+        file_hpp = os.getcwd() + "/cpu/op/" + op_name + ".cpp"
         file = open(file_hpp, "w")
         file.write(new_code_cpp)
         file.close()

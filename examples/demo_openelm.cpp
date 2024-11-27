@@ -48,10 +48,10 @@ int main(int argc, char **argv) {
 
         LlmTextGeneratorOpts opt{
             .max_new_tokens = 100,
-            .do_sample = true,
-            .temperature = 0.3F,
-            .top_k = 50,
-            .top_p = 0.F,
+            .do_sample = false,
+            // .temperature = 0.3F,
+            // .top_k = 50,
+            // .top_p = 0.F,
         };
         model.generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
             auto out_string = tokenizer.detokenize({out_token});
@@ -61,5 +61,6 @@ int main(int argc, char **argv) {
             return true;
         });
         std::cout << "\n";
+        model.clear_kvcache();
     }
 }

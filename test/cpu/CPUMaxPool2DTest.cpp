@@ -1,7 +1,7 @@
 //
 // Created by Xiang Li on 23-10-15.
 //
-#include "backends/cpu/CPUMaxPool2D.hpp"
+#include "backends/cpu/op/CPUMaxPool2D.hpp"
 
 #include "CPUTest.hpp"
 TEST_F(CPUTest, CPUMaxPool2D1) {

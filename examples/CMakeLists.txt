@@ -80,7 +80,10 @@ func_vlm_add_executable(demo_vit)
 func_vlm_add_executable(demo_clip)
 func_vlm_add_executable(demo_imagebind)
 func_vlm_add_executable(demo_imagebind_1mod)
+func_vlm_add_executable(demo_phi3v)
+# func_vlm_add_executable(demo)
 
+# QNN demo
 
 if(QNN)
     func_llm_add_executable(demo_qwen_npu)

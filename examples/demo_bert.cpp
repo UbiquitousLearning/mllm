@@ -5,6 +5,7 @@
 #include "models/bert/modeling_bert.hpp"
 #include "models/bert/tokenization_bert.hpp"
 #include "cmdline.h"
+#include <vector>
 
 /*
  * an intent to support gte-small BertModel to do text embedding
@@ -24,15 +25,17 @@ int main(int argc, char *argv[]) {
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     BertTokenizer tokenizer(vocab_path, true);
-    string text = "Help me set an alarm at 21:30";
-    auto inputs = tokenizer.tokenizes(text);
     auto config = BertConfig();
     auto model = BertModel(config);
     model.load(model_path);
 
-    auto res = model({inputs[0], inputs[1], inputs[2]})[0];
-
-    res.printData<float>();
+    string text = "Help me set an alarm at 21:30";
+    vector<string> texts = {text, text};
+    for (auto &text : texts) {
+        auto inputs = tokenizer.tokenizes(text);
+        auto res = model({inputs[0], inputs[1], inputs[2]})[0];
+        res.printData<float>();
+    }
 
     return 0;
 }

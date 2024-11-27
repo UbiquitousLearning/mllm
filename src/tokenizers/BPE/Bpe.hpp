@@ -33,6 +33,9 @@ class BPETokenizer : public Tokenizer {
     std::unordered_map<unsigned char, std::string> bytes_to_unicode_;
 
 public:
+    const std::unordered_map<string, unsigned> getVocabMap() {
+        return vocab_map_;
+    }
     void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) override;
     vector<std::string> bpe(const std::string &token, std::string end_symbol);
     void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos, std::vector<std::string> &special_tokens, bool byte_fallback = false);

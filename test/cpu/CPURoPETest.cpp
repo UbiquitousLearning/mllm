@@ -3,7 +3,7 @@
 //
 
 #include "CPUTest.hpp"
-#include "backends/cpu/CPURoPE.hpp"
+#include "backends/cpu/op/CPURoPE.hpp"
 TEST_F(CPUTest, CPURoPE1) {
     //    GTEST_SKIP();
     SETUP_OP(CPURoPE, 2, 4);

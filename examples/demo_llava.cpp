@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
         auto in_str = in_strs[i];
         auto input_tensors = processor.process(in_str, in_imgs[i], 336);
         std::cout << in_str << std::flush;
-        for (int step = 0; step < 30; step++) {
+        for (int step = 0; step < 100; step++) {
             auto result = model({input_tensors[0], input_tensors[1]});
             auto outputs = processor.detokenize(result[0]);
             auto out_string = outputs.first;

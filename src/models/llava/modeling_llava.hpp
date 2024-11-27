@@ -96,52 +96,37 @@ public:
         return {x};
     }
 };
-
-class VisionEmbdReplace final : public Layer {
-public:
-    VisionEmbdReplace() = default;
-    explicit VisionEmbdReplace(std::string name) {
-        init(std::move(name), OpType::REPLACE);
-    }
-    Tensor operator()(Tensor text, Tensor vision, Tensor where_indices) {
-        auto ts = run({text, vision, where_indices}, 1);
-        return ts[0];
-    }
-};
-
 class LLaVAModel final : public Module {
     Layer text_embedding;
     LLaVAVisionModel vision_tower;
-    VisionEmbdReplace embd_replace;
     LLaMABodyModel llama_body;
 
 public:
     explicit LLaVAModel(const LLaVAConfig &config) :
-        LLaVAModel(config.vocab_size, config.hidden_dim, config.head_size, config.ffn_hidden, config.block_num, 
+        LLaVAModel(config.vocab_size, config.hidden_dim, config.head_size, config.ffn_hidden, config.block_num,
                    config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit,
                    config.names_config,
                    config.vision_hidden_dim, config.vision_head_size, config.vision_ffn_hidden, config.patch, config.img_hw, config.vision_block_num,
                    config.vit_names_config) {
     }
-    LLaVAModel(int vocab_size, int hidden_dim, int head_size, int ffn_hidden, int block_num, 
+    LLaVAModel(int vocab_size, int hidden_dim, int head_size, int ffn_hidden, int block_num,
                RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit,
                const LLaMANameConfig &names_config,
                int vision_hidden_dim, int vision_head_size, int vision_ffn_hidden, int patch, int img_hw, int vision_block_num,
                const ViTNameConfig &vit_names_config) {
         text_embedding = Embedding(vocab_size, hidden_dim, names_config.token_embd_name);
-        llama_body = LLaMABodyModel(vocab_size, hidden_dim, head_size, ffn_hidden, block_num, 
+        llama_body = LLaMABodyModel(vocab_size, hidden_dim, head_size, ffn_hidden, block_num,
                                     RoPE_type, rope_theta, max_position_embeddings, cache_limit,
                                     names_config, names_config.blk_name);
         vision_tower = LLaVAVisionModel(vision_hidden_dim, vision_head_size, vision_ffn_hidden, patch, img_hw, vision_block_num,
                                         vit_names_config, vit_names_config.vison_model_name);
-        embd_replace = VisionEmbdReplace("embd_replace");
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto embd = text_embedding(inputs[0]);
-        if(inputs[1].batch()>0) {
+        if (inputs[1].batch() > 0) {
             auto vision = vision_tower({inputs[1]})[0];
             auto where_idx = inputs[0].where(32000, SEQUENCE);
-            embd = embd_replace(embd, vision, where_idx);
+            embd = embd.index_put(vision, where_idx, true);
         }
         embd = llama_body({embd})[0];
         embd = embd.clip({}, {}, {-1}, {});

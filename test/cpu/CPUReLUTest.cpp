@@ -3,7 +3,7 @@
 //
 
 #include "CPUTest.hpp"
-#include "backends/cpu/CPUReLU.hpp"
+#include "backends/cpu/op/CPUReLU.hpp"
 TEST_F(CPUTest, CPUReLU1) {
     SETUP_OP(CPUReLU, 4);
     TENSOR(input0);
