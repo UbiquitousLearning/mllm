@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
             auto [not_end, output_string] = processor.tokenizer->postprocess(out_string);
             if (!not_end) { break; }
             std::cout << output_string << std::flush;
-            chatPostProcessing(out_token, input_tensor[0], {});
+            chatPostProcessing(out_token, input_tensor[0], {&input_tensor[1], &input_tensor[2]});
         }
         printf("\n");
     }

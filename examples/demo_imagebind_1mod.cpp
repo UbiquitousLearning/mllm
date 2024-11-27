@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/imagebind_huge-q4_k.mllm");
     cmdParser.add<string>("merges", 'f', "specify mllm tokenizer merges.txt path", false, "../vocab/clip_merges.txt");
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
-    cmdParser.add<int>("loop_times", 'l', "number of inference loops", false, 10);
+    cmdParser.add<int>("loop_times", 'l', "number of inference loops", false, 2);
     cmdParser.add<string>("modality", 'o', "inference modality (text/vision/audio/all)", false, "all");
     cmdParser.parse_check(argc, argv);
 
