@@ -87,16 +87,18 @@ private:
     Backend *backend_{};
     void *host_ptr_{};
     void *device_ptr_{}; // not used for CPU
-    vector<int> shape_;
-    int capacity_{};
-    int count_{};
-    int allocated_ = 0;
+    vector<uint64_t> shape_;
+
+    uint64_t capacity_{};
+    uint64_t count_{};
+    uint64_t allocated_ = 0;
+
     bool transed_ = false;
     bool should_in_graphs_ = true;
 
     // used for ChildTensor
-    vector<int> shape_offset_;
-    vector<int> shape_master_;
+    vector<uint64_t> shape_offset_;
+    vector<uint64_t> shape_master_;
     Tensor *master_tensor_ = nullptr;
     vector<Tensor *> child_tensors_;
     bool undiffusion_ = false;
@@ -194,51 +196,6 @@ public:
     std::map<Chl, int> &chls() {
         return chls_;
     }
-    /*
-    int batch() const {
-        if (ctype_ == SBHD) {
-            return legacyShape(1);
-        } else {
-            return legacyShape(0);
-        }
-    }
-    int head() const {
-        switch (ctype_) {
-        case BSHD:
-            return legacyShape(2);
-        case BHDS:
-            return legacyShape(1);
-        case SBHD:
-            return legacyShape(2);
-        default:
-            return -1;
-        }
-    }
-    int sequence() const {
-        switch (ctype_) {
-        case BSHD:
-            return legacyShape(1);
-        case BHDS:
-            return legacyShape(3);
-        case SBHD:
-            return legacyShape(0);
-        default:
-            return -1;
-        }
-    }
-    int dimension() const {
-        switch (ctype_) {
-        case BSHD:
-            return legacyShape(3);
-        case BHDS:
-            return legacyShape(2);
-        case SBHD:
-            return legacyShape(3);
-        default:
-            return -1;
-        }
-    }
-     */
 
     int batch() {
         return legacyShape(chls()[BATCH]);
@@ -294,18 +251,18 @@ public:
      * \param d deimension index
      * \return the offset compared to 'host_ptr_'.
      */
-    int offset(const int b, const int h = 0, const int s = 0,
-               const int d = 0) {
+    uint64_t offset(const int b, const int h = 0, const int s = 0,
+                    const int d = 0) {
         // batch, head, sequence, dimension
         if (shape_offset_.size() == 4 && shape_master_.size() == 4) {
-            const int base_batch_ = shape_master_[0];
-            const int base_head_ = shape_master_[1];
-            const int base_sequence_ = shape_master_[2];
-            const int base_dimension_ = shape_master_[3];
-            const int b_ = (b + shape_offset_[0]) % base_batch_;
-            const int h_ = (h + shape_offset_[1]) % base_head_;
-            const int s_ = (s + shape_offset_[2]) % base_sequence_;
-            const int d_ = (d + shape_offset_[3]) % base_dimension_;
+            auto base_batch_ = shape_master_[0];
+            auto base_head_ = shape_master_[1];
+            auto base_sequence_ = shape_master_[2];
+            auto base_dimension_ = shape_master_[3];
+            auto b_ = (b + shape_offset_[0]) % base_batch_;
+            auto h_ = (h + shape_offset_[1]) % base_head_;
+            auto s_ = (s + shape_offset_[2]) % base_sequence_;
+            auto d_ = (d + shape_offset_[3]) % base_dimension_;
             switch (ctype_) {
             case BSHD:
                 return ((b_ * base_sequence_ + s_) * base_head_ + h_) * base_dimension_ + d_;
@@ -600,8 +557,12 @@ public:
         ttype_ = ttype;
     }
 
-    const vector<int> &shape() const {
-        return shape_;
+    std::vector<int> shape() const {
+        std::vector<int> shape_int(shape_.size());
+        std::transform(shape_.begin(), shape_.end(), shape_int.begin(), [](uint64_t val) {
+            return static_cast<int>(val);
+        });
+        return shape_int;
     }
 
     ChlType ctype() const {
@@ -939,8 +900,6 @@ public:
             auto w = child_tensors_[0]->width();
             auto origin_c_0 = child_tensors_[0]->chls_;
             auto origin_c_1 = chls_;
-            // chls_ = origin_c_0;
-            // child_tensors_[0]->chls_ = origin_c_1;
 
             chls_ = {{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
             child_tensors_[0]->chls_ = {{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
@@ -953,8 +912,6 @@ public:
                 child_tensors_[0]->chls()[axis0] = ori_1_idx;
                 child_tensors_[0]->chls()[axis1] = ori_0_idx;
             }
-            // chls_ ={{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
-            // child_tensors_[0]->chls_ = {{BATCH, 0}, {CHANNLE, 4}, {TIME, 1}, {HEIGHT, 2}, {WIDTH, 3}};
             changeCtype();
             child_tensors_[0]->changeCtype();
             child_tensors_[0]->reshape(b, c, t, h, w);
@@ -969,21 +926,35 @@ public:
         allocated_ = source->allocated_;
         dtype_ = source->dtype_;
         if (!shape_offset.empty()) {
-            shape_offset_ = shape_offset;
-            shape_master_ = {source->batch(), source->head(), source->sequence(), source->dimension()};
-            if (!std::equal(source->chls_.begin(), source->chls_.end(), chls_.begin())) {
-                if (chls()[SEQUENCE] == source->chls()[DIMENSION] && source->chls()[SEQUENCE] == chls()[DIMENSION]) {
-                    shape_master_ = {source->batch(), source->head(), source->dimension(), source->sequence()};
-                    shape_offset_ = {shape_offset[0], shape_offset[1], shape_offset[3], shape_offset[2]};
-                } else {
-                    std::cout << "TOSUPPORT" << std::endl;
-                }
+            shape_master_ = {(uint64_t)source->batch(),
+                             (uint64_t)source->head(),
+                             (uint64_t)source->sequence(),
+                             (uint64_t)source->dimension()};
+            shape_offset_ = {(uint64_t)shape_offset[0],
+                             (uint64_t)shape_offset[1],
+                             (uint64_t)shape_offset[2],
+                             (uint64_t)shape_offset[3]};
+            if (!std::equal(source->chls_.begin(), source->chls_.end(), chls_.begin()) && chls()[SEQUENCE] == source->chls()[DIMENSION] && source->chls()[SEQUENCE] == chls()[DIMENSION]) {
+                shape_master_ = {(uint64_t)source->batch(),
+                                 (uint64_t)source->head(),
+                                 (uint64_t)source->dimension(),
+                                 (uint64_t)source->sequence()};
+                shape_offset_ = {(uint64_t)shape_offset[0],
+                                 (uint64_t)shape_offset[1],
+                                 (uint64_t)shape_offset[3],
+                                 (uint64_t)shape_offset[2]};
             }
             if (source->head() != head()) { // TODO: need to check
                 if (head() == 1 && head_rep == 1) {
-                    shape_master_ = {source->batch(), head(), source->sequence(), source->dimension() * source->head() / head()};
+                    shape_master_ = {(uint64_t)source->batch(),
+                                     (uint64_t)head(),
+                                     (uint64_t)source->sequence(),
+                                     (uint64_t)source->dimension() * source->head() / head()};
                 } else if (head() == 1 && head_rep > 1) {
-                    shape_master_ = {source->batch(), head(), source->sequence(), source->dimension() * source->head() / head_rep};
+                    shape_master_ = {(uint64_t)source->batch(),
+                                     (uint64_t)head(),
+                                     (uint64_t)source->sequence(),
+                                     (uint64_t)source->dimension() * source->head() / head_rep};
                 }
             }
         }
@@ -1010,10 +981,18 @@ public:
     }
 
     vector<int> shapeOffset() const {
-        return shape_offset_;
+        std::vector<int> shape_int(shape_offset_.size());
+        std::transform(shape_offset_.begin(), shape_offset_.end(), shape_int.begin(), [](uint64_t val) {
+            return static_cast<int>(val);
+        });
+        return shape_int;
     }
     vector<int> shapeMaster() const {
-        return shape_master_;
+        std::vector<int> shape_int(shape_master_.size());
+        std::transform(shape_master_.begin(), shape_master_.end(), shape_int.begin(), [](uint64_t val) {
+            return static_cast<int>(val);
+        });
+        return shape_int;
     }
 
     Tensor *masterTensor() const {
@@ -1627,7 +1606,7 @@ private:
         for (int i = 0; i < shape.size(); ++i) {
             assert(shape[i] >= 0);
             if (count_ != 0) {
-                assert(shape[i] <= INT_MAX / count_);
+                assert(shape[i] <= std::numeric_limits<uint64_t>::max() / count_);
             }
             count_ *= shape[i];
             shape_[i] = shape[i];
