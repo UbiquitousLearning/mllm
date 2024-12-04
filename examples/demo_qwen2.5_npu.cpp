@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
 
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
     QWenConfig config(tokens_limit, "1.5B", RoPEType::HFHUBROPE);
-    auto model = QWenForCausalLM_NPU(config);
+    auto model = QWenForCausalLM_NPU(config, 64);
     model.load(model_path);
     auto decoding_model = QWenForCausalLM(config);
     decoding_model.load("../models/qwen-2.5-1.5b-instruct-q4_0_4_4.mllm");
