@@ -68,7 +68,7 @@ if(DEBUG)
 endif()
 
 # backend options
-option(QNN "Enable QNN" OFF)
+option(QNN "Enable QNN" ON)
 option(QNN_OLD_FRONTEND "Enable Old QNN" OFF)
 if(QNN)
     add_definitions(-DUSE_QNN) # the USE_QNN should come before cpu subdirectory
