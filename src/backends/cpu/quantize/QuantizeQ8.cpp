@@ -54,8 +54,19 @@ void quantize_row_q8_0_reference(float *__restrict x, block_q8_0 *__restrict y, 
     }
 }
 
-void quantize_row_q8_0(const float *__restrict x, void *__restrict vy, int k) {
+void quantize_row_q8_0(const float *__restrict vx, void *__restrict vy, int k) {
     assert(QK8_0 == 32);
+
+    float *__restrict x = (float *)vx;
+    std::vector<float> temp; // 使用 vector 动态分配内存
+    if (k % QK8_0 != 0) {
+        int new_k = ((k + QK8_0 - 1) / QK8_0) * QK8_0;  // 计算 QK8_0 的倍数
+        temp.resize(new_k, 0.0f);                       // 申请新的内存并初始化为 0
+        std::memcpy(temp.data(), x, k * sizeof(float)); // 复制数据
+        x = temp.data();
+        k = new_k;
+    }
+
     assert(k % QK8_0 == 0);
     const int nb = k / QK8_0;
 

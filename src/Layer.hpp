@@ -117,6 +117,7 @@ protected:
             module = Module::llm_model_ptr;
         }
         map<string, shared_ptr<Tensor>> &activation_tensors = module->activation_tensors;
+        auto &activation_tensors_num = module->activation_tensors_num;
         Module::runlistIdx = saved_list_idx;
         bool do_init = false;
         // set backend to current module device and try to create op
@@ -182,6 +183,7 @@ protected:
                     activation_tensors[next_name] = std::make_shared<Tensor>(backend_);
                     activation_tensors[next_name]->setName(next_name);
                     activation_tensors[next_name]->setModule(module);
+                    activation_tensors_num[next_name] = 0;
                 }
             }
             if (module->doLoad) {
@@ -236,6 +238,28 @@ protected:
         default: {
             break;
         }
+        }
+        if (Backend::global_backends.size() == 1) {
+            for (auto input_tensor : input_tensors) {
+                if ((activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end())) {
+                    switch (Tensor::tensor_status) {
+                    case TENSOR_STATIC_INIT: {
+                        activation_tensors_num[input_tensor->name()] += 1;
+                        break;
+                    }
+                    case TENSOR_STATIC_READY: {
+                        activation_tensors_num[input_tensor->name()] -= 1;
+                        break;
+                    }
+                    default: {
+                    }
+                    }
+                    if (activation_tensors_num[input_tensor->name()] == 0 && activation_tensors[input_tensor->name()]->sequence() > 1) {
+                        activation_tensors[input_tensor->name()]->dealloc();
+                        // std::cout << input_tensor->name() << "|" << std::endl;
+                    }
+                }
+            }
         }
 #ifdef DEBUGOPTIME
         if (Tensor::tensor_status == TENSOR_STATIC_READY) {

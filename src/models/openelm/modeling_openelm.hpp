@@ -48,7 +48,7 @@ class OpenELMMultiHeadCausalAttention final : public Module {
     KVCache k_cache;
     KVCache v_cache;
 
-    Layer softmax;
+    Softmax softmax;
 
     int iter = 0;
 
@@ -103,12 +103,18 @@ public:
 
         qk = qk / std::sqrt(head_dim_);
 
-        qk = softmax(qk);
+        qk = softmax(qk, k_cache.getCacheSeqLen());
         auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, q_heads_ * head_dim_);
         o = out_proj(o);
 
         return {o};
+    }
+    vector<KVCache *> get_cache() {
+        return {&k_cache, &v_cache};
+    }
+    vector<RoPE *> get_rope() {
+        return {&q_rope, &k_rope};
     }
 };
 
@@ -171,6 +177,9 @@ public:
         x = x + tmp;
         return {x};
     }
+    OpenELMMultiHeadCausalAttention &get_attention() {
+        return attn;
+    }
 };
 
 class OpenElMModel final : public Module {
@@ -216,5 +225,13 @@ public:
         auto logits = Tensor::mm(hidden_states, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
 
         return {logits};
+    }
+    void clear_kvcache() override {
+        for (auto &block : decode_layers) {
+            auto kvcache = block.get_attention().get_cache();
+            for (auto &cache : kvcache) { cache->clearCache(); }
+            auto ropes = block.get_attention().get_rope();
+            for (auto &rope : ropes) { rope->clearCache(); }
+        }
     }
 };

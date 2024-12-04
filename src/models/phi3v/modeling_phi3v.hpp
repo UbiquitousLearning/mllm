@@ -67,18 +67,6 @@ public:
     }
 };
 
-class VisionEmbdReplace final : public Layer {
-public:
-    VisionEmbdReplace() = default;
-    explicit VisionEmbdReplace(std::string name) {
-        param_["accumulate"] = false;
-        init(std::move(name), OpType::REPLACE);
-    }
-    Tensor operator()(Tensor text, Tensor vision, Tensor where_indices) {
-        auto ts = run({text, vision, where_indices}, 1);
-        return ts[0];
-    }
-};
 class Phi3Embedding final : public Module {
     Phi3VisionModel img_processor;
     Layer embed_tokens;
@@ -90,8 +78,6 @@ class Phi3Embedding final : public Module {
     Layer img_projector_relu;
     Layer img_projector_linear2;
     string project_cls;
-
-    VisionEmbdReplace embd_replace;
 
 public:
     Phi3Embedding() = default;
@@ -110,7 +96,6 @@ public:
         } else {
             throw std::runtime_error("Unsupported projection_cls");
         }
-        embd_replace = VisionEmbdReplace("embd_replace");
     }
     Tensor add_image_newline(Tensor image_features_hd) {
         auto newline_embeddings = sub_GN().expand(-1, -1, image_features_hd.sequence(), -1);
@@ -120,7 +105,7 @@ public:
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
-        bool have_img = inputs.size() > 1;
+        bool have_img = inputs[1].batch() > 0;
         auto text_features = embed_tokens({inputs[0]});
         if (have_img) {
             auto image_features = img_processor({inputs[1]})[0];
@@ -150,7 +135,7 @@ public:
             }
             for (int i = 0; i < inputs[2].sequence(); i++) {
                 auto where_idx = inputs[0].where(-1 * (i + 1), SEQUENCE);
-                text_features = embd_replace(text_features, image_features, where_idx);
+                text_features = text_features.index_put(image_features, where_idx, false);
             }
         }
         return {text_features};

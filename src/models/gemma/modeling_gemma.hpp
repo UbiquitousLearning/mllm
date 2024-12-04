@@ -53,9 +53,9 @@ class GemmaDecoder final : public Module {
 public:
     GemmaDecoder() = default;
     GemmaDecoder(const GemmaConfig &config, const GemmaNameConfig &names, const string &base_name) {
-        self_atten = MultiHeadAttention(config.hidden_size, config.num_attention_heads, config.num_key_value_heads, 
+        self_atten = MultiHeadAttention(config.hidden_size, config.num_attention_heads, config.num_key_value_heads,
                                         config.hidden_size / config.num_attention_heads, SPLIT_NONE, false, false,
-                                       config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit, true, false, names, base_name + names._attn_base_name);   
+                                        config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit, true, false, names, base_name + names._attn_base_name);
         mlp = GemmaMLP(config.hidden_size, config.intermediate_size, names, base_name + names._ffn_base_name);
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, true, base_name + names._attn_norm_name);
         post_attention_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, true, base_name + names._ffn_norm_name);
@@ -69,6 +69,10 @@ public:
         x = mlp({x})[0];
         x = x + tmp;
         return {x};
+    }
+
+    MultiHeadAttention &get_attention() {
+        return self_atten;
     }
 
 private:
@@ -93,6 +97,15 @@ public:
         }
         x = norm(x);
         return {x};
+    }
+
+    void clear_kvcache() override {
+        for (auto &block : blocks) {
+            auto kvcache = block.get_attention().get_cache();
+            for (auto &cache : kvcache) { cache->clearCache(); }
+            auto ropes = block.get_attention().get_rope();
+            for (auto &rope : ropes) { rope->clearCache(); }
+        }
     }
 
 private:
@@ -123,6 +136,9 @@ public:
         auto outputs = model({x})[0];
         outputs = Tensor::mm(outputs, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         return {outputs};
+    }
+    void clear_kvcache() override {
+        model.clear_kvcache();
     }
 
 private:

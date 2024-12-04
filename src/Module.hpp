@@ -17,6 +17,7 @@
 #include <iostream>
 #include <memory/SystemMemoryManager.hpp>
 #include <memory>
+#include <ostream>
 #include <utility>
 #include <vector>
 #include <unordered_map>
@@ -35,8 +36,10 @@ protected:
 
 public:
     map<string, shared_ptr<Tensor>> activation_tensors;
+    map<string, int> activation_tensors_num;
     AbstructLoader *loader;
     bool doLoad = false;
+    bool op_transposed_flag = false;
 
     static Module *llm_model_ptr;
     // tag to indicate the multi-chunk prefilling
@@ -182,7 +185,6 @@ public:
             } else if (decoding_token_size_ == 0) {
                 decoding_token_size_ = inputs[0].sequence();
             }
-            bool need_setup = true;
             for (int i = 0; i < inputs.size(); i++) {
                 auto &input = inputs[i];
                 input.setName("input" + std::to_string(i));
@@ -190,25 +192,12 @@ public:
                 activation_tensors[input.name()] = std::shared_ptr<Tensor>(&input, [](Tensor *) {});
                 activation_tensors[input.name()]->setName(input.name());
                 activation_tensors[input.name()]->setModule(this);
-                llm_model_ptr = this;
-                if (inputs[0].sequence() != 1 && !last_shape_bshd_.empty()) {
-                    // if LLM/VLLM model, the `need_setup` should be `true`
-                    if (input.batch() == last_shape_bshd_[i][0] & input.sequence() == last_shape_bshd_[i][1] & input.head() == last_shape_bshd_[i][2] & input.dimension() == last_shape_bshd_[i][3]) {
-                        // if it is the QNN multi-chunk prefilling, the `need_setup` should be `true` to reshape & setUp CPU Ops
-                        if (Module::isMultiChunkPrefilling) {
-                            need_setup = true;
-                            break;
-                        }
-                        need_setup = false;
-                    }
-                }
             }
+            llm_model_ptr = this;
             Tensor::tensor_status = TENSOR_STATIC_INIT;
 
             uint64_t time_start = mllm_time_us();
-            if (need_setup) {
-                Forward(inputs, anyArgs);
-            }
+            Forward(inputs, anyArgs);
             Tensor::tensor_status = TENSOR_STATIC_READY;
             // uint64_t time_start = mllm_time_us();
             auto output = Forward(inputs, anyArgs);
@@ -221,7 +210,7 @@ public:
                 last_shape_bshd_.push_back({input.batch(), input.sequence(),
                                             input.head(), input.dimension()});
             }
-
+            llm_model_ptr->op_transposed_flag = true;
             return output;
         } else { // inner Modules
             // offload according to the backends' info inited during loading
