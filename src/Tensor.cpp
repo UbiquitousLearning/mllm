@@ -89,18 +89,6 @@ void Tensor::alloc() {
         allocated_ = count_;
     }
 }
-void Tensor::dealloc() {
-    if (aggregated_) { return; }
-    assert(backend_ != nullptr);
-    // if (masterTensor() != nullptr) { return; }
-    // if (!shape_offset_.empty() && !shape_master_.empty()) { return; }
-    if (masterTensor() == nullptr) {
-        backend_->free(host_ptr_);
-        host_ptr_ = nullptr;
-    }
-    allocated_ = 0;
-    count_ = 0;
-}
 
 bool Tensor::reshape(const int batch, const int channel, const int time, const int height,
                      const int width) {
@@ -218,7 +206,7 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
                 }
                 }
                 if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
-                    module_tensors[input_tensor->name()]->dealloc();
+                    module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |F" << std::endl;
                 }
             }
@@ -308,7 +296,7 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
                 }
                 }
                 if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
-                    module_tensors[input_tensor->name()]->dealloc();
+                    module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |S "<< std::endl;// << out_names[0] << std::endl;
                 }
             }

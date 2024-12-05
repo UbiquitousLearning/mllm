@@ -69,12 +69,10 @@ public:
     }
     /*
     ~Tensor() {
-        if (host_ptr_ != nullptr && masterTensor() == nullptr && !aggregated_) {
-            backend_->free(host_ptr_);
-            host_ptr_ = nullptr;
-        }
+        free();
     }
     */
+
     static TensorStatus tensor_status;
 
 private:
@@ -86,11 +84,10 @@ private:
 
     Backend *backend_{};
     void *host_ptr_{};
-    void *device_ptr_{}; // not used for CPU
-    vector<uint64_t> shape_;
 
-    uint64_t capacity_{};
-    uint64_t count_{};
+    vector<uint64_t> shape_;
+    uint64_t capacity_ = 0;
+    uint64_t count_ = 0;
     uint64_t allocated_ = 0;
 
     bool transed_ = false;
@@ -161,15 +158,15 @@ public:
         alloc();
     }
     void alloc();
-    void dealloc();
-
     void alloc(vector<unsigned int> alloc_size);
+
     /**
      * \brief free the memory of Tensor.
      */
     void free() {
         if (aggregated_) { return; }
         if (host_ptr_ != nullptr && masterTensor() == nullptr) {
+            // std::cout << "dealloc " << name_ << std::endl;
             backend_->free(host_ptr_);
             host_ptr_ = nullptr;
             allocated_ = 0;

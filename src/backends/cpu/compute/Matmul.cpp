@@ -79,6 +79,7 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
         to->setBackend(src0->backend());
         to->setDtype(vec_dot_type);
         to->alloc();
+        to->setName(src0->name() + "-vec_dot");
         int64_t i_processed = 0;
         if ((from_float_to_mat != nullptr) && (gemv != nullptr) && dst->masterTensor() == nullptr) {
             for (int b = 0; b < src0->batch(); b++) {
@@ -144,6 +145,7 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
                 }
             }
         }
+        if (not_vec_dot_type) to->free();
         return MLLM_NO_ERROR;
     }
 #endif
@@ -198,7 +200,7 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
                 }
             }
         }
-
+        if (not_vec_dot_type) to->free();
         return MLLM_NO_ERROR;
     }
 
@@ -260,6 +262,7 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
             }
         }
     }
+    if (not_vec_dot_type) to->free();
     return MLLM_NO_ERROR;
 }
 
