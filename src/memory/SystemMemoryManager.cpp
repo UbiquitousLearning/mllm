@@ -1,4 +1,3 @@
-
 #include "memory/SystemMemoryManager.hpp"
 #include <cassert>
 #include <cstdint>
@@ -20,6 +19,7 @@ void SystemMemoryManager::alloc(void **ptr, size_t size, size_t alignment) {
     assert(origin != nullptr);
     if (origin == nullptr) {
         *ptr = nullptr;
+        return;
     }
     void **aligned = (void **)(((size_t)(origin) + sizeof(void *) + alignment - 1) & (~(alignment - 1)));
     aligned[-1] = origin;
