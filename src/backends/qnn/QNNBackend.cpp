@@ -11,7 +11,6 @@
 #include "QNNBackend.hpp"
 #include "ParamLoader.hpp"
 #include "QnnModel.hpp"
-#include "Utils/BuildId.hpp"
 #include "Utils/QnnSampleAppUtils.hpp"
 #include "Utils/IOTensor.hpp"
 #include "Utils/DynamicLoadUtil.hpp"
