@@ -1127,7 +1127,9 @@ public:
     Tensor &to(BackendType backend_type);
     static vector<Tensor> toDevice(vector<Tensor> inputs, BackendType backend_type) {
         for (auto &input : inputs) {
-            input.to(backend_type);
+            if (input.device() != backend_type) {
+                input.to(backend_type);
+            }
         }
         return inputs;
     };

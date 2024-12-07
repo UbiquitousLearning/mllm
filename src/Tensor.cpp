@@ -199,6 +199,12 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
         func->execute({module_tensors[next_name].get()}, tensorPtrs, float_args);
         break;
     }
+    case TENSOR_STATIC_TRACE: {
+        if (backend_->type() == BackendType::MLLM_CPU) {
+            Tracer::addTensorFunction(func, tensorPtrs, {module_tensors[next_name].get()}, float_args);
+        }
+        break;
+    }
     default: {
     }
     }
@@ -287,6 +293,12 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
     }
     case TENSOR_STATIC_READY: {
         func->execute(outPtrs, input_tensors, float_args);
+        break;
+    }
+    case TENSOR_STATIC_TRACE: {
+        if (backend_h->type() == BackendType::MLLM_CPU) {
+            Tracer::addTensorFunction(func, input_tensors, outPtrs, float_args);
+        }
         break;
     }
     default: {

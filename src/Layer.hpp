@@ -15,6 +15,7 @@
 #include "Op.hpp"
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
+#include "Trace.hpp"
 
 #include <Module.hpp>
 
@@ -120,9 +121,11 @@ protected:
         auto &activation_tensors_num = module->activation_tensors_num;
         Module::runlistIdx = saved_list_idx;
         bool do_init = false;
-        // set backend to current module device and try to create op
-        backend_ = Backend::global_backends[Module::tmp_device];
+
         if (module->doLoad || !inited_loaded) {
+            // set backend to current module device and try to create op
+            // use Module::tmp_device only when creating the op as the recersive module backend only handled in load and init stage
+            backend_ = Backend::global_backends[Module::tmp_device];
             do_init = !inited_loaded;
             if (op_ == nullptr) {
 #ifdef USE_QNN
@@ -233,6 +236,12 @@ protected:
         }
         case TENSOR_STATIC_READY: {
             op_->execute(input_tensors, output_tensors);
+            break;
+        }
+        case TENSOR_STATIC_TRACE : {
+            if (backend_->type() == BackendType::MLLM_CPU) {
+                Tracer::addOp(op_, input_tensors, output_tensors);
+            }
             break;
         }
         default: {

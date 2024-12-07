@@ -135,7 +135,7 @@ public:
         v = v_cache(v);
 
         auto qk = Tensor::mm(q, k.transpose(Chl::SEQUENCE, Chl::DIMENSION));
-        qk = softmax(qk, k_cache.getCacheSeqLen());
+        qk = softmax(qk);
         auto o = Tensor::mm(qk, v);
 
         o = o_quantize(o);
