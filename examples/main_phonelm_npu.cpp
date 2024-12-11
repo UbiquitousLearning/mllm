@@ -190,10 +190,13 @@ int main(int argc, char **argv) {
             auto inter_cpu_backend = dynamic_cast<CPUBackend *>(interNet.backends()[MLLM_CPU].get());
             auto decode_cpu_backend = dynamic_cast<CPUBackend *>(cpuNet.backends()[MLLM_CPU].get());
             prefill_cpu_backend->setSequenceLength(real_seq_length);
+            prefill_cpu_backend->setExecutionType(AUTOREGRESSIVE);
             prefill_cpu_backend->toggleSwitching();
             inter_cpu_backend->setSequenceLength(real_seq_length);
+            inter_cpu_backend->setExecutionType(AUTOREGRESSIVE);
             inter_cpu_backend->toggleSwitching();
             decode_cpu_backend->setSequenceLength(real_seq_length);
+            decode_cpu_backend->setExecutionType(AUTOREGRESSIVE);
             decode_cpu_backend->toggleSwitching();
 
             // // 2: Decoding stage using CPU execute
