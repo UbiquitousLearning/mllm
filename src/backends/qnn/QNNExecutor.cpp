@@ -20,7 +20,7 @@
 
 namespace mllm {
 BackendType QNNExecutor::graphOffloadRule(BackendType expectedBackend, int graphIndex) {
-    if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
+    if (expectedBackend != MLLM_CPU && expectedBackend != MLLM_QNN) {
         return MLLM_CPU;
     } else {
         if (graphIndex == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
@@ -381,7 +381,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
     // free all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         auto expectedBackend = ctx->sub_backend_[i];
-        if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
+        if (expectedBackend != MLLM_CPU && expectedBackend != MLLM_QNN) {
             continue;
         } else if (i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
             continue;
@@ -648,7 +648,7 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
     // free all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         auto expectedBackend = ctx->sub_backend_[i];
-        if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
+        if (expectedBackend != MLLM_CPU && expectedBackend != MLLM_QNN) {
             continue;
         } else if (i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
             continue;

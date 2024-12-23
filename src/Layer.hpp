@@ -118,7 +118,7 @@ protected:
         }
         map<string, shared_ptr<Tensor>> &activation_tensors = module->activation_tensors;
         auto &activation_tensors_num = module->activation_tensors_num;
-        Module::runlistIdx = saved_list_idx;
+        // Module::runlistIdx = saved_list_idx;
         bool do_init = false;
         // set backend to current module device and try to create op
         backend_ = Backend::global_backends[Module::tmp_device];
@@ -200,7 +200,7 @@ protected:
         for (auto &input : inputs) {
             if (input.shouldInGraphs()) {
                 auto input_name = input.name();
-                if (param_["type"] == KVCACHE && do_init) {
+                if (param_["type"] == KVCACHE && do_init && use_layername_2_tensorname) {
                     input_name = name_X_to_num(input_name, saved_list_idx);
                 }
                 input_tensors.push_back(activation_tensors[input_name]);

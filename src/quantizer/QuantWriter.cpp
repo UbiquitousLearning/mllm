@@ -52,7 +52,7 @@ vector<string> fp32_layers = {
     "rope",
     "bias",
     "rotary_emb",
-    // "embed_tokens",
+    "embed_tokens",
     "_GN",
     "class_embedding",
     // "vision_embed_tokens",
@@ -64,6 +64,8 @@ vector<string> fp32_layers = {
     "modality_postprocessors",
     "pre_transformer_layer",
     "pos_embed.inv_freq",
+    // MoE
+    "mlp.gate",
 };
 vector<string> q6_layers = {
     "w2",
