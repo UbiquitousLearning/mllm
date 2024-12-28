@@ -75,6 +75,9 @@ public:
     float rope_theta;
     int max_position_embeddings;
 
+    bool tie_word_embeddings = false;
+    map<string, std::any> rope_scaling;
+
     explicit LLaMAConfig(int token_limit, string billions = "7B", RoPEType type = LLAMAROPE, int vocab = 32000) {
         names_config.init(type);
         vocab_size = vocab;

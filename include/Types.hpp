@@ -141,6 +141,11 @@ enum RoPEType {
     MLAROPE = 5,
 };
 
+enum RoPEThetaType {
+    DEFAULT = 0,
+    LLAMA3 = 1,
+};
+
 enum ExecutionType {
     PROMPT = 0,
     AUTOREGRESSIVE = 1,
