@@ -7,7 +7,7 @@ fast and lightweight <ins>multimodal LLM</ins> inference engine for mobile and e
 </h3>
 
 <h4 align="center">
-| Arm CPU | X86 CPU | Qualcomm DSP(QNN) |
+| Arm CPU | X86 CPU | Qualcomm NPU(QNN) |
 </h4>
 
 <h4 align="center">
