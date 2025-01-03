@@ -18,6 +18,7 @@
 #include <memory/SystemMemoryManager.hpp>
 #include <memory>
 #include <ostream>
+#include <stack>
 #include <utility>
 #include <vector>
 #include <unordered_map>
@@ -48,7 +49,8 @@ public:
     static bool isFirstChunk;
 
     static int listIdx;
-    static int runlistIdx;
+    static std::stack<int> listIdxStack;
+    // static int runlistIdx;
 
     static bool doToDevice;
     static BackendType tmp_device;
@@ -286,6 +288,9 @@ public:
     template <typename T, typename... Args>
     static vector<T> List(int n, Args &&...args) {
         static_assert(std::is_base_of<Module, T>::value, "T must be a subclass of Module");
+        if (listIdx) {
+            listIdxStack.push(listIdx);
+        }
         listIdx = 0;
         vector<T> modules;
         for (int i = 0; i < n; i++) {
@@ -293,7 +298,12 @@ public:
             modules.push_back(std::move(T(std::apply([&](auto &&...args) { return T(std::forward<decltype(args)>(args)...); }, new_args))));
             listIdx++;
         }
-        listIdx = 0;
+        if (!listIdxStack.empty()) {
+            listIdx = listIdxStack.top();
+            listIdxStack.pop();
+        } else {
+            listIdx = 0;
+        }
         return modules;
     }
 
