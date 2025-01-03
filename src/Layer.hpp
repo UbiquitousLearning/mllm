@@ -39,6 +39,7 @@ public:
         return init_;
     }
     bool inited_loaded = false;
+    bool loaded_param = false;
     static map<string, string> layername_2_tensorname;
     static bool use_layername_2_tensorname;
 
@@ -60,6 +61,42 @@ public:
     Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2, Tensor &input3) {
         auto ts = run({input0, input1, input2, input3}, 1);
         return ts[0].get();
+    }
+
+    void load() {
+        if (inited_loaded && loaded_param)
+            return;
+        if (op_ == nullptr) {
+#ifdef USE_QNN
+            if ((param_["type"] == KVCACHE || param_["type"] == KVCACHENPU) && (Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end())) {
+                if (kv_cache_map.find(name_) == kv_cache_map.end()) {
+                    // for the prefill part, we need to create a new op
+                    param_["type"] = KVCACHENPU;
+                    op_ = backend_->opCreate(param_, name_);
+                    kv_cache_map[name_] = op_;
+                } else {
+#ifdef DEBUGPRINT
+                    std::cout << name_ << " is shared used" << std::endl;
+#endif
+                    // for the decoding part, we need to get created op from global container
+                    op_ = kv_cache_map[name_];
+                }
+            } else {
+                op_ = backend_->opCreate(param_, name_);
+            }
+#else
+            op_ = backend_->opCreate(param_, name_);
+#endif
+        }
+        op_->load(*Module::llm_model_ptr->loader);
+        loaded_param = true;
+    }
+    bool &loaded() {
+        return loaded_param;
+    }
+    void free() {
+        op_->free({}, {});
+        loaded_param = false;
     }
 
 private:
@@ -149,10 +186,14 @@ protected:
             if (module->doLoad) {
                 op_->load(*module->loader);
                 inited_loaded = true;
+            } else if (loaded_param) {
+                inited_loaded = loaded_param;
             } else {
                 if (!inited_loaded) {
-                    module->loader = new ParamLoader("");
-                    op_->load(*module->loader);
+                    // module->loader = new ParamLoader("");
+                    // op_->load(*module->loader);
+                    auto empty_loader = new ParamLoader("");
+                    op_->load(*empty_loader);
                     inited_loaded = true;
                 }
             }

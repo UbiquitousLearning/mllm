@@ -1,5 +1,5 @@
-#ifndef MODELING_MINICPM_HPP
-#define MODELING_MINICPM_HPP
+#ifndef MODELING_MINICPMMOE_HPP
+#define MODELING_MINICPMMOE_HPP
 
 #include "Layer.hpp"
 #include "Module.hpp"
@@ -205,4 +205,4 @@ private:
     MiniCPMModel model;
 };
 
-#endif // MODELING_MINICPM_HPP
+#endif // MODELING_MINICPMMOE_HPP

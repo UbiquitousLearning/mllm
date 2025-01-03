@@ -92,11 +92,23 @@ void QuantWriter::quantParams(DataType dataType) {
         std::pair<void *, uint64_t> block_t;
         if (find_names(name, q6_layers) && (dataType == MLLM_TYPE_Q6_K || dataType == MLLM_TYPE_Q4_K)) {
             if (tmp_hidden_dim > 0 && (size / tmp_hidden_dim) % 256 != 0) {
+                /*
                 std::cout << "Quantize param " << name << " to " << DataTypeName(MLLM_TYPE_F32) << "\t";
                 const auto s = param_loader_->offsets_[name].second / sizeof(float);
                 const auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
                 writeParam(name, MLLM_TYPE_F32, param, tsize);
                 std::cout << "  size:" << tsize << std::endl;
+                */
+                std::cout << "Quantize param " << name << " to " << DataTypeName(MLLM_TYPE_Q4_0) << "\t";
+                block_t = alloc_quant_block(size, MLLM_TYPE_Q4_0);
+                quant_ptr = block_t.first;
+                quantize_row_q4_0(param, quant_ptr, size);
+                size = block_t.second;
+                if (quant_ptr != nullptr) {
+                    writeParam(name, MLLM_TYPE_Q4_0, quant_ptr, size);
+                    std::cout << "  size:" << size << " type:" << DataTypeName(MLLM_TYPE_Q4_0) << std::endl;
+                }
+
                 continue;
             }
         }
@@ -106,6 +118,7 @@ void QuantWriter::quantParams(DataType dataType) {
             const auto tsize = alloc_quant_block(s, MLLM_TYPE_F32).second;
             writeParam(name, MLLM_TYPE_F32, param, tsize);
             std::cout << "  size:" << tsize << std::endl;
+
         } else if (find_names(name, q6_layers)) {
             switch (dataType) {
             case MLLM_TYPE_F32:
