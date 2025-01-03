@@ -69,10 +69,17 @@
 #include "function/CPUNormFunc.hpp"
 #include "function/CPURangeFunc.hpp"
 #include "function/CPUSplitFunc.hpp"
+#include "function/CPUSumFunc.hpp"
+#include "function/CPUTopkFunc.hpp"
 #include "function/CPUTransposeFunc.hpp"
 #include "function/CPUViewFunc.hpp"
 #include "function/CPUWhereFunc.hpp"
 #include "function/CPUIndexPutFunc.hpp"
+#include "function/CPUArgSortFunc.hpp"
+#include "function/CPUBinCountFunc.hpp"
+#include "function/CPURepeatFunc.hpp"
+#include "function/CPULikeFunc.hpp"
+#include "function/CPUScatterReduceFunc.hpp"
 
 #include "function/CPUFuyuGatherEmbdFunc.hpp"
 #include "function/CPUPhi3VhdmergeFunc.hpp"
@@ -179,6 +186,7 @@ void CPUBackend::registerFuncs() {
     map_function_[TensorFuncType::FUNC_SUB] = new CPUsubFunction();
     map_function_[TensorFuncType::FUNC_MUL] = new CPUmulFunction();
     map_function_[TensorFuncType::FUNC_DIV] = new CPUdivFunction();
+    map_function_[TensorFuncType::FUNC_DIVINT] = new CPUdivintFunction();
     map_function_[TensorFuncType::FUNC_TTADD] = new CPUaddTwoFunction();
     map_function_[TensorFuncType::FUNC_TTSUB] = new CPUsubTwoFunction();
     map_function_[TensorFuncType::FUNC_TTMUL] = new CPUmulTwoFunction();
@@ -192,11 +200,19 @@ void CPUBackend::registerFuncs() {
     map_function_[TensorFuncType::FUNC_FLATTEN] = new CPUflattenFunction();
     map_function_[TensorFuncType::FUNC_CLIP] = new CPUclipFunction();
     map_function_[TensorFuncType::FUNC_CLIPAXIS] = new CPUclipaxisFunction();
+    map_function_[TensorFuncType::FUNC_CLIPTENSOR] = new CPUcliptensorFunction();
     map_function_[TensorFuncType::FUNC_RANGE] = new CPURangeFunction();
     map_function_[TensorFuncType::FUNC_WHERE] = new CPUwhereFunction();
     map_function_[TensorFuncType::FUNC_INDEX_PUT] = new CPUIndexPutFunction();
     map_function_[TensorFuncType::FUNC_SPLIT] = new CPUsplitFunction();
+    map_function_[TensorFuncType::FUNC_SUM] = new CPUsumFunction();
+    map_function_[TensorFuncType::FUNC_TOPK] = new CPUtopkFunction();
     map_function_[TensorFuncType::FUNC_EXPPAND] = new CPUexpandFunction();
+    map_function_[TensorFuncType::FUNC_ARGSORT] = new CPUargsortFunction();
+    map_function_[TensorFuncType::FUNC_BINCOUNT] = new CPUbincountFunction();
+    map_function_[TensorFuncType::FUNC_REPEAT] = new CPUrepeatFunction();
+    map_function_[TensorFuncType::FUNC_LIKE] = new CPUlikeFunction();
+    map_function_[TensorFuncType::FUNC_SCATTERREDUCE] = new CPUScatterReduceFunction();
     // models use only
     map_function_[TensorFuncType::FUNC_FUYU_GATHER_EMBD] = new CPUFuyuGatherEmbdFunc();
     map_function_[TensorFuncType::FUNC_PHI3V_HD_MERGE] = new CPUPhi3VhdmergeFunction();

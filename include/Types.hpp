@@ -23,8 +23,8 @@ typedef map<std::string, float> OpParam;
 // #define DEBUGOPTIME
 
 #define LLAMAFILE_SGEMM
+inline int KVCache_TYPE = 16;
 typedef enum {
-    MLLM_DEFAULT,
     MLLM_CPU,
     MLLM_OPENCL,
     MLLM_QNN,
