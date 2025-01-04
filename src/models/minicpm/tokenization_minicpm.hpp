@@ -60,6 +60,7 @@ public:
         text = std::regex_replace(text, std::regex("▁"), " ");
         if (text == "<0x0A>") return {true, "\n"};
         if (text == "</s>") return {false, ""};
+        if (text == "<unk>") return {false, ""};
         return {true, text};
     }
 };

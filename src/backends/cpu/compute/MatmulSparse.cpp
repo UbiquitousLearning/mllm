@@ -67,6 +67,7 @@ ErrorCode sparse_mat_mul_id(Tensor *x, Tensor *W, Tensor *ids, Tensor *dst, int 
         to->setBackend(x->backend());
         to->setDtype(vec_dot_type);
         to->alloc();
+        to->setName(x->name() + "-vec_dot");
         void *row_src = x->rawHostPtr();
         void *row_dst = to->rawHostPtr();
         auto row_size_src = row_size(x_dtype, x->dimension());
@@ -123,6 +124,7 @@ ErrorCode sparse_mat_mul_id(Tensor *x, Tensor *W, Tensor *ids, Tensor *dst, int 
             }
         }
     }
+    if (not_vec_dot_type) to->free();
     return MLLM_NO_ERROR;
 }
 
