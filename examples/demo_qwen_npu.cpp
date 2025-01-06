@@ -109,7 +109,6 @@ int main(int argc, char **argv) {
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
-        exit(0);
 
         LlmTextGeneratorOpts decoding_opt{
             .max_new_tokens = 100,

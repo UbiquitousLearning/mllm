@@ -3,7 +3,6 @@
 #include "CPUKVCacheNPU.hpp"
 #include "ParamLoader.hpp"
 #include "Types.hpp"
-#include <cstdint>
 
 namespace mllm {
 CPUKVCacheNPU::CPUKVCacheNPU(Backend *bn, string opName, int n_rep, int cache_max, int threadCount) :
