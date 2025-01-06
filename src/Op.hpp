@@ -156,9 +156,14 @@ public:
         type_(type) {
     }
 
-    void setUp() {
+    void reshape(){
         if (type_ == CallableType::OP) {
             op->reshape(opInputs, opOutputs);
+        }
+    }
+
+    void setUp() {
+        if (type_ == CallableType::OP) {
             op->setUp(opInputs, opOutputs);
         } else {
             tensorFunc->setup(tensorOutputs, tensorInputs, args);

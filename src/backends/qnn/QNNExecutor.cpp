@@ -410,7 +410,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
 void QNNPipelineExecutor::warmup(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     auto ex_time_start = mllm_time_us();
     // input will be split into chunks and execute in pipeline
-    const int chunk_size = 256;
+    const int chunk_size = 128;
     int chunk_num = (input_tensors[0]->sequence() + chunk_size - 1) / chunk_size;
     // we suppose the tensor(s) of input_tensors is the only one or all have the same seq length
     for (int i = 0; i < input_tensors.size(); ++i) {
@@ -492,7 +492,7 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
     auto ex_time_start = mllm_time_us();
 
     // input will be split into chunks and execute in pipeline
-    const int chunk_size = 256;
+    const int chunk_size = 128;
     int chunk_num = (input_tensors[0]->sequence() + chunk_size - 1) / chunk_size;
     // we suppose the tensor(s) of input_tensors is the only one or all have the same seq length
     for (int i = 0; i < input_tensors.size(); ++i) {

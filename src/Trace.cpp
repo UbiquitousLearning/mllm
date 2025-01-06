@@ -29,7 +29,7 @@ void Tracer::addOp(Op *op, vector<std::shared_ptr<Tensor>> inputs, vector<std::s
 }
 
 void Tracer::addTensorFunction(TensorFunction *func,
-                                      vector<Tensor *> inputs, vector<Tensor *> outputs, vector<float> args) {
+                               vector<Tensor *> inputs, vector<Tensor *> outputs, vector<float> args) {
     if (isToCreateNewModule) {
         model_.push_back(std::make_shared<CPUModuleWrapper>());
         isToCreateNewModule = false;
@@ -45,6 +45,9 @@ void Tracer::trace(Module *model, vector<Tensor> inputs) {
     model->activation_tensors[inputs[0].name()] = std::shared_ptr<Tensor>(&inputs[0], [](Tensor *) {});
     model->activation_tensors[inputs[0].name()]->setName(inputs[0].name());
     model->activation_tensors[inputs[0].name()]->setModule(model);
+
+    Module::llm_model_ptr = model;
+
     Tensor::tensor_status = TENSOR_STATIC_INIT;
     model->Forward(inputs, {});
     Tensor::tensor_status = TENSOR_STATIC_TRACE;
@@ -57,4 +60,4 @@ void Tracer::refleshInputTensor(vector<shared_ptr<Tensor>> inputs) {
     cpuPtr->traces_[0]->opInputs = inputs;
 }
 
-}
+} // namespace mllm

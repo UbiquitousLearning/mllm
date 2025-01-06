@@ -46,9 +46,6 @@ int main(int argc, char **argv) {
     Tracer::trace(&model, trace_inputs);
     std::cout << "Trace and Warmup finished" << std::endl;
 
-    Module::isMultiChunkPrefilling = true;
-    Module::isFirstChunk = false;
-
     vector<string> in_strs = {
         // " Give me a short introduction to large language model.",
         "\"Large Language Models (LLMs) are advanced artificial intelligence systems designed to understand and generate human-like text. These models are trained on vast amounts of data, enabling them to perform a wide range of tasks, from answering questions and summarizing text to generating creative content and engaging in conversational dialogue. LLMs like GPT-3 and GPT-4, developed by OpenAI, have set new benchmarks in natural language processing by leveraging deep learning architectures, particularly transformer models, which excel at capturing context and relationships within text. The scalability and versatility of LLMs make them invaluable tools for applications in education, customer service, content creation, and more. However, their deployment also raises ethical considerations, including issues of bias, misinformation, and the potential for misuse. As the field continues to evolve, ongoing research and responsible deployment strategies are essential to harnessing the full potential of these powerful AI systems while mitigating their risks.\"\nGenerate a title based on the above text."};
@@ -74,9 +71,14 @@ int main(int argc, char **argv) {
         ChunkPipeline pipeline(real_seq_length, chunk_size);
         auto prefill_result = pipeline.run(input_tensor, opt, tokenizer, model, isSwitched);
 
+        Module::isMultiChunkPrefilling = true;
+        Module::isFirstChunk = false;
+
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+
+        exit(0);
 
         LlmTextGeneratorOpts decoding_opt{
             .max_new_tokens = 100,

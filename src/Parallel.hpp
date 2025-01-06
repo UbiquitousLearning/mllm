@@ -24,12 +24,13 @@ public:
 
     shared_ptr<Tensor> run(Tensor &input_tensor, LlmTextGeneratorOpts &opt, Tokenizer &tokenizer, Module &model, bool &isSwitched) {
         const int num_graph = Tracer::model_.size();
+        Tensor::tensor_status = TENSOR_STATIC_READY;
         std::cout << "num_graph: " << num_graph << std::endl;
 
         for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
             chunked_tensors.push_back(std::make_shared<Tensor>(Backend::global_backends[MLLM_CPU]));
             chunked_tensors[chunk_id]->setTtype(INPUT_TENSOR);
-            chunked_tensors[chunk_id]->setName("input0");
+            chunked_tensors[chunk_id]->setName(input_tensor.name());
             chunked_tensors[chunk_id]->reshape(1, 1, chunk_size, 1);
             chunked_tensors[chunk_id]->deepCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
         }
@@ -40,8 +41,8 @@ public:
             if (i < 0 || i >= num_graph) {
                 return;
             }
-            // chunk 0 don't need to execute the last graph
-            if(i == num_graph - 2 && chunk_id == 0) {
+            // only the last chunk need to execute the last graph
+            if(i == num_graph - 1 && chunk_id != chunk_num - 1) {
                 return;
             }
             // before the first graph, need to refresh the input tensor
@@ -49,12 +50,13 @@ public:
                 Tracer::refleshInputTensor({chunked_tensors[chunk_id]});
             }
 
-            std::cout << "chunk_id: " << chunk_id << ", graphIdx: " << i << std::endl << std::flush;
-
+            auto graph_start = mllm_time_us();
             auto &graph = Tracer::model_[i];
             graph->Forward({}, {chunk_id});
+            auto graph_end = mllm_time_us();
+            std::cout << "chunk_id: " << chunk_id << ", graphIdx: " << i << ", graph time: " << (graph_end - graph_start) / 1000.0F << "ms" << std::endl;
         };
-
+        auto start_t = mllm_time_us();
         omp_set_max_active_levels(3);
         for (int chunk_id = 0; chunk_id < chunk_num / 2; ++chunk_id) {
             // for every two chunk, start at chunk_id * 2 to avoid no execute for
@@ -67,6 +69,8 @@ public:
                 std::cout << "---------------------------" << std::endl;
             }
         }
+        auto end_t = mllm_time_us();
+        std::cout << "time: " << (end_t - start_t) / 1000.0F << "ms" << std::endl;
 
         auto postProcessing = [&](shared_ptr<Tensor> result, shared_ptr<Tensor> &out_result, int real_seq_length) -> unsigned int {
             assert(result->batch() == 1);
@@ -88,7 +92,6 @@ public:
 
         auto cpuModulePtr = std::dynamic_pointer_cast<CPUModuleWrapper>(Tracer::model_.back());
         auto result = cpuModulePtr->result();
-        result[0]->printShape();
         auto token_idx = postProcessing(result[0], chunked_tensors.back(), real_seq_length);
         auto out_string = tokenizer.detokenize({token_idx});
         std::cout << out_string << std::flush;
