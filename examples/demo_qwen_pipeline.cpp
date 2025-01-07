@@ -50,7 +50,8 @@ int main(int argc, char **argv) {
         auto input_str = tokenizer.apply_chat_template(in_strs[i]);
         auto [real_seq_length, input_tensor] = tokenizer.tokenizePaddingByChunk(input_str, chunk_size, config.vocab_size);
 
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
+        // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setTotalSequenceLength(real_seq_length);
 
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
@@ -73,6 +74,7 @@ int main(int argc, char **argv) {
         Module::isMultiChunkPrefilling = true;
         Module::isFirstChunk = false;
 
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(real_seq_length);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
 
@@ -110,7 +112,7 @@ int main(int argc, char **argv) {
         });
 
         // turn on switching, set sequence length and execution type
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(0);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
         std::cout << "\n";

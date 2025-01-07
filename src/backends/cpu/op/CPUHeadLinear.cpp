@@ -75,7 +75,7 @@ ErrorCode CPUHeadLinear::load(AbstructLoader &loader) {
 
 ErrorCode CPUHeadLinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-    int seqLength = cpuBackend->getSequenceLength();
+    int seqLength = cpuBackend->getTotalSequenceLength();
     shared_ptr<Tensor> tmp_in = std::make_shared<Tensor>(backend_);
     tmp_in->reshape(1, 1, 1, inputs[0]->dimension());
     tmp_in->deepCopyFrom(inputs[0].get(), false, {0, 0, seqLength % 128 - 1, 0});

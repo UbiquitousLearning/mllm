@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
         return true;
     });
     Module::isFirstChunk = false;
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(0);
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
     // turn on the multi-chunk prefilling
@@ -78,6 +78,9 @@ int main(int argc, char **argv) {
         // std::cout << "real seq length: " << real_seq_length << " padding to: " << seq_length_padding << " chunk num: " << chunk_num << std::endl;
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
+
+        // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setTotalSequenceLength(real_seq_length);
 
         // tensor vectors to save the chunked tensors of the QNN prefilling input
         vector<Tensor> chunked_tensors(chunk_num);
@@ -115,7 +118,7 @@ int main(int argc, char **argv) {
         }
 
         // turn on switching, set sequence length and execution type
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(real_seq_length);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
 
@@ -141,7 +144,7 @@ int main(int argc, char **argv) {
         });
 
         // turn on switching, set sequence length and execution type
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(0);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
         std::cout << "\n";

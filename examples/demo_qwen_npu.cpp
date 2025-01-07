@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
     string model_path = cmdParser.get<string>("model");
     string model_billion = cmdParser.get<string>("billion");
     int tokens_limit = cmdParser.get<int>("limits");
-    const int chunk_size = 64;
+    const int chunk_size = 128;
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
         return true;
     });
     Module::isFirstChunk = false;
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(0);
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
     // turn on the multi-chunk prefilling
@@ -70,6 +70,9 @@ int main(int argc, char **argv) {
 
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
+
+        // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setTotalSequenceLength(real_seq_length);
 
         LlmTextGeneratorOpts opt{
             .max_new_tokens = 1,
@@ -106,7 +109,7 @@ int main(int argc, char **argv) {
             Module::isFirstChunk = false;
         }
 
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(real_seq_length);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
 
@@ -136,7 +139,7 @@ int main(int argc, char **argv) {
         });
 
         // turn on switching, set sequence length and execution type
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(0);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
         std::cout << "\n";

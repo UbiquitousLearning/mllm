@@ -35,12 +35,12 @@ ErrorCode CPUKVCacheNPU::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
     // when the execution is switched from pref to dec, the sequence length should be set to the no padding length
     auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
     if (cpuBackend->isStageSwitching() && cpuBackend->getExecutionType() == AUTOREGRESSIVE) {
-        cache_seq_len_ = cpuBackend->getSequenceLength();
+        cache_seq_len_ = cpuBackend->getCurSequenceLength();
         isDecoding = true;
     }
     // if a new prompt is given, the cache should be updated
     if (cpuBackend->isStageSwitching() && cpuBackend->getExecutionType() == PROMPT) {
-        cache_seq_len_ = cpuBackend->getSequenceLength();
+        cache_seq_len_ = cpuBackend->getCurSequenceLength();
         isDecoding = false;
     }
 #endif
