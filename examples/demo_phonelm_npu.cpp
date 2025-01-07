@@ -81,6 +81,8 @@ int main(int argc, char **argv) {
 
         // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setTotalSequenceLength(real_seq_length);
+        // set chunk size for the HeadLinear execute, which can not get the chunk size from Opts
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setChunkSize(chunk_size);
 
         // tensor vectors to save the chunked tensors of the QNN prefilling input
         vector<Tensor> chunked_tensors(chunk_num);
