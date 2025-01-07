@@ -4,6 +4,7 @@
 
 #include "Module.hpp"
 #include "Types.hpp"
+#include <stack>
 
 namespace mllm {
 
@@ -17,7 +18,8 @@ bool Module::isMultiChunkPrefilling = false;
 bool Module::isFirstChunk = true;
 
 int Module::listIdx;
-int Module::runlistIdx;
+std::stack<int> Module::listIdxStack;
+// int Module::runlistIdx;
 // TensorStatus Tensor::tensor_status;
 BackendType Module::tmp_device = MLLM_CPU;
 std::unordered_map<string, shared_ptr<Op>> Module::tensor_func_ops;

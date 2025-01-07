@@ -23,8 +23,8 @@ typedef map<std::string, float> OpParam;
 // #define DEBUGOPTIME
 
 #define LLAMAFILE_SGEMM
+inline int KVCache_TYPE = 16;
 typedef enum {
-    MLLM_DEFAULT,
     MLLM_CPU,
     MLLM_OPENCL,
     MLLM_QNN,
@@ -336,7 +336,7 @@ static string DataTypeName(DataType dataType) {
         return "Unknown";
     }
 }
-static size_t DataTypeSize(DataType dtype, int count = 1) {
+static size_t DataTypeSize(DataType dtype, uint64_t count = 1) {
     switch (dtype) {
     case MLLM_TYPE_F32:
         return sizeof(float) * count;

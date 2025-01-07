@@ -1,6 +1,7 @@
 
 #include "CPULinear.hpp"
 #include "Types.hpp"
+#include <cstddef>
 #include <iostream>
 
 namespace mllm {
@@ -20,7 +21,7 @@ ErrorCode CPULinear::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     // std::cout << name() << "  CPULinear  reshape" << std::endl;
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
-    if (inputs[0]->count() == 0) {
+    if (inputs[0]->count() == 0 && inputs[0]->sequence() != 0) {
         outputs[0]->reshape(0, 0, 0, 0);
         return Op::reshape(inputs, outputs);
     }
@@ -76,6 +77,11 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
     //    auto start = mllm::mllm_time_us();
     if (inputs[0]->count() == 0) {
         return Op::execute(inputs, outputs);
+    }
+    if (inputs[0]->sequence() != outputs[0]->sequence() && outputs[0]->masterTensor() == nullptr) {
+        outputs[0]->reshape(outputs[0]->batch(), outputs[0]->head(), inputs[0]->sequence(), outputs[0]->dimension());
+        // outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), out_features_);
+        outputs[0]->alloc();
     }
     // TODO: Q8_0 KVCache can not use!!
     if (outputs[0]->dtype() == MLLM_TYPE_Q8_0) {

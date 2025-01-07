@@ -7,6 +7,7 @@
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include <initializer_list>
+#include <mutex>
 #define mllm_file FILE
 
 namespace mllm {
@@ -96,6 +97,7 @@ public:
     }
 
 protected:
+    std::mutex mtx;
     mllm_file *fp_;
     uint8_t *buffer_;
     std::string path_;

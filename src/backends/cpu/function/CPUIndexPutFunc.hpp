@@ -101,6 +101,13 @@ public:
                 auto src_ptr = src_input->ptrAt<float>(0, 0, r_idx, 0);
                 memcpy(dst_ptr, src_ptr, sizeof(float) * src_input->dimension());
             }
+        } else {
+            for (int r_idx = 0; r_idx < replace_idx->dimension(); r_idx++) {
+                auto replace_seq = (int)replace_idx->dataAt<float>(0, 0, 0, r_idx);
+                auto dst_ptr = outputs[0]->ptrAt<float>(0, 0, replace_seq, 0);
+                auto src_ptr = src_input->ptrAt<float>(0, 0, r_idx, 0);
+                memcpy(dst_ptr, src_ptr, sizeof(float) * src_input->dimension());
+            }
         }
     }
 };

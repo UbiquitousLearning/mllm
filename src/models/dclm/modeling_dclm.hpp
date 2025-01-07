@@ -35,15 +35,11 @@ public:
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = inputs[0];
         x = w12(x);
-
-        auto x_sp = Tensor::split(x, {hidden_dim_, hidden_dim_}, DIMENSION);
+        auto x_sp = x.split({hidden_dim_, hidden_dim_}, DIMENSION);
         Tensor gate;
-
         gate = x_sp[0];
         x = x_sp[1];
-
         x = silu(gate) * x;
-
         return {w3(x)};
     }
 };

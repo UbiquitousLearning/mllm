@@ -5,20 +5,41 @@
 #include "Types.hpp"
 
 int n_pack = 16;
-#define KVCache_TYPE_16
-// #define KVCache_TYPE_8  //TODO: Q8_0 KVCache can not use!!
+// #define KVCache_TYPE_16
+// #define KVCache_TYPE_8 // TODO: Q8_0 KVCache can not use!!
 namespace mllm {
 CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max, int threadCount) :
     thread_count(threadCount), Op(bn, opName) {
     cache_.setBackend(bn);
-#if defined(KVCache_TYPE_16)
-    cache_.setDtype(MLLM_TYPE_F16);
-#elif defined(KVCache_TYPE_8)
-    cache_.setDtype(MLLM_TYPE_Q8_0);
-    n_pack = QK8_0;
-#else
-    cache_.setDtype(MLLM_TYPE_F32);
-#endif
+    // #if defined(KVCache_TYPE_16)
+    switch (KVCache_TYPE) {
+    case 16: {
+        cache_.setDtype(MLLM_TYPE_F16);
+        break;
+    }
+    case 8: {
+        // #elif defined(KVCache_TYPE_8)
+        // cache_.setDtype(MLLM_TYPE_Q8_0);
+        // n_pack = QK8_0;
+        if (opName.find("k_cache") != std::string::npos) {
+            cache_.setDtype(MLLM_TYPE_Q8_0);
+            n_pack = QK8_0;
+        } else {
+            cache_.setDtype(MLLM_TYPE_F16);
+        }
+        break;
+    }
+    case 32: {
+        // #else
+        cache_.setDtype(MLLM_TYPE_F32);
+        break;
+    }
+    default: {
+        cache_.setDtype(MLLM_TYPE_F32);
+        break;
+    }
+    }
+// #endif
 #ifdef LLAMAFILE_SGEMM
     cache_max = ((cache_max + (n_pack - 1)) / n_pack) * n_pack;
 #endif
