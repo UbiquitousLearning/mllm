@@ -309,6 +309,20 @@ public:
     }
 };
 
+class HeadLinear final : public Layer {
+public:
+    explicit HeadLinear(int in_features, int out_features, bool bias, std::string name) {
+        param_["in_features"] = in_features;
+        param_["out_features"] = out_features;
+        param_["bias"] = (float)bias;
+        init(std::move(name), OpType::HEADLINEAR);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
 class SparseIdLinear final : public Layer {
 public:
     SparseIdLinear(int in_dim, int out_dim, std::string name) {

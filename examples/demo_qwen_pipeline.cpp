@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
     decoding_model.load("../models/qwen-1.5-1.8b-chat-q4k.mllm");
 
     string trace_string = " ";
-    auto [_, input_tensor]  = tokenizer.tokenizePaddingByChunk(trace_string, chunk_size, config.vocab_size);
+    auto [_, input_tensor] = tokenizer.tokenizePaddingByChunk(trace_string, chunk_size, config.vocab_size);
     Tracer::trace(&model, {input_tensor});
     std::cout << "Trace and Warmup finished" << std::endl;
 
@@ -50,8 +50,11 @@ int main(int argc, char **argv) {
         auto input_str = tokenizer.apply_chat_template(in_strs[i]);
         auto [real_seq_length, input_tensor] = tokenizer.tokenizePaddingByChunk(input_str, chunk_size, config.vocab_size);
 
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
+
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
+        std::cout << "real_seq_length: " << real_seq_length << std::endl;
 
         LlmTextGeneratorOpts opt{
             .max_new_tokens = 1,
@@ -70,7 +73,6 @@ int main(int argc, char **argv) {
         Module::isMultiChunkPrefilling = true;
         Module::isFirstChunk = false;
 
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
 
