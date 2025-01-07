@@ -23,11 +23,7 @@ BackendType QNNExecutor::graphOffloadRule(BackendType expectedBackend, int graph
     if (expectedBackend != MLLM_CPU && expectedBackend != MLLM_QNN) {
         return MLLM_CPU;
     } else {
-        if (graphIndex == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
-            return MLLM_CPU;
-        } else {
-            return MLLM_QNN;
-        }
+        return expectedBackend;
     }
 }
 
@@ -644,13 +640,10 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
 
     ex_time_end = mllm_time_us();
 
-    // TODO: in pipeline execute, don't free the graph, error will occur in qnn memory manager deconstruct
     // free all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         auto expectedBackend = ctx->sub_backend_[i];
-        if (expectedBackend != MLLM_CPU && expectedBackend != MLLM_QNN) {
-            continue;
-        } else if (i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
+        if (expectedBackend == MLLM_CPU || i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
             continue;
         }
 
