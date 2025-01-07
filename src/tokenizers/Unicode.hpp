@@ -79,6 +79,8 @@ uint8_t unicode_utf8_to_byte(const std::string &utf8);
 
 uint32_t unicode_tolower(uint32_t cp);
 
+std::vector<std::string> unicode_regex_split_naive(const std::string &text, const std::vector<std::string> &regex_exprs);
+
 std::vector<std::string> unicode_regex_split(const std::string &text, const std::vector<std::string> &regex_exprs);
 
 static std::string any_to_utf8(std::string s) {
