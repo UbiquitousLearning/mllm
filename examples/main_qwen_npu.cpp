@@ -180,7 +180,6 @@ int main(int argc, char **argv) {
                 break;
             }
 
-
             auto out_token = tokenizer.detokenize({token_idx});
             std::cout << out_token << std::flush;
 
@@ -203,12 +202,14 @@ int main(int argc, char **argv) {
                 auto result = cpuExe.result();
 
                 auto token_idx = postProcessing(result[0], input);
-                if (token_idx == 2) { // "</s>"
+                auto out_token = tokenizer.detokenize({token_idx});
+
+                auto [isOk, print_string] = tokenizer.postprocess(out_token);
+                if (isOk) {
+                    std::cout << print_string << std::flush;
+                } else {
                     break;
                 }
-
-                auto out_token = tokenizer.detokenize({token_idx});
-                std::cout << out_token << std::flush;
 
                 if (step == real_seq_length) {
                     prefill_cpu_backend->toggleSwitching();
