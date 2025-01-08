@@ -1,3 +1,6 @@
+#include "Backend.hpp"
+#include "Trace.hpp"
+#include "Types.hpp"
 #include "backends/cpu/CPUBackend.hpp"
 #include "cmdline.h"
 #include "models/qwen/configuration_qwen.hpp"
@@ -5,6 +8,7 @@
 #include "models/qwen/modeling_qwen.hpp"
 #include "models/qwen/tokenization_qwen.hpp"
 #include "processor/PostProcess.hpp"
+#include "Parallel.hpp"
 
 using namespace mllm;
 
@@ -33,30 +37,10 @@ int main(int argc, char **argv) {
     auto decoding_model = QWenForCausalLM(config);
     decoding_model.load("../models/qwen-1.5-1.8b-chat-q4k.mllm");
 
-    // warmup START
-    std::string input_str = " ";
-    auto [real_seq_length, input_tensor] = tokenizer.tokenizePaddingByChunk(input_str, chunk_size, config.vocab_size);
-    LlmTextGeneratorOpts opt{
-        .max_new_tokens = 1,
-        .do_sample = false,
-        .is_padding = true,
-        .seq_before_padding = real_seq_length,
-        .chunk_size = chunk_size,
-    };
-    model.generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
-        auto out_string = tokenizer.detokenize({out_token});
-        auto [not_end, output_string] = tokenizer.postprocess(out_string);
-        if (!not_end) { return false; }
-        return true;
-    });
-    Module::isFirstChunk = false;
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
-    // turn on the multi-chunk prefilling
-    Module::isMultiChunkPrefilling = true;
-    // warmup END
-    std::cout << "Warmup finished." << std::endl;
+    string trace_string = " ";
+    auto [_, input_tensor] = tokenizer.tokenizePaddingByChunk(trace_string, chunk_size, config.vocab_size);
+    Tracer::trace(&model, {input_tensor});
+    std::cout << "Trace and Warmup finished" << std::endl;
 
     vector<string> in_strs = {
         // " Give me a short introduction to large language model.",
@@ -65,16 +49,15 @@ int main(int argc, char **argv) {
     for (int i = 0; i < in_strs.size(); ++i) {
         auto input_str = tokenizer.apply_chat_template(in_strs[i]);
         auto [real_seq_length, input_tensor] = tokenizer.tokenizePaddingByChunk(input_str, chunk_size, config.vocab_size);
-        const int seq_length_padding = (chunk_size - real_seq_length % chunk_size) + real_seq_length;
-        const int chunk_num = seq_length_padding / chunk_size;
-
-        std::cout << "[Q] " << in_strs[i] << std::endl;
-        std::cout << "[A] " << std::flush;
 
         // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setTotalSequenceLength(real_seq_length);
         // set chunk size for the HeadLinear execute, which can not get the chunk size from Opts
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setChunkSize(chunk_size);
+
+        std::cout << "[Q] " << in_strs[i] << std::endl;
+        std::cout << "[A] " << std::flush;
+        std::cout << "real_seq_length: " << real_seq_length << std::endl;
 
         LlmTextGeneratorOpts opt{
             .max_new_tokens = 1,
@@ -86,30 +69,12 @@ int main(int argc, char **argv) {
 
         // tensor vectors to save the chunked tensors of the QNN prefilling input
         bool isSwitched = false;
-        vector<Tensor> chunked_tensors(chunk_num);
-        for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
-            chunked_tensors[chunk_id].setBackend(Backend::global_backends[MLLM_CPU]);
-            chunked_tensors[chunk_id].setTtype(INPUT_TENSOR);
-            chunked_tensors[chunk_id].reshape(1, 1, chunk_size, 1);
-            chunked_tensors[chunk_id].setName("input-chunk-" + to_string(chunk_id));
-            chunked_tensors[chunk_id].deepCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
 
-            model.generate(chunked_tensors[chunk_id], opt, [&](unsigned int out_token) -> bool {
-                if (!isSwitched && chunk_id == 0 && static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->isStageSwitching()) {
-                    // turn off switching at the first chunk of following inputs
-                    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
-                    isSwitched = true;
-                }
-                auto out_string = tokenizer.detokenize({out_token});
-                auto [not_end, output_string] = tokenizer.postprocess(out_string);
-                if (!not_end) { return false; }
-                if (chunk_id == chunk_num - 1) { // print the output of the last chunk
-                    std::cout << output_string << std::flush;
-                }
-                return true;
-            });
-            Module::isFirstChunk = false;
-        }
+        ChunkPipeline pipeline(real_seq_length, chunk_size);
+        auto prefill_result = pipeline.run(input_tensor, opt, tokenizer, model, isSwitched);
+
+        Module::isMultiChunkPrefilling = true;
+        Module::isFirstChunk = false;
 
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(real_seq_length);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
@@ -124,7 +89,15 @@ int main(int argc, char **argv) {
             .is_padding = false,
         };
         isSwitched = false;
-        decoding_model.generate(chunked_tensors.back(), decoding_opt, [&](unsigned int out_token) -> bool {
+
+        Tensor decoding_input;
+        decoding_input.setBackend(Backend::global_backends[MLLM_CPU]);
+        decoding_input.setTtype(INPUT_TENSOR);
+        decoding_input.reshape(1, 1, 1, 1);
+        decoding_input.setName("input0");
+        decoding_input.alloc();
+        decoding_input.setDataAt(0, 0, 0, 0, prefill_result->dataAt<float>(0, 0, 0, 0));
+        decoding_model.generate(decoding_input, decoding_opt, [&](unsigned int out_token) -> bool {
             // call only once of switchDecodeTag
             if (!isSwitched) {
                 static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();

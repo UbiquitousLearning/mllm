@@ -73,6 +73,7 @@ enum OpType {
 
     // new front-end
     SUPERSILU,
+    HEADLINEAR,
 };
 
 static const vector<string> OpNames = {
@@ -139,6 +140,7 @@ static const vector<string> OpNames = {
     "XP_KVCACHE",
     "SDPA",
     "SuperSiLU",
+    "HeadLinear",
 };
 
 enum TensorFuncType {

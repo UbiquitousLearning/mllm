@@ -11,7 +11,6 @@
 #include "QNNBackend.hpp"
 #include "ParamLoader.hpp"
 #include "QnnModel.hpp"
-#include "Utils/BuildId.hpp"
 #include "Utils/QnnSampleAppUtils.hpp"
 #include "Utils/IOTensor.hpp"
 #include "Utils/DynamicLoadUtil.hpp"
@@ -145,7 +144,6 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
 
     // init qnn resources
     {
-        MLLM_LOG_INFO_LEGACY("qnn-backend    build version: %s", getBuildId().c_str());
         MLLM_LOG_INFO_LEGACY("Backend        build version: %s", getBackendBuildId().c_str());
 
         // initialize logging in the backend

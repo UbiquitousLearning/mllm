@@ -79,7 +79,7 @@ std::vector<NetTensor *> PhoneLM_CPUNPUAttention(Context *c, NetTensor *x, NetTe
     m = _MergeOutput({o, res}, name + ".or_merge");
 
     // --------------------
-    _SubgraphBegin(c);
+    _SubgraphBegin(c, MLLM_QNN);
     // --------------------
     s = _SplitInput({m}, true, 2, name + ".or_split");
 
@@ -165,7 +165,7 @@ void phonelm_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
         if (layer == 0 || phonelm_shadow_layers.find(layer - 1) != phonelm_shadow_layers.end()) {
             i = i->view(-1, mutil_head_size, -1, hidden_dim / mutil_head_size);
             auto m = _MergeOutput({i}, "model.layers." + std::to_string(layer) + ".ires_merge");
-            _SubgraphBegin(c);
+            _SubgraphBegin(c, MLLM_QNN);
             auto s = _SplitInput(m, true, 2, "model.layers." + std::to_string(layer) + ".self_attn.ires_split");
             i = s[0];
         }

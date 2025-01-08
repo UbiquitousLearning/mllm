@@ -15,6 +15,7 @@
 #include "Op.hpp"
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
+#include "Trace.hpp"
 
 #include <Module.hpp>
 
@@ -157,9 +158,11 @@ protected:
         auto &activation_tensors_num = module->activation_tensors_num;
         // Module::runlistIdx = saved_list_idx;
         bool do_init = false;
-        // set backend to current module device and try to create op
-        backend_ = Backend::global_backends[Module::tmp_device];
+
         if (module->doLoad || !inited_loaded) {
+            // set backend to current module device and try to create op
+            // use Module::tmp_device only when creating the op as the recersive module backend only handled in load and init stage
+            backend_ = Backend::global_backends[Module::tmp_device];
             do_init = !inited_loaded;
             if (op_ == nullptr) {
 #ifdef USE_QNN
@@ -276,6 +279,12 @@ protected:
             op_->execute(input_tensors, output_tensors);
             break;
         }
+        case TENSOR_STATIC_TRACE : {
+            if (backend_->type() == BackendType::MLLM_CPU) {
+                Tracer::addOp(op_, input_tensors, output_tensors);
+            }
+            break;
+        }
         default: {
             break;
         }
@@ -334,6 +343,20 @@ public:
         param_["out_features"] = out_features;
         param_["bias"] = (float)bias;
         init(std::move(name), OpType::LINEAR);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class HeadLinear final : public Layer {
+public:
+    explicit HeadLinear(int in_features, int out_features, bool bias, std::string name) {
+        param_["in_features"] = in_features;
+        param_["out_features"] = out_features;
+        param_["bias"] = (float)bias;
+        init(std::move(name), OpType::HEADLINEAR);
     }
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
