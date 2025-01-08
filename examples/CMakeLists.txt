@@ -27,6 +27,7 @@ macro(func_llm_add_executable target)
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/WordPiece/WordPiece.cpp
+        ${PROJECT_SOURCE_DIR}/src/tokenizers/Tiktoken/tiktoken.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
         ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp

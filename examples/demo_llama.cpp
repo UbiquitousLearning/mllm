@@ -41,9 +41,31 @@ string llama3_2_1b(LLaMAConfig& cfg) {
     return "llama3";
 }
 
+string llama3_2_3b(LLaMAConfig& cfg) {
+    cfg.vocab_size = 128256;
+    cfg.hidden_dim = 3072;
+    cfg.head_size = 24;
+    cfg.num_key_value_heads = 8;
+    cfg.ffn_hidden = 8192;
+    cfg.block_num = 28;
+    cfg.max_position_embeddings = 131072;
+    cfg.rope_theta = 500000.0;
+    cfg.tie_word_embeddings = true;
+
+    cfg.rope_scaling = {
+        {"factor", 32.0f},
+        {"high_freq_factor", 4.0f},
+        {"low_freq_factor", 1.0f},
+        {"original_max_position_embeddings", 8192},
+        {"rope_type", std::string("llama3")}
+    };
+    return "llama3";
+}
+
 map<string, string (*)(LLaMAConfig& config)> CONFIG_MAP = {
     {"llama-2-7b", llama2_7b},
-    {"llama-3-2-1b", llama3_2_1b}
+    {"llama-3-2-1b", llama3_2_1b},
+    {"llama-3-2-3b", llama3_2_3b}
 };
 
 int main(int argc, char **argv) {
@@ -61,7 +83,7 @@ int main(int argc, char **argv) {
     string MODEL_TYPE = cmdParser.get<string>("model_type");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
-    auto tokenizer_type = CONFIG_MAP[MODEL_TYPE](config);
+    auto tokenizer_type = CONFIG_MAP.at(MODEL_TYPE)(config);
 
     auto tokenizer = TokenizerFactory::createTokenizer(vocab_path, tokenizer_type);
 
