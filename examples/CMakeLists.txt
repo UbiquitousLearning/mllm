@@ -76,14 +76,14 @@ func_llm_add_executable(demo_phonelm)
 func_llm_add_executable(demo_minicpm_moe_mbm)
 
 
-# func_vlm_add_executable(demo_llava)
-# func_vlm_add_executable(demo_fuyu)
-# func_vlm_add_executable(demo_vit)
-# func_vlm_add_executable(demo_clip)
-# func_vlm_add_executable(demo_imagebind)
-# func_vlm_add_executable(demo_imagebind_1mod)
-# func_vlm_add_executable(demo_phi3v)
-# func_vlm_add_executable(demo)
+func_vlm_add_executable(demo_llava)
+func_vlm_add_executable(demo_fuyu)
+func_vlm_add_executable(demo_vit)
+func_vlm_add_executable(demo_clip)
+func_vlm_add_executable(demo_imagebind)
+func_vlm_add_executable(demo_imagebind_1mod)
+func_vlm_add_executable(demo_phi3v)
+func_vlm_add_executable(demo)
 
 # QNN demo
 
