@@ -16,9 +16,9 @@ vector<vector<float>> CPURoPE::cos_;
 int CPURoPE::global_pose_type_ = -1;
 int CPURoPE::ishape_old;
 
-typedef void (*mllm_rope_init_func)(const OpParam &, std::vector<float>&);
+typedef float (*mllm_rope_init_func)(const OpParam &, std::vector<float>&);
 
-void _default_init_rope(const OpParam& config, vector<float>& theta) {
+float _default_init_rope(const OpParam& config, vector<float>& theta) {
     auto base = config.at("base");  // theta_i = base^-(2i/dim) = 1 / base^(2i/dim)    i from 0 to (dim/2 - 1)
     auto dim = config.at("dim");
 
@@ -26,9 +26,11 @@ void _default_init_rope(const OpParam& config, vector<float>& theta) {
 #pragma omp parallel for num_threads(4)
     for (int i = 0;i < theta.size();i++)
         theta[i] = 1.0 / pow(base, 2.0 * i / dim);
+
+    return  1.0;
 }
 
-void _compute_llama3_theta(const OpParam& config, vector<float>& theta) {
+float _compute_llama3_theta(const OpParam& config, vector<float>& theta) {
     auto base = config.at("base");  // theta_i = base^-(2i/dim) = 1 / base^(2i/dim)    i from 0 to (dim/2 - 1)
     auto dim = config.at("dim");
 
@@ -64,6 +66,8 @@ void _compute_llama3_theta(const OpParam& config, vector<float>& theta) {
         }
         // 如果波长小于高频波长，保持不变
     }
+
+    return 1.0;
 }
 
 static const unordered_map<RoPEThetaType, mllm_rope_init_func> rope_init_func_map = {
@@ -72,7 +76,7 @@ static const unordered_map<RoPEThetaType, mllm_rope_init_func> rope_init_func_ma
 };
 
 void sinusoidal_position_embedding_llama(int seq_len, int output_dim, const vector<float>& theta,
-                                         vector<vector<float>> &sin, vector<vector<float>> &cos) {
+                                         vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling = 1.0) {
     sin.resize(seq_len);
     for (int i = 0; i < seq_len; ++i) {
         sin[i].resize(output_dim);
@@ -91,14 +95,14 @@ void sinusoidal_position_embedding_llama(int seq_len, int output_dim, const vect
             sin[s][d] = sin_value;
             cos[s][d] = cos_value;
             if (d + 1 < output_dim) {
-                sin[s][d + 1] = sin_value;
-                cos[s][d + 1] = cos_value;
+                sin[s][d + 1] = sin_value * attention_scaling;
+                cos[s][d + 1] = cos_value * attention_scaling;
             }
         }
     }
 }
 void sinusoidal_position_embedding_huggingface(int seq_len, int output_dim, const vector<float>& theta,
-                                               vector<vector<float>> &sin, vector<vector<float>> &cos) {
+                                               vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling = 1.0) {
     sin.resize(seq_len);
     for (int i = 0; i < seq_len; ++i) {
         sin[i].resize(output_dim);
@@ -120,8 +124,8 @@ void sinusoidal_position_embedding_huggingface(int seq_len, int output_dim, cons
             sin[s][d] = sin_value;
             cos[s][d] = cos_value;
             if (d + mid < output_dim) {
-                sin[s][d + mid] = sin_value;
-                cos[s][d + mid] = cos_value;
+                sin[s][d + mid] = sin_value * attention_scaling;
+                cos[s][d + mid] = cos_value * attention_scaling;
             }
         }
     }
@@ -183,16 +187,16 @@ ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         auto config = config_;
         config["base"] = (float)rope_theta_;
         config["dim"] = ishape;
-        calc_theta(config, theta_);
+        float attention_scaling = calc_theta(config, theta_);
 
         global_pose_type_ = pose_type_;
         ishape_old = ishape;
         if (pose_type_ == LLAMAROPE) {
-            sinusoidal_position_embedding_llama(pos_max_, ishape, theta_, sin_, cos_);
+            sinusoidal_position_embedding_llama(pos_max_, ishape, theta_, sin_, cos_, attention_scaling);
         } else if (pose_type_ == PERSIMMONROPE) {
-            sinusoidal_position_embedding_huggingface(pos_max_, ishape / 2, theta_, sin_, cos_);
+            sinusoidal_position_embedding_huggingface(pos_max_, ishape / 2, theta_, sin_, cos_, attention_scaling);
         } else if (pose_type_ == HFHUBROPE || pose_type_ == MLAROPE) {
-            sinusoidal_position_embedding_huggingface(pos_max_, ishape, theta_, sin_, cos_);
+            sinusoidal_position_embedding_huggingface(pos_max_, ishape, theta_, sin_, cos_, attention_scaling);
         } else {
         }
     }
