@@ -177,7 +177,7 @@ std::string regex_escape(const std::string& input) {
 
 CoreBPE::CoreBPE(const merge_rank_t &encoder, const std::unordered_map<std::string, rank_t> &special_tokens_encoder,
                  const std::string& pattern): encoder(encoder), special_tokens_encoder(special_tokens_encoder), pattern({pattern}) {
-    view_encoder = convert_keys_to_string_views(encoder);
+    view_encoder = convert_keys_to_string_views(this->encoder);
 
     for (const auto& pair : encoder) {
         decoder[pair.second] = pair.first;
@@ -268,7 +268,7 @@ merge_rank_t load_tiktoken_bpe(const std::string& filename) {
     }
 
     std::string line;
-    //    int i = 0;
+//    int i = 0;
     while (std::getline(file, line)) {
         if (line.empty()) {
             continue;
@@ -292,8 +292,8 @@ merge_rank_t load_tiktoken_bpe(const std::string& filename) {
         auto token_decoded = base64_decode(token);
 
         ranks[token_decoded] = rank;
-        //        if (i ++ < 10)
-        //            std::cout << "token: " << token_decoded << "  " << token << " rank: " << rank << std::endl;
+//        if (i ++ < 10)
+//            std::cout << "token: " << token_decoded << "  " << token << " rank: " << rank << std::endl;
     }
 
     if (file.bad()) {
@@ -400,4 +400,20 @@ std::string base64_decode(const std::string& input) {
 
     return decoded;
 }
+
+void TiktokenTokenizer::tokenize(const string &text, vector<token_id_t> &tokens, bool bos) {
+    std::string text_copy;
+    if (bos) {
+        text_copy = this->bos_token + text;
+    } else {
+        text_copy = text;
+    }
+
+    auto token_ids = model.encode_native(text_copy, special_tokens);
+    tokens = std::move(token_ids);
+}
+string TiktokenTokenizer::detokenize(const vector<token_id_t> &tokens) {
+    return model.decode(tokens);
+}
+
 }
