@@ -21,8 +21,8 @@ class LLaMABodyModel final : public Module {
 public:
     LLaMABodyModel() = default;
     LLaMABodyModel(int vocab_size, int hidden_dim, int head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit,
-                   const LLaMANameConfig &names, const LLaMAConfig &config, const string &base_name) {
-        blocks = List<LLaMABlock>(block_num, hidden_dim, head_size, head_size, ffn_hidden, RoPE_type, rope_theta, max_position_embeddings, cache_limit, names, config, base_name);
+                   const LLaMANameConfig &names, const string &base_name) {
+        blocks = List<LLaMABlock>(block_num, hidden_dim, head_size, head_size, ffn_hidden, RoPE_type, rope_theta, max_position_embeddings, cache_limit, names, base_name);
         norm = RMSNorm(hidden_dim, 1e-6, names.post_norm_name);
         lm_head = Linear(hidden_dim, vocab_size, false, names.lm_head_name);
     }
@@ -106,20 +106,18 @@ public:
         LLaVAModel(config.vocab_size, config.hidden_dim, config.head_size, config.ffn_hidden, config.block_num,
                    config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit,
                    config.names_config,
-                   config,
                    config.vision_hidden_dim, config.vision_head_size, config.vision_ffn_hidden, config.patch, config.img_hw, config.vision_block_num,
                    config.vit_names_config) {
     }
     LLaVAModel(int vocab_size, int hidden_dim, int head_size, int ffn_hidden, int block_num,
                RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit,
                const LLaMANameConfig &names_config,
-               const LLaMAConfig &config,
                int vision_hidden_dim, int vision_head_size, int vision_ffn_hidden, int patch, int img_hw, int vision_block_num,
                const ViTNameConfig &vit_names_config) {
         text_embedding = Embedding(vocab_size, hidden_dim, names_config.token_embd_name);
         llama_body = LLaMABodyModel(vocab_size, hidden_dim, head_size, ffn_hidden, block_num,
                                     RoPE_type, rope_theta, max_position_embeddings, cache_limit,
-                                    names_config, config, names_config.blk_name);
+                                    names_config, names_config.blk_name);
         vision_tower = LLaVAVisionModel(vision_hidden_dim, vision_head_size, vision_ffn_hidden, patch, img_hw, vision_block_num,
                                         vit_names_config, vit_names_config.vison_model_name);
     }

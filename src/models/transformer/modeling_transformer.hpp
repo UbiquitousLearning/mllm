@@ -38,7 +38,7 @@ public:
                        AttnQKVSplitType do_qkv_proj, bool post_qkv_norm, bool bias_kv_cat,
                        RoPEType RoPE_type, float rope_theta, int max_position_embeddings,
                        int cache_limit, bool do_mask, bool bias,
-                       const TransformerNameConfig &names, const string &base_name, const RoPEConfig & rope_config={}) {
+                       const TransformerNameConfig &names, const string &base_name) {
         attn_hidden_dim_ = attn_hidden_dim;
         head_size_ = head_size;
         kv_head_size_ = kv_head_size;
@@ -54,15 +54,10 @@ public:
             q_norm = LayerNorm(attn_hidden_dim, true, 1e-6, base_name + names._q_norm_name);
             k_norm = LayerNorm(attn_hidden_dim, true, 1e-6, base_name + names._k_norm_name);
         }
-
-        if(!rope_config.empty()){
-            q_rope = RoPE(RoPE_type, rope_config, base_name + "q_rope");
-            k_rope = RoPE(RoPE_type, rope_config, base_name + "k_rope");
-        }else if (RoPE_type > 0) {
+        if (RoPE_type > 0) {
             q_rope = RoPE(RoPE_type, rope_theta, max_position_embeddings, base_name + "q_rope");
             k_rope = RoPE(RoPE_type, rope_theta, max_position_embeddings, base_name + "k_rope");
         }
-
         if (cache_limit > 0) {
             k_cache = KVCache(head_size / kv_head_size, cache_limit, base_name + "k_cache");
             v_cache = KVCache(head_size / kv_head_size, cache_limit, base_name + "v_cache");
