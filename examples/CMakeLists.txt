@@ -73,6 +73,7 @@ func_llm_add_executable(demo_openelm)
 func_llm_add_executable(demo_dclm)
 func_llm_add_executable(demo_bert)
 func_llm_add_executable(demo_phonelm)
+func_llm_add_executable(demo_llama3)
 
 
 func_vlm_add_executable(demo_llava)
