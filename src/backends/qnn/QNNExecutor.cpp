@@ -20,14 +20,10 @@
 
 namespace mllm {
 BackendType QNNExecutor::graphOffloadRule(BackendType expectedBackend, int graphIndex) {
-    if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
+    if (expectedBackend != MLLM_CPU && expectedBackend != MLLM_QNN) {
         return MLLM_CPU;
     } else {
-        if (graphIndex == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
-            return MLLM_CPU;
-        } else {
-            return MLLM_QNN;
-        }
+        return expectedBackend;
     }
 }
 
@@ -381,7 +377,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
     // free all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         auto expectedBackend = ctx->sub_backend_[i];
-        if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
+        if (expectedBackend != MLLM_CPU && expectedBackend != MLLM_QNN) {
             continue;
         } else if (i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
             continue;
@@ -410,7 +406,7 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
 void QNNPipelineExecutor::warmup(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     auto ex_time_start = mllm_time_us();
     // input will be split into chunks and execute in pipeline
-    const int chunk_size = 256;
+    const int chunk_size = 128;
     int chunk_num = (input_tensors[0]->sequence() + chunk_size - 1) / chunk_size;
     // we suppose the tensor(s) of input_tensors is the only one or all have the same seq length
     for (int i = 0; i < input_tensors.size(); ++i) {
@@ -492,7 +488,7 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
     auto ex_time_start = mllm_time_us();
 
     // input will be split into chunks and execute in pipeline
-    const int chunk_size = 256;
+    const int chunk_size = 128;
     int chunk_num = (input_tensors[0]->sequence() + chunk_size - 1) / chunk_size;
     // we suppose the tensor(s) of input_tensors is the only one or all have the same seq length
     for (int i = 0; i < input_tensors.size(); ++i) {
@@ -644,13 +640,10 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
 
     ex_time_end = mllm_time_us();
 
-    // TODO: in pipeline execute, don't free the graph, error will occur in qnn memory manager deconstruct
     // free all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         auto expectedBackend = ctx->sub_backend_[i];
-        if (expectedBackend != MLLM_DEFAULT && expectedBackend != MLLM_QNN) {
-            continue;
-        } else if (i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
+        if (expectedBackend == MLLM_CPU || i == 0) { // use CPU graph and CPU backend for embedding, based on specific subgraph split
             continue;
         }
 

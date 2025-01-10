@@ -15,6 +15,7 @@
 #include "Op.hpp"
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
+#include "Trace.hpp"
 
 #include <Module.hpp>
 
@@ -39,6 +40,7 @@ public:
         return init_;
     }
     bool inited_loaded = false;
+    bool loaded_param = false;
     static map<string, string> layername_2_tensorname;
     static bool use_layername_2_tensorname;
 
@@ -60,6 +62,42 @@ public:
     Tensor &operator()(Tensor &input0, Tensor &input1, Tensor &input2, Tensor &input3) {
         auto ts = run({input0, input1, input2, input3}, 1);
         return ts[0].get();
+    }
+
+    void load() {
+        if (inited_loaded && loaded_param)
+            return;
+        if (op_ == nullptr) {
+#ifdef USE_QNN
+            if ((param_["type"] == KVCACHE || param_["type"] == KVCACHENPU) && (Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end())) {
+                if (kv_cache_map.find(name_) == kv_cache_map.end()) {
+                    // for the prefill part, we need to create a new op
+                    param_["type"] = KVCACHENPU;
+                    op_ = backend_->opCreate(param_, name_);
+                    kv_cache_map[name_] = op_;
+                } else {
+#ifdef DEBUGPRINT
+                    std::cout << name_ << " is shared used" << std::endl;
+#endif
+                    // for the decoding part, we need to get created op from global container
+                    op_ = kv_cache_map[name_];
+                }
+            } else {
+                op_ = backend_->opCreate(param_, name_);
+            }
+#else
+            op_ = backend_->opCreate(param_, name_);
+#endif
+        }
+        op_->load(*Module::llm_model_ptr->loader);
+        loaded_param = true;
+    }
+    bool &loaded() {
+        return loaded_param;
+    }
+    void free() {
+        op_->free({}, {});
+        loaded_param = false;
     }
 
 private:
@@ -118,11 +156,13 @@ protected:
         }
         map<string, shared_ptr<Tensor>> &activation_tensors = module->activation_tensors;
         auto &activation_tensors_num = module->activation_tensors_num;
-        Module::runlistIdx = saved_list_idx;
+        // Module::runlistIdx = saved_list_idx;
         bool do_init = false;
-        // set backend to current module device and try to create op
-        backend_ = Backend::global_backends[Module::tmp_device];
+
         if (module->doLoad || !inited_loaded) {
+            // set backend to current module device and try to create op
+            // use Module::tmp_device only when creating the op as the recersive module backend only handled in load and init stage
+            backend_ = Backend::global_backends[Module::tmp_device];
             do_init = !inited_loaded;
             if (op_ == nullptr) {
 #ifdef USE_QNN
@@ -149,10 +189,14 @@ protected:
             if (module->doLoad) {
                 op_->load(*module->loader);
                 inited_loaded = true;
+            } else if (loaded_param) {
+                inited_loaded = loaded_param;
             } else {
                 if (!inited_loaded) {
-                    module->loader = new ParamLoader("");
-                    op_->load(*module->loader);
+                    // module->loader = new ParamLoader("");
+                    // op_->load(*module->loader);
+                    auto empty_loader = new ParamLoader("");
+                    op_->load(*empty_loader);
                     inited_loaded = true;
                 }
             }
@@ -200,7 +244,7 @@ protected:
         for (auto &input : inputs) {
             if (input.shouldInGraphs()) {
                 auto input_name = input.name();
-                if (param_["type"] == KVCACHE && do_init) {
+                if (param_["type"] == KVCACHE && do_init && use_layername_2_tensorname) {
                     input_name = name_X_to_num(input_name, saved_list_idx);
                 }
                 input_tensors.push_back(activation_tensors[input_name]);
@@ -233,6 +277,12 @@ protected:
         }
         case TENSOR_STATIC_READY: {
             op_->execute(input_tensors, output_tensors);
+            break;
+        }
+        case TENSOR_STATIC_TRACE : {
+            if (backend_->type() == BackendType::MLLM_CPU) {
+                Tracer::addOp(op_, input_tensors, output_tensors);
+            }
             break;
         }
         default: {
@@ -293,6 +343,20 @@ public:
         param_["out_features"] = out_features;
         param_["bias"] = (float)bias;
         init(std::move(name), OpType::LINEAR);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class HeadLinear final : public Layer {
+public:
+    explicit HeadLinear(int in_features, int out_features, bool bias, std::string name) {
+        param_["in_features"] = in_features;
+        param_["out_features"] = out_features;
+        param_["bias"] = (float)bias;
+        init(std::move(name), OpType::HEADLINEAR);
     }
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);

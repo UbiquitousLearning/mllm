@@ -234,7 +234,7 @@ public:
     }
     int legacyShape(int index) const {
         if (index >= numAxes() || index < -numAxes()) {
-            return 1;
+            return 0;
         }
         return shape(index);
     }
@@ -791,6 +791,8 @@ public:
     Tensor &operator/(float data);
     Tensor &operator/(double data);
 
+    Tensor &operator/(int data);
+
     /**
      * \brief Overload the operators.
      * \param other The Other Tensor
@@ -811,6 +813,7 @@ public:
     Tensor &transpose(vector<std::pair<Chl, Chl>> axiss);
     Tensor &clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d);
     Tensor &clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d);
+    Tensor &clip(Tensor &index, Chl dim);
     Tensor &expand(int b, int h, int s, int d);
     static Tensor &cat(vector<Tensor> input_tensors, Chl dims);
     static Tensor &mm(Tensor &input0, Tensor &input1);
@@ -822,6 +825,13 @@ public:
         return split(*this, each_dims, split_dim, same_dim_size);
     }
     Tensor &index_put(Tensor &value, Tensor &indices, bool accumulate);
+    void scatter_reduce(Tensor &value, Tensor &indices);
+    static vector<std::reference_wrapper<Tensor>> topk(Tensor &input, int k, Chl dim);
+    Tensor &sum(Chl dim);
+    Tensor &argsort();
+    Tensor &bincount();
+    Tensor &repeat(Chl dim, int dim_size);
+    static Tensor &zero_like(Tensor &input);
 
     // models use only
     static Tensor &fuyu_gather_embd(Tensor &word, Tensor &image_patches, Tensor &image_patches_indices);
@@ -1103,7 +1113,9 @@ public:
     Tensor &to(BackendType backend_type);
     static vector<Tensor> toDevice(vector<Tensor> inputs, BackendType backend_type) {
         for (auto &input : inputs) {
-            input.to(backend_type);
+            if (input.device() != backend_type) {
+                input.to(backend_type);
+            }
         }
         return inputs;
     };
@@ -1839,6 +1851,7 @@ private:
         return tensor_id;
     }
     Tensor &getFunc(const std::string &suffix, TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors = {});
+    void getFunc(TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors = {});
 
     static std::vector<std::reference_wrapper<Tensor>> getStaticFunc(vector<std::string> out_names, TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors);
 

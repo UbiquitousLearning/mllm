@@ -43,7 +43,7 @@ typedef struct TNetParameter {
 struct Context {
     vector<NetParameter> sub_param_;
     vector<BackendType> sub_backend_;
-    BackendType next_backend = MLLM_DEFAULT;
+    BackendType next_backend = MLLM_CPU;
     vector<NetOp *> net_ops;
     std::set<NetTensor *> net_tensors;
     int idx = 0;
@@ -59,10 +59,10 @@ inline NetParameter *get_active_subgraph(Context *ctx) {
 
 struct intTensor_pair {
     int start_i;
-    NetTensor* end_i;
+    NetTensor *end_i;
 };
 struct Tensor_pair {
-    NetTensor* end_i;
+    NetTensor *end_i;
 };
 
 typedef struct TNetTensor {
@@ -101,11 +101,11 @@ typedef struct TNetTensor {
     NetTensor *where(float data, Chl axis);
 
     /* Overload the operators.*/
-    NetTensor *operator+(NetTensor* in_1) ;
-    NetTensor *operator*(NetTensor* in_1) ;
-    NetTensor *operator*(float muln) ;
-    NetTensor *operator/(NetTensor* in_1) ;
-    NetTensor *operator/(float devr) ;
+    NetTensor *operator+(NetTensor *in_1);
+    NetTensor *operator*(NetTensor *in_1);
+    NetTensor *operator*(float muln);
+    NetTensor *operator/(NetTensor *in_1);
+    NetTensor *operator/(float devr);
 } NetTensor;
 
 } // namespace mllm

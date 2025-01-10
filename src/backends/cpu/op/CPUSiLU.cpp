@@ -22,6 +22,12 @@ ErrorCode CPUSiLU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 }
 
 ErrorCode CPUSiLU::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    if (inputs[0]->sequence() != outputs[0]->sequence() && outputs[0]->masterTensor() == nullptr) {
+        outputs[0]->reshape(outputs[0]->batch(), outputs[0]->head(), inputs[0]->sequence(), outputs[0]->dimension());
+        // outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+        outputs[0]->alloc();
+    }
+
     auto input = inputs[0];
     int batch = input->batch();
     int n1 = input->head();

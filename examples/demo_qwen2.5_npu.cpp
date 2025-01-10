@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
 
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
     QWenConfig config(tokens_limit, "1.5B", RoPEType::HFHUBROPE);
-    auto model = QWenForCausalLM_NPU(config);
+    auto model = QWenForCausalLM_NPU(config, 64);
     model.load(model_path);
     auto decoding_model = QWenForCausalLM(config);
     decoding_model.load("../models/qwen-2.5-1.5b-instruct-q4_0_4_4.mllm");
@@ -41,6 +41,9 @@ int main(int argc, char **argv) {
         auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(input_str, 64, config.vocab_size);
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
+
+        // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setTotalSequenceLength(real_seq_length);
 
         LlmTextGeneratorOpts opt{
             .max_new_tokens = 1,
@@ -59,7 +62,8 @@ int main(int argc, char **argv) {
             return true;
         });
 
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(real_seq_length);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
 
         LlmTextGeneratorOpts decoding_opt{
@@ -86,6 +90,11 @@ int main(int argc, char **argv) {
             }
             return true;
         });
-        std::cout << "\n---------------" << std::endl;
+
+        // turn on switching, set sequence length and execution type
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+        std::cout << "\n";
     }
 }
