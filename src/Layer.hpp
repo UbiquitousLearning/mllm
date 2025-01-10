@@ -1008,6 +1008,29 @@ public:
         return ts[0].get();
     }
 };
+
+class NTKRoPE final : public Layer {
+public:
+    NTKRoPE(float theta, int max_position_embeddings, int original_max_position_embeddings, const std::vector<float> &long_factor, const std::vector<float> &short_factor, std::string name) {
+        init(std::move(name), OpType::NTKROPE);
+        param_["theta"] = theta;
+        param_["max_position_embeddings"] = (float)max_position_embeddings;
+        param_["original_max_position_embeddings"] = (float)original_max_position_embeddings;
+        param_["long_factor_n"] = (float)long_factor.size();
+        for (int i = 0; i < long_factor.size(); i++) {
+            param_["long_factor_" + std::to_string(i)] = long_factor[i];
+        }
+        param_["short_factor_n"] = (float)short_factor.size();
+        for (int i = 0; i < short_factor.size(); i++) {
+            param_["short_factor_" + std::to_string(i)] = short_factor[i];
+        }
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
 //  Only for QNN END
 
 } // namespace mllm
