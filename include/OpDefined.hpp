@@ -61,6 +61,7 @@ enum OpType {
     SPLITINPUT,
     IROPE,
     OP_NUM,
+    NTKROPE,
 
     // add in xnnpack
     DIRECT,
