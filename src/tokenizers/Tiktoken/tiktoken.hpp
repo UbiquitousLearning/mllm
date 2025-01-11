@@ -70,15 +70,18 @@ private:
 
 class TiktokenTokenizer : public Tokenizer {
 public:
-    TiktokenTokenizer(const string &filename, unordered_map<std::string, rank_t> special_tokens_encoder, const string &pattern):
-        model(load_tiktoken_bpe(filename), special_tokens_encoder, pattern) {
+    TiktokenTokenizer(const string &filename, unordered_map<std::string, rank_t> special_tokens_encoder, const string &pattern) :
+        core(load_tiktoken_bpe(filename), special_tokens_encoder, pattern) {
         for (auto &pair : special_tokens_encoder) {
             special_tokens.insert(pair.first);
         }
     }
+    TiktokenTokenizer(const string &filename) :
+        core(load_tiktoken_bpe(filename), {}, "") {
+    }
 
-    TiktokenTokenizer(const merge_rank_t &mergeable_ranks, const std::unordered_map<std::string, rank_t> &special_tokens_encoder, const std::string &pattern):
-        model(mergeable_ranks, special_tokens_encoder, pattern) {
+    TiktokenTokenizer(const merge_rank_t &mergeable_ranks, const std::unordered_map<std::string, rank_t> &special_tokens_encoder, const std::string &pattern) :
+        core(mergeable_ranks, special_tokens_encoder, pattern) {
         for (auto &pair : special_tokens_encoder) {
             special_tokens.insert(pair.first);
         }
@@ -93,12 +96,13 @@ public:
 
     string detokenize(const vector<token_id_t> &tokens) override;
 
-private:
-    CoreBPE model;
+protected:
+    CoreBPE core;
+    std::unordered_set<std::string> special_tokens;
 
+private:
     std::string bos_token;
     std::string eos_token;
-    std::unordered_set<std::string> special_tokens;
 };
 
 } // namespace mllm

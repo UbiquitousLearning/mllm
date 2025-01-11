@@ -16,7 +16,7 @@
 #include "tiktoken.hpp"
 #include "tokenizers/Unicode.hpp"
 
-namespace mllm{
+namespace mllm {
 // define a constant unsigned int MAX_RANK
 const rank_t MAX_RANK = std::numeric_limits<rank_t>::max();
 
@@ -83,8 +83,7 @@ fn _byte_pair_merge(ranks: &HashMap<Vec<u8>, Rank>, piece: &[u8]) -> Vec<(usize,
 typedef struct merge_t {
     size_t start;
     rank_t rank;
-}merge_t;
-
+} merge_t;
 
 rank_t find_rank(const view_merge_rank_t &ranks, const std::string_view &piece) {
     auto it = ranks.find(piece);
@@ -162,11 +161,10 @@ std::vector<rank_t> byte_pair_encode(const view_merge_rank_t &ranks, const std::
     return result;
 }
 
-std::string regex_escape(const std::string& input) {
+std::string regex_escape(const std::string &input) {
     std::string result;
     for (char c : input) {
-        if (c == '\\' || c == '^' || c == '$' || c == '.' || c == '|' || c == '?' ||
-            c == '*' || c == '+' || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}') {
+        if (c == '\\' || c == '^' || c == '$' || c == '.' || c == '|' || c == '?' || c == '*' || c == '+' || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}') {
             result += '\\';
         }
         result += c;
@@ -174,24 +172,25 @@ std::string regex_escape(const std::string& input) {
     return result;
 }
 
-
 CoreBPE::CoreBPE(const merge_rank_t &encoder, const std::unordered_map<std::string, rank_t> &special_tokens_encoder,
-                 const std::string& pattern): encoder(encoder), special_tokens_encoder(special_tokens_encoder), pattern({pattern}) {
+                 const std::string &pattern) :
+    encoder(encoder),
+    special_tokens_encoder(special_tokens_encoder), pattern({pattern}) {
     view_encoder = convert_keys_to_string_views(this->encoder);
 
-    for (const auto& pair : encoder) {
+    for (const auto &pair : encoder) {
         decoder[pair.second] = pair.first;
     }
 
     assert(this->encoder.size() == decoder.size());
 
-    for (const auto& pair : special_tokens_encoder) {
+    for (const auto &pair : special_tokens_encoder) {
         special_tokens_decoder[pair.second] = pair.first;
     }
 
     assert(this->special_tokens_encoder.size() == special_tokens_decoder.size());
 
-    for(auto& [token, _]: special_tokens_encoder) {
+    for (auto &[token, _] : special_tokens_encoder) {
         special_tokens_pattern.push_back(regex_escape(token));
     }
 }
@@ -200,24 +199,24 @@ std::vector<rank_t> CoreBPE::encode_native(const std::string &text, std::unorder
     std::vector<rank_t> result;
     std::unordered_set<std::string> special_tokens_set;
     std::vector<std::string> special_tokens_pat;
-    for (auto &[token,_]: special_tokens_encoder) {
-        if (allowed_special_tokens.find(token) != allowed_special_tokens.end()){
+    for (auto &[token, _] : special_tokens_encoder) {
+        if (allowed_special_tokens.find(token) != allowed_special_tokens.end()) {
             special_tokens_pat.push_back(regex_escape(token));
             special_tokens_set.insert(token);
         }
     }
 
-    for (auto &fragment: unicode_regex_split_naive(text, special_tokens_pat)){
-        if (special_tokens_set.find(fragment) != special_tokens_set.end()){
+    for (auto &fragment : unicode_regex_split_naive(text, special_tokens_pat)) {
+        if (special_tokens_set.find(fragment) != special_tokens_set.end()) {
             result.push_back(special_tokens_encoder.at(fragment));
             continue;
         }
-        for (auto &piece : unicode_regex_split_naive(fragment, pattern)){
+        for (auto &piece : unicode_regex_split_naive(fragment, pattern)) {
             auto it = encoder.find(piece);
             if (it == encoder.end()) {
                 auto parts = byte_pair_encode(view_encoder, piece);
                 result.insert(result.end(), parts.begin(), parts.end());
-            }else {
+            } else {
                 result.push_back(it->second);
             }
         }
@@ -228,12 +227,12 @@ std::vector<rank_t> CoreBPE::encode_native(const std::string &text, std::unorder
 
 std::vector<rank_t> CoreBPE::encode_ordinary_naive(const std::string &text) {
     std::vector<rank_t> result;
-    for (auto &piece: unicode_regex_split_naive(text, pattern)) {
+    for (auto &piece : unicode_regex_split_naive(text, pattern)) {
         auto it = encoder.find(piece);
         if (it == encoder.end()) {
             auto parts = byte_pair_encode(view_encoder, piece);
             result.insert(result.end(), parts.begin(), parts.end());
-        }else {
+        } else {
             result.push_back(it->second);
         }
     }
@@ -242,7 +241,7 @@ std::vector<rank_t> CoreBPE::encode_ordinary_naive(const std::string &text) {
 
 std::string CoreBPE::decode(const std::vector<rank_t> &tokens) {
     std::string result;
-    for (auto token: tokens) {
+    for (auto token : tokens) {
         result += decode_token(token);
     }
     return result;
@@ -258,8 +257,7 @@ std::string CoreBPE::decode_token(rank_t token) {
     }
 }
 
-
-merge_rank_t load_tiktoken_bpe(const std::string& filename) {
+merge_rank_t load_tiktoken_bpe(const std::string &filename) {
     merge_rank_t ranks;
 
     std::ifstream file(filename, std::ios::binary);
@@ -268,7 +266,7 @@ merge_rank_t load_tiktoken_bpe(const std::string& filename) {
     }
 
     std::string line;
-//    int i = 0;
+    //    int i = 0;
     while (std::getline(file, line)) {
         if (line.empty()) {
             continue;
@@ -283,17 +281,17 @@ merge_rank_t load_tiktoken_bpe(const std::string& filename) {
         rank_t rank;
         try {
             rank = std::stoul(line.substr(pos + 1));
-        } catch (const std::invalid_argument& e) {
+        } catch (const std::invalid_argument &e) {
             throw std::runtime_error("Invalid rank format in line: " + line);
-        } catch (const std::out_of_range& e) {
+        } catch (const std::out_of_range &e) {
             throw std::runtime_error("Rank out of range in line: " + line);
         }
 
         auto token_decoded = base64_decode(token);
 
         ranks[token_decoded] = rank;
-//        if (i ++ < 10)
-//            std::cout << "token: " << token_decoded << "  " << token << " rank: " << rank << std::endl;
+        //        if (i ++ < 10)
+        //            std::cout << "token: " << token_decoded << "  " << token << " rank: " << rank << std::endl;
     }
 
     if (file.bad()) {
@@ -303,7 +301,7 @@ merge_rank_t load_tiktoken_bpe(const std::string& filename) {
     return ranks;
 }
 
-std::string base64_encode(const std::string& input) {
+std::string base64_encode(const std::string &input) {
     static const std::string base64_chars =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         "abcdefghijklmnopqrstuvwxyz"
@@ -350,7 +348,7 @@ std::string base64_encode(const std::string& input) {
     return encoded;
 }
 
-std::string base64_decode(const std::string& input) {
+std::string base64_decode(const std::string &input) {
     static const std::string base64_chars =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         "abcdefghijklmnopqrstuvwxyz"
@@ -409,11 +407,11 @@ void TiktokenTokenizer::tokenize(const string &text, vector<token_id_t> &tokens,
         text_copy = text;
     }
 
-    auto token_ids = model.encode_native(text_copy, special_tokens);
+    auto token_ids = core.encode_native(text_copy, special_tokens);
     tokens = std::move(token_ids);
 }
 string TiktokenTokenizer::detokenize(const vector<token_id_t> &tokens) {
-    return model.decode(tokens);
+    return core.decode(tokens);
 }
 
-}
+} // namespace mllm

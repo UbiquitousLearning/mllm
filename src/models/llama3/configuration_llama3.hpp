@@ -5,6 +5,7 @@
 #ifndef MLLM_CONFIGURATION_LLAMA3_H
 #define MLLM_CONFIGURATION_LLAMA3_H
 
+#include "Types.hpp"
 #include "models/transformer/configuration_transformer.hpp"
 
 using namespace mllm;
@@ -79,10 +80,45 @@ public:
     bool tie_word_embeddings = false;
     map<string, std::any> rope_scaling;
 
-    explicit Llama3Config(int token_limit, RoPEType type = LLAMAROPE) {
+    explicit Llama3Config(int token_limit, string billions = "1B", RoPEType type = HFHUBROPE) {
         names_config.init(type);
         RoPE_type = type;
         cache_limit = token_limit;
+        if (billions == "1B" || billions == "1b") {
+            vocab_size = 128256;
+            hidden_dim = 2048;
+            head_size = 32;
+            num_key_value_heads = 8;
+            ffn_hidden = 8192;
+            block_num = 16;
+            max_position_embeddings = 131072;
+            rope_theta = 500000.0;
+            tie_word_embeddings = true;
+
+            rope_scaling = {
+                {"factor", 32.0f},
+                {"high_freq_factor", 4.0f},
+                {"low_freq_factor", 1.0f},
+                {"original_max_position_embeddings", 8192},
+                {"rope_type", std::string("llama3")}};
+        } else if (billions == "3B" || billions == "3b") {
+            vocab_size = 128256;
+            hidden_dim = 3072;
+            head_size = 24;
+            num_key_value_heads = 8;
+            ffn_hidden = 8192;
+            block_num = 28;
+            max_position_embeddings = 131072;
+            rope_theta = 500000.0;
+            tie_word_embeddings = true;
+
+            rope_scaling = {
+                {"factor", 32.0f},
+                {"high_freq_factor", 4.0f},
+                {"low_freq_factor", 1.0f},
+                {"original_max_position_embeddings", 8192},
+                {"rope_type", std::string("llama3")}};
+        }
     }
 };
 
