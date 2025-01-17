@@ -1113,7 +1113,9 @@ public:
     Tensor &to(BackendType backend_type);
     static vector<Tensor> toDevice(vector<Tensor> inputs, BackendType backend_type) {
         for (auto &input : inputs) {
-            input.to(backend_type);
+            if (input.device() != backend_type) {
+                input.to(backend_type);
+            }
         }
         return inputs;
     };
@@ -1282,6 +1284,109 @@ public:
     }
 
     template <typename Dtype>
+    void printDataTorchLike() {
+        if (ctype() == BTHWC || ctype() == BCTHW) {
+            printData<Dtype>();
+            return;
+        }
+
+        std::cout << "----------------------------------------" << std::endl;
+        std::cout << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "]" << std::endl;
+
+        int N = batch();
+        int C = head();
+        int H = sequence();
+        int W = dimension();
+
+        // 每行最多打印的元素数量
+        const int max_elements_per_line = 6;
+        // 最多打印的行数
+        const int max_rows = 6;
+
+        // 递归打印函数
+        auto printRecursive = [&](auto&& self, int n, int c, int h, int w, int depth) -> void {
+            if (depth == 0) {
+                std::cout << "[";
+            }
+
+            if (depth == 3) {
+                // 打印单个元素
+                std::cout << std::fixed << std::setprecision(7) << std::setw(10) << static_cast<float>(dataAt<Dtype>(n, c, h, w)) << " ";
+                if (w == W - 1) {
+                    std::cout << "]";
+                }
+                return;
+            }
+
+            if (depth == 2) {
+                std::cout << "[";
+                if (W > max_elements_per_line) {
+                    int half = max_elements_per_line / 2;
+                    for (int w_idx = 0; w_idx < half; ++w_idx) {
+                        self(self, n, c, h, w_idx, depth + 1);
+                    }
+                    std::cout << "... ";
+                    for (int w_idx = W - half; w_idx < W; ++w_idx) {
+                        self(self, n, c, h, w_idx, depth + 1);
+                    }
+                } else {
+                    for (int w_idx = 0; w_idx < W; ++w_idx) {
+                        self(self, n, c, h, w_idx, depth + 1);
+                    }
+                }
+                std::cout << "]";
+                return;
+            }
+
+            if (depth == 1) {
+                std::cout << "[";
+                if (H > max_rows) {
+                    int half = max_rows / 2;
+                    for (int h_idx = 0; h_idx < half; ++h_idx) {
+                        self(self, n, c, h_idx, 0, depth + 1);
+                        std::cout << std::endl << " ";
+                    }
+                    std::cout << "..." << std::endl << " ";
+                    for (int h_idx = H - half; h_idx < H; ++h_idx) {
+                        self(self, n, c, h_idx, 0, depth + 1);
+                        if (h_idx < H - 1) {
+                            std::cout << std::endl << " ";
+                        }
+                    }
+                } else {
+                    for (int h_idx = 0; h_idx < H; ++h_idx) {
+                        self(self, n, c, h_idx, 0, depth + 1);
+                        if (h_idx < H - 1) {
+                            std::cout << std::endl << " ";
+                        }
+                    }
+                }
+                std::cout << "]";
+                return;
+            }
+
+            if (depth == 0) {
+                for (int c_idx = 0; c_idx < C; ++c_idx) {
+                    self(self, n, c_idx, 0, 0, depth + 1);
+                    if (c_idx < C - 1) {
+                        std::cout << std::endl << std::endl;
+                    }
+                }
+                std::cout << "]";
+                return;
+            }
+        };
+
+        // 打印整个 Tensor
+        for (int n_idx = 0; n_idx < N; ++n_idx) {
+            printRecursive(printRecursive, n_idx, 0, 0, 0, 0);
+            if (n_idx < N - 1) {
+                std::cout << std::endl << std::endl;
+            }
+        }
+    }
+
+    template <typename Dtype>
     void printData() {
         if (ctype() == BTHWC || ctype() == BCTHW) {
             printData<Dtype>();
@@ -1322,6 +1427,7 @@ public:
                 std::cout << std::endl;
             }
         }
+        std::cout << std::endl;
     }
 
     template <typename Dtype>

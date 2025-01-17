@@ -50,6 +50,9 @@ protected:
     std::string chat_template_end;
 
 public:
+    Tokenizer(){
+        // do nothing
+    }
     explicit Tokenizer(const std::string &vocab_file);
     Tokenizer(const std::string &vocab_file, const std::string &merge_file) :
         Tokenizer(vocab_file) {
@@ -58,7 +61,7 @@ public:
     virtual ~Tokenizer() {
     }
     virtual void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) = 0;
-    void setSpecialToken(const std::string &bos = "", const std::string &eos = "", const std::string &unk = "", const std::string &nl = "");
+    virtual void setSpecialToken(const std::string &bos = "", const std::string &eos = "", const std::string &unk = "", const std::string &nl = "");
     static std::string replaceString(const std::string &str, char old_char, const std::string &new_char);
     static std::string unCapitalize(const std::string &str);
     bool getTokenId(const token_t &token, token_id_t &id);
@@ -173,11 +176,11 @@ public:
         return postprocess(out_string);
     }
     */
-    void set_chat_template(const std::string &pre, const std::string &end) {
+    virtual void set_chat_template(const std::string &pre, const std::string &end) {
         chat_template_pre = pre;
         chat_template_end = end;
     }
-    std::string apply_chat_template(const std::string &text) {
+    virtual std::string apply_chat_template(const std::string &text) {
         return chat_template_pre + text + chat_template_end;
     }
 };

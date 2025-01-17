@@ -7,6 +7,7 @@
 #include "Types.hpp"
 #include "memory/SystemMemoryManager.hpp"
 
+#include "op/CPUHeadLinear.hpp"
 #include "op/CPULinearInt8.hpp"
 #include "op/CPUPoEmbedding.hpp"
 #include "op/CPUSplitInput.hpp"
@@ -171,6 +172,7 @@ void CPUBackend::registerOps() {
     addCreator(LINEARINT8SHADOW, (CPUBackend::Creator *)(new CPULinearINT8ShadowCreator()));
     addCreator(IROPE, (CPUBackend::Creator *)(new CPUIRoPECreator()));
     addCreator(XP_KVCACHE, (CPUBackend::Creator *)(new CPUKVCacheXpCreator()));
+    addCreator(HEADLINEAR, (CPUBackend::Creator *)(new CPUHeadLinearCreator()));
 }
 TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {
     auto iter = map_function_.find(type);

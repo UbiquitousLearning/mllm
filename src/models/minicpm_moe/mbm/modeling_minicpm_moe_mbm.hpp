@@ -430,8 +430,7 @@ public:
         mbm_finish = true;
         while (mbm_finish) {
 #if defined(__ARM_NEON)
-            std::this_thread::yield(); // 使用 std::this_thread::yield() 让出线程的执行权
-            // std::this_thread::sleep_for(std::chrono::milliseconds(1));// 或者使用 std::this_thread::sleep_for() 添加短暂的睡眠时间
+            // sched_yield();
             std::atomic_thread_fence(std::memory_order_acquire); // 确保内存可见性
 #endif
             if (do_mbm_load) {

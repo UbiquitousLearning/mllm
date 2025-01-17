@@ -46,7 +46,7 @@ private:
 class CPUKVCacheNPUCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
-        int n_rep = (int)op_param["n_rep"];
+        int n_rep = (int)op_param["n_rep"] == 0 ? 1 : (int)op_param["n_rep"];
         int cache_max = (int)op_param["cache_max"];
         return new CPUKVCacheNPU(bn, name, n_rep, cache_max, threadCount);
     }
