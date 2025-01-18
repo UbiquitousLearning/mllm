@@ -649,7 +649,7 @@ uint32_t unicode_tolower(uint32_t cp) {
     return it == unicode_map_lowercase.end() ? cp : it->second;
 }
 
-std::vector<std::string> unicode_regex_split(const std::string &text, const std::vector<std::string> &regex_exprs) {
+std::vector<std::string> unicode_regex_split_naive(const std::string &text, const std::vector<std::string> &regex_exprs) {
     // unicode categories
     static const std::map<std::string, int> k_ucat_enum = {
         {"\\p{N}", codepoint_flags::NUMBER},
@@ -818,5 +818,9 @@ std::vector<std::string> unicode_regex_split(const std::string &text, const std:
         start += offset;
     }
 
-    return unicode_byte_encoding_process(bpe_words);
+    return bpe_words;
+}
+
+std::vector<std::string> unicode_regex_split(const std::string &text, const std::vector<std::string> &regex_exprs){
+    return unicode_byte_encoding_process(unicode_regex_split_naive(text, regex_exprs));
 }
