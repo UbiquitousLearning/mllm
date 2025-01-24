@@ -128,61 +128,47 @@ public:
 
         // q: [bs, len, 1, num_heads * q_head_dim]
         auto q = q_b_proj(q_a_layernorm(q_a_proj(hidden_states)));
-
-        // q: [bs, num_heads, len, q_head_dim]
-        q = q.view(-1, num_heads, -1, q_head_dim).transpose(SEQUENCE, HEAD);
-
-        // q_nope: [bs, num_heads, len, qk_nope_head_dim]
-        // q_pe: [bs, num_heads, len, qk_rope_head_dim]
-        auto qs = Tensor::split(q, {qk_nope_head_dim, qk_rope_head_dim}, D_HD, 1);
+        // q_nope: [bs, len, num_heads, qk_nope_head_dim]
+        // q_pe: [bs, len, num_heads, qk_rope_head_dim]
+        auto qs = q.split({qk_nope_head_dim, qk_rope_head_dim}, D_HD, num_heads);
         auto q_nope = qs[0];
         auto q_pe = qs[1];
+        q_pe = q_rope(q_pe);
+        auto query_states = Tensor::cat({q_pe, q_nope}, DIMENSION);
 
         // compressed_kv: [bs, len, 1, kv_lora_rank + qk_rope_head_dim]
         auto compressed_kv = kv_a_proj_with_mqa(hidden_states);
-
         // compressed_kv: [bs, len, 1, kv_lora_rank]
         // k_pe: [bs, len, 1, qk_rope_head_dim]
-        auto kvs = Tensor::split(compressed_kv, {kv_lora_rank, qk_rope_head_dim}, DIMENSION, 1);
+        auto kvs = compressed_kv.split({kv_lora_rank, qk_rope_head_dim}, DIMENSION);
         compressed_kv = kvs[0];
         Tensor k_pe = kvs[1];
-
-        // k_pe: [bs, 1, len, qk_rope_head_dim]
-        k_pe = k_pe.transpose(SEQUENCE, HEAD);
-
-        // kv: [bs, num_heads, len, q_head_dim - qk_rope_head_dim + v_head_dim]
-        auto kv = kv_b_proj(kv_a_layernorm(compressed_kv)).view(-1, num_heads, -1, qk_nope_head_dim + v_head_dim).transpose(SEQUENCE, HEAD);
-
-        // k_nope: [bs, num_heads, len, qk_nope_head_dim]
-        // value_states: [bs, num_heads, len , v_head_dim]
-        kvs = Tensor::split(kv, {qk_nope_head_dim, v_head_dim}, D_HD, 1);
+        // kv: [bs, len, 1, num_heads * (q_head_dim - qk_rope_head_dim + v_head_dim)]
+        auto kv = kv_b_proj(kv_a_layernorm(compressed_kv));
+        // k_nope: [bs, len, num_heads, qk_nope_head_dim]
+        // value_states: [bs, len, num_heads, v_head_dim]
+        kvs = kv.split({qk_nope_head_dim, v_head_dim}, D_HD, num_heads);
         auto k_nope = kvs[0];
         auto value_states = kvs[1];
-
-        q_pe = q_rope(q_pe);
         k_pe = k_rope(k_pe);
-
-        auto query_states = Tensor::cat({q_pe, q_nope}, DIMENSION);
-
         std::vector<Tensor> broad_casted_k_pe_list;
         broad_casted_k_pe_list.reserve(num_heads);
         for (int i = 0; i < num_heads; i++) {
             broad_casted_k_pe_list.push_back(k_pe);
         }
         k_pe = Tensor::cat(broad_casted_k_pe_list, HEAD);
-
         // TODO error below.
         auto key_states = Tensor::cat({k_pe, k_nope}, DIMENSION);
 
         // original
-        // value_states: [bs, num_heads, len , v_head_dim]
-        // k_nope: [bs, num_heads, len, qk_nope_head_dim + qk_rope_head_dim]
+        // value_states: [bs, len, num_heads, v_head_dim]
+        // k_nope: [bs, len, num_heads, qk_nope_head_dim + qk_rope_head_dim]
         // after kvcache
         // ...
         key_states = k_cache(key_states);
         value_states = v_cache(value_states);
-
-        auto attn_weight = Tensor::mm(query_states, key_states.transpose(DIMENSION, HEAD));
+        key_states = key_states.transpose(SEQUENCE, DIMENSION);
+        auto attn_weight = Tensor::mm(query_states, key_states);
         attn_weight = attn_weight * softmax_scale;
         attn_weight = softmax(attn_weight, k_cache.getCacheSeqLen());
         auto attn_output = Tensor::mm(attn_weight, value_states);
