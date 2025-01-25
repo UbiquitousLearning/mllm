@@ -533,7 +533,7 @@ private:
 
 class QWenForCausalLM_NPU final : public Module {
 public:
-    QWenForCausalLM_NPU(QWenConfig &config, int chunk_size) {
+    QWenForCausalLM_NPU(QWenConfig &config, int chunk_size = 64) {
         auto names = config.names_config;
         hidden_size = config.hidden_size;
         tie_embedding_words = config.tie_embedding_words;
