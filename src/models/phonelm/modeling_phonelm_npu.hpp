@@ -10,6 +10,7 @@
 
 using namespace mllm;
 
+namespace phonelm {
 // get the closest factors of a number, used in NPU part2 view to speed up the QNN linear
 inline pair<int, int> closestFactors(int n) {
     int root = static_cast<int>(sqrt(n));
@@ -20,6 +21,7 @@ inline pair<int, int> closestFactors(int n) {
     }
     return {1, n};
 }
+} // namespace phonelm
 
 // NPU QKV part
 class PhoneLMDecoderNPUPart1 final : public Module {
@@ -196,7 +198,7 @@ public:
         num_key_value_groups = num_heads / num_key_value_heads;
 
         // for QNN linear speed up
-        pre_oproj_view = View(1, closestFactors(chunk_size).first, closestFactors(chunk_size).second, head_dim * num_heads, base_name + names._attn_base_name + "or_split-00_view_");
+        pre_oproj_view = View(1, phonelm::closestFactors(chunk_size).first, phonelm::closestFactors(chunk_size).second, head_dim * num_heads, base_name + names._attn_base_name + "or_split-00_view_");
         out_proj = Linear(hidden_size, hidden_size, false, base_name + names._attn_base_name + names._o_proj_name);
         post_oproj_dequantize = Dequantize(true, base_name + names._attn_base_name + names._o_proj_name + ".dequantize");
         post_oproj_view = View(1, 1, chunk_size, hidden_size, base_name + names._attn_base_name + names._o_proj_name + ".dequantize-00_view_");
@@ -207,7 +209,7 @@ public:
 
         auto mlp_base_name = base_name + names._ffn_base_name;
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
-        pre_mlp_view = View(1, closestFactors(chunk_size).first, closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
+        pre_mlp_view = View(1, phonelm::closestFactors(chunk_size).first, phonelm::closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
         relu = ReLU(mlp_base_name + names._gate_proj_name + ".relu");
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
@@ -306,7 +308,7 @@ public:
         num_key_value_groups = num_heads / num_key_value_heads;
 
         // for QNN linear speed up
-        pre_oproj_view = View(1, closestFactors(chunk_size).first, closestFactors(chunk_size).second, head_dim * num_heads, base_name + names._attn_base_name + "or_split-00_view_");
+        pre_oproj_view = View(1, phonelm::closestFactors(chunk_size).first, phonelm::closestFactors(chunk_size).second, head_dim * num_heads, base_name + names._attn_base_name + "or_split-00_view_");
         out_proj = Linear(hidden_size, hidden_size, false, base_name + names._attn_base_name + names._o_proj_name);
         post_oproj_dequantize = Dequantize(true, base_name + names._attn_base_name + names._o_proj_name + ".dequantize");
         post_oproj_view = View(1, 1, chunk_size, hidden_size, base_name + names._attn_base_name + names._o_proj_name + ".dequantize-00_view_");
@@ -317,7 +319,7 @@ public:
 
         auto mlp_base_name = base_name + names._ffn_base_name;
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
-        pre_mlp_view = View(1, closestFactors(chunk_size).first, closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
+        pre_mlp_view = View(1, phonelm::closestFactors(chunk_size).first, phonelm::closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
         relu = ReLU(mlp_base_name + names._gate_proj_name + ".relu");
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
