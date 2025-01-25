@@ -9,6 +9,7 @@ public:
     QNNRoPE(Backend *bn, string opName, int pose_type);
     QNNRoPE(Backend *bn, string opName, int pose_type, float rope_theta, int max_position_embeddings);
     QNNRoPE(Backend *bn, string opName, int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings);
+    QNNRoPE(Backend *bn, string opName, OpParam &config);
     virtual ~QNNRoPE() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
@@ -17,7 +18,7 @@ public:
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
-
+    static vector<float> theta_;
     static vector<vector<float>> sin_;
     static vector<vector<float>> cos_;
     static int global_pose_type_;
@@ -28,6 +29,10 @@ private:
     int pose_type_ = 4;
     int ishape;
     float partial_rotary_factor_ = 1;
+
+    OpParam config_;
+
+    RoPEThetaType rope_type = DEFAULT;
 
     Tensor hcntTensor_;
 
@@ -40,6 +45,12 @@ private:
 class QNNRoPECreator : public QNNBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
+        // from CPURoPE.cpp 2025/1/24
+        auto it = op_param.find("rope_type");
+        if (it != op_param.end()) {
+            return new QNNRoPE(bn, name, op_param);
+        }
+
         int pose_type = op_param["pose_type"];
         if (op_param.find("rope_theta") == op_param.end()) {
             return new QNNRoPE(bn, name, pose_type);
