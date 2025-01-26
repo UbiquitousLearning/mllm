@@ -74,13 +74,13 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
         module_ = make_shared<QWenForCausalLM>(qwconfig);
 #ifdef USE_QNN
         if (backend_type == MLLMBackendType::QNN) {
-            prefill_module_ = make_shared<QWenForCausalLM_NPU>(qwconfig);
+            int chunk_size = 64;
+            prefill_module_ = make_shared<QWenForCausalLM_NPU>(qwconfig, chunk_size);
             prefill_module_->load(qnn_weights_path);
 
             auto tokenizer = dynamic_pointer_cast<QWenTokenizer>(tokenizer_);
             // warmup START
             std::string input_str = " ";
-            int chunk_size = 64;
             auto res = tokenizer->tokenizePaddingByChunk(input_str, chunk_size, 151936);
             auto input_tensor = res.second;
             auto real_seq_length = res.first;
