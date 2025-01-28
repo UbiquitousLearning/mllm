@@ -55,7 +55,7 @@ public:
                 if (idx > 0) {
                     cseq += inputs[idx - 1]->sequence();
                 }
-                inputs[idx]->deepCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
             }
         } else if (axis == DIMENSION && inputs[0]->head() != 1) {
             int cbatch = 0;
@@ -78,7 +78,7 @@ public:
                         }
                     }
                 }
-                inputs[idx]->deepCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
                 if (inputs[idx]->deaggregatedTensor() != nullptr) {
                     vector<shared_ptr<Tensor>> shared_outputs = {};
                     for (int t = 0; t < inputs[idx]->deaggregatedTensor()->aggregatedTensors().size(); t++) {

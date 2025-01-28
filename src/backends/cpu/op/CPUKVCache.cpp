@@ -176,12 +176,12 @@ ErrorCode CPUKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
     outputs[0]->setDtype(cache_.dtype());
-    outputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ / cache_limit_, 0});
+    outputs[0]->shallowCopyFrom(cache_, false, {0, 0, cache_seq_len_ / cache_limit_, 0});
     if (inputs[0]->sequence() + cache_seq_len_ > cache_limit_) {
-        outputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_ + 1, 0});
+        outputs[0]->shallowCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_ + 1, 0});
     }
     if (inputs[0]->masterTensor() == nullptr) { inputs[0]->free(); }
-    inputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_, 0});
+    inputs[0]->shallowCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_, 0});
     return MLLM_NO_ERROR;
 }
 } // namespace mllm

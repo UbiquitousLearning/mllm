@@ -183,8 +183,8 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
             chunked_tensors[j]->setBackend(net->backends()[BackendType::MLLM_CPU].get());
             chunked_tensors[j]->reshape(1, 1, chunk_size, 1);
             chunked_tensors[j]->setName(net->inputNames()[j]);
-            // use deepCopyFrom for each chunk to avoid memcpy
-            chunked_tensors[j]->deepCopyFrom(input_tensors[j].get(), false, {0, 0, i * chunk_size, 0});
+            // use shallowCopyFrom for each chunk to avoid memcpy
+            chunked_tensors[j]->shallowCopyFrom(input_tensors[j].get(), false, {0, 0, i * chunk_size, 0});
         }
     }
 
@@ -431,8 +431,8 @@ void QNNPipelineExecutor::warmup(Context *ctx, Net *net, vector<shared_ptr<Tenso
                 chunked_tensors[j]->setBackend(net->backends()[BackendType::MLLM_CPU].get());
                 chunked_tensors[j]->reshape(1, 1, chunk_size, 1);
                 chunked_tensors[j]->setName(net->inputNames()[j]);
-                // use deepCopyFrom for each chunk to avoid memcpy
-                chunked_tensors[j]->deepCopyFrom(input_tensors[j].get(), false, {0, 0, i * chunk_size, 0});
+                // use shallowCopyFrom for each chunk to avoid memcpy
+                chunked_tensors[j]->shallowCopyFrom(input_tensors[j].get(), false, {0, 0, i * chunk_size, 0});
             }
         }
 

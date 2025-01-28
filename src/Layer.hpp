@@ -304,7 +304,8 @@ protected:
                     default: {
                     }
                     }
-                    if (activation_tensors_num[input_tensor->name()] == 0 && activation_tensors[input_tensor->name()]->sequence() > 1) {
+                    if (activation_tensors_num[input_tensor->name()] == 0 && activation_tensors[input_tensor->name()]->sequence() > 1
+                        && activation_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
                         activation_tensors[input_tensor->name()]->free();
                         // std::cout << input_tensor->name() << "|" << std::endl;
                     }

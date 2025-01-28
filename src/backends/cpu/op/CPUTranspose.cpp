@@ -54,7 +54,7 @@ ErrorCode CPUTranspose::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     outputs[0]->setDtype(activation_dtype());
     outputs[0]->alloc();
     // outputs[0]->transShape(SEQUENCE, DIMENSION);
-    inputs[0]->deepCopyFrom(outputs[0].get(), false);
+    inputs[0]->shallowCopyFrom(outputs[0].get(), false);
     inputs[0]->transShape(axis0_, axis1_, true);
     // if(inputs[0]->ctype() == BSHD) {
     //     inputs[0]->transShape(SEQUENCE, DIMENSION, true);

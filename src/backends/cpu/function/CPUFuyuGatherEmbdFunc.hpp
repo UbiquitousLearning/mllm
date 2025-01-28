@@ -30,7 +30,7 @@ public:
             inputs[0]->free();
         }
         outputs[0]->alloc();
-        inputs[0]->deepCopyFrom(outputs[0], false);
+        inputs[0]->shallowCopyFrom(outputs[0], false);
     }
     void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
         if (inputs[1]->batch() == 0) {

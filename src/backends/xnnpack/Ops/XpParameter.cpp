@@ -60,7 +60,7 @@ ErrorCode XpParameter::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 }
 
 ErrorCode XpParameter::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    outputs[0]->deepCopyFrom(&weight_, false);
+    outputs[0]->shallowCopyFrom(&weight_, false);
     return MLLM_NO_ERROR;
 }
 

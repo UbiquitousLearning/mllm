@@ -185,22 +185,22 @@ ErrorCode CPUKVCacheNPU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     // when decoding, the input will deepCopy from cache, no need to execute
     if (isDecoding) {
         outputs[0]->setDtype(cache_.dtype());
-        outputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ / cache_limit_, 0});
+        outputs[0]->shallowCopyFrom(cache_, false, {0, 0, cache_seq_len_ / cache_limit_, 0});
         if (inputs[0]->sequence() + cache_seq_len_ > cache_limit_) {
-            outputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_ + 1, 0});
+            outputs[0]->shallowCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_ + 1, 0});
         }
         if (inputs[0]->masterTensor() == nullptr) {
             inputs[0]->free();
         }
-        inputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_, 0});
+        inputs[0]->shallowCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_, 0});
         return MLLM_NO_ERROR;
     }
 
     // output setup
     outputs[0]->setDtype(cache_.dtype());
-    outputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ / cache_limit_, 0});
+    outputs[0]->shallowCopyFrom(cache_, false, {0, 0, cache_seq_len_ / cache_limit_, 0});
     if (inputs[0]->sequence() + cache_seq_len_ > cache_limit_) {
-        outputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_ + 1, 0});
+        outputs[0]->shallowCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_ + 1, 0});
     }
 
     inputs[0]->setDtype(cache_.dtype());
