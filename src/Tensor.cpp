@@ -187,6 +187,12 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
         func->execute({module_tensors[next_name].get()}, tensorPtrs, float_args);
         break;
     }
+    case TENSOR_STATIC_TRACE: {
+        if (backend_->type() == BackendType::MLLM_CPU) {
+            Tracer::addTensorFunction(func, tensorPtrs, {module_tensors[next_name].get()}, float_args);
+        }
+        break;
+    }
     default: {
     }
     }
@@ -205,7 +211,8 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
                 default: {
                 }
                 }
-                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1 
+                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |F" << std::endl;
                 }
@@ -266,7 +273,8 @@ void Tensor::getFunc(const TensorFuncType type,
                 default: {
                 }
                 }
-                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1
+                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |F" << std::endl;
                 }
@@ -329,6 +337,12 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
         func->execute(outPtrs, input_tensors, float_args);
         break;
     }
+    case TENSOR_STATIC_TRACE: {
+        if (backend_h->type() == BackendType::MLLM_CPU) {
+            Tracer::addTensorFunction(func, input_tensors, outPtrs, float_args);
+        }
+        break;
+    }
     default: {
     }
     }
@@ -347,7 +361,8 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
                 default: {
                 }
                 }
-                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1
+                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |S "<< std::endl;// << out_names[0] << std::endl;
                 }

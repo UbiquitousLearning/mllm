@@ -82,14 +82,14 @@ int main(int argc, char **argv) {
 
     int chunk = 1;
     if (isChunkExecute)
-        chunk = seqLength / 256;
+        chunk = seqLength / 128;
 
     int vocab_size = 151936;
     int hidden_dim = cmdParser.get<int>("hds");
     int ffn_hidden_dim = cmdParser.get<int>("ffn");
 
     vector<string> in_strs = {
-        "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\nGive me a short introduction to large language model.<|im_end|>\n<|im_start|>assistant\n",
+        "\"Large Language Models (LLMs) are advanced artificial intelligence systems designed to understand and generate human-like text. These models are trained on vast amounts of data, enabling them to perform a wide range of tasks, from answering questions and summarizing text to generating creative content and engaging in conversational dialogue. LLMs like GPT-3 and GPT-4, developed by OpenAI, have set new benchmarks in natural language processing by leveraging deep learning architectures, particularly transformer models, which excel at capturing context and relationships within text. The scalability and versatility of LLMs make them invaluable tools for applications in education, customer service, content creation, and more. However, their deployment also raises ethical considerations, including issues of bias, misinformation, and the potential for misuse. As the field continues to evolve, ongoing research and responsible deployment strategies are essential to harnessing the full potential of these powerful AI systems while mitigating their risks.\"\nGenerate a title based on the above text."
         // " What can you do?",
         // "Please introduce Beijing University of Posts and Telecommunications."};
     };
@@ -152,7 +152,8 @@ int main(int argc, char **argv) {
 
     for (int str_i = 0; str_i < in_strs.size(); ++str_i) {
         // auto in_str = in_strs[str_i];
-        auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(input_string, seqLength, vocab_size);
+        auto input_str = tokenizer.apply_chat_template(input_string);
+        auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(input_str, seqLength, vocab_size);
         auto input = std::make_shared<Tensor>(input_tensor);
 
         if (chunk != 1)
@@ -178,7 +179,6 @@ int main(int argc, char **argv) {
             if (token_idx == 2) { // "</s>"
                 break;
             }
-            // exit(0);
 
             auto out_token = tokenizer.detokenize({token_idx});
             std::cout << out_token << std::flush;
@@ -186,11 +186,14 @@ int main(int argc, char **argv) {
             auto prefill_cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
             auto inter_cpu_backend = dynamic_cast<CPUBackend *>(interNet.backends()[MLLM_CPU].get());
             auto decode_cpu_backend = dynamic_cast<CPUBackend *>(cpuNet.backends()[MLLM_CPU].get());
-            prefill_cpu_backend->setSequenceLength(real_seq_length);
+            prefill_cpu_backend->setCurSequenceLength(real_seq_length);
+            prefill_cpu_backend->setExecutionType(AUTOREGRESSIVE);
             prefill_cpu_backend->toggleSwitching();
-            inter_cpu_backend->setSequenceLength(real_seq_length);
+            inter_cpu_backend->setCurSequenceLength(real_seq_length);
+            inter_cpu_backend->setExecutionType(AUTOREGRESSIVE);
             inter_cpu_backend->toggleSwitching();
-            decode_cpu_backend->setSequenceLength(real_seq_length);
+            decode_cpu_backend->setCurSequenceLength(real_seq_length);
+            decode_cpu_backend->setExecutionType(AUTOREGRESSIVE);
             decode_cpu_backend->toggleSwitching();
 
             // // 2: Decoding stage using CPU execute
@@ -199,12 +202,14 @@ int main(int argc, char **argv) {
                 auto result = cpuExe.result();
 
                 auto token_idx = postProcessing(result[0], input);
-                if (token_idx == 2) { // "</s>"
+                auto out_token = tokenizer.detokenize({token_idx});
+
+                auto [isOk, print_string] = tokenizer.postprocess(out_token);
+                if (isOk) {
+                    std::cout << print_string << std::flush;
+                } else {
                     break;
                 }
-
-                auto out_token = tokenizer.detokenize({token_idx});
-                std::cout << out_token << std::flush;
 
                 if (step == real_seq_length) {
                     prefill_cpu_backend->toggleSwitching();

@@ -33,14 +33,26 @@ public:
     static int cpu_threads;
 
     // #ifdef USE_QNN
-    void setSequenceLength(int sequence_length) {
-        sequence_length_ = sequence_length;
+    void setCurSequenceLength(int sequence_length) {
+        cur_sequence_length_ = sequence_length;
     }
-    int getSequenceLength() {
-        return sequence_length_;
+    int getCurSequenceLength() {
+        return cur_sequence_length_;
+    }
+    void setTotalSequenceLength(int sequence_length) {
+        total_sequence_length_ = sequence_length;
+    }
+    int getTotalSequenceLength() {
+        return total_sequence_length_;
     }
     void toggleSwitching() {
         isSwitchingStage = !isSwitchingStage;
+    }
+    void setChunkSize(int chunk_size) {
+        chunk_size_ = chunk_size;
+    }
+    int getChunkSize() {
+        return chunk_size_;
     }
     bool isStageSwitching() {
         return isSwitchingStage;
@@ -56,7 +68,12 @@ private:
     std::map<OpType, CPUBackend::Creator *> map_creator_;
     std::map<TensorFuncType, TensorFunction *> map_function_;
     // #ifdef USE_QNN
-    int sequence_length_ = 0;
+    // auto regression seq state
+    int cur_sequence_length_ = 0;
+    // total real seq length used for chunk&padding input
+    int total_sequence_length_ = 0;
+    // chunk size used in HeadLinear
+    int chunk_size_ = 0;
     bool isSwitchingStage = false;
     ExecutionType execution_type = PROMPT;
     // #endif

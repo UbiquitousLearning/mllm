@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
 
     auto tokenizer = SmolLMTokenizer(vocab_path, merge_path);
     PhoneLMConfig config(tokens_limit, "1.5B");
-    auto model = PhoneLMForCausalLM_NPU(config);
+    auto model = PhoneLMForCausalLM_NPU(config, chunk_size);
     model.load(model_path);
     auto decoding_model = PhoneLMForCausalLM(config);
     decoding_model.load(decoding_path);
@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
         return true;
     });
     Module::isFirstChunk = false;
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(0);
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
     // turn on the multi-chunk prefilling
@@ -79,6 +79,11 @@ int main(int argc, char **argv) {
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
 
+        // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setTotalSequenceLength(real_seq_length);
+        // set chunk size for the HeadLinear execute, which can not get the chunk size from Opts
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setChunkSize(chunk_size);
+
         // tensor vectors to save the chunked tensors of the QNN prefilling input
         vector<Tensor> chunked_tensors(chunk_num);
         LlmTextGeneratorOpts opt{
@@ -94,7 +99,7 @@ int main(int argc, char **argv) {
             chunked_tensors[chunk_id].setTtype(INPUT_TENSOR);
             chunked_tensors[chunk_id].reshape(1, 1, chunk_size, 1);
             chunked_tensors[chunk_id].setName("input-chunk-" + to_string(chunk_id));
-            chunked_tensors[chunk_id].deepCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
+            chunked_tensors[chunk_id].shallowCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
 
             model.generate(chunked_tensors[chunk_id], opt, [&](unsigned int out_token) -> bool {
                 // if (i != 0 && !isSwitched && chunk_id == 0) {
@@ -115,7 +120,7 @@ int main(int argc, char **argv) {
         }
 
         // turn on switching, set sequence length and execution type
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(real_seq_length);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(real_seq_length);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
 
@@ -141,7 +146,7 @@ int main(int argc, char **argv) {
         });
 
         // turn on switching, set sequence length and execution type
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setSequenceLength(0);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
         std::cout << "\n";

@@ -35,7 +35,13 @@ enum TensorStatus {
     // TENSOR_DYNAMIC,
     TENSOR_STATIC_INIT,
     TENSOR_STATIC_READY,
+    TENSOR_STATIC_TRACE,
     TENSOR_UNDEFINED,
+};
+
+enum CallableType {
+    OP,
+    TENSOR_FUNC
 };
 
 enum ErrorCode {
@@ -139,6 +145,11 @@ enum RoPEType {
     PERSIMMONROPE = 3,
     HFHUBROPE = 4,
     MLAROPE = 5,
+};
+
+enum RoPEThetaType {
+    DEFAULT = 0,
+    LLAMA3 = 1,
 };
 
 enum ExecutionType {

@@ -838,7 +838,7 @@ public:
     static Tensor &phi3v_hd_merge(Tensor &input, int h_crop, int w_crop);
 
     /* Functions used for ChildTensor:
-     * - deepCopyFrom
+     * - shallowCopyFrom
      * - shape_offset
      * - shape_master
      * - masterTensor
@@ -854,7 +854,7 @@ public:
      * \param head_rep the repeat number of heads of ChildTensor compared to MasterTensor.
      *                 used for repeat the head of K/V in Transformer-based LLMs. Default is 1.
      */
-    void deepCopyFrom(Tensor *source, bool copyshape = true, const vector<int> &shape_offset = {}, int head_rep = 1) {
+    void shallowCopyFrom(Tensor *source, bool copyshape = true, const vector<int> &shape_offset = {}, int head_rep = 1) {
         if (!shape_offset.empty()) {
             copyshape = false;
         }
@@ -973,18 +973,18 @@ public:
                 if (!shape_offset.empty()) {
                     origin_shape_offset[2] = shape_offset[2];
                 }
-                child_tensor->deepCopyFrom(source, false, origin_shape_offset, head_rep);
+                child_tensor->shallowCopyFrom(source, false, origin_shape_offset, head_rep);
             } else if (!shape_offset.empty()) {
-                child_tensor->deepCopyFrom(source, false, shape_offset, head_rep);
+                child_tensor->shallowCopyFrom(source, false, shape_offset, head_rep);
             } else {
-                child_tensor->deepCopyFrom(source, false, {}, head_rep);
+                child_tensor->shallowCopyFrom(source, false, {}, head_rep);
             }
             it = child_tensors_.erase(it);
         }
         source->addChildTensor(this);
     }
-    void deepCopyFrom(Tensor &source, bool copyshape = true, const vector<int> &shape_offset = {}, int head_rep = 1) {
-        deepCopyFrom(&source, copyshape, shape_offset, head_rep);
+    void shallowCopyFrom(Tensor &source, bool copyshape = true, const vector<int> &shape_offset = {}, int head_rep = 1) {
+        shallowCopyFrom(&source, copyshape, shape_offset, head_rep);
     }
 
     vector<int> shapeOffset() const {
@@ -1113,7 +1113,9 @@ public:
     Tensor &to(BackendType backend_type);
     static vector<Tensor> toDevice(vector<Tensor> inputs, BackendType backend_type) {
         for (auto &input : inputs) {
-            input.to(backend_type);
+            if (input.device() != backend_type) {
+                input.to(backend_type);
+            }
         }
         return inputs;
     };
@@ -1235,6 +1237,178 @@ public:
     void setModule(Module *module) {
         module_ = module;
     }
+    void transCopyShape(const vector<int> &shape) {
+        reshape(shape);
+    }
+
+private:
+    bool reshape(const vector<int> &shape) {
+        assert(shape.size() <= 32);
+        count_ = 1;
+        shape_.resize(shape.size());
+        for (int i = 0; i < shape.size(); ++i) {
+            assert(shape[i] >= 0);
+            if (count_ != 0) {
+                assert(shape[i] <= std::numeric_limits<uint64_t>::max() / count_);
+            }
+            count_ *= shape[i];
+            shape_[i] = shape[i];
+        }
+        if (count_ > capacity_) {
+            capacity_ = count_;
+            return true;
+        }
+        return false;
+    }
+    int shape(int index) const {
+        return shape_[canonicalAxisIndex(index)];
+    }
+
+    int checkDim(int &b, int &h, int &s, int &d) {
+        if (!aggregated_) {
+            return -1;
+        }
+        int tensor_id = -1;
+        switch (aggregated_dim_) {
+        case HEAD: {
+            for (int a = 0; a < aggregated_dims_.size(); ++a) {
+                if (h < aggregated_dims_[a]) {
+                    tensor_id = a;
+                    break;
+                }
+            }
+            if (tensor_id > 0)
+                h = h - aggregated_dims_[tensor_id - 1];
+            break;
+        }
+        case SEQUENCE: {
+            for (int a = 0; a < aggregated_dims_.size(); ++a) {
+                if (s < aggregated_dims_[a]) {
+                    tensor_id = a;
+                    break;
+                }
+            }
+            if (tensor_id > 0)
+                s = s - aggregated_dims_[tensor_id - 1];
+            break;
+        }
+        case DIMENSION: {
+            for (int a = 0; a < aggregated_dims_.size(); ++a) {
+                if (d < aggregated_dims_[a]) {
+                    tensor_id = a;
+                    break;
+                }
+            }
+            if (tensor_id > 0) {
+                d = d - aggregated_dims_[tensor_id - 1];
+            }
+            break;
+        }
+        case D_HD: {
+            if (aggregated_tensors_[0]->dimension() == aggregated_tensors_[1]->dimension()) {
+                int dim_size = aggregated_tensors_[0]->dimension();
+                int aggregated_size = aggregated_tensors_.size();
+                h = d / (dim_size * aggregated_size);
+                auto d_m = d % (dim_size * aggregated_size);
+                tensor_id = d_m / dim_size;
+                d = d_m % dim_size;
+                // h = h_;
+            } else {
+                // TODO
+                auto orin_d = d;
+                int head_size = aggregated_tensors_[0]->head();
+                int dim_t = d % (dimension() / head_size);
+                int old_dim = 0;
+                for (int a = 0; a < aggregated_dims_.size(); ++a) {
+                    if (dim_t < aggregated_dims_[a]) {
+                        tensor_id = a;
+                        break;
+                    }
+                    old_dim += aggregated_tensors_[a]->dimension();
+                }
+                // int dim_size = aggregated_tensors_[tensor_id]->dimension();
+                h = d * head_size / dimension();
+                d = dim_t - old_dim;
+                // std::cout<<tensor_id<<" "<<h<<" "<<d<<" , "<<orin_d<<std::endl;
+            }
+            break;
+        }
+        case HD: {
+            auto orin_d = d;
+            if (aggregated_tensors_[0]->dimension() == aggregated_tensors_[1]->dimension()) {
+                int dim_size = aggregated_tensors_[0]->dimension();
+                int head_size = aggregated_tensors_[0]->head();
+                tensor_id = orin_d / (dim_size * head_size);
+                h = (orin_d - tensor_id * (dim_size * head_size)) / dim_size;
+                d = (orin_d - tensor_id * (dim_size * head_size)) % dim_size;
+            } else {
+                int head_size = aggregated_tensors_[0]->head();
+                int old_dim = 0;
+                for (int a = 0; a < aggregated_dims_.size(); ++a) {
+                    if (d < aggregated_dims_[a] * head_size) {
+                        tensor_id = a;
+                        break;
+                    }
+                    old_dim += aggregated_tensors_[a]->dimension();
+                }
+                int dim_size = aggregated_tensors_[tensor_id]->dimension();
+                h = (orin_d - old_dim * head_size) / dim_size;
+                d = (orin_d - old_dim * head_size) % dim_size;
+                // std::cout<<tensor_id<<" "<<h<<" "<<d<<" , "<<orin_d<<std::endl;
+            }
+            break;
+        }
+        case D_DH: {
+            auto orin_d = d;
+            int dim_size = aggregated_tensors_[0]->dimension();
+            int total_head_idx = d / dim_size;
+            d = d % dim_size;
+            int old_head_idx = 0;
+            for (int a = 0; a < aggregated_dims_.size(); ++a) {
+                old_head_idx += aggregated_dims_[a];
+                if (total_head_idx < old_head_idx) {
+                    tensor_id = a;
+                    old_head_idx -= aggregated_dims_[a];
+                    break;
+                }
+            }
+            h = total_head_idx - old_head_idx;
+            break;
+        }
+        default:
+            break;
+        }
+        return tensor_id;
+    }
+    Tensor &getFunc(const std::string &suffix, TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors = {});
+    void getFunc(TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors = {});
+
+    static std::vector<std::reference_wrapper<Tensor>> getStaticFunc(vector<std::string> out_names, TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors);
+
+public:
+    uint32_t &uuid();
+
+    TensorType &xnnTensorType();
+
+    void forceResetHostPointer(void *ptr);
+
+    float i8_scale = 1.f;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 public:
     /* Functions used for TEST & DEBUG
@@ -1282,6 +1456,109 @@ public:
     }
 
     template <typename Dtype>
+    void printDataTorchLike() {
+        if (ctype() == BTHWC || ctype() == BCTHW) {
+            printData<Dtype>();
+            return;
+        }
+
+        std::cout << "----------------------------------------" << std::endl;
+        std::cout << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "]" << std::endl;
+
+        int N = batch();
+        int C = head();
+        int H = sequence();
+        int W = dimension();
+
+        // 每行最多打印的元素数量
+        const int max_elements_per_line = 6;
+        // 最多打印的行数
+        const int max_rows = 6;
+
+        // 递归打印函数
+        auto printRecursive = [&](auto&& self, int n, int c, int h, int w, int depth) -> void {
+            if (depth == 0) {
+                std::cout << "[";
+            }
+
+            if (depth == 3) {
+                // 打印单个元素
+                std::cout << std::fixed << std::setprecision(7) << std::setw(10) << static_cast<float>(dataAt<Dtype>(n, c, h, w)) << " ";
+                if (w == W - 1) {
+                    std::cout << "]";
+                }
+                return;
+            }
+
+            if (depth == 2) {
+                std::cout << "[";
+                if (W > max_elements_per_line) {
+                    int half = max_elements_per_line / 2;
+                    for (int w_idx = 0; w_idx < half; ++w_idx) {
+                        self(self, n, c, h, w_idx, depth + 1);
+                    }
+                    std::cout << "... ";
+                    for (int w_idx = W - half; w_idx < W; ++w_idx) {
+                        self(self, n, c, h, w_idx, depth + 1);
+                    }
+                } else {
+                    for (int w_idx = 0; w_idx < W; ++w_idx) {
+                        self(self, n, c, h, w_idx, depth + 1);
+                    }
+                }
+                std::cout << "]";
+                return;
+            }
+
+            if (depth == 1) {
+                std::cout << "[";
+                if (H > max_rows) {
+                    int half = max_rows / 2;
+                    for (int h_idx = 0; h_idx < half; ++h_idx) {
+                        self(self, n, c, h_idx, 0, depth + 1);
+                        std::cout << std::endl << " ";
+                    }
+                    std::cout << "..." << std::endl << " ";
+                    for (int h_idx = H - half; h_idx < H; ++h_idx) {
+                        self(self, n, c, h_idx, 0, depth + 1);
+                        if (h_idx < H - 1) {
+                            std::cout << std::endl << " ";
+                        }
+                    }
+                } else {
+                    for (int h_idx = 0; h_idx < H; ++h_idx) {
+                        self(self, n, c, h_idx, 0, depth + 1);
+                        if (h_idx < H - 1) {
+                            std::cout << std::endl << " ";
+                        }
+                    }
+                }
+                std::cout << "]";
+                return;
+            }
+
+            if (depth == 0) {
+                for (int c_idx = 0; c_idx < C; ++c_idx) {
+                    self(self, n, c_idx, 0, 0, depth + 1);
+                    if (c_idx < C - 1) {
+                        std::cout << std::endl << std::endl;
+                    }
+                }
+                std::cout << "]";
+                return;
+            }
+        };
+
+        // 打印整个 Tensor
+        for (int n_idx = 0; n_idx < N; ++n_idx) {
+            printRecursive(printRecursive, n_idx, 0, 0, 0, 0);
+            if (n_idx < N - 1) {
+                std::cout << std::endl << std::endl;
+            }
+        }
+    }
+
+    template <typename Dtype>
     void printData() {
         if (ctype() == BTHWC || ctype() == BCTHW) {
             printData<Dtype>();
@@ -1322,6 +1599,7 @@ public:
                 std::cout << std::endl;
             }
         }
+        std::cout << std::endl;
     }
 
     template <typename Dtype>
@@ -1601,163 +1879,6 @@ public:
         }
     }
 
-    void transCopyShape(const vector<int> &shape) {
-        reshape(shape);
-    }
-
-private:
-    bool reshape(const vector<int> &shape) {
-        assert(shape.size() <= 32);
-        count_ = 1;
-        shape_.resize(shape.size());
-        for (int i = 0; i < shape.size(); ++i) {
-            assert(shape[i] >= 0);
-            if (count_ != 0) {
-                assert(shape[i] <= std::numeric_limits<uint64_t>::max() / count_);
-            }
-            count_ *= shape[i];
-            shape_[i] = shape[i];
-        }
-        if (count_ > capacity_) {
-            capacity_ = count_;
-            return true;
-        }
-        return false;
-    }
-    int shape(int index) const {
-        return shape_[canonicalAxisIndex(index)];
-    }
-
-    int checkDim(int &b, int &h, int &s, int &d) {
-        if (!aggregated_) {
-            return -1;
-        }
-        int tensor_id = -1;
-        switch (aggregated_dim_) {
-        case HEAD: {
-            for (int a = 0; a < aggregated_dims_.size(); ++a) {
-                if (h < aggregated_dims_[a]) {
-                    tensor_id = a;
-                    break;
-                }
-            }
-            if (tensor_id > 0)
-                h = h - aggregated_dims_[tensor_id - 1];
-            break;
-        }
-        case SEQUENCE: {
-            for (int a = 0; a < aggregated_dims_.size(); ++a) {
-                if (s < aggregated_dims_[a]) {
-                    tensor_id = a;
-                    break;
-                }
-            }
-            if (tensor_id > 0)
-                s = s - aggregated_dims_[tensor_id - 1];
-            break;
-        }
-        case DIMENSION: {
-            for (int a = 0; a < aggregated_dims_.size(); ++a) {
-                if (d < aggregated_dims_[a]) {
-                    tensor_id = a;
-                    break;
-                }
-            }
-            if (tensor_id > 0) {
-                d = d - aggregated_dims_[tensor_id - 1];
-            }
-            break;
-        }
-        case D_HD: {
-            if (aggregated_tensors_[0]->dimension() == aggregated_tensors_[1]->dimension()) {
-                int dim_size = aggregated_tensors_[0]->dimension();
-                int aggregated_size = aggregated_tensors_.size();
-                h = d / (dim_size * aggregated_size);
-                auto d_m = d % (dim_size * aggregated_size);
-                tensor_id = d_m / dim_size;
-                d = d_m % dim_size;
-                // h = h_;
-            } else {
-                // TODO
-                auto orin_d = d;
-                int head_size = aggregated_tensors_[0]->head();
-                int dim_t = d % (dimension() / head_size);
-                int old_dim = 0;
-                for (int a = 0; a < aggregated_dims_.size(); ++a) {
-                    if (dim_t < aggregated_dims_[a]) {
-                        tensor_id = a;
-                        break;
-                    }
-                    old_dim += aggregated_tensors_[a]->dimension();
-                }
-                // int dim_size = aggregated_tensors_[tensor_id]->dimension();
-                h = d * head_size / dimension();
-                d = dim_t - old_dim;
-                // std::cout<<tensor_id<<" "<<h<<" "<<d<<" , "<<orin_d<<std::endl;
-            }
-            break;
-        }
-        case HD: {
-            auto orin_d = d;
-            if (aggregated_tensors_[0]->dimension() == aggregated_tensors_[1]->dimension()) {
-                int dim_size = aggregated_tensors_[0]->dimension();
-                int head_size = aggregated_tensors_[0]->head();
-                tensor_id = orin_d / (dim_size * head_size);
-                h = (orin_d - tensor_id * (dim_size * head_size)) / dim_size;
-                d = (orin_d - tensor_id * (dim_size * head_size)) % dim_size;
-            } else {
-                int head_size = aggregated_tensors_[0]->head();
-                int old_dim = 0;
-                for (int a = 0; a < aggregated_dims_.size(); ++a) {
-                    if (d < aggregated_dims_[a] * head_size) {
-                        tensor_id = a;
-                        break;
-                    }
-                    old_dim += aggregated_tensors_[a]->dimension();
-                }
-                int dim_size = aggregated_tensors_[tensor_id]->dimension();
-                h = (orin_d - old_dim * head_size) / dim_size;
-                d = (orin_d - old_dim * head_size) % dim_size;
-                // std::cout<<tensor_id<<" "<<h<<" "<<d<<" , "<<orin_d<<std::endl;
-            }
-            break;
-        }
-        case D_DH: {
-            auto orin_d = d;
-            int dim_size = aggregated_tensors_[0]->dimension();
-            int total_head_idx = d / dim_size;
-            d = d % dim_size;
-            int old_head_idx = 0;
-            for (int a = 0; a < aggregated_dims_.size(); ++a) {
-                old_head_idx += aggregated_dims_[a];
-                if (total_head_idx < old_head_idx) {
-                    tensor_id = a;
-                    old_head_idx -= aggregated_dims_[a];
-                    break;
-                }
-            }
-            h = total_head_idx - old_head_idx;
-            break;
-        }
-        default:
-            break;
-        }
-        return tensor_id;
-    }
-    Tensor &getFunc(const std::string &suffix, TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors = {});
-    void getFunc(TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors = {});
-
-    static std::vector<std::reference_wrapper<Tensor>> getStaticFunc(vector<std::string> out_names, TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors);
-
-public:
-    uint32_t &uuid();
-
-    TensorType &xnnTensorType();
-
-    void forceResetHostPointer(void *ptr);
-
-public:
-    float i8_scale = 1.f;
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H

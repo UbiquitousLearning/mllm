@@ -199,7 +199,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 chunked_tensors[chunk_id].setTtype(INPUT_TENSOR);
                 chunked_tensors[chunk_id].reshape(1, 1, chunk_size, 1);
                 chunked_tensors[chunk_id].setName("input-chunk-" + to_string(chunk_id));
-                chunked_tensors[chunk_id].deepCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
+                chunked_tensors[chunk_id].shallowCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
 
                 prefill_module_->generate(chunked_tensors[chunk_id], opt, [&](unsigned int out_token) -> bool {
                     if (!isSwitched && chunk_id == 0 && static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->isStageSwitching()) {
@@ -331,7 +331,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                 chunked_tensors[chunk_id].setTtype(INPUT_TENSOR);
                 chunked_tensors[chunk_id].reshape(1, 1, chunk_size, 1);
                 chunked_tensors[chunk_id].setName("input-chunk-" + to_string(chunk_id));
-                chunked_tensors[chunk_id].deepCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
+                chunked_tensors[chunk_id].shallowCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
 
                 prefill_module_->generate(chunked_tensors[chunk_id], opt, [&](unsigned int out_token) -> bool {
                     // if (switch_flag && !isSwitched && chunk_id == 0) {

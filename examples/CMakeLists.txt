@@ -27,6 +27,7 @@ macro(func_llm_add_executable target)
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/WordPiece/WordPiece.cpp
+        ${PROJECT_SOURCE_DIR}/src/tokenizers/Tiktoken/tiktoken.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
         ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
         ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
@@ -61,6 +62,7 @@ func_llm_add_executable(demo_stablelm)
 func_llm_add_executable(demo_sparse_llama)
 func_llm_add_executable(demo_elastic_llama)
 func_llm_add_executable(demo_gemma)
+func_llm_add_executable(demo_gemma2)
 func_llm_add_executable(demo_qwen)
 func_llm_add_executable(demo_mistral)
 func_llm_add_executable(demo_yi)
@@ -74,7 +76,9 @@ func_llm_add_executable(demo_openelm)
 func_llm_add_executable(demo_dclm)
 func_llm_add_executable(demo_bert)
 func_llm_add_executable(demo_phonelm)
+func_llm_add_executable(demo_llama3)
 func_llm_add_executable(demo_minicpm_moe_mbm)
+
 
 
 func_vlm_add_executable(demo_llava)
@@ -94,6 +98,7 @@ if(QNN)
     func_llm_add_executable(demo_phonelm_npu)
     func_llm_add_executable(main_phonelm_npu)
     func_llm_add_executable(demo_qwen2.5_npu)
+    func_llm_add_executable(demo_qwen_pipeline)
 endif()
 
 

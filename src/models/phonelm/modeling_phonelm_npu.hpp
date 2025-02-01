@@ -10,6 +10,17 @@
 
 using namespace mllm;
 
+// get the closest factors of a number, used in NPU part2 view to speed up the QNN linear
+inline pair<int, int> closestFactors(int n) {
+    int root = static_cast<int>(sqrt(n));
+    for (int i = root; i > 0; --i) {
+        if (n % i == 0) {
+            return {i, n / i};
+        }
+    }
+    return {1, n};
+}
+
 // NPU QKV part
 class PhoneLMDecoderNPUPart1 final : public Module {
     int hidden_size;
@@ -36,7 +47,8 @@ class PhoneLMDecoderNPUPart1 final : public Module {
 
 public:
     PhoneLMDecoderNPUPart1() = default;
-    PhoneLMDecoderNPUPart1(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name) {
+
+    PhoneLMDecoderNPUPart1(const PhoneLMConfig &config, const PhoneLMNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -97,7 +109,8 @@ class PhoneLMQKVmm final : public Module {
 
 public:
     PhoneLMQKVmm() = default;
-    PhoneLMQKVmm(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name) {
+
+    PhoneLMQKVmm(const PhoneLMConfig &config, const PhoneLMNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads * config.hidden_size / config.num_attention_heads;
 
@@ -173,7 +186,8 @@ class PhoneLMDecoderNPUPart2 final : public Module {
 
 public:
     PhoneLMDecoderNPUPart2() = default;
-    PhoneLMDecoderNPUPart2(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name) {
+
+    PhoneLMDecoderNPUPart2(const PhoneLMConfig &config, const PhoneLMNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -182,10 +196,10 @@ public:
         num_key_value_groups = num_heads / num_key_value_heads;
 
         // for QNN linear speed up
-        pre_oproj_view = View(1, 2, 32, head_dim * num_heads, base_name + names._attn_base_name + "or_split-00_view_");
+        pre_oproj_view = View(1, closestFactors(chunk_size).first, closestFactors(chunk_size).second, head_dim * num_heads, base_name + names._attn_base_name + "or_split-00_view_");
         out_proj = Linear(hidden_size, hidden_size, false, base_name + names._attn_base_name + names._o_proj_name);
         post_oproj_dequantize = Dequantize(true, base_name + names._attn_base_name + names._o_proj_name + ".dequantize");
-        post_oproj_view = View(1, 1, 64, hidden_size, base_name + names._attn_base_name + names._o_proj_name + ".dequantize-00_view_");
+        post_oproj_view = View(1, 1, chunk_size, hidden_size, base_name + names._attn_base_name + names._o_proj_name + ".dequantize-00_view_");
         post_atten_res_add = Add(base_name + names._attn_base_name + "post_atten_add");
 
         post_attn_layernorm =
@@ -193,7 +207,7 @@ public:
 
         auto mlp_base_name = base_name + names._ffn_base_name;
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
-        pre_mlp_view = View(1, 2, 32, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
+        pre_mlp_view = View(1, closestFactors(chunk_size).first, closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
         relu = ReLU(mlp_base_name + names._gate_proj_name + ".relu");
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
@@ -203,7 +217,7 @@ public:
         down_proj = Linear(intermediate_size, hidden_size, false, mlp_base_name + names._down_proj_name);
         pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize");
         post_down_proj_dequantize = Dequantize(true, mlp_base_name + names._down_proj_name + ".dequantize");
-        post_mlp_view = View(1, 1, 64, hidden_size, mlp_base_name + names._down_proj_name + ".dequantize-00_view_");
+        post_mlp_view = View(1, 1, chunk_size, hidden_size, mlp_base_name + names._down_proj_name + ".dequantize-00_view_");
 
         mlp_mul = Mul(mlp_base_name + names._gate_proj_name + ".relu-00_mul_");
         post_mlp_res_add = Add(mlp_base_name + "res_add");
@@ -282,7 +296,8 @@ class PhoneLMDecoderNPUPart2WithShadow final : public Module {
 
 public:
     PhoneLMDecoderNPUPart2WithShadow() = default;
-    PhoneLMDecoderNPUPart2WithShadow(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name) {
+
+    PhoneLMDecoderNPUPart2WithShadow(const PhoneLMConfig &config, const PhoneLMNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -291,10 +306,10 @@ public:
         num_key_value_groups = num_heads / num_key_value_heads;
 
         // for QNN linear speed up
-        pre_oproj_view = View(1, 2, 32, head_dim * num_heads, base_name + names._attn_base_name + "or_split-00_view_");
+        pre_oproj_view = View(1, closestFactors(chunk_size).first, closestFactors(chunk_size).second, head_dim * num_heads, base_name + names._attn_base_name + "or_split-00_view_");
         out_proj = Linear(hidden_size, hidden_size, false, base_name + names._attn_base_name + names._o_proj_name);
         post_oproj_dequantize = Dequantize(true, base_name + names._attn_base_name + names._o_proj_name + ".dequantize");
-        post_oproj_view = View(1, 1, 64, hidden_size, base_name + names._attn_base_name + names._o_proj_name + ".dequantize-00_view_");
+        post_oproj_view = View(1, 1, chunk_size, hidden_size, base_name + names._attn_base_name + names._o_proj_name + ".dequantize-00_view_");
         post_atten_res_add = Add(base_name + names._attn_base_name + "post_atten_add");
 
         post_attn_layernorm =
@@ -302,7 +317,7 @@ public:
 
         auto mlp_base_name = base_name + names._ffn_base_name;
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
-        pre_mlp_view = View(1, 2, 32, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
+        pre_mlp_view = View(1, closestFactors(chunk_size).first, closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
         relu = ReLU(mlp_base_name + names._gate_proj_name + ".relu");
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
@@ -312,7 +327,7 @@ public:
         down_proj = Linear(intermediate_size, hidden_size, false, mlp_base_name + names._down_proj_name);
         pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize");
         post_down_proj_dequantize = Dequantize(true, mlp_base_name + names._down_proj_name + ".dequantize");
-        post_mlp_view = View(1, 1, 64, hidden_size, mlp_base_name + names._down_proj_name + ".dequantize-00_view_");
+        post_mlp_view = View(1, 1, chunk_size, hidden_size, mlp_base_name + names._down_proj_name + ".dequantize-00_view_");
 
         mlp_mul = Mul(mlp_base_name + "mul");
         post_mlp_res_add = Add(mlp_base_name + "res_add");
@@ -374,7 +389,8 @@ class PhoneLMNPU_CPUDecoder final : public Module {
 
 public:
     PhoneLMNPU_CPUDecoder() = default;
-    PhoneLMNPU_CPUDecoder(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name) {
+
+    PhoneLMNPU_CPUDecoder(const PhoneLMConfig &config, const PhoneLMNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -384,13 +400,13 @@ public:
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
         pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize");
 
-        part1 = PhoneLMDecoderNPUPart1(config, names, base_name + names._attn_base_name);
+        part1 = PhoneLMDecoderNPUPart1(config, names, chunk_size, base_name + names._attn_base_name);
         part1.to(MLLM_QNN);
 
-        qkv_mm = PhoneLMQKVmm(config, names, base_name + names._attn_base_name);
+        qkv_mm = PhoneLMQKVmm(config, names, chunk_size, base_name + names._attn_base_name);
         qkv_mm.to(MLLM_CPU);
 
-        part2 = PhoneLMDecoderNPUPart2(config, names, base_name);
+        part2 = PhoneLMDecoderNPUPart2(config, names, chunk_size, base_name);
         part2.to(MLLM_QNN);
     }
 
@@ -433,7 +449,8 @@ class PhoneLMNPU_CPUDecoderWithShadow final : public Module {
 
 public:
     PhoneLMNPU_CPUDecoderWithShadow() = default;
-    PhoneLMNPU_CPUDecoderWithShadow(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name) {
+
+    PhoneLMNPU_CPUDecoderWithShadow(const PhoneLMConfig &config, const PhoneLMNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -443,13 +460,13 @@ public:
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
         pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize");
 
-        part1 = PhoneLMDecoderNPUPart1(config, names, base_name + names._attn_base_name);
+        part1 = PhoneLMDecoderNPUPart1(config, names, chunk_size, base_name + names._attn_base_name);
         part1.to(MLLM_QNN);
 
-        qkv_mm = PhoneLMQKVmm(config, names, base_name + names._attn_base_name);
+        qkv_mm = PhoneLMQKVmm(config, names, chunk_size, base_name + names._attn_base_name);
         qkv_mm.to(MLLM_CPU);
 
-        part2 = PhoneLMDecoderNPUPart2WithShadow(config, names, base_name);
+        part2 = PhoneLMDecoderNPUPart2WithShadow(config, names, chunk_size, base_name);
         part2.to(MLLM_QNN);
 
         shadow_linear = ShadowLinear(config.intermediate_size, hidden_size, 1024, false, base_name + names._ffn_base_name + names._down_proj_name + ".shadow");
@@ -510,9 +527,10 @@ class PhoneLMModel_NPU final : public Module {
 
 public:
     PhoneLMModel_NPU() = default;
-    PhoneLMModel_NPU(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name) {
+
+    PhoneLMModel_NPU(const PhoneLMConfig &config, const PhoneLMNameConfig &names, const string &base_name, int chunk_size) {
         // blocks = List<PhoneLMNPU_CPUDecoder>(1, config, names, base_name);
-        blocks = ListWithShadow<PhoneLMNPU_CPUDecoder, PhoneLMNPU_CPUDecoderWithShadow>(config.num_hidden_layers, config, names, base_name);
+        blocks = ListWithShadow<PhoneLMNPU_CPUDecoder, PhoneLMNPU_CPUDecoderWithShadow>(config.num_hidden_layers, config, names, chunk_size, base_name);
         norm = RMSNorm(config.hidden_size, config.rms_norm_eps, names.post_norm_name);
     }
 
@@ -532,12 +550,12 @@ private:
 
 class PhoneLMForCausalLM_NPU final : public Module {
 public:
-    PhoneLMForCausalLM_NPU(PhoneLMConfig &config) {
+    PhoneLMForCausalLM_NPU(PhoneLMConfig &config, int chunk_size = 64) {
         auto names = config.names_config;
         hidden_size = config.hidden_size;
         tie_embedding_words = config.tie_embedding_words;
         embedding = Embedding(config.vocab_size, config.hidden_size, names.token_embd_name);
-        model = PhoneLMModel_NPU(config, names, names.blk_name);
+        model = PhoneLMModel_NPU(config, names, names.blk_name, chunk_size);
 
         lm_head_layer = Linear(config.hidden_size, config.vocab_size, false, names.lm_head_name);
     }

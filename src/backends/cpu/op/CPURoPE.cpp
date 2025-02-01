@@ -9,12 +9,74 @@
 
 namespace mllm {
 
+vector<float> CPURoPE::theta_;
+
 vector<vector<float>> CPURoPE::sin_;
 vector<vector<float>> CPURoPE::cos_;
 int CPURoPE::global_pose_type_ = -1;
 int CPURoPE::ishape_old;
 
-void sinusoidal_position_embedding_llama(int seq_len, int output_dim, vector<vector<float>> &sin, vector<vector<float>> &cos) {
+typedef float (*mllm_rope_init_func)(const OpParam &, std::vector<float>&);
+
+float _default_init_rope(const OpParam& config, vector<float>& theta) {
+    auto base = config.at("base");  // theta_i = base^-(2i/dim) = 1 / base^(2i/dim)    i from 0 to (dim/2 - 1)
+    auto dim = config.at("dim");
+
+    theta.resize((int)(dim/2));
+#pragma omp parallel for num_threads(4)
+    for (int i = 0;i < theta.size();i++)
+        theta[i] = 1.0 / pow(base, 2.0 * i / dim);
+
+    return  1.0;
+}
+
+float _compute_llama3_theta(const OpParam& config, vector<float>& theta) {
+    auto base = config.at("base");  // theta_i = base^-(2i/dim) = 1 / base^(2i/dim)    i from 0 to (dim/2 - 1)
+    auto dim = config.at("dim");
+
+    float factor = config.at("factor"); // `8` in the original implementation
+    float low_freq_factor = config.at("low_freq_factor"); // `1` in the original implementation
+    float high_freq_factor = config.at("high_freq_factor"); // `4` in the original implementation
+    float old_context_len = config.at("original_max_position_embeddings"); // `8192` in the original implementation
+
+    // 计算低频和高频波长
+    float low_freq_wavelen = old_context_len / low_freq_factor;
+    float high_freq_wavelen = old_context_len / high_freq_factor;
+
+    // 调整 theta 的大小
+    theta.resize(static_cast<int>(dim / 2));
+
+    // 合并所有计算逻辑到一个循环中
+#pragma omp parallel for num_threads(4)
+    for (int i = 0; i < theta.size(); i++) {
+        // 计算初始的 theta
+        theta[i] = 1.0 / std::pow(base, 2.0 * i / dim);
+
+        // 计算波长
+        float wavelen = 2 * M_PI / theta[i];
+
+        // 根据波长调整 theta
+        if (wavelen > low_freq_wavelen) {
+            // 如果波长大于低频波长，除以 factor
+            theta[i] /= factor;
+        } else if (wavelen >= high_freq_wavelen && wavelen <= low_freq_wavelen) {
+            // 否则，进行平滑插值
+            float smooth_factor = (old_context_len / wavelen - low_freq_factor) / (high_freq_factor - low_freq_factor);
+            theta[i] = (1 - smooth_factor) * (theta[i] / factor) + smooth_factor * theta[i];
+        }
+        // 如果波长小于高频波长，保持不变
+    }
+
+    return 1.0;
+}
+
+static const unordered_map<RoPEThetaType, mllm_rope_init_func> rope_init_func_map = {
+    {DEFAULT, _default_init_rope},
+    {LLAMA3, _compute_llama3_theta},
+};
+
+void sinusoidal_position_embedding_llama(int seq_len, int output_dim, const vector<float>& theta,
+                                         vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling = 1.0) {
     sin.resize(seq_len);
     for (int i = 0; i < seq_len; ++i) {
         sin[i].resize(output_dim);
@@ -26,19 +88,21 @@ void sinusoidal_position_embedding_llama(int seq_len, int output_dim, vector<vec
 #pragma omp parallel for num_threads(4)
     for (int s = 0; s < seq_len; ++s) {
         for (int d = 0; d < output_dim; d += 2) {
-            int i = (int)d / 2;
-            float sin_value = std::sin(s / std::pow(10000, 2.0 * i / output_dim));
-            float cos_value = std::cos(s / std::pow(10000, 2.0 * i / output_dim));
+            int i = d / 2;
+            auto t = s * theta[i];
+            float sin_value = std::sin(t);
+            float cos_value = std::cos(t);
             sin[s][d] = sin_value;
             cos[s][d] = cos_value;
             if (d + 1 < output_dim) {
-                sin[s][d + 1] = sin_value;
-                cos[s][d + 1] = cos_value;
+                sin[s][d + 1] = sin_value * attention_scaling;
+                cos[s][d + 1] = cos_value * attention_scaling;
             }
         }
     }
 }
-void sinusoidal_position_embedding_huggingface(int seq_len, int output_dim, vector<vector<float>> &sin, vector<vector<float>> &cos, int base = 10000) {
+void sinusoidal_position_embedding_huggingface(int seq_len, int output_dim, const vector<float>& theta,
+                                               vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling = 1.0) {
     sin.resize(seq_len);
     for (int i = 0; i < seq_len; ++i) {
         sin[i].resize(output_dim);
@@ -47,21 +111,22 @@ void sinusoidal_position_embedding_huggingface(int seq_len, int output_dim, vect
     for (int i = 0; i < seq_len; ++i) {
         cos[i].resize(output_dim);
     }
+
+    auto mid = output_dim / 2;
+
 #pragma omp parallel for num_threads(4)
     for (int s = 0; s < seq_len; ++s) {
         for (int d = 0; d < output_dim / 2; d += 1) {
-            int i = (int)d / 1;
-            float sin_value = sinf(s / std::pow(base, 2.0 * i / output_dim));
-            float cos_value = cosf(s / std::pow(base, 2.0 * i / output_dim));
+            int i = d;
+            auto t = s * theta[i];
+            float sin_value = sinf(t);
+            float cos_value = cosf(t);
             sin[s][d] = sin_value;
             cos[s][d] = cos_value;
-        }
-        for (int d = output_dim / 2; d < output_dim; d += 1) {
-            int i = (int)(d - output_dim / 2);
-            float sin_value = sinf(s / std::pow(base, 2.0 * i / output_dim));
-            float cos_value = cosf(s / std::pow(base, 2.0 * i / output_dim));
-            sin[s][d] = sin_value;
-            cos[s][d] = cos_value;
+            if (d + mid < output_dim) {
+                sin[s][d + mid] = sin_value * attention_scaling;
+                cos[s][d + mid] = cos_value * attention_scaling;
+            }
         }
     }
 }
@@ -89,29 +154,56 @@ CPURoPE::CPURoPE(Backend *bn, string opName, int pose_type, float rope_theta, fl
     pos_max_ = max_position_embeddings;
 }
 
+CPURoPE::CPURoPE(Backend *bn, string opName, OpParam& config, int threadCount) :
+    thread_count(threadCount),
+    Op(bn,opName) {
+    config_ = config;
+    pose_type_ = config.at("pose_type");
+    auto it = config.find("rope_theta");
+    if (it != config.end()) {
+        rope_theta_ = it->second;
+    }
+    it = config.find("partial_rotary_factor");
+    if (it != config.end()) {
+        partial_rotary_factor_ = it->second;
+    }
+    it = config.find("max_position_embeddings");
+    if (it != config.end()) {
+        pos_max_ = it->second;
+    }
+    rope_type = (RoPEThetaType)config.at("rope_type");
+}
+
 ErrorCode CPURoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // std::cout << name() << "  CPURoPE  reshape" << std::endl;
+//    std::cout << name() << "  CPURoPE  reshape" << std::endl;
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     ishape = inputs[0]->dimension() * partial_rotary_factor_;
     // pos_max_ = 16384;
+
     if (sin_.empty() || ishape_old < ishape || global_pose_type_ != pose_type_) {
+        auto calc_theta = rope_init_func_map.at(rope_type);
+        auto config = config_;
+        config["base"] = (float)rope_theta_;
+        config["dim"] = ishape;
+        float attention_scaling = calc_theta(config, theta_);
+
         global_pose_type_ = pose_type_;
         ishape_old = ishape;
         if (pose_type_ == LLAMAROPE) {
-            sinusoidal_position_embedding_llama(pos_max_, ishape, sin_, cos_);
+            sinusoidal_position_embedding_llama(pos_max_, ishape, theta_, sin_, cos_, attention_scaling);
         } else if (pose_type_ == PERSIMMONROPE) {
-            sinusoidal_position_embedding_huggingface(pos_max_, ishape / 2, sin_, cos_, 25000);
+            sinusoidal_position_embedding_huggingface(pos_max_, ishape / 2, theta_, sin_, cos_, attention_scaling);
         } else if (pose_type_ == HFHUBROPE || pose_type_ == MLAROPE) {
-            sinusoidal_position_embedding_huggingface(pos_max_, ishape, sin_, cos_, rope_theta_);
+            sinusoidal_position_embedding_huggingface(pos_max_, ishape, theta_, sin_, cos_, attention_scaling);
         } else {
         }
     }
 #ifdef USE_QNN
     auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
     if (cpuBackend->isStageSwitching()) {
-        h_cnt_ = cpuBackend->getSequenceLength();
+        h_cnt_ = cpuBackend->getCurSequenceLength();
     }
 #endif
     return Op::reshape(inputs, outputs);

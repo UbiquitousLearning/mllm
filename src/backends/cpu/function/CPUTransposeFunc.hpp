@@ -41,7 +41,7 @@ public:
         if (inputs[0]->masterTensor() != nullptr && (inputs[0]->masterTensor()->name().find("Cache") != std::string::npos || inputs[0]->masterTensor()->name().find("weight") != std::string::npos)) {
             if (outputs[0]->masterTensor() == nullptr) {
                 outputs[0]->setDtype(inputs[0]->dtype());
-                outputs[0]->deepCopyFrom(inputs[0], false);
+                outputs[0]->shallowCopyFrom(inputs[0], false);
             }
         } else {
             if (inputs[0]->masterTensor() == nullptr) {
@@ -51,7 +51,7 @@ public:
             outputs[0]->alloc();
             // inputs[0]->undiffusion() = true;
             inputs[0]->setUndiffusion(true);
-            inputs[0]->deepCopyFrom(outputs[0], false);
+            inputs[0]->shallowCopyFrom(outputs[0], false);
             outputs[0]->transFrom() = axiss;
         }
         // }

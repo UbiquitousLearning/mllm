@@ -15,6 +15,7 @@
 #include "Op.hpp"
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
+#include "Trace.hpp"
 
 #include <Module.hpp>
 
@@ -157,9 +158,11 @@ protected:
         auto &activation_tensors_num = module->activation_tensors_num;
         // Module::runlistIdx = saved_list_idx;
         bool do_init = false;
-        // set backend to current module device and try to create op
-        backend_ = Backend::global_backends[Module::tmp_device];
+
         if (module->doLoad || !inited_loaded) {
+            // set backend to current module device and try to create op
+            // use Module::tmp_device only when creating the op as the recersive module backend only handled in load and init stage
+            backend_ = Backend::global_backends[Module::tmp_device];
             do_init = !inited_loaded;
             if (op_ == nullptr) {
 #ifdef USE_QNN
@@ -276,6 +279,12 @@ protected:
             op_->execute(input_tensors, output_tensors);
             break;
         }
+        case TENSOR_STATIC_TRACE : {
+            if (backend_->type() == BackendType::MLLM_CPU) {
+                Tracer::addOp(op_, input_tensors, output_tensors);
+            }
+            break;
+        }
         default: {
             break;
         }
@@ -295,7 +304,8 @@ protected:
                     default: {
                     }
                     }
-                    if (activation_tensors_num[input_tensor->name()] == 0 && activation_tensors[input_tensor->name()]->sequence() > 1) {
+                    if (activation_tensors_num[input_tensor->name()] == 0 && activation_tensors[input_tensor->name()]->sequence() > 1
+                        && activation_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
                         activation_tensors[input_tensor->name()]->free();
                         // std::cout << input_tensor->name() << "|" << std::endl;
                     }
@@ -334,6 +344,20 @@ public:
         param_["out_features"] = out_features;
         param_["bias"] = (float)bias;
         init(std::move(name), OpType::LINEAR);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class HeadLinear final : public Layer {
+public:
+    explicit HeadLinear(int in_features, int out_features, bool bias, std::string name) {
+        param_["in_features"] = in_features;
+        param_["out_features"] = out_features;
+        param_["bias"] = (float)bias;
+        init(std::move(name), OpType::HEADLINEAR);
     }
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
@@ -547,9 +571,51 @@ public:
     }
 };
 
+typedef std::unordered_map<string, std::any> RoPEConfig;
+
 class RoPE final : public Layer {
 public:
     RoPE() = default;
+
+    explicit RoPE(int pose_type, const RoPEConfig & config, std::string name) {
+        param_["pose_type"] = pose_type;
+        auto it_rope_theta = config.find("rope_theta");
+        if (it_rope_theta != config.end()) {
+            param_["rope_theta"] = std::any_cast<float>(it_rope_theta->second);
+        }
+
+        auto it_max_position_embeddings = config.find("max_position_embeddings");
+        if (it_max_position_embeddings != config.end()) {
+            param_["max_position_embeddings"] = std::any_cast<int>(it_max_position_embeddings->second);
+        }
+
+        auto it_partial_rotary_factor = config.find("partial_rotary_factor");
+        if (it_partial_rotary_factor != config.end()) {
+            param_["partial_rotary_factor"] = std::any_cast<float>(it_partial_rotary_factor->second);
+        }
+
+        if (config.find("rope_scaling") != config.end()) {
+            auto rope_scaling = std::any_cast<map<string, std::any>>(config.at("rope_scaling"));
+            auto it = rope_scaling.find("rope_type");
+            if (it != rope_scaling.end()) {
+                string rope_type = std::any_cast<string>(it->second);
+                if (rope_type == "default") {
+                    param_["rope_type"] = DEFAULT;
+                } else if (rope_type == "llama3") {
+                    param_["rope_type"] = LLAMA3;
+                    param_["factor"] = std::any_cast<float>(rope_scaling.at("factor"));
+                    param_["high_freq_factor"] = std::any_cast<float>(rope_scaling.at("high_freq_factor"));
+                    param_["low_freq_factor"] = std::any_cast<float>(rope_scaling.at("low_freq_factor"));
+                    param_["original_max_position_embeddings"] = std::any_cast<int>(rope_scaling.at("original_max_position_embeddings"));
+                } else {
+                    std::cout << "[TODO]rope type " << rope_type << " not support!!!!" << std::endl;
+                }
+            }
+        }
+
+        init(std::move(name), OpType::ROPE);
+    }
+
     explicit RoPE(int pose_type, std::string name) {
         param_["pose_type"] = pose_type;
         init(std::move(name), OpType::ROPE);
