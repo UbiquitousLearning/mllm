@@ -30,20 +30,29 @@ int main(int argc, char **argv) {
     model.load(model_path);
 
     vector<string> in_strs = {
-        " Hello, who are you?",
-        " What can you do?",
-        "Please introduce Beijing University of Posts and Telecommunications."};
+        "Hello, who are you?",
+        // "What can you do?",
+        // "Please introduce Beijing University of Posts and Telecommunications."
+        };
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto in_str = in_strs[i];
+        in_str = tokenizer.apply_chat_template(in_str);
         auto input_tensor = tokenizer.tokenize(in_str);
-        input_tensor.saveData<float>();
+
+        vector<int> ll = {73441,  3060,     5, 15934, 59342,  1872,  1502,  1449,    74, 73440, 59320, 5, 73441, 16434, 5};
+        input_tensor.fullDataVector(ll);
+
+        // input_tensor.printData<float>();
         std::cout << "[Q] " << in_str << std::flush;
+        // exit(1);
         for (int step = 0; step < 1; step++) {
             auto result = model({input_tensor});
             auto [out_string, out_token] = tokenizer.detokenize(result[0]);
             auto [not_end, output_string] = tokenizer.postprocess(out_string);
             if (!not_end) { break; }
+            std::cout<<out_token<<std::endl;
+            exit(1);
             std::cout << output_string << std::flush;
             chatPostProcessing(out_token, input_tensor, {});
         }

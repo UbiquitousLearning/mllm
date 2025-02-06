@@ -43,7 +43,28 @@ public:
         outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
         outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
-        if (axis == SEQUENCE && inputs[0]->head() != 1) {
+        if (axis == HEAD){
+            int cbatch = 0;
+            int chead = 0;
+            int cseq = 0;
+            int cdim = 0;
+            if(inputs[0]->hostPtr<float>() == inputs[1]->hostPtr<float>()){
+                if (inputs[0]->masterTensor() == nullptr) {
+                    inputs[0]->free();
+                }
+                inputs[0]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim});
+            }else{
+                for (int idx = 0; idx < inputs.size(); idx++) {
+                    if (inputs[idx]->masterTensor() == nullptr) {
+                        inputs[idx]->free();
+                    }
+                    if (idx > 0) {
+                        chead += inputs[idx - 1]->head();
+                    }
+                    inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                }
+            }
+        }else if (axis == SEQUENCE && inputs[0]->head() != 1) {
             int cbatch = 0;
             int chead = 0;
             int cseq = 0;
@@ -144,6 +165,19 @@ public:
                 }
             }
         } else if (axis == HEAD) {
+            if(inputs[0]->hostPtr<float>() == inputs[1]->hostPtr<float>()){
+                for (int b = 0; b < outputs[0]->batch(); ++b) {
+                    for (int s = 0; s < inputs[0]->sequence(); ++s) {
+                        for (int h_ = 1; h_ < outputs[0]->head(); ++h_) {
+                            int dim_size = inputs[0]->dimension();
+                            memcpy(outputs[0]->ptrAt<float>(b, h_, s, 0),
+                                    outputs[0]->ptrAt<float>(b, 0, s, 0),
+                                    sizeof(float) * (dim_size));
+                        }
+                    }
+                }
+                return;
+            }
             for (int b = 0; b < expd_batch_; ++b) {
 #pragma omp parallel for collapse(1) num_threads(CPUBackend::cpu_threads)
                 for (int s = 0; s < inputs[0]->sequence(); ++s) {

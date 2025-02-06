@@ -104,7 +104,7 @@ private:
     //  used for AggregatedTensor
     bool aggregated_ = false;
     vector<shared_ptr<Tensor>> aggregated_tensors_;
-    Tensor *deaggregated_tensor_;
+    Tensor *deaggregated_tensor_ = nullptr;
     Chl aggregated_dim_;
     vector<int> aggregated_dims_;
     Module *module_{};
@@ -1861,6 +1861,20 @@ public:
                 for (int h = 0; h < sequence(); ++h) {
                     for (int w = 0; w < dimension(); ++w) {
                         setDataAt<Dtype>(n, c, h, w, value);
+                    }
+                }
+            }
+        }
+    }
+
+    void fullDataVector(vector<int> values) {
+        reshape(1, 1, values.size(), 1);
+        alloc();
+        for (int n = 0; n < batch(); ++n) {
+            for (int c = 0; c < head(); ++c) {
+                for (int h = 0; h < sequence(); ++h) {
+                    for (int w = 0; w < dimension(); ++w) {
+                        setDataAt<float>(n, c, h, w, values[h]);
                     }
                 }
             }

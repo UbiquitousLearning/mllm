@@ -157,7 +157,7 @@ public:
             broad_casted_k_pe_list.push_back(k_pe);
         }
         k_pe = Tensor::cat(broad_casted_k_pe_list, HEAD);
-        // TODO error below.
+        // TODO error below. 2.1
         auto key_states = Tensor::cat({k_pe, k_nope}, DIMENSION);
 
         // original
