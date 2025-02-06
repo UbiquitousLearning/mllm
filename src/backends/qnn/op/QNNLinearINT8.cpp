@@ -55,6 +55,8 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     uint32_t dimensions_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride[] = {2};
     uint32_t InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride[] = {1, 1};
 
+    string strideName = name() + ".stride";
+    string padName = name() + ".pad";
     vector<Qnn_Param_t> params_InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D = {
         {.paramType = QNN_PARAMTYPE_TENSOR,
          .name = "stride",
@@ -62,7 +64,7 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
              (Qnn_Tensor_t){
                  .version = QNN_TENSOR_VERSION_1,
                  .v1 = {.id = 0,
-                        .name = "InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_stride",
+                        .name = strideName.c_str(),
                         .type = QNN_TENSOR_TYPE_STATIC,
                         .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                         .dataType = QNN_DATATYPE_UINT_32,
@@ -82,7 +84,7 @@ ErrorCode QNNLinearINT8::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
              (Qnn_Tensor_t){
                  .version = QNN_TENSOR_VERSION_1,
                  .v1 = {.id = 0,
-                        .name = "InceptionV3_InceptionV3_Conv2d_1a_3x3_Conv2D_pad_amount",
+                        .name = padName.c_str(),
                         .type = QNN_TENSOR_TYPE_STATIC,
                         .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                         .dataType = QNN_DATATYPE_UINT_32,

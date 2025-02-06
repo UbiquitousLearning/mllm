@@ -18,7 +18,7 @@
 #include "WrapperUtils/QnnWrapperUtils.hpp"
 #include "QNNMemoryManager.hpp"
 #include "QnnTypes.h"
-#include "QNN/HTP/QnnHtpGraph.h"
+#include "HTP/QnnHtpGraph.h"
 
 #include "Types.hpp"
 #include "op/QNNAdd.hpp"

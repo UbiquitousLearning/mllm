@@ -14,7 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "QNN.hpp"
+#include "../QNN.hpp"
 
 namespace qnn {
 namespace tools {
