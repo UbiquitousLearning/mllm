@@ -6,14 +6,19 @@
 
 namespace mllm {
 
+vector<float> QNNRoPE::theta_;
+
 vector<vector<float>> QNNRoPE::sin_;
 vector<vector<float>> QNNRoPE::cos_;
 int QNNRoPE::global_pose_type_ = -1;
 int QNNRoPE::ishape_old;
 
-
-extern void sinusoidal_position_embedding_llama(int seq_len, int output_dim, vector<vector<float>> &sin, vector<vector<float>> &cos);
-extern void sinusoidal_position_embedding_huggingface(int seq_len, int output_dim, vector<vector<float>> &sin, vector<vector<float>> &cos, int base = 10000);
+extern void sinusoidal_position_embedding_llama(int seq_len, int output_dim, const vector<float> &theta,
+                                                vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling = 1.0);
+extern void sinusoidal_position_embedding_huggingface(int seq_len, int output_dim, const vector<float> &theta,
+                                                      vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling = 1.0);
+typedef float (*mllm_rope_init_func)(const OpParam &, std::vector<float> &);
+extern unordered_map<RoPEThetaType, mllm_rope_init_func> rope_init_func_map;
 
 QNNRoPE::QNNRoPE(Backend *bn, string opName, int pose_type) :
     QNNCommonOp(bn, opName) {
@@ -53,6 +58,25 @@ QNNRoPE::QNNRoPE(Backend *bn, string opName, int pose_type, float rope_theta, fl
     scale_.setBackend(bn);
 }
 
+QNNRoPE::QNNRoPE(Backend *bn, string opName, OpParam &config) :
+    QNNCommonOp(bn, opName) {
+    config_ = config;
+    pose_type_ = config.at("pose_type");
+    auto it = config.find("rope_theta");
+    if (it != config.end()) {
+        rope_theta_ = it->second;
+    }
+    it = config.find("partial_rotary_factor");
+    if (it != config.end()) {
+        partial_rotary_factor_ = it->second;
+    }
+    it = config.find("max_position_embeddings");
+    if (it != config.end()) {
+        pos_max_ = it->second;
+    }
+    rope_type = (RoPEThetaType)config.at("rope_type");
+}
+
 ErrorCode QNNRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
@@ -66,18 +90,34 @@ ErrorCode QNNRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     return Op::reshape(inputs, outputs);
 }
 
+// from CPURoPE.cpp 2025/1/24
+extern float _default_init_rope(const OpParam &config, vector<float> &theta);
+// from CPURoPE.cpp 2025/1/24
+extern float _compute_llama3_theta(const OpParam &config, vector<float> &theta);
+
 ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // in case ishape is 0 when Op is the first one in the graph
 
+    const unordered_map<RoPEThetaType, mllm_rope_init_func> rope_init_func_map = {
+        {DEFAULT, _default_init_rope},
+        {LLAMA3, _compute_llama3_theta},
+    };
+
     if (sin_.empty() || ishape_old < ishape || global_pose_type_ != pose_type_) {
+        auto calc_theta = rope_init_func_map.at(rope_type);
+        auto config = config_;
+        config["base"] = (float)rope_theta_;
+        config["dim"] = ishape;
+        float attention_scaling = calc_theta(config, theta_);
+
         global_pose_type_ = pose_type_;
         ishape_old = ishape;
         if (pose_type_ == LLAMAROPE) {
-            sinusoidal_position_embedding_llama(pos_max_, ishape, sin_, cos_);
+            sinusoidal_position_embedding_llama(pos_max_, ishape, theta_, sin_, cos_, attention_scaling);
         } else if (pose_type_ == PERSIMMONROPE) {
-            sinusoidal_position_embedding_huggingface(pos_max_, ishape / 2, sin_, cos_, 25000);
+            sinusoidal_position_embedding_huggingface(pos_max_, ishape / 2, theta_, sin_, cos_, attention_scaling);
         } else if (pose_type_ == HFHUBROPE || pose_type_ == MLAROPE) {
-            sinusoidal_position_embedding_huggingface(pos_max_, ishape, sin_, cos_, rope_theta_);
+            sinusoidal_position_embedding_huggingface(pos_max_, ishape, theta_, sin_, cos_, attention_scaling);
         } else {
         }
     }
@@ -92,57 +132,46 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 
     auto type = QNN_DATATYPE_FLOAT_32;
     if (outputs[0]->dtype() == MLLM_TYPE_F32) {
-
         sinTensor_.setName(name() + ".sin");
-        sinTensor_.reshape(1, 1, pos_max_, ishape/2);
+        sinTensor_.reshape(1, 1, pos_max_, ishape / 2);
         sinTensor_.setDtype(MLLM_TYPE_F32);
         sinTensor_.alloc();
 
-
         cosTensor_.setName(name() + ".cos");
-        cosTensor_.reshape(1, 1, pos_max_, ishape/2);
+        cosTensor_.reshape(1, 1, pos_max_, ishape / 2);
         cosTensor_.setDtype(MLLM_TYPE_F32);
         cosTensor_.alloc();
 
-        for (int i = 0; i<pos_max_; i++) {
-            for (int j=0; j<ishape/2; j++) {
+        for (int i = 0; i < pos_max_; i++) {
+            for (int j = 0; j < ishape / 2; j++) {
                 sinTensor_.setDataAt<float>(0, 0, i, j, sin_[i][j] * dequantScale);
                 cosTensor_.setDataAt<float>(0, 0, i, j, cos_[i][j] * dequantScale);
             }
         }
-        
-    }  else if (outputs[0]->dtype() == MLLM_TYPE_F16) {
-        
+
+    } else if (outputs[0]->dtype() == MLLM_TYPE_F16) {
         sinTensor_.setName(name() + ".sin");
-        sinTensor_.reshape(1, 1, pos_max_, ishape/2);
+        sinTensor_.reshape(1, 1, pos_max_, ishape / 2);
         sinTensor_.setDtype(MLLM_TYPE_F32);
         sinTensor_.alloc();
 
-
         cosTensor_.setName(name() + ".cos");
-        cosTensor_.reshape(1, 1, pos_max_, ishape/2);
+        cosTensor_.reshape(1, 1, pos_max_, ishape / 2);
         cosTensor_.setDtype(MLLM_TYPE_F32);
         cosTensor_.alloc();
 
-        for (int i = 0; i<pos_max_; i++) {
-            for (int j=0; j<ishape/2; j++) {
+        for (int i = 0; i < pos_max_; i++) {
+            for (int j = 0; j < ishape / 2; j++) {
                 sinTensor_.setDataAt<float>(0, 0, i, j, static_cast<float>(sin_[i][j]));
                 cosTensor_.setDataAt<float>(0, 0, i, j, static_cast<float>(cos_[i][j]));
             }
         }
 
         type = QNN_DATATYPE_FLOAT_16;
+    }
 
-    } 
-    
-
-
-
-    
-
-
-    uint32_t sin_dimensions[] = {static_cast<uint32_t>(pos_max_), static_cast<uint32_t>(ishape/2)};
-    uint32_t cos_dimensions[] = {static_cast<uint32_t>(pos_max_), static_cast<uint32_t>(ishape/2)};
+    uint32_t sin_dimensions[] = {static_cast<uint32_t>(pos_max_), static_cast<uint32_t>(ishape / 2)};
+    uint32_t cos_dimensions[] = {static_cast<uint32_t>(pos_max_), static_cast<uint32_t>(ishape / 2)};
 
     auto sinWeightsName = name() + ".sin.weights";
 
@@ -243,12 +272,10 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 }
 
 ErrorCode QNNRoPE::load(AbstructLoader &loader) {
-
     hcntTensor_.setName(name() + ".hcnt.tensor");
     hcntTensor_.reshape(1, 1, 1, 1);
     hcntTensor_.setDtype(MLLM_TYPE_I32);
     hcntTensor_.alloc();
-
 
     string scaleName = name();
     string scaleTypeName = "output_scale";
@@ -273,9 +300,8 @@ ErrorCode QNNRoPE::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Ten
 }
 
 ErrorCode QNNRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-
     h_cnt_ += inputs[0]->sequence();
-    hcntTensor_.setDataAt(0,0,0,0, h_cnt_);
+    hcntTensor_.setDataAt(0, 0, 0, 0, h_cnt_);
 
     return QNNCommonOp::execute(inputs, outputs);
 }
