@@ -16,7 +16,7 @@
 #include "QnnInterface.h"
 #include "QnnLog.h"
 #include "QnnModelPal.hpp"
-#include "WrapperUtils/QnnWrapperUtils.hpp"
+#include "../WrapperUtils/QnnWrapperUtils.hpp"
 
 namespace qnn_wrapper_api {
 
