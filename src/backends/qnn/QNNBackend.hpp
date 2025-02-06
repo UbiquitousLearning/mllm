@@ -5,7 +5,7 @@
 #include "Op.hpp"
 #include "OpDefined.hpp"
 #include "ParamLoader.hpp"
-#include "QNN/QnnTypes.h"
+#include "QnnTypes.h"
 #include "Types.hpp"
 #include "MemoryManager.hpp"
 #include <memory>

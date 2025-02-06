@@ -8,10 +8,10 @@
 
 #pragma once
 
-#include "QNN/QnnContext.h"
-#include "QNN/QnnGraph.h"
-#include "QNN/QnnTensor.h"
-#include "QNN/QnnTypes.h"
+#include "QnnContext.h"
+#include "QnnGraph.h"
+#include "QnnTensor.h"
+#include "QnnTypes.h"
 #include <string>
 
 namespace qnn_wrapper_api {
