@@ -88,13 +88,13 @@ public:
     // FIXME: name is copied, may optimized to move by compiler.
     Op *create(OpParam op_param, Backend *bn, string name, int thread_count) const override {
         int pose_type = static_cast<int>(op_param["pose_type"]);
-        float rope_theta = op_param["rope_theta"];
+        float rope_theta = op_param["theta"];
         int max_position_embeddings = static_cast<int>(op_param["max_position_embeddings"]);
 
         int long_factor_n = static_cast<int>(op_param["long_factor_n"]);
         int short_factor_n = static_cast<int>(op_param["short_factor_n"]);
-        std::vector<float> long_factor(long_factor_n);
-        std::vector<float> short_factor(short_factor_n);
+        std::vector<float> long_factor;
+        std::vector<float> short_factor;
 
         // FIXME: the way we pass vector to backend is inefficient.
         for (int _i_long_factor_n = 0; _i_long_factor_n < long_factor_n; _i_long_factor_n++) {

@@ -84,7 +84,7 @@ struct MiniCPM3Config : public TransformerConfig {
     int qk_rope_head_dim = 32;
     int q_lora_rank = 768;
     int kv_lora_rank = 256;
-    float rms_norm_eps = 1e-06f;
+    float rms_norm_eps = 1e-05f;
 
     int vocab_size = 73448;
     int scale_emb = 12;

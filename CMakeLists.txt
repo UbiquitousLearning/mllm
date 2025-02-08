@@ -23,7 +23,9 @@ else()
     add_compile_options(-Wno-deprecated-declarations)
 endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
+endif()
 add_compile_options(-Wno-gnu-string-literal-operator-template)
 
 if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
@@ -145,7 +147,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 
 if(QNN) # QNN lib
     include_directories(
-        $ENV{QNN_SDK_ROOT}/include/QNN # QNN SDK include
+        ${PROJECT_SOURCE_DIR}/src/backends/qnn/qualcomm_ai_engine_direct_220/include/QNN # QNN SDK include
         ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn
         ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn/Log
         ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn/PAL/include

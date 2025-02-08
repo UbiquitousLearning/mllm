@@ -132,9 +132,8 @@ public:
         // q_pe: [bs, len, num_heads, qk_rope_head_dim]
         auto qs = q.split({qk_nope_head_dim, qk_rope_head_dim}, D_HD, num_heads);
         auto q_nope = qs[0];
-        auto q_pe = qs[1];
-        q_pe = q_rope(q_pe);
-        auto query_states = Tensor::cat({q_pe, q_nope}, DIMENSION);
+        auto q_pe = q_rope(qs[1]);
+        auto query_states = Tensor::cat({q_nope, q_pe}, DIMENSION);
 
         // compressed_kv: [bs, len, 1, kv_lora_rank + qk_rope_head_dim]
         auto compressed_kv = kv_a_proj_with_mqa(hidden_states);
@@ -148,17 +147,13 @@ public:
         // k_nope: [bs, len, num_heads, qk_nope_head_dim]
         // value_states: [bs, len, num_heads, v_head_dim]
         kvs = kv.split({qk_nope_head_dim, v_head_dim}, D_HD, num_heads);
-        auto k_nope = kvs[0];
-        auto value_states = kvs[1];
+        Tensor k_nope = kvs[0];
+        Tensor value_states = kvs[1];
+
         k_pe = k_rope(k_pe);
-        std::vector<Tensor> broad_casted_k_pe_list;
-        broad_casted_k_pe_list.reserve(num_heads);
-        for (int i = 0; i < num_heads; i++) {
-            broad_casted_k_pe_list.push_back(k_pe);
-        }
-        k_pe = Tensor::cat(broad_casted_k_pe_list, HEAD);
-        // TODO error below. 2.1
-        auto key_states = Tensor::cat({k_pe, k_nope}, DIMENSION);
+        std::vector<Tensor> k_pe_list(num_heads, k_pe);
+        k_pe = Tensor::cat(k_pe_list, HEAD);
+        auto key_states = Tensor::cat({k_nope, k_pe}, DIMENSION);
 
         // original
         // value_states: [bs, len, num_heads, v_head_dim]
@@ -270,6 +265,7 @@ public:
     MiniCPM3Model() = default;
     MiniCPM3Model(const MiniCPM3Config &config, const MiniCPM3NameConfig &names, const string &base_name) {
         blocks = List<MiniCPM3Decoder>(
+            // 1,
             config.num_hidden_layers,
             config,
             names,
