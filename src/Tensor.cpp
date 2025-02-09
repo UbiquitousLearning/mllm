@@ -211,7 +211,8 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
                 default: {
                 }
                 }
-                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1 
+                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |F" << std::endl;
                 }
@@ -272,7 +273,8 @@ void Tensor::getFunc(const TensorFuncType type,
                 default: {
                 }
                 }
-                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1
+                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |F" << std::endl;
                 }
@@ -359,7 +361,8 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
                 default: {
                 }
                 }
-                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1
+                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |S "<< std::endl;// << out_names[0] << std::endl;
                 }

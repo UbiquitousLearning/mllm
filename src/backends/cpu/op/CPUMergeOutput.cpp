@@ -24,13 +24,13 @@ ErrorCode CPUMergeOutput::reshape(vector<shared_ptr<Tensor>> inputs, vector<shar
 ErrorCode CPUMergeOutput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     for (int i = 0; i < inputs.size(); i++) {
         if (inputs[i]->device() == MLLM_QNN || (inputs[i]->masterTensor() && inputs[i]->masterTensor()->device() == MLLM_QNN)) {
-            outputs[i]->deepCopyFrom(inputs[i].get(), true);
+            outputs[i]->shallowCopyFrom(inputs[i].get(), true);
             // set output backend to QNN to let the device() be QNN
             outputs[i]->setBackend(inputs[i]->backend());
         } else {
             if (inputs[i]->allocted() != 0) inputs[i]->free();
             outputs[i]->alloc();
-            inputs[i]->deepCopyFrom(outputs[i].get(), true);
+            inputs[i]->shallowCopyFrom(outputs[i].get(), true);
             // set inputput backend to QNN to let the device() be QNN
             inputs[i]->setBackend(outputs[i]->backend());
         }

@@ -7,6 +7,7 @@
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include "CPUBackend.hpp"
+#include <cassert>
 
 namespace mllm {
 class Tensor;
@@ -43,7 +44,28 @@ public:
         outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
         outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
-        if (axis == SEQUENCE && inputs[0]->head() != 1) {
+        if (axis == HEAD){
+            int cbatch = 0;
+            int chead = 0;
+            int cseq = 0;
+            int cdim = 0;
+            if(inputs[0]->hostPtr<float>() == inputs[1]->hostPtr<float>()){
+                if (inputs[0]->masterTensor() == nullptr) {
+                    inputs[0]->free();
+                }
+                inputs[0]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim});
+            }else{
+                for (int idx = 0; idx < inputs.size(); idx++) {
+                    if (inputs[idx]->masterTensor() == nullptr) {
+                        inputs[idx]->free();
+                    }
+                    if (idx > 0) {
+                        chead += inputs[idx - 1]->head();
+                    }
+                    inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                }
+            }
+        }else if (axis == SEQUENCE && inputs[0]->head() != 1) {
             int cbatch = 0;
             int chead = 0;
             int cseq = 0;
@@ -55,7 +77,7 @@ public:
                 if (idx > 0) {
                     cseq += inputs[idx - 1]->sequence();
                 }
-                inputs[idx]->deepCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
             }
         } else if (axis == DIMENSION && inputs[0]->head() != 1) {
             int cbatch = 0;
@@ -78,7 +100,7 @@ public:
                         }
                     }
                 }
-                inputs[idx]->deepCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
                 if (inputs[idx]->deaggregatedTensor() != nullptr) {
                     vector<shared_ptr<Tensor>> shared_outputs = {};
                     for (int t = 0; t < inputs[idx]->deaggregatedTensor()->aggregatedTensors().size(); t++) {
@@ -120,9 +142,16 @@ public:
                             if (idx != expd_batch_input_idx) {
                                 n_ = 0;
                             }
-                            memcpy(outputs[0]->ptrAt<float>(n, c, h, w),
+                            assert(inputs[0]->dtype()==outputs[0]->dtype());
+                            if(inputs[0]->dtype() == MLLM_TYPE_F32){
+                                memcpy(outputs[0]->ptrAt<float>(n, c, h, w),
                                    inputs[idx]->ptrAt<float>(n_, c, h, 0),
                                    sizeof(float) * (dim_size));
+                            } else if(inputs[0]->dtype() == MLLM_TYPE_F16) {
+                                memcpy(outputs[0]->ptrAt<mllm_fp16_t>(n, c, h, w),
+                                   inputs[idx]->ptrAt<mllm_fp16_t>(n_, c, h, 0),
+                                   sizeof(mllm_fp16_t) * (dim_size));
+                            }
                             w += dim_size;
                         }
                     }
@@ -144,6 +173,19 @@ public:
                 }
             }
         } else if (axis == HEAD) {
+            if(inputs[0]->hostPtr<float>() == inputs[1]->hostPtr<float>()){
+                for (int b = 0; b < outputs[0]->batch(); ++b) {
+                    for (int s = 0; s < inputs[0]->sequence(); ++s) {
+                        for (int h_ = 1; h_ < outputs[0]->head(); ++h_) {
+                            int dim_size = inputs[0]->dimension();
+                            memcpy(outputs[0]->ptrAt<float>(b, h_, s, 0),
+                                    outputs[0]->ptrAt<float>(b, 0, s, 0),
+                                    sizeof(float) * (dim_size));
+                        }
+                    }
+                }
+                return;
+            }
             for (int b = 0; b < expd_batch_; ++b) {
 #pragma omp parallel for collapse(1) num_threads(CPUBackend::cpu_threads)
                 for (int s = 0; s < inputs[0]->sequence(); ++s) {

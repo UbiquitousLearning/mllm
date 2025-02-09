@@ -32,7 +32,7 @@ public:
             chunked_tensors[chunk_id]->setTtype(INPUT_TENSOR);
             chunked_tensors[chunk_id]->setName(input_tensor.name());
             chunked_tensors[chunk_id]->reshape(1, 1, chunk_size, 1);
-            chunked_tensors[chunk_id]->deepCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
+            chunked_tensors[chunk_id]->shallowCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
         }
 
         std::function<void(int, int)> executeFunc = [&](int chunk_id, int graphIdx) {
