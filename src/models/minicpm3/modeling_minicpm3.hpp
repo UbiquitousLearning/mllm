@@ -7,6 +7,7 @@
 
 #include "Types.hpp"
 #include "configuration_minicpm3.hpp"
+#include <string>
 
 using namespace mllm;
 
@@ -109,7 +110,6 @@ public:
             config.rope_short_factor,
             base_name + "k_rope");
 
-        // TODO num_heads. may error.
         if (config.cache_limit > 0) {
             k_cache = KVCache(num_heads / num_heads, config.cache_limit, base_name + "k_cache");
             v_cache = KVCache(num_heads / num_heads, config.cache_limit, base_name + "v_cache");
@@ -149,17 +149,11 @@ public:
         kvs = kv.split({qk_nope_head_dim, v_head_dim}, D_HD, num_heads);
         Tensor k_nope = kvs[0];
         Tensor value_states = kvs[1];
-
         k_pe = k_rope(k_pe);
-        std::vector<Tensor> k_pe_list(num_heads, k_pe);
-        k_pe = Tensor::cat(k_pe_list, HEAD);
+        // k_pe = Tensor::cat(std::vector<Tensor>(num_heads, k_pe), HEAD); //没用，已经和下一个cat算子合并了
         auto key_states = Tensor::cat({k_nope, k_pe}, DIMENSION);
 
-        // original
-        // value_states: [bs, len, num_heads, v_head_dim]
-        // k_nope: [bs, len, num_heads, qk_nope_head_dim + qk_rope_head_dim]
-        // after kvcache
-        // ...
+        // attention
         key_states = k_cache(key_states);
         value_states = v_cache(value_states);
         key_states = key_states.transpose(SEQUENCE, DIMENSION);
@@ -169,7 +163,6 @@ public:
         auto attn_output = Tensor::mm(attn_weight, value_states);
         attn_output = attn_output.view(-1, 1, -1, v_head_dim * num_heads);
         attn_output = o_proj(attn_output);
-
         return {attn_output};
     }
 };
@@ -220,6 +213,7 @@ private:
     MiniCPM3MLP mlp;
     Layer input_layernorm;
     Layer post_attention_layernorm;
+    float scale;
 
 public:
     MiniCPM3Decoder() = default;
@@ -243,15 +237,17 @@ public:
             config.hidden_size,
             config.rms_norm_eps,
             base_name + names._ffn_norm_name);
+        
+        scale = config.scale_depth / std::sqrt(config.num_hidden_layers);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = input_layernorm(inputs[0]);
         x = self_attn({x, x, x})[0];
-        auto tmp = x + inputs[0];
-        x = post_attention_layernorm(tmp);
+        auto residual = x*scale + inputs[0];
+        x = post_attention_layernorm(residual);
         x = mlp({x})[0];
-        x = x + tmp;
+        x = x*scale + residual;
         return {x};
     }
 };
@@ -265,7 +261,6 @@ public:
     MiniCPM3Model() = default;
     MiniCPM3Model(const MiniCPM3Config &config, const MiniCPM3NameConfig &names, const string &base_name) {
         blocks = List<MiniCPM3Decoder>(
-            // 1,
             config.num_hidden_layers,
             config,
             names,
@@ -294,6 +289,7 @@ private:
     Layer embedding;
     Parameter lm_head;
     MiniCPM3Model model;
+    float scale_emb;
 
 public:
     explicit MiniCPM3ForCausalLM(MiniCPM3Config &config) {
@@ -318,9 +314,11 @@ public:
             1,
             config.hidden_size,
             names.lm_head_name + ".weight");
+
+        scale_emb = config.scale_emb;
     }
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        auto x = embedding(inputs[0]);
+        auto x = embedding(inputs[0])* scale_emb;
         auto outputs = model({x})[0];
         outputs = Tensor::mm(outputs, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         return {outputs};

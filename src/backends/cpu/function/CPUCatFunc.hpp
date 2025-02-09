@@ -7,6 +7,7 @@
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include "CPUBackend.hpp"
+#include <cassert>
 
 namespace mllm {
 class Tensor;
@@ -141,9 +142,16 @@ public:
                             if (idx != expd_batch_input_idx) {
                                 n_ = 0;
                             }
-                            memcpy(outputs[0]->ptrAt<float>(n, c, h, w),
+                            assert(inputs[0]->dtype()==outputs[0]->dtype());
+                            if(inputs[0]->dtype() == MLLM_TYPE_F32){
+                                memcpy(outputs[0]->ptrAt<float>(n, c, h, w),
                                    inputs[idx]->ptrAt<float>(n_, c, h, 0),
                                    sizeof(float) * (dim_size));
+                            } else if(inputs[0]->dtype() == MLLM_TYPE_F16) {
+                                memcpy(outputs[0]->ptrAt<mllm_fp16_t>(n, c, h, w),
+                                   inputs[idx]->ptrAt<mllm_fp16_t>(n_, c, h, 0),
+                                   sizeof(mllm_fp16_t) * (dim_size));
+                            }
                             w += dim_size;
                         }
                     }
