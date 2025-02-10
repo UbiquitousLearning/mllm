@@ -64,14 +64,14 @@ public:
             }
             outputs[0]->setDtype(inputs[0]->dtype());
             outputs[0]->alloc();
-            inputs[0]->deepCopyFrom(outputs[0], false);
+            inputs[0]->shallowCopyFrom(outputs[0], false);
         } else if (Module::llm_model_ptr->op_transposed_flag) {
             if (inputs[0]->masterTensor() == nullptr) {
                 inputs[0]->free();
             }
             outputs[0]->setDtype(inputs[0]->dtype());
             outputs[0]->alloc();
-            inputs[0]->deepCopyFrom(outputs[0], false);
+            inputs[0]->shallowCopyFrom(outputs[0], false);
             return;
         } else {
             std::cout << "[TODO]Tensor.Flatten not support!!!!" << std::endl;

@@ -72,13 +72,13 @@ ErrorCode CPUScale::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 ErrorCode CPUScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
-    // outputs[0]->deepCopyFrom(inputs[0]);
+    // outputs[0]->shallowCopyFrom(inputs[0]);
     if (inputs[0]->masterTensor() == nullptr) {
         inputs[0]->free();
     }
     outputs[0]->setDtype(activation_dtype());
     outputs[0]->alloc();
-    inputs[0]->deepCopyFrom(outputs[0].get(), false);
+    inputs[0]->shallowCopyFrom(outputs[0].get(), false);
 
     return MLLM_NO_ERROR;
 }

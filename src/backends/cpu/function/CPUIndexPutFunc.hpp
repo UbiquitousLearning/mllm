@@ -20,7 +20,7 @@ public:
             if (inputs[0]->masterTensor() == nullptr) {
                 inputs[0]->free();
             }
-            inputs[0]->deepCopyFrom(outputs[0], false);
+            inputs[0]->shallowCopyFrom(outputs[0], false);
             outputs[0]->alloc();
             return;
         }
@@ -48,7 +48,7 @@ public:
                 inputs[0]->free();
             }
             outputs[0]->alloc();
-            inputs[0]->deepCopyFrom(outputs[0], false);
+            inputs[0]->shallowCopyFrom(outputs[0], false);
         } else {
             outputs[0]->alloc();
         }

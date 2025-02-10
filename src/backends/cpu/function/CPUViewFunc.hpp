@@ -86,7 +86,7 @@ public:
             }
             outputs[0]->setDtype(inputs[0]->dtype());
             outputs[0]->alloc();
-            inputs[0]->deepCopyFrom(outputs[0], false);
+            inputs[0]->shallowCopyFrom(outputs[0], false);
         } else {
             std::cout << "[TODO]Tensor.View alloc not support!!!!" << std::endl;
         }

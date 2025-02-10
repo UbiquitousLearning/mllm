@@ -34,52 +34,43 @@ $(error "ERROR: HEXAGON_SDK_ROOT is not set. Hexagon-SDK path must be set to the
 endif
 
 ifeq ($(wildcard $(HEXAGON_SDK_ROOT)),)
-$(error "ERROR: HEXAGON_SDK_ROOT is not set correctly. Please set HEXAGON_SDK_ROOT to latest hexagon-sdk-X.Y.Z path")
+$(error "ERROR: HEXAGON_SDK_ROOT is not set correctly. Please provide hexagon-sdk-X.Y.Z path")
 endif
 
 HEXAGON_SDK_BASE := $(dir $(HEXAGON_SDK_ROOT))
 
-ifndef HEXAGON_TOOLS_ROOT
-HEXAGON_TOOLS_ROOT = $(DEFAULT_HEXAGON_TOOLS_ROOT)
-endif
-
-ifndef V
-V = v75
-endif
-
-ifndef BUILD
-BUILD = $(DEFAULT_BUILD)
-endif
-
-QHL_DIR = $(HEXAGON_SDK_ROOT)/libs/qhl
-QHL_HVX_DIR = $(HEXAGON_SDK_ROOT)/libs/qhl_hvx
-COMPLETE_TOOLS_VERSION = $(shell basename $(HEXAGON_TOOLS_ROOT))
-TEMP_VAR = $(subst ., ,$(COMPLETE_TOOLS_VERSION))
-TOOLS_VERSION = $(word 1,$(TEMP_VAR))$(word 2,$(TEMP_VAR))
-BUILD_DIR = hexagon_$(BUILD)_toolv$(TOOLS_VERSION)_$(V)
-PREBUILT_DIR = hexagon_toolv$(TOOLS_VERSION)_v65
-
-QHL_DIR_BIN = $(QHL_DIR)/$(BUILD_DIR)
-QHL_HVX_DIR_BIN = $(QHL_HVX_DIR)/$(BUILD_DIR)
-
-QHL_INC_DIRS := $(QHL_DIR)/inc/qhmath $(QHL_DIR)/inc/qhcomplex $(QHL_DIR)/inc/qhdsp $(QHL_DIR)/inc/qhblas
-# QHL_LIBS = $(QHL_DIR_BIN)/libqhdsp.a $(QHL_DIR_BIN)/libqhcomplex.a $(QHL_DIR_BIN)/libqhmath.a $(QHL_DIR_BIN)/libqhblas.a
-
-QHL_HVX_INC_DIRS := $(QHL_HVX_DIR)/inc/internal $(QHL_HVX_DIR)/inc/qhdsp_hvx $(QHL_HVX_DIR)/inc/qhblas_hvx
-# QHL_HVX_LIBS = $(QHL_HVX_DIR_BIN)/libqhdsp_hvx.a $(QHL_HVX_DIR_BIN)/libqhblas_hvx.a $(QHL_DIR_BIN)/libqhmath.a $(QHL_DIR_BIN)/libqhcomplex.a
-
-WORKER_POOL_INC := $(HEXAGON_SDK_ROOT)/libs/worker_pool/inc/ $(HEXAGON_SDK_ROOT)/incs/stddef/ $(HEXAGON_SDK_ROOT)/incs/
-WORKER_POOL_LIB := $(HEXAGON_SDK_ROOT)/libs/worker_pool/prebuilt/$(PREBUILT_DIR)/libworker_pool.a
+$(info "The parent directory for all hexagon-sdk [${HEXAGON_SDK_BASE}]")
 
 $(info "HEXAGON_SDK_ROOT is [${HEXAGON_SDK_ROOT}]")
+
+# mllm NOTE:
+# Below is modified according to SampleApp demo in QNN SDK lib
+# Users should note that the tools version may change between hexagon sdk versions
+# see Linux Setup(https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/linux_setup.html) for compatibility between Hexagon SDK and QNN version
+# In this project, we use $(HEXAGON_SDK_ROOT) directly to avoid version mismatch
+
+VERSION := $(shell basename $(HEXAGON_SDK_ROOT))
+MAJOR_VERSION := $(shell echo $(VERSION) | cut -d. -f1)
+ifeq ($(shell [ $(MAJOR_VERSION) -ge 5 ] && echo true),true)
+    $(info Hexagon SDK Version is greater than or equal to 5)
+else
+    $(error mllm currently only supports htp >= v75 and hexagon sdk >= 5.4.0)
+endif
+
 # Users should note that the tools version may change between hexagon sdk versions
 # Following combination of SDK and Tool version is supported
-HEXAGON_SDK_ROOT_V68 := $(HEXAGON_SDK_BASE)/HexagonSDK/
-HEXAGON_SDK_ROOT_V69 := $(HEXAGON_SDK_BASE)/HexagonSDK/
-HEXAGON_SDK_ROOT_V73 := $(HEXAGON_SDK_BASE)/HexagonSDK/
-HEXAGON_SDK_ROOT_V75 := $(HEXAGON_SDK_BASE)/HexagonSDK/
+# HEXAGON_SDK_ROOT_V68 := $(HEXAGON_SDK_BASE)/hexagon-sdk-4.2.0
+# HEXAGON_SDK_ROOT_V69 := $(HEXAGON_SDK_BASE)/hexagon-sdk-4.3.0
+# HEXAGON_SDK_ROOT_V73 := $(HEXAGON_SDK_BASE)/hexagon-sdk-5.4.0
+# HEXAGON_SDK_ROOT_V75 := $(HEXAGON_SDK_BASE)/hexagon-sdk-5.4.0
+HEXAGON_SDK_ROOT_V68 := $(HEXAGON_SDK_ROOT)
+HEXAGON_SDK_ROOT_V69 := $(HEXAGON_SDK_ROOT)
+HEXAGON_SDK_ROOT_V73 := $(HEXAGON_SDK_ROOT)
+HEXAGON_SDK_ROOT_V75 := $(HEXAGON_SDK_ROOT)
 #Updated to point to latest sdk to match with libQnnHtp.so
-HEXAGON_SDK_ROOT_X86 := $(HEXAGON_SDK_BASE)/HexagonSDK/
+# HEXAGON_SDK_ROOT_X86 := $(HEXAGON_SDK_BASE)/hexagon-sdk-5.4.0
+HEXAGON_SDK_ROOT_X86 := $(HEXAGON_SDK_ROOT)
+
 HEXAGON_TOOLS_VERSION_V68 := 8.4.09
 HEXAGON_TOOLS_VERSION_V69 := 8.5.03
 HEXAGON_TOOLS_VERSION_V73 := 8.7.06
@@ -109,7 +100,7 @@ OP_INCLUDES =  #$(wildcard $(OP_INCLUDE_DIR)/*.h) user defined if any op specifi
 LIBRARY_NAME := libQnn$(PACKAGE_NAME).so
 SUPPORTED_TARGETS = x86_64-linux-clang hexagon-v68 hexagon-v69 hexagon-v73 hexagon-v75 aarch64-android
 
-INCLUDES = $(addprefix -I,$(QHL_INC_DIRS)) $(addprefix -I,$(QHL_HVX_INC_DIRS)) $(addprefix -I,$(WORKER_POOL_INC)) -I$(HEXAGON_SDK_BASE)/HexagonSDK/libs/qhl_hvx/inc/qhmath_hvx/
+INCLUDES = $(addprefix -I,$(QHL_INC_DIRS)) $(addprefix -I,$(QHL_HVX_INC_DIRS)) $(addprefix -I,$(WORKER_POOL_INC)) -I$(HEXAGON_SDK_ROOT)/libs/qhl_hvx/inc/qhmath_hvx/ -I$(HEXAGON_SDK_ROOT)/libs/qhl_hvx/inc/internal
 
 
 COMMON_CXX_FLAGS = -std=c++17 -I$(QNN_INCLUDE) -fPIC -Wall -Wreorder -Wno-missing-braces -fno-builtin -Wno-unused-function

@@ -9,6 +9,7 @@
 
 #include "op/CPUHeadLinear.hpp"
 #include "op/CPULinearInt8.hpp"
+#include "op/CPUNTKRoPE.hpp"
 #include "op/CPUPoEmbedding.hpp"
 #include "op/CPUSplitInput.hpp"
 #include "op/CPUView.hpp"
@@ -172,6 +173,7 @@ void CPUBackend::registerOps() {
     addCreator(LINEARINT8SHADOW, (CPUBackend::Creator *)(new CPULinearINT8ShadowCreator()));
     addCreator(IROPE, (CPUBackend::Creator *)(new CPUIRoPECreator()));
     addCreator(XP_KVCACHE, (CPUBackend::Creator *)(new CPUKVCacheXpCreator()));
+    addCreator(NTKROPE, (CPUBackend::Creator *)(new CPUNTKRoPECreator()));
     addCreator(HEADLINEAR, (CPUBackend::Creator *)(new CPUHeadLinearCreator()));
 }
 TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {

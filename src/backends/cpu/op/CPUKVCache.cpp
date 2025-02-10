@@ -5,22 +5,16 @@
 #include "Types.hpp"
 
 int n_pack = 16;
-// #define KVCache_TYPE_16
-// #define KVCache_TYPE_8 // TODO: Q8_0 KVCache can not use!!
 namespace mllm {
 CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max, int threadCount) :
     thread_count(threadCount), Op(bn, opName) {
     cache_.setBackend(bn);
-    // #if defined(KVCache_TYPE_16)
     switch (KVCache_TYPE) {
     case 16: {
         cache_.setDtype(MLLM_TYPE_F16);
         break;
     }
     case 8: {
-        // #elif defined(KVCache_TYPE_8)
-        // cache_.setDtype(MLLM_TYPE_Q8_0);
-        // n_pack = QK8_0;
         if (opName.find("k_cache") != std::string::npos) {
             cache_.setDtype(MLLM_TYPE_Q8_0);
             n_pack = QK8_0;
@@ -30,7 +24,6 @@ CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max, int
         break;
     }
     case 32: {
-        // #else
         cache_.setDtype(MLLM_TYPE_F32);
         break;
     }
@@ -176,12 +169,28 @@ ErrorCode CPUKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
     outputs[0]->setDtype(cache_.dtype());
-    outputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ / cache_limit_, 0});
+    outputs[0]->shallowCopyFrom(cache_, false, {0, 0, cache_seq_len_ / cache_limit_, 0});
     if (inputs[0]->sequence() + cache_seq_len_ > cache_limit_) {
-        outputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_ + 1, 0});
+        outputs[0]->shallowCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_ + 1, 0});
     }
     if (inputs[0]->masterTensor() == nullptr) { inputs[0]->free(); }
-    inputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_, 0});
+    inputs[0]->shallowCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_, 0});
+    /*没用
+    for (auto& cTensor: cache_.childTensors()){
+        if(cTensor->deaggregatedTensor()!=nullptr){
+            bool set_cache_dtype = true;
+            for (auto T: cTensor->deaggregatedTensor()->aggregatedTensors()){
+                if(T->dtype() != cache_.dtype()){
+                    set_cache_dtype = false;
+                    break;
+                }
+            }
+            if (set_cache_dtype) {
+                cTensor->deaggregatedTensor()->setDtype(cache_.dtype());
+            }
+        }
+    }
+    */
     return MLLM_NO_ERROR;
 }
 } // namespace mllm

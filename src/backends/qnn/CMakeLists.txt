@@ -1,13 +1,3 @@
-include_directories(
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${CMAKE_CURRENT_LIST_DIR}/QNN
-    ${CMAKE_CURRENT_LIST_DIR}/Log
-    ${CMAKE_CURRENT_LIST_DIR}/PAL/include
-    ${CMAKE_CURRENT_LIST_DIR}/Model
-    ${CMAKE_CURRENT_LIST_DIR}/Utils
-    ${CMAKE_CURRENT_LIST_DIR}/WrapperUtils
-)
-
 get_property(current_includes DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 message(STATUS "MLLM_QNN INCLUDES: ${current_includes}") #print include directories
 

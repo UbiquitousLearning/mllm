@@ -80,10 +80,10 @@ ErrorCode CPUHeadLinear::execute(vector<shared_ptr<Tensor>> inputs, vector<share
 
     shared_ptr<Tensor> tmp_in = std::make_shared<Tensor>(backend_);
     tmp_in->reshape(1, 1, 1, inputs[0]->dimension());
-    tmp_in->deepCopyFrom(inputs[0].get(), false, {0, 0, seqLength % chunk_size - 1, 0});
+    tmp_in->shallowCopyFrom(inputs[0].get(), false, {0, 0, seqLength % chunk_size - 1, 0});
     shared_ptr<Tensor> tmp_out = std::make_shared<Tensor>(backend_);
     tmp_out->reshape(1, 1, 1, out_features_);
-    tmp_out->deepCopyFrom(outputs[0].get(), false, {0, 0, seqLength % chunk_size - 1, 0});
+    tmp_out->shallowCopyFrom(outputs[0].get(), false, {0, 0, seqLength % chunk_size - 1, 0});
 
     //    auto start = mllm::mllm_time_us();
     if (inputs[0]->count() == 0) {
