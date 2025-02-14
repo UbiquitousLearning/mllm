@@ -29,12 +29,12 @@ public:
     /**
      * \brief set the output tensors' shape of Ops in this graph.
      */
-    void reshape();
+    virtual void reshape();
 
     /**
      * \brief alloc the memory of output tensors of Ops in this graph.
      */
-    void setUpTensors();
+    virtual void setUpTensors();
 
     /**
      * \brief load the weights/bias of Ops in this graph.

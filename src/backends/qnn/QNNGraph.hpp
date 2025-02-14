@@ -5,6 +5,7 @@
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
 #include "express/ExpressBase.hpp"
+#include <string>
 #include <unordered_map>
 #include <Graph.hpp>
 #include <thread>
@@ -23,7 +24,7 @@ public:
      * \param external_tensors external tensors from other graph and inter graphs.
      * \param threadCount number of Threads
      */
-    explicit QNNGraph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors, int threadCount);
+    explicit QNNGraph(const NetParameter &param, Backend *bn, unordered_map<string, shared_ptr<Tensor>> &external_tensors, int threadCount, string graphName = "");
     virtual ~QNNGraph() = default;
 
     /**
@@ -37,9 +38,11 @@ public:
     const vector<shared_ptr<Tensor>> &forward(std::string graphName);
 
     void setUpTensors(std::string graphName);
-    void free(std::string graphName);
+    void setUpTensors() override;
+    void free();
     void allFree();
-
+private:
+    std::string graphName_;
 };
 
 } // namespace mllm

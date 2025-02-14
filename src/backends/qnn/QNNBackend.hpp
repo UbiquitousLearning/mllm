@@ -39,20 +39,7 @@ class Backend;
 class QNNBackend : public Backend {
 public:
     QNNBackend(shared_ptr<MemoryManager> mm);
-    ~QNNBackend() {
-        terminateBackend();
-        // free creaters in map_creator_
-        for (auto &iter : map_creator_) {
-            delete iter.second;
-        }
-        // free qnn backend resource
-        this->release();
-        // free dynamic library handle
-        if (m_backendLibraryHandle) {
-            pal::dynamicloading::dlClose(m_backendLibraryHandle);
-        }
-        QNN_INFO("Free handle");
-    }
+    ~QNNBackend();
 
     Op *opCreate(const OpParam &op_param, string name = "", int threadCount = 4) override {
         OpType optype = OpType(op_param.find("type")->second);
@@ -116,8 +103,6 @@ private:
     qnn_wrapper_api::ModelError_t graphFinilize();
     qnn_wrapper_api::ModelError_t graphConfig();
 
-    void release();
-
     void registerOps() override;
     void registerFuncs() override {};
 
@@ -150,13 +135,7 @@ private:
 
     StatusCode extractProfilingEvent(QnnProfile_EventId_t profileEventId);
 
-    static qnn_wrapper_api::ModelError_t QnnModel_freeGraphsInfo(qnn_wrapper_api::GraphInfoPtr_t **graphsInfo, uint32_t numGraphsInfo) {
-        return qnn_wrapper_api::freeGraphsInfo(graphsInfo, numGraphsInfo);
-    }
-
     AbstructLoader *dataLoader_;
-
-    static const std::string s_defaultOutputPath;
 
     std::map<std::string, std::vector<uint8_t *>> inputBufferMap;
     std::vector<uint8_t *> *currentInputBuffers;
