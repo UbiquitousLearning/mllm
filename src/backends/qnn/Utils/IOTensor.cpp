@@ -287,6 +287,7 @@ iotensor::StatusCode iotensor::IOTensor::populateInputTensor(
 }
 
 // Helper method to populate all input tensors.
+// copy data in inputBuffers to input.clientBuffer.data (not used in mllm shared buffer execution) 
 iotensor::StatusCode iotensor::IOTensor::populateInputTensors(
     uint32_t graphIdx,
     std::vector<uint8_t*> inputBuffers,

@@ -156,7 +156,7 @@ private:
     Qnn_ContextHandle_t m_context = nullptr;
     QnnContext_Config_t **m_contextConfig = nullptr;
     bool m_debug;
-    iotensor::OutputDataType m_outputDataType;
+
     iotensor::InputDataType m_inputDataType;
     sample_app::ProfilingLevel m_profilingLevel;
 
@@ -175,8 +175,6 @@ private:
     Qnn_LogHandle_t m_logHandle = nullptr;
     Qnn_BackendHandle_t m_backendHandle = nullptr;
     Qnn_DeviceHandle_t m_deviceHandle = nullptr;
-
-    std::vector<Tensor> outputTensors_;
 
     std::map<int, Qnn_Tensor_t *> inputsMap_;
     std::map<int, Qnn_Tensor_t *> outputsMap_;

@@ -102,7 +102,6 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
 
     // TODO: make these configuable
     m_debug = false; // when set true, NATIVE tensor will be regared as APP_READ tensor
-    m_outputDataType = iotensor::OutputDataType::FLOAT_AND_NATIVE;
     m_inputDataType = iotensor::InputDataType::NATIVE;
     m_profilingLevel = ProfilingLevel::OFF;
 
@@ -393,16 +392,17 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
 
     auto graphInfo = graphInfoMap_[qnnModelIndex_];
 
+    // TODO: directly get qnnInputs and qnnOutputs from graphInfo.outputTensors
     if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&qnnInputs, &qnnOutputs, *graphInfo)) {
         MLLM_LOG_ERROR_LEGACY("Error in setting up Input and output Tensors for qnnModelIndex_: %d", qnnModelIndex_);
         returnStatus = StatusCode::FAILURE;
     }
 
-    // Todo only one graph now
-    size_t totalCount = currentInputBuffers->size();
-    if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(qnnModelIndex_, *currentInputBuffers, qnnInputs, *graphInfo, m_inputDataType)) {
-        returnStatus = StatusCode::FAILURE;
-    }
+    // // Todo only one graph now
+    // size_t totalCount = currentInputBuffers->size();
+    // if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(qnnModelIndex_, *currentInputBuffers, qnnInputs, *graphInfo, m_inputDataType)) {
+    //     returnStatus = StatusCode::FAILURE;
+    // }
 
     auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
 
@@ -655,7 +655,7 @@ StatusCode QNNBackend::createContext() {
 
 // Free context after done.
 StatusCode QNNBackend::freeContext() {
-    if (QNN_CONTEXT_NO_ERROR != m_qnnFunctionPointers.qnnInterface.contextFree(m_context, m_profileBackendHandle)) {
+    if (m_isContextCreated && QNN_CONTEXT_NO_ERROR != m_qnnFunctionPointers.qnnInterface.contextFree(m_context, m_profileBackendHandle)) {
         MLLM_LOG_ERROR_LEGACY("Could not free context");
         return StatusCode::FAILURE;
     }
