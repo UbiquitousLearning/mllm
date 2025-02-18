@@ -36,6 +36,8 @@
 #include "op/CPUAvgPool2D.hpp"
 #include "op/CPUMaxPool2D.hpp"
 #include "op/CPUConvolution3D.hpp"
+#include "op/CPUVisionRoPE.hpp"
+#include "op/CPUMultimodalRoPE.hpp"
 #include "op/CPUParameter.hpp"
 #include "op/CPUCat.hpp"
 #include "op/CPUSubDim.hpp"
@@ -82,6 +84,7 @@
 #include "function/CPURepeatFunc.hpp"
 #include "function/CPULikeFunc.hpp"
 #include "function/CPUScatterReduceFunc.hpp"
+#include "function/CPUApplyVisionRoPE.hpp"
 
 #include "function/CPUFuyuGatherEmbdFunc.hpp"
 #include "function/CPUPhi3VhdmergeFunc.hpp"
@@ -152,7 +155,9 @@ void CPUBackend::registerOps() {
     addCreator(AVGPOOL2D, (CPUBackend::Creator *)(new CPUAvgPoolCreator()));
     addCreator(MAXPOOL2D, (CPUBackend::Creator *)(new CPUMaxPoolCreator()));
     addCreator(CONVOLUTION3D, (CPUBackend::Creator *)(new CPUConvolution3DCreator()));
-    addCreator(CAT, (CPUBackend::Creator *)(new CPUCatCreator()));
+    addCreator(VISIONROPE, (CPUBackend::Creator *)(new CPUVisionRoPECreator()));
+    addCreator(MULTIMODALROPE, (CPUBackend::Creator *)(new CPUMultimodalRoPECreator()));
+    // addCreator(CAT, (CPUBackend::Creator *)(new CPUCatCreator()));
     addCreator(TRANSPOSE, (CPUBackend::Creator *)(new CPUTransposeCreator()));
     addCreator(SUBDIM, (CPUBackend::Creator *)(new CPUSubDimCreator()));
     addCreator(DIVISION, (CPUBackend::Creator *)(new CPUDivisionCreator()));
@@ -217,6 +222,7 @@ void CPUBackend::registerFuncs() {
     map_function_[TensorFuncType::FUNC_REPEAT] = new CPUrepeatFunction();
     map_function_[TensorFuncType::FUNC_LIKE] = new CPUlikeFunction();
     map_function_[TensorFuncType::FUNC_SCATTERREDUCE] = new CPUScatterReduceFunction();
+    map_function_[TensorFuncType::FUNC_APPLY_VISIOROPE] = new CPUApplyVisionRoPEFunction();
     // models use only
     map_function_[TensorFuncType::FUNC_FUYU_GATHER_EMBD] = new CPUFuyuGatherEmbdFunc();
     map_function_[TensorFuncType::FUNC_PHI3V_HD_MERGE] = new CPUPhi3VhdmergeFunction();

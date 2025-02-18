@@ -57,6 +57,17 @@ Tensor::Tensor(int value, BackendType bn_type) {
     setDataAt<float>(0, 0, 0, 0, (float)value);
 }
 
+Tensor::Tensor(vector<float> values, BackendType bn_type) {
+    dtype_ = MLLM_TYPE_F32;
+    setBackend(Backend::global_backends[bn_type]);
+    reshape(1, 1, 1, values.size());
+    alloc();
+    shouldInGraphs() = false;
+    for (auto value : values) {
+        setDataAt<float>(0, 0, 0, 0, (float)value);
+    }
+}
+
 bool Tensor::reshape(const int batch, const int head, const int sequence, const int dimension) {
     vector<int> shape(4);
     shape[chls()[BATCH]] = batch;
@@ -574,6 +585,15 @@ Tensor &Tensor::zero_like(Tensor &input) {
     return getStaticFunc({input.name() + "-zero_like"}, FUNC_LIKE, {0.0},
                          {module->activation_tensors[input.name()].get()})[0]
         .get();
+}
+Tensor &Tensor::apply_rotary_pos_emb_vision(Tensor &input, Tensor&rotary_pos_emb){
+    Module *module = input.module();
+    return getStaticFunc({input.name() + "-apply_rotary_pos_emb"}, FUNC_APPLY_VISIOROPE, 
+                        {},
+                        {
+                        module->activation_tensors[input.name()].get(),
+                        module->activation_tensors[rotary_pos_emb.name()].get()
+                        })[0].get();
 }
 
 Tensor &Tensor::fuyu_gather_embd(Tensor &word, Tensor &image_patches, Tensor &image_patches_indices) {
