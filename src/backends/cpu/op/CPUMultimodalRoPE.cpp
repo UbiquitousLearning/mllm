@@ -4,6 +4,7 @@
 #include "Types.hpp"
 #include <cassert>
 #include <cmath>
+#include <memory>
 // #include <iostream>
 #include "backends/cpu/quantize/QuantizeQ8.hpp"
 
@@ -30,40 +31,78 @@ float multimodal_default_init_rope(const OpParam& config, vector<float>& theta) 
 }
 
 void apply_multimodal_rotary_pos_emb(
-    std::vector<std::vector<float>>& cos,
-    std::vector<std::vector<float>>& sin,
-    const std::vector<int>& mrope_section,
-    int unsqueeze_dim = 1
-) {
-    // Assuming all vectors in 'cos' and 'sin' have the same size for simplicity
-    size_t original_size = cos[0].size();
-    std::vector<std::vector<float>> new_cos(cos.size(), std::vector<float>(original_size, 0));
-    std::vector<std::vector<float>> new_sin(sin.size(), std::vector<float>(original_size, 0));
-    size_t start = 0;
-    for (size_t i = 0; i < mrope_section.size(); ++i) {
-        int section_size = mrope_section[i];
-        for (size_t row = 0; row < cos.size(); ++row) {
-            for (int col = 0; col < section_size; ++col) {
-                // Calculate target index by considering modulo operation for rotation
-                size_t target_index = col + (i % 3) * section_size;
-                if(target_index >= new_cos[row].size()) {
-                    // Adjust target index to fit within the bounds of the vector
-                    target_index %= new_cos[row].size();
-                }
-                new_cos[row][target_index] = cos[row][start + col];
-                new_sin[row][target_index] = sin[row][start + col];
+    const std::vector<std::vector<std::vector<float>>>& in_cos,
+    const std::vector<std::vector<std::vector<float>>>& in_sin,
+    std::vector<std::vector<float>>& out_cos,
+    std::vector<std::vector<float>>& out_sin,
+    const std::vector<int>& mrope_section) {
+    int num_rows = in_cos[0].size();
+    int num_cols = in_cos[0][0].size();
+    // 初始化输出向量大小
+    out_cos.resize(num_rows, std::vector<float>(num_cols));
+    out_sin.resize(num_rows, std::vector<float>(num_cols));
+    // 计算每个块的起始列索引
+    std::vector<int> start_cols;
+    int current_start = 0;
+    start_cols.push_back(current_start);
+    for (int s : mrope_section) {
+        current_start += s;
+        start_cols.push_back(current_start);
+    }
+    // 遍历每个块
+    for (int j = 0; j < mrope_section.size(); ++j) {
+        int layer = j % 3;
+        int s_j = mrope_section[j];
+        int start_col_in = start_cols[j];
+        int start_col_out = start_cols[j]; // 输出和输入的起始列相同
+        for (int row = 0; row < num_rows; ++row) {
+            // 处理cos
+            const auto& in_cos_row = in_cos[layer][row];
+            auto& out_cos_row = out_cos[row];
+            for (int c = 0; c < s_j; ++c) {
+                out_cos_row[start_col_out + c] = in_cos_row[start_col_in + c];
+            }
+            // 处理sin
+            const auto& in_sin_row = in_sin[layer][row];
+            auto& out_sin_row = out_sin[row];
+            for (int c = 0; c < s_j; ++c) {
+                out_sin_row[start_col_out + c] = in_sin_row[start_col_in + c];
             }
         }
-        start += section_size;
     }
-    // Apply changes back to the original vectors
-    cos = new_cos;
-    sin = new_sin;
 }
 
-void multimodal_sinusoidal_position_embedding(int seq_len, int output_dim, const vector<float>& theta,
+
+void multimodal_sinusoidal_position_embedding(shared_ptr<Tensor> position_ids, int seq_len, int output_dim, const vector<float>& theta,
                                                vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling = 1.0,
                                                const std::vector<int>& mrope_section = {}) {
+    
+    // TODO position_ids
+    // std::vector<std::vector<std::vector<float>>> emb;
+    vector<vector<vector<float>>> tmp_sin;
+    vector<vector<vector<float>>> tmp_cos;
+    for (int b = 0; b < position_ids->batch(); ++b) {
+        // std::vector<std::vector<float>> freqs(position_ids->dimension(), std::vector<float>(theta.size()*2, 0));
+        vector<vector<float>> cos_freqs(position_ids->dimension(), std::vector<float>(theta.size()*2, 0));
+        vector<vector<float>> sin_freqs(position_ids->dimension(), std::vector<float>(theta.size()*2, 0));
+        for (int i = 0; i < theta.size(); ++i) {
+            for (int j = 0; j < position_ids->dimension(); ++j) {
+                auto value= theta[i] * position_ids->dataAt<float>(b, 0, 0, j);
+                // freqs[j][i]  = value;
+                // freqs[j][i+theta.size()]  = value;
+                cos_freqs[j][i] = cosf(value)* attention_scaling;
+                cos_freqs[j][i+theta.size()] = cosf(value) * attention_scaling;
+                sin_freqs[j][i] = sinf(value)* attention_scaling;
+                sin_freqs[j][i+theta.size()] = sinf(value) * attention_scaling;
+            }
+        }
+        // emb.push_back(freqs);
+        tmp_cos.push_back(cos_freqs);
+        tmp_sin.push_back(sin_freqs);
+    }
+    
+    
+    /*
     sin.resize(seq_len);
     for (int i = 0; i < seq_len; ++i) {
         sin[i].resize(output_dim);
@@ -74,7 +113,6 @@ void multimodal_sinusoidal_position_embedding(int seq_len, int output_dim, const
     }
 
     auto mid = output_dim / 2;
-
 #pragma omp parallel for num_threads(4)
     for (int s = 0; s < seq_len; ++s) {
         for (int d = 0; d < output_dim / 2; d += 1) {
@@ -90,10 +128,13 @@ void multimodal_sinusoidal_position_embedding(int seq_len, int output_dim, const
             }
         }
     }
+    vector<vector<vector<float>>> tmp_sin = {sin, sin, sin};
+    vector<vector<vector<float>>> tmp_cos = {cos, cos, cos};
+    */
+    // TODO position_ids
 
-    //ADD HERE TODO
     if(!mrope_section.empty()){
-        apply_multimodal_rotary_pos_emb(cos, sin, mrope_section);
+        apply_multimodal_rotary_pos_emb(tmp_cos, tmp_sin, cos, sin, mrope_section);
     }
 }
 
@@ -110,11 +151,12 @@ CPUMultimodalRoPE::CPUMultimodalRoPE(Backend *bn, string opName, float rope_thet
 
 ErrorCode CPUMultimodalRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
 //    std::cout << name() << "  CPUMultimodalRoPE  reshape" << std::endl;
-    assert(inputs.size() == 1);
+    assert(inputs.size() == 2);
     assert(outputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     ishape = inputs[0]->dimension() * partial_rotary_factor_;
     // pos_max_ = 16384;
+    auto position_ids = inputs[1];
 
     if (sin_.empty() || ishape_old < ishape ) {
         auto config = config_;
@@ -122,7 +164,7 @@ ErrorCode CPUMultimodalRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<s
         config["dim"] = ishape;
         float attention_scaling = multimodal_default_init_rope(config, theta_);
         ishape_old = ishape;
-        multimodal_sinusoidal_position_embedding(pos_max_, ishape, theta_, sin_, cos_, attention_scaling, mrope_section_);
+        multimodal_sinusoidal_position_embedding(position_ids, pos_max_, ishape, theta_, sin_, cos_, attention_scaling, mrope_section_);
     }
 #ifdef USE_QNN
     auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);

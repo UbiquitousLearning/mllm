@@ -826,8 +826,8 @@ public:
         }
         init(std::move(name), OpType::MULTIMODALROPE);
     }
-    Tensor &operator()(Tensor &input) {
-        auto ts = run({input}, 1);
+    Tensor &operator()(Tensor &input, Tensor &position_ids) {
+        auto ts = run({input, position_ids}, 1);
         return ts[0].get();
     }
     void clearCache() {

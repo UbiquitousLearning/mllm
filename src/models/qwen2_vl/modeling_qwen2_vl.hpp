@@ -225,26 +225,25 @@ public:
         k_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "k_rope");
         k_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "k_cache");
         v_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "v_cache");
-        // mask = SlidingWindowMask(config.sliding_window, base_name + "mask");
-        mask = Causalmask(base_name + "mask");
-        softmax = Softmax(DIMENSION, base_name + "softmax");
+        softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
+        auto position_ids = inputs[1];
+
         auto query_states = q_proj(inputs[0]);
-        auto key_states = k_proj(inputs[1]);
-        auto value_states = v_proj(inputs[2]);
+        auto key_states = k_proj(inputs[0]);
+        auto value_states = v_proj(inputs[0]);
         query_states = query_states.view(-1, num_heads, -1, head_dim);
         key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
         value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
-        query_states = q_rope(query_states);
-        key_states = k_rope(key_states);
+        query_states = q_rope(query_states, position_ids);
+        key_states = k_rope(key_states, position_ids);
         key_states = k_cache(key_states);
         value_states = v_cache(value_states);
         auto atten_weight = 
             Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION))
             / std::sqrt(head_dim);
-        atten_weight = mask(atten_weight, k_cache.getCacheSeqLen());
         atten_weight = softmax(atten_weight, k_cache.getCacheSeqLen());
         auto atten_output = Tensor::mm(atten_weight, value_states);
         atten_output = atten_output.view(-1, 1, -1, head_dim * num_heads);
@@ -273,7 +272,6 @@ public:
     MultimodalRoPE k_rope;
     KVCache k_cache;
     KVCache v_cache;
-    Causalmask mask;
     Softmax softmax;
 };
 
@@ -291,8 +289,9 @@ public:
             RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
     }
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
+        auto position_ids = inputs[1];
         auto x = input_layernorm(inputs[0]);
-        x = self_atten({x, x, x})[0];
+        x = self_atten({x, position_ids})[0];
         auto tmp = x + inputs[0];
         x = post_attention_layernorm(tmp);
         x = mlp({x})[0];
@@ -320,8 +319,14 @@ class Qwen2VLModel final : public Module {
     Parameter lm_head;
     Layer lm_head_layer;
 
-    int image_token_id;
     bool tie_embedding_words;
+    
+    int64_t spatial_merge_size;
+    int64_t image_token_id;
+    int64_t video_token_id;
+    int64_t vision_start_token_id;
+
+    Tensor position_ids, mrope_position_deltas;
 
 public:
     explicit Qwen2VLModel(const Qwen2VLConfig &config) {
@@ -331,11 +336,14 @@ public:
         auto ffn_hidden = config.intermediate_size;
         auto projection_cls = config.projection_cls;
         auto vision_embed_dim = config.vision_embed_dim;
-        auto spatial_merge_size = config.spatial_merge_size;
         image_token_id = config.image_token_id;
         auto vision_names = config.vision_names_config;
         auto qwen_names = config.names_config;
         tie_embedding_words = config.tie_embedding_words;
+        spatial_merge_size = config.spatial_merge_size;
+        image_token_id = config.image_token_id;
+        video_token_id = config.video_token_id;
+        vision_start_token_id = config.vision_start_token_id;
 
         embed_tokens = Embedding(vocab_size, hidden_dim, qwen_names.token_embd_name);
         visual = Qwen2VisionModel(hidden_dim, vision_embed_dim, 16, vision_embed_dim * 4, "QuickGELU", 14, 336, 32, spatial_merge_size, vision_names, vision_names.vison_model_name);
@@ -349,6 +357,13 @@ public:
         }
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
+        if(!position_ids.allocted() && !llm_model_ptr->doLoad){
+            Tensor video_grid_thw(0, 0, 0, 0, MLLM_CPU, true);
+            auto rope_indices = get_rope_index_cpp(inputs[0], inputs[2], video_grid_thw);
+            position_ids = rope_indices[0];
+            mrope_position_deltas = rope_indices[1];
+        }
+        // TODO position_ids
         bool have_img = inputs[1].batch() > 0;
         auto hidden_states = embed_tokens({inputs[0]});
         if (have_img) {
@@ -358,7 +373,7 @@ public:
             hidden_states = hidden_states.index_put(image_embeds, where_idx, false);
         }
         for (auto &block : blocks) {
-            hidden_states = block({hidden_states})[0];
+            hidden_states = block({hidden_states, position_ids})[0];
         }
         hidden_states = norm(hidden_states);
         if (tie_embedding_words) {
@@ -375,6 +390,172 @@ public:
                 cache->clearCache();
             }
         }
+    }
+private:
+    vector<Tensor> get_rope_index_cpp(
+        Tensor input_ids,
+        Tensor image_grid_thw,
+        Tensor video_grid_thw
+    ) {
+        vector<vector<int64_t>> attention_mask;
+        auto attention_mask_shape = input_ids.sequence();
+        for (int b = 0; b < input_ids.batch(); b++) {
+            attention_mask.emplace_back(attention_mask_shape, 1);
+        }
+        const size_t batch_size = input_ids.batch();//input_ids.size();
+        const size_t seq_len = batch_size > 0 ? input_ids.sequence() : 0;// batch_size > 0 ? input_ids[0].size() : 0;
+        Tensor position_ids(3, 1, batch_size, seq_len, MLLM_CPU, true);
+        Tensor mrope_position_deltas(1, 1, 1, batch_size, MLLM_CPU, true);
+        bool has_vision = (image_grid_thw.sequence()>0)||(video_grid_thw.sequence()>0);//image_grid_thw || video_grid_thw;
+        if (!has_vision) {
+            // Pure text case
+            for (size_t i = 0; i < batch_size; ++i) {
+                const auto& mask = !attention_mask.empty() ? attention_mask[i] : vector<int64_t>(seq_len, 1);
+                vector<int64_t> positions;
+                int64_t pos = 0;
+                for (size_t j = 0; j < seq_len; ++j) {
+                    if (mask[j] == 1) {
+                        positions.push_back(pos++);
+                    } else {
+                        positions.push_back(1); // Will be overwritten by mask
+                    }
+                }
+                for (int dim = 0; dim < 3; ++dim) {
+                    for (size_t j = 0; j < seq_len; ++j) {
+                        position_ids.setDataAt(dim, 0, i, j, (float)(mask[j] == 1 ? positions[j] : 1));
+                    }
+                }
+                int64_t max_pos = pos - 1;
+                mrope_position_deltas.setDataAt(0, 0, 0, i, (float)((max_pos + 1) - static_cast<int64_t>(input_ids.sequence())));
+            }
+            return {position_ids, mrope_position_deltas};
+        }
+        // Process vision cases
+        size_t image_idx = 0, video_idx = 0;
+        for (size_t i = 0; i < batch_size; ++i) {
+            const auto& mask = !attention_mask.empty() ? attention_mask[i] : vector<int64_t>(seq_len, 1);
+            // Extract valid tokens
+            vector<int64_t> valid_tokens;
+            for (size_t j = 0; j < input_ids.sequence(); ++j) {
+                if (mask[j] == 1) valid_tokens.push_back((int)input_ids.dataAt<float>(i, 0, j, 0));
+            }
+            // Find vision start positions
+            vector<size_t> vision_starts;
+            vector<int64_t> vision_types;
+            for (size_t j = 0; j < valid_tokens.size(); ++j) {
+                if (valid_tokens[j] == vision_start_token_id && j+1 < valid_tokens.size()) {
+                    vision_starts.push_back(j);
+                    vision_types.push_back(valid_tokens[j+1]);
+                }
+            }
+            int64_t image_count = count(vision_types.begin(), vision_types.end(), image_token_id);
+            int64_t video_count = vision_types.size() - image_count;
+            vector<vector<int64_t>> llm_positions(3);
+            size_t st = 0;
+            int64_t current_max = 0;
+            int64_t remain_images = image_count;
+            int64_t remain_videos = video_count;
+            // Process each vision segment
+            for (size_t vs = 0; vs < vision_starts.size(); ++vs) {
+                // Find next vision token
+                size_t ed_image = valid_tokens.size();
+                size_t ed_video = valid_tokens.size();
+                if (remain_images > 0) {
+                    auto it = find(valid_tokens.begin() + st, valid_tokens.end(), image_token_id);
+                    if (it != valid_tokens.end()) ed_image = it - valid_tokens.begin();
+                }
+                if (remain_videos > 0) {
+                    auto it = find(valid_tokens.begin() + st, valid_tokens.end(), video_token_id);
+                    if (it != valid_tokens.end()) ed_video = it - valid_tokens.begin();
+                }
+                size_t ed = min(ed_image, ed_video);
+                if (ed == valid_tokens.size()) break;
+                // Get grid parameters
+                int64_t t, h, w;
+                bool is_image = (ed == ed_image);
+                if (is_image) {
+                    t = (int64_t)image_grid_thw.dataAt<float>(0, 0, image_idx, 0);
+                    h = (int64_t)image_grid_thw.dataAt<float>(0, 0, image_idx, 1);
+                    w = (int64_t)image_grid_thw.dataAt<float>(0, 0, image_idx, 2);
+                    image_idx++;
+                    remain_images--;
+                } else {
+                    t = (int64_t)video_grid_thw.dataAt<float>(0, 0, video_idx, 0);
+                    h = (int64_t)video_grid_thw.dataAt<float>(0, 0, video_idx, 1);
+                    w = (int64_t)video_grid_thw.dataAt<float>(0, 0, video_idx, 2);
+                    video_idx++;
+                    remain_videos--;
+                }
+                // Calculate grid dimensions
+                int64_t llm_grid_t = t;
+                int64_t llm_grid_h = h / spatial_merge_size;
+                int64_t llm_grid_w = w / spatial_merge_size;
+                // Process text segment
+                size_t text_len = ed - st;
+                if (text_len > 0) {
+                    int64_t start_idx = current_max;
+                    for (int64_t k = 0; k < text_len; ++k) {
+                        for (int dim = 0; dim < 3; ++dim) {
+                            llm_positions[dim].push_back(start_idx + k);
+                        }
+                    }
+                    current_max += text_len;
+                }
+                for (int64_t ti = 0; ti < llm_grid_t; ++ti) {
+                    for (int64_t hi = 0; hi < llm_grid_h; ++hi) {
+                        for (int64_t wi = 0; wi < llm_grid_w; ++wi) {
+                            llm_positions[0].push_back(current_max + ti);
+                            llm_positions[1].push_back(current_max + hi);
+                            llm_positions[2].push_back(current_max + wi);
+                        }
+                    }
+                }
+                current_max = std::max({llm_positions[0][llm_positions[0].size()-1],
+                    llm_positions[1][llm_positions[1].size()-1],
+                    llm_positions[2][llm_positions[2].size()-1]});
+                st = ed + llm_grid_t * llm_grid_h * llm_grid_w;
+            }
+            // Process remaining text
+            if (st < valid_tokens.size()) {
+                size_t text_len = valid_tokens.size() - st;
+                int64_t st_idx = std::max({llm_positions[0][llm_positions[0].size()-1],
+                                        llm_positions[1][llm_positions[1].size()-1],
+                                        llm_positions[2][llm_positions[2].size()-1]}) + 1;
+                for (int64_t k = 0; k < text_len; ++k) {
+                    for (int dim = 0; dim < 3; ++dim) {
+                        llm_positions[dim].push_back(st_idx + k);
+                    }
+                }
+                current_max += text_len;
+            }
+            // Fill position_ids with valid positions
+            size_t valid_idx = 0;
+            for (size_t j = 0; j < seq_len; ++j) {
+                if (mask[j] == 1) {
+                    if (valid_idx < llm_positions[0].size()) {
+                        position_ids.setDataAt(0, 0, i, j, (float)llm_positions[0][valid_idx]);
+                        position_ids.setDataAt(1, 0, i, j, (float)llm_positions[1][valid_idx]);
+                        position_ids.setDataAt(2, 0, i, j, (float)llm_positions[2][valid_idx]);
+                        valid_idx++;
+                    }
+                }
+            }
+            // Calculate delta
+            int64_t max_pos = 0;
+            for (const auto& dim : llm_positions) {
+                for (auto val : dim) {
+                    max_pos = max(max_pos, val);
+                }
+            }
+            mrope_position_deltas.setDataAt(0, 0, 0, i, (float)((max_pos + 1) - static_cast<int64_t>(input_ids.sequence())));
+        }
+        position_ids.setName("position_ids");
+        position_ids.shouldInGraphs() = false;
+        mrope_position_deltas.setName("mrope_position_deltas");
+        mrope_position_deltas.shouldInGraphs() = false;
+        // position_ids.saveData<float>();
+        // mrope_position_deltas.saveData<float>();
+        return {position_ids, mrope_position_deltas};
     }
 };
 #endif // MODELING_PHI3_HPP
