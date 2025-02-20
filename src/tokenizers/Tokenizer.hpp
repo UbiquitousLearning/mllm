@@ -4,6 +4,7 @@
 
 #ifndef MLLM_TOKENIZER_HPP
 #define MLLM_TOKENIZER_HPP
+#include <map>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -62,6 +63,7 @@ public:
     }
     virtual void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) = 0;
     virtual void setSpecialToken(const std::string &bos = "", const std::string &eos = "", const std::string &unk = "", const std::string &nl = "");
+    void setSpecialTokenMap(std::unordered_map<token_t, token_id_t> special_tokens_map);
     static std::string replaceString(const std::string &str, char old_char, const std::string &new_char);
     static std::string unCapitalize(const std::string &str);
     bool getTokenId(const token_t &token, token_id_t &id);
