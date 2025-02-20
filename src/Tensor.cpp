@@ -29,9 +29,7 @@ Tensor::Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bo
 
 Tensor::Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type,
                bool do_alloc) {
-    setBackend(Backend::global_backends[bn_type]);
-    reshape(batch, head, sequence, dimension);
-    if (do_alloc) { alloc(); }
+    Tensor(batch, head, sequence, dimension, Backend::global_backends[bn_type], do_alloc);
 }
 
 Tensor::Tensor(const vector<int> &shape) :

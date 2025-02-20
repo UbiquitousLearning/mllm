@@ -326,8 +326,6 @@ class Qwen2VLModel final : public Module {
     int64_t video_token_id;
     int64_t vision_start_token_id;
 
-    Tensor position_ids, mrope_position_deltas;
-
 public:
     explicit Qwen2VLModel(const Qwen2VLConfig &config) {
         auto vocab_size = config.vocab_size;
@@ -357,13 +355,7 @@ public:
         }
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
-        if(!position_ids.allocted() && !llm_model_ptr->doLoad){
-            Tensor video_grid_thw(0, 0, 0, 0, MLLM_CPU, true);
-            auto rope_indices = get_rope_index_cpp(inputs[0], inputs[2], video_grid_thw);
-            position_ids = rope_indices[0];
-            mrope_position_deltas = rope_indices[1];
-        }
-        // TODO position_ids
+        auto position_ids = inputs[3];
         bool have_img = inputs[1].batch() > 0;
         auto hidden_states = embed_tokens({inputs[0]});
         if (have_img) {
@@ -391,6 +383,27 @@ public:
             }
         }
     }
+    void get_position_ids(vector<Tensor> &inputs) {
+        if(inputs[0].sequence() > 1){
+            Tensor video_grid_thw(0, 0, 0, 0, MLLM_CPU, true);
+            auto rope_indices = get_rope_index_cpp(inputs[0], inputs[2], video_grid_thw);
+            auto position = rope_indices[0];
+            if(inputs.size() == 4){
+                inputs[3] = position;
+            } else{
+                inputs.push_back(position);
+            }
+        }else{
+            auto &position_ids = inputs[3];
+            auto last_pos = position_ids.dataAt<float>(0, 0, 0, position_ids.dimension()-1);
+            position_ids.reshape(position_ids.batch(), 1, position_ids.sequence(), 1);
+            for (int b = 0; b < position_ids.batch(); b++) {
+                for (int s = 0; s < position_ids.sequence(); s++) {
+                    position_ids.setDataAt<float>(b, 0, s, 0, last_pos + 1);
+                }
+            }
+        }
+    }
 private:
     vector<Tensor> get_rope_index_cpp(
         Tensor input_ids,
@@ -404,8 +417,8 @@ private:
         }
         const size_t batch_size = input_ids.batch();//input_ids.size();
         const size_t seq_len = batch_size > 0 ? input_ids.sequence() : 0;// batch_size > 0 ? input_ids[0].size() : 0;
-        Tensor position_ids(3, 1, batch_size, seq_len, MLLM_CPU, true);
-        Tensor mrope_position_deltas(1, 1, 1, batch_size, MLLM_CPU, true);
+        Tensor position_ids(3, 1, batch_size, seq_len, Backend::global_backends[MLLM_CPU], true);
+        Tensor mrope_position_deltas(1, 1, 1, batch_size, Backend::global_backends[MLLM_CPU], true);
         bool has_vision = (image_grid_thw.sequence()>0)||(video_grid_thw.sequence()>0);//image_grid_thw || video_grid_thw;
         if (!has_vision) {
             // Pure text case
@@ -422,12 +435,14 @@ private:
                 }
                 for (int dim = 0; dim < 3; ++dim) {
                     for (size_t j = 0; j < seq_len; ++j) {
-                        position_ids.setDataAt(dim, 0, i, j, (float)(mask[j] == 1 ? positions[j] : 1));
+                        position_ids.setDataAt<float>(dim, 0, i, j, (float)(mask[j] == 1 ? positions[j] : 1));
                     }
                 }
                 int64_t max_pos = pos - 1;
-                mrope_position_deltas.setDataAt(0, 0, 0, i, (float)((max_pos + 1) - static_cast<int64_t>(input_ids.sequence())));
+                mrope_position_deltas.setDataAt<float>(0, 0, 0, i, (float)((max_pos + 1) - static_cast<int64_t>(input_ids.sequence())));
             }
+            position_ids.setName("position_ids");
+            mrope_position_deltas.setName("mrope_position_deltas");
             return {position_ids, mrope_position_deltas};
         }
         // Process vision cases
@@ -518,9 +533,7 @@ private:
             // Process remaining text
             if (st < valid_tokens.size()) {
                 size_t text_len = valid_tokens.size() - st;
-                int64_t st_idx = std::max({llm_positions[0][llm_positions[0].size()-1],
-                                        llm_positions[1][llm_positions[1].size()-1],
-                                        llm_positions[2][llm_positions[2].size()-1]}) + 1;
+                int64_t st_idx = current_max + 1;
                 for (int64_t k = 0; k < text_len; ++k) {
                     for (int dim = 0; dim < 3; ++dim) {
                         llm_positions[dim].push_back(st_idx + k);
@@ -532,10 +545,10 @@ private:
             size_t valid_idx = 0;
             for (size_t j = 0; j < seq_len; ++j) {
                 if (mask[j] == 1) {
-                    if (valid_idx < llm_positions[0].size()) {
-                        position_ids.setDataAt(0, 0, i, j, (float)llm_positions[0][valid_idx]);
-                        position_ids.setDataAt(1, 0, i, j, (float)llm_positions[1][valid_idx]);
-                        position_ids.setDataAt(2, 0, i, j, (float)llm_positions[2][valid_idx]);
+                    if (valid_idx < llm_positions[0].size()) {                        
+                        position_ids.setDataAt<float>(0, 0, i, j, (float)llm_positions[0][valid_idx]);
+                        position_ids.setDataAt<float>(1, 0, i, j, (float)llm_positions[1][valid_idx]);
+                        position_ids.setDataAt<float>(2, 0, i, j, (float)llm_positions[2][valid_idx]);
                         valid_idx++;
                     }
                 }
@@ -547,14 +560,10 @@ private:
                     max_pos = max(max_pos, val);
                 }
             }
-            mrope_position_deltas.setDataAt(0, 0, 0, i, (float)((max_pos + 1) - static_cast<int64_t>(input_ids.sequence())));
+            mrope_position_deltas.setDataAt<float>(0, 0, 0, i, (float)((max_pos + 1) - static_cast<int64_t>(input_ids.sequence())));
         }
         position_ids.setName("position_ids");
-        position_ids.shouldInGraphs() = false;
         mrope_position_deltas.setName("mrope_position_deltas");
-        mrope_position_deltas.shouldInGraphs() = false;
-        // position_ids.saveData<float>();
-        // mrope_position_deltas.saveData<float>();
         return {position_ids, mrope_position_deltas};
     }
 };

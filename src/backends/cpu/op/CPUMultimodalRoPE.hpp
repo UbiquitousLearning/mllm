@@ -22,6 +22,7 @@ private:
     static vector<vector<float>> sin_;
     static vector<vector<float>> cos_;
     static int ishape_old;
+    static int last_pos;
     vector<int> mrope_section_;
     int rope_theta_ = 10000;
     int h_cnt_ = 0;

@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
     model.load(model_path);
 
     vector<string> in_imgs = {
-        "../assets/australia.jpg"};
+        "../assets/bus.png"};
     vector<string> in_strs = {
         "<|vision_start|><|image_pad|><|vision_end|>Describe this image.",
     };
@@ -42,6 +42,7 @@ int main(int argc, char **argv) {
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
         for (int step = 0; step < 100; step++) {
+            model.get_position_ids(input_tensor);
             auto result = model(input_tensor);
             auto outputs = processor.detokenize(result[0]);
             auto out_string = outputs.first;
