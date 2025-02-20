@@ -392,22 +392,16 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
 
     auto graphInfo = graphInfoMap_[qnnModelIndex_];
 
-    // TODO: directly get qnnInputs and qnnOutputs from graphInfo.outputTensors
+    // directly get qnnInputs and qnnOutputs from graphInfo.outputTensors
     if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&qnnInputs, &qnnOutputs, *graphInfo)) {
         MLLM_LOG_ERROR_LEGACY("Error in setting up Input and output Tensors for qnnModelIndex_: %d", qnnModelIndex_);
         returnStatus = StatusCode::FAILURE;
     }
 
-    // // Todo only one graph now
-    // size_t totalCount = currentInputBuffers->size();
-    // if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(qnnModelIndex_, *currentInputBuffers, qnnInputs, *graphInfo, m_inputDataType)) {
-    //     returnStatus = StatusCode::FAILURE;
-    // }
-
     auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
 
     // register input and output tensor to qnn shared buffers
-    // TODO: currently must insure the inputs and outputs of mllm graph are the same as the qnn graph
+    // must insure the inputs and outputs of mllm graph are the same as the qnn graph
     // op created io tensors (kvcache, wnop...) should be solved
 #ifdef DEBUGPRINT
     std::cout << "input tensors num:" << graphInfo->numInputTensors << std::endl;
