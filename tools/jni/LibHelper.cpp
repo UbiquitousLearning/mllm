@@ -68,6 +68,9 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
     switch (model) {
     case QWEN25:
         qwconfig = QWenConfig(tokens_limit, "1.5B");
+        tokenizer_ = make_shared<QWenTokenizer>(vocab_path, merge_path);
+        module_ = make_shared<QWenForCausalLM>(qwconfig);
+        break;
     case QWEN15:
         qwconfig = QWenConfig(tokens_limit, "1.8B");
         tokenizer_ = make_shared<QWenTokenizer>(vocab_path, merge_path);
