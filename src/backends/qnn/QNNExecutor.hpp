@@ -29,12 +29,13 @@ public:
      * \param net       An instance of the Net class representing the network to be run
      * \param input_tensors     A vector of input tensors to be processed by the network
      */
-    void run(Net *net, vector<shared_ptr<Tensor>> input_tensors) override;
+    void run(Net *net, vector<shared_ptr<Tensor>> input_tensors) override {
+        MLLM_LOG_ERROR_STREAM << "QNN Executor do not support this method" << std::endl;
+        exit(1);
+    };
 
     // used for assigning graph backends execuation
     virtual void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor);
-    virtual void runExp(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) {};
-
     virtual void warmup(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) {};
 
     /**
@@ -74,9 +75,8 @@ public:
     QNNPipelineExecutor(ParamLoader *data_loader, int chunk_size = 128) :
         QNNExecutor(data_loader), chunk_size_(chunk_size) {
     }
-    // used for assigning graph backends execuation
-    // TODO: rename runExp to run
-    virtual void runExp(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
+
+    virtual void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
     virtual void warmup(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
 };
 
