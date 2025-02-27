@@ -7,7 +7,6 @@
 #include <iostream>
 #include <memory>
 #include <omp.h>
-#include <thread>
 #include <unordered_map>
 #include <vector>
 #include "QNNBackend.hpp"
@@ -19,6 +18,9 @@
 #include "express/ExpressBase.hpp"
 
 namespace mllm {
+// for print graph execute time
+#define QNN_EXECUTE_TIME 1
+
 BackendType QNNExecutor::graphOffloadRule(BackendType expectedBackend, int graphIndex) {
     if (expectedBackend != MLLM_CPU && expectedBackend != MLLM_QNN) {
         return MLLM_CPU;
@@ -42,11 +44,6 @@ void QNNExecutor::setup(Net *net) {
         load_time_ = (time_end - time_start) / 1000.0F;
         std::cout << "Load model: " << load_time_ / 1000.0F << " s" << std::endl;
     }
-}
-
-void QNNExecutor::run(Net *net, vector<shared_ptr<Tensor>> input_tensors) {
-    MLLM_LOG_ERROR_STREAM << "QNN Executor do not support this method" << std::endl;
-    exit(1);
 }
 
 void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) {
@@ -91,40 +88,33 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         uint64_t t_start = mllm_time_us();
 
-        auto expectedBackend = ctx->sub_backend_[i];
-        string name = graphNamingRule(i);
-        auto &g = net->subGraph()[name];
+        auto &g = net->subGraph()[graphNamingRule(i)];
         result_ = g->forward();
 
         uint64_t t_end = mllm_time_us();
-#ifdef DEBUGPRINT
-        std::cout << "graph forward " << (t_end - t_start) / 1000.0F << "ms " << i << std::endl;
-#endif
-        if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
+#ifdef QNN_EXECUTE_TIME
+        if (g->device() == MLLM_CPU) {
             std::cout << " TIME of CPU Graph " << i << ": " << (t_end - t_start) / 1000.0F << "ms, End at " << (t_end - ex_time_start) / 1000.f << std::endl;
         } else {
             std::cout << " TIME of QNN Graph " << i << ": " << (t_end - t_start) / 1000.0F << "ms, End at " << (t_end - ex_time_start) / 1000.f << std::endl;
         }
+#endif
     }
 
     ex_time_end = mllm_time_us();
 
     // free all graphs here
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
-        auto expectedBackend = ctx->sub_backend_[i];
-        if (graphOffloadRule(expectedBackend, i) != MLLM_QNN) {
+        auto &g = net->subGraph()[graphNamingRule(i)];
+        if (g->device() != MLLM_QNN) {
             continue;
         }
-
-        string name = graphNamingRule(i);
-        auto &g = net->subGraph()[name];
         auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
         qnn_graph->free();
     }
     // use the second graph to free all context is OK.
     {
-        string name = graphNamingRule(1);
-        auto &g = net->subGraph()[name];
+        auto &g = net->subGraph()[graphNamingRule(1)];
         auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
         qnn_graph->allFree();
     }
@@ -203,7 +193,7 @@ void QNNPipelineExecutor::warmup(Context *ctx, Net *net, vector<shared_ptr<Tenso
     std::cout << "warmup done for " << (ex_time_end - ex_time_start) / 1000000.0 << "s" << std::endl;
 }
 
-void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) {
+void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) {
     auto ex_time_start = mllm_time_us();
 
     // input will be split into chunks and execute in pipeline
@@ -249,7 +239,7 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
         auto t_start = mllm_time_us();
 
         auto &g = net->subGraph()[name];
-        if (chunk_id != 0) {
+        if (chunk_id != 0 && g->device() == MLLM_CPU) {
             // cpu graph should reshape and setup for every chunk forward for KVCache op
             g->reshape();
             g->setUpTensors();
@@ -263,11 +253,13 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
 
         auto t_end = mllm_time_us();
 
-        if (graphOffloadRule(expectedBackend, i) == MLLM_CPU) {
-            std::cout << chunk_id << " TIME of CPU Graph " << i << ": " << (t_end - t_start) / 1000.0F << "ms, End at " << (t_end - ex_time_start) / 1000.f << std::endl;
+#ifdef QNN_EXECUTE_TIME
+        if (g->device() == MLLM_CPU) {
+            std::cout << " TIME of CPU Graph " << i << ": " << (t_end - t_start) / 1000.0F << "ms, End at " << (t_end - ex_time_start) / 1000.f << std::endl;
         } else {
-            std::cout << chunk_id << " TIME of QNN Graph " << i << ": " << (t_end - t_start) / 1000.0F << "ms, End at " << (t_end - ex_time_start) / 1000.f << std::endl;
+            std::cout << " TIME of QNN Graph " << i << ": " << (t_end - t_start) / 1000.0F << "ms, End at " << (t_end - ex_time_start) / 1000.f << std::endl;
         }
+#endif
 
         PRINT_MEMORY_USAGE((string("execute graph: ") + std::to_string(i)).c_str());
 
@@ -305,7 +297,9 @@ void QNNPipelineExecutor::runExp(Context *ctx, Net *net, vector<shared_ptr<Tenso
                 executeFunc(chunk_id * 2 + pair_idx, i - pair_idx * 4);
             }
 #pragma omp barrier
+#ifdef QNN_EXECUTE_TIME
             std::cout << "---------------------------" << std::endl;
+#endif
         }
     }
     // the last chunk if there is odd chunks

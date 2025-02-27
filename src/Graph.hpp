@@ -8,6 +8,7 @@
 #include "Op.hpp"
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
+#include "Types.hpp"
 #include "express/ExpressBase.hpp"
 #include <unordered_map>
 using std::unordered_map;
@@ -72,6 +73,13 @@ public:
      * \param external_tensors external tensors from other graph and inter graphs.
      */
     void reflashInput(unordered_map<string, shared_ptr<Tensor>> &external_tensors);
+
+    /**
+     * \brief get the backend type of this graph.
+     */
+    BackendType device() const {
+        return backend_->type();
+    }
 
 protected:
     Backend *backend_;
