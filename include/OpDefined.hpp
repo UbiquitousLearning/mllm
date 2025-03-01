@@ -37,6 +37,8 @@ enum OpType {
     GATHER,
     CONVOLUTION2D,
     CONVOLUTION3D,
+    VISIONROPE,
+    MULTIMODALROPE,
     AVGPOOL2D,
     MAXPOOL2D,
     CAT,
@@ -61,6 +63,7 @@ enum OpType {
     SPLITINPUT,
     IROPE,
     OP_NUM,
+    NTKROPE,
 
     // add in xnnpack
     DIRECT,
@@ -106,6 +109,8 @@ static const vector<string> OpNames = {
     "Gqther",
     "Convolution2D",
     "Convolution3D",
+    "VisonRoPE",
+    "MultimodalRoPE",
     "AvgPool2D",
     "MaxPool2D",
     "Cat",
@@ -175,6 +180,7 @@ enum TensorFuncType {
     FUNC_REPEAT,
     FUNC_LIKE,
     FUNC_SCATTERREDUCE,
+    FUNC_APPLY_VISIOROPE,
     // models use only
     FUNC_FUYU_GATHER_EMBD,
     FUNC_PHI3V_HD_MERGE,

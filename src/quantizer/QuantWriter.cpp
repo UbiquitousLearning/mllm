@@ -64,6 +64,8 @@ vector<string> fp32_layers = {
     "modality_postprocessors",
     "pre_transformer_layer",
     "pos_embed.inv_freq",
+    "ln_q",
+    "patch_embed.proj",
     // MoE
     "mlp.gate",
 };

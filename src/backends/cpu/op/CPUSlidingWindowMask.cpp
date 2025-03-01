@@ -69,7 +69,7 @@ ErrorCode CPUSlidingWindowMask::setUp(vector<shared_ptr<Tensor>> inputs, vector<
     }
     outputs[0]->setDtype(activation_dtype());
     outputs[0]->alloc();
-    inputs[0]->deepCopyFrom(outputs[0].get(), false);
+    inputs[0]->shallowCopyFrom(outputs[0].get(), false);
     return MLLM_NO_ERROR;
 }
 } // namespace mllm

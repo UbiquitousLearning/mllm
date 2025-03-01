@@ -29,9 +29,7 @@ Tensor::Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bo
 
 Tensor::Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type,
                bool do_alloc) {
-    setBackend(Backend::global_backends[bn_type]);
-    reshape(batch, head, sequence, dimension);
-    if (do_alloc) { alloc(); }
+    Tensor(batch, head, sequence, dimension, Backend::global_backends[bn_type], do_alloc);
 }
 
 Tensor::Tensor(const vector<int> &shape) :
@@ -55,6 +53,17 @@ Tensor::Tensor(int value, BackendType bn_type) {
     alloc();
     shouldInGraphs() = false;
     setDataAt<float>(0, 0, 0, 0, (float)value);
+}
+
+Tensor::Tensor(vector<float> values, BackendType bn_type) {
+    dtype_ = MLLM_TYPE_F32;
+    setBackend(Backend::global_backends[bn_type]);
+    reshape(1, 1, 1, values.size());
+    alloc();
+    shouldInGraphs() = false;
+    for (auto value : values) {
+        setDataAt<float>(0, 0, 0, 0, (float)value);
+    }
 }
 
 bool Tensor::reshape(const int batch, const int head, const int sequence, const int dimension) {
@@ -211,7 +220,8 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
                 default: {
                 }
                 }
-                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1 
+                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |F" << std::endl;
                 }
@@ -272,7 +282,8 @@ void Tensor::getFunc(const TensorFuncType type,
                 default: {
                 }
                 }
-                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1
+                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |F" << std::endl;
                 }
@@ -359,7 +370,8 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
                 default: {
                 }
                 }
-                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1) {
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1
+                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |S "<< std::endl;// << out_names[0] << std::endl;
                 }
@@ -571,6 +583,15 @@ Tensor &Tensor::zero_like(Tensor &input) {
     return getStaticFunc({input.name() + "-zero_like"}, FUNC_LIKE, {0.0},
                          {module->activation_tensors[input.name()].get()})[0]
         .get();
+}
+Tensor &Tensor::apply_rotary_pos_emb_vision(Tensor &input, Tensor&rotary_pos_emb){
+    Module *module = input.module();
+    return getStaticFunc({input.name() + "-apply_rotary_pos_emb"}, FUNC_APPLY_VISIOROPE, 
+                        {},
+                        {
+                        module->activation_tensors[input.name()].get(),
+                        module->activation_tensors[rotary_pos_emb.name()].get()
+                        })[0].get();
 }
 
 Tensor &Tensor::fuyu_gather_embd(Tensor &word, Tensor &image_patches, Tensor &image_patches_indices) {

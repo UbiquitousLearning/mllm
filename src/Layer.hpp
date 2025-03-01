@@ -304,7 +304,8 @@ protected:
                     default: {
                     }
                     }
-                    if (activation_tensors_num[input_tensor->name()] == 0 && activation_tensors[input_tensor->name()]->sequence() > 1) {
+                    if (activation_tensors_num[input_tensor->name()] == 0 && activation_tensors[input_tensor->name()]->sequence() > 1
+                        && activation_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
                         activation_tensors[input_tensor->name()]->free();
                         // std::cout << input_tensor->name() << "|" << std::endl;
                     }
@@ -761,33 +762,7 @@ public:
         return ts[0].get();
     }
 };
-/*
-class Split final : public Layer {
-public:
-    Split() = default;
 
-    explicit Split(int split_num, Chl split_dim, int split_dim_size, std::string name) {
-        param_["split_num"] = (float)split_num;
-        param_["split_dim"] = (float)split_dim;
-        param_["split_dim_size"] = (float)split_dim_size;
-        init(std::move(name), OpType::SPLIT);
-    }
-
-    explicit Split(const std::vector<int> &each_dims, Chl split_dim, const std::string &name) {
-        param_["split_num"] = (float)each_dims.size();
-        param_["split_dim"] = (float)split_dim;
-        // store each dims
-        for (size_t i = 0; i < each_dims.size(); ++i) {
-            param_["split_dim_size_" + std::to_string(i)] = (float)each_dims[i];
-        }
-        init(std::move(name), OpType::SPLIT);
-    }
-
-    vector<std::reference_wrapper<Tensor>> operator()(Tensor &input) {
-        return run({input}, (int)param_["split_num"]);
-    }
-};
-*/
 class Convolution2D final : public Layer {
 public:
     explicit Convolution2D(int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, std::string name) {
@@ -828,15 +803,35 @@ public:
     }
 };
 
-class Concat final : public Layer {
+class VisionRoPE final : public Layer {
 public:
-    explicit Concat(Chl axis, std::string name) {
-        param_["axis"] = (float)axis;
-        init(std::move(name), OpType::CAT);
+    explicit VisionRoPE(int dim_size, int spatial_merge_size, std::string name) {
+        param_["dim"] = (float)dim_size;
+        param_["spatial_merge_size"] = (float)spatial_merge_size;
+        init(std::move(name), OpType::VISIONROPE);
     }
-    Tensor &operator()(Tensor &input0, Tensor &input1) {
-        auto ts = run({input0, input1}, 1);
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
         return ts[0].get();
+    }
+};
+class MultimodalRoPE final : public Layer {
+public:
+    MultimodalRoPE() = default;
+    explicit MultimodalRoPE(float rope_theta, int max_position_embeddings, vector<int> mrope_section, std::string name) {
+        param_["rope_theta"] = rope_theta;
+        param_["max_position_embeddings"] = max_position_embeddings;
+        for (int i = 0; i < mrope_section.size(); i++) {
+            param_["mrope_section_" + std::to_string(i)] = (float)mrope_section[i];
+        }
+        init(std::move(name), OpType::MULTIMODALROPE);
+    }
+    Tensor &operator()(Tensor &input, Tensor &position_ids) {
+        auto ts = run({input, position_ids}, 1);
+        return ts[0].get();
+    }
+    void clearCache() {
+        return op_->clearCache();
     }
 };
 
@@ -866,6 +861,17 @@ public:
         return ts[0].get();
     }
 };
+
+
+
+
+
+
+
+
+
+
+
 
 //  Only for QNN START
 
@@ -1070,6 +1076,30 @@ public:
     // Q, K, V
     Tensor &operator()(Tensor &Q, Tensor &K, Tensor &V) {
         auto ts = run({Q, K, V}, 1); // Q, K, V
+        return ts[0].get();
+    }
+};
+
+class NTKRoPE final : public Layer {
+public:
+    NTKRoPE(RoPEType type, float theta, int max_position_embeddings, int original_max_position_embeddings, const std::vector<float> &long_factor, const std::vector<float> &short_factor, std::string name) {
+        init(std::move(name), OpType::NTKROPE);
+        param_["pose_type"] = (float)type;
+        param_["theta"] = theta;
+        param_["max_position_embeddings"] = (float)max_position_embeddings;
+        param_["original_max_position_embeddings"] = (float)original_max_position_embeddings;
+        param_["long_factor_n"] = (float)long_factor.size();
+        for (int i = 0; i < long_factor.size(); i++) {
+            param_["long_factor_" + std::to_string(i)] = long_factor[i];
+        }
+        param_["short_factor_n"] = (float)short_factor.size();
+        for (int i = 0; i < short_factor.size(); i++) {
+            param_["short_factor_" + std::to_string(i)] = short_factor[i];
+        }
+    }
+
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
         return ts[0].get();
     }
 };

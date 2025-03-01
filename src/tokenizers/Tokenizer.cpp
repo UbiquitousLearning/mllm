@@ -187,4 +187,17 @@ void Tokenizer::setSpecialToken(const string &bos, const string &eos, const stri
         }
     }
 }
+void Tokenizer::setSpecialTokenMap(std::unordered_map<token_t, token_id_t> special_tokens_map){
+    for (auto &special_token : special_tokens_map) {
+        auto token = special_token.first;
+        auto token_id = special_token.second;
+        auto token_id_iter = this->vocab_map_.find(token);
+        if (token_id_iter != this->vocab_map_.end()) {
+            token_id_iter->second = token_id;
+        } else {
+            this->vocab_map_[token] = token_id;
+            // MLLM_LOG_ERROR_STREAM << "Special token not found in vocab file." << std::endl;
+        }
+    }
+}
 } // namespace mllm

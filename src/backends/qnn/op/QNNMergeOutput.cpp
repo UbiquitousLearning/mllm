@@ -14,7 +14,7 @@ QNNMergeOutput::QNNMergeOutput(Backend *bn, string opName) :
 ErrorCode QNNMergeOutput::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     // deepCopy at reshape to let QNNCommonOp::setUp to get the correct ttype
     for(int i = 0; i < inputs.size(); i++) {
-        outputs[i]->deepCopyFrom(inputs[i].get(), true);
+        outputs[i]->shallowCopyFrom(inputs[i].get(), true);
     }
 
     return Op::reshape(inputs, outputs);
@@ -22,7 +22,7 @@ ErrorCode QNNMergeOutput::reshape(vector<shared_ptr<Tensor>> inputs, vector<shar
 
 ErrorCode QNNMergeOutput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     for (int i = 0; i < inputs.size(); i++) {
-        outputs[i]->deepCopyFrom(inputs[i].get(), true);
+        outputs[i]->shallowCopyFrom(inputs[i].get(), true);
     }
     return MLLM_NO_ERROR;
 }
