@@ -33,7 +33,7 @@ make htp_aarch64 && make htp_v75
 
 ## Model Conversion
 
-The model used by QNN prefilling is in int8 format, with static per-tensor quantization. And several 'shadow layer' weights are needed to be added to the model. The Profiling Activation Tools discription is in `tools/convertor/profiling_activation/README.md`, you can refer to it for more details.
+The model used by QNN prefilling is in int8 format, with static per-tensor quantization. And several 'shadow layer' weights are needed to be added to the model. The Profiling Activation Tools discription is in [tools/convertor/profiling_activation/README.md](../../../tools/convertor/profiling_activation/README.md), you can refer to it for more details.
 
 ## Build & Run
 
