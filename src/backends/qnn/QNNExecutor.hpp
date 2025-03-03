@@ -29,12 +29,13 @@ public:
      * \param net       An instance of the Net class representing the network to be run
      * \param input_tensors     A vector of input tensors to be processed by the network
      */
-    void run(Net *net, vector<shared_ptr<Tensor>> input_tensors) override;
+    void run(Net *net, vector<shared_ptr<Tensor>> input_tensors) override {
+        MLLM_LOG_ERROR_STREAM << "QNN Executor do not support this method" << std::endl;
+        exit(1);
+    };
 
     // used for assigning graph backends execuation
     virtual void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor);
-    virtual void runExp(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) {};
-
     virtual void warmup(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) {};
 
     /**
@@ -67,29 +68,15 @@ protected:
 };
 
 class QNNPipelineExecutor : public QNNExecutor {
-    class ThreadPool {
-    public:
-        ThreadPool(size_t num_threads);
-        ~ThreadPool();
-        void enqueue(std::function<void()> f);
-
-    private:
-        std::vector<std::thread> workers_;
-        std::queue<std::function<void()>> tasks_;
-        std::mutex queue_mutex_;
-        std::condition_variable condition_;
-        bool stop_;
-    };
-
     vector<vector<shared_ptr<Tensor>>> chunked_tensors_list;
+    int chunk_size_;
 
 public:
-    QNNPipelineExecutor(ParamLoader *data_loader) :
-        QNNExecutor(data_loader) {
+    QNNPipelineExecutor(ParamLoader *data_loader, int chunk_size = 128) :
+        QNNExecutor(data_loader), chunk_size_(chunk_size) {
     }
-    // used for assigning graph backends execuation
-    void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensors) override;
-    virtual void runExp(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
+
+    virtual void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
     virtual void warmup(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
 };
 

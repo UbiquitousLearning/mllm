@@ -1421,6 +1421,7 @@ public:
      * - saveData
      * - printMem
      * - printAVG
+     * - printCtype
      */
 
     template <typename Dtype>
@@ -1887,6 +1888,40 @@ public:
             }
         }
         std::cout << name() << " " << sum / count() << std::endl;
+    }
+
+    void printCtype() {
+        std::string ctype;
+        switch (ctype_) {
+        case BSHD:
+            ctype = "BSHD";
+            break;
+        case BHDS:
+            ctype = "BHDS";
+            break;
+        case BCTHW:
+            ctype = "BCTHW";
+            break;
+        case BTHWC:
+            ctype = "BTHWC";
+            break;
+        case BWCTH:
+            ctype = "BWCTH";
+            break;
+        case SBHD:
+            ctype = "SBHD";
+            break;
+        case BDHS:
+            ctype = "BDHS";
+            break;
+        case BDSH:
+            ctype = "BDSH";
+            break;
+        case DBHS:
+            ctype = "DBHS";
+            break;
+        }
+        std::cout << name() << ": ctype:[" << ctype << "]" << std::endl;
     }
 
     template <class Dtype>

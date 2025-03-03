@@ -33,6 +33,7 @@ typedef qnn_wrapper_api::ModelError_t (*FreeGraphInfoFnHandleType_t)(
 
 typedef struct QnnFunctionPointers {
   ComposeGraphsFnHandleType_t composeGraphsFnHandle;
+  // not used, only appears in DynamicLoadUtil.cpp for loading QNN model from shared library(QNN sample app demo)
   FreeGraphInfoFnHandleType_t freeGraphInfoFnHandle;
   QNN_INTERFACE_VER_TYPE qnnInterface;
   QNN_SYSTEM_INTERFACE_VER_TYPE qnnSystemInterface;

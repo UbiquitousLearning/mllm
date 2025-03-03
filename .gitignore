@@ -35,3 +35,5 @@ mllm.egg-info/
 examples/demo_deepseek.cpp
 src/models/deepseek/*
 examples/demo.cpp
+
+src/backends/qnn/sdk/*

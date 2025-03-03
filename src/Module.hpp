@@ -26,6 +26,19 @@
 
 namespace mllm {
 
+namespace utils {
+// get the closest factors of a number, used in NPU part2 view to speed up the QNN linear
+inline std::pair<int, int> closestFactors(int n) {
+    int root = static_cast<int>(sqrt(n));
+    for (int i = root; i > 0; --i) {
+        if (n % i == 0) {
+            return {i, n / i};
+        }
+    }
+    return {1, n};
+}
+}
+
 class Module {
 protected:
     double load_time_;
