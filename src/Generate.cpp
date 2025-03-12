@@ -20,6 +20,28 @@ unsigned int _LlmTextGenerateGreedySearchMethod::generate(Tensor &t) {
     return std::max_element(scores.begin(), scores.end()) - scores.begin();
 }
 
+unsigned int _LlmTextGenerateGreedySearchMethodForSD::generate_SD(Tensor &t, TracePool &tp) {
+    if (!tp.is_decoding) {
+        std::vector<float> scores;
+        this->_tensor_to_vec(t, scores); // _tensor_to_vec只会取出seq_len最后一个位置的所有值
+        return std::max_element(scores.begin(), scores.end()) - scores.begin();
+    }
+    
+    // 将给定的logits Tensor转换为vector<vector<float>>，其中vector<float>表示每个位置的所有值
+    std::vector<std::vector<float>> scores;
+    this->_tensor_to_multivec(t, scores);
+    
+    // 从vector<vector<float>>中采样出每个位置最大值的位置（正确token id）
+    std::vector<unsigned int> sampled_token_ids;
+    for (int i = 0; i < scores.size(); ++i) {
+        unsigned int sampled_token_id = std::max_element(scores[i].begin(), scores[i].end()) - scores[i].begin();
+        sampled_token_ids.push_back(sampled_token_id);
+    }
+
+    const auto best_next_token_id = tp.evalPosterior(scores, sampled_token_ids);
+    return best_next_token_id;
+}
+
 unsigned int _LlmTextGenerateTopkSamplingMethod::generate(Tensor &t) {
     auto argmax = [](const std::vector<float> &vec) -> unsigned int {
         return std::distance(vec.begin(), std::max_element(vec.begin(), vec.end()));
@@ -118,6 +140,19 @@ unsigned int _LlmTextGenerateToppSamplingMethod::generate(Tensor &t) {
 
     auto ret = _sample_element(top_k_elements_idx, softmax);
     return ret;
+}
+
+unsigned int _LlmTextGenerateNucleusSamplingMethodForSD::generate_SD(Tensor &t, TracePool &tp) {
+    // TODO
+    // 将给定的logits Tensor转换为vector<vector<float>>，其中vector<float>表示每个位置的所有值
+    std::vector<std::vector<std::pair<float, unsigned int>>> scores;
+    // int seq_length = t.sequence();
+    // std::vector<int> pos;
+    // for (int i = 0; i < tp.get_draft_length() + 1; i++) { // 需要把非draft的前一轮最后verified的token也放进来算logits
+    //     pos.push_back(i);
+    // }
+    this->_tensor_to_multivec_with_idx(t, scores); // _tensor_to_vec只会取出seq_len最后一个位置的所有值
+    return 0;
 }
 
 } // namespace mllm

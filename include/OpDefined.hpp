@@ -75,6 +75,10 @@ enum OpType {
     // new front-end
     SUPERSILU,
     HEADLINEAR,
+
+    // for speculative decoding
+    ROPETREE,
+    CAUSALTREEMASK,
 };
 
 static const vector<string> OpNames = {

@@ -15,10 +15,12 @@
 #include "op/CPUView.hpp"
 #include "op/CPUAdd.hpp"
 #include "op/CPUCausalMask.hpp"
+#include "op/CPUCausalTreeMask.hpp"
 #include "op/CPUSlidingWindowMask.hpp"
 #include "op/CPUMatmul.hpp"
 #include "op/CPURMSNorm.hpp"
 #include "op/CPURoPE.hpp"
+#include "op/CPURoPETree.hpp"
 #include "op/CPUScale.hpp"
 #include "op/CPUSiLU.hpp"
 #include "op/CPUSoftMax.hpp"
@@ -127,10 +129,12 @@ void CPUBackend::registerOps() {
     addCreator(PARAMETER, (CPUBackend::Creator *)(new CPUParameterCreator()));
     addCreator(ADD, (CPUBackend::Creator *)(new CPUAddCreator()));
     addCreator(CAUSALMASK, (CPUBackend::Creator *)(new CPUCausalMaskCreator()));
+    addCreator(CAUSALTREEMASK, (CPUBackend::Creator *)(new CPUCausalTreeMaskCreator()));
     addCreator(SLIDINGWINDOWMASK, (CPUBackend::Creator *)(new CPUSlidingWindowMaskCreator()));
     addCreator(MATMUL, (CPUBackend::Creator *)(new CPUMatmulCreator()));
     addCreator(RMSNORM, (CPUBackend::Creator *)(new CPURMSNormCreator()));
     addCreator(ROPE, (CPUBackend::Creator *)(new CPURoPECreator()));
+    addCreator(ROPETREE, (CPUBackend::Creator *)(new CPURoPETreeCreator()));
     addCreator(SCALE, (CPUBackend::Creator *)(new CPUScaleCreator()));
     addCreator(SILU, (CPUBackend::Creator *)(new CPUSiLUCreator()));
     addCreator(SOFTMAX, (CPUBackend::Creator *)(new CPUSoftMaxCreator()));
