@@ -19,8 +19,15 @@ else
     echo "qwen-1.5-1.8b-chat-q4k.mllm file already exists"
 fi
 
-LIBPATH=../src/backends/qnn/qualcomm_ai_engine_direct_220/
-ANDR_LIB=$LIBPATH/lib/aarch64-android
+# check if qnn env is set up
+if [ -z "$QNN_SDK_ROOT" ]; then
+    echo "QNN_SDK_ROOT is not set"
+    exit 1
+else 
+    echo "QNN_SDK_ROOT is set to $QNN_SDK_ROOT"
+fi
+
+ANDR_LIB=$QNN_SDK_ROOT/lib/aarch64-android
 OP_PATH=../src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/build
 DEST=/data/local/tmp/mllm/qnn-lib
 
@@ -30,7 +37,7 @@ adb push $ANDR_LIB/libQnnHtpPrepare.so $DEST
 adb push $ANDR_LIB/libQnnHtpProfilingReader.so $DEST
 adb push $ANDR_LIB/libQnnHtpOptraceProfilingReader.so $DEST
 adb push $ANDR_LIB/libQnnHtpV75CalculatorStub.so $DEST
-adb push $LIBPATH/lib/hexagon-v75/unsigned/libQnnHtpV75Skel.so $DEST
+adb push $QNN_SDK_ROOT/lib/hexagon-v75/unsigned/libQnnHtpV75Skel.so $DEST
 adb push $OP_PATH/aarch64-android/libQnnLLaMAPackage.so $DEST/libQnnLLaMAPackage_CPU.so
 adb push $OP_PATH/hexagon-v75/libQnnLLaMAPackage.so $DEST/libQnnLLaMAPackage_HTP.so
 

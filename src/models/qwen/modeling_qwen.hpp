@@ -76,8 +76,8 @@ public:
         k_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "k_cache");
         v_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "v_cache");
         // mask = SlidingWindowMask(config.sliding_window, base_name + "mask");
-        mask = Causalmask(base_name + "mask");
-        softmax = Softmax(DIMENSION, base_name + "softmax");
+        // mask = Causalmask(base_name + "mask");
+        softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
@@ -102,7 +102,7 @@ public:
         auto atten_weight =
             Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION))
             / std::sqrt(head_dim);
-        atten_weight = mask(atten_weight, k_cache.getCacheSeqLen());
+        // atten_weight = mask(atten_weight, k_cache.getCacheSeqLen());
         atten_weight = softmax(atten_weight, k_cache.getCacheSeqLen());
 
         // attention output
@@ -133,7 +133,7 @@ private:
     RoPE k_rope;
     KVCache k_cache;
     KVCache v_cache;
-    Causalmask mask;
+    // Causalmask mask;
     Softmax softmax;
 };
 

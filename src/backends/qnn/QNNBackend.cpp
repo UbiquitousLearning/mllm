@@ -55,14 +55,12 @@ using namespace qnn::tools::sample_app;
 
 // Flag to determine if Backend should node validation for each opNode added
 #ifdef QNN_VALIDATE_NODE
-    #define DO_GRAPH_NODE_VALIDATIONS 1
+#define DO_GRAPH_NODE_VALIDATIONS 1
 #else
-    #define DO_GRAPH_NODE_VALIDATIONS 0
+#define DO_GRAPH_NODE_VALIDATIONS 0
 #endif
 
 namespace mllm {
-
-const std::string QNNBackend::s_defaultOutputPath = "./output";
 
 void QNNBackend::registerOps() {
     addCreator(ADD, (QNNBackend::Creator *)new QNNAddCreator());
@@ -104,7 +102,6 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
 
     // TODO: make these configuable
     m_debug = false; // when set true, NATIVE tensor will be regared as APP_READ tensor
-    m_outputDataType = iotensor::OutputDataType::FLOAT_AND_NATIVE;
     m_inputDataType = iotensor::InputDataType::NATIVE;
     m_profilingLevel = ProfilingLevel::OFF;
 
@@ -139,8 +136,6 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
             exitWithMessage("Error initializing QNN Function Pointers", EXIT_FAILURE);
         }
     }
-    // cause we build graph in runtime, the freeGraphInfoFnHandle should be assigned here
-    m_qnnFunctionPointers.freeGraphInfoFnHandle = QNNBackend::QnnModel_freeGraphsInfo;
 
     // init qnn resources
     {
@@ -191,7 +186,13 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
     this->registerOps();
 }
 
-void QNNBackend::release() {
+QNNBackend::~QNNBackend() {
+    terminateBackend();
+    // free creaters in map_creator_
+    for (auto &iter : map_creator_) {
+        delete iter.second;
+    }
+    // free qnn backend resource
     auto devicePropertySupportStatus = this->isDevicePropertySupported();
     if (StatusCode::FAILURE != devicePropertySupportStatus) {
         auto freeDeviceStatus = this->freeDevice();
@@ -199,6 +200,11 @@ void QNNBackend::release() {
             this->reportError("Device Free failure");
         }
     }
+    // free dynamic library handle
+    if (m_backendLibraryHandle) {
+        pal::dynamicloading::dlClose(m_backendLibraryHandle);
+    }
+    QNN_INFO("Free handle");
 }
 
 void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
@@ -386,21 +392,16 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
 
     auto graphInfo = graphInfoMap_[qnnModelIndex_];
 
+    // directly get qnnInputs and qnnOutputs from graphInfo.outputTensors
     if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&qnnInputs, &qnnOutputs, *graphInfo)) {
         MLLM_LOG_ERROR_LEGACY("Error in setting up Input and output Tensors for qnnModelIndex_: %d", qnnModelIndex_);
-        returnStatus = StatusCode::FAILURE;
-    }
-
-    // Todo only one graph now
-    size_t totalCount = currentInputBuffers->size();
-    if (iotensor::StatusCode::SUCCESS != m_ioTensor.populateInputTensors(qnnModelIndex_, *currentInputBuffers, qnnInputs, *graphInfo, m_inputDataType)) {
         returnStatus = StatusCode::FAILURE;
     }
 
     auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
 
     // register input and output tensor to qnn shared buffers
-    // TODO: currently must insure the inputs and outputs of mllm graph are the same as the qnn graph
+    // must insure the inputs and outputs of mllm graph are the same as the qnn graph
     // op created io tensors (kvcache, wnop...) should be solved
 #ifdef DEBUGPRINT
     std::cout << "input tensors num:" << graphInfo->numInputTensors << std::endl;
@@ -521,7 +522,7 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
                                                        string packageName) {
     qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
     Qnn_Param_t *paramsPtr = nullptr;
-    if (params.size() > 0) {
+    if (!params.empty()) {
         paramsPtr = params.data();
     }
     VALIDATE(qnnModels_[qnnModelIndex_].addNode(
@@ -648,7 +649,7 @@ StatusCode QNNBackend::createContext() {
 
 // Free context after done.
 StatusCode QNNBackend::freeContext() {
-    if (QNN_CONTEXT_NO_ERROR != m_qnnFunctionPointers.qnnInterface.contextFree(m_context, m_profileBackendHandle)) {
+    if (m_isContextCreated && QNN_CONTEXT_NO_ERROR != m_qnnFunctionPointers.qnnInterface.contextFree(m_context, m_profileBackendHandle)) {
         MLLM_LOG_ERROR_LEGACY("Could not free context");
         return StatusCode::FAILURE;
     }

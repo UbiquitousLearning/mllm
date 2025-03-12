@@ -138,6 +138,8 @@ public:
 
     Tensor(int value, BackendType bn_type = MLLM_CPU);
 
+    Tensor(vector<float> values, BackendType bn_type = MLLM_CPU);
+
     /**
      * \brief reshape 4-D Tensor with four dimensions: [batch, head, sequence, dimension].
      *        The four dimension designed for Transformer-based LLMs：
@@ -832,6 +834,7 @@ public:
     Tensor &bincount();
     Tensor &repeat(Chl dim, int dim_size);
     static Tensor &zero_like(Tensor &input);
+    static Tensor &apply_rotary_pos_emb_vision(Tensor &input, Tensor&rotary_pos_emb);
 
     // models use only
     static Tensor &fuyu_gather_embd(Tensor &word, Tensor &image_patches, Tensor &image_patches_indices);
@@ -1418,6 +1421,7 @@ public:
      * - saveData
      * - printMem
      * - printAVG
+     * - printCtype
      */
 
     template <typename Dtype>
@@ -1635,6 +1639,22 @@ public:
         int C = head();
         int H = sequence();
         int W = dimension();
+        if (ctype_ == BSHD) {
+            for (int n = 0; n < batch(); ++n) {
+                for (int h = 0; h < sequence(); ++h) {
+                    for (int c = 0; c < head(); ++c) {
+                        for (int w = 0; w < dimension(); ++w) {
+                            outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(n, c, h, w) << " ";
+                        }
+                        outFile << std::endl;
+                    }
+                    outFile << std::endl;
+                }
+                outFile << std::endl;
+            }
+            outFile.close();
+            return;
+        }
         if (H == 3) {
             for (int n = 0; n < N; ++n) {
                 for (int h = 0; h < H; ++h) {
@@ -1717,8 +1737,24 @@ public:
             } else {
                 outFile << new_name;
             }
-            outFile << ": shape:[" << batch() << " " << sequence() << " " << head() << " " << dimension() << "] " << dtype() << " " << ctype() << std::endl;
-
+            if (ctype_ == BSHD) {
+                outFile << name() << ": [BSHD]shape:[" << batch() << " " << sequence() << " " << head() << " " << dimension() << "] " << dtype() << " " << ctype() << std::endl;
+                for (int n = 0; n < batch(); ++n) {
+                    for (int h = 0; h < sequence(); ++h) {
+                        for (int c = 0; c < head(); ++c) {
+                            for (int w = 0; w < dimension(); ++w) {
+                                outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(n, c, h, w) << " ";
+                            }
+                            outFile << std::endl;
+                        }
+                        outFile << std::endl;
+                    }
+                    outFile << std::endl;
+                }
+                outFile.close();
+                return;
+            } 
+            outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] " << dtype() << " " << ctype() << std::endl;
             int N = batch();
             int C = head();
             int H = sequence();
@@ -1852,6 +1888,40 @@ public:
             }
         }
         std::cout << name() << " " << sum / count() << std::endl;
+    }
+
+    void printCtype() {
+        std::string ctype;
+        switch (ctype_) {
+        case BSHD:
+            ctype = "BSHD";
+            break;
+        case BHDS:
+            ctype = "BHDS";
+            break;
+        case BCTHW:
+            ctype = "BCTHW";
+            break;
+        case BTHWC:
+            ctype = "BTHWC";
+            break;
+        case BWCTH:
+            ctype = "BWCTH";
+            break;
+        case SBHD:
+            ctype = "SBHD";
+            break;
+        case BDHS:
+            ctype = "BDHS";
+            break;
+        case BDSH:
+            ctype = "BDSH";
+            break;
+        case DBHS:
+            ctype = "DBHS";
+            break;
+        }
+        std::cout << name() << ": ctype:[" << ctype << "]" << std::endl;
     }
 
     template <class Dtype>
