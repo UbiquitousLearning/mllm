@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
     # You can download the validation dataset of the Pile at https://huggingface.co/datasets/mit-han-lab/pile-val-backup/resolve/main/val.jsonl.zst
     act_dict = get_static_decoder_layer_scales_distribution(
-        model, tokenizer, args.dataset.name , num_samples=40
+        model, tokenizer, args.dataset.name , num_samples=128
     )
 
     print("begin_flatten")

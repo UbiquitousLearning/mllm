@@ -45,7 +45,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--scale_file", type=argparse.FileType("r"))
     parser.add_argument("--t01m_clip_threshold", type=int, default=152)
-    parser.add_argument("--output_model", type=str, default="model-int8.mllm")
+    parser.add_argument("--output_model", type=str, default="model-int8.pth")
     args = parser.parse_args()
 
     print("model: ", args.model_name)
@@ -73,9 +73,9 @@ if __name__ == "__main__":
     for i in return_dict["no_clip_output_name"]:
         print(f"no clip output: {i}")
 
-    if args.model_type == "llama" or args.model_type == "qwen1":
+    if args.model_type == "llama":
         q_model = quantize_llama_like(model, act_scales, layer_clip=clip_top)
-    elif args.model_type == "qwen2":
+    elif args.model_type == "qwen2" or args.model_type == "qwen1":
         q_model = quantize_qwen2_like(model, act_scales, layer_clip=clip_top)
     elif args.model_type == "gemma":
         q_model = quantize_gemma_like(model, act_scales, layer_clip=clip_top)
