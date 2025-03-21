@@ -1,33 +1,18 @@
-#ifndef MLLM_CPUROPE_H
-#define MLLM_CPUROPE_H
+#ifndef MLLM_CPUROPETREE_H
+#define MLLM_CPUROPETREE_H
 
 #include "Op.hpp"
 #include "../CPUBackend.hpp"
 
 namespace mllm {
 
-typedef float (*mllm_rope_init_func)(const OpParam &, std::vector<float>&);
-
-float _default_init_rope(const OpParam& config, vector<float>& theta);
-float _compute_llama3_theta(const OpParam& config, vector<float>& theta);
-
-static const unordered_map<RoPEThetaType, mllm_rope_init_func> rope_init_func_map = {
-    {DEFAULT, _default_init_rope},
-    {LLAMA3, _compute_llama3_theta},
-};
-
-void sinusoidal_position_embedding_llama(int seq_len, int output_dim, const vector<float>& theta,
-        vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling);
-void sinusoidal_position_embedding_huggingface(int seq_len, int output_dim, const vector<float>& theta,
-            vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling);
-
-class CPURoPE final : public Op {
+class CPURoPETree final : public Op {
 public:
-    CPURoPE(Backend *bn, string opName, int pose_type, int threadCount);
-    CPURoPE(Backend *bn, string opName, int pose_type, float rope_theta, int max_position_embeddings, int threadCount);
-    CPURoPE(Backend *bn, string opName, int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings, int threadCount);
-    CPURoPE(Backend *bn, string opName, OpParam& config, int threadCount);
-    virtual ~CPURoPE() = default;
+    CPURoPETree(Backend *bn, string opName, int pose_type, int threadCount);
+    CPURoPETree(Backend *bn, string opName, int pose_type, float rope_theta, int max_position_embeddings, int threadCount);
+    CPURoPETree(Backend *bn, string opName, int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings, int threadCount);
+    CPURoPETree(Backend *bn, string opName, OpParam& config, int threadCount);
+    virtual ~CPURoPETree() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
@@ -56,35 +41,36 @@ private:
     RoPEThetaType rope_type = DEFAULT;
 
     void rope_llama(shared_ptr<Tensor> input, shared_ptr<Tensor> output);
-    void rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output);
+    void rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output, shared_ptr<Tensor> tree_ancestor);
     void rope_permission(shared_ptr<Tensor> input, shared_ptr<Tensor> output);
     void rope_mla(shared_ptr<Tensor> input, shared_ptr<Tensor> output);
     void clearCache() override {
         h_cnt_ = 0;
     }
+    ErrorCode updateVerifiedRoPECache(unsigned int draft_length);
 };
 
-class CPURoPECreator : public CPUBackend::Creator {
+class CPURoPETreeCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
         auto it = op_param.find("rope_type");
         if (it != op_param.end()) {
-            return new CPURoPE(bn, name, op_param, threadCount);
+            return new CPURoPETree(bn, name, op_param, threadCount);
         }
 
         int pose_type = op_param["pose_type"];
         if (op_param.find("rope_theta") == op_param.end()) {
-            return new CPURoPE(bn, name, pose_type, threadCount);
+            return new CPURoPETree(bn, name, pose_type, threadCount);
         }
         float rope_theta = op_param["rope_theta"];
         int max_position_embeddings = op_param["max_position_embeddings"];
         if (op_param.find("partial_rotary_factor") == op_param.end()) {
-            return new CPURoPE(bn, name, pose_type, rope_theta, max_position_embeddings, threadCount);
+            return new CPURoPETree(bn, name, pose_type, rope_theta, max_position_embeddings, threadCount);
         }
         float partial_rotary_factor = op_param["partial_rotary_factor"];
-        return new CPURoPE(bn, name, pose_type, rope_theta, partial_rotary_factor, max_position_embeddings, threadCount);
+        return new CPURoPETree(bn, name, pose_type, rope_theta, partial_rotary_factor, max_position_embeddings, threadCount);
     }
 };
 } // namespace mllm
 
-#endif // MLLM_CPUROPE_H
+#endif // MLLM_CPUROPETREE_H
