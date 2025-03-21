@@ -46,6 +46,7 @@ def simulate_quantize_activation_per_tensor_static_input(t, scale=1, n_bits=8, c
     t = t.div(scale).round()
     if clip_top:
         t = t.clamp(-128.0, 127.0)
+    t = t.mul(scale)
     return t
 
 
@@ -58,11 +59,11 @@ def simulate_quantize_activation_per_tensor_static_output(t, scale=1, n_bits=8, 
     q_max = 2 ** (n_bits - 1) - 1
     scale.clamp_(min=1e-5).div_(q_max)
 
-    t = t.div(torch.floor(1.0 / scale))
+    t = t.div(scale)
     t = t.round()
     if clip_top:
         t = t.clamp(-128.0, 127.0)
-    t = t.div(scale)
+    t = t.mul(scale)
     return t
 
 
@@ -136,12 +137,6 @@ class W8A8LinearStatic(nn.Module):
             n_bits=8,
             clip_top=clip_top["output"],
         )
-        if self.weight_quant_name == "per_channel":
-            self.weight_quant = partial(simulate_quantize_weight_per_channel_absmax, n_bits=8)
-        elif self.weight_quant_name == "per_tensor":
-            self.weight_quant = partial(simulate_quantize_weight_per_tensor_absmax, n_bits=8)
-        else:
-            raise ValueError(f"Invalid weight_quant: {self.weight_quant_name}")
 
     def to(self, *args, **kwargs):
         super(W8A8LinearStatic, self).to(*args, **kwargs)
@@ -154,14 +149,8 @@ class W8A8LinearStatic(nn.Module):
     def forward(self, x):
         # perform online quantize-dequantize matmul to simulate W8A8 inference
         q_x = self.act_quant_input(x, scale=self.input_scale)
-        w = self.weight_quant(self.weight)
-        y = torch.functional.F.linear(q_x, w, self.bias)
-        o_scale = (
-            (torch.round(self.input_scale * 100000) / 100000)
-            * self.weight_scale
-            / (torch.round(self.output_scale * 100000) / 100000)
-        )
-        q_y = self.act_quant_output(y, scale=o_scale)
+        y = torch.functional.F.linear(q_x, self.weight, self.bias)
+        q_y = self.act_quant_output(y, scale=self.output_scale)
 
         return q_y
 
@@ -178,15 +167,22 @@ class W8A8LinearStatic(nn.Module):
             clip_top=clip_top,
         )
 
-        new_module.weight = module.weight
+        if weight_quant_type == "per_channel":
+            new_module.weight = simulate_quantize_weight_per_channel_absmax(
+                module.weight, n_bits=8
+            )  # use 8-bit integer for weight
+        elif weight_quant_type == "per_tensor":
+            new_module.weight = simulate_quantize_weight_per_tensor_absmax(
+                module.weight, n_bits=8
+            )
+        else:
+            raise ValueError(f"Invalid weight_quant: {weight_quant_type}")
 
-        new_module.weight_quant_type = weight_quant_type
+        new_module.weight_quant_name = weight_quant_type
+
         if module.bias is not None:
             new_module.bias = simulate_quantize_weight_per_tensor_absmax(module.bias, n_bits=8)
 
-        new_module.weight_scale = simulate_quantize_weight_scale_per_tensor_absmax(
-            module.weight, n_bits=8
-        )
         return new_module
 
     def __repr__(self):
