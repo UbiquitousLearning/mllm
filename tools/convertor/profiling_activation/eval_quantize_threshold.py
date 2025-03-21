@@ -62,9 +62,9 @@ def evaluate_model(model_name, act_dict, result_queue, t01m_thre):
 
     act_scales, clip_top, return_dict = get_clip_and_scale(act_dict, t01m_thre)
 
-    if args.model_type == "llama" or args.model_type == "qwen1":
+    if args.model_type == "llama":
         q_model = quantize_llama_like(model, act_scales, layer_clip=clip_top)
-    elif args.model_type == "qwen2":
+    elif args.model_type == "qwen2" or args.model_type == "qwen1":
         q_model = quantize_qwen2_like(model, act_scales, layer_clip=clip_top)
     elif args.model_type == "gemma":
         q_model = quantize_gemma_like(model, act_scales, layer_clip=clip_top)
@@ -91,7 +91,7 @@ def get_all_actscale_result_parallel(model_name, act_dict):
     manager = multiprocessing.Manager()
     result_queue = manager.Queue()
 
-    for t01m_thre in [1, 2, 3, 4, 5, 8, 10, 12, 16, 20, 24, 30, 32, 10000000]:
+    for t01m_thre in [1, 2, 4, 8, 16, 24,  32, 64, 128, 152, 10000000]:
         p = multiprocessing.Process(
             target=evaluate_model, args=(model_name, act_dict, result_queue, t01m_thre)
         )
@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
     act_dict = json.load(open(args.scale_file.name))
     results = get_all_actscale_result_parallel(
-        args.model_name, args.model_type, act_dict
+        args.model_name, act_dict
     )
     res_data[args.model_name] = results
 

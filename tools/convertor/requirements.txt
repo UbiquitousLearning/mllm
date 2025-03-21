@@ -1,3 +1,6 @@
 torch
 numpy
 safetensors
+datasets
+transformers
+accelerate
