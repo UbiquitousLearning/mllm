@@ -2,7 +2,8 @@
 #include <ostream>
 #include "cmdline.h"
 #include "models/qwen2_vl/configuration_qwen2_vl.hpp"
-#include "models/qwen2_vl/modeling_qwen2_vl.hpp"
+// #include "models/qwen2_vl/modeling_qwen2_vl.hpp"
+#include "models/qwen2_vl/vtp/modeling_qwen2_vl.hpp"
 #include "models/qwen2_vl/processing_qwen2_vl.hpp"
 #include "processor/PostProcess.hpp"
 
@@ -11,9 +12,9 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/showui_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/showui_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/showui-2b-q4_k.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/showui-2b-fp32.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 2000);
-    cmdParser.add<int>("thread", 't', "num of threads", false, 4);
+    cmdParser.add<int>("thread", 't', "num of threads", false, 40);
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
@@ -48,6 +49,7 @@ int main(int argc, char **argv) {
             auto outputs = processor.detokenize(result[0]);
             auto out_string = outputs.first;
             auto out_token = outputs.second;
+            // std::cout << out_token << std::flush;
             auto [not_end, output_string] = processor.tokenizer->postprocess(out_string);
             if (!not_end) { break; }
             std::cout << output_string << std::flush;

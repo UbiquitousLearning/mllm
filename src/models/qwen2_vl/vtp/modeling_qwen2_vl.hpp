@@ -8,9 +8,10 @@
 #include "Module.hpp"
 #include "Tensor.hpp"
 #include "Types.hpp"
-#include "configuration_qwen2_vl.hpp"
+#include "../configuration_qwen2_vl.hpp"
 // #include "models/qwen/modeling_qwen.hpp"
-#include <cassert>
+// #include <cassert>
+#include "vtp_tools.hpp"
 #include <string>
 #include <vector>
 
@@ -231,6 +232,7 @@ public:
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
+        int layer_index = std::any_cast<int>(args[0]);
         auto position_ids = inputs[1];
 
         auto query_states = q_proj(inputs[0]);
@@ -239,6 +241,13 @@ public:
         query_states = query_states.view(-1, num_heads, -1, head_dim);
         key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
         value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
+        //======================================================================================
+        // pruning stage
+        if (WHERE_TOKEN_PRUNING.is_prefill()) {
+            query_states = WHERE_TOKEN_PRUNING.pruning_(query_states);
+            key_states = WHERE_TOKEN_PRUNING.pruning_(key_states);
+        }
+        //======================================================================================
         query_states = q_rope(query_states, position_ids);
         key_states = k_rope(key_states, position_ids);
         key_states = k_cache(key_states);
@@ -250,6 +259,14 @@ public:
         auto atten_output = Tensor::mm(atten_weight, value_states);
         atten_output = atten_output.view(-1, 1, -1, head_dim * num_heads);
         atten_output = o_proj(atten_output);
+        //======================================================================================
+        // pruning stage
+        if (WHERE_TOKEN_PRUNING.is_prefill()) {
+            WHERE_TOKEN_PRUNING.set_prefill_layer(layer_index);
+            WHERE_TOKEN_PRUNING.update_attn_acc_score(atten_weight);
+            // prunning_attn_output`
+        }
+        //======================================================================================
         return {atten_output};
     }
 
@@ -291,10 +308,21 @@ public:
             RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
     }
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
+        int layer_index = std::any_cast<int>(args[0]);
         auto position_ids = inputs[1];
-        auto x = input_layernorm(inputs[0]);
-        x = self_atten({x, position_ids})[0];
-        auto tmp = x + inputs[0];
+        auto residual = inputs[0];
+        //======================================================================================
+        // pruning stage
+        //======================================================================================
+        auto x = input_layernorm(residual);
+        x = self_atten({x, position_ids}, layer_index)[0];
+        //======================================================================================
+        // pruning stage
+        if (WHERE_TOKEN_PRUNING.is_prefill()) {
+            residual = WHERE_TOKEN_PRUNING.pruning_(residual);
+        }
+        //======================================================================================
+        auto tmp = x + residual;
         x = post_attention_layernorm(tmp);
         x = mlp({x})[0];
         x = x + tmp;
@@ -329,6 +357,8 @@ class Qwen2VLModel final : public Module {
 
 public:
     explicit Qwen2VLModel(const Qwen2VLConfig &config) {
+        // Layer::use_layername_2_tensorname = false;
+
         auto vocab_size = config.vocab_size;
         auto hidden_dim = config.hidden_size;
         auto head_size = config.num_attention_heads;
@@ -356,6 +386,7 @@ public:
         }
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
+        WHERE_TOKEN_PRUNING.init();
         auto position_ids = inputs[3];
         bool have_img = inputs[1].batch() > 0;
         auto hidden_states = embed_tokens({inputs[0]});
@@ -363,10 +394,26 @@ public:
             auto image_embeds = visual({inputs[1], inputs[2]})[0];
             auto n_image_features = image_embeds.sequence();
             auto where_idx = inputs[0].where(image_token_id, SEQUENCE);
+            // ========================================================================================================
+            // Pruning Stage 1 Start
+            // if (WHERE_TOKEN_PRUNING.is_prefill()) {
+            WHERE_TOKEN_PRUNING.set_vision_token(where_idx, hidden_states);
+            // }
+            // ========================================================================================================
             hidden_states = hidden_states.index_put(image_embeds, where_idx, false);
         }
+        int layer_index = 0;
         for (auto &block : blocks) {
-            hidden_states = block({hidden_states, position_ids})[0];
+            //======================================================================================
+            // pruning stage
+            if (WHERE_TOKEN_PRUNING.is_prefill()) {
+                WHERE_TOKEN_PRUNING.set_prefill_layer(layer_index);
+                position_ids = WHERE_TOKEN_PRUNING.pruning_(position_ids, DIMENSION);
+                // position_ids.saveNData<float>();
+            }
+            //======================================================================================
+            hidden_states = block({hidden_states, position_ids}, layer_index)[0];
+            layer_index++;
         }
         hidden_states = norm(hidden_states);
         if (tie_embedding_words) {
@@ -374,6 +421,12 @@ public:
         } else {
             hidden_states = lm_head_layer(hidden_states);
         }
+        //======================================================================================
+        // pruning stage
+        if (WHERE_TOKEN_PRUNING.is_prefill() && (Tensor::tensor_status == TENSOR_STATIC_READY)) {
+            WHERE_TOKEN_PRUNING.prefill_stage = false;
+        }
+        //======================================================================================
         return {hidden_states};
     }
     void clear_kvcache() override {
@@ -568,4 +621,4 @@ private:
         return {position_ids, mrope_position_deltas};
     }
 };
-#endif // MODELING_PHI3_HPP
+#endif // MODELING_QWEN2VL_HPP

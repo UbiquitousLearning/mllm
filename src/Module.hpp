@@ -17,6 +17,7 @@
 #include <functional>
 #include <iostream>
 #include <memory/SystemMemoryManager.hpp>
+#include <memory/MemoryPoolManager.hpp>
 #include <memory>
 #include <ostream>
 #include <stack>
@@ -37,7 +38,7 @@ inline std::pair<int, int> closestFactors(int n) {
     }
     return {1, n};
 }
-}
+} // namespace utils
 
 class Module {
 protected:
@@ -89,6 +90,7 @@ private:
         return std::tuple_cat(std::make_tuple(head), tail_tuple);
     }
     int idx;
+
 public:
     Module() {
         idx = Module::graphIdx;
@@ -105,7 +107,8 @@ public:
             switch (type) {
             case BackendType::MLLM_CPU: {
                 shared_ptr<MemoryManager> mm = nullptr;
-                mm = std::make_shared<SystemMemoryManager>();
+                // mm = std::make_shared<SystemMemoryManager>();
+                mm = std::make_shared<MemoryPoolManager>(); // todomm
                 Backend::global_backends[MLLM_CPU] = new CPUBackend(mm);
                 break;
             }
@@ -183,7 +186,7 @@ public:
     virtual vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) = 0;
 
     static int graphIdx;
-    string getUinqueName(){
+    string getUinqueName() {
         std::ostringstream oss;
         oss << "Module@" << idx;
         graphIdx++;

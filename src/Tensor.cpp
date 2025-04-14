@@ -16,99 +16,105 @@
 
 namespace mllm {
 
+/* Tensor类构造函数实现（对应头文件中的声明）*/
 Tensor::Tensor(const int batch, const int head, const int sequence, const int dimension) :
-    host_ptr_(), capacity_(0) {
+    impl_(std::make_shared<TensorImpl>()) { // 初始化impl_
     reshape(batch, head, sequence, dimension);
 }
-Tensor::Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bool do_alloc) {
-    dtype_ = MLLM_TYPE_F32;
-    setBackend(bn);
+
+Tensor::Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bool do_alloc) :
+    impl_(std::make_shared<TensorImpl>(bn)) { // 使用带Backend的TensorImpl构造函数
+    impl_->dtype_ = MLLM_TYPE_F32;
     reshape(batch, head, sequence, dimension);
-    if (do_alloc) { alloc(); }
+    if (do_alloc) {
+        alloc();
+    }
 }
 
-Tensor::Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type,
-               bool do_alloc) {
-    Tensor(batch, head, sequence, dimension, Backend::global_backends[bn_type], do_alloc);
+Tensor::Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type, bool do_alloc) :
+    impl_(std::make_shared<TensorImpl>()) {
+    impl_->dtype_ = MLLM_TYPE_F32;
+    impl_->backend_ = Backend::global_backends[bn_type];
+    reshape(batch, head, sequence, dimension);
+    if (do_alloc) {
+        alloc();
+    }
 }
 
-Tensor::Tensor(const vector<int> &shape) :
-    host_ptr_(), capacity_(0) {
-    reshape(shape);
+Tensor::Tensor(const std::vector<int> &shape) :
+    impl_(std::make_shared<TensorImpl>()) {
+    impl_->private_reshape(shape);
 }
 
-Tensor::Tensor(int value, Backend *bn) {
-    dtype_ = MLLM_TYPE_F32;
-    setBackend(bn);
+Tensor::Tensor(int value, Backend *bn) :
+    impl_(std::make_shared<TensorImpl>()) {
+    impl_->dtype_ = MLLM_TYPE_F32;
+    impl_->backend_ = bn;
     reshape(1, 1, 1, 1);
     alloc();
-    shouldInGraphs() = false;
-    setDataAt<float>(0, 0, 0, 0, (float)value);
+    impl_->should_in_graphs_ = false;
+    setDataAt<float>(0, 0, 0, 0, static_cast<float>(value));
 }
 
-Tensor::Tensor(int value, BackendType bn_type) {
-    dtype_ = MLLM_TYPE_F32;
-    setBackend(Backend::global_backends[bn_type]);
+Tensor::Tensor(int value, BackendType bn_type) :
+    impl_(std::make_shared<TensorImpl>()) {
+    impl_->dtype_ = MLLM_TYPE_F32;
+    impl_->backend_ = Backend::global_backends[bn_type];
     reshape(1, 1, 1, 1);
     alloc();
-    shouldInGraphs() = false;
-    setDataAt<float>(0, 0, 0, 0, (float)value);
+    impl_->should_in_graphs_ = false;
+    setDataAt<float>(0, 0, 0, 0, static_cast<float>(value));
 }
 
-Tensor::Tensor(vector<float> values, BackendType bn_type) {
-    dtype_ = MLLM_TYPE_F32;
-    setBackend(Backend::global_backends[bn_type]);
+Tensor::Tensor(std::vector<float> values, BackendType bn_type) :
+    impl_(std::make_shared<TensorImpl>()) {
+    impl_->dtype_ = MLLM_TYPE_F32;
+    impl_->backend_ = Backend::global_backends[bn_type];
     reshape(1, 1, 1, values.size());
     alloc();
-    shouldInGraphs() = false;
-    for (auto value : values) {
-        setDataAt<float>(0, 0, 0, 0, (float)value);
+    impl_->should_in_graphs_ = false;
+    for (size_t i = 0; i < values.size(); ++i) {
+        setDataAt<float>(0, 0, 0, i, values[i]);
     }
 }
 
 bool Tensor::reshape(const int batch, const int head, const int sequence, const int dimension) {
-    vector<int> shape(4);
-    shape[chls()[BATCH]] = batch;
-    shape[chls()[HEAD]] = head;
-    shape[chls()[SEQUENCE]] = sequence;
-    shape[chls()[DIMENSION]] = dimension;
-    return reshape(shape);
+    return impl_->reshape(batch, head, sequence, dimension);
+    // vector<int> shape(4);
+    // shape[chls()[BATCH]] = batch;
+    // shape[chls()[HEAD]] = head;
+    // shape[chls()[SEQUENCE]] = sequence;
+    // shape[chls()[DIMENSION]] = dimension;
+    // return reshape(shape);
 }
 
+// Tensor.cpp
 void Tensor::alloc() {
-    if (aggregated_) { return; }
-    assert(backend_ != nullptr);
-    if (masterTensor() != nullptr) { return; }
-    if (!shape_offset_.empty() && !shape_master_.empty()) { return; }
-    if (allocated_ != count_) {
-        if (host_ptr_ != nullptr) {
-            backend_->free(host_ptr_);
-            host_ptr_ = nullptr;
-        }
-        if (count_ > 0) {
-            // Arm neon should be 16B
-            // AVX 128 should be 16B
-            // AVX 256 should be 32B
-#if defined(__ARM_NEON) && defined(__aarch64__)
-            backend_->alloc(&host_ptr_, cntSize() + 16, 128);
-#else
-            backend_->alloc(&host_ptr_, cntSize() + 16, 128);
-#endif
-        }
-        allocated_ = count_;
-    }
+    // if ("out-model.embed_tokens" == name())
+    //     std::cout << "alloc " << name() << std::endl;
+    if (aggregated_) return;
+    assert(impl_->backend_ != nullptr);
+    if (master_tensor_ != nullptr) return;
+    if (!shape_offset_.empty() && !shape_master_.empty()) return;
+
+    impl_->alloc();
 }
 
-bool Tensor::reshape(const int batch, const int channel, const int time, const int height,
-                     const int width) {
-    if (ctype_ != BTHWC) { ctype_ = BCTHW; }
-    vector<int> shape(5);
-    shape[chls()[BATCH]] = batch;
-    shape[chls()[CHANNLE]] = channel;
-    shape[chls()[TIME]] = time;
-    shape[chls()[HEIGHT]] = height;
-    shape[chls()[WIDTH]] = width;
-    return reshape(shape);
+bool Tensor::reshape(int batch, int channel, int time, int height, int width) {
+    if (impl_->ctype_ != BTHWC) {
+        impl_->ctype_ = BCTHW;
+    }
+
+    std::vector<int> shape(5);
+    const auto &chls = impl_->chls_; // 从TensorImpl获取维度映射
+
+    shape[chls.at(BATCH)] = batch;
+    shape[chls.at(CHANNLE)] = channel; // 注意原拼写错误CHANNLE
+    shape[chls.at(TIME)] = time;
+    shape[chls.at(HEIGHT)] = height;
+    shape[chls.at(WIDTH)] = width;
+
+    return impl_->private_reshape(shape);
 }
 
 TensorStatus Tensor::tensor_status;
@@ -122,7 +128,7 @@ TensorType &Tensor::xnnTensorType() {
 }
 
 void Tensor::forceResetHostPointer(void *ptr) {
-    host_ptr_ = ptr;
+    impl_->host_ptr_ = ptr;
 }
 
 Tensor &Tensor::to(BackendType backend_type) {
@@ -170,19 +176,19 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
     assert(module() != nullptr);
     auto &module_tensors = module()->activation_tensors;
     auto &activation_tensors_num = module()->activation_tensors_num;
-    const std::string next_name = name_ + "-" + suffix;
+    const std::string next_name = impl_->name_ + "-" + suffix;
     // if (module_tensors.find(name_) == module_tensors.end()) {
     //     module_tensors[name_] = std::shared_ptr<Tensor>(this, [](Tensor *) {});
     // }
     if (module_tensors.find(next_name) == module_tensors.end()) {
-        module_tensors[next_name] = std::make_shared<Tensor>(backend_);
+        module_tensors[next_name] = std::make_shared<Tensor>(impl_->backend_);
         module_tensors[next_name]->setName(next_name);
         module_tensors[next_name]->setModule(module());
         activation_tensors_num[next_name] = 0;
     }
     if (module()->doLoad) { return *module_tensors[next_name]; }
-    TensorFunction *func = backend_->funcCreate(type);
-    std::vector<Tensor *> tensorPtrs = {module_tensors[name_].get()};
+    TensorFunction *func = impl_->backend_->funcCreate(type);
+    std::vector<Tensor *> tensorPtrs = {module_tensors[impl_->name_].get()};
     for (auto &other_tensor : other_tensors) { tensorPtrs.push_back(other_tensor); }
 #ifdef DEBUGOPTIME
     auto start_t = mllm_time_us();
@@ -197,7 +203,7 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
         break;
     }
     case TENSOR_STATIC_TRACE: {
-        if (backend_->type() == BackendType::MLLM_CPU) {
+        if (impl_->backend_->type() == BackendType::MLLM_CPU) {
             Tracer::addTensorFunction(func, tensorPtrs, {module_tensors[next_name].get()}, float_args);
         }
         break;
@@ -220,8 +226,8 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
                 default: {
                 }
                 }
-                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1 
-                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1
+                    && module_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |F" << std::endl;
                 }
@@ -247,8 +253,8 @@ void Tensor::getFunc(const TensorFuncType type,
     auto &module_tensors = module()->activation_tensors;
     auto &activation_tensors_num = module()->activation_tensors_num;
     if (module()->doLoad) { return; }
-    TensorFunction *func = backend_->funcCreate(type);
-    std::vector<Tensor *> tensorPtrs = {module_tensors[name_].get()};
+    TensorFunction *func = impl_->backend_->funcCreate(type);
+    std::vector<Tensor *> tensorPtrs = {module_tensors[impl_->name_].get()};
     for (auto &other_tensor : other_tensors) { tensorPtrs.push_back(other_tensor); }
 #ifdef DEBUGOPTIME
     auto start_t = mllm_time_us();
@@ -283,7 +289,7 @@ void Tensor::getFunc(const TensorFuncType type,
                 }
                 }
                 if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1
-                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
+                    && module_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |F" << std::endl;
                 }
@@ -313,7 +319,7 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
     auto &module_tensors = module->activation_tensors;
     auto &activation_tensors_num = module->activation_tensors_num;
     auto *backend_h = Backend::global_backends[MLLM_CPU];
-    if (!input_tensors.empty() && input_tensors[0]->backend_ != nullptr) {
+    if (!input_tensors.empty() && input_tensors[0]->impl_->backend_ != nullptr) {
         backend_h = input_tensors[0]->backend();
     }
     for (auto out_name : out_names) {
@@ -371,7 +377,7 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
                 }
                 }
                 if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1
-                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
+                    && module_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |S "<< std::endl;// << out_names[0] << std::endl;
                 }
@@ -584,14 +590,13 @@ Tensor &Tensor::zero_like(Tensor &input) {
                          {module->activation_tensors[input.name()].get()})[0]
         .get();
 }
-Tensor &Tensor::apply_rotary_pos_emb_vision(Tensor &input, Tensor&rotary_pos_emb){
+Tensor &Tensor::apply_rotary_pos_emb_vision(Tensor &input, Tensor &rotary_pos_emb) {
     Module *module = input.module();
-    return getStaticFunc({input.name() + "-apply_rotary_pos_emb"}, FUNC_APPLY_VISIOROPE, 
-                        {},
-                        {
-                        module->activation_tensors[input.name()].get(),
-                        module->activation_tensors[rotary_pos_emb.name()].get()
-                        })[0].get();
+    return getStaticFunc({input.name() + "-apply_rotary_pos_emb"}, FUNC_APPLY_VISIOROPE,
+                         {},
+                         {module->activation_tensors[input.name()].get(),
+                          module->activation_tensors[rotary_pos_emb.name()].get()})[0]
+        .get();
 }
 
 Tensor &Tensor::fuyu_gather_embd(Tensor &word, Tensor &image_patches, Tensor &image_patches_indices) {

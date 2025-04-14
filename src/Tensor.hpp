@@ -20,6 +20,7 @@
 #include <assert.h>
 // #include <sys/stat.h>
 
+#include "TensorImpl.hpp"
 namespace mllm {
 class Backend;
 class Module;
@@ -60,61 +61,42 @@ class Module;
  *
  */
 class Tensor {
-public:
-    Tensor() :
-        host_ptr_(), capacity_(0), dtype_(MLLM_TYPE_F32) {
-    }
-    Tensor(Backend *bn) :
-        backend_(bn), host_ptr_(), capacity_(0), dtype_(MLLM_TYPE_F32) {
-    }
-    /*
-    ~Tensor() {
-        free();
-    }
-    */
-
-    static TensorStatus tensor_status;
-
-private:
-    std::map<Chl, int> chls_ = {{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
-    string name_;
-    DataType dtype_;
-    ChlType ctype_ = BSHD;
-    TensorType ttype_ = NORMAL_TENSOR;
-
-    Backend *backend_{};
-    void *host_ptr_{};
-
-    vector<uint64_t> shape_;
-    uint64_t capacity_ = 0;
-    uint64_t count_ = 0;
-    uint64_t allocated_ = 0;
-
-    bool transed_ = false;
-    bool should_in_graphs_ = true;
+    std::shared_ptr<TensorImpl> impl_; // 核心：使用shared_ptr管理实现
 
     // used for ChildTensor
     vector<uint64_t> shape_offset_;
     vector<uint64_t> shape_master_;
     Tensor *master_tensor_ = nullptr;
     vector<Tensor *> child_tensors_;
-    bool undiffusion_ = false;
-    vector<std::pair<Chl, Chl>> trans_from_;
 
-    //  used for AggregatedTensor
+    // AggregatedTensor相关
     bool aggregated_ = false;
     vector<shared_ptr<Tensor>> aggregated_tensors_;
     Tensor *deaggregated_tensor_ = nullptr;
     Chl aggregated_dim_;
     vector<int> aggregated_dims_;
-    Module *module_{};
 
-private:
-    // XNN_INVALID_VALUE_ID = 4294967295U
+    TensorType ttype_ = NORMAL_TENSOR;
     uint32_t uuid_ = 4294967295U;
     TensorType xnn_tensor_type_ = TensorType::NORMAL_TENSOR;
 
 public:
+    // 拷贝语义：默认浅拷贝（共享实现）
+    Tensor(const Tensor &) = default;
+    Tensor &operator=(const Tensor &) = default;
+
+    // 移动语义
+    Tensor(Tensor &&) noexcept = default;
+    Tensor &operator=(Tensor &&) noexcept = default;
+
+    /* 构造系列 */
+    Tensor() :
+        impl_(std::make_shared<TensorImpl>()) {
+    }
+    explicit Tensor(Backend *bn) :
+        impl_(std::make_shared<TensorImpl>(bn)) {
+    }
+
     /**
      * \brief build 4-D Tensor with four dimensions: [batch, head, sequence, dimension].
      *        The four dimension designed for Transformer-based LLMs：
@@ -140,6 +122,10 @@ public:
 
     Tensor(vector<float> values, BackendType bn_type = MLLM_CPU);
 
+    ~Tensor() = default;
+
+public:
+    static TensorStatus tensor_status;
     /**
      * \brief reshape 4-D Tensor with four dimensions: [batch, head, sequence, dimension].
      *        The four dimension designed for Transformer-based LLMs：
@@ -156,7 +142,7 @@ public:
      * \param dtype the data type of this Tensor. e.g. MLLM_TYPE_F32, MLLM_TYPE_Q4_K
      */
     void alloc(DataType dtype) {
-        dtype_ = dtype;
+        impl_->dtype_ = dtype;
         alloc();
     }
     void alloc();
@@ -167,11 +153,8 @@ public:
      */
     void free() {
         if (aggregated_) { return; }
-        if (host_ptr_ != nullptr && masterTensor() == nullptr) {
-            // std::cout << "dealloc " << name_ << std::endl;
-            backend_->free(host_ptr_);
-            host_ptr_ = nullptr;
-            allocated_ = 0;
+        if (masterTensor() == nullptr) {
+            impl_->free();
         }
     }
 
@@ -181,7 +164,7 @@ public:
      * \return the number of bytes occupied by Tensor's data in memory
      */
     size_t size() const {
-        return capacity_ * dtypeSize();
+        return impl_->capacity_ * dtypeSize();
     }
     /**
      * \brief get the size of the corresponding dimension for 4-D Tensor, contains: batch, head, sequence, dimension.
@@ -193,20 +176,20 @@ public:
      * \return the size of the corresponding dimension
      */
     std::map<Chl, int> &chls() {
-        return chls_;
+        return impl_->chls_;
     }
 
     int batch() {
-        return legacyShape(chls()[BATCH]);
+        return impl_->batch();
     }
     int head() {
-        return legacyShape(chls()[HEAD]);
+        return impl_->head();
     }
     int sequence() {
-        return legacyShape(chls()[SEQUENCE]);
+        return impl_->sequence();
     }
     int dimension() {
-        return legacyShape(chls()[DIMENSION]);
+        return impl_->dimension();
     }
 
     /**
@@ -215,30 +198,18 @@ public:
      * \return the totol size of all dimensions
      */
     int count() const {
-        return count_;
-    }
-    int numAxes() const {
-        return shape_.size();
+        return impl_->count_;
     }
     string shapeString() const {
         std::ostringstream stream;
-        for (int i : shape_) {
+        for (int i : impl_->shape_) {
             stream << i << " ";
         }
-        stream << "(" << count_ << ")";
+        stream << "(" << impl_->count_ << ")";
         return stream.str();
     }
-    int canonicalAxisIndex(int axis_index) const {
-        if (axis_index < 0) {
-            return axis_index + numAxes();
-        }
-        return axis_index;
-    }
     int legacyShape(int index) const {
-        if (index >= numAxes() || index < -numAxes()) {
-            return 0;
-        }
-        return shape(index);
+        return impl_->legacyShape(index);
     }
     /**
      * \brief get the offset compared to 'host_ptr_'.
@@ -262,7 +233,7 @@ public:
             auto h_ = (h + shape_offset_[1]) % base_head_;
             auto s_ = (s + shape_offset_[2]) % base_sequence_;
             auto d_ = (d + shape_offset_[3]) % base_dimension_;
-            switch (ctype_) {
+            switch (impl_->ctype_) {
             case BSHD:
                 return ((b_ * base_sequence_ + s_) * base_head_ + h_) * base_dimension_ + d_;
             case BHDS:
@@ -277,17 +248,17 @@ public:
                 break;
             }
         } else {
-            switch (ctype_) {
+            switch (impl_->ctype_) {
             case BSHD:
-                return ((b * shape_[1] + s) * shape_[2] + h) * shape_[3] + d;
+                return ((b * impl_->shape_[1] + s) * impl_->shape_[2] + h) * impl_->shape_[3] + d;
             case BHDS:
-                return ((b * shape_[1] + h) * shape_[2] + d) * shape_[3] + s;
+                return ((b * impl_->shape_[1] + h) * impl_->shape_[2] + d) * impl_->shape_[3] + s;
             case BDHS:
-                return ((b * shape_[1] + d) * shape_[2] + h) * shape_[3] + s;
+                return ((b * impl_->shape_[1] + d) * impl_->shape_[2] + h) * impl_->shape_[3] + s;
             case SBHD:
-                return ((s * shape_[1] + b) * shape_[2] + h) * shape_[3] + d;
+                return ((s * impl_->shape_[1] + b) * impl_->shape_[2] + h) * impl_->shape_[3] + d;
             case DBHS:
-                return ((d * shape_[1] + b) * shape_[2] + h) * shape_[3] + s;
+                return ((d * impl_->shape_[1] + b) * impl_->shape_[2] + h) * impl_->shape_[3] + s;
             default:
                 break;
             }
@@ -304,8 +275,8 @@ public:
             return offset(indices[0], indices[1], indices[2], indices[3]);
         } else {
             int offset = 0;
-            for (int i = 0; i < numAxes(); ++i) {
-                offset *= shape(i);
+            for (int i = 0; i < impl_->numAxes(); ++i) {
+                offset *= impl_->shape(i);
                 if (indices.size() > i) {
                     offset += indices[i];
                 }
@@ -314,55 +285,44 @@ public:
         }
     }
 
-    int memshape(int index) const {
-        if (master_tensor_ != NULL) {
-            if (master_tensor_->master_tensor_ != NULL) {
-                return master_tensor_->master_tensor_->shape_[index];
-            } else {
-                return master_tensor_->shape_[index];
-            }
-        } else {
-            return shape(index);
-        }
-    }
     int sequenceSkipDim() const {
         if (master_tensor_ != NULL) {
             if (master_tensor_->master_tensor_ != NULL) {
-                auto shape = master_tensor_->master_tensor_->shape_;
-                if (master_tensor_->master_tensor_->ctype_ == BSHD) {
+                auto shape = master_tensor_->master_tensor_->impl_->shape_;
+                if (master_tensor_->master_tensor_->impl_->ctype_ == BSHD) {
                     return shape[3] * shape[2];
-                } else if (master_tensor_->master_tensor_->ctype_ == BHDS) {
+                } else if (master_tensor_->master_tensor_->impl_->ctype_ == BHDS) {
                     return shape[3];
-                } else if (master_tensor_->master_tensor_->ctype_ == BDHS) {
-                    return shape[3] * shape_[2];
+                } else if (master_tensor_->master_tensor_->impl_->ctype_ == BDHS) {
+                    return shape[3] * impl_->shape_[2];
                 } else {
                     std::cout << "sequenceSkipDim() only support for BSHD and BHDS" << std::endl;
                     return -1;
                 }
             } else {
-                auto shape = master_tensor_->shape_;
-                if (master_tensor_->ctype_ == BSHD) {
+                auto shape = master_tensor_->impl_->shape_;
+                if (master_tensor_->impl_->ctype_ == BSHD) {
                     return shape[3] * shape[2];
-                } else if (master_tensor_->ctype_ == BHDS) {
+                } else if (master_tensor_->impl_->ctype_ == BHDS) {
                     return shape[3];
-                } else if (master_tensor_->ctype_ == BDHS) {
-                    return shape[3] * shape_[2];
+                } else if (master_tensor_->impl_->ctype_ == BDHS) {
+                    return shape[3] * impl_->shape_[2];
                 } else {
                     std::cout << "sequenceSkipDim() only support for BSHD and BHDS" << std::endl;
                     return -1;
                 }
             }
         } else {
-            if (ctype_ == BSHD) {
-                return shape_[3] * shape_[2];
-            } else if (ctype_ == BHDS) {
-                return shape_[3];
-            } else if (ctype_ == BDHS) {
-                return shape_[3] * shape_[2];
-            } else if (ctype_ == DBHS) {
-                return shape_[3] * shape_[2];
-            } else if (ctype_ == SBHD) {
-                return shape_[3] * shape_[2];
+            if (impl_->ctype_ == BSHD) {
+                return impl_->shape_[3] * impl_->shape_[2];
+            } else if (impl_->ctype_ == BHDS) {
+                return impl_->shape_[3];
+            } else if (impl_->ctype_ == BDHS) {
+                return impl_->shape_[3] * impl_->shape_[2];
+            } else if (impl_->ctype_ == DBHS) {
+                return impl_->shape_[3] * impl_->shape_[2];
+            } else if (impl_->ctype_ == SBHD) {
+                return impl_->shape_[3] * impl_->shape_[2];
             } else {
                 std::cout << "sequenceSkipDim() only support for BSHD and BHDS" << std::endl;
                 return -1;
@@ -376,7 +336,7 @@ public:
      * \return the pointer(void *) to the first address where tensor stores data.
      */
     void *rawHostPtr() const {
-        return host_ptr_;
+        return impl_->host_ptr_;
     }
 
     /**
@@ -386,7 +346,7 @@ public:
      */
     template <typename Dtype>
     Dtype *hostPtr() const {
-        return (Dtype *)host_ptr_;
+        return (Dtype *)impl_->host_ptr_;
     }
 
     /**
@@ -401,7 +361,7 @@ public:
     template <typename Dtype>
     Dtype dataAt(const int batch, const int head, const int sequence, const int dimension) {
         if (!aggregated_) {
-            return ((Dtype *)host_ptr_)[offset(batch, head, sequence, dimension)];
+            return ((Dtype *)impl_->host_ptr_)[offset(batch, head, sequence, dimension)];
         } else {
             int b = batch;
             int h = head;
@@ -414,7 +374,7 @@ public:
     template <typename Dtype>
     Dtype &d(const int batch, const int sequence, const int head, const int dimension) {
         if (!aggregated_) {
-            return ((Dtype *)host_ptr_)[offset(batch, head, sequence, dimension)];
+            return ((Dtype *)impl_->host_ptr_)[offset(batch, head, sequence, dimension)];
         } else {
             int b = batch;
             int h = head;
@@ -447,7 +407,7 @@ public:
     template <typename Dtype>
     Dtype *ptrAt(const int batch, const int head, const int sequence, const int dimension) {
         if (!aggregated_) {
-            return ((Dtype *)host_ptr_ + offset(batch, head, sequence, dimension));
+            return ((Dtype *)impl_->host_ptr_ + offset(batch, head, sequence, dimension));
         } else {
             int b = batch;
             int h = head;
@@ -460,7 +420,7 @@ public:
     template <typename Dtype>
     Dtype *p(const int batch, const int sequence, const int head, const int dimension) {
         if (!aggregated_) {
-            return ((Dtype *)host_ptr_ + offset(batch, head, sequence, dimension));
+            return ((Dtype *)impl_->host_ptr_ + offset(batch, head, sequence, dimension));
         } else {
             int b = batch;
             int h = head;
@@ -493,7 +453,7 @@ public:
     template <typename Dtype>
     void setDataAt(const int batch, const int head, const int sequence, const int dimension, Dtype value) {
         if (!aggregated_) {
-            Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
+            Dtype *typed_ptr = static_cast<Dtype *>(impl_->host_ptr_);
             typed_ptr[offset(batch, head, sequence, dimension)] = value;
         } else {
             int b = batch;
@@ -524,29 +484,29 @@ public:
      */
     DataType dtypeAt(const int batch, const int head, const int sequence, const int dimension) {
         if (!aggregated_) {
-            return dtype_;
+            return impl_->dtype_;
         } else {
             int b = batch;
             int h = head;
             int s = sequence;
             int d = dimension;
             int tensor_id = checkDim(b, h, s, d);
-            return aggregated_tensors_[tensor_id]->dtype_;
+            return aggregated_tensors_[tensor_id]->impl_->dtype_;
         }
     }
 
     Backend *backend() const {
-        return backend_;
+        return impl_->backend_;
     }
     void setBackend(Backend *bn) {
-        backend_ = bn;
+        impl_->backend_ = bn;
     };
 
     DataType dtype() const {
-        return dtype_;
+        return impl_->dtype_;
     }
     void setDtype(DataType dtype) {
-        dtype_ = dtype;
+        impl_->dtype_ = dtype;
     }
 
     TensorType ttype() const {
@@ -557,72 +517,72 @@ public:
     }
 
     std::vector<int> shape() const {
-        std::vector<int> shape_int(shape_.size());
-        std::transform(shape_.begin(), shape_.end(), shape_int.begin(), [](uint64_t val) {
+        std::vector<int> shape_int(impl_->shape_.size());
+        std::transform(impl_->shape_.begin(), impl_->shape_.end(), shape_int.begin(), [](uint64_t val) {
             return static_cast<int>(val);
         });
         return shape_int;
     }
 
     ChlType ctype() const {
-        return ctype_;
+        return impl_->ctype_;
     }
     void setCtype(ChlType type) {
-        ctype_ = type;
-        switch (ctype_) {
+        impl_->ctype_ = type;
+        switch (impl_->ctype_) {
         case BSHD:
-            chls()[BATCH] = 0;
-            chls()[SEQUENCE] = 1;
-            chls()[HEAD] = 2;
-            chls()[DIMENSION] = 3;
+            impl_->chls()[BATCH] = 0;
+            impl_->chls()[SEQUENCE] = 1;
+            impl_->chls()[HEAD] = 2;
+            impl_->chls()[DIMENSION] = 3;
             break;
         case BHDS:
-            chls()[BATCH] = 0;
-            chls()[HEAD] = 1;
-            chls()[DIMENSION] = 2;
-            chls()[SEQUENCE] = 3;
+            impl_->chls()[BATCH] = 0;
+            impl_->chls()[HEAD] = 1;
+            impl_->chls()[DIMENSION] = 2;
+            impl_->chls()[SEQUENCE] = 3;
             break;
         case SBHD:
-            chls()[SEQUENCE] = 0;
-            chls()[BATCH] = 1;
-            chls()[HEAD] = 2;
-            chls()[DIMENSION] = 3;
+            impl_->chls()[SEQUENCE] = 0;
+            impl_->chls()[BATCH] = 1;
+            impl_->chls()[HEAD] = 2;
+            impl_->chls()[DIMENSION] = 3;
             break;
         case BTHWC:
-            chls()[BATCH] = 0;
-            chls()[TIME] = 1;
-            chls()[HEIGHT] = 2;
-            chls()[WIDTH] = 3;
-            chls()[CHANNLE] = 3;
+            impl_->chls()[BATCH] = 0;
+            impl_->chls()[TIME] = 1;
+            impl_->chls()[HEIGHT] = 2;
+            impl_->chls()[WIDTH] = 3;
+            impl_->chls()[CHANNLE] = 3;
             break;
         case BCTHW:
-            chls()[BATCH] = 0;
-            chls()[CHANNLE] = 1;
-            chls()[TIME] = 2;
-            chls()[HEIGHT] = 3;
-            chls()[WIDTH] = 3;
+            impl_->chls()[BATCH] = 0;
+            impl_->chls()[CHANNLE] = 1;
+            impl_->chls()[TIME] = 2;
+            impl_->chls()[HEIGHT] = 3;
+            impl_->chls()[WIDTH] = 3;
             break;
         default:
             break;
         }
     }
     size_t cntSize() {
-        return DataTypeSize(dtype_, count_);
+        return DataTypeSize(impl_->dtype_, impl_->count_);
     }
     int dtypeSize() const {
-        return DataTypeSize(dtype_, 1);
+        return DataTypeSize(impl_->dtype_, 1);
     }
     int dtypeSize(int size) {
-        return DataTypeSize(dtype_, size);
+        return DataTypeSize(impl_->dtype_, size);
     }
     void setName(string name) {
-        name_ = name;
+        impl_->name_ = name;
     }
     string name() const {
-        return name_;
+        return impl_->name_;
     }
     int allocted() const {
-        return allocated_;
+        return impl_->allocated_;
     }
 
     /**
@@ -648,62 +608,62 @@ public:
             auto h = head();
             auto d = dimension();
             auto s = sequence();
-            ctype_ = BHDS;
-            auto ori_seq_idx = chls()[SEQUENCE];
-            auto ori_head_idx = chls()[HEAD];
-            auto ori_dim_idx = chls()[DIMENSION];
-            chls()[HEAD] = ori_seq_idx;
-            chls()[DIMENSION] = ori_head_idx;
-            chls()[SEQUENCE] = ori_dim_idx;
+            impl_->ctype_ = BHDS;
+            auto ori_seq_idx = impl_->chls()[SEQUENCE];
+            auto ori_head_idx = impl_->chls()[HEAD];
+            auto ori_dim_idx = impl_->chls()[DIMENSION];
+            impl_->chls()[HEAD] = ori_seq_idx;
+            impl_->chls()[DIMENSION] = ori_head_idx;
+            impl_->chls()[SEQUENCE] = ori_dim_idx;
             reshape(b, h, s, d);
-            transed_ = true;
-            undiffusion_ = undiffusion;
+            impl_->transed_ = true;
+            impl_->undiffusion_ = undiffusion;
         } else if (dim_a == SEQUENCE && dim_b == DIMENSION && ctype() == BHDS) {
             auto b = batch();
             auto h = head();
             auto d = dimension();
             auto s = sequence();
-            ctype_ = BSHD;
-            auto ori_seq_idx = chls()[SEQUENCE];
-            auto ori_head_idx = chls()[HEAD];
-            auto ori_dim_idx = chls()[DIMENSION];
-            chls()[SEQUENCE] = ori_head_idx;
-            chls()[HEAD] = ori_dim_idx;
-            chls()[DIMENSION] = ori_seq_idx;
+            impl_->ctype_ = BSHD;
+            auto ori_seq_idx = impl_->chls()[SEQUENCE];
+            auto ori_head_idx = impl_->chls()[HEAD];
+            auto ori_dim_idx = impl_->chls()[DIMENSION];
+            impl_->chls()[SEQUENCE] = ori_head_idx;
+            impl_->chls()[HEAD] = ori_dim_idx;
+            impl_->chls()[DIMENSION] = ori_seq_idx;
             reshape(b, h, s, d);
-            transed_ = false;
-            undiffusion_ = undiffusion;
+            impl_->transed_ = false;
+            impl_->undiffusion_ = undiffusion;
         } else if (THW == dim_a && dim_b == CHANNLE && ctype() == BCTHW) {
             auto b = batch();
             auto c = channel();
             auto t = time();
             auto h = height();
             auto w = width();
-            ctype_ = BTHWC;
-            auto ori_chl_idx = chls()[CHANNLE];
-            auto ori_time_idx = chls()[TIME];
-            auto ori_height_idx = chls()[HEIGHT];
-            auto ori_width_idx = chls()[WIDTH];
-            chls()[TIME] = ori_chl_idx;
-            chls()[HEIGHT] = ori_time_idx;
-            chls()[WIDTH] = ori_height_idx;
-            chls()[CHANNLE] = ori_width_idx;
+            impl_->ctype_ = BTHWC;
+            auto ori_chl_idx = impl_->chls()[CHANNLE];
+            auto ori_time_idx = impl_->chls()[TIME];
+            auto ori_height_idx = impl_->chls()[HEIGHT];
+            auto ori_width_idx = impl_->chls()[WIDTH];
+            impl_->chls()[TIME] = ori_chl_idx;
+            impl_->chls()[HEIGHT] = ori_time_idx;
+            impl_->chls()[WIDTH] = ori_height_idx;
+            impl_->chls()[CHANNLE] = ori_width_idx;
             reshape(b, c, t, h, w);
-            transed_ = true;
-            undiffusion_ = undiffusion;
+            impl_->transed_ = true;
+            impl_->undiffusion_ = undiffusion;
         } else if (dim_a == BATCH && dim_b == SEQUENCE && ctype() == BSHD) {
             auto b = batch();
             auto h = head();
             auto d = dimension();
             auto s = sequence();
-            ctype_ = SBHD;
-            auto ori_batch_idx = chls()[BATCH];
-            auto ori_seq_idx = chls()[SEQUENCE];
-            chls()[SEQUENCE] = ori_batch_idx;
-            chls()[BATCH] = ori_seq_idx;
+            impl_->ctype_ = SBHD;
+            auto ori_batch_idx = impl_->chls()[BATCH];
+            auto ori_seq_idx = impl_->chls()[SEQUENCE];
+            impl_->chls()[SEQUENCE] = ori_batch_idx;
+            impl_->chls()[BATCH] = ori_seq_idx;
             reshape(b, h, s, d);
-            transed_ = true;
-            undiffusion_ = undiffusion;
+            impl_->transed_ = true;
+            impl_->undiffusion_ = undiffusion;
         }
     }
 
@@ -716,15 +676,15 @@ public:
         assert(masterTensor() == nullptr);
         assert(source.dtype() == dtype());
         assert(source.count() == count());
-        memcpy(host_ptr_, source.host_ptr_, cntSize());
+        memcpy(impl_->host_ptr_, source.impl_->host_ptr_, cntSize());
     }
     void initFrom(const Tensor &source) {
-        dtype_ = source.dtype();
-        chls_ = source.chls_;
-        ctype_ = source.ctype_;
-        shape_ = source.shape_;
-        count_ = source.count_;
-        if (source.host_ptr_ != nullptr) {
+        impl_->dtype_ = source.impl_->dtype_;
+        impl_->chls_ = source.impl_->chls_;
+        impl_->ctype_ = source.impl_->ctype_;
+        impl_->shape_ = source.impl_->shape_;
+        impl_->count_ = source.impl_->count_;
+        if (source.impl_->host_ptr_ != nullptr) {
             alloc();
         }
     }
@@ -732,41 +692,32 @@ public:
         assert(masterTensor() == nullptr);
         assert(source->dtype() == dtype());
         assert(source->count() == count());
-        memcpy(host_ptr_, source->host_ptr_, cntSize());
+        memcpy(impl_->host_ptr_, source->impl_->host_ptr_, cntSize());
     }
 
     void changeCtype(int size = 0) {
-        if (!shape().empty()) {
-            size = shape().size();
-        }
-        if (size == 4) {
-            vector<int> a = {chls()[BATCH], chls()[HEAD], chls()[SEQUENCE], chls()[DIMENSION]};
-            ctype_ = Chls2Type[a];
-        } else {
-            vector<int> a = {chls()[BATCH], chls()[TIME], chls()[HEIGHT], chls()[WIDTH], chls()[CHANNLE]};
-            ctype_ = Chls2Type[a];
-        }
+        impl_->changeCtype(size);
     }
 
     bool &transed() {
-        return transed_;
+        return impl_->transed_;
     }
     bool &undiffusion() {
-        return undiffusion_;
+        return impl_->undiffusion_;
     }
     void setUndiffusion(bool undiffusion) {
-        undiffusion_ = undiffusion;
+        impl_->undiffusion_ = undiffusion;
         for (auto &child_tensor : child_tensors_) {
-            child_tensor->undiffusion_ = undiffusion;
+            child_tensor->impl_->undiffusion_ = undiffusion;
         }
     }
 
     vector<std::pair<Chl, Chl>> &transFrom() {
-        return trans_from_;
+        return impl_->trans_from_;
     }
 
     bool &shouldInGraphs() {
-        return should_in_graphs_;
+        return impl_->should_in_graphs_;
     }
 
     static Tensor zeros(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU) {
@@ -834,7 +785,7 @@ public:
     Tensor &bincount();
     Tensor &repeat(Chl dim, int dim_size);
     static Tensor &zero_like(Tensor &input);
-    static Tensor &apply_rotary_pos_emb_vision(Tensor &input, Tensor&rotary_pos_emb);
+    static Tensor &apply_rotary_pos_emb_vision(Tensor &input, Tensor &rotary_pos_emb);
 
     // models use only
     static Tensor &fuyu_gather_embd(Tensor &word, Tensor &image_patches, Tensor &image_patches_indices);
@@ -862,79 +813,80 @@ public:
             copyshape = false;
         }
         setMasterTensor(source);
-        if (ctype_ != BCTHW && ctype_ != BTHWC && ctype_ != master_tensor_->ctype() && undiffusion_ == false) {
-            if (transed_) { // child tensor have been transed(BSHD->BHDS);
+        if (impl_->ctype_ != BCTHW && impl_->ctype_ != BTHWC && impl_->ctype_ != master_tensor_->ctype() && impl_->undiffusion_ == false) {
+            if (impl_->transed_) { // child tensor have been transed(BSHD->BHDS);
                 auto b = master_tensor_->batch();
                 auto h = master_tensor_->head();
                 auto d = master_tensor_->dimension();
                 auto s = master_tensor_->sequence();
-                master_tensor_->ctype_ = ctype_;
-                master_tensor_->chls_ = chls_;
+                master_tensor_->impl_->ctype_ = impl_->ctype_;
+                master_tensor_->impl_->chls_ = impl_->chls_;
                 master_tensor_->reshape(b, h, s, d);
             } else {
                 auto b = batch();
                 auto h = head();
                 auto d = dimension();
                 auto s = sequence();
-                ctype_ = master_tensor_->ctype_;
-                chls_ = master_tensor_->chls_;
+                impl_->ctype_ = master_tensor_->impl_->ctype_;
+                impl_->chls_ = master_tensor_->impl_->chls_;
                 reshape(b, h, s, d);
             }
-        } else if (child_tensors_.size() == 1 && child_tensors_[0]->ctype() == master_tensor_->ctype_ && ctype() != master_tensor_->ctype_) {
+        } else if (child_tensors_.size() == 1 && child_tensors_[0]->ctype() == master_tensor_->impl_->ctype_ && ctype() != master_tensor_->impl_->ctype_) {
             auto b = child_tensors_[0]->batch();
             auto h = child_tensors_[0]->head();
             auto s = child_tensors_[0]->sequence();
             auto d = child_tensors_[0]->dimension();
-            auto origin_c_0 = child_tensors_[0]->chls_;
-            auto origin_c_1 = chls_;
-            chls_ = master_tensor_->chls_;
-            child_tensors_[0]->chls_ = master_tensor_->chls_;
-            for (int i = trans_from_.size() - 1; i >= 0; --i) {
-                auto tf = trans_from_[i];
+            auto origin_c_0 = child_tensors_[0]->impl_->chls_;
+            auto origin_c_1 = impl_->chls_;
+            impl_->chls_ = master_tensor_->impl_->chls_;
+            child_tensors_[0]->impl_->chls_ = master_tensor_->impl_->chls_;
+            for (int i = impl_->trans_from_.size() - 1; i >= 0; --i) {
+                auto tf = impl_->trans_from_[i];
                 auto axis0 = tf.first;
                 auto axis1 = tf.second;
-                auto ori_0_idx = child_tensors_[0]->chls()[axis0];
-                auto ori_1_idx = child_tensors_[0]->chls()[axis1];
-                child_tensors_[0]->chls()[axis0] = ori_1_idx;
-                child_tensors_[0]->chls()[axis1] = ori_0_idx;
+                auto ori_0_idx = child_tensors_[0]->impl_->chls()[axis0];
+                auto ori_1_idx = child_tensors_[0]->impl_->chls()[axis1];
+                child_tensors_[0]->impl_->chls()[axis0] = ori_1_idx;
+                child_tensors_[0]->impl_->chls()[axis1] = ori_0_idx;
             }
             changeCtype();
             child_tensors_[0]->changeCtype();
             child_tensors_[0]->reshape(b, h, s, d);
             transCopyShape(child_tensors_[0]->shape());
-        } else if (child_tensors_.size() == 1 && child_tensors_[0]->ctype() == BCTHW && master_tensor_->ctype_ == BSHD && ctype() != BCTHW) {
+        } else if (child_tensors_.size() == 1 && child_tensors_[0]->ctype() == BCTHW && master_tensor_->impl_->ctype_ == BSHD && ctype() != BCTHW) {
             auto b = child_tensors_[0]->batch();
             auto c = child_tensors_[0]->channel();
             auto t = child_tensors_[0]->time();
             auto h = child_tensors_[0]->height();
             auto w = child_tensors_[0]->width();
-            auto origin_c_0 = child_tensors_[0]->chls_;
-            auto origin_c_1 = chls_;
+            auto origin_c_0 = child_tensors_[0]->impl_->chls_;
+            auto origin_c_1 = impl_->chls_;
 
-            chls_ = {{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
-            child_tensors_[0]->chls_ = {{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
-            for (int i = trans_from_.size() - 1; i >= 0; --i) {
-                auto tf = trans_from_[i];
+            impl_->chls_ = {{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
+            child_tensors_[0]->impl_->chls_ = {{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
+            for (int i = impl_->trans_from_.size() - 1; i >= 0; --i) {
+                auto tf = impl_->trans_from_[i];
                 auto axis0 = tf.first;
                 auto axis1 = tf.second;
-                auto ori_0_idx = child_tensors_[0]->chls()[axis0];
-                auto ori_1_idx = child_tensors_[0]->chls()[axis1];
-                child_tensors_[0]->chls()[axis0] = ori_1_idx;
-                child_tensors_[0]->chls()[axis1] = ori_0_idx;
+                auto ori_0_idx = child_tensors_[0]->impl_->chls()[axis0];
+                auto ori_1_idx = child_tensors_[0]->impl_->chls()[axis1];
+                child_tensors_[0]->impl_->chls()[axis0] = ori_1_idx;
+                child_tensors_[0]->impl_->chls()[axis1] = ori_0_idx;
             }
             changeCtype();
             child_tensors_[0]->changeCtype();
             child_tensors_[0]->reshape(b, c, t, h, w);
             transCopyShape(child_tensors_[0]->shape());
         }
-        host_ptr_ = source->hostPtr<void>();
-        capacity_ = source->capacity_;
-        count_ = source->count_;
+        impl_->host_ptr_ = source->hostPtr<void>();
+        impl_->owns_host_ptr_ = false; // 子Tensor不拥有所有权
+        impl_->capacity_ = source->impl_->capacity_;
+        impl_->count_ = source->impl_->count_;
         if (copyshape) {
-            shape_ = source->shape_;
+            impl_->shape_ = source->impl_->shape_;
         }
-        allocated_ = source->allocated_;
-        dtype_ = source->dtype_;
+        impl_->allocated_ = source->impl_->allocated_;
+        impl_->dtype_ = source->impl_->dtype_;
         if (!shape_offset.empty()) {
             shape_master_ = {(uint64_t)source->batch(),
                              (uint64_t)source->head(),
@@ -944,7 +896,7 @@ public:
                              (uint64_t)shape_offset[1],
                              (uint64_t)shape_offset[2],
                              (uint64_t)shape_offset[3]};
-            if (!std::equal(source->chls_.begin(), source->chls_.end(), chls_.begin()) && chls()[SEQUENCE] == source->chls()[DIMENSION] && source->chls()[SEQUENCE] == chls()[DIMENSION]) {
+            if (!std::equal(source->impl_->chls_.begin(), source->impl_->chls_.end(), impl_->chls_.begin()) && impl_->chls()[SEQUENCE] == source->impl_->chls()[DIMENSION] && source->impl_->chls()[SEQUENCE] == impl_->chls()[DIMENSION]) {
                 shape_master_ = {(uint64_t)source->batch(),
                                  (uint64_t)source->head(),
                                  (uint64_t)source->dimension(),
@@ -1110,7 +1062,7 @@ public:
     }
 
     BackendType device() const {
-        return backend_->type();
+        return impl_->backend_->type();
     }
 
     Tensor &to(BackendType backend_type);
@@ -1165,52 +1117,20 @@ public:
      * \return the size of the corresponding dimension
      */
     int channel() {
-        assert(shape().size() == 5);
-        return legacyShape(chls()[CHANNLE]);
-        // switch (ctype_) {
-        // case BCTHW:
-        //     return legacyShape(1);
-        // case BTHWC:
-        //     return legacyShape(4);
-        // default: return -1;
-        // }
+        return impl_->channel();
     }
     int time() {
-        assert(shape().size() == 5);
-        return legacyShape(chls()[TIME]);
-        switch (ctype_) {
-        case BCTHW:
-            return legacyShape(2);
-        case BTHWC:
-            return legacyShape(1);
-        default: return -1;
-        }
+        return impl_->time();
     }
     int height() {
-        assert(shape().size() == 5);
-        return legacyShape(chls()[HEIGHT]);
-        // switch (ctype_) {
-        // case BCTHW:
-        //     return legacyShape(3);
-        // case BTHWC:
-        //     return legacyShape(2);
-        // default: return -1;
-        // }
+        return impl_->height();
     }
     int width() {
-        assert(shape().size() == 5);
-        return legacyShape(chls()[WIDTH]);
-        // switch (ctype_) {
-        // case BCTHW:
-        //     return legacyShape(4);
-        // case BTHWC:
-        //     return legacyShape(3);
-        // default: return -1;
-        // }
+        return impl_->width();
     }
     int offset(const int b, const int c, const int t, const int h, const int w) {
-        assert(ctype_ == BCTHW || ctype_ == BTHWC);
-        switch (ctype_) {
+        assert(impl_->ctype_ == BCTHW || impl_->ctype_ == BTHWC);
+        switch (impl_->ctype_) {
         case BCTHW:
             return (((b * channel() + c) * time() + t) * height() + h) * width() + w;
         case BTHWC:
@@ -1220,53 +1140,31 @@ public:
     }
     template <typename Dtype>
     Dtype dataAt(const int batch, const int channel, const int time, const int height, const int width) {
-        assert(ctype_ == BCTHW || ctype_ == BTHWC);
-        return ((Dtype *)host_ptr_)[offset(batch, channel, time, height, width)];
+        assert(impl_->ctype_ == BCTHW || impl_->ctype_ == BTHWC);
+        return ((Dtype *)impl_->host_ptr_)[offset(batch, channel, time, height, width)];
     }
     template <typename Dtype>
     Dtype *ptrAt(const int batch, const int channel, const int time, const int height, const int width) {
-        assert(ctype_ == BCTHW || ctype_ == BTHWC);
-        return ((Dtype *)host_ptr_ + offset(batch, channel, time, height, width));
+        assert(impl_->ctype_ == BCTHW || impl_->ctype_ == BTHWC);
+        return ((Dtype *)impl_->host_ptr_ + offset(batch, channel, time, height, width));
     }
     template <typename Dtype>
     void setDataAt(const int batch, const int channel, const int time, const int height, const int width, Dtype value) {
-        assert(ctype_ == BCTHW || ctype_ == BTHWC);
-        Dtype *typed_ptr = static_cast<Dtype *>(host_ptr_);
+        assert(impl_->ctype_ == BCTHW || impl_->ctype_ == BTHWC);
+        Dtype *typed_ptr = static_cast<Dtype *>(impl_->host_ptr_);
         typed_ptr[offset(batch, channel, time, height, width)] = value;
     }
     Module *module() const {
-        return module_;
+        return impl_->module_;
     }
     void setModule(Module *module) {
-        module_ = module;
+        impl_->module_ = module;
     }
     void transCopyShape(const vector<int> &shape) {
-        reshape(shape);
+        impl_->private_reshape(shape);
     }
 
 private:
-    bool reshape(const vector<int> &shape) {
-        assert(shape.size() <= 32);
-        count_ = 1;
-        shape_.resize(shape.size());
-        for (int i = 0; i < shape.size(); ++i) {
-            assert(shape[i] >= 0);
-            if (count_ != 0) {
-                assert(shape[i] <= std::numeric_limits<uint64_t>::max() / count_);
-            }
-            count_ *= shape[i];
-            shape_[i] = shape[i];
-        }
-        if (count_ > capacity_) {
-            capacity_ = count_;
-            return true;
-        }
-        return false;
-    }
-    int shape(int index) const {
-        return shape_[canonicalAxisIndex(index)];
-    }
-
     int checkDim(int &b, int &h, int &s, int &d) {
         if (!aggregated_) {
             return -1;
@@ -1397,23 +1295,6 @@ public:
 
     float i8_scale = 1.f;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-public:
     /* Functions used for TEST & DEBUG
      * - checkData
      * - printShape
@@ -1480,7 +1361,7 @@ public:
         const int max_rows = 6;
 
         // 递归打印函数
-        auto printRecursive = [&](auto&& self, int n, int c, int h, int w, int depth) -> void {
+        auto printRecursive = [&](auto &&self, int n, int c, int h, int w, int depth) -> void {
             if (depth == 0) {
                 std::cout << "[";
             }
@@ -1520,20 +1401,24 @@ public:
                     int half = max_rows / 2;
                     for (int h_idx = 0; h_idx < half; ++h_idx) {
                         self(self, n, c, h_idx, 0, depth + 1);
-                        std::cout << std::endl << " ";
+                        std::cout << std::endl
+                                  << " ";
                     }
-                    std::cout << "..." << std::endl << " ";
+                    std::cout << "..." << std::endl
+                              << " ";
                     for (int h_idx = H - half; h_idx < H; ++h_idx) {
                         self(self, n, c, h_idx, 0, depth + 1);
                         if (h_idx < H - 1) {
-                            std::cout << std::endl << " ";
+                            std::cout << std::endl
+                                      << " ";
                         }
                     }
                 } else {
                     for (int h_idx = 0; h_idx < H; ++h_idx) {
                         self(self, n, c, h_idx, 0, depth + 1);
                         if (h_idx < H - 1) {
-                            std::cout << std::endl << " ";
+                            std::cout << std::endl
+                                      << " ";
                         }
                     }
                 }
@@ -1545,7 +1430,8 @@ public:
                 for (int c_idx = 0; c_idx < C; ++c_idx) {
                     self(self, n, c_idx, 0, 0, depth + 1);
                     if (c_idx < C - 1) {
-                        std::cout << std::endl << std::endl;
+                        std::cout << std::endl
+                                  << std::endl;
                     }
                 }
                 std::cout << "]";
@@ -1557,7 +1443,8 @@ public:
         for (int n_idx = 0; n_idx < N; ++n_idx) {
             printRecursive(printRecursive, n_idx, 0, 0, 0, 0);
             if (n_idx < N - 1) {
-                std::cout << std::endl << std::endl;
+                std::cout << std::endl
+                          << std::endl;
             }
         }
     }
@@ -1629,7 +1516,7 @@ public:
 #endif
         std::ofstream outFile(directory + "/" + name() + ex + ".log");
         outFile << "----------------------------------------" << std::endl;
-        if (ctype_ == BSHD) {
+        if (impl_->ctype_ == BSHD) {
             outFile << name() << ": [BSHD]shape:[" << batch() << " " << sequence() << " " << head() << " " << dimension() << "] " << dtype() << " " << ctype() << std::endl;
         } else {
             outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] " << dtype() << " " << ctype() << std::endl;
@@ -1639,7 +1526,7 @@ public:
         int C = head();
         int H = sequence();
         int W = dimension();
-        if (ctype_ == BSHD) {
+        if (impl_->ctype_ == BSHD) {
             for (int n = 0; n < batch(); ++n) {
                 for (int h = 0; h < sequence(); ++h) {
                     for (int c = 0; c < head(); ++c) {
@@ -1737,8 +1624,8 @@ public:
             } else {
                 outFile << new_name;
             }
-            if (ctype_ == BSHD) {
-                outFile << name() << ": [BSHD]shape:[" << batch() << " " << sequence() << " " << head() << " " << dimension() << "] " << dtype() << " " << ctype() << std::endl;
+            if (impl_->ctype_ == BSHD) {
+                outFile << ": [BSHD]shape:[" << batch() << " " << sequence() << " " << head() << " " << dimension() << "] " << dtype() << " " << ctype() << std::endl;
                 for (int n = 0; n < batch(); ++n) {
                     for (int h = 0; h < sequence(); ++h) {
                         for (int c = 0; c < head(); ++c) {
@@ -1753,7 +1640,7 @@ public:
                 }
                 outFile.close();
                 return;
-            } 
+            }
             outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] " << dtype() << " " << ctype() << std::endl;
             int N = batch();
             int C = head();
@@ -1862,8 +1749,8 @@ public:
 
     template <typename Dtype>
     void printMem() {
-        for (int i = 0; i < count_; ++i) {
-            auto *typed_ptr = static_cast<Dtype *>(host_ptr_);
+        for (int i = 0; i < impl_->count_; ++i) {
+            auto *typed_ptr = static_cast<Dtype *>(impl_->host_ptr_);
             std::cout << std::fixed << std::setprecision(7) << typed_ptr[i] << " ";
         }
     }
@@ -1892,7 +1779,7 @@ public:
 
     void printCtype() {
         std::string ctype;
-        switch (ctype_) {
+        switch (impl_->ctype_) {
         case BSHD:
             ctype = "BSHD";
             break;
@@ -1962,7 +1849,6 @@ public:
             }
         }
     }
-
 };
 } // namespace mllm
 #endif // MLLM_TENSOR_H

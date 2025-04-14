@@ -6,6 +6,7 @@
 #include "OpDefined.hpp"
 #include "Types.hpp"
 #include "memory/SystemMemoryManager.hpp"
+#include <memory/MemoryPoolManager.hpp>
 
 #include "op/CPUHeadLinear.hpp"
 #include "op/CPULinearInt8.hpp"
@@ -95,10 +96,12 @@ class CPUBackendCreator : public BackendCreator {
         shared_ptr<MemoryManager> mm = nullptr;
         switch (config.memory) {
         case BackendConfig::Memory_High:
-            mm = std::make_shared<SystemMemoryManager>();
+            // mm = std::make_shared<SystemMemoryManager>();
+            mm = std::make_shared<MemoryPoolManager>(); // todomm
             break;
         default:
-            mm = std::make_shared<SystemMemoryManager>();
+            // mm = std::make_shared<SystemMemoryManager>();
+            mm = std::make_shared<MemoryPoolManager>(); // todomm
             break;
         }
         return new CPUBackend(mm);

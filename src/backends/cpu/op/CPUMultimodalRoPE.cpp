@@ -10,33 +10,33 @@
 
 namespace mllm {
 
-vector<float> CPUMultimodalRoPE::theta_; //inv_freq
+vector<float> CPUMultimodalRoPE::theta_; // inv_freq
 
 vector<vector<float>> CPUMultimodalRoPE::sin_;
 vector<vector<float>> CPUMultimodalRoPE::cos_;
 int CPUMultimodalRoPE::ishape_old;
 int CPUMultimodalRoPE::last_pos;
 
-typedef float (*mllm_rope_init_func)(const OpParam &, std::vector<float>&);
+typedef float (*mllm_rope_init_func)(const OpParam &, std::vector<float> &);
 
-float multimodal_default_init_rope(const OpParam& config, vector<float>& theta) {
-    auto base = config.at("base");  // theta_i = base^-(2i/dim) = 1 / base^(2i/dim)    i from 0 to (dim/2 - 1)
+float multimodal_default_init_rope(const OpParam &config, vector<float> &theta) {
+    auto base = config.at("base"); // theta_i = base^-(2i/dim) = 1 / base^(2i/dim)    i from 0 to (dim/2 - 1)
     auto dim = config.at("dim");
 
-    theta.resize((int)(dim/2));
+    theta.resize((int)(dim / 2));
 #pragma omp parallel for num_threads(4)
-    for (int i = 0;i < theta.size();i++)
+    for (int i = 0; i < theta.size(); i++)
         theta[i] = 1.0 / pow(base, 2.0 * i / dim);
 
-    return  1.0;
+    return 1.0;
 }
 
 void apply_multimodal_rotary_pos_emb(
-    const std::vector<std::vector<std::vector<float>>>& in_cos,
-    const std::vector<std::vector<std::vector<float>>>& in_sin,
-    std::vector<std::vector<float>>& out_cos,
-    std::vector<std::vector<float>>& out_sin,
-    const std::vector<int>& mrope_section) {
+    const std::vector<std::vector<std::vector<float>>> &in_cos,
+    const std::vector<std::vector<std::vector<float>>> &in_sin,
+    std::vector<std::vector<float>> &out_cos,
+    std::vector<std::vector<float>> &out_sin,
+    const std::vector<int> &mrope_section) {
     int num_rows = in_cos[0].size();
     int num_cols = in_cos[0][0].size();
     // 初始化输出向量大小
@@ -58,14 +58,14 @@ void apply_multimodal_rotary_pos_emb(
         int start_col_out = start_cols[j]; // 输出和输入的起始列相同
         for (int row = 0; row < num_rows; ++row) {
             // 处理cos
-            const auto& in_cos_row = in_cos[layer][row];
-            auto& out_cos_row = out_cos[row];
+            const auto &in_cos_row = in_cos[layer][row];
+            auto &out_cos_row = out_cos[row];
             for (int c = 0; c < s_j; ++c) {
                 out_cos_row[start_col_out + c] = in_cos_row[start_col_in + c];
             }
             // 处理sin
-            const auto& in_sin_row = in_sin[layer][row];
-            auto& out_sin_row = out_sin[row];
+            const auto &in_sin_row = in_sin[layer][row];
+            auto &out_sin_row = out_sin[row];
             for (int c = 0; c < s_j; ++c) {
                 out_sin_row[start_col_out + c] = in_sin_row[start_col_in + c];
             }
@@ -73,29 +73,28 @@ void apply_multimodal_rotary_pos_emb(
     }
 }
 
-
-void multimodal_sinusoidal_position_embedding(shared_ptr<Tensor> position_ids, int seq_len, int output_dim, const vector<float>& theta,
-                                               vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling = 1.0,
-                                               const std::vector<int>& mrope_section = {}) {
-    
+void multimodal_sinusoidal_position_embedding(shared_ptr<Tensor> position_ids, int seq_len, int output_dim, const vector<float> &theta,
+                                              vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling = 1.0,
+                                              const std::vector<int> &mrope_section = {}) {
     vector<vector<vector<float>>> tmp_sin;
     vector<vector<vector<float>>> tmp_cos;
+    // assert(position_ids->dimension() == output_dim);
     for (int b = 0; b < position_ids->batch(); ++b) {
-        vector<vector<float>> cos_freqs(position_ids->dimension(), std::vector<float>(theta.size()*2, 0));
-        vector<vector<float>> sin_freqs(position_ids->dimension(), std::vector<float>(theta.size()*2, 0));
+        vector<vector<float>> cos_freqs(position_ids->dimension(), std::vector<float>(theta.size() * 2, 0));
+        vector<vector<float>> sin_freqs(position_ids->dimension(), std::vector<float>(theta.size() * 2, 0));
         for (int i = 0; i < theta.size(); ++i) {
             for (int j = 0; j < position_ids->dimension(); ++j) {
-                auto value= theta[i] * position_ids->dataAt<float>(b, 0, 0, j);
-                cos_freqs[j][i] = cosf(value)* attention_scaling;
-                cos_freqs[j][i+theta.size()] = cosf(value) * attention_scaling;
-                sin_freqs[j][i] = sinf(value)* attention_scaling;
-                sin_freqs[j][i+theta.size()] = sinf(value) * attention_scaling;
+                auto value = theta[i] * position_ids->dataAt<float>(b, 0, 0, j);
+                cos_freqs[j][i] = cosf(value) * attention_scaling;
+                cos_freqs[j][i + theta.size()] = cosf(value) * attention_scaling;
+                sin_freqs[j][i] = sinf(value) * attention_scaling;
+                sin_freqs[j][i + theta.size()] = sinf(value) * attention_scaling;
             }
         }
         tmp_cos.push_back(cos_freqs);
         tmp_sin.push_back(sin_freqs);
     }
-    if(!mrope_section.empty()){
+    if (!mrope_section.empty()) {
         apply_multimodal_rotary_pos_emb(tmp_cos, tmp_sin, cos, sin, mrope_section);
     }
 }
@@ -112,7 +111,7 @@ CPUMultimodalRoPE::CPUMultimodalRoPE(Backend *bn, string opName, float rope_thet
 }
 
 ErrorCode CPUMultimodalRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-//    std::cout << name() << "  CPUMultimodalRoPE  reshape" << std::endl;
+    //    std::cout << name() << "  CPUMultimodalRoPE  reshape" << std::endl;
     assert(inputs.size() == 2);
     assert(outputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
@@ -120,13 +119,13 @@ ErrorCode CPUMultimodalRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<s
     // pos_max_ = 16384;
     auto position_ids = inputs[1];
 
-    if (sin_.empty() || ishape_old < ishape ||position_ids->dataAt<float>(0,0,0,position_ids->dimension()-1)!=last_pos) {
+    if (sin_.empty() || ishape_old < ishape || position_ids->dataAt<float>(0, 0, 0, position_ids->dimension() - 1) != last_pos) {
         auto config = config_;
         config["base"] = (float)rope_theta_;
         config["dim"] = ishape;
         float attention_scaling = multimodal_default_init_rope(config, theta_);
         ishape_old = ishape;
-        last_pos = position_ids->dataAt<float>(0,0,0,position_ids->dimension()-1);
+        last_pos = position_ids->dataAt<float>(0, 0, 0, position_ids->dimension() - 1);
         multimodal_sinusoidal_position_embedding(position_ids, pos_max_, ishape, theta_, sin_, cos_, attention_scaling, mrope_section_);
     }
 #ifdef USE_QNN
@@ -137,7 +136,6 @@ ErrorCode CPUMultimodalRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<s
 #endif
     return Op::reshape(inputs, outputs);
 }
-
 
 void CPUMultimodalRoPE::multimodal_rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output) {
     auto out_dtype = output->dtype();
