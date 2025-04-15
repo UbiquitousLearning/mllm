@@ -137,26 +137,30 @@ public:
             }
             // 阶段3: 直接计算最终结果
             vector<float> attn_score(num_cols, 0.0f);
-            // const float norm = 1.0f / (HEAD_TOP_K * num_rows);
-            // for (int r = 0; r < num_rows; ++r) {
-            //     const int valid_heads = std::min(HEAD_TOP_K, (int)sorted_indices[r].size());
-            //     for (int i = 0; i < valid_heads; ++i) {
-            //         const int h = sorted_indices[r][i];
-            //         for (int c = 0; c < num_cols; ++c) {
-            //             attn_score[c] += attn_weight.dataAt<float>(0, h, start_row + r, first_img_token_pos + c) * norm;
-            //         }
-            //     }
-            // }
+            const float norm = 1.0f / (HEAD_TOP_K * num_rows);
+            for (int r = 0; r < num_rows; ++r) {
+                const int valid_heads = std::min(HEAD_TOP_K, (int)sorted_indices[r].size());
+                for (int i = 0; i < valid_heads; ++i) {
+                    const int h = sorted_indices[r][i];
+                    for (int c = 0; c < num_cols; ++c) {
+                        attn_score[c] += attn_weight.dataAt<float>(0, h, start_row + r, first_img_token_pos + c) * norm;
+                    }
+                }
+            }
 
-            // if (gloabl_visual_attn_score.empty()) {
-            //     gloabl_visual_attn_score = attn_score;
-            // } else {
-            //     auto &global_selected_p = Module::llm_model_ptr->activation_tensors["global_selected"];
-            //     for (int d = 0; d < global_selected_p->dimension(); ++d) {
-            //         int i = global_selected_p->dataAt<float>(0, 0, 0, d) - static_first_img_token_pos;
-            //         gloabl_visual_attn_score[i] = ATTN_ACC_ALPHA * gloabl_visual_attn_score[i] + (1 - ATTN_ACC_ALPHA) * attn_score[i];
-            //     }
-            // }
+            if (gloabl_visual_attn_score.empty()) {
+                gloabl_visual_attn_score = attn_score;
+            } else {
+                auto &global_selected_p = Module::llm_model_ptr->activation_tensors["global_selected"];
+                for (int d = 0; d < global_selected_p->dimension(); ++d) {
+                    auto data_i = global_selected_p->dataAt<float>(0, 0, 0, d);
+                    if (data_i >= static_first_img_token_pos && data_i <= static_last_img_token_pos) {
+                        int i = data_i - static_first_img_token_pos;
+                        // std::cout << i << "-" << gloabl_visual_attn_score.size() << " " << gloabl_visual_attn_score[i] << " " << attn_score[i] << std::endl;
+                        gloabl_visual_attn_score[i] = ATTN_ACC_ALPHA * gloabl_visual_attn_score[i] + (1 - ATTN_ACC_ALPHA) * attn_score[i];
+                    }
+                }
+            }
             Module::llm_model_ptr->activation_tensors_num[attn_weight.name()] -= 1;
             if (Module::llm_model_ptr->activation_tensors_num[attn_weight.name()] == 0 && attn_weight.sequence() > 1
                 && attn_weight.ttype() != GRAPH_OUTPUT) {
@@ -169,10 +173,14 @@ public:
         }
     }
     Tensor prunning_attn_output(Tensor attn_output) {
+        if (Module::llm_model_ptr->doLoad || Tensor::tensor_status == TENSOR_STATIC_READY) {
+            return attn_output;
+        }
         if (layer_idx == 0) {
             return attn_output;
         }
         if (pruning_setting.find(layer_idx) != pruning_setting.end()) {
+            global_selected.saveData<float>();
             global_selected = *Module::llm_model_ptr->activation_tensors["global_selected"];
             auto cur_pruning_rate = pruning_setting[layer_idx];
             // assert(global_selected.dimension() > gloabl_visual_attn_score.size());

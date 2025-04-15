@@ -120,13 +120,15 @@ ErrorCode CPUMultimodalRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<s
     auto position_ids = inputs[1];
 
     if (sin_.empty() || ishape_old < ishape || position_ids->dataAt<float>(0, 0, 0, position_ids->dimension() - 1) != last_pos) {
-        auto config = config_;
-        config["base"] = (float)rope_theta_;
-        config["dim"] = ishape;
-        float attention_scaling = multimodal_default_init_rope(config, theta_);
-        ishape_old = ishape;
-        last_pos = position_ids->dataAt<float>(0, 0, 0, position_ids->dimension() - 1);
-        multimodal_sinusoidal_position_embedding(position_ids, pos_max_, ishape, theta_, sin_, cos_, attention_scaling, mrope_section_);
+        if (position_ids->name().find("cliptensor") == std::string::npos) {
+            auto config = config_;
+            config["base"] = (float)rope_theta_;
+            config["dim"] = ishape;
+            float attention_scaling = multimodal_default_init_rope(config, theta_);
+            ishape_old = ishape;
+            last_pos = position_ids->dataAt<float>(0, 0, 0, position_ids->dimension() - 1);
+            multimodal_sinusoidal_position_embedding(position_ids, pos_max_, ishape, theta_, sin_, cos_, attention_scaling, mrope_section_);
+        }
     }
 #ifdef USE_QNN
     auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
@@ -252,6 +254,17 @@ void CPUMultimodalRoPE::multimodal_rope_hf(shared_ptr<Tensor> input, shared_ptr<
 
 // TODO: Q8_0 KVCache can not use!!
 ErrorCode CPUMultimodalRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    auto position_ids = inputs[1];
+    if (position_ids->name().find("cliptensor") != std::string::npos) { // for vtp
+        auto config = config_;
+        config["base"] = (float)rope_theta_;
+        config["dim"] = ishape;
+        float attention_scaling = multimodal_default_init_rope(config, theta_);
+        ishape_old = ishape;
+        last_pos = position_ids->dataAt<float>(0, 0, 0, position_ids->dimension() - 1);
+        multimodal_sinusoidal_position_embedding(position_ids, pos_max_, ishape, theta_, sin_, cos_, attention_scaling, mrope_section_);
+    }
+
     if (outputs[0]->dtype() == MLLM_TYPE_Q8_0) {
         auto tmp_out = std::make_shared<Tensor>(outputs[0]->backend());
         // tmp_out->setBackend(outputs[0]->backend());

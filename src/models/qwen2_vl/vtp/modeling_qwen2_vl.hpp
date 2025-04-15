@@ -243,10 +243,10 @@ public:
         value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
         //======================================================================================
         // pruning stage
-        if (WHERE_TOKEN_PRUNING.is_prefill()) {
-            query_states = WHERE_TOKEN_PRUNING.pruning_(query_states);
-            key_states = WHERE_TOKEN_PRUNING.pruning_(key_states);
-        }
+        // if (WHERE_TOKEN_PRUNING.is_prefill()) {
+        //     query_states = WHERE_TOKEN_PRUNING.pruning_(query_states);
+        //     key_states = WHERE_TOKEN_PRUNING.pruning_(key_states);
+        // }
         //======================================================================================
         query_states = q_rope(query_states, position_ids);
         key_states = k_rope(key_states, position_ids);
@@ -264,7 +264,7 @@ public:
         if (WHERE_TOKEN_PRUNING.is_prefill()) {
             WHERE_TOKEN_PRUNING.set_prefill_layer(layer_index);
             WHERE_TOKEN_PRUNING.update_attn_acc_score(atten_weight);
-            // prunning_attn_output`
+            atten_output = WHERE_TOKEN_PRUNING.prunning_attn_output(atten_output);
         }
         //======================================================================================
         return {atten_output};
@@ -311,9 +311,6 @@ public:
         int layer_index = std::any_cast<int>(args[0]);
         auto position_ids = inputs[1];
         auto residual = inputs[0];
-        //======================================================================================
-        // pruning stage
-        //======================================================================================
         auto x = input_layernorm(residual);
         x = self_atten({x, position_ids}, layer_index)[0];
         //======================================================================================
@@ -358,6 +355,7 @@ class Qwen2VLModel final : public Module {
 public:
     explicit Qwen2VLModel(const Qwen2VLConfig &config) {
         // Layer::use_layername_2_tensorname = false;
+        // KVCache_TYPE = 32;
 
         auto vocab_size = config.vocab_size;
         auto hidden_dim = config.hidden_size;
@@ -409,7 +407,6 @@ public:
             if (WHERE_TOKEN_PRUNING.is_prefill()) {
                 WHERE_TOKEN_PRUNING.set_prefill_layer(layer_index);
                 position_ids = WHERE_TOKEN_PRUNING.pruning_(position_ids, DIMENSION);
-                // position_ids.saveNData<float>();
             }
             //======================================================================================
             hidden_states = block({hidden_states, position_ids}, layer_index)[0];
