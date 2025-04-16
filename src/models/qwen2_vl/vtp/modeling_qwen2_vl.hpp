@@ -241,13 +241,6 @@ public:
         query_states = query_states.view(-1, num_heads, -1, head_dim);
         key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
         value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
-        //======================================================================================
-        // pruning stage
-        // if (WHERE_TOKEN_PRUNING.is_prefill()) {
-        //     query_states = WHERE_TOKEN_PRUNING.pruning_(query_states);
-        //     key_states = WHERE_TOKEN_PRUNING.pruning_(key_states);
-        // }
-        //======================================================================================
         query_states = q_rope(query_states, position_ids);
         key_states = k_rope(key_states, position_ids);
         key_states = k_cache(key_states);
@@ -354,7 +347,7 @@ class Qwen2VLModel final : public Module {
 
 public:
     explicit Qwen2VLModel(const Qwen2VLConfig &config) {
-        // Layer::use_layername_2_tensorname = false;
+        Layer::use_layername_2_tensorname = false;
         // KVCache_TYPE = 32;
 
         auto vocab_size = config.vocab_size;
@@ -394,9 +387,7 @@ public:
             auto where_idx = inputs[0].where(image_token_id, SEQUENCE);
             // ========================================================================================================
             // Pruning Stage 1 Start
-            // if (WHERE_TOKEN_PRUNING.is_prefill()) {
-            WHERE_TOKEN_PRUNING.set_vision_token(where_idx, hidden_states);
-            // }
+            WHERE_TOKEN_PRUNING.set_vision_token(where_idx, hidden_states, image_embeds);
             // ========================================================================================================
             hidden_states = hidden_states.index_put(image_embeds, where_idx, false);
         }
@@ -406,7 +397,7 @@ public:
             // pruning stage
             if (WHERE_TOKEN_PRUNING.is_prefill()) {
                 WHERE_TOKEN_PRUNING.set_prefill_layer(layer_index);
-                position_ids = WHERE_TOKEN_PRUNING.pruning_(position_ids, DIMENSION);
+                position_ids = WHERE_TOKEN_PRUNING.pruning_pos(position_ids, DIMENSION);
             }
             //======================================================================================
             hidden_states = block({hidden_states, position_ids}, layer_index)[0];
