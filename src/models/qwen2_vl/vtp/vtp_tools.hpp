@@ -167,7 +167,6 @@ public:
                     auto data_i = global_selected_p->dataAt<float>(0, 0, 0, d);
                     if (data_i >= static_first_img_token_pos && data_i <= static_last_img_token_pos) {
                         int i = data_i - static_first_img_token_pos;
-                        // std::cout << i << "-" << gloabl_visual_attn_score.size() << " " << gloabl_visual_attn_score[i] << " " << attn_score[i] << std::endl;
                         gloabl_visual_attn_score[i] = ATTN_ACC_ALPHA * gloabl_visual_attn_score[i] + (1 - ATTN_ACC_ALPHA) * attn_score[i];
                     }
                 }

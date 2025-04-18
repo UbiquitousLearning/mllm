@@ -21,7 +21,6 @@
 #endif
 #include "stb/stb_image.h"
 
-
 #include <cmath>
 #include <stdexcept>
 
@@ -66,6 +65,7 @@ Tensor vector3d2Tensor(vector<vector<vector<int>>> img, string name = "input", B
 class Qwen2VLImageProcessor {
 public:
     int merge_size = 2;
+
 private:
     std::vector<float> mean_ = {0.48145466, 0.4578275, 0.40821073};
     std::vector<float> std_ = {0.26862954, 0.26130258, 0.27577711};
@@ -76,17 +76,16 @@ private:
     int temporal_patch_size = 2;
     int patch_size = 14;
 
-    void viewTensor(Tensor& tensor1) {
-        assert(3* 2*14*14==tensor1.dimension());
-        tensor1.reshape(tensor1.sequence(), 3, 2, 14,14);
+    void viewTensor(Tensor &tensor1) {
+        assert(3 * 2 * 14 * 14 == tensor1.dimension());
+        tensor1.reshape(tensor1.sequence(), 3, 2, 14, 14);
     }
 
-
-    std::pair<int, int> smart_resize(int height, int width, int factor = 28, 
-        int min_pixels = 3136, int max_pixels = 12845056) {
+    std::pair<int, int> smart_resize(int height, int width, int factor = 28,
+                                     int min_pixels = 3136, int max_pixels = 12845056) {
         // Check aspect ratio condition
         if (std::max(height, width) / static_cast<float>(std::min(height, width)) > MAX_RATIO) {
-        throw std::invalid_argument("Absolute aspect ratio must be smaller than " + std::to_string(MAX_RATIO));
+            throw std::invalid_argument("Absolute aspect ratio must be smaller than " + std::to_string(MAX_RATIO));
         }
 
         auto round_by_factor = [](int value, int f) { return ((value + f / 2) / f) * f; };
@@ -97,18 +96,18 @@ private:
         int w_bar = std::max(factor, round_by_factor(width, factor));
 
         if (h_bar * w_bar > max_pixels) {
-        float beta = std::sqrt((height * width) / static_cast<float>(max_pixels));
-        h_bar = floor_by_factor(height / beta, factor);
-        w_bar = floor_by_factor(width / beta, factor);
+            float beta = std::sqrt((height * width) / static_cast<float>(max_pixels));
+            h_bar = floor_by_factor(height / beta, factor);
+            w_bar = floor_by_factor(width / beta, factor);
         } else if (h_bar * w_bar < min_pixels) {
-        float beta = std::sqrt(min_pixels / static_cast<float>(height * width));
-        h_bar = ceil_by_factor(height * beta, factor);
-        w_bar = ceil_by_factor(width * beta, factor);
+            float beta = std::sqrt(min_pixels / static_cast<float>(height * width));
+            h_bar = ceil_by_factor(height * beta, factor);
+            w_bar = ceil_by_factor(width * beta, factor);
         }
         return {h_bar, w_bar};
     }
 
-    ImageInfo fetch_image(ImageInfo &image){
+    ImageInfo fetch_image(ImageInfo &image) {
         int old_height = image.height;
         int old_width = image.width;
         auto [new_height, new_width] = smart_resize(old_height, old_width, IMAGE_FACTOR, MIN_PIXELS, MAX_PIXELS);
@@ -120,7 +119,7 @@ private:
     }
 
     pair<vector<vector<float>>, vector<int>> convertPatches(
-        const vector<vector<vector<vector<float>>>>& imgs,
+        const vector<vector<vector<vector<float>>>> &imgs,
         int temporal_patch_size,
         int patch_size,
         int merge_size,
@@ -130,12 +129,7 @@ private:
         int channel = (batch == 0) ? 0 : imgs[0].size();
         vector<int> shape = {0, 0, 0};
         // 检查输入有效性
-        if (batch == 0 || channel == 0 || 
-            batch % temporal_patch_size != 0 ||
-            resized_height % patch_size != 0 ||
-            resized_width % patch_size != 0 ||
-            (resized_height / patch_size) % merge_size != 0 ||
-            (resized_width / patch_size) % merge_size != 0) {
+        if (batch == 0 || channel == 0 || batch % temporal_patch_size != 0 || resized_height % patch_size != 0 || resized_width % patch_size != 0 || (resized_height / patch_size) % merge_size != 0 || (resized_width / patch_size) % merge_size != 0) {
             return make_pair(vector<vector<float>>(), shape);
         }
         // 计算网格维度
@@ -177,16 +171,12 @@ private:
                 int h = ((d1 * ms + d3) * patch_size) + d7;
                 int w = ((d2 * ms + d4) * patch_size) + d8;
                 // 边界检查并赋值
-                if (b < batch && c < channel && 
-                    h < resized_height && w < resized_width &&
-                    imgs[b].size() > c &&
-                    imgs[b][c].size() > h &&
-                    imgs[b][c][h].size() > w) {
+                if (b < batch && c < channel && h < resized_height && w < resized_width && imgs[b].size() > c && imgs[b][c].size() > h && imgs[b][c][h].size() > w) {
                     flatten_patches[i][j] = imgs[b][c][h][w];
                 }
             }
         }
-    
+
         return make_pair(flatten_patches, shape);
     }
 
@@ -194,7 +184,7 @@ public:
     explicit Qwen2VLImageProcessor() {
     }
     vector<vector<token_id_t>> input_ids_;
-    pair<vector<vector<float>>, vector<int>> preprocess_images(const uint8_t * image, const size_t &image_length) {
+    pair<vector<vector<float>>, vector<int>> preprocess_images(const uint8_t *image, const size_t &image_length) {
         auto imageinfos = vector<ImageInfo>();
         int width, height, channels;
         auto data = stbi_load_from_memory(image, image_length, &width, &height, &channels, 3);
@@ -212,12 +202,12 @@ public:
         imageinfos.emplace_back(imageinfos[0]);
         vector<vector<vector<vector<float>>>> pixel_v;
         PreProcessor::ImageInfos2Pixels(imageinfos, pixel_v);
-        auto result_patches= convertPatches(pixel_v, 
-            temporal_patch_size,
-            patch_size,
-            merge_size,
-            imageinfos[0].height,  // resized_height
-            imageinfos[0].width  // resized_width
+        auto result_patches = convertPatches(pixel_v,
+                                             temporal_patch_size,
+                                             patch_size,
+                                             merge_size,
+                                             imageinfos[0].height, // resized_height
+                                             imageinfos[0].width   // resized_width
         );
         return result_patches;
     }
@@ -239,20 +229,20 @@ public:
             file.close();
             auto result_patches = preprocess_images(data, size);
             auto flatten_patches = result_patches.first;
-            auto grid_thw= result_patches.second;
+            auto grid_thw = result_patches.second;
             pixel_values.push_back(flatten_patches);
             vision_grid_thws.push_back(grid_thw);
         }
-        auto pixel_values_tensor = vector3d2Tensor(pixel_values,"pixel_values");
-        if(view_img){
-            assert(3* 2*14*14==pixel_values_tensor.dimension());
-            pixel_values_tensor.reshape(pixel_values_tensor.head(), 3, 2, 14,14);
+        auto pixel_values_tensor = vector3d2Tensor(pixel_values, "pixel_values");
+        if (view_img) {
+            assert(3 * 2 * 14 * 14 == pixel_values_tensor.dimension());
+            pixel_values_tensor.reshape(pixel_values_tensor.head(), 3, 2, 14, 14);
         }
         return {pixel_values_tensor, vision_grid_thws};
     }
 };
 
-class Qwen2VLProcessor final { //} : public PreProcessor {
+class Qwen2VLProcessor final : public PreProcessor {
     unsigned int argmax(const vector<float> &scores) {
         if (scores.empty()) {
             throw std::invalid_argument("Input vector is empty");
@@ -266,7 +256,8 @@ class Qwen2VLProcessor final { //} : public PreProcessor {
 public:
     Qwen2VLImageProcessor image_processor;
     QWenTokenizer *tokenizer;
-    explicit Qwen2VLProcessor(const string &vocab_path, const string &merge_path = "") {
+    explicit Qwen2VLProcessor(const string &vocab_path, const string &merge_path = "") :
+        PreProcessor(224, 224, true, true, true, true, {0.5}, {0.5}) {
         Module::initBackend(MLLM_CPU);
         tokenizer = new QWenTokenizer(vocab_path, merge_path);
         tokenizer->special_tokens = {
@@ -335,11 +326,21 @@ public:
             auto input_tensor = tokenizer->tokenize(new_text);
             auto image_grid_thw_tensor = vector3d2Tensor({image_grid_thw}, "image_grid_thw");
             return {input_tensor, pixel_values, image_grid_thw_tensor};
-        } else{
+        } else {
             auto input_tensor = tokenizer->tokenize(new_text);
             return {input_tensor};
         }
     }
+
+    vector<Tensor> process(const std::string &text, const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length, bool flatten_img = true, BackendType type = MLLM_CPU) {
+        uint8_t *image_s = images[0];
+        size_t length = image_length[0];
+        string image = std::string(reinterpret_cast<char *>(image_s), length);
+        return process(text, image, flatten_img, type);
+    }
+    void Process(const std::string &text) override{};
+    void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) override{};
+    void PreProcessImages(const std::vector<std::string> &images_path) override{};
 
     std::string detokenize(const vector<token_id_t> &tokens) {
         return tokenizer->detokenize(tokens);

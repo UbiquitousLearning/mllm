@@ -179,11 +179,11 @@ public:
     }
 };
 
-class QWenMLP final : public Module {
+class QWen2MLP final : public Module {
 public:
-    QWenMLP() = default;
-    QWenMLP(int hidden_size, int intermediate_size, const QWenNameConfig &names,
-            const std::string &base_name) {
+    QWen2MLP() = default;
+    QWen2MLP(int hidden_size, int intermediate_size, const QWenNameConfig &names,
+             const std::string &base_name) {
         gate_proj = Linear(hidden_size, intermediate_size, false, base_name + names._gate_proj_name);
         silu = SiLU(base_name + "act");
         up_proj = Linear(hidden_size, intermediate_size, false, base_name + names._up_proj_name);
@@ -207,10 +207,10 @@ private:
 };
 
 // Copied from GemmaAttention with Gemma->Qwen and using SWA
-class QWenAttention final : public Module {
+class QWen2Attention final : public Module {
 public:
-    QWenAttention() = default;
-    QWenAttention(const Qwen2VLConfig &config, const QWenNameConfig &names, const string &base_name) {
+    QWen2Attention() = default;
+    QWen2Attention(const Qwen2VLConfig &config, const QWenNameConfig &names, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -288,13 +288,13 @@ private:
 };
 
 // Copied from GemmaDecoder with Gemma->Qwen and set RmsNorm(without add_unit_offset)
-class QWenDecoder final : public Module {
+class QWen2Decoder final : public Module {
 public:
-    QWenDecoder() = default;
-    QWenDecoder(const Qwen2VLConfig &config, const QWenNameConfig &names, const string &base_name) {
-        self_atten = QWenAttention(config, names, base_name + names._attn_base_name);
-        mlp = QWenMLP(config.hidden_size, config.intermediate_size, names,
-                      base_name + names._ffn_base_name);
+    QWen2Decoder() = default;
+    QWen2Decoder(const Qwen2VLConfig &config, const QWenNameConfig &names, const string &base_name) {
+        self_atten = QWen2Attention(config, names, base_name + names._attn_base_name);
+        mlp = QWen2MLP(config.hidden_size, config.intermediate_size, names,
+                       base_name + names._ffn_base_name);
         input_layernorm =
             RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
         post_attention_layernorm =
@@ -318,13 +318,13 @@ public:
         x = x + tmp;
         return {x};
     }
-    QWenAttention &get_attention() {
+    QWen2Attention &get_attention() {
         return self_atten;
     }
 
 private:
-    QWenAttention self_atten;
-    QWenMLP mlp;
+    QWen2Attention self_atten;
+    QWen2MLP mlp;
     Layer input_layernorm;
     Layer post_attention_layernorm;
 };
@@ -333,7 +333,7 @@ class Qwen2VLModel final : public Module {
     Qwen2VisionModel visual;
     Layer embed_tokens;
 
-    vector<QWenDecoder> blocks;
+    vector<QWen2Decoder> blocks;
     Layer norm;
     Parameter lm_head;
     Layer lm_head_layer;
@@ -368,7 +368,7 @@ public:
         embed_tokens = Embedding(vocab_size, hidden_dim, qwen_names.token_embd_name);
         visual = Qwen2VisionModel(hidden_dim, vision_embed_dim, 16, vision_embed_dim * 4, "QuickGELU", 14, 336, 32, spatial_merge_size, vision_names, vision_names.vison_model_name);
 
-        blocks = List<QWenDecoder>(config.num_hidden_layers, config, qwen_names, qwen_names.blk_name);
+        blocks = List<QWen2Decoder>(config.num_hidden_layers, config, qwen_names, qwen_names.blk_name);
         norm = RMSNorm(hidden_dim, 1e-6, qwen_names.post_norm_name);
         if (tie_embedding_words) {
             lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, qwen_names.token_embd_name + ".weight");
