@@ -56,7 +56,7 @@ void QNNNet::convert(Context* ctx, BackendType backend_type, int threadCount) {
         if(QNNExecutor::graphOffloadRule(expectedBackend, i) == MLLM_CPU){
             subg_1.reset(new Graph(param[i], backends_[MLLM_CPU].get(), tensors_, threadCount));
         } else if (QNNExecutor::graphOffloadRule(expectedBackend, i) == MLLM_QNN) {
-            subg_1.reset(new QNNGraph(param[i], backends_[backend_type].get(), tensors_, threadCount));
+            subg_1.reset(new QNNGraph(param[i], backends_[backend_type].get(), tensors_, threadCount, "Prompt_Graph." + std::to_string(i)));
         }
 
         subGraphs_["Prompt_Graph." + std::to_string(i)] = subg_1;

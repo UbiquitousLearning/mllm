@@ -147,7 +147,8 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
 
 if(QNN) # QNN lib
     include_directories(
-        ${PROJECT_SOURCE_DIR}/src/backends/qnn/qualcomm_ai_engine_direct_220/include/QNN # QNN SDK include
+        # $ENV{QNN_SDK_ROOT}/include/QNN # QNN SDK include
+        ${PROJECT_SOURCE_DIR}/src/backends/qnn/sdk/include/QNN # QNN SDK include
         ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn
         ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn/Log
         ${CMAKE_CURRENT_LIST_DIR}/src/backends/qnn/PAL/include

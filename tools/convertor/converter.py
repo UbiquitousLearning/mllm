@@ -43,10 +43,8 @@ class Writer:
             return 0
         elif dtype == torch.float16:
             return 1
-        elif dtype == torch.int8:
+        elif dtype == torch.int8 or dtype == torch.bool:
             return 16
-        elif dtype == torch.int8:
-            return 17
         elif dtype == torch.int32:
             return 18
         else:
@@ -71,6 +69,8 @@ class Writer:
         offset = self.writer.tell()
         if tensor.dtype == torch.bfloat16:  # to float 16
             tensor_numpy = tensor.detach().to(torch.float32).numpy()
+        elif tensor.dtype == torch.bool or tensor.dtype == torch.int8:  # exported model for QNN int8
+            tensor_numpy = tensor.detach().to(torch.int8).numpy()
         else:
             tensor_numpy = tensor.numpy()
         tensor_numpy.tofile(self.writer)
@@ -228,7 +228,8 @@ if __name__ == "__main__":
     for key in model_keys:
         tensor = get_tensor(model, key, index_)
         key, tensor = process(key, tensor, args.model_type)
-        tensor = tensor.float()
+        if tensor.dtype != torch.bool or tensor.dtype != torch.int8:
+            tensor = tensor.float()
         offset, size = writer.write_tensor(tensor, key)
         print(f"Get tensor {key} to {offset} with size {size}")
 

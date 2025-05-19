@@ -3,33 +3,41 @@
 Currently, this is only preliminary support and is under active development for better performance and more supported models.
 
 ## QNN Environment Set Up
-The QNN backend relies on the Qualcomm QNN framework and Hexagon SDK to compile LLM-specific operators. Please download them using [QPM](https://qpm.qualcomm.com/). The compiling environment only supports Linux now.
+This section is basically following the QNN documentation, for more details, see: [QNN Linux Setup](https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/linux_setup.html).
+The QNN backend relies on the Qualcomm QNN SDK and Hexagon SDK to compile QNN Backends and LLM-specific operators. The QNN SDK can be downloaded [here](https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk). The Hexagon SDK can be downloaded using [QPM](https://qpm.qualcomm.com/). The compiling environment only supports Linux now.
 
 Version requirements:
-* QNN: [Linux v2.20](https://qpm.qualcomm.com/#/main/tools/details/qualcomm_neural_processing_sdk)
-* Hexagon SDK: [Linux 5.5.0.1](https://qpm.qualcomm.com/#/main/tools/details/HexagonSDK5.x)  (Some accounts may have no permission to access this SDK and may need to contact Qualcomm for support.)
+* QNN: [Linux v2.20+](https://qpm.qualcomm.com/#/main/tools/details/qualcomm_neural_processing_sdk)
+* Hexagon SDK: [Linux 5.x](https://qpm.qualcomm.com/#/main/tools/details/HexagonSDK5.x)  (Some accounts may have no permission to access this SDK and may need to contact Qualcomm for support.)
 
-After downloading and installing the two SDKs use "qpm-cli", copy the SDK directories into the following paths:
-* mllm/src/backends/qnn/qualcomm_ai_engine_direct_220/
-* mllm/src/backends/qnn/HexagonSDK/
+**NOTE:** After downloading the QNN SDK, unzip the file and move the folder name like `qairt/2.31.0.250130` to `src/backends/qnn/` and rename the version to 'sdk'. The folder structure should be like `src/backends/qnn/sdk`.
+
+After downloading and installing the two SDKs use "qpm-cli", set up the sdk environment by running the following commands:
+
+```bash
+source <path-to-qnn-sdk>/bin/envsetup.sh
+source <path-to-hexagon-sdk>/setup_sdk_env.source
+```
+
+After setting up the environment, you will have following ENV variables:
+
+* QNN_SDK_ROOT=/path/to/your/qnn/sdk
+* HEXAGON_SDK_ROOT=/path/to/your/hexagon/sdk
 
 ## Op Package Compile
 
-To use QNN offload, the CPU & HTP QNN op package are needed, the following scripts will build QNN op package needed by the project.
+To use QNN offload, the CPU & HTP QNN op package are needed, the following scripts will build QNN op package needed by the project. `QNN_SDK_ROOT`, `HEXAGON_SDK_ROOT` and `ANDROID_NDK_ROOT` should be set in the environment.
 
 ```bash
-export QNN_SDK_ROOT=mllm/src/backends/qnn/qualcomm_ai_engine_direct_220/
-export ANDROID_NDK_ROOT=/path/to/your/ndk
-export PATH=$PATH:$ANDROID_NDK_ROOT
-
-source mllm/src/backends/qnn/HexagonSDK/setup_sdk_env.source
-source $QNN_SDK_ROOT/bin/envsetup.sh
-
 cd mllm/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/
 make htp_aarch64 && make htp_v75
 ```
 
-## Build & Rung 
+## Model Conversion
+
+The model used by QNN prefilling is in int8 format, with static per-tensor quantization. And several 'shadow layer' weights are needed to be added to the model. The Profiling Activation Tools discription is in [tools/convertor/profiling_activation/README.md](../../../tools/convertor/profiling_activation/README.md), you can refer to it for more details.
+
+## Build & Run
 
 Build the target with QNN backend.
 
