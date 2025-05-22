@@ -2,8 +2,8 @@
 #include <ostream>
 #include "cmdline.h"
 #include "models/qwen2_vl/configuration_qwen2_vl.hpp"
-// #include "models/qwen2_vl/modeling_qwen2_vl.hpp"
-#include "models/qwen2_vl/vtp/modeling_qwen2_vl.hpp"
+#include "models/qwen2_vl/modeling_qwen2_vl.hpp"
+// #include "models/qwen2_vl/vtp/modeling_qwen2_vl.hpp"
 #include "models/qwen2_vl/processing_qwen2_vl.hpp"
 #include "processor/PostProcess.hpp"
 
@@ -25,16 +25,18 @@ int main(int argc, char **argv) {
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     ParamLoader param_loader(model_path);
-    auto processor = Qwen2VLProcessor(vocab_path, merge_path);
+    int min_pixels = 256 * 28 * 28;
+    int max_pixels = 1344 * 28 * 28;
+    auto processor = Qwen2VLProcessor(vocab_path, merge_path, min_pixels, max_pixels);
     Qwen2VLConfig config(tokens_limit, "1.5b");
     auto model_config = Qwen2VLConfig(config);
     auto model = Qwen2VLModel(model_config);
     model.load(model_path);
 
     vector<string> in_imgs = {
-        "../assets/uidemo.jpg"};
+        "../assets/uidemo2.png"};
     vector<string> in_strs = {
-        "Based on the screenshot of the page, I give a text description and you give its corresponding location. The coordinate represents a clickable location [x, y] for an element, which is a relative coordinate on the screenshot, scaled from 0 to 1.<|vision_start|><|image_pad|><|vision_end|>am",
+        "Based on the screenshot of the page, I give a text description and you give its corresponding location. The coordinate represents a clickable location [x, y] for an element, which is a relative coordinate on the screenshot, scaled from 0 to 1.<|vision_start|><|image_pad|><|vision_end|>桌面",
     };
 
     for (int i = 0; i < in_strs.size(); ++i) {
@@ -49,13 +51,14 @@ int main(int argc, char **argv) {
             auto outputs = processor.detokenize(result[0]);
             auto out_string = outputs.first;
             auto out_token = outputs.second;
-            // std::cout << out_token << std::flush;
             auto [not_end, output_string] = processor.tokenizer->postprocess(out_string);
             if (!not_end) { break; }
             std::cout << output_string << std::flush;
             chatPostProcessing(out_token, input_tensor[0], {&input_tensor[1], &input_tensor[2]});
         }
         printf("\n");
+        model.clear_kvcache();
+        model.profiling();
     }
 
     return 0;

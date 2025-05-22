@@ -13,6 +13,10 @@ class Tensor;
 
 class CPUflattenFunction : public TensorFunction {
 public:
+    void set(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+        inputs[0]->shallowCopyFrom(outputs[0], false);
+    }
+
     void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
         Chl axis_start = (Chl)args[0];
         Chl axis_end = (Chl)args[1];
@@ -48,7 +52,22 @@ public:
             }
         }
         assert(dim_d + dim_s + dim_h > 0);
-        outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
+        if (inputs[0]->ctype() == BCTHW) { // TODOTMPA
+            inputs[0]->chls()[BATCH] = 0;
+            inputs[0]->chls()[SEQUENCE] = 1;
+            inputs[0]->chls()[HEAD] = 2;
+            inputs[0]->chls()[DIMENSION] = 3;
+            inputs[0]->setCtype(BSHD);
+        }
+        inputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
+        // outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
+        // if (inputs[0]->masterTensor() == nullptr) {
+        //     outputs[0]->shallowCopyFrom(inputs[0], false);
+        // } else {
+        //     outputs[0]->shallowCopyFrom(inputs[0]->masterTensor(), false, inputs[0]->shapeOffset());
+        // }
+
+        /*
         if ((axis_start == TIME & axis_end == WIDTH && inputs[0]->ctype() == BCTHW)
             || (axis_start == CHANNLE & axis_end == HEIGHT && inputs[0]->ctype() == BWCTH)
             || (axis_start == HEIGHT & axis_end == CHANNLE && inputs[0]->ctype() == BTHWC)
@@ -76,6 +95,7 @@ public:
         } else {
             std::cout << "[TODO]Tensor.Flatten not support!!!!" << std::endl;
         }
+        */
     }
 
     void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {

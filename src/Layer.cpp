@@ -5,5 +5,5 @@
 #include "Layer.hpp"
 namespace mllm {
 map<string, string> Layer::layername_2_tensorname;
-bool Layer::use_layername_2_tensorname = true;
+bool Layer::use_layername_2_tensorname = false;
 }; // namespace mllm

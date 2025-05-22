@@ -73,8 +73,8 @@ public:
                       base_name + "q_rope");
         k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings,
                       base_name + "k_rope");
-        k_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "k_cache");
-        v_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "v_cache");
+        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, base_name + "k_cache");
+        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, base_name + "v_cache");
         // mask = SlidingWindowMask(config.sliding_window, base_name + "mask");
         // mask = Causalmask(base_name + "mask");
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
@@ -227,6 +227,9 @@ public:
 
         // go through model
         auto outputs = model({x})[0];
+        if (outputs.sequence() > 1) {
+            outputs = outputs.clip({}, {}, {-1}, {});
+        }
         if (tie_embedding_words) {
             outputs = Tensor::mm(outputs, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         } else {

@@ -225,8 +225,8 @@ public:
         o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
         q_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "q_rope");
         k_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "k_rope");
-        k_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "k_cache");
-        v_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "v_cache");
+        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, base_name + "k_cache");
+        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, base_name + "v_cache");
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
 
@@ -369,6 +369,9 @@ public:
             hidden_states = block({hidden_states, position_ids})[0];
         }
         hidden_states = norm(hidden_states);
+        if (hidden_states.sequence() > 1) {
+            hidden_states = hidden_states.clip({}, {}, {-1}, {});
+        }
         if (tie_embedding_words) {
             hidden_states = Tensor::mm(hidden_states, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         } else {

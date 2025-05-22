@@ -156,7 +156,7 @@ public:
         type_(type) {
     }
 
-    void reshape(){
+    void reshape() {
         if (type_ == CallableType::OP) {
             op->reshape(opInputs, opOutputs);
         }

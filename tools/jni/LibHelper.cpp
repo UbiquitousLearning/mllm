@@ -320,8 +320,11 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
     } else if (model_ == QWEN2VL) {
         auto model = dynamic_cast<Qwen2VLModel *>(module_.get());
         auto processor = dynamic_cast<Qwen2VLProcessor *>(processor_);
+        input_str = "Based on the screenshot of the page, I give a text description and you give its corresponding location. The coordinate represents a clickable location [x, y] for an element, which is a relative coordinate on the screenshot, scaled from 0 to 1.<|vision_start|><|image_pad|><|vision_end|>" + input_str;
         input_str = processor->tokenizer->apply_chat_template(input_str);
         auto input_tensors = processor->process(input_str, {image}, {image_length});
+        LOGE("Instruct:  %s", input_str.c_str());
+        LOGE("Tokens:  %d", input_tensors[0].sequence());
         for (int step = 0; step < 100; step++) {
             model->get_position_ids(input_tensors);
             auto result = (*model)(input_tensors);

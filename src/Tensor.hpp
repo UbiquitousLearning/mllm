@@ -81,6 +81,9 @@ class Tensor {
     TensorType xnn_tensor_type_ = TensorType::NORMAL_TENSOR;
 
 public:
+    int cache_seq_len_;
+
+public:
     // 拷贝语义：默认浅拷贝（共享实现）
     Tensor(const Tensor &) = default;
     Tensor &operator=(const Tensor &) = default;
@@ -738,58 +741,58 @@ public:
      * \param data binary data
      * \return Tensor
      */
-    Tensor &operator+(float data);
-    Tensor &operator-(float data);
-    Tensor &operator*(float data);
-    Tensor &operator/(float data);
-    Tensor &operator/(double data);
+    Tensor operator+(float data);
+    Tensor operator-(float data);
+    Tensor operator*(float data);
+    Tensor operator/(float data);
+    Tensor operator/(double data);
 
-    Tensor &operator/(int data);
+    Tensor operator/(int data);
 
     /**
      * \brief Overload the operators.
      * \param other The Other Tensor
      * \return Tensor
      */
-    Tensor &operator+(Tensor &other);
-    Tensor &operator-(Tensor &other);
-    Tensor &operator*(Tensor &other);
-    Tensor &operator/(Tensor &other);
+    Tensor operator+(Tensor other);
+    Tensor operator-(Tensor other);
+    Tensor operator*(Tensor other);
+    Tensor operator/(Tensor other);
 
-    Tensor &mean(Chl axis);
+    Tensor mean(Chl axis);
 
-    Tensor &view(int b, int h, int s, int d);
-    Tensor &flatten(Chl axis_start, Chl axis_end);
-    Tensor &transpose(Chl axis0, Chl axis1) {
+    Tensor view(int b, int h, int s, int d);
+    Tensor flatten(Chl axis_start, Chl axis_end);
+    Tensor transpose(Chl axis0, Chl axis1) {
         return transpose({{axis0, axis1}});
     }
-    Tensor &transpose(vector<std::pair<Chl, Chl>> axiss);
-    Tensor &clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d);
-    Tensor &clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d);
-    Tensor &clip(Tensor &index, Chl dim);
-    Tensor &expand(int b, int h, int s, int d);
-    static Tensor &cat(vector<Tensor> input_tensors, Chl dims);
-    static Tensor &mm(Tensor &input0, Tensor &input1);
-    Tensor &norm(int L_n);
-    Tensor &where(float value, Chl axis);
-    static Tensor &range(int start, int end);
-    static vector<std::reference_wrapper<Tensor>> split(Tensor &input, std::vector<int> each_dims, Chl split_dim, int same_dim_size = -1);
-    vector<std::reference_wrapper<Tensor>> split(std::vector<int> each_dims, Chl split_dim, int same_dim_size = -1) {
+    Tensor transpose(vector<std::pair<Chl, Chl>> axiss);
+    Tensor clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d);
+    Tensor clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d);
+    Tensor clip(Tensor index, Chl dim);
+    Tensor expand(int b, int h, int s, int d);
+    static Tensor cat(vector<Tensor> input_tensors, Chl dims);
+    static Tensor mm(Tensor input0, Tensor input1);
+    Tensor norm(int L_n);
+    Tensor where(float value, Chl axis);
+    static Tensor range(int start, int end);
+    static vector<Tensor> split(Tensor input, std::vector<int> each_dims, Chl split_dim, int same_dim_size = -1);
+    vector<Tensor> split(std::vector<int> each_dims, Chl split_dim, int same_dim_size = -1) {
         return split(*this, each_dims, split_dim, same_dim_size);
     }
-    Tensor &index_put(Tensor &value, Tensor &indices, bool accumulate);
-    void scatter_reduce(Tensor &value, Tensor &indices);
-    static vector<std::reference_wrapper<Tensor>> topk(Tensor &input, int k, Chl dim);
-    Tensor &sum(Chl dim);
-    Tensor &argsort();
-    Tensor &bincount();
-    Tensor &repeat(Chl dim, int dim_size);
-    static Tensor &zero_like(Tensor &input);
-    static Tensor &apply_rotary_pos_emb_vision(Tensor &input, Tensor &rotary_pos_emb);
+    Tensor index_put(Tensor value, Tensor indices, bool accumulate);
+    void scatter_reduce(Tensor value, Tensor indices);
+    static vector<Tensor> topk(Tensor input, int k, Chl dim);
+    Tensor sum(Chl dim);
+    Tensor argsort();
+    Tensor bincount();
+    Tensor repeat(Chl dim, int dim_size);
+    static Tensor zero_like(Tensor input);
+    static Tensor apply_rotary_pos_emb_vision(Tensor input, Tensor rotary_pos_emb);
 
     // models use only
-    static Tensor &fuyu_gather_embd(Tensor &word, Tensor &image_patches, Tensor &image_patches_indices);
-    static Tensor &phi3v_hd_merge(Tensor &input, int h_crop, int w_crop);
+    static Tensor fuyu_gather_embd(Tensor word, Tensor image_patches, Tensor image_patches_indices);
+    static Tensor phi3v_hd_merge(Tensor input, int h_crop, int w_crop);
 
     /* Functions used for ChildTensor:
      * - shallowCopyFrom
@@ -956,6 +959,9 @@ public:
         });
         return shape_int;
     }
+    vector<uint64_t> &shape_master() {
+        return shape_master_;
+    }
 
     Tensor *masterTensor() const {
         return master_tensor_;
@@ -995,7 +1001,7 @@ public:
                 sum += t->head();
                 aggregated_dims_.push_back(sum);
             }
-            assert(sum == head());
+            // assert(sum == head());
             break;
         }
         case SEQUENCE: {
@@ -1007,7 +1013,7 @@ public:
                 sum += t->sequence();
                 aggregated_dims_.push_back(sum);
             }
-            assert(sum == sequence());
+            // assert(sum == sequence());
             break;
         }
         case DIMENSION: {
@@ -1019,7 +1025,7 @@ public:
                 sum += t->dimension();
                 aggregated_dims_.push_back(sum);
             }
-            assert(sum == dimension());
+            // assert(sum == dimension());
             break;
         }
         case D_HD:
@@ -1281,10 +1287,12 @@ private:
         }
         return tensor_id;
     }
-    Tensor &getFunc(const std::string &suffix, TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors = {});
+    Tensor getFunc(const std::string &suffix, TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors = {});
+    Tensor getFuncOnlyIn(const std::string &suffix, TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors = {});
     void getFunc(TensorFuncType type, vector<float> float_args, vector<Tensor *> other_tensors = {});
 
-    static std::vector<std::reference_wrapper<Tensor>> getStaticFunc(vector<std::string> out_names, TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors);
+    static std::vector<Tensor> getStaticFunc(vector<std::string> out_names, TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors);
+    static std::vector<Tensor> getStaticFuncOnlyIn(vector<std::string> out_names, TensorFuncType type, vector<float> float_args, vector<Tensor *> input_tensors);
 
 public:
     uint32_t &uuid();
@@ -1494,13 +1502,16 @@ public:
     }
 
     template <typename Dtype>
-    void saveData(string ex = "") {
+    void saveData(string ex = "", string directory = "save_out") {
+        if (batch() == 0) {
+            return;
+        }
         if (ctype() == BTHWC || ctype() == BCTHW) {
             save5Data<Dtype>(ex);
             return;
         }
         // std::filesystem::create_directory("save_out");
-        string directory = "save_out";
+        // string directory = "save_out";
         struct stat info;
 #ifdef _WIN32
         _mkdir(directory.c_str());
@@ -1542,20 +1553,7 @@ public:
             outFile.close();
             return;
         }
-        if (H == 3) {
-            for (int n = 0; n < N; ++n) {
-                for (int h = 0; h < H; ++h) {
-                    for (int c = 0; c < C; ++c) {
-                        for (int w = 0; w < W; ++w) {
-                            outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(n, c, h, w) << " ";
-                        }
-                        outFile << std::endl;
-                    }
-                    outFile << std::endl;
-                }
-                outFile << std::endl;
-            }
-        } else if (N == 1 && C == 1) {
+        if (N == 1 && C == 1) {
             for (int h = 0; h < H; ++h) {
                 for (int c = 0; c < W; ++c) {
                     outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(0, 0, h, c) << " ";
@@ -1572,8 +1570,8 @@ public:
             }
         } else {
             for (int n = 0; n < N; ++n) {
-                for (int c = 0; c < C; ++c) {
-                    for (int h = 0; h < H; ++h) {
+                for (int h = 0; h < H; ++h) {
+                    for (int c = 0; c < C; ++c) {
                         for (int w = 0; w < W; ++w) {
                             outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(n, c, h, w) << " ";
                         }

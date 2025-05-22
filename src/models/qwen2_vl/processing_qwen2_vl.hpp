@@ -183,14 +183,32 @@ private:
 public:
     explicit Qwen2VLImageProcessor() {
     }
+
+    void set_pixels(int min_pixelS = 4 * 28 * 28, int max_pixels = 16384 * 28 * 28) {
+        MIN_PIXELS = min_pixelS;
+        MAX_PIXELS = max_pixels;
+    }
     vector<vector<token_id_t>> input_ids_;
     pair<vector<vector<float>>, vector<int>> preprocess_images(const uint8_t *image, const size_t &image_length) {
         auto imageinfos = vector<ImageInfo>();
         int width, height, channels;
-        auto data = stbi_load_from_memory(image, image_length, &width, &height, &channels, 3);
+        auto data = stbi_load_from_memory(image, image_length, &width, &height, &channels, 0);
         if (data == nullptr) {
             MLLM_LOG_ERROR_STREAM << "Error: Failed to load image from memory." << std::endl;
             exit(-1);
+        }
+
+        // 如果是 ARGB 四通道，转换为 RGB 三通道
+        if (channels == 4) {
+            uint8_t *rgb_data = new uint8_t[width * height * 3];
+            for (int i = 0; i < width * height; ++i) {
+                rgb_data[i * 3 + 0] = data[i * 4 + 1]; // R
+                rgb_data[i * 3 + 1] = data[i * 4 + 2]; // G
+                rgb_data[i * 3 + 2] = data[i * 4 + 3]; // B
+            }
+            stbi_image_free(data); // 释放原始 ARGB 数据
+            data = rgb_data;       // 替换为 RGB 数据
+            channels = 3;          // 更新通道数
         }
         float *f32_data = nullptr;
         f32_data = PreProcessor::RescaleImage(data, 255, width * height * channels);
@@ -210,6 +228,26 @@ public:
                                              imageinfos[0].width   // resized_width
         );
         return result_patches;
+    }
+
+    pair<Tensor, vector<vector<int>>> process(const std::vector<uint8_t *> &image, const std::vector<size_t> &image_length, bool view_img = true) {
+        vector<vector<vector<float>>> pixel_values;
+        vector<vector<int>> vision_grid_thws;
+        for (int i = 0; i < image.size(); i++) {
+            auto data = image[i];
+            auto size = image_length[i];
+            auto result_patches = preprocess_images(data, size);
+            auto flatten_patches = result_patches.first;
+            auto grid_thw = result_patches.second;
+            pixel_values.push_back(flatten_patches);
+            vision_grid_thws.push_back(grid_thw);
+        }
+        auto pixel_values_tensor = vector3d2Tensor(pixel_values, "pixel_values");
+        if (view_img) {
+            assert(3 * 2 * 14 * 14 == pixel_values_tensor.dimension());
+            pixel_values_tensor.reshape(pixel_values_tensor.head(), 3, 2, 14, 14);
+        }
+        return {pixel_values_tensor, vision_grid_thws};
     }
 
     pair<Tensor, vector<vector<int>>> process(const std::vector<std::string> &images_path, bool view_img = true) {
@@ -256,7 +294,9 @@ class Qwen2VLProcessor final : public PreProcessor {
 public:
     Qwen2VLImageProcessor image_processor;
     QWenTokenizer *tokenizer;
-    explicit Qwen2VLProcessor(const string &vocab_path, const string &merge_path = "") :
+
+    explicit Qwen2VLProcessor(const string &vocab_path, const string &merge_path = "",
+                              int min_pixels = 4 * 28 * 28, int max_pixels = 16384 * 28 * 28) :
         PreProcessor(224, 224, true, true, true, true, {0.5}, {0.5}) {
         Module::initBackend(MLLM_CPU);
         tokenizer = new QWenTokenizer(vocab_path, merge_path);
@@ -280,6 +320,7 @@ public:
         string system_prompt_start = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n";
         string system_prompt_end = "<|im_end|>\n<|im_start|>assistant\n";
         tokenizer->set_chat_template(system_prompt_start, system_prompt_end);
+        image_processor.set_pixels(min_pixels, max_pixels);
     }
 
     vector<Tensor> process(const string text_, string img_path, bool flatten_img = true, BackendType type = MLLM_CPU) {
@@ -332,12 +373,56 @@ public:
         }
     }
 
-    vector<Tensor> process(const std::string &text, const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length, bool flatten_img = true, BackendType type = MLLM_CPU) {
-        uint8_t *image_s = images[0];
-        size_t length = image_length[0];
-        string image = std::string(reinterpret_cast<char *>(image_s), length);
-        return process(text, image, flatten_img, type);
+    vector<Tensor> process(const std::string &text_, const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length, bool flatten_img = true, BackendType type = MLLM_CPU) {
+        string new_text = text_;
+        if (!images.empty()) {
+            auto image_inputs = image_processor.process(images, image_length, flatten_img);
+            auto pixel_values = image_inputs.first;
+            auto image_grid_thw = image_inputs.second;
+            auto merge_length = image_processor.merge_size * image_processor.merge_size;
+
+            int index = 0; // 跟踪当前使用的网格配置索引
+            const int PAD_LEN = IMAGE_PAD.length();
+            const int HOLDER_LEN = PLACEHOLDER.length();
+            size_t pos = 0;
+            // 第一阶段：替换image_pad为placeholder序列
+            while (true) {
+                // 查找下一个需要替换的位置
+                size_t found = new_text.find(IMAGE_PAD, pos);
+                if (found == string::npos || index >= image_grid_thw.size()) break;
+                // 计算需要插入的placeholder数量
+                int product = 1;
+                for (int dim : image_grid_thw[index]) {
+                    product *= dim;
+                }
+                int replace_num = product / merge_length;
+                // 构建替换字符串
+                string replacement;
+                replacement.reserve(HOLDER_LEN * replace_num);
+                for (int i = 0; i < replace_num; ++i) {
+                    replacement += PLACEHOLDER;
+                }
+                // 执行替换并更新扫描位置
+                new_text.replace(found, PAD_LEN, replacement);
+                pos = found + replacement.length(); // 跳过已处理部分
+                index++;
+            }
+            // 第二阶段：将placeholder恢复为image_pad
+            size_t ph_pos = 0;
+            while ((ph_pos = new_text.find(PLACEHOLDER, ph_pos))) {
+                if (ph_pos == string::npos) break;
+                new_text.replace(ph_pos, HOLDER_LEN, IMAGE_PAD);
+                ph_pos += PAD_LEN; // 跳过已替换部分
+            }
+            auto input_tensor = tokenizer->tokenize(new_text);
+            auto image_grid_thw_tensor = vector3d2Tensor({image_grid_thw}, "image_grid_thw");
+            return {input_tensor, pixel_values, image_grid_thw_tensor};
+        } else {
+            auto input_tensor = tokenizer->tokenize(new_text);
+            return {input_tensor};
+        }
     }
+
     void Process(const std::string &text) override{};
     void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) override{};
     void PreProcessImages(const std::vector<std::string> &images_path) override{};

@@ -60,7 +60,6 @@ vector<double> Module::profiling(string name) {
     prefilling_token_size_ = 0;
     decoding_token_size_ = 0;
     inference_times_.clear();
-    last_shape_bshd_.clear();
 
     return output;
 }

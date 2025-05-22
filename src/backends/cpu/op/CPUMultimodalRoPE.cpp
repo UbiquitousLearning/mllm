@@ -2,6 +2,7 @@
 #include "CPUMultimodalRoPE.hpp"
 // #include "Timing.hpp"
 #include "Types.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <memory>
@@ -114,10 +115,11 @@ ErrorCode CPUMultimodalRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<s
     //    std::cout << name() << "  CPUMultimodalRoPE  reshape" << std::endl;
     assert(inputs.size() == 2);
     assert(outputs.size() == 1);
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+    auto position_ids = inputs[1];
+    auto sequence = std::min(position_ids->dimension(), inputs[0]->sequence());
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), sequence, inputs[0]->dimension());
     ishape = inputs[0]->dimension() * partial_rotary_factor_;
     // pos_max_ = 16384;
-    auto position_ids = inputs[1];
 
     if (sin_.empty() || ishape_old < ishape || position_ids->dataAt<float>(0, 0, 0, position_ids->dimension() - 1) != last_pos) {
         if (position_ids->name().find("cliptensor") == std::string::npos) {

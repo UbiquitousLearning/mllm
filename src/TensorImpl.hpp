@@ -188,11 +188,14 @@ public:
         if (!shape_.empty()) {
             size = shape_.size();
         }
-        if (size == 4) {
-            vector<int> a = {chls()[BATCH], chls()[HEAD], chls()[SEQUENCE], chls()[DIMENSION]};
+        // BCTHW = 3,
+        // BTHWC = 4,
+        // BWCTH = 5,
+        if (size == 5 || (ctype_ >= 3 && ctype_ <= 5)) {
+            vector<int> a = {chls()[BATCH], chls()[TIME], chls()[HEIGHT], chls()[WIDTH], chls()[CHANNLE]};
             ctype_ = Chls2Type[a];
         } else {
-            vector<int> a = {chls()[BATCH], chls()[TIME], chls()[HEIGHT], chls()[WIDTH], chls()[CHANNLE]};
+            vector<int> a = {chls()[BATCH], chls()[HEAD], chls()[SEQUENCE], chls()[DIMENSION]};
             ctype_ = Chls2Type[a];
         }
     }

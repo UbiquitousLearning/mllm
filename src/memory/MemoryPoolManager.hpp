@@ -1,139 +1,208 @@
 #ifndef MLLM_MEMORY_POOL_H
 #define MLLM_MEMORY_POOL_H
+
 #include "MemoryManager.hpp"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <Log.h>
-#include <cstdint>
+#include <cstdlib>
 #include <mutex>
 
 namespace mllm {
+
+// 高性能临时内存池，仅服务 activation 分配，模型权重/KV Cache 请使用系统分配
 class MemoryPoolManager : public MemoryManager {
 private:
-    void sys_alloc(void **ptr, size_t size, size_t alignment) {
-        assert(size > 0);
-        // allocate a block of memory, void* is used to store the original pointer
-        void *origin = (void *)malloc(size + sizeof(void *) + alignment - 1);
-        assert(origin != nullptr);
-        if (origin == nullptr) {
-            *ptr = nullptr;
-            return;
-        }
-        void **aligned = (void **)(((size_t)(origin) + sizeof(void *) + alignment - 1) & (~(alignment - 1)));
-        aligned[-1] = origin;
-        *ptr = aligned;
-    }
-
-    // 内存块定义（Block结构）
-    struct FreeBlock {
-        void *addr;      // 内存块起始地址
-        size_t size;     // 内存块大小
-        FreeBlock *next; // 链表指针（双向链表设计）
-
-        FreeBlock(void *a, size_t s) :
-            addr(a), size(s), next(nullptr) {
-        }
+    struct Header {
+        void *raw_ptr; // 新增原始指针
+        size_t size;
+        bool is_sys;
     };
 
-    // 空闲块链表头指针（链表管理机制）
-    FreeBlock *free_blocks_ = nullptr; // 线程安全锁（线程安全要求）
-    std::mutex free_list_mutex_;
+    struct Block {
+        uintptr_t addr;
+        size_t size;
+        Block *prev;
+        Block *next;
+    };
+
+    Block *free_head_ = nullptr;
+    size_t pool_size_;
+    size_t alignment_;
+    std::mutex mutex_;
+
+    // 参数场景配置
+    static constexpr size_t INITIAL_POOL = 128ULL << 20; // 128MB
+    static constexpr size_t EXPAND_UNIT = 256ULL << 20;  // 256MB 每次线性扩容
+    static constexpr double LARGE_RATIO = 0.4;           // >40% 大块走系统
+    static constexpr double POOL_THRESHOLD = 0.15;       // <15% 触发扩容
+
+    // 系统分配/释放，用于大块或回退
+    void sys_alloc(void **ptr, size_t size, size_t alignment) {
+        assert(size > 0);
+        void *raw = nullptr;
+#if defined(_WIN32)
+        raw = _aligned_malloc(size + sizeof(Header) + alignment - 1, alignment);
+#else
+        raw = std::malloc(size + sizeof(Header) + alignment - 1);
+#endif
+        assert(raw);
+        uintptr_t base = reinterpret_cast<uintptr_t>(raw) + sizeof(Header);
+        uintptr_t aligned = (base + alignment - 1) & ~(alignment - 1);
+        Header *hdr = reinterpret_cast<Header *>(aligned - sizeof(Header));
+        hdr->raw_ptr = raw; // 记录原始指针
+        hdr->size = size;
+        hdr->is_sys = true;
+        *ptr = reinterpret_cast<void *>(aligned);
+    }
+
+    void sys_free(void *ptr) {
+        if (!ptr) return;
+        uintptr_t user_ptr = reinterpret_cast<uintptr_t>(ptr);
+        Header *hdr = reinterpret_cast<Header *>(user_ptr - sizeof(Header)); // 找到Header
+#if defined(_WIN32)
+        _aligned_free(hdr->raw_ptr); // 释放原始指针
+#else
+        std::free(hdr->raw_ptr);
+#endif
+    }
+
+    // 线性扩容
+    void expand(size_t min_bytes) {
+        size_t alloc_size = ((min_bytes + EXPAND_UNIT - 1) / EXPAND_UNIT) * EXPAND_UNIT;
+        void *raw = nullptr;
+#if defined(_WIN32)
+        raw = _aligned_malloc(alloc_size, alignment_);
+#else
+        posix_memalign(&raw, alignment_, alloc_size);
+#endif
+        assert(raw);
+        auto *blk = new Block{reinterpret_cast<uintptr_t>(raw), alloc_size, nullptr, free_head_};
+        if (free_head_) free_head_->prev = blk;
+        free_head_ = blk;
+        pool_size_ += alloc_size;
+    }
+
+    size_t total_free() const {
+        size_t sum = 0;
+        for (auto *b = free_head_; b; b = b->next) sum += b->size;
+        return sum;
+    }
+
+    Header *hdr_of(void *ptr) {
+        return reinterpret_cast<Header *>(reinterpret_cast<uintptr_t>(ptr) - sizeof(Header));
+    }
+
+    // 插入并合并空闲块
+    void insert_block(uintptr_t addr, size_t size) {
+        Block *cur = free_head_;
+        Block *prev = nullptr;
+        while (cur && cur->addr < addr) {
+            prev = cur;
+            cur = cur->next;
+        }
+        auto *blk = new Block{addr, size, prev, cur};
+        if (prev)
+            prev->next = blk;
+        else
+            free_head_ = blk;
+        if (cur) cur->prev = blk;
+        // 向前合并
+        if (blk->prev && blk->prev->addr + blk->prev->size == blk->addr) {
+            blk->prev->size += blk->size;
+            blk->prev->next = blk->next;
+            if (blk->next) blk->next->prev = blk->prev;
+            delete blk;
+            blk = blk->prev;
+        }
+        // 向后合并
+        if (blk->next && blk->addr + blk->size == blk->next->addr) {
+            blk->size += blk->next->size;
+            Block *tmp = blk->next;
+            blk->next = tmp->next;
+            if (tmp->next) tmp->next->prev = blk;
+            delete tmp;
+        }
+    }
 
 public:
-    MemoryPoolManager() :
-        MemoryPoolManager(DEFAULT_POOL_SIZE, DEFAULT_ALIGNMENT) {
+    MemoryPoolManager(size_t init = INITIAL_POOL, size_t align = 128) :
+        pool_size_(0), alignment_(align) {
+        expand(init);
     }
-    static constexpr size_t DEFAULT_POOL_SIZE = 1024 * 1024 * 1024; // 默认1GB内存池
-    static constexpr size_t DEFAULT_ALIGNMENT = 128;                // 默认128字节对齐
-    MemoryPoolManager(size_t init_size, size_t alignment = 128) {
-        // 初始化时分配整块内存（预分配机制）
+
+    ~MemoryPoolManager() override {
+        std::lock_guard<std::mutex> lg(mutex_);
+        for (auto *b = free_head_; b;) {
+            auto *next = b->next;
 #if defined(_WIN32)
-        void *pool = _aligned_malloc(init_size, alignment);
+            _aligned_free(reinterpret_cast<void *>(b->addr));
 #else
-        void *pool;
-        posix_memalign(&pool, alignment, init_size);
+            std::free(reinterpret_cast<void *>(b->addr));
 #endif
-        // 将初始内存加入空闲链表（初始化逻辑）
-        free_blocks_ = new FreeBlock(pool, init_size);
+            delete b; // 释放 Block 对象
+            b = next;
+        }
     }
 
     void alloc(void **ptr, size_t size, size_t alignment) override {
-        std::lock_guard<std::mutex> lock(free_list_mutex_);
-
-        // 遍历空闲链表寻找合适块（搜索策略）
-        FreeBlock **prev = &free_blocks_;
-        while (*prev != nullptr) {
-            FreeBlock *curr = *prev;
-
-            // 计算对齐偏移（对齐要求）
-            uintptr_t addr = reinterpret_cast<uintptr_t>(curr->addr);
-            size_t offset = (alignment - (addr % alignment)) % alignment;
-
-            if (curr->size >= (size + offset)) {
-                // 分割内存块（块分割逻辑）
-                void *allocated_addr = reinterpret_cast<void *>(addr + offset);
-                *ptr = allocated_addr;
-
-                // 更新剩余块信息
-                size_t remaining = curr->size - offset - size;
-                if (remaining > 0) {
-                    FreeBlock *new_block = new FreeBlock(
-                        reinterpret_cast<void *>(addr + offset + size),
-                        remaining);
-                    new_block->next = curr->next;
-                    *prev = new_block;
+        assert(size > 0);
+        std::lock_guard<std::mutex> lg(mutex_);
+        size_t req = size + sizeof(Header);
+        // 大块走系统
+        if (req > pool_size_ * LARGE_RATIO) {
+            sys_alloc(ptr, size, alignment);
+            return;
+        }
+        // 小块服务，需要空间时线性扩容
+        if (total_free() < req || total_free() < pool_size_ * POOL_THRESHOLD) {
+            expand(req);
+        }
+        // 首适应分配
+        for (auto *b = free_head_; b; b = b->next) {
+            uintptr_t start = b->addr;
+            uintptr_t base = start + sizeof(Header);
+            uintptr_t aligned = (base + alignment - 1) & ~(alignment - 1);
+            size_t padding = aligned - start - sizeof(Header);
+            if (b->size >= padding + req) {
+                uintptr_t user = aligned;
+                auto *hdr = reinterpret_cast<Header *>(user - sizeof(Header));
+                hdr->size = size;
+                hdr->is_sys = false;
+                *ptr = reinterpret_cast<void *>(user);
+                // 更新块
+                uintptr_t next = user + size;
+                size_t remain = b->size - (padding + req);
+                if (remain > sizeof(Header)) {
+                    b->addr = next;
+                    b->size = remain;
                 } else {
-                    *prev = curr->next;
+                    if (b->prev)
+                        b->prev->next = b->next;
+                    else
+                        free_head_ = b->next;
+                    if (b->next) b->next->prev = b->prev;
+                    delete b;
                 }
-                delete curr;
-                // std::cout << "mp " << size << "  " << DEFAULT_POOL_SIZE << std::endl;
                 return;
             }
-            prev = &(curr->next);
         }
-
-        // 退化到系统分配（用户提供的SystemMemoryManager逻辑）
-        // std::cout << "sy " << size << "  " << DEFAULT_POOL_SIZE << std::endl;
+        // 再回退系统
         sys_alloc(ptr, size, alignment);
     }
 
     void free(void *ptr) override {
-        std::lock_guard<std::mutex> lock(free_list_mutex_);
-
-        // 创建新空闲块（释放逻辑）
-        FreeBlock *new_block = new FreeBlock(ptr, 0); // 需要计算实际大小
-
-        // 合并相邻块（碎片优化）
-        FreeBlock **prev = &free_blocks_;
-        while (*prev != nullptr) {
-            FreeBlock *curr = *prev;
-            uintptr_t curr_end = reinterpret_cast<uintptr_t>(curr->addr) + curr->size;
-
-            // 前向合并
-            if (reinterpret_cast<uintptr_t>(new_block->addr) == curr_end) {
-                curr->size += new_block->size;
-                delete new_block;
-                return;
-            }
-
-            // 后向合并
-            uintptr_t new_block_end = reinterpret_cast<uintptr_t>(new_block->addr) + new_block->size;
-            if (reinterpret_cast<uintptr_t>(curr->addr) == new_block_end) {
-                new_block->size += curr->size;
-                new_block->next = curr->next;
-                *prev = new_block;
-                delete curr;
-                return;
-            }
-
-            prev = &(curr->next);
+        if (!ptr) return;
+        std::lock_guard<std::mutex> lg(mutex_);
+        auto *hdr = hdr_of(ptr);
+        if (!hdr->is_sys) {
+            insert_block(reinterpret_cast<uintptr_t>(hdr), hdr->size + sizeof(Header));
+        } else {
+            sys_free(ptr);
         }
-
-        // 插入新块到链表
-        new_block->next = free_blocks_;
-        free_blocks_ = new_block;
     }
 };
+
 } // namespace mllm
+
 #endif // MLLM_MEMORY_POOL_H

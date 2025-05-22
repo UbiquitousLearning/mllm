@@ -79,6 +79,7 @@ func_llm_add_executable(demo_bert)
 func_llm_add_executable(demo_phonelm)
 func_llm_add_executable(demo_llama3)
 func_llm_add_executable(demo_minicpm_moe_mbm)
+func_llm_add_executable(demo_minicpm_moe_mbp)
 
 
 

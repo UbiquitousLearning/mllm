@@ -56,8 +56,8 @@ public:
         auto scores = gate(hidden_states); //  1, batch*seq, 1, num_experts
         scores = softmax(scores);
         auto experts_w_i = Tensor::topk(scores, num_experts_per_tok, DIMENSION);
-        auto expert_weights = experts_w_i[0].get();                      //  1, batch*seq, 1, k
-        auto expert_indices = experts_w_i[1].get();                      //  1, batch*seq, 1, k
+        auto expert_weights = experts_w_i[0];                            //  1, batch*seq, 1, k
+        auto expert_indices = experts_w_i[1];                            //  1, batch*seq, 1, k
         expert_indices = expert_indices.view(-1, 1, 1, -1);              // 1, 1, 1, k* batch*seq
         expert_weights = expert_weights / expert_weights.sum(DIMENSION); //  1, batch*seq, 1, k
         expert_weights = expert_weights.view(-1, -1, 1, 1);              // 1, k* batch*seq, 1, 1
@@ -174,7 +174,7 @@ private:
 class MiniCPMForCausalLM final : public Module {
 public:
     MiniCPMForCausalLM(MiniCPMConfig &config) {
-        KVCache_TYPE = 32;
+        // KVCache_TYPE = 32;
         auto names = config.names_config;
         scale_emb = config.scale_emb;
         dim_model_base = config.dim_model_base;
@@ -188,6 +188,9 @@ public:
         auto x = embedding(inputs[0]) * scale_emb;
         auto outputs = model({x})[0];
         outputs = outputs / (hidden_size / dim_model_base);
+        if (outputs.sequence() > 1) {
+            outputs = outputs.clip({}, {}, {-1}, {});
+        }
         outputs = Tensor::mm(outputs, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         return {outputs};
     }

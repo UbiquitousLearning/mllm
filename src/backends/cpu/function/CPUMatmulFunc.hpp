@@ -62,13 +62,21 @@ class CPUmmFunction : public TensorFunction {
     }
 
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void set(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
         if (inputs[1]->chls()[SEQUENCE] != 3) {
             tranTensorChl(*inputs[1]);
         }
+        if (!inputs[1]->shape().empty() && !inputs[0]->shape().empty()) {
+            assert(inputs[0]->dimension() == inputs[1]->sequence());
+        }
+    }
+    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+        // if (inputs[1]->chls()[SEQUENCE] != 3) {
+        //     tranTensorChl(*inputs[1]);
+        // }
         assert(inputs[0]->dimension() == inputs[1]->sequence());
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[1]->dimension());
-        outputs[0]->setDtype(inputs[0]->dtype());
+        // outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
     }
     void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {

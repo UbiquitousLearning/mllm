@@ -226,8 +226,8 @@ public:
         o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
         q_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "q_rope");
         k_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "k_rope");
-        k_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "k_cache");
-        v_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "v_cache");
+        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, base_name + "k_cache");
+        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, base_name + "v_cache");
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
 
@@ -347,9 +347,6 @@ class Qwen2VLModel final : public Module {
 
 public:
     explicit Qwen2VLModel(const Qwen2VLConfig &config) {
-        Layer::use_layername_2_tensorname = false;
-        // KVCache_TYPE = 32;
-
         auto vocab_size = config.vocab_size;
         auto hidden_dim = config.hidden_size;
         auto head_size = config.num_attention_heads;
@@ -378,6 +375,11 @@ public:
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         WHERE_TOKEN_PRUNING.init();
+        if (inputs[0].sequence() <= 1) {
+            WHERE_TOKEN_PRUNING.prefill_stage = false;
+        } else {
+            WHERE_TOKEN_PRUNING.prefill_stage = true;
+        }
         auto position_ids = inputs[3];
         bool have_img = inputs[1].batch() > 0;
         auto hidden_states = embed_tokens({inputs[0]});
@@ -387,7 +389,9 @@ public:
             auto where_idx = inputs[0].where(image_token_id, SEQUENCE);
             // ========================================================================================================
             // Pruning Stage 1 Start
-            WHERE_TOKEN_PRUNING.set_vision_token(where_idx, hidden_states, image_embeds);
+            if (WHERE_TOKEN_PRUNING.is_prefill()) {
+                WHERE_TOKEN_PRUNING.set_vision_token(where_idx, hidden_states, image_embeds);
+            }
             // ========================================================================================================
             hidden_states = hidden_states.index_put(image_embeds, where_idx, false);
         }
@@ -404,6 +408,9 @@ public:
             layer_index++;
         }
         hidden_states = norm(hidden_states);
+        if (hidden_states.sequence() > 1) {
+            hidden_states = hidden_states.clip({}, {}, {-1}, {});
+        }
         if (tie_embedding_words) {
             hidden_states = Tensor::mm(hidden_states, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         } else {

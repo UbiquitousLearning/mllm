@@ -24,53 +24,32 @@ using namespace mllm;
 class VtpContext {
 public:
     void init() {
-        if (Tensor::tensor_status == TENSOR_STATIC_INIT) {
-            auto module = Module::llm_model_ptr;
-            auto &module_tensors = module->activation_tensors;
-            // Module::initBackend(MLLM_CPU);
-            auto *backend_h = Backend::global_backends[MLLM_CPU];
-            string out_name = "global_selected";
-            module_tensors[out_name] = std::make_shared<Tensor>(backend_h);
-            module_tensors[out_name]->setName(out_name);
-            module_tensors[out_name]->setModule(module);
-            global_selected = *module_tensors[out_name];
-        }
+        if (global_selected.backend() == nullptr)
+            global_selected = Tensor(1, 1, 1, 1, MLLM_CPU);
     }
     void set_vision_token(Tensor where_idx, Tensor hidden_states, Tensor image_embeds) {
-        if (Module::llm_model_ptr->doLoad) {
-            return;
+        // if (Module::llm_model_ptr->doLoad) {
+        //     return;
+        // }
+        no_visual_token_len = hidden_states.sequence() - image_embeds.sequence();
+        global_selected.reshape(1, 1, 1, hidden_states.sequence()); // pre_visual_token_len);
+        global_selected.alloc();
+        for (int i = 0; i < hidden_states.sequence(); ++i) {
+            global_selected.setDataAt<float>(0, 0, 0, i, i);
         }
-        switch (Tensor::tensor_status) {
-        case TENSOR_STATIC_INIT: {
-            no_visual_token_len = hidden_states.sequence() - image_embeds.sequence();
-            Module::llm_model_ptr->activation_tensors["global_selected"]->reshape(1, 1, 1, hidden_states.sequence()); // pre_visual_token_len);
-            Module::llm_model_ptr->activation_tensors["global_selected"]->alloc();
-            for (int i = 0; i < hidden_states.sequence(); ++i) {
-                Module::llm_model_ptr->activation_tensors["global_selected"]->setDataAt<float>(0, 0, 0, i, i);
-            }
-            break;
-        }
-        case TENSOR_STATIC_READY: {
-            first_img_token_pos = int(where_idx.dataAt<float>(0, 0, 0, 0));
-            last_img_token_pos = int(where_idx.dataAt<float>(0, 0, 0, where_idx.dimension() - 1));
-            pre_visual_token_len = last_img_token_pos - first_img_token_pos + 1;
-            static_first_img_token_pos = first_img_token_pos;
-            static_last_img_token_pos = last_img_token_pos;
-            before_prefill_visual_tokens = pre_visual_token_len;
-            no_visual_token_len = hidden_states.sequence() - pre_visual_token_len;
-            // gloabl_visual_attn_score.resize(pre_visual_token_len);
-            break;
-        }
-        default: {
-        }
-        }
+        first_img_token_pos = int(where_idx.dataAt<float>(0, 0, 0, 0));
+        last_img_token_pos = int(where_idx.dataAt<float>(0, 0, 0, where_idx.dimension() - 1));
+        pre_visual_token_len = last_img_token_pos - first_img_token_pos + 1;
+        static_first_img_token_pos = first_img_token_pos;
+        static_last_img_token_pos = last_img_token_pos;
+        before_prefill_visual_tokens = pre_visual_token_len;
+        no_visual_token_len = hidden_states.sequence() - pre_visual_token_len;
     }
     bool is_prefill() {
-        // return true;
-        if (Module::llm_model_ptr->doLoad) {
-            return false;
-        }
-        return prefill_stage; // && (Tensor::tensor_status == TENSOR_STATIC_READY);
+        // if (Module::llm_model_ptr->doLoad) {
+        //     return false;
+        // }
+        return prefill_stage;
     }
     void set_prefill_layer(int layer_idx_) {
         if (prefill_stage)
@@ -81,7 +60,6 @@ public:
             if (layer_idx - 1 == 0) {
                 return input;
             }
-            global_selected = *Module::llm_model_ptr->activation_tensors["global_selected"];
             return input.clip(global_selected, dim);
         }
         return input;
@@ -91,7 +69,6 @@ public:
             if (layer_idx == 0) {
                 return input;
             }
-            global_selected = *Module::llm_model_ptr->activation_tensors["global_selected"];
             return input.clip(global_selected, dim);
         }
         return input;
@@ -100,86 +77,69 @@ public:
         if (Module::llm_model_ptr->doLoad) {
             return;
         }
-        switch (Tensor::tensor_status) {
-        case TENSOR_STATIC_INIT: {
-            Module::llm_model_ptr->activation_tensors_num[attn_weight.name()] += 1;
-            break;
+        int visual_len;
+        if (layer_idx == 0) {
+            visual_len = last_img_token_pos - first_img_token_pos;
+        } else {
+            visual_len = global_selected.dimension() - 1 - no_visual_token_len;
         }
-        case TENSOR_STATIC_READY: {
-            // calculate_atten_acc_score
-            int visual_len;
-            if (layer_idx == 0) {
-                visual_len = last_img_token_pos - first_img_token_pos;
-            } else {
-                visual_len = global_selected.dimension() - 1 - no_visual_token_len;
+        // 计算切片参数
+        const int total_heads = attn_weight.head();
+        const int total_rows = attn_weight.sequence();
+        const int total_cols = attn_weight.sequence();
+        const int start_row = first_img_token_pos + visual_len + 1;
+        const int num_rows = std::max(0, total_rows - start_row);
+        const int num_cols = std::max(0, std::min(visual_len + 1, total_cols - first_img_token_pos));
+        // 阶段1: 计算带转置的注意力求和矩阵
+        vector<vector<float>> sum_matrix(num_rows, vector<float>(total_heads, 0));
+        for (int h = 0; h < total_heads; ++h) {
+            for (int r = 0; r < num_rows; ++r) {
+                const int src_row = start_row + r;
+                for (int c = 0; c < num_cols; ++c) {
+                    sum_matrix[r][h] += attn_weight.dataAt<float>(0, h, src_row, first_img_token_pos + c);
+                }
             }
-            // 计算切片参数
-            const int total_heads = attn_weight.head();
-            const int total_rows = attn_weight.sequence();
-            const int total_cols = attn_weight.sequence();
-            const int start_row = first_img_token_pos + visual_len + 1;
-            const int num_rows = std::max(0, total_rows - start_row);
-            const int num_cols = std::max(0, std::min(visual_len + 1, total_cols - first_img_token_pos));
-            // 阶段1: 计算带转置的注意力求和矩阵
-            vector<vector<float>> sum_matrix(num_rows, vector<float>(total_heads, 0));
+        }
+        // 阶段2: 生成排序索引
+        vector<vector<int>> sorted_indices(num_rows);
+        for (int r = 0; r < num_rows; ++r) {
+            vector<std::pair<float, int>> heads;
+            heads.reserve(total_heads);
             for (int h = 0; h < total_heads; ++h) {
-                for (int r = 0; r < num_rows; ++r) {
-                    const int src_row = start_row + r;
-                    for (int c = 0; c < num_cols; ++c) {
-                        sum_matrix[r][h] += attn_weight.dataAt<float>(0, h, src_row, first_img_token_pos + c);
-                    }
+                heads.emplace_back(sum_matrix[r][h], h);
+            }
+            // 仅排序前TOP_K元素
+            nth_element(heads.begin(), heads.begin() + HEAD_TOP_K, heads.end(),
+                        [](const auto &a, const auto &b) { return a.first > b.first; });
+            // 提取有效头部索引
+            for (int i = 0; i < std::min(HEAD_TOP_K, (int)heads.size()); ++i) {
+                sorted_indices[r].push_back(heads[i].second);
+            }
+        }
+        // 阶段3: 直接计算最终结果
+        vector<float> attn_score(num_cols, 0.0f);
+        const float norm = 1.0f / (HEAD_TOP_K * num_rows);
+        for (int r = 0; r < num_rows; ++r) {
+            const int valid_heads = std::min(HEAD_TOP_K, (int)sorted_indices[r].size());
+            for (int i = 0; i < valid_heads; ++i) {
+                const int h = sorted_indices[r][i];
+                for (int c = 0; c < num_cols; ++c) {
+                    attn_score[c] += attn_weight.dataAt<float>(0, h, start_row + r, first_img_token_pos + c) * norm;
                 }
             }
-            // 阶段2: 生成排序索引
-            vector<vector<int>> sorted_indices(num_rows);
-            for (int r = 0; r < num_rows; ++r) {
-                vector<std::pair<float, int>> heads;
-                heads.reserve(total_heads);
-                for (int h = 0; h < total_heads; ++h) {
-                    heads.emplace_back(sum_matrix[r][h], h);
-                }
-                // 仅排序前TOP_K元素
-                nth_element(heads.begin(), heads.begin() + HEAD_TOP_K, heads.end(),
-                            [](const auto &a, const auto &b) { return a.first > b.first; });
-                // 提取有效头部索引
-                for (int i = 0; i < std::min(HEAD_TOP_K, (int)heads.size()); ++i) {
-                    sorted_indices[r].push_back(heads[i].second);
-                }
-            }
-            // 阶段3: 直接计算最终结果
-            vector<float> attn_score(num_cols, 0.0f);
-            const float norm = 1.0f / (HEAD_TOP_K * num_rows);
-            for (int r = 0; r < num_rows; ++r) {
-                const int valid_heads = std::min(HEAD_TOP_K, (int)sorted_indices[r].size());
-                for (int i = 0; i < valid_heads; ++i) {
-                    const int h = sorted_indices[r][i];
-                    for (int c = 0; c < num_cols; ++c) {
-                        attn_score[c] += attn_weight.dataAt<float>(0, h, start_row + r, first_img_token_pos + c) * norm;
-                    }
-                }
-            }
+        }
 
-            if (gloabl_visual_attn_score.empty()) {
-                gloabl_visual_attn_score = attn_score;
-            } else {
-                auto &global_selected_p = Module::llm_model_ptr->activation_tensors["global_selected"];
-                for (int d = 0; d < global_selected_p->dimension(); ++d) {
-                    auto data_i = global_selected_p->dataAt<float>(0, 0, 0, d);
-                    if (data_i >= static_first_img_token_pos && data_i <= static_last_img_token_pos) {
-                        int i = data_i - static_first_img_token_pos;
-                        gloabl_visual_attn_score[i] = ATTN_ACC_ALPHA * gloabl_visual_attn_score[i] + (1 - ATTN_ACC_ALPHA) * attn_score[i];
-                    }
+        if (gloabl_visual_attn_score.empty()) {
+            gloabl_visual_attn_score = attn_score;
+        } else {
+            // auto &global_selected_p = Module::llm_model_ptr->activation_tensors["global_selected"];
+            for (int d = 0; d < global_selected.dimension(); ++d) {
+                auto data_i = global_selected.dataAt<float>(0, 0, 0, d);
+                if (data_i >= static_first_img_token_pos && data_i <= static_last_img_token_pos) {
+                    int i = data_i - static_first_img_token_pos;
+                    gloabl_visual_attn_score[i] = ATTN_ACC_ALPHA * gloabl_visual_attn_score[i] + (1 - ATTN_ACC_ALPHA) * attn_score[i];
                 }
             }
-            Module::llm_model_ptr->activation_tensors_num[attn_weight.name()] -= 1;
-            if (Module::llm_model_ptr->activation_tensors_num[attn_weight.name()] == 0 && attn_weight.sequence() > 1
-                && attn_weight.ttype() != GRAPH_OUTPUT) {
-                Module::llm_model_ptr->activation_tensors[attn_weight.name()]->free();
-            }
-            break;
-        }
-        default: {
-        }
         }
     }
     Tensor prunning_attn_output(Tensor attn_output) {
@@ -187,53 +147,37 @@ public:
             return attn_output;
         }
 
-        if (Module::llm_model_ptr->doLoad) {
-            return attn_output;
-        }
+        // if (Module::llm_model_ptr->doLoad) {
+        //     return attn_output;
+        // }
         if (pruning_setting.find(layer_idx) != pruning_setting.end()) {
-            switch (Tensor::tensor_status) {
-            case TENSOR_STATIC_INIT: {
-                global_selected = *Module::llm_model_ptr->activation_tensors["global_selected"];
-                auto cur_pruning_rate = pruning_setting[layer_idx];
-                auto seq_len = attn_output.sequence() - no_visual_token_len;               // gloabl_visual_attn_score.size();
-                auto k_num = int(cur_pruning_rate * seq_len);                              // static_cast<int>(std::ceil(cur_pruning_rate * seq_len));
-                global_selected.reshape(1, 1, 1, (seq_len - k_num) + no_visual_token_len); // TODO
-                global_selected.alloc();
-                k_nums[layer_idx] = k_num;
-                seq_lens[layer_idx] = seq_len;
-                break;
+            auto cur_pruning_rate = pruning_setting[layer_idx];
+            auto seq_len = attn_output.sequence() - no_visual_token_len;               // gloabl_visual_attn_score.size();
+            auto k_num = int(cur_pruning_rate * seq_len);                              // static_cast<int>(std::ceil(cur_pruning_rate * seq_len));
+            global_selected.reshape(1, 1, 1, (seq_len - k_num) + no_visual_token_len); // TODO
+            global_selected.alloc();
+            auto indices = topk_indices(gloabl_visual_attn_score, k_num); // vison中的idx
+            std::vector<bool> mask(gloabl_visual_attn_score.size(), true);
+            for (int idx : indices) {
+                mask[idx] = false;
             }
-            case TENSOR_STATIC_READY: {
-                global_selected = *Module::llm_model_ptr->activation_tensors["global_selected"];
-                auto k_num = k_nums[layer_idx];
-                auto seq_len = seq_lens[layer_idx];
-                auto indices = topk_indices(gloabl_visual_attn_score, k_num); // vison中的idx
-                std::vector<bool> mask(gloabl_visual_attn_score.size(), true);
-                for (int idx : indices) {
-                    mask[idx] = false;
-                }
-                int iid = 0;
-                size_t i = 0;
-                for (; i < static_first_img_token_pos; ++i) {
+            int iid = 0;
+            size_t i = 0;
+            for (; i < static_first_img_token_pos; ++i) {
+                global_selected.setDataAt<float>(0, 0, 0, iid, i);
+                iid++;
+            }
+            for (; i < mask.size() + static_first_img_token_pos; ++i) {
+                if (mask[i - static_first_img_token_pos]) {
                     global_selected.setDataAt<float>(0, 0, 0, iid, i);
                     iid++;
                 }
-                for (; i < mask.size() + static_first_img_token_pos; ++i) {
-                    if (mask[i - static_first_img_token_pos]) {
-                        global_selected.setDataAt<float>(0, 0, 0, iid, i);
-                        iid++;
-                    }
-                }
-                for (; i < mask.size() + no_visual_token_len; ++i) {
-                    global_selected.setDataAt<float>(0, 0, 0, iid, i);
-                    iid++;
-                }
-                last_img_token_pos = first_img_token_pos + seq_len - k_num - 1;
-                break;
             }
-            default: {
+            for (; i < mask.size() + no_visual_token_len; ++i) {
+                global_selected.setDataAt<float>(0, 0, 0, iid, i);
+                iid++;
             }
-            }
+            last_img_token_pos = first_img_token_pos + seq_len - k_num - 1;
             return attn_output.clip(global_selected, SEQUENCE);
         } else {
             return attn_output;
@@ -255,9 +199,6 @@ public:
     float ATTN_ACC_ALPHA = 0.2;
 
     map<int, float> pruning_setting = {{3, 0.5}}; //{{3, 0.5}};
-
-    map<int, float> k_nums = {};
-    map<int, float> seq_lens = {};
 
 private:
     // 实现 topk 功能

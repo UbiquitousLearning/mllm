@@ -14,6 +14,7 @@
 #include "Types.hpp"
 #include "backends/cpu/CPUBackend.hpp"
 #include <any>
+#include <cstddef>
 #include <functional>
 #include <iostream>
 #include <memory/SystemMemoryManager.hpp>
@@ -46,7 +47,6 @@ protected:
     int prefilling_token_size_ = 0;
     int decoding_token_size_ = 0;
     vector<double> inference_times_;
-    vector<vector<int>> last_shape_bshd_;
     std::shared_ptr<LlmTextGenerator> text_generator_ = nullptr;
     BackendType device_ = BackendType::MLLM_CPU;
 
@@ -55,7 +55,7 @@ public:
     map<string, int> activation_tensors_num;
     AbstructLoader *loader;
     bool doLoad = false;
-    bool op_transposed_flag = false;
+    // bool op_transposed_flag = false;
 
     static Module *llm_model_ptr;
     // tag to indicate the multi-chunk prefilling
@@ -136,7 +136,7 @@ public:
 
     void load(string path) {
         // create global loader and save to llm_model_ptr.loader as QNNBackend needs to load weights in runtime
-        loader = new ParamLoader(std::move(path));
+        loader = new ParamLoader(std::move(path), true);
         load(*loader);
     }
     void load(AbstructLoader &param_loader) {
@@ -212,6 +212,9 @@ public:
             Module::tmp_device = previoud_device;
             return outputs;
         }
+        // if (false) {
+        //     inputs[0].setTtype(TensorType::INPUT_TENSOR);
+        // }
         // Module setUp & execute
         if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
             if (prefilling_token_size_ == 0) { // first time init
@@ -231,20 +234,16 @@ public:
             Tensor::tensor_status = TENSOR_STATIC_INIT;
 
             uint64_t time_start = mllm_time_us();
-            Forward(inputs, anyArgs);
-            Tensor::tensor_status = TENSOR_STATIC_READY;
-            // uint64_t time_start = mllm_time_us();
+            // Forward(inputs, anyArgs);
+            // Tensor::tensor_status = TENSOR_STATIC_READY; // change to EAGER
+
             auto output = Forward(inputs, anyArgs);
             uint64_t time_end = mllm_time_us();
 
             double inference_time_ = (time_end - time_start) / 1000.0F; // ms
             inference_times_.push_back(inference_time_);
-            last_shape_bshd_.clear();
-            for (auto &input : inputs) {
-                last_shape_bshd_.push_back({input.batch(), input.sequence(),
-                                            input.head(), input.dimension()});
-            }
-            llm_model_ptr->op_transposed_flag = true;
+
+            // llm_model_ptr->op_transposed_flag = true;
             return output;
         } else { // inner Modules
             // offload according to the backends' info inited during loading
