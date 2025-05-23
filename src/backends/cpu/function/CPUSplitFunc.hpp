@@ -12,7 +12,7 @@ class Tensor;
 
 class CPUsplitFunction : public TensorFunction {
 public:
-    void set(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void set(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         // inputs[0]->shallowCopyFrom(outputs[0], false);
         int size = args.size();
         std::vector<int> each_dims;
@@ -73,14 +73,14 @@ public:
         vector<shared_ptr<Tensor>> shared_outputs = {};
         for (const auto &output : outputs) {
             output->alloc();
-            shared_outputs.push_back(std::shared_ptr<Tensor>(output, [](Tensor *) {}));
+            shared_outputs.push_back(output);
         }
         if (inputs[0]->masterTensor() == nullptr && !inputs[0]->childTensors().empty()) {
             inputs[0]->free();
         }
         inputs[0]->addTensors(shared_outputs, split_dim);
     }
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         // auto aggregatedTensorsSize = inputs[0]->aggregatedTensors().size();
         // for (int i = 0; i < aggregatedTensorsSize; i++) {
         //     outputs[i] = inputs[0]->aggregatedTensors()[i].get();
@@ -157,7 +157,7 @@ public:
         // //         output->alloc();
         // //     }
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
     }
 };
 

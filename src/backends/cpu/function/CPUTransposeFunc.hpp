@@ -13,7 +13,7 @@ class Tensor;
 
 class CPUtransposeFunction : public TensorFunction {
 public:
-    void set(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void set(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         vector<std::pair<Chl, Chl>> axiss;
         for (int i = 0; i < args.size(); i += 2) {
             axiss.push_back({(Chl)args[i], (Chl)args[i + 1]});
@@ -38,7 +38,7 @@ public:
         if (inputs[0]->masterTensor() != nullptr && (inputs[0]->masterTensor()->name().find("Cache") != std::string::npos || inputs[0]->masterTensor()->name().find("weight") != std::string::npos)) {
             if (outputs[0]->masterTensor() == nullptr) {
                 outputs[0]->setDtype(inputs[0]->dtype());
-                outputs[0]->shallowCopyFrom(inputs[0], false);
+                outputs[0]->shallowCopyFrom(inputs[0].get(), false);
             }
         } else {
             if (inputs[0]->masterTensor() == nullptr) {
@@ -47,11 +47,11 @@ public:
             outputs[0]->setDtype(inputs[0]->dtype());
             outputs[0]->alloc();
             inputs[0]->setUndiffusion(true);
-            inputs[0]->shallowCopyFrom(outputs[0], false);
+            inputs[0]->shallowCopyFrom(outputs[0].get(), false);
             outputs[0]->transFrom() = axiss;
         }
     }
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         vector<std::pair<Chl, Chl>> axiss;
         for (int i = 0; i < args.size(); i += 2) {
             axiss.push_back({(Chl)args[i], (Chl)args[i + 1]});
@@ -114,7 +114,7 @@ public:
         if (inputs[0]->masterTensor() != nullptr && (inputs[0]->masterTensor()->name().find("Cache") != std::string::npos || inputs[0]->masterTensor()->name().find("weight") != std::string::npos)) {
             if (outputs[0]->masterTensor() == nullptr) {
                 outputs[0]->setDtype(inputs[0]->dtype());
-                outputs[0]->shallowCopyFrom(inputs[0], false);
+                outputs[0]->shallowCopyFrom(inputs[0].get(), false);
             }
         } else {
             if (inputs[0]->masterTensor() == nullptr) {
@@ -124,13 +124,13 @@ public:
             outputs[0]->alloc();
             // inputs[0]->undiffusion() = true;
             inputs[0]->setUndiffusion(true);
-            inputs[0]->shallowCopyFrom(outputs[0], false);
+            inputs[0]->shallowCopyFrom(outputs[0].get(), false);
             outputs[0]->transFrom() = axiss;
         }
         // }
         */
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
     }
 };
 } // namespace mllm

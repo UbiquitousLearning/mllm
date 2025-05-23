@@ -21,9 +21,9 @@ static std::unordered_map<string, Op *> kv_cache_map;
 
 class TensorFunction {
 public:
-    virtual void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) = 0;
-    virtual void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) = 0;
-    virtual void set(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args){};
+    virtual void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) = 0;
+    virtual void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) = 0;
+    virtual void set(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args){};
 };
 class Backend {
 public:

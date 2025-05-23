@@ -147,8 +147,8 @@ public:
     vector<shared_ptr<Tensor>> opInputs;
     vector<shared_ptr<Tensor>> opOutputs;
     Op *op;
-    vector<Tensor *> tensorInputs;
-    vector<Tensor *> tensorOutputs;
+    vector<shared_ptr<Tensor>> tensorInputs;
+    vector<shared_ptr<Tensor>> tensorOutputs;
     vector<float> args;
     TensorFunction *tensorFunc;
 
@@ -184,7 +184,7 @@ public:
         } else {
             vector<shared_ptr<Tensor>> outputs;
             for (auto tensor : tensorOutputs) {
-                outputs.push_back(std::shared_ptr<Tensor>(tensor, [](Tensor *) {}));
+                outputs.push_back(tensor);
             }
             return outputs;
         }

@@ -183,7 +183,7 @@ Tensor &Tensor::to(BackendType backend_type) {
 
 // TensorFuctions
 Tensor Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
-                       vector<float> float_args, vector<Tensor *> other_tensors) {
+                       vector<float> float_args, vector<shared_ptr<Tensor>> other_tensors) {
     assert(module() != nullptr);
     const std::string next_name = impl_->name_ + "-" + suffix;
 
@@ -197,17 +197,17 @@ Tensor Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
             module_tensors[next_name]->setModule(module());
             activation_tensors_num[next_name] = 0;
         }
-        std::vector<Tensor *> tensorPtrs = {module_tensors[impl_->name_].get()};
+        std::vector<shared_ptr<Tensor>> tensorPtrs = {module_tensors[impl_->name_]};
         for (auto &other_tensor : other_tensors) { tensorPtrs.push_back(other_tensor); }
-        func->set({module_tensors[next_name].get()}, tensorPtrs, float_args);
+        func->set({module_tensors[next_name]}, tensorPtrs, float_args);
         return *module_tensors[next_name];
     }
 #ifdef DEBUGOPTIME
     auto start_t = mllm_time_us();
 #endif
-    std::vector<Tensor *> tensorPtrs = {this};
+    std::vector<shared_ptr<Tensor>> tensorPtrs = {std::shared_ptr<Tensor>(this, [](Tensor *) {})};
     for (auto &other_tensor : other_tensors) { tensorPtrs.push_back(other_tensor); }
-    vector<Tensor *> out_tensors;
+    vector<shared_ptr<Tensor>> out_tensors;
     auto out_tensor = std::make_shared<Tensor>(impl_->backend_);
     out_tensor->setName(next_name);
     out_tensor->setModule(module());
@@ -217,7 +217,7 @@ Tensor Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
         out_tensor->chls() = module_tensors[out_tensor->name()]->chls();
         out_tensor->setCtype(module_tensors[out_tensor->name()]->ctype());
     }
-    out_tensors.push_back(out_tensor.get());
+    out_tensors.push_back(out_tensor);
 
     func->setup(out_tensors, tensorPtrs, float_args);
     func->execute(out_tensors, tensorPtrs, float_args);
@@ -228,7 +228,7 @@ Tensor Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
     return *out_tensors[0];
 }
 Tensor Tensor::getFuncOnlyIn(const std::string &suffix, const TensorFuncType type,
-                             vector<float> float_args, vector<Tensor *> other_tensors) {
+                             vector<float> float_args, vector<shared_ptr<Tensor>> other_tensors) {
     assert(module() != nullptr);
     const std::string next_name = impl_->name_ + "-" + suffix;
 
@@ -242,16 +242,16 @@ Tensor Tensor::getFuncOnlyIn(const std::string &suffix, const TensorFuncType typ
             module_tensors[next_name]->setModule(module());
             activation_tensors_num[next_name] = 0;
         }
-        std::vector<Tensor *> tensorPtrs = {module_tensors[impl_->name_].get()};
+        std::vector<shared_ptr<Tensor>> tensorPtrs = {module_tensors[impl_->name_]};
         for (auto &other_tensor : other_tensors) { tensorPtrs.push_back(other_tensor); }
-        func->set({module_tensors[next_name].get()}, tensorPtrs, float_args);
+        func->set({module_tensors[next_name]}, tensorPtrs, float_args);
         return *module_tensors[next_name];
     }
 
 #ifdef DEBUGOPTIME
     auto start_t = mllm_time_us();
 #endif
-    std::vector<Tensor *> tensorPtrs = {this};
+    std::vector<std::shared_ptr<Tensor>> tensorPtrs = {std::shared_ptr<Tensor>(this, [](Tensor *) {})};
     for (auto &other_tensor : other_tensors) { tensorPtrs.push_back(other_tensor); }
     func->setup({}, tensorPtrs, float_args);
     func->execute({}, tensorPtrs, float_args);
@@ -264,13 +264,13 @@ Tensor Tensor::getFuncOnlyIn(const std::string &suffix, const TensorFuncType typ
 }
 
 void Tensor::getFunc(const TensorFuncType type,
-                     vector<float> float_args, vector<Tensor *> other_tensors) {
+                     vector<float> float_args, vector<shared_ptr<Tensor>> other_tensors) {
     assert(module() != nullptr);
     TensorFunction *func = impl_->backend_->funcCreate(type);
     if (module()->doLoad) {
         auto &module_tensors = module()->activation_tensors;
         auto &activation_tensors_num = module()->activation_tensors_num;
-        std::vector<Tensor *> tensorPtrs = {module_tensors[impl_->name_].get()};
+        std::vector<shared_ptr<Tensor>> tensorPtrs = {module_tensors[impl_->name_]};
         for (auto &other_tensor : other_tensors) { tensorPtrs.push_back(other_tensor); }
         func->set({}, tensorPtrs, float_args);
         return;
@@ -279,7 +279,7 @@ void Tensor::getFunc(const TensorFuncType type,
 #ifdef DEBUGOPTIME
     auto start_t = mllm_time_us();
 #endif
-    std::vector<Tensor *> tensorPtrs = {this};
+    std::vector<shared_ptr<Tensor>> tensorPtrs = {std::shared_ptr<Tensor>(this, [](Tensor *) {})};
     for (auto &other_tensor : other_tensors) { tensorPtrs.push_back(other_tensor); }
     func->setup({}, tensorPtrs, float_args);
     func->execute({}, tensorPtrs, float_args);
@@ -292,7 +292,7 @@ void Tensor::getFunc(const TensorFuncType type,
 std::vector<Tensor> Tensor::getStaticFunc(vector<std::string> out_names,
                                           const TensorFuncType type,
                                           vector<float> float_args,
-                                          vector<Tensor *> input_tensors) {
+                                          vector<shared_ptr<Tensor>> input_tensors) {
     Module *module;
     if (!input_tensors.empty()) {
         module = input_tensors[0]->module();
@@ -316,12 +316,12 @@ std::vector<Tensor> Tensor::getStaticFunc(vector<std::string> out_names,
                 activation_tensors_num[out_name] = 0;
             }
         }
-        std::vector<Tensor *> inPtrs = {};
+        std::vector<shared_ptr<Tensor>> inPtrs = {};
         for (auto input_tensor : input_tensors) {
-            inPtrs.push_back(activation_tensors[input_tensor->name()].get());
+            inPtrs.push_back(activation_tensors[input_tensor->name()]);
         }
-        std::vector<Tensor *> outPtrs;
-        for (auto out_name : out_names) { outPtrs.push_back(activation_tensors[out_name].get()); }
+        std::vector<shared_ptr<Tensor>> outPtrs;
+        for (auto out_name : out_names) { outPtrs.push_back(activation_tensors[out_name]); }
         func->set(outPtrs, inPtrs, float_args);
         std::vector<Tensor> results;
         for (auto out_name : out_names) { results.push_back(*activation_tensors[out_name]); }
@@ -331,14 +331,11 @@ std::vector<Tensor> Tensor::getStaticFunc(vector<std::string> out_names,
 #ifdef DEBUGOPTIME
     auto start_t = mllm_time_us();
 #endif
-    std::vector<Tensor *> out_tensors;
-    std::vector<std::shared_ptr<Tensor>> owned_tensors;
-
-    // module_tensors[input_tensors[0]->name()]
+    std::vector<shared_ptr<Tensor>> out_tensors;
     if (!input_tensors.empty() && !input_tensors[0]->aggregatedTensors().empty()) {
         auto aggregatedTensorsSize = input_tensors[0]->aggregatedTensors().size();
         for (int i = 0; i < aggregatedTensorsSize; i++) {
-            out_tensors.push_back(input_tensors[0]->aggregatedTensors()[i].get());
+            out_tensors.push_back(input_tensors[0]->aggregatedTensors()[i]);
         }
     } else if (out_names.size() == 1 && activation_tensors.find(out_names[0]) != activation_tensors.end()
                && activation_tensors[out_names[0]]->masterTensor() != nullptr
@@ -346,15 +343,14 @@ std::vector<Tensor> Tensor::getStaticFunc(vector<std::string> out_names,
         auto out_tensor = std::make_shared<Tensor>(backend_h);
         out_tensor->setName(out_names[0]);
         out_tensor->setModule(module);
-        owned_tensors.push_back(out_tensor);
+        out_tensors.push_back(out_tensor);
         // For KVCache
         auto cache_seq_len_ = activation_tensors[out_names[0]]->shapeOffset()[2];
         if (out_names[0].find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
             cache_seq_len_ = activation_tensors[out_names[0]]->masterTensor()->cache_seq_len_;
         }
-        owned_tensors[0]->setDtype(activation_tensors[out_names[0]]->masterTensor()->dtype());
-        owned_tensors[0]->shallowCopyFrom(activation_tensors[out_names[0]]->masterTensor(), false, {0, 0, cache_seq_len_, 0});
-        out_tensors.push_back(owned_tensors[0].get());
+        out_tensors[0]->setDtype(activation_tensors[out_names[0]]->masterTensor()->dtype());
+        out_tensors[0]->shallowCopyFrom(activation_tensors[out_names[0]]->masterTensor(), false, {0, 0, cache_seq_len_, 0});
     } else {
         for (auto out_name : out_names) {
             auto out_tensor = std::make_shared<Tensor>(backend_h);
@@ -366,10 +362,7 @@ std::vector<Tensor> Tensor::getStaticFunc(vector<std::string> out_names,
                 out_tensor->chls() = it->second->chls();
                 out_tensor->setCtype(it->second->ctype());
             }
-            owned_tensors.push_back(out_tensor);
-        }
-        for (auto owned_tensor : owned_tensors) {
-            out_tensors.push_back(owned_tensor.get());
+            out_tensors.push_back(out_tensor);
         }
     }
     func->setup(out_tensors, input_tensors, float_args);
@@ -387,7 +380,7 @@ std::vector<Tensor> Tensor::getStaticFunc(vector<std::string> out_names,
 std::vector<Tensor> Tensor::getStaticFuncOnlyIn(vector<std::string> out_names,
                                                 const TensorFuncType type,
                                                 vector<float> float_args,
-                                                vector<Tensor *> input_tensors) {
+                                                vector<shared_ptr<Tensor>> input_tensors) {
     Module *module;
     if (!input_tensors.empty()) {
         module = input_tensors[0]->module();
@@ -411,12 +404,12 @@ std::vector<Tensor> Tensor::getStaticFuncOnlyIn(vector<std::string> out_names,
                 activation_tensors_num[out_name] = 0;
             }
         }
-        std::vector<Tensor *> inPtrs = {};
+        std::vector<shared_ptr<Tensor>> inPtrs = {};
         for (auto input_tensor : input_tensors) {
-            inPtrs.push_back(module_tensors[input_tensor->name()].get());
+            inPtrs.push_back(module_tensors[input_tensor->name()]);
         }
-        std::vector<Tensor *> outPtrs;
-        for (auto out_name : out_names) { outPtrs.push_back(module_tensors[out_name].get()); }
+        std::vector<shared_ptr<Tensor>> outPtrs;
+        for (auto out_name : out_names) { outPtrs.push_back(module_tensors[out_name]); }
         func->set(outPtrs, inPtrs, float_args);
         std::vector<Tensor> results;
         for (auto out_name : out_names) { results.push_back(*module_tensors[out_name]); }
@@ -444,6 +437,7 @@ std::vector<Tensor> Tensor::getStaticFuncOnlyIn(vector<std::string> out_names,
     results.push_back(*input_tensors[0]);
     return results;
 }
+
 /*
 Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
                         vector<float> float_args, vector<Tensor *> other_tensors) {
@@ -699,19 +693,19 @@ Tensor Tensor::operator/(int data) {
 }
 
 Tensor Tensor::operator+(Tensor other) {
-    return getFunc("TTadd", FUNC_TTADD, {}, {&other});
+    return getFunc("TTadd", FUNC_TTADD, {}, {std::shared_ptr<Tensor>(&other, [](Tensor *) {})});
 }
 
 Tensor Tensor::operator-(Tensor other) {
-    return getFunc("TTsub", FUNC_TTSUB, {}, {&other});
+    return getFunc("TTsub", FUNC_TTSUB, {}, {std::shared_ptr<Tensor>(&other, [](Tensor *) {})});
 }
 
 Tensor Tensor::operator*(Tensor other) {
-    return getFunc("TTmul", FUNC_TTMUL, {}, {&other});
+    return getFunc("TTmul", FUNC_TTMUL, {}, {std::shared_ptr<Tensor>(&other, [](Tensor *) {})});
 }
 
 Tensor Tensor::operator/(Tensor other) {
-    return getFunc("TTdiv", FUNC_TTDIV, {}, {&other});
+    return getFunc("TTdiv", FUNC_TTDIV, {}, {std::shared_ptr<Tensor>(&other, [](Tensor *) {})});
 }
 
 Tensor Tensor::mean(Chl axis) {
@@ -772,7 +766,7 @@ Tensor Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, 
 }
 
 Tensor Tensor::clip(Tensor index, Chl dim) {
-    return getFunc("cliptensor", FUNC_CLIPTENSOR, {(float)dim}, {&index});
+    return getFunc("cliptensor", FUNC_CLIPTENSOR, {(float)dim}, {std::shared_ptr<Tensor>(&index, [](Tensor *) {})});
 }
 Tensor Tensor::expand(int b, int h, int s, int d) {
     return getFunc("expand", FUNC_EXPPAND, {(float)b, (float)h, (float)s, (float)d});
@@ -789,20 +783,24 @@ Tensor Tensor::where(float value, Chl axis) {
 Tensor Tensor::index_put(Tensor value, Tensor indices, bool accumulate) {
     if (!accumulate) {
         return getFuncOnlyIn({"index_put"}, FUNC_INDEX_PUT, {(float)accumulate},
-                             {&value, &indices});
+                             {std::shared_ptr<Tensor>(&value, [](Tensor *) {}),
+                              std::shared_ptr<Tensor>(&indices, [](Tensor *) {})});
     }
     return getFunc({"index_put"}, FUNC_INDEX_PUT, {(float)accumulate},
-                   {&value, &indices});
+                   {std::shared_ptr<Tensor>(&value, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&indices, [](Tensor *) {})});
 }
 void Tensor::scatter_reduce(Tensor value, Tensor indices) {
-    getFunc(FUNC_SCATTERREDUCE, {}, {&value, &indices});
+    getFunc(FUNC_SCATTERREDUCE, {},
+            {std::shared_ptr<Tensor>(&value, [](Tensor *) {}),
+             std::shared_ptr<Tensor>(&indices, [](Tensor *) {})});
 }
 
 Tensor Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
     Module *module = input_tensors[0].module();
-    vector<Tensor *> inputs = {};
+    vector<shared_ptr<Tensor>> inputs = {};
     for (auto &input_tensor : input_tensors) {
-        inputs.push_back(&input_tensor);
+        inputs.push_back(std::shared_ptr<Tensor>(&input_tensor, [](Tensor *) {}));
     }
     return getStaticFunc({input_tensors[0].name() + "-cat"}, FUNC_CAT, {(float)axis}, inputs)[0];
 }
@@ -821,7 +819,8 @@ Tensor Tensor::mm(Tensor input0, Tensor input1) {
     //     nname = _name_num_to_X(nname);
     return getStaticFunc(
         {nname}, FUNC_MM, {},
-        {&input0, &input1})[0];
+        {std::shared_ptr<Tensor>(&input0, [](Tensor *) {}),
+         std::shared_ptr<Tensor>(&input1, [](Tensor *) {})})[0];
 }
 
 Tensor Tensor::range(int start, int end) {
@@ -841,7 +840,7 @@ vector<Tensor> Tensor::split(Tensor input, std::vector<int> each_dims,
     args.push_back(same_dim_size);
     Module *module = input.module();
     return getStaticFunc(next_names, FUNC_SPLIT, args,
-                         {&input});
+                         {std::shared_ptr<Tensor>(&input, [](Tensor *) {})});
 }
 
 vector<Tensor> Tensor::topk(Tensor input, int k, Chl dim) {
@@ -850,7 +849,7 @@ vector<Tensor> Tensor::topk(Tensor input, int k, Chl dim) {
                           input.name() + "-top" + std::to_string(k) + "-idx"},
                          FUNC_TOPK,
                          {(float)k, (float)dim},
-                         {&input});
+                         {std::shared_ptr<Tensor>(&input, [](Tensor *) {})});
 }
 Tensor Tensor::sum(Chl dim) {
     return getFunc("sum", FUNC_SUM, {(float)dim});
@@ -868,31 +867,30 @@ Tensor Tensor::repeat(Chl dim, int dim_size) {
 Tensor Tensor::zero_like(Tensor input) {
     Module *module = input.module();
     return getStaticFunc({input.name() + "-zero_like"}, FUNC_LIKE, {0.0},
-                         {&input})[0];
+                         {std::shared_ptr<Tensor>(&input, [](Tensor *) {})})[0];
 }
 Tensor Tensor::apply_rotary_pos_emb_vision(Tensor input, Tensor rotary_pos_emb) {
     Module *module = input.module();
     return getStaticFunc({input.name() + "-apply_rotary_pos_emb"}, FUNC_APPLY_VISIOROPE,
                          {},
-                         {&input, &rotary_pos_emb})[0];
+                         {std::shared_ptr<Tensor>(&input, [](Tensor *) {}),
+                          std::shared_ptr<Tensor>(&rotary_pos_emb, [](Tensor *) {})})[0];
 }
 
 Tensor Tensor::fuyu_gather_embd(Tensor word, Tensor image_patches, Tensor image_patches_indices) {
     Module *module = word.module();
     return getStaticFuncOnlyIn({word.name() + ".fuyu_gather_embd"}, FUNC_FUYU_GATHER_EMBD,
                                {},
-                               {
-                                   &word,
-                                   &image_patches,
-                                   &image_patches_indices,
-                               })[0];
+                               {std::shared_ptr<Tensor>(&word, [](Tensor *) {}),
+                                std::shared_ptr<Tensor>(&image_patches, [](Tensor *) {}),
+                                std::shared_ptr<Tensor>(&image_patches_indices, [](Tensor *) {})})[0];
 }
 
 Tensor Tensor::phi3v_hd_merge(Tensor input, int h_crop, int w_crop) {
     Module *module = input.module();
     return getStaticFunc({input.name() + ".phi3v_hd_merge"}, FUNC_PHI3V_HD_MERGE,
                          {(float)h_crop, (float)w_crop},
-                         {&input})[0];
+                         {std::shared_ptr<Tensor>(&input, [](Tensor *) {})})[0];
 }
 
 } // namespace mllm

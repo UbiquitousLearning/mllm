@@ -12,10 +12,10 @@ class Tensor;
 
 class CPUviewFunction : public TensorFunction {
 public:
-    void set(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
-        inputs[0]->shallowCopyFrom(outputs[0], false);
+    void set(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+        inputs[0]->shallowCopyFrom(outputs[0].get(), false);
     }
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int b = (int)args[0];
         int h = (int)args[1];
         int s = (int)args[2];
@@ -124,7 +124,7 @@ public:
         }
         */
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
     }
 };
 

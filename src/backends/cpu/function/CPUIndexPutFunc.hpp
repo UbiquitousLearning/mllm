@@ -13,24 +13,24 @@ class Tensor;
 
 class CPUIndexPutFunction : public TensorFunction {
 public:
-    void set(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void set(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         bool accumulate = (bool)args[0];
         if (!accumulate) {
             if (inputs[0]->masterTensor() == nullptr) {
                 inputs[0]->free();
             }
             outputs[0]->alloc();
-            inputs[0]->shallowCopyFrom(outputs[0], false);
+            inputs[0]->shallowCopyFrom(outputs[0].get(), false);
         }
     }
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         bool accumulate = (bool)args[0];
         if (inputs[1]->batch() == 0) {
             outputs[0]->reshape(inputs[0]->batch(), 1, inputs[0]->sequence(), inputs[0]->dimension());
             if (inputs[0]->masterTensor() == nullptr) {
                 inputs[0]->free();
             }
-            inputs[0]->shallowCopyFrom(outputs[0], false);
+            inputs[0]->shallowCopyFrom(outputs[0].get(), false);
             outputs[0]->alloc();
             return;
         }
@@ -64,12 +64,12 @@ public:
         //         inputs[0]->free();
         //     }
         //     outputs[0]->alloc();
-        //     inputs[0]->shallowCopyFrom(outputs[0], false);
+        //     inputs[0]->shallowCopyFrom(outputs[0].get(), false);
         // } else {
         //     outputs[0]->alloc();
         // }
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         bool accumulate = (bool)args[0];
         if (inputs[1]->batch() == 0) {
             return;

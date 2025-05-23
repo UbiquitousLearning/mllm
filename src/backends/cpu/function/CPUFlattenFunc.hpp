@@ -13,11 +13,11 @@ class Tensor;
 
 class CPUflattenFunction : public TensorFunction {
 public:
-    void set(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
-        inputs[0]->shallowCopyFrom(outputs[0], false);
+    void set(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+        inputs[0]->shallowCopyFrom(outputs[0].get(), false);
     }
 
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl axis_start = (Chl)args[0];
         Chl axis_end = (Chl)args[1];
         int dim_b = inputs[0]->batch();
@@ -83,14 +83,14 @@ public:
             }
             outputs[0]->setDtype(inputs[0]->dtype());
             outputs[0]->alloc();
-            inputs[0]->shallowCopyFrom(outputs[0], false);
+            inputs[0]->shallowCopyFrom(outputs[0].get(), false);
         } else if (Module::llm_model_ptr->op_transposed_flag) {
             if (inputs[0]->masterTensor() == nullptr) {
                 inputs[0]->free();
             }
             outputs[0]->setDtype(inputs[0]->dtype());
             outputs[0]->alloc();
-            inputs[0]->shallowCopyFrom(outputs[0], false);
+            inputs[0]->shallowCopyFrom(outputs[0].get(), false);
             return;
         } else {
             std::cout << "[TODO]Tensor.Flatten not support!!!!" << std::endl;
@@ -98,7 +98,7 @@ public:
         */
     }
 
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
     }
 };
 

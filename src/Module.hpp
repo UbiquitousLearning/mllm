@@ -376,7 +376,7 @@ public:
     }
 
     void addTensorFunction(TensorFunction *func,
-                           vector<Tensor *> inputs, vector<Tensor *> outputs, vector<float> args) {
+                           vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<float> args) {
         auto callable = std::make_shared<Callable>(CallableType::TENSOR_FUNC);
         callable->tensorFunc = func;
         callable->tensorInputs = inputs;

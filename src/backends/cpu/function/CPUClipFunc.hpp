@@ -13,7 +13,7 @@ class Tensor;
 
 class CPUclipFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int b_size = args[0];
         int h_size = args[1];
         int s_size = args[2];
@@ -50,7 +50,7 @@ public:
         outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int b_size = args[0];
         int h_size = args[1];
         int s_size = args[2];
@@ -140,7 +140,7 @@ public:
 
 class CPUclipaxisFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl axis = (Chl)args[0];
         int b_size = args[1];
         int h_size = args[2];
@@ -210,7 +210,7 @@ public:
         outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl axis = (Chl)args[0];
         int b_size = args[1];
         int h_size = args[2];
@@ -249,7 +249,7 @@ public:
 
 class CPUcliptensorFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl dim = (Chl)args[0];
         if (dim == SEQUENCE) {
             int new_seq = inputs[1]->dimension();
@@ -263,7 +263,7 @@ public:
         outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl dim = (Chl)args[0];
         if (dim == SEQUENCE) {
             int new_seq = inputs[1]->dimension();

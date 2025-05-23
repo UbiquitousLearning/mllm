@@ -14,7 +14,7 @@ class Tensor;
 
 class CPUcatFunction : public TensorFunction {
 public:
-    void set(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void set(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl axis = (Chl)args[0];
         int expd_batch_ = inputs[0]->batch();
         for (int ii = 0; ii < inputs.size(); ++ii) {
@@ -53,7 +53,7 @@ public:
                 if (inputs[0]->masterTensor() == nullptr) {
                     inputs[0]->free();
                 }
-                inputs[0]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim});
+                inputs[0]->shallowCopyFrom(outputs[0].get(), false, {cbatch, chead, cseq, cdim});
             } else {
                 for (int idx = 0; idx < inputs.size(); idx++) {
                     if (inputs[idx]->masterTensor() == nullptr) {
@@ -62,7 +62,7 @@ public:
                     if (idx > 0) {
                         chead += inputs[idx - 1]->head();
                     }
-                    inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                    inputs[idx]->shallowCopyFrom(outputs[0].get(), false, {cbatch, chead, cseq, cdim}); // b,h,s,d
                 }
             }
         } else if (axis == SEQUENCE && inputs[0]->head() != 1) {
@@ -77,7 +77,7 @@ public:
                 if (idx > 0) {
                     cseq += inputs[idx - 1]->sequence();
                 }
-                inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                inputs[idx]->shallowCopyFrom(outputs[0].get(), false, {cbatch, chead, cseq, cdim}); // b,h,s,d
             }
         } else if (axis == DIMENSION && inputs[0]->head() != 1) {
             int cbatch = 0;
@@ -94,19 +94,19 @@ public:
                 int tmp_agg_idx;
                 if (inputs[idx]->deaggregatedTensor() != nullptr) {
                     for (int t = 0; t < inputs[idx]->deaggregatedTensor()->aggregatedTensors().size(); t++) {
-                        if (inputs[idx]->deaggregatedTensor()->aggregatedTensors()[t].get() == inputs[idx]) {
+                        if (inputs[idx]->deaggregatedTensor()->aggregatedTensors()[t] == inputs[idx]) {
                             tmp_agg_idx = t;
                             continue;
                         }
                     }
                 }
-                inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                inputs[idx]->shallowCopyFrom(outputs[0].get(), false, {cbatch, chead, cseq, cdim}); // b,h,s,d
                 if (inputs[idx]->deaggregatedTensor() != nullptr) {
                     vector<shared_ptr<Tensor>> shared_outputs = {};
                     for (int t = 0; t < inputs[idx]->deaggregatedTensor()->aggregatedTensors().size(); t++) {
                         if (t == tmp_agg_idx) {
-                            inputs[idx]->deaggregatedTensor()->aggregatedTensors()[t] =
-                                std::shared_ptr<Tensor>(inputs[idx], [](Tensor *) {});
+                            inputs[idx]->deaggregatedTensor()->aggregatedTensors()[t] = inputs[idx];
+                            // std::shared_ptr<Tensor>(inputs[idx], [](Tensor *) {});
                         }
                     }
                 }
@@ -114,7 +114,7 @@ public:
         }
     }
 
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl axis = (Chl)args[0];
         int expd_batch_ = inputs[0]->batch();
         for (int ii = 0; ii < inputs.size(); ++ii) {
@@ -185,7 +185,7 @@ public:
                 if (inputs[0]->masterTensor() == nullptr) {
                     inputs[0]->free();
                 }
-                inputs[0]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim});
+                inputs[0]->shallowCopyFrom(outputs[0].get(), false, {cbatch, chead, cseq, cdim});
             }else{
                 for (int idx = 0; idx < inputs.size(); idx++) {
                     if (inputs[idx]->masterTensor() == nullptr) {
@@ -194,7 +194,7 @@ public:
                     if (idx > 0) {
                         chead += inputs[idx - 1]->head();
                     }
-                    inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                    inputs[idx]->shallowCopyFrom(outputs[0].get(), false, {cbatch, chead, cseq, cdim}); // b,h,s,d
                 }
             }
         }else if (axis == SEQUENCE && inputs[0]->head() != 1) {
@@ -209,7 +209,7 @@ public:
                 if (idx > 0) {
                     cseq += inputs[idx - 1]->sequence();
                 }
-                inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                inputs[idx]->shallowCopyFrom(outputs[0].get(), false, {cbatch, chead, cseq, cdim}); // b,h,s,d
             }
         } else if (axis == DIMENSION && inputs[0]->head() != 1) {
             int cbatch = 0;
@@ -232,7 +232,7 @@ public:
                         }
                     }
                 }
-                inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                inputs[idx]->shallowCopyFrom(outputs[0].get(), false, {cbatch, chead, cseq, cdim}); // b,h,s,d
                 if (inputs[idx]->deaggregatedTensor() != nullptr) {
                     vector<shared_ptr<Tensor>> shared_outputs = {};
                     for (int t = 0; t < inputs[idx]->deaggregatedTensor()->aggregatedTensors().size(); t++) {
@@ -246,7 +246,7 @@ public:
         }
         */
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         // TOD : FIX THIS WHEN NO MEMCPY
         Chl axis = (Chl)args[0];
         int expd_batch_ = inputs[0]->batch();
