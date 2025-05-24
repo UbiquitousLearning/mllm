@@ -60,10 +60,13 @@ public:
         auto seq_length = inputs[0].sequence();
         Tensor q, k, v;
         auto qkv = qkv_proj(inputs[0]);
-        auto qkv_sp = qkv.split({attn_hidden_dim_, attn_hidden_dim_, attn_hidden_dim_}, HD, head_size_);
+        auto qkv_sp = qkv.split({attn_hidden_dim_ * head_size_, attn_hidden_dim_ * head_size_, attn_hidden_dim_ * head_size_}, DIMENSION);
         q = qkv_sp[0];
         k = qkv_sp[1];
         v = qkv_sp[2];
+        q = q.view(-1, head_size_, -1, attn_hidden_dim_);
+        k = k.view(-1, head_size_, -1, attn_hidden_dim_);
+        v = v.view(-1, head_size_, -1, attn_hidden_dim_);
         q = Tensor::apply_rotary_pos_emb_vision(q, rotary_pos_emb);
         k = Tensor::apply_rotary_pos_emb_vision(k, rotary_pos_emb);
         k = k.transpose(SEQUENCE, DIMENSION);

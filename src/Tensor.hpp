@@ -1288,12 +1288,18 @@ private:
         return tensor_id;
     }
 
-    Tensor getFunc(const std::string &suffix, TensorFuncType type, vector<float> float_args, vector<shared_ptr<Tensor>> other_tensors = {});
-    Tensor getFuncOnlyIn(const std::string &suffix, TensorFuncType type, vector<float> float_args, vector<shared_ptr<Tensor>> other_tensors = {});
-    void getFunc(TensorFuncType type, vector<float> float_args, vector<shared_ptr<Tensor>> other_tensors = {});
-
-    static std::vector<Tensor> getStaticFunc(vector<std::string> out_names, TensorFuncType type, vector<float> float_args, vector<shared_ptr<Tensor>> input_tensors);
-    static std::vector<Tensor> getStaticFuncOnlyIn(vector<std::string> out_names, TensorFuncType type, vector<float> float_args, vector<shared_ptr<Tensor>> input_tensors);
+    // in_place=true: 只有输入, 输出==输入，返回输入
+    // suffix = ""：没有输出, 只有输入不返回
+    Tensor getFunc(const std::string &suffix,
+                   TensorFuncType type,
+                   std::vector<float> float_args,
+                   std::vector<std::shared_ptr<Tensor>> input_other_tensors = {},
+                   bool in_place = false);
+    static std::vector<Tensor> getStaticFunc(std::vector<std::string> out_names,
+                                             TensorFuncType type,
+                                             std::vector<float> float_args,
+                                             std::vector<std::shared_ptr<Tensor>> input_tensors = {},
+                                             bool in_place = false);
 
 public:
     uint32_t &uuid();

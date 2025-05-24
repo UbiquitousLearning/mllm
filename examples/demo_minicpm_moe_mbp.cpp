@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
         auto input_tensor = tokenizer.tokenize(in_str);
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
-        for (int step = 0; step < 1; step++) {
+        for (int step = 0; step < 100; step++) {
             auto result = model({input_tensor});
             auto [out_string, out_token] = tokenizer.detokenize(result[0]);
             auto [not_end, output_string] = tokenizer.postprocess(out_string);
@@ -48,6 +48,6 @@ int main(int argc, char **argv) {
         printf("\n");
         model.clear_kvcache();
         model.profiling();
-        prinMBPtimes();
+        // prinMBPtimes();
     }
 }
