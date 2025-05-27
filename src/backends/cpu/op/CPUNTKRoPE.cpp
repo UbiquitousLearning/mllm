@@ -327,4 +327,11 @@ ErrorCode CPUNTKRoPE::load(AbstructLoader &loader) {
 ErrorCode CPUNTKRoPE::free(std::vector<std::shared_ptr<Tensor>> inputs, std::vector<std::shared_ptr<Tensor>> outputs) {
     return Op::free(inputs, outputs);
 }
+
+ErrorCode CPUNTKRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+    outputs[0]->setDtype(activation_dtype_);
+    outputs[0]->alloc();
+    return MLLM_NO_ERROR;
+}
 } // namespace mllm

@@ -4,7 +4,7 @@
 
 namespace mllm::xnnpack {
 
-void XpTransposeFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpTransposeFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     Chl axis0_ = (Chl)args[0];
     Chl axis1_ = (Chl)args[1];
 
@@ -28,7 +28,7 @@ void XpTransposeFunction::setup(vector<Tensor *> outputs, vector<Tensor *> input
     }
 }
 
-void XpTransposeFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpTransposeFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);

@@ -70,8 +70,8 @@ public:
 
         out_proj = Linear(q_heads_ * head_dim_, cfg.model_dim, false, base_name + "out_proj");
 
-        k_cache = KVCache(q_heads_ / k_heads_, cfg.cache_limit, base_name + "k_cache");
-        v_cache = KVCache(q_heads_ / v_heads_, cfg.cache_limit, base_name + "v_cache");
+        k_cache = KVCache(k_heads_, head_dim_, q_heads_ / k_heads_, cfg.cache_limit, base_name + "k_cache");
+        v_cache = KVCache(v_heads_, head_dim_, q_heads_ / v_heads_, cfg.cache_limit, base_name + "v_cache");
 
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
@@ -191,7 +191,7 @@ class OpenElMModel final : public Module {
 public:
     OpenElMModel() = default;
     OpenElMModel(const OpenELMConfig &cfg) {
-        Layer::use_layername_2_tensorname = false; // for OpenELM only.
+        // Layer::use_layername_2_tensorname = false; // for OpenELM only.
         token_embeddings = Embedding(cfg.vocab_size, cfg.model_dim, "transformer.token_embeddings");
         norm = RMSNorm(cfg.model_dim, 1e-6, "transformer.norm");
 
@@ -211,8 +211,7 @@ public:
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        auto inputs_embeds = token_embeddings(inputs[0]);
-        auto hidden_states = inputs_embeds;
+        auto hidden_states = token_embeddings(inputs[0]);
 
         // decoders
         for (auto &it : decode_layers) {
@@ -220,6 +219,9 @@ public:
         }
 
         hidden_states = norm(hidden_states);
+        if (hidden_states.sequence() > 1) {
+            hidden_states = hidden_states.clip({}, {}, {-1}, {});
+        }
 
         // tied embeddings
         auto logits = Tensor::mm(hidden_states, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));

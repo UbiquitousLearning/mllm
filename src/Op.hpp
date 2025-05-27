@@ -147,8 +147,8 @@ public:
     vector<shared_ptr<Tensor>> opInputs;
     vector<shared_ptr<Tensor>> opOutputs;
     Op *op;
-    vector<Tensor *> tensorInputs;
-    vector<Tensor *> tensorOutputs;
+    vector<shared_ptr<Tensor>> tensorInputs;
+    vector<shared_ptr<Tensor>> tensorOutputs;
     vector<float> args;
     TensorFunction *tensorFunc;
 
@@ -156,7 +156,7 @@ public:
         type_(type) {
     }
 
-    void reshape(){
+    void reshape() {
         if (type_ == CallableType::OP) {
             op->reshape(opInputs, opOutputs);
         }
@@ -166,7 +166,7 @@ public:
         if (type_ == CallableType::OP) {
             op->setUp(opInputs, opOutputs);
         } else {
-            tensorFunc->setup(tensorOutputs, tensorInputs, args);
+            tensorFunc->reshape(tensorOutputs, tensorInputs, args);
         }
     }
 
@@ -184,7 +184,7 @@ public:
         } else {
             vector<shared_ptr<Tensor>> outputs;
             for (auto tensor : tensorOutputs) {
-                outputs.push_back(std::shared_ptr<Tensor>(tensor, [](Tensor *) {}));
+                outputs.push_back(tensor);
             }
             return outputs;
         }

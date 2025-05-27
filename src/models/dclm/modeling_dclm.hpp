@@ -72,8 +72,8 @@ public:
         k_norm = LayerNorm(cfg.n_heads * head_dim, false, cfg.norm_eps, base_name + "k_norm");
         q_rope = RoPE(cfg.RoPE_type, 10000, cfg.seq_len, base_name + "q_rope");
         k_rope = RoPE(cfg.RoPE_type, 10000, cfg.seq_len, base_name + "k_rope");
-        k_cache = KVCache(1, cfg.cache_limit, base_name + "k_cache");
-        v_cache = KVCache(1, cfg.cache_limit, base_name + "v_cache");
+        k_cache = KVCache(cfg.n_heads, head_dim, 1, cfg.cache_limit, base_name + "k_cache");
+        v_cache = KVCache(cfg.n_heads, head_dim, 1, cfg.cache_limit, base_name + "v_cache");
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
 

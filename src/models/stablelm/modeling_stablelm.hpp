@@ -39,8 +39,8 @@ public:
             k_rope = RoPE(RoPE_type, 10000, 0.25, 4096, base_name + "k_rope");
         }
         if (cache_limit > 0) {
-            k_cache = KVCache(head_size / kv_head_size, cache_limit, base_name + "k_cache");
-            v_cache = KVCache(head_size / kv_head_size, cache_limit, base_name + "v_cache");
+            k_cache = KVCache(kv_head_size, attn_hidden_dim, head_size / kv_head_size, cache_limit, base_name + "k_cache");
+            v_cache = KVCache(kv_head_size, attn_hidden_dim, head_size / kv_head_size, cache_limit, base_name + "v_cache");
         }
         softmax = Softmax(DIMENSION, do_mask, base_name + "softmax");
         o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, false, base_name + names._o_proj_name);

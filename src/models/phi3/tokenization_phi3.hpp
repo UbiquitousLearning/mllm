@@ -140,6 +140,7 @@ public:
     std::pair<bool, std::string> postprocess(std::string &text) override {
         text = std::regex_replace(text, std::regex("▁"), " ");
         if (text == "<|end|>") return {false, ""};
+        if (text == "<0x0A>") return {false, ""};
         return {true, text};
     }
 

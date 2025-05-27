@@ -22,6 +22,8 @@ using namespace qnn;
 using namespace qnn::tools;
 
 namespace mllm {
+class Module;
+class Layer;
 
 enum class StatusCode {
     SUCCESS,
@@ -84,6 +86,15 @@ public:
     virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") override;
     virtual void onExecuteEnd(std::vector<shared_ptr<Tensor>> &outputs, const string &graph_name) override;
 
+    std::vector<Tensor> runFunc(
+        std::vector<std::string> out_names,
+        TensorFuncType type,
+        std::vector<float> float_args,
+        std::vector<std::shared_ptr<Tensor>> input_tensors,
+        bool in_place) override;
+    std::vector<Tensor> runLayer(Layer *layer, std::vector<Tensor> inputs, int N) override;
+    std::vector<Tensor> runForward(Module *module, std::vector<Tensor> inputs, std::vector<std::any> args) override;
+
     void freeGraphDataStructure(string graphName);
 
     void afterAllGraphsExecute();
@@ -104,7 +115,7 @@ private:
     qnn_wrapper_api::ModelError_t graphConfig();
 
     void registerOps() override;
-    void registerFuncs() override {};
+    void registerFuncs() override{};
 
     // @brief Print a message to STDERR then exit with a non-zero
     void reportError(const std::string &err);

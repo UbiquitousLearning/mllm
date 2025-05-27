@@ -61,6 +61,7 @@ public:
     ErrorCode execute(std::vector<std::shared_ptr<Tensor>> inputs, std::vector<std::shared_ptr<Tensor>> outputs) override;
     ErrorCode free(std::vector<std::shared_ptr<Tensor>> inputs, std::vector<std::shared_ptr<Tensor>> outputs) override;
     ErrorCode doExecute(std::vector<std::shared_ptr<Tensor>> inputs, std::vector<std::shared_ptr<Tensor>> outputs);
+    ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
     static int in_shape_old;
@@ -76,8 +77,7 @@ private:
     int original_max_position_embeddings_ = 32768;
     int in_shape = -1;
 
-    void
-    clearCache() override {
+    void clearCache() override {
         h_cnt_ = 0;
     }
 };

@@ -389,18 +389,19 @@ void mllm_gemv_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
     (void)ncols_interleaved;
     (void)blocklen;
 
-#if defined(__ARM_FEATURE_SVE)
-    if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
-               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
-                  "for optimal performance");
-    }
-#endif
-#if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
-    assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8())
-           && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 "
-              "quantization format for optimal performance");
-#elif defined(__ARM_NEON) && defined(__aarch64__)
+// #if defined(__ARM_FEATURE_SVE)
+//     if (svcntw() == 8) {
+//         assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+//                && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+//                   "for optimal performance");
+//     }
+// #endif
+// #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
+//     assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8())
+//            && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 "
+//               "quantization format for optimal performance");
+// #elif defined(__ARM_NEON) && defined(__aarch64__)
+#if defined(__ARM_NEON) && defined(__aarch64__)
     const void *b_ptr = vx;
     const void *a_ptr = vy;
     float *res_ptr = s;
@@ -514,18 +515,19 @@ void _mllm_gemv_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
     (void)blocklen;
     (void)bias;
 
-#if defined(__ARM_FEATURE_SVE)
-    if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
-               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
-                  "for optimal performance");
-    }
-#endif
-#if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
-    assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8())
-           && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 "
-              "quantization format for optimal performance");
-#elif defined(__ARM_NEON) && defined(__aarch64__)
+// #if defined(__ARM_FEATURE_SVE)
+//     if (svcntw() == 8) {
+//         assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+//                && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+//                   "for optimal performance");
+//     }
+// #endif
+// #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
+//     assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8())
+//            && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 "
+//               "quantization format for optimal performance");
+// #elif defined(__ARM_NEON) && defined(__aarch64__)
+#if defined(__ARM_NEON) && defined(__aarch64__)
     const void *b_ptr = vx;
     const void *a_ptr = vy;
     const void *bias_ptr = bias;
@@ -656,13 +658,13 @@ void mllm_gemv_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *
     (void)ncols_interleaved;
     (void)blocklen;
 
-#if defined(__ARM_FEATURE_SVE)
-    if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
-               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
-                  "for optimal performance");
-    }
-#endif
+// #if defined(__ARM_FEATURE_SVE)
+//     if (svcntw() == 8) {
+//         assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+//                && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+//                   "for optimal performance");
+//     }
+// #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
     const void *b_ptr = vx;
     const void *a_ptr = vy;
@@ -787,13 +789,13 @@ void _mllm_gemv_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
     (void)ncols_interleaved;
     (void)blocklen;
 
-#if defined(__ARM_FEATURE_SVE)
-    if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
-               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
-                  "for optimal performance");
-    }
-#endif
+// #if defined(__ARM_FEATURE_SVE)
+//     if (svcntw() == 8) {
+//         assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+//                && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+//                   "for optimal performance");
+//     }
+// #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
     const void *b_ptr = vx;
     const void *a_ptr = vy;
@@ -934,6 +936,7 @@ void mllm_gemv_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *
 
 #if defined(__ARM_FEATURE_SVE)
     if (svcntw() == 8) {
+        // if (true) {
         const void *b_ptr = vx;
         const void *a_ptr = vy;
         float *res_ptr = s;
@@ -997,17 +1000,18 @@ void mllm_gemv_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *
                                "z20", "z21", "z22", "z23", "z24", "z25", "z26", "z27", "z28", "z29",
                                "z30", "z31");
         return;
-    } else if (mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) {
-        assert((mllm_cpu_has_sve() && (svcntw() == 8))
-               && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the "
-                  "Q4_0_4_8 quantization format for optimal "
-                  "performance");
-    } else if (mllm_cpu_has_neon()) {
-        assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8())
-               && "__ARM_FEATURE_SVE for vector size of 256-bits and "
-                  "__ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
-                  "quantization format for optimal performance");
     }
+    // else if (mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) {
+    //     assert((mllm_cpu_has_sve() && (svcntw() == 8))
+    //            && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the "
+    //               "Q4_0_4_8 quantization format for optimal "
+    //               "performance");
+    // } else if (mllm_cpu_has_neon()) {
+    //     assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8())
+    //            && "__ARM_FEATURE_SVE for vector size of 256-bits and "
+    //               "__ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
+    //               "quantization format for optimal performance");
+    // }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
     assert(mllm_cpu_has_sve()
@@ -1076,7 +1080,8 @@ void _mllm_gemv_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
     (void)blocklen;
 
 #if defined(__ARM_FEATURE_SVE)
-    if (svcntw() == 8) {
+    // if (svcntw() == 8) {
+    if (true) {
         const void *b_ptr = vx;
         const void *a_ptr = vy;
         const void *bias_ptr = bias;
@@ -1147,17 +1152,19 @@ void _mllm_gemv_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
                                "z20", "z21", "z22", "z23", "z24", "z25", "z26", "z27", "z28", "z29",
                                "z30", "z31");
         return;
-    } else if (mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) {
-        assert((mllm_cpu_has_sve() && (svcntw() == 8))
-               && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the "
-                  "Q4_0_4_8 quantization format for optimal "
-                  "performance");
-    } else if (mllm_cpu_has_neon()) {
-        assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8())
-               && "__ARM_FEATURE_SVE for vector size of 256-bits and "
-                  "__ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
-                  "quantization format for optimal performance");
     }
+
+    // else if (mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) {
+    //     assert((mllm_cpu_has_sve() && (svcntw() == 8))
+    //            && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the "
+    //               "Q4_0_4_8 quantization format for optimal "
+    //               "performance");
+    // } else if (mllm_cpu_has_neon()) {
+    //     assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8())
+    //            && "__ARM_FEATURE_SVE for vector size of 256-bits and "
+    //               "__ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
+    //               "quantization format for optimal performance");
+    // }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
     assert(mllm_cpu_has_sve()
@@ -1239,13 +1246,13 @@ void mllm_gemm_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
     (void)ncols_interleaved;
     (void)blocklen;
 
-#if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_MATMUL_INT8)
-    if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
-               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
-                  "for optimal performance");
-    }
-#endif
+// #if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_MATMUL_INT8)
+//     if (svcntw() == 8) {
+//         assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+//                && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+//                   "for optimal performance");
+//     }
+// #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
     assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8())
            && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 "
@@ -1774,13 +1781,13 @@ void _mllm_gemm_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
     (void)ncols_interleaved;
     (void)blocklen;
 
-#if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_MATMUL_INT8)
-    if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
-               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
-                  "for optimal performance");
-    }
-#endif
+// #if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_MATMUL_INT8)
+//     if (svcntw() == 8) {
+//         assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+//                && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+//                   "for optimal performance");
+//     }
+// #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
     assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8())
            && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 "
@@ -2082,7 +2089,24 @@ void _mllm_gemm_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
         "fmla v1.4s, v29.4s, v20.4s\n"
         "bgt 3b\n"
         // --bias for tiled part, begin
-        "mov x20, %x[bias_ptr]\n"
+        // "mov x20, %x[bias_ptr]\n" // 将 bias_ptr 移动到 x21 寄存器
+
+        "ldr q28, [%x[bias_ptr], #0x0]\n"         // 从 bias_ptr 读取数据到 q28
+        "fadd v15.4s, v15.4s, v28.4s\n"           // 将 q28 加到 v15 上
+        "add %x[bias_ptr], %x[bias_ptr], #0x10\n" // 更新 bias_ptr，偏移到下一个位置
+
+        "ldr q28, [%x[bias_ptr], #0x0]\n"         // 从 bias_ptr 读取数据到 q28
+        "fadd v19.4s, v19.4s, v28.4s\n"           // 将 q28 加到 v19 上
+        "add %x[bias_ptr], %x[bias_ptr], #0x10\n" // 更新 bias_ptr，偏移到下一个位置
+
+        "ldr q28, [%x[bias_ptr], #0x0]\n"         // 从 bias_ptr 读取数据到 q28
+        "fadd v18.4s, v18.4s, v28.4s\n"           // 将 q28 加到 v18 上
+        "add %x[bias_ptr], %x[bias_ptr], #0x10\n" // 更新 bias_ptr，偏移到下一个位置
+
+        "ldr q28, [%x[bias_ptr], #0x0]\n"         // 从 bias_ptr 读取数据到 q28
+        "fadd v14.4s, v14.4s, v28.4s\n"           // 将 q28 加到 v14 上
+        "add %x[bias_ptr], %x[bias_ptr], #0x10\n" // 更新 bias_ptr，偏移到下一个位置
+
         // TODO find a correct register to get data from bias_ptr.
         // --bias for tiled part, end
         "mov x20, %x[res_ptr]\n"
@@ -2303,7 +2327,7 @@ void mllm_gemm_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *
                              const void *__restrict bias) {
     if (bias != nullptr) {
 #if defined(__ARM_NEON)
-        std::cout << "_mllm_gemm_q4_0_4x4_q8_0_bias not implemented";
+        std::cout << "_mllm_gemm_q4_0_4x8_q8_0_bias not implemented";
         abort();
 #endif
         _mllm_gemm_q4_0_4x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
@@ -2329,13 +2353,13 @@ void mllm_gemm_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *
     (void)ncols_interleaved;
     (void)blocklen;
 
-#if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_MATMUL_INT8)
-    if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
-               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
-                  "for optimal performance");
-    }
-#endif
+// #if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_MATMUL_INT8)
+//     if (svcntw() == 8) {
+//         assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+//                && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+//                   "for optimal performance");
+//     }
+// #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
     const void *b_ptr = vx;
     const void *a_ptr = vy;
@@ -2805,13 +2829,13 @@ void _mllm_gemm_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
     (void)ncols_interleaved;
     (void)blocklen;
 
-#if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_MATMUL_INT8)
-    if (svcntw() == 8) {
-        assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
-               && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
-                  "for optimal performance");
-    }
-#endif
+// #if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_MATMUL_INT8)
+//     if (svcntw() == 8) {
+//         assert(!(mllm_cpu_has_sve() && (svcntw() == 8))
+//                && "__ARM_FEATURE_SVE defined, use the Q4_0_8_8 quantization format "
+//                   "for optimal performance");
+//     }
+// #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
     const void *b_ptr = vx;
     const void *a_ptr = vy;
@@ -3268,7 +3292,7 @@ void mllm_gemm_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *
                              const void *__restrict bias) {
     if (bias != nullptr) {
 #if defined(__ARM_NEON)
-        std::cout << "_mllm_gemm_q4_0_4x4_q8_0_bias not implemented";
+        std::cout << "_mllm_gemm_q4_0_8x8_q8_0_bias not implemented";
         abort();
 #endif
         _mllm_gemm_q4_0_8x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
@@ -3295,7 +3319,8 @@ void mllm_gemm_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *
     (void)blocklen;
 
 #if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_MATMUL_INT8)
-    if (svcntw() == 8) {
+    // if (svcntw() == 8) {
+    if (true) {
         const void *b_ptr = vx;
         const void *a_ptr = vy;
         float *res_ptr = s;
@@ -3707,17 +3732,18 @@ void mllm_gemm_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *
                                "z13", "z14", "z15", "z16", "z17", "z18", "z19", "z20", "z21", "z22",
                                "z23", "z24", "z25", "z26", "z27", "z28", "z29", "z30", "z31");
         return;
-    } else if (mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) {
-        assert((mllm_cpu_has_sve() && (svcntw() == 8))
-               && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the "
-                  "Q4_0_4_8 quantization format for optimal "
-                  "performance");
-    } else if (mllm_cpu_has_neon()) {
-        assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8())
-               && "__ARM_FEATURE_SVE for vector size of 256-bits and "
-                  "__ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
-                  "quantization format for optimal performance");
     }
+    // else if (mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) {
+    //     assert((mllm_cpu_has_sve() && (svcntw() == 8))
+    //            && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the "
+    //               "Q4_0_4_8 quantization format for optimal "
+    //               "performance");
+    // } else if (mllm_cpu_has_neon()) {
+    //     assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8())
+    //            && "__ARM_FEATURE_SVE for vector size of 256-bits and "
+    //               "__ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
+    //               "quantization format for optimal performance");
+    // }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
     assert(mllm_cpu_has_sve()
@@ -3795,7 +3821,8 @@ void _mllm_gemm_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
     (void)blocklen;
 
 #if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_MATMUL_INT8)
-    if (svcntw() == 8) {
+    // if (svcntw() == 8) {
+    if (true) {
         const void *b_ptr = vx;
         const void *a_ptr = vy;
         const void *bias_ptr = bias;
@@ -4208,17 +4235,18 @@ void _mllm_gemm_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
                                "z13", "z14", "z15", "z16", "z17", "z18", "z19", "z20", "z21", "z22",
                                "z23", "z24", "z25", "z26", "z27", "z28", "z29", "z30", "z31");
         return;
-    } else if (mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) {
-        assert((mllm_cpu_has_sve() && (svcntw() == 8))
-               && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the "
-                  "Q4_0_4_8 quantization format for optimal "
-                  "performance");
-    } else if (mllm_cpu_has_neon()) {
-        assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8())
-               && "__ARM_FEATURE_SVE for vector size of 256-bits and "
-                  "__ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
-                  "quantization format for optimal performance");
     }
+    // else if (mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8()) {
+    //     assert((mllm_cpu_has_sve() && (svcntw() == 8))
+    //            && "__ARM_FEATURE_SVE for vector size of 256-bits not defined, use the "
+    //               "Q4_0_4_8 quantization format for optimal "
+    //               "performance");
+    // } else if (mllm_cpu_has_neon()) {
+    //     assert(((mllm_cpu_has_sve() && (svcntw() == 8)) || mllm_cpu_has_matmul_int8())
+    //            && "__ARM_FEATURE_SVE for vector size of 256-bits and "
+    //               "__ARM_FEATURE_MATMUL_INT8 not defined, use the Q4_0_4_4 "
+    //               "quantization format for optimal performance");
+    // }
 #endif
 #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
     assert(mllm_cpu_has_sve()

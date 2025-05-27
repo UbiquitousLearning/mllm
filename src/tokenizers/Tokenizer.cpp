@@ -153,10 +153,10 @@ string Tokenizer::detokenize(const vector<token_id_t> &tokens) {
                 result += " ";
             }
         }
-        if (token_id == TokenNl) {
-            result += "\n";
-            continue;
-        }
+        // if (token_id == TokenNl) {
+        //     result += "\n";
+        //     continue;
+        // }
         result += this->id_token_[token_id].token;
     }
     return result;
@@ -187,7 +187,7 @@ void Tokenizer::setSpecialToken(const string &bos, const string &eos, const stri
         }
     }
 }
-void Tokenizer::setSpecialTokenMap(std::unordered_map<token_t, token_id_t> special_tokens_map){
+void Tokenizer::setSpecialTokenMap(std::unordered_map<token_t, token_id_t> special_tokens_map) {
     for (auto &special_token : special_tokens_map) {
         auto token = special_token.first;
         auto token_id = special_token.second;

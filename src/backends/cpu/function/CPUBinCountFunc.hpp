@@ -40,7 +40,7 @@ class CPUbincountFunction : public TensorFunction {
     }
 
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         assert(args.empty());
         assert(inputs[0]->batch() == 1);
         assert(inputs[0]->sequence() == 1);
@@ -49,7 +49,7 @@ public:
         // outputs[0]->setDtype(inputs[0]->dtype()); // bincountk_values
         outputs[0]->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int size = inputs[0]->dimension();
         int max_val = 0;
         for (int i = 0; i < size; ++i) {
