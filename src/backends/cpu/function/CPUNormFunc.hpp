@@ -13,7 +13,7 @@ class Tensor;
 
 class CPUnormFunction : public TensorFunction {
 public:
-    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int L_n = (int)args[0];
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
         outputs[0]->setDtype(inputs[0]->dtype());

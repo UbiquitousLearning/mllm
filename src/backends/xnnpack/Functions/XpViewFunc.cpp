@@ -5,7 +5,7 @@
 
 namespace mllm::xnnpack {
 
-void XpViewFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
+void XpViewFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     int b = (int)args[0];
     int h = (int)args[1];
     int s = (int)args[2];

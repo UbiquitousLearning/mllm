@@ -62,7 +62,7 @@ class CPUmmFunction : public TensorFunction {
     }
 
 public:
-    void set(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+    void setUp(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         if (inputs[1]->chls()[SEQUENCE] != 3) {
             tranTensorChl(*inputs[1]);
         }
@@ -70,10 +70,11 @@ public:
             assert(inputs[0]->dimension() == inputs[1]->sequence());
         }
     }
-    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
-        // if (inputs[1]->chls()[SEQUENCE] != 3) {
-        //     tranTensorChl(*inputs[1]);
-        // }
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+        if (inputs[1]->chls()[SEQUENCE] != 3) {
+            tranTensorChl(*inputs[1]);
+            assert(inputs[1]->chls()[SEQUENCE] == 3);
+        }
         assert(inputs[0]->dimension() == inputs[1]->sequence());
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[1]->dimension());
         // outputs[0]->setDtype(inputs[0]->dtype());

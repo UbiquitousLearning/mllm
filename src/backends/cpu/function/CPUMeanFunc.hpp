@@ -12,7 +12,7 @@ class Tensor;
 
 class CPUmeanFunction : public TensorFunction {
 public:
-    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl axis = (Chl)args[0];
         int batch = inputs[0]->batch();
         int head = inputs[0]->head();

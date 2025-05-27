@@ -12,7 +12,7 @@ class Tensor;
 
 class CPUsplitFunction : public TensorFunction {
 public:
-    void set(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+    void setUp(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         // inputs[0]->shallowCopyFrom(outputs[0], false);
         int size = args.size();
         std::vector<int> each_dims;
@@ -80,7 +80,7 @@ public:
         }
         inputs[0]->addTensors(shared_outputs, split_dim);
     }
-    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         // auto aggregatedTensorsSize = inputs[0]->aggregatedTensors().size();
         // for (int i = 0; i < aggregatedTensorsSize; i++) {
         //     outputs[i] = inputs[0]->aggregatedTensors()[i].get();
@@ -152,10 +152,6 @@ public:
         //     inputs[0]->free();
         // }
         // inputs[0]->addTensors(shared_outputs, split_dim);
-        // //     for (const auto &output : outputs) {
-        // //         output->setDtype(MLLM_TYPE_F32);
-        // //         output->alloc();
-        // //     }
     }
     void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
     }

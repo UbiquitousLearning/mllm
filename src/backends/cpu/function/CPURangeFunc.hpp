@@ -13,7 +13,7 @@ class Tensor;
 
 class CPURangeFunction : public TensorFunction {
 public:
-    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int start = (int)args[0];
         int end = (int)args[1];
         outputs[0]->reshape(1, 1, end - start, 1);

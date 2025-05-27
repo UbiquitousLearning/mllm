@@ -15,7 +15,7 @@
 
 namespace mllm::xnnpack {
 
-void XpMatmulFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
+void XpMatmulFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     assert(inputs[0]->dimension() == inputs[1]->sequence());
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[1]->dimension());
     outputs[0]->setDtype(inputs[0]->dtype());

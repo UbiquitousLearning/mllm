@@ -43,19 +43,20 @@ inline std::pair<int, int> closestFactors(int n) {
 
 class Module {
 protected:
+    std::shared_ptr<LlmTextGenerator> text_generator_ = nullptr;
+
+public:
     double load_time_;
     int prefilling_token_size_ = 0;
     int decoding_token_size_ = 0;
     vector<double> inference_times_;
-    std::shared_ptr<LlmTextGenerator> text_generator_ = nullptr;
     BackendType device_ = BackendType::MLLM_CPU;
 
-public:
     map<string, shared_ptr<Tensor>> activation_tensors;
     map<string, int> activation_tensors_num;
     AbstructLoader *loader;
     bool doLoad = false;
-    // bool op_transposed_flag = false;
+    bool op_transposed_flag = false;
 
     static Module *llm_model_ptr;
     // tag to indicate the multi-chunk prefilling
@@ -136,7 +137,7 @@ public:
 
     void load(string path) {
         // create global loader and save to llm_model_ptr.loader as QNNBackend needs to load weights in runtime
-        loader = new ParamLoader(std::move(path), true);
+        loader = new ParamLoader(std::move(path), true); // TODO mmap
         load(*loader);
     }
     void load(AbstructLoader &param_loader) {
@@ -186,7 +187,7 @@ public:
     virtual vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) = 0;
 
     static int graphIdx;
-    string getUinqueName() {
+    string getUniqueName() {
         std::ostringstream oss;
         oss << "Module@" << idx;
         graphIdx++;
@@ -196,129 +197,11 @@ public:
     template <typename... Args>
     vector<Tensor> operator()(vector<Tensor> inputs, Args... args) {
         vector<std::any> anyArgs = convertArgsToAnyVector(args...);
-        // set static tmp_device to device_ to init layers' op
-        auto previoud_device = tmp_device;
-        Module::tmp_device = device_;
-        // Module Loading
-        if (llm_model_ptr && llm_model_ptr->doLoad) {
-            auto outputs = Forward(inputs, anyArgs);
-            // for inner module, set output tensors to GRAPH_OUTPUT
-            if (inputs[0].ttype() != TensorType::INPUT_TENSOR) { // XPUs' module should not be the outermost input tensor
-                for (auto &output : outputs) {
-                    inputs[0].module()->activation_tensors[output.name()]->setTtype(GRAPH_OUTPUT);
-                }
-            }
-            // set Module::tmp_device to previous device
-            Module::tmp_device = previoud_device;
-            return outputs;
+        auto backend = inputs.empty() ? Backend::global_backends[MLLM_CPU] : inputs[0].backend();
+        if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) {
+            backend = Backend::global_backends[MLLM_QNN];
         }
-        // if (false) {
-        //     inputs[0].setTtype(TensorType::INPUT_TENSOR);
-        // }
-        // Module setUp & execute
-        if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
-            if (prefilling_token_size_ == 0) { // first time init
-                prefilling_token_size_ = inputs[0].sequence();
-            } else if (decoding_token_size_ == 0) {
-                decoding_token_size_ = inputs[0].sequence();
-            }
-            for (int i = 0; i < inputs.size(); i++) {
-                auto &input = inputs[i];
-                input.setName("input" + std::to_string(i));
-                input.setTtype(TensorType::NORMAL_TENSOR);
-                activation_tensors[input.name()] = std::shared_ptr<Tensor>(&input, [](Tensor *) {});
-                activation_tensors[input.name()]->setName(input.name());
-                activation_tensors[input.name()]->setModule(this);
-            }
-            llm_model_ptr = this;
-            Tensor::tensor_status = TENSOR_STATIC_INIT;
-
-            uint64_t time_start = mllm_time_us();
-            // Forward(inputs, anyArgs);
-            // Tensor::tensor_status = TENSOR_STATIC_READY; // change to EAGER
-
-            auto output = Forward(inputs, anyArgs);
-            uint64_t time_end = mllm_time_us();
-
-            double inference_time_ = (time_end - time_start) / 1000.0F; // ms
-            inference_times_.push_back(inference_time_);
-
-            // llm_model_ptr->op_transposed_flag = true;
-            return output;
-        } else { // inner Modules
-            // offload according to the backends' info inited during loading
-            if (Tensor::tensor_status == TENSOR_STATIC_INIT && device_ != MLLM_CPU) { // backend specific module reshape & setup
-                if (Module::isMultiChunkPrefilling && !Module::isFirstChunk) {        // set to TENSOR_UNDEFINED and SKIP executing qnn layers
-                    Tensor::tensor_status = TENSOR_UNDEFINED;
-                    auto outputs = Forward(inputs, anyArgs);
-                    Tensor::tensor_status = TENSOR_STATIC_INIT;
-                    return outputs;
-                }
-                auto inputs_vec = vector<shared_ptr<Tensor>>();
-                auto outputs_vec = vector<shared_ptr<Tensor>>();
-                for (auto &i : inputs) {
-                    inputs_vec.push_back(inputs[0].module()->activation_tensors[i.name()]);
-                }
-
-                Backend::global_backends[device_]->onSetUpStart(inputs_vec, outputs_vec, getUinqueName());
-
-                // for xnnpack currently
-                for (auto &i : inputs) {
-                    i.uuid() = inputs[0].module()->activation_tensors[i.name()]->uuid();
-                }
-
-                auto outputs = Forward(inputs, anyArgs);
-                for (auto &output : outputs) {
-                    outputs_vec.push_back(inputs[0].module()->activation_tensors[output.name()]);
-                }
-                Backend::global_backends[device_]->onSetUpEnd(inputs_vec, outputs_vec, getUinqueName());
-
-                // for xnnpack currently
-                for (auto &o : outputs) {
-                    o.uuid() = outputs[0].module()->activation_tensors[o.name()]->uuid();
-                }
-
-                return outputs;
-            } else if (Tensor::tensor_status == TENSOR_STATIC_READY && device_ != MLLM_CPU) { // backend specific module execute
-                auto inputs_vec = vector<shared_ptr<Tensor>>();
-                auto outputs_vec = vector<shared_ptr<Tensor>>();
-                for (auto &i : inputs) {
-                    inputs_vec.push_back(inputs[0].module()->activation_tensors[i.name()]);
-                }
-
-                auto outputs = Forward(inputs, anyArgs);
-
-                for (auto &output : outputs) {
-                    outputs_vec.push_back(inputs[0].module()->activation_tensors[output.name()]);
-                }
-                Backend::global_backends[device_]->onExecuteStart(inputs_vec, outputs_vec, getUinqueName());
-
-                Backend::global_backends[device_]->onExecuteEnd(outputs_vec, getUinqueName());
-
-                // for xnnpack currently
-                for (auto &o : outputs) {
-                    o.uuid() = outputs[0].module()->activation_tensors[o.name()]->uuid();
-                    o.forceResetHostPointer(outputs[0].module()->activation_tensors[o.name()]->rawHostPtr());
-                }
-
-                return outputs;
-            } else if (Tensor::tensor_status == TENSOR_STATIC_TRACE && device_ != MLLM_CPU) {
-                auto inputs_vec = vector<shared_ptr<Tensor>>();
-                auto outputs_vec = vector<shared_ptr<Tensor>>();
-                for (auto &i : inputs) {
-                    inputs_vec.push_back(inputs[0].module()->activation_tensors[i.name()]);
-                }
-
-                auto outputs = Forward(inputs, anyArgs);
-
-                for (auto &output : outputs) {
-                    outputs_vec.push_back(inputs[0].module()->activation_tensors[output.name()]);
-                }
-                Tracer::addModule(inputs_vec, outputs_vec, getUinqueName());
-                return outputs;
-            }
-            return Forward(inputs, anyArgs);
-        }
+        return backend->runForward(this, inputs, anyArgs);
     }
 
     template <typename T, typename... Args>

@@ -30,7 +30,7 @@ class CPUargsortFunction : public TensorFunction {
     }
 
 public:
-    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         assert(args.empty());
         assert(inputs[0]->sequence() == 1);
         assert(inputs[0]->head() == 1);

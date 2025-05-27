@@ -166,7 +166,7 @@ public:
         if (type_ == CallableType::OP) {
             op->setUp(opInputs, opOutputs);
         } else {
-            tensorFunc->setup(tensorOutputs, tensorInputs, args);
+            tensorFunc->reshape(tensorOutputs, tensorInputs, args);
         }
     }
 

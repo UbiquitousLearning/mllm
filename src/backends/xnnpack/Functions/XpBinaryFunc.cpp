@@ -6,7 +6,7 @@
 
 namespace mllm::xnnpack {
 
-void XpBroadcastAddFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
+void XpBroadcastAddFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
@@ -46,7 +46,7 @@ void XpBroadcastAddFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<
     }
 }
 
-void XpBroadcastSubFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
+void XpBroadcastSubFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
@@ -86,7 +86,7 @@ void XpBroadcastSubFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<
     }
 }
 
-void XpBroadcastMulFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
+void XpBroadcastMulFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];

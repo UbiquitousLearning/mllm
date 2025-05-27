@@ -15,7 +15,7 @@ class Tensor;
 
 class CPUrepeatFunction : public TensorFunction {
 public:
-    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         assert(args.size() == 2);
         Chl dim = (Chl)args[0];
         int size = (int)args[1];

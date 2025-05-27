@@ -40,8 +40,6 @@ public:
     bool ready() {
         return init_;
     }
-    bool inited_loaded = false;
-    bool loaded_param = false;
     static map<string, string> layername_2_tensorname;
     static bool use_layername_2_tensorname;
 
@@ -102,15 +100,24 @@ public:
     }
 
 protected:
-    vector<Tensor> run(vector<Tensor> inputs, int N = 1);
-    vector<Tensor> runSta(vector<Tensor> inputs, int N = 1);
+    vector<Tensor> run(vector<Tensor> inputs, int N = 1) {
+        auto backend = inputs.empty() ? Backend::global_backends[MLLM_CPU] : inputs[0].backend();
+        if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) {
+            backend = Backend::global_backends[MLLM_QNN];
+        }
+        return backend->runLayer(this, inputs, N);
+    }
 
+public:
     std::string name_;
     Op *op_ = nullptr;
     Backend *backend_{};
     OpParam param_;
     bool init_ = false;
     int saved_list_idx;
+
+    bool inited_loaded = false;
+    bool loaded_param = false;
 };
 
 class Linear final : public Layer {

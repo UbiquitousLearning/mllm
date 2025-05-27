@@ -64,7 +64,12 @@ bool ParamLoader::load(mllm::Tensor *tensor) {
         // 确保 buffer_ 和 offsets_ 已经为 mmap 正确初始化
         if (!use_mmap_ || buffer_ == nullptr || offsets_.find(name) == offsets_.end()) {
             // 可以选择打印错误信息或返回 false
-            fprintf(stderr, "Error: mmap not initialized or tensor name not found for mmap.\n");
+            // TODO
+            // if (offsets_.find(name) == offsets_.end()) {
+            //     fprintf(stderr, "Tensor name '%s' not found in offsets.\n", name.c_str());
+            // } else {
+            //     fprintf(stderr, "Buffer is null or mmap not initialized.\n");
+            // }
             return false;
         }
         std::lock_guard<std::mutex> lock(mtx); // mmap 访问也可能需要同步，取决于使用场景

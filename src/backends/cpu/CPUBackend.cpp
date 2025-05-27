@@ -7,6 +7,7 @@
 #include "Types.hpp"
 #include "memory/SystemMemoryManager.hpp"
 #include <memory/MemoryPoolManager.hpp>
+#include "Layer.hpp"
 
 #include "op/CPUHeadLinear.hpp"
 #include "op/CPULinearInt8.hpp"
@@ -233,4 +234,333 @@ void CPUBackend::registerFuncs() {
 
 int CPUBackend::cpu_threads = 4;
 
+std::vector<Tensor> CPUBackend::runFunc(
+    std::vector<std::string> out_names,
+    TensorFuncType type,
+    std::vector<float> float_args,
+    std::vector<std::shared_ptr<Tensor>> input_tensors,
+    bool in_place) {
+    Module *module = input_tensors.empty() ? Module::llm_model_ptr : input_tensors[0]->module();
+    auto &activation_tensors = module->activation_tensors;
+    assert(module != nullptr);
+    Backend *backend = input_tensors.empty() ? Backend::global_backends[MLLM_CPU] : input_tensors[0]->backend();
+    TensorFunction *func = backend->funcCreate(type);
+
+    if (module->doLoad) {
+        auto &activation_tensors_num = module->activation_tensors_num;
+        for (const auto &out_name : out_names) {
+            if (activation_tensors.find(out_name) == activation_tensors.end()) {
+                activation_tensors[out_name] = std::make_shared<Tensor>(backend);
+                activation_tensors[out_name]->setName(out_name);
+                activation_tensors[out_name]->setModule(module);
+                activation_tensors_num[out_name] = 0;
+            }
+        }
+        std::vector<std::shared_ptr<Tensor>> inPtrs;
+        for (auto &t : input_tensors) inPtrs.push_back(activation_tensors[t->name()]);
+        std::vector<std::shared_ptr<Tensor>> outPtrs;
+        for (auto &name : out_names) outPtrs.push_back(activation_tensors[name]);
+        func->setUp(outPtrs, inPtrs, float_args);
+        std::vector<Tensor> results;
+        for (auto &name : out_names) results.push_back(*activation_tensors[name]);
+        return results;
+    }
+
+#ifdef DEBUGOPTIME
+    auto start_t = mllm_time_us();
+#endif
+    std::vector<std::shared_ptr<Tensor>> out_tensors;
+    if (in_place) {
+        for (size_t i = 0; i < input_tensors.size() && i < out_names.size(); ++i) {
+            input_tensors[i]->setName(out_names[i]);
+            out_tensors.push_back(input_tensors[i]);
+        }
+    } else {
+        if (input_tensors.size() == 1 && !input_tensors[0]->aggregatedTensors().empty()) {
+            auto aggregatedTensorsSize = input_tensors[0]->aggregatedTensors().size();
+            for (int i = 0; i < aggregatedTensorsSize; i++) {
+                out_tensors.push_back(input_tensors[0]->aggregatedTensors()[i]);
+            }
+        } else {
+            for (auto out_name : out_names) {
+                auto out_tensor = std::make_shared<Tensor>(backend);
+                out_tensor->setName(out_name);
+                out_tensor->setModule(module);
+                auto it = activation_tensors.find(out_name);
+                if (it != activation_tensors.end() && out_tensor->name().find("-transpose") == std::string::npos
+                    && out_tensor->ctype() != it->second->ctype()) {
+                    out_tensor->chls() = it->second->chls();
+                    out_tensor->setCtype(it->second->ctype());
+                }
+                out_tensors.push_back(out_tensor);
+            }
+        }
+    }
+    func->reshape(out_tensors, input_tensors, float_args);
+    for (auto &out_tensor : out_tensors) {
+        if (activation_tensors.find(out_tensor->name()) != activation_tensors.end()
+            && !activation_tensors[out_tensor->name()]->aggregatedTensors().empty()) {
+            // 存在aggregatedTensors
+            vector<shared_ptr<Tensor>> shared_outputs = {};
+            auto split_dim = activation_tensors[out_tensor->name()]->aggregatedDim();
+            for (int id = 0; id < activation_tensors[out_tensor->name()]->aggregatedTensors().size(); id++) {
+                auto shared_ot = std::make_shared<Tensor>(backend);
+                shared_ot->setName(out_tensor->name() + ".split-" + std::to_string(id));
+                shared_ot->setModule(module);
+                auto ot = activation_tensors[out_tensor->name()]->aggregatedTensors()[id];
+                shared_ot->setCtype(ot->ctype());
+                switch (split_dim) {
+                case Chl::HEAD: {
+                    shared_ot->reshape(out_tensor->batch(), ot->head(), out_tensor->sequence(), out_tensor->dimension());
+                    break;
+                }
+                case Chl::SEQUENCE: {
+                    shared_ot->reshape(out_tensor->batch(), out_tensor->head(), ot->sequence(), out_tensor->dimension());
+                    break;
+                }
+                case Chl::DIMENSION: {
+                    shared_ot->reshape(out_tensor->batch(), out_tensor->head(), out_tensor->sequence(), ot->dimension());
+                    break;
+                }
+                case Chl::D_HD:
+                case Chl::HD: {
+                    shared_ot->reshape(out_tensor->batch(), ot->head(), out_tensor->sequence(), ot->dimension());
+                    break;
+                }
+                default: {
+                    break;
+                }
+                }
+                if (activation_tensors[shared_ot->name()]->masterTensor() != nullptr
+                    && activation_tensors[shared_ot->name()]->masterTensor()->name().find("Cache") != std::string::npos) {
+                    auto cache_seq_len_ = activation_tensors[shared_ot->name()]->shapeOffset()[2];
+                    if (shared_ot->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
+                        cache_seq_len_ = activation_tensors[shared_ot->name()]->masterTensor()->cache_seq_len_;
+                    }
+                    shared_ot->setDtype(activation_tensors[shared_ot->name()]->masterTensor()->dtype());
+                    // masterTensor() 是Cache所以shape没有问题
+                    shared_ot->shallowCopyFrom(activation_tensors[shared_ot->name()]->masterTensor(), false, {0, 0, cache_seq_len_, 0});
+                } else {
+                    shared_ot->alloc();
+                }
+                shared_outputs.push_back(shared_ot);
+            }
+            out_tensor->addTensors(shared_outputs, split_dim);
+        } else if (activation_tensors.find(out_tensor->name()) != activation_tensors.end()
+                   && activation_tensors[out_tensor->name()]->masterTensor() != nullptr
+                   && activation_tensors[out_tensor->name()]->masterTensor()->name().find("Cache") != std::string::npos) {
+            // output_tensor的master是KVCache
+            auto cache_seq_len_ = activation_tensors[out_tensor->name()]->shapeOffset()[2];
+            if (out_tensor->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
+                cache_seq_len_ = activation_tensors[out_tensor->name()]->masterTensor()->cache_seq_len_;
+            }
+            out_tensor->setDtype(activation_tensors[out_tensor->name()]->masterTensor()->dtype());
+            out_tensor->shallowCopyFrom(activation_tensors[out_tensor->name()]->masterTensor(), false, {0, 0, cache_seq_len_, 0});
+        } else {
+            out_tensor->alloc();
+        }
+    }
+    func->execute(out_tensors, input_tensors, float_args);
+#ifdef DEBUGOPTIME
+    auto end_t = mllm_time_us();
+    std::cout << out_names[0] << " |  time: " << (end_t - start_t) / 1000.0F << "ms" << std::endl;
+#endif
+    vector<Tensor> results;
+    for (const auto &out_tensor : out_tensors) { results.push_back(*out_tensor); }
+    return results;
+}
+
+std::vector<Tensor> CPUBackend::runLayer(Layer *layer, std::vector<Tensor> inputs, int N) {
+    Module *module = inputs.empty() ? Module::llm_model_ptr : inputs[0].module();
+    map<string, shared_ptr<Tensor>> &activation_tensors = module->activation_tensors;
+    bool do_init = false;
+    if (module->doLoad || !layer->inited_loaded) {
+        // set backend to current module device and try to create op
+        // use Module::tmp_device only when creating the op as the recersive module backend only handled in load and init stage
+        layer->backend_ = Backend::global_backends[MLLM_CPU];
+        do_init = !layer->inited_loaded;
+        if (layer->op_ == nullptr) {
+            layer->op_ = layer->backend_->opCreate(layer->param_, layer->name_);
+        }
+        if (module->doLoad) {
+            layer->op_->load(*module->loader);
+            layer->inited_loaded = true;
+        } else if (layer->loaded_param) {
+            layer->inited_loaded = layer->loaded_param;
+        } else {
+            if (!layer->inited_loaded) {
+                auto empty_loader = new ParamLoader("");
+                layer->op_->load(*empty_loader);
+                layer->inited_loaded = true;
+            }
+        }
+        vector<string> out_names = {};
+        int count = (N > 1) ? N : 1;
+        for (int i = 0; i < count; ++i) {
+            std::string out_name = (N > 1) ? "out-" + layer->op_->name() + "-" + std::to_string(i) : "out-" + layer->op_->name();
+            out_names.push_back(out_name);
+            if (activation_tensors.find(out_name) == activation_tensors.end()) {
+                activation_tensors[out_name] = std::make_shared<Tensor>(layer->backend_);
+                activation_tensors[out_name]->setName(out_name);
+                activation_tensors[out_name]->setModule(module);
+            }
+        }
+        if (module->doLoad) {
+            // input_tensors
+            vector<shared_ptr<Tensor>> inPtrs;
+            for (auto &input : inputs) {
+                inPtrs.push_back(input.shouldInGraphs() ? activation_tensors[input.name()] : std::shared_ptr<Tensor>(&input, [](Tensor *) {}));
+            }
+            // output_tensors
+            vector<shared_ptr<Tensor>> outPtrs = {};
+            for (auto &name : out_names) outPtrs.push_back(activation_tensors[name]);
+            layer->op_->setUp(inPtrs, outPtrs);
+            vector<Tensor> results = {};
+            for (auto &name : out_names) results.push_back(*activation_tensors[name]);
+            return results;
+        }
+    }
+    // NEW START
+
+#ifdef DEBUGOPTIME
+    uint64_t time_start = mllm_time_us();
+#endif
+    vector<shared_ptr<Tensor>> input_tensors;
+    for (auto &input : inputs) {
+        input_tensors.push_back(std::shared_ptr<Tensor>(&input, [](Tensor *) {}));
+    }
+    vector<shared_ptr<Tensor>> out_tensors;
+    if (input_tensors.size() == 1 && !input_tensors[0]->aggregatedTensors().empty()) {
+        auto aggregatedTensorsSize = input_tensors[0]->aggregatedTensors().size();
+        for (int i = 0; i < aggregatedTensorsSize; i++) {
+            out_tensors.push_back(input_tensors[0]->aggregatedTensors()[i]);
+        }
+    } else {
+        int count = (N > 1) ? N : 1;
+        for (int i = 0; i < count; ++i) {
+            std::string tensor_name = (N > 1) ? "out-" + layer->op_->name() + "-" + std::to_string(i) : "out-" + layer->op_->name();
+            auto out_tensor = std::make_shared<Tensor>(layer->backend_);
+            out_tensor->setName(tensor_name);
+            out_tensor->setModule(module);
+            if (out_tensor->name().find("-transpose") == std::string::npos
+                && out_tensor->ctype() != activation_tensors.at(out_tensor->name())->ctype()) {
+                out_tensor->chls() = activation_tensors.at(out_tensor->name())->chls();
+                out_tensor->setCtype(activation_tensors.at(out_tensor->name())->ctype());
+            }
+            out_tensors.push_back(out_tensor);
+        }
+    }
+    // 直接使用 out_tensors 进行 reshape
+    layer->op_->reshape(input_tensors, out_tensors);
+    // 直接使用 out_tensors 进行 alloc
+    for (auto &out_tensor : out_tensors) {
+        if (activation_tensors.find(out_tensor->name()) != activation_tensors.end()
+            && !activation_tensors[out_tensor->name()]->aggregatedTensors().empty()) {
+            // 存在aggregatedTensors
+            vector<shared_ptr<Tensor>> shared_outputs = {};
+            auto split_dim = activation_tensors[out_tensor->name()]->aggregatedDim();
+            for (int id = 0; id < activation_tensors[out_tensor->name()]->aggregatedTensors().size(); id++) {
+                auto shared_ot = std::make_shared<Tensor>(layer->backend_);
+                shared_ot->setName(out_tensor->name() + ".split-" + std::to_string(id));
+                shared_ot->setModule(module);
+                auto ot = activation_tensors[out_tensor->name()]->aggregatedTensors()[id];
+                shared_ot->setCtype(ot->ctype());
+                switch (split_dim) {
+                case Chl::HEAD: {
+                    shared_ot->reshape(out_tensor->batch(), ot->head(), out_tensor->sequence(), out_tensor->dimension());
+                    break;
+                }
+                case Chl::SEQUENCE: {
+                    shared_ot->reshape(out_tensor->batch(), out_tensor->head(), ot->sequence(), out_tensor->dimension());
+                    break;
+                }
+                case Chl::DIMENSION: {
+                    shared_ot->reshape(out_tensor->batch(), out_tensor->head(), out_tensor->sequence(), ot->dimension());
+                    break;
+                }
+                case Chl::D_HD:
+                case Chl::HD: {
+                    shared_ot->reshape(out_tensor->batch(), ot->head(), out_tensor->sequence(), ot->dimension());
+                    break;
+                }
+                default: {
+                    break;
+                }
+                }
+                if (activation_tensors[shared_ot->name()]->masterTensor() != nullptr
+                    && activation_tensors[shared_ot->name()]->masterTensor()->name().find("Cache") != std::string::npos) {
+                    auto cache_seq_len_ = activation_tensors[shared_ot->name()]->shapeOffset()[2];
+                    if (shared_ot->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
+                        cache_seq_len_ = activation_tensors[shared_ot->name()]->masterTensor()->cache_seq_len_;
+                    }
+                    shared_ot->setDtype(activation_tensors[shared_ot->name()]->masterTensor()->dtype());
+                    // masterTensor() 是Cache所以shape没有问题
+                    shared_ot->shallowCopyFrom(activation_tensors[shared_ot->name()]->masterTensor(), false, {0, 0, cache_seq_len_, 0});
+                } else {
+                    shared_ot->alloc();
+                }
+                shared_outputs.push_back(shared_ot);
+            }
+            out_tensor->addTensors(shared_outputs, split_dim);
+        } else if (activation_tensors.find(out_tensor->name()) != activation_tensors.end()
+                   && activation_tensors[out_tensor->name()]->masterTensor() != nullptr
+                   && activation_tensors[out_tensor->name()]->masterTensor()->name().find("Cache") != std::string::npos) {
+            // output_tensor的master是KVCache
+            auto cache_seq_len_ = activation_tensors[out_tensor->name()]->shapeOffset()[2];
+            if (out_tensor->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
+                cache_seq_len_ = activation_tensors[out_tensor->name()]->masterTensor()->cache_seq_len_;
+            }
+            out_tensor->setDtype(activation_tensors[out_tensor->name()]->masterTensor()->dtype());
+            out_tensor->shallowCopyFrom(activation_tensors[out_tensors[0]->name()]->masterTensor(), false, {0, 0, cache_seq_len_, 0});
+        } else {
+            out_tensor->setDtype(MLLM_TYPE_F32);
+            out_tensor->alloc();
+        }
+    }
+    // 直接使用 out_tensors 进行 execute
+    layer->op_->execute(input_tensors, out_tensors);
+
+#ifdef DEBUGOPTIME
+    uint64_t time_end = mllm_time_us();
+    double inference_time_ = (time_end - time_start) / 1000.0F; // ms
+    std::cout << op_->name() << " | time: " << inference_time_ << "ms" << std::endl;
+#endif
+    // 将 shared_ptr<Tensor> 转换为 Tensor 返回
+    vector<Tensor> results;
+    for (const auto &out_tensor : out_tensors) { results.push_back(*out_tensor); }
+    return results;
+}
+std::vector<Tensor> CPUBackend::runForward(Module *module, std::vector<Tensor> inputs, std::vector<std::any> args) {
+    if (mllm::Module::llm_model_ptr && mllm::Module::llm_model_ptr->doLoad) {
+        auto outputs = module->Forward(inputs, args);
+        return outputs;
+    }
+    uint64_t time_start, time_end;
+    bool ouilter_flag = (inputs[0].ttype() == TensorType::INPUT_TENSOR);
+    if (ouilter_flag) {
+        for (int i = 0; i < inputs.size(); i++) {
+            auto &input = inputs[i];
+            input.setModule(module);
+            input.setTtype(TensorType::NORMAL_TENSOR);
+        }
+        mllm::Module::llm_model_ptr = module;
+        if (module->prefilling_token_size_ == 0) { // first time init
+            module->prefilling_token_size_ = inputs[0].sequence();
+        } else if (module->decoding_token_size_ == 0) {
+            module->decoding_token_size_ = inputs[0].sequence();
+        }
+        time_start = mllm_time_us();
+    }
+
+    // Module setUp & execute
+    auto output = module->Forward(inputs, args);
+
+    if (ouilter_flag) {
+        time_end = mllm_time_us();
+        double inference_time_ = (time_end - time_start) / 1000.0F; // ms
+        module->inference_times_.push_back(inference_time_);
+        mllm::Module::llm_model_ptr->op_transposed_flag = true;
+    }
+    return output;
+}
 } // namespace mllm

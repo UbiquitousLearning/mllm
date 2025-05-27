@@ -13,7 +13,7 @@ class Tensor;
 
 class CPUIndexPutFunction : public TensorFunction {
 public:
-    void set(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+    void setUp(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         bool accumulate = (bool)args[0];
         if (!accumulate) {
             if (inputs[0]->masterTensor() == nullptr) {
@@ -23,7 +23,7 @@ public:
             inputs[0]->shallowCopyFrom(outputs[0].get(), false);
         }
     }
-    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         bool accumulate = (bool)args[0];
         if (inputs[1]->batch() == 0) {
             outputs[0]->reshape(inputs[0]->batch(), 1, inputs[0]->sequence(), inputs[0]->dimension());
@@ -48,7 +48,7 @@ public:
         int replace_size = src_input->batch();
         int seq = origin_s - replace_size + replace_size * replace_s;
         if (!accumulate) {
-            // inputs[0]->reshape(dest_input->batch(), dest_input->head(), dest_input->sequence(), dest_input->dimension()); // 1, 1, 595, 4096
+            outputs[0]->reshape(dest_input->batch(), dest_input->head(), dest_input->sequence(), dest_input->dimension()); // 1, 1, 595, 4096
         } else {
             outputs[0]->reshape(dest_input->batch(), dest_input->head(), seq, dest_input->dimension()); // 1, 1, 595, 4096
         }

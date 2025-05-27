@@ -12,14 +12,14 @@ class Tensor;
 
 class CPUFuyuGatherEmbdFunc : public TensorFunction {
 public:
-    void set(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+    void setUp(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         if (inputs[0]->masterTensor() == nullptr) {
             inputs[0]->free();
         }
         outputs[0]->alloc();
         inputs[0]->shallowCopyFrom(outputs[0].get(), false);
     }
-    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         assert(inputs.size() == 3);
         // assert(outputs.size() == 1);
         // if (inputs[1]->batch() == 0) {

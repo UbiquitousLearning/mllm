@@ -14,36 +14,38 @@ class Tensor;
 
 class CPUcatFunction : public TensorFunction {
 public:
-    void set(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+    void setUp(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl axis = (Chl)args[0];
-        int expd_batch_ = inputs[0]->batch();
-        for (int ii = 0; ii < inputs.size(); ++ii) {
-            auto input = inputs[ii];
-            if (input->batch() > expd_batch_) {
-                expd_batch_ = input->batch();
-            }
-        }
-        int dim_b = expd_batch_;
-        int dim_h = inputs[0]->head();
-        int dim_s = inputs[0]->sequence();
-        int dim_d = inputs[0]->dimension();
-        int sizes[] = {0, 0, 0, 0};
-        Chl axes[] = {BATCH, HEAD, SEQUENCE, DIMENSION};
-        int *dims[] = {&dim_b, &dim_h, &dim_s, &dim_d};
-        for (int i = 0; i < 4; i++) {
-            if (axis == axes[i]) {
-                for (auto input : inputs) {
-                    sizes[i] += (i == 0) ? input->batch() : (i == 1) ? input->head() :
-                                                        (i == 2)     ? input->sequence() :
-                                                                       input->dimension();
+        if (outputs[0]->shape().empty()) {
+            int expd_batch_ = inputs[0]->batch();
+            for (int ii = 0; ii < inputs.size(); ++ii) {
+                auto input = inputs[ii];
+                if (input->batch() > expd_batch_) {
+                    expd_batch_ = input->batch();
                 }
-                *dims[i] = sizes[i];
-                break;
             }
+            int dim_b = expd_batch_;
+            int dim_h = inputs[0]->head();
+            int dim_s = inputs[0]->sequence();
+            int dim_d = inputs[0]->dimension();
+            int sizes[] = {0, 0, 0, 0};
+            Chl axes[] = {BATCH, HEAD, SEQUENCE, DIMENSION};
+            int *dims[] = {&dim_b, &dim_h, &dim_s, &dim_d};
+            for (int i = 0; i < 4; i++) {
+                if (axis == axes[i]) {
+                    for (auto input : inputs) {
+                        sizes[i] += (i == 0) ? input->batch() : (i == 1) ? input->head() :
+                                                            (i == 2)     ? input->sequence() :
+                                                                           input->dimension();
+                    }
+                    *dims[i] = sizes[i];
+                    break;
+                }
+            }
+            outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
+            outputs[0]->setDtype(inputs[0]->dtype());
+            outputs[0]->alloc();
         }
-        outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
-        outputs[0]->setDtype(inputs[0]->dtype());
-        outputs[0]->alloc();
         if (axis == HEAD) {
             int cbatch = 0;
             int chead = 0;
@@ -114,7 +116,7 @@ public:
         }
     }
 
-    void setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl axis = (Chl)args[0];
         int expd_batch_ = inputs[0]->batch();
         for (int ii = 0; ii < inputs.size(); ++ii) {
@@ -147,35 +149,6 @@ public:
             outputs[0]->alloc();
         }
         /*
-        Chl axis = (Chl)args[0];
-        int expd_batch_ = inputs[0]->batch();
-        for (int ii = 0; ii < inputs.size(); ++ii) {
-            auto input = inputs[ii];
-            if (input->batch() > expd_batch_) {
-                expd_batch_ = input->batch();
-            }
-        }
-        int dim_b = expd_batch_;
-        int dim_h = inputs[0]->head();
-        int dim_s = inputs[0]->sequence();
-        int dim_d = inputs[0]->dimension();
-        int sizes[] = {0, 0, 0, 0};
-        Chl axes[] = {BATCH, HEAD, SEQUENCE, DIMENSION};
-        int *dims[] = {&dim_b, &dim_h, &dim_s, &dim_d};
-        for (int i = 0; i < 4; i++) {
-            if (axis == axes[i]) {
-                for (auto input : inputs) {
-                    sizes[i] += (i == 0) ? input->batch() : (i == 1) ? input->head() :
-                                                        (i == 2)     ? input->sequence() :
-                                                                       input->dimension();
-                }
-                *dims[i] = sizes[i];
-                break;
-            }
-        }
-        outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
-        outputs[0]->setDtype(inputs[0]->dtype());
-        outputs[0]->alloc();
         if (axis == HEAD){
             int cbatch = 0;
             int chead = 0;

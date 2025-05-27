@@ -4,7 +4,7 @@
 
 namespace mllm::xnnpack {
 
-void XpTransposeFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
+void XpTransposeFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     Chl axis0_ = (Chl)args[0];
     Chl axis1_ = (Chl)args[1];
 
