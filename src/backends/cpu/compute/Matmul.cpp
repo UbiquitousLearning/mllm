@@ -5,8 +5,11 @@
 #include "Matmul.hpp"
 #include "Types.hpp"
 #include "VecDotType.hpp"
-#include "SGEMM.hpp"
+#include "LlamafileSGEMM.hpp"
 #include <cassert>
+#include <iostream>
+#include "Arithmetic.hpp"
+#include "SMEGEMM.hpp"
 
 #ifdef __ARM_NEON
 #include <arm_neon.h>
@@ -23,6 +26,73 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
 
     auto src0_dtype = src0->dtype();
     auto src1_dtype = src1->dtype();
+    auto dst_dtype = dst->dtype();
+
+    // ----------- BEGIN SME Path Check -----------
+#if defined(__ARM_FEATURE_SME)
+    if (src0->batch() == 1 && src0->head() == 1 && src1->batch() == 1 && src1->head() == 1 && dst->batch() == 1 && dst->head() == 1 && // Ensure dst also expects B=1, H=1
+        src1->ctype() == BSHD && dst->ctype() == BSHD && dst_dtype == MLLM_TYPE_F32) {
+        // Calculate base pointers for b=0, h=0
+        // Assuming blck_size is 1 for F32/F16, so division by blck_size is not strictly needed here
+        // but kept for consistency if it could be > 1 for some packed types.
+        const void *p_src0_base = (const char *)src0->rawHostPtr() + src0->offset(0, 0, 0, 0) * type_size(src0_dtype) / blck_size(src0_dtype);
+        const void *p_src1_base = (const char *)src1->rawHostPtr() + src1->offset(0, 0, 0, 0) * type_size(src1_dtype) / blck_size(src1_dtype);
+        float *p_dst_base = (float *)((char *)dst->rawHostPtr() + dst->offset(0, 0, 0, 0) * type_size(dst_dtype) / blck_size(dst_dtype));
+
+        // Leading dimensions (number of columns for row-major)
+        // For A (src0) M x K: lda = K
+        // For B (src1, which is W) K x N: ldb = N (cols of W)
+        // For C (dst) M x N: ldc = N
+        int lda = K;
+        int ldb = N; // src1 (W) has N columns
+        int ldc = N;
+
+        bool sme_path_taken = false;
+
+        if (src0_dtype == MLLM_TYPE_F32 && src1_dtype == MLLM_TYPE_F32) {
+            // Call SME F32 x F32^T -> F32
+            sme_gemm_f32f32_f32(
+                static_cast<const float *>(p_src0_base),
+                static_cast<const float *>(p_src1_base),
+                p_dst_base,
+                M, K, N, lda, ldb, ldc);
+            sme_path_taken = true;
+        } else if (src0_dtype == MLLM_TYPE_F16 && src1_dtype == MLLM_TYPE_F16) {
+#if MLLM_FP16_SUPPORTED // Ensure mllm_fp16_t is usable
+            // Call SME F16 x F16^T -> F32
+            sme_gemm_f16f16_f32(
+                static_cast<const mllm_fp16_t *>(p_src0_base),
+                static_cast<const mllm_fp16_t *>(p_src1_base),
+                p_dst_base,
+                M, K, N, lda, ldb, ldc);
+            sme_path_taken = true;
+#else
+// std::cerr << "Warning: MLLM_TYPE_F16 SME path requested but mllm_fp16_t support is limited/dummy." << std::endl;
+#endif
+        }
+
+        if (sme_path_taken) {
+            if (support_bias && bias != nullptr) {
+// Bias addition: Iterating through the single batch/head/sequence
+// Assuming bias is [1,1,1,N] or compatible and needs to be added to each M row of C.
+// The existing bias logic seems to add bias[0,0,0,n] to C[b,h,s,n].
+// For B=1,H=1, this means C[0,0,s,n] += bias[0,0,0,n].
+// This effectively adds the bias vector to each row of the computed C matrix.
+// This can be parallelized if M is large.
+#pragma omp parallel for num_threads(thread_count)
+                for (int m_idx = 0; m_idx < M; ++m_idx) {
+                    mllm_add_fp32(dst->ptrAt<float>(0, 0, m_idx, 0),
+                                  bias->ptrAt<float>(0, 0, 0, 0), // Assuming bias is [1,1,1,N]
+                                  dst->ptrAt<float>(0, 0, m_idx, 0),
+                                  N); // N is dst->dimension() in this context if dst is M seq, N dim
+                }
+            }
+            return MLLM_NO_ERROR;
+        }
+    }
+#endif // __ARM_FEATURE_SME
+    // ----------- END SME Path Check -----------
+
     auto vec_dot_type = type_traits[src1_dtype].vec_dot_type;
     auto vec_dot = type_traits[src1_dtype].vec_dot;
     auto x_to_vec_dot_type = type_traits[vec_dot_type].from_float;
@@ -41,7 +111,7 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     int ld_src0 = src0->sequenceSkipDim();
     int ld_dst = dst->sequenceSkipDim();
     if (check_llamafile_sgemm(N, M, K / blck_size(src0->dtype()), src1->dtype(), src0->dtype(), dst->dtype(), ld_src1 / src1_blck_size, ld_src0 / src0_blck_size, ld_dst / blck_size(dst->dtype()))
-        && dst->aggregatedTensors().empty()) {
+        && dst->ctype() == BSHD && dst->aggregatedTensors().empty()) {
         int is_0 = (src1->batch() == 1 && src1->head() == 1 && src1->batch() != src0->batch()) ? 0 : 1;
 #pragma omp parallel for collapse(3) num_threads(thread_count)
         for (int64_t b = 0; b < dst->batch(); b++) {
@@ -184,8 +254,7 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
                          (char *)src1->rawHostPtr()
                              + src1->offset(0, 0, seq_start, 0) * src1_type_size / src1_blck_size,
                          (char *)src0->rawHostPtr(), M - M % 4, N / nth,
-                         /*bias=*/bias->hostPtr<float>()
-                             + bias->offset(/*b=*/0, /*h=*/0, /*s=*/0, /*d=*/seq_start));
+                         /*bias=*/nullptr); // bias->hostPtr<float>()+ bias->offset(/*b=*/0, /*h=*/0, /*s=*/0, /*d=*/seq_start)
                     i_processed = M - M % 4;
                 }
                 for (int iter = i_processed; iter < M; iter++) { // M-M%4
@@ -194,9 +263,16 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
                              + src1->offset(0, 0, seq_start, 0) * src1_type_size / src1_blck_size,
                          (char *)src0->rawHostPtr()
                              + src0->offset(0, 0, iter, 0) * src0_type_size / src0_blck_size,
-                         1, N / nth,
-                         /*bias=*/bias->hostPtr<float>()
-                             + bias->offset(/*b=*/0, /*h=*/0, /*s=*/0, /*d=*/seq_start));
+                         1, N / nth, nullptr);
+                }
+            }
+#pragma omp parallel for collapse(3) num_threads(thread_count)
+            for (int b = 0; b < dst->batch(); b++) {
+                for (int h = 0; h < dst->head(); h++) {
+                    for (int s = 0; s < dst->sequence(); s++) {
+                        mllm_add_fp32(dst->ptrAt<float>(b, h, s, 0), bias->ptrAt<float>(0, 0, 0, 0),
+                                      dst->ptrAt<float>(b, h, s, 0), dst->dimension());
+                    }
                 }
             }
         }

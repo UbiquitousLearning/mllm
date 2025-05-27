@@ -71,7 +71,17 @@ enum DataType {
     MLLM_TYPE_Q4_0_4_4 = 19,
     MLLM_TYPE_Q4_0_4_8 = 20,
     MLLM_TYPE_Q4_0_8_8 = 21,
-    MLLM_TYPE_Q8_0_4_4,
+    MLLM_TYPE_Q8_0_4_4 = 22,
+
+    MLLM_TYPE_Q3_K = 23, //
+    MLLM_TYPE_Q2_K = 24,
+    MLLM_TYPE_Q1_K = 25,    //
+    MLLM_TYPE_IQ2_XXS = 26, //
+    MLLM_TYPE_IQ2_XS = 27,  //
+    MLLM_TYPE_IQ1_S = 28,   //
+    MLLM_TYPE_IQ1_M = 29,   //
+    MLLM_TYPE_IQ2_S = 30,
+
     MLLM_TYPE_COUNT,
 };
 
@@ -183,6 +193,14 @@ enum ExecutionType {
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
+#ifdef _MSC_VER
+#define MLLM_EXTENSION
+#else // _MSC_VER
+#define MLLM_EXTENSION __extension__
+#endif // _MSC_VER
+
+typedef uint32_t mllm_half32;
 
 #if defined(__ARM_NEON) && !defined(_MSC_VER)
 typedef __fp16 mllm_fp16_t;
@@ -297,6 +315,41 @@ typedef struct {
 #pragma pack()
 static_assert(sizeof(block_q8_0x8) == 8 * sizeof(mllm_fp16_t) + QK8_0 * 8, "wrong q8_0x8 block size/padding");
 
+#pragma pack(1)
+typedef struct {
+    uint8_t scales[QK_K / 16]; // scales and mins, quantized with 4 bits
+    uint8_t qs[QK_K / 4];      // quants
+    // MLLM_EXTENSION union {
+    //     struct {
+    //         mllm_fp16_t d;    // super-block scale for quantized scales
+    //         mllm_fp16_t dmin; // super-block scale for quantized mins
+    //     } MLLM_COMMON_AGGR_S;
+    //     mllm_half32 dm;
+    // } MLLM_COMMON_AGGR_U;
+    mllm_fp16_t d;    // super-block scale for quantized scales
+    mllm_fp16_t dmin; // super-block scale for quantized mins
+} block_q2_K;
+#pragma pack()
+static_assert(sizeof(block_q2_K) == 2 * sizeof(mllm_fp16_t) + QK_K / 16 + QK_K / 4, "wrong q2_K block size/padding");
+
+#pragma pack(1)
+typedef struct {
+    uint8_t hmask[QK_K / 8]; // quants - high bit
+    uint8_t qs[QK_K / 4];    // quants - low 2 bits
+    uint8_t scales[12];      // scales, quantized with 6 bits
+    mllm_fp16_t d;           // super-block scale
+} block_q3_K;
+#pragma pack()
+static_assert(sizeof(block_q3_K) == sizeof(mllm_fp16_t) + QK_K / 4 + QK_K / 8 + 12, "wrong q3_K block size/padding");
+
+#pragma pack(1)
+typedef struct {
+    mllm_fp16_t d;
+    uint16_t qs[QK_K / 8];
+} block_iq2_xxs;
+#pragma pack()
+static_assert(sizeof(block_iq2_xxs) == sizeof(mllm_fp16_t) + QK_K / 8 * sizeof(uint16_t), "wrong iq2_xxs block size/padding");
+
 //
 
 static string DataTypeName(DataType dataType) {
@@ -335,12 +388,29 @@ static string DataTypeName(DataType dataType) {
         return "Q4_0_8_8";
     case MLLM_TYPE_Q8_0_4_4:
         return "Q8_0_4_4";
+    case MLLM_TYPE_Q3_K:
+        return "Q3_K";
+    case MLLM_TYPE_Q2_K:
+        return "Q2_K";
+    case MLLM_TYPE_Q1_K:
+        return "Q1_K";
+    case MLLM_TYPE_IQ2_XXS:
+        return "IQ2_XXS";
+    case MLLM_TYPE_IQ2_XS:
+        return "IQ2_XS";
+    case MLLM_TYPE_IQ1_S:
+        return "IQ1_S";
+    case MLLM_TYPE_IQ1_M:
+        return "IQ1_M";
+    case MLLM_TYPE_IQ2_S:
+        return "IQ2_S";
     case MLLM_TYPE_COUNT:
         return "COUNT";
     default:
         return "Unknown";
     }
 }
+
 static size_t DataTypeSize(DataType dtype, uint64_t count = 1) {
     switch (dtype) {
     case MLLM_TYPE_F32:
@@ -376,6 +446,23 @@ static size_t DataTypeSize(DataType dtype, uint64_t count = 1) {
         return (sizeof(block_q4_0x8)) * count / (QK4_0 * 8);
     case MLLM_TYPE_Q8_0_4_4:
         return (sizeof(block_q8_0x4)) * count / (QK8_0 * 4);
+
+    case MLLM_TYPE_Q3_K:
+        return (sizeof(block_q3_K)) * count / (QK_K);
+    case MLLM_TYPE_Q2_K:
+        return (sizeof(block_q2_K)) * count / (QK_K);
+    case MLLM_TYPE_Q1_K:
+        return -1;
+    case MLLM_TYPE_IQ2_XXS:
+        return (sizeof(block_iq2_xxs)) * count / (QK_K);
+    case MLLM_TYPE_IQ2_XS:
+        return -1;
+    case MLLM_TYPE_IQ1_S:
+        return -1;
+    case MLLM_TYPE_IQ1_M:
+        return -1;
+    case MLLM_TYPE_IQ2_S:
+        return -1;
     case MLLM_TYPE_COUNT:
         return 0;
     default:

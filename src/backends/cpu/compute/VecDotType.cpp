@@ -31,7 +31,6 @@
 #include "VecDotType.hpp"
 #include "Types.hpp"
 #include "quantize/Quantize.hpp"
-#include "quantize/QuantizeQ6.hpp"
 #include "compute/VecDot.hpp"
 #include "compute/GEMM_AArch64.hpp"
 
@@ -344,5 +343,39 @@ type_traits_t type_traits[] = {
         .gemm = (mllm_gemm_func)mllm_gemm_q4_0_8x8_q8_0,
     },
     {},
+    /*MLLM_TYPE_Q3_K = */ {
+        .size = sizeof(block_q3_K),
+        .blck_size = QK_K,
+        .to_float = (mllm_to_float_func)dequantize_row_q3_K,
+        .from_float = (mllm_from_float_func)quantize_row_q3_K,
+        .vec_dot = (mllm_vec_dot_func)vec_dot_q3_K_q8_K,
+        .vec_dot_type = MLLM_TYPE_Q8_K,
+        .add_row_to = NULL, //(mllm_vec_add_row_func)q3_k_add_row_to,
+    },
+    /*MLLM_TYPE_Q2_K = */ {
+        .size = sizeof(block_q2_K),
+        .blck_size = QK_K,
+        .to_float = (mllm_to_float_func)dequantize_row_q2_K,
+        .from_float = (mllm_from_float_func)quantize_row_q2_K,
+        .vec_dot = (mllm_vec_dot_func)vec_dot_q2_K_q8_K,
+        .vec_dot_type = MLLM_TYPE_Q8_K,
+        .add_row_to = NULL, //(mllm_vec_add_row_func)q2_k_add_row_to,
+
+    },
+    /*MLLM_TYPE_Q1_K = */ {},
+    /*MLLM_TYPE_IQ2_XXS = */ {
+        .size = sizeof(block_iq2_xxs),
+        .blck_size = QK_K,
+        .to_float = (mllm_to_float_func)dequantize_row_iq2_xxs,
+        .from_float = NULL, //(mllm_from_float_func)quantize_row_iq2_xxs,
+        .vec_dot = (mllm_vec_dot_func)vec_dot_iq2_xxs_q8_K,
+        .vec_dot_type = MLLM_TYPE_Q8_K,
+        .add_row_to = NULL, //(mllm_vec_add_row_func)q6_k_add_row_to,
+
+    },
+    {},
+    {},
+    {},
+    /*MLLM_TYPE_IQ2_S = */ {},
     // TODO: add support to more type
 };

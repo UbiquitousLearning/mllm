@@ -48,7 +48,8 @@
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
 
-#include "SGEMM.hpp"
+#include "LlamafileSGEMM.hpp"
+#include "../quantize/Quantize.hpp"
 
 #ifdef _MSC_VER
 #define NOINLINE __declspec(noinline)
@@ -909,7 +910,6 @@ private:
  * @param BiasType check the bias type if is fp32.
  * @return true if this function was able to service the matmul request
  */
-// TODOYRJ
 bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda, const void *B, int64_t ldb, void *C, int64_t ldc,
                      int ith, int nth,
                      DataType Atype, DataType Btype, DataType Ctype, void *bias, DataType BiasType) {

@@ -6,7 +6,7 @@
 
 namespace mllm::xnnpack {
 
-void XpBroadcastAddFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpBroadcastAddFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
@@ -14,7 +14,7 @@ void XpBroadcastAddFunction::setup(vector<Tensor *> outputs, vector<Tensor *> in
     output->setDtype(input->dtype());
 }
 
-void XpBroadcastAddFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpBroadcastAddFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
@@ -46,7 +46,7 @@ void XpBroadcastAddFunction::execute(vector<Tensor *> outputs, vector<Tensor *> 
     }
 }
 
-void XpBroadcastSubFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpBroadcastSubFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
@@ -54,7 +54,7 @@ void XpBroadcastSubFunction::setup(vector<Tensor *> outputs, vector<Tensor *> in
     output->setDtype(input->dtype());
 }
 
-void XpBroadcastSubFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpBroadcastSubFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
@@ -86,7 +86,7 @@ void XpBroadcastSubFunction::execute(vector<Tensor *> outputs, vector<Tensor *> 
     }
 }
 
-void XpBroadcastMulFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpBroadcastMulFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
@@ -94,7 +94,7 @@ void XpBroadcastMulFunction::setup(vector<Tensor *> outputs, vector<Tensor *> in
     output->setDtype(input->dtype());
 }
 
-void XpBroadcastMulFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpBroadcastMulFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
@@ -126,7 +126,7 @@ void XpBroadcastMulFunction::execute(vector<Tensor *> outputs, vector<Tensor *> 
     }
 }
 
-void XpBroadcastDivFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpBroadcastDivFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
@@ -134,7 +134,7 @@ void XpBroadcastDivFunction::setup(vector<Tensor *> outputs, vector<Tensor *> in
     output->setDtype(input->dtype());
 }
 
-void XpBroadcastDivFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpBroadcastDivFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
@@ -166,7 +166,7 @@ void XpBroadcastDivFunction::execute(vector<Tensor *> outputs, vector<Tensor *> 
     }
 }
 
-void XpTTAddFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpTTAddFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
@@ -174,7 +174,7 @@ void XpTTAddFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, v
     output->setDtype(input->dtype());
 }
 
-void XpTTAddFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpTTAddFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
@@ -197,7 +197,7 @@ void XpTTAddFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs,
     }
 }
 
-void XpTTSubFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpTTSubFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
@@ -205,7 +205,7 @@ void XpTTSubFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, v
     output->setDtype(input->dtype());
 }
 
-void XpTTSubFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpTTSubFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
@@ -228,7 +228,7 @@ void XpTTSubFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs,
     }
 }
 
-void XpTTMulFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpTTMulFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
@@ -236,7 +236,7 @@ void XpTTMulFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, v
     output->setDtype(input->dtype());
 }
 
-void XpTTMulFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpTTMulFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);
@@ -259,7 +259,7 @@ void XpTTMulFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs,
     }
 }
 
-void XpTTDivFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpTTDivFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
@@ -267,7 +267,7 @@ void XpTTDivFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, v
     output->setDtype(input->dtype());
 }
 
-void XpTTDivFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpTTDivFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     auto xpb = (XnnpackBackend *)inputs[0]->backend();
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), inputs);
     tryDefineAllXpTensors(xpb->getCurProcessingGraph(), outputs);

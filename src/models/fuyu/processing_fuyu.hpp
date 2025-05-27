@@ -20,9 +20,9 @@
 #ifndef STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
-#endif
 #include "stb/stb_image.h"
 #include "stb/stb_image_resize2.h"
+#endif
 
 using namespace mllm;
 

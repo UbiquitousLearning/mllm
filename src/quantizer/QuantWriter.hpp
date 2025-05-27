@@ -1,5 +1,8 @@
 #include "ParamWriter.hpp"
 #include "ParamLoader.hpp"
+#include "backends/cpu/quantize/QuantizeQ6.hpp"
+#include "backends/cpu/quantize/QuantizeQ2.hpp"
+#include "backends/cpu/quantize/QuantizeQ3.hpp"
 #include "backends/cpu/quantize/QuantizeQ4.hpp"
 #include "backends/cpu/quantize/QuantizeQ8.hpp"
 #include <string>
@@ -36,6 +39,7 @@ public:
     int readParams();
     void quantParams(DataType dataType);
     void quantParams_q4_(DataType dataType);
+    void quantParams_q4_vl(DataType dataType);
 
 #ifdef TEST
     std::unordered_map<string, char *> data_;

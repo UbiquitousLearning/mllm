@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/minicpm3_vocab.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/minicpm3-4b-q4_k.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
-    cmdParser.add<int>("thread", 't', "num of threads", false, 40);
+    cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
@@ -32,8 +32,7 @@ int main(int argc, char **argv) {
     vector<string> in_strs = {
         "Hello, who are you?",
         "What can you do?",
-        "Please introduce Beijing University of Posts and Telecommunications."
-        };
+        "Please introduce Beijing University of Posts and Telecommunications."};
 
     for (int i = 0; i < in_strs.size(); ++i) {
         auto in_str = in_strs[i];
@@ -50,6 +49,7 @@ int main(int argc, char **argv) {
             chatPostProcessing(out_token, input_tensor, {});
         }
         printf("\n");
+        model.clear_kvcache();
     }
     return 0;
 }

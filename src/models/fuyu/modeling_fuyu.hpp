@@ -62,6 +62,9 @@ public:
         for (auto &block : blocks) {
             x = block({x})[0];
         }
+        if (x.sequence() > 1) {
+            x = x.clip({}, {}, {-1}, {});
+        }
         x = norm(x);
         x = lm_head(x);
         return {x};
