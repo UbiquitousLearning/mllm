@@ -6,11 +6,16 @@
 #include "Types.hpp"
 #include "backends/cpu/quantize/QuantizeQ8.hpp"
 
+#include <cassert>
+#include <cmath>
 #include <utility>
 
 namespace mllm {
-CPUQuantize::CPUQuantize(Backend *bn, string opName, int threadCount):thread_count(threadCount), Op(bn, std::move(opName))  {
-    activation_dtype_ = MLLM_TYPE_I8;
+CPUQuantize::CPUQuantize(Backend *bn, string opName, DataType type, int threadCount) :
+    thread_count(threadCount),
+    Op(bn, std::move(opName)) {
+    assert(type == MLLM_TYPE_I8 || type == MLLM_TYPE_I16);
+    activation_dtype_ = type;
     scale_.setBackend(bn);
 }
 
@@ -30,46 +35,53 @@ ErrorCode CPUQuantize::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
     int dim = input->dimension();
 
     float quantScale = 0;
-    quantScale = scale_.hostPtr<float>()[0]  / 127.0;
-    quantScale = roundf(quantScale * 100000) / 100000;
+    // quantScale = scale_.hostPtr<float>()[0] / 127.0;
+    // quantScale = roundf(quantScale * 100000) / 100000;
+    switch (activation_dtype_) {
+    case MLLM_TYPE_I8:
+        quantScale = scale_.hostPtr<float>()[0] / (pow(2, 7) - 1);
+        break;
+    case MLLM_TYPE_I16:
+        quantScale = scale_.hostPtr<float>()[0] / (pow(2, 15) - 1);
+        break;
+    default:
+        return NOT_SUPPORT;
+    }
+    // quantScale = roundf(quantScale * 100000) / 100000;
 
     auto src0 = inputs[0];
-    auto src0_i8 = outputs[0];
+    auto out0 = outputs[0];
 
-// #pragma omp parallel for collapse(4)
-    // for (int b = 0; b <batch ; ++b) {
-    //     for (int h = 0; h < head; ++h) {
-    //         for (int s = 0; s < seq; ++s) {
-    //             for (int d = 0; d < dim; ++d) {
-    //                 float value = input->dataAt<float>(b, h, s, d);
-    //                 int32_t v = static_cast<int32_t>(Round(value / quantScale));
-    //                 v = std::max (std::min(v, 127), -128);
-    //                 output->setDataAt<uint8_t>(b, h, s, d, static_cast<uint8_t>(v));
-    //             }
-    //         }
-    //         std::cout << std::endl;
-    //     }
-    // }
-
+    if (activation_dtype_ == MLLM_TYPE_I8) {
 #pragma omp parallel for collapse(3) num_threads(thread_count)
-    for (int b = 0; b < batch; b++) {
-        for (int h = 0; h <head; h++) {
-            for (int s = 0; s <seq; s++) {
-                quantize_row_i8(src0->hostPtr<float>() + src0->offset(b, h, s, 0),
-                                    src0_i8->hostPtr<int8_t>() + src0_i8->offset(b, h, s, 0),
+        for (int b = 0; b < batch; b++) {
+            for (int h = 0; h < head; h++) {
+                for (int s = 0; s < seq; s++) {
+                    quantize_row_i8(src0->hostPtr<float>() + src0->offset(b, h, s, 0),
+                                    out0->hostPtr<int8_t>() + out0->offset(b, h, s, 0),
                                     dim, quantScale);
+                }
             }
         }
+    } else if (activation_dtype_ == MLLM_TYPE_I16) {
+#pragma omp parallel for collapse(3) num_threads(thread_count)
+        for (int b = 0; b < batch; b++) {
+            for (int h = 0; h < head; h++) {
+                for (int s = 0; s < seq; s++) {
+                    quantize_row_i16(src0->hostPtr<float>() + src0->offset(b, h, s, 0),
+                                     out0->hostPtr<int16_t>() + out0->offset(b, h, s, 0),
+                                     dim, quantScale);
+                }
+            }
+        }
+    } else {
+        return NOT_SUPPORT;
     }
-
-    // outputs[0]->printData<int8_t>();
-      
 
     return Op::execute(inputs, outputs);
 }
 
 ErrorCode CPUQuantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    activation_dtype_ = MLLM_TYPE_I8;
     return Op::setUp(inputs, outputs);
 }
 

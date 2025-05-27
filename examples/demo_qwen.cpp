@@ -39,9 +39,7 @@ int main(int argc, char **argv) {
     model.load(model_path);
 
     vector<string> in_strs = {
-        "Hello, who are you?",
-        "What can you do?",
-        "Please introduce Beijing University of Posts and Telecommunications.",
+        " Give me a short introduction to large language model.",
     };
     for (int i = 0; i < in_strs.size(); ++i) {
         auto input_str = tokenizer.apply_chat_template(in_strs[i]);
@@ -50,8 +48,8 @@ int main(int argc, char **argv) {
         std::cout << "[A] " << std::flush;
 
         LlmTextGeneratorOpts opt{
-            .max_new_tokens = 100,
-            .do_sample = true,
+            .max_new_tokens = 1,
+            .do_sample = false,
             .temperature = 0.3F,
             .top_k = 50,
             .top_p = 0.F,

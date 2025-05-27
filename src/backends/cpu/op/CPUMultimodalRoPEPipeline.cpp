@@ -1,8 +1,7 @@
 
-#include "CPUMultimodalRoPE.hpp"
+#include "CPUMultimodalRoPEPipeline.hpp"
 // #include "Timing.hpp"
 #include "Types.hpp"
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <memory>
@@ -11,13 +10,15 @@
 
 namespace mllm {
 
-vector<float> CPUMultimodalRoPE::theta_; // inv_freq
+vector<float> CPUMultimodalRoPEPipeline::theta_; // inv_freq
 
-vector<vector<float>> CPUMultimodalRoPE::sin_;
-vector<vector<float>> CPUMultimodalRoPE::cos_;
-int CPUMultimodalRoPE::ishape_old;
-int CPUMultimodalRoPE::last_pos;
+vector<vector<float>> CPUMultimodalRoPEPipeline::sin_;
+vector<vector<float>> CPUMultimodalRoPEPipeline::cos_;
+int CPUMultimodalRoPEPipeline::ishape_old;
+int CPUMultimodalRoPEPipeline::last_pos;
 
+// to avoid conflict with CPUMultimodalRoPE
+namespace pipeline_rope {
 typedef float (*mllm_rope_init_func)(const OpParam &, std::vector<float> &);
 
 float multimodal_default_init_rope(const OpParam &config, vector<float> &theta) {
@@ -79,7 +80,6 @@ void multimodal_sinusoidal_position_embedding(shared_ptr<Tensor> position_ids, i
                                               const std::vector<int> &mrope_section = {}) {
     vector<vector<vector<float>>> tmp_sin;
     vector<vector<vector<float>>> tmp_cos;
-    // assert(position_ids->dimension() == output_dim);
     for (int b = 0; b < position_ids->batch(); ++b) {
         vector<vector<float>> cos_freqs(position_ids->dimension(), std::vector<float>(theta.size() * 2, 0));
         vector<vector<float>> sin_freqs(position_ids->dimension(), std::vector<float>(theta.size() * 2, 0));
@@ -99,8 +99,9 @@ void multimodal_sinusoidal_position_embedding(shared_ptr<Tensor> position_ids, i
         apply_multimodal_rotary_pos_emb(tmp_cos, tmp_sin, cos, sin, mrope_section);
     }
 }
+} // namespace pipeline_rope
 
-CPUMultimodalRoPE::CPUMultimodalRoPE(Backend *bn, string opName, float rope_theta, int max_position_embeddings, vector<int> mrope_section, int threadCount) :
+CPUMultimodalRoPEPipeline::CPUMultimodalRoPEPipeline(Backend *bn, string opName, float rope_theta, int max_position_embeddings, vector<int> mrope_section, int threadCount) :
     thread_count(threadCount),
     Op(bn, opName) {
     rope_theta_ = rope_theta;
@@ -111,36 +112,51 @@ CPUMultimodalRoPE::CPUMultimodalRoPE(Backend *bn, string opName, float rope_thet
     }
 }
 
-ErrorCode CPUMultimodalRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //    std::cout << name() << "  CPUMultimodalRoPE  reshape" << std::endl;
+ErrorCode CPUMultimodalRoPEPipeline::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     assert(inputs.size() == 2);
     assert(outputs.size() == 1);
-    auto position_ids = inputs[1];
-    auto sequence = std::min(position_ids->dimension(), inputs[0]->sequence());
-    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), sequence, inputs[0]->dimension());
+    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     ishape = inputs[0]->dimension() * partial_rotary_factor_;
     // pos_max_ = 16384;
+    auto position_ids = inputs[1];
 
     if (sin_.empty() || ishape_old < ishape || position_ids->dataAt<float>(0, 0, 0, position_ids->dimension() - 1) != last_pos) {
-        if (position_ids->name().find("cliptensor") == std::string::npos) {
-            auto config = config_;
-            config["base"] = (float)rope_theta_;
-            config["dim"] = ishape;
-            float attention_scaling = multimodal_default_init_rope(config, theta_);
-            ishape_old = ishape;
-            last_pos = position_ids->dataAt<float>(0, 0, 0, position_ids->dimension() - 1);
-            multimodal_sinusoidal_position_embedding(position_ids, pos_max_, ishape, theta_, sin_, cos_, attention_scaling, mrope_section_);
-        }
+        auto config = config_;
+        config["base"] = (float)rope_theta_;
+        config["dim"] = ishape;
+        float attention_scaling = pipeline_rope::multimodal_default_init_rope(config, theta_);
+        ishape_old = ishape;
+        last_pos = position_ids->dataAt<float>(0, 0, 0, position_ids->dimension() - 1);
+        pipeline_rope::multimodal_sinusoidal_position_embedding(position_ids, pos_max_, ishape, theta_, sin_, cos_, attention_scaling, mrope_section_);
     }
 
+    // if in switching, reset the h_cnt_
+    auto cpuBackend = static_cast<CPUBackend*>(backend_);
+    if (cpuBackend->isStageSwitching()) {
+        if(cpuBackend->getExecutionType() == PROMPT) {
+            // set to 0/chunk_size*iter when in prefill stage
+            h_cnt_ = cpuBackend->getCurSequenceLength();
+        } else {
+            // when switch to decoding, reset the h_cnt_ to 0
+            h_cnt_ = 0;
+        }
+
+    }
     return Op::reshape(inputs, outputs);
 }
 
-void CPUMultimodalRoPE::multimodal_rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output) {
+void CPUMultimodalRoPEPipeline::multimodal_rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output) {
     auto out_dtype = output->dtype();
     int partial_dimension = (input->dimension()) * partial_rotary_factor_;
     int half = (int)(partial_dimension / 2);
     assert(partial_dimension % 2 == 0);
+
+    const int seq_offset = h_cnt_;
+    if (static_cast<CPUBackend *>(backend_)->getExecutionType() == PROMPT) {
+        // increment the h_cnt_ when in prefill stage
+        h_cnt_ += input->sequence();
+    }
+
     if (output->ctype() == BSHD) {
         if (input->dtype() == MLLM_TYPE_F16) {
 #pragma omp parallel for collapse(4) num_threads(thread_count)
@@ -152,8 +168,8 @@ void CPUMultimodalRoPE::multimodal_rope_hf(shared_ptr<Tensor> input, shared_ptr<
                             auto o = output->ptrAt<mllm_fp16_t>(n, h, s, d);
                             float in_value = static_cast<float>(v[0]);
                             float in_value_2 = static_cast<float>(v[half]);
-                            float sin_value = sin_[s][d];
-                            float cos_value = cos_[s][d];
+                            float sin_value = sin_[s + seq_offset][d];
+                            float cos_value = cos_[s + seq_offset][d];
                             auto value = in_value * cos_value - in_value_2 * sin_value;
                             auto value2 = in_value * sin_value + in_value_2 * cos_value;
                             o[0] = MLLM_FP32_TO_FP16(value);
@@ -174,8 +190,8 @@ void CPUMultimodalRoPE::multimodal_rope_hf(shared_ptr<Tensor> input, shared_ptr<
                                 auto o = output->ptrAt<float>(n, h, s, d);
                                 float in_value = v[0];
                                 float in_value_2 = v[half];
-                                float sin_value = sin_[s][d];
-                                float cos_value = cos_[s][d];
+                                float sin_value = sin_[s + seq_offset][d];
+                                float cos_value = cos_[s + seq_offset][d];
                                 auto value = in_value * cos_value - in_value_2 * sin_value;
                                 auto value2 = in_value * sin_value + in_value_2 * cos_value;
                                 o[0] = value;
@@ -194,8 +210,8 @@ void CPUMultimodalRoPE::multimodal_rope_hf(shared_ptr<Tensor> input, shared_ptr<
                                 auto o = output->ptrAt<mllm_fp16_t>(n, h, s, d);
                                 float in_value = v[0];
                                 float in_value_2 = v[half];
-                                float sin_value = sin_[s][d];
-                                float cos_value = cos_[s][d];
+                                float sin_value = sin_[s + seq_offset][d];
+                                float cos_value = cos_[s + seq_offset][d];
                                 auto value = in_value * cos_value - in_value_2 * sin_value;
                                 auto value2 = in_value * sin_value + in_value_2 * cos_value;
                                 o[0] = MLLM_FP32_TO_FP16(value);
@@ -216,8 +232,8 @@ void CPUMultimodalRoPE::multimodal_rope_hf(shared_ptr<Tensor> input, shared_ptr<
                     if (input->dtype() == MLLM_TYPE_F16) {
                         float in_value = static_cast<float>(input->dataAt<mllm_fp16_t>(n, h, s, d));
                         float in_value_2 = static_cast<float>(input->dataAt<mllm_fp16_t>(n, h, s, d + partial_dimension / 2));
-                        float sin_value = sin_[s][d];
-                        float cos_value = cos_[s][d];
+                        float sin_value = sin_[s + seq_offset][d];
+                        float cos_value = cos_[s + seq_offset][d];
                         auto value = in_value * cos_value - in_value_2 * sin_value;
                         auto value2 = in_value * sin_value + in_value_2 * cos_value;
                         if (out_dtype == MLLM_TYPE_F32) {
@@ -231,8 +247,8 @@ void CPUMultimodalRoPE::multimodal_rope_hf(shared_ptr<Tensor> input, shared_ptr<
                     } else {
                         float in_value = input->dataAt<float>(n, h, s, d);
                         float in_value_2 = input->dataAt<float>(n, h, s, d + partial_dimension / 2);
-                        float sin_value = sin_[s][d];
-                        float cos_value = cos_[s][d];
+                        float sin_value = sin_[s + seq_offset][d];
+                        float cos_value = cos_[s + seq_offset][d];
                         auto value = in_value * cos_value - in_value_2 * sin_value;
                         auto value2 = in_value * sin_value + in_value_2 * cos_value;
                         if (out_dtype == MLLM_TYPE_F32) {
@@ -250,18 +266,7 @@ void CPUMultimodalRoPE::multimodal_rope_hf(shared_ptr<Tensor> input, shared_ptr<
 }
 
 // TODO: Q8_0 KVCache can not use!!
-ErrorCode CPUMultimodalRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    auto position_ids = inputs[1];
-    if (position_ids->name().find("cliptensor") != std::string::npos) { // for vtp
-        auto config = config_;
-        config["base"] = (float)rope_theta_;
-        config["dim"] = ishape;
-        float attention_scaling = multimodal_default_init_rope(config, theta_);
-        ishape_old = ishape;
-        last_pos = position_ids->dataAt<float>(0, 0, 0, position_ids->dimension() - 1);
-        multimodal_sinusoidal_position_embedding(position_ids, pos_max_, ishape, theta_, sin_, cos_, attention_scaling, mrope_section_);
-    }
-
+ErrorCode CPUMultimodalRoPEPipeline::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     if (outputs[0]->dtype() == MLLM_TYPE_Q8_0) {
         auto tmp_out = std::make_shared<Tensor>(outputs[0]->backend());
         // tmp_out->setBackend(outputs[0]->backend());
@@ -291,7 +296,7 @@ ErrorCode CPUMultimodalRoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<s
         return doExecute(inputs, outputs);
     }
 }
-ErrorCode CPUMultimodalRoPE::doExecute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+ErrorCode CPUMultimodalRoPEPipeline::doExecute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto &input = inputs[0];
     auto &output = outputs[0];
     auto out_dtype = output->dtype();
@@ -316,10 +321,10 @@ ErrorCode CPUMultimodalRoPE::doExecute(vector<shared_ptr<Tensor>> inputs, vector
     return Op::execute(inputs, outputs);
 }
 
-ErrorCode CPUMultimodalRoPE::load(AbstructLoader &loader) {
+ErrorCode CPUMultimodalRoPEPipeline::load(AbstructLoader &loader) {
     return Op::load(loader);
 }
-ErrorCode CPUMultimodalRoPE::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+ErrorCode CPUMultimodalRoPEPipeline::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     return Op::free(inputs, outputs);
 }
 } // namespace mllm

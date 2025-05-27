@@ -9,14 +9,12 @@
 #include "QnnOpPackage.h"
 #include "HTP/core/simple_reg.h"
 
-
 BEGIN_PKG_OP_DEFINITION(PKG_LLaMAReLU);
 
-
 // op execute function declarations
-template<typename TensorType>
-GraphStatus llamareluImpl(TensorType& out_0,
-                          const TensorType& in_0);
+template <typename TensorType>
+GraphStatus llamareluImpl(TensorType &out_0,
+                          const TensorType &in_0);
 
 // forward declaration of sample cost function
 static float llamareluCostFunc(const Op *op);
@@ -61,11 +59,11 @@ DEF_PACKAGE_OP((llamareluImpl<Tensor>), "LLaMAReLU")
  * one definition per op, and this is optional
  * syntax: DEF_PACKAGE_PARAM_ORDER(OP,PARAM1,MANDATORY1,DEFAULT1,PARAM2,MANDATORY2,DEFAULT2...)
  * one or more parameters can be specified for each op
-     * order of parameters listed determines the order of parameters passed into op execution functions
+ * order of parameters listed determines the order of parameters passed into op execution functions
  * if an op does not have a parameter order definition, parameter order passed into Qnn_addNode
  *   will be passed into op execution functions
  * if an op has a parameter order definition, any parameter passed into Qnn_addNode with unlisted
-     *   name will be abandoned
+ *   name will be abandoned
  * if two or more op packages with the same package name will be registered, they cannot list
  *   conflicting parameter orders
  * PARAM refers to parameter name as a string literal
@@ -78,7 +76,6 @@ DEF_PACKAGE_OP((llamareluImpl<Tensor>), "LLaMAReLU")
  *       graph construction will skip this parameter when this parameter is not provided at
  *       Qnn_addNode
  */
-
 
 /* execute functions for ops */
 
@@ -94,7 +91,6 @@ DEF_PACKAGE_OP((llamareluImpl<Tensor>), "LLaMAReLU")
 // #define ONE      0x3F800000
 // #define M_ONE    0xAF800000
 
-
 // int32_t hvx_relu_au8(uint8_t *restrict input, uint8_t *restrict output, uint32_t size)
 // {
 //     HVX_Vector *input_v_ptr;
@@ -106,7 +102,6 @@ DEF_PACKAGE_OP((llamareluImpl<Tensor>), "LLaMAReLU")
 //     int32_t leftover = size & 128;
 //     int32_t vectors_in_rounddown = size / 128;
 //     int32_t leftover_size = leftover * sizeof(uint8_t);
-
 
 //     /* Check input arguments. Return error status if some argument has invalid value */
 //     if ((input == 0) || (output == 0) || (size == 0))
@@ -200,7 +195,6 @@ DEF_PACKAGE_OP((llamareluImpl<Tensor>), "LLaMAReLU")
 //    *
 //    * Please check in SDK documentation for more information.
 //    */
-  
 
 //   out_0.set_dims(in_0);
 
@@ -214,90 +208,79 @@ DEF_PACKAGE_OP((llamareluImpl<Tensor>), "LLaMAReLU")
 //   return GraphStatus::Success;
 // }
 // #else
-template<typename TensorType>
-GraphStatus llamareluImpl(TensorType& out_0,
-                          const TensorType& in_0)
+template <typename TensorType>
+GraphStatus llamareluImpl(TensorType &out_0,
+                          const TensorType &in_0)
 
 {
-  out_0.set_dims(in_0);
+    out_0.set_dims(in_0);
     // NHWC
 
-  if (in_0.get_dtype() == DType::QUInt8) {
-    auto [b_in, h_in, w_in, d_in] = in_0.dims();
-    for (Idx b = 0; b < b_in; b++) {
-      for (Idx h = 0; h < h_in; h++) {
-        for (Idx w = 0; w < w_in; w++) {
-          // SiLU
-          for (Idx d = 0; d < d_in; d++) {
-            uint8_t inval       = in_0(b, h, w, d);
-            if (inval < 0)
-              inval = 0;
+    if (in_0.get_dtype() == DType::QUInt8) {
+        auto [b_in, h_in, w_in, d_in] = in_0.dims();
+        for (Idx b = 0; b < b_in; b++) {
+            for (Idx h = 0; h < h_in; h++) {
+                for (Idx w = 0; w < w_in; w++) {
+                    // SiLU
+                    for (Idx d = 0; d < d_in; d++) {
+                        uint8_t inval = in_0(b, h, w, d);
+                        if (inval < 0)
+                            inval = 0;
 
-            out_0(b, h, w, d) = inval;
-            
-          }
+                        out_0(b, h, w, d) = inval;
+                    }
+                }
+            }
         }
-      }
-    }
-  } else if (in_0.get_dtype() == DType::Float16) {
-    auto [b_in, h_in, w_in, d_in] = in_0.dims();
+    } else if (in_0.get_dtype() == DType::Float16) {
+        auto [b_in, h_in, w_in, d_in] = in_0.dims();
 
-    auto out_ptr = (__fp16*)out_0.raw_data();
-    auto in_ptr = (__fp16*)in_0.raw_data_const();
+        auto out_ptr = (__fp16 *)out_0.raw_data();
+        auto in_ptr = (__fp16 *)in_0.raw_data_const();
 
-    for (Idx b = 0; b < b_in; b++) {
-      for (Idx h = 0; h < h_in; h++) {
-        for (Idx w = 0; w < w_in; w++) {
-          
-          for (Idx d = 0; d < d_in; d++) {
-            __fp16 inval       = *in_ptr++;
-            if (inval < 0)
-              inval = 0;
+        for (Idx b = 0; b < b_in; b++) {
+            for (Idx h = 0; h < h_in; h++) {
+                for (Idx w = 0; w < w_in; w++) {
+                    for (Idx d = 0; d < d_in; d++) {
+                        __fp16 inval = *in_ptr++;
+                        if (inval < 0)
+                            inval = 0;
 
-            *out_ptr++ = inval;
-            
-          }
+                        *out_ptr++ = inval;
+                    }
+                }
+            }
         }
-      }
-    }
-  } else if(in_0.get_dtype() == DType::Float32) {
-    auto [b_in, h_in, w_in, d_in] = in_0.dims();
-    for (Idx b = 0; b < b_in; b++) {
-      for (Idx h = 0; h < h_in; h++) {
-        for (Idx w = 0; w < w_in; w++) {
-          for (Idx d = 0; d < d_in; d++) {
-            float inval       = in_0(b, h, w, d);
-            if (inval < 0)
-              inval = 0;
+    } else if (in_0.get_dtype() == DType::Float32) {
+        auto [b_in, h_in, w_in, d_in] = in_0.dims();
+        for (Idx b = 0; b < b_in; b++) {
+            for (Idx h = 0; h < h_in; h++) {
+                for (Idx w = 0; w < w_in; w++) {
+                    for (Idx d = 0; d < d_in; d++) {
+                        float inval = in_0(b, h, w, d);
+                        if (inval < 0)
+                            inval = 0;
 
-            out_0(b, h, w, d) = inval;
-            
-          }
+                        out_0(b, h, w, d) = inval;
+                    }
+                }
+            }
         }
-      }
     }
-  } 
-  
 
-  return GraphStatus::Success;
+    return GraphStatus::Success;
 }
 
 // #endif
 
+__attribute__((unused)) static float llamareluCostFunc(const Op *op) {
+    /*
+     * add code here
+     * */
 
-__attribute__((unused)) static float llamareluCostFunc(const Op *op)
-{
-  /*
-   * add code here
-   * */
-
-  float cost = 0.0;  // add cost computation here
-  return cost;
+    float cost = 0.0; // add cost computation here
+    return cost;
 }
-
-
-
-
 
 /* At the bottom of the op file, call END_PKG_OP_DEFINITION(<name>),
    where <name> is as BEGIN_PKG_OP_DEFINITION

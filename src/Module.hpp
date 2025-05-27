@@ -130,6 +130,8 @@ public:
             }
         }
     }
+
+    // TODO: Deprecated, the module is not backend specific, the backend should be set in the SubGraphStart and SubGraphFinalize
     void to(BackendType type) {
         initBackend(type);
         device_ = type;

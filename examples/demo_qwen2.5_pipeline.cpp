@@ -14,10 +14,10 @@ using namespace mllm;
 
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen_vocab.mllm");
-    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-1.5-1.8b-chat-int8.mllm");
-    cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B]", false, "1.8B");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2.5_vocab.mllm");
+    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2.5_merges.txt");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-2-int8-test.mllm");
+    cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B | 1.5B]", false, "1.5B");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
     auto model = v2::QWenForCausalLM_NPU(config, chunk_size);
     model.load(model_path);
     auto decoding_model = QWenForCausalLM(config);
-    decoding_model.load("../models/qwen-1.5-1.8b-chat-q4k.mllm");
+    decoding_model.load("../models/qwen-2.5-1.5b-instruct-q4_0_4_4.mllm");
 
     string trace_string = " ";
     auto [_, input_tensor] = tokenizer.tokenizePaddingByChunk(trace_string, chunk_size, config.vocab_size);

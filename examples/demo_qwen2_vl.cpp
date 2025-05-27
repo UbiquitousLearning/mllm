@@ -8,9 +8,9 @@
 using namespace mllm;
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2vl_vocab.mllm");
-    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2vl_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-2-vl-2b-instruct-q4_k.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/showui_vocab.mllm");
+    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/showui_merges.txt");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/showui-2B-rotated-q40.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 2000);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -30,9 +30,9 @@ int main(int argc, char **argv) {
     model.load(model_path);
 
     vector<string> in_imgs = {
-        "../assets/bus.png"};
+        "../assets/showui.png"};
     vector<string> in_strs = {
-        "<|vision_start|><|image_pad|><|vision_end|>Describe this image.",
+        "Based on the screenshot of the page, I give a text description and you give its corresponding location. The coordinate represents a clickable location [x, y] for an element, which is a relative coordinate on the screenshot, scaled from 0 to 1.<|vision_start|><|image_pad|><|vision_end|>桌面",
     };
 
     for (int i = 0; i < in_strs.size(); ++i) {
@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
         auto input_tensor = processor.process(in_str, in_imgs[i]);
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
-        for (int step = 0; step < 100; step++) {
+        for (int step = 0; step < 128; step++) {
             model.get_position_ids(input_tensor);
             auto result = model(input_tensor);
             auto outputs = processor.detokenize(result[0]);

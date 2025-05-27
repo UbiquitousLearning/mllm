@@ -9,18 +9,16 @@
 #include "QnnOpPackage.h"
 #include "HTP/core/simple_reg.h"
 
-
 BEGIN_PKG_OP_DEFINITION(PKG_IRoPE);
 
-
 // op execute function declarations
-template<typename TensorType,typename TensorType1>
-GraphStatus iropeImpl(TensorType& out_0,
-                      const TensorType& in_0,
-                      const TensorType& in_1,
-                      const TensorType& cos,
+template <typename TensorType, typename TensorType1>
+GraphStatus iropeImpl(TensorType &out_0,
+                      const TensorType &in_0,
+                      const TensorType &in_1,
+                      const TensorType &cos,
                       const TensorType1 &h_cnt,
-                      const Tensor& pose_type);
+                      const Tensor &pose_type);
 
 // forward declaration of sample cost function
 static float iropeCostFunc(const Op *op);
@@ -65,11 +63,11 @@ DEF_PACKAGE_OP((iropeImpl<Tensor, Tensor>), "IRoPE")
  * one definition per op, and this is optional
  * syntax: DEF_PACKAGE_PARAM_ORDER(OP,PARAM1,MANDATORY1,DEFAULT1,PARAM2,MANDATORY2,DEFAULT2...)
  * one or more parameters can be specified for each op
-     * order of parameters listed determines the order of parameters passed into op execution functions
+ * order of parameters listed determines the order of parameters passed into op execution functions
  * if an op does not have a parameter order definition, parameter order passed into Qnn_addNode
  *   will be passed into op execution functions
  * if an op has a parameter order definition, any parameter passed into Qnn_addNode with unlisted
-     *   name will be abandoned
+ *   name will be abandoned
  * if two or more op packages with the same package name will be registered, they cannot list
  *   conflicting parameter orders
  * PARAM refers to parameter name as a string literal
@@ -82,141 +80,129 @@ DEF_PACKAGE_OP((iropeImpl<Tensor, Tensor>), "IRoPE")
  *       graph construction will skip this parameter when this parameter is not provided at
  *       Qnn_addNode
  */
-DEF_PACKAGE_PARAM_ORDER("IRoPE", 
+DEF_PACKAGE_PARAM_ORDER("IRoPE",
                         "pose_type",
                         true,
                         nullptr)
 
-
 /* execute functions for ops */
 
-template<typename TensorType,typename TensorType1>
-GraphStatus iropeImpl(TensorType& out_0,
-                      const TensorType& in_0,
-                      const TensorType& sin,
-                      const TensorType& cos,
+template <typename TensorType, typename TensorType1>
+GraphStatus iropeImpl(TensorType &out_0,
+                      const TensorType &in_0,
+                      const TensorType &sin,
+                      const TensorType &cos,
                       const TensorType1 &h_cnt,
-                      const Tensor& pose_type)
+                      const Tensor &pose_type)
 
 {
-  /*
-   * add code here
-   * */
-  /*
-   * To have good performance and stability, it is required to avoid heap memory
-   * allocation in this function. The heap memory allocation includes but not
-   * limited to calling malloc, operator new, constructing STL container objects
-   * like std::vector with default allocator, and adding items like calling
-   * std::vector::push_back to STL container objects with default allocator.
-   *
-   * Please check in SDK documentation for more information.
-   */
-  auto pose_type_ = pose_type(0,0,0,0);
-  auto h_cnt_ = static_cast<uint32_t>(h_cnt(0,0,0,0));
+    /*
+     * add code here
+     * */
+    /*
+     * To have good performance and stability, it is required to avoid heap memory
+     * allocation in this function. The heap memory allocation includes but not
+     * limited to calling malloc, operator new, constructing STL container objects
+     * like std::vector with default allocator, and adding items like calling
+     * std::vector::push_back to STL container objects with default allocator.
+     *
+     * Please check in SDK documentation for more information.
+     */
+    auto pose_type_ = pose_type(0, 0, 0, 0);
+    auto h_cnt_ = static_cast<uint32_t>(h_cnt(0, 0, 0, 0));
 
-  out_0.set_dims(in_0);
-  auto [b_in, h_in, w_in, d_in] = in_0.dims();
+    out_0.set_dims(in_0);
+    auto [b_in, h_in, w_in, d_in] = in_0.dims();
 
-  uint32_t half_dimension = d_in / 2;
+    uint32_t half_dimension = d_in / 2;
 
-  auto sin_ptr = (uint8_t*)sin.raw_data_const();
-  auto cos_ptr = (uint8_t*)cos.raw_data_const();
+    auto sin_ptr = (uint8_t *)sin.raw_data_const();
+    auto cos_ptr = (uint8_t *)cos.raw_data_const();
 
-  auto in_ptr = (uint8_t*)in_0.raw_data_const();
+    auto in_ptr = (uint8_t *)in_0.raw_data_const();
 
-  sin_ptr += half_dimension * h_cnt_;
-  cos_ptr += half_dimension * h_cnt_;
+    sin_ptr += half_dimension * h_cnt_;
+    cos_ptr += half_dimension * h_cnt_;
 
-  // float scale_ = in_0.get_interface_scale() * sin.get_interface_scale() * cos.get_interface_scale();
+    // float scale_ = in_0.get_interface_scale() * sin.get_interface_scale() * cos.get_interface_scale();
 
-  if (pose_type_ == 4) {
-    DType dtype = out_0.get_dtype();
+    if (pose_type_ == 4) {
+        DType dtype = out_0.get_dtype();
 
-    if (dtype == DType::Float32) {
+        if (dtype == DType::Float32) {
+            auto out_ptr = (float *)out_0.raw_data();
+            for (Idx b = 0; b < b_in; b++) {
+                for (Idx h = 0; h < h_in; h++) {
+                    for (Idx w = 0; w < w_in; w++) {
+                        int partial_dimension = d_in;
+                        for (Idx d = 0; d < partial_dimension / 2; ++d) {
+                            int in_value = *in_ptr;
+                            int in_value_2 = *(in_ptr + half_dimension);
 
-      auto out_ptr = (float*)out_0.raw_data();
-      for (Idx b = 0; b < b_in; b++) {
-        for (Idx h = 0; h < h_in; h++) {
-          for (Idx w = 0; w < w_in; w++) {
+                            int sin_value = *(sin_ptr + d);
+                            int cos_value = *(cos_ptr + d);
+                            float value = (in_value - 128) * (cos_value - 128) * cos.get_interface_scale() - (in_value_2 - 128) * (sin_value - 128) * sin.get_interface_scale();
+                            float value2 = (in_value - 128) * (sin_value - 128) * sin.get_interface_scale() + (in_value_2 - 128) * (cos_value - 128) * cos.get_interface_scale();
 
-            int partial_dimension = d_in;
-            for (Idx d = 0; d < partial_dimension / 2; ++d) {
-                int in_value = *in_ptr;
-                int in_value_2 = *(in_ptr + half_dimension);
-                
-                int sin_value = *(sin_ptr+d);
-                int cos_value = *(cos_ptr+d);
-                float value = (in_value-128) * (cos_value-128) * cos.get_interface_scale() - (in_value_2-128) * (sin_value-128) * sin.get_interface_scale();
-                float value2 = (in_value-128) * (sin_value-128) * sin.get_interface_scale() + (in_value_2-128) * (cos_value-128) * cos.get_interface_scale();
-                
-                *out_ptr = value;
-                *(out_ptr + half_dimension) = value2;
+                            *out_ptr = value;
+                            *(out_ptr + half_dimension) = value2;
 
-                out_ptr++;
-                in_ptr++;
+                            out_ptr++;
+                            in_ptr++;
+                        }
+
+                        in_ptr += half_dimension;
+                        out_ptr += half_dimension;
+                    }
+
+                    sin_ptr += half_dimension;
+                    cos_ptr += half_dimension;
+                }
             }
+        } else if (dtype == DType::Float16) {
+            auto out_ptr = (__fp16 *)out_0.raw_data();
+            for (Idx b = 0; b < b_in; b++) {
+                for (Idx h = 0; h < h_in; h++) {
+                    for (Idx w = 0; w < w_in; w++) {
+                        int partial_dimension = d_in;
+                        for (Idx d = 0; d < partial_dimension / 2; ++d) {
+                            int in_value = *in_ptr;
+                            int in_value_2 = *(in_ptr + half_dimension);
 
-            in_ptr += half_dimension;
-            out_ptr += half_dimension;
-          }
+                            int sin_value = *(sin_ptr + d);
+                            int cos_value = *(cos_ptr + d);
+                            float value = (in_value - 128) * (cos_value - 128) * cos.get_interface_scale() - (in_value_2 - 128) * (sin_value - 128) * sin.get_interface_scale();
+                            float value2 = (in_value - 128) * (sin_value - 128) * sin.get_interface_scale() + (in_value_2 - 128) * (cos_value - 128) * cos.get_interface_scale();
 
-          sin_ptr += half_dimension;
-          cos_ptr += half_dimension;
+                            *out_ptr = static_cast<__fp16>(value);
+                            *(out_ptr + half_dimension) = static_cast<__fp16>(value2);
 
-        }
-      }
-    } else if (dtype == DType::Float16) {
+                            out_ptr++;
+                            in_ptr++;
+                        }
 
-      auto out_ptr = (__fp16*)out_0.raw_data();
-      for (Idx b = 0; b < b_in; b++) {
-        for (Idx h = 0; h < h_in; h++) {
-          for (Idx w = 0; w < w_in; w++) {
+                        in_ptr += half_dimension;
+                        out_ptr += half_dimension;
+                    }
 
-            int partial_dimension = d_in;
-            for (Idx d = 0; d < partial_dimension / 2; ++d) {
-                int in_value = *in_ptr;
-                int in_value_2 = *(in_ptr + half_dimension);
-                
-                int sin_value = *(sin_ptr+d);
-                int cos_value = *(cos_ptr+d);
-                float value = (in_value-128) * (cos_value-128) * cos.get_interface_scale() - (in_value_2-128) * (sin_value-128) * sin.get_interface_scale();
-                float value2 = (in_value-128) * (sin_value-128) * sin.get_interface_scale() + (in_value_2-128) * (cos_value-128) * cos.get_interface_scale();
-                
-                *out_ptr = static_cast<__fp16>(value);
-                *(out_ptr + half_dimension) = static_cast<__fp16>(value2);
-
-                out_ptr++;
-                in_ptr++;
+                    sin_ptr += half_dimension;
+                    cos_ptr += half_dimension;
+                }
             }
-
-            in_ptr += half_dimension;
-            out_ptr += half_dimension;
-          }
-
-          sin_ptr += half_dimension;
-          cos_ptr += half_dimension;
-
         }
-      }
-    } 
-  }
+    }
 
-  return GraphStatus::Success;
+    return GraphStatus::Success;
 }
 
-__attribute__((unused)) static float iropeCostFunc(const Op *op)
-{
-  /*
-   * add code here
-   * */
+__attribute__((unused)) static float iropeCostFunc(const Op *op) {
+    /*
+     * add code here
+     * */
 
-  float cost = 0.0;  // add cost computation here
-  return cost;
+    float cost = 0.0; // add cost computation here
+    return cost;
 }
-
-
-
-
 
 /* At the bottom of the op file, call END_PKG_OP_DEFINITION(<name>),
    where <name> is as BEGIN_PKG_OP_DEFINITION

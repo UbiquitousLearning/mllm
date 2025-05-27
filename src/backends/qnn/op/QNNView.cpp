@@ -82,7 +82,7 @@ ErrorCode QNNView::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 ErrorCode QNNView::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     outputs[0]->setDtype(inputs[0]->dtype());
 
-    if (outputs[0]->dtype() == MLLM_TYPE_I8)
+    if (outputs[0]->dtype() == MLLM_TYPE_I8 || outputs[0]->dtype() == MLLM_TYPE_I16)
         return graphAddNode(name(), "Reshape", inputs, outputs, {}, "qti.aisw", true, &scale_);
     else {
         return graphAddNode(name(), "Reshape", inputs, outputs, {}, "qti.aisw", true, nullptr);

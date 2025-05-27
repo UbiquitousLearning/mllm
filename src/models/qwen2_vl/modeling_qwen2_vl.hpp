@@ -219,6 +219,7 @@ public:
         head_dim = config.hidden_size / num_heads;
         num_key_value_heads = config.num_key_value_heads;
         num_key_value_groups = num_heads / num_key_value_heads;
+        name = base_name;
 
         // init layers
         q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._q_proj_name);
@@ -242,6 +243,7 @@ public:
         auto value_states = v_proj(inputs[0]);
         query_states = query_states.view(-1, num_heads, -1, head_dim);
         key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
+
         value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
         query_states = q_rope(query_states, position_ids);
         key_states = k_rope(key_states, position_ids);
@@ -279,6 +281,7 @@ private:
     KVCache k_cache;
     KVCache v_cache;
     Softmax softmax;
+    string name;
 };
 
 // Copied from GemmaDecoder with Gemma->Qwen and set RmsNorm(without add_unit_offset)

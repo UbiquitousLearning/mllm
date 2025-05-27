@@ -6,21 +6,22 @@ adb shell mkdir -p /data/local/tmp/mllm/qnn-lib
 adb push ../vocab/qwen_vocab.mllm /data/local/tmp/mllm/vocab/
 
 
-if ! adb shell [ -f "/data/local/tmp/mllm/models/qwen-1.5-1.8b-chat-int8.mllm" ]; then
-    adb push ../models/qwen-1.5-1.8b-chat-int8.mllm "/data/local/tmp/mllm/models/qwen-1.5-1.8b-chat-int8.mllm"
+if ! adb shell [ -f "/data/local/tmp/mllm/models/showui-w8-fpbias-noshadow-xdl-test.mllm" ]; then
+    adb push ../models/showui-w8-fpbias-noshadow-xdl-test.mllm "/data/local/tmp/mllm/models/showui-w8-fpbias-noshadow-xdl-test.mllm"
 else
-    echo "qwen-1.5-1.8b-chat-int8 file already exists"
+    echo "showui-w8-fpbias-noshadow-xdl-test file already exists"
 fi
 
 
-if ! adb shell [ -f "/data/local/tmp/mllm/models/qwen-1.5-1.8b-chat-q4k.mllm" ]; then
-    adb push ../models/qwen-1.5-1.8b-chat-q4k.mllm "/data/local/tmp/mllm/models/qwen-1.5-1.8b-chat-q4k.mllm"
+if ! adb shell [ -f "/data/local/tmp/mllm/models/showui-2B-rotated-q40.mllm" ]; then
+    adb push ../models/showui-2B-rotated-q40.mllm "/data/local/tmp/mllm/models/showui-2B-rotated-q40.mllm"
 else
-    echo "qwen-1.5-1.8b-chat-q4k.mllm file already exists"
+    echo "showui-2B-rotated-q40.mllm file already exists"
 fi
 
 if [ -z "$QNN_SDK_ROOT" ]; then
     export QNN_SDK_ROOT=/root/research/dev/mllm/src/backends/qnn/sdk
+    # export HEXAGON_SDK_ROOT=/root/research/dev/mllm/src/backends/qnn/HexagonSDK/5.4.0
     echo "QNN_SDK_ROOT is set to $QNN_SDK_ROOT"
     # exit 1
 else 
@@ -46,7 +47,6 @@ if [ $? -ne 0 ]; then
     echo "adb push failed"
     exit 1
 fi
-
 # adb shell "rm /data/local/tmp/mllm/bin/qnn_context.bin"
-adb push ../bin-arm-qnn/demo_qwen_npu /data/local/tmp/mllm/bin/
-adb shell "cd /data/local/tmp/mllm/bin && export LD_LIBRARY_PATH=/data/local/tmp/mllm/qnn-lib && export ADSP_LIBRARY_PATH=/data/local/tmp/mllm/qnn-lib && ./demo_qwen_npu"
+adb push ../bin-arm-qnn/demo_qwen2_vl_npu /data/local/tmp/mllm/bin/
+adb shell "cd /data/local/tmp/mllm/bin && export LD_LIBRARY_PATH=/data/local/tmp/mllm/qnn-lib && export ADSP_LIBRARY_PATH=/data/local/tmp/mllm/qnn-lib && ./demo_qwen2_vl_npu"

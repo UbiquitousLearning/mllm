@@ -31,15 +31,15 @@ ErrorCode QNNSuperSiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 
     float aScale = 0;
     aScale = a_scale_.hostPtr<float>()[0] / 127.0;
-    aScale = roundf(aScale * 100000) / 100000;
+    // aScale = roundf(aScale * 100000) / 100000;
 
     float bScale = 0;
     bScale = b_scale_.hostPtr<float>()[0] / 127.0;
-    bScale = roundf(bScale * 100000) / 100000;
+    // bScale = roundf(bScale * 100000) / 100000;
 
     float oScale = 0;
     oScale = o_scale_.hostPtr<float>()[0] / 127.0;
-    oScale = roundf(oScale * 100000) / 100000;
+    // oScale = roundf(oScale * 100000) / 100000;
 
     auto paramsSuperSiLuNameA = name() + ".supersilu_params.a_scale";
     auto paramsSuperSiLuNameB = name() + ".supersilu_params.b_scale";

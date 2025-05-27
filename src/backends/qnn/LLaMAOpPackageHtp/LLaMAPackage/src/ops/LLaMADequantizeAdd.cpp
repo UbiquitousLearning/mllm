@@ -9,23 +9,24 @@
 #include "QnnOpPackage.h"
 #include "HTP/core/simple_reg.h"
 
-BEGIN_PKG_OP_DEFINITION(PKG_LLaMADequantize);
+BEGIN_PKG_OP_DEFINITION(PKG_LLaMADequantizeAdd);
 
 // op execute function declarations
-template <typename TensorType, typename TensorType1, typename TensorType2>
-GraphStatus llamadequantizeImpl(TensorType1 &out_0,
-                                const TensorType1 &in_0,
-                                const PlainFloatTensor &scale);
+template <typename TensorType, typename TensorType1, typename TensorType2, typename TensorType3>
+GraphStatus llamadequantizeaddImpl(TensorType1 &out_0,
+                                   const TensorType1 &in_0,
+                                   const TensorType &in_1,
+                                   const PlainFloatTensor &scale);
 
 // forward declaration of sample cost function
-static float llamadequantizeCostFunc(const Op *op);
+static float llamadequantizeaddCostFunc(const Op *op);
 
 /*
  * method 1 for defining op, using default cost value (i.e. GLACIAL) and default flag (Flags::RESOURCE_HVX)
  * syntax: DEF_PACKAGE_OP(F,OP)
- * e.g. DEF_PACKAGE_OP((llamadequantizeImpl<Tensor, Tensor, Tensor>), "LLaMADequantize")
+ * e.g. DEF_PACKAGE_OP((llamadequantizeaddImpl<Tensor, Tensor, Tensor, Tensor>), "LLaMADequantizeAdd")
  */
-DEF_PACKAGE_OP((llamadequantizeImpl<Tensor, Tensor, Tensor>), "LLaMADequantize")
+DEF_PACKAGE_OP((llamadequantizeaddImpl<Tensor, Tensor, Tensor, Tensor>), "LLaMADequantizeAdd")
 
 /*
  * method 2 for defining op with specified cost value (one of GLACIAL, SNAIL, FAST, FREE)
@@ -33,15 +34,15 @@ DEF_PACKAGE_OP((llamadequantizeImpl<Tensor, Tensor, Tensor>), "LLaMADequantize")
  * syntax: DEF_PACKAGE_OP_AND_COST_AND_FLAGS(F,OP,COST,...)
  * can use zero or more flags, FLAG options are IS_CONST, INHIBIT_CONST_PROP,
  * RESOURCE_HVX, RESOURCE_HMX(not supported in external op packages)
- * e.g. DEF_PACKAGE_OP_AND_COST_AND_FLAGS((llamadequantizeImpl<PlainFloatTensor, PlainFloatTensor, PlainFloatTensor>), "LLaMADequantize", SNAIL)
+ * e.g. DEF_PACKAGE_OP_AND_COST_AND_FLAGS((llamadequantizeaddImpl<PlainFloatTensor, PlainFloatTensor, PlainFloatTensor, PlainFloatTensor>), "LLaMADequantizeAdd", SNAIL)
  */
 
 /*
  * method 3 for defining op with cost function pointer and provided flags
  * cost function pointer type: typedef float (*cost_function) (const Op * op);
  * syntax: DEF_PACKAGE_OP_AND_COST_F_AND_FLAGS(F,OP,COST_F,...)
- * e.g. DEF_PACKAGE_OP_AND_COST_F_AND_FLAGS((llamadequantizeImpl<PlainFloatTensor, PlainFloatTensor, PlainFloatTensor>),
- * "LLaMADequantize", llamadequantizeCostFunc, Flags::RESOURCE_HVX)
+ * e.g. DEF_PACKAGE_OP_AND_COST_F_AND_FLAGS((llamadequantizeaddImpl<PlainFloatTensor, PlainFloatTensor, PlainFloatTensor, PlainFloatTensor>),
+ * "LLaMADequantizeAdd", llamadequantizeaddCostFunc, Flags::RESOURCE_HVX)
  */
 
 /*
@@ -77,13 +78,13 @@ DEF_PACKAGE_OP((llamadequantizeImpl<Tensor, Tensor, Tensor>), "LLaMADequantize")
  *       graph construction will skip this parameter when this parameter is not provided at
  *       Qnn_addNode
  */
-DEF_PACKAGE_PARAM_ORDER("LLaMADequantize",
+DEF_PACKAGE_PARAM_ORDER("LLaMADequantizeAdd",
                         "scale",
                         true,
                         nullptr)
 
-#ifndef REFERENCE_OP
 /* execute functions for ops */
+#ifndef REFERENCE_OP
 #include "qhmath_hvx.h"
 #include "hvx_internal.h"
 #include <hexagon_types.h>
@@ -109,16 +110,18 @@ static HVX_INLINE_ALWAYS uint32_t float_to_bits(float x) {
 }
 
 /* execute functions for ops */
-int32_t qhmath_hvx_dequantize_ahf(
+int32_t qhmath_hvx_dequantize_add_ahf(
     int8_t *restrict input,
+    float_t *restrict bias,
     int8_t *restrict output,
     uint32_t size,
     float scale) {
-    if ((input == NULL) || (output == NULL) || (size == 0)) {
+    if ((input == NULL) || (bias == NULL) || (output == NULL) || (size == 0)) {
         return -1;
     }
 
     HVX_Vector *iptr = (HVX_Vector *)input;
+    HVX_Vector *bptr = (HVX_Vector *)bias;
     HVX_UVector *optr = (HVX_UVector *)output;
 
     HVX_Vector sline1p, sline1c, sline1;
@@ -154,8 +157,29 @@ int32_t qhmath_hvx_dequantize_ahf(
             HVX_Vector sout1 = Q6_Vh_vsub_VhVh(Q6_V_lo_W(temp), convert_vector);
             HVX_Vector sout2 = Q6_Vh_vsub_VhVh(Q6_V_hi_W(temp), convert_vector);
 
-            *optr++ = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), scale_vec));
-            *optr++ = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout2), scale_vec));
+            HVX_Vector bvec1 = *bptr++; // load 32 float elements
+            HVX_Vector bvec2 = *bptr++;
+            // see HVX documention for Vector shuffle and deal cross-lane
+            // Q6_Vhf_equals_Wqf32 will use elements in the lower vector as the odd elements, so need to transpose here
+            HVX_VectorPair bias_pair = Q6_W_vdeal_VVR(Q6_Vqf32_equals_Vsf(bvec2), Q6_Vqf32_equals_Vsf(bvec1), -4); // make a fp32 pair
+            HVX_Vector hf16_bias = Q6_Vhf_equals_Wqf32(bias_pair);
+
+            *optr++ = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vadd_Vqf16Vhf(
+                Q6_Vqf16_vmpy_VhfVhf(
+                    Q6_Vhf_equals_Vh(sout1), scale_vec),
+                hf16_bias));
+
+            bvec1 = *bptr++; // load 32 float elements
+            bvec2 = *bptr++;
+            // see HVX documention for Vector shuffle and deal cross-lane
+            // Q6_Vhf_equals_Wqf32 will use elements in the lower vector as the odd elements, so need to transpose here
+            bias_pair = Q6_W_vdeal_VVR(Q6_Vqf32_equals_Vsf(bvec2), Q6_Vqf32_equals_Vsf(bvec1), -4); // make a fp32 pair
+            hf16_bias = Q6_Vhf_equals_Wqf32(bias_pair);
+
+            *optr++ = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vadd_Vqf16Vhf(
+                Q6_Vqf16_vmpy_VhfVhf(
+                    Q6_Vhf_equals_Vh(sout2), scale_vec),
+                hf16_bias));
 
             sline1p = sline1c;
         }
@@ -171,23 +195,42 @@ int32_t qhmath_hvx_dequantize_ahf(
         HVX_Vector sout1 = Q6_Vh_vsub_VhVh(Q6_V_lo_W(temp), convert_vector);
         HVX_Vector sout2 = Q6_Vh_vsub_VhVh(Q6_V_hi_W(temp), convert_vector);
 
-        *optr++ = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), scale_vec));
-        *optr++ = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout2), scale_vec));
+        HVX_Vector bvec1 = *bptr++; // load 32 float elements
+        HVX_Vector bvec2 = *bptr++;
+        HVX_VectorPair bias_pair = Q6_W_vshuff_VVR(Q6_Vqf32_equals_Vsf(bvec1), Q6_Vqf32_equals_Vsf(bvec2), -4); // make a fp32 pair
+        HVX_Vector hf16_bias = Q6_Vhf_equals_Wqf32(bias_pair);
+
+        *optr++ = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vadd_Vqf16Vhf(
+            Q6_Vqf16_vmpy_VhfVhf(
+                Q6_Vhf_equals_Vh(sout1), scale_vec),
+            hf16_bias));
+
+        bvec1 = *bptr++; // load 32 float elements
+        bvec2 = *bptr++;
+        bias_pair = Q6_W_vshuff_VVR(Q6_Vqf32_equals_Vsf(bvec1), Q6_Vqf32_equals_Vsf(bvec2), -4); // make a fp32 pair
+        hf16_bias = Q6_Vhf_equals_Wqf32(bias_pair);
+
+        *optr++ = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vadd_Vqf16Vhf(
+            Q6_Vqf16_vmpy_VhfVhf(
+                Q6_Vhf_equals_Vh(sout2), scale_vec),
+            hf16_bias));
     }
 
     return 0;
 }
 
-int32_t qhmath_hvx_dequantize_ui16_ahf(
+int32_t qhmath_hvx_dequantize_add_ui16_ahf(
     int8_t *restrict input,
+    float_t *restrict bias,
     int8_t *restrict output,
     uint32_t size,
     float scale) {
-    if ((input == NULL) || (output == NULL) || (size == 0)) {
+    if ((input == NULL) || (bias == NULL) || (output == NULL) || (size == 0)) {
         return -1;
     }
 
     HVX_Vector *iptr = (HVX_Vector *)input;
+    HVX_Vector *bptr = (HVX_Vector *)bias;
     HVX_UVector *optr = (HVX_UVector *)output;
 
     HVX_Vector sline1p, sline1c, sline1;
@@ -216,10 +259,21 @@ int32_t qhmath_hvx_dequantize_ui16_ahf(
         for (int32_t j = 0; j < block; ++j) {
             sline1c = *iptr++;
             sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
+
+            HVX_Vector bvec1 = *bptr++; // load 32 float elements
+            HVX_Vector bvec2 = *bptr++;
+            // see HVX documention for Vector shuffle and deal cross-lane
+            // Q6_Vhf_equals_Wqf32 will use elements in the lower vector as the odd elements, so need to transpose here
+            HVX_VectorPair bias_pair = Q6_W_vdeal_VVR(Q6_Vqf32_equals_Vsf(bvec2), Q6_Vqf32_equals_Vsf(bvec1), -4); // make a fp32 pair
+            HVX_Vector hf16_bias = Q6_Vhf_equals_Wqf32(bias_pair);
+
             HVX_Vector temp = sline1;
 
             HVX_Vector sout1 = Q6_Vh_vsub_VhVh(temp, convert_vector);
-            *optr++ = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), scale_vec));
+            HVX_Vector qf16_val = Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), scale_vec);
+
+            *optr++ = Q6_Vhf_equals_Vqf16(
+                Q6_Vqf16_vadd_Vqf16Vhf(qf16_val, hf16_bias));
 
             sline1p = sline1c;
         }
@@ -229,26 +283,39 @@ int32_t qhmath_hvx_dequantize_ui16_ahf(
         sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
         sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
 
+        HVX_Vector bvec1 = *bptr++; // load 32 float elements
+        HVX_Vector bvec2 = *bptr++;
+
+        // see HVX documention for Vector shuffle and deal cross-lane
+        // Q6_Vhf_equals_Wqf32 will use elements in the lower vector as the odd elements, so need to transpose here
+        HVX_VectorPair bias_pair = Q6_W_vdeal_VVR(Q6_Vqf32_equals_Vsf(bvec2), Q6_Vqf32_equals_Vsf(bvec1), -4); // make a fp32 pair
+        HVX_Vector hf16_bias = Q6_Vhf_equals_Wqf32(bias_pair);
+
         HVX_Vector temp = sline1;
 
         HVX_Vector sout1 = Q6_Vh_vsub_VhVh(temp, convert_vector);
-        *optr++ = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), scale_vec));
+        HVX_Vector qf16_val = Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), scale_vec);
+
+        *optr++ = Q6_Vhf_equals_Vqf16(
+            Q6_Vqf16_vadd_Vqf16Vhf(qf16_val, hf16_bias));
     }
 
     return 0;
 }
 
 // Only support 128x dimension
-int32_t qhmath_hvx_dequantize_af(
+int32_t qhmath_hvx_dequantize_add_af(
     int8_t *restrict input,
+    float_t *restrict bias,
     int8_t *restrict output,
     uint32_t size,
     float scale) {
-    if ((input == NULL) || (output == NULL) || (size == 0)) {
+    if ((input == NULL) || (bias == NULL) || (output == NULL) || (size == 0)) {
         return -1;
     }
 
     HVX_Vector *iptr = (HVX_Vector *)input;
+    HVX_Vector *bptr = (HVX_Vector *)bias;
     HVX_UVector *optr = (HVX_UVector *)output;
 
     HVX_Vector sline1p, sline1c, sline1;
@@ -281,6 +348,11 @@ int32_t qhmath_hvx_dequantize_af(
         for (int32_t j = 0; j < block; ++j) {
             sline1c = *iptr++;
             sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
+            HVX_Vector bvec1 = *bptr++; // load 32 float elements
+            HVX_Vector bvec2 = *bptr++;
+            HVX_Vector bvec3 = *bptr++;
+            HVX_Vector bvec4 = *bptr++;
+
             HVX_VectorPair temp = Q6_Wh_vadd_VubVub(sline1, zero_v_sf);
 
             temp = Q6_W_vshuff_VVR(Q6_V_hi_W(temp), Q6_V_lo_W(temp), -2);
@@ -293,10 +365,24 @@ int32_t qhmath_hvx_dequantize_af(
             HVX_VectorPair result2 = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout2), one_vec);
             result2 = Q6_W_vshuff_VVR(Q6_V_hi_W(result2), Q6_V_lo_W(result2), -4);
 
-            *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result1), scale_vec));
-            *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result1), scale_vec));
-            *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result2), scale_vec));
-            *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result2), scale_vec));
+            *optr++ = Q6_Vsf_equals_Vqf32(
+                Q6_Vqf32_vadd_Vqf32Vqf32(
+                    Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result1), scale_vec),
+                    Q6_Vqf32_equals_Vsf(bvec1)));
+            *optr++ = Q6_Vsf_equals_Vqf32(
+                Q6_Vqf32_vadd_Vqf32Vqf32(
+                    Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result1), scale_vec),
+                    Q6_Vqf32_equals_Vsf(bvec2)));
+
+            *optr++ = Q6_Vsf_equals_Vqf32(
+                Q6_Vqf32_vadd_Vqf32Vqf32(
+                    Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result2), scale_vec),
+                    Q6_Vqf32_equals_Vsf(bvec3)));
+
+            *optr++ = Q6_Vsf_equals_Vqf32(
+                Q6_Vqf32_vadd_Vqf32Vqf32(
+                    Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result2), scale_vec),
+                    Q6_Vqf32_equals_Vsf(bvec4)));
 
             sline1p = sline1c;
         }
@@ -305,6 +391,12 @@ int32_t qhmath_hvx_dequantize_af(
     if (vectors_in_rounddown > 0) {
         sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
         sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
+
+        // NOTE: assume bias size is multiple of 128
+        HVX_Vector bvec1 = *bptr++; // load 32 float elements
+        HVX_Vector bvec2 = *bptr++;
+        HVX_Vector bvec3 = *bptr++;
+        HVX_Vector bvec4 = *bptr++;
 
         HVX_VectorPair temp = Q6_Wh_vadd_VubVub(sline1, zero_v_sf);
 
@@ -318,25 +410,41 @@ int32_t qhmath_hvx_dequantize_af(
         HVX_VectorPair result2 = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout2), one_vec);
         result2 = Q6_W_vshuff_VVR(Q6_V_hi_W(result2), Q6_V_lo_W(result2), -4);
 
-        *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result1), scale_vec));
-        *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result1), scale_vec));
-        *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result2), scale_vec));
-        *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result2), scale_vec));
+        *optr++ = Q6_Vsf_equals_Vqf32(
+            Q6_Vqf32_vadd_Vqf32Vqf32(
+                Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result1), scale_vec),
+                Q6_Vqf32_equals_Vsf(bvec1)));
+        *optr++ = Q6_Vsf_equals_Vqf32(
+            Q6_Vqf32_vadd_Vqf32Vqf32(
+                Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result1), scale_vec),
+                Q6_Vqf32_equals_Vsf(bvec2)));
+
+        *optr++ = Q6_Vsf_equals_Vqf32(
+            Q6_Vqf32_vadd_Vqf32Vqf32(
+                Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result2), scale_vec),
+                Q6_Vqf32_equals_Vsf(bvec3)));
+
+        *optr++ = Q6_Vsf_equals_Vqf32(
+            Q6_Vqf32_vadd_Vqf32Vqf32(
+                Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result2), scale_vec),
+                Q6_Vqf32_equals_Vsf(bvec4)));
     }
 
     return 0;
 }
 
-int32_t qhmath_hvx_dequantize_ui16_af(
+int32_t qhmath_hvx_dequantize_add_ui16_af(
     int8_t *restrict input,
+    float_t *restrict bias,
     int8_t *restrict output,
     uint32_t size,
     float scale) {
-    if ((input == NULL) || (output == NULL) || (size == 0)) {
+    if ((input == NULL) || (bias == NULL) || (output == NULL) || (size == 0)) {
         return -1;
     }
 
     HVX_Vector *iptr = (HVX_Vector *)input;
+    HVX_Vector *bptr = (HVX_Vector *)bias;
     HVX_UVector *optr = (HVX_UVector *)output;
 
     HVX_Vector sline1p, sline1c, sline1;
@@ -369,11 +477,18 @@ int32_t qhmath_hvx_dequantize_ui16_af(
             sline1c = *iptr++;
             sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
 
+            HVX_Vector bvec1 = *bptr++; // load 32 float elements
+            HVX_Vector bvec2 = *bptr++;
+
             HVX_Vector temp = Q6_Vh_vsub_VhVh(sline1, convert_vector);
             HVX_VectorPair result = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(temp), one_vec);
             result = Q6_W_vshuff_VVR(Q6_V_hi_W(result), Q6_V_lo_W(result), -4);
-            *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result), scale_vec));
-            *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result), scale_vec));
+            *optr++ = Q6_Vsf_equals_Vqf32(
+                Q6_Vqf32_vadd_Vqf32Vqf32(
+                    Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result), scale_vec), Q6_Vqf32_equals_Vsf(bvec1)));
+            *optr++ = Q6_Vsf_equals_Vqf32(
+                Q6_Vqf32_vadd_Vqf32Vqf32(
+                    Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result), scale_vec), Q6_Vqf32_equals_Vsf(bvec2)));
 
             sline1p = sline1c;
         }
@@ -383,20 +498,28 @@ int32_t qhmath_hvx_dequantize_ui16_af(
         sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
         sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
 
+        HVX_Vector bvec1 = *bptr++; // load 32 float elements
+        HVX_Vector bvec2 = *bptr++;
+
         HVX_Vector temp = Q6_Vh_vsub_VhVh(sline1, convert_vector);
         HVX_VectorPair result = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(temp), one_vec);
         result = Q6_W_vshuff_VVR(Q6_V_hi_W(result), Q6_V_lo_W(result), -4);
-        *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result), scale_vec));
-        *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result), scale_vec));
+        *optr++ = Q6_Vsf_equals_Vqf32(
+            Q6_Vqf32_vadd_Vqf32Vqf32(
+                Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result), scale_vec), Q6_Vqf32_equals_Vsf(bvec1)));
+        *optr++ = Q6_Vsf_equals_Vqf32(
+            Q6_Vqf32_vadd_Vqf32Vqf32(
+                Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result), scale_vec), Q6_Vqf32_equals_Vsf(bvec2)));
     }
 
     return 0;
 }
 
-template <typename TensorType, typename TensorType1, typename TensorType2>
-GraphStatus llamadequantizeImpl(TensorType1 &out_0,
-                                const TensorType1 &in_0,
-                                const PlainFloatTensor &scale)
+template <typename TensorType, typename TensorType1, typename TensorType2, typename TensorType3>
+GraphStatus llamadequantizeaddImpl(TensorType1 &out_0,
+                                   const TensorType1 &in_0,
+                                   const TensorType &in_1,
+                                   const PlainFloatTensor &scale)
 
 {
     /*
@@ -416,31 +539,64 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
     out_0.set_dims(in_0);
 
     // NHWC
-    auto in_ptr = (int8_t *)in_0.raw_data_const();
-    auto out_ptr = (int8_t *)out_0.raw_data();
+    auto bias_ptr = (float *)in_1.raw_data_const();
     auto [b_in, h_in, w_in, d_in] = in_0.dims();
 
     float scale_ = scale(0, 0, 0, 0);
 
-    size_t size = b_in * h_in * w_in * d_in;
+    if (d_in % 128 != 0) {
+        return GraphStatus::ErrorDimensions;
+    }
 
+    // call the kernel function for every dim() (assume total_size == bias_length)
+    // NOTE: in modeling, the dequantize add can appear after linear multihead attention, so w_in * d_in == bias_length
+    //      in other positions, the w_in will be 1
     if (in_0.get_dtype() == DType::QUInt8 && out_0.get_dtype() == DType::Float16) {
-        qhmath_hvx_dequantize_ahf(in_ptr, out_ptr, size, scale_);
+        for (Idx b = 0; b < b_in; b++) {
+            for (Idx h = 0; h < h_in; h++) {
+                auto in_ptr = (int8_t *)in_0.raw_data_const() + (((b * h_in) + h) * w_in * d_in);
+                auto out_ptr = (int8_t *)((int16_t *)out_0.raw_data() + (((b * h_in) + h) * w_in * d_in));
+                qhmath_hvx_dequantize_add_ahf(in_ptr, bias_ptr, out_ptr, w_in * d_in, scale_);
+            }
+        }
     } else if (in_0.get_dtype() == DType::QUInt16 && out_0.get_dtype() == DType::Float16) {
-        qhmath_hvx_dequantize_ui16_ahf(in_ptr, out_ptr, size, scale_);
+        for (Idx b = 0; b < b_in; b++) {
+            for (Idx h = 0; h < h_in; h++) {
+                auto in_ptr = (int8_t *)((int16_t *)in_0.raw_data_const() + (((b * h_in) + h) * w_in * d_in));
+                auto out_ptr = (int8_t *)((int16_t *)out_0.raw_data() + (((b * h_in) + h) * w_in * d_in));
+                qhmath_hvx_dequantize_add_ui16_ahf(in_ptr, bias_ptr, out_ptr, w_in * d_in, scale_);
+            }
+        }
     } else if (in_0.get_dtype() == DType::QUInt16 && out_0.get_dtype() == DType::Float32) {
-        qhmath_hvx_dequantize_ui16_af(in_ptr, out_ptr, size, scale_);
+        // NOTE: correct
+        for (Idx b = 0; b < b_in; b++) {
+            for (Idx h = 0; h < h_in; h++) {
+                auto in_ptr = (int8_t *)((int16_t *)in_0.raw_data_const() + (((b * h_in) + h) * w_in * d_in));
+                auto out_ptr = (int8_t *)((float_t *)out_0.raw_data() + (((b * h_in) + h) * w_in * d_in));
+                qhmath_hvx_dequantize_add_ui16_af(in_ptr, bias_ptr, out_ptr, w_in * d_in, scale_);
+            }
+        }
+    } else if (in_0.get_dtype() == DType::QUInt8 && out_0.get_dtype() == DType::Float32) {
+        for (Idx b = 0; b < b_in; b++) {
+            for (Idx h = 0; h < h_in; h++) {
+                auto in_ptr = (int8_t *)in_0.raw_data_const() + (((b * h_in) + h) * w_in * d_in);
+                auto out_ptr = (int8_t *)((float_t *)out_0.raw_data() + ((((b * h_in) + h) * w_in * d_in)));
+                qhmath_hvx_dequantize_add_af(in_ptr, bias_ptr, out_ptr, w_in * d_in, scale_);
+            }
+        }
     } else {
-        qhmath_hvx_dequantize_af(in_ptr, out_ptr, size, scale_);
+        return GraphStatus::GraphErrorCode::ErrorUnsupported;
     }
 
     return GraphStatus::Success;
 }
 #else
-template <typename TensorType, typename TensorType1, typename TensorType2>
-GraphStatus llamadequantizeImpl(TensorType1 &out_0,
-                                const TensorType1 &in_0,
-                                const PlainFloatTensor &scale)
+
+template <typename TensorType, typename TensorType1, typename TensorType2, typename TensorType3>
+GraphStatus llamadequantizeaddImpl(TensorType1 &out_0,
+                                   const TensorType1 &in_0,
+                                   const TensorType &in_1,
+                                   const PlainFloatTensor &scale)
 
 {
     /*
@@ -456,7 +612,6 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
      * Please check in SDK documentation for more information.
      */
 
-    // HVX Method -- FP32 Version
     out_0.set_dims(in_0);
 
     float scale_ = scale(0, 0, 0, 0);
@@ -471,7 +626,7 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
                 for (Idx w = 0; w < w_in; w++) {
                     for (Idx d = 0; d < d_in; d++) {
                         int32_t inval = static_cast<int32_t>(*in_ptr++);
-                        *out_ptr++ = (inval - 128) * scale_;
+                        *out_ptr++ = (inval - 128) * scale_ + in_1(0, 0, 0, w * d_in + d);
                     }
                 }
             }
@@ -485,7 +640,7 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
                 for (Idx w = 0; w < w_in; w++) {
                     for (Idx d = 0; d < d_in; d++) {
                         int32_t inval = static_cast<int32_t>(*in_ptr++);
-                        *out_ptr++ = (inval - 32768) * scale_;
+                        *out_ptr++ = (inval - 32768) * scale_ + in_1(0, 0, 0, w * d_in + d);
                     }
                 }
             }
@@ -499,7 +654,7 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
                 for (Idx w = 0; w < w_in; w++) {
                     for (Idx d = 0; d < d_in; d++) {
                         int32_t inval = static_cast<int32_t>(*in_ptr++);
-                        *out_ptr++ = (__fp16)((inval - 32768) * scale_);
+                        *out_ptr++ = (__fp16)((inval - 32768) * scale_ + in_1(0, 0, 0, w * d_in + d));
                     }
                 }
             }
@@ -513,19 +668,18 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
                 for (Idx w = 0; w < w_in; w++) {
                     for (Idx d = 0; d < d_in; d++) {
                         int32_t inval = static_cast<int32_t>(*in_ptr++);
-                        *out_ptr++ = (__fp16)((inval - 128) * scale_);
+                        *out_ptr++ = (__fp16)((inval - 128) * scale_ + in_1(0, 0, 0, w * d_in + d));
                     }
                 }
             }
         }
     }
-
     return GraphStatus::Success;
 }
 
 #endif
 
-__attribute__((unused)) static float llamadequantizeCostFunc(const Op *op) {
+__attribute__((unused)) static float llamadequantizeaddCostFunc(const Op *op) {
     /*
      * add code here
      * */
@@ -537,4 +691,4 @@ __attribute__((unused)) static float llamadequantizeCostFunc(const Op *op) {
 /* At the bottom of the op file, call END_PKG_OP_DEFINITION(<name>),
    where <name> is as BEGIN_PKG_OP_DEFINITION
 */
-END_PKG_OP_DEFINITION(PKG_LLaMADequantize);
+END_PKG_OP_DEFINITION(PKG_LLaMADequantizeAdd);
