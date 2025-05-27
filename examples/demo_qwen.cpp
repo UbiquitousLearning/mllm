@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
         std::cout << "[A] " << std::flush;
 
         LlmTextGeneratorOpts opt{
-            .max_new_tokens = 1,
+            .max_new_tokens = 200,
             .do_sample = false,
             .temperature = 0.3F,
             .top_k = 50,

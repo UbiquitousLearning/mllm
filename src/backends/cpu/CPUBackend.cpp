@@ -169,6 +169,7 @@ void CPUBackend::registerOps() {
     addCreator(VISIONROPE, (CPUBackend::Creator *)(new CPUVisionRoPECreator()));
     addCreator(MULTIMODALROPEPIP, (CPUBackend::Creator *)(new CPUMultimodalRoPEPipelineCreator()));
     addCreator(MULTIMODALROPE, (CPUBackend::Creator *)(new CPUMultimodalRoPECreator()));
+    // addCreator(CAT, (CPUBackend::Creator *)(new CPUCatCreator()));
     addCreator(TRANSPOSE, (CPUBackend::Creator *)(new CPUTransposeCreator()));
     addCreator(SUBDIM, (CPUBackend::Creator *)(new CPUSubDimCreator()));
     addCreator(DIVISION, (CPUBackend::Creator *)(new CPUDivisionCreator()));

@@ -631,7 +631,7 @@ public:
         vision_start_token_id = config.vision_start_token_id;
 
         embed_tokens = Embedding(vocab_size, hidden_dim, qwen_names.token_embd_name);
-        visual = Qwen2VisionModel(hidden_dim, vision_embed_dim, 16, vision_embed_dim * 4, "QuickGELU", 14, 336, 32, spatial_merge_size, config.attn_implementation, vision_names, vision_names.vison_model_name);
+        visual = Qwen2VisionModel(hidden_dim, vision_embed_dim, 16, vision_embed_dim * 4, "QuickGELU", 14, 336, 32, spatial_merge_size, vision_names, vision_names.vison_model_name);
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
@@ -869,7 +869,6 @@ class Qwen2VL_PrefillBody final : public Module {
 
 public:
     explicit Qwen2VL_PrefillBody(const Qwen2VLConfig &config, int chunk_size) {
-        // Module::initBackend(MLLM_QNN);
         auto vocab_size = config.vocab_size;
         auto hidden_dim = config.hidden_size;
         auto head_size = config.num_attention_heads;
