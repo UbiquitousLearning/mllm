@@ -20,12 +20,11 @@
 #include <cmath>
 using namespace mllm;
 
-
 class QWen3MLP final : public Module {
 public:
     QWen3MLP() = default;
     QWen3MLP(int hidden_size, int intermediate_size, const QWen3NameConfig &names,
-            const std::string &base_name) {
+             const std::string &base_name) {
         gate_proj =
             Linear(hidden_size, intermediate_size, false, base_name + names._gate_proj_name);
         silu = SiLU(base_name + "act");
@@ -51,14 +50,13 @@ private:
     Layer silu;
 };
 
-
 class QWen3Attention final : public Module {
 public:
     QWen3Attention() = default;
     QWen3Attention(const QWen3Config &config, const QWen3NameConfig &names, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
-        head_dim = config.head_dim;   //这里config中有head_dim,不等于相除的结果
+        head_dim = config.head_dim; // 这里config中有head_dim,不等于相除的结果
         num_key_value_heads = config.num_key_value_heads;
         num_key_value_groups = num_heads / num_key_value_heads;
         rms_norm_eps = config.rms_norm_eps;
@@ -70,21 +68,17 @@ public:
                         base_name + names._v_proj_name);
         o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
 
-        //增加了RMSNorm
+        // 增加了RMSNorm
         q_norm = RMSNorm(head_dim, rms_norm_eps, base_name + "q_norm");
         k_norm = RMSNorm(head_dim, rms_norm_eps, base_name + "k_norm");
-        //滑动窗口禁用
-        
-
+        // 滑动窗口禁用
 
         q_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings,
                       base_name + "q_rope");
         k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings,
                       base_name + "k_rope");
-        k_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "k_cache");
-        v_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "v_cache");
-        // mask = SlidingWindowMask(config.sliding_window, base_name + "mask");
-        // mask = Causalmask(base_name + "mask");
+        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, base_name + "k_cache");
+        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, base_name + "v_cache");
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
 
@@ -93,18 +87,14 @@ public:
         auto key_states = k_proj(inputs[1]);
         auto value_states = v_proj(inputs[2]);
 
-
-
-
         // [batch, heads, sequence, dims]
         query_states = query_states.view(-1, num_heads, -1, head_dim);
         key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
         value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
-        
-        //加正则化
+
+        // 加正则化
         query_states = q_norm(query_states);
         key_states = k_norm(key_states);
-
 
         // embedding
         query_states = q_rope(query_states);
@@ -118,7 +108,6 @@ public:
         auto atten_weight =
             Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION))
             / std::sqrt(head_dim);
-        // atten_weight = mask(atten_weight, k_cache.getCacheSeqLen());
         atten_weight = softmax(atten_weight, k_cache.getCacheSeqLen());
 
         // attention output
@@ -156,14 +145,13 @@ private:
     Softmax softmax;
 };
 
-
 class QWen3Decoder final : public Module {
 public:
     QWen3Decoder() = default;
     QWen3Decoder(const QWen3Config &config, const QWen3NameConfig &names, const string &base_name) {
         self_atten = QWen3Attention(config, names, base_name + names._attn_base_name);
         mlp = QWen3MLP(config.hidden_size, config.intermediate_size, names,
-                      base_name + names._ffn_base_name);
+                       base_name + names._ffn_base_name);
         input_layernorm =
             RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
         post_attention_layernorm =
@@ -190,7 +178,6 @@ private:
     Layer input_layernorm;
     Layer post_attention_layernorm;
 };
-
 
 class QWen3Model final : public Module {
 public:
@@ -266,4 +253,4 @@ private:
     QWen3Model model;
 };
 
-#endif 
+#endif
