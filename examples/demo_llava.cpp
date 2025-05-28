@@ -2,8 +2,6 @@
 // Created by Rongjie Yi on 24-3-7.
 //
 
-#ifndef DEMO_LLAVA_HPP
-#define DEMO_LLAVA_HPP
 #include <iostream>
 #include "cmdline.h"
 #include "models/llava/modeling_llava.hpp"
@@ -59,4 +57,3 @@ int main(int argc, char **argv) {
         printf("\n");
     }
 }
-#endif // DEMO_LLAVA_HPP

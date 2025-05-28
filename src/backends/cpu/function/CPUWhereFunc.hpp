@@ -13,9 +13,9 @@ class Tensor;
 
 class CPUwhereFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         float value = args[0];
         Chl axis = (Chl)args[1];
         vector<float> b_vec = {};

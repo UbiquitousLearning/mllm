@@ -29,7 +29,7 @@ void Tracer::addOp(Op *op, vector<std::shared_ptr<Tensor>> inputs, vector<std::s
 }
 
 void Tracer::addTensorFunction(TensorFunction *func,
-                               vector<Tensor *> inputs, vector<Tensor *> outputs, vector<float> args) {
+                               vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<float> args) {
     if (isToCreateNewModule) {
         model_.push_back(std::make_shared<CPUModuleWrapper>());
         isToCreateNewModule = false;

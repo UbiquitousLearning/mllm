@@ -30,8 +30,8 @@ class MiniCPM3MultiHeadLatentAttention final : public Module {
     Layer kv_a_layernorm;
     Layer kv_b_proj;
     Layer o_proj;
-    Layer q_rope;
-    Layer k_rope;
+    NTKRoPE q_rope;
+    NTKRoPE k_rope;
     KVCache k_cache;
     KVCache v_cache;
     Softmax softmax;
@@ -111,8 +111,8 @@ public:
             base_name + "k_rope");
 
         if (config.cache_limit > 0) {
-            k_cache = KVCache(num_heads / num_heads, config.cache_limit, base_name + "k_cache");
-            v_cache = KVCache(num_heads / num_heads, config.cache_limit, base_name + "v_cache");
+            k_cache = KVCache(num_heads, q_head_dim, num_heads / num_heads, config.cache_limit, base_name + "k_cache");
+            v_cache = KVCache(num_heads, qk_nope_head_dim, num_heads / num_heads, config.cache_limit, base_name + "v_cache");
         }
 
         softmax = Softmax(DIMENSION, config.do_mask, base_name + "softmax");
@@ -164,6 +164,12 @@ public:
         attn_output = attn_output.view(-1, 1, -1, v_head_dim * num_heads);
         attn_output = o_proj(attn_output);
         return {attn_output};
+    }
+    vector<KVCache *> get_cache() {
+        return {&k_cache, &v_cache};
+    }
+    vector<NTKRoPE *> get_rope() {
+        return {&q_rope, &k_rope};
     }
 };
 
@@ -237,18 +243,22 @@ public:
             config.hidden_size,
             config.rms_norm_eps,
             base_name + names._ffn_norm_name);
-        
+
         scale = config.scale_depth / std::sqrt(config.num_hidden_layers);
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = input_layernorm(inputs[0]);
         x = self_attn({x, x, x})[0];
-        auto residual = x*scale + inputs[0];
+        auto residual = x * scale + inputs[0];
         x = post_attention_layernorm(residual);
         x = mlp({x})[0];
-        x = x*scale + residual;
+        x = x * scale + residual;
         return {x};
+    }
+
+    MiniCPM3MultiHeadLatentAttention &get_attention() {
+        return self_attn;
     }
 };
 
@@ -280,6 +290,15 @@ public:
         }
         x = norm(x);
         return {x};
+    }
+
+    void clear_kvcache() override {
+        for (auto &block : blocks) {
+            auto kvcache = block.get_attention().get_cache();
+            for (auto &cache : kvcache) { cache->clearCache(); }
+            auto ropes = block.get_attention().get_rope();
+            for (auto &rope : ropes) { rope->clearCache(); }
+        }
     }
 };
 
@@ -318,10 +337,16 @@ public:
         scale_emb = config.scale_emb;
     }
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        auto x = embedding(inputs[0])* scale_emb;
+        auto x = embedding(inputs[0]) * scale_emb;
         auto outputs = model({x})[0];
+        if (outputs.sequence() > 1) {
+            outputs = outputs.clip({}, {}, {-1}, {});
+        }
         outputs = Tensor::mm(outputs, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         return {outputs};
+    }
+    void clear_kvcache() override {
+        model.clear_kvcache();
     }
 };
 

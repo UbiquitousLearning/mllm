@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
         std::cout << "[Q] " << in_str << std::endl;
         auto input_tensor = tokenizer.tokenize(in_str);
         std::cout << "[A] " << std::flush;
-        for (int step = 0; step < 1000; step++) {
+        for (int step = 0; step < 100; step++) {
             auto result = model({input_tensor});
             auto [out_string, out_token] = tokenizer.detokenize(result[0]);
             auto [not_end, output_string] = tokenizer.postprocess(out_string);

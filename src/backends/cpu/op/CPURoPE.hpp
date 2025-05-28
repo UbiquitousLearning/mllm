@@ -11,13 +11,14 @@ public:
     CPURoPE(Backend *bn, string opName, int pose_type, int threadCount);
     CPURoPE(Backend *bn, string opName, int pose_type, float rope_theta, int max_position_embeddings, int threadCount);
     CPURoPE(Backend *bn, string opName, int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings, int threadCount);
-    CPURoPE(Backend *bn, string opName, OpParam& config, int threadCount);
+    CPURoPE(Backend *bn, string opName, OpParam &config, int threadCount);
     virtual ~CPURoPE() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     ErrorCode doExecute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs);
+    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
     //    Tensor freq_;

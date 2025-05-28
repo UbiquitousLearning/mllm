@@ -16,99 +16,116 @@
 
 namespace mllm {
 
+/* Tensor类构造函数实现（对应头文件中的声明）*/
 Tensor::Tensor(const int batch, const int head, const int sequence, const int dimension) :
-    host_ptr_(), capacity_(0) {
+    impl_(std::make_shared<TensorImpl>()) { // 初始化impl_
     reshape(batch, head, sequence, dimension);
 }
-Tensor::Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bool do_alloc) {
-    dtype_ = MLLM_TYPE_F32;
-    setBackend(bn);
+
+Tensor::Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bool do_alloc) :
+    impl_(std::make_shared<TensorImpl>(bn)) { // 使用带Backend的TensorImpl构造函数
+    impl_->dtype_ = MLLM_TYPE_F32;
     reshape(batch, head, sequence, dimension);
-    if (do_alloc) { alloc(); }
+    if (do_alloc) {
+        alloc();
+    }
 }
 
-Tensor::Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type,
-               bool do_alloc) {
-    Tensor(batch, head, sequence, dimension, Backend::global_backends[bn_type], do_alloc);
+Tensor::Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type, bool do_alloc) :
+    impl_(std::make_shared<TensorImpl>()) {
+    impl_->dtype_ = MLLM_TYPE_F32;
+    impl_->backend_ = Backend::global_backends[bn_type];
+    reshape(batch, head, sequence, dimension);
+    if (do_alloc) {
+        alloc();
+    }
 }
 
-Tensor::Tensor(const vector<int> &shape) :
-    host_ptr_(), capacity_(0) {
-    reshape(shape);
+Tensor::Tensor(const std::vector<int> &shape) :
+    impl_(std::make_shared<TensorImpl>()) {
+    impl_->private_reshape(shape);
 }
 
-Tensor::Tensor(int value, Backend *bn) {
-    dtype_ = MLLM_TYPE_F32;
-    setBackend(bn);
+Tensor::Tensor(int value, Backend *bn) :
+    impl_(std::make_shared<TensorImpl>()) {
+    impl_->dtype_ = MLLM_TYPE_F32;
+    impl_->backend_ = bn;
     reshape(1, 1, 1, 1);
     alloc();
-    shouldInGraphs() = false;
-    setDataAt<float>(0, 0, 0, 0, (float)value);
+    impl_->should_in_graphs_ = false;
+    setDataAt<float>(0, 0, 0, 0, static_cast<float>(value));
 }
 
-Tensor::Tensor(int value, BackendType bn_type) {
-    dtype_ = MLLM_TYPE_F32;
-    setBackend(Backend::global_backends[bn_type]);
+Tensor::Tensor(int value, BackendType bn_type) :
+    impl_(std::make_shared<TensorImpl>()) {
+    impl_->dtype_ = MLLM_TYPE_F32;
+    impl_->backend_ = Backend::global_backends[bn_type];
     reshape(1, 1, 1, 1);
     alloc();
-    shouldInGraphs() = false;
-    setDataAt<float>(0, 0, 0, 0, (float)value);
+    impl_->should_in_graphs_ = false;
+    setDataAt<float>(0, 0, 0, 0, static_cast<float>(value));
 }
 
-Tensor::Tensor(vector<float> values, BackendType bn_type) {
-    dtype_ = MLLM_TYPE_F32;
-    setBackend(Backend::global_backends[bn_type]);
+Tensor::Tensor(std::vector<float> values, BackendType bn_type) :
+    impl_(std::make_shared<TensorImpl>()) {
+    impl_->dtype_ = MLLM_TYPE_F32;
+    impl_->backend_ = Backend::global_backends[bn_type];
     reshape(1, 1, 1, values.size());
     alloc();
-    shouldInGraphs() = false;
-    for (auto value : values) {
-        setDataAt<float>(0, 0, 0, 0, (float)value);
+    impl_->should_in_graphs_ = false;
+    for (size_t i = 0; i < values.size(); ++i) {
+        setDataAt<float>(0, 0, 0, i, values[i]);
     }
 }
 
 bool Tensor::reshape(const int batch, const int head, const int sequence, const int dimension) {
-    vector<int> shape(4);
-    shape[chls()[BATCH]] = batch;
-    shape[chls()[HEAD]] = head;
-    shape[chls()[SEQUENCE]] = sequence;
-    shape[chls()[DIMENSION]] = dimension;
-    return reshape(shape);
+    return impl_->reshape(batch, head, sequence, dimension);
+    // vector<int> shape(4);
+    // shape[chls()[BATCH]] = batch;
+    // shape[chls()[HEAD]] = head;
+    // shape[chls()[SEQUENCE]] = sequence;
+    // shape[chls()[DIMENSION]] = dimension;
+    // return reshape(shape);
 }
 
+// Tensor.cpp
 void Tensor::alloc() {
-    if (aggregated_) { return; }
-    assert(backend_ != nullptr);
-    if (masterTensor() != nullptr) { return; }
-    if (!shape_offset_.empty() && !shape_master_.empty()) { return; }
-    if (allocated_ != count_) {
-        if (host_ptr_ != nullptr) {
-            backend_->free(host_ptr_);
-            host_ptr_ = nullptr;
-        }
-        if (count_ > 0) {
-            // Arm neon should be 16B
-            // AVX 128 should be 16B
-            // AVX 256 should be 32B
-#if defined(__ARM_NEON) && defined(__aarch64__)
-            backend_->alloc(&host_ptr_, cntSize() + 16, 128);
-#else
-            backend_->alloc(&host_ptr_, cntSize() + 16, 128);
-#endif
-        }
-        allocated_ = count_;
-    }
+    // if ("out-model.embed_tokens" == name())
+    //     std::cout << "alloc " << name() << std::endl;
+    if (aggregated_) return;
+    assert(impl_->backend_ != nullptr);
+    if (master_tensor_ != nullptr) return;
+    if (!shape_offset_.empty() && !shape_master_.empty()) return;
+
+    impl_->alloc();
 }
 
-bool Tensor::reshape(const int batch, const int channel, const int time, const int height,
-                     const int width) {
-    if (ctype_ != BTHWC) { ctype_ = BCTHW; }
-    vector<int> shape(5);
-    shape[chls()[BATCH]] = batch;
-    shape[chls()[CHANNLE]] = channel;
-    shape[chls()[TIME]] = time;
-    shape[chls()[HEIGHT]] = height;
-    shape[chls()[WIDTH]] = width;
-    return reshape(shape);
+bool Tensor::reshape(int batch, int channel, int time, int height, int width) {
+    if (impl_->ctype_ != BTHWC) {
+        impl_->ctype_ = BCTHW;
+        impl_->chls_[BATCH] = 0;
+        impl_->chls_[CHANNLE] = 1;
+        impl_->chls_[TIME] = 2;
+        impl_->chls_[HEIGHT] = 3;
+        impl_->chls_[WIDTH] = 4;
+    } else {
+        impl_->chls_[BATCH] = 0;
+        impl_->chls_[TIME] = 1;
+        impl_->chls_[HEIGHT] = 2;
+        impl_->chls_[WIDTH] = 3;
+        impl_->chls_[CHANNLE] = 4;
+    }
+
+    std::vector<int> shape(5);
+    const auto &chls = impl_->chls_; // 从TensorImpl获取维度映射
+
+    shape[chls.at(BATCH)] = batch;
+    shape[chls.at(CHANNLE)] = channel;
+    shape[chls.at(TIME)] = time;
+    shape[chls.at(HEIGHT)] = height;
+    shape[chls.at(WIDTH)] = width;
+
+    return impl_->private_reshape(shape);
 }
 
 TensorStatus Tensor::tensor_status;
@@ -122,7 +139,7 @@ TensorType &Tensor::xnnTensorType() {
 }
 
 void Tensor::forceResetHostPointer(void *ptr) {
-    host_ptr_ = ptr;
+    impl_->host_ptr_ = ptr;
 }
 
 Tensor &Tensor::to(BackendType backend_type) {
@@ -165,24 +182,37 @@ Tensor &Tensor::to(BackendType backend_type) {
 };
 
 // TensorFuctions
+std::vector<Tensor> Tensor::runFunc(std::vector<std::string> out_names,
+                                    TensorFuncType type,
+                                    std::vector<float> float_args,
+                                    std::vector<std::shared_ptr<Tensor>> input_tensors,
+                                    bool in_place) {
+    auto backend = input_tensors.empty() ? Backend::global_backends[MLLM_CPU] : input_tensors[0]->backend();
+    if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) {
+        backend = Backend::global_backends[MLLM_QNN];
+    }
+    return backend->runFunc(out_names, type, float_args, input_tensors, in_place);
+}
+
+/*
 Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
                         vector<float> float_args, vector<Tensor *> other_tensors) {
     assert(module() != nullptr);
     auto &module_tensors = module()->activation_tensors;
     auto &activation_tensors_num = module()->activation_tensors_num;
-    const std::string next_name = name_ + "-" + suffix;
+    const std::string next_name = impl_->name_ + "-" + suffix;
     // if (module_tensors.find(name_) == module_tensors.end()) {
     //     module_tensors[name_] = std::shared_ptr<Tensor>(this, [](Tensor *) {});
     // }
     if (module_tensors.find(next_name) == module_tensors.end()) {
-        module_tensors[next_name] = std::make_shared<Tensor>(backend_);
+        module_tensors[next_name] = std::make_shared<Tensor>(impl_->backend_);
         module_tensors[next_name]->setName(next_name);
         module_tensors[next_name]->setModule(module());
         activation_tensors_num[next_name] = 0;
     }
     if (module()->doLoad) { return *module_tensors[next_name]; }
-    TensorFunction *func = backend_->funcCreate(type);
-    std::vector<Tensor *> tensorPtrs = {module_tensors[name_].get()};
+    TensorFunction *func = impl_->backend_->funcCreate(type);
+    std::vector<Tensor *> tensorPtrs = {module_tensors[impl_->name_].get()};
     for (auto &other_tensor : other_tensors) { tensorPtrs.push_back(other_tensor); }
 #ifdef DEBUGOPTIME
     auto start_t = mllm_time_us();
@@ -197,7 +227,7 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
         break;
     }
     case TENSOR_STATIC_TRACE: {
-        if (backend_->type() == BackendType::MLLM_CPU) {
+        if (impl_->backend_->type() == BackendType::MLLM_CPU) {
             Tracer::addTensorFunction(func, tensorPtrs, {module_tensors[next_name].get()}, float_args);
         }
         break;
@@ -220,8 +250,8 @@ Tensor &Tensor::getFunc(const std::string &suffix, const TensorFuncType type,
                 default: {
                 }
                 }
-                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1 
-                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
+                if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1
+                    && module_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |F" << std::endl;
                 }
@@ -247,8 +277,8 @@ void Tensor::getFunc(const TensorFuncType type,
     auto &module_tensors = module()->activation_tensors;
     auto &activation_tensors_num = module()->activation_tensors_num;
     if (module()->doLoad) { return; }
-    TensorFunction *func = backend_->funcCreate(type);
-    std::vector<Tensor *> tensorPtrs = {module_tensors[name_].get()};
+    TensorFunction *func = impl_->backend_->funcCreate(type);
+    std::vector<Tensor *> tensorPtrs = {module_tensors[impl_->name_].get()};
     for (auto &other_tensor : other_tensors) { tensorPtrs.push_back(other_tensor); }
 #ifdef DEBUGOPTIME
     auto start_t = mllm_time_us();
@@ -283,7 +313,7 @@ void Tensor::getFunc(const TensorFuncType type,
                 }
                 }
                 if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1
-                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
+                    && module_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |F" << std::endl;
                 }
@@ -313,7 +343,7 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
     auto &module_tensors = module->activation_tensors;
     auto &activation_tensors_num = module->activation_tensors_num;
     auto *backend_h = Backend::global_backends[MLLM_CPU];
-    if (!input_tensors.empty() && input_tensors[0]->backend_ != nullptr) {
+    if (!input_tensors.empty() && input_tensors[0]->impl_->backend_ != nullptr) {
         backend_h = input_tensors[0]->backend();
     }
     for (auto out_name : out_names) {
@@ -371,7 +401,7 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
                 }
                 }
                 if (activation_tensors_num[input_tensor->name()] == 0 && module_tensors[input_tensor->name()]->sequence() > 1
-                    && module_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
+                    && module_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
                     module_tensors[input_tensor->name()]->free();
                     // std::cout << input_tensor->name() << " |S "<< std::endl;// << out_names[0] << std::endl;
                 }
@@ -392,69 +422,88 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
     for (auto out_name : out_names) { results.push_back(*module_tensors[out_name]); }
     return results;
 }
+*/
 
-Tensor &Tensor::operator+(float data) {
-    return getFunc("add", FUNC_ADD, {data});
+Tensor Tensor::operator+(float data) {
+    return runFunc({name() + "-add"}, FUNC_ADD, {data},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::operator-(float data) {
-    return getFunc("sub", FUNC_SUB, {data});
+Tensor Tensor::operator-(float data) {
+    return runFunc({name() + "-sub"}, FUNC_SUB, {data},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::operator*(float data) {
-    return getFunc("mul", FUNC_MUL, {data});
+Tensor Tensor::operator*(float data) {
+    return runFunc({name() + "-mul"}, FUNC_MUL, {data},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::operator/(float data) {
-    return getFunc("div", FUNC_DIV, {data});
+Tensor Tensor::operator/(float data) {
+    return runFunc({name() + "-div"}, FUNC_DIV, {data},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::operator/(double data) {
-    return getFunc("div", FUNC_DIV, {static_cast<float>(data)});
+Tensor Tensor::operator/(double data) {
+    return runFunc({name() + "-div"}, FUNC_DIV, {static_cast<float>(data)},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::operator/(int data) {
-    return getFunc("div", FUNC_DIVINT, {static_cast<float>(data)});
+Tensor Tensor::operator/(int data) {
+    return runFunc({name() + "-div"}, FUNC_DIVINT, {static_cast<float>(data)},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::operator+(Tensor &other) {
-    return getFunc("TTadd", FUNC_TTADD, {}, {&other});
+Tensor Tensor::operator+(Tensor other) {
+    return runFunc({name() + "-TTadd"}, FUNC_TTADD, {},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&other, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::operator-(Tensor &other) {
-    return getFunc("TTsub", FUNC_TTSUB, {}, {&other});
+Tensor Tensor::operator-(Tensor other) {
+    return runFunc({name() + "-TTsub"}, FUNC_TTSUB, {},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&other, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::operator*(Tensor &other) {
-    return getFunc("TTmul", FUNC_TTMUL, {}, {&other});
+Tensor Tensor::operator*(Tensor other) {
+    return runFunc({name() + "-TTmul"}, FUNC_TTMUL, {},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&other, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::operator/(Tensor &other) {
-    return getFunc("TTdiv", FUNC_TTDIV, {}, {&other});
+Tensor Tensor::operator/(Tensor other) {
+    return runFunc({name() + "-TTdiv"}, FUNC_TTDIV, {},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&other, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::mean(Chl axis) {
-    return getFunc("mean", FUNC_MEAN, {(float)axis});
+Tensor Tensor::mean(Chl axis) {
+    return runFunc({name() + "-mean"}, FUNC_MEAN, {(float)axis},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::view(int b, int h, int s, int d) {
-    return getFunc("view", FUNC_VIEW, {(float)b, (float)h, (float)s, (float)d});
+Tensor Tensor::view(int b, int h, int s, int d) {
+    return runFunc({name() + "-view"}, FUNC_VIEW, {(float)b, (float)h, (float)s, (float)d},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})}, true)[0];
 }
 
-Tensor &Tensor::flatten(Chl axis_start, Chl axis_end) {
-    return getFunc("flatten", FUNC_FLATTEN, {(float)axis_start, (float)axis_end});
+Tensor Tensor::flatten(Chl axis_start, Chl axis_end) {
+    return runFunc({name() + "-flatten"}, FUNC_FLATTEN, {(float)axis_start, (float)axis_end},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})}, true)[0];
 }
 
-Tensor &Tensor::transpose(vector<std::pair<Chl, Chl>> axiss) {
+Tensor Tensor::transpose(vector<std::pair<Chl, Chl>> axiss) {
     vector<float> axis_s;
     for (auto &axis : axiss) {
         axis_s.push_back((float)axis.first);
         axis_s.push_back((float)axis.second);
     }
-    return getFunc("transpose", FUNC_TRANPOSE, axis_s);
+    return runFunc({name() + "-transpose"}, FUNC_TRANPOSE, axis_s,
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})}, master_tensor_ == nullptr)[0];
 }
 
-Tensor &Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
+Tensor Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
     vector<float> axis_s;
     axis_s.push_back(b.size());
     axis_s.push_back(h.size());
@@ -464,16 +513,17 @@ Tensor &Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d)
     for (auto &axis : h) { axis_s.push_back((float)axis); }
     for (auto &axis : s) { axis_s.push_back((float)axis); }
     for (auto &axis : d) { axis_s.push_back((float)axis); }
-    string name = "clip-";
+    string name_su = "clip-";
     if (!(d.size() == 2 && b.empty() && h.empty() && s.empty())) {
         for (auto as : axis_s) {
-            name += std::to_string(int(as)) + "_";
+            name_su += std::to_string(int(as)) + "_";
         }
     }
-    return getFunc(name, FUNC_CLIP, axis_s);
+    return runFunc({name() + name_su}, FUNC_CLIP, axis_s,
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
+Tensor Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d) {
     vector<float> axis_s = {(float)keep_axis};
     axis_s.push_back(b.size());
     axis_s.push_back(h.size());
@@ -483,67 +533,69 @@ Tensor &Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s,
     for (auto &axis : h) { axis_s.push_back((float)axis); }
     for (auto &axis : s) { axis_s.push_back((float)axis); }
     for (auto &axis : d) { axis_s.push_back((float)axis); }
-    return getFunc("clipaxis", FUNC_CLIPAXIS, axis_s);
+    return runFunc({name() + "-clipaxis"}, FUNC_CLIPAXIS, axis_s,
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::clip(Tensor &index, Chl dim) {
-    return getFunc("cliptensor", FUNC_CLIPTENSOR, {(float)dim}, {&index});
+Tensor Tensor::clip(Tensor index, Chl dim) {
+    return runFunc({name() + "-cliptensor"}, FUNC_CLIPTENSOR, {(float)dim},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&index, [](Tensor *) {})})[0];
 }
-Tensor &Tensor::expand(int b, int h, int s, int d) {
-    return getFunc("expand", FUNC_EXPPAND, {(float)b, (float)h, (float)s, (float)d});
-}
-
-Tensor &Tensor::norm(int L_n) {
-    return getFunc("norm", FUNC_NORM, {(float)L_n});
-}
-
-Tensor &Tensor::where(float value, Chl axis) {
-    return getFunc("where", FUNC_WHERE, {(float)value, (float)axis});
+Tensor Tensor::expand(int b, int h, int s, int d) {
+    return runFunc({name() + "-expand"}, FUNC_EXPPAND, {(float)b, (float)h, (float)s, (float)d},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::index_put(Tensor &value, Tensor &indices, bool accumulate) {
-    return getFunc({"index_put"}, FUNC_INDEX_PUT, {(float)accumulate},
-                   {&value, &indices});
-}
-void Tensor::scatter_reduce(Tensor &value, Tensor &indices) {
-    getFunc(FUNC_SCATTERREDUCE, {}, {&value, &indices});
+Tensor Tensor::norm(int L_n) {
+    return runFunc({name() + "-norm"}, FUNC_NORM, {(float)L_n},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
+Tensor Tensor::where(float value, Chl axis) {
+    return runFunc({name() + "-where"}, FUNC_WHERE, {(float)value, (float)axis},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
+}
+
+Tensor Tensor::index_put(Tensor value, Tensor indices, bool accumulate) {
+    return runFunc({name() + "-index_put"}, FUNC_INDEX_PUT, {(float)accumulate},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&value, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&indices, [](Tensor *) {})},
+                   !accumulate)[0];
+}
+void Tensor::scatter_reduce(Tensor value, Tensor indices) {
+    runFunc({name()}, FUNC_SCATTERREDUCE, {},
+            {std::shared_ptr<Tensor>(this, [](Tensor *) {}),
+             std::shared_ptr<Tensor>(&value, [](Tensor *) {}),
+             std::shared_ptr<Tensor>(&indices, [](Tensor *) {})})[0];
+}
+
+Tensor Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
     Module *module = input_tensors[0].module();
-    vector<Tensor *> inputs = {};
-    for (const auto &input_tensor : input_tensors) {
-        inputs.push_back(module->activation_tensors[input_tensor.name()].get());
+    vector<shared_ptr<Tensor>> inputs = {};
+    for (auto &input_tensor : input_tensors) {
+        inputs.push_back(std::shared_ptr<Tensor>(&input_tensor, [](Tensor *) {}));
     }
-    return getStaticFunc({input_tensors[0].name() + "-cat"}, FUNC_CAT, {(float)axis}, inputs)[0].get();
+    return runFunc({input_tensors[0].name() + "-cat"}, FUNC_CAT, {(float)axis}, inputs)[0];
 }
 
-std::string _name_num_to_X(const std::string &input_string) {
-    std::regex pattern(R"(\.\d{1,3}\.)"); // Matches any number between 1 and 100 between two dots
-    std::string replacement = ".X.";      // The string to replace the matched pattern with
-    std::string output_string = std::regex_replace(input_string, pattern, replacement);
-    return output_string;
-}
-
-Tensor &Tensor::mm(Tensor &input0, Tensor &input1) {
+Tensor Tensor::mm(Tensor input0, Tensor input1) {
     Module *module = input0.module();
     string nname = input0.name() + "-mm-" + input1.name();
-    if (nname.find(".X.") != string::npos)
-        nname = _name_num_to_X(nname);
-    return getStaticFunc(
-               {nname}, FUNC_MM, {},
-               {module->activation_tensors[input0.name()].get(), module->activation_tensors[input1.name()].get()})[0]
-        .get();
+    return runFunc(
+        {nname}, FUNC_MM, {},
+        {std::shared_ptr<Tensor>(&input0, [](Tensor *) {}),
+         std::shared_ptr<Tensor>(&input1, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::range(int start, int end) {
-    return getStaticFunc({"range-" + std::to_string(start) + "-" + std::to_string(end)}, FUNC_RANGE,
-                         {(float)start, (float)end}, {})[0]
-        .get();
+Tensor Tensor::range(int start, int end) {
+    return runFunc({"range-" + std::to_string(start) + "-" + std::to_string(end)}, FUNC_RANGE,
+                   {(float)start, (float)end}, {})[0];
 }
 
-vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<int> each_dims,
-                                                     Chl split_dim, int same_dim_size) {
+vector<Tensor> Tensor::split(Tensor input, std::vector<int> each_dims,
+                             Chl split_dim, int same_dim_size) {
     vector<std::string> next_names;
     std::vector<float> args;
     for (int i = 0; i < each_dims.size(); ++i) {
@@ -553,65 +605,62 @@ vector<std::reference_wrapper<Tensor>> Tensor::split(Tensor &input, std::vector<
     args.push_back(split_dim);
     args.push_back(same_dim_size);
     Module *module = input.module();
-    return getStaticFunc(next_names, FUNC_SPLIT, args,
-                         {module->activation_tensors[input.name()].get()});
+    return runFunc(next_names, FUNC_SPLIT, args,
+                   {std::shared_ptr<Tensor>(&input, [](Tensor *) {})});
 }
 
-vector<std::reference_wrapper<Tensor>> Tensor::topk(Tensor &input, int k, Chl dim) {
+vector<Tensor> Tensor::topk(Tensor input, int k, Chl dim) {
     Module *module = input.module();
-    return getStaticFunc({input.name() + "-top" + std::to_string(k) + "-value",
-                          input.name() + "-top" + std::to_string(k) + "-idx"},
-                         FUNC_TOPK,
-                         {(float)k, (float)dim},
-                         {module->activation_tensors[input.name()].get()});
+    return runFunc({input.name() + "-top" + std::to_string(k) + "-value",
+                    input.name() + "-top" + std::to_string(k) + "-idx"},
+                   FUNC_TOPK,
+                   {(float)k, (float)dim},
+                   {std::shared_ptr<Tensor>(&input, [](Tensor *) {})});
 }
-Tensor &Tensor::sum(Chl dim) {
-    return getFunc("sum", FUNC_SUM, {(float)dim});
+Tensor Tensor::sum(Chl dim) {
+    return runFunc({name() + "sum"}, FUNC_SUM, {(float)dim},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
-Tensor &Tensor::argsort() {
-    return getFunc("argsort", FUNC_ARGSORT, {});
+Tensor Tensor::argsort() {
+    return runFunc({name() + "argsort"}, FUNC_ARGSORT, {},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
-Tensor &Tensor::bincount() {
-    return getFunc("bincount", FUNC_BINCOUNT, {});
+Tensor Tensor::bincount() {
+    return runFunc({name() + "bincount"}, FUNC_BINCOUNT, {},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
-Tensor &Tensor::repeat(Chl dim, int dim_size) {
-    return getFunc("repeat", FUNC_REPEAT,
-                   {(float)dim, (float)dim_size});
+Tensor Tensor::repeat(Chl dim, int dim_size) {
+    return runFunc({name() + "repeat"}, FUNC_REPEAT, {(float)dim, (float)dim_size},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
-Tensor &Tensor::zero_like(Tensor &input) {
+Tensor Tensor::zero_like(Tensor input) {
     Module *module = input.module();
-    return getStaticFunc({input.name() + "-zero_like"}, FUNC_LIKE, {0.0},
-                         {module->activation_tensors[input.name()].get()})[0]
-        .get();
+    return runFunc({input.name() + "-zero_like"}, FUNC_LIKE, {0.0},
+                   {std::shared_ptr<Tensor>(&input, [](Tensor *) {})})[0];
 }
-Tensor &Tensor::apply_rotary_pos_emb_vision(Tensor &input, Tensor&rotary_pos_emb){
+Tensor Tensor::apply_rotary_pos_emb_vision(Tensor input, Tensor rotary_pos_emb) {
     Module *module = input.module();
-    return getStaticFunc({input.name() + "-apply_rotary_pos_emb"}, FUNC_APPLY_VISIOROPE, 
-                        {},
-                        {
-                        module->activation_tensors[input.name()].get(),
-                        module->activation_tensors[rotary_pos_emb.name()].get()
-                        })[0].get();
+    return runFunc({input.name() + "-apply_rotary_pos_emb"}, FUNC_APPLY_VISIOROPE,
+                   {},
+                   {std::shared_ptr<Tensor>(&input, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&rotary_pos_emb, [](Tensor *) {})})[0];
 }
 
-Tensor &Tensor::fuyu_gather_embd(Tensor &word, Tensor &image_patches, Tensor &image_patches_indices) {
+Tensor Tensor::fuyu_gather_embd(Tensor word, Tensor image_patches, Tensor image_patches_indices) {
     Module *module = word.module();
-    return getStaticFunc({word.name() + ".fuyu_gather_embd"}, FUNC_FUYU_GATHER_EMBD,
-                         {},
-                         {
-                             module->activation_tensors[word.name()].get(),
-                             module->activation_tensors[image_patches.name()].get(),
-                             module->activation_tensors[image_patches_indices.name()].get(),
-                         })[0]
-        .get();
+    return runFunc({word.name() + ".fuyu_gather_embd"}, FUNC_FUYU_GATHER_EMBD,
+                   {},
+                   {std::shared_ptr<Tensor>(&word, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&image_patches, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&image_patches_indices, [](Tensor *) {})},
+                   true)[0];
 }
 
-Tensor &Tensor::phi3v_hd_merge(Tensor &input, int h_crop, int w_crop) {
+Tensor Tensor::phi3v_hd_merge(Tensor input, int h_crop, int w_crop) {
     Module *module = input.module();
-    return getStaticFunc({input.name() + ".phi3v_hd_merge"}, FUNC_PHI3V_HD_MERGE,
-                         {(float)h_crop, (float)w_crop},
-                         {module->activation_tensors[input.name()].get()})[0]
-        .get();
+    return runFunc({input.name() + ".phi3v_hd_merge"}, FUNC_PHI3V_HD_MERGE,
+                   {(float)h_crop, (float)w_crop},
+                   {std::shared_ptr<Tensor>(&input, [](Tensor *) {})})[0];
 }
 
 } // namespace mllm
