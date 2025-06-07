@@ -53,9 +53,12 @@ class GemmaDecoder final : public Module {
 public:
     GemmaDecoder() = default;
     GemmaDecoder(const GemmaConfig &config, const GemmaNameConfig &names, const string &base_name) {
-        self_atten = MultiHeadAttention(config.hidden_size, config.num_attention_heads, config.num_key_value_heads,
+        self_atten = MultiHeadAttention(config.hidden_size, config.num_attention_heads,
+                                        config.num_key_value_heads,
                                         config.hidden_size / config.num_attention_heads, SPLIT_NONE, false, false,
-                                        config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit, true, false, names, base_name + names._attn_base_name);
+                                        config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit, true, false,
+                                        config.attn_implementation,
+                                        names, base_name + names._attn_base_name);
         mlp = GemmaMLP(config.hidden_size, config.intermediate_size, names, base_name + names._ffn_base_name);
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, true, base_name + names._attn_norm_name);
         post_attention_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, true, base_name + names._ffn_norm_name);

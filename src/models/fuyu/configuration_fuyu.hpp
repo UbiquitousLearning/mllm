@@ -55,13 +55,14 @@ public:
             block_num = 36;
             patch_size = 30;
             chl_size = 3;
-            max_position_embeddings= 16384;
+            max_position_embeddings = 16384;
             rope_theta = 25000;
         } else {
             throw std::runtime_error("Unsupported model size");
         }
         cache_limit = token_limit;
     }
+    string attn_implementation = "flash_attention_2"; // Options: "flash_attention_2", "eager"
 };
 
 #endif // CONFIG_FUYU_HPP

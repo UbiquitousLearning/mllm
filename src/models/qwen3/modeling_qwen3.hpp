@@ -60,6 +60,7 @@ public:
         num_key_value_heads = config.num_key_value_heads;
         num_key_value_groups = num_heads / num_key_value_heads;
         rms_norm_eps = config.rms_norm_eps;
+        attn_impl = config.attn_implementation;
         // init layers
         q_proj = Linear(hidden_size, num_heads * head_dim, config.attention_bias, base_name + names._q_proj_name);
         k_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.attention_bias,
@@ -77,8 +78,8 @@ public:
                       base_name + "q_rope");
         k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings,
                       base_name + "k_rope");
-        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, base_name + "k_cache");
-        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, base_name + "v_cache");
+        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, (attn_impl == "flash_attention_2"), base_name + "k_cache");
+        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, (attn_impl == "flash_attention_2"), base_name + "v_cache");
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
 
@@ -104,14 +105,19 @@ public:
         key_states = k_cache(key_states);
         value_states = v_cache(value_states);
 
-        // attention weight
-        auto atten_weight =
-            Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION))
-            / std::sqrt(head_dim);
-        atten_weight = softmax(atten_weight, k_cache.getCacheSeqLen());
+        Tensor atten_output;
+        if (attn_impl == "flash_attention_2") {
+            atten_output = Tensor::flash_attention2_forward(query_states, key_states, value_states, true);
+        } else { // eager implementation
+            // attention weight
+            auto atten_weight =
+                Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION))
+                / std::sqrt(head_dim);
+            atten_weight = softmax(atten_weight, k_cache.getCacheSeqLen());
 
-        // attention output
-        auto atten_output = Tensor::mm(atten_weight, value_states);
+            // attention output
+            atten_output = Tensor::mm(atten_weight, value_states);
+        }
         atten_output = atten_output.view(-1, 1, -1, head_dim * num_heads);
         atten_output = o_proj(atten_output);
         return {atten_output};
@@ -143,6 +149,7 @@ private:
     KVCache v_cache;
     // Causalmask mask;
     Softmax softmax;
+    string attn_impl;
 };
 
 class QWen3Decoder final : public Module {

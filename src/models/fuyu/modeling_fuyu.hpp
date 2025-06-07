@@ -22,9 +22,14 @@ class PersimmonBlock final : public Module {
 
 public:
     PersimmonBlock() = default;
-    PersimmonBlock(int hidden_dim, int head_size, int ffn_hidden, float rope_theta, int max_position_embeddings, int cache_limit, const FuyuNameConfig &names, const string &base_name) {
-        attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size, SPLIT_D_HD, true, false,
-                                       PERSIMMONROPE, rope_theta, max_position_embeddings, cache_limit, true, true, names, base_name + names._attn_base_name);
+    PersimmonBlock(int hidden_dim, int head_size, int ffn_hidden, float rope_theta, int max_position_embeddings, int cache_limit,
+                   string attn_implementation,
+                   const FuyuNameConfig &names, const string &base_name) {
+        attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size,
+                                       SPLIT_D_HD, true, false,
+                                       PERSIMMONROPE, rope_theta, max_position_embeddings, cache_limit, true, true,
+                                       attn_implementation,
+                                       names, base_name + names._attn_base_name);
         mlp = FeedForward(hidden_dim, ffn_hidden, "ReLU2", true,
                           names, base_name + names._ffn_base_name);
         norm1 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._attn_norm_name);
@@ -52,8 +57,14 @@ class Persimmon final : public Module {
 
 public:
     Persimmon() = default;
-    Persimmon(int hidden_dim, int head_size, int ffn_hidden, float rope_theta, int max_position_embeddings, int cache_limit, int block_num, int vocab_size, const FuyuNameConfig &names) {
-        blocks = List<PersimmonBlock>(block_num, hidden_dim, head_size, ffn_hidden, rope_theta, max_position_embeddings, cache_limit, names, names.blk_name);
+    Persimmon(int hidden_dim, int head_size, int ffn_hidden, float rope_theta, int max_position_embeddings,
+              int cache_limit, int block_num, int vocab_size,
+              string attn_implementation,
+              const FuyuNameConfig &names) {
+        blocks = List<PersimmonBlock>(block_num, hidden_dim, head_size, ffn_hidden,
+                                      rope_theta, max_position_embeddings, cache_limit,
+                                      attn_implementation,
+                                      names, names.blk_name);
         norm = LayerNorm(hidden_dim, true, 1e-6, names.post_norm_name);
         lm_head = Linear(hidden_dim, vocab_size, false, names.lm_head_name);
     }
@@ -89,15 +100,17 @@ public:
         FuyuModel(config.vocab_size, config.hidden_dim, config.head_size, config.ffn_hidden, config.block_num,
                   config.rope_theta, config.max_position_embeddings,
                   config.cache_limit, config.patch_size, config.chl_size,
+                  config.attn_implementation,
                   config.name_config) {
     }
     FuyuModel(int vocab_size, int hidden_dim, int head_size, int ffn_hidden, int block_num,
               float rope_theta, int max_position_embeddings,
               int cache_limit, int patch_size, int chl_size,
+              string attn_implementation,
               const FuyuNameConfig &names) {
         embed_tokens = Embedding(vocab_size, hidden_dim, names.token_embd_name);
         vision_embed_tokens = Linear(patch_size * patch_size * chl_size, hidden_dim, true, names.vision_embed_tokens_name);
-        persimmon = Persimmon(hidden_dim, head_size, ffn_hidden, rope_theta, max_position_embeddings, cache_limit, block_num, vocab_size, names);
+        persimmon = Persimmon(hidden_dim, head_size, ffn_hidden, rope_theta, max_position_embeddings, cache_limit, block_num, vocab_size, attn_implementation, names);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto input_ids = embed_tokens(inputs[0]);

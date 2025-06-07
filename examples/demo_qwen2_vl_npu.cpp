@@ -38,6 +38,7 @@ int main(int argc, char **argv) {
     auto processor = Qwen2VLProcessor(vocab_path, merge_path);
     Qwen2VLConfig config(tokens_limit, "1.5b-rotated");
     auto model_config = Qwen2VLConfig(config);
+    model_config.attn_implementation = "eager";
 
     auto prefill_embedding = Qwen2VL_ImagePatchAndEmbedding(config);
     auto prefill_body = Qwen2VL_PrefillBody(config, chunk_size);
@@ -74,8 +75,11 @@ int main(int argc, char **argv) {
     merged_embd_warmup_tensor.setTtype(INPUT_TENSOR);
     input_tensors.back().setTtype(INPUT_TENSOR);
     vector<Tensor> prefill_input = {merged_embd_warmup_tensor, input_tensors.back()};
+
+    auto warm_start = mllm_time_ms();
     prefill_body(prefill_input);
-    std::cout << "after warm up" << std::endl;
+    auto warm_end = mllm_time_ms();
+    std::cout << "warm up " << warm_end - warm_start << " ms" << std::endl;
 
     Module::isFirstChunk = false;
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);

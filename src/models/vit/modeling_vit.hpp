@@ -37,10 +37,11 @@ class ViTBlock final : public Module {
 
 public:
     ViTBlock() = default;
-    ViTBlock(int hidden_dim, int head_size, int ffn_hidden, const string &act_fn_type, const ViTNameConfig &names, const string &base_name) {
+    ViTBlock(int hidden_dim, int head_size, int ffn_hidden, const string &act_fn_type,
+             string attn_implementation, const ViTNameConfig &names, const string &base_name) {
         attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size, SPLIT_NONE,
                                        false, false, RoPEType::NONE,
-                                       -1, -1, 0, false, true,
+                                       -1, -1, 0, false, true, attn_implementation,
                                        names, base_name + names._attn_base_name);
         mlp = ViTMLP(hidden_dim, ffn_hidden, act_fn_type, names, base_name + names._ffn_base_name);
         down_proj = Linear(ffn_hidden, hidden_dim, true, base_name + names._down_proj_name);
@@ -89,13 +90,11 @@ class ViTModel final : public Module {
 
 public:
     explicit ViTModel(const ViTConfig &config) :
-        ViTModel(config.hidden_dim, config.head_size, config.ffn_hidden, config.act_fn_type, config.patch, config.img_hw, config.block_num, config.class_size,
-                 config.names_config, config.names_config.vison_model_name) {
+        ViTModel(config.hidden_dim, config.head_size, config.ffn_hidden, config.act_fn_type, config.patch, config.img_hw, config.block_num, config.class_size, config.attn_implementation, config.names_config, config.names_config.vison_model_name) {
     }
-    ViTModel(int hidden_dim, int head_size, int ffn_hidden, const string &act_fn_type, int patch, int img_hw, int block_num, int class_size,
-             const ViTNameConfig &names, const string &base_name) {
+    ViTModel(int hidden_dim, int head_size, int ffn_hidden, const string &act_fn_type, int patch, int img_hw, int block_num, int class_size, string attn_implementation, const ViTNameConfig &names, const string &base_name) {
         embedding = ViTEmbedding(hidden_dim, patch, img_hw, names, base_name + names._embd_name);
-        blocks = List<ViTBlock>(block_num, hidden_dim, head_size, ffn_hidden, act_fn_type, names, base_name + names._layer_name);
+        blocks = List<ViTBlock>(block_num, hidden_dim, head_size, ffn_hidden, act_fn_type, attn_implementation, names, base_name + names._layer_name);
         norm = LayerNorm(hidden_dim, true, 1e-6, base_name + names._post_norm_name);
         lm_head = Linear(hidden_dim, class_size, false, names.lm_head_name);
     }

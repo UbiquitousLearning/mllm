@@ -309,6 +309,17 @@ Tensor Tensor::clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, 
                    {std::shared_ptr<Tensor>(this, [](Tensor *) {})})[0];
 }
 
+Tensor Tensor::clip(vector<int> index, Chl dim) {
+    Tensor index_tensor(1, 1, 1, index.size(), impl_->backend_, false);
+    index_tensor.alloc();
+    for (size_t i = 0; i < index.size(); ++i) {
+        index_tensor.setDataAt<float>(0, 0, 0, i, static_cast<float>(index[i]));
+    }
+    index_tensor.setName(name() + "-cliptensor-index");
+    return runFunc({name() + "-cliptensor"}, FUNC_CLIPTENSOR, {(float)dim},
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&index_tensor, [](Tensor *) {})})[0];
+}
 Tensor Tensor::clip(Tensor index, Chl dim) {
     return runFunc({name() + "-cliptensor"}, FUNC_CLIPTENSOR, {(float)dim},
                    {std::shared_ptr<Tensor>(this, [](Tensor *) {}),
@@ -410,6 +421,13 @@ Tensor Tensor::zero_like(Tensor input) {
     return runFunc({input.name() + "-zero_like"}, FUNC_LIKE, {0.0},
                    {std::shared_ptr<Tensor>(&input, [](Tensor *) {})})[0];
 }
+Tensor Tensor::flash_attention2_forward(Tensor q, Tensor k, Tensor v, bool causal_mask) {
+    Module *module = q.module();
+    return runFunc({q.name() + "-" + k.name() + "-fa2"}, FUNC_FA2, {causal_mask ? 1.0f : 0.0f},
+                   {std::shared_ptr<Tensor>(&q, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&k, [](Tensor *) {}),
+                    std::shared_ptr<Tensor>(&v, [](Tensor *) {})})[0];
+};
 Tensor Tensor::apply_rotary_pos_emb_vision(Tensor input, Tensor rotary_pos_emb) {
     Module *module = input.module();
     return runFunc({input.name() + "-apply_rotary_pos_emb"}, FUNC_APPLY_VISIOROPE,

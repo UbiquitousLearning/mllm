@@ -769,6 +769,7 @@ public:
     Tensor transpose(vector<std::pair<Chl, Chl>> axiss);
     Tensor clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d);
     Tensor clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d);
+    Tensor clip(vector<int> index, Chl dim);
     Tensor clip(Tensor index, Chl dim);
     Tensor expand(int b, int h, int s, int d);
     static Tensor cat(vector<Tensor> input_tensors, Chl dims);
@@ -788,6 +789,7 @@ public:
     Tensor bincount();
     Tensor repeat(Chl dim, int dim_size);
     static Tensor zero_like(Tensor input);
+    static Tensor flash_attention2_forward(Tensor q, Tensor k, Tensor v, bool is_causal = true);
     static Tensor apply_rotary_pos_emb_vision(Tensor input, Tensor rotary_pos_emb);
 
     // models use only

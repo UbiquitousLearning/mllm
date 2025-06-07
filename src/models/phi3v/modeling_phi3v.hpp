@@ -50,11 +50,12 @@ class Phi3VisionModel final : public Module {
 public:
     Phi3VisionModel() = default;
     Phi3VisionModel(int hidden_dim, int head_size, int ffn_hidden, const string &act_fn_type, int patch, int img_hw, int block_num,
+                    string attn_implementation,
                     const Phi3VNameConfig &names, const string &base_name) {
         embedding = Phi3VisionEmbedding(hidden_dim, patch, img_hw, names, base_name + names._embd_name);
         pre_layrnorm = LayerNorm(hidden_dim, true, 1e-5, base_name + names._vision_pre_layrnorm_name);
         clip_len_ = std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1;
-        blocks = List<ViTBlock>(block_num, hidden_dim, head_size, ffn_hidden, act_fn_type, names, base_name + names._layer_name);
+        blocks = List<ViTBlock>(block_num, hidden_dim, head_size, ffn_hidden, act_fn_type, attn_implementation, names, base_name + names._layer_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = embedding(inputs)[0];
@@ -81,9 +82,9 @@ class Phi3Embedding final : public Module {
 
 public:
     Phi3Embedding() = default;
-    explicit Phi3Embedding(int vocab_size, int hidden_dim, int head_size, int ffn, int vision_hidden_dim, string &projection_cls, const Phi3VNameConfig &nameconfig, const string &base_name, const string &embd_name) {
+    explicit Phi3Embedding(int vocab_size, int hidden_dim, int head_size, int ffn, int vision_hidden_dim, string &projection_cls, const Phi3VNameConfig &nameconfig, string attn_implementation, const string &base_name, const string &embd_name) {
         embed_tokens = Embedding(vocab_size, hidden_dim, embd_name);
-        img_processor = Phi3VisionModel(vision_hidden_dim, 16, vision_hidden_dim * 4, "QuickGELU", 14, 336, 23, nameconfig, nameconfig.vison_model_name);
+        img_processor = Phi3VisionModel(vision_hidden_dim, 16, vision_hidden_dim * 4, "QuickGELU", 14, 336, 23, attn_implementation, nameconfig, nameconfig.vison_model_name);
         glb_GN = Parameter(1, 1, 1, vision_hidden_dim * 4, nameconfig._vision_model_prefix + nameconfig._glb_GN);
         sub_GN = Parameter(1, 1, 1, vision_hidden_dim * 4, nameconfig._vision_model_prefix + nameconfig._sub_GN);
         project_cls = projection_cls;
@@ -150,15 +151,15 @@ class Phi3VModel final : public Module {
 
 public:
     explicit Phi3VModel(const Phi3VConfig &config) :
-        Phi3VModel(config.vocab_size, config.hidden_dim, config.head_size, config.num_key_value_heads, config.ffn_hidden, config.block_num,
-                   config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit, config.vision_hidden_dim, config.projection_cls, config.name_config,
+        Phi3VModel(config.vocab_size, config.hidden_dim, config.head_size,
+                   config.num_key_value_heads, config.ffn_hidden, config.block_num,
+                   config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit, config.vision_hidden_dim, config.projection_cls, config.attn_implementation, config.name_config,
                    config.names_config, config.names_config.blk_name) {
     }
-    Phi3VModel(int vocab_size, int hidden_dim, int head_size, int kv_head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit, int vision_hidden_dim, string projection_cls, const Phi3VNameConfig &visionconfig,
-               const Phi3NameConfig &names, const string &base_name) {
+    Phi3VModel(int vocab_size, int hidden_dim, int head_size, int kv_head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit, int vision_hidden_dim, string projection_cls, string attn_implementation, const Phi3VNameConfig &visionconfig, const Phi3NameConfig &names, const string &base_name) {
         norm = RMSNorm(hidden_dim, 1e-6, names.post_norm_name);
-        vision_embed_tokens = Phi3Embedding(vocab_size, hidden_dim, head_size, ffn_hidden, vision_hidden_dim, projection_cls, visionconfig, base_name, names.token_embd_name);
-        blocks = List<Phi3Block>(block_num, hidden_dim, head_size, kv_head_size, ffn_hidden, RoPE_type, rope_theta, max_position_embeddings, cache_limit, names, base_name);
+        vision_embed_tokens = Phi3Embedding(vocab_size, hidden_dim, head_size, ffn_hidden, vision_hidden_dim, projection_cls, visionconfig, attn_implementation, base_name, names.token_embd_name);
+        blocks = List<Phi3Block>(block_num, hidden_dim, head_size, kv_head_size, ffn_hidden, RoPE_type, rope_theta, max_position_embeddings, cache_limit, attn_implementation, names, base_name);
         norm = RMSNorm(hidden_dim, 1e-6, names.post_norm_name);
         lm_head = Linear(hidden_dim, vocab_size, false, names.lm_head_name);
     }
