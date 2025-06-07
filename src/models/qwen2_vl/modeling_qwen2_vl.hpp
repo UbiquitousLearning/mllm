@@ -249,7 +249,6 @@ public:
         auto value_states = v_proj(inputs[0]);
         query_states = query_states.view(-1, num_heads, -1, head_dim);
         key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
-
         value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
         query_states = q_rope(query_states, position_ids);
         key_states = k_rope(key_states, position_ids);
