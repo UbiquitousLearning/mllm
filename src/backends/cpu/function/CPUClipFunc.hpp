@@ -13,7 +13,7 @@ class Tensor;
 
 class CPUclipFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int b_size = args[0];
         int h_size = args[1];
         int s_size = args[2];
@@ -50,7 +50,7 @@ public:
         outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int b_size = args[0];
         int h_size = args[1];
         int s_size = args[2];
@@ -140,7 +140,7 @@ public:
 
 class CPUclipaxisFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl axis = (Chl)args[0];
         int b_size = args[1];
         int h_size = args[2];
@@ -210,7 +210,7 @@ public:
         outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl axis = (Chl)args[0];
         int b_size = args[1];
         int h_size = args[2];
@@ -249,18 +249,21 @@ public:
 
 class CPUcliptensorFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl dim = (Chl)args[0];
         if (dim == SEQUENCE) {
             int new_seq = inputs[1]->dimension();
             outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), new_seq, inputs[0]->dimension());
+        } else if (dim == DIMENSION) {
+            int new_seq = inputs[1]->dimension();
+            outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), new_seq);
         } else {
             std::cout << "[TODO]Tensor.CLip not support!!!!" << std::endl;
         }
         outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl dim = (Chl)args[0];
         if (dim == SEQUENCE) {
             int new_seq = inputs[1]->dimension();
@@ -269,11 +272,31 @@ public:
                 outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), new_seq, inputs[0]->dimension());
                 outputs[0]->alloc();
             }
-            for (int d = 0; d < inputs[1]->dimension(); ++d) {
-                auto dim_idx = inputs[1]->dataAt<float>(0, 0, 0, d);
-                memcpy(outputs[0]->ptrAt<float>(0, 0, d, 0),
-                       inputs[0]->ptrAt<float>(0, 0, (int)dim_idx, 0),
-                       inputs[0]->head() * inputs[0]->dimension() * sizeof(float));
+#pragma omp parallel for collapse(2) num_threads(CPUBackend::cpu_threads)
+            for (int b = 0; b < inputs[0]->batch(); ++b) {
+                for (int s = 0; s < inputs[1]->dimension(); ++s) {
+                    auto selected_idx = (int)inputs[1]->dataAt<float>(0, 0, 0, s);
+                    memcpy(outputs[0]->ptrAt<float>(b, 0, s, 0),
+                           inputs[0]->ptrAt<float>(b, 0, selected_idx, 0),
+                           inputs[0]->head() * inputs[0]->dimension() * sizeof(float));
+                }
+            }
+        } else if (dim == DIMENSION) {
+            int new_seq = inputs[1]->dimension();
+            if (outputs[0]->sequence() == 0 || outputs[0]->shape().empty()
+                || new_seq != outputs[0]->sequence()) {
+                outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), new_seq);
+                outputs[0]->alloc();
+            }
+#pragma omp parallel for collapse(3) num_threads(CPUBackend::cpu_threads)
+            for (int b = 0; b < inputs[0]->batch(); ++b) {
+                for (int s = 0; s < inputs[0]->sequence(); ++s) {
+                    for (int d = 0; d < inputs[1]->dimension(); ++d) {
+                        auto selected_idx = (int)inputs[1]->dataAt<float>(0, 0, 0, d);
+                        outputs[0]->setDataAt<float>(b, 0, s, d,
+                                                     inputs[0]->dataAt<float>(b, 0, s, selected_idx));
+                    }
+                }
             }
         } else {
             std::cout << "[TODO]Tensor.CLip not support!!!!" << std::endl;

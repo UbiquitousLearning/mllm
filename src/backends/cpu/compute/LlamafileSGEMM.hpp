@@ -5,7 +5,9 @@
 #ifndef MLLM_GEMM_HPP
 #define MLLM_GEMM_HPP
 
-#include "VecDot.hpp"
+// #include "VecDot.hpp"
+// #include "Tensor.hpp"
+#include "Types.hpp"
 using namespace mllm;
 
 bool llamafile_sgemm(int64_t m, int64_t n, int64_t k, const void *A, int64_t lda, const void *B, int64_t ldb, void *C, int64_t ldc,

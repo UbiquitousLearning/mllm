@@ -6,7 +6,7 @@
 
 int n_pack = 16;
 namespace mllm {
-CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max, int threadCount) :
+CPUKVCache::CPUKVCache(Backend *bn, string opName, int hidden, int head, int n_rep, int cache_max, int threadCount) :
     thread_count(threadCount), Op(bn, opName) {
     cache_.setBackend(bn);
     switch (KVCache_TYPE) {
@@ -38,6 +38,29 @@ CPUKVCache::CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max, int
 #endif
     cache_limit_ = cache_max;
     n_rep_ = n_rep;
+    if (head > 0) {
+        if (for_xnn_) cache_.setDtype(MLLM_TYPE_F32);
+
+        cache_.reshape(1, head * n_rep_, cache_limit_, hidden);
+        cache_.setName(name() + ".Cache");
+        cache_.alloc();
+
+        switch (cache_.dtype()) {
+        case MLLM_TYPE_F32:
+            memset(cache_.hostPtr<float>(), 0, cache_.count() * sizeof(float));
+            break;
+        case MLLM_TYPE_F16:
+            memset(cache_.hostPtr<mllm_fp16_t>(), 0, cache_.count() * sizeof(mllm_fp16_t));
+            break;
+        case MLLM_TYPE_Q8_0:
+            memset((char *)cache_.rawHostPtr(), 0, cache_.count() * sizeof(block_q8_0) / QK8_0);
+            break;
+        default:
+            break;
+        };
+        cache_seq_len_ = 0;
+        cache_.cache_seq_len_ = cache_seq_len_;
+    }
 }
 
 ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs,
@@ -66,6 +89,7 @@ ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs,
             break;
         };
         cache_seq_len_ = 0;
+        cache_.cache_seq_len_ = cache_seq_len_;
     }
 
     // for sd
@@ -111,6 +135,7 @@ ErrorCode CPUKVCache::execute(vector<shared_ptr<Tensor>> inputs,
 
     int cache_seq_len_old = cache_seq_len_;
     cache_seq_len_ += inputs[0]->sequence();
+    cache_.cache_seq_len_ = cache_seq_len_;
     if (n_rep_ > 1) {
         if (cache_.ctype() == BSHD) {
             for (int b = 0; b < cache_.batch(); ++b) {
@@ -193,22 +218,6 @@ ErrorCode CPUKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
     }
     if (inputs[0]->masterTensor() == nullptr) { inputs[0]->free(); }
     inputs[0]->shallowCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_, 0});
-    /*没用
-    for (auto& cTensor: cache_.childTensors()){
-        if(cTensor->deaggregatedTensor()!=nullptr){
-            bool set_cache_dtype = true;
-            for (auto T: cTensor->deaggregatedTensor()->aggregatedTensors()){
-                if(T->dtype() != cache_.dtype()){
-                    set_cache_dtype = false;
-                    break;
-                }
-            }
-            if (set_cache_dtype) {
-                cTensor->deaggregatedTensor()->setDtype(cache_.dtype());
-            }
-        }
-    }
-    */
     return MLLM_NO_ERROR;
 }
 

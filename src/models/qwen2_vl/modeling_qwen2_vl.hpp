@@ -19,6 +19,7 @@ using namespace mllm;
 class Qwen2PatchEmbed final : public Module {
     Layer proj;
     int embed_dim{};
+
 public:
     Qwen2PatchEmbed() = default;
     Qwen2PatchEmbed(int vision_embed_dim, int patch, int img_hw, const Qwen2VLNameConfig &names, const string &base_name) {
@@ -43,7 +44,7 @@ class VisionAttention final : public Module {
 public:
     VisionAttention() = default;
     VisionAttention(int hidden_dim, int head_size, int kv_head_size, int attn_hidden_dim, bool bias,
-                       const TransformerNameConfig &names, const string &base_name) {
+                    const TransformerNameConfig &names, const string &base_name) {
         attn_hidden_dim_ = attn_hidden_dim;
         head_size_ = head_size;
         kv_head_size_ = kv_head_size;
@@ -58,16 +59,20 @@ public:
         auto seq_length = inputs[0].sequence();
         Tensor q, k, v;
         auto qkv = qkv_proj(inputs[0]);
-        auto qkv_sp = qkv.split({attn_hidden_dim_, attn_hidden_dim_, attn_hidden_dim_}, HD, head_size_);
+        // auto qkv_sp = qkv.split({attn_hidden_dim_, attn_hidden_dim_, attn_hidden_dim_}, HD, head_size_);
+        auto qkv_sp = qkv.split({attn_hidden_dim_ * head_size_, attn_hidden_dim_ * head_size_, attn_hidden_dim_ * head_size_}, DIMENSION);
         q = qkv_sp[0];
         k = qkv_sp[1];
         v = qkv_sp[2];
+        q = q.view(-1, head_size_, -1, attn_hidden_dim_);
+        k = k.view(-1, head_size_, -1, attn_hidden_dim_);
+        v = v.view(-1, head_size_, -1, attn_hidden_dim_);
         q = Tensor::apply_rotary_pos_emb_vision(q, rotary_pos_emb);
         k = Tensor::apply_rotary_pos_emb_vision(k, rotary_pos_emb);
         k = k.transpose(SEQUENCE, DIMENSION);
         auto qk = Tensor::mm(q, k);
         qk = qk / std::sqrt(attn_hidden_dim_);
-        //mask
+        // mask
         qk = softmax(qk);
         auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
@@ -129,10 +134,11 @@ class PatchMerger final : public Module {
     Layer mlp0;
     Layer gelu;
     Layer mlp2;
+
 public:
     PatchMerger() = default;
     PatchMerger(int dim, int context_dim, int spatial_merge_size, const Qwen2VLNameConfig &names, const string &base_name) {
-        hidden_size = context_dim * (spatial_merge_size*spatial_merge_size);
+        hidden_size = context_dim * (spatial_merge_size * spatial_merge_size);
         ln_q = LayerNorm(context_dim, true, 1e-6, base_name + names._ln_q_name);
         mlp0 = Linear(hidden_size, hidden_size, true, base_name + names._m_mlp_0_name);
         gelu = GELU(base_name + ".gelu");
@@ -156,17 +162,17 @@ public:
     Qwen2VisionModel() = default;
     Qwen2VisionModel(int hidden_dim, int vision_embed_dim, int head_size, int mlp_hidden_dim, const string &act_fn_type, int patch, int img_hw, int block_num, int spatial_merge_size, const Qwen2VLNameConfig &names, const string &base_name) {
         patch_embed = Qwen2PatchEmbed(vision_embed_dim, patch, img_hw, names, base_name + names.patch_embed_name);
-        rot_pos_emb = VisionRoPE((vision_embed_dim/head_size)/2, spatial_merge_size, base_name + ".rot_pos_emb");
+        rot_pos_emb = VisionRoPE((vision_embed_dim / head_size) / 2, spatial_merge_size, base_name + ".rot_pos_emb");
         blocks = List<VisionBlock>(block_num, vision_embed_dim, head_size, mlp_hidden_dim, act_fn_type, names, base_name + names._layer_name);
         patch_merger = PatchMerger(hidden_dim, vision_embed_dim, spatial_merge_size, names, base_name + names._merger_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto hidden_states = patch_embed({inputs[0]})[0];
         auto rotary_pos_emb = rot_pos_emb(inputs[1]);
-        auto grid_t = inputs[0].dataAt<float>(0,0,0,0);
-        auto grid_h = inputs[0].dataAt<float>(0,0,0,1);
-        auto grid_w = inputs[0].dataAt<float>(0,0,0,2);
-        vector<float> cu_seqlens_v = {0.0F, grid_t*grid_h*grid_w};
+        auto grid_t = inputs[0].dataAt<float>(0, 0, 0, 0);
+        auto grid_h = inputs[0].dataAt<float>(0, 0, 0, 1);
+        auto grid_w = inputs[0].dataAt<float>(0, 0, 0, 2);
+        vector<float> cu_seqlens_v = {0.0F, grid_t * grid_h * grid_w};
         auto cu_seqlens = Tensor(cu_seqlens_v);
         for (auto &block : blocks) {
             hidden_states = block({hidden_states, cu_seqlens, rotary_pos_emb})[0];
@@ -176,11 +182,11 @@ public:
     }
 };
 
-class QWenMLP final : public Module {
+class QWen2MLP final : public Module {
 public:
-    QWenMLP() = default;
-    QWenMLP(int hidden_size, int intermediate_size, const QWenNameConfig &names,
-            const std::string &base_name) {
+    QWen2MLP() = default;
+    QWen2MLP(int hidden_size, int intermediate_size, const QWenNameConfig &names,
+             const std::string &base_name) {
         gate_proj = Linear(hidden_size, intermediate_size, false, base_name + names._gate_proj_name);
         silu = SiLU(base_name + "act");
         up_proj = Linear(hidden_size, intermediate_size, false, base_name + names._up_proj_name);
@@ -204,10 +210,10 @@ private:
 };
 
 // Copied from GemmaAttention with Gemma->Qwen and using SWA
-class QWenAttention final : public Module {
+class QWen2Attention final : public Module {
 public:
-    QWenAttention() = default;
-    QWenAttention(const Qwen2VLConfig &config, const QWenNameConfig &names, const string &base_name) {
+    QWen2Attention() = default;
+    QWen2Attention(const Qwen2VLConfig &config, const QWenNameConfig &names, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -223,8 +229,8 @@ public:
         o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
         q_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "q_rope");
         k_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "k_rope");
-        k_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "k_cache");
-        v_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "v_cache");
+        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, base_name + "k_cache");
+        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, base_name + "v_cache");
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
 
@@ -241,7 +247,7 @@ public:
         key_states = k_rope(key_states, position_ids);
         key_states = k_cache(key_states);
         value_states = v_cache(value_states);
-        auto atten_weight = 
+        auto atten_weight =
             Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION))
             / std::sqrt(head_dim);
         atten_weight = softmax(atten_weight, k_cache.getCacheSeqLen());
@@ -258,7 +264,7 @@ public:
         return {&q_rope, &k_rope};
     }
 
-    private:
+private:
     int hidden_size;
     int num_heads;
     int head_dim;
@@ -276,13 +282,13 @@ public:
 };
 
 // Copied from GemmaDecoder with Gemma->Qwen and set RmsNorm(without add_unit_offset)
-class QWenDecoder final : public Module {
+class QWen2Decoder final : public Module {
 public:
-    QWenDecoder() = default;
-    QWenDecoder(const Qwen2VLConfig &config, const QWenNameConfig &names, const string &base_name) {
-        self_atten = QWenAttention(config, names, base_name + names._attn_base_name);
-        mlp = QWenMLP(config.hidden_size, config.intermediate_size, names,
-                    base_name + names._ffn_base_name);
+    QWen2Decoder() = default;
+    QWen2Decoder(const Qwen2VLConfig &config, const QWenNameConfig &names, const string &base_name) {
+        self_atten = QWen2Attention(config, names, base_name + names._attn_base_name);
+        mlp = QWen2MLP(config.hidden_size, config.intermediate_size, names,
+                       base_name + names._ffn_base_name);
         input_layernorm =
             RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
         post_attention_layernorm =
@@ -298,29 +304,28 @@ public:
         x = x + tmp;
         return {x};
     }
-    QWenAttention &get_attention() {
+    QWen2Attention &get_attention() {
         return self_atten;
     }
 
-    private:
-    QWenAttention self_atten;
-    QWenMLP mlp;
+private:
+    QWen2Attention self_atten;
+    QWen2MLP mlp;
     Layer input_layernorm;
     Layer post_attention_layernorm;
 };
-
 
 class Qwen2VLModel final : public Module {
     Qwen2VisionModel visual;
     Layer embed_tokens;
 
-    vector<QWenDecoder> blocks;
+    vector<QWen2Decoder> blocks;
     Layer norm;
     Parameter lm_head;
     Layer lm_head_layer;
 
     bool tie_embedding_words;
-    
+
     int64_t spatial_merge_size;
     int64_t image_token_id;
     int64_t video_token_id;
@@ -346,10 +351,10 @@ public:
         embed_tokens = Embedding(vocab_size, hidden_dim, qwen_names.token_embd_name);
         visual = Qwen2VisionModel(hidden_dim, vision_embed_dim, 16, vision_embed_dim * 4, "QuickGELU", 14, 336, 32, spatial_merge_size, vision_names, vision_names.vison_model_name);
 
-        blocks = List<QWenDecoder>(config.num_hidden_layers, config, qwen_names, qwen_names.blk_name);
+        blocks = List<QWen2Decoder>(config.num_hidden_layers, config, qwen_names, qwen_names.blk_name);
         norm = RMSNorm(hidden_dim, 1e-6, qwen_names.post_norm_name);
         if (tie_embedding_words) {
-            lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size,qwen_names.token_embd_name + ".weight");
+            lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, qwen_names.token_embd_name + ".weight");
         } else {
             lm_head_layer = Linear(config.hidden_size, config.vocab_size, false, qwen_names.lm_head_name);
         }
@@ -368,6 +373,9 @@ public:
             hidden_states = block({hidden_states, position_ids})[0];
         }
         hidden_states = norm(hidden_states);
+        if (hidden_states.sequence() > 1) {
+            hidden_states = hidden_states.clip({}, {}, {-1}, {});
+        }
         if (tie_embedding_words) {
             hidden_states = Tensor::mm(hidden_states, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         } else {
@@ -384,18 +392,18 @@ public:
         }
     }
     void get_position_ids(vector<Tensor> &inputs) {
-        if(inputs[0].sequence() > 1){
+        if (inputs[0].sequence() > 1) {
             Tensor video_grid_thw(0, 0, 0, 0, MLLM_CPU, true);
-            auto rope_indices = get_rope_index_cpp(inputs[0], inputs[2], video_grid_thw);
+            auto rope_indices = get_rope_index(inputs[0], inputs[2], video_grid_thw);
             auto position = rope_indices[0];
-            if(inputs.size() == 4){
+            if (inputs.size() == 4) {
                 inputs[3] = position;
-            } else{
+            } else {
                 inputs.push_back(position);
             }
-        }else{
+        } else {
             auto &position_ids = inputs[3];
-            auto last_pos = position_ids.dataAt<float>(0, 0, 0, position_ids.dimension()-1);
+            auto last_pos = position_ids.dataAt<float>(0, 0, 0, position_ids.dimension() - 1);
             position_ids.reshape(position_ids.batch(), 1, position_ids.sequence(), 1);
             for (int b = 0; b < position_ids.batch(); b++) {
                 for (int s = 0; s < position_ids.sequence(); s++) {
@@ -404,26 +412,26 @@ public:
             }
         }
     }
+
 private:
-    vector<Tensor> get_rope_index_cpp(
+    vector<Tensor> get_rope_index(
         Tensor input_ids,
         Tensor image_grid_thw,
-        Tensor video_grid_thw
-    ) {
+        Tensor video_grid_thw) {
         vector<vector<int64_t>> attention_mask;
         auto attention_mask_shape = input_ids.sequence();
         for (int b = 0; b < input_ids.batch(); b++) {
             attention_mask.emplace_back(attention_mask_shape, 1);
         }
-        const size_t batch_size = input_ids.batch();//input_ids.size();
-        const size_t seq_len = batch_size > 0 ? input_ids.sequence() : 0;// batch_size > 0 ? input_ids[0].size() : 0;
+        const size_t batch_size = input_ids.batch();                      // input_ids.size();
+        const size_t seq_len = batch_size > 0 ? input_ids.sequence() : 0; // batch_size > 0 ? input_ids[0].size() : 0;
         Tensor position_ids(3, 1, batch_size, seq_len, Backend::global_backends[MLLM_CPU], true);
         Tensor mrope_position_deltas(1, 1, 1, batch_size, Backend::global_backends[MLLM_CPU], true);
-        bool has_vision = (image_grid_thw.sequence()>0)||(video_grid_thw.sequence()>0);//image_grid_thw || video_grid_thw;
+        bool has_vision = (image_grid_thw.sequence() > 0) || (video_grid_thw.sequence() > 0); // image_grid_thw || video_grid_thw;
         if (!has_vision) {
             // Pure text case
             for (size_t i = 0; i < batch_size; ++i) {
-                const auto& mask = !attention_mask.empty() ? attention_mask[i] : vector<int64_t>(seq_len, 1);
+                const auto &mask = !attention_mask.empty() ? attention_mask[i] : vector<int64_t>(seq_len, 1);
                 vector<int64_t> positions;
                 int64_t pos = 0;
                 for (size_t j = 0; j < seq_len; ++j) {
@@ -448,7 +456,7 @@ private:
         // Process vision cases
         size_t image_idx = 0, video_idx = 0;
         for (size_t i = 0; i < batch_size; ++i) {
-            const auto& mask = !attention_mask.empty() ? attention_mask[i] : vector<int64_t>(seq_len, 1);
+            const auto &mask = !attention_mask.empty() ? attention_mask[i] : vector<int64_t>(seq_len, 1);
             // Extract valid tokens
             vector<int64_t> valid_tokens;
             for (size_t j = 0; j < input_ids.sequence(); ++j) {
@@ -458,9 +466,9 @@ private:
             vector<size_t> vision_starts;
             vector<int64_t> vision_types;
             for (size_t j = 0; j < valid_tokens.size(); ++j) {
-                if (valid_tokens[j] == vision_start_token_id && j+1 < valid_tokens.size()) {
+                if (valid_tokens[j] == vision_start_token_id && j + 1 < valid_tokens.size()) {
                     vision_starts.push_back(j);
-                    vision_types.push_back(valid_tokens[j+1]);
+                    vision_types.push_back(valid_tokens[j + 1]);
                 }
             }
             int64_t image_count = count(vision_types.begin(), vision_types.end(), image_token_id);
@@ -525,9 +533,9 @@ private:
                         }
                     }
                 }
-                current_max = std::max({llm_positions[0][llm_positions[0].size()-1],
-                    llm_positions[1][llm_positions[1].size()-1],
-                    llm_positions[2][llm_positions[2].size()-1]});
+                current_max = std::max({llm_positions[0][llm_positions[0].size() - 1],
+                                        llm_positions[1][llm_positions[1].size() - 1],
+                                        llm_positions[2][llm_positions[2].size() - 1]});
                 st = ed + llm_grid_t * llm_grid_h * llm_grid_w;
             }
             // Process remaining text
@@ -545,7 +553,7 @@ private:
             size_t valid_idx = 0;
             for (size_t j = 0; j < seq_len; ++j) {
                 if (mask[j] == 1) {
-                    if (valid_idx < llm_positions[0].size()) {                        
+                    if (valid_idx < llm_positions[0].size()) {
                         position_ids.setDataAt<float>(0, 0, i, j, (float)llm_positions[0][valid_idx]);
                         position_ids.setDataAt<float>(1, 0, i, j, (float)llm_positions[1][valid_idx]);
                         position_ids.setDataAt<float>(2, 0, i, j, (float)llm_positions[2][valid_idx]);
@@ -555,7 +563,7 @@ private:
             }
             // Calculate delta
             int64_t max_pos = 0;
-            for (const auto& dim : llm_positions) {
+            for (const auto &dim : llm_positions) {
                 for (auto val : dim) {
                     max_pos = max(max_pos, val);
                 }

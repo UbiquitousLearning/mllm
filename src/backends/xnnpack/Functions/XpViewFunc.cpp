@@ -5,7 +5,7 @@
 
 namespace mllm::xnnpack {
 
-void XpViewFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpViewFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     int b = (int)args[0];
     int h = (int)args[1];
     int s = (int)args[2];
@@ -62,7 +62,7 @@ void XpViewFunction::setup(vector<Tensor *> outputs, vector<Tensor *> inputs, ve
     outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
 }
 
-void XpViewFunction::execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) {
+void XpViewFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     Log::warn("XpViewFunction will use reshape instead of view. Which will involve extra copy.");
 
     auto xpb = (XnnpackBackend *)inputs[0]->backend();

@@ -12,7 +12,31 @@ class Tensor;
 
 class CPUviewFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setUp(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+        // inputs[0]->shallowCopyFrom(outputs[0].get(), false);
+        int b = (int)args[0];
+        int h = (int)args[1];
+        int s = (int)args[2];
+        int d = (int)args[3];
+        if ((b == -1 && s == -1 && inputs[0]->ctype() != BCTHW)                       // head & dimension
+            || (b == 1 && h == 1 && inputs[0]->ctype() == BCTHW)                      // head & dimension
+            || (b == 1 && h == 1 && inputs[0]->ctype() == BSHD)                       // head & dimension
+            || (b == -1 && d == -1 && inputs[0]->ctype() == BSHD)                     // head & sequence
+            || (h == -1 && d == -1 && inputs[0]->ctype() == BSHD)                     // batch & sequence
+            || (b == -1 && h == 1 && s == 1 && d == -1 && inputs[0]->ctype() == BSHD) //  sequence & head & dimension -> dimension
+            || (b == -1 && h == -1 && s == 1 && d == 1 && inputs[0]->ctype() == BSHD) //  sequence & head & dimension -> sequence
+        ) {
+            if (inputs[0]->masterTensor() == nullptr) {
+                inputs[0]->free();
+            }
+            outputs[0]->setDtype(inputs[0]->dtype());
+            outputs[0]->alloc();
+            inputs[0]->shallowCopyFrom(outputs[0].get(), false);
+        } else {
+            std::cout << "[TODO]Tensor.View alloc not support!!!!" << std::endl;
+        }
+    }
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int b = (int)args[0];
         int h = (int)args[1];
         int s = (int)args[2];
@@ -31,12 +55,12 @@ public:
             dim_d = 1;
         } else if (b == 1 && h == 1 && s == -1 && d != -1 && inputs[0]->ctype() == BCTHW) { //  batch & head & sequence -> sequence
             dim_b = 1;
-            dim_s = inputs[0]->channel() * inputs[0]->time() * inputs[0]->batch()* inputs[0]->height() *inputs[0]->width() /d;
+            dim_s = inputs[0]->channel() * inputs[0]->time() * inputs[0]->batch() * inputs[0]->height() * inputs[0]->width() / d;
             dim_h = 1;
             dim_d = d;
         } else if (b == 1 && h == 1 && s == -1 && d != -1) { //  batch & head & sequence -> sequence
             dim_b = 1;
-            dim_s = inputs[0]->sequence() * inputs[0]->batch()* inputs[0]->head() *inputs[0]->dimension() /d;
+            dim_s = inputs[0]->sequence() * inputs[0]->batch() * inputs[0]->head() * inputs[0]->dimension() / d;
             dim_h = 1;
             dim_d = d;
         } else if (b == -1 && h != -1 && s == -1 && d != -1) { // head & dimension
@@ -84,6 +108,15 @@ public:
         } else {
             std::cout << "[TODO]Tensor.View not support!!!!" << std::endl;
         }
+        if (inputs[0]->ctype() == BCTHW && inputs[0]->name() == outputs[0]->name()) {
+            outputs[0]->setCtype(BSHD);
+        }
+        outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
+        if (inputs[0]->masterTensor() != nullptr && inputs[0]->name() == outputs[0]->name()) {
+            inputs[0]->shallowCopyFrom(inputs[0]->masterTensor(), false, inputs[0]->shapeOffset());
+        }
+
+        /*
         outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
         if ((b == -1 && s == -1 && inputs[0]->ctype() != BCTHW)                       // head & dimension
             || (b == 1 && h == 1 && inputs[0]->ctype() == BCTHW)                       // head & dimension
@@ -102,8 +135,9 @@ public:
         } else {
             std::cout << "[TODO]Tensor.View alloc not support!!!!" << std::endl;
         }
+        */
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
     }
 };
 

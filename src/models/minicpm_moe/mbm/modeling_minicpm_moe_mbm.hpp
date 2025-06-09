@@ -91,8 +91,8 @@ public:
         auto scores = gate(hidden_states); //  1, batch*seq, 1, num_experts
         scores = softmax(scores);
         auto experts_w_i = Tensor::topk(scores, num_experts_per_tok, DIMENSION);
-        auto expert_weights = experts_w_i[0].get();                      //  1, batch*seq, 1, k
-        auto expert_indices = experts_w_i[1].get();                      //  1, batch*seq, 1, k
+        auto expert_weights = experts_w_i[0];                            //  1, batch*seq, 1, k
+        auto expert_indices = experts_w_i[1];                            //  1, batch*seq, 1, k
         expert_indices = expert_indices.view(-1, 1, 1, -1);              // 1, 1, 1, k* batch*seq
         expert_weights = expert_weights / expert_weights.sum(DIMENSION); //  1, batch*seq, 1, k
         expert_weights = expert_weights.view(-1, -1, 1, 1);              // 1, k* batch*seq, 1, 1
@@ -115,7 +115,6 @@ public:
                     tokens_per_expert_vector.push_back(i);
                 }
             }
-            std::cout << "";
             //
             if (layer_idx < 39 && tokens_per_expert_vector.size() == 2) {
                 if (mbm_maps[layer_idx].find(tokens_per_expert_vector) != mbm_maps[layer_idx].end()) {

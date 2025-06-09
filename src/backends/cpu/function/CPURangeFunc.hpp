@@ -13,14 +13,14 @@ class Tensor;
 
 class CPURangeFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int start = (int)args[0];
         int end = (int)args[1];
         outputs[0]->reshape(1, 1, end - start, 1);
         outputs[0]->setDtype(MLLM_TYPE_F32);
         outputs[0]->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int start = (int)args[0];
         int end = (int)args[1];
 #pragma omp parallel for collapse(1) num_threads(CPUBackend::cpu_threads)

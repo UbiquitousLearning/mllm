@@ -7,6 +7,8 @@
 #include "quantize/Quantize.hpp"
 
 namespace mllm {
+class Module;
+class Layer;
 class CPUBackend final : public Backend {
 public:
     explicit CPUBackend(shared_ptr<MemoryManager> &mm);
@@ -29,6 +31,15 @@ public:
 
     void registerOps() override;
     void registerFuncs() override;
+
+    std::vector<Tensor> runFunc(
+        std::vector<std::string> out_names,
+        TensorFuncType type,
+        std::vector<float> float_args,
+        std::vector<std::shared_ptr<Tensor>> input_tensors,
+        bool in_place) override;
+    std::vector<Tensor> runLayer(Layer *layer, std::vector<Tensor> inputs, int N) override;
+    std::vector<Tensor> runForward(Module *module, std::vector<Tensor> inputs, std::vector<std::any> args) override;
 
     static int cpu_threads;
 

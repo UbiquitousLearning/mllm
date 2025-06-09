@@ -15,7 +15,7 @@ class Tensor;
 
 class CPUtopkFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         assert(args.size() == 2);
         int k = (int)args[0];
         Chl dim = (Chl)args[1];
@@ -28,7 +28,7 @@ public:
         outputs[1]->setDtype(inputs[0]->dtype()); // topk_indices
         outputs[1]->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int k = (int)args[0];
         Chl dim = (Chl)args[1];
         if (dim == DIMENSION) {
