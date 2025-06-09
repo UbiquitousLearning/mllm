@@ -4,19 +4,18 @@
 
 namespace mllm {
 
-
-CPUCausalTreeMask::CPUCausalTreeMask(Backend *bn, string opName, int threadCount) : thread_count(threadCount),
+CPUCausalTreeMask::CPUCausalTreeMask(Backend *bn, string opName, int threadCount) :
+    thread_count(threadCount),
     Op(bn, opName) {
 }
 
 ErrorCode CPUCausalTreeMask::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //std::cout << "CPUMask  reshape" << std::endl;
-    // assert(inputs.size() == 1);
+    // std::cout << "CPUMask  reshape" << std::endl;
+    //  assert(inputs.size() == 1);
     assert(outputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     return Op::reshape(inputs, outputs);
 }
-
 
 /*
 * inputs: hidden_values, tree_ancestor
@@ -47,12 +46,12 @@ ErrorCode CPUCausalTreeMask::execute(vector<shared_ptr<Tensor>> inputs, vector<s
         int dimension = inputs[0]->dimension();
         int old_dim = 0;
 
-        auto& tree_ancestor = inputs[2];
+        auto &tree_ancestor = inputs[2];
         int draft_size = tree_ancestor->sequence() - 1;
         int context_size = sequence - draft_size;
-        if (inputs.size()>1) {
-            old_dim = (int)inputs[1]->dataAt<float>(0,0,0,0)-sequence;
-        }else{
+        if (inputs.size() > 1) {
+            old_dim = (int)inputs[1]->dataAt<float>(0, 0, 0, 0) - sequence;
+        } else {
 #ifndef LLAMAFILE_SGEMM
             old_dim = dimension - sequence;
 #endif
@@ -66,12 +65,11 @@ ErrorCode CPUCausalTreeMask::execute(vector<shared_ptr<Tensor>> inputs, vector<s
                         for (int d = 0; d < inputs[0]->dimension(); ++d) {
                             if (d > s + old_dim) {
                                 outputs[0]->setDataAt<float>({n, h, s, d}, -INFINITY);
-                            }
-                            else {
+                            } else {
                                 outputs[0]->setDataAt<float>({n, h, s, d}, inputs[0]->dataAt<float>(n, h, s, d));
                             }
                         }
-                    } 
+                    }
                     // draft的部分（树的部分）按树的mask计算
                     else {
                         int tree_ancestor_s = tree_ancestor->dataAt<int32_t>({0, 0, s - context_size + 1, 0}); // + context_size;
@@ -90,23 +88,21 @@ ErrorCode CPUCausalTreeMask::execute(vector<shared_ptr<Tensor>> inputs, vector<s
                 }
             }
         }
-    }
-    else{
+    } else {
         outputs[0]->copyFrom(inputs[0]);
     }
     return Op::execute(inputs, outputs);
 }
 
-
-ErrorCode CPUCausalTreeMask::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // assert(inputs.size() == 1);
-    assert(outputs.size() == 1);
-    if(inputs[0]->masterTensor() == nullptr) {
-        inputs[0]->free(); // TODO remove
-    }
-    outputs[0]->setDtype(activation_dtype());
-    outputs[0]->alloc();
-    inputs[0]->shallowCopyFrom(outputs[0].get(), false);
-    return MLLM_NO_ERROR;
-}
+// ErrorCode CPUCausalTreeMask::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+//     // assert(inputs.size() == 1);
+//     assert(outputs.size() == 1);
+//     if(inputs[0]->masterTensor() == nullptr) {
+//         inputs[0]->free(); // TODO remove
+//     }
+//     outputs[0]->setDtype(activation_dtype());
+//     outputs[0]->alloc();
+//     inputs[0]->shallowCopyFrom(outputs[0].get(), false);
+//     return MLLM_NO_ERROR;
+// }
 } // namespace mllm

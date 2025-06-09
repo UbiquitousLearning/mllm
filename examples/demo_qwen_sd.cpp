@@ -1,7 +1,7 @@
 /**
  * @file demo_qwen_sd.cpp
  * @author Zhiyang Chen (zhiyangchen@stu.pku.edu.cn)
- * @brief 
+ * @brief
  * @date 2025-3-11
  *
  *
@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen_merges.txt");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-1.5-1.8b-q8_0.mllm");
     cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B | 1.5B |]", false, "1.8B");
-    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
+    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 800);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
@@ -61,5 +61,6 @@ int main(int argc, char **argv) {
             return true;
         });
         std::cout << "\n";
+        model.clear_kvcache();
     }
 }

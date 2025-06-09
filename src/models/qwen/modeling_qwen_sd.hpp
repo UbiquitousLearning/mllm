@@ -1,7 +1,7 @@
 /**
  * @file modeling_qwen_sd.hpp
  * @author Zhiyang Chen (zhiyangchen@stu.pku.edu.cn)
- * @brief 
+ * @brief
  * @date 2025-3-5
  *
  */
@@ -68,13 +68,11 @@ public:
         o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
 
         q_rope = RoPETree(config.RoPE_type, config.rope_theta, config.max_position_embeddings,
-                      base_name + "q_rope");
+                          base_name + "q_rope");
         k_rope = RoPETree(config.RoPE_type, config.rope_theta, config.max_position_embeddings,
-                      base_name + "k_rope");
-        k_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "k_cache");
-        v_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "v_cache");
-        // k_cache = KVCacheTree(num_key_value_groups, config.cache_limit, base_name + "k_cache");
-        // v_cache = KVCacheTree(num_key_value_groups, config.cache_limit, base_name + "v_cache");
+                          base_name + "k_rope");
+        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, base_name + "k_cache");
+        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, base_name + "v_cache");
         mask = CausalTreeMask(base_name + "tree_mask");
         softmax = Softmax(DIMENSION, base_name + "softmax");
     }
@@ -83,7 +81,7 @@ public:
         auto query_states = q_proj(inputs[0]);
         auto key_states = k_proj(inputs[1]);
         auto value_states = v_proj(inputs[2]);
-        auto &tree_ancestor = inputs[3];
+        auto tree_ancestor = inputs[3];
 
         // [batch, heads, sequence, dims]
         query_states = query_states.view(-1, num_heads, -1, head_dim);
@@ -153,7 +151,7 @@ public:
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        auto &tree_ancestors = inputs[1];
+        auto tree_ancestors = inputs[1];
         auto x = input_layernorm(inputs[0]);
         x = self_atten({x, x, x, tree_ancestors})[0];
         auto tmp = x + inputs[0];
@@ -253,7 +251,7 @@ public:
         // }
 
         auto x = embedding(inputs[0]);
-        auto &tree_ancestors = inputs[1];
+        auto tree_ancestors = inputs[1];
 
         // go through model
         auto outputs = model({x, tree_ancestors})[0];
@@ -264,17 +262,16 @@ public:
         }
         return {outputs};
     }
-    
+
     void clear_kvcache() override {
         model.clear_kvcache();
     }
 
     void generate(
-        Tensor &input_ids, const LlmTextGeneratorOpts &opt, const std::function<bool(unsigned int)> &call_back) 
-    override {
-        auto post_processing_for_SD = [](const std::vector<unsigned int> &token_indices, const std::vector<int> &tree_anc, 
-                unsigned int input_length, Tensor &input_ids, Tensor &tree_ancestors, const vector<Tensor *> &clean_tensors) 
-        {
+        Tensor &input_ids, const LlmTextGeneratorOpts &opt, const std::function<bool(unsigned int)> &call_back)
+        override {
+        auto post_processing_for_SD = [](const std::vector<unsigned int> &token_indices, const std::vector<int> &tree_anc,
+                                         unsigned int input_length, Tensor &input_ids, Tensor &tree_ancestors, const vector<Tensor *> &clean_tensors) {
             input_ids.reshape(1, 1, input_length, 1);
             input_ids.alloc();
             tree_ancestors.reshape(1, 1, input_length, 1);
@@ -288,7 +285,7 @@ public:
                 tensor->alloc();
             }
         };
-    
+
         if (!opt.do_sample) {
             // greedy search
             if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kGreedySearch) {
@@ -305,7 +302,7 @@ public:
             seq[i] = ((unsigned int)(value));
         }
         updateContext(seq);
-    
+
         tree_ancestors = Tensor(1, 1, 1, 1, input_ids.backend(), true);
         tree_ancestors.setName("tree_ancestors");
         tree_ancestors.setDtype(MLLM_TYPE_I32);
@@ -326,7 +323,7 @@ public:
             bool is_end_generate = false;
             std::vector<unsigned int> new_predicted_token_ids;
             if (step > 0) {
-                const auto& trace = tp.get_accepted_trace();
+                const auto &trace = tp.get_accepted_trace();
                 auto accept_length = tp.get_accepted_length();
                 for (unsigned int i = 0; i < accept_length; i++) {
                     auto accept_token_idx = trace.trace_tokens[i];
@@ -345,7 +342,7 @@ public:
             predicted_token_ids.push_back(out_token);
             new_predicted_token_ids.push_back(out_token);
             cur_seq_length += 1;
-    
+
             updateContext(new_predicted_token_ids);
             updateTracePool(cur_seq_length, out_token);
 
@@ -369,7 +366,6 @@ public:
         //     std::cout << predicted_token_ids[i] << ' ';
         // }
     }
-    
 
 private:
     int hidden_size;
@@ -387,7 +383,7 @@ private:
         auto [idx, len] = sa.lookup(last_token_id);
         std::vector<unsigned int> seq;
         auto dlen = sa.gen_draft(seq, idx, len, last_token_id, 10);
-        
+
         // TODO 保留重用策略
         tp.clear_trace();
 
@@ -406,7 +402,6 @@ private:
     void updateContext(const std::vector<unsigned int> &new_predicted_token_ids) {
         sa.add_tokens(new_predicted_token_ids);
     }
-
 };
 
 #endif //! MODELING_QWENSD_HPP

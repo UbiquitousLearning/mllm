@@ -224,12 +224,12 @@ ErrorCode CPUKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 ErrorCode CPUKVCache::updateVerifiedKVCache(const std::vector<unsigned int> &verified_position_ids) {
     if (cache_.ctype() == BSHD) {
         unsigned int dest_pid = cache_seq_len_ - verified_position_ids.size();
-        for (unsigned int src_pid: verified_position_ids) {
+        for (unsigned int src_pid : verified_position_ids) {
             if (src_pid == dest_pid) {
                 dest_pid += 1;
                 continue;
             }
-// #pragma omp parallel for collapse(1) num_threads(thread_count)
+            // #pragma omp parallel for collapse(1) num_threads(thread_count)
             for (int b = 0; b < cache_.batch(); ++b) {
                 if (cache_.dtype() == MLLM_TYPE_F32) {
                     auto src_ptr = cache_.ptrAt<float>(b, 0, src_pid, 0);
@@ -254,7 +254,7 @@ ErrorCode CPUKVCache::updateVerifiedKVCache(const std::vector<unsigned int> &ver
         }
     } else if (cache_.ctype() == BHDS) {
         unsigned int dest_pid = cache_seq_len_ - verified_position_ids.size();
-        for (unsigned int src_pid: verified_position_ids) {
+        for (unsigned int src_pid : verified_position_ids) {
             if (src_pid == dest_pid) {
                 dest_pid += 1;
                 continue;

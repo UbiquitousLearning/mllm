@@ -150,6 +150,8 @@ static const vector<string> OpNames = {
     "SDPA",
     "SuperSiLU",
     "HeadLinear",
+    "RoPETree",
+    "CausalTreeMask",
 };
 
 enum TensorFuncType {

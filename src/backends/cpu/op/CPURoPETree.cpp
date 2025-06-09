@@ -17,7 +17,6 @@ vector<vector<float>> CPURoPETree::cos_;
 int CPURoPETree::global_pose_type_ = -1;
 int CPURoPETree::ishape_old;
 
-
 CPURoPETree::CPURoPETree(Backend *bn, string opName, int pose_type, int threadCount) :
     thread_count(threadCount),
     Op(bn, opName) {
@@ -41,9 +40,9 @@ CPURoPETree::CPURoPETree(Backend *bn, string opName, int pose_type, float rope_t
     pos_max_ = max_position_embeddings;
 }
 
-CPURoPETree::CPURoPETree(Backend *bn, string opName, OpParam& config, int threadCount) :
+CPURoPETree::CPURoPETree(Backend *bn, string opName, OpParam &config, int threadCount) :
     thread_count(threadCount),
-    Op(bn,opName) {
+    Op(bn, opName) {
     config_ = config;
     pose_type_ = config.at("pose_type");
     auto it = config.find("rope_theta");
@@ -62,7 +61,6 @@ CPURoPETree::CPURoPETree(Backend *bn, string opName, OpParam& config, int thread
 }
 
 ErrorCode CPURoPETree::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-//    std::cout << name() << "  CPURoPETree  reshape" << std::endl;
     assert(inputs.size() == 2);
     assert(outputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
@@ -143,7 +141,7 @@ void CPURoPETree::rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output, s
     std::vector<unsigned int> position_ids(tree_ancestor->sequence());
     if (output->ctype() == BSHD) {
         if (input->dtype() == MLLM_TYPE_F16) {
-#pragma omp parallel for collapse(3) num_threads(thread_count)
+#pragma omp parallel for collapse(2) num_threads(thread_count)
             for (int n = 0; n < input->batch(); ++n) {
                 for (int h = 0; h < input->head(); ++h) {
                     for (int s = 0; s < input->sequence(); ++s) { // sequance
@@ -176,7 +174,7 @@ void CPURoPETree::rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output, s
 
         } else {
             if (out_dtype == MLLM_TYPE_F32) {
-#pragma omp parallel for collapse(3) num_threads(thread_count)
+#pragma omp parallel for collapse(2) num_threads(thread_count)
                 for (int n = 0; n < input->batch(); ++n) {
                     for (int h = 0; h < input->head(); ++h) {
                         for (int s = 0; s < input->sequence(); ++s) { // sequance
@@ -207,7 +205,7 @@ void CPURoPETree::rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> output, s
                     }
                 }
             } else if (out_dtype == MLLM_TYPE_F16) {
-#pragma omp parallel for collapse(3) num_threads(thread_count)
+#pragma omp parallel for collapse(2) num_threads(thread_count)
                 for (int n = 0; n < input->batch(); ++n) {
                     for (int h = 0; h < input->head(); ++h) {
                         for (int s = 0; s < input->sequence(); ++s) { // sequance
@@ -447,7 +445,6 @@ ErrorCode CPURoPETree::doExecute(vector<shared_ptr<Tensor>> inputs, vector<share
 //     }
 //     return MLLM_NO_ERROR;
 // }
-
 
 ErrorCode CPURoPETree::load(AbstructLoader &loader) {
     return Op::load(loader);

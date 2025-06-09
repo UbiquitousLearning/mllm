@@ -16,9 +16,7 @@ vector<vector<float>> CPURoPE::cos_;
 int CPURoPE::global_pose_type_ = -1;
 int CPURoPE::ishape_old;
 
-
-typedef float (*mllm_rope_init_func)(const OpParam &, std::vector<float> &);
-
+// typedef float (*mllm_rope_init_func)(const OpParam &, std::vector<float> &);
 
 float _default_init_rope(const OpParam &config, vector<float> &theta) {
     auto base = config.at("base"); // theta_i = base^-(2i/dim) = 1 / base^(2i/dim)    i from 0 to (dim/2 - 1)
@@ -71,7 +69,6 @@ float _compute_llama3_theta(const OpParam &config, vector<float> &theta) {
 
     return 1.0;
 }
-
 
 void sinusoidal_position_embedding_llama(int seq_len, int output_dim, const vector<float> &theta,
                                          vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling = 1.0) {

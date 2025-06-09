@@ -343,21 +343,21 @@ public:
 };
 
 class CausalTreeMask final : public Layer {
-    public:
+public:
     CausalTreeMask() = default;
-        explicit CausalTreeMask(std::string name) {
-            init(std::move(name), OpType::CAUSALTREEMASK);
-        }
-        Tensor &operator()(Tensor &input) {
-            auto ts = run({input}, 1);
-            return ts[0].get();
-        }
-        Tensor &operator()(Tensor &input0, int kvcache_seq, Tensor &tree_ancestor) {
-            auto kvcache_seq_tensor = Tensor(kvcache_seq, backend_);
-            auto ts = run({input0, kvcache_seq_tensor, tree_ancestor}, 1);
-            return ts[0].get();
-        }
-    };
+    explicit CausalTreeMask(std::string name) {
+        init(std::move(name), OpType::CAUSALTREEMASK);
+    }
+    Tensor operator()(Tensor input) {
+        auto ts = run({input}, 1);
+        return ts[0];
+    }
+    Tensor operator()(Tensor input0, int kvcache_seq, Tensor tree_ancestor) {
+        auto kvcache_seq_tensor = Tensor(kvcache_seq, backend_);
+        auto ts = run({input0, kvcache_seq_tensor, tree_ancestor}, 1);
+        return ts[0];
+    }
+};
 
 class SlidingWindowMask final : public Layer {
 public:
@@ -443,74 +443,73 @@ public:
 };
 
 class RoPETree final : public Layer {
-    public:
-        RoPETree() = default;
-    
-        explicit RoPETree(int pose_type, const RoPEConfig & config, std::string name) {
-            param_["pose_type"] = pose_type;
-            auto it_rope_theta = config.find("rope_theta");
-            if (it_rope_theta != config.end()) {
-                param_["rope_theta"] = std::any_cast<float>(it_rope_theta->second);
-            }
-    
-            auto it_max_position_embeddings = config.find("max_position_embeddings");
-            if (it_max_position_embeddings != config.end()) {
-                param_["max_position_embeddings"] = std::any_cast<int>(it_max_position_embeddings->second);
-            }
-    
-            auto it_partial_rotary_factor = config.find("partial_rotary_factor");
-            if (it_partial_rotary_factor != config.end()) {
-                param_["partial_rotary_factor"] = std::any_cast<float>(it_partial_rotary_factor->second);
-            }
-    
-            if (config.find("rope_scaling") != config.end()) {
-                auto rope_scaling = std::any_cast<map<string, std::any>>(config.at("rope_scaling"));
-                auto it = rope_scaling.find("rope_type");
-                if (it != rope_scaling.end()) {
-                    string rope_type = std::any_cast<string>(it->second);
-                    if (rope_type == "default") {
-                        param_["rope_type"] = DEFAULT;
-                    } else if (rope_type == "llama3") {
-                        param_["rope_type"] = LLAMA3;
-                        param_["factor"] = std::any_cast<float>(rope_scaling.at("factor"));
-                        param_["high_freq_factor"] = std::any_cast<float>(rope_scaling.at("high_freq_factor"));
-                        param_["low_freq_factor"] = std::any_cast<float>(rope_scaling.at("low_freq_factor"));
-                        param_["original_max_position_embeddings"] = std::any_cast<int>(rope_scaling.at("original_max_position_embeddings"));
-                    } else {
-                        std::cout << "[TODO]rope type " << rope_type << " not support!!!!" << std::endl;
-                    }
+public:
+    RoPETree() = default;
+
+    explicit RoPETree(int pose_type, const RoPEConfig &config, std::string name) {
+        param_["pose_type"] = pose_type;
+        auto it_rope_theta = config.find("rope_theta");
+        if (it_rope_theta != config.end()) {
+            param_["rope_theta"] = std::any_cast<float>(it_rope_theta->second);
+        }
+
+        auto it_max_position_embeddings = config.find("max_position_embeddings");
+        if (it_max_position_embeddings != config.end()) {
+            param_["max_position_embeddings"] = std::any_cast<int>(it_max_position_embeddings->second);
+        }
+
+        auto it_partial_rotary_factor = config.find("partial_rotary_factor");
+        if (it_partial_rotary_factor != config.end()) {
+            param_["partial_rotary_factor"] = std::any_cast<float>(it_partial_rotary_factor->second);
+        }
+
+        if (config.find("rope_scaling") != config.end()) {
+            auto rope_scaling = std::any_cast<map<string, std::any>>(config.at("rope_scaling"));
+            auto it = rope_scaling.find("rope_type");
+            if (it != rope_scaling.end()) {
+                string rope_type = std::any_cast<string>(it->second);
+                if (rope_type == "default") {
+                    param_["rope_type"] = DEFAULT;
+                } else if (rope_type == "llama3") {
+                    param_["rope_type"] = LLAMA3;
+                    param_["factor"] = std::any_cast<float>(rope_scaling.at("factor"));
+                    param_["high_freq_factor"] = std::any_cast<float>(rope_scaling.at("high_freq_factor"));
+                    param_["low_freq_factor"] = std::any_cast<float>(rope_scaling.at("low_freq_factor"));
+                    param_["original_max_position_embeddings"] = std::any_cast<int>(rope_scaling.at("original_max_position_embeddings"));
+                } else {
+                    std::cout << "[TODO]rope type " << rope_type << " not support!!!!" << std::endl;
                 }
             }
-    
-            init(std::move(name), OpType::ROPETREE);
         }
-    
-        explicit RoPETree(int pose_type, std::string name) {
-            param_["pose_type"] = pose_type;
-            init(std::move(name), OpType::ROPETREE);
-        }
-        explicit RoPETree(int pose_type, float rope_theta, int max_position_embeddings, std::string name) {
-            param_["pose_type"] = pose_type;
-            param_["rope_theta"] = rope_theta;
-            param_["max_position_embeddings"] = max_position_embeddings;
-            init(std::move(name), OpType::ROPETREE);
-        }
-        explicit RoPETree(int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings, std::string name) {
-            param_["pose_type"] = pose_type;
-            param_["rope_theta"] = rope_theta;
-            param_["max_position_embeddings"] = max_position_embeddings;
-            param_["partial_rotary_factor"] = partial_rotary_factor;
-            init(std::move(name), OpType::ROPETREE);
-        }
-        Tensor &operator()(Tensor &input, Tensor &tree_ancestor) {
-            auto ts = run({input, tree_ancestor}, 1);
-            return ts[0].get();
-        }
-        void clearCache() {
-            return op_->clearCache();
-        }
-    };
-    
+
+        init(std::move(name), OpType::ROPETREE);
+    }
+
+    explicit RoPETree(int pose_type, std::string name) {
+        param_["pose_type"] = pose_type;
+        init(std::move(name), OpType::ROPETREE);
+    }
+    explicit RoPETree(int pose_type, float rope_theta, int max_position_embeddings, std::string name) {
+        param_["pose_type"] = pose_type;
+        param_["rope_theta"] = rope_theta;
+        param_["max_position_embeddings"] = max_position_embeddings;
+        init(std::move(name), OpType::ROPETREE);
+    }
+    explicit RoPETree(int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings, std::string name) {
+        param_["pose_type"] = pose_type;
+        param_["rope_theta"] = rope_theta;
+        param_["max_position_embeddings"] = max_position_embeddings;
+        param_["partial_rotary_factor"] = partial_rotary_factor;
+        init(std::move(name), OpType::ROPETREE);
+    }
+    Tensor operator()(Tensor input, Tensor tree_ancestor) {
+        auto ts = run({input, tree_ancestor}, 1);
+        return ts[0];
+    }
+    void clearCache() {
+        return op_->clearCache();
+    }
+};
 
 class IRoPE final : public Layer {
 public:
@@ -705,7 +704,7 @@ public:
         }
         init(std::move(name), OpType::MULTIMODALROPE);
     }
-    Tensor operator()(Tensor input, Tensor &position_ids) {
+    Tensor operator()(Tensor input, Tensor position_ids) {
         auto ts = run({input, position_ids}, 1);
         return ts[0];
     }
@@ -942,7 +941,7 @@ public:
     }
 
     // Q, K, V
-    Tensor operator()(Tensor &Q, Tensor &K, Tensor &V) {
+    Tensor operator()(Tensor Q, Tensor K, Tensor V) {
         auto ts = run({Q, K, V}, 1); // Q, K, V
         return ts[0];
     }
