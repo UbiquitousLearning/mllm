@@ -98,116 +98,99 @@ public:
         expert_weights = expert_weights.view(-1, -1, 1, 1);              // 1, k* batch*seq, 1, 1
         auto idxs = expert_indices.argsort();                            // 1, 1, 1, k* batch*seq
         auto tokens_per_expert = expert_indices.bincount();              // (1, 1, 1, 0) 1, 1, 1, k
-        /*
-        load_experts_1th(tokens_per_expert);
-        auto expert_cache = moe_infer(hidden_states, tokens_per_expert, expert_weights, idxs);
-        */
+
         Tensor expert_cache;
 #ifdef MTIME
-        if (Tensor::tensor_status == TENSOR_STATIC_READY && hidden_states.sequence() == 1) {
-            std::cout << "attn  || exe time: " << (mllm_time_us() - end_infer_last) / 1000.0F << "ms" << std::endl;
-        }
+        std::cout << "attn  || exe time: " << (mllm_time_us() - end_infer_last) / 1000.0F << "ms" << std::endl;
 #endif
-        if (Tensor::tensor_status == TENSOR_STATIC_READY) {
-            vector<int> tokens_per_expert_vector;
-            for (int i = 0; i < tokens_per_expert.dimension(); ++i) {
-                if (tokens_per_expert.d<float>(0, 0, 0, i)) {
-                    tokens_per_expert_vector.push_back(i);
-                }
+        vector<int> tokens_per_expert_vector;
+        for (int i = 0; i < tokens_per_expert.dimension(); ++i) {
+            if (tokens_per_expert.d<float>(0, 0, 0, i)) {
+                tokens_per_expert_vector.push_back(i);
             }
-            //
-            if (layer_idx < 39 && tokens_per_expert_vector.size() == 2) {
-                if (mbm_maps[layer_idx].find(tokens_per_expert_vector) != mbm_maps[layer_idx].end()) {
-                    mbm_load_expert_idxs.clear();
-                    auto c = mbm_maps[layer_idx][tokens_per_expert_vector];
-                    mbm_load_expert_idxs = c[0];
-                    mbm_load_layer_idx = layer_idx + 1;
-                    do_mbm_load = true;
-                }
-            } else if (layer_idx == 39 && tokens_per_expert_vector.size() == 2) {
-                if (mbm_maps[layer_idx].find(tokens_per_expert_vector) != mbm_maps[layer_idx].end()) {
-                    mbm_load_expert_idxs.clear();
-                    auto c = mbm_maps[layer_idx][tokens_per_expert_vector];
-                    mbm_load_expert_idxs = c[0];
-                    mbm_load_layer_idx = 0;
-                    do_mbm_load = true;
-                }
-            }
-            /*
-            mbm_load_expert_idxs = mbm_idxs;
-            mbm_load_layer_idx = layer_idx;
-            do_mbm_load = true;
-            */
-            if (mbm_idxs_size == 2 && tokens_per_expert_vector.size() == 2) {     // layer_idx > 0 && && layer_idx < 39
-                int &done = dones[layer_idx];                                     // 标志变量，用于表示数据是否已被修改
-                cvs[layer_idx]->wait(locks[layer_idx], [&done] { return done; }); // 等待条件满足
-                assert(dones[layer_idx]);
-            }
-            if (!experts_loaded(tokens_per_expert_vector)) {
-                load_experts(tokens_per_expert_vector);
-            }
-            assert(experts_loaded(tokens_per_expert_vector));
-            expert_cache = moe_infer(hidden_states, tokens_per_expert, expert_weights, idxs);
-            if (mbm_idxs_size == 2 && tokens_per_expert_vector.size() == 2) { // layer_idx > 0 &&  && layer_idx < 39
-                reset_syntax_mbm(layer_idx);
-            }
-            if (layer_idx == 0)
-                mbm_idxs_size = tokens_per_expert_vector.size();
-        } else {
-            expert_cache = moe_infer(hidden_states, tokens_per_expert, expert_weights, idxs);
         }
+        //
+        if (layer_idx < 39 && tokens_per_expert_vector.size() == 2) {
+            if (mbm_maps[layer_idx].find(tokens_per_expert_vector) != mbm_maps[layer_idx].end()) {
+                mbm_load_expert_idxs.clear();
+                auto c = mbm_maps[layer_idx][tokens_per_expert_vector];
+                mbm_load_expert_idxs = c[0];
+                mbm_load_layer_idx = layer_idx + 1;
+                do_mbm_load = true;
+            }
+        } else if (layer_idx == 39 && tokens_per_expert_vector.size() == 2) {
+            if (mbm_maps[layer_idx].find(tokens_per_expert_vector) != mbm_maps[layer_idx].end()) {
+                mbm_load_expert_idxs.clear();
+                auto c = mbm_maps[layer_idx][tokens_per_expert_vector];
+                mbm_load_expert_idxs = c[0];
+                mbm_load_layer_idx = 0;
+                do_mbm_load = true;
+            }
+        }
+        if (mbm_idxs_size == 2 && tokens_per_expert_vector.size() == 2) {     // layer_idx > 0 && && layer_idx < 39
+            int &done = dones[layer_idx];                                     // 标志变量，用于表示数据是否已被修改
+            cvs[layer_idx]->wait(locks[layer_idx], [&done] { return done; }); // 等待条件满足
+            assert(dones[layer_idx]);
+        }
+        if (!experts_loaded(tokens_per_expert_vector)) {
+            load_experts(tokens_per_expert_vector);
+        }
+        assert(experts_loaded(tokens_per_expert_vector));
+        expert_cache = moe_infer(hidden_states, tokens_per_expert, expert_weights, idxs);
+        if (mbm_idxs_size == 2 && tokens_per_expert_vector.size() == 2) { // layer_idx > 0 &&  && layer_idx < 39
+            reset_syntax_mbm(layer_idx);
+        }
+        if (layer_idx == 0)
+            mbm_idxs_size = tokens_per_expert_vector.size();
 #ifdef MTIME
-        if (Tensor::tensor_status == TENSOR_STATIC_READY && hidden_states.sequence() == 1) {
-            end_infer_last = mllm_time_us();
-        }
+        end_infer_last = mllm_time_us();
 #endif
         return {expert_cache};
     }
 
     void load_experts(vector<int> expert_idxs) {
-        if (Tensor::tensor_status == TENSOR_STATIC_READY) {
 #ifdef MTIME
-            auto start_infer = mllm_time_us();
+        auto start_infer = mllm_time_us();
 #endif
-            int result;
-            // #pragma omp parallel for num_threads(CPUBackend::cpu_threads)
-            for (int i = 0; i < expert_idxs.size(); ++i) {
-                if (expert_idxs.size() == 2) {
-                    if (std::find(mbm_v[layer_idx].begin(), mbm_v[layer_idx].end(), expert_idxs[i]) != mbm_v[layer_idx].end()) {
-                        // 在 mbm_v[layer_idx] 中找到了 expert_idxs[i]
-                        if (experts[expert_idxs[i]].loaded()) {
-                            continue;
-                        } else {
-                            std::cout << "[ERROR] experts load." << std::endl;
-                            experts[expert_idxs[i]].load();
-                            continue;
-                        }
-                    }
-                    if (mbm_v[layer_idx].size() >= mbm_num_max_experts) {
-                        result = mbm_queue_remove(mbm_v[layer_idx], expert_idxs);
-                        if (result != -1) { // mbm_v[layer_idx]不全是expert_idxs
-                            experts[result].free();
-                            mbm_v[layer_idx].push_back(expert_idxs[i]);
-                            // if (mbm_load_layer_idx != layer_idx)
-                            //     std::cout << layer_idx << " " << mbm_load_layer_idx << "  : " << expert_idxs[i] << std::endl;
-                            experts[expert_idxs[i]].load();
-                        }
+        int result;
+        // #pragma omp parallel for num_threads(CPUBackend::cpu_threads)
+        for (int i = 0; i < expert_idxs.size(); ++i) {
+            if (expert_idxs.size() == 2) {
+                if (std::find(mbm_v[layer_idx].begin(), mbm_v[layer_idx].end(), expert_idxs[i]) != mbm_v[layer_idx].end()) {
+                    // 在 mbm_v[layer_idx] 中找到了 expert_idxs[i]
+                    if (experts[expert_idxs[i]].loaded()) {
+                        continue;
                     } else {
+                        std::cout << "[ERROR] experts load." << std::endl;
+                        experts[expert_idxs[i]].load();
+                        continue;
+                    }
+                }
+                if (mbm_v[layer_idx].size() >= mbm_num_max_experts) {
+                    result = mbm_queue_remove(mbm_v[layer_idx], expert_idxs);
+                    if (result != -1) { // mbm_v[layer_idx]不全是expert_idxs
+                        experts[result].free();
                         mbm_v[layer_idx].push_back(expert_idxs[i]);
+                        // if (mbm_load_layer_idx != layer_idx)
+                        //     std::cout << layer_idx << " " << mbm_load_layer_idx << "  : " << expert_idxs[i] << std::endl;
                         experts[expert_idxs[i]].load();
                     }
-                    assert(experts[expert_idxs[i]].loaded());
                 } else {
+                    mbm_v[layer_idx].push_back(expert_idxs[i]);
                     experts[expert_idxs[i]].load();
                 }
+                assert(experts[expert_idxs[i]].loaded());
+            } else {
+                experts[expert_idxs[i]].load();
             }
-#ifdef MTIME
-            if (expert_idxs.size() == 2) {
-                auto end_infer = mllm_time_us();
-                std::cout << "expert|| load time: " << (end_infer - start_infer) / 1000.0F << "ms" << std::endl;
-            }
-#endif
         }
+#ifdef MTIME
+        if (expert_idxs.size() == 2) {
+            auto end_infer = mllm_time_us();
+            std::cout << "expert|| load time: " << (end_infer - start_infer) / 1000.0F << "ms" << std::endl;
+        }
+#endif
+        // }
     }
 
 private:
@@ -245,10 +228,8 @@ private:
         }
     }
     void free_experts(vector<int> expert_idxs) {
-        if (Tensor::tensor_status == TENSOR_STATIC_READY) {
-            for (int i = 0; i < expert_idxs.size(); ++i) {
-                experts[expert_idxs[i]].free();
-            }
+        for (int i = 0; i < expert_idxs.size(); ++i) {
+            experts[expert_idxs[i]].free();
         }
     }
     Tensor moe_infer(Tensor &hidden_states, Tensor &tokens_per_expert, Tensor &expert_weights, Tensor &idxs) {
@@ -287,10 +268,8 @@ private:
             // expert_cache.view(ANYDIM, seq, -1, -1);
         }
 #ifdef MTIME
-        if (Tensor::tensor_status == TENSOR_STATIC_READY && hidden_states.sequence() == 1) {
-            auto end_infer = mllm_time_us();
-            std::cout << "expert|| exe time: " << (end_infer - start_infer) / 1000.0F << "ms" << std::endl;
-        }
+        auto end_infer = mllm_time_us();
+        std::cout << "expert|| exe time: " << (end_infer - start_infer) / 1000.0F << "ms" << std::endl;
 #endif
         return expert_cache;
     }
@@ -306,10 +285,12 @@ class MiniCPMDecoder final : public Module {
 public:
     MiniCPMDecoder() = default;
     MiniCPMDecoder(const MiniCPMConfig &config, const MiniCPMNameConfig &names, const string &base_name) {
-        self_atten = MultiHeadAttention(config.hidden_size, config.num_attention_heads, config.num_key_value_heads,
+        self_atten = MultiHeadAttention(config.hidden_size, config.num_attention_heads,
+                                        config.num_key_value_heads,
                                         config.hidden_size / config.num_attention_heads, SPLIT_NONE, false, false,
                                         config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit,
-                                        true, false, names, base_name + names._attn_base_name);
+                                        true, false,
+                                        config.attn_implementation, names, base_name + names._attn_base_name);
         moe = MiniCPMMoE(config, names, base_name + names._ffn_base_name);
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
         post_attention_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._ffn_norm_name);
@@ -389,7 +370,7 @@ public:
     }
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         std::vector<Tensor> outputs;
-        if (Tensor::tensor_status == TENSOR_STATIC_READY && inputs[0].sequence() == 1) {
+        if (inputs[0].dimension() == 1) {
             omp_set_max_active_levels(2); // Enable OpenMP nesting
 #pragma omp parallel num_threads(2)
             if (omp_get_thread_num() == 0) { // 根据线程ID决定执行哪个函数

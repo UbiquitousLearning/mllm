@@ -23,14 +23,16 @@ using namespace mllm;
 
 class VtpContext {
 public:
-    void init() {
+    void init(Tensor input_ids, int num_hidden_layers) {
+        if (input_ids.sequence() <= 1) {
+            prefill_stage = false;
+        } else {
+            prefill_stage = true;
+        }
         if (global_selected.backend() == nullptr)
             global_selected = Tensor(1, 1, 1, 1, MLLM_CPU);
     }
     void set_vision_token(Tensor where_idx, Tensor hidden_states, Tensor image_embeds) {
-        // if (Module::llm_model_ptr->doLoad) {
-        //     return;
-        // }
         no_visual_token_len = hidden_states.sequence() - image_embeds.sequence();
         global_selected.reshape(1, 1, 1, hidden_states.sequence()); // pre_visual_token_len);
         global_selected.alloc();
@@ -46,9 +48,6 @@ public:
         no_visual_token_len = hidden_states.sequence() - pre_visual_token_len;
     }
     bool is_prefill() {
-        // if (Module::llm_model_ptr->doLoad) {
-        //     return false;
-        // }
         return prefill_stage;
     }
     void set_prefill_layer(int layer_idx_) {
@@ -142,7 +141,7 @@ public:
             }
         }
     }
-    Tensor prunning_attn_output(Tensor attn_output) {
+    Tensor prunning_attn_output(Tensor attn_output, int layer_idx) {
         if (layer_idx == 0) {
             return attn_output;
         }
@@ -198,7 +197,15 @@ public:
     int HEAD_TOP_K = 3;
     float ATTN_ACC_ALPHA = 0.2;
 
-    map<int, float> pruning_setting = {{3, 0.5}}; //{{3, 0.5}};
+    map<int, float> pruning_setting = {{3, 0.5}, {8, 0.8}};
+    // map<int, float> pruning_setting = {{3, 0.2}, {9, 0.2}, {12, 0.4}, {18, 0.4}, {21, 0.8}, {26, 0.8}};
+    // map<int, float> pruning_setting = {{3, 0.2}, {9, 0.2}, {12, 0.2}, {18, 0.5}, {21, 0.5}, {26, 0.5}};
+    // map<int, float> pruning_setting = {{3, 0.8}, {9, 0.8}, {12, 0.8}, {18, 0.8}, {21, 0.8}, {26, 0.8}};
+    // map<int, float> pruning_setting = {{3, 0.5}};
+    // map<int, float> pruning_setting = {{3, 0.8}};
+
+    // 3,  9, 12, 18, 21, 26
+    // 0.2, 0.2, 0.4, 0.4, 0.8,  0.8
 
 private:
     // 实现 topk 功能

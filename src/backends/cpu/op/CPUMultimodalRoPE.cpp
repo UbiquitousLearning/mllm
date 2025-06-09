@@ -132,12 +132,7 @@ ErrorCode CPUMultimodalRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<s
             multimodal_sinusoidal_position_embedding(position_ids, pos_max_, ishape, theta_, sin_, cos_, attention_scaling, mrope_section_);
         }
     }
-#ifdef USE_QNN
-    auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-    if (cpuBackend->isStageSwitching()) {
-        h_cnt_ = cpuBackend->getCurSequenceLength();
-    }
-#endif
+
     return Op::reshape(inputs, outputs);
 }
 
@@ -317,10 +312,7 @@ ErrorCode CPUMultimodalRoPE::doExecute(vector<shared_ptr<Tensor>> inputs, vector
             }
         }
     }
-    h_cnt_ += input->sequence();
-    if (h_cnt_ >= pos_max_) {
-        h_cnt_ = 0;
-    }
+
     return Op::execute(inputs, outputs);
 }
 

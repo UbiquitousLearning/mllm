@@ -75,9 +75,11 @@ public:
     float rope_theta;
     int max_position_embeddings;
 
-    explicit LLaMAConfig(int token_limit, string billions = "7B", RoPEType type = LLAMAROPE, int vocab = 32000) {
+    explicit LLaMAConfig(int token_limit, string billions = "7B", RoPEType type = LLAMAROPE, int vocab = 32000,
+                         string attn_implementation_ = "flash_attention_2") {
         names_config.init(type);
         vocab_size = vocab;
+        attn_implementation = attn_implementation_;
         if (billions == "7B" || billions == "7b") {
             hidden_dim = 4096;
             head_size = 32;

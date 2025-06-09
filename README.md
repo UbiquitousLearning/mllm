@@ -128,6 +128,7 @@ mllm is a lightweight, fast, and easy-to-use (multimodal) on-device LLM inferenc
 ```bash
 git clone https://github.com/UbiquitousLearning/mllm
 cd mllm
+git submodule update --init --recursive
 ```
 
 ### Check prerequisites

@@ -20,6 +20,7 @@
 #include "QnnTypes.h"
 #include "HTP/QnnHtpGraph.h"
 #include "Layer.hpp"
+#include "Layer.hpp"
 
 #include "Types.hpp"
 #include "op/QNNAdd.hpp"
@@ -34,6 +35,8 @@
 #include "op/QNNScale.hpp"
 #include "op/QNNSiLU.hpp"
 #include "op/QNNSoftMax.hpp"
+#include "op/QNNSubGraphFinalize.hpp"
+#include "op/QNNSubGraphStart.hpp"
 #include "op/QNNView.hpp"
 #include "op/QNNReLU.hpp"
 #include "op/QNNQuantize.hpp"
@@ -86,6 +89,8 @@ void QNNBackend::registerOps() {
     addCreator(SPLITINPUT, (QNNBackend::Creator *)(new QNNSplitInputCreator()));
     addCreator(TRANSPOSE, (QNNBackend::Creator *)(new QNNTransposeCreator()));
     addCreator(SUPERSILU, (QNNBackend::Creator *)(new QNNSuperSiLUCreator()));
+    addCreator(SUBGRAPHSTART, (QNNBackend::Creator *)(new QNNSubGraphStartCreator()));
+    addCreator(SUBGRAPHFINALIZE, (QNNBackend::Creator *)(new QNNSubGraphFinalizeCreator()));
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
@@ -185,6 +190,23 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
 
     // register ops
     this->registerOps();
+
+    // check if the qnn_context.bin file exists
+    if (!std::filesystem::exists("qnn_context.bin")) {
+        // create qnn context
+        if (StatusCode::SUCCESS != this->createContext()) {
+            this->reportError("Context Creation failure");
+        }
+    } else {
+        if (StatusCode::SUCCESS != this->retrieveQNNContext()) {
+            this->reportError("Context Retieve failure");
+        }
+    }
+    // assign context to qnn memory manager
+#ifdef QNN_ARM
+    auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
+    qnnMM->setQnnInterfaceAndContext(m_context);
+#endif
 }
 
 QNNBackend::~QNNBackend() {
@@ -215,14 +237,6 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     qnnModelIndex_ = qnnModels_.size();
     qnnModelIndexMap_.insert(std::make_pair(graphName, qnnModelIndex_));
     qnnModels_.push_back(qnn_wrapper_api::QnnModel());
-    // create qnn context, assign context to qnn memory manager
-    if (StatusCode::SUCCESS != this->createContext()) {
-        this->reportError("Context Creation failure");
-    }
-#ifdef QNN_ARM
-    auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
-    qnnMM->setQnnInterfaceAndContext(m_context);
-#endif
 
     // initialize qnn graph info, set graph info, graph count
     // NOTE: currently not using it
@@ -240,21 +254,22 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
 
     const QnnGraph_Config_t **graphConfigs = pGraphConfig;
 
-    m_graphConfigsInfoCount = 1;
+    qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::MODEL_NO_ERROR;
 
-    qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::getQnnGraphConfigFromInfo(
-        graphName.c_str(), (const qnn_wrapper_api::GraphConfigInfo_t **)m_graphConfigsInfo, m_graphConfigsInfoCount, graphConfigs);
-    if (err != qnn_wrapper_api::MODEL_NO_ERROR) {
-        this->reportError("Graph Config Info failure");
+    if (!isFromCache) {
+        err = qnnModels_[qnnModelIndex_].initialize(m_backendHandle,
+                                                    m_qnnFunctionPointers.qnnInterface,
+                                                    m_context,
+                                                    graphName.c_str(),
+                                                    m_debug,
+                                                    DO_GRAPH_NODE_VALIDATIONS,
+                                                    graphConfigs);
+    } else {
+        // set init from cache, the input and output tensor info still needs the QnnModel to maintain
+        // setting this is to avoid the tensor creation in the qnn graph
+        qnnModels_[qnnModelIndex_].setInitFromCache();
     }
 
-    err = qnnModels_[qnnModelIndex_].initialize(m_backendHandle,
-                                                m_qnnFunctionPointers.qnnInterface,
-                                                m_context,
-                                                graphName.c_str(),
-                                                m_debug,
-                                                DO_GRAPH_NODE_VALIDATIONS,
-                                                graphConfigs);
     if (err != qnn_wrapper_api::MODEL_NO_ERROR) {
         this->reportError("Graph Initialization failure: " + graphName);
     }
@@ -280,6 +295,9 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
         switch (input->dtype()) {
         case MLLM_TYPE_F32:
             data_type = QNN_DATATYPE_FLOAT_32;
+            break;
+        case MLLM_TYPE_F16:
+            data_type = QNN_DATATYPE_FLOAT_16;
             break;
         case MLLM_TYPE_I8: {
             data_type = QNN_DATATYPE_SFIXED_POINT_8;
@@ -326,7 +344,59 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
             }
             scaleTensor.setName(scaleName);
             loader->load(&scaleTensor);
-            scale = roundf(scaleTensor.hostPtr<float>()[0] / 127.0 * 100000) / 100000;
+            // scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 7) - 1) * 100000) / 100000;
+            scale = scaleTensor.hostPtr<float>()[0] / (pow(2, 7) - 1);
+            scaleTensor.free();
+
+            break;
+        }
+        case MLLM_TYPE_I16: {
+            data_type = QNN_DATATYPE_SFIXED_POINT_16;
+            quantizeDefined = QNN_DEFINITION_DEFINED;
+            quantizeType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
+
+            string scaleName = input->name();
+
+            std::string wordToRemove = "outtensor-";
+            int pos = scaleName.find(wordToRemove);
+            if (pos != -1) { // old frontend merge/split generated tensor
+                scaleName = scaleName.substr(wordToRemove.length());
+                wordToRemove = "or_split";
+                if (scaleName.find(wordToRemove) != -1) {
+                    pos = scaleName.find("or_split");
+                    // scaleName.erase(pos, wordToRemove.length());
+                    scaleName = scaleName.substr(0, pos);
+                    // o
+                    scaleName += "o_proj.input_scale";
+                } else if (scaleName.find("ires_split") != -1) {
+                    pos = scaleName.find("ires_split");
+                    wordToRemove = "ires_split";
+                    // scaleName.erase(pos, wordToRemove.length());
+                    scaleName = scaleName.substr(0, pos);
+                    // q
+                    scaleName += "q_proj.input_scale";
+                } else if (scaleName.find("fres_split") != -1) {
+                    pos = scaleName.find("fres_split");
+                    wordToRemove = "fres_split";
+                    // scaleName.erase(pos, wordToRemove.length());
+                    scaleName = scaleName.substr(0, pos);
+                    // fc1
+                    scaleName += "up_proj.input_scale";
+                }
+            } else { // new frontend no merge/split condition
+                std::string prefix = "out-", suffix = ".quantize";
+                if (input->name().find(prefix) != std::string::npos) {
+                    scaleName = input->name().substr(prefix.length());
+                }
+                if (scaleName.find(suffix) != std::string::npos) {
+                    scaleName = scaleName.substr(0, scaleName.length() - suffix.length());
+                }
+                scaleName += ".input_scale";
+            }
+            scaleTensor.setName(scaleName);
+            loader->load(&scaleTensor);
+            // scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 15) - 1) * 100000) / 100000;
+            scale = scaleTensor.hostPtr<float>()[0] / (pow(2, 15) - 1);
             scaleTensor.free();
 
             break;
@@ -375,15 +445,37 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     }
 }
 
+qnn_wrapper_api::ModelError_t QNNBackend::graphFinilize() {
+    // Populate the constructed graphs in provided output variables
+    qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::MODEL_NO_ERROR;
+    qnn_wrapper_api::GraphInfo_t *graphInfo = nullptr;
+
+    // Graph finalize
+    VALIDATE(getSingleGraphInfoFromModel(qnnModels_[qnnModelIndex_], &graphInfo), err);
+    if (QNN_GRAPH_NO_ERROR != m_qnnFunctionPointers.qnnInterface.graphFinalize(graphInfo->graph, m_profileBackendHandle, nullptr)) {
+        return qnn_wrapper_api::ModelError_t::MODEL_GRAPH_ERROR;
+    }
+    if (ProfilingLevel::OFF != m_profilingLevel) {
+        extractBackendProfilingInfo(m_profileBackendHandle);
+    }
+    graphsInfo_.push_back(graphInfo);
+
+    return qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
+}
+
 void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
-    currentInputBuffers = &inputBufferMap[graphName];
-    currentOutputBuffers = &outputBufferMap[graphName];
-    qnnModelIndex_ = qnnModelIndexMap_[graphName];
-    PRINT_MEMORY_USAGE("before graph finilize")
-    auto status = graphFinilize();
-    PRINT_MEMORY_USAGE("after graph finilize")
-    if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != status) {
-        this->reportError("Graph Finalization failure");
+    // currentInputBuffers = &inputBufferMap[graphName];
+    // currentOutputBuffers = &outputBufferMap[graphName];
+    // qnnModelIndex_ = qnnModelIndexMap_[graphName];
+
+    // online graph building, finalize graph
+    if (!isFromCache) {
+        PRINT_MEMORY_USAGE("before graph finilize")
+        auto status = graphFinilize();
+        PRINT_MEMORY_USAGE("after graph finilize")
+        if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != status) {
+            this->reportError("Graph Finalization failure");
+        }
     }
 
     auto returnStatus = StatusCode::SUCCESS;
@@ -391,7 +483,7 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     Qnn_Tensor_t *qnnInputs = nullptr;
     Qnn_Tensor_t *qnnOutputs = nullptr;
 
-    auto graphInfo = graphInfoMap_[qnnModelIndex_];
+    auto graphInfo = graphsInfo_[qnnModelIndex_];
 
     // directly get qnnInputs and qnnOutputs from graphInfo.outputTensors
     if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&qnnInputs, &qnnOutputs, *graphInfo)) {
@@ -412,11 +504,7 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     for (int i = 0; i < graphInfo->numInputTensors; i++) {
         qnnMM->registerQnnTensor((*currentInputBuffers)[i], qnnInputs[i]);
 #ifdef DEBUGPRINT
-        if (i < inputs.size()) {
-            std::cout << "\nregistered input tensor: " << inputs[i]->hostPtr<void>() << " backend staged ptr: " << (void *)(*currentInputBuffers)[i] << std::endl;
-        } else {
-            std::cout << "\n registered op added input" << std::endl;
-        }
+        std::cout << "\nregistered input tensor backend staged ptr: " << (void *)(*currentInputBuffers)[i] << std::endl;
         std::cout << "qnn input tensor name: " << qnnInputs[i].v1.name << std::endl;
         std::cout << "qnn input tensor scale: " << qnnInputs[i].v1.quantizeParams.scaleOffsetEncoding.scale << std::endl;
 #endif
@@ -424,18 +512,14 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     for (int i = 0; i < graphInfo->numOutputTensors; i++) {
         qnnMM->registerQnnTensor((*currentOutputBuffers)[i], qnnOutputs[i]);
 #ifdef DEBUGPRINT
-        if (i < outputs.size()) {
-            std::cout << "\nregistered output tensor: " << outputs[i]->hostPtr<void>() << " backend staged ptr: " << (void *)(*currentOutputBuffers)[i] << std::endl;
-        } else {
-            std::cout << "\n registered op added output" << std::endl;
-        }
+        std::cout << "\nregistered output tensor backend staged ptr: " << (void *)(*currentOutputBuffers)[i] << std::endl;
         std::cout << "qnn output tensor name: " << qnnOutputs[i].v1.name << std::endl;
         std::cout << "qnn output tensor scale: " << qnnOutputs[i].v1.quantizeParams.scaleOffsetEncoding.scale << std::endl;
 #endif
     }
 
-    inputsMap_[qnnModelIndex_] = qnnInputs;
-    outputsMap_[qnnModelIndex_] = qnnOutputs;
+    graphInfo->inputTensors = qnnInputs;
+    graphInfo->outputTensors = qnnOutputs;
 }
 
 void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
@@ -443,10 +527,12 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
     // update currentInputBuffers, currentOutputBuffers, qnnModelIndex_
     auto t_qnnModelIndex_ = qnnModelIndexMap_[graphName];
 
-    qnn_wrapper_api::GraphInfo_t *graphInfo = graphInfoMap_[t_qnnModelIndex_];
+    qnn_wrapper_api::GraphInfo_t *graphInfo = graphsInfo_[t_qnnModelIndex_];
 
-    Qnn_Tensor_t *inputs_ = inputsMap_[t_qnnModelIndex_];
-    Qnn_Tensor_t *outputs_ = outputsMap_[t_qnnModelIndex_];
+    // Qnn_Tensor_t *inputs_ = inputsMap_[t_qnnModelIndex_];
+    Qnn_Tensor_t *inputs_ = graphInfo->inputTensors;
+    // Qnn_Tensor_t *outputs_ = outputsMap_[t_qnnModelIndex_];
+    Qnn_Tensor_t *outputs_ = graphInfo->outputTensors;
 
     Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
 #ifdef DEBUGPRINT
@@ -502,9 +588,7 @@ void QNNBackend::afterAllGraphsExecute() {
     inputBufferMap.clear();
     outputBufferMap.clear();
 
-    graphInfoMap_.clear();
-    inputsMap_.clear();
-    outputsMap_.clear();
+    graphsInfo_.clear();
 }
 
 std::string QNNBackend::getBackendBuildId() {
@@ -521,6 +605,14 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
                                                        std::vector<Qnn_Tensor_t> outputTensors,
                                                        std::vector<Qnn_Param_t> params,
                                                        string packageName) {
+    if (isFromCache) {
+        for (auto &qnnTensor : outputTensors) {
+            if (qnnTensor.v1.type == QNN_TENSOR_TYPE_APP_READ) {
+                qnnModels_[qnnModelIndex_].addTensor(qnnTensor.v1.name, qnnTensor);
+            }
+        }
+        return qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
+    }
     qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
     Qnn_Param_t *paramsPtr = nullptr;
     if (!params.empty()) {
@@ -542,27 +634,10 @@ qnn_wrapper_api::ModelError_t QNNBackend::graphAddNode(string name,
     return err;
 }
 
-qnn_wrapper_api::ModelError_t QNNBackend::graphFinilize() {
-    // Populate the constructed graphs in provided output variables
-    qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::MODEL_NO_ERROR;
-    qnn_wrapper_api::GraphInfo_t *graphInfo = nullptr;
-
-    VALIDATE(getSingleGraphInfoFromModel(qnnModels_[qnnModelIndex_], &graphInfo), err);
-
-    // Graph finalize
-    if (QNN_GRAPH_NO_ERROR != m_qnnFunctionPointers.qnnInterface.graphFinalize(graphInfo->graph, m_profileBackendHandle, nullptr)) {
-        return qnn_wrapper_api::ModelError_t::MODEL_GRAPH_ERROR;
-    }
-    if (ProfilingLevel::OFF != m_profilingLevel) {
-        extractBackendProfilingInfo(m_profileBackendHandle);
-    }
-
-    graphInfoMap_[qnnModelIndex_] = graphInfo;
-
-    return qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
-}
-
 qnn_wrapper_api::ModelError_t QNNBackend::modelAddTensor(std::string nodeName, Qnn_Tensor_t tensor) {
+    if (isFromCache && tensor.v1.type != QNN_TENSOR_TYPE_APP_READ) {
+        return qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
+    }
     return qnnModels_[qnnModelIndex_].addTensor(nodeName.c_str(), tensor);
 }
 
@@ -766,6 +841,85 @@ StatusCode QNNBackend::freeDevice() {
     return StatusCode::SUCCESS;
 }
 
+void QNNBackend::saveQNNContext() {
+    uint64_t binarySize, writtenSize;
+    m_qnnFunctionPointers.qnnInterface.contextGetBinarySize(m_context, &binarySize);
+
+    std::unique_ptr<uint8_t[]> binaryBuffer(new uint8_t[binarySize]);
+
+    m_qnnFunctionPointers.qnnInterface.contextGetBinary(m_context, reinterpret_cast<void *>(binaryBuffer.get()), binarySize, &writtenSize);
+
+    if (binarySize < writtenSize) {
+        QNN_ERROR(
+            "Illegal written buffer size [%d] bytes. Cannot exceed allocated memory of [%d] bytes",
+            binarySize,
+            writtenSize);
+    }
+    std::ofstream file("qnn_context.bin", std::ios::binary);
+    file.write(reinterpret_cast<char *>(binaryBuffer.get()), writtenSize);
+    file.close();
+
+    std::cout << "QNN context saved to qnn_context.bin written " << writtenSize << std::endl;
+}
+
+StatusCode QNNBackend::retrieveQNNContext() {
+    auto returnStatus = StatusCode::SUCCESS;
+    // load qnn system function pointers
+    if (dynamicloadutil::StatusCode::SUCCESS != dynamicloadutil::getQnnSystemFunctionPointers("libQnnSystem.so", &m_qnnFunctionPointers)) {
+        reportError("Error initializing QNN System Function Pointers");
+    }
+
+    // Read the binary from qnn_context.bin and get the size in byte
+    std::ifstream file("qnn_context.bin", std::ios::binary | std::ios::ate);
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+    shared_ptr<uint8_t> binaryBuffer(new uint8_t[size], std::default_delete<uint8_t[]>());
+
+    file.read(reinterpret_cast<char *>(binaryBuffer.get()), size);
+    file.close();
+
+    // inspect binary info
+
+    QnnSystemContext_Handle_t sysCtxHandle{nullptr};
+    if (QNN_SUCCESS != m_qnnFunctionPointers.qnnSystemInterface.systemContextCreate(&sysCtxHandle)) {
+        QNN_ERROR("Could not create system handle.");
+        returnStatus = StatusCode::FAILURE;
+    }
+    const QnnSystemContext_BinaryInfo_t *binaryInfo{nullptr};
+    Qnn_ContextBinarySize_t binaryInfoSize{0};
+    if (StatusCode::SUCCESS == returnStatus && QNN_SUCCESS != m_qnnFunctionPointers.qnnSystemInterface.systemContextGetBinaryInfo(sysCtxHandle, static_cast<void *>(binaryBuffer.get()), size, &binaryInfo, &binaryInfoSize)) {
+        QNN_ERROR("Failed to get context binary info");
+        returnStatus = StatusCode::FAILURE;
+    }
+
+    qnn_wrapper_api::GraphInfo_t **graphsInfo = nullptr;
+    uint32_t graphNum;
+    // fill GraphInfo_t based on binary info
+    if (StatusCode::SUCCESS == returnStatus && !copyMetadataToGraphsInfo(binaryInfo, graphsInfo, graphNum)) {
+        QNN_ERROR("Failed to copy metadata.");
+        returnStatus = StatusCode::FAILURE;
+    }
+    m_qnnFunctionPointers.qnnSystemInterface.systemContextFree(sysCtxHandle);
+    sysCtxHandle = nullptr;
+
+    graphsInfo_.assign(graphsInfo, graphsInfo + graphNum);
+
+    Qnn_ContextBinarySize_t writtenSize = 0;
+    m_qnnFunctionPointers.qnnInterface.contextCreateFromBinary(m_backendHandle, m_deviceHandle, (const QnnContext_Config_t **)m_contextConfig, binaryBuffer.get(), size, &m_context, m_profileBackendHandle);
+
+    for (auto &g : graphsInfo_) {
+        if (QNN_SUCCESS != m_qnnFunctionPointers.qnnInterface.graphRetrieve(m_context, g->graphName, &g->graph)) {
+            QNN_ERROR("Unable to retrieve graph handle");
+            returnStatus = StatusCode::FAILURE;
+        }
+    }
+
+    this->isFromCache = true;
+
+    MLLM_LOG_INFO_STREAM << "QNN context retrieved from qnn_context.bin";
+    return returnStatus;
+}
+
 std::vector<Tensor> QNNBackend::runFunc(std::vector<std::string> out_names,
                                         TensorFuncType type,
                                         std::vector<float> float_args,
@@ -958,6 +1112,11 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
             layer->op_ = layer->backend_->opCreate(layer->param_, layer->name_);
 #endif
         }
+        if (layer->param_["type"] == SUBGRAPHFINALIZE) {
+            for (auto &input : inputs) {
+                activation_tensors[input.name()]->setTtype(GRAPH_OUTPUT);
+            }
+        }
         if (module->doLoad) {
             layer->op_->load(*module->loader);
             layer->inited_loaded = true;
@@ -992,6 +1151,17 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
                     }
                 }
                 next_name = Layer::layername_2_tensorname[layer_next_name];
+            } else if (layer_next_name.find("visual") != string::npos) {
+                // QNN VLM trick: visual model use act tensor sharing
+                if (Layer::layername_2_tensorname.find(layer_next_name) == Layer::layername_2_tensorname.end()) {
+                    if (layer->param_["type"] == KVCACHE) {
+                        Layer::layername_2_tensorname[layer_next_name] = layer_next_name;
+                        init_reset_KVCache(inputs[0].name(), module, layer->saved_list_idx, Layer::layername_2_tensorname, layer->backend_);
+                    } else {
+                        Layer::layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                    }
+                }
+                next_name = Layer::layername_2_tensorname[layer_next_name];
             } else {
                 next_name = layer_next_name;
             }
@@ -1005,7 +1175,7 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
         if (module->doLoad) {
             vector<Tensor> output_result = {};
             for (const auto &layer_next_name : layer_next_names) {
-                string next_name = Layer::use_layername_2_tensorname ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name;
+                string next_name = Layer::use_layername_2_tensorname ? Layer::layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
                 output_result.push_back(*activation_tensors[next_name]);
             }
             return output_result;
@@ -1035,7 +1205,7 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
     }
     vector<shared_ptr<Tensor>> output_tensors = {};
     for (const auto &layer_next_name : layer_next_names) {
-        string next_name = Layer::use_layername_2_tensorname ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name;
+        string next_name = Layer::use_layername_2_tensorname ? Layer::layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
         output_tensors.push_back(activation_tensors[next_name]);
     }
 #ifdef DEBUGOPTIME
@@ -1043,17 +1213,25 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
 #endif
     switch (Tensor::tensor_status) {
     case TENSOR_STATIC_INIT: {
-        layer->op_->reshape(input_tensors, output_tensors);
-        layer->op_->setUp(input_tensors, output_tensors);
+        if (!Module::isFirstChunk && layer->backend_->type() == MLLM_QNN) {
+        } else {
+            layer->op_->reshape(input_tensors, output_tensors);
+            layer->op_->setUp(input_tensors, output_tensors);
+        }
         break;
     }
     case TENSOR_STATIC_READY: {
-        layer->op_->execute(input_tensors, output_tensors);
+        if (!Module::isFirstChunk && layer->backend_->type() == MLLM_QNN && layer->param_["type"] != SUBGRAPHSTART) {
+        } else {
+            layer->op_->execute(input_tensors, output_tensors);
+        }
         break;
     }
     case TENSOR_STATIC_TRACE: {
         if (layer->backend_->type() == BackendType::MLLM_CPU) {
             Tracer::addOp(layer->op_, input_tensors, output_tensors);
+        } else if (layer->param_["type"] == SUBGRAPHSTART) { // begin of QNN graph
+            Tracer::addModule(input_tensors, {}, layer->op_->name());
         }
         break;
     }
@@ -1061,29 +1239,29 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
         break;
     }
     }
-    // if (Backend::global_backends.size() == 1) {
-    //     for (auto input_tensor : input_tensors) {
-    //         if ((activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end())) {
-    //             switch (Tensor::tensor_status) {
-    //             case TENSOR_STATIC_INIT: {
-    //                 activation_tensors_num[input_tensor->name()] += 1;
-    //                 break;
-    //             }
-    //             case TENSOR_STATIC_READY: {
-    //                 activation_tensors_num[input_tensor->name()] -= 1;
-    //                 break;
-    //             }
-    //             default: {
-    //             }
-    //             }
-    //             if (activation_tensors_num[input_tensor->name()] == 0 && activation_tensors[input_tensor->name()]->sequence() > 1
-    //                 && activation_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
-    //                 activation_tensors[input_tensor->name()]->free();
-    //                 // std::cout << input_tensor->name() << "|" << std::endl;
-    //             }
-    //         }
-    //     }
-    // }
+// if (Backend::global_backends.size() == 1) {
+//     for (auto input_tensor : input_tensors) {
+//         if ((activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end())) {
+//             switch (Tensor::tensor_status) {
+//             case TENSOR_STATIC_INIT: {
+//                 activation_tensors_num[input_tensor->name()] += 1;
+//                 break;
+//             }
+//             case TENSOR_STATIC_READY: {
+//                 activation_tensors_num[input_tensor->name()] -= 1;
+//                 break;
+//             }
+//             default: {
+//             }
+//             }
+//             if (activation_tensors_num[input_tensor->name()] == 0 && activation_tensors[input_tensor->name()]->sequence() > 1
+//                 && activation_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
+//                 activation_tensors[input_tensor->name()]->free();
+//                 // std::cout << input_tensor->name() << "|" << std::endl;
+//             }
+//         }
+//     }
+// }
 #ifdef DEBUGOPTIME
     if (Tensor::tensor_status == TENSOR_STATIC_READY) {
         auto end_t = mllm_time_us();
@@ -1092,7 +1270,7 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
 #endif
     vector<Tensor> output_result = {};
     for (const auto &layer_next_name : layer_next_names) {
-        string next_name = Layer::use_layername_2_tensorname ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name;
+        string next_name = Layer::use_layername_2_tensorname ? Layer::layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
 #ifdef DEBUGSAVETENSOR
         activation_tensors[next_name]->saveNData<float>(layer_next_name);
 #endif
@@ -1102,19 +1280,19 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
 }
 std::vector<Tensor> QNNBackend::runForward(Module *module, std::vector<Tensor> inputs, std::vector<std::any> args) {
     // set static tmp_device to device_ to init layers' op
-    auto previoud_device = Module::tmp_device;
-    Module::tmp_device = module->device_;
+    // auto previoud_device = Module::tmp_device;
+    // Module::tmp_device = module->device_;
     // Module Loading
     if (Module::llm_model_ptr && Module::llm_model_ptr->doLoad) {
         auto outputs = module->Forward(inputs, args);
         // for inner module, set output tensors to GRAPH_OUTPUT
-        if (inputs[0].ttype() != TensorType::INPUT_TENSOR) { // XPUs' module should not be the outermost input tensor
-            for (auto &output : outputs) {
-                inputs[0].module()->activation_tensors[output.name()]->setTtype(GRAPH_OUTPUT);
-            }
-        }
-        // set Module::tmp_device to previous device
-        Module::tmp_device = previoud_device;
+        // if (inputs[0].ttype() != TensorType::INPUT_TENSOR) { // XPUs' module should not be the outermost input tensor
+        //     for (auto &output : outputs) {
+        //         inputs[0].module()->activation_tensors[output.name()]->setTtype(GRAPH_OUTPUT);
+        //     }
+        // }
+        // // set Module::tmp_device to previous device
+        // Module::tmp_device = previoud_device;
         return outputs;
     }
     // if (false) {

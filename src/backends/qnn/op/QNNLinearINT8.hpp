@@ -19,12 +19,15 @@ private:
     bool support_bias_;
     Tensor weight_;
     Tensor bias_;
-// #ifdef SMOOTHQUANT
+
     Tensor weightScale_;
     Tensor biasScale_;
-// #endif
+
     Tensor outputScale_;
     Tensor inputScale_;
+
+    ErrorCode setUpW8A8(vector<shared_ptr<Tensor>>& inputs, vector<shared_ptr<Tensor>>& outputs);
+    ErrorCode setUpW8A16(vector<shared_ptr<Tensor>>& inputs, vector<shared_ptr<Tensor>>& outputs);
 };
 
 class QNNLinearINT8Creator : public QNNBackend::Creator {

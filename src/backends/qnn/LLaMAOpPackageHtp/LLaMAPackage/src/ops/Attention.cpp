@@ -9,18 +9,16 @@
 #include "QnnOpPackage.h"
 #include "HTP/core/simple_reg.h"
 
-
 BEGIN_PKG_OP_DEFINITION(PKG_Attention);
 
-
 // op execute function declarations
-template<typename TensorType,typename TensorType1,typename TensorType2,typename TensorType3>
+template <typename TensorType, typename TensorType1, typename TensorType2, typename TensorType3>
 GraphStatus attentionImpl(TensorType1 &out_0,
                           const TensorType1 &in_0,
                           const TensorType1 &in_1,
-                          const TensorType& in_2,
-                          const TensorType& in_3,
-                          const TensorType& in_4);
+                          const TensorType &in_2,
+                          const TensorType &in_3,
+                          const TensorType &in_4);
 
 // forward declaration of sample cost function
 static float attentionCostFunc(const Op *op);
@@ -65,11 +63,11 @@ DEF_PACKAGE_OP((attentionImpl<Tensor, Tensor, Tensor, Tensor>), "Attention")
  * one definition per op, and this is optional
  * syntax: DEF_PACKAGE_PARAM_ORDER(OP,PARAM1,MANDATORY1,DEFAULT1,PARAM2,MANDATORY2,DEFAULT2...)
  * one or more parameters can be specified for each op
-     * order of parameters listed determines the order of parameters passed into op execution functions
+ * order of parameters listed determines the order of parameters passed into op execution functions
  * if an op does not have a parameter order definition, parameter order passed into Qnn_addNode
  *   will be passed into op execution functions
  * if an op has a parameter order definition, any parameter passed into Qnn_addNode with unlisted
-     *   name will be abandoned
+ *   name will be abandoned
  * if two or more op packages with the same package name will be registered, they cannot list
  *   conflicting parameter orders
  * PARAM refers to parameter name as a string literal
@@ -83,46 +81,40 @@ DEF_PACKAGE_OP((attentionImpl<Tensor, Tensor, Tensor, Tensor>), "Attention")
  *       Qnn_addNode
  */
 
-
 /* execute functions for ops */
 
-template<typename TensorType,typename TensorType1,typename TensorType2,typename TensorType3>
+template <typename TensorType, typename TensorType1, typename TensorType2, typename TensorType3>
 GraphStatus attentionImpl(TensorType1 &out_0,
                           const TensorType1 &in_0,
                           const TensorType1 &in_1,
-                          const TensorType& in_2,
-                          const TensorType& in_3,
-                          const TensorType& in_4)
+                          const TensorType &in_2,
+                          const TensorType &in_3,
+                          const TensorType &in_4)
 
 {
-  /*
-   * add code here
-   * */
-  /*
-   * To have good performance and stability, it is required to avoid heap memory
-   * allocation in this function. The heap memory allocation includes but not
-   * limited to calling malloc, operator new, constructing STL container objects
-   * like std::vector with default allocator, and adding items like calling
-   * std::vector::push_back to STL container objects with default allocator.
-   *
-   * Please check in SDK documentation for more information.
-   */
-  return GraphStatus::Success;
+    /*
+     * add code here
+     * */
+    /*
+     * To have good performance and stability, it is required to avoid heap memory
+     * allocation in this function. The heap memory allocation includes but not
+     * limited to calling malloc, operator new, constructing STL container objects
+     * like std::vector with default allocator, and adding items like calling
+     * std::vector::push_back to STL container objects with default allocator.
+     *
+     * Please check in SDK documentation for more information.
+     */
+    return GraphStatus::Success;
 }
 
-__attribute__((unused)) static float attentionCostFunc(const Op *op)
-{
-  /*
-   * add code here
-   * */
+__attribute__((unused)) static float attentionCostFunc(const Op *op) {
+    /*
+     * add code here
+     * */
 
-  float cost = 0.0;  // add cost computation here
-  return cost;
+    float cost = 0.0; // add cost computation here
+    return cost;
 }
-
-
-
-
 
 /* At the bottom of the op file, call END_PKG_OP_DEFINITION(<name>),
    where <name> is as BEGIN_PKG_OP_DEFINITION

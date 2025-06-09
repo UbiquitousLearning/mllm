@@ -29,8 +29,7 @@ int main(int argc, char **argv) {
     int max_pixels = 1344 * 28 * 28;
     auto processor = Qwen2VLProcessor(vocab_path, merge_path, min_pixels, max_pixels);
     Qwen2VLConfig config(tokens_limit, "1.5b");
-    auto model_config = Qwen2VLConfig(config);
-    auto model = Qwen2VLModel(model_config);
+    auto model = Qwen2VLModel(config);
     model.load(model_path);
 
     vector<string> in_imgs = {

@@ -10,8 +10,11 @@
 
 using namespace mllm;
 
+std::set phonelmShadowLayers = {0, 1, 3, 4};
+
 // NPU QKV part
-class PhoneLMDecoderNPUPart1 final : public Module {
+class PhoneLMDecoderNPUPart1 : public Module {
+protected:
     int hidden_size;
     int num_heads;
     int head_dim;
@@ -81,6 +84,64 @@ public:
     }
 };
 
+class PhoneLMDecoderNPUPart1WithRes final : public PhoneLMDecoderNPUPart1 {
+    Layer input_layernorm;
+    Layer pre_attn_quantize;
+
+public:
+    PhoneLMDecoderNPUPart1WithRes() = default;
+
+    PhoneLMDecoderNPUPart1WithRes(const PhoneLMConfig &config, const PhoneLMNameConfig &names, int chunk_size, const string &base_name) {
+        hidden_size = config.hidden_size;
+        num_heads = config.num_attention_heads;
+        head_dim = config.hidden_size / num_heads;
+        num_key_value_heads = config.num_key_value_heads;
+        num_key_value_groups = num_heads / num_key_value_heads;
+
+        auto layer_base_name = base_name.substr(0, base_name.size() - 10);
+        input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, layer_base_name + names._attn_norm_name);
+        pre_attn_quantize = Quantize(true, layer_base_name + names._attn_base_name + names._q_proj_name + ".quantize");
+
+        pre_attn_view = View(-1, 1, -1, num_heads * head_dim, base_name + "ires_split-00_view_");
+
+        q_proj = Linear(hidden_size, num_heads * head_dim, false, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._v_proj_name);
+
+        q_view = View(-1, num_heads, -1, head_dim, base_name + names._q_proj_name + "-00_view_");
+        k_view = View(-1, num_heads, -1, head_dim, base_name + names._k_proj_name + "-00_view_");
+        v_view = View(-1, num_heads, -1, head_dim, base_name + names._v_proj_name + "-00_view_");
+
+        q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize");
+        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false);
+        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false);
+
+        v_transpose = Transpose({0, 2, 3, 1}, base_name + names._v_proj_name + ".transpose");
+    }
+
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
+        auto x = input_layernorm(inputs[0]);
+        x = pre_attn_quantize(x);
+
+        x = pre_attn_view(x);
+
+        auto query_states = q_proj(x);
+        auto key_states = k_proj(x);
+        auto value_states = v_proj(x);
+
+        query_states = q_view(query_states);
+        key_states = k_view(key_states);
+        value_states = v_view(value_states);
+
+        query_states = q_dequant(query_states);
+        key_states = k_dequant(key_states);
+        value_states = v_dequant(value_states);
+
+        value_states = v_transpose(value_states);
+        return {query_states, key_states, value_states, inputs[0]};
+    }
+};
+
 // CPU QKV MM part
 class PhoneLMQKVmm final : public Module {
     IRoPE q_rope;
@@ -140,7 +201,8 @@ public:
 };
 
 // QNN mlp part
-class PhoneLMDecoderNPUPart2 final : public Module {
+class PhoneLMDecoderNPUPart2 : public Module {
+protected:
     int hidden_size;
     int num_heads;
     int head_dim;
@@ -250,39 +312,7 @@ public:
     }
 };
 
-class PhoneLMDecoderNPUPart2WithShadow final : public Module {
-    int hidden_size;
-    int num_heads;
-    int head_dim;
-    int num_key_value_heads;
-    int num_key_value_groups;
-    int intermediate_size;
-
-    // NPU part2 of attention
-    Layer pre_oproj_view;
-    Layer out_proj;
-    Layer post_oproj_view;
-    Layer post_oproj_dequantize;
-
-    // NPU mlp
-    Layer pre_mlp_quantize;
-    Layer pre_mlp_view;
-    Layer gate_proj;
-    Layer up_proj;
-    Layer post_up_proj_dequantize;
-    Layer post_gate_proj_dequantize;
-    Layer relu;
-    Layer post_attn_layernorm;
-
-    Layer down_proj;
-    Layer pre_down_proj_quantize;
-    Layer post_down_proj_dequantize;
-    Layer post_mlp_view;
-
-    Layer post_atten_res_add;
-    Layer post_mlp_res_add;
-    Layer mlp_mul;
-
+class PhoneLMDecoderNPUPart2WithShadow final : public PhoneLMDecoderNPUPart2 {
 public:
     PhoneLMDecoderNPUPart2WithShadow() = default;
 
@@ -370,11 +400,17 @@ class PhoneLMNPU_CPUDecoder final : public Module {
     int num_key_value_heads;
     int num_key_value_groups;
 
+    int layer_idx;
+    int num_layers;
+
+    SubgraphStart _SubgraphStart_1, _SubgraphStart_2;
+    SubgraphFinalize _SubgraphEnd_1, _SubgraphEnd_2;
+
     Layer input_layernorm;
     Layer pre_attn_quantize;
-    PhoneLMDecoderNPUPart1 part1;
+    unique_ptr<PhoneLMDecoderNPUPart1> part1;
     PhoneLMQKVmm qkv_mm;
-    PhoneLMDecoderNPUPart2 part2;
+    unique_ptr<PhoneLMDecoderNPUPart2> part2;
 
 public:
     PhoneLMNPU_CPUDecoder() = default;
@@ -386,39 +422,65 @@ public:
         num_key_value_heads = config.num_key_value_heads;
         num_key_value_groups = num_heads / num_key_value_heads;
 
-        input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
-        pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize");
+        // extract layer index from base_name like "model.layers.10."
+        std::regex re(R"(\d+)");
+        std::smatch match;
+        std::regex_search(base_name, match, re);
+        layer_idx = std::stoi(match[0]);
+        num_layers = config.num_hidden_layers;
 
-        part1 = PhoneLMDecoderNPUPart1(config, names, chunk_size, base_name + names._attn_base_name);
-        part1.to(MLLM_QNN);
+        if (layer_idx == 0 || phonelmShadowLayers.find(layer_idx - 1) != phonelmShadowLayers.end()) {
+            input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
+            pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize");
+            part1 = make_unique<PhoneLMDecoderNPUPart1>(config, names, chunk_size, base_name + names._attn_base_name);
+        } else {
+            part1 = make_unique<PhoneLMDecoderNPUPart1WithRes>(config, names, chunk_size, base_name + names._attn_base_name);
+        }
 
         qkv_mm = PhoneLMQKVmm(config, names, chunk_size, base_name + names._attn_base_name);
-        qkv_mm.to(MLLM_CPU);
 
-        part2 = PhoneLMDecoderNPUPart2(config, names, chunk_size, base_name);
-        part2.to(MLLM_QNN);
+        part2 = make_unique<PhoneLMDecoderNPUPart2>(config, names, chunk_size, base_name);
+
+        _SubgraphStart_1 = SubgraphStart(base_name + "subgraph_start1");
+        _SubgraphEnd_1 = SubgraphFinalize(base_name + "subgraph_end1");
+        _SubgraphStart_2 = SubgraphStart(base_name + "subgraph_start2");
+        _SubgraphEnd_2 = SubgraphFinalize(base_name + "subgraph_end2");
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
-        auto x = input_layernorm(inputs[0]);
-        x = pre_attn_quantize(x);
+        Tensor x, q, k, v, res;
+        if (layer_idx == 0 || phonelmShadowLayers.find(layer_idx - 1) != phonelmShadowLayers.end()) {
+            x = input_layernorm(inputs[0]);
+            x = pre_attn_quantize(x);
 
-        if (x.device() != MLLM_QNN) {
-            x = Tensor::toQNN({x})[0];
+            _SubgraphStart_1({x});
+
+            auto q_k_v = (*part1)({x}); // q,k,v
+            q = q_k_v[0];
+            k = q_k_v[1];
+            v = q_k_v[2];
+            res = inputs[0];
+            _SubgraphEnd_1(q_k_v);
+        } else {
+            auto q_k_v_res = (*part1)(inputs); // q,k,v,res
+            q = q_k_v_res[0];
+            k = q_k_v_res[1];
+            v = q_k_v_res[2];
+            res = q_k_v_res[3];
+            _SubgraphEnd_1(q_k_v_res);
         }
 
-        auto q_k_v = part1({x}); // q,k,v
-        auto o_x = qkv_mm(q_k_v)[0];
+        auto o_x = qkv_mm({q, k, v})[0];
 
-        if (o_x.device() != MLLM_QNN) {
-            o_x = Tensor::toQNN({o_x})[0];
-        }
-        if (inputs[0].device() != MLLM_QNN) {
-            inputs[0] = Tensor::toQNN({inputs[0]})[0];
-        }
-        x = part2({o_x, inputs[0]})[0];
+        _SubgraphStart_2({o_x, res});
 
-        return {x};
+        auto out_part2 = (*part2)({o_x, res});
+
+        if (layer_idx == num_layers - 1) {
+            _SubgraphEnd_2(out_part2);
+        }
+
+        return out_part2;
     }
 };
 
@@ -432,9 +494,15 @@ class PhoneLMNPU_CPUDecoderWithShadow final : public Module {
     Layer input_layernorm;
     Layer pre_attn_quantize;
     Layer shadow_linear;
-    PhoneLMDecoderNPUPart1 part1;
+    unique_ptr<PhoneLMDecoderNPUPart1> part1;
     PhoneLMQKVmm qkv_mm;
-    PhoneLMDecoderNPUPart2WithShadow part2;
+    unique_ptr<PhoneLMDecoderNPUPart2WithShadow> part2;
+
+    int layer_idx;
+    int num_layers;
+
+    SubgraphStart _SubgraphStart_1, _SubgraphStart_2;
+    SubgraphFinalize _SubgraphEnd_1, _SubgraphEnd_2;
 
 public:
     PhoneLMNPU_CPUDecoderWithShadow() = default;
@@ -446,45 +514,69 @@ public:
         num_key_value_heads = config.num_key_value_heads;
         num_key_value_groups = num_heads / num_key_value_heads;
 
-        input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
-        pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize");
+        // extract layer index from base_name like "model.layers.10."
+        std::regex re(R"(\d+)");
+        std::smatch match;
+        std::regex_search(base_name, match, re);
+        layer_idx = std::stoi(match[0]);
+        num_layers = config.num_hidden_layers;
 
-        part1 = PhoneLMDecoderNPUPart1(config, names, chunk_size, base_name + names._attn_base_name);
-        part1.to(MLLM_QNN);
+        if (layer_idx == 0 || phonelmShadowLayers.find(layer_idx - 1) != phonelmShadowLayers.end()) {
+            input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
+            pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize");
+            part1 = make_unique<PhoneLMDecoderNPUPart1>(config, names, chunk_size, base_name + names._attn_base_name);
+        } else {
+            part1 = make_unique<PhoneLMDecoderNPUPart1WithRes>(config, names, chunk_size, base_name + names._attn_base_name);
+        }
 
         qkv_mm = PhoneLMQKVmm(config, names, chunk_size, base_name + names._attn_base_name);
-        qkv_mm.to(MLLM_CPU);
 
-        part2 = PhoneLMDecoderNPUPart2WithShadow(config, names, chunk_size, base_name);
-        part2.to(MLLM_QNN);
+        part2 = make_unique<PhoneLMDecoderNPUPart2WithShadow>(config, names, chunk_size, base_name);
 
         shadow_linear = ShadowLinear(config.intermediate_size, hidden_size, 1024, false, base_name + names._ffn_base_name + names._down_proj_name + ".shadow");
+
+        _SubgraphStart_1 = SubgraphStart(base_name + "subgraph_start1");
+        _SubgraphEnd_1 = SubgraphFinalize(base_name + "subgraph_end1");
+        _SubgraphStart_2 = SubgraphStart(base_name + "subgraph_start2");
+        _SubgraphEnd_2 = SubgraphFinalize(base_name + "subgraph_end2");
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
-        auto x = input_layernorm(inputs[0]);
-        x = pre_attn_quantize(x);
+        Tensor x, q, k, v, res;
+        if (layer_idx == 0 || phonelmShadowLayers.find(layer_idx - 1) != phonelmShadowLayers.end()) {
+            x = input_layernorm(inputs[0]);
+            x = pre_attn_quantize(x);
 
-        if (x.device() != MLLM_QNN) {
-            x = Tensor::toQNN({x})[0];
+            _SubgraphStart_1({x});
+
+            auto q_k_v = (*part1)({x}); // q,k,v
+            q = q_k_v[0];
+            k = q_k_v[1];
+            v = q_k_v[2];
+            res = inputs[0];
+            _SubgraphEnd_1(q_k_v);
+        } else {
+            auto q_k_v_res = (*part1)(inputs); // q,k,v,res
+            q = q_k_v_res[0];
+            k = q_k_v_res[1];
+            v = q_k_v_res[2];
+            res = q_k_v_res[3];
+            _SubgraphEnd_1(q_k_v_res);
         }
 
-        auto q_k_v = part1({x}); // q,k,v
-        auto o_x = qkv_mm(q_k_v)[0];
+        auto o_x = qkv_mm({q, k, v})[0];
 
-        if (o_x.device() != MLLM_QNN) {
-            o_x = Tensor::toQNN({o_x})[0];
-        }
-        if (inputs[0].device() != MLLM_QNN) {
-            inputs[0] = Tensor::toQNN({inputs[0]})[0];
-        }
-        auto decoder_out = part2({o_x, inputs[0]});
-        if (decoder_out[0].device() != MLLM_CPU) {
-            decoder_out = Tensor::toCPU(decoder_out);
-        }
+        _SubgraphStart_2({o_x, res});
+
+        auto decoder_out = (*part2)({o_x, res});
+        decoder_out = Tensor::toCPU(decoder_out);
+
+        _SubgraphEnd_2(decoder_out);
+
         auto shadow_input_1 = decoder_out[0];
         auto shadow_input_2 = decoder_out[1];
         x = decoder_out[2];
+
         x = shadow_linear(shadow_input_1, shadow_input_2, x);
 
         return {x};
@@ -499,11 +591,10 @@ class PhoneLMModel_NPU final : public Module {
         static_assert(std::is_base_of<Module, SHADOW>::value, "SHADOW must be a subclass of Module");
         listIdx = 0;
         vector<unique_ptr<Module>> modules;
-        std::set shadowLayers = {0, 1, 3, 4};
-        // for index in shadowLayers, create shadow decoder, for others, create normal decoder
+        // for index in phonelmShadowLayers, create shadow decoder, for others, create normal decoder
         for (int i = 0; i < n; i++) {
             auto new_args = change_last(args...); // 创建新的参数包，最后一个参数被修改为原来的值+ std::to_string(listIdx)+ "."
-            if (shadowLayers.find(listIdx) != shadowLayers.end()) {
+            if (phonelmShadowLayers.find(listIdx) != phonelmShadowLayers.end()) {
                 modules.push_back(std::make_unique<SHADOW>(std::apply([&](auto &&...args) { return SHADOW(std::forward<decltype(args)>(args)...); }, new_args)));
             } else {
                 modules.push_back(std::make_unique<T1>(std::apply([&](auto &&...args) { return T1(std::forward<decltype(args)>(args)...); }, new_args)));

@@ -191,6 +191,12 @@ public:
     vector<vector<token_id_t>> input_ids_;
     pair<vector<vector<float>>, vector<int>> preprocess_images(const uint8_t *image, const size_t &image_length) {
         auto imageinfos = vector<ImageInfo>();
+        // int width, height, channels;
+        // auto data = stbi_load_from_memory(image, image_length, &width, &height, &channels, 3);
+        // if (data == nullptr) {
+        //     MLLM_LOG_ERROR_STREAM << "Error: Failed to load image from memory." << std::endl;
+        //     exit(-1);
+        // }
         int width, height, channels;
         auto data = stbi_load_from_memory(image, image_length, &width, &height, &channels, 0);
         if (data == nullptr) {
@@ -431,12 +437,12 @@ public:
         return tokenizer->detokenize(tokens);
     }
 
-    std::pair<std::string, unsigned> detokenize(Tensor &result) {
+    std::pair<std::string, unsigned> detokenize(Tensor &result, int seq = 0) {
         assert(result.batch() == 1 && "Batch size of result is not 1. Which is not supported for now.");
         assert(result.head() == 1 && "The 3rd dim of result should be one. e.g.:[1, 1, seq, hidden]");
         vector<float> scores;
         int _dims = result.dimension();
-        int _seq = result.sequence() - 1;
+        int _seq = seq == 0 ? result.sequence() - 1 : seq - 1;
         for (int i = 0; i < _dims; ++i) {
             auto value = result.dataAt<float>(0, 0, _seq, i);
             scores.push_back(value);

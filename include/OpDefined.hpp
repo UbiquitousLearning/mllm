@@ -38,6 +38,7 @@ enum OpType {
     CONVOLUTION2D,
     CONVOLUTION3D,
     VISIONROPE,
+    MULTIMODALROPEPIP,
     MULTIMODALROPE,
     AVGPOOL2D,
     MAXPOOL2D,
@@ -114,6 +115,7 @@ static const vector<string> OpNames = {
     "Convolution2D",
     "Convolution3D",
     "VisonRoPE",
+    "MultimodalRoPEPipeline",
     "MultimodalRoPE",
     "AvgPool2D",
     "MaxPool2D",
@@ -187,6 +189,7 @@ enum TensorFuncType {
     FUNC_LIKE,
     FUNC_SCATTERREDUCE,
     FUNC_APPLY_VISIOROPE,
+    FUNC_FA2,
     // models use only
     FUNC_FUYU_GATHER_EMBD,
     FUNC_PHI3V_HD_MERGE,

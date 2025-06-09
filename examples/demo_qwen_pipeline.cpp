@@ -30,9 +30,11 @@ int main(int argc, char **argv) {
     const int chunk_size = 128;
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
+    Module::initBackend(MLLM_QNN);
+
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
     QWenConfig config(tokens_limit, model_billion, RoPEType::HFHUBROPE);
-    auto model = QWenForCausalLM_NPU(config, chunk_size);
+    auto model = v2::QWenForCausalLM_NPU(config, chunk_size);
     model.load(model_path);
     auto decoding_model = QWenForCausalLM(config);
     decoding_model.load("../models/qwen-1.5-1.8b-chat-q4k.mllm");

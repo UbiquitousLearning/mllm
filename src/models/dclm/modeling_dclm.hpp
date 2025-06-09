@@ -58,6 +58,7 @@ class DCLMAttention final : public Module {
     int attn_hidden_dim_;
     int head_dim_;
     int n_heads_;
+    string attn_implementation_;
 
 public:
     DCLMAttention() = default;
@@ -66,14 +67,15 @@ public:
         attn_hidden_dim_ = cfg.n_heads * head_dim;
         head_dim_ = head_dim;
         n_heads_ = cfg.n_heads;
+        attn_implementation_ = cfg.attn_implementation;
         in_proj = Linear(cfg.dim, 3 * cfg.n_heads * head_dim, false, base_name + "in_proj");
         out_proj = Linear(cfg.n_heads * head_dim, cfg.dim, false, base_name + "out_proj");
         q_norm = LayerNorm(cfg.n_heads * head_dim, false, cfg.norm_eps, base_name + "q_norm");
         k_norm = LayerNorm(cfg.n_heads * head_dim, false, cfg.norm_eps, base_name + "k_norm");
         q_rope = RoPE(cfg.RoPE_type, 10000, cfg.seq_len, base_name + "q_rope");
         k_rope = RoPE(cfg.RoPE_type, 10000, cfg.seq_len, base_name + "k_rope");
-        k_cache = KVCache(cfg.n_heads, head_dim, 1, cfg.cache_limit, base_name + "k_cache");
-        v_cache = KVCache(cfg.n_heads, head_dim, 1, cfg.cache_limit, base_name + "v_cache");
+        k_cache = KVCache(cfg.n_heads, head_dim, 1, cfg.cache_limit, (cfg.attn_implementation == "flash_attention_2"), base_name + "k_cache");
+        v_cache = KVCache(cfg.n_heads, head_dim, 1, cfg.cache_limit, (cfg.attn_implementation == "flash_attention_2"), base_name + "v_cache");
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
 
@@ -98,13 +100,17 @@ public:
         k = k_cache(k);
         v = v_cache(v);
 
-        k = k.transpose(SEQUENCE, DIMENSION);
-        auto qk = Tensor::mm(q, k);
-        qk = qk / std::sqrt(head_dim_);
+        Tensor o;
+        if (attn_implementation_ == "flash_attention_2") {
+            o = Tensor::flash_attention2_forward(q, k, v, true);
+        } else { // eager implementation
+            k = k.transpose(SEQUENCE, DIMENSION);
+            auto qk = Tensor::mm(q, k);
+            qk = qk / std::sqrt(head_dim_);
 
-        qk = softmax(qk, k_cache.getCacheSeqLen());
-
-        auto o = Tensor::mm(qk, v);
+            qk = softmax(qk, k_cache.getCacheSeqLen());
+            o = Tensor::mm(qk, v);
+        }
         o = o.view(-1, 1, -1, n_heads_ * head_dim_);
         o = out_proj(o);
         return {o};
