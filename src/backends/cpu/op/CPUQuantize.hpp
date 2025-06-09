@@ -7,10 +7,11 @@
 
 #include "Op.hpp"
 #include "../CPUBackend.hpp"
+#include "Types.hpp"
 namespace mllm {
 class CPUQuantize final : public Op {
 public:
-    CPUQuantize(Backend *bn, string opName, int threadCount);
+    CPUQuantize(Backend *bn, string opName, DataType type, int threadCount);
     virtual ~CPUQuantize() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
@@ -36,7 +37,7 @@ private:
 class CPUQuantizeCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
-        return new CPUQuantize(bn, name, threadCount);
+        return new CPUQuantize(bn, name, (DataType)op_param["dtype"], threadCount);
     }
 };
 } // namespace mllm

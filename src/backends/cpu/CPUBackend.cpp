@@ -11,6 +11,7 @@
 
 #include "op/CPUHeadLinear.hpp"
 #include "op/CPULinearInt8.hpp"
+#include "op/CPUMultimodalRoPEPipeline.hpp"
 #include "op/CPUNTKRoPE.hpp"
 #include "op/CPUPoEmbedding.hpp"
 #include "op/CPUSplitInput.hpp"
@@ -86,7 +87,8 @@
 #include "function/CPURepeatFunc.hpp"
 #include "function/CPULikeFunc.hpp"
 #include "function/CPUScatterReduceFunc.hpp"
-#include "function/CPUApplyVisionRoPE.hpp"
+#include "function/CPUVisionRoPEFunc.hpp"
+#include "function/CPUFlashAttention2Func.hpp"
 
 #include "function/CPUFuyuGatherEmbdFunc.hpp"
 #include "function/CPUPhi3VhdmergeFunc.hpp"
@@ -95,16 +97,17 @@ namespace mllm {
 class CPUBackendCreator : public BackendCreator {
     Backend *create(BackendConfig config) {
         shared_ptr<MemoryManager> mm = nullptr;
-        switch (config.memory) {
-        case BackendConfig::Memory_High:
-            // mm = std::make_shared<SystemMemoryManager>();
-            mm = std::make_shared<MemoryPoolManager>(); // todomm
-            break;
-        default:
-            // mm = std::make_shared<SystemMemoryManager>();
-            mm = std::make_shared<MemoryPoolManager>(); // todomm
-            break;
-        }
+        mm = std::make_shared<MemoryPoolManager>(); // todomm
+        // switch (config.memory) {
+        // case BackendConfig::Memory_High:
+        //     mm = std::make_shared<SystemMemoryManager>();
+        //     // mm = std::make_shared<MemoryPoolManager>(); // todomm
+        //     break;
+        // default:
+        //     mm = std::make_shared<SystemMemoryManager>();
+        //     // mm = std::make_shared<MemoryPoolManager>(); // todomm
+        //     break;
+        // }
         return new CPUBackend(mm);
     };
 };
@@ -160,8 +163,8 @@ void CPUBackend::registerOps() {
     addCreator(MAXPOOL2D, (CPUBackend::Creator *)(new CPUMaxPoolCreator()));
     addCreator(CONVOLUTION3D, (CPUBackend::Creator *)(new CPUConvolution3DCreator()));
     addCreator(VISIONROPE, (CPUBackend::Creator *)(new CPUVisionRoPECreator()));
+    addCreator(MULTIMODALROPEPIP, (CPUBackend::Creator *)(new CPUMultimodalRoPEPipelineCreator()));
     addCreator(MULTIMODALROPE, (CPUBackend::Creator *)(new CPUMultimodalRoPECreator()));
-    // addCreator(CAT, (CPUBackend::Creator *)(new CPUCatCreator()));
     addCreator(TRANSPOSE, (CPUBackend::Creator *)(new CPUTransposeCreator()));
     addCreator(SUBDIM, (CPUBackend::Creator *)(new CPUSubDimCreator()));
     addCreator(DIVISION, (CPUBackend::Creator *)(new CPUDivisionCreator()));
@@ -226,7 +229,8 @@ void CPUBackend::registerFuncs() {
     map_function_[TensorFuncType::FUNC_REPEAT] = new CPUrepeatFunction();
     map_function_[TensorFuncType::FUNC_LIKE] = new CPUlikeFunction();
     map_function_[TensorFuncType::FUNC_SCATTERREDUCE] = new CPUScatterReduceFunction();
-    map_function_[TensorFuncType::FUNC_APPLY_VISIOROPE] = new CPUApplyVisionRoPEFunction();
+    map_function_[TensorFuncType::FUNC_APPLY_VISIOROPE] = new CPUVisionRoPEFuncFunction();
+    map_function_[TensorFuncType::FUNC_FA2] = new CPUFlashAttention2Func();
     // models use only
     map_function_[TensorFuncType::FUNC_FUYU_GATHER_EMBD] = new CPUFuyuGatherEmbdFunc();
     map_function_[TensorFuncType::FUNC_PHI3V_HD_MERGE] = new CPUPhi3VhdmergeFunction();

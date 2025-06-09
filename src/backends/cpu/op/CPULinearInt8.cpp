@@ -138,7 +138,7 @@ ErrorCode CPULinearInt8::free(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 ErrorCode CPULinearInt8::mat_mul_fp32_i8(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, int thread_count) {
     // todo: load scale from loader
     float scale1 = inputActivatationScale_.hostPtr<float>()[0] / 127.0;
-    scale1 = roundf(scale1 * 100000) / 100000;
+    // scale1 = roundf(scale1 * 100000) / 100000;
 
     float scale2 = weightScale_.hostPtr<float>()[0];
 
@@ -147,7 +147,7 @@ ErrorCode CPULinearInt8::mat_mul_fp32_i8(Tensor *src0_, Tensor *src1, Tensor *ds
         scale3 = biasScale_.hostPtr<float>()[0];
 
     float scale4 = outputActivatationScale_.hostPtr<float>()[0] / 127.0;
-    scale4 = roundf(scale4 * 100000) / 100000;
+    // scale4 = roundf(scale4 * 100000) / 100000;
 
     assert(src1->dtype() == MLLM_TYPE_I8);
     assert(src0_->dtype() == MLLM_TYPE_F32);

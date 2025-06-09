@@ -58,7 +58,14 @@ if __name__ == "__main__":
     act_dict = args.scale_file.name
     t01m_clip_threshold = args.t01m_clip_threshold
 
-    model = AutoModelForCausalLM.from_pretrained(model_name)
+    if args.model_type != "qwen2vl":
+        model = AutoModelForCausalLM.from_pretrained(model_name)
+    else:
+        from transformers import Qwen2VLForConditionalGeneration
+        model = Qwen2VLForConditionalGeneration.from_pretrained(
+            model_name
+        )
+
     act_dict = json.load(open(act_dict))
 
     act_scales, clip_top, return_dict = get_clip_and_scale(
@@ -77,6 +84,8 @@ if __name__ == "__main__":
         q_model = quantize_llama_like(model, act_scales, layer_clip=clip_top)
     elif args.model_type == "qwen2" or args.model_type == "qwen1":
         q_model = quantize_qwen2_like(model, act_scales, layer_clip=clip_top)
+    elif args.model_type == "qwen2vl":
+        q_model = quantize_qwen2vl_like(model, act_scales, layer_clip=clip_top)
     elif args.model_type == "gemma":
         q_model = quantize_gemma_like(model, act_scales, layer_clip=clip_top)
     elif args.model_type == "phi":

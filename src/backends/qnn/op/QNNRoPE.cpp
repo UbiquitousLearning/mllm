@@ -124,7 +124,7 @@ ErrorCode QNNRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
 
     float dequantScale = 0;
     dequantScale = scale_.hostPtr<float>()[0] / 127.0;
-    dequantScale = roundf(dequantScale * 100000) / 100000;
+    // dequantScale = roundf(dequantScale * 100000) / 100000;
 
     if (name().find("q_proj") != -1) {
         dequantScale = dequantScale / std::sqrt(outputs[0]->dimension());

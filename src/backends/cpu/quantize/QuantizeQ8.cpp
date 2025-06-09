@@ -541,4 +541,84 @@ void quantize_round_dequantize_row_i8(const float *__restrict vx, float *__restr
     }
 }
 
+// per-tensor int16
+void quantize_row_i16(const float *__restrict x, void *__restrict vy, int k, float scale) {
+    const int BLOCK_SIZE = 32;
+    assert(k % BLOCK_SIZE == 0);
+    const int nb = k / BLOCK_SIZE;
+
+    int16_t *__restrict y = (int16_t *)vy;
+
+    const float d = scale;
+    const float id = d ? 1.0f / d : 0.0f;
+
+#if defined(__ARM_NEON)
+    const int32x4_t min_32768 = vdupq_n_s32(-32768);
+    const int32x4_t max32767 = vdupq_n_s32(32767);
+
+    for (int i = 0; i < nb; i++) {
+        float32x4_t srcv[8];
+        for (int j = 0; j < 8; j++) srcv[j] = vld1q_f32(x + i * 32 + 4 * j);
+
+        for (int j = 0; j < 8; j++) {
+            const float32x4_t v = vmulq_n_f32(srcv[j], id);
+            int32x4_t vi = vcvtnq_s32_f32(v);
+
+            vi = vminq_s32(vi, max32767);
+            vi = vmaxq_s32(vi, min_32768);
+
+            y[i * 32 + 4 * j + 0] = (int16_t)vgetq_lane_s32(vi, 0);
+            y[i * 32 + 4 * j + 1] = (int16_t)vgetq_lane_s32(vi, 1);
+            y[i * 32 + 4 * j + 2] = (int16_t)vgetq_lane_s32(vi, 2);
+            y[i * 32 + 4 * j + 3] = (int16_t)vgetq_lane_s32(vi, 3);
+        }
+    }
+#else
+    // fallback scalar version
+    for (int i = 0; i < k; i++) {
+        int v = (int)roundf(x[i] * id);
+        if (v < -32768) v = -32768;
+        if (v > 32767) v = 32767;
+        y[i] = (int16_t)v;
+    }
+#endif
+}
+
+void dequantize_row_i16(const void *__restrict vx, float *__restrict y, int k, float scale) {
+#if defined(__ARM_NEON)
+    const int16_t *__restrict x = (int16_t *)vx;
+
+    float32x4_t scale_vec = vdupq_n_f32(scale);
+
+    int i;
+    for (i = 0; i <= k - 8; i += 8) {
+        // Load 8 int16_t values
+        int16x8_t x_vec = vld1q_s16(&x[i]);
+
+        // Split into lower and upper 4 elements
+        int32x4_t x_lo = vmovl_s16(vget_low_s16(x_vec));  // 前4个 int16 -> int32
+        int32x4_t x_hi = vmovl_s16(vget_high_s16(x_vec)); // 后4个 int16 -> int32
+
+        // Convert to float32
+        float32x4_t x_f32_lo = vcvtq_f32_s32(x_lo);
+        float32x4_t x_f32_hi = vcvtq_f32_s32(x_hi);
+
+        // Multiply by scale
+        x_f32_lo = vmulq_f32(x_f32_lo, scale_vec);
+        x_f32_hi = vmulq_f32(x_f32_hi, scale_vec);
+
+        // Store result
+        vst1q_f32(&y[i], x_f32_lo);
+        vst1q_f32(&y[i + 4], x_f32_hi);
+    }
+
+    // Handle remaining elements
+    for (; i < k; i++) {
+        y[i] = x[i] * scale;
+    }
+#else
+// TODO: avx
+#endif
+}
+
 // #endif

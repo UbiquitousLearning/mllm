@@ -31,6 +31,8 @@ class MultiHeadAttention final : public Module {
     int kv_head_size_{};
     int attn_hidden_dim_{};
     Chl split_chl_{};
+    bool causal_mask = true;
+    string attn_implementation_ = "flash_attention_2"; // Options: "flash_attention_2", "eager"
 
 public:
     MultiHeadAttention() = default;
@@ -38,10 +40,13 @@ public:
                        AttnQKVSplitType do_qkv_proj, bool post_qkv_norm, bool bias_kv_cat,
                        RoPEType RoPE_type, float rope_theta, int max_position_embeddings,
                        int cache_limit, bool do_mask, bool bias,
+                       string attn_implementation,
                        const TransformerNameConfig &names, const string &base_name) {
         attn_hidden_dim_ = attn_hidden_dim;
         head_size_ = head_size;
         kv_head_size_ = kv_head_size;
+        causal_mask = do_mask;
+        attn_implementation_ = attn_implementation;
         if (do_qkv_proj > 0) {
             qkv_proj = Linear(hidden_dim, head_size * attn_hidden_dim * 3, bias, base_name + names._qkv_proj_name);
             split_chl_ = (Chl)do_qkv_proj;
@@ -59,8 +64,12 @@ public:
             k_rope = RoPE(RoPE_type, rope_theta, max_position_embeddings, base_name + "k_rope");
         }
         if (cache_limit > 0) {
-            k_cache = KVCache(kv_head_size, attn_hidden_dim, head_size / kv_head_size, cache_limit, base_name + "k_cache");
-            v_cache = KVCache(kv_head_size, attn_hidden_dim, head_size / kv_head_size, cache_limit, base_name + "v_cache");
+            k_cache = KVCache(kv_head_size, attn_hidden_dim,
+                              head_size / kv_head_size, cache_limit,
+                              (attn_implementation_ == "flash_attention_2"), base_name + "k_cache");
+            v_cache = KVCache(kv_head_size, attn_hidden_dim,
+                              head_size / kv_head_size, cache_limit,
+                              (attn_implementation_ == "flash_attention_2"), base_name + "v_cache");
         }
         softmax = Softmax(DIMENSION, do_mask, base_name + "softmax");
         o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, bias, base_name + names._o_proj_name);
@@ -101,15 +110,20 @@ public:
             k = k_cache(k);
             v = v_cache(v);
         }
-        k = k.transpose(SEQUENCE, DIMENSION);
-        auto qk = Tensor::mm(q, k);
-        qk = qk / std::sqrt(attn_hidden_dim_);
-        if (k_cache.ready() && v_cache.ready()) {
-            qk = softmax(qk, k_cache.getCacheSeqLen());
-        } else {
-            qk = softmax(qk);
+        Tensor o;
+        if (attn_implementation_ == "flash_attention_2") {
+            o = Tensor::flash_attention2_forward(q, k, v, causal_mask);
+        } else { // eager implementation
+            k = k.transpose(SEQUENCE, DIMENSION);
+            auto qk = Tensor::mm(q, k);
+            qk = qk / std::sqrt(attn_hidden_dim_);
+            if (k_cache.ready() && v_cache.ready()) {
+                qk = softmax(qk, k_cache.getCacheSeqLen());
+            } else {
+                qk = softmax(qk);
+            }
+            o = Tensor::mm(qk, v);
         }
-        auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
         o = o_proj(o);
         return {o};

@@ -131,6 +131,36 @@ struct QWenConfig : public TransformerConfig {
             sliding_window = 32768;
             vocab_size = 151936;
             tie_embedding_words = true;
+        } else if (billionsType == "1.5b-rotated") {
+            attention_dropout = 0.0;
+            std::string hidden_act = "silu";
+            hidden_size = 1536;
+            intermediate_size = 8960;
+            max_position_embeddings = 32768;
+            max_window_layers = 28;
+            num_attention_heads = 12;
+            num_hidden_layers = 28;
+            num_key_value_heads = 2;
+            rms_norm_eps = 1e-6;
+            rope_theta = 1000000.0;
+            sliding_window = 32768;
+            vocab_size = 151936;
+            tie_embedding_words = false;
+        } else if (billionsType == "3b") {
+            attention_dropout = 0.0;
+            std::string hidden_act = "silu";
+            hidden_size = 2048;
+            intermediate_size = 11008;
+            max_position_embeddings = 32768;
+            max_window_layers = 70;
+            num_attention_heads = 16;
+            num_hidden_layers = 36;
+            num_key_value_heads = 2;
+            rms_norm_eps = 1e-6;
+            rope_theta = 1000000.0;
+            sliding_window = 32768;
+            vocab_size = 151936;
+            tie_embedding_words = true;
         } else if (billionsType == "3b") {
             attention_dropout = 0.0;
             std::string hidden_act = "silu";

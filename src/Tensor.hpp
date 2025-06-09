@@ -769,6 +769,7 @@ public:
     Tensor transpose(vector<std::pair<Chl, Chl>> axiss);
     Tensor clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d);
     Tensor clip(Chl keep_axis, vector<int> b, vector<int> h, vector<int> s, vector<int> d);
+    Tensor clip(vector<int> index, Chl dim);
     Tensor clip(Tensor index, Chl dim);
     Tensor expand(int b, int h, int s, int d);
     static Tensor cat(vector<Tensor> input_tensors, Chl dims);
@@ -788,6 +789,7 @@ public:
     Tensor bincount();
     Tensor repeat(Chl dim, int dim_size);
     static Tensor zero_like(Tensor input);
+    static Tensor flash_attention2_forward(Tensor q, Tensor k, Tensor v, bool is_causal = true);
     static Tensor apply_rotary_pos_emb_vision(Tensor input, Tensor rotary_pos_emb);
 
     // models use only
@@ -1544,6 +1546,89 @@ public:
                     for (int c = 0; c < head(); ++c) {
                         for (int w = 0; w < dimension(); ++w) {
                             outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(n, c, h, w) << " ";
+                        }
+                        outFile << std::endl;
+                    }
+                    outFile << std::endl;
+                }
+                outFile << std::endl;
+            }
+            outFile.close();
+            return;
+        }
+        if (N == 1 && C == 1) {
+            for (int h = 0; h < H; ++h) {
+                for (int c = 0; c < W; ++c) {
+                    outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(0, 0, h, c) << " ";
+                }
+                outFile << std::endl;
+                outFile << "---------" << std::endl;
+            }
+        } else if (N == 1 && W == 1) {
+            for (int h = 0; h < H; ++h) {
+                for (int c = 0; c < C; ++c) {
+                    outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(0, c, h, 0) << " ";
+                }
+                outFile << std::endl;
+            }
+        } else {
+            for (int n = 0; n < N; ++n) {
+                for (int h = 0; h < H; ++h) {
+                    for (int c = 0; c < C; ++c) {
+                        for (int w = 0; w < W; ++w) {
+                            outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(n, c, h, w) << " ";
+                        }
+                        outFile << std::endl;
+                    }
+                    outFile << std::endl;
+                }
+                outFile << std::endl;
+            }
+        }
+
+        outFile.close();
+    }
+
+    template <typename Dtype>
+    void saveIntData(string ex = "") {
+        if (Tensor::tensor_status != TENSOR_STATIC_READY) return;
+        if (ctype() == BTHWC || ctype() == BCTHW) {
+            save5Data<Dtype>(ex);
+            return;
+        }
+        // std::filesystem::create_directory("save_out");
+        string directory = "save_out";
+        struct stat info;
+#ifdef _WIN32
+        _mkdir(directory.c_str());
+#else
+        if (stat(directory.c_str(), &info) != 0) {
+            if (stat(directory.c_str(), &info) != 0) {
+                mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+            } else if (!(info.st_mode & S_IFDIR)) {
+                // if the path exists but it is not a directory, also create it
+                mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+            }
+        }
+#endif
+        std::ofstream outFile(directory + "/" + name() + ex + ".log");
+        outFile << "----------------------------------------" << std::endl;
+        if (impl_->ctype_ == BSHD) {
+            outFile << name() << ": [BSHD]shape:[" << batch() << " " << sequence() << " " << head() << " " << dimension() << "] " << dtype() << " " << ctype() << std::endl;
+        } else {
+            outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] " << dtype() << " " << ctype() << std::endl;
+        }
+
+        int N = batch();
+        int C = head();
+        int H = sequence();
+        int W = dimension();
+        if (impl_->ctype_ == BSHD) {
+            for (int n = 0; n < batch(); ++n) {
+                for (int h = 0; h < sequence(); ++h) {
+                    for (int c = 0; c < head(); ++c) {
+                        for (int w = 0; w < dimension(); ++w) {
+                            outFile << (int)dataAt<Dtype>(n, c, h, w) << " ";
                         }
                         outFile << std::endl;
                     }

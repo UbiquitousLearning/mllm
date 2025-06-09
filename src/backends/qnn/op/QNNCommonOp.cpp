@@ -29,26 +29,31 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
             dimensions[2] = static_cast<uint32_t>(output->sequence());
         }
 
-        // TODO tensor type = MLLM_TYPE_I8
-        auto data_type = QNN_DATATYPE_FLOAT_32;
-        if (output->dtype() == MLLM_TYPE_I8) {
-            data_type = QNN_DATATYPE_SFIXED_POINT_8;
-        }
-
-        if (output->dtype() == MLLM_TYPE_F16) {
-            data_type = QNN_DATATYPE_FLOAT_16;
-        }
-
-
         float quantScale = 0.0f;
         auto quantDefine = QNN_DEFINITION_UNDEFINED;
         auto quantType = QNN_QUANTIZATION_ENCODING_UNDEFINED;
-
-        if (scale != nullptr) {
-            quantScale = scale->hostPtr<float>()[0] / 127.0;
-            quantScale = roundf(quantScale * 100000) / 100000;
+        auto data_type = QNN_DATATYPE_FLOAT_32;
+        switch (output->dtype()) {
+        case MLLM_TYPE_I8:
+            data_type = QNN_DATATYPE_SFIXED_POINT_8;
+            quantScale = scale->hostPtr<float>()[0] / (pow(2, 7) - 1);
+            // quantScale = roundf(quantScale * 100000) / 100000;
             quantDefine = QNN_DEFINITION_DEFINED;
             quantType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
+            break;
+        case MLLM_TYPE_I16:
+            data_type = QNN_DATATYPE_SFIXED_POINT_16;
+            quantScale = scale->hostPtr<float>()[0] / (pow(2, 15) - 1);
+            // quantScale = roundf(quantScale * 100000) / 100000;
+            quantDefine = QNN_DEFINITION_DEFINED;
+            quantType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
+            break;
+        case MLLM_TYPE_F16:
+            data_type = QNN_DATATYPE_FLOAT_16;
+            break;
+        default:
+            data_type = QNN_DATATYPE_FLOAT_32;
+            break;
         }
 
         inputTensorNames_.push_back(new string(output->name()));
@@ -66,7 +71,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
                                       .dimensions = dimensions,
                                       .memType = QNN_TENSORMEMTYPE_RAW,
                                       .clientBuf = {.data = nullptr,
-                                                     .dataSize = 0}}}});
+                                                    .dataSize = 0}}}});
     }
 
     if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputTensors, params, packageName)) {
@@ -87,7 +92,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string>
 Qnn_TensorType_t QNNCommonOp::getOutputTensorType(shared_ptr<mllm::Tensor> tensor) const {
     if (tensor->ttype() == GRAPH_OUTPUT) {
         // in Module API, the outputs of a graph is not allocated before setUp, alloc here
-        if(tensor->allocted() == 0) {
+        if (tensor->allocted() == 0) {
             tensor->alloc();
         }
         qnnBackend_->pushOutputBuffers(tensor->hostPtr<uint8_t>());

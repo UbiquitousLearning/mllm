@@ -13,11 +13,10 @@
 
 BEGIN_PKG_OP_DEFINITION(PKG_CausalMask);
 
-
 // op execute function declarations
-template<typename TensorType>
-GraphStatus causalmaskImpl(TensorType& out_0,
-                           const TensorType& in_0);
+template <typename TensorType>
+GraphStatus causalmaskImpl(TensorType &out_0,
+                           const TensorType &in_0);
 
 // forward declaration of sample cost function
 static float causalmaskCostFunc(const Op *op);
@@ -62,11 +61,11 @@ DEF_PACKAGE_OP((causalmaskImpl<Tensor>), "CausalMask")
  * one definition per op, and this is optional
  * syntax: DEF_PACKAGE_PARAM_ORDER(OP,PARAM1,MANDATORY1,DEFAULT1,PARAM2,MANDATORY2,DEFAULT2...)
  * one or more parameters can be specified for each op
-     * order of parameters listed determines the order of parameters passed into op execution functions
+ * order of parameters listed determines the order of parameters passed into op execution functions
  * if an op does not have a parameter order definition, parameter order passed into Qnn_addNode
  *   will be passed into op execution functions
  * if an op has a parameter order definition, any parameter passed into Qnn_addNode with unlisted
-     *   name will be abandoned
+ *   name will be abandoned
  * if two or more op packages with the same package name will be registered, they cannot list
  *   conflicting parameter orders
  * PARAM refers to parameter name as a string literal
@@ -80,77 +79,66 @@ DEF_PACKAGE_OP((causalmaskImpl<Tensor>), "CausalMask")
  *       Qnn_addNode
  */
 
-
 /* execute functions for ops */
 
-template<typename TensorType>
-GraphStatus causalmaskImpl(TensorType& out_0,
-                           const TensorType& in_0)
+template <typename TensorType>
+GraphStatus causalmaskImpl(TensorType &out_0,
+                           const TensorType &in_0)
 
 {
-  /*
-   * add code here
-   * */
-  /*
-   * To have good performance and stability, it is required to avoid heap memory
-   * allocation in this function. The heap memory allocation includes but not
-   * limited to calling malloc, operator new, constructing STL container objects
-   * like std::vector with default allocator, and adding items like calling
-   * std::vector::push_back to STL container objects with default allocator.
-   *
-   * Please check in SDK documentation for more information.
-   */
-  out_0.set_dims(in_0);
-  
-  int old_dim = 0;
+    /*
+     * add code here
+     * */
+    /*
+     * To have good performance and stability, it is required to avoid heap memory
+     * allocation in this function. The heap memory allocation includes but not
+     * limited to calling malloc, operator new, constructing STL container objects
+     * like std::vector with default allocator, and adding items like calling
+     * std::vector::push_back to STL container objects with default allocator.
+     *
+     * Please check in SDK documentation for more information.
+     */
+    out_0.set_dims(in_0);
 
-  // NHSD
-  auto [b_in, h_in, w_in, d_in] = in_0.dims();
+    int old_dim = 0;
 
-  // S > 1 => mask
-  if (w_in > 1) {
-    for (Idx b = 0; b < b_in; b++) {
-      for (Idx h = 0; h < h_in; h++) {
-        for (Idx w = 0; w < w_in; w++) {
-          // CausalMask
-          for (Idx d = 0; d < d_in; d++) {
-            
-            float in_value = in_0(b, h, w, d);
+    // NHSD
+    auto [b_in, h_in, w_in, d_in] = in_0.dims();
 
-            if (d > w + old_dim)
-              out_0(b, h, w, d) = in_value - MASK_INFINITY;
-            else
-              out_0(b, h, w, d) = in_value;
-            
-          }
+    // S > 1 => mask
+    if (w_in > 1) {
+        for (Idx b = 0; b < b_in; b++) {
+            for (Idx h = 0; h < h_in; h++) {
+                for (Idx w = 0; w < w_in; w++) {
+                    // CausalMask
+                    for (Idx d = 0; d < d_in; d++) {
+                        float in_value = in_0(b, h, w, d);
+
+                        if (d > w + old_dim)
+                            out_0(b, h, w, d) = in_value - MASK_INFINITY;
+                        else
+                            out_0(b, h, w, d) = in_value;
+                    }
+                }
+            }
         }
-      }
+    } else {
+        auto in_ptr = in_0.raw_data_const();
+        auto out_ptr = out_0.raw_data();
+        memcpy(out_ptr, in_ptr, b_in * h_in * w_in * d_in * 4);
     }
-  } else {
-    auto in_ptr = in_0.raw_data_const();
-    auto out_ptr = out_0.raw_data();
-    memcpy(out_ptr, in_ptr, b_in*h_in*w_in*d_in*4);
-  }
 
-  
-
-
-  return GraphStatus::Success;
+    return GraphStatus::Success;
 }
 
-__attribute__((unused)) static float causalmaskCostFunc(const Op *op)
-{
-  /*
-   * add code here
-   * */
+__attribute__((unused)) static float causalmaskCostFunc(const Op *op) {
+    /*
+     * add code here
+     * */
 
-  float cost = 0.0;  // add cost computation here
-  return cost;
+    float cost = 0.0; // add cost computation here
+    return cost;
 }
-
-
-
-
 
 /* At the bottom of the op file, call END_PKG_OP_DEFINITION(<name>),
    where <name> is as BEGIN_PKG_OP_DEFINITION

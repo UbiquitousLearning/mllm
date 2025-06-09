@@ -110,6 +110,10 @@ public:
         dataLoader_ = dataLoader;
     }
 
+    void saveQNNContext();
+
+    StatusCode retrieveQNNContext();
+
 private:
     qnn_wrapper_api::ModelError_t graphFinilize();
     qnn_wrapper_api::ModelError_t graphConfig();
@@ -171,7 +175,8 @@ private:
     iotensor::InputDataType m_inputDataType;
     sample_app::ProfilingLevel m_profilingLevel;
 
-    std::map<int, qnn_wrapper_api::GraphInfo_t *> graphInfoMap_;
+    // std::map<int, qnn_wrapper_api::GraphInfo_t *> graphInfoMap_;
+    std::vector<qnn_wrapper_api::GraphInfo_t *> graphsInfo_;
 
     const QnnGraph_Config_t **graphConfigs = nullptr;
     // these two pointers is .so library handle
@@ -187,8 +192,7 @@ private:
     Qnn_BackendHandle_t m_backendHandle = nullptr;
     Qnn_DeviceHandle_t m_deviceHandle = nullptr;
 
-    std::map<int, Qnn_Tensor_t *> inputsMap_;
-    std::map<int, Qnn_Tensor_t *> outputsMap_;
+    bool isFromCache = false;
 };
 
 } // namespace mllm

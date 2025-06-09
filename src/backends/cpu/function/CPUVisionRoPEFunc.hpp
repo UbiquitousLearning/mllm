@@ -11,7 +11,7 @@
 namespace mllm {
 class Tensor;
 
-class CPUApplyVisionRoPEFunction : public TensorFunction {
+class CPUVisionRoPEFuncFunction : public TensorFunction {
     void rope_hf(shared_ptr<Tensor> input, shared_ptr<Tensor> rotary_pos_emb, shared_ptr<Tensor> output,
                  int thread_count = 4) {
         auto out_dtype = output->dtype();

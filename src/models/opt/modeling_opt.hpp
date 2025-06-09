@@ -16,9 +16,13 @@ class OPTBlock final : public Module {
 
 public:
     OPTBlock() = default;
-    OPTBlock(int hidden_dim, int head_size, int ffn_hidden, int cache_limit, const optNameConfig &names, const string &base_name) {
-        attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size, SPLIT_NONE, false, false,
-                                       NONE, -1, -1, cache_limit, true, true, names, base_name + names._attn_base_name);
+    OPTBlock(int hidden_dim, int head_size, int ffn_hidden, int cache_limit,
+             string attn_implementation, const optNameConfig &names, const string &base_name) {
+        attention = MultiHeadAttention(hidden_dim, head_size, head_size,
+                                       hidden_dim / head_size, SPLIT_NONE, false, false,
+                                       NONE, -1, -1, cache_limit, true, true,
+                                       attn_implementation,
+                                       names, base_name + names._attn_base_name);
         mlp = FeedForward(hidden_dim, ffn_hidden, "ReLU", true,
                           names, base_name + names._ffn_base_name);
         norm1 = LayerNorm(hidden_dim, true, 1e-05, base_name + names._attn_norm_name);
@@ -47,13 +51,18 @@ class OPTModel final : public Module {
 
 public:
     explicit OPTModel(const OPTConfig &config) :
-        OPTModel(config.vocab_size, config.hidden_dim, config.head_size, config.ffn_hidden, config.block_num, config.cache_limit, config.names_config, config.names_config.blk_name) {
+        OPTModel(config.vocab_size, config.hidden_dim,
+                 config.head_size, config.ffn_hidden, config.block_num, config.cache_limit,
+                 config.attn_implementation,
+                 config.names_config, config.names_config.blk_name) {
     }
-    OPTModel(int vocab_size, int hidden_dim, int head_size, int ffn_hidden, int block_num, int cache_limit, const optNameConfig &names, const string &base_name) {
+    OPTModel(int vocab_size, int hidden_dim, int head_size, int ffn_hidden, int block_num, int cache_limit,
+             string attn_implementation,
+             const optNameConfig &names, const string &base_name) {
         embedding = Embedding(vocab_size, hidden_dim, names.token_embd_name);
         pos_embedding = Embedding(2050, hidden_dim, names.pos_name);
         pos = Position("pos");
-        blocks = List<OPTBlock>(block_num, hidden_dim, head_size, ffn_hidden, cache_limit, names, base_name);
+        blocks = List<OPTBlock>(block_num, hidden_dim, head_size, ffn_hidden, cache_limit, attn_implementation, names, base_name);
         norm = LayerNorm(hidden_dim, true, 1e-05, names.post_norm_name);
         lm_head = Linear(hidden_dim, vocab_size, false, names.lm_head_name);
     }

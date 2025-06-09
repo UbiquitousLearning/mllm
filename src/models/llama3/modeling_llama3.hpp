@@ -45,16 +45,18 @@ class Llama3Attention final : public Module {
     int head_size_;    // Size of each attention head
     int kv_head_size_; // Size of each key/value head
     int hidden_dim_;   // Hidden dimension size
+    string attn_impl;
 
 public:
     Llama3Attention() = default;
 
     Llama3Attention(int hidden_dim, int head_size, int kv_head_size, RoPEType RoPE_type, float rope_theta,
-                    int max_position_embeddings, int cache_limit, const TransformerNameConfig &names,
-                    const string &base_name, const RoPEConfig &rope_config = {}) {
+                    int max_position_embeddings, int cache_limit, string attn_implementation,
+                    const TransformerNameConfig &names, const string &base_name, const RoPEConfig &rope_config = {}) {
         hidden_dim_ = hidden_dim;
         head_size_ = head_size;
         kv_head_size_ = kv_head_size;
+        attn_impl = attn_implementation;
 
         // Initialize projections
         q_proj = Linear(hidden_dim, head_size * (hidden_dim / head_size), false, base_name + names._q_proj_name);
@@ -73,8 +75,8 @@ public:
 
         // Initialize KV cache
         if (cache_limit > 0) {
-            k_cache = KVCache(kv_head_size, hidden_dim / head_size, head_size / kv_head_size, cache_limit, base_name + "k_cache");
-            v_cache = KVCache(kv_head_size, hidden_dim / head_size, head_size / kv_head_size, cache_limit, base_name + "v_cache");
+            k_cache = KVCache(kv_head_size, hidden_dim / head_size, head_size / kv_head_size, cache_limit, (attn_impl == "flash_attention_2"), base_name + "k_cache");
+            v_cache = KVCache(kv_head_size, hidden_dim / head_size, head_size / kv_head_size, cache_limit, (attn_impl == "flash_attention_2"), base_name + "v_cache");
         }
 
         // Initialize softmax
@@ -102,23 +104,27 @@ public:
             k = k_cache(k);
             v = v_cache(v);
         }
+        Tensor o;
+        if (attn_impl == "flash_attention_2") {
+            o = Tensor::flash_attention2_forward(q, k, v, true);
+        } else { // eager implementation
+            // Transpose keys for dot product
+            k = k.transpose(SEQUENCE, DIMENSION);
 
-        // Transpose keys for dot product
-        k = k.transpose(SEQUENCE, DIMENSION);
+            // Compute attention scores
+            Tensor qk = Tensor::mm(q, k);                  // Dot product of queries and keys
+            qk = qk / std::sqrt(hidden_dim_ / head_size_); // Scale by sqrt(d_k)
 
-        // Compute attention scores
-        Tensor qk = Tensor::mm(q, k);                  // Dot product of queries and keys
-        qk = qk / std::sqrt(hidden_dim_ / head_size_); // Scale by sqrt(d_k)
+            // Apply softmax
+            if (k_cache.ready() && v_cache.ready()) {
+                qk = softmax(qk, k_cache.getCacheSeqLen()); // Masked softmax if cache is used
+            } else {
+                qk = softmax(qk); // Regular softmax
+            }
 
-        // Apply softmax
-        if (k_cache.ready() && v_cache.ready()) {
-            qk = softmax(qk, k_cache.getCacheSeqLen()); // Masked softmax if cache is used
-        } else {
-            qk = softmax(qk); // Regular softmax
+            // Compute attention output
+            o = Tensor::mm(qk, v); // Weighted sum of values
         }
-
-        // Compute attention output
-        Tensor o = Tensor::mm(qk, v);       // Weighted sum of values
         o = o.view(-1, 1, -1, hidden_dim_); // Reshape to original dimensions
         o = o_proj(o);                      // Output projection
 
@@ -154,7 +160,8 @@ public:
         }
 
         attention = Llama3Attention(hidden_dim, head_size, kv_head_size, RoPE_type, rope_theta,
-                                    max_position_embeddings, cache_limit, names, base_name + names._attn_base_name, rope_config);
+                                    max_position_embeddings, cache_limit, config.attn_implementation,
+                                    names, base_name + names._attn_base_name, rope_config);
         mlp = Llama3MLP(hidden_dim, ffn_hidden, names, base_name + names._ffn_base_name);
         norm1 = RMSNorm(hidden_dim, 1e-6, base_name + names._attn_norm_name);
         norm2 = RMSNorm(hidden_dim, 1e-6, base_name + names._ffn_norm_name);
@@ -198,8 +205,8 @@ public:
         // we just simply use the token embedding as the lm_head
         // but now we are not really tying the word embeddings
         auto lm_head_name = names.lm_head_name;
-        if (config.tie_word_embeddings)
-            lm_head_name = names.token_embd_name;
+        assert(config.tie_word_embeddings);
+        lm_head_name = names.token_embd_name;
         lm_head = Parameter(1, vocab_size, 1, hidden_dim, lm_head_name + ".weight");
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {

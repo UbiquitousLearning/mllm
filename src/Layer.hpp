@@ -465,6 +465,15 @@ public:
         param_["for_xnn"] = false;
         init(std::move(name), OpType::KVCACHE);
     }
+    explicit KVCache(int head, int hidden, int n_rep, int cache_max, bool fa2, std::string name) {
+        param_["head"] = head;
+        param_["hidden"] = hidden;
+        param_["n_rep"] = n_rep;
+        param_["cache_max"] = cache_max;
+        param_["for_xnn"] = false;
+        param_["fa2"] = fa2;
+        init(std::move(name), OpType::KVCACHE);
+    }
 
     explicit KVCache(int cache_max, std::string name) {
         param_["n_rep"] = 1;
@@ -494,11 +503,26 @@ public:
             init(std::move(name), OpType::KVCACHE);
         }
     }
+    explicit KVCache(int head, int hidden, int n_rep, int cache_max, std::string name, bool npuEnbaled) {
+        param_["head"] = head;
+        param_["hidden"] = hidden;
+        param_["n_rep"] = n_rep;
+        param_["cache_max"] = cache_max;
+        param_["for_xnn"] = false;
+        if (npuEnbaled) {
+            init(std::move(name), OpType::KVCACHENPU);
+        } else {
+            init(std::move(name), OpType::KVCACHE);
+        }
+    }
     Tensor operator()(Tensor input) {
         auto ts = run({input}, 1);
         return ts[0];
     }
     int getCacheSeqLen() {
+        if (!op_) {
+            return -1;
+        }
         return op_->getCacheSeqLen();
     }
     void clearCache() {
@@ -616,7 +640,11 @@ public:
         for (int i = 0; i < mrope_section.size(); i++) {
             param_["mrope_section_" + std::to_string(i)] = (float)mrope_section[i];
         }
-        init(std::move(name), OpType::MULTIMODALROPE);
+        if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) {
+            init(std::move(name), OpType::MULTIMODALROPEPIP);
+        } else {
+            init(std::move(name), OpType::MULTIMODALROPE);
+        }
     }
     Tensor operator()(Tensor input, Tensor &position_ids) {
         auto ts = run({input, position_ids}, 1);
@@ -658,8 +686,9 @@ public:
 
 class Quantize final : public Layer {
 public:
-    explicit Quantize(bool isNSHD, std::string name) {
+    explicit Quantize(bool isNSHD, std::string name, DataType type = MLLM_TYPE_I8) {
         param_["isNSHD"] = (float)isNSHD;
+        param_["dtype"] = (float)type;
         init(std::move(name), OpType::QUANTIZE);
     }
     Tensor operator()(Tensor input) {
@@ -685,9 +714,10 @@ public:
 
 class Dequantize final : public Layer {
 public:
-    explicit Dequantize(bool isNSHD, std::string name, bool isFP32 = true) {
+    explicit Dequantize(bool isNSHD, std::string name, bool isFP32 = true, DataType inType = MLLM_TYPE_I8) {
         param_["isNSHD"] = (float)isNSHD;
         param_["isFP32"] = (float)isFP32;
+        param_["inType"] = (float)inType;
         init(std::move(name), OpType::DEQUANTIZE);
     }
     Tensor operator()(Tensor input) {
@@ -783,18 +813,6 @@ public:
     }
 };
 
-class SubgraphStart final : public Layer {
-public:
-    explicit SubgraphStart(const std::string &name) {
-        init(name, OpType::SUBGRAPHSTART);
-    }
-
-    Tensor operator()(Tensor input) {
-        auto ts = run({input}, 1);
-        return ts[0];
-    }
-};
-
 class Transpose final : public Layer {
 public:
     explicit Transpose(std::vector<int> perm, std::string name) {
@@ -810,14 +828,30 @@ public:
     }
 };
 
+class SubgraphStart final : public Layer {
+public:
+    SubgraphStart() = default;
+    explicit SubgraphStart(const std::string &name) {
+        init(name, OpType::SUBGRAPHSTART);
+    }
+
+    Tensor operator()(vector<Tensor> inputs) {
+        Module::tmp_device = MLLM_QNN;
+        auto ts = run(inputs, 1);
+        return ts[0];
+    }
+};
+
 class SubgraphFinalize final : public Layer {
 public:
+    SubgraphFinalize() = default;
     explicit SubgraphFinalize(const std::string &name) {
         init(name, OpType::SUBGRAPHFINALIZE);
     }
 
-    Tensor operator()(Tensor input) {
-        auto ts = run({input}, 1);
+    Tensor operator()(vector<Tensor> inputs) {
+        auto ts = run(inputs, 1);
+        Module::tmp_device = MLLM_CPU;
         return ts[0];
     }
 };
@@ -889,7 +923,6 @@ public:
         return op_->clearCache();
     }
 };
-//  Only for QNN END
 
 } // namespace mllm
 

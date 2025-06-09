@@ -1,4 +1,3 @@
-
 #include "QNNSiLU.hpp"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
@@ -23,7 +22,6 @@ ErrorCode QNNSiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
     dimensionsOutput[2] = static_cast<uint32_t>(outputs[0]->head());
     dimensionsOutput[3] = static_cast<uint32_t>(outputs[0]->dimension());
 
-
     auto type = QNN_DATATYPE_FLOAT_32;
     outputs[0]->setDtype(MLLM_TYPE_F32);
 
@@ -31,7 +29,6 @@ ErrorCode QNNSiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
         type = QNN_DATATYPE_FLOAT_16;
         outputs[0]->setDtype(MLLM_TYPE_F16);
     }
-        
 
     vector<Qnn_Tensor_t> outputTensor = {{QNN_TENSOR_VERSION_1,
                                           {.v1 = {

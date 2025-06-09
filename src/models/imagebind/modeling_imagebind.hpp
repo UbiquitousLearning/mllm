@@ -20,7 +20,9 @@ class EncoderBlock final : public Module {
 
 public:
     EncoderBlock() = default;
-    EncoderBlock(int hidden_dim, int head_size, int ffn_hidden, const string &model_type, const ImagebindNameConfig &names, const string &base_name) {
+    EncoderBlock(int hidden_dim, int head_size, int ffn_hidden, const string &model_type,
+                 string attn_implementation,
+                 const ImagebindNameConfig &names, const string &base_name) {
         bool do_mask = false;
         bool bias_kv_cat = false;
         if (model_type == "text") {
@@ -31,6 +33,7 @@ public:
         attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size,
                                        SPLIT_HD, false, bias_kv_cat,
                                        RoPEType::NONE, -1, -1, 0, do_mask, true,
+                                       attn_implementation,
                                        names, base_name + names._attn_base_name);
         ffn = FeedForward(hidden_dim, ffn_hidden, "GELU", true,
                           names, base_name + names._ffn_base_name);
@@ -83,13 +86,16 @@ public:
     ImagebindVisionModel(const ImagebindConfig &config) :
         ImagebindVisionModel(config.vision_hidden_dim, config.vision_head_size, config.vision_ffn_hidden, config.head_hidden_dim,
                              config.patch, config.patch_time, config.img_hw, config.vision_block_num,
+                             config.attn_implementation,
                              config.names_config){};
     ImagebindVisionModel(int hidden_dim, int head_size, int ffn_hidden, int head_hidden_dim,
                          int patch, int patch_time, int img_hw, int block_num,
+                         string attn_implementation,
                          const ImagebindNameConfig &names) {
         embedding = ImagebindVisionEmbedding(hidden_dim, patch, patch_time, img_hw, names, names._vision_embd_name);
         pre_transformer_layer = LayerNorm(hidden_dim, true, 1e-6, names.vision_pre_transformer_layer_name);
-        blocks = List<EncoderBlock>(block_num, hidden_dim, head_size, ffn_hidden, "vision", names, names._vision_blocks_name);
+        blocks = List<EncoderBlock>(block_num, hidden_dim, head_size, ffn_hidden, "vision",
+                                    attn_implementation, names, names._vision_blocks_name);
         norm = LayerNorm(hidden_dim, true, 1e-6, names.vision_post_norm_name);
         head = Linear(hidden_dim, head_hidden_dim, false, names.vision_head_name);
     }
@@ -133,14 +139,17 @@ class ImagebindTextModel final : public Module {
 public:
     ImagebindTextModel() = default;
     ImagebindTextModel(const ImagebindConfig &config) :
-        ImagebindTextModel(config.text_hidden_dim, config.text_head_size, config.text_ffn_hidden, config.head_hidden_dim,
+        ImagebindTextModel(config.text_hidden_dim, config.text_head_size,
+                           config.text_ffn_hidden, config.head_hidden_dim,
                            config.vocab_size, config.max_position_embeddings, config.text_block_num,
+                           config.attn_implementation,
                            config.names_config){};
     ImagebindTextModel(int hidden_dim, int head_size, int ffn_hidden, int head_hidden_dim,
                        int vocab_size, int max_position_embeddings, int block_num,
+                       string attn_implementation,
                        const ImagebindNameConfig &names) {
         embedding = ImagebindTextEmbedding(vocab_size, hidden_dim, max_position_embeddings, names, names._text_embd_name);
-        blocks = List<EncoderBlock>(block_num, hidden_dim, head_size, ffn_hidden, "text", names, names._text_blocks_name);
+        blocks = List<EncoderBlock>(block_num, hidden_dim, head_size, ffn_hidden, "text", attn_implementation, names, names._text_blocks_name);
         norm = LayerNorm(hidden_dim, true, 1e-6, names.text_post_norm_name);
         head = Linear(hidden_dim, head_hidden_dim, false, names.text_head_name);
     }
@@ -197,12 +206,15 @@ public:
         ImagebindAudioModel(config.audio_hidden_dim, config.audio_head_size,
                             config.audio_ffn_hidden, config.head_hidden_dim,
                             config.audio_kernal, config.audio_stride, config.audio_h, config.audio_w, config.audio_block_num,
+                            config.attn_implementation,
                             config.names_config){};
     ImagebindAudioModel(int hidden_dim, int head_size, int ffn_hidden, int head_hidden_dim,
                         int patch, int stride, int img_h, int img_w, int block_num,
+                        string attn_implementation,
                         const ImagebindNameConfig &names) {
         embedding = ImagebindAudioEmbedding(hidden_dim, patch, stride, img_h, img_w, names, names._audio_embd_name);
-        blocks = List<EncoderBlock>(block_num, hidden_dim, head_size, ffn_hidden, "audio", names, names._audio_blocks_name);
+        blocks = List<EncoderBlock>(block_num, hidden_dim, head_size, ffn_hidden, "audio",
+                                    attn_implementation, names, names._audio_blocks_name);
         norm = LayerNorm(hidden_dim, true, 1e-6, names.audio_post_norm_name);
         head = Linear(hidden_dim, head_hidden_dim, false, names.audio_head_name);
     }
@@ -235,18 +247,24 @@ public:
                        config.text_hidden_dim, config.text_head_size, config.text_ffn_hidden, config.vocab_size, config.max_position_embeddings, config.text_block_num,
                        config.audio_hidden_dim, config.audio_head_size, config.audio_ffn_hidden, config.audio_kernal, config.audio_stride, config.audio_h, config.audio_w, config.audio_block_num,
                        config.head_hidden_dim,
+                       config.attn_implementation,
                        config.names_config){};
-    ImagebindModel(int vision_hidden_dim, int vision_head_size, int vision_ffn_hidden, int patch, int patch_time, int img_hw, int vision_block_num,
+    ImagebindModel(int vision_hidden_dim, int vision_head_size, int vision_ffn_hidden, int patch, int patch_time,
+                   int img_hw, int vision_block_num,
                    int text_hidden_dim, int text_head_size, int text_ffn_hidden, int vocab_size, int max_position_embeddings, int text_block_num,
                    int audio_hidden_dim, int audio_head_size, int audio_ffn_hidden, int audio_kernal, int audio_stride, int audio_h, int audio_w, int audio_block_num,
                    int head_hidden_dim,
+                   string attn_implementation,
                    const ImagebindNameConfig &names) {
-        text_model = ImagebindTextModel(text_hidden_dim, text_head_size, text_ffn_hidden, head_hidden_dim,
-                                        vocab_size, max_position_embeddings, text_block_num, names);
-        vision_model = ImagebindVisionModel(vision_hidden_dim, vision_head_size, vision_ffn_hidden, head_hidden_dim,
-                                            patch, patch_time, img_hw, vision_block_num, names);
-        audio_model = ImagebindAudioModel(audio_hidden_dim, audio_head_size, audio_ffn_hidden, head_hidden_dim,
-                                          audio_kernal, audio_stride, audio_h, audio_w, audio_block_num, names);
+        text_model = ImagebindTextModel(text_hidden_dim, text_head_size,
+                                        text_ffn_hidden, head_hidden_dim,
+                                        vocab_size, max_position_embeddings, text_block_num, attn_implementation, names);
+        vision_model = ImagebindVisionModel(vision_hidden_dim, vision_head_size,
+                                            vision_ffn_hidden, head_hidden_dim,
+                                            patch, patch_time, img_hw, vision_block_num, attn_implementation, names);
+        audio_model = ImagebindAudioModel(audio_hidden_dim, audio_head_size,
+                                          audio_ffn_hidden, head_hidden_dim,
+                                          audio_kernal, audio_stride, audio_h, audio_w, audio_block_num, attn_implementation, names);
         softmax = Softmax(DIMENSION, "final.softmax1");
         softmax2 = Softmax(DIMENSION, "final.softmax2");
     }
