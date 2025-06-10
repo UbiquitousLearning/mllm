@@ -37,4 +37,3 @@ src/models/deepseek/*
 examples/demo.cpp
 
 src/backends/qnn/sdk/*
-*.mllm

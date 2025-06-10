@@ -132,6 +132,21 @@ public:
                     }
                 }
             }
+        } else if (d.size() == 1) {
+            int seq_idx = d[0];
+            if (seq_idx < 0) {
+                seq_idx = inputs[0]->dimension() + seq_idx;
+            }
+#pragma omp parallel for collapse(1) num_threads(CPUBackend::cpu_threads)
+            for (int b = 0; b < inputs[0]->batch(); ++b) {
+                for (int s = 0; s < inputs[0]->sequence(); ++s) {
+                    for (int h = 0; h < inputs[0]->head(); ++h) {
+                        memcpy(outputs[0]->hostPtr<float>() + outputs[0]->offset(b, h, s, 0),
+                               inputs[0]->hostPtr<float>() + inputs[0]->offset(b, h, s, seq_idx),
+                               sizeof(float));
+                    }
+                }
+            }
         } else {
             std::cout << "[TODO]Tensor.CLip not support!!!!" << std::endl;
         }
@@ -266,6 +281,28 @@ public:
     void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl dim = (Chl)args[0];
         if (dim == SEQUENCE) {
+            if (inputs[0]->ctype() == BHDS) {
+                outputs[0]->chls() = inputs[0]->chls();
+                outputs[0]->setCtype(BHDS);
+                int new_seq = inputs[1]->dimension();
+                if (outputs[0]->sequence() == 0 || outputs[0]->shape().empty()
+                    || new_seq != outputs[0]->sequence()) {
+                    outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), new_seq, inputs[0]->dimension());
+                    outputs[0]->alloc();
+                }
+
+#pragma omp parallel for collapse(3) num_threads(CPUBackend::cpu_threads)
+                for (int b = 0; b < inputs[0]->batch(); ++b) {
+                    for (int d = 0; d < inputs[0]->dimension(); ++d) {
+                        for (int s = 0; s < new_seq; ++s) {
+                            auto selected_idx = (int)inputs[1]->dataAt<float>(0, 0, 0, s);
+                            outputs[0]->setDataAt<float>(b, 0, s, d,
+                                                         inputs[0]->dataAt<float>(b, 0, selected_idx, d));
+                        }
+                    }
+                }
+                return;
+            }
             int new_seq = inputs[1]->dimension();
             if (outputs[0]->sequence() == 0 || outputs[0]->shape().empty()
                 || new_seq != outputs[0]->sequence()) {

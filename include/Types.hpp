@@ -155,6 +155,7 @@ enum RoPEType {
     PERSIMMONROPE = 3,
     HFHUBROPE = 4,
     MLAROPE = 5,
+    NTKROPE = 6,
 };
 
 enum RoPEThetaType {

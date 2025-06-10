@@ -83,7 +83,6 @@ func_llm_add_executable(demo_minicpm_moe_mbm)
 func_llm_add_executable(demo_qwen_sd)
 func_llm_add_executable(demo_minicpm_moe_mbp)
 
-
 func_vlm_add_executable(demo_llava)
 func_vlm_add_executable(demo_fuyu)
 func_vlm_add_executable(demo_vit)
@@ -99,11 +98,12 @@ func_vlm_add_executable(demo_showui)
 
 if(QNN)
     func_llm_add_executable(demo_qwen_npu)
-    func_llm_add_executable(main_qwen_npu)
+    # func_llm_add_executable(main_qwen_npu)
     func_llm_add_executable(demo_phonelm_npu)
-    func_llm_add_executable(main_phonelm_npu)
+    # func_llm_add_executable(main_phonelm_npu)
     func_llm_add_executable(demo_qwen2.5_npu)
-    func_llm_add_executable(demo_qwen_pipeline)
+    # func_llm_add_executable(demo_qwen_pipeline)
+    func_vlm_add_executable(demo_qwen2_vl_npu)
 endif()
 
 

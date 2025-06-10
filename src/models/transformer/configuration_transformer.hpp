@@ -37,5 +37,6 @@ class TransformerConfig {
 public:
     TransformerConfig() {
     }
+    string attn_implementation = "flash_attention_2"; // Options: "flash_attention_2", "eager"
 };
 #endif // CONFIGURATION_TRANSFORMER_HPP

@@ -6,8 +6,9 @@
 
 int n_pack = 16;
 namespace mllm {
-CPUKVCache::CPUKVCache(Backend *bn, string opName, int hidden, int head, int n_rep, int cache_max, int threadCount) :
+CPUKVCache::CPUKVCache(Backend *bn, string opName, int hidden, int head, int n_rep, bool fa2, int cache_max, int threadCount) :
     thread_count(threadCount), Op(bn, opName) {
+    fa2_ = fa2;
     cache_.setBackend(bn);
     switch (KVCache_TYPE) {
     case 16: {
@@ -32,10 +33,13 @@ CPUKVCache::CPUKVCache(Backend *bn, string opName, int hidden, int head, int n_r
         break;
     }
     }
-// #endif
+    if (!fa2) { // not fa2
 #ifdef LLAMAFILE_SGEMM
-    cache_max = ((cache_max + (n_pack - 1)) / n_pack) * n_pack;
+        cache_max = ((cache_max + (n_pack - 1)) / n_pack) * n_pack;
 #endif
+    } else { // fa2
+        n_rep = 1;
+    }
     cache_limit_ = cache_max;
     n_rep_ = n_rep;
     if (head > 0) {
@@ -103,7 +107,9 @@ ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs,
 
     int sequence = inputs[0]->sequence() + cache_seq_len_;
 #ifdef LLAMAFILE_SGEMM
-    if (!for_xnn_ && sequence % n_pack != 0) sequence = ((sequence + (n_pack - 1)) / n_pack) * n_pack;
+    if (!fa2_) {
+        if (!for_xnn_ && sequence % n_pack != 0) sequence = ((sequence + (n_pack - 1)) / n_pack) * n_pack;
+    }
 #endif
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, sequence,
                         inputs[0]->dimension());

@@ -20,9 +20,8 @@ class LLaMABodyModel final : public Module {
 
 public:
     LLaMABodyModel() = default;
-    LLaMABodyModel(int vocab_size, int hidden_dim, int head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit,
-                   const LLaMANameConfig &names, const string &base_name) {
-        blocks = List<LLaMABlock>(block_num, hidden_dim, head_size, head_size, ffn_hidden, RoPE_type, rope_theta, max_position_embeddings, cache_limit, names, base_name);
+    LLaMABodyModel(int vocab_size, int hidden_dim, int head_size, int ffn_hidden, int block_num, RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit, string attn_implementation, const LLaMANameConfig &names, const string &base_name) {
+        blocks = List<LLaMABlock>(block_num, hidden_dim, head_size, head_size, ffn_hidden, RoPE_type, rope_theta, max_position_embeddings, cache_limit, attn_implementation, names, base_name);
         norm = RMSNorm(hidden_dim, 1e-6, names.post_norm_name);
         lm_head = Linear(hidden_dim, vocab_size, false, names.lm_head_name);
     }
@@ -74,10 +73,11 @@ class LLaVAVisionModel final : public Module {
 public:
     LLaVAVisionModel() = default;
     LLaVAVisionModel(int hidden_dim, int head_size, int ffn_hidden, int patch, int img_hw, int block_num,
+                     string attn_implementation,
                      const ViTNameConfig &names, const string &base_name) {
         embedding = LLaVAVisionEmbedding(hidden_dim, patch, img_hw, names, base_name + names._embd_name);
         pre_layrnorm = LayerNorm(hidden_dim, true, 1e-6, base_name + names._vision_pre_layrnorm_name);
-        blocks = List<ViTBlock>(block_num, hidden_dim, head_size, ffn_hidden, "QuickGELU", names, base_name + names._layer_name);
+        blocks = List<ViTBlock>(block_num, hidden_dim, head_size, ffn_hidden, "QuickGELU", attn_implementation, names, base_name + names._layer_name);
         clip_len_ = std::ceil(img_hw / patch) * std::ceil(img_hw / patch) + 1;
         linear_1 = Linear(hidden_dim, ffn_hidden, true, "multi_modal_projector.linear_1");
         gelu = GELU("multi_modal_projector.act");
@@ -106,19 +106,21 @@ public:
         LLaVAModel(config.vocab_size, config.hidden_dim, config.head_size, config.ffn_hidden, config.block_num,
                    config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit,
                    config.names_config,
-                   config.vision_hidden_dim, config.vision_head_size, config.vision_ffn_hidden, config.patch, config.img_hw, config.vision_block_num,
+                   config.vision_hidden_dim, config.vision_head_size, config.vision_ffn_hidden, config.patch, config.img_hw, config.vision_block_num, config.attn_implementation,
                    config.vit_names_config) {
     }
     LLaVAModel(int vocab_size, int hidden_dim, int head_size, int ffn_hidden, int block_num,
                RoPEType RoPE_type, float rope_theta, int max_position_embeddings, int cache_limit,
                const LLaMANameConfig &names_config,
                int vision_hidden_dim, int vision_head_size, int vision_ffn_hidden, int patch, int img_hw, int vision_block_num,
+               string attn_implementation,
                const ViTNameConfig &vit_names_config) {
         text_embedding = Embedding(vocab_size, hidden_dim, names_config.token_embd_name);
         llama_body = LLaMABodyModel(vocab_size, hidden_dim, head_size, ffn_hidden, block_num,
-                                    RoPE_type, rope_theta, max_position_embeddings, cache_limit,
+                                    RoPE_type, rope_theta, max_position_embeddings, cache_limit, attn_implementation,
                                     names_config, names_config.blk_name);
         vision_tower = LLaVAVisionModel(vision_hidden_dim, vision_head_size, vision_ffn_hidden, patch, img_hw, vision_block_num,
+                                        attn_implementation,
                                         vit_names_config, vit_names_config.vison_model_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {

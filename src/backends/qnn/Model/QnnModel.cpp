@@ -14,6 +14,7 @@
 #include "QnnModel.hpp"
 #include "QnnModelPal.hpp"
 #include "QnnTypeMacros.hpp"
+#include "Utils/QnnSampleAppUtils.hpp"
 
 #define FREE_MEMORY(ptr1, ptr2, ptr3) \
   do {                                \
@@ -70,6 +71,10 @@ ModelError_t QnnModel::initialize(const Qnn_BackendHandle_t &backendHandle,
   }
 
   return MODEL_NO_ERROR;
+}
+
+void QnnModel::setInitFromCache() {
+  isFromCache = true;
 }
 
 ModelError_t QnnModel::addTensor(const char *nodeName, Qnn_Tensor_t *tensor, bool saveTensor) {
@@ -152,16 +157,20 @@ ModelError_t QnnModel::addTensor(const char *nodeName, Qnn_Tensor_t *tensor, boo
     QNN_TENSOR_SET_TYPE(tensor, QNN_TENSOR_TYPE_APP_READ);
   }
 
-  if (m_qnnInterface.tensorCreateGraphTensor(m_graph, tensor) != QNN_TENSOR_NO_ERROR) {
-    PRINT_ERROR("QnnModel::addTensor() Creating tensor for node: %s, tensorName: %s.\n",
-                nodeName,
-                QNN_TENSOR_GET_NAME(tensor));
-    return MODEL_TENSOR_ERROR;
+  if (!isFromCache) {
+      if (m_qnnInterface.tensorCreateGraphTensor(m_graph, tensor) != QNN_TENSOR_NO_ERROR) {
+          PRINT_ERROR("QnnModel::addTensor() Creating tensor for node: %s, tensorName: %s.\n",
+                      nodeName,
+                      QNN_TENSOR_GET_NAME(tensor));
+          return MODEL_TENSOR_ERROR;
+      }
   }
 
   if (saveTensor) {
     Qnn_Tensor_t tensorCopy;
-    VALIDATE(deepCopyQnnTensors(*tensor, tensorCopy), err);
+    if (!qnn::tools::sample_app::deepCopyQnnTensorInfo(&tensorCopy, tensor)) {
+      return MODEL_TENSOR_ERROR;
+    }
 
     // save network input/outputs tensors to use for setting the Qnn graph's input and output
     // tensors for populating GraphInfo_t for caller
@@ -509,6 +518,16 @@ ModelError_t QnnModel::finalize(Qnn_ProfileHandle_t profile, Qnn_SignalHandle_t 
   return err;
 }
 
+size_t memscpy(void *dst, size_t dstSize, const void *src, size_t copySize) {
+    if (!dst || !src || !dstSize || !copySize) return 0;
+
+    size_t minSize = dstSize < copySize ? dstSize : copySize;
+
+    memcpy(dst, src, minSize);
+
+    return minSize;
+}
+
 ModelError_t getGraphInfoFromModels(QnnModel *models,
                                     uint32_t numModels,
                                     GraphInfoPtr_t **graphsInfo) {
@@ -609,25 +628,6 @@ ModelError_t getSingleGraphInfoFromModel(QnnModel &model, GraphInfoPtr_t* graphI
     // graph composition is complete by this stage, free if any cached tensors remaining
     VALIDATE(model.freeCachedTensors(), err);
     return err;
-}
-
-ModelError_t freeGraphsInfo(GraphInfoPtr_t **graphsInfo, uint32_t numGraphs) {
-  if (graphsInfo == nullptr || *graphsInfo == nullptr) {
-    PRINT_ERROR("freeGraphsInfo() invalid graphsInfo.");
-    return MODEL_TENSOR_ERROR;
-  }
-  for (uint32_t i = 0; i < numGraphs; i++) {
-    PRINT_INFO("Freeing graph in freeGraphInfo");
-    free((*graphsInfo)[i]->graphName);
-    freeQnnTensors((*graphsInfo)[i]->inputTensors, (*graphsInfo)[i]->numInputTensors);
-    freeQnnTensors((*graphsInfo)[i]->outputTensors, (*graphsInfo)[i]->numOutputTensors);
-  }
-
-  free(**graphsInfo);
-  free(*graphsInfo);
-  *graphsInfo = nullptr;
-
-  return MODEL_NO_ERROR;
 }
 
 ModelError_t QnnModel::freeTensors() {

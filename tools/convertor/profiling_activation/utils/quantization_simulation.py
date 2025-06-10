@@ -374,6 +374,68 @@ def quantize_qwen2_like(
             )
     return model
 
+def quantize_qwen2vl_like(
+    model,
+    decoder_scales,
+    weight_quant="per_tensor",
+    act_quant="per_tensor",
+    quantize_bmm_input=False,
+    layer_clip={},
+):
+    from transformers.models.qwen2_vl.modeling_qwen2_vl import (
+        Qwen2VLSdpaAttention,
+        Qwen2MLP,
+    )
+
+    for name, m in model.model.named_modules():
+        if isinstance(m, Qwen2MLP):
+            m.gate_proj = W8A8LinearStatic.from_float(
+                m.gate_proj,
+                decoder_scales["model." + name + ".gate_proj"],
+                weight_quant_type=weight_quant,
+                clip_top=layer_clip["model." + name + ".gate_proj"],
+            )
+            m.up_proj = W8A8LinearStatic.from_float(
+                m.up_proj,
+                decoder_scales["model." + name + ".up_proj"],
+                weight_quant_type=weight_quant,
+                clip_top=layer_clip["model." + name + ".up_proj"],
+            )
+            m.down_proj = W8A8LinearStatic.from_float(
+                m.down_proj,
+                decoder_scales["model." + name + ".down_proj"],
+                weight_quant_type=weight_quant,
+                clip_top=layer_clip["model." + name + ".down_proj"],
+            )
+        elif isinstance(m, Qwen2VLSdpaAttention):
+            # Here we simulate quantizing BMM inputs by quantizing the output of q_proj, k_proj, v_proj
+            m.q_proj = W8A8LinearStatic.from_float(
+                m.q_proj,
+                decoder_scales["model." + name + ".q_proj"],
+                weight_quant_type=weight_quant,
+                clip_top=layer_clip["model." + name + ".q_proj"],
+            )
+            m.k_proj = W8A8LinearStatic.from_float(
+                m.k_proj,
+                decoder_scales["model." + name + ".k_proj"],
+                weight_quant_type=weight_quant,
+                clip_top=layer_clip["model." + name + ".k_proj"],
+            )
+            m.v_proj = W8A8LinearStatic.from_float(
+                m.v_proj,
+                decoder_scales["model." + name + ".v_proj"],
+                weight_quant_type=weight_quant,
+                clip_top=layer_clip["model." + name + ".v_proj"],
+            )
+            
+            m.o_proj = W8A8LinearStatic.from_float(
+                m.o_proj,
+                decoder_scales["model." + name + ".o_proj"],
+                weight_quant_type=weight_quant,
+                clip_top=layer_clip["model." + name + ".o_proj"],
+            )
+    return model
+
 
 def quantize_gemma_like(
     model,

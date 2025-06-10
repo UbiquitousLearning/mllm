@@ -20,7 +20,7 @@ ErrorCode QNNRMSNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 ErrorCode QNNRMSNorm::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     float quantScale = 0;
     quantScale = scale_.hostPtr<float>()[0] / 127.0;
-    quantScale = roundf(quantScale * 100000) / 100000;
+    // quantScale = roundf(quantScale * 100000) / 100000;
 
     uint32_t dimWeight[4] = {(uint32_t)normSize_};
     qnnBackend_->modelAddTensor(weight_.name(), (Qnn_Tensor_t){

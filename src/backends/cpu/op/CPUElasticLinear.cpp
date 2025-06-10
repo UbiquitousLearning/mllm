@@ -69,32 +69,6 @@ ErrorCode CPUElasticLinear::execute(vector<shared_ptr<Tensor>> inputs, vector<sh
         return Op::execute(inputs, outputs);
     }
     mat_mul_elastic(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, activate_input_dim, activate_output_dim, false, true, thread_count);
-    /*
-    // std::cout << name() << "  CPUElasticLinear()" << std::endl;
-    switch (weight_.dtype()) {
-    case MLLM_TYPE_F32: {
-        mat_mul_elastic_fp32(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, activate_input_dim,activate_output_dim, false, true, thread_count);
-        break;
-    }
-    case MLLM_TYPE_F16: break;
-    case MLLM_TYPE_Q4_0: {
-        mat_mul_elastic_fp32_q4_0(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_,  activate_input_dim,activate_output_dim, thread_count);
-        break;
-    }
-    case MLLM_TYPE_Q4_K: {
-        mat_mul_elastic_fp32_q4_K(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_,  activate_input_dim,activate_output_dim, thread_count);
-        break;
-    }
-    case MLLM_TYPE_Q6_K: {
-        mat_mul_elastic_fp32_q6_K(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_,  activate_input_dim,activate_output_dim, thread_count);
-        break;
-    }
-    default:
-        break;
-    }
-    */
-    //    auto end = mllm::mllm_time_us();
-    //    printf("exec time: %ld us\n", end - start);
     return Op::execute(inputs, outputs);
 }
 ErrorCode CPUElasticLinear::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

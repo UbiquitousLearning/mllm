@@ -9,17 +9,15 @@
 #include "QnnOpPackage.h"
 #include "HTP/core/simple_reg.h"
 
-
 BEGIN_PKG_OP_DEFINITION(PKG_SplitInput);
 
-
 // op execute function declarations
-template<typename TensorType,typename TensorType1>
-GraphStatus splitinputImpl(TensorType& out_0,
-                            TensorType& out_1,
-                           const TensorType& in_0,
+template <typename TensorType, typename TensorType1>
+GraphStatus splitinputImpl(TensorType &out_0,
+                           TensorType &out_1,
+                           const TensorType &in_0,
                            const TensorType1 &in_1,
-                           const Tensor& num);
+                           const Tensor &num);
 
 // forward declaration of sample cost function
 static float splitinputCostFunc(const Op *op);
@@ -64,11 +62,11 @@ DEF_PACKAGE_OP((splitinputImpl<Tensor, Tensor>), "SplitInput")
  * one definition per op, and this is optional
  * syntax: DEF_PACKAGE_PARAM_ORDER(OP,PARAM1,MANDATORY1,DEFAULT1,PARAM2,MANDATORY2,DEFAULT2...)
  * one or more parameters can be specified for each op
-     * order of parameters listed determines the order of parameters passed into op execution functions
+ * order of parameters listed determines the order of parameters passed into op execution functions
  * if an op does not have a parameter order definition, parameter order passed into Qnn_addNode
  *   will be passed into op execution functions
  * if an op has a parameter order definition, any parameter passed into Qnn_addNode with unlisted
-     *   name will be abandoned
+ *   name will be abandoned
  * if two or more op packages with the same package name will be registered, they cannot list
  *   conflicting parameter orders
  * PARAM refers to parameter name as a string literal
@@ -82,83 +80,73 @@ DEF_PACKAGE_OP((splitinputImpl<Tensor, Tensor>), "SplitInput")
  *       Qnn_addNode
  */
 
-
 /* execute functions for ops */
 
-template<typename TensorType,typename TensorType1>
-GraphStatus splitinputImpl(TensorType& out_0,
-                            TensorType& out_1,
-                           const TensorType& in_0,
+template <typename TensorType, typename TensorType1>
+GraphStatus splitinputImpl(TensorType &out_0,
+                           TensorType &out_1,
+                           const TensorType &in_0,
                            const TensorType1 &in_1,
-                           const Tensor& num)
-{
-  /*
-   * add code here
-   * */
-  /*
-   * To have good performance and stability, it is required to avoid heap memory
-   * allocation in this function. The heap memory allocation includes but not
-   * limited to calling malloc, operator new, constructing STL container objects
-   * like std::vector with default allocator, and adding items like calling
-   * std::vector::push_back to STL container objects with default allocator.
-   *
-   * Please check in SDK documentation for more information.
-   */
+                           const Tensor &num) {
+    /*
+     * add code here
+     * */
+    /*
+     * To have good performance and stability, it is required to avoid heap memory
+     * allocation in this function. The heap memory allocation includes but not
+     * limited to calling malloc, operator new, constructing STL container objects
+     * like std::vector with default allocator, and adding items like calling
+     * std::vector::push_back to STL container objects with default allocator.
+     *
+     * Please check in SDK documentation for more information.
+     */
 
-  // default is two.
+    // default is two.
 
-  size_t o_size = in_1(0,0,0,0);
-  size_t x_size = in_1(0,0,0,1);
+    size_t o_size = in_1(0, 0, 0, 0);
+    size_t x_size = in_1(0, 0, 0, 1);
 
-  auto [b_in, h_in, w_in, d_in] = in_0.dims();
-  
-  const size_t dims_0[] = {b_in, o_size, w_in, d_in};
-  const size_t dims_1[] = {b_in, x_size, w_in, d_in};
+    auto [b_in, h_in, w_in, d_in] = in_0.dims();
 
-  out_0.set_dims(dims_0);
-  out_1.set_dims(dims_1);
+    const size_t dims_0[] = {b_in, o_size, w_in, d_in};
+    const size_t dims_1[] = {b_in, x_size, w_in, d_in};
 
-  DType dtype = in_0.get_dtype();
-  uint32_t bitwidth = 4;
+    out_0.set_dims(dims_0);
+    out_1.set_dims(dims_1);
 
-  if (dtype == DType::QUInt8 || dtype == DType::QInt8) {
+    DType dtype = in_0.get_dtype();
+    uint32_t bitwidth = 4;
 
-      bitwidth = 1;
+    if (dtype == DType::QUInt8 || dtype == DType::QInt8) {
+        bitwidth = 1;
 
-  } else if (dtype == DType::Float16) {
+    } else if (dtype == DType::Float16) {
+        bitwidth = 2;
+    } else if (dtype == DType::Float32) {
+        bitwidth = 4;
+    }
 
-      bitwidth = 2;
-  } else if (dtype == DType::Float32) {
+    const uint8_t *in_ptr = (uint8_t *)in_0.raw_data_const();
 
-      bitwidth = 4;
-  }
+    uint8_t *out_ptr_0 = (uint8_t *)out_0.raw_data();
+    uint8_t *out_ptr_1 = (uint8_t *)out_1.raw_data();
 
-  const uint8_t *in_ptr = (uint8_t*)in_0.raw_data_const();
+    memcpy(out_ptr_0, in_ptr, b_in * o_size * w_in * d_in * bitwidth);
+    in_ptr += b_in * o_size * w_in * d_in * bitwidth;
 
-  uint8_t *out_ptr_0 = (uint8_t*)out_0.raw_data();
-  uint8_t *out_ptr_1 = (uint8_t*)out_1.raw_data();
+    memcpy(out_ptr_1, in_ptr, b_in * x_size * w_in * d_in * bitwidth * 4);
 
-  memcpy(out_ptr_0, in_ptr, b_in * o_size * w_in * d_in * bitwidth);
-  in_ptr += b_in * o_size * w_in * d_in * bitwidth;
-
-  memcpy(out_ptr_1, in_ptr, b_in * x_size * w_in * d_in * bitwidth * 4);
-
-  return GraphStatus::Success;
+    return GraphStatus::Success;
 }
 
-__attribute__((unused)) static float splitinputCostFunc(const Op *op)
-{
-  /*
-   * add code here
-   * */
+__attribute__((unused)) static float splitinputCostFunc(const Op *op) {
+    /*
+     * add code here
+     * */
 
-  float cost = 0.0;  // add cost computation here
-  return cost;
+    float cost = 0.0; // add cost computation here
+    return cost;
 }
-
-
-
-
 
 /* At the bottom of the op file, call END_PKG_OP_DEFINITION(<name>),
    where <name> is as BEGIN_PKG_OP_DEFINITION

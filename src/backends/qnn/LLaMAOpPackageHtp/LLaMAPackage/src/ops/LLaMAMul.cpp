@@ -9,15 +9,13 @@
 #include "QnnOpPackage.h"
 #include "HTP/core/simple_reg.h"
 
-
 BEGIN_PKG_OP_DEFINITION(PKG_LLaMAMul);
 
-
 // op execute function declarations
-template<typename TensorType>
-GraphStatus llamamulImpl(TensorType& out_0,
-                         const TensorType& in_0,
-                         const TensorType& in_1);
+template <typename TensorType>
+GraphStatus llamamulImpl(TensorType &out_0,
+                         const TensorType &in_0,
+                         const TensorType &in_1);
 
 // forward declaration of sample cost function
 static float llamamulCostFunc(const Op *op);
@@ -62,11 +60,11 @@ DEF_PACKAGE_OP((llamamulImpl<Tensor>), "LLaMAMul")
  * one definition per op, and this is optional
  * syntax: DEF_PACKAGE_PARAM_ORDER(OP,PARAM1,MANDATORY1,DEFAULT1,PARAM2,MANDATORY2,DEFAULT2...)
  * one or more parameters can be specified for each op
-     * order of parameters listed determines the order of parameters passed into op execution functions
+ * order of parameters listed determines the order of parameters passed into op execution functions
  * if an op does not have a parameter order definition, parameter order passed into Qnn_addNode
  *   will be passed into op execution functions
  * if an op has a parameter order definition, any parameter passed into Qnn_addNode with unlisted
-     *   name will be abandoned
+ *   name will be abandoned
  * if two or more op packages with the same package name will be registered, they cannot list
  *   conflicting parameter orders
  * PARAM refers to parameter name as a string literal
@@ -80,7 +78,6 @@ DEF_PACKAGE_OP((llamamulImpl<Tensor>), "LLaMAMul")
  *       Qnn_addNode
  */
 
-
 /* execute functions for ops */
 #ifndef REFERENCE_OP
 
@@ -89,17 +86,15 @@ DEF_PACKAGE_OP((llamamulImpl<Tensor>), "LLaMAMul")
 #include <hexagon_types.h>
 #include <stddef.h>
 
-#define BLOCK_SIZE       (8*1024/VLEN)  /* vector chunks */
-#define L2FETCH_AHEAD    (BLOCK_SIZE)
+#define BLOCK_SIZE (8 * 1024 / VLEN) /* vector chunks */
+#define L2FETCH_AHEAD (BLOCK_SIZE)
 
 int32_t hvx_mul_af(
     float *restrict input,
     float *restrict input2,
     float *restrict output,
-    uint32_t size)
-{
-    if ((input == NULL) || (output == NULL) || (size == 0))
-    {
+    uint32_t size) {
+    if ((input == NULL) || (output == NULL) || (size == 0)) {
         return -1;
     }
 
@@ -117,19 +112,16 @@ int32_t hvx_mul_af(
     sline1p = *iptr++;
     sline2p = *iptr2++;
 
-    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
-    {
+    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE) {
         block = Q6_R_min_RR(i, BLOCK_SIZE);
         l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
 
-        if (l2fetch_block > 0)
-        {
+        if (l2fetch_block > 0) {
             l2fetch(iptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
             l2fetch(iptr2 + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
         }
 
-        for (int32_t j = 0; j < block; ++j)
-        {
+        for (int32_t j = 0; j < block; ++j) {
             sline1c = *iptr++;
             sline2c = *iptr2++;
             sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
@@ -143,31 +135,24 @@ int32_t hvx_mul_af(
     }
 
     if (vectors_in_rounddown > 0) {
+        sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
+        sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
 
-      sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
-      sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+        sline2c = is_aligned(iptr2, VLEN) && leftover == 0 ? sline2p : *iptr2++;
+        sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t)input2);
 
-      sline2c = is_aligned(iptr2, VLEN) && leftover == 0 ? sline2p : *iptr2++;
-      sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t) input2);
-
-      *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(sline1, sline2));
-
+        *optr++ = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(sline1, sline2));
     }
 
     // Handle leftover elements.
     if (leftover_size > 0) {
-      sline1c = (is_in_one_chunk(iptr, leftover_size, VLEN)
-                      ? sline1p
-                      : *iptr++);
-      sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
+        sline1c = (is_in_one_chunk(iptr, leftover_size, VLEN) ? sline1p : *iptr++);
+        sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
 
+        sline2c = (is_in_one_chunk(iptr2, leftover_size, VLEN) ? sline2p : *iptr2++);
+        sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t)input2);
 
-      sline2c = (is_in_one_chunk(iptr2, leftover_size, VLEN)
-                      ? sline2p
-                      : *iptr2++);
-      sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t)input2);
-
-      vstu_variable(optr, leftover_size,  Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(sline1, sline2)));
+        vstu_variable(optr, leftover_size, Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(sline1, sline2)));
     }
 
     return 0;
@@ -177,10 +162,8 @@ int32_t hvx_mul_ahf(
     __fp16 *restrict input,
     __fp16 *restrict input2,
     __fp16 *restrict output,
-    uint32_t size)
-{
-    if ((input == NULL) || (output == NULL) || (size == 0))
-    {
+    uint32_t size) {
+    if ((input == NULL) || (output == NULL) || (size == 0)) {
         return -1;
     }
 
@@ -198,19 +181,16 @@ int32_t hvx_mul_ahf(
     sline1p = *iptr++;
     sline2p = *iptr2++;
 
-    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
-    {
+    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE) {
         block = Q6_R_min_RR(i, BLOCK_SIZE);
         l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
 
-        if (l2fetch_block > 0)
-        {
+        if (l2fetch_block > 0) {
             l2fetch(iptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
             l2fetch(iptr2 + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
         }
 
-        for (int32_t j = 0; j < block; ++j)
-        {
+        for (int32_t j = 0; j < block; ++j) {
             sline1c = *iptr++;
             sline2c = *iptr2++;
             sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
@@ -224,159 +204,139 @@ int32_t hvx_mul_ahf(
     }
 
     if (vectors_in_rounddown > 0) {
+        sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
+        sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
 
-      sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
-      sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+        sline2c = is_aligned(iptr2, VLEN) && leftover == 0 ? sline2p : *iptr2++;
+        sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t)input2);
 
-      sline2c = is_aligned(iptr2, VLEN) && leftover == 0 ? sline2p : *iptr2++;
-      sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t) input2);
-
-      *optr++ = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(sline1, sline2));
-
+        *optr++ = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(sline1, sline2));
     }
 
     // Handle leftover elements.
     if (leftover_size > 0) {
-      sline1c = (is_in_one_chunk(iptr, leftover_size, VLEN)
-                      ? sline1p
-                      : *iptr++);
-      sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
+        sline1c = (is_in_one_chunk(iptr, leftover_size, VLEN) ? sline1p : *iptr++);
+        sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t)input);
 
+        sline2c = (is_in_one_chunk(iptr2, leftover_size, VLEN) ? sline2p : *iptr2++);
+        sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t)input2);
 
-      sline2c = (is_in_one_chunk(iptr2, leftover_size, VLEN)
-                      ? sline2p
-                      : *iptr2++);
-      sline2 = Q6_V_valign_VVR(sline2c, sline2p, (size_t)input2);
-
-      vstu_variable(optr, leftover_size,  Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(sline1, sline2)));
+        vstu_variable(optr, leftover_size, Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(sline1, sline2)));
     }
 
     return 0;
 }
 
-template<typename TensorType>
-GraphStatus llamamulImpl(TensorType& out_0,
-                         const TensorType& in_0,
-                         const TensorType& in_1)
+template <typename TensorType>
+GraphStatus llamamulImpl(TensorType &out_0,
+                         const TensorType &in_0,
+                         const TensorType &in_1)
 
 {
-  /*
-   * add code here
-   * */
-  /*
-   * To have good performance and stability, it is required to avoid heap memory
-   * allocation in this function. The heap memory allocation includes but not
-   * limited to calling malloc, operator new, constructing STL container objects
-   * like std::vector with default allocator, and adding items like calling
-   * std::vector::push_back to STL container objects with default allocator.
-   *
-   * Please check in SDK documentation for more information.
-   */
-   out_0.set_dims(in_0);
+    /*
+     * add code here
+     * */
+    /*
+     * To have good performance and stability, it is required to avoid heap memory
+     * allocation in this function. The heap memory allocation includes but not
+     * limited to calling malloc, operator new, constructing STL container objects
+     * like std::vector with default allocator, and adding items like calling
+     * std::vector::push_back to STL container objects with default allocator.
+     *
+     * Please check in SDK documentation for more information.
+     */
+    out_0.set_dims(in_0);
 
-   auto [b_in, h_in, w_in, d_in] = in_0.dims();
-   size_t size = b_in*h_in*w_in*d_in;
+    auto [b_in, h_in, w_in, d_in] = in_0.dims();
+    size_t size = b_in * h_in * w_in * d_in;
 
-  DType dtype = in_0.get_dtype();
+    DType dtype = in_0.get_dtype();
 
-  if (dtype == DType::Float16) {
-    auto in_ptr = (__fp16*)in_0.raw_data_const();
-    auto in2_ptr = (__fp16*)in_1.raw_data_const();
-    auto out_ptr = (__fp16*)out_0.raw_data();
-    
-    hvx_mul_ahf(in_ptr, in2_ptr, out_ptr, size);
+    if (dtype == DType::Float16) {
+        auto in_ptr = (__fp16 *)in_0.raw_data_const();
+        auto in2_ptr = (__fp16 *)in_1.raw_data_const();
+        auto out_ptr = (__fp16 *)out_0.raw_data();
 
-  } else {
-    auto in_ptr = (float*)in_0.raw_data_const();
-    auto in2_ptr = (float*)in_1.raw_data_const();
-    auto out_ptr = (float*)out_0.raw_data();
+        hvx_mul_ahf(in_ptr, in2_ptr, out_ptr, size);
 
-    hvx_mul_af(in_ptr, in2_ptr, out_ptr, size);
-  }
+    } else {
+        auto in_ptr = (float *)in_0.raw_data_const();
+        auto in2_ptr = (float *)in_1.raw_data_const();
+        auto out_ptr = (float *)out_0.raw_data();
 
-  return GraphStatus::Success;
+        hvx_mul_af(in_ptr, in2_ptr, out_ptr, size);
+    }
+
+    return GraphStatus::Success;
 }
 
 #else
 
-
-template<typename TensorType>
-GraphStatus llamamulImpl(TensorType& out_0,
-                         const TensorType& in_0,
-                         const TensorType& in_1)
+template <typename TensorType>
+GraphStatus llamamulImpl(TensorType &out_0,
+                         const TensorType &in_0,
+                         const TensorType &in_1)
 
 {
-  /*
-   * add code here
-   * */
-  /*
-   * To have good performance and stability, it is required to avoid heap memory
-   * allocation in this function. The heap memory allocation includes but not
-   * limited to calling malloc, operator new, constructing STL container objects
-   * like std::vector with default allocator, and adding items like calling
-   * std::vector::push_back to STL container objects with default allocator.
-   *
-   * Please check in SDK documentation for more information.
-   */
-   out_0.set_dims(in_0);
+    /*
+     * add code here
+     * */
+    /*
+     * To have good performance and stability, it is required to avoid heap memory
+     * allocation in this function. The heap memory allocation includes but not
+     * limited to calling malloc, operator new, constructing STL container objects
+     * like std::vector with default allocator, and adding items like calling
+     * std::vector::push_back to STL container objects with default allocator.
+     *
+     * Please check in SDK documentation for more information.
+     */
+    out_0.set_dims(in_0);
 
-   DType dtype = in_0.get_dtype();
+    DType dtype = in_0.get_dtype();
 
-  
-  auto out_ptr = (__fp16*)out_0.raw_data();
-  auto in_ptr = (__fp16*)in_0.raw_data_const();
-  auto in_ptr2 = (__fp16*)in_1.raw_data_const();
+    auto out_ptr = (__fp16 *)out_0.raw_data();
+    auto in_ptr = (__fp16 *)in_0.raw_data_const();
+    auto in_ptr2 = (__fp16 *)in_1.raw_data_const();
 
-   auto [b_in, h_in, w_in, d_in] = in_0.dims();
-   for (Idx b = 0; b < b_in; b++) {
-      for (Idx h = 0; h < h_in; h++) {
-        for (Idx w = 0; w < w_in; w++) {
-          // mul
-          for (Idx d = 0; d < d_in; d++) {
+    auto [b_in, h_in, w_in, d_in] = in_0.dims();
+    for (Idx b = 0; b < b_in; b++) {
+        for (Idx h = 0; h < h_in; h++) {
+            for (Idx w = 0; w < w_in; w++) {
+                // mul
+                for (Idx d = 0; d < d_in; d++) {
+                    if (dtype == DType::Float16) {
+                        __fp16 inval = *in_ptr++;
+                        __fp16 inval2 = *in_ptr2++;
+                        __fp16 outval = inval * inval2;
 
-            if (dtype == DType::Float16) {
+                        *out_ptr++ = outval;
+                    }
 
-              __fp16 inval       = *in_ptr++;
-              __fp16 inval2       = *in_ptr2++;
-              __fp16 outval      = inval * inval2;
+                    if (dtype == DType::Float32) {
+                        float inval = in_0(b, h, w, d);
+                        float inval2 = in_1(b, h, w, d);
+                        float outval = inval * inval2;
 
-              *out_ptr++ = outval;
+                        out_0(b, h, w, d) = outval;
+                    }
+                }
             }
-
-            if (dtype == DType::Float32) {
-              float inval       = in_0(b, h, w, d);
-              float inval2       = in_1(b, h, w, d);
-              float outval      = inval * inval2;
-
-              out_0(b, h, w, d) = outval;
-            }
-            
-          }
         }
-      }
     }
-   
 
-  return GraphStatus::Success;
+    return GraphStatus::Success;
 }
-
-
 
 #endif
 
-__attribute__((unused)) static float llamamulCostFunc(const Op *op)
-{
-  /*
-   * add code here
-   * */
+__attribute__((unused)) static float llamamulCostFunc(const Op *op) {
+    /*
+     * add code here
+     * */
 
-  float cost = 0.0;  // add cost computation here
-  return cost;
+    float cost = 0.0; // add cost computation here
+    return cost;
 }
-
-
-
-
 
 /* At the bottom of the op file, call END_PKG_OP_DEFINITION(<name>),
    where <name> is as BEGIN_PKG_OP_DEFINITION

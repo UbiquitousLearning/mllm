@@ -41,10 +41,12 @@ void Tracer::addTensorFunction(TensorFunction *func,
 }
 
 void Tracer::trace(Module *model, vector<Tensor> inputs) {
-    inputs[0].setTtype(TensorType::NORMAL_TENSOR);
-    model->activation_tensors[inputs[0].name()] = std::shared_ptr<Tensor>(&inputs[0], [](Tensor *) {});
-    model->activation_tensors[inputs[0].name()]->setName(inputs[0].name());
-    model->activation_tensors[inputs[0].name()]->setModule(model);
+    for(auto& input : inputs) {
+        input.setTtype(TensorType::NORMAL_TENSOR);
+        model->activation_tensors[input.name()] = std::shared_ptr<Tensor>(&input, [](Tensor *) {});
+        model->activation_tensors[input.name()]->setName(input.name());
+        model->activation_tensors[input.name()]->setModule(model);
+    }
 
     Module::llm_model_ptr = model;
 

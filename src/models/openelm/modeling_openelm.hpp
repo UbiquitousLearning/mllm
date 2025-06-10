@@ -51,6 +51,7 @@ class OpenELMMultiHeadCausalAttention final : public Module {
     Softmax softmax;
 
     int iter = 0;
+    string attn_impl;
 
 public:
     OpenELMMultiHeadCausalAttention() = default;
@@ -60,6 +61,7 @@ public:
         q_heads_ = cfg.num_query_heads[layer_idx];
         k_heads_ = cfg.num_kv_heads[layer_idx];
         v_heads_ = cfg.num_kv_heads[layer_idx];
+        attn_impl = cfg.attn_implementation;
 
         qkv_proj = Linear(cfg.model_dim, (q_heads_ + k_heads_ + v_heads_) * head_dim_, false, base_name + "qkv_proj");
         q_rope = RoPE(cfg.RoPE_type, cfg.rope_freq_constant, cfg.rope_max_length, base_name + "q_rope");
@@ -70,8 +72,8 @@ public:
 
         out_proj = Linear(q_heads_ * head_dim_, cfg.model_dim, false, base_name + "out_proj");
 
-        k_cache = KVCache(k_heads_, head_dim_, q_heads_ / k_heads_, cfg.cache_limit, base_name + "k_cache");
-        v_cache = KVCache(v_heads_, head_dim_, q_heads_ / v_heads_, cfg.cache_limit, base_name + "v_cache");
+        k_cache = KVCache(k_heads_, head_dim_, q_heads_ / k_heads_, cfg.cache_limit, (attn_impl == "flash_attention_2"), base_name + "k_cache");
+        v_cache = KVCache(v_heads_, head_dim_, q_heads_ / v_heads_, cfg.cache_limit, (attn_impl == "flash_attention_2"), base_name + "v_cache");
 
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
@@ -98,13 +100,16 @@ public:
         k = k_cache(k);
         v = v_cache(v);
 
-        k = k.transpose(SEQUENCE, DIMENSION);
-        auto qk = Tensor::mm(q, k);
-
-        qk = qk / std::sqrt(head_dim_);
-
-        qk = softmax(qk, k_cache.getCacheSeqLen());
-        auto o = Tensor::mm(qk, v);
+        Tensor o;
+        if (attn_impl == "flash_attention_2") {
+            o = Tensor::flash_attention2_forward(q, k, v, true);
+        } else { // eager implementation
+            k = k.transpose(SEQUENCE, DIMENSION);
+            auto qk = Tensor::mm(q, k);
+            qk = qk / std::sqrt(head_dim_);
+            qk = softmax(qk, k_cache.getCacheSeqLen());
+            o = Tensor::mm(qk, v);
+        }
         o = o.view(-1, 1, -1, q_heads_ * head_dim_);
         o = out_proj(o);
 

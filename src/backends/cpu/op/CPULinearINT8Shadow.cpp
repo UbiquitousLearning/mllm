@@ -155,9 +155,9 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
     int8_t output_clip = outputClip_.dataAt<int8_t>(0, 0, 0, 0);
 
     input_scale = input_scale / 127.0;
-    input_scale = roundf(input_scale * 100000) / 100000;
+    // input_scale = roundf(input_scale * 100000) / 100000;
 
-    output_scale = roundf(output_scale * 100000) / 100000;
+    // output_scale = roundf(output_scale * 100000) / 100000;
 
     memcpy(outputs[0]->hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->cntSize());
 
@@ -173,7 +173,7 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
                     for (int j = 0; j < input0_buffer_.sequence(); j++) {
                         for (int k = 0; k < input0_buffer_.dimension(); k++) {
                             float round_value = roundf(input0_buffer_.dataAt<float>(i, h, j, k) / input_scale);
-                            if (round_value > (127.0 * 8) || round_value < (-128.0 * 8)) {
+                            if (round_value > (127.0) || round_value < (-128.0)) {
 #if defined(__ARM_NEON)
                                 float origin_value = round_value * input_scale * weight_scale;
                                 float clip_value = std::fmax(std::fmin(round_value, 127), -128) * input_scale * weight_scale;
@@ -213,7 +213,7 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
                                 }
 
 #else
-                                mllm_fp16_t origin_value = round_value * input_scale * weight_scale;
+                                float origin_value = round_value * input_scale * weight_scale;
                                 float clip_value = std::fmax(std::fmin(round_value, 127), -128) * input_scale * weight_scale;
 
 #pragma omp parallel for collapse(1) num_threads(4)
