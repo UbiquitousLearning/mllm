@@ -32,6 +32,8 @@ public:
         for_xnn_ = for_xnn;
     }
 
+    ErrorCode updateVerifiedKVCache(const std::vector<unsigned int> &verified_position_ids);
+
 private:
     int thread_count = 4;
 

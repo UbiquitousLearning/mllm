@@ -75,6 +75,28 @@ public:
         return execution_type;
     }
     // #endif
+
+
+    // #ifdef USE_SD
+    void setLastDraftLength(unsigned int draft_length) {
+        last_draft_length = draft_length;
+    }
+    void setLastVerifiedPositionIds(const std::vector<unsigned int> &verified_position_ids) {
+        last_verified_position_ids = verified_position_ids;
+    }
+    void setUsingDraft(bool _usingDraft) {
+        this->usingDraft = _usingDraft;
+    }
+    unsigned int getLastDraftLength() {
+        return last_draft_length;
+    }
+    std::vector<unsigned int> getLastVerifiedPositionIds() {
+        return last_verified_position_ids;
+    }
+    bool isUsingDraft() {
+        return usingDraft;
+    }
+    // #endif
 private:
     std::map<OpType, CPUBackend::Creator *> map_creator_;
     std::map<TensorFuncType, TensorFunction *> map_function_;
@@ -88,6 +110,13 @@ private:
     bool isSwitchingStage = false;
     ExecutionType execution_type = PROMPT;
     // #endif
+
+    // #ifdef USE_SD
+    bool usingDraft = false;
+    std::vector<unsigned int> last_verified_position_ids;
+    unsigned int last_draft_length = 0;
+    // #endif
+
 };
 
 } // namespace mllm

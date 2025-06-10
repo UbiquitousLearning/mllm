@@ -17,10 +17,12 @@
 #include "op/CPUView.hpp"
 #include "op/CPUAdd.hpp"
 #include "op/CPUCausalMask.hpp"
+#include "op/CPUCausalTreeMask.hpp"
 #include "op/CPUSlidingWindowMask.hpp"
 #include "op/CPUMatmul.hpp"
 #include "op/CPURMSNorm.hpp"
 #include "op/CPURoPE.hpp"
+#include "op/CPURoPETree.hpp"
 #include "op/CPUScale.hpp"
 #include "op/CPUSiLU.hpp"
 #include "op/CPUSoftMax.hpp"
@@ -134,10 +136,12 @@ void CPUBackend::registerOps() {
     addCreator(PARAMETER, (CPUBackend::Creator *)(new CPUParameterCreator()));
     addCreator(ADD, (CPUBackend::Creator *)(new CPUAddCreator()));
     addCreator(CAUSALMASK, (CPUBackend::Creator *)(new CPUCausalMaskCreator()));
+    addCreator(CAUSALTREEMASK, (CPUBackend::Creator *)(new CPUCausalTreeMaskCreator()));
     addCreator(SLIDINGWINDOWMASK, (CPUBackend::Creator *)(new CPUSlidingWindowMaskCreator()));
     addCreator(MATMUL, (CPUBackend::Creator *)(new CPUMatmulCreator()));
     addCreator(RMSNORM, (CPUBackend::Creator *)(new CPURMSNormCreator()));
     addCreator(ROPE, (CPUBackend::Creator *)(new CPURoPECreator()));
+    addCreator(ROPETREE, (CPUBackend::Creator *)(new CPURoPETreeCreator()));
     addCreator(SCALE, (CPUBackend::Creator *)(new CPUScaleCreator()));
     addCreator(SILU, (CPUBackend::Creator *)(new CPUSiLUCreator()));
     addCreator(SOFTMAX, (CPUBackend::Creator *)(new CPUSoftMaxCreator()));
@@ -336,6 +340,12 @@ std::vector<Tensor> CPUBackend::runFunc(
                     auto cache_seq_len_ = activation_tensors[shared_ot->name()]->shapeOffset()[2];
                     if (shared_ot->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
                         cache_seq_len_ = activation_tensors[shared_ot->name()]->masterTensor()->cache_seq_len_;
+                        auto cpuBackend = dynamic_cast<CPUBackend *>(backend);
+                        if (cpuBackend->isUsingDraft()) {
+                            unsigned int last_draft_length = cpuBackend->getLastDraftLength();
+                            const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+                            cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
+                        }
                     }
                     shared_ot->setDtype(activation_tensors[shared_ot->name()]->masterTensor()->dtype());
                     // masterTensor() 是Cache所以shape没有问题
@@ -353,6 +363,12 @@ std::vector<Tensor> CPUBackend::runFunc(
             auto cache_seq_len_ = activation_tensors[out_tensor->name()]->shapeOffset()[2];
             if (out_tensor->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
                 cache_seq_len_ = activation_tensors[out_tensor->name()]->masterTensor()->cache_seq_len_;
+                auto cpuBackend = dynamic_cast<CPUBackend *>(backend);
+                if (cpuBackend->isUsingDraft()) {
+                    unsigned int last_draft_length = cpuBackend->getLastDraftLength();
+                    const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+                    cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
+                }
             }
             out_tensor->setDtype(activation_tensors[out_tensor->name()]->masterTensor()->dtype());
             out_tensor->shallowCopyFrom(activation_tensors[out_tensor->name()]->masterTensor(), false, {0, 0, cache_seq_len_, 0});
@@ -492,6 +508,12 @@ std::vector<Tensor> CPUBackend::runLayer(Layer *layer, std::vector<Tensor> input
                     auto cache_seq_len_ = activation_tensors[shared_ot->name()]->shapeOffset()[2];
                     if (shared_ot->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
                         cache_seq_len_ = activation_tensors[shared_ot->name()]->masterTensor()->cache_seq_len_;
+                        auto cpuBackend = dynamic_cast<CPUBackend *>(layer->backend_);
+                        if (cpuBackend->isUsingDraft()) {
+                            unsigned int last_draft_length = cpuBackend->getLastDraftLength();
+                            const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+                            cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
+                        }
                     }
                     shared_ot->setDtype(activation_tensors[shared_ot->name()]->masterTensor()->dtype());
                     // masterTensor() 是Cache所以shape没有问题
@@ -509,6 +531,12 @@ std::vector<Tensor> CPUBackend::runLayer(Layer *layer, std::vector<Tensor> input
             auto cache_seq_len_ = activation_tensors[out_tensor->name()]->shapeOffset()[2];
             if (out_tensor->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
                 cache_seq_len_ = activation_tensors[out_tensor->name()]->masterTensor()->cache_seq_len_;
+                auto cpuBackend = dynamic_cast<CPUBackend *>(layer->backend_);
+                if (cpuBackend->isUsingDraft()) {
+                    unsigned int last_draft_length = cpuBackend->getLastDraftLength();
+                    const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+                    cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
+                }
             }
             out_tensor->setDtype(activation_tensors[out_tensor->name()]->masterTensor()->dtype());
             out_tensor->shallowCopyFrom(activation_tensors[out_tensors[0]->name()]->masterTensor(), false, {0, 0, cache_seq_len_, 0});
