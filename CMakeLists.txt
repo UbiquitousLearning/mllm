@@ -112,11 +112,11 @@ if (ARM AND NOT APK)
     set(MLLM_OPENMP_STATIC ON)
 endif ()
 # turn off openmp when build on mac or for mac
-if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING)
-    message(STATUS "mac detected, turn off openmp")
-    set(MLLM_OPENMP OFF)
-    set(MLLM_OPENMP_STATIC OFF)
-endif ()
+# if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING)
+#     message(STATUS "mac detected, turn off openmp")
+#     set(MLLM_OPENMP OFF)
+#     set(MLLM_OPENMP_STATIC OFF)
+# endif ()
 
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^(x86_64|i686|AMD64)$")
     message(STATUS "x86_64 detected")
@@ -271,24 +271,24 @@ if(APK)
         # models/smollm/tokenization_smollm.hpp
         # tokenizers/Unigram/Unigram.hpp
     )
-    target_link_libraries(mllm_lib MLLM_CPU)
+    target_link_libraries(mllm_lib lib_mllm_cpu)
 
     if(QNN)
-        target_link_libraries(mllm_lib MLLM_QNN)
+        target_link_libraries(mllm_lib lib_mllm_qnn)
     endif()
 endif()
 
 if(MLLM_ENABLE_PYTHON)
-    target_compile_options(MLLM_CPU PRIVATE -fPIC)
+    target_compile_options(lib_mllm_cpu PRIVATE -fPIC)
 
     find_package(Python3 COMPONENTS Interpreter Development)
     include_directories(${Python3_INCLUDE_DIRS})
     add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/pybind11)
 
     set(_py_dep_libs
-        MLLM_CPU
+        lib_mllm_cpu
 
-        # MLLM_QNN
+        # lib_mllm_qnn
         # ${CMAKE_DL_LIBS}
     )
 

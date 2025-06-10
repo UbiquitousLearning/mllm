@@ -34,20 +34,20 @@ endif()
 
 if(${MLLM_ENABLE_PYTHON})
 add_library(
-    MLLM_CPU
+    lib_mllm_cpu
     SHARED
     ${MLLM_CPU_SRC}
 )
 else()
 add_library(
-        MLLM_CPU
+        lib_mllm_cpu
         OBJECT
         ${MLLM_CPU_SRC}
 )
 endif()
 
 target_include_directories(
-        MLLM_CPU
+        lib_mllm_cpu
         PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
 )
@@ -56,16 +56,21 @@ if(OpenMP_FOUND)
     message(STATUS "found openmp")
     if(ARM AND NOT APK)
         message(STATUS "[ARM]  found openmp")
-        target_compile_options(MLLM_CPU PUBLIC -fopenmp)
-        target_link_libraries(MLLM_CPU PUBLIC -fopenmp -static-openmp)
+        target_compile_options(lib_mllm_cpu PUBLIC -fopenmp)
+        # tmac or for mac
+        if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING)
+            target_link_libraries(lib_mllm_cpu PUBLIC OpenMP::OpenMP_CXX)
+        else()
+            target_link_libraries(lib_mllm_cpu PUBLIC -fopenmp -static-openmp)
+        endif ()
     else()
-    target_link_libraries(MLLM_CPU
+    target_link_libraries(lib_mllm_cpu
             PUBLIC
             OpenMP::OpenMP_CXX
         )
     endif()
 endif()
 
-target_link_libraries(MLLM_CPU PUBLIC fmt::fmt-header-only)
+target_link_libraries(lib_mllm_cpu PUBLIC fmt::fmt-header-only)
 
-set_target_properties(MLLM_CPU PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+set_target_properties(lib_mllm_cpu PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)

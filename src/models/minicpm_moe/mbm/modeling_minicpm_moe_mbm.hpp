@@ -374,7 +374,7 @@ public:
             omp_set_max_active_levels(2); // Enable OpenMP nesting
 #pragma omp parallel num_threads(2)
             if (omp_get_thread_num() == 0) { // 根据线程ID决定执行哪个函数
-#if defined(__ARM_NEON)
+#if defined(__ARM_NEON) && !defined(__APPLE__)
                 // 绑定线程到特定的CPU核心
                 cpu_set_t cpuset;
                 CPU_ZERO(&cpuset);

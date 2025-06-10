@@ -18,7 +18,10 @@
 #include "Types.hpp"
 #include "pthreadpool.h"
 #include "xnnpack.h"
-
+namespace mllm {
+class Module;
+class Layer;
+}
 namespace mllm::xnnpack {
 
 class XnnpackModelRuntime {
@@ -168,6 +171,16 @@ public:
     void onExecuteStart(std::vector<shared_ptr<Tensor>> &inputs, std::vector<shared_ptr<Tensor>> &outputs, std::string graph_name) override;
 
     void onExecuteEnd(std::vector<std::shared_ptr<Tensor>> &outputs, const string &graph_name) override;
+
+
+    std::vector<Tensor> runFunc(
+        std::vector<std::string> out_names,
+        TensorFuncType type,
+        std::vector<float> float_args,
+        std::vector<std::shared_ptr<Tensor>> input_tensors,
+        bool in_place) override;
+    std::vector<Tensor> runLayer(Layer *layer, std::vector<Tensor> inputs, int N) override;
+    std::vector<Tensor> runForward(Module *module, std::vector<Tensor> inputs, std::vector<std::any> args) override;
 
     XnnpackCargo *getCurProcessingGraph();
 

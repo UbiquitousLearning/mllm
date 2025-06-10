@@ -38,7 +38,7 @@ bool ParamLoader::load(mllm::Tensor *tensor) {
         std::pair<uint64_t, uint64_t> offset = offsets_[name];
         auto *p = tensor->hostPtr<char>();
         fseek(fp_, offset.first, SEEK_SET);
-        size_t read_size = std::min(tensor->cntSize(), offset.second);
+        size_t read_size = std::min(tensor->cntSize(), static_cast<size_t>(offset.second));
         auto _ = fread(p, sizeof(uint8_t), read_size, fp_);
 
         /*
@@ -80,7 +80,7 @@ bool ParamLoader::load(mllm::Tensor *tensor) {
         uint8_t *source_ptr = buffer_ + offset_info.first;
 
         // 要拷贝的数据大小，取 tensor 大小和参数大小的最小值
-        size_t copy_size = std::min(tensor->cntSize(), offset_info.second);
+        size_t copy_size = std::min(tensor->cntSize(), static_cast<size_t>(offset_info.second));
 
         // 从内存映射的 buffer_ 拷贝数据到 tensor
         memcpy(static_cast<void *>(p), static_cast<const void *>(source_ptr), copy_size);

@@ -396,7 +396,7 @@ public:
             omp_set_max_active_levels(2); // Enable OpenMP nesting
 #pragma omp parallel num_threads(2)
             if (omp_get_thread_num() == 0) { // 根据线程ID决定执行哪个函数
-#if defined(__ARM_NEON)
+#if defined(__ARM_NEON)&& !defined(__APPLE__)
                 {
                     struct sched_param param;
                     param.sched_priority = 20; // 范围 1–99，根据设备可酌情调整

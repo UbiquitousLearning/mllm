@@ -13,7 +13,7 @@ if(MLLM_BUILD_XNNPACK_BACKEND)
             ${PROJECT_SOURCE_DIR}/test/xnnpack/*.cpp
     )
     list(APPEND MLLM_XNNPACK_BACKEND_TEST_SRC ${_MLLM_XNNPACK_BACKEND_TEST_SRC})
-    list(APPEND MLLM_XNNPACK_BACKEND_TEST_DEP_LIB MllmXnnpackBackend)
+    list(APPEND MLLM_XNNPACK_BACKEND_TEST_DEP_LIB lib_mllm_xnnpack)
     list(REMOVE_ITEM MLLM_XNNPACK_BACKEND_TEST_SRC ${PROJECT_SOURCE_DIR}/test/xnnpack/XpEmbeddingTest.cpp)
 endif()
 
@@ -53,7 +53,7 @@ add_executable(
 target_link_libraries(
         MLLM_TEST
         GTest::gtest_main
-        MLLM_CPU
+        lib_mllm_cpu
         -fopenmp
         ${MLLM_XNNPACK_BACKEND_TEST_DEP_LIB}
 )

@@ -126,7 +126,7 @@ void XpBroadcastMulFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<
     }
 }
 
-void XpBroadcastDivFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
+void XpBroadcastDivFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
@@ -166,7 +166,7 @@ void XpBroadcastDivFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<
     }
 }
 
-void XpTTAddFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
+void XpTTAddFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
@@ -197,7 +197,7 @@ void XpTTAddFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<shared_
     }
 }
 
-void XpTTSubFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
+void XpTTSubFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
@@ -228,7 +228,7 @@ void XpTTSubFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<shared_
     }
 }
 
-void XpTTMulFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
+void XpTTMulFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
@@ -259,7 +259,7 @@ void XpTTMulFunction::execute(vector<shared_ptr<Tensor>> outputs, vector<shared_
     }
 }
 
-void XpTTDivFunction::setup(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
+void XpTTDivFunction::reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {
     // reshape
     auto input = inputs[0];
     auto output = outputs[0];
