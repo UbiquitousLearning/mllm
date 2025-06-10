@@ -585,9 +585,15 @@ public:
         return ts[0];
     }
     int getCacheSeqLen() {
+        if (op_ == nullptr) {
+            return -1;
+        }
         return op_->getCacheSeqLen();
     }
     void clearCache() {
+        if (op_ == nullptr) {
+            return;
+        }
         return op_->clearCache();
     }
 };

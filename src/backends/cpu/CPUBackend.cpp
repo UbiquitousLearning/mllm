@@ -340,6 +340,12 @@ std::vector<Tensor> CPUBackend::runFunc(
                     auto cache_seq_len_ = activation_tensors[shared_ot->name()]->shapeOffset()[2];
                     if (shared_ot->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
                         cache_seq_len_ = activation_tensors[shared_ot->name()]->masterTensor()->cache_seq_len_;
+                        auto cpuBackend = dynamic_cast<CPUBackend *>(backend);
+                        if (cpuBackend->isUsingDraft()) {
+                            unsigned int last_draft_length = cpuBackend->getLastDraftLength();
+                            const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+                            cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
+                        }
                     }
                     shared_ot->setDtype(activation_tensors[shared_ot->name()]->masterTensor()->dtype());
                     // masterTensor() 是Cache所以shape没有问题
@@ -357,6 +363,12 @@ std::vector<Tensor> CPUBackend::runFunc(
             auto cache_seq_len_ = activation_tensors[out_tensor->name()]->shapeOffset()[2];
             if (out_tensor->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
                 cache_seq_len_ = activation_tensors[out_tensor->name()]->masterTensor()->cache_seq_len_;
+                auto cpuBackend = dynamic_cast<CPUBackend *>(backend);
+                if (cpuBackend->isUsingDraft()) {
+                    unsigned int last_draft_length = cpuBackend->getLastDraftLength();
+                    const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+                    cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
+                }
             }
             out_tensor->setDtype(activation_tensors[out_tensor->name()]->masterTensor()->dtype());
             out_tensor->shallowCopyFrom(activation_tensors[out_tensor->name()]->masterTensor(), false, {0, 0, cache_seq_len_, 0});
@@ -496,6 +508,12 @@ std::vector<Tensor> CPUBackend::runLayer(Layer *layer, std::vector<Tensor> input
                     auto cache_seq_len_ = activation_tensors[shared_ot->name()]->shapeOffset()[2];
                     if (shared_ot->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
                         cache_seq_len_ = activation_tensors[shared_ot->name()]->masterTensor()->cache_seq_len_;
+                        auto cpuBackend = dynamic_cast<CPUBackend *>(layer->backend_);
+                        if (cpuBackend->isUsingDraft()) {
+                            unsigned int last_draft_length = cpuBackend->getLastDraftLength();
+                            const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+                            cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
+                        }
                     }
                     shared_ot->setDtype(activation_tensors[shared_ot->name()]->masterTensor()->dtype());
                     // masterTensor() 是Cache所以shape没有问题
@@ -513,6 +531,12 @@ std::vector<Tensor> CPUBackend::runLayer(Layer *layer, std::vector<Tensor> input
             auto cache_seq_len_ = activation_tensors[out_tensor->name()]->shapeOffset()[2];
             if (out_tensor->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
                 cache_seq_len_ = activation_tensors[out_tensor->name()]->masterTensor()->cache_seq_len_;
+                auto cpuBackend = dynamic_cast<CPUBackend *>(layer->backend_);
+                if (cpuBackend->isUsingDraft()) {
+                    unsigned int last_draft_length = cpuBackend->getLastDraftLength();
+                    const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+                    cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
+                }
             }
             out_tensor->setDtype(activation_tensors[out_tensor->name()]->masterTensor()->dtype());
             out_tensor->shallowCopyFrom(activation_tensors[out_tensors[0]->name()]->masterTensor(), false, {0, 0, cache_seq_len_, 0});

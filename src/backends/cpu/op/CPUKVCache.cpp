@@ -98,6 +98,7 @@ ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs,
         unsigned int last_draft_length = cpuBackend->getLastDraftLength();
         const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
         cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
+        cache_.cache_seq_len_ = cache_seq_len_;
     }
 
     int sequence = inputs[0]->sequence() + cache_seq_len_;
