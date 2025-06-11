@@ -1,5 +1,6 @@
 
 #include "CPUParameter.hpp"
+#include <cstddef>
 
 namespace mllm {
 
@@ -14,6 +15,12 @@ CPUParameter::CPUParameter(Backend *bn, string opName, int batch, int head, int 
 }
 
 ErrorCode CPUParameter::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    // outputs[0] = std::make_shared<Tensor>(weight_);
+
+    if (outputs[0]->masterTensor() == nullptr) {
+        outputs[0]->shallowCopyFrom(&weight_, false);
+    }
+
     outputs[0]->reshape(batch_, head_, seq_, dim_);
     return Op::reshape(inputs, outputs);
 }
@@ -33,6 +40,8 @@ ErrorCode CPUParameter::load(AbstructLoader &loader) {
 }
 
 ErrorCode CPUParameter::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    // outputs[0] = std::make_shared<Tensor>(weight_);
+
     if (outputs[0]->masterTensor()->name() != weight_.name()) {
         if (outputs[0]->masterTensor() == nullptr) {
             // outputs[0]->copyFrom(weight_);
@@ -64,6 +73,7 @@ ErrorCode CPUParameter::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
             }
         }
     }
+
     return Op::execute(inputs, outputs);
 }
 

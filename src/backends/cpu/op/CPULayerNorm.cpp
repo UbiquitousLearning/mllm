@@ -5,26 +5,26 @@
 #include "CPULayerNorm.hpp"
 
 namespace mllm {
-CPULayerNorm::CPULayerNorm(Backend *bn, string opName,int normSize,bool bias, float epsilon, int threadCount) : thread_count(threadCount),
-    Op(bn, std::move(opName)), epsilon_(epsilon),bias(bias) {
+CPULayerNorm::CPULayerNorm(Backend *bn, string opName, int normSize, bool bias, float epsilon, int threadCount) :
+    thread_count(threadCount),
+    Op(bn, std::move(opName)), epsilon_(epsilon), bias(bias) {
     normSize_ = normSize;
     weight_.setBackend(bn);
     if (bias) {
         bias_.setBackend(bn);
     }
-
 }
 ErrorCode CPULayerNorm::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, 1, normSize_); //
-     if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
-         weight_.setDtype(loader.getDataType(weight_.name()));
-         weight_.alloc();
-         loader.load(&weight_);
-     } else {
-         weight_.setDtype(MLLM_TYPE_F32);
-         weight_.alloc();
-     }
+    if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
+        weight_.setDtype(loader.getDataType(weight_.name()));
+        weight_.alloc();
+        loader.load(&weight_);
+    } else {
+        weight_.setDtype(MLLM_TYPE_F32);
+        weight_.alloc();
+    }
     if (bias) {
         bias_.setName(name() + ".bias");
         bias_.reshape(1, 1, 1, normSize_); //
@@ -58,14 +58,14 @@ ErrorCode CPULayerNorm::execute(vector<shared_ptr<Tensor>> inputs, vector<shared
             for (int s = 0; s < seq; s++) {
                 float sum_squares = 0.0F;
                 float sum = 0.0F;
-// sum
-// #pragma omp parallel for reduction(+ : sum_squares) reduction(+ : sum) num_threads(thread_count)
+                // sum
+                // #pragma omp parallel for reduction(+ : sum_squares) reduction(+ : sum) num_threads(thread_count)
                 for (int d = 0; d < dim; d++) {
                     float value = input->dataAt<float>(n, h, s, d);
                     sum += value;
                 }
                 float mean = sum / dim;
-// #pragma omp parallel for reduction(+ : sum_squares) num_threads(thread_count)
+                // #pragma omp parallel for reduction(+ : sum_squares) num_threads(thread_count)
                 for (int d = 0; d < dim; d++) {
                     float value = input->dataAt<float>(n, h, s, d);
                     sum_squares += (value - mean) * (value - mean);

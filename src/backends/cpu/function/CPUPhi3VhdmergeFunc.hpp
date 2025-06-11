@@ -13,7 +13,7 @@ class Tensor;
 
 class CPUPhi3VhdmergeFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         assert(args.size() == 2);
         int h_crop = (int)args[0];
         int w_crop = (int)args[1];
@@ -35,7 +35,7 @@ public:
         outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int h_crop = (int)args[0];
         int w_crop = (int)args[1];
         int N = inputs[0]->batch();

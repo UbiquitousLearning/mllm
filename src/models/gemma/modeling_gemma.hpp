@@ -134,6 +134,9 @@ public:
 
         // go through model
         auto outputs = model({x})[0];
+        if (outputs.sequence() > 1) {
+            outputs = outputs.clip({}, {}, {-1}, {});
+        }
         outputs = Tensor::mm(outputs, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         return {outputs};
     }

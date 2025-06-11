@@ -13,7 +13,39 @@ class Tensor;
 
 class CPUflattenFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setUp(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+        // inputs[0]->shallowCopyFrom(outputs[0].get(), false);
+        Chl axis_start = (Chl)args[0];
+        Chl axis_end = (Chl)args[1];
+        if ((axis_start == TIME & axis_end == WIDTH && inputs[0]->ctype() == BCTHW)
+            || (axis_start == CHANNLE & axis_end == HEIGHT && inputs[0]->ctype() == BWCTH)
+            || (axis_start == HEIGHT & axis_end == CHANNLE && inputs[0]->ctype() == BTHWC)
+            || (axis_start == BATCH & axis_end == SEQUENCE && inputs[0]->ctype() != BCTHW)
+            || (axis_start == HEAD & axis_end == SEQUENCE && inputs[0]->ctype() == BSHD)
+            || (axis_start == HEAD & axis_end == SEQUENCE && inputs[0]->ctype() == BHDS)
+            || (axis_start == HEAD & axis_end == SEQUENCE && inputs[0]->ctype() == BDHS)
+            || (axis_start == HEAD & axis_end == DIMENSION && inputs[0]->ctype() == BSHD)
+            || (axis_start == HEAD & axis_end == DIMENSION && inputs[0]->ctype() == BHDS)
+            || (axis_start == HEAD & axis_end == SEQUENCE && inputs[0]->ctype() == BDSH)) {
+            if (inputs[0]->masterTensor() == nullptr) {
+                inputs[0]->free();
+            }
+            outputs[0]->setDtype(inputs[0]->dtype());
+            outputs[0]->alloc();
+            inputs[0]->shallowCopyFrom(outputs[0].get(), false);
+        } else if (Module::llm_model_ptr->op_transposed_flag) {
+            if (inputs[0]->masterTensor() == nullptr) {
+                inputs[0]->free();
+            }
+            outputs[0]->setDtype(inputs[0]->dtype());
+            outputs[0]->alloc();
+            inputs[0]->shallowCopyFrom(outputs[0].get(), false);
+        } else {
+            std::cout << "[TODO]Tensor.Flatten not support!!!!" << std::endl;
+        }
+    }
+
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         Chl axis_start = (Chl)args[0];
         Chl axis_end = (Chl)args[1];
         int dim_b = inputs[0]->batch();
@@ -48,7 +80,16 @@ public:
             }
         }
         assert(dim_d + dim_s + dim_h > 0);
+        if (inputs[0]->ctype() == BCTHW) { // TODOTMPA
+            outputs[0]->chls()[BATCH] = 0;
+            outputs[0]->chls()[SEQUENCE] = 1;
+            outputs[0]->chls()[HEAD] = 2;
+            outputs[0]->chls()[DIMENSION] = 3;
+            outputs[0]->setCtype(BSHD);
+        }
         outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
+
+        /*
         if ((axis_start == TIME & axis_end == WIDTH && inputs[0]->ctype() == BCTHW)
             || (axis_start == CHANNLE & axis_end == HEIGHT && inputs[0]->ctype() == BWCTH)
             || (axis_start == HEIGHT & axis_end == CHANNLE && inputs[0]->ctype() == BTHWC)
@@ -64,21 +105,22 @@ public:
             }
             outputs[0]->setDtype(inputs[0]->dtype());
             outputs[0]->alloc();
-            inputs[0]->shallowCopyFrom(outputs[0], false);
+            inputs[0]->shallowCopyFrom(outputs[0].get(), false);
         } else if (Module::llm_model_ptr->op_transposed_flag) {
             if (inputs[0]->masterTensor() == nullptr) {
                 inputs[0]->free();
             }
             outputs[0]->setDtype(inputs[0]->dtype());
             outputs[0]->alloc();
-            inputs[0]->shallowCopyFrom(outputs[0], false);
+            inputs[0]->shallowCopyFrom(outputs[0].get(), false);
             return;
         } else {
             std::cout << "[TODO]Tensor.Flatten not support!!!!" << std::endl;
         }
+        */
     }
 
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
     }
 };
 

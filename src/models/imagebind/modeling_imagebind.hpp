@@ -30,7 +30,7 @@ public:
         }
         attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size,
                                        SPLIT_HD, false, bias_kv_cat,
-                                       RoPEType::NONE, -1,-1,0, do_mask, true,
+                                       RoPEType::NONE, -1, -1, 0, do_mask, true,
                                        names, base_name + names._attn_base_name);
         ffn = FeedForward(hidden_dim, ffn_hidden, "GELU", true,
                           names, base_name + names._ffn_base_name);
@@ -80,7 +80,7 @@ class ImagebindVisionModel final : public Module {
 
 public:
     ImagebindVisionModel() = default;
-    ImagebindVisionModel(const ImagebindConfig &config):
+    ImagebindVisionModel(const ImagebindConfig &config) :
         ImagebindVisionModel(config.vision_hidden_dim, config.vision_head_size, config.vision_ffn_hidden, config.head_hidden_dim,
                              config.patch, config.patch_time, config.img_hw, config.vision_block_num,
                              config.names_config){};
@@ -132,7 +132,7 @@ class ImagebindTextModel final : public Module {
 
 public:
     ImagebindTextModel() = default;
-    ImagebindTextModel(const ImagebindConfig &config):
+    ImagebindTextModel(const ImagebindConfig &config) :
         ImagebindTextModel(config.text_hidden_dim, config.text_head_size, config.text_ffn_hidden, config.head_hidden_dim,
                            config.vocab_size, config.max_position_embeddings, config.text_block_num,
                            config.names_config){};
@@ -150,7 +150,7 @@ public:
         for (auto &block : blocks) {
             x = block({x})[0];
         }
-        x = x.clip(BATCH,  {}, {}, in_len_, {});
+        x = x.clip(BATCH, {}, {}, in_len_, {});
         x = norm(x);
         x = head(x);
         x = x / x.norm(2);
@@ -158,7 +158,6 @@ public:
         return {x};
     }
 };
-
 
 class ImagebindAudioEmbedding final : public Module {
     Layer patch_embedding;
@@ -172,10 +171,10 @@ public:
         patch_embedding = Convolution2D(1, hidden_dim, {patch, patch}, {stride, stride}, VALID, false, base_name + names._rgbt_stem_name);
         norm_layer = LayerNorm(hidden_dim, true, 1e-6, base_name + names._norm_layer_name);
         cls_token = Parameter(1, 1, 1, hidden_dim, base_name + names._cls_token_name);
-        int seq_len = (int)((img_h - patch) / stride+ 1) * (int)((img_w - patch) / stride+ 1) +1;
+        int seq_len = (int)((img_h - patch) / stride + 1) * (int)((img_w - patch) / stride + 1) + 1;
         position_embeddings = Parameter(1, seq_len, 1, hidden_dim, base_name + names._helper_pos_embed_name);
     }
-    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override  {
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto embd = patch_embedding(inputs[0]);
         embd = embd.transpose({{SEQUENCE, DIMENSION}, {HEAD, SEQUENCE}});
         embd = embd.flatten(HEAD, SEQUENCE);
@@ -194,13 +193,14 @@ class ImagebindAudioModel final : public Module {
 
 public:
     ImagebindAudioModel() = default;
-    ImagebindAudioModel(const ImagebindConfig &config):
-        ImagebindAudioModel(config.audio_hidden_dim, config.audio_head_size, config.audio_ffn_hidden, config.head_hidden_dim,
+    ImagebindAudioModel(const ImagebindConfig &config) :
+        ImagebindAudioModel(config.audio_hidden_dim, config.audio_head_size,
+                            config.audio_ffn_hidden, config.head_hidden_dim,
                             config.audio_kernal, config.audio_stride, config.audio_h, config.audio_w, config.audio_block_num,
                             config.names_config){};
     ImagebindAudioModel(int hidden_dim, int head_size, int ffn_hidden, int head_hidden_dim,
-                         int patch, int stride, int img_h, int img_w, int block_num,
-                         const ImagebindNameConfig &names) {
+                        int patch, int stride, int img_h, int img_w, int block_num,
+                        const ImagebindNameConfig &names) {
         embedding = ImagebindAudioEmbedding(hidden_dim, patch, stride, img_h, img_w, names, names._audio_embd_name);
         blocks = List<EncoderBlock>(block_num, hidden_dim, head_size, ffn_hidden, "audio", names, names._audio_blocks_name);
         norm = LayerNorm(hidden_dim, true, 1e-6, names.audio_post_norm_name);
@@ -212,7 +212,7 @@ public:
             x = block({x})[0];
         }
         x = norm(x);
-        x = x.clip(  {}, {}, {0}, {});
+        x = x.clip({}, {}, {0}, {});
         x = head(x);
         x = x / x.norm(2);
         x = x * 20;
@@ -246,12 +246,12 @@ public:
         vision_model = ImagebindVisionModel(vision_hidden_dim, vision_head_size, vision_ffn_hidden, head_hidden_dim,
                                             patch, patch_time, img_hw, vision_block_num, names);
         audio_model = ImagebindAudioModel(audio_hidden_dim, audio_head_size, audio_ffn_hidden, head_hidden_dim,
-                                            audio_kernal, audio_stride, audio_h, audio_w, audio_block_num, names);
+                                          audio_kernal, audio_stride, audio_h, audio_w, audio_block_num, names);
         softmax = Softmax(DIMENSION, "final.softmax1");
         softmax2 = Softmax(DIMENSION, "final.softmax2");
     }
-    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
 
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         vector<int> in_len_ = std::any_cast<vector<int>>(args[0]);
         auto text = text_model({inputs[0]}, in_len_)[0];
         auto vision = vision_model({inputs[1]})[0];

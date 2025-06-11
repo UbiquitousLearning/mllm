@@ -8,6 +8,7 @@ cmake .. ^
 -DCMAKE_BUILD_TYPE=Release ^
 -DANDROID_ABI="arm64-v8a" ^
 -DANDROID_NATIVE_API_LEVEL=android-28 ^
+-DCMAKE_CXX_FLAGS="-march=armv8.2-a+dotprod" ^
 -DNATIVE_LIBRARY_OUTPUT=. -DNATIVE_INCLUDE_OUTPUT=. %1 %2 %3 ^
 -DDEBUG=OFF ^
 -DTEST=OFF ^

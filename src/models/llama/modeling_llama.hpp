@@ -91,6 +91,9 @@ public:
             x = block({x})[0];
         }
         x = norm(x);
+        if (x.sequence() > 1) {
+            x = x.clip({}, {}, {-1}, {});
+        }
         x = lm_head(x);
         return {x};
     }

@@ -13,7 +13,7 @@ class Tensor;
 
 class CPUexpandFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int b = (int)args[0];
         int h = (int)args[1];
         int s = (int)args[2];
@@ -39,7 +39,7 @@ public:
         outputs[0]->reshape(dim_b, dim_h, dim_s, dim_d);
         outputs[0]->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         int b = (int)args[0];
         int h = (int)args[1];
         int s = (int)args[2];

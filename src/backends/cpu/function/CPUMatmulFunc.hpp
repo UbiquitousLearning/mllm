@@ -62,19 +62,28 @@ class CPUmmFunction : public TensorFunction {
     }
 
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void setUp(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         if (inputs[1]->chls()[SEQUENCE] != 3) {
             tranTensorChl(*inputs[1]);
         }
+        if (!inputs[1]->shape().empty() && !inputs[0]->shape().empty()) {
+            assert(inputs[0]->dimension() == inputs[1]->sequence());
+        }
+    }
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
+        if (inputs[1]->chls()[SEQUENCE] != 3) {
+            tranTensorChl(*inputs[1]);
+            assert(inputs[1]->chls()[SEQUENCE] == 3);
+        }
         assert(inputs[0]->dimension() == inputs[1]->sequence());
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[1]->dimension());
-        outputs[0]->setDtype(inputs[0]->dtype());
+        // outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         bool isSame = std::equal(inputs[0]->chls().begin(), inputs[0]->chls().end(), inputs[1]->chls().begin());
         assert(inputs[0]->dtype() == MLLM_TYPE_F32);
-        mat_mul(inputs[0], inputs[1], outputs[0], false, nullptr, false, isSame, CPUBackend::cpu_threads);
+        mat_mul(inputs[0].get(), inputs[1].get(), outputs[0].get(), false, nullptr, false, isSame, CPUBackend::cpu_threads);
     }
 };
 } // namespace mllm

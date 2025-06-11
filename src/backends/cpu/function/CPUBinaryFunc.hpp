@@ -14,7 +14,7 @@ class Tensor;
 
 class CPUaddFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         // float data = (float)args[0];
         auto input = inputs[0];
         auto output = outputs[0];
@@ -22,7 +22,7 @@ public:
         output->setDtype(input->dtype());
         output->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         float data = (float)args[0];
         auto input = inputs[0];
         auto output = outputs[0];
@@ -39,14 +39,14 @@ public:
 };
 class CPUsubFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         auto input = inputs[0];
         auto output = outputs[0];
         output->reshape(input->batch(), input->head(), input->sequence(), input->dimension());
         output->setDtype(input->dtype());
         output->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         float data = (float)args[0];
         auto input = inputs[0];
         auto output = outputs[0];
@@ -63,14 +63,14 @@ public:
 };
 class CPUmulFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         auto input = inputs[0];
         auto output = outputs[0];
         output->reshape(input->batch(), input->head(), input->sequence(), input->dimension());
         output->setDtype(input->dtype());
         output->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         float data = (float)args[0];
         auto input = inputs[0];
         auto output = outputs[0];
@@ -87,14 +87,14 @@ public:
 };
 class CPUdivFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         auto input = inputs[0];
         auto output = outputs[0];
         output->reshape(input->batch(), input->head(), input->sequence(), input->dimension());
         output->setDtype(input->dtype());
         output->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         float data = (float)args[0];
         auto input = inputs[0];
         auto output = outputs[0];
@@ -112,14 +112,14 @@ public:
 
 class CPUdivintFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         auto input = inputs[0];
         auto output = outputs[0];
         output->reshape(input->batch(), input->head(), input->sequence(), input->dimension());
         output->setDtype(input->dtype());
         output->alloc();
     }
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         float data = (float)args[0];
         auto input = inputs[0];
         auto output = outputs[0];
@@ -139,13 +139,13 @@ public:
 
 class CPUaddTwoFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         outputs[0]->reshape(std::max(inputs[0]->batch(), inputs[1]->batch()),
                             inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
         outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
     };
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         auto input0 = inputs[0];
         auto input1 = inputs[1];
         int batch_ = std::max(input0->batch(), input1->batch());
@@ -165,13 +165,13 @@ public:
 };
 class CPUsubTwoFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         outputs[0]->reshape(std::max(inputs[0]->batch(), inputs[1]->batch()),
                             inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
         outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
     };
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         auto input0 = inputs[0];
         auto input1 = inputs[1];
         int batch_ = std::max(input0->batch(), input1->batch());
@@ -191,13 +191,13 @@ public:
 };
 class CPUmulTwoFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         outputs[0]->reshape(std::max(inputs[0]->batch(), inputs[1]->batch()),
                             inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
         outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
     };
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         if (outputs[0]->sequence() == 0
             || inputs[0]->sequence() != outputs[0]->sequence()) {
             outputs[0]->reshape(std::max(inputs[0]->batch(), inputs[1]->batch()),
@@ -229,13 +229,13 @@ public:
 };
 class CPUdivTwoFunction : public TensorFunction {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         outputs[0]->reshape(std::max(inputs[0]->batch(), inputs[1]->batch()),
                             inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
         outputs[0]->setDtype(inputs[0]->dtype());
         outputs[0]->alloc();
     };
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override {
         auto input0 = inputs[0];
         auto input1 = inputs[1];
         int batch_ = std::max(input0->batch(), input1->batch());

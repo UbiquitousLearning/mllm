@@ -17,8 +17,8 @@ namespace mllm::xnnpack {
 
 class XpMatmulFunction : public TensorFunction, public XpTensorDefineInterface<XpMatmulFunction> {
 public:
-    void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override;
+    void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override;
 
-    void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override;
+    void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) override;
 };
 } // namespace mllm::xnnpack

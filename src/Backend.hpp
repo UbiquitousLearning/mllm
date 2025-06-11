@@ -6,6 +6,7 @@
 #include "Types.hpp"
 #include <memory>
 #include <unordered_map>
+#include <any>
 using std::shared_ptr;
 using std::unordered_map;
 namespace mllm {
@@ -13,6 +14,8 @@ class Op;
 
 class Tensor;
 class Backend;
+class Module;
+class Layer;
 
 // KVCache map for QNN-CPU KVCache sharing
 #ifdef USE_QNN
@@ -21,8 +24,9 @@ static std::unordered_map<string, Op *> kv_cache_map;
 
 class TensorFunction {
 public:
-    virtual void setup(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) = 0;
-    virtual void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) = 0;
+    virtual void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) = 0;
+    virtual void setUp(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args){};
+    virtual void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) = 0;
 };
 class Backend {
 public:
@@ -59,10 +63,29 @@ public:
     virtual Op *opCreate(const OpParam &op_param, string name = "", int threadCount = 4) = 0;
     virtual TensorFunction *funcCreate(TensorFuncType type) = 0;
 
-    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") {};
-    virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") {};
-    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") {};
-    virtual void onExecuteEnd(std::vector<std::shared_ptr<Tensor>> &outputs, const string &graph_name = "") {};
+    /**
+     * @brief Runs a function with the given parameters.
+     *
+     * @param out_names The names of the output tensors.
+     * @param type The type of the function to be run.
+     * @param float_args The float arguments for the function.
+     * @param input_tensors The input tensors for the function.
+     * @param in_place Whether to run the function in place.
+     * @return std::vector<Tensor> The output tensors.
+     */
+    virtual std::vector<Tensor> runFunc(
+        std::vector<std::string> out_names,
+        TensorFuncType type,
+        std::vector<float> float_args,
+        std::vector<std::shared_ptr<Tensor>> input_tensors,
+        bool in_place) = 0;
+    virtual std::vector<Tensor> runLayer(Layer *layer, std::vector<Tensor> inputs, int N) = 0;
+    virtual std::vector<Tensor> runForward(Module *module, std::vector<Tensor> inputs, std::vector<std::any> args) = 0;
+
+    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
+    virtual void onExecuteEnd(std::vector<std::shared_ptr<Tensor>> &outputs, const string &graph_name = ""){};
 
     /**
      * \brief Registers all the operations supported by the backend.

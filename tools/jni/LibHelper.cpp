@@ -16,6 +16,8 @@
 #include "models/bert/tokenization_bert.hpp"
 #include "models/fuyu/configuration_fuyu.hpp"
 #include "models/fuyu/modeling_fuyu.hpp"
+#include "models/qwen2_vl/modeling_qwen2_vl.hpp"
+#include "models/qwen2_vl/processing_qwen2_vl.hpp"
 #include "models/phonelm/configuration_phonelm.hpp"
 #include "models/phonelm/modeling_phonelm.hpp"
 #include "models/qwen/configuration_qwen.hpp"
@@ -53,6 +55,7 @@ unsigned int LibHelper::postProcessing(shared_ptr<Tensor> result, shared_ptr<Ten
 bool LibHelper::setUp(const std::string &base_path, std::string weights_path, std::string qnn_weights_path, std::string vocab_path, std::string merge_path, PreDefinedModel model, MLLMBackendType backend_type) {
     FuyuConfig fuyuconfig(tokens_limit, "8B");
     QWenConfig qwconfig(tokens_limit, "1.5B");
+    Qwen2VLConfig qwvlconfig(tokens_limit, "1.5B");
     BertConfig bertconfig;
     PhoneLMConfig phone_config(tokens_limit, "1.5B");
     vocab_path = base_path + vocab_path;
@@ -114,6 +117,10 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
     case FUYU:
         processor_ = new FuyuProcessor(vocab_path, 224, 224);
         module_ = make_shared<FuyuModel>(fuyuconfig);
+        break;
+    case QWEN2VL:
+        processor_ = new Qwen2VLProcessor(vocab_path, merge_path);
+        module_ = make_shared<Qwen2VLModel>(qwvlconfig);
         break;
     case Bert:
         tokenizer_ = make_shared<BertTokenizer>(vocab_path, true);
@@ -304,6 +311,27 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
             auto out_string = outputs.first;
             auto out_token = outputs.second;
             auto [end, string] = processor->postprocess(out_string);
+            output_string_ += string;
+            callback_(output_string_, !end, {});
+            if (!end) { break; }
+            chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
+        }
+        module_->clear_kvcache();
+    } else if (model_ == QWEN2VL) {
+        auto model = dynamic_cast<Qwen2VLModel *>(module_.get());
+        auto processor = dynamic_cast<Qwen2VLProcessor *>(processor_);
+        input_str = "Based on the screenshot of the page, I give a text description and you give its corresponding location. The coordinate represents a clickable location [x, y] for an element, which is a relative coordinate on the screenshot, scaled from 0 to 1.<|vision_start|><|image_pad|><|vision_end|>" + input_str;
+        input_str = processor->tokenizer->apply_chat_template(input_str);
+        auto input_tensors = processor->process(input_str, {image}, {image_length});
+        LOGE("Instruct:  %s", input_str.c_str());
+        LOGE("Tokens:  %d", input_tensors[0].sequence());
+        for (int step = 0; step < 100; step++) {
+            model->get_position_ids(input_tensors);
+            auto result = (*model)(input_tensors);
+            auto outputs = processor->detokenize(result[0]);
+            auto out_string = outputs.first;
+            auto out_token = outputs.second;
+            auto [end, string] = processor->tokenizer->postprocess(out_string);
             output_string_ += string;
             callback_(output_string_, !end, {});
             if (!end) { break; }

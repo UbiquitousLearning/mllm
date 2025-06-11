@@ -3,8 +3,6 @@
 //
 #include "ParamWriter.hpp"
 #include "ParamLoader.hpp"
-#include "backends/cpu/quantize/QuantizeQ4.hpp"
-#include "backends/cpu/quantize/QuantizeQ8.hpp"
 #include <string>
 #include "QuantWriter.hpp"
 
@@ -16,8 +14,8 @@ int main(int argc, char **argv) {
     auto input_path = std::string(argv[1]);
     auto output_path = std::string(argv[2]);
     auto quant_type = std::string(argv[3]);
-    // std::string input_path = "../models/minicpm-moe-8x2b-fp32.mllm";
-    // std::string output_path = "../models/minicpm-moe-8x2b-q4_0_4_4.mllm";
+    // std::string input_path = "../models/showui-2b-fp32.mllm";
+    // std::string output_path = "../models/showui-2b-q4_0_4_4.mllm";
     // std::string quant_type = "Q4_0_4_4";
     mllm::QuantWriter quant_writer(output_path, input_path);
     int param_count = quant_writer.readParams();
@@ -30,6 +28,10 @@ int main(int argc, char **argv) {
         quant_writer.quantParams(MLLM_TYPE_Q4_0);
     } else if (quant_type == "Q8_0") {
         quant_writer.quantParams(MLLM_TYPE_Q8_0);
+    } else if (quant_type == "Q2_K") {
+        quant_writer.quantParams(MLLM_TYPE_Q2_K);
+    } else if (quant_type == "Q3_K") {
+        quant_writer.quantParams(MLLM_TYPE_Q3_K);
     } else if (quant_type == "Q4_K") {
         quant_writer.quantParams(MLLM_TYPE_Q4_K);
     } else if (quant_type == "Q6_K") {

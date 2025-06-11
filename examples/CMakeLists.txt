@@ -64,6 +64,7 @@ func_llm_add_executable(demo_elastic_llama)
 func_llm_add_executable(demo_gemma)
 func_llm_add_executable(demo_gemma2)
 func_llm_add_executable(demo_qwen)
+func_llm_add_executable(demo_qwen3)
 func_llm_add_executable(demo_ds_qwen2)
 func_llm_add_executable(demo_mistral)
 func_llm_add_executable(demo_yi)
@@ -79,7 +80,8 @@ func_llm_add_executable(demo_bert)
 func_llm_add_executable(demo_phonelm)
 func_llm_add_executable(demo_llama3)
 func_llm_add_executable(demo_minicpm_moe_mbm)
-
+func_llm_add_executable(demo_qwen_sd)
+func_llm_add_executable(demo_minicpm_moe_mbp)
 
 
 func_vlm_add_executable(demo_llava)
@@ -90,6 +92,7 @@ func_vlm_add_executable(demo_imagebind)
 func_vlm_add_executable(demo_imagebind_1mod)
 func_vlm_add_executable(demo_phi3v)
 func_vlm_add_executable(demo_qwen2_vl)
+func_vlm_add_executable(demo_showui)
 # func_vlm_add_executable(demo)
 
 # QNN demo

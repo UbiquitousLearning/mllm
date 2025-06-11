@@ -19,10 +19,10 @@ else
     echo "qwen-1.5-1.8b-chat-q4k.mllm file already exists"
 fi
 
-# check if qnn env is set up
 if [ -z "$QNN_SDK_ROOT" ]; then
-    echo "QNN_SDK_ROOT is not set"
-    exit 1
+    export QNN_SDK_ROOT=/root/research/dev/mllm/src/backends/qnn/sdk
+    echo "QNN_SDK_ROOT is set to $QNN_SDK_ROOT"
+    # exit 1
 else 
     echo "QNN_SDK_ROOT is set to $QNN_SDK_ROOT"
 fi

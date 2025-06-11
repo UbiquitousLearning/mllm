@@ -77,6 +77,10 @@ enum OpType {
     // new front-end
     SUPERSILU,
     HEADLINEAR,
+
+    // for speculative decoding
+    ROPETREE,
+    CAUSALTREEMASK,
 };
 
 static const vector<string> OpNames = {
@@ -146,6 +150,8 @@ static const vector<string> OpNames = {
     "SDPA",
     "SuperSiLU",
     "HeadLinear",
+    "RoPETree",
+    "CausalTreeMask",
 };
 
 enum TensorFuncType {

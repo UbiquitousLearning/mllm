@@ -10,7 +10,7 @@ namespace mllm {
 
 class CPUKVCache final : public Op {
 public:
-    CPUKVCache(Backend *bn, string opName, int n_rep, int cache_max = 100, int threadCount = 4);
+    CPUKVCache(Backend *bn, string opName, int hidden, int head, int n_rep, int cache_max = 100, int threadCount = 4);
     virtual ~CPUKVCache() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
@@ -25,11 +25,14 @@ public:
     }
     void clearCache() override {
         cache_seq_len_ = 0;
+        cache_.cache_seq_len_ = cache_seq_len_;
     }
 
     void setForXnn(bool for_xnn) {
         for_xnn_ = for_xnn;
     }
+
+    ErrorCode updateVerifiedKVCache(const std::vector<unsigned int> &verified_position_ids);
 
 private:
     int thread_count = 4;
@@ -47,7 +50,9 @@ public:
         int n_rep = (int)op_param["n_rep"];
         int cache_max = (int)op_param["cache_max"];
         bool for_xnn = (bool)op_param["for_xnn"];
-        auto ret = new CPUKVCache(bn, name, n_rep, cache_max, threadCount);
+        int hidden = (int)op_param["hidden"];
+        int head = (int)op_param["head"];
+        auto ret = new CPUKVCache(bn, name, hidden, head, n_rep, cache_max, threadCount);
         ret->setForXnn(for_xnn);
         return ret;
     }
