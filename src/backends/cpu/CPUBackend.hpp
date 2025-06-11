@@ -7,6 +7,8 @@
 #include "quantize/Quantize.hpp"
 
 namespace mllm {
+class Module;
+class Layer;
 class CPUBackend final : public Backend {
 public:
     explicit CPUBackend(shared_ptr<MemoryManager> &mm);
@@ -29,6 +31,15 @@ public:
 
     void registerOps() override;
     void registerFuncs() override;
+
+    std::vector<Tensor> runFunc(
+        std::vector<std::string> out_names,
+        TensorFuncType type,
+        std::vector<float> float_args,
+        std::vector<std::shared_ptr<Tensor>> input_tensors,
+        bool in_place) override;
+    std::vector<Tensor> runLayer(Layer *layer, std::vector<Tensor> inputs, int N) override;
+    std::vector<Tensor> runForward(Module *module, std::vector<Tensor> inputs, std::vector<std::any> args) override;
 
     static int cpu_threads;
 
@@ -64,6 +75,28 @@ public:
         return execution_type;
     }
     // #endif
+
+
+    // #ifdef USE_SD
+    void setLastDraftLength(unsigned int draft_length) {
+        last_draft_length = draft_length;
+    }
+    void setLastVerifiedPositionIds(const std::vector<unsigned int> &verified_position_ids) {
+        last_verified_position_ids = verified_position_ids;
+    }
+    void setUsingDraft(bool _usingDraft) {
+        this->usingDraft = _usingDraft;
+    }
+    unsigned int getLastDraftLength() {
+        return last_draft_length;
+    }
+    std::vector<unsigned int> getLastVerifiedPositionIds() {
+        return last_verified_position_ids;
+    }
+    bool isUsingDraft() {
+        return usingDraft;
+    }
+    // #endif
 private:
     std::map<OpType, CPUBackend::Creator *> map_creator_;
     std::map<TensorFuncType, TensorFunction *> map_function_;
@@ -77,6 +110,13 @@ private:
     bool isSwitchingStage = false;
     ExecutionType execution_type = PROMPT;
     // #endif
+
+    // #ifdef USE_SD
+    bool usingDraft = false;
+    std::vector<unsigned int> last_verified_position_ids;
+    unsigned int last_draft_length = 0;
+    // #endif
+
 };
 
 } // namespace mllm

@@ -23,7 +23,7 @@ void im2col_fp32_src_knxn_sn_p0_to(void *src, void *dst, int32_t H, int32_t W, i
             for (int32_t w = 0; w < w_blocks; ++w) {
                 auto gt_ptr = dst_ptr + c * FILTER_N * FILTER_N + D_N * FILTER_N * FILTER_N * C;
                 for (int i = 0; i < FILTER_N; ++i) {
-#pragma unroll
+                    // #pragma unroll
                     for (int j = 0; j < FILTER_N; ++j) {
                         *(gt_ptr + i * FILTER_N + j) = *(src_line_ptr + FILTER_N * w + i * W + j);
                     }

@@ -18,12 +18,11 @@ public:
     static void addOp(Op *op, vector<std::shared_ptr<Tensor>> inputs, vector<std::shared_ptr<Tensor>> outputs);
 
     static void addTensorFunction(TensorFunction *func,
-                                  vector<Tensor *> inputs, vector<Tensor *> outputs, vector<float> args);
+                                  vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs, vector<float> args);
 
     static void trace(Module *model, vector<Tensor> inputs);
 
     static void refleshInputTensor(vector<shared_ptr<Tensor>> inputs);
-
 };
 
 } // namespace mllm

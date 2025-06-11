@@ -228,7 +228,6 @@ public:
         ret.resize(seqLength, vocab_size);
         return std::make_pair(realLength, Tokenizer::tokens2Input(ret));
     }
-
     // padding the input by neareast multiplication of chunk_size
     std::pair<int, Tensor> tokenizePaddingByChunk(std::string &text, int chunk_size, int vocab_size) {
         std::vector<token_id_t> ret;

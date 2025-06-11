@@ -19,8 +19,14 @@ else
     echo "/phonelm-1.5b-instruct-q4_0_4_4.mllm file already exists"
 fi
 
-LIBPATH=../src/backends/qnn/qualcomm_ai_engine_direct_220/
-ANDR_LIB=$LIBPATH/lib/aarch64-android
+if [ -z "$QNN_SDK_ROOT" ]; then
+    export QNN_SDK_ROOT=/root/research/dev/mllm/src/backends/qnn/sdk
+    echo "QNN_SDK_ROOT is set to $QNN_SDK_ROOT"
+else 
+    echo "QNN_SDK_ROOT is set to $QNN_SDK_ROOT"
+fi
+
+ANDR_LIB=$QNN_SDK_ROOT/lib/aarch64-android
 OP_PATH=../src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/build
 DEST=/data/local/tmp/mllm/qnn-lib
 

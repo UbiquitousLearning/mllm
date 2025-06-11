@@ -103,6 +103,31 @@ ErrorCode CPUConvolution3D::free(vector<shared_ptr<Tensor>> inputs, vector<share
 }
 
 ErrorCode CPUConvolution3D::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    if (outputs[0]->shape().empty()) { // TODOTMPA
+        switch (padding_type_) {
+        case SAME: {
+            padding_t_ = (kernel_size_[0] - 1) / 2;
+            padding_h_ = (kernel_size_[1] - 1) / 2;
+            padding_w_ = (kernel_size_[2] - 1) / 2;
+            const int out_time = (2 * padding_t_ - kernel_size_[0]) / stride_[0] + 1;
+            const int out_height = (2 * padding_h_ - kernel_size_[1]) / stride_[0] + 1;
+            const int out_width = (2 * padding_w_ - kernel_size_[2]) / stride_[1] + 1;
+            outputs[0]->reshape(0, out_channel_, out_time, out_height, out_width);
+            break;
+        }
+        case VALID: {
+            padding_t_ = 0;
+            padding_h_ = 0;
+            padding_w_ = 0;
+            const int out_time = 1 / stride_[0] + 1;
+            const int out_height = 1 / stride_[1] + 1;
+            const int out_width = 1 / stride_[2] + 1;
+            outputs[0]->reshape(0, out_channel_, out_time, out_height, out_width);
+            break;
+        }
+        }
+    }
+
     return Op::setUp(inputs, outputs);
 }
 } // namespace mllm

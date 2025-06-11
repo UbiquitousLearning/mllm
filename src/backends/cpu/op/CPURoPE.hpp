@@ -6,18 +6,34 @@
 
 namespace mllm {
 
+typedef float (*mllm_rope_init_func)(const OpParam &, std::vector<float>&);
+
+float _default_init_rope(const OpParam& config, vector<float>& theta);
+float _compute_llama3_theta(const OpParam& config, vector<float>& theta);
+
+static const unordered_map<RoPEThetaType, mllm_rope_init_func> rope_init_func_map = {
+    {DEFAULT, _default_init_rope},
+    {LLAMA3, _compute_llama3_theta},
+};
+
+void sinusoidal_position_embedding_llama(int seq_len, int output_dim, const vector<float>& theta,
+        vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling);
+void sinusoidal_position_embedding_huggingface(int seq_len, int output_dim, const vector<float>& theta,
+            vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling);
+
 class CPURoPE final : public Op {
 public:
     CPURoPE(Backend *bn, string opName, int pose_type, int threadCount);
     CPURoPE(Backend *bn, string opName, int pose_type, float rope_theta, int max_position_embeddings, int threadCount);
     CPURoPE(Backend *bn, string opName, int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings, int threadCount);
-    CPURoPE(Backend *bn, string opName, OpParam& config, int threadCount);
+    CPURoPE(Backend *bn, string opName, OpParam &config, int threadCount);
     virtual ~CPURoPE() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode load(AbstructLoader &loader) override;
     virtual ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     ErrorCode doExecute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs);
+    virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
 private:
     //    Tensor freq_;
