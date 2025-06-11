@@ -1,5 +1,4 @@
 #include <iostream>
-#include <ostream>
 #include "cmdline.h"
 #include "models/qwen2_vl/configuration_qwen2_vl.hpp"
 #include "models/qwen2_vl/vtp/modeling_qwen2_vl.hpp"
@@ -9,10 +8,10 @@
 using namespace mllm;
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/showui_vocab.mllm");
-    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/showui_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/showui-2b-q4_k.mllm");
-    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 2000);
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2vl_vocab.mllm");
+    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2vl_merges.txt");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-2-vl-2b-instruct-q4_k.mllm");
+    cmdParser.add<int>("limits", 'l', "max KV cache size", false, 800);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
@@ -24,17 +23,15 @@ int main(int argc, char **argv) {
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     ParamLoader param_loader(model_path);
-    int min_pixels = 256 * 28 * 28;
-    int max_pixels = 1344 * 28 * 28;
-    auto processor = Qwen2VLProcessor(vocab_path, merge_path, min_pixels, max_pixels);
+    auto processor = Qwen2VLProcessor(vocab_path, merge_path);
     Qwen2VLConfig config(tokens_limit, "1.5b");
     auto model = Qwen2VLModel(config);
     model.load(model_path);
 
     vector<string> in_imgs = {
-        "../assets/uidemo2.png"};
+        "../assets/bus.png"};
     vector<string> in_strs = {
-        "Based on the screenshot of the page, I give a text description and you give its corresponding location. The coordinate represents a clickable location [x, y] for an element, which is a relative coordinate on the screenshot, scaled from 0 to 1.<|vision_start|><|image_pad|><|vision_end|>桌面",
+        "<|vision_start|><|image_pad|><|vision_end|>Describe this image.",
     };
 
     for (int i = 0; i < in_strs.size(); ++i) {
@@ -55,8 +52,6 @@ int main(int argc, char **argv) {
             chatPostProcessing(out_token, input_tensor[0], {&input_tensor[1], &input_tensor[2]});
         }
         printf("\n");
-        model.clear_kvcache();
-        model.profiling();
     }
 
     return 0;

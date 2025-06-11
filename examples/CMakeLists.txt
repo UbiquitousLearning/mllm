@@ -104,6 +104,7 @@ func_vlm_add_executable(demo_imagebind_1mod)
 func_vlm_add_executable(demo_phi3v)
 func_vlm_add_executable(demo_qwen2_vl)
 func_vlm_add_executable(demo_showui)
+func_vlm_add_executable(demo_qwen2_vl_vtp)
 func_vlm_add_executable(demo_showui_vtp)
 
 if(QNN)

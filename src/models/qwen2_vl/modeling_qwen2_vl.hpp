@@ -175,9 +175,9 @@ public:
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto hidden_states = patch_embed({inputs[0]})[0];
         auto rotary_pos_emb = rot_pos_emb(inputs[1]);
-        auto grid_t = inputs[0].dataAt<float>(0, 0, 0, 0);
-        auto grid_h = inputs[0].dataAt<float>(0, 0, 0, 1);
-        auto grid_w = inputs[0].dataAt<float>(0, 0, 0, 2);
+        auto grid_t = inputs[1].dataAt<float>(0, 0, 0, 0);
+        auto grid_h = inputs[1].dataAt<float>(0, 0, 0, 1);
+        auto grid_w = inputs[1].dataAt<float>(0, 0, 0, 2);
         vector<float> cu_seqlens_v = {0.0F, grid_t * grid_h * grid_w};
         auto cu_seqlens = Tensor(cu_seqlens_v);
         for (auto &block : blocks) {

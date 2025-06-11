@@ -5,8 +5,8 @@
 #define MODELING_QWEN2VL_HPP
 
 // #define VTP
-#include <ostream>
 #define NDC
+#define SUC
 
 #include "Layer.hpp"
 #include "Module.hpp"
@@ -19,8 +19,12 @@
 #ifdef NDC
 #include "ndc_tools.hpp"
 #endif
+#ifdef SUC
+#include "ui_tools.hpp"
+#endif
 #include <string>
 #include <vector>
+#include <ostream>
 
 using namespace mllm;
 
@@ -176,10 +180,19 @@ public:
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto hidden_states = patch_embed({inputs[0]})[0];
         auto rotary_pos_emb = rot_pos_emb(inputs[1]);
-        auto grid_t = inputs[0].dataAt<float>(0, 0, 0, 0);
-        auto grid_h = inputs[0].dataAt<float>(0, 0, 0, 1);
-        auto grid_w = inputs[0].dataAt<float>(0, 0, 0, 2);
+        auto grid_t = inputs[1].dataAt<float>(0, 0, 0, 0);
+        auto grid_h = inputs[1].dataAt<float>(0, 0, 0, 1);
+        auto grid_w = inputs[1].dataAt<float>(0, 0, 0, 2);
         vector<float> cu_seqlens_v = {0.0F, grid_t * grid_h * grid_w};
+#ifdef SUC
+        std::vector<std::vector<uint32_t>> region_masks = {UIRegionMask};
+        auto selected_indices = process_region_mask(region_masks);
+        if (selected_indices.size() != cu_seqlens_v[1]) {
+            cu_seqlens_v[1] = float(selected_indices.size());
+            rotary_pos_emb = rotary_pos_emb.clip(selected_indices, SEQUENCE);
+            hidden_states = hidden_states.clip(selected_indices, SEQUENCE);
+        }
+#endif
         auto cu_seqlens = Tensor(cu_seqlens_v);
         for (auto &block : blocks) {
             hidden_states = block({hidden_states, cu_seqlens, rotary_pos_emb})[0];
