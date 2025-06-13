@@ -29,7 +29,7 @@ void ParamWriter::writeIndex() {
         write_u64(fp_, param.size);
         write_u64(fp_, param.offset);
         writeInt(fp_, param.type);
-        std::cout<<"write param "<<param.name<<" size "<<param.size<<" offset "<<param.offset<<" type "<<param.type<<std::endl;
+        // std::cout<<"write param "<<param.name<<" size "<<param.size<<" offset "<<param.offset<<" type "<<param.type<<std::endl;
     }
     fflush(fp_);
 }

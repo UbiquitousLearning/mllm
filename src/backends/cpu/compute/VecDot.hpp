@@ -31,11 +31,11 @@
 #include "Types.hpp"
 #include <functional>
 #include "ParamLoader.hpp"
-#include "../quantize/QuantizeQ8.hpp"
-#include "../quantize/QuantizeQ4.hpp"
-#include "../quantize/QuantizeQ6.hpp"
-#include "../quantize/QuantizeQ3.hpp"
-#include "../quantize/QuantizeQ2.hpp"
+#include "backends/cpu/compute/QuantizeQ8.hpp"
+#include "backends/cpu/compute/QuantizeQ4.hpp"
+#include "backends/cpu/compute/QuantizeQ6.hpp"
+#include "backends/cpu/compute/QuantizeQ3.hpp"
+#include "backends/cpu/compute/QuantizeQ2.hpp"
 
 #if defined(__ARM_ARCH) && defined(__ARM_FEATURE_SVE)
 #include <sys/prctl.h>

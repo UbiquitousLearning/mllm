@@ -1,4 +1,4 @@
-#include "GEMM_AArch64.hpp"
+#include "GemmAarch64.hpp"
 #include "Types.hpp"
 #include <assert.h>
 #include <cstdlib>

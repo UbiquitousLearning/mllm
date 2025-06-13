@@ -4,7 +4,7 @@
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "Types.hpp"
-#include "quantize/Quantize.hpp"
+#include "compute/Quantize.hpp"
 
 namespace mllm {
 class Module;

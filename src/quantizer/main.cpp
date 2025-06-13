@@ -14,9 +14,11 @@ int main(int argc, char **argv) {
     auto input_path = std::string(argv[1]);
     auto output_path = std::string(argv[2]);
     auto quant_type = std::string(argv[3]);
-    // std::string input_path = "../models/showui-2b-fp32.mllm";
-    // std::string output_path = "../models/showui-2b-q4_0_4_4.mllm";
-    // std::string quant_type = "Q4_0_4_4";
+    // std::string input_path = "../models/qwen-2.5-1.5b-instruct-fp32.mllm";
+    // std::string output_path = "../models/qwen-2.5-1.5b-instruct-kai_q4_0.mllm";
+    // std::string input_path = "../models/qwen-2-vl-2b-instruct-fp32.mllm";
+    // std::string output_path = "../models/qwen-2-vl-2b-instruct-kai_q4_0.mllm";
+    // std::string quant_type = "KAI_Q4_0";
     mllm::QuantWriter quant_writer(output_path, input_path);
     int param_count = quant_writer.readParams();
     if (param_count <= 0) {
@@ -38,6 +40,9 @@ int main(int argc, char **argv) {
         quant_writer.quantParams(MLLM_TYPE_Q6_K);
     } else if (quant_type == "Q8_K") {
         quant_writer.quantParams(MLLM_TYPE_Q8_K);
+    } else if (quant_type == "KAI_Q4_0") {
+        // quant_writer.quantParams(MLLM_TYPE_KLEIDIAI_Q4_0);
+        quant_writer.quantParams_kai_vl(MLLM_TYPE_KLEIDIAI_Q4_0);
     } else if (quant_type == "Q4_0_4_4") {
         quant_writer.quantParams_q4_(MLLM_TYPE_Q4_0_4_4);
     } else {

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(mllm)
+project(mllm CXX C ASM)
 
 # 添加编译选项来禁用所有警告
 # if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -193,28 +193,65 @@ file(GLOB_RECURSE SRC_TOKENIZERS
 if(QUANT)
     include_directories(${PROJECT_SOURCE_DIR}/src/quantizer)
     file(GLOB_RECURSE MLLM_QUANT
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GEMM_AArch64.hpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GEMM_AArch64.cpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.hpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/quantize/*.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GemmAarch64.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/QuantizeQ8.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/QuantizeQ4.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/QuantizeQ6.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/QuantizeQ3.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/QuantizeQ2.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GemmKleidiai.cpp
     )
 
-    file(GLOB_RECURSE MLLM_QUANTIZER
-        ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/*.hpp)
-    list(REMOVE_ITEM MLLM_QUANTIZER ${CMAKE_CURRENT_LIST_DIR}/src/quantizer/main.cpp)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
+        # 配置 Kleidiai 库路径
+        set(KLEIDIAI_SOURCE_DIR ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/Kleidiai)
+        if(NOT EXISTS ${KLEIDIAI_SOURCE_DIR})
+            message(FATAL_ERROR "Kleidiai library not found! Please place it in 'third_party/Kleidiai'.")
+        endif()
+        # 添加所有源文件路径到 MLLM_QUANT
+        list(APPEND MLLM_QUANT
+            # QSI4 模块源文件
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp1x8_qsi4c32p4x8_1x4x32_neon_dotprod.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp1x8_qsi4c32p4x8_1x4x32_neon_dotprod_asm.S
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_lhs_quant_pack_qai8dxp_f32.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi4c32p_qsu4c32s1s0.c
 
+            # FP16 模块源文件
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon.c
+
+            # FP32 模块源文件
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla_asm.S
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.c
+        )
+        include_directories(
+            # # 添加所有Kleidiai源文件路径到 MLLM_QUAN
+            ${KLEIDIAI_SOURCE_DIR}
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_f16_f16p
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_f32_f32p
+        )
+    endif()
+
+    file(GLOB_RECURSE MLLM_QUANTIZER
+        ${PROJECT_SOURCE_DIR}/src/quantizer/*.cpp
+        ${PROJECT_SOURCE_DIR}/src/quantizer/*.hpp)
+    list(REMOVE_ITEM MLLM_QUANTIZER ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp)
     add_executable(
         quantize
         ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
         ${MLLM_QUANT}
         ${MLLM_QUANTIZER}
-
-        # ${DIR_SRC}
         ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
     )
-    target_link_libraries(quantize fmt::fmt-header-only)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
+        message(STATUS "AArch64/arm64 architecture detected. Applying FP16 compile options to the target.")
+        target_compile_options(quantize PRIVATE "-march=armv8.2-a+fp16")
+    endif()
 
+    target_link_libraries(quantize fmt::fmt-header-only)
     if(FROM_GGUF)
         add_executable(
             from_gguf

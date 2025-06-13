@@ -1,7 +1,7 @@
 #include "CPUEmbedding.hpp"
 #include "ParamLoader.hpp"
-#include "quantize/QuantizeQ4.hpp"
-#include "quantize/QuantizeQ8.hpp"
+#include "compute/QuantizeQ4.hpp"
+#include "compute/QuantizeQ8.hpp"
 
 namespace mllm {
 CPUEmbedding::CPUEmbedding(Backend *bn, string opName, int hiddenSize, int vocabSize, int threadCount) :

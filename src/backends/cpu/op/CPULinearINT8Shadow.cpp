@@ -2,7 +2,7 @@
 #include "CPULinearINT8Shadow.hpp"
 #include "Types.hpp"
 #include "../compute/VecDot.hpp"
-#include "quantize/QuantizeQ8.hpp"
+#include "compute/QuantizeQ8.hpp"
 #include <cstdint>
 
 namespace mllm {

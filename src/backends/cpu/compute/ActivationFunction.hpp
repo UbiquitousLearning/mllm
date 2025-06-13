@@ -1,9 +1,7 @@
 
 #ifndef ACTFUNC_HPP
 #define ACTFUNC_HPP
-
-#include "quantize/Quantize.hpp"
-#include "compute/VecDot.hpp"
+#include "VecDot.hpp"
 namespace mllm {
 
 #if defined(__ARM_NEON) && defined(__aarch64__)

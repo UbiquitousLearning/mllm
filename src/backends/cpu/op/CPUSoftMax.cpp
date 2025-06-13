@@ -2,7 +2,7 @@
 #include "CPUSoftMax.hpp"
 #include <cmath>
 #include "Tensor.hpp"
-#include "quantize/Quantize.hpp"
+#include "compute/Quantize.hpp"
 #include "../compute/ActivationFunction.hpp"
 namespace mllm {
 

@@ -6,7 +6,7 @@
 #include "Types.hpp"
 #include "VecDotType.hpp"
 // #include <pthread.h>
-#include "LlamafileSGEMM.hpp"
+#include "GemmLlamafile.hpp"
 #include <cassert>
 #include <cstdlib>
 

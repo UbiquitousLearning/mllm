@@ -93,6 +93,9 @@ public:
         const int k_size = num_heads * k_per_head;
         const int v_size = v_per_head;
         // 1. 分配临时内存
+        if(cache_sequence <= pos_first){
+            pos_first =0;
+        }
         vector<vector<T>> k_cache_data(cache_sequence - pos_first);
         vector<vector<vector<T>>> v_cache_data(num_heads);
         for (int i = pos_first; i < cache_sequence; i++) {

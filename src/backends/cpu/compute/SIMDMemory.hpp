@@ -1,5 +1,6 @@
 
 // 平台检测头文件
+#include <cstddef>
 #if defined(__AVX__)
 #include <immintrin.h>
 #elif defined(__ARM_NEON)

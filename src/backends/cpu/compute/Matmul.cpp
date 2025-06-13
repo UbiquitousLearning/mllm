@@ -5,11 +5,11 @@
 #include "Matmul.hpp"
 #include "Types.hpp"
 #include "VecDotType.hpp"
-#include "LlamafileSGEMM.hpp"
+#include "GemmLlamafile.hpp"
 #include <cassert>
 #include <iostream>
 #include "Arithmetic.hpp"
-#include "SMEGEMM.hpp"
+#include "GemmSme.hpp"
 
 #ifdef __ARM_NEON
 #include <arm_neon.h>
@@ -29,6 +29,7 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
     auto dst_dtype = dst->dtype();
 
     // ----------- BEGIN SME Path Check -----------
+/*
 #if defined(__ARM_FEATURE_SME)
     if (src0->batch() == 1 && src0->head() == 1 && src1->batch() == 1 && src1->head() == 1 && dst->batch() == 1 && dst->head() == 1 && // Ensure dst also expects B=1, H=1
         src1->ctype() == BSHD && dst->ctype() == BSHD && dst_dtype == MLLM_TYPE_F32) {
@@ -91,6 +92,7 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
         }
     }
 #endif // __ARM_FEATURE_SME
+*/
     // ----------- END SME Path Check -----------
 
     auto vec_dot_type = type_traits[src1_dtype].vec_dot_type;

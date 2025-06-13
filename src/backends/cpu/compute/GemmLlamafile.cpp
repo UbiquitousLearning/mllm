@@ -48,8 +48,8 @@
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
 
-#include "LlamafileSGEMM.hpp"
-#include "../quantize/Quantize.hpp"
+#include "GemmLlamafile.hpp"
+#include "Quantize.hpp"
 
 #ifdef _MSC_VER
 #define NOINLINE __declspec(noinline)

@@ -1,6 +1,6 @@
 #include "backends/xnnpack/Ops/XpEmbedding.hpp"
-#include "backends/cpu/quantize/QuantizeQ4.hpp"
-#include "backends/cpu/quantize/QuantizeQ8.hpp"
+#include "backends/cpu/compute/QuantizeQ4.hpp"
+#include "backends/cpu/compute/QuantizeQ8.hpp"
 
 namespace mllm::xnnpack {
 

@@ -5,7 +5,7 @@
 #include <cassert>
 #include <cmath>
 #include <iostream>
-#include "backends/cpu/quantize/QuantizeQ8.hpp"
+#include "backends/cpu/compute/QuantizeQ8.hpp"
 
 namespace mllm {
 
