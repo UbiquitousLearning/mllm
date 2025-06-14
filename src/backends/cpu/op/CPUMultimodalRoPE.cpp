@@ -8,6 +8,8 @@
 #include <memory>
 // #include <iostream>
 #include "backends/cpu/compute/QuantizeQ8.hpp"
+#include <numeric> // 用来计算 accumulate
+#include <cassert> // 用来断言
 
 namespace mllm {
 
@@ -38,6 +40,11 @@ void apply_multimodal_rotary_pos_emb(
     std::vector<std::vector<float>> &out_cos,
     std::vector<std::vector<float>> &out_sin,
     const std::vector<int> &mrope_section) {
+    // 在函数一开始就检查尺寸！
+    long long total_mrope_dim = std::accumulate(mrope_section.begin(), mrope_section.end(), 0LL);
+    long long input_dim = in_cos[0][0].size();
+    assert(total_mrope_dim <= input_dim && "CRITICAL ERROR: Sum of mrope_section exceeds input dimension!");
+
     int num_rows = in_cos[0].size();
     int num_cols = in_cos[0][0].size();
     // 初始化输出向量大小
@@ -77,6 +84,8 @@ void apply_multimodal_rotary_pos_emb(
 void multimodal_sinusoidal_position_embedding(shared_ptr<Tensor> position_ids, int seq_len, int output_dim, const vector<float> &theta,
                                               vector<vector<float>> &sin, vector<vector<float>> &cos, float attention_scaling = 1.0,
                                               const std::vector<int> &mrope_section = {}) {
+    sin.clear();
+    cos.clear();
     vector<vector<vector<float>>> tmp_sin;
     vector<vector<vector<float>>> tmp_cos;
     // assert(position_ids->dimension() == output_dim);
@@ -97,6 +106,14 @@ void multimodal_sinusoidal_position_embedding(shared_ptr<Tensor> position_ids, i
     }
     if (!mrope_section.empty()) {
         apply_multimodal_rotary_pos_emb(tmp_cos, tmp_sin, cos, sin, mrope_section);
+    } else {
+        // 如果 mrope_section 为空，这是标准的 RoPE
+        // 需要把局部变量 tmp_cos/tmp_sin 的内容赋给输出参数 cos/sin
+        // 假设 batch size 为 1，所以我们取第一个元素
+        if (!tmp_cos.empty()) {          // 做个健壮性检查
+            cos = std::move(tmp_cos[0]); // 使用 std::move 避免不必要的拷贝，效率更高
+            sin = std::move(tmp_sin[0]);
+        }
     }
 }
 
@@ -106,9 +123,6 @@ CPUMultimodalRoPE::CPUMultimodalRoPE(Backend *bn, string opName, float rope_thet
     rope_theta_ = rope_theta;
     pos_max_ = max_position_embeddings;
     mrope_section_ = mrope_section;
-    for (int i = 0; i < mrope_section.size(); i++) {
-        mrope_section_.push_back(mrope_section[i]);
-    }
 }
 
 ErrorCode CPUMultimodalRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

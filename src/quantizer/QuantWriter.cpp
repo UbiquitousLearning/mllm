@@ -118,7 +118,7 @@ void QuantWriter::quantParams(DataType dataType) {
             writeParam(name, MLLM_TYPE_F32, param, tsize);
             std::cout << "  size:" << tsize << std::endl;
 
-        } else if (find_names(name, q6_layers)&& (dataType != MLLM_TYPE_KLEIDIAI_Q4_0)) {
+        } else if (find_names(name, q6_layers) && (dataType != MLLM_TYPE_KLEIDIAI_Q4_0)) {
             switch (dataType) {
             case MLLM_TYPE_F32:
                 std::cout << "No need to quantize FP32 params\n";
@@ -199,7 +199,7 @@ void QuantWriter::quantParams(DataType dataType) {
                 std::cout << "No need to quantize FP32 params\n";
                 __exit(-1);
                 break;
-            case MLLM_TYPE_KLEIDIAI_Q4_0:{
+            case MLLM_TYPE_KLEIDIAI_Q4_0: {
 #if defined(__aarch64__) || defined(__arm__) || defined(__arm64__)
                 // todo：对qwen/qwen2vl特化了，后续一定要重写
                 int K = tmp_hidden_dim;
@@ -210,7 +210,7 @@ void QuantWriter::quantParams(DataType dataType) {
                 }
                 std::vector<float> transposed_weight_data(K * N);
                 const float *original_weight_ptr = param;
-                #pragma omp parallel for collapse(2) num_threads(4)
+#pragma omp parallel for collapse(2) num_threads(4)
                 for (int n = 0; n < N; ++n) {
                     for (int k = 0; k < K; ++k) {
                         // 核心转置逻辑：dst[k][n] = src[n][k]
@@ -225,16 +225,16 @@ void QuantWriter::quantParams(DataType dataType) {
                     bias_name.replace(bias_name.find("weight"), 6, "bias");
                     auto *bias_param = getParam(bias_name);
                     float first_bias = bias_param[0];
-                    // std::cout << "【Kleidiai】======Quantize param " << name << " bias: " << first_bias << std::endl; 
+                    // std::cout << "【Kleidiai】======Quantize param " << name << " bias: " << first_bias << std::endl;
                     // if (bias_param != nullptr && name.find("o_proj") == std::string::npos&& name.find("mlp") == std::string::npos) {
                     if (first_bias != 0.0f) {
-                        mllm_kleidai_pack_b_and_bias_qsi4((uint8_t*)quant_ptr, transposed_weight_data.data(), 
-                        bias_param, N, K); 
-                std::cout << "【Kleidiai】Quantize param " << name << " has [bias] to " << DataTypeName(MLLM_TYPE_KLEIDIAI_Q4_0) << "  N:" << N << "  K:" << K <<", \t";  
-                    }else{
-                        mllm_kleidai_pack_b_and_bias_qsi4((uint8_t*)quant_ptr, transposed_weight_data.data(), 
-                        nullptr, N, K); 
-                std::cout << "【Kleidiai】Quantize param " << name << " to " << DataTypeName(MLLM_TYPE_KLEIDIAI_Q4_0) << "  N:" << N << "  K:" << K <<", \t";  
+                        mllm_kleidai_pack_b_and_bias_qsi4((uint8_t *)quant_ptr, transposed_weight_data.data(),
+                                                          bias_param, N, K);
+                        std::cout << "【Kleidiai】Quantize param " << name << " has [bias] to " << DataTypeName(MLLM_TYPE_KLEIDIAI_Q4_0) << "  N:" << N << "  K:" << K << ", \t";
+                    } else {
+                        mllm_kleidai_pack_b_and_bias_qsi4((uint8_t *)quant_ptr, transposed_weight_data.data(),
+                                                          nullptr, N, K);
+                        std::cout << "【Kleidiai】Quantize param " << name << " to " << DataTypeName(MLLM_TYPE_KLEIDIAI_Q4_0) << "  N:" << N << "  K:" << K << ", \t";
                     }
                 } else {
                     throw std::runtime_error("name does not contain 'weight': " + name);
@@ -242,9 +242,8 @@ void QuantWriter::quantParams(DataType dataType) {
                 size = block_t.second;
                 break;
 #else
-            std::cerr << "KLEIDIAI_Q4_0 is not supported on this platform!" << std::endl;
-            exit(-1);
-            return NOT_SUPPORT;
+                std::cerr << "KLEIDIAI_Q4_0 is not supported on this platform!" << std::endl;
+                exit(-1);
 #endif
             }
             case MLLM_TYPE_Q4_0:
@@ -476,10 +475,9 @@ void QuantWriter::quantParams_q4_vl(DataType dataType) {
     writeIndex();
 }
 
-
 vector<string> vl_q4x4_2_q4_k_layers = {
     // "wv",
-    // "v_proj",
+    // "v_proj", //eager mode
     ".attn.qkv",
     "in_proj",
     "w12",
@@ -488,8 +486,8 @@ vector<string> vl_q4x4_2_q4_k_layers = {
     // "mlp.0",
     // "mlp.2",
 };
-
 void QuantWriter::quantParams_kai_vl(DataType dataType) {
+#if defined(__aarch64__) || defined(__arm__) || defined(__arm64__)
     for (const auto &name : param_names_) {
         auto size = param_loader_->offsets_[name].second / sizeof(float);
         if (find_names(name, {"input_layernorm"}) && find_names(name, {"model"})) {
@@ -540,7 +538,6 @@ void QuantWriter::quantParams_kai_vl(DataType dataType) {
                 // }
                 // quantize_row_q4_0_4x4(param, quant_ptr, size, tmp_hidden_dim_q4);
 
-                
                 int K = vit_tmp_hidden_dim;
                 int N = size / K;
                 if (find_names(name, {"fc2", "down_proj"})) {
@@ -549,7 +546,7 @@ void QuantWriter::quantParams_kai_vl(DataType dataType) {
                 }
                 std::vector<float> transposed_weight_data(K * N);
                 const float *original_weight_ptr = param;
-                #pragma omp parallel for collapse(2) num_threads(4)
+#pragma omp parallel for collapse(2) num_threads(4)
                 for (int n = 0; n < N; ++n) {
                     for (int k = 0; k < K; ++k) {
                         transposed_weight_data[k * N + n] = original_weight_ptr[n * K + k];
@@ -564,13 +561,13 @@ void QuantWriter::quantParams_kai_vl(DataType dataType) {
                     auto *bias_param = getParam(bias_name);
                     float first_bias = bias_param[0];
                     if (first_bias != 0.0f) {
-                        mllm_kleidai_pack_b_and_bias_qsi4((uint8_t*)quant_ptr, transposed_weight_data.data(), 
-                        bias_param, N, K); 
-                std::cout << "【Kleidiai】Quantize param " << name << " has [bias] to " << DataTypeName(MLLM_TYPE_KLEIDIAI_Q4_0) << "  N:" << N << "  K:" << K <<", \t";  
-                    }else{
-                        mllm_kleidai_pack_b_and_bias_qsi4((uint8_t*)quant_ptr, transposed_weight_data.data(), 
-                        nullptr, N, K); 
-                std::cout << "【Kleidiai】Quantize param " << name << " to " << DataTypeName(MLLM_TYPE_KLEIDIAI_Q4_0) << "  N:" << N << "  K:" << K <<", \t";  
+                        mllm_kleidai_pack_b_and_bias_qsi4((uint8_t *)quant_ptr, transposed_weight_data.data(),
+                                                          bias_param, N, K);
+                        std::cout << "【Kleidiai】Quantize param " << name << " has [bias] to " << DataTypeName(MLLM_TYPE_KLEIDIAI_Q4_0) << "  N:" << N << "  K:" << K << ", \t";
+                    } else {
+                        mllm_kleidai_pack_b_and_bias_qsi4((uint8_t *)quant_ptr, transposed_weight_data.data(),
+                                                          nullptr, N, K);
+                        std::cout << "【Kleidiai】Quantize param " << name << " to " << DataTypeName(MLLM_TYPE_KLEIDIAI_Q4_0) << "  N:" << N << "  K:" << K << ", \t";
                     }
                 } else {
                     throw std::runtime_error("name does not contain 'weight': " + name);
@@ -590,7 +587,7 @@ void QuantWriter::quantParams_kai_vl(DataType dataType) {
                 }
                 std::vector<float> transposed_weight_data(K * N);
                 const float *original_weight_ptr = param;
-                #pragma omp parallel for collapse(2) num_threads(4)
+#pragma omp parallel for collapse(2) num_threads(4)
                 for (int n = 0; n < N; ++n) {
                     for (int k = 0; k < K; ++k) {
                         transposed_weight_data[k * N + n] = original_weight_ptr[n * K + k];
@@ -605,18 +602,17 @@ void QuantWriter::quantParams_kai_vl(DataType dataType) {
                     auto *bias_param = getParam(bias_name);
                     float first_bias = bias_param[0];
                     if (first_bias != 0.0f) {
-                        mllm_kleidai_pack_b_and_bias_qsi4((uint8_t*)quant_ptr, transposed_weight_data.data(), 
-                        bias_param, N, K); 
-                std::cout << "【Kleidiai】Quantize param " << name << " has [bias] to " << DataTypeName(MLLM_TYPE_KLEIDIAI_Q4_0) << "  N:" << N << "  K:" << K <<", \t";  
-                    }else{
-                        mllm_kleidai_pack_b_and_bias_qsi4((uint8_t*)quant_ptr, transposed_weight_data.data(), 
-                        nullptr, N, K); 
-                std::cout << "【Kleidiai】Quantize param " << name << " to " << DataTypeName(MLLM_TYPE_KLEIDIAI_Q4_0) << "  N:" << N << "  K:" << K <<", \t";  
+                        mllm_kleidai_pack_b_and_bias_qsi4((uint8_t *)quant_ptr, transposed_weight_data.data(),
+                                                          bias_param, N, K);
+                        std::cout << "【Kleidiai】Quantize param " << name << " has [bias] to " << DataTypeName(MLLM_TYPE_KLEIDIAI_Q4_0) << "  N:" << N << "  K:" << K << ", \t";
+                    } else {
+                        mllm_kleidai_pack_b_and_bias_qsi4((uint8_t *)quant_ptr, transposed_weight_data.data(),
+                                                          nullptr, N, K);
+                        std::cout << "【Kleidiai】Quantize param " << name << " to " << DataTypeName(MLLM_TYPE_KLEIDIAI_Q4_0) << "  N:" << N << "  K:" << K << ", \t";
                     }
                 } else {
                     throw std::runtime_error("name does not contain 'weight': " + name);
                 }
-
             }
             size = block_t.second;
             if (quant_ptr != nullptr) {
@@ -629,8 +625,11 @@ void QuantWriter::quantParams_kai_vl(DataType dataType) {
         }
     }
     writeIndex();
+#else
+    std::cerr << "KLEIDIAI_Q4_0 is not supported on this platform!" << std::endl;
+    exit(-1);
+#endif
 }
-
 
 void QuantWriter::writeParam(string name, DataType type, void *data, uint64_t size) {
 #ifdef TEST

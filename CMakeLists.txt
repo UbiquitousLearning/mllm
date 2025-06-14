@@ -203,10 +203,10 @@ if(QUANT)
     )
 
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
-        # 配置 Kleidiai 库路径
-        set(KLEIDIAI_SOURCE_DIR ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/Kleidiai)
+        # 配置 kleidiai 库路径
+        set(KLEIDIAI_SOURCE_DIR ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/kleidiai)
         if(NOT EXISTS ${KLEIDIAI_SOURCE_DIR})
-            message(FATAL_ERROR "Kleidiai library not found! Please place it in 'third_party/Kleidiai'.")
+            message(FATAL_ERROR "kleidiai library not found! Please place it in 'third_party/kleidiai'.")
         endif()
         # 添加所有源文件路径到 MLLM_QUANT
         list(APPEND MLLM_QUANT
@@ -226,7 +226,7 @@ if(QUANT)
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.c
         )
         include_directories(
-            # # 添加所有Kleidiai源文件路径到 MLLM_QUAN
+            # # 添加所有kleidiai源文件路径到 MLLM_QUAN
             ${KLEIDIAI_SOURCE_DIR}
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack

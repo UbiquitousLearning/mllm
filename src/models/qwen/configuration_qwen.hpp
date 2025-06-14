@@ -191,6 +191,21 @@ struct QWenConfig : public TransformerConfig {
             sliding_window = 131072;
             vocab_size = 151936;
             tie_embedding_words = false;
+        } else if (billionsType == "7b") {
+            attention_dropout = 0.0;
+            std::string hidden_act = "silu";
+            hidden_size = 3584;
+            intermediate_size = 18944;
+            max_position_embeddings = 32768;
+            max_window_layers = 28;
+            num_attention_heads = 28;
+            num_hidden_layers = 28;
+            num_key_value_heads = 4;
+            rms_norm_eps = 1e-6;
+            rope_theta = 1000000.0;
+            sliding_window = 32768;
+            vocab_size = 151936;
+            tie_embedding_words = false;
         } else {
             throw std::runtime_error("Unsupported model size");
         }

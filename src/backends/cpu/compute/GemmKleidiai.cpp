@@ -10,10 +10,10 @@
 
 // 引入 OpenMP 头文件
 #include <omp.h>
-//#if defined(USE_QSI4_C32)
-// ###################################################################### //
-// ##                   Implementation 1: QSI4 (INT4)                  ##
-// ###################################################################### //
+// #if defined(USE_QSI4_C32)
+//  ###################################################################### //
+//  ##                   Implementation 1: QSI4 (INT4)                  ##
+//  ###################################################################### //
 #include "kai_matmul_clamp_f32_qai8dxp_qsi4c32p_interface.h"
 #include "kai_matmul_clamp_f32_qai8dxp1x8_qsi4c32p4x8_1x4x32_neon_dotprod.h"
 #include "kai/ukernels/matmul/pack/kai_lhs_quant_pack_qai8dxp_f32.h"
@@ -45,20 +45,18 @@ size_t get_workspace_qsi4_size(int M, int K) {
 }
 
 void mllm_kleidai_pack_b_and_bias_qsi4(
-    uint8_t* packed_b_ptr,
-    const float* b_ptr,
-    const float* bias_ptr,
+    uint8_t *packed_b_ptr,
+    const float *b_ptr,
+    const float *bias_ptr,
     int N,
     int K) {
-
     // 【新增】创建临时的bias（如果需要）
-    const float* bias_to_use = bias_ptr;
+    const float *bias_to_use = bias_ptr;
     std::vector<float> fake_bias;
     if (bias_to_use == nullptr) {
         fake_bias.assign(N, 0.0f);
         bias_to_use = fake_bias.data();
     }
-
 
     const int block_len = 32;
     const size_t num_blocks_k = (K + block_len - 1) / block_len;
@@ -106,14 +104,13 @@ void mllm_kleidai_pack_b_and_bias_qsi4(
     //     packed_b_ptr, 0, &params);
     kai_run_rhs_pack_kxn_qsi4c32p_qsu4c32s1s0(
         1, N, K, qsi4_ukernel.get_nr(), qsi4_ukernel.get_kr(), qsi4_ukernel.get_sr(), block_len,
-        temp_quantized_b.data(), N/2, bias_to_use, (const uint8_t*)temp_scales.data(), num_blocks_k * sizeof(uint16_t),
+        temp_quantized_b.data(), N / 2, bias_to_use, (const uint8_t *)temp_scales.data(), num_blocks_k * sizeof(uint16_t),
         packed_b_ptr, 0, &params);
 }
 
 void mllm_kleidai_gemm_qsi4(
-    float* c_ptr, const float* a_ptr, const uint8_t* packed_b_ptr,
+    float *c_ptr, const float *a_ptr, const uint8_t *packed_b_ptr,
     int M, int N, int K) {
-    
     size_t workspace_size = get_workspace_qsi4_size(M, K);
     std::vector<uint8_t> workspace_data(workspace_size);
 
@@ -124,85 +121,135 @@ void mllm_kleidai_gemm_qsi4(
         a_ptr, K * sizeof(float),
         workspace_data.data());
 
-
     const int m_step = qsi4_ukernel.get_m_step();
     const int n_step = qsi4_ukernel.get_n_step();
     const int block_len = 32;
 
-    // #pragma omp parallel for
-    #pragma omp parallel for collapse(2) num_threads(kai_thread_count)
+// #pragma omp parallel for
+#pragma omp parallel for collapse(2) num_threads(kai_thread_count)
     for (int m_start = 0; m_start < M; m_start += m_step) {
         for (int n_start = 0; n_start < N; n_start += n_step) {
             const int current_m = std::min(M - m_start, m_step);
             const int current_n = std::min(N - n_start, n_step);
-            const void* a_packed_offset = (const char*)workspace_data.data() + qsi4_ukernel.get_lhs_packed_offset(m_start, K);
-            const void* b_packed_offset = (const char*)packed_b_ptr + qsi4_ukernel.get_rhs_packed_offset(n_start, K, block_len);
-            float* c_offset = c_ptr + m_start * N + n_start;
+            const void *a_packed_offset = (const char *)workspace_data.data() + qsi4_ukernel.get_lhs_packed_offset(m_start, K);
+            const void *b_packed_offset = (const char *)packed_b_ptr + qsi4_ukernel.get_rhs_packed_offset(n_start, K, block_len);
+            float *c_offset = c_ptr + m_start * N + n_start;
             qsi4_ukernel.run_matmul(
                 current_m, current_n, K, block_len,
                 a_packed_offset, b_packed_offset,
                 c_offset, N * sizeof(float), sizeof(float),
-                -FLT_MAX, FLT_MAX
-            );
+                -FLT_MAX, FLT_MAX);
         }
     }
 }
 // #endif
 
 // 【新增】
-//#if defined(USE_QSI4_TO_FP16)
+// #if defined(USE_QSI4_TO_FP16)
 // ###################################################################### //
 // ##         Implementation 1.5: QSI4 (INT4) -> FP16                  ##
 // ###################################################################### //
+// void mllm_kleidai_gemm_qsi4_to_fp16(
+//     mllm_fp16_t* c_ptr, const float* a_ptr, const uint8_t* packed_b_ptr,
+//     int M, int N, int K) {
+
+//     // 1. 创建一个临时的 FP32 输出缓冲区
+//     std::vector<float> c_temp(M * N);
+
+//     // 2. 运行现有的 QSI4->FP32 GEMM 计算，将结果存入临时缓冲区
+//     size_t workspace_size = get_workspace_qsi4_size(M, K);
+//     std::vector<uint8_t> workspace_data(workspace_size);
+//     kai_run_lhs_quant_pack_qai8dxp_f32(M, K, qsi4_ukernel.get_mr(), qsi4_ukernel.get_kr(), qsi4_ukernel.get_sr(),
+//         0, a_ptr, K * sizeof(float), workspace_data.data());
+
+//     const int m_step = qsi4_ukernel.get_m_step();
+//     const int n_step = qsi4_ukernel.get_n_step();
+//     const int block_len = 32;
+
+//     // #pragma omp parallel for
+//     #pragma omp parallel for collapse(2) num_threads(kai_thread_count)
+//     for (int m_start = 0; m_start < M; m_start += m_step) {
+//         for (int n_start = 0; n_start < N; n_start += n_step) {
+//             const int current_m = std::min(M - m_start, m_step);
+//             const int current_n = std::min(N - n_start, n_step);
+//             const void* a_packed_offset = (const char*)workspace_data.data() + qsi4_ukernel.get_lhs_packed_offset(m_start, K);
+//             const void* b_packed_offset = (const char*)packed_b_ptr + qsi4_ukernel.get_rhs_packed_offset(n_start, K, block_len);
+//             float* c_offset = c_temp.data() + m_start * N + n_start;
+//             qsi4_ukernel.run_matmul(
+//                 current_m, current_n, K, block_len,
+//                 a_packed_offset, b_packed_offset,
+//                 c_offset, N * sizeof(float), sizeof(float),
+//                 -FLT_MAX, FLT_MAX
+//             );
+//         }
+//     }
+
+//     // 3. 并行地将 FP32 临时结果转换为 FP16 并写入最终输出
+//     // #pragma omp parallel for
+//     #pragma omp parallel for collapse(1) num_threads(kai_thread_count)
+//     for(int i = 0; i < M * N; ++i) {
+//         c_ptr[i] = static_cast<mllm_fp16_t>(c_temp[i]);
+//     }
+// }
+
 void mllm_kleidai_gemm_qsi4_to_fp16(
-    mllm_fp16_t* c_ptr, const float* a_ptr, const uint8_t* packed_b_ptr,
+    mllm_fp16_t *c_ptr, const float *a_ptr, const uint8_t *packed_b_ptr,
     int M, int N, int K) {
-    
-    // 1. 创建一个临时的 FP32 输出缓冲区
+    // 1. 创建一个临时的 FP32 输出缓冲区。
+    //    因为您库中唯一兼容的qsi4核心只能输出FP32，所以这一步无法避免。
     std::vector<float> c_temp(M * N);
 
-    // 2. 运行现有的 QSI4->FP32 GEMM 计算，将结果存入临时缓冲区
+    // 2. 运行现有的、能正常工作的 QSI4->FP32 GEMM 计算。
+    //    这部分代码与您原始版本一致，确保了计算的正确性。
     size_t workspace_size = get_workspace_qsi4_size(M, K);
     std::vector<uint8_t> workspace_data(workspace_size);
     kai_run_lhs_quant_pack_qai8dxp_f32(M, K, qsi4_ukernel.get_mr(), qsi4_ukernel.get_kr(), qsi4_ukernel.get_sr(),
-        0, a_ptr, K * sizeof(float), workspace_data.data());
+                                       0, a_ptr, K * sizeof(float), workspace_data.data());
 
     const int m_step = qsi4_ukernel.get_m_step();
     const int n_step = qsi4_ukernel.get_n_step();
     const int block_len = 32;
 
-    // #pragma omp parallel for
-    #pragma omp parallel for collapse(2) num_threads(kai_thread_count)
+#pragma omp parallel for collapse(2) num_threads(kai_thread_count)
     for (int m_start = 0; m_start < M; m_start += m_step) {
         for (int n_start = 0; n_start < N; n_start += n_step) {
             const int current_m = std::min(M - m_start, m_step);
             const int current_n = std::min(N - n_start, n_step);
-            const void* a_packed_offset = (const char*)workspace_data.data() + qsi4_ukernel.get_lhs_packed_offset(m_start, K);
-            const void* b_packed_offset = (const char*)packed_b_ptr + qsi4_ukernel.get_rhs_packed_offset(n_start, K, block_len);
-            float* c_offset = c_temp.data() + m_start * N + n_start;
+            const void *a_packed_offset = (const char *)workspace_data.data() + qsi4_ukernel.get_lhs_packed_offset(m_start, K);
+            const void *b_packed_offset = (const char *)packed_b_ptr + qsi4_ukernel.get_rhs_packed_offset(n_start, K, block_len);
+            float *c_offset = c_temp.data() + m_start * N + n_start;
+
             qsi4_ukernel.run_matmul(
                 current_m, current_n, K, block_len,
                 a_packed_offset, b_packed_offset,
                 c_offset, N * sizeof(float), sizeof(float),
-                -FLT_MAX, FLT_MAX
-            );
+                -FLT_MAX, FLT_MAX);
         }
     }
-    
-    // 3. 并行地将 FP32 临时结果转换为 FP16 并写入最终输出
-    // #pragma omp parallel for
-    #pragma omp parallel for collapse(1) num_threads(kai_thread_count)
-    for(int i = 0; i < M * N; ++i) {
+
+// 3. 【优化点】使用NEON指令并行地将FP32临时结果高速转换为FP16。
+//    这是本方案的核心优化，远快于原始的逐元素转换。
+#pragma omp parallel for num_threads(kai_thread_count)
+    for (int i = 0; i <= (M * N) - 4; i += 4) {
+        // 一次性加载4个FP32数据
+        float32x4_t fp32_vec = vld1q_f32(c_temp.data() + i);
+        // 一次性转换为4个FP16数据
+        float16x4_t fp16_vec = vcvt_f16_f32(fp32_vec);
+        // 一次性存入最终的目标地址
+        vst1_f16(reinterpret_cast<__fp16 *>(c_ptr + i), fp16_vec);
+    }
+
+    // 处理末尾剩余的不足4个的元素
+    for (int i = (M * N) - ((M * N) % 4); i < M * N; ++i) {
         c_ptr[i] = static_cast<mllm_fp16_t>(c_temp[i]);
     }
 }
 // #endif
 
-
-//#if defined(USE_FP16)
-// ###################################################################### //
-// ##                   Implementation 2: FP16                         ##
-// ###################################################################### //
+// #if defined(USE_FP16)
+//  ###################################################################### //
+//  ##                   Implementation 2: FP16                         ##
+//  ###################################################################### //
 #include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p_interface.h"
 #include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon.h"
@@ -220,10 +267,10 @@ size_t mllm_kleidai_get_packed_b_fp16_size(int N, int K) {
     return kai_get_rhs_packed_size_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon(N, K);
 }
 
-void mllm_kleidai_pack_b_and_bias_fp16(mllm_fp16_t* packed_b_ptr, const mllm_fp16_t* b_ptr, const float* bias_ptr, int N, int K) {
+void mllm_kleidai_pack_b_and_bias_fp16(mllm_fp16_t *packed_b_ptr, const mllm_fp16_t *b_ptr, const float *bias_ptr, int N, int K) {
     std::vector<mllm_fp16_t> bias_fp16_buffer(N);
     if (bias_ptr != nullptr) {
-        for(int i = 0; i < N; ++i) {
+        for (int i = 0; i < N; ++i) {
             bias_fp16_buffer[i] = static_cast<mllm_fp16_t>(bias_ptr[i]);
         }
     } else {
@@ -234,9 +281,9 @@ void mllm_kleidai_pack_b_and_bias_fp16(mllm_fp16_t* packed_b_ptr, const mllm_fp1
         N * sizeof(mllm_fp16_t), b_ptr, bias_fp16_buffer.data(), nullptr, packed_b_ptr, 0, nullptr);
 }
 
-void mllm_kleidai_gemm_fp16(float* c_ptr, const float* a_ptr, const mllm_fp16_t* packed_b_ptr, int M, int N, int K) {
+void mllm_kleidai_gemm_fp16(float *c_ptr, const float *a_ptr, const mllm_fp16_t *packed_b_ptr, int M, int N, int K) {
     std::vector<mllm_fp16_t> a_fp16(M * K);
-    for(int i = 0; i < M * K; ++i) {
+    for (int i = 0; i < M * K; ++i) {
         a_fp16[i] = static_cast<mllm_fp16_t>(a_ptr[i]);
     }
 
@@ -244,32 +291,31 @@ void mllm_kleidai_gemm_fp16(float* c_ptr, const float* a_ptr, const mllm_fp16_t*
     const int m_step = fp16_ukernel.get_m_step();
     const int n_step = fp16_ukernel.get_n_step();
 
-    // #pragma omp parallel for
-    #pragma omp parallel for collapse(2) num_threads(kai_thread_count)
+// #pragma omp parallel for
+#pragma omp parallel for collapse(2) num_threads(kai_thread_count)
     for (int m_start = 0; m_start < M; m_start += m_step) {
         for (int n_start = 0; n_start < N; n_start += n_step) {
             const int current_m = std::min(M - m_start, m_step);
             const int current_n = std::min(N - n_start, n_step);
-            const mllm_fp16_t* a_offset = a_fp16.data() + m_start * K;
-            const mllm_fp16_t* b_offset = packed_b_ptr + (n_start * (K + 1));
-            mllm_fp16_t* c_offset = c_fp16.data() + m_start * N + n_start;
+            const mllm_fp16_t *a_offset = a_fp16.data() + m_start * K;
+            const mllm_fp16_t *b_offset = packed_b_ptr + (n_start * (K + 1));
+            mllm_fp16_t *c_offset = c_fp16.data() + m_start * N + n_start;
             fp16_ukernel.run_matmul(
                 current_m, current_n, K, a_offset, K * sizeof(mllm_fp16_t),
                 b_offset, c_offset, N * sizeof(mllm_fp16_t), sizeof(mllm_fp16_t),
-                -FLT_MAX, FLT_MAX );
+                -FLT_MAX, FLT_MAX);
         }
     }
-    for(int i = 0; i < M * N; ++i) {
+    for (int i = 0; i < M * N; ++i) {
         c_ptr[i] = static_cast<float>(c_fp16[i]);
     }
 }
 // #endif
 
-
-//#if defined(USE_FP32)
-// ###################################################################### //
-// ##                   Implementation 3: FP32                         ##
-// ###################################################################### //
+// #if defined(USE_FP32)
+//  ###################################################################### //
+//  ##                   Implementation 3: FP32                         ##
+//  ###################################################################### //
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
@@ -287,8 +333,8 @@ size_t mllm_kleidai_get_packed_b_fp32_size(int N, int K) {
     return kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(N, K);
 }
 
-void mllm_kleidai_pack_b_and_bias_fp32(float* packed_b_ptr, const float* b_ptr, const float* bias_ptr, int N, int K) {
-    const float* bias_to_use = bias_ptr;
+void mllm_kleidai_pack_b_and_bias_fp32(float *packed_b_ptr, const float *b_ptr, const float *bias_ptr, int N, int K) {
+    const float *bias_to_use = bias_ptr;
     std::vector<float> fake_bias;
     if (bias_to_use == nullptr) {
         fake_bias.assign(N, 0.0f);
@@ -299,24 +345,24 @@ void mllm_kleidai_pack_b_and_bias_fp32(float* packed_b_ptr, const float* b_ptr, 
         N * sizeof(float), b_ptr, bias_to_use, nullptr, packed_b_ptr, 0, nullptr);
 }
 
-void mllm_kleidai_gemm_fp32(float* c_ptr, const float* a_ptr, const float* packed_b_ptr, int M, int N, int K) {
+void mllm_kleidai_gemm_fp32(float *c_ptr, const float *a_ptr, const float *packed_b_ptr, int M, int N, int K) {
     const int m_step = fp32_ukernel.get_m_step();
     const int n_step = fp32_ukernel.get_n_step();
-    
-    // #pragma omp parallel for
-    #pragma omp parallel for collapse(2) num_threads(kai_thread_count)
+
+// #pragma omp parallel for
+#pragma omp parallel for collapse(2) num_threads(kai_thread_count)
     for (int m_start = 0; m_start < M; m_start += m_step) {
         for (int n_start = 0; n_start < N; n_start += n_step) {
             const int current_m = std::min(M - m_start, m_step);
             const int current_n = std::min(N - n_start, n_step);
-            const float* a_offset = a_ptr + m_start * K;
-            const float* b_offset = packed_b_ptr + (n_start * (K + 1));
-            float* c_offset = c_ptr + m_start * N + n_start;
+            const float *a_offset = a_ptr + m_start * K;
+            const float *b_offset = packed_b_ptr + (n_start * (K + 1));
+            float *c_offset = c_ptr + m_start * N + n_start;
             fp32_ukernel.run_matmul(
                 current_m, current_n, K,
                 a_offset, K * sizeof(float), b_offset,
                 c_offset, N * sizeof(float), sizeof(float),
-                -FLT_MAX, FLT_MAX );
+                -FLT_MAX, FLT_MAX);
         }
     }
 }

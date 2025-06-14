@@ -93,8 +93,8 @@ public:
         const int k_size = num_heads * k_per_head;
         const int v_size = v_per_head;
         // 1. 分配临时内存
-        if(cache_sequence <= pos_first){
-            pos_first =0;
+        if (cache_sequence <= pos_first) {
+            pos_first = 0;
         }
         vector<vector<T>> k_cache_data(cache_sequence - pos_first);
         vector<vector<vector<T>>> v_cache_data(num_heads);
@@ -191,14 +191,38 @@ class NdcContext {
     int num_head = 0;
     int original_kv_length = 0;
     int chunk_size = 4;
-    map<int, float> pruning_place_cfg = {{3, 0.2}, {9, 0.2}, {12, 0.2}, {15, 0.2}, {18, 0.2}, {26, 0.2}};
+    // map<int, float> pruning_place_cfg = {{3, 0.2}, {9, 0.2}, {12, 0.6}, {15, 0.6}, {18, 0.8}, {26, 0.8}};
+    // map<int, float> pruning_place_cfg = {{3, 0.2}, {6, 0.8}, {12, 0.8}, {15, 0.8}, {18, 0.8}, {26, 0.8}};
+    map<int, float> pruning_place_cfg = {{3, 0.2}, {6, 0.2}, {12, 0.8}, {15, 0.8}, {18, 0.8}, {26, 0.8}};
     // map<int, float> pruning_place_cfg = {{3, 0.2}, {9, 0.2}};
 
 public:
     map<int, Tensor> causal_masks; // layer_idx -> causal_mask
     bool prefill_stage = true;
+
+    /**
+     * @brief Resets the context to its initial state.
+     * This function should be called to clear the state between different generation requests.
+     */
+    void reset() {
+        first_img_token_pos = 0;
+        last_img_token_pos = 0;
+        last_img_token_pos_l = 0;
+        kvcache_ctx = DelayComputeKVCache(); // Re-initialize the KV cache context
+        cur_step = -1;
+        chosen_pos_in_each.clear();
+        chosen_pos_to_delay_compute.clear();
+        global_position_ids = Tensor(); // Reset to an empty tensor
+        num_hidden_layers = 0;
+        num_head = 0;
+        original_kv_length = 0;
+        causal_masks.clear();
+        prefill_stage = true;
+    }
+
     void init(Tensor input_ids, int num_layers, int num_attention_heads) {
         if (Module::llm_model_ptr->doLoad) { return; }
+        // reset();
         num_hidden_layers = num_layers;
         num_head = num_attention_heads;
         if (kvcache_ctx.hidden_states_cache.empty()) {

@@ -9,6 +9,8 @@
 #include <stdexcept>
 #include <algorithm> // 需要包含 <algorithm> 用于 std::sort 和 std::unique
 #include <cstdint>   // 需要包含 <cstdint> 用于 uint32_t
+bool use_pre_vit_merge = false;
+
 std::vector<uint32_t> UIRegionMask;
 // 输入类型为二维向量 [batch][patch_size]
 std::vector<int> process_region_mask(const std::vector<std::vector<uint32_t>> &region_masks) {

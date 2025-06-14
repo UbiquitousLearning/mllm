@@ -7,17 +7,17 @@ file(GLOB MLLM_CPU_SRC
 )
 
 
-# --- 初始化 Kleidiai 源文件和头文件目录 ---
+# --- 初始化 kleidiai 源文件和头文件目录 ---
 set(ALL_KLEIDIAI_SOURCES "")
 set(ALL_KLEIDIAI_INCLUDE_DIRS "")
 
 
-# Conditionally compile Kleidiai for ARM architectures
+# Conditionally compile kleidiai for ARM architectures
 if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
-    # --- 设置 Kleidiai 库的路径 ---
-    set(KLEIDIAI_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/third_party/Kleidiai)
+    # --- 设置 kleidiai 库的路径 ---
+    set(KLEIDIAI_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/third_party/kleidiai)
     if(NOT EXISTS ${KLEIDIAI_SOURCE_DIR})
-        message(FATAL_ERROR "Kleidiai library not found! Please place it in 'third_party/Kleidiai'.")
+        message(FATAL_ERROR "kleidiai library not found! Please place it in 'third_party/kleidiai'.")
     endif()
     list(APPEND ALL_KLEIDIAI_INCLUDE_DIRS ${KLEIDIAI_SOURCE_DIR})
 
@@ -58,9 +58,9 @@ if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES
     )
     list(APPEND ALL_KLEIDIAI_SOURCES ${KLEIDIAI_SOURCES_FP32})
 
-    # 将 Kleidiai 源文件添加到主源文件列表
+    # 将 kleidiai 源文件添加到主源文件列表
     list(APPEND MLLM_CPU_SRC ${ALL_KLEIDIAI_SOURCES})
-endif() # End ARM check for Kleidiai sources
+endif() # End ARM check for kleidiai sources
 
 
 if (MLLM_OPENMP)
@@ -108,7 +108,7 @@ add_library(
 )
 endif()
 
-# Conditionally add Kleidiai compile definitions for ARM
+# Conditionally add kleidiai compile definitions for ARM
 if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
     target_compile_definitions(lib_mllm_cpu PUBLIC KLAI_USE_QSI4_C32)
     target_compile_definitions(lib_mllm_cpu PUBLIC KLAI_USE_FP16)

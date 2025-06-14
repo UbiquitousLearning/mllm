@@ -35,6 +35,7 @@ static std::pair<void *, uint64_t> alloc_quant_block(uint64_t count, DataType ty
     return std::make_pair(data, size);
 }
 
+#if defined(__aarch64__) || defined(__arm__) || defined(__arm64__)
 static std::pair<void *, uint64_t> alloc_kleidiai_quant_block(DataType type, int N, int K) {
     assert(type == MLLM_TYPE_KLEIDIAI_Q4_0);
     uint64_t size = mllm_kleidai_get_packed_b_qsi4_size(N, K);
@@ -44,7 +45,10 @@ static std::pair<void *, uint64_t> alloc_kleidiai_quant_block(DataType type, int
     void *data = new uint8_t[size];
     return std::make_pair(data, size);
 }
+#endif
 namespace mllm {
+extern std::vector<std::string> vl_q4x4_2_q4_k_layers;
+
 class QuantWriter : public ParamWriter {
 public:
     ~QuantWriter();
@@ -54,7 +58,6 @@ public:
     void quantParams_q4_(DataType dataType);
     void quantParams_q4_vl(DataType dataType);
     void quantParams_kai_vl(DataType dataType);
-
 
 #ifdef TEST
     std::unordered_map<string, char *> data_;

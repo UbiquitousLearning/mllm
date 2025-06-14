@@ -7,13 +7,14 @@
 #include "QuantWriter.hpp"
 
 int main(int argc, char **argv) {
-    if (argc != 4) {
+    if (argc < 4) {
         std::cout << "Usage: ./quantize <input_path> <output_path> <quant_type>\n";
         return -1;
     }
     auto input_path = std::string(argv[1]);
     auto output_path = std::string(argv[2]);
     auto quant_type = std::string(argv[3]);
+    auto other_flag = std::string(argv[4]);
     // std::string input_path = "../models/qwen-2.5-1.5b-instruct-fp32.mllm";
     // std::string output_path = "../models/qwen-2.5-1.5b-instruct-kai_q4_0.mllm";
     // std::string input_path = "../models/qwen-2-vl-2b-instruct-fp32.mllm";
@@ -42,9 +43,16 @@ int main(int argc, char **argv) {
         quant_writer.quantParams(MLLM_TYPE_Q8_K);
     } else if (quant_type == "KAI_Q4_0") {
         // quant_writer.quantParams(MLLM_TYPE_KLEIDIAI_Q4_0);
+        if (other_flag == "eager") {
+            vl_q4x4_2_q4_k_layers.push_back("v_proj");
+        }
         quant_writer.quantParams_kai_vl(MLLM_TYPE_KLEIDIAI_Q4_0);
     } else if (quant_type == "Q4_0_4_4") {
-        quant_writer.quantParams_q4_(MLLM_TYPE_Q4_0_4_4);
+        if (other_flag == "vl") {
+            quant_writer.quantParams_q4_vl(MLLM_TYPE_Q4_0_4_4);
+        } else {
+            quant_writer.quantParams_q4_(MLLM_TYPE_Q4_0_4_4);
+        }
     } else {
         std::cout << "Quant type " << quant_type << " is not supported\n";
         return -1;
