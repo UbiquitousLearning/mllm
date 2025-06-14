@@ -39,7 +39,7 @@ public:
     BertLayer() = default;
     BertLayer(const BertConfig &config, const string &base_name) {
         // base_name: encoder.layer.n.
-        attention = MultiHeadAttention(config.hidden_size, config.num_attention_heads, config.num_attention_heads, config.hidden_size / config.num_attention_heads, SPLIT_NONE, false, false, RoPEType::NONE, -1, -1, 0, false, true, config.attn_implementation, config.names_config, base_name + config.names_config._attn_base_name);
+        attention = MultiHeadAttention(config.hidden_size, config.num_attention_heads, config.num_attention_heads, config.hidden_size / config.num_attention_heads, SPLIT_NONE, PostQkv_NONE, false, RoPEType::NONE, -1, -1, 0, false, true, true, config.attn_implementation, config.names_config, base_name + config.names_config._attn_base_name);
 
         feed_forward = FeedForward(config.hidden_size, config.intermediate_size,
                                    config.hidden_act, true, config.names_config, base_name);

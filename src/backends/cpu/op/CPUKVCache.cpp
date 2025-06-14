@@ -218,6 +218,17 @@ ErrorCode CPUKVCache::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 ErrorCode CPUKVCache::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
+    // for BSHD attention start
+    if(inputs[0]->ctype() == BHSD && cache_.ctype() == BSHD) {
+        auto origin_b = cache_.batch();
+        auto origin_h = cache_.head();
+        auto origin_s = cache_.sequence();
+        auto origin_d = cache_.dimension();
+        cache_.setCtype(BHSD);
+        cache_.reshape(origin_b, origin_h, origin_s + cache_seq_len_, origin_d);
+        cache_.alloc();
+    }
+    // for BSHD attention end
     outputs[0]->setDtype(cache_.dtype());
     outputs[0]->shallowCopyFrom(cache_, false, {0, 0, cache_seq_len_ / cache_limit_, 0});
     if (inputs[0]->sequence() + cache_seq_len_ > cache_limit_) {
@@ -294,57 +305,6 @@ ErrorCode CPUKVCache::updateVerifiedKVCache(const std::vector<unsigned int> &ver
     } else {
         std::cout << "ERROR Ctype in KVCcache;" << std::endl;
     }
-
-    // clear kv cache
-    // if (cache_seq_len_ < cache_seq_len_old) {
-    //     if (n_rep_ > 1) {
-    //         if (cache_.ctype() == BSHD) {
-    //             for (int b = 0; b < cache_.batch(); ++b) {
-    //                 for (int h = cache_.head() - 1; h >= 0; --h) {
-    // // #pragma omp parallel for collapse(2) num_threads(thread_count)
-    //                     for (int seq = cache_seq_len_; seq < cache_seq_len_old; ++seq) {
-    //                         for (int i_rep = 0; i_rep < n_rep_; ++i_rep) {
-    //                             auto cache_head = h * n_rep_ + i_rep;
-    //                             if (cache_.dtype() == MLLM_TYPE_F32) {
-    //                                 auto dest_ptr = cache_.ptrAt<float>(b, cache_head, seq, 0);
-    //                                 int copy_size = cache_.dimension();
-    //                                 memset(dest_ptr, 0, copy_size * sizeof(float));
-    //                             } else if (cache_.dtype() == MLLM_TYPE_F16) {
-    //                                 auto dest_ptr = cache_.ptrAt<mllm_fp16_t>(b, cache_head, seq, 0);
-    //                                 int copy_size = cache_.dimension();
-    //                                 memset(dest_ptr, 0, copy_size * sizeof(mllm_fp16_t));
-    //                             }
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         } else if (cache_.ctype() == BHDS) {
-    //             for (int b = 0; b < cache_.batch(); ++b) {
-    //                 for (int h = cache_.head() - 1; h >= 0; --h) {
-    // // #pragma omp parallel for collapse(2) num_threads(thread_count)
-    //                     for (int d = 0; d < cache_.dimension(); ++d) {
-    //                         for (int i_rep = 0; i_rep < n_rep_; ++i_rep) {
-    //                             auto cache_head = h * n_rep_ + i_rep;
-    //                             if (cache_.dtype() == MLLM_TYPE_F32) {
-    //                                 auto dest_ptr =
-    //                                     cache_.ptrAt<float>(b, cache_head, cache_seq_len_, d);
-    //                                 int copy_size = cache_seq_len_old - cache_seq_len_;
-    //                                 memset(dest_ptr, 0, copy_size * sizeof(float));
-    //                             } else if (cache_.dtype() == MLLM_TYPE_F16) {
-    //                                 auto dest_ptr =
-    //                                     cache_.ptrAt<mllm_fp16_t>(b, cache_head, cache_seq_len_, d);
-    //                                 int copy_size = cache_seq_len_old - cache_seq_len_;
-    //                                 memset(dest_ptr, 0, copy_size * sizeof(mllm_fp16_t));
-    //                             }
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         } else {
-    //             std::cout << "ERROR Ctype in KVCcache;" << std::endl;
-    //         }
-    //     }
-    // }
     return MLLM_NO_ERROR;
 }
 

@@ -4,6 +4,7 @@ adb shell mkdir /data/local/tmp/mllm
 adb shell mkdir /data/local/tmp/mllm/bin
 adb shell mkdir /data/local/tmp/mllm/models
 adb shell mkdir /data/local/tmp/mllm/vocab
+adb shell mkdir /data/local/tmp/mllm/assets
 adb push ../vocab/* /data/local/tmp/mllm/vocab/
 adb push ../assets/* /data/local/tmp/mllm/assets/
 adb push ../bin-arm/demo_qwen2_vl /data/local/tmp/mllm/bin/

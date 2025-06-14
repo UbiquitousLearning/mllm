@@ -19,8 +19,8 @@ public:
     OPTBlock(int hidden_dim, int head_size, int ffn_hidden, int cache_limit,
              string attn_implementation, const optNameConfig &names, const string &base_name) {
         attention = MultiHeadAttention(hidden_dim, head_size, head_size,
-                                       hidden_dim / head_size, SPLIT_NONE, false, false,
-                                       NONE, -1, -1, cache_limit, true, true,
+                                       hidden_dim / head_size, SPLIT_NONE, PostQkv_NONE, false,
+                                       NONE, -1, -1, cache_limit, true, true, true, 
                                        attn_implementation,
                                        names, base_name + names._attn_base_name);
         mlp = FeedForward(hidden_dim, ffn_hidden, "ReLU", true,

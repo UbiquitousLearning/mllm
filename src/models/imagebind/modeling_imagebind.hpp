@@ -7,6 +7,7 @@
 
 #include "Layer.hpp"
 #include "Module.hpp"
+#include "Types.hpp"
 #include "configuration_imagebind.hpp"
 #include "models/transformer/modeling_transformer.hpp"
 
@@ -31,8 +32,8 @@ public:
             bias_kv_cat = true;
         }
         attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size,
-                                       SPLIT_HD, false, bias_kv_cat,
-                                       RoPEType::NONE, -1, -1, 0, do_mask, true,
+                                       SPLIT_HD, PostQkv_NONE, bias_kv_cat,
+                                       RoPEType::NONE, -1, -1, 0, do_mask, true, true,
                                        attn_implementation,
                                        names, base_name + names._attn_base_name);
         ffn = FeedForward(hidden_dim, ffn_hidden, "GELU", true,

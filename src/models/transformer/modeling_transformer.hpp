@@ -12,6 +12,24 @@
 
 using namespace mllm;
 
+struct MultiHeadAttentionConfig {
+    int hidden_dim;
+    int num_heads;
+    int num_key_value_heads;
+    int head_dim;
+    AttnQKVSplitType do_qkv_proj = SPLIT_NONE; // Options: SPLIT_NONE, SPLIT_HD, SPLIT_D_HD
+    AttnPostQkvNormType post_qkv_norm = PostQkv_NONE;
+    bool bias_kv_cat = false; // Only used when do_qkv_proj > 0
+    RoPEType RoPE_type = RoPEType::NONE; // Options: NONE, ALIBI, ROPE, PERSIMMONROPE
+    float rope_theta;
+    int max_position_embeddings;
+    int cache_limit;
+    bool is_causal;
+    bool qkv_bias;
+    bool o_bias;
+    string attn_implementation = "flash_attention_2"; // Options: "flash_attention_2", "eager"
+};
+
 class MultiHeadAttention final : public Module {
     Layer qkv_proj;
     Layer q_proj;
@@ -27,62 +45,75 @@ class MultiHeadAttention final : public Module {
     Layer o_proj;
     Parameter bias_k;
     Parameter bias_v;
-    int head_size_{};
-    int kv_head_size_{};
-    int attn_hidden_dim_{};
+    int num_heads_{};
+    int num_key_value_heads_{};
+    int head_dim_{};
     Chl split_chl_{};
     bool causal_mask = true;
     string attn_implementation_ = "flash_attention_2"; // Options: "flash_attention_2", "eager"
+    bool head_first_attn = false; // 是否是head-first的注意力排布实现
 
 public:
     MultiHeadAttention() = default;
-    MultiHeadAttention(int hidden_dim, int head_size, int kv_head_size, int attn_hidden_dim,
-                       AttnQKVSplitType do_qkv_proj, bool post_qkv_norm, bool bias_kv_cat,
+    MultiHeadAttention(MultiHeadAttentionConfig config,
+                       const TransformerNameConfig &names, const string &base_name) {
+        MultiHeadAttention(config.hidden_dim, config.num_heads, 
+                               config.num_key_value_heads, config.head_dim,
+                               config.do_qkv_proj, config.post_qkv_norm, config.bias_kv_cat,
+                               config.RoPE_type, config.rope_theta, config.max_position_embeddings,
+                               config.cache_limit, config.is_causal, config.qkv_bias, config.o_bias,
+                               config.attn_implementation, names, base_name);
+    }
+    MultiHeadAttention(int hidden_dim, int num_heads, int num_key_value_heads, int head_dim,
+                       AttnQKVSplitType do_qkv_proj, AttnPostQkvNormType post_qkv_norm, bool bias_kv_cat,
                        RoPEType RoPE_type, float rope_theta, int max_position_embeddings,
-                       int cache_limit, bool do_mask, bool bias,
+                       int cache_limit, bool is_causal, bool qkv_bias, bool o_bias,
                        string attn_implementation,
                        const TransformerNameConfig &names, const string &base_name) {
-        attn_hidden_dim_ = attn_hidden_dim;
-        head_size_ = head_size;
-        kv_head_size_ = kv_head_size;
-        causal_mask = do_mask;
+        head_dim_ = head_dim;
+        num_heads_ = num_heads;
+        num_key_value_heads_ = num_key_value_heads;
+        causal_mask = is_causal;
         attn_implementation_ = attn_implementation;
         if (do_qkv_proj > 0) {
-            qkv_proj = Linear(hidden_dim, head_size * attn_hidden_dim * 3, bias, base_name + names._qkv_proj_name);
+            qkv_proj = Linear(hidden_dim, num_heads * head_dim * 3, qkv_bias, base_name + names._qkv_proj_name);
             split_chl_ = (Chl)do_qkv_proj;
         } else {
-            q_proj = Linear(hidden_dim, head_size * attn_hidden_dim, bias, base_name + names._q_proj_name);
-            k_proj = Linear(hidden_dim, kv_head_size * attn_hidden_dim, bias, base_name + names._k_proj_name);
-            v_proj = Linear(hidden_dim, kv_head_size * attn_hidden_dim, bias, base_name + names._v_proj_name);
+            q_proj = Linear(hidden_dim, num_heads * head_dim, qkv_bias, base_name + names._q_proj_name);
+            k_proj = Linear(hidden_dim, num_key_value_heads * head_dim, qkv_bias, base_name + names._k_proj_name);
+            v_proj = Linear(hidden_dim, num_key_value_heads * head_dim, qkv_bias, base_name + names._v_proj_name);
         }
-        if (post_qkv_norm) {
-            q_norm = LayerNorm(attn_hidden_dim, true, 1e-6, base_name + names._q_norm_name);
-            k_norm = LayerNorm(attn_hidden_dim, true, 1e-6, base_name + names._k_norm_name);
+        if (post_qkv_norm == PostQkv_LayerNorm) {
+            q_norm = LayerNorm(head_dim, true, 1e-6, base_name + names._q_norm_name);
+            k_norm = LayerNorm(head_dim, true, 1e-6, base_name + names._k_norm_name);
+        }else if (post_qkv_norm == PostQkv_RMSNorm) {
+            q_norm = RMSNorm(head_dim, 1e-6, base_name + names._q_norm_name);
+            k_norm = RMSNorm(head_dim, 1e-6, base_name + names._k_norm_name);
         }
         if (RoPE_type > 0) {
             q_rope = RoPE(RoPE_type, rope_theta, max_position_embeddings, base_name + "q_rope");
             k_rope = RoPE(RoPE_type, rope_theta, max_position_embeddings, base_name + "k_rope");
         }
         if (cache_limit > 0) {
-            k_cache = KVCache(kv_head_size, attn_hidden_dim,
-                              head_size / kv_head_size, cache_limit,
+            k_cache = KVCache(num_key_value_heads, head_dim,
+                              num_heads / num_key_value_heads, cache_limit,
                               (attn_implementation_ == "flash_attention_2"), base_name + "k_cache");
-            v_cache = KVCache(kv_head_size, attn_hidden_dim,
-                              head_size / kv_head_size, cache_limit,
+            v_cache = KVCache(num_key_value_heads, head_dim,
+                              num_heads / num_key_value_heads, cache_limit,
                               (attn_implementation_ == "flash_attention_2"), base_name + "v_cache");
         }
-        softmax = Softmax(DIMENSION, do_mask, base_name + "softmax");
-        o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, bias, base_name + names._o_proj_name);
+        softmax = Softmax(DIMENSION, is_causal, base_name + "softmax");
+        o_proj = Linear(num_heads * head_dim, hidden_dim, o_bias, base_name + names._o_proj_name);
         if (bias_kv_cat) {
-            bias_k = Parameter(1, 1, head_size, attn_hidden_dim, base_name + "bias_k");
-            bias_v = Parameter(1, 1, head_size, attn_hidden_dim, base_name + "bias_v");
+            bias_k = Parameter(1, 1, num_heads, head_dim, base_name + "bias_k");
+            bias_v = Parameter(1, 1, num_heads, head_dim, base_name + "bias_v");
         }
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         Tensor q, k, v;
         if (qkv_proj.ready()) {
             auto qkv = qkv_proj(inputs[0]);
-            auto qkv_sp = qkv.split({attn_hidden_dim_, attn_hidden_dim_, attn_hidden_dim_}, split_chl_, head_size_);
+            auto qkv_sp = qkv.split({head_dim_, head_dim_, head_dim_}, split_chl_, num_heads_);
             q = qkv_sp[0];
             k = qkv_sp[1];
             v = qkv_sp[2];
@@ -90,9 +121,9 @@ public:
             q = q_proj(inputs[0]);
             k = k_proj(inputs[1]);
             v = v_proj(inputs[2]);
-            q = q.view(-1, head_size_, -1, attn_hidden_dim_);
-            k = k.view(-1, kv_head_size_, -1, attn_hidden_dim_);
-            v = v.view(-1, kv_head_size_, -1, attn_hidden_dim_);
+            q = q.view(-1, num_heads_, -1, head_dim_);
+            k = k.view(-1, num_key_value_heads_, -1, head_dim_);
+            v = v.view(-1, num_key_value_heads_, -1, head_dim_);
         }
         if (q_norm.ready() && k_norm.ready()) {
             q = q_norm(q);
@@ -106,6 +137,11 @@ public:
             q = q_rope(q);
             k = k_rope(k);
         }
+        if(head_first_attn){
+            q = q.transpose(HEAD, SEQUENCE);
+            k = k.transpose(HEAD, SEQUENCE);
+            v = v.transpose(HEAD, SEQUENCE);
+        }
         if (k_cache.ready() && v_cache.ready()) {
             k = k_cache(k);
             v = v_cache(v);
@@ -116,7 +152,7 @@ public:
         } else { // eager implementation
             k = k.transpose(SEQUENCE, DIMENSION);
             auto qk = Tensor::mm(q, k);
-            qk = qk / std::sqrt(attn_hidden_dim_);
+            qk = qk / std::sqrt(head_dim_);
             if (k_cache.ready() && v_cache.ready()) {
                 qk = softmax(qk, k_cache.getCacheSeqLen());
             } else {
@@ -124,7 +160,10 @@ public:
             }
             o = Tensor::mm(qk, v);
         }
-        o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
+        if(head_first_attn){
+            o = o.transpose(HEAD, SEQUENCE);
+        }
+        o = o.view(-1, 1, -1, head_dim_ * num_heads_);
         o = o_proj(o);
         return {o};
     }

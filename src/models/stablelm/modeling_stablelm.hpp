@@ -20,41 +20,41 @@ class StableLMMultiHeadAttention final : public Module {
     Layer o_proj;
     int head_size_{};
     int kv_head_size_{};
-    int attn_hidden_dim_{};
+    int head_dim_{};
     Chl split_chl_{};
     string attn_impl;
 
 public:
     StableLMMultiHeadAttention() = default;
-    StableLMMultiHeadAttention(int hidden_dim, int head_size, int kv_head_size, int attn_hidden_dim,
+    StableLMMultiHeadAttention(int hidden_dim, int head_size, int kv_head_size, int head_dim,
                                RoPEType RoPE_type, int cache_limit, bool do_mask, bool bias, string attn_implementation,
                                const TransformerNameConfig &names, const string &base_name) {
-        attn_hidden_dim_ = attn_hidden_dim;
+        head_dim_ = head_dim;
         head_size_ = head_size;
         kv_head_size_ = kv_head_size;
         attn_impl = attn_implementation;
-        q_proj = Linear(hidden_dim, head_size * attn_hidden_dim, bias, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_dim, kv_head_size * attn_hidden_dim, bias, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_dim, kv_head_size * attn_hidden_dim, bias, base_name + names._v_proj_name);
+        q_proj = Linear(hidden_dim, head_size * head_dim, bias, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_dim, kv_head_size * head_dim, bias, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_dim, kv_head_size * head_dim, bias, base_name + names._v_proj_name);
         if (RoPE_type > 0) {
             q_rope = RoPE(RoPE_type, 10000, 0.25, 4096, base_name + "q_rope");
             k_rope = RoPE(RoPE_type, 10000, 0.25, 4096, base_name + "k_rope");
         }
         if (cache_limit > 0) {
-            k_cache = KVCache(kv_head_size, attn_hidden_dim, head_size / kv_head_size, cache_limit, (attn_impl == "flash_attention_2"), base_name + "k_cache");
-            v_cache = KVCache(kv_head_size, attn_hidden_dim, head_size / kv_head_size, cache_limit, (attn_impl == "flash_attention_2"), base_name + "v_cache");
+            k_cache = KVCache(kv_head_size, head_dim, head_size / kv_head_size, cache_limit, (attn_impl == "flash_attention_2"), base_name + "k_cache");
+            v_cache = KVCache(kv_head_size, head_dim, head_size / kv_head_size, cache_limit, (attn_impl == "flash_attention_2"), base_name + "v_cache");
         }
         softmax = Softmax(DIMENSION, do_mask, base_name + "softmax");
-        o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, false, base_name + names._o_proj_name);
+        o_proj = Linear(head_size * head_dim, hidden_dim, false, base_name + names._o_proj_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         Tensor q, k, v;
         q = q_proj(inputs[0]);
         k = k_proj(inputs[1]);
         v = v_proj(inputs[2]);
-        q = q.view(-1, head_size_, -1, attn_hidden_dim_);
-        k = k.view(-1, kv_head_size_, -1, attn_hidden_dim_);
-        v = v.view(-1, kv_head_size_, -1, attn_hidden_dim_);
+        q = q.view(-1, head_size_, -1, head_dim_);
+        k = k.view(-1, kv_head_size_, -1, head_dim_);
+        v = v.view(-1, kv_head_size_, -1, head_dim_);
         if (q_rope.ready() && k_rope.ready()) {
             q = q_rope(q);
             k = k_rope(k);
@@ -70,11 +70,11 @@ public:
         } else { // eager implementation
             k = k.transpose(SEQUENCE, DIMENSION);
             auto qk = Tensor::mm(q, k);
-            qk = qk / std::sqrt(attn_hidden_dim_);
+            qk = qk / std::sqrt(head_dim_);
             qk = softmax(qk, k_cache.getCacheSeqLen());
             o = Tensor::mm(qk, v);
         }
-        o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
+        o = o.view(-1, 1, -1, head_dim_ * head_size_);
         o = o_proj(o);
         return {o};
     }

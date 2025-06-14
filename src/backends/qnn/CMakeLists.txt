@@ -48,7 +48,7 @@ endif()
 
 
 add_library(
-    lib_mllm_qnn
+    mllm_qnn
     OBJECT
     ${MLLM_QNN_SRC}
 )
@@ -57,12 +57,12 @@ if(OpenMP_FOUND)
     message(STATUS "found openmp")
     if(ARM AND NOT APK)
         message(STATUS "[ARM]  found openmp")
-        target_compile_options(lib_mllm_qnn PRIVATE -fopenmp)
-        target_link_libraries(lib_mllm_qnn PUBLIC -fopenmp -static-openmp)
+        target_compile_options(mllm_qnn PRIVATE -fopenmp)
+        target_link_libraries(mllm_qnn PUBLIC -fopenmp -static-openmp)
     else()
-    target_link_libraries(lib_mllm_qnn
+    target_link_libraries(mllm_qnn
             PUBLIC
             OpenMP::OpenMP_CXX )
     endif()
 endif()
-target_link_libraries(lib_mllm_qnn PUBLIC fmt::fmt-header-only)
+target_link_libraries(mllm_qnn PUBLIC fmt::fmt-header-only)

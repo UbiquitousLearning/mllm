@@ -8,6 +8,7 @@
 #include "Backend.hpp"
 #include "Layer.hpp"
 #include "Module.hpp"
+#include "Types.hpp"
 #include "configuration_fuyu.hpp"
 
 #include <models/transformer/modeling_transformer.hpp>
@@ -26,8 +27,9 @@ public:
                    string attn_implementation,
                    const FuyuNameConfig &names, const string &base_name) {
         attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size,
-                                       SPLIT_D_HD, true, false,
-                                       PERSIMMONROPE, rope_theta, max_position_embeddings, cache_limit, true, true,
+                                       SPLIT_D_HD, PostQkv_LayerNorm, false,
+                                       PERSIMMONROPE, rope_theta, max_position_embeddings, cache_limit, 
+                                       true, true, true, 
                                        attn_implementation,
                                        names, base_name + names._attn_base_name);
         mlp = FeedForward(hidden_dim, ffn_hidden, "ReLU2", true,

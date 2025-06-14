@@ -2519,6 +2519,7 @@ private:
         }
     }
 
+    /*
     // 输入Q为FP32，但在函数内动态转为FP16，以使用最高效的 vfmlalq_f16 指令进行计算
     inline void mma0(const dtype_q_in_t *__restrict__ q_block, const dtype_kv_in_t *__restrict__ k_block,
                      acc_dtype_t *__restrict__ acc_s, const int32_t dim_size,
@@ -2604,6 +2605,78 @@ private:
             }
         }
     }
+    */
+    // 【最终正确优化版】
+    // 核心思路:
+    // 1. 在处理每一行Q (b_r_idx) 时，先将其从 FP32 一次性完整转换为 FP16，并存入一个临时缓冲区 q_f16_buf。
+    // 2. 在内层循环 (b_c_idx) 中，重复使用这个转换好的 q_f16_buf。
+    // 3. 这样就将转换开销均摊，使得内层循环可以零开销地、最高效地执行 FP16 * FP16 -> FP32 的乘加运算。
+    inline void mma0(const dtype_q_in_t *__restrict__ q_block, const dtype_kv_in_t *__restrict__ k_block,
+                     acc_dtype_t *__restrict__ acc_s, const int32_t dim_size,
+                     const int32_t q_stride_size, const int32_t kv_stride_size,
+                     const int32_t t_r_idx, const int32_t t_c_idx,
+                     const int32_t seq_size_q, const int32_t seq_size_k, bool causal_mask) {
+        const int32_t global_r_start = t_r_idx * Br;
+        const int32_t global_r_end = global_r_start + Br;
+        const int32_t global_c_start = t_c_idx * Bc;
+        int delta_pos = seq_size_k - seq_size_q;
+
+        if (causal_mask && (global_c_start - delta_pos > (global_r_end - 1))) { return; }
+
+        __fp16 q_f16_buf[dim_size];
+
+
+        for (int32_t b_r_idx = 0; b_r_idx < Br; ++b_r_idx) {
+            const dtype_q_in_t *q_block_line = q_block + b_r_idx * q_stride_size;
+
+            int k = 0;
+            for (; k <= dim_size - 8; k += 8) {
+                float32x4_t q_f32_0 = vld1q_f32(q_block_line + k);
+                float32x4_t q_f32_1 = vld1q_f32(q_block_line + k + 4);
+                float16x8_t q_f16 = vcombine_f16(vcvt_f16_f32(q_f32_0), vcvt_f16_f32(q_f32_1));
+                vst1q_f16(q_f16_buf + k, q_f16);
+            }
+            for (; k < dim_size; ++k) {
+                q_f16_buf[k] = (__fp16)q_block_line[k];
+            }
+            for (int32_t b_c_idx = 0; b_c_idx < Bc; ++b_c_idx) {
+                const dtype_kv_in_t *k_block_line = k_block + b_c_idx * kv_stride_size;
+                float32x4_t sum0 = vdupq_n_f32(0.0f);
+                float32x4_t sum1 = vdupq_n_f32(0.0f);
+                int i = 0;
+                for (; i <= dim_size - 16; i += 16) {
+                    float16x8_t q_f16_0 = vld1q_f16(q_f16_buf + i);
+                    float16x8_t q_f16_1 = vld1q_f16(q_f16_buf + i + 8);
+                    float16x8_t k_f16_0 = vld1q_f16((const __fp16 *)k_block_line + i);
+                    float16x8_t k_f16_1 = vld1q_f16((const __fp16 *)k_block_line + i + 8);
+                    sum0 = vfmlalq_low_f16(sum0, q_f16_0, k_f16_0);
+                    sum0 = vfmlalq_high_f16(sum0, q_f16_0, k_f16_0);
+                    sum1 = vfmlalq_low_f16(sum1, q_f16_1, k_f16_1);
+                    sum1 = vfmlalq_high_f16(sum1, q_f16_1, k_f16_1);
+                }
+                sum0 = vaddq_f32(sum0, sum1);
+                if (i <= dim_size - 8) {
+                    float16x8_t q_f16 = vld1q_f16(q_f16_buf + i);
+                    float16x8_t k_f16 = vld1q_f16((const __fp16 *)k_block_line + i);
+                    sum0 = vfmlalq_low_f16(sum0, q_f16, k_f16);
+                    sum0 = vfmlalq_high_f16(sum0, q_f16, k_f16);
+                    i += 8;
+                }
+                acc_dtype_t total = vaddvq_f32(sum0);
+                for (; i < dim_size; ++i) {
+                    total += (float)q_f16_buf[i] * (float)k_block_line[i];
+                }
+                acc_s[b_r_idx * Bc + b_c_idx] = total;
+            }
+        }
+        if (causal_mask && (global_r_end == (t_c_idx * Bc + Bc) - delta_pos)) {
+            for (int i = 0; i < Br; ++i) {
+                for (int j = 0; j < Bc; ++j) {
+                    if (j > i) { acc_s[i * Bc + j] = NEG_INF; }
+                }
+            }
+        }
+    }
     // (与FP32版本相同)
     inline void softmax(acc_dtype_t *__restrict__ acc_s, acc_dtype_t *scoremax, acc_dtype_t *scoremax_prev,
                         acc_dtype_t *score_scale, acc_dtype_t *score_sum, acc_dtype_t *logsum,
@@ -2657,7 +2730,7 @@ private:
         }
     }
 
-    // (混合精度修改版)
+    /*
     inline void mma1(const acc_dtype_t *__restrict__ w_block, const dtype_kv_in_t *__restrict__ v_block,
                      acc_dtype_t *__restrict__ acc_o, const int32_t kv_head_size, const int32_t dim_size,
                      const int32_t t_r_idx, const int32_t t_c_idx, const int32_t seq_size_q,
@@ -2679,7 +2752,45 @@ private:
             }
         }
     }
+        */
+    inline void mma1(const acc_dtype_t *__restrict__ w_block, const dtype_kv_in_t *__restrict__ v_block,
+                     acc_dtype_t *__restrict__ acc_o, const int32_t kv_head_size, const int32_t dim_size,
+                     const int32_t t_r_idx, const int32_t t_c_idx, const int32_t seq_size_q,
+                     const int32_t seq_size_k, bool causal_mask) {
+        const int32_t global_r_start = t_r_idx * Br;
+        const int32_t global_c_start = t_c_idx * Bc;
+        int delta_pos = seq_size_k - seq_size_q;
+        if (causal_mask && (global_c_start - delta_pos > (global_r_start + Br - 1))) return;
 
+        const int32_t v_stride_size = kv_head_size * dim_size;
+
+        // 循环结构 (Br, dim_size, Bc) 对 acc_o 的读写更友好
+        for (int b_r_idx = 0; b_r_idx < Br; ++b_r_idx) {
+            for (int d_base = 0; d_base < dim_size; d_base += 4) {
+                // 加载128位的FP32累加器
+                float32x4_t acc_vec = vld1q_f32(acc_o + b_r_idx * dim_size + d_base);
+
+                for (int b_c_idx = 0; b_c_idx < Bc; ++b_c_idx) {
+                    // 从w_block直接读取FP32的P标量
+                    const float p_scalar_f32 = w_block[b_r_idx * Bc + b_c_idx];
+                    // 将FP32标量广播为一个128位向量
+                    const float32x4_t p_vec_f32 = vdupq_n_f32(p_scalar_f32);
+
+                    // 加载FP16的V向量
+                    const __fp16 *v_ptr = (const __fp16 *)v_block + b_c_idx * v_stride_size + d_base;
+                    const float16x4_t v_vec_f16 = vld1_f16(v_ptr);
+
+                    // 将V向量从FP16转换为FP32
+                    const float32x4_t v_vec_f32 = vcvt_f32_f16(v_vec_f16);
+                    
+                    // 执行FP32的融合乘加
+                    acc_vec = vfmaq_f32(acc_vec, p_vec_f32, v_vec_f32);
+                }
+                // 将结果写回内存
+                vst1q_f32(acc_o + b_r_idx * dim_size + d_base, acc_vec);
+            }
+        }
+    }
     // (与FP32版本相同)
     inline void scale_and_store(const acc_dtype_t *__restrict__ acc_o, const acc_dtype_t *__restrict__ logsum,
                                 dtype_out_t *__restrict__ o_block, const int32_t t_r_idx,

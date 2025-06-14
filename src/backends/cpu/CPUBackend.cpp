@@ -310,57 +310,81 @@ std::vector<Tensor> CPUBackend::runFunc(
         if (activation_tensors.find(out_tensor->name()) != activation_tensors.end()
             && !activation_tensors[out_tensor->name()]->aggregatedTensors().empty()) {
             // 存在aggregatedTensors
-            vector<shared_ptr<Tensor>> shared_outputs = {};
-            auto split_dim = activation_tensors[out_tensor->name()]->aggregatedDim();
-            for (int id = 0; id < activation_tensors[out_tensor->name()]->aggregatedTensors().size(); id++) {
-                auto shared_ot = std::make_shared<Tensor>(backend);
-                shared_ot->setName(out_tensor->name() + ".split-" + std::to_string(id));
-                shared_ot->setModule(module);
-                auto ot = activation_tensors[out_tensor->name()]->aggregatedTensors()[id];
-                shared_ot->setCtype(ot->ctype());
-                switch (split_dim) {
-                case Chl::HEAD: {
-                    shared_ot->reshape(out_tensor->batch(), ot->head(), out_tensor->sequence(), out_tensor->dimension());
-                    break;
-                }
-                case Chl::SEQUENCE: {
-                    shared_ot->reshape(out_tensor->batch(), out_tensor->head(), ot->sequence(), out_tensor->dimension());
-                    break;
-                }
-                case Chl::DIMENSION: {
-                    shared_ot->reshape(out_tensor->batch(), out_tensor->head(), out_tensor->sequence(), ot->dimension());
-                    break;
-                }
-                case Chl::D_HD:
-                case Chl::HD: {
-                    shared_ot->reshape(out_tensor->batch(), ot->head(), out_tensor->sequence(), ot->dimension());
-                    break;
-                }
-                default: {
-                    break;
-                }
-                }
-                if (activation_tensors[shared_ot->name()]->masterTensor() != nullptr
-                    && activation_tensors[shared_ot->name()]->masterTensor()->name().find("Cache") != std::string::npos) {
-                    auto cache_seq_len_ = activation_tensors[shared_ot->name()]->shapeOffset()[2];
-                    if (shared_ot->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
-                        cache_seq_len_ = activation_tensors[shared_ot->name()]->masterTensor()->cache_seq_len_;
-                        auto cpuBackend = dynamic_cast<CPUBackend *>(backend);
-                        if (cpuBackend->isUsingDraft()) {
-                            unsigned int last_draft_length = cpuBackend->getLastDraftLength();
-                            const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
-                            cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
-                        }
+
+            bool remove_f = true;
+            if (activation_tensors[out_tensor->name()]->aggregatedDim() > 3) {
+                remove_f = false; // 不能移除
+            } else {
+                for (auto &agtensor : activation_tensors[out_tensor->name()]->aggregatedTensors()) {
+                    bool check_m = (agtensor->masterTensor() != nullptr
+                                    && agtensor->masterTensor()->name().find("Cache") != std::string::npos);
+                    if (agtensor->ctype() != activation_tensors[out_tensor->name()]->aggregatedTensors()[0]->ctype()) {
+                        remove_f = false;
+                    } else if (check_m) {
+                        remove_f = false;
                     }
-                    shared_ot->setDtype(activation_tensors[shared_ot->name()]->masterTensor()->dtype());
-                    // masterTensor() 是Cache所以shape没有问题
-                    shared_ot->shallowCopyFrom(activation_tensors[shared_ot->name()]->masterTensor(), false, {0, 0, cache_seq_len_, 0});
-                } else {
-                    shared_ot->alloc();
                 }
-                shared_outputs.push_back(shared_ot);
             }
-            out_tensor->addTensors(shared_outputs, split_dim);
+            // if (remove_f) {
+            //     inputs[0]->removeAggregatedTensors();
+            //     inputs[0]->allowAggregated() = false;
+            // }
+            if (!remove_f) {
+                vector<shared_ptr<Tensor>> shared_outputs = {};
+                auto split_dim = activation_tensors[out_tensor->name()]->aggregatedDim();
+                for (int id = 0; id < activation_tensors[out_tensor->name()]->aggregatedTensors().size(); id++) {
+                    auto shared_ot = std::make_shared<Tensor>(backend);
+                    shared_ot->setName(out_tensor->name() + ".split-" + std::to_string(id));
+                    shared_ot->setModule(module);
+                    auto ot = activation_tensors[out_tensor->name()]->aggregatedTensors()[id];
+                    shared_ot->setCtype(ot->ctype());
+                    switch (split_dim) {
+                    case Chl::HEAD: {
+                        shared_ot->reshape(out_tensor->batch(), ot->head(), out_tensor->sequence(), out_tensor->dimension());
+                        break;
+                    }
+                    case Chl::SEQUENCE: {
+                        shared_ot->reshape(out_tensor->batch(), out_tensor->head(), ot->sequence(), out_tensor->dimension());
+                        break;
+                    }
+                    case Chl::DIMENSION: {
+                        shared_ot->reshape(out_tensor->batch(), out_tensor->head(), out_tensor->sequence(), ot->dimension());
+                        break;
+                    }
+                    case Chl::D_HD:
+                    case Chl::HD: {
+                        shared_ot->reshape(out_tensor->batch(), ot->head(), out_tensor->sequence(), ot->dimension());
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                    }
+                    if (activation_tensors[shared_ot->name()]->masterTensor() != nullptr
+                        && activation_tensors[shared_ot->name()]->masterTensor()->name().find("Cache") != std::string::npos) {
+                        auto cache_seq_len_ = activation_tensors[shared_ot->name()]->shapeOffset()[2];
+                        if (shared_ot->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
+                            cache_seq_len_ = activation_tensors[shared_ot->name()]->masterTensor()->cache_seq_len_;
+                            auto cpuBackend = dynamic_cast<CPUBackend *>(backend);
+                            if (cpuBackend->isUsingDraft()) {
+                                unsigned int last_draft_length = cpuBackend->getLastDraftLength();
+                                const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+                                cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
+                            }
+                        }
+                        shared_ot->setDtype(activation_tensors[shared_ot->name()]->masterTensor()->dtype());
+                        // masterTensor() 是Cache所以shape没有问题
+                        shared_ot->shallowCopyFrom(activation_tensors[shared_ot->name()]->masterTensor(), false, {0, 0, cache_seq_len_, 0});
+                    } else {
+                        shared_ot->alloc();
+                    }
+                    shared_outputs.push_back(shared_ot);
+                }
+                out_tensor->addTensors(shared_outputs, split_dim);
+            } else {
+                out_tensor->allowAggregated() = false;
+                out_tensor->alloc();
+            }
         } else if (activation_tensors.find(out_tensor->name()) != activation_tensors.end()
                    && activation_tensors[out_tensor->name()]->masterTensor() != nullptr
                    && activation_tensors[out_tensor->name()]->masterTensor()->name().find("Cache") != std::string::npos) {
@@ -478,57 +502,76 @@ std::vector<Tensor> CPUBackend::runLayer(Layer *layer, std::vector<Tensor> input
         if (activation_tensors.find(out_tensor->name()) != activation_tensors.end()
             && !activation_tensors[out_tensor->name()]->aggregatedTensors().empty()) {
             // 存在aggregatedTensors
-            vector<shared_ptr<Tensor>> shared_outputs = {};
-            auto split_dim = activation_tensors[out_tensor->name()]->aggregatedDim();
-            for (int id = 0; id < activation_tensors[out_tensor->name()]->aggregatedTensors().size(); id++) {
-                auto shared_ot = std::make_shared<Tensor>(layer->backend_);
-                shared_ot->setName(out_tensor->name() + ".split-" + std::to_string(id));
-                shared_ot->setModule(module);
-                auto ot = activation_tensors[out_tensor->name()]->aggregatedTensors()[id];
-                shared_ot->setCtype(ot->ctype());
-                switch (split_dim) {
-                case Chl::HEAD: {
-                    shared_ot->reshape(out_tensor->batch(), ot->head(), out_tensor->sequence(), out_tensor->dimension());
-                    break;
-                }
-                case Chl::SEQUENCE: {
-                    shared_ot->reshape(out_tensor->batch(), out_tensor->head(), ot->sequence(), out_tensor->dimension());
-                    break;
-                }
-                case Chl::DIMENSION: {
-                    shared_ot->reshape(out_tensor->batch(), out_tensor->head(), out_tensor->sequence(), ot->dimension());
-                    break;
-                }
-                case Chl::D_HD:
-                case Chl::HD: {
-                    shared_ot->reshape(out_tensor->batch(), ot->head(), out_tensor->sequence(), ot->dimension());
-                    break;
-                }
-                default: {
-                    break;
-                }
-                }
-                if (activation_tensors[shared_ot->name()]->masterTensor() != nullptr
-                    && activation_tensors[shared_ot->name()]->masterTensor()->name().find("Cache") != std::string::npos) {
-                    auto cache_seq_len_ = activation_tensors[shared_ot->name()]->shapeOffset()[2];
-                    if (shared_ot->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
-                        cache_seq_len_ = activation_tensors[shared_ot->name()]->masterTensor()->cache_seq_len_;
-                        auto cpuBackend = dynamic_cast<CPUBackend *>(layer->backend_);
-                        if (cpuBackend->isUsingDraft()) {
-                            unsigned int last_draft_length = cpuBackend->getLastDraftLength();
-                            const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
-                            cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
-                        }
+            bool remove_f = true;
+            if (activation_tensors[out_tensor->name()]->aggregatedDim() > 3) {
+                remove_f = false; // 不能移除
+            } else {
+                for (auto &agtensor : activation_tensors[out_tensor->name()]->aggregatedTensors()) {
+                    bool check_m = (agtensor->masterTensor() != nullptr
+                                    && agtensor->masterTensor()->name().find("Cache") != std::string::npos);
+                    if (agtensor->ctype() != activation_tensors[out_tensor->name()]->aggregatedTensors()[0]->ctype()) {
+                        remove_f = false;
+                    } else if (check_m) {
+                        remove_f = false;
                     }
-                    shared_ot->setDtype(activation_tensors[shared_ot->name()]->masterTensor()->dtype());
-                    // masterTensor() 是Cache所以shape没有问题
-                    shared_ot->shallowCopyFrom(activation_tensors[shared_ot->name()]->masterTensor(), false, {0, 0, cache_seq_len_, 0});
-                } else {
-                    shared_ot->alloc();
                 }
-                shared_outputs.push_back(shared_ot);
             }
-            out_tensor->addTensors(shared_outputs, split_dim);
+            if (!remove_f) {
+                vector<shared_ptr<Tensor>> shared_outputs = {};
+                auto split_dim = activation_tensors[out_tensor->name()]->aggregatedDim();
+                for (int id = 0; id < activation_tensors[out_tensor->name()]->aggregatedTensors().size(); id++) {
+                    auto shared_ot = std::make_shared<Tensor>(layer->backend_);
+                    shared_ot->setName(out_tensor->name() + ".split-" + std::to_string(id));
+                    shared_ot->setModule(module);
+                    auto ot = activation_tensors[out_tensor->name()]->aggregatedTensors()[id];
+                    shared_ot->setCtype(ot->ctype());
+                    switch (split_dim) {
+                    case Chl::HEAD: {
+                        shared_ot->reshape(out_tensor->batch(), ot->head(), out_tensor->sequence(), out_tensor->dimension());
+                        break;
+                    }
+                    case Chl::SEQUENCE: {
+                        shared_ot->reshape(out_tensor->batch(), out_tensor->head(), ot->sequence(), out_tensor->dimension());
+                        break;
+                    }
+                    case Chl::DIMENSION: {
+                        shared_ot->reshape(out_tensor->batch(), out_tensor->head(), out_tensor->sequence(), ot->dimension());
+                        break;
+                    }
+                    case Chl::D_HD:
+                    case Chl::HD: {
+                        shared_ot->reshape(out_tensor->batch(), ot->head(), out_tensor->sequence(), ot->dimension());
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                    }
+                    if (activation_tensors[shared_ot->name()]->masterTensor() != nullptr
+                        && activation_tensors[shared_ot->name()]->masterTensor()->name().find("Cache") != std::string::npos) {
+                        auto cache_seq_len_ = activation_tensors[shared_ot->name()]->shapeOffset()[2];
+                        if (shared_ot->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
+                            cache_seq_len_ = activation_tensors[shared_ot->name()]->masterTensor()->cache_seq_len_;
+                            auto cpuBackend = dynamic_cast<CPUBackend *>(layer->backend_);
+                            if (cpuBackend->isUsingDraft()) {
+                                unsigned int last_draft_length = cpuBackend->getLastDraftLength();
+                                const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+                                cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
+                            }
+                        }
+                        shared_ot->setDtype(activation_tensors[shared_ot->name()]->masterTensor()->dtype());
+                        // masterTensor() 是Cache所以shape没有问题
+                        shared_ot->shallowCopyFrom(activation_tensors[shared_ot->name()]->masterTensor(), false, {0, 0, cache_seq_len_, 0});
+                    } else {
+                        shared_ot->alloc();
+                    }
+                    shared_outputs.push_back(shared_ot);
+                }
+                out_tensor->addTensors(shared_outputs, split_dim);
+            } else {
+                out_tensor->allowAggregated() = false;
+                out_tensor->alloc();
+            }
         } else if (activation_tensors.find(out_tensor->name()) != activation_tensors.end()
                    && activation_tensors[out_tensor->name()]->masterTensor() != nullptr
                    && activation_tensors[out_tensor->name()]->masterTensor()->name().find("Cache") != std::string::npos) {

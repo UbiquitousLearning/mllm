@@ -37,6 +37,8 @@ endif ()
 if (ARM)
 if(QNN)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin-arm-qnn)
+elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING)
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin)
 else()
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../bin-arm)
 endif()
@@ -46,7 +48,7 @@ endif()
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         # 默认使用 armv8.2-a+dotprod，除非用户自定义了 CMAKE_CXX_FLAGS
         if(NOT DEFINED CMAKE_CXX_FLAGS OR CMAKE_CXX_FLAGS STREQUAL "")
-            set(CMAKE_CXX_FLAGS "-march=armv8.6-a+dotprod+i8mm")
+            set(CMAKE_CXX_FLAGS "-march=armv8.2-a+fp16+fp16fml+dotprod+i8mm")
         endif()
     endif()
 else ()
@@ -193,7 +195,7 @@ file(GLOB_RECURSE SRC_TOKENIZERS
 if(QUANT)
     include_directories(${PROJECT_SOURCE_DIR}/src/quantizer)
     file(GLOB_RECURSE MLLM_QUANT
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GemmAarch64.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GemmPack.cpp
         ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/QuantizeQ8.cpp
         ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/QuantizeQ4.cpp
         ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/QuantizeQ6.cpp
@@ -213,6 +215,8 @@ if(QUANT)
             # QSI4 模块源文件
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp1x8_qsi4c32p4x8_1x4x32_neon_dotprod.c
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp1x8_qsi4c32p4x8_1x4x32_neon_dotprod_asm.S
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp4x8_qsi4c32p4x8_8x4x32_neon_i8mm.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp4x8_qsi4c32p4x8_8x4x32_neon_i8mm_asm.S
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_lhs_quant_pack_qai8dxp_f32.c
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi4c32p_qsu4c32s1s0.c
 
@@ -238,10 +242,10 @@ if(QUANT)
     file(GLOB_RECURSE MLLM_QUANTIZER
         ${PROJECT_SOURCE_DIR}/src/quantizer/*.cpp
         ${PROJECT_SOURCE_DIR}/src/quantizer/*.hpp)
-    list(REMOVE_ITEM MLLM_QUANTIZER ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp)
+    list(REMOVE_ITEM MLLM_QUANTIZER ${PROJECT_SOURCE_DIR}/src/quantizer/main_quantize.cpp)
     add_executable(
         quantize
-        ${PROJECT_SOURCE_DIR}/src/quantizer/main.cpp
+        ${PROJECT_SOURCE_DIR}/src/quantizer/main_quantize.cpp
         ${MLLM_QUANT}
         ${MLLM_QUANTIZER}
         ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp
@@ -308,24 +312,24 @@ if(APK)
         # models/smollm/tokenization_smollm.hpp
         # tokenizers/Unigram/Unigram.hpp
     )
-    target_link_libraries(mllm_lib lib_mllm_cpu)
+    target_link_libraries(mllm_lib mllm_cpu)
 
     if(QNN)
-        target_link_libraries(mllm_lib lib_mllm_qnn)
+        target_link_libraries(mllm_lib mllm_qnn)
     endif()
 endif()
 
 if(MLLM_ENABLE_PYTHON)
-    target_compile_options(lib_mllm_cpu PRIVATE -fPIC)
+    target_compile_options(mllm_cpu PRIVATE -fPIC)
 
     find_package(Python3 COMPONENTS Interpreter Development)
     include_directories(${Python3_INCLUDE_DIRS})
     add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/pybind11)
 
     set(_py_dep_libs
-        lib_mllm_cpu
+        mllm_cpu
 
-        # lib_mllm_qnn
+        # mllm_qnn
         # ${CMAKE_DL_LIBS}
     )
 

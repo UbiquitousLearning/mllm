@@ -1,6 +1,6 @@
 add_subdirectory(third_party/XNNPACK)
 
-add_library(lib_mllm_xnnpack
+add_library(mllm_xnnpack
     OBJECT
 
     Utils/Logger.cpp
@@ -36,7 +36,7 @@ add_library(lib_mllm_xnnpack
     Functions/XpViewFunc.cpp
     Functions/XpMatmulFunc.cpp
 )
-target_include_directories(lib_mllm_xnnpack PUBLIC third_party/XNNPACK/src/)
-target_include_directories(lib_mllm_xnnpack PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../)
-target_link_libraries(lib_mllm_xnnpack PUBLIC XNNPACK fmt::fmt-header-only)
-set_target_properties(lib_mllm_xnnpack PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+target_include_directories(mllm_xnnpack PUBLIC third_party/XNNPACK/src/)
+target_include_directories(mllm_xnnpack PUBLIC ${CMAKE_CURRENT_LIST_DIR}/../)
+target_link_libraries(mllm_xnnpack PUBLIC XNNPACK fmt::fmt-header-only)
+set_target_properties(mllm_xnnpack PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)

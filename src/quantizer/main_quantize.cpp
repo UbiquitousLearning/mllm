@@ -14,9 +14,19 @@ int main(int argc, char **argv) {
     auto input_path = std::string(argv[1]);
     auto output_path = std::string(argv[2]);
     auto quant_type = std::string(argv[3]);
-    auto other_flag = std::string(argv[4]);
+    string other_flag = ""; // "vl" or "eager"
+    if(argc == 5) {
+        if (std::string(argv[4]) == "vl" || std::string(argv[4]) == "eager") {
+            other_flag = std::string(argv[4]);
+        } else {
+            std::cout << "Invalid other flag. Use 'vl' or 'eager'.\n";
+            return -1;
+        }
+    }
+    // auto other_flag = std::string(argv[4]);
     // std::string input_path = "../models/qwen-2.5-1.5b-instruct-fp32.mllm";
-    // std::string output_path = "../models/qwen-2.5-1.5b-instruct-kai_q4_0.mllm";
+    // std::string output_path = "../models/qwen-2.5-1.5b-instruct-kai_q4_0_.mllm";
+    // string other_flag = ""; // "vl" or "eager"
     // std::string input_path = "../models/qwen-2-vl-2b-instruct-fp32.mllm";
     // std::string output_path = "../models/qwen-2-vl-2b-instruct-kai_q4_0.mllm";
     // std::string quant_type = "KAI_Q4_0";

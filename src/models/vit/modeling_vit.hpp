@@ -39,9 +39,9 @@ public:
     ViTBlock() = default;
     ViTBlock(int hidden_dim, int head_size, int ffn_hidden, const string &act_fn_type,
              string attn_implementation, const ViTNameConfig &names, const string &base_name) {
-        attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size, SPLIT_NONE,
-                                       false, false, RoPEType::NONE,
-                                       -1, -1, 0, false, true, attn_implementation,
+        attention = MultiHeadAttention(hidden_dim, head_size, head_size, hidden_dim / head_size, 
+                                        SPLIT_NONE,PostQkv_NONE, false, RoPEType::NONE,
+                                       -1, -1, 0, false, true, true, attn_implementation,
                                        names, base_name + names._attn_base_name);
         mlp = ViTMLP(hidden_dim, ffn_hidden, act_fn_type, names, base_name + names._ffn_base_name);
         down_proj = Linear(ffn_hidden, hidden_dim, true, base_name + names._down_proj_name);

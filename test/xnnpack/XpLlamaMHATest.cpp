@@ -28,7 +28,7 @@ class XpLLaMAMHA final : public Module {
 
     int head_size_ = 0;
     int kv_head_size_ = 0;
-    int attn_hidden_dim_ = 0;
+    int head_dim_ = 0;
 
 public:
     XpLLaMAMHA() = default;
@@ -37,16 +37,16 @@ public:
         int hidden_dim,
         int head_size,
         int kv_head_size,
-        int attn_hidden_dim,
+        int head_dim,
         RoPEType RoPE_type,
         float rope_theta,
         int max_position_embeddings,
         int cache_limit,
         const XpLLaMAMHANameCfg &names,
         const string &base_name) {
-        q_proj = Linear(hidden_dim, head_size * attn_hidden_dim, false, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_dim, kv_head_size * attn_hidden_dim, false, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_dim, kv_head_size * attn_hidden_dim, false, base_name + names._v_proj_name);
+        q_proj = Linear(hidden_dim, head_size * head_dim, false, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_dim, kv_head_size * head_dim, false, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_dim, kv_head_size * head_dim, false, base_name + names._v_proj_name);
 
         q_rope = RoPE(RoPE_type, rope_theta, max_position_embeddings, base_name + "q_rope");
         k_rope = RoPE(RoPE_type, rope_theta, max_position_embeddings, base_name + "k_rope");
@@ -54,13 +54,13 @@ public:
         k_cache = XP_KVCache(head_size / kv_head_size, cache_limit, base_name + "k_cache");
         v_cache = XP_KVCache(head_size / kv_head_size, cache_limit, base_name + "v_cache");
 
-        o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, false, base_name + names._o_proj_name);
+        o_proj = Linear(head_size * head_dim, hidden_dim, false, base_name + names._o_proj_name);
 
         sdpa = ScaledDotProductAttention("sdpa");
 
         head_size_ = head_size;
         kv_head_size_ = kv_head_size;
-        attn_hidden_dim_ = attn_hidden_dim;
+        head_dim_ = head_dim;
     }
 
     vector<Tensor>
@@ -73,9 +73,9 @@ public:
 
         // q = q.view(bsz, q_len, num_heads, head_dim)
         // [B, S, H=heads, D=dim]
-        q = q.view(-1, head_size_, -1, attn_hidden_dim_);
-        k = k.view(-1, kv_head_size_, -1, attn_hidden_dim_);
-        v = v.view(-1, kv_head_size_, -1, attn_hidden_dim_);
+        q = q.view(-1, head_size_, -1, head_dim_);
+        k = k.view(-1, kv_head_size_, -1, head_dim_);
+        v = v.view(-1, kv_head_size_, -1, head_dim_);
 
         q = q_rope(q);
         k = k_rope(k);
@@ -94,7 +94,7 @@ public:
         // [B, H, S, D] -> [B, S, H, D]
         o = o.transpose(SEQUENCE, HEAD);
         // [B, S, H, D] -> [B, S, 1, H * D]
-        o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
+        o = o.view(-1, 1, -1, head_dim_ * head_size_);
         o = o_proj(o);
 
         return {o};

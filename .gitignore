@@ -32,9 +32,7 @@ tmp/
 py-build-out/
 mllm.egg-info/
 
-examples/demo_deepseek.cpp
-src/models/deepseek/*
-examples/demo.cpp
-
 src/backends/qnn/sdk/*
 .DS_Store
+src/models/ling/modeling_bailing_moe.hpp
+src/models/ling/configuration_bailing_moe.hpp

@@ -49,12 +49,12 @@ ErrorCode CPULinear::load(AbstructLoader &loader) {
     weight_.setName(name() + ".weight");
     weight_.reshape(1, 1, out_features_, in_features_);
     if (loader.getDataType(weight_.name()) != MLLM_TYPE_COUNT) {
-        if(loader.getDataType(weight_.name()) == MLLM_TYPE_KLEIDIAI_Q4_0) {
+        if (loader.getDataType(weight_.name()) == MLLM_TYPE_KLEIDIAI_Q4_0) {
 #if defined(__aarch64__) || defined(__arm__) || defined(__arm64__)
             kai_thread_count = thread_count;
             kai_flag = true;
-            //out_features_:N
-            //in_features_:K
+            // out_features_:N
+            // in_features_:K
             size_t packed_b_size = mllm_kleidai_get_packed_b_qsi4_size(out_features_, in_features_);
             weight_.reshape(1, 1, 1, packed_b_size);
 #else
@@ -64,7 +64,7 @@ ErrorCode CPULinear::load(AbstructLoader &loader) {
 #endif
         }
         weight_.setDtype(loader.getDataType(weight_.name()));
-        weight_.alloc(); 
+        weight_.alloc();
         loader.load(&weight_);
     } else {
         if (weight_.name().find('v') != std::string::npos && Op::noLoadWeightsDtype() == MLLM_TYPE_Q4_0_4_4) {
@@ -111,7 +111,7 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         tmp_out->reshape(b, h, s, d);
         tmp_out->setDtype(MLLM_TYPE_F32);
         tmp_out->alloc();
-        if(weight_.dtype() == MLLM_TYPE_KLEIDIAI_Q4_0){
+        if (weight_.dtype() == MLLM_TYPE_KLEIDIAI_Q4_0) {
 #if defined(__aarch64__) || defined(__arm__) || defined(__arm64__)
             kai_thread_count = thread_count;
             // KLEIDIAI_Q4_0 is a packed type, we need to use a special function to handle it
@@ -119,13 +119,13 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
             auto N = outputs[0]->dimension();
             auto K = inputs[0]->dimension();
             if (outputs[0]->dtype() == MLLM_TYPE_F16) {
-                mllm_kleidai_gemm_qsi4_to_fp16(outputs[0]->ptrAt<mllm_fp16_t>(0, 0, 0, 0), 
-                    inputs[0]->ptrAt<float>(0, 0, 0, 0), 
-                        (const uint8_t *)weight_.rawHostPtr(), M, N, K);
-            }else{
-                mllm_kleidai_gemm_qsi4(outputs[0]->ptrAt<float>(0, 0, 0, 0), 
-                    inputs[0]->ptrAt<float>(0, 0, 0, 0),
-                                   (const uint8_t *)weight_.rawHostPtr(), M,  N,  K);
+                mllm_kleidai_gemm_qsi4_to_fp16(outputs[0]->ptrAt<mllm_fp16_t>(0, 0, 0, 0),
+                                               inputs[0]->ptrAt<float>(0, 0, 0, 0),
+                                               (const uint8_t *)weight_.rawHostPtr(), M, N, K);
+            } else {
+                mllm_kleidai_gemm_qsi4(outputs[0]->ptrAt<float>(0, 0, 0, 0),
+                                       inputs[0]->ptrAt<float>(0, 0, 0, 0),
+                                       (const uint8_t *)weight_.rawHostPtr(), M, N, K);
             }
             return MLLM_NO_ERROR;
 #else
@@ -133,7 +133,7 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
             exit(-1);
             return NOT_SUPPORT;
 #endif
-        } 
+        }
         mat_mul(inputs[0].get(), &weight_, tmp_out.get(), support_bias_, &bias_, false, true, thread_count);
         if (tmp_out->ctype() == BSHD) {
 #pragma omp parallel for collapse(3) num_threads(thread_count)
@@ -161,20 +161,20 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
             }
         }
     } else {
-        if(weight_.dtype() == MLLM_TYPE_KLEIDIAI_Q4_0){
+        if (weight_.dtype() == MLLM_TYPE_KLEIDIAI_Q4_0) {
 #if defined(__aarch64__) || defined(__arm__) || defined(__arm64__)
             // KLEIDIAI_Q4_0 is a packed type, we need to use a special function to handle it
             auto M = inputs[0]->sequence();
-            auto N = outputs[0]->dimension();//out_features_
-            auto K = inputs[0]->dimension();//in_features_
+            auto N = outputs[0]->dimension(); // out_features_
+            auto K = inputs[0]->dimension();  // in_features_
             if (outputs[0]->dtype() == MLLM_TYPE_F16) {
-                mllm_kleidai_gemm_qsi4_to_fp16(outputs[0]->ptrAt<mllm_fp16_t>(0, 0, 0, 0), 
-                    inputs[0]->ptrAt<float>(0, 0, 0, 0), 
-                        (const uint8_t *)weight_.rawHostPtr(), M, N, K);
-            }else{
-                mllm_kleidai_gemm_qsi4(outputs[0]->ptrAt<float>(0, 0, 0, 0), 
-                    inputs[0]->ptrAt<float>(0, 0, 0, 0),
-                                   (const uint8_t *)weight_.rawHostPtr(), M,  N,  K);
+                mllm_kleidai_gemm_qsi4_to_fp16(outputs[0]->ptrAt<mllm_fp16_t>(0, 0, 0, 0),
+                                               inputs[0]->ptrAt<float>(0, 0, 0, 0),
+                                               (const uint8_t *)weight_.rawHostPtr(), M, N, K);
+            } else {
+                mllm_kleidai_gemm_qsi4(outputs[0]->ptrAt<float>(0, 0, 0, 0),
+                                       inputs[0]->ptrAt<float>(0, 0, 0, 0),
+                                       (const uint8_t *)weight_.rawHostPtr(), M, N, K);
             }
             return MLLM_NO_ERROR;
 #else
@@ -182,11 +182,21 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
             exit(-1);
             return NOT_SUPPORT;
 #endif
-        } 
-            
+        }
+
         mat_mul(inputs[0].get(), &weight_, outputs[0].get(), support_bias_, &bias_, false, true, thread_count);
     }
     return Op::execute(inputs, outputs);
+}
+ErrorCode CPULinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    for (auto &output : outputs) {
+        output->setDtype(activation_dtype_);
+        output->alloc();
+        // if (weight_.dtype() == MLLM_TYPE_KLEIDIAI_Q4_0 || weight_.dtype() == MLLM_TYPE_Q4_0_4_4) {
+        //     output->allowAggregated() = false;
+        // }
+    }
+    return MLLM_NO_ERROR;
 }
 ErrorCode CPULinear::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     weight_.free();

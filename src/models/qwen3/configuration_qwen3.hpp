@@ -67,6 +67,8 @@ public:
             throw std::runtime_error("Unsupported gemma RoPE type");
         }
         }
+        _q_norm_name = "q_norm";
+        _k_norm_name = "k_norm";
     }
 
     std::string blk_name;
@@ -103,8 +105,7 @@ struct QWen3Config : public TransformerConfig {
             rope_theta = 1000000.0;
             vocab_size = 151936;
             tie_embedding_words = true;
-        } 
-        else if(billionsType == "4b"){
+        } else if (billionsType == "4b") {
             attention_bias = false;
             attention_dropout = 0.0;
             bos_token_id = 151643;
@@ -124,15 +125,14 @@ struct QWen3Config : public TransformerConfig {
             rope_theta = 1000000.0;
             vocab_size = 151936;
             tie_embedding_words = true;
-        }
-        else {
+        } else {
             throw std::runtime_error("Unsupported model size");
         }
         RoPE_type = type;
     };
 
-    //这下面是赋初始默认值，上面是构造函数，构造函数中的值会覆盖掉初始默认值
-    
+    // 这下面是赋初始默认值，上面是构造函数，构造函数中的值会覆盖掉初始默认值
+
     bool attention_bias = false;
     float attention_dropout = 0.0;
     int bos_token_id = 151643;
@@ -151,12 +151,11 @@ struct QWen3Config : public TransformerConfig {
     double rms_norm_eps = 1e-6;
     float rope_theta = 1000000.0;
     int vocab_size = 151936;
-    bool tie_embedding_words = true;    
-    
+    bool tie_embedding_words = true;
 
     int cache_limit;
     RoPEType RoPE_type = RoPEType::HFHUBROPE;
     QWen3NameConfig names_config;
 };
 
-#endif 
+#endif

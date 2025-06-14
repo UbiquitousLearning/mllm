@@ -271,8 +271,14 @@ Tensor Tensor::transpose(vector<std::pair<Chl, Chl>> axiss) {
         axis_s.push_back((float)axis.first);
         axis_s.push_back((float)axis.second);
     }
+    bool in_place = (master_tensor_ == nullptr);
+    // for BSHD attention start
+    if(axiss.size() == 1 && axiss[0].first == HEAD && axiss[0].second == SEQUENCE) {
+        in_place = false; // in-place transpose
+    }
+    // for BSHD attention end
     return runFunc({name() + "-transpose"}, FUNC_TRANPOSE, axis_s,
-                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})}, master_tensor_ == nullptr)[0];
+                   {std::shared_ptr<Tensor>(this, [](Tensor *) {})}, in_place)[0];
 }
 
 Tensor Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d) {

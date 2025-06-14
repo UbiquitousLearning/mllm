@@ -8,6 +8,7 @@
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include "../compute/FlashAttention2.hpp"
+#include "../compute/FlashAttention2H.hpp"
 
 namespace mllm {
 class Tensor;
@@ -23,6 +24,11 @@ public:
         int q_head = q_tensor->head();
         int q_sequence = q_tensor->sequence();
         int dimension = q_tensor->dimension();
+        // for BSHD attention start
+        if(inputs[0]->ctype()==BHSD && inputs[1]->ctype()==BHSD && inputs[1]->ctype()==BHSD ){
+            o_tensor->setCtype(q_tensor->ctype());
+        }
+        // for BSHD attention end
         o_tensor->reshape(batch_size, q_head, q_sequence, dimension);
         o_tensor->setDtype(inputs[0]->dtype());
         o_tensor->alloc();
@@ -50,24 +56,46 @@ public:
         int32_t br = q_sequence >= 4 ? 4 : 1;
         int32_t bc = q_sequence >= 4 ? 4 : 1;
         constexpr bool high_precision_exp = false;
-        // q_tensor->saveData<float>();
-        // k_tensor->saveData<float>();
-        // v_tensor->saveData<float>();
-        // GQA is not ready
-        flash_attention_2_forward(
-            q_tensor->hostPtr<void>(), k_tensor->hostPtr<void>(), v_tensor->hostPtr<void>(),
-            o_tensor->hostPtr<void>(),                             // 输入输出张量
-            batch_size, q_head, q_sequence, k_sequence, dimension, // 基本维度
-            causal_mask,                                           // 使用因果掩码
-            kv_use_fp32,                                           // 使用FP32(x86必须)
-            threads,                                               // 使用4线程
-            br,                                                    // 查询分块大小64
-            bc,                                                    // 键值分块大小128
-            q_head,                                                // 查询头数12
-            k_head,                                                // 键值头数4
-            high_precision_exp                                     // 使用快速指数近似
-        );
-        // o_tensor->saveData<float>();
+        // for BSHD attention start
+        if(inputs[0]->ctype()==BHSD && inputs[1]->ctype()==BHSD && inputs[1]->ctype()==BHSD ){
+            int km = k_sequence;
+            int vm = v_sequence;
+            if(k_tensor->masterTensor()!=nullptr && v_tensor->masterTensor()!=nullptr){
+                km = k_tensor->masterTensor()->sequence();
+                vm = v_tensor->masterTensor()->sequence();
+            }
+            flash_attention_2_forward_h(
+                q_tensor->hostPtr<void>(), k_tensor->hostPtr<void>(), v_tensor->hostPtr<void>(),
+                o_tensor->hostPtr<void>(),                             // 输入输出张量
+                batch_size, q_head, q_sequence, k_sequence, dimension, // 基本维度
+                causal_mask,                                           // 使用因果掩码
+                kv_use_fp32,                                           // 使用FP32(x86必须)
+                threads,                                               // 使用4线程
+                br,                                                    // 查询分块大小64
+                bc,                                                    // 键值分块大小128
+                q_head,                                                // 查询头数12
+                k_head,                                                // 键值头数4
+                high_precision_exp,                                     // 使用快速指数近似
+                q_sequence*dimension, 
+                km*dimension,
+                vm*dimension
+            );
+        // for BSHD attention end
+        }else{
+            flash_attention_2_forward(
+                q_tensor->hostPtr<void>(), k_tensor->hostPtr<void>(), v_tensor->hostPtr<void>(),
+                o_tensor->hostPtr<void>(),                             // 输入输出张量
+                batch_size, q_head, q_sequence, k_sequence, dimension, // 基本维度
+                causal_mask,                                           // 使用因果掩码
+                kv_use_fp32,                                           // 使用FP32(x86必须)
+                threads,                                               // 使用4线程
+                br,                                                    // 查询分块大小64
+                bc,                                                    // 键值分块大小128
+                q_head,                                                // 查询头数12
+                k_head,                                                // 键值头数4
+                high_precision_exp                                     // 使用快速指数近似
+            );
+        }
     }
 };
 } // namespace mllm

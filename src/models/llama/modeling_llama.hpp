@@ -49,8 +49,8 @@ public:
                string attn_implementation,
                const LLaMANameConfig &names, const string &base_name) {
         attention = MultiHeadAttention(hidden_dim, head_size, kv_head_size, hidden_dim / head_size,
-                                       SPLIT_NONE, false, false,
-                                       RoPE_type, rope_theta, max_position_embeddings, cache_limit, true, false,
+                                       SPLIT_NONE, PostQkv_NONE, false,
+                                       RoPE_type, rope_theta, max_position_embeddings, cache_limit, true, false, false, 
                                        attn_implementation,
                                        names, base_name + names._attn_base_name);
         mlp = LLaMAMLP(hidden_dim, ffn_hidden, names, base_name + names._ffn_base_name);

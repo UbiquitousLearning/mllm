@@ -89,6 +89,7 @@ enum DataType {
 
 enum ChlType {
     BSHD = 0,
+    BHSD,
     BHDS = 2,
 
     BCTHW = 3,
@@ -105,6 +106,7 @@ inline std::map<std::vector<int>, ChlType> Chls2Type = {
     {{0, 2, 3, 1}, BDHS},
     {{0, 1, 3, 2}, BHDS},
     {{0, 2, 1, 3}, BSHD},
+    {{0, 1, 2, 3}, BHSD},
     {{1, 2, 0, 3}, SBHD},
     {{0, 3, 2, 1}, BDSH},
     {{1, 2, 3, 0}, DBHS},
@@ -142,6 +144,12 @@ enum AttnQKVSplitType {
     SPLIT_NONE = 0,
     SPLIT_HD = Chl::HD,
     SPLIT_D_HD = Chl::D_HD,
+};
+
+enum AttnPostQkvNormType {
+    PostQkv_NONE = 0,
+    PostQkv_LayerNorm,
+    PostQkv_RMSNorm,
 };
 
 #define ANYDIM -198098

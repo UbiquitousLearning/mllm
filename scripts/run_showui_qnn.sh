@@ -48,5 +48,5 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 # adb shell "rm /data/local/tmp/mllm/bin/qnn_context.bin"
-adb push ../bin-arm-qnn/demo_qwen2_vl_npu /data/local/tmp/mllm/bin/
-adb shell "cd /data/local/tmp/mllm/bin && export LD_LIBRARY_PATH=/data/local/tmp/mllm/qnn-lib && export ADSP_LIBRARY_PATH=/data/local/tmp/mllm/qnn-lib && ./demo_qwen2_vl_npu"
+adb push ../bin-arm-qnn/demo_showui_npu /data/local/tmp/mllm/bin/
+adb shell "cd /data/local/tmp/mllm/bin && export LD_LIBRARY_PATH=/data/local/tmp/mllm/qnn-lib && export ADSP_LIBRARY_PATH=/data/local/tmp/mllm/qnn-lib && ./demo_showui_npu"

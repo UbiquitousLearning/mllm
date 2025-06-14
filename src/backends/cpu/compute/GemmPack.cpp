@@ -1,4 +1,4 @@
-#include "GemmAarch64.hpp"
+#include "GemmPack.hpp"
 #include "Types.hpp"
 #include <assert.h>
 #include <cstdlib>
@@ -396,12 +396,78 @@ void mllm_gemv_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
 //                   "for optimal performance");
 //     }
 // #endif
-// #if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
-//     assert(!(mllm_cpu_has_neon() && mllm_cpu_has_matmul_int8())
-//            && "__ARM_NEON and __ARM_FEATURE_MATMUL_INT8 defined, use the Q4_0_4_8 "
-//               "quantization format for optimal performance");
-// #elif defined(__ARM_NEON) && defined(__aarch64__)
-#if defined(__ARM_NEON) && defined(__aarch64__)
+#if defined(__ARM_NEON) && defined(__ARM_FEATURE_MATMUL_INT8)
+    const block_q8_0 *a_ptr_base = (const block_q8_0 *)vy;
+    const block_q4_0x4 *b_ptr_base = (const block_q4_0x4 *)vx;
+
+    for (int i_nc = 0; i_nc < nc; i_nc += ncols_interleaved) {
+        float *s_ptr = s + i_nc;
+        const block_q4_0x4 *b_ptr = b_ptr_base + (i_nc / ncols_interleaved) * nb;
+        const block_q8_0 *a_ptr = a_ptr_base;
+        __asm__ __volatile__(
+            "movi v16.4s, #0\n" // v16 = acc0 = [0, 0, 0, 0] (32-bit accumulators for 4 outputs)
+            "movi v17.4s, #0\n" // v17 = acc1
+            "mov x5, %x[nb]\n"  // x5 = nb (block counter)
+            "1:\n"              // Main loop over blocks (nb)
+            // --- 加载 Scales ---
+            "ldrh w6, [%x[a_ptr], #0]\n" // Load d_a (fp16 scale)
+            "ldr s18, [%x[b_ptr], #0]\n" // Load d_b0, d_b1
+            "ldr s19, [%x[b_ptr], #4]\n" // Load d_b2, d_b3
+            "fmov s20, w6\n"             // Move d_a to float register
+            "fcvtl v18.2s, v18.2h\n"     // Convert d_b0, d_b1 to fp32
+            "fcvtl v19.2s, v19.2h\n"     // Convert d_b2, d_b3 to fp32
+            "fcvtl v20.2s, v20.2h\n"     // Convert d_a to fp32
+            "dup v18.4s, v18.s[0]\n"     // Broadcast d_b0
+            "dup v19.4s, v19.s[0]\n"     // Broadcast d_b2
+            "dup v20.4s, v20.s[0]\n"     // Broadcast d_a
+            // --- Q8向量数据加载 (a) ---
+            "ldr q0, [%x[a_ptr], #2]\n"  // Load first 16 bytes of a->qs
+            "ldr q1, [%x[a_ptr], #18]\n" // Load second 16 bytes of a->qs
+            // --- Q4权重数据加载 (b) ---
+            "ldr q2, [%x[b_ptr], #8]\n"  // Load first 16 bytes of b->qs
+            "ldr q3, [%x[b_ptr], #24]\n" // Load second 16 bytes of b->qs
+            // --- 解包 Q4.0 权重到 Q8.0 ---
+            // Unpack first 32x 4-bit quants into 32x 8-bit quants
+            "movi v21.16b, #0x0f\n"         // low nibble mask
+            "movi v22.16b, #-8\n"           // subtraction value
+            "and v4.16b, v2.16b, v21.16b\n" // low nibbles
+            "ushr v5.16b, v2.16b, #4\n"     // high nibbles
+            "add v4.16b, v4.16b, v22.16b\n" // v4 = unpacked b quants 0..15
+            "add v5.16b, v5.16b, v22.16b\n" // v5 = unpacked b quants 16..31
+            // Unpack second 32x 4-bit quants
+            "and v6.16b, v3.16b, v21.16b\n"
+            "ushr v7.16b, v3.16b, #4\n"
+            "add v6.16b, v6.16b, v22.16b\n" // v6
+            "add v7.16b, v7.16b, v22.16b\n" // v7
+            // --- 执行 4x4 矩阵乘法 ---
+            // smmla acc, w, v
+            // The 4x4 matrix is formed by the 16 bytes in the register.
+            // We are doing a row-vector * matrix multiplication. The vector 'a' needs
+            // to be treated as rows of a matrix.
+            "smmla v16.4s, v4.16b, v0.16b\n" // acc0 += mat(v4) * mat(v0)
+            "smmla v17.4s, v5.16b, v0.16b\n" // acc1 += mat(v5) * mat(v0)
+            "smmla v16.4s, v6.16b, v1.16b\n"
+            "smmla v17.4s, v7.16b, v1.16b\n"
+            // --- 累加和转换 ---
+            "add v16.4s, v16.4s, v17.4s\n"      // v16 has the final int32 sums for this block
+            "scvtf v17.4s, v16.4s\n"            // Convert int32 sums to float32
+            "fmul v18.4s, v18.4s, v20.4s\n"     // multiply scales d_a * d_b
+            "fmla %v[sum].4s, v17.4s, v18.4s\n" // FMLA into final sum register
+            // --- 循环控制 ---
+            "add %x[a_ptr], %x[a_ptr], #34\n" // sizeof(block_q8_0) = 2+32
+            "add %x[b_ptr], %x[b_ptr], #72\n" // sizeof(block_q4_0x4) = 8+64
+            "subs x5, x5, #1\n"
+            "bne 1b\n"
+            // --- 存储结果 ---
+            "str q[sum], [%x[s_ptr]]\n"
+            : [sum] "+w"(s_ptr) // using "+w" for NEON registers
+            : [a_ptr] "r"(a_ptr), [b_ptr] "r"(b_ptr), [nb] "r"(nb), [s_ptr] "r"(s_ptr)
+            : "cc", "memory", "x5", "x6",
+              "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+              "v16", "v17", "v18", "v19", "v20", "v21", "v22");
+    }
+// AArch64 NEON (包括 Apple Silicon) 使用点积内联函数
+#elif defined(__ARM_NEON) && defined(__aarch64__)
     const void *b_ptr = vx;
     const void *a_ptr = vy;
     float *res_ptr = s;
@@ -457,6 +523,88 @@ void mllm_gemv_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
                          : [a_ptr] "r"(a_ptr), [nb] "r"(nb)
                          : "memory", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24",
                            "v25", "v26", "v27", "v28", "v29", "v30", "v31", "x20", "x21", "x22");
+// x86 AVX-VNNI 和 AVX2 实现
+#elif defined(__AVX2__)
+#define CALC_SUMI_PARTIAL(V_B_Q4, V_A0_S16, V_A1_S16)                      \
+    ({                                                                     \
+        /* v0 = (int8_t)(L<<4), v1 = (int8_t)(H<<4) */                     \
+        const __m128i low_nib_mask = _mm_set1_epi8(0x0F);                  \
+        const __m128i v_L_nibbles = _mm_and_si128((V_B_Q4), low_nib_mask); \
+        const __m128i v0s_u8 = _mm_slli_epi16(v_L_nibbles, 4);             \
+        const __m128i v1s_u8 = _mm_andnot_si128(low_nib_mask, (V_B_Q4));   \
+                                                                           \
+        /* 符号扩展到16位 */                                         \
+        const __m128i v0s_s16 = _mm_cvtepi8_epi16(v0s_u8);                 \
+        const __m128i v1s_s16 = _mm_cvtepi8_epi16(v1s_u8);                 \
+                                                                           \
+        /* 核心计算: (v0*a0 + v1*a1) >> 4 */                           \
+        const __m128i prod0 = _mm_mullo_epi16(v0s_s16, (V_A0_S16));        \
+        const __m128i prod1 = _mm_mullo_epi16(v1s_s16, (V_A1_S16));        \
+        const __m128i sum_prods_s16 = _mm_add_epi16(prod0, prod1);         \
+        const __m128i terms_s16 = _mm_srai_epi16(sum_prods_s16, 4);        \
+                                                                           \
+        /* 水平求和 */                                                 \
+        const __m128i ones = _mm_set1_epi16(1);                            \
+        const __m128i sums_s32 = _mm_madd_epi16(terms_s16, ones);          \
+        _mm_extract_epi32(sums_s32, 0) + _mm_extract_epi32(sums_s32, 1);   \
+    })
+
+    const block_q8_0 *a_ptr_base = (const block_q8_0 *)vy;
+    const block_q4_0x4 *b_ptr_base = (const block_q4_0x4 *)vx;
+
+    // 外层循环：处理不同的4列输出组
+    for (int x = 0; x < nc / ncols_interleaved; x++) {
+        const block_q4_0x4 *b_ptr = b_ptr_base + x * nb;
+        const block_q8_0 *a_ptr = a_ptr_base;
+
+        float sumf[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+        // 中层循环：处理数据块
+        for (int l = 0; l < nb; l++) {
+            int32_t sumi_cols[4] = {0, 0, 0, 0};
+
+            // 内层循环：处理块内的子区域 (k)
+            for (int k = 0; k < (qk / (2 * blocklen)); k++) {
+                // 加载 a 向量的两个部分并符号扩展到16位
+                const __m128i v_a0_s16 = _mm_cvtepi8_epi16(_mm_loadu_si32(a_ptr[l].qs + k * blocklen));
+                const __m128i v_a1_s16 = _mm_cvtepi8_epi16(_mm_loadu_si32(a_ptr[l].qs + k * blocklen + qk / 2));
+
+                // 加载 b 权重的4x4字节区域
+                const __m128i v_b_block = _mm_loadu_si128((const __m128i *)(b_ptr[l].qs + k * 16));
+
+                // ---- 循环展开: 手动处理 j = 0, 1, 2, 3 ----
+
+                // j = 0
+                sumi_cols[0] += CALC_SUMI_PARTIAL(v_b_block, v_a0_s16, v_a1_s16);
+
+                // j = 1
+                sumi_cols[1] += CALC_SUMI_PARTIAL(_mm_srli_si128(v_b_block, 4), v_a0_s16, v_a1_s16);
+
+                // j = 2
+                sumi_cols[2] += CALC_SUMI_PARTIAL(_mm_srli_si128(v_b_block, 8), v_a0_s16, v_a1_s16);
+
+                // j = 3
+                sumi_cols[3] += CALC_SUMI_PARTIAL(_mm_srli_si128(v_b_block, 12), v_a0_s16, v_a1_s16);
+            }
+
+            // --- 应用缩放因子并累加到浮点和 ---
+            const __m128i sumi_vec = _mm_loadu_si128((const __m128i *)sumi_cols);
+            const __m128 sumi_f = _mm_cvtepi32_ps(sumi_vec);
+
+            const float d_a = MLLM_FP16_TO_FP32(a_ptr[l].d);
+            const __m128 d_b = _mm_cvtph_ps(_mm_loadu_si128((const __m128i *)b_ptr[l].d));
+            const __m128 scales = _mm_mul_ps(_mm_set1_ps(d_a), d_b);
+
+            __m128 current_sumf = _mm_loadu_ps(sumf);
+            current_sumf = _mm_add_ps(current_sumf, _mm_mul_ps(sumi_f, scales));
+            _mm_storeu_ps(sumf, current_sumf);
+        }
+
+        // 存储最终结果
+        _mm_storeu_ps(s + x * ncols_interleaved, _mm_loadu_ps(sumf));
+    }
+    // 确保宏只在当前代码块生效
+#undef CALC_SUMI_PARTIAL
 #else
     float sumf[4];
     int sumi;

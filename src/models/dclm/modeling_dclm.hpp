@@ -55,7 +55,7 @@ class DCLMAttention final : public Module {
     KVCache v_cache;
     Softmax softmax;
 
-    int attn_hidden_dim_;
+    int hidden_dim_;
     int head_dim_;
     int n_heads_;
     string attn_implementation_;
@@ -64,7 +64,7 @@ public:
     DCLMAttention() = default;
     DCLMAttention(const DCLMConfig &cfg, const std::string &base_name) {
         int head_dim = cfg.dim / cfg.n_heads;
-        attn_hidden_dim_ = cfg.n_heads * head_dim;
+        hidden_dim_ = cfg.n_heads * head_dim;
         head_dim_ = head_dim;
         n_heads_ = cfg.n_heads;
         attn_implementation_ = cfg.attn_implementation;
@@ -81,7 +81,7 @@ public:
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto qkv = in_proj(inputs[0]);
-        auto qkv_sp = qkv.split({attn_hidden_dim_, attn_hidden_dim_, attn_hidden_dim_}, DIMENSION);
+        auto qkv_sp = qkv.split({hidden_dim_, hidden_dim_, hidden_dim_}, DIMENSION);
 
         Tensor q, k, v;
         q = qkv_sp[0];

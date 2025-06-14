@@ -5,7 +5,7 @@
 #include "backends/cpu/compute/QuantizeQ3.hpp"
 #include "backends/cpu/compute/QuantizeQ4.hpp"
 #include "backends/cpu/compute/QuantizeQ8.hpp"
-#include "backends/cpu/compute/GemmAarch64.hpp"
+#include "backends/cpu/compute/GemmPack.hpp"
 #include "backends/cpu/compute/GemmKleidiai.hpp"
 #include <cassert>
 #include <string>

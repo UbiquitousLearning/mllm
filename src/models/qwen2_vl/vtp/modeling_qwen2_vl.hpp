@@ -47,19 +47,19 @@ class VisionAttention final : public Module {
     Layer o_proj;
     int head_size_{};
     int kv_head_size_{};
-    int attn_hidden_dim_{};
+    int head_dim_{};
 
 public:
     VisionAttention() = default;
-    VisionAttention(int hidden_dim, int head_size, int kv_head_size, int attn_hidden_dim, bool bias,
+    VisionAttention(int hidden_dim, int head_size, int kv_head_size, int head_dim, bool bias,
                     const TransformerNameConfig &names, const string &base_name) {
-        attn_hidden_dim_ = attn_hidden_dim;
+        head_dim_ = head_dim;
         head_size_ = head_size;
         kv_head_size_ = kv_head_size;
 
-        qkv_proj = Linear(hidden_dim, head_size * attn_hidden_dim * 3, bias, base_name + names._qkv_proj_name);
+        qkv_proj = Linear(hidden_dim, head_size * head_dim * 3, bias, base_name + names._qkv_proj_name);
         softmax = Softmax(DIMENSION, false, base_name + "softmax");
-        o_proj = Linear(head_size * attn_hidden_dim, hidden_dim, bias, base_name + names._o_proj_name);
+        o_proj = Linear(head_size * head_dim, hidden_dim, bias, base_name + names._o_proj_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto cu_seqlens = inputs[1];
@@ -67,22 +67,22 @@ public:
         auto seq_length = inputs[0].sequence();
         Tensor q, k, v;
         auto qkv = qkv_proj(inputs[0]);
-        auto qkv_sp = qkv.split({attn_hidden_dim_ * head_size_, attn_hidden_dim_ * head_size_, attn_hidden_dim_ * head_size_}, DIMENSION);
+        auto qkv_sp = qkv.split({head_dim_ * head_size_, head_dim_ * head_size_, head_dim_ * head_size_}, DIMENSION);
         q = qkv_sp[0];
         k = qkv_sp[1];
         v = qkv_sp[2];
-        q = q.view(-1, head_size_, -1, attn_hidden_dim_);
-        k = k.view(-1, head_size_, -1, attn_hidden_dim_);
-        v = v.view(-1, head_size_, -1, attn_hidden_dim_);
+        q = q.view(-1, head_size_, -1, head_dim_);
+        k = k.view(-1, head_size_, -1, head_dim_);
+        v = v.view(-1, head_size_, -1, head_dim_);
         q = Tensor::apply_rotary_pos_emb_vision(q, rotary_pos_emb);
         k = Tensor::apply_rotary_pos_emb_vision(k, rotary_pos_emb);
         k = k.transpose(SEQUENCE, DIMENSION);
         auto qk = Tensor::mm(q, k);
-        qk = qk / std::sqrt(attn_hidden_dim_);
+        qk = qk / std::sqrt(head_dim_);
         // mask
         qk = softmax(qk);
         auto o = Tensor::mm(qk, v);
-        o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
+        o = o.view(-1, 1, -1, head_dim_ * head_size_);
         o = o_proj(o);
         return {o};
     }

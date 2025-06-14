@@ -478,7 +478,7 @@ void QuantWriter::quantParams_q4_vl(DataType dataType) {
 vector<string> vl_q4x4_2_q4_k_layers = {
     // "wv",
     // "v_proj", //eager mode
-    ".attn.qkv",
+    // ".attn.qkv",
     "in_proj",
     "w12",
     "model.output",

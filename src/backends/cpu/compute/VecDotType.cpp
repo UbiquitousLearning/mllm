@@ -32,7 +32,7 @@
 #include "Types.hpp"
 #include "Quantize.hpp"
 #include "VecDot.hpp"
-#include "GemmAarch64.hpp"
+#include "GemmPack.hpp"
 
 void fp32_add_row_to(int n, const float *MLLM_RESTRICT src, float *MLLM_RESTRICT dst, float alpha) {
     int i = 0;

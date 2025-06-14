@@ -16,8 +16,10 @@
 #include "Layer.hpp"
 #include "Module.hpp"
 #include "Tensor.hpp"
+#include "Types.hpp"
 #include "configuration_qwen3.hpp"
 #include <cmath>
+#include "models/transformer/modeling_transformer.hpp"
 using namespace mllm;
 
 class QWen3MLP final : public Module {
@@ -50,113 +52,20 @@ private:
     Layer silu;
 };
 
-class QWen3Attention final : public Module {
-public:
-    QWen3Attention() = default;
-    QWen3Attention(const QWen3Config &config, const QWen3NameConfig &names, const string &base_name) {
-        hidden_size = config.hidden_size;
-        num_heads = config.num_attention_heads;
-        head_dim = config.head_dim; // 这里config中有head_dim,不等于相除的结果
-        num_key_value_heads = config.num_key_value_heads;
-        num_key_value_groups = num_heads / num_key_value_heads;
-        rms_norm_eps = config.rms_norm_eps;
-        attn_impl = config.attn_implementation;
-        // init layers
-        q_proj = Linear(hidden_size, num_heads * head_dim, config.attention_bias, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.attention_bias,
-                        base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.attention_bias,
-                        base_name + names._v_proj_name);
-        o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
-
-        // 增加了RMSNorm
-        q_norm = RMSNorm(head_dim, rms_norm_eps, base_name + "q_norm");
-        k_norm = RMSNorm(head_dim, rms_norm_eps, base_name + "k_norm");
-        // 滑动窗口禁用
-
-        q_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings,
-                      base_name + "q_rope");
-        k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings,
-                      base_name + "k_rope");
-        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, (attn_impl == "flash_attention_2"), base_name + "k_cache");
-        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, (attn_impl == "flash_attention_2"), base_name + "v_cache");
-        softmax = Softmax(DIMENSION, true, base_name + "softmax");
-    }
-
-    std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        auto query_states = q_proj(inputs[0]);
-        auto key_states = k_proj(inputs[1]);
-        auto value_states = v_proj(inputs[2]);
-
-        // [batch, heads, sequence, dims]
-        query_states = query_states.view(-1, num_heads, -1, head_dim);
-        key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
-        value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
-
-        // 加正则化
-        query_states = q_norm(query_states);
-        key_states = k_norm(key_states);
-
-        // embedding
-        query_states = q_rope(query_states);
-        key_states = k_rope(key_states);
-
-        // kv cache
-        key_states = k_cache(key_states);
-        value_states = v_cache(value_states);
-
-        Tensor atten_output;
-        if (attn_impl == "flash_attention_2") {
-            atten_output = Tensor::flash_attention2_forward(query_states, key_states, value_states, true);
-        } else { // eager implementation
-            // attention weight
-            auto atten_weight =
-                Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION))
-                / std::sqrt(head_dim);
-            atten_weight = softmax(atten_weight, k_cache.getCacheSeqLen());
-
-            // attention output
-            atten_output = Tensor::mm(atten_weight, value_states);
-        }
-        atten_output = atten_output.view(-1, 1, -1, head_dim * num_heads);
-        atten_output = o_proj(atten_output);
-        return {atten_output};
-    }
-
-    vector<KVCache *> get_cache() {
-        return {&k_cache, &v_cache};
-    }
-    vector<RoPE *> get_rope() {
-        return {&q_rope, &k_rope};
-    }
-
-private:
-    int hidden_size;
-    int num_heads;
-    int head_dim;
-    int num_key_value_heads;
-    int num_key_value_groups;
-    double rms_norm_eps;
-    Layer q_proj;
-    Layer k_proj;
-    Layer v_proj;
-    Layer o_proj;
-    Layer q_norm;
-    Layer k_norm;
-    RoPE q_rope;
-    RoPE k_rope;
-    KVCache k_cache;
-    KVCache v_cache;
-    // Causalmask mask;
-    Softmax softmax;
-    string attn_impl;
-};
-
 class QWen3Decoder final : public Module {
 public:
     QWen3Decoder() = default;
     QWen3Decoder(const QWen3Config &config, const QWen3NameConfig &names, const string &base_name) {
-        self_atten = QWen3Attention(config, names, base_name + names._attn_base_name);
+        // 这里config中有head_dim,不等于相除的结果
+        self_atten = MultiHeadAttention(config.hidden_size, config.num_attention_heads,
+                                        config.num_key_value_heads, config.head_dim,
+                                        SPLIT_NONE, PostQkv_RMSNorm, false,
+                                        config.RoPE_type, config.rope_theta,
+                                        config.max_position_embeddings,
+                                        config.cache_limit,
+                                        true, config.attention_bias, false,
+                                        config.attn_implementation, names,
+                                        base_name + names._attn_base_name);
         mlp = QWen3MLP(config.hidden_size, config.intermediate_size, names,
                        base_name + names._ffn_base_name);
         input_layernorm =
@@ -175,12 +84,12 @@ public:
         return {x};
     }
 
-    QWen3Attention &get_attention() {
+    MultiHeadAttention &get_attention() {
         return self_atten;
     }
 
 private:
-    QWen3Attention self_atten;
+    MultiHeadAttention self_atten;
     QWen3MLP mlp;
     Layer input_layernorm;
     Layer post_attention_layernorm;
