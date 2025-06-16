@@ -2,8 +2,10 @@
 
 adb shell mkdir -p /data/local/tmp/mllm/vocab
 adb shell mkdir -p /data/local/tmp/mllm/qnn-lib
+adb shell mkdir -p /data/local/tmp/mllm/bin
 
 adb push ../vocab/qwen_vocab.mllm /data/local/tmp/mllm/vocab/
+adb push ../vocab/qwen_merges.txt /data/local/tmp/mllm/vocab/
 
 
 if ! adb shell [ -f "/data/local/tmp/mllm/models/qwen-1.5-1.8b-chat-int8.mllm" ]; then
