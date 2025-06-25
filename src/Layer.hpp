@@ -63,31 +63,29 @@ public:
         return ts[0];
     }
 
-    void load() {
-        if (inited_loaded && loaded_param)
-            return;
-        if (op_ == nullptr) {
-#ifdef USE_QNN
-            if ((param_["type"] == KVCACHE || param_["type"] == KVCACHENPU) && (Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end())) {
+    void initOp(){
+         if (op_ == nullptr) {
+            if ((param_["type"] == KVCACHE || param_["type"] == KVCACHENPU) 
+                    && (Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end())) {
                 if (kv_cache_map.find(name_) == kv_cache_map.end()) {
                     // for the prefill part, we need to create a new op
                     param_["type"] = KVCACHENPU;
                     op_ = backend_->opCreate(param_, name_);
                     kv_cache_map[name_] = op_;
                 } else {
-#ifdef DEBUGPRINT
-                    std::cout << name_ << " is shared used" << std::endl;
-#endif
                     // for the decoding part, we need to get created op from global container
                     op_ = kv_cache_map[name_];
                 }
             } else {
                 op_ = backend_->opCreate(param_, name_);
             }
-#else
-            op_ = backend_->opCreate(param_, name_);
-#endif
         }
+    }
+
+    void load() {
+        initOp();
+        if (inited_loaded && loaded_param)
+            return;
         op_->load(*Module::llm_model_ptr->loader);
         loaded_param = true;
     }
@@ -101,11 +99,31 @@ public:
 
 protected:
     vector<Tensor> run(vector<Tensor> inputs, int N = 1) {
+        initOp();
+        Module *module = inputs.empty() ? Module::llm_model_ptr : inputs[0].module();
+        if (module->doLoad || !inited_loaded) {//load
+            if (module->doLoad) {
+                op_->load(*module->loader);
+                inited_loaded = true;
+            } else if (loaded_param) {
+                inited_loaded = loaded_param;
+            } else if (!inited_loaded) {
+                auto empty_loader = new ParamLoader("");
+                op_->load(*empty_loader);
+                inited_loaded = true;
+            }
+        }
         auto backend = inputs.empty() ? Backend::global_backends[MLLM_CPU] : inputs[0].backend();
         if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) {
             backend = Backend::global_backends[MLLM_QNN];
         }
-        return backend->runLayer(this, inputs, N);
+        vector<string> out_names;
+        int count = (N > 1) ? N : 1;
+        for (int i = 0; i < count; ++i) {
+            std::string tensor_name = (N > 1) ? "out-" + op_->name() + "-" + std::to_string(i) : "out-" + op_->name();
+            out_names.push_back(tensor_name);
+        }
+        return backend->runOp(op_, inputs, out_names, false);
     }
 
 public:

@@ -56,6 +56,7 @@ public:
     map<string, int> activation_tensors_num;
     AbstructLoader *loader;
     bool doLoad = false;
+    bool doTrace = false;
     bool op_transposed_flag = false;
 
     static Module *llm_model_ptr;
@@ -148,6 +149,7 @@ public:
 
         loader = &param_loader;
         doLoad = true;
+        doTrace = true;
         vector<Tensor> tmps;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
@@ -184,6 +186,7 @@ public:
         uint64_t time_end = mllm_time_us();
         load_time_ = (time_end - time_start) / 1000.0F; // ms
         doLoad = false;
+        doTrace = false;
     }
 
     virtual vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) = 0;

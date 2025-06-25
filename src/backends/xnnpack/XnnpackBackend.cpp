@@ -677,122 +677,119 @@ bool XnnpackBackend::enable_dynamic_shape = true;
 
 bool XnnpackBackend::enable_legacy_wrapper = false;
 
+// std::vector<Tensor> XnnpackBackend::runFunc(std::vector<std::string> out_names,
+//                                             TensorFuncType type,
+//                                             std::vector<float> float_args,
+//                                             std::vector<Tensor> input_tensors,
+//                                             bool in_place) {
+//     Module *module = input_tensors.empty() ? mllm::Module::llm_model_ptr : input_tensors[0].module();
+//     assert(module != nullptr);
+//     auto &activation_tensors = module->activation_tensors;
+//     auto &activation_tensors_num = module->activation_tensors_num;
 
+//     std::vector<std::shared_ptr<Tensor>> output_ptrs;
+//     for (const auto &out_name : out_names) {
+//         if (activation_tensors.find(out_name) == activation_tensors.end()) {
+//             Backend *backend_h = Backend::global_backends[MLLM_CPU];
+//             if (!input_tensors.empty()) {
+//                 backend_h = input_tensors[0].backend();
+//             }
+//             activation_tensors[out_name] = std::make_shared<Tensor>(backend_h);
+//             activation_tensors[out_name]->setName(out_name);
+//             activation_tensors[out_name]->setModule(module);
+//             activation_tensors_num[out_name] = 0;
+//         }
+//         output_ptrs.push_back(activation_tensors[out_name]);
+//     }
 
+//     if (module->doLoad) {
+//         std::vector<Tensor> results;
+//         for (auto &out_tensor : output_ptrs) {
+//             results.push_back(*activation_tensors[out_tensor->name()]);
+//         }
+//         return results;
+//     }
 
-std::vector<Tensor> XnnpackBackend::runFunc(std::vector<std::string> out_names,
-                                        TensorFuncType type,
-                                        std::vector<float> float_args,
-                                        std::vector<std::shared_ptr<Tensor>> input_tensors,
-                                        bool in_place) {
-    Module *module = input_tensors.empty() ? mllm::Module::llm_model_ptr : input_tensors[0]->module();
-    assert(module != nullptr);
-    auto &activation_tensors = module->activation_tensors;
-    auto &activation_tensors_num = module->activation_tensors_num;
+//     Backend *backend_h = Backend::global_backends[MLLM_CPU];
+//     if (!input_tensors.empty()) {
+//         backend_h = input_tensors[0].backend();
+//     }
+//     TensorFunction *func = backend_h->funcCreate(type);
 
-    std::vector<std::shared_ptr<Tensor>> output_ptrs;
-    for (const auto &out_name : out_names) {
-        if (activation_tensors.find(out_name) == activation_tensors.end()) {
-            Backend *backend_h = Backend::global_backends[MLLM_CPU];
-            if (!input_tensors.empty()) {
-                backend_h = input_tensors[0]->backend();
-            }
-            activation_tensors[out_name] = std::make_shared<Tensor>(backend_h);
-            activation_tensors[out_name]->setName(out_name);
-            activation_tensors[out_name]->setModule(module);
-            activation_tensors_num[out_name] = 0;
-        }
-        output_ptrs.push_back(activation_tensors[out_name]);
-    }
+//     std::vector<std::shared_ptr<Tensor>> input_ptrs;
+//     for (auto &tensor : input_tensors) {
+//         input_ptrs.push_back(activation_tensors[tensor.name()]);
+//     }
+//     // if (in_place) {
+//     //     for (size_t i = 0; i < input_tensors.size() && i < out_names.size(); ++i) {
+//     //         input_tensors[i].setName(out_names[i]);
+//     //         output_ptrs.push_back(input_tensors[i]);
+//     //     }
+//     // }
 
-    if (module->doLoad) {
-        std::vector<Tensor> results;
-        for (auto &out_tensor : output_ptrs) {
-            results.push_back(*activation_tensors[out_tensor->name()]);
-        }
-        return results;
-    }
+// #ifdef DEBUGOPTIME
+//     auto start_t = mllm_time_us();
+// #endif
 
-    Backend *backend_h = Backend::global_backends[MLLM_CPU];
-    if (!input_tensors.empty()) {
-        backend_h = input_tensors[0]->backend();
-    }
-    TensorFunction *func = backend_h->funcCreate(type);
+//     switch (Tensor::tensor_status) {
+//     case TENSOR_STATIC_INIT:
+//         func->reshape(output_ptrs, input_ptrs, float_args);
+//         func->setUp(output_ptrs, input_ptrs, float_args);
+//         break;
+//     case TENSOR_STATIC_READY:
+//         func->execute(output_ptrs, input_ptrs, float_args);
+//         break;
+//     case TENSOR_STATIC_TRACE:
+//         if (backend_h->type() == BackendType::MLLM_CPU) {
+//             Tracer::addTensorFunction(func, input_ptrs, output_ptrs, float_args);
+//         }
+//         break;
+//     default:
+//         break;
+//     }
 
-    std::vector<std::shared_ptr<Tensor>> input_ptrs;
-    for (auto &tensor : input_tensors) {
-        input_ptrs.push_back(activation_tensors[tensor->name()]);
-    }
-    // if (in_place) {
-    //     for (size_t i = 0; i < input_tensors.size() && i < out_names.size(); ++i) {
-    //         input_tensors[i]->setName(out_names[i]);
-    //         output_ptrs.push_back(input_tensors[i]);
-    //     }
-    // }
+//     // if (Backend::global_backends.size() == 1) {
+//     //     for (auto input_tensor : input_ptrs) {
+//     //         auto it = activation_tensors_num.find(input_tensor->name());
+//     //         if (it != activation_tensors_num.end()) {
+//     //             switch (Tensor::tensor_status) {
+//     //             case TENSOR_STATIC_INIT:
+//     //                 it->second += 1;
+//     //                 break;
+//     //             case TENSOR_STATIC_READY:
+//     //                 it->second -= 1;
+//     //                 break;
+//     //             default:
+//     //                 break;
+//     //             }
+//     //             if (it->second == 0 && module_tensors[input_tensor->name()]->sequence() > 1 && module_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
+//     //                 activation_tensors[input_tensor->name()]->free();
+//     //             }
+//     //         }
+//     //     }
+//     // }
 
-#ifdef DEBUGOPTIME
-    auto start_t = mllm_time_us();
-#endif
+// #ifdef DEBUGOPTIME
+//     if (Tensor::tensor_status == TENSOR_STATIC_READY) {
+//         auto end_t = mllm_time_us();
+//         std::cout << (out_names.empty() ? "" : out_names[0]) << " | "
+//                   << Tensor::tensor_status << " time: "
+//                   << (end_t - start_t) / 1000.0F << "ms" << std::endl;
+//     }
+// #endif
 
-    switch (Tensor::tensor_status) {
-    case TENSOR_STATIC_INIT:
-        func->reshape(output_ptrs, input_ptrs, float_args);
-        func->setUp(output_ptrs, input_ptrs, float_args);
-        break;
-    case TENSOR_STATIC_READY:
-        func->execute(output_ptrs, input_ptrs, float_args);
-        break;
-    case TENSOR_STATIC_TRACE:
-        if (backend_h->type() == BackendType::MLLM_CPU) {
-            Tracer::addTensorFunction(func, input_ptrs, output_ptrs, float_args);
-        }
-        break;
-    default:
-        break;
-    }
+// #ifdef DEBUGSAVETENSOR
+//     for (auto &out_name : out_names) {
+//         activation_tensors[out_name]->saveNData<float>();
+//     }
+// #endif
 
-    // if (Backend::global_backends.size() == 1) {
-    //     for (auto input_tensor : input_ptrs) {
-    //         auto it = activation_tensors_num.find(input_tensor->name());
-    //         if (it != activation_tensors_num.end()) {
-    //             switch (Tensor::tensor_status) {
-    //             case TENSOR_STATIC_INIT:
-    //                 it->second += 1;
-    //                 break;
-    //             case TENSOR_STATIC_READY:
-    //                 it->second -= 1;
-    //                 break;
-    //             default:
-    //                 break;
-    //             }
-    //             if (it->second == 0 && module_tensors[input_tensor->name()]->sequence() > 1 && module_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
-    //                 activation_tensors[input_tensor->name()]->free();
-    //             }
-    //         }
-    //     }
-    // }
-
-#ifdef DEBUGOPTIME
-    if (Tensor::tensor_status == TENSOR_STATIC_READY) {
-        auto end_t = mllm_time_us();
-        std::cout << (out_names.empty() ? "" : out_names[0]) << " | "
-                  << Tensor::tensor_status << " time: "
-                  << (end_t - start_t) / 1000.0F << "ms" << std::endl;
-    }
-#endif
-
-#ifdef DEBUGSAVETENSOR
-    for (auto &out_name : out_names) {
-        activation_tensors[out_name]->saveNData<float>();
-    }
-#endif
-
-    std::vector<Tensor> results;
-    for (auto &out_tensor : output_ptrs) {
-        results.emplace_back(*activation_tensors[out_tensor->name()]);
-    }
-    return results;
-}
+//     std::vector<Tensor> results;
+//     for (auto &out_tensor : output_ptrs) {
+//         results.emplace_back(*activation_tensors[out_tensor->name()]);
+//     }
+//     return results;
+// }
 std::string name_num_to_X(const std::string &input_string) {
     std::regex pattern(R"(\.\d{1,3}\.)"); // Matches any number between 1 and 100 between two dots
     std::string replacement = ".X.";      // The string to replace the matched pattern with
@@ -850,47 +847,28 @@ std::vector<Tensor> XnnpackBackend::runLayer(Layer *layer, std::vector<Tensor> i
         // use Module::tmp_device only when creating the op as the recersive module backend only handled in load and init stage
         layer->backend_ = Backend::global_backends[Module::tmp_device];
         do_init = !layer->inited_loaded;
-        if (layer->op_ == nullptr) {
-#ifdef USE_QNN
-            if ((layer->param_["type"] == KVCACHE || layer->param_["type"] == KVCACHENPU) && (Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end())) {
-                if (kv_cache_map.find(layer->name_) == kv_cache_map.end()) {
-                    // for the prefill part, we need to create a new op
-                    layer->param_["type"] = KVCACHENPU;
-                    layer->op_ = layer->backend_->opCreate(layer->param_, layer->name_);
-                    kv_cache_map[layer->name_] = layer->op_;
-                } else {
-#ifdef DEBUGPRINT
-                    std::cout << name_ << " is shared used" << std::endl;
-#endif
-                    // for the decoding part, we need to get created op from global container
-                    layer->op_ = kv_cache_map[layer->name_];
-                }
-            } else {
-                layer->op_ = layer->backend_->opCreate(layer->param_, layer->name_);
-            }
-#else
-            layer->op_ = layer->backend_->opCreate(layer->param_, layer->name_);
-#endif
-        }
+        // if (layer->op_ == nullptr) {
+        //     layer->op_ = layer->backend_->opCreate(layer->param_, layer->name_);
+        // }
         if (layer->param_["type"] == SUBGRAPHFINALIZE) {
             for (auto &input : inputs) {
                 activation_tensors[input.name()]->setTtype(GRAPH_OUTPUT);
             }
         }
-        if (module->doLoad) {
-            layer->op_->load(*module->loader);
-            layer->inited_loaded = true;
-        } else if (layer->loaded_param) {
-            layer->inited_loaded = layer->loaded_param;
-        } else {
-            if (!layer->inited_loaded) {
-                // module->loader = new ParamLoader("");
-                // op_->load(*module->loader);
-                auto empty_loader = new ParamLoader("");
-                layer->op_->load(*empty_loader);
-                layer->inited_loaded = true;
-            }
-        }
+        // if (module->doLoad) {
+        //     layer->op_->load(*module->loader);
+        //     layer->inited_loaded = true;
+        // } else if (layer->loaded_param) {
+        //     layer->inited_loaded = layer->loaded_param;
+        // } else {
+        //     if (!layer->inited_loaded) {
+        //         // module->loader = new ParamLoader("");
+        //         // op_->load(*module->loader);
+        //         auto empty_loader = new ParamLoader("");
+        //         layer->op_->load(*empty_loader);
+        //         layer->inited_loaded = true;
+        //     }
+        // }
         vector<string> layer_next_names = {};
         if (N > 1) {
             for (int i = 0; i < N; ++i) {
@@ -1026,6 +1004,180 @@ std::vector<Tensor> XnnpackBackend::runLayer(Layer *layer, std::vector<Tensor> i
     if (Tensor::tensor_status == TENSOR_STATIC_READY) {
         auto end_t = mllm_time_us();
         std::cout << layer->op_->name() << " | " << Tensor::tensor_status << " time: " << (end_t - start_t) / 1000.0F << "ms" << std::endl;
+    }
+#endif
+    vector<Tensor> output_result = {};
+    for (const auto &layer_next_name : layer_next_names) {
+        string next_name = Layer::use_layername_2_tensorname ? Layer::layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
+#ifdef DEBUGSAVETENSOR
+        activation_tensors[next_name]->saveNData<float>(layer_next_name);
+#endif
+        output_result.push_back(*activation_tensors[next_name]);
+    }
+    return output_result;
+}
+
+std::vector<Tensor> XnnpackBackend::runOp(Op *op, std::vector<Tensor> inputs, std::vector<std::string> out_names, bool in_place) {
+    Module *module = inputs.empty() ? Module::llm_model_ptr : inputs[0].module();
+    map<string, shared_ptr<Tensor>> &activation_tensors = module->activation_tensors;
+    auto &activation_tensors_num = module->activation_tensors_num;
+    // Module::runlistIdx = saved_list_idx;
+    bool do_init = false;
+
+    if (module->doTrace) {
+        // set backend to current module device and try to create op
+        // use Module::tmp_device only when creating the op as the recersive module backend only handled in load and init stage
+        op->backend() = Backend::global_backends[Module::tmp_device];
+        // do_init = !layer->inited_loaded;
+        // if (layer->op_ == nullptr) {
+        //     layer->op_ = layer->backend_->opCreate(layer->param_, layer->name_);
+        // }
+        if (op->type() == SUBGRAPHFINALIZE) {
+            for (auto &input : inputs) {
+                activation_tensors[input.name()]->setTtype(GRAPH_OUTPUT);
+            }
+        }
+        // if (module->doLoad) {
+        //     layer->op_->load(*module->loader);
+        //     layer->inited_loaded = true;
+        // } else if (layer->loaded_param) {
+        //     layer->inited_loaded = layer->loaded_param;
+        // } else {
+        //     if (!layer->inited_loaded) {
+        //         // module->loader = new ParamLoader("");
+        //         // op_->load(*module->loader);
+        //         auto empty_loader = new ParamLoader("");
+        //         layer->op_->load(*empty_loader);
+        //         layer->inited_loaded = true;
+        //     }
+        // }
+        vector<string> layer_next_names = {};
+        if (N > 1) {
+            for (int i = 0; i < N; ++i) {
+                layer_next_names.push_back("out-" + op->name() + "-" + std::to_string(i));
+            }
+        } else {
+            layer_next_names = {"out-" + op->name()};
+        }
+        for (const auto &layer_next_name : layer_next_names) {
+            string next_name;
+            if (Layer::use_layername_2_tensorname) {
+                if (Layer::layername_2_tensorname.find(layer_next_name) == Layer::layername_2_tensorname.end()) {
+                    if (layer->param_["type"] == KVCACHE) {
+                        Layer::layername_2_tensorname[layer_next_name] = layer_next_name;
+                        init_reset_KVCache(inputs[0].name(), module, layer->saved_list_idx, Layer::layername_2_tensorname, layer->backend_);
+                    } else {
+                        Layer::layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                    }
+                }
+                next_name = Layer::layername_2_tensorname[layer_next_name];
+            } else if (layer_next_name.find("visual") != string::npos) {
+                // QNN VLM trick: visual model use act tensor sharing
+                if (Layer::layername_2_tensorname.find(layer_next_name) == Layer::layername_2_tensorname.end()) {
+                    if (layer->param_["type"] == KVCACHE) {
+                        Layer::layername_2_tensorname[layer_next_name] = layer_next_name;
+                        init_reset_KVCache(inputs[0].name(), module, layer->saved_list_idx, Layer::layername_2_tensorname, layer->backend_);
+                    } else {
+                        Layer::layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                    }
+                }
+                next_name = Layer::layername_2_tensorname[layer_next_name];
+            } else {
+                next_name = layer_next_name;
+            }
+            if (activation_tensors.find(next_name) == activation_tensors.end()) {
+                activation_tensors[next_name] = std::make_shared<Tensor>(op->backend());
+                activation_tensors[next_name]->setName(next_name);
+                activation_tensors[next_name]->setModule(module);
+                activation_tensors_num[next_name] = 0;
+            }
+        }
+        vector<Tensor> output_result = {};
+        for (const auto &layer_next_name : layer_next_names) {
+            string next_name = Layer::use_layername_2_tensorname ? Layer::layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
+            output_result.push_back(*activation_tensors[next_name]);
+        }
+        return output_result;
+    }
+    // input_tensors
+    vector<shared_ptr<Tensor>> input_tensors;
+    for (auto &input : inputs) {
+        if (input.shouldInGraphs()) {
+            auto input_name = input.name();
+            if (layer->param_["type"] == KVCACHE && do_init && Layer::use_layername_2_tensorname) {
+                input_name = name_X_to_num(input_name, layer->saved_list_idx);
+            }
+            input_tensors.push_back(activation_tensors[input_name]);
+        } else {
+            input_tensors.push_back(std::shared_ptr<Tensor>(&input, [](Tensor *) {}));
+        }
+    }
+    // output_tensors
+    vector<string> layer_next_names = {};
+    if (N > 1) {
+        for (int i = 0; i < N; ++i) {
+            layer_next_names.push_back("out-" + op->name() + "-" + std::to_string(i));
+        }
+    } else {
+        layer_next_names = {"out-" + op->name()};
+    }
+    vector<shared_ptr<Tensor>> output_tensors = {};
+    for (const auto &layer_next_name : layer_next_names) {
+        string next_name = Layer::use_layername_2_tensorname ? Layer::layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
+        output_tensors.push_back(activation_tensors[next_name]);
+    }
+#ifdef DEBUGOPTIME
+    auto start_t = mllm_time_us();
+#endif
+    switch (Tensor::tensor_status) {
+    case TENSOR_STATIC_INIT: {
+        op->reshape(input_tensors, output_tensors);
+        op->setUp(input_tensors, output_tensors);
+        break;
+    }
+    case TENSOR_STATIC_READY: {
+        op->execute(input_tensors, output_tensors);
+        break;
+    }
+    case TENSOR_STATIC_TRACE: {
+        if (op->backend()->type() == BackendType::MLLM_CPU) {
+            Tracer::addOp(op, input_tensors, output_tensors);
+        } else if (op->type() == SUBGRAPHSTART) { // begin of QNN graph
+            Tracer::addModule(input_tensors, {}, op->name());
+        }
+        break;
+    }
+    default: {
+        break;
+    }
+    }
+    if (Backend::global_backends.size() == 1) {
+        for (auto input_tensor : input_tensors) {
+            if ((activation_tensors_num.find(input_tensor->name()) != activation_tensors_num.end())) {
+                switch (Tensor::tensor_status) {
+                case TENSOR_STATIC_INIT: {
+                    activation_tensors_num[input_tensor->name()] += 1;
+                    break;
+                }
+                case TENSOR_STATIC_READY: {
+                    activation_tensors_num[input_tensor->name()] -= 1;
+                    break;
+                }
+                default: {
+                }
+                }
+                if (activation_tensors_num[input_tensor->name()] == 0 && activation_tensors[input_tensor->name()]->sequence() > 1
+                    && activation_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
+                    activation_tensors[input_tensor->name()]->free();
+                    // std::cout << input_tensor->name() << "|" << std::endl;
+                }
+            }
+        }
+    }
+#ifdef DEBUGOPTIME
+    if (Tensor::tensor_status == TENSOR_STATIC_READY) {
+        auto end_t = mllm_time_us();
+        std::cout << op->name() << " | " << Tensor::tensor_status << " time: " << (end_t - start_t) / 1000.0F << "ms" << std::endl;
     }
 #endif
     vector<Tensor> output_result = {};

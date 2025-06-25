@@ -30,6 +30,8 @@
  * Weights File Structure
  */
 namespace mllm {
+
+/*
 bool ParamLoader::load(mllm::Tensor *tensor) {
     string name = tensor->name();
     if (!use_mmap_) {
@@ -41,49 +43,95 @@ bool ParamLoader::load(mllm::Tensor *tensor) {
         size_t read_size = std::min(tensor->cntSize(), static_cast<size_t>(offset.second));
         auto _ = fread(p, sizeof(uint8_t), read_size, fp_);
 
-        /*
-        if (offsets_.find(name) == offsets_.end()) { return false; }
-        std::pair<uint64_t, uint64_t> offset = offsets_[name];
-        uint8_t *data = new uint8_t[offset.second];
-        fseek(fp_, offset.first, SEEK_SET);
-        auto _ = fread(data, sizeof(uint8_t), offset.second, fp_);
-        // TODO:Data?
-        //  tenor. = data;
-        auto *p = tensor->hostPtr<char>();
-
-        if (tensor->cntSize() >= offset.second)
-            memcpy(static_cast<void *>(p), static_cast<void *>(data),
-                   offset.second); // Cast pointers to void*
-        else
-            memcpy(static_cast<void *>(p), static_cast<void *>(data),
-                   tensor->cntSize()); // Cast pointers to void*
-        delete[] data;                 // Free the memory allocated by new
-        */
         return true;
     } else { // USE_MMAP is defined
-        // 确保 buffer_ 和 offsets_ 已经为 mmap 正确初始化
-        if (!use_mmap_ || buffer_ == nullptr || offsets_.find(name) == offsets_.end()) {
-            // 可以选择打印错误信息或返回 false
-            // TODO
-            // if (offsets_.find(name) == offsets_.end()) {
-            //     fprintf(stderr, "Tensor name '%s' not found in offsets.\n", name.c_str());
-            // } else {
-            //     fprintf(stderr, "Buffer is null or mmap not initialized.\n");
-            // }
+         if (mmap_buffer_ == nullptr || offsets_.find(name) == offsets_.end()) {
             return false;
         }
-        std::lock_guard<std::mutex> lock(mtx); // mmap 访问也可能需要同步，取决于使用场景
-        std::pair<uint64_t, uint64_t> offset_info = offsets_[name];
-        auto *p = tensor->hostPtr<char>(); // 获取 tensor 的主机指针
+        std::lock_guard<std::mutex> lock(mtx);
+        auto offset_info = offsets_[name];
 
-        // 计算源数据指针
-        uint8_t *source_ptr = buffer_ + offset_info.first;
+        // ---  在这里加入对齐诊断代码 ---
+        int required_alignment = DataTypeSize(tensor->dtype()); // 获取数据类型的大小，如 float 是 4
+        if (required_alignment == 0) required_alignment = 1; // 避免除零
 
-        // 要拷贝的数据大小，取 tensor 大小和参数大小的最小值
-        size_t copy_size = std::min(tensor->cntSize(), static_cast<size_t>(offset_info.second));
+        bool is_aligned = (offset_info.first % required_alignment == 0);
 
-        // 从内存映射的 buffer_ 拷贝数据到 tensor
-        memcpy(static_cast<void *>(p), static_cast<const void *>(source_ptr), copy_size);
+        if (!is_aligned) {
+            fprintf(stderr, "[ALIGNMENT ERROR] Tensor: '%s', DataType: %d, Offset: %llu, Required Alignment: %d. DATA IS MISALIGNED!\n",
+                    name.c_str(),
+                    tensor->dtype(),
+                    (unsigned long long)offset_info.first,
+                    required_alignment);
+        } else {
+            // (可选) 打印出对齐正确的信息，用于确认
+            // fprintf(stdout, "[ALIGNMENT OK]    Tensor: '%s', Offset: %llu, Alignment: %d.\n",
+            //         name.c_str(), (unsigned long long)offset_info.first, required_alignment);
+        }
+        // --- 诊断代码结束 ---
+
+        // 如果不对齐，直接返回失败，因为我们不允许拷贝
+        if (!is_aligned) {
+            return false;
+        }
+
+        // 只有在对齐检查通过后，才执行零拷贝的指针赋值
+        if (tensor->cntSize() != offset_info.second) { return false; }
+        uint8_t* source_ptr = mmap_buffer_.get() + offset_info.first;
+        tensor->setHostPtr(source_ptr, mmap_buffer_);
+
+        return true;
+    }
+}
+    */
+// 在 ParamLoader.cpp 中
+bool ParamLoader::load(mllm::Tensor *tensor) {
+    string name = tensor->name();
+    if (!use_mmap_) {
+        // --- 非 mmap 模式，逻辑保持不变 ---
+        // 确保 Tensor 已经分配内存
+        // if (tensor->rawHostPtr() == nullptr) {
+            // tensor->alloc();
+        // }
+        std::lock_guard<std::mutex> lock(mtx);
+        if (offsets_.find(name) == offsets_.end()) { return false; }
+        std::pair<uint64_t, uint64_t> offset = offsets_[name];
+        auto *p = tensor->hostPtr<char>();
+        fseek(fp_, offset.first, SEEK_SET);
+        size_t read_size = std::min(tensor->cntSize(), static_cast<size_t>(offset.second));
+        auto _ = fread(p, sizeof(uint8_t), read_size, fp_);
+        return true;
+    } else {
+        // --- mmap 模式，实现智能选择 ---
+        if (mmap_buffer_ == nullptr || offsets_.find(name) == offsets_.end()) {
+            return false;
+        }
+        std::lock_guard<std::mutex> lock(mtx);
+        auto offset_info = offsets_[name];
+
+        // 1. 检查对齐
+        int required_alignment = DataTypeSize(tensor->dtype());
+        if (required_alignment == 0) required_alignment = 1;
+        bool is_aligned = (offset_info.first % required_alignment == 0);
+
+        // 2. 尺寸检查
+        if (tensor->cntSize() != offset_info.second) {
+            fprintf(stderr, "Error: Tensor '%s' size mismatch. Code wants %zu, file has %llu.\n",
+                    name.c_str(), tensor->cntSize(), (unsigned long long)offset_info.second);
+            return false;
+        }
+        is_aligned = false;
+        if (is_aligned) {
+            // -- 对齐：执行零拷贝 --
+            uint8_t* source_ptr = mmap_buffer_.get() + offset_info.first;
+            // setHostPtr 会处理好一切（包括释放之前 alloc 的内存）
+            tensor->setHostPtr(source_ptr, mmap_buffer_);
+        } else {
+            // -- 未对齐：回退到 memcpy --
+            // 从 mmap 区域拷贝数据到 Tensor 自己拥有的内存中
+            uint8_t* source_ptr = mmap_buffer_.get() + offset_info.first;
+            memcpy(tensor->rawHostPtr(), source_ptr, tensor->cntSize());
+        }
 
         return true;
     }
@@ -108,89 +156,91 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap_param) :           
     path_(std::move(filename)), use_mmap_(use_mmap_param), fp_(nullptr), buffer_(nullptr), size_(0) { // Initialize new members
 
     if (use_mmap_) {
-        // 1. 打开文件
+                // --- 1. 打开文件并获取文件描述符 ---
         FILE *temp_fp = fopen(this->path_.c_str(), "rb");
         if (temp_fp == nullptr) {
             // perror(("Error opening file for mmap: " + this->path_).c_str());
-            // exit(1); // Or handle error differently
+            // 无法打开文件，直接返回，保持 ParamLoader 为不可用状态
             return;
         }
 
-        // 2. 获取文件大小
+        // --- 2. 获取文件大小 ---
         fseek(temp_fp, 0, SEEK_END);
         size_ = ftell(temp_fp);
-        fseek(temp_fp, 0, SEEK_SET); // Reset to beginning
+        // fseek(temp_fp, 0, SEEK_SET); // mmap不需要重置文件指针
 
-        // 3. 内存映射 (示例使用 POSIX mmap)
-        // #include <sys/mman.h>
-        // #include <fcntl.h>
-        // #include <unistd.h>
-        int fd = fileno(temp_fp); // Get file descriptor
-        buffer_ = (uint8_t *)mmap(NULL, size_, PROT_READ, MAP_PRIVATE, fd, 0);
-        if (buffer_ == MAP_FAILED) {
+        // --- 3. 执行内存映射 ---
+        int fd = fileno(temp_fp); // 获取文件描述符
+        uint8_t* mapped_ptr = (uint8_t *)mmap(NULL, size_, PROT_READ, MAP_PRIVATE, fd, 0);
+
+        // mmap完成后，文件描述符即可关闭，映射关系依然存在
+        fclose(temp_fp);
+
+        if (mapped_ptr == MAP_FAILED) {
             perror("mmap failed");
-            fclose(temp_fp);   // Close the temporary file pointer
-            buffer_ = nullptr; // Mark buffer as invalid
-            use_mmap_ = false; // Fallback or indicate error
-            // exit(1); // Or handle error differently
+            use_mmap_ = false; // mmap失败，可以考虑回退到非mmap模式或标记为失败
             return;
         }
-        // 文件描述符可以关闭了，mmap 会保持映射
-        // fclose(temp_fp); // Or keep fp_ as the original file pointer if needed for non-mmap fallback
 
-        // 4. 从 buffer_ 读取元数据 (类似于 readInt, readString 等，但操作指针)
-        uint8_t *current_ptr = buffer_;
+        // --- 4. 将 mmap 指针包装到带自定义删除器的 shared_ptr 中 ---
+        auto mmap_size = this->size_;
+        this->mmap_buffer_ = std::shared_ptr<uint8_t>(mapped_ptr, [mmap_size](uint8_t *p) {
+            // 自定义删除器：当 shared_ptr 引用计数归零时，调用 munmap
+            munmap(p, mmap_size);
+        });
+
+        // ====================================================================
+        // --- 5. 从 mmap 内存区域中解析元数据 ---
+        // ====================================================================
+        
+        // 定义一系列在内存指针上操作的辅助 lambda 函数，用于替代原先在 FILE* 上的操作
         auto mmap_readInt = [&](uint8_t *&ptr) {
             int32_t val;
             memcpy(&val, ptr, sizeof(int32_t));
-            ptr += sizeof(int32_t);
+            ptr += sizeof(int32_t); // 移动指针
             return val;
         };
         auto mmap_readu64 = [&](uint8_t *&ptr) {
             uint64_t val;
             memcpy(&val, ptr, sizeof(uint64_t));
-            ptr += sizeof(uint64_t);
+            ptr += sizeof(uint64_t); // 移动指针
             return val;
         };
         auto mmap_readString = [&](uint8_t *&ptr) {
             int len = mmap_readInt(ptr);
-            std::string str((char *)ptr, len);
-            ptr += len;
+            if (len == 0) return std::string("");
+            std::string str(reinterpret_cast<const char *>(ptr), len);
+            ptr += len; // 移动指针
             return str;
         };
 
+        // 获取指向 mmap 区域开头的当前指针
+        uint8_t *current_ptr = mmap_buffer_.get();
+        
+        // a. 读取并验证幻数
         int magic = mmap_readInt(current_ptr);
         if (magic != _MAGIC_NUMBER) {
             fprintf(stderr, "Mmap: magic number error\n");
-            munmap(buffer_, size_); // Unmap memory
-            buffer_ = nullptr;
+            this->mmap_buffer_.reset(); // 释放 shared_ptr，触发 munmap
             use_mmap_ = false;
-            // exit(1); // Or handle error
             return;
         }
 
+        // b. 读取索引区域的总长度
         uint64_t index_size = mmap_readu64(current_ptr);
+        
+        // c. 计算索引区域的结束地址
         uint8_t *index_end_ptr = current_ptr + index_size;
 
+        // d. 循环读取所有张量的元信息，直到遍历完整个索引区域
         while (current_ptr < index_end_ptr) {
             std::string name = mmap_readString(current_ptr);
             uint64_t length = mmap_readu64(current_ptr);
-            // 对于 mmap，offset 通常是相对于 buffer_ 开始的偏移
-            // 如果文件格式中的 offset 是相对于文件数据区的绝对偏移，需要调整
-            uint64_t offset_in_file = mmap_readu64(current_ptr);     // This is the offset as stored in the file
-            offsets_[name] = std::make_pair(offset_in_file, length); // Store the original offset from file
-            data_type_[name] = mmap_readInt(current_ptr);
-        }
-        // Mmap is set up, fp_ might not be needed or could be temp_fp if kept open
-        // If you want to keep fp_ for potential non-mmap operations or cleanup:
-        this->fp_ = temp_fp; // Assign after successful mmap, or keep it as NULL
-                             // If keeping temp_fp, ensure it's closed in destructor if mmap was used.
-                             // Alternatively, just close temp_fp here if all mmap ops are done.
-                             // fclose(temp_fp) was already called if mmap failed. If successful, and you don't need fp_ for mmap path:
-        // fclose(temp_fp); // Or defer to destructor. For mmap, fd is what mattered.
-        // Let's assume we close it here if mmap succeeded and fp_ isn't used by mmap logic itself
-        if (buffer_ != MAP_FAILED) { // if mmap succeeded
-                                     // fclose(temp_fp); // Decide on fp_ lifecycle. If mmap is primary, fp_ might be set to nullptr
+            uint64_t offset_in_file = mmap_readu64(current_ptr);
+            
+            // 将解析出的信息存入 map
+            offsets_[name] = std::make_pair(offset_in_file, length);
+            data_type_[name] = static_cast<DataType>(mmap_readInt(current_ptr));
         }
 
     } else { // USE_MMAP is NOT defined

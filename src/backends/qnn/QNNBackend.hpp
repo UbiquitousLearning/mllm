@@ -90,7 +90,7 @@ public:
         std::vector<std::string> out_names,
         TensorFuncType type,
         std::vector<float> float_args,
-        std::vector<std::shared_ptr<Tensor>> input_tensors,
+        std::vector<Tensor> input_tensors,
         bool in_place) override;
     std::vector<Tensor> runLayer(Layer *layer, std::vector<Tensor> inputs, int N) override;
     std::vector<Tensor> runForward(Module *module, std::vector<Tensor> inputs, std::vector<std::any> args) override;

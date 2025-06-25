@@ -105,6 +105,7 @@ protected:
     std::map<std::string, std::pair<uint64_t, uint64_t>> offsets_; // offsets,length
     std::map<std::string, int> data_type_;
     bool use_mmap_;
+    std::shared_ptr<uint8_t> mmap_buffer_;
 };
 
 /**

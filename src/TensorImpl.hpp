@@ -1,24 +1,25 @@
 #ifndef MLLM_TENSORIMPL_H
 #define MLLM_TENSORIMPL_H
-#include <climits>
-#include "Backend.hpp"
-#include "OpDefined.hpp"
-#include <iostream>
 #include <cstdio>
-#include <iomanip>
-#include <cmath>
-#include <fstream>
 #include <map>
 #include <memory>
-#include <vector>
+// #include <vector>
 #ifdef _WIN32
 #include <direct.h>
 #else
 #include <sys/stat.h>
 #endif
-#include <Types.hpp>
 #include <assert.h>
+// #include <climits>
+// #include <iostream>
+// #include <iomanip>
+// #include <cmath>
+// #include <fstream>
 // #include <sys/stat.h>
+
+#include "OpDefined.hpp"
+#include "Backend.hpp"
+#include <Types.hpp>
 
 namespace mllm {
 class Backend;
@@ -26,7 +27,8 @@ class Module;
 
 class TensorImpl {
 public:
-    bool owns_host_ptr_ = true; // 新增标志位
+    bool owns_host_ptr_ = true;
+    std::shared_ptr<void> memory_handle_ = nullptr;
 
     std::map<Chl, int> chls_ = {{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
     string name_;

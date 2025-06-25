@@ -8,9 +8,6 @@
 
 namespace mllm {
 
-// AbstructLoader *Module::loader;
-// TensorStatus Tensor::tensor_status;
-// bool Module::doLoad = false;
 // The llm_model_ptr is a pointer to the outmost module
 Module *Module::llm_model_ptr;
 
