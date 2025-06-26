@@ -94,7 +94,7 @@ OpenCLBackend::OpenCLBackend(const BackendConfig &config) : Backend() {
         this->image_pitch_alignment_bytes_ = 0;
     }
     // =======================================================================
-    const std::string convert_kernel_path = get_kernel_path(__FILE__, "./kernel/convert.cl");
+    const std::string convert_kernel_path = get_kernel_path(__FILE__, "./kernel/convert_fp.cl");
     std::string build_options = "";
     
     // 如果硬件支持FP16，我们通过宏定义告诉编译器去编译高性能版本的内核
