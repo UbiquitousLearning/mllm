@@ -487,7 +487,7 @@ static size_t DataTypeSize(DataType dtype, uint64_t count = 1) {
 }
 #ifdef __cplusplus
 namespace mllm {
-// TODO: copy from MNN; need to recode
+// TODO: copy from MNN; need to recode #UNUSED
 struct BackendConfig {
     enum MemoryMode {
         Memory_Normal = 0,

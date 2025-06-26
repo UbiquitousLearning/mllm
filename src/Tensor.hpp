@@ -110,7 +110,7 @@ public:
      * \param sequence  tokens numbers in a sequence
      * \param dimension the hidden size
      */
-    explicit Tensor(int batch, int head, int sequence, int dimension);
+    // explicit Tensor(int batch, int head, int sequence, int dimension);
     explicit Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bool do_alloc = true);
     explicit Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU, bool do_alloc = true);
     /**
@@ -358,6 +358,27 @@ public:
         return (Dtype *)impl_->host_ptr_;
     }
 
+    /**
+    * @brief 获取设备内存的通用描述符。
+    * @return DeviceMemory& 对设备内存描述符的引用。
+    */
+    DeviceMemory& device_memory() {
+        if(backend() == nullptr || backend()->type() == MLLM_CPU) {
+            throw std::runtime_error("Device memory is not available for CPU backend.");
+        }
+        return impl_->device_memory_;
+    }
+
+    /**
+    * @brief 获取设备内存的通用描述符 (const 版本)。
+    * @return const DeviceMemory& 对设备内存描述符的常量引用。
+    */
+    const DeviceMemory& device_memory() const {
+        if(backend() == nullptr || backend()->type() == MLLM_CPU) {
+            throw std::runtime_error("Device memory is not available for CPU backend.");
+        }
+        return impl_->device_memory_;
+    }
     /**
      * \brief Get the data at the specified position.
      * \tparam Dtype Data type, such as float, mllm_fp16_t, etc.
@@ -1018,12 +1039,61 @@ public:
     }
 
     Tensor &to(BackendType backend_type);
+
+    Tensor &cpu() {
+        return to(MLLM_CPU);
+    }
+    Tensor &qnn() {
+        return to(MLLM_QNN);
+    }
+    Tensor &cl() {
+        return to(MLLM_OPENCL);
+    }
+
+    Tensor half() {
+        if (dtype() == MLLM_TYPE_F16) {
+            return *this;
+        }
+        assert(dtype() == MLLM_TYPE_F32 && "Tensor::half() can only be called on an FP32 tensor.");
+        assert(master_tensor_ == nullptr && "Conversion not supported for child tensors.");
+        if(allocted()) {
+            Tensor half_tensor(batch(), head(), sequence(), dimension(), backend(), false);
+            half_tensor.setDtype(MLLM_TYPE_F16);
+            half_tensor.alloc();
+            backend()->convert_fp_data(this, &half_tensor);
+            return half_tensor;
+        }else {
+            impl_->dtype_ = MLLM_TYPE_F16;
+            return *this;
+        }
+    }
+    Tensor fp16() {
+        return half();
+    }
+    Tensor fp32() {
+        if (dtype() == MLLM_TYPE_F32) {
+            return *this;
+        }
+        assert(dtype() == MLLM_TYPE_F16 && "Tensor::fp32() can only be called on an FP16 tensor.");
+        assert(master_tensor_ == nullptr && "Conversion not supported for child tensors.");
+        if(allocted()) {
+            Tensor fp32_tensor(batch(), head(), sequence(), dimension(), backend(), false);
+            fp32_tensor.setDtype(MLLM_TYPE_F32);
+            fp32_tensor.alloc();
+            backend()->convert_fp_data(this, &fp32_tensor);
+            return fp32_tensor;
+        }else {
+            impl_->dtype_ = MLLM_TYPE_F16;
+            return *this;
+        }
+    }
+
     static vector<Tensor> toDevice(vector<Tensor> inputs, BackendType backend_type) {
         for (auto &input : inputs) {
             if (input.device() != backend_type) {
                 input.to(backend_type);
             }
-        }
+        } 
         return inputs;
     };
     static vector<Tensor> toCPU(vector<Tensor> inputs) {

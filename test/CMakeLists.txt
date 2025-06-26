@@ -57,6 +57,10 @@ target_link_libraries(
         -fopenmp
         ${MLLM_XNNPACK_BACKEND_TEST_DEP_LIB}
 )
+
+if(OPENCL)
+    target_link_libraries(MLLM_TEST mllm_opencl)
+endif()
 # add_executable(
 #         memoryPoolTest
 #         ${PROJECT_SOURCE_DIR}/test/TestMemoryPoolManager.cpp

@@ -4,6 +4,7 @@
 #include "MemoryManager.hpp"
 #include "OpDefined.hpp"
 #include "Types.hpp"
+#include <cassert>
 #include <memory>
 #include <unordered_map>
 #include <any>
@@ -16,6 +17,7 @@ class Tensor;
 class Backend;
 class Module;
 class Layer;
+struct DeviceMemory;
 
 // KVCache map for QNN-CPU KVCache sharing
 static std::unordered_map<string, Op *> kv_cache_map;
@@ -28,6 +30,7 @@ public:
 };
 class Backend {
 public:
+    Backend(){};
     Backend(shared_ptr<MemoryManager> &mm) :
         mem_manager_(mm) {
     }
@@ -51,6 +54,21 @@ public:
         mem_manager_->free(ptr);
     }
 
+    virtual void alloc_device(DeviceMemory &mem, DataType dtype){
+        assert(type_ != MLLM_CPU && "alloc_device should not be called on CPU backend");
+    }
+    virtual void free_device(DeviceMemory &mem) {
+        assert(type_ != MLLM_CPU && "free_device should not be called on CPU backend");
+    }
+    virtual void copy_from_host(const DeviceMemory &dest, const void *src) {
+        assert(type_ != MLLM_CPU && "copy_from_host should be handled by specific backends");
+    }
+    virtual void copy_to_host(void *dest, const DeviceMemory &src) {
+        assert(type_ != MLLM_CPU && "copy_to_host should be handled by specific backends");
+    }
+
+    virtual void convert_fp_data(Tensor *src, Tensor *dest) {};
+
     /**
      * \brief Creates an operation(Op) with the given parameters.
      * \param op_param The parameters for the operation to be created.
@@ -71,12 +89,6 @@ public:
      * @param in_place Whether to run the function in place.
      * @return std::vector<Tensor> The output tensors.
      */
-    // virtual std::vector<Tensor> runFunc(
-    //     std::vector<std::string> out_names,
-    //     TensorFuncType type,
-    //     std::vector<float> float_args,
-    //     std::vector<Tensor> input_tensors,
-    //     bool in_place) = 0;
     virtual std::vector<Tensor> runLayer(Layer *layer, std::vector<Tensor> inputs, int N) = 0;
 
     virtual std::vector<Tensor> runOp(Op *op, std::vector<Tensor> input, std::vector<std::string> out_names, bool in_place) = 0;

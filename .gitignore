@@ -36,3 +36,4 @@ src/backends/qnn/sdk/*
 .DS_Store
 src/models/ling/modeling_bailing_moe.hpp
 src/models/ling/configuration_bailing_moe.hpp
+examples/test.cpp

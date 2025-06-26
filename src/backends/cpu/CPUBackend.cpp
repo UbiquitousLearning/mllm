@@ -152,7 +152,7 @@ CPUBackend::CPUBackend(shared_ptr<MemoryManager> &mm) :
     Backend(mm) {
     type_ = BackendType::MLLM_CPU;
     registerOps();
-    registerFuncs();
+    // registerFuncs();
 }
 
 Op *CPUBackend::opCreate(const OpParam &op_param, string name, int threadCount) {
@@ -271,46 +271,29 @@ TensorFunction *CPUBackend::funcCreate(const TensorFuncType type) {
 }
 
 void CPUBackend::registerFuncs(){
-    // map_function_[TensorFuncType::FUNC_ADD] = new CPUaddFunction();
-    // map_function_[TensorFuncType::FUNC_SUB] = new CPUsubFunction();
-    // map_function_[TensorFuncType::FUNC_MUL] = new CPUmulFunction();
-    // map_function_[TensorFuncType::FUNC_DIV] = new CPUdivFunction();
-    // map_function_[TensorFuncType::FUNC_DIVINT] = new CPUdivintFunction();
-    // map_function_[TensorFuncType::FUNC_TTADD] = new CPUaddTwoFunction();
-    // map_function_[TensorFuncType::FUNC_TTSUB] = new CPUsubTwoFunction();
-    // map_function_[TensorFuncType::FUNC_TTMUL] = new CPUmulTwoFunction();
-    // map_function_[TensorFuncType::FUNC_TTDIV] = new CPUdivTwoFunction();
-    // map_function_[TensorFuncType::FUNC_MM] = new CPUmmFunction();
-    // map_function_[TensorFuncType::FUNC_NORM] = new CPUnormFunction();
-    // map_function_[TensorFuncType::FUNC_MEAN] = new CPUmeanFunction();
-    // map_function_[TensorFuncType::FUNC_CAT] = new CPUcatFunction();
-    // map_function_[TensorFuncType::FUNC_VIEW] = new CPUviewFunction();
-    // map_function_[TensorFuncType::FUNC_TRANPOSE] = new CPUtransposeFunction();
-    // map_function_[TensorFuncType::FUNC_FLATTEN] = new CPUflattenFunction();
-    // map_function_[TensorFuncType::FUNC_CLIP] = new CPUclipFunction();
-    // map_function_[TensorFuncType::FUNC_CLIPAXIS] = new CPUclipaxisFunction();
-    // map_function_[TensorFuncType::FUNC_CLIPTENSOR] = new CPUcliptensorFunction();
-    // map_function_[TensorFuncType::FUNC_RANGE] = new CPURangeFunction();
-    // map_function_[TensorFuncType::FUNC_WHERE] = new CPUwhereFunction();
-    // map_function_[TensorFuncType::FUNC_INDEX_PUT] = new CPUIndexPutFunction();
-    // map_function_[TensorFuncType::FUNC_SPLIT] = new CPUsplitFunction();
-    // map_function_[TensorFuncType::FUNC_SUM] = new CPUsumFunction();
-    // map_function_[TensorFuncType::FUNC_TOPK] = new CPUtopkFunction();
-    // map_function_[TensorFuncType::FUNC_EXPPAND] = new CPUexpandFunction();
-    // map_function_[TensorFuncType::FUNC_ARGSORT] = new CPUargsortFunction();
-    // map_function_[TensorFuncType::FUNC_BINCOUNT] = new CPUbincountFunction();
-    // map_function_[TensorFuncType::FUNC_REPEAT] = new CPUrepeatFunction();
-    // map_function_[TensorFuncType::FUNC_LIKE] = new CPUlikeFunction();
-    // map_function_[TensorFuncType::FUNC_SCATTERREDUCE] = new CPUScatterReduceFunction();
-    // map_function_[TensorFuncType::FUNC_APPLY_VISIOROPE] = new CPUVisionRoPEFuncFunction();
-    // map_function_[TensorFuncType::FUNC_FA2] = new CPUFlashAttention2Func();
-    // // models use only
-    // map_function_[TensorFuncType::FUNC_FUYU_GATHER_EMBD] = new CPUFuyuGatherEmbdFunc();
-    // map_function_[TensorFuncType::FUNC_PHI3V_HD_MERGE] = new CPUPhi3VhdmergeFunction();
+    ;
 };
 
 int CPUBackend::cpu_threads = 4;
 
+void CPUBackend::convert_fp_data(Tensor *src, Tensor *dest) {
+    // 根据源和目标的类型，执行相应的CPU循环转换
+    if (src->dtype() == MLLM_TYPE_F32 && dest->dtype() == MLLM_TYPE_F16) {
+        float* src_ptr = src->hostPtr<float>();
+        mllm_fp16_t* dst_ptr = dest->hostPtr<mllm_fp16_t>();
+        for (int i = 0; i < src->count(); i++) {
+            dst_ptr[i] = MLLM_FP32_TO_FP16(src_ptr[i]);
+        }
+    } else if (src->dtype() == MLLM_TYPE_F16 && dest->dtype() == MLLM_TYPE_F32) {
+        mllm_fp16_t* src_ptr = src->hostPtr<mllm_fp16_t>();
+        float* dst_ptr = dest->hostPtr<float>();
+        for (int i = 0; i < src->count(); i++) {
+            dst_ptr[i] = MLLM_FP16_TO_FP32(src_ptr[i]);
+        }
+    } else {
+        throw std::runtime_error("Unsupported conversion types for CPU backend.");
+    }
+}
 /************************************************************************************************/
 /* Refactored Helper Functions                                */
 /************************************************************************************************/
@@ -428,8 +411,9 @@ void CPUBackend::_create_output_tensors(
 
 std::vector<Tensor> CPUBackend::runOp(Op *op, std::vector<Tensor> inputs, std::vector<std::string> out_names, bool in_place) {
     Module *module = inputs.empty() ? Module::llm_model_ptr : inputs[0].module();
-    map<string, shared_ptr<Tensor>> &activation_tensors = module->activation_tensors;
-    if (module->doTrace) { // trace
+    static map<string, shared_ptr<Tensor>> empty_activation_tensors;
+    map<string, shared_ptr<Tensor>> &activation_tensors = module ? module->activation_tensors : empty_activation_tensors;
+    if (module && module->doTrace) { // trace
         for (const auto &out_name : out_names) {
             if (activation_tensors.find(out_name) == activation_tensors.end()) {
                 activation_tensors[out_name] = std::make_shared<Tensor>(op->backend());

@@ -2,26 +2,27 @@
 
 #include <cassert>
 #include <cstdlib>
-#include <exception>
+// #include <exception>
 #include <express/ExpressBase.hpp>
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "OpDefined.hpp"
-#include "Timing.hpp"
+#include "TensorImpl.hpp"
+// #include "Timing.hpp"
 #include "Types.hpp"
 #include <Module.hpp>
 #include <memory>
-#include <regex>
+// #include <regex>
 #include <string>
 #include <vector>
 
 namespace mllm {
 
 /* Tensor类构造函数实现（对应头文件中的声明）*/
-Tensor::Tensor(const int batch, const int head, const int sequence, const int dimension) :
-    impl_(std::make_shared<TensorImpl>()) { // 初始化impl_
-    reshape(batch, head, sequence, dimension);
-}
+// Tensor::Tensor(const int batch, const int head, const int sequence, const int dimension) :
+//     impl_(std::make_shared<TensorImpl>()) { // 初始化impl_
+//     reshape(batch, head, sequence, dimension);
+// }
 
 Tensor::Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bool do_alloc) :
     impl_(std::make_shared<TensorImpl>(bn)) { // 使用带Backend的TensorImpl构造函数
@@ -34,6 +35,9 @@ Tensor::Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bo
 
 Tensor::Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type, bool do_alloc) :
     impl_(std::make_shared<TensorImpl>()) {
+    if (Backend::global_backends.find(bn_type) == Backend::global_backends.end()) {
+        Module::initBackend(bn_type);
+    }
     impl_->dtype_ = MLLM_TYPE_F32;
     impl_->backend_ = Backend::global_backends[bn_type];
     reshape(batch, head, sequence, dimension);
@@ -180,7 +184,16 @@ Tensor &Tensor::to(BackendType backend_type) {
         this->setBackend(Backend::global_backends[backend_type]);
         return *this;
     }
-
+    Backend* target_backend = Backend::global_backends[backend_type];
+    if (target_backend == nullptr) {
+        Module::initBackend(backend_type);
+        target_backend = Backend::global_backends[backend_type];
+        assert(target_backend != nullptr && "Target backend is not initialized.");
+    }
+    // if (backend_type = MLLM_OPENCL){
+    //     impl_->location_ = TensorImpl::ON_DEVICE; // OpenCL backend should always be on device
+    // }
+    impl_->to(target_backend);
     return *this;
 };
 
@@ -293,7 +306,6 @@ void Tensor::_allocate_aggregated_tensor(
  * @param template_tensor The template tensor to base the allocation on.
  */
 void Tensor::allocFromTemplate(shared_ptr<Tensor> template_tensor){
-    assert(module() != nullptr);
     assert(backend() != nullptr);
     if (template_tensor!= nullptr && !template_tensor->aggregatedTensors().empty()) {
         _allocate_aggregated_tensor(template_tensor, module(), backend());

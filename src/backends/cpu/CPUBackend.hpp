@@ -97,6 +97,8 @@ public:
     bool isUsingDraft() {
         return usingDraft;
     }
+
+    void convert_fp_data(Tensor *src, Tensor *dest) override;
     // #endif
 private:
     std::map<OpType, CPUBackend::Creator *> map_creator_;

@@ -95,6 +95,21 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
     cmake_policy(SET CMP0135 NEW)
 endif ()
 
+option(OPENCL "Enable OpenCL Backend" ON) 
+if(OPENCL)
+    find_package(OpenCL)
+    if(NOT OpenCL_FOUND)
+        message(STATUS "OpenCl backend not found。")
+        set(OPENCL OFF CACHE BOOL "Enable OpenCL Backend" FORCE)
+    endif()
+endif()
+if(OPENCL)
+    message(STATUS "OpenCL backend enabled.")
+    add_definitions(-DUSE_OPENCL) 
+endif()
+
+
+
 # for XNNPACK, avoid invovle googltest twice.
 set(GOOGLETEST_SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/third_party/googletest)
 add_subdirectory(third_party/googletest EXCLUDE_FROM_ALL)
@@ -154,6 +169,12 @@ include_directories(${PROJECT_SOURCE_DIR}/third_party/fmt/include)
 include_directories(${PROJECT_SOURCE_DIR}/third_party/pybind11/include)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/cpu)
+
+
+if(OPENCL)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/backends/opencl)
+endif()
+# =========
 
 if(QNN) # QNN lib
     include_directories(
@@ -275,8 +296,6 @@ if(TEST)
     add_subdirectory(test)
 endif()
 
-# add_executable(demo examples/demo.cpp)
-# target_link_libraries(demo fmt::fmt-header-only)
 add_subdirectory(examples)
 
 if(APK)
@@ -284,35 +303,17 @@ if(APK)
         ${DIR_THIRDPARTY_AUDIO}
         src/tokenizers/Tokenizer.cpp
         tools/jni/LibHelper.cpp
-
-        # src/tokenizers/Tokenizer.hpp
-        # src/tokenizers/Unigram/Unigram.hpp
         src/tokenizers/Unigram/Unigram.cpp
-
-        # src/tokenizers/Unigram/trie.hpp
         src/tokenizers/BPE/Bpe.cpp
-
-        # src/tokenizers/BPE/Bpe.hpp
         src/tokenizers/Unicode.cpp
         src/tokenizers/UnicodeData.cpp
         src/tokenizers/BPE/Bpe.cpp
         src/tokenizers/WordPiece/WordPiece.cpp
-
-        # models/bert/configuration_bert.hpp
-        # models/bert/modeling_bert.hpp
-        # models/bert/tokenization_bert.hpp
-        # models/fuyu/configuration_fuyu.hpp
-        # models/fuyu/modeling_fuyu.hpp
-        # models/fuyu/processing_fuyu.hpp
-        # models/phonelm/configuration_phonelm.hpp
-        # models/phonelm/modeling_phonelm.hpp
-        # models/qwen/configuration_qwen.hpp
-        # models/qwen/modeling_qwen.hpp
-        # models/qwen/tokenization_qwen.hpp
-        # models/smollm/tokenization_smollm.hpp
-        # tokenizers/Unigram/Unigram.hpp
     )
     target_link_libraries(mllm_lib mllm_cpu)
+    if (OPENCL)
+        target_link_libraries(mllm_lib mllm_opencl)
+    endif()
 
     if(QNN)
         target_link_libraries(mllm_lib mllm_qnn)

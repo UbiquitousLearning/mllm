@@ -13,6 +13,7 @@
 #include "Trace.hpp"
 #include "Types.hpp"
 #include "backends/cpu/CPUBackend.hpp"
+#include "backends/opencl/OpenCLBackend.hpp"
 #include <any>
 #include <cstddef>
 #include <functional>
@@ -114,6 +115,13 @@ public:
                 Backend::global_backends[MLLM_CPU] = new CPUBackend(mm);
                 break;
             }
+#ifdef USE_OPENCL
+            case BackendType::MLLM_OPENCL: {
+                BackendConfig config;
+                Backend::global_backends[MLLM_OPENCL] = new OpenCLBackend(config);
+                break;
+            }
+#endif
 #ifdef USE_QNN
             case BackendType::MLLM_QNN: {
                 Backend::global_backends.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create({}));
