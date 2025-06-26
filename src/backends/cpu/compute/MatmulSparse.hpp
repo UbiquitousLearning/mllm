@@ -5,7 +5,8 @@
 #ifndef MLLM_MATMULSPARSE_HPP
 #define MLLM_MATMULSPARSE_HPP
 
-#include "VecDot.hpp"
+#include "Tensor.hpp"
+#include "Types.hpp"
 using namespace mllm;
 
 ErrorCode sparse_mat_mul_id(Tensor *x, Tensor *W, Tensor *ids, Tensor *dst, int thread_count = 4);

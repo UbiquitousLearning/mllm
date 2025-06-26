@@ -19,10 +19,9 @@ ErrorCode CPUSplitInput::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 
 ErrorCode CPUSplitInput::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     for (int i = 0; i < inputs.size(); i++) {
-        outputs[i]->shallowCopyFrom(inputs[i].get(), true);
+        outputs[i]->shallowCopyFrom(inputs[i], true);
         // the split output is CPU backend by default, set output backend to QNN to let the device() be QNN
         outputs[i]->setBackend(inputs[i]->backend());
-
     }
     return MLLM_NO_ERROR;
 }
@@ -31,4 +30,3 @@ ErrorCode CPUSplitInput::execute(vector<shared_ptr<Tensor>> inputs, vector<share
     return Op::execute(inputs, outputs);
 }
 } // namespace mllm
-

@@ -13,7 +13,9 @@
 #include "Trace.hpp"
 #include "Types.hpp"
 #include "backends/cpu/CPUBackend.hpp"
+#ifdef USE_OPENCL
 #include "backends/opencl/OpenCLBackend.hpp"
+#endif
 #include <any>
 #include <cstddef>
 #include <functional>
@@ -55,7 +57,7 @@ public:
 
     map<string, shared_ptr<Tensor>> activation_tensors;
     map<string, int> activation_tensors_num;
-    AbstructLoader *loader;
+    std::shared_ptr<AbstructLoader> loader;
     bool doLoad = false;
     bool doTrace = false;
     bool op_transposed_flag = false;
@@ -74,6 +76,7 @@ public:
     static BackendType tmp_device;
 
     static std::unordered_map<string, shared_ptr<Op>> tensor_func_ops; // use for QNN
+    static bool alloc_mmap;
 
 private:
     template <typename... Args>
@@ -112,13 +115,13 @@ public:
                 shared_ptr<MemoryManager> mm = nullptr;
                 // mm = std::make_shared<SystemMemoryManager>();
                 mm = std::make_shared<MemoryPoolManager>(); // todomm
-                Backend::global_backends[MLLM_CPU] = new CPUBackend(mm);
+                Backend::global_backends[MLLM_CPU] = std::make_unique<CPUBackend>(mm);
                 break;
             }
 #ifdef USE_OPENCL
             case BackendType::MLLM_OPENCL: {
                 BackendConfig config;
-                Backend::global_backends[MLLM_OPENCL] = new OpenCLBackend(config);
+                Backend::global_backends[MLLM_OPENCL] = std::make_unique<OpenCLBackend>(config);
                 break;
             }
 #endif
@@ -148,20 +151,59 @@ public:
 
     void load(string path) {
         // create global loader and save to llm_model_ptr.loader as QNNBackend needs to load weights in runtime
-        loader = new ParamLoader(std::move(path), true); // TODO mmap
-        load(*loader);
-    }
-    void load(AbstructLoader &param_loader) {
+        loader = std::make_unique<ParamLoader>(std::move(path), alloc_mmap); // todo
         Tensor::tensor_status = TENSOR_STATIC_INIT;
         mllm_time_init();
-
-        loader = &param_loader;
         doLoad = true;
         doTrace = true;
         vector<Tensor> tmps;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
-            Tensor t(Backend::global_backends[MLLM_CPU]);
+            Tensor t(Backend::global_backends[MLLM_CPU].get());
+            t.setName("input" + std::to_string(i));
+            t.reshape(1, 1, 1, 10);
+            t.alloc();
+            t.setModule(this);
+            tmps.push_back(t);
+        }
+        llm_model_ptr = this;
+        vector<std::any> alternate_args = {
+            {},
+            vector<int>{0, 0},
+            std::vector<std::vector<int>>(32, std::vector<int>(2))};
+        uint64_t time_start = 0;
+        for (auto args : alternate_args) {
+            time_start = mllm_time_us();
+            try {
+                operator()(tmps, args);
+                break;
+            } catch (const std::exception &e) {
+#if not defined(__ARM_NEON)
+                if (std::string("bad any_cast") != e.what()) {
+                    MLLM_LOG_ERROR_STREAM << e.what() << std::endl;
+                    exit(0);
+                }
+#endif
+            } catch (...) {
+                MLLM_LOG_ERROR_STREAM << "load error" << std::endl;
+                exit(0);
+            }
+        }
+        uint64_t time_end = mllm_time_us();
+        load_time_ = (time_end - time_start) / 1000.0F; // ms
+        doLoad = false;
+        doTrace = false;
+    }
+    void load_multifile(const std::initializer_list<string> path) {
+        loader = std::make_unique<MultiFileParamLoader>(std::move(path));
+        Tensor::tensor_status = TENSOR_STATIC_INIT;
+        mllm_time_init();
+        doLoad = true;
+        doTrace = true;
+        vector<Tensor> tmps;
+        int max_in_size = 5;
+        for (int i = 0; i < max_in_size; ++i) {
+            Tensor t(Backend::global_backends[MLLM_CPU].get());
             t.setName("input" + std::to_string(i));
             t.reshape(1, 1, 1, 10);
             t.alloc();
@@ -210,9 +252,9 @@ public:
     template <typename... Args>
     vector<Tensor> operator()(vector<Tensor> inputs, Args... args) {
         vector<std::any> anyArgs = convertArgsToAnyVector(args...);
-        auto backend = inputs.empty() ? Backend::global_backends[MLLM_CPU] : inputs[0].backend();
+        auto backend = inputs.empty() ? Backend::global_backends[MLLM_CPU].get() : inputs[0].backend();
         if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) {
-            backend = Backend::global_backends[MLLM_QNN];
+            backend = Backend::global_backends[MLLM_QNN].get();
         }
         return backend->runForward(this, inputs, anyArgs);
     }

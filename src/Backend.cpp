@@ -20,7 +20,7 @@ void registerBackend() {
 #ifdef USE_QNN
         registerQNNBackendCreator();
 #elif defined(MLLM_BUILD_XNNPACK_BACKEND)
-            registerXNNBackendCreator();
+        registerXNNBackendCreator();
 #endif
     });
 }
@@ -59,6 +59,6 @@ bool InsertBackendCreatorMap(BackendType type, shared_ptr<BackendCreator> creato
     return true;
 }
 
-map<BackendType, Backend *> Backend::global_backends;
+map<BackendType, std::unique_ptr<Backend>> Backend::global_backends;
 
 } // namespace mllm

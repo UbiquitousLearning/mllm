@@ -124,7 +124,7 @@ ErrorCode CPUCat::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Ten
             if (idx > 0) {
                 cseq += inputs[idx - 1]->sequence();
             }
-            inputs[idx]->shallowCopyFrom(outputs[0].get(), false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+            inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}, 1); // b,h,s,d
         }
         return MLLM_NO_ERROR;
     } else {

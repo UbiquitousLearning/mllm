@@ -2,8 +2,8 @@
 // Created by Rongjie Yi on 24-12-26.
 //
 
-#ifndef CPUSCATTERREDUCEFUNC_HPP
-#define CPUSCATTERREDUCEFUNC_HPP
+#ifndef CPUSCATTEADDFUNC_HPP
+#define CPUSCATTEADDFUNC_HPP
 
 #include "Tensor.hpp"
 #include "Types.hpp"
@@ -14,12 +14,12 @@
 namespace mllm {
 class Tensor;
 
-class CPUScatterReduceFunction : public Op {
+class CPUScatterAddFunction : public Op {
 private:
     int thread_count = 4;
 
 public:
-    CPUScatterReduceFunction(Backend *bn, string name, int threadCount) :
+    CPUScatterAddFunction(Backend *bn, string name, int threadCount) :
         Op(bn, name), thread_count(threadCount) {
     }
 
@@ -56,12 +56,12 @@ public:
     }
 };
 
-class CPUScatterReduceFunctionCreator : public CPUBackend::Creator {
+class CPUScatterAddFunctionCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const override {
-        return new CPUScatterReduceFunction(bn, name, threadCount);
+        return new CPUScatterAddFunction(bn, name, threadCount);
     }
 };
 
 } // namespace mllm
-#endif // CPUSCATTERREDUCEFUNC_HPP
+#endif // CPUSCATTEADDFUNC_HPP

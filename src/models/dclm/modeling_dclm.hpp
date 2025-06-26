@@ -74,8 +74,8 @@ public:
         k_norm = LayerNorm(cfg.n_heads * head_dim, false, cfg.norm_eps, base_name + "k_norm");
         q_rope = RoPE(cfg.RoPE_type, 10000, cfg.seq_len, base_name + "q_rope");
         k_rope = RoPE(cfg.RoPE_type, 10000, cfg.seq_len, base_name + "k_rope");
-        k_cache = KVCache(cfg.n_heads, head_dim, 1, cfg.cache_limit, (cfg.attn_implementation == "flash_attention_2"), base_name + "k_cache");
-        v_cache = KVCache(cfg.n_heads, head_dim, 1, cfg.cache_limit, (cfg.attn_implementation == "flash_attention_2"), base_name + "v_cache");
+        k_cache = KVCache(cfg.n_heads, head_dim, 1, cfg.cache_limit, cfg.attn_implementation, base_name + "k_cache");
+        v_cache = KVCache(cfg.n_heads, head_dim, 1, cfg.cache_limit, cfg.attn_implementation, base_name + "v_cache");
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
 
@@ -103,6 +103,8 @@ public:
         Tensor o;
         if (attn_implementation_ == "flash_attention_2") {
             o = Tensor::flash_attention2_forward(q, k, v, true);
+        } else if (attn_implementation_ == "sage_attention") {
+            o = Tensor::sage_attention_forward(q, k, v, true);
         } else { // eager implementation
             k = k.transpose(SEQUENCE, DIMENSION);
             auto qk = Tensor::mm(q, k);

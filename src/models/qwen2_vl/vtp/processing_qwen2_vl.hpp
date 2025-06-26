@@ -218,7 +218,7 @@ Tensor vector3d2Tensor(vector<vector<vector<float>>> img, string name = "input",
     int channel = img.size();
     int height = img[0].size();
     int width = img[0][0].size();
-    Tensor tensor1(1, height, channel, width, Backend::global_backends[type], true);
+    Tensor tensor1(1, height, channel, width, Backend::global_backends[type].get(), true);
     tensor1.setName(std::move(name));
     Tensor::tensor_status = TENSOR_STATIC_INIT;
     tensor1.setTtype(INPUT_TENSOR);
@@ -235,7 +235,7 @@ Tensor vector3d2Tensor(vector<vector<vector<int>>> img, string name = "input", B
     int channel = img.size();
     int height = img[0].size();
     int width = img[0][0].size();
-    Tensor tensor1(1, height, channel, width, Backend::global_backends[type], true);
+    Tensor tensor1(1, height, channel, width, Backend::global_backends[type].get(), true);
     tensor1.setName(std::move(name));
     Tensor::tensor_status = TENSOR_STATIC_INIT;
     tensor1.setTtype(INPUT_TENSOR);
@@ -613,9 +613,9 @@ public:
         }
     }
 
-    void Process(const std::string &text) override{};
-    void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) override{};
-    void PreProcessImages(const std::vector<std::string> &images_path) override{};
+    void Process(const std::string &text) override {};
+    void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) override {};
+    void PreProcessImages(const std::vector<std::string> &images_path) override {};
 
     std::string detokenize(const vector<token_id_t> &tokens) {
         return tokenizer->detokenize(tokens);

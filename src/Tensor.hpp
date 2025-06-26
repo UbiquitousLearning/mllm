@@ -58,22 +58,24 @@ class Module;
  *        then the size of SEQUENCE dimension of the first Tensor is 2, the size of SEQUENCE dimension of the second Tensor is 1.
  *
  */
-class Tensor {
+class Tensor : public std::enable_shared_from_this<Tensor> {
     std::shared_ptr<TensorImpl> impl_; // 核心：使用shared_ptr管理实现
 
     // used for ChildTensor
     vector<uint64_t> shape_offset_;
     vector<uint64_t> shape_master_;
-    Tensor *master_tensor_ = nullptr;
-    vector<Tensor *> child_tensors_;
+    std::weak_ptr<Tensor> master_tensor_;
+    vector<std::weak_ptr<Tensor>> child_tensors_;
 
     // AggregatedTensor相关
     bool aggregated_ = false;
-    bool allow_aggregated_ = true; // 是否不聚合，主要用于分割操作
+    bool allow_aggregated_ = true;
     vector<shared_ptr<Tensor>> aggregated_tensors_;
     Tensor *deaggregated_tensor_ = nullptr;
     Chl aggregated_dim_;
     vector<int> aggregated_dims_;
+
+    vector<float> seq_means_;
 
     TensorType ttype_ = NORMAL_TENSOR;
     uint32_t uuid_ = 4294967295U;
@@ -127,7 +129,17 @@ public:
 
     Tensor(vector<float> values, BackendType bn_type = MLLM_CPU);
 
-    ~Tensor() = default;
+    ~Tensor() {
+        if (auto master = master_tensor_.lock()) {
+            auto &children = master->childTensors();
+            children.erase(
+                std::remove_if(children.begin(), children.end(),
+                               [this](const std::weak_ptr<Tensor> &wp) {
+                                   return wp.expired() || wp.lock().get() == this;
+                               }),
+                children.end());
+        }
+    }
 
 public:
     static TensorStatus tensor_status;
@@ -160,6 +172,11 @@ public:
         if (aggregated_) { return; }
         if (masterTensor() == nullptr) {
             impl_->free();
+        }
+    }
+    void unload() {
+        if (impl_) {
+            impl_->unload();
         }
     }
 
@@ -295,26 +312,28 @@ public:
     }
 
     int sequenceSkipDim() const {
-        if (master_tensor_ != NULL) {
-            if (master_tensor_->master_tensor_ != NULL) {
-                auto shape = master_tensor_->master_tensor_->impl_->shape_;
-                if (master_tensor_->master_tensor_->impl_->ctype_ == BSHD) {
+        if (!master_tensor_.expired()) {
+            auto master = master_tensor_.lock();
+            if (master && !master->master_tensor_.expired()) {
+                auto grandmaster = master->master_tensor_.lock();
+                auto shape = grandmaster->impl_->shape_;
+                if (grandmaster->impl_->ctype_ == BSHD) {
                     return shape[3] * shape[2];
-                } else if (master_tensor_->master_tensor_->impl_->ctype_ == BHDS) {
+                } else if (grandmaster->impl_->ctype_ == BHDS) {
                     return shape[3];
-                } else if (master_tensor_->master_tensor_->impl_->ctype_ == BDHS) {
+                } else if (grandmaster->impl_->ctype_ == BDHS) {
                     return shape[3] * impl_->shape_[2];
                 } else {
                     std::cout << "sequenceSkipDim() only support for BSHD and BHDS" << std::endl;
                     return -1;
                 }
-            } else {
-                auto shape = master_tensor_->impl_->shape_;
-                if (master_tensor_->impl_->ctype_ == BSHD) {
+            } else if (master) {
+                auto shape = master->impl_->shape_;
+                if (master->impl_->ctype_ == BSHD) {
                     return shape[3] * shape[2];
-                } else if (master_tensor_->impl_->ctype_ == BHDS) {
+                } else if (master->impl_->ctype_ == BHDS) {
                     return shape[3];
-                } else if (master_tensor_->impl_->ctype_ == BDHS) {
+                } else if (master->impl_->ctype_ == BDHS) {
                     return shape[3] * impl_->shape_[2];
                 } else {
                     std::cout << "sequenceSkipDim() only support for BSHD and BHDS" << std::endl;
@@ -338,6 +357,7 @@ public:
             }
             // return shape_[3]*shape_[2];
         }
+        return -1;
     }
 
     /**
@@ -359,22 +379,22 @@ public:
     }
 
     /**
-    * @brief 获取设备内存的通用描述符。
-    * @return DeviceMemory& 对设备内存描述符的引用。
-    */
-    DeviceMemory& device_memory() {
-        if(backend() == nullptr || backend()->type() == MLLM_CPU) {
+     * @brief 获取设备内存的通用描述符。
+     * @return DeviceMemory& 对设备内存描述符的引用。
+     */
+    DeviceMemory &device_memory() {
+        if (backend() == nullptr || backend()->type() == MLLM_CPU) {
             throw std::runtime_error("Device memory is not available for CPU backend.");
         }
         return impl_->device_memory_;
     }
 
     /**
-    * @brief 获取设备内存的通用描述符 (const 版本)。
-    * @return const DeviceMemory& 对设备内存描述符的常量引用。
-    */
-    const DeviceMemory& device_memory() const {
-        if(backend() == nullptr || backend()->type() == MLLM_CPU) {
+     * @brief 获取设备内存的通用描述符 (const 版本)。
+     * @return const DeviceMemory& 对设备内存描述符的常量引用。
+     */
+    const DeviceMemory &device_memory() const {
+        if (backend() == nullptr || backend()->type() == MLLM_CPU) {
             throw std::runtime_error("Device memory is not available for CPU backend.");
         }
         return impl_->device_memory_;
@@ -744,7 +764,9 @@ public:
     void setUndiffusion(bool undiffusion) {
         impl_->undiffusion_ = undiffusion;
         for (auto &child_tensor : child_tensors_) {
-            child_tensor->impl_->undiffusion_ = undiffusion;
+            if (!child_tensor.expired()) {
+                child_tensor.lock()->impl_->undiffusion_ = undiffusion;
+            }
         }
     }
 
@@ -754,6 +776,13 @@ public:
 
     bool &shouldInGraphs() {
         return impl_->should_in_graphs_;
+    }
+
+    vector<float> &seqMeans() {
+        if (!master_tensor_.expired()) {
+            return master_tensor_.lock()->seq_means_;
+        }
+        return seq_means_;
     }
 
     static Tensor zeros(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU) {
@@ -815,7 +844,7 @@ public:
         return split(*this, each_dims, split_dim, same_dim_size);
     }
     Tensor index_put(Tensor value, Tensor indices, bool accumulate);
-    void scatter_reduce(Tensor value, Tensor indices);
+    void scatter_add(Tensor value, Tensor indices);
     static vector<Tensor> topk(Tensor input, int k, Chl dim);
     Tensor sum(Chl dim);
     Tensor argsort();
@@ -823,6 +852,7 @@ public:
     Tensor repeat(Chl dim, int dim_size);
     static Tensor zero_like(Tensor input);
     static Tensor flash_attention2_forward(Tensor q, Tensor k, Tensor v, bool is_causal = true);
+    static Tensor sage_attention_forward(Tensor q, Tensor k, Tensor v, bool causal_mask = false);
     static Tensor apply_rotary_pos_emb_vision(Tensor input, Tensor rotary_pos_emb);
 
     // models use only
@@ -839,7 +869,6 @@ public:
      * - addChildTensor
      */
 
-
     // 新增一个方法，用于强制设置指针并转移所有权句柄
     // 这是比将 ParamLoader 设为友元类更清晰的做法
     void setHostPtr(void *ptr, std::shared_ptr<void> memory_handle) {
@@ -849,9 +878,9 @@ public:
         }
         // 接管来自 mmap 的新指针和内存句柄
         impl_->host_ptr_ = ptr;
-        impl_->owns_host_ptr_ = false; // 标记内存为外部管理
+        impl_->owns_host_ptr_ = false;                    // 标记内存为外部管理
         impl_->memory_handle_ = std::move(memory_handle); // 持有 mmap 句柄
-        impl_->allocated_ = count(); // 标记为已分配状态
+        impl_->allocated_ = count();                      // 标记为已分配状态
     }
 
     /**
@@ -862,7 +891,7 @@ public:
      * @param shape_offset 定义子 Tensor 相对于父 Tensor 的维度偏移，用于创建切片(slice)。
      * @param head_rep 用于分组查询注意力(GQA)，表示K/V头的重复次数。
      */
-    void shallowCopyFrom(Tensor *source, bool copyshape = true, const vector<int> &shape_offset = {}, int head_rep = 1) {
+    void shallowCopyFrom(std::shared_ptr<Tensor> source, bool copyshape = true, const vector<int> &shape_offset = {}, int head_rep = 1) {
         // 步骤 0: 初始设置
         // 如果提供了偏移量，则子张量有自己的独立形状，不应复制父张量的形状。
         if (!shape_offset.empty()) {
@@ -872,11 +901,11 @@ public:
 
         // 步骤 1: 同步父子 Tensor 间的内存布局 (ctype)
         // 这是原始代码中最复杂的部分，我们将其拆分到一个独立的辅助函数中。
-        reconcileLayouts(source);
+        reconcileLayouts(source.get());
 
         // 步骤 2: 核心浅拷贝操作 - 共享数据指针和元数据
         impl_->host_ptr_ = source->hostPtr<void>();
-        impl_->owns_host_ptr_ = false; // 子 Tensor 不拥有内存所有权，不负责释放
+        impl_->owns_host_ptr_ = false;
         impl_->capacity_ = source->impl_->capacity_;
         impl_->count_ = source->impl_->count_;
         impl_->allocated_ = source->impl_->allocated_;
@@ -887,24 +916,18 @@ public:
 
         // 步骤 3: 处理切片(offset)和GQA逻辑
         if (!shape_offset.empty()) {
-            // 如果提供了 shape_offset，则当前 Tensor 是一个 "view" 或 "slice"
-            setupShapeForView(source, shape_offset, head_rep);
+            setupShapeForView(source.get(), shape_offset, head_rep);
         }
 
         // 步骤 4: 维护张量层级结构 (处理孙张量)
-        // 如果当前 Tensor 在此之前有自己的子 Tensor（即 source 的孙张量），
-        // 必须将这些孙张量重新“过继”给 source，成为 source 的直接子 Tensor。
         reparentChildTensors(source, shape_offset, head_rep);
-
-        // 步骤 5: 在父 Tensor 中注册自己
-        // 完成所有设置后，将当前 Tensor 正式添加到 source 的子张量列表中。
-        source->addChildTensor(this);
+        source->addChildTensor(shared_from_this());
     }
 
-    void shallowCopyFrom(Tensor &source, bool copyshape = true, const vector<int> &shape_offset = {}, int head_rep = 1) {
-        shallowCopyFrom(&source, copyshape, shape_offset, head_rep);
-    }
-
+    // void shallowCopyFrom(Tensor &source, bool copyshape, const vector<int> &shape_offset = {}, int head_rep = 1) {
+    //     // 使用 source.shared_from_this() 从一个已经被 shared_ptr 管理的对象引用中，安全地获取其 shared_ptr。否则有use-after-free 的风险
+    //     shallowCopyFrom(source.shared_from_this(), copyshape, shape_offset, head_rep);
+    // }
     vector<int> shapeOffset() const {
         std::vector<int> shape_int(shape_offset_.size());
         std::transform(shape_offset_.begin(), shape_offset_.end(), shape_int.begin(), [](uint64_t val) {
@@ -923,18 +946,23 @@ public:
         return shape_master_;
     }
 
-    Tensor *masterTensor() const {
-        return master_tensor_;
+    std::shared_ptr<Tensor> masterTensor() const {
+        return master_tensor_.lock();
     }
-    void setMasterTensor(Tensor *master_tensor) {
+    void setMasterTensor(shared_ptr<Tensor> master_tensor) {
         master_tensor_ = master_tensor;
     }
 
-    vector<Tensor *> &childTensors() {
+    vector<std::weak_ptr<Tensor>> &childTensors() {
         return child_tensors_;
     }
-    void addChildTensor(Tensor *child) {
-        auto it = std::find(child_tensors_.begin(), child_tensors_.end(), child);
+
+    void addChildTensor(std::shared_ptr<Tensor> child) {
+        auto it = std::find_if(child_tensors_.begin(), child_tensors_.end(),
+                               [&](const std::weak_ptr<Tensor> &wp) {
+                                   return !wp.expired() && wp.lock() == child;
+                               });
+
         if (it == child_tensors_.end()) {
             child_tensors_.push_back(child);
         }
@@ -1055,14 +1083,14 @@ public:
             return *this;
         }
         assert(dtype() == MLLM_TYPE_F32 && "Tensor::half() can only be called on an FP32 tensor.");
-        assert(master_tensor_ == nullptr && "Conversion not supported for child tensors.");
-        if(allocted()) {
+        assert(master_tensor_.expired() && "Conversion not supported for child tensors.");
+        if (allocted()) {
             Tensor half_tensor(batch(), head(), sequence(), dimension(), backend(), false);
             half_tensor.setDtype(MLLM_TYPE_F16);
             half_tensor.alloc();
             backend()->convert_fp_data(this, &half_tensor);
             return half_tensor;
-        }else {
+        } else {
             impl_->dtype_ = MLLM_TYPE_F16;
             return *this;
         }
@@ -1075,14 +1103,14 @@ public:
             return *this;
         }
         assert(dtype() == MLLM_TYPE_F16 && "Tensor::fp32() can only be called on an FP16 tensor.");
-        assert(master_tensor_ == nullptr && "Conversion not supported for child tensors.");
-        if(allocted()) {
+        assert(master_tensor_.expired() && "Conversion not supported for child tensors.");
+        if (allocted()) {
             Tensor fp32_tensor(batch(), head(), sequence(), dimension(), backend(), false);
             fp32_tensor.setDtype(MLLM_TYPE_F32);
             fp32_tensor.alloc();
             backend()->convert_fp_data(this, &fp32_tensor);
             return fp32_tensor;
-        }else {
+        } else {
             impl_->dtype_ = MLLM_TYPE_F16;
             return *this;
         }
@@ -1093,7 +1121,7 @@ public:
             if (input.device() != backend_type) {
                 input.to(backend_type);
             }
-        } 
+        }
         return inputs;
     };
     static vector<Tensor> toCPU(vector<Tensor> inputs) {
@@ -1118,7 +1146,7 @@ public:
     void forceResetHostPointer(void *ptr);
 
     float i8_scale = 1.f;
-    
+
     void allocFromTemplate(shared_ptr<Tensor> template_tensor);
 
 private:
@@ -1129,8 +1157,8 @@ private:
         const std::shared_ptr<Tensor> &template_tensor,
         Module *module,
         Backend *backend);
-public:
 
+public:
     /* Functions used for 5-D Tensor:
      * - reshape
      * - channel
@@ -1240,55 +1268,52 @@ private:
                 reshape(b, h, s, d);
             }
         }
-        // 情况 2: 处理三层张量结构中的布局冲突 (祖父 -> this -> 孙子)
-        // 条件: this 只有一个子节点，且该子节点与新的父节点(master_tensor)布局相同，但 this 与它们不同。
-        else if (child_tensors_.size() == 1 && child_tensors_[0]->ctype() == master_tensor->impl_->ctype_
-                 && ctype() != master_tensor->impl_->ctype_) {
-            auto b = child_tensors_[0]->batch();
-            auto h = child_tensors_[0]->head();
-            auto s = child_tensors_[0]->sequence();
-            auto d = child_tensors_[0]->dimension();
-
-            // 将 this 和其子节点的布局统一为 master_tensor 的布局
-            impl_->chls_ = master_tensor->impl_->chls_;
-            child_tensors_[0]->impl_->chls_ = master_tensor->impl_->chls_;
-
-            // 逆向应用之前记录的变换，以恢复到正确的逻辑形状
-            for (int i = impl_->trans_from_.size() - 1; i >= 0; --i) {
-                auto tf = impl_->trans_from_[i];
-                auto axis0 = tf.first;
-                auto axis1 = tf.second;
-                // 交换 chls_ 中的维度索引
-                std::swap(child_tensors_[0]->impl_->chls()[axis0], child_tensors_[0]->impl_->chls()[axis1]);
-            }
-            changeCtype(); // 根据 chls_ 更新 ctype
-            child_tensors_[0]->changeCtype();
-            child_tensors_[0]->reshape(b, h, s, d);
-            transCopyShape(child_tensors_[0]->shape());
+        // 情况 2 和 情况 3 都需要访问 child_tensors_，所以需要保护
+        if (child_tensors_.empty()) {
+            return;
         }
-        // 情况 3: 处理从4D (LLM) 到5D (Vision) 张量的特殊布局转换
-        // 条件: this 的子节点是5D (BCTHW)，新的父节点是4D (BSHD)，而 this 不是 BCTHW。
-        else if (child_tensors_.size() == 1 && child_tensors_[0]->ctype() == BCTHW
-                 && master_tensor->impl_->ctype_ == BSHD && ctype() != BCTHW) {
-            auto b = child_tensors_[0]->batch();
-            auto c = child_tensors_[0]->channel();
-            auto t = child_tensors_[0]->time();
-            auto h = child_tensors_[0]->height();
-            auto w = child_tensors_[0]->width();
+        // 情况 2: 处理三层张量结构中的布局冲突 (祖父 -> this -> 孙子)
+        if (auto child_sp = child_tensors_[0].lock()) {
+            Tensor *child = child_sp.get();
 
-            // 强制重置为标准的5D布局
-            impl_->chls_ = {{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
-            child_tensors_[0]->impl_->chls_ = {{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
+            if (child->ctype() == master_tensor->impl_->ctype_ && ctype() != master_tensor->impl_->ctype_) {
+                auto b = child->batch();
+                auto h = child->head();
+                auto s = child->sequence();
+                auto d = child->dimension();
 
-            // 同样，逆向应用变换
-            for (int i = impl_->trans_from_.size() - 1; i >= 0; --i) {
-                auto tf = impl_->trans_from_[i];
-                std::swap(child_tensors_[0]->impl_->chls()[tf.first], child_tensors_[0]->impl_->chls()[tf.second]);
+                impl_->chls_ = master_tensor->impl_->chls_;
+                child->impl_->chls_ = master_tensor->impl_->chls_;
+
+                for (int i = impl_->trans_from_.size() - 1; i >= 0; --i) {
+                    auto tf = impl_->trans_from_[i];
+                    std::swap(child->impl_->chls()[tf.first], child->impl_->chls()[tf.second]);
+                }
+                changeCtype();
+                child->changeCtype();
+                child->reshape(b, h, s, d);
+                transCopyShape(child->shape());
             }
-            changeCtype();
-            child_tensors_[0]->changeCtype();
-            child_tensors_[0]->reshape(b, c, t, h, w);
-            transCopyShape(child_tensors_[0]->shape());
+            // 情况 3: 处理从4D (LLM) 到5D (Vision) 张量的特殊布局转换
+            else if (child->ctype() == BCTHW && master_tensor->impl_->ctype_ == BSHD && ctype() != BCTHW) {
+                auto b = child->batch();
+                auto c = child->channel();
+                auto t = child->time();
+                auto h = child->height();
+                auto w = child->width();
+
+                impl_->chls_ = {{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
+                child->impl_->chls_ = {{BATCH, 0}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};
+
+                for (int i = impl_->trans_from_.size() - 1; i >= 0; --i) {
+                    auto tf = impl_->trans_from_[i];
+                    std::swap(child->impl_->chls()[tf.first], child->impl_->chls()[tf.second]);
+                }
+                changeCtype();
+                child->changeCtype();
+                child->reshape(b, c, t, h, w);
+                transCopyShape(child->shape());
+            }
         }
     }
 
@@ -1332,25 +1357,24 @@ private:
      * @param shape_offset
      * @param head_rep
      */
-    void reparentChildTensors(Tensor *source, const vector<int> &shape_offset, int head_rep) {
+    void reparentChildTensors(std::shared_ptr<Tensor> source, const vector<int> &shape_offset, int head_rep) {
         auto it = child_tensors_.begin();
         while (it != child_tensors_.end()) {
-            auto &child_tensor = *it;
+            if (auto child_sp = it->lock()) {
+                vector<int> final_offset;
+                auto origin_shape_offset = child_sp->shapeOffset();
+                if (!origin_shape_offset.empty()) {
+                    final_offset = origin_shape_offset;
+                } else if (!shape_offset.empty()) {
+                    final_offset = shape_offset;
+                }
 
-            // 1. 先计算出最终要传递的 offset
-            vector<int> final_offset;
-            auto origin_shape_offset = child_tensor->shapeOffset();
-            if (!origin_shape_offset.empty()) {
-                final_offset = origin_shape_offset;
-                // ...应用那个奇怪的索引[2]的逻辑...
-            } else if (!shape_offset.empty()) {
-                final_offset = shape_offset;
+                child_sp->shallowCopyFrom(source, false, final_offset, head_rep);
+
+                it = child_tensors_.erase(it);
+            } else {
+                it = child_tensors_.erase(it);
             }
-
-            // 2. 只调用一次
-            child_tensor->shallowCopyFrom(source, false, final_offset, head_rep);
-
-            it = child_tensors_.erase(it);
         }
     }
 
@@ -1477,7 +1501,6 @@ private:
                                        OpParam param,
                                        std::vector<Tensor> input_tensors = {},
                                        bool in_place = false);
-
 
 public:
     /* Functions used for TEST & DEBUG

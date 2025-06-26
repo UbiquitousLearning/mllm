@@ -7,7 +7,7 @@
 #include <cmath>
 #include <memory>
 // #include <iostream>
-#include "backends/cpu/compute/QuantizeQ8.hpp"
+#include "backends/cpu/third_party/ggml/QuantizeQ8.hpp"
 #include <numeric> // 用来计算 accumulate
 #include <cassert> // 用来断言
 

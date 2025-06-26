@@ -82,7 +82,7 @@ enum OpType {
     // for speculative decoding
     ROPETREE,
     CAUSALTREEMASK,
-
+    KVCACHESAGE,
 
     //
     F_ADD,
@@ -115,9 +115,10 @@ enum OpType {
     F_BINCOUNT,
     F_REPEAT,
     F_LIKE,
-    F_SCATTERREDUCE,
+    F_SCATTERRADD,
     F_APPLY_VISIOROPE,
     F_FA2,
+    F_SAGEATTN,
     // models use only
     F_FUYU_GATHER_EMBD,
     F_PHI3V_HD_MERGE,

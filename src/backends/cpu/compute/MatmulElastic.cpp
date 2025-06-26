@@ -4,9 +4,9 @@
 
 #include "MatmulElastic.hpp"
 #include "Types.hpp"
-#include "VecDotType.hpp"
-// #include <pthread.h>
-#include "GemmLlamafile.hpp"
+#include "backends/cpu/third_party/ggml/VecDotType.hpp"
+#include "backends/cpu/third_party/ggml/QuantizeFP16.hpp"
+#include "backends/cpu/third_party/ggml/GemmLlamafile.hpp"
 #include <cassert>
 #include <cstdlib>
 
@@ -31,8 +31,8 @@ ErrorCode mat_mul_elastic(Tensor *src0, Tensor *src1, Tensor *dst, bool support_
     auto x_to_vec_dot_type = type_traits[vec_dot_type].from_float;
 
     auto from_float_to_mat = type_traits[vec_dot_type].from_float_to_mat;
-    mllm_gemv_func const gemv = type_traits[src1_dtype].gemv;
-    mllm_gemm_func const gemm = type_traits[src1_dtype].gemm;
+    gemv_func const gemv = type_traits[src1_dtype].gemv;
+    gemm_func const gemm = type_traits[src1_dtype].gemm;
     auto blck_size_interleave = type_traits[src1_dtype].blck_size_interleave;
     auto src1_type_size = type_size(src1_dtype);
     auto src1_blck_size = blck_size(src1_dtype);

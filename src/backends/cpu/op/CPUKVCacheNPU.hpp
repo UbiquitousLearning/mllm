@@ -5,6 +5,7 @@
 #include "Op.hpp"
 #include "../CPUBackend.hpp"
 #include "ParamLoader.hpp"
+#include <memory>
 
 namespace mllm {
 /**
@@ -24,7 +25,7 @@ public:
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
-    Tensor cache_;
+    shared_ptr<Tensor> cache_;
 
     int getCacheSeqLen() override {
         return cache_seq_len_;

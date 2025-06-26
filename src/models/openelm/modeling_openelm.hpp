@@ -72,8 +72,8 @@ public:
 
         out_proj = Linear(q_heads_ * head_dim_, cfg.model_dim, false, base_name + "out_proj");
 
-        k_cache = KVCache(k_heads_, head_dim_, q_heads_ / k_heads_, cfg.cache_limit, (attn_impl == "flash_attention_2"), base_name + "k_cache");
-        v_cache = KVCache(v_heads_, head_dim_, q_heads_ / v_heads_, cfg.cache_limit, (attn_impl == "flash_attention_2"), base_name + "v_cache");
+        k_cache = KVCache(k_heads_, head_dim_, q_heads_ / k_heads_, cfg.cache_limit, attn_impl, base_name + "k_cache");
+        v_cache = KVCache(v_heads_, head_dim_, q_heads_ / v_heads_, cfg.cache_limit, attn_impl, base_name + "v_cache");
 
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }

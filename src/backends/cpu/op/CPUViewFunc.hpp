@@ -21,10 +21,10 @@ private:
     int b, h, s, d;
 
 public:
-    CPUviewFunction(Backend *bn, string name, int threadCount, int b_, int h_, int s_, int d_)
-        : Op(bn, name), thread_count(threadCount), b(b_), h(h_), s(s_), d(d_) {}
+    CPUviewFunction(Backend *bn, string name, int threadCount, int b_, int h_, int s_, int d_) :
+        Op(bn, name), thread_count(threadCount), b(b_), h(h_), s(s_), d(d_) {
+    }
 
-   
     ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
         if ((b == -1 && s == -1 && inputs[0]->ctype() != BCTHW)                       // head & dimension
             || (b == 1 && h == 1 && inputs[0]->ctype() == BCTHW)                      // head & dimension
@@ -39,7 +39,7 @@ public:
             }
             outputs[0]->setDtype(inputs[0]->dtype());
             outputs[0]->alloc();
-            inputs[0]->shallowCopyFrom(outputs[0].get(), false);
+            inputs[0]->shallowCopyFrom(outputs[0], false);
         } else {
             std::cout << "[TODO]Tensor.View alloc not support!!!!" << std::endl;
         }
@@ -124,7 +124,7 @@ public:
 
         return MLLM_NO_ERROR;
     }
-    
+
     ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
         // View is a metadata-only operation, no data movement is needed in execute.
         return MLLM_NO_ERROR;

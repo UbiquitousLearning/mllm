@@ -5,7 +5,9 @@
 #ifndef MLLM_MATMUL_HPP
 #define MLLM_MATMUL_HPP
 
-#include "VecDot.hpp"
+#include "Tensor.hpp"
+#include "Types.hpp"
+#include "backends/cpu/third_party/ggml/Quantize.hpp"
 using namespace mllm;
 
 ErrorCode mat_mul(Tensor *src0_, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias = nullptr, bool transpose0 = false, bool transpose1 = true, int thread_count = 4);

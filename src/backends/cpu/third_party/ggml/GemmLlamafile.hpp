@@ -5,8 +5,6 @@
 #ifndef MLLM_GEMM_HPP
 #define MLLM_GEMM_HPP
 
-// #include "VecDot.hpp"
-// #include "Tensor.hpp"
 #include "Types.hpp"
 using namespace mllm;
 

@@ -26,7 +26,6 @@ public:
         Op(bn, name), thread_count(threadCount), axis_(axis) {
     }
 
-   
     ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
         if (outputs[0]->shape().empty()) {
             int expd_batch_ = inputs[0]->batch();
@@ -67,7 +66,7 @@ public:
                 if (inputs[0]->masterTensor() == nullptr) {
                     inputs[0]->free();
                 }
-                inputs[0]->shallowCopyFrom(outputs[0].get(), false, {cbatch, chead, cseq, cdim});
+                inputs[0]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim});
             } else {
                 for (int idx = 0; idx < inputs.size(); idx++) {
                     if (inputs[idx]->masterTensor() == nullptr) {
@@ -76,7 +75,7 @@ public:
                     if (idx > 0) {
                         chead += inputs[idx - 1]->head();
                     }
-                    inputs[idx]->shallowCopyFrom(outputs[0].get(), false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                    inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
                 }
             }
         } else if (axis_ == SEQUENCE && inputs[0]->head() != 1) {
@@ -91,7 +90,7 @@ public:
                 if (idx > 0) {
                     cseq += inputs[idx - 1]->sequence();
                 }
-                inputs[idx]->shallowCopyFrom(outputs[0].get(), false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
             }
         } else if (axis_ == DIMENSION && inputs[0]->head() != 1) {
             int cbatch = 0;
@@ -114,7 +113,7 @@ public:
                         }
                     }
                 }
-                inputs[idx]->shallowCopyFrom(outputs[0].get(), false, {cbatch, chead, cseq, cdim}); // b,h,s,d
+                inputs[idx]->shallowCopyFrom(outputs[0], false, {cbatch, chead, cseq, cdim}); // b,h,s,d
                 if (inputs[idx]->deaggregatedTensor() != nullptr) {
                     vector<shared_ptr<Tensor>> shared_outputs = {};
                     for (int t = 0; t < inputs[idx]->deaggregatedTensor()->aggregatedTensors().size(); t++) {

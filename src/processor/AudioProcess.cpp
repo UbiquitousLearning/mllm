@@ -13,7 +13,7 @@
 #include "wenet_audio/params.h"
 #include "wenet_audio/wav.h"
 #include "wenet_audio/feature_pipeline.h"
-#include "backends/cpu/compute/VecDot.hpp"
+#include "backends/cpu/third_party/ggml/VecDotFP32.hpp"
 
 class Fraction {
 public:

@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <iostream>
 #include "../compute/GemmKleidiai.hpp"
+#include "backends/cpu/third_party/ggml/QuantizeQ8.hpp"
 
 namespace mllm {
 
@@ -55,7 +56,11 @@ ErrorCode CPULinear::load(AbstructLoader &loader) {
             kai_flag = true;
             // out_features_:N
             // in_features_:K
+#ifndef KAI_FP16_CAL
             size_t packed_b_size = mllm_kleidai_get_packed_b_qsi4_size(out_features_, in_features_);
+#else
+            size_t packed_b_size = mllm_kleidai_get_packed_b_qsi4_size_to_fp16(out_features_, in_features_);
+#endif
             weight_.reshape(1, 1, 1, packed_b_size);
 #else
             std::cerr << "KLEIDIAI_Q4_0 is not supported on this platform!" << std::endl;
@@ -199,9 +204,9 @@ ErrorCode CPULinear::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
     return MLLM_NO_ERROR;
 }
 ErrorCode CPULinear::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    weight_.free();
+    weight_.unload();
     if (support_bias_) {
-        bias_.free();
+        bias_.unload();
     }
     return Op::free(inputs, outputs);
 }

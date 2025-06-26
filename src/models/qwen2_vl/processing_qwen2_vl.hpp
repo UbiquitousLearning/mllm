@@ -31,7 +31,7 @@ Tensor vector3d2Tensor(vector<vector<vector<float>>> img, string name = "input",
     int channel = img.size();
     int height = img[0].size();
     int width = img[0][0].size();
-    Tensor tensor1(1, height, channel, width, Backend::global_backends[type], true);
+    Tensor tensor1(1, height, channel, width, Backend::global_backends[type].get(), true);
     tensor1.setName(std::move(name));
     Tensor::tensor_status = TENSOR_STATIC_INIT;
     tensor1.setTtype(INPUT_TENSOR);
@@ -48,7 +48,7 @@ Tensor vector3d2Tensor(vector<vector<vector<int>>> img, string name = "input", B
     int channel = img.size();
     int height = img[0].size();
     int width = img[0][0].size();
-    Tensor tensor1(1, height, channel, width, Backend::global_backends[type], true);
+    Tensor tensor1(1, height, channel, width, Backend::global_backends[type].get(), true);
     tensor1.setName(std::move(name));
     Tensor::tensor_status = TENSOR_STATIC_INIT;
     tensor1.setTtype(INPUT_TENSOR);
@@ -112,9 +112,7 @@ private:
         int old_width = image.width;
         auto [new_height, new_width] = smart_resize(old_height, old_width, IMAGE_FACTOR, MIN_PIXELS, MAX_PIXELS);
         std::vector<ImageInfo> temp_image_info = {image};
-        auto image_n = PreProcessor::ResizeImages({temp_image_info}, new_height, new_width, true)[0];
-        // delete[] image.data;
-        // image.data = nullptr;
+        auto image_n = PreProcessor::ResizeImages({temp_image_info}, new_height, new_width, true, false, ResizeFitEdge::none, ResampleType::BICUBIC)[0];
         return image_n;
     }
 
@@ -429,9 +427,9 @@ public:
         }
     }
 
-    void Process(const std::string &text) override{};
-    void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) override{};
-    void PreProcessImages(const std::vector<std::string> &images_path) override{};
+    void Process(const std::string &text) override {};
+    void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) override {};
+    void PreProcessImages(const std::vector<std::string> &images_path) override {};
 
     std::string detokenize(const vector<token_id_t> &tokens) {
         return tokenizer->detokenize(tokens);

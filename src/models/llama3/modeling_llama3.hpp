@@ -75,8 +75,8 @@ public:
 
         // Initialize KV cache
         if (cache_limit > 0) {
-            k_cache = KVCache(kv_head_size, hidden_dim / head_size, head_size / kv_head_size, cache_limit, (attn_impl == "flash_attention_2"), base_name + "k_cache");
-            v_cache = KVCache(kv_head_size, hidden_dim / head_size, head_size / kv_head_size, cache_limit, (attn_impl == "flash_attention_2"), base_name + "v_cache");
+            k_cache = KVCache(kv_head_size, hidden_dim / head_size, head_size / kv_head_size, cache_limit, attn_impl, base_name + "k_cache");
+            v_cache = KVCache(kv_head_size, hidden_dim / head_size, head_size / kv_head_size, cache_limit, attn_impl, base_name + "v_cache");
         }
 
         // Initialize softmax

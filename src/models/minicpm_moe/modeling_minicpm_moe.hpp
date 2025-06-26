@@ -84,7 +84,7 @@ public:
             auto expert_out = experts[i]({expert_tokens})[0];                       //(1, 0, 1, hidden) 1, e-s, 1,
             auto expert_weights_clip = expert_weights.clip(exp_idx, SEQUENCE);      //(1, 0, 1, 1) 1, e-s, 1, 1
             expert_out = expert_out * expert_weights_clip;                          //(1, 0, 1, hidden) 1, e-s, 1, hidden
-            expert_cache.scatter_reduce(expert_out, exp_token_idx);                 // 1, batch*seq, 1, hidden
+            expert_cache.scatter_add(expert_out, exp_token_idx);                    // 1, batch*seq, 1, hidden
             //
             start_idx = end_idx;
         }
@@ -108,10 +108,10 @@ public:
     MiniCPMDecoder(const MiniCPMConfig &config, const MiniCPMNameConfig &names, const string &base_name) {
         self_atten = MultiHeadAttention(config.hidden_size, config.num_attention_heads,
                                         config.num_key_value_heads,
-                                        config.hidden_size / config.num_attention_heads, 
+                                        config.hidden_size / config.num_attention_heads,
                                         SPLIT_NONE, PostQkv_NONE, false,
                                         config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit,
-                                        true, false,false, 
+                                        true, false, false,
                                         config.attn_implementation, names, base_name + names._attn_base_name);
         moe = MiniCPMMoE(config, names, base_name + names._ffn_base_name);
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);

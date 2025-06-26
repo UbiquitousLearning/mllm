@@ -25,15 +25,40 @@
  * SOFTWARE.
  */
 
-#ifndef MLLM_QUANTIZEQ2_HPP
-#define MLLM_QUANTIZEQ2_HPP
+#include "VecDotFP16.hpp"
 
-#include "Types.hpp"
+void vec_dot_fp16(const int n, float *__restrict s, const mllm_fp16_t *__restrict vx, const mllm_fp16_t *__restrict vy) {
+    float sumf = 0.0;
 
-void quantize_row_q2_K(const float *__restrict x, void *__restrict y, int k);
-void dequantize_row_q2_K(const block_q2_K *__restrict x, float *__restrict y, int64_t k);
+#if defined(__AVX2__) || defined(__ARM_NEON)
+    const int np = (n & ~(MLLM_F16_STEP - 1));
 
-// void quantize_row_q4_0(const float * __restrict x, void * __restrict y, int k);
-size_t quantize_iq2_xxs(const float *__restrict src, void *__restrict dst, int64_t nrow, int64_t n_per_row, const float *quant_weights);
-void dequantize_row_iq2_xxs(const block_iq2_xxs *__restrict x, float *__restrict y, int64_t k);
-#endif // MLLM_QUANTIZEQ2_HPP
+    MLLM_F16_VEC sum[MLLM_F16_ARR] = {MLLM_F16_VEC_ZERO};
+
+    MLLM_F16_VEC ax[MLLM_F16_ARR];
+    MLLM_F16_VEC ay[MLLM_F16_ARR];
+
+    for (int i = 0; i < np; i += MLLM_F16_STEP) {
+        for (int j = 0; j < MLLM_F16_ARR; j++) {
+            ax[j] = MLLM_F16_VEC_LOAD(vx + i + j * MLLM_F16_EPR, j);
+            ay[j] = MLLM_F16_VEC_LOAD(vy + i + j * MLLM_F16_EPR, j);
+
+            sum[j] = MLLM_F16_VEC_FMA(sum[j], ax[j], ay[j]);
+        }
+    }
+
+    // reduce sum0..sum3 to sum0
+    MLLM_F16_VEC_REDUCE(sumf, sum);
+
+    // leftovers
+    for (int i = np; i < n; ++i) {
+        sumf += (float)(MLLM_FP16_TO_FP32(vx[i]) * MLLM_FP16_TO_FP32(vy[i]));
+    }
+#else
+    for (int i = 0; i < n; ++i) {
+        sumf += (float)(MLLM_FP16_TO_FP32(vx[i]) * MLLM_FP16_TO_FP32(vy[i]));
+    }
+#endif
+
+    *s = sumf;
+}

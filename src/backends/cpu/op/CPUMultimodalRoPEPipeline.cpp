@@ -6,7 +6,7 @@
 #include <cmath>
 #include <memory>
 // #include <iostream>
-#include "backends/cpu/compute/QuantizeQ8.hpp"
+#include "backends/cpu/third_party/ggml/QuantizeQ8.hpp"
 
 namespace mllm {
 
@@ -131,16 +131,15 @@ ErrorCode CPUMultimodalRoPEPipeline::reshape(vector<shared_ptr<Tensor>> inputs, 
     }
 
     // if in switching, reset the h_cnt_
-    auto cpuBackend = static_cast<CPUBackend*>(backend_);
+    auto cpuBackend = static_cast<CPUBackend *>(backend_);
     if (cpuBackend->isStageSwitching()) {
-        if(cpuBackend->getExecutionType() == PROMPT) {
+        if (cpuBackend->getExecutionType() == PROMPT) {
             // set to 0/chunk_size*iter when in prefill stage
             h_cnt_ = cpuBackend->getCurSequenceLength();
         } else {
             // when switch to decoding, reset the h_cnt_ to 0
             h_cnt_ = 0;
         }
-
     }
     return Op::reshape(inputs, outputs);
 }

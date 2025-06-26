@@ -32,8 +32,8 @@ public:
                       base_name + "q_rope");
         k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings,
                       base_name + "k_rope");
-        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, (config.attn_implementation == "flash_attention_2"), base_name + "k_cache");
-        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, (config.attn_implementation == "flash_attention_2"), base_name + "v_cache");
+        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, config.attn_implementation, base_name + "k_cache");
+        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, config.attn_implementation, base_name + "v_cache");
 
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
@@ -59,6 +59,8 @@ public:
         Tensor atten_output;
         if (attn_impl == "flash_attention_2") {
             atten_output = Tensor::flash_attention2_forward(query_states, key_states, value_states, true);
+        } else if (attn_impl == "sage_attention") {
+            atten_output = Tensor::sage_attention_forward(query_states, key_states, value_states, true);
         } else { // eager implementation
             // attention weight
             auto atten_weight =

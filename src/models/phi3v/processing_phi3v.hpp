@@ -162,7 +162,7 @@ public:
                 time_all = times;
             }
         }
-        Tensor tensor1(Backend::global_backends[type]);
+        Tensor tensor1(Backend::global_backends[type].get());
         tensor1.reshape(batch_size, imgs[0].size(), time_all, 336, 336);
         tensor1.alloc();
         memset(tensor1.hostPtr<float>(), 0, tensor1.count() * sizeof(float));
@@ -222,7 +222,7 @@ public:
                 time_all = times;
             }
         }
-        Tensor tensor1(Backend::global_backends[type]);
+        Tensor tensor1(Backend::global_backends[type].get());
         tensor1.reshape(batch_size * time_all, 336, imgs[0].size(), 336);
         tensor1.alloc();
         memset(tensor1.hostPtr<float>(), 0, tensor1.count() * sizeof(float));
@@ -344,7 +344,7 @@ class Phi3VProcessor final { //} : public PreProcessor {
 
     static Tensor tokens2Input(vector<vector<int>> tokens, string name = "input", BackendType type = MLLM_CPU) {
         const auto bsize = static_cast<int>(tokens.size());
-        Tensor tensor1(bsize, 1, static_cast<int>(tokens[0].size()), 1, Backend::global_backends[type], true);
+        Tensor tensor1(bsize, 1, static_cast<int>(tokens[0].size()), 1, Backend::global_backends[type].get(), true);
         tensor1.setName(name);
         Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);

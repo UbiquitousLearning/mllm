@@ -3,6 +3,7 @@
 //
 
 #include "Pooling.hpp"
+#include "backends/cpu/third_party/ggml/VecDotFP32.hpp"
 void avgpool2d_fp32_VALID(Tensor *input, Tensor *output, int kernel_h, int kernel_w, int stride_h, int stride_w, int thread_count) {
     int in_height = input->head();
     int in_width = input->dimension();

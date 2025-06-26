@@ -3,6 +3,7 @@
 //
 
 #include "Convolution.hpp"
+#include "backends/cpu/third_party/ggml/VecDotFP32.hpp"
 
 float **reshape_conv2d_kernal_fp32(Tensor *kernel) {
     int in_channel = kernel->sequence();

@@ -8,6 +8,7 @@
 #include "Types.hpp"
 #include "tokenizers/Tokenizer.hpp"
 #include <memory>
+#include <omp.h>
 
 namespace mllm {
 
@@ -23,16 +24,20 @@ public:
     }
 
     shared_ptr<Tensor> run(Tensor &input_tensor, LlmTextGeneratorOpts &opt, Tokenizer &tokenizer, Module &model, bool &isSwitched, const vector<Tensor *> &clean_tensors = {}) {
+        auto input_copy_sp = std::make_shared<Tensor>();
+        input_copy_sp->initFrom(input_tensor); // 初始化形状和数据类型
+        input_copy_sp->copyFrom(input_tensor); // 深拷贝数据
+
         const int num_graph = Tracer::model_.size();
         Tensor::tensor_status = TENSOR_STATIC_READY;
         std::cout << "num_graph: " << num_graph << std::endl;
 
         for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
-            chunked_tensors.push_back(std::make_shared<Tensor>(Backend::global_backends[MLLM_CPU]));
+            chunked_tensors.push_back(std::make_shared<Tensor>(Backend::global_backends[MLLM_CPU].get()));
             chunked_tensors[chunk_id]->setTtype(INPUT_TENSOR);
             chunked_tensors[chunk_id]->setName(input_tensor.name());
             chunked_tensors[chunk_id]->reshape(1, 1, chunk_size, 1);
-            chunked_tensors[chunk_id]->shallowCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
+            chunked_tensors[chunk_id]->shallowCopyFrom(input_copy_sp, false, {0, 0, chunk_id * chunk_size, 0}, 1);
         }
 
         std::function<void(int, int)> executeFunc = [&](int chunk_id, int graphIdx) {

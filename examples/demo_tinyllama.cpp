@@ -29,6 +29,7 @@ int main(int argc, char **argv) {
     tokenizer.set_chat_template(system_prompt_start, system_prompt_end);
 
     TinyLLaMAConfig config(tokens_limit, "1.5B", HFHUBROPE);
+    // config.attn_implementation = "sage_attention";
     auto model = TinyLLaMAModel(config);
     model.load(model_path);
 
@@ -51,6 +52,7 @@ int main(int argc, char **argv) {
         }
         printf("\n");
         model.profiling();
+        model.clear_kvcache();
     }
 
     return 0;

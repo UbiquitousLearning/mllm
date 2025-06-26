@@ -82,14 +82,14 @@ int main(int argc, char **argv) {
     std::cout << "warm up " << warm_end - warm_start << " ms" << std::endl;
 
     Module::isFirstChunk = false;
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setCurSequenceLength(0);
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setExecutionType(PROMPT);
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
 
     // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setTotalSequenceLength(real_seq_length);
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setTotalSequenceLength(real_seq_length);
     // set chunk size for the HeadLinear execute, which can not get the chunk size from Opts
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setChunkSize(chunk_size);
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setChunkSize(chunk_size);
 
     for (auto &t : input_tensors) {
         t.setTtype(INPUT_TENSOR);
@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
         auto result = prefill_body(prefill_input);
 
         if (i == 0) { // turn off switching to avoid RoPE h_cnt_ reset to curSequenceLength in next chunk
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
         }
 
         if (i == 1) {
@@ -149,9 +149,9 @@ int main(int argc, char **argv) {
 
     chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
 
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(real_seq_length);
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setCurSequenceLength(real_seq_length);
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setExecutionType(AUTOREGRESSIVE);
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
 
     // 3. CPU LLM Decoding
     for (auto &t : input_tensors) { // set to INPUT_TENSOR to let decoding module update act
@@ -172,13 +172,13 @@ int main(int argc, char **argv) {
         std::cout << output_string << std::flush;
         chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
 
-        if (step == 0) static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+        if (step == 0) static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
     }
 
     std::cout << std::endl;
 
     if (!std::filesystem::exists("qnn_context.bin")) {
-        static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN])->saveQNNContext();
+        static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN].get())->saveQNNContext();
     }
 
     return 0;

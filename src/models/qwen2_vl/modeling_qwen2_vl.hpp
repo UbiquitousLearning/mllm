@@ -237,8 +237,8 @@ public:
         o_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._o_proj_name);
         q_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "q_rope");
         k_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "k_rope");
-        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, (config.attn_implementation == "flash_attention_2"), base_name + "k_cache");
-        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, (config.attn_implementation == "flash_attention_2"), base_name + "v_cache");
+        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, config.attn_implementation, base_name + "k_cache");
+        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, config.attn_implementation, base_name + "v_cache");
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
 
@@ -258,6 +258,8 @@ public:
         Tensor atten_output;
         if (attn_impl == "flash_attention_2") {
             atten_output = Tensor::flash_attention2_forward(query_states, key_states, value_states, true);
+        } else if (attn_impl == "sage_attention") {
+            atten_output = Tensor::sage_attention_forward(query_states, key_states, value_states, true);
         } else { // eager implementation
             auto atten_weight =
                 Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION))
@@ -440,8 +442,8 @@ private:
         }
         const size_t batch_size = input_ids.batch();                      // input_ids.size();
         const size_t seq_len = batch_size > 0 ? input_ids.sequence() : 0; // batch_size > 0 ? input_ids[0].size() : 0;
-        Tensor position_ids(3, 1, batch_size, seq_len, Backend::global_backends[MLLM_CPU], true);
-        Tensor mrope_position_deltas(1, 1, 1, batch_size, Backend::global_backends[MLLM_CPU], true);
+        Tensor position_ids(3, 1, batch_size, seq_len, Backend::global_backends[MLLM_CPU].get(), true);
+        Tensor mrope_position_deltas(1, 1, 1, batch_size, Backend::global_backends[MLLM_CPU].get(), true);
         bool has_vision = (image_grid_thw.sequence() > 0) || (video_grid_thw.sequence() > 0); // image_grid_thw || video_grid_thw;
         if (!has_vision) {
             // Pure text case

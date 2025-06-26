@@ -16,7 +16,7 @@ using namespace mllm;
 
 class ViTProcessor final : public PreProcessor {
     Tensor img2Tensor(float *img, int height, int width, int channel, string name = "input", BackendType type = MLLM_CPU) {
-        Tensor tensor1(1, height, channel, width, Backend::global_backends[type], true);
+        Tensor tensor1(1, height, channel, width, Backend::global_backends[type].get(), true);
         tensor1.setName(std::move(name));
         Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);
@@ -78,8 +78,8 @@ public:
         return token_idx;
     }
 
-    void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) override{};
-    void Process(const std::string &text) override{};
+    void PreProcessImages(const std::vector<uint8_t *> &images, const std::vector<size_t> &image_length) override {};
+    void Process(const std::string &text) override {};
 };
 
 #endif // TOKENIZATION_VIT_HPP

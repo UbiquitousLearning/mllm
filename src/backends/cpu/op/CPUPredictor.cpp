@@ -1,6 +1,6 @@
 
 #include "CPUPredictor.hpp"
-#include "../compute/VecDotType.hpp"
+#include "backends/cpu/third_party/ggml/VecDotType.hpp"
 #include "../compute/Matmul.hpp"
 
 #include <utility>

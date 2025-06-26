@@ -72,7 +72,8 @@ class Writer:
         elif tensor.dtype == torch.bool or tensor.dtype == torch.int8:  # exported model for QNN int8
             tensor_numpy = tensor.detach().to(torch.int8).numpy()
         else:
-            tensor_numpy = tensor.numpy()
+            # print(f"Write tensor {name} with dtype {tensor.dtype}")
+            tensor_numpy = tensor.detach().to(torch.float32).numpy()
         tensor_numpy.tofile(self.writer)
         size = self.writer.tell() - offset
         tensor_idx.size = size

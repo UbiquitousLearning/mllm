@@ -29,6 +29,59 @@
 #include <cstring>
 #include "QuantizeQ2.hpp"
 #include "Quantize.hpp"
+#include <algorithm> // For std::min/max on some platforms
+
+// 修正后的量化函数
+void quantize_row_q2_0_reference(const float *__restrict x, block_q2_0 *__restrict y, int k) {
+    static const int QK = QK2_0;
+    assert(k % QK == 0);
+    const int nb = k / QK;
+
+    for (int i = 0; i < nb; i++) {
+        float amax = 0.0f; // absolute max
+        for (int j = 0; j < QK; j++) {
+            amax = std::max(amax, fabsf(x[i * QK + j]));
+        }
+
+        const float d = -amax / 1.0f; // d is negative or zero
+        const float id = (d != 0.0f) ? 1.0f / d : 0.0f;
+
+        y[i].d = MLLM_FP32_TO_FP16(d);
+
+        for (int j = 0; j < QK / 4; ++j) {
+            y[i].qs[j] = 0;
+            for (int l = 0; l < 4; ++l) {
+                const float x0 = x[i * QK + j * 4 + l] * id;
+                const uint8_t xi0 = static_cast<uint8_t>(fminf(3, roundf(x0 + 2.0f)));
+                y[i].qs[j] |= (xi0 << (l * 2));
+            }
+        }
+    }
+}
+
+void quantize_row_q2_0(const float *__restrict x, void *__restrict y, int k) {
+    quantize_row_q2_0_reference(x, (block_q2_0 *)y, k);
+}
+
+// 修正后的反量化函数
+void dequantize_row_q2_0(const void *__restrict vx, float *__restrict y, int k) {
+    static const int QK = QK2_0;
+    assert(k % QK == 0);
+
+    const block_q2_0 *__restrict x = (const block_q2_0 *)vx;
+    const int nb = k / QK;
+
+    for (int i = 0; i < nb; i++) {
+        const float d = MLLM_FP16_TO_FP32(x[i].d);
+
+        for (int j = 0; j < QK / 4; ++j) {
+            for (int l = 0; l < 4; ++l) {
+                const int x0 = ((x[i].qs[j] >> (l * 2)) & 0x03) - 2;
+                y[i * QK + j * 4 + l] = x0 * d;
+            }
+        }
+    }
+}
 
 static float make_qkx2_quants(int n, int nmax, const float *__restrict x, const float *__restrict weights,
                               uint8_t *__restrict L, float *__restrict the_min, uint8_t *__restrict Laux,

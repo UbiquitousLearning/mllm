@@ -88,11 +88,6 @@ bool ParamLoader::load(mllm::Tensor *tensor) {
 bool ParamLoader::load(mllm::Tensor *tensor) {
     string name = tensor->name();
     if (!use_mmap_) {
-        // --- 非 mmap 模式，逻辑保持不变 ---
-        // 确保 Tensor 已经分配内存
-        // if (tensor->rawHostPtr() == nullptr) {
-            // tensor->alloc();
-        // }
         std::lock_guard<std::mutex> lock(mtx);
         if (offsets_.find(name) == offsets_.end()) { return false; }
         std::pair<uint64_t, uint64_t> offset = offsets_[name];
@@ -101,6 +96,7 @@ bool ParamLoader::load(mllm::Tensor *tensor) {
         size_t read_size = std::min(tensor->cntSize(), static_cast<size_t>(offset.second));
         auto _ = fread(p, sizeof(uint8_t), read_size, fp_);
         return true;
+
     } else {
         // --- mmap 模式，实现智能选择 ---
         if (mmap_buffer_ == nullptr || offsets_.find(name) == offsets_.end()) {
@@ -109,28 +105,31 @@ bool ParamLoader::load(mllm::Tensor *tensor) {
         std::lock_guard<std::mutex> lock(mtx);
         auto offset_info = offsets_[name];
 
-        // 1. 检查对齐
-        int required_alignment = DataTypeSize(tensor->dtype());
-        if (required_alignment == 0) required_alignment = 1;
-        bool is_aligned = (offset_info.first % required_alignment == 0);
-
-        // 2. 尺寸检查
+        // 1. 尺寸检查 (保持不变)
         if (tensor->cntSize() != offset_info.second) {
             fprintf(stderr, "Error: Tensor '%s' size mismatch. Code wants %zu, file has %llu.\n",
                     name.c_str(), tensor->cntSize(), (unsigned long long)offset_info.second);
             return false;
         }
-        is_aligned = false;
+
+        // 2. 检查对齐
+        int required_alignment = DataTypeSize(tensor->dtype());
+        if (required_alignment == 0) required_alignment = 1;
+        bool is_aligned = (offset_info.first % required_alignment == 0);
+
         if (is_aligned) {
             // -- 对齐：执行零拷贝 --
-            uint8_t* source_ptr = mmap_buffer_.get() + offset_info.first;
-            // setHostPtr 会处理好一切（包括释放之前 alloc 的内存）
-            tensor->setHostPtr(source_ptr, mmap_buffer_);
+            // fprintf(stdout, "[MMAP ZERO-COPY] Tensor: '%s'\n", name.c_str());
+            uint8_t *source_ptr = mmap_buffer_.get() + offset_info.first;
+            tensor->setHostPtr(source_ptr, mmap_buffer_); // setHostPtr 会处理好一切
         } else {
-            // -- 未对齐：回退到 memcpy --
-            // 从 mmap 区域拷贝数据到 Tensor 自己拥有的内存中
-            uint8_t* source_ptr = mmap_buffer_.get() + offset_info.first;
-            memcpy(tensor->rawHostPtr(), source_ptr, tensor->cntSize());
+            // -- 未对齐：回退到 fread 普通加载 --
+            // fprintf(stdout, "[MMAP FALLBACK to FREAD] Tensor: '%s' is not aligned.\n", name.c_str());
+
+            // 因为 fp_ 现在是有效的，我们可以直接使用普通加载逻辑
+            auto *p = tensor->hostPtr<char>();
+            fseek(fp_, offset_info.first, SEEK_SET);
+            auto _ = fread(p, sizeof(uint8_t), tensor->cntSize(), fp_);
         }
 
         return true;
@@ -142,11 +141,10 @@ ParamLoader::~ParamLoader() {
             munmap(buffer_, size_);
             buffer_ = nullptr;
         }
-    } else {
-        if (fp_ != nullptr) {
-            fclose(fp_);
-            fp_ = nullptr;
-        }
+    }
+    if (fp_ != nullptr) {
+        fclose(fp_);
+        fp_ = nullptr;
     }
 }
 // #ifdef ANDROID_API
@@ -156,43 +154,50 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap_param) :           
     path_(std::move(filename)), use_mmap_(use_mmap_param), fp_(nullptr), buffer_(nullptr), size_(0) { // Initialize new members
 
     if (use_mmap_) {
-                // --- 1. 打开文件并获取文件描述符 ---
-        FILE *temp_fp = fopen(this->path_.c_str(), "rb");
-        if (temp_fp == nullptr) {
-            // perror(("Error opening file for mmap: " + this->path_).c_str());
-            // 无法打开文件，直接返回，保持 ParamLoader 为不可用状态
+        // --- 1. 打开文件并获取文件描述符，直接使用成员变量 fp_ ---
+        this->fp_ = fopen(this->path_.c_str(), "rb"); // 直接赋值给 this->fp_
+        if (!this->path_.empty() && this->fp_ == nullptr) {
+            perror(("Error opening file: " + this->path_).c_str());
+            exit(1); // 报错并立即退出程序
+            return;  // 打开失败，直接返回
+        }
+        if (this->path_.empty()) {
             return;
         }
 
         // --- 2. 获取文件大小 ---
-        fseek(temp_fp, 0, SEEK_END);
-        size_ = ftell(temp_fp);
-        // fseek(temp_fp, 0, SEEK_SET); // mmap不需要重置文件指针
+        fseek(this->fp_, 0, SEEK_END);
+        size_ = ftell(this->fp_);
+        // 注意：这里不要将文件指针移回开头，fseek 和 mmap 的 offset 是独立的
 
         // --- 3. 执行内存映射 ---
-        int fd = fileno(temp_fp); // 获取文件描述符
-        uint8_t* mapped_ptr = (uint8_t *)mmap(NULL, size_, PROT_READ, MAP_PRIVATE, fd, 0);
+        int fd = fileno(this->fp_);
+        uint8_t *mapped_ptr = (uint8_t *)mmap(NULL, size_, PROT_READ, MAP_PRIVATE, fd, 0);
 
-        // mmap完成后，文件描述符即可关闭，映射关系依然存在
-        fclose(temp_fp);
+        // --- 关键：不要关闭文件！---
+        // fclose(this->fp_); // <-- 注释或删除这一行
 
         if (mapped_ptr == MAP_FAILED) {
             perror("mmap failed");
-            use_mmap_ = false; // mmap失败，可以考虑回退到非mmap模式或标记为失败
+            // mmap 失败，但文件还开着，可以考虑退回到纯文件模式或标记失败
+            use_mmap_ = false;
+            // 清理已打开的文件
+            fclose(this->fp_);
+            this->fp_ = nullptr;
+            // 也许这里应该重新走一遍非 mmap 的初始化逻辑，或者直接返回让对象不可用
             return;
         }
 
-        // --- 4. 将 mmap 指针包装到带自定义删除器的 shared_ptr 中 ---
+        // --- 4. 包装 mmap 指针 ---
         auto mmap_size = this->size_;
         this->mmap_buffer_ = std::shared_ptr<uint8_t>(mapped_ptr, [mmap_size](uint8_t *p) {
-            // 自定义删除器：当 shared_ptr 引用计数归零时，调用 munmap
             munmap(p, mmap_size);
         });
 
         // ====================================================================
         // --- 5. 从 mmap 内存区域中解析元数据 ---
         // ====================================================================
-        
+
         // 定义一系列在内存指针上操作的辅助 lambda 函数，用于替代原先在 FILE* 上的操作
         auto mmap_readInt = [&](uint8_t *&ptr) {
             int32_t val;
@@ -216,7 +221,7 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap_param) :           
 
         // 获取指向 mmap 区域开头的当前指针
         uint8_t *current_ptr = mmap_buffer_.get();
-        
+
         // a. 读取并验证幻数
         int magic = mmap_readInt(current_ptr);
         if (magic != _MAGIC_NUMBER) {
@@ -228,7 +233,7 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap_param) :           
 
         // b. 读取索引区域的总长度
         uint64_t index_size = mmap_readu64(current_ptr);
-        
+
         // c. 计算索引区域的结束地址
         uint8_t *index_end_ptr = current_ptr + index_size;
 
@@ -237,7 +242,7 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap_param) :           
             std::string name = mmap_readString(current_ptr);
             uint64_t length = mmap_readu64(current_ptr);
             uint64_t offset_in_file = mmap_readu64(current_ptr);
-            
+
             // 将解析出的信息存入 map
             offsets_[name] = std::make_pair(offset_in_file, length);
             data_type_[name] = static_cast<DataType>(mmap_readInt(current_ptr));
@@ -247,9 +252,12 @@ ParamLoader::ParamLoader(std::string filename, bool use_mmap_param) :           
         // Original logic when USE_MMAP is not defined (ensures use_mmap_param is ignored)
         use_mmap_ = false; // Force false if USE_MMAP macro is not defined
         this->fp_ = fopen(this->path_.c_str(), "rb");
-        if (this->fp_ == nullptr) {
-            // perror(("Error opening file: " + this->path_).c_str());
-            // exit(1);
+        if (!this->path_.empty() && this->fp_ == nullptr) {
+            perror(("Error opening file: " + this->path_).c_str());
+            exit(1);
+            return;
+        }
+        if (this->path_.empty()) {
             return;
         }
         fseek(fp_, 0, SEEK_SET);
@@ -291,18 +299,23 @@ std::tuple<uint8_t *, uint64_t> ParamLoader::load(string name) {
     auto _ = fread(data, sizeof(uint8_t), length, fp_);
     return std::make_tuple(data, length);
 }
+
 DataType ParamLoader::getDataType(string name) {
     if (data_type_.count(name) != 1) {
-        if (!this->path_.empty() && this->fp_ == nullptr) {
-            MLLM_LOG_ERROR_STREAM << this->path_ << " not found" << std::endl;
+        if (!use_mmap_ && !this->path_.empty() && this->fp_ == nullptr) {
+            MLLM_LOG_ERROR_STREAM << "File IO mode: " << this->path_ << " not found or failed to open." << std::endl;
             exit(0);
-        } else if (this->fp_ != nullptr && !this->path_.empty()) {
-            MLLM_LOG_ERROR_STREAM << name << " not found" << std::endl;
         }
+
+        // if (use_mmap_) {
+        //     MLLM_LOG_WARNING_STREAM << "Mmap mode: Tensor '" << name << "' not found in model metadata." << std::endl;
+        // } else {
+        //     MLLM_LOG_WARNING_STREAM << "File IO mode: Tensor '" << name << "' not found in model metadata." << std::endl;
+        // }
+
         return DataType::MLLM_TYPE_COUNT;
     }
     int type = data_type_[name];
-    // check if exists
     return static_cast<DataType>(type);
 }
 
@@ -445,5 +458,21 @@ bool ParamLoader::partialLoad(mllm::Tensor *tensor, std::set<int> validRow, int 
         // Ensure tensor->cntSize() matches totalBytesCopied. This function assumes tensor is correctly sized.
         return true;
     }
+}
+
+ParamMetadata ParamLoader::getParamMetadata(const std::string &name) {
+    if (offsets_.find(name) == offsets_.end()) {
+        throw std::runtime_error("Parameter '" + name + "' not found in offsets map.");
+    }
+    auto &offset_pair = offsets_.at(name);
+    return {offset_pair.first, offset_pair.second};
+}
+
+FILE *ParamLoader::getInputStream() {
+    return this->fp_;
+}
+
+std::string ParamLoader::getParamPath() const {
+    return this->path_;
 }
 } // namespace mllm

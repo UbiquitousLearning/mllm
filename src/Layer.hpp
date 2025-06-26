@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdlib>
+#include <iostream>
 #include <memory>
 #include <utility>
 
@@ -29,11 +30,15 @@ namespace mllm {
 class Layer {
 public:
     Layer() = default;
+    ~Layer() {
+        delete op_; // 手动添加 delete
+        op_ = nullptr;
+    }
     void init(std::string name, OpType type) {
         name_ = std::move(name);
         param_["type"] = type;
         Module::initBackend(MLLM_CPU);
-        backend_ = Backend::global_backends[MLLM_CPU];
+        backend_ = Backend::global_backends[MLLM_CPU].get();
         saved_list_idx = Module::listIdx;
         init_ = true;
     }
@@ -63,10 +68,10 @@ public:
         return ts[0];
     }
 
-    void initOp(){
-         if (op_ == nullptr) {
-            if ((param_["type"] == KVCACHE || param_["type"] == KVCACHENPU) 
-                    && (Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end())) {
+    void initOp() {
+        if (op_ == nullptr) {
+            if ((param_["type"] == KVCACHE || param_["type"] == KVCACHENPU)
+                && (Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end())) {
                 if (kv_cache_map.find(name_) == kv_cache_map.end()) {
                     // for the prefill part, we need to create a new op
                     param_["type"] = KVCACHENPU;
@@ -88,6 +93,7 @@ public:
             return;
         op_->load(*Module::llm_model_ptr->loader);
         loaded_param = true;
+        inited_loaded = true;
     }
     bool &loaded() {
         return loaded_param;
@@ -95,27 +101,29 @@ public:
     void free() {
         op_->free({}, {});
         loaded_param = false;
+        inited_loaded = false;
     }
 
 protected:
     vector<Tensor> run(vector<Tensor> inputs, int N = 1) {
         initOp();
         Module *module = inputs.empty() ? Module::llm_model_ptr : inputs[0].module();
-        if (module->doLoad || !inited_loaded) {//load
+        if (module->doLoad || !inited_loaded) { // load
             if (module->doLoad) {
                 op_->load(*module->loader);
                 inited_loaded = true;
             } else if (loaded_param) {
                 inited_loaded = loaded_param;
             } else if (!inited_loaded) {
-                auto empty_loader = new ParamLoader("");
-                op_->load(*empty_loader);
+                // auto empty_loader = new ParamLoader("");
+                ParamLoader empty_loader("");
+                op_->load(empty_loader);
                 inited_loaded = true;
             }
         }
-        auto backend = inputs.empty() ? Backend::global_backends[MLLM_CPU] : inputs[0].backend();
+        auto backend = inputs.empty() ? Backend::global_backends[MLLM_CPU].get() : inputs[0].backend();
         if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) {
-            backend = Backend::global_backends[MLLM_QNN];
+            backend = Backend::global_backends[MLLM_QNN].get();
         }
         vector<string> out_names;
         int count = (N > 1) ? N : 1;
@@ -569,14 +577,19 @@ public:
         param_["for_xnn"] = false;
         init(std::move(name), OpType::KVCACHE);
     }
-    explicit KVCache(int head, int hidden, int n_rep, int cache_max, bool fa2, std::string name) {
+
+    explicit KVCache(int head, int hidden, int n_rep, int cache_max, string attn_impl, std::string name) {
         param_["head"] = head;
         param_["hidden"] = hidden;
         param_["n_rep"] = n_rep;
         param_["cache_max"] = cache_max;
         param_["for_xnn"] = false;
-        param_["fa2"] = fa2;
-        init(std::move(name), OpType::KVCACHE);
+        param_["fa2"] = (attn_impl == "flash_attention_2" || attn_impl == "sage_attention");
+        if (attn_impl == "sage_attention" && hidden % QK8_0F == 0 && KVCacheSageDtypeBit == 8) {
+            init(std::move(name), OpType::KVCACHESAGE);
+        } else {
+            init(std::move(name), OpType::KVCACHE);
+        }
     }
 
     explicit KVCache(int cache_max, std::string name) {

@@ -4,6 +4,7 @@
 
 #include "Op.hpp"
 #include "../CPUBackend.hpp"
+#include <memory>
 
 namespace mllm {
 
@@ -17,13 +18,13 @@ public:
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
-    Tensor &weight() {
-        return weight_;
-    }
+    // Tensor &weight() {
+    //     return weight_;
+    // }
 
 private:
     int thread_count = 4;
-    Tensor weight_;
+    shared_ptr<Tensor> weight_;
     int batch_;
     int head_;
     int seq_;

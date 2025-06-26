@@ -12,6 +12,7 @@
 #include <atomic>
 #include <cmath>
 // #include <thread>
+#include <omp.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 // #include <iostream>
@@ -216,7 +217,7 @@ public:
             // step.2
             auto expert_out = experts[expert_id]({expert_tokens})[0]; //(1, 0, 1, hidden) 1, e-s, 1,
             expert_out = expert_out * expert_weights_clip;            //(1, 0, 1, hidden) 1, e-s, 1, hidden
-            expert_cache.scatter_reduce(expert_out, exp_token_idx);   // 1, batch*seq, 1, hidden
+            expert_cache.scatter_add(expert_out, exp_token_idx);      // 1, batch*seq, 1, hidden
             experts[expert_id].free();
             // std::cout << "free: " << layer_idx << " " << expert_id << std::endl;
 
@@ -294,10 +295,10 @@ public:
     MiniCPMDecoder(const MiniCPMConfig &config, const MiniCPMNameConfig &names, const string &base_name) {
         self_atten = MultiHeadAttention(config.hidden_size, config.num_attention_heads,
                                         config.num_key_value_heads,
-                                        config.hidden_size / config.num_attention_heads, 
+                                        config.hidden_size / config.num_attention_heads,
                                         SPLIT_NONE, PostQkv_NONE, false,
                                         config.RoPE_type, config.rope_theta, config.max_position_embeddings, config.cache_limit,
-                                        true, false,false, 
+                                        true, false, false,
                                         config.attn_implementation, names, base_name + names._attn_base_name);
         moe = MiniCPMMoE(config, names, base_name + names._ffn_base_name);
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
@@ -397,7 +398,7 @@ public:
             omp_set_max_active_levels(2); // Enable OpenMP nesting
 #pragma omp parallel num_threads(2)
             if (omp_get_thread_num() == 0) { // 根据线程ID决定执行哪个函数
-#if defined(__ARM_NEON)&& !defined(__APPLE__)
+#if defined(__ARM_NEON) && !defined(__APPLE__)
                 {
                     struct sched_param param;
                     param.sched_priority = 20; // 范围 1–99，根据设备可酌情调整

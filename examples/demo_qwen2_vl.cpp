@@ -11,8 +11,11 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2vl_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2vl_merges.txt");
+#ifdef ARM
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-2-vl-2b-instruct-kai_q4_0.mllm");
+#else
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-2-vl-2b-instruct-q4_k.mllm");
-    // cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-2-vl-2b-instruct-kai_q4_0.mllm");
+#endif
     cmdParser.add<string>("billion", 'b', "[2B | 7B |]", false, "2B");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 800);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);

@@ -18,14 +18,14 @@ public:
     virtual ErrorCode free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
 
-    Tensor cache_;
+    shared_ptr<Tensor> cache_;
 
     int getCacheSeqLen() override {
         return cache_seq_len_;
     }
     void clearCache() override {
         cache_seq_len_ = 0;
-        cache_.cache_seq_len_ = cache_seq_len_;
+        cache_->cache_seq_len_ = cache_seq_len_;
     }
 
     void setForXnn(bool for_xnn) {

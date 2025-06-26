@@ -1,17 +1,21 @@
 #include "ParamWriter.hpp"
 #include "ParamLoader.hpp"
-#include "backends/cpu/compute/QuantizeQ6.hpp"
-#include "backends/cpu/compute/QuantizeQ2.hpp"
-#include "backends/cpu/compute/QuantizeQ3.hpp"
-#include "backends/cpu/compute/QuantizeQ4.hpp"
-#include "backends/cpu/compute/QuantizeQ8.hpp"
-#include "backends/cpu/compute/GemmPack.hpp"
+#include "backends/cpu/third_party/ggml/QuantizeQ6.hpp"
+#include "backends/cpu/third_party/ggml/QuantizeQ2.hpp"
+#include "backends/cpu/third_party/ggml/QuantizeQ3.hpp"
+#include "backends/cpu/third_party/ggml/QuantizeQ4.hpp"
+#include "backends/cpu/third_party/ggml/QuantizeQ8.hpp"
+#include "backends/cpu/third_party/ggml/GemmPack.hpp"
 #include "backends/cpu/compute/GemmKleidiai.hpp"
 #include <cassert>
 #include <string>
 #include <unordered_map>
+#include <vector>
+#include <iostream>
+
 #ifndef MLLM_QUANTWRITER_HPP
 #define MLLM_QUANTWRITER_HPP
+
 #define NOT_IMPLEMENTED(x)                                                            \
     std::cout << "Quantize params to " << DataTypeName(x) << " is not implemented\n"; \
     __exit(-1);
@@ -26,6 +30,7 @@
         }                                     \
         exit(status);                         \
     }
+
 static std::pair<void *, uint64_t> alloc_quant_block(uint64_t count, DataType type) {
     uint64_t size = DataTypeSize(type, count);
     if (size <= 0) {
@@ -38,7 +43,12 @@ static std::pair<void *, uint64_t> alloc_quant_block(uint64_t count, DataType ty
 #if defined(__aarch64__) || defined(__arm__) || defined(__arm64__)
 static std::pair<void *, uint64_t> alloc_kleidiai_quant_block(DataType type, int N, int K) {
     assert(type == MLLM_TYPE_KLEIDIAI_Q4_0);
+
+#ifndef KAI_FP16_CAL
     uint64_t size = mllm_kleidai_get_packed_b_qsi4_size(N, K);
+#else
+    uint64_t size = mllm_kleidai_get_packed_b_qsi4_size_to_fp16(N, K);
+#endif
     if (size <= 0) {
         return std::make_pair(nullptr, 0);
     }
@@ -46,30 +56,26 @@ static std::pair<void *, uint64_t> alloc_kleidiai_quant_block(DataType type, int
     return std::make_pair(data, size);
 }
 #endif
+
 namespace mllm {
-extern std::vector<std::string> vl_q4x4_2_q4_k_layers;
+extern const std::vector<std::string> q4_0_kai_to_q4_0_4x4_layers;
 
 class QuantWriter : public ParamWriter {
 public:
     ~QuantWriter();
     explicit QuantWriter(std::string output_path, std::string input_path);
     int readParams();
-    void quantParams(DataType dataType);
-    void quantParams_q4_(DataType dataType);
-    void quantParams_q4_vl(DataType dataType);
-    void quantParams_kai_vl(DataType dataType);
 
-#ifdef TEST
-    std::unordered_map<string, char *> data_;
+    void quantize(DataType target_quant_type, const std::string &other_flag = "");
 
-#endif
 private:
-    string output_path_;
-    mllm::ParamLoader *param_loader_;
-    DataType quant_type_;
+    std::string output_path_;
+    ParamLoader *param_loader_;
     std::vector<std::string> param_names_;
-    float *getParam(std::string param_name);
-    void writeParam(string name, DataType type, void *data, uint64_t size) override;
+
+    DataType getQuantizationTypeFor(const std::string &name, DataType target_type, const std::string &other_flag);
+
+    std::vector<float> load_full_fp32_param(const std::string &name);
 };
 } // namespace mllm
 #endif

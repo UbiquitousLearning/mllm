@@ -23,13 +23,14 @@ private:
     int head_size_;
 
 public:
-    CPUsplitFunction(Backend *bn, string name, int threadCount, 
-                     const std::vector<int>& each_dims, Chl split_dim, int head_size)
-        : Op(bn, name), thread_count(threadCount), each_dims_(each_dims), 
-          split_dim_(split_dim), head_size_(head_size) {}
+    CPUsplitFunction(Backend *bn, string name, int threadCount,
+                     const std::vector<int> &each_dims, Chl split_dim, int head_size) :
+        Op(bn, name), thread_count(threadCount), each_dims_(each_dims),
+        split_dim_(split_dim), head_size_(head_size) {
+    }
 
     ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
-         int split_num_ = each_dims_.size();
+        int split_num_ = each_dims_.size();
         // store each dims
         int split_dim_size_ = 0;
         for (size_t i = 0; i < each_dims_.size(); ++i) {
@@ -144,39 +145,27 @@ public:
     ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
         // This path is taken only if the memory aggregation in setUp was not performed.
         if (inputs[0]->aggregatedTensors().empty()) {
-            std::vector<float *> out_pointers;
+            std::vector<void *> out_pointers;
+            std::vector<DataType> out_types;
+
             assert(each_dims_.size() == outputs.size());
-            for (const auto& output : outputs) {
-                // Ensure output is allocated if not already
-                if(output->hostPtr<void>() == nullptr) {
+            for (const auto &output : outputs) {
+                if (output->hostPtr<void>() == nullptr) {
                     output->alloc();
                 }
-                out_pointers.push_back(output->ptrAt<float>(0, 0, 0, 0));
+                if (output->dtype() == MLLM_TYPE_F32) {
+                    out_pointers.push_back(output->ptrAt<float>(0, 0, 0, 0));
+                } else if (output->dtype() == MLLM_TYPE_F16) {
+                    out_pointers.push_back(output->ptrAt<mllm_fp16_t>(0, 0, 0, 0));
+                }
+                out_types.push_back(output->dtype());
             }
             const int origin_dims[4] = {inputs[0]->batch(), inputs[0]->sequence(), inputs[0]->head(), inputs[0]->dimension()};
-            
-            efficient_split(inputs[0]->ptrAt<float>(0, 0, 0, 0),
-                            origin_dims,
-                            out_pointers,
-                            each_dims_,
-                            split_dim_);
-        }
 
-        if (inputs[0]->aggregatedTensors().empty()) {
-            // int size = args_.size();
-            std::vector<float *> out_pointers;
-            // assert(size - 2 == outputs.size());
-            for (int i = 0; i < outputs.size(); i++) {
-                // each_dims_.push_back(args[i]);
-                out_pointers.push_back(outputs[i]->ptrAt<float>(0, 0, 0, 0));
-            }
-            // Chl split_dim = (Chl)args[size - 2];
-            // int head_size = (int)args[size - 1];
-            int split_num_ = each_dims_.size();
-            const int origin_dims[4] = {inputs[0]->batch(), inputs[0]->sequence(), inputs[0]->head(), inputs[0]->dimension()};
             efficient_split(inputs[0]->ptrAt<float>(0, 0, 0, 0),
                             origin_dims,
                             out_pointers,
+                            out_types,
                             each_dims_,
                             split_dim_);
         }
@@ -197,7 +186,7 @@ public:
         }
         Chl split_dim = (Chl)op_param.at("split_dim");
         int head_size = static_cast<int>(op_param.at("head_size"));
-        
+
         return new CPUsplitFunction(bn, name, threadCount, each_dims, split_dim, head_size);
     }
 };

@@ -690,7 +690,7 @@ bool XnnpackBackend::enable_legacy_wrapper = false;
 //     std::vector<std::shared_ptr<Tensor>> output_ptrs;
 //     for (const auto &out_name : out_names) {
 //         if (activation_tensors.find(out_name) == activation_tensors.end()) {
-//             Backend *backend_h = Backend::global_backends[MLLM_CPU];
+//             Backend *backend_h = Backend::global_backends[MLLM_CPU].get();
 //             if (!input_tensors.empty()) {
 //                 backend_h = input_tensors[0].backend();
 //             }
@@ -710,7 +710,7 @@ bool XnnpackBackend::enable_legacy_wrapper = false;
 //         return results;
 //     }
 
-//     Backend *backend_h = Backend::global_backends[MLLM_CPU];
+//     Backend *backend_h = Backend::global_backends[MLLM_CPU].get();
 //     if (!input_tensors.empty()) {
 //         backend_h = input_tensors[0].backend();
 //     }

@@ -51,7 +51,7 @@ protected:
     std::string chat_template_end;
 
 public:
-    Tokenizer(){
+    Tokenizer() {
         // do nothing
     }
     explicit Tokenizer(const std::string &vocab_file);
@@ -76,7 +76,8 @@ public:
     static void token2Tensor(Net *net, vector<token_id_t> tokens, shared_ptr<Tensor> input_tensor);
     static void tokens2Tensor(Net *net, vector<vector<token_id_t>> tokens, shared_ptr<Tensor> input_tensor);
     static Tensor tokens2Input(vector<token_id_t> tokens_id, string name = "input", BackendType type = MLLM_CPU) {
-        Tensor tensor1(1, 1, tokens_id.size(), 1, Backend::global_backends[type], true);
+        Module::initBackend(type);
+        Tensor tensor1(1, 1, tokens_id.size(), 1, Backend::global_backends[type].get(), true);
         tensor1.setName(name);
         Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);
@@ -87,7 +88,7 @@ public:
     }
     static Tensor tokens2Input(vector<vector<token_id_t>> tokens, string name = "input", BackendType type = MLLM_CPU) {
         const auto bsize = static_cast<int>(tokens.size());
-        Tensor tensor1(bsize, 1, static_cast<int>(tokens[0].size()), 1, Backend::global_backends[type], true);
+        Tensor tensor1(bsize, 1, static_cast<int>(tokens[0].size()), 1, Backend::global_backends[type].get(), true);
         tensor1.setName(name);
         Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);

@@ -11,6 +11,29 @@ project(mllm CXX C ASM)
 
 cmake_policy(SET CMP0074 NEW)
 set(CMAKE_CXX_STANDARD 17)
+
+
+# 添加Address Sanitizer选项
+option(USE_ASAN "Enable AddressSanitizer for memory leak detection" OFF)
+
+if(USE_ASAN)
+    message(STATUS "Enabling AddressSanitizer")
+    # 确保包含调试符号
+    if(NOT MSVC)
+        add_compile_options(-g)
+    endif()
+    
+    # 设置ASan编译选项
+    if(MSVC)
+        add_compile_options(/fsanitize=address)
+        add_link_options(/fsanitize:address)
+    else()
+        add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=address)
+    endif()
+endif()
+
+
 option(ARM "build on ARM" OFF)
 
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -214,15 +237,15 @@ file(GLOB_RECURSE SRC_TOKENIZERS
 
 # if compile to x86_64
 if(QUANT)
-    include_directories(${PROJECT_SOURCE_DIR}/src/quantizer)
+    include_directories(${PROJECT_SOURCE_DIR}/tools/quantizer)
     file(GLOB_RECURSE MLLM_QUANT
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GemmPack.cpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/QuantizeQ8.cpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/QuantizeQ4.cpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/QuantizeQ6.cpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/QuantizeQ3.cpp
-        ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/QuantizeQ2.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/ggml/GemmPack.cpp
         ${PROJECT_SOURCE_DIR}/src/backends/cpu/compute/GemmKleidiai.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/ggml/QuantizeQ8.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/ggml/QuantizeQ4.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/ggml/QuantizeQ6.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/ggml/QuantizeQ3.cpp
+        ${PROJECT_SOURCE_DIR}/src/backends/cpu/third_party/ggml/QuantizeQ2.cpp
     )
 
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
@@ -232,8 +255,8 @@ if(QUANT)
             message(FATAL_ERROR "kleidiai library not found! Please place it in 'third_party/kleidiai'.")
         endif()
         # 添加所有源文件路径到 MLLM_QUANT
-        list(APPEND MLLM_QUANT
-            # QSI4 模块源文件
+       list(APPEND MLLM_QUANT
+            # QSI4_C32P (to FP32) 模块源文件
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp1x8_qsi4c32p4x8_1x4x32_neon_dotprod.c
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp1x8_qsi4c32p4x8_1x4x32_neon_dotprod_asm.S
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/kai_matmul_clamp_f32_qai8dxp4x8_qsi4c32p4x8_8x4x32_neon_i8mm.c
@@ -241,19 +264,27 @@ if(QUANT)
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_lhs_quant_pack_qai8dxp_f32.c
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi4c32p_qsu4c32s1s0.c
 
-            # FP16 模块源文件
+            # [新增] QSI4_CXP (to FP16) 模块源文件
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_qai8dxp_qsi4cxp/kai_matmul_clamp_f16_qai8dxp1x8_qsi4cxp4x8_1x4_neon_dotprod.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_qai8dxp_qsi4cxp/kai_matmul_clamp_f16_qai8dxp1x8_qsi4cxp4x8_1x4_neon_dotprod_asm.S
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_qai8dxp_qsi4cxp/kai_matmul_clamp_f16_qai8dxp4x8_qsi4cxp4x8_16x4_neon_i8mm.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_qai8dxp_qsi4cxp/kai_matmul_clamp_f16_qai8dxp4x8_qsi4cxp4x8_16x4_neon_i8mm_asm.S
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_lhs_quant_pack_qai8dxp_f16_neon.c
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi4cxp_qs4cxs1s0.c
+
+            # FP16 (f16*f16) 模块源文件
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p16x1biasf16_6x16x8_neon_mla.c
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon.c
 
-            # FP32 模块源文件
+            # FP32 (f32*f32) 模块源文件
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.c
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla_asm.S
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.c
         )
         include_directories(
-            # # 添加所有kleidiai源文件路径到 MLLM_QUAN
             ${KLEIDIAI_SOURCE_DIR}
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p
+            ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_qai8dxp_qsi4cxp 
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/pack
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_f16_f16p
             ${KLEIDIAI_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_f32_f32p
@@ -261,12 +292,12 @@ if(QUANT)
     endif()
 
     file(GLOB_RECURSE MLLM_QUANTIZER
-        ${PROJECT_SOURCE_DIR}/src/quantizer/*.cpp
-        ${PROJECT_SOURCE_DIR}/src/quantizer/*.hpp)
-    list(REMOVE_ITEM MLLM_QUANTIZER ${PROJECT_SOURCE_DIR}/src/quantizer/main_quantize.cpp)
+        ${PROJECT_SOURCE_DIR}/tools/quantizer/*.cpp
+        ${PROJECT_SOURCE_DIR}/tools/quantizer/*.hpp)
+    list(REMOVE_ITEM MLLM_QUANTIZER ${PROJECT_SOURCE_DIR}/tools/quantizer/main_quantize.cpp)
     add_executable(
         quantize
-        ${PROJECT_SOURCE_DIR}/src/quantizer/main_quantize.cpp
+        ${PROJECT_SOURCE_DIR}/tools/quantizer/main_quantize.cpp
         ${MLLM_QUANT}
         ${MLLM_QUANTIZER}
         ${PROJECT_SOURCE_DIR}/src/ParamLoader.cpp

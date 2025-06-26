@@ -24,18 +24,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
-#ifndef MLLM_VECDOT_HPP
-#define MLLM_VECDOT_HPP
-#include "Tensor.hpp"
+#pragma once
+// #include "Tensor.hpp"
 #include "Types.hpp"
 #include <functional>
 #include "ParamLoader.hpp"
-#include "backends/cpu/compute/QuantizeQ8.hpp"
-#include "backends/cpu/compute/QuantizeQ4.hpp"
-#include "backends/cpu/compute/QuantizeQ6.hpp"
-#include "backends/cpu/compute/QuantizeQ3.hpp"
-#include "backends/cpu/compute/QuantizeQ2.hpp"
+#include "QuantizeQ8.hpp"
+#include "QuantizeQ4.hpp"
+#include "QuantizeQ6.hpp"
+#include "QuantizeQ3.hpp"
+#include "QuantizeQ2.hpp"
 
 #if defined(__ARM_ARCH) && defined(__ARM_FEATURE_SVE)
 #include <sys/prctl.h>
@@ -375,10 +373,10 @@ inline int mllm_cpu_get_sve_cnt(void) {
 // ref: https://github.com/mllm-org/llama.cpp/pull/5404
 #ifdef _MSC_VER
 #define mllm_vld1q_u32(w, x, y, z) \
-    { ((w) + ((uint64_t)(x) << 32)), ((y) + ((uint64_t)(z) << 32)) }
+    {((w) + ((uint64_t)(x) << 32)), ((y) + ((uint64_t)(z) << 32))}
 #else
 #define mllm_vld1q_u32(w, x, y, z) \
-    { (w), (x), (y), (z) }
+    {(w), (x), (y), (z)}
 #endif // _MSC_VER
 
 #if !defined(__aarch64__)
@@ -608,54 +606,3 @@ inline static uint8x16_t mllm_vqtbl1q_u8(uint8x16_t a, uint8x16_t b) {
 
 #endif // !defined(__aarch64__)
 #endif // !defined(__ARM_NEON)
-
-using namespace mllm;
-
-inline static void vec_scale_f32(const int n, float *y, const float v) {
-    const int np = (n & ~(MLLM_F32_STEP - 1));
-
-    MLLM_F32_VEC vx = MLLM_F32_VEC_SET1(v);
-
-    MLLM_F32_VEC ay[MLLM_F32_ARR];
-
-    for (int i = 0; i < np; i += MLLM_F32_STEP) {
-        for (int j = 0; j < MLLM_F32_ARR; j++) {
-            ay[j] = MLLM_F32_VEC_LOAD(y + i + j * MLLM_F32_EPR);
-            ay[j] = MLLM_F32_VEC_MUL(ay[j], vx);
-
-            MLLM_F32_VEC_STORE(y + i + j * MLLM_F32_EPR, ay[j]);
-        }
-    }
-
-    // leftovers
-    for (int i = np; i < n; ++i) {
-        y[i] *= v;
-    }
-
-    //    for (int i = 0; i < n; ++i) {
-    //        y[i] *= v;
-    //    }
-}
-
-// void vec_dot_fp32(const float * __restrict src0, const float * __restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf);
-void vec_dot_q4_0_q8_0(const void *__restrict src0, const void *__restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf);
-void vec_dot_q4_K_q8_K(const void *__restrict src0, const void *__restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf);
-void vec_dot_q6_K_q8_K(const void *__restrict src0, const void *__restrict src1, Tensor *dst, bool support_bias, Tensor *bias, int hid_len, int batch, int head, int src0_inf, int sec1_outf);
-
-void vec_dot_q4_K_q8_K(const int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy);
-void vec_dot_q6_K_q8_K(const int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy);
-void vec_dot_q4_0_q8_0(const int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy);
-void vec_dot_fp32(const int n, float *__restrict s, const float *__restrict vx, const float *__restrict vy);
-void vec_dot_fp16(const int n, float *__restrict s, const mllm_fp16_t *__restrict vx, const mllm_fp16_t *__restrict vy);
-void vec_dot_q8_0_q8_0(int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy, size_t bs = 0, size_t bx = 0, size_t by = 0);
-
-void vec_dot_q2_K_q8_K(int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy);
-void vec_dot_q3_K_q8_K(int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy);
-void vec_dot_iq2_xxs_q8_K(int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy);
-
-// for sparse linear
-void vec_value_dot_fp32(const int n, float *__restrict s, const float x, const float *__restrict vy, bool addition);
-// for per-tensor i8, currently not suitable for vecdot trait
-void vec_dot_i8_i8(const int n, float *__restrict s, const void *__restrict vx, const void *__restrict vy, float scale1 = 1, float scale2 = 1);
-
-#endif // MLLM_VECDOT_HPP

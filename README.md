@@ -359,7 +359,7 @@ You can convert vocabulary to mllm vocabulary as followed.
 
 ```bash
 cd tools/convertor
-python vocab.py --input_file=tokenizer.json --output_file=vocab.mllm --type=Unigram
+python vocab.py --input_file=tokenizer.json --output_file=vocab.mllm --type=BPE
 ```
 
 ### Quantize models

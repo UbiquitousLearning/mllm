@@ -28,7 +28,7 @@ macro(func_set_compile_opts_defs target)
 endmacro()
 
 macro(func_link_libs target)
-    target_link_libraries(${target} PUBLIC mllm_cpu fmt::fmt-header-only)
+    target_link_libraries(${target} PUBLIC mllm_cpu fmt)
     if (MLLM_OPENMP)
         if (ARM AND NOT (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING))
             # 非Mac的ARM，静态链接OpenMP
@@ -105,6 +105,8 @@ func_llm_add_executable(demo_llama3)
 func_llm_add_executable(demo_minicpm_moe_mbm)
 func_llm_add_executable(demo_qwen_sd)
 func_llm_add_executable(demo_minicpm_moe_mbp)
+func_llm_add_executable(demo_bailing_moe)
+func_llm_add_executable(demo_bailing_moe_mbp)
 func_llm_add_executable(test)
 
 func_vlm_add_executable(demo_llava)

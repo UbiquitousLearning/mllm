@@ -4,7 +4,7 @@
 
 #include "CPUQuantize.hpp"
 #include "Types.hpp"
-#include "backends/cpu/compute/QuantizeQ8.hpp"
+#include "backends/cpu/third_party/ggml/QuantizeQ8.hpp"
 
 #include <cassert>
 #include <cmath>

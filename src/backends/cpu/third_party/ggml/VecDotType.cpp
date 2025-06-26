@@ -31,7 +31,13 @@
 #include "VecDotType.hpp"
 #include "Types.hpp"
 #include "Quantize.hpp"
-#include "VecDot.hpp"
+#include "VecDotFP32.hpp"
+#include "VecDotFP16.hpp"
+#include "VecDotQ2.hpp"
+#include "VecDotQ3.hpp"
+#include "VecDotQ4.hpp"
+#include "VecDotQ6.hpp"
+#include "VecDotQ8.hpp"
 #include "GemmPack.hpp"
 
 void fp32_add_row_to(int n, const float *MLLM_RESTRICT src, float *MLLM_RESTRICT dst, float alpha) {
@@ -126,6 +132,7 @@ static inline void get_scale_min_k4(int j, const uint8_t *__restrict q, uint8_t 
 #endif
 
 void q4_k_add_row_to(int n, const block_q4_K *MLLM_RESTRICT src, float *MLLM_RESTRICT dst, float alpha) {
+#if QK_K == 256
     assert(n % QK_K == 0);
     assert(QK_K == 256); // TODO: It is wired here for now
     const int nb = n / QK_K;
@@ -158,6 +165,7 @@ void q4_k_add_row_to(int n, const block_q4_K *MLLM_RESTRICT src, float *MLLM_RES
             is += 2;
         }
     }
+#endif
 }
 
 void q6_k_add_row_to(int n, const block_q6_K *MLLM_RESTRICT src, float *MLLM_RESTRICT dst, float alpha) {
@@ -221,6 +229,23 @@ void q8_k_add_row_to(int n, const block_q8_K *MLLM_RESTRICT src, float *MLLM_RES
         }
     }
 }
+
+/***
+ * This is the type traits for different data types used in MLLM.
+ * It defines the size, block size, conversion functions, vector dot product functions,
+ * and row addition functions for each data type.
+ *
+ * The `type_traits` array is indexed by the `mllm_type` enum values.
+ * Each entry in the array corresponds to a specific data type and contains
+ * the necessary information to handle that type.  * The `to_float` and `from_float` functions are used to convert between
+ * the data type and float representation.
+ * The `vec_dot` function is used to compute the dot product of two vectors of the
+ * specified data type.
+ * The `add_row_to` function is used to add a row of the specified data type to a destination vector.
+ * The `vec_dot_type` field specifies the data type used for the dot product.
+ * The `size` field specifies the size of the data type in bytes.
+ * The `blck_size` field specifies the block size of the data type.
+ */
 
 type_traits_t type_traits[] = {
     /*[MLLM_TYPE_F32] = */ {
@@ -311,8 +336,8 @@ type_traits_t type_traits[] = {
         .vec_dot_type = MLLM_TYPE_Q8_0,
         // .nrows                    = 1,
         // .ncols                    = 4,
-        .gemv = (mllm_gemv_func)mllm_gemv_q4_0_4x4_q8_0,
-        .gemm = (mllm_gemm_func)mllm_gemm_q4_0_4x4_q8_0,
+        .gemv = (gemv_func)gemv_q4_0_4x4_q8_0,
+        .gemm = (gemm_func)gemm_q4_0_4x4_q8_0,
     },
     /*[MLLM_TYPE_Q4_0_4_8] = */ {
         .size = sizeof(block_q4_0),
@@ -325,8 +350,8 @@ type_traits_t type_traits[] = {
         .vec_dot_type = MLLM_TYPE_Q8_0,
         // .nrows                    = 1,
         // .ncols                    = 4,
-        .gemv = (mllm_gemv_func)mllm_gemv_q4_0_4x8_q8_0,
-        .gemm = (mllm_gemm_func)mllm_gemm_q4_0_4x8_q8_0,
+        .gemv = (gemv_func)gemv_q4_0_4x8_q8_0,
+        .gemm = (gemm_func)gemm_q4_0_4x8_q8_0,
     },
     /*[MLLM_TYPE_Q4_0_8_8] = */ {
         .size = sizeof(block_q4_0),
@@ -339,8 +364,8 @@ type_traits_t type_traits[] = {
         .vec_dot_type = MLLM_TYPE_Q8_0,
         // .nrows                    = 1,
         // .ncols                    = 8,
-        .gemv = (mllm_gemv_func)mllm_gemv_q4_0_8x8_q8_0,
-        .gemm = (mllm_gemm_func)mllm_gemm_q4_0_8x8_q8_0,
+        .gemv = (gemv_func)gemv_q4_0_8x8_q8_0,
+        .gemm = (gemm_func)gemm_q4_0_8x8_q8_0,
     },
     {},
     /*MLLM_TYPE_Q3_K = */ {
@@ -377,5 +402,16 @@ type_traits_t type_traits[] = {
     {},
     {},
     /*MLLM_TYPE_IQ2_S = */ {},
+    /*MLLM_TYPE_KLEIDIAI_Q4_0 = */ {},
+    /*MLLM_TYPE_Q8_0F = */ {},
+    /*MLLM_TYPE_Q2_0 = */ {
+        .size = sizeof(block_q2_0),
+        .blck_size = QK_K,
+        .to_float = (mllm_to_float_func)dequantize_row_q2_0,
+        .from_float = (mllm_from_float_func)quantize_row_q2_0,
+        .vec_dot = (mllm_vec_dot_func)vec_dot_q2_0_q8_0,
+        .vec_dot_type = MLLM_TYPE_Q8_0,
+        .add_row_to = NULL, //(mllm_vec_add_row_func)q2_k_add_row_to,
+    },
     // TODO: add support to more type
 };

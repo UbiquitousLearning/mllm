@@ -2,6 +2,7 @@
 #ifndef MLLM_TYPES_H
 #define MLLM_TYPES_H
 #include "OpDefined.hpp"
+#include "DataType.hpp"
 #include <iostream>
 #include <algorithm>
 #include <map>
@@ -24,6 +25,7 @@ typedef map<std::string, float> OpParam;
 
 #define LLAMAFILE_SGEMM
 inline int KVCache_TYPE = 16;
+inline int KVCacheSageDtypeBit = 8; // 8 or 16
 typedef enum {
     MLLM_CPU,
     MLLM_OPENCL,
@@ -72,7 +74,7 @@ enum DataType {
     MLLM_TYPE_Q4_0_4_8 = 20,
     MLLM_TYPE_Q4_0_8_8 = 21,
     MLLM_TYPE_Q8_0_4_4 = 22,
-
+    // 2-bit quantizations
     MLLM_TYPE_Q3_K = 23, //
     MLLM_TYPE_Q2_K = 24,
     MLLM_TYPE_Q1_K = 25,    //
@@ -81,8 +83,10 @@ enum DataType {
     MLLM_TYPE_IQ1_S = 28,   //
     MLLM_TYPE_IQ1_M = 29,   //
     MLLM_TYPE_IQ2_S = 30,
-    
+
     MLLM_TYPE_KLEIDIAI_Q4_0 = 31,
+    MLLM_TYPE_Q8_0F = 32, // quantized with float scale
+    MLLM_TYPE_Q2_0 = 33,  // 2-bits quantization
 
     MLLM_TYPE_COUNT,
 };
@@ -178,191 +182,6 @@ enum ExecutionType {
     AUTOREGRESSIVE = 1,
 };
 
-/*
- * This code is based on ggml(https://github.com/ggerganov/ggml),
- * please see https://github.com/ggerganov/ggml/blob/master/src/ggml.c
- * ggml is licensed under MIT Copyright (c) 2022 Georgi Gerganov:
- *
- * MIT License
- * Copyright (c) 2022 Georgi Gerganov
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
-
-#ifdef _MSC_VER
-#define MLLM_EXTENSION
-#else // _MSC_VER
-#define MLLM_EXTENSION __extension__
-#endif // _MSC_VER
-
-typedef uint32_t mllm_half32;
-
-#if defined(__ARM_NEON) && !defined(_MSC_VER)
-typedef __fp16 mllm_fp16_t;
-#else
-typedef uint16_t mllm_fp16_t;
-#endif
-
-// #define MLLM_QKK_64
-#ifdef MLLM_QKK_64
-#define QK_K 64
-#define K_SCALE_SIZE 4
-#else
-#define QK_K 256
-#define K_SCALE_SIZE 12
-#endif
-#define QK4_0 32
-
-#pragma pack(1)
-typedef struct {
-    mllm_fp16_t d;         // delta
-    uint8_t qs[QK4_0 / 2]; // nibbles / quants
-} block_q4_0;
-#pragma pack()
-
-//  4-bit quantization
-//  16 blocks of 32 elements each
-//  weight is represented as x = a * q + b
-//  Effectively 4.5 bits per weight
-#ifdef MLLM_QKK_64
-#pragma pack(1)
-typedef struct {
-    mllm_fp16_t d[2];     // super-block scales/mins
-    uint8_t scales[2];    // 4-bit block scales/mins
-    uint8_t qs[QK_K / 2]; // 4--bit quants
-} block_q4_K;
-#pragma pack()
-static_assert(sizeof(block_q4_K) == 2 * sizeof(uint16_t) + QK_K / 2 + 2, "wrong q4_K block size/padding");
-#else
-#pragma pack(1)
-typedef struct {
-    mllm_fp16_t d;                // super-block scale for quantized scales
-    mllm_fp16_t dmin;             // super-block scale for quantized mins
-    uint8_t scales[K_SCALE_SIZE]; // scales and mins, quantized with 6 bits
-    uint8_t qs[QK_K / 2];         // 4--bit quants
-} block_q4_K;
-#pragma pack()
-static_assert(sizeof(block_q4_K) == 2 * sizeof(mllm_fp16_t) + K_SCALE_SIZE + QK_K / 2, "wrong q4_K block size/padding");
-#endif
-
-#pragma pack(1)
-typedef struct {
-    uint8_t ql[QK_K / 2];     // quants, lower 4 bits
-    uint8_t qh[QK_K / 4];     // quants, upper 2 bits
-    int8_t scales[QK_K / 16]; // scales, quantized with 8 bits
-    mllm_fp16_t d;            // super-block scale
-} block_q6_K;
-#pragma pack()
-static_assert(sizeof(block_q6_K) == sizeof(mllm_fp16_t) + QK_K / 16 + 3 * QK_K / 4, "wrong q6_K block size/padding");
-
-#define QK8_0 32
-#pragma pack(1)
-typedef struct {
-    mllm_fp16_t d;    // delta
-    int8_t qs[QK8_0]; // quants
-} block_q8_0;
-#pragma pack()
-#pragma pack(1)
-typedef struct {
-    int8_t qs[QK8_0];  // quants
-} block_q8_per_tensor; // used in vecdot_i8_i8, TODO: remove
-#pragma pack()
-
-// This is only used for intermediate quantization and dot products
-#pragma pack(1)
-typedef struct {
-    float d;                  // delta
-    int8_t qs[QK_K];          // quants
-    int16_t bsums[QK_K / 16]; // sum of quants in groups of 16
-} block_q8_K;
-#pragma pack()
-static_assert(sizeof(block_q8_K) == sizeof(float) + QK_K + QK_K / 16 * sizeof(int16_t), "wrong q8_K block size/padding");
-
-#pragma pack(1)
-typedef struct {
-    mllm_fp16_t d[4];      // deltas for 4 q4_0 blocks
-    uint8_t qs[QK4_0 * 2]; // nibbles / quants for 4 q4_0 blocks
-} block_q4_0x4;
-#pragma pack()
-static_assert(sizeof(block_q4_0x4) == 4 * sizeof(mllm_fp16_t) + QK4_0 * 2, "wrong q4_0x4 block size/padding");
-
-#pragma pack(1)
-typedef struct {
-    mllm_fp16_t d[8];      // deltas for 8 q4_0 blocks
-    uint8_t qs[QK4_0 * 4]; // nibbles / quants for 8 q4_0 blocks
-} block_q4_0x8;
-#pragma pack()
-static_assert(sizeof(block_q4_0x8) == 8 * sizeof(mllm_fp16_t) + QK4_0 * 4, "wrong q4_0x8 block size/padding");
-
-#pragma pack(1)
-typedef struct {
-    mllm_fp16_t d[4];     // deltas for 4 q8_0 blocks
-    int8_t qs[QK8_0 * 4]; // quants for 4 q8_0 blocks
-} block_q8_0x4;
-#pragma pack()
-static_assert(sizeof(block_q8_0x4) == 4 * sizeof(mllm_fp16_t) + QK8_0 * 4, "wrong q8_0x4 block size/padding");
-
-#pragma pack(1)
-typedef struct {
-    mllm_fp16_t d[8];     // deltas for 8 q8_0 blocks
-    int8_t qs[QK8_0 * 8]; // quants for 8 q8_0 blocks
-} block_q8_0x8;
-#pragma pack()
-static_assert(sizeof(block_q8_0x8) == 8 * sizeof(mllm_fp16_t) + QK8_0 * 8, "wrong q8_0x8 block size/padding");
-
-#pragma pack(1)
-typedef struct {
-    uint8_t scales[QK_K / 16]; // scales and mins, quantized with 4 bits
-    uint8_t qs[QK_K / 4];      // quants
-    // MLLM_EXTENSION union {
-    //     struct {
-    //         mllm_fp16_t d;    // super-block scale for quantized scales
-    //         mllm_fp16_t dmin; // super-block scale for quantized mins
-    //     } MLLM_COMMON_AGGR_S;
-    //     mllm_half32 dm;
-    // } MLLM_COMMON_AGGR_U;
-    mllm_fp16_t d;    // super-block scale for quantized scales
-    mllm_fp16_t dmin; // super-block scale for quantized mins
-} block_q2_K;
-#pragma pack()
-static_assert(sizeof(block_q2_K) == 2 * sizeof(mllm_fp16_t) + QK_K / 16 + QK_K / 4, "wrong q2_K block size/padding");
-
-#pragma pack(1)
-typedef struct {
-    uint8_t hmask[QK_K / 8]; // quants - high bit
-    uint8_t qs[QK_K / 4];    // quants - low 2 bits
-    uint8_t scales[12];      // scales, quantized with 6 bits
-    mllm_fp16_t d;           // super-block scale
-} block_q3_K;
-#pragma pack()
-static_assert(sizeof(block_q3_K) == sizeof(mllm_fp16_t) + QK_K / 4 + QK_K / 8 + 12, "wrong q3_K block size/padding");
-
-#pragma pack(1)
-typedef struct {
-    mllm_fp16_t d;
-    uint16_t qs[QK_K / 8];
-} block_iq2_xxs;
-#pragma pack()
-static_assert(sizeof(block_iq2_xxs) == sizeof(mllm_fp16_t) + QK_K / 8 * sizeof(uint16_t), "wrong iq2_xxs block size/padding");
-
-//
-
 static string DataTypeName(DataType dataType) {
     switch (dataType) {
     case MLLM_TYPE_F32:
@@ -417,6 +236,10 @@ static string DataTypeName(DataType dataType) {
         return "IQ2_S";
     case MLLM_TYPE_KLEIDIAI_Q4_0:
         return "KLEIDIAI_Q4_0";
+    case MLLM_TYPE_Q8_0F:
+        return "Q8_0F";
+    case MLLM_TYPE_Q2_0:
+        return "Q2_0";
     case MLLM_TYPE_COUNT:
         return "COUNT";
     default:
@@ -459,7 +282,6 @@ static size_t DataTypeSize(DataType dtype, uint64_t count = 1) {
         return (sizeof(block_q4_0x8)) * count / (QK4_0 * 8);
     case MLLM_TYPE_Q8_0_4_4:
         return (sizeof(block_q8_0x4)) * count / (QK8_0 * 4);
-
     case MLLM_TYPE_Q3_K:
         return (sizeof(block_q3_K)) * count / (QK_K);
     case MLLM_TYPE_Q2_K:
@@ -477,8 +299,11 @@ static size_t DataTypeSize(DataType dtype, uint64_t count = 1) {
     case MLLM_TYPE_IQ2_S:
         return -1;
     case MLLM_TYPE_KLEIDIAI_Q4_0:
-        // std::cout << "KLEIDIAI_Q4_0 is not supported yet" << std::endl;
-        return sizeof(uint8_t) * count ;
+        return sizeof(uint8_t) * count;
+    case MLLM_TYPE_Q8_0F:
+        return (sizeof(block_q8_0f)) * count / (QK8_0F);
+    case MLLM_TYPE_Q2_0:
+        return (sizeof(block_q2_0)) * count / (QK2_0);
     case MLLM_TYPE_COUNT:
         return 0;
     default:

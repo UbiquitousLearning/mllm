@@ -19,17 +19,17 @@ private:
     bool accumulate_;
 
 public:
-    CPUIndexPutFunction(Backend *bn, string name, int threadCount, bool accumulate)
-        : Op(bn, name), thread_count(threadCount), accumulate_(accumulate) {}
+    CPUIndexPutFunction(Backend *bn, string name, int threadCount, bool accumulate) :
+        Op(bn, name), thread_count(threadCount), accumulate_(accumulate) {
+    }
 
-   
     ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
         if (!accumulate_) {
             if (inputs[0]->masterTensor() == nullptr) {
                 inputs[0]->free();
             }
             outputs[0]->alloc();
-            inputs[0]->shallowCopyFrom(outputs[0].get(), false);
+            inputs[0]->shallowCopyFrom(outputs[0], false);
         }
         return MLLM_NO_ERROR;
     }
@@ -42,7 +42,7 @@ public:
                     inputs[0]->free();
                 }
                 outputs[0]->alloc();
-                inputs[0]->shallowCopyFrom(outputs[0].get(), false);
+                inputs[0]->shallowCopyFrom(outputs[0], false);
             }
             return MLLM_NO_ERROR;
         }
@@ -54,7 +54,7 @@ public:
         assert(dest_input->head() == 1);
         assert(src_input->head() == 1);
         assert(dest_input->dimension() == src_input->dimension());
-        
+
         if (!accumulate_) {
             outputs[0]->reshape(dest_input->batch(), dest_input->head(), dest_input->sequence(), dest_input->dimension());
         } else {
@@ -65,7 +65,7 @@ public:
             outputs[0]->reshape(dest_input->batch(), dest_input->head(), seq, dest_input->dimension());
             outputs[0]->alloc();
         }
-        
+
         outputs[0]->setDtype(inputs[0]->dtype());
         return MLLM_NO_ERROR;
     }
@@ -74,7 +74,7 @@ public:
         if (inputs.size() > 1 && inputs[1]->batch() == 0) {
             return MLLM_NO_ERROR;
         }
-        
+
         assert(inputs.size() == 3);
         auto dest_input = inputs[0];
         auto src_input = inputs[1];

@@ -10,12 +10,12 @@
 namespace mllm {
 QNNLinearINT8::QNNLinearINT8(Backend *bn, string opName, int in_features, int out_features, bool bias) :
     QNNCommonOp(bn, opName), in_features_(in_features), out_features_(out_features), support_bias_(bias) {
-    weight_.setBackend(Backend::global_backends[MLLM_CPU]);
-    bias_.setBackend(Backend::global_backends[MLLM_CPU]);
+    weight_.setBackend(Backend::global_backends[MLLM_CPU].get());
+    bias_.setBackend(Backend::global_backends[MLLM_CPU].get());
 
-    weightScale_.setBackend(Backend::global_backends[MLLM_CPU]);
-    biasScale_.setBackend(Backend::global_backends[MLLM_CPU]);
-    outputScale_.setBackend(Backend::global_backends[MLLM_CPU]);
+    weightScale_.setBackend(Backend::global_backends[MLLM_CPU].get());
+    biasScale_.setBackend(Backend::global_backends[MLLM_CPU].get());
+    outputScale_.setBackend(Backend::global_backends[MLLM_CPU].get());
 }
 
 ErrorCode QNNLinearINT8::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -203,7 +203,7 @@ ErrorCode QNNLinearINT8::setUpW8A8(vector<shared_ptr<Tensor>> &inputs, vector<sh
                                                       .dimensions = dimensionsBias,
                                                       .memType = QNN_TENSORMEMTYPE_RAW,
                                                       .clientBuf = {.data = biasBuffer,
-                                                                    .dataSize = (uint32_t)(bias_.count() * sizeof(int8_t)) }}});
+                                                                    .dataSize = (uint32_t)(bias_.count() * sizeof(int8_t))}}});
     // free bias host memory
     bias_.free();
 

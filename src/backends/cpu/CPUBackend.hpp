@@ -4,7 +4,7 @@
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "Types.hpp"
-#include "compute/Quantize.hpp"
+// #include "backends/cpu/third_party/ggml/Quantize.hpp"
 
 namespace mllm {
 class Module;
@@ -12,10 +12,16 @@ class Layer;
 class CPUBackend final : public Backend {
 public:
     explicit CPUBackend(shared_ptr<MemoryManager> &mm);
-    ~CPUBackend() override = default;
+    ~CPUBackend() {
+        for (auto &creator_pair : map_creator_) {
+            delete creator_pair.second; // 手动删除用 new 创建的 Creator 对象
+        }
+        map_creator_.clear();
+    }
 
     class Creator {
     public:
+        virtual ~Creator() = default;
         virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const = 0;
     };
     bool addCreator(OpType t, Creator *c) {
@@ -32,12 +38,6 @@ public:
     void registerOps() override;
     void registerFuncs() override;
 
-    // std::vector<Tensor> runFunc(
-    //     std::vector<std::string> out_names,
-    //     TensorFuncType type,
-    //     std::vector<float> float_args,
-    //     std::vector<Tensor> input_tensors,
-    //     bool in_place) override{};
     std::vector<Tensor> runLayer(Layer *layer, std::vector<Tensor> inputs, int N) override;
 
     std::vector<Tensor> runOp(Op *op, std::vector<Tensor> input, std::vector<std::string> out_names, bool in_place) override;

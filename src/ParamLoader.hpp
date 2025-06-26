@@ -51,6 +51,7 @@ static std::string readString(mllm_file *fp_) {
  */
 class AbstructLoader {
 public:
+    virtual ~AbstructLoader() = default;
     virtual bool load(mllm::Tensor *tensor) = 0;
     virtual bool load(std::shared_ptr<mllm::Tensor> tensor) = 0;
 
@@ -62,6 +63,11 @@ public:
         return MLLM_TYPE_COUNT;
     }
     // virtual bool partialLoad(mllm::Tensor *tensor, std::set<int> validRow, int rowNum, int colNum) = 0;
+};
+
+struct ParamMetadata {
+    uint64_t offset; // 参数在文件中的起始偏移
+    uint64_t size;   // 参数占用的字节数
 };
 
 /**
@@ -95,6 +101,10 @@ public:
     unsigned int getParamSize() const {
         return offsets_.size();
     }
+
+    ParamMetadata getParamMetadata(const std::string &name);
+    FILE *getInputStream();
+    std::string getParamPath() const;
 
 protected:
     std::mutex mtx;

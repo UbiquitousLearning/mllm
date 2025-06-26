@@ -10,6 +10,7 @@
 #include "Types.hpp"
 #include <memory>
 #include <cmath> // For std::sin, std::cos
+#include "backends/cpu/third_party/ggml/QuantizeFP16.hpp"
 
 namespace mllm {
 class Tensor;
@@ -138,9 +139,10 @@ private:
     }
 
 public:
-    CPUVisionRoPEFuncFunction(Backend *bn, string name, int threadCount)
-        : Op(bn, name), thread_count(threadCount) {}
-    
+    CPUVisionRoPEFuncFunction(Backend *bn, string name, int threadCount) :
+        Op(bn, name), thread_count(threadCount) {
+    }
+
     ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
         outputs[0]->setDtype(inputs[0]->dtype());

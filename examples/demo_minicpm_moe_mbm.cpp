@@ -8,6 +8,7 @@
 using namespace mllm;
 
 int main(int argc, char **argv) {
+    Module::alloc_mmap = false;
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/minicpm_vocab.mllm");
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/minicpm-moe-8x2b-q4_k.mllm");

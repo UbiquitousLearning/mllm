@@ -37,42 +37,50 @@ private:
         input.reshape(b, h, s, d);
         input.transed() = true;
         input.undiffusion() = false;
-        // if no TENSOR_STATIC_SHAPED
-        if (input.masterTensor() != nullptr) {
-            auto b_m = input.masterTensor()->batch();
-            auto h_m = input.masterTensor()->head();
-            auto d_m = input.masterTensor()->dimension();
-            auto s_m = input.masterTensor()->sequence();
-            input.masterTensor()->chls() = input.chls();
-            input.masterTensor()->changeCtype();
-            input.masterTensor()->reshape(b_m, h_m, s_m, d_m);
-            for (auto &child : input.masterTensor()->childTensors()) {
-                auto b_c = child->batch();
-                auto h_c = child->head();
-                auto d_c = child->dimension();
-                auto s_c = child->sequence();
-                child->chls() = input.chls();
-                child->changeCtype();
-                child->reshape(b_c, h_c, s_c, d_c);
+
+        // [FIX] Correctly handle the master tensor and its children
+        if (auto master = input.masterTensor()) { // master is now a shared_ptr
+            master->chls() = input.chls();
+            master->changeCtype();
+            master->reshape(master->batch(), master->head(), master->sequence(), master->dimension());
+
+            // Loop through the master's children
+            for (auto &child_wp : master->childTensors()) {
+                // Lock the weak_ptr to get a shared_ptr
+                if (auto child_sp = child_wp.lock()) {
+                    // Now, use the shared_ptr to access members
+                    auto b_c = child_sp->batch();
+                    auto h_c = child_sp->head();
+                    auto d_c = child_sp->dimension();
+                    auto s_c = child_sp->sequence();
+                    child_sp->chls() = input.chls();
+                    child_sp->changeCtype();
+                    child_sp->reshape(b_c, h_c, s_c, d_c);
+                }
             }
         } else {
-            for (auto &child : input.childTensors()) {
-                auto b_c = child->batch();
-                auto h_c = child->head();
-                auto d_c = child->dimension();
-                auto s_c = child->sequence();
-                child->chls() = input.chls();
-                child->changeCtype();
-                child->reshape(b_c, h_c, s_c, d_c);
+            // [FIX] Correctly handle this tensor's own children
+            for (auto &child_wp : input.childTensors()) {
+                // Lock the weak_ptr to get a shared_ptr
+                if (auto child_sp = child_wp.lock()) {
+                    // Now, use the shared_ptr to access members
+                    auto b_c = child_sp->batch();
+                    auto h_c = child_sp->head();
+                    auto d_c = child_sp->dimension();
+                    auto s_c = child_sp->sequence();
+                    child_sp->chls() = input.chls();
+                    child_sp->changeCtype();
+                    child_sp->reshape(b_c, h_c, s_c, d_c);
+                }
             }
         }
     }
 
 public:
-    CPUmmFunction(Backend *bn, string name, int threadCount)
-        : Op(bn, name), thread_count(threadCount) {}
-    
-   
+    CPUmmFunction(Backend *bn, string name, int threadCount) :
+        Op(bn, name), thread_count(threadCount) {
+    }
+
     ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
         if (inputs[1]->chls()[SEQUENCE] != 3) {
             tranTensorChl(*inputs[1]);
@@ -96,7 +104,7 @@ public:
         // outputs[0]->alloc();
         return MLLM_NO_ERROR;
     }
-    
+
     ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
         bool isSame = std::equal(inputs[0]->chls().begin(), inputs[0]->chls().end(), inputs[1]->chls().begin());
         assert(inputs[0]->dtype() == MLLM_TYPE_F32);

@@ -25,12 +25,12 @@ static std::unordered_map<string, Op *> kv_cache_map;
 class TensorFunction {
 public:
     virtual void reshape(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) = 0;
-    virtual void setUp(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args){};
+    virtual void setUp(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) {};
     virtual void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) = 0;
 };
 class Backend {
 public:
-    Backend(){};
+    Backend() {};
     Backend(shared_ptr<MemoryManager> &mm) :
         mem_manager_(mm) {
     }
@@ -54,7 +54,7 @@ public:
         mem_manager_->free(ptr);
     }
 
-    virtual void alloc_device(DeviceMemory &mem, DataType dtype){
+    virtual void alloc_device(DeviceMemory &mem, DataType dtype) {
         assert(type_ != MLLM_CPU && "alloc_device should not be called on CPU backend");
     }
     virtual void free_device(DeviceMemory &mem) {
@@ -94,10 +94,10 @@ public:
     virtual std::vector<Tensor> runOp(Op *op, std::vector<Tensor> input, std::vector<std::string> out_names, bool in_place) = 0;
     virtual std::vector<Tensor> runForward(Module *module, std::vector<Tensor> inputs, std::vector<std::any> args) = 0;
 
-    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
-    virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
-    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = ""){};
-    virtual void onExecuteEnd(std::vector<std::shared_ptr<Tensor>> &outputs, const string &graph_name = ""){};
+    virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") {};
+    virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") {};
+    virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") {};
+    virtual void onExecuteEnd(std::vector<std::shared_ptr<Tensor>> &outputs, const string &graph_name = "") {};
 
     /**
      * \brief Registers all the operations supported by the backend.
@@ -109,7 +109,7 @@ public:
     BackendType type() const {
         return type_;
     }
-    static map<BackendType, Backend *> global_backends;
+    static map<BackendType, std::unique_ptr<Backend>> global_backends;
 
 protected:
     BackendType type_;

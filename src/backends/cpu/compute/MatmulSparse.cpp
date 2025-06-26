@@ -4,9 +4,9 @@
 
 #include "MatmulSparse.hpp"
 #include "Types.hpp"
-#include "VecDotType.hpp"
+#include "backends/cpu/third_party/ggml/VecDotType.hpp"
 // #include <pthread.h>
-#include "GemmLlamafile.hpp"
+#include "backends/cpu/third_party/ggml/GemmLlamafile.hpp"
 #include <cstdlib>
 
 #ifdef __ARM_NEON

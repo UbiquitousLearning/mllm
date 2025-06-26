@@ -307,9 +307,9 @@ public:
         tree_ancestors.setName("tree_ancestors");
         tree_ancestors.setDtype(MLLM_TYPE_I32);
         tp.is_decoding = false;
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setUsingDraft(false); // prefill时不使用
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setLastDraftLength(0);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setLastVerifiedPositionIds({});
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setUsingDraft(false); // prefill时不使用
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setLastDraftLength(0);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setLastVerifiedPositionIds({});
 
         unsigned int cur_seq_length = input_ids.sequence();
         std::vector<unsigned int> predicted_token_ids;
@@ -354,10 +354,10 @@ public:
             post_processing_for_SD(new_token_ids, tree_anc, draft_len + 1, input_ids, tree_ancestors, {});
 
             if (step == 0) {
-                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setUsingDraft(true);
+                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setUsingDraft(true);
             }
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setLastDraftLength(tp.last_draft_length);
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setLastVerifiedPositionIds(tp.last_accept_position_ids);
+            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setLastDraftLength(tp.last_draft_length);
+            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setLastVerifiedPositionIds(tp.last_accept_position_ids);
         }
         tp.reset();
         sa.reset();

@@ -39,7 +39,7 @@
 using namespace mllm;
 
 Tensor tokens2Input(int tokens_size, string name = "input", BackendType type = MLLM_CPU) {
-    Tensor tensor1(1, 1, tokens_size, 1, Backend::global_backends[type], true);
+    Tensor tensor1(1, 1, tokens_size, 1, Backend::global_backends[type].get(), true);
     tensor1.setName(name);
     Tensor::tensor_status = TENSOR_STATIC_INIT;
     tensor1.setTtype(INPUT_TENSOR);

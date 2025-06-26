@@ -24,7 +24,7 @@ public:
         attention = MultiHeadAttention(hidden_dim, head_size, kv_head_size,
                                        hidden_dim / head_size, SPLIT_NONE, PostQkv_NONE, false,
                                        RoPE_type, rope_theta, max_position_embeddings,
-                                       cache_limit, true, false, false, 
+                                       cache_limit, true, false, false,
                                        attn_implementation, names, base_name + names._attn_base_name);
         mlp = LLaMAMLP(hidden_dim, ffn_hidden, names, base_name + names._ffn_base_name);
         norm1 = RMSNorm(hidden_dim, 1e-6, base_name + names._attn_norm_name);
@@ -38,6 +38,9 @@ public:
         x = mlp({x})[0];
         x = x + tmp;
         return {x};
+    }
+    MultiHeadAttention &get_attention() {
+        return attention;
     }
 };
 
@@ -69,6 +72,14 @@ public:
         x = norm(x);
         x = lm_head(x);
         return {x};
+    }
+    void clear_kvcache() override {
+        for (auto &block : blocks) {
+            auto kvcache = block.get_attention().get_cache();
+            for (auto &cache : kvcache) { cache->clearCache(); }
+            auto ropes = block.get_attention().get_rope();
+            for (auto &rope : ropes) { rope->clearCache(); }
+        }
     }
 };
 

@@ -48,7 +48,7 @@
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
 
-#include "GemmLlamafile.hpp"
+#include "backends/cpu/third_party/ggml/GemmLlamafile.hpp"
 #include "Quantize.hpp"
 
 #ifdef _MSC_VER

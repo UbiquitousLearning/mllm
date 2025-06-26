@@ -63,8 +63,8 @@ public:
                        base_name + "q_rope");
         k_rope = IRoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings,
                        base_name + "k_rope");
-        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, (attn_impl == "flash_attention_2"), base_name + "k_cache");
-        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, (attn_impl == "flash_attention_2"), base_name + "v_cache");
+        k_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, attn_impl, base_name + "k_cache");
+        v_cache = KVCache(num_key_value_heads, head_dim, num_key_value_groups, config.cache_limit, attn_impl, base_name + "v_cache");
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
 

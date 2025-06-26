@@ -1,7 +1,7 @@
 
 #ifndef ACTFUNC_HPP
 #define ACTFUNC_HPP
-#include "VecDot.hpp"
+#include "backends/cpu/third_party/ggml/ComputeUtils.hpp"
 namespace mllm {
 
 #if defined(__ARM_NEON) && defined(__aarch64__)

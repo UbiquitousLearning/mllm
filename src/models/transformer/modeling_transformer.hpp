@@ -19,7 +19,7 @@ struct MultiHeadAttentionConfig {
     int head_dim;
     AttnQKVSplitType do_qkv_proj = SPLIT_NONE; // Options: SPLIT_NONE, SPLIT_HD, SPLIT_D_HD
     AttnPostQkvNormType post_qkv_norm = PostQkv_NONE;
-    bool bias_kv_cat = false; // Only used when do_qkv_proj > 0
+    bool bias_kv_cat = false;            // Only used when do_qkv_proj > 0
     RoPEType RoPE_type = RoPEType::NONE; // Options: NONE, ALIBI, ROPE, PERSIMMONROPE
     float rope_theta;
     int max_position_embeddings;
@@ -51,18 +51,18 @@ class MultiHeadAttention final : public Module {
     Chl split_chl_{};
     bool causal_mask = true;
     string attn_implementation_ = "flash_attention_2"; // Options: "flash_attention_2", "eager"
-    bool head_first_attn = false; // 是否是head-first的注意力排布实现
+    bool head_first_attn = false;                      // 是否是head-first的注意力排布实现
 
 public:
     MultiHeadAttention() = default;
     MultiHeadAttention(MultiHeadAttentionConfig config,
                        const TransformerNameConfig &names, const string &base_name) {
-        MultiHeadAttention(config.hidden_dim, config.num_heads, 
-                               config.num_key_value_heads, config.head_dim,
-                               config.do_qkv_proj, config.post_qkv_norm, config.bias_kv_cat,
-                               config.RoPE_type, config.rope_theta, config.max_position_embeddings,
-                               config.cache_limit, config.is_causal, config.qkv_bias, config.o_bias,
-                               config.attn_implementation, names, base_name);
+        MultiHeadAttention(config.hidden_dim, config.num_heads,
+                           config.num_key_value_heads, config.head_dim,
+                           config.do_qkv_proj, config.post_qkv_norm, config.bias_kv_cat,
+                           config.RoPE_type, config.rope_theta, config.max_position_embeddings,
+                           config.cache_limit, config.is_causal, config.qkv_bias, config.o_bias,
+                           config.attn_implementation, names, base_name);
     }
     MultiHeadAttention(int hidden_dim, int num_heads, int num_key_value_heads, int head_dim,
                        AttnQKVSplitType do_qkv_proj, AttnPostQkvNormType post_qkv_norm, bool bias_kv_cat,
@@ -76,8 +76,12 @@ public:
         causal_mask = is_causal;
         attn_implementation_ = attn_implementation;
         if (do_qkv_proj > 0) {
-            qkv_proj = Linear(hidden_dim, num_heads * head_dim * 3, qkv_bias, base_name + names._qkv_proj_name);
             split_chl_ = (Chl)do_qkv_proj;
+            if (do_qkv_proj == SPLIT_HD) {
+                qkv_proj = Linear(hidden_dim, (num_heads_ + num_key_value_heads_ + num_key_value_heads_) * head_dim, qkv_bias, base_name + names._qkv_proj_name);
+            } else {
+                qkv_proj = Linear(hidden_dim, num_heads * head_dim * 3, qkv_bias, base_name + names._qkv_proj_name);
+            }
         } else {
             q_proj = Linear(hidden_dim, num_heads * head_dim, qkv_bias, base_name + names._q_proj_name);
             k_proj = Linear(hidden_dim, num_key_value_heads * head_dim, qkv_bias, base_name + names._k_proj_name);
@@ -86,7 +90,7 @@ public:
         if (post_qkv_norm == PostQkv_LayerNorm) {
             q_norm = LayerNorm(head_dim, true, 1e-6, base_name + names._q_norm_name);
             k_norm = LayerNorm(head_dim, true, 1e-6, base_name + names._k_norm_name);
-        }else if (post_qkv_norm == PostQkv_RMSNorm) {
+        } else if (post_qkv_norm == PostQkv_RMSNorm) {
             q_norm = RMSNorm(head_dim, 1e-6, base_name + names._q_norm_name);
             k_norm = RMSNorm(head_dim, 1e-6, base_name + names._k_norm_name);
         }
@@ -97,10 +101,10 @@ public:
         if (cache_limit > 0) {
             k_cache = KVCache(num_key_value_heads, head_dim,
                               num_heads / num_key_value_heads, cache_limit,
-                              (attn_implementation_ == "flash_attention_2"), base_name + "k_cache");
+                              attn_implementation_, base_name + "k_cache");
             v_cache = KVCache(num_key_value_heads, head_dim,
                               num_heads / num_key_value_heads, cache_limit,
-                              (attn_implementation_ == "flash_attention_2"), base_name + "v_cache");
+                              attn_implementation_, base_name + "v_cache");
         }
         softmax = Softmax(DIMENSION, is_causal, base_name + "softmax");
         o_proj = Linear(num_heads * head_dim, hidden_dim, o_bias, base_name + names._o_proj_name);
@@ -113,10 +117,23 @@ public:
         Tensor q, k, v;
         if (qkv_proj.ready()) {
             auto qkv = qkv_proj(inputs[0]);
-            auto qkv_sp = qkv.split({head_dim_, head_dim_, head_dim_}, split_chl_, num_heads_);
-            q = qkv_sp[0];
-            k = qkv_sp[1];
-            v = qkv_sp[2];
+            if (split_chl_ == HD) {
+                auto qkv_sp = qkv.split({head_dim_ * num_heads_,
+                                         head_dim_ * num_key_value_heads_,
+                                         head_dim_ * num_key_value_heads_},
+                                        DIMENSION);
+                q = qkv_sp[0];
+                k = qkv_sp[1];
+                v = qkv_sp[2];
+                q = q.view(-1, num_heads_, -1, head_dim_);
+                k = k.view(-1, num_key_value_heads_, -1, head_dim_);
+                v = v.view(-1, num_key_value_heads_, -1, head_dim_);
+            } else {
+                auto qkv_sp = qkv.split({head_dim_, head_dim_, head_dim_}, split_chl_, num_heads_);
+                q = qkv_sp[0];
+                k = qkv_sp[1];
+                v = qkv_sp[2];
+            }
         } else {
             q = q_proj(inputs[0]);
             k = k_proj(inputs[1]);
@@ -137,7 +154,7 @@ public:
             q = q_rope(q);
             k = k_rope(k);
         }
-        if(head_first_attn){
+        if (head_first_attn) {
             q = q.transpose(HEAD, SEQUENCE);
             k = k.transpose(HEAD, SEQUENCE);
             v = v.transpose(HEAD, SEQUENCE);
@@ -149,6 +166,8 @@ public:
         Tensor o;
         if (attn_implementation_ == "flash_attention_2") {
             o = Tensor::flash_attention2_forward(q, k, v, causal_mask);
+        } else if (attn_implementation_ == "sage_attention") {
+            o = Tensor::sage_attention_forward(q, k, v, causal_mask);
         } else { // eager implementation
             k = k.transpose(SEQUENCE, DIMENSION);
             auto qk = Tensor::mm(q, k);
@@ -160,7 +179,7 @@ public:
             }
             o = Tensor::mm(qk, v);
         }
-        if(head_first_attn){
+        if (head_first_attn) {
             o = o.transpose(HEAD, SEQUENCE);
         }
         o = o.view(-1, 1, -1, head_dim_ * num_heads_);

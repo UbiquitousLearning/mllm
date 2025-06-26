@@ -54,9 +54,9 @@ int main(int argc, char **argv) {
         return true;
     });
     Module::isFirstChunk = false;
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setCurSequenceLength(0);
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setExecutionType(PROMPT);
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
     // turn on the multi-chunk prefilling
     Module::isMultiChunkPrefilling = true;
     // warmup END
@@ -81,8 +81,8 @@ int main(int argc, char **argv) {
         std::cout << "[A] " << std::flush;
 
         // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setTotalSequenceLength(real_seq_length);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setChunkSize(chunk_size);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setTotalSequenceLength(real_seq_length);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setChunkSize(chunk_size);
 
         LlmTextGeneratorOpts opt{
             .max_new_tokens = 1,
@@ -96,16 +96,16 @@ int main(int argc, char **argv) {
         bool isSwitched = false;
         vector<Tensor> chunked_tensors(chunk_num);
         for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
-            chunked_tensors[chunk_id].setBackend(Backend::global_backends[MLLM_CPU]);
+            chunked_tensors[chunk_id].setBackend(Backend::global_backends[MLLM_CPU].get());
             chunked_tensors[chunk_id].setTtype(INPUT_TENSOR);
             chunked_tensors[chunk_id].reshape(1, 1, chunk_size, 1);
             chunked_tensors[chunk_id].setName("input-chunk-" + to_string(chunk_id));
-            chunked_tensors[chunk_id].shallowCopyFrom(&input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
+            chunked_tensors[chunk_id].shallowCopyFrom(input_tensor, false, {0, 0, chunk_id * chunk_size, 0});
 
             model.generate(chunked_tensors[chunk_id], opt, [&](unsigned int out_token) -> bool {
-                if (!isSwitched && chunk_id == 0 && static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->isStageSwitching()) {
+                if (!isSwitched && chunk_id == 0 && static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->isStageSwitching()) {
                     // turn off switching at the first chunk of following inputs
-                    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+                    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
                     isSwitched = true;
                 }
                 auto out_string = tokenizer.detokenize({out_token});
@@ -119,9 +119,9 @@ int main(int argc, char **argv) {
             Module::isFirstChunk = false;
         }
 
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(real_seq_length);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setCurSequenceLength(real_seq_length);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setExecutionType(AUTOREGRESSIVE);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
 
         exit(0);
 
@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
         decoding_model.generate(chunked_tensors.back(), decoding_opt, [&](unsigned int out_token) -> bool {
             // call only once of switchDecodeTag
             if (!isSwitched) {
-                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
                 isSwitched = true;
             }
             auto out_string = tokenizer.detokenize({out_token});
@@ -151,9 +151,9 @@ int main(int argc, char **argv) {
         });
 
         // turn on switching, set sequence length and execution type
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setCurSequenceLength(0);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->setExecutionType(PROMPT);
+        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU].get())->toggleSwitching();
         std::cout << "\n";
     }
 }

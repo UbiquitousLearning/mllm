@@ -4,6 +4,8 @@
 #include <cassert>
 #include <cstdint>
 #include <iostream>
+#include "backends/cpu/third_party/ggml/QuantizeQ8.hpp"
+#include "backends/cpu/third_party/ggml/VecDotQ8.hpp"
 
 namespace mllm {
 

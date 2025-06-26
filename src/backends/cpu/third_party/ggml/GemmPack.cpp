@@ -7,6 +7,7 @@
 #include <stdio.h>  // for assert
 #include <stdlib.h> // for qsort
 #include <string.h>
+#include "ComputeUtils.hpp"
 
 int mllm_cpu_has_sve(void) {
 #if defined(__ARM_FEATURE_SVE)
@@ -363,11 +364,11 @@ size_t quantize_q4_0_8x8(const float *__restrict src, void *__restrict dst, int6
     return 0;
 }
 
-void mllm_gemv_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
-                             const void *__restrict vy, int nr, int nc,
-                             const void *__restrict bias) {
+void gemv_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                        const void *__restrict vy, int nr, int nc,
+                        const void *__restrict bias) {
     if (bias != nullptr) {
-        _mllm_gemv_q4_0_4x4_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
+        _gemv_q4_0_4x4_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
         return;
     }
 
@@ -533,17 +534,17 @@ void mllm_gemv_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
         const __m128i v0s_u8 = _mm_slli_epi16(v_L_nibbles, 4);             \
         const __m128i v1s_u8 = _mm_andnot_si128(low_nib_mask, (V_B_Q4));   \
                                                                            \
-        /* 符号扩展到16位 */                                         \
+        /* 符号扩展到16位 */                                               \
         const __m128i v0s_s16 = _mm_cvtepi8_epi16(v0s_u8);                 \
         const __m128i v1s_s16 = _mm_cvtepi8_epi16(v1s_u8);                 \
                                                                            \
-        /* 核心计算: (v0*a0 + v1*a1) >> 4 */                           \
+        /* 核心计算: (v0*a0 + v1*a1) >> 4 */                               \
         const __m128i prod0 = _mm_mullo_epi16(v0s_s16, (V_A0_S16));        \
         const __m128i prod1 = _mm_mullo_epi16(v1s_s16, (V_A1_S16));        \
         const __m128i sum_prods_s16 = _mm_add_epi16(prod0, prod1);         \
         const __m128i terms_s16 = _mm_srai_epi16(sum_prods_s16, 4);        \
                                                                            \
-        /* 水平求和 */                                                 \
+        /* 水平求和 */                                                     \
         const __m128i ones = _mm_set1_epi16(1);                            \
         const __m128i sums_s32 = _mm_madd_epi16(terms_s16, ones);          \
         _mm_extract_epi32(sums_s32, 0) + _mm_extract_epi32(sums_s32, 1);   \
@@ -641,9 +642,9 @@ void mllm_gemv_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
 #endif
 }
 
-void _mllm_gemv_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
-                                   const void *__restrict vy, int nr, int nc,
-                                   const void *__restrict bias) {
+void _gemv_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                              const void *__restrict vy, int nr, int nc,
+                              const void *__restrict bias) {
     const int qk = QK8_0;
     const int nb = n / qk;
     const int ncols_interleaved = 4;
@@ -780,11 +781,11 @@ void _mllm_gemv_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
 #endif
 }
 
-void mllm_gemv_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
-                             const void *__restrict vy, int nr, int nc,
-                             const void *__restrict bias) {
+void gemv_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                        const void *__restrict vy, int nr, int nc,
+                        const void *__restrict bias) {
     if (bias != nullptr) {
-        _mllm_gemv_q4_0_4x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
+        _gemv_q4_0_4x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
         return;
     }
 
@@ -916,9 +917,9 @@ void mllm_gemv_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *
 #endif
 }
 
-void _mllm_gemv_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
-                                   const void *__restrict vy, int nr, int nc,
-                                   const void *__restrict bias) {
+void _gemv_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                              const void *__restrict vy, int nr, int nc,
+                              const void *__restrict bias) {
     const int qk = QK8_0;
     const int nb = n / qk;
     const int ncols_interleaved = 4;
@@ -1056,11 +1057,11 @@ void _mllm_gemv_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
 #endif
 }
 
-void mllm_gemv_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
-                             const void *__restrict vy, int nr, int nc,
-                             const void *__restrict bias) {
+void gemv_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                        const void *__restrict vy, int nr, int nc,
+                        const void *__restrict bias) {
     if (bias != nullptr) {
-        _mllm_gemv_q4_0_8x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
+        _gemv_q4_0_8x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
         return;
     }
 
@@ -1206,9 +1207,9 @@ void mllm_gemv_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *
 #endif
 }
 
-void _mllm_gemv_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
-                                   const void *__restrict vy, int nr, int nc,
-                                   const void *__restrict bias) {
+void _gemv_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                              const void *__restrict vy, int nr, int nc,
+                              const void *__restrict bias) {
     const int qk = QK8_0;
     const int nb = n / qk;
     const int ncols_interleaved = 8;
@@ -1363,13 +1364,13 @@ void _mllm_gemv_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
 }
 
 // lhs: q8_0, rhs: q4_0x4
-void mllm_gemm_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
-                             const void *__restrict vy, int nr, int nc,
-                             const void *__restrict bias) {
+void gemm_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                        const void *__restrict vy, int nr, int nc,
+                        const void *__restrict bias) {
     if (bias != nullptr) {
-        _mllm_gemm_q4_0_4x4_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
+        _gemm_q4_0_4x4_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
 #if defined(__ARM_NEON)
-        std::cout << "_mllm_gemm_q4_0_4x4_q8_0_bias not implemented";
+        std::cout << "_gemm_q4_0_4x4_q8_0_bias not implemented";
         abort();
 #endif
         return;
@@ -1908,9 +1909,9 @@ void mllm_gemm_q4_0_4x4_q8_0(int n, float *__restrict s, size_t bs, const void *
 #endif
 }
 
-void _mllm_gemm_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
-                                   const void *__restrict vy, int nr, int nc,
-                                   const void *__restrict bias) {
+void _gemm_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                              const void *__restrict vy, int nr, int nc,
+                              const void *__restrict bias) {
     const int qk = QK8_0;
     const int nb = n / qk;
     const int ncols_interleaved = 4;
@@ -2472,15 +2473,15 @@ void _mllm_gemm_q4_0_4x4_q8_0_bias(int n, float *__restrict s, size_t bs, const 
 #endif
 }
 
-void mllm_gemm_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
-                             const void *__restrict vy, int nr, int nc,
-                             const void *__restrict bias) {
+void gemm_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                        const void *__restrict vy, int nr, int nc,
+                        const void *__restrict bias) {
     if (bias != nullptr) {
 #if defined(__ARM_NEON)
-        std::cout << "_mllm_gemm_q4_0_4x8_q8_0_bias not implemented";
+        std::cout << "_gemm_q4_0_4x8_q8_0_bias not implemented";
         abort();
 #endif
-        _mllm_gemm_q4_0_4x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
+        _gemm_q4_0_4x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
         return;
     }
 
@@ -2957,9 +2958,9 @@ void mllm_gemm_q4_0_4x8_q8_0(int n, float *__restrict s, size_t bs, const void *
 #endif
 }
 
-void _mllm_gemm_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
-                                   const void *__restrict vy, int nr, int nc,
-                                   const void *__restrict bias) {
+void _gemm_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                              const void *__restrict vy, int nr, int nc,
+                              const void *__restrict bias) {
     const int qk = QK8_0;
     const int nb = n / qk;
     const int ncols_interleaved = 4;
@@ -3437,15 +3438,15 @@ void _mllm_gemm_q4_0_4x8_q8_0_bias(int n, float *__restrict s, size_t bs, const 
 #endif
 }
 
-void mllm_gemm_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
-                             const void *__restrict vy, int nr, int nc,
-                             const void *__restrict bias) {
+void gemm_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                        const void *__restrict vy, int nr, int nc,
+                        const void *__restrict bias) {
     if (bias != nullptr) {
 #if defined(__ARM_NEON)
-        std::cout << "_mllm_gemm_q4_0_8x8_q8_0_bias not implemented";
+        std::cout << "_gemm_q4_0_8x8_q8_0_bias not implemented";
         abort();
 #endif
-        _mllm_gemm_q4_0_8x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
+        _gemm_q4_0_8x8_q8_0_bias(n, s, bs, vx, vy, nr, nc, bias);
         return;
     }
 
@@ -3948,9 +3949,9 @@ void mllm_gemm_q4_0_8x8_q8_0(int n, float *__restrict s, size_t bs, const void *
 #endif
 }
 
-void _mllm_gemm_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
-                                   const void *__restrict vy, int nr, int nc,
-                                   const void *__restrict bias) {
+void _gemm_q4_0_8x8_q8_0_bias(int n, float *__restrict s, size_t bs, const void *__restrict vx,
+                              const void *__restrict vy, int nr, int nc,
+                              const void *__restrict bias) {
     const int qk = QK8_0;
     const int nb = n / qk;
     const int ncols_interleaved = 8;
