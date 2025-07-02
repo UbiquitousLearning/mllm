@@ -310,3 +310,8 @@ if(MLLM_ENABLE_PYTHON)
         LIBRARY DESTINATION mllm/
     )
 endif()
+
+
+if(ARM)
+    add_subdirectory(tools/powercounter)
+endif()
