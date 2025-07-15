@@ -108,6 +108,7 @@ func_llm_add_executable(demo_minicpm_moe_mbp)
 func_llm_add_executable(demo_bailing_moe)
 func_llm_add_executable(demo_bailing_moe_mbp)
 func_llm_add_executable(test)
+func_llm_add_executable(demo_qwen_batch)
 
 func_vlm_add_executable(demo_llava)
 func_vlm_add_executable(demo_fuyu)

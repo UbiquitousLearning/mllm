@@ -120,17 +120,19 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 #if defined(__aarch64__) || defined(__arm__) || defined(__arm64__)
             kai_thread_count = thread_count;
             // KLEIDIAI_Q4_0 is a packed type, we need to use a special function to handle it
-            auto M = inputs[0]->sequence();
-            auto N = outputs[0]->dimension();
-            auto K = inputs[0]->dimension();
-            if (outputs[0]->dtype() == MLLM_TYPE_F16) {
-                mllm_kleidai_gemm_qsi4_to_fp16(outputs[0]->ptrAt<mllm_fp16_t>(0, 0, 0, 0),
-                                               inputs[0]->ptrAt<float>(0, 0, 0, 0),
-                                               (const uint8_t *)weight_.rawHostPtr(), M, N, K);
-            } else {
-                mllm_kleidai_gemm_qsi4(outputs[0]->ptrAt<float>(0, 0, 0, 0),
-                                       inputs[0]->ptrAt<float>(0, 0, 0, 0),
-                                       (const uint8_t *)weight_.rawHostPtr(), M, N, K);
+            for (int b = 0; b < inputs[0]->batch(); b++) {
+                auto M = inputs[0]->sequence();
+                auto N = outputs[0]->dimension();
+                auto K = inputs[0]->dimension();
+                if (outputs[0]->dtype() == MLLM_TYPE_F16) {
+                    mllm_kleidai_gemm_qsi4_to_fp16(outputs[0]->ptrAt<mllm_fp16_t>(b, 0, 0, 0),
+                                                   inputs[0]->ptrAt<float>(b, 0, 0, 0),
+                                                   (const uint8_t *)weight_.rawHostPtr(), M, N, K);
+                } else {
+                    mllm_kleidai_gemm_qsi4(outputs[0]->ptrAt<float>(b, 0, 0, 0),
+                                           inputs[0]->ptrAt<float>(b, 0, 0, 0),
+                                           (const uint8_t *)weight_.rawHostPtr(), M, N, K);
+                }
             }
             return MLLM_NO_ERROR;
 #else
@@ -169,17 +171,19 @@ ErrorCode CPULinear::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
         if (weight_.dtype() == MLLM_TYPE_KLEIDIAI_Q4_0) {
 #if defined(__aarch64__) || defined(__arm__) || defined(__arm64__)
             // KLEIDIAI_Q4_0 is a packed type, we need to use a special function to handle it
-            auto M = inputs[0]->sequence();
-            auto N = outputs[0]->dimension(); // out_features_
-            auto K = inputs[0]->dimension();  // in_features_
-            if (outputs[0]->dtype() == MLLM_TYPE_F16) {
-                mllm_kleidai_gemm_qsi4_to_fp16(outputs[0]->ptrAt<mllm_fp16_t>(0, 0, 0, 0),
-                                               inputs[0]->ptrAt<float>(0, 0, 0, 0),
-                                               (const uint8_t *)weight_.rawHostPtr(), M, N, K);
-            } else {
-                mllm_kleidai_gemm_qsi4(outputs[0]->ptrAt<float>(0, 0, 0, 0),
-                                       inputs[0]->ptrAt<float>(0, 0, 0, 0),
-                                       (const uint8_t *)weight_.rawHostPtr(), M, N, K);
+            for (int b = 0; b < inputs[0]->batch(); b++) {
+                auto M = inputs[0]->sequence();
+                auto N = outputs[0]->dimension(); // out_features_
+                auto K = inputs[0]->dimension();  // in_features_
+                if (outputs[0]->dtype() == MLLM_TYPE_F16) {
+                    mllm_kleidai_gemm_qsi4_to_fp16(outputs[0]->ptrAt<mllm_fp16_t>(b, 0, 0, 0),
+                                                   inputs[0]->ptrAt<float>(b, 0, 0, 0),
+                                                   (const uint8_t *)weight_.rawHostPtr(), M, N, K);
+                } else {
+                    mllm_kleidai_gemm_qsi4(outputs[0]->ptrAt<float>(b, 0, 0, 0),
+                                           inputs[0]->ptrAt<float>(b, 0, 0, 0),
+                                           (const uint8_t *)weight_.rawHostPtr(), M, N, K);
+                }
             }
             return MLLM_NO_ERROR;
 #else

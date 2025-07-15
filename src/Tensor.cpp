@@ -216,6 +216,28 @@ void Tensor::_allocate_final_tensor(
     Backend *backend) {
     if (is_kvcached_tensor(template_tensor)) {
         if (auto master_tensor_sp = template_tensor->masterTensor()) {
+            if (master_tensor_sp->name().find(".Cache") != std::string::npos && (master_tensor_sp->batch() != batch())) {
+                KVCache_batch = batch();
+                master_tensor_sp->reshape(KVCache_batch, master_tensor_sp->head(),
+                                          master_tensor_sp->sequence(), master_tensor_sp->dimension());
+                master_tensor_sp->setName(name() + ".Cache");
+                master_tensor_sp->alloc();
+
+                switch (master_tensor_sp->dtype()) {
+                case MLLM_TYPE_F32:
+                    memset(master_tensor_sp->hostPtr<float>(), 0, master_tensor_sp->count() * sizeof(float));
+                    break;
+                case MLLM_TYPE_F16:
+                    memset(master_tensor_sp->hostPtr<mllm_fp16_t>(), 0, master_tensor_sp->count() * sizeof(mllm_fp16_t));
+                    break;
+                case MLLM_TYPE_Q8_0:
+                    memset((char *)master_tensor_sp->rawHostPtr(), 0,
+                           master_tensor_sp->count() * sizeof(block_q8_0) / QK8_0);
+                    break;
+                default:
+                    break;
+                };
+            }
             auto cache_seq_len_ = template_tensor->shapeOffset()[2];
 
             if (name().find("cache") == std::string::npos) {

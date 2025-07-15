@@ -45,7 +45,7 @@ CPUKVCache::CPUKVCache(Backend *bn, string opName, int hidden, int head, int n_r
     if (head > 0) {
         if (for_xnn_) cache_->setDtype(MLLM_TYPE_F32);
 
-        cache_->reshape(1, head * n_rep_, cache_limit_, hidden);
+        cache_->reshape(KVCache_batch, head * n_rep_, cache_limit_, hidden);
         cache_->setName(name() + ".Cache");
         cache_->alloc();
 
@@ -71,7 +71,7 @@ ErrorCode CPUKVCache::reshape(vector<shared_ptr<Tensor>> inputs,
                               vector<shared_ptr<Tensor>> outputs) {
     assert(inputs.size() == 1);
     assert(outputs.size() == 1);
-    if (cache_seq_len_ < 0) {
+    if (cache_seq_len_ < 0) { //|| inputs[0]->batch() != cache_->batch()
         if (for_xnn_) cache_->setDtype(MLLM_TYPE_F32);
 
         cache_->reshape(inputs[0]->batch(), inputs[0]->head() * n_rep_, cache_limit_,

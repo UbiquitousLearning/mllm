@@ -79,7 +79,26 @@ QuantWriter::~QuantWriter() {
 };
 
 int QuantWriter::readParams() {
-    param_names_ = param_loader_->getParamNames();
+    original_param_names_ = param_loader_->getParamNames(); // 保存原始参数名
+    param_names_ = original_param_names_;                   // 复制一份用于可能的操作
+
+    // 检查 lm_head.weight 是否存在，如果不存在且 model.embed_tokens.weight 存在，则添加它
+    bool lm_head_exists = false;
+    bool embed_tokens_exists = false;
+    for (const auto &name : original_param_names_) {
+        if (name == "lm_head.weight") {
+            lm_head_exists = true;
+        }
+        if (name == "model.embed_tokens.weight") {
+            embed_tokens_exists = true;
+        }
+    }
+
+    if (!lm_head_exists && embed_tokens_exists) {
+        std::cout << "INFO: lm_head.weight not found, will be created by copying model.embed_tokens.weight" << std::endl;
+        param_names_.push_back("lm_head.weight");
+    }
+
     paddingIndex(param_names_);
     return param_names_.size();
 }
@@ -138,173 +157,187 @@ void QuantWriter::quantize(DataType target_quant_type, const std::string &other_
     int tmp_hidden_dim = -1;
     int vit_tmp_hidden_dim = -1;
 
-    for (const auto &name : param_names_) {
-        ParamMetadata meta = param_loader_->getParamMetadata(name);
-        const uint64_t num_floats = meta.size / sizeof(float);
-
-        for (const auto &name : param_names_) {
-            if (tmp_hidden_dim != -1 && vit_tmp_hidden_dim != -1) {
-                break; // 如果都找到了，就提前退出预扫描
-            }
-            /*
-            if (tmp_hidden_dim == -1 && find_in_layers(name, {"model.layers.0.input_layernorm"})) {
-                ParamMetadata meta = param_loader_->getParamMetadata(name);
-                tmp_hidden_dim = meta.size / sizeof(float);
-            }
-            if (vit_tmp_hidden_dim == -1 && find_in_layers(name, {"visual.patch_embed.norm"})) {
-                ParamMetadata meta = param_loader_->getParamMetadata(name);
-                vit_tmp_hidden_dim = meta.size / sizeof(float);
-            }
-            */
-            if (tmp_hidden_dim == -1 && (name.find("model") != std::string::npos && name.find("norm") != std::string::npos)) {
-                ParamMetadata meta = param_loader_->getParamMetadata(name);
-                tmp_hidden_dim = meta.size / sizeof(float);
-                std::cout << "  - Found hidden dimension (tmp_hidden_dim): " << tmp_hidden_dim << " from layer '" << name << "'" << std::endl;
-            }
-            if (vit_tmp_hidden_dim == -1 && (name.find("visual") != std::string::npos && name.find("norm") != std::string::npos)) {
-                ParamMetadata meta = param_loader_->getParamMetadata(name);
-                vit_tmp_hidden_dim = meta.size / sizeof(float);
-                std::cout << "  - Found ViT hidden dimension (vit_tmp_hidden_dim): " << vit_tmp_hidden_dim << " from layer '" << name << "'" << std::endl;
-            }
+    // 预扫描以找到隐藏维度
+    std::cout << "Pre-scanning to find hidden dimensions..." << std::endl;
+    for (const auto &name : original_param_names_) {
+        if (tmp_hidden_dim == -1 && (name.find("model") != std::string::npos && name.find("norm") != std::string::npos)) {
+            ParamMetadata meta = param_loader_->getParamMetadata(name);
+            tmp_hidden_dim = meta.size / sizeof(float);
+            std::cout << "  - Found hidden dimension (tmp_hidden_dim): " << tmp_hidden_dim << " from layer '" << name << "'" << std::endl;
         }
+        if (vit_tmp_hidden_dim == -1 && (name.find("visual") != std::string::npos && name.find("norm") != std::string::npos)) {
+            ParamMetadata meta = param_loader_->getParamMetadata(name);
+            vit_tmp_hidden_dim = meta.size / sizeof(float);
+            std::cout << "  - Found ViT hidden dimension (vit_tmp_hidden_dim): " << vit_tmp_hidden_dim << " from layer '" << name << "'" << std::endl;
+        }
+        if (tmp_hidden_dim != -1 && vit_tmp_hidden_dim != -1) {
+            break;
+        }
+    }
 
+    for (const auto &name : param_names_) {
+        bool is_copied_lm_head = (name == "lm_head.weight" && std::find(original_param_names_.begin(), original_param_names_.end(), name) == original_param_names_.end());
         DataType final_quant_type = getQuantizationTypeFor(name, target_quant_type, other_flag);
 
         std::cout << "Processing param " << name << " -> " << DataTypeName(final_quant_type) << " ... ";
+        if (is_copied_lm_head) {
+            std::cout << "(copied from model.embed_tokens.weight) ";
+        }
         fflush(stdout);
 
         beginWriteParam(name, final_quant_type);
-        fseek(fp_in, meta.offset, SEEK_SET);
 
-        if (final_quant_type == MLLM_TYPE_F32) {
-            std::vector<char> f32_buffer(meta.size);
-            fread(f32_buffer.data(), 1, meta.size, fp_in);
-            writeChunk(f32_buffer.data(), meta.size);
-        }
-#if defined(__aarch64__) || defined(__arm__) || defined(__arm64__)
-        else if (final_quant_type == MLLM_TYPE_KLEIDIAI_Q4_0) {
-            int H = find_in_layers(name, {"visual"}) ? vit_tmp_hidden_dim : tmp_hidden_dim;
-            if (H <= 0) {
-                std::cout << "FAIL! Hidden dimension not found for " << name << std::endl;
+        std::vector<float> full_param_data;
+        uint64_t num_floats;
+
+        if (is_copied_lm_head) {
+            full_param_data = load_full_fp32_param("model.embed_tokens.weight");
+            if (full_param_data.empty()) {
+                std::cerr << "FAIL! Failed to load model.embed_tokens.weight for copying." << std::endl;
                 __exit(-1);
             }
-
-            int N, K;
-            if (find_in_layers(name, {"w2", "down_proj", "fc2"})) {
-                N = H;
-                K = num_floats / N;
-            } else {
-                K = H;
-                N = num_floats / K;
+            num_floats = full_param_data.size();
+        } else {
+            ParamMetadata meta = param_loader_->getParamMetadata(name);
+            num_floats = meta.size / sizeof(float);
+            fseek(fp_in, meta.offset, SEEK_SET);
+            if (final_quant_type == MLLM_TYPE_KLEIDIAI_Q4_0 || final_quant_type == MLLM_TYPE_Q4_0_4_4) {
+                full_param_data.resize(num_floats);
+                fread(full_param_data.data(), sizeof(float), num_floats, fp_in);
             }
+        }
 
-            // 1. 加载完整的 bias (因为它很小)
-            std::string bias_name = name;
-            bias_name.replace(bias_name.find("weight"), 6, "bias");
-            std::vector<float> bias_data = load_full_fp32_param(bias_name);
+        if (!full_param_data.empty()) {
+            void *quant_ptr = nullptr;
+            uint64_t quant_size = 0;
 
-            // 2. 分配转置矩阵的内存
-            std::vector<float> transposed_weight_data(num_floats);
+            if (final_quant_type == MLLM_TYPE_KLEIDIAI_Q4_0) {
+#if defined(__aarch64__) || defined(__arm__) || defined(__arm64__)
+                int H = find_in_layers(name, {"visual"}) ? vit_tmp_hidden_dim : tmp_hidden_dim;
+                if (H <= 0) {
+                    std::cout << "FAIL! Hidden dimension not found for " << name << std::endl;
+                    __exit(-1);
+                }
 
-            // 3. 流式读取并转置
-            std::vector<float> row_buffer(K);
-            for (int n = 0; n < N; ++n) {
-                fread(row_buffer.data(), sizeof(float), K, fp_in);
-                for (int k = 0; k < K; ++k) {
-                    transposed_weight_data[k * N + n] = row_buffer[k];
+                // ==================【代码修正】==================
+                // 恢复您指出的、用于判断 N 和 K 的关键逻辑
+                int N, K;
+                if (find_in_layers(name, {"w2", "down_proj", "fc2"})) {
+                    N = H;
+                    if (num_floats % N != 0) {
+                        std::cerr << "FAIL! num_floats not divisible by N for " << name << std::endl;
+                        __exit(-1);
+                    }
+                    K = num_floats / N;
+                } else {
+                    K = H;
+                    if (num_floats % K != 0) {
+                        std::cerr << "FAIL! num_floats not divisible by K for " << name << std::endl;
+                        __exit(-1);
+                    }
+                    N = num_floats / K;
+                }
+                // ===============================================
+
+                std::string bias_name = name;
+                bias_name.replace(bias_name.find("weight"), 6, "bias");
+                std::vector<float> bias_data = load_full_fp32_param(bias_name);
+                std::vector<float> transposed_weight_data(num_floats);
+                for (int n = 0; n < N; ++n)
+                    for (int k = 0; k < K; ++k) transposed_weight_data[k * N + n] = full_param_data[n * K + k];
+                auto block_t = alloc_kleidiai_quant_block(final_quant_type, N, K);
+                quant_ptr = block_t.first;
+                quant_size = block_t.second;
+#ifndef KAI_FP16_CAL
+                mllm_kleidai_pack_b_and_bias_qsi4((uint8_t *)quant_ptr, transposed_weight_data.data(), bias_data.empty() ? nullptr : bias_data.data(), N, K);
+#else
+                mllm_kleidai_pack_b_and_bias_qsi4_to_fp16((uint8_t *)quant_ptr, transposed_weight_data.data(), bias_data.empty() ? nullptr : bias_data.data(), N, K);
+#endif
+#else
+                std::cerr << "KLEIDIAI_Q4_0 is only supported on ARM architecture." << std::endl;
+                __exit(-1);
+#endif
+            } else if (final_quant_type == MLLM_TYPE_Q4_0_4_4) {
+                bool is_visual = find_in_layers(name, {"visual"});
+                int H = is_visual ? vit_tmp_hidden_dim : tmp_hidden_dim;
+                if (H <= 0) {
+                    std::cout << "FAIL! Hidden dimension not found for " << name << std::endl;
+                    __exit(-1);
+                }
+                int K = H;
+                if ((is_visual && find_in_layers(name, {"fc2", "down_proj"})) || (!is_visual && find_in_layers(name, {"w2", "down_proj"}))) {
+                    if (num_floats % H != 0) {
+                        std::cerr << "FAIL! num_floats not divisible by H for " << name << std::endl;
+                        __exit(-1);
+                    }
+                    K = num_floats / H;
+                }
+                auto block_t = alloc_quant_block(num_floats, final_quant_type);
+                quant_ptr = block_t.first;
+                quant_size = block_t.second;
+                quantize_row_q4_0_4x4(full_param_data.data(), quant_ptr, num_floats, K);
+            } else {
+                auto block_t = alloc_quant_block(num_floats, final_quant_type);
+                quant_ptr = block_t.first;
+                quant_size = block_t.second;
+                switch (final_quant_type) {
+                case MLLM_TYPE_F32: break;
+                case MLLM_TYPE_Q4_0: quantize_row_q4_0(full_param_data.data(), quant_ptr, num_floats); break;
+                case MLLM_TYPE_Q8_0: quantize_row_q8_0(full_param_data.data(), quant_ptr, num_floats); break;
+                case MLLM_TYPE_Q2_K: quantize_row_q2_K(full_param_data.data(), quant_ptr, num_floats); break;
+                case MLLM_TYPE_Q3_K: quantize_row_q3_K(full_param_data.data(), quant_ptr, num_floats); break;
+                case MLLM_TYPE_Q4_K: quantize_row_q4_K(full_param_data.data(), quant_ptr, num_floats); break;
+                case MLLM_TYPE_Q6_K: quantize_row_q6_K(full_param_data.data(), quant_ptr, num_floats); break;
+                case MLLM_TYPE_Q8_K: quantize_row_q8_K(full_param_data.data(), quant_ptr, num_floats); break;
+                default:
+                    std::cerr << "Unsupported quantization type for full-tensor processing: " << DataTypeName(final_quant_type) << std::endl;
+                    delete[] (char *)quant_ptr;
+                    __exit(-1);
                 }
             }
-
-            // 4. 分配量化空间并执行量化
-            auto block_t = alloc_kleidiai_quant_block(final_quant_type, N, K);
-            void *quant_ptr = block_t.first;
-
-#ifndef KAI_FP16_CAL
-            mllm_kleidai_pack_b_and_bias_qsi4(
-                (uint8_t *)quant_ptr,
-                transposed_weight_data.data(),
-                bias_data.empty() ? nullptr : bias_data.data(),
-                N, K);
-#else
-            mllm_kleidai_pack_b_and_bias_qsi4_to_fp16(
-                (uint8_t *)quant_ptr,
-                transposed_weight_data.data(),
-                bias_data.empty() ? nullptr : bias_data.data(),
-                N, K);
-#endif
-
-            // 5. 写入量化数据块
-            writeChunk(quant_ptr, block_t.second);
-            delete[] (char *)quant_ptr;
-
-        }
-#endif
-        else if (final_quant_type == MLLM_TYPE_Q4_0_4_4) {
-            // 1. 为 Q4_0_4_4 加载完整的 FP32 数据
-            std::vector<float> param_data(num_floats);
-            fread(param_data.data(), sizeof(float), num_floats, fp_in);
-
-            // 2. 确定维度信息 (借鉴旧代码逻辑)
-            // 'vl' 标志和 'visual' 层名的判断
-            bool is_visual = find_in_layers(name, {"visual"});
-            int H = is_visual ? vit_tmp_hidden_dim : tmp_hidden_dim;
-            if (H <= 0) {
-                std::cout << "FAIL! Hidden dimension not found for " << name << std::endl;
-                __exit(-1);
+            if (final_quant_type == MLLM_TYPE_F32) {
+                writeChunk(full_param_data.data(), num_floats * sizeof(float));
+                if (quant_ptr) delete[] (char *)quant_ptr;
+            } else {
+                writeChunk(quant_ptr, quant_size);
+                delete[] (char *)quant_ptr;
             }
-            // 根据层名决定 K 的值
-            int K = H;
-            if ((is_visual && find_in_layers(name, {"fc2", "down_proj"})) || (!is_visual && find_in_layers(name, {"w2", "down_proj"}))) {
-                K = num_floats / H;
-            }
-
-            // 3. 分配量化空间并执行量化
-            auto block_t = alloc_quant_block(num_floats, final_quant_type);
-            void *quant_ptr = block_t.first;
-
-            // 调用与旧版本中类似的函数
-            quantize_row_q4_0_4x4(param_data.data(), quant_ptr, num_floats, K);
-
-            // 4. 写入量化数据块
-            writeChunk(quant_ptr, block_t.second);
-            delete[] (char *)quant_ptr;
         } else {
             uint64_t floats_processed = 0;
             while (floats_processed < num_floats) {
                 uint64_t floats_to_read = std::min((uint64_t)CHUNK_SIZE_FLOATS, num_floats - floats_processed);
                 if (floats_to_read == 0) break;
-
                 fread(read_buffer.data(), sizeof(float), floats_to_read, fp_in);
-
                 auto block_t = alloc_quant_block(floats_to_read, final_quant_type);
                 void *quant_ptr = block_t.first;
-
                 switch (final_quant_type) {
+                case MLLM_TYPE_F32:
+                    writeChunk(read_buffer.data(), floats_to_read * sizeof(float));
+                    delete[] (char *)quant_ptr;
+                    quant_ptr = nullptr;
+                    break;
                 case MLLM_TYPE_Q4_0: quantize_row_q4_0(read_buffer.data(), quant_ptr, floats_to_read); break;
                 case MLLM_TYPE_Q8_0: quantize_row_q8_0(read_buffer.data(), quant_ptr, floats_to_read); break;
                 case MLLM_TYPE_Q2_K: quantize_row_q2_K(read_buffer.data(), quant_ptr, floats_to_read); break;
-                case MLLM_TYPE_Q2_0: quantize_row_q2_0(read_buffer.data(), quant_ptr, floats_to_read); break;
                 case MLLM_TYPE_Q3_K: quantize_row_q3_K(read_buffer.data(), quant_ptr, floats_to_read); break;
                 case MLLM_TYPE_Q4_K: quantize_row_q4_K(read_buffer.data(), quant_ptr, floats_to_read); break;
                 case MLLM_TYPE_Q6_K: quantize_row_q6_K(read_buffer.data(), quant_ptr, floats_to_read); break;
                 case MLLM_TYPE_Q8_K: quantize_row_q8_K(read_buffer.data(), quant_ptr, floats_to_read); break;
                 default:
                     std::cerr << "Unsupported quantization type in streaming loop: " << DataTypeName(final_quant_type) << std::endl;
-                    delete[] (char *)quant_ptr; // 避免内存泄漏
+                    delete[] (char *)quant_ptr;
                     __exit(-1);
                 }
-
-                writeChunk(quant_ptr, block_t.second);
-                delete[] (char *)quant_ptr;
-
+                if (quant_ptr) {
+                    writeChunk(quant_ptr, block_t.second);
+                    delete[] (char *)quant_ptr;
+                }
                 floats_processed += floats_to_read;
             }
         }
-
         endWriteParam();
         std::cout << "Done." << std::endl;
     }
-
     writeIndex();
 }
 } // namespace mllm

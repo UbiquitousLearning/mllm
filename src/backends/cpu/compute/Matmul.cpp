@@ -194,6 +194,7 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
                               dst->dtype(), ld_src1 / src1_blck_size, ld_src0 / src0_blck_size, ld_dst / blck_size(dst->dtype()))
         && dst->dtypeAt(0, 0, 0, 0) == MLLM_TYPE_F32 && dst->ctype() == BSHD
         && dst->aggregatedTensors().empty()) {
+        int is_0 = (src1->batch() == 1 && src1->head() == 1 && src1->batch() != src0->batch()) ? 0 : 1;
 #pragma omp parallel for collapse(3) num_threads(thread_count)
         for (int64_t b = 0; b < dst->batch(); b++) {
             for (int64_t h = 0; h < dst->head(); h++) {
@@ -201,7 +202,7 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
                     llamafile_sgemm(
                         N, M, K / blck_size(src1->dtype()),
                         (char *)src1->rawHostPtr()
-                            + src1->offset(b, h, 0, 0) * src1_type_size / src1_blck_size,
+                            + src1->offset(b * is_0, h, 0, 0) * src1_type_size / src1_blck_size,
                         ld_src1 / src1_blck_size,
                         (char *)src0->rawHostPtr()
                             + src0->offset(b, h, 0, 0) * src0_type_size / src0_blck_size,

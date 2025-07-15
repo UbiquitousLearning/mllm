@@ -371,7 +371,8 @@ std::vector<Tensor> CPUBackend::runOp(Op *op, std::vector<Tensor> inputs, std::v
     for (const auto &out_tensor : out_tensors) {
         results.push_back(*out_tensor);
 #ifdef DEBUGSAVETENSOR
-        out_tensor->saveData<float>();
+        if (out_tensor->dtype() == MLLM_TYPE_F32)
+            out_tensor->saveData<float>();
 #endif
     }
     return results;
@@ -404,9 +405,9 @@ std::vector<Tensor> CPUBackend::runForward(Module *module, std::vector<Tensor> i
         }
         mllm::Module::llm_model_ptr = module;
         if (module->prefilling_token_size_ == 0) { // first time init
-            module->prefilling_token_size_ = inputs[0].sequence();
+            module->prefilling_token_size_ = inputs[0].sequence() * inputs[0].batch();
         } else if (module->decoding_token_size_ == 0) {
-            module->decoding_token_size_ = inputs[0].sequence();
+            module->decoding_token_size_ = inputs[0].sequence() * inputs[0].batch();
         }
         time_start = mllm_time_us();
     }

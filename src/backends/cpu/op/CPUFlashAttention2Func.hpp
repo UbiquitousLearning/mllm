@@ -6,6 +6,7 @@
 #define CPUFA2FUNC_HPP
 
 #include "CPUBackend.hpp"
+#include "DataType.hpp"
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include "../compute/FlashAttention2.hpp"
@@ -70,45 +71,55 @@ public:
         int32_t br = q_sequence >= 4 ? 4 : 1;
         int32_t bc = q_sequence >= 4 ? 4 : 1;
         constexpr bool high_precision_exp = true;
-
-        // for BSHD attention start
-        if (inputs[0]->ctype() == BHSD && inputs[1]->ctype() == BHSD && inputs[2]->ctype() == BHSD) {
-            int km = k_sequence;
-            int vm = v_sequence;
-            if (k_tensor->masterTensor() != nullptr && v_tensor->masterTensor() != nullptr) {
-                km = k_tensor->masterTensor()->sequence();
-                vm = v_tensor->masterTensor()->sequence();
+        for (int bch = 0; bch < batch_size; ++bch) {
+            void *o_ptr = o_tensor->ptrAt<float>(bch, 0, 0, 0);
+            void *q_ptr = q_tensor->ptrAt<float>(bch, 0, 0, 0);
+            void *k_ptr;
+            void *v_ptr;
+            if (kv_use_fp32) {
+                k_ptr = k_tensor->ptrAt<float>(bch, 0, 0, 0);
+                v_ptr = v_tensor->ptrAt<float>(bch, 0, 0, 0);
+            } else {
+                k_ptr = k_tensor->ptrAt<mllm_fp16_t>(bch, 0, 0, 0);
+                v_ptr = v_tensor->ptrAt<mllm_fp16_t>(bch, 0, 0, 0);
             }
-            flash_attention_2_forward_h(
-                q_tensor->hostPtr<void>(), k_tensor->hostPtr<void>(), v_tensor->hostPtr<void>(),
-                o_tensor->hostPtr<void>(),                             // 输入输出张量
-                batch_size, q_head, q_sequence, k_sequence, dimension, // 基本维度
-                causal_mask_,                                          // 使用因果掩码
-                kv_use_fp32,                                           // 使用FP32(x86必须)
-                threads,                                               // 线程数
-                br,                                                    // 查询分块大小
-                bc,                                                    // 键值分块大小
-                q_head,                                                // 查询头数
-                k_head,                                                // 键值头数
-                high_precision_exp,                                    // 使用快速指数近似
-                q_sequence * dimension,
-                km * dimension,
-                vm * dimension);
-            // for BSHD attention end
-        } else {
-            flash_attention_2_forward(
-                q_tensor->hostPtr<void>(), k_tensor->hostPtr<void>(), v_tensor->hostPtr<void>(),
-                o_tensor->hostPtr<void>(),                             // 输入输出张量
-                batch_size, q_head, q_sequence, k_sequence, dimension, // 基本维度
-                causal_mask_,                                          // 使用因果掩码
-                kv_use_fp32,                                           // 使用FP32(x86必须)
-                threads,                                               // 线程数
-                br,                                                    // 查询分块大小
-                bc,                                                    // 键值分块大小
-                q_head,                                                // 查询头数
-                k_head,                                                // 键值头数
-                high_precision_exp                                     // 使用快速指数近似
-            );
+            // for BSHD attention start
+            if (inputs[0]->ctype() == BHSD && inputs[1]->ctype() == BHSD && inputs[2]->ctype() == BHSD) {
+                int km = k_sequence;
+                int vm = v_sequence;
+                if (k_tensor->masterTensor() != nullptr && v_tensor->masterTensor() != nullptr) {
+                    km = k_tensor->masterTensor()->sequence();
+                    vm = v_tensor->masterTensor()->sequence();
+                }
+                flash_attention_2_forward_h(
+                    q_ptr, k_ptr, v_ptr, o_ptr,                   // 输入输出张量
+                    1, q_head, q_sequence, k_sequence, dimension, // 基本维度
+                    causal_mask_,                                 // 使用因果掩码
+                    kv_use_fp32,                                  // 使用FP32(x86必须)
+                    threads,                                      // 线程数
+                    br,                                           // 查询分块大小
+                    bc,                                           // 键值分块大小
+                    q_head,                                       // 查询头数
+                    k_head,                                       // 键值头数
+                    high_precision_exp,                           // 使用快速指数近似
+                    q_sequence * dimension,
+                    km * dimension,
+                    vm * dimension);
+                // for BSHD attention end
+            } else {
+                flash_attention_2_forward(
+                    q_ptr, k_ptr, v_ptr, o_ptr,                   // 输入输出张量
+                    1, q_head, q_sequence, k_sequence, dimension, // 基本维度
+                    causal_mask_,                                 // 使用因果掩码
+                    kv_use_fp32,                                  // 使用FP32(x86必须)
+                    threads,                                      // 线程数
+                    br,                                           // 查询分块大小
+                    bc,                                           // 键值分块大小
+                    q_head,                                       // 查询头数
+                    k_head,                                       // 键值头数
+                    high_precision_exp                            // 使用快速指数近似
+                );
+            }
         }
         return ErrorCode::MLLM_NO_ERROR;
     }

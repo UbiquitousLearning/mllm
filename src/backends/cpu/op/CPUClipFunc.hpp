@@ -312,8 +312,8 @@ public:
                 outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), new_seq, inputs[0]->dimension());
                 outputs[0]->alloc();
             }
-#pragma omp parallel for collapse(2) num_threads(CPUBackend::cpu_threads)
             for (int b = 0; b < inputs[0]->batch(); ++b) {
+#pragma omp parallel for num_threads(CPUBackend::cpu_threads)
                 for (int s = 0; s < inputs[1]->dimension(); ++s) {
                     auto selected_idx = (int)inputs[1]->dataAt<float>(0, 0, 0, s);
                     memcpy(outputs[0]->ptrAt<float>(b, 0, s, 0),

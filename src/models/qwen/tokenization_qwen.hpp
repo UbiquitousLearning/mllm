@@ -15,6 +15,7 @@
 #include "tokenizers/Unicode.hpp"
 #include <algorithm>
 #include <unordered_map>
+#include <vector>
 
 using namespace mllm;
 
@@ -175,6 +176,54 @@ public:
         }
 
         return Tokenizer::tokens2Input(ret);
+    }
+
+    Tensor tokenize(vector<std::string> texts, string name = "input", BackendType type = MLLM_CPU) {
+        std::vector<std::vector<token_id_t>> rets;
+        for (auto &text : texts) {
+            std::vector<token_id_t> ret;
+            if (split_special_tokens_) {
+                const auto word_collection = unicode_regex_split(text, FIXED_PAT_STRS);
+                for (auto &piece : word_collection) {
+                    std::vector<token_id_t> tmp;
+                    BPETokenizer::tokenize(piece, tmp, false, true, "");
+                    ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+                }
+            } else {
+                auto parts = _splitWithDelimiters(text, special_tokens);
+                for (auto &p : parts) {
+                    if (std::find(special_tokens.begin(), special_tokens.end(), p) != special_tokens.end()) {
+                        std::string token;
+                        for (auto b : UTF8(p)) token += byte_encoder_[b];
+
+                        std::vector<token_id_t> tmp;
+                        BPETokenizer::tokenize(token, tmp, false, special_tokens, true);
+                        ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+                    } else {
+                        const auto word_collection = unicode_regex_split(p, FIXED_PAT_STRS);
+                        for (auto &piece : word_collection) {
+                            std::vector<token_id_t> tmp;
+                            BPETokenizer::tokenize(piece, tmp, false, true, "");
+                            assert(!tmp.empty());
+                            ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+                        }
+                    }
+                }
+            }
+            rets.push_back(ret);
+        }
+        size_t max_len = 0;
+        for (const auto &vec : rets) {
+            if (vec.size() > max_len) {
+                max_len = vec.size();
+            }
+        }
+        for (auto &vec : rets) {
+            if (vec.size() < max_len) {
+                vec.insert(vec.begin(), max_len - vec.size(), bos_id_);
+            }
+        }
+        return Tokenizer::tokens2Input(rets);
     }
 
     std::pair<int, Tensor> tokenizeWithPadding(std::string &text, int seqLength, int vocab_size) {

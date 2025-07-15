@@ -4,7 +4,10 @@
 
 #include "Module.hpp"
 #include "Types.hpp"
+#include <iostream>
 #include <stack>
+#include <stdlib.h>
+#include <vector>
 
 namespace mllm {
 
@@ -96,6 +99,8 @@ void Module::generate(
         chatPostProcessing(out_token, input_ids, {});
     }
 }
+
+/*
 vector<unsigned> Module::generate(Tensor &input_ids, const LlmTextGeneratorOpts &opt, int end_token) {
     auto chatPostProcessing = [](unsigned token_idx, Tensor &tokens_tensor, const vector<Tensor *> &clean_tensors) {
         tokens_tensor.reshape(1, 1, 1, 1);
@@ -131,4 +136,73 @@ vector<unsigned> Module::generate(Tensor &input_ids, const LlmTextGeneratorOpts 
     }
     return result;
 }
+*/
+/**
+ * @brief 使用模型生成文本序列，支持批处理输入。
+ * @param input_ids 输入的 token ID 张量，形状应为 [batch_size, 1, seq_len, 1]。
+ * @param opt 生成选项，如最大新 token 数。
+ * @param end_token 序列生成的结束符 ID。
+ * @return 一个包含多个生成序列的向量，每个子向量是一个完整的 token ID 序列。
+ */
+vector<vector<unsigned>> Module::generate(Tensor &input_ids, const LlmTextGeneratorOpts &opt, int end_token) {
+    auto chatPostProcessing = [](vector<unsigned> token_idxs, Tensor &tokens_tensor, const vector<Tensor *> &clean_tensors) {
+        tokens_tensor.reshape(token_idxs.size(), 1, 1, 1);
+        tokens_tensor.alloc();
+        for (size_t idx = 0; idx < token_idxs.size(); ++idx) {
+            unsigned int token_idx = token_idxs[idx];
+            tokens_tensor.setDataAt<float>(idx, 0, 0, 0, token_idx);
+        }
+        for (auto tensor : clean_tensors) {
+            tensor->reshape(0, 0, 0, 0);
+            tensor->alloc();
+        }
+    };
+
+    if (!opt.do_sample) {
+        // fail to greedy search
+        if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kGreedySearch)
+            text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kGreedySearch, opt);
+    } else if (opt.do_sample && !opt.top_k && opt.top_p != 0.F) {
+        // fail to top p sampling
+        if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kToppSampling)
+            text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kToppSampling, opt);
+    } else if (opt.do_sample && opt.top_k) {
+        // fail to top k sampling
+        if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kTopkSampling)
+            text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kTopkSampling, opt);
+    }
+    auto batch_size = input_ids.batch();
+    vector<vector<unsigned>> results(batch_size);
+    vector<bool> is_end(batch_size, false);
+    for (int step = 0; step < opt.max_new_tokens; ++step) {
+        auto _out = (*this)({input_ids});
+        // _out[0].saveData<float>();
+        // exit(1);
+        vector<unsigned> out_tokens;
+        for (int batch_ = 0; batch_ < batch_size; ++batch_) {
+            Tensor _outt(1, 1, _out[0].sequence(), _out[0].dimension(), MLLM_CPU, true);
+            memcpy(_outt.hostPtr<float>(), _out[0].ptrAt<float>(batch_, 0, 0, 0), _outt.cntSize());
+            auto out_token = text_generator_->generate(_outt);
+            if (end_token != -1 && out_token == end_token) {
+                // std::cout << "End batch_: " << batch_ << std::endl;
+                is_end[batch_] = true; // 标记该 batch 已经结束
+                // out_tokens.push_back(0);
+                // continue;
+            }
+            if (!is_end[batch_]) {
+                out_tokens.push_back(out_token);
+                results[batch_].push_back(out_token);
+            } else {
+                out_tokens.push_back(0); // 如果该 batch 已经结束，则填充
+            }
+        }
+        chatPostProcessing(out_tokens, input_ids, {});
+        if (std::all_of(is_end.begin(), is_end.end(), [](bool v) { return v; })) {
+            // std::cout << "All batches ended." << std::endl;
+            break; // 如果所有 batch 都结束，则退出循环
+        }
+    }
+    return results;
+}
+
 } // namespace mllm

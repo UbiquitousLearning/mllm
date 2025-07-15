@@ -8,7 +8,8 @@
 #include "Module.hpp"
 #include "cmdline.h"
 #include "models/ling/configuration_bailing_moe.hpp"
-#include "models/ling/mbp/modeling_bailing_moe.hpp"
+// #include "models/ling/mbp/modeling_bailing_moe.hpp"
+#include "models/ling/mbp/modeling_bailing_moe_mbmpip.hpp"
 #include "models/ling/tokenizer_bailing.hpp"
 #include <unistd.h>
 
@@ -22,7 +23,7 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/ling_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/ling_merges.txt");
 #ifdef ARM
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/ling-lite-1.5-kai_q4_0.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/ling-lite-1.5-kai_q4_0_e2.mllm");
 #else
     cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/ling-lite-1.5-q4_0.mllm");
 #endif

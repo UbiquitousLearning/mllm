@@ -131,7 +131,7 @@ struct QWenConfig : public TransformerConfig {
             sliding_window = 32768;
             vocab_size = 151936;
             tie_embedding_words = true;
-        } else if (billionsType == "1.5b-rotated") {
+        } else if ((billionsType == "1.5b-rotated") || (billionsType == "1.5b-lm")) {
             attention_dropout = 0.0;
             std::string hidden_act = "silu";
             hidden_size = 1536;

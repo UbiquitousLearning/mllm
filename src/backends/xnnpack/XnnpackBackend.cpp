@@ -1213,9 +1213,9 @@ std::vector<Tensor> XnnpackBackend::runForward(Module *module, std::vector<Tenso
     // Module setUp & execute
     if (inputs[0].ttype() == TensorType::INPUT_TENSOR) {
         if (module->prefilling_token_size_ == 0) { // first time init
-            module->prefilling_token_size_ = inputs[0].sequence();
+            module->prefilling_token_size_ = inputs[0].sequence() * inputs[0].batch();
         } else if (module->decoding_token_size_ == 0) {
-            module->decoding_token_size_ = inputs[0].sequence();
+            module->decoding_token_size_ = inputs[0].sequence() * inputs[0].batch();
         }
         for (int i = 0; i < inputs.size(); i++) {
             auto &input = inputs[i];

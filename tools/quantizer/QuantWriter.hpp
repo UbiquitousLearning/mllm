@@ -72,6 +72,7 @@ private:
     std::string output_path_;
     ParamLoader *param_loader_;
     std::vector<std::string> param_names_;
+    std::vector<std::string> original_param_names_;
 
     DataType getQuantizationTypeFor(const std::string &name, DataType target_type, const std::string &other_flag);
 

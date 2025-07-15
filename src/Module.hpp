@@ -296,7 +296,9 @@ public:
     virtual void generate(
         Tensor &input_ids, const LlmTextGeneratorOpts &opt, const std::function<bool(unsigned int)> &call_back = [](unsigned int) -> bool { return true; });
 
-    vector<unsigned> generate(Tensor &input_ids, const LlmTextGeneratorOpts &opt, int end_token = -1);
+    // vector<unsigned> generate(Tensor &input_ids, const LlmTextGeneratorOpts &opt, int end_token = -1);
+
+    vector<vector<unsigned>> generate(Tensor &input_ids, const LlmTextGeneratorOpts &opt, int end_token = -1);
 };
 
 class CPUModuleWrapper : public Module {
