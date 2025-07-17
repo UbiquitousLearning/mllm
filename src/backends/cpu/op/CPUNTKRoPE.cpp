@@ -30,10 +30,12 @@ void get_sin_cos_emb_hf(
     std::vector<float> &long_factor,
     std::vector<float> &short_factor,
     int original_max_position_embeddings,
+    float partial_rotary_factor,
     int max_position_embeddings = 2048) {
     auto scale = (float)max_position_embeddings / (float)original_max_position_embeddings;
     auto scaling_factor = (float)std::sqrt(1 + std::log(scale) / std::log(original_max_position_embeddings));
 
+    output_dim *= partial_rotary_factor;
     // compute sin and cos
     emb_sin.resize(seq_len);
     for (int i = 0; i < seq_len; ++i) {
@@ -54,7 +56,7 @@ void get_sin_cos_emb_hf(
     // calculate inv_freq
     std::vector<float> inv_freq(output_dim / 2, 0.f);
     for (int i = 0; i < output_dim / 2; ++i) {
-        inv_freq[i] = 1.f / (float)(std::pow(theta, (float)i / (float)output_dim));
+        inv_freq[i] = 1.f / (float)(std::pow(theta, (float)(i*2) / (float)output_dim));
     }
 
     std::vector<float> t(seq_len, 0.f);
@@ -73,6 +75,9 @@ void get_sin_cos_emb_hf(
         }
     }
 
+    if (scale <= 1) {
+        scaling_factor = (float)1;
+    }
     for (int i = 0; i < seq_len; ++i) {
         for (int j = 0; j < output_dim / 2; ++j) {
             emb_sin[i][j] = std::sin(freqs[i][j]) * scaling_factor;
@@ -90,9 +95,10 @@ void apply_rope_hf(
     std::shared_ptr<Tensor> &output,
     std::vector<std::vector<float>> &emb_sin,
     std::vector<std::vector<float>> &emb_cos,
-    int h_cnt) {
+    int h_cnt,
+    int partial_dimension) {
     auto out_dtype = output->dtype();
-    int partial_dimension = (input->dimension()) * 1;
+    //int partial_dimension = (input->dimension()) * 1;
     int half = (int)(partial_dimension / 2);
     assert(partial_dimension % 2 == 0);
     if (output->ctype() == BSHD) {
@@ -213,7 +219,8 @@ CPUNTKRoPE::CPUNTKRoPE(Backend *bn, string op_name, int pose_type, float rope_th
                        const std::vector<float> &short_factor,
                        int original_max_position_embeddings,
                        int max_position_embeddings,
-                       int thread_count) :
+                       int thread_count,
+                       float partial_rotary_factor) :
     Op(bn, op_name),
     thread_count_(thread_count),
     pose_type_(pose_type),
@@ -221,17 +228,19 @@ CPUNTKRoPE::CPUNTKRoPE(Backend *bn, string op_name, int pose_type, float rope_th
     long_factor_(long_factor),
     short_factor_(short_factor),
     original_max_position_embeddings_(original_max_position_embeddings),
-    max_position_embeddings_(max_position_embeddings) {
+    max_position_embeddings_(max_position_embeddings),
+    partial_rotary_factor_(partial_rotary_factor) {
 }
 
 ErrorCode CPUNTKRoPE::doExecute(std::vector<std::shared_ptr<Tensor>> inputs, std::vector<std::shared_ptr<Tensor>> outputs) {
     auto &input = inputs[0];
     auto &output = outputs[0];
     auto out_dtype = output->dtype();
-    int partial_dimension = (input->dimension()) * 1;
+    //int partial_dimension = (input->dimension()) * 1;
+    int partial_dimension = int(input->dimension() * partial_rotary_factor_);
     switch ((RoPEType)pose_type_) {
     case RoPEType::HFHUBROPE:
-        apply_rope_hf(input, output, emb_sin_, emb_cos_, h_cnt_);
+        apply_rope_hf(input, output, emb_sin_, emb_cos_, h_cnt_, partial_dimension);
         break;
     default:
         MLLM_LOG_ERROR("RoPEType={} is not supported yet. Currently, only support HFHUBROPE style NTKRoPE", pose_type_);
@@ -278,6 +287,7 @@ ErrorCode CPUNTKRoPE::reshape(std::vector<std::shared_ptr<Tensor>> inputs, std::
                 long_factor_,
                 short_factor_,
                 original_max_position_embeddings_,
+                partial_rotary_factor_,
                 max_position_embeddings_);
             break;
         default:
