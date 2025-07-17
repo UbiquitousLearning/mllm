@@ -51,7 +51,8 @@ public:
                const std::vector<float> &short_factor,
                int original_max_position_embeddings,
                int max_position_embeddings,
-               int thread_count);
+               int thread_count,
+               float partial_rotary_factor = 1.0f);
 
     ~CPUNTKRoPE() override = default;
     ErrorCode reshape(std::vector<std::shared_ptr<Tensor>> inputs, std::vector<std::shared_ptr<Tensor>> outputs) override;
@@ -76,6 +77,7 @@ private:
     int max_position_embeddings_ = 32768;
     int original_max_position_embeddings_ = 32768;
     int in_shape = -1;
+    float partial_rotary_factor_ = 1.0f;
 
     void clearCache() override {
         h_cnt_ = 0;
@@ -107,8 +109,13 @@ public:
 
         int original_max_position_embeddings = static_cast<int>(op_param["original_max_position_embeddings"]);
 
+        float partial_rotary_factor = 1.0f;
+        if (op_param.count("partial_rotary_factor")) {
+            partial_rotary_factor = op_param["partial_rotary_factor"];
+        }
+
         return new CPUNTKRoPE(bn, name, pose_type, rope_theta, long_factor, short_factor,
-                              original_max_position_embeddings, max_position_embeddings, thread_count);
+                              original_max_position_embeddings, max_position_embeddings, thread_count, partial_rotary_factor);
     }
 };
 
