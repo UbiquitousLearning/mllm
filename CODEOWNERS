@@ -1,0 +1,21 @@
+# Contributors can indicate their level of familiarity with a specific functional module in this document to demonstrate whether they are capable of reviewing the code related to these modules.
+
+# Install and ENV
+
+/cmake/ @chenghuaWang
+/.devcontainer/ @chenghuaWang
+/docker/ @chenghuaWang
+
+# Documents & Website Related
+
+/docs/ @chenghuaWang @oreomaker @yirongjie @liang1232018 @xumengwei
+
+# Backends
+
+/mllm/Backends/X86/ @yirongjie
+/mllm/Backends/Arm/ @chenghuaWang @yirongjie
+/mllm/Backends/QNN/ @oreomaker @liang1232018 @chenghuaWang
+
+# Compiler
+
+/mllm/IR/ @chenghuaWang

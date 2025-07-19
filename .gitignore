@@ -1,0 +1,16 @@
+.vscode/
+.cache/
+.tmp/
+
+# Building files and binary
+build*/
+install*/
+
+# Pymllm related
+stubs/
+py-build-out/
+pymllm.egg-info/
+_C.cpython-*.so
+
+# Python related
+__pycache__/

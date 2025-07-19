@@ -1,0 +1,53 @@
+FROM ubuntu:24.04
+
+WORKDIR /root
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LC_ALL=en_US.UTF-8 \
+    PATH="/opt/conda/bin:$PATH" \
+    ANDROID_NDK_PATH=/opt/ndk/android-ndk-r28b
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    wget \
+    unzip \
+    doxygen \
+    graphviz \
+    llvm-dev \
+    ninja-build \
+    libtinfo-dev \
+    zlib1g-dev \
+    libedit-dev \
+    libxml2-dev \
+    ca-certificates \
+    android-tools-adb \
+    && apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Install Miniconda
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-Linux-x86_64.sh -O miniconda.sh && \
+    bash miniconda.sh -b -p /opt/conda && \
+    rm miniconda.sh
+
+# Install conda packages
+RUN conda install -y pip cmake && \
+    conda install -c conda-forge libstdcxx-ng=12 && \
+    conda clean --all
+
+# Install Android NDK
+RUN wget https://dl.google.com/android/repository/android-ndk-r28b-linux.zip && \
+    unzip android-ndk-r28b-linux.zip && \
+    rm android-ndk-r28b-linux.zip && \
+    mkdir -p /opt/ndk && \
+    mv android-ndk-r28b /opt/ndk/
+
+RUN git clone --recursive https://github.com/UbiquitousLearning/mllm.git
+
+RUN cd mllm && \
+    pip install -r requirements.txt && \
+    python task.py tasks/build_android.yaml
+
+CMD bash

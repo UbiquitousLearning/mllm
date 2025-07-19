@@ -1,0 +1,65 @@
+Checks: >
+    -*,
+    google-*,
+    modernize-*,
+    performance-*,
+    -modernize-use-trailing-return-type,
+    -readability-identifier-length,
+    -readability-magic-numbers,
+    -modernize-pass-by-value,
+    -cppcoreguidelines-avoid-c-arrays,
+    -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+    -cppcoreguidelines-pro-type-vararg,
+    -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+    -modernize-avoid-c-arrays,
+    -readability-function-size,
+    -google-readability-todo,
+    -readability-named-parameter,
+    -google-readability-casting,
+    -modernize-use-auto,
+    -google-readability-avoid-underscore-in-googletest-name,
+    -performance-enum-size,
+    -modernize-use-ranges,
+
+CheckOptions:
+  - key: IndentWidth
+    value: 2
+  - key: ContinuationIndentWidth
+    value: 4
+  - key: PointerAlignment
+    value: Left
+
+  - key: google-readability-function-size.StatementThreshold
+    value: 1000
+
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: 1
+  - key: readability-braces-around-statements.AllowSingleLineStmt
+    value: true
+
+  - key: modernize-use-default-member-init.IncludeStyle
+    value: parentheses
+  - key: google-readability-function-size.ClassLines
+    value: 300
+
+  - key: readability-parameter-list.BinPackParameters
+    value: true
+
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: UPPER_CASE
+
+  - key: readability-qualified-auto.LeftAlignQualifiers
+    value: true
+
+  - key: google-readability-namespace-comments.SpacesBeforeComments
+    value: 2
+  - key: readability-misleading-indentation.CommentIndentation
+    value: 2
+
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.+'
+FormatStyle: file
