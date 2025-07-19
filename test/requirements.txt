@@ -1,5 +1,0 @@
-# --index-url https://pypi.tuna.tsinghua.edu.cn/simple 
-torch==2.0.1
-numpy==1.26.4
-requests
-cmake
