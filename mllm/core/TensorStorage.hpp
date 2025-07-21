@@ -18,26 +18,27 @@
 #include "mllm/core/Storage.hpp"
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/DeviceTypes.hpp"
-#include "mllm/utils/Common.hpp"
 
 namespace mllm {
 
 enum TensorMemTypes : int32_t {  // NOLINT
   kTensorMemTypes_Start = 0,
 
+  // For MLLM Frame work to use
   kNormal,
   kExtraInput,
   kExtraOutput,
   kManual,
   kGlobal,
+  kReference,
 
+  // Framework need to judge if this tensor is mmap from disk.
   kParams_Start,
   kParamsMMAP,
   kParamsNormal,
   kParams_End,
 
-  kReference,
-
+  // For QNN Backend to use.
   kQnnAppRead,
   kQnnAppWrite,
   kQnnAppReadWrite,
@@ -47,13 +48,12 @@ enum TensorMemTypes : int32_t {  // NOLINT
 
 class TensorStorage final : public Storage {
  public:
-  // TODO   ~TensorStorage() override;
+  ~TensorStorage() override;
 
-  // TODO   static std::shared_ptr<TensorStorage> create(const std::vector<int32_t>& shape, DataTypes dtype, DeviceTypes
-  // device);
+  static std::shared_ptr<TensorStorage> create(const std::vector<int32_t>& shape, DataTypes dtype, const Device& device);
 
   std::string name_;
-  // TODO DataTypes dtype_ = kFp32;
+  DataTypes dtype_ = kFloat32;
   TensorMemTypes mem_type_ = kNormal;
 };
 

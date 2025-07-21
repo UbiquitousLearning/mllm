@@ -104,3 +104,11 @@ struct hash<::mllm::Device> {
   }
 };
 }  // namespace std
+
+// WARN: The Macros below should not be used anymore.
+//
+// We left it here just for compatibility. It need to be removed one day.
+#define MLLM_CPU ::mllm::DeviceTypes::kCPU
+#define MLLM_OPENCL ::mllm::DeviceTypes::kOpenCL
+#define MLLM_CUDA ::mllm::DeviceTypes::kCUDA
+#define MLLM_QNN ::mllm::DeviceTypes::kQNN

@@ -19,6 +19,24 @@
 namespace mllm {
 
 class Tensor {
+ public:
+  /**
+   * @brief  Create a nil tensor
+   *
+   * @return Tensor
+   */
+  static inline Tensor nil() { return {}; };
+
+  /**
+   * @brief If this tensor is not initialized
+   *
+   * @note explicit must be set to avoid auto i = tensor. But i is set as bool type.
+   *
+   * @return true
+   * @return false
+   */
+  explicit inline operator bool() const noexcept { return impl_ != nullptr; }
+
  private:
   std::shared_ptr<TensorViewImpl> impl_ = nullptr;
   std::unordered_map<std::string, TensorViewImpl> attached_views_;

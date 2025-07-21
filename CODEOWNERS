@@ -1,5 +1,12 @@
 # Contributors can indicate their level of familiarity with a specific functional module in this document to demonstrate whether they are capable of reviewing the code related to these modules.
 
+# Core
+
+/core/Storage @chenghuaWang
+/core/Tensor* @chenghuaWang @oreomaker @yirongjie
+/core/DataTypes @yirongjie @chenghuaWang
+/core/DeviceTypes @chenghuaWang
+
 # Install and ENV
 
 /cmake/ @chenghuaWang
