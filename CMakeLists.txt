@@ -28,6 +28,16 @@ if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   add_compile_options(-Wno-nan-infinity-disabled)
 endif()
 
+# Handle Windows Symbols.
+if(WIN32)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
+
+# Set binary place
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
 # Setup for installation.
 set(MLLM_INCLUDE_DIR
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
