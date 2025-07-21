@@ -46,8 +46,9 @@ RUN wget https://dl.google.com/android/repository/android-ndk-r28b-linux.zip && 
 
 RUN git clone --recursive https://github.com/UbiquitousLearning/mllm.git
 
-RUN cd mllm && \
-    pip install -r requirements.txt && \
-    python task.py tasks/build_android.yaml
+# FIXME: Uncomment when v2 is stable.
+# RUN cd mllm-advanced && \
+#     pip install -r requirements.txt && \
+#     python task.py tasks/build_android.yaml
 
 CMD bash

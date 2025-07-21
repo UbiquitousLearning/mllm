@@ -51,4 +51,9 @@ RUN cd mllm && \
     pip install -r requirements.txt && \
     python task.py tasks/build_android.yaml
 
+# FIXME: Uncomment when v2 is stable.
+# RUN cd mllm-advanced && \
+#     pip install -r requirements.txt && \
+#     python task.py tasks/build_android.yaml
+
 CMD bash
