@@ -139,18 +139,20 @@ class CMakeConfigTask(Task):
             f'If you are using vscode to develop. Pls set `"clangd.arguments": ["--compile-commands-dir={os.path.join(PROJECT_ROOT_PATH, cmake_cfg_path)}"]`'
         )
 
-        logging.info("Finding targets in Ninja Builder:")
-        os.system(
-            self.make_command_str(
-                [
-                    "ninja",
-                    "-C",
-                    os.path.join(PROJECT_ROOT_PATH, cmake_cfg_path),
-                    "-t",
-                    "targets",
-                ]
+        show_ninja_targets = self.config.get("show_ninja_targets", False)
+        if show_ninja_targets:
+            logging.info("Finding targets in Ninja Builder:")
+            os.system(
+                self.make_command_str(
+                    [
+                        "ninja",
+                        "-C",
+                        os.path.join(PROJECT_ROOT_PATH, cmake_cfg_path),
+                        "-t",
+                        "targets",
+                    ]
+                )
             )
-        )
 
 
 class CMakeFormatTask(Task):

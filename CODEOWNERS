@@ -12,10 +12,10 @@
 
 # Backends
 
-/mllm/Backends/X86/ @yirongjie
-/mllm/Backends/Arm/ @chenghuaWang @yirongjie
-/mllm/Backends/QNN/ @oreomaker @liang1232018 @chenghuaWang
+/mllm/backends/x86/ @yirongjie
+/mllm/backends/arm/ @chenghuaWang @yirongjie
+/mllm/backends/qnn/ @oreomaker @liang1232018 @chenghuaWang
 
 # Compiler
 
-/mllm/IR/ @chenghuaWang
+/mllm/compile/ @chenghuaWang
