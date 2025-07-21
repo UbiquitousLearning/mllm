@@ -32,14 +32,14 @@ if __name__ == "__main__":
     print(adb.get_devices())
     adb.push_file(
         "./build/fancy_algorithm",
-        "/data/local/tmp/mllm-advanced/bin/algorithms/",
+        "/data/local/tmp/mllm/bin/algorithms/",
     )
     with adb.get_shell_context() as shell:
-        shell.execute("cd /data/local/tmp/mllm-advanced/bin/algorithms/")
+        shell.execute("cd /data/local/tmp/mllm/bin/algorithms/")
         shell.execute(
-            "export LD_LIBRARY_PATH=/data/local/tmp/mllm-advanced/bin:$LD_LIBRARY_PATH"
+            "export LD_LIBRARY_PATH=/data/local/tmp/mllm/bin:$LD_LIBRARY_PATH"
         )
         # If Using QNN, uncomment the following line
-        # shell.execute("export ADSP_LIBRARY_PATH=/data/local/tmp/mllm-advanced/lib64")
+        # shell.execute("export ADSP_LIBRARY_PATH=/data/local/tmp/mllm/lib64")
         res = shell.execute("./fancy_algorithm --help")
         print(res)
