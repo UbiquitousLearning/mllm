@@ -10,8 +10,6 @@ project = "MLLM <br>"
 version = "2.0.0-beta"
 release = "2.0.0"
 author = "MLLM Contributors"
-master_doc = "docs"
-html_extra_path = ["index.html"]
 copyright = "2024-2025, %s" % author
 extensions = [
     "sphinx_tabs.tabs",
