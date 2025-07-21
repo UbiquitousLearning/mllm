@@ -8,31 +8,28 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mllm"
+name = "pymllm"
 dynamic = [
   # version is in setup.py file
   'version',
 ]
-description = "fast and lightweight multimodal LLM inference engine for mobile and edge devices"
+description = "Fast and lightweight multimodal LLM inference engine for mobile and edge devices"
 readme = "README.md"
 authors = [
   {name="chenghua.wang", email="chenghua.wang.edu@gmail.com"},
+# TODO contributors for pymllm
 ]
-keywords = ["mllm", "llm", "inference", "machine learning"]
+keywords = ["pymllm", "llm", "inference", "machine learning"]
 
 # Python dependencies
 requires-python = ">=3.10"
 dependencies=[
-  "flatbuffers",
-  "numpy==1.21.3; python_version == '3.10'",
-  "numpy==1.23.2; python_version == '3.11'",
-  "numpy; python_version >= '3.12'",
   "packaging",
-  "pandas==2.0.3; python_version == '3.10'",
-  "pandas; python_version >= '3.11'",
   "pytest",
   "pytest-html",
   "pybind11-stubgen>=2.5.1",
+  "pyyaml >= 6.0.2",
+  "cmake-format >= 0.6.13"
 ]
 
 [tool.setuptools.exclude-package-data]

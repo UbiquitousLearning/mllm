@@ -1,0 +1,14 @@
+CompileFlags:
+  Add:
+    - -std=c++20
+    # If Using CUDA, options below may be needed
+    # - --cuda-path=/usr/local/cuda
+    # - --cuda-gpu-arch=sm_89
+    # - -L/usr/local/cuda/lib64
+    # - -I/usr/local/cuda/include
+# For CUDA User.
+  Remove:
+    - -forward-unknown-to-host-compiler
+    - --generate-code*
+    - -Xcompiler=-fPIC
+    - --expt-relaxed-constexpr

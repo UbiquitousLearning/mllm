@@ -1,72 +1,65 @@
-# currently disable:
-# misc-*,
-# -misc-non-private-member-variables-in-classes,
-  #   bugprone-*,
-  # modernize-*,
-  #,
-  # performance-*,
-  # portability-*,
 Checks: >
-  -*,
-  -openmp-exception-escape,
-  -openmp-use-default-none,
-  readability-identifier-naming,
-  readability-*,
-  -readability-convert-member-functions-to-static,
-  -readability-named-parameter,
-  -readability-braces-around-statements,
-  -readability-magic-numbers,
-  -readability-identifier-length,
-  -readability-avoid-const-params-in-,
-  -readability-function-cognitive-complexity,
-  -readability-else-after-return,
-  -readability-simplify-boolean-expr,
-  -readability-redundant-access-specifiers,
-  -readability-inconsistent-declaration-parameter-name,
-  -readability-implicit-bool-conversion,
-  -readability-identifier-naming,
-  -readability-isolate-declaration,
-  -readability-qualified-auto,
-  -readability-uppercase-literal-suffix,
-  -readability-make-member-function-const,
-  -readability-const-return-type,
-  -readability-use-anyofallof,
-  -readability-container-data-pointer,
-  -readability-avoid-const-params-in-decls,
-  -readability-non-const-parameter,
+    -*,
+    google-*,
+    modernize-*,
+    performance-*,
+    -modernize-use-trailing-return-type,
+    -readability-identifier-length,
+    -readability-magic-numbers,
+    -modernize-pass-by-value,
+    -cppcoreguidelines-avoid-c-arrays,
+    -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+    -cppcoreguidelines-pro-type-vararg,
+    -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+    -modernize-avoid-c-arrays,
+    -readability-function-size,
+    -google-readability-todo,
+    -readability-named-parameter,
+    -google-readability-casting,
+    -modernize-use-auto,
+    -google-readability-avoid-underscore-in-googletest-name,
+    -performance-enum-size,
+    -modernize-use-ranges,
 
-# Turn all the warnings from the checks above into errors.
-# WarningsAsErrors: "*"
-
-HeaderFilterRegex: ".*\\.hpp$&!gguf\\.hpp"
 CheckOptions:
-  - key: readability-identifier-naming.NamespaceCase
-    value: lower_case
+  - key: IndentWidth
+    value: 2
+  - key: ContinuationIndentWidth
+    value: 4
+  - key: PointerAlignment
+    value: Left
+
+  - key: google-readability-function-size.StatementThreshold
+    value: 1000
+
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: 1
+  - key: readability-braces-around-statements.AllowSingleLineStmt
+    value: true
+
+  - key: modernize-use-default-member-init.IncludeStyle
+    value: parentheses
+  - key: google-readability-function-size.ClassLines
+    value: 300
+
+  - key: readability-parameter-list.BinPackParameters
+    value: true
+
   - key: readability-identifier-naming.ClassCase
     value: CamelCase
-  - key: readability-identifier-naming.StructCase
-    value: CamelCase
-  - key: readability-identifier-naming.TemplateParameterCase
-    value: CamelCase
-  # - key: readability-identifier-naming.FunctionCase
-  #   value: _
-  - key: readability-identifier-naming.PublicMethodCase
-    value:  camelBack
-  - key: readability-identifier-naming.PrivateMethodCase
-    value:  camelBack
-  - key: readability-identifier-naming.PrivateMemberSuffix
-    value: _
-  - key: readability-identifier-naming.ProtectedMemberSuffix
-    value: _
-  - key: readability-identifier-naming.MacroDefinition
-    value: UPPER_CASE
-  # - key: readability-identifier-naming.EnumConstantCase
-  #   value: _
-  - key: readability-identifier-naming.ConstexprVariableCase
-    value: CamelCase
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
   - key: readability-identifier-naming.GlobalConstantCase
-    value: CamelCase
-  - key: readability-identifier-naming.MemberConstantCase
-    value: CamelCase
-  - key: readability-identifier-naming.StaticConstantCase
-    value: CamelCase
+    value: UPPER_CASE
+
+  - key: readability-qualified-auto.LeftAlignQualifiers
+    value: true
+
+  - key: google-readability-namespace-comments.SpacesBeforeComments
+    value: 2
+  - key: readability-misleading-indentation.CommentIndentation
+    value: 2
+
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.+'
+FormatStyle: file

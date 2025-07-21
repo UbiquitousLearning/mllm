@@ -1,0 +1,3 @@
+BuildDocTask:
+  - place: build
+  - type: html

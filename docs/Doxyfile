@@ -1,0 +1,28 @@
+PROJECT_NAME           = "MLLM"
+PROJECT_NUMBER         = "2.0.0"
+PROJECT_BRIEF          = "Fast and lightweight LLM inference engine for mobile and edge devices"
+OUTPUT_DIRECTORY       = ./
+INPUT                  = ../mllm
+FILE_PATTERNS          = *.h *.hpp *.cpp *.c *cu *cuh
+RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */Vendors/* */third_party/* */vendors/* */third-party/*
+SEARCH_INCLUDES        = YES
+INCLUDE_PATH           = ../mllm
+GENERATE_XML           = YES
+XML_OUTPUT             = xml
+XML_PROGRAMLISTING     = YES
+CASE_SENSE_NAMES       = YES
+JAVADOC_AUTOBRIEF      = YES
+INHERIT_DOCS           = YES
+SORT_MEMBER_DOCS       = YES
+QUIET                  = NO
+WARNINGS               = NO
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = NO
+GENERATE_HTML          = NO
+GENERATE_LATEX         = NO
+GENERATE_RTF           = NO
+GENERATE_MAN           = NO
+GENERATE_DOCBOOK       = NO
+PREDEFINED = __restrict__= 
+PREDEFINED += __restrict= 
