@@ -10,7 +10,7 @@
 #include "mllm/utils/Log.hpp"
 #include "mllm/utils/Dbg.hpp"
 
-#define MLLM_NAMESPACE_ANONYMOUS
+#define MLLM_ANONYMOUS_NAMESPACE
 
 #define MLLM_EMPTY_SCOPE
 
