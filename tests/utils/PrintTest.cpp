@@ -13,6 +13,7 @@
 #include "mllm/mllm.hpp"
 
 TEST(PrintTest, Tensor) {
+  mllm::initializeContext();
   using namespace mllm;  // NOLINT
   auto t = Tensor::ones({8, 8}, kFloat16, kCPU);
   print(t);

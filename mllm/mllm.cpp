@@ -9,13 +9,8 @@
  *
  */
 #include "mllm/mllm.hpp"
-#include "mllm/engine/Context.hpp"
 
 namespace mllm {
-
-void initializeContext() {
-  // TODO
-}
 
 void shutdownContext() {
   // TODO
