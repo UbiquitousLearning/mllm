@@ -31,7 +31,7 @@ class Storage : public std::enable_shared_from_this<Storage> {
 
   void* ptr_ = nullptr;
   size_t size_ = 0;
-  Device device_ = Device::CPU;
+  DeviceTypes device_ = kCPU;
   StorageTypes type_ = kGeneral;
   uint32_t custom_32bit_uuid_ = -1;
 };

@@ -36,7 +36,8 @@ TensorStorage::~TensorStorage() {
   };
 }
 
-std::shared_ptr<TensorStorage> TensorStorage::create(const std::vector<int32_t>& shape, DataTypes dtype, const Device& device) {
+std::shared_ptr<TensorStorage> TensorStorage::create(const std::vector<int32_t>& shape, DataTypes dtype,
+                                                     const DeviceTypes& device) {
   auto ret = std::make_shared<TensorStorage>();
 
   ret->dtype_ = dtype;

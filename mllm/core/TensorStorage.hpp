@@ -50,7 +50,7 @@ class TensorStorage final : public Storage {
  public:
   ~TensorStorage() override;
 
-  static std::shared_ptr<TensorStorage> create(const std::vector<int32_t>& shape, DataTypes dtype, const Device& device);
+  static std::shared_ptr<TensorStorage> create(const std::vector<int32_t>& shape, DataTypes dtype, const DeviceTypes& device);
 
   std::string name_;
   DataTypes dtype_ = kFloat32;
