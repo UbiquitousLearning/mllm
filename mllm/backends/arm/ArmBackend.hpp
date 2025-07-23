@@ -10,6 +10,14 @@
 
 #include "mllm/backends/base/Backend.hpp"
 
+#ifndef __ARM_NEON
+#error Mllm's Arm backend only support those devices that have neon support
+#endif
+
+#if __ARM_ARCH < 8
+#error Mllm's Arm backend only support those devices that have armv8 or above
+#endif
+
 namespace mllm::arm {
 
 class ArmBackend final : public Backend {
@@ -18,5 +26,7 @@ class ArmBackend final : public Backend {
 
  private:
 };
+
+std::shared_ptr<ArmBackend> createArmBackend();
 
 }  // namespace mllm::arm

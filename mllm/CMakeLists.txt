@@ -9,6 +9,8 @@ file(GLOB_RECURSE MLLM_RT_PREPROCESSOR_SRC ${CMAKE_CURRENT_LIST_DIR}/preprocesso
 add_library(
   MllmRT SHARED
   mllm.cpp
+  backends/base/Backend.cpp
+  backends/base/Allocator.cpp
   ${MLLM_RT_CORE_SRC}
   ${MLLM_RT_UTILS_SRC}
   ${MLLM_RT_ENGINE_SRC}

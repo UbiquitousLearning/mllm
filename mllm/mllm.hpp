@@ -19,6 +19,7 @@
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/core/Tensor.hpp"
+#include "mllm/engine/Context.hpp"
 
 //===----------------------------------------------------------------------===//
 // Print Stuff
@@ -77,9 +78,26 @@ struct formatter<std::vector<int32_t>> {
 };
 }  // namespace fmt
 
+#if defined(__aarch64__)
+#include "mllm/backends/arm/ArmBackend.hpp"
+#define __MLLM_HOST_BACKEND_CREATE arm::createArmBackend()
+#elif defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+#include "mllm/backends/x86/X86Backend.hpp"
+#define __MLLM_HOST_BACKEND_CREATE x86::createX86Backend()
+#endif
+
 namespace mllm {
 
-void initializeContext();
+inline void initializeContext() {
+  auto& ctx = Context::instance();
+
+  // 1. Register host backend
+  auto host_backend = __MLLM_HOST_BACKEND_CREATE;
+  ctx.registerBackend(host_backend);
+
+  // 2. Initialize memory manager
+  ctx.memoryManager()->registerAllocator(kCPU, host_backend->allocator(), MemoryManagerOptions());
+}
 
 void shutdownContext();
 

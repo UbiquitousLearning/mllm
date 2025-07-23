@@ -85,6 +85,8 @@ class BaseOpOptionsBase {
 
 class BaseOp : public std::enable_shared_from_this<BaseOp> {
  public:
+  using ptr_t = std::shared_ptr<BaseOp>;
+
   explicit BaseOp(OpTypes op_type);
 
   virtual void load(const ParameterFile::ptr_t& ploader) {};
@@ -95,7 +97,7 @@ class BaseOp : public std::enable_shared_from_this<BaseOp> {
 
   virtual void reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {}
 
-  virtual void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs);
+  virtual void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {}
 
   virtual ParameterFile::ptr_t getParams() { return nullptr; }
 

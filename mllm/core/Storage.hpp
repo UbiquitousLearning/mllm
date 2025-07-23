@@ -20,6 +20,8 @@ namespace mllm {
 
 class Storage : public std::enable_shared_from_this<Storage> {
  public:
+  using ptr_t = std::shared_ptr<Storage>;
+
   virtual ~Storage() = default;
 
   enum StorageTypes : uint8_t {
