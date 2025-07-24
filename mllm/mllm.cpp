@@ -40,4 +40,12 @@ bool isQnnAvailable() {
 
 SessionTCB::ptr_t thisThread() { return Context::instance().thisThread(); }
 
+ParameterFile::ptr_t load(const std::string& file_name, DeviceTypes map_2_device) {
+  // Judge the version of model file
+
+  // load model file
+
+  return ParameterFile::create();
+}
+
 }  // namespace mllm

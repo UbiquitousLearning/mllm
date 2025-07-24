@@ -37,7 +37,7 @@ struct LinearOptions : public BaseOpOptions<LinearOptions> {
 
 class LinearOp : public BaseOp {
  public:
-  explicit LinearOp(const LinearOptions& cargo);
+  explicit LinearOp(const LinearOptions& options);
 
   void load(const ParameterFile::ptr_t& ploader) override;
 
