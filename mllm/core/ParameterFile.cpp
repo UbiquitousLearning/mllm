@@ -89,17 +89,18 @@ ParameterFile::ptr_t ParameterFileIOImpl<DeviceTypes::kCPU, ModelFileVersion::kV
   p_file->setMappedFile(mmap_file);
 
   // Process Header
-  uint64_t parameter_cnt = -1;
+  uint64_t parameter_desc_offset = -1;
   {
     auto* header = static_cast<ModelFileV1Descriptor*>(mmap_file->data());
     MLLM_RT_ASSERT_EQ(MLLM_MODEL_FILE_V1_MAGIC_NUMBER, header->magic_number);
-    parameter_cnt = header->parameter_cnt;
+    parameter_desc_offset = header->parameter_desc_offset;
   }
   char* current_pos = static_cast<char*>(mmap_file->data()) + sizeof(ModelFileV1Descriptor);
+  char* end_pos = current_pos + parameter_desc_offset;
 
   // Loop to find each tensor
   std::vector<ModelFileV1ParamsDescriptorHelper> tensor_meta_info;
-  for (int i = 0; i < parameter_cnt; ++i) {
+  while (current_pos < end_pos) {
     ModelFileV1ParamsDescriptorHelper helper;
 
     // Gen Name length
@@ -138,6 +139,8 @@ ParameterFile::ptr_t ParameterFileIOImpl<DeviceTypes::kCPU, ModelFileVersion::kV
     s->name_ = desc.name_;
     s->ptr_ = desc.ptr_;
     s->mem_type_ = kParamsMMAP;
+
+    p_file->push(desc.name_, Tensor(t));
   }
 
   return p_file;
