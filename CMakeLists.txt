@@ -119,8 +119,7 @@ install(
   PATTERN "*.hpp")
 
 # Install tools
-# install(TARGETS mllm-quantizer mllm-tokenize-checker mllm-power-counter
-#                 mllm-runner RUNTIME DESTINATION bin)
+install(TARGETS mllm-params-inspector DESTINATION bin)
 
 # Final config and file copy.
 install(
