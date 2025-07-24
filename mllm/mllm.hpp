@@ -24,6 +24,7 @@
 #include "mllm/core/Tensor.hpp"
 #include "mllm/engine/Context.hpp"
 #include "mllm/engine/SessionTCB.hpp"
+#include "mllm/utils/Argparse.hpp"
 
 //===----------------------------------------------------------------------===//
 // Print Stuff
@@ -168,7 +169,8 @@ bool isQnnAvailable();
 
 SessionTCB::ptr_t thisThread();
 
-ParameterFile::ptr_t load(const std::string& file_name, DeviceTypes map_2_device = kCPU);
+ParameterFile::ptr_t load(const std::string& file_name, ModelFileVersion version = ModelFileVersion::kV1,
+                          DeviceTypes map_2_device = kCPU);
 
 //===----------------------------------------------------------------------===//
 // Print Stuff

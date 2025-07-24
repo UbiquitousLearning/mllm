@@ -9,6 +9,7 @@
  *
  */
 #include "mllm/mllm.hpp"
+#include "mllm/core/ParameterFile.hpp"
 
 namespace mllm {
 
@@ -40,11 +41,12 @@ bool isQnnAvailable() {
 
 SessionTCB::ptr_t thisThread() { return Context::instance().thisThread(); }
 
-ParameterFile::ptr_t load(const std::string& file_name, DeviceTypes map_2_device) {
-  // Judge the version of model file
+ParameterFile::ptr_t load(const std::string& file_name, ModelFileVersion v, DeviceTypes map_2_device) {
+  if (v == ModelFileVersion::kV1 && map_2_device == kCPU) {
+    return ParameterFileIOImpl<kCPU, ModelFileVersion::kV1>::read(file_name);
+  }
 
-  // load model file
-
+  // return empty if not match all.
   return ParameterFile::create();
 }
 
