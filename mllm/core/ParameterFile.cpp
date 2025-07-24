@@ -89,7 +89,7 @@ ParameterFile::ptr_t ParameterFileIOImpl<DeviceTypes::kCPU, ModelFileVersion::kV
   p_file->setMappedFile(mmap_file);
 
   // Process Header
-  int32_t parameter_cnt = -1;
+  uint64_t parameter_cnt = -1;
   {
     auto* header = static_cast<ModelFileV1Descriptor*>(mmap_file->data());
     MLLM_RT_ASSERT_EQ(MLLM_MODEL_FILE_V1_MAGIC_NUMBER, header->magic_number);

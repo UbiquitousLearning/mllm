@@ -24,7 +24,8 @@ class LayerImpl : public AbstractNnNode {
   using ptr_t = std::shared_ptr<LayerImpl>;
 
   template<typename T>
-  LayerImpl(OpTypes op_type, const T& cargo) : AbstractNnNode(AbstractNnNodeTypes::kLayer), op_type_(op_type), cargo_(cargo) {}
+  LayerImpl(OpTypes op_type, const T& option)
+      : AbstractNnNode(AbstractNnNodeTypes::kLayer), op_type_(op_type), options_(option) {}
 
   ParameterFile::ptr_t refParams();
 
@@ -38,7 +39,7 @@ class LayerImpl : public AbstractNnNode {
 
  private:
   OpTypes op_type_;
-  BaseOpOptionsBase cargo_;
+  BaseOpOptionsBase options_;
   ParameterFile::ptr_t parameter_loader_;
 };
 
@@ -58,11 +59,9 @@ class Layer {
     // TODO Dispatch
   }
 
-  void print();
-
   [[nodiscard]] OpTypes opType() const;
 
-  BaseOpOptionsBase& refCargo();
+  BaseOpOptionsBase& refOptions();
 
   Layer& to(DeviceTypes device_type);
 
