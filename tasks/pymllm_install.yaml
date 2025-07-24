@@ -1,6 +1,7 @@
-BuildPythonCLibTask:
-PymllmInstallTask:
-  type: "release"
-GenPybind11StubsTask:
-PymllmInstallTask:
-  type: "release"
+Tasks:
+  - BuildPythonCLibTask:
+  - PymllmInstallTask:
+    type: "release"
+  - GenPybind11StubsTask:
+  - PymllmInstallTask:
+    type: "release"
