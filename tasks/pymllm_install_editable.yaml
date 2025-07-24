@@ -1,6 +1,7 @@
-BuildPythonCLibTask:
-PymllmInstallTask:
-  type: "editable"
-GenPybind11StubsTask:
-PymllmInstallTask:
-  type: "editable"
+Tasks:
+  - BuildPythonCLibTask:
+  - PymllmInstallTask:
+      type: "editable"
+  - GenPybind11StubsTask:
+  - PymllmInstallTask:
+      type: "editable"

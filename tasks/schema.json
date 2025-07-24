@@ -1,0 +1,159 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Task Configuration Schema",
+    "type": "object",
+    "properties": {
+        "Tasks": {
+            "CMakeConfigTask": {
+                "type": "object",
+                "properties": {
+                    "cmake_cfg_path": {
+                        "type": "string"
+                    },
+                    "cmake_build_type": {
+                        "type": "string"
+                    },
+                    "cmake_toolchain_file": {
+                        "type": "string"
+                    },
+                    "cmake_extra_args": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "show_ninja_targets": {
+                        "type": "boolean"
+                    }
+                },
+                "additionalProperties": false
+            },
+            "CMakeFormatTask": {
+                "type": "object",
+                "properties": {
+                    "ignore_path": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "additionalProperties": false
+            },
+            "CMakeBuildTask": {
+                "type": "object",
+                "properties": {
+                    "cmake_cfg_path": {
+                        "type": "string"
+                    },
+                    "targets": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "additionalProperties": false
+            },
+            "CMakeInstallTask": {
+                "type": "object",
+                "properties": {
+                    "cmake_cfg_path": {
+                        "type": "string"
+                    }
+                },
+                "additionalProperties": false
+            },
+            "AdbPushTask": {
+                "type": "object",
+                "properties": {
+                    "files": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "to_path": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "files",
+                    "to_path"
+                ],
+                "additionalProperties": false
+            },
+            "ArmKernelBenchmarkTask": {
+                "type": "object",
+                "properties": {
+                    "benchmark_targets": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "remote_results_path": {
+                        "type": "string"
+                    },
+                    "device_name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "benchmark_targets",
+                    "remote_results_path",
+                    "device_name"
+                ],
+                "additionalProperties": false
+            },
+            "GenPybind11StubsTask": {
+                "type": "object",
+                "additionalProperties": false
+            },
+            "BuildDocTask": {
+                "type": "object",
+                "additionalProperties": false
+            },
+            "BuildPythonCLibTask": {
+                "type": "object",
+                "additionalProperties": false
+            },
+            "HexagonMakeTask": {
+                "type": "object",
+                "properties": {
+                    "mllm_qnn_package_place": {
+                        "type": "string"
+                    },
+                    "targets": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "mllm_qnn_package_place",
+                    "targets"
+                ],
+                "additionalProperties": false
+            },
+            "PymllmInstallTask": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "editable",
+                            "release"
+                        ]
+                    }
+                },
+                "required": [
+                    "type"
+                ],
+                "additionalProperties": false
+            }
+        }
+    },
+    "additionalProperties": false
+}

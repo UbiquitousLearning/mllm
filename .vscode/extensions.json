@@ -14,5 +14,6 @@
         "Gruntfuggly.todo-tree",
         "benjamin-simmonds.pythoncpp-debug",
         "cschlosser.doxdocgen",
+        "redhat.vscode-yaml"
     ]
 }

@@ -1,3 +1,4 @@
-BuildDocTask:
-  - place: build
-  - type: html
+Tasks:
+  - BuildDocTask:
+      place: build
+      type: html
