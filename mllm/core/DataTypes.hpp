@@ -367,25 +367,28 @@ struct DataTypeInfo {
    * @return size_t
    */
   static inline size_t bytes() { return sizeof(dtype_t); };
+
+  static inline std::string name() { return "Unknown"; };
 };
 
-#define MLLM_DEFINE_BASIC_TYPE_INFO(T, zero_val, one_val, max_val, min_val) \
-  template<>                                                                \
-  struct DataTypeInfo<T> {                                                  \
-    using dtype_t = T;                                                      \
-    static inline dtype_t zero() { return zero_val; }                       \
-    static inline dtype_t one() { return one_val; }                         \
-    static inline dtype_t max() { return max_val; }                         \
-    static inline dtype_t min() { return min_val; }                         \
-    static inline size_t lanes() { return 1; }                              \
-    static inline size_t bytes() { return sizeof(dtype_t); }                \
+#define MLLM_DEFINE_BASIC_TYPE_INFO(T, zero_val, one_val, max_val, min_val, str_name) \
+  template<>                                                                          \
+  struct DataTypeInfo<T> {                                                            \
+    using dtype_t = T;                                                                \
+    static inline dtype_t zero() { return zero_val; }                                 \
+    static inline dtype_t one() { return one_val; }                                   \
+    static inline dtype_t max() { return max_val; }                                   \
+    static inline dtype_t min() { return min_val; }                                   \
+    static inline size_t lanes() { return 1; }                                        \
+    static inline size_t bytes() { return sizeof(dtype_t); }                          \
+    static inline std::string name() { return str_name; }                             \
   }
 
 MLLM_DEFINE_BASIC_TYPE_INFO(mllm_fp64_t, 0.0, 1.0, std::numeric_limits<mllm_fp64_t>::max(),
-                            std::numeric_limits<mllm_fp64_t>::lowest());
+                            std::numeric_limits<mllm_fp64_t>::lowest(), "Float64");
 
 MLLM_DEFINE_BASIC_TYPE_INFO(mllm_fp32_t, 0.0f, 1.0f, std::numeric_limits<mllm_fp32_t>::max(),
-                            std::numeric_limits<mllm_fp32_t>::lowest());
+                            std::numeric_limits<mllm_fp32_t>::lowest(), "Float32");
 
 template<>
 struct DataTypeInfo<mllm_fp16_t> {
@@ -425,61 +428,64 @@ struct DataTypeInfo<mllm_fp16_t> {
   }
   static inline size_t lanes() { return 1; }
   static inline size_t bytes() { return sizeof(dtype_t); }
+
+  static inline std::string name() { return "Float16"; }
 };
 
 MLLM_DEFINE_BASIC_TYPE_INFO(mllm_int64_t, 0, 1, std::numeric_limits<mllm_int64_t>::max(),
-                            std::numeric_limits<mllm_int64_t>::min());
+                            std::numeric_limits<mllm_int64_t>::min(), "Int64");
 
 MLLM_DEFINE_BASIC_TYPE_INFO(mllm_uint64_t, 0, 1, std::numeric_limits<mllm_uint64_t>::max(),
-                            std::numeric_limits<mllm_uint64_t>::min());
+                            std::numeric_limits<mllm_uint64_t>::min(), "UInt64");
 
 MLLM_DEFINE_BASIC_TYPE_INFO(mllm_int32_t, 0, 1, std::numeric_limits<mllm_int32_t>::max(),
-                            std::numeric_limits<mllm_int32_t>::min());
+                            std::numeric_limits<mllm_int32_t>::min(), "Int32");
 
 MLLM_DEFINE_BASIC_TYPE_INFO(mllm_uint32_t, 0, 1, std::numeric_limits<mllm_uint32_t>::max(),
-                            std::numeric_limits<mllm_uint32_t>::min());
+                            std::numeric_limits<mllm_uint32_t>::min(), "UInt32");
 
 MLLM_DEFINE_BASIC_TYPE_INFO(mllm_int16_t, 0, 1, std::numeric_limits<mllm_int16_t>::max(),
-                            std::numeric_limits<mllm_int16_t>::min());
+                            std::numeric_limits<mllm_int16_t>::min(), "Int16");
 
 MLLM_DEFINE_BASIC_TYPE_INFO(mllm_uint16_t, 0, 1, std::numeric_limits<mllm_uint16_t>::max(),
-                            std::numeric_limits<mllm_uint16_t>::min());
+                            std::numeric_limits<mllm_uint16_t>::min(), "UInt16");
 
-MLLM_DEFINE_BASIC_TYPE_INFO(mllm_int8_t, 0, 1, std::numeric_limits<mllm_int8_t>::max(),
-                            std::numeric_limits<mllm_int8_t>::min());
+MLLM_DEFINE_BASIC_TYPE_INFO(mllm_int8_t, 0, 1, std::numeric_limits<mllm_int8_t>::max(), std::numeric_limits<mllm_int8_t>::min(),
+                            "Int8");
 
 MLLM_DEFINE_BASIC_TYPE_INFO(mllm_uint8_t, 0, 1, std::numeric_limits<mllm_uint8_t>::max(),
-                            std::numeric_limits<mllm_uint8_t>::min());
+                            std::numeric_limits<mllm_uint8_t>::min(), "UInt8");
 
 // There is no need to declare mllm_byte_t. It's already declared in mllm_uint8_t.
 
 #undef MLLM_DEFINE_BASIC_TYPE_INFO
 
-#define MLLM_DEFINE_QUANT_TYPE_INFO(T, element_count)        \
-  template<>                                                 \
-  struct DataTypeInfo<T> {                                   \
-    using dtype_t = T;                                       \
-    static inline dtype_t zero() { return dtype_t(); }       \
-    static inline dtype_t one() { return dtype_t(); }        \
-    static inline dtype_t max() { return dtype_t(); }        \
-    static inline dtype_t min() { return dtype_t(); }        \
-    static inline size_t lanes() { return element_count; }   \
-    static inline size_t bytes() { return sizeof(dtype_t); } \
+#define MLLM_DEFINE_QUANT_TYPE_INFO(T, element_count, str_name) \
+  template<>                                                    \
+  struct DataTypeInfo<T> {                                      \
+    using dtype_t = T;                                          \
+    static inline dtype_t zero() { return dtype_t(); }          \
+    static inline dtype_t one() { return dtype_t(); }           \
+    static inline dtype_t max() { return dtype_t(); }           \
+    static inline dtype_t min() { return dtype_t(); }           \
+    static inline size_t lanes() { return element_count; }      \
+    static inline size_t bytes() { return sizeof(dtype_t); }    \
+    static inline std::string name() { return str_name; }       \
   }
 
-MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q4_0_t, QK4_0);
-MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q4_K_t, QK_K);
-MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q6_K_t, QK_K);
-MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q8_0_t, QK8_0);
-MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q8_per_tensor_t, QK8_0);
-MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q8_K_t, QK_K);
-MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q4_0x4_t, QK4_0 * 4);
-MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q4_0x8_t, QK4_0 * 8);
-MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q8_0x4_t, QK8_0 * 4);
-MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q8_0x8_t, QK8_0 * 8);
-MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q2_K_t, QK_K);
-MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q3_K_t, QK_K);
-MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_iq2_xxs_t, QK_K);
+MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q4_0_t, QK4_0, "GGUF_Q4_0");
+MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q4_K_t, QK_K, "GGUF_Q4_K");
+MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q6_K_t, QK_K, "GGUF_Q6_K");
+MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q8_0_t, QK8_0, "GGUF_Q8_0");
+MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q8_per_tensor_t, QK8_0, "GGUF_Q8_Per_Tensor");
+MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q8_K_t, QK_K, "GGUF_Q8_K");
+MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q4_0x4_t, QK4_0 * 4, "GGUF_Q4_0x4");
+MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q4_0x8_t, QK4_0 * 8, "GGUF_Q4_0x8");
+MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q8_0x4_t, QK8_0 * 4, "GGUF_Q8_0x4");
+MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q8_0x8_t, QK8_0 * 8, "GGUF_Q8_0x8");
+MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q2_K_t, QK_K, "GGUF_Q2_K");
+MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q3_K_t, QK_K, "GGUF_Q3_K");
+MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_iq2_xxs_t, QK_K, "GGUF_IQ2_XXS");
 
 #undef MLLM_DEFINE_QUANT_TYPE_INFO
 
@@ -489,16 +495,17 @@ MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_iq2_xxs_t, QK_K);
 template<DataTypes __MLLM_TYPE>
 struct MllmDataTypeInfo {};
 
-#define MLLM_DEFINE_SELF_TYPE_INFO(__mllm_enum_type, __compiler_type)       \
-  template<>                                                                \
-  struct MllmDataTypeInfo<__mllm_enum_type> {                               \
-    using dtype_t = __compiler_type;                                        \
-    static inline dtype_t zero() { return DataTypeInfo<dtype_t>::zero(); }  \
-    static inline dtype_t one() { return DataTypeInfo<dtype_t>::one(); }    \
-    static inline dtype_t min() { return DataTypeInfo<dtype_t>::min(); }    \
-    static inline dtype_t max() { return DataTypeInfo<dtype_t>::max(); }    \
-    static inline size_t lanes() { return DataTypeInfo<dtype_t>::lanes(); } \
-    static inline size_t bytes() { return DataTypeInfo<dtype_t>::bytes(); } \
+#define MLLM_DEFINE_SELF_TYPE_INFO(__mllm_enum_type, __compiler_type)          \
+  template<>                                                                   \
+  struct MllmDataTypeInfo<__mllm_enum_type> {                                  \
+    using dtype_t = __compiler_type;                                           \
+    static inline dtype_t zero() { return DataTypeInfo<dtype_t>::zero(); }     \
+    static inline dtype_t one() { return DataTypeInfo<dtype_t>::one(); }       \
+    static inline dtype_t min() { return DataTypeInfo<dtype_t>::min(); }       \
+    static inline dtype_t max() { return DataTypeInfo<dtype_t>::max(); }       \
+    static inline size_t lanes() { return DataTypeInfo<dtype_t>::lanes(); }    \
+    static inline size_t bytes() { return DataTypeInfo<dtype_t>::bytes(); }    \
+    static inline std::string name() { return DataTypeInfo<dtype_t>::name(); } \
   }
 
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kFloat32, mllm_fp32_t);
@@ -530,6 +537,8 @@ MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kGGUF_IQ2_XXS, mllm_block_iq2_xxs_t);
 size_t lanesOfType(DataTypes dtype);
 
 size_t bytesOfType(DataTypes dtype);
+
+std::string nameOfType(DataTypes dtype);
 
 }  // namespace mllm
 

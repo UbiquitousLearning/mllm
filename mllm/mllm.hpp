@@ -18,6 +18,7 @@
 #include <fmt/core.h>
 #include <fmt/format.h>
 
+// The headfile will be used in mllm.inl Do not be confused with clang's fixes
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/core/ParameterFile.hpp"
@@ -26,113 +27,8 @@
 #include "mllm/engine/SessionTCB.hpp"
 #include "mllm/utils/Argparse.hpp"
 
-//===----------------------------------------------------------------------===//
-// Print Stuff
-//===----------------------------------------------------------------------===//
-namespace fmt {
-template<>
-struct formatter<mllm::DataTypes> {
-  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(const mllm::DataTypes& dtype, FormatContext& ctx) const {
-    auto out = ctx.out();
-    // TODO
-    return out;
-  }
-};
-
-template<>
-struct formatter<mllm::DeviceTypes> {
-  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(const mllm::DeviceTypes& device, FormatContext& ctx) const {
-    auto out = ctx.out();
-    out = fmt::format_to(out, "{}", mllm::deviceTypes2Str(device));
-    return out;
-  }
-};
-
-template<>
-struct formatter<mllm::Tensor> {
-  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(const mllm::Tensor& tensor, FormatContext& ctx) const {
-    auto out = ctx.out();
-    // TODO
-    return out;
-  }
-};
-
-template<>
-struct formatter<std::vector<int32_t>> {
-  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(const std::vector<int32_t>& vec, FormatContext& ctx) const {
-    auto out = ctx.out();
-    *out++ = '[';
-    for (size_t i = 0; i < vec.size(); ++i) {
-      if (i > 0) {
-        *out++ = ',';
-        *out++ = ' ';
-      }
-      out = fmt::format_to(out, "{}", vec[i]);
-    }
-    *out++ = ']';
-    return out;
-  }
-};
-
-template<>
-struct formatter<mllm::ParameterFile::ptr_t> {
-  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(const mllm::ParameterFile::ptr_t& params, FormatContext& ctx) const {
-    if (!params) { return fmt::format_to(ctx.out(), "ParameterFile[nullptr]"); }
-
-    static std::unordered_map<mllm::ModelFileVersion, std::string> version_names = {
-        {mllm::ModelFileVersion::kUserTemporary, "UserTemporary"},
-        {mllm::ModelFileVersion::kV1, "V1"},
-        {mllm::ModelFileVersion::kV2, "V2"},
-    };
-    std::string version_str = "Unknown";
-    if (auto it = version_names.find(params->version()); it != version_names.end()) {
-      version_str = it->second;
-    } else {
-      version_str = fmt::format("{}", static_cast<int>(params->version()));
-    }
-
-    struct ParamInfo {
-      std::string name;
-      std::string shape;
-      std::string dtype;
-    };
-
-    std::vector<ParamInfo> param_infos;
-    for (auto it = params->begin(); it != params->end(); ++it) {
-      auto tensor = params->pull(it->first);
-      param_infos.push_back({it->first, fmt::format("{}", tensor.shape()), fmt::format("{}", tensor.dtype())});
-    }
-
-    std::sort(param_infos.begin(), param_infos.end(), [](const ParamInfo& a, const ParamInfo& b) { return a.name < b.name; });
-
-    const size_t MAX_SHOW = 2048;
-    const size_t total_params = param_infos.size();
-    auto out = fmt::format_to(ctx.out(), "ParameterFile[{} params, version={}]:\n", total_params, version_str);
-
-    for (size_t i = 0; i < std::min(MAX_SHOW, total_params); ++i) {
-      const auto& info = param_infos[i];
-      out = fmt::format_to(out, "  {:20} {:20} {:>10}\n", info.name, info.shape, info.dtype);
-    }
-
-    if (total_params > MAX_SHOW) {
-      out = fmt::format_to(out, "  ... and {} more parameters\n", total_params - MAX_SHOW);
-    } else if (total_params == 0) {
-      out = fmt::format_to(out, "  [No parameters]\n");
-    }
-    return out;
-  }
-};
-}  // namespace fmt
+// The inline file should be included at the last of all head
+#include "mllm/mllm.inl"
 
 #if defined(__aarch64__)
 #include "mllm/backends/arm/ArmBackend.hpp"

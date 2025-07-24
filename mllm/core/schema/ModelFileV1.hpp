@@ -43,8 +43,8 @@ namespace mllm {
 
 // Pack to 1B if possible
 struct __attribute__((packed)) ModelFileV1Descriptor {
-  int32_t magic_number;    // 4B
-  uint64_t parameter_cnt;  // 8B
+  int32_t magic_number;            // 4B
+  uint64_t parameter_desc_offset;  // 8B
 };
 static_assert(sizeof(ModelFileV1Descriptor) == 12, "ModelFileV1Descriptor size must be 12 bytes");
 
