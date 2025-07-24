@@ -1,11 +1,11 @@
 /**
- * @file Layer.cpp
+ * @file Functional.cpp
  * @author chenghua wang (chenghua.wang.edu@gmail.com)
  * @brief
  * @version 0.1
  * @date 2025-07-24
  *
  */
-#include "mllm/nn/Layer.hpp"
+#include "mllm/nn/Functional.hpp"
 
-namespace mllm::nn {}
+namespace mllm::nn::functional {}

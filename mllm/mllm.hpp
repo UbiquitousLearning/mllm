@@ -20,6 +20,7 @@
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/core/Tensor.hpp"
 #include "mllm/engine/Context.hpp"
+#include "mllm/engine/SessionTCB.hpp"
 
 //===----------------------------------------------------------------------===//
 // Print Stuff
@@ -110,6 +111,8 @@ void memoryReport();
 bool isOpenCLAvailable();
 
 bool isQnnAvailable();
+
+SessionTCB::ptr_t thisThread();
 
 //===----------------------------------------------------------------------===//
 // Print Stuff

@@ -38,4 +38,6 @@ bool isQnnAvailable() {
   return false;
 }
 
+SessionTCB::ptr_t thisThread() { return Context::instance().thisThread(); }
+
 }  // namespace mllm

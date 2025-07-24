@@ -55,12 +55,12 @@ class LinearOp : public BaseOp {
 
   inline Tensor& bias() { return bias_; }
 
-  inline const LinearOptions& cargo() const { return cargo_; }
+  inline const LinearOptions& options() const { return options_; }
 
  protected:
   Tensor weight_;
   Tensor bias_;
-  LinearOptions cargo_;
+  LinearOptions options_;
 };
 
 }  // namespace mllm::aops
