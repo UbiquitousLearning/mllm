@@ -434,9 +434,9 @@ class HexagonMakeTask(Task):
     def __init__(self, config):
         super().__init__(config)
         self.mllm_qnn_package_place = config.get("mllm_qnn_package_place", None)
-        assert (
-            self.mllm_qnn_package_place is not None
-        ), "mllm_qnn_package_place must be set in config"
+        assert self.mllm_qnn_package_place is not None, (
+            "mllm_qnn_package_place must be set in config"
+        )
         self.targets: List[str] = config.get("targets", None)
         assert self.targets is not None, "targets must be set in config"
 
@@ -531,4 +531,4 @@ if __name__ == "__main__":
     for task_dict in task_config["Tasks"]:
         task_name = next(iter(task_dict))
         print(f"[Running task]: {task_name}")
-        TASKS[task_name](task_dict).run()
+        TASKS[task_name](task_dict[task_name]).run()
