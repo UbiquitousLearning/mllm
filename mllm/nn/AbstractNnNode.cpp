@@ -7,6 +7,7 @@
  *
  */
 #include "mllm/nn/AbstractNnNode.hpp"
+#include "mllm/utils/Dbg.hpp"
 
 namespace mllm::nn {
 AbstractNnNode::AbstractNnNode(AbstractNnNodeTypes type) : type_(type) {}

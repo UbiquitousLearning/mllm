@@ -26,6 +26,7 @@
 #include "mllm/engine/Context.hpp"
 #include "mllm/engine/SessionTCB.hpp"
 #include "mllm/utils/Argparse.hpp"
+#include "mllm/nn/Nn.hpp"
 
 // The inline file should be included at the last of all head
 #include "mllm/mllm.inl"

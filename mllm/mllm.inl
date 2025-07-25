@@ -137,6 +137,15 @@ struct formatter<mllm::ParameterFile::ptr_t> {
     return out;
   }
 };
+
+template<typename T>
+struct formatter<T, std::enable_if_t<std::is_base_of_v<mllm::nn::Module, T>, char>> : formatter<std::string> {
+  auto format(const mllm::nn::Module& custom_module, format_context& ctx) const {
+    std::stringstream ss;
+    custom_module.__fmt_print(ss);
+    return formatter<std::string>::format(ss.str(), ctx);
+  }
+};
 }  // namespace fmt
 
 #define MLLM_MAJOR_VERSION = 2

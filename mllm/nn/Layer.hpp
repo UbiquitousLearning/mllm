@@ -9,6 +9,7 @@
 #pragma once
 
 #include <memory>
+#include <sstream>
 
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/core/OpTypes.hpp"
@@ -37,6 +38,8 @@ class LayerImpl : public AbstractNnNode {
 
   BaseOpOptionsBase& refOptions();
 
+  void __fmt_print(std::stringstream& ss);
+
  private:
   OpTypes op_type_;
   BaseOpOptionsBase options_;
@@ -64,6 +67,8 @@ class Layer {
   BaseOpOptionsBase& refOptions();
 
   Layer& to(DeviceTypes device_type);
+
+  void __fmt_print(std::stringstream& ss);
 
  private:
   LayerImpl::ptr_t impl_;

@@ -12,7 +12,7 @@
 
 namespace mllm::aops {
 
-LinearOp::LinearOp(const LinearOptions& options) : BaseOp(OpTypes::kLinear), options_(options) {}
+LinearOp::LinearOp(const LinearOpOptions& options) : BaseOp(OpTypes::kLinear), options_(options) {}
 
 void LinearOp::load(const ParameterFile::ptr_t& ploader) {
   switch (ploader->version()) {

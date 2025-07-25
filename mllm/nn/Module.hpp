@@ -30,6 +30,8 @@ class ModuleImpl : public AbstractNnNode {
 
   void to(DeviceTypes device_type);
 
+  void __fmt_print(std::stringstream& ss);
+
  private:
   ParameterFile::ptr_t param_file_;
 };
@@ -69,7 +71,7 @@ class Module {
     // Register to thisThread table
     if constexpr (std::is_base_of_v<Layer, T>) {
       auto ret = T(std::forward<Args>(args)...);
-      impl_->refChildNodes(ret.impl());
+      impl_->regChildNode(ret.impl());
       ret.impl()->setAbsoluteName(impl_->getAbsoluteName() + "." + name);
 
       auto& ctx = Context::instance();
@@ -103,6 +105,8 @@ class Module {
   Module& load(const ParameterFile::ptr_t& param_file);
 
   virtual std::vector<Tensor> forward(const std::vector<Tensor>& inputs) = 0;
+
+  void __fmt_print(std::stringstream& ss) const;
 
  private:
   ModuleImpl::ptr_t impl_ = nullptr;
