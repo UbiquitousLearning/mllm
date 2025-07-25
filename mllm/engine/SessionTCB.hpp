@@ -17,7 +17,7 @@
 
 namespace mllm {
 
-class SessionContext : std::enable_shared_from_this<SessionContext> {
+class SessionContext : public std::enable_shared_from_this<SessionContext> {
  public:
   using ptr_t = std::shared_ptr<SessionContext>;
 };

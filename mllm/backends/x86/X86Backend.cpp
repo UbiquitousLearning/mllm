@@ -9,9 +9,12 @@
 #include "mllm/backends/x86/X86Backend.hpp"
 #include "mllm/backends/x86/X86Allocator.hpp"
 
+// Ops
+#include "mllm/backends/x86/ops/LinearOp.hpp"
+
 namespace mllm::x86 {
 
-X86Backend::X86Backend() : Backend(kCPU, createX86Allocator()) {}
+X86Backend::X86Backend() : Backend(kCPU, createX86Allocator()) { regOpFactory<X86LinearOpFactory>(); }
 
 std::shared_ptr<X86Backend> createX86Backend() { return std::make_shared<X86Backend>(); }
 

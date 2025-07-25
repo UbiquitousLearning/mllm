@@ -20,7 +20,7 @@ class Linear : public Layer {
   Linear(int32_t in_channels, int32_t out_channels, bool bias = true,
          aops::LinearImplTypes impl_type = aops::LinearImplTypes::kDefault);
 
-  explicit Linear(const aops::LinearOptions& options);
+  explicit Linear(const aops::LinearOpOptions& options);
 
   [[nodiscard]] Tensor weight() const;
 

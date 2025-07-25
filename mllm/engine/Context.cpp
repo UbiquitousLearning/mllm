@@ -14,6 +14,7 @@ namespace mllm {
 Context::Context() {
   // 1. Add main thread
   main_thread_ = std::make_shared<SessionTCB>();
+  main_thread_->system_tid = std::this_thread::get_id();
   session_threads_.insert({main_thread_->system_tid, main_thread_});
 
   // 2. Add memory manager
@@ -40,8 +41,9 @@ uint32_t Context::getUUID() {
 
 SessionTCB::ptr_t Context::thisThread() {
   if (!session_threads_.count(std::this_thread::get_id())) {
-    MLLM_WARN("This control thread did registered a SessionTCB in Context. The Context will automatically create one for you. "
-              "But it is recommend to create SessionTCB manually.");
+    MLLM_WARN(
+        "This control thread did not registered a SessionTCB in Context. The Context will automatically create one for you. "
+        "But it is recommend to create SessionTCB manually.");
     session_threads_.insert({std::this_thread::get_id(), std::make_shared<SessionTCB>()});
   }
   return session_threads_[std::this_thread::get_id()];

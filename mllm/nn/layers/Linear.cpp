@@ -10,15 +10,14 @@
 
 namespace mllm::nn {
 
-Linear::Linear() : Layer(OpTypes::kLinear, aops::LinearOptions{}) {}
+Linear::Linear() : Layer(OpTypes::kLinear, aops::LinearOpOptions{}) {}
 
 Linear::Linear(int32_t in_channels, int32_t out_channels, bool bias, aops::LinearImplTypes impl_type)
-    : Layer(
-          OpTypes::kLinear,
-          aops::LinearOptions{.in_channels = in_channels, .out_channels = out_channels, .bias = bias, .impl_type = impl_type}) {
-}
+    : Layer(OpTypes::kLinear,
+            aops::LinearOpOptions{
+                .in_channels = in_channels, .out_channels = out_channels, .bias = bias, .impl_type = impl_type}) {}
 
-Linear::Linear(const aops::LinearOptions& options) : Layer(OpTypes::kLinear, options) {}
+Linear::Linear(const aops::LinearOpOptions& options) : Layer(OpTypes::kLinear, options) {}
 
 Tensor Linear::weight() const { return Tensor(impl()->refParams()->pull(impl()->getAbsoluteName() + ".weight")); }
 

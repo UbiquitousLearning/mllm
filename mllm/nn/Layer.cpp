@@ -7,6 +7,7 @@
  *
  */
 #include "mllm/nn/Layer.hpp"
+#include "mllm/core/DeviceTypes.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn {
@@ -34,6 +35,11 @@ OpTypes LayerImpl::opType() const { return op_type_; }
 
 BaseOpOptionsBase& LayerImpl::refOptions() { return options_; }
 
+void LayerImpl::__fmt_print(std::stringstream& ss) {
+  for (int i = 0; i < getDepth() * 4; i++) { ss << " "; }
+  ss << getAbsoluteName() << ", device: " << deviceTypes2Str(device_type_);
+}
+
 LayerImpl::ptr_t Layer::impl() const { return impl_; }
 
 OpTypes Layer::opType() const { return impl()->opType(); }
@@ -44,5 +50,7 @@ Layer& Layer::to(DeviceTypes device_type) {
   impl()->to(device_type);
   return *this;
 }
+
+void Layer::__fmt_print(std::stringstream& ss) { __fmt_print(ss); }
 
 }  // namespace mllm::nn

@@ -28,7 +28,7 @@ enum class LinearImplTypes {
   kLinearImplTypes_End,
 };
 
-struct LinearOptions : public BaseOpOptions<LinearOptions> {
+struct LinearOpOptions : public BaseOpOptions<LinearOpOptions> {
   int32_t in_channels;
   int32_t out_channels;
   bool bias;
@@ -37,7 +37,7 @@ struct LinearOptions : public BaseOpOptions<LinearOptions> {
 
 class LinearOp : public BaseOp {
  public:
-  explicit LinearOp(const LinearOptions& options);
+  explicit LinearOp(const LinearOpOptions& options);
 
   void load(const ParameterFile::ptr_t& ploader) override;
 
@@ -55,12 +55,12 @@ class LinearOp : public BaseOp {
 
   inline Tensor& bias() { return bias_; }
 
-  inline const LinearOptions& options() const { return options_; }
+  inline const LinearOpOptions& options() const { return options_; }
 
  protected:
   Tensor weight_;
   Tensor bias_;
-  LinearOptions options_;
+  LinearOpOptions options_;
 };
 
 }  // namespace mllm::aops

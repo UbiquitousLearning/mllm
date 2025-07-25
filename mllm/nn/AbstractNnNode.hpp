@@ -20,7 +20,7 @@ enum class AbstractNnNodeTypes : int32_t {
   kModule = 1,
 };
 
-class AbstractNnNode : std::enable_shared_from_this<AbstractNnNode> {
+class AbstractNnNode : public std::enable_shared_from_this<AbstractNnNode> {
  public:
   using ptr_t = std::shared_ptr<AbstractNnNode>;
 
