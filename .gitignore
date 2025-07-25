@@ -2,6 +2,8 @@
 .cache/
 .tmp/
 
+.DS_Store
+
 # Building files and binary
 build*/
 install*/
