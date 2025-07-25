@@ -1,3 +1,4 @@
-add_subdirectory(compile)
-add_subdirectory(utils)
+add_subdirectory(nn)
 add_subdirectory(core)
+add_subdirectory(utils)
+add_subdirectory(compile)

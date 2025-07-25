@@ -22,6 +22,14 @@ option(MLLM_BUILD_CUDA_BACKEND "Enable MLLM CUDA backend" OFF)
 message(STATUS "CXX Compiler=${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CXX Compiler version=${CMAKE_CXX_COMPILER_VERSION}")
 
+include(cmake/CPM.cmake)
+set(STDEXEC_BUILD_EXAMPLES OFF)
+CPMAddPackage(
+  NAME stdexec
+  GITHUB_REPOSITORY NVIDIA/stdexec
+  GIT_TAG nvhpc-25.03.rc1
+)
+
 # Handle NaN Warning.
 if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
    AND NOT (CMAKE_SYSTEM_PROCESSOR MATCHES "i686|i386|x86_64"))

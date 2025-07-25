@@ -19,9 +19,8 @@ add_library(
   ${MLLM_RT_MODELS_SRC}
   ${MLLM_RT_COMPILE_SRC})
 
-target_include_directories(MllmRT PUBLIC ${MLLM_INCLUDE_DIR}
-                                         ${MLLM_JSON_INCLUDE_DIR})
-target_link_libraries(MllmRT PUBLIC fmt::fmt-header-only)
+target_include_directories(MllmRT PUBLIC ${MLLM_INCLUDE_DIR} ${MLLM_JSON_INCLUDE_DIR})
+target_link_libraries(MllmRT PUBLIC fmt::fmt-header-only STDEXEC::stdexec)
 
 if(MLLM_BUILD_ARM_BACKEND)
   add_subdirectory(backends/arm)

@@ -1,5 +1,5 @@
 /**
- * @file Dispatcher.hpp
+ * @file Task.hpp
  * @author chenghua wang (chenghua.wang.edu@gmail.com)
  * @brief
  * @version 0.1
@@ -8,16 +8,20 @@
  */
 #pragma once
 
+#include <cstdint>
 #include <memory>
-
-#include "mllm/core/DeviceTypes.hpp"
-#include "mllm/engine/Task.hpp"
 
 namespace mllm {
 
-class Dispatcher {
+enum class TaskTypes : int32_t {
+
+};
+
+class Task {
  public:
-  using ptr_t = std::shared_ptr<Dispatcher>;
+  using ptr_t = std::shared_ptr<Task>;
+
+ private:
 };
 
 }  // namespace mllm

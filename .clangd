@@ -6,9 +6,10 @@ CompileFlags:
     # - --cuda-gpu-arch=sm_89
     # - -L/usr/local/cuda/lib64
     # - -I/usr/local/cuda/include
-# For CUDA User.
+  # For CUDA User.
   Remove:
     - -forward-unknown-to-host-compiler
     - --generate-code*
     - -Xcompiler=-fPIC
     - --expt-relaxed-constexpr
+    - -fconcepts-diagnostics-depth=10
