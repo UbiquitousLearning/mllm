@@ -1,0 +1,15 @@
+{
+    "model_type": "qwen2",
+    "model_name": "path/to/your/model",
+    "tokenizer_name": "path/to/your/tokenizer",
+    "scale_file": "mllm_qnn_convertor/scales/***_dis.json",
+    "output_model": "path/to/output/model-qnn.bin",
+    "model_config": {
+        "online_rotation": true,
+        "R_path": "mllm_qnn_convertor/R/model-R.bin"
+    },
+    "export_config": {
+        "t01m_clip_threshold": 64,
+        "quant_bias": false
+    }
+}

@@ -1,0 +1,15 @@
+{
+    "model_type": "qwen-vl",
+    "model_name": "path/to/ShowUI-2B",
+    "tokenizer_name": "path/to/Qwen2-VL-2B-Instruct",
+    "dataset_path": "path/to/ScreenSpot",
+    "output_file": "mllm_qnn_convertor/scales/showui_rota_screenqa_nobias_dis.json",
+    "num_samples": 64,
+    "model_config": {
+        "no_quantize": true,
+        "rotate_vit": true,
+        "online_rotation": true,
+        "random_rotate": true,
+        "save_rotation": "mllm_qnn_convertor/R/ShowUI-2B-R.bin"
+    }
+}

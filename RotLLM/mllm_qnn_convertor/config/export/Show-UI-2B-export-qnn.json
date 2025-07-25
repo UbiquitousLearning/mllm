@@ -1,0 +1,18 @@
+{
+    "model_type": "qwen-vl",
+    "model_name": "path/to/ShowUI-2B",
+    "tokenizer_name": "path/to/Qwen2-VL-2B-Instruct",
+    "scale_file": "mllm_qnn_convertor/scales/showui_rota_screenqa_nobias_dis.json",
+    "output_file": "showui_rota_screenqa_nobias_dis.json",
+    "output_model": "path/to/ShowUI-2B-Rot-QNN.bin",
+    "model_config": {
+        "no_quantize": true,
+        "rotate_vit": true,
+        "online_rotation": true,
+        "R_path": "mllm_qnn_convertor/R/ShowUI-2B-R.bin"
+    },
+    "export_config": {
+        "t01m_clip_threshold": 64,
+        "quant_bias": false
+    }
+}

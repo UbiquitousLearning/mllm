@@ -1,0 +1,13 @@
+{
+    "model_type": "qwen2",
+    "model_name": "path/to/Qwen2-7B-Instruct",
+    "tokenizer_name": "path/to/Qwen2-7B-Instruct",
+    "dataset_path": "path/to/pile-val-backup",
+    "output_file": "mllm_qnn_convertor/scales/Qwen2-7B-Rot_pile_val_dis.json",
+    "num_samples": 64,
+    "model_config": {
+        "online_rotation": true,
+        "random_rotate": true,
+        "save_rotation": "mllm_qnn_convertor/R/Qwen2-7B-R.bin"
+    }
+}

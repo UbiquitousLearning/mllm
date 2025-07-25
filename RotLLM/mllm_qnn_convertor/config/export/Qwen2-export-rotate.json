@@ -1,0 +1,10 @@
+{
+    "model_type": "qwen2",
+    "model_name": "path/to/your/model",
+    "tokenizer_name": "path/to/your/tokenizer",
+    "output_model": "path/to/output/rotated_model.bin",
+    "model_config": {
+        "online_rotation": true,
+        "R_path": "mllm_qnn_convertor/R/model-R.bin"
+    }
+}
