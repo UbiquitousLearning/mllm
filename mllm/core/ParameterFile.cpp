@@ -155,9 +155,62 @@ void ParameterFileIOImpl<DeviceTypes::kCPU, ModelFileVersion::kV1>::write(const 
 // CPU ModelFileV2 ParameterFile
 //===----------------------------------------------------------------------===//
 ParameterFile::ptr_t ParameterFileIOImpl<DeviceTypes::kCPU, ModelFileVersion::kV2>::read(const std::string& file_path) {
-  // TODO
+  auto p_file = ParameterFile::create(ModelFileVersion::kV2);
+  auto mmap_file = MappedFile::create(file_path);
 
-  return nullptr;
+  // Set mapped file
+  p_file->setMappedFile(mmap_file);
+
+  // Process Header
+  {
+    auto* header = static_cast<ModelFileV2Descriptor*>(mmap_file->data());
+    MLLM_RT_ASSERT_EQ(MLLM_MODEL_FILE_V2_MAGIC_NUMBER, header->magic_number);
+    MLLM_RT_ASSERT_EQ(MLLM_MODEL_FILE_V2_VERSION, header->version);
+  }
+
+  auto* header = static_cast<ModelFileV2Descriptor*>(mmap_file->data());
+  char* params_desc_begin = static_cast<char*>(mmap_file->data()) + header->params_desc_offset;
+
+  if (header->params_desc_offset != sizeof(ModelFileV2Descriptor)) {
+    MLLM_WARN(
+        "File {} has extra data segment, you can write your own ParameterFileIOImpl to handle it. The default behavior is "
+        "to ignore it",
+        file_path);
+  }
+
+  // Loop through each parameter descriptor
+  for (uint32_t i = 0; i < header->num_params; i++) {
+    auto* param_desc =
+        reinterpret_cast<ModelFileV2ParamsDescriptor*>(params_desc_begin + i * sizeof(ModelFileV2ParamsDescriptor));
+
+    // Extract name
+    std::string name(param_desc->_param_name_view());
+
+    // Build shape
+    MLLM_RT_ASSERT(param_desc->shape_len <= MLLM_MODEL_FILE_V2_TENSOR_SHAPE_LENGTH);
+    TensorViewImpl::shape_t shape;
+    for (size_t j = 0; j < param_desc->shape_len && j < MLLM_MODEL_FILE_V2_TENSOR_SHAPE_LENGTH; j++) {
+      shape.push_back(param_desc->shape[j]);
+    }
+
+    // Create tensor storage and view
+    auto s = TensorStorage::create(shape, static_cast<DataTypes>(param_desc->parameter_type), kCPU);
+    auto t = TensorViewImpl::create(shape, s);
+
+    s->name_ = name;
+    s->ptr_ = static_cast<char*>(mmap_file->data()) + param_desc->parameter_offset;
+    s->mem_type_ = kParamsMMAP;
+
+    // Wrap to Tensor
+    auto tensor = Tensor(t);
+
+    // Check parameter size is right
+    MLLM_RT_ASSERT(param_desc->parameter_size >= tensor.bytes());
+
+    p_file->push(name, tensor);
+  }
+
+  return p_file;
 }
 
 void ParameterFileIOImpl<DeviceTypes::kCPU, ModelFileVersion::kV2>::write(const ParameterFile::ptr_t& parameter_file,
