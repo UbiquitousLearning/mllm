@@ -138,3 +138,8 @@ struct formatter<mllm::ParameterFile::ptr_t> {
   }
 };
 }  // namespace fmt
+
+#define MLLM_MAJOR_VERSION = 2
+#define MLLM_MINOR_VERSION = 0
+#define MLLM_PATCH_VERSION = 0
+#define MLLM_VERSION_STRING "2.0.0"

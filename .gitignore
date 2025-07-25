@@ -1,6 +1,10 @@
 .vscode/settings.json
 .cache/
 .tmp/
+compile_commands.json
+
+# MLLM Team Specific
+tasks/mllmteam*
 
 .DS_Store
 
