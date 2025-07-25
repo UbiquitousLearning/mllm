@@ -6,6 +6,8 @@ compile_commands.json
 # MLLM Team Specific
 tasks/mllmteam*
 
+.DS_Store
+
 # Building files and binary
 build*/
 install*/
