@@ -30,7 +30,6 @@ enum TensorMemTypes : int32_t {  // NOLINT
   kExtraOutput,
   kManual,
   kGlobal,
-  kReference,
 
   // Framework need to judge if this tensor is mmap from disk.
   kParams_Start,
