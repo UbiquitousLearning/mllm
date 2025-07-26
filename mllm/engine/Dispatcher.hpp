@@ -10,14 +10,46 @@
 
 #include <memory>
 
-#include "mllm/core/DeviceTypes.hpp"
 #include "mllm/engine/Task.hpp"
+#include "mllm/core/DeviceTypes.hpp"
+
+// C++26's Feature. Added by involving NVIDIA's stdexec
+#include <stdexec/execution.hpp>
+#include <exec/static_thread_pool.hpp>
+
+// Queue
+#include <deque>
 
 namespace mllm {
 
 class Dispatcher {
  public:
   using ptr_t = std::shared_ptr<Dispatcher>;
+  using dispatcher_id_t = int32_t;
+
+  static constexpr int32_t cpu_dispatcher_id = static_cast<int32_t>(DeviceTypes::kCPU);
+  static constexpr int32_t cuda_dispatcher_id = static_cast<int32_t>(DeviceTypes::kCUDA);
+  static constexpr int32_t opencl_dispatcher_id = static_cast<int32_t>(DeviceTypes::kOpenCL);
+  static constexpr int32_t qnn_dispatcher_id = static_cast<int32_t>(DeviceTypes::kQNN);
+  static constexpr int32_t custom_dispatcher_start_id = static_cast<int32_t>(DeviceTypes::kDeviceTypes_End) + 1;
+
+  explicit Dispatcher(exec::static_thread_pool& thread_pool, dispatcher_id_t id);
+
+  virtual void receive(const Task::ptr_t& task);
+
+  virtual void process(const Task::ptr_t& task);
+
+  virtual void syncWait();
+
+  inline dispatcher_id_t id() { return dispatcher_id_; }
+
+ protected:
+  dispatcher_id_t dispatcher_id_;
+  std::deque<Task::ptr_t> task_queue_;
+
+  int32_t queue_depth_ = 0;
+  bool need_async_exec_ = true;
+  exec::static_thread_pool& thread_pool_;
 };
 
 }  // namespace mllm

@@ -8,8 +8,8 @@
  */
 #pragma once
 
-#include "mllm/nn/Module.hpp"
-#include "mllm/nn/Functional.hpp"
-#include "mllm/nn/Layer.hpp"
+#include "mllm/nn/Module.hpp"      // IWYU pragma: export
+#include "mllm/nn/Functional.hpp"  // IWYU pragma: export
+#include "mllm/nn/Layer.hpp"       // IWYU pragma: export
 
-#include "mllm/nn/layers/Linear.hpp"
+#include "mllm/nn/layers/Linear.hpp"  // IWYU pragma: export

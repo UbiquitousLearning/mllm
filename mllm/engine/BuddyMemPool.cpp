@@ -5,8 +5,6 @@
  * @version 0.1
  * @date 2025-07-22
  *
- * @copyright Copyright (c) 2025
- *
  */
 #include <cmath>
 
@@ -26,7 +24,36 @@ BuddyMemPool::~BuddyMemPool() {
   for (auto& seg : context_.segments) { allocator_->generalFree(seg.second->ptr); }
 }
 
-BuddyMemPool::BuddyMemPool(BuddyMemPoolOptions options) : options_(std::move(options)) {}
+BuddyMemPool::BuddyMemPool(BuddyMemPoolOptions options, const Allocator::ptr_t& allocator)
+    : options_(std::move(options)), allocator_(allocator) {
+  // align to 4KB
+  void* _p = nullptr;
+  allocator_->generalAlloc(&_p, options_.buddy_first_segment_cap, 4096);
+
+  auto new_seg = new BuddyMemSegment{
+      .ptr = (char*)_p,
+      .cap = options_.buddy_first_segment_cap,
+      .used = 0,
+      .min_order = options_.buddy_min_order,
+      .max_order = options_.buddy_max_order,
+  };
+
+  MLLM_RT_ASSERT_EQ(_log2_ceil(options_.buddy_first_segment_cap), options_.buddy_max_order);
+  context_.segments.insert({new_seg->ptr, new_seg});
+  context_.segment_blocks.insert(
+      {new_seg->ptr, std::vector<std::list<BuddyMemBlock*>>(options_.buddy_max_order - options_.buddy_min_order + 1)});
+
+  auto block = new BuddyMemBlock{
+      .ptr = new_seg->ptr,
+      .offset = 0,
+      .size = options_.buddy_first_segment_cap,
+      .segment = new_seg,
+      .buddy_order = options_.buddy_max_order,
+      .allocated = false,
+  };
+
+  context_.segment_blocks[new_seg->ptr][options_.buddy_max_order - options_.buddy_min_order].push_back(block);
+}
 
 void BuddyMemPool::alloc(Storage* s) {
   auto try_to_alloc_size = allocator_->allocSize(s);
@@ -75,11 +102,14 @@ void BuddyMemPool::updateCacheSizeList(const std::unordered_set<size_t>& cache_s
 }
 
 void BuddyMemPool::report() const {
-  MLLM_INFO("Object Memory Hit Times: {}", obj_cache_hit_times_);
-  MLLM_INFO("Object Memory Cached Times: {}", obj_cached_times_);
+  fmt::print("| Object Memory Hit Times: {:<27} |\n", obj_cache_hit_times_);
+  fmt::print("| Object Memory Cached Times: {:<24} |\n", obj_cached_times_);
+  fmt::print("+------------------------------------------------------+\n");
   for (auto& seg : context_.segments) {
-    MLLM_INFO("address: {:#010x}, cap: {}B, used: {}B", (uintptr_t)seg.first, seg.second->cap, seg.second->used);
+    fmt::print("| address: {:#010x}, cap: {:>4}MB, used: {:>4}MB   |\n", (uintptr_t)seg.first, seg.second->cap / (1024 * 1024),
+               seg.second->used / (1024 * 1024));
   }
+  fmt::print("+------------------------------------------------------+\n");
 }
 
 BuddyMemBlock* BuddyMemPool::allocBuddy(size_t omb_size) {

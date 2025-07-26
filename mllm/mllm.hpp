@@ -10,23 +10,24 @@
  */
 #pragma once
 
-#include <vector>
-#include <cstdint>
-#include <algorithm>
-#include <unordered_map>
+#include <vector>         // IWYU pragma: export
+#include <cstdint>        // IWYU pragma: export
+#include <algorithm>      // IWYU pragma: export
+#include <unordered_map>  // IWYU pragma: export
 
 #include <fmt/core.h>
 #include <fmt/format.h>
 
 // The headfile will be used in mllm.inl Do not be confused with clang's fixes
-#include "mllm/core/DataTypes.hpp"
-#include "mllm/core/DeviceTypes.hpp"
-#include "mllm/core/ParameterFile.hpp"
-#include "mllm/core/Tensor.hpp"
-#include "mllm/engine/Context.hpp"
-#include "mllm/engine/SessionTCB.hpp"
-#include "mllm/utils/Argparse.hpp"
-#include "mllm/nn/Nn.hpp"
+#include "mllm/core/DataTypes.hpp"        // IWYU pragma: export
+#include "mllm/core/DeviceTypes.hpp"      // IWYU pragma: export
+#include "mllm/core/ParameterFile.hpp"    // IWYU pragma: export
+#include "mllm/core/Tensor.hpp"           // IWYU pragma: export
+#include "mllm/engine/Context.hpp"        // IWYU pragma: export
+#include "mllm/engine/MemoryManager.hpp"  // IWYU pragma: export
+#include "mllm/engine/SessionTCB.hpp"     // IWYU pragma: export
+#include "mllm/utils/Argparse.hpp"        // IWYU pragma: export
+#include "mllm/nn/Nn.hpp"                 // IWYU pragma: export
 
 // The inline file should be included at the last of all head
 #include "mllm/mllm.inl"
@@ -36,7 +37,9 @@
 #define __MLLM_HOST_BACKEND_CREATE arm::createArmBackend()
 #elif defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 #include "mllm/backends/x86/X86Backend.hpp"
+#include "mllm/backends/x86/X86Dispatcher.hpp"
 #define __MLLM_HOST_BACKEND_CREATE x86::createX86Backend()
+#define __MLLM_HOST_DISPATCHER_CREATE(x) x86::createX86Dispatcher(x, x86::X86DispatcherOptions())
 #endif
 
 namespace mllm {
@@ -50,6 +53,9 @@ inline void initializeContext() {
 
   // 2. Initialize memory manager
   ctx.memoryManager()->registerAllocator(kCPU, host_backend->allocator(), MemoryManagerOptions());
+
+  // 3. Initialize dispatcher manager
+  ctx.dispatcherManager()->registerDispatcher(__MLLM_HOST_DISPATCHER_CREATE(ctx.dispatcherManager()->getExecutor()));
 }
 
 void shutdownContext();

@@ -8,6 +8,7 @@
  */
 #include "mllm/core/aops/LinearOp.hpp"
 #include "mllm/core/BaseOp.hpp"
+#include "mllm/core/Tensor.hpp"
 #include "mllm/utils/Common.hpp"
 
 namespace mllm::aops {
@@ -41,12 +42,15 @@ void LinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 }
 
 void LinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  // TODO
+  auto& input = inputs[0];
+  auto out_shape = input.shape();
+  MLLM_RT_ASSERT_EQ(out_shape[out_shape.size() - 2], options_.in_channels);
+  out_shape[out_shape.size() - 1] = options_.out_channels;
+
+  outputs.emplace_back(Tensor::empty(out_shape, input.dtype(), input.device()));
 }
 
-void LinearOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  // TODO
-}
+void LinearOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { BaseOp::setup(inputs, outputs); }
 
 ParameterFile::ptr_t LinearOp::getParams() {
   auto p = ParameterFile::create();

@@ -12,7 +12,8 @@ add_library(
   ${MLLM_X86_BACKEND_OPS_SRC} 
   ${MLLM_X86_BACKEND_KERNELS_SRC} 
   X86Allocator.cpp
-  X86Backend.cpp)
+  X86Backend.cpp
+  X86Dispatcher.cpp)
 
 target_link_libraries(MllmX86Backend PUBLIC MllmRT)
 target_compile_options(MllmX86Backend PUBLIC ${MLLM_X86_BACKEND_COMPILE_OPTIONS})

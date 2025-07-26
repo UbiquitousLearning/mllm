@@ -8,7 +8,7 @@
 #pragma once
 
 #include "mllm/utils/Log.hpp"
-#include "mllm/utils/Dbg.hpp"
+#include "mllm/utils/Dbg.hpp"  // IWYU pragma: export
 
 #define MLLM_ANONYMOUS_NAMESPACE
 

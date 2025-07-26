@@ -12,6 +12,10 @@ namespace mllm {
 
 BaseOp::BaseOp(OpTypes op_type) : op_type_(op_type) {}
 
+void BaseOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  for (auto& t : outputs) { t.alloc(); }
+}
+
 std::string BaseOp::getName() const { return name_; }
 
 void BaseOp::setName(const std::string& name) { name_ = name; }

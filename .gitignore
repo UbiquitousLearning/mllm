@@ -1,4 +1,5 @@
 .vscode/settings.json
+.vscode/launch.json
 .cache/
 .tmp/
 compile_commands.json

@@ -14,7 +14,7 @@ X86LinearOp::X86LinearOp(const aops::LinearOpOptions& options) : LinearOp(option
 
 void X86LinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   // TODO
-  LinearOp::forward(inputs, outputs);
+  NYI("You find me, please implement me!");
 }
 
 void X86LinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
