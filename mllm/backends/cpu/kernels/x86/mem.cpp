@@ -8,9 +8,9 @@
  */
 #include <cstdlib>
 
-#include "mllm/backends/x86/kernels/mem.hpp"
+#include "mllm/backends/cpu/kernels/x86/mem.hpp"
 
-namespace mllm::x86 {
+namespace mllm::cpu {
 
 void x86_align_alloc(void** ptr, size_t required_bytes, size_t align) {
   if (align == 0 || (align & (align - 1))) {
@@ -31,4 +31,4 @@ void x86_align_alloc(void** ptr, size_t required_bytes, size_t align) {
 
 void x86_align_free(void* ptr) { free(((void**)ptr)[-1]); }
 
-}  // namespace mllm::x86
+}  // namespace mllm::cpu

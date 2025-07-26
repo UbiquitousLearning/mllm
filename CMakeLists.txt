@@ -162,7 +162,7 @@ if(MLLM_ENABLE_PY_MLLM)
   include_directories(${Python3_INCLUDE_DIRS})
   add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/pybind11)
 
-  set(_py_dep_libs MllmRT MllmX86Backend)
+  set(_py_dep_libs MllmRT MllmCPUBackend)
 
   # pybind compile options
   set(_py_compile_opts
@@ -182,5 +182,5 @@ if(MLLM_ENABLE_PY_MLLM)
   target_compile_options(_C PUBLIC ${_py_compile_opts})
   target_link_libraries(_C PRIVATE ${_py_dep_libs})
 
-  install(TARGETS _C MllmRT MllmX86Backend LIBRARY DESTINATION pymllm/)
+  install(TARGETS _C MllmRT MllmCPUBackend LIBRARY DESTINATION pymllm/)
 endif()

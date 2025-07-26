@@ -1,5 +1,5 @@
 /**
- * @file x86Backend.hpp
+ * @file CPUBackend.hpp
  * @author chenghua wang (chenghua.wang.edu@gmail.com)
  * @brief
  * @version 0.1
@@ -11,12 +11,12 @@
 #include <memory>
 #include "mllm/backends/base/Backend.hpp"
 
-namespace mllm::x86 {
+namespace mllm::cpu {
 
-class X86Backend final : public Backend {
+class CPUBackend final : public Backend {
  public:
-  X86Backend();
+  CPUBackend();
 };
 
-std::shared_ptr<X86Backend> createX86Backend();
-}  // namespace mllm::x86
+std::shared_ptr<CPUBackend> createCPUBackend();
+}  // namespace mllm::cpu

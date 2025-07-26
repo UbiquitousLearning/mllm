@@ -1,5 +1,5 @@
 /**
- * @file X86Allocator.hpp
+ * @file CPUAllocator.hpp
  * @author chenghua wang (chenghua.wang.edu@gmail.com)
  * @brief
  * @version 0.1
@@ -11,9 +11,9 @@
 #include "mllm/backends/base/Allocator.hpp"
 #include "mllm/core/Storage.hpp"
 
-namespace mllm::x86 {
+namespace mllm::cpu {
 
-class X86Allocator final : public Allocator {
+class CPUAllocator final : public Allocator {
  public:
   inline bool ctrlByMemManager() override { return true; }
 
@@ -36,6 +36,6 @@ class X86Allocator final : public Allocator {
   [[nodiscard]] size_t alignSize() const override;
 };
 
-std::shared_ptr<X86Allocator> createX86Allocator();
+std::shared_ptr<CPUAllocator> createCPUAllocator();
 
-}  // namespace mllm::x86
+}  // namespace mllm::cpu

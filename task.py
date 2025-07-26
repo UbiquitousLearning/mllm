@@ -403,7 +403,7 @@ class BuildPythonCLibTask(Task):
             "-DHWY_ENABLE_TESTS=OFF",
             "-DHWY_ENABLE_EXAMPLES=OFF",
             "-DHWY_ENABLE_CONTRIB=OFF",
-            '-DMLLM_X86_BACKEND_COMPILE_OPTIONS="-march=native"',
+            '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native"',
         ]
 
         BUILD_ARGS = [

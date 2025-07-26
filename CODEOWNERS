@@ -19,7 +19,7 @@
 
 # Backends
 
-/mllm/backends/x86/ @yirongjie
+/mllm/backends/cpu/ @yirongjie @chenghuaWang @oreomaker
 /mllm/backends/arm/ @chenghuaWang @yirongjie
 /mllm/backends/qnn/ @oreomaker @liang1232018 @chenghuaWang
 

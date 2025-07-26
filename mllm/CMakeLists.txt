@@ -22,9 +22,7 @@ add_library(
 target_include_directories(MllmRT PUBLIC ${MLLM_INCLUDE_DIR} ${MLLM_JSON_INCLUDE_DIR})
 target_link_libraries(MllmRT PUBLIC fmt::fmt-header-only STDEXEC::stdexec)
 
-if(MLLM_BUILD_ARM_BACKEND)
-  add_subdirectory(backends/arm)
-endif()
+add_subdirectory(backends/cpu)
 
 if(MLLM_BUILD_OPENCL_BACKEND)
   add_subdirectory(backends/opencl)
@@ -36,8 +34,4 @@ endif()
 
 if(MLLM_BUILD_CUDA_BACKEND)
   add_subdirectory(backends/cuda)
-endif()
-
-if(NOT MLLM_CROSS_COMPILE)
-  add_subdirectory(backends/x86)
 endif()
