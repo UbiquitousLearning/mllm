@@ -22,7 +22,9 @@ void MemoryManager::registerAllocator(const DeviceTypes& device, const Allocator
   }
   allocators_.reg(device, allocator);
   options_.reg(device, options);
-  if (options.using_buddy_mem_pool) { mem_pools_.reg(device, std::make_shared<BuddyMemPool>(options.buddy_mem_pool_options)); }
+  if (options.using_buddy_mem_pool) {
+    mem_pools_.reg(device, std::make_shared<BuddyMemPool>(options.buddy_mem_pool_options, allocator));
+  }
 }
 
 void MemoryManager::alloc(Storage* s) {
@@ -30,6 +32,12 @@ void MemoryManager::alloc(Storage* s) {
   auto try_to_alloc_size = allocator->allocSize(s);
 
   if (try_to_alloc_size >= options_[s->device_].really_large_tensor_threshold) {
+    MLLM_WARN("Trying to alloc a really large storage, whose storage size is {}B. The mllm memory manager will alloc a memory "
+              "for this storage from OS directly instead of "
+              "allocating one from ObjectCachePool/BuddyMemoryPool. If your scenario need to "
+              "handle large storage frequently, you can modify the `buddy_first_segment_cap` in "
+              "`MemManagerCargo`.",
+              try_to_alloc_size);
     allocator->alloc(s);
     return;
   }
@@ -57,6 +65,19 @@ void MemoryManager::clearAll() {
   global_tensors_._ref_raw_data().clear();
   mem_pools_._ref_raw_data().clear();
   options_._ref_raw_data().clear();
+}
+
+void MemoryManager::report() const {
+  fmt::print("+------------------------------------------------------+\n");
+  fmt::print("| {:<52} |\n", "MLLM Memory Report");
+  fmt::print("+------------------------------------------------------+\n");
+  for (auto& [device, mem_pool] : mem_pools_) {
+    auto device_name = deviceTypes2Str(device);
+    fmt::print("| Device: {:<44} |\n", device_name);
+    fmt::print("+------------------------------------------------------+\n");
+    mem_pool->report();
+    fmt::print("\n");
+  }
 }
 
 }  // namespace mllm

@@ -8,6 +8,7 @@
  */
 #include "mllm/engine/Context.hpp"
 #include "mllm/engine/SessionTCB.hpp"
+#include "mllm/engine/DispatcherManager.hpp"
 
 namespace mllm {
 
@@ -21,7 +22,10 @@ Context::Context() {
   memory_manager_ = std::make_shared<MemoryManager>();
 
   // 3. Add dispatcher manager
-  // TODO
+  dispatcher_manager_ = std::make_shared<DispatcherManager>(DispatcherManagerOptions{
+      .numa_policy = false,
+      .num_threads = 3,
+  });
 }
 
 void Context::registerBackend(const Backend::ptr_t& new_backend) { backends_.reg(new_backend->device(), new_backend); }

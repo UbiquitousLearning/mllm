@@ -25,9 +25,7 @@ void setMaximumNumThreads(uint32_t num_threads) {
   // TODO
 }
 
-void memoryReport() {
-  // TODO
-}
+void memoryReport() { Context::instance().memoryManager()->report(); }
 
 bool isOpenCLAvailable() {
   // TODO

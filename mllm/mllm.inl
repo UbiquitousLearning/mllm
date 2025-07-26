@@ -146,6 +146,16 @@ struct formatter<T, std::enable_if_t<std::is_base_of_v<mllm::nn::Module, T>, cha
     return formatter<std::string>::format(ss.str(), ctx);
   }
 };
+
+template<>
+struct formatter<mllm::MemoryManager::ptr_t> {
+  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(const mllm::MemoryManager::ptr_t& params, FormatContext& ctx) const {
+    params->report();
+    return ctx.out();
+  }
+};
 }  // namespace fmt
 
 #define MLLM_MAJOR_VERSION = 2

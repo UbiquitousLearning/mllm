@@ -16,6 +16,7 @@
 #include "mllm/nn/AbstractNnNode.hpp"
 #include "mllm/core/ParameterFile.hpp"
 
+#include "mllm/engine/Task.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn {
@@ -59,7 +60,20 @@ class Layer {
   Tensor operator()(Args&&... args) {
     auto inputs = std::vector<Tensor>{std::forward<decltype(args)>(args)...};
 
-    // TODO Dispatch
+    auto& ctx = Context::instance();
+    auto op = ctx.thisThread()->layer_ops_table[impl_->getAbsoluteName()];
+    auto task = Task::createExecuteOpTask(op, inputs, {});
+
+    // Submit!
+    // At this moment, heart pounding like thunder
+    // Tasks racing through kernels, swift as lightning
+    // Threads await, fate hanging by a thread
+    // Success or failure in this one moment
+    ctx.dispatcherManager()->submit(static_cast<int32_t>(op->getDevice()), task);
+
+    // Everything is Ok. Bravo! You did it.
+    // Return what we need.
+    return task->outputs[0];
   }
 
   [[nodiscard]] OpTypes opType() const;

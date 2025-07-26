@@ -69,7 +69,7 @@ class BuddyMemPool {
 
   ~BuddyMemPool();
 
-  explicit BuddyMemPool(BuddyMemPoolOptions options);
+  explicit BuddyMemPool(BuddyMemPoolOptions options, const Allocator::ptr_t& allocator);
 
   void alloc(Storage* s);
 

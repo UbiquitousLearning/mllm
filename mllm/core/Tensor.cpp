@@ -23,8 +23,9 @@ Tensor::Tensor(const std::shared_ptr<TensorViewImpl>& impl) : impl_(impl) {
 }
 
 Tensor Tensor::empty(const std::vector<int32_t>& shape, DataTypes dtype, DeviceTypes device) {
-  // TODO
-  return Tensor::nil();
+  auto storage = TensorStorage::create(shape, dtype, device);
+  auto impl = TensorViewImpl::create(shape, storage);
+  return Tensor(impl);
 }
 
 Tensor& Tensor::allocExtraTensorView(const std::string& extra_tensor_name, const std::vector<int32_t>& shape, DataTypes dtype,

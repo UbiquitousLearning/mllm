@@ -11,6 +11,7 @@
 #include <atomic>
 
 #include "mllm/core/DeviceTypes.hpp"
+#include "mllm/engine/DispatcherManager.hpp"
 #include "mllm/engine/SessionTCB.hpp"
 #include "mllm/utils/SymbolTable.hpp"
 #include "mllm/engine/MemoryManager.hpp"
@@ -37,6 +38,8 @@ class Context {
 
   inline MemoryManager::ptr_t memoryManager() { return memory_manager_; }
 
+  inline DispatcherManager::ptr_t dispatcherManager() { return dispatcher_manager_; }
+
   uint32_t getUUID();
 
   SessionTCB::ptr_t thisThread();
@@ -44,12 +47,14 @@ class Context {
   SessionTCB::ptr_t mainThread();
 
  private:
-  std::shared_ptr<SessionTCB> main_thread_;
+  SessionTCB::ptr_t main_thread_;
   std::unordered_map<std::thread::id, SessionTCB::ptr_t> session_threads_;
 
   std::atomic<uint32_t> custom_uuid_giver_ = 0;
   MemoryManager::ptr_t memory_manager_ = nullptr;
   SymbolTable<DeviceTypes, Backend::ptr_t> backends_;
+
+  DispatcherManager::ptr_t dispatcher_manager_ = nullptr;
 };
 
 }  // namespace mllm

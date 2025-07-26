@@ -45,6 +45,8 @@ class MemoryManager {
 
   void clearAll();
 
+  void report() const;
+
  private:
   SymbolTable<std::string, Tensor> global_tensors_;
   SymbolTable<DeviceTypes, Allocator::ptr_t> allocators_;
