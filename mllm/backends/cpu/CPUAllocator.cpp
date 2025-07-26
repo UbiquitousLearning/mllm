@@ -1,6 +1,7 @@
 /**
  * @file CPUAllocator.cpp
  * @author chenghua wang (chenghua.wang.edu@gmail.com)
+ * @author oreomaker (zh002919@outlook.com)
  * @brief
  * @version 0.1
  * @date 2025-07-23
@@ -11,49 +12,53 @@
 
 namespace mllm::cpu {
 
-bool CPUAllocator::alloc(Storage* storage) {
-  if constexpr (cpu::isX86_64()) {
-    void* ptr;
-    x86_align_alloc(&ptr, storage->size_, alignSize());
-    if (!ptr) return false;
-    storage->ptr_ = ptr;
-    return true;
+void align_alloc(void** ptr, size_t required_bytes, size_t align) {
+  if (align == 0 || (align & (align - 1))) {
+    *ptr = nullptr;
+    return;
   }
-  return false;
+  void* p1;
+  void** p2;
+  size_t offset = align - 1 + sizeof(void*);
+  if ((p1 = (void*)malloc(required_bytes + offset)) == nullptr) {
+    *ptr = nullptr;
+    return;
+  }
+  p2 = (void**)(((size_t)(p1) + offset) & ~(align - 1));  // NOLINT
+  p2[-1] = p1;
+  *ptr = p2;
+}
+
+void align_free(void* ptr) { free(((void**)ptr)[-1]); }
+
+bool CPUAllocator::alloc(Storage* storage) {
+  void* ptr;
+  align_alloc(&ptr, storage->size_, alignSize());
+  if (!ptr) return false;
+  storage->ptr_ = ptr;
+  return true;
 }
 
 bool CPUAllocator::alloc(const Storage::ptr_t& storage) {
-  if constexpr (cpu::isX86_64()) {
-    void* ptr;
-    x86_align_alloc(&ptr, storage->size_, alignSize());
-    if (!ptr) return false;
-    storage->ptr_ = ptr;
-    return true;
-  }
-  return false;
+  void* ptr;
+  align_alloc(&ptr, storage->size_, alignSize());
+  if (!ptr) return false;
+  storage->ptr_ = ptr;
+  return true;
 }
 
-void CPUAllocator::free(const Storage::ptr_t& storage) {
-  if constexpr (cpu::isX86_64()) { x86_align_free(storage->ptr_); }
-}
+void CPUAllocator::free(const Storage::ptr_t& storage) { align_free(storage->ptr_); }
 
-void CPUAllocator::free(Storage* storage) {
-  if constexpr (cpu::isX86_64()) { x86_align_free(storage->ptr_); }
-}
+void CPUAllocator::free(Storage* storage) { align_free(storage->ptr_); }
 
 bool CPUAllocator::generalAlloc(void** ptr, size_t cap, size_t align) {
-  if constexpr (cpu::isX86_64()) {
-    x86_align_alloc(ptr, cap, align);
-    return ptr != nullptr;
-  }
-  return false;
+  align_alloc(ptr, cap, align);
+  return ptr != nullptr;
 }
 
 void CPUAllocator::generalFree(void* ptr) {
-  if constexpr (cpu::isX86_64()) {
-    if (!ptr) return;
-    x86_align_free(ptr);
-  }
+  if (!ptr) return;
+  align_free(ptr);
 }
 
 size_t CPUAllocator::allocSize(const Storage::ptr_t& storage) {
@@ -73,20 +78,8 @@ size_t CPUAllocator::allocSize(Storage* storage) {
 }
 
 size_t CPUAllocator::alignSize() const {
-  if constexpr (cpu::isX86_64()) {
-    if constexpr (cpu::hasAVX512BW() || cpu::hasAVX512DQ() || cpu::hasAVX512VL() || cpu::hasAVX512CD() || cpu::hasAVX512F()) {
-      return 64;
-    } else if constexpr (cpu::hasAVX2() || cpu::hasAVX()) {
-      return 32;
-    } else if constexpr (cpu::hasSSE4_2() || cpu::hasSSE4_1() || cpu::hasSSE3() || cpu::hasSSE2() || cpu::hasSSE()) {
-      return 16;
-    }
-
-    // No matter 128, 256, 512 vector size.
-    // 64 is fit for all.
-    return 64;
-  }
-
+  // No matter 128, 256, 512 vector size.
+  // 64 is fit for all.
   return 64;
 }
 
