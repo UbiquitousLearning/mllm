@@ -19,7 +19,7 @@ class Tensor;
 class CPUargsortFunction : public Op {
 private:
     int thread_count = 4;
-    
+
     // 自定义比较函数，用于对索引进行排序
     bool compareIndices(const std::pair<int, float> &a, const std::pair<int, float> &b) {
         return a.second < b.second;
@@ -39,8 +39,9 @@ private:
     }
 
 public:
-    CPUargsortFunction(Backend *bn, string name, int threadCount)
-        : thread_count(threadCount), Op(bn, name) {}
+    CPUargsortFunction(Backend *bn, string name, int threadCount) :
+        thread_count(threadCount), Op(bn, name) {
+    }
 
     ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
         assert(inputs[0]->sequence() == 1);

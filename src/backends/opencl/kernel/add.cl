@@ -1,11 +1,10 @@
 __kernel void add_float(
-    __global const float* A,
-    __global const float* B,
-    __global float* C) {
+    __global const float *A,
+    __global const float *B,
+    __global float *C) {
     size_t index = get_global_id(0);
     C[index] = A[index] + B[index];
 }
-
 
 /*
  * 定义一个全局的采样器（sampler）。采样器是用于配置如何从图像对象中读取数据的。
@@ -24,13 +23,12 @@ __kernel void add_float(
  * @param height      图像的逻辑高度（单位：像素）。
  */
 __kernel void add_float_image2d(
-    sampler_t sampler,        // 采样器现在是第一个参数
+    sampler_t sampler, // 采样器现在是第一个参数
     __read_only image2d_t inputA,
     __read_only image2d_t inputB,
     __write_only image2d_t output,
     const int width,
-    const int height)
-{
+    const int height) {
     const int2 pos = (int2)(get_global_id(0), get_global_id(1));
 
     if (pos.x >= width || pos.y >= height) {
@@ -43,10 +41,6 @@ __kernel void add_float_image2d(
     write_imagef(output, pos, result);
 }
 
-
-
-
-
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
 
 /**
@@ -57,10 +51,9 @@ __kernel void add_float_image2d(
  * @param C           输出张量 C (__global half*)
  */
 __kernel void add_fp16_vector(
-    __global const half* A,
-    __global const half* B,
-    __global half* C)
-{
+    __global const half *A,
+    __global const half *B,
+    __global half *C) {
     const int i = get_global_id(0);
 
     // 高效地加载 4 个 half (共64位) 数据
@@ -90,8 +83,7 @@ __kernel void add_fp16_image2d(
     __read_only image2d_t inputB,
     __write_only image2d_t output,
     const int width,
-    const int height)
-{
+    const int height) {
     const int2 pos = (int2)(get_global_id(0), get_global_id(1));
 
     if (pos.x >= width || pos.y >= height) {
@@ -105,5 +97,75 @@ __kernel void add_fp16_image2d(
     half4 result = inA + inB;
 
     // 使用 write_imageh 写回 half4 向量
+    write_imageh(output, pos, result);
+}
+
+// ==================================================================
+// 4. Tensor + Scalar 内核
+// ==================================================================
+
+/**
+ * @brief [FP32 Buffer版] 将一个标量 `B` 加到张量 `A` 的每个元素上。
+ */
+__kernel void add_scalar_float(
+    __global const float *A,
+    const float B,
+    __global float *C) {
+    size_t index = get_global_id(0);
+    C[index] = A[index] + B;
+}
+
+/**
+ * @brief [FP16 Buffer版] 使用向量指令将一个标量 `B` 加到张量 `A` 的每个元素上。
+ */
+__kernel void add_scalar_fp16_vector(
+    __global const half *A,
+    const half B,
+    __global half *C) {
+    const int i = get_global_id(0);
+    half4 a_vec = vload4(i, A);
+    // 将标量 B 广播成一个 half4 向量
+    half4 b_vec = (half4)(B);
+    half4 c_vec = a_vec + b_vec;
+    vstore4(c_vec, i, C);
+}
+
+/**
+ * @brief [FP32 Image版] 将一个标量 `B` 加到张量 `A` 的每个像素上。
+ */
+__kernel void add_scalar_float_image2d(
+    sampler_t sampler,
+    __read_only image2d_t inputA,
+    const float B,
+    __write_only image2d_t output,
+    const int width,
+    const int height) {
+    const int2 pos = (int2)(get_global_id(0), get_global_id(1));
+    if (pos.x >= width || pos.y >= height) { return; }
+
+    float4 inA = read_imagef(inputA, sampler, pos);
+    // 将标量 B 广播成一个 float4 向量
+    float4 inB = (float4)(B);
+    float4 result = inA + inB;
+    write_imagef(output, pos, result);
+}
+
+/**
+ * @brief [FP16 Image版] 将一个标量 `B` 加到张量 `A` 的每个像素上。
+ */
+__kernel void add_scalar_fp16_image2d(
+    sampler_t sampler,
+    __read_only image2d_t inputA,
+    const half B,
+    __write_only image2d_t output,
+    const int width,
+    const int height) {
+    const int2 pos = (int2)(get_global_id(0), get_global_id(1));
+    if (pos.x >= width || pos.y >= height) { return; }
+
+    half4 inA = read_imageh(inputA, sampler, pos);
+    // 将标量 B 广播成一个 half4 向量
+    half4 inB = (half4)(B);
+    half4 result = inA + inB;
     write_imageh(output, pos, result);
 }

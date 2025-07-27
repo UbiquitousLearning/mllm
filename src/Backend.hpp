@@ -18,6 +18,7 @@ class Backend;
 class Module;
 class Layer;
 struct DeviceMemory;
+class ParamLoader;
 
 // KVCache map for QNN-CPU KVCache sharing
 static std::unordered_map<string, Op *> kv_cache_map;
@@ -105,6 +106,16 @@ public:
      */
     virtual void registerOps() = 0;
     virtual void registerFuncs() = 0;
+
+    /**
+     * @brief (可选) 从文件中直接加载张量数据到设备，为后端提供优化路径。
+     * @param tensor 目标张量，其设备内存应已分配。
+     * @param loader 参数加载器，用于获取文件句柄和元数据。
+     * @return 如果后端处理了加载则返回 true，否则返回 false，让 ParamLoader 使用默认方法。
+     */
+    virtual bool load_from_file(Tensor *tensor, ParamLoader *loader) {
+        return false;
+    }
 
     BackendType type() const {
         return type_;

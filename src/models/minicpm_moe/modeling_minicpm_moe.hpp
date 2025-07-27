@@ -25,7 +25,7 @@ public:
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = gate_proj(inputs[0]);
         x = silu(x);
-        auto y = up_proj(inputs[0]); // ERROR
+        auto y = up_proj(inputs[0]);
         x = x * y;
         x = down_proj(x);
         return {x};
@@ -177,7 +177,6 @@ private:
 class MiniCPMForCausalLM final : public Module {
 public:
     MiniCPMForCausalLM(MiniCPMConfig &config) {
-        // KVCache_TYPE = 32;
         auto names = config.names_config;
         scale_emb = config.scale_emb;
         dim_model_base = config.dim_model_base;

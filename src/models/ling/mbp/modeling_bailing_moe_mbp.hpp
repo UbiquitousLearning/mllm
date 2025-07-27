@@ -30,7 +30,7 @@ public:
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = gate_proj(inputs[0]);
         x = silu(x);
-        auto y = up_proj(inputs[0]); // ERROR
+        auto y = up_proj(inputs[0]);
         x = x * y;
         x = down_proj(x);
         return {x};
@@ -122,8 +122,12 @@ public:
                      Tensor &topk_weight,
                      Tensor &topk_idx,
                      int layer_idx) {
+        auto dtype = topk_idx.dtype();
+        auto device = topk_idx.device();
+        topk_idx = topk_idx.fp32().cpu();
         auto idxs = topk_idx.argsort();               // 1, 1, 1, k* batch*seq
         auto tokens_per_expert = topk_idx.bincount(); // (1, 1, 1, 0) 1, 1, 1, k
+        idxs = idxs.to(device).to(dtype);
         auto token_idxs = idxs / num_experts_per_tok; // 1, 1, 1, k* batch*seq
         int start_idx = 0;
         int end_idx = start_idx;
@@ -136,10 +140,9 @@ public:
             if (!this_token_num) continue;
             end_idx = start_idx + this_token_num;
             //
-            auto exp_token_idx = token_idxs.clip({}, {}, {}, {start_idx, end_idx}); //(1, 1, 1, 0) 1, 1, 1, e-s
-            auto exp_idx = idxs.clip({}, {}, {}, {start_idx, end_idx});             //(1, 1, 1, 0) 1, 1, 1, e-s
-            topk_weight = topk_weight.view(-1, -1, 1, 1);
-
+            auto exp_token_idx = token_idxs.clip({}, {}, {}, {start_idx, end_idx});             //(1, 1, 1, 0) 1, 1, 1, e-s
+            auto exp_idx = idxs.clip({}, {}, {}, {start_idx, end_idx});                         //(1, 1, 1, 0) 1, 1, 1, e-s
+            if (topk_weight.dimension() != 1) { topk_weight = topk_weight.view(-1, -1, 1, 1); } // 1, k* batch*seq, 1, 1
             exp_token_idx_list[i] = exp_token_idx;
             sorted_keys.push_back(i);
             exp_idx_list[i] = exp_idx;
@@ -366,6 +369,7 @@ private:
 
 class BailingMoeForCausalLM final : public Module {
 public:
+    CHAINABLE_MODULE_METHODS(BailingMoeForCausalLM)
     BailingMoeForCausalLM(BailingMoeConfig &config) {
         auto names = config.names_config;
         hidden_size = config.hidden_size;

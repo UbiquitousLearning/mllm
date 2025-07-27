@@ -9,6 +9,7 @@
 #include "Types.hpp"
 // #include "Module.hpp"
 #include "CPUBackend.hpp"
+#include "compute/Transpose2D.hpp"
 #include "backends/cpu/third_party/ggml/Quantize.hpp"
 #include <cassert>
 // #include <ostream>
@@ -35,11 +36,16 @@ public:
         if (axiss_.size() == 1 && axiss_[0].first == HEAD && axiss_[0].second == SEQUENCE) {
             if (inputs[0]->ctype() == BSHD) {
                 outputs[0]->chls() = {{BATCH, 0}, {HEAD, 1}, {SEQUENCE, 2}, {DIMENSION, 3}};
-            } else {
+            } else { // inputs[0]->ctype() == BHSD
                 outputs[0]->chls() = {{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3}};
             }
             outputs[0]->changeCtype(4);
             outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+            return MLLM_NO_ERROR;
+        } else if (axiss_.size() == 1 && axiss_[0].first == SEQUENCE && axiss_[0].second == DIMENSION && inputs[0]->ctype() == BHSD) {
+            outputs[0]->setCtype(BHSD);
+            outputs[0]->setDtype(inputs[0]->dtype());
+            outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[0]->sequence());
             return MLLM_NO_ERROR;
         }
         // for BSHD attention end
@@ -87,6 +93,12 @@ public:
             outputs[0]->chls() = inputs[0]->chls();
             std::swap(outputs[0]->chls()[HEAD], outputs[0]->chls()[SEQUENCE]);
             outputs[0]->changeCtype(inputs[0]->shape().size());
+            outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
+            return MLLM_NO_ERROR;
+        } else if (axiss_.size() == 1 && axiss_[0].first == SEQUENCE && axiss_[0].second == DIMENSION && inputs[0]->ctype() == BHSD) {
+            outputs[0]->setCtype(BHSD);
+            outputs[0]->setDtype(inputs[0]->dtype());
+            outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[0]->sequence());
             return MLLM_NO_ERROR;
         }
         // for BSHD attention end
@@ -123,35 +135,58 @@ public:
                 outputs[0]->alloc();
             }
             // BSHD -> BHSD (transpose S and H)
-            if (true) { // 真转置
-                assert(inputs[0]->batch() == 1);
-                assert(outputs[0]->batch() == 1);
-                // After reshape, H and S dimensions are swapped in the output tensor's shape
-                assert(inputs[0]->head() == outputs[0]->sequence());
-                assert(inputs[0]->sequence() == outputs[0]->head());
+            // 真转置
+            assert(inputs[0]->batch() == 1);
+            assert(outputs[0]->batch() == 1);
+            assert(inputs[0]->head() == outputs[0]->head());
+            assert(inputs[0]->sequence() == outputs[0]->sequence());
+            if (inputs[0]->dtype() == outputs[0]->dtype()) {
+#pragma omp parallel for num_threads(thread_count)
+                for (int h = 0; h < inputs[0]->head(); ++h) {
+                    for (int s = 0; s < inputs[0]->sequence(); ++s) {
+                        auto input_ptr = inputs[0]->ptrAt<float>(0, h, s, 0);
+                        auto output_ptr = outputs[0]->ptrAt<float>(0, h, s, 0);
+                        memcpy(output_ptr, input_ptr, inputs[0]->dimension() * sizeof(float));
+                    }
+                }
+            } else { // With quantization
+#pragma omp parallel for num_threads(thread_count)
+                for (int h = 0; h < inputs[0]->head(); ++h) {
+                    for (int s = 0; s < inputs[0]->sequence(); ++s) {
+                        // auto input_ptr = inputs[0]->ptrAt<float>(0, h, s, 0);
+                        // auto output_ptr = outputs[0]->ptrAt<mllm_fp16_t>(0, h, s, 0);
+                        for (int d = 0; d < inputs[0]->dimension(); ++d) {
+                            // output_ptr[d] = MLLM_FP32_TO_FP16(input_ptr[d]);
+                            auto value = inputs[0]->dataAt<float>(0, h, s, d);
+                            outputs[0]->setDataAt<mllm_fp16_t>(0, h, s, d, MLLM_FP32_TO_FP16(value));
+                        }
+                    }
+                }
+            }
 
-                if (inputs[0]->dtype() == outputs[0]->dtype()) {
+        } else if (axiss_.size() == 1 && axiss_[0].first == SEQUENCE && axiss_[0].second == DIMENSION && inputs[0]->ctype() == BHSD) {
+            assert(outputs[0]->ctype() == BHSD);
+            // 真转置
+            assert(inputs[0]->batch() == 1);
+            assert(outputs[0]->batch() == 1);
+            assert(inputs[0]->sequence() == outputs[0]->dimension());
+            assert(outputs[0]->sequence() == inputs[0]->dimension());
+            // BHSD->BHDS
+            const int N = inputs[0]->sequence();
+            const int M = inputs[0]->dimension();
+            if (inputs[0]->dtype() == MLLM_TYPE_F32) {
 #pragma omp parallel for num_threads(thread_count)
-                    for (int h = 0; h < inputs[0]->head(); ++h) {
-                        for (int s = 0; s < inputs[0]->sequence(); ++s) {
-                            auto input_ptr = inputs[0]->ptrAt<char>(0, h, s, 0);
-                            // Swap h and s for output access
-                            auto output_ptr = outputs[0]->ptrAt<char>(0, s, h, 0);
-                            memcpy(output_ptr, input_ptr, inputs[0]->dimension() * inputs[0]->dtypeSize());
-                        }
-                    }
-                } else { // With quantization
+                for (int h = 0; h < inputs[0]->head(); ++h) {
+                    const float *src_ptr = inputs[0]->ptrAt<float>(0, h, 0, 0);
+                    float *dst_ptr = outputs[0]->ptrAt<float>(0, h, 0, 0);
+                    transpose_matrix_efficient(src_ptr, dst_ptr, N, M);
+                }
+            } else {
 #pragma omp parallel for num_threads(thread_count)
-                    for (int h = 0; h < inputs[0]->head(); ++h) {
-                        for (int s = 0; s < inputs[0]->sequence(); ++s) {
-                            auto input_ptr = inputs[0]->ptrAt<float>(0, h, s, 0);
-                            // Swap h and s for output access
-                            auto output_ptr = outputs[0]->ptrAt<mllm_fp16_t>(0, s, h, 0);
-                            for (int d = 0; d < inputs[0]->dimension(); ++d) {
-                                output_ptr[d] = MLLM_FP32_TO_FP16(input_ptr[d]);
-                            }
-                        }
-                    }
+                for (int h = 0; h < inputs[0]->head(); ++h) {
+                    const mllm_fp16_t *src_ptr = inputs[0]->ptrAt<mllm_fp16_t>(0, h, 0, 0);
+                    mllm_fp16_t *dst_ptr = outputs[0]->ptrAt<mllm_fp16_t>(0, h, 0, 0);
+                    transpose_matrix_efficient_fp16(src_ptr, dst_ptr, N, M);
                 }
             }
         }

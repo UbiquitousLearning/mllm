@@ -40,8 +40,6 @@ ErrorCode CPUParameter::load(AbstructLoader &loader) {
 }
 
 ErrorCode CPUParameter::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    // outputs[0] = std::make_shared<Tensor>(weight_);
-
     if (outputs[0]->masterTensor()->name() != weight_->name()) {
         if (outputs[0]->masterTensor() == nullptr) {
             // outputs[0]->copyFrom(weight_);

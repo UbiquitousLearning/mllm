@@ -11,6 +11,7 @@
 // #include "Timing.hpp"
 #include "Types.hpp"
 #include <Module.hpp>
+#include <iostream>
 #include <memory>
 // #include <regex>
 #include <string>
@@ -54,11 +55,12 @@ Tensor::Tensor(const std::vector<int> &shape) :
 Tensor::Tensor(int value, Backend *bn) :
     impl_(std::make_shared<TensorImpl>()) {
     impl_->dtype_ = MLLM_TYPE_F32;
-    impl_->backend_ = bn;
+    impl_->backend_ = Backend::global_backends[MLLM_CPU].get();
     reshape(1, 1, 1, 1);
     alloc();
     impl_->should_in_graphs_ = false;
     setDataAt<float>(0, 0, 0, 0, static_cast<float>(value));
+    to(bn->type());
 }
 
 Tensor::Tensor(int value, BackendType bn_type) :
@@ -152,7 +154,9 @@ Tensor &Tensor::to(BackendType backend_type) {
     // if so, return the origin tensor
     // if not, return the new tensor
     // TODO: if need copy, should implement copyDataCrossBn and do copy when Tensor::TENSOR_STATIC_READY
-
+    // if (Module::llm_model_ptr->doChangeBn) {
+    //     Module::llm_model_ptr->device() = backend_type;
+    // }
     /**
      * Currently, there are following cases:
      * CPU -> QNN, QNN -> CPU
@@ -190,8 +194,8 @@ Tensor &Tensor::to(BackendType backend_type) {
         target_backend = Backend::global_backends[backend_type].get();
         assert(target_backend != nullptr && "Target backend is not initialized.");
     }
-    // if (backend_type = MLLM_OPENCL){
-    //     impl_->location_ = TensorImpl::ON_DEVICE; // OpenCL backend should always be on device
+    // {
+    //     std::cout << name() << ", changing backend from " << device() << " to " << backend_type << std::endl; // debug log
     // }
     impl_->to(target_backend);
     return *this;
@@ -252,9 +256,13 @@ void Tensor::_allocate_final_tensor(
             setDtype(master_tensor_sp->dtype());
             shallowCopyFrom(master_tensor_sp, false, {0, 0, (int)cache_seq_len_, 0});
         } else {
+            setDtype(template_tensor->dtype());
             alloc();
         }
     } else {
+        if (template_tensor != nullptr) {
+            setDtype(template_tensor->dtype());
+        }
         alloc();
     }
 }
@@ -348,18 +356,53 @@ std::vector<Tensor> Tensor::runFunc(std::vector<std::string> out_names,
                                     OpParam param,
                                     std::vector<Tensor> input_tensors,
                                     bool in_place) {
+    // auto start_time = mllm_time_us();
+
+    // ==================== [开始] Op 缓存修改 ====================
+    if (!input_tensors.empty()) {
+        for (auto &input : input_tensors) {
+            assert(input.backend() == input_tensors[0].backend() && "All inputs must have the same backend.");
+        }
+    }
     auto backend = input_tensors.empty() ? Backend::global_backends[MLLM_CPU].get() : input_tensors[0].backend();
-    if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) {
+    if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) { // 针对QNN的特殊处理
         backend = Backend::global_backends[MLLM_QNN].get();
     }
+
+    // 1. 在函数内部创建一个静态缓存池，它只初始化一次，并在多次调用中保持存在。
+    static std::unordered_map<std::string, std::shared_ptr<Op>> op_cache;
     param["type"] = type;
-    // Op *op_ = backend->opCreate(param, "");
-    std::unique_ptr<Op> op_(backend->opCreate(param, ""));
-    if (!op_) {
-        // 如果 opCreate 失败，可以提前返回或抛出异常
-        return {};
+    std::shared_ptr<Op> op_to_run;
+    // 2. 生成唯一的缓存键 (Cache Key)
+    std::stringstream key_stream;
+    key_stream << static_cast<int>(type); // 加入 OpType
+    for (const auto &pair : param) {
+        key_stream << ';' << pair.first << ':' << pair.second; // 加入所有参数
     }
-    return backend->runOp(op_.get(), input_tensors, out_names, in_place);
+    const auto key = key_stream.str();
+    // 3. 查找缓存
+    auto it = op_cache.find(key);
+    if (it != op_cache.end()) {
+        op_to_run = it->second;
+        if (op_to_run->backend() != backend) {
+            backend = op_to_run->backend();
+        }
+    } else {
+        std::unique_ptr<Op> op_new(backend->opCreate(param, ""));
+        if (!op_new) {
+            backend = Backend::global_backends[MLLM_CPU].get();
+            op_new.reset(backend->opCreate(param, ""));
+        }
+        op_to_run = std::move(op_new);
+        op_cache[key] = op_to_run;
+    }
+    // ==================== [结束] Op 缓存修改 ====================
+    // if (input_tensors[0].dimension() > 0) {
+    //     auto time_end = mllm_time_us();
+    //     std::cout << out_names[0] << " dispatch Func: " << type << " in " << (time_end - start_time) / 1000.0F << " ms" << std::endl;
+    // }
+    // 4. 使用缓存的或新创建的 Op 执行计算
+    return backend->runOp(op_to_run.get(), input_tensors, out_names, in_place);
 }
 
 Tensor Tensor::operator+(float data) {
@@ -423,6 +466,9 @@ Tensor Tensor::operator/(Tensor other) {
     return runFunc({name() + "-TTdiv"}, F_TTDIV, {},
                    {*this, other})[0];
 }
+Tensor Tensor::operator~() {
+    return runFunc({name() + "~"}, TILDE, {}, {*this})[0];
+}
 
 Tensor Tensor::mean(Chl axis) {
     OpParam param;
@@ -431,14 +477,14 @@ Tensor Tensor::mean(Chl axis) {
                    {*this})[0];
 }
 
-Tensor Tensor::view(int b, int h, int s, int d) {
+Tensor Tensor::view(int b, int h, int s, int d, bool in_place) {
     OpParam param;
     param["b"] = (float)b;
     param["h"] = (float)h;
     param["s"] = (float)s;
     param["d"] = (float)d;
     return runFunc({name() + "-view"}, F_VIEW, param,
-                   {*this}, true)[0];
+                   {*this}, in_place)[0];
 }
 
 Tensor Tensor::flatten(Chl axis_start, Chl axis_end) {
@@ -460,7 +506,7 @@ Tensor Tensor::transpose(vector<std::pair<Chl, Chl>> axiss) {
     }
     bool in_place = (master_tensor_.expired() || (master_tensor_.lock()->name().find("Cache") == std::string::npos && master_tensor_.lock()->name().find("weight") != std::string::npos));
     // for BSHD attention start
-    if (axiss.size() == 1 && axiss[0].first == HEAD && axiss[0].second == SEQUENCE) {
+    if (Module::llm_model_ptr == nullptr || backend()->type() != MLLM_CPU || (axiss.size() == 1 && axiss[0].first == HEAD && axiss[0].second == SEQUENCE)) {
         in_place = false; // in-place transpose
     }
     // for BSHD attention end
@@ -553,12 +599,18 @@ Tensor Tensor::index_put(Tensor value, Tensor indices, bool accumulate) {
                    {*this, value, indices},
                    !accumulate)[0];
 }
-void Tensor::scatter_add(Tensor value, Tensor indices) {
+void Tensor::scatter_add(Tensor value, Tensor indices, Chl dim) {
     OpParam param;
-    runFunc({name()}, F_SCATTERRADD, param,
+    runFunc({}, F_SCATTERRADD, param,
             {*this, value, indices})[0];
 }
-
+void Tensor::scatter_(Chl dim, Tensor index, float src) {
+    OpParam param;
+    param["dim"] = (float)dim;
+    param["value"] = src;
+    runFunc({}, SCATTER, param,
+            {*this, index})[0];
+}
 Tensor Tensor::cat(vector<Tensor> input_tensors, Chl axis) {
     OpParam param;
     param["axis"] = (float)axis;
@@ -633,6 +685,16 @@ Tensor Tensor::repeat(Chl dim, int dim_size) {
     param["dim_size"] = (float)dim_size;
     return runFunc({name() + "repeat"}, F_REPEAT, param,
                    {*this})[0];
+}
+Tensor Tensor::masked_fill(Tensor mask_index, float value) {
+    OpParam param;
+    param["value"] = value;
+    return runFunc({name() + "-masked_fill"}, MASKEDFILL, param, {*this, mask_index})[0];
+}
+Tensor Tensor::gather(Tensor input, Tensor index, Chl dim) {
+    OpParam param;
+    param["dim"] = dim;
+    return runFunc({input.name() + "-gather"}, GATHER, param, {input, index})[0];
 }
 Tensor Tensor::zero_like(Tensor input) {
     Module *module = input.module();

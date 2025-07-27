@@ -32,6 +32,10 @@ public:
         if (dim_ == DIMENSION) {
             outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), k_);
             outputs[1]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), k_);
+        } else if (dim_ == HEAD) {
+            assert(inputs[0]->dimension() == 1 && "Only support topk on last dimension currently.");
+            outputs[0]->reshape(inputs[0]->batch(), k_, inputs[0]->sequence(), 1); // topk values
+            outputs[1]->reshape(inputs[0]->batch(), k_, inputs[0]->sequence(), 1); // topk values
         }
         // NOTE: Add cases for other dimensions if needed.
 
@@ -65,6 +69,25 @@ public:
                             outputs[0]->setDataAt<float>(n, h, s, d, top.first);
                             outputs[1]->setDataAt<float>(n, h, s, d, top.second);
                         }
+                    }
+                }
+            }
+        } else if (dim_ == HEAD) {
+            for (int n = 0; n < inputs[0]->batch(); n++) {
+                for (int s = 0; s < inputs[0]->sequence(); s++) {
+                    std::priority_queue<std::pair<float, int>, std::vector<std::pair<float, int>>, std::greater<>> topk_value_indices;
+                    for (int h = 0; h < inputs[0]->head(); h++) {
+                        float value = inputs[0]->dataAt<float>(n, h, s, 0);
+                        topk_value_indices.push({value, h});
+                        if (topk_value_indices.size() > k_) {
+                            topk_value_indices.pop();
+                        }
+                    }
+                    for (int h = k_ - 1; h >= 0; --h) {
+                        auto top = topk_value_indices.top();
+                        topk_value_indices.pop();
+                        outputs[0]->setDataAt<float>(n, h, s, 0, top.first);
+                        outputs[1]->setDataAt<float>(n, h, s, 0, top.second);
                     }
                 }
             }

@@ -36,6 +36,7 @@ public:
     }
     void init(std::string name, OpType type) {
         name_ = std::move(name);
+        type_ = type;
         param_["type"] = type;
         Module::initBackend(MLLM_CPU);
         backend_ = Backend::global_backends[MLLM_CPU].get();
@@ -45,53 +46,36 @@ public:
     bool ready() {
         return init_;
     }
-    static map<string, string> layername_2_tensorname;
-    static bool use_layername_2_tensorname;
 
+    /**** for forward ****/
     Tensor operator()(Tensor input) {
         auto ts = run({input}, 1);
         return ts[0];
     }
-
     Tensor operator()(Tensor input0, Tensor input1) {
         auto ts = run({input0, input1}, 1);
         return ts[0];
     }
-
     Tensor operator()(Tensor input0, Tensor input1, Tensor input2) {
         auto ts = run({input0, input1, input2}, 1);
         return ts[0];
     }
-
     Tensor operator()(Tensor input0, Tensor input1, Tensor input2, Tensor input3) {
         auto ts = run({input0, input1, input2, input3}, 1);
         return ts[0];
     }
 
-    void initOp() {
+    /**** for dynamic load ****/
+    void load(std::shared_ptr<AbstructLoader> loader = nullptr) {
         if (op_ == nullptr) {
-            if ((param_["type"] == KVCACHE || param_["type"] == KVCACHENPU)
-                && (Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end())) {
-                if (kv_cache_map.find(name_) == kv_cache_map.end()) {
-                    // for the prefill part, we need to create a new op
-                    param_["type"] = KVCACHENPU;
-                    op_ = backend_->opCreate(param_, name_);
-                    kv_cache_map[name_] = op_;
-                } else {
-                    // for the decoding part, we need to get created op from global container
-                    op_ = kv_cache_map[name_];
-                }
-            } else {
-                op_ = backend_->opCreate(param_, name_);
-            }
+            initOp();
         }
-    }
-
-    void load() {
-        initOp();
         if (inited_loaded && loaded_param)
             return;
-        op_->load(*Module::llm_model_ptr->loader);
+        if (!loader) {
+            loader = Module::llm_model_ptr->loader;
+        }
+        op_->load(*loader);
         loaded_param = true;
         inited_loaded = true;
     }
@@ -104,26 +88,71 @@ public:
         inited_loaded = false;
     }
 
+    /**** for change backend ****/
+    void to(BackendType type) {
+        if (type == backend_->type()) {
+            return;
+        }
+        Module::initBackend(type);
+        backend_ = Backend::global_backends[type].get();
+        if (!init_) {
+            init(name_, type_);
+        }
+    }
+    void cpu() {
+        to(MLLM_CPU);
+    }
+    void cl() {
+#ifdef USE_OPENCL
+        to(MLLM_OPENCL);
+#else
+        throw std::runtime_error("OpenCL backend is not available. Please compile with USE_OPENCL=ON.");
+#endif
+    }
+
 protected:
+    // 统一入口
     vector<Tensor> run(vector<Tensor> inputs, int N = 1) {
-        initOp();
+        // auto start_time = mllm_time_us();
+
+        // ==================== [开始] 前向计算 ====================//
         Module *module = inputs.empty() ? Module::llm_model_ptr : inputs[0].module();
-        if (module->doLoad || !inited_loaded) { // load
+        /*** part.1 change backend(if) ***/
+        if (module && module->doChangeBn) {
+            if (check_op_support(Backend::global_backends[module->device()].get())) {
+                to(module->device());
+            } else {
+                std::cout << "Backend " << module->device() << " does not support the operation, falling back to CPU." << std::endl;
+                to(MLLM_CPU);
+            }
+        }
+        /*** part.2 init op(if) ***/
+        if (op_ == nullptr || op_->backend()->type() != backend_->type()) {
+            auto created = initOp();
+            assert(op_ != nullptr && "Op creation failed, please check the backend and parameters.");
+        }
+        /*** part.3 load params(if) ***/
+        if (module && (module->doLoad || !inited_loaded) && !module->doChangeBn) { // load
             if (module->doLoad) {
                 op_->load(*module->loader);
                 inited_loaded = true;
             } else if (loaded_param) {
                 inited_loaded = loaded_param;
             } else if (!inited_loaded) {
-                // auto empty_loader = new ParamLoader("");
                 ParamLoader empty_loader("");
                 op_->load(empty_loader);
                 inited_loaded = true;
             }
         }
-        auto backend = inputs.empty() ? Backend::global_backends[MLLM_CPU].get() : inputs[0].backend();
+        /*** part.4 forward ***/
+        auto backend = backend_;
         if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) {
             backend = Backend::global_backends[MLLM_QNN].get();
+        }
+        for (auto &input : inputs) {
+            if (input.backend() != backend) {
+                input.to(backend->type());
+            }
         }
         vector<string> out_names;
         int count = (N > 1) ? N : 1;
@@ -131,11 +160,17 @@ protected:
             std::string tensor_name = (N > 1) ? "out-" + op_->name() + "-" + std::to_string(i) : "out-" + op_->name();
             out_names.push_back(tensor_name);
         }
+        // ==================== [结束] 前向计算 ====================//
+        // if (inputs[0].dimension() > 0) {
+        //     auto time_end = mllm_time_us();
+        //     std::cout << name_ << " dispatch Layer in " << (time_end - start_time) / 1000.0F << " ms" << std::endl;
+        // }
         return backend->runOp(op_, inputs, out_names, false);
     }
 
 public:
     std::string name_;
+    OpType type_;
     Op *op_ = nullptr;
     Backend *backend_{};
     OpParam param_;
@@ -144,6 +179,43 @@ public:
 
     bool inited_loaded = false;
     bool loaded_param = false;
+
+    static map<string, string> layername_2_tensorname;
+    static bool use_layername_2_tensorname;
+
+private:
+    bool initOp(Backend *bn = nullptr) { // 返回bn是否能成功创建op
+        assert(op_ == nullptr);
+        if (bn == nullptr) {
+            bn = backend_;
+        }
+        if ((param_["type"] == KVCACHE || param_["type"] == KVCACHENPU)
+            && (Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end())) { // 针对qnn专门处理
+            if (kv_cache_map.find(name_) == kv_cache_map.end()) {
+                // for the prefill part, we need to create a new op
+                param_["type"] = KVCACHENPU;
+                assert(bn->type() == MLLM_CPU && "QNN backend is required for cpu's KVCACHENPU.");
+                op_ = bn->opCreate(param_, name_);
+                kv_cache_map[name_] = op_;
+            } else {
+                // for the decoding part, we need to get created op from global container
+                op_ = kv_cache_map[name_];
+            }
+            op_->type() = (OpType)param_["type"];
+            return true;
+        }
+        if (!(op_ = bn->opCreate(param_, name_))) {
+            // std::cout << "Backend" << op_->type() << " does not support the operation, falling back to CPU." << std::endl; // ttt
+            op_ = backend_->opCreate(param_, name_); // cpu fallback
+            op_->type() = (OpType)param_["type"];
+            return false;
+        }
+        op_->type() = (OpType)param_["type"];
+        return true;
+    }
+    bool check_op_support(Backend *bn) {
+        return bn->opCreate(param_, name_);
+    }
 };
 
 class Linear final : public Layer {
@@ -334,6 +406,17 @@ public:
     Tensor operator()(Tensor input, int axis_classes) {
         auto axis_classes_tensor = Tensor(axis_classes, backend_);
         auto ts = run({input, axis_classes_tensor}, 1);
+        return ts[0];
+    }
+};
+class Sigmoid final : public Layer {
+public:
+    Sigmoid() = default;
+    explicit Sigmoid(std::string name) {
+        init(std::move(name), OpType::SIGMOID);
+    }
+    Tensor operator()(Tensor input) {
+        auto ts = run({input}, 1);
         return ts[0];
     }
 };

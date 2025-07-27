@@ -38,3 +38,5 @@ src/backends/qnn/sdk/*
 
 .DS_Store
 examples/test.cpp
+examples/demo_bailing_moe2*
+src/models/ling2

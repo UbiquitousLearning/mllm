@@ -1,4 +1,5 @@
 #pragma once
+#include "DataType.hpp"
 #include "Layer.hpp"
 #include "Module.hpp"
 #include "Tensor.hpp"
@@ -9,6 +10,8 @@
 #include <any>
 #include <cmath>
 #include <cstdlib>
+#include <iostream>
+#include <string>
 
 using namespace mllm;
 
@@ -25,7 +28,7 @@ public:
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = gate_proj(inputs[0]);
         x = silu(x);
-        auto y = up_proj(inputs[0]); // ERROR
+        auto y = up_proj(inputs[0]);
         x = x * y;
         x = down_proj(x);
         return {x};
@@ -100,8 +103,12 @@ public:
     Tensor moe_infer(Tensor hidden_states,
                      Tensor &topk_weight,
                      Tensor &topk_idx) {
+        auto dtype = topk_idx.dtype();
+        auto device = topk_idx.device();
+        topk_idx = topk_idx.fp32().cpu();
         auto idxs = topk_idx.argsort();               // 1, 1, 1, k* batch*seq
         auto tokens_per_expert = topk_idx.bincount(); // (1, 1, 1, 0) 1, 1, 1, k
+        idxs = idxs.to(device).to(dtype);
         auto token_idxs = idxs / num_experts_per_tok; // 1, 1, 1, k* batch*seq
         int start_idx = 0;
         int end_idx = start_idx;
@@ -116,14 +123,14 @@ public:
                 continue;
             end_idx = start_idx + this_token_num;
             //
-            auto exp_token_idx = token_idxs.clip({}, {}, {}, {start_idx, end_idx}); //(1, 1, 1, 0) 1, 1, 1, e-s
-            auto exp_idx = idxs.clip({}, {}, {}, {start_idx, end_idx});             //(1, 1, 1, 0) 1, 1, 1, e-s
-            auto expert_tokens = hidden_states.clip(exp_token_idx, SEQUENCE);       //(1, 0, 1, hidden) 1, e-s, 1, hidden
-            auto expert_out = experts[i]({expert_tokens})[0];                       //(1, 0, 1, hidden) 1, e-s, 1,
-            topk_weight = topk_weight.view(-1, -1, 1, 1);                           // 1, k* batch*seq, 1, 1
-            auto expert_weights_clip = topk_weight.clip(exp_idx, SEQUENCE);         //(1, 0, 1, 1) 1, e-s, 1, 1
-            expert_out = expert_out * expert_weights_clip;                          //(1, 0, 1, hidden) 1, e-s, 1, hidden
-            expert_cache.scatter_add(expert_out, exp_token_idx);                    // 1, batch*seq, 1, hidden
+            auto exp_token_idx = token_idxs.clip({}, {}, {}, {start_idx, end_idx});             //(1, 1, 1, 0) 1, 1, 1, e-s
+            auto exp_idx = idxs.clip({}, {}, {}, {start_idx, end_idx});                         //(1, 1, 1, 0) 1, 1, 1, e-s
+            auto expert_tokens = hidden_states.clip(exp_token_idx, SEQUENCE);                   //(1, 0, 1, hidden) 1, e-s, 1, hidden
+            auto expert_out = experts[i]({expert_tokens})[0];                                   //(1, 0, 1, hidden) 1, e-s, 1,
+            if (topk_weight.dimension() != 1) { topk_weight = topk_weight.view(-1, -1, 1, 1); } // 1, k* batch*seq, 1, 1
+            auto expert_weights_clip = topk_weight.clip(exp_idx, SEQUENCE);                     //(1, 0, 1, 1) 1, e-s, 1, 1
+            expert_out = expert_out * expert_weights_clip;                                      //(1, 0, 1, hidden) 1, e-s, 1, hidden
+            expert_cache.scatter_add(expert_out, exp_token_idx);                                // 1, batch*seq, 1, hidden
             //
             start_idx = end_idx;
         }
@@ -146,7 +153,8 @@ public:
                                         config.num_key_value_heads,
                                         config.hidden_size / config.num_attention_heads,
                                         SPLIT_HD, PostQkv_NONE, false,
-                                        config.RoPE_type, config.rope_theta, config.max_position_embeddings,
+                                        config.RoPE_type, config.rope_theta,
+                                        config.max_position_embeddings,
                                         config.cache_limit, config.use_cache, config.use_qkv_bias, config.use_bias,
                                         config.attn_implementation, names, base_name + names._attn_base_name);
         moe = BailingMoeSparseMoeBlock(config, names, base_name + names._ffn_base_name);
@@ -209,7 +217,9 @@ private:
 
 class BailingMoeForCausalLM final : public Module {
 public:
+    CHAINABLE_MODULE_METHODS(BailingMoeForCausalLM)
     BailingMoeForCausalLM(BailingMoeConfig &config) {
+        dtype = config.dtype;
         auto names = config.names_config;
         hidden_size = config.hidden_size;
         embedding = Embedding(config.vocab_size, config.hidden_size, names.token_embd_name);
@@ -218,7 +228,7 @@ public:
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        auto x = embedding(inputs[0]);
+        auto x = embedding(inputs[0]).to(dtype);
         auto outputs = model({x})[0];
         if (outputs.sequence() > 1) {
             outputs = outputs.clip({}, {}, {-1}, {});
@@ -236,4 +246,5 @@ private:
     Layer embedding;
     Layer lm_head;
     BailingMoeModel model;
+    DataType dtype;
 };

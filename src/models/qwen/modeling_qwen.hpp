@@ -13,9 +13,11 @@
 #define MODELING_QWEN_HPP
 
 #include "Backend.hpp"
+#include "DataType.hpp"
 #include "Layer.hpp"
 #include "Module.hpp"
 #include "Tensor.hpp"
+#include "Types.hpp"
 #include "configuration_qwen.hpp"
 #include "models/transformer/modeling_transformer.hpp"
 #include <cmath>
@@ -105,7 +107,9 @@ public:
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = inputs[0];
-        for (auto &block : blocks) { x = block({x})[0]; }
+        for (auto &block : blocks) {
+            x = block({x})[0];
+        }
         x = norm(x);
         return {x};
     }
@@ -126,7 +130,9 @@ private:
 
 class QWenForCausalLM final : public Module {
 public:
+    CHAINABLE_MODULE_METHODS(QWenForCausalLM)
     QWenForCausalLM(QWenConfig &config) {
+        dtype = config.dtype;
         auto names = config.names_config;
         hidden_size = config.hidden_size;
         tie_embedding_words = config.tie_embedding_words;
@@ -145,8 +151,7 @@ public:
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
-        auto x = embedding(inputs[0]);
-
+        auto x = embedding(inputs[0]).to(dtype);
         // go through model
         auto outputs = model({x})[0];
         if (outputs.sequence() > 1) {
@@ -170,6 +175,7 @@ private:
     Parameter lm_head;
     Layer lm_head_layer;
     QWenModel model;
+    DataType dtype;
 };
 
 #endif //! MODELING_QWEN_HPP

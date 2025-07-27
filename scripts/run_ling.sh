@@ -17,5 +17,6 @@ if [ $? -ne 0 ]; then
 fi
 adb shell "cd /data/local/tmp/mllm/bin && ./demo_bailing_moe -m ../models/ling-lite-1.5-kai_q4_0.mllm"
 adb shell "cd /data/local/tmp/mllm/bin && ./demo_bailing_moe_mbp -m ../models/ling-lite-1.5-kai_q4_0.mllm"
+# adb shell "cd /data/local/tmp/mllm/bin && ./demo_bailing_moe -d 1 -m ../models/ling-lite-1.5-q4_0.mllm"
 # adb shell "cd /data/local/tmp/mllm/bin && ./demo_bailing_moe -m ../models/ling-lite-1.5-kai_q4_0_e2.mllm"
 # adb shell "cd /data/local/tmp/mllm/bin && ./demo_bailing_moe_mbp -m ../models/ling-lite-1.5-kai_q4_0_e2.mllm"

@@ -1,6 +1,7 @@
 #ifndef MLLM_TENSORIMPL_H
 #define MLLM_TENSORIMPL_H
 #include <cstdio>
+#include <iostream>
 #include <map>
 #include <memory>
 // #include <vector>
@@ -47,6 +48,7 @@ class TensorImpl {
 public:
     void *host_ptr_ = nullptr;
     bool owns_host_ptr_ = true;
+    bool owns_device_memory_ = true;
     std::shared_ptr<void> memory_handle_ = nullptr;
 
     //=====GPU======
@@ -101,6 +103,9 @@ public:
         return DataTypeSize(dtype_, count_);
     }
     void alloc() {
+        if (backend_->type() == MLLM_OPENCL) {
+            location_ = ON_DEVICE;
+        }
         if (location_ == ON_DEVICE) {
             if (device_memory_.handle != nullptr) return;
             if (host_ptr_ != nullptr && owns_host_ptr_) {
@@ -110,6 +115,8 @@ public:
             }
             device_memory_.size_in_bytes = cntSize();
             backend_->alloc_device(device_memory_, dtype_);
+            // owns_device_memory_ = true;
+            allocated_ = count_;
             return;
         }
         if (allocated_ != count_) {
@@ -127,9 +134,10 @@ public:
     void free_memory() {
         if (location_ == ON_HOST && host_ptr_ != nullptr && owns_host_ptr_) {
             if (backend_) backend_->free(host_ptr_);
-        } else if (location_ == ON_DEVICE && device_memory_.handle != nullptr) {
+        } else if (location_ == ON_DEVICE && device_memory_.handle != nullptr && owns_device_memory_) { //
             if (backend_) backend_->free_device(device_memory_);
             device_memory_.handle = nullptr; // 清理句柄
+            // owns_device_memory_ = false;
         }
         host_ptr_ = nullptr;
         allocated_ = 0;
@@ -189,7 +197,7 @@ public:
                 }
                 host_ptr_ = nullptr;
                 location_ = ON_DEVICE;
-                allocated_ = 0;
+                // allocated_ = 0;// todo1418
             }
         } else {
             std::cout << "Device -> Device migration via Host" << std::endl;

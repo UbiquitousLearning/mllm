@@ -13,6 +13,7 @@
 #include "Trace.hpp"
 #include "Types.hpp"
 #include "backends/cpu/CPUBackend.hpp"
+#include <cassert>
 #ifdef USE_OPENCL
 #include "backends/opencl/OpenCLBackend.hpp"
 #endif
@@ -59,7 +60,9 @@ public:
     map<string, int> activation_tensors_num;
     std::shared_ptr<AbstructLoader> loader;
     bool doLoad = false;
+    bool doChangeBn = false;
     bool doTrace = false;
+    bool tracedFlag = false;
     bool op_transposed_flag = false;
 
     static Module *llm_model_ptr;
@@ -97,6 +100,45 @@ private:
     }
     int idx;
 
+    double forwardNoInput() {
+        mllm_time_init();
+        vector<Tensor> tmps;
+        int max_in_size = 5;
+        for (int i = 0; i < max_in_size; ++i) {
+            Tensor t(Backend::global_backends[MLLM_CPU].get());
+            t.setName("input" + std::to_string(i));
+            t.reshape(1, 1, 1, 10);
+            t.alloc();
+            t.setModule(this);
+            tmps.push_back(t);
+        }
+        llm_model_ptr = this;
+        vector<std::any> alternate_args = {
+            {},
+            vector<int>{0, 0},
+            std::vector<std::vector<int>>(32, std::vector<int>(2))};
+        uint64_t time_start = 0;
+        for (auto args : alternate_args) {
+            time_start = mllm_time_us();
+            try {
+                operator()(tmps, args);
+                break;
+            } catch (const std::exception &e) {
+#if not defined(__ARM_NEON)
+                if (std::string("bad any_cast") != e.what()) {
+                    MLLM_LOG_ERROR_STREAM << e.what() << std::endl;
+                    exit(0);
+                }
+#endif
+            } catch (...) {
+                MLLM_LOG_ERROR_STREAM << "load error" << std::endl;
+                exit(0);
+            }
+        }
+        uint64_t time_end = mllm_time_us();
+        return (time_end - time_start) / 1000.0F; // ms
+    }
+
 public:
     Module() {
         idx = Module::graphIdx;
@@ -104,12 +146,17 @@ public:
     }
     virtual ~Module() = default;
 
-    BackendType device() const {
+    BackendType &device() {
         return device_;
     }
 
     static void initBackend(BackendType type = BackendType::MLLM_CPU) {
         if (Backend::global_backends.find(type) == Backend::global_backends.end() || Backend::global_backends[type] == nullptr) {
+            // std::cout << "Initializing OpenswwssCL Backend..." << std::endl;
+            // #ifdef USE_OPENCL
+            //             std::cout << "Initializiwwng OpenswwssCL Backend..." << std::endl;
+            // #endif
+
             switch (type) {
             case BackendType::MLLM_CPU: {
                 shared_ptr<MemoryManager> mm = nullptr;
@@ -120,6 +167,7 @@ public:
             }
 #ifdef USE_OPENCL
             case BackendType::MLLM_OPENCL: {
+                // std::cout << "Initializing OpensssCL Backend..." << std::endl;
                 BackendConfig config;
                 Backend::global_backends[MLLM_OPENCL] = std::make_unique<OpenCLBackend>(config);
                 break;
@@ -144,98 +192,47 @@ public:
     }
 
     // TODO: Deprecated, the module is not backend specific, the backend should be set in the SubGraphStart and SubGraphFinalize
-    void to(BackendType type) {
+    Module &to(BackendType type) {
         initBackend(type);
         device_ = type;
+        doChangeBn = true;
+        doTrace = true;
+        forwardNoInput();
+        doChangeBn = false;
+        doTrace = false;
+        tracedFlag = true;
+        return *this;
+    }
+    Module &cpu() {
+        return to(MLLM_CPU);
+    }
+    Module &cl() {
+#ifdef USE_OPENCL
+        return to(MLLM_OPENCL);
+#else
+        throw std::runtime_error("OpenCL backend is not available. Please compile with USE_OPENCL=ON.");
+#endif
     }
 
     void load(string path) {
         // create global loader and save to llm_model_ptr.loader as QNNBackend needs to load weights in runtime
         loader = std::make_unique<ParamLoader>(std::move(path), alloc_mmap); // todo
         Tensor::tensor_status = TENSOR_STATIC_INIT;
-        mllm_time_init();
         doLoad = true;
         doTrace = true;
-        vector<Tensor> tmps;
-        int max_in_size = 5;
-        for (int i = 0; i < max_in_size; ++i) {
-            Tensor t(Backend::global_backends[MLLM_CPU].get());
-            t.setName("input" + std::to_string(i));
-            t.reshape(1, 1, 1, 10);
-            t.alloc();
-            t.setModule(this);
-            tmps.push_back(t);
-        }
-        llm_model_ptr = this;
-        vector<std::any> alternate_args = {
-            {},
-            vector<int>{0, 0},
-            std::vector<std::vector<int>>(32, std::vector<int>(2))};
-        uint64_t time_start = 0;
-        for (auto args : alternate_args) {
-            time_start = mllm_time_us();
-            try {
-                operator()(tmps, args);
-                break;
-            } catch (const std::exception &e) {
-#if not defined(__ARM_NEON)
-                if (std::string("bad any_cast") != e.what()) {
-                    MLLM_LOG_ERROR_STREAM << e.what() << std::endl;
-                    exit(0);
-                }
-#endif
-            } catch (...) {
-                MLLM_LOG_ERROR_STREAM << "load error" << std::endl;
-                exit(0);
-            }
-        }
-        uint64_t time_end = mllm_time_us();
-        load_time_ = (time_end - time_start) / 1000.0F; // ms
+        load_time_ = forwardNoInput(); // ms
         doLoad = false;
+        tracedFlag = true;
         doTrace = false;
     }
     void load_multifile(const std::initializer_list<string> path) {
         loader = std::make_unique<MultiFileParamLoader>(std::move(path));
         Tensor::tensor_status = TENSOR_STATIC_INIT;
-        mllm_time_init();
         doLoad = true;
         doTrace = true;
-        vector<Tensor> tmps;
-        int max_in_size = 5;
-        for (int i = 0; i < max_in_size; ++i) {
-            Tensor t(Backend::global_backends[MLLM_CPU].get());
-            t.setName("input" + std::to_string(i));
-            t.reshape(1, 1, 1, 10);
-            t.alloc();
-            t.setModule(this);
-            tmps.push_back(t);
-        }
-        llm_model_ptr = this;
-        vector<std::any> alternate_args = {
-            {},
-            vector<int>{0, 0},
-            std::vector<std::vector<int>>(32, std::vector<int>(2))};
-        uint64_t time_start = 0;
-        for (auto args : alternate_args) {
-            time_start = mllm_time_us();
-            try {
-                operator()(tmps, args);
-                break;
-            } catch (const std::exception &e) {
-#if not defined(__ARM_NEON)
-                if (std::string("bad any_cast") != e.what()) {
-                    MLLM_LOG_ERROR_STREAM << e.what() << std::endl;
-                    exit(0);
-                }
-#endif
-            } catch (...) {
-                MLLM_LOG_ERROR_STREAM << "load error" << std::endl;
-                exit(0);
-            }
-        }
-        uint64_t time_end = mllm_time_us();
-        load_time_ = (time_end - time_start) / 1000.0F; // ms
+        load_time_ = forwardNoInput(); // ms
         doLoad = false;
+        tracedFlag = true;
         doTrace = false;
     }
 
@@ -252,7 +249,13 @@ public:
     template <typename... Args>
     vector<Tensor> operator()(vector<Tensor> inputs, Args... args) {
         vector<std::any> anyArgs = convertArgsToAnyVector(args...);
-        auto backend = inputs.empty() ? Backend::global_backends[MLLM_CPU].get() : inputs[0].backend();
+        device_ = Module::llm_model_ptr->device();
+        auto backend = Backend::global_backends[device_].get();
+        if (inputs.empty()) {
+            for (auto input : inputs) {
+                assert(input.backend() == backend && "All inputs must have the same backend as the module.");
+            }
+        }
         if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) {
             backend = Backend::global_backends[MLLM_QNN].get();
         }
@@ -360,6 +363,20 @@ public:
         return {};
     }
 };
+
+#define CHAINABLE_MODULE_METHODS(ClassName) \
+    ClassName &to(BackendType type) {       \
+        Module::to(type);                   \
+        return *this;                       \
+    }                                       \
+    ClassName &cpu() {                      \
+        to(MLLM_CPU);                       \
+        return *this;                       \
+    }                                       \
+    ClassName &cl() {                       \
+        to(MLLM_OPENCL);                    \
+        return *this;                       \
+    }
 
 } // namespace mllm
 

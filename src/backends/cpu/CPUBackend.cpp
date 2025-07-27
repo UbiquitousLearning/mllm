@@ -96,6 +96,10 @@
 #include "op/CPUVisionRoPEFunc.hpp"
 #include "op/CPUFlashAttention2Func.hpp"
 #include "op/CPUSageAttentionFunc.hpp"
+#include "op/CPUScatter.hpp"
+#include "op/CPUTilde.hpp"
+#include "op/CPUMaskedFill.hpp"
+#include "op/CPUSigmoid.hpp"
 
 #include "op/CPUFuyuGatherEmbdFunc.hpp"
 #include "op/CPUPhi3VhdmergeFunc.hpp"
@@ -165,7 +169,6 @@ void CPUBackend::registerOps() {
     addCreator(VISIONROPE, (CPUBackend::Creator *)(new CPUVisionRoPECreator()));
     addCreator(MULTIMODALROPEPIP, (CPUBackend::Creator *)(new CPUMultimodalRoPEPipelineCreator()));
     addCreator(MULTIMODALROPE, (CPUBackend::Creator *)(new CPUMultimodalRoPECreator()));
-    // addCreator(CAT, (CPUBackend::Creator *)(new CPUCatCreator()));
     addCreator(TRANSPOSE, (CPUBackend::Creator *)(new CPUTransposeCreator()));
     addCreator(SUBDIM, (CPUBackend::Creator *)(new CPUSubDimCreator()));
     addCreator(DIVISION, (CPUBackend::Creator *)(new CPUDivisionCreator()));
@@ -189,6 +192,7 @@ void CPUBackend::registerOps() {
     addCreator(NTKROPE, (CPUBackend::Creator *)(new CPUNTKRoPECreator()));
     addCreator(HEADLINEAR, (CPUBackend::Creator *)(new CPUHeadLinearCreator()));
     addCreator(KVCACHESAGE, (CPUBackend::Creator *)(new CPUKVCacheSageCreator()));
+    addCreator(SIGMOID, (CPUBackend::Creator *)(new CPUSigmoidCreator()));
 
     // funsction
     addCreator(F_ADD, (CPUBackend::Creator *)(new CPUaddFunctionCreator()));
@@ -225,6 +229,9 @@ void CPUBackend::registerOps() {
     addCreator(F_APPLY_VISIOROPE, (CPUBackend::Creator *)(new CPUVisionRoPEFuncFunctionCreator()));
     addCreator(F_FA2, (CPUBackend::Creator *)(new CPUFlashAttention2FuncCreator()));
     addCreator(F_SAGEATTN, (CPUBackend::Creator *)(new CPUSageAttentionFuncCreator()));
+    addCreator(SCATTER, (CPUBackend::Creator *)(new CPUScatterCreator()));
+    addCreator(TILDE, (CPUBackend::Creator *)(new CPUTildeCreator()));
+    addCreator(MASKEDFILL, (CPUBackend::Creator *)(new CPUMaskedFillCreator()));
     // models use only
     addCreator(F_FUYU_GATHER_EMBD, (CPUBackend::Creator *)(new CPUFuyuGatherEmbdFuncCreator()));
     addCreator(F_PHI3V_HD_MERGE, (CPUBackend::Creator *)(new CPUPhi3VhdmergeFunctionCreator()));
@@ -303,6 +310,18 @@ std::vector<Tensor> CPUBackend::runOp(Op *op, std::vector<Tensor> inputs, std::v
     static map<string, shared_ptr<Tensor>> empty_activation_tensors;
     map<string, shared_ptr<Tensor>> &activation_tensors = module ? module->activation_tensors : empty_activation_tensors;
     if (module && module->doTrace) { // trace
+        if (module->tracedFlag) {
+            vector<Tensor> results = {};
+            for (auto &name : out_names) results.push_back(*activation_tensors[name]);
+            return results;
+        }
+        for (auto &input : inputs) {
+            if (input.shouldInGraphs() && activation_tensors.find(input.name()) == activation_tensors.end()) {
+                activation_tensors[input.name()] = std::make_shared<Tensor>(op->backend());
+                activation_tensors[input.name()]->setName(input.name());
+                activation_tensors[input.name()]->setModule(module);
+            }
+        }
         for (const auto &out_name : out_names) {
             if (activation_tensors.find(out_name) == activation_tensors.end()) {
                 activation_tensors[out_name] = std::make_shared<Tensor>(op->backend());
@@ -373,6 +392,8 @@ std::vector<Tensor> CPUBackend::runOp(Op *op, std::vector<Tensor> inputs, std::v
 #ifdef DEBUGSAVETENSOR
         if (out_tensor->dtype() == MLLM_TYPE_F32)
             out_tensor->saveData<float>();
+        if (out_tensor->dtype() == MLLM_TYPE_F16)
+            out_tensor->saveData<mllm_fp16_t>();
 #endif
     }
     return results;
@@ -391,7 +412,7 @@ std::vector<Tensor> CPUBackend::runLayer(Layer *layer, std::vector<Tensor> input
 }
 
 std::vector<Tensor> CPUBackend::runForward(Module *module, std::vector<Tensor> inputs, std::vector<std::any> args) {
-    if (mllm::Module::llm_model_ptr && mllm::Module::llm_model_ptr->doLoad) {
+    if (mllm::Module::llm_model_ptr && (mllm::Module::llm_model_ptr->doLoad || Module::llm_model_ptr->doChangeBn)) {
         auto outputs = module->Forward(inputs, args);
         return outputs;
     }

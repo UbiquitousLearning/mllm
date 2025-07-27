@@ -86,6 +86,10 @@ bool ParamLoader::load(mllm::Tensor *tensor) {
     */
 // 在 ParamLoader.cpp 中
 bool ParamLoader::load(mllm::Tensor *tensor) {
+    if (tensor->backend() && tensor->backend()->load_from_file(tensor, this)) {
+        return true;
+    }
+
     string name = tensor->name();
     if (!use_mmap_) {
         std::lock_guard<std::mutex> lock(mtx);
@@ -307,11 +311,11 @@ DataType ParamLoader::getDataType(string name) {
             exit(0);
         }
 
-        // if (use_mmap_) {
-        //     MLLM_LOG_WARNING_STREAM << "Mmap mode: Tensor '" << name << "' not found in model metadata." << std::endl;
-        // } else {
-        //     MLLM_LOG_WARNING_STREAM << "File IO mode: Tensor '" << name << "' not found in model metadata." << std::endl;
-        // }
+        if (use_mmap_) {
+            MLLM_LOG_WARNING_STREAM << "Mmap mode: Tensor '" << name << "' not found in model metadata." << std::endl;
+        } else {
+            MLLM_LOG_WARNING_STREAM << "File IO mode: Tensor '" << name << "' not found in model metadata." << std::endl;
+        }
 
         return DataType::MLLM_TYPE_COUNT;
     }

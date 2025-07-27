@@ -8,6 +8,8 @@
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include "CPUBackend.hpp"
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -41,7 +43,8 @@ public:
             outputs[0]->alloc();
             inputs[0]->shallowCopyFrom(outputs[0], false);
         } else {
-            std::cout << "[TODO]Tensor.View alloc not support!!!!" << std::endl;
+            std::cout << "[TODO]Tensor.View [" << b << ", " << s << ", " << h << ", " << d << "] alloc not support!!!!" << std::endl;
+            exit(-2);
         }
         return MLLM_NO_ERROR;
     }
@@ -81,7 +84,8 @@ public:
                 dim_h = inputs[0]->dimension() * inputs[0]->head() / d;
                 dim_d = d;
             } else {
-                std::cout << "[TODO]Tensor.View not support!!!!" << std::endl;
+                std::cout << "[TODO]Tensor.View [" << b << ", " << s << ", " << h << ", " << d << "] alloc not support!!!!" << std::endl;
+                exit(-2);
             }
         } else if (b == -1 && h != -1 && s != -1 && d == -1) { // head & sequence
             if (h != ANYDIM && s != ANYDIM) {
@@ -95,7 +99,8 @@ public:
                 dim_h = inputs[0]->sequence() * inputs[0]->head() / s;
                 dim_s = s;
             } else {
-                std::cout << "[TODO]Tensor.View not support!!!!" << std::endl;
+                std::cout << "[TODO]Tensor.View [" << b << ", " << s << ", " << h << ", " << d << "] not support!!!!" << std::endl;
+                exit(-2);
             }
         } else if (b != -1 && h == -1 && s != -1 && d == -1) { // batch & sequence
             if (b != ANYDIM && s != ANYDIM) {
@@ -109,10 +114,12 @@ public:
                 dim_b = inputs[0]->sequence() * inputs[0]->batch() / s;
                 dim_s = s;
             } else {
-                std::cout << "[TODO]Tensor.View not support!!!!" << std::endl;
+                std::cout << "[TODO]Tensor.View [" << b << ", " << s << ", " << h << ", " << d << "] not support!!!!" << std::endl;
+                exit(-2);
             }
         } else {
-            std::cout << "[TODO]Tensor.View not support!!!!" << std::endl;
+            std::cout << "[TODO]Tensor.View [" << b << ", " << s << ", " << h << ", " << d << "] not support!!!!" << std::endl;
+            exit(-2);
         }
         if (inputs[0]->ctype() == BCTHW && inputs[0]->name() == outputs[0]->name()) {
             outputs[0]->setCtype(BSHD);
@@ -127,6 +134,9 @@ public:
 
     ErrorCode execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
         // View is a metadata-only operation, no data movement is needed in execute.
+        if (inputs[0]->hostPtr<float>() != outputs[0]->hostPtr<float>()) {
+            memcpy(outputs[0]->hostPtr<float>(), inputs[0]->hostPtr<float>(), inputs[0]->cntSize());
+        }
         return MLLM_NO_ERROR;
     }
 };

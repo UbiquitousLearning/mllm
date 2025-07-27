@@ -54,7 +54,7 @@ add_compile_options(-Wno-gnu-string-literal-operator-template)
 if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
     message(STATUS "ARM detected")
     set(ARM ON)
-    set(ANDROID_PLATFORM android-28)
+    # set(ANDROID_PLATFORM android-28)
 endif ()
 
 if (ARM)
@@ -120,15 +120,26 @@ endif ()
 
 option(OPENCL "Enable OpenCL Backend" ON) 
 if(OPENCL)
-    find_package(OpenCL)
-    if(NOT OpenCL_FOUND)
-        message(STATUS "OpenCl backend not found。")
-        set(OPENCL OFF CACHE BOOL "Enable OpenCL Backend" FORCE)
+    if(ANDROID)
+        # 对于现代 NDK (r23+)，我们不再需要 find_library 或 find_package。
+        # NDK 工具链会在链接时自动找到像 OpenCL 这样的系统库。
+        # 我们只需确保启用了相关宏定义，并在链接目标时指明即可。
+        message(STATUS "OpenCL backend for Android enabled. Linking will be handled by the NDK toolchain.")
+        add_definitions(-DUSE_OPENCL)
+        add_definitions(-DMLLM_TARGET_ANDROID)
+        include_directories(${CMAKE_SOURCE_DIR}/src/backends/opencl/third_party/OpenCL-Headers)
+     
+    else()
+        # 对于非 Android 平台，保持原有的查找逻辑
+        find_package(OpenCL)
+        if(NOT OpenCL_FOUND)
+            message(STATUS "OpenCl backend not found.")
+            set(OPENCL OFF CACHE BOOL "Enable OpenCL Backend" FORCE)
+        else()
+            message(STATUS "OpenCL backend enabled.")
+            add_definitions(-DUSE_OPENCL)
+        endif()
     endif()
-endif()
-if(OPENCL)
-    message(STATUS "OpenCL backend enabled.")
-    add_definitions(-DUSE_OPENCL) 
 endif()
 
 

@@ -65,6 +65,10 @@ enum OpType {
     IROPE,
     OP_NUM,
     NTKROPE,
+    SCATTER,
+    TILDE,
+    MASKEDFILL,
+    SIGMOID,
 
     // add in xnnpack
     DIRECT,

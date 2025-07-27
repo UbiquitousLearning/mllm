@@ -68,6 +68,7 @@ vector<double> Module::profiling(string name) {
 void Module::generate(
     Tensor &input_ids, const LlmTextGeneratorOpts &opt, const std::function<bool(unsigned int)> &call_back) {
     auto chatPostProcessing = [](unsigned token_idx, Tensor &tokens_tensor, const vector<Tensor *> &clean_tensors) {
+        tokens_tensor.cpu();
         tokens_tensor.reshape(1, 1, 1, 1);
         tokens_tensor.alloc();
         tokens_tensor.setDataAt<float>(0, 0, 0, 0, token_idx);
@@ -94,6 +95,9 @@ void Module::generate(
 
     for (int step = 0; step < opt.max_new_tokens; ++step) {
         auto _out = (*this)({input_ids});
+        if (_out[0].backend()->type() != MLLM_CPU) {
+            _out[0].cpu();
+        }
         auto out_token = text_generator_->generate(_out[0]);
         if (!call_back(out_token)) break;
         chatPostProcessing(out_token, input_ids, {});

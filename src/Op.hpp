@@ -61,6 +61,7 @@ public:
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
         for (auto &output : outputs) {
             output->setDtype(activation_dtype_);
+            output->setCtype(inputs[0]->ctype());
             output->alloc();
         }
         return MLLM_NO_ERROR;
@@ -110,7 +111,7 @@ public:
     DataType activation_dtype() const {
         return activation_dtype_;
     }
-    OpType type() const {
+    OpType &type() {
         return type_;
     }
     void setOpType(OpType type) {
@@ -131,6 +132,10 @@ public:
         return no_load_weights_dtype_;
     }
 
+    bool &traced() {
+        return traced_;
+    }
+
 protected:
     Backend *backend_;
     vector<Tensor *> inputs_;
@@ -139,6 +144,7 @@ protected:
     DataType activation_dtype_ = MLLM_TYPE_F32;
     OpType type_;
     static DataType no_load_weights_dtype_;
+    bool traced_ = false;
 };
 
 class Callable {

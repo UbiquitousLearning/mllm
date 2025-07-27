@@ -5,6 +5,7 @@
  * @date 2025-07-01
  *
  */
+#include "Types.hpp"
 #include "cmdline.h"
 #include "models/ling/configuration_bailing_moe.hpp"
 #include "models/ling/modeling_bailing_moe.hpp"
@@ -16,27 +17,41 @@ int main(int argc, char **argv) {
     std::iostream::sync_with_stdio(false);
 
     cmdline::parser cmdParser;
+    cmdParser.add<int>("device", 'd', "mllm backend [0:`cpu` | 1:`opencl`]", false, 0);
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/ling_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/ling_merges.txt");
-#ifdef ARM
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/ling-lite-1.5-kai_q4_0.mllm");
-#else
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/ling-lite-1.5-q4_0.mllm");
+    string default_model_path = "../models/ling-lite-1.5-q4_0.mllm";
+#if defined(ARM)
+    default_model_path = "../models/ling-lite-1.5-kai_q4_0.mllm";
 #endif
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, default_model_path);
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 500);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
+    cmdParser.add<int>("gen", 'g', "max new tokens", false, -1);
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
     string merge_path = cmdParser.get<string>("merge");
     string model_path = cmdParser.get<string>("model");
     int tokens_limit = cmdParser.get<int>("limits");
+    int max_new_tokens = cmdParser.get<int>("gen");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
+    BackendType device = (BackendType)cmdParser.get<int>("device");
+    assert((device == MLLM_CPU || device == MLLM_OPENCL) && "device not supports!");
 
     auto tokenizer = BaiLingTokenizer(vocab_path, merge_path);
     BailingMoeConfig config(tokens_limit);
+#ifdef USE_OPENCL
+    if (device == MLLM_OPENCL) {
+        config.dtype = MLLM_TYPE_F16;
+        config.attn_implementation = "eager";
+    }
+#endif
     // config.attn_implementation = "sage_attention";
     auto model = BailingMoeForCausalLM(config);
+#ifdef USE_OPENCL
+    model = model.to(device);
+#endif
     model.load(model_path);
 
     vector<string> in_strs = {
@@ -58,7 +73,7 @@ int main(int argc, char **argv) {
         std::cout << "[A] " << std::flush;
 
         LlmTextGeneratorOpts opt{
-            .max_new_tokens = static_cast<size_t>(tokens_limit - input_tensor.sequence()),
+            .max_new_tokens = max_new_tokens > 0 ? max_new_tokens : static_cast<size_t>(tokens_limit - input_tensor.sequence()),
             .do_sample = false,
             .temperature = 0.3F,
             .top_k = 50,

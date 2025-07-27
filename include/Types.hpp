@@ -23,8 +23,13 @@ typedef map<std::string, float> OpParam;
 // #define DEBUGSAVETENSOR
 // #define DEBUGOPTIME
 
-#define LLAMAFILE_SGEMM
+// #define LLAMAFILE_SGEMM
 inline int KVCache_TYPE = 16;
+#if !defined(ARM)
+inline int KVCache_Type_eager = KVCache_TYPE;
+#else
+inline int KVCache_Type_eager = 32;
+#endif
 inline int KVCacheSageDtypeBit = 8; // 8 or 16
 inline int KVCache_batch = 1;
 typedef enum {

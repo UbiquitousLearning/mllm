@@ -34,4 +34,8 @@ void mllm_kleidai_gemm_fp32(float *c_ptr, const float *a_ptr, const float *packe
 void mllm_kleidai_gemm_fp32_transpose(float *c_ptr, const float *a_ptr, const float *b_ptr_nxk, const float *bias_ptr, int M, int N, int K);
 void mllm_kleidai_gemm_fp16_transpose(float *c_ptr, const float *a_ptr, const mllm_fp16_t *b_ptr_nxk, const float *bias_ptr, int M, int N, int K);
 
+// --- APIs for BSHD layout GEMM ---
+void mllm_kleidai_gemm_fp32_bshd(float *c_ptr, const float *a_ptr, const float *packed_b_ptr, int B, int H, int S_M, int S_N, int D_K);
+void mllm_kleidai_gemm_fp16_bshd(float *c_ptr, const float *a_ptr, const mllm_fp16_t *packed_b_ptr, int B, int H, int S_M, int S_N, int D_K);
+
 #endif

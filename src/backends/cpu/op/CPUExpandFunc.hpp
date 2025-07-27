@@ -8,6 +8,7 @@
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include "CPUBackend.hpp"
+#include <cstring>
 #include <iostream>
 
 namespace mllm {
@@ -19,8 +20,9 @@ private:
     int b_, h_, s_, d_;
 
 public:
-    CPUexpandFunction(Backend *bn, string name, int threadCount, int b, int h, int s, int d)
-        : Op(bn, name), thread_count(threadCount), b_(b), h_(h), s_(s), d_(d) {}
+    CPUexpandFunction(Backend *bn, string name, int threadCount, int b, int h, int s, int d) :
+        Op(bn, name), thread_count(threadCount), b_(b), h_(h), s_(s), d_(d) {
+    }
 
     ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
         // The original assert seems to imply only one dimension can be expanded at a time.
@@ -81,7 +83,14 @@ public:
                 }
             }
         } else if (d_ != -1) {
-            std::cerr << "expand for DIMENSION not support" << std::endl;
+            for (int b = 0; b < dim_b; ++b) {
+                for (int s = 0; s < dim_s; ++s) {
+                    for (int h = 0; h < dim_h; ++h) {
+                        float data = inputs[0]->dataAt<float>(b, h, s, 0);
+                        std::fill_n(outputs[0]->ptrAt<float>(b, h, s, 0), outputs[0]->dimension(), data);
+                    }
+                }
+            }
         }
         return ErrorCode::MLLM_NO_ERROR;
     }
@@ -91,10 +100,10 @@ class CPUexpandFunctionCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const override {
         // Assumes OpParam contains keys "b", "h", "s", "d"
-        int b = static_cast<int>(op_param.at("b")) ;
-        int h = static_cast<int>(op_param.at("h")) ;
-        int s = static_cast<int>(op_param.at("s")) ;
-        int d = static_cast<int>(op_param.at("d")) ;
+        int b = static_cast<int>(op_param.at("b"));
+        int h = static_cast<int>(op_param.at("h"));
+        int s = static_cast<int>(op_param.at("s"));
+        int d = static_cast<int>(op_param.at("d"));
         return new CPUexpandFunction(bn, name, threadCount, b, h, s, d);
     }
 };

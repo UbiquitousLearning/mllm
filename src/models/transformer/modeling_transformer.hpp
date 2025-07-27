@@ -5,6 +5,7 @@
 #ifndef MODELING_TRANSFORMER_HPP
 #define MODELING_TRANSFORMER_HPP
 
+#include "DataType.hpp"
 #include "Layer.hpp"
 #include "Types.hpp"
 #include "configuration_transformer.hpp"
@@ -23,6 +24,7 @@ struct MultiHeadAttentionConfig {
     RoPEType RoPE_type = RoPEType::NONE; // Options: NONE, ALIBI, ROPE, PERSIMMONROPE
     float rope_theta;
     int max_position_embeddings;
+    float partial_rotary_factor = 1.0f; // Used for PERSIMMONROPE
     int cache_limit;
     bool is_causal;
     bool qkv_bias;
@@ -56,17 +58,31 @@ class MultiHeadAttention final : public Module {
 public:
     MultiHeadAttention() = default;
     MultiHeadAttention(MultiHeadAttentionConfig config,
-                       const TransformerNameConfig &names, const string &base_name) {
+                       const TransformerNameConfig &names, const string &base_name) :
         MultiHeadAttention(config.hidden_dim, config.num_heads,
                            config.num_key_value_heads, config.head_dim,
                            config.do_qkv_proj, config.post_qkv_norm, config.bias_kv_cat,
-                           config.RoPE_type, config.rope_theta, config.max_position_embeddings,
-                           config.cache_limit, config.is_causal, config.qkv_bias, config.o_bias,
-                           config.attn_implementation, names, base_name);
+                           config.RoPE_type, config.rope_theta, config.partial_rotary_factor,
+                           config.max_position_embeddings,
+                           config.cache_limit, config.is_causal,
+                           config.qkv_bias, config.o_bias,
+                           config.attn_implementation, names, base_name) {
     }
     MultiHeadAttention(int hidden_dim, int num_heads, int num_key_value_heads, int head_dim,
                        AttnQKVSplitType do_qkv_proj, AttnPostQkvNormType post_qkv_norm, bool bias_kv_cat,
                        RoPEType RoPE_type, float rope_theta, int max_position_embeddings,
+                       int cache_limit, bool is_causal, bool qkv_bias, bool o_bias,
+                       string attn_implementation,
+                       const TransformerNameConfig &names, const string &base_name) :
+        MultiHeadAttention(hidden_dim, num_heads, num_key_value_heads, head_dim,
+                           do_qkv_proj, post_qkv_norm, bias_kv_cat,
+                           RoPE_type, rope_theta, 1.0f, max_position_embeddings,
+                           cache_limit, is_causal, qkv_bias, o_bias,
+                           attn_implementation, names, base_name) {
+    }
+    MultiHeadAttention(int hidden_dim, int num_heads, int num_key_value_heads, int head_dim,
+                       AttnQKVSplitType do_qkv_proj, AttnPostQkvNormType post_qkv_norm, bool bias_kv_cat,
+                       RoPEType RoPE_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings,
                        int cache_limit, bool is_causal, bool qkv_bias, bool o_bias,
                        string attn_implementation,
                        const TransformerNameConfig &names, const string &base_name) {
@@ -95,8 +111,8 @@ public:
             k_norm = RMSNorm(head_dim, 1e-6, base_name + names._k_norm_name);
         }
         if (RoPE_type > 0) {
-            q_rope = RoPE(RoPE_type, rope_theta, max_position_embeddings, base_name + "q_rope");
-            k_rope = RoPE(RoPE_type, rope_theta, max_position_embeddings, base_name + "k_rope");
+            q_rope = RoPE(RoPE_type, rope_theta, partial_rotary_factor, max_position_embeddings, base_name + "q_rope");
+            k_rope = RoPE(RoPE_type, rope_theta, partial_rotary_factor, max_position_embeddings, base_name + "k_rope");
         }
         if (cache_limit > 0) {
             k_cache = KVCache(num_key_value_heads, head_dim,
@@ -154,7 +170,7 @@ public:
             q = q_rope(q);
             k = k_rope(k);
         }
-        if (head_first_attn) {
+        if (attn_implementation_ == "eager") {
             q = q.transpose(HEAD, SEQUENCE);
             k = k.transpose(HEAD, SEQUENCE);
             v = v.transpose(HEAD, SEQUENCE);
@@ -168,18 +184,16 @@ public:
             o = Tensor::flash_attention2_forward(q, k, v, causal_mask);
         } else if (attn_implementation_ == "sage_attention") {
             o = Tensor::sage_attention_forward(q, k, v, causal_mask);
-        } else { // eager implementation
+        } else if (attn_implementation_ == "eager") { // eager implementation
+            q = q / std::sqrt(head_dim_);
             k = k.transpose(SEQUENCE, DIMENSION);
             auto qk = Tensor::mm(q, k);
-            qk = qk / std::sqrt(head_dim_);
-            if (k_cache.ready() && v_cache.ready()) {
+            if (k_cache.ready() && v_cache.ready() && k_cache.getCacheSeqLen() != qk.sequence() && qk.sequence() > 1) {
                 qk = softmax(qk, k_cache.getCacheSeqLen());
             } else {
                 qk = softmax(qk);
             }
             o = Tensor::mm(qk, v);
-        }
-        if (head_first_attn) {
             o = o.transpose(HEAD, SEQUENCE);
         }
         o = o.view(-1, 1, -1, head_dim_ * num_heads_);

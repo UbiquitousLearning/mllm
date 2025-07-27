@@ -25,7 +25,9 @@ const std::vector<std::string> fp32_layers = {
     "ln_q",
     "patch_embed.proj",
     // "mlp.gate.",
-    // "lm_head.weight",
+    // "lm_head.weight",  // T
+    // "query_key_value", // T
+    // "word_embeddings", // T
 };
 const std::vector<std::string> q40_layers = {
     "embed_tokens",
@@ -160,7 +162,7 @@ void QuantWriter::quantize(DataType target_quant_type, const std::string &other_
     // 预扫描以找到隐藏维度
     std::cout << "Pre-scanning to find hidden dimensions..." << std::endl;
     for (const auto &name : original_param_names_) {
-        if (tmp_hidden_dim == -1 && (name.find("model") != std::string::npos && name.find("norm") != std::string::npos)) {
+        if (tmp_hidden_dim == -1 && (name.find("model") != std::string::npos && name.find("norm") != std::string::npos && name.find("k") == std::string::npos && name.find("q") == std::string::npos)) {
             ParamMetadata meta = param_loader_->getParamMetadata(name);
             tmp_hidden_dim = meta.size / sizeof(float);
             std::cout << "  - Found hidden dimension (tmp_hidden_dim): " << tmp_hidden_dim << " from layer '" << name << "'" << std::endl;
@@ -248,6 +250,7 @@ void QuantWriter::quantize(DataType target_quant_type, const std::string &other_
                 auto block_t = alloc_kleidiai_quant_block(final_quant_type, N, K);
                 quant_ptr = block_t.first;
                 quant_size = block_t.second;
+                // std::cout << "N: " << N << ", K: " << K << ", quant_size: " << quant_size << "  ";
 #ifndef KAI_FP16_CAL
                 mllm_kleidai_pack_b_and_bias_qsi4((uint8_t *)quant_ptr, transposed_weight_data.data(), bias_data.empty() ? nullptr : bias_data.data(), N, K);
 #else

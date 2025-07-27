@@ -17,7 +17,7 @@
  * @param dst_stride 目标矩阵的行步长 (即转置前的行数)
  */
 #if defined(__AVX__) || defined(__AVX2__)
-static inline void transpose_block_8x8_avx(const float* src, float* dst, const int src_stride, const int dst_stride) {
+static inline void transpose_block_8x8_avx(const float *src, float *dst, const int src_stride, const int dst_stride) {
     // 1. 从源矩阵加载8行数据到8个AVX寄存器
     __m256 row0 = _mm256_loadu_ps(src + 0 * src_stride);
     __m256 row1 = _mm256_loadu_ps(src + 1 * src_stride);
@@ -78,7 +78,7 @@ static inline void transpose_block_8x8_avx(const float* src, float* dst, const i
  * @param dst_stride 目标矩阵的行步长 (即转置前的行数)
  */
 #if defined(__aarch64__)
-static inline void transpose_block_4x4_neon(const float* src, float* dst, const int src_stride, const int dst_stride) {
+static inline void transpose_block_4x4_neon(const float *src, float *dst, const int src_stride, const int dst_stride) {
     // 1. 从源矩阵加载4行数据，每行4个float
     float32x4_t row0 = vld1q_f32(src + 0 * src_stride);
     float32x4_t row1 = vld1q_f32(src + 1 * src_stride);
@@ -117,7 +117,7 @@ static inline void transpose_block_4x4_neon(const float* src, float* dst, const 
  * @param N 源矩阵的行数
  * @param M 源矩阵的列数
  */
-void transpose_matrix_efficient(const float* src, float* dst, const int N, const int M) {
+inline void transpose_matrix_efficient(const float *src, float *dst, const int N, const int M) {
 #if defined(__AVX__) || defined(__AVX2__)
     const int BLOCK_DIM = 8;
     // 使用8x8分块处理大部分矩阵
@@ -143,7 +143,7 @@ void transpose_matrix_efficient(const float* src, float* dst, const int N, const
     // 使用4x4分块处理大部分矩阵
     for (int i = 0; i < N / BLOCK_DIM * BLOCK_DIM; i += BLOCK_DIM) {
         for (int j = 0; j < M / BLOCK_DIM * BLOCK_DIM; j += BLOCK_DIM) {
-             transpose_block_4x4_neon(src + i * M + j, dst + j * N + i, M, N);
+            transpose_block_4x4_neon(src + i * M + j, dst + j * N + i, M, N);
         }
     }
     // 处理剩余部分
@@ -159,11 +159,9 @@ void transpose_matrix_efficient(const float* src, float* dst, const int N, const
     }
 
 #else
-    // 通用C++回退方案 (无SIMD，但有缓存分块优化)
     const int BLOCK_DIM = 16;
     for (int i = 0; i < N; i += BLOCK_DIM) {
         for (int j = 0; j < M; j += BLOCK_DIM) {
-            // 转置当前块
             for (int bi = i; bi < i + BLOCK_DIM && bi < N; ++bi) {
                 for (int bj = j; bj < j + BLOCK_DIM && bj < M; ++bj) {
                     dst[bj * N + bi] = src[bi * M + bj];
@@ -173,7 +171,6 @@ void transpose_matrix_efficient(const float* src, float* dst, const int N, const
     }
 #endif
 }
-
 
 // --- BEGIN: High-Performance FP16 Transpose Function for ARM NEON ---
 
@@ -187,7 +184,7 @@ void transpose_matrix_efficient(const float* src, float* dst, const int N, const
  * @param src_stride 源矩阵的行步长 (即列数)
  * @param dst_stride 目标矩阵的行步长 (即转置前的行数)
  */
-static inline void transpose_block_8x8_neon_fp16(const __fp16* src, __fp16* dst, const int src_stride, const int dst_stride) {
+static inline void transpose_block_8x8_neon_fp16(const __fp16 *src, __fp16 *dst, const int src_stride, const int dst_stride) {
     // 1. Load 8 rows from source matrix into 8 NEON registers
     float16x8_t r0 = vld1q_f16(src + 0 * src_stride);
     float16x8_t r1 = vld1q_f16(src + 1 * src_stride);
@@ -230,20 +227,19 @@ static inline void transpose_block_8x8_neon_fp16(const __fp16* src, __fp16* dst,
  * @param N 源矩阵的行数
  * @param M 源矩阵的列数
  */
-void transpose_matrix_efficient_fp16(const mllm_fp16_t* src, mllm_fp16_t* dst, const int N, const int M) {
+inline void transpose_matrix_efficient_fp16(const mllm_fp16_t *src, mllm_fp16_t *dst, const int N, const int M) {
     const int BLOCK_DIM = 8;
     // Use an 8x8 block loop to process the majority of the matrix
     for (int i = 0; i < N / BLOCK_DIM * BLOCK_DIM; i += BLOCK_DIM) {
         for (int j = 0; j < M / BLOCK_DIM * BLOCK_DIM; j += BLOCK_DIM) {
             // On ARM, mllm_fp16_t is __fp16, so we can call the NEON helper directly
             transpose_block_8x8_neon_fp16(
-                (const __fp16*)(src + i * M + j),
-                (__fp16*)(dst + j * N + i),
-                M, N
-            );
+                (const __fp16 *)(src + i * M + j),
+                (__fp16 *)(dst + j * N + i),
+                M, N);
         }
     }
-    
+
     // Process the remaining rows and columns on the edges using standard C++
     for (int i = 0; i < N; ++i) {
         for (int j = M / BLOCK_DIM * BLOCK_DIM; j < M; ++j) {

@@ -1,6 +1,8 @@
 #ifndef MLLM_TENSOR_H
 #define MLLM_TENSOR_H
 // #include <climits>
+#include "DataType.hpp"
+#include "backends/cpu/third_party/ggml/QuantizeFP16.hpp"
 #include <iostream>
 #include <cstdio>
 #include <iomanip>
@@ -59,8 +61,9 @@ class Module;
  *
  */
 class Tensor : public std::enable_shared_from_this<Tensor> {
+protected:
     std::shared_ptr<TensorImpl> impl_; // 核心：使用shared_ptr管理实现
-
+private:
     // used for ChildTensor
     vector<uint64_t> shape_offset_;
     vector<uint64_t> shape_master_;
@@ -319,6 +322,8 @@ public:
                 auto shape = grandmaster->impl_->shape_;
                 if (grandmaster->impl_->ctype_ == BSHD) {
                     return shape[3] * shape[2];
+                } else if (grandmaster->impl_->ctype_ == BHSD) {
+                    return shape[3];
                 } else if (grandmaster->impl_->ctype_ == BHDS) {
                     return shape[3];
                 } else if (grandmaster->impl_->ctype_ == BDHS) {
@@ -331,6 +336,8 @@ public:
                 auto shape = master->impl_->shape_;
                 if (master->impl_->ctype_ == BSHD) {
                     return shape[3] * shape[2];
+                } else if (master->impl_->ctype_ == BHSD) {
+                    return shape[3];
                 } else if (master->impl_->ctype_ == BHDS) {
                     return shape[3];
                 } else if (master->impl_->ctype_ == BDHS) {
@@ -343,6 +350,8 @@ public:
         } else {
             if (impl_->ctype_ == BSHD) {
                 return impl_->shape_[3] * impl_->shape_[2];
+            } else if (impl_->ctype_ == BHSD) {
+                return impl_->shape_[3];
             } else if (impl_->ctype_ == BHDS) {
                 return impl_->shape_[3];
             } else if (impl_->ctype_ == BDHS) {
@@ -572,6 +581,28 @@ public:
             return static_cast<int>(val);
         });
         return shape_int;
+    }
+    int shape(Chl axis) const {
+        switch (axis) {
+        case Chl::BATCH:
+            return impl_->shape_[impl_->chls_[BATCH]];
+        case Chl::HEAD:
+            return impl_->shape_[impl_->chls_[HEAD]];
+        case Chl::SEQUENCE:
+            return impl_->shape_[impl_->chls_[SEQUENCE]];
+        case Chl::DIMENSION:
+            return impl_->shape_[impl_->chls_[DIMENSION]];
+            // case TIME:
+            //     return impl_->shape_[impl_->chls_[TIME]];
+            // case HEIGHT:
+            return impl_->shape_[impl_->chls_[HEIGHT]];
+        case Chl::WIDTH:
+            return impl_->shape_[impl_->chls_[WIDTH]];
+        // case CHANNLE:
+        //     return impl_->shape_[impl_->chls_[CHANNLE]];
+        default:
+            throw std::invalid_argument("Invalid axis for shape retrieval");
+        }
     }
 
     ChlType ctype() const {
@@ -808,8 +839,8 @@ public:
     Tensor operator*(float data);
     Tensor operator/(float data);
     Tensor operator/(double data);
-
     Tensor operator/(int data);
+    Tensor operator~();
 
     /**
      * \brief Overload the operators.
@@ -823,7 +854,7 @@ public:
 
     Tensor mean(Chl axis);
 
-    Tensor view(int b, int h, int s, int d);
+    Tensor view(int b, int h, int s, int d, bool in_place = true);
     Tensor flatten(Chl axis_start, Chl axis_end);
     Tensor transpose(Chl axis0, Chl axis1) {
         return transpose({{axis0, axis1}});
@@ -844,12 +875,18 @@ public:
         return split(*this, each_dims, split_dim, same_dim_size);
     }
     Tensor index_put(Tensor value, Tensor indices, bool accumulate);
-    void scatter_add(Tensor value, Tensor indices);
+    void scatter_add(Tensor value, Tensor indices, Chl dim = SEQUENCE);
+    void scatter_(Chl dim, Tensor index, float src);
     static vector<Tensor> topk(Tensor input, int k, Chl dim);
+    vector<Tensor> topk(int k, Chl dim) {
+        return topk(*this, k, dim);
+    }
     Tensor sum(Chl dim);
     Tensor argsort();
     Tensor bincount();
     Tensor repeat(Chl dim, int dim_size);
+    Tensor masked_fill(Tensor mask, float value);
+    static Tensor gather(Tensor input, Tensor index, Chl dim);
     static Tensor zero_like(Tensor input);
     static Tensor flash_attention2_forward(Tensor q, Tensor k, Tensor v, bool is_causal = true);
     static Tensor sage_attention_forward(Tensor q, Tensor k, Tensor v, bool causal_mask = false);
@@ -905,7 +942,10 @@ public:
 
         // 步骤 2: 核心浅拷贝操作 - 共享数据指针和元数据
         impl_->host_ptr_ = source->hostPtr<void>();
+        impl_->memory_handle_ = source->impl_->memory_handle_;
         impl_->owns_host_ptr_ = false;
+        impl_->device_memory_ = source->impl_->device_memory_;
+        impl_->owns_device_memory_ = false;
         impl_->capacity_ = source->impl_->capacity_;
         impl_->count_ = source->impl_->count_;
         impl_->allocated_ = source->impl_->allocated_;
@@ -1067,6 +1107,15 @@ public:
     }
 
     Tensor &to(BackendType backend_type);
+    Tensor to(DataType dtype) {
+        if (dtype == MLLM_TYPE_F16) {
+            return half();
+        } else if (dtype == MLLM_TYPE_F32) {
+            return fp32();
+        } else {
+            throw std::runtime_error("Unsupported dtype conversion.");
+        }
+    }
 
     Tensor &cpu() {
         return to(MLLM_CPU);
@@ -1085,8 +1134,15 @@ public:
         assert(dtype() == MLLM_TYPE_F32 && "Tensor::half() can only be called on an FP32 tensor.");
         assert(master_tensor_.expired() && "Conversion not supported for child tensors.");
         if (allocted()) {
-            Tensor half_tensor(batch(), head(), sequence(), dimension(), backend(), false);
+            Tensor half_tensor(backend());
+            auto batch = this->batch();
+            auto head = this->head();
+            auto sequence = this->sequence();
+            auto dimension = this->dimension();
             half_tensor.setDtype(MLLM_TYPE_F16);
+            half_tensor.setName(impl_->name_);
+            half_tensor.setCtype(impl_->ctype_);
+            half_tensor.reshape(batch, head, sequence, dimension);
             half_tensor.alloc();
             backend()->convert_fp_data(this, &half_tensor);
             return half_tensor;
@@ -1105,8 +1161,15 @@ public:
         assert(dtype() == MLLM_TYPE_F16 && "Tensor::fp32() can only be called on an FP16 tensor.");
         assert(master_tensor_.expired() && "Conversion not supported for child tensors.");
         if (allocted()) {
-            Tensor fp32_tensor(batch(), head(), sequence(), dimension(), backend(), false);
+            Tensor fp32_tensor(backend());
+            auto batch = this->batch();
+            auto head = this->head();
+            auto sequence = this->sequence();
+            auto dimension = this->dimension();
             fp32_tensor.setDtype(MLLM_TYPE_F32);
+            fp32_tensor.setName(impl_->name_);
+            fp32_tensor.setCtype(impl_->ctype_);
+            fp32_tensor.reshape(batch, head, sequence, dimension);
             fp32_tensor.alloc();
             backend()->convert_fp_data(this, &fp32_tensor);
             return fp32_tensor;
@@ -1659,6 +1722,7 @@ public:
 
     template <typename Dtype>
     void printData() {
+        assert(backend()->type() == MLLM_CPU && "printData only support CPU backend.");
         if (ctype() == BTHWC || ctype() == BCTHW) {
             printData<Dtype>();
             return;
@@ -1737,12 +1801,29 @@ public:
         int C = head();
         int H = sequence();
         int W = dimension();
+
+        if (impl_->ctype_ == BHSD) {
+            for (int n = 0; n < batch(); ++n) {
+                for (int c = 0; c < head(); ++c) {
+                    for (int h = 0; h < sequence(); ++h) {
+                        for (int w = 0; w < dimension(); ++w) {
+                            outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(n, c, h, w) << " ";
+                        }
+                        outFile << std::endl;
+                    }
+                    outFile << std::endl;
+                }
+                outFile << std::endl;
+            }
+            outFile.close();
+            return;
+        }
         if (impl_->ctype_ == BSHD) {
             for (int n = 0; n < batch(); ++n) {
                 for (int h = 0; h < sequence(); ++h) {
                     for (int c = 0; c < head(); ++c) {
                         for (int w = 0; w < dimension(); ++w) {
-                            outFile << std::fixed << std::setprecision(6) << dataAt<Dtype>(n, c, h, w) << " ";
+                            outFile << std::fixed << std::setprecision(6) << static_cast<float>(dataAt<Dtype>(n, c, h, w)) << " ";
                         }
                         outFile << std::endl;
                     }
@@ -1786,6 +1867,64 @@ public:
         outFile.close();
     }
 
+    void saveQ4Data_d(string ex = "", string directory = "save_out") {
+        if (batch() == 0) {
+            return;
+        }
+        struct stat info;
+#ifdef _WIN32
+        _mkdir(directory.c_str());
+#else
+        if (stat(directory.c_str(), &info) != 0) {
+            if (stat(directory.c_str(), &info) != 0) {
+                mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+            } else if (!(info.st_mode & S_IFDIR)) {
+                // if the path exists but it is not a directory, also create it
+                mkdir(directory.c_str(), 0777); // notice that 0777 is different than usual
+            }
+        }
+#endif
+        std::ofstream outFile(directory + "/" + name() + ex + ".log");
+        outFile << "----------------------------------------" << std::endl;
+        if (impl_->ctype_ == BSHD) {
+            outFile << name() << ": [BSHD]shape:[" << batch() << " " << sequence() << " " << head() << " " << dimension() << "] " << DataTypeName(dtype()) << " " << ctype() << std::endl;
+        } else {
+            outFile << name() << ": shape:[" << batch() << " " << head() << " " << sequence() << " " << dimension() << "] " << DataTypeName(dtype()) << " " << ctype() << std::endl;
+        }
+
+        if (impl_->dtype_ != MLLM_TYPE_Q4_0) {
+            outFile << "Error: Tensor is not of type MLLM_TYPE_Q4_0." << std::endl;
+            outFile.close();
+            return;
+        }
+
+        block_q4_0 *data_ptr = hostPtr<block_q4_0>();
+        if (data_ptr == nullptr) {
+            outFile << "Error: Host pointer is null." << std::endl;
+            outFile.close();
+            return;
+        }
+
+        const int W_blocks = dimension() / QK4_0;
+
+        // 保持原始的循环结构。注意变量名: h 代表 sequence, c 代表 head。
+        for (int n = 0; n < batch(); ++n) {
+            for (int h = 0; h < sequence(); ++h) {
+                for (int c = 0; c < head(); ++c) {
+                    for (int w = 0; w < W_blocks; ++w) {
+                        uint64_t block_offset = offset(n, c, h, w) / QK4_0;
+                        block_q4_0 &data_block = data_ptr[block_offset];
+                        float da = MLLM_FP16_TO_FP32(data_block.d);
+                        outFile << std::fixed << std::setprecision(6) << da << " ";
+                    }
+                    outFile << std::endl;
+                }
+                outFile << std::endl;
+            }
+            outFile << std::endl;
+        }
+        outFile.close();
+    }
     template <typename Dtype>
     void saveIntData(string ex = "") {
         if (Tensor::tensor_status != TENSOR_STATIC_READY) return;

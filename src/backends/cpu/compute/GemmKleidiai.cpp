@@ -698,7 +698,7 @@ void mllm_kleidai_pack_b_and_bias_fp16_transpose(mllm_fp16_t *packed_b_ptr, cons
 
     mllm_kleidai_pack_b_and_bias_fp16(packed_b_ptr, b_temp_kxn.data(), bias_ptr, N, K);
 }
-
+/*** no use ****/
 void mllm_kleidai_gemm_fp32_transpose(float *c_ptr, const float *a_ptr, const float *b_ptr_nxk, const float *bias_ptr, int M, int N, int K) {
     size_t packed_b_size = mllm_kleidai_get_packed_b_fp32_size(N, K);
     std::vector<float> packed_b_data(packed_b_size);
@@ -713,4 +713,121 @@ void mllm_kleidai_gemm_fp16_transpose(float *c_ptr, const float *a_ptr, const ml
     mllm_kleidai_gemm_fp16(c_ptr, a_ptr, packed_b_data.data(), M, N, K);
 }
 
+void mllm_kleidai_gemm_fp32_bshd(float *c_ptr, const float *a_ptr, const float *packed_b_ptr, int B, int H, int S_M, int S_N, int D_K) {
+    const int M = S_M;
+    const int K = D_K; // 在GEMM上下文中，K是BSHD布局中的D（dimension）
+
+    // 为 BSHD (B,S,H,D/N) 布局计算跨距
+    const long long stride_a_b = (long long)S_M * H * K;
+    const long long stride_a_s = (long long)H * K;
+
+    const long long stride_c_b = (long long)S_M * H * S_N;
+    const long long stride_c_s = (long long)H * S_N;
+
+    const int m_step = fp32_ukernel.get_m_step();
+    const int n_step = fp32_ukernel.get_n_step();
+
+    // 并行处理 batch 和 head 维度
+#pragma omp parallel for collapse(2) num_threads(kai_thread_count)
+    for (int b = 0; b < B; ++b) {
+        for (int h = 0; h < H; ++h) {
+            for (int m_start = 0; m_start < M; m_start += m_step) {
+                for (int n_start = 0; n_start < S_N; n_start += n_step) {
+                    const int current_m = std::min(M - m_start, m_step);
+                    const int current_n = std::min(S_N - n_start, n_step);
+
+                    // 计算当前块在BSHD布局中的A矩阵偏移
+                    // 指向 A[b, m_start, h, 0]
+                    const float *a_offset = a_ptr + b * stride_a_b + m_start * stride_a_s + h * K;
+
+                    // B矩阵是预打包的，其偏移仅与N维度相关
+                    const float *b_offset = packed_b_ptr + (n_start * (K + 1));
+
+                    // 计算当前块在BSHD布局中的C矩阵偏移
+                    // 指向 C[b, m_start, h, n_start]
+                    float *c_offset = c_ptr + b * stride_c_b + m_start * stride_c_s + h * S_N + n_start;
+
+                    // 调用微内核，传入正确的行跨距
+                    fp32_ukernel.run_matmul(
+                        current_m, current_n, K,
+                        a_offset, stride_a_s * sizeof(float), // A矩阵的行跨距
+                        b_offset,
+                        c_offset, stride_c_s * sizeof(float), // C矩阵的行跨距
+                        sizeof(float),
+                        -FLT_MAX, FLT_MAX);
+                }
+            }
+        }
+    }
+}
+
+void mllm_kleidai_gemm_fp16_bshd(float *c_ptr, const float *a_ptr, const mllm_fp16_t *packed_b_ptr, int B, int H, int S_M, int S_N, int D_K) {
+    const int M = S_M;
+    const int K = D_K; // 在GEMM上下文中，K是BSHD布局中的D（dimension）
+
+    // 为 BSHD (B,S,H,D/N) 布局计算跨距
+    const long long stride_a_b = (long long)S_M * H * K;
+    const long long stride_a_s = (long long)H * K;
+
+    const long long stride_c_b = (long long)S_M * H * S_N;
+    const long long stride_c_s = (long long)H * S_N;
+
+    const int m_step = fp16_ukernel.get_m_step();
+    const int n_step = fp16_ukernel.get_n_step();
+
+    // 并行处理 batch 和 head 维度
+#pragma omp parallel for collapse(2) num_threads(kai_thread_count)
+    for (int b = 0; b < B; ++b) {
+        for (int h = 0; h < H; ++h) {
+            // 从工作区管理器获取线程本地缓冲区
+            auto &a_fp16 = WorkspaceManager::get_instance().get_fp16_a_buffer();
+            if (a_fp16.size() < M * K) {
+                a_fp16.resize(M * K);
+            }
+
+            auto &c_fp16 = WorkspaceManager::get_instance().get_fp16_c_buffer();
+            if (c_fp16.size() < M * S_N) {
+                c_fp16.resize(M * S_N);
+            }
+
+            // 1. 收集(Gather)和转换: 将非连续的 BSHD float A矩阵切片复制到连续的 fp16 缓冲区
+            const float *a_bh_ptr = a_ptr + b * stride_a_b; // 指向批次 b 的起始位置
+            for (int s = 0; s < S_M; ++s) {
+                for (int d = 0; d < D_K; ++d) {
+                    // 从 A[b,s,h,d] 读取
+                    a_fp16[s * D_K + d] = static_cast<mllm_fp16_t>(a_bh_ptr[s * stride_a_s + h * D_K + d]);
+                }
+            }
+
+            // 2. 计算: 在连续的缓冲区上执行GEMM
+            for (int m_start = 0; m_start < M; m_start += m_step) {
+                for (int n_start = 0; n_start < S_N; n_start += n_step) {
+                    const int current_m = std::min(M - m_start, m_step);
+                    const int current_n = std::min(S_N - n_start, n_step);
+
+                    const mllm_fp16_t *a_offset = a_fp16.data() + m_start * K;
+                    const mllm_fp16_t *b_offset = packed_b_ptr + (n_start * (K + 1));
+                    mllm_fp16_t *c_offset = c_fp16.data() + m_start * S_N + n_start;
+
+                    // 由于 a_fp16 和 c_fp16 是连续的，使用标准的行跨距
+                    fp16_ukernel.run_matmul(
+                        current_m, current_n, K,
+                        a_offset, K * sizeof(mllm_fp16_t),
+                        b_offset,
+                        c_offset, S_N * sizeof(mllm_fp16_t), sizeof(mllm_fp16_t),
+                        -FLT_MAX, FLT_MAX);
+                }
+            }
+
+            // 3. 分散(Scatter)和转换: 将连续的 fp16 结果缓冲区复制回非连续的 BSHD float C矩阵
+            float *c_bh_ptr = c_ptr + b * stride_c_b; // 指向批次 b 的起始位置
+            for (int s = 0; s < S_M; ++s) {
+                for (int n = 0; n < S_N; ++n) {
+                    // 写入 C[b,s,h,n]
+                    c_bh_ptr[s * stride_c_s + h * S_N + n] = static_cast<float>(c_fp16[s * S_N + n]);
+                }
+            }
+        }
+    }
+}
 #endif

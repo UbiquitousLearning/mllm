@@ -38,5 +38,6 @@ public:
     TransformerConfig() {
     }
     string attn_implementation = "flash_attention_2"; // Options: "flash_attention_2", "eager"
+    DataType dtype = MLLM_TYPE_F32;
 };
 #endif // CONFIGURATION_TRANSFORMER_HPP

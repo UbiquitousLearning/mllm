@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <cstring> // 用于 memcpy
-
+#include "DataType.hpp"
 // 为不同平台引入对应的 SIMD 指令集头文件
 #if defined(__AVX__) || defined(__AVX2__)
 #include <immintrin.h> // Intel/AMD AVX & AVX2 指令集
@@ -16,14 +16,6 @@
 // 引入 OpenMP 头文件以支持多线程并行
 #include <omp.h>
 
-/**
- * @brief 定义一个命名空间来组织张量操作相关函数
- */
-// namespace TensorOps {
-
-// --- BEGIN: 高性能 2D 转置核心 (从 Transpose2D.hpp 集成) ---
-// 这部分代码与上一版完全相同，此处为了完整性而保留。
-// SIMD指令集优化代码...
 #if defined(__AVX__) || defined(__AVX2__)
 static inline void transpose_block_8x8_avx(const float *src, float *dst, const int src_stride, const int dst_stride) {
     __m256 row0 = _mm256_loadu_ps(src + 0 * src_stride);
@@ -129,10 +121,8 @@ static inline void transpose_matrix_2d_efficient(const float *src, float *dst, c
 #endif
 }
 
-// --- END: 高性能 2D 转置核心 ---
-
 /**
- * @brief 对一个三维浮点数张量进行高效转置 (终极版: SIMD + OpenMP)。
+ * @brief 对一个三维浮点数张量进行高效转置
  * 该函数根据指定的维度置换 (permutation) 来重新排列数据。
  *
  * @param src 指向源张量数据的指针。数据布局为 (D1, D2, D3) 的稠密行主序。
@@ -165,8 +155,6 @@ void transpose3d_efficient(const float *src, float *dst, int d1, int d2, int d3,
     }
 
     // --- 3. 性能最优路径：只交换最后两个维度 (e.g., NHW -> NWH) ---
-    // 【OpenMP + SIMD 加速】
-    // OpenMP 将d1个二维切片的转置任务分配给多个线程，每个线程内部使用SIMD指令高速完成自己的任务。
     if (perm[0] == 0 && perm[1] == 2 && perm[2] == 1) {
         const int N = d2;
         const int M = d3;
@@ -180,9 +168,6 @@ void transpose3d_efficient(const float *src, float *dst, int d1, int d2, int d3,
     }
 
     // --- 4. 通用路径：处理所有其他维度置换 ---
-    // 【OpenMP 加速】
-    // OpenMP 将最外层循环并行化，每个线程负责处理目标张量的一个或多个“块板”(slab of blocks)。
-    // 内部依然使用缓存分块来优化每个线程的执行效率。
     const int dst_dims[3] = {src_dims[perm[0]], src_dims[perm[1]], src_dims[perm[2]]};
     const int BLOCK_DIM = 16;
 
@@ -217,4 +202,137 @@ void transpose3d_efficient(const float *src, float *dst, int d1, int d2, int d3,
     }
 }
 
-// } // namespace TensorOps
+#if defined(__aarch64__)
+// NEON 平台使用 8x8 的 __fp16 块转置
+static inline void transpose_block_8x8_neon_fp16(const mllm_fp16_t *src, mllm_fp16_t *dst, const int src_stride, const int dst_stride) {
+    // 在 aarch64 上, mllm_fp16_t 就是 __fp16
+    float16x8_t r0 = vld1q_f16(src + 0 * src_stride);
+    float16x8_t r1 = vld1q_f16(src + 1 * src_stride);
+    float16x8_t r2 = vld1q_f16(src + 2 * src_stride);
+    float16x8_t r3 = vld1q_f16(src + 3 * src_stride);
+    float16x8_t r4 = vld1q_f16(src + 4 * src_stride);
+    float16x8_t r5 = vld1q_f16(src + 5 * src_stride);
+    float16x8_t r6 = vld1q_f16(src + 6 * src_stride);
+    float16x8_t r7 = vld1q_f16(src + 7 * src_stride);
+    float16x8x2_t t01 = vtrnq_f16(r0, r1);
+    float16x8x2_t t23 = vtrnq_f16(r2, r3);
+    float16x8x2_t t45 = vtrnq_f16(r4, r5);
+    float16x8x2_t t67 = vtrnq_f16(r6, r7);
+    float32x4x2_t z02 = vzipq_f32(vreinterpretq_f32_f16(t01.val[0]), vreinterpretq_f32_f16(t23.val[0]));
+    float32x4x2_t z13 = vzipq_f32(vreinterpretq_f32_f16(t01.val[1]), vreinterpretq_f32_f16(t23.val[1]));
+    float32x4x2_t z46 = vzipq_f32(vreinterpretq_f32_f16(t45.val[0]), vreinterpretq_f32_f16(t67.val[0]));
+    float32x4x2_t z57 = vzipq_f32(vreinterpretq_f32_f16(t45.val[1]), vreinterpretq_f32_f16(t67.val[1]));
+    vst1q_f16(dst + 0 * dst_stride, vreinterpretq_f16_f32(z02.val[0]));
+    vst1q_f16(dst + 1 * dst_stride, vreinterpretq_f16_f32(z13.val[0]));
+    vst1q_f16(dst + 2 * dst_stride, vreinterpretq_f16_f32(z02.val[1]));
+    vst1q_f16(dst + 3 * dst_stride, vreinterpretq_f16_f32(z13.val[1]));
+    vst1q_f16(dst + 4 * dst_stride, vreinterpretq_f16_f32(z46.val[0]));
+    vst1q_f16(dst + 5 * dst_stride, vreinterpretq_f16_f32(z57.val[0]));
+    vst1q_f16(dst + 6 * dst_stride, vreinterpretq_f16_f32(z46.val[1]));
+    vst1q_f16(dst + 7 * dst_stride, vreinterpretq_f16_f32(z57.val[1]));
+}
+#endif
+
+// 高效的2D FP16矩阵转置
+static inline void transpose_matrix_2d_efficient_fp16(const mllm_fp16_t *src, mllm_fp16_t *dst, const int N, const int M) {
+#if defined(__aarch64__)
+    const int BLOCK_DIM = 8;
+    for (int i = 0; i < N - (N % BLOCK_DIM); i += BLOCK_DIM) {
+        for (int j = 0; j < M - (M % BLOCK_DIM); j += BLOCK_DIM) {
+            transpose_block_8x8_neon_fp16(src + i * M + j, dst + j * N + i, M, N);
+        }
+    }
+    // 处理边缘情况
+    for (int i = 0; i < N; ++i) {
+        for (int j = M - (M % BLOCK_DIM); j < M; ++j) { dst[j * N + i] = src[i * M + j]; }
+    }
+    for (int i = N - (N % BLOCK_DIM); i < N; ++i) {
+        for (int j = 0; j < M - (M % BLOCK_DIM); ++j) { dst[j * N + i] = src[i * M + j]; }
+    }
+#else
+    // 在非NEON平台 (如AVX)，使用通用的缓存分块方法
+    const int BLOCK_DIM = 16;
+    for (int i = 0; i < N; i += BLOCK_DIM) {
+        for (int j = 0; j < M; j += BLOCK_DIM) {
+            for (int bi = i; bi < i + BLOCK_DIM && bi < N; ++bi) {
+                for (int bj = j; bj < j + BLOCK_DIM && bj < M; ++bj) {
+                    dst[bj * N + bi] = src[bi * M + bj];
+                }
+            }
+        }
+    }
+#endif
+}
+
+/**
+ * @brief 对一个三维 mllm_fp16_t 张量进行高效转置。
+ * @param src 指向源张量数据的指针。
+ * @param dst 指向目标张量数据的指针。
+ * @param d1, d2, d3 源张量的维度。
+ * @param perm 维度置换向量, e.g., {0, 2, 1}。
+ */
+void transpose3d_efficient_fp16(const mllm_fp16_t *src, mllm_fp16_t *dst, int d1, int d2, int d3, const std::vector<int> &perm) {
+    // --- 1. 输入验证 ---
+    if (perm.size() != 3) { throw std::invalid_argument("Permutation vector must contain 3 elements."); }
+    std::vector<int> sorted_perm = perm;
+    std::sort(sorted_perm.begin(), sorted_perm.end());
+    if (sorted_perm[0] != 0 || sorted_perm[1] != 1 || sorted_perm[2] != 2) {
+        throw std::invalid_argument("Permutation vector must be a permutation of {0, 1, 2}.");
+    }
+
+    const int src_dims[3] = {d1, d2, d3};
+
+    // --- 2. 处理特殊情况：无需转置 ---
+    if (perm[0] == 0 && perm[1] == 1 && perm[2] == 2) {
+        const size_t total_elements = static_cast<size_t>(d1) * d2 * d3;
+        if (src != dst) {
+            memcpy(dst, src, total_elements * sizeof(mllm_fp16_t));
+        }
+        return;
+    }
+
+    // --- 3. 性能最优路径：只交换最后两个维度 (e.g., HSD -> HDS) ---
+    if (perm[0] == 0 && perm[1] == 2 && perm[2] == 1) {
+        const int N = d2;
+        const int M = d3;
+#pragma omp parallel for schedule(static)
+        for (int i = 0; i < d1; ++i) {
+            const mllm_fp16_t *src_slice = src + i * (N * M);
+            mllm_fp16_t *dst_slice = dst + i * (M * N);
+            transpose_matrix_2d_efficient_fp16(src_slice, dst_slice, N, M);
+        }
+        return;
+    }
+
+    // --- 4. 通用路径：处理所有其他维度置换 ---
+    const int dst_dims[3] = {src_dims[perm[0]], src_dims[perm[1]], src_dims[perm[2]]};
+    const int BLOCK_DIM = 16;
+    long src_strides[3] = {(long)d2 * d3, d3, 1};
+    long dst_strides[3] = {(long)dst_dims[1] * dst_dims[2], dst_dims[2], 1};
+    int p_inv[3];
+    p_inv[perm[0]] = 0;
+    p_inv[perm[1]] = 1;
+    p_inv[perm[2]] = 2;
+
+#pragma omp parallel for schedule(static)
+    for (int i0 = 0; i0 < dst_dims[0]; i0 += BLOCK_DIM) {
+        for (int j0 = 0; j0 < dst_dims[1]; j0 += BLOCK_DIM) {
+            for (int k0 = 0; k0 < dst_dims[2]; k0 += BLOCK_DIM) {
+                for (int i = i0; i < i0 + BLOCK_DIM && i < dst_dims[0]; ++i) {
+                    for (int j = j0; j < j0 + BLOCK_DIM && j < dst_dims[1]; ++j) {
+                        for (int k = k0; k < k0 + BLOCK_DIM && k < dst_dims[2]; ++k) {
+                            long dst_idx = (long)i * dst_strides[0] + (long)j * dst_strides[1] + k;
+                            int dst_coords[3] = {i, j, k};
+                            int src_coords[3];
+                            src_coords[p_inv[0]] = dst_coords[0];
+                            src_coords[p_inv[1]] = dst_coords[1];
+                            src_coords[p_inv[2]] = dst_coords[2];
+                            long src_idx = (long)src_coords[0] * src_strides[0] + (long)src_coords[1] * src_strides[1] + src_coords[2];
+                            dst[dst_idx] = src[src_idx];
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

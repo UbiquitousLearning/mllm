@@ -9,6 +9,7 @@
 #include "Types.hpp"
 #include "CPUBackend.hpp"
 #include "../compute/Arithmetic.hpp"
+#include <iostream>
 #include <memory>
 
 namespace mllm {
@@ -17,10 +18,11 @@ class Tensor;
 class CPUScatterAddFunction : public Op {
 private:
     int thread_count = 4;
+    Chl dim_ = SEQUENCE; // default dimension is SEQUENCE
 
 public:
-    CPUScatterAddFunction(Backend *bn, string name, int threadCount) :
-        Op(bn, name), thread_count(threadCount) {
+    CPUScatterAddFunction(Backend *bn, string name, Chl dim, int threadCount) :
+        Op(bn, name), dim_(dim), thread_count(threadCount) {
     }
 
     ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override {
@@ -40,17 +42,22 @@ public:
         assert(replace_idx->batch() == 1);
         assert(replace_idx->sequence() == 1);
         assert(replace_idx->head() == 1);
-        // #pragma omp parallel for num_threads(CPUBackend::cpu_threads)
-        for (int r_idx = 0; r_idx < replace_idx->dimension(); r_idx++) {
-            auto replace_seq = (int)replace_idx->dataAt<float>(0, 0, 0, r_idx);
-            auto dst_ptr = dest_input->ptrAt<float>(0, 0, replace_seq, 0);
-            auto src_ptr = src_input->ptrAt<float>(0, 0, r_idx, 0);
-            // memcpy(dst_ptr, src_ptr, sizeof(float) * src_input->dimension());
-            float tmp[src_input->dimension()];
-            memcpy(tmp, dst_ptr, sizeof(float) * dest_input->dimension());
-            mllm_add_fp32(tmp,
-                          src_ptr,
-                          dst_ptr, dest_input->dimension());
+        if (dim_ == SEQUENCE) {
+            // #pragma omp parallel for num_threads(CPUBackend::cpu_threads)
+            for (int r_idx = 0; r_idx < replace_idx->dimension(); r_idx++) {
+                auto replace_seq = (int)replace_idx->dataAt<float>(0, 0, 0, r_idx);
+                auto dst_ptr = dest_input->ptrAt<float>(0, 0, replace_seq, 0);
+                auto src_ptr = src_input->ptrAt<float>(0, 0, r_idx, 0);
+                // memcpy(dst_ptr, src_ptr, sizeof(float) * src_input->dimension());
+                float tmp[src_input->dimension()];
+                memcpy(tmp, dst_ptr, sizeof(float) * dest_input->dimension());
+                mllm_add_fp32(tmp,
+                              src_ptr,
+                              dst_ptr, dest_input->dimension());
+            }
+        } else {
+            std::cerr << "Error: CPUScatterAddFunction only supports SEQUENCE dimension currently." << std::endl;
+            return NOT_SUPPORT;
         }
         return MLLM_NO_ERROR;
     }
@@ -59,7 +66,12 @@ public:
 class CPUScatterAddFunctionCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const override {
-        return new CPUScatterAddFunction(bn, name, threadCount);
+        Chl dim = SEQUENCE;
+        auto it = op_param.find("dim");
+        if (it != op_param.end()) {
+            dim = static_cast<Chl>(it->second);
+        }
+        return new CPUScatterAddFunction(bn, name, dim, threadCount);
     }
 };
 

@@ -39,7 +39,7 @@ public:
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto x = gate_proj(inputs[0]);
         x = silu(x);
-        auto y = up_proj(inputs[0]); // ERROR
+        auto y = up_proj(inputs[0]);
         x = x * y;
         x = down_proj(x);
         return {x};
@@ -377,7 +377,6 @@ public:
     MiniCPMForCausalLM(MiniCPMConfig &config) {
         num_hidden_layers = config.num_hidden_layers;
         num_experts = config.num_experts;
-        // KVCache_TYPE = 32;
         auto names = config.names_config;
         scale_emb = config.scale_emb;
         dim_model_base = config.dim_model_base;

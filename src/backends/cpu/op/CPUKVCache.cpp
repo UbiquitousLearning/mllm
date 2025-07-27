@@ -10,7 +10,11 @@ CPUKVCache::CPUKVCache(Backend *bn, string opName, int hidden, int head, int n_r
     thread_count(threadCount), Op(bn, opName) {
     cache_ = std::make_shared<Tensor>(1, head * n_rep, cache_max, hidden, bn, false);
     fa2_ = fa2;
-    switch (KVCache_TYPE) {
+    auto KVdtype = KVCache_TYPE;
+    if (!fa2) {
+        KVdtype = KVCache_Type_eager;
+    }
+    switch (KVdtype) {
     case 16: {
         cache_->setDtype(MLLM_TYPE_F16);
         break;
@@ -197,6 +201,36 @@ ErrorCode CPUKVCache::execute(vector<shared_ptr<Tensor>> inputs,
                                 auto src_ptr =
                                     (char *)inputs[0]->rawHostPtr() + inputs[0]->offset(b, h, 0, d) * sizeof(block_q8_0) / QK8_0;
                                 auto dest_ptr = (char *)cache_->rawHostPtr() + cache_->offset(b, cache_head, cache_seq_len_old, d) * sizeof(block_q8_0) / QK8_0;
+                                int copy_size = cache_->dimension();
+                                memcpy(dest_ptr, src_ptr, copy_size * sizeof(block_q8_0) / QK8_0);
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (cache_->ctype() == BHSD) {
+            for (int b = 0; b < cache_->batch(); ++b) {
+                for (int h = inputs[0]->head() - 1; h >= 0; --h) {
+#pragma omp parallel for collapse(2) num_threads(thread_count)
+                    for (int seq = cache_seq_len_old; seq < cache_seq_len_; ++seq) {
+                        for (int i_rep = 0; i_rep < n_rep_; ++i_rep) {
+                            auto cache_head = h * n_rep_ + i_rep;
+                            if (cache_->dtype() == MLLM_TYPE_F32) {
+                                auto src_ptr =
+                                    inputs[0]->ptrAt<float>(b, h, seq - cache_seq_len_old, 0);
+                                auto dest_ptr = cache_->ptrAt<float>(b, cache_head, seq, 0);
+                                int copy_size = cache_->dimension();
+                                memcpy(dest_ptr, src_ptr, copy_size * sizeof(float));
+                            } else if (cache_->dtype() == MLLM_TYPE_F16) {
+                                auto src_ptr =
+                                    inputs[0]->ptrAt<mllm_fp16_t>(b, h, seq - cache_seq_len_old, 0);
+                                auto dest_ptr = cache_->ptrAt<mllm_fp16_t>(b, cache_head, seq, 0);
+                                int copy_size = cache_->dimension();
+                                memcpy(dest_ptr, src_ptr, copy_size * sizeof(mllm_fp16_t));
+                            } else if (cache_->dtype() == MLLM_TYPE_Q8_0) {
+                                auto src_ptr =
+                                    (char *)inputs[0]->rawHostPtr() + inputs[0]->offset(b, h, seq - cache_seq_len_old, 0) * sizeof(block_q8_0) / QK8_0;
+                                auto dest_ptr = (char *)cache_->rawHostPtr() + cache_->offset(b, cache_head, seq, 0) * sizeof(block_q8_0) / QK8_0;
                                 int copy_size = cache_->dimension();
                                 memcpy(dest_ptr, src_ptr, copy_size * sizeof(block_q8_0) / QK8_0);
                             }
