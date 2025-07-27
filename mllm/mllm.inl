@@ -1,6 +1,8 @@
 //===----------------------------------------------------------------------===//
 // Print Stuff
 //===----------------------------------------------------------------------===//
+#include <fmt/ranges.h>
+
 namespace fmt {
 template<>
 struct formatter<mllm::DataTypes> {
@@ -25,17 +27,6 @@ struct formatter<mllm::DeviceTypes> {
 };
 
 template<>
-struct formatter<mllm::Tensor> {
-  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
-  template<typename FormatContext>
-  auto format(const mllm::Tensor& tensor, FormatContext& ctx) const {
-    auto out = ctx.out();
-    // TODO
-    return out;
-  }
-};
-
-template<>
 struct formatter<std::vector<int32_t>> {
   constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
   template<typename FormatContext>
@@ -51,6 +42,129 @@ struct formatter<std::vector<int32_t>> {
     }
     *out++ = ']';
     return out;
+  }
+};
+
+template<>
+struct formatter<mllm::Tensor> {
+  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+
+  template<typename FormatContext>
+  auto format(const mllm::Tensor& tensor, FormatContext& ctx) const {
+    if (tensor.isNil()) { return fmt::format_to(ctx.out(), "Tensor(nil)"); }
+
+    if (tensor.numel() == 0) {
+      return fmt::format_to(ctx.out(), "tensor([], size=({}), dtype={})", fmt::join(tensor.shape(), ", "), tensor.dtype());
+    }
+
+    auto out = fmt::format_to(ctx.out(), "tensor(");
+    out = printTensorData(tensor, out, 0, {});
+    return fmt::format_to(out, ", dtype={}, device={})", tensor.dtype(), tensor.device());
+  }
+
+ private:
+  static constexpr int MAX_ELEMENTS_PER_DIM = 12;
+
+  template<typename OutputIt>
+  OutputIt printTensorData(const mllm::Tensor& tensor, OutputIt out, int dim, const std::vector<int32_t>& indices) const {
+    auto shape = tensor.shape();
+
+    if (dim >= (int)shape.size()) { return printTensorValue(tensor, out, indices); }
+
+    int32_t dim_size = shape[dim];
+    *out++ = '[';
+
+    if (dim_size <= MAX_ELEMENTS_PER_DIM) {
+      for (int32_t i = 0; i < dim_size; ++i) {
+        if (i > 0) {
+          *out++ = ',';
+          if (dim != (int)shape.size() - 1) {
+            *out++ = '\n';
+            for (int j = 0; j <= dim; ++j) *out++ = ' ';
+          } else {
+            *out++ = ' ';
+          }
+        }
+        std::vector<int32_t> new_indices = indices;
+        new_indices.push_back(i);
+        out = printTensorData(tensor, out, dim + 1, new_indices);
+      }
+    } else {
+      const int SHOW_ELEMENTS = MAX_ELEMENTS_PER_DIM / 2;
+
+      for (int32_t i = 0; i < SHOW_ELEMENTS; ++i) {
+        if (i > 0) {
+          *out++ = ',';
+          if (dim != (int)shape.size() - 1) {
+            *out++ = '\n';
+            for (int j = 0; j <= dim; ++j) *out++ = ' ';
+          } else {
+            *out++ = ' ';
+          }
+        }
+        std::vector<int32_t> new_indices = indices;
+        new_indices.push_back(i);
+        out = printTensorData(tensor, out, dim + 1, new_indices);
+      }
+
+      *out++ = ',';
+      if (dim != (int)shape.size() - 1) {
+        *out++ = '\n';
+        for (int j = 0; j <= dim; ++j) *out++ = ' ';
+      } else {
+        *out++ = ' ';
+      }
+      *out++ = '.';
+      *out++ = '.';
+      *out++ = '.';
+
+      for (int32_t i = dim_size - SHOW_ELEMENTS; i < dim_size; ++i) {
+        *out++ = ',';
+        if (dim != (int)shape.size() - 1) {
+          *out++ = '\n';
+          for (int j = 0; j <= dim; ++j) *out++ = ' ';
+        } else {
+          *out++ = ' ';
+        }
+        std::vector<int32_t> new_indices = indices;
+        new_indices.push_back(i);
+        out = printTensorData(tensor, out, dim + 1, new_indices);
+      }
+    }
+
+    *out++ = ']';
+    return out;
+  }
+
+  template<typename OutputIt>
+  OutputIt printTensorValue(const mllm::Tensor& tensor, OutputIt out, const std::vector<int32_t>& indices) const {
+    switch (tensor.dtype()) {
+      case mllm::kFloat32:
+        return fmt::format_to(out, "{:.4f}", tensor.constAt<mllm::mllm_fp32_t>(const_cast<std::vector<int32_t>&>(indices)));
+      case mllm::kFloat16:
+        return fmt::format_to(
+            out, "{:.4f}",
+            static_cast<mllm::mllm_fp32_t>(tensor.constAt<mllm::mllm_fp16_t>(const_cast<std::vector<int32_t>&>(indices))));
+      case mllm::kInt32:
+        return fmt::format_to(out, "{}", tensor.constAt<mllm::mllm_int32_t>(const_cast<std::vector<int32_t>&>(indices)));
+      case mllm::kInt16:
+        return fmt::format_to(out, "{}", tensor.constAt<mllm::mllm_int16_t>(const_cast<std::vector<int32_t>&>(indices)));
+      case mllm::kInt8:
+        return fmt::format_to(
+            out, "{}",
+            static_cast<mllm::mllm_int32_t>(tensor.constAt<mllm::mllm_int8_t>(const_cast<std::vector<int32_t>&>(indices))));
+      case mllm::kUInt8:
+        return fmt::format_to(
+            out, "{}",
+            static_cast<mllm::mllm_int32_t>(tensor.constAt<mllm::mllm_uint8_t>(const_cast<std::vector<int32_t>&>(indices))));
+      case mllm::kInt64:
+        return fmt::format_to(out, "{}", tensor.constAt<mllm::mllm_int64_t>(const_cast<std::vector<int32_t>&>(indices)));
+      case mllm::kUInt32:
+        return fmt::format_to(out, "{}", tensor.constAt<mllm::mllm_uint32_t>(const_cast<std::vector<int32_t>&>(indices)));
+      case mllm::kUInt64:
+        return fmt::format_to(out, "{}", tensor.constAt<mllm::mllm_uint64_t>(const_cast<std::vector<int32_t>&>(indices)));
+      default: return fmt::format_to(out, "?");
+    }
   }
 };
 

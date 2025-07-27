@@ -15,7 +15,12 @@
 TEST(PrintTest, Tensor) {
   mllm::initializeContext();
   using namespace mllm;  // NOLINT
-  auto t = Tensor::ones({8, 8}, kFloat16, kCPU);
+  auto t = Tensor::ones({100, 24, 24}, kFloat32, kCPU);
   print(t);
   print(t.shape(), t.dtype(), t.device());
+  print("---------------------------------");
+  t = Tensor::ones({3, 8, 8}, kFloat32, kCPU);
+  print(t);
+  print(t.shape(), t.dtype(), t.device());
+  mllm::memoryReport();
 }

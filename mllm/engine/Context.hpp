@@ -11,6 +11,7 @@
 #include <atomic>
 
 #include "mllm/core/DeviceTypes.hpp"
+#include "mllm/core/OpTypes.hpp"
 #include "mllm/engine/DispatcherManager.hpp"
 #include "mllm/engine/SessionTCB.hpp"
 #include "mllm/utils/SymbolTable.hpp"
@@ -39,6 +40,9 @@ class Context {
   inline MemoryManager::ptr_t memoryManager() { return memory_manager_; }
 
   inline DispatcherManager::ptr_t dispatcherManager() { return dispatcher_manager_; }
+
+  std::vector<Tensor> buildOpAndSubmitTask(OpTypes op_type, const BaseOpOptionsBase& base_options,
+                                           const std::vector<Tensor>& inputs);
 
   uint32_t getUUID();
 

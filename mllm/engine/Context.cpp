@@ -37,6 +37,24 @@ Backend::ptr_t Context::getBackend(const DeviceTypes& device) {
   return backends_[device];
 }
 
+std::vector<Tensor> Context::buildOpAndSubmitTask(OpTypes op_type, const BaseOpOptionsBase& base_options,
+                                                  const std::vector<Tensor>& inputs) {
+  auto device = inputs[0].device();
+  auto op = getBackend(device)->createOp(op_type, base_options);
+  auto task = Task::createExecuteOpTask(op, inputs, {});
+
+  // Submit!
+  // At this moment, heart pounding like thunder
+  // Tasks racing through kernels, swift as lightning
+  // Threads await, fate hanging by a thread
+  // Success or failure in this one moment
+  dispatcherManager()->submit(static_cast<int32_t>(device), task);
+
+  // Everything is Ok. Bravo! You did it.
+  // Return what we need.
+  return task->outputs;
+}
+
 uint32_t Context::getUUID() {
   uint32_t ret = custom_uuid_giver_;
   custom_uuid_giver_++;

@@ -9,6 +9,7 @@
  *
  */
 #include "mllm/core/Tensor.hpp"
+#include "mllm/core/aops/FillOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm {
@@ -40,13 +41,15 @@ Tensor Tensor::getExtraTensorViewInTensor(const std::string& extra_tensor_name) 
 }
 
 Tensor Tensor::zeros(const std::vector<int32_t>& shape, DataTypes dtype, DeviceTypes device) {
-  // TODO
-  return Tensor::nil();
+  auto i = Tensor::empty(shape, dtype, device).alloc();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kFill, aops::FillOpOptions{.type = aops::FillOpTypes::kZeros},
+                                                  {i})[0];
 }
 
 Tensor Tensor::ones(const std::vector<int32_t>& shape, DataTypes dtype, DeviceTypes device) {
-  // TODO
-  return Tensor::nil();
+  auto i = Tensor::empty(shape, dtype, device).alloc();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kFill, aops::FillOpOptions{.type = aops::FillOpTypes::kOnes},
+                                                  {i})[0];
 }
 
 Tensor Tensor::arange(float start, float end, float step, DataTypes dtype, DeviceTypes device) {
