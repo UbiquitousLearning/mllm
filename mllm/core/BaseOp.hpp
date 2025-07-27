@@ -99,7 +99,7 @@ class BaseOp : public std::enable_shared_from_this<BaseOp> {
 
   virtual void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs);
 
-  virtual ParameterFile::ptr_t getParams() { return nullptr; }
+  virtual ParameterFile::ptr_t getParams() { return ParameterFile::create(); }
 
   [[nodiscard]] std::string getName() const;
 

@@ -338,6 +338,49 @@ class Tensor {
    */
   size_t bytes();
 
+  /**
+   * @brief Gets base pointer of tensor data.
+   * @tparam T Expected data type.
+   * @return Typed base pointer.
+   */
+  template<typename T>
+  T* ptr() const {
+    return impl_->ptr<T>();
+  }
+
+  /**
+   * @brief Typed pointer access with offset.
+   * @tparam T Expected data type.
+   * @param offsets Multi-dimensional indices.
+   * @return Typed pointer to the element.
+   */
+  template<typename T>
+  T* offsettedPtr(const std::vector<int32_t>& offsets) {
+    return impl_->offsettedPtr<T>(offsets);
+  }
+
+  /**
+   * @brief Accesses a tensor element at specified coordinates.
+   * @tparam T Expected data type (must match tensor dtype).
+   * @param offsets Multi-dimensional indices.
+   * @return Reference to the element.
+   */
+  template<typename T>
+  T& at(const std::vector<int32_t>& offsets) {
+    return *(offsettedPtr<T>(offsets));
+  }
+
+  /**
+   * @brief Accesses a tensor element at specified coordinates (const version).
+   * @tparam T Expected data type (must match tensor dtype).
+   * @param offsets Multi-dimensional indices.
+   * @return Const reference to the element.
+   */
+  template<typename T>
+  const T& constAt(const std::vector<int32_t>& offsets) const {
+    return *(const_cast<Tensor*>(this)->offsettedPtr<T>(offsets));
+  }
+
  private:
   std::shared_ptr<TensorViewImpl> impl_ = nullptr;
   std::unordered_map<std::string, TensorViewImpl::ptr_t> attached_views_;

@@ -87,7 +87,7 @@ class TensorViewImpl : public std::enable_shared_from_this<TensorViewImpl> {
     int32_t _offset = 0;
     for (int i = 0; i < shape_len_; ++i) { _offset += offsets[i] * stride_[i]; }
 
-    return ptr<T>() + (_offset / lanesOfType(storage_->dtype_)) * bytesOfType(storage_->dtype_);
+    return (T*)(ptr<char>() + (_offset / lanesOfType(storage_->dtype_)) * bytesOfType(storage_->dtype_));
   }
 
   inline void dropStorage() { storage_ = nullptr; }

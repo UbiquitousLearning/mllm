@@ -8,7 +8,7 @@
  *
  */
 #include "mllm/backends/cpu/CPUAllocator.hpp"
-#include "mllm/backends/cpu/kernels/kernels.hpp"
+#include "mllm/backends/cpu/kernels/Kernels.hpp"
 
 namespace mllm::cpu {
 
@@ -78,8 +78,21 @@ size_t CPUAllocator::allocSize(Storage* storage) {
 }
 
 size_t CPUAllocator::alignSize() const {
-  // No matter 128, 256, 512 vector size.
-  // 64 is fit for all.
+  if constexpr (cpu::isX86_64()) {
+    if constexpr (cpu::hasAVX512BW() || cpu::hasAVX512DQ() || cpu::hasAVX512VL() || cpu::hasAVX512CD() || cpu::hasAVX512F()) {
+      return 64;
+    } else if constexpr (cpu::hasAVX2() || cpu::hasAVX()) {
+      return 32;
+    } else if constexpr (cpu::hasSSE4_2() || cpu::hasSSE4_1() || cpu::hasSSE3() || cpu::hasSSE2() || cpu::hasSSE()
+                         || cpu::hasSSSE3()) {
+      return 16;
+    }
+
+    // No matter 128, 256, 512 vector size.
+    // 64 is fit for all.
+    return 64;
+  }
+
   return 64;
 }
 
