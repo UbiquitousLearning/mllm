@@ -8,7 +8,9 @@
  */
 #pragma once
 
+#include <cstdint>
 #include <memory>
+
 #include "mllm/compile/ir/builtin/Attribute.hpp"
 #include "mllm/utils/RTTIHelper.hpp"
 

@@ -31,7 +31,8 @@ class Dispatcher {
   static constexpr int32_t cuda_dispatcher_id = static_cast<int32_t>(DeviceTypes::kCUDA);
   static constexpr int32_t opencl_dispatcher_id = static_cast<int32_t>(DeviceTypes::kOpenCL);
   static constexpr int32_t qnn_dispatcher_id = static_cast<int32_t>(DeviceTypes::kQNN);
-  static constexpr int32_t custom_dispatcher_start_id = static_cast<int32_t>(DeviceTypes::kDeviceTypes_End) + 1;
+  static constexpr int32_t trace_dispatcher_id = static_cast<int32_t>(DeviceTypes::kDeviceTypes_End) + 1;
+  static constexpr int32_t custom_dispatcher_start_id = static_cast<int32_t>(DeviceTypes::kDeviceTypes_End) + 2;
 
   explicit Dispatcher(exec::static_thread_pool& thread_pool, dispatcher_id_t id);
 

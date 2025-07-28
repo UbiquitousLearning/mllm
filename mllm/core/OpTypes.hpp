@@ -54,6 +54,10 @@ enum class OpTypes : int32_t {
   kReLU,
   kReLU2,
 
+  // Graph Control Ops
+  kGraphBegin,
+  kGraphEnd,
+
   kOpType_End,
 };
 

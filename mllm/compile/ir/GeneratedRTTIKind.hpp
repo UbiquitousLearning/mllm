@@ -1,4 +1,4 @@
-// Auto generated: 2025-07-27 08:24:51
+// Auto generated: 2025-07-28 14:01:31
 // do not modify this file
 #pragma once
 
@@ -22,7 +22,7 @@ enum NodeKind : uint32_t {
   RK_Op_LinalgIROp_MulOp,
   RK_Op_LinalgIROp_DivOp,
   RK_Op_LinalgIROp_MatMulOp,
-  RK_Op_LinalgIROp_LLMEmbeddingTokenOp,
+  RK_Op_LinalgIROp_EmbeddingOp,
   RK_Op_LinalgIROp_LinearOp,
   RK_Op_LinalgIROp_RoPEOp,
   RK_Op_LinalgIROp_SoftmaxOp,
@@ -58,7 +58,7 @@ enum NodeKind : uint32_t {
   RK_Op_GraphIROp_Last,
   RK_Op_TensorIROp,
   RK_Op_TensorIROp_AllocOp,
-  RK_Op_TensorIROp_AllocGlobalOp,
+  RK_Op_TensorIROp_RegisterOp,
   RK_Op_TensorIROp_FreeOp,
   RK_Op_TensorIROp_Last,
   RK_Op_BuiltinIROp,

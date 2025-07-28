@@ -1,0 +1,90 @@
+/**
+ * @file Op.cpp
+ * @author chenghua wang (chenghua.wang.edu@gmail.com)
+ * @brief
+ * @version 0.1
+ * @date 2025-07-28
+ *
+ */
+#include "mllm/compile/ir/tensor/Op.hpp"
+#include "mllm/compile/ir/builtin/Attribute.hpp"
+#include "mllm/utils/Common.hpp"
+
+namespace mllm::ir::tensor {
+TensorIROp::~TensorIROp() = default;
+
+TensorIROp::TensorIROp() : Op(RK_Op_TensorIROp) { MLLM_EMPTY_SCOPE; }
+
+TensorIROp::TensorIROp(NodeKind kind) : Op(kind) { MLLM_EMPTY_SCOPE; }
+
+RegisterOp::~RegisterOp() = default;
+
+RegisterOp::RegisterOp() : TensorIROp(RK_Op_TensorIROp_RegisterOp) { MLLM_EMPTY_SCOPE; }
+
+void RegisterOp::dump(IRPrinter& p) {
+  p.print("tensor.{}.register ", deviceTypes2Str(getDevice()));
+  Op::dump(p);
+  dumpAttributes(p);
+}
+
+RegisterOp::ptr_t RegisterOp::build(IRContext* ctx, const TensorValue::ptr_t& tensor_v) {
+  auto ret = std::make_shared<RegisterOp>(ctx);
+
+  // This op generate the tensor value.
+  // The registerted tensor is marked as a produced value.
+  (*ret)-- > tensor_v;
+
+  // The symbol is registered
+  MLLM_RT_ASSERT((tensor_v->tensor_.memType() <= TensorMemTypes::kParams_End
+                  && tensor_v->tensor_.memType() >= TensorMemTypes::kParams_Start)
+                 || (tensor_v->tensor_.memType() == TensorMemTypes::kGlobal));
+
+  auto symbol_attr = ctx->create<SymbolAttr>(tensor_v->name());
+  ret->setSymbolAttr(symbol_attr);
+
+  ctx->addToSymbolTable(ret, symbol_attr->str());
+
+  return ret;
+}
+
+TensorValue::ptr_t RegisterOp::getRegisteredTensor() { return outputs().front()->cast_<::mllm::ir::tensor::TensorValue>(); }
+
+AllocOp::~AllocOp() = default;
+
+AllocOp::AllocOp() : TensorIROp(RK_Op_TensorIROp_AllocOp) { MLLM_EMPTY_SCOPE; }
+
+void AllocOp::dump(IRPrinter& p) {
+  p.print("tensor.{}.alloc ", deviceTypes2Str(getDevice()));
+  Op::dump(p);
+  dumpAttributes(p);
+}
+
+AllocOp::ptr_t AllocOp::build(IRContext* ctx, const TensorValue::ptr_t& tensor_v) {
+  auto ret = std::make_shared<AllocOp>();
+
+  (*ret)-- > tensor_v;
+
+  return ret;
+}
+
+TensorValue::ptr_t AllocOp::getAllocatedTensor() { return outputs().front()->cast_<::mllm::ir::tensor::TensorValue>(); }
+
+FreeOp::~FreeOp() = default;
+
+FreeOp::FreeOp() : TensorIROp(RK_Op_TensorIROp_FreeOp) { MLLM_EMPTY_SCOPE; }
+
+void FreeOp::dump(IRPrinter& p) {
+  p.print("tensor.{}.free ", deviceTypes2Str(getDevice()));
+  Op::dump(p);
+  dumpAttributes(p);
+}
+
+FreeOp::ptr_t FreeOp::build(IRContext* ctx, const TensorValue::ptr_t& tensor_v) {
+  auto ret = std::make_shared<FreeOp>();
+
+  (*tensor_v)-- > ret;
+
+  return ret;
+}
+
+}  // namespace mllm::ir::tensor

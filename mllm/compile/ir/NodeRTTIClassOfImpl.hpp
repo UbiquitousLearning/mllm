@@ -1,4 +1,4 @@
-// Auto generated: 2025-07-27 08:24:51
+// Auto generated: 2025-07-28 14:01:31
 // do not modify this file
 #pragma once
 namespace mllm::ir {
@@ -36,8 +36,8 @@ struct NodeRTTIClassOfImpl {
 #define RTTI_RK_OP_LINALGIROP_MATMULOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_MatMulOp && (v)->getKind() <= RK_Op_LinalgIROp_MatMulOp
 
-#define RTTI_RK_OP_LINALGIROP_LLMEMBEDDINGTOKENOP_IMPL(v) \
-  return (v)->getKind() >= RK_Op_LinalgIROp_LLMEmbeddingTokenOp && (v)->getKind() <= RK_Op_LinalgIROp_LLMEmbeddingTokenOp
+#define RTTI_RK_OP_LINALGIROP_EMBEDDINGOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_EmbeddingOp && (v)->getKind() <= RK_Op_LinalgIROp_EmbeddingOp
 
 #define RTTI_RK_OP_LINALGIROP_LINEAROP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_LinearOp && (v)->getKind() <= RK_Op_LinalgIROp_LinearOp
@@ -136,8 +136,8 @@ struct NodeRTTIClassOfImpl {
 #define RTTI_RK_OP_TENSORIROP_ALLOCOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_TensorIROp_AllocOp && (v)->getKind() <= RK_Op_TensorIROp_AllocOp
 
-#define RTTI_RK_OP_TENSORIROP_ALLOCGLOBALOP_IMPL(v) \
-  return (v)->getKind() >= RK_Op_TensorIROp_AllocGlobalOp && (v)->getKind() <= RK_Op_TensorIROp_AllocGlobalOp
+#define RTTI_RK_OP_TENSORIROP_REGISTEROP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_TensorIROp_RegisterOp && (v)->getKind() <= RK_Op_TensorIROp_RegisterOp
 
 #define RTTI_RK_OP_TENSORIROP_FREEOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_TensorIROp_FreeOp && (v)->getKind() <= RK_Op_TensorIROp_FreeOp
