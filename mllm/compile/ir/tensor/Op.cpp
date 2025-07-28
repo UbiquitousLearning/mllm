@@ -28,7 +28,7 @@ void RegisterOp::dump(IRPrinter& p) {
 }
 
 RegisterOp::ptr_t RegisterOp::build(IRContext* ctx, const TensorValue::ptr_t& tensor_v) {
-  auto ret = std::make_shared<RegisterOp>(ctx);
+  auto ret = std::make_shared<RegisterOp>();
 
   // This op generate the tensor value.
   // The registerted tensor is marked as a produced value.
