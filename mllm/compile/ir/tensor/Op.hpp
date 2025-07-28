@@ -27,7 +27,7 @@ class TensorIROp : public Op {
   static inline bool classof(const Node* node) { RTTI_RK_OP_TENSORIROP_IMPL(node); }
 };
 
-class RegisterOp : public TensorIROp, SymbolInterface<RegisterOp> {
+class RegisterOp : public TensorIROp, public SymbolInterface<RegisterOp> {
  public:
   DEFINE_SPECIFIC_IR_CLASS(RegisterOp);
 
