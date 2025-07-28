@@ -209,7 +209,10 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
   using region_ptr_t = std::shared_ptr<Region>;
 
  public:
+  using ptr_t = std::shared_ptr<IRContext>;
+
   IRContext() = default;
+
   explicit IRContext(const node_ptr_t& module, const region_ptr_t& region);
 
  public:
