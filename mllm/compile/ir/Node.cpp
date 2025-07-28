@@ -21,6 +21,21 @@ namespace mllm::ir {
 
 Node::Node(const NodeKind& kind) : kind_(kind) {}
 
+void Node::dumpAttributes(IRPrinter& p) {
+  if (attrs_.empty()) return;
+  p.lsbracket();
+  auto size = attrs_.size();
+  int cnt = 0;
+  for (auto& [key, attr] : attrs_) {
+    p.print(key);
+    p.colon();
+    attr->dump(p);
+    if (cnt < size - 1) { p.comma(); }
+    cnt++;
+  }
+  p.rsbracket();
+}
+
 std::list<node_weak_ptr_t>& Node::inputs() { return inputs_; }
 
 std::list<node_weak_ptr_t>& Node::outputs() { return outputs_; }

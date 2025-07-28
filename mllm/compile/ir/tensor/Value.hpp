@@ -8,8 +8,6 @@
  */
 #pragma once
 
-#include <memory>
-
 #include "mllm/core/Tensor.hpp"
 #include "mllm/compile/ir/builtin/Interface.hpp"
 #include "mllm/compile/ir/Node.hpp"
@@ -23,7 +21,9 @@ class TensorIRValue : public Val {
   DEFINE_SPECIFIC_IR_CLASS(TensorIRValue);
 
   ~TensorIRValue() override;
+
   TensorIRValue();
+
   explicit TensorIRValue(NodeKind kind);
 
   static inline bool classof(const Node* node) { RTTI_RK_VAL_TENSORIRVAL_IMPL(node); }
@@ -45,9 +45,8 @@ class TensorValue : public TensorIRValue, public SymbolInterface<TensorValue> {
   Tensor tensor_;
 };
 
-static inline std::vector<std::shared_ptr<TensorValue>> wrapTensors2TensorIR(IRContext* ctx,
-                                                                             const std::vector<Tensor>& tensors) {
-  std::vector<std::shared_ptr<TensorValue>> tensor_ir_values;
+static inline std::vector<TensorValue::ptr_t> wrapTensors2TensorIR(IRContext* ctx, const std::vector<Tensor>& tensors) {
+  std::vector<TensorValue::ptr_t> tensor_ir_values;
   for (auto& t : tensors) {
     if (ctx->isCacheInputOutputTensor(t.uuid())) {
       tensor_ir_values.emplace_back(ctx->getCacheInputOutputTensor(t.uuid())->cast_<ir::tensor::TensorValue>());

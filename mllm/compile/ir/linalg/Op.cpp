@@ -1,0 +1,66 @@
+/**
+ * @file Op.cpp
+ * @author chenghua wang (chenghua.wang.edu@gmail.com)
+ * @brief
+ * @version 0.1
+ * @date 2025-07-28
+ *
+ */
+#include "mllm/core/BaseOp.hpp"
+#include "mllm/compile/ir/linalg/Op.hpp"
+
+namespace mllm::ir::linalg {
+
+LinalgIROp::LinalgIROp() : Op(RK_Op_LinalgIROp) {}
+
+LinalgIROp::LinalgIROp(const NodeKind& kind) : Op(kind) {}
+
+LINALG_AOPS_DECL(OpTypes::kFill, FillOp)
+LINALG_AOPS_DECL(OpTypes::kAdd, AddOp);
+LINALG_AOPS_DECL(OpTypes::kSub, SubOp);
+LINALG_AOPS_DECL(OpTypes::kMul, MulOp);
+LINALG_AOPS_DECL(OpTypes::kDiv, DivOp);
+
+LINALG_AOPS_DECL(OpTypes::kMatMul, MatMulOp);
+
+LINALG_AOPS_DECL(OpTypes::kEmbedding, EmbeddingOp);
+LINALG_AOPS_DECL(OpTypes::kLinear, LinearOp);
+LINALG_AOPS_DECL(OpTypes::kRoPE, RoPEOp);
+LINALG_AOPS_DECL(OpTypes::kKVCache, KVCacheOp);
+LINALG_AOPS_DECL(OpTypes::kCausalMask, CausalMaskOp);
+
+LINALG_AOPS_DECL(OpTypes::kSoftmax, SoftmaxOp);
+LINALG_AOPS_DECL(OpTypes::kTranspose, TransposeOp);
+LINALG_AOPS_DECL(OpTypes::kRMSNorm, RMSNormOp);
+LINALG_AOPS_DECL(OpTypes::kSiLU, SiLUOp);
+
+LINALG_AOPS_DECL(OpTypes::kCastType, CastTypeOp);
+
+LINALG_AOPS_DECL(OpTypes::kD2H, D2HOp);
+
+LINALG_AOPS_DECL(OpTypes::kView, ViewOp);
+LINALG_AOPS_DECL(OpTypes::kSplit, SplitOp);
+
+LINALG_AOPS_DECL(OpTypes::kFlashAttention2, FlashAttention2Op);
+LINALG_AOPS_DECL(OpTypes::kRepeat, RepeatOp);
+LINALG_AOPS_DECL(OpTypes::kPermute, PermuteOp);
+
+LINALG_AOPS_DECL(OpTypes::kConv1D, Conv1DOp);
+LINALG_AOPS_DECL(OpTypes::kConv2D, Conv2DOp);
+LINALG_AOPS_DECL(OpTypes::kConv3D, Conv3DOp);
+
+LINALG_AOPS_DECL(OpTypes::kGELU, GELUOp);
+LINALG_AOPS_DECL(OpTypes::kLayerNorm, LayerNormOp);
+
+LINALG_AOPS_DECL(OpTypes::kMultimodalRoPE, MultimodalRoPEOp);
+LINALG_AOPS_DECL(OpTypes::kVisionRoPE, VisionRoPEOp);
+
+LINALG_AOPS_DECL(OpTypes::kQuickGELU, QuickGELUOp);
+
+LINALG_AOPS_DECL(OpTypes::kCopy, CopyOp);
+LINALG_AOPS_DECL(OpTypes::kClone, CloneOp);
+
+LINALG_AOPS_DECL(OpTypes::kNeg, NegOp);
+LINALG_AOPS_DECL(OpTypes::kConcat, ConcatOp);
+
+}  // namespace mllm::ir::linalg

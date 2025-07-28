@@ -222,7 +222,7 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("MulOp"))
     op.derive(Cls("DivOp"))
     op.derive(Cls("MatMulOp"))
-    op.derive(Cls("LLMEmbeddingTokenOp"))
+    op.derive(Cls("EmbeddingOp"))
     op.derive(Cls("LinearOp"))
     op.derive(Cls("RoPEOp"))
     op.derive(Cls("SoftmaxOp"))
@@ -278,7 +278,7 @@ def define_tensor_ir(ir: dict):
 
     # op
     op.derive(Cls("AllocOp"))
-    op.derive(Cls("AllocGlobalOp"))
+    op.derive(Cls("RegisterOp"))
     op.derive(Cls("FreeOp"))
 
     # value

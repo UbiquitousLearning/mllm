@@ -53,10 +53,13 @@ using attr_weak_ptr_t = std::shared_ptr<Attr>;
 class Node : public std::enable_shared_from_this<Node> {
  public:
   Node() = default;
+
   explicit Node(const NodeKind& kind);
   virtual ~Node() = default;
 
   virtual void dump(IRPrinter& p) { p.print("<InvalidNodePrinter NIY>"); };
+
+  void dumpAttributes(IRPrinter& p);
 
   NodeKind getKind() const { return kind_; }
 
@@ -477,7 +480,7 @@ class IRWriter {
       created_node->setBelongsTo(ctx_->topLevelOp());
 
       // set prev op
-      created_node->setPrevOp() = prev_op;
+      created_node->setPrevOp(prev_op);
 
       // set next op
       if (prev_op) prev_op->setNextOp(created_node);
