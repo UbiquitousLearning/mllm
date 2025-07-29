@@ -35,11 +35,22 @@ SubGraphOp::ptr_t SubGraphOp::build(IRContext* ctx, const SymbolAttr::ptr_t& sym
   return ret;
 }
 
+SubGraphOp::ptr_t SubGraphOp::build(IRContext* ctx, const SymbolAttr::ptr_t& symbol_attr) {
+  auto ret = std::make_shared<SubGraphOp>();
+  ret->setSymbolAttr(symbol_attr);
+  ret->createRegionAtTop();
+  ret->abstract_nn_node_ = nullptr;
+
+  ctx->addToSymbolTable(ret, symbol_attr->str());
+  return ret;
+}
+
 void SubGraphOp::dump(IRPrinter& p) {
   p.print("graph.SubGraphOp @{} ", getSymbolAttr()->str());
   p.langle();
-  p.print("{}", deviceTypes2Str(abstract_nn_node_->getDevice()));
+  p.print("{}", abstract_nn_node_ == nullptr ? "notype" : deviceTypes2Str(abstract_nn_node_->getDevice()));
   p.rangle();
+  p.blank();
   p.lbrace();
 
   getTopRegion()->dump(p);

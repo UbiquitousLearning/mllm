@@ -73,9 +73,6 @@ void TensorValue::dump(IRPrinter& p) {
     p.print("@{}", getSymbolAttr()->str());
     IRPrinter::rsbracket();
   }
-
-  // Dump all attribute
-  dumpAttributes(p);
 }
 
 }  // namespace mllm::ir::tensor

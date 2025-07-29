@@ -26,6 +26,8 @@ class Dispatcher {
  public:
   using ptr_t = std::shared_ptr<Dispatcher>;
   using dispatcher_id_t = int32_t;
+  using preprocess_task_func_t = std::function<void(const Task::ptr_t& task)>;
+  using afterprocess_task_func_t = std::function<void(const Task::ptr_t& task)>;
 
   static constexpr int32_t cpu_dispatcher_id = static_cast<int32_t>(DeviceTypes::kCPU);
   static constexpr int32_t cuda_dispatcher_id = static_cast<int32_t>(DeviceTypes::kCUDA);
@@ -35,6 +37,14 @@ class Dispatcher {
   static constexpr int32_t custom_dispatcher_start_id = static_cast<int32_t>(DeviceTypes::kDeviceTypes_End) + 2;
 
   explicit Dispatcher(exec::static_thread_pool& thread_pool, dispatcher_id_t id);
+
+  void setPreprocessTaskFunc(const preprocess_task_func_t& func);
+
+  void setAfterprocessTaskFunc(const afterprocess_task_func_t& func);
+
+  virtual void preprocessTask(const Task::ptr_t& task);
+
+  virtual void afterprocessTask(const Task::ptr_t& task);
 
   virtual void receive(const Task::ptr_t& task);
 
@@ -47,6 +57,9 @@ class Dispatcher {
  protected:
   dispatcher_id_t dispatcher_id_;
   std::deque<Task::ptr_t> task_queue_;
+
+  preprocess_task_func_t preprocess_task_func_ = nullptr;
+  afterprocess_task_func_t afterprocess_task_func_ = nullptr;
 
   int32_t queue_depth_ = 0;
   bool need_async_exec_ = true;

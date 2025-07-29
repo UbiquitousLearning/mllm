@@ -1,0 +1,29 @@
+@main () -> () {
+    graph.SubGraphOp @init <notype> {
+        () -> () {
+            tensor.CPU.register () -> (%0:tensor<[2048, 1024], Float32, CPU>[@foo_net.linear_0.weight])[symbol:foo_net.linear_0.weight]
+            tensor.CPU.register () -> (%1:tensor<[2048], Float32, CPU>[@foo_net.linear_0.bias])[symbol:foo_net.linear_0.bias]
+            tensor.CPU.register () -> (%2:tensor<[2048, 1024], Float32, CPU>[@foo_net.linear_1.weight])[symbol:foo_net.linear_1.weight]
+            tensor.CPU.register () -> (%3:tensor<[2048], Float32, CPU>[@foo_net.linear_1.bias])[symbol:foo_net.linear_1.bias]
+            tensor.CPU.register () -> (%4:tensor<[2048, 1024], Float32, CPU>[@foo_net.linear_2.weight])[symbol:foo_net.linear_2.weight]
+            tensor.CPU.register () -> (%5:tensor<[2048], Float32, CPU>[@foo_net.linear_2.bias])[symbol:foo_net.linear_2.bias]
+            tensor.CPU.register () -> (%6:tensor<[2048, 1024], Float32, CPU>[@foo_net.linear_3.weight])[symbol:foo_net.linear_3.weight]
+            tensor.CPU.register () -> (%7:tensor<[2048], Float32, CPU>[@foo_net.linear_3.bias])[symbol:foo_net.linear_3.bias]
+        }
+    }
+    graph.SubGraphOp @deinit <notype> {
+        () -> () {
+            
+        }
+    }
+    graph.CallGraphOp @foo_net (%8:tensor<[2, 1, 312, 1024], Float32, CPU>) -> (%9:tensor<[2, 1, 312, 2048], Float32, CPU>, %10:tensor<[2, 1, 312, 2048], Float32, CPU>, %11:tensor<[2, 1, 312, 2048], Float32, CPU>, %12:tensor<[2, 1, 312, 2048], Float32, CPU>)
+    graph.SubGraphOp @foo_net <CPU> {
+        (%8:tensor<[2, 1, 312, 1024], Float32, CPU>) -> (%9:tensor<[2, 1, 312, 2048], Float32, CPU>, %10:tensor<[2, 1, 312, 2048], Float32, CPU>, %11:tensor<[2, 1, 312, 2048], Float32, CPU>, %12:tensor<[2, 1, 312, 2048], Float32, CPU>) {
+            linalg.CPU.LinearOp(%8:tensor<[2, 1, 312, 1024], Float32, CPU>) -> (%9:tensor<[2, 1, 312, 2048], Float32, CPU>)
+            linalg.CPU.LinearOp(%8:tensor<[2, 1, 312, 1024], Float32, CPU>) -> (%10:tensor<[2, 1, 312, 2048], Float32, CPU>)
+            linalg.CPU.LinearOp(%8:tensor<[2, 1, 312, 1024], Float32, CPU>) -> (%11:tensor<[2, 1, 312, 2048], Float32, CPU>)
+            linalg.CPU.LinearOp(%8:tensor<[2, 1, 312, 1024], Float32, CPU>) -> (%12:tensor<[2, 1, 312, 2048], Float32, CPU>)
+            cf.ReturnOp (%9:tensor<[2, 1, 312, 2048], Float32, CPU>, %10:tensor<[2, 1, 312, 2048], Float32, CPU>, %11:tensor<[2, 1, 312, 2048], Float32, CPU>, %12:tensor<[2, 1, 312, 2048], Float32, CPU>) -> ()
+        }
+    }
+}

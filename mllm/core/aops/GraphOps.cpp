@@ -16,7 +16,7 @@ GraphBeginOp::GraphBeginOp(const GraphBeginOpOptions& options) : BaseOp(OpTypes:
 void GraphBeginOp::load(const ParameterFile::ptr_t& ploader) { MLLM_EMPTY_SCOPE; }
 
 void GraphBeginOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  // TODO
+  MLLM_EMPTY_SCOPE;
 }
 
 void GraphBeginOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { MLLM_EMPTY_SCOPE; }
@@ -30,7 +30,7 @@ GraphEndOp::GraphEndOp(const GraphEndOpOptions& options) : BaseOp(OpTypes::kGrap
 void GraphEndOp::load(const ParameterFile::ptr_t& ploader) { MLLM_EMPTY_SCOPE; }
 
 void GraphEndOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  // TODO
+  MLLM_EMPTY_SCOPE;
 }
 
 void GraphEndOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { MLLM_EMPTY_SCOPE; }

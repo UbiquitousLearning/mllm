@@ -11,11 +11,14 @@
 
 // Ops
 #include "mllm/backends/cpu/ops/FillOp.hpp"
+#include "mllm/backends/cpu/ops/GraphOps.hpp"
 #include "mllm/backends/cpu/ops/LinearOp.hpp"
 
 namespace mllm::cpu {
 
-CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) { regOpFactory<CPULinearOpFactory, CPUFillOpFactory>(); }
+CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
+  regOpFactory<CPULinearOpFactory, CPUFillOpFactory, CPUGraphBeginOpFactory, CPUGraphEndOpFactory>();
+}
 
 std::shared_ptr<CPUBackend> createCPUBackend() { return std::make_shared<CPUBackend>(); }
 

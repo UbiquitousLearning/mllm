@@ -33,10 +33,13 @@ class SubGraphOp : public GraphIROp, public SymbolInterface<SubGraphOp> {
   DEFINE_SPECIFIC_IR_CLASS(SubGraphOp);
 
   ~SubGraphOp() override;
+
   SubGraphOp();
 
   static ptr_t build(IRContext* ctx, const SymbolAttr::ptr_t& symbol_attr,
                      const ::mllm::nn::AbstractNnNode::ptr_t& hierarchy_base);
+
+  static ptr_t build(IRContext* ctx, const SymbolAttr::ptr_t& symbol_attr);
 
   void dump(IRPrinter& p) override;
 

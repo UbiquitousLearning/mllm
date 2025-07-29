@@ -270,6 +270,21 @@ struct formatter<mllm::MemoryManager::ptr_t> {
     return ctx.out();
   }
 };
+
+template<>
+struct formatter<mllm::ir::IRContext::ptr_t> {
+  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(const mllm::ir::IRContext::ptr_t& ir_ctx, FormatContext& ctx) const {
+    auto out = ctx.out();
+
+    auto dumpper = ::mllm::ir::IRPrinter();
+    ir_ctx->topLevelOp()->dump(dumpper);
+
+    out = fmt::format_to(out, "");
+    return out;
+  }
+};
 }  // namespace fmt
 
 #define MLLM_MAJOR_VERSION = 2

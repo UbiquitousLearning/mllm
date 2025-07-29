@@ -47,6 +47,10 @@ class DispatcherManager {
 
   void registerDispatcher(const Dispatcher::ptr_t& dispatcher);
 
+  bool hasDispatcher(dispatcher_id_t id);
+
+  Dispatcher::ptr_t getDispatcher(dispatcher_id_t id);
+
  private:
   DispatcherManagerOptions options_;
   exec::static_thread_pool thread_pool_;

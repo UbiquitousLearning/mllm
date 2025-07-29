@@ -39,7 +39,7 @@ RegisterOp::ptr_t RegisterOp::build(IRContext* ctx, const TensorValue::ptr_t& te
                   && tensor_v->tensor_.memType() >= TensorMemTypes::kParams_Start)
                  || (tensor_v->tensor_.memType() == TensorMemTypes::kGlobal));
 
-  auto symbol_attr = ctx->create<SymbolAttr>(tensor_v->name());
+  auto symbol_attr = ctx->create<SymbolAttr>(tensor_v->getSymbolAttr()->str());
   ret->setSymbolAttr(symbol_attr);
 
   ctx->addToSymbolTable(ret, symbol_attr->str());
