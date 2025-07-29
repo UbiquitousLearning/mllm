@@ -19,9 +19,7 @@ Tensor& Tensor::alloc() {
   return *this;
 }
 
-Tensor::Tensor(const std::shared_ptr<TensorViewImpl>& impl) : impl_(impl) {
-  // TODO Check
-}
+Tensor::Tensor(const std::shared_ptr<TensorViewImpl>& impl) : impl_(impl) {}
 
 Tensor Tensor::empty(const std::vector<int32_t>& shape, DataTypes dtype, DeviceTypes device) {
   auto storage = TensorStorage::create(shape, dtype, device);
@@ -31,7 +29,10 @@ Tensor Tensor::empty(const std::vector<int32_t>& shape, DataTypes dtype, DeviceT
 
 Tensor& Tensor::allocExtraTensorView(const std::string& extra_tensor_name, const std::vector<int32_t>& shape, DataTypes dtype,
                                      DeviceTypes device) {
-  // TODO
+  MLLM_RT_ASSERT_EQ(attached_views_.count(extra_tensor_name), 0);
+  auto storage = TensorStorage::create(shape, dtype, device);
+  auto impl = TensorViewImpl::create(shape, storage);
+  attached_views_.insert({extra_tensor_name, impl});
   return *this;
 }
 
@@ -53,13 +54,20 @@ Tensor Tensor::ones(const std::vector<int32_t>& shape, DataTypes dtype, DeviceTy
 }
 
 Tensor Tensor::arange(float start, float end, float step, DataTypes dtype, DeviceTypes device) {
-  // TODO
-  return Tensor::nil();
+  auto shape = std::vector<int32_t>{static_cast<int32_t>((end - start) / step)};
+  auto i = Tensor::empty(shape, dtype, device).alloc();
+  return Context::instance().buildOpAndSubmitTask(
+      OpTypes::kFill, aops::FillOpOptions{.type = aops::FillOpTypes::kArange, .start = start, .end = end, .step = step},
+      {i})[0];
 }
 
 Tensor Tensor::random(const std::vector<int32_t>& shape, float start, float end, DataTypes dtype, DeviceTypes device) {
-  // TODO
-  return Tensor::nil();
+  auto i = Tensor::empty(shape, dtype, device).alloc();
+  return Context::instance().buildOpAndSubmitTask(
+      OpTypes::kFill,
+      aops::FillOpOptions{
+          .type = aops::FillOpTypes::kRandom, .start = start, .end = end, .seed = Context::instance().getRandomSeed()},
+      {i})[0];
 }
 
 Tensor Tensor::operator+(const Tensor& rhs) {

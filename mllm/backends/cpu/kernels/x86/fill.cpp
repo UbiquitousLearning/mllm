@@ -110,4 +110,72 @@ void fill_specific_value(mllm_fp32_t* __restrict dst, size_t size, float value, 
   for (; i < size; ++i) { dst[i] = value; }
 }
 
+void fill_arange(mllm_fp32_t* __restrict dst, size_t size, float start, float end, float step, int thread_count) {
+#if defined(MLLM_HOST_FEATURE_AVX512F)
+  constexpr size_t vec_size = 16;
+  const __m512 step_vec = _mm512_set1_ps(step * vec_size);
+#elif defined(MLLM_HOST_FEATURE_AVX2) || defined(MLLM_HOST_FEATURE_AVX)
+  constexpr size_t vec_size = 8;
+  const __m256 step_vec = _mm256_set1_ps(step * vec_size);
+#elif defined(MLLM_HOST_FEATURE_SSE2) || defined(MLLM_HOST_FEATURE_SSE)
+  constexpr size_t vec_size = 4;
+  const __m128 step_vec = _mm_set1_ps(step * vec_size);
+#else
+  constexpr size_t vec_size = 1;
+#endif
+
+  size_t vec_end = size / vec_size * vec_size;
+  size_t i = 0;
+
+#if defined(MLLM_HOST_FEATURE_AVX512F) || defined(MLLM_HOST_FEATURE_AVX2) || defined(MLLM_HOST_FEATURE_AVX) \
+    || defined(MLLM_HOST_FEATURE_SSE2) || defined(MLLM_HOST_FEATURE_SSE)
+  if (vec_size > 1) {
+    // Vectorized arange
+    float current_value = start;
+    for (; i < vec_end; i += vec_size) {
+#if defined(MLLM_HOST_FEATURE_AVX512F)
+      __m512 val_vec = _mm512_set_ps(current_value + 15 * step, current_value + 14 * step, current_value + 13 * step,
+                                     current_value + 12 * step, current_value + 11 * step, current_value + 10 * step,
+                                     current_value + 9 * step, current_value + 8 * step, current_value + 7 * step,
+                                     current_value + 6 * step, current_value + 5 * step, current_value + 4 * step,
+                                     current_value + 3 * step, current_value + 2 * step, current_value + step, current_value);
+      _mm512_storeu_ps(dst + i, val_vec);
+#elif defined(MLLM_HOST_FEATURE_AVX2) || defined(MLLM_HOST_FEATURE_AVX)
+      __m256 val_vec =
+          _mm256_set_ps(current_value + 7 * step, current_value + 6 * step, current_value + 5 * step, current_value + 4 * step,
+                        current_value + 3 * step, current_value + 2 * step, current_value + step, current_value);
+      _mm256_storeu_ps(dst + i, val_vec);
+#elif defined(MLLM_HOST_FEATURE_SSE2) || defined(MLLM_HOST_FEATURE_SSE)
+      __m128 val_vec = _mm_set_ps(current_value + 3 * step, current_value + 2 * step, current_value + step, current_value);
+      _mm_storeu_ps(dst + i, val_vec);
+#endif
+      current_value += step * vec_size;
+    }
+  }
+#endif
+
+  // Handle remaining elements
+  float current_value = start + i * step;
+  for (; i < size; ++i) {
+    dst[i] = current_value;
+    current_value += step;
+  }
+}
+
+void fill_random(mllm_fp32_t* __restrict dst, size_t size, float start, float end, uint64_t seed, int thread_count) {
+  uint64_t state = seed;
+  const uint64_t multiplier = 1103515245ULL;
+  const uint64_t increment = 12345ULL;
+  const uint64_t modulus = 1ULL << 31;  // 2^31
+
+  float range = end - start;
+
+  for (size_t i = 0; i < size; ++i) {
+    state = (multiplier * state + increment) % modulus;
+
+    float random_value = static_cast<float>(state) / static_cast<float>(modulus - 1);
+    dst[i] = start + random_value * range;
+  }
+}
+
 }  // namespace mllm::x86

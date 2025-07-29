@@ -124,12 +124,16 @@ class ModuleList final : public Module {
   ModuleList() = default;
 
   template<typename... Args>
-  ModuleList(const std::string& name, int nums, Args&&... args){
-      // TODO
+  ModuleList(const std::string& name, int nums, Args&&... args) : Module(name) {
+    for (int i = 0; i < nums; ++i) {
+      layers_.emplace_back(reg<T>(/*name*/ std::to_string(i), /*args*/ std::forward<Args>(args)...));
+    }
   };
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
-    // TODO
+    std::vector<Tensor> o = inputs;
+    for (auto& layer : layers_) { o = layer.forward(o); }
+    return o;
   }
 
   std::vector<T>& list() { return layers_; }
@@ -143,12 +147,16 @@ class ModuleListSuffixed final : public Module {
   ModuleListSuffixed() = default;
 
   template<typename... Args>
-  ModuleListSuffixed(const std::string& name, int suffix_start, int nums, Args&&... args){
-      // TODO
+  ModuleListSuffixed(const std::string& name, int suffix_start, int nums, Args&&... args) : Module(name) {
+    for (int i = 0; i < nums; ++i) {
+      layers_.emplace_back(reg<T>(/*name*/ std::to_string(suffix_start + i), /*args*/ std::forward<Args>(args)...));
+    }
   };
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
-    // TODO
+    std::vector<Tensor> o = inputs;
+    for (auto& layer : layers_) { o = layer.forward(o); }
+    return o;
   }
 
   std::vector<T>& list() { return layers_; }

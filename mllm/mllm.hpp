@@ -55,7 +55,7 @@ inline void initializeContext() {
 
 void shutdownContext();
 
-void setRandomSeed(uint32_t seed);
+void setRandomSeed(uint64_t seed);
 
 void setMaximumNumThreads(uint32_t num_threads);
 

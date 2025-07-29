@@ -29,6 +29,7 @@ struct FillOpOptions : public BaseOpOptions<FillOpOptions> {
   float start = 0.f;
   float end = 0.f;
   float step = 0.f;
+  uint64_t seed = 42;
 };
 
 class FillOp : public BaseOp {
