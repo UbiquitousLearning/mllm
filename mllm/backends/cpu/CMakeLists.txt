@@ -5,7 +5,12 @@
 # add_subdirectory(vendors/highway)
 
 file(GLOB_RECURSE MLLM_CPU_BACKEND_OPS_SRC ${CMAKE_CURRENT_LIST_DIR}/ops/*.cpp)
-file(GLOB_RECURSE MLLM_CPU_BACKEND_KERNELS_SRC ${CMAKE_CURRENT_LIST_DIR}/kernels/*.cpp)
+
+if(MLLM_BUILD_ARM_BACKEND)
+  file(GLOB_RECURSE MLLM_CPU_BACKEND_KERNELS_SRC ${CMAKE_CURRENT_LIST_DIR}/kernels/arm/*.cpp)
+else()
+  file(GLOB_RECURSE MLLM_CPU_BACKEND_KERNELS_SRC ${CMAKE_CURRENT_LIST_DIR}/kernels/x86/*.cpp)
+endif()
 
 add_library(
   MllmCPUBackend SHARED

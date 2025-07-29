@@ -1,4 +1,4 @@
-// Auto generated: 2025-07-28 14:01:31
+// Auto generated: 2025-07-29 13:32:41
 // do not modify this file
 #pragma once
 namespace mllm::ir {
@@ -155,23 +155,11 @@ struct NodeRTTIClassOfImpl {
 
 #define RTTI_RK_OP_PROGRAMIROP_IMPL(v) return (v)->getKind() >= RK_Op_ProgramIROp && (v)->getKind() <= RK_Op_ProgramIROp_Last
 
-#define RTTI_RK_OP_PROGRAMIROP_OBJECTFRAGMENTOP_IMPL(v) \
-  return (v)->getKind() >= RK_Op_ProgramIROp_ObjectFragmentOp && (v)->getKind() <= RK_Op_ProgramIROp_ObjectFragmentOp
-
-#define RTTI_RK_OP_PROGRAMIROP_DATAFRAGMENTOP_IMPL(v) \
-  return (v)->getKind() >= RK_Op_ProgramIROp_DataFragmentOp && (v)->getKind() <= RK_Op_ProgramIROp_DataFragmentOp
-
-#define RTTI_RK_OP_PROGRAMIROP_GLOBALDATAFRAGMENTOP_IMPL(v) \
-  return (v)->getKind() >= RK_Op_ProgramIROp_GlobalDataFragmentOp && (v)->getKind() <= RK_Op_ProgramIROp_GlobalDataFragmentOp
+#define RTTI_RK_OP_PROGRAMIROP_FRAGMENTOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_ProgramIROp_FragmentOp && (v)->getKind() <= RK_Op_ProgramIROp_FragmentOp
 
 #define RTTI_RK_OP_PROGRAMIROP_INSTRUCTIONOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_ProgramIROp_InstructionOp && (v)->getKind() <= RK_Op_ProgramIROp_InstructionOp
-
-#define RTTI_RK_OP_PROGRAMIROP_GLOBALDATAITEMOP_IMPL(v) \
-  return (v)->getKind() >= RK_Op_ProgramIROp_GlobalDataItemOp && (v)->getKind() <= RK_Op_ProgramIROp_GlobalDataItemOp
-
-#define RTTI_RK_OP_PROGRAMIROP_DATAITEMOP_IMPL(v) \
-  return (v)->getKind() >= RK_Op_ProgramIROp_DataItemOp && (v)->getKind() <= RK_Op_ProgramIROp_DataItemOp
 
 #define RTTI_RK_VAL_IMPL(v) return (v)->getKind() >= RK_Val && (v)->getKind() <= RK_Val_Last
 

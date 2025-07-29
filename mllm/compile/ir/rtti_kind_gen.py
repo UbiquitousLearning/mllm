@@ -302,12 +302,8 @@ def define_program_ir(ir: dict):
     attr: Cls = ir["Attribute"]
 
     # op
-    op.derive(Cls("ObjectFragmentOp"))
-    op.derive(Cls("DataFragmentOp"))
-    op.derive(Cls("GlobalDataFragmentOp"))
+    op.derive(Cls("FragmentOp"))
     op.derive(Cls("InstructionOp"))
-    op.derive(Cls("GlobalDataItemOp"))
-    op.derive(Cls("DataItemOp"))
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-// Auto generated: 2025-07-28 14:01:31
+// Auto generated: 2025-07-29 13:32:41
 // do not modify this file
 #pragma once
 
@@ -68,12 +68,8 @@ enum NodeKind : uint32_t {
   RK_Op_ControlFlowIROp_ReturnOp,
   RK_Op_ControlFlowIROp_Last,
   RK_Op_ProgramIROp,
-  RK_Op_ProgramIROp_ObjectFragmentOp,
-  RK_Op_ProgramIROp_DataFragmentOp,
-  RK_Op_ProgramIROp_GlobalDataFragmentOp,
+  RK_Op_ProgramIROp_FragmentOp,
   RK_Op_ProgramIROp_InstructionOp,
-  RK_Op_ProgramIROp_GlobalDataItemOp,
-  RK_Op_ProgramIROp_DataItemOp,
   RK_Op_ProgramIROp_Last,
   RK_Op_Last,
   RK_Val,

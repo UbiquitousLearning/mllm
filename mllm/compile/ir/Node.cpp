@@ -235,6 +235,8 @@ const IRContext::region_ptr_t& IRContext::getCurInsertRegion() { return cur_inse
 
 node_ptr_t& IRContext::topLevelOp() { return top_level_op_; }
 
+void IRContext::removeFromSymbolTable(const std::string& name) { symbol_table_.erase(name); }
+
 void IRContext::addToSymbolTable(const node_ptr_t& node, const std::string& name) { symbol_table_[name] = node; }
 
 node_ptr_t IRContext::lookupSymbolTable(const std::string& name) {
