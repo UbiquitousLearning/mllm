@@ -301,6 +301,8 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
     return created_node;
   }
 
+  void removeFromSymbolTable(const std::string& name);
+
   void addToSymbolTable(const node_ptr_t& node, const std::string& name);
 
   node_ptr_t lookupSymbolTable(const std::string& name);
