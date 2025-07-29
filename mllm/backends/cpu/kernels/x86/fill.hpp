@@ -18,4 +18,8 @@ void fill_ones(mllm_fp32_t* __restrict dst, size_t size, int thread_count);
 
 void fill_specific_value(mllm_fp32_t* __restrict dst, size_t size, float value, int thread_count);
 
+void fill_arange(mllm_fp32_t* __restrict dst, size_t size, float start, float end, float step, int thread_count);
+
+void fill_random(mllm_fp32_t* __restrict dst, size_t size, float start, float end, uint64_t seed, int thread_count);
+
 }  // namespace mllm::x86

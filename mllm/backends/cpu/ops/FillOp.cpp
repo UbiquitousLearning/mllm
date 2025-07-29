@@ -53,9 +53,31 @@ void CPUFillOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
       break;
     }
     case aops::FillOpTypes::kArange: {
+      switch (dst.dtype()) {
+        case kFloat32: {
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+          x86::fill_arange(dst.ptr<mllm_fp32_t>(), dst.numel(), options_.start, options_.end, options_.step, threads);
+#endif
+          break;
+        }
+        default: {
+          NYI("FillOp::forward[arange] not implemented for this data type");
+        }
+      }
       break;
     }
     case aops::FillOpTypes::kRandom: {
+      switch (dst.dtype()) {
+        case kFloat32: {
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+          x86::fill_random(dst.ptr<mllm_fp32_t>(), dst.numel(), options_.start, options_.end, options_.seed, threads);
+#endif
+          break;
+        }
+        default: {
+          NYI("FillOp::forward[random] not implemented for this data type")
+        }
+      }
       break;
     }
     case aops::FillOpTypes::kSpecific: {

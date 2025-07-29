@@ -88,4 +88,8 @@ SessionTCB::ptr_t Context::thisThread() {
 
 SessionTCB::ptr_t Context::mainThread() { return main_thread_; }
 
+void Context::setRandomSeed(uint64_t seed) { random_seed_ = seed; }
+
+uint64_t Context::getRandomSeed() { return random_seed_; }
+
 }  // namespace mllm

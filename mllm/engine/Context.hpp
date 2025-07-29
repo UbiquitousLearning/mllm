@@ -50,7 +50,12 @@ class Context {
 
   SessionTCB::ptr_t mainThread();
 
+  void setRandomSeed(uint64_t seed);
+
+  uint64_t getRandomSeed();
+
  private:
+  uint64_t random_seed_ = 42;
   SessionTCB::ptr_t main_thread_;
   std::unordered_map<std::thread::id, SessionTCB::ptr_t> session_threads_;
 
