@@ -14,6 +14,7 @@
 
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/utils/SymbolTable.hpp"
+#include "mllm/compile/ir/Node.hpp"
 
 namespace mllm {
 
@@ -30,7 +31,10 @@ class SessionTCB {
  public:
   using ptr_t = std::shared_ptr<SessionTCB>;
 
+  bool trace_mode = false;
+
   std::thread::id system_tid;
+  ir::IRContext::ptr_t ir_context = nullptr;
   SymbolTable<std::string, BaseOp::ptr_t> layer_ops_table;
   SymbolTable<std::string, SessionContext::ptr_t> attached_contexts;
 };

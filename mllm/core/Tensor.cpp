@@ -142,6 +142,16 @@ std::string Tensor::name() const { return impl()->name(); }
 
 TensorMemTypes Tensor::memType() const { return impl()->memType(); }
 
+Tensor& Tensor::setName(const std::string& name) {
+  if (!this->name().empty()) {
+    MLLM_WARN("Tensor name is already set to {}, but want to set to {}. We will still perform this request, but not guarantee "
+              "the correction",
+              this->name(), name);
+  }
+  impl_->storage()->name_ = name;
+  return *this;
+}
+
 Tensor& Tensor::setMemType(TensorMemTypes mem_type) {
   if (impl_->storage()->mem_type_ != kNormal) {
     MLLM_WARN("You are trying to change a tensor storage whose memory type is not normal. Which "

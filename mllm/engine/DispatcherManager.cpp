@@ -26,4 +26,7 @@ void DispatcherManager::registerDispatcher(const Dispatcher::ptr_t& dispatcher) 
   dispatchers_.reg(dispatcher->id(), dispatcher);
 }
 
+bool DispatcherManager::hasDispatcher(dispatcher_id_t id) { return dispatchers_.has(id); }
+
+Dispatcher::ptr_t DispatcherManager::getDispatcher(dispatcher_id_t id) { return dispatchers_[id]; }
 }  // namespace mllm

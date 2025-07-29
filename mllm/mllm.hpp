@@ -5,8 +5,6 @@
  * @version 0.1
  * @date 2025-07-22
  *
- * @copyright Copyright (c) 2025
- *
  */
 #pragma once
 
@@ -20,6 +18,8 @@
 
 // The headfile will be used in mllm.inl Do not be confused with clang's fixes
 #include "mllm/backends/cpu/CPUDispatcher.hpp"  // IWYU pragma: export
+#include "mllm/compile/ir/IRPrinter.hpp"        // IWYU pragma: export
+#include "mllm/compile/ir/Node.hpp"             // IWYU pragma: export
 #include "mllm/core/DataTypes.hpp"              // IWYU pragma: export
 #include "mllm/core/DeviceTypes.hpp"            // IWYU pragma: export
 #include "mllm/core/ParameterFile.hpp"          // IWYU pragma: export
@@ -33,6 +33,7 @@
 // The inline file should be included at the last of all head
 #include "mllm/mllm.inl"
 
+// The host device backend must be included.
 #include "mllm/backends/cpu/CPUBackend.hpp"
 
 namespace mllm {

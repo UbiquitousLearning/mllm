@@ -43,16 +43,31 @@ std::vector<Tensor> Context::buildOpAndSubmitTask(OpTypes op_type, const BaseOpO
   auto op = getBackend(device)->createOp(op_type, base_options);
   auto task = Task::createExecuteOpTask(op, inputs, {});
 
-  // Submit!
-  // At this moment, heart pounding like thunder
-  // Tasks racing through kernels, swift as lightning
-  // Threads await, fate hanging by a thread
-  // Success or failure in this one moment
-  dispatcherManager()->submit(static_cast<int32_t>(device), task);
+  auto this_thread = thisThread();
+  if (this_thread->trace_mode) {
+    // Submit!
+    // At this moment, heart pounding like thunder
+    // Tasks racing through kernels, swift as lightning
+    // Threads await, fate hanging by a thread
+    // Success or failure in this one moment
+    task->custom_context_ptr = this_thread->ir_context.get();
+    dispatcherManager()->submit(Dispatcher::trace_dispatcher_id, task);
 
-  // Everything is Ok. Bravo! You did it.
-  // Return what we need.
-  return task->outputs;
+    // Everything is Ok. Bravo! You did it.
+    // Return what we need.
+    return task->outputs;
+  } else {
+    // Submit!
+    // At this moment, heart pounding like thunder
+    // Tasks racing through kernels, swift as lightning
+    // Threads await, fate hanging by a thread
+    // Success or failure in this one moment
+    dispatcherManager()->submit(static_cast<int32_t>(device), task);
+
+    // Everything is Ok. Bravo! You did it.
+    // Return what we need.
+    return task->outputs;
+  }
 }
 
 uint32_t Context::getUUID() {

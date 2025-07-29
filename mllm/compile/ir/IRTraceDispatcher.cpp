@@ -10,7 +10,7 @@
 #include "mllm/engine/Dispatcher.hpp"
 #include "mllm/utils/Common.hpp"
 
-namespace mllm::cpu {
+namespace mllm::ir {
 
 IRTraceDispatcher::IRTraceDispatcher(exec::static_thread_pool& thread_pool, dispatcher_id_t id,
                                      const IRTraceDispatcherOptions& options)
@@ -18,6 +18,8 @@ IRTraceDispatcher::IRTraceDispatcher(exec::static_thread_pool& thread_pool, disp
   queue_depth_ = options.queue_depth_;
   need_async_exec_ = options.need_async_exec_;
 }
+
+void IRTraceDispatcher::preprocessTask(const Task::ptr_t& task) { Dispatcher::preprocessTask(task); }
 
 void IRTraceDispatcher::receive(const Task::ptr_t& task) {
   if (options_.queue_depth_) { MLLM_WARN("IRTraceDispatcher does not support queue depth, default to 0"); }
@@ -56,4 +58,4 @@ IRTraceDispatcher::ptr_t createIRTraceDispatcher(exec::static_thread_pool& threa
   return std::make_shared<IRTraceDispatcher>(thread_pool, Dispatcher::trace_dispatcher_id, options);
 }
 
-}  // namespace mllm::cpu
+}  // namespace mllm::ir

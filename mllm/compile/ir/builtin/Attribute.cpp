@@ -67,6 +67,8 @@ SymbolAttr::SymbolAttr() : BuiltinIRAttr(RK_Attr_BuiltinIRAttr_SymbolAttr) {}
 
 std::string& SymbolAttr::str() { return data_; }
 
+void SymbolAttr::dump(IRPrinter& p) { p.print(data_); }
+
 SymbolAttr::ptr_t SymbolAttr::build(IRContext*, const std::string& symbol_name) {
   auto ret = std::make_shared<SymbolAttr>();
   ret->str() = symbol_name;

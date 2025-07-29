@@ -42,6 +42,8 @@ class IRPrinter {
 
   static void colon() { fmt::print(":"); }
 
+  static void blank() { fmt::print(" "); }
+
   template<typename FirstArg>
   inline void print(FirstArg&& first_arg) {
     fmt::print(fmt::runtime(std::forward<FirstArg>(first_arg)));

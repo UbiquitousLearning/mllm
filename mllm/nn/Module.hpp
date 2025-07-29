@@ -48,7 +48,7 @@ class Module {
 
   [[nodiscard]] ModuleImpl::ptr_t impl() const;
 
-  Module& to(DeviceTypes device_type);
+  void to(DeviceTypes device_type);
 
   /**
    * @brief Register a module/layer into this module
@@ -99,14 +99,18 @@ class Module {
   template<typename... Args>
   std::vector<Tensor> operator()(Args&&... args) {
     std::vector<Tensor> inputs = {std::forward<Args>(args)...};
-    return forward(inputs);
+    return __main(inputs);
   }
 
-  Module& load(const ParameterFile::ptr_t& param_file);
+  void load(const ParameterFile::ptr_t& param_file);
 
   virtual std::vector<Tensor> forward(const std::vector<Tensor>& inputs) = 0;
 
   void __fmt_print(std::stringstream& ss) const;
+
+  std::vector<Tensor> __main(const std::vector<Tensor>& inputs);
+
+  std::vector<Tensor> __trace(const std::vector<Tensor>& inputs);
 
  private:
   ModuleImpl::ptr_t impl_ = nullptr;

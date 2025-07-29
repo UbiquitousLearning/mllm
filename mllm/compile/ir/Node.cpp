@@ -101,6 +101,7 @@ void Region::dump(IRPrinter& p) {
     IRPrinter::rparentheses();
   }
 
+  p.blank();
   p.lbrace();
 
   // ops
@@ -256,7 +257,12 @@ val_ptr_t IRContext::getCacheInputOutputTensor(uint32_t uuid) { return cached_in
 std::unordered_map<uint32_t, val_ptr_t>& IRContext::getAllCachedInputOutputTensorIRs() { return cached_inputs_outputs_; }
 
 IRWriterGuard::IRWriterGuard(const std::shared_ptr<IRContext>& ctx, const std::shared_ptr<Region>& new_region)
-    : ctx_(ctx), new_region_(new_region) {
+    : ctx_(ctx.get()), new_region_(new_region) {
+  old_region_ = ctx->getCurInsertRegion();
+  ctx->resetRegion(new_region_);
+}
+
+IRWriterGuard::IRWriterGuard(IRContext* ctx, const std::shared_ptr<Region>& new_region) : ctx_(ctx), new_region_(new_region) {
   old_region_ = ctx->getCurInsertRegion();
   ctx->resetRegion(new_region_);
 }

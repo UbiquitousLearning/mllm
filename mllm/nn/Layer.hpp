@@ -64,16 +64,31 @@ class Layer {
     auto op = ctx.thisThread()->layer_ops_table[impl_->getAbsoluteName()];
     auto task = Task::createExecuteOpTask(op, inputs, {});
 
-    // Submit!
-    // At this moment, heart pounding like thunder
-    // Tasks racing through kernels, swift as lightning
-    // Threads await, fate hanging by a thread
-    // Success or failure in this one moment
-    ctx.dispatcherManager()->submit(static_cast<int32_t>(op->getDevice()), task);
+    auto this_thread = Context::instance().thisThread();
+    if (this_thread->trace_mode) {
+      // Submit!
+      // At this moment, heart pounding like thunder
+      // Tasks racing through kernels, swift as lightning
+      // Threads await, fate hanging by a thread
+      // Success or failure in this one moment
+      task->custom_context_ptr = this_thread->ir_context.get();
+      ctx.dispatcherManager()->submit(Dispatcher::trace_dispatcher_id, task);
 
-    // Everything is Ok. Bravo! You did it.
-    // Return what we need.
-    return task->outputs[0];
+      // Everything is Ok. Bravo! You did it.
+      // Return what we need.
+      return task->outputs[0];
+    } else {
+      // Submit!
+      // At this moment, heart pounding like thunder
+      // Tasks racing through kernels, swift as lightning
+      // Threads await, fate hanging by a thread
+      // Success or failure in this one moment
+      ctx.dispatcherManager()->submit(static_cast<int32_t>(op->getDevice()), task);
+
+      // Everything is Ok. Bravo! You did it.
+      // Return what we need.
+      return task->outputs[0];
+    }
   }
 
   [[nodiscard]] OpTypes opType() const;

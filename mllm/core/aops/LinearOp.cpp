@@ -7,6 +7,11 @@
  *
  */
 #include "mllm/core/aops/LinearOp.hpp"
+#include "mllm/compile/ir/Node.hpp"
+#include "mllm/compile/ir/graph/Op.hpp"
+#include "mllm/compile/ir/linalg/Op.hpp"
+#include "mllm/compile/ir/tensor/Op.hpp"
+#include "mllm/compile/ir/tensor/Value.hpp"
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/core/Tensor.hpp"
 #include "mllm/utils/Common.hpp"
@@ -34,7 +39,18 @@ void LinearOp::load(const ParameterFile::ptr_t& ploader) {
 }
 
 void LinearOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  // TODO
+  auto ir_ctx = (ir::IRContext*)trace_context;
+
+  // Register Params
+  if (weight_ && !ir_ctx->lookupSymbolTable(getName() + ".weight")) {
+    ir::IRWriterGuard guard(ir_ctx, ir_ctx->lookupSymbolTable("init")->cast_<ir::graph::SubGraphOp>()->getTopRegion());
+    ir_ctx->create<ir::tensor::RegisterOp>(ir_ctx->create<ir::tensor::TensorValue>(weight_));
+    if (options_.bias) { ir_ctx->create<ir::tensor::RegisterOp>(ir_ctx->create<ir::tensor::TensorValue>(bias_)); }
+  }
+
+  auto i_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, inputs);
+  auto o_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, outputs);
+  ir_ctx->create<ir::linalg::LinearOp>(shared_from_this(), i_irs, o_irs);
 }
 
 void LinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
@@ -44,7 +60,7 @@ void LinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 void LinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   auto& input = inputs[0];
   auto out_shape = input.shape();
-  MLLM_RT_ASSERT_EQ(out_shape[out_shape.size() - 2], options_.in_channels);
+  MLLM_RT_ASSERT_EQ(out_shape[out_shape.size() - 1], options_.in_channels);
   out_shape[out_shape.size() - 1] = options_.out_channels;
 
   outputs.emplace_back(Tensor::empty(out_shape, input.dtype(), input.device()));

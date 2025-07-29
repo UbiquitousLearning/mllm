@@ -98,6 +98,8 @@ class SymbolAttr : public BuiltinIRAttr {
 
   std::string& str();
 
+  void dump(IRPrinter& p) override;
+
   static ptr_t build(IRContext*, const std::string& symbol_name);
 
   static inline bool classof(const Node* node) { RTTI_RK_ATTR_BUILTINIRATTR_SYMBOLATTR_IMPL(node); }

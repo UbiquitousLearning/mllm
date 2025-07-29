@@ -330,10 +330,13 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
 class IRWriterGuard {
  public:
   IRWriterGuard(const std::shared_ptr<IRContext>& ctx, const std::shared_ptr<Region>& new_region);
+
+  IRWriterGuard(IRContext* ctx, const std::shared_ptr<Region>& new_region);
+
   ~IRWriterGuard();
 
  private:
-  std::shared_ptr<IRContext> ctx_;
+  IRContext* ctx_;
   std::shared_ptr<Region> old_region_ = nullptr;
   std::shared_ptr<Region> new_region_ = nullptr;
 };
