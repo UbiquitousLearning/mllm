@@ -42,11 +42,11 @@ std::list<node_weak_ptr_t>& Node::outputs() { return outputs_; }
 
 node_weak_ptr_t Node::prevOp() { return prev_op_node_; }
 
-void Node::setPrevOp(const node_ptr_t& node) { prev_op_node_ = node; }
+void Node::setPrevOp(const node_weak_ptr_t& node) { prev_op_node_ = node; }
 
 node_weak_ptr_t Node::nextOp() { return next_op_node_; }
 
-void Node::setNextOp(const node_ptr_t& node) { next_op_node_ = node; }
+void Node::setNextOp(const node_weak_ptr_t& node) { next_op_node_ = node; }
 
 node_weak_ptr_t Node::belongsTo() { return belongs_to_parent_; }
 
@@ -330,5 +330,7 @@ void IRWriter::insertOpAtPos(const op_ptr_t& pos_op, Position pos, const op_ptr_
     }
   }
 }
+
+IRContext* IRWriter::getContext() { return ctx_.get(); }
 
 }  // namespace mllm::ir

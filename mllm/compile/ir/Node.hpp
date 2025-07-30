@@ -80,11 +80,11 @@ class Node : public std::enable_shared_from_this<Node> {
 
   node_weak_ptr_t prevOp();
 
-  void setPrevOp(const node_ptr_t& node);
+  void setPrevOp(const node_weak_ptr_t& node);
 
   node_weak_ptr_t nextOp();
 
-  void setNextOp(const node_ptr_t& node);
+  void setNextOp(const node_weak_ptr_t& node);
 
   node_weak_ptr_t belongsTo();
 
@@ -152,8 +152,12 @@ class DeviceInterface {
 
 class Op : public Node, public DeviceInterface<Op> {
  public:
+  using ptr_t = op_ptr_t;
+
   ~Op() override;
+
   Op();
+
   explicit Op(const NodeKind& kind);
 
   void dump(IRPrinter& p) override;
@@ -480,9 +484,7 @@ class IRWriter {
       // set device
       created_node->template cast_<Op>()->setDevice(ctx_->getDevice());
 
-      auto prev_op = cur_region_->ops().back();
-
-      cur_region_->ops().push_back(created_node->template cast_<Op>());
+      auto prev_op = old_op->prevOp();
 
       // belongsto
       created_node->setBelongsTo(ctx_->topLevelOp());
@@ -492,10 +494,14 @@ class IRWriter {
 
       // set next op
       if (prev_op) prev_op->setNextOp(created_node);
+
+      created_node->setNextOp(old_op->nextOp());
     }
 
     auto& ops = cur_region_->ops();
     std::replace(ops.begin(), ops.end(), old_op, created_node->template cast_<Op>());
+
+    return created_node;
   }
 
   template<typename T>
@@ -523,6 +529,8 @@ class IRWriter {
 
     return true;
   }
+
+  IRContext* getContext();
 
  private:
   bool is_iterator_modified_ = false;

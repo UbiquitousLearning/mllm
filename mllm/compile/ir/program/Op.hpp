@@ -8,10 +8,13 @@
  */
 #pragma once
 
+#include <vector>
+
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/compile/ir/Node.hpp"
 #include "mllm/compile/ir/tensor/Value.hpp"
 #include "mllm/compile/ir/builtin/Interface.hpp"
+#include "mllm/compile/ir/builtin/Attribute.hpp"
 
 namespace mllm::ir::program {
 
@@ -43,6 +46,8 @@ class InstructionOp final : public ProgramIROp {
 
   void pushMllmOp(BaseOp* op);
 
+  std::vector<BaseOp*> getMllmOps() const;
+
   static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_INSTRUCTIONOP_IMPL(node); }
 
  private:
@@ -72,6 +77,55 @@ class FragmentOp final : public ProgramIROp, public SymbolInterface<FragmentOp> 
 
  private:
   FragmentType type_ = FragmentType::kCode;
+};
+
+class JumpOp final : public ProgramIROp {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(JumpOp);
+
+  ~JumpOp() override = default;
+
+  JumpOp();
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx, const std::string& label_name);
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_JUMPOP_IMPL(node); }
+
+ private:
+  std::string label_name_;
+};
+
+class LabelOp final : public ProgramIROp, public SymbolInterface<LabelOp> {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(LabelOp);
+
+  ~LabelOp() override = default;
+
+  LabelOp();
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx, const SymbolAttr::ptr_t& symbol_attr);
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_LABELOP_IMPL(node); }
+};
+
+class EntryPointOp final : public ProgramIROp, public SymbolInterface<EntryPointOp> {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(EntryPointOp);
+
+  ~EntryPointOp() override = default;
+
+  EntryPointOp();
+
+  void dump(IRPrinter& p) override;
+
+  static ptr_t build(IRContext* ctx, const SymbolAttr::ptr_t& symbol_attr, const std::vector<val_weak_ptr_t>& inputs,
+                     const std::vector<val_weak_ptr_t>& outputs);
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_PROGRAMIROP_ENTRYPOINTOP_IMPL(node); }
 };
 
 }  // namespace mllm::ir::program
