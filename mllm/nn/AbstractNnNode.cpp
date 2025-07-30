@@ -19,7 +19,7 @@ void AbstractNnNode::regChildNode(const AbstractNnNode::ptr_t& child) {
   reg_child_nodes_.emplace_back(child);
 }
 
-AbstractNnNode::ptr_t& AbstractNnNode::refParentNode() { return parent_node_; }
+WeakOwner<AbstractNnNode>& AbstractNnNode::refParentNode() { return parent_node_; }
 
 std::vector<AbstractNnNode::ptr_t>& AbstractNnNode::refChildNodes() { return reg_child_nodes_; }
 

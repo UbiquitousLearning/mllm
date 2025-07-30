@@ -1,0 +1,96 @@
+{
+    "init_time": 1753865973438836,
+    "memory_blobs": [
+        {
+            "device_type": "CPU",
+            "end_time": 1753865973439167,
+            "memory_usage": 8388608,
+            "start_time": 1753865973438862,
+            "uuid": 0
+        },
+        {
+            "device_type": "CPU",
+            "end_time": 1753865973439166,
+            "memory_usage": 8192,
+            "start_time": 1753865973438865,
+            "uuid": 1
+        },
+        {
+            "device_type": "CPU",
+            "end_time": 1753865973439165,
+            "memory_usage": 8388608,
+            "start_time": 1753865973438870,
+            "uuid": 2
+        },
+        {
+            "device_type": "CPU",
+            "end_time": 1753865973439165,
+            "memory_usage": 8192,
+            "start_time": 1753865973438871,
+            "uuid": 3
+        },
+        {
+            "device_type": "CPU",
+            "end_time": 1753865973439164,
+            "memory_usage": 8388608,
+            "start_time": 1753865973438874,
+            "uuid": 4
+        },
+        {
+            "device_type": "CPU",
+            "end_time": 1753865973439164,
+            "memory_usage": 8192,
+            "start_time": 1753865973438875,
+            "uuid": 5
+        },
+        {
+            "device_type": "CPU",
+            "end_time": 1753865973439163,
+            "memory_usage": 8388608,
+            "start_time": 1753865973438877,
+            "uuid": 6
+        },
+        {
+            "device_type": "CPU",
+            "end_time": 1753865973439162,
+            "memory_usage": 8192,
+            "start_time": 1753865973438878,
+            "uuid": 7
+        },
+        {
+            "device_type": "CPU",
+            "end_time": 1753865973439155,
+            "memory_usage": 50331648,
+            "start_time": 1753865973438886,
+            "uuid": 8
+        },
+        {
+            "device_type": "CPU",
+            "end_time": 1753865973439157,
+            "memory_usage": 100663296,
+            "start_time": 1753865973438964,
+            "uuid": 9
+        },
+        {
+            "device_type": "CPU",
+            "end_time": 1753865973439157,
+            "memory_usage": 100663296,
+            "start_time": 1753865973439042,
+            "uuid": 10
+        },
+        {
+            "device_type": "CPU",
+            "end_time": 1753865973439158,
+            "memory_usage": 100663296,
+            "start_time": 1753865973439095,
+            "uuid": 11
+        },
+        {
+            "device_type": "CPU",
+            "end_time": 1753865973439159,
+            "memory_usage": 100663296,
+            "start_time": 1753865973439134,
+            "uuid": 12
+        }
+    ]
+}

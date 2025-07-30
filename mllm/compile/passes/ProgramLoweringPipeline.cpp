@@ -7,6 +7,7 @@
  *
  */
 #include "mllm/compile/ir/Node.hpp"
+#include "mllm/compile/ir/builtin/Attribute.hpp"
 #include "mllm/compile/ir/builtin/Op.hpp"
 #include "mllm/compile/ir/graph/Op.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
@@ -95,6 +96,10 @@ bool GraphSubGraph2ProgramPattern::rewrite(IRWriter& writer, const op_ptr_t& nod
   fragment_region->outputs() = old_region->outputs();
   fragment_region->ops() = old_region->ops();
 
+  ir::IRWriter w(writer.getContext(), fragment_region);
+  w.createAtPos<ir::program::LabelOp>(fragment_region->ops().front(), IRWriter::Position::BEFORE,
+                                      w.getContext()->create<SymbolAttr>(old_symbol->str() + ".__entry"));
+
   return true;
 }
 
@@ -118,8 +123,8 @@ bool GraphCallGraph2ProgramPattern::rewrite(IRWriter& writer, const op_ptr_t& no
     return true;
   }
 
-  // If not entry point.
-  // TODO
+  // If not entry point. Need to jump.
+  writer.createAndReplaceOp<ir::program::JumpOp>(node, call_graph_op->getSymbolAttr()->str());
 
   return true;
 }

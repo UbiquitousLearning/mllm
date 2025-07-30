@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <vector>
 #include "mllm/core/DeviceTypes.hpp"
+#include "mllm/utils/WeakOwner.hpp"
 
 namespace mllm::nn {
 
@@ -28,7 +29,7 @@ class AbstractNnNode : public std::enable_shared_from_this<AbstractNnNode> {
 
   void regChildNode(const AbstractNnNode::ptr_t& child);
 
-  AbstractNnNode::ptr_t& refParentNode();
+  WeakOwner<AbstractNnNode>& refParentNode();
 
   std::vector<AbstractNnNode::ptr_t>& refChildNodes();
 
@@ -65,7 +66,7 @@ class AbstractNnNode : public std::enable_shared_from_this<AbstractNnNode> {
   std::string name_;
   std::string absolute_name_;
 
-  AbstractNnNode::ptr_t parent_node_ = nullptr;
+  WeakOwner<AbstractNnNode> parent_node_ = nullptr;
   std::vector<AbstractNnNode::ptr_t> reg_child_nodes_;
 };
 
