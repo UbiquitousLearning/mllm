@@ -318,19 +318,24 @@ void IRWriter::insertOpAtPos(const op_ptr_t& pos_op, Position pos, const op_ptr_
     }
     case BEFORE: {
       auto next_op = *pos_op_iter;
-      cur_op_iter_ = ops.insert(pos_op_iter, new_op);
-      pos_op_iter--;
-      auto pre_op = *pos_op_iter;
+      op_ptr_t pre_op = nullptr;
+      if (pos_op_iter != ops.begin()) {
+        pos_op_iter--;
+        pre_op = *pos_op_iter;
+      }
 
       if (pre_op) pre_op->setNextOp(new_op);
       new_op->setPrevOp(pre_op);
-      next_op->setPrevOp(new_op);
+      new_op->setNextOp(next_op);
+      if (next_op) next_op->setPrevOp(new_op);
 
+      pos_op_iter = std::find(ops.begin(), ops.end(), next_op);
+      cur_op_iter_ = ops.insert(pos_op_iter, new_op);
       break;
     }
   }
 }
 
-IRContext* IRWriter::getContext() { return ctx_.get(); }
+IRContext::ptr_t IRWriter::getContext() { return ctx_; }
 
 }  // namespace mllm::ir

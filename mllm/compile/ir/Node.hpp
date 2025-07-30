@@ -118,6 +118,8 @@ class Node : public std::enable_shared_from_this<Node> {
 
 class Region : public std::enable_shared_from_this<Region> {
  public:
+  using ptr_t = std::shared_ptr<Region>;
+
   explicit Region(const op_ptr_t& belongs_to);
 
   std::list<op_ptr_t>& ops();
@@ -278,7 +280,7 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
       cur_insert_region_->ops().push_back(created_node->template cast_<Op>());
 
       // belongsto
-      created_node->setBelongsTo(top_level_op_);
+      created_node->setBelongsTo(cur_insert_region_->belongsTo());
 
       // set prev op
       created_node->setPrevOp(prev_op);
@@ -379,7 +381,7 @@ class IRWriter {
       cur_region_->ops().push_back(created_node->template cast_<Op>());
 
       // belongsto
-      created_node->setBelongsTo(ctx_->topLevelOp());
+      created_node->setBelongsTo(ctx_->getCurInsertRegion()->belongsTo());
 
       // set prev op
       created_node->setPrevOp(prev_op);
@@ -389,9 +391,9 @@ class IRWriter {
     }
 
     // Value: add to symbol table. Giving them names.
-    if (created_node->template isa_<Val>) {
+    if (created_node->template isa_<Val>()) {
       // set device
-      created_node->template cast_<Op>()->setDevice(ctx_->getDevice());
+      created_node->template cast_<Val>()->setDevice(ctx_->getDevice());
 
       auto name = ctx_->getAutoIndexedValueName();
       ctx_->setValueName(created_node->template cast_<Val>(), name);
@@ -437,14 +439,19 @@ class IRWriter {
         }
         case BEFORE: {
           auto next_op = *pos_op_iter;
-          cur_op_iter_ = ops.insert(pos_op_iter, created_node);
-          pos_op_iter--;
-          auto pre_op = *pos_op_iter;
+          op_ptr_t pre_op = nullptr;
+          if (pos_op_iter != ops.begin()) {
+            pos_op_iter--;
+            pre_op = *pos_op_iter;
+          }
 
           if (pre_op) pre_op->setNextOp(created_node);
           created_node->setPrevOp(pre_op);
-          next_op->setPrevOp(created_node);
+          created_node->setNextOp(next_op);
+          if (next_op) next_op->setPrevOp(created_node);
 
+          pos_op_iter = std::find(ops.begin(), ops.end(), next_op);
+          cur_op_iter_ = ops.insert(pos_op_iter, created_node);
           break;
         }
       }
@@ -487,7 +494,7 @@ class IRWriter {
       auto prev_op = old_op->prevOp();
 
       // belongsto
-      created_node->setBelongsTo(ctx_->topLevelOp());
+      created_node->setBelongsTo(ctx_->getCurInsertRegion()->belongsTo());
 
       // set prev op
       created_node->setPrevOp(prev_op);
@@ -530,13 +537,13 @@ class IRWriter {
     return true;
   }
 
-  IRContext* getContext();
+  IRContext::ptr_t getContext();
 
  private:
   bool is_iterator_modified_ = false;
   std::list<op_ptr_t>::iterator cur_op_iter_;
-  std::shared_ptr<Region> cur_region_ = nullptr;
-  std::shared_ptr<IRContext> ctx_ = nullptr;
+  Region::ptr_t cur_region_ = nullptr;
+  IRContext::ptr_t ctx_ = nullptr;
 };
 
 }  // namespace mllm::ir
