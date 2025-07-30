@@ -1,4 +1,4 @@
-// Auto generated: 2025-07-29 13:32:41
+// Auto generated: 2025-07-30 05:50:05
 // do not modify this file
 #pragma once
 namespace mllm::ir {
@@ -160,6 +160,18 @@ struct NodeRTTIClassOfImpl {
 
 #define RTTI_RK_OP_PROGRAMIROP_INSTRUCTIONOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_ProgramIROp_InstructionOp && (v)->getKind() <= RK_Op_ProgramIROp_InstructionOp
+
+#define RTTI_RK_OP_PROGRAMIROP_JUMPOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_ProgramIROp_JumpOp && (v)->getKind() <= RK_Op_ProgramIROp_JumpOp
+
+#define RTTI_RK_OP_PROGRAMIROP_LABELOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_ProgramIROp_LabelOp && (v)->getKind() <= RK_Op_ProgramIROp_LabelOp
+
+#define RTTI_RK_OP_PROGRAMIROP_EXITOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_ProgramIROp_ExitOp && (v)->getKind() <= RK_Op_ProgramIROp_ExitOp
+
+#define RTTI_RK_OP_PROGRAMIROP_ENTRYPOINTOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_ProgramIROp_EntryPointOp && (v)->getKind() <= RK_Op_ProgramIROp_EntryPointOp
 
 #define RTTI_RK_VAL_IMPL(v) return (v)->getKind() >= RK_Val && (v)->getKind() <= RK_Val_Last
 

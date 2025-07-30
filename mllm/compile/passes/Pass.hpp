@@ -10,8 +10,10 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 #include "mllm/compile/ir/Node.hpp"
+#include "mllm/compile/passes/Pattern.hpp"
 
 namespace mllm::ir {
 
@@ -46,13 +48,38 @@ class Pass {
   // E.g.: PASS_RET_SUCCESS | PASS_RET_CONTINUE
   virtual uint8_t run(const node_ptr_t& op);
 
-  void setCtx(const std::shared_ptr<IRContext>& ctx);
+  virtual void setCtx(const std::shared_ptr<IRContext>& ctx);
 
   std::shared_ptr<IRContext> getCtx();
 
  private:
   std::shared_ptr<IRContext> ctx_ = nullptr;
   void* external_data_ = nullptr;
+};
+
+class PatternMatchPass : public Pass {
+ public:
+  PatternMatchPass() = default;
+
+  ~PatternMatchPass() override = default;
+
+  uint8_t run(const node_ptr_t& op) override;
+
+  template<typename... Args>
+  void regPattern() {
+    (..., (_reg_one_pattern<Args>()));
+  }
+
+  void setCtx(const std::shared_ptr<IRContext>& ctx) override;
+
+ protected:
+  template<typename T>
+  void _reg_one_pattern() {
+    auto ins = T::create();
+    patterns_.emplace_back(ins);
+  }
+
+  std::vector<Pattern::ptr_t> patterns_;
 };
 
 }  // namespace mllm::ir
