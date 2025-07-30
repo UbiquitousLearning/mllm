@@ -34,7 +34,7 @@
 #include "mllm/mllm.inl"
 
 // The host device backend must be included.
-#include "mllm/backends/cpu/CPUBackend.hpp"
+#include "mllm/backends/cpu/CPUBackend.hpp"  // IWYU pragma: export
 
 namespace mllm {
 
@@ -64,6 +64,14 @@ void memoryReport();
 bool isOpenCLAvailable();
 
 bool isQnnAvailable();
+
+void perfStart();
+
+void perfEnd();
+
+void cleanThisThread();
+
+PerfFile::ptr_t getPerfFile();
 
 SessionTCB::ptr_t thisThread();
 

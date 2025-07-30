@@ -9,6 +9,7 @@
 #include "mllm/engine/DispatcherManager.hpp"
 #include "exec/static_thread_pool.hpp"
 #include "mllm/utils/Common.hpp"
+#include "mllm/engine/Context.hpp"
 
 namespace mllm {
 
