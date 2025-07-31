@@ -8,6 +8,9 @@
  */
 #include "mllm/backends/cpu/kernels/x86/fill.hpp"
 #include "mllm/backends/cpu/kernels/x86/simd.hpp"
+#include "mllm/utils/CPUArchHelper.hpp"
+
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
 
 namespace mllm::x86 {
 
@@ -179,3 +182,5 @@ void fill_random(mllm_fp32_t* __restrict dst, size_t size, float start, float en
 }
 
 }  // namespace mllm::x86
+
+#endif
