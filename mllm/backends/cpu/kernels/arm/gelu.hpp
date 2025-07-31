@@ -8,6 +8,10 @@
  */
 #pragma once
 
+#include "mllm/utils/CPUArchHelper.hpp"
+
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+
 #include <arm_neon.h>
 #include <cstdint>
 
@@ -24,3 +28,5 @@ void quick_gelu_fp16(float16_t* __restrict__ Z, const float16_t* __restrict__ X,
 #endif
 
 }  // namespace mllm::cpu::arm
+
+#endif
