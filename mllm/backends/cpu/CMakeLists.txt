@@ -23,6 +23,16 @@ add_library(
 target_link_libraries(MllmCPUBackend PUBLIC MllmRT)
 target_compile_options(MllmCPUBackend PUBLIC ${MLLM_CPU_BACKEND_COMPILE_OPTIONS})
 
+# ONLY APPLE CAN DO !
+# Processing OpenMP
+if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR APPLE)
+  target_link_libraries(MllmCPUBackend PUBLIC ${OpenMP_omp_LIBRARY})
+  target_compile_options(MllmCPUBackend PUBLIC ${OpenMP_CXX_FLAGS})
+else()
+  target_link_libraries(MllmCPUBackend PUBLIC -fopenmp)
+  target_compile_options(MllmCPUBackend PUBLIC -fopenmp)
+endif()
+
 install(
   TARGETS MllmCPUBackend
   EXPORT MllmTargets

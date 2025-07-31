@@ -31,6 +31,30 @@ CPMAddPackage(
   GIT_TAG nvhpc-25.03.rc1
 )
 
+# ONLY APPLE CAN DO !
+# Apple clang's driver removes the -fopenmp flag, so we need to add it manually.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR APPLE)
+  message(STATUS "Only Apple can do! <bravo!>")
+  execute_process(COMMAND brew --prefix libomp
+          OUTPUT_VARIABLE HOMEBREW_LIBOMP_PREFIX
+          OUTPUT_STRIP_TRAILING_WHITESPACE)
+  set(OpenMP_C_FLAGS "-Xpreprocessor" "-fopenmp" "-I${HOMEBREW_LIBOMP_PREFIX}/include")
+  set(OpenMP_CXX_FLAGS "-Xpreprocessor" "-fopenmp" "-I${HOMEBREW_LIBOMP_PREFIX}/include")
+  set(OpenMP_C_LIB_NAMES omp)
+  set(OpenMP_CXX_LIB_NAMES omp)
+  set(OpenMP_omp_LIBRARY ${HOMEBREW_LIBOMP_PREFIX}/lib/libomp.dylib)
+  find_package(OpenMP REQUIRED)
+else()
+  find_package(OpenMP)
+  if(NOT OpenMP_FOUND)
+    # Some platforms can use -fopenmp directly even if find_package fails
+    set(OpenMP_CXX_FLAGS "-fopenmp")
+    set(OpenMP_C_FLAGS "-fopenmp")
+    message(STATUS "OpenMP not found via find_package, but trying with -fopenmp flag directly")
+  endif()
+endif()
+
+
 # Handle NaN Warning.
 if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
    AND NOT (CMAKE_SYSTEM_PROCESSOR MATCHES "i686|i386|x86_64"))
@@ -39,7 +63,7 @@ endif()
 
 # Handle Windows Symbols.
 if(WIN32)
-    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
 # Set binary place
