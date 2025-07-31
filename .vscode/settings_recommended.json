@@ -2,5 +2,10 @@
     "editor.formatOnSave": true,
     "yaml.schemas": {
         "tasks/schema.json": "tasks/*"
-    }
+    },
+    "cmake.automaticReconfigure": false,
+    "cmake.autoSelectActiveFolder": false,
+    "cmake.clearOutputBeforeBuild": true,
+    "cmake.configureOnEdit": false,
+    "cmake.configureOnOpen": false
 }
