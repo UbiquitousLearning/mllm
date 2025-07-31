@@ -4,7 +4,7 @@ Tasks:
       cmake_build_type: "Release"
       cmake_extra_args:
         - "-DMLLM_BUILD_ARM_BACKEND=ON"
-        - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native+fp16+fp16fml+dotprod+i8mm+sve2+sme;-ffast-math;-Wno-nan-infinity-disabled"'
+        - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native+fp16+fp16fml+dotprod+i8mm+sme;-ffast-math;-Wno-nan-infinity-disabled"'
 
   - CMakeBuildTask:
       cmake_cfg_path: "build-osx"
