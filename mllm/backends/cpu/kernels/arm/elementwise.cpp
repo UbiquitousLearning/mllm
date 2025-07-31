@@ -1,0 +1,263 @@
+/**
+ * @file elementwise.cpp
+ * @author chenghua wang (chenghua.wang.edu@gmail.com)
+ * @brief
+ * @version 0.1
+ * @date 2025-07-31
+ *
+ */
+#include "mllm/core/DataTypes.hpp"
+#include "mllm/utils/CPUArchHelper.hpp"
+#include "mllm/backends/cpu/kernels/arm/elementwise.hpp"
+
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+
+namespace mllm::cpu::arm {
+
+void ew_add_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, const mllm_fp32_t* __restrict__ src1,
+                 size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_fp32_t, float32x4_t, __ScalarAdd<mllm_fp32_t>, __VectorAdd<float32x4_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_sub_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, const mllm_fp32_t* __restrict__ src1,
+                 size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_fp32_t, float32x4_t, __ScalarSub<mllm_fp32_t>, __VectorSub<float32x4_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_mul_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, const mllm_fp32_t* __restrict__ src1,
+                 size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_fp32_t, float32x4_t, __ScalarMul<mllm_fp32_t>, __VectorMul<float32x4_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_div_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, const mllm_fp32_t* __restrict__ src1,
+                 size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_fp32_t, float32x4_t, __ScalarDiv<mllm_fp32_t>, __VectorDiv<float32x4_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_add_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, const mllm_fp16_t* __restrict__ src1,
+                 size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_fp16_t, float16x8_t, __ScalarAdd<mllm_fp16_t>, __VectorAdd<float16x8_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_sub_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, const mllm_fp16_t* __restrict__ src1,
+                 size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_fp16_t, float16x8_t, __ScalarSub<mllm_fp16_t>, __VectorSub<float16x8_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_mul_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, const mllm_fp16_t* __restrict__ src1,
+                 size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_fp16_t, float16x8_t, __ScalarMul<mllm_fp16_t>, __VectorMul<float16x8_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_div_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, const mllm_fp16_t* __restrict__ src1,
+                 size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_fp16_t, float16x8_t, __ScalarDiv<mllm_fp16_t>, __VectorDiv<float16x8_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+#endif
+
+void ew_add_int8(mllm_int8_t* __restrict__ dst, const mllm_int8_t* __restrict__ src0, const mllm_int8_t* __restrict__ src1,
+                 size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_int8_t, int8x16_t, __ScalarAdd<mllm_int8_t>, __VectorAdd<int8x16_t>>::run(dst, src0, src1, size,
+                                                                                                         thread_count);
+}
+
+void ew_sub_int8(mllm_int8_t* __restrict__ dst, const mllm_int8_t* __restrict__ src0, const mllm_int8_t* __restrict__ src1,
+                 size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_int8_t, int8x16_t, __ScalarSub<mllm_int8_t>, __VectorSub<int8x16_t>>::run(dst, src0, src1, size,
+                                                                                                         thread_count);
+}
+
+void ew_mul_int8(mllm_int8_t* __restrict__ dst, const mllm_int8_t* __restrict__ src0, const mllm_int8_t* __restrict__ src1,
+                 size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_int8_t, int8x16_t, __ScalarMul<mllm_int8_t>, __VectorMul<int8x16_t>>::run(dst, src0, src1, size,
+                                                                                                         thread_count);
+}
+
+void ew_div_int8(mllm_int8_t* __restrict__ dst, const mllm_int8_t* __restrict__ src0, const mllm_int8_t* __restrict__ src1,
+                 size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_int8_t, int8x16_t, __ScalarDiv<mllm_int8_t>, __VectorDiv<int8x16_t>>::run(dst, src0, src1, size,
+                                                                                                         thread_count);
+}
+
+void ew_add_int16(mllm_int16_t* __restrict__ dst, const mllm_int16_t* __restrict__ src0, const mllm_int16_t* __restrict__ src1,
+                  size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_int16_t, int16x8_t, __ScalarAdd<mllm_int16_t>, __VectorAdd<int16x8_t>>::run(dst, src0, src1,
+                                                                                                           size, thread_count);
+}
+
+void ew_sub_int16(mllm_int16_t* __restrict__ dst, const mllm_int16_t* __restrict__ src0, const mllm_int16_t* __restrict__ src1,
+                  size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_int16_t, int16x8_t, __ScalarSub<mllm_int16_t>, __VectorSub<int16x8_t>>::run(dst, src0, src1,
+                                                                                                           size, thread_count);
+}
+
+void ew_mul_int16(mllm_int16_t* __restrict__ dst, const mllm_int16_t* __restrict__ src0, const mllm_int16_t* __restrict__ src1,
+                  size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_int16_t, int16x8_t, __ScalarMul<mllm_int16_t>, __VectorMul<int16x8_t>>::run(dst, src0, src1,
+                                                                                                           size, thread_count);
+}
+
+void ew_div_int16(mllm_int16_t* __restrict__ dst, const mllm_int16_t* __restrict__ src0, const mllm_int16_t* __restrict__ src1,
+                  size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_int16_t, int16x8_t, __ScalarDiv<mllm_int16_t>, __VectorDiv<int16x8_t>>::run(dst, src0, src1,
+                                                                                                           size, thread_count);
+}
+
+void ew_add_int32(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __restrict__ src0, const mllm_int32_t* __restrict__ src1,
+                  size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_int32_t, int32x4_t, __ScalarAdd<mllm_int32_t>, __VectorAdd<int32x4_t>>::run(dst, src0, src1,
+                                                                                                           size, thread_count);
+}
+
+void ew_sub_int32(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __restrict__ src0, const mllm_int32_t* __restrict__ src1,
+                  size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_int32_t, int32x4_t, __ScalarSub<mllm_int32_t>, __VectorSub<int32x4_t>>::run(dst, src0, src1,
+                                                                                                           size, thread_count);
+}
+
+void ew_mul_int32(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __restrict__ src0, const mllm_int32_t* __restrict__ src1,
+                  size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_int32_t, int32x4_t, __ScalarMul<mllm_int32_t>, __VectorMul<int32x4_t>>::run(dst, src0, src1,
+                                                                                                           size, thread_count);
+}
+
+void ew_div_int32(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __restrict__ src0, const mllm_int32_t* __restrict__ src1,
+                  size_t size, int thread_count) {
+  ParallelElementwiseLoop<mllm_int32_t, int32x4_t, __ScalarDiv<mllm_int32_t>, __VectorDiv<int32x4_t>>::run(dst, src0, src1,
+                                                                                                           size, thread_count);
+}
+
+void ew_add_fp32_scalar(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, const mllm_fp32_t src1,
+                        size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_fp32_t, float32x4_t, __ScalarAdd<mllm_fp32_t>, __VectorAdd<float32x4_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_sub_fp32_scalar(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, const mllm_fp32_t src1,
+                        size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_fp32_t, float32x4_t, __ScalarSub<mllm_fp32_t>, __VectorSub<float32x4_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_mul_fp32_scalar(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, const mllm_fp32_t src1,
+                        size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_fp32_t, float32x4_t, __ScalarMul<mllm_fp32_t>, __VectorMul<float32x4_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_div_fp32_scalar(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, const mllm_fp32_t src1,
+                        size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_fp32_t, float32x4_t, __ScalarDiv<mllm_fp32_t>, __VectorDiv<float32x4_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_add_fp16_scalar(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, const mllm_fp16_t src1,
+                        size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_fp16_t, float16x8_t, __ScalarAdd<mllm_fp16_t>, __VectorAdd<float16x8_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_sub_fp16_scalar(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, const mllm_fp16_t src1,
+                        size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_fp16_t, float16x8_t, __ScalarSub<mllm_fp16_t>, __VectorSub<float16x8_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_mul_fp16_scalar(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, const mllm_fp16_t src1,
+                        size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_fp16_t, float16x8_t, __ScalarMul<mllm_fp16_t>, __VectorMul<float16x8_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_div_fp16_scalar(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, const mllm_fp16_t src1,
+                        size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_fp16_t, float16x8_t, __ScalarDiv<mllm_fp16_t>, __VectorDiv<float16x8_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+#endif
+
+void ew_add_int8_scalar(mllm_int8_t* __restrict__ dst, const mllm_int8_t* __restrict__ src0, const mllm_int8_t src1,
+                        size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_int8_t, int8x16_t, __ScalarAdd<mllm_int8_t>, __VectorAdd<int8x16_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_sub_int8_scalar(mllm_int8_t* __restrict__ dst, const mllm_int8_t* __restrict__ src0, const mllm_int8_t src1,
+                        size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_int8_t, int8x16_t, __ScalarSub<mllm_int8_t>, __VectorSub<int8x16_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_mul_int8_scalar(mllm_int8_t* __restrict__ dst, const mllm_int8_t* __restrict__ src0, const mllm_int8_t src1,
+                        size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_int8_t, int8x16_t, __ScalarMul<mllm_int8_t>, __VectorMul<int8x16_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_div_int8_scalar(mllm_int8_t* __restrict__ dst, const mllm_int8_t* __restrict__ src0, const mllm_int8_t src1,
+                        size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_int8_t, int8x16_t, __ScalarDiv<mllm_int8_t>, __VectorDiv<int8x16_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_add_int16_scalar(mllm_int16_t* __restrict__ dst, const mllm_int16_t* __restrict__ src0, const mllm_int16_t src1,
+                         size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_int16_t, int16x8_t, __ScalarAdd<mllm_int16_t>, __VectorAdd<int16x8_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_sub_int16_scalar(mllm_int16_t* __restrict__ dst, const mllm_int16_t* __restrict__ src0, const mllm_int16_t src1,
+                         size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_int16_t, int16x8_t, __ScalarSub<mllm_int16_t>, __VectorSub<int16x8_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_mul_int16_scalar(mllm_int16_t* __restrict__ dst, const mllm_int16_t* __restrict__ src0, const mllm_int16_t src1,
+                         size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_int16_t, int16x8_t, __ScalarMul<mllm_int16_t>, __VectorMul<int16x8_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_div_int16_scalar(mllm_int16_t* __restrict__ dst, const mllm_int16_t* __restrict__ src0, const mllm_int16_t src1,
+                         size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_int16_t, int16x8_t, __ScalarDiv<mllm_int16_t>, __VectorDiv<int16x8_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_add_int32_scalar(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __restrict__ src0, const mllm_int32_t src1,
+                         size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_int32_t, int32x4_t, __ScalarAdd<mllm_int32_t>, __VectorAdd<int32x4_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_sub_int32_scalar(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __restrict__ src0, const mllm_int32_t src1,
+                         size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_int32_t, int32x4_t, __ScalarSub<mllm_int32_t>, __VectorSub<int32x4_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_mul_int32_scalar(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __restrict__ src0, const mllm_int32_t src1,
+                         size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_int32_t, int32x4_t, __ScalarMul<mllm_int32_t>, __VectorMul<int32x4_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+void ew_div_int32_scalar(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __restrict__ src0, const mllm_int32_t src1,
+                         size_t size, int thread_count) {
+  ParallelElementwiseLoopArrayScalar<mllm_int32_t, int32x4_t, __ScalarDiv<mllm_int32_t>, __VectorDiv<int32x4_t>>::run(
+      dst, src0, src1, size, thread_count);
+}
+
+}  // namespace mllm::cpu::arm
+
+#endif

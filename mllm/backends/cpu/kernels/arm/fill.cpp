@@ -90,6 +90,7 @@ void fill_random(mllm_fp32_t* __restrict dst, size_t size, float start, float en
   }
 }
 
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 void fill_zeros_fp16(mllm_fp16_t* __restrict dst, size_t size, int thread_count) {
   constexpr size_t vec_size = 8;  // 8 float16_t in NEON
   const float16x8_t zero_vec = vdupq_n_f16(0.0f);
@@ -172,7 +173,7 @@ void fill_random_fp16(mllm_fp16_t* __restrict dst, size_t size, float start, flo
     dst[i] = static_cast<float16_t>(start + random_value * range);
   }
 }
-
+#endif
 }  // namespace mllm::cpu::arm
 
 #endif

@@ -15,5 +15,6 @@
 #endif
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-#include "mllm/backends/cpu/kernels/arm/fill.hpp"  // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/arm/fill.hpp"         // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/arm/elementwise.hpp"  // IWYU pragma: export
 #endif

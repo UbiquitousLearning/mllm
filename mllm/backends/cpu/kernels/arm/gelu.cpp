@@ -47,6 +47,28 @@ void gelu_fp32(float* __restrict__ Z, const float* __restrict__ X, int32_t N) {
   }
 }
 
+void quick_gelu_fp32(float* __restrict__ Z, const float* __restrict__ X, int32_t N) {
+  const float32x4_t scale = vdupq_n_f32(1.702f);
+  const float32x4_t one = vdupq_n_f32(1.0f);
+
+  int i = 0;
+  for (; i <= N - 4; i += 4) {
+    float32x4_t x = vld1q_f32(X + i);
+    float32x4_t scaled_x = vmulq_f32(x, scale);
+    float32x4_t sigmoid_val = vsigmoid_f32(scaled_x);
+    float32x4_t result = vmulq_f32(x, sigmoid_val);
+    vst1q_f32(Z + i, result);
+  }
+
+  for (; i < N; i++) {
+    float x = X[i];
+    float scaled_x = 1.702f * x;
+    float sigmoid_val = 1.0f / (1.0f + expf(-scaled_x));
+    Z[i] = x * sigmoid_val;
+  }
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 void gelu_fp16(float16_t* __restrict__ Z, const float16_t* __restrict__ X, int32_t N) {
   const float32x4_t alpha = vdupq_n_f32(0.044715f);
   const float32x4_t beta = vdupq_n_f32(0.79788456f);
@@ -91,27 +113,6 @@ void gelu_fp16(float16_t* __restrict__ Z, const float16_t* __restrict__ X, int32
   }
 }
 
-void quick_gelu_fp32(float* __restrict__ Z, const float* __restrict__ X, int32_t N) {
-  const float32x4_t scale = vdupq_n_f32(1.702f);
-  const float32x4_t one = vdupq_n_f32(1.0f);
-
-  int i = 0;
-  for (; i <= N - 4; i += 4) {
-    float32x4_t x = vld1q_f32(X + i);
-    float32x4_t scaled_x = vmulq_f32(x, scale);
-    float32x4_t sigmoid_val = vsigmoid_f32(scaled_x);
-    float32x4_t result = vmulq_f32(x, sigmoid_val);
-    vst1q_f32(Z + i, result);
-  }
-
-  for (; i < N; i++) {
-    float x = X[i];
-    float scaled_x = 1.702f * x;
-    float sigmoid_val = 1.0f / (1.0f + expf(-scaled_x));
-    Z[i] = x * sigmoid_val;
-  }
-}
-
 void quick_gelu_fp16(float16_t* __restrict__ Z, const float16_t* __restrict__ X, int32_t N) {
   const float32x4_t scale = vdupq_n_f32(1.702f);
   const float32x4_t one = vdupq_n_f32(1.0f);
@@ -141,5 +142,6 @@ void quick_gelu_fp16(float16_t* __restrict__ Z, const float16_t* __restrict__ X,
     Z[i] = static_cast<float16_t>(x * sigmoid_val);
   }
 }
+#endif
 
 }  // namespace mllm::cpu::arm
