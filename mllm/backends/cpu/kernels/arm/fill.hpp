@@ -24,6 +24,7 @@ void fill_arange(mllm_fp32_t* __restrict dst, size_t size, float start, float en
 
 void fill_random(mllm_fp32_t* __restrict dst, size_t size, float start, float end, uint64_t seed, int thread_count);
 
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 void fill_zeros_fp16(mllm_fp16_t* __restrict dst, size_t size, int thread_count);
 
 void fill_ones_fp16(mllm_fp16_t* __restrict dst, size_t size, int thread_count);
@@ -33,6 +34,7 @@ void fill_specific_value_fp16(mllm_fp16_t* __restrict dst, size_t size, float va
 void fill_arange_fp16(mllm_fp16_t* __restrict dst, size_t size, float start, float end, float step, int thread_count);
 
 void fill_random_fp16(mllm_fp16_t* __restrict dst, size_t size, float start, float end, uint64_t seed, int thread_count);
+#endif
 
 }  // namespace mllm::cpu::arm
 

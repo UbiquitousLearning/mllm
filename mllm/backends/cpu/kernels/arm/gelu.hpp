@@ -15,10 +15,12 @@ namespace mllm::cpu::arm {
 
 void gelu_fp32(float* __restrict__ Z, const float* __restrict__ X, int32_t N);
 
-void gelu_fp16(float16_t* __restrict__ Z, const float16_t* __restrict__ X, int32_t N);
-
 void quick_gelu_fp32(float* __restrict__ Z, const float* __restrict__ X, int32_t N);
 
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void gelu_fp16(float16_t* __restrict__ Z, const float16_t* __restrict__ X, int32_t N);
+
 void quick_gelu_fp16(float16_t* __restrict__ Z, const float16_t* __restrict__ X, int32_t N);
+#endif
 
 }  // namespace mllm::cpu::arm

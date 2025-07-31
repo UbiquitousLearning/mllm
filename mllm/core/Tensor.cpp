@@ -9,6 +9,7 @@
  *
  */
 #include "mllm/core/Tensor.hpp"
+#include "mllm/core/aops/ElewiseOps.hpp"
 #include "mllm/core/aops/FillOp.hpp"
 #include "mllm/engine/Context.hpp"
 
@@ -71,49 +72,74 @@ Tensor Tensor::random(const std::vector<int32_t>& shape, float start, float end,
 }
 
 Tensor Tensor::operator+(const Tensor& rhs) {
-  // TODO
-  return Tensor::nil();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kAdd, aops::AddOpOptions{}, {*this, rhs})[0];
 }
 
 Tensor Tensor::operator-(const Tensor& rhs) {
-  // TODO
-  return Tensor::nil();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kSub, aops::SubOpOptions{}, {*this, rhs})[0];
 }
 
 Tensor Tensor::operator*(const Tensor& rhs) {
-  // TODO
-  return Tensor::nil();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kMul, aops::MulOpOptions{}, {*this, rhs})[0];
 }
 
 Tensor Tensor::operator/(const Tensor& rhs) {
-  // TODO
-  return Tensor::nil();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kDiv, aops::DivOpOptions{}, {*this, rhs})[0];
 }
 
 Tensor Tensor::operator+(float rhs) {
-  // TODO
-  return Tensor::nil();
+  auto rhs_tensor = Tensor::empty({1}, dtype(), device()).alloc();
+  switch (dtype()) {
+    case kFloat32: *(rhs_tensor.ptr<float>()) = rhs; break;
+    case kFloat16: *(rhs_tensor.ptr<half_float::half>()) = half_float::half(rhs); break;
+    case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
+    case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
+    case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
+    default: NYI("Type is not supported"); break;
+  }
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kAdd, aops::AddOpOptions{}, {*this, rhs_tensor})[0];
 }
 
 Tensor Tensor::operator-(float rhs) {
-  // TODO
-  return Tensor::nil();
+  auto rhs_tensor = Tensor::empty({1}, dtype(), device()).alloc();
+  switch (dtype()) {
+    case kFloat32: *(rhs_tensor.ptr<float>()) = rhs; break;
+    case kFloat16: *(rhs_tensor.ptr<half_float::half>()) = half_float::half(rhs); break;
+    case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
+    case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
+    case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
+    default: NYI("Type is not supported"); break;
+  }
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kSub, aops::SubOpOptions{}, {*this, rhs_tensor})[0];
 }
 
 Tensor Tensor::operator*(float rhs) {
-  // TODO
-  return Tensor::nil();
+  auto rhs_tensor = Tensor::empty({1}, dtype(), device()).alloc();
+  switch (dtype()) {
+    case kFloat32: *(rhs_tensor.ptr<float>()) = rhs; break;
+    case kFloat16: *(rhs_tensor.ptr<half_float::half>()) = half_float::half(rhs); break;
+    case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
+    case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
+    case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
+    default: NYI("Type is not supported"); break;
+  }
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kMul, aops::MulOpOptions{}, {*this, rhs_tensor})[0];
 }
 
 Tensor Tensor::operator/(float rhs) {
-  // TODO
-  return Tensor::nil();
+  auto rhs_tensor = Tensor::empty({1}, dtype(), device()).alloc();
+  switch (dtype()) {
+    case kFloat32: *(rhs_tensor.ptr<float>()) = rhs; break;
+    case kFloat16: *(rhs_tensor.ptr<half_float::half>()) = half_float::half(rhs); break;
+    case kInt32: *(rhs_tensor.ptr<int32_t>()) = rhs; break;
+    case kInt16: *(rhs_tensor.ptr<int16_t>()) = rhs; break;
+    case kInt8: *(rhs_tensor.ptr<int8_t>()) = rhs; break;
+    default: NYI("Type is not supported"); break;
+  }
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kDiv, aops::DivOpOptions{}, {*this, rhs_tensor})[0];
 }
 
-Tensor Tensor::operator-() {
-  // TODO
-  return Tensor::nil();
-}
+Tensor Tensor::operator-() { return Context::instance().buildOpAndSubmitTask(OpTypes::kNeg, aops::NegOpOptions{}, {*this})[0]; }
 
 Tensor Tensor::transpose(int dim0, int dim1) {
   // TODO
