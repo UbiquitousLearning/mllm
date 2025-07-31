@@ -6,6 +6,11 @@
  * @date 2025-07-29
  *
  */
+
+#include "mllm/utils/CPUArchHelper.hpp"
+
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+
 #include "mllm/backends/cpu/kernels/arm/math.hpp"
 #include "mllm/backends/cpu/kernels/arm/gelu.hpp"
 
@@ -145,3 +150,5 @@ void quick_gelu_fp16(float16_t* __restrict__ Z, const float16_t* __restrict__ X,
 #endif
 
 }  // namespace mllm::cpu::arm
+
+#endif
