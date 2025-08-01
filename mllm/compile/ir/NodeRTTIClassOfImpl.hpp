@@ -1,4 +1,4 @@
-// Auto generated: 2025-08-01 10:40:41
+// Auto generated: 2025-08-01 15:36:53
 // do not modify this file
 #pragma once
 namespace mllm::ir {
@@ -66,11 +66,8 @@ struct NodeRTTIClassOfImpl {
 #define RTTI_RK_OP_LINALGIROP_CASTTYPEOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_CastTypeOp && (v)->getKind() <= RK_Op_LinalgIROp_CastTypeOp
 
-#define RTTI_RK_OP_LINALGIROP_D2HOP_IMPL(v) \
-  return (v)->getKind() >= RK_Op_LinalgIROp_D2HOp && (v)->getKind() <= RK_Op_LinalgIROp_D2HOp
-
-#define RTTI_RK_OP_LINALGIROP_H2DOP_IMPL(v) \
-  return (v)->getKind() >= RK_Op_LinalgIROp_H2DOp && (v)->getKind() <= RK_Op_LinalgIROp_H2DOp
+#define RTTI_RK_OP_LINALGIROP_X2XOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_X2XOp && (v)->getKind() <= RK_Op_LinalgIROp_X2XOp
 
 #define RTTI_RK_OP_LINALGIROP_VIEWOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_ViewOp && (v)->getKind() <= RK_Op_LinalgIROp_ViewOp
@@ -131,6 +128,15 @@ struct NodeRTTIClassOfImpl {
 
 #define RTTI_RK_OP_LINALGIROP_REDUCESUMOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_LinalgIROp_ReduceSumOp && (v)->getKind() <= RK_Op_LinalgIROp_ReduceSumOp
+
+#define RTTI_RK_OP_LINALGIROP_RELUOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_ReLUOp && (v)->getKind() <= RK_Op_LinalgIROp_ReLUOp
+
+#define RTTI_RK_OP_LINALGIROP_CONTIGUOUSOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_ContiguousOp && (v)->getKind() <= RK_Op_LinalgIROp_ContiguousOp
+
+#define RTTI_RK_OP_LINALGIROP_RESHAPEOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_LinalgIROp_ReshapeOp && (v)->getKind() <= RK_Op_LinalgIROp_ReshapeOp
 
 #define RTTI_RK_OP_GRAPHIROP_IMPL(v) return (v)->getKind() >= RK_Op_GraphIROp && (v)->getKind() <= RK_Op_GraphIROp_Last
 

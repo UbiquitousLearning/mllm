@@ -2,11 +2,14 @@
 // Licensed under the MIT License.
 
 #include "mllm/core/Tensor.hpp"
+#include "mllm/core/aops/CloneOp.hpp"
 #include "mllm/core/aops/ElewiseOps.hpp"
 #include "mllm/core/aops/FillOp.hpp"
 #include "mllm/core/aops/PermuteOp.hpp"
 #include "mllm/core/aops/ReduceOps.hpp"
+#include "mllm/core/aops/RepeatOp.hpp"
 #include "mllm/core/aops/TransposeOp.hpp"
+#include "mllm/core/aops/ViewOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm {
@@ -216,10 +219,7 @@ size_t Tensor::numel() const { return impl()->numel(); }
 
 uint32_t Tensor::uuid() const { return impl()->uuid(); }
 
-bool Tensor::isContiguous() const {
-  // TODO
-  return false;
-}
+bool Tensor::isContiguous() const { return impl()->isContiguous(); }
 
 Tensor Tensor::contiguous() {
   // TODO
@@ -232,14 +232,13 @@ Tensor Tensor::reshape(const Tensor::shape_t& shape) {
 }
 
 Tensor Tensor::view(const Tensor::shape_t& indicies) {
-  // TODO
-  return Tensor::nil();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kView, aops::ViewOpOptions{.to_shape = indicies}, {*this})[0];
 }
 
 Tensor Tensor::repeat(int32_t multiplier, int32_t dim) {
   if (multiplier == 1) { return *this; }
-  // TODO
-  return Tensor::nil();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kRepeat,
+                                                  aops::RepeatOpOptions{.dim = dim, .repeat_times = multiplier}, {*this})[0];
 }
 
 Tensor Tensor::unsqueeze(int32_t dim) {
@@ -248,10 +247,7 @@ Tensor Tensor::unsqueeze(int32_t dim) {
   return view(this_shape);
 }
 
-Tensor Tensor::clone() {
-  // TODO
-  return Tensor::nil();
-}
+Tensor Tensor::clone() { return Context::instance().buildOpAndSubmitTask(OpTypes::kClone, aops::CloneOpOptions{}, {*this})[0]; }
 
 Tensor Tensor::permute(const shape_t& indices) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kPermute, aops::PermuteOpOptions{.axis = indices}, {*this})[0];

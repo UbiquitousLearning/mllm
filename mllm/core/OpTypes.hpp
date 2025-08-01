@@ -33,8 +33,7 @@ enum class OpTypes : int32_t {
   kKVCache,
   kCausalMask,
   kCastType,
-  kD2H,
-  kH2D,
+  kX2X,
   kSplit,
   kView,
   kFlashAttention2,
@@ -57,6 +56,8 @@ enum class OpTypes : int32_t {
   kReduceMax,
   kReduceMin,
   kReduceSum,
+  kContiguous,
+  kReshape,
 
   // Graph Control Ops
   kGraphBegin,
@@ -84,8 +85,7 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kKVCache: return "KVCache";
     case OpTypes::kCausalMask: return "CausalMask";
     case OpTypes::kCastType: return "CastType";
-    case OpTypes::kD2H: return "D2H";
-    case OpTypes::kH2D: return "H2D";
+    case OpTypes::kX2X: return "X2X";
     case OpTypes::kSplit: return "Split";
     case OpTypes::kView: return "View";
     case OpTypes::kFlashAttention2: return "FlashAttention2";
@@ -105,6 +105,11 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kConcat: return "Concat";
     case OpTypes::kReLU: return "ReLU";
     case OpTypes::kReLU2: return "ReLU2";
+    case OpTypes::kReduceMax: return "ReduceMax";
+    case OpTypes::kReduceMin: return "ReduceMin";
+    case OpTypes::kReduceSum: return "ReduceSum";
+    case OpTypes::kContiguous: return "Contiguous";
+    case OpTypes::kReshape: return "Reshape";
     case OpTypes::kGraphBegin: return "GraphBegin";
     case OpTypes::kGraphEnd: return "GraphEnd";
     case OpTypes::kOpType_End: return "OpType_End";

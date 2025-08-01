@@ -232,8 +232,7 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("KVCacheOp"))
     op.derive(Cls("CausalMaskOp"))
     op.derive(Cls("CastTypeOp"))
-    op.derive(Cls("D2HOp"))
-    op.derive(Cls("H2DOp"))
+    op.derive(Cls("X2XOp"))
     op.derive(Cls("ViewOp"))
     op.derive(Cls("SplitOp"))
     op.derive(Cls("FlashAttention2Op"))
@@ -254,6 +253,9 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("ReduceMinOp"))
     op.derive(Cls("ReduceMaxOp"))
     op.derive(Cls("ReduceSumOp"))
+    op.derive(Cls("ReLUOp"))
+    op.derive(Cls("ContiguousOp"))
+    op.derive(Cls("ReshapeOp"))
 
     # value
 

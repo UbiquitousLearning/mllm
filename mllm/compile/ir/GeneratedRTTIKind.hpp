@@ -1,4 +1,4 @@
-// Auto generated: 2025-08-01 10:40:41
+// Auto generated: 2025-08-01 15:36:53
 // do not modify this file
 #pragma once
 
@@ -32,8 +32,7 @@ enum NodeKind : uint32_t {
   RK_Op_LinalgIROp_KVCacheOp,
   RK_Op_LinalgIROp_CausalMaskOp,
   RK_Op_LinalgIROp_CastTypeOp,
-  RK_Op_LinalgIROp_D2HOp,
-  RK_Op_LinalgIROp_H2DOp,
+  RK_Op_LinalgIROp_X2XOp,
   RK_Op_LinalgIROp_ViewOp,
   RK_Op_LinalgIROp_SplitOp,
   RK_Op_LinalgIROp_FlashAttention2Op,
@@ -54,6 +53,9 @@ enum NodeKind : uint32_t {
   RK_Op_LinalgIROp_ReduceMinOp,
   RK_Op_LinalgIROp_ReduceMaxOp,
   RK_Op_LinalgIROp_ReduceSumOp,
+  RK_Op_LinalgIROp_ReLUOp,
+  RK_Op_LinalgIROp_ContiguousOp,
+  RK_Op_LinalgIROp_ReshapeOp,
   RK_Op_LinalgIROp_Last,
   RK_Op_GraphIROp,
   RK_Op_GraphIROp_SubGraphOp,
