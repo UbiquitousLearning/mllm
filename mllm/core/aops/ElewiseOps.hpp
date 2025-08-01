@@ -1,11 +1,6 @@
-/**
- * @file ElewiseOps.hpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-31
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #pragma once
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"

@@ -1,11 +1,6 @@
-/**
- * @file TensorImpl.hpp
- * @author chenghua Wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-21
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #pragma once
 
 #define MLLM_TENSOR_SHAPE_MAX_LEN 16

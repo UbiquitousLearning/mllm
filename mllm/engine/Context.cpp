@@ -147,4 +147,6 @@ uint64_t Context::curTime() {
   return std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
 }
 
+std::unordered_map<std::thread::id, SessionTCB::ptr_t> Context::refSessionThreads() { return session_threads_; }
+
 }  // namespace mllm

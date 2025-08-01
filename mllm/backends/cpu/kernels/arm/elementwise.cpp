@@ -1,11 +1,6 @@
-/**
- * @file elementwise.cpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-31
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/utils/CPUArchHelper.hpp"
 #include "mllm/backends/cpu/kernels/arm/elementwise.hpp"

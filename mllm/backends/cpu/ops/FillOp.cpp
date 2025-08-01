@@ -1,11 +1,6 @@
-/**
- * @file FillOp.cpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-27
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include "mllm/backends/cpu/ops/FillOp.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
 #include "mllm/utils/PlatformRTHelper.hpp"
@@ -27,6 +22,8 @@ void CPUFillOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
         case kFloat32: {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
           x86::fill_zeros(dst.ptr<mllm_fp32_t>(), dst.numel(), threads);
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+          arm::fill_zeros(dst.ptr<mllm_fp32_t>(), dst.numel(), threads);
 #endif
           break;
         }
@@ -42,6 +39,8 @@ void CPUFillOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
         case kFloat32: {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
           x86::fill_ones(dst.ptr<mllm_fp32_t>(), dst.numel(), threads);
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+          arm::fill_ones(dst.ptr<mllm_fp32_t>(), dst.numel(), threads);
 #endif
           break;
         }
@@ -57,6 +56,8 @@ void CPUFillOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
         case kFloat32: {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
           x86::fill_arange(dst.ptr<mllm_fp32_t>(), dst.numel(), options_.start, options_.end, options_.step, threads);
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+          arm::fill_arange(dst.ptr<mllm_fp32_t>(), dst.numel(), options_.start, options_.end, options_.step, threads);
 #endif
           break;
         }
@@ -71,6 +72,8 @@ void CPUFillOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
         case kFloat32: {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
           x86::fill_random(dst.ptr<mllm_fp32_t>(), dst.numel(), options_.start, options_.end, options_.seed, threads);
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+          arm::fill_random(dst.ptr<mllm_fp32_t>(), dst.numel(), options_.start, options_.end, options_.seed, threads);
 #endif
           break;
         }
@@ -85,6 +88,8 @@ void CPUFillOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
         case kFloat32: {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
           x86::fill_specific_value(dst.ptr<mllm_fp32_t>(), dst.numel(), options_.value, threads);
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+          arm::fill_specific_value(dst.ptr<mllm_fp32_t>(), dst.numel(), options_.value, threads);
 #endif
           break;
         }

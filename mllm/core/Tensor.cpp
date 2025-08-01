@@ -1,16 +1,12 @@
-/**
- * @file Tensor.cpp
- * @author chenghua Wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-21
- *
- * @copyright Copyright (c) 2025
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include "mllm/core/Tensor.hpp"
 #include "mllm/core/aops/ElewiseOps.hpp"
 #include "mllm/core/aops/FillOp.hpp"
+#include "mllm/core/aops/PermuteOp.hpp"
+#include "mllm/core/aops/ReduceOps.hpp"
+#include "mllm/core/aops/TransposeOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm {
@@ -139,11 +135,25 @@ Tensor Tensor::operator/(float rhs) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kDiv, aops::DivOpOptions{}, {*this, rhs_tensor})[0];
 }
 
+Tensor Tensor::min(bool keep_dim, int32_t dim) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kReduceMin,
+                                                  aops::ReduceMinOpOptions{.dim = dim, .keep_dim = keep_dim}, {*this})[0];
+}
+
+Tensor Tensor::max(bool keep_dim, int32_t dim) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kReduceMax,
+                                                  aops::ReduceMaxOpOptions{.dim = dim, .keep_dim = keep_dim}, {*this})[0];
+}
+
+Tensor Tensor::sum(bool keep_dim, int32_t dim) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kReduceSum,
+                                                  aops::ReduceSumOpOptions{.dim = dim, .keep_dim = keep_dim}, {*this})[0];
+}
 Tensor Tensor::operator-() { return Context::instance().buildOpAndSubmitTask(OpTypes::kNeg, aops::NegOpOptions{}, {*this})[0]; }
 
 Tensor Tensor::transpose(int dim0, int dim1) {
-  // TODO
-  return Tensor::nil();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kTranspose, aops::TransposeOpOptions{.dim0 = dim0, .dim1 = dim1},
+                                                  {*this})[0];
 }
 
 Tensor Tensor::T() { return transpose(-1, -2); }
@@ -244,8 +254,7 @@ Tensor Tensor::clone() {
 }
 
 Tensor Tensor::permute(const shape_t& indices) {
-  // TODO
-  return Tensor::nil();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kPermute, aops::PermuteOpOptions{.axis = indices}, {*this})[0];
 }
 
 size_t Tensor::bytes() { return impl_->size(); }

@@ -1,11 +1,6 @@
-/**
- * @file LinearOp.hpp
- * @author your name (you@domain.com)
- * @brief
- * @version 0.1
- * @date 2025-07-23
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #pragma once
 
 #include "mllm/core/BaseOp.hpp"

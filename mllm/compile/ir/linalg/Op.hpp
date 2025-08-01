@@ -51,6 +51,9 @@ class CopyOp;
 class CloneOp;
 class NegOp;
 class ConcatOp;
+class ReduceMaxOp;
+class ReduceMinOp;
+class ReduceSumOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -156,4 +159,8 @@ LINALG_AOPS_DEFINE(CloneOp, CLONEOP);
 
 LINALG_AOPS_DEFINE(NegOp, NEGOP);
 LINALG_AOPS_DEFINE(ConcatOp, CONCATOP);
+
+LINALG_AOPS_DEFINE(ReduceMaxOp, REDUCEMAXOP);
+LINALG_AOPS_DEFINE(ReduceMinOp, REDUCEMINOP);
+LINALG_AOPS_DEFINE(ReduceSumOp, REDUCESUMOP);
 }  // namespace mllm::ir::linalg

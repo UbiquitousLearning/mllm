@@ -1,13 +1,6 @@
-/**
- * @file Tensor.hpp
- * @author chenghua Wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-21
- *
- * @copyright Copyright (c) 2025
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #pragma once
 
 #include <memory>
@@ -161,6 +154,30 @@ class Tensor {
   Tensor operator*(float rhs);
   Tensor operator/(float rhs);
   /// @}
+
+  /**
+   * @brief Get min
+   *
+   * @param dim if dim == 0x7fffffff, return a scalar value.
+   * @return Tensor
+   */
+  Tensor min(bool keep_dim = false, int32_t dim = 0x7fffffff);
+
+  /**
+   * @brief Get max
+   *
+   * @param dim if dim == 0x7fffffff, return a scalar value.
+   * @return Tensor
+   */
+  Tensor max(bool keep_dim = false, int32_t dim = 0x7fffffff);
+
+  /**
+   * @brief Get sum
+   *
+   * @param dim if dim == 0x7fffffff, return a scalar value.
+   * @return Tensor
+   */
+  Tensor sum(bool keep_dim = false, int32_t dim = 0x7fffffff);
 
   /**
    * @brief Negative

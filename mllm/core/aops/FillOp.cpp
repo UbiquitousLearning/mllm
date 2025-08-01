@@ -1,15 +1,11 @@
-/**
- * @file FillOp.cpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-26
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include "mllm/core/aops/FillOp.hpp"
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/core/Tensor.hpp"
 #include "mllm/utils/Common.hpp"
+#include "mllm/compile/ir/linalg/Op.hpp"
 
 namespace mllm::aops {
 
@@ -18,7 +14,10 @@ FillOp::FillOp(const FillOpOptions& options) : BaseOp(OpTypes::kFill), options_(
 void FillOp::load(const ParameterFile::ptr_t& ploader) { MLLM_EMPTY_SCOPE; }
 
 void FillOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  NYI("FillOp::trace not implemented");
+  auto ir_ctx = (ir::IRContext*)trace_context;
+  auto i_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, inputs);
+  auto o_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, outputs);
+  ir_ctx->create<ir::linalg::FillOp>(shared_from_this(), i_irs, o_irs);
 }
 
 void FillOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {

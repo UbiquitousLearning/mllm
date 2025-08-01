@@ -1,11 +1,5 @@
-/**
- * @file GraphOps.cpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-29
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
 
 #include "mllm/backends/cpu/ops/GraphOps.hpp"
 
