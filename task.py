@@ -6,6 +6,7 @@ import json
 import yaml
 import shutil
 import logging
+import platform
 import argparse
 from pathlib import Path
 from typing import Dict, List
@@ -391,20 +392,36 @@ class BuildPythonCLibTask(Task):
         if not os.path.exists(base_cmake_root):
             os.mkdir(base_cmake_root)
 
-        CMAKE_CFG_ARGS = [
-            f"-DPYTHON_EXECUTABLE={sys.executable}",
-            f"-DCMAKE_BUILD_TYPE=Release",
-            "-DMLLM_ENABLE_PY_MLLM=ON",
-            "-D_GLIBCXX_USE_CXX11_ABI=1",
-            # FIXME: Use clang and gcc is all ok.
-            # "-DCMAKE_C_COMPILER=clang",
-            # "-DCMAKE_CXX_COMPILER=clang++",
-            # FIXME: Highway may not be used.
-            "-DHWY_ENABLE_TESTS=OFF",
-            "-DHWY_ENABLE_EXAMPLES=OFF",
-            "-DHWY_ENABLE_CONTRIB=OFF",
-            '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native"',
-        ]
+        is_arm = platform.machine().startswith(("arm", "aarch"))
+        is_x86 = platform.machine().startswith(("x86", "amd", "X86"))
+
+        if is_x86:
+            CMAKE_CFG_ARGS = [
+                f"-DPYTHON_EXECUTABLE={sys.executable}",
+                f"-DCMAKE_BUILD_TYPE=Release",
+                "-DMLLM_ENABLE_PY_MLLM=ON",
+                "-D_GLIBCXX_USE_CXX11_ABI=1",
+                # FIXME: Use clang and gcc is all ok.
+                # "-DCMAKE_C_COMPILER=clang",
+                # "-DCMAKE_CXX_COMPILER=clang++",
+                # FIXME: Highway may not be used.
+                "-DHWY_ENABLE_TESTS=OFF",
+                "-DHWY_ENABLE_EXAMPLES=OFF",
+                "-DHWY_ENABLE_CONTRIB=OFF",
+                '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native"',
+            ]
+        elif is_arm:
+            CMAKE_CFG_ARGS = [
+                f"-DPYTHON_EXECUTABLE={sys.executable}",
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DMLLM_ENABLE_PY_MLLM=ON",
+                "-D_GLIBCXX_USE_CXX11_ABI=1",
+                "-DHWY_ENABLE_TESTS=OFF",
+                "-DHWY_ENABLE_EXAMPLES=OFF",
+                "-DHWY_ENABLE_CONTRIB=OFF",
+                "-DMLLM_BUILD_ARM_BACKEND=ON",
+                '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native+fp16+fp16fml+dotprod+i8mm+sme"',
+            ]
 
         BUILD_ARGS = [
             "--config",
