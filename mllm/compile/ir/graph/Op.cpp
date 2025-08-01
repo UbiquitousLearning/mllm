@@ -1,11 +1,6 @@
-/**
- * @file Op.cpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-28
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include "mllm/compile/ir/graph/Op.hpp"
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/compile/ir/builtin/Attribute.hpp"

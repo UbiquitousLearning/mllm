@@ -1,11 +1,6 @@
-/**
- * @file AbstractNnNode.cpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-24
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include "mllm/nn/AbstractNnNode.hpp"
 #include "mllm/utils/Dbg.hpp"
 

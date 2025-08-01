@@ -1,12 +1,6 @@
-/**
- * @file CPUAllocator.cpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @author oreomaker (zh002919@outlook.com)
- * @brief
- * @version 0.1
- * @date 2025-07-23
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include "mllm/backends/cpu/CPUAllocator.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
 

@@ -1,11 +1,6 @@
-/**
- * @file Dbg.hpp
- * @author chenghua Wang (chenghua.wang.edu@gmail.com)
- * @brief Do not use std::cout or printf or fmt::print when debuging any more!!!
- * @version 0.1
- * @date 2025-07-19
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #pragma once
 
 // Platform-specific macro definitions

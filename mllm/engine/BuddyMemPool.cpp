@@ -1,11 +1,6 @@
-/**
- * @file BuddyMemPool.cpp
- * @author chenghua Wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-22
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include <cmath>
 
 #include "mllm/utils/Common.hpp"

@@ -1,13 +1,6 @@
-/**
- * @file ModelFileV1.hpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @author @lx200916
- * @author @yirongjie
- * @brief
- * @version 0.1
- * @date 2025-07-24
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #pragma once
 
 // After 2025-07-31:
