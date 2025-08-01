@@ -251,6 +251,9 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("CloneOp"))
     op.derive(Cls("NegOp"))
     op.derive(Cls("ConcatOp"))
+    op.derive(Cls("ReduceMinOp"))
+    op.derive(Cls("ReduceMaxOp"))
+    op.derive(Cls("ReduceSumOp"))
 
     # value
 

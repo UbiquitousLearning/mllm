@@ -8,28 +8,13 @@
 
 namespace mllm::aops {
 
-enum class FillOpTypes : int32_t {
-  kFillOpTypes_Start = 0,
-  kZeros,
-  kOnes,
-  kSpecific,
-  kRandom,
-  kArange,
-  kFillOpTypes_End,
+struct PermuteOpOptions : public BaseOpOptions<PermuteOpOptions> {
+  std::vector<int> axis;
 };
 
-struct FillOpOptions : public BaseOpOptions<FillOpOptions> {
-  FillOpTypes type = FillOpTypes::kFillOpTypes_Start;
-  float value = 0.f;
-  float start = 0.f;
-  float end = 0.f;
-  float step = 0.f;
-  uint64_t seed = 42;
-};
-
-class FillOp : public BaseOp {
+class PermuteOp : public BaseOp {
  public:
-  explicit FillOp(const FillOpOptions& cargo);
+  explicit PermuteOp(const PermuteOpOptions& cargo);
 
   void load(const ParameterFile::ptr_t& ploader) override;
 
@@ -42,7 +27,7 @@ class FillOp : public BaseOp {
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
  protected:
-  FillOpOptions options_;
+  PermuteOpOptions options_;
 };
 
 }  // namespace mllm::aops

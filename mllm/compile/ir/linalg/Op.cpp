@@ -63,4 +63,8 @@ LINALG_AOPS_DECL(OpTypes::kClone, CloneOp);
 LINALG_AOPS_DECL(OpTypes::kNeg, NegOp);
 LINALG_AOPS_DECL(OpTypes::kConcat, ConcatOp);
 
+LINALG_AOPS_DECL(OpTypes::kReduceMax, ReduceMaxOp);
+LINALG_AOPS_DECL(OpTypes::kReduceMin, ReduceMinOp);
+LINALG_AOPS_DECL(OpTypes::kReduceSum, ReduceSumOp);
+
 }  // namespace mllm::ir::linalg

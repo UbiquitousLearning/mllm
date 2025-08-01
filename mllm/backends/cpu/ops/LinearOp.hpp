@@ -1,11 +1,6 @@
-/**
- * @file LinearOp.hpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-25
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #pragma once
 
 #include "mllm/core/aops/LinearOp.hpp"

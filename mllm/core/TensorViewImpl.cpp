@@ -1,11 +1,6 @@
-/**
- * @file TensorImpl.cpp
- * @author chenghua Wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-21
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include "mllm/core/TensorViewImpl.hpp"
 
 namespace mllm {

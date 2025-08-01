@@ -14,7 +14,17 @@
 namespace mllm {
 
 void shutdownContext() {
-  // TODO
+  auto all_threads = Context::instance().refSessionThreads();
+  auto this_thread = Context::instance().thisThread();
+  for (auto& tcb : all_threads) {
+    if (tcb.first != this_thread->system_tid) {
+      tcb.second->attached_contexts._ref_raw_data().clear();
+      tcb.second->layer_ops_table._ref_raw_data().clear();
+      tcb.second->ir_context = nullptr;
+      tcb.second->trace_mode = false;
+    }
+  }
+  ::mllm::cleanThisThread();
 }
 
 void setRandomSeed(uint64_t seed) { Context::instance().setRandomSeed(seed); }

@@ -54,6 +54,9 @@ enum class OpTypes : int32_t {
   kConcat,
   kReLU,
   kReLU2,
+  kReduceMax,
+  kReduceMin,
+  kReduceSum,
 
   // Graph Control Ops
   kGraphBegin,

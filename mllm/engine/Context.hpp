@@ -100,6 +100,8 @@ class Context {
 
   uint64_t curTime();
 
+  std::unordered_map<std::thread::id, SessionTCB::ptr_t> refSessionThreads();
+
  private:
   bool perf_mode_ = false;
   PerfFile::ptr_t perf_file_ = nullptr;

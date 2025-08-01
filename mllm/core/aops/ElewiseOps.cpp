@@ -1,11 +1,6 @@
-/**
- * @file ElewiseOps.cpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-31
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include "mllm/core/aops/ElewiseOps.hpp"
 
 #define __MLLM_ELEWISE_OP_IMPL(types, name)                                                                \
