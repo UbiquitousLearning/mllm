@@ -64,7 +64,7 @@ class ParameterFile {
 
   static ptr_t create(ModelFileVersion v = ModelFileVersion::kUserTemporary);
 
-  ModelFileVersion version() const;
+  [[nodiscard]] ModelFileVersion version() const;
 
   void setMappedFile(const MappedFile::ptr_t& mapped_file);
 
@@ -74,17 +74,17 @@ class ParameterFile {
 
   Tensor pull(const std::string& name);
 
-  bool has(const std::string& name) const;
+  [[nodiscard]] bool has(const std::string& name) const;
 
   inline Tensor operator[](const std::string& name) { return pull(name); }
 
-  const_iterator begin() const;
+  [[nodiscard]] const_iterator begin() const;
 
-  const_iterator end() const;
+  [[nodiscard]] const_iterator end() const;
 
-  const_iterator cbegin() const;
+  [[nodiscard]] const_iterator cbegin() const;
 
-  const_iterator cend() const;
+  [[nodiscard]] const_iterator cend() const;
 
  private:
   MappedFile::ptr_t mapped_file_ = nullptr;

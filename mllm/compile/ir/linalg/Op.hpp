@@ -32,8 +32,7 @@ class RMSNormOp;
 class SiLUOp;
 class CausalMaskOp;
 class CastTypeOp;
-class D2HOp;
-class H2DOp;
+class X2XOp;
 class ViewOp;
 class SplitOp;
 class FlashAttention2Op;
@@ -54,6 +53,9 @@ class ConcatOp;
 class ReduceMaxOp;
 class ReduceMinOp;
 class ReduceSumOp;
+class ReLUOp;
+class ContiguousOp;
+class ReshapeOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -133,7 +135,7 @@ LINALG_AOPS_DEFINE(SiLUOp, SILUOP);
 
 LINALG_AOPS_DEFINE(CastTypeOp, CASTTYPEOP);
 
-LINALG_AOPS_DEFINE(D2HOp, D2HOP);
+LINALG_AOPS_DEFINE(X2XOp, X2XOP);
 
 LINALG_AOPS_DEFINE(ViewOp, VIEWOP);
 LINALG_AOPS_DEFINE(SplitOp, SPLITOP);
@@ -163,4 +165,9 @@ LINALG_AOPS_DEFINE(ConcatOp, CONCATOP);
 LINALG_AOPS_DEFINE(ReduceMaxOp, REDUCEMAXOP);
 LINALG_AOPS_DEFINE(ReduceMinOp, REDUCEMINOP);
 LINALG_AOPS_DEFINE(ReduceSumOp, REDUCESUMOP);
+
+LINALG_AOPS_DEFINE(ReLUOp, RELUOP);
+LINALG_AOPS_DEFINE(ContiguousOp, CONTIGUOUSOP);
+LINALG_AOPS_DEFINE(ReshapeOp, RESHAPEOP);
+
 }  // namespace mllm::ir::linalg

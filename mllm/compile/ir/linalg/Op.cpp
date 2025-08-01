@@ -36,7 +36,7 @@ LINALG_AOPS_DECL(OpTypes::kSiLU, SiLUOp);
 
 LINALG_AOPS_DECL(OpTypes::kCastType, CastTypeOp);
 
-LINALG_AOPS_DECL(OpTypes::kD2H, D2HOp);
+LINALG_AOPS_DECL(OpTypes::kX2X, X2XOp);
 
 LINALG_AOPS_DECL(OpTypes::kView, ViewOp);
 LINALG_AOPS_DECL(OpTypes::kSplit, SplitOp);
@@ -66,5 +66,9 @@ LINALG_AOPS_DECL(OpTypes::kConcat, ConcatOp);
 LINALG_AOPS_DECL(OpTypes::kReduceMax, ReduceMaxOp);
 LINALG_AOPS_DECL(OpTypes::kReduceMin, ReduceMinOp);
 LINALG_AOPS_DECL(OpTypes::kReduceSum, ReduceSumOp);
+
+LINALG_AOPS_DECL(OpTypes::kContiguous, ContiguousOp);
+LINALG_AOPS_DECL(OpTypes::kReLU, ReLUOp);
+LINALG_AOPS_DECL(OpTypes::kReshape, ReshapeOp);
 
 }  // namespace mllm::ir::linalg
