@@ -1,11 +1,6 @@
-/**
- * @file Log.hpp
- * @author chenghua Wang (chenghua.wang.edu@gmail.com)
- * @brief Some simple logging methods which leverage fmt lib
- * @version 0.1
- * @date 2025-07-21
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #pragma once
 
 #include <fmt/color.h>

@@ -1,11 +1,6 @@
-/**
- * @file Unicode.cpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-29
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include <vector>
 #include <algorithm>
 

@@ -1,11 +1,6 @@
-/**
- * @file fill.cpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-27
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include "mllm/backends/cpu/kernels/x86/fill.hpp"
 #include "mllm/backends/cpu/kernels/x86/simd.hpp"
 #include "mllm/utils/CPUArchHelper.hpp"

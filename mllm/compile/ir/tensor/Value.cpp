@@ -1,11 +1,6 @@
-/**
- * @file Value.cpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-27
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #include <string>
 
 #include "mllm/compile/ir/tensor/Value.hpp"

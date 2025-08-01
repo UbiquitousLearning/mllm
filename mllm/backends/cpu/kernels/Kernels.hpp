@@ -1,11 +1,6 @@
-/**
- * @file Kernels.hpp
- * @author chenghua wang (chenghua.wang.edu@gmail.com)
- * @brief
- * @version 0.1
- * @date 2025-07-26
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #pragma once
 
 #include "mllm/utils/CPUArchHelper.hpp"
@@ -20,4 +15,5 @@
 #include "mllm/backends/cpu/kernels/arm/reduce.hpp"       // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/transpose.hpp"    // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/permute.hpp"      // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/arm/silu.hpp"         // IWYU pragma: export
 #endif

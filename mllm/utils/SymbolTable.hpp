@@ -1,12 +1,6 @@
-/**
- * @file SymbolTable.hpp
- * @author chenghua Wang (chenghua.wang.edu@gmail.com)
- * @version 0.1
- * @date 2025-01-29
- *
- * @copyright Copyright (c) 2025
- *
- */
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
+
 #pragma once
 
 #include <string>
