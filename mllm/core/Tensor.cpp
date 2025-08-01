@@ -2,14 +2,18 @@
 // Licensed under the MIT License.
 
 #include "mllm/core/Tensor.hpp"
+#include "mllm/core/aops/CastTypeOp.hpp"
 #include "mllm/core/aops/CloneOp.hpp"
+#include "mllm/core/aops/ContiguousOp.hpp"
 #include "mllm/core/aops/ElewiseOps.hpp"
 #include "mllm/core/aops/FillOp.hpp"
 #include "mllm/core/aops/PermuteOp.hpp"
 #include "mllm/core/aops/ReduceOps.hpp"
 #include "mllm/core/aops/RepeatOp.hpp"
+#include "mllm/core/aops/ReshapeOp.hpp"
 #include "mllm/core/aops/TransposeOp.hpp"
 #include "mllm/core/aops/ViewOp.hpp"
+#include "mllm/core/aops/X2XOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm {
@@ -163,26 +167,22 @@ Tensor Tensor::T() { return transpose(-1, -2); }
 
 Tensor Tensor::to(DeviceTypes device) {
   if (device == impl_->device()) { return *this; }
-  // TODO
-  return Tensor::nil();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kX2X, aops::X2XOpOptions{.device = device}, {*this})[0];
 }
 
 Tensor Tensor::to(DataTypes dtype) {
   if (dtype == impl_->dtype()) { return *this; }
-  // TODO
-  return Tensor::nil();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kCastType, aops::CastTypeOpOptions{.dtype = dtype}, {*this})[0];
 }
 
 Tensor Tensor::cpu() {
   if (kCPU == impl_->device()) { return *this; }
-  // TODO
-  return Tensor::nil();
+  return to(kCPU);
 }
 
 Tensor Tensor::cuda() {
   if (kCUDA == impl_->device()) { return *this; }
-  // TODO
-  return Tensor::nil();
+  return to(kCUDA);
 }
 
 std::string Tensor::name() const { return impl()->name(); }
@@ -222,13 +222,11 @@ uint32_t Tensor::uuid() const { return impl()->uuid(); }
 bool Tensor::isContiguous() const { return impl()->isContiguous(); }
 
 Tensor Tensor::contiguous() {
-  // TODO
-  return Tensor::nil();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kContiguous, aops::ContiguousOpOptions{}, {*this})[0];
 }
 
 Tensor Tensor::reshape(const Tensor::shape_t& shape) {
-  // TODO
-  return Tensor::nil();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kReshape, aops::ReshapeOpOptions{.shape = shape}, {*this})[0];
 }
 
 Tensor Tensor::view(const Tensor::shape_t& indicies) {
