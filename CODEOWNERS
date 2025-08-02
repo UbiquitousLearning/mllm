@@ -23,6 +23,13 @@
 /mllm/backends/arm/ @chenghuaWang @yirongjie
 /mllm/backends/qnn/ @oreomaker @liang1232018 @chenghuaWang
 
+# Kernels
+
+/mllm/backends/cpu/kernels/common/quantize/ggml @yirongjie
+/mllm/backends/cpu/kernels/arm/linear/ggml @yirongjie
+/mllm/backends/cpu/kernels/arm/linear/mkernel @chenghuaWang
+/mllm/backends/cpu/kernels/arm/fa2 @chenghuaWang
+
 # Compiler
 
 /mllm/compile/ @chenghuaWang

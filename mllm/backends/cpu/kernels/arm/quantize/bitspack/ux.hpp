@@ -22,13 +22,13 @@
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
 
-#include "mllm/backends/cpu/kernels/arm/linear/mkernel/u1.hpp"
-#include "mllm/backends/cpu/kernels/arm/linear/mkernel/u2.hpp"
-#include "mllm/backends/cpu/kernels/arm/linear/mkernel/u3.hpp"
-#include "mllm/backends/cpu/kernels/arm/linear/mkernel/u4.hpp"
-#include "mllm/backends/cpu/kernels/arm/linear/mkernel/u5.hpp"
-#include "mllm/backends/cpu/kernels/arm/linear/mkernel/u6.hpp"
-#include "mllm/backends/cpu/kernels/arm/linear/mkernel/u7.hpp"
+#include "mllm/backends/cpu/kernels/arm/quantize/bitspack/u1.hpp"
+#include "mllm/backends/cpu/kernels/arm/quantize/bitspack/u2.hpp"
+#include "mllm/backends/cpu/kernels/arm/quantize/bitspack/u3.hpp"
+#include "mllm/backends/cpu/kernels/arm/quantize/bitspack/u4.hpp"
+#include "mllm/backends/cpu/kernels/arm/quantize/bitspack/u5.hpp"
+#include "mllm/backends/cpu/kernels/arm/quantize/bitspack/u6.hpp"
+#include "mllm/backends/cpu/kernels/arm/quantize/bitspack/u7.hpp"
 
 namespace mllm::cpu::arm {
 
