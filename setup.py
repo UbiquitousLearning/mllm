@@ -1,5 +1,6 @@
 import os
 import sys
+import platform
 from pathlib import Path
 from typing import List
 
@@ -91,17 +92,31 @@ class CustomBuild(build):
         build_type = get_build_type(self.debug)
         repo_root = os.path.abspath(os.getcwd())
 
-        # Configure CMake arguments
-        cmake_args = [
-            f"-DPYTHON_EXECUTABLE={sys.executable}",
-            f"-DCMAKE_BUILD_TYPE={build_type}",
-            "-DMLLM_ENABLE_PY_MLLM=ON",
-            "-D_GLIBCXX_USE_CXX11_ABI=1",
-            "-DHWY_ENABLE_TESTS=OFF",
-            "-DHWY_ENABLE_EXAMPLES=OFF",
-            "-DHWY_ENABLE_CONTRIB=OFF",
-            '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native"',
-        ] + [arg for arg in self.cmake_args.split(" ") if arg]
+        is_arm = platform.machine().startswith(("arm", "aarch"))
+        is_x86 = platform.machine().startswith(("x86", "amd", "X86"))
+
+        if is_x86:
+            # Configure CMake arguments
+            cmake_args = [
+                f"-DPYTHON_EXECUTABLE={sys.executable}",
+                f"-DCMAKE_BUILD_TYPE={build_type}",
+                "-DMLLM_ENABLE_PY_MLLM=ON",
+                "-D_GLIBCXX_USE_CXX11_ABI=1",
+                "-DHWY_ENABLE_TESTS=OFF",
+                "-DHWY_ENABLE_EXAMPLES=OFF",
+                "-DHWY_ENABLE_CONTRIB=OFF",
+                '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native"',
+            ] + [arg for arg in self.cmake_args.split(" ") if arg]
+        elif is_arm:
+            # Configure CMake arguments
+            cmake_args = [
+                f"-DPYTHON_EXECUTABLE={sys.executable}",
+                f"-DCMAKE_BUILD_TYPE={build_type}",
+                "-DMLLM_ENABLE_PY_MLLM=ON",
+                "-D_GLIBCXX_USE_CXX11_ABI=1",
+                "-DMLLM_BUILD_ARM_BACKEND=ON",
+                '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native+fp16+fp16fml+dotprod+i8mm+sme"',
+            ] + [arg for arg in self.cmake_args.split(" ") if arg]
 
         # Build arguments
         build_args = ["--config", build_type, f"-j{self.parallel}", "--target", "_C"]

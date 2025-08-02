@@ -215,6 +215,8 @@ DeviceTypes Tensor::device() const { return impl()->device(); }
 
 Tensor::shape_t Tensor::shape() const { return impl()->shape(); }
 
+Tensor::stride_t Tensor::stride() const { return impl()->stride(); }
+
 size_t Tensor::numel() const { return impl()->numel(); }
 
 uint32_t Tensor::uuid() const { return impl()->uuid(); }
@@ -251,6 +253,6 @@ Tensor Tensor::permute(const shape_t& indices) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kPermute, aops::PermuteOpOptions{.axis = indices}, {*this})[0];
 }
 
-size_t Tensor::bytes() { return impl_->size(); }
+size_t Tensor::bytes() const { return impl_->size(); }
 
 }  // namespace mllm

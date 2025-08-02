@@ -29,6 +29,7 @@ void FillOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& out
 void FillOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   // The fillop is performed inplace
   // There is no need to alloc output again!
+  MLLM_EMPTY_SCOPE;
 }
 
 }  // namespace mllm::aops

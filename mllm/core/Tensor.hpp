@@ -272,6 +272,13 @@ class Tensor {
   [[nodiscard]] shape_t shape() const;
 
   /**
+   * @brief Gets tensor strides.
+   *
+   * @return stride_t
+   */
+  [[nodiscard]] stride_t stride() const;
+
+  /**
    * @brief Calculates total number of elements.
    * @return Product of all dimensions.
    */
@@ -353,7 +360,7 @@ class Tensor {
    *
    * @return size_t
    */
-  size_t bytes();
+  [[nodiscard]] size_t bytes() const;
 
   /**
    * @brief Gets base pointer of tensor data.

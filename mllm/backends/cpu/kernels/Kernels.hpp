@@ -16,4 +16,5 @@
 #include "mllm/backends/cpu/kernels/arm/transpose.hpp"    // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/permute.hpp"      // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/silu.hpp"         // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/arm/cast_types.hpp"   // IWYU pragma: export
 #endif
