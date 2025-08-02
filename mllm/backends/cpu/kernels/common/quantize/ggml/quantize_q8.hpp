@@ -26,12 +26,20 @@
  */
 #pragma once
 
-#include "mllm/backends/cpu/kernels/common/quantize/ggml/Quantize.hpp"
+#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize.hpp"
 
 namespace mllm::cpu {
-void quantize_row_q4_0(const float* __restrict x, void* __restrict y, int k);
-void dequantize_row_q4_0(const void* __restrict vx, float* __restrict y, int k);
 
-void quantize_row_q4_K(const float* __restrict x, void* __restrict vy, int k);
-void dequantize_row_q4_K(const block_q4_K* __restrict x, float* __restrict y, int k);
+void quantize_row_q8_0(const float* __restrict x, void* __restrict y, int k);
+void dequantize_row_q8_0(const void* __restrict vx, float* __restrict y, int k);
+
+void quantize_row_q8_K(const float* __restrict x, void* __restrict y, int k);
+void dequantize_row_q8_K(const block_q8_K* __restrict x, float* __restrict y, int k);
+
+// for per-tensor int8 quantize
+void quantize_row_i8(const float* __restrict x, void* __restrict y, int k, float scale = 1.f);
+void dequantize_row_i8(const void* __restrict vx, float* __restrict y, int k, float scale = 1.f);
+void dequantize_row_i8_to_fp16(const void* __restrict vx, void* __restrict vy, int k, float scale = 1.f);
+void quantize_round_dequantize_row_i8(const float* __restrict vx, float* __restrict y, int k, float scale = 1.f);
+
 }  // namespace mllm::cpu

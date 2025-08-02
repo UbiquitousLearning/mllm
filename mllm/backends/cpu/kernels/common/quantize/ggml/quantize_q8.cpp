@@ -27,7 +27,7 @@
 
 #include <cstdint>
 
-#include "mllm/backends/cpu/kernels/common/quantize/ggml/QuantizeQ8.hpp"
+#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize_q8.hpp"
 
 namespace mllm::cpu {
 

@@ -49,8 +49,8 @@
 #endif
 
 #include "mllm/utils/Common.hpp"
-#include "mllm/backends/cpu/kernels/common/linear/LlamafileSGEMM.hpp"
-#include "mllm/backends/cpu/kernels/common/quantize/ggml/Quantize.hpp"
+#include "mllm/backends/cpu/kernels/common/linear/llamafile_sgemm.hpp"
+#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize.hpp"
 
 #ifdef _MSC_VER
 #define NOINLINE __declspec(noinline)

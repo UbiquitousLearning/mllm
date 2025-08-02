@@ -29,8 +29,8 @@
 #include <cstring>
 #include <cassert>
 
-#include "mllm/backends/cpu/kernels/common/quantize/ggml/QuantizeQ3.hpp"
-#include "mllm/backends/cpu/kernels/common/quantize/ggml/Quantize.hpp"
+#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize_q3.hpp"
+#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize.hpp"
 
 namespace mllm::cpu {
 
@@ -150,7 +150,7 @@ void quantize_row_q3_K_ref(const float* __restrict x, block_q3_K* __restrict y, 
     // We put the high-bit for the 1st 8 quants into bit 0, the next 8 into bit 1, etc.
     int m = 0;
     uint8_t hm = 1;
-    for (int j = 0; j < QK_K; ++j) {
+    for (int j = 0; j < QK_K; ++j) {  // NOLINT
       if (L[j] > 3) {
         y[i].hmask[m] |= hm;
         L[j] -= 4;

@@ -25,7 +25,7 @@
  * SOFTWARE.
  */
 
-#include "mllm/backends/cpu/kernels/common/quantize/ggml/QuantizeQ6.hpp"
+#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize_q6.hpp"
 
 namespace mllm::cpu {
 

@@ -27,7 +27,7 @@
 
 #include <cstring>
 
-#include "mllm/backends/cpu/kernels/common/quantize/ggml/QuantizeQ4.hpp"
+#include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize_q4.hpp"
 
 namespace mllm::cpu {
 
