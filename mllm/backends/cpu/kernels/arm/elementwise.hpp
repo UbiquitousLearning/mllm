@@ -115,7 +115,7 @@ struct ParallelElementwiseLoopArrayScalar {
       size_t chunk_size = (vec_size + thread_count - 1) / thread_count;
       chunk_size = (chunk_size + lanes - 1) & ~(lanes - 1);
 
-#pragma omp parallel for if (thread_count > 1) num_threads(thread_count)
+#pragma omp parallel for num_threads(thread_count) if (thread_count > 1)
       for (size_t start = 0; start < vec_size; start += chunk_size) {
         size_t end = std::min(start + chunk_size, vec_size);
         size_t local_size = end - start;

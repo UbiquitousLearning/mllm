@@ -285,6 +285,21 @@ struct formatter<mllm::ir::IRContext::ptr_t> {
     return out;
   }
 };
+
+template<>
+struct formatter<::mllm::test::AllCloseResult> {
+  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(const mllm::test::AllCloseResult& result, FormatContext& ctx) const {
+    auto out = ctx.out();
+    out = fmt::format_to(out,
+                         "AllCloseResult(is_close={}, total_elements={}, mismatched_elements={}, max_absolute_diff={:.6f}, "
+                         "max_relative_diff={:.6f})",
+                         result.is_close, result.total_elements, result.mismatched_elements, result.max_absolute_diff,
+                         result.max_relative_diff);
+    return out;
+  }
+};
 }  // namespace fmt
 
 #define MLLM_MAJOR_VERSION = 2

@@ -25,6 +25,49 @@
 #include "mllm/utils/Argparse.hpp"              // IWYU pragma: export
 #include "mllm/nn/Nn.hpp"                       // IWYU pragma: export
 
+namespace mllm::test {
+
+struct AllCloseResult {
+  bool is_close = false;
+  size_t total_elements = 0;
+  size_t mismatched_elements = 0;
+  float max_absolute_diff = 0.0f;
+  float max_relative_diff = 0.0f;
+
+  explicit inline operator bool() const noexcept { return is_close; }
+};
+
+template<typename T>
+void __allCloseProcessIntegerType(const T* a_ptr, const T* b_ptr, size_t numel, AllCloseResult& result, float rtol,
+                                  float atol) {
+  for (size_t i = 0; i < numel; ++i) {
+    T a_val = a_ptr[i];
+    T b_val = b_ptr[i];
+
+    double abs_diff = std::abs(static_cast<double>(a_val) - static_cast<double>(b_val));
+    double rel_diff = abs_diff / (std::abs(static_cast<double>(b_val)) + 1e-12);
+
+    result.max_absolute_diff = std::max(result.max_absolute_diff, static_cast<float>(abs_diff));
+    result.max_relative_diff = std::max(result.max_relative_diff, static_cast<float>(rel_diff));
+
+    if (abs_diff > (atol + rtol * std::abs(static_cast<double>(b_val)))) { result.mismatched_elements++; }
+  }
+}
+
+/**
+ * @brief |a - b| <= atol + rtol * |b|
+ *
+ * @param a
+ * @param b
+ * @param rtol
+ * @param atol
+ * @param equal_nan
+ * @return AllCloseResult
+ */
+AllCloseResult allClose(const Tensor& a, const Tensor& b, float rtol = 1e-5, float atol = 1e-5, bool equal_nan = false);
+
+}  // namespace mllm::test
+
 // The inline file should be included at the last of all head
 #include "mllm/mllm.inl"
 

@@ -3,3 +3,6 @@ add_subdirectory(core)
 add_subdirectory(utils)
 add_subdirectory(engine)
 add_subdirectory(compile)
+
+# Backends
+add_subdirectory(cpu)
