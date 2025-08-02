@@ -22,6 +22,18 @@ add_library(
 target_include_directories(MllmRT PUBLIC ${MLLM_INCLUDE_DIR} ${MLLM_JSON_INCLUDE_DIR})
 target_link_libraries(MllmRT PUBLIC fmt::fmt-header-only STDEXEC::stdexec)
 
+# stdexec will use Pack indexing feature. 
+#
+# Some compilers turn on pack indexing in pre-C++26 code. We want to use it if it is
+# available. Pack indexing is disabled for clang < 20 because of:
+# https://github.com/llvm/llvm-project/issues/116105
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+  string(REGEX MATCH "^[0-9]+" COMPILER_VERSION_MAJOR "${CMAKE_CXX_COMPILER_VERSION}")
+  if(COMPILER_VERSION_MAJOR LESS 20)
+    target_compile_options(MllmRT PUBLIC -Wno-c++26-extensions)
+  endif()
+endif()
+
 add_subdirectory(backends/cpu)
 
 if(MLLM_BUILD_OPENCL_BACKEND)
