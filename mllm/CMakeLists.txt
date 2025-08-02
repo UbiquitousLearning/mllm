@@ -5,6 +5,7 @@ file(GLOB_RECURSE MLLM_RT_NN_SRC ${CMAKE_CURRENT_LIST_DIR}/nn/*.cpp)
 file(GLOB_RECURSE MLLM_RT_MODELS_SRC ${CMAKE_CURRENT_LIST_DIR}/models/*.cpp)
 file(GLOB_RECURSE MLLM_RT_COMPILE_SRC ${CMAKE_CURRENT_LIST_DIR}/compile/*.cpp)
 file(GLOB_RECURSE MLLM_RT_PREPROCESSOR_SRC ${CMAKE_CURRENT_LIST_DIR}/preprocessor/*.cpp)
+file(GLOB_RECURSE MLLM_RT_AUTO_TUNE_SRC ${CMAKE_CURRENT_LIST_DIR}/auto_tune/*.cpp)
 
 add_library(
   MllmRT SHARED
@@ -17,7 +18,8 @@ add_library(
   ${MLLM_RT_NN_SRC}
   ${MLLM_RT_PREPROCESSOR_SRC}
   ${MLLM_RT_MODELS_SRC}
-  ${MLLM_RT_COMPILE_SRC})
+  ${MLLM_RT_COMPILE_SRC}
+  ${MLLM_RT_AUTO_TUNE_SRC})
 
 target_include_directories(MllmRT PUBLIC ${MLLM_INCLUDE_DIR} ${MLLM_JSON_INCLUDE_DIR})
 target_link_libraries(MllmRT PUBLIC fmt::fmt-header-only STDEXEC::stdexec)
@@ -34,6 +36,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "App
   endif()
 endif()
 
+# Host backend will be build by default
 add_subdirectory(backends/cpu)
 
 if(MLLM_BUILD_OPENCL_BACKEND)
