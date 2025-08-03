@@ -11,7 +11,21 @@ namespace mllm::aops {
 
 RMSNormOp::RMSNormOp(const RMSNormOpOptions& options) : BaseOp(OpTypes::kRMSNorm), options_(options) {}
 
-void RMSNormOp::load(const ParameterFile::ptr_t& ploader) { MLLM_EMPTY_SCOPE; }
+void RMSNormOp::load(const ParameterFile::ptr_t& ploader) {
+  switch (ploader->version()) {
+    case ModelFileVersion::kV1: {
+      weight_ = ploader->pull(getName() + ".weight");
+      // TODO Need to reshape
+      break;
+    }
+    case ModelFileVersion::kUserTemporary:
+    case ModelFileVersion::kV2: {
+      weight_ = ploader->pull(getName() + ".weight");
+      break;
+    }
+    default: NYI("Unsupported model file version")
+  }
+}
 
 void RMSNormOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   auto ir_ctx = (ir::IRContext*)trace_context;
@@ -30,5 +44,11 @@ void RMSNormOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
 }
 
 void RMSNormOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { BaseOp::setup(inputs, outputs); }
+
+ParameterFile::ptr_t RMSNormOp::getParams() {
+  auto p = ParameterFile::create();
+  p->push(getName() + ".weight", weight_);
+  return p;
+}
 
 }  // namespace mllm::aops

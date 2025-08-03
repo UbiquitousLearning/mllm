@@ -17,4 +17,8 @@
 #include "mllm/backends/cpu/kernels/arm/permute.hpp"      // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/silu.hpp"         // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/cast_types.hpp"   // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/arm/layernorm.hpp"    // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/arm/softmax.hpp"      // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/arm/rmsnorm.hpp"      // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/arm/gelu.hpp"         // IWYU pragma: export
 #endif

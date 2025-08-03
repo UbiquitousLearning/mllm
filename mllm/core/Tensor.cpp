@@ -167,7 +167,7 @@ Tensor Tensor::T() { return transpose(-1, -2); }
 
 Tensor Tensor::to(DeviceTypes device) {
   if (device == impl_->device()) { return *this; }
-  return Context::instance().buildOpAndSubmitTask(OpTypes::kX2X, aops::X2XOpOptions{.device = device}, {*this})[0];
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kX2X, aops::X2XOpOptions{.device = device}, {*this}, device)[0];
 }
 
 Tensor Tensor::to(DataTypes dtype) {

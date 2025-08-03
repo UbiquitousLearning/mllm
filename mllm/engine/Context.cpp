@@ -70,8 +70,8 @@ Backend::ptr_t Context::getBackend(const DeviceTypes& device) {
 }
 
 std::vector<Tensor> Context::buildOpAndSubmitTask(OpTypes op_type, const BaseOpOptionsBase& base_options,
-                                                  const std::vector<Tensor>& inputs) {
-  auto device = inputs[0].device();
+                                                  const std::vector<Tensor>& inputs, DeviceTypes special_device) {
+  auto device = special_device != kDeviceTypes_End ? special_device : inputs[0].device();
   auto op = getBackend(device)->createOp(op_type, base_options);
   auto task = Task::createExecuteOpTask(op, inputs, {});
 

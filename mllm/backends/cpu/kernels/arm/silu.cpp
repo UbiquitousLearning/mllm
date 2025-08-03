@@ -11,7 +11,7 @@ namespace mllm::cpu::arm {
 
 void silu_fp32(const mllm_fp32_t* __restrict X, mllm_fp32_t* __restrict Y, int len, int thread_count) {
   int i;
-#pragma omp parallel for num_threads(thread_count) if (thread_count > 1)
+#pragma omp parallel for schedule(auto) num_threads(thread_count) if (thread_count > 1)
   for (i = 0; i <= len - 16; i += 16) {
     float32x4_t x_line_0 = vld1q_f32(X + i);
     float32x4_t ans_line_0 = vmulq_f32(x_line_0, vsigmoid_f32(x_line_0));
@@ -48,7 +48,7 @@ void silu_fp32(const mllm_fp32_t* __restrict X, mllm_fp32_t* __restrict Y, int l
 
 void silu_fp16(const mllm_fp16_t* __restrict X, mllm_fp16_t* __restrict Y, int len, int thread_count) {
   int i = 0;
-#pragma omp parallel for num_threads(thread_count) if (thread_count > 1)
+#pragma omp parallel for schedule(auto) num_threads(thread_count) if (thread_count > 1)
   for (i = 0; i <= len - 16; i += 16) {
     float16x8_t x0 = vld1q_f16(X + i);
     float16x8_t silu0 = vmulq_f16(x0, vsigmoid_f16(x0));

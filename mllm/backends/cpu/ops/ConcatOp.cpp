@@ -1,8 +1,9 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
-#include "mllm/backends/cpu/ops/ConcatOp.hpp"
 #include <cstring>
+
+#include "mllm/backends/cpu/ops/ConcatOp.hpp"
 
 namespace mllm::cpu {
 

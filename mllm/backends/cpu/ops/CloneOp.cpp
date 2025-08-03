@@ -1,8 +1,8 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
-#include "mllm/backends/cpu/ops/CloneOp.hpp"
 #include <cstring>
+#include "mllm/backends/cpu/ops/CloneOp.hpp"
 
 namespace mllm::cpu {
 

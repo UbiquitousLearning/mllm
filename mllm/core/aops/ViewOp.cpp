@@ -20,9 +20,7 @@ void ViewOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::
   ir_ctx->create<ir::linalg::ViewOp>(shared_from_this(), i_irs, o_irs);
 }
 
-void ViewOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  NYI("ViewOp::forward not implemented in aops base.");
-}
+void ViewOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { MLLM_EMPTY_SCOPE; }
 
 void ViewOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   const auto& it = inputs[0];

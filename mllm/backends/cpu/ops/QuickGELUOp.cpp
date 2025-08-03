@@ -2,23 +2,26 @@
 // Licensed under the MIT License.
 
 #include <cstring>
-#include "mllm/backends/cpu/ops/SiLUOp.hpp"
+#include "mllm/backends/cpu/ops/QuickGELUOp.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
 
 namespace mllm::cpu {
 
-CPUSiLUOp::CPUSiLUOp(const aops::SiLUOpOptions& options) : aops::SiLUOp(options) {}
+CPUQuickGELUOp::CPUQuickGELUOp(const aops::QuickGELUOpOptions& options) : aops::QuickGELUOp(options) {}
 
-void CPUSiLUOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+void CPUQuickGELUOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   const auto& X = inputs[0];
   auto& Y = outputs[0];
+
+  // Only Support Contiguous Tensor
+  MLLM_RT_ASSERT(X.isContiguous());
 
   switch (X.dtype()) {
     case kFloat32: {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
       // TODO
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-      arm::silu_fp32(X.ptr<mllm_fp32_t>(), Y.ptr<mllm_fp32_t>(), X.numel(), options_.getThreads());
+      arm::quick_gelu_fp32(Y.ptr<mllm_fp32_t>(), X.ptr<mllm_fp32_t>(), X.numel(), options_.getThreads());
 #endif
       break;
     }
@@ -26,11 +29,11 @@ void CPUSiLUOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
       // TODO
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-      arm::silu_fp16(X.ptr<mllm_fp16_t>(), Y.ptr<mllm_fp16_t>(), X.numel(), options_.getThreads());
+      arm::quick_gelu_fp16(Y.ptr<mllm_fp16_t>(), X.ptr<mllm_fp16_t>(), X.numel(), options_.getThreads());
 #endif
       break;
     }
-    default: NYI("CPUSiLUOp::forward not support dtype {}", nameOfType(X.dtype())); break;
+    default: NYI("CPUQuickGELUOp::forward not support dtype {}", nameOfType(X.dtype())); break;
   }
 }
 

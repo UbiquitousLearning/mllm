@@ -15,6 +15,8 @@ enum DeviceTypes {
   kOpenCL,
   kQNN,
 
+  kDevicePlaceHolder,
+
   kDeviceTypes_End,
 };
 

@@ -5,6 +5,10 @@
 
 #include "mllm/utils/CPUArchHelper.hpp"
 
+#if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) || defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#include <arm_fp16.h>
+#endif
+
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
 
 #if !defined(MLLM_HOST_ARCH_ARM64) && !defined(MLLM_HOST_ARCH_ARM)

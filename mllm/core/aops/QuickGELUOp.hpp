@@ -8,16 +8,11 @@
 
 namespace mllm::aops {
 
-struct RMSNormOpOptions : public BaseOpOptions<RMSNormOpOptions> {
-  float epsilon;
+struct QuickGELUOpOptions : public BaseOpOptions<QuickGELUOpOptions> {};
 
-  // for Gemma
-  bool add_unit_offset = false;
-};
-
-class RMSNormOp : public BaseOp {
+class QuickGELUOp : public BaseOp {
  public:
-  explicit RMSNormOp(const RMSNormOpOptions& options);
+  explicit QuickGELUOp(const QuickGELUOpOptions& options);
 
   void load(const ParameterFile::ptr_t& ploader) override;
 
@@ -29,13 +24,8 @@ class RMSNormOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
-  ParameterFile::ptr_t getParams() override;
-
-  inline Tensor& weight() { return weight_; }
-
  protected:
-  Tensor weight_;
-  RMSNormOpOptions options_;
+  QuickGELUOpOptions options_;
 };
 
 }  // namespace mllm::aops
