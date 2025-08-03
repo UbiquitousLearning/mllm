@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <fstream>
+#include <sstream>
 
 #include "mllm/engine/Context.hpp"
 #include "mllm/engine/SessionTCB.hpp"
@@ -110,10 +111,13 @@ uint32_t Context::getUUID() {
 
 SessionTCB::ptr_t Context::thisThread() {
   if (!session_threads_.count(std::this_thread::get_id())) {
+    session_threads_.insert({std::this_thread::get_id(), std::make_shared<SessionTCB>()});
+    std::stringstream ss;
+    ss << std::this_thread::get_id();
     MLLM_WARN(
         "This control thread did not registered a SessionTCB in Context. The Context will automatically create one for you. "
-        "But it is recommend to create SessionTCB manually.");
-    session_threads_.insert({std::this_thread::get_id(), std::make_shared<SessionTCB>()});
+        "But it is recommend to create SessionTCB manually. THREAD ID: {}",
+        ss.str());
   }
   return session_threads_[std::this_thread::get_id()];
 }

@@ -84,6 +84,29 @@ std::pair<TaskResult::sender_t, Task::ptr_t> fork(__Module& module, __Args&&... 
 
 std::vector<Tensor> wait(std::pair<TaskResult::sender_t, Task::ptr_t>& sender);
 
+template<typename... __Args>
+std::array<std::vector<Tensor>, sizeof...(__Args)> wait(__Args&&... args) {
+  // Phase 1: Wait for all tasks to complete concurrently.
+  // We use `when_all` to create a single sender that completes only when all
+  // individual task senders have completed.
+  auto when_all_sender = stdexec::when_all(std::move(std::forward<__Args>(args).first)...);
+
+  // `sync_wait` blocks the current thread until `when_all_sender` is done.
+  // We are only interested in its side-effect of synchronization. The value it
+  // returns (likely void or an empty tuple) is not used.
+  // We still check the optional to detect execution errors.
+  auto result_opt = stdexec::sync_wait(std::move(when_all_sender));
+  if (!result_opt) { throw std::runtime_error("Waiting on tasks failed during execution."); }
+
+  // Phase 2: Aggregate results from the task objects.
+  // Now that we know all tasks have finished, the `outputs` member of each task
+  // object is guaranteed to be populated.
+  // We use a pack expansion on the second element of each pair (`.second`, the Task::ptr_t)
+  // to access its `outputs` member. This creates a comma-separated list of `std::vector<Tensor>`.
+  // This list is then used to directly initialize the returned std::array.
+  return {std::forward<__Args>(args).second->outputs...};
+}
+
 }  // namespace mllm::async
 
 // The inline file should be included at the last of all head
