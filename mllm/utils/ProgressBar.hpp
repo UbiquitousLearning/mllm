@@ -10,6 +10,8 @@
 #include <fmt/chrono.h>
 #include <fmt/color.h>
 
+namespace mllm {
+
 class ProgressBar {
  public:
   ProgressBar(const std::string& label, int total, int bar_width = 50,
@@ -60,7 +62,7 @@ class ProgressBar {
 
     fmt::print("\r{}{} {} {}", styled_label, styled_bar, styled_percent, styled_time);
 
-    if (current >= total_) { fmt::print("\n"); }
+    if (current >= total_ - 1) { fmt::print("\n"); }
   }
 
  private:
@@ -73,3 +75,4 @@ class ProgressBar {
   fmt::text_style percent_style_;
   fmt::text_style time_style_;
 };
+}  // namespace mllm

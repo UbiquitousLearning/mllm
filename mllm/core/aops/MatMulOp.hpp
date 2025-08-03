@@ -8,9 +8,15 @@
 
 namespace mllm::aops {
 
+enum class MatMulOpType {
+  kDefault = 0,
+  kLlamaFile = 1,
+};
+
 struct MatMulOpOptions : public BaseOpOptions<MatMulOpOptions> {
   bool transpose_a = false;
   bool transpose_b = false;
+  MatMulOpType matmul_type = MatMulOpType::kDefault;
 };
 
 class MatMulOp : public BaseOp {
