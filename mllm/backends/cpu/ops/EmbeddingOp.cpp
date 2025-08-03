@@ -1,8 +1,9 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
-#include "mllm/backends/cpu/ops/EmbeddingOp.hpp"
 #include <cstring>
+
+#include "mllm/backends/cpu/ops/EmbeddingOp.hpp"
 #include "mllm/core/DataTypes.hpp"
 
 namespace mllm::cpu {
@@ -21,6 +22,7 @@ void CPUEmbeddingOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   MLLM_RT_ASSERT_EQ(ins.dtype(), kInt64);
 
   for (int b = 0; b < B; ++b) {
+#pragma omp parallel for schedule(auto) num_threads(options_.getThreads()) if (options_.getThreads() > 1)
     for (int s = 0; s < S; ++s) {
       switch (weight_dtype) {
         case kFloat32:

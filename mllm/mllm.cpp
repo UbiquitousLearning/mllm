@@ -12,7 +12,6 @@ void shutdownContext() {
   for (auto& tcb : all_threads) {
     if (tcb.first != this_thread->system_tid) {
       tcb.second->attached_contexts._ref_raw_data().clear();
-      tcb.second->layer_ops_table._ref_raw_data().clear();
       tcb.second->ir_context = nullptr;
       tcb.second->trace_mode = false;
     }
@@ -47,7 +46,6 @@ void perfEnd() {
 
 void cleanThisThread() {
   Context::instance().thisThread()->attached_contexts._ref_raw_data().clear();
-  Context::instance().thisThread()->layer_ops_table._ref_raw_data().clear();
   Context::instance().thisThread()->ir_context = nullptr;
   Context::instance().thisThread()->trace_mode = false;
 }

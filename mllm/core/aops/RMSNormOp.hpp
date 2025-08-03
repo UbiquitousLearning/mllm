@@ -29,7 +29,12 @@ class RMSNormOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  ParameterFile::ptr_t getParams() override;
+
+  inline Tensor& weight() { return weight_; }
+
  protected:
+  Tensor weight_;
   RMSNormOpOptions options_;
 };
 

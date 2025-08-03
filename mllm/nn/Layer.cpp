@@ -11,17 +11,17 @@ ParameterFile::ptr_t LayerImpl::refParams() { return parameter_loader_; }
 
 void LayerImpl::load(const ParameterFile::ptr_t& ploader) {
   parameter_loader_ = ploader;
-  Context::instance().thisThread()->layer_ops_table[getAbsoluteName()]->load(ploader);
+  instanced_op_->load(ploader);
 }
 
 void LayerImpl::to(DeviceTypes device_type) {
   auto& ctx = Context::instance();
-  ctx.thisThread()->layer_ops_table.remove(getAbsoluteName());
-  ctx.thisThread()->layer_ops_table.reg(getAbsoluteName(), ctx.getBackend(device_type)->createOp(op_type_, options_));
-  ctx.thisThread()->layer_ops_table[getAbsoluteName()]->setName(getAbsoluteName());
+  instanced_op_ = nullptr;
+  instanced_op_ = ctx.getBackend(device_type)->createOp(op_type_, options_);
+  instanced_op_->setName(getAbsoluteName());
   if (parameter_loader_) {
     // reload param to current op
-    ctx.thisThread()->layer_ops_table[getAbsoluteName()]->load(parameter_loader_);
+    instanced_op_->load(parameter_loader_);
   }
   device_type_ = device_type;
 }
@@ -34,6 +34,10 @@ void LayerImpl::__fmt_print(std::stringstream& ss) {
   for (int i = 0; i < getDepth() * 4; i++) { ss << " "; }
   ss << getAbsoluteName() << ", device: " << deviceTypes2Str(device_type_);
 }
+
+BaseOp::ptr_t LayerImpl::getInstancedOp() { return instanced_op_; }
+
+void LayerImpl::setInstancedOp(const BaseOp::ptr_t& op) { instanced_op_ = op; }
 
 LayerImpl::ptr_t Layer::impl() const { return impl_; }
 

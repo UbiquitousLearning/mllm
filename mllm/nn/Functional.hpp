@@ -7,12 +7,14 @@
 #include <cstdint>
 
 #include "mllm/core/Tensor.hpp"
+#include "mllm/core/aops/MatMulOp.hpp"
 #include "mllm/core/aops/SplitOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn::functional {
 
-Tensor matmul(const Tensor& A, const Tensor& B, bool transpose_A = false, bool transpose_B = false);
+Tensor matmul(const Tensor& A, const Tensor& B, bool transpose_A = false, bool transpose_B = false,
+              aops::MatMulOpType type = aops::MatMulOpType::kDefault);
 
 Tensor view(const Tensor& x, const std::vector<int32_t>& shape);
 

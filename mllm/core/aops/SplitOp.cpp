@@ -20,9 +20,7 @@ void SplitOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std:
   ir_ctx->create<ir::linalg::SplitOp>(shared_from_this(), i_irs, o_irs);
 }
 
-void SplitOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  NYI("SplitOp::forward not implemented in aops base.");
-}
+void SplitOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { MLLM_EMPTY_SCOPE; }
 
 void SplitOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   auto const& it = inputs[0];

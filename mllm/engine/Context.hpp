@@ -75,7 +75,7 @@ class Context {
   inline DispatcherManager::ptr_t dispatcherManager() { return dispatcher_manager_; }
 
   std::vector<Tensor> buildOpAndSubmitTask(OpTypes op_type, const BaseOpOptionsBase& base_options,
-                                           const std::vector<Tensor>& inputs);
+                                           const std::vector<Tensor>& inputs, DeviceTypes special_device = kDeviceTypes_End);
 
   uint32_t getUUID();
 

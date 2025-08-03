@@ -36,9 +36,14 @@ class LayerImpl : public AbstractNnNode {
 
   void __fmt_print(std::stringstream& ss);
 
+  BaseOp::ptr_t getInstancedOp();
+
+  void setInstancedOp(const BaseOp::ptr_t& op);
+
  private:
   OpTypes op_type_;
   BaseOpOptionsBase options_;
+  BaseOp::ptr_t instanced_op_ = nullptr;
   ParameterFile::ptr_t parameter_loader_;
 };
 
@@ -56,8 +61,7 @@ class Layer {
     auto inputs = std::vector<Tensor>{std::forward<decltype(args)>(args)...};
 
     auto& ctx = Context::instance();
-    auto op = ctx.thisThread()->layer_ops_table[impl_->getAbsoluteName()];
-    auto task = Task::createExecuteOpTask(op, inputs, {});
+    auto task = Task::createExecuteOpTask(impl_->getInstancedOp(), inputs, {});
 
     auto this_thread = Context::instance().thisThread();
     if (this_thread->trace_mode) {
@@ -78,7 +82,7 @@ class Layer {
       // Tasks racing through kernels, swift as lightning
       // Threads await, fate hanging by a thread
       // Success or failure in this one moment
-      ctx.dispatcherManager()->submit(static_cast<int32_t>(op->getDevice()), task);
+      ctx.dispatcherManager()->submit(static_cast<int32_t>(impl_->getInstancedOp()->getDevice()), task);
 
       // Everything is Ok. Bravo! You did it.
       // Return what we need.
@@ -95,7 +99,7 @@ class Layer {
   void __fmt_print(std::stringstream& ss);
 
  private:
-  LayerImpl::ptr_t impl_;
+  LayerImpl::ptr_t impl_ = nullptr;
 };
 
 }  // namespace mllm::nn

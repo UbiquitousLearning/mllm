@@ -10,9 +10,10 @@
 
 namespace mllm::nn::functional {
 
-Tensor matmul(const Tensor& A, const Tensor& B, bool transpose_A, bool transpose_B) {
+Tensor matmul(const Tensor& A, const Tensor& B, bool transpose_A, bool transpose_B, aops::MatMulOpType type) {
   return Context::instance().buildOpAndSubmitTask(
-      OpTypes::kMatMul, aops::MatMulOpOptions{.transpose_a = transpose_A, .transpose_b = transpose_B}, {A, B})[0];
+      OpTypes::kMatMul, aops::MatMulOpOptions{.transpose_a = transpose_A, .transpose_b = transpose_B, .matmul_type = type},
+      {A, B})[0];
 }
 
 Tensor view(const Tensor& x, const std::vector<int32_t>& shape) {

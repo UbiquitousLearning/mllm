@@ -55,7 +55,6 @@ int main() {
     pm.run();
 
     print(ir_ctx);
-    mllm::cleanThisThread();
   }
   mllm::memoryReport();
 }
