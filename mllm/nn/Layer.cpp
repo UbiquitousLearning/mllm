@@ -3,26 +3,26 @@
 
 #include "mllm/nn/Layer.hpp"
 #include "mllm/core/DeviceTypes.hpp"
+#include "mllm/core/ParameterFile.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn {
-
-ParameterFile::ptr_t LayerImpl::refParams() { return parameter_loader_; }
-
-void LayerImpl::load(const ParameterFile::ptr_t& ploader) {
-  parameter_loader_ = ploader;
-  instanced_op_->load(ploader);
-}
+void LayerImpl::load(const ParameterFile::ptr_t& ploader) { instanced_op_->load(ploader); }
 
 void LayerImpl::to(DeviceTypes device_type) {
   auto& ctx = Context::instance();
   instanced_op_ = nullptr;
   instanced_op_ = ctx.getBackend(device_type)->createOp(op_type_, options_);
   instanced_op_->setName(getAbsoluteName());
-  if (parameter_loader_) {
-    // reload param to current op
-    instanced_op_->load(parameter_loader_);
+
+  auto temp_params_loader = ParameterFile::create();
+
+  auto params = instanced_op_->getParams();
+  for (auto& param : *params) {
+    auto t = param.second;
+    if (t) { temp_params_loader->push(param.first, t.to(device_type)); }
   }
+  instanced_op_->load(temp_params_loader);
   device_type_ = device_type;
 }
 

@@ -12,9 +12,6 @@
 #include <stdexec/execution.hpp>
 #include <exec/static_thread_pool.hpp>
 
-// Queue
-#include <deque>
-
 namespace mllm {
 
 class Dispatcher {
@@ -43,6 +40,8 @@ class Dispatcher {
 
   virtual void receive(const Task::ptr_t& task);
 
+  virtual TaskResult::sender_t asyncReceive(const Task::ptr_t& task) = 0;
+
   virtual void process(const Task::ptr_t& task);
 
   virtual void syncWait();
@@ -51,13 +50,10 @@ class Dispatcher {
 
  protected:
   dispatcher_id_t dispatcher_id_;
-  std::deque<Task::ptr_t> task_queue_;
 
   preprocess_task_func_t preprocess_task_func_ = nullptr;
   afterprocess_task_func_t afterprocess_task_func_ = nullptr;
 
-  int32_t queue_depth_ = 0;
-  bool need_async_exec_ = true;
   exec::static_thread_pool& thread_pool_;
 };
 

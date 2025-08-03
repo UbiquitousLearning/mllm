@@ -6,12 +6,12 @@
 #include <memory>
 
 #include "mllm/engine/Dispatcher.hpp"
+#include "mllm/utils/Common.hpp"
 
 namespace mllm::ir {
 
 struct IRTraceDispatcherOptions {
-  int32_t queue_depth_ = 0;
-  bool need_async_exec_ = true;
+  MLLM_EMPTY_SCOPE;
 };
 
 class IRTraceDispatcher final : public Dispatcher {
@@ -24,6 +24,8 @@ class IRTraceDispatcher final : public Dispatcher {
   void preprocessTask(const Task::ptr_t& task) override;
 
   void receive(const Task::ptr_t& task) override;
+
+  TaskResult::sender_t asyncReceive(const Task::ptr_t& task) override;
 
   void process(const Task::ptr_t& task) override;
 

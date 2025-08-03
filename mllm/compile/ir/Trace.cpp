@@ -18,8 +18,7 @@ IRContext::ptr_t trace_(nn::Module& module, const std::vector<Tensor>& ref_input
   // Check if the Trace dispatcher is registered. If not register one for user.
   if (!ctx.dispatcherManager()->hasDispatcher(Dispatcher::trace_dispatcher_id)) {
     // Always need_async_exec_ false.
-    ctx.dispatcherManager()->registerDispatcher(
-        createIRTraceDispatcher(ctx.dispatcherManager()->getExecutor(), {.queue_depth_ = 0, .need_async_exec_ = false}));
+    ctx.dispatcherManager()->registerDispatcher(createIRTraceDispatcher(ctx.dispatcherManager()->getExecutor(), {}));
   }
 
   // Mark this thread SessionTCB as trace mode.

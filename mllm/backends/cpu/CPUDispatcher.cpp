@@ -4,26 +4,33 @@
 #include "mllm/backends/cpu/CPUDispatcher.hpp"
 #include "mllm/engine/Dispatcher.hpp"
 #include "mllm/utils/Common.hpp"
+#include "mllm/nn/Module.hpp"
 
 namespace mllm::cpu {
 
 CPUDispatcher::CPUDispatcher(exec::static_thread_pool& thread_pool, dispatcher_id_t id, const CPUDispatcherOptions& options)
-    : Dispatcher(thread_pool, id), options_(options) {
-  queue_depth_ = options.queue_depth_;
-  need_async_exec_ = options.need_async_exec_;
-}
+    : Dispatcher(thread_pool, id), options_(options) {}
 
 void CPUDispatcher::receive(const Task::ptr_t& task) {
-  if (options_.queue_depth_) { MLLM_WARN("CPUDispatcher does not support queue depth, default to 0"); }
+  switch (task->type) {
+    case TaskTypes::kExecuteOp: {
+      process(task);
+      break;
+    }
+    default: NYI("Only execute op task is supported receive");
+  }
+}
 
-  // Start execute
+TaskResult::sender_t CPUDispatcher::asyncReceive(const Task::ptr_t& task) {
+  switch (task->type) {
+    case TaskTypes::kExecuteModule: {
+      MLLM_EMPTY_SCOPE;
+      break;
+    }
+    default: NYI("Only execute module task is supported asyncReceive");
+  }
   auto scheduler = thread_pool_.get_scheduler();
-
-  // Begin task
-  stdexec::sender auto begin = stdexec::schedule(scheduler);
-  stdexec::sender auto again = stdexec::then(begin, [this, task] { process(task); });
-
-  stdexec::sync_wait(std::move(again));
+  return stdexec::schedule(scheduler) | stdexec::then([this, task] { process(task); });
 }
 
 void CPUDispatcher::process(const Task::ptr_t& task) {
@@ -37,13 +44,16 @@ void CPUDispatcher::process(const Task::ptr_t& task) {
       op->forward(inputs, outputs);
       break;
     }
+    case TaskTypes::kExecuteModule: {
+      task->outputs = ((nn::Module*)(task->custom_context_ptr))->__main(task->inputs);
+      break;
+    }
     default: NYI("CPUDispatcher::process not supported task type");
   }
 }
 
 void CPUDispatcher::syncWait() {
-  // FIXME: Only works on queue_depth_ != 0 cases.
-  if (options_.queue_depth_) { MLLM_WARN("CPUDispatcher does not support queue depth, default to 0"); }
+  // TODO
 }
 
 CPUDispatcher::ptr_t createCPUDispatcher(exec::static_thread_pool& thread_pool, const CPUDispatcherOptions& options) {

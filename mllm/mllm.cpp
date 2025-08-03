@@ -221,4 +221,13 @@ AllCloseResult allClose(const Tensor& a, const Tensor& b, float rtol, float atol
 
 }  // namespace test
 
+namespace async {
+
+std::vector<Tensor> wait(std::pair<TaskResult::sender_t, Task::ptr_t>& sender) {
+  stdexec::sync_wait(std::move(sender.first));
+  return sender.second->outputs;
+}
+
+}  // namespace async
+
 }  // namespace mllm

@@ -1,6 +1,8 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <memory>
+#include "mllm/core/aops/LinearOp.hpp"
 #include "mllm/nn/layers/Linear.hpp"
 
 namespace mllm::nn {
@@ -14,15 +16,11 @@ Linear::Linear(int32_t in_channels, int32_t out_channels, bool bias, aops::Linea
 
 Linear::Linear(const aops::LinearOpOptions& options) : Layer(OpTypes::kLinear, options) {}
 
-Tensor Linear::weight() const { return Tensor(impl()->refParams()->pull(impl()->getAbsoluteName() + ".weight")); }
+Tensor Linear::weight() const { return std::static_pointer_cast<aops::LinearOp>(impl()->getInstancedOp())->weight(); }
 
 Tensor Linear::bias() const {
-  auto bias_name = impl()->getAbsoluteName() + ".bias";
-  if (!impl()->refParams()->has(bias_name)) {
-    MLLM_ERROR("There is no bias in the linear layer: {}", impl()->getAbsoluteName());
-    return Tensor::nil();
-  }
-  return Tensor(impl()->refParams()->pull(bias_name));
+  auto iop = std::static_pointer_cast<aops::LinearOp>(impl()->getInstancedOp());
+  return iop->bias();
 }
 
 }  // namespace mllm::nn
