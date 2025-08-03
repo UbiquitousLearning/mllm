@@ -38,6 +38,8 @@ class DispatcherManager {
 
   void submit(dispatcher_id_t id, const Task::ptr_t& task);
 
+  TaskResult::sender_t asyncSubmit(dispatcher_id_t id, const Task::ptr_t& task);
+
   void syncWait(dispatcher_id_t id);
 
   void registerDispatcher(const Dispatcher::ptr_t& dispatcher);

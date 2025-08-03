@@ -9,16 +9,11 @@ namespace mllm::ir {
 
 IRTraceDispatcher::IRTraceDispatcher(exec::static_thread_pool& thread_pool, dispatcher_id_t id,
                                      const IRTraceDispatcherOptions& options)
-    : Dispatcher(thread_pool, id), options_(options) {
-  queue_depth_ = options.queue_depth_;
-  need_async_exec_ = options.need_async_exec_;
-}
+    : Dispatcher(thread_pool, id), options_(options) {}
 
 void IRTraceDispatcher::preprocessTask(const Task::ptr_t& task) { Dispatcher::preprocessTask(task); }
 
 void IRTraceDispatcher::receive(const Task::ptr_t& task) {
-  if (options_.queue_depth_) { MLLM_WARN("IRTraceDispatcher does not support queue depth, default to 0"); }
-
   // Start execute
   auto scheduler = thread_pool_.get_scheduler();
 
@@ -27,6 +22,12 @@ void IRTraceDispatcher::receive(const Task::ptr_t& task) {
   stdexec::sender auto again = stdexec::then(begin, [this, task] { process(task); });
 
   stdexec::sync_wait(std::move(again));
+}
+
+TaskResult::sender_t IRTraceDispatcher::asyncReceive(const Task::ptr_t& task) {
+  MLLM_ERROR_EXIT(ExitCode::kCoreError, "asyncReceive is not supported");
+  auto scheduler = thread_pool_.get_scheduler();
+  return stdexec::schedule(scheduler) | stdexec::then([this, task] { process(task); });
 }
 
 void IRTraceDispatcher::process(const Task::ptr_t& task) {
@@ -44,8 +45,7 @@ void IRTraceDispatcher::process(const Task::ptr_t& task) {
 }
 
 void IRTraceDispatcher::syncWait() {
-  // FIXME: Only works on queue_depth_ != 0 cases.
-  if (options_.queue_depth_) { MLLM_WARN("IRTraceDispatcher does not support queue depth, default to 0"); }
+  // TODO
 }
 
 IRTraceDispatcher::ptr_t createIRTraceDispatcher(exec::static_thread_pool& thread_pool,

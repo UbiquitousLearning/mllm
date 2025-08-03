@@ -22,6 +22,7 @@
 #include "mllm/engine/Context.hpp"              // IWYU pragma: export
 #include "mllm/engine/MemoryManager.hpp"        // IWYU pragma: export
 #include "mllm/engine/SessionTCB.hpp"           // IWYU pragma: export
+#include "mllm/engine/Task.hpp"                 // IWYU pragma: export
 #include "mllm/utils/Argparse.hpp"              // IWYU pragma: export
 #include "mllm/nn/Nn.hpp"                       // IWYU pragma: export
 
@@ -67,6 +68,23 @@ void __allCloseProcessIntegerType(const T* a_ptr, const T* b_ptr, size_t numel, 
 AllCloseResult allClose(const Tensor& a, const Tensor& b, float rtol = 1e-5, float atol = 1e-5, bool equal_nan = false);
 
 }  // namespace mllm::test
+
+namespace mllm::async {
+
+template<typename __Module, typename... __Args>
+std::pair<TaskResult::sender_t, Task::ptr_t> fork(__Module& module, __Args&&... args) {
+  std::vector<Tensor> inputs = {args...};
+  auto task = std::make_shared<Task>();
+  task->type = TaskTypes::kExecuteModule;
+  task->inputs = inputs;
+  task->custom_context_ptr = &module;
+  auto& ctx = Context::instance();
+  return {ctx.dispatcherManager()->asyncSubmit(module.impl()->getDevice(), task), task};
+}
+
+std::vector<Tensor> wait(std::pair<TaskResult::sender_t, Task::ptr_t>& sender);
+
+}  // namespace mllm::async
 
 // The inline file should be included at the last of all head
 #include "mllm/mllm.inl"

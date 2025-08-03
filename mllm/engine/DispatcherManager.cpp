@@ -16,6 +16,10 @@ DispatcherManager::DispatcherManager(const DispatcherManagerOptions& options)
 
 void DispatcherManager::submit(dispatcher_id_t id, const Task::ptr_t& task) { dispatchers_[id]->receive(task); }
 
+TaskResult::sender_t DispatcherManager::asyncSubmit(dispatcher_id_t id, const Task::ptr_t& task) {
+  return dispatchers_[id]->asyncReceive(task);
+}
+
 void DispatcherManager::syncWait(dispatcher_id_t id) { dispatchers_[id]->syncWait(); }
 
 void DispatcherManager::registerDispatcher(const Dispatcher::ptr_t& dispatcher) {

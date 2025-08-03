@@ -24,8 +24,6 @@ class LayerImpl : public AbstractNnNode {
   LayerImpl(OpTypes op_type, const T& option)
       : AbstractNnNode(AbstractNnNodeTypes::kLayer), op_type_(op_type), options_(option) {}
 
-  ParameterFile::ptr_t refParams();
-
   void load(const ParameterFile::ptr_t& param_file);
 
   void to(DeviceTypes device_type);
@@ -44,7 +42,6 @@ class LayerImpl : public AbstractNnNode {
   OpTypes op_type_;
   BaseOpOptionsBase options_;
   BaseOp::ptr_t instanced_op_ = nullptr;
-  ParameterFile::ptr_t parameter_loader_;
 };
 
 class Layer {
