@@ -76,7 +76,7 @@ class Module {
       _op->setName(ret.impl()->getAbsoluteName());
 
       // Register Op
-      ctx.thisThread()->layer_ops_table.reg(ret.impl()->getAbsoluteName(), _op);
+      ret.impl()->setInstancedOp(_op);
       return ret;
     }
   }

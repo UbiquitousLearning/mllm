@@ -46,7 +46,6 @@ int main() {
 
     auto ir_ctx = mllm::ir::trace(net, Tensor::empty({2, 1, 312, 1024}, kFloat32));
     print(ir_ctx);
-    mllm::cleanThisThread();
   }
   mllm::memoryReport();
 }
