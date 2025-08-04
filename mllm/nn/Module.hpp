@@ -21,14 +21,11 @@ class ModuleImpl : public AbstractNnNode {
 
   void load(const ParameterFile::ptr_t& param_file);
 
-  [[nodiscard]] ParameterFile::ptr_t params() const;
+  [[nodiscard]] ParameterFile::ptr_t params(ModelFileVersion v);
 
   void to(DeviceTypes device_type);
 
   void __fmt_print(std::stringstream& ss);
-
- private:
-  ParameterFile::ptr_t param_file_;
 };
 
 template<typename T>
@@ -39,6 +36,8 @@ class ModuleListsSuffix;
 
 class Module {
  public:
+  Module() = default;
+
   explicit Module(const std::string& name);
 
   [[nodiscard]] ModuleImpl::ptr_t impl() const;
@@ -106,6 +105,8 @@ class Module {
   std::vector<Tensor> __main(const std::vector<Tensor>& inputs);
 
   std::vector<Tensor> __trace(const std::vector<Tensor>& inputs);
+
+  ParameterFile::ptr_t params(ModelFileVersion v);
 
  private:
   ModuleImpl::ptr_t impl_ = nullptr;

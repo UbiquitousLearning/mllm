@@ -6,6 +6,7 @@
 #include "mllm/compile/ir/graph/Op.hpp"
 #include "mllm/compile/ir/tensor/Value.hpp"
 #include "mllm/compile/ir/cf/Op.hpp"
+#include "mllm/core/ParameterFile.hpp"
 #include "mllm/core/aops/GraphOps.hpp"
 #include "mllm/engine/Context.hpp"
 #include "mllm/nn/AbstractNnNode.hpp"
@@ -14,7 +15,6 @@ namespace mllm::nn {
 ModuleImpl::ModuleImpl() : AbstractNnNode(AbstractNnNodeTypes::kModule) {}
 
 void ModuleImpl::load(const ParameterFile::ptr_t& param_file) {
-  param_file_ = param_file;
   auto& h = refChildNodes();
   for (auto& hb : h) {
     switch (hb->getType()) {
@@ -24,7 +24,24 @@ void ModuleImpl::load(const ParameterFile::ptr_t& param_file) {
   }
 }
 
-ParameterFile::ptr_t ModuleImpl::params() const { return param_file_; }
+ParameterFile::ptr_t ModuleImpl::params(ModelFileVersion v) {
+  ParameterFile::ptr_t param_file = ParameterFile::create();
+  auto& h = refChildNodes();
+  for (auto& hb : h) {
+    switch (hb->getType()) {
+      case AbstractNnNodeTypes::kModule: {
+        auto p = std::static_pointer_cast<ModuleImpl>(hb)->params(v);
+        for (auto& p : *p) { param_file->push(p.first, p.second); }
+        break;
+      }
+      case AbstractNnNodeTypes::kLayer:
+        auto p = std::static_pointer_cast<LayerImpl>(hb)->getInstancedOp()->getParams();
+        for (auto& p : *p) { param_file->push(p.first, p.second); }
+        break;
+    }
+  }
+  return param_file;
+}
 
 void ModuleImpl::to(DeviceTypes device_type) {
   auto& h = refChildNodes();
@@ -136,5 +153,7 @@ std::vector<Tensor> Module::__trace(const std::vector<Tensor>& inputs) {
   // return the outputs.
   return outputs;
 }
+
+ParameterFile::ptr_t Module::params(ModelFileVersion v) { return impl_->params(v); }
 
 }  // namespace mllm::nn
