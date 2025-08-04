@@ -1,0 +1,3 @@
+add_executable(mllm-tune-cpu-ops main.cpp CPUOps.cpp)
+target_link_libraries(mllm-tune-cpu-ops PRIVATE MllmRT MllmCPUBackend)
+target_include_directories(mllm-tune-cpu-ops PRIVATE ${MLLM_INCLUDE_DIR})
