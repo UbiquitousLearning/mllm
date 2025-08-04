@@ -1,5 +1,5 @@
-# MLLM Auto Tune Component
+# MLLM Auto Tuning Component
 
-## Per Operation Performance Tuning
+## Per Operation Performance Tune
 
-## Per Module Performance Tuning
+## Per Module Performance Tune
