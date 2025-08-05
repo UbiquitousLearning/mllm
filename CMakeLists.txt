@@ -197,7 +197,7 @@ if(MLLM_ENABLE_PY_MLLM)
   # pybind portable lib _C
   pybind11_add_module(
     _C
-    SHARED
+    MODULE
     ${PROJECT_SOURCE_DIR}/pymllm/_C/PyWrap.cpp
     ${PROJECT_SOURCE_DIR}/pymllm/_C/Nn.cpp
     ${PROJECT_SOURCE_DIR}/pymllm/_C/Core.cpp
