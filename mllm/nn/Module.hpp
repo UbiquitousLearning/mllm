@@ -59,6 +59,7 @@ class Module {
     if constexpr (std::is_base_of_v<Module, T>) {
       auto ret = T(impl_->getAbsoluteName() + "." + name, std::forward<Args>(args)...);
       impl_->regChildNode(ret.impl());
+      ret.impl()->setName(name);
       return ret;
     }
 
@@ -67,6 +68,7 @@ class Module {
       auto ret = T(std::forward<Args>(args)...);
       impl_->regChildNode(ret.impl());
       ret.impl()->setAbsoluteName(impl_->getAbsoluteName() + "." + name);
+      ret.impl()->setName(name);
 
       auto& ctx = Context::instance();
 
@@ -79,16 +81,6 @@ class Module {
       return ret;
     }
   }
-
-  /**
-   * @brief This function is used to register a node to the module.
-   *
-   * @note This function is for python API binding specially. Do not use this function in C++ code.
-   *
-   * @param name
-   * @param node
-   */
-  void reg_(const std::string& name, const AbstractNnNode::ptr_t& node);
 
   template<typename... Args>
   std::vector<Tensor> operator()(Args&&... args) {

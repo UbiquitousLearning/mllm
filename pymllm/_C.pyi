@@ -1,38 +1,64 @@
 from __future__ import annotations
+import collections.abc
 import typing
 import typing_extensions
-__all__ = ['AbstractNnNode', 'ConfigFile', 'Context', 'DataTypes', 'DeviceTypes', 'Dispatcher', 'DispatcherManager', 'DispatcherManagerOptions', 'LayerImpl', 'MemoryManager', 'MemoryManagerOptions', 'ModelFileVersion', 'ModuleImpl', 'PerfFile', 'SessionTCB', 'Task', 'TaskTypes', 'Tensor', 'clean_this_thread', 'get_perf_file', 'initialize_context', 'is_opencl_available', 'is_qnn_available', 'load', 'memory_report', 'perf_end', 'perf_start', 'save', 'set_maximum_num_threads', 'set_random_seed', 'shutdown_context', 'this_thread']
+__all__ = ['AbstractNnNode', 'BaseOp', 'BaseOpOptionsBase', 'ConfigFile', 'Context', 'DataTypes', 'DeviceTypes', 'Dispatcher', 'DispatcherManager', 'DispatcherManagerOptions', 'LayerImpl', 'LinearImplTypes', 'LinearOp', 'LinearOpOptions', 'MemoryManager', 'MemoryManagerOptions', 'ModelFileVersion', 'ModuleImpl', 'OpTypes', 'ParameterFile', 'PerfFile', 'SessionTCB', 'Task', 'TaskTypes', 'Tensor', 'TensorMemTypes', 'clean_this_thread', 'get_perf_file', 'initialize_context', 'is_opencl_available', 'is_qnn_available', 'load', 'memory_report', 'perf_end', 'perf_start', 'save', 'set_maximum_num_threads', 'set_random_seed', 'shutdown_context', 'this_thread']
 class AbstractNnNode:
-    def depthDecrease(self) -> None:
+    def depth_decrease(self) -> None:
         ...
-    def depthIncrease(self) -> None:
+    def depth_increase(self) -> None:
         ...
-    def getAbsoluteName(self) -> str:
+    def get_absolute_name(self) -> str:
         ...
-    def getDepth(self) -> int:
+    def get_depth(self) -> int:
         ...
-    def getDevice(self) -> DeviceTypes:
+    def get_device(self) -> DeviceTypes:
         ...
-    def getName(self) -> str:
+    def get_name(self) -> str:
         ...
-    def getType(self) -> ...:
+    def get_type(self) -> ...:
         ...
-    def isCompiledAsObj(self) -> bool:
+    def is_compiled_as_obj(self) -> bool:
         ...
-    def refChildNodes(self) -> list[AbstractNnNode]:
+    def ref_child_nodes(self) -> list[AbstractNnNode]:
         ...
-    def refParentNode(self) -> ...:
+    def ref_parent_node(self) -> ...:
         ...
-    def regChildNode(self, arg0: AbstractNnNode) -> None:
+    def reg_child_node(self, arg0: AbstractNnNode) -> None:
         ...
-    def setAbsoluteName(self, arg0: str) -> None:
+    def set_absolute_name(self, arg0: str) -> None:
         ...
-    def setCompiledAsObj(self, arg0: bool) -> None:
+    def set_compiled_as_obj(self, arg0: bool) -> None:
         ...
-    def setDepth(self, arg0: typing.SupportsInt) -> None:
+    def set_depth(self, arg0: typing.SupportsInt) -> None:
         ...
-    def setName(self, arg0: str) -> None:
+    def set_name(self, arg0: str) -> None:
         ...
+class BaseOp:
+    def forward(self, arg0: collections.abc.Sequence[Tensor], arg1: collections.abc.Sequence[Tensor]) -> None:
+        ...
+    def get_device(self) -> DeviceTypes:
+        ...
+    def get_name(self) -> str:
+        ...
+    def get_op_type(self) -> OpTypes:
+        ...
+    def get_params(self) -> ParameterFile:
+        ...
+    def load(self, arg0: ParameterFile) -> None:
+        ...
+    def reshape(self, arg0: collections.abc.Sequence[Tensor], arg1: collections.abc.Sequence[Tensor]) -> None:
+        ...
+    def set_device_type(self, arg0: DeviceTypes) -> None:
+        ...
+    def set_name(self, arg0: str) -> None:
+        ...
+    def setup(self, arg0: collections.abc.Sequence[Tensor], arg1: collections.abc.Sequence[Tensor]) -> None:
+        ...
+    def trace(self, arg0: typing_extensions.CapsuleType, arg1: collections.abc.Sequence[Tensor], arg2: collections.abc.Sequence[Tensor]) -> None:
+        ...
+class BaseOpOptionsBase:
+    pass
 class ConfigFile:
     @typing.overload
     def __init__(self) -> None:
@@ -46,7 +72,7 @@ class ConfigFile:
         ...
     def load(self, arg0: str) -> None:
         ...
-    def loadString(self, arg0: str) -> None:
+    def loadS_string(self, arg0: str) -> None:
         ...
     def save(self, arg0: str) -> None:
         ...
@@ -54,27 +80,27 @@ class Context:
     @staticmethod
     def instance() -> Context:
         ...
-    def dispatcherManager(self) -> DispatcherManager:
+    def dispatcher_manager(self) -> DispatcherManager:
         ...
-    def getPerfFile(self) -> PerfFile:
+    def get_perf_file(self) -> PerfFile:
         ...
-    def getRandomSeed(self) -> int:
+    def get_random_seed(self) -> int:
         ...
-    def getUUID(self) -> int:
+    def get_uuid(self) -> int:
         ...
-    def isPerfMode(self) -> bool:
+    def is_perf_mode(self) -> bool:
         ...
-    def mainThread(self) -> SessionTCB:
+    def main_thread(self) -> SessionTCB:
         ...
-    def memoryManager(self) -> MemoryManager:
+    def memory_manager(self) -> MemoryManager:
         ...
-    def refSessionThreads(self) -> ...:
+    def ref_session_threads(self) -> dict[..., SessionTCB]:
         ...
-    def setPerfMode(self, arg0: bool) -> None:
+    def set_perf_mode(self, arg0: bool) -> None:
         ...
-    def setRandomSeed(self, arg0: typing.SupportsInt) -> None:
+    def set_random_seed(self, arg0: typing.SupportsInt) -> None:
         ...
-    def thisThread(self) -> SessionTCB:
+    def this_thread(self) -> SessionTCB:
         ...
 class DataTypes:
     """
@@ -253,7 +279,7 @@ class Dispatcher:
 class DispatcherManager:
     def submit(self, arg0: typing.SupportsInt, arg1: Task) -> None:
         ...
-    def syncWait(self, arg0: typing.SupportsInt) -> None:
+    def sync_wait(self, arg0: typing.SupportsInt) -> None:
         ...
 class DispatcherManagerOptions:
     numa_policy: bool
@@ -266,20 +292,116 @@ class DispatcherManagerOptions:
     def num_threads(self, arg0: typing.SupportsInt) -> None:
         ...
 class LayerImpl(AbstractNnNode):
-    def getInstancedOp(self) -> ...:
+    def __init__(self, op_type: OpTypes, options: LinearOpOptions) -> None:
         ...
-    def load(self, arg0: ...) -> None:
+    def get_instanced_op(self) -> BaseOp:
         ...
-    def opType(self) -> ...:
+    def load(self, arg0: ParameterFile) -> None:
         ...
-    def refOptions(self) -> ...:
+    def op_type(self) -> OpTypes:
         ...
-    def setInstancedOp(self, arg0: ...) -> None:
+    def ref_options(self) -> BaseOpOptionsBase:
+        ...
+    def set_instanced_op(self, arg0: BaseOp) -> None:
         ...
     def to(self, arg0: DeviceTypes) -> None:
         ...
+class LinearImplTypes:
+    """
+    Members:
+    
+      LinearImplTypes_Start
+    
+      Default
+    
+      Kleidiai_Start
+    
+      Kleidiai_End
+    
+      GGUF_Start
+    
+      GGUF_End
+    
+      LinearImplTypes_End
+    """
+    Default: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.Default: 1>
+    GGUF_End: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.GGUF_End: 5>
+    GGUF_Start: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.GGUF_Start: 4>
+    Kleidiai_End: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.Kleidiai_End: 3>
+    Kleidiai_Start: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.Kleidiai_Start: 2>
+    LinearImplTypes_End: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.LinearImplTypes_End: 6>
+    LinearImplTypes_Start: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.LinearImplTypes_Start: 0>
+    __members__: typing.ClassVar[dict[str, LinearImplTypes]]  # value = {'LinearImplTypes_Start': <LinearImplTypes.LinearImplTypes_Start: 0>, 'Default': <LinearImplTypes.Default: 1>, 'Kleidiai_Start': <LinearImplTypes.Kleidiai_Start: 2>, 'Kleidiai_End': <LinearImplTypes.Kleidiai_End: 3>, 'GGUF_Start': <LinearImplTypes.GGUF_Start: 4>, 'GGUF_End': <LinearImplTypes.GGUF_End: 5>, 'LinearImplTypes_End': <LinearImplTypes.LinearImplTypes_End: 6>}
+    def __eq__(self, other: typing.Any) -> bool:
+        ...
+    def __getstate__(self) -> int:
+        ...
+    def __hash__(self) -> int:
+        ...
+    def __index__(self) -> int:
+        ...
+    def __init__(self, value: typing.SupportsInt) -> None:
+        ...
+    def __int__(self) -> int:
+        ...
+    def __ne__(self, other: typing.Any) -> bool:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def __setstate__(self, state: typing.SupportsInt) -> None:
+        ...
+    def __str__(self) -> str:
+        ...
+    @property
+    def name(self) -> str:
+        ...
+    @property
+    def value(self) -> int:
+        ...
+class LinearOp(BaseOp):
+    def __init__(self, arg0: LinearOpOptions) -> None:
+        ...
+    def bias(self) -> Tensor:
+        ...
+    def forward(self, arg0: collections.abc.Sequence[Tensor], arg1: collections.abc.Sequence[Tensor]) -> None:
+        ...
+    def load(self, arg0: ParameterFile) -> None:
+        ...
+    def options(self) -> LinearOpOptions:
+        ...
+    def reshape(self, arg0: collections.abc.Sequence[Tensor], arg1: collections.abc.Sequence[Tensor]) -> None:
+        ...
+    def setup(self, arg0: collections.abc.Sequence[Tensor], arg1: collections.abc.Sequence[Tensor]) -> None:
+        ...
+    def weight(self) -> Tensor:
+        ...
+class LinearOpOptions:
+    bias: bool
+    impl_type: LinearImplTypes
+    @typing.overload
+    def __init__(self) -> None:
+        ...
+    @typing.overload
+    def __init__(self, in_channels: typing.SupportsInt = 0, out_channels: typing.SupportsInt = 0, bias: bool = True, impl_type: LinearImplTypes = ...) -> None:
+        ...
+    def set_inputs_dtype(self, arg0: typing.SupportsInt, arg1: DataTypes) -> LinearOpOptions:
+        ...
+    def set_outputs_dtype(self, arg0: typing.SupportsInt, arg1: DataTypes) -> LinearOpOptions:
+        ...
+    @property
+    def in_channels(self) -> int:
+        ...
+    @in_channels.setter
+    def in_channels(self, arg0: typing.SupportsInt) -> None:
+        ...
+    @property
+    def out_channels(self) -> int:
+        ...
+    @out_channels.setter
+    def out_channels(self, arg0: typing.SupportsInt) -> None:
+        ...
 class MemoryManager:
-    def clearAll(self) -> None:
+    def clear_all(self) -> None:
         ...
     def report(self) -> None:
         ...
@@ -336,12 +458,180 @@ class ModelFileVersion:
 class ModuleImpl(AbstractNnNode):
     def __init__(self) -> None:
         ...
-    def load(self, arg0: ...) -> None:
+    def load(self, arg0: ParameterFile) -> None:
         ...
-    def params(self, arg0: ModelFileVersion) -> ...:
+    def params(self, arg0: ModelFileVersion) -> ParameterFile:
         ...
     def to(self, arg0: DeviceTypes) -> None:
         ...
+class OpTypes:
+    """
+    Members:
+    
+      OpType_Start
+    
+      Fill
+    
+      Add
+    
+      Sub
+    
+      Mul
+    
+      Div
+    
+      MatMul
+    
+      Embedding
+    
+      Linear
+    
+      RoPE
+    
+      Softmax
+    
+      Transpose
+    
+      RMSNorm
+    
+      SiLU
+    
+      KVCache
+    
+      CausalMask
+    
+      CastType
+    
+      X2X
+    
+      Split
+    
+      View
+    
+      FlashAttention2
+    
+      Repeat
+    
+      Permute
+    
+      Conv3D
+    
+      Conv2D
+    
+      Conv1D
+    
+      GELU
+    
+      LayerNorm
+    
+      MultimodalRoPE
+    
+      VisionRoPE
+    
+      QuickGELU
+    
+      Copy
+    
+      Clone
+    
+      Neg
+    
+      Concat
+    
+      ReLU
+    
+      ReLU2
+    
+      ReduceMax
+    
+      ReduceMin
+    
+      ReduceSum
+    
+      Contiguous
+    
+      Reshape
+    
+      GraphBegin
+    
+      GraphEnd
+    
+      OpType_End
+    """
+    Add: typing.ClassVar[OpTypes]  # value = <OpTypes.Add: 2>
+    CastType: typing.ClassVar[OpTypes]  # value = <OpTypes.CastType: 16>
+    CausalMask: typing.ClassVar[OpTypes]  # value = <OpTypes.CausalMask: 15>
+    Clone: typing.ClassVar[OpTypes]  # value = <OpTypes.Clone: 32>
+    Concat: typing.ClassVar[OpTypes]  # value = <OpTypes.Concat: 34>
+    Contiguous: typing.ClassVar[OpTypes]  # value = <OpTypes.Contiguous: 40>
+    Conv1D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv1D: 25>
+    Conv2D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv2D: 24>
+    Conv3D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv3D: 23>
+    Copy: typing.ClassVar[OpTypes]  # value = <OpTypes.Copy: 31>
+    Div: typing.ClassVar[OpTypes]  # value = <OpTypes.Div: 5>
+    Embedding: typing.ClassVar[OpTypes]  # value = <OpTypes.Embedding: 7>
+    Fill: typing.ClassVar[OpTypes]  # value = <OpTypes.Fill: 1>
+    FlashAttention2: typing.ClassVar[OpTypes]  # value = <OpTypes.FlashAttention2: 20>
+    GELU: typing.ClassVar[OpTypes]  # value = <OpTypes.GELU: 26>
+    GraphBegin: typing.ClassVar[OpTypes]  # value = <OpTypes.GraphBegin: 42>
+    GraphEnd: typing.ClassVar[OpTypes]  # value = <OpTypes.GraphEnd: 43>
+    KVCache: typing.ClassVar[OpTypes]  # value = <OpTypes.KVCache: 14>
+    LayerNorm: typing.ClassVar[OpTypes]  # value = <OpTypes.LayerNorm: 27>
+    Linear: typing.ClassVar[OpTypes]  # value = <OpTypes.Linear: 8>
+    MatMul: typing.ClassVar[OpTypes]  # value = <OpTypes.MatMul: 6>
+    Mul: typing.ClassVar[OpTypes]  # value = <OpTypes.Mul: 4>
+    MultimodalRoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.MultimodalRoPE: 28>
+    Neg: typing.ClassVar[OpTypes]  # value = <OpTypes.Neg: 33>
+    OpType_End: typing.ClassVar[OpTypes]  # value = <OpTypes.OpType_End: 44>
+    OpType_Start: typing.ClassVar[OpTypes]  # value = <OpTypes.OpType_Start: 0>
+    Permute: typing.ClassVar[OpTypes]  # value = <OpTypes.Permute: 22>
+    QuickGELU: typing.ClassVar[OpTypes]  # value = <OpTypes.QuickGELU: 30>
+    RMSNorm: typing.ClassVar[OpTypes]  # value = <OpTypes.RMSNorm: 12>
+    ReLU: typing.ClassVar[OpTypes]  # value = <OpTypes.ReLU: 35>
+    ReLU2: typing.ClassVar[OpTypes]  # value = <OpTypes.ReLU2: 36>
+    ReduceMax: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceMax: 37>
+    ReduceMin: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceMin: 38>
+    ReduceSum: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceSum: 39>
+    Repeat: typing.ClassVar[OpTypes]  # value = <OpTypes.Repeat: 21>
+    Reshape: typing.ClassVar[OpTypes]  # value = <OpTypes.Reshape: 41>
+    RoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.RoPE: 9>
+    SiLU: typing.ClassVar[OpTypes]  # value = <OpTypes.SiLU: 13>
+    Softmax: typing.ClassVar[OpTypes]  # value = <OpTypes.Softmax: 10>
+    Split: typing.ClassVar[OpTypes]  # value = <OpTypes.Split: 18>
+    Sub: typing.ClassVar[OpTypes]  # value = <OpTypes.Sub: 3>
+    Transpose: typing.ClassVar[OpTypes]  # value = <OpTypes.Transpose: 11>
+    View: typing.ClassVar[OpTypes]  # value = <OpTypes.View: 19>
+    VisionRoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.VisionRoPE: 29>
+    X2X: typing.ClassVar[OpTypes]  # value = <OpTypes.X2X: 17>
+    __members__: typing.ClassVar[dict[str, OpTypes]]  # value = {'OpType_Start': <OpTypes.OpType_Start: 0>, 'Fill': <OpTypes.Fill: 1>, 'Add': <OpTypes.Add: 2>, 'Sub': <OpTypes.Sub: 3>, 'Mul': <OpTypes.Mul: 4>, 'Div': <OpTypes.Div: 5>, 'MatMul': <OpTypes.MatMul: 6>, 'Embedding': <OpTypes.Embedding: 7>, 'Linear': <OpTypes.Linear: 8>, 'RoPE': <OpTypes.RoPE: 9>, 'Softmax': <OpTypes.Softmax: 10>, 'Transpose': <OpTypes.Transpose: 11>, 'RMSNorm': <OpTypes.RMSNorm: 12>, 'SiLU': <OpTypes.SiLU: 13>, 'KVCache': <OpTypes.KVCache: 14>, 'CausalMask': <OpTypes.CausalMask: 15>, 'CastType': <OpTypes.CastType: 16>, 'X2X': <OpTypes.X2X: 17>, 'Split': <OpTypes.Split: 18>, 'View': <OpTypes.View: 19>, 'FlashAttention2': <OpTypes.FlashAttention2: 20>, 'Repeat': <OpTypes.Repeat: 21>, 'Permute': <OpTypes.Permute: 22>, 'Conv3D': <OpTypes.Conv3D: 23>, 'Conv2D': <OpTypes.Conv2D: 24>, 'Conv1D': <OpTypes.Conv1D: 25>, 'GELU': <OpTypes.GELU: 26>, 'LayerNorm': <OpTypes.LayerNorm: 27>, 'MultimodalRoPE': <OpTypes.MultimodalRoPE: 28>, 'VisionRoPE': <OpTypes.VisionRoPE: 29>, 'QuickGELU': <OpTypes.QuickGELU: 30>, 'Copy': <OpTypes.Copy: 31>, 'Clone': <OpTypes.Clone: 32>, 'Neg': <OpTypes.Neg: 33>, 'Concat': <OpTypes.Concat: 34>, 'ReLU': <OpTypes.ReLU: 35>, 'ReLU2': <OpTypes.ReLU2: 36>, 'ReduceMax': <OpTypes.ReduceMax: 37>, 'ReduceMin': <OpTypes.ReduceMin: 38>, 'ReduceSum': <OpTypes.ReduceSum: 39>, 'Contiguous': <OpTypes.Contiguous: 40>, 'Reshape': <OpTypes.Reshape: 41>, 'GraphBegin': <OpTypes.GraphBegin: 42>, 'GraphEnd': <OpTypes.GraphEnd: 43>, 'OpType_End': <OpTypes.OpType_End: 44>}
+    def __eq__(self, other: typing.Any) -> bool:
+        ...
+    def __getstate__(self) -> int:
+        ...
+    def __hash__(self) -> int:
+        ...
+    def __index__(self) -> int:
+        ...
+    def __init__(self, value: typing.SupportsInt) -> None:
+        ...
+    def __int__(self) -> int:
+        ...
+    def __ne__(self, other: typing.Any) -> bool:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def __setstate__(self, state: typing.SupportsInt) -> None:
+        ...
+    def __str__(self) -> str:
+        ...
+    @property
+    def name(self) -> str:
+        ...
+    @property
+    def value(self) -> int:
+        ...
+class ParameterFile:
+    pass
 class PerfFile:
     def finalize(self) -> None:
         ...
@@ -353,16 +643,16 @@ class Task:
     custom_context_ptr: typing_extensions.CapsuleType
     type: TaskTypes
     @property
-    def inputs(self) -> ...:
+    def inputs(self) -> list[Tensor]:
         ...
     @inputs.setter
-    def inputs(self, arg0: ..., std: ...) -> None:
+    def inputs(self, arg0: collections.abc.Sequence[Tensor]) -> None:
         ...
     @property
-    def outputs(self) -> ...:
+    def outputs(self) -> list[Tensor]:
         ...
     @outputs.setter
-    def outputs(self, arg0: ..., std: ...) -> None:
+    def outputs(self, arg0: collections.abc.Sequence[Tensor]) -> None:
         ...
 class TaskTypes:
     """
@@ -406,19 +696,19 @@ class Tensor:
     def arange(start: typing.SupportsFloat, end: typing.SupportsFloat, step: typing.SupportsFloat, dtype: DataTypes = ..., device: DeviceTypes = ...) -> Tensor:
         ...
     @staticmethod
-    def empty(shape: ..., std: ..., dtype: DataTypes = ..., device: DeviceTypes = ...) -> Tensor:
+    def empty(shape: collections.abc.Sequence[typing.SupportsInt], dtype: DataTypes = ..., device: DeviceTypes = ...) -> Tensor:
         ...
     @staticmethod
     def nil() -> Tensor:
         ...
     @staticmethod
-    def ones(shape: ..., std: ..., dtype: DataTypes = ..., device: DeviceTypes = ...) -> Tensor:
+    def ones(shape: collections.abc.Sequence[typing.SupportsInt], dtype: DataTypes = ..., device: DeviceTypes = ...) -> Tensor:
         ...
     @staticmethod
-    def random(shape: ..., std: ..., start: typing.SupportsFloat = -1.0, end: typing.SupportsFloat = 1.0, dtype: DataTypes = ..., device: DeviceTypes = ...) -> Tensor:
+    def random(shape: collections.abc.Sequence[typing.SupportsInt], start: typing.SupportsFloat = -1.0, end: typing.SupportsFloat = 1.0, dtype: DataTypes = ..., device: DeviceTypes = ...) -> Tensor:
         ...
     @staticmethod
-    def zeros(shape: ..., std: ..., dtype: DataTypes = ..., device: DeviceTypes = ...) -> Tensor:
+    def zeros(shape: collections.abc.Sequence[typing.SupportsInt], dtype: DataTypes = ..., device: DeviceTypes = ...) -> Tensor:
         ...
     def T(self) -> Tensor:
         ...
@@ -454,7 +744,7 @@ class Tensor:
         ...
     def alloc(self) -> Tensor:
         ...
-    def alloc_extra_tensor_view(self, extra_tensor_name: str, shape: ..., std: ..., dtype: DataTypes = ..., device: DeviceTypes = ...) -> Tensor:
+    def alloc_extra_tensor_view(self, extra_tensor_name: str, shape: collections.abc.Sequence[typing.SupportsInt], dtype: DataTypes = ..., device: DeviceTypes = ...) -> Tensor:
         ...
     def bytes(self) -> int:
         ...
@@ -478,7 +768,7 @@ class Tensor:
         ...
     def max(self, keep_dim: bool = False, dim: typing.SupportsInt = 2147483647) -> Tensor:
         ...
-    def mem_type(self) -> ...:
+    def mem_type(self) -> TensorMemTypes:
         ...
     def min(self, keep_dim: bool = False, dim: typing.SupportsInt = 2147483647) -> Tensor:
         ...
@@ -486,19 +776,19 @@ class Tensor:
         ...
     def numel(self) -> int:
         ...
-    def permute(self, arg0: ..., std: ...) -> Tensor:
+    def permute(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> Tensor:
         ...
     def repeat(self, arg0: typing.SupportsInt, arg1: typing.SupportsInt) -> Tensor:
         ...
-    def reshape(self, arg0: ..., std: ...) -> Tensor:
+    def reshape(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> Tensor:
         ...
-    def set_mem_type(self, arg0: ...) -> Tensor:
+    def set_mem_type(self, arg0: TensorMemTypes) -> Tensor:
         ...
     def set_name(self, arg0: str) -> Tensor:
         ...
-    def shape(self) -> ...:
+    def shape(self) -> list[int]:
         ...
-    def stride(self) -> ...:
+    def stride(self) -> list[int]:
         ...
     def sum(self, keep_dim: bool = False, dim: typing.SupportsInt = 2147483647) -> Tensor:
         ...
@@ -514,7 +804,80 @@ class Tensor:
         ...
     def uuid(self) -> int:
         ...
-    def view(self, arg0: ..., std: ...) -> Tensor:
+    def view(self, arg0: collections.abc.Sequence[typing.SupportsInt]) -> Tensor:
+        ...
+class TensorMemTypes:
+    """
+    Members:
+    
+      TensorMemTypes_Start
+    
+      Normal
+    
+      ExtraInput
+    
+      ExtraOutput
+    
+      Manual
+    
+      Global
+    
+      Params_Start
+    
+      ParamsMMAP
+    
+      ParamsNormal
+    
+      Params_End
+    
+      QnnAppRead
+    
+      QnnAppWrite
+    
+      QnnAppReadWrite
+    
+      TensorMemTypes_End
+    """
+    ExtraInput: typing.ClassVar[TensorMemTypes]  # value = <TensorMemTypes.ExtraInput: 2>
+    ExtraOutput: typing.ClassVar[TensorMemTypes]  # value = <TensorMemTypes.ExtraOutput: 3>
+    Global: typing.ClassVar[TensorMemTypes]  # value = <TensorMemTypes.Global: 5>
+    Manual: typing.ClassVar[TensorMemTypes]  # value = <TensorMemTypes.Manual: 4>
+    Normal: typing.ClassVar[TensorMemTypes]  # value = <TensorMemTypes.Normal: 1>
+    ParamsMMAP: typing.ClassVar[TensorMemTypes]  # value = <TensorMemTypes.ParamsMMAP: 7>
+    ParamsNormal: typing.ClassVar[TensorMemTypes]  # value = <TensorMemTypes.ParamsNormal: 8>
+    Params_End: typing.ClassVar[TensorMemTypes]  # value = <TensorMemTypes.Params_End: 9>
+    Params_Start: typing.ClassVar[TensorMemTypes]  # value = <TensorMemTypes.Params_Start: 6>
+    QnnAppRead: typing.ClassVar[TensorMemTypes]  # value = <TensorMemTypes.QnnAppRead: 10>
+    QnnAppReadWrite: typing.ClassVar[TensorMemTypes]  # value = <TensorMemTypes.QnnAppReadWrite: 12>
+    QnnAppWrite: typing.ClassVar[TensorMemTypes]  # value = <TensorMemTypes.QnnAppWrite: 11>
+    TensorMemTypes_End: typing.ClassVar[TensorMemTypes]  # value = <TensorMemTypes.TensorMemTypes_End: 13>
+    TensorMemTypes_Start: typing.ClassVar[TensorMemTypes]  # value = <TensorMemTypes.TensorMemTypes_Start: 0>
+    __members__: typing.ClassVar[dict[str, TensorMemTypes]]  # value = {'TensorMemTypes_Start': <TensorMemTypes.TensorMemTypes_Start: 0>, 'Normal': <TensorMemTypes.Normal: 1>, 'ExtraInput': <TensorMemTypes.ExtraInput: 2>, 'ExtraOutput': <TensorMemTypes.ExtraOutput: 3>, 'Manual': <TensorMemTypes.Manual: 4>, 'Global': <TensorMemTypes.Global: 5>, 'Params_Start': <TensorMemTypes.Params_Start: 6>, 'ParamsMMAP': <TensorMemTypes.ParamsMMAP: 7>, 'ParamsNormal': <TensorMemTypes.ParamsNormal: 8>, 'Params_End': <TensorMemTypes.Params_End: 9>, 'QnnAppRead': <TensorMemTypes.QnnAppRead: 10>, 'QnnAppWrite': <TensorMemTypes.QnnAppWrite: 11>, 'QnnAppReadWrite': <TensorMemTypes.QnnAppReadWrite: 12>, 'TensorMemTypes_End': <TensorMemTypes.TensorMemTypes_End: 13>}
+    def __eq__(self, other: typing.Any) -> bool:
+        ...
+    def __getstate__(self) -> int:
+        ...
+    def __hash__(self) -> int:
+        ...
+    def __index__(self) -> int:
+        ...
+    def __init__(self, value: typing.SupportsInt) -> None:
+        ...
+    def __int__(self) -> int:
+        ...
+    def __ne__(self, other: typing.Any) -> bool:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def __setstate__(self, state: typing.SupportsInt) -> None:
+        ...
+    def __str__(self) -> str:
+        ...
+    @property
+    def name(self) -> str:
+        ...
+    @property
+    def value(self) -> int:
         ...
 def clean_this_thread() -> None:
     """
@@ -536,7 +899,7 @@ def is_qnn_available() -> bool:
     """
     Check if QNN is available
     """
-def load(file_name: str, version: ModelFileVersion = ..., map_2_device: DeviceTypes = ...) -> ...:
+def load(file_name: str, version: ModelFileVersion = ..., map_2_device: DeviceTypes = ...) -> ParameterFile:
     """
     Load parameter file
     """
@@ -552,7 +915,7 @@ def perf_start() -> None:
     """
     Start performance profiling
     """
-def save(file_name: str, parameter_file: ..., version: ModelFileVersion = ..., map_2_device: DeviceTypes = ...) -> None:
+def save(file_name: str, parameter_file: ParameterFile, version: ModelFileVersion = ..., map_2_device: DeviceTypes = ...) -> None:
     """
     Save parameter file
     """

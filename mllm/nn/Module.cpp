@@ -76,10 +76,6 @@ ModuleImpl::ptr_t Module::impl() const { return impl_; }
 
 void Module::to(DeviceTypes device_type) { impl()->to(device_type); }
 
-void Module::reg_(const std::string& name, const AbstractNnNode::ptr_t& node) {
-  // TODO
-}
-
 void Module::load(const ParameterFile::ptr_t& param_file) { impl_->load(param_file); }
 
 void Module::__fmt_print(std::stringstream& ss) const { impl()->__fmt_print(ss); }

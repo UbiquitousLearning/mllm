@@ -1,6 +1,8 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <pybind11/stl.h>
+
 #include "mllm/mllm.hpp"
 
 #include "pymllm/_C/Engine.hpp"
@@ -34,7 +36,7 @@ void registerEngineBinding(py::module_& m) {
       .def_readwrite("using_buddy_mem_pool", &mllm::MemoryManagerOptions::using_buddy_mem_pool);
 
   pybind11::class_<mllm::MemoryManager, mllm::MemoryManager::ptr_t>(m, "MemoryManager")
-      .def("clearAll", &mllm::MemoryManager::clearAll)
+      .def("clear_all", &mllm::MemoryManager::clearAll)
       .def("report", &mllm::MemoryManager::report);
 
   pybind11::class_<mllm::DispatcherManagerOptions>(m, "DispatcherManagerOptions")
@@ -48,27 +50,27 @@ void registerEngineBinding(py::module_& m) {
       .def("syncWait", &mllm::Dispatcher::syncWait);
 
   pybind11::class_<mllm::DispatcherManager, mllm::DispatcherManager::ptr_t>(m, "DispatcherManager")
-      .def("syncWait", &mllm::DispatcherManager::syncWait)
+      .def("sync_wait", &mllm::DispatcherManager::syncWait)
       .def("submit", &mllm::DispatcherManager::submit);
 
   pybind11::class_<mllm::Context>(m, "Context")
       .def_static("instance", &mllm::Context::instance, py::return_value_policy::reference)
-      .def("memoryManager", &mllm::Context::memoryManager)
-      .def("dispatcherManager", &mllm::Context::dispatcherManager)
-      .def("getUUID", &mllm::Context::getUUID)
-      .def("thisThread", &mllm::Context::thisThread)
-      .def("mainThread", &mllm::Context::mainThread)
-      .def("setRandomSeed", &mllm::Context::setRandomSeed)
-      .def("getRandomSeed", &mllm::Context::getRandomSeed)
-      .def("setPerfMode", &mllm::Context::setPerfMode)
-      .def("isPerfMode", &mllm::Context::isPerfMode)
-      .def("getPerfFile", &mllm::Context::getPerfFile)
-      .def("refSessionThreads", &mllm::Context::refSessionThreads);
+      .def("memory_manager", &mllm::Context::memoryManager)
+      .def("dispatcher_manager", &mllm::Context::dispatcherManager)
+      .def("get_uuid", &mllm::Context::getUUID)
+      .def("this_thread", &mllm::Context::thisThread)
+      .def("main_thread", &mllm::Context::mainThread)
+      .def("set_random_seed", &mllm::Context::setRandomSeed)
+      .def("get_random_seed", &mllm::Context::getRandomSeed)
+      .def("set_perf_mode", &mllm::Context::setPerfMode)
+      .def("is_perf_mode", &mllm::Context::isPerfMode)
+      .def("get_perf_file", &mllm::Context::getPerfFile)
+      .def("ref_session_threads", &mllm::Context::refSessionThreads);
 
   pybind11::class_<mllm::ConfigFile>(m, "ConfigFile")
       .def(py::init<>())
       .def(py::init<const std::string&>())
-      .def("loadString", &mllm::ConfigFile::loadString)
+      .def("loadS_string", &mllm::ConfigFile::loadString)
       .def("load", &mllm::ConfigFile::load)
       .def("dump", &mllm::ConfigFile::dump)
       .def("save", &mllm::ConfigFile::save)
