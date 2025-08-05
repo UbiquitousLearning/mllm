@@ -5,6 +5,7 @@
 
 #include "mllm/nn/Layer.hpp"
 #include "mllm/nn/Module.hpp"
+#include "mllm/nn/Nn.hpp"
 
 #include "pymllm/_C/Nn.hpp"
 
@@ -19,30 +20,34 @@ void registerNnBinding(pybind11::module_& m) {
 
   // Bind AbstractNnNode class
   py::class_<AbstractNnNode, AbstractNnNode::ptr_t>(m, "AbstractNnNode")
-      .def("regChildNode", &AbstractNnNode::regChildNode)
-      .def("refParentNode", &AbstractNnNode::refParentNode, py::return_value_policy::reference_internal)
-      .def("refChildNodes", &AbstractNnNode::refChildNodes, py::return_value_policy::reference_internal)
-      .def("setName", &AbstractNnNode::setName)
-      .def("setAbsoluteName", &AbstractNnNode::setAbsoluteName)
-      .def("setDepth", &AbstractNnNode::setDepth)
-      .def("depthIncrease", &AbstractNnNode::depthIncrease)
-      .def("depthDecrease", &AbstractNnNode::depthDecrease)
-      .def("getName", &AbstractNnNode::getName)
-      .def("getAbsoluteName", &AbstractNnNode::getAbsoluteName)
-      .def("getDepth", &AbstractNnNode::getDepth)
-      .def("getType", &AbstractNnNode::getType)
-      .def("getDevice", &AbstractNnNode::getDevice)
-      .def("setCompiledAsObj", &AbstractNnNode::setCompiledAsObj)
-      .def("isCompiledAsObj", &AbstractNnNode::isCompiledAsObj);
+      .def("reg_child_node", &AbstractNnNode::regChildNode)
+      .def("ref_parent_node", &AbstractNnNode::refParentNode, py::return_value_policy::reference_internal)
+      .def("ref_child_nodes", &AbstractNnNode::refChildNodes, py::return_value_policy::reference_internal)
+      .def("set_name", &AbstractNnNode::setName)
+      .def("set_absolute_name", &AbstractNnNode::setAbsoluteName)
+      .def("set_depth", &AbstractNnNode::setDepth)
+      .def("depth_increase", &AbstractNnNode::depthIncrease)
+      .def("depth_decrease", &AbstractNnNode::depthDecrease)
+      .def("get_name", &AbstractNnNode::getName)
+      .def("get_absolute_name", &AbstractNnNode::getAbsoluteName)
+      .def("get_depth", &AbstractNnNode::getDepth)
+      .def("get_type", &AbstractNnNode::getType)
+      .def("get_device", &AbstractNnNode::getDevice)
+      .def("set_compiled_as_obj", &AbstractNnNode::setCompiledAsObj)
+      .def("is_compiled_as_obj", &AbstractNnNode::isCompiledAsObj);
 
   // Bind LayerImpl class
   py::class_<LayerImpl, LayerImpl::ptr_t, AbstractNnNode>(m, "LayerImpl")
+      .def(py::init([](OpTypes op_type, const mllm::aops::LinearOpOptions& options) {
+             return std::make_shared<LayerImpl>(op_type, options);
+           }),
+           py::arg("op_type"), py::arg("options"))
       .def("load", &LayerImpl::load)
       .def("to", &LayerImpl::to)
-      .def("opType", &LayerImpl::opType)
-      .def("refOptions", &LayerImpl::refOptions, py::return_value_policy::reference_internal)
-      .def("getInstancedOp", &LayerImpl::getInstancedOp)
-      .def("setInstancedOp", &LayerImpl::setInstancedOp);
+      .def("op_type", &LayerImpl::opType)
+      .def("ref_options", &LayerImpl::refOptions, py::return_value_policy::reference_internal)
+      .def("get_instanced_op", &LayerImpl::getInstancedOp)
+      .def("set_instanced_op", &LayerImpl::setInstancedOp);
 
   // Bind ModuleImpl class
   py::class_<ModuleImpl, ModuleImpl::ptr_t, AbstractNnNode>(m, "ModuleImpl")

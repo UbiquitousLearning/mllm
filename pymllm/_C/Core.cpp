@@ -1,10 +1,60 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <pybind11/stl.h>
+
 #include "pymllm/_C/Core.hpp"
+
 #include "mllm/mllm.hpp"
 
 void registerCoreBinding(py::module_& m) {
+  py::enum_<mllm::OpTypes>(m, "OpTypes")
+      .value("OpType_Start", mllm::OpTypes::kOpType_Start)
+      .value("Fill", mllm::OpTypes::kFill)
+      .value("Add", mllm::OpTypes::kAdd)
+      .value("Sub", mllm::OpTypes::kSub)
+      .value("Mul", mllm::OpTypes::kMul)
+      .value("Div", mllm::OpTypes::kDiv)
+      .value("MatMul", mllm::OpTypes::kMatMul)
+      .value("Embedding", mllm::OpTypes::kEmbedding)
+      .value("Linear", mllm::OpTypes::kLinear)
+      .value("RoPE", mllm::OpTypes::kRoPE)
+      .value("Softmax", mllm::OpTypes::kSoftmax)
+      .value("Transpose", mllm::OpTypes::kTranspose)
+      .value("RMSNorm", mllm::OpTypes::kRMSNorm)
+      .value("SiLU", mllm::OpTypes::kSiLU)
+      .value("KVCache", mllm::OpTypes::kKVCache)
+      .value("CausalMask", mllm::OpTypes::kCausalMask)
+      .value("CastType", mllm::OpTypes::kCastType)
+      .value("X2X", mllm::OpTypes::kX2X)
+      .value("Split", mllm::OpTypes::kSplit)
+      .value("View", mllm::OpTypes::kView)
+      .value("FlashAttention2", mllm::OpTypes::kFlashAttention2)
+      .value("Repeat", mllm::OpTypes::kRepeat)
+      .value("Permute", mllm::OpTypes::kPermute)
+      .value("Conv3D", mllm::OpTypes::kConv3D)
+      .value("Conv2D", mllm::OpTypes::kConv2D)
+      .value("Conv1D", mllm::OpTypes::kConv1D)
+      .value("GELU", mllm::OpTypes::kGELU)
+      .value("LayerNorm", mllm::OpTypes::kLayerNorm)
+      .value("MultimodalRoPE", mllm::OpTypes::kMultimodalRoPE)
+      .value("VisionRoPE", mllm::OpTypes::kVisionRoPE)
+      .value("QuickGELU", mllm::OpTypes::kQuickGELU)
+      .value("Copy", mllm::OpTypes::kCopy)
+      .value("Clone", mllm::OpTypes::kClone)
+      .value("Neg", mllm::OpTypes::kNeg)
+      .value("Concat", mllm::OpTypes::kConcat)
+      .value("ReLU", mllm::OpTypes::kReLU)
+      .value("ReLU2", mllm::OpTypes::kReLU2)
+      .value("ReduceMax", mllm::OpTypes::kReduceMax)
+      .value("ReduceMin", mllm::OpTypes::kReduceMin)
+      .value("ReduceSum", mllm::OpTypes::kReduceSum)
+      .value("Contiguous", mllm::OpTypes::kContiguous)
+      .value("Reshape", mllm::OpTypes::kReshape)
+      .value("GraphBegin", mllm::OpTypes::kGraphBegin)
+      .value("GraphEnd", mllm::OpTypes::kGraphEnd)
+      .value("OpType_End", mllm::OpTypes::kOpType_End);
+
   py::enum_<mllm::DeviceTypes>(m, "DeviceTypes")
       .value("CPU", mllm::DeviceTypes::kCPU)
       .value("CUDA", mllm::DeviceTypes::kCUDA)
@@ -43,6 +93,22 @@ void registerCoreBinding(py::module_& m) {
       .value("Int64", mllm::DataTypes::kInt64)
       .value("UInt64", mllm::DataTypes::kUInt64)
       .value("Byte", mllm::DataTypes::kByte);
+
+  py::enum_<mllm::TensorMemTypes>(m, "TensorMemTypes")
+      .value("TensorMemTypes_Start", mllm::TensorMemTypes::kTensorMemTypes_Start)
+      .value("Normal", mllm::TensorMemTypes::kNormal)
+      .value("ExtraInput", mllm::TensorMemTypes::kExtraInput)
+      .value("ExtraOutput", mllm::TensorMemTypes::kExtraOutput)
+      .value("Manual", mllm::TensorMemTypes::kManual)
+      .value("Global", mllm::TensorMemTypes::kGlobal)
+      .value("Params_Start", mllm::TensorMemTypes::kParams_Start)
+      .value("ParamsMMAP", mllm::TensorMemTypes::kParamsMMAP)
+      .value("ParamsNormal", mllm::TensorMemTypes::kParamsNormal)
+      .value("Params_End", mllm::TensorMemTypes::kParams_End)
+      .value("QnnAppRead", mllm::TensorMemTypes::kQnnAppRead)
+      .value("QnnAppWrite", mllm::TensorMemTypes::kQnnAppWrite)
+      .value("QnnAppReadWrite", mllm::TensorMemTypes::kQnnAppReadWrite)
+      .value("TensorMemTypes_End", mllm::TensorMemTypes::kTensorMemTypes_End);
 
   py::class_<mllm::Tensor>(m, "Tensor")
       .def(py::init<>())
@@ -101,4 +167,68 @@ void registerCoreBinding(py::module_& m) {
       .def("clone", &mllm::Tensor::clone)
       .def("permute", &mllm::Tensor::permute)
       .def("bytes", &mllm::Tensor::bytes);
+
+  //===----------------------------------------------------------------------===//
+  // Parameter File
+  //===----------------------------------------------------------------------===//
+  py::class_<mllm::ParameterFile, std::shared_ptr<mllm::ParameterFile>>(m, "ParameterFile");
+
+  //===----------------------------------------------------------------------===//
+  // BaseOp
+  //===----------------------------------------------------------------------===//
+  py::class_<mllm::BaseOp, std::shared_ptr<mllm::BaseOp>>(m, "BaseOp")
+      .def("load", &mllm::BaseOp::load)
+      .def("trace", &mllm::BaseOp::trace)
+      .def("forward", &mllm::BaseOp::forward)
+      .def("reshape", &mllm::BaseOp::reshape)
+      .def("setup", &mllm::BaseOp::setup)
+      .def("get_params", &mllm::BaseOp::getParams)
+      .def("get_name", &mllm::BaseOp::getName)
+      .def("set_name", &mllm::BaseOp::setName)
+      .def("get_device", &mllm::BaseOp::getDevice)
+      .def("set_device_type", &mllm::BaseOp::setDeviceType)
+      .def("get_op_type", &mllm::BaseOp::getOpType);
+
+  py::class_<mllm::BaseOpOptionsBase>(m, "BaseOpOptionsBase");
+
+  //===----------------------------------------------------------------------===//
+  // Linear Options And LinearOp
+  //===----------------------------------------------------------------------===//
+  py::enum_<mllm::aops::LinearImplTypes>(m, "LinearImplTypes")
+      .value("LinearImplTypes_Start", mllm::aops::LinearImplTypes::kLinearImplTypes_Start)
+      .value("Default", mllm::aops::LinearImplTypes::kDefault)
+      .value("Kleidiai_Start", mllm::aops::LinearImplTypes::kKleidiai_Start)
+      .value("Kleidiai_End", mllm::aops::LinearImplTypes::kKleidiai_End)
+      .value("GGUF_Start", mllm::aops::LinearImplTypes::kGGUF_Start)
+      .value("GGUF_End", mllm::aops::LinearImplTypes::kGGUF_End)
+      .value("LinearImplTypes_End", mllm::aops::LinearImplTypes::kLinearImplTypes_End);
+
+  py::class_<mllm::aops::LinearOpOptions>(m, "LinearOpOptions")
+      .def(py::init<>())
+      .def(py::init([](int32_t in_channels, int32_t out_channels, bool bias, mllm::aops::LinearImplTypes impl_type) {
+             auto options = mllm::aops::LinearOpOptions{};
+             options.in_channels = in_channels;
+             options.out_channels = out_channels;
+             options.bias = bias;
+             options.impl_type = impl_type;
+             return options;
+           }),
+           py::arg("in_channels") = 0, py::arg("out_channels") = 0, py::arg("bias") = true,
+           py::arg("impl_type") = mllm::aops::LinearImplTypes::kDefault)
+      .def_readwrite("in_channels", &mllm::aops::LinearOpOptions::in_channels)
+      .def_readwrite("out_channels", &mllm::aops::LinearOpOptions::out_channels)
+      .def_readwrite("bias", &mllm::aops::LinearOpOptions::bias)
+      .def_readwrite("impl_type", &mllm::aops::LinearOpOptions::impl_type)
+      .def("set_inputs_dtype", &mllm::aops::LinearOpOptions::setInputsDtype, py::return_value_policy::reference_internal)
+      .def("set_outputs_dtype", &mllm::aops::LinearOpOptions::setOutputsDtype, py::return_value_policy::reference_internal);
+
+  py::class_<mllm::aops::LinearOp, mllm::BaseOp, std::shared_ptr<mllm::aops::LinearOp>>(m, "LinearOp")
+      .def(py::init<const mllm::aops::LinearOpOptions&>())
+      .def("weight", &mllm::aops::LinearOp::weight, py::return_value_policy::reference_internal)
+      .def("bias", &mllm::aops::LinearOp::bias, py::return_value_policy::reference_internal)
+      .def("options", &mllm::aops::LinearOp::options, py::return_value_policy::reference_internal)
+      .def("load", &mllm::aops::LinearOp::load)
+      .def("forward", &mllm::aops::LinearOp::forward)
+      .def("setup", &mllm::aops::LinearOp::setup)
+      .def("reshape", &mllm::aops::LinearOp::reshape);
 }
