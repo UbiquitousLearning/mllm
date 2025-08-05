@@ -71,6 +71,8 @@ class ParameterFile {
 
   [[nodiscard]] bool has(const std::string& name) const;
 
+  void remove(const std::string& name);
+
   inline Tensor operator[](const std::string& name) { return pull(name); }
 
   [[nodiscard]] const_iterator begin() const;

@@ -65,6 +65,8 @@ Tensor ParameterFile::pull(const std::string& name) {
 
 bool ParameterFile::has(const std::string& name) const { return data_._raw_data().count(name); }
 
+void ParameterFile::remove(const std::string& name) { data_.remove(name); }
+
 ParameterFile::const_iterator ParameterFile::begin() const { return data_.begin(); }
 
 ParameterFile::const_iterator ParameterFile::end() const { return data_.end(); }
