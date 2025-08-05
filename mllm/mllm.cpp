@@ -63,6 +63,15 @@ ParameterFile::ptr_t load(const std::string& file_name, ModelFileVersion v, Devi
   return ParameterFile::create();
 }
 
+void save(const std::string& file_name, const ParameterFile::ptr_t& parameter_file, ModelFileVersion v,
+          DeviceTypes map_2_device) {
+  if (v == ModelFileVersion::kV1 && map_2_device == kCPU) {
+    ParameterFileIOImpl<kCPU, ModelFileVersion::kV1>::write(parameter_file, file_name);
+  } else {
+    NYI("save model file not supported for this configuration yet.");
+  }
+}
+
 namespace test {
 
 // |a - b| <= atol + rtol * |b|

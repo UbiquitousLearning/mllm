@@ -300,6 +300,17 @@ struct formatter<::mllm::test::AllCloseResult> {
     return out;
   }
 };
+
+template<>
+struct formatter<::mllm::ConfigFile> {
+  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+  template<typename FormatContext>
+  auto format(const mllm::ConfigFile& cfg, FormatContext& ctx) const {
+    auto out = ctx.out();
+    out = fmt::format_to(out, "{}", cfg.dump());
+    return out;
+  }
+};
 }  // namespace fmt
 
 #define MLLM_MAJOR_VERSION = 2

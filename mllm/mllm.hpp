@@ -25,6 +25,7 @@
 #include "mllm/engine/Task.hpp"                 // IWYU pragma: export
 #include "mllm/utils/Argparse.hpp"              // IWYU pragma: export
 #include "mllm/nn/Nn.hpp"                       // IWYU pragma: export
+#include "mllm/engine/ConfigFile.hpp"           // IWYU pragma: export
 
 namespace mllm::test {
 
@@ -156,6 +157,9 @@ SessionTCB::ptr_t thisThread();
 
 ParameterFile::ptr_t load(const std::string& file_name, ModelFileVersion version = ModelFileVersion::kV1,
                           DeviceTypes map_2_device = kCPU);
+
+void save(const std::string& file_name, const ParameterFile::ptr_t& parameter_file,
+          ModelFileVersion version = ModelFileVersion::kV1, DeviceTypes map_2_device = kCPU);
 
 //===----------------------------------------------------------------------===//
 // Print Stuff
