@@ -20,6 +20,8 @@ class AbstractNnNode : public std::enable_shared_from_this<AbstractNnNode> {
  public:
   using ptr_t = std::shared_ptr<AbstractNnNode>;
 
+  virtual ~AbstractNnNode() = default;
+
   explicit AbstractNnNode(AbstractNnNodeTypes type);
 
   void regChildNode(const AbstractNnNode::ptr_t& child);

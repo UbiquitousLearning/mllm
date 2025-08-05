@@ -30,6 +30,8 @@ class Dispatcher {
 
   explicit Dispatcher(exec::static_thread_pool& thread_pool, dispatcher_id_t id);
 
+  virtual ~Dispatcher() = default;
+
   void setPreprocessTaskFunc(const preprocess_task_func_t& func);
 
   void setAfterprocessTaskFunc(const afterprocess_task_func_t& func);
