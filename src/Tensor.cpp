@@ -357,8 +357,7 @@ std::vector<Tensor> Tensor::runFunc(std::vector<std::string> out_names,
                                     std::vector<Tensor> input_tensors,
                                     bool in_place) {
     // auto start_time = mllm_time_us();
-
-    // ==================== [开始] Op 缓存修改 ====================
+    // ==================== [开始] Op 缓存 ====================
     if (!input_tensors.empty()) {
         for (auto &input : input_tensors) {
             assert(input.backend() == input_tensors[0].backend() && "All inputs must have the same backend.");
@@ -368,19 +367,21 @@ std::vector<Tensor> Tensor::runFunc(std::vector<std::string> out_names,
     if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) { // 针对QNN的特殊处理
         backend = Backend::global_backends[MLLM_QNN].get();
     }
-
-    // 1. 在函数内部创建一个静态缓存池，它只初始化一次，并在多次调用中保持存在。
-    static std::unordered_map<std::string, std::shared_ptr<Op>> op_cache;
+    // 1. 使用更高效的键生成方式
+    static std::unordered_map<size_t, std::shared_ptr<Op>> op_cache; // 改用size_t作为键类型
     param["type"] = type;
     std::shared_ptr<Op> op_to_run;
-    // 2. 生成唯一的缓存键 (Cache Key)
-    std::stringstream key_stream;
-    key_stream << static_cast<int>(type); // 加入 OpType
+    // 2. 使用更高效的哈希键生成
+    static auto hash_combine = [](size_t seed, const auto &v) {
+        seed ^= std::hash<std::decay_t<decltype(v)>>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        return seed;
+    };
+    size_t key = std::hash<int>{}(static_cast<int>(type));
     for (const auto &pair : param) {
-        key_stream << ';' << pair.first << ':' << pair.second; // 加入所有参数
+        key = hash_combine(key, pair.first);
+        key = hash_combine(key, pair.second);
     }
-    const auto key = key_stream.str();
-    // 3. 查找缓存
+    // 3. 查找缓存 - 现在使用更快的size_t哈希查找
     auto it = op_cache.find(key);
     if (it != op_cache.end()) {
         op_to_run = it->second;
@@ -396,10 +397,12 @@ std::vector<Tensor> Tensor::runFunc(std::vector<std::string> out_names,
         op_to_run = std::move(op_new);
         op_cache[key] = op_to_run;
     }
-    // ==================== [结束] Op 缓存修改 ====================
-    // if (input_tensors[0].dimension() > 0) {
-    //     auto time_end = mllm_time_us();
-    //     std::cout << out_names[0] << " dispatch Func: " << type << " in " << (time_end - start_time) / 1000.0F << " ms" << std::endl;
+    // ==================== [结束] Op 缓存 ====================
+    // Module *module = Module::llm_model_ptr;
+    // if (module && !module->doTrace) {
+    //     auto end_time = mllm_time_us();
+    //     string name_o = out_names.empty() ? "out-" + input_tensors[0].name() : out_names[0];
+    //     std::cout << name_o << " dispatch Func: " << type << " in " << (end_time - start_time) / 1000.0F << " ms" << std::endl;
     // }
     // 4. 使用缓存的或新创建的 Op 执行计算
     return backend->runOp(op_to_run.get(), input_tensors, out_names, in_place);
@@ -524,8 +527,8 @@ Tensor Tensor::clip(vector<int> b, vector<int> h, vector<int> s, vector<int> d) 
     for (int i = 0; i < h.size(); ++i) param["h_" + std::to_string(i)] = (float)h[i];
     for (int i = 0; i < s.size(); ++i) param["s_" + std::to_string(i)] = (float)s[i];
     for (int i = 0; i < d.size(); ++i) param["d_" + std::to_string(i)] = (float)d[i];
-    string name_su = "clip-";
-    if (!(d.size() == 2 && b.empty() && h.empty() && s.empty())) {
+    string name_su = "-clip-";
+    if (!(d.empty() && b.empty() && h.empty() && s.empty())) {
         for (auto as : param) {
             name_su += std::to_string(int(as.second)) + "_";
         }
@@ -668,22 +671,22 @@ vector<Tensor> Tensor::topk(Tensor input, int k, Chl dim) {
 Tensor Tensor::sum(Chl dim) {
     OpParam param;
     param["dim"] = (float)dim;
-    return runFunc({name() + "sum"}, F_SUM, param,
+    return runFunc({name() + "-sum"}, F_SUM, param,
                    {*this})[0];
 }
 Tensor Tensor::argsort() {
-    return runFunc({name() + "argsort"}, F_ARGSORT, {},
+    return runFunc({name() + "-argsort"}, F_ARGSORT, {},
                    {*this})[0];
 }
 Tensor Tensor::bincount() {
-    return runFunc({name() + "bincount"}, F_BINCOUNT, {},
+    return runFunc({name() + "-bincount"}, F_BINCOUNT, {},
                    {*this})[0];
 }
 Tensor Tensor::repeat(Chl dim, int dim_size) {
     OpParam param;
     param["dim"] = (float)dim;
     param["dim_size"] = (float)dim_size;
-    return runFunc({name() + "repeat"}, F_REPEAT, param,
+    return runFunc({name() + "-repeat"}, F_REPEAT, param,
                    {*this})[0];
 }
 Tensor Tensor::masked_fill(Tensor mask_index, float value) {

@@ -105,6 +105,26 @@ struct QWen3Config : public TransformerConfig {
             rope_theta = 1000000.0;
             vocab_size = 151936;
             tie_embedding_words = true;
+        } else if (billionsType == "0.6b-lm") {
+            attention_bias = false;
+            attention_dropout = 0.0;
+            bos_token_id = 151643;
+            eos_token_id = 151645;
+            head_dim = 128;
+            hidden_act = "silu";
+            hidden_size = 1024;
+            initializer_range = 0.02;
+            intermediate_size = 3072;
+            max_position_embeddings = 40960;
+            max_window_layers = 28;
+            model_type = "qwen3";
+            num_attention_heads = 16;
+            num_hidden_layers = 28;
+            num_key_value_heads = 8;
+            rms_norm_eps = 1e-6;
+            rope_theta = 1000000.0;
+            vocab_size = 151936;
+            tie_embedding_words = false;
         } else if (billionsType == "4b") {
             attention_bias = false;
             attention_dropout = 0.0;

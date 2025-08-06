@@ -9,8 +9,9 @@
 #include "cmdline.h"
 #include "models/ling/configuration_bailing_moe.hpp"
 #include "models/ling/mbp/modeling_bailing_moe_mbp.hpp"
+// #include "models/ling/mbp/modeling_bailing_moe_mbp_e.hpp"
 // #include "models/ling/mbp/modeling_bailing_moe_mbppip.hpp"
-#include "models/ling/tokenizer_bailing.hpp"
+#include "models/ling/tokenization_bailing.hpp"
 #include <unistd.h>
 
 using namespace mllm;
@@ -68,7 +69,7 @@ int main(int argc, char **argv) {
         "项羽已杀卿子冠军，威震楚国，名闻诸侯。乃遣当阳君、蒲将军将卒二万渡河，救巨鹿。战少利，陈馀复请兵。项羽乃悉引兵渡河，皆沉船，破釜甑，烧庐舍，持三日粮，以示士卒必死，无一还心。于是至则围王离，与秦军遇，九战，绝其甬道，大破之，杀苏角，虏王离。涉间不降楚，自烧杀。当是时，楚兵冠诸侯。诸侯军救巨鹿下者十余壁，莫敢纵兵。及楚击秦，诸将皆从壁上观。楚战士无不一以当十，楚兵呼声动天，诸侯军无不人人惴恐。于是已破秦军，项羽召见诸侯将，入辕门，无不膝行而前，莫敢仰视。项羽由是始为诸侯上将军，诸侯皆属焉。 问题：结合项羽在巨鹿之战中的战术决策与心理威慑手段，分析其如何实现『楚战士无不一以当十』的战斗效应，并论述这种军事心理学实践对诸侯将领『膝行而前，莫敢仰视』行为模式的生成机制。",
     };
 
-    minicpmmoe_mbp_init(config.num_hidden_layers, config.num_experts);
+    ling_mbp_init(config.num_hidden_layers, config.num_experts);
     for (int i = 0; i < in_strs.size(); ++i) {
         auto input_str = tokenizer.apply_chat_template(in_strs[i]);
         auto input_tensor = tokenizer.tokenize(input_str);

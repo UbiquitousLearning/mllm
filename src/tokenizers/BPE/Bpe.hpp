@@ -30,6 +30,7 @@ class BPETokenizer : public Tokenizer {
     std::vector<CharSymbol> symbols_;
     std::priority_queue<TokenItem, std::vector<TokenItem>, TokenItem::Compare> queue_;
     void tryMergeSymbol(size_t start, size_t end);
+    void tokenizeWordWithVocab(const std::string &word, std::vector<token_id_t> &tokens, bool byte_fallback);
     std::unordered_map<unsigned char, std::string> bytes_to_unicode_;
 
 public:

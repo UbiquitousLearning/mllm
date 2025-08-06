@@ -4,6 +4,7 @@
 #include "Backend.hpp"
 #include "Op.hpp"
 #include "Types.hpp"
+#include <map>
 // #include "backends/cpu/third_party/ggml/Quantize.hpp"
 
 namespace mllm {
@@ -127,6 +128,8 @@ private:
         Module *module,
         map<std::string, std::shared_ptr<Tensor>> &activation_tensors,
         Backend *backend);
+    map<string, double> op_inference_time_;
+    void _print_op_inference_time(bool sort = false);
 };
 
 } // namespace mllm

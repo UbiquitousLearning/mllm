@@ -114,8 +114,7 @@ protected:
     // 统一入口
     vector<Tensor> run(vector<Tensor> inputs, int N = 1) {
         // auto start_time = mllm_time_us();
-
-        // ==================== [开始] 前向计算 ====================//
+        // ==================== [开始] op ====================//
         Module *module = inputs.empty() ? Module::llm_model_ptr : inputs[0].module();
         /*** part.1 change backend(if) ***/
         if (module && module->doChangeBn) {
@@ -160,10 +159,10 @@ protected:
             std::string tensor_name = (N > 1) ? "out-" + op_->name() + "-" + std::to_string(i) : "out-" + op_->name();
             out_names.push_back(tensor_name);
         }
-        // ==================== [结束] 前向计算 ====================//
-        // if (inputs[0].dimension() > 0) {
-        //     auto time_end = mllm_time_us();
-        //     std::cout << name_ << " dispatch Layer in " << (time_end - start_time) / 1000.0F << " ms" << std::endl;
+        // ==================== [结束] op ====================//
+        // if (module && !module->doTrace) {
+        //     auto end_time = mllm_time_us();
+        //     std::cout << name_ << " dispatch Layer in " << (end_time - start_time) / 1000.0F << " ms" << std::endl;
         // }
         return backend->runOp(op_, inputs, out_names, false);
     }

@@ -132,22 +132,10 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
         }
 
         for (const auto &word : words) {
-            auto word_splits = bpe(word, end_symbol);
-            for (const auto &word_split : word_splits) {
-                if (auto result = this->vocab_map_.find(word_split); result != this->vocab_map_.end()) {
-                    auto token_idx = result->second;
-                    tokens.emplace_back(id_token_[token_idx].score);
-                } else {
-                    if (!byte_fallback) {
-                        tokens.emplace_back(mllm::BPETokenizer::TokenUnk);
-                    } else {
-                        for (const char j : word_split) {
-                            token_id_t token_id = static_cast<uint8_t>(j) + 3;
-                            tokens.emplace_back(token_id);
-                        }
-                    }
-                }
-            }
+            // Use the same algorithm as the else branch for vocab-based tokenization
+            std::vector<token_id_t> word_tokens;
+            tokenizeWordWithVocab(word, word_tokens, byte_fallback);
+            tokens.insert(tokens.end(), word_tokens.begin(), word_tokens.end());
         }
         if (TokenEos > 0) {
             tokens.push_back(TokenEos);
@@ -202,7 +190,7 @@ void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_
                 if (!byte_fallback) {
                     tokens.emplace_back(mllm::BPETokenizer::TokenUnk);
                 } else {
-                    for (int j = 0; j < (int)symbols_[i].length; ++j) {
+                    for (int j = 0; j < symbols_[i].length; ++j) {
                         token_id_t token_id = static_cast<uint8_t>(symbols_[i].ch[j]) + 3;
                         tokens.emplace_back(token_id);
                     }
@@ -231,6 +219,63 @@ void mllm::BPETokenizer::tryMergeSymbol(size_t start, size_t end) {
         item.length = merge_str.size();
         queue_.emplace(item);
     }
+}
+
+void mllm::BPETokenizer::tokenizeWordWithVocab(const std::string &word, std::vector<token_id_t> &tokens, bool byte_fallback) {
+    if (auto result = this->vocab_map_.find(word); result != this->vocab_map_.end()) {
+        tokens.emplace_back(result->second);
+        // std::cout << "Word: \"" << word << "\" -> [\"" << word << "\"]" << std::endl;
+        return;
+    }
+    // Use greedy longest-match algorithm
+    size_t pos = 0;
+    std::vector<std::string> token_strings; // For debug output
+    while (pos < word.size()) {
+        int best_len = 0;
+        token_id_t best_token = TokenUnk;
+        std::string best_substr;
+        // Try all possible substrings starting from current position
+        for (size_t len = 1; len <= word.size() - pos; ++len) {
+            std::string substr = word.substr(pos, len);
+            auto result = this->vocab_map_.find(substr);
+            if (result != this->vocab_map_.end()) {
+                // Found a match, update best if this is longer
+                if (len > best_len) {
+                    best_len = len;
+                    best_token = result->second;
+                    best_substr = substr;
+                }
+            }
+        }
+        if (best_len > 0) {
+            // Found a match, add the token
+            tokens.emplace_back(best_token);
+            token_strings.push_back(best_substr);
+            pos += best_len;
+        } else {
+            // No match found, handle the single character
+            if (!byte_fallback) {
+                tokens.emplace_back(TokenUnk);
+                token_strings.push_back("<UNK>");
+                pos += utf8_len(word[pos]); // Skip one UTF-8 character
+            } else {
+                // Byte fallback
+                token_id_t token_id = static_cast<uint8_t>(word[pos]) + 3;
+                tokens.emplace_back(token_id);
+                token_strings.push_back(std::string(1, word[pos]));
+                pos += 1;
+            }
+        }
+    }
+
+    // std::cout << "Word: \"" << word << "\" -> [";
+    // for (size_t i = 0; i < token_strings.size(); ++i) {
+    //     std::cout << "\"" << token_strings[i] << "\"";
+    //     if (i < token_strings.size() - 1) {
+    //         std::cout << ", ";
+    //     }
+    // }
+    // std::cout << "]" << std::endl;
 }
 void mllm::BPETokenizer::tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) {
     this->tokenize(std::move(text), tokens, bos, true);

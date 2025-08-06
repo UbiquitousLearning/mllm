@@ -1,9 +1,8 @@
-#ifndef MAP_MINICPMMOE_MBP_HPP
-#define MAP_MINICPMMOE_MBP_HPP
+#pragma once
 // #include <algorithm>
 // #include <map>
 #include <iostream>
-#include <map>
+// #include <map>
 // #include <ostream>
 #include <sys/types.h>
 #include <utility>
@@ -67,7 +66,7 @@ inline void reset_syntax_mbm(int layer_idx, int expert_idx) {
     dones[layer_idx][expert_idx].store(false, std::memory_order_release);
 }
 
-inline void ling_mbp_init(int num_layers, int num_experts) {
+inline void mbp_init(int num_layers, int num_experts) {
     // 初始化 loading 相关的变量
     mtxs.resize(num_layers);
     cvs.resize(num_layers);
@@ -108,32 +107,39 @@ void clearMBPtimes() {
     expert_cal_times.clear();
     expert_clip_times.clear();
     expert_wait_times.clear();
-    clipped_data.clear(); // [请确认已添加] 清理裁剪结果，防止内存泄漏
+    clipped_data.clear();
     start_time = 0;
 }
-void prinMBPtimes() {
+void prinMBPtimes(string start_word = "") {
     double load_times_cal = 0;
     cout << "load_times = [" << endl;
     for (const auto &entry : load_times) {
-        cout << "(\"" << entry.first << "\" , " << entry.second.first << ", " << entry.second.second << ")," << endl;
+        if (start_word.empty() || entry.first.substr(0, start_word.length()) == start_word) {
+            cout << "(\"" << entry.first << "\" , " << entry.second.first << ", " << entry.second.second << ")," << endl;
+        }
         load_times_cal += entry.second.second - entry.second.first;
     }
     cout << "]" << endl;
     cout << "calc_times = [" << endl;
     for (const auto &entry : expert_cal_times) {
-        cout << "(\"" << entry.first << "\" , " << entry.second.first << ", " << entry.second.second << ")," << endl;
+        if (start_word.empty() || entry.first.substr(0, start_word.length()) == start_word) {
+            cout << "(\"" << entry.first << "\" , " << entry.second.first << ", " << entry.second.second << ")," << endl;
+        }
     }
     cout << "]" << endl;
     cout << "clip_times = [" << endl;
     for (const auto &entry : expert_clip_times) {
-        cout << "(\"" << entry.first << "\" , " << entry.second.first << ", " << entry.second.second << ")," << endl;
+        if (start_word.empty() || entry.first.substr(0, start_word.length()) == start_word) {
+            cout << "(\"" << entry.first << "\" , " << entry.second.first << ", " << entry.second.second << ")," << endl;
+        }
     }
     cout << "]" << endl;
     cout << "wait_times = [" << endl;
     for (const auto &entry : expert_wait_times) {
-        cout << "(\"" << entry.first << "\" , " << entry.second.first << ", " << entry.second.second << ")," << endl;
+        if (start_word.empty() || entry.first.substr(0, start_word.length()) == start_word) {
+            cout << "(\"" << entry.first << "\" , " << entry.second.first << ", " << entry.second.second << ")," << endl;
+        }
     }
     cout << "]" << endl;
     std::cout << "load_times_cal = " << load_times_cal << "ms" << endl;
 }
-#endif // MAP_MINICPMMOE_MBP_HPP

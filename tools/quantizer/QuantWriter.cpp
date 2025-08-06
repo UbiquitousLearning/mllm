@@ -45,6 +45,7 @@ const std::vector<std::string> q23_to_q4_0_4x4_layers = {
     "dense_h_to_4h",
     "v_proj",
     "down_proj",
+    "down",
 };
 
 const std::vector<std::string> q4_0_kai_to_q4_0_4x4_layers = {
@@ -126,7 +127,7 @@ DataType QuantWriter::getQuantizationTypeFor(const std::string &name, DataType t
     if (find_in_layers(name, fp32_layers)) {
         return MLLM_TYPE_F32;
     }
-    if (find_in_layers(name, q23_layers) && (name.find("down_proj") == std::string::npos)) {
+    if (find_in_layers(name, q23_layers) && (name.find("down") == std::string::npos)) {
         return MLLM_TYPE_Q2_K;
     }
     if (target_type == MLLM_TYPE_KLEIDIAI_Q4_0) {
@@ -224,7 +225,7 @@ void QuantWriter::quantize(DataType target_quant_type, const std::string &other_
                 // ==================【代码修正】==================
                 // 恢复您指出的、用于判断 N 和 K 的关键逻辑
                 int N, K;
-                if (find_in_layers(name, {"w2", "down_proj", "fc2"})) {
+                if (find_in_layers(name, {"w2", "down_proj", "down", "fc2"})) {
                     N = H;
                     if (num_floats % N != 0) {
                         std::cerr << "FAIL! num_floats not divisible by N for " << name << std::endl;
@@ -268,7 +269,8 @@ void QuantWriter::quantize(DataType target_quant_type, const std::string &other_
                     __exit(-1);
                 }
                 int K = H;
-                if ((is_visual && find_in_layers(name, {"fc2", "down_proj"})) || (!is_visual && find_in_layers(name, {"w2", "down_proj"}))) {
+                if ((is_visual && find_in_layers(name, {"fc2", "down_proj", "down"}))
+                    || (!is_visual && find_in_layers(name, {"w2", "down_proj", "down"}))) {
                     if (num_floats % H != 0) {
                         std::cerr << "FAIL! num_floats not divisible by H for " << name << std::endl;
                         __exit(-1);

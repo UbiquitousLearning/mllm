@@ -40,3 +40,4 @@ src/backends/qnn/sdk/*
 examples/test.cpp
 examples/demo_bailing_moe2*
 src/models/ling2
+scripts/tmp.sh

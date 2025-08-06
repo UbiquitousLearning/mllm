@@ -1,4 +1,5 @@
 #include "CPUBackend.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <iostream>
@@ -8,15 +9,16 @@
 #include "Backend.hpp"
 #include "OpDefined.hpp"
 #include "Types.hpp"
-#include "memory/SystemMemoryManager.hpp"
-#include <memory/MemoryPoolManager.hpp>
+// #include "memory/SystemMemoryManager.hpp"
+// #include <memory/MemoryPoolManager.hpp>
+#include <string>
 #include "Layer.hpp"
 
 #include "op/CPUHeadLinear.hpp"
 #include "op/CPULinearInt8.hpp"
 #include "op/CPUMultimodalRoPEPipeline.hpp"
 #include "op/CPUNTKRoPE.hpp"
-#include "op/CPUPoEmbedding.hpp"
+// #include "op/CPUPoEmbedding.hpp"
 #include "op/CPUSplitInput.hpp"
 #include "op/CPUView.hpp"
 #include "op/CPUAdd.hpp"
@@ -47,7 +49,7 @@
 #include "op/CPUVisionRoPE.hpp"
 #include "op/CPUMultimodalRoPE.hpp"
 #include "op/CPUParameter.hpp"
-#include "op/CPUCat.hpp"
+// #include "op/CPUCat.hpp"
 #include "op/CPUSubDim.hpp"
 #include "op/CPUQuickGELU.hpp"
 #include "op/CPUDivision.hpp"
@@ -376,14 +378,13 @@ std::vector<Tensor> CPUBackend::runOp(Op *op, std::vector<Tensor> inputs, std::v
 #ifdef DEBUGOPTIME
     uint64_t time_end = mllm_time_us();
     double inference_time_ = (time_end - time_start) / 1000.0F; // ms
-    if (op->name().empty()) {
-        if (out_names.size() > 0)
-            std::cout << out_names[0] << " | time: " << inference_time_ << "ms" << std::endl;
-        else
-            std::cout << "Unnamed Op | time: " << inference_time_ << "ms" << std::endl;
-    } else {
-        std::cout << op->name() << " | time: " << inference_time_ << "ms" << std::endl;
+    static int op_count = 0;
+    if (op_inference_time_.empty()) {
+        op_count = 0;
     }
+    string name = std::to_string(op_count++) + "--" + (op->name().empty() ? (out_names.empty() ? "out-" + input_tensors[0]->name() : out_names[0]) : op->name());
+    if (op->type() == LINEAR)
+        op_inference_time_[name] = inference_time_;
 #endif
 
     vector<Tensor> results;
@@ -431,17 +432,53 @@ std::vector<Tensor> CPUBackend::runForward(Module *module, std::vector<Tensor> i
             module->decoding_token_size_ = inputs[0].sequence() * inputs[0].batch();
         }
         time_start = mllm_time_us();
+#ifdef DEBUGOPTIME
+        op_inference_time_.clear();
+#endif
     }
 
-    // Module setUp & execute
     auto output = module->Forward(inputs, args);
 
     if (ouilter_flag) {
         time_end = mllm_time_us();
         double inference_time_ = (time_end - time_start) / 1000.0F; // ms
         module->inference_times_.push_back(inference_time_);
-        mllm::Module::llm_model_ptr->op_transposed_flag = true;
+#ifdef DEBUGOPTIME
+        _print_op_inference_time(true);
+        std::cout << "Token inference e2e time: " << inference_time_ << "ms" << std::endl;
+#endif
     }
     return output;
 }
+
+void CPUBackend::_print_op_inference_time(bool sort) {
+    size_t max_len = 0;
+    for (const auto &pair : op_inference_time_) {
+        max_len = std::max(pair.first.size(), max_len);
+    }
+    std::vector<std::pair<std::string, double>> sorted_pairs;
+    if (sort) {
+        sorted_pairs.assign(op_inference_time_.begin(), op_inference_time_.end());
+        std::sort(sorted_pairs.begin(), sorted_pairs.end(),
+                  [](const auto &a, const auto &b) {
+                      return a.second > b.second;
+                  });
+    }
+    double token_inference_time = 0.0;
+    if (sort) {
+        for (const auto &pair : sorted_pairs) {
+            std::cout << std::left << std::setw(max_len) << pair.first
+                      << " | time: " << pair.second << "ms" << std::endl;
+            token_inference_time += pair.second;
+        }
+    } else {
+        for (const auto &pair : op_inference_time_) {
+            std::cout << std::left << std::setw(max_len) << pair.first
+                      << " | time: " << pair.second << "ms" << std::endl;
+            token_inference_time += pair.second;
+        }
+    }
+    std::cout << "Op times sum: " << token_inference_time << "ms" << std::endl;
+}
+
 } // namespace mllm
