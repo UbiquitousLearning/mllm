@@ -56,4 +56,8 @@ std::array<Tensor, RET_NUM> split(const Tensor& x, const std::vector<int32_t>& s
 
 Tensor concat(const std::vector<Tensor>& ins, int32_t dim);
 
+Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V);
+
+Tensor softmax(const Tensor& x, int32_t dim);
+
 }  // namespace mllm::nn::functional

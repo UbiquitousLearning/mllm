@@ -4,6 +4,7 @@
 #pragma once
 
 #include "mllm/utils/CPUArchHelper.hpp"
+#include "mllm/backends/cpu/kernels/common/fa2/fwd_bshd.hpp"  // IWYU pragma: export
 
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
 #include "mllm/backends/cpu/kernels/x86/fill.hpp"  // IWYU pragma: export

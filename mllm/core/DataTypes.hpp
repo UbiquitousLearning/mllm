@@ -270,6 +270,19 @@ static_assert(sizeof(block_iq2_xxs) == sizeof(mllm_fp16_t) + QK_K / 8 * sizeof(u
 #pragma pack(pop)
 
 //===----------------------------------------------------------------------===//
+// MXFP4
+//
+// https://arxiv.org/pdf/2310.10537
+//
+// 4 bits (1 sign, 2 exponent, 1 mantissa) plus 1 shared power-of-two scale per 32 value block
+//===----------------------------------------------------------------------===//
+using mllm_mxfp4_t = struct {
+  uint8_t data[16];  // 32 x fp4, 128 bits, 16 bytes
+  uint8_t scale;
+};
+static_assert(sizeof(mllm_mxfp4_t) == 17, "wrong mxfp4 size/padding");
+
+//===----------------------------------------------------------------------===//
 // MLLM Types Enum
 //
 // The ID of each datatype is highly correlated with the mllm model file.
@@ -318,6 +331,7 @@ enum DataTypes : int32_t {
   // 1. Special packed kleidiai weight and bias
   // 2. Your customized quantization method.
   kByte = 134,
+  kMXFP4 = 135,
 };
 
 //===----------------------------------------------------------------------===//
@@ -479,6 +493,7 @@ MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q8_0x8_t, QK8_0 * 8, "GGUF_Q8_0x8");
 MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q2_K_t, QK_K, "GGUF_Q2_K");
 MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_q3_K_t, QK_K, "GGUF_Q3_K");
 MLLM_DEFINE_QUANT_TYPE_INFO(mllm_block_iq2_xxs_t, QK_K, "GGUF_IQ2_XXS");
+MLLM_DEFINE_QUANT_TYPE_INFO(mllm_mxfp4_t, 32, "MXFP4");
 
 #undef MLLM_DEFINE_QUANT_TYPE_INFO
 
@@ -524,6 +539,7 @@ MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kGGUF_Q8_0_4_4, mllm_block_q8_0x4_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kGGUF_Q2_K, mllm_block_q2_K_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kGGUF_Q3_K, mllm_block_q3_K_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kGGUF_IQ2_XXS, mllm_block_iq2_xxs_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kMXFP4, mllm_mxfp4_t);
 
 #undef MLLM_DEFINE_SELF_TYPE_INFO
 
@@ -568,3 +584,4 @@ std::string nameOfType(DataTypes dtype);
 #define MLLM_TYPE_UINT16 ::mllm::DataTypes::kUInt16
 #define MLLM_TYPE_UINT32 ::mllm::DataTypes::kUInt32
 #define MLLM_TYPE_BYTE ::mllm::DataTypes::kByte
+#define MLLM_TYPE_MXFP4 ::mllm::DataTypes::kMXFP4
