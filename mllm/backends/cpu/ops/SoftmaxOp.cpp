@@ -14,7 +14,7 @@ void CPUSoftmaxOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
   auto Y = outputs[0];
 
   MLLM_RT_ASSERT_EQ(X.shape().size(), 4);
-  MLLM_RT_ASSERT_EQ(options_.axis, -1);
+  MLLM_RT_ASSERT(options_.axis == -1 || options_.axis == 3);
 
   auto B = X.shape()[0];
   auto H = X.shape()[1];

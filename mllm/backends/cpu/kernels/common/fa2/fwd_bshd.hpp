@@ -19,7 +19,7 @@ namespace mllm::cpu::fa2 {
 
 template<typename Config_ = DefaultFlashAttention2Config>
 struct FlashAttention2WorkSpace {
-  using KernelConfig = Config_::KernelConfig_;
+  using KernelConfig = Config_::KernelConfig;
   using Numeric = typename KernelConfig::Numeric;
 
   using ElementAccumulator = typename Numeric::ElementAccumulator;
@@ -37,7 +37,7 @@ struct FlashAttention2WorkSpace {
 
 template<typename Config_ = DefaultFlashAttention2Config>
 struct FlashAttention2 {
-  using KernelConfig = Config_::KernelConfig_;
+  using KernelConfig = Config_::KernelConfig;
 
   using Arch = typename KernelConfig::Arch;
   using Mma0Layout = typename KernelConfig::Mma0Layout;
@@ -71,6 +71,15 @@ struct FlashAttention2 {
     static_assert(kTileM % 4 == 0);
     assert(q_head_size % thread_count == 0);
     assert(dim_size % 8 == 0);
+
+    acc_s_cast_ = workspace.acc_s_cast;        // [threads][kTileM * kTileN]
+    acc_o_ = workspace.acc_o;                  // [threads][kTileM * dim_size]
+    acc_s_ = workspace.acc_s;                  // [threads][kTileM * kTileN]
+    logsum_ = workspace.logsum;                // [threads][kTileM]
+    scoremax_ = workspace.scoremax;            // [threads][kTileM]
+    scoremax_prev_ = workspace.scoremax_prev;  // [threads][kTileM]
+    score_scale_ = workspace.score_scale;      // [threads][kTileM]
+    score_sum_ = workspace.score_sum;          // [threads][kTileM]
 
     // Prefill and Append mode
     if (seq_size_q != 1) {
