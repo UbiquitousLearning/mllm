@@ -45,6 +45,11 @@ void PerfFile::save(const std::string& filename) {
   }
 }
 
+Context& Context::instance() {
+  static Context instance;
+  return instance;
+}
+
 Context::Context() {
   // 1. Add main thread
   main_thread_ = std::make_shared<SessionTCB>();

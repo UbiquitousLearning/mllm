@@ -55,10 +55,7 @@ class PerfFile {
 
 class Context {
  public:
-  static Context& instance() {
-    static Context instance;
-    return instance;
-  }
+  static Context& instance();
 
   Context();
 

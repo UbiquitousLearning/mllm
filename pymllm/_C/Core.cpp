@@ -6,6 +6,7 @@
 #include "pymllm/_C/Core.hpp"
 
 #include "mllm/mllm.hpp"
+#include "mllm/core/aops/GraphOps.hpp"
 
 void registerCoreBinding(py::module_& m) {
   py::enum_<mllm::OpTypes>(m, "OpTypes")
@@ -166,7 +167,11 @@ void registerCoreBinding(py::module_& m) {
       .def("unsqueeze", &mllm::Tensor::unsqueeze)
       .def("clone", &mllm::Tensor::clone)
       .def("permute", &mllm::Tensor::permute)
-      .def("bytes", &mllm::Tensor::bytes);
+      .def("bytes", &mllm::Tensor::bytes)
+      .def("__str__", [](const mllm::Tensor& t) {
+        mllm::print(t);
+        return "";
+      });
 
   //===----------------------------------------------------------------------===//
   // Parameter File

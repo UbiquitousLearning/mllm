@@ -100,7 +100,7 @@ struct KernelConfig {
   using Tile = Tile_;
 };
 
-template<typename KernelConfig_, bool kNormalCausalMask_, bool kSlidingWindow_, bool kDropout_>
+template<typename KernelConfig_, bool kNormalCausalMask_, bool kSlidingWindow_, bool kDropout_, bool kHighPrecision_ = false>
 struct FlashAttention2Config {
   using KernelConfig = KernelConfig_;
 
@@ -114,6 +114,7 @@ struct FlashAttention2Config {
   static constexpr bool kHasCausalMask = kNormalCausalMask_;
   static constexpr bool kHasSlidingWindow = kSlidingWindow_;
   static constexpr bool kHasDropout = kDropout_;
+  static constexpr bool kHighPrecision = kHighPrecision_;
 };
 
 using DefaultFlashAttention2Config =
@@ -121,7 +122,10 @@ using DefaultFlashAttention2Config =
                                        MemoryTrait<128>, TileTrait<4, 4, -1>>,
                           true,   // kHasCausalMask
                           false,  // kHasSlidingWindow
-                          false   // kHasDropout
+                          false,  // kHasDropout
+                          false   //  kHighPrecision_
                           >;
+
+#define FA2_FLOAT_NEG_INF std::numeric_limits<float>::lowest()
 
 }  // namespace mllm::cpu::fa2

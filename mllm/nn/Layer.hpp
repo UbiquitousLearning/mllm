@@ -11,9 +11,6 @@
 #include "mllm/nn/AbstractNnNode.hpp"
 #include "mllm/core/ParameterFile.hpp"
 
-#include "mllm/engine/Task.hpp"
-#include "mllm/engine/Context.hpp"
-
 namespace mllm::nn {
 
 class LayerImpl : public AbstractNnNode {
@@ -46,6 +43,8 @@ class LayerImpl : public AbstractNnNode {
 
 class Layer {
  public:
+  explicit Layer(const LayerImpl::ptr_t& impl);
+
   template<typename T>
   Layer(OpTypes op_type, const T& cargo) {
     impl_ = std::make_shared<LayerImpl>(op_type, cargo);
@@ -56,36 +55,10 @@ class Layer {
   template<typename... Args>
   Tensor operator()(Args&&... args) {
     auto inputs = std::vector<Tensor>{std::forward<decltype(args)>(args)...};
-
-    auto& ctx = Context::instance();
-    auto task = Task::createExecuteOpTask(impl_->getInstancedOp(), inputs, {});
-
-    auto this_thread = Context::instance().thisThread();
-    if (this_thread->trace_mode) {
-      // Submit!
-      // At this moment, heart pounding like thunder
-      // Tasks racing through kernels, swift as lightning
-      // Threads await, fate hanging by a thread
-      // Success or failure in this one moment
-      task->custom_context_ptr = this_thread->ir_context.get();
-      ctx.dispatcherManager()->submit(Dispatcher::trace_dispatcher_id, task);
-
-      // Everything is Ok. Bravo! You did it.
-      // Return what we need.
-      return task->outputs[0];
-    } else {
-      // Submit!
-      // At this moment, heart pounding like thunder
-      // Tasks racing through kernels, swift as lightning
-      // Threads await, fate hanging by a thread
-      // Success or failure in this one moment
-      ctx.dispatcherManager()->submit(static_cast<int32_t>(impl_->getInstancedOp()->getDevice()), task);
-
-      // Everything is Ok. Bravo! You did it.
-      // Return what we need.
-      return task->outputs[0];
-    }
+    return __main(inputs);
   }
+
+  Tensor __main(const std::vector<Tensor>& inputs);
 
   [[nodiscard]] OpTypes opType() const;
 

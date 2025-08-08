@@ -16,6 +16,8 @@ cpu = DeviceTypes.CPU
 cuda = DeviceTypes.CUDA
 opencl = DeviceTypes.OpenCL
 
+initialize_context()
+
 
 def ones(shape, dtype=float32, device_type=cpu):
     return Tensor.ones(shape, dtype, device_type)
@@ -23,6 +25,3 @@ def ones(shape, dtype=float32, device_type=cpu):
 
 def zeros(shape, dtype=float32, device_type=cpu):
     return Tensor.zeros(shape, dtype, device_type)
-
-
-initialize_context()
