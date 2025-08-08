@@ -40,10 +40,9 @@ struct MMA0 {
   //
   // if TileK = -1, then dim_size = dim_size
   // else dim_size = TileK
-  MLLM_FORCE_INLINE void operator()(const ElementCompute* __restrict__ query_block,
+  static MLLM_FORCE_INLINE void run(const ElementCompute* __restrict__ query_block,
                                     const ElementCompute* __restrict__ key_block, ElementAccumulator* __restrict__ acc_s,
-                                    const int32_t dim_size, const int32_t stride_query, const int32_t stride_key,
-                                    const int32_t stride_acc) {}
+                                    const int32_t dim_size, const int32_t stride_query, const int32_t stride_key) {}
 };
 
 //===----------------------------------------------------------------------===//
@@ -71,11 +70,10 @@ struct MMA0Tail {
   //
   // if TileK = -1, then dim_size = dim_size
   // else dim_size = TileK
-  MLLM_FORCE_INLINE void operator()(const ElementCompute* __restrict__ query_block,
+  static MLLM_FORCE_INLINE void run(const ElementCompute* __restrict__ query_block,
                                     const ElementCompute* __restrict__ key_block, ElementAccumulator* __restrict__ acc_s,
                                     const int32_t dim_size, const int32_t stride_query, const int32_t stride_key,
-                                    const int32_t stride_acc, const int32_t real_m_block_size,
-                                    const int32_t real_n_block_size) {}
+                                    const int32_t real_m_block_size, const int32_t real_n_block_size) {}
 };
 
 //===----------------------------------------------------------------------===//
@@ -114,10 +112,9 @@ struct MMA0<
   static constexpr int kAlignment = MemoryTrait_::kAlignment;
   static constexpr int kAlignmentBytes = MemoryTrait_::kAlignment;
 
-  MLLM_FORCE_INLINE void operator()(const ElementCompute* __restrict__ query_block,
+  static MLLM_FORCE_INLINE void run(const ElementCompute* __restrict__ query_block,
                                     const ElementCompute* __restrict__ key_block, ElementAccumulator* __restrict__ acc_s,
-                                    const int32_t dim_size, const int32_t stride_query, const int32_t stride_key,
-                                    const int32_t stride_acc) {
+                                    const int32_t dim_size, const int32_t stride_query, const int32_t stride_key) {
 // C[m][n] += A[m][k] * B[n][k]
 #pragma unroll
     for (int m = 0; m < kTileM; ++m) {
@@ -127,7 +124,7 @@ struct MMA0<
         for (int k = 0; k < dim_size; ++k) {
           sum += static_cast<ElementAccumulator>(query_block[m * stride_query + k] * key_block[n * stride_key + k]);
         }
-        acc_s[m * stride_acc + n] += sum;
+        acc_s[m * kTileN + n] += sum;
       }
     }
   }
@@ -166,11 +163,10 @@ struct MMA0Tail<
   static constexpr int kAlignment = MemoryTrait_::kAlignment;
   static constexpr int kAlignmentBytes = MemoryTrait_::kAlignment;
 
-  MLLM_FORCE_INLINE void operator()(const ElementCompute* __restrict__ query_block,
+  static MLLM_FORCE_INLINE void run(const ElementCompute* __restrict__ query_block,
                                     const ElementCompute* __restrict__ key_block, ElementAccumulator* __restrict__ acc_s,
                                     const int32_t dim_size, const int32_t stride_query, const int32_t stride_key,
-                                    const int32_t stride_acc, const int32_t real_m_block_size,
-                                    const int32_t real_n_block_size) {
+                                    const int32_t real_m_block_size, const int32_t real_n_block_size) {
     // C[m][n] += A[m][k] * B[n][k]
     for (int m = 0; m < real_m_block_size; ++m) {
       for (int n = 0; n < real_n_block_size; ++n) {
@@ -178,7 +174,7 @@ struct MMA0Tail<
         for (int k = 0; k < dim_size; ++k) {
           sum += static_cast<ElementAccumulator>(query_block[m * stride_query + k] * key_block[n * stride_key + k]);
         }
-        acc_s[m * stride_acc + n] += sum;
+        acc_s[m * kTileN + n] += sum;
       }
     }
   }
@@ -222,10 +218,9 @@ struct MMA0<
   static constexpr int kAlignment = MemoryTrait_::kAlignment;
   static constexpr int kAlignmentBytes = MemoryTrait_::kAlignment;
 
-  MLLM_FORCE_INLINE void operator()(const ElementCompute* __restrict__ query_block,
+  static MLLM_FORCE_INLINE void run(const ElementCompute* __restrict__ query_block,
                                     const ElementCompute* __restrict__ key_block, ElementAccumulator* __restrict__ acc_s,
-                                    const int32_t dim_size, const int32_t stride_query, const int32_t stride_key,
-                                    const int32_t stride_acc) {
+                                    const int32_t dim_size, const int32_t stride_query, const int32_t stride_key) {
 #pragma unroll
     for (int32_t b_r_idx = 0; b_r_idx < kTileM; ++b_r_idx) {
       const float16_t* q_block_line = query_block + b_r_idx * stride_query;
@@ -320,11 +315,10 @@ struct MMA0Tail<
   static constexpr int kAlignment = MemoryTrait_::kAlignment;
   static constexpr int kAlignmentBytes = MemoryTrait_::kAlignment;
 
-  MLLM_FORCE_INLINE void operator()(const ElementCompute* __restrict__ query_block,
+  static MLLM_FORCE_INLINE void run(const ElementCompute* __restrict__ query_block,
                                     const ElementCompute* __restrict__ key_block, ElementAccumulator* __restrict__ acc_s,
                                     const int32_t dim_size, const int32_t stride_query, const int32_t stride_key,
-                                    const int32_t stride_acc, const int32_t real_m_block_size,
-                                    const int32_t real_n_block_size) {
+                                    const int32_t real_m_block_size, const int32_t real_n_block_size) {
     for (int32_t b_r_idx = 0; b_r_idx < real_m_block_size; ++b_r_idx) {
       const float16_t* q_block_line = query_block + b_r_idx * stride_query;
       for (int32_t b_c_idx = 0; b_c_idx < real_n_block_size; ++b_c_idx) {

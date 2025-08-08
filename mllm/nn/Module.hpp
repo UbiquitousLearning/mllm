@@ -38,6 +38,8 @@ class Module {
  public:
   Module() = default;
 
+  explicit Module(const ModuleImpl::ptr_t& impl);
+
   explicit Module(const std::string& name);
 
   [[nodiscard]] ModuleImpl::ptr_t impl() const;
@@ -90,11 +92,15 @@ class Module {
 
   void load(const ParameterFile::ptr_t& param_file);
 
-  virtual std::vector<Tensor> forward(const std::vector<Tensor>& inputs) = 0;
+  virtual std::vector<Tensor> forward(const std::vector<Tensor>& inputs);
 
   void __fmt_print(std::stringstream& ss) const;
 
   std::vector<Tensor> __main(const std::vector<Tensor>& inputs);
+
+  void __send_graph_begin(const std::vector<Tensor>& inputs);
+
+  void __send_graph_end(const std::vector<Tensor>& inputs);
 
   std::vector<Tensor> __trace(const std::vector<Tensor>& inputs);
 

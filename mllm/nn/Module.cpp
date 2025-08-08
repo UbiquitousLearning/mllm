@@ -66,6 +66,8 @@ void ModuleImpl::__fmt_print(std::stringstream& ss) {
   }
 }
 
+Module::Module(const ModuleImpl::ptr_t& impl) : impl_(impl) {}
+
 Module::Module(const std::string& name) {
   impl_ = std::make_shared<ModuleImpl>();
   impl()->setName(name);
@@ -78,21 +80,30 @@ void Module::to(DeviceTypes device_type) { impl()->to(device_type); }
 
 void Module::load(const ParameterFile::ptr_t& param_file) { impl_->load(param_file); }
 
+std::vector<Tensor> Module::forward(const std::vector<Tensor>& inputs) { return {}; }
+
 void Module::__fmt_print(std::stringstream& ss) const { impl()->__fmt_print(ss); }
 
 std::vector<Tensor> Module::__main(const std::vector<Tensor>& inputs) {
+  __send_graph_begin(inputs);
+  auto o = forward(inputs);
+  __send_graph_end(inputs);
+  return o;
+}
+
+void Module::__send_graph_begin(const std::vector<Tensor>& inputs) {
   auto& ctx = Context::instance();
 
   // When enter in Module. Submit a GraphBegin Op
   (void)ctx.buildOpAndSubmitTask(OpTypes::kGraphBegin, aops::GraphBeginOpOptions{.graph_name = impl_->getAbsoluteName()},
                                  inputs);
+}
 
-  auto outs = forward(inputs);
+void Module::__send_graph_end(const std::vector<Tensor>& inputs) {
+  auto& ctx = Context::instance();
 
   // When exit from Module. Submit a GraphEnd Op
   (void)ctx.buildOpAndSubmitTask(OpTypes::kGraphEnd, aops::GraphEndOpOptions{.graph_name = impl_->getAbsoluteName()}, inputs);
-
-  return outs;
 }
 
 std::vector<Tensor> Module::__trace(const std::vector<Tensor>& inputs) {

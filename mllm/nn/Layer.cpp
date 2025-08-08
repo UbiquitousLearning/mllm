@@ -5,6 +5,7 @@
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/core/ParameterFile.hpp"
 #include "mllm/engine/Context.hpp"
+#include "mllm/engine/Task.hpp"
 
 namespace mllm::nn {
 void LayerImpl::load(const ParameterFile::ptr_t& ploader) { instanced_op_->load(ploader); }
@@ -40,6 +41,39 @@ BaseOp::ptr_t LayerImpl::getInstancedOp() { return instanced_op_; }
 void LayerImpl::setInstancedOp(const BaseOp::ptr_t& op) { instanced_op_ = op; }
 
 LayerImpl::ptr_t Layer::impl() const { return impl_; }
+
+Layer::Layer(const LayerImpl::ptr_t& impl) : impl_(impl) {}
+
+Tensor Layer::__main(const std::vector<Tensor>& inputs) {
+  auto& ctx = Context::instance();
+  auto task = Task::createExecuteOpTask(impl_->getInstancedOp(), inputs, {});
+
+  auto this_thread = Context::instance().thisThread();
+  if (this_thread->trace_mode) {
+    // Submit!
+    // At this moment, heart pounding like thunder
+    // Tasks racing through kernels, swift as lightning
+    // Threads await, fate hanging by a thread
+    // Success or failure in this one moment
+    task->custom_context_ptr = this_thread->ir_context.get();
+    ctx.dispatcherManager()->submit(Dispatcher::trace_dispatcher_id, task);
+
+    // Everything is Ok. Bravo! You did it.
+    // Return what we need.
+    return task->outputs[0];
+  } else {
+    // Submit!
+    // At this moment, heart pounding like thunder
+    // Tasks racing through kernels, swift as lightning
+    // Threads await, fate hanging by a thread
+    // Success or failure in this one moment
+    ctx.dispatcherManager()->submit(static_cast<int32_t>(impl_->getInstancedOp()->getDevice()), task);
+
+    // Everything is Ok. Bravo! You did it.
+    // Return what we need.
+    return task->outputs[0];
+  }
+}
 
 OpTypes Layer::opType() const { return impl()->opType(); }
 
