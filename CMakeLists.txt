@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# MLLM Framework related
 option(MLLM_ENABLE_TEST "Enable MLLM test" ON)
 option(MLLM_ENABLE_BENCHMARK "Enable MLLM benchmark" ON)
 option(MLLM_ENABLE_EXAMPLE "Enable MLLM example" ON)
@@ -18,6 +19,11 @@ option(MLLM_BUILD_ARM_BACKEND "Enable MLLM ARM backend" OFF)
 option(MLLM_BUILD_OPENCL_BACKEND "Enable MLLM OpenCL backend" OFF)
 option(MLLM_BUILD_CUDA_BACKEND "Enable MLLM CUDA backend" OFF)
 option(MLLM_BUILD_QNN_BACKEND "Enable MLLM QNN backend" OFF)
+
+# CPU Backend: BLAS
+option(MLLM_BLAS_USE_ACCELERATE "Enable Accelerate BLAS on OSX" OFF)
+option(MLLM_BLAS_USE_MKL "Enable MKL BLAS on X86" OFF)
+option(MLLM_BLAS_USE_BLIS "Enable BLIS BLAS for multi-platform" OFF)
 
 message(STATUS "CXX Compiler=${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CXX Compiler version=${CMAKE_CXX_COMPILER_VERSION}")

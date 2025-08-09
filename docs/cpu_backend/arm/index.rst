@@ -5,4 +5,4 @@ CPU ARM Backend
    :maxdepth: 2
 
    hpc
-   
+   multithread_behaviors

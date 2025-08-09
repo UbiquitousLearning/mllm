@@ -163,6 +163,11 @@ Documents
 .. toctree::
    :maxdepth: 2
 
+   quick_start/index
+
+.. toctree::
+   :maxdepth: 2
+
    arch/index
 
 .. toctree::
