@@ -54,14 +54,14 @@ void CPUFlashAttention2Op::forward(const std::vector<Tensor>& inputs, std::vecto
       // clang-format on
 
       fa2::FlashAttention2WorkSpace<fa2_fp16_cfg> workspace{
-          .acc_s_cast = acc_s_cast.ptr<fa2_fp16_cfg::Numeric::ElementAccumulator>(),
-          .acc_o = acc_o.ptr<fa2_fp16_cfg::Numeric::ElementCompute>(),
-          .acc_s = acc_s.ptr<fa2_fp16_cfg::Numeric::ElementCompute>(),
-          .logsum = logsum.ptr<fa2_fp16_cfg::Numeric::ElementCompute>(),
-          .scoremax = scoremax.ptr<fa2_fp16_cfg::Numeric::ElementCompute>(),
-          .scoremax_prev = scoremax_prev.ptr<fa2_fp16_cfg::Numeric::ElementCompute>(),
-          .score_scale = score_scale.ptr<fa2_fp16_cfg::Numeric::ElementCompute>(),
-          .score_sum = score_sum.ptr<fa2_fp16_cfg::Numeric::ElementCompute>(),
+          .acc_s_cast = acc_s_cast.ptr<fa2_fp16_cfg::Numeric::ElementCompute>(),
+          .acc_o = acc_o.ptr<fa2_fp16_cfg::Numeric::ElementAccumulator>(),
+          .acc_s = acc_s.ptr<fa2_fp16_cfg::Numeric::ElementAccumulator>(),
+          .logsum = logsum.ptr<fa2_fp16_cfg::Numeric::ElementAccumulator>(),
+          .scoremax = scoremax.ptr<fa2_fp16_cfg::Numeric::ElementAccumulator>(),
+          .scoremax_prev = scoremax_prev.ptr<fa2_fp16_cfg::Numeric::ElementAccumulator>(),
+          .score_scale = score_scale.ptr<fa2_fp16_cfg::Numeric::ElementAccumulator>(),
+          .score_sum = score_sum.ptr<fa2_fp16_cfg::Numeric::ElementAccumulator>(),
       };
 
       fa2::FlashAttention2<fa2_fp16_cfg> fa2_op;

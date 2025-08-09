@@ -122,9 +122,10 @@ struct ScaleCastCopy<
     }
   }
 
-  static MLLM_FORCE_INLINE void run(const int32_t real_m_block_size, const int32_t real_n_block_size,
-                                    const ElementAccumulator* __restrict__ acc_o, const ElementAccumulator* __restrict__ logsum,
-                                    ElementCompute* __restrict__ o_block, const int32_t head_size, const int32_t dim_size) {
+  static MLLM_FORCE_INLINE void run_tail(const int32_t real_m_block_size, const int32_t real_n_block_size,
+                                         const ElementAccumulator* __restrict__ acc_o,
+                                         const ElementAccumulator* __restrict__ logsum, ElementCompute* __restrict__ o_block,
+                                         const int32_t head_size, const int32_t dim_size) {
     for (int i = 0; i < real_m_block_size; ++i) {
       const float* acc_o_line = acc_o + i * dim_size;
       float16_t* o_block_line = o_block + i * head_size * dim_size;

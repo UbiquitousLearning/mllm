@@ -100,9 +100,9 @@ struct Rescale<
     }
   }
 
-  static MLLM_FORCE_INLINE void run(const int32_t real_m_block_size, const int32_t real_n_block_size,
-                                    ElementAccumulator* __restrict__ acc_o, ElementAccumulator* __restrict__ score_scale,
-                                    const int32_t dim_size) {
+  static MLLM_FORCE_INLINE void run_tail(const int32_t real_m_block_size, const int32_t real_n_block_size,
+                                         ElementAccumulator* __restrict__ acc_o, ElementAccumulator* __restrict__ score_scale,
+                                         const int32_t dim_size) {
     for (int i = 0; i < real_m_block_size; ++i) {
       const float scale = score_scale[i];
       const float32x4_t scale_v = vdupq_n_f32(scale);

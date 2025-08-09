@@ -25,34 +25,34 @@ struct FlashAttention2WorkSpace {
   using ElementAccumulator = typename Numeric::ElementAccumulator;
   using ElementCompute = typename Numeric::ElementCompute;
 
-  ElementAccumulator* acc_s_cast = nullptr;
-  ElementCompute* acc_o = nullptr;
-  ElementCompute* acc_s = nullptr;
-  ElementCompute* logsum = nullptr;
-  ElementCompute* scoremax = nullptr;
-  ElementCompute* scoremax_prev = nullptr;
-  ElementCompute* score_scale = nullptr;
-  ElementCompute* score_sum = nullptr;
+  ElementCompute* acc_s_cast = nullptr;
+  ElementAccumulator* acc_o = nullptr;
+  ElementAccumulator* acc_s = nullptr;
+  ElementAccumulator* logsum = nullptr;
+  ElementAccumulator* scoremax = nullptr;
+  ElementAccumulator* scoremax_prev = nullptr;
+  ElementAccumulator* score_scale = nullptr;
+  ElementAccumulator* score_sum = nullptr;
 };
 
 template<typename Config_ = DefaultFlashAttention2Config>
 struct FlashAttention2 {
   using KernelConfig = Config_::KernelConfig;
 
-  using Arch = typename KernelConfig::Arch;
-  using Mma0Layout = typename KernelConfig::Mma0Layout;
-  using Mma1Layout = typename KernelConfig::Mma1Layout;
-  using Numeric = typename KernelConfig::Numeric;
-  using Memory = typename KernelConfig::Memory;
-  using Tile = typename KernelConfig::Tile;
+  using Arch = typename Config_::Arch;
+  using Mma0Layout = typename Config_::Mma0Layout;
+  using Mma1Layout = typename Config_::Mma1Layout;
+  using Numeric = typename Config_::Numeric;
+  using Memory = typename Config_::Memory;
+  using Tile = typename Config_::Tile;
 
   using ElementAccumulator = typename Numeric::ElementAccumulator;
   using ElementCompute = typename Numeric::ElementCompute;
 
-  static constexpr bool kHasCausalMask = KernelConfig::kNormalCausalMask;
-  static constexpr bool kHasSlidingWindow = KernelConfig::kSlidingWindow;
-  static constexpr bool kHasDropout = KernelConfig::kDropout;
-  static constexpr bool kHighPrecision = KernelConfig::kHighPrecision;
+  static constexpr bool kHasCausalMask = Config_::kHasCausalMask;
+  static constexpr bool kHasSlidingWindow = Config_::kHasSlidingWindow;
+  static constexpr bool kHasDropout = Config_::kHasDropout;
+  static constexpr bool kHighPrecision = Config_::kHighPrecision;
 
   static constexpr int kTileM = Tile::kTileM;
   static constexpr int kTileN = Tile::kTileN;
@@ -203,11 +203,10 @@ struct FlashAttention2 {
   }
 
   MLLM_FORCE_INLINE
-  void __fa2_prefill_append(const FlashAttention2WorkSpace<Config_>& workspace, const ElementCompute* __restrict__ Q,
-                            const ElementCompute* __restrict__ K, const ElementCompute* __restrict__ V,
-                            ElementCompute* __restrict__ O, const int32_t batch_size, const int32_t q_head_size,
-                            const int32_t kv_head_size, const int32_t seq_size_q, const int32_t seq_size_k,
-                            const int32_t dim_size, const int32_t thread_count) {
+  void __fa2_prefill_append(const ElementCompute* __restrict__ Q, const ElementCompute* __restrict__ K,
+                            const ElementCompute* __restrict__ V, ElementCompute* __restrict__ O, const int32_t batch_size,
+                            const int32_t q_head_size, const int32_t kv_head_size, const int32_t seq_size_q,
+                            const int32_t seq_size_k, const int32_t dim_size, const int32_t thread_count) {
     const int32_t Tr = seq_size_q / kTileM;
     const int32_t Tr_left = seq_size_q % kTileM;
     const int32_t Tc = seq_size_k / kTileN;
@@ -471,11 +470,10 @@ struct FlashAttention2 {
   }
 
   MLLM_FORCE_INLINE
-  void __fa2_prefill_decode(const FlashAttention2WorkSpace<Config_>& workspace, const ElementCompute* __restrict__ Q,
-                            const ElementCompute* __restrict__ K, const ElementCompute* __restrict__ V,
-                            ElementCompute* __restrict__ O, const int32_t batch_size, const int32_t q_head_size,
-                            const int32_t kv_head_size, const int32_t seq_size_q, const int32_t seq_size_k,
-                            const int32_t dim_size, const int32_t thread_count) {
+  void __fa2_decode(const ElementCompute* __restrict__ Q, const ElementCompute* __restrict__ K,
+                    const ElementCompute* __restrict__ V, ElementCompute* __restrict__ O, const int32_t batch_size,
+                    const int32_t q_head_size, const int32_t kv_head_size, const int32_t seq_size_q, const int32_t seq_size_k,
+                    const int32_t dim_size, const int32_t thread_count) {
     const int32_t Tr = 1;
     const int32_t Tc = seq_size_k / kTileN;
     const int32_t Tc_left = seq_size_k % kTileN;
