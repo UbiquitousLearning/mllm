@@ -21,9 +21,10 @@ option(MLLM_BUILD_CUDA_BACKEND "Enable MLLM CUDA backend" OFF)
 option(MLLM_BUILD_QNN_BACKEND "Enable MLLM QNN backend" OFF)
 
 # CPU Backend: BLAS
-option(MLLM_BLAS_USE_ACCELERATE "Enable Accelerate BLAS on OSX" OFF)
-option(MLLM_BLAS_USE_MKL "Enable MKL BLAS on X86" OFF)
-option(MLLM_BLAS_USE_BLIS "Enable BLIS BLAS for multi-platform" OFF)
+option(MLLM_USE_BLAS "Enable BLAS" OFF)
+option(MLLM_BLAS_VENDOR_ACCELERATE "Enable Accelerate BLAS on OSX" OFF)
+option(MLLM_BLAS_VENDOR_MKL "Enable MKL BLAS on X86" OFF)
+option(MLLM_BLAS_VENDOR_BLIS "Enable BLIS BLAS for multi-platform" OFF)
 
 message(STATUS "CXX Compiler=${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CXX Compiler version=${CMAKE_CXX_COMPILER_VERSION}")
