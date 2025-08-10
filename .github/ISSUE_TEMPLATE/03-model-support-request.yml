@@ -1,0 +1,52 @@
+name: 🗳️ Model Support Request
+description: Request support for a new model to be added to the MLLM framework.
+title: "[Model]: Add support for <MODEL_NAME>"
+labels: ["model-request", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please provide as much information as possible to help us evaluate and prioritize this request.
+  - type: input
+    id: model-name
+    attributes:
+      label: Model Name
+      description: What is the name of the model you want to be supported?
+      placeholder: "e.g., Phi-3-mini-4k-instruct"
+    validations:
+      required: true
+  - type: input
+    id: model-source
+    attributes:
+      label: Model Source
+      description: "Where can we find the model? Please provide a direct link to the model card, repository, or download page."
+      placeholder: "e.g., https://huggingface.co/microsoft/Phi-3-mini-4k-instruct"
+    validations:
+      required: true
+  - type: textarea
+    id: model-description
+    attributes:
+      label: Model Description
+      description: "Please provide a brief description of the model, including its architecture, size, and key features. This helps us understand its structure."
+      placeholder: "e.g., It's a 3.8B parameter, lightweight, state-of-the-art open model. The architecture is based on a standard Transformer decoder."
+    validations:
+      required: true
+  - type: input
+    id: paper-reference
+    attributes:
+      label: Paper or Documentation
+      description: "Please provide a link to the official paper, blog post, or technical documentation."
+      placeholder: "e.g., https://arxiv.org/abs/2404.14219"
+  - type: textarea
+    id: implementation-details
+    attributes:
+      label: Known Challenges or Special Requirements
+      description: "Are you aware of any custom operations (ops), specific pre-processing/post-processing steps, or other challenges required to run this model?"
+      placeholder: "e.g., The model requires a specific tokenizer configuration or has a custom attention mechanism not found in standard libraries."
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Are you interested in helping to add support for this model?
+      options:
+        - label: I am willing to help implement and submit a Pull Request for this model.

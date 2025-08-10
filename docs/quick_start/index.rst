@@ -6,4 +6,4 @@ Quick Start
 
    how_to_model
    how_to_async
-   hoe_to_perf
+   how_to_perf

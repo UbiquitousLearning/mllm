@@ -1,5 +1,6 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
+#pragma once
 
 #include <gtest/gtest.h>
 
