@@ -35,6 +35,20 @@ else()
   target_compile_options(MllmCPUBackend PUBLIC -fopenmp)
 endif()
 
+if(MLLM_USE_BLAS)
+  include(BLAS.cmake)
+  mllm_configure_blas()
+  if(MLLM_BLAS_LIBRARIES)
+    target_link_libraries(MllmCPUBackend PUBLIC ${MLLM_BLAS_LIBRARIES})
+  endif()
+  if(MLLM_BLAS_COMPILE_DEFINITIONS)
+    target_compile_definitions(MllmCPUBackend PUBLIC ${MLLM_BLAS_COMPILE_DEFINITIONS})
+  endif()
+  if(MLLM_BLAS_INCLUDE_DIRS)
+    target_include_directories(MllmCPUBackend PUBLIC ${MLLM_BLAS_INCLUDE_DIRS})
+  endif()
+endif()
+
 install(
   TARGETS MllmCPUBackend
   EXPORT MllmTargets
