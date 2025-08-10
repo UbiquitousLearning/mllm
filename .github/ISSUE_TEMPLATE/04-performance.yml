@@ -1,0 +1,98 @@
+name: ⚡ Performance Report
+description: Report a performance issue like slow inference, high memory usage, or regressions.
+title: "[Perf]: "
+labels: ["performance", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a performance issue!
+
+        Detailed and reproducible performance reports are crucial for us to diagnose and fix the root cause. Please provide as much information as possible.
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm the following before submitting.
+      options:
+        - label: I have searched the existing issues to ensure this performance issue has not already been reported.
+          required: true
+        - label: I have profiled my application and am confident that the performance bottleneck is within the MLLM framework.
+          required: true
+  - type: textarea
+    id: performance-issue-summary
+    attributes:
+      label: Describe the Performance Issue
+      description: Provide a clear and concise summary of the performance problem.
+      placeholder: "e.g., Inference speed is 2x slower after upgrading. High VRAM usage on Metal backend. Model loading takes too long."
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Affected Backend(s)
+      description: "Which inference backend(s) are you using where you see this performance issue? Select all that apply."
+      multiple: true
+      options:
+        - CPU
+        - OpenCL
+        - CUDA
+        - CANN
+        - Metal
+        - QNN
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: "Please provide all the relevant details about your environment."
+      render: shell
+      placeholder: |
+        - MLLM Framework Version: e.g., v1.3.0
+        - Device: e.g., NVIDIA Jetson Orin, iPhone 15 Pro, Samsung Galaxy S23
+        - OS: e.g., Ubuntu 22.04, iOS 17.1, Android 14
+        - Backend Driver/SDK Version: e.g., CUDA 12.2, Metal 3, QNN SDK 2.15
+    validations:
+      required: true
+  - type: textarea
+    id: model-information
+    attributes:
+      label: Model Information
+      description: "Describe the model that is exhibiting the performance issue."
+      placeholder: |
+        - Model Name: e.g., Llama-3-8B-Instruct
+        - Model Source: [Link to Hugging Face, etc.]
+        - Quantization: e.g., FP16, INT8, INT4
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: "Provide a minimal, reproducible code snippet that demonstrates the performance issue."
+      placeholder: "Please include the code used for loading the model and running inference."
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Performance Metrics
+      description: Please provide concrete numbers for both the actual and expected performance.
+      placeholder: |
+        ### Actual Performance
+        - Inference latency: 50 ms/token
+        - Peak memory usage: 4.5 GB
+        - Model load time: 15 seconds
+
+        ### Expected Performance / Baseline
+        - In v1.2.1, the latency was 25 ms/token.
+        - Another framework achieves 20 ms/token on the same hardware.
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: "Add any other context here. This is a great place for profiler output (e.g., from NVIDIA Nsight, Instruments, Perf), logs, or specific configurations you have tried."

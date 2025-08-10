@@ -1,0 +1,69 @@
+name: 🔬 Research & Experiment Proposal
+description: Propose and track a research idea or experiment for the MLLM framework.
+title: "[Research]: "
+labels: ["research", "experiment", "discussion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for proposing an innovative idea! This template is for suggesting research topics or experiments that could push the boundaries of the MLLM framework.
+  - type: textarea
+    id: summary-and-goal
+    attributes:
+      label: Summary and Goal
+      description: "Provide a clear and concise summary of the research idea or experiment. What is the central hypothesis you want to test or the primary goal you want to achieve?"
+      placeholder: "e.g., Investigate the feasibility of a novel 3-bit quantization scheme to reduce memory footprint by 25% with minimal accuracy loss."
+    validations:
+      required: true
+  - type: textarea
+    id: motivation-and-impact
+    attributes:
+      label: Motivation and Potential Impact
+      description: "Why is this research valuable? What new capabilities, performance gains, or efficiencies would a successful experiment unlock for the MLLM framework and its users?"
+      placeholder: "e.g., Current INT4 quantization still has a high memory cost on ultra-low-power devices. A successful 3-bit scheme would enable larger models to run on microcontrollers."
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-methodology
+    attributes:
+      label: Proposed Methodology / High-Level Plan
+      description: "Outline how this research or experiment could be conducted. What are the key steps? This can be a high-level plan and does not need to be exhaustive."
+      placeholder: |
+        1. Review existing literature on sub-4-bit quantization (e.g., papers X, Y, Z).
+        2. Develop a proof-of-concept implementation of the quantization algorithm for a single operator (e.g., MatMul).
+        3. Evaluate its performance and accuracy on a benchmark model like Phi-3 or Gemma 2B.
+        4. If successful, plan the integration into the core MLLM framework.
+    validations:
+      required: true
+  - type: textarea
+    id: success-criteria
+    attributes:
+      label: Success Criteria & Metrics
+      description: "How will we measure the outcome of this experiment? What specific metrics will define success?"
+      placeholder: |
+        - **Primary Metric:** Achieve a memory footprint reduction of at least 20% compared to INT4.
+        - **Secondary Metric:** Keep the perplexity degradation on the WikiText-2 dataset below 5% compared to the FP16 baseline.
+        - **Constraint:** Inference latency should not increase by more than 10%.
+    validations:
+      required: true
+  - type: textarea
+    id: background-and-prior-art
+    attributes:
+      label: Background and Prior Art
+      description: "Please provide links to relevant research papers, blog posts, or implementations in other frameworks that inform this proposal."
+      placeholder: |
+        - [Paper] QMoE: Practical Sub-4-Bit Quantization... (arXiv:2405.xxxxx)
+        - [Blog Post] A Deep Dive into Ternary Weight Networks...
+  - type: textarea
+    id: risks-and-challenges
+    attributes:
+      label: Potential Risks and Challenges
+      description: "What are the foreseeable technical challenges, risks, or open questions associated with this experiment?"
+      placeholder: "e.g., The proposed algorithm may require custom kernels that are difficult to optimize across different backends (CPU, Metal, CUDA). The accuracy impact on larger models is unknown."
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Are you interested in leading or contributing to this research?
+      options:
+        - label: I am willing to contribute to or lead this research/experiment.

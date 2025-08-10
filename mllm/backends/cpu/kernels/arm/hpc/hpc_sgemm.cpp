@@ -9,8 +9,8 @@
 namespace mllm::cpu::arm {
 
 // Optimized for decoding.
-// Q: [B, H, 1, D]
-// K: [B, H, S, D]
+// Q: [1, D]
+// K: [S, D]
 // D is small in mllm's case(small language model).
 // D=64, 96, 128 ...
 void __hpc_matmul_fp32_gemv_nt_t_decode_small_d_qk_baseline(const int M, const int K, const int N,
@@ -30,8 +30,8 @@ void __hpc_matmul_fp32_gemv_nt_t_decode_small_d_qk_baseline(const int M, const i
 }
 
 // Optimized for decoding.
-// Q: [B, H, 1, D]
-// K: [B, H, S, D]
+// Q: [1, D]
+// K: [S, D]
 // D is small in mllm's case(small language model).
 // D=64, 96, 128 ...
 void __hpc_matmul_fp32_gemv_nt_t_decode_small_d_qk(const int M, const int K, const int N, mllm_fp32_t* __restrict__ dst,
@@ -115,6 +115,29 @@ void __hpc_matmul_fp32_gemv_nt_t_decode_small_d_qk(const int M, const int K, con
       dst[s] = result;
     }
   }
+}
+
+// Optimized for decoding.
+// W: [B, H, 1, S]
+// V: [B, H, S, D]
+// D is small in mllm's case(small language model).
+void __hpc_matmul_fp32_gemv_nt_nt_decode_small_d_wv_baseline(const int M, const int K, const int N,
+                                                             mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ A,
+                                                             const mllm_fp32_t* __restrict__ B,
+                                                             const mllm_fp32_t* __restrict__ C, bool transpose_a,
+                                                             bool transpose_b, int thread_count) {
+  // TODO
+}
+
+// Optimized for decoding.
+// W: [B, H, 1, S]
+// V: [B, H, S, D]
+// D is small in mllm's case(small language model).
+void __hpc_matmul_fp32_gemv_nt_nt_decode_small_d_wv(const int M, const int K, const int N, mllm_fp32_t* __restrict__ dst,
+                                                    const mllm_fp32_t* __restrict__ A, const mllm_fp32_t* __restrict__ B,
+                                                    const mllm_fp32_t* __restrict__ C, bool transpose_a, bool transpose_b,
+                                                    int thread_count) {
+  // TODO
 }
 
 }  // namespace mllm::cpu::arm
