@@ -577,7 +577,7 @@ TEST_F(ElementwiseKernelTest, DivScalarInt32) {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
 #include "HpcArmSgemvKernelTest.hpp"
 TEST_F(HpcArmSgemvKernelTest, matmul_fp32_gemv_nt_t_decode_small_d_qk) {
-  EXPECT_EQ(test_hpc_matmul_fp32_gemv_nt_t_decode_small_d_qk({
+  EXPECT_EQ(test_mllm_blas_matmul_fp32_gemv_nt_t_decode_small_d_qk({
                 {{"D", 64}, {"S", 1}},
                 {{"D", 64}, {"S", 3}},
                 {{"D", 64}, {"S", 6}},

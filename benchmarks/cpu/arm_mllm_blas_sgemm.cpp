@@ -7,7 +7,7 @@
 #include <benchmark/benchmark.h>
 
 #include "mllm/mllm.hpp"
-#include "mllm/backends/cpu/kernels/arm/hpc/hpc_sgemm.hpp"
+#include "mllm/backends/cpu/kernels/arm/mllm_blas/mllm_blas_sgemm.hpp"
 
 bool is_aligned_16(const void* addr) { return (reinterpret_cast<uintptr_t>(addr) & 0xF) == 0; }
 
@@ -16,7 +16,7 @@ bool is_aligned_16(const void* addr) { return (reinterpret_cast<uintptr_t>(addr)
 // K: [S, D]
 // D is small in mllm's case(small language model).
 // D=64, 96, 128 ...
-static void hpc_matmul_fp32_gemv_nt_t_decode_small_d_qk_baseline(benchmark::State& state) {
+static void mllm_blas_matmul_fp32_gemv_nt_t_decode_small_d_qk_baseline(benchmark::State& state) {
   int D = state.range(0);
   int S = state.range(1);
 
@@ -31,8 +31,8 @@ static void hpc_matmul_fp32_gemv_nt_t_decode_small_d_qk_baseline(benchmark::Stat
   auto dst_ptr = DST.ptr<float>();
 
   for (auto _ : state) {
-    mllm::cpu::arm::__hpc_matmul_fp32_gemv_nt_t_decode_small_d_qk_baseline(1, D, S, dst_ptr, a_ptr, b_ptr, c_ptr, false, true,
-                                                                           1);
+    mllm::cpu::arm::__mllm_blas_matmul_fp32_gemv_nt_t_decode_small_d_qk_baseline(1, D, S, dst_ptr, a_ptr, b_ptr, c_ptr, false,
+                                                                                 true, 1);
   }
 }
 
@@ -41,7 +41,7 @@ static void hpc_matmul_fp32_gemv_nt_t_decode_small_d_qk_baseline(benchmark::Stat
 // K: [S, D]
 // D is small in mllm's case(small language model).
 // D=64, 96, 128 ...
-static void hpc_matmul_fp32_gemv_nt_t_decode_small_d_qk_neon(benchmark::State& state) {
+static void mllm_blas_matmul_fp32_gemv_nt_t_decode_small_d_qk_neon(benchmark::State& state) {
   int D = state.range(0);
   int S = state.range(1);
 
@@ -61,11 +61,11 @@ static void hpc_matmul_fp32_gemv_nt_t_decode_small_d_qk_neon(benchmark::State& s
   assert(is_aligned_16(dst_ptr));
 
   for (auto _ : state) {
-    mllm::cpu::arm::__hpc_matmul_fp32_gemv_nt_t_decode_small_d_qk(1, D, S, dst_ptr, a_ptr, b_ptr, c_ptr, false, true, 1);
+    mllm::cpu::arm::__mllm_blas_matmul_fp32_gemv_nt_t_decode_small_d_qk(1, D, S, dst_ptr, a_ptr, b_ptr, c_ptr, false, true, 1);
   }
 }
 
-static void hpc_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk(benchmark::State& state) {
+static void mllm_blas_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk(benchmark::State& state) {
   int D = state.range(0);
   int S = state.range(1);
   int H = 28;
@@ -86,12 +86,12 @@ static void hpc_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk(benchmark::State& 
   assert(is_aligned_16(dst_ptr));
 
   for (auto _ : state) {
-    mllm::cpu::arm::__hpc_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk(H, 1, D, S, D, D, S * D, D, dst_ptr, a_ptr, b_ptr,
-                                                                        c_ptr, false, true, 1);
+    mllm::cpu::arm::__mllm_blas_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk(H, 1, D, S, D, D, S * D, D, dst_ptr, a_ptr, b_ptr,
+                                                                              c_ptr, false, true, 1);
   }
 }
 
-static void hpc_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk_4threads(benchmark::State& state) {
+static void mllm_blas_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk_4threads(benchmark::State& state) {
   int D = state.range(0);
   int S = state.range(1);
   int H = 28;
@@ -112,33 +112,33 @@ static void hpc_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk_4threads(benchmark
   assert(is_aligned_16(dst_ptr));
 
   for (auto _ : state) {
-    mllm::cpu::arm::__hpc_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk<true>(H, 1, D, S, D, D, S * D, D, dst_ptr, a_ptr, b_ptr,
-                                                                              c_ptr, false, true, 4);
+    mllm::cpu::arm::__mllm_blas_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk<true>(H, 1, D, S, D, D, S * D, D, dst_ptr, a_ptr,
+                                                                                    b_ptr, c_ptr, false, true, 4);
   }
 }
 
-BENCHMARK(hpc_matmul_fp32_gemv_nt_t_decode_small_d_qk_baseline)
+BENCHMARK(mllm_blas_matmul_fp32_gemv_nt_t_decode_small_d_qk_baseline)
     ->ArgsProduct({
         {64, 96, 128}, {1, 4, 32, 128, 256, 1024},  // S
 
     })
     ->ArgNames({"D", "S"});
 
-BENCHMARK(hpc_matmul_fp32_gemv_nt_t_decode_small_d_qk_neon)
+BENCHMARK(mllm_blas_matmul_fp32_gemv_nt_t_decode_small_d_qk_neon)
     ->ArgsProduct({
         {64, 96, 128},               // D
         {1, 4, 32, 128, 256, 1024},  // S
     })
     ->ArgNames({"D", "S"});
 
-BENCHMARK(hpc_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk)
+BENCHMARK(mllm_blas_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk)
     ->ArgsProduct({
         {64, 96, 128},               // D
         {1, 4, 32, 128, 256, 1024},  // S
     })
     ->ArgNames({"D", "S"});
 
-BENCHMARK(hpc_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk_4threads)
+BENCHMARK(mllm_blas_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk_4threads)
     ->ArgsProduct({
         {64, 96, 128},               // D
         {1, 4, 32, 128, 256, 1024},  // S
