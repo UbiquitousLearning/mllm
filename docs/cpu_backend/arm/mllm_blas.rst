@@ -1,7 +1,7 @@
 High Performance Computing(Components)
 ===========================
 
-hpc_sgemm
+mllm_blas_sgemm
 ---------
 
 GotoBLAS Algorithm in BLIS
