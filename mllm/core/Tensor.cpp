@@ -5,6 +5,7 @@
 #include "mllm/core/aops/CastTypeOp.hpp"
 #include "mllm/core/aops/CloneOp.hpp"
 #include "mllm/core/aops/ContiguousOp.hpp"
+#include "mllm/core/aops/CopyOp.hpp"
 #include "mllm/core/aops/ElewiseOps.hpp"
 #include "mllm/core/aops/FillOp.hpp"
 #include "mllm/core/aops/PermuteOp.hpp"
@@ -17,6 +18,11 @@
 #include "mllm/engine/Context.hpp"
 
 namespace mllm {
+
+Tensor Tensor::operator[](const SliceIndices& slice_index) {
+  // TODO
+  return Tensor::nil();
+}
 
 Tensor& Tensor::alloc() {
   Context::instance().memoryManager()->alloc(impl_->storage());
@@ -248,6 +254,10 @@ Tensor Tensor::unsqueeze(int32_t dim) {
 }
 
 Tensor Tensor::clone() { return Context::instance().buildOpAndSubmitTask(OpTypes::kClone, aops::CloneOpOptions{}, {*this})[0]; }
+
+void Tensor::copy2(const Tensor& src) {
+  (void)Context::instance().buildOpAndSubmitTask(OpTypes::kCopy, aops::CopyOpOptions{}, {*this, src});
+}
 
 Tensor Tensor::permute(const shape_t& indices) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kPermute, aops::PermuteOpOptions{.axis = indices}, {*this})[0];

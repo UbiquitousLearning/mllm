@@ -66,4 +66,6 @@ LINALG_AOPS_DECL(OpTypes::kContiguous, ContiguousOp);
 LINALG_AOPS_DECL(OpTypes::kReLU, ReLUOp);
 LINALG_AOPS_DECL(OpTypes::kReshape, ReshapeOp);
 
+LINALG_AOPS_DECL(OpTypes::kSlice, SliceOp);
+
 }  // namespace mllm::ir::linalg
