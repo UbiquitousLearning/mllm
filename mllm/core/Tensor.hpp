@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "mllm/core/TensorViewImpl.hpp"
+#include "mllm/core/SlicePrimitives.hpp"
 
 namespace mllm {
 
@@ -37,6 +38,14 @@ class Tensor {
    * @return Tensor
    */
   static inline Tensor nil() { return {}; };
+
+  /**
+   * @brief Creates a shallow view (slice) of the tensor.
+   * @param slice_index Slice specification.
+   * @return New tensor view referencing the sliced data.
+   * @note Uses shallow copy when step size is 1; may be unsafe for GPU tensors.
+   */
+  Tensor operator[](const SliceIndices& slice_index);
 
   /**
    * @brief Constructs a tensor from an existing TensorViewImpl.
@@ -340,6 +349,14 @@ class Tensor {
    * @return Tensor
    */
   Tensor clone();
+
+  /**
+   * @brief copy a tensor to another
+   *
+   * @param src
+   * @return Tensor
+   */
+  void copy2(const Tensor& src);
 
   /**
    * @brief Permute tensor to a new shape

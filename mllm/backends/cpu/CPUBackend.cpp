@@ -24,6 +24,7 @@
 #include "mllm/backends/cpu/ops/ReduceOps.hpp"
 #include "mllm/backends/cpu/ops/RepeatOp.hpp"
 #include "mllm/backends/cpu/ops/SiLUOp.hpp"
+#include "mllm/backends/cpu/ops/SliceOp.hpp"
 #include "mllm/backends/cpu/ops/SoftmaxOp.hpp"
 #include "mllm/backends/cpu/ops/SplitOp.hpp"
 #include "mllm/backends/cpu/ops/TransposeOp.hpp"
@@ -38,7 +39,8 @@ CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
                CPUReduceSumOpFactory, CPUTransposeOpFactory, CPUPermuteOpFactory, CPUCastTypeOpFactory, CPUConcatOpFactory,
                CPUContiguousOpFactory, CPUCopyOpFactory, CPUEmbeddingOpFactory, CPUSplitOpFactory, CPUViewOpFactory,
                CPULayerNormOpFactory, CPURepeatOpFactory, CPUX2XOpFactory, CPUSoftmaxOpFactory, CPUSiLUOpFactory,
-               CPURMSNormOpFactory, CPUGELUOpFactory, CPUQuickGELUOpFactory, CPUMatMulOpFactory, CPUFlashAttention2OpFactory>();
+               CPURMSNormOpFactory, CPUGELUOpFactory, CPUQuickGELUOpFactory, CPUMatMulOpFactory, CPUFlashAttention2OpFactory,
+               CPUSliceOpFactory>();
 }
 
 std::shared_ptr<CPUBackend> createCPUBackend() { return std::make_shared<CPUBackend>(); }

@@ -53,6 +53,7 @@ enum class OpTypes : int32_t {
   kReduceSum,
   kContiguous,
   kReshape,
+  kSlice,
 
   // Graph Control Ops
   kGraphBegin,
@@ -105,6 +106,7 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kReduceSum: return "ReduceSum";
     case OpTypes::kContiguous: return "Contiguous";
     case OpTypes::kReshape: return "Reshape";
+    case OpTypes::kSlice: return "Slice";
     case OpTypes::kGraphBegin: return "GraphBegin";
     case OpTypes::kGraphEnd: return "GraphEnd";
     case OpTypes::kOpType_End: return "OpType_End";

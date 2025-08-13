@@ -16,8 +16,8 @@ DynamicCache::DynamicCache(int32_t layer_nums, int32_t q_heads, int32_t kv_heads
 
 std::array<Tensor, 2> DynamicCache::updateKVCache(int32_t layer_idx, Tensor k, Tensor v) {
   // The input should be [B, H, S, D]
-  MLLM_RT_ASSERT_EQ(k.shape()[0], kv_heads_);
-  MLLM_RT_ASSERT_EQ(v.shape()[0], kv_heads_);
+  MLLM_RT_ASSERT_EQ(k.shape()[1], kv_heads_);
+  MLLM_RT_ASSERT_EQ(v.shape()[1], kv_heads_);
 
   if (!use_fa2_) {
     k = k.repeat(q_heads_ / kv_heads_, 1);
