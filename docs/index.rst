@@ -189,3 +189,9 @@ Documents
    :maxdepth: 2
 
    contribute/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: C++ API
+
+   CppAPI/library_root
