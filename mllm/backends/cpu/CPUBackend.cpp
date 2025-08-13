@@ -29,6 +29,7 @@
 #include "mllm/backends/cpu/ops/SplitOp.hpp"
 #include "mllm/backends/cpu/ops/TransposeOp.hpp"
 #include "mllm/backends/cpu/ops/ViewOp.hpp"
+#include "mllm/backends/cpu/ops/VisionRoPEOp.hpp"
 #include "mllm/backends/cpu/ops/X2XOp.hpp"
 
 namespace mllm::cpu {
@@ -40,7 +41,7 @@ CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
                CPUContiguousOpFactory, CPUCopyOpFactory, CPUEmbeddingOpFactory, CPUSplitOpFactory, CPUViewOpFactory,
                CPULayerNormOpFactory, CPURepeatOpFactory, CPUX2XOpFactory, CPUSoftmaxOpFactory, CPUSiLUOpFactory,
                CPURMSNormOpFactory, CPUGELUOpFactory, CPUQuickGELUOpFactory, CPUMatMulOpFactory, CPUFlashAttention2OpFactory,
-               CPUSliceOpFactory>();
+               CPUSliceOpFactory, CPUVisionRoPEOpFactory>();
 }
 
 std::shared_ptr<CPUBackend> createCPUBackend() { return std::make_shared<CPUBackend>(); }

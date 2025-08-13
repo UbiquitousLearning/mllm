@@ -9,10 +9,10 @@
 
 #include "KernelTestHelper.hpp"
 
-class HpcArmSgemvKernelTest : public KernelTest {
+class MllmBlasArmSgemvKernelTest : public KernelTest {
  public:
-  HpcArmSgemvKernelTest() = default;
-  ~HpcArmSgemvKernelTest() override = default;
+  MllmBlasArmSgemvKernelTest() = default;
+  ~MllmBlasArmSgemvKernelTest() override = default;
 
   bool cmp_mllm_blas_matmul_fp32_gemv_nt_t_decode_small_d_qk(std::unordered_map<std::string, int32_t>& vars) {
     int D = vars["D"];

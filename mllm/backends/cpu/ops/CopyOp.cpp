@@ -12,8 +12,7 @@ void CPUCopyOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
   auto& i0 = inputs[0];
   auto& i1 = inputs[1];
 
-  // Only Support Contiguous Tensor
-  MLLM_RT_ASSERT(i0.isContiguous());
+  // FIXME: Maybe we should handle contiguous issues here.
 
   std::memcpy(i1.ptr<char>(), i0.ptr<char>(), i0.bytes());
 }

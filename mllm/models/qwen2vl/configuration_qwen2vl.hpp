@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 #pragma once
 
+#include "mllm/core/aops/LinearOp.hpp"
 #include "mllm/engine/ConfigFile.hpp"
 
 namespace mllm::models {
@@ -61,6 +62,8 @@ struct Qwen2VLConfig : protected ConfigFile {
   int64_t eos_token_id = 151645;
   int32_t end_of_text_token_id = 151643;
   float rope_theta = 1000000.0;
+
+  aops::LinearImplTypes linear_impl_type;
 };
 
 }  // namespace mllm::models

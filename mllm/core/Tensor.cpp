@@ -12,6 +12,7 @@
 #include "mllm/core/aops/ReduceOps.hpp"
 #include "mllm/core/aops/RepeatOp.hpp"
 #include "mllm/core/aops/ReshapeOp.hpp"
+#include "mllm/core/aops/SliceOp.hpp"
 #include "mllm/core/aops/TransposeOp.hpp"
 #include "mllm/core/aops/ViewOp.hpp"
 #include "mllm/core/aops/X2XOp.hpp"
@@ -20,8 +21,11 @@
 namespace mllm {
 
 Tensor Tensor::operator[](const SliceIndices& slice_index) {
-  // TODO
-  return Tensor::nil();
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kSlice,
+                                                  aops::SliceOpOptions{
+                                                      .indices_ = slice_index,
+                                                  },
+                                                  {*this})[0];
 }
 
 Tensor& Tensor::alloc() {
