@@ -15,10 +15,10 @@ Arm Kernel support
 - KleidiAI Kernels
 - Search for appropriate Arm Kernel Settings on different Arm platforms.
 - Full coverage of the correctness of current Arm operators
-- HPC-SGEMV and HPC-SGEMM, Optimized for Shapes in LLM Scenarios.
-- HPC-HGEMV and HPC-HGEMM, Optimized for Shapes in LLM Scenarios, fp32 accumulator.
-- HPC-BF16GEMV and HPC-BF16GEMM.
-- HPC-I8GEMV and HPC-I8GEMM.
+- MLLM-BLAS-SGEMV and MLLM-BLAS-SGEMM, Optimized for Shapes in LLM Scenarios.
+- MLLM-BLAS-HGEMV and MLLM-BLAS-HGEMM, Optimized for Shapes in LLM Scenarios, fp32 accumulator.
+- MLLM-BLAS-BF16GEMV and MLLM-BLAS-BF16GEMM.
+- MLLM-BLAS-I8GEMV and MLLM-BLAS-I8GEMM.
 
 QNN Backend support
 ^^^^^^^^^^^^^^^^^^^^
