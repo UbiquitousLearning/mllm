@@ -11,7 +11,7 @@
 #include "mllm/utils/Common.hpp"
 #include "mllm/preprocessor/visual/Image.hpp"
 
-namespace mllm::models {
+namespace mllm::models::qwen2vl {
 
 class Qwen2VLImagePreprocessor {
  public:
@@ -123,4 +123,4 @@ class Qwen2VLImagePreprocessor {
   int32_t temporal_patch_size_ = 2;
 };
 
-}  // namespace mllm::models
+}  // namespace mllm::models::qwen2vl

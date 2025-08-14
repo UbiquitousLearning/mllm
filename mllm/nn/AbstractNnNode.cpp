@@ -10,7 +10,7 @@ AbstractNnNode::AbstractNnNode(AbstractNnNodeTypes type) : type_(type) {}
 void AbstractNnNode::regChildNode(const AbstractNnNode::ptr_t& child) {
   // Link child node to parent node
   child->refParentNode() = shared_from_this();
-  child->setDepth(depth_ + 1);
+  child->depthIncrease();
   reg_child_nodes_.emplace_back(child);
 }
 
@@ -24,9 +24,15 @@ void AbstractNnNode::setAbsoluteName(const std::string& absolute_name) { absolut
 
 void AbstractNnNode::setDepth(int32_t depth) { depth_ = depth; }
 
-void AbstractNnNode::depthIncrease() { depth_++; }
+void AbstractNnNode::depthIncrease() {
+  depth_++;
+  for (auto& c : reg_child_nodes_) { c->depthIncrease(); }
+}
 
-void AbstractNnNode::depthDecrease() { depth_--; }
+void AbstractNnNode::depthDecrease() {
+  depth_--;
+  for (auto& c : reg_child_nodes_) { c->depthDecrease(); }
+}
 
 std::string AbstractNnNode::getName() const { return name_; }
 

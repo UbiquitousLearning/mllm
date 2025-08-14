@@ -15,6 +15,7 @@
         "benjamin-simmonds.pythoncpp-debug",
         "cschlosser.doxdocgen",
         "redhat.vscode-yaml",
-        "ms-vscode.cmake-tools"
+        "ms-vscode.cmake-tools",
+        "editorconfig.editorconfig"
     ]
 }

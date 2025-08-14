@@ -33,7 +33,7 @@ BaseOpOptionsBase& LayerImpl::refOptions() { return options_; }
 
 void LayerImpl::__fmt_print(std::stringstream& ss) {
   for (int i = 0; i < getDepth() * 4; i++) { ss << " "; }
-  ss << getAbsoluteName() << ", device: " << deviceTypes2Str(device_type_);
+  ss << getAbsoluteName() << ", device: " << deviceTypes2Str(device_type_) << "\n";
 }
 
 BaseOp::ptr_t LayerImpl::getInstancedOp() { return instanced_op_; }
@@ -84,6 +84,6 @@ Layer& Layer::to(DeviceTypes device_type) {
   return *this;
 }
 
-void Layer::__fmt_print(std::stringstream& ss) { __fmt_print(ss); }
+void Layer::__fmt_print(std::stringstream& ss) { impl_->__fmt_print(ss); }
 
 }  // namespace mllm::nn
