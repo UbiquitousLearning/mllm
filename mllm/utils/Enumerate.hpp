@@ -120,7 +120,6 @@ class EnumerateIterator {
   bool operator<=(const EnumerateIterator& other) const { return it_ <= other.it_; }
   bool operator>=(const EnumerateIterator& other) const { return it_ >= other.it_; }
 
-  // --- Friend functions for arithmetic ---
   template<typename U>
   friend auto operator+(EnumerateIterator<U> it, typename EnumerateIterator<U>::difference_type n) -> EnumerateIterator<U>;
   template<typename U>
@@ -160,7 +159,6 @@ auto operator-(const EnumerateIterator<T_Iterator>& lhs, const EnumerateIterator
   return lhs.it_ - rhs.it_;
 }
 
-// 3. 包装器对象 (Wrapper Object)
 template<typename T_Iterable>
 class EnumerateObject {
  public:
