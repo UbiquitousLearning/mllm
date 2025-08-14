@@ -13,6 +13,8 @@ class QuickGELU : public Layer {
   QuickGELU();
 
   explicit QuickGELU(const aops::QuickGELUOpOptions& options);
+
+  MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };
 
 }  // namespace mllm::nn

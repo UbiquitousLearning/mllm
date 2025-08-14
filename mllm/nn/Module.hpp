@@ -10,6 +10,7 @@
 #include "mllm/nn/Layer.hpp"
 #include "mllm/core/ParameterFile.hpp"
 #include "mllm/engine/Context.hpp"
+#include "mllm/utils/SymbolTable.hpp"
 
 namespace mllm::nn {
 
@@ -26,6 +27,14 @@ class ModuleImpl : public AbstractNnNode {
   void to(DeviceTypes device_type);
 
   void __fmt_print(std::stringstream& ss);
+
+  void registerBuffer(const std::string& name, const Tensor& tensor);
+
+  Tensor getBuffer(const std::string& name);
+
+ private:
+  /// Buffer is tensors that will not shown in params. And will not be saved.
+  SymbolTable<std::string, Tensor> buffer_;
 };
 
 template<typename T>
@@ -105,6 +114,10 @@ class Module {
   std::vector<Tensor> __trace(const std::vector<Tensor>& inputs);
 
   ParameterFile::ptr_t params(ModelFileVersion v);
+
+  void registerBuffer(const std::string& name, const Tensor& tensor);
+
+  Tensor getBuffer(const std::string& name);
 
  private:
   ModuleImpl::ptr_t impl_ = nullptr;

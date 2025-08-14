@@ -13,6 +13,8 @@ class GELU : public Layer {
   GELU();
 
   explicit GELU(const aops::GELUOpOptions& options);
+
+  MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };
 
 }  // namespace mllm::nn

@@ -15,6 +15,8 @@ class Softmax : public Layer {
   explicit Softmax(const aops::SoftmaxOpOptions& options);
 
   explicit Softmax(int32_t dim);
+
+  MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };
 
 }  // namespace mllm::nn

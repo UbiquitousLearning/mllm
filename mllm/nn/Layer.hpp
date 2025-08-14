@@ -52,13 +52,7 @@ class Layer {
 
   [[nodiscard]] LayerImpl::ptr_t impl() const;
 
-  template<typename... Args>
-  Tensor operator()(Args&&... args) {
-    auto inputs = std::vector<Tensor>{std::forward<decltype(args)>(args)...};
-    return __main(inputs);
-  }
-
-  Tensor __main(const std::vector<Tensor>& inputs);
+  std::vector<Tensor> __main(const std::vector<Tensor>& inputs);
 
   [[nodiscard]] OpTypes opType() const;
 
@@ -71,5 +65,26 @@ class Layer {
  private:
   LayerImpl::ptr_t impl_ = nullptr;
 };
+
+#define MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD                               \
+  template<typename... Args>                                                  \
+  Tensor operator()(Args&&... args) {                                         \
+    auto inputs = std::vector<Tensor>{std::forward<decltype(args)>(args)...}; \
+    return __main(inputs)[0];                                                 \
+  }
+
+#define MLLM_LAYER_ANY_INPUTS_2_OUTPUTS_FORWARD                               \
+  template<typename... Args>                                                  \
+  std::array<Tensor, 2> operator()(Args&&... args) {                          \
+    auto inputs = std::vector<Tensor>{std::forward<decltype(args)>(args)...}; \
+    return {__main(inputs)[0], __main(inputs)[1]};                            \
+  }
+
+#define MLLM_LAYER_ANY_INPUTS_3_OUTPUTS_FORWARD                               \
+  template<typename... Args>                                                  \
+  std::array<Tensor, 3> operator()(Args&&... args) {                          \
+    auto inputs = std::vector<Tensor>{std::forward<decltype(args)>(args)...}; \
+    return {__main(inputs)[0], __main(inputs)[1], __main(inputs)[3]};         \
+  }
 
 }  // namespace mllm::nn

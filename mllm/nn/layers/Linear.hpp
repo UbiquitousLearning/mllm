@@ -20,6 +20,8 @@ class Linear : public Layer {
   [[nodiscard]] Tensor weight() const;
 
   [[nodiscard]] Tensor bias() const;
+
+  MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };
 
 }  // namespace mllm::nn

@@ -313,12 +313,66 @@ void Qwen2VLVisionRoPEOpImpl::forward(const Tensor& activation, const Tensor& si
   }
 }
 
-CPUVisionRoPEOp::CPUVisionRoPEOp(const aops::VisionRoPEOpOptions& options) : aops::VisionRoPEOp(options) {
-  // TODO
-}
+CPUVisionRoPEOp::CPUVisionRoPEOp(const aops::VisionRoPEOpOptions& options) : aops::VisionRoPEOp(options) {}
 
 void CPUVisionRoPEOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  // TODO
+  auto& activation = inputs[0];
+  auto grid_thw = inputs[1];
+
+  // Only support BSHD inputs.
+  MLLM_RT_ASSERT_EQ(activation.shape().size(), 4);
+
+  // Input is BSHD, seq_len is in pos 1.
+  auto seq_len = activation.shape()[1];
+
+  switch (options_.type) {
+    case aops::VisionRoPEOpOptionsType::kQwen2VL: {
+      // For Qwen2VL's ViT RoPE
+      auto impl = Qwen2VLVisionRoPEOpImpl();
+
+      Tensor sin = Tensor::nil();
+      Tensor cos = Tensor::nil();
+
+      // Means we have sin and cos
+      if (inputs.size() > 2) {
+        sin = inputs[2];
+        cos = inputs[3];
+      }
+
+      // Compute sin and cos.
+      if (!sin and !cos) {
+        auto max_grid_size = -1;
+        {
+          auto grid_ptr = grid_thw.ptr<int>();
+          max_grid_size = std::max({grid_ptr[0], grid_ptr[1], grid_ptr[2]});
+        }
+        auto inv_freq = impl.computeInvFreq(options_.qwen2vl_rope_op_options);
+        auto pos_ids = impl.getRotaryPosEmbIds(grid_thw, options_.qwen2vl_rope_op_options);
+        auto rotary_pos_emb_full = impl.rotaryPosEmb(inv_freq, max_grid_size, options_.qwen2vl_rope_op_options);
+        auto pos_emb = impl.computeRotaryPosEmb(rotary_pos_emb_full, pos_ids, grid_thw, options_.qwen2vl_rope_op_options);
+
+        auto sin_cos = impl.getSinCos(pos_emb);
+
+        sin = sin_cos.first;
+        cos = sin_cos.second;
+
+        sin = sin.to(activation.dtype());
+        cos = cos.to(activation.dtype());
+      }
+
+      // Return sin and cos
+      outputs.emplace_back(sin);
+      outputs.emplace_back(cos);
+
+      // Do VisionRoPE Operation.
+      impl.forward(activation, sin, cos, outputs[0]);
+      break;
+    }
+    default: {
+      NYI("Unsupported VisionRoPEOpOptionsType");
+      break;
+    }
+  }
 }
 
 }  // namespace mllm::cpu

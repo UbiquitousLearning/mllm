@@ -17,3 +17,4 @@
 #include "mllm/nn/layers/LayerNorm.hpp"   // IWYU pragma: export
 #include "mllm/nn/layers/Softmax.hpp"     // IWYU pragma: export
 #include "mllm/nn/layers/VisionRoPE.hpp"  // IWYU pragma: export
+#include "mllm/nn/layers/Conv3D.hpp"      // IWYU pragma: export

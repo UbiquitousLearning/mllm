@@ -51,6 +51,9 @@ void ModuleImpl::to(DeviceTypes device_type) {
       case AbstractNnNodeTypes::kLayer: std::static_pointer_cast<LayerImpl>(hb)->to(device_type); break;
     }
   }
+
+  for (auto& pair : buffer_._ref_raw_data()) { pair.second = pair.second.to(device_type); }
+
   device_type_ = device_type;
 }
 
@@ -65,6 +68,10 @@ void ModuleImpl::__fmt_print(std::stringstream& ss) {
     ss << "\n";
   }
 }
+
+void ModuleImpl::registerBuffer(const std::string& name, const Tensor& tensor) { buffer_.reg(name, tensor); }
+
+Tensor ModuleImpl::getBuffer(const std::string& name) { return buffer_[name]; }
 
 Module::Module(const ModuleImpl::ptr_t& impl) : impl_(impl) {}
 
@@ -162,5 +169,9 @@ std::vector<Tensor> Module::__trace(const std::vector<Tensor>& inputs) {
 }
 
 ParameterFile::ptr_t Module::params(ModelFileVersion v) { return impl_->params(v); }
+
+void Module::registerBuffer(const std::string& name, const Tensor& tensor) { impl_->registerBuffer(name, tensor); }
+
+Tensor Module::getBuffer(const std::string& name) { return impl_->getBuffer(name); }
 
 }  // namespace mllm::nn
