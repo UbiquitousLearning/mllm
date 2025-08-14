@@ -5,7 +5,7 @@
 #include "mllm/core/aops/LinearOp.hpp"
 #include "mllm/engine/ConfigFile.hpp"
 
-namespace mllm::models {
+namespace mllm::models::qwen2vl {
 
 struct Qwen2VLConfig : protected ConfigFile {
   Qwen2VLConfig() = default;
@@ -63,7 +63,9 @@ struct Qwen2VLConfig : protected ConfigFile {
   int32_t end_of_text_token_id = 151643;
   float rope_theta = 1000000.0;
 
+  bool tie_word_embeddings = true;
+
   aops::LinearImplTypes linear_impl_type;
 };
 
-}  // namespace mllm::models
+}  // namespace mllm::models::qwen2vl

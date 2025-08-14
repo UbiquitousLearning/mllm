@@ -65,7 +65,6 @@ void ModuleImpl::__fmt_print(std::stringstream& ss) {
       case AbstractNnNodeTypes::kModule: std::static_pointer_cast<ModuleImpl>(hb)->__fmt_print(ss); break;
       case AbstractNnNodeTypes::kLayer: std::static_pointer_cast<LayerImpl>(hb)->__fmt_print(ss); break;
     }
-    ss << "\n";
   }
 }
 

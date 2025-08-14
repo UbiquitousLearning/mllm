@@ -4,10 +4,16 @@
 #include <cstring>
 #include <algorithm>
 #include <cmath>
-#include <arm_neon.h>
 
 #include "mllm/utils/Common.hpp"
+#include "mllm/utils/CPUArchHelper.hpp"
 #include "mllm/backends/cpu/ops/VisionRoPEOp.hpp"
+
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+// Include AVX, SSE.
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#include <arm_neon.h>
+#endif
 
 namespace mllm::cpu {
 
@@ -28,6 +34,9 @@ Tensor Qwen2VLVisionRoPEOpImpl::computeInvFreq(const aops::Qwen2VLRoPEOpOptions&
 }
 
 Tensor Qwen2VLVisionRoPEOpImpl::getRotaryPosEmbIds(Tensor& grid_thw, const aops::Qwen2VLRoPEOpOptions& options) {
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+  NYI("Qwen2VLVisionRoPEOpImpl is not implemented for x86");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
   MLLM_RT_ASSERT_EQ(grid_thw.shape().size(), 2);
 
   auto img_nums = grid_thw.shape()[0];
@@ -105,6 +114,7 @@ Tensor Qwen2VLVisionRoPEOpImpl::getRotaryPosEmbIds(Tensor& grid_thw, const aops:
   }
 
   return out;
+#endif
 }
 
 Tensor Qwen2VLVisionRoPEOpImpl::computeRotaryPosEmb(Tensor& rotary_pos_emb_full, Tensor& pos_ids, Tensor& grid_thw,
@@ -152,6 +162,9 @@ Tensor Qwen2VLVisionRoPEOpImpl::computeRotaryPosEmb(Tensor& rotary_pos_emb_full,
 }
 
 Tensor Qwen2VLVisionRoPEOpImpl::rotaryPosEmb(Tensor& inv_freq, int seq_len, const aops::Qwen2VLRoPEOpOptions& options) {
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+  NYI("Qwen2VLVisionRoPEOpImpl is not implemented for x86");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
   MLLM_RT_ASSERT(seq_len > 0);
   const int32_t dim = inv_freq.shape()[0];
   Tensor freqs = Tensor::empty({seq_len, dim}, kFloat32, kCPU).alloc();
@@ -176,6 +189,7 @@ Tensor Qwen2VLVisionRoPEOpImpl::rotaryPosEmb(Tensor& inv_freq, int seq_len, cons
   }
 
   return freqs;
+#endif
 }
 
 std::pair<Tensor, Tensor> Qwen2VLVisionRoPEOpImpl::getSinCos(Tensor& rotary_pos_emb) {
@@ -217,6 +231,9 @@ void Qwen2VLVisionRoPEOpImpl::forward(const Tensor& activation, const Tensor& si
 
       auto half_dim = D / 2;
 
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+      NYI("Qwen2VLVisionRoPEOpImpl is not implemented for x86");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       for (int b = 0; b < B; ++b) {
         for (int s = 0; s < S; ++s) {
           for (int h = 0; h < H; ++h) {
@@ -254,6 +271,7 @@ void Qwen2VLVisionRoPEOpImpl::forward(const Tensor& activation, const Tensor& si
           }
         }
       }
+#endif
       break;
     }
     case kFloat32: {
@@ -268,6 +286,9 @@ void Qwen2VLVisionRoPEOpImpl::forward(const Tensor& activation, const Tensor& si
       auto sin_ptr = sin.ptr<float>();
       auto cos_ptr = cos.ptr<float>();
 
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+      NYI("Qwen2VLVisionRoPEOpImpl is not implemented for x86");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       for (int b = 0; b < B; ++b) {
         for (int s = 0; s < S; ++s) {
           for (int h = 0; h < H; ++h) {
@@ -305,6 +326,7 @@ void Qwen2VLVisionRoPEOpImpl::forward(const Tensor& activation, const Tensor& si
           }
         }
       }
+#endif
       break;
     }
     default: {
@@ -340,7 +362,7 @@ void CPUVisionRoPEOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
       }
 
       // Compute sin and cos.
-      if (!sin and !cos) {
+      if (!sin && !cos) {
         auto max_grid_size = -1;
         {
           auto grid_ptr = grid_thw.ptr<int>();
