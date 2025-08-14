@@ -13,6 +13,8 @@ class StaticCache {
  public:
   ~StaticCache() = default;
 
+  StaticCache() = default;
+
   StaticCache(int32_t max_cache_length, int32_t layer_nums, int32_t q_heads, int32_t kv_heads, int32_t kv_dims,
               DataTypes k_dtype, DataTypes v_dtype, DeviceTypes device_type = kCPU, bool use_fa2 = true);
 

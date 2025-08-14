@@ -74,10 +74,24 @@ namespace mllm::async {
 
 template<typename __Module, typename... __Args>
 std::pair<TaskResult::sender_t, Task::ptr_t> fork(__Module& module, __Args&&... args) {
-  std::vector<Tensor> inputs = {args...};
+  std::vector<Tensor> tensors;
+  std::vector<AnyValue> others;
+
+  (..., [&] {
+    // The type must can be inference in compile time
+    using CleanType = std::decay_t<decltype(args)>;
+    if constexpr (std::is_convertible_v<CleanType, Tensor>) {
+      tensors.push_back(std::forward<__Args>(args));
+    } else if constexpr (std::is_convertible_v<CleanType, AnyValue>) {
+      others.push_back(std::forward<__Args>(args));
+    } else {
+      static_assert(false, "Unsupported argument type!");
+    }
+  }());
   auto task = std::make_shared<Task>();
   task->type = TaskTypes::kExecuteModule;
-  task->inputs = inputs;
+  task->inputs = tensors;
+  task->args = others;
   task->custom_context_ptr = &module;
   auto& ctx = Context::instance();
   return {ctx.dispatcherManager()->asyncSubmit(module.impl()->getDevice(), task), task};

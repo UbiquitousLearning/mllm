@@ -6,6 +6,7 @@
 #include <vector>
 #include <type_traits>
 
+#include "mllm/utils/AnyValue.hpp"
 #include "mllm/nn/AbstractNnNode.hpp"
 #include "mllm/nn/Layer.hpp"
 #include "mllm/core/ParameterFile.hpp"
@@ -95,23 +96,36 @@ class Module {
 
   template<typename... Args>
   std::vector<Tensor> operator()(Args&&... args) {
-    std::vector<Tensor> inputs = {std::forward<Args>(args)...};
-    return __main(inputs);
+    std::vector<Tensor> tensors;
+    std::vector<AnyValue> others;
+
+    (..., [&] {
+      // The type must can be inference in compile time
+      using CleanType = std::decay_t<decltype(args)>;
+      if constexpr (std::is_convertible_v<CleanType, Tensor>) {
+        tensors.push_back(std::forward<Args>(args));
+      } else if constexpr (std::is_convertible_v<CleanType, AnyValue>) {
+        others.push_back(std::forward<Args>(args));
+      } else {
+        static_assert(false, "Unsupported argument type!");
+      }
+    }());
+    return __main(tensors, others);
   }
 
   void load(const ParameterFile::ptr_t& param_file);
 
-  virtual std::vector<Tensor> forward(const std::vector<Tensor>& inputs);
+  virtual std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args);
 
   void __fmt_print(std::stringstream& ss) const;
 
-  std::vector<Tensor> __main(const std::vector<Tensor>& inputs);
+  std::vector<Tensor> __main(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args);
 
   void __send_graph_begin(const std::vector<Tensor>& inputs);
 
   void __send_graph_end(const std::vector<Tensor>& inputs);
 
-  std::vector<Tensor> __trace(const std::vector<Tensor>& inputs);
+  std::vector<Tensor> __trace(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args);
 
   ParameterFile::ptr_t params(ModelFileVersion v);
 
@@ -137,9 +151,9 @@ class ModuleList final : public Module {
     }
   };
 
-  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     std::vector<Tensor> o = inputs;
-    for (auto& layer : layers_) { o = layer.forward(o); }
+    for (auto& layer : layers_) { o = layer.forward(o, args); }
     return o;
   }
 
@@ -160,9 +174,9 @@ class ModuleListSuffixed final : public Module {
     }
   };
 
-  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     std::vector<Tensor> o = inputs;
-    for (auto& layer : layers_) { o = layer.forward(o); }
+    for (auto& layer : layers_) { o = layer.forward(o, args); }
     return o;
   }
 
