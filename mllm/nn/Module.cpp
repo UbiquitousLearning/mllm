@@ -86,13 +86,13 @@ void Module::to(DeviceTypes device_type) { impl()->to(device_type); }
 
 void Module::load(const ParameterFile::ptr_t& param_file) { impl_->load(param_file); }
 
-std::vector<Tensor> Module::forward(const std::vector<Tensor>& inputs) { return {}; }
+std::vector<Tensor> Module::forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) { return {}; }
 
 void Module::__fmt_print(std::stringstream& ss) const { impl()->__fmt_print(ss); }
 
-std::vector<Tensor> Module::__main(const std::vector<Tensor>& inputs) {
+std::vector<Tensor> Module::__main(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
   __send_graph_begin(inputs);
-  auto o = forward(inputs);
+  auto o = forward(inputs, args);
   __send_graph_end(inputs);
   return o;
 }
@@ -112,7 +112,7 @@ void Module::__send_graph_end(const std::vector<Tensor>& inputs) {
   (void)ctx.buildOpAndSubmitTask(OpTypes::kGraphEnd, aops::GraphEndOpOptions{.graph_name = impl_->getAbsoluteName()}, inputs);
 }
 
-std::vector<Tensor> Module::__trace(const std::vector<Tensor>& inputs) {
+std::vector<Tensor> Module::__trace(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
   auto ir_ctx = Context::instance().thisThread()->ir_context;
 
   // Create call graph.
@@ -141,7 +141,7 @@ std::vector<Tensor> Module::__trace(const std::vector<Tensor>& inputs) {
   {
     ir_ctx->setDevice(impl_->getDevice());
     auto guard = ir::IRWriterGuard(ir_ctx, this_graph_ir->getTopRegion());
-    outputs = forward(inputs);
+    outputs = forward(inputs, args);
   }
 
   // wrap the outputs to tensor ir.

@@ -17,7 +17,7 @@ class FooNet final : public nn::Module {
     linear_3 = reg<nn::Linear>("linear_3", /*in_channels*/ 1024, /*out_channels*/ 2048);
   }
 
-  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     return {
         linear_0(inputs[0]),
         linear_1(inputs[0]),

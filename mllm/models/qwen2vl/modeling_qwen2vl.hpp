@@ -7,8 +7,10 @@
 #include "mllm/nn/Module.hpp"
 #include "mllm/nn/Nn.hpp"
 #include "mllm/nn/Functional.hpp"
+#include "mllm/nn/lmcache/StaticCache.hpp"
 #include "mllm/models/qwen2vl/output_past_qwen2vl.hpp"
 #include "mllm/models/qwen2vl/configuration_qwen2vl.hpp"
+#include "mllm/utils/Enumerate.hpp"
 
 namespace mllm::models::qwen2vl {
 
@@ -35,7 +37,7 @@ class PatchEmbed final : public nn::Module {
                             false);
   }
 
-  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto hidden_states = inputs[0];
 
     // [batch_size(1), in_channel(3), temporal_patch_size(2), patch_size(14), patch_size(14)]
@@ -70,7 +72,7 @@ class PatchMerger final : public nn::Module {
     mlp_2_ = reg<nn::Linear>("mlp.2", hidden_size_, cfg.hidden_size, true);
   }
 
-  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto o = ln_q_(inputs[0]).view({-1, hidden_size_});
     o = mlp_0_(o);
     o = mlp_gelu_(o);
@@ -99,7 +101,9 @@ class VisionMlp final : public nn::Module {
     act_ = reg<nn::QuickGELU>("act");
   }
 
-  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override { return {fc_2_(act_(fc_1_(inputs[0])))}; }
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
+    return {fc_2_(act_(fc_1_(inputs[0])))};
+  }
 };
 
 class VisionAttention final : public nn::Module {
@@ -142,7 +146,7 @@ class VisionAttention final : public nn::Module {
                                          });
   }
 
-  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     // hidden_states shape is [seq_length, dim]
     auto hidden_states = inputs[0];
     auto& grid_thw = inputs[1];
@@ -211,7 +215,7 @@ class Qwen2VLVisionBlock final : public nn::Module {
     mlp_ = reg<VisionMlp>("mlp", cfg);
   }
 
-  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto hidden_states = inputs[0];
     auto grid_thw = inputs[1];
     auto visual_embedding_sin = inputs[2];
@@ -242,19 +246,23 @@ class Qwen2VisionTransformerPretrainedModel final : public nn::Module {
     blocks_ = reg<nn::ModuleList<Qwen2VLVisionBlock>>("blocks", cfg.visual_depth, cfg);
   }
 
-  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto hidden_states = inputs[0];
-    auto& grid_thw = inputs[1];
-    auto& embedding_sin = inputs[2];
-    auto& embedding_cos = inputs[3];
+    auto grid_thw = inputs[1];
+    auto embedding_sin = inputs[2];
+    auto embedding_cos = inputs[3];
 
     hidden_states = patch_embed_(hidden_states)[0];
 
-    std::vector<Tensor> b_inputs = {hidden_states, grid_thw, embedding_sin, embedding_cos};
+    for (auto& b : blocks_.list()) {
+      auto o = b(hidden_states, grid_thw, embedding_sin, embedding_cos);
+      hidden_states = o[0];
+      grid_thw = o[1];
+      embedding_sin = o[2];
+      embedding_cos = o[3];
+    }
 
-    for (auto& b : blocks_.list()) { b_inputs = b(b_inputs); }
-
-    hidden_states = patch_merger_(b_inputs[0])[0];
+    hidden_states = patch_merger_(hidden_states)[0];
 
     return {hidden_states};
   }
@@ -275,7 +283,7 @@ class Qwen2VLMLP final : public nn::Module {
     down_proj_ = reg<nn::Linear>("down_proj", cfg.intermediate_size, cfg.hidden_size, false, cfg.linear_impl_type);
   }
 
-  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto x = gate_proj_(inputs[0]);
     x = silu_(x);
     auto y = up_proj_(inputs[0]);
@@ -325,21 +333,16 @@ class Qwen2VLAttention final : public nn::Module {
                                                        .max_position_embeddings = cfg.max_position_embeddings,
                                                        .mrope_section = cfg.mrope_section});
 
-    // TODO KV CACHE
-    // k_cache_ = reg<nn::KVCache>("k_cache", num_key_value_heads_, head_dim_, num_key_value_groups_, cfg.kv_cache_dtype,
-    //                             cfg.max_cache_length);
-    // v_cache_ = reg<nn::KVCache>("v_cache", num_key_value_heads_, head_dim_, num_key_value_groups_, cfg.kv_cache_dtype,
-    //                             cfg.max_cache_length);
-
     mask_ = reg<nn::CausalMask>("mask");
     softmax_ = reg<nn::Softmax>("softmax", -1);
   }
 
-  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto x = inputs[0];
     auto pos_ids = inputs[1];
     auto llm_embedding_sin = inputs[2];
     auto llm_embedding_cos = inputs[3];
+    auto past_kv_cache = args[0].get<nn::StaticCache*>();
 
     // [B, S, H * D]
     auto query_states = q_proj_(x);
@@ -368,8 +371,9 @@ class Qwen2VLAttention final : public nn::Module {
     llm_embedding_cos = cos;
 
     // [B, H, S, D]
-    // key_states = k_cache_(key_states);
-    // value_states = v_cache_(value_states);
+    auto [k, v] = past_kv_cache->updateKVCache(layer_idx_, key_states, value_states);
+    key_states = k;
+    value_states = v;
 
     Tensor attn;
     if (key_states.dtype() == kFloat32) {
@@ -393,15 +397,17 @@ class Qwen2VLAttention final : public nn::Module {
     output = o_proj_(output);
     return {output, llm_embedding_sin, llm_embedding_cos};
   }
+
+  int layer_idx_;
 };
 
 class Qwen2VLDecoder final : public nn::Module {
+ public:
   Qwen2VLAttention self_attn_;
   Qwen2VLMLP mlp_;
   nn::RMSNorm input_layer_norm_;
   nn::RMSNorm post_attention_layer_norm_;
 
- public:
   Qwen2VLDecoder() = default;
 
   Qwen2VLDecoder(const std::string& name, const Qwen2VLConfig& cfg) : nn::Module(name) {
@@ -411,13 +417,14 @@ class Qwen2VLDecoder final : public nn::Module {
     post_attention_layer_norm_ = reg<nn::RMSNorm>("post_attention_layernorm", cfg.rms_norm_eps);
   }
 
-  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto pos_ids = inputs[1];
     auto llm_embedding_sin = inputs[2];
     auto llm_embedding_cos = inputs[3];
+    auto& kv_cache = args[0];
 
     auto x = input_layer_norm_(inputs[0]);
-    auto res = self_attn_(x, pos_ids, llm_embedding_sin, llm_embedding_cos);
+    auto res = self_attn_(x, pos_ids, llm_embedding_sin, llm_embedding_cos, kv_cache);
     x = res[0];
     llm_embedding_sin = res[1];
     llm_embedding_cos = res[2];
@@ -442,12 +449,14 @@ class Qwen2VLText final : public nn::Module {
     tie_word_embeddings_ = cfg.tie_word_embeddings;
 
     decode_blocks_ = reg<nn::ModuleList<Qwen2VLDecoder>>("layers", cfg.num_hidden_layers, cfg);
+    for (auto [idx, b] : enumerate(decode_blocks_.list())) { b.self_attn_.layer_idx_ = idx; }
+
     norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps);
     embedding_ = reg<nn::Embedding>("embed_tokens", cfg.vocab_size, cfg.hidden_size);
     if (cfg.tie_word_embeddings) { lm_head_ = reg<nn::Param>("lm_head", "model.embed_tokens.weight"); }
   }
 
-  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto& blocks = decode_blocks_.list();
 
     // X is already embedded
@@ -455,11 +464,15 @@ class Qwen2VLText final : public nn::Module {
     auto pos_ids = inputs[1];
     auto llm_embedding_sin = inputs[2];
     auto llm_embedding_cos = inputs[3];
+    auto& kv_cache = args[0];
 
-    std::vector<Tensor> b_inputs = {x, pos_ids, llm_embedding_sin, llm_embedding_cos};
-
-    for (auto& block : blocks) { b_inputs = block(b_inputs); }
-    x = norm_(b_inputs[0]);
+    for (auto& block : blocks) {
+      auto o = block(x, pos_ids, llm_embedding_sin, llm_embedding_cos, kv_cache);
+      x = o[0];
+      llm_embedding_sin = o[1];
+      llm_embedding_cos = o[2];
+    }
+    x = norm_(x);
 
     // clip x to one seq length
     {
@@ -481,7 +494,17 @@ class Qwen2VLText final : public nn::Module {
 
 class Qwen2VLForCausalLM {
  public:
-  explicit Qwen2VLForCausalLM(const Qwen2VLConfig& cfg) : cfg(cfg), llm("model", cfg), visual("visual", cfg) {}
+  explicit Qwen2VLForCausalLM(const Qwen2VLConfig& cfg) : cfg(cfg), llm("model", cfg), visual("visual", cfg) {
+    kv_cache_ = nn::StaticCache(cfg.max_cache_length, cfg.num_hidden_layers,
+                                cfg.num_attention_heads,                    // q_heads
+                                cfg.num_key_value_heads,                    // kv_heads
+                                cfg.hidden_size / cfg.num_attention_heads,  // kv_dims
+                                kFloat32,                                   // k_dtype
+                                kFloat32,                                   // v_dtype
+                                kCPU,                                       // device_type
+                                false                                       // use_fa2
+    );
+  }
 
   inline Qwen2VLForCausalLMOutputPast operator()(Qwen2VLForCausalLMOutputPast& past) {
     // Calculate the text embeddings
@@ -515,15 +538,18 @@ class Qwen2VLForCausalLM {
       }
       // input_embedding is [B, S, D]
       auto D = input_embeddings.shape()[2];
-      std::copy(visual_embeddings.ptr<float>(), visual_embeddings.ptr<float>() + visual_embeddings.numel(),
-                input_embeddings.ptr<float>() + vision_pad_token_start * D);
+
+      // FIXME: maybe visual_embeddings.shape()[0];
+      auto visual_sequence = visual_embeddings.shape()[1];
+      visual_embeddings.copy2(
+          input_embeddings[{kAll, {vision_pad_token_start, vision_pad_token_start + visual_sequence}, kAll}]);
     }
 
     getPositionIds(past, cfg);
 
     auto llm_embedding_sin = Tensor::nil();
     auto llm_embedding_cos = Tensor::nil();
-    auto sequence = llm(input_embeddings, past.position_ids, llm_embedding_sin, llm_embedding_cos)[0];
+    auto sequence = llm(input_embeddings, past.position_ids, llm_embedding_sin, llm_embedding_cos, AnyValue(&kv_cache_))[0];
 
     return {
         .sequence = sequence,
@@ -647,6 +673,9 @@ class Qwen2VLForCausalLM {
   const Qwen2VLConfig& cfg;
   Qwen2VLText llm;
   Qwen2VisionTransformerPretrainedModel visual;
+
+ private:
+  nn::StaticCache kv_cache_;
 };
 
 }  // namespace mllm::models::qwen2vl
