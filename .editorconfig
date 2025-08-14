@@ -1,0 +1,32 @@
+# top-most EditorConfig file
+root = true
+
+# Unix-style newlines with a newline ending every file
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+
+[*.cpp]
+indent_style = space
+indent_size = 2
+
+[*.hpp]
+indent_style = space
+indent_size = 2
+
+[*.c]
+indent_style = space
+indent_size = 2
+
+[*.h]
+indent_style = space
+indent_size = 2
+
+[*.cu]
+indent_style = space
+indent_size = 2
+
+[*.cuh]
+indent_style = space
+indent_size = 2

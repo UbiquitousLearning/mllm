@@ -17,6 +17,8 @@ class Embedding : public Layer {
   Embedding(int32_t vocab_size, int32_t hidden_size);
 
   [[nodiscard]] Tensor weight() const;
+
+  MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };
 
 }  // namespace mllm::nn

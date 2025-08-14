@@ -17,6 +17,8 @@ class RMSNorm : public Layer {
   explicit RMSNorm(const aops::RMSNormOpOptions& options);
 
   [[nodiscard]] Tensor weight() const;
+
+  MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };
 
 }  // namespace mllm::nn

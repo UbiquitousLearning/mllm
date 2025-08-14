@@ -1,12 +1,48 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <array>
+
 #include "mllm/nn/Module.hpp"
 #include "mllm/nn/Nn.hpp"
 #include "mllm/nn/Functional.hpp"
 #include "mllm/models/qwen2vl/configuration_qwen2vl.hpp"
 
 namespace mllm::models::qwen2vl {
+
+class PatchEmbed final : public nn::Module {
+  int32_t in_chans_;
+  int32_t embed_dim_;
+  int32_t patch_size_;
+  int32_t temporal_patch_size_;
+
+  nn::Conv3D proj_;
+
+ public:
+  PatchEmbed() = default;
+
+  inline explicit PatchEmbed(const std::string& name, const Qwen2VLConfig& cfg) : nn::Module(name) {
+    in_chans_ = cfg.visual_in_chans;
+    embed_dim_ = cfg.visual_embed_dim;
+    patch_size_ = cfg.visual_patch_size;
+    temporal_patch_size_ = cfg.visual_temporal_patch_size;
+
+    proj_ = reg<nn::Conv3D>("proj", cfg.visual_in_chans, cfg.visual_embed_dim,
+                            std::vector<int32_t>{cfg.visual_temporal_patch_size, cfg.visual_patch_size, cfg.visual_patch_size},
+                            std::vector<int32_t>{cfg.visual_temporal_patch_size, cfg.visual_patch_size, cfg.visual_patch_size},
+                            false);
+  }
+
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
+    auto hidden_states = inputs[0];
+
+    // [batch_size(1), in_channel(3), temporal_patch_size(2), patch_size(14), patch_size(14)]
+    hidden_states = hidden_states.view({-1, in_chans_, temporal_patch_size_, patch_size_, patch_size_});
+    hidden_states = proj_(hidden_states).view({-1, embed_dim_});
+
+    return {hidden_states};
+  }
+};
 
 class PatchMerger final : public nn::Module {
   int32_t hidden_size_;
@@ -108,6 +144,8 @@ class VisionAttention final : public nn::Module {
     // hidden_states shape is [seq_length, dim]
     auto hidden_states = inputs[0];
     auto& grid_thw = inputs[1];
+    auto& visual_embedding_sin = inputs[2];
+    auto& visual_embedding_cos = inputs[3];
 
     auto seq_length = hidden_states.shape()[0];
 
@@ -116,8 +154,12 @@ class VisionAttention final : public nn::Module {
 
     // Input to Vision ROPE must be BSHD format
     // grid_thw shape is [n, 3], n is always 1 in this case.
-    query_states = vision_rope_q_(query_states, grid_thw);
-    key_states = vision_rope_k_(key_states, grid_thw);
+    auto [query_states_roped, _, _] = vision_rope_q_(query_states, grid_thw, visual_embedding_sin, visual_embedding_cos);
+    auto [key_states_roped, _, _] = vision_rope_k_(key_states, grid_thw, visual_embedding_sin, visual_embedding_cos);
+
+    // Reassigned.
+    query_states = query_states_roped;
+    key_states = key_states_roped;
 
     // [B, H, S, D]
     query_states = query_states.transpose(1, 2);
@@ -165,6 +207,36 @@ class Qwen2VLVisionBlock final : public nn::Module {
     auto grid_thw = inputs[1];
     hidden_states = hidden_states + attn_(norm1_(hidden_states), grid_thw)[0];
     hidden_states = hidden_states + mlp_(norm2_(hidden_states))[0];
+    return {hidden_states};
+  }
+};
+
+class Qwen2VisionTransformerPretrainedModel final : public nn::Module {
+  PatchEmbed patch_embed_;
+  PatchMerger patch_merger_;
+  nn::ModuleList<Qwen2VLVisionBlock> blocks_;
+
+ public:
+  Qwen2VisionTransformerPretrainedModel() = default;
+
+  explicit Qwen2VisionTransformerPretrainedModel(const std::string& name, const Qwen2VLConfig& cfg) : nn::Module(name) {
+    patch_embed_ = reg<PatchEmbed>("patch_embed", cfg);
+    patch_merger_ = reg<PatchMerger>("merger", cfg);
+    blocks_ = reg<nn::ModuleList<Qwen2VLVisionBlock>>("blocks", cfg.visual_depth, cfg);
+  }
+
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs) override {
+    auto hidden_states = inputs[0];
+    auto& grid_thw = inputs[1];
+    auto& embedding_sin = inputs[2];
+    auto& embedding_cos = inputs[3];
+
+    hidden_states = patch_embed_(hidden_states)[0];
+
+    for (auto& b : blocks_.list()) { hidden_states = b(hidden_states, grid_thw, embedding_sin, embedding_cos)[0]; }
+
+    hidden_states = patch_merger_(hidden_states)[0];
+
     return {hidden_states};
   }
 };

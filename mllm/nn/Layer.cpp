@@ -44,7 +44,7 @@ LayerImpl::ptr_t Layer::impl() const { return impl_; }
 
 Layer::Layer(const LayerImpl::ptr_t& impl) : impl_(impl) {}
 
-Tensor Layer::__main(const std::vector<Tensor>& inputs) {
+std::vector<Tensor> Layer::__main(const std::vector<Tensor>& inputs) {
   auto& ctx = Context::instance();
   auto task = Task::createExecuteOpTask(impl_->getInstancedOp(), inputs, {});
 
@@ -60,7 +60,7 @@ Tensor Layer::__main(const std::vector<Tensor>& inputs) {
 
     // Everything is Ok. Bravo! You did it.
     // Return what we need.
-    return task->outputs[0];
+    return task->outputs;
   } else {
     // Submit!
     // At this moment, heart pounding like thunder
@@ -71,7 +71,7 @@ Tensor Layer::__main(const std::vector<Tensor>& inputs) {
 
     // Everything is Ok. Bravo! You did it.
     // Return what we need.
-    return task->outputs[0];
+    return task->outputs;
   }
 }
 

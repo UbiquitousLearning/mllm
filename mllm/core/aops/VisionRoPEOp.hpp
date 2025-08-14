@@ -23,7 +23,7 @@ struct Qwen2VLRoPEOpOptions {
 struct VisionRoPEOpOptions : public BaseOpOptions<VisionRoPEOpOptions> {
   VisionRoPEOpOptionsType type;
   union {
-    Qwen2VLRoPEOpOptions qwen2vl_rope_op_Options;
+    Qwen2VLRoPEOpOptions qwen2vl_rope_op_options;
   };
 };
 

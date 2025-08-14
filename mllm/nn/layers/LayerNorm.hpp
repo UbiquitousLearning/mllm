@@ -16,6 +16,8 @@ class LayerNorm : public Layer {
 
   explicit LayerNorm(const std::vector<int32_t>& normalized_shape, bool elementwise_affine = true, bool bias = true,
                      float eps = 1e-6);
+
+  MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };
 
 }  // namespace mllm::nn

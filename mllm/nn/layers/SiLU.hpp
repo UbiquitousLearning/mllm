@@ -13,6 +13,8 @@ class SiLU : public Layer {
   SiLU();
 
   explicit SiLU(const aops::SiLUOpOptions& options);
+
+  MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };
 
 }  // namespace mllm::nn
