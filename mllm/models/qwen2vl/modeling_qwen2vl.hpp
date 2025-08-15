@@ -14,6 +14,82 @@
 
 namespace mllm::models::qwen2vl {
 
+inline auto makeMultimodalRoPEInvFreq(int output_dim, float rope_theta) -> Tensor {
+  auto inv_freq = Tensor::empty({output_dim / 2}, kFloat32, kCPU).alloc();
+  auto inv_freq_ptr = inv_freq.ptr<float>();
+  for (int i = 0; i < output_dim / 2; i++) { inv_freq_ptr[i] = 1.0 / std::pow(rope_theta, 2.0 * i / output_dim); }
+  return inv_freq;
+}
+
+inline auto makeMultimodalPositionEmbedding(Tensor& position_ids, const Tensor& inv_freq, int seq_len, int output_dim,
+                                            const std::vector<int32_t>& mrope_section) -> std::pair<Tensor, Tensor> {
+  // Position ids shape is [3, 1, seq]
+  MLLM_RT_ASSERT_EQ(position_ids.shape().size(), 3);
+  MLLM_RT_ASSERT_EQ(position_ids.shape()[1], 1);  // Batch size is always 1.
+
+  // [3, seq, dim]
+  Tensor tmp_sin = Tensor::empty({3, position_ids.shape()[2], inv_freq.shape()[0] * 2}).alloc();
+  Tensor tmp_cos = Tensor::empty({3, position_ids.shape()[2], inv_freq.shape()[0] * 2}).alloc();
+
+  for (int b = 0; b < 3; ++b) {
+    for (int d = 0; d < inv_freq.shape()[0]; ++d) {
+      for (int s = 0; s < position_ids.shape()[2]; ++s) {
+        auto value = inv_freq.ptr<float>()[d] * (*position_ids.offsettedPtr<int64_t>({b, 0, s}));
+        *tmp_cos.offsettedPtr<float>({b, s, d}) = cosf(value);
+        *tmp_cos.offsettedPtr<float>({b, s, d + inv_freq.shape()[0]}) = cosf(value);
+        *tmp_sin.offsettedPtr<float>({b, s, d}) = sinf(value);
+        *tmp_sin.offsettedPtr<float>({b, s, d + inv_freq.shape()[0]}) = sinf(value);
+      }
+    }
+  }
+
+  Tensor sin = Tensor::nil();
+  Tensor cos = Tensor::nil();
+
+  // mrope is always [16, 24, 24]
+  if (!mrope_section.empty()) {
+    auto double_rope_section = mrope_section;
+    for (int i : mrope_section) { double_rope_section.push_back(i); }
+
+    int num_rows = tmp_sin.shape()[1];
+    int num_cols = tmp_sin.shape()[2];
+
+    sin = Tensor::empty({num_rows, num_cols}, kFloat32, kCPU).alloc();
+    cos = Tensor::empty({num_rows, num_cols}, kFloat32, kCPU).alloc();
+
+    std::vector<int> start_cols;
+    int current_start = 0;
+    start_cols.push_back(current_start);
+    for (int s : double_rope_section) {
+      current_start += s;
+      start_cols.push_back(current_start);
+    }
+
+    for (int j = 0; j < double_rope_section.size(); ++j) {
+      int layer = j % 3;
+      int s_j = double_rope_section[j];
+      int start_col_in = start_cols[j];
+      int start_col_out = start_cols[j];
+      for (int row = 0; row < num_rows; ++row) {
+        // Process cos
+        auto in_cos_row_ptr = tmp_cos.offsettedPtr<float>({layer, row, 0});
+        auto out_cos_row_ptr = cos.offsettedPtr<float>({row, 0});
+        for (int c = 0; c < s_j; ++c) { out_cos_row_ptr[start_col_out + c] = in_cos_row_ptr[start_col_in + c]; }
+
+        // Process sin
+        auto in_sin_row_ptr = tmp_sin.offsettedPtr<float>({layer, row, 0});
+        auto out_sin_row_ptr = sin.offsettedPtr<float>({row, 0});
+        for (int c = 0; c < s_j; ++c) { out_sin_row_ptr[start_col_out + c] = in_sin_row_ptr[start_col_in + c]; }
+      }
+    }
+  } else {
+    sin = tmp_sin;
+    cos = tmp_cos;
+  }
+
+  return {sin, cos};
+}
+
 class PatchEmbed final : public nn::Module {
   int32_t in_chans_;
   int32_t embed_dim_;
@@ -339,9 +415,8 @@ class Qwen2VLAttention final : public nn::Module {
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto x = inputs[0];
-    auto pos_ids = inputs[1];
-    auto llm_embedding_sin = inputs[2];
-    auto llm_embedding_cos = inputs[3];
+    auto llm_embedding_sin = inputs[1];
+    auto llm_embedding_cos = inputs[2];
     auto past_kv_cache = args[0].get<nn::StaticCache*>();
 
     // [B, S, H * D]
@@ -363,12 +438,8 @@ class Qwen2VLAttention final : public nn::Module {
     value_states = value_states.transpose(1, 2);
 
     // [B, H, S, D]
-    auto [query_states_rope, sin, cos] = q_rope_(query_states, pos_ids, llm_embedding_sin, llm_embedding_cos);
-    auto [key_states_rope, _, _] = k_rope_(key_states, pos_ids, llm_embedding_sin, llm_embedding_cos);
-    query_states = query_states_rope;
-    key_states = key_states_rope;
-    llm_embedding_sin = sin;
-    llm_embedding_cos = cos;
+    query_states = q_rope_(query_states, llm_embedding_sin, llm_embedding_cos);
+    key_states = k_rope_(key_states, llm_embedding_sin, llm_embedding_cos);
 
     // [B, H, S, D]
     auto [k, v] = past_kv_cache->updateKVCache(layer_idx_, key_states, value_states);
@@ -418,21 +489,17 @@ class Qwen2VLDecoder final : public nn::Module {
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
-    auto pos_ids = inputs[1];
-    auto llm_embedding_sin = inputs[2];
-    auto llm_embedding_cos = inputs[3];
+    auto llm_embedding_sin = inputs[1];
+    auto llm_embedding_cos = inputs[2];
     auto& kv_cache = args[0];
 
     auto x = input_layer_norm_(inputs[0]);
-    auto res = self_attn_(x, pos_ids, llm_embedding_sin, llm_embedding_cos, kv_cache);
-    x = res[0];
-    llm_embedding_sin = res[1];
-    llm_embedding_cos = res[2];
+    x = self_attn_(x, llm_embedding_sin, llm_embedding_cos, kv_cache)[0];
     auto tmp = x + inputs[0];
     x = post_attention_layer_norm_(tmp);
     x = mlp_(x)[0];
     x = x + tmp;
-    return {x, llm_embedding_sin, llm_embedding_cos};
+    return {x};
   }
 };
 
@@ -454,6 +521,10 @@ class Qwen2VLText final : public nn::Module {
     norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps);
     embedding_ = reg<nn::Embedding>("embed_tokens", cfg.vocab_size, cfg.hidden_size);
     if (cfg.tie_word_embeddings) { lm_head_ = reg<nn::Param>("lm_head", "model.embed_tokens.weight"); }
+
+    // Init inv freq
+    auto inv = makeMultimodalRoPEInvFreq(cfg.hidden_size / cfg.num_attention_heads, cfg.rope_theta);
+    registerBuffer("inv_freq", inv);
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
@@ -461,17 +532,11 @@ class Qwen2VLText final : public nn::Module {
 
     // X is already embedded
     auto x = inputs[0];
-    auto pos_ids = inputs[1];
-    auto llm_embedding_sin = inputs[2];
-    auto llm_embedding_cos = inputs[3];
+    auto llm_embedding_sin = inputs[1];
+    auto llm_embedding_cos = inputs[2];
     auto& kv_cache = args[0];
 
-    for (auto& block : blocks) {
-      auto o = block(x, pos_ids, llm_embedding_sin, llm_embedding_cos, kv_cache);
-      x = o[0];
-      llm_embedding_sin = o[1];
-      llm_embedding_cos = o[2];
-    }
+    for (auto& block : blocks) { x = block(x, llm_embedding_sin, llm_embedding_cos, kv_cache)[0]; }
     x = norm_(x);
 
     // clip x to one seq length
@@ -510,7 +575,7 @@ class Qwen2VLForCausalLM {
     // Calculate the text embeddings
     auto input_embeddings = llm.embedding_(past.sequence);
 
-    if (!past.img.isNil()) {
+    if (past.img) {
       // process img
       print("ViT Processing: ...");
       print("Image shape is:", past.img.shape());
@@ -545,11 +610,13 @@ class Qwen2VLForCausalLM {
           input_embeddings[{kAll, {vision_pad_token_start, vision_pad_token_start + visual_sequence}, kAll}]);
     }
 
+    // Generate position ids and embedding sin and cos
     getPositionIds(past, cfg);
+    auto [llm_embedding_sin, llm_embedding_cos] =
+        makeMultimodalPositionEmbedding(past.position_ids, llm.getBuffer("inv_freq"), cfg.max_position_embeddings,
+                                        cfg.hidden_size / cfg.num_attention_heads, cfg.mrope_section);
 
-    auto llm_embedding_sin = Tensor::nil();
-    auto llm_embedding_cos = Tensor::nil();
-    auto sequence = llm(input_embeddings, past.position_ids, llm_embedding_sin, llm_embedding_cos, AnyValue(&kv_cache_))[0];
+    auto sequence = llm(input_embeddings, llm_embedding_sin, llm_embedding_cos, AnyValue(&kv_cache_))[0];
 
     return {
         .sequence = sequence,

@@ -11,6 +11,9 @@ namespace mllm::aops {
 enum class MatMulOpType {
   kDefault = 0,
   kLlamaFile = 1,
+
+  // BLAS
+  kBLAS = 2,
 };
 
 struct MatMulOpOptions : public BaseOpOptions<MatMulOpOptions> {

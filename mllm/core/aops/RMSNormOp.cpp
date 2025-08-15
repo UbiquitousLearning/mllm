@@ -15,7 +15,7 @@ void RMSNormOp::load(const ParameterFile::ptr_t& ploader) {
   switch (ploader->version()) {
     case ModelFileVersion::kV1: {
       weight_ = ploader->pull(getName() + ".weight");
-      // TODO Need to reshape
+      // FIXME: need reshape.
       break;
     }
     case ModelFileVersion::kUserTemporary:
