@@ -12,6 +12,9 @@ enum class LinearImplTypes {
   kLinearImplTypes_Start = 0,
   kDefault,
 
+  // BLAS
+  kBLAS,
+
   kKleidiai_Start,
   // Add KAI quantized linear
   kKleidiai_End,

@@ -14,8 +14,14 @@ namespace mllm::aops {
 LayerNormOp::LayerNormOp(const LayerNormOpOptions& options) : BaseOp(OpTypes::kLayerNorm), options_(options) {}
 
 void LayerNormOp::load(const ParameterFile::ptr_t& ploader) {
-  if (options_.elementwise_affine) { weight_ = ploader->pull(getName() + ".weight"); }
-  if (options_.bias) { bias_ = ploader->pull(getName() + ".bias"); }
+  if (options_.elementwise_affine) {
+    weight_ = ploader->pull(getName() + ".weight");
+    weight_ = weight_.view(options_.normalized_shape);
+  }
+  if (options_.bias) {
+    bias_ = ploader->pull(getName() + ".bias");
+    bias_ = bias_.view(options_.normalized_shape);
+  }
 }
 
 void LayerNormOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {

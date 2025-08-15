@@ -588,6 +588,23 @@ TEST_F(MllmBlasArmSgemvKernelTest, matmul_fp32_gemv_nt_t_decode_small_d_qk) {
 }
 #endif
 
+#ifdef MLLM_USE_BLAS
+#include "BlasKernelTest.hpp"
+TEST_F(BlasKernelTest, matmul_MxK_NxK) {
+  EXPECT_EQ(matmul_MxK_NxK({
+                {{"M", 64}, {"N", 64}, {"K", 64}},
+            }),
+            true);
+}
+
+TEST_F(BlasKernelTest, batch_matmul_BHSD) {
+  EXPECT_EQ(batch_matmul_BHSD({
+                {{"B", 2}, {"H", 28}, {"S", 10}, {"D", 16}},
+            }),
+            true);
+}
+#endif
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   mllm::initializeContext();

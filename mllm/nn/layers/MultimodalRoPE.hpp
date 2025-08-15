@@ -16,7 +16,7 @@ class MultimodalRoPE : public Layer {
 
   explicit MultimodalRoPE(const aops::Qwen2VLMultimodalRoPEOpOptions& options);
 
-  MLLM_LAYER_ANY_INPUTS_3_OUTPUTS_FORWARD
+  MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };
 
 }  // namespace mllm::nn
