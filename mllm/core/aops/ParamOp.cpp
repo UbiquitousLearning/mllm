@@ -15,7 +15,7 @@ void ParamOp::load(const ParameterFile::ptr_t& ploader) {
   switch (ploader->version()) {
     case ModelFileVersion::kV1: {
       weight_ = ploader->pull(options_.name);
-      weight_.view(options_.shape);
+      weight_ = weight_.view(options_.shape);
       break;
     }
     case ModelFileVersion::kUserTemporary:

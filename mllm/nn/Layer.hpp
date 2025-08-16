@@ -77,14 +77,16 @@ class Layer {
   template<typename... Args>                                                  \
   std::array<Tensor, 2> operator()(Args&&... args) {                          \
     auto inputs = std::vector<Tensor>{std::forward<decltype(args)>(args)...}; \
-    return {__main(inputs)[0], __main(inputs)[1]};                            \
+    auto outs = __main(inputs);                                               \
+    return {outs[0], outs[1]};                                                \
   }
 
 #define MLLM_LAYER_ANY_INPUTS_3_OUTPUTS_FORWARD                               \
   template<typename... Args>                                                  \
   std::array<Tensor, 3> operator()(Args&&... args) {                          \
     auto inputs = std::vector<Tensor>{std::forward<decltype(args)>(args)...}; \
-    return {__main(inputs)[0], __main(inputs)[1], __main(inputs)[3]};         \
+    auto outs = __main(inputs);                                               \
+    return {outs[0], outs[1], outs[2]};                                       \
   }
 
 }  // namespace mllm::nn

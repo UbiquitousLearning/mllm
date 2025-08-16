@@ -116,7 +116,7 @@ class PatchEmbed final : public nn::Module {
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto hidden_states = inputs[0];
 
-    // [batch_size(1), in_channel(3), temporal_patch_size(2), patch_size(14), patch_size(14)]
+    // [batch_size(x), in_channel(3), temporal_patch_size(2), patch_size(14), patch_size(14)]
     hidden_states = hidden_states.view({-1, in_chans_, temporal_patch_size_, patch_size_, patch_size_});
     hidden_states = proj_(hidden_states).view({-1, embed_dim_});
 
@@ -237,7 +237,7 @@ class VisionAttention final : public nn::Module {
     // Input to Vision ROPE must be BSHD format
     // grid_thw shape is [n, 3], n is always 1 in this case.
     auto [query_states_roped, sin, cos] = vision_rope_q_(query_states, grid_thw, visual_embedding_sin, visual_embedding_cos);
-    auto [key_states_roped, _, _] = vision_rope_k_(key_states, grid_thw, visual_embedding_sin, visual_embedding_cos);
+    auto [key_states_roped, _, _] = vision_rope_k_(key_states, grid_thw, sin, cos);
 
     visual_embedding_sin = sin;
     visual_embedding_cos = cos;
@@ -297,7 +297,7 @@ class Qwen2VLVisionBlock final : public nn::Module {
     auto visual_embedding_sin = inputs[2];
     auto visual_embedding_cos = inputs[3];
 
-    auto res = attn_(norm1_(hidden_states), grid_thw);
+    auto res = attn_(norm1_(hidden_states), grid_thw, visual_embedding_sin, visual_embedding_cos);
     auto& a = res[0];
     visual_embedding_sin = res[1];
     visual_embedding_cos = res[2];
@@ -520,7 +520,9 @@ class Qwen2VLText final : public nn::Module {
 
     norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps);
     embedding_ = reg<nn::Embedding>("embed_tokens", cfg.vocab_size, cfg.hidden_size);
-    if (cfg.tie_word_embeddings) { lm_head_ = reg<nn::Param>("lm_head", "model.embed_tokens.weight"); }
+    if (cfg.tie_word_embeddings) {
+      lm_head_ = reg<nn::Param>("lm_head", "model.embed_tokens.weight", std::vector<int32_t>{cfg.vocab_size, cfg.hidden_size});
+    }
 
     // Init inv freq
     auto inv = makeMultimodalRoPEInvFreq(cfg.hidden_size / cfg.num_attention_heads, cfg.rope_theta);
@@ -603,9 +605,7 @@ class Qwen2VLForCausalLM {
       }
       // input_embedding is [B, S, D]
       auto D = input_embeddings.shape()[2];
-
-      // FIXME: maybe visual_embeddings.shape()[0];
-      auto visual_sequence = visual_embeddings.shape()[1];
+      auto visual_sequence = visual_embeddings.shape()[0];
       visual_embeddings.copy2(
           input_embeddings[{kAll, {vision_pad_token_start, vision_pad_token_start + visual_sequence}, kAll}]);
     }

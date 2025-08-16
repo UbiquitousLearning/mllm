@@ -22,11 +22,11 @@ void CPUConv3DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
       switch (weight_.dtype()) {
         case kFloat32: {
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-          arm::conv3d_fp32_baseline(input.ptr<mllm_fp32_t>(), weight_.ptr<mllm_fp32_t>(),
-                                    bias_ ? bias_.ptr<mllm_fp32_t>() : nullptr, output.ptr<mllm_fp32_t>(), options_.in_channels,
-                                    i_shape[i_shape_size - 3], i_shape[i_shape_size - 2], i_shape[i_shape_size - 1],
-                                    options_.out_channels, options_.kernel_size[0], options_.kernel_size[1],
-                                    options_.kernel_size[2], options_.stride[0], options_.stride[1], options_.stride[2]);
+          arm::conv3d_fp32_baseline(
+              input.ptr<mllm_fp32_t>(), weight_.ptr<mllm_fp32_t>(), bias_ ? bias_.ptr<mllm_fp32_t>() : nullptr,
+              output.ptr<mllm_fp32_t>(), i_shape[i_shape_size - 5], i_shape[i_shape_size - 4], i_shape[i_shape_size - 3],
+              i_shape[i_shape_size - 2], i_shape[i_shape_size - 1], options_.out_channels, options_.kernel_size[0],
+              options_.kernel_size[1], options_.kernel_size[2], options_.stride[0], options_.stride[1], options_.stride[2]);
 #endif
           break;
         }
