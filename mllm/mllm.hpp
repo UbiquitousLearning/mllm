@@ -7,6 +7,7 @@
 #include <cstdint>        // IWYU pragma: export
 #include <algorithm>      // IWYU pragma: export
 #include <unordered_map>  // IWYU pragma: export
+#include <csignal>
 
 #include <fmt/core.h>
 #include <fmt/format.h>
@@ -192,4 +193,45 @@ inline void print(const Args&... args) {
   fmt::print("\n");
 }
 
+inline void __signal_handler(int signal) {
+  ::mllm::print("Received signal ", signal);
+  ::mllm::shutdownContext();
+  exit(signal);
+}
+
+inline void __setup_signal_handler() {
+  std::signal(SIGINT, __signal_handler);
+  std::signal(SIGTERM, __signal_handler);
+  std::signal(SIGABRT, __signal_handler);
+  std::signal(SIGSEGV, __signal_handler);
+}
+
+template<typename Func>
+inline int __mllm_exception_main(Func&& func) {
+  try {
+    return func();
+  } catch (const std::exception& e) {
+    ::mllm::print("Exception caught: ", e.what());
+    ::mllm::shutdownContext();
+    return 1;
+  } catch (...) {
+    ::mllm::print("Caught unknown exception");
+    ::mllm::shutdownContext();
+    return 1;
+  }
+}
+
 }  // namespace mllm
+
+#define MLLM_MAIN(x)                                       \
+  int main(int argc, char** argv) {                        \
+    ::mllm::__setup_signal_handler();                      \
+    ::mllm::initializeContext();                           \
+    auto user_main = [&]() -> int {                        \
+      x;                                                   \
+      return 0;                                            \
+    };                                                     \
+    int result = ::mllm::__mllm_exception_main(user_main); \
+    ::mllm::shutdownContext();                             \
+    return result;                                         \
+  }

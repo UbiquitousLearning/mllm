@@ -57,7 +57,7 @@ struct formatter<mllm::Tensor> {
       return fmt::format_to(ctx.out(), "tensor([], size=({}), dtype={})", fmt::join(tensor.shape(), ", "), tensor.dtype());
     }
 
-    auto out = fmt::format_to(ctx.out(), "tensor(");
+    auto out = fmt::format_to(ctx.out(), "tensor(\n");
     out = printTensorData(tensor, out, 0, {});
     return fmt::format_to(out, ", dtype={}, device={})", tensor.dtype(), tensor.device());
   }

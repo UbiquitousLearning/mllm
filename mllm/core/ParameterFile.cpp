@@ -128,9 +128,9 @@ ParameterFile::ptr_t ParameterFileIOImpl<DeviceTypes::kCPU, ModelFileVersion::kV
   for (auto& desc : tensor_meta_info) {
     MLLM_RT_ASSERT(std::numeric_limits<int32_t>::max() >= desc.descriptor_.name_len);
 
-    TensorViewImpl::shape_t shape = {(int32_t)desc.descriptor_.data_len};
-
-    auto s = TensorStorage::create(shape, static_cast<DataTypes>(desc.descriptor_.dtype), kCPU);
+    auto dtype = static_cast<DataTypes>(desc.descriptor_.dtype);
+    TensorViewImpl::shape_t shape = {(int32_t)(desc.descriptor_.data_len / bytesOfType(dtype) * lanesOfType(dtype))};
+    auto s = TensorStorage::create(shape, dtype, kCPU);
     auto t = TensorViewImpl::create(shape, s);
 
     s->name_ = desc.name_;

@@ -242,8 +242,6 @@ class Qwen2VLTokenizer final : public mllm::preprocessor::AutoTokenizer {
     size_t pos = applied_string.find("{{{prompt}}}");
     applied_string.replace(pos, 12, message.prompt);
 
-    MLLM_INFO("{}", applied_string);
-
     // process image
     auto [img, grid_thw] = image_preprocessor_(message.img_file_path);
 
