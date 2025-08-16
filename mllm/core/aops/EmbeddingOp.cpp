@@ -17,7 +17,7 @@ void EmbeddingOp::load(const ParameterFile::ptr_t& ploader) {
   switch (ploader->version()) {
     case ModelFileVersion::kV1: {
       weight_ = ploader->pull(getName() + ".weight");
-      // TODO Need to reshape
+      weight_ = weight_.view({options_.vocab_size, options_.hidden_size});
       break;
     }
     case ModelFileVersion::kUserTemporary:

@@ -7,6 +7,8 @@
 #include "mllm/utils/Common.hpp"
 #include "mllm/utils/Log.hpp"
 #include "mllm/backends/cpu/ops/MatMulOp.hpp"
+#include "mllm/backends/cpu/kernels/Kernels.hpp"
+#include "mllm/backends/cpu/kernels/common/blas.hpp"
 
 namespace mllm::cpu {
 
@@ -108,6 +110,27 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
         MLLM_WARN("LlamaFile matmul requires contiguous tensors, falling back to default implementation.");
         NYI("Default implementation for non-contiguous tensors not yet implemented");
       }
+      break;
+    }
+    case aops::MatMulOpType::kBLAS: {
+#if defined(MLLM_USE_BLAS)
+      MLLM_RT_ASSERT_EQ(lhs.dtype(), kFloat32);
+      MLLM_RT_ASSERT_EQ(rhs.dtype(), kFloat32);
+      MLLM_RT_ASSERT_EQ(o.dtype(), kFloat32);
+      if (batch_count == 1) {
+        blas::matmul_fp32(lhs.ptr<mllm_fp32_t>(), rhs.ptr<mllm_fp32_t>(), o.ptr<mllm_fp32_t>(), nullptr, M, N, K, transpose_a,
+                          transpose_b);
+      } else {
+        blas::batch_matmul_fp32(lhs.ptr<mllm_fp32_t>(), rhs.ptr<mllm_fp32_t>(), o.ptr<mllm_fp32_t>(), nullptr, batch_count, M,
+                                N, K, lhs.stride()[lhs_shape.size() - 3], rhs.stride()[rhs_shape.size() - 3],
+                                o.stride()[o.shape().size() - 3], transpose_a, transpose_b);
+      }
+#else
+      NYI("BLAS not supported. Pls set MLLM_USE_BLAS=ON to enable BLAS supports in cmake.");
+#endif
+      break;
+    }
+    default: {
       break;
     }
   }

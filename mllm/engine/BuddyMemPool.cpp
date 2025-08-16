@@ -217,8 +217,9 @@ void BuddyMemPool::freeBuddy(BuddyMemBlock* omb) {
       omb->size *= 2;
       omb->buddy_order++;
     }
+    BuddyMemBlock* buddy = *it;
     list.erase(it);
-    delete (*it);
+    delete buddy;
   }
 }
 

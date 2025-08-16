@@ -18,7 +18,14 @@ void Conv3DOp::load(const ParameterFile::ptr_t& ploader) {
     case ModelFileVersion::kV1: {
       weight_ = ploader->pull(getName() + ".weight");
       if (options_.bias) { bias_ = ploader->pull(getName() + ".bias"); }
-      // TODO Need to reshape
+      weight_ = weight_.view({
+          options_.out_channels,
+          options_.in_channels,
+          options_.kernel_size[0],
+          options_.kernel_size[1],
+          options_.kernel_size[2],
+      });
+      if (options_.bias) { bias_ = bias_.view({options_.out_channels}); }
       break;
     }
     case ModelFileVersion::kUserTemporary:

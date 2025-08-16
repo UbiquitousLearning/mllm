@@ -15,7 +15,7 @@ class CPURepeatOp final : public aops::RepeatOp {
   void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 };
 
-class CPURepeatOpFactory : public TypedOpFactory<OpTypes::kClone, aops::RepeatOpOptions> {
+class CPURepeatOpFactory : public TypedOpFactory<OpTypes::kRepeat, aops::RepeatOpOptions> {
  public:
   std::shared_ptr<BaseOp> createOpImpl(const aops::RepeatOpOptions& options) override {
     return std::make_shared<CPURepeatOp>(options);

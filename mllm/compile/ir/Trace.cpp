@@ -11,7 +11,7 @@
 
 namespace mllm::ir {
 
-IRContext::ptr_t trace_(nn::Module& module, const std::vector<Tensor>& ref_inputs) {
+IRContext::ptr_t trace_(nn::Module& module, const std::vector<Tensor>& ref_inputs, const std::vector<AnyValue>& args) {
   auto& ctx = Context::instance();
   auto this_session = ctx.thisThread();
 
@@ -38,7 +38,7 @@ IRContext::ptr_t trace_(nn::Module& module, const std::vector<Tensor>& ref_input
   this_session->ir_context = ir_context;
 
   // Forward
-  module.__trace(ref_inputs);
+  module.__trace(ref_inputs, args);
 
   // Mark this thread SessionTCB as normal mode.
   this_session->trace_mode = false;

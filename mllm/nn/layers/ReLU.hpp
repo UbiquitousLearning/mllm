@@ -13,6 +13,8 @@ class ReLU : public Layer {
   ReLU();
 
   explicit ReLU(const aops::ReLUOpOptions& options);
+
+  MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };
 
 }  // namespace mllm::nn

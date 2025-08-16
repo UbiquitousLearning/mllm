@@ -575,8 +575,8 @@ TEST_F(ElementwiseKernelTest, DivScalarInt32) {
 // D is always multiple of 32.
 //===----------------------------------------------------------------------===//
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-#include "HpcArmSgemvKernelTest.hpp"
-TEST_F(HpcArmSgemvKernelTest, matmul_fp32_gemv_nt_t_decode_small_d_qk) {
+#include "MllmBlasArmSgemvKernelTest.hpp"
+TEST_F(MllmBlasArmSgemvKernelTest, matmul_fp32_gemv_nt_t_decode_small_d_qk) {
   EXPECT_EQ(test_mllm_blas_matmul_fp32_gemv_nt_t_decode_small_d_qk({
                 {{"D", 64}, {"S", 1}},
                 {{"D", 64}, {"S", 3}},
@@ -597,6 +597,28 @@ TEST_F(HpcArmSgemvKernelTest, matmul_fp32_gemv_nt_t_decode_small_d_qk) {
 TEST_F(MatmulOpTestTest, matmul_2) { EXPECT_EQ(oneCase({{8, 8}, {8, 8}}, false, true), true); }
 
 TEST_F(MatmulOpTestTest, matmul_3) { EXPECT_EQ(oneCase({{1, 8, 8}, {1, 8, 8}}, false, true), true); }
+
+//===----------------------------------------------------------------------===//
+// BlasKernelTest
+//===----------------------------------------------------------------------===//
+
+#ifdef MLLM_USE_BLAS
+#include "BlasKernelTest.hpp"
+TEST_F(BlasKernelTest, matmul_MxK_NxK) {
+  EXPECT_EQ(matmul_MxK_NxK({
+                {{"M", 64}, {"N", 64}, {"K", 64}},
+            }),
+            true);
+}
+
+TEST_F(BlasKernelTest, batch_matmul_BHSD) {
+  EXPECT_EQ(batch_matmul_BHSD({
+                {{"B", 2}, {"H", 28}, {"S", 10}, {"D", 16}},
+            }),
+            true);
+}
+#endif
+
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);

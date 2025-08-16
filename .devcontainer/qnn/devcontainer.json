@@ -20,7 +20,8 @@
                 "Gruntfuggly.todo-tree",
                 "benjamin-simmonds.pythoncpp-debug",
                 "cschlosser.doxdocgen",
-                "ms-vscode.cmake-tools"
+                "ms-vscode.cmake-tools",
+                "EditorConfig.EditorConfig"
             ]
         }
     }

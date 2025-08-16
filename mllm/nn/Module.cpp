@@ -51,6 +51,9 @@ void ModuleImpl::to(DeviceTypes device_type) {
       case AbstractNnNodeTypes::kLayer: std::static_pointer_cast<LayerImpl>(hb)->to(device_type); break;
     }
   }
+
+  for (auto& pair : buffer_._ref_raw_data()) { pair.second = pair.second.to(device_type); }
+
   device_type_ = device_type;
 }
 
@@ -62,9 +65,12 @@ void ModuleImpl::__fmt_print(std::stringstream& ss) {
       case AbstractNnNodeTypes::kModule: std::static_pointer_cast<ModuleImpl>(hb)->__fmt_print(ss); break;
       case AbstractNnNodeTypes::kLayer: std::static_pointer_cast<LayerImpl>(hb)->__fmt_print(ss); break;
     }
-    ss << "\n";
   }
 }
+
+void ModuleImpl::registerBuffer(const std::string& name, const Tensor& tensor) { buffer_.reg(name, tensor); }
+
+Tensor ModuleImpl::getBuffer(const std::string& name) { return buffer_[name]; }
 
 Module::Module(const ModuleImpl::ptr_t& impl) : impl_(impl) {}
 
@@ -80,13 +86,13 @@ void Module::to(DeviceTypes device_type) { impl()->to(device_type); }
 
 void Module::load(const ParameterFile::ptr_t& param_file) { impl_->load(param_file); }
 
-std::vector<Tensor> Module::forward(const std::vector<Tensor>& inputs) { return {}; }
+std::vector<Tensor> Module::forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) { return {}; }
 
 void Module::__fmt_print(std::stringstream& ss) const { impl()->__fmt_print(ss); }
 
-std::vector<Tensor> Module::__main(const std::vector<Tensor>& inputs) {
+std::vector<Tensor> Module::__main(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
   __send_graph_begin(inputs);
-  auto o = forward(inputs);
+  auto o = forward(inputs, args);
   __send_graph_end(inputs);
   return o;
 }
@@ -106,7 +112,7 @@ void Module::__send_graph_end(const std::vector<Tensor>& inputs) {
   (void)ctx.buildOpAndSubmitTask(OpTypes::kGraphEnd, aops::GraphEndOpOptions{.graph_name = impl_->getAbsoluteName()}, inputs);
 }
 
-std::vector<Tensor> Module::__trace(const std::vector<Tensor>& inputs) {
+std::vector<Tensor> Module::__trace(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
   auto ir_ctx = Context::instance().thisThread()->ir_context;
 
   // Create call graph.
@@ -135,7 +141,7 @@ std::vector<Tensor> Module::__trace(const std::vector<Tensor>& inputs) {
   {
     ir_ctx->setDevice(impl_->getDevice());
     auto guard = ir::IRWriterGuard(ir_ctx, this_graph_ir->getTopRegion());
-    outputs = forward(inputs);
+    outputs = forward(inputs, args);
   }
 
   // wrap the outputs to tensor ir.
@@ -162,5 +168,9 @@ std::vector<Tensor> Module::__trace(const std::vector<Tensor>& inputs) {
 }
 
 ParameterFile::ptr_t Module::params(ModelFileVersion v) { return impl_->params(v); }
+
+void Module::registerBuffer(const std::string& name, const Tensor& tensor) { impl_->registerBuffer(name, tensor); }
+
+Tensor Module::getBuffer(const std::string& name) { return impl_->getBuffer(name); }
 
 }  // namespace mllm::nn

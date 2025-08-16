@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "mllm/core/BaseOp.hpp"
+#include "mllm/utils/AnyValue.hpp"
 #include <exec/any_sender_of.hpp>
 #include <stdexec/execution.hpp>
 
@@ -28,6 +29,7 @@ struct Task {
   BaseOp::ptr_t op;
   std::vector<Tensor> inputs;
   std::vector<Tensor> outputs;
+  std::vector<AnyValue> args;
   void* custom_context_ptr = nullptr;
 
   static Task::ptr_t createExecuteOpTask(const BaseOp::ptr_t& op, const std::vector<Tensor>& inputs,

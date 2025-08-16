@@ -256,6 +256,8 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("ReLUOp"))
     op.derive(Cls("ContiguousOp"))
     op.derive(Cls("ReshapeOp"))
+    op.derive(Cls("SliceOp"))
+    op.derive(Cls("ParamOp"))
 
     # value
 
