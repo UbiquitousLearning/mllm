@@ -55,6 +55,8 @@ class TensorViewImpl : public std::enable_shared_from_this<TensorViewImpl> {
 
   bool isContiguous() const;
 
+  bool isContiguousN(int n) const;
+
   ptr_t clone() const;
 
   int32_t storageOffset() const;

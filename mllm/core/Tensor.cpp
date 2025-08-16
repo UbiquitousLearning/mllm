@@ -222,6 +222,7 @@ size_t Tensor::numel() const { return impl()->numel(); }
 uint32_t Tensor::uuid() const { return impl()->uuid(); }
 
 bool Tensor::isContiguous() const { return impl()->isContiguous(); }
+bool Tensor::isContiguousN(int n) const { return impl()->isContiguousN(n); }
 
 Tensor Tensor::contiguous() {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kContiguous, aops::ContiguousOpOptions{}, {*this})[0];

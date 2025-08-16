@@ -49,6 +49,21 @@ bool TensorViewImpl::isContiguous() const {
   return true;
 }
 
+bool TensorViewImpl::isContiguousN(int n) const {
+  if (n <= 0) return true;
+  if (shape_len_ == 0) return true;
+  if (n > shape_len_) n = shape_len_;
+
+  // Check stride for the last n dimensions
+  int expected_stride = 1;
+  for (int i = shape_len_ - 1; i >= shape_len_ - n; --i) {
+    if (stride_[i] != expected_stride) { return false; }
+    expected_stride *= shape_[i];
+  }
+
+  return true;
+}
+
 TensorViewImpl::ptr_t TensorViewImpl::clone() const {
   auto ret = TensorViewImpl::create();
 
