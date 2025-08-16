@@ -2,6 +2,10 @@
 // Licensed under the MIT License.
 
 #include <cstring>
+#include "mllm/backends/cpu/kernels/common/llamafile/llamafile_sgemm.hpp"
+#include "mllm/core/DataTypes.hpp"
+#include "mllm/utils/Common.hpp"
+#include "mllm/utils/Log.hpp"
 #include "mllm/backends/cpu/ops/MatMulOp.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
 #include "mllm/backends/cpu/kernels/common/blas.hpp"
@@ -48,6 +52,66 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
   MLLM_RT_ASSERT_EQ(batch_count, rhs_batch_count);
 
   switch (mt) {
+    case aops::MatMulOpType::kDefault: {
+      // Perform batched matrix multiplication
+      // TODO: use mllm blas
+      break;
+    }
+    case aops::MatMulOpType::kLlamaFile: {
+      // llamafile implementation
+      // only supports specific transpose options
+      MLLM_RT_ASSERT(transpose_a == false && transpose_b == true);
+
+      // llamafile uses column-major order, so we actually perform K^T x Q
+      if (lhs.isContiguousN(0)) {
+        auto thread_count = options_.getThreads();
+
+        auto src1_type_size = bytesOfType(rhs.dtype());
+        auto src1_blck_size = lanesOfType(rhs.dtype());
+        auto src0_type_size = bytesOfType(lhs.dtype());
+        auto src0_blck_size = lanesOfType(lhs.dtype());
+
+        const int ld0 = transpose_a ? M : K;
+        const int ld1 = transpose_b ? K : N;
+        const int ldc = o.shape()[o.shape().size() - 1];
+
+        if (lhs_shape.size() > 2) {
+// TODO: FIX ME
+#pragma omp parallel for collapse(2) num_threads(thread_count)
+          for (int b = 0; b < batch_count; ++b) {
+            for (int id = 0; id < thread_count; id++) {
+              auto offset = (rhs.stride()[rhs_shape.size() - 3] * b / src1_blck_size * src1_type_size);
+              Dbg("offset: ", offset);
+              if (!llamafile_sgemm(
+                      N, M, K / src1_blck_size,
+                      rhs.ptr<mllm_byte_t>() + rhs.stride()[rhs_shape.size() - 3] * b / src1_blck_size * src1_type_size,
+                      ld1 / src1_blck_size,
+                      lhs.ptr<mllm_byte_t>() + lhs.stride()[lhs_shape.size() - 3] * b / src0_blck_size * src0_type_size,
+                      ld0 / src0_blck_size,
+                      o.ptr<mllm_byte_t>()
+                          + o.stride()[o.shape().size() - 3] * b / lanesOfType(o.dtype()) * bytesOfType(o.dtype()),
+                      ldc / lanesOfType(o.dtype()), id, thread_count, rhs.dtype(), lhs.dtype(), o.dtype())) {
+                MLLM_WARN("LlamaFile matmul failed");
+              }
+            }
+          }
+        } else {
+// TODO: FIX ME
+#pragma omp parallel for num_threads(thread_count)
+          for (int id = 0; id < thread_count; id++) {
+            if (!llamafile_sgemm(N, M, K / src1_blck_size, rhs.ptr<mllm_byte_t>(), ld1 / src1_blck_size, lhs.ptr<mllm_byte_t>(),
+                                 ld0 / src0_blck_size, o.ptr<mllm_byte_t>(), ldc / lanesOfType(o.dtype()), id, thread_count,
+                                 rhs.dtype(), lhs.dtype(), o.dtype())) {
+              MLLM_WARN("LlamaFile matmul failed");
+            }
+          }
+        }
+      } else {
+        MLLM_WARN("LlamaFile matmul requires contiguous tensors, falling back to default implementation.");
+        NYI("Default implementation for non-contiguous tensors not yet implemented");
+      }
+      break;
+    }
     case aops::MatMulOpType::kBLAS: {
 #if defined(MLLM_USE_BLAS)
       MLLM_RT_ASSERT_EQ(lhs.dtype(), kFloat32);
@@ -66,11 +130,7 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 #endif
       break;
     }
-    case aops::MatMulOpType::kDefault: {
-      break;
-    }
     default: {
-      NYI("MatMulOpType not supported");
       break;
     }
   }

@@ -49,7 +49,7 @@
 #endif
 
 #include "mllm/utils/Common.hpp"
-#include "mllm/backends/cpu/kernels/common/linear/llamafile_sgemm.hpp"
+#include "mllm/backends/cpu/kernels/common/llamafile/llamafile_sgemm.hpp"
 #include "mllm/backends/cpu/kernels/common/quantize/ggml/quantize.hpp"
 
 #ifdef _MSC_VER

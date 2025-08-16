@@ -306,6 +306,12 @@ class Tensor {
   [[nodiscard]] bool isContiguous() const;
 
   /**
+   * @brief Checks memory layout contiguity.
+   * @return True if memory is contiguous.
+   */
+  [[nodiscard]] bool isContiguousN(int n) const;
+
+  /**
    * @brief Creates contiguous copy if non-contiguous.
    * @return Contiguous tensor (may be a view or copy).
    */
