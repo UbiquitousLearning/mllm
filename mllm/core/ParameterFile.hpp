@@ -83,6 +83,8 @@ class ParameterFile {
 
   [[nodiscard]] const_iterator cend() const;
 
+  inline std::unordered_map<std::string, Tensor>& dict() { return data_._ref_raw_data(); }
+
  private:
   MappedFile::ptr_t mapped_file_ = nullptr;
   ModelFileVersion version_ = ModelFileVersion::kUserTemporary;

@@ -30,3 +30,7 @@ indent_size = 2
 [*.cuh]
 indent_style = space
 indent_size = 2
+
+[*.cmake]
+indent_style = space
+indent_size = 2

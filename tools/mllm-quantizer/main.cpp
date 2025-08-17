@@ -2,8 +2,12 @@
 // Licensed under the MIT License.
 
 #include "mllm/mllm.hpp"
-
+#include "mllm/utils/CPUArchHelper.hpp"
 #include "driver.hpp"
+
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#include "schema/kai.hpp"
+#endif
 
 using mllm::Argparse;
 
@@ -46,7 +50,6 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  mllm::initializeContext();
   mllm::setRandomSeed(42);
 
   // Load input file and config file.
@@ -68,9 +71,20 @@ int main(int argc, char** argv) {
   mllm::print(config);
 
   // Quantize those params!
-  QuantizeDriver _({params}, config);
+  QuantizeDriver qd(params, config);
 
-  mllm::save(output_files.get(), params);
+// Register
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+  qd.registerQuantizeImpl(QuantizeImpl_KAI_fp16_fp16_fp16p_mxk_kxn::create());
+  qd.registerQuantizeImpl(QuantizeImpl_KAI_f32_qai8dxp_qsi4c32p_mxk_nxk::create());
+  qd.registerQuantizeImpl(QuantizeImpl_KAI_f32_qai8dxp_qsi4c32p_mxk_kxn::create());
+  qd.registerQuantizeImpl(QuantizeImpl_KAI_f16_qsi8d32p_qai4c32p_mxk_nxk::create());
+#endif
+  qd();
+
+  mllm::print(params);
+  // TODO
+  // mllm::save(output_files.get(), params);
 
   mllm::shutdownContext();
 }
