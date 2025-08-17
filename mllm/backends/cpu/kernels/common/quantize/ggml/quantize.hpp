@@ -30,7 +30,6 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
-#include <omp.h>
 
 #include "mllm/core/DataTypes.hpp"
 
@@ -181,7 +180,6 @@ inline void init_table_gelu_f16() {
 }
 inline static void mllm_vec_gelu_f32(const int n, float* y, const float* x) {
   uint16_t t;
-  // #pragma omp parallel for num_threads(thread_count)
   for (int i = 0; i < n; ++i) {
     mllm_fp16_t fp16 = MLLM_FP32_TO_FP16(x[i]);
     memcpy(&t, &fp16, sizeof(uint16_t));
@@ -203,7 +201,6 @@ inline void init_table_gelu_quick_f16() {
 }
 inline static void mllm_vec_gelu_quick_f32(const int n, float* y, const float* x) {
   uint16_t t;
-  // #pragma omp parallel for num_threads(thread_count)
   for (int i = 0; i < n; ++i) {
     mllm_fp16_t fp16 = MLLM_FP32_TO_FP16(x[i]);
     memcpy(&t, &fp16, sizeof(uint16_t));
@@ -224,7 +221,6 @@ inline void init_table_silu_f16() {
 }
 // inline static void mllm_vec_silu_f32(const int n, float * y, const float * x) {
 //     uint16_t t;
-// //#pragma omp parallel for num_threads(thread_count)
 //     for (int i = 0; i < n; ++i) {
 //         mllm_fp16_t fp16 = MLLM_FP32_TO_FP16(x[i]);
 //         memcpy(&t, &fp16, sizeof(uint16_t));

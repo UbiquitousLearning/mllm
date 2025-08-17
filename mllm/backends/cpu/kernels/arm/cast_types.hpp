@@ -15,7 +15,6 @@ namespace mllm::cpu::arm {
 template<typename __From, typename __To>
 struct CastAny {
   static inline void cast(const __From* __restrict src, __To* __restrict dst, int len, int thread_count) {
-#pragma omp parallel for num_threads(thread_count) if (thread_count > 1 && len >= 1024 * 4)
     for (int i = 0; i < len; i++) { dst[i] = static_cast<__To>(src[i]); }
   }
 };

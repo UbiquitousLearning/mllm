@@ -26,6 +26,11 @@ option(MLLM_BLAS_VENDOR_ACCELERATE "Enable Accelerate BLAS on OSX" OFF)
 option(MLLM_BLAS_VENDOR_MKL "Enable MKL BLAS on X86" OFF)
 option(MLLM_BLAS_VENDOR_BLIS "Enable BLIS BLAS for multi-platform" OFF)
 
+# Threads
+option(MLLM_KERNEL_USE_THREADS "Enable Threads" ON)
+option(MLLM_KERNEL_THREADS_VENDOR_OPENMP "Enable OpenMP Threads" ON)
+option(MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD "Enable Apple GCD Threads" OFF)
+
 message(STATUS "CXX Compiler=${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CXX Compiler version=${CMAKE_CXX_COMPILER_VERSION}")
 
@@ -39,27 +44,72 @@ CPMAddPackage(
 
 # ONLY APPLE CAN DO !
 # Apple clang's driver removes the -fopenmp flag, so we need to add it manually.
-if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR APPLE)
-  message(STATUS "Only Apple can do! <bravo!>")
-  execute_process(COMMAND brew --prefix libomp
-          OUTPUT_VARIABLE HOMEBREW_LIBOMP_PREFIX
-          OUTPUT_STRIP_TRAILING_WHITESPACE)
-  set(OpenMP_C_FLAGS "-Xpreprocessor" "-fopenmp" "-I${HOMEBREW_LIBOMP_PREFIX}/include")
-  set(OpenMP_CXX_FLAGS "-Xpreprocessor" "-fopenmp" "-I${HOMEBREW_LIBOMP_PREFIX}/include")
-  set(OpenMP_C_LIB_NAMES omp)
-  set(OpenMP_CXX_LIB_NAMES omp)
-  set(OpenMP_omp_LIBRARY ${HOMEBREW_LIBOMP_PREFIX}/lib/libomp.dylib)
-  find_package(OpenMP REQUIRED)
-else()
-  find_package(OpenMP)
-  if(NOT OpenMP_FOUND)
-    # Some platforms can use -fopenmp directly even if find_package fails
-    set(OpenMP_CXX_FLAGS "-fopenmp")
-    set(OpenMP_C_FLAGS "-fopenmp")
-    message(STATUS "OpenMP not found via find_package, but trying with -fopenmp flag directly")
+if(MLLM_KERNEL_USE_THREADS)
+  # Compile Option
+  add_compile_definitions(MLLM_KERNEL_USE_THREADS=1)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR APPLE)
+    # Check if both OpenMP and GCD are enabled
+    if(MLLM_KERNEL_THREADS_VENDOR_OPENMP AND MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD)
+      message(WARNING "Both OpenMP and GCD are enabled on Apple platform. Using GCD only, OpenMP flags will be empty.")
+      # Use GCD only, set OpenMP flags to empty
+      set(OpenMP_C_FLAGS "")
+      set(OpenMP_CXX_FLAGS "")
+      set(OpenMP_C_LIB_NAMES "")
+      set(OpenMP_CXX_LIB_NAMES "")
+      set(OpenMP_omp_LIBRARY "")
+      # Compile Option
+      add_compile_definitions(MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=1)
+    elseif(MLLM_KERNEL_THREADS_VENDOR_OPENMP)
+      message(WARNING "OpenMP is enabled on Apple platform. Consider using GCD (MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=ON) for better performance on Apple systems.")
+      execute_process(COMMAND brew --prefix libomp
+              OUTPUT_VARIABLE HOMEBREW_LIBOMP_PREFIX
+              OUTPUT_STRIP_TRAILING_WHITESPACE)
+      set(OpenMP_C_FLAGS "-Xpreprocessor" "-fopenmp" "-I${HOMEBREW_LIBOMP_PREFIX}/include")
+      set(OpenMP_CXX_FLAGS "-Xpreprocessor" "-fopenmp" "-I${HOMEBREW_LIBOMP_PREFIX}/include")
+      set(OpenMP_C_LIB_NAMES omp)
+      set(OpenMP_CXX_LIB_NAMES omp)
+      set(OpenMP_omp_LIBRARY ${HOMEBREW_LIBOMP_PREFIX}/lib/libomp.dylib)
+      find_package(OpenMP REQUIRED)
+      # Compile Option
+      add_compile_definitions(MLLM_KERNEL_THREADS_VENDOR_OPENMP=1)
+    elseif(MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD)
+      # GCD only, no OpenMP
+      set(OpenMP_C_FLAGS "")
+      set(OpenMP_CXX_FLAGS "")
+      set(OpenMP_C_LIB_NAMES "")
+      set(OpenMP_CXX_LIB_NAMES "")
+      set(OpenMP_omp_LIBRARY "")
+      # Compile Option
+      add_compile_definitions(MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=1)
+    endif()
+  else()
+    # Non-Apple platforms
+    if(MLLM_KERNEL_THREADS_VENDOR_OPENMP)
+      find_package(OpenMP)
+      if(NOT OpenMP_FOUND)
+        # Some platforms can use -fopenmp directly even if find_package fails
+        set(OpenMP_CXX_FLAGS "-fopenmp")
+        set(OpenMP_C_FLAGS "-fopenmp")
+        message(STATUS "OpenMP not found via find_package, but trying with -fopenmp flag directly")
+      endif()
+      # Compile Option
+      add_compile_definitions(MLLM_KERNEL_THREADS_VENDOR_OPENMP=1)
+    else()
+      # No threading or other threading implementation
+      set(OpenMP_C_FLAGS "")
+      set(OpenMP_CXX_FLAGS "")
+      set(OpenMP_C_LIB_NAMES "")
+      set(OpenMP_CXX_LIB_NAMES "")
+      set(OpenMP_omp_LIBRARY "")
+    endif()
   endif()
+else()
+  set(OpenMP_C_FLAGS "")
+  set(OpenMP_CXX_FLAGS "")
+  set(OpenMP_C_LIB_NAMES "")
+  set(OpenMP_CXX_LIB_NAMES "")
+  set(OpenMP_omp_LIBRARY "")
 endif()
-
 
 # Handle NaN Warning.
 if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

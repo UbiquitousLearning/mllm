@@ -8,6 +8,7 @@
 #include <string>
 #include <locale>
 #include <cwctype>
+#include <iostream>
 
 #include "mllm/utils/Common.hpp"
 
@@ -21,9 +22,11 @@ inline wchar_t chr(std::wint_t value) { return static_cast<wchar_t>(value); }
 inline void initLocal(const std::string& local_name = "en_US.UTF-8") {
   try {
     std::locale::global(std::locale(local_name));
+    std::wcout.imbue(std::locale(local_name));
   } catch (const std::exception& e) {
     MLLM_WARN("Failed to set locale to {}, use default C.UTF-8", local_name);
     std::locale::global(std::locale("C.UTF-8"));
+    std::wcout.imbue(std::locale("C.UTF-8"));
   }
 }
 

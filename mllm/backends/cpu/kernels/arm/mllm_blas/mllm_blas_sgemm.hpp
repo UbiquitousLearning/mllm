@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include "mllm/core/DataTypes.hpp"
+#include "mllm/core/Parallel.hpp"
 
 namespace mllm::cpu::arm {
 
@@ -42,14 +43,15 @@ void __mllm_blas_batch_matmul_fp32_gemv_nt_t_decode_small_d_qk(const int BATCH, 
   //                              ^^^^^^^^^^^^^^^^^^
   // Some platform(OSX) will generate inefficient code in this case. Use template instead.
   if constexpr (__enable_thread) {
-#pragma omp parallel for num_threads(thread_count)
-    for (int b = 0; b < BATCH; ++b) {
+    MLLM_SET_NUM_THREADS(thread_count);
+    MLLM_AUTO_PARALLEL_FOR_BEGIN(b, 0, BATCH, 1) {
       auto a_ptr = A + b * A_batch_stride;
       auto b_ptr = B + b * B_batch_stride;
       auto c_ptr = C + b * C_batch_stride;
       auto d_ptr = dst + b * Dst_batch_stride;
       __mllm_blas_matmul_fp32_gemv_nt_t_decode_small_d_qk(M, K, N, d_ptr, a_ptr, b_ptr, c_ptr, transpose_a, transpose_b, 0);
     }
+    MLLM_AUTO_PARALLEL_FOR_END()
   } else {
     for (int b = 0; b < BATCH; ++b) {
       auto a_ptr = A + b * A_batch_stride;

@@ -5,7 +5,7 @@
 
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/utils/CPUArchHelper.hpp"
-#include <omp.h>
+#include "mllm/core/Parallel.hpp"
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
 
@@ -44,15 +44,8 @@ inline void fill_zeros_anytype(T* __restrict dst, size_t size, int thread_count)
   if constexpr (std::is_trivial_v<T>) {
     std::memset(dst, 0, size * sizeof(T));
   } else {
-#pragma omp parallel num_threads(thread_count) if (size >= 1024 * 1024 * 4 && thread_count > 1)
-    {
-      T zero_val{};
-
-      // NOTE: !!!
-      // Use static schedule to ensure continuous memory blocks, enhancing cache efficiency.
-#pragma omp for schedule(static)
-      for (size_t i = 0; i < size; i++) { dst[i] = zero_val; }
-    }
+    T zero_val{};
+    for (size_t i = 0; i < size; i++) { dst[i] = zero_val; }
   }
 }
 
@@ -69,8 +62,6 @@ inline void fill_zeros_anytype<mllm_fp16_t>(mllm_fp16_t* __restrict dst, size_t 
 template<typename T>
 inline void fill_ones_anytype(T* __restrict dst, size_t size, int thread_count) {
   if (size == 0) return;
-
-#pragma omp parallel for schedule(static) num_threads(thread_count) if (size >= 1024 * 1024 * 4 && thread_count > 1)
   for (size_t i = 0; i < size; ++i) { dst[i] = T(1); }
 }
 
@@ -86,7 +77,6 @@ inline void fill_ones_anytype<mllm_fp16_t>(mllm_fp16_t* __restrict dst, size_t s
 
 template<typename T>
 inline void fill_specific_value_anytype(T* __restrict dst, size_t size, mllm_fp32_t value, int thread_count) {
-#pragma omp parallel for schedule(static) num_threads(thread_count) if (size >= 1024 * 1024 * 4 && thread_count > 1)
   for (size_t i = 0; i < size; ++i) { dst[i] = (T)T(value); }
 }
 
@@ -106,7 +96,6 @@ template<typename T>
 inline void fill_arange_anytype(T* __restrict dst, size_t size, mllm_fp32_t start, mllm_fp32_t end, mllm_fp32_t step,
                                 int thread_count) {
   if (step == 0) {
-#pragma omp parallel for num_threads(thread_count) if (size >= 1024 * 1024 * 4 && thread_count > 1)
     for (size_t i = 0; i < size; ++i) { dst[i] = static_cast<T>(start); }
     return;
   }
@@ -125,7 +114,6 @@ inline void fill_arange_anytype(T* __restrict dst, size_t size, mllm_fp32_t star
     }
   }
 
-#pragma omp parallel for num_threads(thread_count) if (size >= 1024 * 1024 * 4 && thread_count > 1)
   for (size_t i = 0; i < n; ++i) { dst[i] = static_cast<T>(start + i * step); }
 }
 
@@ -150,27 +138,17 @@ inline void fill_random_anytype(T* __restrict dst, size_t size, mllm_fp32_t star
   const mllm_fp32_t range = end - start;
 
   if (range == 0) {
-#pragma omp parallel for num_threads(thread_count) if (size >= 1024 * 128 && thread_count > 1)
     for (size_t i = 0; i < size; ++i) { dst[i] = static_cast<T>(start); }
     return;
   }
 
-#pragma omp parallel num_threads(thread_count) if (size >= 1024 * 128 && thread_count > 1)
-  {
-    const int tid = omp_get_thread_num();
-    const int actual_threads = omp_get_num_threads();
-    const size_t chunk_size = (size + actual_threads - 1) / actual_threads;
-    const size_t start_idx = tid * chunk_size;
-    const size_t end_idx = (tid == actual_threads - 1) ? size : (tid + 1) * chunk_size;
+  uint64_t state = seed;
+  state = (multiplier * state + increment) % modulus;
 
-    uint64_t state = seed + static_cast<uint64_t>(tid);
+  for (size_t i = 0; i < size; ++i) {
     state = (multiplier * state + increment) % modulus;
-
-    for (size_t i = start_idx; i < end_idx; ++i) {
-      state = (multiplier * state + increment) % modulus;
-      const mllm_fp32_t random_value = static_cast<mllm_fp32_t>(state) / static_cast<mllm_fp32_t>(modulus - 1);
-      dst[i] = static_cast<T>(start + random_value * range);
-    }
+    const mllm_fp32_t random_value = static_cast<mllm_fp32_t>(state) / static_cast<mllm_fp32_t>(modulus - 1);
+    dst[i] = static_cast<T>(start + random_value * range);
   }
 }
 
