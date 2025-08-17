@@ -2,17 +2,17 @@
 // Licensed under the MIT License.
 #pragma once
 
-#include "mllm/core/DataTypes.hpp"
-#include "mllm/core/aops/MatMulOp.hpp"
 #include "mllm/mllm.hpp"
-#include "KernelTestHelper.hpp"
+#include "mllm/core/DataTypes.hpp"
 #include "mllm/nn/Functional.hpp"
-#include "mllm/utils/Log.hpp"
+#include "mllm/utils/Common.hpp"
 
-class MatmulOpTestTest : public KernelTest {
+#include "KernelTestHelper.hpp"
+
+class LlamaFileKernelTest : public KernelTest {
  public:
-  MatmulOpTestTest() = default;
-  ~MatmulOpTestTest() override = default;
+  LlamaFileKernelTest() = default;
+  ~LlamaFileKernelTest() override = default;
 
   mllm::Tensor matmulReference(const mllm::Tensor& A, const mllm::Tensor& B, bool transpose_a = false,
                                bool transpose_b = false) {
@@ -24,10 +24,9 @@ class MatmulOpTestTest : public KernelTest {
     auto a_shape = A.shape();
     auto b_shape = B.shape();
 
-    MLLM_RT_ASSERT(a_shape.size() == b_shape.size());  // 只考虑rank相同的情况
+    MLLM_RT_ASSERT(a_shape.size() == b_shape.size());
 
     if (a_shape.size() == 2 && b_shape.size() == 2) {
-      // 处理2D矩阵乘法情况
       int M, K, N, K_other;
       if (!transpose_a) {
         M = a_shape[a_shape.size() - 2];
@@ -45,7 +44,7 @@ class MatmulOpTestTest : public KernelTest {
         K_other = b_shape[b_shape.size() - 1];
       }
 
-      MLLM_RT_ASSERT(K == K_other);  // 确保K维度匹配
+      MLLM_RT_ASSERT(K == K_other);
 
       auto ref_output = mllm::Tensor::empty({M, N}, kFloat32);
       ref_output.alloc();
@@ -105,7 +104,7 @@ class MatmulOpTestTest : public KernelTest {
 
       return ref_output;
     } else {
-      MLLM_WARN("Unsupported tensor dimensions in ", __FUNCTION__);
+      MLLM_WARN("Unsupported tensor dimensions in {}", __FUNCTION__);
       return Tensor{};
     }
   }

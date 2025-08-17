@@ -591,17 +591,14 @@ TEST_F(MllmBlasArmSgemvKernelTest, matmul_fp32_gemv_nt_t_decode_small_d_qk) {
 //===----------------------------------------------------------------------===//
 // LlamaFileKernelTest
 //===----------------------------------------------------------------------===//
-
 #include "LlamafileKernelTest.hpp"
+TEST_F(LlamaFileKernelTest, matmul_2) { EXPECT_EQ(oneCase({{8, 8}, {8, 8}}, false, true), true); }
 
-TEST_F(MatmulOpTestTest, matmul_2) { EXPECT_EQ(oneCase({{8, 8}, {8, 8}}, false, true), true); }
-
-TEST_F(MatmulOpTestTest, matmul_3) { EXPECT_EQ(oneCase({{1, 8, 8}, {1, 8, 8}}, false, true), true); }
+TEST_F(LlamaFileKernelTest, matmul_3) { EXPECT_EQ(oneCase({{1, 8, 8}, {1, 8, 8}}, false, true), true); }
 
 //===----------------------------------------------------------------------===//
 // BlasKernelTest
 //===----------------------------------------------------------------------===//
-
 #ifdef MLLM_USE_BLAS
 #include "BlasKernelTest.hpp"
 TEST_F(BlasKernelTest, matmul_MxK_NxK) {
@@ -618,7 +615,6 @@ TEST_F(BlasKernelTest, batch_matmul_BHSD) {
             true);
 }
 #endif
-
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
