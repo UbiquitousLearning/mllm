@@ -76,10 +76,8 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
         const int ldc = o.shape()[o.shape().size() - 1];
 
         if (lhs_shape.size() > 2) {
-// TODO: FIX ME
-#pragma omp parallel for collapse(2) num_threads(thread_count)
           for (int b = 0; b < batch_count; ++b) {
-            for (int id = 0; id < thread_count; id++) {
+            MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, id, 0, thread_count, 1, {
               auto offset = (rhs.stride()[rhs_shape.size() - 3] * b / src1_blck_size * src1_type_size);
               if (!llamafile_sgemm(
                       N, M, K / src1_blck_size,
@@ -92,18 +90,16 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
                       ldc / lanesOfType(o.dtype()), id, thread_count, rhs.dtype(), lhs.dtype(), o.dtype())) {
                 MLLM_WARN("LlamaFile matmul failed");
               }
-            }
+            });
           }
         } else {
-// TODO: FIX ME
-#pragma omp parallel for num_threads(thread_count)
-          for (int id = 0; id < thread_count; id++) {
+          MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, id, 0, thread_count, 1, {
             if (!llamafile_sgemm(N, M, K / src1_blck_size, rhs.ptr<mllm_byte_t>(), ld1 / src1_blck_size, lhs.ptr<mllm_byte_t>(),
                                  ld0 / src0_blck_size, o.ptr<mllm_byte_t>(), ldc / lanesOfType(o.dtype()), id, thread_count,
                                  rhs.dtype(), lhs.dtype(), o.dtype())) {
               MLLM_WARN("LlamaFile matmul failed");
             }
-          }
+          });
         }
       } else {
         MLLM_WARN("LlamaFile matmul requires contiguous tensors, falling back to default implementation.");

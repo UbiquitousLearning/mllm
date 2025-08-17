@@ -62,7 +62,7 @@ class ProgressBar {
 
     fmt::print("\r{}{} {} {}", styled_label, styled_bar, styled_percent, styled_time);
 
-    if (current >= total_ - 1) { fmt::print("\n"); }
+    if (current > total_ - 1) { fmt::print("\n"); }
   }
 
  private:
