@@ -5,6 +5,9 @@ Tasks:
       cmake_extra_args:
         - "-DMLLM_BUILD_ARM_BACKEND=ON"
         - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native+fp16+fp16fml+dotprod+i8mm+sme;-ffast-math;-Wno-nan-infinity-disabled"'
+        - "-DMLLM_KERNEL_USE_THREADS=ON"
+        - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=OFF"
+        - "-DMLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=ON"
 
   - CMakeBuildTask:
       cmake_cfg_path: "build-osx-dbg"

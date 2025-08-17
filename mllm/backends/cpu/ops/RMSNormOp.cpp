@@ -5,6 +5,7 @@
 #include "mllm/backends/cpu/ops/RMSNormOp.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
 #include "mllm/core/DataTypes.hpp"
+#include "mllm/core/Parallel.hpp"
 
 namespace mllm::cpu {
 
@@ -25,29 +26,27 @@ void CPURMSNormOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
 
   switch (i.dtype()) {
     case kFloat32: {
+      MLLM_CONDITIONAL_PARALLEL_FOR(options_.getThreads() > 1, options_.getThreads(), other_dim, 0, other_dim_size, 1, {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
       // TODO
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-#pragma omp parallel for num_threads(options_.getThreads()) if (options_.getThreads() > 1)
-      for (size_t other_dim = 0; other_dim < other_dim_size; ++other_dim) {
-        arm::rmsnorm_fp32(i.ptr<mllm_fp32_t>() + other_dim * D, weight_.ptr<mllm_fp32_t>(),
+  arm::rmsnorm_fp32(i.ptr<mllm_fp32_t>() + other_dim * D, weight_.ptr<mllm_fp32_t>(),
                           o.ptr<mllm_fp32_t>() + other_dim * D, D, options_.epsilon, options_.add_unit_offset,
                           options_.getThreads());
-      }
 #endif
+      });
       break;
     }
     case kFloat16: {
+      MLLM_CONDITIONAL_PARALLEL_FOR(options_.getThreads() > 1, options_.getThreads(), other_dim, 0, other_dim_size, 1, {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
       // TODO
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
-#pragma omp parallel for num_threads(options_.getThreads()) if (options_.getThreads() > 1)
-      for (size_t other_dim = 0; other_dim < other_dim_size; ++other_dim) {
         arm::rmsnorm_fp16(i.ptr<mllm_fp16_t>() + other_dim * D, weight_.ptr<mllm_fp16_t>(),
                           o.ptr<mllm_fp16_t>() + other_dim * D, D, options_.epsilon, options_.add_unit_offset,
                           options_.getThreads());
-      }
 #endif
+      });
       break;
     }
     default: NYI("Unsupported data type");

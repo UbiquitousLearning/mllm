@@ -2,13 +2,13 @@
 // Licensed under the MIT License.
 
 #include <cstring>
-#include "mllm/backends/cpu/kernels/common/llamafile/llamafile_sgemm.hpp"
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/utils/Common.hpp"
-#include "mllm/utils/Log.hpp"
+#include "mllm/core/Parallel.hpp"
 #include "mllm/backends/cpu/ops/MatMulOp.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
 #include "mllm/backends/cpu/kernels/common/blas.hpp"
+#include "mllm/backends/cpu/kernels/common/llamafile/llamafile_sgemm.hpp"
 
 namespace mllm::cpu {
 
@@ -81,7 +81,6 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
           for (int b = 0; b < batch_count; ++b) {
             for (int id = 0; id < thread_count; id++) {
               auto offset = (rhs.stride()[rhs_shape.size() - 3] * b / src1_blck_size * src1_type_size);
-              Dbg("offset: ", offset);
               if (!llamafile_sgemm(
                       N, M, K / src1_blck_size,
                       rhs.ptr<mllm_byte_t>() + rhs.stride()[rhs_shape.size() - 3] * b / src1_blck_size * src1_type_size,

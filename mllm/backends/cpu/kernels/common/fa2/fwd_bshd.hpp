@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 #pragma once
 
-#include <omp.h>
 #include <cassert>
 
 #include "mllm/utils/Common.hpp"
@@ -217,9 +216,10 @@ struct FlashAttention2 {
 
     // Loops
     for (int32_t b_idx = 0; b_idx < batch_size; ++b_idx) {
-#pragma omp parallel for num_threads(thread_count) schedule(dynamic, 1) if (thread_count > 1)
+      // FIXME Parallel Here
       for (int32_t h_idx = 0; h_idx < q_head_size; ++h_idx) {
-        const int32_t thread_id = omp_get_thread_num();
+        // FIXME: Parallel Here
+        const int32_t thread_id = 0;
         const int32_t this_thread_head = h_idx;
         const int32_t this_thread_head_q = this_thread_head;
         const int32_t this_thread_head_kv = kv_head_index(this_thread_head_q);
@@ -481,9 +481,10 @@ struct FlashAttention2 {
     head_repeat_times_ = q_head_size / kv_head_size;
 
     for (int32_t b_idx = 0; b_idx < batch_size; ++b_idx) {
-#pragma omp parallel for num_threads(thread_count) schedule(dynamic, 1) if (thread_count > 1)
+      // FIXME: Parallel here
       for (int32_t h_idx = 0; h_idx < q_head_size; ++h_idx) {
-        const int32_t thread_id = omp_get_thread_num();
+        // FIXME: Parallel here
+        const int32_t thread_id = 0;
         const int32_t this_thread_head = h_idx;
         const int32_t this_thread_head_q = this_thread_head;
         const int32_t this_thread_head_kv = kv_head_index(this_thread_head_q);

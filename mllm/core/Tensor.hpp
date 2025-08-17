@@ -408,12 +408,29 @@ class Tensor {
 
   /**
    * @brief Typed pointer access with offset.
+   *
+   * @tparam T
+   * @param offsets
+   * @return T*
+   */
+  template<typename T>
+  T* coffsettedPtr(const std::vector<int32_t>& offsets) const {
+    return impl_->offsettedPtr<T>(offsets);
+  }
+
+  /**
+   * @brief Typed pointer access with offset.
    * @tparam T Expected data type.
    * @param offsets Multi-dimensional indices.
    * @return Typed pointer to the element.
    */
   template<typename T>
   T* ptrAt(const std::vector<int32_t>& offsets) {
+    return impl_->offsettedPtr<T>(offsets);
+  }
+
+  template<typename T>
+  T* cptrAt(const std::vector<int32_t>& offsets) const {
     return impl_->offsettedPtr<T>(offsets);
   }
 

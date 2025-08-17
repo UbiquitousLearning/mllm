@@ -5,6 +5,7 @@
 
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/utils/CPUArchHelper.hpp"
+#include "mllm/core/Parallel.hpp"
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
 
@@ -58,13 +59,14 @@ struct ParallelElementwiseLoop {
       size_t chunk_size = (vec_size + thread_count - 1) / thread_count;
       chunk_size = (chunk_size + lanes - 1) & ~(lanes - 1);
 
-#pragma omp parallel for if (thread_count > 1) num_threads(thread_count)
-      for (size_t start = 0; start < vec_size; start += chunk_size) {
+      MLLM_AUTO_PARALLEL_FOR_BEGIN(start, 0, vec_size, chunk_size) {
         size_t end = std::min(start + chunk_size, vec_size);
         size_t local_size = end - start;
         __ew_loop<__ST, __VT, __ScalarOp, __VectorOp, loop_unroll_size>::run(dst + start, src0 + start, src1 + start,
                                                                              local_size);
       }
+      MLLM_AUTO_PARALLEL_FOR_END()
+
       if (vec_size < size) {
         size_t remaining_size = size - vec_size;
         __ew_loop<__ST, __VT, __ScalarOp, __VectorOp, loop_unroll_size>::run(dst + vec_size, src0 + vec_size, src1 + vec_size,
@@ -115,13 +117,14 @@ struct ParallelElementwiseLoopArrayScalar {
       size_t chunk_size = (vec_size + thread_count - 1) / thread_count;
       chunk_size = (chunk_size + lanes - 1) & ~(lanes - 1);
 
-#pragma omp parallel for num_threads(thread_count) if (thread_count > 1)
-      for (size_t start = 0; start < vec_size; start += chunk_size) {
+      MLLM_AUTO_PARALLEL_FOR_BEGIN(start, 0, vec_size, chunk_size) {
         size_t end = std::min(start + chunk_size, vec_size);
         size_t local_size = end - start;
         __ew_loop_array_scalar<__ST, __VT, __ScalarOp, __VectorOp, loop_unroll_size>::run(dst + start, src0 + start, src1,
                                                                                           local_size);
       }
+      MLLM_AUTO_PARALLEL_FOR_END()
+
       if (vec_size < size) {
         size_t remaining_size = size - vec_size;
         __ew_loop_array_scalar<__ST, __VT, __ScalarOp, __VectorOp, loop_unroll_size>::run(dst + vec_size, src0 + vec_size, src1,
