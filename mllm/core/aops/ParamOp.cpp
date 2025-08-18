@@ -15,7 +15,6 @@ void ParamOp::load(const ParameterFile::ptr_t& ploader) {
   switch (ploader->version()) {
     case ModelFileVersion::kV1: {
       weight_ = ploader->pull(options_.name);
-      weight_ = weight_.view(options_.shape);
       break;
     }
     case ModelFileVersion::kUserTemporary:
@@ -25,6 +24,9 @@ void ParamOp::load(const ParameterFile::ptr_t& ploader) {
     }
     default: NYI("Unsupported model file version")
   }
+
+  // No matter v1, v2, ..., we need to reshape the weight
+  weight_ = weight_.view(options_.shape);
 }
 
 void ParamOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {

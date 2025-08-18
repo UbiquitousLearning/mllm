@@ -8,6 +8,50 @@ namespace mllm::cpu {
 
 CPULinearOp::CPULinearOp(const aops::LinearOpOptions& options) : LinearOp(options) {}
 
+void CPULinearOp::load(const ParameterFile::ptr_t& ploader) {
+  switch (ploader->version()) {
+    case ModelFileVersion::kV1: {
+      weight_ = ploader->pull(getName() + ".weight");
+      switch (options_.impl_type) {
+        case aops::LinearImplTypes::kDefault: {
+          weight_ = weight_.view({options_.out_channels, options_.in_channels});
+          if (options_.bias) {
+            bias_ = ploader->pull(getName() + ".bias");
+            bias_ = bias_.view({options_.out_channels});
+          }
+          break;
+        }
+        default: {
+          // No need to view.
+          MLLM_EMPTY_SCOPE
+          break;
+        }
+      }
+      break;
+    }
+    case ModelFileVersion::kUserTemporary:
+    case ModelFileVersion::kV2: {
+      weight_ = ploader->pull(getName() + ".weight");
+      switch (options_.impl_type) {
+        case aops::LinearImplTypes::kDefault: {
+          if (options_.bias) {
+            bias_ = ploader->pull(getName() + ".bias");
+            bias_ = bias_.view({options_.out_channels});
+          }
+          break;
+        }
+        default: {
+          // No need to view.
+          MLLM_EMPTY_SCOPE
+          break;
+        }
+      }
+      break;
+    }
+    default: NYI("Unsupported model file version")
+  }
+}
+
 void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   auto& input = inputs[0];
   auto& o = outputs[0];
@@ -53,6 +97,118 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 #endif
       break;
     }
+
+// The code below is for ARM64/ARM.
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+    case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32: {
+      auto M = input.shape()[input.shape().size() - 2];
+      auto K = options_.in_channels;
+      auto N = options_.out_channels;
+
+      ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk kai_helper;
+
+      // FIXME:
+      // Can be optimized for better performance.
+      int32_t work_space_size = kai_helper.workspace_size(
+          M, K, ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk::Tiles::qai8dxp1x8_qsi4c32p4x8_1x4x32);
+      auto workspace = Tensor::empty({work_space_size}, kInt8, kCPU).alloc();
+
+      kai_helper.matmul(o.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), weight_.ptr<mllm_byte_t>(), workspace.ptr<void>(), M, K,
+                        N, ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk::Tiles::qai8dxp1x8_qsi4c32p4x8_1x4x32,
+                        options_.getThreads());
+      return;
+    }
+    case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32: {
+      auto M = input.shape()[input.shape().size() - 2];
+      auto K = options_.in_channels;
+      auto N = options_.out_channels;
+
+      ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk kai_helper;
+
+      // FIXME:
+      // Can be optimized for better performance.
+      int32_t work_space_size = kai_helper.workspace_size(
+          M, K, ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk::Tiles::qai8dxp1x8_qsi4c32p8x8_1x8x32);
+      auto workspace = Tensor::empty({work_space_size}, kInt8, kCPU).alloc();
+
+      kai_helper.matmul(o.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), weight_.ptr<mllm_byte_t>(), workspace.ptr<void>(), M, K,
+                        N, ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk::Tiles::qai8dxp1x8_qsi4c32p8x8_1x8x32,
+                        options_.getThreads());
+      return;
+    }
+    case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp4x8_qsi4c32p4x8_8x4x32: {
+      auto M = input.shape()[input.shape().size() - 2];
+      auto K = options_.in_channels;
+      auto N = options_.out_channels;
+
+      ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk kai_helper;
+
+      // FIXME:
+      // Can be optimized for better performance.
+      int32_t work_space_size = kai_helper.workspace_size(
+          M, K, ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk::Tiles::qai8dxp4x8_qsi4c32p4x8_8x4x32);
+      auto workspace = Tensor::empty({work_space_size}, kInt8, kCPU).alloc();
+
+      kai_helper.matmul(o.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), weight_.ptr<mllm_byte_t>(), workspace.ptr<void>(), M, K,
+                        N, ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk::Tiles::qai8dxp4x8_qsi4c32p4x8_8x4x32,
+                        options_.getThreads());
+      return;
+    }
+    case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp4x8_qsi4c32p4x8_16x4x32: {
+      auto M = input.shape()[input.shape().size() - 2];
+      auto K = options_.in_channels;
+      auto N = options_.out_channels;
+
+      ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk kai_helper;
+
+      // FIXME:
+      // Can be optimized for better performance.
+      int32_t work_space_size = kai_helper.workspace_size(
+          M, K, ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk::Tiles::qai8dxp4x8_qsi4c32p4x8_16x4x32);
+      auto workspace = Tensor::empty({work_space_size}, kInt8, kCPU).alloc();
+
+      kai_helper.matmul(o.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), weight_.ptr<mllm_byte_t>(), workspace.ptr<void>(), M, K,
+                        N, ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk::Tiles::qai8dxp4x8_qsi4c32p4x8_16x4x32,
+                        options_.getThreads());
+      return;
+    }
+    case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp4x8_qsi4c32p8x8_4x8x32: {
+      auto M = input.shape()[input.shape().size() - 2];
+      auto K = options_.in_channels;
+      auto N = options_.out_channels;
+
+      ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk kai_helper;
+
+      // FIXME:
+      // Can be optimized for better performance.
+      int32_t work_space_size = kai_helper.workspace_size(
+          M, K, ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk::Tiles::qai8dxp4x8_qsi4c32p8x8_4x8x32);
+      auto workspace = Tensor::empty({work_space_size}, kInt8, kCPU).alloc();
+
+      kai_helper.matmul(o.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), weight_.ptr<mllm_byte_t>(), workspace.ptr<void>(), M, K,
+                        N, ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk::Tiles::qai8dxp4x8_qsi4c32p8x8_4x8x32,
+                        options_.getThreads());
+      return;
+    }
+    case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x4_qsi4c32p4x4_1x4: {
+      auto M = input.shape()[input.shape().size() - 2];
+      auto K = options_.in_channels;
+      auto N = options_.out_channels;
+
+      ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk kai_helper;
+
+      // FIXME:
+      // Can be optimized for better performance.
+      int32_t work_space_size = kai_helper.workspace_size(
+          M, K, ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk::Tiles::qai8dxp1x4_qsi4c32p4x4_1x4);
+      auto workspace = Tensor::empty({work_space_size}, kInt8, kCPU).alloc();
+
+      kai_helper.matmul(o.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), weight_.ptr<mllm_byte_t>(), workspace.ptr<void>(), M, K,
+                        N, ::mllm::cpu::arm::KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk::Tiles::qai8dxp1x4_qsi4c32p4x4_1x4,
+                        options_.getThreads());
+      return;
+    }
+#endif
     default: {
       NYI("LinearImplTypes not supported");
       break;
@@ -61,8 +217,37 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 }
 
 void CPULinearOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  // FIXME: kleidiai may need self-hosted reshape
-  LinearOp::reshape(inputs, outputs);
+  const auto& i = inputs[0];
+  auto i_shape = i.shape();
+
+  MLLM_RT_ASSERT_EQ(i_shape[i_shape.size() - 1], options_.in_channels);
+
+  auto o_shape = i_shape;
+  o_shape[o_shape.size() - 1] = options_.out_channels;
+
+  DataTypes o_dtype = i.dtype();
+
+  switch (options_.impl_type) {
+    case aops::LinearImplTypes::kKaiLinear_fp16_fp16_fp16p_mxk_kxn:
+    case aops::LinearImplTypes::KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p1x8_qai4c32p4x8_1x4:
+    case aops::LinearImplTypes::KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x4_qai4c32p4x4_8x4:
+    case aops::LinearImplTypes::KaiLinear_f16_qsi8d32p_qai4c32p_mxk_nxk_qsi8d32p4x8_qai4c32p4x8_8x4_i8mm: {
+      o_dtype = kFloat16;
+      break;
+    }
+    case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32:
+    case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32:
+    case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp4x8_qsi4c32p4x8_8x4x32:
+    case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp4x8_qsi4c32p4x8_16x4x32:
+    case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp4x8_qsi4c32p8x8_4x8x32:
+    case aops::LinearImplTypes::kKaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x4_qsi4c32p4x4_1x4: {
+      o_dtype = kFloat32;
+      break;
+    }
+    default: o_dtype = i.dtype();
+  }
+
+  outputs.emplace_back(Tensor::empty(o_shape, o_dtype, i.device()));
 }
 
 }  // namespace mllm::cpu

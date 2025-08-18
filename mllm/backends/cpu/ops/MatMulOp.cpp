@@ -26,6 +26,8 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
   if (mt == aops::MatMulOpType::kDefault) {
 #if defined(MLLM_USE_BLAS)
     mt = aops::MatMulOpType::kBLAS;
+#else
+    mt = aops::MatMulOpType::kLlamaFile;
 #endif
   }
 

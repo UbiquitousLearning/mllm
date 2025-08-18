@@ -11,6 +11,8 @@ class CPULinearOp final : public aops::LinearOp {
  public:
   explicit CPULinearOp(const aops::LinearOpOptions& options);
 
+  void load(const ParameterFile::ptr_t& ploader) override;
+
   void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
   void reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;

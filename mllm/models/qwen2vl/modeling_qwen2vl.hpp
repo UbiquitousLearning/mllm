@@ -143,9 +143,9 @@ class PatchMerger final : public nn::Module {
     hidden_size_ = context_dim_ * spatial_merge_size_ * spatial_merge_size_;
 
     ln_q_ = reg<nn::LayerNorm>("ln_q", std::vector<int32_t>{context_dim_}, true, true, 1e-6);
-    mlp_0_ = reg<nn::Linear>("mlp.0", hidden_size_, hidden_size_, true);
+    mlp_0_ = reg<nn::Linear>("mlp.0", hidden_size_, hidden_size_, true, cfg.linear_impl_type);
     mlp_gelu_ = reg<nn::GELU>("mlp.gelu");
-    mlp_2_ = reg<nn::Linear>("mlp.2", hidden_size_, cfg.hidden_size, true);
+    mlp_2_ = reg<nn::Linear>("mlp.2", hidden_size_, cfg.hidden_size, true, cfg.linear_impl_type);
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
@@ -172,8 +172,8 @@ class VisionMlp final : public nn::Module {
     dim_ = cfg.visual_embed_dim;
     hidden_dim_ = cfg.visual_embed_dim * cfg.visual_mlp_ratio;
 
-    fc_1_ = reg<nn::Linear>("fc1", dim_, hidden_dim_);
-    fc_2_ = reg<nn::Linear>("fc2", hidden_dim_, dim_);
+    fc_1_ = reg<nn::Linear>("fc1", dim_, hidden_dim_, true, cfg.linear_impl_type);
+    fc_2_ = reg<nn::Linear>("fc2", hidden_dim_, dim_, true, cfg.linear_impl_type);
     act_ = reg<nn::QuickGELU>("act");
   }
 
@@ -632,7 +632,7 @@ class Qwen2VLForCausalLM {
       past.position_ids = getPositionIdsPrefill(past.sequence, past.grid_thw, cfg);
     } else {  // Decode
       auto last_pos = *past.position_ids.offsettedPtr<int64_t>({0, 0, past.position_ids.shape()[2] - 1});
-      past.position_ids = Tensor::empty({3, 1, 1}, kFloat32, kCPU).alloc();
+      past.position_ids = Tensor::empty({3, 1, 1}, kInt64, kCPU).alloc();
       *past.position_ids.offsettedPtr<int64_t>({0, 0, 0}) = last_pos + 1;
       *past.position_ids.offsettedPtr<int64_t>({1, 0, 0}) = last_pos + 1;
       *past.position_ids.offsettedPtr<int64_t>({2, 0, 0}) = last_pos + 1;

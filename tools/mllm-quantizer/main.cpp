@@ -18,6 +18,7 @@ int main(int argc, char** argv) {
   auto& config_files = Argparse::add<std::string>("-c|--config").help("config file path.");
   auto& input_file_version = Argparse::add<std::string>("-iv|--input_version").help("Input file version.");
   auto& output_files = Argparse::add<std::string>("-o|--output").help("Output file path.");
+  auto& output_file_version = Argparse::add<std::string>("-ov|--output_version").help("Input file version.");
 
   Argparse::parse(argc, argv);
 
@@ -82,9 +83,15 @@ int main(int argc, char** argv) {
 #endif
   qd();
 
+  mllm::ModelFileVersion o_file_version = mllm::ModelFileVersion::kV1;
+  if (output_file_version.isSet() && output_file_version.get() == "v1") {
+    o_file_version = mllm::ModelFileVersion::kV1;
+  } else if (output_file_version.isSet() && output_file_version.get() == "v2") {
+    o_file_version = mllm::ModelFileVersion::kV2;
+  }
+
   mllm::print(params);
-  // TODO
-  // mllm::save(output_files.get(), params);
+  mllm::save(output_files.get(), params, o_file_version);
 
   mllm::shutdownContext();
 }

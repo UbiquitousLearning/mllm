@@ -23,6 +23,7 @@
 #include "mllm/backends/cpu/kernels/arm/rmsnorm.hpp"      // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/gelu.hpp"         // IWYU pragma: export
 #include "mllm/backends/cpu/kernels/arm/conv3d.hpp"       // IWYU pragma: export
+#include "mllm/backends/cpu/kernels/arm/linear/kai.hpp"   // IWYU pragma: export
 #endif
 
 #include "mllm/backends/cpu/kernels/common/blas.hpp"  // IWYU pragma: export

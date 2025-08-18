@@ -36,7 +36,9 @@ void QuantizeDriver::operator()() {
     for (const auto& [name, tensor] : *params_) {
       if (std::regex_match(name, re)) {
         std::string layer_name = extractGroupName(name);
-        if (sub_group.find(layer_name) == sub_group.end()) { sub_group[layer_name] = mllm::ParameterFile::create(); }
+        if (sub_group.find(layer_name) == sub_group.end()) {
+          sub_group[layer_name] = mllm::ParameterFile::create(params_->version());
+        }
         sub_group[layer_name]->push(name, tensor);
       }
     }

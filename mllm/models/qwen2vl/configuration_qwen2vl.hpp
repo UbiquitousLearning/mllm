@@ -38,6 +38,8 @@ struct Qwen2VLConfig : protected ConfigFile {
     rope_theta = data()["rope_theta"];
 
     tie_word_embeddings = data()["tie_word_embeddings"];
+
+    linear_impl_type = aops::str2LinearImplTypes(data()["linear_impl_type"]);
   }
 
   int32_t visual_in_chans = 3;

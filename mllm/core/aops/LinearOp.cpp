@@ -17,11 +17,21 @@ LinearOp::LinearOp(const LinearOpOptions& options) : BaseOp(OpTypes::kLinear), o
 
 void LinearOp::load(const ParameterFile::ptr_t& ploader) {
   switch (ploader->version()) {
+    weight_ = ploader->pull(getName() + ".weight");
+    if (options_.bias) { bias_ = ploader->pull(getName() + ".bias"); }
     case ModelFileVersion::kV1: {
-      weight_ = ploader->pull(getName() + ".weight");
-      if (options_.bias) { bias_ = ploader->pull(getName() + ".bias"); }
-      weight_ = weight_.view({options_.out_channels, options_.in_channels});
-      if (options_.bias) { bias_ = bias_.view({options_.out_channels}); }
+      switch (options_.impl_type) {
+        case aops::LinearImplTypes::kDefault: {
+          weight_ = weight_.view({options_.out_channels, options_.in_channels});
+          if (options_.bias) { bias_ = bias_.view({options_.out_channels}); }
+          break;
+        }
+        default: {
+          // No need to view.
+          MLLM_EMPTY_SCOPE
+          break;
+        }
+      }
       break;
     }
     case ModelFileVersion::kUserTemporary:
