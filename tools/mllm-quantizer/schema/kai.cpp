@@ -61,6 +61,20 @@ mllm::ParameterFile::ptr_t QuantizeImpl_KAI_f32_qai8dxp_qsi4c32p_mxk_nxk::perfor
   if (weight.dtype() != mllm::kFloat32) { weight = weight.to(mllm::kFloat32); }
   if (bias && (bias.dtype() != mllm::kFloat32)) { bias = bias.to(mllm::kFloat32); }
 
+  // NOTE: You need to reshape tensor if params version is v1
+  switch (params->version()) {
+    case mllm::ModelFileVersion::kV1: {
+      auto shape = desc.hints["shape"];
+      MLLM_RT_ASSERT(!shape.is_null());
+      weight = weight.view(shape);
+      break;
+    }
+    default: {
+      MLLM_EMPTY_SCOPE
+      break;
+    }
+  }
+
   auto weight_shape = weight.shape();
   auto out_channels = weight_shape[0];
   auto in_channels = weight_shape[1];

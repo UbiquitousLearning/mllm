@@ -145,7 +145,62 @@ ParameterFile::ptr_t ParameterFileIOImpl<DeviceTypes::kCPU, ModelFileVersion::kV
 
 void ParameterFileIOImpl<DeviceTypes::kCPU, ModelFileVersion::kV1>::write(const ParameterFile::ptr_t& parameter_file,
                                                                           const std::string& file_path) {
-  // TODO
+  std::ofstream out_file(file_path, std::ios::binary);
+  if (!out_file.is_open()) { MLLM_ERROR_EXIT(ExitCode::kIOError, "Failed to open file for writing: {}", file_path); }
+
+  size_t header_size = sizeof(ModelFileV1Descriptor);
+  size_t param_desc_total_size = 0;
+
+  // Calculate total size of the descriptor section
+  for (const auto& pair : *parameter_file) {
+    const auto& tensor = pair.second;
+    param_desc_total_size += sizeof(uint32_t);                        // name length
+    param_desc_total_size += tensor.impl()->storage()->name_.size();  // name string
+    param_desc_total_size += sizeof(uint64_t);                        // data length
+    param_desc_total_size += sizeof(uint64_t);                        // offset
+    param_desc_total_size += sizeof(int32_t);                         // data type
+  }
+
+  // Write header: parameter_desc_offset is now the SIZE of the descriptor section
+  ModelFileV1Descriptor header{};
+  header.magic_number = MLLM_MODEL_FILE_V1_MAGIC_NUMBER;
+  header.parameter_desc_offset = param_desc_total_size;  // FIXED: size of descriptors (without header)
+  out_file.write(reinterpret_cast<const char*>(&header), sizeof(header));
+
+  // Write parameter descriptors and calculate data offsets
+  uint64_t current_data_offset = header_size + param_desc_total_size;  // Absolute offset for tensor data
+  for (const auto& pair : *parameter_file) {
+    const auto& name = pair.first;
+    const auto& tensor = pair.second;
+
+    // Name length
+    uint32_t name_len = name.size();
+    out_file.write(reinterpret_cast<const char*>(&name_len), sizeof(name_len));
+
+    // Name
+    out_file.write(name.c_str(), name_len);
+
+    // Data length (bytes)
+    uint64_t data_len = tensor.bytes();
+    out_file.write(reinterpret_cast<const char*>(&data_len), sizeof(data_len));
+
+    // Offset (absolute from file start)
+    out_file.write(reinterpret_cast<const char*>(&current_data_offset), sizeof(current_data_offset));
+    current_data_offset += data_len;
+
+    // Data type
+    int32_t dtype = static_cast<int32_t>(tensor.dtype());
+    out_file.write(reinterpret_cast<const char*>(&dtype), sizeof(dtype));
+  }
+
+  // Write tensor data
+  for (const auto& pair : *parameter_file) {
+    const auto& tensor = pair.second;
+    size_t data_size = tensor.bytes();
+    out_file.write(reinterpret_cast<const char*>(tensor.ptr<uint8_t>()), data_size);
+  }
+
+  out_file.close();
 }
 
 //===----------------------------------------------------------------------===//
@@ -212,6 +267,66 @@ ParameterFile::ptr_t ParameterFileIOImpl<DeviceTypes::kCPU, ModelFileVersion::kV
 
 void ParameterFileIOImpl<DeviceTypes::kCPU, ModelFileVersion::kV2>::write(const ParameterFile::ptr_t& parameter_file,
                                                                           const std::string& file_path) {
-  // TODO
+  std::ofstream out_file(file_path, std::ios::binary);
+  if (!out_file.is_open()) { MLLM_ERROR_EXIT(ExitCode::kIOError, "Failed to open file for writing: {}", file_path); }
+
+  // Calculate header
+  ModelFileV2Descriptor header{};
+  header.magic_number = MLLM_MODEL_FILE_V2_MAGIC_NUMBER;
+  header.version = MLLM_MODEL_FILE_V2_VERSION;
+  header.num_params = parameter_file->dict().size();
+  header.params_desc_offset = sizeof(ModelFileV2Descriptor);  // No extra data segment
+
+  // Write header
+  out_file.write(reinterpret_cast<const char*>(&header), sizeof(header));
+
+  // Write parameter descriptors and tensor data
+  size_t current_param_desc_offset = sizeof(ModelFileV2Descriptor);
+  size_t current_data_offset =
+      sizeof(ModelFileV2Descriptor) + parameter_file->dict().size() * sizeof(ModelFileV2ParamsDescriptor);
+
+  // First pass: write parameter descriptors
+  std::vector<std::pair<std::string, Tensor>> tensors;
+  for (const auto& pair : *parameter_file) { tensors.emplace_back(pair.first, pair.second); }
+
+  // Write parameter descriptors
+  for (const auto& [name, tensor] : tensors) {
+    ModelFileV2ParamsDescriptor param_desc{};
+
+    // Set parameter id (using index in the list)
+    param_desc.parameter_id = &tensor - &tensors[0].second;  // This is a simple way to get index
+
+    // Set parameter type
+    param_desc.parameter_type = static_cast<uint32_t>(tensor.dtype());
+
+    // Set parameter size
+    param_desc.parameter_size = tensor.bytes();
+
+    // Set parameter offset
+    param_desc.parameter_offset = current_data_offset;
+
+    // Set shape
+    const auto& shape = tensor.shape();
+    param_desc.shape_len = shape.size();
+    for (size_t i = 0; i < shape.size() && i < MLLM_MODEL_FILE_V2_TENSOR_SHAPE_LENGTH; i++) { param_desc.shape[i] = shape[i]; }
+
+    // Set name
+    strncpy(param_desc.name, name.c_str(), MLLM_MODEL_FILE_V2_PARAMS_NAME_LENGTH - 1);
+    param_desc.name[MLLM_MODEL_FILE_V2_PARAMS_NAME_LENGTH - 1] = '\0';
+
+    // Write parameter descriptor
+    out_file.write(reinterpret_cast<const char*>(&param_desc), sizeof(param_desc));
+
+    // Update current data offset
+    current_data_offset += tensor.bytes();
+  }
+
+  // Second pass: write tensor data
+  for (const auto& [name, tensor] : tensors) {
+    size_t data_size = tensor.bytes();
+    out_file.write(reinterpret_cast<const char*>(tensor.ptr<uint8_t>()), data_size);
+  }
+
+  out_file.close();
 }
 }  // namespace mllm

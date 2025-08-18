@@ -37,10 +37,10 @@ enum class ExitCode : int32_t {  // NOLINT
 // mllm runtime assert
 #if (MLLM_ENABLE_RT_ASSERT)
 #define MLLM_RT_ASSERT(statement) \
-  if (!(statement)) { MLLM_ASSERT_EXIT(ExitCode::kAssert, "{}", #statement); }
+  if (!(statement)) { MLLM_ASSERT_EXIT(::mllm::ExitCode::kAssert, "{}", #statement); }
 
 #define MLLM_RT_ASSERT_EQ(statement1, statement2) \
-  if ((statement1) != (statement2)) { MLLM_ASSERT_EXIT(ExitCode::kAssert, "{} != {}", #statement1, #statement2); }
+  if ((statement1) != (statement2)) { MLLM_ASSERT_EXIT(::mllm::ExitCode::kAssert, "{} != {}", #statement1, #statement2); }
 #else
 #define MLLM_RT_ASSERT(statement)
 

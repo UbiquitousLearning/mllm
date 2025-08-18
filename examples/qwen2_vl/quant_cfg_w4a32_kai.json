@@ -4,7 +4,11 @@
             "quant_method": "kai",
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
-            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32"
+            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32",
+            "shape": [
+                1536,
+                1536
+            ]
         }
     },
     "^model\\.layers\\.\\d+\\.self_attn\\.k_proj.(bias|weight)": {
@@ -12,7 +16,11 @@
             "quant_method": "kai",
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
-            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32"
+            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32",
+            "shape": [
+                256,
+                1536
+            ]
         }
     },
     "^model\\.layers\\.\\d+\\.self_attn\\.v_proj.(bias|weight)": {
@@ -20,7 +28,11 @@
             "quant_method": "kai",
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
-            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32"
+            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32",
+            "shape": [
+                256,
+                1536
+            ]
         }
     },
     "^model\\.layers\\.\\d+\\.self_attn\\.o_proj.(bias|weight)": {
@@ -28,7 +40,11 @@
             "quant_method": "kai",
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
-            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32"
+            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32",
+            "shape": [
+                1536,
+                1536
+            ]
         }
     },
     "^model\\.layers\\.\\d+\\.mlp\\.gate_proj.(bias|weight)": {
@@ -36,7 +52,11 @@
             "quant_method": "kai",
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
-            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32"
+            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32",
+            "shape": [
+                8960,
+                1536
+            ]
         }
     },
     "^model\\.layers\\.\\d+\\.mlp\\.up_proj.(bias|weight)": {
@@ -44,7 +64,11 @@
             "quant_method": "kai",
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
-            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32"
+            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32",
+            "shape": [
+                8960,
+                1536
+            ]
         }
     },
     "^model\\.layers\\.\\d+\\.mlp\\.down_proj.(bias|weight)": {
@@ -52,7 +76,11 @@
             "quant_method": "kai",
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
-            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32"
+            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32",
+            "shape": [
+                1536,
+                8960
+            ]
         }
     },
     "^visual\\.blocks\\.\\d+\\.attn\\.proj.(bias|weight)": {
@@ -60,7 +88,11 @@
             "quant_method": "kai",
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
-            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32"
+            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32",
+            "shape": [
+                1280,
+                1280
+            ]
         }
     },
     "^visual\\.blocks\\.\\d+\\.attn\\.qkv.(bias|weight)": {
@@ -68,7 +100,11 @@
             "quant_method": "kai",
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
-            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32"
+            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32",
+            "shape": [
+                3840,
+                1280
+            ]
         }
     },
     "^visual\\.blocks\\.\\d+\\.mlp\\.fc1.(bias|weight)": {
@@ -76,7 +112,11 @@
             "quant_method": "kai",
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
-            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32"
+            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32",
+            "shape": [
+                5120,
+                1280
+            ]
         }
     },
     "^visual\\.blocks\\.\\d+\\.mlp\\.fc2.(bias|weight)": {
@@ -84,7 +124,35 @@
             "quant_method": "kai",
             "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
             "kai_matmul_layout": "mxk_nxk",
-            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32"
+            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32",
+            "shape": [
+                1280,
+                5120
+            ]
+        }
+    },
+    "^visual\\.merger\\.mlp\\.0\\.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32",
+            "shape": [
+                5120,
+                5120
+            ]
+        }
+    },
+    "^visual\\.merger\\.mlp\\.2\\.(bias|weight)": {
+        "hints": {
+            "quant_method": "kai",
+            "kai_matmul_triplet": "f32_qai8dxp_qsi4c32p",
+            "kai_matmul_layout": "mxk_nxk",
+            "kai_matmul_tile_cfg": "qai8dxp1x8_qsi4c32p4x8_1x4x32",
+            "shape": [
+                1536,
+                5120
+            ]
         }
     }
 }
