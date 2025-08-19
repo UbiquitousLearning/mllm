@@ -13,7 +13,7 @@ class VisionRoPE : public Layer {
 
   VisionRoPE(const aops::VisionRoPEOpOptionsType type, const aops::Qwen2VLRoPEOpOptions& Options);
 
-  MLLM_LAYER_ANY_INPUTS_3_OUTPUTS_FORWARD
+  MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };
 
 }  // namespace mllm::nn
