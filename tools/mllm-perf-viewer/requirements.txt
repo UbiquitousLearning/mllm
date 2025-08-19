@@ -1,4 +1,0 @@
-gradio
-pandas
-plotly
-numpy

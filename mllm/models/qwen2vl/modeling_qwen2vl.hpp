@@ -14,6 +14,163 @@
 
 namespace mllm::models::qwen2vl {
 
+inline Tensor makeVisualRoPEInvFreq(int32_t dims, float theta) {
+  const int half_dim = dims / (2 * 2);
+  Tensor inv_freq = Tensor::empty({half_dim}, kFloat32).alloc();
+  float* inv_freq_ptr = inv_freq.ptr<float>();
+  const float dims_inv = 1.0f / static_cast<float>(dims / 2);
+  for (int i = 0; i < half_dim; ++i) {
+    const float exponent = (2.0f * i) * dims_inv;
+    inv_freq_ptr[i] = 1.0f / std::pow(theta, exponent);
+  }
+  return inv_freq;
+}
+
+inline Tensor makeVisualRotaryPosEmbIds(Tensor& grid_thw, int32_t spatial_merge_size) {
+  MLLM_RT_ASSERT_EQ(grid_thw.shape().size(), 2);
+
+  auto img_nums = grid_thw.shape()[0];
+
+  int total_positions = 0;
+  for (int row = 0; row < img_nums; ++row) {
+    const int* dims = grid_thw.offsettedPtr<int>({row, 0});
+    const int t = dims[0];
+    const int h = dims[1];
+    const int w = dims[2];
+    total_positions += t * h * w;
+  }
+
+  Tensor out = Tensor::empty({total_positions, 2}, kInt32).alloc();
+  int* out_ptr = out.ptr<int>();
+  int out_offset = 0;
+
+  for (int row = 0; row < img_nums; ++row) {
+    const int* dims = grid_thw.offsettedPtr<int>({row, 0});
+
+    const int t = dims[0];
+    const int h = dims[1];
+    const int w = dims[2];
+
+    const int num_h_blocks = h / spatial_merge_size;
+    const int num_w_blocks = w / spatial_merge_size;
+    const int total_blocks = num_h_blocks * num_w_blocks;
+    const int block_area = spatial_merge_size * spatial_merge_size;
+    const int grid_size = h * w;
+
+    std::vector<int> flatten_hpos(grid_size);
+    std::vector<int> flatten_wpos(grid_size);
+
+    for (int block_idx = 0; block_idx < total_blocks; ++block_idx) {
+      const int i_h = block_idx / num_w_blocks;
+      const int i_w = block_idx % num_w_blocks;
+      const int start_idx = block_idx * block_area;
+
+      const int base_h = i_h * spatial_merge_size;
+      const int base_w = i_w * spatial_merge_size;
+
+      for (int j_h = 0; j_h < spatial_merge_size; ++j_h) {
+        const int global_h = base_h + j_h;
+        for (int j_w = 0; j_w < spatial_merge_size; ++j_w) {
+          const int global_w = base_w + j_w;
+          const int pos = start_idx + j_h * spatial_merge_size + j_w;
+          flatten_hpos[pos] = global_h;
+          flatten_wpos[pos] = global_w;
+        }
+      }
+    }
+
+    for (int frame = 0; frame < t; ++frame) {
+      for (int pos = 0; pos < grid_size; ++pos) {
+        const int out_idx = out_offset + (frame * grid_size + pos) * 2;
+        out_ptr[out_idx] = flatten_hpos[pos];
+        out_ptr[out_idx + 1] = flatten_wpos[pos];
+      }
+    }
+    out_offset += t * grid_size * 2;
+  }
+
+  return out;
+}
+
+inline Tensor makeVisualRotaryPosEmbFull(Tensor& inv_freq, int seq_len) {
+  MLLM_RT_ASSERT(seq_len > 0);
+  const int32_t dim = inv_freq.shape()[0];
+  Tensor freqs = Tensor::empty({seq_len, dim}, kFloat32, kCPU).alloc();
+  float* inv_freq_ptr = inv_freq.ptr<float>();
+  float* freqs_ptr = freqs.ptr<float>();
+  for (int i = 0; i < seq_len; ++i) {
+    const float i_val = static_cast<float>(i);
+    float* row_ptr = freqs_ptr + i * dim;
+    for (int j = 0; j < dim; ++j) { row_ptr[j] = i_val * inv_freq_ptr[j]; }
+  }
+  return freqs;
+}
+
+std::pair<Tensor, Tensor> makeVisualRotarySinCos(Tensor& rotary_pos_emb) {
+  auto seq = rotary_pos_emb.shape()[0];
+  auto dim = rotary_pos_emb.shape()[1];
+
+  auto rotary_pos_emb_ptr = rotary_pos_emb.ptr<float>();
+
+  Tensor sin_pos_emb = Tensor::empty({seq, dim}, kFloat32, kCPU).alloc();
+  Tensor cos_pos_emb = Tensor::empty({seq, dim}, kFloat32, kCPU).alloc();
+
+  auto sin_pos_emb_ptr = sin_pos_emb.ptr<float>();
+  auto cos_pos_emb_ptr = cos_pos_emb.ptr<float>();
+
+  for (int i = 0; i < seq; i++) {
+    for (int j = 0; j < dim; j++) {
+      sin_pos_emb_ptr[i * dim + j] = std::sin(rotary_pos_emb_ptr[i * dim + j]);
+      cos_pos_emb_ptr[i * dim + j] = std::cos(rotary_pos_emb_ptr[i * dim + j]);
+    }
+  }
+
+  return {sin_pos_emb, cos_pos_emb};
+}
+
+inline Tensor makeVisualRotaryPosEmb(Tensor& rotary_pos_emb_full, Tensor& pos_ids, Tensor& grid_thw) {
+  const int* grid_dims = grid_thw.offsettedPtr<int>({0, 0});
+  const int t = grid_dims[0];
+  const int h = grid_dims[1];
+  const int w = grid_dims[2];
+
+  const int32_t num_positions = rotary_pos_emb_full.shape()[0];
+  const int32_t dim = rotary_pos_emb_full.shape()[1];
+  const int32_t batch_size = pos_ids.shape()[0];
+  const int32_t seq_len = pos_ids.shape()[1];
+
+  // [batch_size, dim]
+  Tensor out = Tensor::empty({batch_size, seq_len * dim}, kFloat32, kCPU).alloc();
+
+  auto rotary_pos_emb_full_ptr = rotary_pos_emb_full.ptr<float>();
+  auto pos_ids_ptr = pos_ids.ptr<int>();
+  auto out_ptr = out.ptr<float>();
+
+  if (num_positions <= 0 || dim <= 0 || batch_size <= 0) { MLLM_ERROR_EXIT(ExitCode::kSliceOB, "Invalid tensor dimensions"); }
+
+  if (t * h * w != batch_size) { MLLM_ERROR_EXIT(ExitCode::kSliceOB, "Grid dimensions mismatch with batch size"); }
+
+  for (int i = 0; i < batch_size; ++i) {
+    for (int j = 0; j < seq_len; ++j) {
+      if ((*pos_ids.offsettedPtr<int>({i, j})) < 0 || (*pos_ids.offsettedPtr<int>({i, j})) >= num_positions) {
+        MLLM_ERROR_EXIT(ExitCode::kSliceOB, "Position index out of bounds");
+      }
+    }
+  }
+
+  for (int i = 0; i < batch_size; ++i) {
+    auto batch_ptr = out.offsettedPtr<float>({i, 0});
+    size_t offset = 0;
+    for (int j = 0; j < seq_len; ++j) {
+      auto emb_ptr = rotary_pos_emb_full.offsettedPtr<float>({(*pos_ids.offsettedPtr<int>({i, j})), 0});
+      std::copy(emb_ptr, emb_ptr + dim, batch_ptr + offset);
+      offset += dim;
+    }
+  }
+
+  return out;
+}
+
 inline auto makeMultimodalRoPEInvFreq(int output_dim, float rope_theta) -> Tensor {
   auto inv_freq = Tensor::empty({output_dim / 2}, kFloat32, kCPU).alloc();
   auto inv_freq_ptr = inv_freq.ptr<float>();
@@ -225,9 +382,8 @@ class VisionAttention final : public nn::Module {
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     // hidden_states shape is [seq_length, dim]
     auto hidden_states = inputs[0];
-    auto& grid_thw = inputs[1];
-    auto visual_embedding_sin = inputs[2];
-    auto visual_embedding_cos = inputs[3];
+    auto visual_embedding_sin = inputs[1];
+    auto visual_embedding_cos = inputs[2];
 
     auto seq_length = hidden_states.shape()[0];
 
@@ -236,15 +392,8 @@ class VisionAttention final : public nn::Module {
 
     // Input to Vision ROPE must be BSHD format
     // grid_thw shape is [n, 3], n is always 1 in this case.
-    auto [query_states_roped, sin, cos] = vision_rope_q_(query_states, grid_thw, visual_embedding_sin, visual_embedding_cos);
-    auto [key_states_roped, _, _] = vision_rope_k_(key_states, grid_thw, sin, cos);
-
-    visual_embedding_sin = sin;
-    visual_embedding_cos = cos;
-
-    // Reassigned.
-    query_states = query_states_roped;
-    key_states = key_states_roped;
+    query_states = vision_rope_q_(query_states, visual_embedding_sin, visual_embedding_cos);
+    key_states = vision_rope_k_(key_states, visual_embedding_sin, visual_embedding_cos);
 
     // [B, H, S, D]
     query_states = query_states.transpose(1, 2);
@@ -265,8 +414,6 @@ class VisionAttention final : public nn::Module {
     attn_output = proj_(attn_output);
     return {
         attn_output,
-        visual_embedding_sin,
-        visual_embedding_cos,
     };
   }
 };
@@ -293,18 +440,12 @@ class Qwen2VLVisionBlock final : public nn::Module {
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto hidden_states = inputs[0];
-    auto grid_thw = inputs[1];
-    auto visual_embedding_sin = inputs[2];
-    auto visual_embedding_cos = inputs[3];
+    auto visual_embedding_sin = inputs[1];
+    auto visual_embedding_cos = inputs[2];
 
-    auto res = attn_(norm1_(hidden_states), grid_thw, visual_embedding_sin, visual_embedding_cos);
-    auto& a = res[0];
-    visual_embedding_sin = res[1];
-    visual_embedding_cos = res[2];
-
-    hidden_states = hidden_states + a;
+    hidden_states = hidden_states + attn_(norm1_(hidden_states), visual_embedding_sin, visual_embedding_cos)[0];
     hidden_states = hidden_states + mlp_(norm2_(hidden_states))[0];
-    return {hidden_states, grid_thw, visual_embedding_sin, visual_embedding_cos};
+    return {hidden_states};
   }
 };
 
@@ -324,19 +465,12 @@ class Qwen2VisionTransformerPretrainedModel final : public nn::Module {
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto hidden_states = inputs[0];
-    auto grid_thw = inputs[1];
-    auto embedding_sin = inputs[2];
-    auto embedding_cos = inputs[3];
+    auto embedding_sin = inputs[1];
+    auto embedding_cos = inputs[2];
 
     hidden_states = patch_embed_(hidden_states)[0];
 
-    for (auto& b : blocks_.list()) {
-      auto o = b(hidden_states, grid_thw, embedding_sin, embedding_cos);
-      hidden_states = o[0];
-      grid_thw = o[1];
-      embedding_sin = o[2];
-      embedding_cos = o[3];
-    }
+    for (auto& b : blocks_.list()) { hidden_states = b(hidden_states, embedding_sin, embedding_cos)[0]; }
 
     hidden_states = patch_merger_(hidden_states)[0];
 
@@ -466,7 +600,7 @@ class Qwen2VLAttention final : public nn::Module {
     // [B, H, S, D] -> [B, S, H, D] -> [B, S, H * D]
     output = output.transpose(1, 2).view({B, S, num_attention_heads_ * head_dim_});
     output = o_proj_(output);
-    return {output, llm_embedding_sin, llm_embedding_cos};
+    return {output};
   }
 
   int layer_idx_;
@@ -581,10 +715,16 @@ class Qwen2VLForCausalLM {
       // process img
       print("ViT Processing: ...");
       print("Image shape is:", past.img.shape());
-      auto visual_embedding_sin = Tensor::nil();
-      auto visual_embedding_cos = Tensor::nil();
+
+      auto v_len = past.img.shape()[0];
+      auto inv_freq = makeVisualRoPEInvFreq(cfg.visual_embed_dim / cfg.visual_num_heads, 10000.0);
+      auto pos_ids = makeVisualRotaryPosEmbIds(past.grid_thw, cfg.visual_spatial_merge_size);
+      auto rotary_pos_emb_full = makeVisualRotaryPosEmbFull(inv_freq, v_len);
+      auto pos_emb = makeVisualRotaryPosEmb(rotary_pos_emb_full, pos_ids, past.grid_thw);
+      auto [visual_embedding_sin, visual_embedding_cos] = makeVisualRotarySinCos(pos_emb);
+
       auto start_time = std::chrono::high_resolution_clock::now();
-      auto visual_embeddings = visual(past.img, past.grid_thw, visual_embedding_sin, visual_embedding_cos)[0];
+      auto visual_embeddings = visual(past.img, visual_embedding_sin, visual_embedding_cos)[0];
       auto end_time = std::chrono::high_resolution_clock::now();
       auto all_time = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
       print("ViT Processing: done, time cost: {} seconds", all_time.count());
