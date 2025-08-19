@@ -6,6 +6,8 @@ file(GLOB_RECURSE MLLM_RT_MODELS_SRC ${CMAKE_CURRENT_LIST_DIR}/models/*.cpp)
 file(GLOB_RECURSE MLLM_RT_COMPILE_SRC ${CMAKE_CURRENT_LIST_DIR}/compile/*.cpp)
 file(GLOB_RECURSE MLLM_RT_PREPROCESSOR_SRC ${CMAKE_CURRENT_LIST_DIR}/preprocessor/*.cpp)
 file(GLOB_RECURSE MLLM_RT_AUTO_TUNE_SRC ${CMAKE_CURRENT_LIST_DIR}/auto_tune/*.cpp)
+# TODO: add build audio config
+file(GLOB WENET_AUDIO_SOURCES ${PROJECT_SOURCE_DIR}/third_party/wenet_audio/*)
 
 add_library(
   MllmRT SHARED
@@ -19,7 +21,9 @@ add_library(
   ${MLLM_RT_PREPROCESSOR_SRC}
   ${MLLM_RT_MODELS_SRC}
   ${MLLM_RT_COMPILE_SRC}
-  ${MLLM_RT_AUTO_TUNE_SRC})
+  ${MLLM_RT_AUTO_TUNE_SRC}
+  ${WENET_AUDIO_SOURCES} # TODO: add build audio config
+)
 
 target_include_directories(MllmRT PUBLIC ${MLLM_INCLUDE_DIR} ${MLLM_JSON_INCLUDE_DIR})
 target_link_libraries(MllmRT PUBLIC fmt::fmt-header-only STDEXEC::stdexec)
