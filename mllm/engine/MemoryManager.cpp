@@ -3,7 +3,10 @@
 
 #include "mllm/utils/Common.hpp"
 #include "mllm/engine/MemoryManager.hpp"
-#include "mllm/engine/Context.hpp"
+
+#ifdef MLLM_PERFETTO_ENABLE
+#include "mllm/engine/Perf.hpp"
+#endif
 
 namespace mllm {
 
@@ -25,16 +28,13 @@ void MemoryManager::alloc(Storage* s) {
   auto& allocator = allocators_[s->device_];
   auto try_to_alloc_size = allocator->allocSize(s);
 
-  // Record memory usage
-  if (Context::instance().isPerfMode()) {
-    Context::instance().getPerfFile()->mem_blobs_.insert(
-        {s->custom_32bit_uuid_, PerfMemoryBlob{
-                                    .start_time = Context::instance().curTime(),
-                                    .end_time = 0,
-                                    .memory_usage = try_to_alloc_size,
-                                    .device_type = s->device_,
-                                }});
-  }
+#ifdef MLLM_PERFETTO_ENABLE
+  MLLM_PERF_TRACE_BEGIN("mllm.tensor_lifecycle", "tensor_hold", perfetto::Track(static_cast<uint64_t>(s->custom_32bit_uuid_)),
+                        [&](perfetto::EventContext ctx) {
+                          ctx.AddDebugAnnotation("bytes", s->size_);
+                          ctx.AddDebugAnnotation("device", deviceTypes2Str(s->device_));
+                        });
+#endif
 
   if (try_to_alloc_size >= options_[s->device_].really_large_tensor_threshold) {
     MLLM_WARN("Trying to alloc a really large storage, whose storage size is {}B. The mllm memory manager will alloc a memory "
@@ -56,9 +56,9 @@ void MemoryManager::free(Storage* s) {
   auto& allocator = allocators_[s->device_];
   auto try_to_alloc_size = allocator->allocSize(s);
 
-  if (Context::instance().isPerfMode()) {
-    Context::instance().getPerfFile()->mem_blobs_[s->custom_32bit_uuid_].end_time = Context::instance().curTime();
-  }
+#ifdef MLLM_PERFETTO_ENABLE
+  MLLM_PERF_TRACE_END("mllm.tensor_lifecycle", perfetto::Track(static_cast<uint64_t>(s->custom_32bit_uuid_)));
+#endif
 
   if (try_to_alloc_size >= options_[s->device_].really_large_tensor_threshold) {
     allocator->free(s);
