@@ -31,6 +31,9 @@ option(MLLM_KERNEL_USE_THREADS "Enable Threads" ON)
 option(MLLM_KERNEL_THREADS_VENDOR_OPENMP "Enable OpenMP Threads" ON)
 option(MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD "Enable Apple GCD Threads" OFF)
 
+# Performance components
+option(MLLM_PERFETTO_ENABLE "Enable perfetto" OFF)
+
 message(STATUS "CXX Compiler=${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CXX Compiler version=${CMAKE_CXX_COMPILER_VERSION}")
 
@@ -111,6 +114,13 @@ else()
   set(OpenMP_omp_LIBRARY "")
 endif()
 
+# Handle Performance components
+if(MLLM_PERFETTO_ENABLE)
+  include_directories(third_party/perfetto/sdk)
+  add_library(perfetto STATIC third_party/perfetto/sdk/perfetto.cc)
+  add_compile_definitions(MLLM_PERFETTO_ENABLE=1)
+endif()
+
 # Handle NaN Warning.
 if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
    AND NOT (CMAKE_SYSTEM_PROCESSOR MATCHES "i686|i386|x86_64"))
@@ -167,6 +177,16 @@ set(INSTALL_MLLM_VERSION ${PROJECT_VERSION})
 set(INCLUDE_INSTALL_DIR
     "${CMAKE_INSTALL_INCLUDEDIR}"
     CACHE PATH "Installation directory for headers")
+
+if(MLLM_PERFETTO_ENABLE)
+  install(
+    TARGETS perfetto
+    EXPORT MllmTargets
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin)
+endif()
+
 install(
   TARGETS MllmRT
   EXPORT MllmTargets

@@ -6,6 +6,10 @@
 #include "mllm/utils/Common.hpp"
 #include "mllm/nn/Module.hpp"
 
+#ifdef MLLM_PERFETTO_ENABLE
+#include "mllm/engine/Perf.hpp"
+#endif
+
 namespace mllm::cpu {
 
 CPUDispatcher::CPUDispatcher(exec::static_thread_pool& thread_pool, dispatcher_id_t id, const CPUDispatcherOptions& options)
@@ -36,6 +40,16 @@ TaskResult::sender_t CPUDispatcher::asyncReceive(const Task::ptr_t& task) {
 void CPUDispatcher::process(const Task::ptr_t& task) {
   switch (task->type) {
     case TaskTypes::kExecuteOp: {
+#ifdef MLLM_PERFETTO_ENABLE
+      auto op_name = optype2Str(task->op->getOpType());
+      MLLM_PERF_TRACE_EVENT("mllm.kernel", perfetto::DynamicString{optype2Str(task->op->getOpType())},
+                            [&](perfetto::EventContext ctx) {
+                              int cnt = 0;
+                              for (auto& i : task->inputs) {
+                                ctx.AddDebugAnnotation(perfetto::DynamicString{"inputs-" + std::to_string(cnt++)}, i.shape());
+                              }
+                            });
+#endif
       auto op = task->op;
       auto& inputs = task->inputs;
       auto& outputs = task->outputs;

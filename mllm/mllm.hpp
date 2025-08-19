@@ -160,13 +160,7 @@ bool isOpenCLAvailable();
 
 bool isQnnAvailable();
 
-void perfStart();
-
-void perfEnd();
-
 void cleanThisThread();
-
-PerfFile::ptr_t getPerfFile();
 
 SessionTCB::ptr_t thisThread();
 
@@ -235,3 +229,7 @@ inline int __mllm_exception_main(Func&& func) {
     ::mllm::shutdownContext();                             \
     return result;                                         \
   }
+
+#ifdef MLLM_PERFETTO_ENABLE
+#include "mllm/engine/Perf.hpp"  // IWYU pragma: export
+#endif
