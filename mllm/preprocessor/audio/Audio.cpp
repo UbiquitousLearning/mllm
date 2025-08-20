@@ -1,3 +1,5 @@
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
 //
 // Created by Rongjie Yi on 24-1-9.
 //
@@ -10,9 +12,9 @@
 #include <memory>
 #include <vector>
 #include <algorithm>
-#include "wenet_audio/params.h"
-#include "wenet_audio/wav.h"
-#include "wenet_audio/feature_pipeline.h"
+#include <wenet_audio/params.h>
+#include <wenet_audio/wav.h>
+#include <wenet_audio/feature_pipeline.h>
 
 class Fraction {
  public:

@@ -6,7 +6,6 @@
 #include "mllm/core/Tensor.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
-#include "mllm/utils/Log.hpp"
 
 namespace mllm::aops {
 
@@ -14,7 +13,12 @@ STFTOp::STFTOp(const STFTOpOptions& options) : BaseOp(OpTypes::kSTFT), options_(
 
 void STFTOp::load(const ParameterFile::ptr_t& ploader) { MLLM_EMPTY_SCOPE; }
 
-void STFTOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { MLLM_EMPTY_SCOPE; }
+void STFTOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  auto ir_ctx = (ir::IRContext*)trace_context;
+  auto i_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, inputs);
+  auto o_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, outputs);
+  ir_ctx->create<ir::linalg::STFTOp>(shared_from_this(), i_irs, o_irs);
+}
 
 void STFTOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { MLLM_EMPTY_SCOPE; }
 
