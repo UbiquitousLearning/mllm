@@ -22,6 +22,7 @@ class LinearOp;
 class RoPEOp;
 class KVCacheOp;
 class SoftmaxOp;
+class STFTOp;
 class TransposeOp;
 class RMSNormOp;
 class SiLUOp;
@@ -168,6 +169,7 @@ LINALG_AOPS_DEFINE(ContiguousOp, CONTIGUOUSOP);
 LINALG_AOPS_DEFINE(ReshapeOp, RESHAPEOP);
 
 LINALG_AOPS_DEFINE(SliceOp, SLICEOP);
+LINALG_AOPS_DEFINE(STFTOp, STFTOP);
 LINALG_AOPS_DEFINE(ParamOp, PARAMOP);
 
 }  // namespace mllm::ir::linalg
