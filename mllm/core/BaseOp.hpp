@@ -39,7 +39,7 @@ class BaseOpOptions {
   void setThreads(int threads) { threads_ = threads; }
 
  private:
-  int threads_ = 1;
+  int threads_ = 4;
   std::vector<DataTypes> inputs_dtypes_;
   std::vector<DataTypes> outputs_dtypes_;
 };

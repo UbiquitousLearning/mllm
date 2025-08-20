@@ -3,6 +3,7 @@
 
 #include <cstring>
 #include "mllm/core/DataTypes.hpp"
+#include "mllm/core/aops/MatMulOp.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/core/Parallel.hpp"
 #include "mllm/backends/cpu/ops/MatMulOp.hpp"
@@ -21,15 +22,6 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
 
   auto transpose_a = options_.transpose_a;
   auto transpose_b = options_.transpose_b;
-
-  auto mt = options_.matmul_type;
-  if (mt == aops::MatMulOpType::kDefault) {
-#if defined(MLLM_USE_BLAS)
-    mt = aops::MatMulOpType::kBLAS;
-#else
-    mt = aops::MatMulOpType::kLlamaFile;
-#endif
-  }
 
   auto lhs_shape = lhs.shape();
   auto rhs_shape = rhs.shape();
@@ -53,10 +45,25 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
   for (size_t i = 0; i < rhs_shape.size() - 2; ++i) { rhs_batch_count *= rhs_shape[i]; }
   MLLM_RT_ASSERT_EQ(batch_count, rhs_batch_count);
 
+  auto mt = options_.matmul_type;
+  if (mt == aops::MatMulOpType::kDefault) {
+#if defined(MLLM_USE_BLAS)
+    mt = aops::MatMulOpType::kBLAS;
+#else
+    if (!transpose_a && transpose_b && M != 1) {
+      // FIXME: kLLamaFile is not supported for M == 1
+      mt = aops::MatMulOpType::kLlamaFile;
+    } else
+    // All fallback to mllm blas
+    {
+      mt = aops::MatMulOpType::kMllmBlas;
+    }
+#endif
+  }
+
   switch (mt) {
     case aops::MatMulOpType::kDefault: {
-      // Perform batched matrix multiplication
-      // TODO: use mllm blas
+      NYI("Auto matmul type inference failed");
       break;
     }
     case aops::MatMulOpType::kLlamaFile: {
@@ -124,6 +131,25 @@ void CPUMatMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
       }
 #else
       NYI("BLAS not supported. Pls set MLLM_USE_BLAS=ON to enable BLAS supports in cmake.");
+#endif
+      break;
+    }
+    case aops::MatMulOpType::kMllmBlas: {
+      auto thread_count = options_.getThreads();
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      if (lhs.dtype() == kFloat32 && rhs.dtype() == kFloat32 && o.dtype() == kFloat32) {
+        if (batch_count == 1) {
+          arm::mllm_blas_matmul_fp32(M, K, N, o.ptr<mllm_fp32_t>(), lhs.ptr<mllm_fp32_t>(), rhs.ptr<mllm_fp32_t>(), nullptr,
+                                     transpose_a, transpose_b, thread_count);
+        } else {
+          arm::mllm_blas_batch_matmul_fp32(batch_count, M, K, N, o.stride()[o.shape().size() - 3],
+                                           lhs.stride()[lhs_shape.size() - 3], rhs.stride()[rhs_shape.size() - 3], 0,
+                                           o.ptr<mllm_fp32_t>(), lhs.ptr<mllm_fp32_t>(), rhs.ptr<mllm_fp32_t>(), nullptr,
+                                           transpose_a, transpose_b, thread_count);
+        }
+      }
+#else
+      NYI("MllmBlas only support MLLM_HOST_ARCH_ARM64 or MLLM_HOST_ARCH_ARM right now.")
 #endif
       break;
     }

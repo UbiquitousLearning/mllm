@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 #pragma once
 
+#include <string>
+
 #ifdef MLLM_PERFETTO_ENABLE
 
 #include <perfetto.h>
