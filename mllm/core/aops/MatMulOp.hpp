@@ -14,6 +14,9 @@ enum class MatMulOpType {
 
   // BLAS
   kBLAS = 2,
+
+  // MLLM Self Host
+  kMllmBlas,
 };
 
 struct MatMulOpOptions : public BaseOpOptions<MatMulOpOptions> {

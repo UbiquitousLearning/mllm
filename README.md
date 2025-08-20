@@ -72,3 +72,13 @@ The details of how to use Dockerfile can be found in [Easy Setup with Docker and
 ## Join us & Contribute
 
 ## Acknowledgements
+
+## Star History
+
+<a href="https://www.star-history.com/#UbiquitousLearning/mllm&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=UbiquitousLearning/mllm&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=UbiquitousLearning/mllm&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=UbiquitousLearning/mllm&type=Date" />
+ </picture>
+</a>

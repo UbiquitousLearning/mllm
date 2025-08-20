@@ -586,6 +586,38 @@ TEST_F(MllmBlasArmSgemvKernelTest, matmul_fp32_gemv_nt_t_decode_small_d_qk) {
             }),
             true);
 }
+
+TEST_F(MllmBlasArmSgemvKernelTest, matmul_fp32_gemv_nt_nt_decode_small_d_wv) {
+  EXPECT_EQ(test_mllm_blas_matmul_fp32_gemv_nt_nt_decode_small_d_wv({
+                {{"D", 64}, {"S", 1}},
+                {{"D", 64}, {"S", 3}},
+                {{"D", 64}, {"S", 6}},
+                {{"D", 64}, {"S", 7}},
+                {{"D", 128}, {"S", 7}},
+            }),
+            true);
+}
+#endif
+
+//===----------------------------------------------------------------------===//
+// HPC Arm SGEMV Tests
+//
+// D is always multiple of 32.
+//===----------------------------------------------------------------------===//
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+#include "MllmBlasArmSgemmKernelTest.hpp"
+TEST_F(MllmBlasArmSgemmKernelTest, test_mllm_blas_matmul_fp32_gemm_nt_nt) {
+  EXPECT_EQ(test_mllm_blas_matmul_fp32_gemm_nt_nt({
+                {{"D", 64}, {"S_Q", 1}, {"S_KV", 4}},  // Fallback to  test_mllm_blas_matmul_fp32_gemv_nt_nt_decode_small_d_wv
+                {{"D", 64}, {"S_Q", 32}, {"S_KV", 16}},
+                {{"D", 64}, {"S_Q", 33}, {"S_KV", 17}},
+                {{"D", 64}, {"S_Q", 3}, {"S_KV", 4}},
+                {{"D", 64}, {"S_Q", 4}, {"S_KV", 16}},
+                {{"D", 64}, {"S_Q", 8}, {"S_KV", 16}},
+                {{"D", 128}, {"S_Q", 1}, {"S_KV", 20}},  // Fallback to  test_mllm_blas_matmul_fp32_gemv_nt_nt_decode_small_d_wv
+            }),
+            true);
+}
 #endif
 
 //===----------------------------------------------------------------------===//

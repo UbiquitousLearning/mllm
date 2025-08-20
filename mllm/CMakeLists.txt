@@ -40,6 +40,19 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "App
   endif()
 endif()
 
+# ONLY APPLE CAN DO !
+# Processing OpenMP
+if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR APPLE)
+  target_link_libraries(MllmRT PUBLIC ${OpenMP_omp_LIBRARY})
+  target_compile_options(MllmRT PUBLIC ${OpenMP_CXX_FLAGS})
+  # Apple should not use OpenMP
+  message(ERROR "Apple platform should not use OpenMP. Pls set MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=ON")
+else()
+  target_link_libraries(MllmRT PUBLIC ${OpenMP_omp_LIBRARY})
+  target_compile_options(MllmRT PRIVATE ${OpenMP_CXX_FLAGS})
+  target_include_directories(MllmRT PUBLIC ${OpenMP_CXX_INCLUDE_DIR})
+endif()
+
 # Handle performance components
 if(MLLM_PERFETTO_ENABLE)
   if (WIN32)
