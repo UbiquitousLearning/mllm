@@ -579,6 +579,7 @@ TEST_F(GELUKernelTest, test_precision_bt_1threads_4threads) {
                 {{"S", 128}},
                 {{"S", 256}},
                 {{"S", 18}},
+                {{"S", 128600}},
             }),
             true);
 }
