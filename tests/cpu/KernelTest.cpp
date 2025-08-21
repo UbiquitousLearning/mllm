@@ -570,6 +570,20 @@ TEST_F(ElementwiseKernelTest, DivScalarInt32) {
 }
 
 //===----------------------------------------------------------------------===//
+// GELU
+//===----------------------------------------------------------------------===//
+#include "tests/cpu/GELUKernelTest.hpp"
+TEST_F(GELUKernelTest, test_precision_bt_1threads_4threads) {
+  EXPECT_EQ(test_cmp({
+                {{"S", 10}},
+                {{"S", 128}},
+                {{"S", 256}},
+                {{"S", 18}},
+            }),
+            true);
+}
+
+//===----------------------------------------------------------------------===//
 // HPC Arm SGEMV Tests
 //
 // D is always multiple of 32.
