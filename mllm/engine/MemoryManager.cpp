@@ -28,6 +28,11 @@ void MemoryManager::alloc(Storage* s) {
   auto& allocator = allocators_[s->device_];
   auto try_to_alloc_size = allocator->allocSize(s);
 
+  if (!allocator->ctrlByMemManager()) {
+    allocator->alloc(s);
+    return;
+  }
+
 #ifdef MLLM_PERFETTO_ENABLE
   MLLM_PERF_TRACE_BEGIN("mllm.tensor_lifecycle", "tensor_hold", perfetto::Track(static_cast<uint64_t>(s->custom_32bit_uuid_)),
                         [&](perfetto::EventContext ctx) {
@@ -55,6 +60,11 @@ void MemoryManager::alloc(const std::shared_ptr<Storage>& s) { alloc(s.get()); }
 void MemoryManager::free(Storage* s) {
   auto& allocator = allocators_[s->device_];
   auto try_to_alloc_size = allocator->allocSize(s);
+
+  if (!allocator->ctrlByMemManager()) {
+    allocator->free(s);
+    return;
+  }
 
 #ifdef MLLM_PERFETTO_ENABLE
   MLLM_PERF_TRACE_END("mllm.tensor_lifecycle", perfetto::Track(static_cast<uint64_t>(s->custom_32bit_uuid_)));

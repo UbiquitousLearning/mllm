@@ -136,20 +136,20 @@ class EnumerateIterator {
 };
 
 template<typename T_Iterator>
-auto operator+(EnumerateIterator<T_Iterator> it, typename EnumerateIterator<T_Iterator>::difference_type n)
-    -> EnumerateIterator<T_Iterator> {
+auto operator+(EnumerateIterator<T_Iterator> it,
+               typename EnumerateIterator<T_Iterator>::difference_type n) -> EnumerateIterator<T_Iterator> {
   it += n;
   return it;
 }
 template<typename T_Iterator>
-auto operator+(typename EnumerateIterator<T_Iterator>::difference_type n, EnumerateIterator<T_Iterator> it)
-    -> EnumerateIterator<T_Iterator> {
+auto operator+(typename EnumerateIterator<T_Iterator>::difference_type n,
+               EnumerateIterator<T_Iterator> it) -> EnumerateIterator<T_Iterator> {
   it += n;
   return it;
 }
 template<typename T_Iterator>
-auto operator-(EnumerateIterator<T_Iterator> it, typename EnumerateIterator<T_Iterator>::difference_type n)
-    -> EnumerateIterator<T_Iterator> {
+auto operator-(EnumerateIterator<T_Iterator> it,
+               typename EnumerateIterator<T_Iterator>::difference_type n) -> EnumerateIterator<T_Iterator> {
   it -= n;
   return it;
 }
