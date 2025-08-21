@@ -21,3 +21,6 @@ _C.cpython-*.so
 
 # Python related
 __pycache__/
+
+# Not Released
+rsmllm/

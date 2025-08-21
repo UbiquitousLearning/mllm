@@ -19,7 +19,7 @@ MappedFile::MappedFile(const std::string& filename) {
   fd_ = open(filename.c_str(), O_RDONLY);
   if (fd_ == -1) { MLLM_ERROR_EXIT(ExitCode::kIOError, "Failed to open file {}.", filename); }
 
-  struct stat sb{};
+  struct stat sb {};
   if (fstat(fd_, &sb) == -1) {
     close(fd_);
     MLLM_ERROR_EXIT(ExitCode::kIOError, "Failed stat when open file {}, this file may broken.", filename);
