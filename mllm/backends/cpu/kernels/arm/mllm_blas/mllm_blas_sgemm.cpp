@@ -280,6 +280,7 @@ static inline void dispatch_tile(int rm, int rn, const float* a, int64_t lda, co
     KERNEL(4, 8)
     KERNEL(4, 12)
     default: {
+      __MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
       auto _rm = std::min(rm, 8);
       auto _rn = std::min(rn, 16);
       for (int i = 0; i < _rm; ++i) {
@@ -291,6 +292,7 @@ static inline void dispatch_tile(int rm, int rn, const float* a, int64_t lda, co
           for (int j = 0; j < _rn; ++j) { c[i * ldc + j] += ai * b[l * ldb + j]; }
         }
       }
+      __MLLM_UNSAFE_OPT_END
       break;
     }
   }
