@@ -16,42 +16,6 @@
 #include "mllm/backends/base/Backend.hpp"
 
 namespace mllm {
-class PerfGuard {
- public:
-  PerfGuard();
-  ~PerfGuard();
-};
-
-struct PerfMemoryBlob {
-  uint64_t start_time;
-  uint64_t end_time;
-  size_t memory_usage;
-  DeviceTypes device_type;
-};
-
-struct PerfOpBlob {
-  uint64_t start_time;
-  uint64_t end_time;
-  std::string op_name;
-  DeviceTypes device_type;
-};
-
-class PerfFile {
- public:
-  using ptr_t = std::shared_ptr<PerfFile>;
-
-  PerfFile();
-
-  std::unordered_map<uint32_t, PerfMemoryBlob> mem_blobs_;
-  std::unordered_map<uint32_t, PerfOpBlob> op_blobs_;
-
-  void finalize();
-
-  void save(const std::string& filename);
-
- private:
-  nlohmann::json perf_json_;
-};
 
 class Context {
  public:
@@ -84,20 +48,11 @@ class Context {
 
   uint64_t getRandomSeed();
 
-  void setPerfMode(bool perf_mode);
-
-  bool isPerfMode();
-
-  PerfFile::ptr_t getPerfFile();
-
   uint64_t curTime();
 
   std::unordered_map<std::thread::id, SessionTCB::ptr_t> refSessionThreads();
 
  private:
-  bool perf_mode_ = false;
-  PerfFile::ptr_t perf_file_ = nullptr;
-
   uint64_t random_seed_ = 42;
   SessionTCB::ptr_t main_thread_;
   std::unordered_map<std::thread::id, SessionTCB::ptr_t> session_threads_;

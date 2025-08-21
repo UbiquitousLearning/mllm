@@ -96,9 +96,12 @@ target_compile_options(MllmCPUBackend PUBLIC ${MLLM_CPU_BACKEND_COMPILE_OPTIONS}
 if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR APPLE)
   target_link_libraries(MllmCPUBackend PUBLIC ${OpenMP_omp_LIBRARY})
   target_compile_options(MllmCPUBackend PUBLIC ${OpenMP_CXX_FLAGS})
+  # Apple should not use OpenMP
+  message(ERROR "Apple platform should not use OpenMP. Pls set MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=ON")
 else()
-  target_link_libraries(MllmCPUBackend PUBLIC -fopenmp)
-  target_compile_options(MllmCPUBackend PUBLIC -fopenmp)
+  target_link_libraries(MllmCPUBackend PUBLIC ${OpenMP_omp_LIBRARY})
+  target_compile_options(MllmCPUBackend PRIVATE ${OpenMP_CXX_FLAGS})
+  target_include_directories(MllmCPUBackend PUBLIC ${OpenMP_CXX_INCLUDE_DIR})
 endif()
 
 if(MLLM_USE_BLAS)

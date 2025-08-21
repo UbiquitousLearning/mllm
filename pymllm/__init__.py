@@ -4,6 +4,7 @@ from ._C import *
 from . import utils
 from . import nn
 from . import quantize
+from . import convertor
 
 float32 = DataTypes.Float32
 float16 = DataTypes.Float16

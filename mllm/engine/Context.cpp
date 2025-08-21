@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 #include <chrono>
-#include <fstream>
 #include <sstream>
 
 #include "mllm/engine/Context.hpp"
@@ -10,40 +9,6 @@
 #include "mllm/engine/DispatcherManager.hpp"
 
 namespace mllm {
-
-PerfGuard::PerfGuard() { Context::instance().setPerfMode(true); }
-
-PerfGuard::~PerfGuard() { Context::instance().setPerfMode(false); }
-
-PerfFile::PerfFile() { perf_json_["init_time"] = Context::instance().curTime(); }
-
-void PerfFile::finalize() {
-  std::vector<std::pair<uint32_t, PerfMemoryBlob>> sorted_mem_blobs(mem_blobs_.begin(), mem_blobs_.end());
-  std::sort(sorted_mem_blobs.begin(), sorted_mem_blobs.end(),
-            [](const auto& a, const auto& b) { return a.second.start_time < b.second.start_time; });
-
-  nlohmann::json memory_json = nlohmann::json::array();
-  for (const auto& [uuid, blob] : sorted_mem_blobs) {
-    nlohmann::json mem_entry;
-    mem_entry["uuid"] = uuid;
-    mem_entry["start_time"] = blob.start_time;
-    mem_entry["end_time"] = blob.end_time;
-    mem_entry["memory_usage"] = blob.memory_usage;
-    mem_entry["device_type"] = deviceTypes2Str(blob.device_type);
-    memory_json.push_back(mem_entry);
-  }
-  perf_json_["memory_blobs"] = memory_json;
-}
-
-void PerfFile::save(const std::string& filename) {
-  std::ofstream file(filename);
-  if (file.is_open()) {
-    file << perf_json_.dump(4);
-    file.close();
-  } else {
-    MLLM_WARN("Unable to open file {} for writing perf data", filename);
-  }
-}
 
 Context& Context::instance() {
   static Context instance;
@@ -132,18 +97,6 @@ SessionTCB::ptr_t Context::mainThread() { return main_thread_; }
 void Context::setRandomSeed(uint64_t seed) { random_seed_ = seed; }
 
 uint64_t Context::getRandomSeed() { return random_seed_; }
-
-void Context::setPerfMode(bool perf_mode) {
-  perf_mode_ = perf_mode;
-  if (perf_mode) {
-    MLLM_WARN("Perf mode is enabled. Init a new perf file.");
-    perf_file_ = std::make_shared<PerfFile>();
-  }
-}
-
-bool Context::isPerfMode() { return perf_mode_; }
-
-PerfFile::ptr_t Context::getPerfFile() { return perf_file_; }
 
 uint64_t Context::curTime() {
   auto now = std::chrono::high_resolution_clock::now();
