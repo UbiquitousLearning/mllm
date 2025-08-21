@@ -60,7 +60,7 @@ struct ParallelElementwiseLoop {
       chunk_size = (chunk_size + lanes - 1) & ~(lanes - 1);
 
       MLLM_AUTO_PARALLEL_FOR_BEGIN(start, 0, vec_size, chunk_size) {
-        size_t end = std::min(start + chunk_size, vec_size);
+        size_t end = std::min((size_t)(start + chunk_size), vec_size);
         size_t local_size = end - start;
         __ew_loop<__ST, __VT, __ScalarOp, __VectorOp, loop_unroll_size>::run(dst + start, src0 + start, src1 + start,
                                                                              local_size);
@@ -118,7 +118,7 @@ struct ParallelElementwiseLoopArrayScalar {
       chunk_size = (chunk_size + lanes - 1) & ~(lanes - 1);
 
       MLLM_AUTO_PARALLEL_FOR_BEGIN(start, 0, vec_size, chunk_size) {
-        size_t end = std::min(start + chunk_size, vec_size);
+        size_t end = std::min((size_t)(start + chunk_size), vec_size);
         size_t local_size = end - start;
         __ew_loop_array_scalar<__ST, __VT, __ScalarOp, __VectorOp, loop_unroll_size>::run(dst + start, src0 + start, src1,
                                                                                           local_size);

@@ -1,3 +1,5 @@
+// Copyright (c) MLLM Team.
+// Licensed under the MIT License.
 //
 // Created by Rongjie Yi on 24-1-9.
 //
@@ -11,11 +13,10 @@
 #include <vector>
 #include <algorithm>
 #include "mllm/utils/Common.hpp"
-#include "wenet_audio/params.h"
-#include "wenet_audio/wav.h"
-#include "wenet_audio/feature_pipeline.h"
+#include <wenet_audio/params.h>
+#include <wenet_audio/wav.h>
+#include <wenet_audio/feature_pipeline.h>
 
-namespace MLLM_ANONYMOUS_NAMESPACE {
 class Fraction {
  public:
   int numerator;
@@ -115,6 +116,8 @@ class Fraction {
     }
   }
 };
+
+namespace MLLM_ANONYMOUS_NAMESPACE {
 
 float* waveClip(const float* data_, int start, int end, int channel) {
   std::vector<float> even_elements;

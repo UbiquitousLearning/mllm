@@ -48,6 +48,10 @@ MLLM_MAIN({
 
   Argparse::parse(argc, argv);
 
+#ifdef MLLM_PERFETTO_ENABLE
+  mllm::perf::start();
+#endif
+
   mllm::ModelFileVersion file_version = mllm::ModelFileVersion::kV1;
   if (model_version.get() == "v1") {
     file_version = mllm::ModelFileVersion::kV1;
@@ -93,6 +97,11 @@ MLLM_MAIN({
       fmt::print("\n{}\n", std::string(60, '-'));
     } catch (const std::exception& e) { fmt::print("\n❌ Error: {}\n{}\n", e.what(), std::string(60, '-')); }
   }
+
+#ifdef MLLM_PERFETTO_ENABLE
+  mllm::perf::stop();
+  mllm::perf::saveReport("qwen2vl.perf");
+#endif
 
   mllm::print("\n");
   mllm::memoryReport();

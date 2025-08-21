@@ -9,18 +9,6 @@
 namespace mllm::cpu {
 
 struct Qwen2VLVisionRoPEOpImpl {
-  Tensor computeInvFreq(const aops::Qwen2VLRoPEOpOptions& cargo);
-
-  // Get Position ids.
-  Tensor getRotaryPosEmbIds(Tensor& grid_thw, const aops::Qwen2VLRoPEOpOptions& cargo);
-
-  Tensor computeRotaryPosEmb(Tensor& rotary_pos_emb_full, Tensor& pos_ids, Tensor& grid_thw,
-                             const aops::Qwen2VLRoPEOpOptions& cargo);
-
-  Tensor rotaryPosEmb(Tensor& inv_freq, int seq_len, const aops::Qwen2VLRoPEOpOptions& cargo);
-
-  std::pair<Tensor, Tensor> getSinCos(Tensor& rotary_pos_emb);
-
   void forward(const Tensor& activation, const Tensor& sin, const Tensor& cos, Tensor& out);
 };
 

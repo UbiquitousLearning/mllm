@@ -1,0 +1,11 @@
+Tasks:
+  - AdbPushTask:
+      files:
+        - "build-android-arm64-v8a/bin/libMllmRT.so"
+        - "build-android-arm64-v8a/bin/libMllmCPUBackend.so"
+        - "build-android-arm64-v8a/bin/mllm-params-inspector"
+        - "build-android-arm64-v8a/bin/mllm-quantizer"
+        - "build-android-arm64-v8a/bin/mllm-qwen2-vl-runner"
+        - "build-android-arm64-v8a/bin/Mllm-Test-CPUKernel"
+
+      to_path: "/data/local/tmp/mllm-v2/bin/"

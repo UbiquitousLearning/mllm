@@ -9,6 +9,8 @@ Tasks:
         - "-DHWY_ENABLE_CONTRIB=OFF"
         # Optional
         - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native"'
+        - "-DMLLM_KERNEL_USE_THREADS=ON"
+        - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=ON"
 
   - CMakeBuildTask:
       cmake_cfg_path: "build"

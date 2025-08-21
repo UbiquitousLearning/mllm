@@ -30,8 +30,6 @@ class FooNet final : public nn::Module {
 
 int main() {
   mllm::initializeContext();
-  mllm::perfStart();
-
   {
     auto net = FooNet("foo_net");
 
@@ -47,7 +45,5 @@ int main() {
     net.load(params);
     auto o = net(Tensor::empty({1, 12, 1024, 1024}, kFloat32).alloc());
   }
-  mllm::perfEnd();
-  mllm::getPerfFile()->save("perf.json");
   mllm::memoryReport();
 }

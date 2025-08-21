@@ -31,6 +31,9 @@ option(MLLM_KERNEL_USE_THREADS "Enable Threads" ON)
 option(MLLM_KERNEL_THREADS_VENDOR_OPENMP "Enable OpenMP Threads" ON)
 option(MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD "Enable Apple GCD Threads" OFF)
 
+# Performance components
+option(MLLM_PERFETTO_ENABLE "Enable perfetto" OFF)
+
 message(STATUS "CXX Compiler=${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CXX Compiler version=${CMAKE_CXX_COMPILER_VERSION}")
 
@@ -85,15 +88,31 @@ if(MLLM_KERNEL_USE_THREADS)
   else()
     # Non-Apple platforms
     if(MLLM_KERNEL_THREADS_VENDOR_OPENMP)
-      find_package(OpenMP)
-      if(NOT OpenMP_FOUND)
-        # Some platforms can use -fopenmp directly even if find_package fails
+      if(ANDROID)
+        file(GLOB_RECURSE _omp_h "${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/*/lib/clang/*/include/omp.h")
+        if(_omp_h)
+            get_filename_component(OpenMP_CXX_INCLUDE_DIR "${_omp_h}" DIRECTORY)
+        endif()
         set(OpenMP_CXX_FLAGS "-fopenmp")
         set(OpenMP_C_FLAGS "-fopenmp")
-        message(STATUS "OpenMP not found via find_package, but trying with -fopenmp flag directly")
+        set(OpenMP_CXX_LIB_NAMES omp)
+        find_library(OpenMP_omp_LIBRARY NAMES omp)
+      else()
+        find_package(OpenMP)
+        if(NOT OpenMP_FOUND)
+          # Some platforms can use -fopenmp directly even if find_package fails
+          set(OpenMP_CXX_FLAGS "-fopenmp")
+          set(OpenMP_C_FLAGS "-fopenmp")
+          message(STATUS "OpenMP not found via find_package, but trying with -fopenmp flag directly")
+        endif()
       endif()
       # Compile Option
       add_compile_definitions(MLLM_KERNEL_THREADS_VENDOR_OPENMP=1)
+      message(STATUS "Using OpenMP via find_package")
+      message(STATUS "OpenMP CXX_FLAGS=${OpenMP_CXX_FLAGS}")
+      message(STATUS "OpenMP CXX_LIB_NAMES=${OpenMP_CXX_LIB_NAMES}")
+      message(STATUS "OpenMP OpenMP_omp_LIBRARY=${OpenMP_omp_LIBRARY}")
+      message(STATUS "OpenMP OpenMP_CXX_INCLUDE_DIR=${OpenMP_CXX_INCLUDE_DIR}")
     else()
       # No threading or other threading implementation
       set(OpenMP_C_FLAGS "")
@@ -109,6 +128,13 @@ else()
   set(OpenMP_C_LIB_NAMES "")
   set(OpenMP_CXX_LIB_NAMES "")
   set(OpenMP_omp_LIBRARY "")
+endif()
+
+# Handle Performance components
+if(MLLM_PERFETTO_ENABLE)
+  include_directories(third_party/perfetto/sdk)
+  add_library(perfetto STATIC third_party/perfetto/sdk/perfetto.cc)
+  add_compile_definitions(MLLM_PERFETTO_ENABLE=1)
 endif()
 
 # Handle NaN Warning.
@@ -168,6 +194,16 @@ set(INSTALL_MLLM_VERSION ${PROJECT_VERSION})
 set(INCLUDE_INSTALL_DIR
     "${CMAKE_INSTALL_INCLUDEDIR}"
     CACHE PATH "Installation directory for headers")
+
+if(MLLM_PERFETTO_ENABLE)
+  install(
+    TARGETS perfetto
+    EXPORT MllmTargets
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin)
+endif()
+
 install(
   TARGETS MllmRT
   EXPORT MllmTargets

@@ -37,20 +37,11 @@ bool isQnnAvailable() {
   return false;
 }
 
-void perfStart() { Context::instance().setPerfMode(true); }
-
-void perfEnd() {
-  Context::instance().setPerfMode(false);
-  Context::instance().getPerfFile()->finalize();
-}
-
 void cleanThisThread() {
   Context::instance().thisThread()->attached_contexts._ref_raw_data().clear();
   Context::instance().thisThread()->ir_context = nullptr;
   Context::instance().thisThread()->trace_mode = false;
 }
-
-PerfFile::ptr_t getPerfFile() { return Context::instance().getPerfFile(); }
 
 SessionTCB::ptr_t thisThread() { return Context::instance().thisThread(); }
 

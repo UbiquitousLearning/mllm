@@ -33,7 +33,7 @@ void CPUGELUOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
 #endif
       break;
     }
-    default: NYI("CPUQuickGELUOp::forward not support dtype {}", nameOfType(X.dtype())); break;
+    default: NYI("CPUGELUOp::forward not support dtype {}", nameOfType(X.dtype())); break;
   }
 }
 
