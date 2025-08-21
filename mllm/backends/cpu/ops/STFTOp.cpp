@@ -6,7 +6,6 @@
 #include <vector>
 #include <complex>
 #include "mllm/mllm.hpp"
-#include "mllm/utils/Common.hpp"
 #include "mllm/utils/Log.hpp"
 #include "mllm/backends/cpu/ops/STFTOp.hpp"
 
@@ -45,58 +44,6 @@ T nextPowerOf2(T in) {
   return out;
 }
 
-// Bluestein's algorithm for FFT of arbitrary size
-template<typename T>
-static void fftBluestein(const std::vector<float>& input, std::vector<std::complex<T>>& output, int n_fft) {
-  // Next power of 2 for efficient FFT
-  size_t N = static_cast<size_t>(n_fft);
-  size_t M = nextPowerOf2(2 * N - 1);
-
-  // Precompute chirp signal
-  std::vector<std::complex<T>> chirp(M, std::complex<T>(0, 0));
-  std::vector<std::complex<T>> b(M, std::complex<T>(0, 0));
-  std::vector<std::complex<T>> b_fft(M, std::complex<T>(0, 0));
-
-  static const T pi = static_cast<T>(M_PI);
-  for (size_t n = 0; n < N; n++) {
-    T exponent = -pi * n * n / N;
-    chirp[n] = std::complex<T>(std::cos(exponent), std::sin(exponent));
-    b[n] = std::conj(chirp[n]);
-  }
-
-  // Fill the rest of b
-  for (size_t n = M - N + 1; n < M; n++) { b[n] = std::conj(b[M - n]); }
-
-  // Compute FFT of b
-  std::vector<std::complex<T>> temp_fft(M);
-  fftRadix2(b, b_fft, static_cast<int>(M));
-
-  // Prepare a signal
-  std::vector<std::complex<T>> a(M, std::complex<T>(0, 0));
-  for (size_t n = 0; n < input.size() && n < N; n++) { a[n] = std::complex<T>(input[n], 0) * chirp[n]; }
-
-  // Compute FFT of a
-  fftRadix2(a, temp_fft, static_cast<int>(M));
-
-  // Convolution in frequency domain
-  for (size_t i = 0; i < M; i++) { temp_fft[i] *= b_fft[i]; }
-
-  // Inverse FFT
-  // For inverse FFT, we conjugate the twiddle factors
-  std::vector<std::complex<T>> temp_ifft(M);
-  fftRadix2(temp_fft, temp_ifft, static_cast<int>(M), true);
-
-  // Final scaling and chirp multiplication
-  for (size_t i = 0; i < N; i++) {
-    T scale = static_cast<T>(1.0) / M;
-    if (i == 0) {
-      output[i] = temp_ifft[i] * chirp[i] * scale;
-    } else {
-      output[i] = temp_ifft[M - i] * chirp[i] * scale;
-    }
-  }
-}
-
 // 位反转查找表
 static const unsigned char BitReverseTable256[] = {
     0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0, 0x10, 0x90, 0x50, 0xD0, 0x30, 0xB0, 0x70, 0xF0, 0x08, 0x88, 0x48, 0xC8,
@@ -113,7 +60,6 @@ static const unsigned char BitReverseTable256[] = {
     0x3B, 0xBB, 0x7B, 0xFB, 0x07, 0x87, 0x47, 0xC7, 0x27, 0xA7, 0x67, 0xE7, 0x17, 0x97, 0x57, 0xD7, 0x37, 0xB7, 0x77, 0xF7,
     0x0F, 0x8F, 0x4F, 0xCF, 0x2F, 0xAF, 0x6F, 0xEF, 0x1F, 0x9F, 0x5F, 0xDF, 0x3F, 0xBF, 0x7F, 0xFF};
 
-// 位反转函数
 template<typename T>
 static inline T bitReverse(T num, unsigned significant_bits) {
   if (significant_bits > 32) {
@@ -126,36 +72,36 @@ static inline T bitReverse(T num, unsigned significant_bits) {
   return static_cast<T>(((uint64_t)rev) >> (32 - significant_bits));
 }
 
-static void fftRadix2(const std::vector<float>& input, std::vector<std::complex<float>>& output, int n_fft,
-                      bool inverse = false) {
-  unsigned log2_n = static_cast<unsigned>(std::log2(n_fft));
+template<typename T>
+static void fftRadix2(const std::vector<T>& input, std::vector<std::complex<T>>& output, int n_fft, bool inverse = false) {
+  const unsigned log2_n = static_cast<unsigned>(std::log2(n_fft));
 
   // 使用位反转表进行位反转排列
   for (int i = 0; i < n_fft; ++i) {
     int reversed = bitReverse(i, log2_n);
     if (reversed < input.size()) {
-      output[i] = std::complex<float>(input[reversed], 0.0f);
+      output[i] = std::complex<T>(input[reversed], 0.0f);
     } else {
-      output[i] = std::complex<float>(0.0f, 0.0f);
+      output[i] = std::complex<T>(0.0f, 0.0f);
     }
   }
 
-  auto angular_velocity = computeAngularVelocity<float>(n_fft, inverse);
+  auto angular_velocity = computeAngularVelocity<T>(n_fft, inverse);
 
   // Cooley-Tukey FFT算法
   for (size_t stride = 2; stride <= n_fft; stride <<= 1) {
     size_t midpoint = stride >> 1;
 
-    float angle = angular_velocity * static_cast<float>(n_fft / stride);
-    std::complex<float> w_m(std::cos(angle), std::sin(angle));  // Note: sin is positive for inverse FFT
+    T angle = angular_velocity * static_cast<T>(n_fft / stride);
+    std::complex<T> w_m(std::cos(angle), std::sin(angle));  // Note: inverse is handled by computeAngularVelocity()
 
     for (size_t j = 0; j < n_fft; j += stride) {
-      std::complex<float> w(1.0f, 0.0f);
+      std::complex<T> w(1.0f, 0.0f);
       for (size_t k = 0; k < midpoint; k++) {
-        std::complex<float> even = output[j + k];
-        std::complex<float> odd = output[j + k + midpoint];
+        std::complex<T> even = output[j + k];
+        std::complex<T> odd = output[j + k + midpoint];
 
-        std::complex<float> t = w * odd;
+        std::complex<T> t = w * odd;
         output[j + k] = even + t;
         output[j + k + midpoint] = even - t;
 
@@ -166,7 +112,105 @@ static void fftRadix2(const std::vector<float>& input, std::vector<std::complex<
 
   // For inverse FFT, apply scaling
   if (inverse) {
-    for (int i = 0; i < n_fft; ++i) { output[i] /= static_cast<float>(n_fft); }
+    for (int i = 0; i < n_fft; ++i) { output[i] /= static_cast<T>(n_fft); }
+  }
+}
+
+template<typename T>
+static void fftRadix2Complex(std::vector<std::complex<T>>& data, const int n_fft, bool inverse = false) {
+  if (n_fft == 0) return;
+
+  const unsigned log2_n = static_cast<unsigned>(std::log2(n_fft));
+
+  for (int i = 0; i < n_fft; ++i) {
+    int reversed = bitReverse(i, log2_n);
+    if (reversed < data.size() && i < reversed) { std::swap(data[i], data[reversed]); }
+  }
+
+  auto angular_velocity = computeAngularVelocity<T>(n_fft, inverse);
+
+  // 2. Cooley-Tukey FFT 蝶形运算
+  for (size_t stride = 2; stride <= n_fft; stride <<= 1) {
+    size_t midpoint = stride >> 1;
+
+    T angle = angular_velocity * static_cast<T>(n_fft / stride);
+    std::complex<T> w_m(std::cos(angle), std::sin(angle));  // Note: inverse is handled by computeAngularVelocity()
+
+    for (size_t j = 0; j < n_fft; j += stride) {
+      std::complex<T> w(1.0, 0.0);
+      for (size_t k = 0; k < midpoint; k++) {
+        std::complex<T> even = data[j + k];
+        std::complex<T> odd = data[j + k + midpoint];
+
+        std::complex<T> t = w * odd;
+        data[j + k] = even + t;
+        data[j + k + midpoint] = even - t;
+
+        w *= w_m;  // 更新旋转因子
+      }
+    }
+  }
+
+  // For inverse FFT, apply scaling
+  if (inverse) {
+    for (size_t i = 0; i < n_fft; ++i) { data[i] /= static_cast<T>(n_fft); }
+  }
+}
+
+template<typename T>
+static void fftBluestein(const std::vector<T>& input, std::vector<std::complex<T>>& output, int n_fft, bool inverse = false) {
+  const size_t N = n_fft;
+  if (N == 0) {
+    output.clear();
+    return;
+  }
+
+  // 1. 确定用于卷积的FFT尺寸M，M >= 2*N-1 且为2的幂
+  size_t M = nextPowerOf2(2 * N - 1);
+
+  const T pi = static_cast<T>(M_PI);
+  const T direction = inverse ? 1.f : -1.f;
+
+  // 2. 创建序列a(n): 输入信号与预处理chirp相乘
+  std::vector<std::complex<T>> a(M, {0, 0});
+  for (size_t n = 0; n < N; n++) {
+    if (n < input.size()) {
+      T exponent = direction * pi * n * n / N;
+      std::complex<T> chirp(cos(exponent), sin(exponent));
+      a[n] = input[n] * chirp;
+    }
+  }
+
+  // 3. 创建序列b(n): 用于卷积的chirp核
+  std::vector<std::complex<T>> b(M, {0, 0});
+  for (size_t n = 0; n < N; n++) {
+    T exponent = -direction * pi * n * n / N;  // 注意这里是反号的
+    b[n] = {cos(exponent), sin(exponent)};
+  }
+  // 创建循环卷积核
+  for (size_t n = 1; n < N; n++) { b[M - n] = b[n]; }
+
+  // 4. 执行卷积: IFFT(FFT(a) * FFT(b))
+  fftRadix2Complex<T>(a, M, false);  // FFT of a
+  fftRadix2Complex<T>(b, M, false);  // FFT of b
+
+  for (size_t i = 0; i < M; i++) {
+    a[i] *= b[i];  // 频域相乘
+  }
+
+  fftRadix2Complex<T>(a, M, true);  // IFFT of the product
+
+  // 5. 后处理与最终输出
+  output.resize(N);
+  for (size_t n = 0; n < N; n++) {
+    T exponent = direction * pi * n * n / N;
+    std::complex<T> chirp(cos(exponent), sin(exponent));
+    output[n] = a[n] * chirp;
+  }
+
+  // 如果是逆变换，应用1/N缩放
+  if (inverse) {
+    for (size_t i = 0; i < N; ++i) { output[i] /= static_cast<T>(N); }
   }
 }
 
@@ -217,9 +261,9 @@ void CPUSTFTOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
 
       // Compute FFT
       if (is_power_of_2(n_fft)) {
-        fftRadix2(windowed_input, fft_output, n_fft);
+        fftRadix2<float>(windowed_input, fft_output, n_fft);
       } else {
-        NYI("FFT for non-power-of-2 sizes is not implemented yet.");
+        fftBluestein<float>(windowed_input, fft_output, n_fft);
       }
 
       // Store onesided output (real and imaginary parts)

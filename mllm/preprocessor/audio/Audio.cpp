@@ -12,6 +12,7 @@
 #include <memory>
 #include <vector>
 #include <algorithm>
+#include "mllm/utils/Common.hpp"
 #include <wenet_audio/params.h>
 #include <wenet_audio/wav.h>
 #include <wenet_audio/feature_pipeline.h>
@@ -115,6 +116,9 @@ class Fraction {
     }
   }
 };
+
+namespace MLLM_ANONYMOUS_NAMESPACE {
+
 
 float* waveClip(const float* data_, int start, int end, int channel) {
   std::vector<float> even_elements;
@@ -419,8 +423,10 @@ std::vector<std::pair<int, int>> get_clip_timepoints(Fraction clip_duration, Fra
   }
   return clip_timepoints;
 }
+}  // namespace MLLM_ANONYMOUS_NAMESPACE
 
-std::vector<std::vector<std::vector<std::vector<float>>>> ProcessWAV(const std::vector<std::string>& waves, int resample_rate) {
+namespace mllm::audio {
+std::vector<std::vector<std::vector<std::vector<float>>>> processWAV(const std::vector<std::string>& waves, int resample_rate) {
   auto feature_config = wenet::InitFeaturePipelineConfigFromFlags();
   auto feature_pipeline = std::make_shared<wenet::FeaturePipeline>(*feature_config);
   std::vector<std::vector<std::vector<std::vector<float>>>> output_audios;
@@ -465,3 +471,5 @@ std::vector<std::vector<std::vector<std::vector<float>>>> ProcessWAV(const std::
   }
   return output_audios;
 }
+
+}  // namespace mllm::audio
