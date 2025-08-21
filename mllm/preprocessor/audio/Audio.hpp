@@ -7,5 +7,6 @@
 #include <vector>
 
 namespace mllm::audio {
-std::vector<std::vector<std::vector<std::vector<float>>>> ProcessWAV(std::vector<std::string> waves, int resample_rate = 16000);
+std::vector<std::vector<std::vector<std::vector<float>>>> processWAV(const std::vector<std::string>& waves,
+                                                                     int resample_rate = 16000);
 }
