@@ -26,7 +26,7 @@ ARGenerationOutputPast ARGeneration::generate(const ARGenerationOutputPast& inpu
 
   for (int i = 0; i < max_length; ++i) {
     ARGenerationOutputPast output = forward(past, args);
-    Tensor logits = output["logits"];
+    Tensor logits = output["sequence"];
 
     int64_t next_token_id;
     if (use_sampling) {
@@ -45,13 +45,10 @@ ARGenerationOutputPast ARGeneration::generate(const ARGenerationOutputPast& inpu
 
     if (next_token_id == eos_token_id) { break; }
 
-    // Clear things in output.
-    output["logits"] = Tensor::nil();
-
     // [B, S]
     past = output;
-    past["input_ids"] = Tensor::empty({1, 1}, kInt64, logits.device()).alloc();
-    past["input_ids"].at<mllm_int64_t>({0}) = next_token_id;
+    past["sequence"] = Tensor::empty({1, 1}, kInt64, logits.device()).alloc();
+    past["sequence"].at<mllm_int64_t>({0, 0}) = next_token_id;
   }
 
   // From blob
@@ -83,7 +80,7 @@ void ARGeneration::streamGenerate(const ARGenerationOutputPast& input, const ARG
 
   for (int i = 0; i < max_length; ++i) {
     ARGenerationOutputPast output = forward(past, args);
-    Tensor logits = output["logits"];
+    Tensor logits = output["sequence"];
 
     int64_t next_token_id;
     if (use_sampling) {
@@ -102,13 +99,10 @@ void ARGeneration::streamGenerate(const ARGenerationOutputPast& input, const ARG
 
     if (next_token_id == eos_token_id) { break; }
 
-    // Clear things in output.
-    output["logits"] = Tensor::nil();
-
     // [B, S]
     past = output;
-    past["input_ids"] = Tensor::empty({1, 1}, kInt64, logits.device()).alloc();
-    past["input_ids"].at<mllm_int64_t>({0}) = next_token_id;
+    past["sequence"] = Tensor::empty({1, 1}, kInt64, logits.device()).alloc();
+    past["sequence"].at<mllm_int64_t>({0, 0}) = next_token_id;
   }
 }
 

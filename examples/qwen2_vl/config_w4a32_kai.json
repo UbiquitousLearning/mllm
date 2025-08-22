@@ -29,5 +29,5 @@
     "end_of_text_token_id": 151643,
     "rope_theta": 1000000.0,
     "tie_word_embeddings": true,
-    "linear_impl_type": "KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p4x8_1x4x32"
+    "linear_impl_type": "KaiLinear_f32_qai8dxp_qsi4c32p_mxk_nxk_qai8dxp1x8_qsi4c32p8x8_1x8x32"
 }
