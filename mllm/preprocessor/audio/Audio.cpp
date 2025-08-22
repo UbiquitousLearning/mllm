@@ -1,8 +1,6 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 //
-// Created by Rongjie Yi on 24-1-9.
-//
 
 #include "Audio.hpp"
 #include <iomanip>
@@ -118,7 +116,6 @@ class Fraction {
 };
 
 namespace MLLM_ANONYMOUS_NAMESPACE {
-
 
 float* waveClip(const float* data_, int start, int end, int channel) {
   std::vector<float> even_elements;
@@ -423,6 +420,23 @@ std::vector<std::pair<int, int>> get_clip_timepoints(Fraction clip_duration, Fra
   }
   return clip_timepoints;
 }
+
+// Convert stereo audio data to mono by averaging channels
+std::vector<float> toMono(const std::vector<std::vector<float>>& wav_data) {
+  if (wav_data.size() == 1) { return wav_data[0]; }
+
+  size_t num_samples = wav_data[0].size();
+  std::vector<float> mono_data(num_samples);
+
+  for (size_t i = 0; i < num_samples; ++i) {
+    float sum = 0.0;
+    for (const auto& ch : wav_data) { sum += ch[i]; }
+    mono_data[i] = sum / wav_data.size();
+  }
+
+  return mono_data;
+}
+
 }  // namespace MLLM_ANONYMOUS_NAMESPACE
 
 namespace mllm::audio {
@@ -470,6 +484,43 @@ std::vector<std::vector<std::vector<std::vector<float>>>> processWAV(const std::
     output_audios.push_back(all_clips);
   }
   return output_audios;
+}
+
+std::vector<float> readWAV(const std::string& file_path, int resample_rate) {
+  // Read WAV file using wenet library
+  wenet::WavReader wav_reader(file_path);
+  wav_reader.rescale();
+
+  // Get audio properties
+  auto wavdata = wav_reader.data();
+  auto wavdata_sample = wav_reader.num_sample();
+  auto wavdata_channel = wav_reader.num_channel();
+  auto origin_sample_rate = wav_reader.sample_rate();
+
+  // Convert raw data to channel-wise data
+  std::vector<std::vector<float>> wav_data = get_wav_data(wavdata, wavdata_sample, wavdata_channel);
+
+  // Resample
+  std::vector<float> resampled_data;
+  if (origin_sample_rate != resample_rate) { resampled_data = resample(wav_data, resample_rate, origin_sample_rate); }
+
+  // Convert to mono
+  std::vector<float> mono_data;
+  if (resampled_data.empty()) {
+    // No resampling was needed, use original data
+    mono_data = toMono(wav_data);
+  } else {
+    // Resampling was performed, convert resampled data to channel-wise format first
+    size_t num_channels = wav_data.size();
+    size_t resampled_samples = resampled_data.size() / num_channels;
+    std::vector<std::vector<float>> resampled_wav_data(num_channels, std::vector<float>(resampled_samples));
+    for (size_t i = 0; i < resampled_data.size(); ++i) {
+      resampled_wav_data[i % num_channels][i / num_channels] = resampled_data[i];
+    }
+    mono_data = toMono(resampled_wav_data);
+  }
+
+  return mono_data;
 }
 
 }  // namespace mllm::audio
