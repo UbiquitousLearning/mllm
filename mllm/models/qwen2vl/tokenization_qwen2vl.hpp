@@ -6,7 +6,7 @@
 #include <unordered_map>
 
 #include "mllm/preprocessor/tokenizers/BPE.hpp"
-#include "mllm/models/qwen2vl/output_past_qwen2vl.hpp"
+#include "mllm/models/ARGeneration.hpp"
 #include "mllm/preprocessor/tokenizers/Unicode.hpp"
 #include "mllm/preprocessor/tokenizers/AutoTokenizer.hpp"
 #include "mllm/models/qwen2vl/image_preprocessor_qwen2vl.hpp"
@@ -236,7 +236,7 @@ class Qwen2VLTokenizer final : public mllm::preprocessor::AutoTokenizer {
     return ret;
   }
 
-  Qwen2VLForCausalLMOutputPast convertMessage(const Qwen2VLMessage& message) {
+  ARGenerationOutputPast convertMessage(const Qwen2VLMessage& message) {
     // process prompt
     auto applied_string = Qwen2VLMessage::message_template;
     size_t pos = applied_string.find("{{{prompt}}}");
@@ -274,7 +274,11 @@ class Qwen2VLTokenizer final : public mllm::preprocessor::AutoTokenizer {
     auto ptr = sequence.ptr<int64_t>();
     for (size_t i = 0; i < ids.size(); ++i) { ptr[i] = ids[i]; }
 
-    return Qwen2VLForCausalLMOutputPast{.sequence = sequence, .img = img, .grid_thw = grid_thw, .has_visual = true};
+    return {
+        {"sequence", sequence},
+        {"img", img},
+        {"grid_thw", grid_thw},
+    };
   }
 
  private:

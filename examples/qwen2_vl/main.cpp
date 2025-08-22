@@ -4,40 +4,9 @@
 #include <mllm/models/qwen2vl/modeling_qwen2vl.hpp>
 #include <mllm/models/qwen2vl/tokenization_qwen2vl.hpp>
 #include <mllm/models/qwen2vl/image_preprocessor_qwen2vl.hpp>
+#include "mllm/utils/AnyValue.hpp"
 
 using mllm::Argparse;
-
-void generate(mllm::models::qwen2vl::Qwen2VLForCausalLM& model, mllm::models::qwen2vl::Qwen2VLConfig& cfg,
-              mllm::models::qwen2vl::Qwen2VLTokenizer& tokenizer, mllm::models::qwen2vl::Qwen2VLForCausalLMOutputPast& input) {
-  auto o = model(input);
-
-  int64_t pos_idx = -1;
-
-  int32_t l = 0;
-
-  // Greedy decoding one token
-  while (true) {
-    l++;
-    // [B, S, D]
-    auto sequence = o.sequence;
-    auto S = sequence.shape()[1];
-    auto D = sequence.shape()[2];
-    auto sequence_ptr = sequence.offsettedPtr<float>({0, S - 1, 0});
-    auto max_logits_idx_ptr = std::max_element(sequence_ptr, sequence_ptr + D);
-    pos_idx = std::distance(sequence_ptr, max_logits_idx_ptr);
-    auto str = tokenizer.detokenize(pos_idx);
-
-    if (!(pos_idx != cfg.eos_token_id && pos_idx != cfg.end_of_text_token_id && l < cfg.max_cache_length)) { break; }
-
-    std::wcout << str << std::flush;
-
-    // Generate new input
-    sequence = mllm::Tensor::empty({1, 1}, mllm::kInt64, mllm::kCPU).alloc();
-    sequence.ptr<int64_t>()[0] = pos_idx;
-    o.sequence = sequence;
-    o = model(o);
-  }
-}
 
 MLLM_MAIN({
   auto& help = Argparse::add<bool>("-h|--help").help("Show help message");
@@ -93,7 +62,18 @@ MLLM_MAIN({
       auto inputs = qwen2vl_tokenizer.convertMessage({.prompt = prompt_text, .img_file_path = image_path});
 
       fmt::print("\n🤖 Response: ");
-      generate(qwen2vl, qwen2vl_cfg, qwen2vl_tokenizer, inputs);
+
+      // Steam it!
+      qwen2vl.streamGenerate(inputs,
+                             {
+                                 {"do_sample", mllm::AnyValue(false)},
+                                 {"max_length", mllm::AnyValue(qwen2vl_cfg.max_cache_length)},
+                             },
+                             [&](int64_t token_id) {
+                               auto str = qwen2vl_tokenizer.detokenize(token_id);
+                               std::wcout << str << std::flush;
+                             });
+
       fmt::print("\n{}\n", std::string(60, '-'));
     } catch (const std::exception& e) { fmt::print("\n❌ Error: {}\n{}\n", e.what(), std::string(60, '-')); }
   }
