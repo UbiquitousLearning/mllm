@@ -8,9 +8,9 @@
 #include "mllm/nn/Nn.hpp"
 #include "mllm/nn/Functional.hpp"
 #include "mllm/nn/lmcache/StaticCache.hpp"
-#include "mllm/models/qwen2vl/output_past_qwen2vl.hpp"
 #include "mllm/models/qwen2vl/configuration_qwen2vl.hpp"
 #include "mllm/utils/Enumerate.hpp"
+#include "mllm/models/ARGeneration.hpp"
 
 namespace mllm::models::qwen2vl {
 
@@ -693,7 +693,7 @@ class Qwen2VLText final : public nn::Module {
   nn::Embedding embedding_;
 };
 
-class Qwen2VLForCausalLM {
+class Qwen2VLForCausalLM : public ARGeneration {
  public:
   explicit Qwen2VLForCausalLM(const Qwen2VLConfig& cfg) : cfg(cfg), llm("model", cfg), visual("visual", cfg) {
     kv_cache_ = nn::StaticCache(cfg.max_cache_length, cfg.num_hidden_layers,
@@ -705,26 +705,33 @@ class Qwen2VLForCausalLM {
                                 kCPU,                                       // device_type
                                 false                                       // use_fa2
     );
+    eos_token_id_ = cfg.end_of_text_token_id;
+    max_length_ = cfg.max_cache_length;
   }
 
-  inline Qwen2VLForCausalLMOutputPast operator()(Qwen2VLForCausalLMOutputPast& past) {
-    // Calculate the text embeddings
-    auto input_embeddings = llm.embedding_(past.sequence);
+  ARGenerationOutputPast forward(const ARGenerationOutputPast& input, const ARGenerationArgs& args) override {
+    auto sequence = input.at("sequence");
 
-    if (past.img) {
+    // Calculate the text embeddings
+    auto input_embeddings = llm.embedding_(sequence);
+
+    if (input.count("img")) {
+      auto img = input.at("img");
+      auto grid_thw = input.at("grid_thw");
+
       // process img
       print("ViT Processing: ...");
-      print("Image shape is:", past.img.shape());
+      print("Image shape is:", img.shape());
 
-      auto v_len = past.img.shape()[0];
+      auto v_len = img.shape()[0];
       auto inv_freq = makeVisualRoPEInvFreq(cfg.visual_embed_dim / cfg.visual_num_heads, 10000.0);
-      auto pos_ids = makeVisualRotaryPosEmbIds(past.grid_thw, cfg.visual_spatial_merge_size);
+      auto pos_ids = makeVisualRotaryPosEmbIds(grid_thw, cfg.visual_spatial_merge_size);
       auto rotary_pos_emb_full = makeVisualRotaryPosEmbFull(inv_freq, v_len);
-      auto pos_emb = makeVisualRotaryPosEmb(rotary_pos_emb_full, pos_ids, past.grid_thw);
+      auto pos_emb = makeVisualRotaryPosEmb(rotary_pos_emb_full, pos_ids, grid_thw);
       auto [visual_embedding_sin, visual_embedding_cos] = makeVisualRotarySinCos(pos_emb);
 
       auto start_time = std::chrono::high_resolution_clock::now();
-      auto visual_embeddings = visual(past.img, visual_embedding_sin, visual_embedding_cos)[0];
+      auto visual_embeddings = visual(img, visual_embedding_sin, visual_embedding_cos)[0];
       auto end_time = std::chrono::high_resolution_clock::now();
       auto all_time = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
       print("ViT Processing: done, time cost: {} seconds", all_time.count());
@@ -732,7 +739,7 @@ class Qwen2VLForCausalLM {
       // Insert visual embeddings into llm's embedding
       int32_t vision_pad_token_start = -1;
       {
-        auto input_ids = past.sequence;
+        auto& input_ids = sequence;
         auto S = input_ids.shape()[1];
         auto input_ids_ptr = input_ids.ptr<int64_t>();
         for (int s = 0; s < S; ++s) {
@@ -750,32 +757,43 @@ class Qwen2VLForCausalLM {
           input_embeddings[{kAll, {vision_pad_token_start, vision_pad_token_start + visual_sequence}, kAll}]);
     }
 
+    auto position_ids = Tensor::nil();
+    if (input.count("img")) {
+      auto img = input.at("img");
+      auto grid_thw = input.at("grid_thw");
+      position_ids = getPositionIds(img, grid_thw, sequence, position_ids, cfg);
+    } else {
+      auto img = Tensor::nil();
+      auto grid_thw = Tensor::nil();
+      position_ids = input.at("position_ids");
+      position_ids = getPositionIds(img, grid_thw, sequence, position_ids, cfg);
+    }
+
     // Generate position ids and embedding sin and cos
-    getPositionIds(past, cfg);
     auto [llm_embedding_sin, llm_embedding_cos] =
-        makeMultimodalPositionEmbedding(past.position_ids, llm.getBuffer("inv_freq"), cfg.max_position_embeddings,
+        makeMultimodalPositionEmbedding(position_ids, llm.getBuffer("inv_freq"), cfg.max_position_embeddings,
                                         cfg.hidden_size / cfg.num_attention_heads, cfg.mrope_section);
 
-    auto sequence = llm(input_embeddings, llm_embedding_sin, llm_embedding_cos, AnyValue(&kv_cache_))[0];
+    sequence = llm(input_embeddings, llm_embedding_sin, llm_embedding_cos, AnyValue(&kv_cache_))[0];
 
     return {
-        .sequence = sequence,
-        .img = Tensor::nil(),
-        .grid_thw = past.grid_thw,
-        .position_ids = past.position_ids,
+        {"sequence", sequence},
+        {"position_ids", position_ids},
     };
   }
 
-  inline void getPositionIds(Qwen2VLForCausalLMOutputPast& past, const Qwen2VLConfig& cfg) {
+  inline Tensor getPositionIds(Tensor& img, Tensor& grid_thw, Tensor& sequence, Tensor& position_ids,
+                               const Qwen2VLConfig& cfg) {
     // Input is [B, S, D]
-    if (!past.img.isNil()) {  // Prefill
-      past.position_ids = getPositionIdsPrefill(past.sequence, past.grid_thw, cfg);
+    if (!img.isNil()) {  // Prefill
+      return getPositionIdsPrefill(sequence, grid_thw, cfg);
     } else {  // Decode
-      auto last_pos = *past.position_ids.offsettedPtr<int64_t>({0, 0, past.position_ids.shape()[2] - 1});
-      past.position_ids = Tensor::empty({3, 1, 1}, kInt64, kCPU).alloc();
-      *past.position_ids.offsettedPtr<int64_t>({0, 0, 0}) = last_pos + 1;
-      *past.position_ids.offsettedPtr<int64_t>({1, 0, 0}) = last_pos + 1;
-      *past.position_ids.offsettedPtr<int64_t>({2, 0, 0}) = last_pos + 1;
+      auto last_pos = *position_ids.offsettedPtr<int64_t>({0, 0, position_ids.shape()[2] - 1});
+      auto ret_position_ids = Tensor::empty({3, 1, 1}, kInt64, kCPU).alloc();
+      *ret_position_ids.offsettedPtr<int64_t>({0, 0, 0}) = last_pos + 1;
+      *ret_position_ids.offsettedPtr<int64_t>({1, 0, 0}) = last_pos + 1;
+      *ret_position_ids.offsettedPtr<int64_t>({2, 0, 0}) = last_pos + 1;
+      return ret_position_ids;
     }
   }
 

@@ -24,6 +24,8 @@ class Tensor {
    */
   Tensor() = default;
 
+  void operator delete(void* ptr) noexcept;
+
   /**
    * @brief If this tensor is not initialized
    *

@@ -193,6 +193,11 @@ Documents
 .. toctree::
    :maxdepth: 2
 
+   talks/index
+
+.. toctree::
+   :maxdepth: 2
+
    qa/index
 
 .. toctree::

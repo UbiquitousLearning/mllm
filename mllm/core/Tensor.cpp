@@ -20,6 +20,11 @@
 
 namespace mllm {
 
+void Tensor::operator delete(void* ptr) noexcept {
+  ((Tensor*)ptr)->impl_.reset();
+  for (auto& [a, _] : ((Tensor*)ptr)->attached_views_) { ((Tensor*)ptr)->attached_views_[a].reset(); }
+}
+
 Tensor Tensor::operator[](const SliceIndices& slice_index) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kSlice,
                                                   aops::SliceOpOptions{

@@ -68,7 +68,10 @@ if(MLLM_PERFETTO_ENABLE)
   if (MSVC)
     target_compile_options(MllmRT PRIVATE "/permissive-")
   endif (MSVC)
-  target_link_libraries(MllmRT PUBLIC perfetto)
+    target_link_libraries(MllmRT PUBLIC perfetto)
+  if (ANDROID)
+    target_link_libraries(MllmRT PUBLIC log)
+  endif ()
 endif()
 
 # Host backend will be build by default

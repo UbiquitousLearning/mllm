@@ -217,12 +217,12 @@ inline int __mllm_exception_main(Func&& func) {
 
 }  // namespace mllm
 
-#define MLLM_MAIN(x)                                       \
+#define MLLM_MAIN(...)                                     \
   int main(int argc, char** argv) {                        \
     ::mllm::__setup_signal_handler();                      \
     ::mllm::initializeContext();                           \
     auto user_main = [&]() -> int {                        \
-      x;                                                   \
+      __VA_ARGS__;                                         \
       return 0;                                            \
     };                                                     \
     int result = ::mllm::__mllm_exception_main(user_main); \

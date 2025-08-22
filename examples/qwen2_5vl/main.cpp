@@ -59,7 +59,7 @@ MLLM_MAIN({
       fmt::print("🔄 Processing...\n");
       auto inputs = qwen2vl_tokenizer.convertMessage({.prompt = prompt_text, .img_file_path = image_path});
 
-      auto dict = mllm::models::qwen2_5vl::makeVisualTokensIdBioMap(inputs.grid_thw);
+      auto dict = mllm::models::qwen2_5vl::makeVisualTokensIdBioMap(inputs["grid_thw"]);
       auto orig_2_win = dict.first;
       auto win_2_orig = dict.second;
 
