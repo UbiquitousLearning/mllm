@@ -640,7 +640,7 @@ class Qwen2VLDecoder final : public nn::Module {
 class Qwen2VLText final : public nn::Module {
   nn::ModuleList<Qwen2VLDecoder> decode_blocks_;
   nn::RMSNorm norm_;
-  nn::Param lm_head_;
+  nn::Linear lm_head_;
   bool tie_word_embeddings_;
 
  public:
@@ -655,7 +655,9 @@ class Qwen2VLText final : public nn::Module {
     norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps);
     embedding_ = reg<nn::Embedding>("embed_tokens", cfg.vocab_size, cfg.hidden_size);
     if (cfg.tie_word_embeddings) {
-      lm_head_ = reg<nn::Param>("lm_head", "model.embed_tokens.weight", std::vector<int32_t>{cfg.vocab_size, cfg.hidden_size});
+      // NOTE:
+      // model.lm_head.weight is quantization weights of model.embed_tokens.weight
+      lm_head_ = reg<nn::Linear>("lm_head", cfg.hidden_size, cfg.vocab_size, false, cfg.linear_impl_type);
     }
 
     // Init inv freq
@@ -681,11 +683,7 @@ class Qwen2VLText final : public nn::Module {
       x = x[{kAll, {S - 1}, kAll}];
     }
 
-    if (tie_word_embeddings_) {
-      auto lm_head = lm_head_.weight();
-      // x is [B, S, D], lm_head is [V, D]
-      x = nn::functional::matmul(x, lm_head, false, true);
-    }
+    if (tie_word_embeddings_) { x = lm_head_(x); }
 
     return {x};
   }

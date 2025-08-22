@@ -26,7 +26,7 @@ void ParamOp::load(const ParameterFile::ptr_t& ploader) {
   }
 
   // No matter v1, v2, ..., we need to reshape the weight
-  weight_ = weight_.view(options_.shape);
+  if (!options_.shape.empty()) { weight_ = weight_.view(options_.shape); }
 }
 
 void ParamOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
