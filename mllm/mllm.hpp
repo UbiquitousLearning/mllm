@@ -154,6 +154,10 @@ void setRandomSeed(uint64_t seed);
 
 void setMaximumNumThreads(uint32_t num_threads);
 
+void setPrintPrecision(int precision);
+
+void setPrintMaxElementsPerDim(int max_elements);
+
 void memoryReport();
 
 bool isOpenCLAvailable();
@@ -187,17 +191,114 @@ inline void print(const Args&... args) {
   fmt::print("\n");
 }
 
+}  // namespace mllm
+
+#include <cstdlib>
+#include <cstring>
+
+#if defined(_WIN32) || defined(_WIN64)
+#define __MLLM_SIGNAL_WINDOWS 1
+#include <windows.h>
+#elif defined(__APPLE__)
+#define __MLLM_SIGNAL_MACOS 1
+#include <execinfo.h>
+#include <unistd.h>
+#elif defined(__linux__)
+#define __MLLM_SIGNAL_LINUX 1
+#include <execinfo.h>
+#include <unistd.h>
+#endif
+
+namespace mllm {
+
+//===----------------------------------------------------------------------===//
+// Signal Handler
+//===----------------------------------------------------------------------===//
+inline void safe_write(const char* msg, size_t len) {
+#if defined(__MLLM_SIGNAL_WINDOWS)
+  HANDLE hStderr = GetStdHandle(STD_ERROR_HANDLE);
+  DWORD bytesWritten;
+  WriteFile(hStderr, msg, static_cast<DWORD>(len), &bytesWritten, NULL);
+#else
+  write(STDERR_FILENO, msg, len);
+#endif
+}
+inline const char* signal_description(int signal) {
+  switch (signal) {
+    case SIGINT: return "SIGINT (Interrupt from keyboard)";
+    case SIGTERM: return "SIGTERM (Termination signal)";
+    case SIGABRT: return "SIGABRT (Abort signal from abort())";
+#if !defined(__MLLM_SIGNAL_WINDOWS)
+    case SIGSEGV: return "SIGSEGV (Segmentation violation)";
+    case SIGILL: return "SIGILL (Illegal instruction)";
+    case SIGFPE: return "SIGFPE (Floating-point exception)";
+#endif
+    default: return "Unknown signal";
+  }
+}
+
+inline void print_stack_trace() {
+#if defined(__MLLM_SIGNAL_MACOS) || defined(__MLLM_SIGNAL_LINUX)
+  void* buffer[100];
+  int size = backtrace(buffer, 100);
+  safe_write("Stack trace:\n", 13);
+  backtrace_symbols_fd(buffer, size, STDERR_FILENO);
+#elif defined(__MLLM_SIGNAL_WINDOWS)
+  safe_write("Stack trace not available on Windows in signal handler\n", 52);
+#endif
+}
+
 inline void __signal_handler(int signal) {
-  ::mllm::print("Received signal ", signal);
-  ::mllm::shutdownContext();
-  exit(signal);
+  const char* desc = signal_description(signal);
+  safe_write("Error: Received signal ", 22);
+  char sig_str[12];
+#if defined(__MLLM_SIGNAL_WINDOWS)
+  _itoa_s(signal, sig_str, 10);
+#else
+  snprintf(sig_str, sizeof(sig_str), "%d", signal);
+#endif
+  safe_write(sig_str, strlen(sig_str));
+  safe_write(" - ", 3);
+  safe_write(desc, strlen(desc));
+  safe_write("\n", 1);
+  switch (signal) {
+#if !defined(__MLLM_SIGNAL_WINDOWS)
+    case SIGSEGV:
+      print_stack_trace();
+      safe_write("Possible causes: invalid memory access, dangling pointer, stack overflow.\n", 74);
+      break;
+#endif
+    case SIGABRT: safe_write("Possible causes: failed assertion, memory corruption, double-free.\n", 68); break;
+    default: break;
+  }
+  safe_write("Shutting down...\n", 17);
+  mllm::shutdownContext();
+#if defined(__MLLM_SIGNAL_WINDOWS)
+  _exit(signal);
+#else
+  ::_exit(signal);
+#endif
 }
 
 inline void __setup_signal_handler() {
-  std::signal(SIGINT, __signal_handler);
-  std::signal(SIGTERM, __signal_handler);
-  std::signal(SIGABRT, __signal_handler);
-  std::signal(SIGSEGV, __signal_handler);
+#if defined(__MLLM_SIGNAL_WINDOWS)
+  // Windows 信号处理设置
+  signal(SIGINT, __signal_handler);
+  signal(SIGTERM, __signal_handler);
+  signal(SIGABRT, __signal_handler);
+#else
+  struct sigaction sa;
+  sa.sa_handler = __signal_handler;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_RESTART;
+
+  sigaction(SIGINT, &sa, nullptr);
+  sigaction(SIGTERM, &sa, nullptr);
+  sigaction(SIGABRT, &sa, nullptr);
+  sigaction(SIGSEGV, &sa, nullptr);
+  sigaction(SIGILL, &sa, nullptr);
+  sigaction(SIGFPE, &sa, nullptr);
+#endif
 }
 
 template<typename Func>
@@ -214,7 +315,6 @@ inline int __mllm_exception_main(Func&& func) {
     return 1;
   }
 }
-
 }  // namespace mllm
 
 #define MLLM_MAIN(...)                                     \

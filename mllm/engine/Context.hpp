@@ -52,10 +52,13 @@ class Context {
 
   std::unordered_map<std::thread::id, SessionTCB::ptr_t> refSessionThreads();
 
-  // for print config
+  // For print config
   void setPrintPrecision(int precision);
+
   int getPrintPrecision() const;
+
   void setPrintMaxElementsPerDim(int max_elements);
+
   int getPrintMaxElementsPerDim() const;
 
  private:
