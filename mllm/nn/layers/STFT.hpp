@@ -31,7 +31,8 @@ class STFT : public Layer {
 
   explicit STFT(const aops::STFTOpOptions& options);
 
-  STFT(int n_fft, int hop_length, int win_length, bool onesided = true);
+  STFT(int n_fft, int hop_length, int win_length, bool onesided = true, bool center = false,
+       const std::string& pad_mode = "constant");
 
   MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };

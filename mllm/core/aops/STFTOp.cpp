@@ -47,6 +47,10 @@ void STFTOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& out
   int n_fft = options_.n_fft;
   int hop_length = options_.hop_length;
   int win_length = options_.win_length;
+  bool center = options_.center;
+
+  // If center=true, pad signal with n_fft/2 on both sides
+  if (center) { signal_length += 2 * (n_fft / 2); }
 
   // Calculate output dimensions
   int n_frames = 1 + (signal_length - win_length) / hop_length;

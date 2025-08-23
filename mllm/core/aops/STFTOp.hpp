@@ -10,13 +10,15 @@ namespace mllm::aops {
 
 /**
  * @brief Options for the Short-Time Fourier Transform (STFT) operation.
- * It mainly configures following pytorch definition, but without center, normalized arguments
+ * It mainly configures following pytorch definition, but without normalized argument
  */
 struct STFTOpOptions : public BaseOpOptions<STFTOpOptions> {
   int n_fft = 0;
   int hop_length = 0;
   int win_length = 0;
   bool onesided = true;
+  bool center = false;  // Changed default to false to match current implementation
+  std::string pad_mode = "constant";  // Changed default to "constant" to match current implementation
 };
 
 class STFTOp : public BaseOp {

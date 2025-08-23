@@ -3,6 +3,7 @@
 
 #include <cstring>
 #include <cmath>
+#include <iostream>
 #include <vector>
 #include <complex>
 #include "mllm/mllm.hpp"
@@ -214,6 +215,45 @@ static void fftBluestein(const std::vector<T>& input, std::vector<std::complex<T
   }
 }
 
+// 根据pad_mode和center参数对输入信号进行填充
+static void padSignal(const Tensor& input, std::vector<float>& padded_signal, int n_fft, bool center, const std::string& pad_mode) {
+  auto input_shape = input.shape();
+  int signal_length = input_shape.size() == 1 ? input_shape[0] : input_shape[1];
+  
+  if (center) {
+    // 当center=true时，在信号两侧进行填充
+    int pad_length = n_fft / 2;
+    int padded_length = signal_length + 2 * pad_length;
+    padded_signal.resize(padded_length);
+    
+    // 复制原始信号
+    for (int i = 0; i < signal_length; ++i) {
+      padded_signal[pad_length + i] = input.ptr<float>()[i];
+    }
+    
+    // 根据pad_mode进行边缘填充
+    if (pad_mode == "reflect") {
+      // reflect模式：镜像填充
+      for (int i = 0; i < pad_length; ++i) {
+        padded_signal[i] = (pad_length - i <= signal_length) ? input.ptr<float>()[pad_length - i - 1] : 0.0f;
+        padded_signal[pad_length + signal_length + i] = (i + 1 <= signal_length) ? input.ptr<float>()[signal_length - i - 1] : 0.0f;
+      }
+    } else {
+      // constant模式：零填充（默认）
+      for (int i = 0; i < pad_length; ++i) {
+        padded_signal[i] = 0.0f;
+        padded_signal[pad_length + signal_length + i] = 0.0f;
+      }
+    }
+  } else {
+    // 当center=false时，不进行额外填充
+    padded_signal.resize(signal_length);
+    for (int i = 0; i < signal_length; ++i) {
+      padded_signal[i] = input.ptr<float>()[i];
+    }
+  }
+}
+
 void CPUSTFTOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   auto& input = inputs[0];
   auto& window = inputs[1];
@@ -233,8 +273,19 @@ void CPUSTFTOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
   int n_fft = options_.n_fft;
   int hop_length = options_.hop_length;
   int win_length = options_.win_length;
+  bool center = options_.center;
+  std::string pad_mode = options_.pad_mode;
+  
   // If win_length is not specified, use n_fft
   if (win_length == 0) { win_length = n_fft; }
+
+  // 对输入信号进行填充处理
+  std::vector<float> padded_signal;
+  padSignal(input, padded_signal, n_fft, center, pad_mode);
+  int padded_length = static_cast<int>(padded_signal.size());
+  
+  // Recalculate signal length after padding
+  signal_length = padded_length;
 
   // Temporary buffers
   std::vector<float> windowed_input(n_fft);
@@ -247,11 +298,10 @@ void CPUSTFTOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
       int start_idx = f * hop_length;
 
       // Get windowed input and apply window function
-      // do the same padding as `center=False` in pytorch
-      // TODO: support center=True and pad_mode
+      // Apply padding based on center and pad_mode parameters
       for (int i = 0; i < win_length; ++i) {
         if (start_idx + i < signal_length) {
-          windowed_input[i] = input.ptr<float>()[b * signal_length + start_idx + i] * window.ptr<float>()[i];
+          windowed_input[i] = padded_signal[start_idx + i] * window.ptr<float>()[i];
         } else {
           windowed_input[i] = 0.0f;
         }
