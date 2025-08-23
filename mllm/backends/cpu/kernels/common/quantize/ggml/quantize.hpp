@@ -104,6 +104,7 @@ inline static float lookup_fp16_to_fp32(uint16_t f) {
 #define MLLM_FP32_TO_FP16(x) MLLM_COMPUTE_FP32_TO_FP16(x)
 
 #else
+namespace mllm::cpu {
 #define MLLM_COMPUTE_FP16_TO_FP32(x) _cvtsh_ss(x)
 #define MLLM_COMPUTE_FP32_TO_FP16(x) _cvtss_sh(x, 0)
 
@@ -181,7 +182,7 @@ inline void init_table_gelu_f16() {
 inline static void mllm_vec_gelu_f32(const int n, float* y, const float* x) {
   uint16_t t;
   for (int i = 0; i < n; ++i) {
-    mllm_fp16_t fp16 = MLLM_FP32_TO_FP16(x[i]);
+    mllm_fp16_t fp16 = mllm_fp16_t(MLLM_FP32_TO_FP16(x[i]));
     memcpy(&t, &fp16, sizeof(uint16_t));
     y[i] = MLLM_FP16_TO_FP32(mllm_table_gelu_f16[t]);
   }
@@ -202,7 +203,7 @@ inline void init_table_gelu_quick_f16() {
 inline static void mllm_vec_gelu_quick_f32(const int n, float* y, const float* x) {
   uint16_t t;
   for (int i = 0; i < n; ++i) {
-    mllm_fp16_t fp16 = MLLM_FP32_TO_FP16(x[i]);
+    mllm_fp16_t fp16 = mllm_fp16_t(MLLM_FP32_TO_FP16(x[i]));
     memcpy(&t, &fp16, sizeof(uint16_t));
     y[i] = MLLM_FP16_TO_FP32(mllm_table_gelu_quick_f16[t]);
   }
@@ -327,7 +328,7 @@ static float make_qx_quants(int n, int nmax, const float* __restrict x, int8_t* 
 
 // FP32_FP16
 
-inline mllm_fp16_t mllm_fp32_to_fp16(float x) { return MLLM_FP32_TO_FP16(x); }
+inline mllm_fp16_t mllm_fp32_to_fp16(float x) { return mllm_fp16_t(MLLM_FP32_TO_FP16(x)); }
 
 inline float mllm_fp16_to_fp32(mllm_fp16_t x) { return (float)MLLM_FP16_TO_FP32(x); }
 

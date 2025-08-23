@@ -72,6 +72,7 @@ StaticCache::StaticCache(int32_t max_cache_length, int32_t layer_nums, int32_t q
 
 int32_t StaticCache::getCurrentSeqCnt(int32_t layer_idx) const { return current_seq_cnt_[layer_idx]; }
 
+__MLLM_UNSAFE_OPT_BEGIN_O3
 std::array<Tensor, 2> StaticCache::updateKVCache(int32_t layer_idx, Tensor k, Tensor v) {
   if (use_fa2_) {
     // The input should be [B, S, H, D]
@@ -98,7 +99,6 @@ std::array<Tensor, 2> StaticCache::updateKVCache(int32_t layer_idx, Tensor k, Te
 
     switch (device_type_) {
       case kCPU: {
-        __MLLM_UNSAFE_OPT_BEGIN_O3
         for (int h = 0; h < kv_heads_; ++h) {
           for (int r = 0; r < repeat_times; ++r) {
             // clang-format off
@@ -112,7 +112,7 @@ std::array<Tensor, 2> StaticCache::updateKVCache(int32_t layer_idx, Tensor k, Te
             std::memcpy(v_cache_ptr, v_ptr, inputs_seq_len * kv_dims_ * bytesOfType(v_dtype_) / lanesOfType(v_dtype_));
           }
         }
-        __MLLM_UNSAFE_OPT_END
+
         break;
       }
       default: {
@@ -139,5 +139,6 @@ std::array<Tensor, 2> StaticCache::updateKVCache(int32_t layer_idx, Tensor k, Te
 
   return {Tensor::nil(), Tensor::nil()};
 }
+__MLLM_UNSAFE_OPT_END
 
 }  // namespace mllm::nn

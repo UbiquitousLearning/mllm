@@ -48,21 +48,29 @@ dispatch_apply(__num__, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 
 // OpenMP.
 //===----------------------------------------------------------------------===//
 #if defined(MLLM_KERNEL_THREADS_VENDOR_OPENMP)
-#include <omp.h>
+// #include <omp.h>
+
+#define OMP_PRAGMA(x) _Pragma(#x)
+
 #define MLLM_AUTO_PARALLEL_BEGIN(__iter__, __num__) \
-  _Pragma("omp parallel for") for (int __iter__ = 0; __iter__ < __num__; ++__iter__) {
+  OMP_PRAGMA(omp parallel for)                      \
+  for (int __iter__ = 0; __iter__ < __num__; ++__iter__) {
 #define MLLM_AUTO_PARALLEL_END() }
 
 #define MLLM_AUTO_PARALLEL_FOR_BEGIN(__iter__, __start__, __end__, __step__) \
-  _Pragma("omp parallel for") for (long long __iter__ = (__start__); __iter__ < (__end__); __iter__ += (__step__)) {
+  OMP_PRAGMA(omp parallel for)                                               \
+  for (long long __iter__ = (__start__); __iter__ < (__end__); __iter__ += (__step__)) {
 #define MLLM_AUTO_PARALLEL_FOR_END() }
 
-#define MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(__iter__, __start__, __end__, __step__, __num_threads__)                        \
-  _Pragma("omp parallel for num_threads(__num_threads__)") for (long long __iter__ = (__start__); __iter__ < (__end__); \
-                                                                __iter__ += (__step__)) {
+#define MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(__iter__, __start__, __end__, __step__, __num_threads__) \
+  OMP_PRAGMA(omp parallel for num_threads(__num_threads__))                                      \
+  for (long long __iter__ = (__start__); __iter__ < (__end__); __iter__ += (__step__)) {
 #define MLLM_AUTO_PARALLEL_FOR_END_NT() }
 
-#define MLLM_SET_NUM_THREADS(num_threads) omp_set_num_threads(num_threads)
+// #define MLLM_SET_NUM_THREADS(num_threads) omp_set_num_threads(num_threads)
+
+#define MLLM_SET_NUM_THREADS(num_threads) \
+  do { (void)(num_threads); } while (0)
 
 #endif  // defined(MLLM_KERNEL_THREADS_VENDOR_OPENMP)
 #else   // MLLM_KERNEL_USE_THREADS

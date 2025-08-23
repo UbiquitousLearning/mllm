@@ -26,6 +26,9 @@ void Qwen2VLVisionRoPEOpImpl::forward(const Tensor& activation, const Tensor& si
       auto S = activation.shape()[1];
       auto H = activation.shape()[2];
       auto D = activation.shape()[3];
+#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
+      NYI("Qwen2VLVisionRoPEOpImpl is not implemented for x86");
+#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       auto activation_ptr = activation.ptr<float16_t>();
       auto output_ptr = out.ptr<float16_t>();
       auto sin_ptr = sin.ptr<float16_t>();
@@ -33,9 +36,6 @@ void Qwen2VLVisionRoPEOpImpl::forward(const Tensor& activation, const Tensor& si
 
       auto half_dim = D / 2;
 
-#if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-      NYI("Qwen2VLVisionRoPEOpImpl is not implemented for x86");
-#elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       for (int b = 0; b < B; ++b) {
         for (int s = 0; s < S; ++s) {
           for (int h = 0; h < H; ++h) {

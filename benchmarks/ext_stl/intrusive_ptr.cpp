@@ -6,14 +6,16 @@
 #include <functional>
 #include <benchmark/benchmark.h>
 
-#include "/Volumes/D/mllm/mllm/utils/IntrusivePtr.hpp"
+#include "mllm/utils/IntrusivePtr.hpp"
 
 using namespace mllm;  // NOLINT
 
 class TestObject : public RefCountedBase {
  public:
   explicit TestObject(int value = 0) : data(value) {}
-  int getData() const { return data; }
+
+  [[nodiscard]] int getData() const { return data; }
+
   void setData(int value) { data = value; }
 
   virtual void doWork() {

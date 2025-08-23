@@ -12,6 +12,7 @@
 #include "mllm/core/ParameterFile.hpp"
 #include "mllm/engine/Context.hpp"
 #include "mllm/utils/SymbolTable.hpp"
+#include "mllm/utils/CompilerTraits.hpp"
 
 namespace mllm::nn {
 
@@ -107,7 +108,7 @@ class Module {
       } else if constexpr (std::is_convertible_v<CleanType, AnyValue>) {
         others.push_back(std::forward<Args>(args));
       } else {
-        static_assert(false, "Unsupported argument type!");
+        static_assert(always_false<CleanType>::value, "Unsupported argument type!");
       }
     }());
     return __main(tensors, others);

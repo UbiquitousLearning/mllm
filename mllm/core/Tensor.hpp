@@ -31,6 +31,8 @@ class Tensor {
 
   void operator delete(void* ptr) noexcept;
 
+  void delete_() noexcept;
+
   /**
    * @brief If this tensor is not initialized
    *

@@ -34,8 +34,7 @@ struct InitTemporary {
   static MLLM_FORCE_INLINE void run(ElementAccumulator* logsum, ElementAccumulator* scoremax, ElementAccumulator* acc_o,
                                     const int32_t dim_size) {}
 
-  static MLLM_FORCE_INLINE void run_decode(const int32_t real_m_block_size, const int32_t real_n_block_size,
-                                           ElementAccumulator* logsum, ElementAccumulator* scoremax, ElementAccumulator* acc_o,
+  static MLLM_FORCE_INLINE void run_decode(ElementAccumulator* logsum, ElementAccumulator* scoremax, ElementAccumulator* acc_o,
                                            const int32_t dim_size) {}
 };
 

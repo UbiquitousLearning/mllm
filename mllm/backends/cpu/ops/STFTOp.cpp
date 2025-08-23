@@ -185,7 +185,7 @@ static void fftBluestein(const std::vector<T>& input, std::vector<std::complex<T
   std::vector<std::complex<T>> b(M, {0, 0});
   for (size_t n = 0; n < N; n++) {
     T exponent = -direction * pi * n * n / N;  // 注意这里是反号的
-    b[n] = {cos(exponent), sin(exponent)};
+    b[n] = {static_cast<float>(cos(exponent)), static_cast<float>(sin(exponent))};
   }
   // 创建循环卷积核
   for (size_t n = 1; n < N; n++) { b[M - n] = b[n]; }

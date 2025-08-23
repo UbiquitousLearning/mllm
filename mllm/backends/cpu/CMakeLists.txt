@@ -99,7 +99,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR APPLE)
   # Apple should not use OpenMP
   message(ERROR "Apple platform should not use OpenMP. Pls set MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=ON")
 else()
-  target_link_libraries(MllmCPUBackend PUBLIC ${OpenMP_omp_LIBRARY})
+  target_link_libraries(MllmCPUBackend PUBLIC ${OpenMP_CXX_FLAGS})
   target_compile_options(MllmCPUBackend PRIVATE ${OpenMP_CXX_FLAGS})
   target_include_directories(MllmCPUBackend PUBLIC ${OpenMP_CXX_INCLUDE_DIR})
 endif()

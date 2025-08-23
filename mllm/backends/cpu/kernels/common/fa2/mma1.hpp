@@ -165,6 +165,7 @@ struct MMA1Tail<
   }
 };
 
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
 //===----------------------------------------------------------------------===//
 // Arm Neon 128 Impl
 //===----------------------------------------------------------------------===//
@@ -308,5 +309,6 @@ struct MMA1Tail<
     }
   }
 };
+#endif
 
 }  // namespace mllm::cpu::fa2

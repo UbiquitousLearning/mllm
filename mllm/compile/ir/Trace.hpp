@@ -23,7 +23,7 @@ IRContext::ptr_t trace(nn::Module& module, Args&&... args) {
     } else if constexpr (std::is_convertible_v<CleanType, AnyValue>) {
       others.push_back(std::forward<Args>(args));
     } else {
-      static_assert(false, "Unsupported argument type!");
+      static_assert(always_false<CleanType>::value, "Unsupported argument type!");
     }
   }());
   return trace_(module, tensors, others);
