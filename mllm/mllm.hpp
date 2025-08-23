@@ -233,3 +233,9 @@ inline int __mllm_exception_main(Func&& func) {
 #ifdef MLLM_PERFETTO_ENABLE
 #include "mllm/engine/Perf.hpp"  // IWYU pragma: export
 #endif
+
+namespace mllm::perf {
+
+void warmup(const ParameterFile::ptr_t& params);
+
+}

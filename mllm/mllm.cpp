@@ -234,4 +234,16 @@ std::vector<Tensor> wait(std::pair<TaskResult::sender_t, Task::ptr_t>& sender) {
 
 }  // namespace async
 
+namespace perf {
+
+void warmup(const ParameterFile::ptr_t& params) {
+  for (auto& [name, tensor] : *params) {
+    auto num = tensor.bytes();
+    int cnt = 0;
+    for (int i = 0; i < num; i++) { cnt += tensor.ptr<mllm_byte_t>()[i]; }
+  }
+}
+
+}  // namespace perf
+
 }  // namespace mllm

@@ -58,9 +58,17 @@ void QuantizeDriver::operator()() {
         if (impl->match(desc, tensors)) {
           auto new_tensors = impl->perform(desc, tensors);
           for (auto& nt : *new_tensors) {
-            params_->remove(nt.first);
-            params_->push(nt.first, nt.second);
+            // E.g.: For Embedding. We need fp32 embedding and kai's quant embedding both.
+            // Do not replace embedding weights, but rename it and add a new one.
+            if (!desc.hints["replace"].is_null() && !desc.hints["replace"]) {
+              params_->push(desc.hints["rename"], nt.second);
+            } else {
+              params_->remove(nt.first);
+              params_->push(nt.first, nt.second);
+            }
           }
+          // E.g.: kai will pack bias and weight into weight. We need to remove bias.
+          // bias is in tensors, but not in new_tensors, we need to remove it.
           for (auto& nt : *tensors) {
             if (!new_tensors->has(nt.first)) { params_->remove(nt.first); }
           }

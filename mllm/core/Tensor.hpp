@@ -5,12 +5,17 @@
 
 #include <memory>
 #include <string>
+#include <optional>
 #include <unordered_map>
 
 #include "mllm/core/TensorViewImpl.hpp"
 #include "mllm/core/SlicePrimitives.hpp"
 
 namespace mllm {
+
+struct ComplexIndexingBlob;
+
+using ComplexIndexingList = std::vector<ComplexIndexingBlob>;
 
 class Tensor {
  public:
@@ -47,7 +52,15 @@ class Tensor {
    * @return New tensor view referencing the sliced data.
    * @note Uses shallow copy when step size is 1; may be unsafe for GPU tensors.
    */
-  Tensor operator[](const SliceIndices& slice_index);
+  Tensor operator[](const SliceIndices& slice_index) const;
+
+  /**
+   * @brief Creates a deep copy of the tensor. Inputs can be vector and tensor.
+   *
+   * @param complex_indexing
+   * @return Tensor
+   */
+  Tensor operator[](const ComplexIndexingList& complex_indexing) const;
 
   /**
    * @brief Constructs a tensor from an existing TensorViewImpl.
@@ -461,6 +474,18 @@ class Tensor {
  private:
   std::shared_ptr<TensorViewImpl> impl_ = nullptr;
   std::unordered_map<std::string, TensorViewImpl::ptr_t> attached_views_;
+};
+
+struct ComplexIndexingBlob {
+  ComplexIndexingBlob(SliceIndicesPair p);  // NOLINT
+
+  ComplexIndexingBlob(const std::vector<int32_t>& p);  // NOLINT
+
+  ComplexIndexingBlob(const Tensor& p);  // NOLINT
+
+  std::optional<SliceIndicesPair> slice_indices_ = std::nullopt;
+  std::optional<std::vector<int32_t>> vector_indices_ = std::nullopt;
+  std::optional<Tensor> tensor_indices_ = std::nullopt;
 };
 
 }  // namespace mllm
