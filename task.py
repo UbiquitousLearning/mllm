@@ -529,6 +529,127 @@ class PymllmInstallTask(Task):
             )
 
 
+class MllmCliBuildTask(Task):
+    def __init__(self, config):
+        super().__init__(config)
+
+    def get_platform_lib_extension(self):
+        """Return the library extension for the current platform"""
+        system = platform.system().lower()
+        if system == "windows":
+            return ".dll"
+        elif system == "darwin":
+            return ".dylib"
+        else:  # linux and others
+            return ".so"
+
+    def get_platform_lib_prefix(self):
+        """Return the library prefix for the current platform"""
+        system = platform.system().lower()
+        if system == "windows":
+            return ""
+        else:  # unix-like systems
+            return "lib"
+
+    def run(self):
+        logging.info("MLLM CLI Build Task Start...")
+
+        # Get configuration with clearer variable names
+        cli_build_dir = self.config.get("cli_build_dir", "mllm-cli/build")
+        mllm_lib_dir = self.config.get("mllm_lib_dir", "build")
+        go_source_dir = self.config.get("go_source_dir", "mllm-cli")
+
+        # Create build directory
+        os.makedirs(cli_build_dir, exist_ok=True)
+
+        # Build C bindings with proper linking
+        logging.info("Building C bindings...")
+        cxx_flags = self.config.get("cxx_flags", "-std=c++17 -fPIC")
+        mllm_include_dir = self.config.get("mllm_include_dir", ".")
+        bindings_source_file = self.config.get(
+            "bindings_source_file", "mllm-cli/bindings/mllm-c.cc"
+        )
+        bindings_object = f"{cli_build_dir}/mllm-c.o"
+
+        # Compile C bindings
+        compile_cmd = f"c++ {cxx_flags} -I{mllm_include_dir} -c {bindings_source_file} -o {bindings_object}"
+        logging.info(compile_cmd)
+        os.system(compile_cmd)
+
+        # Create static library
+        static_lib = f"{cli_build_dir}/libmllm_c.a"
+        ar_cmd = f"ar rcs {static_lib} {bindings_object}"
+        logging.info(ar_cmd)
+        os.system(ar_cmd)
+
+        # Build Go application with CGO and proper linking to MLLM libraries
+        logging.info("Building Go application with MLLM library linking...")
+
+        # Get platform-specific library names
+        lib_ext = self.get_platform_lib_extension()
+        lib_prefix = self.get_platform_lib_prefix()
+
+        # Set CGO environment variables for proper linking
+        ld_flags = self.config.get("ld_flags", f"-L{mllm_lib_dir}")
+
+        # Add MLLM libraries
+        mllm_libs = self.config.get("mllm_libs", ["mllm", "mllm_cpu_backend"])
+        for lib in mllm_libs:
+            if platform.system().lower() == "windows":
+                ld_flags += f" -l{lib}"
+            else:
+                ld_flags += f" -l{lib}"
+
+        cgo_cxxflags = self.config.get("cgo_cxxflags", f"-I{mllm_include_dir}")
+
+        # Additional platform-specific flags
+        platform_flags = ""
+        if platform.system().lower() == "darwin":
+            platform_flags = f"-Wl,-rpath,{mllm_lib_dir}"
+        elif platform.system().lower() == "linux":
+            platform_flags = f"-Wl,-rpath,$ORIGIN"
+
+        output_binary = self.config.get("output_binary", f"{cli_build_dir}/mllm-cli")
+        if platform.system().lower() == "windows":
+            output_binary += ".exe"
+
+        go_build_cmd = (
+            f"cd {go_source_dir} && "
+            f"CGO_ENABLED=1 "
+            f"CGO_LDFLAGS='{ld_flags} {platform_flags}' "
+            f"CGO_CXXFLAGS='{cgo_cxxflags}' "
+            f"go build -o {output_binary} main.go"
+        )
+
+        logging.info(go_build_cmd)
+        result = os.system(go_build_cmd)
+
+        if result != 0:
+            logging.error("Failed to build Go application")
+            return
+
+        # Optionally copy required MLLM libraries to build directory
+        copy_libs = self.config.get("copy_libs", False)
+        if copy_libs:
+            logging.info("Copying MLLM libraries to build directory...")
+            libs_to_copy = []
+
+            # Generate platform-specific library names
+            for lib in mllm_libs:
+                lib_name = f"{lib_prefix}{lib}{lib_ext}"
+                libs_to_copy.append(f"{mllm_lib_dir}/{lib_name}")
+
+            for lib in libs_to_copy:
+                if os.path.exists(lib):
+                    copy_cmd = f"cp {lib} {cli_build_dir}/"
+                    logging.info(copy_cmd)
+                    os.system(copy_cmd)
+                else:
+                    logging.warning(f"Library not found: {lib}")
+
+        logging.info("MLLM CLI build completed.")
+
+
 TASKS = {
     "CMakeConfigTask": CMakeConfigTask,
     "CMakeFormatTask": CMakeFormatTask,
@@ -541,6 +662,7 @@ TASKS = {
     "BuildPythonCLibTask": BuildPythonCLibTask,
     "HexagonMakeTask": HexagonMakeTask,
     "PymllmInstallTask": PymllmInstallTask,
+    "MllmCliBuildTask": MllmCliBuildTask,
 }
 
 

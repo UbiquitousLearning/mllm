@@ -1,3 +1,6 @@
+# Copyright (c) MLLM Team.
+# Licensed under the MIT License.
+
 Tasks:
   - CMakeConfigTask:
       cmake_cfg_path: "build-osx-accelerate"
@@ -10,6 +13,19 @@ Tasks:
         - "-DMLLM_KERNEL_USE_THREADS=ON"
         - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=OFF"
         - "-DMLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=ON"
-
   - CMakeBuildTask:
       cmake_cfg_path: "build-osx-accelerate"
+  - MllmCliBuildTask:
+      cli_build_dir: "mllm-cli/build"
+      mllm_lib_dir: "build-osx-accelerate/bin"
+      go_source_dir: "mllm-cli"
+      cxx_flags: "-std=c++20 -fPIC"
+      mllm_include_dir: "."
+      bindings_source_file: "mllm-cli/bindings/mllm-c.cc"
+      ld_flags: "-Lbuild"
+      mllm_libs:
+        - "MllmRT"
+        - "MllmCPUBackend"
+      cgo_cxxflags: "-I."
+      copy_libs: true
+      output_binary: "build/mllm-cli"

@@ -56,6 +56,7 @@ enum class OpTypes : int32_t {
   kReshape,
   kSlice,
   kParam,
+  kIndex,
 
   // Graph Control Ops
   kGraphBegin,

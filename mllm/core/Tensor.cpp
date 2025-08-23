@@ -1,6 +1,8 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include <optional>
+
 #include "mllm/core/Tensor.hpp"
 #include "mllm/core/aops/CastTypeOp.hpp"
 #include "mllm/core/aops/CloneOp.hpp"
@@ -8,6 +10,7 @@
 #include "mllm/core/aops/CopyOp.hpp"
 #include "mllm/core/aops/ElewiseOps.hpp"
 #include "mllm/core/aops/FillOp.hpp"
+#include "mllm/core/aops/IndexOp.hpp"
 #include "mllm/core/aops/PermuteOp.hpp"
 #include "mllm/core/aops/ReduceOps.hpp"
 #include "mllm/core/aops/RepeatOp.hpp"
@@ -25,10 +28,18 @@ void Tensor::operator delete(void* ptr) noexcept {
   for (auto& [a, _] : ((Tensor*)ptr)->attached_views_) { ((Tensor*)ptr)->attached_views_[a].reset(); }
 }
 
-Tensor Tensor::operator[](const SliceIndices& slice_index) {
+Tensor Tensor::operator[](const SliceIndices& slice_index) const {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kSlice,
                                                   aops::SliceOpOptions{
                                                       .indices_ = slice_index,
+                                                  },
+                                                  {*this})[0];
+}
+
+Tensor Tensor::operator[](const ComplexIndexingList& complex_indexing) const {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kIndex,
+                                                  aops::IndexOpOptions{
+                                                      .indices_ = complex_indexing,
                                                   },
                                                   {*this})[0];
 }
@@ -275,5 +286,11 @@ Tensor Tensor::permute(const shape_t& indices) {
 }
 
 size_t Tensor::bytes() const { return impl_->size(); }
+
+ComplexIndexingBlob::ComplexIndexingBlob(SliceIndicesPair p) : slice_indices_(p) {}
+
+ComplexIndexingBlob::ComplexIndexingBlob(const std::vector<int32_t>& p) : vector_indices_(p) {}
+
+ComplexIndexingBlob::ComplexIndexingBlob(const Tensor& p) : tensor_indices_(p) {}
 
 }  // namespace mllm

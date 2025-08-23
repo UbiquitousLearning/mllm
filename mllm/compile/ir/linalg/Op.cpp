@@ -70,4 +70,6 @@ LINALG_AOPS_DECL(OpTypes::kReshape, ReshapeOp);
 LINALG_AOPS_DECL(OpTypes::kSlice, SliceOp);
 LINALG_AOPS_DECL(OpTypes::kParam, ParamOp);
 
+LINALG_AOPS_DECL(OpTypes::kIndex, IndexOp);
+
 }  // namespace mllm::ir::linalg

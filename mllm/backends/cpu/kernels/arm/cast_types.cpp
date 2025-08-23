@@ -13,8 +13,7 @@ namespace mllm::cpu::arm {
 
 void int8_2_fp16(const mllm_int8_t* src, mllm_fp16_t* dst, int len, int thread_count) {
   if (thread_count > 1) {
-    MLLM_SET_NUM_THREADS(thread_count);
-    MLLM_AUTO_PARALLEL_FOR_BEGIN(i, 0, len, 8)
+    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, len, 8, thread_count)
     int remain = len - i;
     if (remain >= 8) {
       int8x8_t v8_src = vld1_s8(src + i);
@@ -26,7 +25,7 @@ void int8_2_fp16(const mllm_int8_t* src, mllm_fp16_t* dst, int len, int thread_c
     } else {
       for (int j = i; j < len; j++) { dst[j] = (mllm_fp16_t)src[j]; }
     }
-    MLLM_AUTO_PARALLEL_FOR_END();
+    MLLM_AUTO_PARALLEL_FOR_END_NT();
   } else {
     for (int i = 0; i < len; i += 8) {
       int remain = len - i;
@@ -46,8 +45,7 @@ void int8_2_fp16(const mllm_int8_t* src, mllm_fp16_t* dst, int len, int thread_c
 
 void int32_2_fp16(const mllm_int32_t* src, mllm_fp16_t* dst, int len, int thread_count) {
   if (thread_count > 1) {
-    MLLM_SET_NUM_THREADS(thread_count);
-    MLLM_AUTO_PARALLEL_FOR_BEGIN(i, 0, len, 4)
+    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, len, 4, thread_count)
     int remain = len - i;
     if (remain >= 4) {
       int32x4_t v32_src = vld1q_s32(src + i);
@@ -56,7 +54,7 @@ void int32_2_fp16(const mllm_int32_t* src, mllm_fp16_t* dst, int len, int thread
     } else {
       for (int j = i; j < len; j++) { dst[j] = (mllm_fp16_t)src[j]; }
     }
-    MLLM_AUTO_PARALLEL_FOR_END();
+    MLLM_AUTO_PARALLEL_FOR_END_NT();
   } else {
     for (int i = 0; i < len; i += 4) {
       int remain = len - i;
@@ -73,8 +71,7 @@ void int32_2_fp16(const mllm_int32_t* src, mllm_fp16_t* dst, int len, int thread
 
 void int8_2_fp32(const mllm_int8_t* src, mllm_fp32_t* dst, int len, int thread_count) {
   if (thread_count > 1) {
-    MLLM_SET_NUM_THREADS(thread_count);
-    MLLM_AUTO_PARALLEL_FOR_BEGIN(i, 0, len, 16)
+    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, len, 16, thread_count)
     int remain = len - i;
     if (remain >= 16) {
       int8x16_t v8_src = vld1q_s8(src + i);
@@ -94,7 +91,7 @@ void int8_2_fp32(const mllm_int8_t* src, mllm_fp32_t* dst, int len, int thread_c
     } else {
       for (int j = i; j < len; j++) { dst[j] = (mllm_fp32_t)src[j]; }
     }
-    MLLM_AUTO_PARALLEL_FOR_END();
+    MLLM_AUTO_PARALLEL_FOR_END_NT();
   } else {
     for (int i = 0; i < len; i += 16) {
       int remain = len - i;
@@ -122,8 +119,7 @@ void int8_2_fp32(const mllm_int8_t* src, mllm_fp32_t* dst, int len, int thread_c
 
 void int32_2_fp32(const mllm_int32_t* src, mllm_fp32_t* dst, int len, int thread_count) {
   if (thread_count > 1) {
-    MLLM_SET_NUM_THREADS(thread_count);
-    MLLM_AUTO_PARALLEL_FOR_BEGIN(i, 0, len, 4)
+    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, len, 4, thread_count)
     int remain = len - i;
     if (remain >= 4) {
       int32x4_t v32_src = vld1q_s32(src + i);
@@ -131,7 +127,7 @@ void int32_2_fp32(const mllm_int32_t* src, mllm_fp32_t* dst, int len, int thread
     } else {
       for (int j = i; j < len; j++) { dst[j] = (mllm_fp32_t)src[j]; }
     }
-    MLLM_AUTO_PARALLEL_FOR_END();
+    MLLM_AUTO_PARALLEL_FOR_END_NT();
   } else {
     for (int i = 0; i < len; i += 4) {
       int remain = len - i;
@@ -147,8 +143,7 @@ void int32_2_fp32(const mllm_int32_t* src, mllm_fp32_t* dst, int len, int thread
 
 void fp32_2_fp16(const mllm_fp32_t* src, mllm_fp16_t* dst, int len, int thread_count) {
   if (thread_count > 1) {
-    MLLM_SET_NUM_THREADS(thread_count);
-    MLLM_AUTO_PARALLEL_FOR_BEGIN(i, 0, len, 8)
+    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, len, 8, thread_count)
     int remain = len - i;
     if (remain >= 8) {
       float32x4_t vf32_0 = vld1q_f32(src + i);
@@ -158,7 +153,7 @@ void fp32_2_fp16(const mllm_fp32_t* src, mllm_fp16_t* dst, int len, int thread_c
     } else {
       for (int j = i; j < len; j++) { dst[j] = (mllm_fp16_t)src[j]; }
     }
-    MLLM_AUTO_PARALLEL_FOR_END();
+    MLLM_AUTO_PARALLEL_FOR_END_NT();
   } else {
     for (int i = 0; i < len; i += 8) {
       int remain = len - i;
@@ -176,8 +171,7 @@ void fp32_2_fp16(const mllm_fp32_t* src, mllm_fp16_t* dst, int len, int thread_c
 
 void fp16_2_fp32(const mllm_fp16_t* src, mllm_fp32_t* dst, int len, int thread_count) {
   if (thread_count > 1) {
-    MLLM_SET_NUM_THREADS(thread_count);
-    MLLM_AUTO_PARALLEL_FOR_BEGIN(i, 0, len, 8)
+    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, len, 8, )
     int remain = len - i;
     if (remain >= 8) {
       float16x8_t vf16 = vld1q_f16(src + i);
@@ -186,7 +180,7 @@ void fp16_2_fp32(const mllm_fp16_t* src, mllm_fp32_t* dst, int len, int thread_c
     } else {
       for (int j = i; j < len; j++) { dst[j] = (mllm_fp32_t)src[j]; }
     }
-    MLLM_AUTO_PARALLEL_FOR_END();
+    MLLM_AUTO_PARALLEL_FOR_END_NT();
   } else {
     for (int i = 0; i < len; i += 8) {
       int remain = len - i;

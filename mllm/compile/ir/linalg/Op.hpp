@@ -54,6 +54,7 @@ class ContiguousOp;
 class ReshapeOp;
 class SliceOp;
 class ParamOp;
+class IndexOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -171,5 +172,7 @@ LINALG_AOPS_DEFINE(ReshapeOp, RESHAPEOP);
 LINALG_AOPS_DEFINE(SliceOp, SLICEOP);
 LINALG_AOPS_DEFINE(STFTOp, STFTOP);
 LINALG_AOPS_DEFINE(ParamOp, PARAMOP);
+
+LINALG_AOPS_DEFINE(IndexOp, INDEXOP);
 
 }  // namespace mllm::ir::linalg
