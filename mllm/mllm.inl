@@ -2,13 +2,6 @@
 // Print Stuff
 //===----------------------------------------------------------------------===//
 #include <fmt/ranges.h>
-#include <vector>
-#include "mllm/core/DataTypes.hpp"
-#include "mllm/core/Tensor.hpp"
-#include "mllm/core/ParameterFile.hpp"
-#include "mllm/engine/Context.hpp"
-#include "mllm/nn/Module.hpp"
-#include "mllm/engine/MemoryManager.hpp"
 
 namespace fmt {
 template<>
@@ -79,7 +72,6 @@ struct formatter<mllm::Tensor> {
     int32_t dim_size = shape[dim];
     *out++ = '[';
 
-    // 获取Context中设置的最大元素数
     int max_elements_per_dim = mllm::Context::instance().getPrintMaxElementsPerDim();
 
     if (dim_size <= max_elements_per_dim) {

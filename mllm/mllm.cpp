@@ -25,6 +25,10 @@ void setMaximumNumThreads(uint32_t num_threads) {
   // TODO
 }
 
+void setPrintPrecision(int precision) { Context::instance().setPrintPrecision(precision); }
+
+void setPrintMaxElementsPerDim(int max_elements) { Context::instance().setPrintMaxElementsPerDim(max_elements); }
+
 void memoryReport() { Context::instance().memoryManager()->report(); }
 
 bool isOpenCLAvailable() {
