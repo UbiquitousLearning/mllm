@@ -106,4 +106,20 @@ uint64_t Context::curTime() {
 
 std::unordered_map<std::thread::id, SessionTCB::ptr_t> Context::refSessionThreads() { return session_threads_; }
 
+void Context::setPrintPrecision(int precision) {
+  print_precision_ = precision;
+}
+
+int Context::getPrintPrecision() const {
+  return print_precision_;
+}
+
+void Context::setPrintMaxElementsPerDim(int max_elements) {
+  print_max_elements_per_dim_ = max_elements;
+}
+
+int Context::getPrintMaxElementsPerDim() const {
+  return print_max_elements_per_dim_;
+}
+
 }  // namespace mllm

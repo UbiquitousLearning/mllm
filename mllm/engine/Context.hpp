@@ -52,6 +52,12 @@ class Context {
 
   std::unordered_map<std::thread::id, SessionTCB::ptr_t> refSessionThreads();
 
+  // for print config
+  void setPrintPrecision(int precision);
+  int getPrintPrecision() const;
+  void setPrintMaxElementsPerDim(int max_elements);
+  int getPrintMaxElementsPerDim() const;
+
  private:
   uint64_t random_seed_ = 42;
   SessionTCB::ptr_t main_thread_;
@@ -62,6 +68,9 @@ class Context {
   SymbolTable<DeviceTypes, Backend::ptr_t> backends_;
 
   DispatcherManager::ptr_t dispatcher_manager_ = nullptr;
+
+  int print_precision_ = 4;
+  int print_max_elements_per_dim_ = 12;
 };
 
 }  // namespace mllm

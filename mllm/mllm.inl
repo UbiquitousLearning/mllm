@@ -2,6 +2,13 @@
 // Print Stuff
 //===----------------------------------------------------------------------===//
 #include <fmt/ranges.h>
+#include <vector>
+#include "mllm/core/DataTypes.hpp"
+#include "mllm/core/Tensor.hpp"
+#include "mllm/core/ParameterFile.hpp"
+#include "mllm/engine/Context.hpp"
+#include "mllm/nn/Module.hpp"
+#include "mllm/engine/MemoryManager.hpp"
 
 namespace fmt {
 template<>
@@ -63,8 +70,6 @@ struct formatter<mllm::Tensor> {
   }
 
  private:
-  static constexpr int MAX_ELEMENTS_PER_DIM = 12;
-
   template<typename OutputIt>
   OutputIt printTensorData(const mllm::Tensor& tensor, OutputIt out, int dim, const std::vector<int32_t>& indices) const {
     auto shape = tensor.shape();
@@ -74,7 +79,10 @@ struct formatter<mllm::Tensor> {
     int32_t dim_size = shape[dim];
     *out++ = '[';
 
-    if (dim_size <= MAX_ELEMENTS_PER_DIM) {
+    // 获取Context中设置的最大元素数
+    int max_elements_per_dim = mllm::Context::instance().getPrintMaxElementsPerDim();
+
+    if (dim_size <= max_elements_per_dim) {
       for (int32_t i = 0; i < dim_size; ++i) {
         if (i > 0) {
           *out++ = ',';
@@ -90,7 +98,7 @@ struct formatter<mllm::Tensor> {
         out = printTensorData(tensor, out, dim + 1, new_indices);
       }
     } else {
-      const int SHOW_ELEMENTS = MAX_ELEMENTS_PER_DIM / 2;
+      const int SHOW_ELEMENTS = max_elements_per_dim / 2;
 
       for (int32_t i = 0; i < SHOW_ELEMENTS; ++i) {
         if (i > 0) {
@@ -138,13 +146,18 @@ struct formatter<mllm::Tensor> {
 
   template<typename OutputIt>
   OutputIt printTensorValue(const mllm::Tensor& tensor, OutputIt out, const std::vector<int32_t>& indices) const {
+    // 获取Context中设置的打印精度
+    int precision = mllm::Context::instance().getPrintPrecision();
+
     switch (tensor.dtype()) {
       case mllm::kFloat32:
-        return fmt::format_to(out, "{:.4f}", tensor.constAt<mllm::mllm_fp32_t>(const_cast<std::vector<int32_t>&>(indices)));
+        return fmt::format_to(out, "{:.{}e}", tensor.constAt<mllm::mllm_fp32_t>(const_cast<std::vector<int32_t>&>(indices)),
+                              precision);
       case mllm::kFloat16:
         return fmt::format_to(
-            out, "{:.4f}",
-            static_cast<mllm::mllm_fp32_t>(tensor.constAt<mllm::mllm_fp16_t>(const_cast<std::vector<int32_t>&>(indices))));
+            out, "{:.{}e}",
+            static_cast<mllm::mllm_fp32_t>(tensor.constAt<mllm::mllm_fp16_t>(const_cast<std::vector<int32_t>&>(indices))),
+            precision);
       case mllm::kInt32:
         return fmt::format_to(out, "{}", tensor.constAt<mllm::mllm_int32_t>(const_cast<std::vector<int32_t>&>(indices)));
       case mllm::kInt16:

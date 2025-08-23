@@ -133,6 +133,8 @@ class Module {
 
   Tensor getBuffer(const std::string& name);
 
+  [[nodiscard]] std::string getModuleName() const { return impl_->getAbsoluteName(); }
+
  private:
   ModuleImpl::ptr_t impl_ = nullptr;
 };
