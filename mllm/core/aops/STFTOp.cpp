@@ -6,6 +6,7 @@
 #include "mllm/core/Tensor.hpp"
 #include "mllm/utils/Common.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
+#include "mllm/utils/Log.hpp"
 
 namespace mllm::aops {
 
@@ -31,6 +32,9 @@ void STFTOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& out
   }
   if (options_.win_length == 0) {
     options_.win_length = options_.n_fft;  // default win_length
+  } else if (options_.win_length > options_.n_fft) {
+    MLLM_WARN("STFT: win_length ({}) > n_fft ({}), clipping to n_fft", options_.win_length, options_.n_fft);
+    options_.win_length = options_.n_fft;
   }
   MLLM_RT_ASSERT(inputs[0].shape().size() == 1 || inputs[0].shape().size() == 2);
   MLLM_RT_ASSERT(inputs.size() > 1 && inputs[1].shape().back() == options_.win_length);
