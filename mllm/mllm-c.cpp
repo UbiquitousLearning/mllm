@@ -5,17 +5,17 @@
 
 #include "mllm-c.hpp"
 
-int mllm_init_context() {
+MllmReturnCode mllm_init_context() {
   mllm::initializeContext();
-  return 0;
+  return MLLM_SUCCESS;
 }
 
-int mllm_shutdown_context() {
+MllmReturnCode mllm_shutdown_context() {
   mllm::shutdownContext();
-  return 0;
+  return MLLM_SUCCESS;
 }
 
-int mllm_show_memory_report() {
+MllmReturnCode mllm_show_memory_report() {
   mllm::memoryReport();
-  return 0;
+  return MLLM_SUCCESS;
 }

@@ -6,24 +6,40 @@
 extern "C" {
 #endif
 
+enum MllmReturnCode {
+  MLLM_SUCCESS = 0,
+  MLLM_ERROR_INVALID_ARGUMENT = 1,
+  MLLM_ERROR_OUT_OF_MEMORY = 2,
+  MLLM_ERROR_UNKNOWN = 3,
+};
+
 /**
  * @brief Initialize the MLLM context
  * @return 0 on success, negative value on error
  */
-int mllm_init_context();
+MllmReturnCode mllm_init_context();
 
 /**
  * @brief Shutdown the MLLM context
  * @return 0 on success, negative value on error
  */
-int mllm_shutdown_context();
+MllmReturnCode mllm_shutdown_context();
 
 /**
  * @brief Show memory report
  *
- * @return int
+ * @return 0 on success, negative value on error
  */
-int mllm_show_memory_report();
+MllmReturnCode mllm_show_memory_report();
+
+enum ARGenerationStatusCode {
+  AR_GENERATION_STATUS_CODE_SUCCESS = 0,
+  AR_GENERATION_STATUS_CODE_EOF = 0,
+};
+
+struct ARGenerationContext {
+  ARGenerationStatusCode status_code;
+};
 
 #ifdef __cplusplus
 }

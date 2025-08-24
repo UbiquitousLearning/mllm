@@ -69,6 +69,7 @@ class Logger {
     fmt::print(fg(fmt::color::red) | fmt::emphasis::bold, "[ASSERT]");       \
     fmt::print(" {}:{} {}\n", __FILE__, __LINE__, fmt::format(__VA_ARGS__)); \
   }                                                                          \
+  abort();                                                                   \
   exit((int32_t)(code))
 
 }  // namespace mllm
