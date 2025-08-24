@@ -77,6 +77,12 @@ if(MLLM_BUILD_ARM_BACKEND)
     CPUDispatcher.cpp)
   target_include_directories(MllmCPUBackend PUBLIC ${MLLM_KAI_INCLUDE_DIRS})
 else()
+  # X86 Backend use highway kernels
+  CPMAddPackage(
+    NAME highway
+    GITHUB_REPOSITORY google/highway
+    GIT_TAG 1.3.0
+  )
   file(GLOB_RECURSE MLLM_CPU_BACKEND_KERNELS_SRC ${CMAKE_CURRENT_LIST_DIR}/kernels/x86/*.cpp)
   add_library(
     MllmCPUBackend SHARED
@@ -86,6 +92,7 @@ else()
     CPUAllocator.cpp
     CPUBackend.cpp
     CPUDispatcher.cpp)
+    target_link_libraries(MllmCPUBackend PUBLIC hwy)
 endif()
 
 target_link_libraries(MllmCPUBackend PUBLIC MllmRT)
@@ -132,4 +139,7 @@ if(MLLM_BUILD_ARM_BACKEND)
     FILES_MATCHING
     PATTERN "*.h"
     PATTERN "*.hpp")
+else()
+  # X86 highway
+  # TODO
 endif()

@@ -28,7 +28,8 @@ void CPUSoftmaxOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
         MLLM_CONDITIONAL_PARALLEL_FOR(options_.getThreads() > 1, options_.getThreads(), h, 0, H, 1, {
           for (int s = 0; s < S; ++s) {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-            // TODO
+            x86::softmax_v1_fp32(X.cptrAt<mllm_fp32_t>({b, (int)h, s, 0}), Y.cptrAt<mllm_fp32_t>({b, (int)h, s, 0}), D, 1,
+                                 options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
             arm::softmax_v1_fp32(X.cptrAt<mllm_fp32_t>({b, (int)h, s, 0}), Y.cptrAt<mllm_fp32_t>({b, (int)h, s, 0}), D, 1,
                                  options_.getThreads());
@@ -43,7 +44,7 @@ void CPUSoftmaxOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
         MLLM_CONDITIONAL_PARALLEL_FOR(options_.getThreads() > 1, options_.getThreads(), h, 0, H, 1, {
           for (int s = 0; s < S; ++s) {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-            // TODO
+            NYI("CPUSoftmaxOp::forward not support dtype {}", nameOfType(X.dtype()));
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
             arm::softmax_v1_fp16(X.cptrAt<mllm_fp16_t>({b, (int)h, s, 0}), Y.cptrAt<mllm_fp16_t>({b, (int)h, s, 0}), D, 1,
                                  options_.getThreads());

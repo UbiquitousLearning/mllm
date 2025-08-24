@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 #pragma once
 
+#define MLLM_MODEL_FILE_NAME_LEN 512
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -17,20 +19,20 @@ enum MllmReturnCode {
  * @brief Initialize the MLLM context
  * @return 0 on success, negative value on error
  */
-MllmReturnCode mllm_init_context();
+enum MllmReturnCode mllm_init_context();
 
 /**
  * @brief Shutdown the MLLM context
  * @return 0 on success, negative value on error
  */
-MllmReturnCode mllm_shutdown_context();
+enum MllmReturnCode mllm_shutdown_context();
 
 /**
  * @brief Show memory report
  *
  * @return 0 on success, negative value on error
  */
-MllmReturnCode mllm_show_memory_report();
+enum MllmReturnCode mllm_show_memory_report();
 
 enum ARGenerationStatusCode {
   AR_GENERATION_STATUS_CODE_SUCCESS = 0,
@@ -38,8 +40,22 @@ enum ARGenerationStatusCode {
 };
 
 struct ARGenerationContext {
-  ARGenerationStatusCode status_code;
+  char model_file_name[MLLM_MODEL_FILE_NAME_LEN];
+  enum ARGenerationStatusCode status_code;
+  void* model_handler;
+  void* tokenizer_handler;
 };
+
+struct ARGenerationResult {
+  char* text;
+};
+
+struct ARGenerationContext mllm_ar_from_pretrained(char* model_base_name, char* model_file_path, char* tokenizer_file_path,
+                                                   char* config_file_path, int device = 0);
+
+enum MllmReturnCode mllm_ar_context_free(struct ARGenerationContext* context);
+
+struct ARGenerationResult mllm_ar_step(struct ARGenerationContext* context);
 
 #ifdef __cplusplus
 }
