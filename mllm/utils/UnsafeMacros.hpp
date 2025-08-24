@@ -3,7 +3,6 @@
 
 #pragma once
 
-// 编译器检测部分
 #if defined(__GNUC__) || defined(__clang__)
 #define __MLLM_UNSAFE_COMPILER_GCC_OR_CLANG 1
 #elif defined(_MSC_VER)
@@ -28,10 +27,8 @@
   __pragma(optimize("", push)) __pragma(optimize("t", on)) __pragma(optimize("y", on)) __pragma(optimize("g", on)) \
       __pragma(float_control(except, off, push)) __pragma(fp_contract(on))
 
-// 恢复之前保存的优化设置的宏
 #define __MLLM_UNSAFE_OPT_END __pragma(optimize("", pop)) __pragma(float_control(except, pop))
 
-// 其他编译器
 #else
 #define __MLLM_UNSAFE_OPT_BEGIN_O3
 #define __MLLM_UNSAFE_OPT_BEGIN_FAST_MATH

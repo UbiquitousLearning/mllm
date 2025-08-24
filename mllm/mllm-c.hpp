@@ -2,8 +2,6 @@
 // Licensed under the MIT License.
 #pragma once
 
-#include <mllm/mllm.hpp>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,6 +17,13 @@ int mllm_init_context();
  * @return 0 on success, negative value on error
  */
 int mllm_shutdown_context();
+
+/**
+ * @brief Show memory report
+ *
+ * @return int
+ */
+int mllm_show_memory_report();
 
 #ifdef __cplusplus
 }
