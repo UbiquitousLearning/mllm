@@ -3,7 +3,7 @@
 
 #include <mllm/mllm.hpp>
 
-#include "mllm-c.hh"
+#include "mllm-c.hpp"
 
 int mllm_init_context() {
   mllm::initializeContext();
@@ -12,5 +12,10 @@ int mllm_init_context() {
 
 int mllm_shutdown_context() {
   mllm::shutdownContext();
+  return 0;
+}
+
+int mllm_show_memory_report() {
+  mllm::memoryReport();
   return 0;
 }
