@@ -64,6 +64,7 @@ void CPUTransposeOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   }
 
   // CASE 3. Exchange last 2 dims.
+  // FIXME: (dim0 + dim1 == 1) is error logic.
   else if (input_shape.size() != 2 && (dim0 + dim1 == 1)) {
     int batch = 0;
     for (int i = 0; i < input_shape.size() - 2; i++) { batch *= input_shape[i]; }

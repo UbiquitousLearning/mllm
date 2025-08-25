@@ -398,10 +398,10 @@ class Qwen2_5VLVisionMLP final : public nn::Module {
   Qwen2_5VLVisionMLP() = default;
   Qwen2_5VLVisionMLP(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
     // clang-format off
-    gate_proj_ = reg<nn::Linear>("gate_proj", cfg.visual_hidden_size, cfg.visual_intermediate_size, false);
+    gate_proj_ = reg<nn::Linear>("gate_proj", cfg.visual_hidden_size, cfg.visual_intermediate_size, true);
     silu_ = reg<nn::SiLU>("act");
-    up_proj_ = reg<nn::Linear>("up_proj", cfg.visual_hidden_size, cfg.visual_intermediate_size, false);
-    down_proj_ = reg<nn::Linear>("down_proj", cfg.visual_intermediate_size, cfg.visual_hidden_size, false);
+    up_proj_ = reg<nn::Linear>("up_proj", cfg.visual_hidden_size, cfg.visual_intermediate_size, true);
+    down_proj_ = reg<nn::Linear>("down_proj", cfg.visual_intermediate_size, cfg.visual_hidden_size, true);
     // clang-format on
   }
 

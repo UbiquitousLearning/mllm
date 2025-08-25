@@ -35,18 +35,25 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
       for (int i = 1; i <= b_ndim; ++i) {
         int a_idx = a_ndim - i;
         int b_idx = b_ndim - i;
-
         if (a_shape[a_idx] != b_shape[b_idx] && a_shape[a_idx] != 1 && b_shape[b_idx] != 1) {
           can_broadcast = false;
           break;
         }
       }
-
       can_be_broadcast_naive = can_broadcast;
     }
+
     if (can_be_broadcast_naive) {
       broadcast_naive_loops = 1;
-      for (int i = 0; i < a_ndim - b_ndim; ++i) { broadcast_naive_loops *= a_shape[i]; }
+      for (int i = 0; i < a_ndim; ++i) {
+        if (i < a_ndim - b_ndim) {
+          broadcast_naive_loops *= a_shape[i];
+        } else {
+          int b_idx = i - (a_ndim - b_ndim);
+          if (b_shape[b_idx] == 1) { broadcast_naive_loops *= a_shape[i]; }
+        }
+      }
+
       broadcast_naive_stride = 1;
       for (int i = 0; i < b_ndim; ++i) { broadcast_naive_stride *= b_shape[i]; }
     }
