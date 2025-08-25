@@ -1,6 +1,7 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include "mllm/core/Parallel.hpp"
 #include "mllm/backends/cpu/ops/LinearOp.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
 #include "mllm/backends/cpu/kernels/common/llamafile/llamafile_sgemm.hpp"

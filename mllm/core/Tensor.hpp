@@ -50,7 +50,16 @@ class Tensor {
 
   template<typename T>
   static inline Tensor fromVector(const std::vector<T>& vec, const shape_t& shape, DataTypes dtype = kFloat32,
-                                  DeviceTypes device = kCPU) {}
+                                  DeviceTypes device = kCPU) {
+    Tensor tensor = Tensor::empty(shape, dtype, device).alloc();
+    size_t tensor_size = tensor.numel();
+    if (vec.size() != tensor_size) {
+      MLLM_ERROR_EXIT(ExitCode::kShapeError, "Tensor size mismatch with std::vector size");
+      return Tensor::nil();
+    }
+    std::copy(vec.begin(), vec.end(), tensor.ptr<T>());
+    return tensor;
+  }
 
   /**
    * @brief Creates a shallow view (slice) of the tensor.
@@ -187,7 +196,7 @@ class Tensor {
 
   /**
    * @brief Computes the absolute value of the tensor elements.
-   * 
+   *
    * @return Tensor with absolute values
    */
   Tensor abs();
