@@ -168,6 +168,10 @@ Tensor Tensor::operator/(float rhs) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kDiv, aops::DivOpOptions{}, {*this, rhs_tensor})[0];
 }
 
+Tensor Tensor::abs() {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kAbs, aops::AbsOpOptions{}, {*this})[0];
+}
+
 Tensor Tensor::min(bool keep_dim, int32_t dim) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kReduceMin,
                                                   aops::ReduceMinOpOptions{.dim = dim, .keep_dim = keep_dim}, {*this})[0];

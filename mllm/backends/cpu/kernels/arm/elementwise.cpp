@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 #include "mllm/core/DataTypes.hpp"
+#include "mllm/core/Parallel.hpp"
 #include "mllm/utils/CPUArchHelper.hpp"
+#include "mllm/utils/UnsafeMacros.hpp"
 #include "mllm/backends/cpu/kernels/arm/elementwise.hpp"
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
@@ -252,6 +254,47 @@ void ew_div_int32_scalar(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __r
   ParallelElementwiseLoopArrayScalar<mllm_int32_t, int32x4_t, __ScalarDiv<mllm_int32_t>, __VectorDiv<int32x4_t>>::run(
       dst, src0, src1, size, thread_count);
 }
+
+void ew_abs_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, size_t size, int thread_count) {
+  ParallelElementwiseLoopUnary<mllm_fp32_t, float32x4_t, __ScalarAbs<mllm_fp32_t>, __VectorAbs<float32x4_t>>::run(
+      dst, src0, size, thread_count);
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_abs_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count) {
+  ParallelElementwiseLoopUnary<mllm_fp16_t, float16x8_t, __ScalarAbs<mllm_fp16_t>, __VectorAbs<float16x8_t>>::run(
+      dst, src0, size, thread_count);
+}
+#endif
+
+void ew_abs_int8(mllm_int8_t* __restrict__ dst, const mllm_int8_t* __restrict__ src0, size_t size, int thread_count) {
+  ParallelElementwiseLoopUnary<mllm_int8_t, int8x16_t, __ScalarAbs<mllm_int8_t>, __VectorAbs<int8x16_t>>::run(dst, src0, size,
+                                                                                                              thread_count);
+}
+
+void ew_abs_int16(mllm_int16_t* __restrict__ dst, const mllm_int16_t* __restrict__ src0, size_t size, int thread_count) {
+  ParallelElementwiseLoopUnary<mllm_int16_t, int16x8_t, __ScalarAbs<mllm_int16_t>, __VectorAbs<int16x8_t>>::run(dst, src0, size,
+                                                                                                                thread_count);
+}
+
+void ew_abs_int32(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __restrict__ src0, size_t size, int thread_count) {
+  ParallelElementwiseLoopUnary<mllm_int32_t, int32x4_t, __ScalarAbs<mllm_int32_t>, __VectorAbs<int32x4_t>>::run(dst, src0, size,
+                                                                                                                thread_count);
+}
+
+__MLLM_UNSAFE_OPT_BEGIN_FAST_MATH
+void ew_abs_complex_fp32(mllm_fp32_t* __restrict__ dst, const mllm_complex_fp32_t* __restrict__ src0, size_t size,
+                         int thread_count) {
+  MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = std::abs(src0[i]); });
+}
+__MLLM_UNSAFE_OPT_END
+
+__MLLM_UNSAFE_OPT_BEGIN_FAST_MATH
+void ew_abs_complex_fp64(mllm_fp32_t* __restrict__ dst, const mllm_complex_fp64_t* __restrict__ src0, size_t size,
+                         int thread_count) {
+  MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = (mllm_fp32_t)std::abs(src0[i]); });
+}
+__MLLM_UNSAFE_OPT_END
 
 }  // namespace mllm::cpu::arm
 

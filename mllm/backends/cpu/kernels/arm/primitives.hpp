@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstdlib>
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/utils/CPUArchHelper.hpp"
 
@@ -43,6 +44,11 @@ struct __ScalarMin {
   static MLLM_CPU_ARM_FORCE_INLINE __T cal(__T a, __T b) { return a < b ? a : b; }
 };
 
+template<typename __T>
+struct __ScalarAbs {
+  static MLLM_CPU_ARM_FORCE_INLINE __T cal(__T a) { return std::abs(a); }
+};
+
 template<typename __VT>
 struct __VectorAdd {
   static MLLM_CPU_ARM_FORCE_INLINE __VT cal(__VT a, __VT b) {}
@@ -81,6 +87,13 @@ struct __VectorMax {
 template<typename __VT>
 struct __VectorMin {
   static MLLM_CPU_ARM_FORCE_INLINE __VT cal(__VT a, __VT b) {}
+
+  static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 1; }
+};
+
+template<typename __VT>
+struct __VectorAbs {
+  static MLLM_CPU_ARM_FORCE_INLINE __VT cal(__VT a) {}
 
   static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 1; }
 };
@@ -132,6 +145,13 @@ struct __VectorMax<int32x4_t> {
 template<>
 struct __VectorMin<int32x4_t> {
   static MLLM_CPU_ARM_FORCE_INLINE int32x4_t cal(int32x4_t a, int32x4_t b) { return vminq_s32(a, b); }
+
+  static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 4; }
+};
+
+template<>
+struct __VectorAbs<int32x4_t> {
+  static MLLM_CPU_ARM_FORCE_INLINE int32x4_t cal(int32x4_t a) { return vabsq_s32(a); }
 
   static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 4; }
 };
@@ -188,6 +208,13 @@ struct __VectorMax<int16x8_t> {
 template<>
 struct __VectorMin<int16x8_t> {
   static MLLM_CPU_ARM_FORCE_INLINE int16x8_t cal(int16x8_t a, int16x8_t b) { return vminq_s16(a, b); }
+
+  static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 8; }
+};
+
+template<>
+struct __VectorAbs<int16x8_t> {
+  static MLLM_CPU_ARM_FORCE_INLINE int16x8_t cal(int16x8_t a) { return vabsq_s16(a); }
 
   static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 8; }
 };
@@ -262,6 +289,13 @@ struct __VectorMin<int8x16_t> {
   static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 16; }
 };
 
+template<>
+struct __VectorAbs<int8x16_t> {
+  static MLLM_CPU_ARM_FORCE_INLINE int8x16_t cal(int8x16_t a) { return vabsq_s8(a); }
+
+  static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 16; }
+};
+
 //===----------------------------------------------------------------------===//
 // Float32 Vector Ops
 //===----------------------------------------------------------------------===//
@@ -303,6 +337,13 @@ struct __VectorMax<float32x4_t> {
 template<>
 struct __VectorMin<float32x4_t> {
   static MLLM_CPU_ARM_FORCE_INLINE float32x4_t cal(float32x4_t a, float32x4_t b) { return vminq_f32(a, b); }
+
+  static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 4; }
+};
+
+template<>
+struct __VectorAbs<float32x4_t> {
+  static MLLM_CPU_ARM_FORCE_INLINE float32x4_t cal(float32x4_t a) { return vabsq_f32(a); }
 
   static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 4; }
 };
@@ -349,6 +390,13 @@ struct __VectorMax<float16x8_t> {
 template<>
 struct __VectorMin<float16x8_t> {
   static MLLM_CPU_ARM_FORCE_INLINE float16x8_t cal(float16x8_t a, float16x8_t b) { return vminq_f16(a, b); }
+
+  static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 8; }
+};
+
+template<>
+struct __VectorAbs<float16x8_t> {
+  static MLLM_CPU_ARM_FORCE_INLINE float16x8_t cal(float16x8_t a) { return vabsq_f16(a); }
 
   static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 8; }
 };

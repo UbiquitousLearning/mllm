@@ -31,11 +31,16 @@ struct DivOpOptions : public BaseOpOptions<DivOpOptions> {};
 
 struct NegOpOptions : public BaseOpOptions<NegOpOptions> {};
 
+struct AbsOpOptions : public BaseOpOptions<AbsOpOptions> {};
+
 __MLLM_ELEWISE_OP_DEFINE(AddOp);
 __MLLM_ELEWISE_OP_DEFINE(SubOp);
 __MLLM_ELEWISE_OP_DEFINE(MulOp);
 __MLLM_ELEWISE_OP_DEFINE(DivOp);
 __MLLM_ELEWISE_OP_DEFINE(NegOp);
+
+// Unary Ops
+__MLLM_ELEWISE_OP_DEFINE(AbsOp);
 
 }  // namespace mllm::aops
 

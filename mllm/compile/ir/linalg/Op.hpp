@@ -15,6 +15,7 @@ class AddOp;
 class SubOp;
 class MulOp;
 class DivOp;
+class AbsOp;
 class FillOp;
 class MatMulOp;
 class EmbeddingOp;
@@ -118,6 +119,7 @@ LINALG_AOPS_DEFINE(AddOp, ADDOP);
 LINALG_AOPS_DEFINE(SubOp, SUBOP);
 LINALG_AOPS_DEFINE(MulOp, MULOP);
 LINALG_AOPS_DEFINE(DivOp, DIVOP);
+LINALG_AOPS_DEFINE(AbsOp, ABSOP);
 
 LINALG_AOPS_DEFINE(MatMulOp, MATMULOP);
 

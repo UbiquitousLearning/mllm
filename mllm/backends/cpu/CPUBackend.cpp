@@ -42,7 +42,7 @@ namespace mllm::cpu {
 
 CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
   regOpFactory<CPULinearOpFactory, CPUFillOpFactory, CPUGraphBeginOpFactory, CPUGraphEndOpFactory, CPUAddOpFactory,
-               CPUSubOpFactory, CPUMulOpFactory, CPUDivOpFactory, CPUNegOpFactory, CPUReduceMaxOpFactory, CPUReduceMinOpFactory,
+               CPUSubOpFactory, CPUMulOpFactory, CPUDivOpFactory, CPUNegOpFactory, CPUAbsOpFactory, CPUReduceMaxOpFactory, CPUReduceMinOpFactory,
                CPUReduceSumOpFactory, CPUTransposeOpFactory, CPUPermuteOpFactory, CPUCastTypeOpFactory, CPUConcatOpFactory,
                CPUContiguousOpFactory, CPUCopyOpFactory, CPUEmbeddingOpFactory, CPUSplitOpFactory, CPUViewOpFactory,
                CPULayerNormOpFactory, CPURepeatOpFactory, CPUX2XOpFactory, CPUSoftmaxOpFactory, CPUSiLUOpFactory,

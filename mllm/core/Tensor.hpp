@@ -74,7 +74,7 @@ class Tensor {
    * @param shape Dimensions of the tensor.
    * @param dtype Data type (default: kFloat32).
    * @param device Target device (default: kCPU).
-   * @return New tensor but NO MEMORY ALLOCTED!!!
+   * @return New tensor but NO MEMORY ALLOCTATED!!!
    */
   static Tensor empty(const std::vector<int32_t>& shape, DataTypes dtype = kFloat32, DeviceTypes device = kCPU);
 
@@ -178,6 +178,13 @@ class Tensor {
   Tensor operator*(float rhs);
   Tensor operator/(float rhs);
   /// @}
+
+  /**
+   * @brief Computes the absolute value of the tensor elements.
+   * 
+   * @return Tensor with absolute values
+   */
+  Tensor abs();
 
   /**
    * @brief Get min

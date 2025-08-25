@@ -136,6 +136,62 @@ struct ParallelElementwiseLoopArrayScalar {
   }
 };
 
+// loop unary
+
+template<typename __ST, typename __VT, typename __ScalarOp, typename __VectorOp, size_t loop_unroll_size = 4>
+struct __ew_loop_unary {
+  static inline void run(__ST* __restrict dst, const __ST* __restrict src0, size_t size) {
+    size_t constexpr lanes = __VectorOp::lanes();
+    size_t vec_size = size & ~(lanes - 1);
+    size_t i = 0;
+    for (; i + lanes * loop_unroll_size <= vec_size; i += lanes * loop_unroll_size) {
+#pragma unroll
+      for (size_t u = 0; u < loop_unroll_size; ++u) {
+        __VT va = __VectorLoad<__VT>::load(src0, i + u * lanes);
+        __VT result = __VectorOp::cal(va);
+        __VectorStore<__VT>::store(dst, i + u * lanes, result);
+      }
+    }
+    for (; i < vec_size; i += lanes) {
+      __VT va = __VectorLoad<__VT>::load(src0, i);
+      __VT result = __VectorOp::cal(va);
+      __VectorStore<__VT>::store(dst, i, result);
+    }
+    for (; i < size; ++i) {
+      __ST sa = __ScalarLoad<__ST>::load(src0, i);
+      __ST result = __ScalarOp::cal(sa);
+      __ScalarStore<__ST>::store(dst, i, result);
+    }
+  }
+};
+
+template<typename __ST, typename __VT, typename __ScalarOp, typename __VectorOp, size_t loop_unroll_size = 4>
+struct ParallelElementwiseLoopUnary {
+  static inline void run(__ST* __restrict dst, const __ST* __restrict src0, size_t size, size_t thread_count) {
+    if (thread_count > 1) {
+      size_t constexpr lanes = __VectorOp::lanes();
+      size_t vec_size = size & ~(lanes - 1);
+      size_t chunk_size = (vec_size + thread_count - 1) / thread_count;
+      chunk_size = (chunk_size + lanes - 1) & ~(lanes - 1);
+
+      MLLM_AUTO_PARALLEL_FOR_BEGIN(start, 0, vec_size, chunk_size) {
+        size_t end = std::min((size_t)(start + chunk_size), vec_size);
+        size_t local_size = end - start;
+        __ew_loop_unary<__ST, __VT, __ScalarOp, __VectorOp, loop_unroll_size>::run(dst + start, src0 + start, local_size);
+      }
+      MLLM_AUTO_PARALLEL_FOR_END()
+
+      if (vec_size < size) {
+        size_t remaining_size = size - vec_size;
+        __ew_loop_unary<__ST, __VT, __ScalarOp, __VectorOp, loop_unroll_size>::run(dst + vec_size, src0 + vec_size,
+                                                                                   remaining_size);
+      }
+    } else {
+      __ew_loop_unary<__ST, __VT, __ScalarOp, __VectorOp, loop_unroll_size>::run(dst, src0, size);
+    }
+  }
+};
+
 //===----------------------------------------------------------------------===//
 // INSTANCE
 //===----------------------------------------------------------------------===//
@@ -262,6 +318,28 @@ void ew_mul_int32_scalar(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __r
 
 void ew_div_int32_scalar(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __restrict__ src0, const mllm_int32_t src1,
                          size_t size, int thread_count);
+
+//===----------------------------------------------------------------------===//
+// Abs operations
+//===----------------------------------------------------------------------===//
+void ew_abs_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, size_t size, int thread_count);
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_abs_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count);
+#endif
+
+void ew_abs_int8(mllm_int8_t* __restrict__ dst, const mllm_int8_t* __restrict__ src0, size_t size, int thread_count);
+
+void ew_abs_int16(mllm_int16_t* __restrict__ dst, const mllm_int16_t* __restrict__ src0, size_t size, int thread_count);
+
+void ew_abs_int32(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __restrict__ src0, size_t size, int thread_count);
+
+void ew_abs_complex_fp32(mllm_fp32_t* __restrict__ dst, const mllm_complex_fp32_t* __restrict__ src0, size_t size,
+                         int thread_count);
+
+void ew_abs_complex_fp64(mllm_fp32_t* __restrict__ dst, const mllm_complex_fp64_t* __restrict__ src0, size_t size,
+                         int thread_count);
+
 }  // namespace mllm::cpu::arm
 
 #endif
