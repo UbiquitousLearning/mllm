@@ -7,7 +7,7 @@ package mllm
 #cgo CFLAGS: -fPIC -I${SRCDIR}/SDK/include/
 #cgo LDFLAGS: -L${SRCDIR}/SDK/lib/
 #cgo LDFLAGS: -lMllmSdkC
-#cgo LDFLAGS: -Wl,-rpath=${SRCDIR}/SDK/lib
+#cgo LDFLAGS: -Wl,-rpath ${SRCDIR}/SDK/lib
 
 #include <mllm/mllm-c.hpp>
 #include <stdlib.h>

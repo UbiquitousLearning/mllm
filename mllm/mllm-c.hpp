@@ -51,7 +51,7 @@ struct ARGenerationResult {
 };
 
 struct ARGenerationContext mllm_ar_from_pretrained(char* model_base_name, char* model_file_path, char* tokenizer_file_path,
-                                                   char* config_file_path, int device = 0);
+                                                   char* config_file_path, int device);
 
 enum MllmReturnCode mllm_ar_context_free(struct ARGenerationContext* context);
 
