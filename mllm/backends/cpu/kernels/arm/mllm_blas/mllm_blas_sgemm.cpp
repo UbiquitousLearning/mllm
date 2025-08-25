@@ -241,6 +241,7 @@ void __mllm_blas_batch_matmul_fp32_gemv(const int BATCH, const int M, const int 
 }
 
 namespace {
+__MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
 static inline void dispatch_tile(int rm, int rn, const float* a, int64_t lda, const float* b, int64_t ldb, float* c,
                                  int64_t ldc, int64_t k) {
 #define KERNEL(__tile_m, __tile_n) \
@@ -280,7 +281,6 @@ static inline void dispatch_tile(int rm, int rn, const float* a, int64_t lda, co
     KERNEL(4, 8)
     KERNEL(4, 12)
     default: {
-      __MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
       auto _rm = std::min(rm, 8);
       auto _rn = std::min(rn, 16);
       for (int i = 0; i < _rm; ++i) {
@@ -292,13 +292,13 @@ static inline void dispatch_tile(int rm, int rn, const float* a, int64_t lda, co
           for (int j = 0; j < _rn; ++j) { c[i * ldc + j] += ai * b[l * ldb + j]; }
         }
       }
-      __MLLM_UNSAFE_OPT_END
       break;
     }
   }
 
 #undef KERNEL
 }
+__MLLM_UNSAFE_OPT_END
 }  // namespace
 
 bool __mllm_blas_sgemm_nt_nt(int64_t m, int64_t n, int64_t k, const float* A, int64_t lda, const float* B, int64_t ldb,

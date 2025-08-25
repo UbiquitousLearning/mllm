@@ -21,7 +21,8 @@
                 "benjamin-simmonds.pythoncpp-debug",
                 "cschlosser.doxdocgen",
                 "ms-vscode.cmake-tools",
-                "EditorConfig.EditorConfig"
+                "EditorConfig.EditorConfig",
+                "golang.go"
             ]
         }
     }

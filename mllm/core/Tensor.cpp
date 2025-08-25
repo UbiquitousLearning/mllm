@@ -28,6 +28,11 @@ void Tensor::operator delete(void* ptr) noexcept {
   for (auto& [a, _] : ((Tensor*)ptr)->attached_views_) { ((Tensor*)ptr)->attached_views_[a].reset(); }
 }
 
+void Tensor::delete_() noexcept {
+  this->impl_.reset();
+  for (auto& [a, _] : this->attached_views_) { this->attached_views_[a].reset(); }
+}
+
 Tensor Tensor::operator[](const SliceIndices& slice_index) const {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kSlice,
                                                   aops::SliceOpOptions{

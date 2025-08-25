@@ -376,9 +376,9 @@ struct MicroKernel<1, 4> {
 
 template<int RM, int RN>
 struct MicroKernel {
+  __MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
   static inline void accumulate(const float* a, int64_t lda, const float* b, int64_t ldb, float* c, int64_t ldc,
                                 int64_t k) noexcept {
-    __MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
     for (int i = 0; i < RM; ++i) {
       for (int j = 0; j < RN; ++j) { c[i * ldc + j] = 0; }
     }
@@ -388,8 +388,8 @@ struct MicroKernel {
         for (int j = 0; j < RN; ++j) { c[i * ldc + j] += ai * b[l * ldb + j]; }
       }
     }
-    __MLLM_UNSAFE_OPT_END
   }
+  __MLLM_UNSAFE_OPT_END
 };
 
 void mllm_blas_matmul_fp32(const int M, const int K, const int N, mllm_fp32_t* __restrict__ dst,

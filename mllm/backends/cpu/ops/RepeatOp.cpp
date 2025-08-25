@@ -49,16 +49,16 @@ void CPURepeatOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
       break;
     }
     case kFloat16: {
-      const float16_t* x_data = X.ptr<float16_t>();
-      float16_t* y_data = Y.ptr<float16_t>();
+      const mllm_fp16_t* x_data = X.ptr<mllm_fp16_t>();
+      mllm_fp16_t* y_data = Y.ptr<mllm_fp16_t>();
 
       for (size_t outer = 0; outer < outer_num; ++outer) {
-        const float16_t* x_outer_ptr = x_data + outer * x_step;
-        float16_t* y_outer_ptr = y_data + outer * y_step;
+        const mllm_fp16_t* x_outer_ptr = x_data + outer * x_step;
+        mllm_fp16_t* y_outer_ptr = y_data + outer * y_step;
 
         for (size_t d = 0; d < dim_size; ++d) {
-          const float16_t* src = x_outer_ptr + d * inner_num;
-          float16_t* dest = y_outer_ptr + d * multiplier * inner_num;
+          const mllm_fp16_t* src = x_outer_ptr + d * inner_num;
+          mllm_fp16_t* dest = y_outer_ptr + d * multiplier * inner_num;
 
           for (size_t m = 0; m < multiplier; ++m) { std::copy(src, src + inner_num, dest + m * inner_num); }
         }

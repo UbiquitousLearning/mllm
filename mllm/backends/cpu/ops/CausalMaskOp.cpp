@@ -129,17 +129,17 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
       if (S == 1) {  // When sequence length is 1, no masking is needed.
         for (int b = 0; b < B; ++b) {
           for (int h = 0; h < H; ++h) {
-            auto* i_ptr = ins.offsettedPtr<float16_t>({b, h, 0, 0});
-            auto* o_ptr = ous.offsettedPtr<float16_t>({b, h, 0, 0});
-            memcpy(o_ptr, i_ptr, D * sizeof(float16_t));
+            auto* i_ptr = ins.offsettedPtr<mllm_fp16_t>({b, h, 0, 0});
+            auto* o_ptr = ous.offsettedPtr<mllm_fp16_t>({b, h, 0, 0});
+            memcpy(o_ptr, i_ptr, D * sizeof(mllm_fp16_t));
           }
         }
         return;
       }
       for (int b = 0; b < B; ++b) {
         for (int h = 0; h < H; ++h) {
-          auto* i_ptr = ins.offsettedPtr<float16_t>({b, h, 0, 0});
-          auto* o_ptr = ous.offsettedPtr<float16_t>({b, h, 0, 0});
+          auto* i_ptr = ins.offsettedPtr<mllm_fp16_t>({b, h, 0, 0});
+          auto* o_ptr = ous.offsettedPtr<mllm_fp16_t>({b, h, 0, 0});
 
           if (!options_.sliding_window) {
             // Standard causal mask
@@ -151,9 +151,9 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
               const size_t copy_count = s + 1;
               const size_t fill_count = S - copy_count;
 
-              if (copy_count > 0) { memcpy(o_ptr + row_offset, i_ptr + row_offset, copy_count * sizeof(float16_t)); }
+              if (copy_count > 0) { memcpy(o_ptr + row_offset, i_ptr + row_offset, copy_count * sizeof(mllm_fp16_t)); }
 
-              float16_t* fill_start = o_ptr + row_offset + copy_count;
+              mllm_fp16_t* fill_start = o_ptr + row_offset + copy_count;
               size_t avx_iters = fill_count / 8;
               size_t remainder = fill_count % 8;
 
@@ -169,9 +169,9 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
               const size_t copy_count = s + 1;
               const size_t fill_count = S - copy_count;
 
-              if (copy_count > 0) { memcpy(o_ptr + row_offset, i_ptr + row_offset, copy_count * sizeof(float16_t)); }
+              if (copy_count > 0) { memcpy(o_ptr + row_offset, i_ptr + row_offset, copy_count * sizeof(mllm_fp16_t)); }
 
-              float16_t* fill_start = o_ptr + row_offset + copy_count;
+              mllm_fp16_t* fill_start = o_ptr + row_offset + copy_count;
               size_t neon_iters = fill_count / 8;
               size_t remainder = fill_count % 8;
 
@@ -190,7 +190,8 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
               const size_t prefix_fill_count = copy_start_idx;
               // 2. Copy content
               const size_t copy_count = s - copy_start_idx + 1;
-              memcpy(o_ptr + row_offset + copy_start_idx, i_ptr + row_offset + copy_start_idx, copy_count * sizeof(float16_t));
+              memcpy(o_ptr + row_offset + copy_start_idx, i_ptr + row_offset + copy_start_idx,
+                     copy_count * sizeof(mllm_fp16_t));
               // 3. Mask suffix
               const size_t suffix_fill_start_idx = s + 1;
               const size_t suffix_fill_count = S - suffix_fill_start_idx;
@@ -200,23 +201,25 @@ void CPUCausalMaskOp::forward(const std::vector<Tensor>& inputs, std::vector<Ten
               const __m128i mask_val = _mm256_cvtps_ph(mask_ps, _MM_FROUND_TO_NEAREST_INT);
 
               // Fill prefix
-              float16_t* prefix_fill_start = o_ptr + row_offset;
-              for (size_t i = 0; i < prefix_fill_count / 8; ++i)
+              mllm_fp16_t* prefix_fill_start = o_ptr + row_offset;
+              for (size_t i = 0; i < prefix_fill_count / 8; ++i) {
                 _mm_storeu_si128(reinterpret_cast<__m128i*>(prefix_fill_start + i * 8), mask_val);
+              }
               for (size_t i = (prefix_fill_count / 8) * 8; i < prefix_fill_count; ++i) prefix_fill_start[i] = -65500.f;
               // Fill suffix
-              float16_t* suffix_fill_start = o_ptr + row_offset + suffix_fill_start_idx;
-              for (size_t i = 0; i < suffix_fill_count / 8; ++i)
+              mllm_fp16_t* suffix_fill_start = o_ptr + row_offset + suffix_fill_start_idx;
+              for (size_t i = 0; i < suffix_fill_count / 8; ++i) {
                 _mm_storeu_si128(reinterpret_cast<__m128i*>(suffix_fill_start + i * 8), mask_val);
+              }
               for (size_t i = (suffix_fill_count / 8) * 8; i < suffix_fill_count; ++i) suffix_fill_start[i] = -65500.f;
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
               const float16x8_t mask_val = vdupq_n_f16(-65500.f);
               // Fill prefix
-              float16_t* prefix_fill_start = o_ptr + row_offset;
+              mllm_fp16_t* prefix_fill_start = o_ptr + row_offset;
               for (size_t i = 0; i < prefix_fill_count / 8; ++i) vst1q_f16(prefix_fill_start + i * 8, mask_val);
               for (size_t i = (prefix_fill_count / 8) * 8; i < prefix_fill_count; ++i) prefix_fill_start[i] = -65500.f;
               // Fill suffix
-              float16_t* suffix_fill_start = o_ptr + row_offset + suffix_fill_start_idx;
+              mllm_fp16_t* suffix_fill_start = o_ptr + row_offset + suffix_fill_start_idx;
               for (size_t i = 0; i < suffix_fill_count / 8; ++i) vst1q_f16(suffix_fill_start + i * 8, mask_val);
               for (size_t i = (suffix_fill_count / 8) * 8; i < suffix_fill_count; ++i) suffix_fill_start[i] = -65500.f;
 #endif

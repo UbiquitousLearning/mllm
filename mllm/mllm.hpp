@@ -86,7 +86,7 @@ std::pair<TaskResult::sender_t, Task::ptr_t> fork(__Module& module, __Args&&... 
     } else if constexpr (std::is_convertible_v<CleanType, AnyValue>) {
       others.push_back(std::forward<__Args>(args));
     } else {
-      static_assert(false, "Unsupported argument type!");
+      static_assert(always_false<CleanType>::value, "Unsupported argument type!");
     }
   }());
   auto task = std::make_shared<Task>();
@@ -220,7 +220,7 @@ inline void safe_write(const char* msg, size_t len) {
   DWORD bytesWritten;
   WriteFile(hStderr, msg, static_cast<DWORD>(len), &bytesWritten, NULL);
 #else
-  write(STDERR_FILENO, msg, len);
+  (void)write(STDERR_FILENO, msg, len);
 #endif
 }
 inline const char* signal_description(int signal) {

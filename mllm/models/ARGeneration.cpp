@@ -10,6 +10,7 @@
 
 namespace mllm::models {
 
+__MLLM_UNSAFE_OPT_BEGIN_O3
 ARGenerationOutputPast ARGeneration::generate(const ARGenerationOutputPast& input, const ARGenerationArgs& args) {
   ARGenerationOutputPast past = input;
   std::vector<int64_t> generated_tokens;
@@ -53,9 +54,8 @@ ARGenerationOutputPast ARGeneration::generate(const ARGenerationOutputPast& inpu
 
   // From blob
   Tensor generated_tensor = Tensor::empty({(int32_t)generated_tokens.size()}, kInt64, kCPU).alloc();
-  __MLLM_UNSAFE_OPT_BEGIN_O3
+
   std::copy(generated_tokens.begin(), generated_tokens.end(), generated_tensor.ptr<mllm_int64_t>());
-  __MLLM_UNSAFE_OPT_END
 
   // Clear things in output.
   past["logits"] = Tensor::nil();
@@ -63,6 +63,7 @@ ARGenerationOutputPast ARGeneration::generate(const ARGenerationOutputPast& inpu
   past["generated_sequence"] = generated_tensor;
   return past;
 }
+__MLLM_UNSAFE_OPT_END
 
 void ARGeneration::streamGenerate(const ARGenerationOutputPast& input, const ARGenerationArgs& args,
                                   const std::function<void(int64_t)>& callback) {
@@ -106,6 +107,7 @@ void ARGeneration::streamGenerate(const ARGenerationOutputPast& input, const ARG
   }
 }
 
+__MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
 int64_t ARGeneration::sampleGreedy(Tensor& logits) {
   Tensor last_logits = getLastLogits(logits);
 
@@ -115,11 +117,12 @@ int64_t ARGeneration::sampleGreedy(Tensor& logits) {
 
   auto logits_data = last_logits.ptr<float>();
   int vocab_size = last_logits.shape().back();
-  __MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
+
   auto max_it = std::max_element(logits_data, logits_data + vocab_size);
-  __MLLM_UNSAFE_OPT_END
+
   return std::distance(logits_data, max_it);
 }
+__MLLM_UNSAFE_OPT_END
 
 int64_t ARGeneration::sampleTemperature(Tensor& logits, float temperature) {
   Tensor last_logits = getLastLogits(logits);
@@ -129,8 +132,8 @@ int64_t ARGeneration::sampleTemperature(Tensor& logits, float temperature) {
   Tensor probs = nn::functional::softmax(last_logits, -1);
 
   // I NEED MORE MEMORY!
-  delete &last_logits;
-  delete &logits;
+  last_logits.delete_();
+  logits.delete_();
 
   // FIXME:
   // Prob may be in fp16 dtype. We need to handle it.
@@ -139,6 +142,7 @@ int64_t ARGeneration::sampleTemperature(Tensor& logits, float temperature) {
   return categoricalSample(probs);
 }
 
+__MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
 int64_t ARGeneration::sampleTopK(Tensor& logits, int k, float temperature) {
   // We need the last logits
   Tensor last_logits = getLastLogits(logits);
@@ -150,8 +154,8 @@ int64_t ARGeneration::sampleTopK(Tensor& logits, int k, float temperature) {
   Tensor probs = nn::functional::softmax(last_logits, -1);
 
   // I NEED MORE MEMORY!
-  delete &last_logits;
-  delete &logits;
+  last_logits.delete_();
+  logits.delete_();
 
   // FIXME:
   // Prob may be in fp16 dtype. We need to handle it.
@@ -159,7 +163,6 @@ int64_t ARGeneration::sampleTopK(Tensor& logits, int k, float temperature) {
   auto prob_data = probs.ptr<float>();
   int vocab_size = probs.shape().back();
 
-  __MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
   // Indexing
   std::vector<int> indices(vocab_size);
   std::iota(indices.begin(), indices.end(), 0);
@@ -174,11 +177,12 @@ int64_t ARGeneration::sampleTopK(Tensor& logits, int k, float temperature) {
   }
   // Norm probs
   for (int i = 0; i < k; ++i) { top_k_probs[i] *= (1.f / sum); }
-  __MLLM_UNSAFE_OPT_END
 
   return indices[sampleFromDistribution(top_k_probs)];
 }
+__MLLM_UNSAFE_OPT_END
 
+__MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
 int64_t ARGeneration::sampleTopP(Tensor& logits, float p, float temperature) {
   Tensor last_logits = getLastLogits(logits);
 
@@ -187,8 +191,8 @@ int64_t ARGeneration::sampleTopP(Tensor& logits, float p, float temperature) {
   Tensor probs = nn::functional::softmax(last_logits, -1);
 
   // I NEED MORE MEMORY!
-  delete &last_logits;
-  delete &logits;
+  last_logits.delete_();
+  logits.delete_();
 
   // FIXME:
   // Prob may be in fp16 dtype. We need to handle it.
@@ -196,7 +200,6 @@ int64_t ARGeneration::sampleTopP(Tensor& logits, float p, float temperature) {
   auto prob_data = probs.ptr<float>();
   int vocab_size = probs.shape().back();
 
-  __MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
   std::vector<int> indices(vocab_size);
   std::iota(indices.begin(), indices.end(), 0);
   std::sort(indices.begin(), indices.end(), [&prob_data](int i1, int i2) { return prob_data[i1] > prob_data[i2]; });
@@ -209,11 +212,12 @@ int64_t ARGeneration::sampleTopP(Tensor& logits, float p, float temperature) {
   }
   float sum = std::accumulate(top_probs.begin(), top_probs.end(), 0.0f);
   for (float& prob : top_probs) { prob *= (1.f / sum); }
-  __MLLM_UNSAFE_OPT_END
 
   return indices[sampleFromDistribution(top_probs)];
 }
+__MLLM_UNSAFE_OPT_END
 
+__MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
 int64_t ARGeneration::categoricalSample(const Tensor& probs) {
   // FIXME:
   // Prob may be in fp16 dtype. We need to handle it.
@@ -221,10 +225,8 @@ int64_t ARGeneration::categoricalSample(const Tensor& probs) {
   auto prob_data = probs.ptr<float>();
   int vocab_size = probs.shape().back();
 
-  __MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
   std::vector<float> cumulative_probs(vocab_size);
   std::partial_sum(prob_data, prob_data + vocab_size, cumulative_probs.begin());
-  __MLLM_UNSAFE_OPT_END
 
   std::random_device rd;
   std::mt19937 gen(rd());
@@ -234,6 +236,7 @@ int64_t ARGeneration::categoricalSample(const Tensor& probs) {
   auto it = std::lower_bound(cumulative_probs.begin(), cumulative_probs.end(), r);
   return std::distance(cumulative_probs.begin(), it);
 }
+__MLLM_UNSAFE_OPT_END
 
 Tensor ARGeneration::getLastLogits(Tensor& logits) {
   // [B, S, D] for almost all TextLLM, VLM.

@@ -28,7 +28,9 @@ void CPURMSNormOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
     case kFloat32: {
       MLLM_CONDITIONAL_PARALLEL_FOR(options_.getThreads() > 1, options_.getThreads(), other_dim, 0, other_dim_size, 1, {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-      // TODO
+        x86::rmsnorm_fp32(i.ptr<mllm_fp32_t>() + other_dim * D, weight_.ptr<mllm_fp32_t>(),
+                          o.ptr<mllm_fp32_t>() + other_dim * D, D, options_.epsilon, options_.add_unit_offset,
+                          options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
   arm::rmsnorm_fp32(i.ptr<mllm_fp32_t>() + other_dim * D, weight_.ptr<mllm_fp32_t>(),
                           o.ptr<mllm_fp32_t>() + other_dim * D, D, options_.epsilon, options_.add_unit_offset,
@@ -40,7 +42,7 @@ void CPURMSNormOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor
     case kFloat16: {
       MLLM_CONDITIONAL_PARALLEL_FOR(options_.getThreads() > 1, options_.getThreads(), other_dim, 0, other_dim_size, 1, {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-      // TODO
+        NYI("Unsupported data type");
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         arm::rmsnorm_fp16(i.ptr<mllm_fp16_t>() + other_dim * D, weight_.ptr<mllm_fp16_t>(),
                           o.ptr<mllm_fp16_t>() + other_dim * D, D, options_.epsilon, options_.add_unit_offset,

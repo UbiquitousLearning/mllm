@@ -19,6 +19,7 @@ option(MLLM_BUILD_ARM_BACKEND "Enable MLLM ARM backend" OFF)
 option(MLLM_BUILD_OPENCL_BACKEND "Enable MLLM OpenCL backend" OFF)
 option(MLLM_BUILD_CUDA_BACKEND "Enable MLLM CUDA backend" OFF)
 option(MLLM_BUILD_QNN_BACKEND "Enable MLLM QNN backend" OFF)
+option(MLLM_BUILD_SDK_C_BINDING "Enable MLLM C SDK binding" OFF)
 
 # CPU Backend: BLAS
 option(MLLM_USE_BLAS "Enable BLAS" OFF)
@@ -189,6 +190,14 @@ if(MLLM_ENABLE_TOOLS)
   add_subdirectory(tools)
 endif()
 
+# Handle SDK C Bindings
+if (MLLM_BUILD_SDK_C_BINDING)
+  add_library(MllmSdkC SHARED mllm/mllm-c.cpp)
+  target_link_libraries(MllmSdkC PRIVATE MllmRT MllmCPUBackend)
+  # FIXME:
+  # Link other backends if possible
+endif()
+
 # Install mllm main library: Config.
 set(INSTALL_MLLM_VERSION ${PROJECT_VERSION})
 set(INCLUDE_INSTALL_DIR
@@ -210,6 +219,15 @@ install(
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin)
+
+if(MLLM_BUILD_SDK_C_BINDING)
+  install(
+    TARGETS MllmSdkC
+    EXPORT MllmTargets
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin)
+endif()
 
 install(
   DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/mllm/
@@ -245,7 +263,8 @@ install(
   PATTERN "*.hpp")
 
 # Install tools
-install(TARGETS mllm-params-inspector DESTINATION bin)
+# FIXME: Add other tools here
+install(TARGETS mllm-params-inspector mllm-quantizer DESTINATION bin)
 
 # Final config and file copy.
 install(
