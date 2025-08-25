@@ -457,4 +457,66 @@ void CPUNegOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   NYI("NegOp not support");
 }
 
+CPUAbsOp::CPUAbsOp(const aops::AbsOpOptions& options) : aops::AbsOp(options) {}
+
+void CPUAbsOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  auto& input = inputs[0];
+  auto& output = outputs[0];
+
+  auto dtype = input.dtype();
+
+  switch (dtype) {
+    case kFloat32: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::ew_abs_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+
+    case kFloat16: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+      cpu::arm::ew_abs_fp16(output.ptr<mllm_fp16_t>(), input.ptr<mllm_fp16_t>(), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+
+    case kInt32: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::ew_abs_int32(output.ptr<mllm_int32_t>(), input.ptr<mllm_int32_t>(), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+
+    case kInt16: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::ew_abs_int16(output.ptr<mllm_int16_t>(), input.ptr<mllm_int16_t>(), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+
+    case kInt8: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::ew_abs_int8(output.ptr<mllm_int8_t>(), input.ptr<mllm_int8_t>(), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+
+    case kComplexFloat32: {
+      // just use simple std::abs()
+      cpu::arm::ew_abs_complex_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_complex_fp32_t>(), output.numel(),
+                                    options_.getThreads());
+      break;
+    }
+
+    case kComplexFloat64: {
+      // just use simple std::abs()
+      cpu::arm::ew_abs_complex_fp64(output.ptr<mllm_fp32_t>(), input.ptr<mllm_complex_fp64_t>(), output.numel(),
+                                    options_.getThreads());
+      break;
+    }
+
+    default: NYI("AbsOp not support data type: {}", nameOfType(dtype)); break;
+  }
+}
+
 }  // namespace mllm::cpu

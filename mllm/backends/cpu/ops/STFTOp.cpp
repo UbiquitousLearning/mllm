@@ -214,6 +214,41 @@ static void fftBluestein(const std::vector<T>& input, std::vector<std::complex<T
   }
 }
 
+static void padSignal(const Tensor& input, std::vector<float>& padded_signal, int n_fft, bool center,
+                      const std::string& pad_mode) {
+  auto input_shape = input.shape();
+  int signal_length = input_shape.size() == 1 ? input_shape[0] : input_shape[1];
+
+  if (center) {
+    int pad_length = n_fft / 2;
+    int padded_length = signal_length + 2 * pad_length;
+    padded_signal.resize(padded_length);
+
+    // 复制原始信号
+    for (int i = 0; i < signal_length; ++i) { padded_signal[pad_length + i] = input.ptr<float>()[i]; }
+
+    if (pad_mode == "reflect") {
+      // reflect：mirror padding
+      for (int i = 0; i < pad_length; ++i) {
+        // left padding: reverse copy from the beginning, not including the boundary
+        padded_signal[i] = input.ptr<float>()[pad_length - i];  // 1...pad_length
+        // right padding: reverse copy from the end, not including the boundary
+        padded_signal[pad_length + signal_length + i] = input.ptr<float>()[signal_length - 2 - i];
+      }
+    } else {
+      // constant：0 padding (default)
+      for (int i = 0; i < pad_length; ++i) {
+        padded_signal[i] = 0.0f;
+        padded_signal[pad_length + signal_length + i] = 0.0f;
+      }
+    }
+  } else {
+    // center=false，no padding
+    padded_signal.resize(signal_length);
+    for (int i = 0; i < signal_length; ++i) { padded_signal[i] = input.ptr<float>()[i]; }
+  }
+}
+
 void CPUSTFTOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
   auto& input = inputs[0];
   auto& window = inputs[1];
@@ -232,9 +267,18 @@ void CPUSTFTOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
   // STFT parameters
   int n_fft = options_.n_fft;
   int hop_length = options_.hop_length;
-  int win_length = options_.win_length;
-  // If win_length is not specified, use n_fft
-  if (win_length == 0) { win_length = n_fft; }
+  int win_length = options_.win_length;  // win_length <= n_fft has been verified in aops
+  bool center = options_.center;
+  std::string pad_mode = options_.pad_mode;
+  bool return_complex = options_.return_complex;
+
+  // 对输入信号进行填充处理
+  std::vector<float> padded_signal;
+  padSignal(input, padded_signal, n_fft, center, pad_mode);
+  int padded_length = static_cast<int>(padded_signal.size());
+
+  // Recalculate signal length after padding
+  signal_length = padded_length;
 
   // Temporary buffers
   std::vector<float> windowed_input(n_fft);
@@ -247,17 +291,14 @@ void CPUSTFTOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
       int start_idx = f * hop_length;
 
       // Get windowed input and apply window function
-      // do the same padding as `center=False` in pytorch
-      // TODO: support center=True and pad_mode
+      // Apply padding based on center and pad_mode parameters
       for (int i = 0; i < win_length; ++i) {
         if (start_idx + i < signal_length) {
-          windowed_input[i] = input.ptr<float>()[b * signal_length + start_idx + i] * window.ptr<float>()[i];
+          windowed_input[i] = padded_signal[start_idx + i] * window.ptr<float>()[i];
         } else {
           windowed_input[i] = 0.0f;
         }
       }
-      // Zero-pad if needed
-      for (int i = win_length; i < n_fft; ++i) { windowed_input[i] = 0.0f; }
 
       // Compute FFT
       if (is_power_of_2(n_fft)) {
@@ -266,10 +307,18 @@ void CPUSTFTOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
         fftBluestein<float>(windowed_input, fft_output, n_fft);
       }
 
-      // Store onesided output (real and imaginary parts)
-      for (int freq = 0; freq < freq_bins; ++freq) {
-        output.at<float>({b, freq, f, 0}) = fft_output[freq].real();
-        output.at<float>({b, freq, f, 1}) = fft_output[freq].imag();
+      // Store output based on return_complex option
+      if (return_complex) {
+        // Store as complex values
+        for (int freq = 0; freq < freq_bins; ++freq) {
+          output.at<std::complex<float>>({b, freq, f}) = fft_output[freq];
+        }
+      } else {
+        // Store as real and imaginary parts in the last dimension
+        for (int freq = 0; freq < freq_bins; ++freq) {
+          output.at<float>({b, freq, f, 0}) = fft_output[freq].real();
+          output.at<float>({b, freq, f, 1}) = fft_output[freq].imag();
+        }
       }
     }
   }

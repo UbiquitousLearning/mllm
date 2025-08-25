@@ -57,6 +57,7 @@ enum class OpTypes : int32_t {
   kSlice,
   kParam,
   kIndex,
+  kAbs,
 
   // Graph Control Ops
   kGraphBegin,
@@ -73,6 +74,7 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kSub: return "Sub";
     case OpTypes::kMul: return "Mul";
     case OpTypes::kDiv: return "Div";
+    case OpTypes::kAbs: return "Abs";
     case OpTypes::kMatMul: return "MatMul";
     case OpTypes::kEmbedding: return "Embedding";
     case OpTypes::kLinear: return "Linear";
@@ -111,6 +113,7 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kContiguous: return "Contiguous";
     case OpTypes::kReshape: return "Reshape";
     case OpTypes::kSlice: return "Slice";
+    case OpTypes::kIndex: return "Index";
     case OpTypes::kParam: return "Param";
     case OpTypes::kGraphBegin: return "GraphBegin";
     case OpTypes::kGraphEnd: return "GraphEnd";

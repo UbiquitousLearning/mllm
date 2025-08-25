@@ -43,6 +43,13 @@ class CPUNegOp final : public aops::NegOp {
   void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 };
 
+class CPUAbsOp final : public aops::AbsOp {
+ public:
+  explicit CPUAbsOp(const aops::AbsOpOptions& options);
+
+  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+};
+
 class CPUAddOpFactory final : public TypedOpFactory<OpTypes::kAdd, aops::AddOpOptions> {
  public:
   std::shared_ptr<BaseOp> createOpImpl(const aops::AddOpOptions& options) override {
@@ -75,6 +82,13 @@ class CPUNegOpFactory : public TypedOpFactory<OpTypes::kNeg, aops::NegOpOptions>
  public:
   std::shared_ptr<BaseOp> createOpImpl(const aops::NegOpOptions& options) override {
     return std::make_shared<CPUNegOp>(options);
+  }
+};
+
+class CPUAbsOpFactory : public TypedOpFactory<OpTypes::kAbs, aops::AbsOpOptions> {
+ public:
+  std::shared_ptr<BaseOp> createOpImpl(const aops::AbsOpOptions& options) override {
+    return std::make_shared<CPUAbsOp>(options);
   }
 };
 

@@ -15,6 +15,7 @@ LINALG_AOPS_DECL(OpTypes::kAdd, AddOp);
 LINALG_AOPS_DECL(OpTypes::kSub, SubOp);
 LINALG_AOPS_DECL(OpTypes::kMul, MulOp);
 LINALG_AOPS_DECL(OpTypes::kDiv, DivOp);
+LINALG_AOPS_DECL(OpTypes::kAbs, AbsOp);
 
 LINALG_AOPS_DECL(OpTypes::kMatMul, MatMulOp);
 

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <complex>
 #include <half/half.hpp>
 
 #if defined(__ARM_FEATURE_FP16_SCALAR_ARITHMETIC) || defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
@@ -31,6 +32,9 @@ using mllm_uint16_t = uint16_t;
 using mllm_int8_t = int8_t;
 using mllm_uint8_t = uint8_t;
 using mllm_byte_t = mllm_uint8_t;
+
+using mllm_complex_fp32_t = std::complex<mllm_fp32_t>;
+using mllm_complex_fp64_t = std::complex<mllm_fp64_t>;
 
 //===----------------------------------------------------------------------===//
 // GGUF Types Define
@@ -332,6 +336,10 @@ enum DataTypes : int32_t {
   // 2. Your customized quantization method.
   kByte = 134,
   kMXFP4 = 135,
+
+  // complex dtypes for STFT and other ops
+  kComplexFloat32 = 201,
+  kComplexFloat64 = 202,
 };
 
 //===----------------------------------------------------------------------===//
@@ -465,6 +473,37 @@ MLLM_DEFINE_BASIC_TYPE_INFO(mllm_uint8_t, 0, 1, std::numeric_limits<mllm_uint8_t
 
 // There is no need to declare mllm_byte_t. It's already declared in mllm_uint8_t.
 
+// Complex types can not be declared by MLLM_DEFINE_BASIC_TYPE_INFO macro
+template<>
+struct DataTypeInfo<mllm_complex_fp64_t> {
+  static inline mllm_complex_fp64_t zero() { return std::complex<mllm_fp64_t>{0.0, 0.0}; }
+  static inline mllm_complex_fp64_t one() { return std::complex<mllm_fp64_t>{1.0, 0.0}; }
+  static inline mllm_complex_fp64_t max() {
+    return std::complex<mllm_fp64_t>{std::numeric_limits<mllm_fp64_t>::max(), std::numeric_limits<mllm_fp64_t>::max()};
+  }
+  static inline mllm_complex_fp64_t min() {
+    return std::complex<mllm_fp64_t>{std::numeric_limits<mllm_fp64_t>::lowest(), std::numeric_limits<mllm_fp64_t>::lowest()};
+  }
+  static inline size_t lanes() { return 1; }
+  static inline size_t bytes() { return sizeof(mllm_complex_fp64_t); }
+  static inline std::string name() { return "ComplexFP64"; }
+};
+
+template<>
+struct DataTypeInfo<mllm_complex_fp32_t> {
+  static inline mllm_complex_fp32_t zero() { return std::complex<mllm_fp32_t>{0.0f, 0.0f}; }
+  static inline mllm_complex_fp32_t one() { return std::complex<mllm_fp32_t>{1.0f, 0.0f}; }
+  static inline mllm_complex_fp32_t max() {
+    return std::complex<mllm_fp32_t>{std::numeric_limits<mllm_fp32_t>::max(), std::numeric_limits<mllm_fp32_t>::max()};
+  }
+  static inline mllm_complex_fp32_t min() {
+    return std::complex<mllm_fp32_t>{std::numeric_limits<mllm_fp32_t>::lowest(), std::numeric_limits<mllm_fp32_t>::lowest()};
+  }
+  static inline size_t lanes() { return 1; }
+  static inline size_t bytes() { return sizeof(mllm_complex_fp32_t); }
+  static inline std::string name() { return "ComplexFP32"; }
+};
+
 #undef MLLM_DEFINE_BASIC_TYPE_INFO
 
 #define MLLM_DEFINE_QUANT_TYPE_INFO(T, element_count, str_name) \
@@ -540,6 +579,9 @@ MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kGGUF_Q2_K, mllm_block_q2_K_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kGGUF_Q3_K, mllm_block_q3_K_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kGGUF_IQ2_XXS, mllm_block_iq2_xxs_t);
 MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kMXFP4, mllm_mxfp4_t);
+
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kComplexFloat64, mllm_complex_fp64_t);
+MLLM_DEFINE_SELF_TYPE_INFO(DataTypes::kComplexFloat32, mllm_complex_fp32_t);
 
 #undef MLLM_DEFINE_SELF_TYPE_INFO
 

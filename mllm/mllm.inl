@@ -2,6 +2,7 @@
 // Print Stuff
 //===----------------------------------------------------------------------===//
 #include <fmt/ranges.h>
+#include "mllm/core/DataTypes.hpp"
 
 namespace fmt {
 template<>
@@ -168,6 +169,16 @@ struct formatter<mllm::Tensor> {
         return fmt::format_to(out, "{}", tensor.constAt<mllm::mllm_uint32_t>(const_cast<std::vector<int32_t>&>(indices)));
       case mllm::kUInt64:
         return fmt::format_to(out, "{}", tensor.constAt<mllm::mllm_uint64_t>(const_cast<std::vector<int32_t>&>(indices)));
+      case mllm::kComplexFloat32:
+        return fmt::format_to(
+            out, "{:.{}e}{:+.{}e}j",
+            tensor.constAt<mllm::mllm_complex_fp32_t>(const_cast<std::vector<int32_t>&>(indices)).real(), precision,
+            tensor.constAt<mllm::mllm_complex_fp32_t>(const_cast<std::vector<int32_t>&>(indices)).imag(), precision);
+      case mllm::kComplexFloat64:
+        return fmt::format_to(
+            out, "{:.{}e}{:+.{}e}j",
+            tensor.constAt<mllm::mllm_complex_fp64_t>(const_cast<std::vector<int32_t>&>(indices)).real(), precision,
+            tensor.constAt<mllm::mllm_complex_fp64_t>(const_cast<std::vector<int32_t>&>(indices)).imag(), precision);
       default: return fmt::format_to(out, "?");
     }
   }
