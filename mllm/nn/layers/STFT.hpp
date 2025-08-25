@@ -18,6 +18,10 @@ namespace mllm::nn {
  * @param hop_length The distance between neighboring sliding window frames.
  * @param win_length The size of window frame and STFT window. If 0, it will be set to n_fft.
  * @param onesided Whether to return only the non-negative frequency bins.
+ * @param center Whether to pad the input on both sides so that the t-th frame is centered at time t * hop_length.
+ * @param pad_mode The padding mode to use for the input tensor.
+ * @param return_complex Whether to return a complex tensor.
+ * If false, the real and imaginary parts are stacked in the last dimension.
  *
  * @input_0 Input tensor with shape (batch_size, signal_length)
  * @input_1 Window tensor with shape (win_length), should always be provided.
@@ -32,7 +36,7 @@ class STFT : public Layer {
   explicit STFT(const aops::STFTOpOptions& options);
 
   STFT(int n_fft, int hop_length, int win_length, bool onesided = true, bool center = false,
-       const std::string& pad_mode = "constant");
+       const std::string& pad_mode = "constant", bool return_complex = false);
 
   MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };

@@ -17,8 +17,9 @@ struct STFTOpOptions : public BaseOpOptions<STFTOpOptions> {
   int hop_length = 0;
   int win_length = 0;
   bool onesided = true;
-  bool center = false;  // Changed default to false to match current implementation
+  bool center = false;                // Changed default to false to match current implementation
   std::string pad_mode = "constant";  // Changed default to "constant" to match current implementation
+  bool return_complex = false;        // Whether to return a complex tensor
 };
 
 class STFTOp : public BaseOp {

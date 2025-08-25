@@ -61,8 +61,14 @@ void STFTOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& out
 
   int freq_bins = options_.onesided ? n_fft / 2 + 1 : n_fft;
 
-  // Reshape output tensor
-  outputs.emplace_back(Tensor::empty({batch_size, freq_bins, n_frames, 2}, input.dtype(), input.device()));
+  if (options_.return_complex) {
+    // Output shape: [batch_size, freq_bins, n_frames] with complex dtype
+    outputs.emplace_back(Tensor::empty({batch_size, freq_bins, n_frames},
+                                       input.dtype() == kFloat32 ? kComplexFloat32 : kComplexFloat64, input.device()));
+  } else {
+    // Output shape: [batch_size, freq_bins, n_frames, 2] with real dtype
+    outputs.emplace_back(Tensor::empty({batch_size, freq_bins, n_frames, 2}, input.dtype(), input.device()));
+  }
 }
 
 void STFTOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { BaseOp::setup(inputs, outputs); }

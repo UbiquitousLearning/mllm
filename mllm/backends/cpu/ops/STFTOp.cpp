@@ -270,6 +270,7 @@ void CPUSTFTOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
   int win_length = options_.win_length;  // win_length <= n_fft has been verified in aops
   bool center = options_.center;
   std::string pad_mode = options_.pad_mode;
+  bool return_complex = options_.return_complex;
 
   // 对输入信号进行填充处理
   std::vector<float> padded_signal;
@@ -306,10 +307,18 @@ void CPUSTFTOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
         fftBluestein<float>(windowed_input, fft_output, n_fft);
       }
 
-      // Store onesided output (real and imaginary parts)
-      for (int freq = 0; freq < freq_bins; ++freq) {
-        output.at<float>({b, freq, f, 0}) = fft_output[freq].real();
-        output.at<float>({b, freq, f, 1}) = fft_output[freq].imag();
+      // Store output based on return_complex option
+      if (return_complex) {
+        // Store as complex values
+        for (int freq = 0; freq < freq_bins; ++freq) {
+          output.at<std::complex<float>>({b, freq, f}) = fft_output[freq];
+        }
+      } else {
+        // Store as real and imaginary parts in the last dimension
+        for (int freq = 0; freq < freq_bins; ++freq) {
+          output.at<float>({b, freq, f, 0}) = fft_output[freq].real();
+          output.at<float>({b, freq, f, 1}) = fft_output[freq].imag();
+        }
       }
     }
   }
