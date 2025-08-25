@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 #pragma once
 
+#include <algorithm>
 #include <unordered_map>
 
 #include "mllm/mllm.hpp"
@@ -10,6 +11,8 @@
 
 #include "mllm/models/ARGeneration.hpp"
 #include "mllm/models/qwen2_5vl/configuration_qwen2_5vl.hpp"
+#include "mllm/utils/AnyValue.hpp"
+#include "mllm/utils/Enumerate.hpp"
 
 namespace mllm::models::qwen2_5vl {
 
@@ -384,20 +387,20 @@ class PatchMerger final : public nn::Module {
   }
 };
 
-class Qwen2_5VLMLP final : public nn::Module {
+class Qwen2_5VLVisionMLP final : public nn::Module {
   nn::Linear gate_proj_;
   nn::Linear up_proj_;
   nn::Linear down_proj_;
   nn::SiLU silu_;
 
  public:
-  Qwen2_5VLMLP() = default;
-  Qwen2_5VLMLP(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+  Qwen2_5VLVisionMLP() = default;
+  Qwen2_5VLVisionMLP(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
     // clang-format off
-    gate_proj_ = reg<nn::Linear>("gate_proj", cfg.visual_hidden_size, cfg.visual_intermediate_size, false, cfg.linear_impl_type);
+    gate_proj_ = reg<nn::Linear>("gate_proj", cfg.visual_hidden_size, cfg.visual_intermediate_size, false);
     silu_ = reg<nn::SiLU>("act");
-    up_proj_ = reg<nn::Linear>("up_proj", cfg.visual_hidden_size, cfg.visual_intermediate_size, false, cfg.linear_impl_type);
-    down_proj_ = reg<nn::Linear>("down_proj", cfg.visual_intermediate_size, cfg.visual_hidden_size, false, cfg.linear_impl_type);
+    up_proj_ = reg<nn::Linear>("up_proj", cfg.visual_hidden_size, cfg.visual_intermediate_size, false);
+    down_proj_ = reg<nn::Linear>("down_proj", cfg.visual_intermediate_size, cfg.visual_hidden_size, false);
     // clang-format on
   }
 
@@ -456,6 +459,7 @@ class VisionAttention final : public nn::Module {
     auto hidden_states = inputs[0];
     auto visual_embedding_sin = inputs[1];
     auto visual_embedding_cos = inputs[2];
+    auto& mask = inputs[3];
 
     auto seq_length = hidden_states.shape()[0];
 
@@ -475,6 +479,7 @@ class VisionAttention final : public nn::Module {
     // attention weight
     // [B=1, H, S, S]
     auto attn = nn::functional::matmul(query_states, key_states, false, true) * (1.f / sqrtf(head_dim_));
+    if (mask) { attn = attn + mask; }
     attn = softmax_(attn);
 
     // attn output
@@ -497,7 +502,7 @@ class Qwen2_5VLVisionBlock final : public nn::Module {
   nn::RMSNorm norm2_;
 
   VisionAttention attn_;
-  Qwen2_5VLMLP mlp_;
+  Qwen2_5VLVisionMLP mlp_;
 
  public:
   Qwen2_5VLVisionBlock() = default;
@@ -507,15 +512,16 @@ class Qwen2_5VLVisionBlock final : public nn::Module {
     norm1_ = reg<nn::RMSNorm>("norm1", 1e-6);
     norm2_ = reg<nn::RMSNorm>("norm2", 1e-6);
     attn_ = reg<VisionAttention>("attn", cfg);
-    mlp_ = reg<Qwen2_5VLMLP>("mlp", cfg);
+    mlp_ = reg<Qwen2_5VLVisionMLP>("mlp", cfg);
   }
 
   std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
     auto hidden_states = inputs[0];
     auto visual_embedding_sin = inputs[1];
     auto visual_embedding_cos = inputs[2];
+    auto mask = inputs[3];
 
-    hidden_states = hidden_states + attn_(norm1_(hidden_states), visual_embedding_sin, visual_embedding_cos)[0];
+    hidden_states = hidden_states + attn_(norm1_(hidden_states), visual_embedding_sin, visual_embedding_cos, mask)[0];
     hidden_states = hidden_states + mlp_(norm2_(hidden_states))[0];
     return {hidden_states};
   }
@@ -525,11 +531,13 @@ class Qwen2_5VisionTransformerPretrainedModel final : public nn::Module {
   PatchEmbed patch_embed_;
   PatchMerger patch_merger_;
   nn::ModuleList<Qwen2_5VLVisionBlock> blocks_;
+  std::vector<int32_t> visual_fullatt_block_indexes_;
 
  public:
   Qwen2_5VisionTransformerPretrainedModel() = default;
 
   Qwen2_5VisionTransformerPretrainedModel(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+    visual_fullatt_block_indexes_ = cfg.visual_fullatt_block_indexes;
     patch_embed_ = reg<PatchEmbed>("patch_embed", cfg);
     patch_merger_ = reg<PatchMerger>("merger", cfg);
     blocks_ = reg<nn::ModuleList<Qwen2_5VLVisionBlock>>("blocks", cfg.visual_depth, cfg);
@@ -539,20 +547,290 @@ class Qwen2_5VisionTransformerPretrainedModel final : public nn::Module {
     auto hidden_states = inputs[0];
     auto embedding_sin = inputs[1];
     auto embedding_cos = inputs[2];
+    auto& grid_thw = inputs[3];
 
+    // Embedding first
     hidden_states = patch_embed_(hidden_states)[0];
+    auto [window_index, cu_window_seqlens] = makeWindowIndex(grid_thw, 112, 2, 14);
 
-    for (auto& b : blocks_.list()) { hidden_states = b(hidden_states, embedding_sin, embedding_cos)[0]; }
+    // NOTE: Transformers code:
+    // seq_len, _ = hidden_states.size()
+    // hidden_states = hidden_states.reshape(seq_len // self.spatial_merge_unit, self.spatial_merge_unit, -1)
+    // hidden_states = hidden_states[window_index, :, :]
+    // hidden_states = hidden_states.reshape(seq_len, -1)
+    // Transform image embedding and sin/cos embeddings
+    auto seq_len = hidden_states.shape()[0];
+    hidden_states = hidden_states.view({seq_len / 4, 4, -1});
+    hidden_states = hidden_states[{window_index, {kAll}, {kAll}}];
+    hidden_states = hidden_states.view({seq_len, -1});
+
+    // NOTE: Transformers code:
+    // rotary_pos_emb = rotary_pos_emb.reshape(seq_len // self.spatial_merge_unit, self.spatial_merge_unit, -1)
+    // rotary_pos_emb = rotary_pos_emb[window_index, :, :]
+    // rotary_pos_emb = rotary_pos_emb.reshape(seq_len, -1)
+    // In mllm, we have already calculate sin and cos embedding. We need to transform them separately.
+    embedding_sin = embedding_sin.view({seq_len / 4, 4, -1});
+    embedding_sin = embedding_sin[{window_index, {kAll}, {kAll}}];
+    embedding_sin = embedding_sin.view({seq_len, -1});
+    embedding_cos = embedding_cos.view({seq_len / 4, 4, -1});
+    embedding_cos = embedding_cos[{window_index, {kAll}, {kAll}}];
+    embedding_cos = embedding_cos.view({seq_len, -1});
+
+    // Procsessing cu_seqlen mask
+    auto mask = Tensor::empty({1, 1, seq_len, seq_len}, DataTypes::kFloat32, DeviceTypes::kCPU).alloc();
+    {
+      auto mask_ptr = mask.ptr<mllm_fp32_t>();
+      const mllm_fp32_t neg_inf = -std::numeric_limits<mllm_fp32_t>::infinity();
+      for (int i = 0; i < seq_len * seq_len; ++i) { mask_ptr[i] = neg_inf; }
+      for (int i = 1; i < cu_window_seqlens.size(); ++i) {
+        int start = cu_window_seqlens[i - 1];
+        int end = cu_window_seqlens[i];
+        for (int r = start; r < end; ++r) {
+          for (int c = start; c < end; ++c) { mask_ptr[r * seq_len + c] = 0.0f; }
+        }
+      }
+    }
+
+    for (auto [layer_idx, b] : enumerate(blocks_.list())) {
+      if (std::find(visual_fullatt_block_indexes_.begin(), visual_fullatt_block_indexes_.end(), layer_idx)
+          != visual_fullatt_block_indexes_.end()) {
+        // Full Attention
+        hidden_states = b(hidden_states, embedding_sin, embedding_cos, Tensor::nil())[0];
+      } else {
+        // Sliding Window
+        hidden_states = b(hidden_states, embedding_sin, embedding_cos, mask)[0];
+      }
+    }
 
     hidden_states = patch_merger_(hidden_states)[0];
+
+    // DeTransform image embedding embeddings.
+    std::vector<int32_t> reverse_indices(window_index.size());
+    std::iota(reverse_indices.begin(), reverse_indices.end(), 0);
+    std::sort(reverse_indices.begin(), reverse_indices.end(),
+              [&window_index](int i, int j) { return window_index[i] < window_index[j]; });
+    hidden_states = hidden_states[{reverse_indices, {kAll}}];
 
     return {hidden_states};
   }
 };
 
+class Qwen2_5VLMLP final : public nn::Module {
+  nn::Linear gate_proj_;
+  nn::Linear up_proj_;
+  nn::Linear down_proj_;
+  nn::SiLU silu_;
+
+ public:
+  Qwen2_5VLMLP() = default;
+  Qwen2_5VLMLP(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+    gate_proj_ = reg<nn::Linear>("gate_proj", cfg.hidden_size, cfg.intermediate_size, false, cfg.linear_impl_type);
+    silu_ = reg<nn::SiLU>("act");
+    up_proj_ = reg<nn::Linear>("up_proj", cfg.hidden_size, cfg.intermediate_size, false, cfg.linear_impl_type);
+    down_proj_ = reg<nn::Linear>("down_proj", cfg.intermediate_size, cfg.hidden_size, false, cfg.linear_impl_type);
+  }
+
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
+    auto x = gate_proj_(inputs[0]);
+    x = silu_(x);
+    auto y = up_proj_(inputs[0]);
+    x = x * y;
+    x = down_proj_(x);
+    return {x};
+  }
+};
+
+class Qwen2_5VLAttention final : public nn::Module {
+  nn::Linear q_proj_;
+  nn::Linear k_proj_;
+  nn::Linear v_proj_;
+  nn::Linear o_proj_;
+  nn::MultimodalRoPE q_rope_;
+  nn::MultimodalRoPE k_rope_;
+  nn::CausalMask mask_;
+  nn::Softmax softmax_;
+
+  int hidden_size_;
+  int head_dim_;
+  int num_attention_heads_;
+  int num_key_value_heads_;
+  int num_key_value_groups_;
+
+ public:
+  Qwen2_5VLAttention() = default;
+
+  Qwen2_5VLAttention(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+    hidden_size_ = cfg.hidden_size;
+    num_attention_heads_ = cfg.num_attention_heads;
+    num_key_value_heads_ = cfg.num_key_value_heads;
+    head_dim_ = hidden_size_ / num_attention_heads_;
+    num_key_value_groups_ = num_attention_heads_ / num_key_value_heads_;
+
+    q_proj_ = reg<nn::Linear>("q_proj", hidden_size_, head_dim_ * num_attention_heads_, true, cfg.linear_impl_type);
+    k_proj_ = reg<nn::Linear>("k_proj", hidden_size_, head_dim_ * num_key_value_heads_, true, cfg.linear_impl_type);
+    v_proj_ = reg<nn::Linear>("v_proj", hidden_size_, head_dim_ * num_key_value_heads_, true, cfg.linear_impl_type);
+    o_proj_ = reg<nn::Linear>("o_proj", head_dim_ * num_attention_heads_, hidden_size_, false, cfg.linear_impl_type);
+
+    q_rope_ = reg<nn::MultimodalRoPE>(
+        "q_rope", aops::Qwen2VLMultimodalRoPEOpOptions{.rope_theta = cfg.rope_theta,
+                                                       .max_position_embeddings = cfg.max_position_embeddings,
+                                                       .mrope_section = cfg.mrope_section});
+    k_rope_ = reg<nn::MultimodalRoPE>(
+        "k_rope", aops::Qwen2VLMultimodalRoPEOpOptions{.rope_theta = cfg.rope_theta,
+                                                       .max_position_embeddings = cfg.max_position_embeddings,
+                                                       .mrope_section = cfg.mrope_section});
+
+    mask_ = reg<nn::CausalMask>("mask");
+    softmax_ = reg<nn::Softmax>("softmax", -1);
+  }
+
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
+    auto x = inputs[0];
+    auto llm_embedding_sin = inputs[1];
+    auto llm_embedding_cos = inputs[2];
+    auto past_kv_cache = args[0].get<nn::StaticCache*>();
+
+    // [B, S, H * D]
+    auto query_states = q_proj_(x);
+    auto key_states = k_proj_(x);
+    auto value_states = v_proj_(x);
+
+    int B = inputs[0].shape()[0];
+    int S = inputs[0].shape()[1];
+
+    // [B, S, H, D]
+    query_states = query_states.view({B, S, num_attention_heads_, head_dim_});
+    key_states = key_states.view({B, S, num_key_value_heads_, head_dim_});
+    value_states = value_states.view({B, S, num_key_value_heads_, head_dim_});
+
+    // [B, H, S, D]
+    query_states = query_states.transpose(1, 2);
+    key_states = key_states.transpose(1, 2);
+    value_states = value_states.transpose(1, 2);
+
+    // [B, H, S, D]
+    query_states = q_rope_(query_states, llm_embedding_sin, llm_embedding_cos);
+    key_states = k_rope_(key_states, llm_embedding_sin, llm_embedding_cos);
+
+    // [B, H, S, D]
+    auto [k, v] = past_kv_cache->updateKVCache(layer_idx_, key_states, value_states);
+    key_states = k;
+    value_states = v;
+
+    Tensor attn;
+    if (key_states.dtype() == kFloat32) {
+      // attention weight
+      // [B, H, S, S]
+      attn = nn::functional::matmul(query_states, key_states, false, true) * (1.f / sqrtf(head_dim_));
+      attn = mask_(attn);
+      attn = softmax_(attn);
+    } else if (key_states.dtype() == kFloat16) {
+      attn = nn::functional::matmul(query_states.to(kFloat32), key_states.to(kFloat32), false, true) * (1.f / sqrtf(head_dim_));
+      attn = mask_(attn);
+      attn = softmax_(attn);
+      attn = attn.to(kFloat16);
+    }
+
+    // attn output
+    // [B, H, S, S] @ [B, H, S, D] -> [B, H, S, D]
+    auto output = nn::functional::matmul(attn, value_states);
+    // [B, H, S, D] -> [B, S, H, D] -> [B, S, H * D]
+    output = output.transpose(1, 2).view({B, S, num_attention_heads_ * head_dim_});
+    output = o_proj_(output);
+    return {output};
+  }
+
+  int layer_idx_;
+};
+
+class Qwen2_5VLDecoder final : public nn::Module {
+ public:
+  Qwen2_5VLAttention self_attn_;
+  Qwen2_5VLMLP mlp_;
+  nn::RMSNorm input_layer_norm_;
+  nn::RMSNorm post_attention_layer_norm_;
+
+  Qwen2_5VLDecoder() = default;
+
+  Qwen2_5VLDecoder(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+    self_attn_ = reg<Qwen2_5VLAttention>("self_attn", cfg);
+    mlp_ = reg<Qwen2_5VLMLP>("mlp", cfg);
+    input_layer_norm_ = reg<nn::RMSNorm>("input_layernorm", cfg.rms_norm_eps);
+    post_attention_layer_norm_ = reg<nn::RMSNorm>("post_attention_layernorm", cfg.rms_norm_eps);
+  }
+
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
+    auto llm_embedding_sin = inputs[1];
+    auto llm_embedding_cos = inputs[2];
+    auto& kv_cache = args[0];
+
+    auto x = input_layer_norm_(inputs[0]);
+    x = self_attn_(x, llm_embedding_sin, llm_embedding_cos, kv_cache)[0];
+    auto tmp = x + inputs[0];
+    x = post_attention_layer_norm_(tmp);
+    x = mlp_(x)[0];
+    x = x + tmp;
+    return {x};
+  }
+};
+
+class Qwen2_5VLText final : public nn::Module {
+  nn::ModuleList<Qwen2_5VLDecoder> decode_blocks_;
+  nn::RMSNorm norm_;
+  nn::Linear lm_head_;
+  bool tie_word_embeddings_;
+
+ public:
+  Qwen2_5VLText() = default;
+
+  Qwen2_5VLText(const std::string& name, const Qwen2_5VLConfig& cfg) : nn::Module(name) {
+    tie_word_embeddings_ = cfg.tie_word_embeddings;
+
+    decode_blocks_ = reg<nn::ModuleList<Qwen2_5VLDecoder>>("layers", cfg.num_hidden_layers, cfg);
+    for (auto [idx, b] : enumerate(decode_blocks_.list())) { b.self_attn_.layer_idx_ = idx; }
+
+    norm_ = reg<nn::RMSNorm>("norm", cfg.rms_norm_eps);
+    embedding_ = reg<nn::Embedding>("embed_tokens", cfg.vocab_size, cfg.hidden_size);
+    if (cfg.tie_word_embeddings) {
+      // NOTE:
+      // model.lm_head.weight is quantization weights of model.embed_tokens.weight
+      lm_head_ = reg<nn::Linear>("lm_head", cfg.hidden_size, cfg.vocab_size, false, cfg.linear_impl_type);
+    }
+
+    // Init inv freq
+    auto inv = makeMultimodalRoPEInvFreq(cfg.hidden_size / cfg.num_attention_heads, cfg.rope_theta);
+    registerBuffer("inv_freq", inv);
+  }
+
+  std::vector<Tensor> forward(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) override {
+    auto& blocks = decode_blocks_.list();
+
+    // X is already embedded
+    auto x = inputs[0];
+    auto llm_embedding_sin = inputs[1];
+    auto llm_embedding_cos = inputs[2];
+    auto& kv_cache = args[0];
+
+    for (auto& block : blocks) { x = block(x, llm_embedding_sin, llm_embedding_cos, kv_cache)[0]; }
+    x = norm_(x);
+
+    // clip x to one seq length
+    {
+      auto S = x.shape()[1];
+      x = x[{kAll, {S - 1}, kAll}];
+    }
+
+    if (tie_word_embeddings_) { x = lm_head_(x); }
+
+    return {x};
+  }
+
+  nn::Embedding embedding_;
+};
+
 class Qwen2_5VLForCausalLM : public ARGeneration {
  public:
-  explicit Qwen2_5VLForCausalLM(const Qwen2_5VLConfig& cfg) : cfg(cfg), visual("visual", cfg) {
+  explicit Qwen2_5VLForCausalLM(const Qwen2_5VLConfig& cfg) : cfg(cfg), llm("model", cfg), visual("visual", cfg) {
     kv_cache_ = nn::StaticCache(cfg.max_cache_length, cfg.num_hidden_layers,
                                 cfg.num_attention_heads,                    // q_heads
                                 cfg.num_key_value_heads,                    // kv_heads
@@ -570,18 +848,11 @@ class Qwen2_5VLForCausalLM : public ARGeneration {
     auto sequence = input.at("sequence");
 
     // Calculate the text embeddings
-    // TODO
-    // auto input_embeddings = llm.embedding_(sequence);
+    auto input_embeddings = llm.embedding_(sequence);
 
     if (input.count("img")) {
       auto img = input.at("img");
       auto grid_thw = input.at("grid_thw");
-
-      auto [window_index, cu_window_seqlens] = makeWindowIndex(grid_thw, 112, 2, 14);
-
-      print(window_index);
-      print(cu_window_seqlens);
-      exit(0);
 
       // process img
       print("ViT Processing: ...");
@@ -593,9 +864,8 @@ class Qwen2_5VLForCausalLM : public ARGeneration {
       auto rotary_pos_emb_full = makeVisualRotaryPosEmbFull(inv_freq, v_len);
       auto pos_emb = makeVisualRotaryPosEmb(rotary_pos_emb_full, pos_ids, grid_thw);
       auto [visual_embedding_sin, visual_embedding_cos] = makeVisualRotarySinCos(pos_emb);
-
       auto start_time = std::chrono::high_resolution_clock::now();
-      auto visual_embeddings = visual(img, visual_embedding_sin, visual_embedding_cos)[0];
+      auto visual_embeddings = visual(img, visual_embedding_sin, visual_embedding_cos, grid_thw)[0];
       auto end_time = std::chrono::high_resolution_clock::now();
       auto all_time = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
       print("ViT Processing: done, time cost: {} seconds", all_time.count());
@@ -615,11 +885,10 @@ class Qwen2_5VLForCausalLM : public ARGeneration {
         MLLM_RT_ASSERT(vision_pad_token_start != -1);
       }
       // input_embedding is [B, S, D]
-      // TODO
-      // auto D = input_embeddings.shape()[2];
-      // auto visual_sequence = visual_embeddings.shape()[0];
-      // visual_embeddings.copy2(
-      //     input_embeddings[{kAll, {vision_pad_token_start, vision_pad_token_start + visual_sequence}, kAll}]);
+      auto D = input_embeddings.shape()[2];
+      auto visual_sequence = visual_embeddings.shape()[0];
+      visual_embeddings.copy2(
+          input_embeddings[{kAll, {vision_pad_token_start, vision_pad_token_start + visual_sequence}, kAll}]);
     }
 
     auto position_ids = Tensor::nil();
@@ -635,12 +904,11 @@ class Qwen2_5VLForCausalLM : public ARGeneration {
     }
 
     // Generate position ids and embedding sin and cos
-    // TODO
-    // auto [llm_embedding_sin, llm_embedding_cos] =
-    //     makeMultimodalPositionEmbedding(position_ids, llm.getBuffer("inv_freq"), cfg.max_position_embeddings,
-    //                                     cfg.hidden_size / cfg.num_attention_heads, cfg.mrope_section);
+    auto [llm_embedding_sin, llm_embedding_cos] =
+        makeMultimodalPositionEmbedding(position_ids, llm.getBuffer("inv_freq"), cfg.max_position_embeddings,
+                                        cfg.hidden_size / cfg.num_attention_heads, cfg.mrope_section);
 
-    // sequence = llm(input_embeddings, llm_embedding_sin, llm_embedding_cos, AnyValue(&kv_cache_))[0];
+    sequence = llm(input_embeddings, llm_embedding_sin, llm_embedding_cos, AnyValue(&kv_cache_))[0];
 
     return {
         {"sequence", sequence},
@@ -762,6 +1030,7 @@ class Qwen2_5VLForCausalLM : public ARGeneration {
   }
 
   const Qwen2_5VLConfig& cfg;
+  Qwen2_5VLText llm;
   Qwen2_5VisionTransformerPretrainedModel visual;
 
  private:

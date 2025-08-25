@@ -38,7 +38,7 @@ MLLM_MAIN({
     auto qwen2_5vl = mllm::models::qwen2_5vl::Qwen2_5VLForCausalLM(qwen2_5vl_cfg);
 
     auto param = mllm::load(model_path.get(), file_version);
-    // TODO load to llm
+    qwen2_5vl.llm.load(param);
     qwen2_5vl.visual.load(param);
 
     fmt::print("\n{:*^60}\n", " Qwen2_5VL Interactive CLI ");

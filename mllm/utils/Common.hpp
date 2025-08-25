@@ -32,6 +32,7 @@ enum class ExitCode : int32_t {  // NOLINT
   kQnnError,
   kOpenCLError,
   kIOError,
+  kShapeError,
 };
 
 // mllm runtime assert
