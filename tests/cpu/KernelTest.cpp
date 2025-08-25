@@ -630,6 +630,7 @@ TEST_F(MllmBlasArmSgemmKernelTest, test_mllm_blas_matmul_fp32_gemm_nt_nt) {
                 {{"D", 64}, {"S_Q", 4}, {"S_KV", 16}},
                 {{"D", 64}, {"S_Q", 8}, {"S_KV", 16}},
                 {{"D", 128}, {"S_Q", 1}, {"S_KV", 20}},  // Fallback to  test_mllm_blas_matmul_fp32_gemv_nt_nt_decode_small_d_wv
+                {{"D", 100}, {"S_Q", 464}, {"S_KV", 513}},
             }),
             true);
 }

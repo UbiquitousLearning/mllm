@@ -171,7 +171,7 @@ void fp32_2_fp16(const mllm_fp32_t* src, mllm_fp16_t* dst, int len, int thread_c
 
 void fp16_2_fp32(const mllm_fp16_t* src, mllm_fp32_t* dst, int len, int thread_count) {
   if (thread_count > 1) {
-    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, len, 8, )
+    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, len, 8, thread_count)
     int remain = len - i;
     if (remain >= 8) {
       float16x8_t vf16 = vld1q_f16(src + i);

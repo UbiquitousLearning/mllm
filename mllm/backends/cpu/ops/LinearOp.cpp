@@ -3,6 +3,7 @@
 
 #include "mllm/backends/cpu/ops/LinearOp.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
+#include "mllm/backends/cpu/kernels/common/llamafile/llamafile_sgemm.hpp"
 
 namespace mllm::cpu {
 
@@ -209,6 +210,51 @@ void CPULinearOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>
       return;
     }
 #endif
+    case aops::LinearImplTypes::kDefault: {
+      // Using llamafile
+      // Use llamafile implementation for default case
+      // Linear operation: output = input * weight^T + bias
+      // In llamafile convention: C = A * B^T, where A is input, B is weight
+      if (input.isContiguousN(0) && weight_.isContiguousN(0)) {
+        auto thread_count = options_.getThreads();
+
+        const int ld_input = K;   // Leading dimension of input
+        const int ld_weight = K;  // Leading dimension of weight (weight is stored as [out_channels, in_channels])
+        const int ld_output = N;  // Leading dimension of output
+
+        void* bias_ptr = bias_ ? bias_.ptr<void>() : nullptr;
+        DataTypes bias_type = bias_ ? bias_.dtype() : kFloat32;
+
+        if (batch_count > 1) {
+          // Handle batched linear operation
+          for (int b = 0; b < batch_count; ++b) {
+            MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, id, 0, thread_count, 1, {
+              auto input_offset = input.stride()[input_shape.size() - 3] * b;
+              auto output_offset = o.stride()[o.shape().size() - 3] * b;
+
+              if (!llamafile_sgemm(N, M, K, weight_.ptr<mllm_byte_t>(), ld_weight,  // B matrix (weight)
+                                   input.ptr<mllm_byte_t>() + input_offset * bytesOfType(input.dtype()),
+                                   ld_input,  // A matrix (input)
+                                   o.ptr<mllm_byte_t>() + output_offset * bytesOfType(o.dtype()), ld_output, id, thread_count,
+                                   weight_.dtype(), input.dtype(), o.dtype(), bias_ptr, bias_type)) {
+                MLLM_WARN("LlamaFile linear failed");
+              }
+            });
+          }
+        } else {
+          // Single batch case
+          MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, id, 0, thread_count, 1, {
+            if (!llamafile_sgemm(N, M, K, weight_.ptr<mllm_byte_t>(), ld_weight,  // B matrix (weight)
+                                 input.ptr<mllm_byte_t>(), ld_input,              // A matrix (input)
+                                 o.ptr<mllm_byte_t>(), ld_output, id, thread_count, weight_.dtype(), input.dtype(), o.dtype(),
+                                 bias_ptr, bias_type)) {
+              MLLM_WARN("LlamaFile linear failed");
+            }
+          });
+        }
+      }
+      break;
+    }
     default: {
       NYI("LinearImplTypes not supported");
       break;
