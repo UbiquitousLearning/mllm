@@ -20,7 +20,7 @@ void gelu_fp32(float* __restrict__ Z, const float* __restrict__ X, int32_t N, in
   if (thread_cnt > 1) {
     int tails = N % 4;
     int loops = N < 4 ? 0 : N - tails;
-    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, loops, 4, thread_count) {
+    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, loops, 4, thread_cnt) {
       float32x4_t x = vld1q_f32(X + i);
 
       float32x4_t x3 = vmulq_f32(x, vmulq_f32(x, x));
@@ -86,7 +86,7 @@ void quick_gelu_fp32(float* __restrict__ Z, const float* __restrict__ X, int32_t
   if (thread_cnt > 1) {
     int tails = N % 4;
     int loops = N < 4 ? 0 : N - tails;
-    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, loops, 4, thread_count) {
+    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, loops, 4, thread_cnt) {
       float32x4_t x = vld1q_f32(X + i);
       float32x4_t scaled_x = vmulq_f32(x, scale);
       float32x4_t sigmoid_val = vsigmoid_f32(scaled_x);
@@ -129,7 +129,7 @@ void gelu_fp16(float16_t* __restrict__ Z, const float16_t* __restrict__ X, int32
   if (thread_cnt > 1) {
     int tails = N % 8;
     int loops = N < 8 ? 0 : N - tails;
-    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, loops, 8, thread_count) {
+    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, loops, 8, thread_cnt) {
       float16x8_t x_half = vld1q_f16(X + i);
 
       float32x4_t x_low = vcvt_f32_f16(vget_low_f16(x_half));
@@ -211,7 +211,7 @@ void quick_gelu_fp16(float16_t* __restrict__ Z, const float16_t* __restrict__ X,
   if (thread_cnt > 1) {
     int tails = N % 8;
     int loops = N < 8 ? 0 : N - tails;
-    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, loops, 8, thread_count) {
+    MLLM_AUTO_PARALLEL_FOR_BEGIN_NT(i, 0, loops, 8, thread_cnt) {
       float16x8_t x_half = vld1q_f16(X + i);
       float32x4_t x_low = vcvt_f32_f16(vget_low_f16(x_half));
       float32x4_t x_high = vcvt_f32_f16(vget_high_f16(x_half));

@@ -10,9 +10,10 @@
 #include "mllm/nn/lmcache/StaticCache.hpp"
 
 #include "mllm/models/ARGeneration.hpp"
-#include "mllm/models/qwen2_5vl/configuration_qwen2_5vl.hpp"
 #include "mllm/utils/AnyValue.hpp"
 #include "mllm/utils/Enumerate.hpp"
+
+#include "mllm/models/qwen2_5vl/configuration_qwen2_5vl.hpp"
 
 namespace mllm::models::qwen2_5vl {
 
@@ -580,7 +581,7 @@ class Qwen2_5VisionTransformerPretrainedModel final : public nn::Module {
     auto mask = Tensor::empty({1, 1, seq_len, seq_len}, DataTypes::kFloat32, DeviceTypes::kCPU).alloc();
     {
       auto mask_ptr = mask.ptr<mllm_fp32_t>();
-      const mllm_fp32_t neg_inf = -std::numeric_limits<mllm_fp32_t>::infinity();
+      const mllm_fp32_t neg_inf = -1e12f;
       for (int i = 0; i < seq_len * seq_len; ++i) { mask_ptr[i] = neg_inf; }
       for (int i = 1; i < cu_window_seqlens.size(); ++i) {
         int start = cu_window_seqlens[i - 1];

@@ -203,10 +203,15 @@ inline void print(const Args&... args) {
 #define __MLLM_SIGNAL_MACOS 1
 #include <execinfo.h>
 #include <unistd.h>
-#elif defined(__linux__)
+#elif defined(__linux__) && !defined(__ANDROID__)
 #define __MLLM_SIGNAL_LINUX 1
 #include <execinfo.h>
 #include <unistd.h>
+#elif defined(__ANDROID__)
+#define __MLLM_SIGNAL_ANDROID 1
+#include <unwind.h>
+#include <dlfcn.h>
+#include <cxxabi.h>
 #endif
 
 namespace mllm {
@@ -214,6 +219,34 @@ namespace mllm {
 //===----------------------------------------------------------------------===//
 // Signal Handler
 //===----------------------------------------------------------------------===//
+
+// Android-specific stack trace implementation
+#if defined(__MLLM_SIGNAL_ANDROID)
+struct AndroidBacktraceState {
+  void** current;
+  void** end;
+};
+
+static _Unwind_Reason_Code android_unwind_callback(struct _Unwind_Context* context, void* arg) {
+  AndroidBacktraceState* state = static_cast<AndroidBacktraceState*>(arg);
+  uintptr_t pc = _Unwind_GetIP(context);
+  if (pc) {
+    if (state->current == state->end) {
+      return _URC_END_OF_STACK;
+    } else {
+      *state->current++ = reinterpret_cast<void*>(pc);  // NOLINT
+    }
+  }
+  return _URC_NO_REASON;
+}
+
+static size_t capture_backtrace(void** buffer, size_t max) {
+  AndroidBacktraceState state = {.current = buffer, .end = buffer + max};
+  _Unwind_Backtrace(android_unwind_callback, &state);
+  return state.current - buffer;
+}
+#endif
+
 inline void safe_write(const char* msg, size_t len) {
 #if defined(__MLLM_SIGNAL_WINDOWS)
   HANDLE hStderr = GetStdHandle(STD_ERROR_HANDLE);
@@ -223,6 +256,7 @@ inline void safe_write(const char* msg, size_t len) {
   (void)write(STDERR_FILENO, msg, len);
 #endif
 }
+
 inline const char* signal_description(int signal) {
   switch (signal) {
     case SIGINT: return "SIGINT (Interrupt from keyboard)";
@@ -245,6 +279,26 @@ inline void print_stack_trace() {
   backtrace_symbols_fd(buffer, size, STDERR_FILENO);
 #elif defined(__MLLM_SIGNAL_WINDOWS)
   safe_write("Stack trace not available on Windows in signal handler\n", 52);
+#elif defined(__MLLM_SIGNAL_ANDROID)
+  void* buffer[100];
+  const int size = capture_backtrace(buffer, 100);
+  safe_write("Stack trace:\n", 13);
+
+  for (int i = 0; i < size; ++i) {
+    Dl_info info;
+    if (dladdr(buffer[i], &info) && info.dli_sname) {
+      char* demangled = abi::__cxa_demangle(info.dli_sname, nullptr, nullptr, nullptr);
+      const char* name = demangled ? demangled : info.dli_sname;
+      char line[256];
+      int len = snprintf(line, sizeof(line), "#%d %p %s\n", i, buffer[i], name);
+      safe_write(line, len);
+      free(demangled);
+    } else {
+      char line[256];
+      int len = snprintf(line, sizeof(line), "#%d %p\n", i, buffer[i]);
+      safe_write(line, len);
+    }
+  }
 #endif
 }
 
@@ -282,7 +336,6 @@ inline void __signal_handler(int signal) {
 
 inline void __setup_signal_handler() {
 #if defined(__MLLM_SIGNAL_WINDOWS)
-  // Windows 信号处理设置
   signal(SIGINT, __signal_handler);
   signal(SIGTERM, __signal_handler);
   signal(SIGABRT, __signal_handler);
