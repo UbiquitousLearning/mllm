@@ -19,7 +19,7 @@ void CPUQuickGELUOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   switch (X.dtype()) {
     case kFloat32: {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-      // TODO
+      x86::quick_gelu_fp32(Y.ptr<mllm_fp32_t>(), X.ptr<mllm_fp32_t>(), X.numel(), options_.getThreads());
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       arm::quick_gelu_fp32(Y.ptr<mllm_fp32_t>(), X.ptr<mllm_fp32_t>(), X.numel(), options_.getThreads());
 #endif
@@ -27,7 +27,7 @@ void CPUQuickGELUOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
     }
     case kFloat16: {
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
-      // TODO
+      NYI("CPUQuickGELUOp::forward not support dtype {}", nameOfType(X.dtype()));
 #elif defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
       arm::quick_gelu_fp16(Y.ptr<mllm_fp16_t>(), X.ptr<mllm_fp16_t>(), X.numel(), options_.getThreads());
 #endif

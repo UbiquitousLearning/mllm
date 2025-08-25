@@ -48,6 +48,10 @@ class Tensor {
    */
   static inline Tensor nil() { return {}; };
 
+  template<typename T>
+  static inline Tensor fromVector(const std::vector<T>& vec, const shape_t& shape, DataTypes dtype = kFloat32,
+                                  DeviceTypes device = kCPU) {}
+
   /**
    * @brief Creates a shallow view (slice) of the tensor.
    * @param slice_index Slice specification.

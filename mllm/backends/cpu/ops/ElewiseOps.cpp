@@ -16,6 +16,42 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 
   auto dtype = output.dtype();
 
+  bool can_be_broadcast_naive = false;
+  int32_t broadcast_naive_loops = 0;
+  int32_t broadcast_naive_stride = 0;
+  auto a_shape = input0.shape();
+  auto b_shape = input1.shape();
+  int a_ndim = a_shape.size();
+  int b_ndim = b_shape.size();
+
+  //  Rules(can_be_broadcast_naive):
+  //  1. b must have fewer/equal dimensions than a (treat a as the "large" tensor).
+  //  2. The last k dimensions of b must exactly match the last k dimensions of a,
+  //     where k == b_ndim.
+  //  3. All leading dimensions of b must be 1 so that a simple stride broadcast works.
+  {
+    if (b_ndim <= a_ndim) {
+      bool can_broadcast = true;
+      for (int i = 1; i <= b_ndim; ++i) {
+        int a_idx = a_ndim - i;
+        int b_idx = b_ndim - i;
+
+        if (a_shape[a_idx] != b_shape[b_idx] && a_shape[a_idx] != 1 && b_shape[b_idx] != 1) {
+          can_broadcast = false;
+          break;
+        }
+      }
+
+      can_be_broadcast_naive = can_broadcast;
+    }
+    if (can_be_broadcast_naive) {
+      broadcast_naive_loops = 1;
+      for (int i = 0; i < a_ndim - b_ndim; ++i) { broadcast_naive_loops *= a_shape[i]; }
+      broadcast_naive_stride = 1;
+      for (int i = 0; i < b_ndim; ++i) { broadcast_naive_stride *= b_shape[i]; }
+    }
+  }
+
   switch (dtype) {
     case kFloat32: {
       if (input0.numel() == input1.numel()) {
@@ -28,6 +64,17 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_add_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                                      output.numel(), options_.getThreads());
 #endif
+      } else if (can_be_broadcast_naive) {
+        const float* a = input0.ptr<mllm_fp32_t>();
+        const float* b = input1.ptr<mllm_fp32_t>();
+        float* out = output.ptr<mllm_fp32_t>();
+
+        // Each iteration processes one contiguous block of size `stride`
+        for (int l = 0; l < broadcast_naive_loops; ++l) {
+          cpu::arm::ew_add_fp32(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
+                                b,  // b always contains `stride` elements
+                                broadcast_naive_stride, options_.getThreads());
+        }
       } else {
         NYI("AddOp broadcast not supported.");
       }

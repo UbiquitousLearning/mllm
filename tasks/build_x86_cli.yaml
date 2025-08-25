@@ -1,0 +1,25 @@
+# Copyright (c) MLLM Team.
+# Licensed under the MIT License.
+
+Tasks:
+  - CMakeConfigTask:
+      cmake_cfg_path: "build"
+      cmake_build_type: "Release"
+      cmake_extra_args:
+        # Optional, If use Highway
+        - "-DHWY_ENABLE_TESTS=OFF"
+        - "-DHWY_ENABLE_EXAMPLES=OFF"
+        - "-DHWY_ENABLE_CONTRIB=OFF"
+        # Optional
+        - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native"'
+        - "-DMLLM_KERNEL_USE_THREADS=ON"
+        - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=ON"
+        - "-DMLLM_BUILD_SDK_C_BINDING=ON"
+        - "-DCMAKE_INSTALL_PREFIX=./mllm-cli/mllm/SDK/"
+  - CMakeBuildTask:
+      cmake_cfg_path: "build"
+  - CMakeInstallTask:
+      cmake_cfg_path: "build"
+  - MllmCliBuildTask:
+      build_dir: "mllm-cli/build"
+      cli_root: "mllm-cli"

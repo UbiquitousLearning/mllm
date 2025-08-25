@@ -33,13 +33,13 @@ MLLM_MAIN({
   }
 
   {
-    auto qwen2vl_cfg = mllm::models::qwen2_5vl::Qwen2_5VLConfig(config_path.get());
-    auto qwen2vl_tokenizer = mllm::models::qwen2vl::Qwen2VLTokenizer(tokenizer_path.get());
-    // TODO llm
+    auto qwen2_5vl_cfg = mllm::models::qwen2_5vl::Qwen2_5VLConfig(config_path.get());
+    auto qwen2_5vl_tokenizer = mllm::models::qwen2vl::Qwen2VLTokenizer(tokenizer_path.get());
+    auto qwen2_5vl = mllm::models::qwen2_5vl::Qwen2_5VLForCausalLM(qwen2_5vl_cfg);
 
     auto param = mllm::load(model_path.get(), file_version);
-
-    // TODO load
+    qwen2_5vl.llm.load(param);
+    qwen2_5vl.visual.load(param);
 
     fmt::print("\n{:*^60}\n", " Qwen2_5VL Interactive CLI ");
     fmt::print("Enter 'exit' or 'quit' to end the session\n\n");
@@ -57,12 +57,20 @@ MLLM_MAIN({
 
     try {
       fmt::print("🔄 Processing...\n");
-      auto inputs = qwen2vl_tokenizer.convertMessage({.prompt = prompt_text, .img_file_path = image_path});
-      auto dict = mllm::models::qwen2_5vl::makeVisualTokensIdBioMap(inputs["grid_thw"]);
-      auto orig_2_win = dict.first;
-      auto win_2_orig = dict.second;
+      auto inputs = qwen2_5vl_tokenizer.convertMessage({.prompt = prompt_text, .img_file_path = image_path});
 
       fmt::print("\n🤖 Response: ");
+
+      // Steam it!
+      qwen2_5vl.streamGenerate(inputs,
+                               {
+                                   {"do_sample", mllm::AnyValue(false)},
+                                   {"max_length", mllm::AnyValue(qwen2_5vl_cfg.max_cache_length)},
+                               },
+                               [&](int64_t token_id) {
+                                 auto str = qwen2_5vl_tokenizer.detokenize(token_id);
+                                 std::wcout << str << std::flush;
+                               });
 
       fmt::print("\n{}\n", std::string(60, '-'));
     } catch (const std::exception& e) { fmt::print("\n❌ Error: {}\n{}\n", e.what(), std::string(60, '-')); }
