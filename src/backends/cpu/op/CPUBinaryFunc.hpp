@@ -227,15 +227,17 @@ public:
         auto input0 = inputs[0];
         auto input1 = inputs[1];
         int batch_ = std::max(input0->batch(), input1->batch());
+        int head_ = std::max(input0->head(), input1->head());
         for (int n = 0; n < batch_; ++n) {
             auto n_0 = std::min(n, input0->batch() - 1);
             auto n_1 = std::min(n, input1->batch() - 1);
 #pragma omp parallel for collapse(2) num_threads(CPUBackend::cpu_threads)
-            for (int c = 0; c < input0->head(); ++c) {
+            for (int c = 0; c < head_; ++c) {
+                auto c_0 = std::min(c, input0->head() - 1);
+                auto c_1 = std::min(c, input1->head() - 1);
                 for (int h = 0; h < input0->sequence(); ++h) {
-                    auto s_1 = std::min(h, input1->sequence() - 1);
-                    mllm_add_fp32(input0->ptrAt<float>(n_0, c, h, 0),
-                                  input1->ptrAt<float>(n_1, c, s_1, 0),
+                    mllm_add_fp32(input0->ptrAt<float>(n_0, c_0, h, 0),
+                                  input1->ptrAt<float>(n_1, c_1, h, 0),
                                   outputs[0]->ptrAt<float>(n, c, h, 0), input0->dimension());
                 }
             }

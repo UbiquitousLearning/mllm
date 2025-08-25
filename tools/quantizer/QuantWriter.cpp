@@ -121,6 +121,15 @@ std::vector<float> QuantWriter::load_full_fp32_param(const std::string &name) {
 }
 
 DataType QuantWriter::getQuantizationTypeFor(const std::string &name, DataType target_type, const std::string &other_flag) {
+    /*
+    if (name.find("down_proj") != std::string::npos && name.find("visual.blocks") != std::string::npos
+        && name.find("bias") == std::string::npos) {
+        return MLLM_TYPE_F32;
+    }
+    if (name.find("qkv") != std::string::npos && name.find("bias") == std::string::npos) {
+        return MLLM_TYPE_Q4_K;
+    }
+    */
     if (find_in_layers(name, q40_layers)) {
         return MLLM_TYPE_Q4_0;
     }

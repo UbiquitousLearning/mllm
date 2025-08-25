@@ -818,13 +818,19 @@ public:
 
     static Tensor zeros(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU) {
         Tensor tensor1(batch, head, sequence, dimension, bn_type, true);
-        memset(tensor1.hostPtr<float>(), 0, tensor1.count() * sizeof(float));
+        std::fill(tensor1.hostPtr<float>(), tensor1.hostPtr<float>() + tensor1.count(), 0);
         tensor1.shouldInGraphs() = false;
         return tensor1;
     }
     static Tensor ones(int batch, int head, int sequence, int dimension, BackendType bn_type = MLLM_CPU) {
         Tensor tensor1(batch, head, sequence, dimension, bn_type, true);
-        memset(tensor1.hostPtr<float>(), 1, tensor1.count() * sizeof(float));
+        std::fill(tensor1.hostPtr<float>(), tensor1.hostPtr<float>() + tensor1.count(), 1);
+        tensor1.shouldInGraphs() = false;
+        return tensor1;
+    }
+    static Tensor full(int batch, int head, int sequence, int dimension, float data, BackendType bn_type = MLLM_CPU) {
+        Tensor tensor1(batch, head, sequence, dimension, bn_type, true);
+        std::fill(tensor1.hostPtr<float>(), tensor1.hostPtr<float>() + tensor1.count(), data);
         tensor1.shouldInGraphs() = false;
         return tensor1;
     }
