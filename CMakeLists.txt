@@ -273,6 +273,10 @@ install(
   NAMESPACE mllm::
   DESTINATION lib/cmake/)
 
+install(
+  FILES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake
+  DESTINATION lib/cmake/)
+
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 configure_package_config_file(

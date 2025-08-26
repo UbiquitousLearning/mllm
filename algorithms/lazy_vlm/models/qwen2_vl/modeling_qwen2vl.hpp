@@ -7,10 +7,11 @@
 #include <mllm/nn/Module.hpp>
 #include <mllm/nn/Nn.hpp>
 #include <mllm/nn/Functional.hpp>
-#include <mllm/nn/lmcache/StaticCache.hpp>
 #include <mllm/models/qwen2vl/configuration_qwen2vl.hpp>
 #include <mllm/utils/Enumerate.hpp>
 #include <mllm/models/ARGeneration.hpp>
+
+#include "HKVCache.hpp"
 
 namespace mllm::models::qwen2vl {
 

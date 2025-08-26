@@ -16,12 +16,12 @@ if(MLLM_BUILD_ARM_BACKEND)
     $<BUILD_INTERFACE:${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p/>
     $<BUILD_INTERFACE:${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/matmul_clamp_f16_qsi8d32p_qai4c32p/>
     $<BUILD_INTERFACE:${kleidiai_SOURCE_DIR}/kai/ukernels/matmul/pack/>
-    $<INSTALL_INTERFACE:include/mllm/Backends/Arm/Vendors/kleidiai/>
-    $<INSTALL_INTERFACE:include/mllm/Backends/Arm/Vendors/kleidiai/kai/ukernels/matmul/matmul_clamp_f16_f16_f16p>
-    $<INSTALL_INTERFACE:include/mllm/Backends/Arm/Vendors/kleidiai/kai/ukernels/matmul/matmul_clamp_f32_f32_f32p>
-    $<INSTALL_INTERFACE:include/mllm/Backends/Arm/Vendors/kleidiai/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p>
-    $<INSTALL_INTERFACE:include/mllm/Backends/Arm/Vendors/kleidiai/kai/ukernels/matmul/matmul_clamp_f16_qsi8d32p_qai4c32p>
-    $<INSTALL_INTERFACE:include/mllm/Backends/Arm/Vendors/kleidiai/kai/ukernels/matmul/pack>
+    $<INSTALL_INTERFACE:include/mllm/backends/arm/vendors/kleidiai/>
+    $<INSTALL_INTERFACE:include/mllm/backends/arm/vendors/kleidiai/kai/ukernels/matmul/matmul_clamp_f16_f16_f16p>
+    $<INSTALL_INTERFACE:include/mllm/backends/arm/vendors/kleidiai/kai/ukernels/matmul/matmul_clamp_f32_f32_f32p>
+    $<INSTALL_INTERFACE:include/mllm/backends/arm/vendors/kleidiai/kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi4c32p>
+    $<INSTALL_INTERFACE:include/mllm/backends/arm/vendors/kleidiai/kai/ukernels/matmul/matmul_clamp_f16_qsi8d32p_qai4c32p>
+    $<INSTALL_INTERFACE:include/mllm/backends/arm/vendors/kleidiai/kai/ukernels/matmul/pack>
   )
 
   set(MLLM_KAI_SOURCES

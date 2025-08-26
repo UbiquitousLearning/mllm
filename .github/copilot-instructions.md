@@ -40,32 +40,33 @@ Rule 10 - TODO/FIXME:
 
 Rule 11 - Production Readiness:
   When reviewing or suggesting code, prioritize production-ready quality. This includes but is not limited to:
+    
     a. Performance:
-    - Evaluate time and space complexity of algorithms and data structures.
-    - Suggest more efficient alternatives for operations with high complexity (e.g., O(n^2) or worse) when feasible.
-    - Avoid unnecessary object creation in loops or hot paths.
+      - Evaluate time and space complexity of algorithms and data structures.
+      - Suggest more efficient alternatives for operations with high complexity (e.g., O(n^2) or worse) when feasible.
+      - Avoid unnecessary object creation in loops or hot paths.
 
     b. Error Handling:
-    - Check for proper error handling and resource cleanup (e.g., using try-finally, context managers, or RAII).
-    - Ensure functions that can fail return appropriate error codes or raise exceptions.
-    - Validate inputs for public APIs and critical internal functions.
+      - Check for proper error handling and resource cleanup (e.g., using try-finally, context managers, or RAII).
+      - Ensure functions that can fail return appropriate error codes or raise exceptions.
+      - Validate inputs for public APIs and critical internal functions.
 
     c. Documentation:
-    - Ensure public APIs, classes, and functions have clear docstrings or comments explaining purpose, parameters, returns, and errors.
-    - Suggest adding comments for complex algorithms or non-obvious logic.
+      - Ensure public APIs, classes, and functions have clear docstrings or comments explaining purpose, parameters, returns, and errors.
+      - Suggest adding comments for complex algorithms or non-obvious logic.
 
     d. Security:
-    - Identify potential security issues (e.g., buffer overflows, injection risks, insecure temporary files).
-    - Recommend using secure alternatives (e.g., parameterized queries, secure random generators).
+      - Identify potential security issues (e.g., buffer overflows, injection risks, insecure temporary files).
+      - Recommend using secure alternatives (e.g., parameterized queries, secure random generators).
 
     e. Testing:
-    - Suggest adding unit tests for untested complex logic or edge cases.
-    - Ensure code is testable (e.g., avoid global state, use dependency injection).
+      - Suggest adding unit tests for untested complex logic or edge cases.
+      - Ensure code is testable (e.g., avoid global state, use dependency injection).
 
     f. Maintainability:
-    - Flag overly complex functions (e.g., high cyclomatic complexity) and suggest breaking them down.
-    - Recommend using named constants instead of magic numbers.
-    - Encourage consistent coding style and patterns with the existing codebase.
+      - Flag overly complex functions (e.g., high cyclomatic complexity) and suggest breaking them down.
+      - Recommend using named constants instead of magic numbers.
+      - Encourage consistent coding style and patterns with the existing codebase.
 
 Rule 12 - Language-Specific Best Practices:
   Adhere to language-specific best practices and idioms (e.g., PEP 8 for Python, Google C++ Style Guide for C++).

@@ -411,6 +411,8 @@ class BuildPythonCLibTask(Task):
                 '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native"',
             ]
         elif is_arm:
+            # Most likely on Apple Silicon
+            # We do not consider Android or iOS right now
             CMAKE_CFG_ARGS = [
                 f"-DPYTHON_EXECUTABLE={sys.executable}",
                 "-DCMAKE_BUILD_TYPE=Release",
@@ -421,6 +423,11 @@ class BuildPythonCLibTask(Task):
                 "-DHWY_ENABLE_CONTRIB=OFF",
                 "-DMLLM_BUILD_ARM_BACKEND=ON",
                 '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native+fp16+fp16fml+dotprod+i8mm+sme"',
+                "-DMLLM_USE_BLAS=ON",
+                "-DMLLM_BLAS_VENDOR_ACCELERATE=ON",
+                "-DMLLM_KERNEL_USE_THREADS=ON",
+                "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=OFF",
+                "-DMLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=ON",
             ]
 
         BUILD_ARGS = [
