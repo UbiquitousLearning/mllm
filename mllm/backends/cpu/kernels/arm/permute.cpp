@@ -54,18 +54,19 @@ void permute_fp32(const mllm_fp32_t* __restrict__ input, mllm_fp32_t* __restrict
       for (; j < inner_dim_size; ++j) { out_ptr[j] = in_ptr[j]; }
     }
   } else {
-    for (int linear_idx = 0; linear_idx < total_elements; ++linear_idx) {
-      std::vector<int> out_coord(ndim);
-      int temp = linear_idx;
-      for (int i = ndim - 1; i >= 0; --i) {
-        out_coord[i] = temp % out_shape[i];
-        temp /= out_shape[i];
+    std::vector<int> out_coord(ndim);
+    std::vector<int> in_coord(ndim);
+    for (int i = 0; i < total_elements; ++i) {
+      int temp_idx = i;
+      for (int d = ndim - 1; d >= 0; --d) {
+        out_coord[d] = temp_idx % out_shape[d];
+        temp_idx /= out_shape[d];
       }
-      std::vector<int> in_coord(ndim);
-      for (int i = 0; i < ndim; ++i) { in_coord[perm[i]] = out_coord[i]; }
-      int in_idx = 0;
-      for (int i = 0; i < ndim; ++i) { in_idx += in_coord[i] * in_strides[i]; }
-      output[linear_idx] = input[in_idx];
+      for (int d = 0; d < ndim; ++d) { in_coord[perm[d]] = out_coord[d]; }
+      int in_offset = 0;
+      for (int d = 0; d < ndim; ++d) { in_offset += in_coord[d] * in_strides[d]; }
+
+      output[i] = input[in_offset];
     }
   }
 }
