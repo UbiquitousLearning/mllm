@@ -3,9 +3,7 @@
 
 #pragma once
 
-#include <memory>
 #include "mllm/core/BaseOp.hpp"
-#include "mllm/core/DeviceTypes.hpp"
 #include "mllm/compile/ir/Node.hpp"
 #include "mllm/compile/ir/tensor/Value.hpp"
 
@@ -16,6 +14,7 @@ class SubOp;
 class MulOp;
 class DivOp;
 class AbsOp;
+class LogOp;
 class FillOp;
 class MatMulOp;
 class EmbeddingOp;
@@ -120,6 +119,7 @@ LINALG_AOPS_DEFINE(SubOp, SUBOP);
 LINALG_AOPS_DEFINE(MulOp, MULOP);
 LINALG_AOPS_DEFINE(DivOp, DIVOP);
 LINALG_AOPS_DEFINE(AbsOp, ABSOP);
+LINALG_AOPS_DEFINE(LogOp, LOGOP);
 
 LINALG_AOPS_DEFINE(MatMulOp, MATMULOP);
 

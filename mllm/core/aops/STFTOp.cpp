@@ -39,6 +39,12 @@ void STFTOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& out
   MLLM_RT_ASSERT(inputs[0].shape().size() == 1 || inputs[0].shape().size() == 2);
   MLLM_RT_ASSERT(inputs.size() > 1 && inputs[1].shape().back() == options_.win_length);
 
+  if (options_.center && options_.pad_mode != "reflect" && options_.pad_mode != "constant") {
+    MLLM_WARN("STFT: center=True requires pad_mode to be 'reflect' or 'constant', got '{}'. set pad_mode to 'reflect'",
+              options_.pad_mode);
+    options_.pad_mode = "reflect";
+  }
+
   auto& input = inputs[0];
   auto& output = outputs[0];
 

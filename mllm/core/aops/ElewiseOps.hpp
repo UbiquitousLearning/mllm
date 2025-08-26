@@ -33,6 +33,8 @@ struct NegOpOptions : public BaseOpOptions<NegOpOptions> {};
 
 struct AbsOpOptions : public BaseOpOptions<AbsOpOptions> {};
 
+struct LogOpOptions : public BaseOpOptions<LogOpOptions> {};
+
 __MLLM_ELEWISE_OP_DEFINE(AddOp);
 __MLLM_ELEWISE_OP_DEFINE(SubOp);
 __MLLM_ELEWISE_OP_DEFINE(MulOp);
@@ -41,6 +43,7 @@ __MLLM_ELEWISE_OP_DEFINE(NegOp);
 
 // Unary Ops
 __MLLM_ELEWISE_OP_DEFINE(AbsOp);
+__MLLM_ELEWISE_OP_DEFINE(LogOp);
 
 }  // namespace mllm::aops
 

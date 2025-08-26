@@ -60,4 +60,6 @@ Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V);
 
 Tensor softmax(const Tensor& x, int32_t dim);
 
+Tensor log(const Tensor& x);
+
 }  // namespace mllm::nn::functional

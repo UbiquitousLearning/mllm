@@ -1,8 +1,8 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
 
+#include "mllm/core/OpTypes.hpp"
 #include "mllm/utils/Common.hpp"
-#include "mllm/core/DataTypes.hpp"
 #include "mllm/core/aops/ElewiseOps.hpp"
 
 namespace MLLM_ANONYMOUS_NAMESPACE {
@@ -67,8 +67,9 @@ static std::vector<int> broadcastShapes(const std::vector<std::vector<int>>& sha
     MLLM_WARN(#name "::forward is not implemented");                                                       \
   }                                                                                                        \
   void name::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {                    \
-    /* NOTE: currently only takes into Abs op, other ops may still have complex outputs */                 \
-    if (inputs[0].dtype() == kComplexFloat32 || inputs[0].dtype() == kComplexFloat64) {                    \
+    /* Abs op will have float32 output for complex inputs */                                               \
+    if (this->getOpType() == OpTypes::kAbs                                                                 \
+        && (inputs[0].dtype() == kComplexFloat32 || inputs[0].dtype() == kComplexFloat64)) {               \
       Tensor output_0 = Tensor::empty(inputs[0].shape(), kFloat32, inputs[0].device());                    \
       outputs.emplace_back(output_0);                                                                      \
       return;                                                                                              \
@@ -89,6 +90,7 @@ __MLLM_ELEWISE_OP_IMPL(kNeg, NegOp);
 
 // ---------- Unary Ops
 __MLLM_ELEWISE_UNARY_OP_IMPL(kAbs, AbsOp);
+__MLLM_ELEWISE_UNARY_OP_IMPL(kLog, LogOp);
 
 }  // namespace mllm::aops
 

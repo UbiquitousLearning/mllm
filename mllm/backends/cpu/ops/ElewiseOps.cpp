@@ -4,6 +4,7 @@
 #include "mllm/backends/cpu/ops/ElewiseOps.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
 #include "mllm/core/DataTypes.hpp"
+#include "mllm/utils/Dbg.hpp"
 
 namespace mllm::cpu {
 
@@ -529,6 +530,35 @@ void CPUAbsOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
     }
 
     default: NYI("AbsOp not support data type: {}", nameOfType(dtype)); break;
+  }
+}
+
+CPULogOp::CPULogOp(const aops::LogOpOptions& options) : aops::LogOp(options) {}
+
+void CPULogOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  auto& input = inputs[0];
+  auto& output = outputs[0];
+
+  auto dtype = output.dtype();
+
+  switch (dtype) {
+    case kFloat32: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::ew_log_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+    case kFloat16: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::ew_log_fp16(output.ptr<mllm_fp16_t>(), input.ptr<mllm_fp16_t>(), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+#endif
+
+    default: NYI("LogOp not support data type: {}", nameOfType(dtype)); break;
   }
 }
 

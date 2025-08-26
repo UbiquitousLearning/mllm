@@ -6,6 +6,7 @@
 #include "mllm/core/aops/FlashAttention2Op.hpp"
 #include "mllm/core/aops/MatMulOp.hpp"
 #include "mllm/core/aops/SoftmaxOp.hpp"
+#include "mllm/core/aops/ElewiseOps.hpp"
 #include "mllm/core/aops/SplitOp.hpp"
 #include "mllm/core/aops/ViewOp.hpp"
 #include "mllm/engine/Context.hpp"
@@ -59,5 +60,7 @@ Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V) {
 Tensor softmax(const Tensor& x, int32_t dim) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kSoftmax, aops::SoftmaxOpOptions{.axis = dim}, {x})[0];
 }
+
+Tensor log(const Tensor& x) { return Context::instance().buildOpAndSubmitTask(OpTypes::kLog, aops::LogOpOptions{}, {x})[0]; }
 
 }  // namespace mllm::nn::functional

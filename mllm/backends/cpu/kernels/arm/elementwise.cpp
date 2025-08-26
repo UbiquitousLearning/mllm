@@ -296,6 +296,23 @@ void ew_abs_complex_fp64(mllm_fp32_t* __restrict__ dst, const mllm_complex_fp64_
 }
 __MLLM_UNSAFE_OPT_END
 
+// log operation
+void ew_log_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, size_t size, int thread_count) {
+  //   std::log implementation
+  //   MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = std::log(src0[i]); });
+  ParallelElementwiseLoopUnary<mllm_fp32_t, float32x4_t, __ScalarLog<mllm_fp32_t>, __VectorLog<float32x4_t>>::run(
+      dst, src0, size, thread_count);
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_log_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count) {
+  //   std::log implementation
+  //   MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = std::log(src0[i]); });
+  ParallelElementwiseLoopUnary<mllm_fp16_t, float16x8_t, __ScalarLog<mllm_fp16_t>, __VectorLog<float16x8_t>>::run(
+      dst, src0, size, thread_count);
+}
+#endif
+
 }  // namespace mllm::cpu::arm
 
 #endif

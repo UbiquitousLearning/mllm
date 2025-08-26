@@ -340,6 +340,15 @@ void ew_abs_complex_fp32(mllm_fp32_t* __restrict__ dst, const mllm_complex_fp32_
 void ew_abs_complex_fp64(mllm_fp32_t* __restrict__ dst, const mllm_complex_fp64_t* __restrict__ src0, size_t size,
                          int thread_count);
 
+//===----------------------------------------------------------------------===//
+// Log operations
+//===----------------------------------------------------------------------===//
+void ew_log_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, size_t size, int thread_count);
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_log_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count);
+#endif
+
 }  // namespace mllm::cpu::arm
 
 #endif

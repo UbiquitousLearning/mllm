@@ -4,8 +4,10 @@
 #pragma once
 
 #include <cstdlib>
+#include <numbers>
 #include "mllm/core/DataTypes.hpp"
 #include "mllm/utils/CPUArchHelper.hpp"
+#include "mllm/utils/Common.hpp"
 
 #if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
 
@@ -47,6 +49,11 @@ struct __ScalarMin {
 template<typename __T>
 struct __ScalarAbs {
   static MLLM_CPU_ARM_FORCE_INLINE __T cal(__T a) { return std::abs(a); }
+};
+
+template<typename __T>
+struct __ScalarLog {
+  static MLLM_CPU_ARM_FORCE_INLINE __T cal(__T a) { return std::log(a); }
 };
 
 template<typename __VT>
@@ -93,6 +100,13 @@ struct __VectorMin {
 
 template<typename __VT>
 struct __VectorAbs {
+  static MLLM_CPU_ARM_FORCE_INLINE __VT cal(__VT a) {}
+
+  static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 1; }
+};
+
+template<typename __VT>
+struct __VectorLog {
   static MLLM_CPU_ARM_FORCE_INLINE __VT cal(__VT a) {}
 
   static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 1; }
@@ -348,6 +362,51 @@ struct __VectorAbs<float32x4_t> {
   static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 4; }
 };
 
+// For Vector Log compute
+namespace __mllm_vector_log {
+static const float32x4_t one = vdupq_n_f32(1.0f);
+static const float32x4_t ln2 = vdupq_n_f32(std::numbers::ln2_v<float>);
+static const float32x4_t c1 = vdupq_n_f32(-0.5f);
+static const float32x4_t c2 = vdupq_n_f32(0.3333333f);
+static const float32x4_t c3 = vdupq_n_f32(-0.25f);
+static const float32x4_t c4 = vdupq_n_f32(0.2f);
+
+float32x4_t log_ps_f32(float32x4_t a) {
+  uint32x4_t xi = vreinterpretq_u32_f32(a);
+  int32x4_t e = vreinterpretq_s32_u32(vshrq_n_u32(xi, 23));  // exponent bits
+  e = vsubq_s32(e, vdupq_n_s32(127));                        // remove bias
+
+  //  x / 2^e -> m ∈ [1,2)
+  xi = vandq_u32(xi, vdupq_n_u32(0x007FFFFF));  // remain mantissa
+  xi = vorrq_u32(xi, vreinterpretq_u32_f32(vdupq_n_f32(1.0f)));
+  float32x4_t m = vreinterpretq_f32_u32(xi);
+
+  // m -> [0,1)，y = m - 1
+  float32x4_t y = vsubq_f32(m, one);
+
+  // log(1+y) = y - y^2/2 + y^3/3 - y^4/4 + ...
+  float32x4_t p = y;
+  float32x4_t y2 = vmulq_f32(y, y);
+
+  float32x4_t poly = vmlaq_f32(c4, c3, y);  // c3*y + c4
+  poly = vmlaq_f32(poly, c2, y);            // c2*y + ...
+  poly = vmlaq_f32(poly, c1, y);            // c1*y + ...
+  poly = vmulq_f32(poly, y2);
+  poly = vaddq_f32(poly, y);
+
+  // log(x) = e*ln(2) + poly
+  float32x4_t ef = vcvtq_f32_s32(e);
+  return vmlaq_f32(poly, ef, ln2);
+}
+}  // namespace __mllm_vector_log
+
+template<>
+struct __VectorLog<float32x4_t> {
+  static MLLM_CPU_ARM_FORCE_INLINE float32x4_t cal(float32x4_t a) { return __mllm_vector_log::log_ps_f32(a); }
+
+  static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 4; }
+};
+
 //===----------------------------------------------------------------------===//
 // Float16 Vector Ops
 //===----------------------------------------------------------------------===//
@@ -400,7 +459,22 @@ struct __VectorAbs<float16x8_t> {
 
   static MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 8; }
 };
-#endif
+
+template<>
+struct __VectorLog<float16x8_t> {
+  static constexpr size_t lanes() { return 8; }
+  static inline float16x8_t cal(float16x8_t a) {
+    float32x4_t lo = vcvt_f32_f16(vget_low_f16(a));
+    float32x4_t hi = vcvt_f32_f16(vget_high_f16(a));
+
+    lo = __mllm_vector_log::log_ps_f32(lo);
+    hi = __mllm_vector_log::log_ps_f32(hi);
+
+    return vcombine_f16(vcvt_f16_f32(lo), vcvt_f16_f32(hi));
+  }
+};
+
+#endif  // #end if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 //===----------------------------------------------------------------------===//
 // Scalar Load Ops
