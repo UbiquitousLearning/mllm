@@ -7,6 +7,13 @@ FetchContent_Declare(
     GIT_TAG 11.2.0
 )
 FetchContent_MakeAvailable(fmt)
+include("${CMAKE_CURRENT_LIST_DIR}/CPM.cmake")
+set(STDEXEC_BUILD_EXAMPLES OFF)
+CPMAddPackage(
+  NAME stdexec
+  GITHUB_REPOSITORY NVIDIA/stdexec
+  GIT_TAG nvhpc-25.03.rc1
+)
 include("${CMAKE_CURRENT_LIST_DIR}/MllmTargets.cmake")
 set_and_check(MLLM_INCLUDE_DIR "@PACKAGE_INCLUDE_INSTALL_DIR@")
 check_required_components(Mllm)

@@ -35,10 +35,7 @@ PYBIND11_MODULE(_C, m) {
   m.def("memory_report", &mllm::memoryReport, "Print memory report");
   m.def("is_opencl_available", &mllm::isOpenCLAvailable, "Check if OpenCL is available");
   m.def("is_qnn_available", &mllm::isQnnAvailable, "Check if QNN is available");
-  m.def("perf_start", &mllm::perfStart, "Start performance profiling");
-  m.def("perf_end", &mllm::perfEnd, "End performance profiling");
   m.def("clean_this_thread", &mllm::cleanThisThread, "Clean current thread context");
-  m.def("get_perf_file", &mllm::getPerfFile, "Get performance file");
   m.def("this_thread", &mllm::thisThread, "Get current thread context");
   m.def("load", &mllm::load, "Load parameter file", pybind11::arg("file_name"),
         pybind11::arg("version") = mllm::ModelFileVersion::kV1, pybind11::arg("map_2_device") = mllm::kCPU);

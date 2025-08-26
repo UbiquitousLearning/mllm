@@ -13,10 +13,6 @@ void registerEngineBinding(py::module_& m) {
       .value("V2", mllm::ModelFileVersion::kV2)
       .value("UserTemporary", mllm::ModelFileVersion::kUserTemporary);
 
-  pybind11::class_<mllm::PerfFile, mllm::PerfFile::ptr_t>(m, "PerfFile")
-      .def("finalize", &mllm::PerfFile::finalize)
-      .def("save", &mllm::PerfFile::save);
-
   pybind11::class_<mllm::SessionTCB, mllm::SessionTCB::ptr_t>(m, "SessionTCB")
       .def_readwrite("trace_mode", &mllm::SessionTCB::trace_mode);
 
@@ -62,9 +58,6 @@ void registerEngineBinding(py::module_& m) {
       .def("main_thread", &mllm::Context::mainThread)
       .def("set_random_seed", &mllm::Context::setRandomSeed)
       .def("get_random_seed", &mllm::Context::getRandomSeed)
-      .def("set_perf_mode", &mllm::Context::setPerfMode)
-      .def("is_perf_mode", &mllm::Context::isPerfMode)
-      .def("get_perf_file", &mllm::Context::getPerfFile)
       .def("ref_session_threads", &mllm::Context::refSessionThreads);
 
   pybind11::class_<mllm::ConfigFile>(m, "ConfigFile")

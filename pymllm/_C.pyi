@@ -2,7 +2,7 @@ from __future__ import annotations
 import collections.abc
 import typing
 import typing_extensions
-__all__ = ['AbstractNnNode', 'BaseOp', 'BaseOpOptionsBase', 'CXXLayer', 'CXXModule', 'ConfigFile', 'Context', 'DataTypes', 'DeviceTypes', 'Dispatcher', 'DispatcherManager', 'DispatcherManagerOptions', 'LayerImpl', 'LinearImplTypes', 'LinearOp', 'LinearOpOptions', 'MemoryManager', 'MemoryManagerOptions', 'ModelFileVersion', 'ModuleImpl', 'OpTypes', 'ParameterFile', 'PerfFile', 'SessionTCB', 'Task', 'TaskTypes', 'Tensor', 'TensorMemTypes', 'clean_this_thread', 'get_perf_file', 'initialize_context', 'is_opencl_available', 'is_qnn_available', 'load', 'memory_report', 'perf_end', 'perf_start', 'save', 'set_maximum_num_threads', 'set_random_seed', 'shutdown_context', 'this_thread']
+__all__ = ['AbstractNnNode', 'BaseOp', 'BaseOpOptionsBase', 'CXXLayer', 'CXXModule', 'ConfigFile', 'Context', 'DataTypes', 'DeviceTypes', 'Dispatcher', 'DispatcherManager', 'DispatcherManagerOptions', 'LayerImpl', 'LinearImplTypes', 'LinearOp', 'LinearOpOptions', 'MemoryManager', 'MemoryManagerOptions', 'ModelFileVersion', 'ModuleImpl', 'OpTypes', 'ParameterFile', 'SessionTCB', 'Task', 'TaskTypes', 'Tensor', 'TensorMemTypes', 'clean_this_thread', 'initialize_context', 'is_opencl_available', 'is_qnn_available', 'load', 'memory_report', 'save', 'set_maximum_num_threads', 'set_random_seed', 'shutdown_context', 'this_thread']
 class AbstractNnNode:
     def depth_decrease(self) -> None:
         ...
@@ -62,7 +62,7 @@ class BaseOpOptionsBase:
 class CXXLayer:
     def __init__(self, impl: LayerImpl) -> None:
         ...
-    def __main(self, arg0: collections.abc.Sequence[Tensor]) -> Tensor:
+    def __main(self, arg0: collections.abc.Sequence[Tensor]) -> list[Tensor]:
         ...
 class CXXModule:
     def __init__(self, impl: ModuleImpl) -> None:
@@ -71,7 +71,7 @@ class CXXModule:
         ...
     def __send_graph_end(self, arg0: collections.abc.Sequence[Tensor]) -> None:
         ...
-    def __trace(self, arg0: collections.abc.Sequence[Tensor]) -> list[Tensor]:
+    def __trace(self, arg0: collections.abc.Sequence[Tensor], arg1: collections.abc.Sequence[...]) -> list[Tensor]:
         ...
 class ConfigFile:
     @typing.overload
@@ -96,21 +96,15 @@ class Context:
         ...
     def dispatcher_manager(self) -> DispatcherManager:
         ...
-    def get_perf_file(self) -> PerfFile:
-        ...
     def get_random_seed(self) -> int:
         ...
     def get_uuid(self) -> int:
-        ...
-    def is_perf_mode(self) -> bool:
         ...
     def main_thread(self) -> SessionTCB:
         ...
     def memory_manager(self) -> MemoryManager:
         ...
     def ref_session_threads(self) -> dict[..., SessionTCB]:
-        ...
-    def set_perf_mode(self, arg0: bool) -> None:
         ...
     def set_random_seed(self, arg0: typing.SupportsInt) -> None:
         ...
@@ -339,13 +333,13 @@ class LinearImplTypes:
       LinearImplTypes_End
     """
     Default: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.Default: 1>
-    GGUF_End: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.GGUF_End: 5>
-    GGUF_Start: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.GGUF_Start: 4>
-    Kleidiai_End: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.Kleidiai_End: 3>
-    Kleidiai_Start: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.Kleidiai_Start: 2>
-    LinearImplTypes_End: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.LinearImplTypes_End: 6>
+    GGUF_End: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.GGUF_End: 16>
+    GGUF_Start: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.GGUF_Start: 15>
+    Kleidiai_End: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.Kleidiai_End: 14>
+    Kleidiai_Start: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.Kleidiai_Start: 3>
+    LinearImplTypes_End: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.LinearImplTypes_End: 17>
     LinearImplTypes_Start: typing.ClassVar[LinearImplTypes]  # value = <LinearImplTypes.LinearImplTypes_Start: 0>
-    __members__: typing.ClassVar[dict[str, LinearImplTypes]]  # value = {'LinearImplTypes_Start': <LinearImplTypes.LinearImplTypes_Start: 0>, 'Default': <LinearImplTypes.Default: 1>, 'Kleidiai_Start': <LinearImplTypes.Kleidiai_Start: 2>, 'Kleidiai_End': <LinearImplTypes.Kleidiai_End: 3>, 'GGUF_Start': <LinearImplTypes.GGUF_Start: 4>, 'GGUF_End': <LinearImplTypes.GGUF_End: 5>, 'LinearImplTypes_End': <LinearImplTypes.LinearImplTypes_End: 6>}
+    __members__: typing.ClassVar[dict[str, LinearImplTypes]]  # value = {'LinearImplTypes_Start': <LinearImplTypes.LinearImplTypes_Start: 0>, 'Default': <LinearImplTypes.Default: 1>, 'Kleidiai_Start': <LinearImplTypes.Kleidiai_Start: 3>, 'Kleidiai_End': <LinearImplTypes.Kleidiai_End: 14>, 'GGUF_Start': <LinearImplTypes.GGUF_Start: 15>, 'GGUF_End': <LinearImplTypes.GGUF_End: 16>, 'LinearImplTypes_End': <LinearImplTypes.LinearImplTypes_End: 17>}
     def __eq__(self, other: typing.Any) -> bool:
         ...
     def __getstate__(self) -> int:
@@ -573,51 +567,51 @@ class OpTypes:
       OpType_End
     """
     Add: typing.ClassVar[OpTypes]  # value = <OpTypes.Add: 2>
-    CastType: typing.ClassVar[OpTypes]  # value = <OpTypes.CastType: 16>
-    CausalMask: typing.ClassVar[OpTypes]  # value = <OpTypes.CausalMask: 15>
-    Clone: typing.ClassVar[OpTypes]  # value = <OpTypes.Clone: 32>
-    Concat: typing.ClassVar[OpTypes]  # value = <OpTypes.Concat: 34>
-    Contiguous: typing.ClassVar[OpTypes]  # value = <OpTypes.Contiguous: 40>
-    Conv1D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv1D: 25>
-    Conv2D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv2D: 24>
-    Conv3D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv3D: 23>
-    Copy: typing.ClassVar[OpTypes]  # value = <OpTypes.Copy: 31>
+    CastType: typing.ClassVar[OpTypes]  # value = <OpTypes.CastType: 17>
+    CausalMask: typing.ClassVar[OpTypes]  # value = <OpTypes.CausalMask: 16>
+    Clone: typing.ClassVar[OpTypes]  # value = <OpTypes.Clone: 33>
+    Concat: typing.ClassVar[OpTypes]  # value = <OpTypes.Concat: 35>
+    Contiguous: typing.ClassVar[OpTypes]  # value = <OpTypes.Contiguous: 41>
+    Conv1D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv1D: 26>
+    Conv2D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv2D: 25>
+    Conv3D: typing.ClassVar[OpTypes]  # value = <OpTypes.Conv3D: 24>
+    Copy: typing.ClassVar[OpTypes]  # value = <OpTypes.Copy: 32>
     Div: typing.ClassVar[OpTypes]  # value = <OpTypes.Div: 5>
     Embedding: typing.ClassVar[OpTypes]  # value = <OpTypes.Embedding: 7>
     Fill: typing.ClassVar[OpTypes]  # value = <OpTypes.Fill: 1>
-    FlashAttention2: typing.ClassVar[OpTypes]  # value = <OpTypes.FlashAttention2: 20>
-    GELU: typing.ClassVar[OpTypes]  # value = <OpTypes.GELU: 26>
-    GraphBegin: typing.ClassVar[OpTypes]  # value = <OpTypes.GraphBegin: 42>
-    GraphEnd: typing.ClassVar[OpTypes]  # value = <OpTypes.GraphEnd: 43>
-    KVCache: typing.ClassVar[OpTypes]  # value = <OpTypes.KVCache: 14>
-    LayerNorm: typing.ClassVar[OpTypes]  # value = <OpTypes.LayerNorm: 27>
+    FlashAttention2: typing.ClassVar[OpTypes]  # value = <OpTypes.FlashAttention2: 21>
+    GELU: typing.ClassVar[OpTypes]  # value = <OpTypes.GELU: 27>
+    GraphBegin: typing.ClassVar[OpTypes]  # value = <OpTypes.GraphBegin: 51>
+    GraphEnd: typing.ClassVar[OpTypes]  # value = <OpTypes.GraphEnd: 52>
+    KVCache: typing.ClassVar[OpTypes]  # value = <OpTypes.KVCache: 15>
+    LayerNorm: typing.ClassVar[OpTypes]  # value = <OpTypes.LayerNorm: 28>
     Linear: typing.ClassVar[OpTypes]  # value = <OpTypes.Linear: 8>
     MatMul: typing.ClassVar[OpTypes]  # value = <OpTypes.MatMul: 6>
     Mul: typing.ClassVar[OpTypes]  # value = <OpTypes.Mul: 4>
-    MultimodalRoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.MultimodalRoPE: 28>
-    Neg: typing.ClassVar[OpTypes]  # value = <OpTypes.Neg: 33>
-    OpType_End: typing.ClassVar[OpTypes]  # value = <OpTypes.OpType_End: 44>
+    MultimodalRoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.MultimodalRoPE: 29>
+    Neg: typing.ClassVar[OpTypes]  # value = <OpTypes.Neg: 34>
+    OpType_End: typing.ClassVar[OpTypes]  # value = <OpTypes.OpType_End: 53>
     OpType_Start: typing.ClassVar[OpTypes]  # value = <OpTypes.OpType_Start: 0>
-    Permute: typing.ClassVar[OpTypes]  # value = <OpTypes.Permute: 22>
-    QuickGELU: typing.ClassVar[OpTypes]  # value = <OpTypes.QuickGELU: 30>
-    RMSNorm: typing.ClassVar[OpTypes]  # value = <OpTypes.RMSNorm: 12>
-    ReLU: typing.ClassVar[OpTypes]  # value = <OpTypes.ReLU: 35>
-    ReLU2: typing.ClassVar[OpTypes]  # value = <OpTypes.ReLU2: 36>
-    ReduceMax: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceMax: 37>
-    ReduceMin: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceMin: 38>
-    ReduceSum: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceSum: 39>
-    Repeat: typing.ClassVar[OpTypes]  # value = <OpTypes.Repeat: 21>
-    Reshape: typing.ClassVar[OpTypes]  # value = <OpTypes.Reshape: 41>
+    Permute: typing.ClassVar[OpTypes]  # value = <OpTypes.Permute: 23>
+    QuickGELU: typing.ClassVar[OpTypes]  # value = <OpTypes.QuickGELU: 31>
+    RMSNorm: typing.ClassVar[OpTypes]  # value = <OpTypes.RMSNorm: 13>
+    ReLU: typing.ClassVar[OpTypes]  # value = <OpTypes.ReLU: 36>
+    ReLU2: typing.ClassVar[OpTypes]  # value = <OpTypes.ReLU2: 37>
+    ReduceMax: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceMax: 38>
+    ReduceMin: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceMin: 39>
+    ReduceSum: typing.ClassVar[OpTypes]  # value = <OpTypes.ReduceSum: 40>
+    Repeat: typing.ClassVar[OpTypes]  # value = <OpTypes.Repeat: 22>
+    Reshape: typing.ClassVar[OpTypes]  # value = <OpTypes.Reshape: 42>
     RoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.RoPE: 9>
-    SiLU: typing.ClassVar[OpTypes]  # value = <OpTypes.SiLU: 13>
+    SiLU: typing.ClassVar[OpTypes]  # value = <OpTypes.SiLU: 14>
     Softmax: typing.ClassVar[OpTypes]  # value = <OpTypes.Softmax: 10>
-    Split: typing.ClassVar[OpTypes]  # value = <OpTypes.Split: 18>
+    Split: typing.ClassVar[OpTypes]  # value = <OpTypes.Split: 19>
     Sub: typing.ClassVar[OpTypes]  # value = <OpTypes.Sub: 3>
-    Transpose: typing.ClassVar[OpTypes]  # value = <OpTypes.Transpose: 11>
-    View: typing.ClassVar[OpTypes]  # value = <OpTypes.View: 19>
-    VisionRoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.VisionRoPE: 29>
-    X2X: typing.ClassVar[OpTypes]  # value = <OpTypes.X2X: 17>
-    __members__: typing.ClassVar[dict[str, OpTypes]]  # value = {'OpType_Start': <OpTypes.OpType_Start: 0>, 'Fill': <OpTypes.Fill: 1>, 'Add': <OpTypes.Add: 2>, 'Sub': <OpTypes.Sub: 3>, 'Mul': <OpTypes.Mul: 4>, 'Div': <OpTypes.Div: 5>, 'MatMul': <OpTypes.MatMul: 6>, 'Embedding': <OpTypes.Embedding: 7>, 'Linear': <OpTypes.Linear: 8>, 'RoPE': <OpTypes.RoPE: 9>, 'Softmax': <OpTypes.Softmax: 10>, 'Transpose': <OpTypes.Transpose: 11>, 'RMSNorm': <OpTypes.RMSNorm: 12>, 'SiLU': <OpTypes.SiLU: 13>, 'KVCache': <OpTypes.KVCache: 14>, 'CausalMask': <OpTypes.CausalMask: 15>, 'CastType': <OpTypes.CastType: 16>, 'X2X': <OpTypes.X2X: 17>, 'Split': <OpTypes.Split: 18>, 'View': <OpTypes.View: 19>, 'FlashAttention2': <OpTypes.FlashAttention2: 20>, 'Repeat': <OpTypes.Repeat: 21>, 'Permute': <OpTypes.Permute: 22>, 'Conv3D': <OpTypes.Conv3D: 23>, 'Conv2D': <OpTypes.Conv2D: 24>, 'Conv1D': <OpTypes.Conv1D: 25>, 'GELU': <OpTypes.GELU: 26>, 'LayerNorm': <OpTypes.LayerNorm: 27>, 'MultimodalRoPE': <OpTypes.MultimodalRoPE: 28>, 'VisionRoPE': <OpTypes.VisionRoPE: 29>, 'QuickGELU': <OpTypes.QuickGELU: 30>, 'Copy': <OpTypes.Copy: 31>, 'Clone': <OpTypes.Clone: 32>, 'Neg': <OpTypes.Neg: 33>, 'Concat': <OpTypes.Concat: 34>, 'ReLU': <OpTypes.ReLU: 35>, 'ReLU2': <OpTypes.ReLU2: 36>, 'ReduceMax': <OpTypes.ReduceMax: 37>, 'ReduceMin': <OpTypes.ReduceMin: 38>, 'ReduceSum': <OpTypes.ReduceSum: 39>, 'Contiguous': <OpTypes.Contiguous: 40>, 'Reshape': <OpTypes.Reshape: 41>, 'GraphBegin': <OpTypes.GraphBegin: 42>, 'GraphEnd': <OpTypes.GraphEnd: 43>, 'OpType_End': <OpTypes.OpType_End: 44>}
+    Transpose: typing.ClassVar[OpTypes]  # value = <OpTypes.Transpose: 12>
+    View: typing.ClassVar[OpTypes]  # value = <OpTypes.View: 20>
+    VisionRoPE: typing.ClassVar[OpTypes]  # value = <OpTypes.VisionRoPE: 30>
+    X2X: typing.ClassVar[OpTypes]  # value = <OpTypes.X2X: 18>
+    __members__: typing.ClassVar[dict[str, OpTypes]]  # value = {'OpType_Start': <OpTypes.OpType_Start: 0>, 'Fill': <OpTypes.Fill: 1>, 'Add': <OpTypes.Add: 2>, 'Sub': <OpTypes.Sub: 3>, 'Mul': <OpTypes.Mul: 4>, 'Div': <OpTypes.Div: 5>, 'MatMul': <OpTypes.MatMul: 6>, 'Embedding': <OpTypes.Embedding: 7>, 'Linear': <OpTypes.Linear: 8>, 'RoPE': <OpTypes.RoPE: 9>, 'Softmax': <OpTypes.Softmax: 10>, 'Transpose': <OpTypes.Transpose: 12>, 'RMSNorm': <OpTypes.RMSNorm: 13>, 'SiLU': <OpTypes.SiLU: 14>, 'KVCache': <OpTypes.KVCache: 15>, 'CausalMask': <OpTypes.CausalMask: 16>, 'CastType': <OpTypes.CastType: 17>, 'X2X': <OpTypes.X2X: 18>, 'Split': <OpTypes.Split: 19>, 'View': <OpTypes.View: 20>, 'FlashAttention2': <OpTypes.FlashAttention2: 21>, 'Repeat': <OpTypes.Repeat: 22>, 'Permute': <OpTypes.Permute: 23>, 'Conv3D': <OpTypes.Conv3D: 24>, 'Conv2D': <OpTypes.Conv2D: 25>, 'Conv1D': <OpTypes.Conv1D: 26>, 'GELU': <OpTypes.GELU: 27>, 'LayerNorm': <OpTypes.LayerNorm: 28>, 'MultimodalRoPE': <OpTypes.MultimodalRoPE: 29>, 'VisionRoPE': <OpTypes.VisionRoPE: 30>, 'QuickGELU': <OpTypes.QuickGELU: 31>, 'Copy': <OpTypes.Copy: 32>, 'Clone': <OpTypes.Clone: 33>, 'Neg': <OpTypes.Neg: 34>, 'Concat': <OpTypes.Concat: 35>, 'ReLU': <OpTypes.ReLU: 36>, 'ReLU2': <OpTypes.ReLU2: 37>, 'ReduceMax': <OpTypes.ReduceMax: 38>, 'ReduceMin': <OpTypes.ReduceMin: 39>, 'ReduceSum': <OpTypes.ReduceSum: 40>, 'Contiguous': <OpTypes.Contiguous: 41>, 'Reshape': <OpTypes.Reshape: 42>, 'GraphBegin': <OpTypes.GraphBegin: 51>, 'GraphEnd': <OpTypes.GraphEnd: 52>, 'OpType_End': <OpTypes.OpType_End: 53>}
     def __eq__(self, other: typing.Any) -> bool:
         ...
     def __getstate__(self) -> int:
@@ -646,11 +640,6 @@ class OpTypes:
         ...
 class ParameterFile:
     pass
-class PerfFile:
-    def finalize(self) -> None:
-        ...
-    def save(self, arg0: str) -> None:
-        ...
 class SessionTCB:
     trace_mode: bool
 class Task:
@@ -899,10 +888,6 @@ def clean_this_thread() -> None:
     """
     Clean current thread context
     """
-def get_perf_file() -> PerfFile:
-    """
-    Get performance file
-    """
 def initialize_context() -> None:
     """
     Initialize the MLLM context
@@ -922,14 +907,6 @@ def load(file_name: str, version: ModelFileVersion = ..., map_2_device: DeviceTy
 def memory_report() -> None:
     """
     Print memory report
-    """
-def perf_end() -> None:
-    """
-    End performance profiling
-    """
-def perf_start() -> None:
-    """
-    Start performance profiling
     """
 def save(file_name: str, parameter_file: ParameterFile, version: ModelFileVersion = ..., map_2_device: DeviceTypes = ...) -> None:
     """
