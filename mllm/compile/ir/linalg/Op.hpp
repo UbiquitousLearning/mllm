@@ -55,6 +55,9 @@ class ReshapeOp;
 class SliceOp;
 class ParamOp;
 class IndexOp;
+class TopKOp;
+class MeanOp;
+class ClipOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -176,5 +179,8 @@ LINALG_AOPS_DEFINE(STFTOp, STFTOP);
 LINALG_AOPS_DEFINE(ParamOp, PARAMOP);
 
 LINALG_AOPS_DEFINE(IndexOp, INDEXOP);
+LINALG_AOPS_DEFINE(TopKOp, TOPKOP);
+LINALG_AOPS_DEFINE(MeanOp, MEANOP);
+LINALG_AOPS_DEFINE(ClipOp, CLIPOP);
 
 }  // namespace mllm::ir::linalg

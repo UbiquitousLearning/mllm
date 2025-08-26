@@ -82,4 +82,27 @@ class ReduceSumOp : public BaseOp {
   ReduceSumOpOptions options_;
 };
 
+struct MeanOpOptions : public BaseOpOptions<MeanOpOptions> {
+  int32_t dim = -1;
+  bool keep_dim = false;
+};
+
+class MeanOp : public BaseOp {
+ public:
+  explicit MeanOp(const MeanOpOptions& cargo);
+
+  void load(const ParameterFile::ptr_t& ploader) override;
+
+  void trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+
+  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+
+  void reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+
+  void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+
+ protected:
+  MeanOpOptions options_;
+};
+
 }  // namespace mllm::aops

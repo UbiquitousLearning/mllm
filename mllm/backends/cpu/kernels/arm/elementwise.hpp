@@ -192,6 +192,69 @@ struct ParallelElementwiseLoopUnary {
   }
 };
 
+// Loop for clip operation with both min and max
+template<typename __ST, typename __VT, typename __ScalarOp, typename __VectorOp, size_t loop_unroll_size = 4>
+struct __clip_loop {
+  static inline void run(__ST* __restrict dst, const __ST* __restrict src, __ST min_val, __ST max_val, size_t size) {
+    __VectorOp vector_op_instance(min_val, max_val);
+    size_t constexpr lanes = vector_op_instance.lanes();
+    size_t vec_size = size & ~(lanes - 1);
+    size_t i = 0;
+
+    __ScalarOp scalar_op(min_val, max_val);
+    __VectorOp vector_op(min_val, max_val);
+
+    for (; i + lanes * loop_unroll_size <= vec_size; i += lanes * loop_unroll_size) {
+#pragma unroll
+      for (size_t u = 0; u < loop_unroll_size; ++u) {
+        __VT va = __VectorLoad<__VT>::load(src, i + u * lanes);
+        __VT result = vector_op.cal(va);
+        __VectorStore<__VT>::store(dst, i + u * lanes, result);
+      }
+    }
+    for (; i < vec_size; i += lanes) {
+      __VT va = __VectorLoad<__VT>::load(src, i);
+      __VT result = vector_op.cal(va);
+      __VectorStore<__VT>::store(dst, i, result);
+    }
+    for (; i < size; ++i) {
+      __ST sa = __ScalarLoad<__ST>::load(src, i);
+      __ST result = scalar_op.cal(sa);
+      __ScalarStore<__ST>::store(dst, i, result);
+    }
+  }
+};
+
+template<typename __ST, typename __VT, typename __ScalarOp, typename __VectorOp, size_t loop_unroll_size = 4>
+struct ParallelClipLoop {
+  static inline void run(__ST* __restrict dst, const __ST* __restrict src, __ST min_val, __ST max_val, size_t size,
+                         size_t thread_count) {
+    if (thread_count > 1) {
+      __VectorOp vector_op_instance(min_val, max_val);
+      size_t constexpr lanes = vector_op_instance.lanes();
+      size_t vec_size = size & ~(lanes - 1);
+      size_t chunk_size = (vec_size + thread_count - 1) / thread_count;
+      chunk_size = (chunk_size + lanes - 1) & ~(lanes - 1);
+
+      MLLM_AUTO_PARALLEL_FOR_BEGIN(start, 0, vec_size, chunk_size) {
+        size_t end = std::min((size_t)(start + chunk_size), vec_size);
+        size_t local_size = end - start;
+        __clip_loop<__ST, __VT, __ScalarOp, __VectorOp, loop_unroll_size>::run(dst + start, src + start, min_val, max_val,
+                                                                               local_size);
+      }
+      MLLM_AUTO_PARALLEL_FOR_END()
+
+      if (vec_size < size) {
+        size_t remaining_size = size - vec_size;
+        __clip_loop<__ST, __VT, __ScalarOp, __VectorOp, loop_unroll_size>::run(dst + vec_size, src + vec_size, min_val, max_val,
+                                                                               remaining_size);
+      }
+    } else {
+      __clip_loop<__ST, __VT, __ScalarOp, __VectorOp, loop_unroll_size>::run(dst, src, min_val, max_val, size);
+    }
+  }
+};
+
 //===----------------------------------------------------------------------===//
 // INSTANCE
 //===----------------------------------------------------------------------===//
@@ -348,6 +411,26 @@ void ew_log_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ 
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 void ew_log_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count);
 #endif
+
+//===----------------------------------------------------------------------===//
+// Clip Kernel API
+//===----------------------------------------------------------------------===//
+void clip_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src, mllm_fp32_t min_val, mllm_fp32_t max_val,
+               size_t size, int thread_count);
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void clip_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src, mllm_fp16_t min_val, mllm_fp16_t max_val,
+               size_t size, int thread_count);
+#endif
+
+void clip_int8(mllm_int8_t* __restrict__ dst, const mllm_int8_t* __restrict__ src, mllm_int8_t min_val, mllm_int8_t max_val,
+               size_t size, int thread_count);
+
+void clip_int16(mllm_int16_t* __restrict__ dst, const mllm_int16_t* __restrict__ src, mllm_int16_t min_val,
+                mllm_int16_t max_val, size_t size, int thread_count);
+
+void clip_int32(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __restrict__ src, mllm_int32_t min_val,
+                mllm_int32_t max_val, size_t size, int thread_count);
 
 }  // namespace mllm::cpu::arm
 

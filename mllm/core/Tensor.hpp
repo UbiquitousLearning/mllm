@@ -202,6 +202,24 @@ class Tensor {
   Tensor abs();
 
   /**
+   * @brief Clips (limits) the values in a tensor.
+   * @param min_val Minimum value
+   * @param max_val Maximum value
+   * @return A tensor with clipped values
+   */
+  Tensor clip(float min_val, float max_val);
+
+  /**
+   * @brief Finds the top k largest (or smallest) elements in a tensor.
+   * @param k Number of top elements to find
+   * @param dim Dimension along which to find top k elements
+   * @param largest If true, find the largest elements; otherwise, find the smallest
+   * @param sorted If true, the result will be sorted by value
+   * @return An array containing values and indices of the top k elements
+   */
+  std::array<Tensor, 2> topk(int32_t k, int32_t dim = -1, bool largest = true, bool sorted = true);
+
+  /**
    * @brief Get min
    *
    * @param dim if dim == 0x7fffffff, return a scalar value.
@@ -224,6 +242,14 @@ class Tensor {
    * @return Tensor
    */
   Tensor sum(bool keep_dim = false, int32_t dim = 0x7fffffff);
+
+  /**
+   * @brief Get mean
+   *
+   * @param dim if dim == 0x7fffffff, return a scalar value.
+   * @return Tensor
+   */
+  Tensor mean(bool keep_dim = false, int32_t dim = 0x7fffffff);
 
   /**
    * @brief Negative

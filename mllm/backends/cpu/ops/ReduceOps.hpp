@@ -49,4 +49,18 @@ class CPUReduceSumOpFactory final : public TypedOpFactory<OpTypes::kReduceSum, a
   }
 };
 
+class CPUMeanOp final : public aops::MeanOp {
+ public:
+  explicit CPUMeanOp(const aops::MeanOpOptions& options);
+
+  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+};
+
+class CPUMeanOpFactory final : public TypedOpFactory<OpTypes::kMean, aops::MeanOpOptions> {
+ public:
+  std::shared_ptr<BaseOp> createOpImpl(const aops::MeanOpOptions& options) override {
+    return std::make_shared<CPUMeanOp>(options);
+  }
+};
+
 }  // namespace mllm::cpu

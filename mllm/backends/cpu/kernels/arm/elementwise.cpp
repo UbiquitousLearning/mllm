@@ -313,6 +313,38 @@ void ew_log_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ 
 }
 #endif
 
+void clip_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src, mllm_fp32_t min_val, mllm_fp32_t max_val,
+               size_t size, int thread_count) {
+  ParallelClipLoop<mllm_fp32_t, float32x4_t, __ScalarClip<mllm_fp32_t>, __VectorClip<float32x4_t>>::run(
+      dst, src, min_val, max_val, size, thread_count);
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void clip_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src, mllm_fp16_t min_val, mllm_fp16_t max_val,
+               size_t size, int thread_count) {
+  ParallelClipLoop<mllm_fp16_t, float16x8_t, __ScalarClip<mllm_fp16_t>, __VectorClip<float16x8_t>>::run(
+      dst, src, min_val, max_val, size, thread_count);
+}
+#endif
+
+void clip_int8(mllm_int8_t* __restrict__ dst, const mllm_int8_t* __restrict__ src, mllm_int8_t min_val, mllm_int8_t max_val,
+               size_t size, int thread_count) {
+  ParallelClipLoop<mllm_int8_t, int8x16_t, __ScalarClip<mllm_int8_t>, __VectorClip<int8x16_t>>::run(dst, src, min_val, max_val,
+                                                                                                    size, thread_count);
+}
+
+void clip_int16(mllm_int16_t* __restrict__ dst, const mllm_int16_t* __restrict__ src, mllm_int16_t min_val,
+                mllm_int16_t max_val, size_t size, int thread_count) {
+  ParallelClipLoop<mllm_int16_t, int16x8_t, __ScalarClip<mllm_int16_t>, __VectorClip<int16x8_t>>::run(
+      dst, src, min_val, max_val, size, thread_count);
+}
+
+void clip_int32(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __restrict__ src, mllm_int32_t min_val,
+                mllm_int32_t max_val, size_t size, int thread_count) {
+  ParallelClipLoop<mllm_int32_t, int32x4_t, __ScalarClip<mllm_int32_t>, __VectorClip<int32x4_t>>::run(
+      dst, src, min_val, max_val, size, thread_count);
+}
+
 }  // namespace mllm::cpu::arm
 
 #endif

@@ -35,6 +35,21 @@ struct AbsOpOptions : public BaseOpOptions<AbsOpOptions> {};
 
 struct LogOpOptions : public BaseOpOptions<LogOpOptions> {};
 
+struct ClipOpOptions : public BaseOpOptions<ClipOpOptions> {
+  float min_val = -1.0f;
+  float max_val = 1.0f;
+
+  ClipOpOptions& min(float min) {
+    min_val = min;
+    return *this;
+  }
+
+  ClipOpOptions& max(float max) {
+    max_val = max;
+    return *this;
+  }
+};
+
 __MLLM_ELEWISE_OP_DEFINE(AddOp);
 __MLLM_ELEWISE_OP_DEFINE(SubOp);
 __MLLM_ELEWISE_OP_DEFINE(MulOp);
@@ -44,6 +59,7 @@ __MLLM_ELEWISE_OP_DEFINE(NegOp);
 // Unary Ops
 __MLLM_ELEWISE_OP_DEFINE(AbsOp);
 __MLLM_ELEWISE_OP_DEFINE(LogOp);
+__MLLM_ELEWISE_OP_DEFINE(ClipOp);
 
 }  // namespace mllm::aops
 

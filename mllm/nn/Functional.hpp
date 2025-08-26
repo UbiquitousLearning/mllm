@@ -62,4 +62,14 @@ Tensor softmax(const Tensor& x, int32_t dim);
 
 Tensor log(const Tensor& x);
 
+std::array<Tensor, 2> topk(const Tensor& x, int32_t k, int32_t dim = -1, bool largest = true, bool sorted = true);
+
+Tensor clip(const Tensor& x, float min_val, float max_val);
+
+// Reduction operations
+Tensor min(const Tensor& x, int32_t dim = std::numeric_limits<int32_t>::max(), bool keep_dim = false);
+Tensor max(const Tensor& x, int32_t dim = std::numeric_limits<int32_t>::max(), bool keep_dim = false);
+Tensor sum(const Tensor& x, int32_t dim = std::numeric_limits<int32_t>::max(), bool keep_dim = false);
+Tensor mean(const Tensor& x, int32_t dim = std::numeric_limits<int32_t>::max(), bool keep_dim = false);
+
 }  // namespace mllm::nn::functional

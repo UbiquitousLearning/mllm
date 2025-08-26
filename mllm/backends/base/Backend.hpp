@@ -42,7 +42,7 @@ class Backend {
 
   DeviceTypes device_ = kCPU;
   Allocator::ptr_t allocator_ = nullptr;
-  SymbolTable<OpTypes, std::shared_ptr<BaseOpFactory>> op_factories_;
+  SymbolTable<OpTypes, std::shared_ptr<BaseOpFactory>, OpTypesSymbolTableFormatter> op_factories_;
 };
 
 }  // namespace mllm

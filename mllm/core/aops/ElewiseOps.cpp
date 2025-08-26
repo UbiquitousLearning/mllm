@@ -91,6 +91,7 @@ __MLLM_ELEWISE_OP_IMPL(kNeg, NegOp);
 // ---------- Unary Ops
 __MLLM_ELEWISE_UNARY_OP_IMPL(kAbs, AbsOp);
 __MLLM_ELEWISE_UNARY_OP_IMPL(kLog, LogOp);
+__MLLM_ELEWISE_UNARY_OP_IMPL(kClip, ClipOp);
 
 }  // namespace mllm::aops
 

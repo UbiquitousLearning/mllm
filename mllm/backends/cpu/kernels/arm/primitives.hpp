@@ -371,7 +371,9 @@ static const float32x4_t c2 = vdupq_n_f32(0.3333333f);
 static const float32x4_t c3 = vdupq_n_f32(-0.25f);
 static const float32x4_t c4 = vdupq_n_f32(0.2f);
 
-float32x4_t log_ps_f32(float32x4_t a) {
+// FIXME:
+// The code below is from LLM. Have precision errors.
+inline float32x4_t log_ps_f32(float32x4_t a) {
   uint32x4_t xi = vreinterpretq_u32_f32(a);
   int32x4_t e = vreinterpretq_s32_u32(vshrq_n_u32(xi, 23));  // exponent bits
   e = vsubq_s32(e, vdupq_n_s32(127));                        // remove bias
@@ -398,6 +400,7 @@ float32x4_t log_ps_f32(float32x4_t a) {
   float32x4_t ef = vcvtq_f32_s32(e);
   return vmlaq_f32(poly, ef, ln2);
 }
+
 }  // namespace __mllm_vector_log
 
 template<>
@@ -742,10 +745,10 @@ struct __VectorSumReduce<float16x8_t> {
   static MLLM_CPU_ARM_FORCE_INLINE float16_t cal(float16x8_t v) {
     float16x4_t low = vget_low_f16(v);
     float16x4_t high = vget_high_f16(v);
-    float16x4_t sum = vadd_f16(low, high);
-    sum = vpadd_f16(sum, sum);
-    sum = vpadd_f16(sum, sum);
-    return vget_lane_f16(sum, 0);
+    float16x4_t sum1 = vadd_f16(low, high);
+    float16x4_t sum2 = vpadd_f16(sum1, sum1);
+    float16x4_t sum3 = vpadd_f16(sum2, sum2);
+    return vget_lane_f16(sum3, 0);
   }
 };
 
@@ -763,6 +766,114 @@ struct __VectorMulReduce<float16x8_t> {
     mul = vmul_f16(mul, vrev64_f16(mul));
     return vget_lane_f16(mul, 0);
   }
+};
+#endif
+
+//===----------------------------------------------------------------------===//
+// Scalar/Vector CLIP Ops
+//===----------------------------------------------------------------------===//
+
+template<typename __T>
+struct __ScalarClip {
+  __T min_val;
+  __T max_val;
+
+  __ScalarClip(__T _min_val, __T _max_val) : min_val(_min_val), max_val(_max_val) {}
+
+  MLLM_CPU_ARM_FORCE_INLINE __T cal(__T a) { return (a < min_val) ? min_val : ((a > max_val) ? max_val : a); }
+};
+
+template<typename __VT>
+struct __VectorClip {
+  typename __VT::type min_val;
+  typename __VT::type max_val;
+
+  __VectorClip(typename __VT::type _min_val, typename __VT::type _max_val) : min_val(_min_val), max_val(_max_val) {}
+
+  MLLM_CPU_ARM_FORCE_INLINE __VT cal(__VT a) {}
+
+  MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 1; }
+};
+
+template<>
+struct __VectorClip<int32x4_t> {
+  int32_t min_val;
+  int32_t max_val;
+
+  __VectorClip(int32_t _min_val, int32_t _max_val) : min_val(_min_val), max_val(_max_val) {}
+
+  MLLM_CPU_ARM_FORCE_INLINE int32x4_t cal(int32x4_t a) {
+    int32x4_t min_vec = vdupq_n_s32(min_val);
+    int32x4_t max_vec = vdupq_n_s32(max_val);
+    return vminq_s32(vmaxq_s32(a, min_vec), max_vec);
+  }
+
+  MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 4; }
+};
+
+template<>
+struct __VectorClip<int16x8_t> {
+  int16_t min_val;
+  int16_t max_val;
+
+  __VectorClip(int16_t _min_val, int16_t _max_val) : min_val(_min_val), max_val(_max_val) {}
+
+  MLLM_CPU_ARM_FORCE_INLINE int16x8_t cal(int16x8_t a) {
+    int16x8_t min_vec = vdupq_n_s16(min_val);
+    int16x8_t max_vec = vdupq_n_s16(max_val);
+    return vminq_s16(vmaxq_s16(a, min_vec), max_vec);
+  }
+
+  MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 8; }
+};
+
+template<>
+struct __VectorClip<int8x16_t> {
+  int8_t min_val;
+  int8_t max_val;
+
+  __VectorClip(int8_t _min_val, int8_t _max_val) : min_val(_min_val), max_val(_max_val) {}
+
+  MLLM_CPU_ARM_FORCE_INLINE int8x16_t cal(int8x16_t a) {
+    int8x16_t min_vec = vdupq_n_s8(min_val);
+    int8x16_t max_vec = vdupq_n_s8(max_val);
+    return vminq_s8(vmaxq_s8(a, min_vec), max_vec);
+  }
+
+  MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 16; }
+};
+
+template<>
+struct __VectorClip<float32x4_t> {
+  float min_val;
+  float max_val;
+
+  __VectorClip(float _min_val, float _max_val) : min_val(_min_val), max_val(_max_val) {}
+
+  MLLM_CPU_ARM_FORCE_INLINE float32x4_t cal(float32x4_t a) {
+    float32x4_t min_vec = vdupq_n_f32(min_val);
+    float32x4_t max_vec = vdupq_n_f32(max_val);
+    return vminq_f32(vmaxq_f32(a, min_vec), max_vec);
+  }
+
+  MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 4; }
+};
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+template<>
+struct __VectorClip<float16x8_t> {
+  float16_t min_val;
+  float16_t max_val;
+
+  __VectorClip(float16_t _min_val, float16_t _max_val) : min_val(_min_val), max_val(_max_val) {}
+
+  MLLM_CPU_ARM_FORCE_INLINE float16x8_t cal(float16x8_t a) {
+    float16x8_t min_vec = vdupq_n_f16(min_val);
+    float16x8_t max_vec = vdupq_n_f16(max_val);
+    return vminq_f16(vmaxq_f16(a, min_vec), max_vec);
+  }
+
+  MLLM_CPU_ARM_FORCE_INLINE constexpr size_t lanes() { return 8; }
 };
 #endif
 

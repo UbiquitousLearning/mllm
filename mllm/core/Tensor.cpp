@@ -16,6 +16,7 @@
 #include "mllm/core/aops/RepeatOp.hpp"
 #include "mllm/core/aops/ReshapeOp.hpp"
 #include "mllm/core/aops/SliceOp.hpp"
+#include "mllm/core/aops/TopKOp.hpp"
 #include "mllm/core/aops/TransposeOp.hpp"
 #include "mllm/core/aops/ViewOp.hpp"
 #include "mllm/core/aops/X2XOp.hpp"
@@ -173,8 +174,17 @@ Tensor Tensor::operator/(float rhs) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kDiv, aops::DivOpOptions{}, {*this, rhs_tensor})[0];
 }
 
-Tensor Tensor::abs() {
-  return Context::instance().buildOpAndSubmitTask(OpTypes::kAbs, aops::AbsOpOptions{}, {*this})[0];
+Tensor Tensor::abs() { return Context::instance().buildOpAndSubmitTask(OpTypes::kAbs, aops::AbsOpOptions{}, {*this})[0]; }
+
+Tensor Tensor::clip(float min_val, float max_val) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kClip, aops::ClipOpOptions{.min_val = min_val, .max_val = max_val},
+                                                  {*this})[0];
+}
+
+std::array<Tensor, 2> Tensor::topk(int32_t k, int32_t dim, bool largest, bool sorted) {
+  auto outputs = Context::instance().buildOpAndSubmitTask(
+      OpTypes::kTopK, aops::TopKOpOptions{.k = k, .dim = dim, .largest = largest, .sorted = sorted}, {*this});
+  return {outputs[0], outputs[1]};
 }
 
 Tensor Tensor::min(bool keep_dim, int32_t dim) {
@@ -191,6 +201,12 @@ Tensor Tensor::sum(bool keep_dim, int32_t dim) {
   return Context::instance().buildOpAndSubmitTask(OpTypes::kReduceSum,
                                                   aops::ReduceSumOpOptions{.dim = dim, .keep_dim = keep_dim}, {*this})[0];
 }
+
+Tensor Tensor::mean(bool keep_dim, int32_t dim) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kMean, aops::MeanOpOptions{.dim = dim, .keep_dim = keep_dim},
+                                                  {*this})[0];
+}
+
 Tensor Tensor::operator-() { return Context::instance().buildOpAndSubmitTask(OpTypes::kNeg, aops::NegOpOptions{}, {*this})[0]; }
 
 Tensor Tensor::transpose(int dim0, int dim1) {

@@ -169,4 +169,56 @@ void ReduceSumOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>
 
 void ReduceSumOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { BaseOp::setup(inputs, outputs); }
 
+MeanOp::MeanOp(const MeanOpOptions& options) : BaseOp(OpTypes::kMean), options_(options) {}
+
+void MeanOp::load(const ParameterFile::ptr_t& ploader) { MLLM_EMPTY_SCOPE; }
+
+void MeanOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  auto ir_ctx = (ir::IRContext*)trace_context;
+  auto i_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, inputs);
+  auto o_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, outputs);
+  ir_ctx->create<ir::linalg::MeanOp>(shared_from_this(), i_irs, o_irs);
+}
+
+void MeanOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  NYI("MeanOp::forward not implemented in aops base.");
+}
+
+void MeanOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  auto& input = inputs[0];
+
+  if (!input.isNil()) {
+    auto input_shape = input.shape();
+    std::vector<int32_t> output_shape;
+
+    if (options_.dim == 0x7fffffff) {
+      // Reduce over all dimensions, result is a scalar
+      if (options_.keep_dim) {
+        output_shape.resize(input_shape.size(), 1);
+      } else {
+        output_shape = {1};
+      }
+    } else {
+      int32_t dim = options_.dim;
+      // Handle negative dimension index
+      if (dim < 0) { dim += input_shape.size(); }
+
+      if (options_.keep_dim) {
+        // Keep dimensions, so the reduced dimension becomes 1
+        output_shape = input_shape;
+        output_shape[dim] = 1;
+      } else {
+        // Don't keep dimensions, so remove the reduced dimension
+        for (int i = 0; i < input_shape.size(); ++i) {
+          if (i != dim) { output_shape.push_back(input_shape[i]); }
+        }
+      }
+    }
+
+    outputs.emplace_back(Tensor::empty(output_shape, input.dtype(), input.device()));
+  }
+}
+
+void MeanOp::setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) { BaseOp::setup(inputs, outputs); }
+
 }  // namespace mllm::aops
