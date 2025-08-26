@@ -43,8 +43,9 @@ HWY_INLINE V vexpq_fast_f32(D d, V x) {
 
   // If greater, subtract 1
   auto mask = hn::Gt(tmp, fx);
-  mask = hn::And(mask, one);
-  fx = hn::Sub(tmp, mask);
+  // Convert mask to vector type before arithmetic operations
+  auto mask_vec = hn::IfThenElse(mask, one, hn::Zero(d));
+  fx = hn::Sub(tmp, mask_vec);
 
   auto tmp2 = hn::Mul(fx, c_cephes_exp_C1);
   auto z = hn::Mul(fx, c_cephes_exp_C2);
@@ -62,11 +63,11 @@ HWY_INLINE V vexpq_fast_f32(D d, V x) {
   y = hn::Add(y, one);
 
   // Build 2^n
-  using FromType = decltype(fx);
-  auto pow2n =
-      hn::PromoteTo(d, hn::BitCast(hn::Rebind<int32_t, FromType>(), hn::Add(hn::ConvertTo(hn::Rebind<int32_t, FromType>(), fx),
-                                                                            hn::Set(hn::Rebind<int32_t, FromType>(), 0x7f))));
-  pow2n = hn::ShiftLeft<23>(pow2n);
+  // Use Rebind on the SIMD tag type (D), not the vector type (V)
+  using DI = hn::Rebind<int32_t, D>;
+  DI di;
+  auto int_vec = hn::Add(hn::ConvertTo(di, fx), hn::Set(di, 0x7f));
+  auto pow2n = hn::BitCast(d, hn::ShiftLeft<23>(int_vec));
 
   return hn::Mul(y, pow2n);
 }

@@ -7,7 +7,7 @@
 
 #if defined(MLLM_HOST_ARCH_X86_64) || defined(MLLM_HOST_ARCH_X86)
 
-namespace mllm::x86 {
+namespace mllm::cpu::x86 {
 
 void fill_zeros(mllm_fp32_t* __restrict dst, size_t size, int thread_count) {
 #if defined(MLLM_HOST_FEATURE_AVX512F)
@@ -176,6 +176,6 @@ void fill_random(mllm_fp32_t* __restrict dst, size_t size, float start, float en
   }
 }
 
-}  // namespace mllm::x86
+}  // namespace mllm::cpu::x86
 
 #endif

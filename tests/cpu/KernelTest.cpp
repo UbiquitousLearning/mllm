@@ -664,11 +664,27 @@ TEST_F(BlasKernelTest, batch_matmul_BHSD) {
 }
 #endif
 
+//===----------------------------------------------------------------------===//
+// TransposeTest
+//===----------------------------------------------------------------------===//
+#include "TransposeKernelTest.hpp"
+TEST_F(TransposeKernelTest, HWTransposition) { EXPECT_EQ(testHWTransposition(), true); }
+
+TEST_F(TransposeKernelTest, BSHDTransposition) { EXPECT_EQ(testBSHDTransposition(), true); }
+
+TEST_F(TransposeKernelTest, GeneralTransposition) { EXPECT_EQ(testGeneralTransposition(), true); }
+
+//===----------------------------------------------------------------------===//
+// Permute operation tests
+//===----------------------------------------------------------------------===//
+#include "PermuteKernelTest.hpp"
+TEST_F(PermuteKernelTest, Permute2DAndHigher) { EXPECT_EQ(test2DPermutation(), true); }
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   mllm::initializeContext();
-  auto ret = RUN_ALL_TESTS();
-  mllm::shutdownContext();
+  { auto ret = RUN_ALL_TESTS(); }
   mllm::memoryReport();
-  return ret;
+  mllm::shutdownContext();
+  return 0;
 }

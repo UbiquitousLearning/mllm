@@ -67,7 +67,8 @@ MllmReturnCode mllm_show_memory_report() {
 struct ARGenerationContext mllm_ar_from_pretrained(char* model_base_name, char* model_file_path, char* tokenizer_file_path,
                                                    char* config_file_path, int device) {
   ARGenerationContext ret;
-
+  ret.model_handler = loadARModel(std::string(model_base_name), std::string(model_file_path), config_file_path, device);
+  ret.tokenizer_handler = loadARTokenizer(std::string(model_base_name), std::string(tokenizer_file_path));
   return ret;
 }
 

@@ -76,12 +76,14 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         const float* b = input1.ptr<mllm_fp32_t>();
         float* out = output.ptr<mllm_fp32_t>();
 
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
         // Each iteration processes one contiguous block of size `stride`
         for (int l = 0; l < broadcast_naive_loops; ++l) {
           cpu::arm::ew_add_fp32(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
                                 b,  // b always contains `stride` elements
                                 broadcast_naive_stride, options_.getThreads());
         }
+#endif
       } else {
         NYI("AddOp broadcast not supported.");
       }
@@ -509,16 +511,20 @@ void CPUAbsOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
     }
 
     case kComplexFloat32: {
-      // just use simple std::abs()
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      // Just use simple std::abs()
       cpu::arm::ew_abs_complex_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_complex_fp32_t>(), output.numel(),
                                     options_.getThreads());
+#endif
       break;
     }
 
     case kComplexFloat64: {
-      // just use simple std::abs()
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      // Just use simple std::abs()
       cpu::arm::ew_abs_complex_fp64(output.ptr<mllm_fp32_t>(), input.ptr<mllm_complex_fp64_t>(), output.numel(),
                                     options_.getThreads());
+#endif
       break;
     }
 
