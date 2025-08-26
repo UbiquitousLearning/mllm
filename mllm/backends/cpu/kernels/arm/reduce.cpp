@@ -135,6 +135,39 @@ void reduce_min_int32(mllm_int32_t* dst, const mllm_int32_t* src, size_t size, i
   *dst = v;
 }
 
+void reduce_mean_fp32(mllm_fp32_t* dst, const mllm_fp32_t* src, size_t size, int32_t thread_count) {
+  auto v = Reduce<mllm_fp32_t, float32x4_t, __ScalarAdd<float>, __VectorAdd<float32x4_t>, __VectorSumReduce<float32x4_t>>::run(
+      src, size, thread_count);
+  *dst = v / static_cast<mllm_fp32_t>(size);
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void reduce_mean_fp16(mllm_fp16_t* dst, const mllm_fp16_t* src, size_t size, int32_t thread_count) {
+  auto v =
+      Reduce<mllm_fp16_t, float16x8_t, __ScalarAdd<float16_t>, __VectorAdd<float16x8_t>, __VectorSumReduce<float16x8_t>>::run(
+          src, size, thread_count);
+  *dst = v / static_cast<mllm_fp16_t>(size);
+}
+#endif
+
+void reduce_mean_int8(mllm_int8_t* dst, const mllm_int8_t* src, size_t size, int32_t thread_count) {
+  auto v = Reduce<mllm_int8_t, int8x16_t, __ScalarAdd<int8_t>, __VectorAdd<int8x16_t>, __VectorSumReduce<int8x16_t>>::run(
+      src, size, thread_count);
+  *dst = static_cast<mllm_int8_t>(static_cast<float>(v) / static_cast<float>(size));
+}
+
+void reduce_mean_int16(mllm_int16_t* dst, const mllm_int16_t* src, size_t size, int32_t thread_count) {
+  auto v = Reduce<mllm_int16_t, int16x8_t, __ScalarAdd<int16_t>, __VectorAdd<int16x8_t>, __VectorSumReduce<int16x8_t>>::run(
+      src, size, thread_count);
+  *dst = static_cast<mllm_int16_t>(static_cast<float>(v) / static_cast<float>(size));
+}
+
+void reduce_mean_int32(mllm_int32_t* dst, const mllm_int32_t* src, size_t size, int32_t thread_count) {
+  auto v = Reduce<mllm_int32_t, int32x4_t, __ScalarAdd<int32_t>, __VectorAdd<int32x4_t>, __VectorSumReduce<int32x4_t>>::run(
+      src, size, thread_count);
+  *dst = static_cast<mllm_int32_t>(static_cast<float>(v) / static_cast<float>(size));
+}
+
 }  // namespace mllm::cpu::arm
 
 #endif

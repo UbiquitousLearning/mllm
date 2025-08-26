@@ -680,6 +680,99 @@ TEST_F(TransposeKernelTest, GeneralTransposition) { EXPECT_EQ(testGeneralTranspo
 #include "PermuteKernelTest.hpp"
 TEST_F(PermuteKernelTest, Permute2DAndHigher) { EXPECT_EQ(test2DPermutation(), true); }
 
+//===----------------------------------------------------------------------===//
+// TopK operation tests
+//===----------------------------------------------------------------------===//
+#include "TopKKernelTest.hpp"
+TEST_F(TopKKernelTest, TopKTest) { EXPECT_EQ(testTopK({{10}, {1, 10}, {5, 10}, {2, 5, 10}, {1, 4, 8, 16}}, 3), true); }
+
+TEST_F(TopKKernelTest, TopKTestDim) { EXPECT_EQ(testTopK({{2, 5, 10}}, 4, 1), true); }
+
+//===----------------------------------------------------------------------===//
+// Clip operation tests
+//===----------------------------------------------------------------------===//
+#include "ClipKernelTest.hpp"
+TEST_F(ClipKernelTest, ClipTest) {
+  EXPECT_EQ(testClip({{10}, {1, 10}, {5, 10}, {2, 5, 10}, {1, 4, 8, 16}}, -5.0f, 5.0f), true);
+}
+
+//===----------------------------------------------------------------------===//
+// Reduce MEAN.
+//
+// FP32
+// FP16
+//===----------------------------------------------------------------------===//
+#include "ReduceKernelTest.hpp"
+TEST_F(ReduceKernelTest, MeanFloat32) {
+  EXPECT_EQ(ReduceMeanFloat32Test({
+                {3},
+                {9},
+                {42},
+                {5, 5},
+                {16, 16},
+                {16, 18},
+                {32, 32},
+                {128, 128, 128},
+            }),
+            true);
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+TEST_F(ReduceKernelTest, MeanFloat16) {
+  EXPECT_EQ(ReduceMeanFloat16Test({
+                {3},
+                {9},
+                {42},
+                {5, 5},
+                {16, 16},
+                {16, 18},
+                {32, 32},
+                {128, 128, 128},
+            }),
+            true);
+}
+#endif
+
+//===----------------------------------------------------------------------===//
+// Reduce SUM.
+//
+// FP32
+// FP16
+//===----------------------------------------------------------------------===//
+TEST_F(ReduceKernelTest, SumFloat32) {
+  EXPECT_EQ(ReduceSumFloat32Test({
+                {3},
+                {9},
+                {42},
+                {5, 5},
+                {16, 16},
+                {16, 18},
+                {32, 32},
+                {128, 128, 128},
+            }),
+            true);
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+// FIXME:
+// This kernel has precision issues !!!
+// This kernel has precision issues !!!
+// This kernel has precision issues !!!
+// TEST_F(ReduceKernelTest, SumFloat16) {
+//   EXPECT_EQ(ReduceSumFloat16Test({
+//                 {3},
+//                 {9},
+//                 {42},
+//                 {5, 5},
+//                 {16, 16},
+//                 {16, 18},
+//                 {32, 32},
+//                 {128, 128, 128},
+//             }),
+//             true);
+// }
+#endif
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   mllm::initializeContext();

@@ -1,8 +1,2 @@
 // Copyright (c) MLLM Team.
 // Licensed under the MIT License.
-
-#include <mllm/mllm.hpp>
-
-MLLM_MAIN({
-    // TODO
-});

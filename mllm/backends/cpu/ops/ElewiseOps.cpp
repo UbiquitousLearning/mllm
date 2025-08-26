@@ -562,4 +562,59 @@ void CPULogOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   }
 }
 
+CPUClipOp::CPUClipOp(const aops::ClipOpOptions& options) : aops::ClipOp(options) {}
+
+void CPUClipOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  auto& input = inputs[0];
+  auto& output = outputs[0];
+
+  auto dtype = input.dtype();
+
+  switch (dtype) {
+    case kFloat32: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::clip_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), static_cast<mllm_fp32_t>(options_.min_val),
+                          static_cast<mllm_fp32_t>(options_.max_val), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+    case kFloat16: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::clip_fp16(output.ptr<mllm_fp16_t>(), input.ptr<mllm_fp16_t>(), static_cast<mllm_fp16_t>(options_.min_val),
+                          static_cast<mllm_fp16_t>(options_.max_val), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+#endif
+
+    case kInt8: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::clip_int8(output.ptr<mllm_int8_t>(), input.ptr<mllm_int8_t>(), static_cast<mllm_int8_t>(options_.min_val),
+                          static_cast<mllm_int8_t>(options_.max_val), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+
+    case kInt16: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::clip_int16(output.ptr<mllm_int16_t>(), input.ptr<mllm_int16_t>(), static_cast<mllm_int16_t>(options_.min_val),
+                           static_cast<mllm_int16_t>(options_.max_val), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+
+    case kInt32: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::clip_int32(output.ptr<mllm_int32_t>(), input.ptr<mllm_int32_t>(), static_cast<mllm_int32_t>(options_.min_val),
+                           static_cast<mllm_int32_t>(options_.max_val), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+
+    default: NYI("ClipOp not support data type: {}", nameOfType(dtype)); break;
+  }
+}
+
 }  // namespace mllm::cpu

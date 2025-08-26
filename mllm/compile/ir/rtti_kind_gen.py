@@ -262,6 +262,9 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("SliceOp"))
     op.derive(Cls("ParamOp"))
     op.derive(Cls("IndexOp"))
+    op.derive(Cls("TopKOp"))
+    op.derive(Cls("MeanOp"))
+    op.derive(Cls("ClipOp"))
 
     # value
 

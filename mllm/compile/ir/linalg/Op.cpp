@@ -73,5 +73,8 @@ LINALG_AOPS_DECL(OpTypes::kSlice, SliceOp);
 LINALG_AOPS_DECL(OpTypes::kParam, ParamOp);
 
 LINALG_AOPS_DECL(OpTypes::kIndex, IndexOp);
+LINALG_AOPS_DECL(OpTypes::kTopK, TopKOp);
+LINALG_AOPS_DECL(OpTypes::kMean, MeanOp);
+LINALG_AOPS_DECL(OpTypes::kClip, ClipOp);
 
 }  // namespace mllm::ir::linalg

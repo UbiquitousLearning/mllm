@@ -59,6 +59,9 @@ enum class OpTypes : int32_t {
   kIndex,
   kAbs,
   kLog,
+  kTopK,
+  kMean,
+  kClip,
 
   // Graph Control Ops
   kGraphBegin,
@@ -116,6 +119,9 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kReshape: return "Reshape";
     case OpTypes::kSlice: return "Slice";
     case OpTypes::kIndex: return "Index";
+    case OpTypes::kTopK: return "TopK";
+    case OpTypes::kMean: return "Mean";
+    case OpTypes::kClip: return "Clip";
     case OpTypes::kParam: return "Param";
     case OpTypes::kGraphBegin: return "GraphBegin";
     case OpTypes::kGraphEnd: return "GraphEnd";
@@ -123,5 +129,9 @@ inline std::string optype2Str(OpTypes type) {
     default: return "Unknown";
   }
 }
+
+struct OpTypesSymbolTableFormatter {
+  std::string operator()(const mllm::OpTypes& optype) const { return optype2Str(optype); }
+};
 
 }  // namespace mllm

@@ -7,11 +7,23 @@
 #include <unordered_map>
 #include <type_traits>
 #include "mllm/utils/Common.hpp"
-#include "mllm/core/OpTypes.hpp"
 
 namespace mllm {
 
-template<typename KeyT, typename ValueT>
+template<typename KeyT>
+struct DefaultSymbolTableKeyFormatter {
+  std::string operator()(const KeyT& key) const {
+    if constexpr (std::is_same_v<KeyT, std::string>) {
+      return key;
+    } else if constexpr (std::is_arithmetic_v<KeyT>) {
+      return std::to_string(key);
+    } else {
+      return "<unknown>";
+    }
+  }
+};
+
+template<typename KeyT, typename ValueT, typename Formatter = DefaultSymbolTableKeyFormatter<KeyT>>
 class SymbolTable {
  public:
   using const_iterator = typename std::unordered_map<KeyT, ValueT>::const_iterator;
@@ -19,7 +31,7 @@ class SymbolTable {
   void reg(const KeyT& name, const ValueT& v) {
     if (has(name)) {
       MLLM_ERROR_EXIT(ExitCode::kCoreError, "When registering new value, found symbol table already has a value key: {}",
-                      _key_type_name(name));
+                      formatter_(name));
     }
     symbol_table_.insert({name, v});
   }
@@ -28,7 +40,7 @@ class SymbolTable {
 
   void rename(const KeyT& name, const std::string& new_name) {
     if (!has(name)) {
-      MLLM_WARN("When renaming symbol in symbol table. Found symbol key: {} not in symbol table", _key_type_name(name));
+      MLLM_WARN("When renaming symbol in symbol table. Found symbol key: {} not in symbol table", formatter_(name));
     }
     auto sec = symbol_table_[name];
     symbol_table_.erase(name);
@@ -37,7 +49,7 @@ class SymbolTable {
 
   void remove(const KeyT& name) {
     if (!has(name)) {
-      MLLM_WARN("When removing symbol in symbol table. Found symbol key: {} not in symbol table", _key_type_name(name));
+      MLLM_WARN("When removing symbol in symbol table. Found symbol key: {} not in symbol table", formatter_(name));
     }
     symbol_table_.erase(name);
   }
@@ -45,7 +57,7 @@ class SymbolTable {
   ValueT& operator[](const KeyT& name) {
     if (!has(name)) {
       MLLM_ERROR_EXIT(ExitCode::kCoreError, "When accessing symbol in symbol table. Found symbol key: {} not in symbol table",
-                      _key_type_name(name));
+                      formatter_(name));
     }
     return symbol_table_[name];
   }
@@ -61,23 +73,7 @@ class SymbolTable {
 
  private:
   std::unordered_map<KeyT, ValueT> symbol_table_;
-
-  inline auto _key_type_name(const KeyT& name) const {
-    if constexpr (std::is_same_v<KeyT, std::string>) {
-      return name;
-    } else if constexpr (std::is_arithmetic_v<KeyT>) {
-      return std::to_string(name);
-    } else if constexpr (std::is_enum_v<KeyT>) {
-      // 对OpTypes类型进行特殊处理
-      if constexpr (std::is_same_v<KeyT, mllm::OpTypes>) {
-        return mllm::optype2Str(name);
-      } else {
-        return static_cast<std::underlying_type_t<KeyT>>(name);
-      }
-    } else {
-      return "<unknown>";
-    }
-  }
+  Formatter formatter_;
 };
 
 }  // namespace mllm

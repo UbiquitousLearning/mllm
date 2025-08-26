@@ -50,6 +50,13 @@ class CPUAbsOp final : public aops::AbsOp {
   void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 };
 
+class CPUClipOp final : public aops::ClipOp {
+ public:
+  explicit CPUClipOp(const aops::ClipOpOptions& options);
+
+  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+};
+
 class CPUAddOpFactory final : public TypedOpFactory<OpTypes::kAdd, aops::AddOpOptions> {
  public:
   std::shared_ptr<BaseOp> createOpImpl(const aops::AddOpOptions& options) override {
@@ -103,6 +110,13 @@ class CPULogOpFactory : public TypedOpFactory<OpTypes::kLog, aops::LogOpOptions>
  public:
   std::shared_ptr<BaseOp> createOpImpl(const aops::LogOpOptions& options) override {
     return std::make_shared<CPULogOp>(options);
+  }
+};
+
+class CPUClipOpFactory : public TypedOpFactory<OpTypes::kClip, aops::ClipOpOptions> {
+ public:
+  std::shared_ptr<BaseOp> createOpImpl(const aops::ClipOpOptions& options) override {
+    return std::make_shared<CPUClipOp>(options);
   }
 };
 

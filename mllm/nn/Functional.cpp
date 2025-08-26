@@ -3,12 +3,15 @@
 
 #include "mllm/nn/Functional.hpp"
 #include "mllm/core/aops/ConcatOp.hpp"
+#include "mllm/core/aops/ElewiseOps.hpp"
 #include "mllm/core/aops/FlashAttention2Op.hpp"
 #include "mllm/core/aops/MatMulOp.hpp"
+#include "mllm/core/aops/ReduceOps.hpp"
 #include "mllm/core/aops/SoftmaxOp.hpp"
 #include "mllm/core/aops/ElewiseOps.hpp"
 #include "mllm/core/aops/SplitOp.hpp"
 #include "mllm/core/aops/ViewOp.hpp"
+#include "mllm/core/aops/TopKOp.hpp"
 #include "mllm/engine/Context.hpp"
 
 namespace mllm::nn::functional {
@@ -62,5 +65,36 @@ Tensor softmax(const Tensor& x, int32_t dim) {
 }
 
 Tensor log(const Tensor& x) { return Context::instance().buildOpAndSubmitTask(OpTypes::kLog, aops::LogOpOptions{}, {x})[0]; }
+
+std::array<Tensor, 2> topk(const Tensor& x, int32_t k, int32_t dim, bool largest, bool sorted) {
+  auto outputs = Context::instance().buildOpAndSubmitTask(
+      OpTypes::kTopK, aops::TopKOpOptions{.k = k, .dim = dim, .largest = largest, .sorted = sorted}, {x});
+  return {outputs[0], outputs[1]};
+}
+
+Tensor clip(const Tensor& x, float min_val, float max_val) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kClip, aops::ClipOpOptions{.min_val = min_val, .max_val = max_val},
+                                                  {x})[0];
+}
+
+Tensor min(const Tensor& x, int32_t dim, bool keep_dim) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kReduceMin,
+                                                  aops::ReduceMinOpOptions{.dim = dim, .keep_dim = keep_dim}, {x})[0];
+}
+
+Tensor max(const Tensor& x, int32_t dim, bool keep_dim) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kReduceMax,
+                                                  aops::ReduceMaxOpOptions{.dim = dim, .keep_dim = keep_dim}, {x})[0];
+}
+
+Tensor sum(const Tensor& x, int32_t dim, bool keep_dim) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kReduceSum,
+                                                  aops::ReduceSumOpOptions{.dim = dim, .keep_dim = keep_dim}, {x})[0];
+}
+
+Tensor mean(const Tensor& x, int32_t dim, bool keep_dim) {
+  return Context::instance().buildOpAndSubmitTask(OpTypes::kMean, aops::MeanOpOptions{.dim = dim, .keep_dim = keep_dim},
+                                                  {x})[0];
+}
 
 }  // namespace mllm::nn::functional
