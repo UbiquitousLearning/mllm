@@ -92,4 +92,18 @@ class CPUAbsOpFactory : public TypedOpFactory<OpTypes::kAbs, aops::AbsOpOptions>
   }
 };
 
+class CPULogOp : public aops::LogOp {
+ public:
+  explicit CPULogOp(const aops::LogOpOptions& options);
+
+  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+};
+
+class CPULogOpFactory : public TypedOpFactory<OpTypes::kLog, aops::LogOpOptions> {
+ public:
+  std::shared_ptr<BaseOp> createOpImpl(const aops::LogOpOptions& options) override {
+    return std::make_shared<CPULogOp>(options);
+  }
+};
+
 }  // namespace mllm::cpu

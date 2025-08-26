@@ -223,6 +223,7 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("MulOp"))
     op.derive(Cls("DivOp"))
     op.derive(Cls("AbsOp"))
+    op.derive(Cls("LogOp"))
     op.derive(Cls("MatMulOp"))
     op.derive(Cls("EmbeddingOp"))
     op.derive(Cls("LinearOp"))

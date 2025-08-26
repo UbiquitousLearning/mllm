@@ -58,6 +58,7 @@ enum class OpTypes : int32_t {
   kParam,
   kIndex,
   kAbs,
+  kLog,
 
   // Graph Control Ops
   kGraphBegin,
@@ -75,6 +76,7 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kMul: return "Mul";
     case OpTypes::kDiv: return "Div";
     case OpTypes::kAbs: return "Abs";
+    case OpTypes::kLog: return "Log";
     case OpTypes::kMatMul: return "MatMul";
     case OpTypes::kEmbedding: return "Embedding";
     case OpTypes::kLinear: return "Linear";
