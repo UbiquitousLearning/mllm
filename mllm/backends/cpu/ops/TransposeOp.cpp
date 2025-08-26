@@ -4,6 +4,7 @@
 #include "mllm/backends/cpu/ops/TransposeOp.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
 #include "mllm/core/DataTypes.hpp"
+#include "mllm/utils/Dbg.hpp"
 
 namespace mllm::cpu {
 
@@ -90,7 +91,7 @@ void CPUTransposeOp::forward(const std::vector<Tensor>& inputs, std::vector<Tens
   // CASE 4. General permute
   else {
     std::vector<int32_t> permute_axis(input_shape.size());
-    for (int i = 0; i < input_shape.size(); i++) { permute_axis[i] = input_shape[i]; }
+    for (int i = 0; i < input_shape.size(); i++) { permute_axis[i] = i; }
 
     std::swap(permute_axis[dim0], permute_axis[dim1]);
 
