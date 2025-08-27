@@ -122,6 +122,20 @@ class CPULogOpFactory : public TypedOpFactory<OpTypes::kLog, aops::LogOpOptions>
   }
 };
 
+class CPUExpOp final : public aops::ExpOp {
+ public:
+  explicit CPUExpOp(const aops::ExpOpOptions& options);
+
+  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+};
+
+class CPUExpOpFactory : public TypedOpFactory<OpTypes::kExp, aops::ExpOpOptions> {
+ public:
+  std::shared_ptr<BaseOp> createOpImpl(const aops::ExpOpOptions& options) override {
+    return std::make_shared<CPUExpOp>(options);
+  }
+};
+
 class CPUClipOpFactory : public TypedOpFactory<OpTypes::kClip, aops::ClipOpOptions> {
  public:
   std::shared_ptr<BaseOp> createOpImpl(const aops::ClipOpOptions& options) override {

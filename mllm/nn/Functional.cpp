@@ -66,6 +66,8 @@ Tensor softmax(const Tensor& x, int32_t dim) {
 
 Tensor log(const Tensor& x) { return Context::instance().buildOpAndSubmitTask(OpTypes::kLog, aops::LogOpOptions{}, {x})[0]; }
 
+Tensor exp(const Tensor& x) { return Context::instance().buildOpAndSubmitTask(OpTypes::kExp, aops::ExpOpOptions{}, {x})[0]; }
+
 std::array<Tensor, 2> topk(const Tensor& x, int32_t k, int32_t dim, bool largest, bool sorted) {
   auto outputs = Context::instance().buildOpAndSubmitTask(
       OpTypes::kTopK, aops::TopKOpOptions{.k = k, .dim = dim, .largest = largest, .sorted = sorted}, {x});

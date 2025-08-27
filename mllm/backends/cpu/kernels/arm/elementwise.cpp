@@ -313,6 +313,19 @@ void ew_log_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ 
 }
 #endif
 
+// exp operation
+void ew_exp_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, size_t size, int thread_count) {
+  ParallelElementwiseLoopUnary<mllm_fp32_t, float32x4_t, __ScalarExp<mllm_fp32_t>, __VectorExp<float32x4_t>>::run(
+      dst, src0, size, thread_count);
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_exp_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count) {
+  ParallelElementwiseLoopUnary<mllm_fp16_t, float16x8_t, __ScalarExp<mllm_fp16_t>, __VectorExp<float16x8_t>>::run(
+      dst, src0, size, thread_count);
+}
+#endif
+
 void clip_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src, mllm_fp32_t min_val, mllm_fp32_t max_val,
                size_t size, int thread_count) {
   ParallelClipLoop<mllm_fp32_t, float32x4_t, __ScalarClip<mllm_fp32_t>, __VectorClip<float32x4_t>>::run(

@@ -86,6 +86,8 @@ Tensor softmax(const Tensor& x, int32_t dim);
 
 Tensor log(const Tensor& x);
 
+Tensor exp(const Tensor& x);
+
 std::array<Tensor, 2> topk(const Tensor& x, int32_t k, int32_t dim = -1, bool largest = true, bool sorted = true);
 
 Tensor clip(const Tensor& x, float min_val, float max_val);

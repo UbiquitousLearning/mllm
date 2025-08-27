@@ -12,6 +12,7 @@
 #include <arm_neon.h>
 
 #include "mllm/backends/cpu/kernels/arm/primitives.hpp"
+#include "mllm/backends/cpu/kernels/arm/math.hpp"
 
 namespace mllm::cpu::arm {
 
@@ -382,6 +383,7 @@ void ew_mul_int32_scalar(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __r
 void ew_div_int32_scalar(mllm_int32_t* __restrict__ dst, const mllm_int32_t* __restrict__ src0, const mllm_int32_t src1,
                          size_t size, int thread_count);
 
+
 //===----------------------------------------------------------------------===//
 // Abs operations
 //===----------------------------------------------------------------------===//
@@ -410,6 +412,15 @@ void ew_log_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ 
 
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 void ew_log_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count);
+#endif
+
+//===----------------------------------------------------------------------===//
+// Exp operations
+//===----------------------------------------------------------------------===//
+void ew_exp_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, size_t size, int thread_count);
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_exp_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count);
 #endif
 
 //===----------------------------------------------------------------------===//

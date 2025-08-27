@@ -45,13 +45,14 @@ namespace mllm::cpu {
 CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
   regOpFactory<CPULinearOpFactory, CPUFillOpFactory, CPUGraphBeginOpFactory, CPUGraphEndOpFactory, CPUAddOpFactory,
                CPUSubOpFactory, CPUMulOpFactory, CPUDivOpFactory, CPUNegOpFactory, CPUAbsOpFactory, CPULogOpFactory,
-               CPUReduceMaxOpFactory, CPUReduceMinOpFactory, CPUReduceSumOpFactory, CPUTransposeOpFactory, CPUPermuteOpFactory,
-               CPUCastTypeOpFactory, CPUConcatOpFactory, CPUContiguousOpFactory, CPUCopyOpFactory, CPUEmbeddingOpFactory,
-               CPUSplitOpFactory, CPUViewOpFactory, CPULayerNormOpFactory, CPURepeatOpFactory, CPUX2XOpFactory,
-               CPUSoftmaxOpFactory, CPUSiLUOpFactory, CPURMSNormOpFactory, CPUGELUOpFactory, CPUQuickGELUOpFactory,
-               CPUMatMulOpFactory, CPUFlashAttention2OpFactory, CPUSliceOpFactory, CPUVisionRoPEOpFactory, CPUParamOpFactory,
-               CPUMultimodalRoPEOpFactory, CPUCausalMaskOpFactory, CPUConv1DOpFactory, CPUConv3DOpFactory, CPUSTFTOpFactory, CPUIndexOpFactory,
-               CPUTopKOpFactory, CPUClipOpFactory, CPUMeanOpFactory>();
+               CPUExpOpFactory, CPUReduceMaxOpFactory, CPUReduceMinOpFactory, CPUReduceSumOpFactory, CPUTransposeOpFactory,
+               CPUPermuteOpFactory, CPUCastTypeOpFactory, CPUConcatOpFactory, CPUContiguousOpFactory, CPUCopyOpFactory,
+               CPUEmbeddingOpFactory, CPUSplitOpFactory, CPUViewOpFactory, CPULayerNormOpFactory, CPURepeatOpFactory,
+               CPUX2XOpFactory, CPUSoftmaxOpFactory, CPUSiLUOpFactory, CPURMSNormOpFactory, CPUGELUOpFactory,
+               CPUQuickGELUOpFactory, CPUMatMulOpFactory, CPUFlashAttention2OpFactory, CPUSliceOpFactory,
+               CPUVisionRoPEOpFactory, CPUParamOpFactory, CPUMultimodalRoPEOpFactory, CPUCausalMaskOpFactory,
+               CPUConv1DOpFactory, CPUConv3DOpFactory, CPUSTFTOpFactory, CPUIndexOpFactory, CPUTopKOpFactory, CPUClipOpFactory,
+               CPUMeanOpFactory>();
 }
 
 std::shared_ptr<CPUBackend> createCPUBackend() { return std::make_shared<CPUBackend>(); }

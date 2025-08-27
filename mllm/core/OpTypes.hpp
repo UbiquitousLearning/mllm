@@ -62,6 +62,7 @@ enum class OpTypes : int32_t {
   kTopK,
   kMean,
   kClip,
+  kExp,
 
   // Graph Control Ops
   kGraphBegin,
@@ -122,6 +123,7 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kTopK: return "TopK";
     case OpTypes::kMean: return "Mean";
     case OpTypes::kClip: return "Clip";
+    case OpTypes::kExp: return "Exp";
     case OpTypes::kParam: return "Param";
     case OpTypes::kGraphBegin: return "GraphBegin";
     case OpTypes::kGraphEnd: return "GraphEnd";

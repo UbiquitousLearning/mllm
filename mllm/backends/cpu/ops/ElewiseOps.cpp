@@ -621,6 +621,30 @@ void CPULogOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   }
 }
 
+CPUExpOp::CPUExpOp(const aops::ExpOpOptions& options) : aops::ExpOp(options) {}
+
+void CPUExpOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  auto& input = inputs[0];
+  auto& output = outputs[0];
+
+  auto dtype = output.dtype();
+  switch (dtype) {
+    case kFloat32: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::ew_exp_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+    case kFloat16: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::ew_exp_fp16(output.ptr<mllm_fp16_t>(), input.ptr<mllm_fp16_t>(), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+    default: NYI("ExpOp dtype not supported.");
+  }
+}
+
 CPUClipOp::CPUClipOp(const aops::ClipOpOptions& options) : aops::ClipOp(options) {}
 
 void CPUClipOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
