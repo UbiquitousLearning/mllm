@@ -18,6 +18,7 @@
 #include "mllm/backends/cpu/ops/GELUOp.hpp"
 #include "mllm/backends/cpu/ops/GraphOps.hpp"
 #include "mllm/backends/cpu/ops/IndexOp.hpp"
+#include "mllm/backends/cpu/ops/KVCacheOp.hpp"
 #include "mllm/backends/cpu/ops/LayerNormOp.hpp"
 #include "mllm/backends/cpu/ops/LinearOp.hpp"
 #include "mllm/backends/cpu/ops/MatMulOp.hpp"
@@ -50,7 +51,7 @@ CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
                CPUSoftmaxOpFactory, CPUSiLUOpFactory, CPURMSNormOpFactory, CPUGELUOpFactory, CPUQuickGELUOpFactory,
                CPUMatMulOpFactory, CPUFlashAttention2OpFactory, CPUSliceOpFactory, CPUVisionRoPEOpFactory, CPUParamOpFactory,
                CPUMultimodalRoPEOpFactory, CPUCausalMaskOpFactory, CPUConv3DOpFactory, CPUSTFTOpFactory, CPUIndexOpFactory,
-               CPUTopKOpFactory, CPUClipOpFactory, CPUMeanOpFactory>();
+               CPUTopKOpFactory, CPUClipOpFactory, CPUMeanOpFactory, CPUKVCacheOpFactory>();
 }
 
 std::shared_ptr<CPUBackend> createCPUBackend() { return std::make_shared<CPUBackend>(); }

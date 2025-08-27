@@ -15,6 +15,7 @@ void CPULinearOp::load(const ParameterFile::ptr_t& ploader) {
     case ModelFileVersion::kV1: {
       weight_ = ploader->pull(getName() + ".weight");
       switch (options_.impl_type) {
+        case aops::LinearImplTypes::kBLAS:
         case aops::LinearImplTypes::kDefault: {
           weight_ = weight_.view({options_.out_channels, options_.in_channels});
           if (options_.bias) {
@@ -35,6 +36,7 @@ void CPULinearOp::load(const ParameterFile::ptr_t& ploader) {
     case ModelFileVersion::kV2: {
       weight_ = ploader->pull(getName() + ".weight");
       switch (options_.impl_type) {
+        case aops::LinearImplTypes::kBLAS:
         case aops::LinearImplTypes::kDefault: {
           if (options_.bias) {
             bias_ = ploader->pull(getName() + ".bias");

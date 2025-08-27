@@ -3,11 +3,12 @@
 
 #pragma once
 
-#include <algorithm>
-#include <functional>
 #include <list>
+#include <stack>
 #include <string>
 #include <memory>
+#include <algorithm>
+#include <functional>
 #include <unordered_map>
 
 #include "mllm/core/DeviceTypes.hpp"
@@ -320,6 +321,11 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
 
   std::unordered_map<uint32_t, val_ptr_t>& getAllCachedInputOutputTensorIRs();
 
+  // A long name that avoid user to use this low level API
+  void pushRegion2InsertRegionStackAndSetRegion(const region_ptr_t& region);
+
+  void popRegionFromInsertRegionStackAndSetRegion();
+
  private:
   DeviceTypes device_type_ = kCPU;
   std::unordered_map<std::string, node_ptr_t> symbol_table_;
@@ -328,6 +334,7 @@ class IRContext : public std::enable_shared_from_this<IRContext> {
   region_ptr_t cur_insert_region_;
   node_ptr_t top_level_op_;
   std::unordered_map<uint32_t, val_ptr_t> cached_inputs_outputs_;
+  std::stack<region_ptr_t> insert_region_stack_;
 };
 
 class IRWriterGuard {

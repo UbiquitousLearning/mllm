@@ -9,9 +9,9 @@ def compile():
         "Ninja",
         "-B",
         "build",
-        "-DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_PATH/build/cmake/android.toolchain.cmake",
-        "-DANDROID_PLATFORM=android-28",
-        "-DANDROID_ABI=arm64-v8a",
+        # "-DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_PATH/build/cmake/android.toolchain.cmake",
+        # "-DANDROID_PLATFORM=android-28",
+        # "-DANDROID_ABI=arm64-v8a",
         # Using your own mllm installation, please replace the path with your own path
         "-Dmllm_DIR=../SDK/lib/cmake/",
     ]

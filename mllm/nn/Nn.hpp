@@ -21,3 +21,4 @@
 #include "mllm/nn/layers/CausalMask.hpp"      // IWYU pragma: export
 #include "mllm/nn/layers/MultimodalRoPE.hpp"  // IWYU pragma: export
 #include "mllm/nn/layers/Param.hpp"           // IWYU pragma: export
+#include "mllm/nn/layers/KVCache.hpp"         // IWYU pragma: export
