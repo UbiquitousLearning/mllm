@@ -50,7 +50,7 @@ void Conv3DOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std
 
   auto i_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, inputs);
   auto o_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, outputs);
-  ir_ctx->create<ir::linalg::Conv3DOp>(shared_from_this(), i_irs, o_irs);
+  auto _op = ir_ctx->create<ir::linalg::Conv3DOp>(shared_from_this(), i_irs, o_irs);
 }
 
 void Conv3DOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {

@@ -47,3 +47,4 @@ Detailed task descriptions are as follows:
 3. Ensure proper inclusion of necessary header files  
 4. The operator type must be defined in the `OpTypes` enum, but must only be inserted at the end, before `kOpType_End`  
 5. The new operator must be registered following the project's factory pattern
+6. Please check `./build_mllm.md` to learn how to build mllm.
