@@ -235,6 +235,7 @@ install(
   FILES_MATCHING
   PATTERN "*.h"
   PATTERN "*.hpp"
+  PATTERN "*.inl"
   PATTERN "Vendors/*" EXCLUDE)
 
 # Embedding fmt lib into mllm packages to avoid fetching fmt.

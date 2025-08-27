@@ -1,4 +1,4 @@
-// Auto generated: 2025-08-26 17:09:03
+// Auto generated: 2025-08-27 12:35:08
 // do not modify this file
 #pragma once
 namespace mllm::ir {
@@ -215,6 +215,14 @@ struct NodeRTTIClassOfImpl {
 #define RTTI_RK_OP_PROGRAMIROP_ENTRYPOINTOP_IMPL(v) \
   return (v)->getKind() >= RK_Op_ProgramIROp_EntryPointOp && (v)->getKind() <= RK_Op_ProgramIROp_EntryPointOp
 
+#define RTTI_RK_OP_DBGIROP_IMPL(v) return (v)->getKind() >= RK_Op_DbgIROp && (v)->getKind() <= RK_Op_DbgIROp_Last
+
+#define RTTI_RK_OP_DBGIROP_COMMENTOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_DbgIROp_CommentOp && (v)->getKind() <= RK_Op_DbgIROp_CommentOp
+
+#define RTTI_RK_OP_DBGIROP_HINTSOP_IMPL(v) \
+  return (v)->getKind() >= RK_Op_DbgIROp_HintsOp && (v)->getKind() <= RK_Op_DbgIROp_HintsOp
+
 #define RTTI_RK_VAL_IMPL(v) return (v)->getKind() >= RK_Val && (v)->getKind() <= RK_Val_Last
 
 #define RTTI_RK_VAL_LINALGIRVAL_IMPL(v) return (v)->getKind() >= RK_Val_LinalgIRVal && (v)->getKind() <= RK_Val_LinalgIRVal
@@ -232,6 +240,8 @@ struct NodeRTTIClassOfImpl {
   return (v)->getKind() >= RK_Val_ControlFlowIRVal && (v)->getKind() <= RK_Val_ControlFlowIRVal
 
 #define RTTI_RK_VAL_PROGRAMIRVAL_IMPL(v) return (v)->getKind() >= RK_Val_ProgramIRVal && (v)->getKind() <= RK_Val_ProgramIRVal
+
+#define RTTI_RK_VAL_DBGIRVAL_IMPL(v) return (v)->getKind() >= RK_Val_DbgIRVal && (v)->getKind() <= RK_Val_DbgIRVal
 
 #define RTTI_RK_ATTR_IMPL(v) return (v)->getKind() >= RK_Attr && (v)->getKind() <= RK_Attr_Last
 
@@ -266,5 +276,7 @@ struct NodeRTTIClassOfImpl {
 
 #define RTTI_RK_ATTR_PROGRAMIRATTR_IMPL(v) \
   return (v)->getKind() >= RK_Attr_ProgramIRAttr && (v)->getKind() <= RK_Attr_ProgramIRAttr
+
+#define RTTI_RK_ATTR_DBGIRATTR_IMPL(v) return (v)->getKind() >= RK_Attr_DbgIRAttr && (v)->getKind() <= RK_Attr_DbgIRAttr
 
 }  // namespace mllm::ir

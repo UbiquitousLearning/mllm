@@ -91,8 +91,16 @@ std::vector<Tensor> Module::forward(const std::vector<Tensor>& inputs, const std
 void Module::__fmt_print(std::stringstream& ss) const { impl()->__fmt_print(ss); }
 
 std::vector<Tensor> Module::__main(const std::vector<Tensor>& inputs, const std::vector<AnyValue>& args) {
+  auto& ctx = Context::instance();
   __send_graph_begin(inputs);
-  auto o = forward(inputs, args);
+  std::vector<Tensor> o;
+
+  // FIXME: We need to avoid trace_mode condition
+  if (ctx.thisThread()->trace_mode) {
+    o = __trace(inputs, args);
+  } else {
+    o = forward(inputs, args);
+  }
   __send_graph_end(inputs);
   return o;
 }
