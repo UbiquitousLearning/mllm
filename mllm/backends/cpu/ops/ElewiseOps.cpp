@@ -4,24 +4,12 @@
 #include "mllm/backends/cpu/ops/ElewiseOps.hpp"
 #include "mllm/backends/cpu/kernels/Kernels.hpp"
 #include "mllm/core/DataTypes.hpp"
-#include "mllm/utils/Dbg.hpp"
+#include "mllm/mllm.hpp"
 
 namespace mllm::cpu {
 
-CPUAddOp::CPUAddOp(const aops::AddOpOptions& options) : aops::AddOp(options) {}
-
-void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
-  auto& input0 = inputs[0];
-  auto& input1 = inputs[1];
-  auto& output = outputs[0];
-
-  auto dtype = output.dtype();
-
-  bool can_be_broadcast_naive = false;
-  int32_t broadcast_naive_loops = 0;
-  int32_t broadcast_naive_stride = 0;
-  auto a_shape = input0.shape();
-  auto b_shape = input1.shape();
+BroadcastInfo calculateBroadcastInfo(const std::vector<int32_t>& a_shape, const std::vector<int32_t>& b_shape) {
+  BroadcastInfo info;
   int a_ndim = a_shape.size();
   int b_ndim = b_shape.size();
 
@@ -41,24 +29,41 @@ void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
           break;
         }
       }
-      can_be_broadcast_naive = can_broadcast;
+      info.can_be_broadcast_naive = can_broadcast;
     }
 
-    if (can_be_broadcast_naive) {
-      broadcast_naive_loops = 1;
+    if (info.can_be_broadcast_naive) {
+      info.broadcast_naive_loops = 1;
       for (int i = 0; i < a_ndim; ++i) {
         if (i < a_ndim - b_ndim) {
-          broadcast_naive_loops *= a_shape[i];
+          info.broadcast_naive_loops *= a_shape[i];
         } else {
           int b_idx = i - (a_ndim - b_ndim);
-          if (b_shape[b_idx] == 1) { broadcast_naive_loops *= a_shape[i]; }
+          if (b_shape[b_idx] == 1) { info.broadcast_naive_loops *= a_shape[i]; }
         }
       }
 
-      broadcast_naive_stride = 1;
-      for (int i = 0; i < b_ndim; ++i) { broadcast_naive_stride *= b_shape[i]; }
+      info.broadcast_naive_stride = 1;
+      for (int i = 0; i < b_ndim; ++i) { info.broadcast_naive_stride *= b_shape[i]; }
     }
   }
+
+  return info;
+}
+
+CPUAddOp::CPUAddOp(const aops::AddOpOptions& options) : aops::AddOp(options) {}
+
+void CPUAddOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  auto& input0 = inputs[0];
+  auto& input1 = inputs[1];
+  auto& output = outputs[0];
+
+  auto dtype = output.dtype();
+
+  auto broadcast_info = calculateBroadcastInfo(input0.shape(), input1.shape());
+  bool can_be_broadcast_naive = broadcast_info.can_be_broadcast_naive;
+  int32_t broadcast_naive_loops = broadcast_info.broadcast_naive_loops;
+  int32_t broadcast_naive_stride = broadcast_info.broadcast_naive_stride;
 
   switch (dtype) {
     case kFloat32: {
@@ -172,6 +177,11 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
 
   auto dtype = output.dtype();
 
+  auto broadcast_info = calculateBroadcastInfo(input0.shape(), input1.shape());
+  bool can_be_broadcast_naive = broadcast_info.can_be_broadcast_naive;
+  int32_t broadcast_naive_loops = broadcast_info.broadcast_naive_loops;
+  int32_t broadcast_naive_stride = broadcast_info.broadcast_naive_stride;
+
   switch (dtype) {
     case kFloat32: {
       if (input0.numel() == input1.numel()) {
@@ -184,8 +194,21 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_sub_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                                      output.numel(), options_.getThreads());
 #endif
+      } else if (can_be_broadcast_naive) {
+        const float* a = input0.ptr<mllm_fp32_t>();
+        const float* b = input1.ptr<mllm_fp32_t>();
+        float* out = output.ptr<mllm_fp32_t>();
+
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        // Each iteration processes one contiguous block of size `stride`
+        for (int l = 0; l < broadcast_naive_loops; ++l) {
+          cpu::arm::ew_sub_fp32(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
+                                b,  // b always contains `stride` elements
+                                broadcast_naive_stride, options_.getThreads());
+        }
+#endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("SubOp broadcast not supported.");
       }
       break;
     }
@@ -202,7 +225,7 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
                                      output.numel(), options_.getThreads());
 #endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("SubOp broadcast not supported.");
       }
       break;
     }
@@ -219,7 +242,7 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
                                       output.numel(), options_.getThreads());
 #endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("SubOp broadcast not supported.");
       }
       break;
     }
@@ -236,7 +259,7 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
                                       output.numel(), options_.getThreads());
 #endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("SubOp broadcast not supported.");
       }
       break;
     }
@@ -253,12 +276,12 @@ void CPUSubOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
                                      output.numel(), options_.getThreads());
 #endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("SubOp broadcast not supported.");
       }
       break;
     }
 
-    default: NYI("AddOp not support data type: {}", nameOfType(dtype)); break;
+    default: NYI("SubOp not support data type: {}", nameOfType(dtype)); break;
   }
 }
 
@@ -270,6 +293,11 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   auto& output = outputs[0];
 
   auto dtype = output.dtype();
+
+  auto broadcast_info = calculateBroadcastInfo(input0.shape(), input1.shape());
+  bool can_be_broadcast_naive = broadcast_info.can_be_broadcast_naive;
+  int32_t broadcast_naive_loops = broadcast_info.broadcast_naive_loops;
+  int32_t broadcast_naive_stride = broadcast_info.broadcast_naive_stride;
 
   switch (dtype) {
     case kFloat32: {
@@ -283,8 +311,21 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_mul_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                                      output.numel(), options_.getThreads());
 #endif
+      } else if (can_be_broadcast_naive) {
+        const float* a = input0.ptr<mllm_fp32_t>();
+        const float* b = input1.ptr<mllm_fp32_t>();
+        float* out = output.ptr<mllm_fp32_t>();
+
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        // Each iteration processes one contiguous block of size `stride`
+        for (int l = 0; l < broadcast_naive_loops; ++l) {
+          cpu::arm::ew_mul_fp32(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
+                                b,  // b always contains `stride` elements
+                                broadcast_naive_stride, options_.getThreads());
+        }
+#endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("MulOp broadcast not supported.");
       }
       break;
     }
@@ -301,7 +342,7 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
                                      output.numel(), options_.getThreads());
 #endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("MulOp broadcast not supported.");
       }
       break;
     }
@@ -318,7 +359,7 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
                                       output.numel(), options_.getThreads());
 #endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("MulOp broadcast not supported.");
       }
       break;
     }
@@ -335,7 +376,7 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
                                       output.numel(), options_.getThreads());
 #endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("MulOp broadcast not supported.");
       }
       break;
     }
@@ -352,12 +393,12 @@ void CPUMulOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
                                      output.numel(), options_.getThreads());
 #endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("MulOp broadcast not supported.");
       }
       break;
     }
 
-    default: NYI("AddOp not support data type: {}", nameOfType(dtype)); break;
+    default: NYI("MulOp not support data type: {}", nameOfType(dtype)); break;
   }
 }
 
@@ -369,6 +410,11 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   auto& output = outputs[0];
 
   auto dtype = output.dtype();
+
+  auto broadcast_info = calculateBroadcastInfo(input0.shape(), input1.shape());
+  bool can_be_broadcast_naive = broadcast_info.can_be_broadcast_naive;
+  int32_t broadcast_naive_loops = broadcast_info.broadcast_naive_loops;
+  int32_t broadcast_naive_stride = broadcast_info.broadcast_naive_stride;
 
   switch (dtype) {
     case kFloat32: {
@@ -382,8 +428,21 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
         cpu::arm::ew_div_fp32_scalar(output.ptr<mllm_fp32_t>(), input0.ptr<mllm_fp32_t>(), *input1.ptr<mllm_fp32_t>(),
                                      output.numel(), options_.getThreads());
 #endif
+      } else if (can_be_broadcast_naive) {
+        const float* a = input0.ptr<mllm_fp32_t>();
+        const float* b = input1.ptr<mllm_fp32_t>();
+        float* out = output.ptr<mllm_fp32_t>();
+
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+        // Each iteration processes one contiguous block of size `stride`
+        for (int l = 0; l < broadcast_naive_loops; ++l) {
+          cpu::arm::ew_div_fp32(out + l * broadcast_naive_stride, a + l * broadcast_naive_stride,
+                                b,  // b always contains `stride` elements
+                                broadcast_naive_stride, options_.getThreads());
+        }
+#endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("DivOp broadcast not supported.");
       }
       break;
     }
@@ -400,7 +459,7 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
                                      output.numel(), options_.getThreads());
 #endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("DivOp broadcast not supported.");
       }
       break;
     }
@@ -417,7 +476,7 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
                                       output.numel(), options_.getThreads());
 #endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("DivOp broadcast not supported.");
       }
       break;
     }
@@ -434,7 +493,7 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
                                       output.numel(), options_.getThreads());
 #endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("DivOp broadcast not supported.");
       }
       break;
     }
@@ -451,12 +510,12 @@ void CPUDivOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
                                      output.numel(), options_.getThreads());
 #endif
       } else {
-        NYI("AddOp broadcast not supported.");
+        NYI("DivOp broadcast not supported.");
       }
       break;
     }
 
-    default: NYI("AddOp not support data type: {}", nameOfType(dtype)); break;
+    default: NYI("DivOp not support data type: {}", nameOfType(dtype)); break;
   }
 }
 
