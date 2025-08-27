@@ -11,7 +11,7 @@ class Conv1D : public Layer {
   Conv1D();
 
   Conv1D(int32_t in_channels, int32_t out_channels, int32_t kernel_size, int32_t stride_size, bool bias = true,
-         int32_t padding = 0);
+         int32_t padding = 0, int32_t groups = 1);
 
   explicit Conv1D(const aops::Conv1DOpOptions& options);
 

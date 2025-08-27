@@ -19,10 +19,7 @@ void Conv1DOp::load(const ParameterFile::ptr_t& ploader) {
     case ModelFileVersion::kV1: {
       weight_ = ploader->pull(getName() + ".weight");
       if (options_.bias) { bias_ = ploader->pull(getName() + ".bias"); }
-      print(weight_.shape());
-      print(bias_.shape());
-      weight_ = weight_.view({options_.out_channels, options_.in_channels, options_.kernel_size});
-      print("weight viewed");
+      weight_ = weight_.view({options_.out_channels, options_.in_channels / options_.groups, options_.kernel_size});
       if (options_.bias) { bias_ = bias_.view({options_.out_channels}); }
       break;
     }
@@ -72,6 +69,10 @@ void Conv1DOp::reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& o
   const int sequence = ishape[2];     // sequence axis
 
   MLLM_RT_ASSERT_EQ(in_channels, options_.in_channels);
+
+  // Check groups parameter
+  MLLM_RT_ASSERT_EQ(in_channels % options_.groups, 0);
+  MLLM_RT_ASSERT_EQ(options_.out_channels % options_.groups, 0);
 
   // Retrieve convolution parameters from options_
   const int kernel_size = options_.kernel_size;

@@ -20,6 +20,7 @@ struct Conv1DOpOptions : public BaseOpOptions<Conv1DOpOptions> {
   int32_t stride;
   bool bias = true;
   int32_t padding = 0;
+  int32_t groups = 1;
 };
 
 class Conv1DOp : public BaseOp {
