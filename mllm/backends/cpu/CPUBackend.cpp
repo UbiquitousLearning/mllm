@@ -9,6 +9,7 @@
 #include "mllm/backends/cpu/ops/CausalMaskOp.hpp"
 #include "mllm/backends/cpu/ops/ConcatOp.hpp"
 #include "mllm/backends/cpu/ops/ContiguousOp.hpp"
+#include "mllm/backends/cpu/ops/Conv1DOp.hpp"
 #include "mllm/backends/cpu/ops/Conv3DOp.hpp"
 #include "mllm/backends/cpu/ops/CopyOp.hpp"
 #include "mllm/backends/cpu/ops/ElewiseOps.hpp"
@@ -49,7 +50,7 @@ CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
                CPUSplitOpFactory, CPUViewOpFactory, CPULayerNormOpFactory, CPURepeatOpFactory, CPUX2XOpFactory,
                CPUSoftmaxOpFactory, CPUSiLUOpFactory, CPURMSNormOpFactory, CPUGELUOpFactory, CPUQuickGELUOpFactory,
                CPUMatMulOpFactory, CPUFlashAttention2OpFactory, CPUSliceOpFactory, CPUVisionRoPEOpFactory, CPUParamOpFactory,
-               CPUMultimodalRoPEOpFactory, CPUCausalMaskOpFactory, CPUConv3DOpFactory, CPUSTFTOpFactory, CPUIndexOpFactory,
+               CPUMultimodalRoPEOpFactory, CPUCausalMaskOpFactory, CPUConv1DOpFactory, CPUConv3DOpFactory, CPUSTFTOpFactory, CPUIndexOpFactory,
                CPUTopKOpFactory, CPUClipOpFactory, CPUMeanOpFactory>();
 }
 
