@@ -15,31 +15,6 @@
 
 namespace mllm {
 
-MappedFile::MappedFile(const std::string& filename) {
-  fd_ = open(filename.c_str(), O_RDONLY);
-  if (fd_ == -1) { MLLM_ERROR_EXIT(ExitCode::kIOError, "Failed to open file {}.", filename); }
-
-  struct stat sb {};
-  if (fstat(fd_, &sb) == -1) {
-    close(fd_);
-    MLLM_ERROR_EXIT(ExitCode::kIOError, "Failed stat when open file {}, this file may broken.", filename);
-  }
-  size_ = sb.st_size;
-
-  mapping_ = mmap(nullptr, size_, PROT_READ, MAP_PRIVATE, fd_, 0);
-  if (mapping_ == MAP_FAILED) {
-    close(fd_);
-    MLLM_ERROR_EXIT(ExitCode::kIOError, "Failed to map file {} to memory space.", filename);
-  }
-}
-
-MappedFile::ptr_t MappedFile::create(const std::string& filename) { return std::make_shared<MappedFile>(filename); }
-
-MappedFile::~MappedFile() {
-  if (mapping_) munmap(mapping_, size_);
-  if (fd_ != -1) close(fd_);
-}
-
 ParameterFile::ParameterFile(ModelFileVersion v) : version_(v) {}
 
 ParameterFile::ptr_t ParameterFile::create(ModelFileVersion v) { return std::make_shared<ParameterFile>(v); }
