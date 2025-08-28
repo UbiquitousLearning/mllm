@@ -1,12 +1,16 @@
 ## Latest News
 
-## Features
+Here's a concise, scannable version optimized for GitHub README (prioritizing impact + brevity):
 
-1. Provides a Pythonic interface for model development, offering flexibility and speed through eager execution.
-2. Unified abstraction across heterogeneous hardware backends: Arm CPU, OpenCL GPU, and QNN NPU.
-3. Comprehensive suite of optimization tools, including quantization, speculative execution, and model pruning.
-4. Features the novel MLLM Intermediate Representation (IR) for easy interoperability with NPU frameworks.
-5. Deployment-ready resources: an integrable SDK and a standalone CLI inference tool.
+---
+
+## Key Features
+
+1. **Pythonic eager execution** – Rapid model development  
+2. **Unified hardware support** – Arm CPU, OpenCL GPU, QNN NPU  
+3. **Advanced optimizations** – Quantization, pruning, speculative execution  
+4. **NPU-ready IR** – Seamless integration with NPU frameworks  
+5. **Deployment toolkit** – SDK + CLI inference tool  
 
 ## Tested Devices
 
@@ -19,16 +23,22 @@
 
 ## Quick Starts
 
+### Serving LLMs with mllm-cli
+
+We have developed a C SDK wrapper for the MLLM C++ SDK to enable seamless integration with Golang. Leveraging this wrapper, we've built the mllm-cli command-line tool in Golang, which is about to be released soon.
+
 ### Inference with VLM using C++ API
 
 The following example demonstrates how to perform inference on a multimodal vision-language model (VLM), specifically Qwen2-VL, using the mllm framework's C++ API. The process includes loading the model configuration, initializing the tokenizer, loading pretrained weights, processing image-text inputs, and performing streaming text generation.
 
 ```c++
-auto qwen2vl_cfg = mllm::models::qwen2vl::Qwen2VLConfig(config_path);
-auto qwen2vl_tokenizer = mllm::models::qwen2vl::Qwen2VLTokenizer(tokenizer_path);
-auto qwen2vl = mllm::models::qwen2vl::Qwen2VLForCausalLM(qwen2vl_cfg);
+auto qwen2vl_cfg        = Qwen2VLConfig(config_path);
+auto qwen2vl_tokenizer  = Qwen2VLTokenizer(tokenizer_path);
+auto qwen2vl            = Qwen2VLForCausalLM(qwen2vl_cfg);
+
 qwen2vl.load(mllm::load(model_path));
 auto inputs = qwen2vl_tokenizer.convertMessage({.prompt = prompt_text, .img_file_path = image_path});
+
 qwen2vl.streamGenerate(inputs,
                         {
                             {"do_sample", mllm::AnyValue(false)},
@@ -40,9 +50,7 @@ qwen2vl.streamGenerate(inputs,
                         });
 ```
 
-### Serving LLMs with mllm-cli
-
-We have developed a C SDK wrapper for the MLLM C++ SDK to enable seamless integration with Golang. Leveraging this wrapper, we've built the mllm-cli command-line tool in Golang, which is about to be released soon.
+more examples can be found in [examples](./examples/)
 
 ### Custom Models  
 
