@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include "mllm/core/BaseOp.hpp"
+#include "mllm/utils/Common.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
 
 namespace mllm::ir::linalg {
@@ -9,6 +10,24 @@ namespace mllm::ir::linalg {
 LinalgIROp::LinalgIROp() : Op(RK_Op_LinalgIROp) {}
 
 LinalgIROp::LinalgIROp(const NodeKind& kind) : Op(kind) {}
+
+RegisterOp::RegisterOp() : LinalgIROp(RK_Op_LinalgIROp_RegisterOp) { MLLM_EMPTY_SCOPE; }
+
+RegisterOp::ptr_t RegisterOp::build(IRContext* ctx, BaseOp* aop, const std::string& symbol_name) {
+  auto ret = std::make_shared<RegisterOp>();
+  auto symbol_attr = ctx->create<SymbolAttr>(symbol_name);
+  ret->setSymbolAttr(symbol_attr);
+  ret->bare_op_ptr_ = aop;
+  ret->op_type_ = aop->getOpType();
+  ctx->addToSymbolTable(ret, symbol_attr->str());
+  return ret;
+}
+
+void RegisterOp::dump(IRPrinter& p) {
+  p.print("linalg.{}.register<{}>", deviceTypes2Str(getDevice()), optype2Str(op_type_));
+  Op::dump(p);
+  dumpAttributes(p);
+}
 
 LINALG_AOPS_DECL(OpTypes::kFill, FillOp)
 LINALG_AOPS_DECL(OpTypes::kAdd, AddOp);

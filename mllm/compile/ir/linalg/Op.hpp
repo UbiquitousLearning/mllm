@@ -6,6 +6,7 @@
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/compile/ir/Node.hpp"
 #include "mllm/compile/ir/tensor/Value.hpp"
+#include "mllm/compile/ir/builtin/Interface.hpp"
 
 namespace mllm {
 class BaseOp;
@@ -114,6 +115,24 @@ class LinalgIROp : public Op {
  protected:
   OpTypes op_type_;
   BaseOp::ptr_t op_;
+};
+
+class RegisterOp : public LinalgIROp, public SymbolInterface<RegisterOp> {
+ public:
+  DEFINE_SPECIFIC_IR_CLASS(RegisterOp);
+
+  RegisterOp();
+
+  static inline bool classof(const Node* node) { RTTI_RK_OP_LINALGIROP_REGISTEROP_IMPL(node); }
+
+  static ptr_t build(IRContext* ctx, BaseOp* aop, const std::string& symbol_name);
+
+  void dump(IRPrinter& p) override;
+
+  inline BaseOp* getOp() const { return bare_op_ptr_; }
+
+ private:
+  BaseOp* bare_op_ptr_ = nullptr;
 };
 
 LINALG_AOPS_DEFINE(FillOp, FILLOP);

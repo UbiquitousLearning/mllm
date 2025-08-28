@@ -25,6 +25,28 @@ struct MatMulOpOptions : public BaseOpOptions<MatMulOpOptions> {
   MatMulOpType matmul_type = MatMulOpType::kDefault;
 };
 
+inline MatMulOpType str2MatMulOpType(const std::string& str) {
+  static const std::unordered_map<std::string, MatMulOpType> map = {{"Default", MatMulOpType::kDefault},
+                                                                    {"LlamaFile", MatMulOpType::kLlamaFile},
+                                                                    {"BLAS", MatMulOpType::kBLAS},
+                                                                    {"MllmBlas", MatMulOpType::kMllmBlas}};
+
+  auto it = map.find(str);
+  if (it != map.end()) return it->second;
+  return MatMulOpType::kDefault;
+}
+
+inline std::string MatMulOpType2Str(MatMulOpType type) {
+  static const std::unordered_map<MatMulOpType, std::string> map = {{MatMulOpType::kDefault, "Default"},
+                                                                    {MatMulOpType::kLlamaFile, "LlamaFile"},
+                                                                    {MatMulOpType::kBLAS, "BLAS"},
+                                                                    {MatMulOpType::kMllmBlas, "MllmBlas"}};
+
+  auto it = map.find(type);
+  if (it != map.end()) return it->second;
+  return "Default";
+}
+
 class MatMulOp : public BaseOp {
  public:
   explicit MatMulOp(const MatMulOpOptions& options);
@@ -38,6 +60,8 @@ class MatMulOp : public BaseOp {
   void reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+
+  inline const MatMulOpOptions& options() const { return options_; }
 
  protected:
   MatMulOpOptions options_;

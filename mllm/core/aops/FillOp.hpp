@@ -41,6 +41,8 @@ class FillOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline const FillOpOptions& options() const { return options_; }
+
  protected:
   FillOpOptions options_;
 };

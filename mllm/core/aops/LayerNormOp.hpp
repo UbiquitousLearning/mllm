@@ -35,6 +35,8 @@ class LayerNormOp : public BaseOp {
 
   inline Tensor& bias() { return bias_; }
 
+  inline const LayerNormOpOptions& options() const { return options_; }
+
  protected:
   Tensor weight_;
   Tensor bias_;

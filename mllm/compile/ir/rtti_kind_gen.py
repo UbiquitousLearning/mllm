@@ -215,6 +215,7 @@ def define_lianlg_ir(ir: dict):
     attr: Cls = ir["Attribute"]
 
     # op
+    op.derive(Cls("RegisterOp"))
     op.derive(Cls("CustomKernelOp"))
     op.derive(Cls("FillOp"))
     op.derive(Cls("AddOp"))

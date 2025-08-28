@@ -41,6 +41,8 @@ class Conv3DOp : public BaseOp {
 
   inline Tensor& bias() { return bias_; }
 
+  inline const Conv3DOpOptions& options() const { return options_; }
+
  protected:
   Tensor weight_;
   Tensor bias_;

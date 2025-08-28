@@ -386,10 +386,8 @@ class VisionAttention final : public nn::Module {
     auto visual_embedding_sin = inputs[1];
     auto visual_embedding_cos = inputs[2];
 
-    auto seq_length = hidden_states.shape()[0];
-
     auto [query_states, key_states, value_states] =
-        nn::functional::split<3>(qkv_(hidden_states).view({seq_length, 3, num_heads_, -1}).permute({1, 0, 2, 3}), 1, 0);
+        nn::functional::split<3>(qkv_(hidden_states).view({-1, 3, num_heads_, head_dim_}).permute({1, 0, 2, 3}), 1, 0);
 
     // Input to Vision ROPE must be BSHD format
     // grid_thw shape is [n, 3], n is always 1 in this case.
@@ -411,7 +409,7 @@ class VisionAttention final : public nn::Module {
     auto attn_output = nn::functional::matmul(attn, value_states);
 
     // [B=1, H, S, D] -> [B=1, S, H, D] -> [S, H * D]
-    attn_output = attn_output.transpose(1, 2).view({seq_length, -1});
+    attn_output = attn_output.transpose(1, 2).view({-1, dim_});
     attn_output = proj_(attn_output);
     return {
         attn_output,
@@ -562,13 +560,10 @@ class Qwen2VLAttention final : public nn::Module {
     auto key_states = k_proj_(x);
     auto value_states = v_proj_(x);
 
-    int B = inputs[0].shape()[0];
-    int S = inputs[0].shape()[1];
-
     // [B, S, H, D]
-    query_states = query_states.view({B, S, num_attention_heads_, head_dim_});
-    key_states = key_states.view({B, S, num_key_value_heads_, head_dim_});
-    value_states = value_states.view({B, S, num_key_value_heads_, head_dim_});
+    query_states = query_states.view({1, -1, num_attention_heads_, head_dim_});
+    key_states = key_states.view({1, -1, num_key_value_heads_, head_dim_});
+    value_states = value_states.view({1, -1, num_key_value_heads_, head_dim_});
 
     // [B, H, S, D]
     query_states = query_states.transpose(1, 2);
@@ -604,7 +599,7 @@ class Qwen2VLAttention final : public nn::Module {
     // [B, H, S, S] @ [B, H, S, D] -> [B, H, S, D]
     auto output = nn::functional::matmul(attn, value_states);
     // [B, H, S, D] -> [B, S, H, D] -> [B, S, H * D]
-    output = output.transpose(1, 2).view({B, S, num_attention_heads_ * head_dim_});
+    output = output.transpose(1, 2).view({1, -1, num_attention_heads_ * head_dim_});
     output = o_proj_(output);
     return {output};
   }

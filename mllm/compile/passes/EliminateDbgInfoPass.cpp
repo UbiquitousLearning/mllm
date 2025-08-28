@@ -10,8 +10,8 @@
 namespace mllm::ir {
 
 namespace MLLM_ANONYMOUS_NAMESPACE {
-void recursiveRemoveDbgInfo(const IRContext::ptr_t& ctx, const ir::graph::SubGraphOp::ptr_t& op) {
-  auto r = ir::IRWriter(ctx, op->getTopRegion());
+void recursiveRemoveDbgInfo(const IRContext::ptr_t& ctx, const ir::graph::SubGraphOp::ptr_t& this_graph_op) {
+  auto r = ir::IRWriter(ctx, this_graph_op->getTopRegion());
   r.walk<ir::graph::SubGraphOp>([&](ir::IRWriter& reader, const ir::graph::SubGraphOp::ptr_t& op) -> ir::IRWriter::WalkResult {
     recursiveRemoveDbgInfo(ctx, op);
     return ir::IRWriter::WalkResult::WALK_CONTINUE;
