@@ -1,0 +1,16 @@
+Tasks:
+  - CMakeConfigTask:
+      cmake_cfg_path: "build-sdk-x86"
+      cmake_build_type: "Release"
+      cmake_extra_args:
+        - "-DHWY_ENABLE_TESTS=OFF"
+        - "-DHWY_ENABLE_EXAMPLES=OFF"
+        - "-DHWY_ENABLE_CONTRIB=OFF"
+        - '-DMLLM_CPU_BACKEND_COMPILE_OPTIONS="-march=native"'
+        - "-DMLLM_KERNEL_USE_THREADS=ON"
+        - "-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=ON"
+        - "-DCMAKE_INSTALL_PREFIX=./mllm-sdk-x86"
+  - CMakeBuildTask:
+      cmake_cfg_path: "build-sdk-x86"
+  - CMakeInstallTask:
+      cmake_cfg_path: "build-sdk-x86"
