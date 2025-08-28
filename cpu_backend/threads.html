@@ -1,0 +1,611 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="CPU ARM Backend" href="arm/index.html" /><link rel="prev" title="CPU Backend" href="index.html" />
+
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.07.19 -->
+        <title>Parallel API and Thread Configuration in MLLM - MLLM 2.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=25af2a20" />
+    <link rel="stylesheet" type="text/css" href="../_static/tabs.css?v=a5c4661c" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #eeffcc;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #2b2b2b;
+  --color-code-foreground: #f8f8f2;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #2b2b2b;
+  --color-code-foreground: #f8f8f2;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">MLLM <br> 2.0.0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  <span class="sidebar-brand-text">MLLM <br> 2.0.0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../quick_start/index.html">Quick Start</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle navigation of Quick Start</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../quick_start/how_to_model.html">How to modeling a LLM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quick_start/how_to_add_op.html">How to Add a New Operator in MLLM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quick_start/how_to_add_backend.html">How to add Backend</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quick_start/how_to_async.html">How to run modules async</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quick_start/how_to_perf.html">How to perf modules</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../arch/index.html">Architectures</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle navigation of Architectures</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../arch/tensor.html">Tensor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../arch/support_ops.html">Supported MLLM aops Operations</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../compile/index.html">Compile</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><div class="visually-hidden">Toggle navigation of Compile</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../compile/ir.html">MLLM IR</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../quantization/index.html">Quantization</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><div class="visually-hidden">Toggle navigation of Quantization</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../quantization/data_types.html">Data Types in MLLM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../quantization/how_to_add_new_dtype.html">How to Add New Data Types</a></li>
+</ul>
+</li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">CPU Backend</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><div class="visually-hidden">Toggle navigation of CPU Backend</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Parallel API and Thread Configuration in MLLM</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="arm/index.html">CPU ARM Backend</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><div class="visually-hidden">Toggle navigation of CPU ARM Backend</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="arm/mllm_blas.html">High Performance Computing(Components)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="arm/multithread_behaviors.html">Multithread Behaviors in CPU Backend</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../contribute/index.html">Contribute</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><div class="visually-hidden">Toggle navigation of Contribute</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contribute/roadmap.html">Roadmap &amp; Help wanted!</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../talks/index.html">Talks</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../qa/index.html">FAQ</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/cpu_backend/threads.rst.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="parallel-api-and-thread-configuration-in-mllm">
+<h1>Parallel API and Thread Configuration in MLLM<a class="headerlink" href="#parallel-api-and-thread-configuration-in-mllm" title="Link to this heading">¶</a></h1>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>MLLM provides a flexible parallel computing framework that allows CPU kernels to utilize multiple threads for improved performance. The parallel execution is controlled through the Parallel API defined in <code class="docutils literal notranslate"><span class="pre">mllm/core/Parallel.hpp</span></code> and configured via CMake build options.</p>
+</section>
+<section id="parallel-api">
+<h2>Parallel API<a class="headerlink" href="#parallel-api" title="Link to this heading">¶</a></h2>
+<p>The Parallel API provides macros for parallel execution that abstract away the underlying threading implementation. The API automatically selects the appropriate threading backend based on build configuration:</p>
+<ol class="arabic simple">
+<li><p><strong>Apple Grand Central Dispatch (GCD)</strong> - Used on Apple platforms when <code class="docutils literal notranslate"><span class="pre">MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD</span></code> is enabled</p></li>
+<li><p><strong>OpenMP</strong> - Used on most platforms when <code class="docutils literal notranslate"><span class="pre">MLLM_KERNEL_THREADS_VENDOR_OPENMP</span></code> is enabled</p></li>
+<li><p><strong>Sequential execution</strong> - Used when threading is disabled</p></li>
+</ol>
+<section id="key-parallel-api-macros">
+<h3>Key Parallel API Macros<a class="headerlink" href="#key-parallel-api-macros" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">MLLM_AUTO_PARALLEL_BEGIN(__iter__,</span> <span class="pre">__num__)</span></code> / <code class="docutils literal notranslate"><span class="pre">MLLM_AUTO_PARALLEL_END()</span></code> - Execute a loop with <code class="docutils literal notranslate"><span class="pre">__num__</span></code> iterations in parallel</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MLLM_AUTO_PARALLEL_FOR_BEGIN(__iter__,</span> <span class="pre">__start__,</span> <span class="pre">__end__,</span> <span class="pre">__step__)</span></code> / <code class="docutils literal notranslate"><span class="pre">MLLM_AUTO_PARALLEL_FOR_END()</span></code> - Execute a for-loop in parallel</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MLLM_SET_NUM_THREADS(num_threads)</span></code> - Set the number of threads to use for parallel execution</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MLLM_SERIAL_FOR_BEGIN(__iter__,</span> <span class="pre">__start__,</span> <span class="pre">__end__,</span> <span class="pre">__step__)</span></code> / <code class="docutils literal notranslate"><span class="pre">MLLM_SERIAL_FOR_END()</span></code> - Execute a serial for-loop</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MLLM_CONDITIONAL_PARALLEL_FOR(condition,</span> <span class="pre">num_threads,</span> <span class="pre">iter,</span> <span class="pre">start,</span> <span class="pre">end,</span> <span class="pre">step,</span> <span class="pre">...)</span></code> - Conditionally execute a loop in parallel or serial</p></li>
+</ul>
+</section>
+</section>
+<section id="mllm-conditional-parallel-for">
+<h2>MLLM_CONDITIONAL_PARALLEL_FOR<a class="headerlink" href="#mllm-conditional-parallel-for" title="Link to this heading">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">MLLM_CONDITIONAL_PARALLEL_FOR</span></code> is a macro that provides conditional parallel execution based on a specified condition. It allows switching between parallel and serial execution modes.</p>
+<section id="syntax">
+<h3>Syntax<a class="headerlink" href="#syntax" title="Link to this heading">¶</a></h3>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">MLLM_CONDITIONAL_PARALLEL_FOR</span><span class="p">(</span><span class="n">condition</span><span class="p">,</span><span class="w"> </span><span class="n">num_threads</span><span class="p">,</span><span class="w"> </span><span class="n">iter</span><span class="p">,</span><span class="w"> </span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="n">end</span><span class="p">,</span><span class="w"> </span><span class="n">step</span><span class="p">,</span><span class="w"> </span><span class="n">body</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="parameters">
+<h3>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">condition</span></code>: A boolean expression that determines whether to execute in parallel or serial mode. If true, parallel execution is used; if false, serial execution is used.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_threads</span></code>: The number of threads to use in parallel mode.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">iter</span></code>: The loop iterator variable name.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">start</span></code>: The starting value of the iterator.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">end</span></code>: The ending value of the iterator (exclusive).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">step</span></code>: The increment step for each iteration.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">body</span></code>: The loop body code to execute in each iteration.</p></li>
+</ul>
+</section>
+<section id="implementation-details">
+<h3>Implementation Details<a class="headerlink" href="#implementation-details" title="Link to this heading">¶</a></h3>
+<p>The macro is defined as follows:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cp">#define MLLM_CONDITIONAL_PARALLEL_FOR(condition, num_threads, iter, start, end, step, ...) \</span>
+<span class="cp">  do { \</span>
+<span class="cp">    if (condition) { \</span>
+<span class="cp">      MLLM_SET_NUM_THREADS(num_threads); \</span>
+<span class="cp">      MLLM_AUTO_PARALLEL_FOR_BEGIN(iter, start, end, step){__VA_ARGS__} MLLM_AUTO_PARALLEL_FOR_END() \</span>
+<span class="cp">    } else { \</span>
+<span class="cp">      MLLM_SET_NUM_THREADS(1); \</span>
+<span class="cp">      MLLM_SERIAL_FOR_BEGIN(iter, start, end, step){__VA_ARGS__} MLLM_SERIAL_FOR_END() \</span>
+<span class="cp">    } \</span>
+<span class="cp">  } while (0)</span>
+</pre></div>
+</div>
+<p>In the current implementation:
+- <code class="docutils literal notranslate"><span class="pre">MLLM_SET_NUM_THREADS</span></code> is a no-op macro that doesn’t actually set thread count
+- <code class="docutils literal notranslate"><span class="pre">MLLM_AUTO_PARALLEL_FOR_BEGIN</span></code> and <code class="docutils literal notranslate"><span class="pre">MLLM_SERIAL_FOR_BEGIN</span></code> both expand to simple for-loops
+- The key difference is in the intent - one path is meant for parallel execution and the other for serial</p>
+</section>
+<section id="usage-example">
+<h3>Usage Example<a class="headerlink" href="#usage-example" title="Link to this heading">¶</a></h3>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">const</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">use_parallel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">options_</span><span class="p">.</span><span class="n">getThreads</span><span class="p">()</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">thread_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">options_</span><span class="p">.</span><span class="n">getThreads</span><span class="p">();</span>
+
+<span class="n">MLLM_CONDITIONAL_PARALLEL_FOR</span><span class="p">(</span><span class="n">use_parallel</span><span class="p">,</span><span class="w"> </span><span class="n">thread_count</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">N</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Loop body code</span>
+<span class="w">    </span><span class="n">process_element</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<p>In this example:
+- If <code class="docutils literal notranslate"><span class="pre">use_parallel</span></code> is true (when <code class="docutils literal notranslate"><span class="pre">options_.getThreads()</span> <span class="pre">&gt;</span> <span class="pre">1</span></code>), the loop will execute with the specified number of threads
+- If <code class="docutils literal notranslate"><span class="pre">use_parallel</span></code> is false, the loop will execute serially with a single thread</p>
+</section>
+<section id="capture-mechanism">
+<h3>Capture Mechanism<a class="headerlink" href="#capture-mechanism" title="Link to this heading">¶</a></h3>
+<p>Since <code class="docutils literal notranslate"><span class="pre">MLLM_CONDITIONAL_PARALLEL_FOR</span></code> expands to standard for-loops, variable capture follows the standard C++ rules:</p>
+<ol class="arabic simple">
+<li><p><strong>Direct Variable Access</strong>: Variables from the enclosing scope are directly accessible within the loop body</p></li>
+<li><p><strong>Non-const Access</strong>: Variables can be modified within the loop body (subject to their own const-ness)</p></li>
+<li><p><strong>No Special Capture Syntax</strong>: Unlike lambdas or blocks, there’s no explicit capture clause - all visible variables are accessible</p></li>
+</ol>
+<p>This is different from lambda expressions or GCD blocks where explicit capture mechanisms are required. The macro simply generates regular for-loops, so standard C++ scoping and access rules apply.</p>
+</section>
+</section>
+<section id="usage-in-cpu-kernels">
+<h2>Usage in CPU Kernels<a class="headerlink" href="#usage-in-cpu-kernels" title="Link to this heading">¶</a></h2>
+<p>CPU kernels use the Parallel API to parallelize operations across data elements. Here’s an example of how it’s used in the gelu activation function:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">thread_cnt</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">MLLM_SET_NUM_THREADS</span><span class="p">(</span><span class="n">thread_cnt</span><span class="p">);</span>
+<span class="w">  </span><span class="kt">int</span><span class="w"> </span><span class="n">tails</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+<span class="w">  </span><span class="kt">int</span><span class="w"> </span><span class="n">loops</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">tails</span><span class="p">;</span>
+<span class="w">  </span><span class="n">MLLM_AUTO_PARALLEL_FOR_BEGIN</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">loops</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Process 4 elements at a time in parallel</span>
+<span class="w">    </span><span class="n">float32x4_t</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">vld1q_f32</span><span class="p">(</span><span class="n">X</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// ... vectorized computations ...</span>
+<span class="w">    </span><span class="n">vst1q_f32</span><span class="p">(</span><span class="n">Z</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="n">MLLM_AUTO_PARALLEL_FOR_END</span><span class="p">()</span>
+<span class="w">  </span><span class="c1">// Handle remaining elements serially</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">N</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// ... scalar computations ...</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// Serial execution</span>
+<span class="w">  </span><span class="c1">// ... regular loop implementation ...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In this example:</p>
+<ol class="arabic simple">
+<li><p>If <code class="docutils literal notranslate"><span class="pre">thread_cnt</span> <span class="pre">&gt;</span> <span class="pre">1</span></code>, the kernel uses parallel execution</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MLLM_SET_NUM_THREADS</span></code> sets the desired number of threads</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MLLM_AUTO_PARALLEL_FOR_BEGIN</span></code> and <code class="docutils literal notranslate"><span class="pre">MLLM_AUTO_PARALLEL_FOR_END</span></code> define the parallel loop section</p></li>
+<li><p>Vectorized operations are performed on chunks of data (4 elements at a time for float32)</p></li>
+<li><p>Remaining elements that don’t fit in chunks are handled serially</p></li>
+</ol>
+<p>Another example from cast_types.cpp shows how to use the parallel macros with conditional handling:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">thread_count</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">MLLM_SET_NUM_THREADS</span><span class="p">(</span><span class="n">thread_count</span><span class="p">);</span>
+<span class="w">  </span><span class="n">MLLM_AUTO_PARALLEL_FOR_BEGIN</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">)</span>
+<span class="w">  </span><span class="kt">int</span><span class="w"> </span><span class="n">remain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">remain</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">4</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">int32x4_t</span><span class="w"> </span><span class="n">v32_src</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">vld1q_s32</span><span class="p">(</span><span class="n">src</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="p">);</span>
+<span class="w">    </span><span class="n">vst1q_f32</span><span class="p">(</span><span class="n">dst</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">vcvtq_f32_s32</span><span class="p">(</span><span class="n">v32_src</span><span class="p">));</span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">len</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">dst</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">mllm_fp32_t</span><span class="p">)</span><span class="n">src</span><span class="p">[</span><span class="n">j</span><span class="p">];</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="n">MLLM_AUTO_PARALLEL_FOR_END</span><span class="p">();</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// Serial implementation</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="cmake-thread-configuration">
+<h2>CMake Thread Configuration<a class="headerlink" href="#cmake-thread-configuration" title="Link to this heading">¶</a></h2>
+<p>MLLM provides several CMake options to configure threading support:</p>
+<section id="threading-options">
+<h3>Threading Options<a class="headerlink" href="#threading-options" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">MLLM_KERNEL_USE_THREADS</span></code> (default: ON) - Enable or disable threading support entirely</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MLLM_KERNEL_THREADS_VENDOR_OPENMP</span></code> (default: ON) - Enable OpenMP threading</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MLLM_KERNEL_THREADS_VENDOR_APPLE_GCD</span></code> (default: OFF) - Enable Apple Grand Central Dispatch threading</p></li>
+</ul>
+</section>
+<section id="platform-specific-configuration">
+<h3>Platform-Specific Configuration<a class="headerlink" href="#platform-specific-configuration" title="Link to this heading">¶</a></h3>
+<section id="apple-platforms">
+<h4>Apple Platforms<a class="headerlink" href="#apple-platforms" title="Link to this heading">¶</a></h4>
+<p>On Apple platforms (macOS, iOS), MLLM supports both OpenMP and GCD threading models:</p>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">Example CMake configuration for Apple platforms</span><a class="headerlink" href="#id1" title="Link to this code">¶</a></div>
+<div class="highlight-cmake notranslate"><div class="highlight"><pre><span></span><span class="err">-DMLLM_KERNEL_USE_THREADS=ON</span>
+<span class="err">-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=ON</span>
+<span class="err">-DMLLM_KERNEL_THREADS_VENDOR_APPLE_GCD=OFF</span>
+</pre></div>
+</div>
+</div>
+<p>If both OpenMP and GCD are enabled, GCD takes precedence with a warning message.</p>
+</section>
+<section id="non-apple-platforms">
+<h4>Non-Apple Platforms<a class="headerlink" href="#non-apple-platforms" title="Link to this heading">¶</a></h4>
+<p>On non-Apple platforms, OpenMP is typically used:</p>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">Example CMake configuration for non-Apple platforms</span><a class="headerlink" href="#id2" title="Link to this code">¶</a></div>
+<div class="highlight-cmake notranslate"><div class="highlight"><pre><span></span><span class="err">-DMLLM_KERNEL_USE_THREADS=ON</span>
+<span class="err">-DMLLM_KERNEL_THREADS_VENDOR_OPENMP=ON</span>
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+</section>
+<section id="best-practices">
+<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading">¶</a></h2>
+<ol class="arabic">
+<li><p><strong>Conditional Parallelization</strong>: Only use parallel execution when there’s enough work to justify the overhead:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">thread_count</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">4</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// Parallel implementation</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// Serial implementation</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Proper Chunking</strong>: Divide work into appropriately sized chunks for better load balancing:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="kt">size_t</span><span class="w"> </span><span class="n">chunk_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">vec_size</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">thread_count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">thread_count</span><span class="p">;</span>
+<span class="n">chunk_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">chunk_size</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">lanes</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="o">~</span><span class="p">(</span><span class="n">lanes</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Handling Remainders</strong>: Always handle data that doesn’t fit evenly into vectorized chunks:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// Process main chunks in parallel</span>
+<span class="n">MLLM_AUTO_PARALLEL_FOR_BEGIN</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">vec_size</span><span class="p">,</span><span class="w"> </span><span class="n">lanes</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// Vectorized operations</span>
+<span class="p">}</span>
+<span class="n">MLLM_AUTO_PARALLEL_FOR_END</span><span class="p">()</span>
+
+<span class="c1">// Handle remainder elements serially</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">vec_size</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">size</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// Process remaining elements</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="conclusion">
+<h2>Conclusion<a class="headerlink" href="#conclusion" title="Link to this heading">¶</a></h2>
+<p>The Parallel API in MLLM provides a flexible and portable way to parallelize CPU kernel operations. Through CMake configuration options, developers can choose the appropriate threading backend for their platform while the API abstracts away the implementation details. CPU kernels can leverage these macros to achieve better performance on multi-core systems while maintaining code clarity and portability.</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="arm/index.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">CPU ARM Backend</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="index.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">CPU Backend</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2024-2025, MLLM Contributors
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Parallel API and Thread Configuration in MLLM</a><ul>
+<li><a class="reference internal" href="#introduction">Introduction</a></li>
+<li><a class="reference internal" href="#parallel-api">Parallel API</a><ul>
+<li><a class="reference internal" href="#key-parallel-api-macros">Key Parallel API Macros</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mllm-conditional-parallel-for">MLLM_CONDITIONAL_PARALLEL_FOR</a><ul>
+<li><a class="reference internal" href="#syntax">Syntax</a></li>
+<li><a class="reference internal" href="#parameters">Parameters</a></li>
+<li><a class="reference internal" href="#implementation-details">Implementation Details</a></li>
+<li><a class="reference internal" href="#usage-example">Usage Example</a></li>
+<li><a class="reference internal" href="#capture-mechanism">Capture Mechanism</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#usage-in-cpu-kernels">Usage in CPU Kernels</a></li>
+<li><a class="reference internal" href="#cmake-thread-configuration">CMake Thread Configuration</a><ul>
+<li><a class="reference internal" href="#threading-options">Threading Options</a></li>
+<li><a class="reference internal" href="#platform-specific-configuration">Platform-Specific Configuration</a><ul>
+<li><a class="reference internal" href="#apple-platforms">Apple Platforms</a></li>
+<li><a class="reference internal" href="#non-apple-platforms">Non-Apple Platforms</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#best-practices">Best Practices</a></li>
+<li><a class="reference internal" href="#conclusion">Conclusion</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=51b770b3"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>
