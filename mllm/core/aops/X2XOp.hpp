@@ -27,6 +27,8 @@ class X2XOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline const X2XOpOptions& options() const { return options_; }
+
  protected:
   X2XOpOptions options_;
 };

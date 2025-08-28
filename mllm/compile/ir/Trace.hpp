@@ -29,4 +29,37 @@ IRContext::ptr_t trace(nn::Module& module, Args&&... args) {
   return trace_(module, tensors, others);
 }
 
+namespace lowlevel {
+void traceExternalValue();
+
+void traceComment(const std::string& comment);
+
+void traceStart();
+
+IRContext::ptr_t traceStop();
+
+template<typename... Args>
+std::vector<Tensor> traceModule(nn::Module& module, Args&&... args) {
+  std::vector<Tensor> tensors;
+  std::vector<AnyValue> others;
+  (..., [&] {
+    // The type must can be inference in compile time
+    using CleanType = std::decay_t<decltype(args)>;
+    if constexpr (std::is_convertible_v<CleanType, Tensor>) {
+      tensors.push_back(std::forward<Args>(args));
+    } else if constexpr (std::is_convertible_v<CleanType, AnyValue>) {
+      others.push_back(std::forward<Args>(args));
+    } else {
+      static_assert(always_false<CleanType>::value, "Unsupported argument type!");
+    }
+  }());
+  // Forward
+  return module.__trace(tensors, others);
+}
+
+void traceYield();
+
+void traceContinue();
+
+}  // namespace lowlevel
 }  // namespace mllm::ir

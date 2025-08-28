@@ -33,6 +33,8 @@ class RMSNormOp : public BaseOp {
 
   inline Tensor& weight() { return weight_; }
 
+  inline const RMSNormOpOptions& options() const { return options_; }
+
  protected:
   Tensor weight_;
   RMSNormOpOptions options_;

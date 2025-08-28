@@ -1,4 +1,4 @@
-// Auto generated: 2025-08-28 11:59:45
+// Auto generated: 2025-08-28 16:02:11
 // do not modify this file
 #pragma once
 
@@ -15,6 +15,7 @@ enum NodeKind : uint32_t {
   RK_None,
   RK_Op,
   RK_Op_LinalgIROp,
+  RK_Op_LinalgIROp_RegisterOp,
   RK_Op_LinalgIROp_CustomKernelOp,
   RK_Op_LinalgIROp_FillOp,
   RK_Op_LinalgIROp_AddOp,
@@ -93,6 +94,10 @@ enum NodeKind : uint32_t {
   RK_Op_ProgramIROp_ExitOp,
   RK_Op_ProgramIROp_EntryPointOp,
   RK_Op_ProgramIROp_Last,
+  RK_Op_DbgIROp,
+  RK_Op_DbgIROp_CommentOp,
+  RK_Op_DbgIROp_HintsOp,
+  RK_Op_DbgIROp_Last,
   RK_Op_Last,
   RK_Val,
   RK_Val_LinalgIRVal,
@@ -103,6 +108,7 @@ enum NodeKind : uint32_t {
   RK_Val_BuiltinIRVal,
   RK_Val_ControlFlowIRVal,
   RK_Val_ProgramIRVal,
+  RK_Val_DbgIRVal,
   RK_Val_Last,
   RK_Attr,
   RK_Attr_LinalgIRAttr,
@@ -117,6 +123,7 @@ enum NodeKind : uint32_t {
   RK_Attr_BuiltinIRAttr_Last,
   RK_Attr_ControlFlowIRAttr,
   RK_Attr_ProgramIRAttr,
+  RK_Attr_DbgIRAttr,
   RK_Attr_Last,
 
 };

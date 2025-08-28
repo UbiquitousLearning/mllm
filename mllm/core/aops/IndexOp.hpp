@@ -27,6 +27,8 @@ class IndexOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline const IndexOpOptions& options() const { return options_; }
+
  protected:
   void calculateOutputShape(const Tensor& input, Tensor::shape_t& o_shape) const;
 

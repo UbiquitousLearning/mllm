@@ -29,6 +29,8 @@ class TopKOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline const TopKOpOptions& options() const { return options_; }
+
  protected:
   TopKOpOptions options_;
 };

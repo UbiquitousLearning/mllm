@@ -172,7 +172,7 @@ Apple Platforms
 
 On Apple platforms (macOS, iOS), MLLM supports both OpenMP and GCD threading models:
 
-.. code-block:: cmake
+.. code-block:: shell
    :caption: Example CMake configuration for Apple platforms
 
    -DMLLM_KERNEL_USE_THREADS=ON
@@ -186,7 +186,7 @@ Non-Apple Platforms
 
 On non-Apple platforms, OpenMP is typically used:
 
-.. code-block:: cmake
+.. code-block:: shell
    :caption: Example CMake configuration for non-Apple platforms
 
    -DMLLM_KERNEL_USE_THREADS=ON

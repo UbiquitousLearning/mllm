@@ -7,14 +7,11 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
 
 #include "mllm/core/DeviceTypes.hpp"
 #include "mllm/core/Tensor.hpp"
 #include "mllm/utils/SymbolTable.hpp"
+#include "mllm/core/MappedFile.hpp"
 
 namespace mllm {
 
@@ -22,29 +19,6 @@ enum class ModelFileVersion : int32_t {
   kUserTemporary = 0,
   kV1 = 1,
   kV2 = 2,
-};
-
-//===----------------------------------------------------------------------===//
-// MappedFile
-//===----------------------------------------------------------------------===//
-class MappedFile {
- public:
-  using ptr_t = std::shared_ptr<MappedFile>;
-
-  explicit MappedFile(const std::string& filename);
-
-  static ptr_t create(const std::string& filename);
-
-  ~MappedFile();
-
-  [[nodiscard]] inline void* data() const { return mapping_; }
-
-  [[nodiscard]] inline size_t size() const { return size_; }
-
- private:
-  int fd_ = -1;
-  size_t size_ = 0;
-  void* mapping_ = nullptr;
 };
 
 //===----------------------------------------------------------------------===//

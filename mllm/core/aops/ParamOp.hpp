@@ -31,6 +31,8 @@ class ParamOp : public BaseOp {
 
   inline Tensor& weight() { return weight_; }
 
+  inline const ParamOpOptions& options() const { return options_; }
+
  protected:
   Tensor weight_;
   ParamOpOptions options_;

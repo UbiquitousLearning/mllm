@@ -107,6 +107,8 @@ void ARGeneration::streamGenerate(const ARGenerationOutputPast& input, const ARG
   }
 }
 
+IROutput ARGeneration::trace(const ARGenerationOutputPast& input, const ARGenerationArgs& args) { return {}; }
+
 __MLLM_UNSAFE_OPT_BEGIN_O3_FAST_MATH
 int64_t ARGeneration::sampleGreedy(Tensor& logits) {
   Tensor last_logits = getLastLogits(logits);

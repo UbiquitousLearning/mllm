@@ -41,6 +41,8 @@ class VisionRoPEOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline const VisionRoPEOpOptions& options() const { return options_; }
+
  protected:
   VisionRoPEOpOptions options_;
 };

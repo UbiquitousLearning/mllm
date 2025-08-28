@@ -5,7 +5,7 @@
 #include "mllm/core/BaseOp.hpp"
 #include "mllm/compile/ir/linalg/Op.hpp"
 
-#define __MLLM_ELEWISE_OP_DEFINE(name)                                                                         \
+#define __MLLM_ELEWISE_OP_DEFINE(name, option_name)                                                            \
   class name : public BaseOp {                                                                                 \
    public:                                                                                                     \
     explicit name(const name##Options& options);                                                               \
@@ -14,6 +14,7 @@
     void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;                    \
     void reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;                    \
     void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;                      \
+    inline const option_name& options() const { return options_; }                                             \
                                                                                                                \
    protected:                                                                                                  \
     name##Options options_;                                                                                    \
@@ -56,19 +57,19 @@ struct ClipOpOptions : public BaseOpOptions<ClipOpOptions> {
   }
 };
 
-__MLLM_ELEWISE_OP_DEFINE(AddOp);
-__MLLM_ELEWISE_OP_DEFINE(SubOp);
-__MLLM_ELEWISE_OP_DEFINE(MulOp);
-__MLLM_ELEWISE_OP_DEFINE(DivOp);
-__MLLM_ELEWISE_OP_DEFINE(NegOp);
+__MLLM_ELEWISE_OP_DEFINE(AddOp, AddOpOptions);
+__MLLM_ELEWISE_OP_DEFINE(SubOp, SubOpOptions);
+__MLLM_ELEWISE_OP_DEFINE(MulOp, MulOpOptions);
+__MLLM_ELEWISE_OP_DEFINE(DivOp, DivOpOptions);
+__MLLM_ELEWISE_OP_DEFINE(NegOp, NegOpOptions);
 
 // Unary Ops
-__MLLM_ELEWISE_OP_DEFINE(AbsOp);
-__MLLM_ELEWISE_OP_DEFINE(LogOp);
-__MLLM_ELEWISE_OP_DEFINE(ClipOp);
-__MLLM_ELEWISE_OP_DEFINE(ExpOp);
-__MLLM_ELEWISE_OP_DEFINE(SinOp);
-__MLLM_ELEWISE_OP_DEFINE(CosOp);
+__MLLM_ELEWISE_OP_DEFINE(AbsOp, AbsOpOptions);
+__MLLM_ELEWISE_OP_DEFINE(LogOp, LogOpOptions);
+__MLLM_ELEWISE_OP_DEFINE(ClipOp, ClipOpOptions);
+__MLLM_ELEWISE_OP_DEFINE(ExpOp, ExpOpOptions);
+__MLLM_ELEWISE_OP_DEFINE(SinOp, SinOpOptions);
+__MLLM_ELEWISE_OP_DEFINE(CosOp, CosOpOptions);
 
 }  // namespace mllm::aops
 

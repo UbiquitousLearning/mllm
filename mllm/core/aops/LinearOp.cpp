@@ -40,6 +40,7 @@ void LinearOp::load(const ParameterFile::ptr_t& ploader) {
     case ModelFileVersion::kV2: {
       weight_ = ploader->pull(getName() + ".weight");
       switch (options_.impl_type) {
+        case aops::LinearImplTypes::kBLAS:
         case aops::LinearImplTypes::kDefault: {
           if (options_.bias) {
             bias_ = ploader->pull(getName() + ".bias");
@@ -66,7 +67,19 @@ void LinearOp::trace(void* trace_context, const std::vector<Tensor>& inputs, std
   if (weight_ && !ir_ctx->lookupSymbolTable(getName() + ".weight")) {
     ir::IRWriterGuard guard(ir_ctx, ir_ctx->lookupSymbolTable("init")->cast_<ir::graph::SubGraphOp>()->getTopRegion());
     ir_ctx->create<ir::tensor::RegisterOp>(ir_ctx->create<ir::tensor::TensorValue>(weight_));
-    if (options_.bias) { ir_ctx->create<ir::tensor::RegisterOp>(ir_ctx->create<ir::tensor::TensorValue>(bias_)); }
+    if (options_.bias) {
+      switch (options_.impl_type) {
+        case aops::LinearImplTypes::kBLAS:
+        case aops::LinearImplTypes::kDefault: {
+          ir_ctx->create<ir::tensor::RegisterOp>(ir_ctx->create<ir::tensor::TensorValue>(bias_));
+        }
+        default: {
+          // No need to view.
+          MLLM_EMPTY_SCOPE
+          break;
+        }
+      }
+    }
   }
 
   auto i_irs = ir::tensor::wrapTensors2TensorIR(ir_ctx, inputs);

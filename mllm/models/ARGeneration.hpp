@@ -8,11 +8,13 @@
 
 #include "mllm/core/Tensor.hpp"
 #include "mllm/utils/AnyValue.hpp"
+#include "mllm/compile/ir/Node.hpp"
 
 namespace mllm::models {
 
 using ARGenerationOutputPast = std::unordered_map<std::string, Tensor>;
 using ARGenerationArgs = std::unordered_map<std::string, AnyValue>;
+using IROutput = std::unordered_map<std::string, ir::IRContext::ptr_t>;
 
 class ARGeneration {
  public:
@@ -22,6 +24,8 @@ class ARGeneration {
 
   virtual void streamGenerate(const ARGenerationOutputPast& input, const ARGenerationArgs& args,
                               const std::function<void(int64_t)>& callback);
+
+  virtual IROutput trace(const ARGenerationOutputPast& input, const ARGenerationArgs& args);
 
   int64_t sampleGreedy(Tensor& logits);
 

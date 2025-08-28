@@ -251,6 +251,16 @@ val_ptr_t IRContext::getCacheInputOutputTensor(uint32_t uuid) { return cached_in
 
 std::unordered_map<uint32_t, val_ptr_t>& IRContext::getAllCachedInputOutputTensorIRs() { return cached_inputs_outputs_; }
 
+void IRContext::pushRegion2InsertRegionStackAndSetRegion(const region_ptr_t& region) {
+  insert_region_stack_.push(region);
+  cur_insert_region_ = region;
+}
+
+void IRContext::popRegionFromInsertRegionStackAndSetRegion() {
+  cur_insert_region_ = insert_region_stack_.top();
+  insert_region_stack_.pop();
+}
+
 IRWriterGuard::IRWriterGuard(const std::shared_ptr<IRContext>& ctx, const std::shared_ptr<Region>& new_region)
     : ctx_(ctx.get()), new_region_(new_region) {
   old_region_ = ctx->getCurInsertRegion();

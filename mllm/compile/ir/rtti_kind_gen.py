@@ -215,6 +215,7 @@ def define_lianlg_ir(ir: dict):
     attr: Cls = ir["Attribute"]
 
     # op
+    op.derive(Cls("RegisterOp"))
     op.derive(Cls("CustomKernelOp"))
     op.derive(Cls("FillOp"))
     op.derive(Cls("AddOp"))
@@ -328,6 +329,16 @@ def define_program_ir(ir: dict):
     op.derive(Cls("EntryPointOp"))
 
 
+def define_dbg_ir(ir: dict):
+    op: Cls = ir["Op"]
+    val: Cls = ir["Value"]
+    attr: Cls = ir["Attribute"]
+
+    # op
+    op.derive(Cls("CommentOp"))
+    op.derive(Cls("HintsOp"))
+
+
 if __name__ == "__main__":
     Node = Cls("Node")
     # Node Level
@@ -342,6 +353,7 @@ if __name__ == "__main__":
     builtin_ir = define_ir("BuiltinIR", Op, Val, Attr)
     cf_ir = define_ir("ControlFlowIR", Op, Val, Attr)
     program_ir = define_ir("ProgramIR", Op, Val, Attr)
+    dbg_ir = define_ir("DbgIR", Op, Val, Attr)
 
     # define IR
     define_builtin_ir(builtin_ir)
@@ -350,6 +362,7 @@ if __name__ == "__main__":
     define_tensor_ir(tensor_ir)
     define_control_flow_ir(cf_ir)
     define_program_ir(program_ir)
+    define_dbg_ir(dbg_ir)
 
     d = RTTIGenCPPDumper("mllm::ir")
     d.set_kind(dump_cls_to_kinds(Node))

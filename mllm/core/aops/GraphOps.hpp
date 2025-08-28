@@ -28,6 +28,8 @@ class GraphBeginOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline const GraphBeginOpOptions& options() const { return options_; }
+
  protected:
   GraphBeginOpOptions options_;
 };
@@ -49,6 +51,8 @@ class GraphEndOp : public BaseOp {
   void reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+
+  inline const GraphEndOpOptions& options() const { return options_; }
 
  protected:
   GraphEndOpOptions options_;

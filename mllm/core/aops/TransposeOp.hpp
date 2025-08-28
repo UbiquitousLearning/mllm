@@ -27,6 +27,8 @@ class TransposeOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline const TransposeOpOptions& options() const { return options_; }
+
  protected:
   TransposeOpOptions options_;
 };
