@@ -23,8 +23,9 @@
 #include <string.h>
 
 #include <string>
+#include <iostream>
 
-//#include "utils/log.h"
+// #include "utils/log.h"
 
 namespace wenet {
 
@@ -52,16 +53,15 @@ class WavReader {
   bool Open(const std::string& filename) {
     FILE* fp = fopen(filename.c_str(), "rb");
     if (NULL == fp) {
-      //LOG(WARNING) << "Error in read " << filename;
+      // LOG(WARNING) << "Error in read " << filename;
       return false;
     }
 
     WavHeader header;
     fread(&header, 1, sizeof(header), fp);
     if (header.fmt_size < 16) {
-      fprintf(stderr,
-              "WaveData: expect PCM format data "
-              "to have fmt chunk of at least size 16.\n");
+      fprintf(stderr, "WaveData: expect PCM format data "
+                      "to have fmt chunk of at least size 16.\n");
       return false;
     } else if (header.fmt_size > 16) {
       int offset = 44 - 8 + header.fmt_size - 16;
@@ -107,36 +107,30 @@ class WavReader {
           data_[i] = static_cast<float>(sample);
           break;
         }
-        default:
-          fprintf(stderr, "unsupported quantization bits");
-          exit(1);
+        default: fprintf(stderr, "unsupported quantization bits"); exit(1);
       }
     }
     fclose(fp);
     return true;
   }
 
-  void rescale()
-  {
+  void rescale() {
     auto num_data = num_channel_ * num_sample_;
-    for (int i = 0; i < num_data; i++)
-    {
+    for (int i = 0; i < num_data; i++) {
       // data_[i] = (data_[i] - ((float)(32717 - 31768) / 2)) / ((float)(32717 + 31768) / 2);
       data_[i] = (data_[i] / 31768);
     }
   }
 
-  void print()
-  {
+  void print() {
     auto num_data = num_channel_ * num_sample_;
-    for (int i = 0; i < num_data; i++)
-    {
+    for (int i = 0; i < num_data; i++) {
       // data_[i] = (data_[i] - ((float)(32717 - 31768) / 2)) / ((float)(32717 + 31768) / 2);
       // data_[i] = (data_[i] / 31768);
-      std::cout<<data_[i]<<" ";
+      std::cout << data_[i] << " ";
     }
-    std::cout<<std::endl;
-    std::cout<<num_data<<std::endl;
+    std::cout << std::endl;
+    std::cout << num_data << std::endl;
   }
 
   int num_channel() const { return num_channel_; }
@@ -160,8 +154,7 @@ class WavReader {
 
 class WavWriter {
  public:
-  WavWriter(const float* data, int num_sample, int num_channel, int sample_rate,
-            int bits_per_sample)
+  WavWriter(const float* data, int num_sample, int num_channel, int sample_rate, int bits_per_sample)
       : data_(data),
         num_sample_(num_sample),
         num_channel_(num_channel),
@@ -172,19 +165,16 @@ class WavWriter {
     FILE* fp = fopen(filename.c_str(), "w");
     // init char 'riff' 'WAVE' 'fmt ' 'data'
     WavHeader header;
-    char wav_header[44] = {0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57,
-                           0x41, 0x56, 0x45, 0x66, 0x6d, 0x74, 0x20, 0x10, 0x00,
-                           0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                           0x64, 0x61, 0x74, 0x61, 0x00, 0x00, 0x00, 0x00};
+    char wav_header[44] = {0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x41, 0x56, 0x45, 0x66, 0x6d, 0x74,
+                           0x20, 0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x64, 0x61, 0x74, 0x61, 0x00, 0x00, 0x00, 0x00};
     memcpy(&header, wav_header, sizeof(header));
     header.channels = num_channel_;
     header.bit = bits_per_sample_;
     header.sample_rate = sample_rate_;
     header.data_size = num_sample_ * num_channel_ * (bits_per_sample_ / 8);
     header.size = sizeof(header) - 8 + header.data_size;
-    header.bytes_per_second =
-        sample_rate_ * num_channel_ * (bits_per_sample_ / 8);
+    header.bytes_per_second = sample_rate_ * num_channel_ * (bits_per_sample_ / 8);
     header.block_size = num_channel_ * (bits_per_sample_ / 8);
 
     fwrite(&header, 1, sizeof(header), fp);
