@@ -700,4 +700,52 @@ void CPUClipOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& 
   }
 }
 
+CPUSinOp::CPUSinOp(const aops::SinOpOptions& options) : aops::SinOp(options) {}
+
+void CPUSinOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  auto& input = inputs[0];
+  auto& output = outputs[0];
+
+  auto dtype = output.dtype();
+  switch (dtype) {
+    case kFloat32: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::ew_sin_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+    case kFloat16: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::ew_sin_fp16(output.ptr<mllm_fp16_t>(), input.ptr<mllm_fp16_t>(), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+    default: NYI("SinOp dtype not supported.");
+  }
+}
+
+CPUCosOp::CPUCosOp(const aops::CosOpOptions& options) : aops::CosOp(options) {}
+
+void CPUCosOp::forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) {
+  auto& input = inputs[0];
+  auto& output = outputs[0];
+
+  auto dtype = output.dtype();
+  switch (dtype) {
+    case kFloat32: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::ew_cos_fp32(output.ptr<mllm_fp32_t>(), input.ptr<mllm_fp32_t>(), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+    case kFloat16: {
+#if defined(MLLM_HOST_ARCH_ARM64) || defined(MLLM_HOST_ARCH_ARM)
+      cpu::arm::ew_cos_fp16(output.ptr<mllm_fp16_t>(), input.ptr<mllm_fp16_t>(), output.numel(), options_.getThreads());
+#endif
+      break;
+    }
+    default: NYI("CosOp dtype not supported.");
+  }
+}
+
 }  // namespace mllm::cpu

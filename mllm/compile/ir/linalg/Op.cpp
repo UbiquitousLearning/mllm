@@ -18,6 +18,8 @@ LINALG_AOPS_DECL(OpTypes::kDiv, DivOp);
 LINALG_AOPS_DECL(OpTypes::kAbs, AbsOp);
 LINALG_AOPS_DECL(OpTypes::kLog, LogOp);
 LINALG_AOPS_DECL(OpTypes::kExp, ExpOp)
+LINALG_AOPS_DECL(OpTypes::kSin, SinOp)
+LINALG_AOPS_DECL(OpTypes::kCos, CosOp)
 
 LINALG_AOPS_DECL(OpTypes::kMatMul, MatMulOp);
 

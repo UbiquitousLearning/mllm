@@ -266,6 +266,8 @@ def define_lianlg_ir(ir: dict):
     op.derive(Cls("MeanOp"))
     op.derive(Cls("ClipOp"))
     op.derive(Cls("ExpOp"))
+    op.derive(Cls("SinOp"))
+    op.derive(Cls("CosOp"))
 
     # value
 

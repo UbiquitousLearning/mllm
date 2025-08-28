@@ -136,6 +136,34 @@ class CPUExpOpFactory : public TypedOpFactory<OpTypes::kExp, aops::ExpOpOptions>
   }
 };
 
+class CPUSinOp final : public aops::SinOp {
+ public:
+  explicit CPUSinOp(const aops::SinOpOptions& options);
+
+  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+};
+
+class CPUSinOpFactory : public TypedOpFactory<OpTypes::kSin, aops::SinOpOptions> {
+ public:
+  std::shared_ptr<BaseOp> createOpImpl(const aops::SinOpOptions& options) override {
+    return std::make_shared<CPUSinOp>(options);
+  }
+};
+
+class CPUCosOp final : public aops::CosOp {
+ public:
+  explicit CPUCosOp(const aops::CosOpOptions& options);
+
+  void forward(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+};
+
+class CPUCosOpFactory : public TypedOpFactory<OpTypes::kCos, aops::CosOpOptions> {
+ public:
+  std::shared_ptr<BaseOp> createOpImpl(const aops::CosOpOptions& options) override {
+    return std::make_shared<CPUCosOp>(options);
+  }
+};
+
 class CPUClipOpFactory : public TypedOpFactory<OpTypes::kClip, aops::ClipOpOptions> {
  public:
   std::shared_ptr<BaseOp> createOpImpl(const aops::ClipOpOptions& options) override {

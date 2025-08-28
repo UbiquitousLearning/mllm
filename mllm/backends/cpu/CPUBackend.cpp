@@ -45,12 +45,12 @@ namespace mllm::cpu {
 CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
   regOpFactory<CPULinearOpFactory, CPUFillOpFactory, CPUGraphBeginOpFactory, CPUGraphEndOpFactory, CPUAddOpFactory,
                CPUSubOpFactory, CPUMulOpFactory, CPUDivOpFactory, CPUNegOpFactory, CPUAbsOpFactory, CPULogOpFactory,
-               CPUExpOpFactory, CPUReduceMaxOpFactory, CPUReduceMinOpFactory, CPUReduceSumOpFactory, CPUTransposeOpFactory,
-               CPUPermuteOpFactory, CPUCastTypeOpFactory, CPUConcatOpFactory, CPUContiguousOpFactory, CPUCopyOpFactory,
-               CPUEmbeddingOpFactory, CPUSplitOpFactory, CPUViewOpFactory, CPULayerNormOpFactory, CPURepeatOpFactory,
-               CPUX2XOpFactory, CPUSoftmaxOpFactory, CPUSiLUOpFactory, CPURMSNormOpFactory, CPUGELUOpFactory,
-               CPUQuickGELUOpFactory, CPUMatMulOpFactory, CPUFlashAttention2OpFactory, CPUSliceOpFactory,
-               CPUVisionRoPEOpFactory, CPUParamOpFactory, CPUMultimodalRoPEOpFactory, CPUCausalMaskOpFactory,
+               CPUExpOpFactory, CPUSinOpFactory, CPUCosOpFactory, CPUReduceMaxOpFactory, CPUReduceMinOpFactory,
+               CPUReduceSumOpFactory, CPUTransposeOpFactory, CPUPermuteOpFactory, CPUCastTypeOpFactory, CPUConcatOpFactory,
+               CPUContiguousOpFactory, CPUCopyOpFactory, CPUEmbeddingOpFactory, CPUSplitOpFactory, CPUViewOpFactory,
+               CPULayerNormOpFactory, CPURepeatOpFactory, CPUX2XOpFactory, CPUSoftmaxOpFactory, CPUSiLUOpFactory,
+               CPURMSNormOpFactory, CPUGELUOpFactory, CPUQuickGELUOpFactory, CPUMatMulOpFactory, CPUFlashAttention2OpFactory,
+               CPUSliceOpFactory, CPUVisionRoPEOpFactory, CPUParamOpFactory, CPUMultimodalRoPEOpFactory, CPUCausalMaskOpFactory,
                CPUConv1DOpFactory, CPUConv3DOpFactory, CPUSTFTOpFactory, CPUIndexOpFactory, CPUTopKOpFactory, CPUClipOpFactory,
                CPUMeanOpFactory>();
 }

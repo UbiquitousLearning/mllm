@@ -326,6 +326,28 @@ void ew_exp_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ 
 }
 #endif
 
+// sin operation
+void ew_sin_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, size_t size, int thread_count) {
+  MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = std::sin(src0[i]); });
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_sin_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count) {
+  MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = std::sin(src0[i]); });
+}
+#endif
+
+// cos operation
+void ew_cos_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, size_t size, int thread_count) {
+  MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = std::cos(src0[i]); });
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_cos_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count) {
+  MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = std::cos(src0[i]); });
+}
+#endif
+
 void clip_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src, mllm_fp32_t min_val, mllm_fp32_t max_val,
                size_t size, int thread_count) {
   ParallelClipLoop<mllm_fp32_t, float32x4_t, __ScalarClip<mllm_fp32_t>, __VectorClip<float32x4_t>>::run(

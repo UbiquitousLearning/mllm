@@ -59,6 +59,8 @@ class TopKOp;
 class MeanOp;
 class ClipOp;
 class ExpOp;
+class SinOp;
+class CosOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -125,6 +127,8 @@ LINALG_AOPS_DEFINE(DivOp, DIVOP);
 LINALG_AOPS_DEFINE(AbsOp, ABSOP);
 LINALG_AOPS_DEFINE(LogOp, LOGOP);
 LINALG_AOPS_DEFINE(ExpOp, EXPOP);
+LINALG_AOPS_DEFINE(SinOp, SINOP);
+LINALG_AOPS_DEFINE(CosOp, COSOP);
 
 LINALG_AOPS_DEFINE(MatMulOp, MATMULOP);
 
