@@ -29,7 +29,7 @@ Here's a basic example:
    auto [outs_0, outs_1] = mllm::async::wait(future_0, future_1);
 
 The ``fork`` function
---------------------
+-----------------------
 
 The ``mllm::async::fork`` function creates an asynchronous task without immediately executing it:
 
@@ -41,7 +41,7 @@ The ``mllm::async::fork`` function creates an asynchronous task without immediat
 It takes a module and its input arguments, and returns a pair containing a sender (for synchronization) and a task pointer (for accessing results).
 
 The ``wait`` function
---------------------
+-----------------------
 
 The ``mllm::async::wait`` function is used to wait for the completion of asynchronous tasks:
 

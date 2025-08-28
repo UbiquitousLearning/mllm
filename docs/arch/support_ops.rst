@@ -44,7 +44,7 @@ The following table lists the operations currently supported in MLLM aops:
 +----------------------+--------------------------------------------+-------------------------------------------------------------+
 | ReLUOp               | aops/ReLUOp.hpp                            | Rectified Linear Unit activation function                   |
 +----------------------+--------------------------------------------+-------------------------------------------------------------+
-| ContiguousOp         | aops/ContiguousOp.hpp                      | Makes tensor data contiguous in memory                     |
+| ContiguousOp         | aops/ContiguousOp.hpp                      | Makes tensor data contiguous in memory                      |
 +----------------------+--------------------------------------------+-------------------------------------------------------------+
 | GELUOp               | aops/GELUOp.hpp                            | Gaussian Error Linear Unit activation function              |
 +----------------------+--------------------------------------------+-------------------------------------------------------------+
