@@ -6,3 +6,4 @@ CPU Backend
 
    threads
    arm/index
+   x86/index

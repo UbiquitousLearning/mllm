@@ -11,6 +11,9 @@ version = "2.0.0-beta"
 release = "2.0.0"
 author = "MLLM Contributors"
 copyright = "2024-2025, %s" % author
+
+enable_doxygen = os.environ.get("MLLM_ENABLE_DOXYGEN", "false").lower() == "true"
+
 extensions = [
     "sphinx_tabs.tabs",
     "sphinx_toolbox.collapse",
@@ -20,35 +23,38 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.autosummary",
     "myst_parser",
-    "breathe",
-    "exhale",
 ]
+
+if enable_doxygen:
+    extensions.extend(["breathe", "exhale"])
+
 this_file_dir = os.path.abspath(os.path.dirname(__file__))
-doxygen_xml_dir = os.path.join(this_file_dir, "xml")
-breathe_projects = {"mllm": doxygen_xml_dir}
-breathe_default_project = "mllm"
+if enable_doxygen:
+    doxygen_xml_dir = os.path.join(this_file_dir, "xml")
+    breathe_projects = {"mllm": doxygen_xml_dir}
+    breathe_default_project = "mllm"
 
-repo_root = os.path.dirname(this_file_dir)
+    repo_root = os.path.dirname(this_file_dir)
 
-# Setup the exhale extension
-exhale_args = {
-    "containmentFolder": f"{os.path.join(this_file_dir, 'CppAPI')}",
-    "rootFileName": "library_root.rst",
-    "rootFileTitle": "Library API",
-    "doxygenStripFromPath": repo_root,
-    "exhaleExecutesDoxygen": True,
-    "exhaleUseDoxyfile": True,
-    "verboseBuild": True,
-    "contentsDirectives": False,
-    "pageLevelConfigMeta": ":github_url: https://github.com/UbiquitousLearning/mllm/",
-    "contentsTitle": "Page Contents",
-    "kindsWithContentsDirectives": ["class", "file", "namespace", "struct"],
-    "afterTitleDescription": textwrap.dedent(
+    # Setup the exhale extension
+    exhale_args = {
+        "containmentFolder": f"{os.path.join(this_file_dir, 'CppAPI')}",
+        "rootFileName": "library_root.rst",
+        "rootFileTitle": "Library API",
+        "doxygenStripFromPath": repo_root,
+        "exhaleExecutesDoxygen": True,
+        "exhaleUseDoxyfile": True,
+        "verboseBuild": True,
+        "contentsDirectives": False,
+        "pageLevelConfigMeta": ":github_url: https://github.com/UbiquitousLearning/mllm/",
+        "contentsTitle": "Page Contents",
+        "kindsWithContentsDirectives": ["class", "file", "namespace", "struct"],
+        "afterTitleDescription": textwrap.dedent(
+            """
+            Welcome to the developer reference for the MLLM C++ API.
         """
-        Welcome to the developer reference for the MLLM C++ API.
-    """
-    ),
-}
+        ),
+    }
 
 source_suffix = {
     ".rst": "restructuredtext",
