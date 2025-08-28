@@ -24,6 +24,8 @@ class GELUOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline const GELUOpOptions& options() const { return options_; }
+
  protected:
   GELUOpOptions options_;
 };

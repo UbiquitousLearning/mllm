@@ -31,6 +31,8 @@ class EmbeddingOp : public BaseOp {
 
   ParameterFile::ptr_t getParams() override;
 
+  inline const EmbeddingOpOptions& options() const { return options_; }
+
  protected:
   Tensor weight_;
   EmbeddingOpOptions options_;

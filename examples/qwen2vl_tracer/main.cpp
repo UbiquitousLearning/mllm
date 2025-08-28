@@ -5,6 +5,8 @@
 #include <mllm/models/qwen2vl/image_preprocessor_qwen2vl.hpp>
 
 #include <mllm/compile/ir/Trace.hpp>
+#include <mllm/compile/PassManager.hpp>
+#include <mllm/compile/passes/LLMCanonicalizationPipeline.hpp>
 
 using mllm::Argparse;
 
@@ -44,8 +46,11 @@ MLLM_MAIN({
       fmt::print("\n🤖 Compiling: \n");
 
       auto model_ir = qwen2vl.trace(inputs, {})["model"];
-      mllm::print(model_ir);
 
+      mllm::ir::PassManager pm(model_ir);
+      pm.reg(mllm::ir::createLLMCanonicalizationPipeline());
+      pm.run();
+      mllm::print(model_ir);
       fmt::print("\n{}\n", std::string(60, '-'));
     } catch (const std::exception& e) { fmt::print("\n❌ Error: {}\n{}\n", e.what(), std::string(60, '-')); }
   }

@@ -27,6 +27,8 @@ class RepeatOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline const RepeatOpOptions& options() const { return options_; }
+
  protected:
   RepeatOpOptions options_;
 };

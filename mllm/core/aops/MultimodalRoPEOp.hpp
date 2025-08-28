@@ -82,6 +82,8 @@ class MultimodalRoPEOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline const MultimodalRoPEOpOptions& options() const { return options_; }
+
  protected:
   MultimodalRoPEOpOptions options_;
 };

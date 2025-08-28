@@ -32,6 +32,8 @@ class ReduceMaxOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline const ReduceMaxOpOptions& options() const { return options_; }
+
  protected:
   ReduceMaxOpOptions options_;
 };
@@ -54,6 +56,8 @@ class ReduceMinOp : public BaseOp {
   void reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+
+  inline const ReduceMinOpOptions& options() const { return options_; }
 
  protected:
   ReduceMinOpOptions options_;
@@ -78,6 +82,8 @@ class ReduceSumOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline const ReduceSumOpOptions& options() const { return options_; }
+
  protected:
   ReduceSumOpOptions options_;
 };
@@ -100,6 +106,8 @@ class MeanOp : public BaseOp {
   void reshape(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
+
+  inline const MeanOpOptions& options() const { return options_; }
 
  protected:
   MeanOpOptions options_;

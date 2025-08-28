@@ -27,6 +27,8 @@ class CausalMaskOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline const CausalMaskOpOptions& options() const { return options_; }
+
  protected:
   CausalMaskOpOptions options_;
 };

@@ -32,6 +32,8 @@ class KVCacheOp : public BaseOp {
 
   void setLayerIndex(int32_t layer_idx);
 
+  inline const KVCacheOpOptions& options() const { return options_; }
+
  protected:
   KVCacheOpOptions options_;
 };

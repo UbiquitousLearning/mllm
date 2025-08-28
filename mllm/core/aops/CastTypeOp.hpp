@@ -27,6 +27,8 @@ class CastTypeOp : public BaseOp {
 
   void setup(const std::vector<Tensor>& inputs, std::vector<Tensor>& outputs) override;
 
+  inline const CastTypeOpOptions& options() const { return options_; }
+
  protected:
   CastTypeOpOptions options_;
 };
