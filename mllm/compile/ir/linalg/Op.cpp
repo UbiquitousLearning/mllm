@@ -36,6 +36,9 @@ LINALG_AOPS_DECL(OpTypes::kMul, MulOp);
 LINALG_AOPS_DECL(OpTypes::kDiv, DivOp);
 LINALG_AOPS_DECL(OpTypes::kAbs, AbsOp);
 LINALG_AOPS_DECL(OpTypes::kLog, LogOp);
+LINALG_AOPS_DECL(OpTypes::kExp, ExpOp)
+LINALG_AOPS_DECL(OpTypes::kSin, SinOp)
+LINALG_AOPS_DECL(OpTypes::kCos, CosOp)
 
 LINALG_AOPS_DECL(OpTypes::kMatMul, MatMulOp);
 
@@ -57,6 +60,7 @@ LINALG_AOPS_DECL(OpTypes::kX2X, X2XOp);
 LINALG_AOPS_DECL(OpTypes::kView, ViewOp);
 LINALG_AOPS_DECL(OpTypes::kSplit, SplitOp);
 LINALG_AOPS_DECL(OpTypes::kSTFT, STFTOp);
+LINALG_AOPS_DECL(OpTypes::kISTFT, ISTFTOp);
 
 LINALG_AOPS_DECL(OpTypes::kFlashAttention2, FlashAttention2Op);
 LINALG_AOPS_DECL(OpTypes::kRepeat, RepeatOp);

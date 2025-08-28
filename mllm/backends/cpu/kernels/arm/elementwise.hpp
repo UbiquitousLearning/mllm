@@ -12,6 +12,7 @@
 #include <arm_neon.h>
 
 #include "mllm/backends/cpu/kernels/arm/primitives.hpp"
+#include "mllm/backends/cpu/kernels/arm/math.hpp"
 
 namespace mllm::cpu::arm {
 
@@ -332,6 +333,18 @@ void ew_mul_fp32_scalar(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __rest
 void ew_div_fp32_scalar(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, const mllm_fp32_t src1,
                         size_t size, int thread_count);
 
+// ------------ complex input type
+
+#define DEFINE_EW_FP32_COMPLEX_OP(NAME, OP)                                                                         \
+  void ew_##NAME##_fp32_complex(mllm_complex_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0,        \
+                                const mllm_complex_fp32_t* __restrict__ src1, size_t size, int thread_count);       \
+  void ew_##NAME##_fp32_complex_scalar(mllm_complex_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, \
+                                       const mllm_complex_fp32_t src1, size_t size, int thread_count);
+DEFINE_EW_FP32_COMPLEX_OP(add, +)
+DEFINE_EW_FP32_COMPLEX_OP(sub, -)
+DEFINE_EW_FP32_COMPLEX_OP(mul, *)
+DEFINE_EW_FP32_COMPLEX_OP(div, /)
+
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 void ew_add_fp16_scalar(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, const mllm_fp16_t src1,
                         size_t size, int thread_count);
@@ -410,6 +423,33 @@ void ew_log_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ 
 
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 void ew_log_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count);
+#endif
+
+//===----------------------------------------------------------------------===//
+// Exp operations
+//===----------------------------------------------------------------------===//
+void ew_exp_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, size_t size, int thread_count);
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_exp_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count);
+#endif
+
+//===----------------------------------------------------------------------===//
+// Sin operations
+//===----------------------------------------------------------------------===//
+void ew_sin_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, size_t size, int thread_count);
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_sin_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count);
+#endif
+
+//===----------------------------------------------------------------------===//
+// Cos operations
+//===----------------------------------------------------------------------===//
+void ew_cos_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, size_t size, int thread_count);
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_cos_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count);
 #endif
 
 //===----------------------------------------------------------------------===//

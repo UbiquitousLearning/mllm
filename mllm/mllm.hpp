@@ -316,13 +316,14 @@ inline void __signal_handler(int signal) {
   safe_write(desc, strlen(desc));
   safe_write("\n", 1);
   switch (signal) {
-#if !defined(__MLLM_SIGNAL_WINDOWS)
     case SIGSEGV:
       print_stack_trace();
       safe_write("Possible causes: invalid memory access, dangling pointer, stack overflow.\n", 74);
       break;
-#endif
-    case SIGABRT: safe_write("Possible causes: failed assertion, memory corruption, double-free.\n", 68); break;
+    case SIGABRT:
+      print_stack_trace();
+      safe_write("Possible causes: failed assertion, memory corruption, double-free.\n", 68);
+      break;
     default: break;
   }
   safe_write("Shutting down...\n", 17);

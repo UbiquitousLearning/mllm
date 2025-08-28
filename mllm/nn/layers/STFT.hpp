@@ -5,6 +5,7 @@
 
 #include "mllm/nn/Layer.hpp"
 #include "mllm/core/aops/STFTOp.hpp"
+#include "mllm/core/aops/ISTFTOp.hpp"
 
 namespace mllm::nn {
 
@@ -37,6 +38,18 @@ class STFT : public Layer {
 
   STFT(int n_fft, int hop_length, int win_length, bool onesided = true, bool center = false,
        const std::string& pad_mode = "constant", bool return_complex = false);
+
+  MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
+};
+
+class ISTFT : public Layer {
+ public:
+  ISTFT();
+
+  explicit ISTFT(const aops::ISTFTOpOptions& options);
+
+  ISTFT(int n_fft, int hop_length, int win_length, bool onesided = true, bool center = false,
+        const std::string& pad_mode = "same" /*vocos in python implementation*/);
 
   MLLM_LAYER_ANY_INPUTS_1_OUTPUTS_FORWARD
 };

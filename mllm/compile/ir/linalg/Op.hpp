@@ -24,6 +24,7 @@ class RoPEOp;
 class KVCacheOp;
 class SoftmaxOp;
 class STFTOp;
+class ISTFTOp;
 class TransposeOp;
 class RMSNormOp;
 class SiLUOp;
@@ -59,6 +60,9 @@ class IndexOp;
 class TopKOp;
 class MeanOp;
 class ClipOp;
+class ExpOp;
+class SinOp;
+class CosOp;
 }  // namespace mllm
 
 #define LINALG_AOPS_DEFINE(class_name, rtti_name)                                                                       \
@@ -142,6 +146,9 @@ LINALG_AOPS_DEFINE(MulOp, MULOP);
 LINALG_AOPS_DEFINE(DivOp, DIVOP);
 LINALG_AOPS_DEFINE(AbsOp, ABSOP);
 LINALG_AOPS_DEFINE(LogOp, LOGOP);
+LINALG_AOPS_DEFINE(ExpOp, EXPOP);
+LINALG_AOPS_DEFINE(SinOp, SINOP);
+LINALG_AOPS_DEFINE(CosOp, COSOP);
 
 LINALG_AOPS_DEFINE(MatMulOp, MATMULOP);
 
@@ -195,6 +202,7 @@ LINALG_AOPS_DEFINE(ReshapeOp, RESHAPEOP);
 
 LINALG_AOPS_DEFINE(SliceOp, SLICEOP);
 LINALG_AOPS_DEFINE(STFTOp, STFTOP);
+LINALG_AOPS_DEFINE(ISTFTOp, ISTFTOP);
 LINALG_AOPS_DEFINE(ParamOp, PARAMOP);
 
 LINALG_AOPS_DEFINE(IndexOp, INDEXOP);

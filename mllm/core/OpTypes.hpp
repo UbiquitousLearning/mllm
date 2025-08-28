@@ -23,6 +23,7 @@ enum class OpTypes : int32_t {
   kRoPE,
   kSoftmax,
   kSTFT,
+  kISTFT,
   kTranspose,
   kRMSNorm,
   kSiLU,
@@ -62,6 +63,9 @@ enum class OpTypes : int32_t {
   kTopK,
   kMean,
   kClip,
+  kExp,
+  kSin,
+  kCos,
 
   // Graph Control Ops
   kGraphBegin,
@@ -86,6 +90,7 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kRoPE: return "RoPE";
     case OpTypes::kSoftmax: return "Softmax";
     case OpTypes::kSTFT: return "STFT";
+    case OpTypes::kISTFT: return "ISTFT";
     case OpTypes::kTranspose: return "Transpose";
     case OpTypes::kRMSNorm: return "RMSNorm";
     case OpTypes::kSiLU: return "SiLU";
@@ -122,6 +127,9 @@ inline std::string optype2Str(OpTypes type) {
     case OpTypes::kTopK: return "TopK";
     case OpTypes::kMean: return "Mean";
     case OpTypes::kClip: return "Clip";
+    case OpTypes::kExp: return "Exp";
+    case OpTypes::kSin: return "Sin";
+    case OpTypes::kCos: return "Cos";
     case OpTypes::kParam: return "Param";
     case OpTypes::kGraphBegin: return "GraphBegin";
     case OpTypes::kGraphEnd: return "GraphEnd";

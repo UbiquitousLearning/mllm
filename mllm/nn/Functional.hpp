@@ -54,6 +54,30 @@ std::array<Tensor, RET_NUM> split(const Tensor& x, const std::vector<int32_t>& s
   return ret;
 }
 
+template<int32_t RET_NUM>
+std::array<Tensor, RET_NUM> split(const Tensor& x, int32_t dim) {
+  auto outputs = Context::instance().buildOpAndSubmitTask(
+      OpTypes::kSplit, aops::SplitOpOptions{.dim = dim, .split_size_or_sections = {x.shape()[dim] / RET_NUM}}, {x});
+  std::array<Tensor, RET_NUM> ret;
+
+#pragma unroll
+  for (int i = 0; i < RET_NUM; ++i) { ret[i] = outputs[i]; }
+
+  return ret;
+}
+
+template<int32_t RET_NUM>
+std::array<Tensor, RET_NUM> chunk(const Tensor& x, int32_t dim) {
+  auto outputs = Context::instance().buildOpAndSubmitTask(
+      OpTypes::kSplit, aops::SplitOpOptions{.dim = dim, .split_size_or_sections = {x.shape()[dim] / RET_NUM}}, {x});
+  std::array<Tensor, RET_NUM> ret;
+
+#pragma unroll
+  for (int i = 0; i < RET_NUM; ++i) { ret[i] = outputs[i].contiguous(); }
+
+  return ret;
+}
+
 Tensor concat(const std::vector<Tensor>& ins, int32_t dim);
 
 Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V);
@@ -61,6 +85,12 @@ Tensor flashAttention2(const Tensor& Q, const Tensor& K, const Tensor& V);
 Tensor softmax(const Tensor& x, int32_t dim);
 
 Tensor log(const Tensor& x);
+
+Tensor exp(const Tensor& x);
+
+Tensor sin(const Tensor& x);
+
+Tensor cos(const Tensor& x);
 
 std::array<Tensor, 2> topk(const Tensor& x, int32_t k, int32_t dim = -1, bool largest = true, bool sorted = true);
 

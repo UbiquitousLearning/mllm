@@ -194,6 +194,19 @@ class Tensor {
   Tensor operator/(float rhs);
   /// @}
 
+  /// @name Scalar Operations with complex rhs type
+  /// Element-wise operations with complex rhs type scalar values.
+  /// @{
+  Tensor operator+(std::complex<float> rhs);
+  friend Tensor operator+(std::complex<float> c, Tensor t) { return t + c; }
+  Tensor operator-(std::complex<float> rhs);
+  friend Tensor operator-(std::complex<float> c, Tensor t) { return t - c; }
+  Tensor operator*(std::complex<float> rhs);
+  friend Tensor operator*(std::complex<float> c, Tensor t) { return t * c; }
+  Tensor operator/(std::complex<float> rhs);
+  friend Tensor operator/(std::complex<float> c, Tensor t) { return t / c; }
+  /// @}
+
   /**
    * @brief Computes the absolute value of the tensor elements.
    *

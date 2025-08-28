@@ -9,6 +9,7 @@
 #include "mllm/backends/cpu/ops/CausalMaskOp.hpp"
 #include "mllm/backends/cpu/ops/ConcatOp.hpp"
 #include "mllm/backends/cpu/ops/ContiguousOp.hpp"
+#include "mllm/backends/cpu/ops/Conv1DOp.hpp"
 #include "mllm/backends/cpu/ops/Conv3DOp.hpp"
 #include "mllm/backends/cpu/ops/CopyOp.hpp"
 #include "mllm/backends/cpu/ops/ElewiseOps.hpp"
@@ -17,6 +18,7 @@
 #include "mllm/backends/cpu/ops/FlashAttention2Op.hpp"
 #include "mllm/backends/cpu/ops/GELUOp.hpp"
 #include "mllm/backends/cpu/ops/GraphOps.hpp"
+#include "mllm/backends/cpu/ops/ISTFTOp.hpp"
 #include "mllm/backends/cpu/ops/IndexOp.hpp"
 #include "mllm/backends/cpu/ops/KVCacheOp.hpp"
 #include "mllm/backends/cpu/ops/LayerNormOp.hpp"
@@ -45,13 +47,14 @@ namespace mllm::cpu {
 CPUBackend::CPUBackend() : Backend(kCPU, createCPUAllocator()) {
   regOpFactory<CPULinearOpFactory, CPUFillOpFactory, CPUGraphBeginOpFactory, CPUGraphEndOpFactory, CPUAddOpFactory,
                CPUSubOpFactory, CPUMulOpFactory, CPUDivOpFactory, CPUNegOpFactory, CPUAbsOpFactory, CPULogOpFactory,
-               CPUReduceMaxOpFactory, CPUReduceMinOpFactory, CPUReduceSumOpFactory, CPUTransposeOpFactory, CPUPermuteOpFactory,
-               CPUCastTypeOpFactory, CPUConcatOpFactory, CPUContiguousOpFactory, CPUCopyOpFactory, CPUEmbeddingOpFactory,
-               CPUSplitOpFactory, CPUViewOpFactory, CPULayerNormOpFactory, CPURepeatOpFactory, CPUX2XOpFactory,
-               CPUSoftmaxOpFactory, CPUSiLUOpFactory, CPURMSNormOpFactory, CPUGELUOpFactory, CPUQuickGELUOpFactory,
-               CPUMatMulOpFactory, CPUFlashAttention2OpFactory, CPUSliceOpFactory, CPUVisionRoPEOpFactory, CPUParamOpFactory,
-               CPUMultimodalRoPEOpFactory, CPUCausalMaskOpFactory, CPUConv3DOpFactory, CPUSTFTOpFactory, CPUIndexOpFactory,
-               CPUTopKOpFactory, CPUClipOpFactory, CPUMeanOpFactory, CPUKVCacheOpFactory>();
+               CPUExpOpFactory, CPUSinOpFactory, CPUCosOpFactory, CPUReduceMaxOpFactory, CPUReduceMinOpFactory,
+               CPUReduceSumOpFactory, CPUTransposeOpFactory, CPUPermuteOpFactory, CPUCastTypeOpFactory, CPUConcatOpFactory,
+               CPUContiguousOpFactory, CPUCopyOpFactory, CPUEmbeddingOpFactory, CPUSplitOpFactory, CPUViewOpFactory,
+               CPULayerNormOpFactory, CPURepeatOpFactory, CPUX2XOpFactory, CPUSoftmaxOpFactory, CPUSiLUOpFactory,
+               CPURMSNormOpFactory, CPUGELUOpFactory, CPUQuickGELUOpFactory, CPUMatMulOpFactory, CPUFlashAttention2OpFactory,
+               CPUSliceOpFactory, CPUVisionRoPEOpFactory, CPUParamOpFactory, CPUMultimodalRoPEOpFactory, CPUCausalMaskOpFactory,
+               CPUConv1DOpFactory, CPUConv3DOpFactory, CPUSTFTOpFactory, CPUISTFTOpFactory, CPUIndexOpFactory, CPUTopKOpFactory,
+               CPUClipOpFactory, CPUMeanOpFactory, CPUKVCacheOpFactory>();
 }
 
 std::shared_ptr<CPUBackend> createCPUBackend() { return std::make_shared<CPUBackend>(); }

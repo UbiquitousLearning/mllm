@@ -523,4 +523,10 @@ std::vector<float> readWAV(const std::string& file_path, int resample_rate) {
   return mono_data;
 }
 
+void writeWAV(const std::vector<float>& data, int sample_rate, int num_channels, const std::string& file_path) {
+  // Create WavWriter with the provided data
+  wenet::WavWriter wav_writer(data.data(), data.size() / num_channels, num_channels, sample_rate, 16);
+  wav_writer.Write(file_path);
+}
+
 }  // namespace mllm::audio

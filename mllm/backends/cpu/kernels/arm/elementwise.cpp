@@ -157,6 +157,24 @@ void ew_div_fp32_scalar(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __rest
       dst, src0, src1, size, thread_count);
 }
 
+// ------------ complex input type
+#define EW_FP32_COMPLEX_OP(NAME, OP)                                                                                \
+                                                                                                                    \
+  void ew_##NAME##_fp32_complex(mllm_complex_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0,        \
+                                const mllm_complex_fp32_t* __restrict__ src1, size_t size, int thread_count) {      \
+    MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = src0[i] OP src1[i]; }); \
+  }                                                                                                                 \
+                                                                                                                    \
+  void ew_##NAME##_fp32_complex_scalar(mllm_complex_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, \
+                                       const mllm_complex_fp32_t src1, size_t size, int thread_count) {             \
+    MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = src0[i] OP src1; });    \
+  }
+
+EW_FP32_COMPLEX_OP(add, +)
+EW_FP32_COMPLEX_OP(sub, -)
+EW_FP32_COMPLEX_OP(mul, *)
+EW_FP32_COMPLEX_OP(div, /)
+
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 void ew_add_fp16_scalar(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, const mllm_fp16_t src1,
                         size_t size, int thread_count) {
@@ -310,6 +328,41 @@ void ew_log_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ 
   //   MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = std::log(src0[i]); });
   ParallelElementwiseLoopUnary<mllm_fp16_t, float16x8_t, __ScalarLog<mllm_fp16_t>, __VectorLog<float16x8_t>>::run(
       dst, src0, size, thread_count);
+}
+#endif
+
+// exp operation
+void ew_exp_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, size_t size, int thread_count) {
+  ParallelElementwiseLoopUnary<mllm_fp32_t, float32x4_t, __ScalarExp<mllm_fp32_t>, __VectorExp<float32x4_t>>::run(
+      dst, src0, size, thread_count);
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_exp_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count) {
+  ParallelElementwiseLoopUnary<mllm_fp16_t, float16x8_t, __ScalarExp<mllm_fp16_t>, __VectorExp<float16x8_t>>::run(
+      dst, src0, size, thread_count);
+}
+#endif
+
+// sin operation
+void ew_sin_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, size_t size, int thread_count) {
+  MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = std::sin(src0[i]); });
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_sin_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count) {
+  MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = std::sin(src0[i]); });
+}
+#endif
+
+// cos operation
+void ew_cos_fp32(mllm_fp32_t* __restrict__ dst, const mllm_fp32_t* __restrict__ src0, size_t size, int thread_count) {
+  MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = std::cos(src0[i]); });
+}
+
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+void ew_cos_fp16(mllm_fp16_t* __restrict__ dst, const mllm_fp16_t* __restrict__ src0, size_t size, int thread_count) {
+  MLLM_CONDITIONAL_PARALLEL_FOR(thread_count > 1, thread_count, i, 0, size, 1, { dst[i] = std::cos(src0[i]); });
 }
 #endif
 
