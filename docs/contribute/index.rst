@@ -5,3 +5,4 @@ Contribute
    :maxdepth: 2
 
    roadmap
+   guidelines

@@ -73,7 +73,7 @@ X86 PC
    python task.py tasks/build_x86.yaml
 
 OSX (Apple Silicon)
-~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 
 .. code-block:: shell
@@ -102,7 +102,7 @@ The MLLM Team provides Dockerfile to help you get started quickly, and we recomm
 The details of how to use Dockerfile can be found in `Easy Setup with Docker and DevContainer for MLLM <docker/README.md>`_
 
 OpenCL Backend
-~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 Quick Starts
 -------------
@@ -194,6 +194,11 @@ Documents
    :maxdepth: 2
 
    talks/index
+
+.. toctree::
+   :maxdepth: 2
+
+   algorithms/index
 
 .. toctree::
    :maxdepth: 2

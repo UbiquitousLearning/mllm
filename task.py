@@ -369,13 +369,23 @@ class BuildDocTask(Task):
         super().__init__(config)
 
     def run(self):
-        COMMANDS = [
-            "python -m sphinx",
-            (PROJECT_ROOT_PATH / "docs").as_posix(),
-            (PROJECT_ROOT_PATH / "docs" / "build").as_posix(),
-        ]
-        os.system(self.make_command_str(COMMANDS))
-        logging.info(self.make_command_str(COMMANDS))
+        enable_doxygen = self.config.get("enable_doxygen", False)
+
+        command_parts = ["python -m sphinx"]
+
+        if enable_doxygen:
+            command_parts.insert(0, "MLLM_ENABLE_DOXYGEN=true")
+
+        command_parts.extend(
+            [
+                (PROJECT_ROOT_PATH / "docs").as_posix(),
+                (PROJECT_ROOT_PATH / "docs" / "build").as_posix(),
+            ]
+        )
+
+        command = " ".join(command_parts)
+        os.system(command)
+        logging.info(command)
         logging.info(
             f"Run `cd {PROJECT_ROOT_PATH / 'docs' / 'build'} && python -m http.server` to view the change."
         )
